@@ -74,9 +74,26 @@ public sealed partial class GameServer
 
         _storyState.GuardianSystemRevealed = true;
         EnsureGuardianSystemInGalaxy();
-        SpeakVegaLineToAll("story.vega.guardian_revealed");
+        foreach (var session in StoryListeners())
+        {
+            SpeakGuardianRevealedTo(session);
+        }
+
         BroadcastToJoined(new GuardianSystemRevealed { LabelKey = "story.vega.guardian_system" });
         BroadcastStarMap(); // the finale system now appears as a jump target on everyone's travel screen
+    }
+
+    /// <summary>Per-player key: this player has heard the Guardian-system reveal (#2460, B10). The line is the only
+    /// one that names the jump generator, so whoever was not online for the reveal hears it on their next join.</summary>
+    private string GuardianRevealHeardKey => $"story:{_story?.Id ?? "none"}:finale:revealed";
+
+    /// <summary>Speaks the Guardian-system reveal to one player, once (tracked by <see cref="GuardianRevealHeardKey"/>).</summary>
+    private void SpeakGuardianRevealedTo(PlayerSession session)
+    {
+        if (session.State.Milestones.Add(GuardianRevealHeardKey))
+        {
+            SendVegaLine(session, "story.vega.guardian_revealed", 2); // ShipAiLine kind 2 = memory/story
+        }
     }
 
     /// <summary>Idempotently adds the finale star system (a lone landable core body) to the galaxy. Called when
@@ -519,7 +536,8 @@ public sealed partial class GameServer
         }
 
         // Everyone aboard for the resolution earns the finale achievement — the arc is shared, so is the win (#1102).
-        foreach (var session in _sessions.Values.Where(s => s.Joined))
+        // An invisible observer is not aboard (#2460, N1).
+        foreach (var session in StoryListeners())
         {
             OnAchievementStoryFinale(session);
             SendStoryResolved(session); // #1124: resolution screen + credits + epilogue
@@ -527,8 +545,14 @@ public sealed partial class GameServer
     }
 
     /// <summary>Milestone key marking that this player has SEEN the resolution cinematic (#1124) — the join
-    /// catch-up sends it exactly once; the Story tab can always request a replay.</summary>
+    /// catch-up sends it exactly once; the Story tab can always request a replay. Also set, without sending, for
+    /// a player who first meets the story after the win (#2460, N4): the ending is theirs to watch from the Story
+    /// tab, but a won world no longer plays it to every newcomer at the door.</summary>
     private string ResolutionSeenKey => $"story:{_story?.Id ?? "none"}:resolved";
+
+    /// <summary>The per-player key of the arc's last beat (B12 in VEGA) — hearing it is what "was there for the
+    /// story" means for the resolution catch-up (#2460, N4).</summary>
+    private string? FinalBeatKey => _story is { Beats.Count: > 0 } d ? BeatMilestoneKey(d.Beats[d.Beats.Count - 1]) : null;
 
     /// <summary>Sends the resolution cinematic (#1124) and remembers that this player has seen it.</summary>
     private void SendStoryResolved(PlayerSession session)
@@ -545,14 +569,28 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Join catch-up (#1124): a player who was not aboard for the win (or an existing finished
-    /// save from before the cinematic existed) gets the resolution once on their next join.</summary>
+    /// <summary>Join catch-up (#1124): a player who heard the arc out — the last beat, before this join — but was
+    /// not aboard for the win (or an existing finished save from before the cinematic existed) gets the ending once
+    /// on their next join: the resolution line, the finale achievement the others earned at the win (#2460, E23)
+    /// and the cinematic. A player who never heard the last beat before the win — a newcomer on a won world, an
+    /// arcade guest — is not played the ending at the door (#2460, N4); it is marked handled, and the Story tab can
+    /// replay it whenever they like.</summary>
     private void SendStoryResolvedOnJoinIfMissed(PlayerSession session)
     {
-        if (_storyState.GuardianDefeated && !session.State.Milestones.Contains(ResolutionSeenKey))
+        if (!_storyState.GuardianDefeated || session.Spectating || session.State.Milestones.Contains(ResolutionSeenKey))
         {
-            SendStoryResolved(session);
+            return;
         }
+
+        if (FinalBeatKey is not { } finalBeat || !session.Join.HadStoryKey(finalBeat))
+        {
+            session.State.Milestones.Add(ResolutionSeenKey); // persists with the player on the next save
+            return;
+        }
+
+        SendVegaLine(session, "story.vega.finale_resolved", 2);
+        OnAchievementStoryFinale(session);
+        SendStoryResolved(session);
     }
 
     /// <summary>Story tab "watch the ending" (#1124): replays the resolution — only once the story IS
@@ -595,7 +633,7 @@ public sealed partial class GameServer
 
     private void SpeakVegaLineToAll(string textKey)
     {
-        foreach (var session in _sessions.Values.Where(s => s.Joined))
+        foreach (var session in StoryListeners())
         {
             SendVegaLine(session, textKey, 2); // ShipAiLine kind 2 = memory/story
         }

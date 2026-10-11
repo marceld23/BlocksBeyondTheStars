@@ -146,7 +146,10 @@ public sealed class GameServerStoryP7P8Tests : IDisposable
             Assert.True(server.WorldKnowledgeLevel() < 4); // a fresh world is nowhere near the core
 
             server.AdminRevealFinale();
-            Assert.Equal(4, server.WorldKnowledgeLevel()); // arc complete → the core is known
+            Assert.Equal(3, server.WorldKnowledgeLevel()); // arc complete — but level 4 ("the machines went still") is the win (#2460)
+
+            server.MarkGuardianDefeatedForTest();
+            Assert.Equal(4, server.WorldKnowledgeLevel());
         }
     }
 

@@ -1061,6 +1061,13 @@ players.
 - **Onboarding (new worlds):** VEGA guides you through an 8-stage chain (mine → craft → scan → unlock a
   blueprint → launch → dock a station → trade/take a mission → land elsewhere), each stage tracked on the
   objective chip. **Skippable and restartable** from the Settings tab; veteran saves skip automatically.
+  - A **new player on someone else's world** gets the full introduction even when that world is already deep
+    into the story (the old "veteran" check counted the story knowledge the join itself had just handed over).
+  - **Restart** runs the lessons again for anyone, experienced players included — without the opening narration.
+  - The trade lesson counts a **barter** or a job taken from a **mission board** or a **mission chain**; accepting
+    one of the two starter jobs no longer ticks it off.
+  - A lesson your world cannot offer is skipped instead of waited on: with **space flight switched off** the
+    launch, docking and landing lessons; with **no station in your system** the docking lesson (VEGA says so).
 - **Advisor:** one-time contextual hints (full inventory, first nightfall, "ruins detected", world-type
   flavour) plus **context tips** that notice your situation and may come back — rarely: gear you carry
   but aren't using (a suit lamp switched off in the dark, torches underground, food when hungry, a medkit
@@ -1183,9 +1190,11 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   **E** the ship flies round to the hangar and noses in. The autopilot and a chart target fly you to the space in front
   of the hangar. A station's layout is fixed the first time you see it.
 - **Your start system always has a station** (new and existing worlds): if the system rolled none, one hangs
-  over your start planet. Other systems may have none — VEGA then points you to the star map.
+  over your start planet. Other systems may have none — if VEGA's docking lesson finds no station in your system,
+  she skips it for now instead of sending you to a star you cannot reach yet.
 - **Build your own**: deploy a **Station Core** on a spacewalk (press **B**), build a hull + an airlock door
-  around it, and it commissions into a boardable station on the star map.
+  around it, and it commissions into a boardable station on the star map. An ally may help and even set the last
+  block — the station, its default name, the "commissioned" message and the achievement stay the owner's.
 - **Air only fills sealed rooms** in a station you built: walls, glass and doors are airtight, a hole in the
   hull means **helmet on** (the suit tank takes over, and you get a warning) until you patch it — a
   **force-field block** seals an opening you want to keep. **Crew** (two civilians) moves in once you build a
@@ -1817,15 +1826,23 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 ### Story: finding the thread
 - After the tutorial the **objective chip** keeps a quiet story pointer ("a net fragment is on this
   world", "search ruins and wrecks", …) with the arc's progress as its counter. It respects the
-  **VEGA hints** setting — turn hints off and the chip clears once the tutorial is done.
+  **VEGA hints** setting — turn hints off and the chip clears once the tutorial is done. On a world without
+  machines (planet enemies *Off*, no hostile space) it never asks you to drive machines back.
+- **Joining doesn't move the story.** The star system you start in is not a discovery, so a new player's
+  arrival adds nothing to the world's shared story progress — only mapping systems beyond it does.
+- **Joining late.** A player who joins after the Guardian's system has appeared on the star map hears VEGA's
+  reveal (the only line that tells you a **jump generator** gets you there) once, on joining.
 - Net fragments, personal memories and field records open in a **reader panel** and stay re-readable in
   the Story tab (Read buttons) — and they survive rejoining a server.
 - Scanning **runes** at a monument now also reveals their inscription. Settlement folk who know you
   (trade with them!) may share what they know — one of them keeps a page of the settler legend.
 - **Finishing the story is a moment now**: winning the finale plays a short **ending** — the resolution,
   the credits roll, and an epilogue that opens the door to what comes after. It's skippable (**Esc**),
-  plays once on the next join for anyone who was offline at the time, and the Story tab keeps a
-  **"Watch the ending again"** button once you've earned it.
+  and the Story tab keeps a **"Watch the ending again"** button once you've earned it. A player who had heard
+  the story to its last chapter but was offline for the win gets the ending — and the finale achievement —
+  once on their next join; someone who first arrives on an already finished world is not played the ending at
+  the door and can watch it from the Story tab.
+- The hint at the Guardian core ("walk to the marked shaft, don't dig here") shows even with **VEGA hints** off.
 - **After the ending the galaxy is calmer, not empty.** The Guardian's machines don't vanish for good: the
   hunter robots are gone and only a thinned-out remnant of scan-drones keeps roaming (half as many, spawning
   half as often), space stays hostile only where it is dangerous by nature — **pirate havens** and the
@@ -2927,6 +2944,10 @@ skips the world password (child-safety oversight, issue #495); once in, `/specta
 While observing you fly with WASD (in the direction you look), Space/Ctrl for up/down, Shift for a burst of
 speed, and the mouse wheel to set the cruise speed. You may still **mine** blocks — removing an offensive build
 is the one in-world moderation lever there is, and every removal is written to the server log.
+
+An observer also leaves the **story** alone: a `/goto` to another star maps nothing for the world's story and
+grows no frontier, VEGA stays silent (no tips, no story lines — the lines you missed arrive when you leave observer
+mode), and VEGA's "another pilot is nearby" tip never names you to the players you are watching.
 
 The fleet admin panel's per-world page lists the same players and structures plus **build hotspots** (clusters
 of changed blocks — how you find a house built without a base core), each with a `/goto` line to paste here.

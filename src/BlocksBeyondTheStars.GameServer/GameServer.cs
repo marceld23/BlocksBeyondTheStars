@@ -657,13 +657,10 @@ public sealed partial class GameServer
             _log.Info($"Start system '{homeSystem.Name}' rolled no station — added '{homeStation.Name}' ({homeStation.Id}).");
         }
 
-        // Finale (P6): the galaxy is regenerated from seed each start, so re-append the Guardian system for an
-        // already-revealed save (after start-body selection, so it never affects the spawn world). A fresh
-        // reveal adds it live via RevealGuardianSystemIfReady.
-        if (_storyState.GuardianSystemRevealed)
-        {
-            EnsureGuardianSystemInGalaxy();
-        }
+        // Finale (P6): the galaxy is regenerated from seed each start, so an already-revealed save needs its Guardian
+        // system re-appended — but the story state is not loaded yet at this point (the "registries" boot stage
+        // runs after this one), so LoadStoryState does it (#2460, B06). It still lands after start-body selection,
+        // so it never affects the spawn world. A fresh reveal adds it live via RevealGuardianSystemIfReady.
     }
 
     /// <summary>The archetype a system rolled (#546) — Standard for every system of a pre-variance save.
@@ -4230,6 +4227,10 @@ public sealed partial class GameServer
         };
         session.LastPayloadAt = _uptime; // start the heartbeat clock now (#964) — a client that freezes
                                          // right after joining must age out like any other silent session
+
+        // #2460 (B01): newcomer or veteran is decided HERE, once, before anything below can pay knowledge or
+        // blueprints into the state (the spawn-system mapping, the Creative grants, the story beat catch-up).
+        session.Join = TakeJoinSnapshot(state);
         _sessions[connectionId] = session;
         state.LastSeenUtc = UtcNowIso(); // "last seen" for the admin player list (issue #488)
         SetupPlayerShip(session); // give the player their own ship, stamped into their world
@@ -4586,6 +4587,7 @@ public sealed partial class GameServer
             // NOT heartbeat-tracked (#964): a locally-added player drives the server through direct calls
             // and never sends a payload, so silence is normal rather than a sign of a dead client.
         };
+        session.Join = TakeJoinSnapshot(state); // #2460: the arrival state, like the network join path
         _sessions[connectionId] = session;
         session.AnnouncedWorldId = WorldIdOf(joinBody); // #2117: joined on this body, like a JoinAccepted would say
         state.LastSeenUtc = UtcNowIso();
@@ -7630,6 +7632,21 @@ public sealed partial class GameServer
             return;
         }
 
+        // An invisible observer (#2460, N1) is booked as having been there — so a later rejoin on this body counts
+        // nothing either — but leaves no trace in the shared world: no story points, no frontier growth, no
+        // achievements, no knowledge.
+        if (session.Spectating)
+        {
+            session.State.LandedBodies.Add(body.Id);
+            if (!string.IsNullOrEmpty(body.SystemId))
+            {
+                session.State.KnownSystems.Add(body.SystemId);
+            }
+
+            SendExploredMap(session, body.Id);
+            return;
+        }
+
         // Only the FIRST arrival on a body counts toward the explorer achievements — hopping back and forth
         // between two planets must not farm them.
         if (session.State.LandedBodies.Add(body.Id))
@@ -7640,9 +7657,7 @@ public sealed partial class GameServer
 
         if (!string.IsNullOrEmpty(body.SystemId) && session.State.KnownSystems.Add(body.SystemId))
         {
-            OnAchievementVisitSystem(session); // "System Hopper" / "Starfarer" (#1102)
-            RecordStoryMilestone(); // a new star system mapped → story milestone (P3)
-            MaybeGrowGalaxy(session, body.SystemId); // #1123: reaching the edge pushes the frontier out
+            OnSystemMapped(session, body.SystemId);
         }
 
         SendExploredMap(session, body.Id); // #1113: the remembered fog for this body's planet map
@@ -7654,10 +7669,29 @@ public sealed partial class GameServer
     {
         if (!string.IsNullOrEmpty(systemId) && session.State.KnownSystems.Add(systemId))
         {
-            OnAchievementVisitSystem(session); // "System Hopper" / "Starfarer" (#1102)
-            RecordStoryMilestone(); // a new star system mapped → story milestone (P3)
-            MaybeGrowGalaxy(session, systemId); // #1123: reaching the edge pushes the frontier out
+            if (session.Spectating)
+            {
+                return; // booked, nothing more — see MarkArrivedOnBody (#2460, N1)
+            }
+
+            OnSystemMapped(session, systemId);
         }
+    }
+
+    /// <summary>A player's first arrival in a star system: the explorer achievements, a story milestone and the
+    /// frontier check. The very first system a player knows is their spawn system and maps nothing new — like the
+    /// spawn world in <c>RecordPlaceDiscovery</c>, it pays no story points (#2460, N4): every fresh identity used to
+    /// add +2 to the shared arc on joining, so on an arcade world the third guest already revealed a beat, and the
+    /// beat's knowledge read the newcomer as a veteran.</summary>
+    private void OnSystemMapped(PlayerSession session, string systemId)
+    {
+        OnAchievementVisitSystem(session); // "System Hopper" / "Starfarer" (#1102)
+        if (session.State.KnownSystems.Count > 1)
+        {
+            RecordStoryMilestone(); // a new star system mapped → story milestone (P3)
+        }
+
+        MaybeGrowGalaxy(session, systemId); // #1123: reaching the edge pushes the frontier out
     }
 
     /// <summary>Projects a galaxy body to its network form, including its fixed-landing-pad capacity + how many

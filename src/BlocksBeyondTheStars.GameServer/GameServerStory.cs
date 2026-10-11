@@ -39,11 +39,81 @@ public sealed partial class GameServer
             _storyState.Milestones, _storyState.BeatsRevealed, _storyState.GuardianDefeated);
 
     /// <summary>Restores the persisted story state at server start (server-wide, like the alliance graph).
-    /// A fresh world starts the default pack; an unknown stored pack also falls back to the default.</summary>
+    /// A fresh world starts the default pack; a save whose only row names a pack this build does not have also
+    /// starts the default — but never over a real row of an installed pack (#2460, B07). The galaxy is built
+    /// before this runs, so a revealed Guardian system is re-appended here (#2460, B06).</summary>
     private void LoadStoryState()
     {
-        var stored = _repo.ListStoryStates().FirstOrDefault();
+        var stored = SelectActiveStoryRow(_repo.ListStoryStates(), Rules.StoryId, _content.DefaultStory.Id, IsUsableStoryRow);
+        if (stored is not null && !IsUsableStoryRow(stored.StoryId))
+        {
+            _log.Warn($"Story pack '{stored.StoryId}' of this save is not installed — starting the default story; the stored row is kept untouched.");
+        }
 
+        LoadStoryStateFrom(stored);
+
+        // The galaxy is regenerated from the seed before the story loads (BootStage "galaxy" runs first), so the
+        // check at the end of BuildGalaxy always saw an unloaded state and a revealed-but-unwon save lost its
+        // finale system from the star map on every restart (B06). Re-append it now that the flags are known.
+        if (_storyState.GuardianSystemRevealed)
+        {
+            EnsureGuardianSystemInGalaxy();
+        }
+    }
+
+    /// <summary>Whether a stored row names something this build can run: an installed pack or the "none" sandbox.</summary>
+    private bool IsUsableStoryRow(string storyId)
+        => string.Equals(storyId, StoryRegistry.NoneStoryId, StringComparison.OrdinalIgnoreCase) || _content.TryGetStory(storyId, out _);
+
+    /// <summary>#2460 (B05/B07): which persisted <c>story_state</c> row is the save's active one. A save holds one
+    /// row per pack it ever ran (an admin switch writes a new row and leaves the old one), and the database lists
+    /// them in no defined order — the first row used to win, so a restart could bring a switched-away pack back
+    /// with all its progress. In order:
+    /// <list type="number">
+    /// <item>rows a current build can run beat a row of an uninstalled pack — that one must never cost real
+    /// progress;</item>
+    /// <item>the row carrying the active marker (<see cref="StoredStoryState.Active"/>);</item>
+    /// <item>the most recently written row (<see cref="StoredStoryState.UpdatedUtc"/>);</item>
+    /// <item>older saves without either: the row of the world's fresh-save choice, else the "none" row (only an
+    /// explicit admin choice ever writes it), else the default pack's row, else the lowest id.</item>
+    /// </list>
+    /// Null when the save has no row yet (a fresh world).</summary>
+    internal static StoredStoryState? SelectActiveStoryRow(IReadOnlyList<StoredStoryState> rows, string rulesStoryId,
+        string defaultStoryId, Func<string, bool> isUsable)
+    {
+        if (rows.Count == 0)
+        {
+            return null;
+        }
+
+        var usable = rows.Where(r => isUsable(r.StoryId)).ToList();
+        var pool = usable.Count > 0 ? usable : rows.ToList();
+
+        var marked = pool.Where(r => r.Active).ToList();
+        if (marked.Count > 0)
+        {
+            pool = marked;
+        }
+
+        var stamped = pool.Where(r => !string.IsNullOrEmpty(r.UpdatedUtc)).ToList();
+        if (stamped.Count > 0)
+        {
+            return stamped
+                .OrderByDescending(r => r.UpdatedUtc, StringComparer.Ordinal)
+                .ThenBy(r => r.StoryId, StringComparer.Ordinal)
+                .First();
+        }
+
+        static bool Is(StoredStoryState r, string id) => !string.IsNullOrEmpty(id) && string.Equals(r.StoryId, id, StringComparison.OrdinalIgnoreCase);
+        return pool.FirstOrDefault(r => Is(r, rulesStoryId))
+            ?? pool.FirstOrDefault(r => Is(r, StoryRegistry.NoneStoryId))
+            ?? pool.FirstOrDefault(r => Is(r, defaultStoryId))
+            ?? pool.OrderBy(r => r.StoryId, StringComparer.Ordinal).First();
+    }
+
+    /// <summary>Applies the chosen row (or the fresh-save choice when there is none) to the runtime story state.</summary>
+    private void LoadStoryStateFrom(StoredStoryState? stored)
+    {
         if (stored is not null && string.Equals(stored.StoryId, StoryRegistry.NoneStoryId, StringComparison.OrdinalIgnoreCase))
         {
             _story = null; // the save chose the sandbox (no story)
@@ -78,7 +148,9 @@ public sealed partial class GameServer
         }
         else
         {
-            _story = _content.DefaultStory; // fresh save (no choice) or an unknown stored pack → built-in default
+            // Fresh save (no choice), or the save holds nothing but rows of packs this build lacks → the built-in
+            // default. SelectActiveStoryRow already preferred any real row, so this never writes zeros over one.
+            _story = _content.DefaultStory;
             _storyState.StoryId = _story.Id;
         }
 
@@ -88,9 +160,13 @@ public sealed partial class GameServer
         AdvanceStory();
     }
 
+    /// <summary>Writes the active pack's row — stamped and marked active (#2460, B05), so a restart picks it back
+    /// up even when the save holds rows of other packs.</summary>
     private void PersistStoryState()
         => _repo.SaveStoryState(new StoredStoryState
         {
+            Active = true,
+            UpdatedUtc = UtcNowIso(),
             StoryId = _storyState.StoryId,
             FragmentsFound = _storyState.FragmentsFound,
             MachineKills = _storyState.MachineKills,
@@ -189,11 +265,16 @@ public sealed partial class GameServer
 
     private void RevealBeatToAll(StoryBeat beat)
     {
-        foreach (var session in _sessions.Values.Where(s => s.Joined))
+        foreach (var session in StoryListeners())
         {
             RevealBeatTo(session, beat);
         }
     }
+
+    /// <summary>The joined players the story speaks to. An invisible fleet-admin observer is staff, not a pilot
+    /// (#2460, N1): no beats, story lines or finale rewards while observing — the beats catch up when observer
+    /// mode ends (<see cref="CatchUpStoryLines"/>) or on the next join.</summary>
+    private IEnumerable<PlayerSession> StoryListeners() => _sessions.Values.Where(s => s.Joined && !s.Spectating);
 
     /// <summary>Speaks a beat to one player if they haven't heard it (tracked per-player, persisted), granting
     /// its one-time knowledge reward.</summary>
@@ -228,12 +309,29 @@ public sealed partial class GameServer
             return;
         }
 
+        CatchUpStoryLines(session);
+        SendStoryResolvedOnJoinIfMissed(session); // #1124: the ending, for whoever heard the arc out but missed the win
+    }
+
+    /// <summary>Catches a player up on the world's story lines they have not heard: every revealed beat and, while
+    /// the finale is open, the Guardian-system reveal (#2460, B10 — the only line that names the jump generator,
+    /// which latecomers never got). Runs on join and when observer mode ends.</summary>
+    private void CatchUpStoryLines(PlayerSession session)
+    {
+        if (_story is null || session.Spectating)
+        {
+            return;
+        }
+
         for (int i = 0; i < _storyState.BeatsRevealed && i < _story.Beats.Count; i++)
         {
             RevealBeatTo(session, _story.Beats[i]);
         }
 
-        SendStoryResolvedOnJoinIfMissed(session); // #1124: the ending, for whoever missed the moment
+        if (_storyState.GuardianSystemRevealed && !_storyState.GuardianDefeated)
+        {
+            SpeakGuardianRevealedTo(session);
+        }
     }
 
     private void SendStoryState(PlayerSession session) => Send(session, BuildStoryState(session));
@@ -294,6 +392,7 @@ public sealed partial class GameServer
     /// unknown id is ignored. Switching resets the per-save progress to a fresh state for the chosen pack.</summary>
     public void SetActiveStory(string storyId)
     {
+        string previous = _storyState.StoryId;
         if (string.Equals(storyId, StoryRegistry.NoneStoryId, StringComparison.OrdinalIgnoreCase))
         {
             _story = null;
@@ -314,6 +413,27 @@ public sealed partial class GameServer
         {
             PersistStoryState();  // AdvanceStory no-ops when disabled — persist the "none" choice here
             BroadcastStoryState();
+        }
+
+        DeactivateStoryRow(previous);
+    }
+
+    /// <summary>#2460 (B05): clears the active marker on the row an admin switch left behind, so a restart can
+    /// never bring the old pack back. The row itself (and its progress) stays, as before.</summary>
+    private void DeactivateStoryRow(string storyId)
+    {
+        if (string.IsNullOrEmpty(storyId) || string.Equals(storyId, _storyState.StoryId, StringComparison.OrdinalIgnoreCase))
+        {
+            return; // re-selecting the active pack resets it in place — its row stays the active one
+        }
+
+        foreach (var row in _repo.ListStoryStates())
+        {
+            if (row.Active && string.Equals(row.StoryId, storyId, StringComparison.OrdinalIgnoreCase))
+            {
+                row.Active = false;
+                _repo.SaveStoryState(row);
+            }
         }
     }
 
@@ -463,9 +583,11 @@ public sealed partial class GameServer
 
     // ---------------- P7: world knowledge level (NPC flavour gating) ----------------
 
-    /// <summary>The world's story "knowledge level" 0..4 (0 = nothing learned … 4 = the Guardian core is
-    /// known/defeated), derived from how far the shared arc has progressed. Drives which story flavour lines
-    /// settlement/station NPCs are allowed to speak (P7).</summary>
+    /// <summary>The world's story "knowledge level" 0..4 (0 = nothing learned … 3 = the arc is nearly or fully
+    /// told, 4 = the Guardian core is shut down), derived from how far the shared arc has progressed. Drives which
+    /// story flavour lines settlement/station NPCs are allowed to speak (P7). Level 4 is the WIN alone (#2460, B44):
+    /// its lines say "the machines went still … thank you", which read wrong while the machines still hunted
+    /// between the last beat and the duel.</summary>
     public int WorldKnowledgeLevel()
     {
         if (_story is null || _story.Beats.Count == 0)
@@ -485,7 +607,6 @@ public sealed partial class GameServer
         }
 
         double frac = StoryEngine.Progress(_story, _storyState, Rules.StoryProgressScale) / (double)target;
-        if (frac >= 1.0) return 4;
         if (frac >= 0.66) return 3;
         if (frac >= 0.33) return 2;
         if (frac > 0.0) return 1;

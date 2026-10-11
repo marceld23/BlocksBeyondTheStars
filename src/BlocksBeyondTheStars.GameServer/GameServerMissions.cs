@@ -253,8 +253,18 @@ public sealed partial class GameServer
 
         Send(session, new MissionResult { Success = true, MissionId = missionId });
         SendMissionList(session);
-        ShipAiOnTradeOrMission(session); // VEGA onboarding: taking a board job counts like a first trade
+        if (MissionAcceptCountsAsTrade(def))
+        {
+            ShipAiOnTradeOrMission(session); // VEGA onboarding: taking a board job counts like a first trade
+        }
     }
+
+    /// <summary>Whether accepting this mission completes VEGA's "trade" lesson (#2460, B58): a job from a mission
+    /// board or a chain step — the dealing with people the lesson is about. The two starter jobs can be accepted
+    /// anywhere from minute one, so accepting one used to tick the lesson off silently before the player ever met
+    /// a trader; a story character's mission is not a job either.</summary>
+    internal static bool MissionAcceptCountsAsTrade(MissionDefinition def)
+        => IsBoardMissionId(def.Id) || IsChainMission(def);
 
     private void HandleTurnInMission(PlayerSession session, string missionId)
     {
@@ -369,7 +379,7 @@ public sealed partial class GameServer
             NpcRadioOnBoardTurnIn(session, missionId, def.GiverName); // #1119: "something new on my board"
         }
         RecordStoryMilestone();   // settlement helped (mission completed) → story milestone (P3)
-        TryThreadMission(def);    // P7: a matching mission thread also yields a story fragment
+        TryThreadMission(session, def); // P7: a matching mission thread also yields a story fragment
         if (IsChainMission(def))
         {
             OnChainStepTurnedIn(session, def, pr); // #1212: the giver calls about the next step a little later
@@ -382,8 +392,11 @@ public sealed partial class GameServer
 
     /// <summary>P7 mission threading: if the completed mission matches one of the active story's threads, award
     /// its story fragment (deduped by key like any net-fragment find, so it lands at most once + advances the
-    /// arc). Silently does nothing with no story / no matching thread.</summary>
-    private void TryThreadMission(BlocksBeyondTheStars.Shared.Missions.MissionDefinition def)
+    /// arc). Silently does nothing with no story / no matching thread. The player who turned the mission in gets
+    /// the fragment the way every other source hands one over (#2460, B45): the reader opens with its archive text
+    /// and the Story tab marks it new — before, the find was recorded silently. Only a NEW find opens the reader;
+    /// the thread matches every settlement job, and a re-read on each turn-in would be noise.</summary>
+    private void TryThreadMission(PlayerSession? session, BlocksBeyondTheStars.Shared.Missions.MissionDefinition def)
     {
         if (_story is null || def is null)
         {
@@ -401,16 +414,33 @@ public sealed partial class GameServer
             bool match = needle.Length == 0
                 || (def.NameKey?.IndexOf(needle, System.StringComparison.OrdinalIgnoreCase) >= 0)
                 || (def.Id?.IndexOf(needle, System.StringComparison.OrdinalIgnoreCase) >= 0);
-            if (match)
+            if (!match)
             {
-                RecordStoryFragment(thread.FragmentKey); // deduped + advances the arc + broadcasts the meter
+                continue;
             }
+
+            bool newFind = !_storyState.FoundFragmentKeys.Contains(thread.FragmentKey);
+            if (newFind && session is not null && _story.Fragments.FirstOrDefault(f => f.Key == thread.FragmentKey) is { } frag)
+            {
+                Send(session, new NetFragmentRevealed { Category = frag.Category, TextKey = frag.TextKey });
+            }
+
+            RecordStoryFragment(thread.FragmentKey); // deduped + advances the arc + broadcasts the meter
         }
     }
 
     /// <summary>Test hook: thread a completed mission by its type key (mirrors a turn-in).</summary>
     public void TryThreadMissionForTest(string nameKey)
-        => TryThreadMission(new BlocksBeyondTheStars.Shared.Missions.MissionDefinition { Id = nameKey, NameKey = nameKey });
+        => TryThreadMission(null, new BlocksBeyondTheStars.Shared.Missions.MissionDefinition { Id = nameKey, NameKey = nameKey });
+
+    /// <summary>Test hook: thread a mission as turned in by this player (mirrors a turn-in, reader included).</summary>
+    public void TryThreadMissionForTest(string playerId, string nameKey)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            TryThreadMission(session, new BlocksBeyondTheStars.Shared.Missions.MissionDefinition { Id = nameKey, NameKey = nameKey });
+        }
+    }
 
     // Player mission titles/descriptions are broadcast verbatim to other players, so strip control
     // characters (CR/LF/ANSI) before truncating — same treatment as chat and labels (audit 2026-07-05).

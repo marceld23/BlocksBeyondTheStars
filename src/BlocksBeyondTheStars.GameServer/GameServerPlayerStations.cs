@@ -133,16 +133,21 @@ public sealed partial class GameServer
     }
 
     /// <summary>Commissions a station once it has a hull (min blocks) + an airlock: registers it as a boardable
-    /// body on the star map + a dock contact, and persists it.</summary>
-    private void TryCommissionStation(SpaceInstance instance, SpaceStructure s, PlayerSession owner)
+    /// body on the star map + a dock contact, and persists it. The station is its OWNER's (#2460, N3): an ally may
+    /// set the last block (<paramref name="placer"/>), but the default name, the "commissioned" message and the
+    /// "Station Master" achievement go to the owner — to an online owner; an offline one finds the station on the
+    /// map.</summary>
+    private void TryCommissionStation(SpaceInstance instance, SpaceStructure s, PlayerSession placer)
     {
         if (s.Boardable || s.Cells.Count < MinStationBlocks || !StationHasAirlock(s))
         {
             return;
         }
 
+        var owner = string.IsNullOrEmpty(s.OwnerId) ? placer : FindSessionByPlayerId(s.OwnerId);
+        string ownerName = owner?.State.Name ?? (string.IsNullOrEmpty(s.OwnerId) ? "Player" : s.OwnerId); // PlayerId == name
         s.Boardable = true;
-        s.Name = string.IsNullOrEmpty(s.Name) ? ((owner?.State.Name ?? "Player") + "'s Station") : s.Name;
+        s.Name = string.IsNullOrEmpty(s.Name) ? ownerName + "'s Station" : s.Name;
         _playerStationCells[s.Id] = s;
 
         // Registry entry so BoardStation can dock it; its interior is stamped from the player's cells.

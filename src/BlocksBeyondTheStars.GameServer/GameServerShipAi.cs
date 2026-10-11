@@ -73,13 +73,22 @@ public sealed partial class GameServer
     /// <summary>A save that has clearly played before gets VEGA's onboarding pre-granted — they only hear
     /// a one-line "systems online". Creative grants no longer count (#1461): a creative world hands out
     /// blueprints at join, which silently skipped the whole tutorial — and a school browser session with
-    /// no persistent save is a first session every time.</summary>
+    /// no persistent save is a first session every time. Only meaningful on the state as it ARRIVED: read it
+    /// through <see cref="PlayerSession.Join"/> (#2460), never after the join has paid anything in.</summary>
     private bool VegaIsVeteran(PlayerState p)
         => !CreativeGrantsActive && (p.KnowledgePoints > 0 || p.UnlockedBlueprints.Count > 0 || p.Missions.Count > 0);
 
-    /// <summary>Whether this world pre-grants blueprints (singleplayer Creative option or Creative mode).</summary>
+    /// <summary>Whether this world pre-grants blueprints (singleplayer Creative option or Creative mode). Reads
+    /// the SAVED world option (#2460, B04): the launch flag is only set by the session that created the world —
+    /// a relaunched head-start world came back without it, and its newcomers were read as veterans (#1461).</summary>
     private bool CreativeGrantsActive
-        => _config.CreativeUnlockAllBlueprints || Rules.GameMode == GameMode.Creative;
+        => _meta.CreativeUnlockAllBlueprints || Rules.GameMode == GameMode.Creative;
+
+    /// <summary>#2460 (B01): the player as they arrive — taken at the very top of the join, before
+    /// <c>SetupPlayerShip</c>, the Creative grants and the story catch-up can pay anything into the state.</summary>
+    private JoinSnapshot TakeJoinSnapshot(PlayerState p)
+        => new(VegaIsVeteran(p), p.Milestones.Contains(VegaIntroMilestone),
+            p.Milestones.Where(m => m.StartsWith("story:", System.StringComparison.Ordinal)));
 
     /// <summary>The objective chip as last sent, per connection (#1859): key, {0} argument, progress and target.
     /// <see cref="RefreshVegaObjective"/> compares the live objective against this once a second and re-sends on
@@ -225,10 +234,22 @@ public sealed partial class GameServer
             return FragmentWorldName().Length > 0 ? "story.obj.fragment_on" : "story.obj.fragment_here";
         }
 
-        return _story.Fragments.Any(f => !_storyState.FoundFragmentKeys.Contains(f.Key))
-            ? "story.obj.search"  // ruins, wrecks and terminals still hold fragments somewhere
-            : "story.obj.help";   // fragments done — settlements, systems and kills carry the rest
+        if (_story.Fragments.Any(f => !_storyState.FoundFragmentKeys.Contains(f.Key)))
+        {
+            return "story.obj.search"; // ruins, wrecks and terminals still hold fragments somewhere
+        }
+
+        // Fragments done — settlements, systems and kills carry the rest. A peaceful world has no machines to
+        // drive back (#2460, N14), so its chip names only what the world actually offers.
+        return StoryMachinesActive ? "story.obj.help" : "story.obj.help_peaceful";
     }
+
+    /// <summary>Whether this world's rules field any Guardian machines a kill could count against: walking robots
+    /// and scan-drones on the surface, or drones and UFOs in space (with space combat on).</summary>
+    private bool StoryMachinesActive
+        => PlanetEnemiesActive
+           || (Rules.SpaceCombat is SpaceCombatMode.PvE or SpaceCombatMode.Both
+               && (Rules.SpaceNpcEnemies != AlienActivity.Off || Rules.AlienUfos != AlienActivity.Off));
 
     /// <summary>Test seam: the objective-chip key this player would be sent right now (#1110).</summary>
     public string? ObjectiveKeyForTest(string playerId)
@@ -241,15 +262,19 @@ public sealed partial class GameServer
 
     /// <summary>Join hook: boots VEGA for new players (prologue + intro + first objective), auto-grants the
     /// chain for veteran saves, and re-shows the current objective on a mid-onboarding rejoin. Always ends
-    /// by sending the <see cref="VegaJournal"/> snapshot, so the client can rebuild the re-readable tips log.</summary>
-    private void ShipAiOnJoin(PlayerSession session)
+    /// by sending the <see cref="VegaJournal"/> snapshot, so the client can rebuild the re-readable tips log.
+    /// The veteran decision is the one taken at the top of the join (<see cref="PlayerSession.Join"/>, #2460):
+    /// re-evaluating it here read every newcomer on a progressed world as a veteran, because the beat catch-up
+    /// had just paid them knowledge. <paramref name="restart"/> (the player asked to restart the tutorial) never
+    /// takes the veteran branch and never replays the prologue — the restart is for the lessons.</summary>
+    private void ShipAiOnJoin(PlayerSession session, bool restart = false)
     {
         var p = session.State;
         session.VegaTipReadyAt = _uptime + VegaTipJoinQuiet; // context tips (#1077) stay quiet right after a join
         if (!p.Milestones.Contains(VegaIntroMilestone))
         {
             p.Milestones.Add(VegaIntroMilestone);
-            if (VegaIsVeteran(p))
+            if (!restart && session.Join.Veteran)
             {
                 foreach (var (id, _) in VegaStages)
                 {
@@ -262,8 +287,9 @@ public sealed partial class GameServer
             {
                 // Narrative framing before VEGA's first words (#738): who-am-I prologue pages, shown by the
                 // client as a full-screen overlay (Kind 4). Only with an active story pack — a "none" sandbox
-                // opted out of narrative, so it boots straight into the tutorial.
-                if (StoryActive)
+                // opted out of narrative, so it boots straight into the tutorial — and never on a tutorial
+                // restart (#2460): the player asked for the lessons again, not for the story's cold open.
+                if (StoryActive && !restart)
                 {
                     SendVegaLine(session, "vega.prologue.1", 4);
                     SendVegaLine(session, "vega.prologue.2", 4);
@@ -290,7 +316,14 @@ public sealed partial class GameServer
         }
         else if (!VegaOnboardingDone(p))
         {
-            SendVegaLine(session, "vega.resume", 0);
+            if (VegaStageSkipLine(session, VegaStages[VegaStageIndex(p)].Id) is not null)
+            {
+                AnnounceNextVegaStage(session); // the waiting lesson became impossible here (#2460, B29) — move on
+            }
+            else
+            {
+                SendVegaLine(session, "vega.resume", 0);
+            }
         }
         else
         {
@@ -332,20 +365,46 @@ public sealed partial class GameServer
         }
 
         SendVegaLine(session, $"vega.s.{stageId}.done", 0);
-        int next = VegaStageIndex(p);
-        if (next < VegaStages.Length)
-        {
-            // #1924: "see the station on the radar?" in a system without one sent players looking for nothing — there
-            // VEGA points to the star map and a jump instead.
-            string nextId = VegaStages[next].Id;
-            bool noStationHere = nextId == "dock" && !StationContactsForCurrentSystem(session.CurrentLocationId).Any();
-            SendVegaLine(session, noStationHere ? "vega.s.dock.start_far" : $"vega.s.{nextId}.start", 0);
-        }
-        else
-        {
-            SendVegaLine(session, "vega.done", 0); // send-off: the galaxy is yours (objective chip clears)
-        }
+        AnnounceNextVegaStage(session);
     }
+
+    /// <summary>Introduces the next onboarding stage — or sends VEGA's send-off once the chain is done. A stage
+    /// the world cannot offer this player (#2460, B29: no space flight, no station in reach) is granted silently
+    /// and skipped, so the chain never waits on a lesson nobody could finish; see <see cref="VegaStageSkipLine"/>.</summary>
+    private void AnnounceNextVegaStage(PlayerSession session)
+    {
+        var p = session.State;
+        for (int next = VegaStageIndex(p); next < VegaStages.Length; next = VegaStageIndex(p))
+        {
+            string nextId = VegaStages[next].Id;
+            if (VegaStageSkipLine(session, nextId) is not { } skipLine)
+            {
+                SendVegaLine(session, $"vega.s.{nextId}.start", 0);
+                return;
+            }
+
+            p.Milestones.Add(VegaStageKey(nextId));
+            _repo.SavePlayer(p);
+            if (skipLine.Length > 0)
+            {
+                SendVegaLine(session, skipLine, 0);
+            }
+        }
+
+        SendVegaLine(session, "vega.done", 0); // send-off: the galaxy is yours (objective chip clears)
+    }
+
+    /// <summary>Null when the onboarding stage <paramref name="stageId"/> can be completed by this player here;
+    /// otherwise the line VEGA says while skipping it (empty = skip silently). Space flight switched off makes the
+    /// launch, the docking and the landing lessons impossible; a system without a station leaves nothing to dock
+    /// at — and the starter ship cannot jump to another star (#1924's "pick a system with one" asked for a
+    /// hyperjump a new player cannot make, and with stations off the chain hung there for good).</summary>
+    private string? VegaStageSkipLine(PlayerSession session, string stageId) => stageId switch
+    {
+        "launch" or "dock" or "land" when !Rules.FreeSpaceFlight => string.Empty,
+        "dock" when !StationContactsForCurrentSystem(session.CurrentLocationId).Any() => "vega.s.dock.start_far",
+        _ => null,
+    };
 
     /// <summary>The player skipped the tutorial (grant the whole chain) — or asked to RESTART it:
     /// wipe the stage milestones + intro flag and boot the chain again from the first lesson.</summary>
@@ -362,7 +421,10 @@ public sealed partial class GameServer
 
             session.VegaMineCount = 0;
             _repo.SavePlayer(p);
-            ShipAiOnJoin(session); // re-runs the intro + first objective like a fresh player
+            // Re-runs the intro + first objective like a fresh player — never the veteran branch (#2460, B02): a
+            // player with knowledge, blueprints or missions is exactly who restarts, and the veteran check
+            // re-granted the whole chain on the spot, so the button did nothing.
+            ShipAiOnJoin(session, restart: true);
             return;
         }
 
@@ -421,7 +483,10 @@ public sealed partial class GameServer
     // --- Advisor (Phase B): contextual once-per-save hints with a persisted once-flag. The client can
     // additionally mute them (settings) — these are teaching moments, not the HUD's live warnings. ---
 
-    private void ShipAiHintOnce(PlayerSession session, string hintId, string arg = "")
+    /// <summary>Speaks a once-per-save hint. <paramref name="kind"/> 1 is the advisor channel the client mutes with
+    /// the hints setting; a line the story cannot do without passes 3 (system — never muted), because the once-flag
+    /// below burns server-side whether or not the client then shows the line.</summary>
+    private void ShipAiHintOnce(PlayerSession session, string hintId, string arg = "", byte kind = 1)
     {
         var p = session.State;
         string key = "vega:hint:" + hintId;
@@ -432,7 +497,7 @@ public sealed partial class GameServer
 
         p.Milestones.Add(key);
         _repo.SavePlayer(p);
-        SendVegaLine(session, "vega.hint." + HintLineId(hintId), 1, arg);
+        SendVegaLine(session, "vega.hint." + HintLineId(hintId), kind, arg);
     }
 
     /// <summary>Per-world-type flavour hints share one line per TYPE but a once-flag per type key; a toxic world's scan
@@ -485,10 +550,11 @@ public sealed partial class GameServer
 
         // The finale body (#1792): the core chamber sits under ONE iron-ringed aperture, thousands of blocks from
         // most pads — a player who dug 50 blocks straight down under the ship never had a chance. Point at the map
-        // marker once, on landing.
+        // marker once, on landing. Sent on the never-muted system channel (#2460): it is the finale's only "walk
+        // there, do not dig here", and a player with hints off used to lose it for good — its flag burned unseen.
         if (_worlds.Active.HasCoreChamber)
         {
-            ShipAiHintOnce(session, "guardian_core");
+            ShipAiHintOnce(session, "guardian_core", kind: 3);
         }
     }
 
@@ -498,6 +564,11 @@ public sealed partial class GameServer
     {
         foreach (var session in JoinedInActiveWorld())
         {
+            if (session.Spectating)
+            {
+                continue; // an invisible observer is staff, not a pilot: no hints, tips, banter or redemptions (#2460, N1)
+            }
+
             session.VegaAdvisorAccum += dt;
             if (session.VegaAdvisorAccum < 1.0)
             {
@@ -590,8 +661,7 @@ public sealed partial class GameServer
             return;
         }
 
-        int restored = p.Milestones.Count(m => m.StartsWith("vega:mem:", System.StringComparison.Ordinal));
-        int beat = restored + 1;
+        int beat = LastVegaMemoryBeat(p) + 1;
 
         // The final beat comes with the Mk3 parts list stowed in the hold; if there is no room for them the
         // fragment simply waits — nothing is consumed and nothing is lost (the same rule the achievement
@@ -633,6 +703,47 @@ public sealed partial class GameServer
 
         SendInventory(session);
         _repo.SavePlayer(p);
+    }
+
+    /// <summary>The beat number of a restored-memory key (<c>vega:mem:&lt;n&gt;</c>), or -1 for any other key —
+    /// notably <c>vega:mem:mk3parts</c>, the "parts handed over" flag that shares the prefix (#2460, N13: counting
+    /// it showed "11/10" and numbered the next redemption 12).</summary>
+    private static int VegaMemoryBeatOf(string key)
+    {
+        const string prefix = "vega:mem:";
+        if (!key.StartsWith(prefix, System.StringComparison.Ordinal) || key.Length == prefix.Length)
+        {
+            return -1;
+        }
+
+        int n = 0;
+        for (int i = prefix.Length; i < key.Length; i++)
+        {
+            char c = key[i];
+            if (c < '0' || c > '9' || n > 100000)
+            {
+                return -1;
+            }
+
+            n = (n * 10) + (c - '0');
+        }
+
+        return n;
+    }
+
+    /// <summary>How many of VEGA's memory beats this player has restored.</summary>
+    private static int RestoredVegaMemories(PlayerState p) => p.Milestones.Count(m => VegaMemoryBeatOf(m) > 0);
+
+    /// <summary>The highest memory beat this player has restored (0 = none) — the next redemption is this + 1.</summary>
+    private static int LastVegaMemoryBeat(PlayerState p)
+    {
+        int last = 0;
+        foreach (var m in p.Milestones)
+        {
+            last = System.Math.Max(last, VegaMemoryBeatOf(m));
+        }
+
+        return last;
     }
 
     // --- AI-core ship modules (Phase C abilities). Tier: 1 = bare VEGA, 2 = Mk2 core, 3 = Mk3 core. ---
@@ -709,7 +820,7 @@ public sealed partial class GameServer
         string world = _world.Planet?.Key ?? "space";
         double localDay = LocalDayFraction(session.State.Position); // #1865: the local sun
         string phase = localDay is < 0.15 or > 0.85 ? "night" : localDay is < 0.3 or > 0.7 ? "twilight" : "day";
-        int fragments = p.Milestones.Count(m => m.StartsWith("vega:mem:", System.StringComparison.Ordinal));
+        int fragments = System.Math.Min(VegaMemoryBeats, RestoredVegaMemories(p));
         string aboard = p.AboardShip ? "aboard the ship" : "on foot";
         // Temperature awareness (#671): only mentioned while the suit is actually fighting the climate,
         // so VEGA's banter can react to a freezing night march or a scorching noon without noise otherwise.

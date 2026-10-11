@@ -97,6 +97,9 @@ public sealed class StoryResolutionTests : IDisposable
         Assert.Contains("story:vega_protocol:resolved", server.Sessions[1].State.Milestones);
     }
 
+    /// <summary>"Late" heard the whole arc (B12 included) but was offline for the win. Since #2460 (N4) only such a
+    /// player gets the ending at the door — a stranger who first arrives on a won world does not (see
+    /// <c>StoryServerFixesTests.TheEndingAtTheDoor_GoesOnlyToThoseWhoHeardTheArcOut</c>).</summary>
     [Fact]
     public void A_latecomer_catches_up_exactly_once()
     {
@@ -106,6 +109,13 @@ public sealed class StoryResolutionTests : IDisposable
             var server = new SvGameServer(Config(), _content, st, repo);
             server.Start();
             var pilot = server.AddLocalPlayer("Winner");
+            server.AddLocalPlayer("Late");
+            for (int i = 0; i < 300 && !server.IsGuardianSystemRevealedForTest; i++)
+            {
+                server.RecordStoryMilestoneForTest(); // the whole arc, B12 included, for both of them
+            }
+
+            server.DisconnectLocalPlayerForTest("Late"); // … and "Late" is offline for the win
             WinTheFinale(server, pilot, "Winner");
             Assert.True(server.StorySnapshot.Defeated);
             repo.Flush();

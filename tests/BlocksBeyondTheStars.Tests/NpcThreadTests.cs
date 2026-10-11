@@ -61,6 +61,10 @@ public sealed class NpcThreadTests : IDisposable
             {
                 player = server.AddLocalPlayer("Friend");
                 player.State.Position = server.NpcSnapshots.First(n => n.Role == "vendor").Home;
+                // The first points on the arc (knowledge level 1, the settler legend's gate). The join's own
+                // spawn-system mapping used to put them there; since #2460 (N4) the spawn system counts nothing,
+                // so one ordinary milestone — a system mapped, a settlement helped — stands in for it.
+                server.RecordStoryMilestoneForTest();
                 return server;
             }
 
@@ -87,9 +91,9 @@ public sealed class NpcThreadTests : IDisposable
         {
             var p = player.State;
 
-            // A fresh world with a joined player already sits at knowledge level 1 (the join's
-            // mapped-system milestone), which is exactly the settler legend's gate — the RELATIONSHIP
-            // is what still holds it back (see AStranger_GetsNoThread for that half).
+            // The world sits at knowledge level 1 (one milestone on the arc, see StartedWithVendor), which
+            // is exactly the settler legend's gate — the RELATIONSHIP is what still holds it back (see
+            // AStranger_GetsNoThread for that half).
             Assert.True(server.WorldKnowledgeLevel() >= 1);
             Befriend(server, p, 20); // tier "known"
             var (_, fragmentsBefore, _, _, _, _) = server.StorySnapshot;

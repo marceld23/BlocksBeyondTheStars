@@ -93,9 +93,16 @@ public sealed class GameServerStoryCombatTests : IDisposable
         using (repo)
         {
             int before = server.StorySnapshot.Milestones;
-            server.AddLocalPlayer("Explorer"); // joining places them on the home body → its system is mapped
+            var explorer = server.AddLocalPlayer("Explorer"); // joining places them on the home body → its system is known
+            // …but the spawn system is where everyone starts: mapping it explores nothing and pays no story points
+            // (#2460, N4 — every new identity used to add +2 to the shared arc just by joining).
+            Assert.Equal(before, server.StorySnapshot.Milestones);
+
+            string home = server.Galaxy.FindBody(explorer.CurrentLocationId)!.SystemId;
+            var elsewhere = server.Galaxy.Systems.First(s => s.Id != home && s.Bodies.Count > 0).Bodies[0];
+            server.MarkArrivedOnBodyForTest(explorer, elsewhere.Id);
             Assert.True(server.StorySnapshot.Milestones > before,
-                "mapping the start system on join should record a story milestone (P3)");
+                "mapping a new star system should record a story milestone (P3)");
         }
     }
 

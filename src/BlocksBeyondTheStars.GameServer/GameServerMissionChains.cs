@@ -618,7 +618,10 @@ public sealed partial class GameServer
         OnChainStepAccepted(session, def, npcKey, npc.Name);
         Send(session, new MissionResult { Success = true, MissionId = missionId });
         SendMissionList(session);
-        ShipAiOnTradeOrMission(session);
+        if (MissionAcceptCountsAsTrade(def))
+        {
+            ShipAiOnTradeOrMission(session); // a chain step taken in conversation; a story character's job is not a trade (#2460)
+        }
         _log.Info($"Player '{p.Name}' took mission '{missionId}' from {npc.Role} '{npc.Name}' in conversation.");
     }
 

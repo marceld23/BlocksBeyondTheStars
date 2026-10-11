@@ -213,7 +213,7 @@ public sealed class StoryFindabilityTests : IDisposable
             // Both possible pre-finale objectives are real, translated keys.
             var en = _content.CreateLocalizer(GameLocale.English);
             var de = _content.CreateLocalizer(GameLocale.German);
-            foreach (var k in new[] { "story.obj.fragment_here", "story.obj.search", "story.obj.help", "story.obj.finale" })
+            foreach (var k in new[] { "story.obj.fragment_here", "story.obj.search", "story.obj.help", "story.obj.help_peaceful", "story.obj.finale" })
             {
                 Assert.True(en.Has(k), $"missing '{k}' in en");
                 Assert.True(de.Has(k), $"missing '{k}' in de");
@@ -271,8 +271,9 @@ public sealed class StoryFindabilityTests : IDisposable
             var p = server.AddLocalPlayer("Scholar");
 
             // Only texts at or below the CURRENT knowledge level can surface — and each exactly once.
-            // (A fresh world with a joined player already sits at level 1: the join's mapped-system
-            // milestone puts the first points on the arc.)
+            // (One milestone puts the first points on the arc: level 1. The join's own spawn-system mapping
+            // used to do that; since #2460 (N4) the spawn system counts nothing.)
+            server.RecordStoryMilestoneForTest();
             int level = server.WorldKnowledgeLevel();
             Assert.True(level < 3, $"fresh world at knowledge {level} — the gate below would be meaningless");
             var openNow = pack.LoreSites.Where(l => l.Site == "monument" && l.MinKnowledge <= level).Select(l => l.Key).ToHashSet();

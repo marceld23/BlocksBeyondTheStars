@@ -136,6 +136,7 @@ public sealed partial class GameServer
         BroadcastFace(session);
         SendPlayerState(session);
         Send(session, new ServerMessage { Text = "@srv.obs.off" });
+        CatchUpStoryLines(session); // the beats the story held back while observing (#2460, N1)
         CheatLog(p, "left observer mode");
     }
 

@@ -278,6 +278,11 @@ public sealed class PlayerSession
 
     // --- Ship AI companion "VEGA" session bookkeeping (persisted progress lives in State.Milestones) ---
 
+    /// <summary>#2460 (B01): the player as they arrived — the newcomer-vs-veteran decision and the story keys
+    /// they carried — taken once at the very top of the join, before anything in the join pays knowledge or
+    /// blueprints. Session-scoped; see <see cref="JoinSnapshot"/>.</summary>
+    public JoinSnapshot Join { get; set; } = JoinSnapshot.Empty;
+
     /// <summary>Blocks mined toward the onboarding "mine" stage (session-scoped; the target is tiny).</summary>
     public int VegaMineCount { get; set; }
 

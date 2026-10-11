@@ -24,6 +24,42 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Story packs 2026-10 (#2459)
+
+Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines — one integration branch
+`feat/story-packs`, one PR at the end. One line per step:
+
+- ✅ **Step 1 — story server fixes (#2460)**, 2026-10-11: the newcomer/veteran decision is a snapshot at the top of
+  the join (`PlayerSession.Join`), so a fresh player on a progressed world gets the prologue and the lessons again;
+  "restart tutorial" really restarts (without the prologue); Creative reads the save; the active `story_state` row
+  is marked + stamped (pack switches and unknown packs survive a restart, no save-version bump); the Guardian system
+  survives a restart; latecomers hear the Guardian reveal; knowledge level 4 only after the win; the mission-thread
+  fragment opens the reader; only board jobs/chain steps tick the trade lesson; observers leave no story trace and
+  are never named by `player_near`; a station commissioned by an ally credits the owner; the spawn system pays no
+  story points and the ending at the door goes only to players who heard B12 (plus the finale achievement);
+  `vega:mem:mk3parts` is no memory; peaceful worlds get `story.obj.help_peaceful`; the `guardian_core` hint is never
+  muted; impossible onboarding lessons (no flight, no station) are skipped. Tests: `StoryServerFixesTests`.
+- ⬜ Step 2 — cinematics fixes (#2461)
+- ⬜ Step 3 — story UI fixes (#2462)
+- ⬜ Step 4 — text fixes (#2463)
+- ⬜ Step 5 — WorldHost save-upload fixes (#2464)
+- ⬜ Step 6 — game-event bus (#2465)
+- ⬜ Step 7 — player-pack runtime (#2466)
+- ⬜ Step 8 — cutscene model + wire (#2467)
+- ⬜ Step 9 — cutscene director (#2468)
+- ⬜ Step 10 — tutorial pack: basic training (#2469)
+- ⬜ Step 11 — VEGA as its own pack (#2470)
+- ⬜ Step 12 — journal + objective tracker (#2471)
+- ⬜ Step 13 — world creation "Stories" page (#2472)
+- ⬜ Step 14 — tutorial cards (#2473)
+- ⬜ Step 15 — VEGA chapter scenes (#2474)
+- ⬜ Step 16 — VEGA leads, chapter bonus, pacing (#2475) · 16b — VEGA story missions (#2476)
+- ⬜ Step 17a — camera modes (#2477) · 17b — finale set pieces (#2478)
+- ⬜ Steps 18–21 — tutorial deep-dive chapters (#2479, #2480, #2481, #2482)
+- ⬜ Step 22 — side-story test pack + authoring guide (#2483)
+- Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text (it asked for a
+  hyperjump) and lack `story.obj.help_peaceful` — the translation pass at the end of the package covers both.
+
 ### ⚙️ CI long poles: world-gen caches no longer build under a shared lock (#2455), the settlement sweeps split up (#2456) (2026-10-10, branch fix/ci-shard-long-poles) — ✅ done
 
 Found while shipping v2026.10.12: the PR gate's shard 7 tripped the 120 s guard three times in a row (520/520 passed,

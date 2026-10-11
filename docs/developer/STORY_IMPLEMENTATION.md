@@ -1,6 +1,6 @@
 # Story engine ("The VEGA Protocol") — how it works
 
-Status: implemented (see [../../TODO.md](../../TODO.md) for live Done/Open status). Last updated 2026-06-19.
+Status: implemented (see [../../TODO.md](../../TODO.md) for live Done/Open status). Last updated 2026-10-11.
 
 This doc describes the **story engine mechanics** — state, pacing, triggers, persistence, networking and the
 finale flow. The *why* (design rationale) lives in [STORY_VEGA_PROTOCOL_CONCEPT.md](STORY_VEGA_PROTOCOL_CONCEPT.md);
@@ -33,7 +33,8 @@ crosses a threshold (not on a specific find), so a linear arc works in a random 
 - **Machine kills** — defeating a Guardian machine (planet enemies + space drones/UFOs; organic fauna
   excluded) advances the story and has a chance to drop a **player memory** (a per-player, non-contradictory
   personal unlock; each player is a different imprint).
-- **Milestones** — repeatable: mission turn-in (settlement helped) and first-discovery system mapping;
+- **Milestones** — repeatable: mission turn-in (settlement helped) and first-discovery system mapping (never
+  the player's first, spawn system — #2460: every new identity used to add +2 just by joining);
   **once per save** (#1105, `RecordStoryMilestone(onceKey)`, keys persisted in `StoryState.MilestoneKeys`):
   first base founded, first player station commissioned, first self-built ship commissioned, first companion
   tamed, first hyperjump, first vault opened (`vault:first`, #1155), first monument scanned per world
@@ -44,7 +45,8 @@ crosses a threshold (not on a specific find), so a linear arc works in a random 
 
 **Beats** are spoken through the existing VEGA narrator pipeline (`ShipAiLine`); the speaker identity is a
 pack field, so no new beat UI. Per-player "seen beats" reuse `PlayerState.Milestones` (`story:<id>:beat:N`)
-— no schema migration. Latecomers get a join-time catch-up of earned-but-unseen beats.
+— no schema migration. Latecomers get a join-time catch-up of earned-but-unseen beats (`CatchUpStoryLines`),
+plus the Guardian-system reveal line while the finale is open (`story:<id>:finale:revealed`, #2460).
 
 **Wreck coupling** (count-neutral): a nearby wreck biases machine *position* (cluster) and *aggression* only,
 never the count — toggled by `GameRules.MachineWreckCoupling`.
@@ -52,7 +54,8 @@ never the count — toggled by `GameRules.MachineWreckCoupling`.
 **Finale** (staged, weapons cannot end the core):
 1. Arc-complete (all beats seen) flips a one-way `guardianSystemRevealed` flag → broadcasts the lone landable
    `guardian_finale` system onto the star map (lazily appended to the galaxy on reveal, re-appended for
-   revealed saves on restart; reserved from the procedural generator). Reaching it needs the `jump_generator`.
+   revealed saves on restart by `LoadStoryState` — the galaxy is built before the story loads, #2460; reserved
+   from the procedural generator). Reaching it needs the `jump_generator`.
 2. **Stage 1 — gauntlet:** the finale flight instance fields a scripted elite wave (heavy cruiser + elite
    UFOs + reinforced drone swarm), not ambient hostiles.
 3. **Stage 2 — two routes to the inner core:** a buried iron chamber with a glowing red core column, reached
@@ -70,6 +73,32 @@ never the count — toggled by `GameRules.MachineWreckCoupling`.
    (`BanditShipsAllowedIn`), so the raider bounty stays offerable. It does **not** touch the admin threat
    sliders; PlanetEnemies *Off* still means zero. A death in the boss system respawns the clone on the world
    it launched from (no death-loop).
+
+**Ending catch-up.** Winning plays `StoryResolved` (plus the finale achievement) to everyone aboard. On a later
+join it plays once — with the `finale_resolved` line and the achievement — only for a player who had heard the
+arc's last beat **before** that join (#2460, N4/E23); a player who first meets the story after the win gets
+`story:<id>:resolved` set silently and can watch the ending from the Story tab.
+
+**Knowledge level** (`WorldKnowledgeLevel`, gates lore, flavour lines and NPC threads): 0–3 follow the arc's
+progress (1 > 0 %, 2 ≥ 33 %, 3 ≥ 66 %); **4 is the win alone** (#2460) — its lines say the machines went still.
+
+## Join snapshot, story rows and observers (#2460)
+
+- **Join snapshot.** `PlayerSession.Join` (`JoinSnapshot`) is taken once at the very top of the join, before
+  `SetupPlayerShip`, the Creative grants and the beat catch-up change the player state: `Veteran` (knowledge,
+  blueprints or missions on a world whose *saved* Creative option — `_meta`, not the launch flag — is off),
+  `HadOnboardingIntro`, `Newcomer`, and the `story:` keys the player carried (`HadStoryKey`). VEGA's onboarding
+  boot reads it — re-evaluating "veteran" after the catch-up had paid beat knowledge skipped the prologue and the
+  tutorial for every newcomer on a progressed world — and so does the ending catch-up. Later packs reuse it.
+- **Active story row.** A save holds one `story_state` row per pack it ever ran. `PersistStoryState` stamps the
+  active row (`StoredStoryState.Active = true`, `UpdatedUtc`), an admin switch clears `Active` on the row it left,
+  and `SelectActiveStoryRow` picks: rows of installed packs (or `none`) over unknown ones → the active marker →
+  the newest stamp → for older saves the fresh-save choice, else `none`, else the default pack. A row of an
+  uninstalled pack never costs real progress. Additive JSON fields — no save-version bump.
+- **Observers.** A fleet admin in observer mode (`/spectate`) is not a story listener (`StoryListeners()`): no
+  beats, story lines, finale rewards or VEGA tick while observing; `MarkArrivedOnBody` books a `/goto` arrival
+  silently (no milestone, no frontier growth, no knowledge); `player_near` never names them. `ExitSpectate`
+  runs the catch-up.
 
 ## Networking (NetCodec tags)
 

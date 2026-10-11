@@ -729,7 +729,8 @@ public sealed partial class GameServer
 
         foreach (var other in JoinedInActiveWorld())
         {
-            if (ReferenceEquals(other, session) || other.State.AboardShip || InSpace(other.State.PlayerId)
+            // An invisible fleet-admin observer is never "a pilot nearby" (#2460, N2) — naming them would out them.
+            if (ReferenceEquals(other, session) || other.Spectating || other.State.AboardShip || InSpace(other.State.PlayerId)
                 || WrapDistSq(p.Position, other.State.Position) > 60.0 * 60.0)
             {
                 continue;

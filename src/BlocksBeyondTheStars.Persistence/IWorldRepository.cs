@@ -192,6 +192,16 @@ public sealed class StoredStoryState
 
     /// <summary>Pity budget (#1109): bodies stamped in a row without a surface fragment. Absent → 0.</summary>
     public int BodiesWithoutFragment { get; set; }
+
+    /// <summary>#2460 (B05): true on the row of the save's ACTIVE pack. Every write of the active state sets it, and
+    /// an admin switch clears it on the row it switched away from — so a save that holds several rows (one per pack
+    /// it ever ran) restores the right one instead of whichever the database lists first. Absent in older blobs →
+    /// false; the loader then falls back to <see cref="UpdatedUtc"/> and finally to a fixed preference order.</summary>
+    public bool Active { get; set; }
+
+    /// <summary>#2460 (B05): when this row was last written (ISO-8601 UTC, round-trip format) — the tie-breaker
+    /// between rows. Absent in older blobs → empty.</summary>
+    public string UpdatedUtc { get; set; } = string.Empty;
 }
 
 /// <summary>A persisted player-built space station (item 20 S4): its voxel cells + registry row (owner, name,
