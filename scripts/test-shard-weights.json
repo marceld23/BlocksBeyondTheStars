@@ -363,6 +363,7 @@
   "StoryPersistenceTests": 0.1,
   "StoryResolutionTests": 39.6,
   "StoryServerFixesTests": 31.2,
+  "StoryUiFixesTests": 28.0,
   "StructureGeneratorEditorRoomTests": 0.2,
   "StructureInteractionTests": 12.5,
   "StructureKitTests": 0.9,

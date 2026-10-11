@@ -45,6 +45,12 @@ public sealed class StoryStateMessage
     /// <summary>THIS player's found environmental lore keys (#1111) — site + text resolve from the pack's
     /// <c>LoreSites</c> client-side. Additive.</summary>
     public string[] FoundLoreKeys { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>The beat indexes THIS player has heard (#2462, B08), ascending — from their
+    /// <c>story:&lt;id&gt;:beat:&lt;n&gt;</c> milestones. The Story tab rebuilds its beat list from these (texts resolve
+    /// from the pack), so it survives a rejoin. Additive: an older server leaves it empty and the client keeps the
+    /// beats it heard live this session.</summary>
+    public int[] HeardBeats { get; set; } = System.Array.Empty<int>();
 }
 
 /// <summary>Server → client: an environmental lore text just found (#1111) — a rune inscription read with the

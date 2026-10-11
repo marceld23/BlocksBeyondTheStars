@@ -90,12 +90,16 @@ public sealed partial class GameServer
         => new(VegaIsVeteran(p), p.Milestones.Contains(VegaIntroMilestone),
             p.Milestones.Where(m => m.StartsWith("story:", System.StringComparison.Ordinal)));
 
-    /// <summary>The objective chip as last sent, per connection (#1859): key, {0} argument, progress and target.
+    /// <summary>The objective chip as last sent, per connection (#1859): key, {0} argument, progress, target and — since
+    /// #2462 — its source and whether the tutorial runs.
     /// <see cref="RefreshVegaObjective"/> compares the live objective against this once a second and re-sends on
     /// any change — before, the chip was only refreshed on landing / join / a story beat, so "a net fragment
     /// lies on this world" survived the launch, the station and the pickup. A connection id may be reused
     /// after a disconnect; the worst case is one redundant chip refresh, so no cleanup hook is needed.</summary>
-    private readonly Dictionary<int, (string Key, string Arg, int Progress, int Target)> _vegaObjectiveSent = new();
+    private readonly Dictionary<int, VegaChip> _vegaObjectiveSent = new();
+
+    /// <summary>The objective chip's fields as one comparable value (#2462).</summary>
+    private readonly record struct VegaChip(string Key, string Arg, int Progress, int Target, string Source, bool TutorialActive);
 
     private void SendVegaLine(PlayerSession session, string lineKey, byte kind, string arg = "")
     {
@@ -103,18 +107,33 @@ public sealed partial class GameServer
         {
             LineKey = lineKey,
             LineArg = arg,
-            ObjectiveKey = VegaObjectiveKey(session.State),
-            ObjectiveArg = VegaObjectiveArg(session.State),
-            ObjectiveProgress = VegaObjectiveProgress(session),
-            ObjectiveTarget = VegaObjectiveTarget(session.State),
             Kind = kind,
         };
-        RememberVegaObjective(session, line);
+        SendVegaWithObjective(session, line);
+    }
+
+    /// <summary>Fills the objective chip of a VEGA line from the live objective, remembers it for the 1 Hz refresh and
+    /// sends the line. Every line carries the chip, so this is the one place the chip — and its source — is set.</summary>
+    private void SendVegaWithObjective(PlayerSession session, ShipAiLine line)
+    {
+        var chip = LiveVegaChip(session);
+        line.ObjectiveKey = chip.Key;
+        line.ObjectiveArg = chip.Arg;
+        line.ObjectiveProgress = chip.Progress;
+        line.ObjectiveTarget = chip.Target;
+        line.ObjectiveSource = chip.Source;
+        line.TutorialActive = chip.TutorialActive;
+        _vegaObjectiveSent[session.ConnectionId] = chip;
         Send(session, line);
     }
 
-    private void RememberVegaObjective(PlayerSession session, ShipAiLine line)
-        => _vegaObjectiveSent[session.ConnectionId] = (line.ObjectiveKey, line.ObjectiveArg, line.ObjectiveProgress, line.ObjectiveTarget);
+    /// <summary>The objective chip this player should see right now.</summary>
+    private VegaChip LiveVegaChip(PlayerSession session)
+    {
+        var p = session.State;
+        return new VegaChip(VegaObjectiveKey(p), VegaObjectiveArg(p), VegaObjectiveProgress(session), VegaObjectiveTarget(p),
+            VegaObjectiveSource(p), !VegaOnboardingDone(p));
+    }
 
     /// <summary>Objective-chip-only update (no new speech) — e.g. the mining counter ticking up.</summary>
     private void SendVegaObjective(PlayerSession session)
@@ -128,8 +147,7 @@ public sealed partial class GameServer
     /// tip-gated <c>fragment_signal</c> hint happened to win a cadence slot.</summary>
     private void RefreshVegaObjective(PlayerSession session)
     {
-        var p = session.State;
-        var live = (Key: VegaObjectiveKey(p), Arg: VegaObjectiveArg(p), Progress: VegaObjectiveProgress(session), Target: VegaObjectiveTarget(p));
+        var live = LiveVegaChip(session);
         if (!_vegaObjectiveSent.TryGetValue(session.ConnectionId, out var sent) || sent != live)
         {
             SendVegaObjective(session);
@@ -170,24 +188,48 @@ public sealed partial class GameServer
         return system.Length > 0 ? planet : string.Empty;
     }
 
-    /// <summary>#1832: once the Guardian system is revealed the finale IS the objective — the onboarding chip
-    /// ("craft an item") must not sit over it while the player stands in the core chamber. The stages still
-    /// complete in the background; the chip shows the story until the core is won.</summary>
-    private bool FinaleObjectiveOverridesTutorial
+    /// <summary>Whether the finale is open: the Guardian system is on the map and its core not yet won.</summary>
+    private bool FinaleOpen
         => StoryActive && _story is not null && _storyState.GuardianSystemRevealed && !_storyState.GuardianDefeated;
 
+    /// <summary>#1832: once the Guardian system is revealed the finale IS the objective — the onboarding chip
+    /// ("craft an item") must not sit over it while the player stands in the core chamber. The stages still
+    /// complete in the background. Since #2462 (B11) only there: in the Guardian system (the core world is one of
+    /// its bodies). The override used to be world-wide, so a newcomer joining a world whose finale was open got
+    /// "confront the Guardian core" on the chip in their first minute while the lessons kept talking about mining.
+    /// Elsewhere the running tutorial keeps the chip; once it is done the story objective is the finale anyway.</summary>
+    private bool FinaleObjectiveOverridesTutorial(PlayerState p)
+        => FinaleOpen && IsGuardianSystemLocation(p.CurrentLocationId);
+
+    /// <summary>Whether the chip shows the player's current tutorial lesson (the tutorial runs and nothing outranks it).</summary>
+    private bool TutorialOnChip(PlayerState p)
+        => VegaStageIndex(p) < VegaStages.Length && !FinaleObjectiveOverridesTutorial(p);
+
     private string VegaObjectiveKey(PlayerState p)
+        => TutorialOnChip(p) ? "vega.obj." + VegaStages[VegaStageIndex(p)].Id : StoryObjectiveKey(p);
+
+    /// <summary>Where the chip's objective comes from (#2462) — <see cref="ObjectiveSources"/>: the lesson, the finale
+    /// (never muted), the optional story coaching (muted with the hints) or nothing.</summary>
+    private string VegaObjectiveSource(PlayerState p)
     {
-        int i = VegaStageIndex(p);
-        return i < VegaStages.Length && !FinaleObjectiveOverridesTutorial ? "vega.obj." + VegaStages[i].Id : StoryObjectiveKey(p);
+        if (TutorialOnChip(p))
+        {
+            return ObjectiveSources.Tutorial;
+        }
+
+        string story = StoryObjectiveKey(p);
+        return story.Length == 0 ? ObjectiveSources.None
+            : story == StoryFinaleObjectiveKey ? ObjectiveSources.Finale
+            : ObjectiveSources.Story;
     }
+
+    private const string StoryFinaleObjectiveKey = "story.obj.finale";
 
     private int VegaObjectiveTarget(PlayerState p)
     {
-        int i = VegaStageIndex(p);
-        if (i < VegaStages.Length && !FinaleObjectiveOverridesTutorial)
+        if (TutorialOnChip(p))
         {
-            return VegaStages[i].Target;
+            return VegaStages[VegaStageIndex(p)].Target;
         }
 
         // Story objective (#1110): the chip shows the arc's score as its counter ("(128/204)").
@@ -199,10 +241,9 @@ public sealed partial class GameServer
     private int VegaObjectiveProgress(PlayerSession session)
     {
         var p = session.State;
-        int i = VegaStageIndex(p);
-        if (i < VegaStages.Length && !FinaleObjectiveOverridesTutorial)
+        if (TutorialOnChip(p))
         {
-            return VegaStages[i].Id == "mine" ? session.VegaMineCount : 0;
+            return VegaStages[VegaStageIndex(p)].Id == "mine" ? session.VegaMineCount : 0;
         }
 
         return StoryObjectiveKey(p).Length > 0 && _story is not null
@@ -223,7 +264,7 @@ public sealed partial class GameServer
 
         if (_storyState.GuardianSystemRevealed)
         {
-            return "story.obj.finale"; // confront the Guardian core
+            return StoryFinaleObjectiveKey; // confront the Guardian core
         }
 
         if (p.CurrentLocationId == _worlds.Active.LocationId && _netFragments.Count > 0)
@@ -259,6 +300,10 @@ public sealed partial class GameServer
     /// while the fragment objective is up, empty otherwise.</summary>
     public string? ObjectiveArgForTest(string playerId)
         => FindSessionByPlayerId(playerId) is { } session ? VegaObjectiveArg(session.State) : null;
+
+    /// <summary>Test seam: the objective chip's source for this player right now (#2462).</summary>
+    public string? ObjectiveSourceForTest(string playerId)
+        => FindSessionByPlayerId(playerId) is { } session ? VegaObjectiveSource(session.State) : null;
 
     /// <summary>Join hook: boots VEGA for new players (prologue + intro + first objective), auto-grants the
     /// chain for veteran saves, and re-shows the current objective on a mid-onboarding rejoin. Always ends
@@ -484,13 +529,14 @@ public sealed partial class GameServer
     // additionally mute them (settings) — these are teaching moments, not the HUD's live warnings. ---
 
     /// <summary>Speaks a once-per-save hint. <paramref name="kind"/> 1 is the advisor channel the client mutes with
-    /// the hints setting; a line the story cannot do without passes 3 (system — never muted), because the once-flag
-    /// below burns server-side whether or not the client then shows the line.</summary>
+    /// the hints setting; a line the story cannot do without passes 3 (system — never muted). A muted player's
+    /// advisor hint is held back WITHOUT burning its once-flag (#2462, B31): it used to go out, be dropped by the
+    /// muted panel and never come again, so switching the hints back on found every lesson already spent.</summary>
     private void ShipAiHintOnce(PlayerSession session, string hintId, string arg = "", byte kind = 1)
     {
         var p = session.State;
         string key = "vega:hint:" + hintId;
-        if (p.Milestones.Contains(key))
+        if (p.Milestones.Contains(key) || HintMutedFor(session, kind))
         {
             return;
         }
@@ -499,6 +545,11 @@ public sealed partial class GameServer
         _repo.SavePlayer(p);
         SendVegaLine(session, "vega.hint." + HintLineId(hintId), kind, arg);
     }
+
+    /// <summary>Whether a line of this kind would only reach a muted panel (#2462, B31): the advisor hints (1) and the
+    /// repeated context tips (5) follow the client's VEGA hints switch; every other kind always shows.</summary>
+    private static bool HintMutedFor(PlayerSession session, byte kind)
+        => session.VegaHintsMuted && (kind is 1 or VegaTipRepeatKind);
 
     /// <summary>Per-world-type flavour hints share one line per TYPE but a once-flag per type key; a toxic world's scan
     /// (#2032) shares one line per hazard combination but a once-flag per WORLD ("toxic:&lt;location&gt;:&lt;scan&gt;").</summary>
@@ -949,14 +1000,9 @@ public sealed partial class GameServer
         var line = new ShipAiLine
         {
             Text = ClampVegaText(text),
-            ObjectiveKey = VegaObjectiveKey(session.State),
-            ObjectiveArg = VegaObjectiveArg(session.State),
-            ObjectiveProgress = VegaObjectiveProgress(session),
-            ObjectiveTarget = VegaObjectiveTarget(session.State),
             Kind = 1,
         };
-        RememberVegaObjective(session, line);
-        Send(session, line);
+        SendVegaWithObjective(session, line);
     }
 
     /// <summary>Drains banter lines finished off-thread. Called once per server tick.</summary>

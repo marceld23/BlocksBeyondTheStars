@@ -314,7 +314,7 @@ namespace BlocksBeyondTheStars.Client
             Cycle(ref y, L("ui.settings.npc_calls"), L(NpcCallsLabel(S.NpcCalls)), () =>
             {
                 S.NpcCalls = (S.NpcCalls + 1) % 3;
-                FindAnyObjectByType<GameBootstrap>()?.Network?.SendSetNpcCalls(S.NpcCalls);
+                FindAnyObjectByType<GameBootstrap>()?.Network?.SendSetNpcCalls(S.NpcCalls, !S.VegaHints); // + the hints mute (#2462)
                 Rebuild();
             });
             Toggle(ref y, L("ui.settings.playtime_reminder"), S.PlaytimeReminder, () => { S.PlaytimeReminder = !S.PlaytimeReminder; Rebuild(); });

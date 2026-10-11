@@ -324,6 +324,17 @@ public sealed partial class GameServer
             }
         }
 
+        // #2462 (B31): with the hints muted no tip goes out — each one counts its tellings in the save, so a tip sent to
+        // a muted panel was spent unseen. The dwell bookkeeping above keeps running, so a tip whose situation still
+        // holds speaks up once the hints are on again. A refused swing's tier-gate arming is dropped rather than kept
+        // for later: that tip is only worth hearing at the wall.
+        if (session.VegaHintsMuted)
+        {
+            session.VegaTierGateBlock = string.Empty;
+            session.VegaTierGateTool = string.Empty;
+            return;
+        }
+
         bool gapOpen = _uptime >= session.VegaTipReadyAt; // cadence: has VEGA been quiet long enough?
         int stage = VegaStageIndex(p);
         (VegaTipSpec Spec, string Arg, string Mention)? best = null;

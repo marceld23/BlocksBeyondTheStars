@@ -1086,6 +1086,8 @@ players.
   ready jump generator. Low oxygen/energy/hunger and temperature warnings repeat with a long cooldown.
   Every tip waits a few seconds, VEGA says at most one every couple of minutes, each repeats at most two
   or three times per save (and stops for good once you react to it). Mute via Settings → **VEGA hints**.
+  A hint VEGA keeps back while the hints are off is **not used up**: switch them on again and it still comes the
+  next time the situation arises (before, a muted hint counted as told and never came back).
 - **AI-core modules:** `ai_core_mk2` adds +6 terrain-scanner radius, hostile-contact callouts in space and
   the **autopilot** (press **P** in flight); `ai_core_mk3` adds a 12 % evasive-manoeuvre damage negation.
 - **Memory fragments:** data terminals in wrecks and vaults drop `ai_memory_fragment`s — VEGA redeems them
@@ -1707,7 +1709,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 ### Missions & bounties
 - **Mission boards** stand in settlements and aboard space stations; vendors and board givers hand out
   gather/delivery jobs. Accepted missions are tracked in the **Tab → Missions** tab; report back to the
-  giver for the reward.
+  giver for the reward. A short message names the mission and says what happened — **accepted**, **complete**
+  (only when you really hand it in) or **posted** (your own mission) — in your language. Crystal Net jobs name
+  what the circuit must do ("Circuit · a switch turns on a lamp 0/1").
 - **Camp bounty:** a settlement mission board on a planet with an uncleared **bandit camp** offers a
   bounty to drive the bandits out. Accepting it marks the camp on your planet map (key **M**); clear the
   camp — everyone holding the bounty gets credit, so it's co-op friendly — and report back for a reward
@@ -1837,6 +1841,12 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   world", "search ruins and wrecks", …) with the arc's progress as its counter. It respects the
   **VEGA hints** setting — turn hints off and the chip clears once the tutorial is done. On a world without
   machines (planet enemies *Off*, no hostile space) it never asks you to drive machines back.
+- Once the Guardian's system is on the map, the chip says **"confront the Guardian core"** — this one is never
+  hidden by the hints setting. A player still in the tutorial keeps their current lesson on the chip and only sees
+  the finale there while actually in the Guardian's system; the Settings button still says **Skip tutorial** then.
+- The Story tab's **Memories restored** list shows the story beats you have heard — also after rejoining a server.
+  VEGA's other story lines (insights, the reveal of the Guardian's system, relay notes, her old memories) are
+  re-readable under **VEGA tips**. An entry your game version has no text for reads "needs a newer version".
 - **Joining doesn't move the story.** The star system you start in is not a discovery, so a new player's
   arrival adds nothing to the world's shared story progress — only mapping systems beyond it does.
 - **Joining late.** A player who joins after the Guardian's system has appeared on the star map hears VEGA's

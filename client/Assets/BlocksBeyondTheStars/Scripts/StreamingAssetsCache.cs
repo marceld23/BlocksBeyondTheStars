@@ -25,16 +25,24 @@ namespace BlocksBeyondTheStars.Client
         /// that pushed the localizer past the splash/intro screens, which then showed raw keys (#831).</summary>
         private const int MaxConcurrentDownloads = 6;
 
-        /// <summary>Used only when <c>data/manifest.json</c> is missing — the real list is generated at build
-        /// time by <c>BuildScript.EnsureStreamingAssetsManifest</c>, which enumerates the folder and therefore
-        /// picks up new locale files on its own. Keep this list in sync anyway: a build without the manifest
-        /// would otherwise silently ship content the client can never fetch (a language, a ship, the
-        /// achievements). <c>EnsureStreamingAssetsManifest</c> compares the two and warns when they drift.</summary>
+        /// <summary>The build-time copy of the data file list (#2462, B71): <c>BuildScript.EnsureStreamingAssetsManifest</c>
+        /// writes it next to <c>manifest.json</c> as a Resources text asset (one path per line), so a deployment that lost
+        /// <c>manifest.json</c> still knows every file of THIS build — story packs and their files included — without a
+        /// hand-kept list. Git-ignored; absent in a build made without the BuildScript.</summary>
+        public const string GeneratedFallbackResource = "streaming_data_files";
+
+        /// <summary>The last resort when neither <c>data/manifest.json</c> nor the generated
+        /// <see cref="GeneratedFallbackResource"/> is there. The real list is generated at build time by
+        /// <c>BuildScript.EnsureStreamingAssetsManifest</c>, which enumerates the folder and therefore picks up new
+        /// files on its own. This copy drifted once (#2462, B71: <c>lore_sites.json</c> and six more were missing), so a
+        /// Client.Tests check now compares it with <c>data/</c>, and the build still warns when the two differ.</summary>
         private static readonly string[] FallbackManifest =
         {
             "achievements.json",
             "blocks.json",
             "blueprints.json",
+            "creatures.json",
+            "dialogs.json",
             "items.json",
             "locale_coverage.json",
             "locales/de.json",
@@ -55,6 +63,7 @@ namespace BlocksBeyondTheStars.Client
             "missions.json",
             "planets.json",
             "recipes.json",
+            "relay.json",
             "settlement_templates.json",
             "ship_layouts/ship_corvette.json",
             "ship_layouts/ship_courier.json",
@@ -65,8 +74,8 @@ namespace BlocksBeyondTheStars.Client
             "ship_layouts/ship_thunderbolt.json",
             "ship_modules.json",
             "ships.json",
+            "space_salvage.json",
             "station_templates.json",
-            "whatsnew.json",
             "stories/vega_protocol/locales/de.json",
             "stories/vega_protocol/locales/en.json",
             "stories/vega_protocol/locales/es.json",
@@ -81,8 +90,18 @@ namespace BlocksBeyondTheStars.Client
             "stories/vega_protocol/locales/tr.json",
             "stories/vega_protocol/locales/uk.json",
             "stories/vega_protocol/locales/zh.json",
+            "stories/vega_protocol/lore_sites.json",
             "stories/vega_protocol/story.json",
+            "structure_kits.json",
+            "whatsnew.json",
             "wiki/articles.json",
+            "wiki/img/circuit_airlock.png",
+            "wiki/img/circuit_doorbell.png",
+            "wiki/img/circuit_lift.png",
+            "wiki/img/circuit_lucky_dice.png",
+            "wiki/img/circuit_night_light.png",
+            "wiki/img/circuit_secret_door.png",
+            "wormholes.json",
         };
 
         private static bool _ready;
@@ -265,8 +284,8 @@ namespace BlocksBeyondTheStars.Client
 
             if (files == null || files.Length == 0)
             {
-                files = FallbackManifest;
-                manifestText = null; // stamp the built-in list, not a half-read response
+                files = FallbackFiles();
+                manifestText = null; // stamp the fallback list, not a half-read response
             }
 
             var wanted = new List<string>(files.Length);
@@ -324,6 +343,41 @@ namespace BlocksBeyondTheStars.Client
             }
 
             WriteStamp(cacheDir, stamp);
+        }
+
+        /// <summary>The file list when <c>manifest.json</c> could not be read (#2462, B71): the build-time list from
+        /// <see cref="GeneratedFallbackResource"/> when the build wrote one, otherwise the built-in
+        /// <see cref="FallbackManifest"/>.</summary>
+        private static string[] FallbackFiles()
+        {
+            try
+            {
+                var generated = Resources.Load<TextAsset>(GeneratedFallbackResource);
+                if (generated != null && !string.IsNullOrEmpty(generated.text))
+                {
+                    var files = new List<string>();
+                    foreach (string line in generated.text.Split('\n'))
+                    {
+                        string file = line.Trim();
+                        if (file.Length > 0)
+                        {
+                            files.Add(file);
+                        }
+                    }
+
+                    if (files.Count > 0)
+                    {
+                        Debug.Log($"StreamingAssets: using the build-time file list ({files.Count} files).");
+                        return files.ToArray();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"StreamingAssets: the build-time file list could not be read: {ex.Message}");
+            }
+
+            return FallbackManifest;
         }
 
         /// <summary>Downloads the manifest's files, up to <see cref="MaxConcurrentDownloads"/> at a time.</summary>

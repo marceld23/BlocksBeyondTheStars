@@ -104,7 +104,7 @@ progress (1 > 0 %, 2 ≥ 33 %, 3 ≥ 66 %); **4 is the win alone** (#2460) — i
 
 | Tag | Message | Dir | Purpose |
 |---|---|---|---|
-| 139 | `StoryStateMessage` | S→C | active story, progress %, counts, kills, beats seen, flags |
+| 139 | `StoryStateMessage` | S→C | active story, progress %, counts, kills, beats seen, flags; additive `HeardBeats` (this player's beat indexes) since #2462 |
 | 140 | `NetFragmentFoundIntent` | C→S | player opened a fragment at a position |
 | 141 | `NetFragmentRevealed` | S→C | category + archive text key |
 | 142 | `PlayerMemoryRevealed` | S→C | a personal memory unlocked by a machine kill |
@@ -119,6 +119,33 @@ progress (1 > 0 %, 2 ≥ 33 %, 3 ≥ 66 %); **4 is the win alone** (#2460) — i
 | 221 | `RequestStoryResolutionIntent` | C→S | Story tab "watch the ending again" (#1124) |
 
 Beat speech reuses `ShipAiLine`. Every message is `Register()`'d in NetCodec.
+
+### The objective chip, the beat list and the story UI (#2462)
+
+All fields below are additive (contractless MessagePack: an older peer ignores them, a missing one reads as its
+default) — no `Protocol.Version` bump.
+
+| Field | Meaning | Older peer |
+|---|---|---|
+| `ShipAiLine.ObjectiveSource` | where the chip's objective comes from — `ObjectiveSources.Tutorial` / `Story` / `Finale` / `Mission`, empty = no objective. Set in ONE place, `SendVegaWithObjective` (every VEGA line carries the chip; the 1 Hz refresh compares the whole `VegaChip`) | an older client keeps its `story.obj.` prefix guess; a new client facing an older server uses the same guess (`ObjectiveSourceRules.Effective`, which now also treats `story.obj.finale` as finale) |
+| `ShipAiLine.TutorialActive` | this player's tutorial still runs, whatever the chip shows — the Settings button offers *Skip* then, *Restart* otherwise (B03) | read only when `ObjectiveSource` is set |
+| `StoryStateMessage.HeardBeats` | the beat indexes this player has heard (`story:<id>:beat:<n>` milestones), ascending | empty — the client keeps the beats heard live this session |
+| `MissionResult.Outcome` / `Title` / `FreeText` | `accepted` / `completed` / `posted` and the mission's title (locale key, or display text when `FreeText`) for the toast (B24) | empty outcome — the client's toast says "Mission updated" and names the mission from its mission list |
+| `SetNpcCallsIntent.VegaHintsMuted` | the client's VEGA hints switch is off (sent at every join and from both settings screens): the server holds advisor hints (Kind 1), context tips and the bandit briefing back WITHOUT burning their once-flags (B31) | absent = hints on (today's behaviour) |
+
+Rules on top of the wire:
+- **Chip order.** The tutorial lesson keeps the chip unless the finale is open AND the player is in the Guardian
+  system (`FinaleObjectiveOverridesTutorial(p)` = `FinaleOpen && IsGuardianSystemLocation(p.CurrentLocationId)`,
+  B11 — it used to be world-wide). Once the tutorial is done the story objective is the finale anyway.
+- **Mute.** Only `story` follows the hints switch (`ObjectiveSourceRules.HiddenByHintsMute`); `tutorial`, `finale`,
+  `mission` and any source a client does not know yet always show.
+- **Beat list.** `StoryBeatLog` (Client.Core) rebuilds the Story tab's *Memories restored* list from `HeardBeats` plus
+  the beats heard live (the join sends the snapshot BEFORE its catch-up lines), in arc order, and holds only pack beats
+  (`StoryLog.BeatIndexOf`); other Kind-2 lines go to the VEGA log. Missing locale keys render as `ui.story.entry_missing`.
+- **Client one-shot lessons** (`VegaPanel.SayLocal`) return whether the line was queued; callers set their
+  `ClientSettings.*HintShown` flag only then.
+- **Pause.** `PausedMayHandle` serves `SetNpcCallsIntent`, `SkipOnboardingIntent`, `RequestStoryResolutionIntent` and
+  `StorySelectIntent` while the world is held (each with a dispatch test in `StoryUiFixesTests`).
 
 ## Cinematics: one cutscene state, skip on every device, the world-hold arbiter (#2461)
 

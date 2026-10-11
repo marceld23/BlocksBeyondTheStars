@@ -143,11 +143,11 @@ namespace BlocksBeyondTheStars.Client
         {
             _scanLetGoTimer = 2.5f;
             var settings = Game.Settings;
-            if (settings != null && !settings.ShipScanHoldHintShown)
+            // Spent only when the line went out (#2462, B31): muted, it waits for the next early let-go.
+            if (settings != null && !settings.ShipScanHoldHintShown && VegaPanel.Instance?.SayLocal("vega.hint.ship_scan_hold") == true)
             {
                 settings.ShipScanHoldHintShown = true;
                 settings.Save();
-                VegaPanel.Instance?.SayLocal("vega.hint.ship_scan_hold");
             }
         }
 
@@ -653,14 +653,15 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (!settings.ShipScannerHintShown)
+            // With the hints muted the lesson waits for a flight with them on (#2462, B31) — it used to be marked shown
+            // and then dropped by the muted panel.
+            if (!settings.ShipScannerHintShown && settings.VegaHints)
             {
                 _scannerHintTimer -= dt;
-                if (_scannerHintTimer <= 0f)
+                if (_scannerHintTimer <= 0f && VegaPanel.Instance?.SayLocal("vega.hint.ship_scanner") == true)
                 {
                     settings.ShipScannerHintShown = true;
                     settings.Save();
-                    VegaPanel.Instance?.SayLocal("vega.hint.ship_scanner");
                 }
             }
         }
@@ -699,9 +700,12 @@ namespace BlocksBeyondTheStars.Client
                 {
                     if (e.Kind == "Wormhole" && (new Vector3(e.X, e.Y, e.Z) - shipPos).sqrMagnitude <= 500f * 500f)
                     {
-                        settings.WormholeHintShown = true;
-                        settings.Save();
-                        VegaPanel.Instance?.SayLocal("vega.hint.wormhole");
+                        if (VegaPanel.Instance?.SayLocal("vega.hint.wormhole") == true) // muted: wait (#2462, B31)
+                        {
+                            settings.WormholeHintShown = true;
+                            settings.Save();
+                        }
+
                         break;
                     }
                 }

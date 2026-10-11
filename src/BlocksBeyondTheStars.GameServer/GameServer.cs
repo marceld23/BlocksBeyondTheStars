@@ -3826,6 +3826,11 @@ public sealed partial class GameServer
         // The crew/marker envelopes (#1216/#1217) carry reads AND writes — only the read passes a pause.
         CrewActionIntent c => c.Kind == "list",
         MarkerActionIntent m => m.Kind == "list",
+        // #2462 (B12): preferences, the tutorial and the story — sent from the Settings (which the pause menu opens),
+        // the Tab menu's Story tab and admin tools. None moves the frozen world: they change this player's own
+        // ledger or re-send state. SetNpcCallsIntent used to be dropped here, so a call preference changed from the
+        // pause menu only took effect at the next join.
+        SetNpcCallsIntent or SkipOnboardingIntent or RequestStoryResolutionIntent or StorySelectIntent => true,
         _ => false,
     };
 

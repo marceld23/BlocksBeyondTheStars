@@ -251,7 +251,7 @@ public sealed partial class GameServer
 
         OnBountyAccepted(session, def); // #730/#731: persist the def + reveal a camp bounty's camp on the map
 
-        Send(session, new MissionResult { Success = true, MissionId = missionId });
+        Send(session, MissionSucceeded(session, def, MissionOutcomes.Accepted));
         SendMissionList(session);
         if (MissionAcceptCountsAsTrade(def))
         {
@@ -372,7 +372,7 @@ public sealed partial class GameServer
         }
 
         _repo.SavePlayer(session.State);
-        Send(session, new MissionResult { Success = true, MissionId = missionId });
+        Send(session, MissionSucceeded(session, def, MissionOutcomes.Completed));
         OnAchievementMissionCompleted(session); // "Helping Hand" / "Quartermaster's Friend" (#1102)
         if (IsBoardMissionId(missionId))
         {
@@ -559,7 +559,7 @@ public sealed partial class GameServer
         _repo.SaveMission(def);
         _missionDefs[id] = def;
 
-        Send(session, new MissionResult { Success = true, MissionId = id });
+        Send(session, MissionSucceeded(session, def, MissionOutcomes.Posted));
         SendInventory(session);
         SendMissionList(session);
         _log.Info($"Player '{session.State.Name}' created mission '{id}'.");
@@ -1078,6 +1078,24 @@ public sealed partial class GameServer
 
     private void MissionFail(PlayerSession session, string missionId, string reason)
         => Send(session, new MissionResult { Success = false, MissionId = missionId, Reason = reason });
+
+    /// <summary>A success result for the client's toast (#2462, B24): what happened — accepted, turned in, posted —
+    /// and the mission's title by the same rule as the mission list (a locale key, or display text for player
+    /// missions and generated board texts). The toast used to read "Mission '&lt;raw id&gt;' complete!" in English for
+    /// all three, the accept included.</summary>
+    private MissionResult MissionSucceeded(PlayerSession session, MissionDefinition def, string outcome)
+    {
+        bool isPlayer = def.Source == MissionSource.Player;
+        var llmText = IsBoardMissionId(def.Id) ? BoardMissionText(def.Id, session.Locale) : null;
+        return new MissionResult
+        {
+            Success = true,
+            MissionId = def.Id,
+            Outcome = outcome,
+            Title = llmText?.Title ?? (isPlayer ? def.Title : def.NameKey),
+            FreeText = isPlayer || llmText is not null,
+        };
+    }
 
     /// <summary>The board (giver) mission ids currently available to a player — runs the giver window so it
     /// reflects the never-run-dry refill (test/inspection).</summary>

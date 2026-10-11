@@ -326,9 +326,11 @@ public sealed class NpcRadioTests : IDisposable
             var p = server.Sessions[1];
             TestGear.Wear(p.State, "comm_radio");
 
-            // Only the VENDOR is known (the settler-legend thread lives with them: known + knowledge 1,
-            // which a fresh join satisfies) — the quartermaster stays a stranger so no camp/food call
-            // interferes.
+            // Only the VENDOR is known (the settler-legend thread lives with them: known + knowledge 1) — the
+            // quartermaster stays a stranger so no camp/food call interferes. Knowledge 1 needs some shared story
+            // progress: since #2460 (N4) the join's spawn system no longer pays a milestone, so one is seeded here.
+            server.RecordStoryMilestoneForTest();
+            Assert.True(server.WorldKnowledgeLevel() >= 1);
             string settlement = server.BoardSettlementNameForTest();
             string vendorKey = server.SettlementLocationKeyForTest(settlement) + ":vendor";
             p.State.NpcMemory[vendorKey] = new NpcRelationship { Name = "Mira", Role = "vendor", Value = 20 };

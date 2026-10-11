@@ -174,8 +174,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>AI-core tier of the active ship (1 = bare VEGA, 2 = Mk2, 3 = Mk3) — gates the autopilot.</summary>
         public int AiCoreTier { get; private set; } = 1;
 
-        /// <summary>True while the VEGA onboarding chain is active (an objective chip is showing) — the
-        /// Settings tab offers "skip tutorial" then, "restart tutorial" otherwise.</summary>
+        /// <summary>True while the VEGA onboarding chain is active — the Settings tab offers "skip tutorial" then,
+        /// "restart tutorial" otherwise. Since #2462 the server reports it on every VEGA line
+        /// (<c>ShipAiLine.TutorialActive</c>), whatever the chip shows; an older server is read from the chip's key.</summary>
         public bool OnboardingActive { get; private set; }
 
         // Per-species flora tints for the current world (seed + location → one colour per flora block),
@@ -667,6 +668,33 @@ namespace BlocksBeyondTheStars.Client
         public StarMapData StarMap { get; private set; }
         public MissionList Missions { get; private set; }
         public ServerRules Rules { get; private set; }
+
+        /// <summary>The mission with this id from the last mission list (active first, then available), or null.</summary>
+        private NetMission FindMission(string missionId)
+        {
+            if (Missions == null || string.IsNullOrEmpty(missionId))
+            {
+                return null;
+            }
+
+            foreach (var list in new[] { Missions.Active, Missions.Available })
+            {
+                if (list == null)
+                {
+                    continue;
+                }
+
+                foreach (var mission in list)
+                {
+                    if (mission != null && mission.Id == missionId)
+                    {
+                        return mission;
+                    }
+                }
+            }
+
+            return null;
+        }
 
         /// <summary>Frame marker used when the in-game menu consumes Esc/Tab, so the app shell
         /// does not also open the quit prompt on the same key press.</summary>
@@ -1407,8 +1435,18 @@ namespace BlocksBeyondTheStars.Client
         /// inscriptions, wreck logs, ruin notes. Per player; re-readable in the Story tab + Codex.</summary>
         public readonly System.Collections.Generic.List<(string Site, string TextKey)> StoryLogLore = new();
 
-        /// <summary>Story Log: the VEGA story-beat lines heard so far (locale keys, ShipAiLine kind 2 = memory/story).</summary>
-        public readonly System.Collections.Generic.List<string> StoryLogBeats = new();
+        /// <summary>Story Log: the story's beats this player has heard (locale keys, in arc order). Rebuilt from the server's
+        /// <c>StoryStateMessage.HeardBeats</c>, so it survives a rejoin, plus the beats heard live (#2462, B08). Holds only
+        /// the pack's beats — other narrator lines (insights, the Guardian reveal, relay lines, old memories) go to the
+        /// VEGA log.</summary>
+        public System.Collections.Generic.List<string> StoryLogBeats => _storyBeats.Keys;
+
+        private readonly BlocksBeyondTheStars.Client.Core.StoryBeatLog _storyBeats = new();
+
+        /// <summary>The definition of the save's active story, or null — no story state yet, the "none" sandbox, or a pack
+        /// this client does not have.</summary>
+        private BlocksBeyondTheStars.Shared.Story.StoryDefinition ActiveStoryPack()
+            => Story != null && Content != null && Content.TryGetStory(Story.StoryId, out var pack) ? pack : null;
 
         /// <summary>Re-readable VEGA tips (locale keys, #737): rebuilt from the server's milestone snapshot on
         /// join (canonical order) and appended live as onboarding/advisor/system lines arrive this session.</summary>
@@ -2890,14 +2928,24 @@ namespace BlocksBeyondTheStars.Client
             Network.WorldResetReceived += OnWorldReset;
             Network.ShipAiLineReceived += m =>
             {
-                // The post-tutorial story objective (#1110) rides the same chip — it must not read as an
-                // active tutorial (the settings button offers "restart" only while truly onboarding).
-                OnboardingActive = !string.IsNullOrEmpty(m.ObjectiveKey)
-                    && !m.ObjectiveKey.StartsWith("story.obj.", System.StringComparison.Ordinal);
-                if (m.Kind == 2 && !string.IsNullOrEmpty(m.LineKey)) { StoryLogBeats.Add(m.LineKey); NewStoryUnseen = true; } // a story beat
+                // The settings button offers "skip" while the tutorial runs and "restart" after it (#2462, B03): the server
+                // says so outright, whatever the chip shows — the finale may sit on it in the Guardian system while the
+                // lessons are unfinished. An older server is read from the chip's key prefix as before.
+                OnboardingActive = ObjectiveSourceRules.TutorialRunning(m.ObjectiveSource, m.ObjectiveKey, m.TutorialActive);
+                bool storyLine = m.Kind == 2 && !string.IsNullOrEmpty(m.LineKey);
+                if (storyLine)
+                {
+                    NewStoryUnseen = true;
+                    // Only the pack's beats go to the beat list (#2462, B08); the other narrator lines (insights, the
+                    // Guardian reveal, relay lines, old memories) stay re-readable in the VEGA log below.
+                    storyLine = _storyBeats.OnStoryLine(ActiveStoryPack(), m.LineKey);
+                }
+
                 // Tips log (#737): onboarding (0), advisor (1) and system (3) lines become re-readable the
-                // moment they arrive. Kind 2 is the story log's, Kind 4 (prologue) is intro-only by design.
-                if (m.Kind is 0 or 1 or 3 or 5 && !string.IsNullOrEmpty(m.LineKey) && !VegaLogKeys.Contains(m.LineKey))
+                // moment they arrive, and so do the narrator lines that are not beats. Kind 4 (prologue) is
+                // intro-only by design.
+                bool logged = m.Kind is 0 or 1 or 3 or 5 || (m.Kind == 2 && !storyLine);
+                if (logged && !string.IsNullOrEmpty(m.LineKey) && !VegaLogKeys.Contains(m.LineKey))
                 {
                     VegaLogKeys.Add(m.LineKey);
                 }
@@ -2914,7 +2962,8 @@ namespace BlocksBeyondTheStars.Client
                 Story = m;
                 // Rejoin-proof logs (#1110/#1111): the snapshot carries the found KEYS; texts resolve from
                 // the pack. Replaces the live-collected lists — the server is authoritative.
-                if (Content is not null && Content.TryGetStory(m.StoryId, out var pack))
+                var pack = ActiveStoryPack();
+                if (pack != null)
                 {
                     StoryLogFragments.Clear();
                     StoryLogFragments.AddRange(BlocksBeyondTheStars.Client.Core.StoryLog.Fragments(pack, m.FoundFragmentKeys));
@@ -2923,6 +2972,9 @@ namespace BlocksBeyondTheStars.Client
                     StoryLogLore.Clear();
                     StoryLogLore.AddRange(BlocksBeyondTheStars.Client.Core.StoryLog.Lore(pack, m.FoundLoreKeys));
                 }
+
+                // The beats this player heard (#2462, B08) — the beat list survives a rejoin now.
+                _storyBeats.OnStoryState(pack, m.StoryId, m.HeardBeats);
             };
             Network.NetFragmentsReceived += m => NetFragments = m.Fragments;
             Network.NetFragmentRevealedReceived += m =>
@@ -2975,12 +3027,13 @@ namespace BlocksBeyondTheStars.Client
                 {
                     OpenOverviewOnNextPlanetScan = false;
                     PlanetOverviewCard.Show(this, m); // #2239: the flight scanner read a planet — what awaits there
-                    if (Settings != null && !Settings.PlanetCardHintShown && m.Rows != null && m.Rows.Length > 0)
+                    // #2247: the first card says once what the colours mean and where the report lives on — "once"
+                    // counting only a line that went out (#2462, B31: muted, it waits for a later card).
+                    if (Settings != null && !Settings.PlanetCardHintShown && m.Rows != null && m.Rows.Length > 0
+                        && VegaPanel.Instance?.SayLocal("vega.hint.planet_card") == true)
                     {
-                        // #2247: the first card says once what the colours mean and where the report lives on.
                         Settings.PlanetCardHintShown = true;
                         Settings.Save();
-                        VegaPanel.Instance?.SayLocal("vega.hint.planet_card");
                     }
                 }
             };
@@ -3074,7 +3127,10 @@ namespace BlocksBeyondTheStars.Client
                 LastMessage = m.Docked ? $"Docked with {m.Partner}" : ServerMessageText(m.Reason);
             };
             // #1071: rejections arrive as @srv.mission.* tokens — localize them instead of pushing the raw token at the player.
-            Network.MissionResultReceived += m => LastMessage = m.Success ? $"Mission '{m.MissionId}' complete!" : ServerMessageText(m.Reason);
+            // #2462 (B24): localized, named after the mission, and "complete" only on a real turn-in.
+            Network.MissionResultReceived += m => LastMessage = m.Success
+                ? MissionToast.Text(m, FindMission(m.MissionId), key => Localizer?.Get(key) ?? key, key => Localizer?.Has(key) ?? false)
+                : ServerMessageText(m.Reason);
             Network.RespawnNoticeReceived += m =>
             {
                 LastMessage = ServerMessageText(m.Reason);
@@ -3156,7 +3212,9 @@ namespace BlocksBeyondTheStars.Client
                             string.IsNullOrEmpty(HostedToken) ? null : HostedToken,
                             string.IsNullOrEmpty(installId) ? null : installId);
                         Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb, HullRgb);
-                        Network.SendSetNpcCalls(Settings?.NpcCalls ?? 0); // #1119: the server initiates NPC calls, so it must know the preference
+                        // #1119: the server initiates NPC calls, so it must know the preference — and VEGA's hints mute
+                        // (#2462, B31), so a muted hint waits instead of burning its once-flag unseen.
+                        Network.SendSetNpcCalls(Settings?.NpcCalls ?? 0, Settings != null && !Settings.VegaHints);
                         if (!string.IsNullOrEmpty(FacePixels))
                         {
                             Network.SendFace(FacePixels); // tell others our custom face (server persists + relays)

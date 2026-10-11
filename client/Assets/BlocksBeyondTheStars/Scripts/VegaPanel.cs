@@ -109,6 +109,7 @@ namespace BlocksBeyondTheStars.Client
 
         private string _objectiveKey = string.Empty;
         private string _objectiveArg = string.Empty; // {0} of the objective line (#1859: the fragment world's name)
+        private string _objectiveSource = string.Empty; // tutorial / story / finale / mission; empty from an older server (#2462)
         private int _objProgress, _objTarget;
         private RectTransform _chipRect; // grows from 48 to 72 for a three-line objective (#1859)
 
@@ -247,12 +248,14 @@ namespace BlocksBeyondTheStars.Client
         /// lessons only the client knows the moment for (the first time a screen opens). Follows the advisor
         /// rules of a Kind-1 server line: the VegaHints mute, <c>{key:Action}</c> glyphs, the same speech
         /// queue, and the tips log for the session (a rejoin rebuilds the log from server milestones, so a
-        /// purely local lesson drops out of it then — by design, it is a one-liner).</summary>
-        public void SayLocal(string lineKey)
+        /// purely local lesson drops out of it then — by design, it is a one-liner). Returns whether the line was
+        /// queued: a caller with a once-flag sets it only then (#2462, B31) — a lesson muted by the hints switch must
+        /// still come once the hints are back on, not be spent unseen.</summary>
+        public bool SayLocal(string lineKey)
         {
             if (string.IsNullOrEmpty(lineKey) || Settings is { VegaHints: false })
             {
-                return;
+                return false;
             }
 
             _queue.Enqueue((VegaText.Compose(L(lineKey), null, KeyGlyphFor), false, lineKey));
@@ -262,6 +265,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Refresh();
+            return true;
         }
 
         /// <summary>Resolver for <c>{key:Action}</c> tokens in VEGA lines: the pad glyph or bound key for a
@@ -433,6 +437,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _objectiveKey = m.ObjectiveKey ?? string.Empty;
             _objectiveArg = m.ObjectiveArg ?? string.Empty;
+            _objectiveSource = m.ObjectiveSource ?? string.Empty;
             _objProgress = m.ObjectiveProgress;
             _objTarget = m.ObjectiveTarget;
 
@@ -484,9 +489,10 @@ namespace BlocksBeyondTheStars.Client
 
             // The post-tutorial story objective (#1110) is optional coaching: unlike the onboarding chip
             // (which always shows) it respects the VEGA-hints mute, so a player who turned guidance off
-            // gets their clean HUD back.
-            if (hasObjective && _objectiveKey.StartsWith("story.obj.", System.StringComparison.Ordinal)
-                && Settings is { VegaHints: false })
+            // gets their clean HUD back. The server names the source (#2462); the tutorial, the finale and
+            // a mission are never muted — the old prefix rule hid "confront the Guardian core" as well.
+            if (hasObjective && ObjectiveSourceRules.HiddenByHintsMute(
+                    ObjectiveSourceRules.Effective(_objectiveSource, _objectiveKey), Settings is not { VegaHints: false }))
             {
                 hasObjective = false;
             }

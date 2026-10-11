@@ -201,12 +201,12 @@ namespace BlocksBeyondTheStars.Client
             Game.SetMenuOwner(this, true);
 
             // #2249: the first visit names the three tabs once — "Change" (improving a tool or gear) used to go unfound.
+            // The flag is spent only when the line really went out (#2462, B31) — muted, it waits for a later visit.
             var settings = Game.Settings;
-            if (settings != null && !settings.BioLabTabsHintShown)
+            if (settings != null && !settings.BioLabTabsHintShown && VegaPanel.Instance?.SayLocal("vega.hint.bio_lab_tabs") == true)
             {
                 settings.BioLabTabsHintShown = true;
                 settings.Save();
-                VegaPanel.Instance?.SayLocal("vega.hint.bio_lab_tabs");
             }
         }
 

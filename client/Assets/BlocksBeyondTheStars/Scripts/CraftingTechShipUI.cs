@@ -3515,6 +3515,8 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Menu.Settings.VegaHints = !Menu.Settings.VegaHints;
                     Menu.Settings.Save();
+                    // The server speaks the hints — it holds them back while muted instead of burning them unseen (#2462, B31).
+                    Game?.Network?.SendSetNpcCalls(Menu.Settings.NpcCalls, !Menu.Settings.VegaHints);
                     RebuildList();
                 }
             });
@@ -4845,11 +4847,17 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var k in keys)
             {
-                y = StoryEntry(y, L(k));
+                y = StoryEntry(y, StoryText(k));
             }
 
             return y;
         }
+
+        /// <summary>A story-log text: the localized line, or a short "needs a newer version" note when this client has no
+        /// text for the key (#2462, N10) — a server with a newer pack sends keys this client does not know, and the raw
+        /// "[key]" used to land in the list.</summary>
+        private string StoryText(string key)
+            => Game?.Localizer != null && Game.Localizer.Has(key) ? L(key) : L("ui.story.entry_missing");
 
         private static readonly TextGenerator StoryMeasurer = new TextGenerator();
 
@@ -4883,13 +4891,14 @@ namespace BlocksBeyondTheStars.Client
         /// long archive texts get a real page instead of squinting at a list row.</summary>
         private float StoryReadableEntry(float y, string title, string label, string textKey)
         {
-            string text = string.IsNullOrEmpty(label) ? L(textKey) : "[" + label + "] " + L(textKey);
+            string body = StoryText(textKey); // never a raw "[key]" (#2462, N10)
+            string text = string.IsNullOrEmpty(label) ? body : "[" + label + "] " + body;
             float rowTop = y;
             y = StoryEntry(y, text, 660f); // keep clear of the Read button's lane
 
             UiKit.AddButton(_listContent, 688, rowTop, 92, 30, L("ui.story.read"), () =>
             {
-                StoryReaderUi.Instance?.OpenOverMenu(title, label, L(textKey));
+                StoryReaderUi.Instance?.OpenOverMenu(title, label, body);
             });
             return y;
         }
@@ -7139,6 +7148,12 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     return target.StartsWith("creature:", System.StringComparison.Ordinal) ? target.Substring("creature:".Length) : target;
+                }
+                case "circuit":
+                {
+                    // #2462 (B25): what the Crystal Net circuit must do ("a switch lights a lamp"), not "lamp_by_switch".
+                    string key = "ui.missions.circuittarget." + target;
+                    return Game?.Localizer?.Has(key) == true ? L(key) : L("ui.missions.circuittarget.any");
                 }
                 default:
                     return target;

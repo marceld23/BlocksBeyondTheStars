@@ -40,4 +40,12 @@ public sealed class KnownNpcList
 public sealed class SetNpcCallsIntent
 {
     public int Mode { get; set; }
+
+    /// <summary>#2462 (B31): the player switched VEGA's hints off. The server speaks the hints, and each burns a
+    /// once-flag when it goes out — a hint the client then muted was gone for good. With this the server holds the
+    /// hint back instead, so it still comes once the hints are on again. Rides on this intent because it is the
+    /// client's other "the server initiates it, so it must know" preference, sent at every join and from the
+    /// settings. Not saved (the mute is a per-installation setting). Additive: an older client never sets it, which
+    /// reads as "hints on" — today's behaviour.</summary>
+    public bool VegaHintsMuted { get; set; }
 }

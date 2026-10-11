@@ -93,9 +93,11 @@ public sealed partial class GameServer
         Send(session, new KnownNpcList { People = people });
     }
 
-    /// <summary>Stores the player's NPC radio-call preference (#1119) in the save.</summary>
+    /// <summary>Stores the player's NPC radio-call preference (#1119) in the save, and takes the session's VEGA hints
+    /// mute (#2462, B31) that rides on the same intent.</summary>
     private void HandleSetNpcCalls(PlayerSession session, SetNpcCallsIntent intent)
     {
+        session.VegaHintsMuted = intent.VegaHintsMuted;
         session.State.NpcCallsMode = System.Enum.IsDefined(typeof(NpcCallsMode), intent.Mode)
             ? (NpcCallsMode)intent.Mode
             : NpcCallsMode.All;

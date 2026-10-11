@@ -743,7 +743,11 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendRequestKnownNpcs() => Send(new RequestKnownNpcsIntent());
 
-        public void SendSetNpcCalls(int mode) => Send(new SetNpcCallsIntent { Mode = mode });
+        /// <summary>The preferences the server must know because it initiates what they silence: the NPC radio calls
+        /// (#1119) and — since #2462 (B31) — VEGA's hints mute, so a muted hint is held back instead of burned unseen.
+        /// Both on every call: send it at join and whenever either setting changes.</summary>
+        public void SendSetNpcCalls(int mode, bool vegaHintsMuted)
+            => Send(new SetNpcCallsIntent { Mode = mode, VegaHintsMuted = vegaHintsMuted });
 
         public void SendCopyBuild(int x1, int y1, int z1, int x2, int y2, int z2, string name)
             => Send(new CopyBuildIntent { X1 = x1, Y1 = y1, Z1 = z1, X2 = x2, Y2 = y2, Z2 = z2, Name = name });

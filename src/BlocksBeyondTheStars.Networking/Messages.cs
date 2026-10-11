@@ -1547,6 +1547,26 @@ public sealed class MissionResult
     public bool Success { get; set; }
     public string MissionId { get; set; } = string.Empty;
     public string? Reason { get; set; }
+
+    /// <summary>What succeeded (#2462, B24) — one of <see cref="MissionOutcomes"/>: the mission was accepted, turned in
+    /// or posted. Empty from an older server, which sent the same message for all three; the client then says
+    /// neutrally that the mission was updated. Additive (contractless).</summary>
+    public string Outcome { get; set; } = string.Empty;
+
+    /// <summary>The mission's title for the toast, by the same rule as <see cref="NetMission.Title"/>: a locale key,
+    /// or display text when <see cref="FreeText"/> (player missions, generated board texts). Additive.</summary>
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>True when <see cref="Title"/> is display text rather than a locale key. Additive.</summary>
+    public bool FreeText { get; set; }
+}
+
+/// <summary>The values of <see cref="MissionResult.Outcome"/> (#2462).</summary>
+public static class MissionOutcomes
+{
+    public const string Accepted = "accepted";
+    public const string Completed = "completed";
+    public const string Posted = "posted";
 }
 
 // --- Star map ---
@@ -2989,6 +3009,39 @@ public sealed class ShipAiLine
     /// 4 = prologue page (full-screen overlay), 5 = repeated context tip (#1077 — muted like 1, and dropped
     /// by the client while its speech queue is busy).</summary>
     public byte Kind { get; set; }
+
+    /// <summary>Where the chip's objective comes from (#2462) — one of <see cref="ObjectiveSources"/>. The client
+    /// decides the hints mute (only <see cref="ObjectiveSources.Story"/> follows it) from this instead of guessing
+    /// from the key prefix. Empty = no objective, or an older server: the client then keeps its prefix guess.
+    /// Additive (contractless): an older client ignores it.</summary>
+    public string ObjectiveSource { get; set; } = string.Empty;
+
+    /// <summary>True while this player's tutorial still runs, whatever the chip shows (#2462, B03): the finale
+    /// objective may sit on the chip in the Guardian system while the lessons are unfinished, and the Settings
+    /// button must still offer "Skip", never "Restart". Meaningful only when <see cref="ObjectiveSource"/> is set
+    /// (a server that knows the field always sets the source while the tutorial runs). Additive.</summary>
+    public bool TutorialActive { get; set; }
+}
+
+/// <summary>The values of <see cref="ShipAiLine.ObjectiveSource"/> (#2462). Strings, not an enum, so a later
+/// source (another story pack) reaches an older client as an unknown word — which it shows: only
+/// <see cref="Story"/> follows the hints mute.</summary>
+public static class ObjectiveSources
+{
+    /// <summary>No objective on the chip — or a server that predates the field.</summary>
+    public const string None = "";
+
+    /// <summary>A tutorial lesson. Never muted.</summary>
+    public const string Tutorial = "tutorial";
+
+    /// <summary>Optional story coaching (the chapter lead). Follows the VEGA hints mute.</summary>
+    public const string Story = "story";
+
+    /// <summary>The story finale (confront the Guardian core). Never muted.</summary>
+    public const string Finale = "finale";
+
+    /// <summary>An accepted mission's objective. Never muted.</summary>
+    public const string Mission = "mission";
 }
 
 /// <summary>Client → server: skip the VEGA onboarding (grants all stage milestones; the advisor hints

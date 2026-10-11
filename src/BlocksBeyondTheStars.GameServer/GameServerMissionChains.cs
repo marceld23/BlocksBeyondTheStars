@@ -616,7 +616,7 @@ public sealed partial class GameServer
         string acceptedFrom = npcKey.StartsWith("char:", StringComparison.Ordinal) ? place : npcKey[..Math.Max(0, npcKey.IndexOf(':'))];
         p.Missions.Add(NewMissionProgress(p, def, acceptedFrom));
         OnChainStepAccepted(session, def, npcKey, npc.Name);
-        Send(session, new MissionResult { Success = true, MissionId = missionId });
+        Send(session, MissionSucceeded(session, def, MissionOutcomes.Accepted));
         SendMissionList(session);
         if (MissionAcceptCountsAsTrade(def))
         {

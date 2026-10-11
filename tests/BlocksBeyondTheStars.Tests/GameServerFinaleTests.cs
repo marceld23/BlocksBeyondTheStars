@@ -319,11 +319,16 @@ public sealed class GameServerFinaleTests : IDisposable
         var server = Started(out var repo);
         using (repo)
         {
-            server.AddLocalPlayer("Pilot");
+            var pilot = server.AddLocalPlayer("Pilot");
             Assert.StartsWith("vega.obj.", server.ObjectiveKeyForTest("Pilot")); // a fresh player is in VEGA's onboarding
 
             CompleteTheArc(server);
-            Assert.Equal("story.obj.finale", server.ObjectiveKeyForTest("Pilot")); // …until the finale is on the map
+            // #2462 (B11): only in the Guardian system does the finale outrank the running lessons — at home the
+            // newcomer keeps the lesson the panel is talking about …
+            Assert.StartsWith("vega.obj.", server.ObjectiveKeyForTest("Pilot"));
+
+            pilot.CurrentLocationId = SvGameServer.GuardianCoreBodyId; // … standing on the core world, the finale is it
+            Assert.Equal("story.obj.finale", server.ObjectiveKeyForTest("Pilot"));
         }
     }
 

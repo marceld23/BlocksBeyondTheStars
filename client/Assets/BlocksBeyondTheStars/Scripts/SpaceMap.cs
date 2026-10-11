@@ -214,13 +214,13 @@ namespace BlocksBeyondTheStars.Client
 
             // #1663: the first time the chart ever opens, VEGA says what it is for — nothing else in the game
             // told a new pilot that clicking a disc here sets the waypoint the radar and autopilot follow.
-            // A client-side one-shot (a UI lesson, not world progress), remembered in the client settings.
+            // A client-side one-shot (a UI lesson, not world progress), remembered in the client settings — once it
+            // really went out (#2462, B31: with the hints muted it waits for a later opening).
             var settings = Game.Settings;
-            if (settings != null && !settings.ChartWaypointHintShown)
+            if (settings != null && !settings.ChartWaypointHintShown && VegaPanel.Instance?.SayLocal("vega.hint.chart_waypoint") == true)
             {
                 settings.ChartWaypointHintShown = true;
                 settings.Save();
-                VegaPanel.Instance?.SayLocal("vega.hint.chart_waypoint");
             }
         }
 

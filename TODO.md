@@ -52,7 +52,19 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   tap counts as touch (also at join), the pad controls line follows glyph set / rebinds / triggers, and pad Y no
   longer also jumps. Tests: `CinematicsFixesTests`, `WorldHoldArbiterTests`, `InputDeviceRulesTests` (Client.Tests),
   `StoryResolutionTests`, `StoryPackLoadTests`.
-- ⬜ Step 3 — story UI fixes (#2462)
+- ✅ **Step 3 — story UI fixes (#2462)**, 2026-10-11: the objective chip names its source
+  (`ShipAiLine.ObjectiveSource` = `tutorial|story|finale|mission`, plus `TutorialActive`), so the Settings button
+  offers "Skip tutorial" while the lessons run even with the finale on the chip, and the hints mute hides only story
+  coaching (never the finale); the finale outranks a running tutorial only in the Guardian system, not world-wide;
+  the Story tab's beat list is rebuilt from `StoryStateMessage.HeardBeats` (survives a rejoin) and holds only the
+  pack's beats (other narrator lines go to the VEGA log); mission toasts are localized, name the mission and say
+  "accepted"/"complete"/"posted" (`MissionResult.Outcome/Title/FreeText`); circuit objectives read in words; a muted
+  hint (server once-hints, context tips, the bandit briefing, the client-side one-shot lessons) waits instead of
+  burning its once-flag (`SetNpcCallsIntent.VegaHintsMuted`); the Story tab never shows a raw `[key]`; the pause
+  whitelist serves `SetNpcCallsIntent`, `SkipOnboardingIntent`, `RequestStoryResolutionIntent`, `StorySelectIntent`;
+  the WebGL fallback file list is generated at build time (`Resources/streaming_data_files.txt`) and the built-in
+  copy is complete and checked against `data/`. All wire changes additive. Tests: `StoryUiFixesTests`,
+  `StoryUiFixesClientTests` (Client.Tests), `GameServerFinaleTests`.
 - ⬜ Step 4 — text fixes (#2463)
 - ⬜ Step 5 — WorldHost save-upload fixes (#2464)
 - ⬜ Step 6 — game-event bus (#2465)

@@ -286,6 +286,11 @@ public sealed class PlayerSession
     /// <summary>Blocks mined toward the onboarding "mine" stage (session-scoped; the target is tiny).</summary>
     public int VegaMineCount { get; set; }
 
+    /// <summary>#2462 (B31): the client has VEGA's hints switched off (<c>SetNpcCallsIntent.VegaHintsMuted</c>, sent at
+    /// every join and from the settings). The advisor hints and context tips are then held back instead of being sent
+    /// to a muted panel — sending burned their once-flags, so they never came back. Session-scoped, starts "on".</summary>
+    public bool VegaHintsMuted { get; set; }
+
     /// <summary>Accumulator for the 1 Hz advisor poll.</summary>
     public double VegaAdvisorAccum { get; set; }
 

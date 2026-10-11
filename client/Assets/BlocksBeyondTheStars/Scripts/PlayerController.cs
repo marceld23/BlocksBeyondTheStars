@@ -5510,8 +5510,10 @@ namespace BlocksBeyondTheStars.Client
         /// says how (#2194) — once, remembered in the client settings like the other one-shot lessons.</summary>
         private void MaybeShowClimbHint(ClimbProbe probe, Vector3 pos, Vector3 wish)
         {
+            // With VEGA's hints off the lesson waits (#2462, B31) — it used to be marked shown and then muted, so it
+            // never came once the hints were back on.
             var settings = Game?.Settings;
-            if (settings == null || settings.ClimbHintShown || wish.sqrMagnitude < 0.09f)
+            if (settings == null || settings.ClimbHintShown || !settings.VegaHints || wish.sqrMagnitude < 0.09f)
             {
                 return;
             }
@@ -5524,11 +5526,11 @@ namespace BlocksBeyondTheStars.Client
 
             _climbHintTimer = 0.5f;
             if (probe.TryFindWall(pos.x, pos.y, pos.z, wish.x, wish.z, out var hold)
-                && probe.HoldAt(pos.x, pos.y, pos.z, hold.DirX, hold.DirZ, 2.4f) != ClimbSurface.None)
+                && probe.HoldAt(pos.x, pos.y, pos.z, hold.DirX, hold.DirZ, 2.4f) != ClimbSurface.None
+                && VegaPanel.Instance?.SayLocal("vega.hint.climb") == true)
             {
                 settings.ClimbHintShown = true;
                 settings.Save();
-                VegaPanel.Instance?.SayLocal("vega.hint.climb");
             }
         }
 

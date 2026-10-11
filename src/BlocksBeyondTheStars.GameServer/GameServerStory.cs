@@ -372,7 +372,34 @@ public sealed partial class GameServer
                 .Select(m => m.Substring(MemoryMilestonePrefix.Length)).ToArray(),
             FoundLoreKeys = mine.Where(m => m.StartsWith(LoreMilestonePrefix, StringComparison.Ordinal))
                 .Select(m => m.Substring(LoreMilestonePrefix.Length)).ToArray(),
+            HeardBeats = HeardBeats(session), // #2462 (B08): the Story tab's beat list survives a rejoin
         };
+    }
+
+    /// <summary>The beat indexes this player has heard of the active story (#2462, B08), ascending — read from their
+    /// <c>story:&lt;id&gt;:beat:&lt;n&gt;</c> milestones (<see cref="BeatMilestoneKey"/>). Other <c>story:</c> keys of the same
+    /// pack (<c>:finale:revealed</c>, <c>:resolved</c>, …) do not parse as a number and are skipped.</summary>
+    private int[] HeardBeats(PlayerSession session)
+    {
+        if (_story is null)
+        {
+            return System.Array.Empty<int>();
+        }
+
+        string prefix = "story:" + _storyState.StoryId + ":beat:";
+        var heard = new List<int>();
+        foreach (var m in session.State.Milestones)
+        {
+            if (m.StartsWith(prefix, StringComparison.Ordinal)
+                && int.TryParse(m.Substring(prefix.Length), System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out int index))
+            {
+                heard.Add(index);
+            }
+        }
+
+        heard.Sort();
+        return heard.ToArray();
     }
 
     // ---------------- Active-story selection (admin) ----------------

@@ -330,7 +330,22 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             File.WriteAllText(manifestPath, json.ToString());
             AssetDatabase.ImportAsset("Assets/StreamingAssets/data/manifest.json", ImportAssetOptions.ForceUpdate);
             Debug.Log($"WebGL StreamingAssets manifest written with {files.Count} files.");
+            WriteGeneratedFallbackList(files);
             WarnOnStaleFallbackManifest(files);
+        }
+
+        /// <summary>#2462 (B71): the same file list as a Resources text asset, baked into the player — the fallback the
+        /// browser client reads when <c>manifest.json</c> cannot be fetched (<c>StreamingAssetsCache.FallbackFiles</c>).
+        /// Generated here from the synced folder, so new content (a story pack's locales, a wiki image) never needs a
+        /// hand-kept list again. A few KB of text; git-ignored with its <c>.meta</c>.</summary>
+        private static void WriteGeneratedFallbackList(List<string> files)
+        {
+            string resources = Path.Combine(Application.dataPath, "Resources");
+            Directory.CreateDirectory(resources);
+            string name = StreamingAssetsCache.GeneratedFallbackResource + ".txt";
+            File.WriteAllText(Path.Combine(resources, name), string.Join("\n", files.ToArray()) + "\n");
+            AssetDatabase.ImportAsset("Assets/Resources/" + name, ImportAssetOptions.ForceUpdate);
+            Debug.Log($"WebGL fallback file list written to Assets/Resources/{name} ({files.Count} files).");
         }
 
         /// <summary>Compares the generated manifest with <c>StreamingAssetsCache.FallbackManifest</c>, the

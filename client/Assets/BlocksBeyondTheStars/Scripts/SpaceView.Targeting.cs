@@ -843,9 +843,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            settings.TargetLockHintShown = true;
-            settings.Save();
-            VegaPanel.Instance?.SayLocal("vega.hint.target_lock");
+            // Spent only when the line went out (#2462, B31): with the hints muted it waits for the next lock.
+            if (VegaPanel.Instance?.SayLocal("vega.hint.target_lock") == true)
+            {
+                settings.TargetLockHintShown = true;
+                settings.Save();
+            }
         }
 
         // ---------------- HUD ----------------

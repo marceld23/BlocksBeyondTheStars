@@ -508,7 +508,9 @@ public sealed partial class GameServer
         }
 
         var p = session.State;
-        if (!p.Milestones.Contains(BanditBriefMilestone))
+        // The briefing is an advisor line: with the hints muted it waits for a later sector (#2462, B31) instead of
+        // burning unseen — the short system warning still goes out.
+        if (!p.Milestones.Contains(BanditBriefMilestone) && !HintMutedFor(session, 1))
         {
             p.Milestones.Add(BanditBriefMilestone);
             SendVegaLine(session, "vega.brief.bandits", 1);
@@ -530,7 +532,7 @@ public sealed partial class GameServer
         }
 
         var p = session.State;
-        if (!p.Milestones.Contains(BanditBriefMilestone))
+        if (!p.Milestones.Contains(BanditBriefMilestone) && !HintMutedFor(session, 1)) // #2462 (B31): never burned unseen
         {
             p.Milestones.Add(BanditBriefMilestone);
             SendVegaLine(session, "vega.brief.bandits", 1);
