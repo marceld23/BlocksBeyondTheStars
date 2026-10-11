@@ -429,6 +429,7 @@
   "WorldHostLegalTests": 0.4,
   "WorldHostPhase3Tests": 1.3,
   "WorldHostPortalPagesTests": 0.3,
+  "WorldHostSaveVersionTests": 0.7,
   "WorldHostStatsTests": 0.0,
   "WorldHostTermsTests": 0.0,
   "WorldHostTests": 7.4,

@@ -1749,6 +1749,8 @@
   "ui.portal.err_world_not_found": "World not found.",
   "ui.portal.err_world_start_failed": "The world could not be started — please try again in a moment.",
   "ui.portal.err_world_wake_failed": "The world did not wake up in time — please try again.",
+  "ui.portal.err_world_needs_newer_server": "This world was saved with a newer version of the game — it opens again once the server is updated.",
+  "ui.portal.err_save_too_new": "This save comes from a newer version of the game than the server runs — upload it again once the server is updated.",
   "ui.portal.err_rate_limited": "Too many requests — please wait a bit and try again.",
   "ui.portal.err_no_capacity": "No capacity available right now — please try again later.",
   "ui.portal.err_offline": "The worlds portal could not be reached — are you online?",

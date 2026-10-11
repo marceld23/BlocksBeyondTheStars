@@ -94,7 +94,13 @@ dedicated-server image `ghcr.io/marceld23/blocks-beyond-the-stars-server:X.Y.Z` 
    this fleet unless the notes say otherwise — only edit `/opt/bbs/*/.env` when a knob's default
    does not fit.
 
-Rollback = restore the `.env` backup, redeploy `worldhost`, recycle the pool worlds again.
+Rollback = restore the `.env` backup, redeploy `worldhost`, recycle the pool worlds again. If the newer
+release raised the save version, every world that already woke on it (pool worlds included) now carries
+that version: the older image refuses it with exit code 3, and WorldHost shows it as "needs a server
+update" on the portal and "needs newer server" on `/admin` instead of restarting it (#2464; the reaper logs
+one error per world). To keep such a world on the older image, restore its
+`worlds/<id>/saves/<id>/backups/pre-upgrade_<UTC time>.db` (or `pre-remap_…`) copy over `world.db` while it
+is stopped (remove a leftover `world.db-wal`/`world.db-shm` beside it), then press **wake** on `/admin`.
 
 ## Disk hygiene (#1414)
 

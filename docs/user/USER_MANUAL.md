@@ -86,11 +86,15 @@ Last updated: 2026-10-04.
   **Reduce flashes**.
 - **Backups and game versions.** Every singleplayer world keeps its own safety copies in
   `singleplayer-saves/<world>/backups/`: one after every 60 minutes of play (the newest five are kept) and one
-  right before a game update changes the world's block set. To go back, close the game and copy a backup over
-  `world.db`. A world that was last saved by a **newer** version of the game is not opened by an older one —
-  the game says so and leaves the world untouched. And a server whose game version has a different set of
-  blocks refuses the join with "This server runs a different version of the game" — update the game (or the
-  server).
+  right before a game update changes the world's block set or first opens a world saved by an older version
+  (`pre-upgrade_…` — after that, the older version no longer opens it). To go back, close the game and copy a
+  backup over `world.db`. A world that was last saved by a **newer** version of the game is not opened by an
+  older one — the game says so and leaves the world untouched. On the **Official Worlds** the same holds: a
+  save from a newer game version than the server's is refused at upload, and a world the server cannot open
+  yet says so when you join it (the worlds page on the portal marks it **"needs a server update"**) — it opens
+  again once the server is updated. And a server whose game
+  version has a different set of blocks refuses the join with "This server runs a different version of the
+  game" — update the game (or the server).
 - **Portable data folder** (portable zip, USB stick, several profiles): by default the game keeps its
   settings, singleplayer saves, photos and exports in your user profile (Windows:
   `%USERPROFILE%\AppData\LocalLow\JuMaVe Games\Blocks Beyond the Stars\`). To keep them next to the game

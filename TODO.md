@@ -78,7 +78,19 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   (keys whose tokens changed are dropped from the twelve community tables until then). Open: the dead
   `vega.sys.crystal_first` stays in all 14 tables until that pass removes it; item descriptions, the other `srv.*`
   messages, space prompts and "(E)" buttons still name keys (step 10's resolver sweep).
-- ⬜ Step 5 — WorldHost save-upload fixes (#2464)
+- ✅ **Step 5 — WorldHost save safety (#2464)**, 2026-10-11: an uploaded save from a newer game build is refused
+  up front (`save_too_new`, `SavePaths.ValidateUploadedSave` reads the stored `SaveVersion`); a wake whose game
+  server exits with code 3 (save too new) answers "this world needs a newer server" (`world_needs_newer_server`)
+  instead of a wake timeout, marks the world with the refusing image (registry `save_too_new_image/_unix`) and is
+  not restarted on that image — joins, the arcade keep-awake pass and the arcade picker skip it until the image
+  changes, a new save is uploaded, the operator presses wake or 30 min pass; the portal card shows "needs a server
+  update", `/admin` "needs newer server", the reaper logs it once; the game server writes
+  `backups/pre-upgrade_<UTC>` before it stamps an older save with its save version (the `pre-remap_` copy covers
+  both). Portal texts in all 14 languages, client `ui.portal.err_*` en+de. Tests: `WorldHostSaveVersionTests`,
+  `SaveCompatibilityTests` (+4), `GlitchGatewayTests` (+1). ⚠ After the final merge the **WorldHost image** must be
+  built and deployed (`deploy.yml`, 7-char sha tag) — and the game-server image of the next release carries the
+  pre-upgrade copy. Open (ops, no code): check N5 (pool-world owner id `glitch` → first joiner WorldAdmin) on the
+  two live pool worlds.
 - ⬜ Step 6 — game-event bus (#2465)
 - ⬜ Step 7 — player-pack runtime (#2466)
 - ⬜ Step 8 — cutscene model + wire (#2467)

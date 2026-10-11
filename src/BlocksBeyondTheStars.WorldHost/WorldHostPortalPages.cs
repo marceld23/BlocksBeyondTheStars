@@ -37,7 +37,7 @@ public static class WorldHostPortalPages
         "world_name_invalid", "world_limit", "no_capacity", "player_name_invalid", "terms_outdated",
         "world_not_found", "world_start_failed", "world_wake_failed", "stop_first", "upload_too_large",
         "upload_empty", "save_invalid", "save_missing", "rate_limited", "password_required",
-        "wrong_password", "too_many_attempts", "world_password_invalid",
+        "wrong_password", "too_many_attempts", "world_password_invalid", "save_too_new", "world_needs_newer_server",
     ];
 
     /// <summary>The game website's entry point for a language (empty when the operator turned the link
@@ -425,6 +425,7 @@ document.getElementById('li-recover-toggle').addEventListener('click', function(
                     starting = t.T("worlds.js.status.starting"),
                     running = t.T("worlds.js.status.running"),
                     archived = t.T("worlds.js.status.archived"),
+                    needsUpdate = t.T("worlds.js.status.needs_update"),
                 },
             }, ScriptJson));
 
@@ -462,12 +463,19 @@ async function api(method, url, body){
   if(!r.ok){ say(bbsErr(j, L.err)); return null; }
   return j||{};
 }
+// The status chip of a world card. A world whose save the server refused as written by a newer version of the
+// game (#2464) says so instead of a plain 'stopped' — Play would only answer the same.
+function stChip(w){
+  return w.needsNewerServer
+    ? `<span class='st stopped'>${L.st.needsUpdate}</span>`
+    : `<span class='st ${w.status}'>${L.st[w.status]||w.status}</span>`;
+}
 async function load(){
   const j = await api('GET','/api/worlds'); if(!j) return;
   const el = document.getElementById('list'); el.innerHTML='';
   for(const w of j.worlds){
     const d = document.createElement('div'); d.className='card world';
-    d.innerHTML = `<h2>${esc(w.name)} ${w.hasPassword?`<span title='${L.pwProtected}'>🔒</span> `:''}${w.isPublic?`<span title='${L.publicBadge}'>🌍</span> `:''}<span class='st ${w.status}'>${L.st[w.status]||w.status}</span></h2>
+    d.innerHTML = `<h2>${esc(w.name)} ${w.hasPassword?`<span title='${L.pwProtected}'>🔒</span> `:''}${w.isPublic?`<span title='${L.publicBadge}'>🌍</span> `:''}${stChip(w)}</h2>
       <button onclick=""joinWorld('${w.id}')"">${L.play}</button>
       <button onclick=""stopWorld('${w.id}', this)"">${L.stop}</button>
       <button onclick=""dlSave('${w.id}')"">${L.dlSave}</button>
@@ -506,7 +514,7 @@ async function loadPublic(){
   const el = document.getElementById('public-list'); el.innerHTML='';
   for(const w of j.worlds){
     const d = document.createElement('div'); d.className='card world';
-    d.innerHTML = `<h2>${esc(w.name)} <span title='${L.pwProtected}'>🔒</span> <span class='st ${w.status}'>${L.st[w.status]||w.status}</span></h2>
+    d.innerHTML = `<h2>${esc(w.name)} <span title='${L.pwProtected}'>🔒</span> ${stChip(w)}</h2>
       <button onclick=""joinWorld('${w.id}', null, 'gp-${w.id}')"">${L.play}</button>
       <div class='grant' id='gp-${w.id}'></div>`;
     el.appendChild(d);

@@ -219,10 +219,48 @@ The SP↔hosted round-trip. Instances bind-mount `<BBS_WH_WORLDS_DIR>/<worldId>/
 
 - `POST /api/worlds/{id}/save` (owner, world stopped, raw `world.db` bytes): streamed to a temp
   file with a hard cap (`BBS_WH_UPLOAD_MAX_BYTES`, default 50 MB), then validated — SQLite magic
-  header, `PRAGMA quick_check`, and the game schema anchor (`world_meta` table) — before it
-  replaces the live file; the previous generation is kept as `world.db.bak`.
+  header, `PRAGMA quick_check`, the game schema anchor (`world_meta` table) and the **save version**
+  (#2464): a save whose stored `SaveVersion` is higher than the WorldHost build's
+  `WorldMetadata.CurrentSaveVersion` was written by a newer game build and is refused with code
+  `save_too_new` ("upload it again once the server is updated") instead of being accepted and failing
+  the next wake. Older saves pass (the game server copies and stamps them on their first open). Only
+  then does it replace the live file; the previous generation is kept as `world.db.bak`, and a
+  "save too new" mark on the world (below) is cleared. The check uses the WorldHost's own version —
+  the control plane is built from `main`, so it is normally at least as new as the pinned server
+  image; a save that the WorldHost knows but the lagging server image does not is caught at the wake
+  (next section).
 - `GET /api/worlds/{id}/save` (owner, world stopped): downloads the current `world.db` — the
   backup path the beta notice points players to, and the way back into singleplayer.
+
+## A save the server image cannot open — exit code 3 (implemented, #2464)
+
+Saves reach an older server build for real: a singleplayer save uploaded while the fleet image lags
+behind a release, a fleet image rollback (`BBS_WH_SERVER_IMAGE` set back — every world that woke on
+the newer image, the arcade pool included), a store rollback. The game server refuses such a save,
+leaves it untouched and exits with code **3** (`GameServer.SaveTooNewExitCode`, log marker
+`[fatal] save-too-new`). The entrypoint and tini pass that code through, so it is the container's exit
+code. WorldHost treats it as its own state instead of a wake timeout:
+
+- **Detection.** When a waking instance dies before its `/status` answers, the orchestrator asks the
+  launcher for the exit code (`IInstanceLauncher.ExitCode` → `docker inspect` on the exited container;
+  instances run without `--rm`). Code 3 marks the world in the registry (`save_too_new_image` = the
+  image that refused it, `save_too_new_unix`) and the wake answers `world_needs_newer_server` ("This
+  world was saved by a newer version of the game — it opens again once this server is updated").
+  Every other death stays `world_wake_failed`.
+- **No restart loop.** While the mark names the CURRENT image, joins (and the arcade keep-awake pass,
+  which used to restart a dead pool world every 30 s) answer the same at once without starting a
+  container, and the arcade picker skips the world. A fresh try happens when the image tag changes (a
+  fleet update), after an upload of another save, on the operator's **wake** button (`/admin`), or by
+  itself once the mark is older than 30 minutes (`SaveTooNewRecheckSeconds` — so a floating tag such as
+  `:latest` or a rebuilt `:local` that now carries a newer server heals without an operator). A
+  successful wake clears the mark.
+- **Visibility.** The owner's world card shows the chip "needs a server update" (`needsNewerServer` in
+  `GET /api/worlds`, `/public` and `/all`); the fleet table and the world detail page on `/admin` show
+  "needs newer server" with the refusing image; the reaper logs one error per refusal
+  (`DrainSaveTooNewWorlds`), so the operator learns the fleet image lags behind a player's save.
+- **The way back after a rollback.** Before a newer server stamps an older save with its save version it
+  writes `saves/<world>/backups/pre-upgrade_<UTC time>.db` (or the `pre-remap_…` copy when a block-id
+  remap runs at the same time) — see SELF_HOSTING.md §6. That copy opens on the older image.
 
 ## Security notes
 
@@ -397,7 +435,8 @@ class behind plain methods, so swapping the backend later is contained.
 
 - **Localized errors via codes.** Every WorldHost error response carries a stable machine `code`
   (`banned`, `terms_outdated`, `name_reserved`, `name_blocked`, `world_wake_failed`, `rate_limited`,
-  `world_limit`, `upload_too_large`, `save_invalid`, …) next to the English `error` text. The game
+  `world_limit`, `upload_too_large`, `save_invalid`, `save_too_new`, `world_needs_newer_server`, …)
+  next to the English `error` text. The game
   client maps `code` → `ui.portal.err_<code>` locale keys (DE+EN); the portal maps it via a JS dict
   keyed on the browser language. `banned` keeps the operator's free-text reason. Unknown code → raw
   English fallback. (`PortalClient` exposes `Code`; `Program.CodeFor` is the single mapping point.)
@@ -480,7 +519,9 @@ Operational notes:
 The fleet pins one image tag (`BBS_WH_SERVER_IMAGE`) — all instances run the same server version.
 `Protocol.Version` gates incompatible clients at join (the server rejects mismatches with a clear
 message). Save-schema changes must remain load-compatible with saves one release older (uploads are
-validated but never migrated silently); document per release in the changelog.
+validated but never migrated silently); document per release in the changelog. A save from a NEWER
+build than the pinned image is refused at upload (`save_too_new`) or at the wake (exit code 3 →
+`world_needs_newer_server`, no restart loop) — see "A save the server image cannot open" above.
 
 ## Open (tracked in the plan)
 

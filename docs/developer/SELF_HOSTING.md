@@ -243,9 +243,16 @@ See §9 for distributing the client this way.
   block set changed) the server writes `backups/pre-remap_<UTC time>` first. If the update would *remove*
   block types from the world and that copy cannot be written, the server refuses to start and leaves the
   world unchanged; an update that only moves ids starts with a warning.
+- **Before a newer server stamps an older save with its save version** (#2464) it writes
+  `backups/pre-upgrade_<UTC time>` — after the stamp the older version refuses to open the world, so this
+  copy is the way back if you roll the server back. One copy per upgrade (the `pre-remap_…` copy stands in
+  when a remap runs at the same time), bounded by `backupKeepCount`; a copy that cannot be written only
+  logs a warning — the stamp itself changes nothing else.
 - **A save from a newer build is not opened by an older one**: the server exits with code `3` and one log
   line containing `[fatal] save-too-new` (the logger puts the UTC time and `[ERROR]` in front); the save is
-  untouched. Update the server.
+  untouched. Update the server — or, after a rollback, restore the world's `pre-upgrade_…` copy. A hosted
+  fleet (WorldHost) refuses such a save already at upload and shows a world whose save its server image
+  refused as "needs a server update" instead of retrying it (HOSTED_WORLDS.md).
 - **Client and server must have the same block set.** The join carries a content fingerprint; a mismatch is
   refused in both directions with "This server runs a different version of the game". During a fleet roll a
   world still running the old image refuses clients of the new build until it restarts on the matching image.

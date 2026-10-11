@@ -162,6 +162,7 @@
   "worlds.js.status.starting": "시작 중…",
   "worlds.js.status.running": "실행 중",
   "worlds.js.status.archived": "보관됨",
+  "worlds.js.status.needs_update": "서버 업데이트 필요",
   "rules.pageTitle": "커뮤니티 규칙",
   "rules.intro": "<b>Blocks Beyond the Stars는 가족과 커뮤니티를 위한 프로젝트예요.</b> 아이들과 어른들이 함께 플레이해요 — 서로 친절하게 대해 주세요!",
   "rules.item1": "🧒 게임을 해도 되는지 먼저 부모님께 물어보세요.",
@@ -208,5 +209,7 @@
   "err.password_required": "이 월드는 비밀번호가 필요합니다.",
   "err.wrong_password": "잘못된 월드 비밀번호입니다.",
   "err.too_many_attempts": "비밀번호 시도가 너무 많습니다 — 몇 분 기다려 주세요.",
-  "err.world_password_invalid": "월드 비밀번호는 4~24자의 인쇄 가능한 문자여야 합니다."
+  "err.world_password_invalid": "월드 비밀번호는 4~24자의 인쇄 가능한 문자여야 합니다.",
+  "err.save_too_new": "이 저장 파일은 이 서버보다 새로운 버전의 게임에서 만들어졌습니다 — 서버가 업데이트된 후 다시 업로드해 주세요.",
+  "err.world_needs_newer_server": "이 월드는 더 새로운 버전의 게임으로 저장되었습니다 — 이 서버가 업데이트되면 다시 열립니다."
 }

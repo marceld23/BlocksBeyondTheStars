@@ -162,6 +162,7 @@
   "worlds.js.status.starting": "starten…",
   "worlds.js.status.running": "actief",
   "worlds.js.status.archived": "gearchiveerd",
+  "worlds.js.status.needs_update": "serverupdate nodig",
   "rules.pageTitle": "Communityregels",
   "rules.intro": "<b>Blocks Beyond the Stars is een familie- en communityproject.</b> Kinderen en volwassenen spelen hier samen — wees aardig voor elkaar!",
   "rules.item1": "🧒 Vraag eerst je ouders of het oké is dat je dit spel speelt.",
@@ -208,5 +209,7 @@
   "err.password_required": "Deze wereld heeft een wachtwoord nodig.",
   "err.wrong_password": "Verkeerd wereldwachtwoord.",
   "err.too_many_attempts": "Teveel wachtwoordpogingen — wacht een paar minuten.",
-  "err.world_password_invalid": "Wereldwachtwoord moet 4–24 afdrukbare tekens zijn."
+  "err.world_password_invalid": "Wereldwachtwoord moet 4–24 afdrukbare tekens zijn.",
+  "err.save_too_new": "Deze save komt uit een nieuwere versie van het spel dan deze server draait — upload hem opnieuw zodra de server is bijgewerkt.",
+  "err.world_needs_newer_server": "Deze wereld is opgeslagen met een nieuwere versie van het spel — hij gaat weer open zodra deze server is bijgewerkt."
 }

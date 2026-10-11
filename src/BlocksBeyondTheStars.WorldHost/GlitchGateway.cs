@@ -708,7 +708,10 @@ public sealed class GlitchGateway
         // world; before this, the picker still handed it to the next guest as its wake-on-demand candidate, so
         // as soon as the healthy world filled up, guests were routed into an instance the gateway already knew
         // was dead. They get the friendly full notice instead, which at least tells them something true.
-        if (pool.FirstOrDefault(w => w.Status != WorldStatus.Running && !_givenUpOn.ContainsKey(w.Id)) is { } sleeping)
+        // Nor one whose save the server image refused as too new (#2464): the wake would only answer "needs a
+        // newer server" to a guest who cannot do anything about it.
+        if (pool.FirstOrDefault(w => w.Status != WorldStatus.Running && !_givenUpOn.ContainsKey(w.Id)
+                                     && !_orchestrator.WakeBlockedBySaveTooNew(w)) is { } sleeping)
         {
             return (sleeping, string.Empty);
         }

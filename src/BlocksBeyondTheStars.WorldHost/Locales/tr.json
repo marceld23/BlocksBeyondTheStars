@@ -162,6 +162,7 @@
   "worlds.js.status.starting": "başlatılıyor…",
   "worlds.js.status.running": "çalışıyor",
   "worlds.js.status.archived": "arşivlendi",
+  "worlds.js.status.needs_update": "sunucu güncellemesi gerekli",
   "rules.pageTitle": "Topluluk kuralları",
   "rules.intro": "<b>Blocks Beyond the Stars aile ve topluluk projesidir.</b> Çocuklar ve yetişkinler burada birlikte oynar — birbirine nazik ol!",
   "rules.item1": "🧒 Oynamadan önce lütfen ebeveynlerine sorup izin al.",
@@ -208,5 +209,7 @@
   "err.password_required": "Bu dünya parola gerektiriyor.",
   "err.wrong_password": "Yanlış dünya parolası.",
   "err.too_many_attempts": "Çok fazla parola denemesi — lütfen birkaç dakika bekle.",
-  "err.world_password_invalid": "Dünya parolası 4-24 yazdırılabilir karakter olmalı."
+  "err.world_password_invalid": "Dünya parolası 4-24 yazdırılabilir karakter olmalı.",
+  "err.save_too_new": "Bu kayıt, bu sunucudakinden daha yeni bir oyun sürümünden geliyor — sunucu güncellendiğinde tekrar yükle.",
+  "err.world_needs_newer_server": "Bu dünya oyunun daha yeni bir sürümüyle kaydedildi — bu sunucu güncellendiğinde yeniden açılacak."
 }

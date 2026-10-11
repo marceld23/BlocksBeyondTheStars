@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using BlocksBeyondTheStars.Persistence;
+using BlocksBeyondTheStars.Shared.State;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -18,6 +19,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// copied (<c>pre-remap_&lt;UTC time&gt;</c>) before its ids are rewritten — in every repository, the browser's
 /// included. The remap is one transaction, so it cannot leave the save half-converted — the copy is for a result
 /// that is consistent but wrong. A remap that would DROP blocks does not run without that copy.</item>
+/// <item><b>Before the save-version stamp (#2464).</b> An older save is copied (<c>pre-upgrade_&lt;UTC time&gt;</c>)
+/// before this build stamps it with its own save version — after the stamp the older build refuses to open it, so
+/// this copy is the way back after a rollback. When a remap is due as well, its copy covers both.</item>
 /// <item><b>While the server runs.</b> Every <c>BackupIntervalMinutes</c> of play the world is saved and a copy
 /// (<c>auto_&lt;UTC time&gt;</c>) is written on a background thread through a connection of its own, so the tick
 /// never waits for it. Play is real time with a player online, counted in the save itself
@@ -36,9 +40,9 @@ public sealed partial class GameServer
     /// a temp file and is removed by the next rotation.</summary>
     private const double BackupShutdownWaitSeconds = 5.0;
 
-    /// <summary>A browser save keeps this many copies from before a remap: they live in the browser's storage
-    /// quota, next to the save itself.</summary>
-    private const int PreRemapCopiesWithoutRotation = 1;
+    /// <summary>A browser save keeps this many copies from before a remap or a save-version stamp (per kind): they
+    /// live in the browser's storage quota, next to the save itself.</summary>
+    private const int UpdateCopiesWithoutRotation = 1;
 
     private readonly Stopwatch _backupClock = Stopwatch.StartNew();
     private double _backupClockOffset; // test seam: seconds added on top of the real clock
@@ -67,13 +71,15 @@ public sealed partial class GameServer
     /// because its backup folder is full or read-only, and the remap itself is atomic. When the remap would also
     /// drop blocks (keys this build does not know become air, for good) there is nothing to go back to without
     /// the copy — then the start is refused and the save stays as it is.
+    /// Returns true when a remap is due (the copy was taken, or its failure reported) — that copy also stands in
+    /// for the one before the save-version stamp (<see cref="BackupBeforeSaveVersionStamp"/>).
     /// </summary>
-    private void BackupBeforePaletteRemap()
+    private bool BackupBeforePaletteRemap()
     {
         var palette = _content.BlockPalette();
         if (!_repo.BlockPaletteNeedsRemap(palette))
         {
-            return;
+            return false;
         }
 
         var dropped = DroppedBlockKeys(palette);
@@ -92,7 +98,7 @@ public sealed partial class GameServer
         {
             _log.Warn($"The block set changed since this world was last saved, and the backup before the remap failed ({ex.Message}). " +
                       "The remap runs as one transaction and continues without it.");
-            return;
+            return true;
         }
         catch (Exception ex)
         {
@@ -106,9 +112,46 @@ public sealed partial class GameServer
         }
 
         // Only the rotating copies need a folder with room for several; a save without them keeps one.
-        int keep = _repo.SupportsAutomaticBackups ? _config.BackupKeepCount : PreRemapCopiesWithoutRotation;
+        int keep = _repo.SupportsAutomaticBackups ? _config.BackupKeepCount : UpdateCopiesWithoutRotation;
         BackupRotation.Prune(Path.GetDirectoryName(path) ?? string.Empty, BackupRotation.PreRemapPrefix, keep);
         _log.Info($"The block set changed since this world was last saved — backup written to '{path}' before its stored block ids are remapped.");
+        return true;
+    }
+
+    /// <summary>
+    /// Copies an older save before this build stamps it with its own save version (#2464). The stamp loses
+    /// nothing, but from then on the build that wrote the save refuses to open it — a fleet or store rollback, or
+    /// a hosted world whose server image lags behind, would lock the world out with no copy to go back to. Runs
+    /// on the load path after the newer-save refusal, so only a LOWER stored version gets here (a fresh world has
+    /// no metadata yet and needs no copy). Named <c>pre-upgrade_&lt;UTC time&gt;</c> and bounded like the copies
+    /// before a remap. A failed copy is logged and the load goes on: the stamp drops nothing.
+    /// </summary>
+    private void BackupBeforeSaveVersionStamp()
+    {
+        var stored = _repo.LoadMetadata();
+        if (stored is null || stored.SaveVersion >= WorldMetadata.CurrentSaveVersion)
+        {
+            return;
+        }
+
+        string path;
+        try
+        {
+            path = _repo.CreateBackup(BackupRotation.Label(BackupRotation.PreUpgradePrefix, BackupUtcNow));
+        }
+        catch (Exception ex)
+        {
+            _log.Warn($"World '{_config.WorldName}' was last saved by an older version of the game (save version {stored.SaveVersion}), " +
+                      $"and the backup before it is stamped with version {WorldMetadata.CurrentSaveVersion} failed ({ex.Message}). " +
+                      "The world opens without it — older versions of the game will no longer open it.");
+            return;
+        }
+
+        int keep = _repo.SupportsAutomaticBackups ? _config.BackupKeepCount : UpdateCopiesWithoutRotation;
+        BackupRotation.Prune(Path.GetDirectoryName(path) ?? string.Empty, BackupRotation.PreUpgradePrefix, keep);
+        _log.Info($"World '{_config.WorldName}' was last saved by an older version of the game (save version {stored.SaveVersion}) — " +
+                  $"backup written to '{path}' before it is stamped with version {WorldMetadata.CurrentSaveVersion} " +
+                  "(older versions refuse to open it from then on).");
     }
 
     /// <summary>The blocks a remap is about to drop, sorted: keys the save has on record and this build does not

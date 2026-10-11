@@ -610,13 +610,14 @@ public sealed class WorldHostTests : IDisposable
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         Assert.False(SavePaths.ValidateUploadedSave(foreign).Ok);
 
-        // The shape a genuine world.db has (world_meta anchor table) passes.
+        // The shape a genuine world.db has (the world_meta anchor table, as SqliteWorldRepository creates it) passes.
+        // The save-version half of the check has its own tests (WorldHostSaveVersionTests, #2464).
         string save = System.IO.Path.Combine(_root, "save.db");
         using (var db = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={save}"))
         {
             db.Open();
             using var cmd = db.CreateCommand();
-            cmd.CommandText = "CREATE TABLE world_meta(key TEXT PRIMARY KEY, value TEXT)";
+            cmd.CommandText = "CREATE TABLE world_meta (id INTEGER PRIMARY KEY CHECK (id = 0), json TEXT NOT NULL)";
             cmd.ExecuteNonQuery();
         }
 

@@ -19,7 +19,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// A save across builds (#2221, #2223). Numeric block ids follow the sorted block keys, so a build that adds a
 /// block shifts them; the first load remaps every stored id by key. These tests pin the three things that
 /// surround that remap: it reaches the hull of a self-built ship, a copy of the save is taken before it runs, and
-/// a save a NEWER build wrote is refused instead of being rewritten. And the rotating backups of a running server.
+/// a save a NEWER build wrote is refused instead of being rewritten. And the rotating backups of a running server,
+/// and the copy of an OLDER save before it is stamped with this build's save version (#2464).
 /// </summary>
 public sealed class SaveCompatibilityTests : IDisposable
 {
@@ -396,6 +397,131 @@ public sealed class SaveCompatibilityTests : IDisposable
         using var reopened = OpenRepo("older");
         Assert.Equal(WorldMetadata.CurrentSaveVersion, reopened.LoadMetadata()!.SaveVersion);
         Assert.Equal(_content.GetBlock("stone")!.NumericId.Value, Assert.Single(reopened.LoadChunkEdits("rocky", new ChunkCoord(0, 0, 0)), e => e.WorldPosition == new Vector3i(4, 5, 6)).Block);
+    }
+
+    // ---------------- #2464: the copy before the save-version stamp ----------------
+
+    /// <summary>The save version stored in a backup file (a SQLite copy), read the way the game reads it.</summary>
+    private static int StoredSaveVersion(string databaseFile)
+    {
+        using var connection = new SqliteConnection($"Data Source={databaseFile};Mode=ReadOnly;Pooling=False");
+        connection.Open();
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "SELECT COALESCE(json_extract(json, '$.SaveVersion'), 1) FROM world_meta WHERE id = 0;";
+        return Convert.ToInt32(cmd.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    [Fact]
+    public void OlderSave_IsCopiedBeforeItIsStamped_Once()
+    {
+        // An older save with this build's block set: nothing to remap, but the stamp alone locks the older build
+        // out (a fleet or store rollback, a lagging hosted image). The copy is the way back.
+        int older = WorldMetadata.CurrentSaveVersion - 1;
+        using (var repo = OpenRepo("stampcopy"))
+        {
+            repo.SaveMetadata(new WorldMetadata { WorldName = "stampcopy", Seed = 31337, DefaultPlanetType = "rocky", SaveVersion = older });
+            repo.EnsureBlockPalette(_content.BlockPalette());
+        }
+
+        using (var repo = new SqliteWorldRepository(Paths("stampcopy")))
+        {
+            var server = NewServer("stampcopy", repo);
+            server.Start();
+            Assert.Equal(WorldMetadata.CurrentSaveVersion, server.Metadata.SaveVersion);
+            server.Stop();
+        }
+
+        string backup = Assert.Single(Backups("stampcopy", string.Empty));
+        Assert.StartsWith(BackupRotation.PreUpgradePrefix, backup);
+        string backupFile = Path.Combine(Paths("stampcopy").BackupsDirectory, backup);
+        Assert.Equal(older, StoredSaveVersion(backupFile)); // the save as it was before the stamp …
+        Assert.Equal(WorldMetadata.CurrentSaveVersion, StoredSaveVersion(Paths("stampcopy").DatabaseFile)); // … the live one stamped
+        Assert.Contains(_log.Lines, l => l.StartsWith("INFO ", StringComparison.Ordinal) && l.Contains(backupFile) && l.Contains($"save version {older}"));
+
+        // The next start finds the save current: no second copy.
+        using (var repo = new SqliteWorldRepository(Paths("stampcopy")))
+        {
+            var server = NewServer("stampcopy", repo);
+            server.Start();
+            server.Stop();
+        }
+
+        Assert.Single(Backups("stampcopy", string.Empty));
+    }
+
+    [Fact]
+    public void OlderSave_WithARemapDue_TakesOneCopy_NotTwo()
+    {
+        // The usual update raises the save version AND changes the block set: the copy before the remap is also
+        // the copy before the stamp.
+        var oldPalette = PaletteWithout("bio_lab", "flora_hybrid");
+        using (var repo = OpenRepo("bothcopies"))
+        {
+            repo.SaveMetadata(new WorldMetadata { WorldName = "bothcopies", Seed = 5, DefaultPlanetType = "rocky", SaveVersion = 1 });
+            repo.EnsureBlockPalette(oldPalette);
+        }
+
+        using (var repo = new SqliteWorldRepository(Paths("bothcopies")))
+        {
+            var server = NewServer("bothcopies", repo);
+            server.Start();
+            server.Stop();
+        }
+
+        string backup = Assert.Single(Backups("bothcopies", string.Empty));
+        Assert.StartsWith(BackupRotation.PreRemapPrefix, backup);
+        Assert.Equal(1, StoredSaveVersion(Path.Combine(Paths("bothcopies").BackupsDirectory, backup)));
+    }
+
+    [Fact]
+    public void FailedCopyBeforeTheStamp_DoesNotStopTheStart()
+    {
+        // The stamp drops nothing — a full or read-only backups folder must not make the world unstartable.
+        using (var repo = OpenRepo("stampnocopy"))
+        {
+            repo.SaveMetadata(new WorldMetadata { WorldName = "stampnocopy", Seed = 5, DefaultPlanetType = "rocky", SaveVersion = 1 });
+            repo.EnsureBlockPalette(_content.BlockPalette());
+        }
+
+        using (var repo = new SqliteWorldRepository(Paths("stampnocopy")))
+        {
+            var server = NewServer("stampnocopy", repo);
+            var at = new DateTime(2026, 10, 11, 9, 0, 0, DateTimeKind.Utc);
+            server.SetBackupTimeForTest(at);
+            Directory.CreateDirectory(Path.Combine(Paths("stampnocopy").BackupsDirectory, BackupRotation.Label(BackupRotation.PreUpgradePrefix, at) + ".db" + BackupRotation.TempSuffix));
+
+            server.Start();
+
+            Assert.Equal(WorldMetadata.CurrentSaveVersion, server.Metadata.SaveVersion);
+            Assert.Contains(_log.Lines, l => l.StartsWith("WARN ", StringComparison.Ordinal) && l.Contains("opens without it"));
+            server.Stop();
+        }
+    }
+
+    [Fact]
+    public void OlderBrowserSave_IsCopiedBeforeItIsStamped_KeepingOne()
+    {
+        var first = new MemoryWorldRepository(Paths("mem_stamp"));
+        first.Initialize();
+        first.SaveMetadata(new WorldMetadata { WorldName = "mem_stamp", Seed = 5, DefaultPlanetType = "rocky", SaveVersion = 1 });
+        first.EnsureBlockPalette(_content.BlockPalette());
+        byte[] blob = first.ExportSnapshotBlob();
+
+        // A copy from an earlier update is still there: the browser keeps one, the newest.
+        Directory.CreateDirectory(Paths("mem_stamp").BackupsDirectory);
+        string stale = Path.Combine(Paths("mem_stamp").BackupsDirectory, "pre-upgrade_20200101_000000.world.json.gz");
+        File.WriteAllText(stale, "older copy");
+
+        var repo = new MemoryWorldRepository(Paths("mem_stamp"));
+        repo.ImportSnapshotBlob(blob);
+        var server = NewServer("mem_stamp", repo);
+        server.Start();
+
+        string backup = Assert.Single(Backups("mem_stamp", BackupRotation.PreUpgradePrefix));
+        Assert.EndsWith(".world.json.gz", backup);
+        Assert.False(File.Exists(stale));
+        Assert.Equal(blob, File.ReadAllBytes(Path.Combine(Paths("mem_stamp").BackupsDirectory, backup))); // the blob as it came in
+        server.Stop();
     }
 
     [Fact]

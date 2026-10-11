@@ -162,6 +162,7 @@
   "worlds.js.status.starting": "starting…",
   "worlds.js.status.running": "running",
   "worlds.js.status.archived": "archived",
+  "worlds.js.status.needs_update": "needs a server update",
   "rules.pageTitle": "Community rules",
   "rules.intro": "<b>Blocks Beyond the Stars is a family and community project.</b> Kids and grown-ups play here together — be kind to each other!",
   "rules.item1": "🧒 Please ask your parents first if it is okay for you to play this game.",
@@ -208,5 +209,7 @@
   "err.password_required": "This world needs a password.",
   "err.wrong_password": "Wrong world password.",
   "err.too_many_attempts": "Too many password attempts — please wait a few minutes.",
-  "err.world_password_invalid": "World password must be 4-24 printable characters."
+  "err.world_password_invalid": "World password must be 4-24 printable characters.",
+  "err.save_too_new": "This save comes from a newer version of the game than this server runs — upload it again once the server is updated.",
+  "err.world_needs_newer_server": "This world was saved by a newer version of the game — it opens again once this server is updated."
 }

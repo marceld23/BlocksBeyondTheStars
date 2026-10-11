@@ -1749,6 +1749,8 @@
   "ui.portal.err_world_not_found": "Welt nicht gefunden.",
   "ui.portal.err_world_start_failed": "Die Welt konnte nicht gestartet werden — bitte gleich nochmal versuchen.",
   "ui.portal.err_world_wake_failed": "Die Welt ist nicht rechtzeitig aufgewacht — bitte nochmal versuchen.",
+  "ui.portal.err_world_needs_newer_server": "Diese Welt wurde mit einer neueren Version des Spiels gespeichert — sie öffnet sich wieder, sobald der Server aktualisiert ist.",
+  "ui.portal.err_save_too_new": "Diese Sicherung stammt aus einer neueren Version des Spiels, als der Server kennt — lade sie wieder hoch, sobald der Server aktualisiert ist.",
   "ui.portal.err_rate_limited": "Zu viele Anfragen — bitte warte kurz und versuche es dann nochmal.",
   "ui.portal.err_no_capacity": "Gerade keine Kapazität frei — bitte später nochmal versuchen.",
   "ui.portal.err_offline": "Das Welten-Portal ist nicht erreichbar — bist du online?",

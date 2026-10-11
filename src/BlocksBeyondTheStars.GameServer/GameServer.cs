@@ -272,7 +272,7 @@ public sealed partial class GameServer
 
         var launchRules = _config.Rules.Clone();
         _meta = _repo.LoadMetadata() ?? CreateInitialMetadata();
-        _meta.SaveVersion = WorldMetadata.CurrentSaveVersion; // #2223: this build wrote it from here on (a newer save was refused above)
+        _meta.SaveVersion = WorldMetadata.CurrentSaveVersion; // #2223: this build wrote it from here on (a newer save was refused above; an older one was copied first, #2464)
 
         // World options: once created, the WORLD owns its rules — the save's override replaces the launch
         // config's rules (singleplayer passes creation options only once; dedicated restarts keep the set).
@@ -428,7 +428,13 @@ public sealed partial class GameServer
         // Record the current block-id palette and remap any save written under a different block set BEFORE
         // world load. Block ids are assigned by key sort order, so adding a block shifts them; without this a
         // content update would silently decode every stored edit to the wrong block.
-        BackupBeforePaletteRemap(); // #2223: a copy of the save before its ids are rewritten
+        // #2223: a copy of the save before its ids are rewritten — and #2464: a copy before an older save is
+        // stamped with this build's save version (one copy covers both when they happen together).
+        if (!BackupBeforePaletteRemap())
+        {
+            BackupBeforeSaveVersionStamp();
+        }
+
         _repo.EnsureBlockPalette(_content.BlockPalette());
     }
 

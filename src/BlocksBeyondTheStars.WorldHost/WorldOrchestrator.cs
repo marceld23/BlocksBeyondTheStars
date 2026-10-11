@@ -36,6 +36,21 @@ public sealed class WorldOrchestrator
     /// family fumbling a shared password, tight enough to make guessing pointless (the window is 15 min).</summary>
     private const int PasswordAttemptsPerWindow = 10;
 
+    /// <summary>The game server's exit code for a world saved by a newer build (<c>GameServer.SaveTooNewExitCode</c>,
+    /// #2223). WorldHost does not reference the game server, so the number is mirrored here; a test pins both.</summary>
+    public const int SaveTooNewExitCode = 3;
+
+    /// <summary>The wake answer for a world whose save the server image refused as too new (#2464) — mapped to the
+    /// <c>world_needs_newer_server</c> code.</summary>
+    public const string SaveTooNewError =
+        "This world was saved by a newer version of the game — it opens again once this server is updated.";
+
+    /// <summary>How long a "save too new" mark stops new starts of the SAME server image (#2464). Long enough that
+    /// joins and the arcade keep-awake pass never become a restart loop; short enough that a floating image tag
+    /// (<c>:latest</c>, a rebuilt <c>:local</c>) that now carries a newer server is tried again by itself. A changed
+    /// image tag, an uploaded save and the operator's wake button retry at once.</summary>
+    public const int SaveTooNewRecheckSeconds = 30 * 60;
+
     private readonly WorldHostConfig _config;
     private readonly HostRegistry _registry;
     private readonly IInstanceLauncher _launcher;
@@ -43,6 +58,7 @@ public sealed class WorldOrchestrator
     private readonly WorldHostMetrics _metrics;
     private readonly RateLimiter _passwordAttempts;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _wakeLocks = new();
+    private readonly ConcurrentQueue<(string WorldId, string Image)> _saveTooNew = new();
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(3) };
 
     public WorldOrchestrator(
@@ -214,8 +230,10 @@ public sealed class WorldOrchestrator
     }
 
     /// <summary>Route-or-wake: the running instance is reused; a stopped (or crashed-out) one is started
-    /// and awaited until its /status probe answers or the wake timeout expires.</summary>
-    public async Task<(WorldRecord? World, string Error)> EnsureRunningAsync(string worldId)
+    /// and awaited until its /status probe answers or the wake timeout expires. A world whose save this server
+    /// image already refused as too new (#2464) is not started again — it answers <see cref="SaveTooNewError"/>
+    /// at once — unless <paramref name="retryRefusedSave"/> (the operator's wake button) asks for a fresh try.</summary>
+    public async Task<(WorldRecord? World, string Error)> EnsureRunningAsync(string worldId, bool retryRefusedSave = false)
     {
         if (_registry.GetWorld(worldId) is not { } world)
         {
@@ -253,6 +271,17 @@ public sealed class WorldOrchestrator
                 _registry.SetWorldStatus(world.Id, WorldStatus.Stopped, string.Empty);
             }
 
+            // #2464: this image already refused the save as written by a newer build. Starting it again would
+            // only repeat the refusal — for every join, and every 30 s for a kept-awake arcade world.
+            if (retryRefusedSave)
+            {
+                _registry.ClearSaveTooNew(world.Id);
+            }
+            else if (WakeBlockedBySaveTooNew(world))
+            {
+                return (null, SaveTooNewError);
+            }
+
             // Capacity gate: per-instance memory caps bound ONE world, this bounds the SUM — MaxActive ×
             // InstanceMemory is sized to fit the host, so overload becomes a friendly "try again" instead
             // of an OOM lottery. Already-running worlds are unaffected (they returned above).
@@ -286,25 +315,64 @@ public sealed class WorldOrchestrator
     private async Task<(WorldRecord? World, string Error)> AwaitHealthyAsync(WorldRecord world)
     {
         var deadline = DateTimeOffset.UtcNow.AddSeconds(_config.WakeTimeoutSeconds);
+        bool died = false;
         while (DateTimeOffset.UtcNow < deadline)
         {
             if (await _healthProbe(world).ConfigureAwait(false))
             {
                 _registry.SetWorldStatus(world.Id, WorldStatus.Running, world.ContainerId);
+                _registry.ClearSaveTooNew(world.Id); // this image opens the save after all (#2464)
                 return (_registry.GetWorld(world.Id), string.Empty);
             }
 
             if (!_launcher.IsRunning(world.ContainerId))
             {
+                died = true;
                 break; // died during boot — no point waiting out the timeout
             }
 
             await Task.Delay(500).ConfigureAwait(false);
         }
 
+        // #2464: the game server refuses a save a newer build wrote and exits with its own code. That is not a
+        // wake failure worth retrying — the world needs a newer server image. Remember which image said so.
+        bool saveTooNew = died && _launcher.ExitCode(world.ContainerId) == SaveTooNewExitCode;
+
         _launcher.Stop(world.ContainerId);
         _registry.SetWorldStatus(world.Id, WorldStatus.Stopped, string.Empty);
+        if (saveTooNew)
+        {
+            _registry.MarkSaveTooNew(world.Id, _config.ServerImage, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+            _saveTooNew.Enqueue((world.Id, _config.ServerImage));
+            return (null, SaveTooNewError);
+        }
+
         return (null, "The world did not come up in time — please try again.");
+    }
+
+    /// <summary>True when the current server image already refused this world's save as written by a newer build
+    /// (#2464) — what the portal and the fleet page show as "needs a newer server". The mark of another image
+    /// does not count: a fleet update may well open the save.</summary>
+    public bool NeedsNewerServer(WorldRecord world) => world.NeedsNewerServerThan(_config.ServerImage);
+
+    /// <summary>Whether a wake of this world is skipped because of that mark: the same image, refused less than
+    /// <see cref="SaveTooNewRecheckSeconds"/> ago. The arcade picker skips such worlds too.</summary>
+    public bool WakeBlockedBySaveTooNew(WorldRecord world)
+        => NeedsNewerServer(world)
+           && DateTimeOffset.UtcNow.ToUnixTimeSeconds() - world.SaveTooNewUnix < SaveTooNewRecheckSeconds;
+
+    /// <summary>Worlds whose wake the server image refused as "save too new" since this was last called (#2464),
+    /// emptied by the read — the reaper logs them, once per refusal, so the operator learns about a fleet image
+    /// that lags behind its players' saves.</summary>
+    public IReadOnlyList<(string WorldId, string Image)> DrainSaveTooNewWorlds()
+    {
+        var drained = new List<(string, string)>();
+        while (_saveTooNew.TryDequeue(out var entry))
+        {
+            drained.Add(entry);
+        }
+
+        return drained;
     }
 
     /// <summary>Stops a world's instance on request (the owner's "stop now"; the usual path is the

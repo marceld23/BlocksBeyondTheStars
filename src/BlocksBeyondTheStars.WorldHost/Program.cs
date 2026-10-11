@@ -93,6 +93,8 @@ static string? CodeFor(string error) => error switch
     "World not found." => "world_not_found",
     "The world could not be started — please try again in a moment." => "world_start_failed",
     "The world did not come up in time — please try again." => "world_wake_failed",
+    WorldOrchestrator.SaveTooNewError => "world_needs_newer_server", // #2464: the server image refused the save (exit 3)
+    SavePaths.SaveTooNewError => "save_too_new", // #2464: an upload from a newer game build
     "Stop the world before uploading a save." or "Stop the world before downloading its save." => "stop_first",
     "This world needs a password." => "password_required",
     "Wrong world password." => "wrong_password",
@@ -1186,7 +1188,9 @@ app.MapPost("/admin/worlds/{id}/wake", async (HttpContext ctx, string id) =>
 
     if (HostRegistry.IsValidWorldId(id))
     {
-        await orchestrator.EnsureRunningAsync(id); // errors surface as status on the page
+        // errors surface as status on the page; the operator's wake also retries a world whose save the current
+        // image refused as too new (#2464) — e.g. after re-pulling a floating image tag
+        await orchestrator.EnsureRunningAsync(id, retryRefusedSave: true);
     }
 
     return Results.Redirect("/admin");
@@ -1234,8 +1238,9 @@ app.MapGet("/api/worlds", (HttpContext ctx) =>
         return Results.Unauthorized();
     }
 
+    // needsNewerServer (#2464): the current server image refused the world's save as written by a newer build.
     var worlds = registry.ListWorlds(account.Id)
-        .Select(w => new { id = w.Id, name = w.DisplayName, status = w.Status, subdomain = w.Subdomain, hasPassword = w.HasPassword, isPublic = w.IsPublic });
+        .Select(w => new { id = w.Id, name = w.DisplayName, status = w.Status, subdomain = w.Subdomain, hasPassword = w.HasPassword, isPublic = w.IsPublic, needsNewerServer = orchestrator.NeedsNewerServer(w) });
     return Results.Json(new { worlds });
 });
 
@@ -1251,7 +1256,7 @@ app.MapGet("/api/worlds/public", (HttpContext ctx) =>
     }
 
     var worlds = registry.ListPublicWorlds()
-        .Select(w => new { id = w.Id, name = w.DisplayName, status = w.Status, hasPassword = w.HasPassword });
+        .Select(w => new { id = w.Id, name = w.DisplayName, status = w.Status, hasPassword = w.HasPassword, needsNewerServer = orchestrator.NeedsNewerServer(w) });
     return Results.Json(new { worlds });
 });
 
@@ -1281,6 +1286,7 @@ app.MapGet("/api/worlds/all", (HttpContext ctx) =>
             owner = e.OwnerName,
             isPublic = e.World.IsPublic,
             hasPassword = e.World.HasPassword,
+            needsNewerServer = orchestrator.NeedsNewerServer(e.World),
         });
     return Results.Json(new { worlds });
 });
@@ -1700,6 +1706,7 @@ app.MapPost("/api/worlds/{id}/save", async (HttpContext ctx, string id) =>
         }
 
         File.Move(tmp, target, overwrite: true);
+        registry.ClearSaveTooNew(world.Id); // #2464: a different save — whether the image opens it is a new question
         log.LogInformation("World '{Name}' ({Id}): save uploaded by {Account}.", LogSafe(world.DisplayName), world.Id, LogSafe(account.Name));
         return Results.Ok();
     }
@@ -1792,6 +1799,17 @@ var reaper = Task.Run(async () =>
                     "glitch.fun keep-awake: giving up on world {WorldId} — {Count} restarts in a row did not survive. " +
                     "It stays down until someone looks at it.",
                     deadWorld, GlitchGateway.MaxConsecutiveWakeFailures);
+            }
+
+            // #2464: a world whose save the server image refused as too new (exit code 3) is not restarted —
+            // but the operator must hear that the fleet image lags behind a player's save. Once per refusal.
+            foreach (var (tooNewWorld, image) in orchestrator.DrainSaveTooNewWorlds())
+            {
+                log.LogError(
+                    "World {WorldId}: the server image {Image} refused its save as written by a newer version of the game " +
+                    "(exit code 3, save untouched). It is not restarted on this image — update the fleet image, or have the owner " +
+                    "upload an older save; the admin page's wake button retries.",
+                    tooNewWorld, image);
             }
 
             // Archive sweep once an hour (120 × 30 s): long-inactive stopped worlds move to the archive.

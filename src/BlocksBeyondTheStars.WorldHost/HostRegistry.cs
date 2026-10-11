@@ -76,13 +76,21 @@ public sealed record WorldRecord(
     long LastStartedUnix,
     string PasswordHash = "",
     bool IsPublic = false,
-    string Channel = WorldChannel.Portal)
+    string Channel = WorldChannel.Portal,
+    string SaveTooNewImage = "",
+    long SaveTooNewUnix = 0)
 {
     /// <summary>The public routing label: <c>w-&lt;id&gt;.&lt;BaseDomain&gt;</c> resolves to this world's instance.</summary>
     public string Subdomain => "w-" + Id;
 
     /// <summary>True when the creator protected this world with a join password (#250).</summary>
     public bool HasPassword => PasswordHash.Length > 0;
+
+    /// <summary>True when <paramref name="serverImage"/> already refused this world's save as written by a newer
+    /// build (#2464: the instance exited with code 3, <see cref="SaveTooNewImage"/> names the image). Such a world
+    /// needs a newer server; a different image (a fleet update) may open it, so the mark no longer applies.</summary>
+    public bool NeedsNewerServerThan(string serverImage)
+        => SaveTooNewImage.Length > 0 && string.Equals(SaveTooNewImage, serverImage, StringComparison.Ordinal);
 }
 
 /// <summary>Which storefront a world belongs to. Portal worlds ('') follow the Baumhaus rules
@@ -276,6 +284,8 @@ public sealed class HostRegistry : IDisposable
             "ALTER TABLE world ADD COLUMN password_hash TEXT NOT NULL DEFAULT '';", // #250: creator-set join password
             "ALTER TABLE world ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0;", // public world browser (opt-in, requires password)
             "ALTER TABLE world ADD COLUMN channel TEXT NOT NULL DEFAULT '';", // world channel ('' portal, 'glitch' arcade)
+            "ALTER TABLE world ADD COLUMN save_too_new_image TEXT NOT NULL DEFAULT '';", // #2464: the server image that refused the save (exit 3)
+            "ALTER TABLE world ADD COLUMN save_too_new_unix INTEGER NOT NULL DEFAULT 0;", // #2464: when it did
             "ALTER TABLE account ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0;", // set by an admin reset, cleared by the next change
         })
         {
@@ -1047,7 +1057,8 @@ public sealed class HostRegistry : IDisposable
         {
             using var cmd = Cmd("""
                 SELECT w.id, w.owner_account_id, w.display_name, w.join_secret, w.host_port, w.status,
-                       w.container_id, w.created_unix, w.last_started_unix, w.channel, a.name
+                       w.container_id, w.created_unix, w.last_started_unix, w.channel, a.name,
+                       w.save_too_new_image, w.save_too_new_unix
                 FROM world w LEFT JOIN account a ON a.id = w.owner_account_id
                 ORDER BY CASE w.status WHEN 'running' THEN 0 WHEN 'starting' THEN 1 WHEN 'stopped' THEN 2 ELSE 3 END,
                          w.last_started_unix DESC
@@ -1063,7 +1074,8 @@ public sealed class HostRegistry : IDisposable
                     : channel == WorldChannel.Glitch ? "glitch.fun" : "(deleted)";
                 list.Add((new WorldRecord(reader.GetString(0), reader.GetString(1), reader.GetString(2),
                     reader.GetString(3), reader.GetInt32(4), reader.GetString(5), reader.GetString(6),
-                    reader.GetInt64(7), reader.GetInt64(8), Channel: channel), ownerName));
+                    reader.GetInt64(7), reader.GetInt64(8), Channel: channel,
+                    SaveTooNewImage: reader.GetString(11), SaveTooNewUnix: reader.GetInt64(12)), ownerName));
             }
 
             return list;
@@ -1615,6 +1627,33 @@ public sealed class HostRegistry : IDisposable
         }
     }
 
+    /// <summary>Records that <paramref name="serverImage"/> refused the world's save as written by a newer build
+    /// (#2464 — the instance exited with code 3) at <paramref name="atUnix"/>. The orchestrator then answers
+    /// "needs a newer server" instead of starting that image on the same save again.</summary>
+    public void MarkSaveTooNew(string worldId, string serverImage, long atUnix)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd("UPDATE world SET save_too_new_image = $img, save_too_new_unix = $at WHERE id = $i");
+            cmd.Parameters.AddWithValue("$img", serverImage ?? string.Empty);
+            cmd.Parameters.AddWithValue("$at", atUnix);
+            cmd.Parameters.AddWithValue("$i", worldId);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Drops the "save too new" mark (#2464): the world came up, its save was replaced, or an operator
+    /// asked for a fresh try.</summary>
+    public void ClearSaveTooNew(string worldId)
+    {
+        lock (_gate)
+        {
+            using var cmd = Cmd("UPDATE world SET save_too_new_image = '', save_too_new_unix = 0 WHERE id = $i AND save_too_new_image <> ''");
+            cmd.Parameters.AddWithValue("$i", worldId);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
     /// <summary>Stamps a world as active now — set on every successful join/wake so the archive sweep
     /// measures real inactivity, not time since creation.</summary>
     public void TouchWorldActive(string worldId)
@@ -1702,12 +1741,12 @@ public sealed class HostRegistry : IDisposable
     // ---------------- Internals ----------------
 
     private const string SelectWorld =
-        "SELECT id, owner_account_id, display_name, join_secret, host_port, status, container_id, created_unix, last_started_unix, password_hash, is_public, channel FROM world";
+        "SELECT id, owner_account_id, display_name, join_secret, host_port, status, container_id, created_unix, last_started_unix, password_hash, is_public, channel, save_too_new_image, save_too_new_unix FROM world";
 
     private static WorldRecord ReadWorld(SqliteDataReader r) => new(
         r.GetString(0), r.GetString(1), r.GetString(2), r.GetString(3), r.GetInt32(4),
         r.GetString(5), r.GetString(6), r.GetInt64(7), r.GetInt64(8), r.GetString(9), r.GetInt64(10) != 0,
-        r.GetString(11));
+        r.GetString(11), r.GetString(12), r.GetInt64(13));
 
     /// <summary>Smallest unused port in the configured range. Ports stay allocated for a world's lifetime
     /// (they are its stable native-UDP endpoint), so a deleted world's port returns to the pool.</summary>

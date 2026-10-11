@@ -32,6 +32,13 @@ public interface IInstanceLauncher
     /// <summary>Whether the container is still running — false once an idle shutdown has exited it.</summary>
     bool IsRunning(string containerId);
 
+    /// <summary>The exit code of a container that has stopped, or null when it is still running, unknown or
+    /// gone. Read after a wake died (#2464): the game server exits with <c>3</c> when the world's save was
+    /// written by a newer build (<c>GameServer.SaveTooNewExitCode</c>), and that must not read as a generic wake
+    /// failure. Instances run without <c>--rm</c>, so the exited container is still there to ask. The default
+    /// (null) keeps test doubles that do not model exit codes working.</summary>
+    int? ExitCode(string containerId) => null;
+
     /// <summary>CPU/memory snapshot of every container on the host (admin server-health card). Empty
     /// when docker is unavailable — the card degrades, nothing fails. NOTE: <c>docker stats</c> samples
     /// for ~1-2 s, so callers must keep this off the page-render path.</summary>
@@ -225,6 +232,30 @@ public sealed class DockerCliLauncher : IInstanceLauncher
 
         var (exitCode, stdout, _) = Run(new List<string> { "inspect", "--format", "{{.State.Running}}", containerId });
         return exitCode == 0 && stdout.Trim() == "true";
+    }
+
+    public int? ExitCode(string containerId)
+    {
+        if (string.IsNullOrEmpty(containerId))
+        {
+            return null;
+        }
+
+        var (exitCode, stdout, _) = Run(new List<string> { "inspect", "--format", "{{.State.Running}} {{.State.ExitCode}}", containerId });
+        return exitCode == 0 ? ParseInspectExitCode(stdout) : null;
+    }
+
+    /// <summary>Reads the <c>"{{.State.Running}} {{.State.ExitCode}}"</c> answer of <c>docker inspect</c>: the exit
+    /// code of a stopped container, null for a running one or anything unexpected. Public + pure so the parsing is
+    /// unit-testable without Docker.</summary>
+    public static int? ParseInspectExitCode(string inspectOutput)
+    {
+        string[] parts = (inspectOutput ?? string.Empty).Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 2
+               && parts[0] == "false"
+               && int.TryParse(parts[1], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int code)
+            ? code
+            : null;
     }
 
     public IReadOnlyList<ContainerStat> ContainerStats()

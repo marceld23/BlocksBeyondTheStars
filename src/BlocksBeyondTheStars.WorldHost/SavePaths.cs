@@ -1,6 +1,8 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Text.Json;
+using BlocksBeyondTheStars.Shared.State;
 using Microsoft.Data.Sqlite;
 
 namespace BlocksBeyondTheStars.WorldHost;
@@ -75,12 +77,20 @@ public static class SavePaths
         return true;
     }
 
+    /// <summary>The upload refusal for a save a newer build wrote (#2464) — mapped to the <c>save_too_new</c> code.</summary>
+    public const string SaveTooNewError =
+        "This save comes from a newer version of the game than this server runs — upload it again once the server is updated.";
+
     /// <summary>
     /// Validates an uploaded candidate file as a usable world save: real SQLite (magic header), passes
-    /// <c>PRAGMA quick_check</c>, and carries the game's schema (the <c>world_meta</c> table — the anchor
-    /// every SqliteWorldRepository save has). Returns a player-safe error; internals stay in the logs.
+    /// <c>PRAGMA quick_check</c>, carries the game's schema (the <c>world_meta</c> table — the anchor
+    /// every SqliteWorldRepository save has) and was not written by a newer build (#2464): a save whose stored
+    /// <see cref="WorldMetadata.SaveVersion"/> is higher than <paramref name="supportedSaveVersion"/> (default:
+    /// this build's <see cref="WorldMetadata.CurrentSaveVersion"/>) would be accepted only to make the world's
+    /// next wake fail — the game server refuses to open it (exit code 3). Older saves pass: the game server copies
+    /// and stamps them on their first open. Returns a player-safe error; internals stay in the logs.
     /// </summary>
-    public static (bool Ok, string Error) ValidateUploadedSave(string path)
+    public static (bool Ok, string Error) ValidateUploadedSave(string path, int supportedSaveVersion = WorldMetadata.CurrentSaveVersion)
     {
         try
         {
@@ -117,6 +127,27 @@ public static class SavePaths
                 }
             }
 
+            // The save version lives in the metadata row's JSON (SqliteWorldRepository: world_meta(id = 0, json)).
+            // No row yet = a world that never got that far — the server creates its metadata; it is not newer.
+            string? metaJson;
+            using (var meta = db.CreateCommand())
+            {
+                meta.CommandText = "SELECT json FROM world_meta WHERE id = 0;";
+                try
+                {
+                    metaJson = meta.ExecuteScalar() as string;
+                }
+                catch (SqliteException)
+                {
+                    return (false, "This database is not a Blocks Beyond the Stars world save."); // a world_meta of another shape
+                }
+            }
+
+            if (metaJson is not null && StoredSaveVersion(metaJson) > supportedSaveVersion)
+            {
+                return (false, SaveTooNewError);
+            }
+
             return (true, string.Empty);
         }
         catch (Exception)
@@ -127,5 +158,20 @@ public static class SavePaths
         {
             SqliteConnection.ClearAllPools(); // release the read-only handle so the temp file can be moved/deleted
         }
+    }
+
+    /// <summary>The <c>SaveVersion</c> in a save's metadata JSON — 1 when it is absent, exactly as the game reads
+    /// it (<see cref="WorldMetadata.SaveVersion"/>: every save from before the check). Property names are the
+    /// repository's default (case-sensitive PascalCase). Malformed JSON throws — the caller reports the save as
+    /// unreadable, because the game server could not load it either.</summary>
+    public static int StoredSaveVersion(string metaJson)
+    {
+        using var doc = JsonDocument.Parse(metaJson);
+        return doc.RootElement.ValueKind == JsonValueKind.Object
+               && doc.RootElement.TryGetProperty(nameof(WorldMetadata.SaveVersion), out var version)
+               && version.ValueKind == JsonValueKind.Number
+               && version.TryGetInt32(out int value)
+            ? value
+            : 1;
     }
 }

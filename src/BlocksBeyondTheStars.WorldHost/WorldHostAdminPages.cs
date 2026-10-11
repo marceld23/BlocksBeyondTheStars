@@ -46,6 +46,13 @@ public static class WorldHostAdminPages
                "</form></details>";
     }
 
+    /// <summary>The fleet-status badge of a world whose save the current server image refused as too new (#2464) —
+    /// empty for every other world.</summary>
+    private static string SaveTooNewBadge(WorldHostConfig config, WorldRecord world)
+        => world.NeedsNewerServerThan(config.ServerImage)
+            ? $" <span class='st' title='refused by {E(world.SaveTooNewImage)} {Ago(world.SaveTooNewUnix)}: the save was written by a newer version of the game (exit code 3)'>needs newer server</span>"
+            : string.Empty;
+
     /// <summary>
     /// Per-world detail (issue #489): who plays here, what they have built, and where the building actually
     /// happened. Rendered straight from the world save — see <see cref="WorldInspector"/> for why that is
@@ -55,8 +62,14 @@ public static class WorldHostAdminPages
     {
         var sb = new StringBuilder();
         sb.Append($"<h1>{E(world.DisplayName)} <span class='sub'>· <code>{world.Id}</code></span></h1>");
-        sb.Append($"<p class='hint'>Owner: {E(ownerName)} · status <span class='st {E(world.Status)}'>{E(world.Status)}</span> · " +
+        sb.Append($"<p class='hint'>Owner: {E(ownerName)} · status <span class='st {E(world.Status)}'>{E(world.Status)}</span>{SaveTooNewBadge(config, world)} · " +
                   "<a href='/admin'>back to the fleet</a></p>");
+        if (world.NeedsNewerServerThan(config.ServerImage))
+        {
+            sb.Append($"<p class='beta'>The server image <code>{E(config.ServerImage)}</code> refused this world's save as written by a newer " +
+                      "version of the game (exit code 3, save untouched). It is not restarted on this image: update the fleet image " +
+                      "(<code>BBS_WH_SERVER_IMAGE</code>), or have the owner upload an older save. <b>wake</b> on the fleet page retries.</p>");
+        }
 
         if (insight.Problem is { } problem)
         {
@@ -292,7 +305,7 @@ public static class WorldHostAdminPages
                       $"<button class='danger' title='EMERGENCY: SIGKILL, no drain, no save — data since the last autosave is lost'>kill</button></form>"
                     : $"<form method='post' action='/admin/worlds/{w.Id}/wake'><button>wake</button></form>";
                 sb.Append($"<tr><td><a href='/admin/worlds/{w.Id}'><b>{E(w.DisplayName)}</b></a>{badge}<br><code>{w.Id}</code></td><td>{E(row.OwnerName)}</td>" +
-                          $"<td><span class='st {E(w.Status)}'>{E(w.Status)}</span></td><td>{players}</td>" +
+                          $"<td><span class='st {E(w.Status)}'>{E(w.Status)}</span>{SaveTooNewBadge(config, w)}</td><td>{players}</td>" +
                           $"<td>{w.HostPort}</td><td>{Ago(w.LastStartedUnix)}</td><td>{action}{DeleteForm(w)}</td></tr>");
             }
 

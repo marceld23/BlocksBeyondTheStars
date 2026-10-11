@@ -740,6 +740,35 @@ public sealed class GlitchGatewayTests : IDisposable
         Assert.Equal("All arcade worlds are full right now — please try again in a few minutes.", result.Error);
     }
 
+    /// <summary>#2464: a pool world whose save the server image refused as written by a newer build (exit code 3 —
+    /// a fleet image rollback does this to every arcade world) is neither restarted by the keep-awake pass every
+    /// 30 s nor handed to a guest as the wake-on-demand pick.</summary>
+    [Fact]
+    public async Task SaveTooNew_PoolWorld_IsNeitherRestartedNorHandedToAGuestAsync()
+    {
+        var (gateway, registry, orchestrator, launcher, tick) = NewFlappingPool(worldCount: 2);
+
+        await tick(); // both arcade worlds created and woken
+        await gateway.WakePoolAsync(); // a quiet pass: nothing was woken in it, so no failure history is pending
+        var pool = registry.ListWorldsByChannel(WorldChannel.Glitch);
+        string refused = pool[0].Id, healthy = pool[1].Id;
+
+        // Both asleep; the current image refused the first one's save.
+        launcher.Running.Clear();
+        orchestrator.Reap();
+        registry.MarkSaveTooNew(refused, new WorldHostConfig().ServerImage, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+
+        var result = await gateway.SessionAsync(Install);
+        Assert.True(result.Ok, result.Error);
+        Assert.Equal(healthy, result.WorldId);
+
+        int starts = launcher.StartCount;
+        await gateway.WakePoolAsync();
+        Assert.Equal(starts, launcher.StartCount); // the refused world was not started again
+        Assert.Equal(WorldStatus.Stopped, registry.GetWorld(refused)!.Status);
+        Assert.Equal((0, false), gateway.WakeStateFor(refused)); // and it is not mistaken for a world that dies on wake
+    }
+
     /// <summary>A pool whose worlds start fine and are dead again by the next pass — the shape of an instance
     /// killed seconds after startup. <c>tick</c> runs one keep-awake pass and then lets the reaper see the
     /// corpses; the world named in <c>dead</c> never comes up, whatever the launcher says.</summary>

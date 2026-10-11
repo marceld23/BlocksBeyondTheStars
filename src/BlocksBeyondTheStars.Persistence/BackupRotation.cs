@@ -19,6 +19,10 @@ public static class BackupRotation
     /// <summary>The copy taken before a save's block ids are remapped to a changed block set.</summary>
     public const string PreRemapPrefix = "pre-remap_";
 
+    /// <summary>The copy taken before an older save is stamped with this build's save version (#2464) — from then
+    /// on the build that wrote it refuses to open it, so this copy is the way back after a rollback.</summary>
+    public const string PreUpgradePrefix = "pre-upgrade_";
+
     /// <summary>A backup is written under this suffix and renamed when complete, so a copy that was cut short
     /// never looks like a backup.</summary>
     public const string TempSuffix = ".tmp";
@@ -30,7 +34,9 @@ public static class BackupRotation
     /// <summary>True for a label of one of the server's own kinds. A repository must write such a backup under
     /// exactly that name (plus its extension), or <see cref="Prune"/> would never find it again.</summary>
     public static bool IsRotationLabel(string label)
-        => label.StartsWith(AutoPrefix, StringComparison.Ordinal) || label.StartsWith(PreRemapPrefix, StringComparison.Ordinal);
+        => label.StartsWith(AutoPrefix, StringComparison.Ordinal)
+           || label.StartsWith(PreRemapPrefix, StringComparison.Ordinal)
+           || label.StartsWith(PreUpgradePrefix, StringComparison.Ordinal);
 
     /// <summary>
     /// Deletes the oldest backups of one kind until at most <paramref name="keep"/> remain, and any unfinished

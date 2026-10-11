@@ -62,8 +62,9 @@ public sealed partial class GameServer
     /// <summary>
     /// Refuses to open a world a newer build wrote (#2223). Runs right after the save is opened and BEFORE the
     /// block palette is brought up to date — that step is the one that would rewrite the save. Older saves (a
-    /// lower or missing version) pass and are stamped with <see cref="WorldMetadata.CurrentSaveVersion"/> once
-    /// the world is loaded. The refusal is logged here and nowhere else, behind <see cref="SaveTooNewMarker"/>.
+    /// lower or missing version) pass, are copied first (<c>pre-upgrade_…</c>, #2464) and are stamped with
+    /// <see cref="WorldMetadata.CurrentSaveVersion"/> once the world is loaded. The refusal is logged here and
+    /// nowhere else, behind <see cref="SaveTooNewMarker"/>.
     /// </summary>
     private void EnsureSaveVersionSupported()
     {

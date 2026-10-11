@@ -162,6 +162,7 @@
   "worlds.js.status.starting": "正在启动…",
   "worlds.js.status.running": "运行中",
   "worlds.js.status.archived": "已归档",
+  "worlds.js.status.needs_update": "需要更新服务器",
   "rules.pageTitle": "社区规则",
   "rules.intro": "<b>Blocks Beyond the Stars 是一个面向家庭和社区的项目。</b>孩子和大人可以一起玩 —— 请友善相待！",
   "rules.item1": "🧒 如果你是未成年人，请先征得父母同意再玩。",
@@ -208,5 +209,7 @@
   "err.password_required": "该世界需要密码。",
   "err.wrong_password": "世界密码错误。",
   "err.too_many_attempts": "密码尝试次数过多 — 请等待几分钟。",
-  "err.world_password_invalid": "世界密码需为 4-24 个可打印字符。"
+  "err.world_password_invalid": "世界密码需为 4-24 个可打印字符。",
+  "err.save_too_new": "这个存档来自比本服务器更新的游戏版本 — 请在服务器更新后重新上传。",
+  "err.world_needs_newer_server": "这个世界是用更新版本的游戏保存的 — 本服务器更新后即可再次打开。"
 }
