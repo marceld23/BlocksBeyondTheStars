@@ -54,7 +54,79 @@ public class StoryPackLoadTests
             // #767 set the per-beat knowledge to 1; the data pack wins at runtime, so it must not drift
             // back up (it silently had, until PR 3 caught it).
             Assert.Equal(builtin.Beats[i].KnowledgeReward, data.Beats[i].KnowledgeReward);
+            Assert.Equal(builtin.Beats[i].Cutscene, data.Beats[i].Cutscene); // #2466
         }
+
+        // #2466: every behaviour-relevant manifest field of the pack runtime.
+        Assert.Equal(builtin.Kind, data.Kind);
+        Assert.Equal(StoryRegistry.EffectiveScope(builtin), StoryRegistry.EffectiveScope(data));
+        Assert.Equal(builtin.Priority, data.Priority);
+        Assert.Equal(builtin.ShortNameKey, data.ShortNameKey);
+        Assert.Equal(builtin.DescriptionKey, data.DescriptionKey);
+        Assert.Equal(builtin.Narrator.Id, data.Narrator.Id);
+        Assert.Equal(builtin.Narrator.NameKey, data.Narrator.NameKey);
+        Assert.Equal(builtin.DefaultEnabled, data.DefaultEnabled);
+        Assert.Equal(builtin.IntroCutscene, data.IntroCutscene);
+        Assert.Equal(builtin.Gates, data.Gates);
+        Assert.Equal(builtin.Escalate.HintAfter, data.Escalate.HintAfter);
+        Assert.Equal(builtin.Escalate.MarkerAfter, data.Escalate.MarkerAfter);
+        Assert.Equal(builtin.Escalate.OfferSkipAfter, data.Escalate.OfferSkipAfter);
+        Assert.Equal(builtin.Start.After, data.Start.After);
+        Assert.Equal(builtin.Start.EarlyOptIn, data.Start.EarlyOptIn);
+        Assert.Equal(builtin.Chapters.Count, data.Chapters.Count);
+        Assert.Equal(builtin.Insights.Count, data.Insights.Count);
+        Assert.Equal(builtin.Finale.Type, data.Finale.Type);
+        Assert.Equal(builtin.Finale.Cutscenes, data.Finale.Cutscenes);
+    }
+
+    /// <summary>#2466: a pack written before the manifest existed loads with every new field at today's behaviour.</summary>
+    [Fact]
+    public void ManifestFields_DefaultToTodaysBehaviour()
+    {
+        var def = System.Text.Json.JsonSerializer.Deserialize<StoryDefinition>("{\"id\":\"old\",\"nameKey\":\"x\"}", ContentLoader.JsonOptions)!;
+        Assert.Equal(StoryRegistry.KindStory, def.Kind);
+        Assert.Equal(string.Empty, def.Scope);
+        Assert.Equal(StoryRegistry.ScopePlayer, StoryRegistry.EffectiveScope(def)); // no beats
+        Assert.Equal(0, def.Priority);
+        Assert.Equal(StoryNarrator.DefaultId, def.Narrator.Id);
+        Assert.True(def.DefaultEnabled);
+        Assert.Empty(def.Chapters);
+        Assert.Empty(def.Gates);
+        Assert.Empty(def.Start.After);
+        Assert.False(def.Start.EarlyOptIn);
+        Assert.Null(def.Escalate.HintAfter);
+        Assert.Equal(string.Empty, def.IntroCutscene);
+    }
+
+    /// <summary>#2466: the manifest of a player pack loads into the model — chapters, steps, objectives, variants,
+    /// escalation overrides and gates (the runtime's test pack).</summary>
+    [Fact]
+    public void APackManifest_LoadsIntoTheModel()
+    {
+        var def = StoryPackFixtures.Load(StoryPackFixtures.Runtime);
+        Assert.Equal(StoryRegistry.KindSide, def.Kind);
+        Assert.Equal(StoryRegistry.ScopePlayer, StoryRegistry.EffectiveScope(def));
+        Assert.Equal("story.runtime_test.short", def.ShortNameKey);
+        Assert.Equal(5, def.Escalate.HintAfter);
+        Assert.Equal(3, def.Chapters.Count);
+        var a1 = def.Chapters[0].Steps[0];
+        Assert.Equal("a.1", a1.Id);
+        Assert.Equal(StoryStepKinds.Do, a1.Kind);
+        Assert.Equal(StoryStepTiers.Must, a1.Tier);
+        Assert.Equal(GameEventKeys.MineAny, a1.Objective.Event);
+        Assert.Equal(3, a1.Objective.Required);
+        Assert.Equal("nearest_ore:stone", a1.OnStart.Reveal);
+        Assert.Equal("world:creative", Assert.Single(a1.Variants).When);
+        Assert.Equal(3, def.Chapters[0].Steps[3].Escalate!.HintAfter);
+        Assert.Null(def.Chapters[0].Steps[3].Escalate!.MarkerAfter);
+        Assert.True(def.Chapters[2].Optional);
+        Assert.True(def.Chapters[2].Steps[0].Objective.IsMission);
+        Assert.Equal("b.2", def.Chapters[1].Steps[0].Alternative);
+
+        var tutorial = StoryPackFixtures.Load(StoryPackFixtures.Tutorial);
+        Assert.Equal(StoryRegistry.ScopePlayer, StoryRegistry.EffectiveScope(tutorial));
+        Assert.Equal("vega:stage:mine", tutorial.Chapters[0].Steps[0].LegacyKey);
+        Assert.True(tutorial.Gates.ContainsKey(StoryGateNames.Banter));
     }
 
     [Fact]

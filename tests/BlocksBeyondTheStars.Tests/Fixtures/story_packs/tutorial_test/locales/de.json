@@ -1,0 +1,18 @@
+{
+  "story.tutorial_test.name": "Tutorial-Test",
+  "story.tutorial_test.short": "Tutorial",
+  "story.tutorial_test.ch.t1": "Teil 1",
+  "story.tutorial_test.ch.t2": "Teil 2",
+  "story.tutorial_test.ch.t3": "Vertiefung",
+  "story.tutorial_test.t11.start": "Baue zwei Blöcke ab.",
+  "story.tutorial_test.t11.chip": "Zwei Blöcke abbauen",
+  "story.tutorial_test.t11.done": "Gut gemacht.",
+  "story.tutorial_test.t12.start": "Setze einen Block.",
+  "story.tutorial_test.t12.chip": "Einen Block setzen",
+  "story.tutorial_test.t13.start": "Stelle irgendetwas her.",
+  "story.tutorial_test.t13.chip": "Irgendetwas herstellen",
+  "story.tutorial_test.t21.start": "Iss etwas.",
+  "story.tutorial_test.t21.chip": "Etwas essen",
+  "story.tutorial_test.t31.start": "Scanne irgendetwas.",
+  "story.tutorial_test.t31.chip": "Irgendetwas scannen"
+}

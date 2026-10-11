@@ -175,6 +175,16 @@ public static class GameEventKeys
     /// <summary>The <c>crystal:&lt;event&gt;</c> key of one circuit event (the same string as the achievement counter).</summary>
     public static string Crystal(string circuitEvent) => CrystalPrefix + circuitEvent;
 
+    /// <summary>Prefix of a client teaching flag (<c>ui:menu_open</c>, synthesis §3.6). Allowed only in a player pack's
+    /// step objective — never in a condition — and never persisted; the intent that raises it arrives with step 10.</summary>
+    public const string UiPrefix = "ui:";
+
+    /// <summary>The "continue" acknowledgement of a VEGA line — what completes a <c>read</c> step.</summary>
+    public const string UiVegaContinue = UiPrefix + "vega_continue";
+
+    /// <summary>Whether <paramref name="key"/> is a client teaching flag (<see cref="UiPrefix"/>).</summary>
+    public static bool IsUiEvent(string? key) => key is not null && key.StartsWith(UiPrefix, StringComparison.Ordinal);
+
     /// <summary>Every key the server raises today (the crystal family expanded), for the pack validator: a step naming
     /// another key is reported (a warning — a pack may be authored before its event ships).</summary>
     public static readonly IReadOnlyList<string> All = BuildAll();
@@ -243,4 +253,33 @@ public static class StoryPackKeys
 
     /// <summary><c>story:&lt;pack&gt;:ch:&lt;chapter&gt;:skipped</c> — the chapter was skipped.</summary>
     public static string ChapterSkipped(string packId, string chapterId) => "story:" + packId + ":ch:" + chapterId + ":skipped";
+
+    /// <summary><c>story:&lt;pack&gt;:ch:&lt;chapter&gt;:offered</c> — the optional chapter was offered once (#2466).</summary>
+    public static string ChapterOffered(string packId, string chapterId) => "story:" + packId + ":ch:" + chapterId + ":offered";
+
+    /// <summary><c>story:&lt;pack&gt;:ch:&lt;chapter&gt;:declined</c> — the player said "Later" to the offer; the chapter stays
+    /// listed and startable (#2466).</summary>
+    public static string ChapterDeclined(string packId, string chapterId) => "story:" + packId + ":ch:" + chapterId + ":declined";
+
+    /// <summary><c>story:&lt;pack&gt;:ch:&lt;chapter&gt;:replay</c> — the chapter is being replayed: its steps run again with the
+    /// evidence switched off, while its done key and step keys stay (conditions and gates keep holding) (#2466).</summary>
+    public static string ChapterReplay(string packId, string chapterId) => "story:" + packId + ":ch:" + chapterId + ":replay";
+
+    /// <summary><c>story:&lt;pack&gt;:ch:&lt;chapter&gt;:active</c> — the player started an optional chapter that is not done
+    /// yet (#2466; a non-optional chapter needs no key — it runs by the chapter order).</summary>
+    public static string ChapterActive(string packId, string chapterId) => "story:" + packId + ":ch:" + chapterId + ":active";
+
+    /// <summary><c>story:&lt;pack&gt;:replay:&lt;step&gt;</c> — the step was completed again during its chapter's replay
+    /// (removed when the replay ends) (#2466).</summary>
+    public static string StepReplay(string packId, string stepId) => "story:" + packId + ":replay:" + stepId;
+
+    /// <summary><c>story:&lt;pack&gt;:migrated:v1</c> — the one-time migration of the pack's legacy keys ran (#2466,
+    /// synthesis §5.3).</summary>
+    public static string Migrated(string packId) => "story:" + packId + ":migrated:v1";
+
+    /// <summary>The prefix of every per-player key of a pack (<c>story:&lt;pack&gt;:</c>).</summary>
+    public static string Prefix(string packId) => "story:" + packId + ":";
+
+    /// <summary>The key of a running step counter in <c>PlayerState.StepProgress</c>: <c>&lt;pack&gt;:&lt;step&gt;</c>.</summary>
+    public static string ProgressKey(string packId, string stepId) => packId + ":" + stepId;
 }

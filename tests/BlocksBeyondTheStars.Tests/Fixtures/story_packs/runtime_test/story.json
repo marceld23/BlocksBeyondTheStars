@@ -1,0 +1,84 @@
+{
+  // Test fixture of the player-pack runtime (#2466) — NOT shipped content (it lives under the test project, never under
+  // data/stories/). A small side story: chapter a (mine 3, a read step, a craft with two accepted recipes, a CORE step,
+  // a react step), chapter b (an infeasible step with its alternative, a step waiting for a CORE step), optional chapter c
+  // (offered by a blueprint; a mission bridge and a scan).
+  "id": "runtime_test",
+  "nameKey": "story.runtime_test.name",
+  "shortNameKey": "story.runtime_test.short",
+  "kind": "side",
+  "scope": "player",
+  "priority": 5,
+  "narrator": { "id": "vega" },
+  "escalate": { "hintAfter": 5, "markerAfter": 10, "offerSkipAfter": 15 },
+  "chapters": [
+    {
+      "id": "a",
+      "titleKey": "story.runtime_test.ch.a",
+      "steps": [
+        {
+          "id": "a.1", "kind": "do", "tier": "must",
+          "objective": { "event": "mine:any", "required": 3 },
+          "onStart": { "reveal": "nearest_ore:stone" },
+          "variants": [ { "when": "world:creative", "startKey": "story.runtime_test.a1.start_creative" } ],
+          "explain": {
+            "startKey": "story.runtime_test.a1.start", "chipKey": "story.runtime_test.a1.chip",
+            "hintKey": "story.runtime_test.a1.hint", "doneKey": "story.runtime_test.a1.done"
+          }
+        },
+        { "id": "a.2", "kind": "read", "explain": { "startKey": "story.runtime_test.a2.start" } },
+        {
+          "id": "a.3", "kind": "do", "tier": "must",
+          "objective": { "event": "craft:any", "arg": "torch|campfire" },
+          "explain": { "startKey": "story.runtime_test.a3.start", "chipKey": "story.runtime_test.a3.chip" }
+        },
+        {
+          "id": "a.4", "kind": "do", "tier": "core",
+          "objective": { "event": "eat:any" },
+          "escalate": { "hintAfter": 3 },
+          "explain": {
+            "startKey": "story.runtime_test.a4.start", "chipKey": "story.runtime_test.a4.chip",
+            "hintKey": "story.runtime_test.a4.hint"
+          }
+        },
+        { "id": "a.5", "kind": "react", "objective": { "event": "defeat:any" }, "explain": { "startKey": "story.runtime_test.a5.start" } }
+      ]
+    },
+    {
+      "id": "b",
+      "titleKey": "story.runtime_test.ch.b",
+      "steps": [
+        {
+          "id": "b.1", "objective": { "event": "station:boarded" },
+          "feasibleIf": [ "world:hunger" ], "alternative": "b.2",
+          "explain": { "startKey": "story.runtime_test.b1.start", "chipKey": "story.runtime_test.b1.chip" }
+        },
+        {
+          "id": "b.2", "objective": { "event": "trade:barter" },
+          "explain": { "startKey": "story.runtime_test.b2.start", "chipKey": "story.runtime_test.b2.chip" }
+        },
+        {
+          "id": "b.3", "objective": { "event": "travel:landed", "arg": "flight|quick" },
+          "requires": [ "step:runtime_test:a.4" ],
+          "explain": { "startKey": "story.runtime_test.b3.start", "chipKey": "story.runtime_test.b3.chip" }
+        }
+      ]
+    },
+    {
+      "id": "c",
+      "titleKey": "story.runtime_test.ch.c",
+      "optional": true,
+      "offerWhen": [ "blueprint:terrain_scanner" ],
+      "steps": [
+        {
+          "id": "c.1", "objective": { "type": "Mission", "target": "first_iron" },
+          "explain": { "startKey": "story.runtime_test.c1.start", "chipKey": "story.runtime_test.c1.chip" }
+        },
+        {
+          "id": "c.2", "objective": { "event": "scan:performed" },
+          "explain": { "startKey": "story.runtime_test.c2.start", "chipKey": "story.runtime_test.c2.chip" }
+        }
+      ]
+    }
+  ]
+}

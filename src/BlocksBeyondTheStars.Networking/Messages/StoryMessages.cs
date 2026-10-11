@@ -77,6 +77,66 @@ public sealed class StorySelectIntent
     public string StoryId { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Client → server (#2466, tag 297): the player's own control of a PLAYER story pack (the tutorial, side stories) — from
+/// the Journal, the first tutorial card, the Settings and the VEGA panel. <see cref="Action"/> is one of
+/// <see cref="StoryPackActions"/>; <see cref="ChapterId"/> / <see cref="StepId"/> name the target where the action needs
+/// one. Self-service, never a cheat: it changes only the sender's own ledger. The world story is not switched here
+/// (that stays the admin's <see cref="StorySelectIntent"/>). While a singleplayer world is held only
+/// <c>track</c>, <c>untrack</c>, <c>optOut</c>, <c>optIn</c> and <c>skipPack</c> get through (synthesis §5.7).
+/// </summary>
+public sealed class StoryPackIntent
+{
+    /// <summary>The pack (e.g. <c>tutorial</c>).</summary>
+    public string PackId { get; set; } = string.Empty;
+
+    /// <summary>What to do (<see cref="StoryPackActions"/>); an unknown word is ignored.</summary>
+    public string Action { get; set; } = string.Empty;
+
+    /// <summary>The chapter of <c>startChapter</c>, <c>declineChapter</c>, <c>skipChapter</c>, <c>restartChapter</c>.</summary>
+    public string ChapterId { get; set; } = string.Empty;
+
+    /// <summary>The step of <c>skipStep</c>.</summary>
+    public string StepId { get; set; } = string.Empty;
+}
+
+/// <summary>The values of <see cref="StoryPackIntent.Action"/> (#2466).</summary>
+public static class StoryPackActions
+{
+    /// <summary>Pin the pack to the objective chip (<c>PlayerState.TrackedStoryId</c>).</summary>
+    public const string Track = "track";
+
+    /// <summary>Back to the automatic chip order.</summary>
+    public const string Untrack = "untrack";
+
+    /// <summary>Switch the pack off for this player (keeps every key; lines and objectives stop).</summary>
+    public const string OptOut = "optOut";
+
+    /// <summary>Switch it back on.</summary>
+    public const string OptIn = "optIn";
+
+    /// <summary>Start the pack now (an opt-in tutorial, a pack whose start rule allows an early start).</summary>
+    public const string StartPack = "startPack";
+
+    /// <summary>"I know the game": skip every mandatory chapter (deep-dive offers stay on).</summary>
+    public const string SkipPack = "skipPack";
+
+    /// <summary>Start an optional chapter (accepts an offer).</summary>
+    public const string StartChapter = "startChapter";
+
+    /// <summary>"Later" to an offered chapter — it stays listed and startable.</summary>
+    public const string DeclineChapter = "declineChapter";
+
+    /// <summary>Skip the rest of a chapter.</summary>
+    public const string SkipChapter = "skipChapter";
+
+    /// <summary>Replay a chapter (evidence off).</summary>
+    public const string RestartChapter = "restartChapter";
+
+    /// <summary>"I know this": skip one active step.</summary>
+    public const string SkipStep = "skipStep";
+}
+
 /// <summary>One net fragment scattered on a body's surface for the client to render + let the player pick up
 /// (walk up, press E). Text-only story finds — distinct from the knowledge mini-game dataqubes. The archive
 /// text is not sent until pickup (see <see cref="NetFragmentRevealed"/>); this carries only position + the

@@ -80,6 +80,13 @@ public sealed class PlayerSnapshot
     public bool EquipmentInitialised { get; set; }
     public List<MissionProgress> Missions { get; set; } = new();
     public List<string> Milestones { get; set; } = new();
+
+    /// <summary>Running story-pack step counters (#2466, <see cref="PlayerState.StepProgress"/>). Absent in older saves ⇒
+    /// none; null while empty, so a save without running steps does not grow. An older build drops it on re-save.</summary>
+    public Dictionary<string, int>? StepProgress { get; set; }
+
+    /// <summary>The pinned story (#2466, <see cref="PlayerState.TrackedStoryId"/>). Absent in older saves ⇒ automatic.</summary>
+    public string TrackedStoryId { get; set; } = string.Empty;
     public List<string> UnlockedGames { get; set; } = new();
 
     /// <summary>The player's custom pixel face (16×16 palette indices as a hex string; empty = none). Opaque
@@ -255,6 +262,8 @@ public static class StateMapper
         EquipmentInitialised = p.EquipmentInitialised,
         Missions = p.Missions.Select(CloneProgress).ToList(),
         Milestones = p.Milestones.ToList(),
+        StepProgress = p.StepProgress.Count > 0 ? new Dictionary<string, int>(p.StepProgress, System.StringComparer.Ordinal) : null,
+        TrackedStoryId = p.TrackedStoryId,
         UnlockedGames = p.UnlockedGames.ToList(),
         LandedBodies = p.LandedBodies.ToList(),
         KnownSystems = p.KnownSystems.ToList(),
@@ -493,6 +502,10 @@ public static class StateMapper
         RationStore = RestoreInventory(BlocksBeyondTheStars.Shared.State.PlayerState.RationStoreSlots, s.RationStore ?? new List<InventorySlotDto>()),
         Missions = s.Missions.Select(CloneProgress).ToList(),
         Milestones = new HashSet<string>(s.Milestones ?? new List<string>()),
+        StepProgress = s.StepProgress != null
+            ? new Dictionary<string, int>(s.StepProgress, System.StringComparer.Ordinal)
+            : new Dictionary<string, int>(System.StringComparer.Ordinal),
+        TrackedStoryId = s.TrackedStoryId ?? string.Empty,
         UnlockedGames = new HashSet<string>(s.UnlockedGames ?? new List<string>()),
         LandedBodies = new HashSet<string>(s.LandedBodies ?? new List<string>()),
         KnownSystems = new HashSet<string>(s.KnownSystems ?? new List<string>()),

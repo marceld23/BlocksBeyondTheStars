@@ -106,7 +106,25 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   (`GameContent.TryGetWorldStory`), pack folders load in ordinal order with a warning for overwritten locale keys and
   reserved ids, `CommunityLocaleTests` covers every pack's locales. Tests: `GameEventBusTests`, `StoryConditionTests`,
   `StoryPackGuardTests`, `CommunityLocaleTests` (+4). Vocabulary table: STORY_IMPLEMENTATION "Game events".
-- ⬜ Step 7 — player-pack runtime (#2466)
+- ✅ **Step 7 — player-pack runtime (#2466)**, 2026-10-11 (invisible to players until a pack ships): the pack manifest on
+  `StoryDefinition` (`kind`, `scope`, `priority`, `shortNameKey`, `narrator`, `introCutscene`, `gates`, `escalate`,
+  `start`, `chapters[]` with `steps[]` — `do|read|react`, `must|core|opt`, event or mission-bridge objectives,
+  `requires`, `feasibleIf` + `alternative`, `alreadyDoneIf`, `variants`, `legacyKey`, `onStart.reveal` — `insights`,
+  `finale`; every field defaults to today, VEGA's pack and the built-in copy unchanged, no-drift test extended); a
+  per-player step runtime (`GameServerStoryPacks.cs`) on the event bus (registered only for active steps' keys) with
+  milestone states (§5.6 + `:active` for a started deep dive), running counters in `PlayerState.StepProgress` and the pin
+  in `TrackedStoryId` (both additive in the player snapshot), chapter order, open extras, react arming, offers, skip
+  step/chapter/pack, replay with the evidence off (done keys stay), opt-out, legacy-key double-write + one-time migration
+  marker, help escalation on play time (hint → a private 30 s marker ping for that session only, never `RevealPoi` →
+  skip offer); the world rule `GameRules.TutorialPolicy` (`Auto|OptIn|Off`, `--tutorial`, baked, live via
+  `SetWorldRulesIntent`/admin); the full chip order (finale in system → pin → basic training → VEGA finale → VEGA lead
+  → deep dive/mission → other packs) with `ShipAiLine.ObjectivePackId`/`PackId`/`Speaker`; `JoinRequest.Features`
+  (`packs1` announced by the client) and the legacy tutorial mode for older clients (old keys without text, other lines
+  server-composed via the shared `LineText` with `ui.vega.act.*` bracket words); tag 297 `StoryPackIntent` (pause
+  whitelist for track/untrack/optOut/optIn/skipPack); admin `tutorial skip|restart|chapter|policy` and `/story` listing
+  the player packs; `tools/validate_story_pack.py` (replaces `merge_story.py`) + `StoryPackValidator`. Tests:
+  `StoryPackRuntimeTests`, `StoryPackValidationTests`, `LegacyLineTextTests`, `StoryPackLoadTests` (+2),
+  `StoryPackClientTests` (Client.Tests). Docs: STORY_IMPLEMENTATION "The player-pack runtime", new TUTORIAL_PACK.md.
 - ⬜ Step 8 — cutscene model + wire (#2467)
 - ⬜ Step 9 — cutscene director (#2468)
 - ⬜ Step 10 — tutorial pack: basic training (#2469)

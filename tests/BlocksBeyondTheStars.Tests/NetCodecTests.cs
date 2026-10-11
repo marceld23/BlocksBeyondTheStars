@@ -340,6 +340,7 @@ public sealed class NetCodecTests
         [292] = typeof(OpenContainerIntent),     // #2436
         [293] = typeof(MoveContainerItemIntent), // #2436
         [294] = typeof(ContainerContents),       // #2436
+        [297] = typeof(StoryPackIntent),         // #2466
 
     };
 

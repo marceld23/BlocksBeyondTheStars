@@ -81,6 +81,12 @@ when it is landed on the same body, never in a fight or while falling, once ever
 `--return-to-ship true|false`, world admins toggle it in-game under the world rules — on by default and **off on the
 `dangerous` preset**, so a hard world keeps the walk back.
 
+**Tutorial (#2466).** Whether the tutorial story pack runs: `rules.tutorialPolicy` = `Auto` (default — every new player
+starts it and can skip it at any time), `OptIn` (offered, starts only on the player's request — veteran servers) or `Off`;
+CLI `--tutorial auto|optin|off` for a fresh world (the save keeps its rule afterwards). An admin changes it on a running
+world with the admin command `tutorial policy <value>` (the chat command arrives with the Journal). The story choice
+(`--story none`) never switches the tutorial off.
+
 ### Environment-variable overrides (containers)
 
 Every key above can also be set with a `BBS_*` environment variable, which is the natural way to

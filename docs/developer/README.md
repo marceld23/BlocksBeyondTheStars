@@ -106,7 +106,10 @@ refreshed 2026-08-08.
 
 ## Story & content
 
-- [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md) — the story engine/mechanics (beats, triggers, finale).
+- [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md) — the story engine/mechanics (beats, triggers, finale), the game
+  events and conditions, and the per-player runtime of the player story packs.
+- [TUTORIAL_PACK.md](TUTORIAL_PACK.md) — how a player story pack (the tutorial, side stories) is written: manifest,
+  chapter and step reference, conditions, per-player state, the tutorial world rule, validation.
 - [STORY_VEGA_PROTOCOL_CONCEPT.md](STORY_VEGA_PROTOCOL_CONCEPT.md) — the story's design rationale.
 - [LORE_STRUCTURE.md](LORE_STRUCTURE.md) — the lore bible + content schema.
 - [MUSIC_TRACKS.md](MUSIC_TRACKS.md) — music track library reference.

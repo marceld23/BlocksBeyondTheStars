@@ -1,0 +1,59 @@
+{
+  // Test fixture of the player-pack runtime (#2466) — a tiny TUTORIAL pack (not shipped; the real tutorial pack comes
+  // with step 10). Legacy keys, the tutorial policy, gates, the legacy client mode and a deep dive offered after basics.
+  "id": "tutorial_test",
+  "nameKey": "story.tutorial_test.name",
+  "shortNameKey": "story.tutorial_test.short",
+  "kind": "tutorial",
+  "priority": 100,
+  "gates": {
+    "opportunityTips": "all:[step:tutorial_test:t1.1,step:tutorial_test:t1.3]",
+    "banter": "any:[chapter:tutorial_test:t2,pack:tutorial_test:optedout]"
+  },
+  "chapters": [
+    {
+      "id": "t1",
+      "titleKey": "story.tutorial_test.ch.t1",
+      "steps": [
+        {
+          "id": "t1.1", "legacyKey": "vega:stage:mine",
+          "objective": { "event": "mine:any", "required": 2 },
+          "explain": { "startKey": "story.tutorial_test.t11.start", "chipKey": "story.tutorial_test.t11.chip", "doneKey": "story.tutorial_test.t11.done" }
+        },
+        {
+          "id": "t1.2",
+          "objective": { "event": "build:any" },
+          "explain": { "startKey": "story.tutorial_test.t12.start", "chipKey": "story.tutorial_test.t12.chip" }
+        },
+        {
+          "id": "t1.3", "legacyKey": "vega:stage:craft",
+          "objective": { "event": "craft:any" },
+          "explain": { "startKey": "story.tutorial_test.t13.start", "chipKey": "story.tutorial_test.t13.chip" }
+        }
+      ]
+    },
+    {
+      "id": "t2",
+      "titleKey": "story.tutorial_test.ch.t2",
+      "steps": [
+        {
+          "id": "t2.1", "legacyKey": "vega:stage:eat",
+          "objective": { "event": "eat:any" },
+          "explain": { "startKey": "story.tutorial_test.t21.start", "chipKey": "story.tutorial_test.t21.chip" }
+        }
+      ]
+    },
+    {
+      "id": "t3",
+      "titleKey": "story.tutorial_test.ch.t3",
+      "optional": true,
+      "offerWhen": [ "chapter:tutorial_test:t2" ],
+      "steps": [
+        {
+          "id": "t3.1", "objective": { "event": "scan:performed" },
+          "explain": { "startKey": "story.tutorial_test.t31.start", "chipKey": "story.tutorial_test.t31.chip" }
+        }
+      ]
+    }
+  ]
+}

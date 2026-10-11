@@ -155,6 +155,9 @@ public static class StoryRegistry
         EpilogueTitle = "The relay network",
         EpilogueTitleKey = "story.vega.epilogue.title", // #2461: the cinematic shows the localized title
         EpilogueTextKey = "story.vega.beat13",
+        // #2466: the pack-manifest fields (kind, scope, priority, shortNameKey, narrator, introCutscene, gates, escalate,
+        // start, chapters, insights, finale) keep their defaults — the data pack sets none yet. Whatever the data pack
+        // gains (step 11) must be mirrored here; StoryPackLoadTests' no-drift test compares them.
     };
 
     private static StoryBeat Beat(int index, string title, int threshold, int knowledge) => new()

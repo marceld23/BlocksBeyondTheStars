@@ -3624,6 +3624,7 @@ public sealed partial class GameServer
 
             string loc = session.CurrentLocationId;
             _sessions.Remove(connectionId);
+            _stepListenersDirty = true; // #2466: the leaver's active steps no longer need the event bus
             ClearAlliancePending(session.State.PlayerId); // drop transient requests; refresh online allies' rosters
             ClearCrewPending(session.State.PlayerId);     // drop crew invites; let mates see the Online flag drop
             OnMarkerOwnerLeftWorld(session, loc, disconnected: true); // pings vanish, shared markers stay indexed (#1293)
@@ -3851,6 +3852,11 @@ public sealed partial class GameServer
         // ledger or re-send state. SetNpcCallsIntent used to be dropped here, so a call preference changed from the
         // pause menu only took effect at the next join.
         SetNpcCallsIntent or SkipOnboardingIntent or RequestStoryResolutionIntent or StorySelectIntent => true,
+        // #2466 (synthesis §5.7): the pack controls that change only the player's own chip and pack switch — "skipPack" is
+        // the first tutorial card's "I know the game", shown during a singleplayer hold. Starting, skipping or replaying a
+        // chapter moves progress and comes from the Journal, which holds nothing, so those stay out.
+        StoryPackIntent sp => sp.Action is StoryPackActions.Track or StoryPackActions.Untrack or StoryPackActions.OptOut
+            or StoryPackActions.OptIn or StoryPackActions.SkipPack,
         _ => false,
     };
 
@@ -4025,6 +4031,7 @@ public sealed partial class GameServer
             case InterviewAnswerIntent interview: HandleInterviewAnswer(session, interview); break; // reporter news (2026-09)
             case CreativeTakeItemIntent take: HandleCreativeTakeItem(session, take); break; // the Sandbox catalog (#1930)
             case StorySelectIntent storySelect: HandleStorySelect(session, storySelect); break;
+            case StoryPackIntent storyPack: HandleStoryPackIntent(session, storyPack); break; // #2466: the player's own pack controls
             case NetFragmentFoundIntent netFrag: HandleNetFragmentFound(session, netFrag); break;
             case CoreHackIntent coreHack: HandleCoreHack(session, coreHack); break;
             case CoreDialogueChoiceIntent coreChoice: HandleCoreDialogueChoice(session, coreChoice); break;
@@ -4253,6 +4260,13 @@ public sealed partial class GameServer
         };
         session.LastPayloadAt = _uptime; // start the heartbeat clock now (#964) — a client that freezes
                                          // right after joining must age out like any other silent session
+        foreach (string feature in join.Features ?? System.Array.Empty<string>())
+        {
+            if (!string.IsNullOrEmpty(feature) && feature.Length <= 32 && session.ClientFeatures.Count < 16)
+            {
+                session.ClientFeatures.Add(feature); // #2466: what the client understands (packs1 …) — bounded, it is client input
+            }
+        }
 
         // #2460 (B01): newcomer or veteran is decided HERE, once, before anything below can pay knowledge or
         // blueprints into the state (the spawn-system mapping, the Creative grants, the story beat catch-up).
@@ -4347,6 +4361,7 @@ public sealed partial class GameServer
         SendCustomShapes(session);      // …and the form registry, for the same reason (#843)
         QueueWorldTextures(session);    // #1958: the world's textures follow in pages, one per tick
         ShipAiOnJoin(session); // boot VEGA: onboarding intro / veteran skip / resume objective
+        StoryPacksOnJoin(session); // #2466: player packs — migrate, start, advance, re-speak the step on the chip
         RestoreStationOnJoin(session, savedLocation, savedPosition); // #1925: quit on a station → back on it
 
         // Hosted worlds: one-time welcome (community rules + beta notice) on the player's FIRST join of
@@ -4615,6 +4630,7 @@ public sealed partial class GameServer
             // and never sends a payload, so silence is normal rather than a sign of a dead client.
             InJoinPlacement = true, // #2465: like the network join, the placement raises no game events
         };
+        session.ClientFeatures.Add(ClientFeatures.Packs1); // #2466: a local player runs in this build
         session.Join = TakeJoinSnapshot(state); // #2460: the arrival state, like the network join path
         _sessions[connectionId] = session;
         session.AnnouncedWorldId = WorldIdOf(joinBody); // #2117: joined on this body, like a JoinAccepted would say
@@ -6771,6 +6787,17 @@ public sealed partial class GameServer
                 AdminSetWorldMode(session, cmd.StringArg);
                 return;
 
+            // Tutorial controls (#2466): skip / restart / a chapter for a player, the world's tutorial rule. Self-service
+            // world management, not a cheat (d3 §6.8) — family worlds keep cheats off. The role is the gate.
+            case "tutorial":
+                HandleTutorialAdmin(session, cmd);
+                return;
+
+            // The story report (#2466: now with the player packs) — read-only, like the reports above.
+            case "story_status":
+                AdminStoryStatus(session, cmd.TargetPlayer);
+                return;
+
             // Observer mode + its jump command are fleet-admin only: they reach into worlds other people own,
             // so the owner of a single world must not be able to use them (issue #487).
             case "spectate":
@@ -6981,18 +7008,6 @@ public sealed partial class GameServer
                 });
                 CheatLog(p, "revealed the Guardian finale system");
                 break;
-
-            case "story_status":
-                {
-                    var snap = StorySnapshot;
-                    Send(session, new ServerMessage
-                    {
-                        Text = $"Story '{snap.StoryId}': fragments={snap.Fragments}, kills={snap.Kills}, " +
-                               $"milestones={snap.Milestones}, beats={snap.BeatsRevealed}/{(_story?.Beats.Count ?? 0)}, " +
-                               $"finaleRevealed={_storyState.GuardianSystemRevealed}, defeated={snap.Defeated}",
-                    });
-                    break;
-                }
 
             // ---- Finale QA: fit a ship module (e.g. the jump generator), reveal all lore, or drop into the core ----
             case "grant_module":
@@ -7821,6 +7836,7 @@ public sealed partial class GameServer
             WorldTextures = r.WorldTextures ? "Admins" : "Off",
             FrontierDanger = r.FrontierDanger,
             BaseVisitors = r.BaseVisitors,
+            TutorialPolicy = r.TutorialPolicy.ToString(), // #2466
             VoiceChatEnabled = _config.VoiceChatEnabled,
             ChatMode = EffectiveChatMode.ToString(),
             PlayerModeNames = modeNames,
@@ -7911,6 +7927,13 @@ public sealed partial class GameServer
             Rules.BaseVisitors = intent.BaseVisitors.Equals("On", System.StringComparison.OrdinalIgnoreCase);
         }
 
+        bool tutorialPolicyChanged = false;
+        if (ServerConfig.TryParseTutorialPolicy(intent.TutorialPolicy, out var tutorialPolicy) && tutorialPolicy != Rules.TutorialPolicy)
+        {
+            Rules.TutorialPolicy = tutorialPolicy; // #2466: the tutorial's world rule, live
+            tutorialPolicyChanged = true;
+        }
+
         _meta.RulesOverride = Rules.Clone(); // the world owns its rules — persist the edit
         _repo.SaveMetadata(_meta);
 
@@ -7920,6 +7943,11 @@ public sealed partial class GameServer
             {
                 SendRules(s);
                 if (GrantStarterTeleporter(s)) { SendInventory(s); } // #1056: flipping the rule on hands the device to everyone online now
+                if (tutorialPolicyChanged)
+                {
+                    AdvancePlayer(s); // #2466: Auto starts the tutorial for whoever has not seen it; Off stops it
+                    SendVegaObjective(s);
+                }
             }
         }
 

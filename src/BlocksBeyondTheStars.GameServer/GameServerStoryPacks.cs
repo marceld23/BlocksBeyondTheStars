@@ -1,0 +1,1428 @@
+// Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Configuration;
+using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Localization;
+using BlocksBeyondTheStars.Shared.Story;
+using BlocksBeyondTheStars.Shared.World;
+
+namespace BlocksBeyondTheStars.GameServer;
+
+/// <summary>The help-escalation clock of one active story-pack step for one session (#2466). RAM only.</summary>
+public sealed class StepEscalationState
+{
+    /// <summary><see cref="PlayerSession.StoryPackPlaySeconds"/> when the step activated or last made progress.</summary>
+    public double Since { get; set; }
+
+    /// <summary>The hint line went out.</summary>
+    public bool HintSent { get; set; }
+
+    /// <summary>The marker ping went out (or found nothing).</summary>
+    public bool MarkerSent { get; set; }
+
+    /// <summary>The skip offer went out.</summary>
+    public bool OfferSent { get; set; }
+
+    /// <summary>An open CORE step stopped blocking its chapter (an "open extra" that still counts silently).</summary>
+    public bool Deferred { get; set; }
+}
+
+/// <summary>
+/// The per-player step runtime of the PLAYER story packs (#2466, synthesis §5.2–§5.7, option C): the tutorial and side
+/// stories. A pack is compiled once from its manifest (conditions parsed against the server's <c>world:</c> predicates; a
+/// broken pack is logged and left out). Per player the runtime starts packs (world <see cref="TutorialPolicy"/>, the
+/// pack's <c>start</c> rule), runs their chapters in order, activates steps (<c>requires</c>, <c>feasibleIf</c> →
+/// <c>alternative</c>, <c>alreadyDoneIf</c>), counts game events into <see cref="Shared.State.PlayerState.StepProgress"/>
+/// (it registers on the event bus only for the keys of steps that are active somewhere), completes steps and chapters,
+/// offers optional chapters, escalates help (hint → a marker ping for this session only → a skip offer, on active play
+/// time) and handles skip / replay / opt-out. State is milestone strings (<see cref="StoryPackKeys"/>, §5.6); the running
+/// counters are the only typed additions. A client without <c>packs1</c> gets the legacy tutorial mode: steps with a
+/// <c>legacyKey</c> speak the old <c>vega.s.&lt;id&gt;.*</c> keys, other tutorial steps do not run for it, and lines it
+/// cannot localize arrive as server-composed text. The world story (VEGA) is not run here — its per-player track is
+/// step 11; the old onboarding chain (<c>VegaStages</c>) keeps running until the tutorial pack replaces it (step 10).
+/// </summary>
+public sealed partial class GameServer
+{
+    /// <summary>Shortest gap between two chapter offers to one player (seconds of active play).</summary>
+    private const double ChapterOfferGapSeconds = 90.0;
+
+    /// <summary>Half-size of the block probe of the <c>nearest_ore</c> marker provider (one probe per step and session).</summary>
+    private const int RevealProbeRadius = 16;
+
+    /// <summary>Spoken when the help marker of a "where" step went up.</summary>
+    internal const string StepMarkedLine = "vega.step.marked";
+
+    /// <summary>Spoken when a MUST step has been open for the skip-offer time.</summary>
+    internal const string StepOfferSkipLine = "vega.step.offer_skip";
+
+    /// <summary>Spoken when an optional chapter is offered ({0} = the chapter title).</summary>
+    internal const string ChapterOfferLine = "vega.chapter.offer";
+
+    // ---------------------------------------------------------------------------------------------
+    // The compiled pack model.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>A player pack with its conditions parsed and its steps indexed.</summary>
+    internal sealed class CompiledPack
+    {
+        public CompiledPack(StoryDefinition def)
+        {
+            Def = def;
+            Id = def.Id;
+            IsTutorial = string.Equals(def.Kind, StoryRegistry.KindTutorial, StringComparison.OrdinalIgnoreCase);
+            Narrator = string.IsNullOrEmpty(def.Narrator?.Id) ? StoryNarrator.DefaultId : def.Narrator!.Id;
+        }
+
+        public StoryDefinition Def { get; }
+
+        public string Id { get; }
+
+        public bool IsTutorial { get; }
+
+        public string Narrator { get; }
+
+        public List<CompiledChapter> Chapters { get; } = new();
+
+        public Dictionary<string, CompiledChapter> ChaptersById { get; } = new(StringComparer.Ordinal);
+
+        public Dictionary<string, CompiledStep> StepsById { get; } = new(StringComparer.Ordinal);
+
+        public StoryCondition? StartAfter { get; set; }
+
+        public Dictionary<string, StoryCondition> Gates { get; } = new(StringComparer.Ordinal);
+    }
+
+    /// <summary>A chapter of a compiled pack.</summary>
+    internal sealed class CompiledChapter
+    {
+        public CompiledChapter(CompiledPack pack, StoryChapter def)
+        {
+            Pack = pack;
+            Def = def;
+            Id = def.Id;
+            Optional = def.Optional;
+            AutoStart = def.AutoStart ?? !def.Optional;
+        }
+
+        public CompiledPack Pack { get; }
+
+        public StoryChapter Def { get; }
+
+        public string Id { get; }
+
+        public bool Optional { get; }
+
+        public bool AutoStart { get; }
+
+        public List<CompiledStep> Steps { get; } = new();
+
+        public StoryCondition? Requires { get; set; }
+
+        public StoryCondition? OfferWhen { get; set; }
+
+        public StoryCondition? AutoCompleteIf { get; set; }
+    }
+
+    /// <summary>A step of a compiled pack.</summary>
+    internal sealed class CompiledStep
+    {
+        public CompiledStep(CompiledChapter chapter, StoryStep def)
+        {
+            Chapter = chapter;
+            Def = def;
+            Id = def.Id;
+            ProgressKey = StoryPackKeys.ProgressKey(chapter.Pack.Id, def.Id);
+            Kind = (def.Kind ?? StoryStepKinds.Do).Trim().ToLowerInvariant();
+            Tier = (def.Tier ?? StoryStepTiers.Must).Trim().ToLowerInvariant();
+            var objective = def.Objective ?? new StoryStepObjective();
+            if (objective.IsMission)
+            {
+                Event = GameEventKeys.MissionTurnedIn;
+                Args = new[] { objective.Target };
+            }
+            else
+            {
+                Event = objective.Event ?? string.Empty;
+                if (Event.Length == 0 && Kind == StoryStepKinds.Read)
+                {
+                    Event = GameEventKeys.UiVegaContinue; // a read step completes on "continue"
+                }
+
+                Args = (objective.Arg ?? string.Empty).Split('|').Select(a => a.Trim()).Where(a => a.Length > 0).ToArray();
+            }
+
+            Required = Math.Max(1, objective.Required);
+            LegacyStageId = chapter.Pack.IsTutorial ? StoryLegacy.StageIdOf(def.LegacyKey) : null;
+        }
+
+        public CompiledChapter Chapter { get; }
+
+        public CompiledPack Pack => Chapter.Pack;
+
+        public StoryStep Def { get; }
+
+        public string Id { get; }
+
+        public string ProgressKey { get; }
+
+        public string Kind { get; }
+
+        public string Tier { get; }
+
+        public string Event { get; }
+
+        public string[] Args { get; }
+
+        public int Required { get; }
+
+        /// <summary>The legacy stage of a tutorial step (<c>mine</c> …), or null.</summary>
+        public string? LegacyStageId { get; }
+
+        public CompiledStep? Alternative { get; set; }
+
+        /// <summary>This step is another step's alternative: it runs only standing in for that step.</summary>
+        public bool IsAlternative { get; set; }
+
+        public StoryCondition? Requires { get; set; }
+
+        public StoryCondition? FeasibleIf { get; set; }
+
+        public StoryCondition? AlreadyDoneIf { get; set; }
+
+        public List<(StoryCondition When, StoryStepVariant Variant)> Variants { get; } = new();
+
+        public bool IsDo => Kind == StoryStepKinds.Do;
+
+        public bool IsRead => Kind == StoryStepKinds.Read;
+
+        public bool IsReact => Kind == StoryStepKinds.React;
+
+        public bool IsMission => Def.Objective?.IsMission == true;
+    }
+
+    private List<CompiledPack>? _playerPacks;
+    private readonly Dictionary<string, CompiledStep> _stepByProgressKey = new(StringComparer.Ordinal);
+
+    /// <summary>The installed player packs, compiled once (highest priority first, then by id).</summary>
+    internal IReadOnlyList<CompiledPack> PlayerPacks => _playerPacks ??= CompilePlayerPacks();
+
+    private List<CompiledPack> CompilePlayerPacks()
+    {
+        var result = new List<CompiledPack>();
+        _stepByProgressKey.Clear();
+        foreach (var def in _content.Stories.Values)
+        {
+            if (StoryRegistry.IsReservedPackId(def.Id)
+                || !string.Equals(StoryRegistry.EffectiveScope(def), StoryRegistry.ScopePlayer, StringComparison.Ordinal)
+                || def.Chapters is not { Count: > 0 })
+            {
+                continue;
+            }
+
+            try
+            {
+                result.Add(CompilePack(def));
+            }
+            catch (FormatException ex)
+            {
+                _log.Warn($"Story pack '{def.Id}' is not run: {ex.Message}");
+            }
+        }
+
+        result.Sort((a, b) => a.Def.Priority != b.Def.Priority
+            ? b.Def.Priority.CompareTo(a.Def.Priority)
+            : string.CompareOrdinal(a.Id, b.Id));
+        foreach (var pack in result)
+        {
+            foreach (var step in pack.StepsById.Values)
+            {
+                _stepByProgressKey[step.ProgressKey] = step;
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Parses one pack's conditions and indexes its chapters and steps. Throws <see cref="FormatException"/> on a
+    /// structural or condition error (the validator reports the same things to authors).</summary>
+    private CompiledPack CompilePack(StoryDefinition def)
+    {
+        var predicates = WorldPredicateNames;
+        var pack = new CompiledPack(def)
+        {
+            StartAfter = StoryConditionParser.ParseList(def.Start?.After, predicates),
+        };
+        foreach (var gate in def.Gates ?? new Dictionary<string, string>())
+        {
+            if (!string.IsNullOrWhiteSpace(gate.Value))
+            {
+                pack.Gates[gate.Key] = StoryConditionParser.Parse(gate.Value, predicates);
+            }
+        }
+
+        foreach (var chapterDef in def.Chapters)
+        {
+            if (string.IsNullOrEmpty(chapterDef.Id) || pack.ChaptersById.ContainsKey(chapterDef.Id))
+            {
+                throw new FormatException($"chapter id '{chapterDef.Id}' is empty or used twice");
+            }
+
+            var chapter = new CompiledChapter(pack, chapterDef)
+            {
+                Requires = StoryConditionParser.ParseList(chapterDef.Requires, predicates),
+                OfferWhen = StoryConditionParser.ParseList(chapterDef.OfferWhen, predicates),
+                AutoCompleteIf = StoryConditionParser.ParseList(chapterDef.AutoCompleteIf, predicates),
+            };
+            pack.Chapters.Add(chapter);
+            pack.ChaptersById[chapter.Id] = chapter;
+            foreach (var stepDef in chapterDef.Steps)
+            {
+                if (string.IsNullOrEmpty(stepDef.Id) || pack.StepsById.ContainsKey(stepDef.Id))
+                {
+                    throw new FormatException($"step id '{stepDef.Id}' is empty or used twice");
+                }
+
+                var step = new CompiledStep(chapter, stepDef)
+                {
+                    Requires = StoryConditionParser.ParseList(stepDef.Requires, predicates),
+                    FeasibleIf = StoryConditionParser.ParseList(stepDef.FeasibleIf, predicates),
+                    AlreadyDoneIf = StoryConditionParser.ParseList(stepDef.AlreadyDoneIf, predicates),
+                };
+                if (!StoryStepKinds.All.Contains(step.Kind) || !StoryStepTiers.All.Contains(step.Tier))
+                {
+                    throw new FormatException($"step '{step.Id}' has an unknown kind '{step.Kind}' or tier '{step.Tier}'");
+                }
+
+                if (GameEventKeys.IsUiEvent(step.Event) && step.Event.EndsWith("*", StringComparison.Ordinal))
+                {
+                    throw new FormatException($"step '{step.Id}' listens to a 'ui:' pattern — a teaching flag must be named exactly");
+                }
+
+                foreach (var variant in stepDef.Variants)
+                {
+                    step.Variants.Add((StoryConditionParser.Parse(variant.When ?? string.Empty, predicates), variant));
+                }
+
+                chapter.Steps.Add(step);
+                pack.StepsById[step.Id] = step;
+            }
+        }
+
+        foreach (var chapter in pack.Chapters)
+        {
+            foreach (var step in chapter.Steps)
+            {
+                string alt = step.Def.Alternative ?? string.Empty;
+                if (alt.Length == 0)
+                {
+                    continue;
+                }
+
+                if (!pack.StepsById.TryGetValue(alt, out var alternative) || alternative.Chapter != chapter || alternative == step)
+                {
+                    throw new FormatException($"step '{step.Id}' names the alternative '{alt}', which is not another step of its chapter");
+                }
+
+                step.Alternative = alternative;
+                alternative.IsAlternative = true;
+            }
+        }
+
+        return pack;
+    }
+
+    /// <summary>The compiled player pack with this id, if installed and runnable.</summary>
+    internal bool TryGetPlayerPack(string? packId, out CompiledPack pack)
+    {
+        foreach (var p in PlayerPacks)
+        {
+            if (string.Equals(p.Id, packId, StringComparison.OrdinalIgnoreCase))
+            {
+                pack = p;
+                return true;
+            }
+        }
+
+        pack = null!;
+        return false;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Per-player state readers.
+    // ---------------------------------------------------------------------------------------------
+
+    private static HashSet<string> MilestonesOf(PlayerSession s) => s.State.Milestones;
+
+    private static bool PackStarted(PlayerSession s, CompiledPack pack) => MilestonesOf(s).Contains(StoryPackKeys.Started(pack.Id));
+
+    private static bool PackOptedOut(PlayerSession s, CompiledPack pack) => MilestonesOf(s).Contains(StoryPackKeys.OptOut(pack.Id));
+
+    private static bool PackDone(PlayerSession s, CompiledPack pack) => MilestonesOf(s).Contains(StoryPackKeys.Done(pack.Id));
+
+    /// <summary>The pack runs for this player right now: enabled (policy, opt-out), started.</summary>
+    private bool PackRunsFor(PlayerSession s, CompiledPack pack)
+        => PackStarted(s, pack) && StoryPackEnabledFor(s, pack.Id);
+
+    private static bool StepDoneOrSkipped(PlayerSession s, CompiledStep step)
+        => MilestonesOf(s).Contains(StoryPackKeys.StepDone(step.Pack.Id, step.Id))
+           || MilestonesOf(s).Contains(StoryPackKeys.StepSkipped(step.Pack.Id, step.Id));
+
+    private static bool ChapterReplaying(PlayerSession s, CompiledChapter ch)
+        => MilestonesOf(s).Contains(StoryPackKeys.ChapterReplay(ch.Pack.Id, ch.Id));
+
+    private static bool ChapterDoneOrSkipped(PlayerSession s, CompiledChapter ch)
+        => MilestonesOf(s).Contains(StoryPackKeys.ChapterDone(ch.Pack.Id, ch.Id))
+           || MilestonesOf(s).Contains(StoryPackKeys.ChapterSkipped(ch.Pack.Id, ch.Id));
+
+    /// <summary>Whether a step is through for the chapter's sequence: done or skipped — during a replay, completed again in
+    /// this replay (the done keys stay so conditions keep holding, but the replay walks every step anew).</summary>
+    private static bool StepComplete(PlayerSession s, CompiledStep step)
+        => ChapterReplaying(s, step.Chapter)
+            ? MilestonesOf(s).Contains(StoryPackKeys.StepReplay(step.Pack.Id, step.Id))
+            : StepDoneOrSkipped(s, step);
+
+    /// <summary>A chapter is through for the chapter order: done or skipped and not being replayed.</summary>
+    private static bool ChapterFinished(PlayerSession s, CompiledChapter ch)
+        => ChapterDoneOrSkipped(s, ch) && !ChapterReplaying(s, ch);
+
+    private static bool StepActive(PlayerSession s, CompiledStep step) => s.State.StepProgress.ContainsKey(step.ProgressKey);
+
+    /// <summary>A client without <c>packs1</c> follows only a tutorial's steps with a legacy stage (synthesis §5.7).</summary>
+    private static bool StepRunsForClient(PlayerSession s, CompiledStep step)
+        => s.SupportsPacks || !step.Pack.IsTutorial || step.LegacyStageId is not null;
+
+    /// <summary>Whether a do step holds up its chapter: every do step of an optional chapter; in a non-optional chapter a
+    /// MUST step, and a CORE step until its hint time has passed (then it is an open extra).</summary>
+    private static bool StepBlocks(PlayerSession s, CompiledStep step)
+    {
+        if (!step.IsDo)
+        {
+            return false;
+        }
+
+        if (step.Chapter.Optional || step.IsAlternative)
+        {
+            return true;
+        }
+
+        return step.Tier switch
+        {
+            StoryStepTiers.Must => true,
+            StoryStepTiers.Core => !(s.StepEscalation.TryGetValue(step.ProgressKey, out var esc) && esc.Deferred),
+            _ => false,
+        };
+    }
+
+    /// <summary>Whether a do step counts for its chapter being done.</summary>
+    private static bool StepCountsForChapter(CompiledStep step)
+        => step.IsDo && !step.IsAlternative && (step.Chapter.Optional || step.Tier == StoryStepTiers.Must);
+
+    /// <summary>A legacy client (tutorial pack) may pass a chapter once its legacy MUST steps are done — the old nine
+    /// stages then run across the new chapters.</summary>
+    private static bool LegacyChapterPassable(PlayerSession s, CompiledChapter ch)
+        => ch.Steps.Where(st => st.LegacyStageId is not null && StepCountsForChapter(st)).All(st => StepComplete(s, st));
+
+    /// <summary>Whether a chapter runs for this player now.</summary>
+    private bool ChapterRuns(PlayerSession s, CompiledChapter ch)
+    {
+        bool replay = ChapterReplaying(s, ch);
+        if (!replay && ChapterDoneOrSkipped(s, ch))
+        {
+            return false;
+        }
+
+        bool legacyClient = !s.SupportsPacks && ch.Pack.IsTutorial;
+        bool active = MilestonesOf(s).Contains(StoryPackKeys.ChapterActive(ch.Pack.Id, ch.Id));
+        if (ch.Optional)
+        {
+            return !legacyClient && (replay || active);
+        }
+
+        if (!replay && !ch.AutoStart && !active)
+        {
+            return false;
+        }
+
+        // The chapter order: the previous non-optional chapter must be through (a legacy client may pass on its stages).
+        int index = ch.Pack.Chapters.IndexOf(ch);
+        for (int i = index - 1; i >= 0; i--)
+        {
+            var previous = ch.Pack.Chapters[i];
+            if (previous.Optional)
+            {
+                continue;
+            }
+
+            if (!ChapterFinished(s, previous) && !(legacyClient && LegacyChapterPassable(s, previous)))
+            {
+                return false;
+            }
+
+            break;
+        }
+
+        return replay || EvaluateStoryCondition(ch.Requires, s); // a replay needs no second admission
+    }
+
+    /// <summary>The first step of a variant list whose condition holds, for one text slot (empty fields fall back).</summary>
+    private string StepText(PlayerSession s, CompiledStep step, Func<StoryStepVariant, string> variantField, Func<StoryStepExplain, string> explainField)
+    {
+        foreach (var (when, variant) in step.Variants)
+        {
+            if (EvaluateStoryCondition(when, s))
+            {
+                string v = variantField(variant) ?? string.Empty;
+                if (v.Length > 0)
+                {
+                    return v;
+                }
+
+                break;
+            }
+        }
+
+        return explainField(step.Def.Explain ?? new StoryStepExplain()) ?? string.Empty;
+    }
+
+    private string StepStartKey(PlayerSession s, CompiledStep step) => StepText(s, step, v => v.StartKey, e => e.StartKey);
+
+    private string StepChipKey(PlayerSession s, CompiledStep step) => StepText(s, step, v => v.ChipKey, e => e.ChipKey);
+
+    private string StepHintKey(PlayerSession s, CompiledStep step) => StepText(s, step, v => v.HintKey, e => e.HintKey);
+
+    private string StepDoneKey(PlayerSession s, CompiledStep step) => StepText(s, step, v => v.DoneKey, e => e.DoneKey);
+
+    // ---------------------------------------------------------------------------------------------
+    // Sending lines (packs1 and the legacy mode).
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>Sends one pack line. A client with <c>packs1</c> gets the key (and the pack + speaker). An older client
+    /// gets <paramref name="legacyKey"/> when the line has an old equivalent (a tutorial step with a legacy stage — no
+    /// <c>Text</c>, it localizes and sets its own keys), else the line composed on the server in its language with
+    /// device-neutral key words and an empty <c>LineKey</c> (synthesis §5.7: its <c>Text</c> path fills neither tokens
+    /// nor slots).</summary>
+    private void SendPackLine(PlayerSession s, CompiledPack pack, string key, string arg = "", string? legacyKey = null, byte kind = 0)
+    {
+        if (string.IsNullOrEmpty(key) && string.IsNullOrEmpty(legacyKey))
+        {
+            return;
+        }
+
+        var line = new ShipAiLine { Kind = kind, PackId = pack.Id, Speaker = pack.Narrator };
+        if (s.SupportsPacks)
+        {
+            line.LineKey = key;
+            line.LineArg = arg ?? string.Empty;
+        }
+        else if (!string.IsNullOrEmpty(legacyKey))
+        {
+            line.LineKey = legacyKey!;
+        }
+        else
+        {
+            line.Text = ComposeLegacyText(s.Locale, key, arg);
+        }
+
+        SendVegaWithObjective(s, line);
+    }
+
+    /// <summary>A line in the player's language for a client that cannot localize its key: tokens become device-neutral
+    /// bracket words (<c>ui.vega.act.&lt;Action&gt;</c>), slots are filled from <paramref name="arg"/>.</summary>
+    internal string ComposeLegacyText(string localeCode, string key, string? arg)
+    {
+        var loc = LocalizerFor(localeCode);
+        return LineText.ComposeNeutral(loc.Get(key), arg, k => loc.Has(k) ? loc.Get(k) : null);
+    }
+
+    /// <summary>The (cached) content localizer of a locale code.</summary>
+    private Shared.Localization.Localizer LocalizerFor(string localeCode)
+    {
+        GameLocaleExtensions.TryParse(localeCode, out var locale); // English on an unknown code
+        if (!_localizers.TryGetValue(locale, out var loc))
+        {
+            loc = _content.CreateLocalizer(locale);
+            _localizers[locale] = loc;
+        }
+
+        return loc;
+    }
+
+    private void SpeakStepStart(PlayerSession s, CompiledStep step)
+        => SendPackLine(s, step.Pack, StepStartKey(s, step), legacyKey: step.LegacyStageId is { } stage ? StoryLegacy.StartLine(stage) : null);
+
+    // ---------------------------------------------------------------------------------------------
+    // The walk: start packs, run chapters, activate steps.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>Brings every player pack of <paramref name="s"/> up to date: starts what may start, activates what may
+    /// activate, completes what is through. Cheap (milestone lookups); safe to call on every event and tick.</summary>
+    private void AdvancePlayer(PlayerSession s, bool offers = false)
+    {
+        if (!s.Joined || s.Spectating || PlayerPacks.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var pack in PlayerPacks)
+        {
+            AdvancePack(s, pack);
+            if (offers)
+            {
+                OfferChapters(s, pack);
+            }
+        }
+
+        SyncStepListeners();
+    }
+
+    private void AdvancePack(PlayerSession s, CompiledPack pack)
+    {
+        if (!StoryPackEnabledFor(s, pack.Id))
+        {
+            return; // switched off for this player or this world — every key stays, nothing runs
+        }
+
+        MigratePackIfNeeded(s, pack);
+        if (!PackStarted(s, pack))
+        {
+            if (!EvaluateStoryCondition(pack.StartAfter, s))
+            {
+                return;
+            }
+
+            StartPack(s, pack);
+        }
+
+        for (int pass = 0; pass < 64; pass++) // bounded: each pass that changes something completes a step or a chapter
+        {
+            bool changed = false;
+            foreach (var chapter in pack.Chapters)
+            {
+                if (ChapterRuns(s, chapter))
+                {
+                    changed |= WalkChapter(s, chapter);
+                }
+            }
+
+            changed |= CheckPackDone(s, pack);
+            if (!changed)
+            {
+                break;
+            }
+        }
+    }
+
+    /// <summary>Starts a pack for a player: the started key, and for a tutorial the legacy intro key (older builds read it
+    /// as "the intro was shown") — with the old intro lines for an older client that has not heard them.</summary>
+    private void StartPack(PlayerSession s, CompiledPack pack)
+    {
+        var m = MilestonesOf(s);
+        if (!m.Add(StoryPackKeys.Started(pack.Id)))
+        {
+            return;
+        }
+
+        if (pack.IsTutorial && m.Add(StoryLegacy.IntroMilestone) && !s.SupportsPacks)
+        {
+            foreach (string intro in StoryLegacy.IntroLines)
+            {
+                SendVegaLine(s, intro, 0);
+            }
+        }
+
+        // The pack's introCutscene is played from step 8 on (cutscene bindings).
+        _repo.SavePlayer(s.State);
+    }
+
+    /// <summary>One pass over a running chapter's steps in order. Returns true when something completed (the caller walks
+    /// again: a completion can open the next chapter).</summary>
+    private bool WalkChapter(PlayerSession s, CompiledChapter ch)
+    {
+        bool changed = false;
+        bool replay = ChapterReplaying(s, ch);
+        if (!replay && ch.AutoCompleteIf is not null && EvaluateStoryCondition(ch.AutoCompleteIf, s))
+        {
+            CompleteChapter(s, ch, skipped: false);
+            return true; // veteran evidence: the chapter completes silently
+        }
+
+        // React steps are armed from the chapter's start, wherever they stand in the list; they never block.
+        foreach (var step in ch.Steps)
+        {
+            if (step.IsReact && !StepActive(s, step) && !StepComplete(s, step) && StepRunsForClient(s, step)
+                && EvaluateStoryCondition(step.Requires, s))
+            {
+                ArmStep(s, step);
+            }
+        }
+
+        foreach (var step in ch.Steps)
+        {
+            if (StepComplete(s, step))
+            {
+                // A step standing in for this one (it was infeasible) holds the chapter where this step was.
+                if (step.Alternative is { } stand && StepActive(s, stand) && !StepComplete(s, stand) && StepBlocks(s, stand))
+                {
+                    break;
+                }
+
+                continue;
+            }
+
+            if (step.IsReact || !StepRunsForClient(s, step) || (step.IsAlternative && !StepActive(s, step)))
+            {
+                continue; // armed above — not for this client — or an alternative nobody needs
+            }
+
+            if (!StepActive(s, step))
+            {
+                if (!EvaluateStoryCondition(step.Requires, s))
+                {
+                    break; // the chapter waits here
+                }
+
+                if (!EvaluateStoryCondition(step.FeasibleIf, s))
+                {
+                    // No dead ends (G7): skip it silently and let its alternative stand in, if it has one.
+                    MarkStepSkipped(s, step);
+                    changed = true;
+                    if (step.Alternative is { } alt && !StepComplete(s, alt) && StepRunsForClient(s, alt))
+                    {
+                        if (ActivateStep(s, alt))
+                        {
+                            changed = true;
+                        }
+
+                        if (StepActive(s, alt) && StepBlocks(s, alt))
+                        {
+                            break;
+                        }
+                    }
+
+                    continue;
+                }
+
+                if (!replay && step.AlreadyDoneIf is not null && EvaluateStoryCondition(step.AlreadyDoneIf, s))
+                {
+                    CompleteStep(s, step, silent: true);
+                    changed = true;
+                    continue;
+                }
+
+                if (ActivateStep(s, step))
+                {
+                    changed = true; // completed at activation (a mission already turned in)
+                    continue;
+                }
+            }
+
+            if (step.IsRead)
+            {
+                continue; // read and continue — never blocks
+            }
+
+            if (StepBlocks(s, step))
+            {
+                break;
+            }
+        }
+
+        if (ChapterSatisfied(s, ch))
+        {
+            CompleteChapter(s, ch, skipped: false);
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    /// <summary>A chapter is through when every step that counts is through (MUST do steps of a non-optional chapter,
+    /// every do step of an optional one) and nothing still holds it up — an open CORE step that has not had its hint time
+    /// yet, or an alternative standing in for an infeasible step. A CORE step after the last MUST step is therefore still
+    /// presented before the chapter closes.</summary>
+    private static bool ChapterSatisfied(PlayerSession s, CompiledChapter ch)
+        => ch.Steps.Where(StepCountsForChapter).All(st => StepComplete(s, st))
+           && !ch.Steps.Any(st => st.IsDo && StepActive(s, st) && !StepComplete(s, st) && StepBlocks(s, st));
+
+    /// <summary>Activates a step: its counter starts at 0, its help clock starts, its start line is spoken. A mission bridge
+    /// whose mission is already turned in completes at once (returns true).</summary>
+    private bool ActivateStep(PlayerSession s, CompiledStep step)
+    {
+        if (!s.State.StepProgress.ContainsKey(step.ProgressKey))
+        {
+            s.State.StepProgress[step.ProgressKey] = 0;
+        }
+
+        s.StepEscalation[step.ProgressKey] = new StepEscalationState { Since = s.StoryPackPlaySeconds };
+        _stepListenersDirty = true;
+        if (step.IsMission && s.State.Missions.Any(m => m.MissionId == step.Args[0] && m.Status == Shared.Missions.MissionStatus.TurnedIn))
+        {
+            CompleteStep(s, step, silent: true);
+            return true;
+        }
+
+        SpeakStepStart(s, step);
+        // The step's onStart cutscene is played from step 8 on.
+        _repo.SavePlayer(s.State);
+        return false;
+    }
+
+    /// <summary>Arms a react step: it listens, says nothing yet.</summary>
+    private void ArmStep(PlayerSession s, CompiledStep step)
+    {
+        if (!s.State.StepProgress.ContainsKey(step.ProgressKey))
+        {
+            s.State.StepProgress[step.ProgressKey] = 0;
+            _stepListenersDirty = true;
+            _repo.SavePlayer(s.State);
+        }
+    }
+
+    /// <summary>Stamps a step done (a replay: done again in this replay) — the legacy stage of a tutorial step is written
+    /// next to it for older builds — removes its counter and, unless <paramref name="silent"/>, speaks its done line.
+    /// The chapter's earlier read steps that are still waiting for "continue" complete with it.</summary>
+    private void CompleteStep(PlayerSession s, CompiledStep step, bool silent)
+    {
+        var m = MilestonesOf(s);
+        bool replay = ChapterReplaying(s, step.Chapter);
+        m.Add(replay ? StoryPackKeys.StepReplay(step.Pack.Id, step.Id) : StoryPackKeys.StepDone(step.Pack.Id, step.Id));
+        if (!replay && step.Pack.IsTutorial && !string.IsNullOrEmpty(step.Def.LegacyKey))
+        {
+            m.Add(step.Def.LegacyKey); // double-write (synthesis §5.3): older builds keep their onboarding state
+        }
+
+        s.State.StepProgress.Remove(step.ProgressKey);
+        s.StepEscalation.Remove(step.ProgressKey);
+        _stepListenersDirty = true;
+
+        if (step.IsDo)
+        {
+            foreach (var read in step.Chapter.Steps.TakeWhile(st => st != step).Where(st => st.IsRead && StepActive(s, st)))
+            {
+                CompleteStep(s, read, silent: true);
+            }
+        }
+
+        if (!silent)
+        {
+            if (step.IsReact)
+            {
+                SpeakStepStart(s, step); // a react step's explanation is shown when its situation happens
+            }
+
+            SendPackLine(s, step.Pack, StepDoneKey(s, step),
+                legacyKey: step.LegacyStageId is { } stage ? StoryLegacy.DoneLineOf(stage) : null);
+        }
+
+        // The step's onComplete cutscene is played from step 8 on.
+        _repo.SavePlayer(s.State);
+    }
+
+    /// <summary>Stamps a step skipped (a replay: through in this replay) with the legacy double-write, removes its counter.</summary>
+    private void MarkStepSkipped(PlayerSession s, CompiledStep step)
+    {
+        var m = MilestonesOf(s);
+        bool replay = ChapterReplaying(s, step.Chapter);
+        m.Add(replay ? StoryPackKeys.StepReplay(step.Pack.Id, step.Id) : StoryPackKeys.StepSkipped(step.Pack.Id, step.Id));
+        if (!replay && step.Pack.IsTutorial && !string.IsNullOrEmpty(step.Def.LegacyKey))
+        {
+            m.Add(step.Def.LegacyKey);
+        }
+
+        if (s.State.StepProgress.Remove(step.ProgressKey))
+        {
+            _stepListenersDirty = true;
+        }
+
+        s.StepEscalation.Remove(step.ProgressKey);
+        _repo.SavePlayer(s.State);
+    }
+
+    /// <summary>Completes (or skips) a chapter. A replay ends: its replay keys go, the chapter's done key stayed. Open
+    /// extras (CORE/OPT do steps) and armed react steps keep listening; waiting read steps complete.</summary>
+    private void CompleteChapter(PlayerSession s, CompiledChapter ch, bool skipped)
+    {
+        var m = MilestonesOf(s);
+        string pack = ch.Pack.Id;
+        if (ChapterReplaying(s, ch))
+        {
+            m.Remove(StoryPackKeys.ChapterReplay(pack, ch.Id));
+            foreach (var step in ch.Steps)
+            {
+                m.Remove(StoryPackKeys.StepReplay(pack, step.Id));
+            }
+        }
+        else
+        {
+            m.Add(skipped ? StoryPackKeys.ChapterSkipped(pack, ch.Id) : StoryPackKeys.ChapterDone(pack, ch.Id));
+        }
+
+        m.Remove(StoryPackKeys.ChapterActive(pack, ch.Id));
+        foreach (var step in ch.Steps)
+        {
+            if (step.IsRead && StepActive(s, step))
+            {
+                CompleteStep(s, step, silent: true);
+            }
+            else if (step.IsAlternative && StepActive(s, step))
+            {
+                s.State.StepProgress.Remove(step.ProgressKey); // a stand-in has no business once the chapter is through
+                s.StepEscalation.Remove(step.ProgressKey);
+            }
+        }
+
+        _stepListenersDirty = true;
+        // The chapter's closeCutscene is played from step 8 on.
+        _repo.SavePlayer(s.State);
+    }
+
+    /// <summary>Stamps the pack done once every non-optional chapter is through. A tutorial writes all nine legacy stage
+    /// keys (an older build then sees a finished onboarding) and an older client hears the old send-off.</summary>
+    private bool CheckPackDone(PlayerSession s, CompiledPack pack)
+    {
+        if (PackDone(s, pack) || !pack.Chapters.Where(c => !c.Optional).All(c => ChapterFinished(s, c)))
+        {
+            return false;
+        }
+
+        var m = MilestonesOf(s);
+        m.Add(StoryPackKeys.Done(pack.Id));
+        if (pack.IsTutorial)
+        {
+            WriteLegacyGraduation(s);
+            if (!s.SupportsPacks)
+            {
+                SendVegaLine(s, StoryLegacy.DoneLine, 0);
+            }
+        }
+
+        _repo.SavePlayer(s.State);
+        return true;
+    }
+
+    private static void WriteLegacyGraduation(PlayerSession s)
+    {
+        var m = MilestonesOf(s);
+        m.Add(StoryLegacy.IntroMilestone);
+        foreach (string stage in StoryLegacy.StageIds)
+        {
+            m.Add(StoryLegacy.StagePrefix + stage);
+        }
+    }
+
+    /// <summary>The one-time migration of a pack (<c>story:&lt;pack&gt;:migrated:v1</c>, synthesis §5.3): a tutorial step whose
+    /// legacy key the player already holds counts as done. The tutorial's own evidence mapping (step 10) hooks in here.</summary>
+    private void MigratePackIfNeeded(PlayerSession s, CompiledPack pack)
+    {
+        var m = MilestonesOf(s);
+        string marker = StoryPackKeys.Migrated(pack.Id);
+        if (m.Contains(marker))
+        {
+            return;
+        }
+
+        if (pack.IsTutorial)
+        {
+            foreach (var step in pack.StepsById.Values)
+            {
+                if (!string.IsNullOrEmpty(step.Def.LegacyKey) && m.Contains(step.Def.LegacyKey))
+                {
+                    m.Add(StoryPackKeys.StepDone(pack.Id, step.Id));
+                }
+            }
+        }
+
+        m.Add(marker);
+        _repo.SavePlayer(s.State);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Events.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>The runtime's handle on the event bus.</summary>
+    private sealed class StepEventListener : IGameEventListener
+    {
+        private readonly GameServer _server;
+
+        public StepEventListener(GameServer server) => _server = server;
+
+        public void OnGameEvent(PlayerSession actor, string key, string arg, int amount) => _server.OnStepGameEvent(actor, key, arg, amount);
+    }
+
+    private StepEventListener? _stepListener;
+    private readonly HashSet<string> _stepListenerKeys = new(StringComparer.Ordinal);
+    private bool _stepListenersDirty;
+
+    /// <summary>Registers the runtime for exactly the event keys of the steps that are active for some joined player, and
+    /// drops the rest — so with no active step the bus stays at its one-compare fast path.</summary>
+    private void SyncStepListeners()
+    {
+        if (!_stepListenersDirty)
+        {
+            return;
+        }
+
+        _stepListenersDirty = false;
+        var wanted = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var s in _sessions.Values)
+        {
+            if (!s.Joined || s.Spectating)
+            {
+                continue;
+            }
+
+            foreach (string key in s.State.StepProgress.Keys)
+            {
+                if (_stepByProgressKey.TryGetValue(key, out var step) && step.Event.Length > 0)
+                {
+                    wanted.Add(step.Event);
+                }
+            }
+        }
+
+        _stepListener ??= new StepEventListener(this);
+        foreach (string stale in _stepListenerKeys.Where(k => !wanted.Contains(k)).ToList())
+        {
+            RemoveGameEventListener(stale, _stepListener);
+            _stepListenerKeys.Remove(stale);
+        }
+
+        foreach (string key in wanted)
+        {
+            if (_stepListenerKeys.Add(key))
+            {
+                AddGameEventListener(key, _stepListener);
+            }
+        }
+    }
+
+    /// <summary>The event keys the runtime listens to right now (test seam).</summary>
+    internal IReadOnlyCollection<string> StepListenerKeysForTest => _stepListenerKeys;
+
+    /// <summary>One game event for the actor's active steps: counts, completes, advances.</summary>
+    private void OnStepGameEvent(PlayerSession actor, string key, string arg, int amount)
+    {
+        var progress = actor.State.StepProgress;
+        if (progress.Count == 0)
+        {
+            return;
+        }
+
+        List<CompiledStep>? hits = null;
+        foreach (string progressKey in progress.Keys)
+        {
+            if (_stepByProgressKey.TryGetValue(progressKey, out var step)
+                && step.Event.Length > 0
+                && GameEventKeys.Matches(step.Event, key)
+                && (step.Args.Length == 0 || Array.IndexOf(step.Args, arg) >= 0)
+                && PackRunsFor(actor, step.Pack)
+                && StepRunsForClient(actor, step))
+            {
+                (hits ??= new List<CompiledStep>()).Add(step);
+            }
+        }
+
+        if (hits is null)
+        {
+            return;
+        }
+
+        bool completed = false;
+        bool chipMoved = false;
+        foreach (var step in hits)
+        {
+            if (!progress.TryGetValue(step.ProgressKey, out int count))
+            {
+                continue; // completed by an earlier hit of this event (a read step closed by its do step)
+            }
+
+            count += amount;
+            if (count >= step.Required)
+            {
+                bool wasChip = ChipStepOf(actor, step.Pack) == step;
+                CompleteStep(actor, step, silent: !(wasChip || step.IsReact));
+                completed = true;
+            }
+            else
+            {
+                progress[step.ProgressKey] = count;
+                if (actor.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
+                {
+                    esc.Since = actor.StoryPackPlaySeconds; // progress resets the help clock
+                }
+
+                chipMoved = true;
+            }
+        }
+
+        if (completed)
+        {
+            foreach (var pack in hits.Select(h => h.Pack).Distinct())
+            {
+                AdvancePack(actor, pack);
+            }
+
+            SyncStepListeners();
+        }
+
+        if (completed || chipMoved)
+        {
+            SendVegaObjective(actor); // the counter or the next step reaches the chip at once
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // The chip.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>The chip looks at non-optional chapters first, then optional ones.</summary>
+    private static readonly bool[] ChipChapterPasses = { false, true };
+
+    /// <summary>A pack objective for the chip.</summary>
+    private readonly record struct PackObjective(string PackId, string Key, int Progress, int Target, string Source);
+
+    /// <summary>The step of a pack that owns the chip: the first active blocking do step of the first running chapter
+    /// (non-optional chapters in order first, then optional ones), or null.</summary>
+    private CompiledStep? ChipStepOf(PlayerSession s, CompiledPack pack, bool? optional = null)
+    {
+        if (!PackRunsFor(s, pack))
+        {
+            return null;
+        }
+
+        foreach (bool wantOptional in ChipChapterPasses)
+        {
+            if (optional is { } only && only != wantOptional)
+            {
+                continue;
+            }
+
+            foreach (var ch in pack.Chapters)
+            {
+                if (ch.Optional != wantOptional || !ChapterRuns(s, ch))
+                {
+                    continue;
+                }
+
+                foreach (var step in ch.Steps)
+                {
+                    if (step.IsDo && StepActive(s, step) && !StepComplete(s, step) && StepBlocks(s, step) && StepRunsForClient(s, step))
+                    {
+                        return step;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>The chip objective of a pack for this player (null when it has none the client can show): a legacy client
+    /// sees only a tutorial step's old <c>vega.obj.&lt;stage&gt;</c> key.</summary>
+    private PackObjective? PackObjectiveOf(PlayerSession s, CompiledPack pack, bool? optional = null)
+    {
+        if (ChipStepOf(s, pack, optional) is not { } step)
+        {
+            return null;
+        }
+
+        string key;
+        if (!s.SupportsPacks)
+        {
+            if (!pack.IsTutorial || step.LegacyStageId is null)
+            {
+                return null; // an older client cannot localize a pack chip — d3 §5.6.4: other steps clear it
+            }
+
+            key = StoryLegacy.ChipKey(step.LegacyStageId);
+        }
+        else
+        {
+            key = StepChipKey(s, step);
+            if (key.Length == 0)
+            {
+                return null;
+            }
+        }
+
+        string source = step.IsMission ? ObjectiveSources.Mission : pack.IsTutorial ? ObjectiveSources.Tutorial : ObjectiveSources.Story;
+        s.State.StepProgress.TryGetValue(step.ProgressKey, out int count);
+        return new PackObjective(pack.Id, key, count, step.Required, source);
+    }
+
+    /// <summary>Rank 3 of the chip order: a tutorial pack's mandatory part ("basic training").</summary>
+    private PackObjective? BasicTrainingObjective(PlayerSession s)
+    {
+        foreach (var pack in PlayerPacks)
+        {
+            if (pack.IsTutorial && PackObjectiveOf(s, pack, optional: false) is { } o)
+            {
+                return o;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Rank 6: a tutorial deep-dive step, or any pack's mission-bridge step.</summary>
+    private PackObjective? DeepDiveObjective(PlayerSession s)
+    {
+        foreach (var pack in PlayerPacks)
+        {
+            if (pack.IsTutorial && PackObjectiveOf(s, pack, optional: true) is { } o)
+            {
+                return o;
+            }
+        }
+
+        foreach (var pack in PlayerPacks)
+        {
+            if (!pack.IsTutorial && PackObjectiveOf(s, pack) is { Source: ObjectiveSources.Mission } m)
+            {
+                return m;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Rank 7: the other player packs by priority.</summary>
+    private PackObjective? OtherPackObjective(PlayerSession s)
+    {
+        foreach (var pack in PlayerPacks)
+        {
+            if (!pack.IsTutorial && PackObjectiveOf(s, pack) is { } o)
+            {
+                return o;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Whether a tutorial pack's mandatory part still runs for this player (the Settings button says "Skip").</summary>
+    private bool TutorialPackRunning(PlayerSession s)
+        => PlayerPacks.Any(p => p.IsTutorial && PackRunsFor(s, p) && !p.Chapters.Where(c => !c.Optional).All(c => ChapterFinished(s, c)));
+
+    // ---------------------------------------------------------------------------------------------
+    // The tick: offers and help escalation.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>1 Hz per player (from <c>TickShipAi</c>, so the clock stands still while the world is held): advances the
+    /// packs, offers optional chapters and escalates help on the chip steps.</summary>
+    private void TickStoryPacksFor(PlayerSession s)
+    {
+        if (PlayerPacks.Count == 0)
+        {
+            return;
+        }
+
+        s.StoryPackPlaySeconds += 1.0;
+        AdvancePlayer(s, offers: true);
+        foreach (var pack in PlayerPacks)
+        {
+            if (ChipStepOf(s, pack, optional: false) is { } mandatory)
+            {
+                EscalateStep(s, mandatory);
+            }
+
+            if (ChipStepOf(s, pack, optional: true) is { } deepDive)
+            {
+                EscalateStep(s, deepDive);
+            }
+        }
+
+        SyncStepListeners();
+    }
+
+    /// <summary>Offers each optional chapter once, when its <c>offerWhen</c> holds — never while the pack's mandatory
+    /// chapters still run (no offers during basic training), never to an older client for a tutorial (its deep dives do not
+    /// run), at most one offer per <see cref="ChapterOfferGapSeconds"/>.</summary>
+    private void OfferChapters(PlayerSession s, CompiledPack pack)
+    {
+        if (!PackRunsFor(s, pack) || (pack.IsTutorial && !s.SupportsPacks)
+            || s.StoryPackPlaySeconds - s.LastChapterOfferAt < ChapterOfferGapSeconds
+            || !pack.Chapters.Where(c => !c.Optional).All(c => ChapterFinished(s, c)))
+        {
+            return;
+        }
+
+        var m = MilestonesOf(s);
+        foreach (var ch in pack.Chapters)
+        {
+            if (!ch.Optional || ch.OfferWhen is null
+                || ChapterDoneOrSkipped(s, ch)
+                || m.Contains(StoryPackKeys.ChapterOffered(pack.Id, ch.Id))
+                || m.Contains(StoryPackKeys.ChapterDeclined(pack.Id, ch.Id))
+                || m.Contains(StoryPackKeys.ChapterActive(pack.Id, ch.Id))
+                || !EvaluateStoryCondition(ch.Requires, s)
+                || !EvaluateStoryCondition(ch.OfferWhen, s))
+            {
+                continue;
+            }
+
+            m.Add(StoryPackKeys.ChapterOffered(pack.Id, ch.Id));
+            s.LastChapterOfferAt = s.StoryPackPlaySeconds;
+            string title = string.IsNullOrEmpty(ch.Def.TitleKey) ? ch.Id : LocalizerFor(s.Locale).Get(ch.Def.TitleKey);
+            SendPackLine(s, pack, ChapterOfferLine, title);
+            _repo.SavePlayer(s.State);
+            return; // one offer at a time
+        }
+    }
+
+    /// <summary>The help escalation of one chip step on active play time (synthesis §3.1): after <c>hintAfter</c> the hint
+    /// line (an open CORE step of a non-optional chapter then stops blocking), after <c>markerAfter</c> a marker ping for
+    /// this session only on a "where" step, after <c>offerSkipAfter</c> the skip offer on a MUST step. Each fires once
+    /// per session; progress restarts the clock.</summary>
+    private void EscalateStep(PlayerSession s, CompiledStep step)
+    {
+        if (!s.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
+        {
+            s.StepEscalation[step.ProgressKey] = esc = new StepEscalationState { Since = s.StoryPackPlaySeconds };
+        }
+
+        double open = s.StoryPackPlaySeconds - esc.Since;
+        var pack = step.Pack.Def.Escalate ?? new StoryEscalation();
+        int hintAfter = step.Def.Escalate?.HintAfter ?? pack.HintAfter ?? StoryEscalation.DefaultHintAfter;
+        int markerAfter = step.Def.Escalate?.MarkerAfter ?? pack.MarkerAfter ?? StoryEscalation.DefaultMarkerAfter;
+        int offerAfter = step.Def.Escalate?.OfferSkipAfter ?? pack.OfferSkipAfter ?? StoryEscalation.DefaultOfferSkipAfter;
+
+        if (!esc.HintSent && hintAfter > 0 && open >= hintAfter)
+        {
+            esc.HintSent = true;
+            SendPackLine(s, step.Pack, StepHintKey(s, step));
+            if (!step.Chapter.Optional && step.Tier == StoryStepTiers.Core)
+            {
+                esc.Deferred = true; // an open extra from now on: it still counts, the chapter goes on
+                AdvancePack(s, step.Pack);
+            }
+        }
+
+        string reveal = step.Def.OnStart?.Reveal ?? string.Empty;
+        if (!esc.MarkerSent && markerAfter > 0 && open >= markerAfter && reveal.Length > 0)
+        {
+            esc.MarkerSent = true;
+            if (RevealTarget(s, reveal) is { } target)
+            {
+                RaisePrivatePing(s, target);
+                SendPackLine(s, step.Pack, StepMarkedLine);
+            }
+        }
+
+        if (!esc.OfferSent && offerAfter > 0 && open >= offerAfter && step.Tier == StoryStepTiers.Must
+            && (step.Def.Skippable ?? true) && (step.Chapter.Def.Skippable ?? true))
+        {
+            esc.OfferSent = true;
+            SendPackLine(s, step.Pack, StepOfferSkipLine);
+        }
+    }
+
+    /// <summary>Where a marker provider points for this player, or null when nothing is in reach (then no ping — the
+    /// hint line already said where to look). Reads the player's own world, which is the active cursor in the tick.</summary>
+    private Vector3f? RevealTarget(PlayerSession s, string reveal)
+    {
+        if (string.IsNullOrEmpty(s.CurrentLocationId) || InSpace(s.State.PlayerId) || s.CurrentLocationId != _world.LocationId)
+        {
+            return null;
+        }
+
+        var pos = s.State.Position;
+        if (reveal == StoryRevealProviders.NearestSettlement)
+        {
+            Vector3f? best = null;
+            double bestSq = double.MaxValue;
+            foreach (var settlement in _worlds.Find(s.CurrentLocationId)?.Settlements ?? new List<SettlementInstance>())
+            {
+                var centre = new Vector3f((settlement.Min.X + settlement.Max.X) * 0.5f, settlement.GroundY + 1, (settlement.Min.Z + settlement.Max.Z) * 0.5f);
+                double d = WrapDistSq(centre, pos);
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    best = centre;
+                }
+            }
+
+            return best;
+        }
+
+        if (!reveal.StartsWith(StoryRevealProviders.NearestOre + ":", StringComparison.Ordinal)
+            || _content.GetBlock(reveal.Substring(StoryRevealProviders.NearestOre.Length + 1)) is not { } block)
+        {
+            return null;
+        }
+
+        var origin = WorldConstants.CanonicalBlock(new Vector3i(
+            (int)Math.Floor(pos.X), (int)Math.Floor(pos.Y), (int)Math.Floor(pos.Z)), _world.Circumference);
+        int bestDist = int.MaxValue;
+        Vector3i? found = null;
+        int r = RevealProbeRadius;
+        for (int dx = -r; dx <= r; dx++)
+        {
+            for (int dy = -r; dy <= r; dy++)
+            {
+                for (int dz = -r; dz <= r; dz++)
+                {
+                    int d = (dx * dx) + (dy * dy) + (dz * dz);
+                    if (d >= bestDist)
+                    {
+                        continue;
+                    }
+
+                    var cell = WorldConstants.CanonicalBlock(new Vector3i(origin.X + dx, origin.Y + dy, origin.Z + dz), _world.Circumference);
+                    if (_world.GetBlockIfLoaded(cell) == block.NumericId)
+                    {
+                        bestDist = d;
+                        found = cell;
+                    }
+                }
+            }
+        }
+
+        return found is { } c ? new Vector3f(c.X + 0.5f, c.Y + 0.5f, c.Z + 0.5f) : null;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Join.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>The join hook (after VEGA's own join): migrates, starts and advances the packs (new steps speak their start
+    /// lines) and re-speaks the step that was already on the chip before the join (a rejoin used to say only
+    /// <c>vega.resume</c>).</summary>
+    private void StoryPacksOnJoin(PlayerSession s)
+    {
+        if (PlayerPacks.Count == 0 || s.Spectating)
+        {
+            return;
+        }
+
+        // A counter of a step its (installed) pack no longer has — renamed or removed by an update — goes; counters of a
+        // pack that is not installed stay, in case it comes back.
+        foreach (string key in s.State.StepProgress.Keys.ToList())
+        {
+            int colon = key.IndexOf(':');
+            if (colon > 0 && TryGetPlayerPack(key.Substring(0, colon), out _) && !_stepByProgressKey.ContainsKey(key))
+            {
+                s.State.StepProgress.Remove(key);
+            }
+        }
+
+        var before = new HashSet<string>(s.State.StepProgress.Keys, StringComparer.Ordinal);
+        _stepListenersDirty = true;
+        AdvancePlayer(s);
+        foreach (var pack in PlayerPacks)
+        {
+            if (ChipStepOf(s, pack) is { } chip && before.Contains(chip.ProgressKey))
+            {
+                SpeakStepStart(s, chip);
+            }
+        }
+
+        s.StoryPacksJoined = true;
+    }
+}

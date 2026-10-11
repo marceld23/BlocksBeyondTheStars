@@ -292,6 +292,27 @@ public sealed class PlayerSession
     /// tick, so the event is raised at most once per <c>GameServer.InsightEventCooldownSeconds</c>.</summary>
     public double CompanionWardEventAt { get; set; } = double.NegativeInfinity;
 
+    /// <summary>#2466: the <c>JoinRequest.Features</c> words of this client (<c>packs1</c>, <c>cutscenes1</c>). A local
+    /// player (<c>AddLocalPlayer</c>) runs in this build and gets <c>packs1</c>. Session-scoped.</summary>
+    public HashSet<string> ClientFeatures { get; } = new(System.StringComparer.Ordinal);
+
+    /// <summary>#2466: the client understands story packs (<c>packs1</c>); without it the legacy tutorial mode applies
+    /// (old keys, server-composed text, no pack chips).</summary>
+    public bool SupportsPacks => ClientFeatures.Contains(Networking.Messages.ClientFeatures.Packs1);
+
+    /// <summary>#2466: the help-escalation clock of each active story-pack step (<c>&lt;pack&gt;:&lt;step&gt;</c> → state).
+    /// RAM only and per session ("one session"): a rejoin starts the clocks again.</summary>
+    public Dictionary<string, StepEscalationState> StepEscalation { get; } = new(System.StringComparer.Ordinal);
+
+    /// <summary>#2466: active play seconds counted by the story-pack tick (the escalation clocks read it).</summary>
+    public double StoryPackPlaySeconds { get; set; }
+
+    /// <summary>#2466: <see cref="StoryPackPlaySeconds"/> of the last chapter offer — offers are spaced out.</summary>
+    public double LastChapterOfferAt { get; set; } = double.NegativeInfinity;
+
+    /// <summary>#2466: the join hook of the story packs ran for this session (re-speaks the active step once).</summary>
+    public bool StoryPacksJoined { get; set; }
+
     /// <summary>Blocks mined toward the onboarding "mine" stage (session-scoped; the target is tiny).</summary>
     public int VegaMineCount { get; set; }
 

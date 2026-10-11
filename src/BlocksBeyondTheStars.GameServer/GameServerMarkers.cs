@@ -42,6 +42,10 @@ public sealed partial class GameServer
         public float Y;
         public float Z;
         public double ExpiresAt;
+
+        /// <summary>#2466: the one connection this ping is for (the story-pack help marker: one player, one session),
+        /// or null for an ordinary ping that the owner's circle sees.</summary>
+        public int? SessionId;
     }
 
     private readonly List<ServerPing> _pings = new();
@@ -196,6 +200,31 @@ public sealed partial class GameServer
         BroadcastMarkersOn(loc);
     }
 
+    /// <summary>#2466: the story-pack help marker — a ping at <paramref name="at"/> that only THIS session sees (synthesis
+    /// §5.3): RAM only, <see cref="PingTtlSeconds"/> seconds, never persisted, never broadcast to the circle and never
+    /// <c>RevealPoi</c> (which writes the world's shared data and tells everyone). Only the receiver's marker view is
+    /// re-sent.</summary>
+    private void RaisePrivatePing(PlayerSession session, Vector3f at)
+    {
+        string loc = session.CurrentLocationId;
+        if (string.IsNullOrEmpty(loc))
+        {
+            return;
+        }
+
+        _pings.Add(new ServerPing
+        {
+            OwnerId = session.State.PlayerId,
+            LocationId = loc,
+            X = at.X,
+            Y = at.Y,
+            Z = at.Z,
+            ExpiresAt = _uptime + PingTtlSeconds,
+            SessionId = session.ConnectionId,
+        });
+        SendMarkers(session);
+    }
+
     /// <summary>Expires pings (registered in the environment tick). Cheap: no work while nothing is live.</summary>
     private void TickMarkerPings(double dt)
     {
@@ -215,7 +244,16 @@ public sealed partial class GameServer
             _pings.Remove(p);
         }
 
-        foreach (var loc in expired.Select(p => p.LocationId).Distinct())
+        // A private ping (#2466) changed one view only — re-send just that session's.
+        foreach (var p in expired.Where(p => p.SessionId is not null))
+        {
+            if (_sessions.TryGetValue(p.SessionId!.Value, out var only) && only.Joined)
+            {
+                SendMarkers(only);
+            }
+        }
+
+        foreach (var loc in expired.Where(p => p.SessionId is null).Select(p => p.LocationId).Distinct())
         {
             BroadcastMarkersOn(loc);
         }
@@ -350,8 +388,10 @@ public sealed partial class GameServer
 
         foreach (var ping in _pings)
         {
-            if (ping.LocationId == loc && ping.ExpiresAt > _uptime
-                && (ping.OwnerId == me || AreAllied(me, ping.OwnerId)))
+            bool audience = ping.SessionId is { } only
+                ? only == viewer.ConnectionId // #2466: a private help marker reaches its one session only
+                : ping.OwnerId == me || AreAllied(me, ping.OwnerId);
+            if (ping.LocationId == loc && ping.ExpiresAt > _uptime && audience)
             {
                 result.Add(new NetMarker
                 {

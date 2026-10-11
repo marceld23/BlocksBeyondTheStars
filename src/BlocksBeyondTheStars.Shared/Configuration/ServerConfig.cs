@@ -701,6 +701,11 @@ public sealed class ServerConfig
                 case "story-density":
                     if (Enum.TryParse<StoryDensity>(value, ignoreCase: true, out var storyDens)) { Rules.StoryDensity = storyDens; applied.Add("story-density"); }
                     break;
+                case "tutorial":
+                    // #2466: the tutorial pack's world rule (auto | optin | off) — a fresh world only, like every world
+                    // option: the save's baked rules win on later launches.
+                    if (TryParseTutorialPolicy(value, out var tutorialPolicy)) { Rules.TutorialPolicy = tutorialPolicy; applied.Add("tutorial"); }
+                    break;
                 case "flora":
                     if (Enum.TryParse<BlocksBeyondTheStars.Shared.World.Frequency>(value, ignoreCase: true, out var fl)) { World.FloraDensity = fl; applied.Add("flora"); }
                     break;
@@ -917,4 +922,18 @@ public sealed class ServerConfig
     /// <summary>Splits a comma-separated name list, trimming entries and dropping empties.</summary>
     private static List<string> SplitNames(string value)
         => value.Split(',').Select(n => n.Trim()).Where(n => n.Length > 0).ToList();
+
+    /// <summary>Parses a tutorial policy word (#2466): <c>auto</c>, <c>optin</c> (also <c>opt-in</c>/<c>opt_in</c>) or
+    /// <c>off</c>, case-insensitive. Numbers are refused (an enum parse would take any integer).</summary>
+    public static bool TryParseTutorialPolicy(string? value, out TutorialPolicy policy)
+    {
+        string word = (value ?? string.Empty).Trim().Replace("-", string.Empty).Replace("_", string.Empty);
+        policy = TutorialPolicy.Auto;
+        if (word.Length == 0 || char.IsDigit(word[0]))
+        {
+            return false;
+        }
+
+        return Enum.TryParse(word, ignoreCase: true, out policy) && Enum.IsDefined(typeof(TutorialPolicy), policy);
+    }
 }

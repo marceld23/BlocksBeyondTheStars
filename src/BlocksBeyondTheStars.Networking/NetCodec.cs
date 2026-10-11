@@ -597,6 +597,10 @@ public static class NetCodec
         Register(292, typeof(OpenContainerIntent));          // Client -> Server
         Register(293, typeof(MoveContainerItemIntent));      // Client -> Server
         Register(294, typeof(ContainerContents));            // Server -> Client
+
+        // #2466 story packs: the player's control of a player pack (track, opt out, start/skip/replay a chapter, skip a
+        // step). 295/296 are reserved for the cutscene messages of step 8. No protocol bump — an older server drops it.
+        Register(297, typeof(StoryPackIntent));              // Client -> Server
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

@@ -66,8 +66,9 @@ public sealed partial class GameServer
         => EvaluateStoryCondition(StoryConditionParser.Parse(text, WorldPredicateNames), who);
 
     /// <summary>Whether a story pack runs for this player in this world (<c>pack:&lt;id&gt;:enabled</c>): the active world
-    /// story, or an installed player-scoped pack the player has not switched off. The step runtime (#2466) refines the
-    /// player side with the world's tutorial policy and a pack's <c>defaultEnabled</c>.</summary>
+    /// story, or an installed player-scoped pack the player has not switched off (#2466) — a tutorial by the world's
+    /// <see cref="TutorialPolicy"/> (<c>Auto</c>: yes; <c>OptIn</c>: once the player started it; <c>Off</c>: no), any
+    /// other player pack by its <c>defaultEnabled</c> or once the player started it.</summary>
     internal bool StoryPackEnabledFor(PlayerSession who, string packId)
     {
         if (_story is not null && string.Equals(_story.Id, packId, StringComparison.OrdinalIgnoreCase))
@@ -75,9 +76,25 @@ public sealed partial class GameServer
             return true;
         }
 
-        return _content.Stories.TryGetValue(packId, out var pack)
-               && string.Equals(StoryRegistry.EffectiveScope(pack), StoryRegistry.ScopePlayer, StringComparison.Ordinal)
-               && !who.State.Milestones.Contains(StoryPackKeys.OptOut(pack.Id));
+        if (!_content.Stories.TryGetValue(packId, out var pack)
+            || !string.Equals(StoryRegistry.EffectiveScope(pack), StoryRegistry.ScopePlayer, StringComparison.Ordinal)
+            || who.State.Milestones.Contains(StoryPackKeys.OptOut(pack.Id)))
+        {
+            return false;
+        }
+
+        bool started = who.State.Milestones.Contains(StoryPackKeys.Started(pack.Id));
+        if (string.Equals(pack.Kind, StoryRegistry.KindTutorial, StringComparison.OrdinalIgnoreCase))
+        {
+            return Rules.TutorialPolicy switch
+            {
+                TutorialPolicy.Off => false,
+                TutorialPolicy.OptIn => started,
+                _ => true,
+            };
+        }
+
+        return pack.DefaultEnabled || started;
     }
 
     /// <summary>Whether the air of <paramref name="locationId"/> is breathable — the planet type's atmosphere, never on a
@@ -121,8 +138,8 @@ public sealed partial class GameServer
 
         private HashSet<string> Milestones => _who.State.Milestones;
 
-        // TODO(#2466): a step with a legacyKey (vega:stage:*) counts as done by that key too — the step runtime knows
-        // the mapping and extends this check.
+        // A step's legacy key (vega:stage:*) is migration evidence only (synthesis §5.3): the one-time migration
+        // (story:<pack>:migrated:v1) turns it into the step key, which is what counts here.
         public bool IsStepDone(string packId, string stepId)
             => Milestones.Contains(StoryPackKeys.StepDone(packId, stepId))
                || Milestones.Contains(StoryPackKeys.StepSkipped(packId, stepId));

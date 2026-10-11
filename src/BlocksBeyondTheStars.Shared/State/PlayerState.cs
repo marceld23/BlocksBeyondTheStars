@@ -244,6 +244,18 @@ public sealed class PlayerState
     /// except the tutorial restart, which drops "vega:intro" and the "vega:stage:*" keys.</summary>
     public HashSet<string> Milestones { get; set; } = new();
 
+    /// <summary>The running counters of this player's ACTIVE story-pack steps (#2466, synthesis §5.6): key
+    /// <c>&lt;pack&gt;:&lt;step&gt;</c> (<c>StoryPackKeys.ProgressKey</c>), value = events counted since the step activated.
+    /// An entry exists exactly while the step is active (an armed react step or an open extra included) and is removed
+    /// when it completes, so the map holds a handful of entries at most. Done/skipped states live in
+    /// <see cref="Milestones"/>. Persisted additively: an older build drops it on re-save — a running count restarts,
+    /// nothing else is lost.</summary>
+    public Dictionary<string, int> StepProgress { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary>The story the player pinned to the objective chip (#2466): a pack id, or empty = automatic (the chip
+    /// order of synthesis §5.3). Persisted additively like <see cref="StepProgress"/>.</summary>
+    public string TrackedStoryId { get; set; } = string.Empty;
+
     /// <summary>Celestial bodies this player has physically arrived ON (landed via manual flight, hyperjump
     /// or quick-travel). With the Instant Travel world rule OFF, the menu's quick-travel is limited to these
     /// bodies — a never-visited world must be reached by flying there and landing. Server-authoritative,

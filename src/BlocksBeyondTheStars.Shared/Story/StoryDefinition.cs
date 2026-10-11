@@ -28,6 +28,10 @@ public sealed class StoryBeat
 
     /// <summary>Optional knowledge points granted to the revealing player when this beat first fires.</summary>
     public int KnowledgeReward { get; set; }
+
+    /// <summary>Cutscene played when this beat reveals to a player (#2466 binding, played from step 8 on); empty = the
+    /// beat speaks as a line only (today's behaviour).</summary>
+    public string Cutscene { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -250,6 +254,47 @@ public sealed class StoryDefinition
     /// <c>player</c> (<see cref="StoryRegistry.EffectiveScope"/>). Only a world-scoped pack with beats can be the
     /// save's story (<see cref="StoryRegistry.CanBeWorldStory"/>).</summary>
     public string Scope { get; set; } = string.Empty;
+
+    // ---- Pack manifest (#2466, synthesis §5.4). Every field defaults to today's behaviour. ----
+
+    /// <summary>Journal order and the tie-break between player packs on the objective chip (higher first). Default 0.</summary>
+    public int Priority { get; set; }
+
+    /// <summary>Locale key of the pack's short name (≤ 10 characters EN/DE) — it replaces "Objective:" on the chip when
+    /// this pack's step is on it. Empty = no short name.</summary>
+    public string ShortNameKey { get; set; } = string.Empty;
+
+    /// <summary>Locale key of a one-line description (world creation, Journal). Empty = none.</summary>
+    public string DescriptionKey { get; set; } = string.Empty;
+
+    /// <summary>Who speaks the pack's lines (<c>vega</c> by default).</summary>
+    public StoryNarrator Narrator { get; set; } = new();
+
+    /// <summary>Player packs other than a tutorial: whether the pack runs for every player by default (a tutorial follows
+    /// the world's <c>TutorialPolicy</c> instead). Default true.</summary>
+    public bool DefaultEnabled { get; set; } = true;
+
+    /// <summary>Cutscene played at the player's first join while the pack is enabled (step 8 plays bindings); empty = none.</summary>
+    public string IntroCutscene { get; set; } = string.Empty;
+
+    /// <summary>Tutorial packs: when the global advisor systems open (<see cref="StoryGateNames"/> → condition). A gate the
+    /// pack does not set keeps today's behaviour.</summary>
+    public Dictionary<string, string> Gates { get; set; } = new();
+
+    /// <summary>The pack's help escalation defaults (unset = the built-in 180 / 360 / 600 s).</summary>
+    public StoryEscalation Escalate { get; set; } = new();
+
+    /// <summary>When the pack starts for a player (default: at the first join).</summary>
+    public StoryStartRule Start { get; set; } = new();
+
+    /// <summary>The pack's chapters (player packs: run per player; world packs: reached by the arc). Empty = none.</summary>
+    public List<StoryChapter> Chapters { get; set; } = new();
+
+    /// <summary>Data form of the pack's insights (read from step 16 on). Empty = none.</summary>
+    public List<StoryInsight> Insights { get; set; } = new();
+
+    /// <summary>World packs: the finale's type and cutscene bindings (presentation only in v1).</summary>
+    public StoryFinaleBinding Finale { get; set; } = new();
 
     // Pacing weights: progress = FragmentsFound*FragmentWeight
     //                          + min(MachineKills, KillContributionCap)*KillWeight

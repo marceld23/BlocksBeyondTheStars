@@ -45,6 +45,22 @@ public sealed class JoinRequest
     /// Chunks travel as raw numeric block ids, so the server refuses a join whose fingerprint is missing or
     /// differs from its own: the client would draw the wrong blocks. Empty = none sent.</summary>
     public string ContentFingerprint { get; set; } = string.Empty;
+
+    /// <summary>What this client understands beyond the protocol version (#2466, synthesis §5.7) — <see cref="ClientFeatures"/>
+    /// words. A client without <see cref="ClientFeatures.Packs1"/> gets the legacy tutorial mode (old keys, no pack lines
+    /// it cannot localize). Additive on a contractless codec: an older client sends none.</summary>
+    public string[] Features { get; set; } = System.Array.Empty<string>();
+}
+
+/// <summary>The words of <see cref="JoinRequest.Features"/> (#2466).</summary>
+public static class ClientFeatures
+{
+    /// <summary>The client understands story packs: pack lines and chip keys, <see cref="ShipAiLine.PackId"/>,
+    /// <see cref="ShipAiLine.ObjectiveSource"/> and the pack messages.</summary>
+    public const string Packs1 = "packs1";
+
+    /// <summary>The client plays data-driven cutscenes (step 9 announces it).</summary>
+    public const string Cutscenes1 = "cutscenes1";
 }
 
 public sealed class MoveIntent
@@ -1408,6 +1424,9 @@ public sealed class ServerRules
     /// founded base whose owner is home (zone edge only, never inside, never destructive). Opt-in.</summary>
     public bool BaseVisitors { get; set; }
 
+    /// <summary>The world's tutorial rule (#2466): "Auto", "OptIn" or "Off". EMPTY from a server that predates it.</summary>
+    public string TutorialPolicy { get; set; } = string.Empty;
+
     /// <summary>Whether the server accepts/relays live voice chat (opt-in; default off on dedicated servers).
     /// When false the client keeps voice capture disabled and shows voice comms as unavailable.</summary>
     public bool VoiceChatEnabled { get; set; }
@@ -1471,6 +1490,9 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>Visitors-at-the-base toggle (#1224): "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string BaseVisitors { get; set; } = string.Empty;
+
+    /// <summary>The tutorial rule (#2466): "Auto"/"OptIn"/"Off" to set it, empty to leave unchanged.</summary>
+    public string TutorialPolicy { get; set; } = string.Empty;
 }
 
 // --- Missions ---
@@ -3024,6 +3046,18 @@ public sealed class ShipAiLine
     /// button must still offer "Skip", never "Restart". Meaningful only when <see cref="ObjectiveSource"/> is set
     /// (a server that knows the field always sets the source while the tutorial runs). Additive.</summary>
     public bool TutorialActive { get; set; }
+
+    /// <summary>The story pack this LINE belongs to (#2466) — empty for VEGA's own lines (onboarding, hints, beats).
+    /// Additive: an older client ignores it.</summary>
+    public string PackId { get; set; } = string.Empty;
+
+    /// <summary>Who speaks this line (#2466): the pack's narrator id; empty = VEGA. The client maps an unknown id to
+    /// VEGA's panel style. Additive.</summary>
+    public string Speaker { get; set; } = string.Empty;
+
+    /// <summary>The story pack whose objective is on the CHIP (#2466) — the client shows that pack's short name instead of
+    /// "Objective:" (step 12). Empty = no pack objective (VEGA's chip, a legacy stage, the finale or none). Additive.</summary>
+    public string ObjectivePackId { get; set; } = string.Empty;
 }
 
 /// <summary>The values of <see cref="ShipAiLine.ObjectiveSource"/> (#2462). Strings, not an enum, so a later

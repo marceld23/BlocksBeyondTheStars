@@ -98,8 +98,8 @@ public sealed partial class GameServer
     /// after a disconnect; the worst case is one redundant chip refresh, so no cleanup hook is needed.</summary>
     private readonly Dictionary<int, VegaChip> _vegaObjectiveSent = new();
 
-    /// <summary>The objective chip's fields as one comparable value (#2462).</summary>
-    private readonly record struct VegaChip(string Key, string Arg, int Progress, int Target, string Source, bool TutorialActive);
+    /// <summary>The objective chip's fields as one comparable value (#2462; the pack of a pack objective since #2466).</summary>
+    private readonly record struct VegaChip(string Key, string Arg, int Progress, int Target, string Source, bool TutorialActive, string PackId = "");
 
     private void SendVegaLine(PlayerSession session, string lineKey, byte kind, string arg = "")
     {
@@ -123,17 +123,104 @@ public sealed partial class GameServer
         line.ObjectiveTarget = chip.Target;
         line.ObjectiveSource = chip.Source;
         line.TutorialActive = chip.TutorialActive;
+        line.ObjectivePackId = chip.PackId;
         _vegaObjectiveSent[session.ConnectionId] = chip;
         Send(session, line);
     }
 
-    /// <summary>The objective chip this player should see right now.</summary>
+    /// <summary>
+    /// The objective chip this player should see right now — the chip order of synthesis §5.3 (#2466), first match wins:
+    /// <list type="number">
+    /// <item>the finale while the player is in the Guardian system (it beats even a pin — the #1832 lesson);</item>
+    /// <item>the pinned story (<c>PlayerState.TrackedStoryId</c>), if it has an objective;</item>
+    /// <item>basic training: the old onboarding chain while it runs, then a tutorial pack's mandatory chapters;</item>
+    /// <item>the VEGA finale (Guardian system revealed);</item>
+    /// <item>the VEGA lead (<c>story.obj.*</c>);</item>
+    /// <item>a tutorial deep-dive step or a mission-bridge step;</item>
+    /// <item>the other player packs by priority;</item>
+    /// <item>nothing.</item>
+    /// </list>
+    /// An older client (no <c>packs1</c>) sees pack objectives only as a tutorial step's old <c>vega.obj.&lt;stage&gt;</c>.
+    /// </summary>
     private VegaChip LiveVegaChip(PlayerSession session)
     {
         var p = session.State;
-        return new VegaChip(VegaObjectiveKey(p), VegaObjectiveArg(p), VegaObjectiveProgress(session), VegaObjectiveTarget(p),
-            VegaObjectiveSource(p), !VegaOnboardingDone(p));
+        bool tutorialActive = !VegaOnboardingDone(p) || TutorialPackRunning(session);
+
+        if (FinaleObjectiveOverridesTutorial(p))
+        {
+            return StoryChip(session, tutorialActive);
+        }
+
+        if (p.TrackedStoryId.Length > 0 && PinnedChip(session, tutorialActive) is { } pinned)
+        {
+            return pinned;
+        }
+
+        int stage = VegaStageIndex(p);
+        if (stage < VegaStages.Length)
+        {
+            var (id, target) = VegaStages[stage];
+            return new VegaChip("vega.obj." + id, string.Empty, id == "mine" ? session.VegaMineCount : 0, target,
+                ObjectiveSources.Tutorial, tutorialActive);
+        }
+
+        if (BasicTrainingObjective(session) is { } basic)
+        {
+            return PackChip(basic, tutorialActive);
+        }
+
+        if (StoryObjectiveKey(p).Length > 0)
+        {
+            return StoryChip(session, tutorialActive);
+        }
+
+        if (DeepDiveObjective(session) is { } deepDive)
+        {
+            return PackChip(deepDive, tutorialActive);
+        }
+
+        if (OtherPackObjective(session) is { } other)
+        {
+            return PackChip(other, tutorialActive);
+        }
+
+        return new VegaChip(string.Empty, string.Empty, 0, 0, ObjectiveSources.None, tutorialActive);
     }
+
+    /// <summary>The world story's chip (#1110): the finale or the current lead, the arc's score as its counter.</summary>
+    private VegaChip StoryChip(PlayerSession session, bool tutorialActive)
+    {
+        var p = session.State;
+        string key = StoryObjectiveKey(p);
+        if (key.Length == 0)
+        {
+            return new VegaChip(string.Empty, string.Empty, 0, 0, ObjectiveSources.None, tutorialActive);
+        }
+
+        string arg = key == "story.obj.fragment_on" ? FragmentWorldName() : string.Empty;
+        int target = _story is { Beats.Count: > 0 } d ? d.Beats[d.Beats.Count - 1].Threshold : 0;
+        int progress = _story is not null ? StoryEngine.Progress(_story, _storyState, Rules.StoryProgressScale) : 0;
+        string source = key == StoryFinaleObjectiveKey ? ObjectiveSources.Finale : ObjectiveSources.Story;
+        return new VegaChip(key, arg, progress, target, source, tutorialActive);
+    }
+
+    /// <summary>The pinned story's chip, or null when it has no objective now (the order then goes on).</summary>
+    private VegaChip? PinnedChip(PlayerSession session, bool tutorialActive)
+    {
+        string pinned = session.State.TrackedStoryId;
+        if (StoryActive && _story is not null && string.Equals(_story.Id, pinned, System.StringComparison.OrdinalIgnoreCase))
+        {
+            return StoryObjectiveKey(session.State).Length > 0 ? StoryChip(session, tutorialActive) : null;
+        }
+
+        return TryGetPlayerPack(pinned, out var pack) && PackObjectiveOf(session, pack) is { } objective
+            ? PackChip(objective, tutorialActive)
+            : null;
+    }
+
+    private static VegaChip PackChip(PackObjective objective, bool tutorialActive)
+        => new(objective.Key, string.Empty, objective.Progress, objective.Target, objective.Source, tutorialActive, objective.PackId);
 
     /// <summary>Objective-chip-only update (no new speech) — e.g. the mining counter ticking up.</summary>
     private void SendVegaObjective(PlayerSession session)
@@ -174,11 +261,6 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The {0} argument of the objective chip (#1859): the body name for <c>story.obj.fragment_on</c>,
-    /// empty for every other objective.</summary>
-    private string VegaObjectiveArg(PlayerState p)
-        => VegaObjectiveKey(p) == "story.obj.fragment_on" ? FragmentWorldName() : string.Empty;
-
     /// <summary>Display name of the active world when it is a galaxy body ("Kepler-3 b"); empty for a location
     /// the galaxy does not know (<c>LocationNamesFor</c> then falls back to the planet TYPE id, which would read
     /// as "a net fragment lies on rocky" — the unnamed <c>fragment_here</c> wording is the better chip there).</summary>
@@ -201,55 +283,7 @@ public sealed partial class GameServer
     private bool FinaleObjectiveOverridesTutorial(PlayerState p)
         => FinaleOpen && IsGuardianSystemLocation(p.CurrentLocationId);
 
-    /// <summary>Whether the chip shows the player's current tutorial lesson (the tutorial runs and nothing outranks it).</summary>
-    private bool TutorialOnChip(PlayerState p)
-        => VegaStageIndex(p) < VegaStages.Length && !FinaleObjectiveOverridesTutorial(p);
-
-    private string VegaObjectiveKey(PlayerState p)
-        => TutorialOnChip(p) ? "vega.obj." + VegaStages[VegaStageIndex(p)].Id : StoryObjectiveKey(p);
-
-    /// <summary>Where the chip's objective comes from (#2462) — <see cref="ObjectiveSources"/>: the lesson, the finale
-    /// (never muted), the optional story coaching (muted with the hints) or nothing.</summary>
-    private string VegaObjectiveSource(PlayerState p)
-    {
-        if (TutorialOnChip(p))
-        {
-            return ObjectiveSources.Tutorial;
-        }
-
-        string story = StoryObjectiveKey(p);
-        return story.Length == 0 ? ObjectiveSources.None
-            : story == StoryFinaleObjectiveKey ? ObjectiveSources.Finale
-            : ObjectiveSources.Story;
-    }
-
     private const string StoryFinaleObjectiveKey = "story.obj.finale";
-
-    private int VegaObjectiveTarget(PlayerState p)
-    {
-        if (TutorialOnChip(p))
-        {
-            return VegaStages[VegaStageIndex(p)].Target;
-        }
-
-        // Story objective (#1110): the chip shows the arc's score as its counter ("(128/204)").
-        return StoryObjectiveKey(p).Length > 0 && _story is { Beats.Count: > 0 } d
-            ? d.Beats[d.Beats.Count - 1].Threshold
-            : 0;
-    }
-
-    private int VegaObjectiveProgress(PlayerSession session)
-    {
-        var p = session.State;
-        if (TutorialOnChip(p))
-        {
-            return VegaStages[VegaStageIndex(p)].Id == "mine" ? session.VegaMineCount : 0;
-        }
-
-        return StoryObjectiveKey(p).Length > 0 && _story is not null
-            ? StoryEngine.Progress(_story, _storyState, Rules.StoryProgressScale)
-            : 0;
-    }
 
     /// <summary>The post-tutorial story objective on the HUD chip (#1110): once VEGA's onboarding is done the
     /// chip no longer goes blank — it says what the story wants next. Keys use the <c>story.obj.</c> prefix so
@@ -294,16 +328,20 @@ public sealed partial class GameServer
 
     /// <summary>Test seam: the objective-chip key this player would be sent right now (#1110).</summary>
     public string? ObjectiveKeyForTest(string playerId)
-        => FindSessionByPlayerId(playerId) is { } session ? VegaObjectiveKey(session.State) : null;
+        => FindSessionByPlayerId(playerId) is { } session ? LiveVegaChip(session).Key : null;
 
     /// <summary>Test seam: the objective chip's {0} argument for this player right now (#1859) — the body name
     /// while the fragment objective is up, empty otherwise.</summary>
     public string? ObjectiveArgForTest(string playerId)
-        => FindSessionByPlayerId(playerId) is { } session ? VegaObjectiveArg(session.State) : null;
+        => FindSessionByPlayerId(playerId) is { } session ? LiveVegaChip(session).Arg : null;
 
     /// <summary>Test seam: the objective chip's source for this player right now (#2462).</summary>
     public string? ObjectiveSourceForTest(string playerId)
-        => FindSessionByPlayerId(playerId) is { } session ? VegaObjectiveSource(session.State) : null;
+        => FindSessionByPlayerId(playerId) is { } session ? LiveVegaChip(session).Source : null;
+
+    /// <summary>Test seam: the pack whose objective is on the chip for this player right now (#2466), empty for none.</summary>
+    public string? ObjectivePackForTest(string playerId)
+        => FindSessionByPlayerId(playerId) is { } session ? LiveVegaChip(session).PackId : null;
 
     /// <summary>Join hook: boots VEGA for new players (prologue + intro + first objective), auto-grants the
     /// chain for veteran saves, and re-shows the current objective on a mid-onboarding rejoin. Always ends
@@ -470,6 +508,7 @@ public sealed partial class GameServer
             // player with knowledge, blueprints or missions is exactly who restarts, and the veteran check
             // re-granted the whole chain on the spot, so the button did nothing.
             ShipAiOnJoin(session, restart: true);
+            SkipOrRestartTutorialPacks(session, restart: true); // #2466: an installed tutorial pack replays too
             return;
         }
 
@@ -482,6 +521,7 @@ public sealed partial class GameServer
         _repo.SavePlayer(p);
         SendVegaLine(session, "vega.skip", 3);
         SendVegaJournal(session); // the granted chain becomes re-readable immediately, not on next join
+        SkipOrRestartTutorialPacks(session, restart: false); // #2466: "Skip tutorial" skips an installed tutorial pack too
     }
 
     // --- Stage hooks, called from the existing handlers (one line each at the call site). ---
@@ -630,6 +670,7 @@ public sealed partial class GameServer
             session.VegaAdvisorAccum = 0.0;
             var p = session.State;
 
+            TickStoryPacksFor(session); // #2466: player packs — start, advance, offers, help escalation (active play time)
             RefreshVegaObjective(session); // #1859: the chip follows launches, stations, pickups and travel
 
             // Vitals coaching (o2 / energy / hunger / cold / heat) moved to the throttled context tips

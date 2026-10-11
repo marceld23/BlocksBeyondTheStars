@@ -183,7 +183,8 @@ reserved pack ids (`none, mem, insight, obj, vega, track, cut` — `StoryRegistr
 groups, nesting deeper than 16. The server's context (`GameServerStoryConditions.cs`, `EvaluateStoryCondition`) reads the
 §5.6 milestone keys (`StoryPackKeys`: `story:<pack>:step:<step>[:skipped]`, `story:<pack>:ch:<c>:done|skipped`,
 `story:<pack>:started|done|optout`), the player's blueprints, `pack:<id>:enabled` (the world story, or an installed
-player pack not opted out — #2466 adds the tutorial policy) and the `world:` registry. The predicates
+player pack not opted out — since #2466 a tutorial also by the world's tutorial policy, another player pack by its
+`defaultEnabled`) and the `world:` registry. The predicates
 (`StoryWorldPredicates.All`, held equal to the server registry by `StoryConditionTests`): place — `station_in_system`
 (= the dock lesson's skip rule), `settlement_reachable`, `airless`, `fragment_on_world`, `player_near`; rules —
 `enemies`, `space_enemies`, `bandits`, `free_flight`, `hunger`, `oxygen`, `hazards`, `creative` (incl. a per-player mode
@@ -207,6 +208,128 @@ locale file that overwrites keys of an earlier file (English table only; the lat
 pack's community tables are held to the same guards (no invented keys, placeholders kept, no blanks, a known language),
 measured against the pack's own `en.json`; `StoryPackGuardTests` also checks each pack's en/de key parity.
 
+## The player-pack runtime (#2466)
+
+The engine the tutorial pack (step 10) and future side stories run on — per player, server-authoritative, data-only
+(synthesis §5, option C). The manifest fields and the step reference are in [TUTORIAL_PACK.md](TUTORIAL_PACK.md); this
+section is how the server runs them (`GameServerStoryPacks.cs`). Nothing ships a player pack yet, so nothing changes for
+players; the test packs live under `tests/BlocksBeyondTheStars.Tests/Fixtures/story_packs/` (never `data/stories/`).
+
+**Which packs run.** Every installed pack whose effective scope is `player` and that has chapters is compiled once
+(`PlayerPacks`, highest `priority` first): conditions are parsed against the server's `world:` predicates, chapters and
+steps indexed; a pack with a structural or condition error is logged and not run. A pack runs for a player when it is
+**enabled** (`StoryPackEnabledFor`, = `pack:<id>:enabled`) and **started** (`story:<pack>:started`). Enabled: the player
+has not opted out, and for a `tutorial` pack the world rule `GameRules.TutorialPolicy` says so (`Auto` → yes, `OptIn` →
+once the player started it, `Off` → no); any other player pack by its `defaultEnabled` or once started. A pack starts by
+itself when enabled and its `start.after` holds (empty = at once); `StoryPackIntent{startPack}` starts an opt-in tutorial
+(refused while the policy is `Off`). A tutorial's start also writes `vega:intro` (older builds read it as "the intro was
+shown"). The world story (VEGA) is not run here — its per-player track is step 11.
+
+**Chapters.** A non-optional chapter runs once the previous non-optional chapter is done or skipped (and its own
+`requires` holds); `autoStart: false` waits for `startChapter`. An optional chapter (deep dive) runs once the player
+started it (`story:<pack>:ch:<c>:active` — the one key beyond §5.6, so a started deep dive survives a rejoin) and is
+**offered** once when `offerWhen` holds (`story:<pack>:ch:<c>:offered`, line `vega.chapter.offer` with the chapter title as
+`{0}`) — never while the pack's mandatory chapters still run (no offers during basic training), at most one offer per
+90 s of play; `declineChapter` stamps `:declined` ("Later") and keeps it startable. `autoCompleteIf` holding when a chapter
+runs completes it silently (veteran evidence; ignored during a replay). A non-optional chapter is **done** when every
+`must` do step is done or skipped and nothing still holds it up (a CORE step before its hint time, an alternative standing
+in); an optional chapter needs every do step. The pack is done (`story:<pack>:done`) when every non-optional chapter is.
+
+**Steps.** The walk visits a running chapter's steps in order; one blocking do step at a time owns the chip (G4):
+
+| Kind / tier | Behaviour |
+|---|---|
+| `do` · `must` | blocks the chapter until its objective is met (events counted **since activation**), it is skipped, or it is infeasible |
+| `do` · `core` | blocks until its `hintAfter` time has passed (the hint line goes out), then becomes an **open extra**: it keeps listening and completes silently later; the chapter goes on |
+| `do` · `opt` | never blocks a non-optional chapter |
+| `read` | spoken at activation, never blocks; done on `ui:vega_continue` or when a later do step of the chapter completes |
+| `react` | armed (listening, silent) from the chapter's start wherever it stands; never blocks; when its event fires it speaks its explanation and is done — it stays armed after the chapter until then |
+
+At activation: `requires` false → the chapter waits there; `feasibleIf` false → the step is skipped silently (G7) and its
+`alternative` (a step of the same chapter, which otherwise never runs) stands in at its place; `alreadyDoneIf` true →
+completed silently (not during a replay); a mission bridge whose mission is already turned in completes at once;
+otherwise the counter starts (`PlayerState.StepProgress["<pack>:<step>"] = 0`), the help clock starts and the start
+line is spoken. `variants` swap a whole text slot by condition (first match). A completed step stamps
+`story:<pack>:step:<step>` (skipped: `…:skipped`) and, for a tutorial step with a `legacyKey`, double-writes that
+`vega:stage:<id>` (completion and skip; graduation and `skipPack` write all nine stages + `vega:intro`). The done line is
+spoken only when the step owned the chip (an early or open-extra completion is silent).
+
+**Events.** The runtime registers on the game-event bus only for the keys of steps that are active for some joined
+player (`SyncStepListeners`, after every transition and disconnect), so with nothing active a raise stays one integer
+compare. `OnStepGameEvent` matches the actor's active steps by key (exact or `prefix*`) and argument (exact, `a|b`
+alternatives, or any), adds the amount, completes and advances; a counter tick re-sends the chip. Counters persist with
+the normal player save (no write per event); transitions write the player at once.
+
+**Help escalation** (§3.1), on active play time only (`PlayerSession.StoryPackPlaySeconds`, ticked by the 1 Hz VEGA
+advisor loop, which does not run while the world is held), per session, each stage once, progress restarts the clock:
+`hintAfter` (default 180 s) → the step's `hintKey` line; `markerAfter` (360 s) on a "where" step (one with
+`onStart.reveal`) → a **private ping** at the provider's target (`nearest_ore:<block>`: the nearest such block in a 33³
+probe; `nearest_settlement`) that only this session sees — RAM, 30 s, never persisted, never broadcast, never
+`RevealPoi` (`GameServer.RaisePrivatePing`, `ServerPing.SessionId`) — plus `vega.step.marked`; nothing found → no ping;
+`offerSkipAfter` (600 s) on a `must` step → `vega.step.offer_skip`. Pack defaults in `escalate`, per-step override; `0`
+switches a stage off.
+
+**Skip, replay, opt-out** (all grant nothing): `skipStep`, `skipChapter` (remaining steps skipped, chapter skipped —
+`chapter:` conditions hold after), `skipPack` ("I know the game": every mandatory chapter skipped, deep-dive offers stay).
+`restartChapter` replays a done or skipped chapter **with the evidence off**: `story:<pack>:ch:<c>:replay` is set, its
+steps run again recorded in `story:<pack>:replay:<step>`, while the chapter's done key and step keys **stay** — so gates
+and `step:`/`chapter:` conditions keep holding during the replay (a replay never closes the tips again); when the replay
+completes the replay keys go. The tutorial's restart (`/tutorial restart`, `SkipOnboardingIntent{Restart}`) replays every
+mandatory chapter in order and never touches the world story (no prologue, E17). `optOut` stamps
+`story:<pack>:optout`: lines and objectives stop, every key and counter stays; `optIn` resumes.
+
+**Migration hook.** On the first walk of a pack for a player `story:<pack>:migrated:v1` is written once; for a tutorial
+pack every step whose `legacyKey` the player already holds counts as done. Legacy keys are evidence only here — after
+the marker they are written (double-write) but never read. The tutorial's own evidence mapping (step 10) hooks into
+`MigratePackIfNeeded`.
+
+**Gates.** `TutorialGate(session, gate)` answers for the global advisor systems (`opportunityTips`, `banter`,
+`stationNear`): null when no tutorial pack has a say (none installed, or the gate unset — the caller keeps today's
+rule), true when the tutorial is off for the world or the player, else the gate's condition. The consumers still read the
+old chain; step 10 rewires them.
+
+**The chip** (synthesis §5.3, `LiveVegaChip`, still the one fill point `SendVegaWithObjective`): 1 the finale while in the
+Guardian system (beats even a pin) → 2 the pinned story (`PlayerState.TrackedStoryId`, `StoryPackIntent{track|untrack}`;
+the world story's id pins VEGA's lead) → 3 basic training (the old onboarding chain while it runs, then a tutorial pack's
+mandatory chapters) → 4 the VEGA finale → 5 the VEGA lead → 6 a tutorial deep-dive step or any mission-bridge step →
+7 the other player packs by priority → 8 empty. A pack step sends its `chipKey`, counter and target, source `tutorial`
+(tutorial pack), `mission` (mission bridge) or `story` (other packs — muted with the hints like VEGA's lead), and the
+pack in `ShipAiLine.ObjectivePackId` (the client shows the pack's short name instead of "Objective:" from step 12).
+`TutorialActive` is true while the old chain or a tutorial pack's mandatory part runs.
+
+**Clients without `packs1`** (`JoinRequest.Features`; LAN, self-hosted, a hosted image ahead of Velopack — synthesis
+§5.7): the **legacy tutorial mode**. A tutorial step with a `legacyKey` speaks the old `vega.s.<id>.start` / `.done`
+**without** `Text` (the old client localizes them and fills its own keys), its chip is `vega.obj.<id>`, the start sends
+the old `vega.intro.*` lines (when `vega:intro` was new) and the graduation `vega.done`; tutorial steps without a legacy
+stage and deep dives do not run for it (it may pass a chapter once its legacy MUST steps are done, so the old nine stages
+run across the new chapters); a pack chip it could not localize is cleared. Every other pack line reaches it as
+server-composed `Text` with an empty `LineKey` (`ComposeLegacyText`: the player's language, `{0}` filled, `{key:Action}`
+tokens as device-neutral bracket words `ui.vega.act.<Action>` = "[Use]"/"[Benutzen]"). The composition is the shared
+`Shared/Localization/LineText` (`ExpandKeyTokens`, `Compose`, `ComposeNeutral`) that the client's `VegaText` now delegates
+to; `LegacyLineTextTests` holds every `vega.*`/`story.*` line brace-free when composed that way and every token action to
+a bracket word in EN and DE. A local player (`AddLocalPlayer`) counts as `packs1`.
+
+**Wire** (additive, no protocol bump): tag **297 `StoryPackIntent`** `{PackId, Action, ChapterId, StepId}` with
+`StoryPackActions` `track | untrack | optOut | optIn | startPack | skipPack | startChapter | declineChapter | skipChapter |
+restartChapter | skipStep` (295/296 are reserved for the cutscene messages of step 8); while a singleplayer world is held
+only `track`, `untrack`, `optOut`, `optIn` and `skipPack` get through (`PausedMayHandle`, dispatch tests). Fields:
+`JoinRequest.Features` (`ClientFeatures.Packs1` / `Cutscenes1`; `NetworkClient.Features` announces `packs1`),
+`ShipAiLine.PackId` / `Speaker` (the line's pack and narrator) / `ObjectivePackId`, `SetWorldRulesIntent.TutorialPolicy`,
+`ServerRules.TutorialPolicy`. Persistence (additive, no save bump): `PlayerSnapshot.StepProgress` (null while empty) and
+`TrackedStoryId` — an older build drops both on re-save, which costs a running count and the pin, nothing else
+(`StoryPackRuntimeTests.AnOlderBuild_DroppingTheCounters_CostsOnlyTheRunningCount`).
+
+**Admin** (world management, not a cheat — the role is the gate, above the cheats switch; the slash parsing in the
+client comes with step 12): `AdminCommandIntent{Command = "tutorial", StringArg = "skip" | "restart" | "chapter <id>" |
+"policy auto|optin|off", TargetPlayer = <name or empty for yourself>}` — without an installed tutorial pack `skip` and
+`restart` drive the old onboarding chain. `story_status` (`/story`) now also lists the world's tutorial rule and the
+player packs of the caller (or `TargetPlayer`), and is a read-only report above the cheats switch.
+
+**Validation** (synthesis §5.9): `StoryPackValidator` (Shared) — run by `StoryPackValidationTests` for every
+`data/stories/*` pack and the test packs — and its twin `tools/validate_story_pack.py` for authors without .NET (the
+successor of `merge_story.py`; allows packs without beats, never rewrites a file, reports every problem at once, warns on
+unknown fields). The checks are listed in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#validation).
+
 ## Networking (NetCodec tags)
 
 | Tag | Message | Dir | Purpose |
@@ -224,6 +347,7 @@ measured against the pack's own `en.json`; `StoryPackGuardTests` also checks eac
 | 149 | `CoreHackProgress` | S→C | hack channel progress + complete |
 | 220 | `StoryResolved` | S→C | play the resolution cinematic (win, join catch-up, replay) (#1124); additive `EpilogueTitleKey` since #2461 |
 | 221 | `RequestStoryResolutionIntent` | C→S | Story tab "watch the ending again" (#1124) |
+| 297 | `StoryPackIntent` | C→S | the player's control of a player pack (track, opt out, start/skip/replay a chapter, skip a step) (#2466) |
 
 Beat speech reuses `ShipAiLine`. Every message is `Register()`'d in NetCodec.
 
@@ -243,7 +367,9 @@ default) — no `Protocol.Version` bump.
 Rules on top of the wire:
 - **Chip order.** The tutorial lesson keeps the chip unless the finale is open AND the player is in the Guardian
   system (`FinaleObjectiveOverridesTutorial(p)` = `FinaleOpen && IsGuardianSystemLocation(p.CurrentLocationId)`,
-  B11 — it used to be world-wide). Once the tutorial is done the story objective is the finale anyway.
+  B11 — it used to be world-wide). Once the tutorial is done the story objective is the finale anyway. Since #2466 this
+  is the first rank of the full chip order (pin, basic training, VEGA finale/lead, deep dives, other packs) — see
+  "The player-pack runtime" above.
 - **Mute.** Only `story` follows the hints switch (`ObjectiveSourceRules.HiddenByHintsMute`); `tutorial`, `finale`,
   `mission` and any source a client does not know yet always show.
 - **Beat list.** `StoryBeatLog` (Client.Core) rebuilds the Story tab's *Memories restored* list from `HeardBeats` plus
@@ -291,8 +417,11 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
 
 - Engine (story-agnostic): `src/BlocksBeyondTheStars.Shared/Story/` — `StoryDefinition`, `StoryBeat`,
   `StoryState`, `StoryEngine`, `StoryRegistry`, `CoreArgument`/`CoreArgumentChoice`; story packs (#2465):
-  `StoryCondition`/`StoryConditionParser`/`StoryWorldPredicates`, `GameEventKeys`, `StoryPackKeys`. Server:
-  `GameServerGameEvents.cs` (event bus), `GameServerStoryConditions.cs` (condition context + world predicates).
+  `StoryCondition`/`StoryConditionParser`/`StoryWorldPredicates`, `GameEventKeys`, `StoryPackKeys`; the pack manifest
+  (#2466): `StoryPackManifest.cs` (`StoryChapter`, `StoryStep`, `StoryNarrator`, `StoryEscalation`, `StoryLegacy` …),
+  `StoryPackValidator`; `Shared/Localization/LineText.cs` (line composition, shared with the client). Server:
+  `GameServerGameEvents.cs` (event bus), `GameServerStoryConditions.cs` (condition context + world predicates),
+  `GameServerStoryPacks.cs` (the player-pack runtime, chip helpers, `/tutorial`).
 - Server: `GameServerStory.cs` (state load, Record fragment/kill/milestone, beat reveal, admin selection,
   knowledge level), `GameServerNetFragments.cs` (placement + pickup), `GameServerStoryFinale.cs` (reveal,
   hack, duel, gauntlet, chamber stamping, respawn, pacification).
@@ -300,15 +429,17 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
 - Data: `data/stories/vega_protocol/` — `story.json` (beats, fragments, memories, flavour, threads, duel),
   `lore_sites.json` (environmental lore, #1111) and `locales/<code>.json` in all 14 languages (EN + DE mandatory and
   complete; the twelve community tables are guarded by `CommunityLocaleTests`). There is no separate `lore.json`
-  catalogue — the authoring schema in LORE_STRUCTURE §E maps onto `story.json`. `tools/merge_story.py` validator.
+  catalogue — the authoring schema in LORE_STRUCTURE §E maps onto `story.json`. Validator:
+  `tools/validate_story_pack.py` (#2466, replaces `merge_story.py`).
 - Client: `Mode.Story`/`Tab.Story` Story Log tab (meter + re-readable beats/fragments/memories);
   `WorldEntities.cs` three-eyed-robot retheme + `BuildDrone` scan-drone; `FinaleView` (hack bar + duel panel);
   `ClientMusic` finale contexts → `music_boss_*` tracks.
 - World options: `GameRules.StoryId` + `GameRules.StoryDensity` (`--story` / `--story-density`, world-creation
   panel), set when the world is created and baked into its rules. The density is not live-editable
   (`SetWorldRulesIntent` carries no story field); the active pack can be switched by an admin
-  (`StorySelectIntent`, see "Active story row" above). Admin QA cmds: `advance_story`, `reveal_finale`, `story_status`,
-  `reveal_lore`, `goto_core`.
+  (`StorySelectIntent`, see "Active story row" above). `GameRules.TutorialPolicy` (`--tutorial auto|optin|off`, #2466) is
+  baked the same way but live-editable (`SetWorldRulesIntent.TutorialPolicy`, admin `tutorial policy …`). Admin QA cmds:
+  `advance_story`, `reveal_finale`, `story_status`, `reveal_lore`, `goto_core`, `tutorial`.
 
 ## Story and VEGA text conventions (#2463)
 

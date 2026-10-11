@@ -1,0 +1,18 @@
+{
+  "story.tutorial_test.name": "Tutorial test",
+  "story.tutorial_test.short": "Tutorial",
+  "story.tutorial_test.ch.t1": "Part 1",
+  "story.tutorial_test.ch.t2": "Part 2",
+  "story.tutorial_test.ch.t3": "Deep dive",
+  "story.tutorial_test.t11.start": "Mine two blocks.",
+  "story.tutorial_test.t11.chip": "Mine two blocks",
+  "story.tutorial_test.t11.done": "Nice.",
+  "story.tutorial_test.t12.start": "Place a block.",
+  "story.tutorial_test.t12.chip": "Place a block",
+  "story.tutorial_test.t13.start": "Craft anything.",
+  "story.tutorial_test.t13.chip": "Craft anything",
+  "story.tutorial_test.t21.start": "Eat something.",
+  "story.tutorial_test.t21.chip": "Eat something",
+  "story.tutorial_test.t31.start": "Scan anything.",
+  "story.tutorial_test.t31.chip": "Scan anything"
+}

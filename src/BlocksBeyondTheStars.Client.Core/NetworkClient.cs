@@ -434,8 +434,13 @@ namespace BlocksBeyondTheStars.Client
                 ? ContentFingerprint!
                 : BlocksBeyondTheStars.Shared.Content.GameContent.LastBuiltBlockFingerprint ?? string.Empty;
 
+        /// <summary>What this client announces in <see cref="JoinRequest.Features"/> (#2466): it understands story packs
+        /// (<c>packs1</c>). <c>cutscenes1</c> joins with the cutscene director (step 9). A host may replace the list —
+        /// a test that plays an older client sends none.</summary>
+        public string[] Features { get; set; } = { ClientFeatures.Packs1 };
+
         public void Join(string playerName, string? password = null, string locale = "en", string? token = null, int viewDistanceChunks = 0, string? hostedToken = null, string? installId = null)
-            => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale, Token = token, ViewDistanceChunks = viewDistanceChunks, HostedToken = hostedToken, InstallId = installId, ContentFingerprint = EffectiveContentFingerprint });
+            => Send(new JoinRequest { PlayerName = playerName, Password = password, Locale = locale, Token = token, ViewDistanceChunks = viewDistanceChunks, HostedToken = hostedToken, InstallId = installId, ContentFingerprint = EffectiveContentFingerprint, Features = Features ?? System.Array.Empty<string>() });
 
         /// <summary>#2222: set once this client refused the server it is connected to. Until the next
         /// <see cref="Connect"/>, <see cref="Poll"/> hands nothing on — a transport may still deliver what was on
@@ -474,6 +479,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Skips the VEGA onboarding (grants the whole stage chain server-side) — or restarts it
         /// from the intro when <paramref name="restart"/> is set (the way back after a skip).</summary>
         public void SendSkipOnboarding(bool restart = false) => Send(new SkipOnboardingIntent { Restart = restart });
+
+        /// <summary>#2466: the player's control of a player story pack (<see cref="StoryPackActions"/>: track, opt out,
+        /// start/skip/replay a chapter, skip a step).</summary>
+        public void SendStoryPack(string packId, string action, string chapterId = "", string stepId = "")
+            => Send(new StoryPackIntent { PackId = packId ?? string.Empty, Action = action ?? string.Empty, ChapterId = chapterId ?? string.Empty, StepId = stepId ?? string.Empty });
 
         /// <summary>World admin: live-edits the gameplay world options (empty fields = unchanged).</summary>
         public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "",

@@ -4,7 +4,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
+using BlocksBeyondTheStars.Shared.Localization;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -38,53 +38,20 @@ namespace BlocksBeyondTheStars.Client
         private const char TipRepeatMarker = '#';
 
         /// <summary>Separator between several <c>{n}</c> arguments packed into one <c>ShipAiLine.LineArg</c>
-        /// (mirrors the server's <c>VegaArgSeparator</c>).</summary>
-        public const char ArgSeparator = '\u001f';
+        /// (mirrors the server's <c>VegaArgSeparator</c>; the one definition is <see cref="LineText.ArgSeparator"/>).</summary>
+        public const char ArgSeparator = LineText.ArgSeparator;
 
         /// <summary>Splits a packed line argument into the <c>{0}</c>, <c>{1}</c>… values.</summary>
-        public static string[] SplitArgs(string lineArg)
-            => string.IsNullOrEmpty(lineArg) ? Array.Empty<string>() : lineArg.Split(ArgSeparator);
+        public static string[] SplitArgs(string lineArg) => LineText.SplitArgs(lineArg);
 
         /// <summary>
         /// Replaces <c>{key:Action}</c> tokens in a localized line with the on-screen name of the control bound to
         /// that action (keyboard key, pad button or touch wording — whatever <paramref name="glyph"/> returns for
         /// the action name). A token whose action the resolver does not know is dropped to its action name so a
-        /// stale locale never shows raw braces. Lines without tokens are returned untouched.
+        /// stale locale never shows raw braces. Lines without tokens are returned untouched. Since #2466 the one
+        /// implementation lives in Shared (<see cref="LineText"/>), so the server composes the same way.
         /// </summary>
-        public static string ExpandKeyTokens(string text, Func<string, string> glyph)
-        {
-            if (string.IsNullOrEmpty(text) || text.IndexOf("{key:", StringComparison.Ordinal) < 0)
-            {
-                return text;
-            }
-
-            var sb = new System.Text.StringBuilder(text.Length);
-            int i = 0;
-            while (i < text.Length)
-            {
-                int start = text.IndexOf("{key:", i, StringComparison.Ordinal);
-                if (start < 0)
-                {
-                    sb.Append(text, i, text.Length - i);
-                    break;
-                }
-
-                int end = text.IndexOf('}', start);
-                if (end < 0)
-                {
-                    sb.Append(text, i, text.Length - i);
-                    break;
-                }
-
-                sb.Append(text, i, start - i);
-                string action = text.Substring(start + 5, end - start - 5);
-                string resolved = glyph(action);
-                sb.Append(string.IsNullOrEmpty(resolved) ? action : resolved);
-                i = end + 1;
-            }
-
-            return sb.ToString();
-        }
+        public static string ExpandKeyTokens(string text, Func<string, string> glyph) => LineText.ExpandKeyTokens(text, glyph);
 
         /// <summary>The label of the menu button on the touch layout — a symbol, like the ◄ ► arrows beside it, so it
         /// has no locale key (TouchControlsUi draws the same character).</summary>
@@ -130,7 +97,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>What a <c>{0}</c> slot reads as when a line is shown without its argument (the tips log, #2364:
         /// the milestones remember the key, not the wreck's name).</summary>
-        public const string MissingArg = "…";
+        public const string MissingArg = LineText.MissingArg;
 
         /// <summary>
         /// Composes a VEGA line for display (#2363): the <c>{key:Action}</c> tokens are expanded FIRST, then the
@@ -139,46 +106,10 @@ namespace BlocksBeyondTheStars.Client
         /// <c>vega.hint.debris_signal</c> silently lost every pilot's debris-field tip in 2026.10.8. A format that still
         /// fails (a damaged community translation) never throws: the token-expanded line is shown as it is, and the
         /// locale test that composes every VEGA line catches the leftover braces. Without an argument the slots read
-        /// as <see cref="MissingArg"/> ("The wreck … drifts"), for the tips log.
+        /// as <see cref="MissingArg"/> ("The wreck … drifts"), for the tips log. Delegates to <see cref="LineText.Compose"/>
+        /// (#2466).
         /// </summary>
-        public static string Compose(string? text, string? lineArg, Func<string, string> glyph)
-        {
-            if (string.IsNullOrEmpty(text))
-            {
-                return string.Empty;
-            }
-
-            text = ExpandKeyTokens(text!, glyph); // netstandard2.1 has no NotNullWhen on IsNullOrEmpty
-            if (text.IndexOf("{0}", StringComparison.Ordinal) < 0)
-            {
-                return text; // no slot — the common case, and the path such lines always took
-            }
-
-            if (string.IsNullOrEmpty(lineArg))
-            {
-                return NeutralisePlaceholders(text);
-            }
-
-            try
-            {
-                return string.Format(CultureInfo.InvariantCulture, text, SplitArgs(lineArg!));
-            }
-            catch (FormatException)
-            {
-                return text;
-            }
-        }
-
-        /// <summary>Replaces the <c>{0}</c>…<c>{9}</c> slots with <see cref="MissingArg"/>.</summary>
-        private static string NeutralisePlaceholders(string text)
-        {
-            for (int i = 0; i < 10; i++)
-            {
-                text = text.Replace("{" + i.ToString(CultureInfo.InvariantCulture) + "}", MissingArg, StringComparison.Ordinal);
-            }
-
-            return text;
-        }
+        public static string Compose(string? text, string? lineArg, Func<string, string> glyph) => LineText.Compose(text, lineArg, glyph);
 
         private static readonly string[] WorldOrder =
             { "asteroid", "ocean", "corrupted", "fungal", "ice", "volcanic", "gds" };
