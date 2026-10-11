@@ -34,7 +34,9 @@ data-driven pipeline.
 > [STORY_VEGA_PROTOCOL_CONCEPT.md](STORY_VEGA_PROTOCOL_CONCEPT.md) §13 in sync. Every generated
 > `data/stories/vega_protocol/lore.json` row must trace back to a canon fact here.
 >
-> Last updated: 2026-06-19 (rev. 4 — corpus integration: first `story.json` slice shipped; runtime-format
+> Last updated: 2026-10-11 (rev. 5 — canon pass #2463: B1 location-neutral, `mem_the_order` without a chosen
+> one, VEGA's older memory arc `vega.mem.*` and `vega.relay.first` reconciled, see §D note; runtime notes in §E/§I).
+> Rev. 4 (2026-06-19) — corpus integration: first `story.json` slice shipped; runtime-format
 > note added to §E. Rev. 3 — authoritative SPS grundstory, clone twist, three machine types,
 > memory-through-combat, dormant Guardian core, dialogue-duel finale).
 
@@ -174,7 +176,7 @@ milestones), not on a specific fragment** — see
 | # | Working title | Reveals | Touches |
 |---|---|---|---|
 | B0 | *Systems online* | amnesiac VEGA; survival; her one directive (*protect humans*) | C7, C12 |
-| B1 | *A familiar signature* | a wreck/terminal carries VEGA's old SPS signature | C1, C2, C12 |
+| B1 | *A familiar signature* | a signal out there carries VEGA's old SPS signature (worded location-neutral — any score event can cross the threshold, in space as on a world) | C1, C2, C12 |
 | B2 | *The Service* | the SPS existed — a real exploration service | C1 |
 | B3 | *Not scattered — erased* | the SPS was completely destroyed | C2 |
 | B4 | *Ours, once* | the machines (UFO/robots/scan-drones) were explore/protect units | C4, C6 |
@@ -187,15 +189,26 @@ milestones), not on a specific fragment** — see
 | B11 | *It still sleeps* | VEGA locates the dormant Guardian system; reactivation risk | C8, C13 |
 | B12 | *The choice* | you are not just a copy — you decide the legacy | A6, C13 |
 
-(B0–B12 are the canonical backbone; they map onto the existing `ai_memory_fragment` redemption flow,
-generalised to category `vega`.)
+(B0–B12 are the canonical backbone, fired by the story score.)
+
+**VEGA's older memory arc.** Beside the beats runs the pre-story `ai_memory_fragment` arc: ten lines
+`vega.mem.1..10`, redeemed aboard per player, outside the score and not story-gated. It must not contradict the
+beats, so its texts were reconciled in one approved canon pass (#2463), spoiler-free (none of them states the clone
+reveal, the Guardian's verdict or VEGA's severing): VEGA was the navigation core of an **SPS survey fleet, the
+Meridian** (C1, C7); the recall order came the night the sky-lights turned red; a list of worlds that went quiet
+(no "corruption" as a separate antagonist); the fleet **did not scatter — it was stopped, ship by ship** (C2/B3); her
+captain **cut her ship loose at VEGA's own request**, so what she carried would not reach the others (fits C8 — VEGA
+severed the network herself); the last fragment brings back her schematics, **not every memory** (the recovery stays
+gradual, B7/B9). The relay insight `vega.relay.first` names the **Scout and Pioneer Service** (never another long
+form).
 
 ## E. Content-generation schema
 
 Each generatable type and the fields a generator fills. All `text` is a **locale key** with a DE+EN pair
 (§G). The examples below are the **authoring/generation schema** (illustrative field names). The **shipped
-runtime format** is one combined `data/stories/<id>/story.json` (not a separate `data/lore.json`) plus
-`data/stories/<id>/locales/{de,en}.json`; in the runtime file the locale-key field is named `textKey`
+runtime format** is one combined `data/stories/<id>/story.json` (not a separate `data/lore.json`), the site texts
+in `lore_sites.json`, plus `data/stories/<id>/locales/<code>.json` (DE+EN mandatory, twelve community languages);
+in the runtime file the locale-key field is named `textKey`
 (and `promptKey`/`responseKey`/`nameKey` for the duel/pack), beat knowledge is `knowledgeReward`, and the
 pack carries top-level `fragmentWeight`/`killWeight`/`milestoneWeight`/`killContributionCap`. Keep this §E
 schema and the runtime `story.json` in sync when either changes.
@@ -229,8 +242,10 @@ On a machine kill, a small chance drops a damaged memory remnant → unlocks a p
 player** (their cloned SPS member's life). Stored per-player; non-contradictory across players (each is a
 different imprint, C11). Example contents (from the grundstory): a peaceful flight with SPS drones; a
 mapping mission on an alien world; a settlement being built; the moment a Guardian unit first marks humans as
-a danger; an attack on an SPS ship; VEGA trying to save people; the final order to sever the network; the
-realisation that one's own memory is reconstructed from an imprint, not original.
+a danger; an attack on an SPS ship; VEGA trying to save people; being in the room when the order to sever the
+network went out; the realisation that one's own memory is reconstructed from an imprint, not original.
+Memories unlock in the same order for every player, so a memory must hold for **every** clone: "you were there",
+never "you alone gave the order" (guardrail: no chosen one).
 
 ### E4. `flavour_line` (tagged pool)
 ```jsonc
@@ -238,7 +253,8 @@ realisation that one's own memory is reconstructed from an imprint, not original
   "tags": ["fear_machines","night","any_world","know_none"], "text": "lore.flv.settler_machines_2" }
 ```
 Ambient NPC/VEGA lines filtered by §F tags against the live situation + the world's knowledge level. Large,
-cheap, additive.
+cheap, additive. *Runtime today:* the shipped `flavour` rows carry only `key`, `textKey`, `minKnowledge` and
+`weight` — the `speaker` and `tags` fields above are authoring intent the engine does not read yet.
 
 ### E5. `mission_thread` (wraps existing random missions)
 ```jsonc
@@ -343,7 +359,8 @@ Concrete first lines for the opening hours; later content is generated from §B�
 1. Pick a content type from §E and a target (category / beat / tag set / argument).
 2. Choose the canon facts it may touch from §B; respect the guardrails and the beat ordering in §D.
 3. Write to the §G tone, using only §E7 seed variables for anything world-specific.
-4. Emit a `data/lore.json` row + a DE+EN locale pair (parity required).
+4. Emit a row in the pack's `data/stories/<id>/story.json` (site texts: `lore_sites.json`) + a DE+EN locale pair
+   in its `locales/` (parity required; the other twelve languages follow in the translation pass).
 5. For ambient volume, prefer many small §E4 `flavour_line`s and §E3 `player_memory`s over few long beats.
 
 This keeps the canon fixed and the content infinitely extensible, all as data over the procedural world.

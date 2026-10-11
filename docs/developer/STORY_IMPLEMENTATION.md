@@ -43,9 +43,13 @@ crosses a threshold (not on a specific find), so a linear arc works in a random 
   from delivery turn-ins; the once-firsts add roughly 10–20 pts per playthrough from building, taming and
   exploring — they widen the arc's inputs without making any of them farmable.
 
-**Beats** are spoken through the existing VEGA narrator pipeline (`ShipAiLine`); the speaker identity is a
-pack field, so no new beat UI. Per-player "seen beats" reuse `PlayerState.Milestones` (`story:<id>:beat:N`)
-— no schema migration. Latecomers get a join-time catch-up of earned-but-unseen beats (`CatchUpStoryLines`),
+**Beats** are spoken through the existing VEGA narrator pipeline (`ShipAiLine`, Kind 2) — always in VEGA's
+voice: a pack has no narrator/speaker field yet (the story-packs manifest adds one, #2459), so no new beat UI.
+A beat's text must not assume where the player is: any score event can cross a threshold — a drone kill in
+space, a mission turn-in, a mapped system — so B1 speaks of "a signal out there", not "this wreck" (#2463).
+Per-player "seen beats" reuse `PlayerState.Milestones` (`story:<id>:beat:N`)
+— no schema migration. Milestones are append-only with one exception: the tutorial restart drops `vega:intro`
+and the `vega:stage:*` keys. Latecomers get a join-time catch-up of earned-but-unseen beats (`CatchUpStoryLines`),
 plus the Guardian-system reveal line while the finale is open (`story:<id>:finale:revealed`, #2460).
 
 **Wreck coupling** (count-neutral): a nearby wreck biases machine *position* (cluster) and *aggression* only,
@@ -188,12 +192,37 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   knowledge level), `GameServerNetFragments.cs` (placement + pickup), `GameServerStoryFinale.cs` (reveal,
   hack, duel, gauntlet, chamber stamping, respawn, pacification).
 - Persistence: `story_state` table (`StoredStoryState` + `IWorldRepository.SaveStoryState`/`ListStoryStates`).
-- Data: `data/stories/vega_protocol/` (`story.json` + `locales/{en,de}.json`), `tools/merge_story.py` validator.
+- Data: `data/stories/vega_protocol/` — `story.json` (beats, fragments, memories, flavour, threads, duel),
+  `lore_sites.json` (environmental lore, #1111) and `locales/<code>.json` in all 14 languages (EN + DE mandatory and
+  complete; the twelve community tables are guarded by `CommunityLocaleTests`). There is no separate `lore.json`
+  catalogue — the authoring schema in LORE_STRUCTURE §E maps onto `story.json`. `tools/merge_story.py` validator.
 - Client: `Mode.Story`/`Tab.Story` Story Log tab (meter + re-readable beats/fragments/memories);
   `WorldEntities.cs` three-eyed-robot retheme + `BuildDrone` scan-drone; `FinaleView` (hack bar + duel panel);
   `ClientMusic` finale contexts → `music_boss_*` tracks.
 - World options: `GameRules.StoryId` + `GameRules.StoryDensity` (`--story` / `--story-density`, world-creation
-  panel). Admin QA cmds: `advance_story`, `reveal_finale`, `story_status`, `reveal_lore`, `goto_core`.
+  panel), set when the world is created and baked into its rules. The density is not live-editable
+  (`SetWorldRulesIntent` carries no story field); the active pack can be switched by an admin
+  (`StorySelectIntent`, see "Active story row" above). Admin QA cmds: `advance_story`, `reveal_finale`, `story_status`,
+  `reveal_lore`, `goto_core`.
+
+## Story and VEGA text conventions (#2463)
+
+- **Canon.** Every VEGA line follows [LORE_STRUCTURE.md](LORE_STRUCTURE.md) — including VEGA's older memory arc
+  (`vega.mem.1..10`, redeemed from `ai_memory_fragment`, still in the core locale and not story-gated). Its texts were
+  reconciled with the pack in one approved canon pass: the Meridian is an SPS survey fleet; the fleet did not scatter,
+  it was stopped ship by ship; VEGA's captain cut her ship loose at VEGA's own request; the last fragment brings back
+  her schematics, not every memory. The player memory `mem_the_order` is "you were in the room when the order went
+  out" — every clone remembers being present, nobody gave *the* order (no chosen one). The SPS has one long form,
+  **Scout and Pioneer Service**, in every language.
+- **Keys.** Player text never names a key; it uses `{key:Action}` tokens (an `InputAction` name). `VegaPanel`, the
+  HUD prompts and the `@srv.*` server messages (`GameBootstrap.ResolveServerToken`) resolve them through
+  `HudUi.KeyTokenGlyph` — the binding, the pad button (the Actions list for an
+  action without one), or on a tablet the layout's own button (`VegaText.TouchControlLabel`: USE, MAP, ≡ …) and else
+  "the on-screen action menu". `VegaLineBudgetTests` (Client.Tests) fails on a token that names no `InputAction` and
+  on a literal key in the VEGA lines and the converted prompts.
+- **Length.** One VEGA panel page holds about 220 characters. English VEGA lines (`vega.*`, `story.vega.*`) stay at or
+  under 220 shown characters, German under 264 (`{key:…}` counts as 3, `{0}` as 10); the epilogue
+  `story.vega.beat13` is exempt — the ending card shows it, not the panel.
 
 ## Mission chains schema (#1212)
 

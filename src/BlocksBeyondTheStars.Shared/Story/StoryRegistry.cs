@@ -7,11 +7,12 @@ using System.Collections.Generic;
 namespace BlocksBeyondTheStars.Shared.Story;
 
 /// <summary>
-/// The installed story packs. The engine is story-agnostic; packs are added here (and later loaded from
-/// <c>data/stories/&lt;id&gt;/</c>). The first pack is <b>"The VEGA Protocol"</b> — the SPS grundstory whose
-/// canon + beat agenda live in <c>docs/developer/LORE_STRUCTURE.md</c>. The beat <see cref="StoryBeat.TextKey"/>s are the
-/// B0–B12 arc from that doc; their bilingual text is authored later (workstream W-A). Thresholds are tunable
-/// (plan §9 numeric tuning) but must stay monotonic.
+/// The built-in story packs — the fallback when no <c>data/stories/&lt;id&gt;/story.json</c> is installed (the shipped
+/// game loads its packs from there through ContentLoader; a drift test keeps this copy in step). The engine is
+/// story-agnostic. The first pack is <b>"The VEGA Protocol"</b> — the SPS grundstory whose canon + beat agenda live in
+/// <c>docs/developer/LORE_STRUCTURE.md</c>. The beat <see cref="StoryBeat.TextKey"/>s are the B0–B12 arc from that doc;
+/// their text lives in the pack's <c>locales/</c>. Thresholds are tunable (plan §9 numeric tuning) but must stay
+/// monotonic.
 /// </summary>
 public static class StoryRegistry
 {

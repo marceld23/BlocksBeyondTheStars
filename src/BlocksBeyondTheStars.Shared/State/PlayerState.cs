@@ -240,7 +240,8 @@ public sealed class PlayerState
 
     /// <summary>One-time progression milestones the ship AI (VEGA) has seen this player reach — onboarding
     /// stages ("vega:stage:N"), advisor once-hints ("vega:hint:&lt;key&gt;") and restored memory fragments
-    /// ("vega:mem:N"). Server-authoritative, persisted; never removed once set.</summary>
+    /// ("vega:mem:N"), and the story keys (<c>story:&lt;pack&gt;:…</c>). Server-authoritative, persisted; append-only
+    /// except the tutorial restart, which drops "vega:intro" and the "vega:stage:*" keys.</summary>
     public HashSet<string> Milestones { get; set; } = new();
 
     /// <summary>Celestial bodies this player has physically arrived ON (landed via manual flight, hyperjump

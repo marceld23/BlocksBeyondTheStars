@@ -1,0 +1,239 @@
+// Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Text.Json;
+using System.Text.RegularExpressions;
+
+namespace BlocksBeyondTheStars.Client.Tests;
+
+/// <summary>
+/// VEGA's texts are written for her speech panel and for every input device (#2463, B26/B28). Guards over the English
+/// and German tables — the twelve community languages may lag a pass behind and simply page:
+/// <list type="bullet">
+/// <item>a VEGA line fits one panel page (it used to run two or three pages, every page one more key press);</item>
+/// <item>a <c>{key:Action}</c> token names a real <c>InputAction</c> (an unknown name renders as the bare word);</item>
+/// <item>the tutorial lines, the advisor tips and the converted HUD prompts never name a key literally — "press Tab"
+/// is wrong on a pad and on a tablet, the token is right on all three.</item>
+/// </list>
+/// </summary>
+public sealed class VegaLineBudgetTests
+{
+    /// <summary>One page of VEGA's speech panel: the 612×116 HUD-unit text box at font 22 holds about four lines,
+    /// ≈ 220–240 characters (<c>VegaPanel.SpeechTextW/H</c>). English lines stay within it.</summary>
+    public const int EnglishBudget = 220;
+
+    /// <summary>German runs 12–20 % longer than English; its budget is the English one plus 20 %.</summary>
+    public const int GermanBudget = 264;
+
+    /// <summary>What a <c>{key:Action}</c> token typically shows ("Tab", "(A)", "USE") — counted at this width.</summary>
+    private const int TokenWidth = 3;
+
+    /// <summary>What a <c>{0}</c> slot typically shows (a world, item or wreck name) — counted at this width.</summary>
+    private const int SlotWidth = 10;
+
+    /// <summary>Lines that are not read in the panel: the epilogue is shown on the ending card (ResolutionCinematic
+    /// withdraws it from VEGA's queue, #2461).</summary>
+    private static readonly HashSet<string> NotPanelText = new(StringComparer.Ordinal) { "story.vega.beat13" };
+
+    /// <summary>Prompts that expand <c>{key:Action}</c> tokens since #2463: the HUD (HudUi, FactoryView) and the ship
+    /// stations' server messages (GameBootstrap.ResolveServerToken).</summary>
+    private static readonly HashSet<string> ConvertedPrompts = new(StringComparer.Ordinal)
+    {
+        "ui.hud.use", "ui.beam.use_hint", "ui.factory.claim_prompt",
+        "srv.station.cargo", "srv.station.cockpit", "srv.station.console", "srv.station.workshop",
+    };
+
+    private const string StationBlockPrompts = "ui.station.block.";
+
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(2);
+
+    private static readonly Regex KeyToken = new(
+        @"\{key:(?<action>[A-Za-z0-9_]+)\}", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, RegexTimeout);
+
+    private static readonly Regex Slot = new(@"\{[0-9]\}", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, RegexTimeout);
+
+    /// <summary>A key named literally: a lone key letter ("E at the cockpit", "M opens the map" — not part of a word, a
+    /// token or a number), or the Tab key ("(Tab)", "press Tab", "drücke Tab", "Tab menu", "Tab-Menü"). German also says
+    /// "im Tab „Karte“" for a menu tab — that noun is not a key and passes.</summary>
+    private static readonly Regex LiteralKey = new(
+        @"(?<![\p{L}\p{N}_{:])(?:E|M|R|Q)(?![\p{L}\p{N}_}])|\(Tab\)|(?i:press|drück\w*)\s+Tab\b|\bTab(?:-Menü|\s+menu)",
+        RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, RegexTimeout);
+
+    private static Dictionary<string, string> Table(params string[] relative)
+    {
+        string path = Path.Combine(new[] { ClientTestPaths.DataDir() }.Concat(relative).ToArray());
+        return JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path))
+               ?? new Dictionary<string, string>(StringComparer.Ordinal);
+    }
+
+    private static Dictionary<string, string> Core(string code) => Table("locales", code + ".json");
+
+    private static Dictionary<string, string> Pack(string code) => Table("stories", "vega_protocol", "locales", code + ".json");
+
+    /// <summary>Every line VEGA speaks in the panel: the core <c>vega.*</c> keys and the pack's <c>story.vega.*</c> lines.</summary>
+    private static IEnumerable<KeyValuePair<string, string>> VegaLines(string code)
+        => Core(code).Where(e => e.Key.StartsWith("vega.", StringComparison.Ordinal))
+            .Concat(Pack(code).Where(e => e.Key.StartsWith("story.vega.", StringComparison.Ordinal)))
+            .Where(e => !NotPanelText.Contains(e.Key));
+
+    /// <summary>The characters a line shows: a token counted as <see cref="TokenWidth"/>, a slot as <see cref="SlotWidth"/>.</summary>
+    internal static int ShownLength(string text)
+    {
+        string shown = KeyToken.Replace(text, new string('K', TokenWidth));
+        shown = Slot.Replace(shown, new string('N', SlotWidth));
+        return shown.Length;
+    }
+
+    [Fact]
+    public void ShownLength_CountsATokenAsAGlyph_AndASlotAsAName()
+    {
+        Assert.Equal(5, ShownLength("Hello"));
+        Assert.Equal("Press ".Length + TokenWidth, ShownLength("Press {key:Interact}"));
+        Assert.Equal(SlotWidth + " lies here".Length, ShownLength("{0} lies here"));
+    }
+
+    [Theory]
+    [InlineData("en", EnglishBudget)]
+    [InlineData("de", GermanBudget)]
+    public void EveryVegaLine_FitsOnePanelPage(string code, int budget)
+    {
+        var over = VegaLines(code)
+            .Select(e => (e.Key, Length: ShownLength(e.Value)))
+            .Where(e => e.Length > budget)
+            .OrderByDescending(e => e.Length)
+            .Select(e => $"{e.Key} ({e.Length})")
+            .ToList();
+
+        Assert.True(
+            over.Count == 0,
+            $"{code}: {over.Count} VEGA line(s) are longer than one speech-panel page ({budget} shown characters) — "
+            + "shorten them (one sentence and one action is the goal for kids): " + string.Join(", ", over));
+    }
+
+    /// <summary>The <c>InputAction</c> names, read from the Unity source — the enum lives in the Unity assembly, which this
+    /// project cannot reference.</summary>
+    private static HashSet<string> InputActionNames()
+    {
+        string src = File.ReadAllText(Path.Combine(ClientTestPaths.RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts", "InputMap.cs"));
+        int start = src.IndexOf("public enum InputAction", StringComparison.Ordinal);
+        Assert.True(start >= 0, "InputMap.cs no longer declares 'public enum InputAction'");
+        int open = src.IndexOf('{', start);
+        int close = src.IndexOf('}', open);
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string line in src.Substring(open + 1, close - open - 1).Split('\n'))
+        {
+            var m = Regex.Match(line, @"^\s*(?<name>[A-Z][A-Za-z0-9]*)\s*,", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, RegexTimeout);
+            if (m.Success)
+            {
+                names.Add(m.Groups["name"].Value);
+            }
+        }
+
+        Assert.Contains("Interact", names);
+        Assert.Contains("UiMenu", names);
+        return names;
+    }
+
+    [Fact]
+    public void EveryKeyToken_InEnglishAndGerman_NamesARealInputAction()
+    {
+        var actions = InputActionNames();
+        var bad = new List<string>();
+        foreach (string code in new[] { "en", "de" })
+        {
+            foreach (var table in new[] { Core(code), Pack(code) })
+            {
+                foreach (var (key, text) in table)
+                {
+                    foreach (Match m in KeyToken.Matches(text))
+                    {
+                        string action = m.Groups["action"].Value;
+                        if (!actions.Contains(action))
+                        {
+                            bad.Add($"{code}:{key} {{key:{action}}}");
+                        }
+                    }
+                }
+            }
+        }
+
+        Assert.True(bad.Count == 0, "Tokens that name no InputAction render as the bare word: " + string.Join(", ", bad));
+    }
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("de")]
+    public void TutorialLines_TipsAndConvertedPrompts_NameNoKeyLiterally(string code)
+    {
+        var bad = Core(code)
+            .Where(e => e.Key.StartsWith("vega.", StringComparison.Ordinal)
+                        || e.Key.StartsWith(StationBlockPrompts, StringComparison.Ordinal)
+                        || ConvertedPrompts.Contains(e.Key))
+            .Where(e => LiteralKey.IsMatch(e.Value))
+            .Select(e => $"{e.Key}: \"{e.Value}\"")
+            .ToList();
+
+        Assert.True(
+            bad.Count == 0,
+            $"{code}: texts that name a key literally — use a {{key:Action}} token (the game shows the player's own key, "
+            + "pad button or touch button): " + string.Join(" | ", bad));
+    }
+
+    [Fact]
+    public void LiteralKeyPattern_CatchesKeyNames_ButNotWordsOrTokens()
+    {
+        Assert.Matches(LiteralKey, "open the menu (Tab), Crafting tab");
+        Assert.Matches(LiteralKey, "To leave: E at the cockpit.");
+        Assert.Matches(LiteralKey, "M opens the map.");
+        Assert.Matches(LiteralKey, "Tab-Menü, Herstellen");
+        Assert.Matches(LiteralKey, "Tab menu, Research.");
+        Assert.Matches(LiteralKey, "drücke Tab: Inventar");
+        Assert.DoesNotMatch(LiteralKey, "press {key:UiMenu} at the {key:Interact}");
+        Assert.DoesNotMatch(LiteralKey, "Table, Mk3, Escape, Mars, Riding, Quiet, slot 1, {0}");
+        Assert.DoesNotMatch(LiteralKey, "Diese Karte findest du später im Tab „Karte“ wieder.");
+    }
+
+    [Fact]
+    public void TouchControlLabel_NamesTheLayoutsOwnButtons()
+    {
+        var en = Core("en");
+        string Localize(string key) => en.TryGetValue(key, out var v) ? v : key;
+
+        Assert.Equal("USE", VegaText.TouchControlLabel("Interact", Localize));
+        Assert.Equal("MAP", VegaText.TouchControlLabel("PlanetMap", Localize));
+        Assert.Equal("MAP", VegaText.TouchControlLabel("FlightMap", Localize));
+        Assert.Equal("FEED", VegaText.TouchControlLabel("FeedCreature", Localize));
+        Assert.Equal(VegaText.TouchMenuLabel, VegaText.TouchControlLabel("UiMenu", Localize));
+
+        // No button on the tablet layout: the caller names the on-screen action menu instead.
+        Assert.Null(VegaText.TouchControlLabel("ToggleLamp", Localize));
+        Assert.Null(VegaText.TouchControlLabel("Nonsense", Localize));
+    }
+
+    [Fact]
+    public void TouchControlLabel_OnlyNamesRealActions_WhoseLabelsExistInEnglishAndGerman()
+    {
+        var actions = InputActionNames();
+        var en = Core("en");
+        var de = Core("de");
+        foreach (string action in actions)
+        {
+            var asked = new List<string>();
+            string? label = VegaText.TouchControlLabel(action, key =>
+            {
+                asked.Add(key);
+                return key;
+            });
+
+            foreach (string key in asked)
+            {
+                Assert.True(en.ContainsKey(key) && de.ContainsKey(key), $"{action} → '{key}' is missing in en or de");
+            }
+
+            if (label != null && asked.Count == 0)
+            {
+                Assert.Equal(VegaText.TouchMenuLabel, label); // the one symbol label without a locale key
+            }
+        }
+    }
+}

@@ -360,7 +360,7 @@ sensor cap.
 
 A cell over a cap registers **inert**: it exists, it is listed, it does nothing, and the player is told
 (`vega.sys.crystal_cap`); mining something frees the slot. The first conduit a player ever places triggers
-`vega.sys.crystal_first`.
+`vega.hint.crystal_first` (a once-per-player system line).
 
 ## 9. Intents and permissions
 
@@ -469,7 +469,7 @@ taps the buttons directly. Everything rides the existing **Interact** action —
   Device Eye is 1 crystal + 1 glass + 1 circuit board, blueprint `crystal_sensors`).
 - **Locales**: `block.<key>.name`, `item.<key>.name/.desc`, `blueprint.<key>.name/.desc`, the server lines
   `srv.crystal.*` (rejections incl. `clone_price.<bait>`, the six announcer presets, `announce_custom` = `{name}`)
-  and `vega.sys.crystal_first/_cap/_planet_only` — EN + DE mandatory, the twelve community locales by the
+  and `vega.hint.crystal_first` + `vega.sys.crystal_cap/_planet_only` — EN + DE mandatory, the twelve community locales by the
   machine pass.
 - **Art**: 24 block tiles (`tools/ai-assets/gen_textures.py`) + 24 inventory icons (`gen_item_icons.py`), OpenAI —
   the 23 of #2058 plus `device_eye` / `item_device_eye` (#2092); the unlit lamp twins have no asset — the atlas

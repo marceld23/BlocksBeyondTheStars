@@ -65,7 +65,19 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   the WebGL fallback file list is generated at build time (`Resources/streaming_data_files.txt`) and the built-in
   copy is complete and checked against `data/`. All wire changes additive. Tests: `StoryUiFixesTests`,
   `StoryUiFixesClientTests` (Client.Tests), `GameServerFinaleTests`.
-- ⬜ Step 4 — text fixes (#2463)
+- ✅ **Step 4 — text fixes (#2463)**, 2026-10-11: VEGA's lessons and tips, the cockpit/station/bed/heal-tank/
+  transporter/factory prompts and the ship stations' server messages name keys as `{key:Action}` tokens (one
+  resolver, `HudUi.KeyTokenGlyph`, also applied to every `@srv.*` message; a tablet reads its own button — USE, MAP,
+  ≡ — via `VegaText.TouchControlLabel`); the launch lesson names the cockpit and the use
+  key; eight over-long VEGA lines (up to three pages) are cut to one page and `VegaLineBudgetTests` holds every VEGA line to 220 shown
+  characters (DE 264); the tier-gate tip names the blueprint and the titanium route (trade console + forge); manual
+  and Codex: 9 lessons, the real tab names (Blueprints, Crafting/Herstellung, Creatures), the forge needs no
+  blueprint, an access code claims factories only, one SPS long form (Scout and Pioneer Service); the canon package
+  (`vega.mem.1/3/6/7/8/10`, `vega.relay.first`, `mem_the_order` "you were in the room", B1 "a signal out there");
+  stale story docs and code comments fixed. EN+DE only — the changed keys are listed for the final translation pass
+  (keys whose tokens changed are dropped from the twelve community tables until then). Open: the dead
+  `vega.sys.crystal_first` stays in all 14 tables until that pass removes it; item descriptions, the other `srv.*`
+  messages, space prompts and "(E)" buttons still name keys (step 10's resolver sweep).
 - ⬜ Step 5 — WorldHost save-upload fixes (#2464)
 - ⬜ Step 6 — game-event bus (#2465)
 - ⬜ Step 7 — player-pack runtime (#2466)

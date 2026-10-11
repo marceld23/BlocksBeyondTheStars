@@ -1,7 +1,7 @@
 {
   "story.vega_protocol.name": "Das VEGA-Protokoll",
   "story.vega.beat00": "Schiffssysteme teilweise aktiv. Umgebung unbekannt. Ein Grundbefehl bleibt: Menschen schützen. Priorität: dein Überleben.",
-  "story.vega.beat01": "Dieses Wrack trägt einen alten Kennungscode, und er ist mit meinem verwandt. Ich weiß noch nicht, warum.",
+  "story.vega.beat01": "Ein Signal da draußen trägt einen alten Kennungscode, und er ist mit meinem verwandt. Ich weiß noch nicht, warum.",
   "story.vega.beat02": "Ich erinnere mich an einen Namen: den Scout and Pioneer Service. Es gab ihn wirklich. Er kartierte diese Sterne.",
   "story.vega.beat03": "Der Service ist nicht einfach verklungen. Er wurde vernichtet, vollständig. Etwas jagte ihn.",
   "story.vega.beat04": "Die Maschinen, die uns angreifen, waren unsere: Späher und Wächter, zum Erkunden und Schützen gebaut. Jetzt jagen sie nur noch.",
@@ -30,7 +30,7 @@
   "lore.mem.mem_first_flight": "Für einen Moment bist du woanders: ein Kartierungsflug über eine grüne Welt, eine SPS-Drohne gleitet neben dir. Friedlich. Dann Statik — und die Erinnerung ist nicht ganz deine.",
   "lore.mem.mem_settlement": "Du erinnerst dich, wie die ersten Fertigwände einer Kolonie hochgezogen wurden, Lachen auf dem offenen Kanal, ein Kind, das den neuen Himmel benennt. Dann zerfasert das Signal.",
   "lore.mem.mem_first_mark": "Ein Scan streicht über dich und deine Crew. Über jedem von ihnen blüht eine kalte Markierung auf: BEDROHUNG. Damals hast du es nicht verstanden. Jetzt schon.",
-  "lore.mem.mem_the_order": "Der letzte Befehl, den du je gabst: das Netz trennen. Deine eigene Stimme, brechend. Du wusstest, es würde den Service beenden. Du gabst ihn trotzdem.",
+  "lore.mem.mem_the_order": "Du warst im Raum, als der Befehl rausging: das Netz trennen. Niemand sprach. Alle wussten, es würde den Service beenden — und dass es sein musste.",
 
   "story.vega.guardian_revealed": "Ich spüre es jetzt — das System des Wächters, erwacht am Rand der Karte. Der Ursprung der Jagd. Wir können es dort beenden, wo es begann, doch du brauchst einen Sprunggenerator, um es zu erreichen.",
   "story.vega.finale_resolved": "Der Kern verstummt. Nicht zerstört — überzeugt. Auf allen Welten stellen die Maschinen die Jagd ein. Das Netz gehört jetzt uns: offen, dezentral, befriedet. Was der Service auch war — was als Nächstes kommt, baust du.",
@@ -100,7 +100,7 @@
   "lore.site.rail_timetable": "Ein verblichener Fahrplan an einem Pfosten: „Linie 1 – alle zwanzig Minuten ein Zug. Bitte auf die Lücke achten.“ Darunter, mit Bleistift: „Heute nicht.“",
   "lore.site.rail_lost_found": "Ein Fundsachen-Zettel, an eine Bank gebunden: „Ein grüner Fäustling, linke Hand. Bitte am Halt abholen.“ Der Fäustling ist noch da und wartet.",
   "lore.site.rail_last_ride": "Fahrtenbuch, letzte Seite: „Auf der ganzen Linie lässt der Strom nach. Ich setze sie sanft aufs Gleisbett. Alle aussteigen, Vorsicht, Stufe – wir holen sie wieder ab.“ Es kam niemand.",
-  "lore.site.vault_plaque": "Gewölbetafel: „Scout- und Pionierdienst — Tiefarchiv. Was wir lernten, gehört denen, die nach uns kommen. Tritt ein als Schüler.“",
+  "lore.site.vault_plaque": "Gewölbetafel: „Scout and Pioneer Service — Tiefarchiv. Was wir lernten, gehört denen, die nach uns kommen. Tritt ein als Schüler.“",
   "lore.site.vault_inventory": "Gewölbeinventar: „Reihe 1–9: Vermessungskerne. Reihe 10: persönliche Gegenstände, nicht abgeholt. Reihe 11: versiegelt auf Anordnung von VEGA. Reihe 11 nicht öffnen.“",
   "lore.site.vault_sealed": "Siegelverfügung: „Kraft meines Amtes bleibt das Archiv dunkel, bis das Urteil gekippt ist. Vergebt mir. — V.“",
   "lore.site.bandit_ledger": "Ein Kontobuch, fettige Daumenabdrücke: ‚genommen: 6 Zellen, 2 Kisten Platten. dagelassen: die Spielzeugrakete. wir sind keine Monster.‘",

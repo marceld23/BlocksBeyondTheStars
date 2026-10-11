@@ -171,7 +171,7 @@ one player's coordinates to another player standing somewhere else.
 
 ## 5. Access codes & claiming
 
-An **access code** (`access_code`, localised "SPS-Code" — a recovered *Scout & Pioneer Service* control
+An **access code** (`access_code`, localised "SPS-Code" — a recovered *Scout and Pioneer Service* control
 code) is a rare currency-like item, obtained two ways, both rare:
 
 - **World find:** as a rare drop inside treasure chests (§4).

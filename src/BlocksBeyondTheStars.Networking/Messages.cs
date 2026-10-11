@@ -2977,15 +2977,17 @@ public sealed class NpcGreeting
 /// <summary>
 /// Server → client: a line from the player's SHIP AI ("VEGA") shown in the HUD companion panel, plus the
 /// current onboarding/advisor objective for the objective chip. Lines are locale KEYS (the client localizes),
-/// keeping the AI fully bilingual and offline-safe; <see cref="LineArg"/> fills an optional {0} placeholder
-/// with a proper noun (world/item name). Strictly per-player — every player has their own VEGA.
+/// keeping the AI fully bilingual and offline-safe; <see cref="LineArg"/> fills the optional {0}, {1}… placeholders
+/// with proper nouns (world/item names), and <c>{key:Action}</c> tokens in the text are resolved client-side to the
+/// player's own control (#1077, #2463). Strictly per-player — every player has their own VEGA.
 /// </summary>
 public sealed class ShipAiLine
 {
     /// <summary>Locale key of the spoken line; empty ⇒ objective-only update (no new speech).</summary>
     public string LineKey { get; set; } = string.Empty;
 
-    /// <summary>Optional {0} substitution for the line (already a display string, e.g. a world name).</summary>
+    /// <summary>Optional substitutions for the line's {0}, {1}… slots — display strings (e.g. a world name), several
+    /// packed with U+001F (#1079, <c>VegaText.SplitArgs</c>).</summary>
     public string LineArg { get; set; } = string.Empty;
 
     /// <summary>LLM-authored display TEXT (VEGA banter) — when non-empty the client shows this verbatim
@@ -3005,9 +3007,10 @@ public sealed class ShipAiLine
 
     public int ObjectiveTarget { get; set; }
 
-    /// <summary>0 = onboarding, 1 = advisor hint, 2 = memory/story, 3 = system (module/ability notices),
-    /// 4 = prologue page (full-screen overlay), 5 = repeated context tip (#1077 — muted like 1, and dropped
-    /// by the client while its speech queue is busy).</summary>
+    /// <summary>0 = onboarding, 1 = advisor hint, 2 = memory/story, 3 = system (module/ability notices, never
+    /// muted), 4 = prologue page (shown in VEGA's speech panel like every line, with a dim or the staged camera orbit
+    /// behind it and a skip — #754/#760; the old full-screen overlay is gone), 5 = repeated context tip (#1077 — muted
+    /// like 1, and dropped by the client while its speech queue is busy).</summary>
     public byte Kind { get; set; }
 
     /// <summary>Where the chip's objective comes from (#2462) — one of <see cref="ObjectiveSources"/>. The client

@@ -516,7 +516,8 @@ public sealed partial class GameServer
 
     private void ShipAiOnTravelled(PlayerSession session)
     {
-        // Only counts once they've actually been to space — the join placement also "travels".
+        // Only counts once they've actually been to space: HandleTravel is also reached by the travel screen's quick
+        // travel, an admin's /goto and test paths, none of which is a landing after a flight.
         if (session.State.Milestones.Contains(VegaStageKey("launch")))
         {
             ShipAiComplete(session, "land");

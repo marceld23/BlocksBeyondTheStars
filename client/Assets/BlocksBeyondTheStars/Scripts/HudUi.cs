@@ -1250,7 +1250,7 @@ namespace BlocksBeyondTheStars.Client
                     string stationKey = (Game.NearbyStation == "cockpit" && Game.LoadingPlanetType == "ship_interior")
                         ? "ui.station.helm"
                         : $"ui.station.{Game.NearbyStation}";
-                    prompt = $"{loc.Get("ui.hud.use")}: {loc.Get(stationKey)}";
+                    prompt = $"{ExpandKeyTokens(loc, loc.Get("ui.hud.use"))}: {loc.Get(stationKey)}"; // "Press {key:Interact}" (#2463)
                     if (Game.NearbyStation == "cargo")
                     {
                         prompt += $"  ·  {loc.Get("ui.hud.stow_cargo")} ({InputMap.Glyph(InputAction.DepositToCrate)})";
@@ -1286,11 +1286,12 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else if (!string.IsNullOrEmpty(Game.AimedStationBlock))
                 {
-                    // #1073: "Workbench — crafting: menu (Tab) → Crafting" — the block names the tab it powers.
+                    // #1073: "Workbench — crafting: menu (Tab) → Crafting" — the block names the tab it powers; the menu
+                    // and use keys are {key:Action} tokens since #2463, so a pad or a tablet reads its own button.
                     // #2203: the bio lab has a panel of its own, so its prompt names the Interact glyph instead.
                     prompt = Game.AimedStationBlock == BlocksBeyondTheStars.Shared.Bio.BioItems.Lab
                         ? string.Format(loc.Get("ui.bio.prompt"), InteractGlyph(loc))
-                        : loc.Get("ui.station.block." + Game.AimedStationBlock);
+                        : ExpandKeyTokens(loc, loc.Get("ui.station.block." + Game.AimedStationBlock));
                 }
                 else if (Game.AimedCrystalDevice is { } crystalDev)
                 {
@@ -1303,7 +1304,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     // Standing on / beside an own or allied teleporter pad: the same reach PlayerController
                     // uses for the E press. The pad never announced itself before (#1560).
-                    prompt = loc.Get("ui.beam.use_hint");
+                    prompt = ExpandKeyTokens(loc, loc.Get("ui.beam.use_hint")); // "Press {key:Interact}: Transporter" (#2463)
                 }
                 else if (HoldingScanner() && Game.ScanTargetInView)
                 {
@@ -2201,6 +2202,33 @@ namespace BlocksBeyondTheStars.Client
 
             return GlyphText(loc, action);
         }
+
+        /// <summary>What a <c>{key:Action}</c> token in a locale string reads as (#2463) — one rule for VEGA's lines
+        /// (<see cref="VegaPanel"/>) and the HUD prompts: on a tablet the touch layout's own button for the action (USE,
+        /// MAP, ≡ …, <see cref="VegaText.TouchControlLabel"/>) or else the on-screen action menu; on a pad and the
+        /// keyboard <see cref="ActionGlyph"/> (the pad button or the Actions list, the bound key, mouse buttons by their
+        /// short names). A name that is no <see cref="InputAction"/> reads as itself, so a stale locale never shows
+        /// braces.</summary>
+        internal static string KeyTokenGlyph(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string action)
+        {
+            if (!System.Enum.TryParse<InputAction>(action, out var a))
+            {
+                return action;
+            }
+
+            if (InputMap.ActiveDevice == InputDeviceKind.Touch)
+            {
+                string touch = VegaText.TouchControlLabel(action, key => loc != null ? loc.Get(key) : key);
+                return touch ?? (loc != null ? loc.Get("ui.vega.key_touch") : action);
+            }
+
+            return loc != null ? ActionGlyph(loc, a) : InputMap.Glyph(a);
+        }
+
+        /// <summary>A HUD prompt with its <c>{key:Action}</c> tokens resolved by <see cref="KeyTokenGlyph"/> (#2463) —
+        /// "menu ({key:UiMenu})" reads "menu (Tab)", "menu (Menu)" on a pad and "menu (≡)" on a tablet.</summary>
+        internal static string ExpandKeyTokens(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string text)
+            => VegaText.ExpandKeyTokens(text, action => KeyTokenGlyph(loc, action));
 
         /// <summary>The jump control's name for a hint (#2290): the pad's bottom face button, the tablet's JUMP button or the
         /// keyboard's space bar. Jump is no rebindable action (the legacy "Jump" axis), so <see cref="InputMap.Glyph"/>

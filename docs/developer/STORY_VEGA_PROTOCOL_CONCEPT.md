@@ -159,8 +159,9 @@ one new entity; the finale is the one large new piece.
 keeping the engine **story-agnostic** (the active **story pack** supplies content + config; see the plan).
 
 ### Layer A — CONTENT as pure data (the "What") **[proposed]**
-A per-pack catalog `data/stories/<id>/lore.json`, one row per story atom (beat / net fragment / player memory
-/ flavour / mission / finale argument). Beats are an **ordered list** decoupled from which fragment was found.
+A per-pack catalog, one row per story atom (beat / net fragment / player memory / flavour / mission / finale
+argument) — as built, `data/stories/<id>/story.json` (site texts in `lore_sites.json`); there is no separate
+`lore.json`. Beats are an **ordered list** decoupled from which fragment was found.
 The canonical, generation-ready structure is [LORE_STRUCTURE.md](LORE_STRUCTURE.md).
 → **New story content = JSON rows + translation. No code.** Adding a whole new storyline = a new pack.
 
@@ -196,7 +197,8 @@ The canonical, generation-ready structure is [LORE_STRUCTURE.md](LORE_STRUCTURE.
 | ↓ | the dormant Guardian core; reactivation risk |
 | high | VEGA locates the Guardian system; the finale opens |
 
-(The existing 10 `ai_memory_fragment` beats map onto category `vega`.)
+(As built, the older 10-line `ai_memory_fragment` arc stays a separate per-player arc beside these beats; its
+texts were reconciled with the canon in #2463 — see [LORE_STRUCTURE.md](LORE_STRUCTURE.md) §D.)
 
 ---
 
@@ -264,7 +266,8 @@ spawn position + an in-radius aggression modifier in `GameServerEnemies` / `Game
 ## 11. World options / tuning
 Pacing (thresholds), density (weights), combat weighting and on/off are pure numbers — expose a
 **story-selection** control (pick the active pack, or **"None / Sandbox"**) + a **"Story density"** slider in
-world creation, admin live-editable. Reuses the existing world-rules model.
+world creation. Reuses the existing world-rules model. *As built:* both are creation-time options baked into the
+save's rules; the density is not live-editable, the active pack is switched by an admin (`StorySelectIntent`).
 
 ## 12. Recommended first slice (MVP)
 1. **Generic story engine + state + threshold beats** (Layer C) on top of `ai_memory_fragment`; a

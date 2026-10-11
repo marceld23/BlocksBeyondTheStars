@@ -86,6 +86,48 @@ namespace BlocksBeyondTheStars.Client
             return sb.ToString();
         }
 
+        /// <summary>The label of the menu button on the touch layout — a symbol, like the ◄ ► arrows beside it, so it
+        /// has no locale key (TouchControlsUi draws the same character).</summary>
+        public const string TouchMenuLabel = "≡";
+
+        /// <summary>
+        /// What a <c>{key:Action}</c> token reads as on a tablet (#2463): the label of the touch layout's own button for
+        /// that action (USE, MAP, FEED, ≡ …), resolved through <paramref name="localize"/> (<c>ui.touch.*</c> keys), or
+        /// null when the layout has no button for it — the caller then names the on-screen action menu. Keyed by the
+        /// <c>InputAction</c> name because this assembly cannot see the Unity enum; the pairs mirror the action wiring in
+        /// <c>TouchControlsUi.Build</c>.
+        /// </summary>
+        public static string? TouchControlLabel(string action, Func<string, string> localize)
+        {
+            string? key = action switch
+            {
+                "Interact" => "ui.touch.use",
+                "PlanetMap" or "FlightMap" => "ui.touch.map",
+                "FeedCreature" => "ui.touch.feed",
+                "PrimaryFire" => "ui.touch.attack",
+                "ToggleThirdPerson" => "ui.touch.view",
+                "RotateShape" => "ui.touch.rotate",
+                "FlightAutopilot" => "ui.touch.auto",
+                "FlightPadChooser" => "ui.touch.land",
+                "FlightEnterInterior" => "ui.touch.ship",
+                "FlightTargetNext" => "ui.touch.target",
+                "EvaDeployStation" => "ui.touch.deploy",
+                "SpeederBoost" => "ui.touch.boost",
+                "SpeederExit" => "ui.touch.exit",
+                "SpeederRefuel" => "ui.touch.fuel",
+                "VegaContinue" => "ui.touch.next",
+                "ContextActions" => "ui.touch.actions",
+                _ => null,
+            };
+
+            if (key != null)
+            {
+                return localize(key);
+            }
+
+            return action == "UiMenu" ? TouchMenuLabel : null;
+        }
+
         /// <summary>What a <c>{0}</c> slot reads as when a line is shown without its argument (the tips log, #2364:
         /// the milestones remember the key, not the wreck's name).</summary>
         public const string MissingArg = "…";

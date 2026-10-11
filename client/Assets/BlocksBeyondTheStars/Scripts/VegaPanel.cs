@@ -268,23 +268,11 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
-        /// <summary>Resolver for <c>{key:Action}</c> tokens in VEGA lines: the pad glyph or bound key for a
-        /// known action; on touch the on-screen action menu is the way to reach every toggle, so the token
-        /// reads as that menu. Unknown action names fall through as-is (VegaText drops to the name).</summary>
-        private string KeyGlyphFor(string action)
-        {
-            if (!System.Enum.TryParse<InputAction>(action, out var a))
-            {
-                return action;
-            }
-
-            if (InputMap.ActiveDevice == InputDeviceKind.Touch)
-            {
-                return L("ui.vega.key_touch");
-            }
-
-            return InputMap.Glyph(a);
-        }
+        /// <summary>Resolver for <c>{key:Action}</c> tokens in VEGA lines — the same rule the HUD prompts use
+        /// (<see cref="HudUi.KeyTokenGlyph"/>, #2463): the bound key or pad button for a known action, and on touch the
+        /// layout's own button (USE, MAP, ≡ …) or else the on-screen action menu, which reaches every other toggle.
+        /// Unknown action names fall through as-is (VegaText drops to the name).</summary>
+        private string KeyGlyphFor(string action) => HudUi.KeyTokenGlyph(Game != null ? Game.Localizer : null, action);
 
         /// <summary>A VEGA line composed the way the panel shows it — key glyphs resolved, slots filled or, without an
         /// argument, neutralised (#2364: the tips log re-reads lines whose argument the milestones no longer carry).</summary>
@@ -625,10 +613,10 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                // Story pages open the narrative: a flavour/advisor line that raced in FRONT of the
-                // prologue on join (the world-type hint fires on the join placement) would otherwise
-                // show first and stall the cinematic behind a keypress. Stable partition — prologue
-                // pages first, everything else after, both in their original order.
+                // Story pages open the narrative: a line that arrives in FRONT of the prologue on join —
+                // the join's beat catch-up (B0 "systems online", Kind 2) is sent before ShipAiOnJoin queues the
+                // prologue — would otherwise show first and stall the cinematic behind a keypress. Stable
+                // partition — prologue pages first, everything else after, both in their original order.
                 if (!_prologueStarted && !_queue.Peek().Prologue && QueueHasPrologue())
                 {
                     var story = new List<(string Text, bool Prologue, string Key)>();

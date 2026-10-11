@@ -230,8 +230,8 @@ public sealed class StoryCharacter
 /// <summary>
 /// A story pack: identity + pacing config + the ordered beat arc. The story engine consumes this and is
 /// completely story-agnostic, so further storylines are added as more packs (see the implementation plan
-/// D2–D4). For P0 a pack is code-defined in <see cref="StoryRegistry"/>; a later phase loads it from
-/// <c>data/stories/&lt;id&gt;/</c>.
+/// D2–D4). Packs load from <c>data/stories/&lt;id&gt;/story.json</c> (ContentLoader); the code-built pack in
+/// <see cref="StoryRegistry"/> is only the fallback when no pack file is installed.
 /// </summary>
 public sealed class StoryDefinition
 {

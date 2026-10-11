@@ -1685,8 +1685,9 @@ namespace BlocksBeyondTheStars.Client
         public string ServerTokenText(string text) => ResolveServerToken(text) ?? text;
 
         /// <summary>Generic resolution for "@srv.*" tokens: the token (minus '@') IS the locale key, an
-        /// optional ":arg" tail fills the template's {name} placeholder. New server messages use this
-        /// instead of growing the hand-written token maps below; returns null for anything else.</summary>
+        /// optional ":arg" tail fills the template's {name} placeholder, and <c>{key:Action}</c> tokens name the
+        /// player's own control (#2463 — the ship stations' "Cockpit — {key:Interact}: launch"). New server messages use
+        /// this instead of growing the hand-written token maps below; returns null for anything else.</summary>
         private string ResolveServerToken(string text)
         {
             if (string.IsNullOrEmpty(text) || !text.StartsWith("@srv.", System.StringComparison.Ordinal))
@@ -1709,6 +1710,7 @@ namespace BlocksBeyondTheStars.Client
                 return text;
             }
 
+            template = HudUi.ExpandKeyTokens(Localizer, template); // before the arg: a player-chosen name stays verbatim
             return arg != null ? template.Replace("{name}", arg) : template;
         }
 

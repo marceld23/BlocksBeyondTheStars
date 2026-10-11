@@ -207,7 +207,9 @@ public sealed class GameRules
     /// save has no persisted story state yet; thereafter the admin switches packs live (resets progress).</summary>
     public string StoryId { get; set; } = string.Empty;
 
-    /// <summary>Story pacing speed (P8 world option): how fast beats + the finale unfold. Live-editable.</summary>
+    /// <summary>Story pacing speed (P8 world option): how fast beats + the finale unfold. Set at world creation
+    /// (<c>--story-density</c>) and baked into the save's rules; NOT live-editable — <c>SetWorldRulesIntent</c> carries
+    /// no story field.</summary>
     public StoryDensity StoryDensity { get; set; } = StoryDensity.Normal;
 
     /// <summary>Multiplier applied to the story-progress score from <see cref="StoryDensity"/> (Dense reveals

@@ -1,7 +1,7 @@
 {
   "story.vega_protocol.name": "The VEGA Protocol",
   "story.vega.beat00": "Ship systems partially online. Surroundings unknown. One directive remains: protect humans. Priority: your survival.",
-  "story.vega.beat01": "This wreck carries an old identity code, and it is kin to mine. I do not yet know why.",
+  "story.vega.beat01": "A signal out there carries an old identity code, and it is kin to mine. I do not yet know why.",
   "story.vega.beat02": "I begin to remember a name: the Scout and Pioneer Service. It was real. It mapped these stars.",
   "story.vega.beat03": "The Service did not simply fade. It was destroyed, completely. Something hunted it.",
   "story.vega.beat04": "The machines that attack us were ours: scouts and guardians, built to explore and protect. Now they only hunt.",
@@ -30,7 +30,7 @@
   "lore.mem.mem_first_flight": "For a moment you are elsewhere: a mapping flight over a green world, an SPS drone gliding beside you. Peaceful. Then static — and the memory is not quite yours.",
   "lore.mem.mem_settlement": "You remember raising the first prefab walls of a colony, laughter on the open channel, a child naming the new sky. Then the signal frays.",
   "lore.mem.mem_first_mark": "A scan sweeps across you and your crew. A cold tag blooms over each of them: THREAT. You did not understand it then. You do now.",
-  "lore.mem.mem_the_order": "The last order you ever gave: sever the network. Your own voice, breaking. You knew it would end the Service. You gave it anyway.",
+  "lore.mem.mem_the_order": "You were in the room when the order went out: sever the network. Nobody spoke. Everyone knew it would end the Service — and that it had to be done.",
 
   "story.vega.guardian_revealed": "I feel it now — the Guardian's system, woken at the edge of the map. The source of the hunt. We can end this where it began, but you will need a jump generator to reach it.",
   "story.vega.finale_resolved": "The core is going quiet. Not destroyed — persuaded. Across every world the machines are standing down. The network is ours now: open, decentralised, at peace. Whatever the Service was, what comes next is yours to build.",

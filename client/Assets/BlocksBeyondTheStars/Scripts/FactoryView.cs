@@ -412,7 +412,8 @@ namespace BlocksBeyondTheStars.Client
             Color colour;
             if (f.Claimable && string.IsNullOrEmpty(f.OwnerId))
             {
-                label = Game.Localizer?.Get("ui.factory.claim_prompt") ?? "E: Claim with an access code";
+                // "{key:Interact}: Claim with an access code" — the use button of the device in hand (#2463).
+                label = HudUi.ExpandKeyTokens(Game.Localizer, Game.Localizer?.Get("ui.factory.claim_prompt") ?? "E: Claim with an access code");
                 colour = UiKit.Ok;
             }
             else

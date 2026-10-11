@@ -149,7 +149,7 @@ Last updated: 2026-10-04.
 | **V** | Toggle first / third-person camera |
 | **I** | Toggle **thermal vision** while looking through the thermal binoculars (see §5 → Binoculars) |
 | **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter; also opens the folded VEGA tab) — rebindable; gamepad **View** (Back), touch **NEXT ▶** |
-| **Tab** | Open / close the gameplay menu (Inventory, Crafting, Tech, Ship, Map, Missions, Character); also closes full-screen menu screens such as the Codex |
+| **Tab** | Open / close the gameplay menu (Inventory, Crafting, Blueprints, Ship, Map, Missions, Story, …, Settings); also closes full-screen menu screens such as the Codex |
 | **M** | Toggle the world map (top-down planet view; click to set a waypoint) — rebindable; touch **MAP** |
 | **Enter** | Open the chat box (Esc cancels) |
 | **J** | Hide / show the chat scrollback for this session (rebindable; see also Settings → Comfort → Chat display) |
@@ -183,7 +183,7 @@ buttons — retuning is tracked in issue #195):
 | **Menu** (☰ — the three-lines button right of the Xbox logo; Unity and 360-era pads call it Start. The Xbox-logo button itself belongs to Windows' Game Bar and never reaches the game) | Open / close the gameplay menu — its top strip has the **Pause menu** button (Resume / Settings / Quit, the same dialog **Esc** opens on the keyboard); **(B)** resumes |
 
 In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes back — that includes **every
-tab of the gameplay menu** (Inventory, Crafting, Tech, Ship, Map, Missions, Character, …), the Codex, the
+tab of the gameplay menu** (Inventory, Crafting, Blueprints, Ship, Map, Missions, Settings, …), the Codex, the
 Arcade, the landing-pad chooser (pick a pad with the stick, **(A)** lands, **(B)** cancels), trade and
 docking requests, the bandit demand, the blueprint / beacon / transporter windows, the bio lab, crystal devices,
 a storage crate's filter, the train cab, an NPC interview, and both maps. **(B)**
@@ -349,11 +349,11 @@ separate unlock; admins can still disable it through server world rules.
 
 ## 4. Menus & HUD
 
-- **Tab menu** — tabs for Inventory, Crafting, Tech (blueprints), Ship (modules/build), Map, Missions,
-  Character (appearance), plus **Story** (the story log, and a **Notes** category: up to 20 titled notes of your own,
-  saved with your character — `§0`–`§f` colours a span, `§l` makes it bold, `§r` resets), **Companions** (tamed
-  creatures, see §5), **Alliances** (see §5) and
-  **Achievements**, with **Settings** pinned far right. The **Achievements** tab opens with a **Progress** block —
+- **Tab menu** — tabs for Inventory, Crafting, Blueprints (research), Ship (modules/build), Map, Missions,
+  plus **Story** (the story log, and a **Notes** category: up to 20 titled notes of your own,
+  saved with your character — `§0`–`§f` colours a span, `§l` makes it bold, `§r` resets), **Creatures** (your tamed
+  companions, see §5), **Alliances** (see §5), **Achievements** and **Photos**, with **Settings** (your character's
+  look included) pinned far right. On a pad the menu opens with the **Menu** button, on a tablet with the **≡** button. The **Achievements** tab opens with a **Progress** block —
   research N of M blueprints, Codex discoveries (with a button straight into the Codex chapter, where every entry
   now names the planet and system it was first scanned on), story %, achievements done — and a **Journey** grid of your
   lifetime tallies (worlds visited, systems entered, blocks mined/placed, subjects scanned, missions …); the
@@ -771,7 +771,11 @@ players.
   rather than a bare "wrong tool". The first time a tier gate turns you away, VEGA explains it once.
   Tier-2 blocks (machine housings, factory terminals, titanium/platinum/tungsten and the rare ores) will not
   budge for the starter drill — and since titanium ore is itself tier 2, your first titanium comes from a
-  wreck, from loot or from **trade**, never from digging.
+  wreck, from loot or from **trade**, never from digging. The reliable road is open from the start: the **trade
+  console** aboard your ship (or any vendor) swaps **5 iron ore for 1 titanium ore**, and a **forge** — a
+  workbench craft that needs no blueprint — smelts **2 titanium ore into a titanium plate**. Six plates (plus
+  cable, energy cells and steel) and the cheap **Titanium Drill** blueprint, researched at the cockpit, get you the
+  drill that opens tier 2. VEGA's tip at the first tier gate names this route.
 - Some powered drills (titanium drill, mining beam) **draw suit energy with every swing**; with an empty
   suit the swing is refused. The basic and diamond drills need no energy, so you can always keep mining.
 - **A full backpack does not stop you.** When neither your inventory nor (while aboard) the cargo hold has
@@ -920,8 +924,8 @@ players.
   menu tab it powers. The Codex guide *Stations & the Tab menu* has the full table.
 - The **workshop** is your everyday bench: it smelts the common ores (iron, copper, gold, silver, …) into
   ingots and fabricates parts, tools, weapons and building blocks.
-- The **refinery** (the *forge* block on a base, or the refinery ship module — both unlocked via Tech) is
-  the high-heat metallurgy station. It alone smelts the **rare Tier-2 metals** (titanium, cobalt, tungsten,
+- The **refinery** (the *forge* block — a workbench craft from stone and iron plates that needs **no blueprint** —
+  or the refinery ship module, which is a blueprint) is the high-heat metallurgy station. It alone smelts the **rare Tier-2 metals** (titanium, cobalt, tungsten,
   platinum, uranium, neodymium) and refines diamond, carbide and reactor fuel. It also offers **higher-yield
   smelts** of the common ores (e.g. iron and copper) than the workshop — handy for bulk metalwork. You can
   never need it before you can build it: its metals are also the ones that need a titanium-tier drill to mine.
@@ -954,7 +958,7 @@ players.
   door places nothing — it only reminds you how that door opens — and nothing can be built into a doorway (no block,
   no second door: *"A door is standing there."*). A door hangs along the wall beside it; flowers or grass in front
   of the doorway don't count as wall.
-- The **transmuter** (the *matter forge* block or ship module, unlocked via Tech) compacts spare terrain
+- The **transmuter** (the *matter forge* block or ship module, both unlocked as a blueprint) compacts spare terrain
   (sand, dirt, stone, …) into *matter dust* and synthesises it back into ore — a sink for surplus digging.
   With the **matter resynth** blueprint it also rebuilds titanium, silver and cobalt ore and lithium from dust
   plus a power cell. The endgame ores (tungsten, platinum, neodymium, uranium, diamond) stay **mining-only**.
@@ -1067,9 +1071,12 @@ players.
   pad**. Repair it through this same flow — restore the hull and refill every missing cell and it can fly again.
 
 ### VEGA — the ship AI
-- **Onboarding (new worlds):** VEGA guides you through an 8-stage chain (mine → craft → scan → unlock a
+- **Onboarding (new worlds):** VEGA guides you through a 9-stage chain (mine → craft → eat → scan → unlock a
   blueprint → launch → dock a station → trade/take a mission → land elsewhere), each stage tracked on the
   objective chip. **Skippable and restartable** from the Settings tab; veteran saves skip automatically.
+  - VEGA's lessons — and the prompts at the ship's cockpit, workshop, cargo hold and console, the crafting
+    stations, the bed, the heal tank, the transporter pad and a factory terminal — name the control of the device
+    you are using: the key you bound, the pad button, or on a tablet the on-screen button (USE, MAP, ≡ …).
   - A **new player on someone else's world** gets the full introduction even when that world is already deep
     into the story (the old "veteran" check counted the story knowledge the join itself had just handed over).
   - **Restart** runs the lessons again for anyone, experienced players included — without the opening narration.
@@ -1234,7 +1241,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Name it**: rename a station you built from **Tab → Map** (select it → **Rename**), or by pressing **E**
   on the **station core** while standing inside your own station. Only the owner can rename it.
 - **SPS relay** (late game): any commissioned player station can be converted into a relay of the old
-  Stellar Positioning Service — select it on **Tab → Map** and **deliver** the bill of materials in person
+  Scout and Pioneer Service — select it on **Tab → Map** and **deliver** the bill of materials in person
   (bulk metal plates, circuit boards, reactor fuel from the refinery). The meter is shared: friends can chip
   in. Two finished relays in **neighbouring systems** form a **jump lane** — hyperjumps between those two
   systems need **no jump generator**; lane routes carry a **⇄** mark on the Map. The network changes the
@@ -1377,7 +1384,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   it), so you can see where the signal comes from and where it goes; when it is OFF the line is dark. A network is
   ON as soon as any one of its **sources** says ON. Think of it as a little bit of redstone, made for kids: no
   strengths, no colours, nothing hidden — you can see the whole state by looking at the wire.
-- **Getting started.** Research **Crystal Net** in the tech tree (Crystal Net tab, after the comm radio) and
+- **Getting started.** Research **Crystal Net** in the Blueprints tab (Crystal Net category, after the comm radio) and
   craft at a workshop — every part needs a **crystal**. The first blueprint gives you the conduit, the
   **switch**, the **button** and the **step plate**; the sensors (together with the **Device Eye**), the logic
   blocks, the sound devices and each machine have blueprints of their own in the same tab.
@@ -2196,11 +2203,11 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   aggressive ones turn on you; placid grazers forgive mistakes. Exotic (cave/lava/flying), glowing and oversized
   creatures need more steps — and two animals of the same kind can behave differently.
 - A companion **lives on the world you tamed it on**: it follows you there (friendly green-cyan tint + a floating
-  name), re-appears whenever you return, and is hidden elsewhere. Manage them in the **Companions** menu tab
+  name), re-appears whenever you return, and is hidden elsewhere. Manage them in the **Creatures** menu tab
   (rename, **feed**, release — each with a **bond bar**). Companions are peaceful and can't be hurt — nobody can
   attack one, yours or anyone else's (a tamer's pet included).
 - **Feed & bond:** every companion has a **bond** (0–100; a fresh tame starts around 40–60). **Feed** it from the
-  Companions tab — any bait (forage, meat or nectar) will do, one meal a minute, **+5 bond** each. Feeding
+  Creatures tab — any bait (forage, meat or nectar) will do, one meal a minute, **+5 bond** each. Feeding
   happens **in person**: the animal has to be on your world within about six blocks of you, otherwise the
   Feed button is greyed out — and the
   number buys three things: at **50** it **fetches from a wider circle** (half again as far), at **70**

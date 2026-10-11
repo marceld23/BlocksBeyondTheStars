@@ -53,6 +53,17 @@ Style rules:
 
 - Kid-friendly tone, informal address (German "du", French "tu", Spanish "tú").
 - Keep UI strings short — panels do not grow. One English word → one translated word if possible.
+- Never name a key in the text ("press Tab", "E at the cockpit"): write the `{key:Action}` token instead
+  (`{key:UiMenu}`, `{key:Interact}`, `{key:PlanetMap}`, …). The game shows the player's own binding, the pad
+  button, or on a tablet the on-screen button (USE, MAP, ≡) — a literal key is wrong on two of three devices
+  (#2463). VEGA's lines, the HUD prompts (the ship stations, crafting stations, bed, heal tank, transporter pad,
+  factory terminal) and every `@srv.*` server message expand tokens; other texts (item descriptions, the space
+  flight prompts, buttons like "Launch (E)") do not yet and must keep naming the key until their screen expands
+  tokens — a token there would show up literally.
+- VEGA's speech panel holds about 220 characters per page. English and German VEGA lines (`vega.*`, and
+  `story.vega.*` in the story pack) stay within one page: at most 220 shown characters in English and 264 in
+  German (+20 %), counting a `{key:…}` token as 3 characters and a `{0}` slot as 10 (`VegaLineBudgetTests`).
+  Aim for the same in other languages; a longer line pages instead of being cut off.
 - Proper names stay: VEGA, Blocks Beyond the Stars. Translate game terms consistently
   (build a small glossary first: blueprint, knowledge, suit energy, airlock, …).
 
