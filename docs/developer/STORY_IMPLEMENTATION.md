@@ -116,10 +116,21 @@ progress (1 > 0 %, 2 ≥ 33 %, 3 ≥ 66 %); **4 is the win alone** (#2460) — i
   and `SelectActiveStoryRow` picks: rows of installed packs (or `none`) over unknown ones → the active marker →
   the newest stamp → for older saves the fresh-save choice, else `none`, else the default pack. A row of an
   uninstalled pack never costs real progress. Additive JSON fields — no save-version bump.
+- **A pack that fails to load (#2489).** `ContentLoader.LoadStoryPacks` reads each pack folder under its own
+  error handling: a `JsonException`/`IOException` in `story.json`, `lore_sites.json` or `cutscenes.json` is reported
+  through the loader's `error` callback (the dedicated server logs it as an ERROR naming the pack folder and the file)
+  and skips the whole pack, its locale files included — one malformed pack used to abort the whole content load. The
+  skipped folder names (and the id, when the manifest parsed) land in `GameContent.FailedStoryPacks`. If the save's
+  own story is such a pack (the row `SelectActiveStoryRow` would pick with it installed, or a fresh save's rule), the
+  server runs the default story for the session but `PersistStoryState` writes nothing (`_storyRowHeldFor`), so a
+  restart with the pack repaired carries on with the save's own row; an admin's story switch ends the hold (and
+  deactivates the held row like any switched-away one). A pack that is simply not installed keeps the old rule.
 - **Observers.** A fleet admin in observer mode (`/spectate`) is not a story listener (`StoryListeners()`): no
   beats, story lines, finale rewards or VEGA tick while observing; `MarkArrivedOnBody` books a `/goto` arrival
   silently (no milestone, no frontier growth, no knowledge); `player_near` never names them. `ExitSpectate`
-  runs the catch-up.
+  runs the catch-up. Since #2493 a **visible** fleet admin's `/goto` is booked the same way (`HandleTravel`'s
+  `adminTeleport`: no hyperjump achievement or milestone, `MarkArrivedOnBody(silent: true)`); the admin's finale
+  shortcut (`goto_core`), which drives the arc on purpose, keeps the full arrival.
 
 ## VEGA as its own pack: prologue, story track, held content, chapters, migration (#2470)
 
@@ -527,7 +538,7 @@ drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_
 | `hyperjump:any` | destination system id | a jump between systems (travel screen or in flight) | `GameServer.cs` (`HandleTravel`), `GameServerSpaceCombat.cs` (`JumpFlightToSystem`) |
 | `module:built` | module key | a ship module built | `GameServerSpaceCombat.cs` |
 | `ship:commissioned` | ship id | a self-built ship commissioned | `GameServerCustomShips.cs` |
-| `station:commissioned` | station id | a player station commissioned — raised for its **owner** (online), like the achievement | `GameServerPlayerStations.cs` |
+| `station:commissioned` | station id | a player station commissioned — raised for its **owner** (online), like the achievement; an offline owner gets the message and the achievement at the next join (`station:told:<id>`, #2492), not this event | `GameServerPlayerStations.cs` |
 | `base:founded` | body id | a base core placed | `GameServerBases.cs` (`PlaceBase`) |
 | `tame:any` | species id (`au_sreekmakra`) | a creature tamed; the shapeshifter following a tame raises its own | `GameServerTaming.cs`, `GameServerSreekmakra.cs` (`BondSreekmakra`) |
 | `loot:any` | container kind | a world container looted empty (never a player crate) | `GameServerContainers.cs` |
@@ -557,7 +568,7 @@ drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_
 | `mine:refused` | block key | a swing refused by the tool tier while a better tool exists (where the `tier_gate` tip is armed) | `GameServerShipAiContext.cs` (`NoteTierGate`) |
 | `data:found` | `cache` \| `fragment` | a data cache in the advisor probe's reach, or a data fragment in the backpack or the own ship's hold (1 Hz, only while a step listens) | `GameServerShipAiContext.cs` (`TickVegaContextTips`), `GameServerTutorial.cs` |
 | `flight:flown` | — (whole flight units) | the own ship flying (a pose jump over 60 units — a hyperjump, a warp, a fresh entry — never counts) — measured only while a step listens | `GameServerSpaceCombat.cs` (`ShipMove`) → `TutorialFlightEvents` |
-| `mission:board_accepted` | mission id | a job the player picked: a board's or a mission chain's (`MissionAcceptCountsAsTrade`, B58 — never a story character's errand) | `GameServerMissions.cs`, `GameServerMissionChains.cs` |
+| `mission:board_accepted` | mission id | a job the player picked: a board's, a mission chain's or a stand-alone board job taken at a board (`MissionAcceptCountsAsTrade`, B58; #2491: `supply_cables` — never a story character's errand) | `GameServerMissions.cs`, `GameServerMissionChains.cs` |
 | `visit:world` | body id | the first arrival on a planet, moon or asteroid (`visit:body` counts stations too) | `GameServer.cs` (`MarkArrivedOnBody`) |
 | **#2479 — the deep dives "Research" and "Flying"** | | | |
 | `minigame:played` | game key | a finished run of a DataQube game from the catalogue (a replay too; an abandoned run never) | `GameServerDataCubes.cs` (`HandleMinigameResult`) |
@@ -752,7 +763,12 @@ restarts the clock:
 `hintAfter` (default 180 s) → the step's `hintKey` line; `markerAfter` (360 s) on a "where" step (one with
 `onStart.reveal`) → a **private ping** at the provider's target (`nearest_ore:<block>`: the nearest such block in a 33³
 probe; `nearest_settlement`) that only this session sees — RAM, 30 s, never persisted, never broadcast, never
-`RevealPoi` (`GameServer.RaisePrivatePing`, `ServerPing.SessionId`) — plus `vega.step.marked`; nothing found → no ping;
+`RevealPoi` (`GameServer.RaisePrivatePing`, `ServerPing.SessionId`) — plus `vega.step.marked`; nothing found → no ping
+and the marker is **not spent** (#2490: `StepEscalationState.MarkerSent` is set only when a marker went up; a miss records
+`MarkerMissAt` — the player's place as `ground|space|station` + body — and `MarkerMissTime`, and the probe runs again at
+once on a new place or after `MarkerRetrySeconds` = 30 s of play on the same one — at most one probe per 30 s per chip
+step). This is what lets the story mission's observatory marker (`unique_site:*` answers only on the site's own world)
+wait for the landing there instead of being wasted off-site;
 `offerSkipAfter` (600 s) on a `must` step → `vega.step.offer_skip`. Pack defaults in `escalate`, per-step override; `0`
 switches a stage off.
 

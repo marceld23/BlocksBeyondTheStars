@@ -165,10 +165,12 @@ public sealed class MissionDefinition
     public string MinStage { get; set; } = string.Empty;
 
     /// <summary>Where the step surfaces: board (default — at a mission board) | dialog (handed out in
-    /// conversation through the <c>mission:&lt;id&gt;</c> consequence) | radio (offered anywhere).</summary>
+    /// conversation through the <c>mission:&lt;id&gt;</c> consequence) | radio (offered anywhere). On a mission that is no
+    /// chain step only an explicit <c>board</c> means something (#2491, supply_cables): offered and accepted at a mission
+    /// board of its <see cref="OfferAt"/> kind only; empty keeps a stand-alone mission available anywhere.</summary>
     public string Surface { get; set; } = string.Empty;
 
-    /// <summary>Which kind of place offers a board step: settlement (default) | station | any.</summary>
+    /// <summary>Which kind of place offers a board step (or a stand-alone board job): settlement (default) | station | any.</summary>
     public string OfferAt { get; set; } = string.Empty;
 
     /// <summary>Story flag the world must have reached before this mission is offered at all (#1213):

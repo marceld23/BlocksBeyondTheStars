@@ -400,6 +400,20 @@ public sealed class GameContent
     /// these (or "none"); the engine is story-agnostic, so adding a storyline is adding a pack.</summary>
     public IReadOnlyDictionary<string, StoryDefinition> Stories => _stories;
 
+    private HashSet<string> _failedStoryPacks = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>#2489: the story packs the loader skipped because a file of theirs could not be read — their folder names,
+    /// and their ids where the manifest parsed. Empty on a clean load.</summary>
+    public IReadOnlyCollection<string> FailedStoryPacks => _failedStoryPacks;
+
+    /// <summary>#2489: whether the pack <paramref name="id"/> is installed but failed to load (as opposed to not installed at
+    /// all) — the server then keeps the save's own story row instead of making the fallback story its active one.</summary>
+    public bool StoryPackFailedToLoad(string? id) => !string.IsNullOrEmpty(id) && _failedStoryPacks.Contains(id!);
+
+    /// <summary>Records the packs the loader had to skip (called by the content loader, #2489).</summary>
+    public void SetFailedStoryPacks(IEnumerable<string>? ids)
+        => _failedStoryPacks = new HashSet<string>((ids ?? Enumerable.Empty<string>()).Where(id => !string.IsNullOrEmpty(id)), StringComparer.OrdinalIgnoreCase);
+
     /// <summary>The SPS relay upgrade (#1125): costs + lane link range, or null when <c>data/relay.json</c>
     /// is absent — the feature then simply does nothing (the achievements pattern).</summary>
     public RelayDefinition? Relay { get; private set; }

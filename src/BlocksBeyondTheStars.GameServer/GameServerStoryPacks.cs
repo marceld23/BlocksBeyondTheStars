@@ -22,8 +22,16 @@ public sealed class StepEscalationState
     /// <summary>The hint line went out.</summary>
     public bool HintSent { get; set; }
 
-    /// <summary>The marker ping went out (or found nothing).</summary>
+    /// <summary>The marker went up (#2490: only then — a provider that found nothing retries).</summary>
     public bool MarkerSent { get; set; }
+
+    /// <summary>#2490: where the last marker probe found nothing (<see cref="GameServer"/>'s location key), or null before
+    /// the first miss. A new location retries at once.</summary>
+    public string? MarkerMissAt { get; set; }
+
+    /// <summary>#2490: <see cref="PlayerSession.StoryPackPlaySeconds"/> of the last miss — on the same spot the probe retries
+    /// after <c>MarkerRetrySeconds</c>.</summary>
+    public double MarkerMissTime { get; set; }
 
     /// <summary>The skip offer went out.</summary>
     public bool OfferSent { get; set; }
@@ -521,6 +529,18 @@ public sealed partial class GameServer
     /// stages then run across the new chapters.</summary>
     private static bool LegacyChapterPassable(PlayerSession s, CompiledChapter ch)
         => ch.Steps.Where(st => st.LegacyStageId is not null && StepCountsForChapter(st)).All(st => StepComplete(s, st));
+
+    /// <summary>Whether a non-optional chapter is through for the readers that ask "does the basic training still run?" —
+    /// the story start, the veteran path, the chip's tutorial flag and the banter gate (#2487): finished, or — for a client
+    /// without <c>packs1</c> in a tutorial — passable on its legacy MUST steps. Such a client can never finish the new
+    /// lessons, so without this the VEGA story never started for it. Nothing is written: the same player on a current
+    /// client later still gets the new lessons.</summary>
+    private static bool MandatoryChapterThrough(PlayerSession s, CompiledChapter ch)
+        => ChapterFinished(s, ch) || (!s.SupportsPacks && ch.Pack.IsTutorial && LegacyChapterPassable(s, ch));
+
+    /// <summary>Every non-optional chapter of the pack is through (<see cref="MandatoryChapterThrough"/>).</summary>
+    private static bool MandatoryChaptersThrough(PlayerSession s, CompiledPack pack)
+        => pack.Chapters.Where(c => !c.Optional).All(c => MandatoryChapterThrough(s, c));
 
     /// <summary>Whether a chapter runs for this player now.</summary>
     private bool ChapterRuns(PlayerSession s, CompiledChapter ch)
@@ -1494,9 +1514,10 @@ public sealed partial class GameServer
         return null;
     }
 
-    /// <summary>Whether a tutorial pack's mandatory part still runs for this player (the Settings button says "Skip").</summary>
+    /// <summary>Whether a tutorial pack's mandatory part still runs for this player (the Settings button says "Skip"). An
+    /// older client is through once its nine legacy lessons are (#2487, <see cref="MandatoryChapterThrough"/>).</summary>
     private bool TutorialPackRunning(PlayerSession s)
-        => PlayerPacks.Any(p => p.IsTutorial && PackRunsFor(s, p) && !p.Chapters.Where(c => !c.Optional).All(c => ChapterFinished(s, c)));
+        => PlayerPacks.Any(p => p.IsTutorial && PackRunsFor(s, p) && !MandatoryChaptersThrough(s, p));
 
     // ---------------------------------------------------------------------------------------------
     // The tick: offers and help escalation.
@@ -1583,10 +1604,16 @@ public sealed partial class GameServer
         return null;
     }
 
+    /// <summary>#2490: play seconds before a marker probe that found nothing tries again on the same body — at most one probe
+    /// per this many seconds per chip step (a new location tries at once).</summary>
+    internal const double MarkerRetrySeconds = 30.0;
+
     /// <summary>The help escalation of one chip step on active play time (synthesis §3.1): after <c>hintAfter</c> the hint
     /// line (an open CORE step of a non-optional chapter then stops blocking), after <c>markerAfter</c> a marker ping for
     /// this session only on a "where" step, after <c>offerSkipAfter</c> the skip offer on a MUST step. Each fires once
-    /// per session; progress restarts the clock.</summary>
+    /// per session; progress restarts the clock. A marker whose provider found nothing (the site is on another world, no
+    /// ore in reach yet) is not spent (#2490): it tries again when the player's location changes, or after
+    /// <see cref="MarkerRetrySeconds"/> on the same spot.</summary>
     private void EscalateStep(PlayerSession s, CompiledStep step)
     {
         if (!s.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
@@ -1612,10 +1639,17 @@ public sealed partial class GameServer
         }
 
         string reveal = step.Def.OnStart?.Reveal ?? string.Empty;
-        if (!esc.MarkerSent && markerAfter > 0 && open >= markerAfter && reveal.Length > 0)
+        if (!esc.MarkerSent && markerAfter > 0 && open >= markerAfter && reveal.Length > 0 && MarkerProbeDue(s, esc))
         {
-            esc.MarkerSent = true;
-            MarkRevealTarget(s, step, reveal);
+            if (MarkRevealTarget(s, step, reveal))
+            {
+                esc.MarkerSent = true;
+            }
+            else
+            {
+                esc.MarkerMissAt = MarkerLocationKey(s); // #2490: not spent — retried elsewhere or a little later
+                esc.MarkerMissTime = s.StoryPackPlaySeconds;
+            }
         }
 
         if (!esc.OfferSent && offerAfter > 0 && open >= offerAfter && step.Tier == StoryStepTiers.Must
@@ -1624,6 +1658,22 @@ public sealed partial class GameServer
             esc.OfferSent = true;
             SendPackLine(s, step.Pack, StepOfferSkipLine);
         }
+    }
+
+    /// <summary>#2490: whether a marker probe may run now — never tried, a new location since the last miss, or
+    /// <see cref="MarkerRetrySeconds"/> of play on the same spot.</summary>
+    private bool MarkerProbeDue(PlayerSession s, StepEscalationState esc)
+        => esc.MarkerMissAt is null
+           || !string.Equals(esc.MarkerMissAt, MarkerLocationKey(s), StringComparison.Ordinal)
+           || s.StoryPackPlaySeconds - esc.MarkerMissTime >= MarkerRetrySeconds;
+
+    /// <summary>#2490: where the player is for the marker retry — the body, and whether they are in flight above it or on a
+    /// station (a launch or a landing on the same body is a new place for the providers).</summary>
+    private string MarkerLocationKey(PlayerSession s)
+    {
+        string pid = s.State.PlayerId;
+        string where = InSpace(pid) ? "space" : InStation(pid) ? "station" : "ground";
+        return where + "|" + (s.CurrentLocationId ?? string.Empty);
     }
 
     /// <summary>The help marker of a "where" step: the nearest station becomes the client's space waypoint

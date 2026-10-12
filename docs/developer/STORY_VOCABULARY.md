@@ -153,7 +153,7 @@ amount.
 | `mine:refused` | A block refused the swing because the tool tier is too low (and a better tool exists). Arg: the block key. |
 | `minigame:played` | A finished run of a DataQube game from the shipped catalogue (every completed run, a replay too — the knowledge it pays is the handler's business). Arg: the game key. |
 | `mission:accepted` | A mission was accepted (board, chain step in conversation). Arg: the mission id. |
-| `mission:board_accepted` | A job the player picked was accepted: a mission board's or a mission chain's (never a story character's errand, never a pack's own bridge). Arg: the mission id. |
+| `mission:board_accepted` | A job the player picked was accepted: a mission board's, a mission chain's or a stand-alone board job such as the cable run (never a story character's errand, never a pack's own bridge). Arg: the mission id. |
 | `mission:turned_in` | A mission was turned in. Arg: the mission id. |
 | `module:built` | A ship module was built. Arg: the module key. |
 | `move:airborne` | The jetpack fired, or the glider's wing opened. Arg: `jetpack` or `glider`. |

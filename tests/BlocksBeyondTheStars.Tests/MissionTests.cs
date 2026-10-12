@@ -77,6 +77,8 @@ public sealed class MissionTests : IDisposable
         }
     }
 
+    /// <summary>A held delivery job (accepted at a board — #2491: supply_cables is a board job — or held from before that
+    /// rule) is turned in anywhere: the items are consumed, the reward paid, and the repeatable job can be taken again.</summary>
     [Fact]
     public void DeliverMission_ConsumesItems_AndPaysReward()
     {
@@ -85,9 +87,9 @@ public sealed class MissionTests : IDisposable
         {
             var p = server.Sessions[1].State;
             p.Inventory.Add("cable", 5, 99);
+            p.Missions.Add(new MissionProgress { MissionId = "supply_cables", Status = MissionStatus.Active, ObjectiveProgress = new() { 0 } });
+            int milestones = server.StorySnapshot.Milestones;
 
-            client.Send(NetCodec.Encode(new AcceptMissionIntent { MissionId = "supply_cables" }), DeliveryMode.ReliableOrdered);
-            server.Tick(0.1);
             client.Send(NetCodec.Encode(new TurnInMissionIntent { MissionId = "supply_cables" }), DeliveryMode.ReliableOrdered);
             server.Tick(0.1);
 
@@ -95,6 +97,7 @@ public sealed class MissionTests : IDisposable
             Assert.Equal(1, p.Inventory.CountOf("data_fragment"));  // reward granted
             // repeatable -> progress removed so it can be accepted again
             Assert.DoesNotContain(p.Missions, m => m.MissionId == "supply_cables");
+            Assert.Equal(milestones, server.StorySnapshot.Milestones); // #2491: a repeatable job does not move the story
         }
     }
 
@@ -106,15 +109,40 @@ public sealed class MissionTests : IDisposable
         {
             MissionResult? result = null;
             client.PayloadReceived += pl => { if (NetCodec.Decode(pl) is MissionResult r) result = r; };
+            server.Sessions[1].State.Missions.Add(new MissionProgress { MissionId = "supply_cables", Status = MissionStatus.Active, ObjectiveProgress = new() { 0 } });
 
-            client.Send(NetCodec.Encode(new AcceptMissionIntent { MissionId = "supply_cables" }), DeliveryMode.ReliableOrdered);
-            server.Tick(0.1);
             client.Send(NetCodec.Encode(new TurnInMissionIntent { MissionId = "supply_cables" }), DeliveryMode.ReliableOrdered);
             server.Tick(0.1);
             client.Poll();
 
             Assert.NotNull(result);
             Assert.False(result!.Success); // no cables delivered
+            Assert.Contains(server.Sessions[1].State.Missions, m => m.MissionId == "supply_cables"); // still held
+        }
+    }
+
+    /// <summary>#2491: the repeatable starter job supply_cables is a board job — away from a mission board only first_iron is
+    /// offered, and accepting the cable run is refused with the board text (an older client reads a sentence).</summary>
+    [Fact]
+    public void SupplyCables_AwayFromABoard_IsNotOffered_AndAcceptingItIsRefused()
+    {
+        var (server, client, repo) = Start("cables_away");
+        using (repo)
+        {
+            MissionResult? result = null;
+            client.PayloadReceived += pl => { if (NetCodec.Decode(pl) is MissionResult r) result = r; };
+            var visible = server.VisibleMissionIdsForTest("Pilot");
+            Assert.Contains("first_iron", visible);
+            Assert.DoesNotContain("supply_cables", visible);
+
+            client.Send(NetCodec.Encode(new AcceptMissionIntent { MissionId = "supply_cables" }), DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+            client.Poll();
+
+            Assert.NotNull(result);
+            Assert.False(result!.Success);
+            Assert.Equal("@srv.mission.board_settlement", result.Reason);
+            Assert.DoesNotContain(server.Sessions[1].State.Missions, m => m.MissionId == "supply_cables");
         }
     }
 

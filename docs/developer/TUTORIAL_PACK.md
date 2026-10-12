@@ -404,7 +404,12 @@ room and the wall ring all accept own or allied bases — `AreAllied` answers bo
 `base:sealed` and `base:walled` are state checks: the 1 Hz `TutorialStateEvents` pass runs them only while one of the
 player's own active steps waits for them (`StepWaitsFor`), on the player's own world — the air model (`RefreshBaseAir`, a
 supplied sealed room of a base the player owns or shares) and the wall model (`RefreshBaseWalls`: the player's feet in a
-fenced-in part of such a base) are the ones the game already runs, with their own caches.
+fenced-in part of such a base) are the ones the game already runs, with their own caches. The wall model's one outside-in
+fill answers every yard, courtyard **and room**, so on its own it also counted the room just sealed in c7.5 (c7.6 then
+completed in the same pass) and a closed cave near the base; since #2488 the lesson's check (`StandsInOwnOrAlliedYard`, not
+the animals' spawn rule) also wants **open sky** over the feet — nothing solid in the 32 loaded cells above the head
+(`OpenSkyAbove`, a taller `Sheltered` scan; an unloaded cell counts as open). The c7.6 hint says so ("stand under the open
+sky inside the ring").
 
 Left out of the synthesis' tables (the issue's scope, and every do step of a course counts): C1.4–C1.6 (crates, taking things
 apart, a workbench — the workbench needs steel and bronze) and C1.7's "upgrades use up the old tool" (not true for the
@@ -628,6 +633,13 @@ The legacy tutorial mode: the pack's start sends the old intro lines (`vega.intr
 shows `vega.obj.<id>` exactly while such a step owns it, and steps without a legacy key do not run (so the pack is not done
 for such a client — it finishes the new lessons once updated). The nine old lessons therefore run in the new order: eat,
 mine, craft, scan, unlock, launch, dock, trade, land.
+
+For such a client the nine old lessons **are** the basic training (#2487): a mandatory chapter whose legacy MUST steps are
+done counts as through (`MandatoryChapterThrough` — the same `LegacyChapterPassable` that lets it walk on to the next
+chapter) wherever the server asks "does the training still run?": the VEGA story's start rule (`StoryStartConditionHolds`,
+so the track starts with the reason "basic training through or off"), the veteran path (`TutorialPackRunning`), the chip's
+tutorial flag and the `banter` gate. Without it the story never started for an older client and VEGA never chatted. Nothing
+is written: the same player on a current client later gets the new lessons (the story keeps running).
 
 ### The Journal, settings, skip, replay (#2471)
 

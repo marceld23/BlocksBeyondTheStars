@@ -295,6 +295,11 @@ English and German, budgets — the list is in [TUTORIAL_PACK.md → Validation]
 [CUTSCENES.md → Validation](CUTSCENES.md#validation). A pack outside `data/stories/` (a test fixture) is validated
 against the repository's data.
 
+A pack whose `story.json`, `lore_sites.json` or `cutscenes.json` is not valid JSON (or cannot be read) does not stop the
+game (#2489): the server logs an ERROR naming the pack folder and the file and leaves that pack out, its texts included;
+every other pack loads. A save whose world story is that pack runs the default story until the pack is fixed and keeps
+its own progress for then. Run the validator before you ship.
+
 A play-through test is the best proof that a pack works. `SideStoryPilotTests` is the template: boot a server with the
 pack, join a player, drive real handlers (`SetLampIntent`, `MineBlockOnce`, `SelectHotbarIntent`, `MoveIntent` …) or
 `RaiseGameEventForTest` for verbs that are hard to stage, and assert the milestones (`StoryPackKeys`), the chip

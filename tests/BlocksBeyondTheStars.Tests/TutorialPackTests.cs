@@ -500,6 +500,55 @@ public sealed class TutorialPackTests : IDisposable
         Assert.False(Has(p, StoryPackKeys.Done(Tutorial))); // the new lessons wait for a current client
     }
 
+    /// <summary>#2487: an older client never stamps a chapter done (it only passes on the old lessons), so the VEGA story —
+    /// which waits for the basic training — never started for it, and VEGA never chatted. The nine old lessons are its whole
+    /// training now: the story starts ("training through"), the banter gate opens — and no key is written, so the same
+    /// player on a current client still gets the new lessons, with the story kept running.</summary>
+    [Fact]
+    public void AnOlderClient_ThroughItsNineOldLessons_StartsTheStory_AndACurrentClientLaterGetsTheNewLessons()
+    {
+        const string vega = StoryRegistry.DefaultStoryId;
+        var transport = new RecordingTransport();
+        var server = Boot("legacy_story", transport, c => c.Rules.FreeSpaceFlight = true);
+        var p = Join(server, 1, "Old", packs: false);
+        Assert.False(Has(p, StoryPackKeys.Started(vega))); // the story waits for the training
+        Assert.False(server.TutorialGateForTest(p, StoryGateNames.Banter));
+
+        // All lessons but the last: still in training.
+        var played = WalkThrough(server, p, maxSteps: StoryLegacy.StageIds.Count - 1);
+        Assert.Equal(StoryLegacy.StageIds.Count - 1, played.Count);
+        Assert.False(Has(p, StoryPackKeys.Started(vega)));
+        Assert.Null(server.StoryTrackStartReasonForTest(p));
+        Assert.True(transport.To<ShipAiLine>(p).Last().TutorialActive);
+
+        // The ninth: the story track starts, for the training's reason; VEGA may chat.
+        WalkThrough(server, p);
+        Assert.Null(server.ChipStepForTest(p, Tutorial));
+        Assert.True(Has(p, StoryPackKeys.Started(vega)));
+        Assert.Equal(SvGameServer.StoryTrackReasons.Training, server.StoryTrackStartReasonForTest(p));
+        Assert.True(server.TutorialGateForTest(p, StoryGateNames.Banter));
+        Assert.False(transport.To<ShipAiLine>(p).Last().TutorialActive);
+
+        // Nothing written for it: the chapters with new lessons stay open, the pack is not done (b5 and b6 hold only old
+        // lessons as MUST steps — they complete by play, as before).
+        Assert.False(Has(p, StoryPackKeys.Done(Tutorial)));
+        foreach (string open in new[] { "b1", "b2", "b3", "b4" })
+        {
+            Assert.False(Has(p, StoryPackKeys.ChapterDone(Tutorial, open)), open);
+            Assert.False(Has(p, StoryPackKeys.ChapterSkipped(Tutorial, open)), open);
+        }
+
+        // The same player on a current client: the new lessons of the basic training are there, the story keeps running.
+        server.DisconnectLocalPlayerForTest(p.State.PlayerId);
+        var again = Join(server, 2, "Old");
+        string? chip = server.ChipStepForTest(again, Tutorial);
+        Assert.NotNull(chip);
+        Assert.StartsWith("b", chip);
+        Assert.True(string.IsNullOrEmpty(StepDef(chip!).LegacyKey)); // a new lesson, not one of the nine
+        Assert.True(Has(again, StoryPackKeys.Started(vega)));
+        Assert.False(server.TutorialGateForTest(again, StoryGateNames.Banter)); // a current client chats after graduating
+    }
+
     // ---------------- Migration ----------------
 
     [Fact]

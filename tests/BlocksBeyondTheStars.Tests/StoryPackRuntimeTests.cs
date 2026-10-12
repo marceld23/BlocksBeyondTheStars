@@ -462,6 +462,35 @@ public sealed class StoryPackRuntimeTests : IDisposable
         Assert.Empty(transport.To<ShipAiLine>(other).Where(l => l.LineKey == "story.runtime_test.a1.hint"));
     }
 
+    /// <summary>#2490: a marker probe that finds nothing is not spent — it used to be marked sent before the provider ran. It
+    /// tries again after <see cref="SvGameServer.MarkerRetrySeconds"/> on the same spot (never more often), and pings once the
+    /// ore is in reach.</summary>
+    [Fact]
+    public void AMarkerThatFindsNothing_IsNotSpent_AndPingsOnceTheOreIsInReach()
+    {
+        var (server, transport) = SideWorld("escalate_retry");
+        var p = SidePlayer(server, 1, "Pilot");
+        var pos = p.State.Position;
+        p.State.Position = new Vector3f(pos.X, pos.Y + 60, pos.Z); // high in the air: no stone within the probe's reach
+
+        transport.Sent.Clear();
+        server.TickStoryPacksForTest(p, 10); // markerAfter 10: the probe finds nothing — no line, no ping
+        Assert.DoesNotContain(SvGameServer.StepMarkedLine, transport.LineKeys(p));
+        Assert.DoesNotContain(server.VisibleMarkersForTest("Pilot"), m => m.Ping);
+
+        var at = p.State.Position.ToBlock();
+        server.World.SetBlock(new Vector3i(at.X + 3, at.Y, at.Z), _lastContent!.GetBlock("stone")!.NumericId);
+        server.TickStoryPacksForTest(p, (int)SvGameServer.MarkerRetrySeconds - 2); // the same spot: not yet probed again
+        Assert.DoesNotContain(SvGameServer.StepMarkedLine, transport.LineKeys(p));
+
+        server.TickStoryPacksForTest(p, 2); // the retry: the stone is in reach now
+        Assert.Single(transport.LineKeys(p), k => k == SvGameServer.StepMarkedLine);
+        Assert.Contains(server.VisibleMarkersForTest("Pilot"), m => m.Ping);
+
+        server.TickStoryPacksForTest(p, 90);
+        Assert.Single(transport.LineKeys(p), k => k == SvGameServer.StepMarkedLine); // spent once it went up
+    }
+
     [Fact]
     public void TheHelpClock_StandsStill_WhileTheWorldIsHeld()
     {

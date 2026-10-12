@@ -240,6 +240,14 @@ public sealed partial class GameServer
             return;
         }
 
+        // #2491: a stand-alone board job (supply_cables) is taken at a mission board only — the existing board texts, so an
+        // older client reads a sentence, not a key. A row already held stays (turned in anywhere, as before).
+        if (IsStandAloneBoardJob(def) && !StandAloneBoardJobHere(def, place, AtAnyMissionBoard(session.State)))
+        {
+            MissionFail(session, missionId, def.OfferAt == MissionChains.OfferAtStation ? "@srv.mission.board_station" : "@srv.mission.board_settlement");
+            return;
+        }
+
         session.State.Missions.Add(NewMissionProgress(session.State, def, place));
 
         // The board's quartermaster remembers that this player took a job from them (item 14).
@@ -267,12 +275,12 @@ public sealed partial class GameServer
     }
 
     /// <summary>Whether accepting this mission is a job the player picked (#2460, B58; since #2469 it raises
-    /// <c>mission:board_accepted</c>, the tutorial's board-job lesson): a job from a mission board or a chain step — the
-    /// dealing with people the lesson is about. The two starter jobs can be accepted anywhere from minute one, so accepting
-    /// one used to tick the old "trade" lesson off silently before the player ever met a trader; a story character's
-    /// mission is not a job either.</summary>
+    /// <c>mission:board_accepted</c>, the tutorial's board-job lesson): a job from a mission board, a chain step or a
+    /// stand-alone board job (#2491: supply_cables, taken at a board only) — the dealing with people the lesson is about.
+    /// The starter job first_iron can be accepted anywhere from minute one, so accepting it must not tick the lesson off
+    /// before the player ever met a trader; a story character's mission is not a job either.</summary>
     internal static bool MissionAcceptCountsAsTrade(MissionDefinition def)
-        => IsBoardMissionId(def.Id) || IsChainMission(def);
+        => IsBoardMissionId(def.Id) || IsChainMission(def) || IsStandAloneBoardJob(def);
 
     private void HandleTurnInMission(PlayerSession session, string missionId)
     {

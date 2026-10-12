@@ -734,7 +734,9 @@ public sealed class VegaChapterLeadsTests : IDisposable
         var workshop = _content.Missions.Values.Where(m => m.Id.StartsWith("crystal_workshop_", StringComparison.Ordinal)).ToList();
         Assert.Equal(6, workshop.Count);
         Assert.All(workshop, m => Assert.False(m.CountsForStory, m.Id));
-        Assert.All(_content.Missions.Values.Except(workshop), m => Assert.True(m.CountsForStory, m.Id));
+        var cables = _content.Missions["supply_cables"]; // #2491: the repeatable board job feeds no story either
+        Assert.False(cables.CountsForStory);
+        Assert.All(_content.Missions.Values.Except(workshop).Where(m => m != cables), m => Assert.True(m.CountsForStory, m.Id));
 
         var (server, _) = World("workshop", TutorialOff);
         var p = Join(server, 1, "Builder");

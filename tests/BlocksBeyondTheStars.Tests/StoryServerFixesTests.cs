@@ -443,6 +443,13 @@ public sealed class StoryServerFixesTests : IDisposable
         Assert.True(SvGameServer.MissionAcceptCountsAsTrade(new MissionDefinition { Id = "chain_needs_1", ChainId = "settlement_needs" }));
         Assert.False(SvGameServer.MissionAcceptCountsAsTrade(new MissionDefinition { Id = "first_iron" }));
         Assert.False(SvGameServer.MissionAcceptCountsAsTrade(new MissionDefinition { Id = "yara_errand" })); // a story character's job
+
+        // #2491: the cable run is a stand-alone board job (taken at a board only) — a real board accept; first_iron is not.
+        Assert.True(SvGameServer.MissionAcceptCountsAsTrade(_content.GetMission("supply_cables")!));
+        Assert.False(SvGameServer.MissionAcceptCountsAsTrade(_content.GetMission("first_iron")!));
+        Assert.False(_content.GetMission("supply_cables")!.CountsForStory); // repeatable: no story points
+        Assert.True(_content.GetMission("first_iron")!.CountsForStory);
+        Assert.True(string.IsNullOrEmpty(_content.GetMission("supply_cables")!.ChainId)); // a board job, not a chain step
     }
 
     // ---------------- N1/N2: an invisible observer leaves no story trace ----------------
@@ -562,6 +569,69 @@ public sealed class StoryServerFixesTests : IDisposable
             && x.Msg is ServerMessage m && m.Text.StartsWith("@srv.station.commissioned", StringComparison.Ordinal));
         Assert.True(alice.State.AchievementCounters.TryGetValue(AchievementCounters.StationCommissioned, out int a) && a == 1);
         Assert.False(bob.State.AchievementCounters.ContainsKey(AchievementCounters.StationCommissioned));
+        Assert.Contains(SvGameServer.StationToldMilestone(id), alice.State.Milestones); // #2492: told — never again at a join
+
+        // #2492: a station told live by an older build (no milestone back then) is not told again either — the counter knows.
+        alice.State.Milestones.Remove(SvGameServer.StationToldMilestone(id));
+        server.DisconnectLocalPlayerForTest("Alice");
+        transport.Sent.Clear();
+        var back = server.AddLocalPlayer("Alice");
+        Assert.DoesNotContain(transport.Sent, x => x.Msg is ServerMessage m && m.Text.StartsWith("@srv.station.commissioned", StringComparison.Ordinal));
+        Assert.Equal(1, back.State.AchievementCounters[AchievementCounters.StationCommissioned]);
+        Assert.Contains(SvGameServer.StationToldMilestone(id), back.State.Milestones);
+    }
+
+    /// <summary>#2492: an ally commissions the station while its owner is offline — the owner used to hear nothing and never
+    /// got "Station Master". Now the owner is told at their next join: the message and the achievement, exactly once.</summary>
+    [Fact]
+    public void AStationCommissionedWhileItsOwnerIsAway_IsToldAtTheOwnersNextJoin_Once()
+    {
+        var transport = new RecordingTransport();
+        var server = BootRecording("station_owner_away", transport, c =>
+        {
+            c.Rules.FreeSpaceFlight = true;
+            c.PlaceSettlements = false;
+            c.PlaceWrecks = false;
+        });
+        var alice = server.AddLocalPlayer("Alice");
+        var bob = server.AddLocalPlayer("Bob");
+        server.RequestAlliance("Alice", "Bob");
+        server.RespondAlliance("Bob", "Alice", accept: true);
+        server.EnterSpace("Alice");
+        server.EnterSpace("Bob");
+        alice.State.InEva = true;
+        alice.State.InstantBuild = true;
+        bob.State.InEva = true;
+        bob.State.InstantBuild = true;
+
+        server.DeployStationCoreForTest("Alice");
+        string id = server.OwnedStationIdForTest("Alice")!;
+        for (int i = 1; i <= 11; i++)
+        {
+            server.HandleStructureEditForTest("Alice",
+                new StructureEditIntent { StructureId = id, X = i, Y = 0, Z = 0, Mine = false, ItemKey = "iron_wall" });
+        }
+
+        server.DisconnectLocalPlayerForTest("Alice"); // the owner goes offline …
+        server.HandleStructureEditForTest("Bob", // … and the ally sets the airlock
+            new StructureEditIntent { StructureId = id, X = 0, Y = 1, Z = 0, Mine = false, ItemKey = "door_slide" });
+        Assert.True(server.StationIsBoardableForTest(id));
+        Assert.DoesNotContain(transport.Sent, x => x.Msg is ServerMessage m && m.Text.StartsWith("@srv.station.commissioned", StringComparison.Ordinal));
+
+        transport.Sent.Clear();
+        var back = server.AddLocalPlayer("Alice");
+        Assert.Single(transport.Sent, x => x.Conn == back.ConnectionId
+            && x.Msg is ServerMessage m && m.Text == "@srv.station.commissioned:Alice's Station");
+        Assert.Equal(1, back.State.AchievementCounters[AchievementCounters.StationCommissioned]);
+        Assert.Contains("station_master", back.State.Achievements);
+        Assert.False(bob.State.AchievementCounters.ContainsKey(AchievementCounters.StationCommissioned));
+
+        // Once: the next join says nothing.
+        server.DisconnectLocalPlayerForTest("Alice");
+        transport.Sent.Clear();
+        var again = server.AddLocalPlayer("Alice");
+        Assert.DoesNotContain(transport.Sent, x => x.Msg is ServerMessage m && m.Text.StartsWith("@srv.station.commissioned", StringComparison.Ordinal));
+        Assert.Equal(1, again.State.AchievementCounters[AchievementCounters.StationCommissioned]);
     }
 
     // ---------------- N4: the spawn system and the ending ----------------

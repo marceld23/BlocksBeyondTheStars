@@ -48,7 +48,7 @@ if (appliedOverrides.Count > 0)
 GameContent content;
 try
 {
-    content = ContentLoader.LoadFromDirectory(dataDir, userContentDir, logger.Warn);
+    content = ContentLoader.LoadFromDirectory(dataDir, userContentDir, logger.Warn, error: logger.Error); // #2489: a broken story pack logs an error and is skipped
     logger.Info($"Loaded content: {content.Blocks.Count} blocks, {content.Items.Count} items, {content.Recipes.Count} recipes, {content.Planets.Count} planets.");
     if (userContentDir != null && Directory.Exists(userContentDir))
     {

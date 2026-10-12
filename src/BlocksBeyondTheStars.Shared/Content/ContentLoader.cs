@@ -34,8 +34,11 @@ public static class ContentLoader
     /// one <see cref="StructureTemplate"/> per file) are merged into the pools — so a structure built
     /// in-game appears in the next new world without a Python merge or rebuild.
     /// <para>#1522: only the English locale table and <paramref name="eagerLocale"/> are parsed here; every
-    /// other locale parses on its first <see cref="GameContent.CreateLocalizer"/>.</para></summary>
-    public static GameContent LoadFromDirectory(string dataDir, string? userContentDir = null, Action<string>? warn = null, GameLocale? eagerLocale = null)
+    /// other locale parses on its first <see cref="GameContent.CreateLocalizer"/>.</para>
+    /// <para>#2489: a story pack whose files cannot be read is skipped with its texts and reported through
+    /// <paramref name="error"/> (falls back to <paramref name="warn"/>); the rest of the content loads.</para></summary>
+    public static GameContent LoadFromDirectory(string dataDir, string? userContentDir = null, Action<string>? warn = null, GameLocale? eagerLocale = null,
+        Action<string>? error = null)
     {
         if (!Directory.Exists(dataDir))
         {
@@ -70,7 +73,8 @@ public static class ContentLoader
 
         // Pluggable story packs: data/stories/<id>/story.json + each pack's optional locale files (merged
         // into the shared locale tables so the beat text localizes normally).
-        var stories = LoadStoryPacks(Path.Combine(dataDir, "stories"), localeFiles, warn);
+        var failedPacks = new List<string>();
+        var stories = LoadStoryPacks(Path.Combine(dataDir, "stories"), localeFiles, warn, error ?? warn, failedPacks);
 
         var locales = new Dictionary<GameLocale, Dictionary<string, string>>();
         var lazyLocales = new Dictionary<GameLocale, Func<Dictionary<string, string>>>();
@@ -118,6 +122,7 @@ public static class ContentLoader
 
         content.SetStructureKits(kits, warn);
         content.SetStories(stories);
+        content.SetFailedStoryPacks(failedPacks);
 
         // Achievements are optional content: a data folder without the file just has none.
         content.SetAchievements(LoadArray<AchievementDefinition>(Path.Combine(dataDir, "achievements.json")));
@@ -379,9 +384,13 @@ public static class ContentLoader
     /// yields no packs (the content then falls back to the built-in default pack).
     /// <para>#2465 (B70): the folders load in ordinal name order — <c>Directory.GetDirectories</c> returns them in an
     /// OS-dependent order, and the order decides which pack's text wins a shared locale key. A pack with a reserved id
-    /// is skipped and a repeated id is reported (the later folder wins).</para></summary>
+    /// is skipped and a repeated id is reported (the later folder wins).</para>
+    /// <para>#2489: a pack whose <c>story.json</c>, <c>lore_sites.json</c> or <c>cutscenes.json</c> cannot be read or parsed is
+    /// reported through <paramref name="error"/> (pack folder and file) and skipped as a whole, its locale files included —
+    /// one malformed pack used to abort the whole content load. Its folder name (and its id, when the manifest parsed) goes
+    /// to <paramref name="failed"/>, so the server can tell "this save's pack failed to load" from "not installed".</para></summary>
     private static List<StoryDefinition> LoadStoryPacks(string storiesDir, Dictionary<GameLocale, List<string>> localeFiles,
-        Action<string>? warn = null)
+        Action<string>? warn, Action<string>? error, List<string> failed)
     {
         var result = new List<StoryDefinition>();
         if (!Directory.Exists(storiesDir))
@@ -398,34 +407,68 @@ public static class ContentLoader
                 continue;
             }
 
-            var def = JsonSerializer.Deserialize<StoryDefinition>(File.ReadAllText(storyFile), JsonOptions);
-            if (def is null || string.IsNullOrEmpty(def.Id))
+            string folder = Path.GetFileName(dir);
+            string reading = storyFile;
+            StoryDefinition? def = null;
+            void Skip(Exception ex)
             {
-                continue;
+                failed.Add(folder);
+                if (!string.IsNullOrEmpty(def?.Id))
+                {
+                    failed.Add(def!.Id);
+                }
+
+                error?.Invoke($"Story pack '{folder}' could not be loaded (stories/{folder}/{Path.GetFileName(reading)}: {ex.Message}) — "
+                              + "the pack and its texts are skipped.");
             }
 
-            if (StoryRegistry.IsReservedPackId(def.Id))
+            try
             {
-                warn?.Invoke($"Story pack '{Path.GetFileName(dir)}' uses the reserved id '{def.Id}' — skipped.");
+                def = JsonSerializer.Deserialize<StoryDefinition>(File.ReadAllText(storyFile), JsonOptions);
+                if (def is null || string.IsNullOrEmpty(def.Id))
+                {
+                    continue;
+                }
+
+                if (StoryRegistry.IsReservedPackId(def.Id))
+                {
+                    warn?.Invoke($"Story pack '{folder}' uses the reserved id '{def.Id}' — skipped.");
+                    continue;
+                }
+
+                // Environmental lore texts (#1111) live in their own file — story.json stays the arc, this is
+                // the (larger, contributor-friendly) site-text table. Absent file → whatever story.json holds.
+                reading = Path.Combine(dir, "lore_sites.json");
+                if (File.Exists(reading)
+                    && JsonSerializer.Deserialize<List<Story.LoreSite>>(File.ReadAllText(reading), JsonOptions) is { } sites)
+                {
+                    def.LoreSites.AddRange(sites);
+                }
+
+                // Cutscenes (#2467) live in their own file too: shots, captions and options per scene.
+                reading = Path.Combine(dir, "cutscenes.json");
+                def.Cutscenes.AddRange(LoadPackCutscenes(dir));
+            }
+            catch (JsonException ex)
+            {
+                Skip(ex);
+                continue;
+            }
+            catch (IOException ex)
+            {
+                Skip(ex);
+                continue;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Skip(ex);
                 continue;
             }
 
             if (!seen.Add(def.Id))
             {
-                warn?.Invoke($"Story pack id '{def.Id}' is used by more than one folder — '{Path.GetFileName(dir)}' replaces the earlier one.");
+                warn?.Invoke($"Story pack id '{def.Id}' is used by more than one folder — '{folder}' replaces the earlier one.");
             }
-
-            // Environmental lore texts (#1111) live in their own file — story.json stays the arc, this is
-            // the (larger, contributor-friendly) site-text table. Absent file → whatever story.json holds.
-            var loreFile = Path.Combine(dir, "lore_sites.json");
-            if (File.Exists(loreFile)
-                && JsonSerializer.Deserialize<List<Story.LoreSite>>(File.ReadAllText(loreFile), JsonOptions) is { } sites)
-            {
-                def.LoreSites.AddRange(sites);
-            }
-
-            // Cutscenes (#2467) live in their own file too: shots, captions and options per scene.
-            def.Cutscenes.AddRange(LoadPackCutscenes(dir));
 
             result.Add(def);
 

@@ -372,8 +372,8 @@ public sealed partial class GameServer
     /// <summary>The pack's <c>start.after</c> (VEGA: <c>chapter:tutorial:b6</c> — the basic training's last part done or
     /// skipped) holds — or the basic training is through or off for the player whatever tutorial pack the world has: no
     /// tutorial pack still runs its mandatory part for them (none installed, the world's tutorial off, an opt-in world where
-    /// they never opted in, opted out, all its mandatory chapters done or skipped). A pack without a start rule starts at
-    /// once.</summary>
+    /// they never opted in, opted out, all its mandatory chapters done or skipped — or, for an older client without
+    /// <c>packs1</c>, its nine legacy lessons done, #2487). A pack without a start rule starts at once.</summary>
     private bool StoryStartConditionHolds(PlayerSession s)
     {
         CompileStoryStart();
@@ -384,7 +384,7 @@ public sealed partial class GameServer
 
         foreach (var pack in PlayerPacks)
         {
-            if (pack.IsTutorial && StoryPackEnabledFor(s, pack.Id) && !pack.Chapters.Where(c => !c.Optional).All(c => ChapterFinished(s, c)))
+            if (pack.IsTutorial && StoryPackEnabledFor(s, pack.Id) && !MandatoryChaptersThrough(s, pack))
             {
                 return false; // the basic training still runs (or has not started yet) for this player
             }

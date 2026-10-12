@@ -315,7 +315,7 @@
   "story.tutorial.c7.air.start_later": "Auf luftleeren Welten gibt dein Grundstein auch Luft – im Würfel um ihn und in jedem dichten Raum aus Stein, Metall oder Glas mit einer Energietür.",
   "story.tutorial.c7.walls.start": "Nah an deinem Grundstein tauchen keine wilden Tiere auf. Ein geschlossener Mauerring, 2 Blöcke hoch, hält sie weiter draußen: Bau einen um deine Basis und stell dich hinein.",
   "story.tutorial.c7.walls.chip": "Schließ einen Mauerring, stell dich hinein",
-  "story.tutorial.c7.walls.hint": "Der Ring darf bis 48 Blöcke vom Grundstein entfernt sein. Eine Lücke oder eine offene Holztür lässt Tiere herein; fliegende kümmern Mauern nicht.",
+  "story.tutorial.c7.walls.hint": "Stell dich unter freiem Himmel in den Ring – ein Raum oder eine Höhle zählt nicht. Der Ring darf bis 48 Blöcke vom Grundstein entfernt sein; eine Lücke oder offene Holztür lässt Tiere herein.",
   "story.tutorial.c7.bed.start": "Mit einem Bett wachst du in deiner Basis auf. Stell eins von Hand her (6 Holz, 8 Pflanzenfaser), setz es und drück {key:Interact} daran.",
   "story.tutorial.c7.bed.chip": "Mach ein Bett zu deinem Aufwachplatz",
   "story.tutorial.c7.bed.hint": "Stell dich direkt ans Bett, wenn du {key:Interact} drückst. Ein Heiltank taugt auch als Aufwachplatz.",

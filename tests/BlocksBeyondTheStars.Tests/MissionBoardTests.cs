@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Missions;
+using BlocksBeyondTheStars.Shared.Story;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -128,6 +129,39 @@ public sealed class MissionBoardTests : IDisposable
 
             var prog = p.State.Missions.First(m => m.MissionId == id);
             Assert.Equal(MissionStatus.TurnedIn, prog.Status);
+        }
+    }
+
+    /// <summary>#2491: the repeatable cable run is a board job — at a settlement's board it is offered, accepted (a real
+    /// board accept: the tutorial's job lesson hears <c>mission:board_accepted</c>) and turned in again and again, without
+    /// moving the world story; a step away from the board it is gone from the list.</summary>
+    [Fact]
+    public void SupplyCables_AtASettlementBoard_IsOfferedAcceptedAndTurnedInRepeatedly()
+    {
+        var server = StartedWithBoard(out var repo);
+        using (repo)
+        {
+            var events = new RecordingGameEventListener();
+            server.AddGameEventListener(GameEventKeys.MissionBoardAccepted, events);
+            var p = server.AddLocalPlayer("Courier");
+            p.State.Position = new Vector3f(1000, 64, 1000);
+            Assert.DoesNotContain("supply_cables", server.VisibleMissionIdsForTest("Courier"));
+
+            p.State.Position = BoardPos(server);
+            Assert.Contains("supply_cables", server.VisibleMissionIdsForTest("Courier"));
+            int milestones = server.StorySnapshot.Milestones;
+            for (int round = 0; round < 2; round++)
+            {
+                server.AcceptMission("Courier", "supply_cables");
+                Assert.Contains(p.State.Missions, m => m.MissionId == "supply_cables" && m.Status == MissionStatus.Active);
+                p.State.Inventory.Add("cable", 5, 99);
+                server.TurnInMission("Courier", "supply_cables");
+                Assert.DoesNotContain(p.State.Missions, m => m.MissionId == "supply_cables"); // repeatable: free to take again
+            }
+
+            Assert.Equal(2, p.State.Inventory.CountOf("data_fragment"));
+            Assert.Equal(2, events.Of(GameEventKeys.MissionBoardAccepted).Count(e => e.Arg == "supply_cables"));
+            Assert.Equal(milestones, server.StorySnapshot.Milestones); // countsForStory: false
         }
     }
 

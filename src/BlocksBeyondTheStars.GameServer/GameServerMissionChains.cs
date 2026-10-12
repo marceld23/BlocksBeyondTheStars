@@ -56,6 +56,17 @@ public sealed partial class GameServer
 
     private bool AtAnyMissionBoard(PlayerState p) => NearSettlementMissionBoard(p) || NearSpaceStationMissionBoard(p);
 
+    /// <summary>#2491: a mission that is no chain step but whose RAW <c>surface</c> is <c>board</c> (supply_cables) — it follows
+    /// the board rule of a chain's board step: offered and accepted only at a mission board of its <c>offerAt</c> kind. Not
+    /// <see cref="MissionChains.SurfaceOf"/>, which reads an empty surface as "board": the plain starter job (first_iron)
+    /// stays available anywhere.</summary>
+    private static bool IsStandAloneBoardJob(MissionDefinition def)
+        => !IsChainMission(def) && string.Equals(def.Surface, MissionChains.SurfaceBoard, StringComparison.Ordinal);
+
+    /// <summary>#2491: the player stands at a mission board where the stand-alone board job is offered.</summary>
+    private static bool StandAloneBoardJobHere(MissionDefinition def, string placeKey, bool atBoard)
+        => atBoard && OfferAtMatches(def, placeKey);
+
     private static bool PlaceIsStation(string placeKey) => placeKey.StartsWith("station_", StringComparison.Ordinal);
 
     /// <summary>Whether a chain step may be offered at this kind of place (<c>OfferAt</c>: settlement by default).</summary>
@@ -420,6 +431,11 @@ public sealed partial class GameServer
             if (IsChainMission(def) && !ChainStepAvailable(player, def, place, atBoard, viaDialog: false, null, out _))
             {
                 continue; // #1212: hidden until its prerequisites / place / stage line up
+            }
+
+            if (IsStandAloneBoardJob(def) && !StandAloneBoardJobHere(def, place, atBoard))
+            {
+                continue; // #2491: a stand-alone board job (supply_cables) only at a mission board
             }
 
             list.Add(def);

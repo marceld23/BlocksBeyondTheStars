@@ -44,10 +44,24 @@ public sealed partial class GameServer
     /// before this runs, so a revealed Guardian system is re-appended here (#2460, B06).</summary>
     private void LoadStoryState()
     {
-        var stored = SelectActiveStoryRow(_repo.ListStoryStates(), Rules.StoryId, _content.DefaultStory.Id, IsUsableStoryRow);
+        var rows = _repo.ListStoryStates();
+        var stored = SelectActiveStoryRow(rows, Rules.StoryId, _content.DefaultStory.Id, IsUsableStoryRow);
         if (stored is not null && !IsUsableStoryRow(stored.StoryId))
         {
             _log.Warn($"Story pack '{stored.StoryId}' of this save is not installed (or cannot be a world story) — starting the default story; the stored row is kept untouched.");
+        }
+
+        // #2489: the save's own story pack is installed but failed to load (a malformed file). The fallback story runs for
+        // this session, but its row is never written as the active one — a restart with the pack repaired picks the save's
+        // own row back up. The row the save would pick if the pack had loaded decides; a fresh save, its rule's pack.
+        var intended = SelectActiveStoryRow(rows, Rules.StoryId, _content.DefaultStory.Id,
+            id => IsUsableStoryRow(id) || _content.StoryPackFailedToLoad(id));
+        string intendedId = intended?.StoryId ?? Rules.StoryId;
+        _storyRowHeldFor = !IsUsableStoryRow(intendedId) && _content.StoryPackFailedToLoad(intendedId) ? intendedId : null;
+        if (_storyRowHeldFor is not null)
+        {
+            _log.Error($"Story pack '{_storyRowHeldFor}' of this save failed to load — running the default story for now without saving it; "
+                       + "the save's own story progress is kept for when the pack loads again.");
         }
 
         LoadStoryStateFrom(stored);
@@ -163,10 +177,21 @@ public sealed partial class GameServer
         AdvanceStory();
     }
 
+    /// <summary>#2489: the id of the save's story pack that failed to load this run, or null. While set, the stand-in story's
+    /// row is not written (<see cref="PersistStoryState"/>); an admin's story switch clears it.</summary>
+    private string? _storyRowHeldFor;
+
     /// <summary>Writes the active pack's row — stamped and marked active (#2460, B05), so a restart picks it back
-    /// up even when the save holds rows of other packs.</summary>
+    /// up even when the save holds rows of other packs. Nothing is written while the save's own pack failed to load
+    /// (#2489, <see cref="_storyRowHeldFor"/>).</summary>
     private void PersistStoryState()
-        => _repo.SaveStoryState(new StoredStoryState
+    {
+        if (_storyRowHeldFor is not null)
+        {
+            return;
+        }
+
+        _repo.SaveStoryState(new StoredStoryState
         {
             Active = true,
             UpdatedUtc = UtcNowIso(),
@@ -181,6 +206,7 @@ public sealed partial class GameServer
             MilestoneKeys = _storyState.MilestoneKeys.ToList(),
             BodiesWithoutFragment = _storyState.BodiesWithoutFragment,
         });
+    }
 
     // ---------------- Event hooks (called from gameplay) ----------------
 
@@ -581,6 +607,15 @@ public sealed partial class GameServer
         else
         {
             return; // unknown pack — leave the active story unchanged
+        }
+
+        // #2489: an admin's explicit choice replaces the save's story whose pack failed to load — that row steps back like
+        // any switched-away pack's (below), and the new story is saved from now on.
+        string? held = _storyRowHeldFor;
+        _storyRowHeldFor = null;
+        if (held is not null)
+        {
+            DeactivateStoryRow(held);
         }
 
         SyncLeadListener();       // #2475: the new story's chapter leads (or none)

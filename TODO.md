@@ -39,6 +39,20 @@ line per step:
   ⚠ Operator, after the release + pool recycle: check the live pool worlds' roles (`/admin/worlds/<id>` → Players →
   Role) and their `server.log` (`demoted to Player`, `[CHEAT]`, `World rules updated by`, world textures) and clean
   up any misuse (`/texturewipe`, `/paintwipe`, install ban).
+- ✅ **Step 2 — seven server fixes before the release (#2487–#2493)**, 2026-10-12: an older client (no `packs1`) is
+  through the basic training once its nine old lessons are — the VEGA story starts for it and VEGA may chat (nothing
+  written; a current client later gets the new lessons, #2487). The homestead course's wall-ring step wants open sky over
+  the feet, so neither the room just sealed in c7.5 (it completed c7.6 at once — pinned by a test) nor a closed cave counts;
+  the animals' wall rule is unchanged (#2488). One malformed story pack no longer aborts the content load: it is skipped
+  with its texts and logged as an ERROR naming pack and file, and a save whose own pack failed keeps its active
+  `story_state` row (the stand-in story is not saved, #2489). A help marker whose provider finds nothing is no longer spent
+  — it retries on a new place or after 30 s, so the observatory mission's marker waits for its world (#2490).
+  `supply_cables` is a board job (`surface: board`, `offerAt: any`, `countsForStory: false`): offered and taken only at a
+  settlement or station board, a real board accept for the job lessons; a held row still turns in; `first_iron`
+  unchanged (#2491). A station an ally commissioned while its owner was away is told to the owner at the next join, with
+  the achievement, once (`station:told:<id>`; older live tells are back-filled from the counter, #2492). A visible fleet
+  admin's `/goto` is booked silently like an observer's — no hyperjump/system milestone, frontier or explorer credit
+  (#2493). Docs: TUTORIAL_PACK, STORY_IMPLEMENTATION, USER_MANUAL.
 
 ### ★ Story packs 2026-10 (#2459)
 

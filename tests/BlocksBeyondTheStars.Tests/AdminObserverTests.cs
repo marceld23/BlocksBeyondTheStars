@@ -11,8 +11,10 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -247,6 +249,40 @@ public sealed class AdminObserverTests : IDisposable
         server.AddLocalPlayer("Justus").State.Position = op.State.Position;
         server.Tick(0.2);
         Assert.Contains(transport.Sent, x => x.Msg is PlayerPresence p && p.PlayerId == "Operator");
+    }
+
+    /// <summary>#2493: a VISIBLE fleet admin's <c>/goto</c> to another star is a teleport, not a voyage — it used to count
+    /// the save's first hyperjump and the new system for the story like a player's flight. The arrival is booked silently,
+    /// as an observer's is: known and landed, but no story point, no frontier, no achievement, no knowledge.</summary>
+    [Fact]
+    public void AVisibleAdminsGoto_IsBookedSilently_NoStoryFrontierOrAchievement()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("visible_goto", transport, "Operator");
+        var op = server.AddLocalPlayer("Operator");
+        Assert.False(op.Spectating);
+        string home = server.Galaxy.FindBody(op.CurrentLocationId)!.SystemId;
+        var target = server.Galaxy.Systems
+            .Where(s => s.Id != home)
+            .Select(s => s.Bodies.FirstOrDefault(b => b.Kind == CelestialKind.Planet && !string.IsNullOrEmpty(b.PlanetType)))
+            .First(b => b is not null)!;
+        int milestones = server.StorySnapshot.Milestones;
+        int systems = server.Galaxy.Systems.Count;
+        int knowledge = op.State.KnowledgePoints;
+        op.State.AchievementCounters.TryGetValue(AchievementCounters.VisitSystem, out int systemsVisited); // the spawn system
+
+        server.HandleForTest(op, new AdminCommandIntent { Command = "goto", StringArg = target.Id + " 0 120 0" });
+
+        Assert.Equal(target.Id, op.CurrentLocationId);
+        Assert.False(op.Spectating);
+        Assert.Equal(milestones, server.StorySnapshot.Milestones); // neither "the first hyperjump" nor a new system mapped
+        Assert.Equal(systems, server.Galaxy.Systems.Count);
+        Assert.Equal(knowledge, op.State.KnowledgePoints);
+        Assert.False(op.State.AchievementCounters.ContainsKey(AchievementCounters.Hyperjump));
+        op.State.AchievementCounters.TryGetValue(AchievementCounters.VisitSystem, out int systemsAfter);
+        Assert.Equal(systemsVisited, systemsAfter);
+        Assert.Contains(target.SystemId, op.State.KnownSystems); // booked: a later real arrival there counts nothing either
+        Assert.Contains(target.Id, op.State.LandedBodies);
     }
 
     // ---------------- Inspection commands (issue #488) ----------------

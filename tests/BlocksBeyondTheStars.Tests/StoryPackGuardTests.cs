@@ -259,6 +259,90 @@ public sealed class StoryPackGuardTests : IDisposable
         Assert.False(content.CreateLocalizer(GameLocale.English).Has("story.none.secret"));
     }
 
+    /// <summary>#2489: one malformed pack — its <c>story.json</c>, or only its <c>cutscenes.json</c> — used to abort the whole
+    /// content load. Now that pack is skipped with its texts, the error names the pack folder and the file, the other packs
+    /// load, and the content remembers which packs failed (an error callback, falling back to the warning one).</summary>
+    [Fact]
+    public void AMalformedPack_IsSkippedWithItsTexts_TheOthersLoad_AndTheErrorNamesPackAndFile()
+    {
+        string data = TempDataDir();
+        WritePack(data, "alpha", "alpha", new() { ["story.alpha.name"] = "Alpha" });
+        WritePack(data, "broken", "broken", new() { ["story.broken.secret"] = "never merged" });
+        File.WriteAllText(Path.Combine(data, "stories", "broken", "story.json"), "{ \"id\": \"broken\", \"chapters\": [ { \"id\": ");
+        WritePack(data, "scenes", "scenes", new() { ["story.scenes.secret"] = "never merged either" });
+        File.WriteAllText(Path.Combine(data, "stories", "scenes", "cutscenes.json"), "{ \"cutscenes\": [ { \"id\": \"x\", ");
+        WritePack(data, "zeta", "zeta", new() { ["story.zeta.name"] = "Zeta" });
+        var warnings = new List<string>();
+        var errors = new List<string>();
+
+        var content = ContentLoader.LoadFromDirectory(data, warn: warnings.Add, error: errors.Add);
+
+        Assert.True(content.Stories.ContainsKey("alpha"));
+        Assert.True(content.Stories.ContainsKey("zeta"));
+        Assert.False(content.Stories.ContainsKey("broken"));
+        Assert.False(content.Stories.ContainsKey("scenes"));
+        var en = content.CreateLocalizer(GameLocale.English);
+        Assert.Equal("Alpha", en.Get("story.alpha.name"));
+        Assert.False(en.Has("story.broken.secret"));
+        Assert.False(en.Has("story.scenes.secret"));
+
+        Assert.Equal(2, errors.Count);
+        Assert.Contains(errors, e => e.Contains("'broken'", StringComparison.Ordinal) && e.Contains("stories/broken/story.json", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("'scenes'", StringComparison.Ordinal) && e.Contains("stories/scenes/cutscenes.json", StringComparison.Ordinal));
+        Assert.DoesNotContain(warnings, w => w.Contains("could not be loaded", StringComparison.Ordinal));
+        Assert.True(content.StoryPackFailedToLoad("broken"));
+        Assert.True(content.StoryPackFailedToLoad("SCENES"));
+        Assert.False(content.StoryPackFailedToLoad("alpha"));
+
+        // Without an error callback the report goes to the warnings.
+        var only = new List<string>();
+        ContentLoader.LoadFromDirectory(data, warn: only.Add);
+        Assert.Equal(2, only.Count(w => w.Contains("could not be loaded", StringComparison.Ordinal)));
+    }
+
+    /// <summary>#2489: a save whose own story pack failed to load runs the default story for the session — but never writes
+    /// it as the save's active row (not even next to a usable row of an older story), so a restart with the pack repaired
+    /// carries on with the save's own progress. An admin's explicit switch ends the hold.</summary>
+    [Fact]
+    public void ASaveWhosePackFailedToLoad_KeepsItsActiveRow_ForWhenThePackLoadsAgain()
+    {
+        var broken = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+        broken.SetFailedStoryPacks(new[] { "my_arc" });
+        var repo = Repo("held_row");
+        repo.Initialize();
+        repo.SaveStoryState(new StoredStoryState { StoryId = StoryRegistry.DefaultStoryId, Milestones = 3, Active = false, UpdatedUtc = "2026-10-01T10:00:00Z" });
+        repo.SaveStoryState(new StoredStoryState { StoryId = "my_arc", Milestones = 7, Active = true, UpdatedUtc = "2026-10-11T10:00:00Z" });
+
+        var server = Started(broken, "held_row", repo: repo);
+        Assert.Equal(StoryRegistry.DefaultStoryId, server.StorySnapshot.StoryId); // the stand-in for this session
+        server.RecordStoryMilestoneForTest();
+        server.Stop();
+
+        var rows = repo.ListStoryStates();
+        var own = rows.Single(r => r.StoryId == "my_arc");
+        Assert.True(own.Active);
+        Assert.Equal(7, own.Milestones);
+        var vega = rows.Single(r => r.StoryId == StoryRegistry.DefaultStoryId);
+        Assert.False(vega.Active); // the stand-in never became the save's story
+        Assert.Equal(3, vega.Milestones);
+
+        // The pack is repaired: the save's own story and progress are back.
+        var repaired = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+        repaired.SetStories(repaired.Stories.Values.Append(WithBeats("my_arc")));
+        var again = Started(repaired, "held_row", repo: Repo("held_row"));
+        Assert.Equal("my_arc", again.StorySnapshot.StoryId);
+        Assert.Equal(7, again.StorySnapshot.Milestones);
+
+        // An admin's switch while the pack is broken is a choice: the new story is saved, the broken one steps back.
+        var switched = Repo("held_switch");
+        switched.Initialize();
+        switched.SaveStoryState(new StoredStoryState { StoryId = "my_arc", Milestones = 7, Active = true, UpdatedUtc = "2026-10-11T10:00:00Z" });
+        var admin = Started(broken, "held_switch", repo: switched);
+        admin.SetActiveStoryForTest(StoryRegistry.NoneStoryId);
+        Assert.True(switched.ListStoryStates().Single(r => r.StoryId == StoryRegistry.NoneStoryId).Active);
+        Assert.False(switched.ListStoryStates().Single(r => r.StoryId == "my_arc").Active);
+    }
+
     /// <summary>The shipped data loads without a single collision or pack warning.</summary>
     [Fact]
     public void TheShippedData_LoadsWithoutPackWarnings()

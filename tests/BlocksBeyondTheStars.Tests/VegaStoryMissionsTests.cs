@@ -369,6 +369,38 @@ public sealed class VegaStoryMissionsTests : IDisposable
         Assert.NotEqual("story.vega.m.observatory.2.obj", server.ObjectiveKeyForTest("Pilot")); // the lead is back on the chip
     }
 
+    /// <summary>#2490: the landing step done by evidence while the player is elsewhere puts the log step on the chip off-site;
+    /// its one marker (markerAfter 5) used to be spent right there, where the site provider finds nothing. Now it waits: no
+    /// ping off-site, and on the observatory's world a private ping with VEGA's "marked" line.</summary>
+    [Fact]
+    public void TheObservatoryMarker_IsNotSpentOffSite_ItPingsOnTheSitesWorld()
+    {
+        var (server, t) = World("m_observatory_marker", c => { TutorialOff(c); c.Rules.InstantTravel = true; });
+        var p = Join(server, 1, "Pilot");
+        AdvanceTo(server, 2);
+        Settle(server, p);
+        Assert.Equal(new[] { "m_observatory" }, server.RunningMissionsForTest(p));
+        string site = server.UniqueSiteBodyForTest("observatory")!;
+        Assert.NotEqual(site, p.CurrentLocationId);
+
+        server.RaiseGameEventForTest(p, GameEventKeys.VisitBody, site); // step 1 by evidence — the player is still at home
+        Assert.Equal("m_observatory.2", server.MissionChipStepForTest(p));
+        server.TickStoryPacksForTest(p, 6); // past markerAfter 5
+        server.TickStoryMissionsForTest(p);
+        Assert.DoesNotContain(server.VisibleMarkersForTest("Pilot"), m => m.Ping);
+        Assert.DoesNotContain(SvGameServer.StepMarkedLine, t.Lines(p));
+
+        // On the observatory's world (a new location: probed at once) the marker goes up — for this player only.
+        p.Ships[p.ActiveShipId].Modules.Add("jump_generator"); // the site may lie in another system
+        server.Travel(p.State.PlayerId, site);
+        Assert.Equal(site, p.CurrentLocationId);
+        Assert.Equal("m_observatory.2", server.MissionChipStepForTest(p));
+        server.TickStoryPacksForTest(p);
+        server.TickStoryMissionsForTest(p);
+        Assert.Contains(server.VisibleMarkersForTest("Pilot"), m => m.Ping && m.OwnerId == "Pilot");
+        Assert.Single(t.Lines(p), k => k == SvGameServer.StepMarkedLine);
+    }
+
     [Fact]
     public void AWorldWithoutTheObservatory_GivesTheDeepArchive_WhoseVaultReadingPaysTheBonusOnce()
     {

@@ -1178,8 +1178,9 @@ players.
     a helm, an engine and a door, commissioning it at the helm, and switching between your ships.
   - **Homestead** (offered when you craft or carry a base core, or out on foot at night with no base on that world): a
     base core, building in its zone, two lights, a wooden door, a sealed room that holds air (on airless worlds; elsewhere
-    only explained), a closed wall ring that keeps animals out, and a bed to wake up in. A friend's base on the same world
-    counts as yours when you are allies or in one crew.
+    only explained), a closed wall ring that keeps animals out (stand inside it under the open sky — a roofed room or a
+    cave does not count), and a bed to wake up in. A friend's base on the same world counts as yours when you are allies
+    or in one crew.
   - **Station builder** (offered when you have a station core or its materials, or after the ship builder course; needs
     the pilot course and space flight): deploying a station core on a spacewalk, building its hull with a door as the
     airlock until it is commissioned, and floating while you build aboard (zero-g building).
@@ -1353,7 +1354,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   your system, VEGA has you trade with a settlement vendor instead of sending you to a star you cannot reach yet.
 - **Build your own**: deploy a **Station Core** on a spacewalk (press **B**), build a hull + an airlock door
   around it, and it commissions into a boardable station on the star map. An ally may help and even set the last
-  block — the station, its default name, the "commissioned" message and the achievement stay the owner's.
+  block — the station, its default name, the "commissioned" message and the achievement stay the owner's (an owner who
+  was offline hears it, and gets the achievement, the next time they join).
 - **Air only fills sealed rooms** in a station you built: walls, glass and doors are airtight, a hole in the
   hull means **helmet on** (the suit tank takes over, and you get a warning) until you patch it — a
   **force-field block** seals an opening you want to keep. **Crew** (two civilians) moves in once you build a
@@ -1861,6 +1863,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   giver for the reward. A short message names the mission and says what happened — **accepted**, **complete**
   (only when you really hand it in) or **posted** (your own mission) — in your language. Crystal Net jobs name
   what the circuit must do ("Circuit · a switch turns on a lamp 0/1").
+- **Starter jobs:** *First Iron* waits in your Missions tab from the start. The repeatable **Cable Supply Run** is a board
+  job: it is offered at any settlement or space-station mission board (stand at the board to take it), and taking it
+  counts as your first job from a board. Being repeatable, it does not move the story.
 - **Camp bounty:** a settlement mission board on a planet with an uncleared **bandit camp** offers a
   bounty to drive the bandits out. Accepting it marks the camp on your planet map (key **M**); clear the
   camp — everyone holding the bounty gets credit, so it's co-op friendly — and report back for a reward
@@ -3243,7 +3248,9 @@ is the one in-world moderation lever there is, and every removal is written to t
 
 An observer also leaves the **story** alone: a `/goto` to another star maps nothing for the world's story and
 grows no frontier, VEGA stays silent (no tips, no story lines — the lines you missed arrive when you leave observer
-mode), and VEGA's "another pilot is nearby" tip never names you to the players you are watching.
+mode), and VEGA's "another pilot is nearby" tip never names you to the players you are watching. A `/goto` made
+**without** observer mode is booked the same quiet way: it is a teleport, not a voyage — no "first hyperjump", no new
+system for the story, no frontier, no explorer achievement.
 
 The fleet admin panel's per-world page lists the same players and structures plus **build hotspots** (clusters
 of changed blocks — how you find a house built without a base core), each with a `/goto` line to paste here.

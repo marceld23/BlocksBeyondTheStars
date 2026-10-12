@@ -9,20 +9,25 @@
     "repeatable": false,
     "active": true
   },
+  // #2491: a stand-alone board job — "surface": "board" without chain fields: offered and accepted only at a settlement's
+  // or a station's mission board ("offerAt"), never anywhere from minute one; accepting it counts as a board job (the
+  // tutorial's job lesson). Repeatable, so it does not feed the world story ("countsForStory": false).
   {
     "id": "supply_cables",
     "source": "system",
     "nameKey": "mission.supply_cables.name",
     "descriptionKey": "mission.supply_cables.desc",
+    "surface": "board", "offerAt": "any",
     "objectives": [ { "type": "deliver", "target": "cable", "required": 5 } ],
     "rewards": [ { "item": "data_fragment", "count": 1 } ],
     "repeatable": true,
+    "countsForStory": false,
     "active": true
   },
 
   // "Guard the homestead" (#1224) — only offered while the "Visitors at the base" world option is on (the
   // scouts exist only then; see GameServerBaseVisitors.cs). A one-step chain so it goes through the chain
-  // rule's feasibility check instead of being listed everywhere like the two starter jobs above.
+  // rule's feasibility check instead of being listed everywhere like the starter job first_iron above.
   {
     "id": "homestead_guard",
     "source": "system",

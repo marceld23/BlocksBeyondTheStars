@@ -315,7 +315,7 @@
   "story.tutorial.c7.air.start_later": "On airless worlds your core gives air too — in the cube around it and in every sealed room of stone, metal or glass, shut by an Energy Door.",
   "story.tutorial.c7.walls.start": "No wild animal appears close to your core. A closed ring of walls, 2 blocks high, keeps them out further: build one around your base and step inside.",
   "story.tutorial.c7.walls.chip": "Close a wall ring and stand inside",
-  "story.tutorial.c7.walls.hint": "The ring may be up to 48 blocks from the core. One gap or an open wooden door lets animals in; flying ones ignore walls.",
+  "story.tutorial.c7.walls.hint": "Stand under the open sky inside the ring — a room or a cave does not count. The ring may be up to 48 blocks from the core; one gap or an open wooden door lets animals in.",
   "story.tutorial.c7.bed.start": "A bed makes your base the place you wake up. Craft one by hand (6 wood, 8 plant fibre), place it and press {key:Interact} at it.",
   "story.tutorial.c7.bed.chip": "Make a bed your wake-up spot",
   "story.tutorial.c7.bed.hint": "Stand right next to the bed when you press {key:Interact}. A heal tank works as a wake-up spot too.",

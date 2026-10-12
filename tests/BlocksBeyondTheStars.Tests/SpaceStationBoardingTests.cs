@@ -108,6 +108,25 @@ public sealed class SpaceStationBoardingTests : IDisposable
         }
     }
 
+    /// <summary>#2491: the repeatable cable run (a board job, <c>offerAt: any</c>) is offered at a station's mission board
+    /// as well as a settlement's — and taken there.</summary>
+    [Fact]
+    public void SupplyCables_IsOfferedAndTakenAtAStationBoard()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            Assert.DoesNotContain("supply_cables", server.VisibleMissionIdsForTest("Pilot"));
+            BoardFirstStation(server, "Pilot");
+            pilot.State.Position = server.SpaceStationMarkers.First(m => m.Type == "mission_board").Pos;
+
+            Assert.Contains("supply_cables", server.VisibleMissionIdsForTest("Pilot"));
+            server.AcceptMission("Pilot", "supply_cables");
+            Assert.Contains(pilot.State.Missions, m => m.MissionId == "supply_cables");
+        }
+    }
+
     [Fact]
     public void BoardStation_PutsPlayerInOwnVoidWorld_OnSolidGround_WithLifeSupport()
     {

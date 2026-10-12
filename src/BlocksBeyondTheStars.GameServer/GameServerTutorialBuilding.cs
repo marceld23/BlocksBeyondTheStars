@@ -187,8 +187,15 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>The player's feet stand in a fenced-in part of a base they own or share (the wall model of
-    /// <c>GameServerBaseWalls</c>: the outside-in fill at the feet level does not reach them).</summary>
+    /// <summary>How far above the feet the wall-ring lesson looks for a roof (#2488): a sealed room or a cave ceiling sits well
+    /// within it; open sky means nothing solid in this column of loaded blocks.</summary>
+    private const int YardOpenSkyScan = 32;
+
+    /// <summary>The player's feet stand in a fenced-in YARD of a base they own or share: the wall model of
+    /// <c>GameServerBaseWalls</c> (the outside-in fill at the feet level does not reach them) — and, for the lesson only, open
+    /// sky above them (#2488). That one fill answers every yard, courtyard and room, so on its own it also counted the room the
+    /// player had just sealed in c7.5 (the lesson completed at once) and a closed cave near the base. The animals' wall rule
+    /// is untouched: a roofed room keeps them out too.</summary>
     private bool StandsInOwnOrAlliedYard(PlayerSession session)
     {
         var p = session.State;
@@ -199,6 +206,11 @@ public sealed partial class GameServer
 
         int circ = _world.Circumference;
         var feet = WorldConstants.CanonicalBlock(p.Position.ToBlock(), circ);
+        if (!OpenSkyAbove(feet))
+        {
+            return false;
+        }
+
         foreach (var b in _bases)
         {
             if (b.Planet != _world.LocationId || !OwnOrAllied(b.OwnerId, p.PlayerId) || !WithinBaseWallReach(b, feet))
@@ -214,5 +226,21 @@ public sealed partial class GameServer
         }
 
         return false;
+    }
+
+    /// <summary>Nothing solid stands in the <see cref="YardOpenSkyScan"/> blocks over the player's head (a taller
+    /// <c>Sheltered</c> scan of the giants' stomp). Reads only loaded chunks — an unloaded cell counts as open sky, the
+    /// lenient direction for a lesson.</summary>
+    private bool OpenSkyAbove(Vector3i feet)
+    {
+        for (int dy = 2; dy <= YardOpenSkyScan; dy++)
+        {
+            if (IsSolidBlock(_world.GetBlockIfLoaded(new Vector3i(feet.X, feet.Y + dy, feet.Z))))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

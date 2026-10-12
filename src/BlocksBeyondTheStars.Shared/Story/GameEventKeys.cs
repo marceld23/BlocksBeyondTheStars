@@ -189,8 +189,8 @@ public static class GameEventKeys
     /// <summary>The player's ship flew in space. Amount: whole flight units (a hyperjump or a warp never counts).</summary>
     public const string FlightFlown = "flight:flown";
 
-    /// <summary>A job the player picked was accepted: a mission board's or a mission chain's (never a story character's
-    /// errand, never a pack's own bridge). Arg: the mission id.</summary>
+    /// <summary>A job the player picked was accepted: a mission board's, a mission chain's or a stand-alone board job such as
+    /// the cable run (never a story character's errand, never a pack's own bridge). Arg: the mission id.</summary>
     public const string MissionBoardAccepted = "mission:board_accepted";
 
     /// <summary>First arrival on a planet, moon or asteroid (not a station — <see cref="VisitBody"/> counts those too).

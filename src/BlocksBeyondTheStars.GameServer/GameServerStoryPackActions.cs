@@ -450,6 +450,14 @@ public sealed partial class GameServer
                 continue;
             }
 
+            // #2487: an older client (no packs1) never stamps the pack done — its basic training is through once its nine
+            // legacy lessons are, so VEGA may chat with it from then on (nothing is written; a current client later still
+            // gets the new lessons).
+            if (gate == StoryGateNames.Banter && !s.SupportsPacks && MandatoryChaptersThrough(s, pack))
+            {
+                return true;
+            }
+
             return pack.Gates.TryGetValue(gate, out var condition) ? EvaluateStoryCondition(condition, s) : null;
         }
 

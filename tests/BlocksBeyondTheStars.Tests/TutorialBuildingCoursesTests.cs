@@ -14,6 +14,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.Story;
 using Xunit;
@@ -812,6 +813,84 @@ public sealed class TutorialBuildingCoursesTests : IDisposable
         Assert.True(Skipped(q, "c7.5a"));
         Assert.DoesNotContain(airlessTransport.LineKeys(q), k => k.StartsWith("story.tutorial.c7.air.", StringComparison.Ordinal));
         Assert.Equal("c7.6", airless.ChipStepForTest(q, T));
+    }
+
+    /// <summary>#2488: the wall-ring lesson asks for a fenced-in YARD — the base wall model alone (one outside-in fill for
+    /// every yard, courtyard and room, unchanged for the animals) also counts the room the player just sealed in c7.5 and a
+    /// closed cave near the base. The lesson therefore also wants open sky over the player's head.</summary>
+    [Fact]
+    public void TheWallRingLesson_NeedsOpenSky_TheSealedRoomOrAClosedCaveIsNoYard()
+    {
+        var (server, _) = World("c7_sky"); // rocky: an airless world with the oxygen rule on
+        var p = LocalPastTraining(server, "Settler");
+        string id = p.State.PlayerId;
+        int padY = BuildPad(server);
+        p.State.AboardShip = false;
+        p.State.Position = new Vector3f(Cx + 1.5f, padY + 1, Cz + 1.5f); // where the sealed room will stand
+        Start(server, p, "c7");
+        Give(p, "base_core", 1);
+        server.PlaceBlock(id, Cx, padY + 1, Cz, "base_core");
+        Assert.True(Done(p, "c7.1"));
+        foreach (var (key, arg, n) in new[] { (GameEventKeys.BaseBuilt, "stone", 10), (GameEventKeys.BaseBuilt, "torch", 2), (GameEventKeys.DoorOpened, "wood", 1) })
+        {
+            server.RaiseGameEventForTest(p, key, arg, n);
+        }
+
+        Assert.Equal("c7.5", server.ChipStepForTest(p, T));
+
+        // The sealed room of c7.5, with the player inside: the room holds air — and is no yard.
+        var stone = _content.GetBlock("stone")!.NumericId;
+        for (int dx = -2; dx <= 2; dx++)
+            for (int dz = -2; dz <= 2; dz++)
+                for (int dy = 1; dy <= 4; dy++)
+                {
+                    if (Math.Abs(dx) == 2 || Math.Abs(dz) == 2 || dy == 4)
+                    {
+                        server.World.SetBlock(new Vector3i(Cx + dx, padY + dy, Cz + dz), stone);
+                    }
+                }
+
+        server.AdvanceUptimeForTest(2);
+        server.TutorialStateEventsForTest(p);
+        Assert.True(Done(p, "c7.5"));
+        Assert.Equal("c7.6", server.ChipStepForTest(p, T));
+        Assert.True(server.InWalledBaseAreaForTest(Cx + 1, padY + 1, Cz + 1)); // the animals' wall model: enclosed, as before
+        server.AdvanceUptimeForTest(10);
+        server.TutorialStateEventsForTest(p);
+        Assert.False(Done(p, "c7.6"), "the sealed room completed the wall-ring lesson");
+
+        // A closed cave under the pad, inside the base's reach: no yard either.
+        int caveX = Cx + 3, caveZ = Cz + 3;
+        int caveFeet = SurfaceTopY(server, caveX, caveZ) - 5;
+        for (int dx = -2; dx <= 2; dx++)
+            for (int dz = -2; dz <= 2; dz++)
+                for (int dy = -1; dy <= 3; dy++)
+                {
+                    bool hollow = Math.Abs(dx) <= 1 && Math.Abs(dz) <= 1 && dy is 0 or 1;
+                    server.World.SetBlock(new Vector3i(caveX + dx, caveFeet + dy, caveZ + dz), hollow ? BlockId.Air : stone);
+                }
+
+        p.State.Position = new Vector3f(caveX + 0.5f, caveFeet, caveZ + 0.5f);
+        server.AdvanceUptimeForTest(10);
+        Assert.True(server.InWalledBaseAreaForTest(caveX, caveFeet, caveZ)); // enclosed for the animals
+        server.TutorialStateEventsForTest(p);
+        Assert.False(Done(p, "c7.6"), "a closed cave completed the wall-ring lesson");
+
+        // A roofless wall ring, the player in the yard under the open sky: the lesson is done.
+        for (int dx = -Ring; dx <= Ring; dx++)
+            for (int dz = -Ring; dz <= Ring; dz++)
+            {
+                if (Math.Abs(dx) == Ring || Math.Abs(dz) == Ring)
+                {
+                    server.World.SetBlock(new Vector3i(Cx + dx, padY + 1, Cz + dz), stone);
+                    server.World.SetBlock(new Vector3i(Cx + dx, padY + 2, Cz + dz), stone);
+                }
+            }
+
+        p.State.Position = new Vector3f(Cx + 3.5f, padY + 1, Cz + 2.5f);
+        server.AdvanceUptimeForTest(10);
+        server.TutorialStateEventsForTest(p);
+        Assert.True(Done(p, "c7.6"));
     }
 
     // ---------------- C17 Station builder ----------------

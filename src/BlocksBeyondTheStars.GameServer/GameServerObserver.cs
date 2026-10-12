@@ -455,7 +455,7 @@ public sealed partial class GameServer
 
             // adminBypass skips the jump-generator requirement; the Instant Travel rule does not apply
             // because this is not the quick-travel screen.
-            HandleTravel(session, new TravelIntent { DestinationBodyId = bodyId }, quickTravel: false, adminBypass: true);
+            HandleTravel(session, new TravelIntent { DestinationBodyId = bodyId }, quickTravel: false, adminBypass: true, adminTeleport: true); // #2493: booked silently
             if (session.CurrentLocationId != bodyId)
             {
                 return; // travel refused (and already told the admin why)
