@@ -106,6 +106,7 @@ namespace BlocksBeyondTheStars.Client
         private string _musicTrack;
         private PlannedCaption _lastSpeakerCaption;
         private int _lastSpeakerPage = -1;
+        private float _flash;
 
         private float _lastHealth = -1f;
         private float _lastDamageAt = float.NegativeInfinity;
@@ -321,6 +322,9 @@ namespace BlocksBeyondTheStars.Client
                 Local = local,
                 CooldownExempt = options?.CooldownExempt ?? false,
                 ChainNext = options?.ChainNext?.ToArray() ?? System.Array.Empty<string>(),
+                // #2470: a chapter's scene (not the intro) — "the story so far" leads straight into it.
+                ChapterScene = def != null && pack != null && def.Id != pack.IntroCutscene
+                               && CutsceneCatalog.ChapterOf(pack, def, m.CutsceneId) != null,
                 ReceivedAt = Time.time,
                 Payload = new Owed { Pack = pack, Definition = def },
             };
@@ -430,6 +434,7 @@ namespace BlocksBeyondTheStars.Client
             _letterbox = 0f;
             _lastSpeakerCaption = null;
             _lastSpeakerPage = -1;
+            _flash = 0f;
             _screen = CutsceneScreen.Create("CutsceneFrame", FrameSortingOrder, skipButton: plan.Tier >= CutsceneTiers.Card);
             if (plan.Tier >= CutsceneTiers.Scene)
             {
@@ -514,9 +519,31 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Present(plan, dt);
+            if (_flash > 0f)
+            {
+                _flash = Mathf.MoveTowards(_flash, 0f, dt / 0.35f);
+                _screen.SetFlash(_flash); // × FxKit.FlashScale inside (Reduce flashes)
+            }
+
             if (_play.Done)
             {
                 Finish(Outcome.Watched);
+            }
+        }
+
+        /// <summary>The speaker box glitches in for the narrator's first words of a scene (#2470, synthesis §6.5 "VEGA boots" —
+        /// the prologue's cut to the pilot's seat as the console wakes): a short glitch burst (never in the browser, none with
+        /// Reduce effects) and, in a staged scene, a soft flash that follows the Reduce-flashes setting.</summary>
+        private void GlitchIn(CutscenePlan plan)
+        {
+            if (!FxKit.ReducedEffects && Application.platform != RuntimePlatform.WebGLPlayer)
+            {
+                UrpScenePost.Instance?.Burst(0.25f, 0.3f, 0.5f);
+            }
+
+            if (plan.Tier >= CutsceneTiers.Scene)
+            {
+                _flash = 0.6f;
             }
         }
 
@@ -752,6 +779,11 @@ namespace BlocksBeyondTheStars.Client
                     speaker = SpeakerFor(_current?.Payload is Owed o ? o.Pack : null, v.Caption.Speaker);
                     if (v.Caption.Style == CutsceneCaptionStyles.Speaker && (v.Caption != _lastSpeakerCaption || v.Page != _lastSpeakerPage))
                     {
+                        if (_lastSpeakerCaption == null)
+                        {
+                            GlitchIn(plan); // #2470: the narrator's first words of the scene
+                        }
+
                         _lastSpeakerCaption = v.Caption;
                         _lastSpeakerPage = v.Page;
                         if (!string.IsNullOrEmpty(speaker.LineStartCue))
@@ -931,8 +963,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _chartShown = false;
+            _flash = 0f;
             if (_screen != null)
             {
+                _screen.SetFlash(0f);
                 _screen.HideChart();
                 _screen.ShowContinue(string.Empty, false);
                 _screen.SetHint(string.Empty, 0f);

@@ -1,6 +1,6 @@
 # Story engine ("The VEGA Protocol") — how it works
 
-Status: implemented (see [../../TODO.md](../../TODO.md) for live Done/Open status). Last updated 2026-10-11.
+Status: implemented (see [../../TODO.md](../../TODO.md) for live Done/Open status). Last updated 2026-10-12.
 
 This doc describes the **story engine mechanics** — state, pacing, triggers, persistence, networking and the
 finale flow. The *why* (design rationale) lives in [STORY_VEGA_PROTOCOL_CONCEPT.md](STORY_VEGA_PROTOCOL_CONCEPT.md);
@@ -51,7 +51,9 @@ Per-player "seen beats" reuse `PlayerState.Milestones` (`story:<id>:beat:N`)
 — no schema migration. Milestones are append-only (since #2469 even the tutorial restart keeps every key — it replays
 the tutorial pack's chapters; only a replay's own keys go when it ends). Latecomers get a join-time catch-up of
 earned-but-unseen beats (`CatchUpStoryLines`),
-plus the Guardian-system reveal line while the finale is open (`story:<id>:finale:revealed`, #2460).
+plus the Guardian-system reveal line while the finale is open (`story:<id>:finale:revealed`, #2460). Since #2470 a beat
+reaches a player only once their **story track** has started (see "VEGA as its own pack" below): until then it is held —
+no key, no knowledge, no line — and the track start delivers the backlog as one recap.
 
 **Wreck coupling** (count-neutral): a nearby wreck biases machine *position* (cluster) and *aggression* only,
 never the count — toggled by `GameRules.MachineWreckCoupling`.
@@ -79,10 +81,13 @@ never the count — toggled by `GameRules.MachineWreckCoupling`.
    sliders; PlanetEnemies *Off* still means zero. A death in the boss system respawns the clone on the world
    it launched from (no death-loop).
 
-**Ending catch-up.** Winning plays `StoryResolved` (plus the finale achievement) to everyone aboard. On a later
-join it plays once — with the `finale_resolved` line and the achievement — only for a player who had heard the
-arc's last beat **before** that join (#2460, N4/E23); a player who first meets the story after the win gets
-`story:<id>:resolved` set silently and can watch the ending from the Story tab.
+**Ending catch-up.** Winning gives the finale achievement to everyone aboard and plays `StoryResolved` (with the
+`finale_resolved` and epilogue lines) to every player whose story track has started (#2470). "Watched" is the cutscene
+ledger key `story:<id>:cut:resolution` (stamped whenever the cinematic is sent); `story:<id>:resolved` is kept as the
+legacy key older builds read. On a later join a started player who has not watched it gets it once — the achievement
+only when they had heard the arc's last beat **before** that join (#2460, E23). A player who first meets the story
+after the win is not played the ending at the door (N4): it waits for their track start (after the basic training), and
+on a hosted or arcade world (personal chapter 1) it stays in the Story tab.
 
 **Knowledge level** (`WorldKnowledgeLevel`, gates lore, flavour lines and NPC threads): 0–3 follow the arc's
 progress (1 > 0 %, 2 ≥ 33 %, 3 ≥ 66 %); **4 is the win alone** (#2460) — its lines say the machines went still.
@@ -92,10 +97,11 @@ progress (1 > 0 %, 2 ≥ 33 %, 3 ≥ 66 %); **4 is the win alone** (#2460) — i
 - **Join snapshot.** `PlayerSession.Join` (`JoinSnapshot`) is taken once at the very top of the join, before
   `SetupPlayerShip`, the Creative grants and the beat catch-up change the player state: `Veteran` (knowledge,
   blueprints or missions on a world whose *saved* Creative option — `_meta`, not the launch flag — is off),
-  `HadOnboardingIntro`, `Newcomer`, and the `story:` keys the player carried (`HadStoryKey`). The prologue (a
-  newcomer's cold open, `ShipAiOnJoin`) reads it — re-evaluating "veteran" after the catch-up had paid beat knowledge
-  skipped the prologue and the tutorial for every newcomer on a progressed world — and so do the ending catch-up and,
-  since #2469, the tutorial pack's one-time migration (a save from before VEGA's lessons). Later packs reuse it.
+  `HadOnboardingIntro`, `Newcomer`, and the `story:` keys the player carried (`HadStoryKey`). The prologue reads it
+  (since #2470: it plays for a player who arrived with no key of the story at all, `StoryOnJoin`) — re-evaluating after
+  the catch-up had paid beat knowledge skipped the prologue and the tutorial for every newcomer on a progressed world —
+  and so do the ending catch-up, the story track's veteran rule and, since #2469, the tutorial pack's one-time migration
+  (a save from before VEGA's lessons). Later packs reuse it.
 - **Active story row.** A save holds one `story_state` row per pack it ever ran. `PersistStoryState` stamps the
   active row (`StoredStoryState.Active = true`, `UpdatedUtc`), an admin switch clears `Active` on the row it left,
   and `SelectActiveStoryRow` picks: rows of installed packs (or `none`) over unknown ones → the active marker →
@@ -105,6 +111,122 @@ progress (1 > 0 %, 2 ≥ 33 %, 3 ≥ 66 %); **4 is the win alone** (#2460) — i
   beats, story lines, finale rewards or VEGA tick while observing; `MarkArrivedOnBody` books a `/goto` arrival
   silently (no milestone, no frontier growth, no knowledge); `player_near` never names them. `ExitSpectate`
   runs the catch-up.
+
+## VEGA as its own pack: prologue, story track, held content, chapters, migration (#2470)
+
+The arc stays world-shared (`StoryState`: score, beats, finale — unchanged). What is per player is **when the story
+reaches them**: the **story track** `story:<id>:started`. Server code: `GameServerStoryTrack.cs`; the pure chapter
+arithmetic: `Shared/Story/StoryChapters.cs`.
+
+**Manifest** (`data/stories/vega_protocol/story.json`, new fields only; every one mirrored in
+`StoryRegistry.BuildVegaProtocol` and compared by `StoryPackLoadTests`' no-drift test): `kind: story`, `scope: world`,
+`shortNameKey: story.vega.short`, `narrator` (vega, `ui.vega.name`, `icon_vega`, `#5FD8FF`, the three chatter clips,
+`ai_blip`), `introCutscene: prologue`, `start: { after: [chapter:tutorial:b6], earlyOptIn: true }`, the chapters below and
+`insights[]` (the companion-ward and shape-anomaly insights: event, `minBeat` 5, line, once-key — the hard-coded "six
+beats" check is gone; `RevealStoryInsight`).
+
+| # | Chapter id | Title (EN / DE) | Reached by |
+|---|---|---|---|
+| 0 | `awakening` | Awakening / Erwachen | B0 (the prologue: its `openCutscene` is the intro) |
+| 1 | `signature` | A Familiar Signature / Eine vertraute Signatur | B1 |
+| 2 | `service` | The Service / Der Dienst | B2 (B2–B4) |
+| 3 | `guardian` | The Guardian / Der Wächter | B5 |
+| 4 | `verdict` | The Verdict / Das Urteil | B6 (B6–B8) |
+| 5 | `what_you_are` | What You Are / Was du bist | B9 (B9–B10) |
+| 6 | `sleeps` | It Still Sleeps / Er schläft noch | B11 |
+| 7 | `core` | The Guardian Core / Der Wächterkern | B12 (+ the Guardian reveal) |
+| 8 | `resolution` | Resolution / Auflösung | `fromEvent: guardian_defeated` |
+
+Titles are `story.vega.ch.<id>`. A chapter is **reached** when the arc revealed its `fromBeat` or raised its `fromEvent`
+(`StoryChapterEvents`: `guardian_revealed`, `guardian_defeated`); the **world's chapter** is the last one reached; a
+player's chapter is **derived, never stored**: `max(1, world)` once their track started (`StoryChapters.TrackChapterIndex`).
+The validator (C# and Python) refuses a world chapter whose `fromBeat` is outside the arc, an unknown `fromEvent`, and
+chapters out of beat order. The condition atom `chapter:vega_protocol:<id>` holds once the player's chapter is at or past
+it. Chapter openings (`openCutscene`, bound from step 15 on) play at the beat that starts the chapter, before its line.
+
+**Prologue** — the cold open of the game (synthesis §5.3 "Prolog vs. Spur"). It plays once (ledger
+`story:<id>:cut:prologue`, sent or seen) for a player who arrived with **no** `story:<id>:*` key (the join snapshot): a
+newcomer, or everyone on a world just switched from "none" to the story (`StoryTrackOnStorySwitch` for the players
+online). Never on a tutorial restart; replayable from the Story tab ("Prologue — Awakening"). It runs in `StoryOnJoin`,
+before the beat catch-up and before the tutorial pack starts. B0 — VEGA's first words — is its speaker page and counts as
+heard with it (no second "VEGA wakes" line). A `cutscenes1` client gets the director scene (see
+[CUTSCENES.md](CUTSCENES.md#the-vega-prologue-2470)); an older client (or the built-in fallback pack, which carries no
+cutscenes) gets the five old full-screen pages (Kind 4): `vega.prologue.1..3`, B0, and the call to adventure
+`story.vega.call` as server-composed text. The prologue keys live in the pack locale now (names kept).
+
+**Start rule** (`StoryTrackStartReason`, evaluated at the join after the player packs, at 1 Hz, after every player-pack
+advance, on arrival in the finale system, when observer mode ends and on a story switch):
+- the pack's `start.after` holds (VEGA: the basic training's last part done or skipped) — or no tutorial pack still runs
+  its mandatory part for the player (none installed, tutorial `Off`, an `OptIn` world they never opted into, opted out);
+- a beat beyond B0 already heard (a player from before the pack);
+- a veteran by the join snapshot who is not in the middle of the basic training;
+- "Start the story now": `StoryPackIntent { PackId: <world story>, Action: startPack }` (pause-whitelisted), allowed by
+  `start.earlyOptIn`;
+- the player stands in the Guardian system (never leave a player in the finale without context).
+A "none" world never starts a track.
+
+**Held until the track starts** (synthesis §4.6 sender table):
+
+| Content | Sender | Held how |
+|---|---|---|
+| beat lines + knowledge | `RevealBeatTo` | no key, no knowledge — credited at the start |
+| Guardian reveal (jump-generator line) | `SpeakGuardianRevealedTo` | key not written — spoken at the start while the finale is open |
+| finale resolution + epilogue lines | `SpeakStoryLineToStarted` | not spoken — the ending at the start carries them |
+| insights | `RevealStoryInsight` | once-key not written — fires at the next occasion |
+| relay insights (`vega.relay.*`) | `SpeakRelayInsightOnce` | not spoken — `StoryStateMessage.RelayInsightKeys` puts them in the log silently |
+| hack meter, duel nodes | `BroadcastToFinaleAudience` | only players in the Guardian system, started players and observers |
+| live ending | `WinDuel` | deferred to the start (the achievement is everyone's aboard, as before) |
+| fragment / lore / memory readers, NPC threads, dialogs, VEGA's old memory arc | player-triggered | **not** held |
+| star-map marker of the Guardian system | `BroadcastStarMap` | **not** held (world state) |
+
+The chip's story ranks (4 finale, 5 lead) and a pinned VEGA also need a started track, so the story never flashes on the
+chip during the prologue, a read step's line or the gap between two lessons. VEGA's `fragment_signal` tip waits for the
+track too.
+
+**Track start** (`StartStoryTrack`, §5.3 "Spurstart-Folge"):
+1. every revealed beat the player has not heard is heard now, its knowledge credited now; the story state follows (log,
+   chapter, relay insights);
+2. "The story so far" (`__recap`, titles of chapters 1 … current − 1) when the world is past chapter 1 and the player
+   catches up on held beats (a player from before the pack lived through them — no recap);
+3. only the CURRENT chapter's opening — or, while a chapter has no scene yet, its newest beat as a line. The recap chains
+   straight into the pack's next chapter scene on server and client (`StoryCutsceneIds.AnyOfPack`), never into the intro;
+4. with the finale open the Guardian reveal (the jump-generator line; step 15's B12 card);
+5. on a won world the ending (unless watched) — with the achievement for whoever had heard B12 before this join;
+6. the chip shows the story's objective.
+
+**Hosted and arcade worlds** (E29; `PersonalChapterOneFor`: the instance runs behind the WorldHost join gate, or the
+player is an arcade guest with an install id): a newcomer catching up gets a **personal chapter 1** — chapter 1's opening
+(B1's line until step 15), no automatic recap, no automatic ending; the Story tab shows "The crew of this world is in
+chapter N" (`StoryStateMessage.ShowCrewChapter`) and "The story so far" on demand.
+
+**Migration** (`MigrateStoryTrack`, lazy at the join, idempotent, marker `story:<id>:migrated:v1`; synthesis §4.10):
+- a player without any key of the story is a newcomer to it — nothing to migrate (the prologue rule takes them);
+- P1–P3: the old prologue pages (or the old veteran path) count as the prologue seen; mid-tutorial players start the track
+  after the basic training, the others by the start rule at this join (all stages → training through; a heard beat ≥ 1);
+- P2–P4: the openings of chapters before the world's and the scenes of heard beats count as seen; the current chapter's
+  opening stays owed and plays once at the start; P4 (finale open) gets the reveal line and the finale chip;
+- P5: `story:<id>:resolved` from an older build meant "watched" → `story:<id>:cut:resolution`;
+- P6: a "none" world migrates nothing and writes no marker; P7: `vega:mem:N` stay (the `mk3parts` flag never counts);
+  P8: several story rows — `SelectActiveStoryRow` (#2460); P9: players the old multiplayer bug auto-skipped get the
+  tutorial pack's one refresher offer (`MigrateOfficialTutorial`) — the story adds none, so it is offered once.
+
+**VEGA-pack-bound extras.** VEGA's old memory arc (`ai_memory_fragment` → `vega.mem.N`) speaks VEGA's memories only while
+the VEGA story runs (`VegaStoryActive`); otherwise the same redemptions read as neutral archive lines
+(`vega.mem.archive.1..3`) — knowledge and the Mk3 parts unchanged, no score, no cutscenes, never held. The relay insights
+are silent without the VEGA story (their once-guard stays unspent, so a world switched to VEGA later still hears them) and
+the `guardian_core` landing hint without a story. The LLM banter's situation mentions VEGA's memory only under the VEGA
+story.
+
+**Client.** The Story tab (`CraftingTechShipUI.BuildStoryList`) lists the chapters (`StoryChapterList`, Client.Core):
+reached ones titled with the beats heard in them, future ones "???", only the prologue before the track starts; before
+the start a hint and **Start the story now**; the crew status line; **The story so far** (the recap card, played
+locally) from chapter 2 on. "Watch the ending again" waits for the player's own track. Relay insights from
+`RelayInsightKeys` join the VEGA log.
+
+Test seams: `StartStoryTrackForTest` (the full start sequence — legacy story tests use it for "a player in the story"),
+`TryStartStoryTrackForTest`, `StoryTrackStartReasonForTest`, `StoryOnJoinForTest`, `MigrateStoryTrackForTest`,
+`WorldChapterIdForTest`, `TrackChapterIdForTest`, `WinDuelForTest`, `FinaleAudienceForTest`, `SpeakRelayInsightForTest`.
+Tests: `VegaStoryPackTests`; Client.Tests `StoryChapterListTests`.
 
 ## Game events, story conditions and the world-story guard (#2465)
 
@@ -385,7 +507,7 @@ unknown fields). The checks are listed in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#va
 
 | Tag | Message | Dir | Purpose |
 |---|---|---|---|
-| 139 | `StoryStateMessage` | S→C | active story, progress %, counts, kills, beats seen, flags; additive `HeardBeats` (this player's beat indexes) since #2462 |
+| 139 | `StoryStateMessage` | S→C | active story, progress %, counts, kills, beats seen, flags; additive `HeardBeats` (this player's beat indexes) since #2462; `Started`, `Chapter`, `WorldChapter`, `ShowCrewChapter`, `RelayInsightKeys` since #2470 |
 | 140 | `NetFragmentFoundIntent` | C→S | player opened a fragment at a position |
 | 141 | `NetFragmentRevealed` | S→C | category + archive text key |
 | 142 | `PlayerMemoryRevealed` | S→C | a personal memory unlocked by a machine kill |
@@ -400,7 +522,7 @@ unknown fields). The checks are listed in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#va
 | 221 | `RequestStoryResolutionIntent` | C→S | Story tab "watch the ending again" (#1124) |
 | 295 | `CutscenePlay` | S→C | play a pack's cutscene (`PackId`, `CutsceneId`, `Arg`, `HasAnchor` + `AnchorX/Y/Z`, `Replay`); only to `cutscenes1` clients (#2467, [CUTSCENES.md](CUTSCENES.md)) |
 | 296 | `CutsceneSeenIntent` | C→S | the client is through with these scenes (`PackId`, `Ids[]`, `Skipped`, `Unsupported`) → the seen ledger; passes a held world (#2467) |
-| 297 | `StoryPackIntent` | C→S | the player's control of a player pack (track, opt out, start/skip/replay a chapter, skip a step) (#2466); `replayCutscene` + `CutsceneId` (#2467) |
+| 297 | `StoryPackIntent` | C→S | the player's control of a player pack (track, opt out, start/skip/replay a chapter, skip a step) (#2466); `replayCutscene` + `CutsceneId` (#2467); `startPack` with the world story's id = "Start the story now" (#2470) |
 | 298 | `UiTutorialEvent` | C→S | a UI moment a tutorial step teaches (`Id`: `vega_continue`, `menu_open`, `codex_open`, `map_open`, `waypoint_set`) → `ui:<id>` on the event bus; teaching only, rate-limited, passes a held world (#2469) |
 
 Beat speech reuses `ShipAiLine`. Every message is `Register()`'d in NetCodec.
@@ -416,6 +538,9 @@ default) — no `Protocol.Version` bump.
 | `ShipAiLine.TutorialActive` | this player's tutorial still runs, whatever the chip shows — the Settings button offers *Skip* then, *Restart* otherwise (B03) | read only when `ObjectiveSource` is set |
 | `StoryStateMessage.HeardBeats` | the beat indexes this player has heard (`story:<id>:beat:<n>` milestones), ascending | empty — the client keeps the beats heard live this session |
 | `StoryStateMessage.SeenCutscenes` | #2468: this player's confirmed cutscenes of every pack, `<pack>/<id>` sorted (`story:<pack>:cut:<id>` milestones, not the `:sent` form) — the Story tab's "Watch again" list ([CUTSCENES.md](CUTSCENES.md)) | empty — the client lists what it confirmed this session |
+| `StoryStateMessage.Started` / `Chapter` / `WorldChapter` | #2470: this player's story track started; their (derived) chapter id; the world's chapter id — filled by every current server, so an empty `WorldChapter` means an older server | the client treats the track as started and lists chapters from the heard beats |
+| `StoryStateMessage.ShowCrewChapter` | #2470: the Story tab shows "The crew of this world is in chapter N" (waiting players, hosted/arcade newcomers) | false — no line |
+| `StoryStateMessage.RelayInsightKeys` | #2470: the relay insights this save has spoken (to a started player) — they join the VEGA log silently | empty — the log keeps what was spoken live |
 | `MissionResult.Outcome` / `Title` / `FreeText` | `accepted` / `completed` / `posted` and the mission's title (locale key, or display text when `FreeText`) for the toast (B24) | empty outcome — the client's toast says "Mission updated" and names the mission from its mission list |
 | `SetNpcCallsIntent.VegaHintsMuted` | the client's VEGA hints switch is off (sent at every join and from both settings screens): the server holds advisor hints (Kind 1), context tips and the bandit briefing back WITHOUT burning their once-flags (B31) | absent = hints on (today's behaviour) |
 
@@ -434,7 +559,8 @@ Rules on top of the wire:
   `ClientSettings.*HintShown` flag only then. Since #2469 the flight lessons the tutorial's B6 steps teach
   (`VegaText.LessonCoveredByTutorial`) count as given without being spoken while the basic training runs.
 - **Pause.** `PausedMayHandle` serves `SetNpcCallsIntent`, `SkipOnboardingIntent`, `RequestStoryResolutionIntent` and
-  `StorySelectIntent` while the world is held (each with a dispatch test in `StoryUiFixesTests`).
+  `StorySelectIntent` while the world is held (each with a dispatch test in `StoryUiFixesTests`); since #2470 also
+  `StoryPackIntent` `startPack` ("Start the story now", dispatch test in `VegaStoryPackTests`).
 
 ## Cinematics: one cutscene state, skip on every device, the world-hold arbiter (#2461)
 
@@ -478,7 +604,10 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   `StoryPackValidator`; `Shared/Localization/LineText.cs` (line composition, shared with the client). Server:
   `GameServerGameEvents.cs` (event bus), `GameServerStoryConditions.cs` (condition context + world predicates),
   `GameServerStoryPacks.cs` (the player-pack runtime, chip helpers, `/tutorial`), `GameServerTutorial.cs` (#2469: the
-  teaching verbs, `UiTutorialEvent`, the tutorial's predicates, the hint hold, the migration of the old onboarding).
+  teaching verbs, `UiTutorialEvent`, the tutorial's predicates, the hint hold, the migration of the old onboarding),
+  `GameServerStoryTrack.cs` (#2470: the world story's per-player track — prologue, start rule, track start, migration);
+  `Shared/Story/StoryChapters.cs` (#2470: world-pack chapters, `StoryChapterEvents`); Client.Core `StoryChapterList.cs`
+  (#2470: the Story tab's chapter rows).
 - Data: `data/stories/tutorial/` (#2469) — the basic training (`story.json`, `locales/en.json` + `de.json`); content table
   in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#the-tutorial-pack-datastoriestutorial-2469).
 - Server: `GameServerStory.cs` (state load, Record fragment/kill/milestone, beat reveal, admin selection,
@@ -503,7 +632,8 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
 ## Story and VEGA text conventions (#2463)
 
 - **Canon.** Every VEGA line follows [LORE_STRUCTURE.md](LORE_STRUCTURE.md) — including VEGA's older memory arc
-  (`vega.mem.1..10`, redeemed from `ai_memory_fragment`, still in the core locale and not story-gated). Its texts were
+  (`vega.mem.1..10`, redeemed from `ai_memory_fragment`, still in the core locale; since #2470 bound to the VEGA story —
+  a world without it hears the neutral `vega.mem.archive.*` lines). Its texts were
   reconciled with the pack in one approved canon pass: the Meridian is an SPS survey fleet; the fleet did not scatter,
   it was stopped ship by ship; VEGA's captain cut her ship loose at VEGA's own request; the last fragment brings back
   her schematics, not every memory. The player memory `mem_the_order` is "you were in the room when the order went

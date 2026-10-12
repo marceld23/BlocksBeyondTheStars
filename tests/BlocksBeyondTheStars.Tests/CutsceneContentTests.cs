@@ -33,13 +33,17 @@ public sealed class CutsceneContentTests
         Assert.NotNull(prologue);
         Assert.Equal(CutsceneTiers.Scene, prologue!.Tier);
         Assert.Equal("music_mystery_signal", prologue.Music);
-        Assert.Equal(new[] { "vega.prologue.1", "vega.prologue.2", "vega.prologue.3" }, prologue.ReplaceLineKeys);
-        Assert.Equal(new[] { CutsceneCameras.PlayerView, CutsceneCameras.Orbit, CutsceneCameras.Static, CutsceneCameras.PlayerView },
+        // #2470: B0 and the call to adventure are VEGA's pages of the prologue now (the scene shows them itself).
+        Assert.Equal(new[] { "vega.prologue.1", "vega.prologue.2", "vega.prologue.3", "story.vega.beat00", "story.vega.call" }, prologue.ReplaceLineKeys);
+        Assert.Equal(new[] { CutsceneCameras.PlayerView, CutsceneCameras.Orbit, CutsceneCameras.Static, CutsceneCameras.PlayerView, CutsceneCameras.PlayerView, CutsceneCameras.PlayerView },
             prologue.Shots.Select(s => s.Camera.Type));
         var title = Assert.Single(prologue.Shots[0].Captions);
         Assert.Equal(CutsceneCaptionStyles.TitleCard, title.Style);
         Assert.Equal("ui.story.prologue", title.KickerKey);
+        Assert.Equal("story.vega.ch.awakening", title.Key);
         Assert.Equal("vega.prologue.3", Assert.Single(prologue.Shots[3].Captions).Key);
+        Assert.Equal(CutsceneCaptionStyles.Speaker, Assert.Single(prologue.Shots[4].Captions).Style);
+        Assert.Equal("story.vega.call", Assert.Single(prologue.Shots[5].Captions).Key);
         Assert.True(prologue.TakesCamera);
         Assert.True(prologue.EffectiveHoldWorld);
         Assert.True(prologue.EffectiveLockInput);

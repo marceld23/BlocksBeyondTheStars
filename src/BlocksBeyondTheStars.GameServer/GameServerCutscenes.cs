@@ -273,7 +273,17 @@ public sealed partial class GameServer
            || item.CooldownExempt
            || session.CutsceneChain.Contains(item.PackId + StoryCutsceneIds.PackSeparator + item.DefinitionId)
            || (item.DefinitionId == StoryCutsceneIds.Recap && session.CutsceneChain.Contains(StoryCutsceneIds.Recap))
+           || (session.CutsceneChain.Contains(StoryCutsceneIds.AnyOfPack(item.PackId)) && IsChapterScene(item))
            || _uptime - session.CutsceneLastSentAt >= CutsceneCooldownSeconds;
+
+    /// <summary>A queued scene bound to a chapter of its pack (an opening, a beat card) that is not the pack's intro — what
+    /// the recap card leads into at once (#2470).</summary>
+    private bool IsChapterScene(PendingCutscene item)
+        => item.DefinitionId != StoryCutsceneIds.Recap
+           && _content.Stories.TryGetValue(item.PackId, out var pack)
+           && pack.FindCutscene(item.Id) is { } def
+           && !string.Equals(def.Id, pack.IntroCutscene, StringComparison.Ordinal)
+           && ChapterOfCutscene(pack, def, item.Id) is not null;
 
     private void SendQueuedCutscene(PlayerSession session, PendingCutscene item)
     {
@@ -285,6 +295,13 @@ public sealed partial class GameServer
 
         session.CutsceneLastSentAt = _uptime;
         session.CutsceneChain.Clear();
+        if (item.DefinitionId == StoryCutsceneIds.Recap)
+        {
+            // #2470 (synthesis §5.3 "Spurstart-Folge"): "the story so far" leads straight into the pack's next scene — the
+            // current chapter's opening at a story-track start — the client keeps the same chain.
+            session.CutsceneChain.Add(StoryCutsceneIds.AnyOfPack(item.PackId));
+        }
+
         var def = item.DefinitionId == StoryCutsceneIds.Recap ? null : FindPackCutscene(item.PackId, item.Id);
         foreach (string next in def?.Options?.ChainNext ?? new List<string>())
         {
@@ -449,8 +466,10 @@ public sealed partial class GameServer
 
             if (string.Equals(StoryRegistry.EffectiveScope(pack), StoryRegistry.ScopeWorld, StringComparison.Ordinal))
             {
+                // The pack's intro (VEGA's prologue, chapter "awakening") is the cold open, never a line in a recap (#2470).
                 var chapterScenes = scenes
-                    .Where(x => x.Def.Tier >= CutsceneTiers.Card && ChapterOfCutscene(pack, x.Def, x.Id) is not null)
+                    .Where(x => x.Def.Tier >= CutsceneTiers.Card && ChapterOfCutscene(pack, x.Def, x.Id) is not null
+                                && !string.Equals(x.Id, pack.IntroCutscene, StringComparison.Ordinal))
                     .ToList();
                 if (chapterScenes.Count >= CutsceneRecapThreshold)
                 {

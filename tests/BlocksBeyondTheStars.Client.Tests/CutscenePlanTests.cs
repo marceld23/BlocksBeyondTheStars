@@ -204,14 +204,18 @@ public sealed class CutscenePlanTests
 
         Assert.Equal(CutsceneTiers.Scene, plan.Tier);
         Assert.True(plan.TakesCamera && plan.HoldWorld && plan.LockInput);
-        Assert.Equal(new[] { CutsceneCameras.PlayerView, CutsceneCameras.Orbit, CutsceneCameras.Static, CutsceneCameras.PlayerView },
+        Assert.Equal(new[] { CutsceneCameras.PlayerView, CutsceneCameras.Orbit, CutsceneCameras.Static, CutsceneCameras.PlayerView,
+                CutsceneCameras.PlayerView, CutsceneCameras.PlayerView },
             plan.Shots.Select(s => s.Camera));
         var title = plan.Shots[0].Captions[0];
         Assert.False(title.PageGated); // the title card runs on its own
         Assert.Equal(table["ui.story.prologue"], title.Kicker);
-        Assert.Equal(table["story.vega_protocol.name"], title.Text);
+        Assert.Equal(table["story.vega.ch.awakening"], title.Text); // #2470: "Prologue — Awakening"
         Assert.All(plan.Shots.Skip(1), s => Assert.True(s.Captions[0].PageGated));
         Assert.Equal("ai_blip", plan.Shots[3].Sfx.Single().Cue);
+        // #2470: VEGA's own pages in her speaker box — B0, then the call to adventure as the last page.
+        Assert.Equal(CutsceneCaptionStyles.Speaker, plan.Shots[4].Captions[0].Style);
+        Assert.Equal(table["story.vega.call"], plan.Shots[5].Captions[0].Text);
         Assert.DoesNotContain(plan.Shots.SelectMany(s => s.Captions), c => c.Text.StartsWith('[')); // every key resolved
     }
 

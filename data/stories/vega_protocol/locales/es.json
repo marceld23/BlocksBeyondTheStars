@@ -1,5 +1,8 @@
 {
   "story.vega_protocol.name": "El Protocolo VEGA",
+  "vega.prologue.1": "Despiertas en el asiento del piloto de una nave pequeña, aparcada en un mundo que no reconoces. Tu casco reposa en tu regazo. Las estrellas brillan más allá de la cúpula. No tienes idea de cómo llegaste aquí.",
+  "vega.prologue.2": "Peor: no recuerdas quién eres. El registro de la nave está vacío. La computadora de navegación muestra una galaxia llena de estrellas sin nombre — y ninguna se siente como casa.",
+  "vega.prologue.3": "Entonces la consola parpadea y despierta. Una voz cruza la estática — fina, pero cálida. Se presenta como VEGA.",
   "story.vega.beat00": "Sistemas de la nave parcialmente en línea. Entorno desconocido. Queda una directiva: proteger a los humanos. Prioridad: tu supervivencia.",
   "story.vega.beat01": "Los restos de esta nave llevan un código de identidad antiguo, y son parientes del mío. Aún no sé por qué.",
   "story.vega.beat02": "Comienzo a recordar un nombre: el Servicio Scout y Pionero. Fue real. Cartografió estas estrellas.",

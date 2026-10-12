@@ -107,19 +107,43 @@ reaches the browser is only proven by a local WebGL build (PR CI builds no Unity
 - **Built in:** `__recap` — the "The story so far" card. Never defined or bound by a pack; the server sends it.
 
 `CutsceneContentTests.TheOfficialPacks_UseOnlyTheBindingIds` holds the two official packs to these lists. Today
-`vega_protocol/cutscenes.json` holds only `prologue` (mirroring the three prologue pages); nothing binds it yet — VEGA's
-start plays it from step 11 on, and steps 14/15/17 add the tutorial cards, chapter scenes and finale set pieces.
+`vega_protocol/cutscenes.json` holds only `prologue`, bound as VEGA's `introCutscene` (and chapter 0's opener) since
+#2470 — see [The VEGA prologue](#the-vega-prologue-2470); steps 14/15/17 add the tutorial cards, chapter scenes and finale
+set pieces.
+
+### The VEGA prologue (#2470)
+
+The cold open of the game, "Awakening" (T3, chapter `awakening`, music `music_mystery_signal`, `holdWorld` + `lockInput`):
+
+| Shot | Camera | Caption |
+|---|---|---|
+| 1 | `player_view` (out of black) | title card: kicker `ui.story.prologue` "Prologue", title `story.vega.ch.awakening` "Awakening" |
+| 2 | `orbit` around the player's ship (terrain-aware, scaled to the ship) | subtitle `vega.prologue.1` |
+| 3 | `static` close on the ship (the push-in) | subtitle `vega.prologue.2` |
+| 4 | `player_view` — the cut to the pilot's seat, `ai_blip` | subtitle `vega.prologue.3` |
+| 5 | `player_view` | VEGA's speaker box: `story.vega.beat00` (B0 — it counts as heard with the prologue) |
+| 6 | `player_view` | VEGA's speaker box: `story.vega.call`, the call to adventure, the last page |
+
+Subtitles and speaker pages follow "Story text: wait for me"; the title runs on its own. VEGA's speaker box glitches in for
+her first words of a scene (`CutsceneDirector.GlitchIn`: a short glitch burst — never in the browser, none with Reduce
+effects — and in a staged scene a soft flash that follows Reduce flashes). `replaceLineKeys` holds all five caption keys.
+The server plays it for a newcomer to the story (no `story:vega_protocol:*` key at the join) or everyone online when a
+"none" world switches to VEGA — once, never on a tutorial restart; "Watch again" lists it as "Prologue — Awakening". A
+client without `cutscenes1` (an older build, a local player) and the built-in fallback pack (no cutscenes) get the old
+five full-screen pages instead (Kind 4: the three narration keys, B0, and the call as server-composed text). The
+`VegaPanel` + `PrologueCinematic` path stays only for a server that predates this (it sends Kind-4 pages to everyone); a
+current server never sends both. The chain to `tut.welcome` (`chainNext`) comes with step 14, which adds that scene.
 
 ### Bindings — where a pack plays a scene
 
 | Field | Plays when (server) |
 |---|---|
-| pack `introCutscene` | a **player** pack starts for the player — not on "I know the game" (`skipPack`), and not when the pack would complete silently for this player (every mandatory chapter through, by `autoCompleteIf` or by every step done / `alreadyDoneIf` — a veteran). The world story's start is wired in step 11 |
-| chapter `openCutscene` | the chapter's first step is **presented** (activates with its line) — not during a replay, not for a chapter that completes silently |
+| pack `introCutscene` | a **player** pack starts for the player — not on "I know the game" (`skipPack`), and not when the pack would complete silently for this player (every mandatory chapter through, by `autoCompleteIf` or by every step done / `alreadyDoneIf` — a veteran). The **world story's** intro (#2470) plays for a player who arrives with no key of the story (VEGA's prologue, above) |
+| chapter `openCutscene` | a player pack: the chapter's first step is **presented** (activates with its line) — not during a replay, not for a chapter that completes silently. The world story (#2470): at the beat that starts the chapter (before its line), and once for the current chapter at the player's story-track start (never the intro) |
 | chapter `closeCutscene` | a chapter the player **was shown** this session is done (`PlayerSession.PresentedPackChapters`) — not when skipped, replayed or completed silently by evidence |
 | step `onStart.cutscene` | the step activates with its line (before the line; not in a replay) |
 | step `onComplete.cutscene` | the step completes **non-silently** (it was the chip step, or a react step) — before the done line; not in a replay |
-| beat `cutscene` | the API exists (`PlayCutsceneForListeners`); the beat reveal wires it in step 11 |
+| beat `cutscene` | the beat reaches a player whose story track has started (#2470: `RevealBeatTo`, after the chapter opening, before the line) |
 | `finale.cutscenes{arrival, descent, breach, standdown, resolution}` | wired by the finale code in step 17b |
 
 A scene goes out **before** its trigger's narrator line, so a client that plays it knows which lines it shows.
@@ -191,7 +215,8 @@ template. Rules:
   seen key is queued again (pack order: definition order, then the bound chapter). A client without `cutscenes1` gets
   them stamped seen; a scene the pack no longer defines is dropped (stamped seen); a pack not installed on this server,
   or not enabled for the player (opted out, the world story switched off), keeps its promise. A **world story**'s backlog of **3 or more** chapter scenes (T2+ with a chapter) collapses into ONE
-  `__recap` card with those chapters' titles (the scenes are stamped seen; the Story tab replays them).
+  `__recap` card with those chapters' titles (the scenes are stamped seen; the Story tab replays them) — never the pack's
+  intro (the prologue is the cold open, not a chapter line; #2470).
 - **Replay** (`replayCutscene`): a replayable scene the player has a key for (spoiler guard) is re-sent with
   `Replay = true` — any installed pack, the world story included; no ledger change; nothing for a client without
   `cutscenes1`. The ending keeps its own `RequestStoryResolutionIntent` path.
@@ -211,7 +236,9 @@ flush it:
   stands still while the world is held).
 - **Banners** (T1) never wait (the client queues them behind a running scene).
 - **Chains.** A scene named in the last sent scene's `chainNext` goes at once (prologue → `tut.welcome`, graduation →
-  `ch1.open` / recap, B12 → reveal) — it may jump the queue.
+  `ch1.open` / recap, B12 → reveal) — it may jump the queue. The built-in recap chains to its pack's next **chapter
+  scene** (bound to a chapter, not the intro — `StoryCutsceneIds.AnyOfPack`, #2470): "the story so far" leads straight
+  into the current chapter's opening at a story-track start. The client keeps the same rule (`QueuedCutscene.ChapterScene`).
 - **Now or never** (`cooldownExempt`) goes at once and restarts the cooldown.
 - The queue is lost with the session; the `:sent` key re-offers its scenes at the next join.
 
@@ -260,7 +287,7 @@ Step 9 (#2468). The Unity-free rules live in Client.Core (`src/BlocksBeyondTheSt
 | `SafeMomentGate` | `Evaluate(request, inputs)` → `Play` / `Defer` / `Abort` with a reason; `ShouldInterrupt` (danger while playing); `CameraCapReached` (MP 30 s) |
 | `CutsceneQueue` | one scene at a time; dedupe by `pack/id`; requests (replays, previews, the dev palette) first; the 90 s cooldown after an unrequested T2+ (measured from its **end** — a scene that waited minutes must not be followed by the next one a second later); `chainNext` lifts it for the named follower; "now or never" and banners never wait |
 | `CutsceneStaging` | a shot's camera with the fallback chain (requested → raised orbit → crane → sky → player view) on `CinematicStageScan` (unloaded chunks blocked, the parked hull blocks the camera spot) and `PrologueOrbit.Scale` |
-| `CutsceneCatalog` | the "Watch again" rows (seen, replayable scenes of installed packs, in pack/definition order) and their names (title card "Prologue — The VEGA Protocol", else the bound chapter's title, else the first caption) |
+| `CutsceneCatalog` | the "Watch again" rows (seen, replayable scenes of installed packs, in pack/definition order) and their names (title card "Prologue — Awakening", else the bound chapter's title, else the first caption) |
 
 **Arguments.** `CutscenePlay.Arg` is split at U+001F; a value the localizer knows is localized (a chapter binding sends the
 chapter's title **key**), anything else stays (a body name). For `__recap` the values are chapter title keys: the card
@@ -358,7 +385,8 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   ambience ducking; music is not prefetched when a scene is queued.
 - No `ctx:` variants, no synthetic stages (`space_vista`, dioramas), no `dolly`/`pan`/`flyover` (step 17a); the speaker box
   has no vocoder chatter (only the line-start cue).
-- The VEGA prologue still runs on `VegaPanel` + `PrologueCinematic` until step 11 binds `introCutscene: "prologue"`.
+- ~~The VEGA prologue still runs on `VegaPanel` + `PrologueCinematic`~~ — #2470 bound it as VEGA's `introCutscene`; the
+  old path is kept for older servers only.
 
 ## Tests
 
@@ -376,3 +404,6 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   (every unsafe reason, give-up, interrupt, cap; the queue), `CutsceneStagingTests` (fallback chain on fake worlds; the
   "Watch again" rows and labels), `CutsceneClientTests` (the real `NetworkClient` against the real server: `cutscenes1`,
   the preview event, the receipt, `SeenCutscenes`, the replay request), `StoryPackClientTests` (the feature words).
+- #2470: `VegaStoryPackTests` (the prologue scene for a newcomer, the five pages for an older client, once / never on a
+  restart, a "none" world switched to VEGA, the recap chaining into a chapter scene, a bound chapter opening at the track
+  start and at its beat); `SafeMomentGateTests.TheRecap_LeadsIntoItsPacksNextChapterScene_Only`.

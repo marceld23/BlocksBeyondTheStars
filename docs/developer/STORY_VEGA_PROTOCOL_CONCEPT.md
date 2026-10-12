@@ -100,6 +100,32 @@ The arc ends at the dormant **Guardian core** (§7).
    proposes a **decentralised** net, and the only way to end the killing is to **reach the dormant Guardian
    core** before reactivated net-tech wakes it. The finale follows (§7).
 
+### 3.1 Chapters and the player's start (#2470)
+
+Since #2470 VEGA is its own story pack with **nine chapters** that follow the beats — the score engine is untouched, a
+chapter is simply where the arc stands. The chapter titles are what players see (Story tab, recap card, chapter cards):
+
+| # | Chapter | Beats | The three acts |
+|---|---|---|---|
+| 0 | **Awakening** / Erwachen | the prologue + B0 | act 1 |
+| 1 | **A Familiar Signature** / Eine vertraute Signatur | B1 | act 1 |
+| 2 | **The Service** / Der Dienst | B2–B4 | act 2 |
+| 3 | **The Guardian** / Der Wächter | B5 | act 2 |
+| 4 | **The Verdict** / Das Urteil | B6–B8 | act 2 |
+| 5 | **What You Are** / Was du bist | B9–B10 (the clone reveal) | act 2 |
+| 6 | **It Still Sleeps** / Er schläft noch | B11 | act 3 |
+| 7 | **The Guardian Core** / Der Wächterkern | B12, the reveal and the finale | act 3 |
+| 8 | **Resolution** / Auflösung | the win and the epilogue | — |
+
+**When the story starts for a player (S2).** The prologue is the cold open of the game: the player wakes in the pilot's
+seat, VEGA boots, and her last page is the call to adventure ("My memory lies scattered out there … help me find the
+pieces, and we will learn who we were"). Then the basic training runs undisturbed; the story's own track starts after
+it (or at once when the tutorial is off, for a returning veteran, on "Start the story now", or in the finale system).
+Whatever the shared arc revealed meanwhile is held for that player and arrives as one recap card plus the current
+chapter — in multiplayer a latecomer catches up with the crew this way; on hosted and arcade worlds a newcomer gets a
+personal chapter 1 and sees the crew's chapter as a status line. VEGA's older memory arc belongs to this pack: a world
+without the VEGA story hears neutral archive lines instead. Mechanics: [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md).
+
 ---
 
 ## 4. Evaluation

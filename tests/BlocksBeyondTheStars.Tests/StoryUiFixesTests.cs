@@ -241,7 +241,8 @@ public sealed class StoryUiFixesTests : IDisposable
         var transport = new RecordingTransport();
         var server = Boot("heard", transport);
         var p = JoinOverWire(server, 1, "Pilot");
-        Assert.Equal(new[] { 0 }, server.StoryStateForTest("Pilot")!.HeardBeats); // B0 at the first join
+        Assert.Equal(new[] { 0 }, server.StoryStateForTest("Pilot")!.HeardBeats); // B0 at the first join (the prologue's page)
+        server.StartStoryTrackForTest(p); // #2470: the story reaches a player once their track started
 
         for (int i = 0; i < 3; i++)
         {
@@ -270,8 +271,11 @@ public sealed class StoryUiFixesTests : IDisposable
         }
 
         var guest = JoinOverWire(server, 2, "Guest");
+        Assert.Equal(new[] { 0 }, server.StoryStateForTest("Guest")!.HeardBeats); // #2470: B1 is held during the training
+
+        server.StartStoryTrackForTest(guest);
         Assert.Equal(new[] { 0, 1 }, server.StoryStateForTest("Guest")!.HeardBeats);
-        // The beats arrived as narrator lines too (the client keeps those live on top of the join snapshot).
+        // The track start speaks the chapter's beat as a narrator line too (the client keeps those live on top of the snapshot).
         Assert.Contains(transport.To<ShipAiLine>(guest), l => l.Kind == 2 && l.LineKey == _content.Stories["vega_protocol"].Beats[1].TextKey);
     }
 

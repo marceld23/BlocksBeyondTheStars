@@ -152,10 +152,12 @@ public sealed partial class GameServer
             => Milestones.Contains(StoryPackKeys.StepDone(packId, stepId))
                || Milestones.Contains(StoryPackKeys.StepSkipped(packId, stepId));
 
-        // TODO(#2470): a world pack's chapter is "reached" by the arc (fromBeat / fromEvent), not by a milestone.
+        // A player pack's chapter by its milestones; the WORLD story's chapter (#2470) is "reached" by the arc
+        // (fromBeat / fromEvent) — for this player once their story track has started.
         public bool IsChapterDone(string packId, string chapterId)
             => Milestones.Contains(StoryPackKeys.ChapterDone(packId, chapterId))
-               || Milestones.Contains(StoryPackKeys.ChapterSkipped(packId, chapterId));
+               || Milestones.Contains(StoryPackKeys.ChapterSkipped(packId, chapterId))
+               || _server.WorldChapterReachedFor(_who, packId, chapterId);
 
         public bool IsPackInState(string packId, StoryPackState state) => state switch
         {

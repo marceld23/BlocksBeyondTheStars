@@ -44,6 +44,7 @@ SCOPES = {"", "world", "player"}
 STEP_KINDS = {"do", "read", "react"}
 STEP_TIERS = {"must", "core", "opt"}
 GATES = {"opportunityTips", "banter", "stationNear"}
+CHAPTER_EVENTS = {"guardian_revealed", "guardian_defeated"}  # StoryChapterEvents (#2470)
 LEGACY_STAGES = ["mine", "craft", "eat", "scan", "unlock", "launch", "dock", "trade", "land"]
 PACK_STATES = {"started", "done", "enabled", "optedout"}
 SHORT_NAME_MAX = 10
@@ -542,6 +543,7 @@ class Validator:
         chapter_ids: set[str] = set()
         step_ids: set[str] = set()
         legacy_keys: set[str] = set()
+        last_from_beat = -1
         for ci, chapter in enumerate(pack.get("chapters") or []):
             cp = f"chapters[{ci}]"
             self.unknown_fields(pid, cp, chapter, "chapter")
@@ -561,6 +563,23 @@ class Validator:
                 r.warn(pid, f"{cp}.offerWhen", "only an optional chapter is offered")
             cutscene(f"{cp}.openCutscene", chapter.get("openCutscene"))
             cutscene(f"{cp}.closeCutscene", chapter.get("closeCutscene"))
+            from_beat = chapter.get("fromBeat", -1)
+            from_event = chapter.get("fromEvent") or ""
+            if not player_pack:
+                # #2470: a world pack's chapters are reached by the arc - a beat or an arc event.
+                bad_beat = not isinstance(from_beat, int) or from_beat < -1 or from_beat >= len(beats)
+                if bad_beat:
+                    r.error(pid, f"{cp}.fromBeat", f"beat {from_beat} does not exist (0-{len(beats) - 1}, or -1 for none)")
+                    from_beat = -1
+                if from_event and from_event not in CHAPTER_EVENTS:
+                    r.error(pid, f"{cp}.fromEvent", f"unknown arc event '{from_event}' ({', '.join(sorted(CHAPTER_EVENTS))})")
+                if from_beat < 0 and not from_event and not bad_beat:
+                    r.warn(pid, cp, "a world-pack chapter without fromBeat or fromEvent is never reached")
+                if 0 <= from_beat < last_from_beat:
+                    r.error(pid, f"{cp}.fromBeat", f"beat {from_beat} comes before the previous chapter's beat {last_from_beat} - chapters follow the beats in order")
+                last_from_beat = max(last_from_beat, from_beat)
+            elif (isinstance(from_beat, int) and from_beat >= 0) or from_event:
+                r.warn(pid, cp, "fromBeat / fromEvent are read for world packs only")
             for li, lead in enumerate(chapter.get("leads") or []):
                 self.unknown_fields(pid, f"{cp}.leads[{li}]", lead, "lead")
                 key(f"{cp}.leads[{li}].objKey", lead.get("objKey"), CHIP)

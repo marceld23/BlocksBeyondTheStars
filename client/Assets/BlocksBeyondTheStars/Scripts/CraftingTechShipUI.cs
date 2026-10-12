@@ -4741,10 +4741,17 @@ namespace BlocksBeyondTheStars.Client
                     16, UiKit.CyanDim, TextAnchor.MiddleLeft);
                 y += 40f;
 
+                // #2470: the player's story track. A current server always names the world's chapter; before the track
+                // starts (VEGA begins after the basic training) the story is held for this player.
+                var pack = Game.StoryPack;
+                bool trackKnown = !string.IsNullOrEmpty(s.WorldChapter);
+                bool started = !trackKnown || s.Started;
+
                 // The ending, re-viewable (#1124): once the story is resolved, the resolution cinematic can
                 // be replayed any time. The server re-sends it on request; the cinematic itself waits until
-                // this menu is closed, so the button both asks for it and gets the menu out of the way.
-                if (s.GuardianDefeated)
+                // this menu is closed, so the button both asks for it and gets the menu out of the way. Not offered
+                // before the player's own story has started — it would spoil what is waiting for them (#2470).
+                if (s.GuardianDefeated && started)
                 {
                     UiKit.AddButton(_listContent, 0, y, 780, 56, L("ui.story.view_ending"), () =>
                     {
@@ -4754,8 +4761,31 @@ namespace BlocksBeyondTheStars.Client
                     y += 66f;
                 }
 
-                y = AllianceSection(L("ui.story.beats"), y);
-                y = StoryEntries(y, Game.StoryLogBeats);
+                y = StoryTrackBlock(y, s, pack, started);
+
+                var chapters = BlocksBeyondTheStars.Client.Core.StoryChapterList.Build(pack, Game.StoryHeardBeats, s.Chapter, started, s.WorldChapter);
+                if (chapters.Count > 0)
+                {
+                    // The chapter list (#2470): reached chapters titled with their heard beats, future ones "???".
+                    y = AllianceSection(L("ui.story.chapters"), y);
+                    foreach (var row in chapters)
+                    {
+                        var color = row.State == BlocksBeyondTheStars.Client.Core.StoryChapterRowState.Current ? UiKit.Cyan
+                            : row.State == BlocksBeyondTheStars.Client.Core.StoryChapterRowState.Done ? UiKit.TextCol : UiKit.CyanDim;
+                        UiKit.AddText(_listContent, 8, y, 760, 28, BlocksBeyondTheStars.Client.Core.StoryChapterList.Label(row, L), 18, color,
+                            TextAnchor.MiddleLeft, row.State == BlocksBeyondTheStars.Client.Core.StoryChapterRowState.Current ? FontStyle.Bold : FontStyle.Normal);
+                        y += 32f;
+                        foreach (string key in row.BeatKeys)
+                        {
+                            y = StoryEntry(y, StoryText(key));
+                        }
+                    }
+                }
+                else
+                {
+                    y = AllianceSection(L("ui.story.beats"), y);
+                    y = StoryEntries(y, Game.StoryLogBeats);
+                }
 
                 y += 10f;
                 y = AllianceSection(L("ui.story.fragments"), y);
@@ -4858,6 +4888,59 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return y + 12f;
+        }
+
+        /// <summary>The story-track block of the Story tab (#2470): before the player's track starts a hint and "Start the story
+        /// now" (when the pack allows an early start — the server starts the track on <c>startPack</c>); the crew's chapter as a
+        /// status line where the server says so (a player still waiting, a hosted or arcade newcomer in their personal chapter
+        /// 1); from chapter 2 on "The story so far" on demand — the recap card, played on this client alone.</summary>
+        private float StoryTrackBlock(float y, StoryStateMessage s, BlocksBeyondTheStars.Shared.Story.StoryDefinition pack, bool started)
+        {
+            if (pack == null)
+            {
+                return y;
+            }
+
+            if (!started)
+            {
+                var hint = UiKit.AddText(_listContent, 8, y, 760, 48, L("ui.story.start_now_hint"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += Mathf.Max(30f, hint.preferredHeight + 8f);
+                if (pack.Start != null && pack.Start.EarlyOptIn)
+                {
+                    string startId = pack.Id;
+                    UiKit.AddButton(_listContent, 0, y, 780, 56, L("ui.story.start_now"), () =>
+                    {
+                        Game?.Network?.SendStoryPack(startId, StoryPackActions.StartPack);
+                        Hide(); // the story's first moments play once the menu is out of the way
+                    });
+                    y += 66f;
+                }
+            }
+
+            if (s.ShowCrewChapter)
+            {
+                string crew = BlocksBeyondTheStars.Client.Core.StoryChapterList.CrewLine(pack, s.WorldChapter, L);
+                if (crew.Length > 0)
+                {
+                    UiKit.AddText(_listContent, 8, y, 760, 28, crew, 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                    y += 34f;
+                }
+            }
+
+            string recap = started ? BlocksBeyondTheStars.Client.Core.StoryChapterList.RecapArg(pack, s.Chapter) : string.Empty;
+            if (recap.Length > 0 && CutsceneDirector.Instance != null)
+            {
+                string recapId = pack.Id;
+                UiKit.AddButton(_listContent, 0, y, 780, 48, L("ui.story.so_far"), () =>
+                {
+                    CutsceneDirector.Instance?.PlayLocal(recapId, BlocksBeyondTheStars.Shared.Story.StoryCutsceneIds.Recap, recap);
+                    Hide();
+                });
+                y += 58f;
+            }
+
+            return y;
         }
 
         private float StoryEntries(float y, System.Collections.Generic.List<string> keys)

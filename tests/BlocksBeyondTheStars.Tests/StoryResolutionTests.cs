@@ -82,6 +82,7 @@ public sealed class StoryResolutionTests : IDisposable
         client.Connect("loopback", 0);
         client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Pilot" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
+        server.StartStoryTrackForTest(server.Sessions[1]); // #2470: a player in the story (the newcomer would train first)
 
         WinTheFinale(server, server.Sessions[1], "Pilot");
         client.Poll();
@@ -110,7 +111,8 @@ public sealed class StoryResolutionTests : IDisposable
             var server = new SvGameServer(Config(), _content, st, repo);
             server.Start();
             var pilot = server.AddLocalPlayer("Winner");
-            server.AddLocalPlayer("Late");
+            server.StartStoryTrackForTest(pilot); // #2470: both are in the story
+            server.StartStoryTrackForTest(server.AddLocalPlayer("Late"));
             for (int i = 0; i < 300 && !server.IsGuardianSystemRevealedForTest; i++)
             {
                 server.RecordStoryMilestoneForTest(); // the whole arc, B12 included, for both of them
@@ -163,6 +165,7 @@ public sealed class StoryResolutionTests : IDisposable
         client.Connect("loopback", 0);
         client.Send(NetCodec.Encode(new JoinRequest { ContentFingerprint = TestJoin.Fingerprint, PlayerName = "Pilot" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
+        server.StartStoryTrackForTest(server.Sessions[1]); // #2470: a player in the story
 
         // Unresolved story: the request must stay silent (the button cannot spoil anything).
         client.Send(NetCodec.Encode(new RequestStoryResolutionIntent()), DeliveryMode.ReliableOrdered);

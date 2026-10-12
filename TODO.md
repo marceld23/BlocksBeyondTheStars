@@ -180,7 +180,25 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   Tests: `TutorialPackTests` (walkthroughs per preset and start world, skip/replay/policy, legacy client, migration,
   hint hold, UI flags, handler events) + rewritten ShipAi/StoryServerFixes/StoryUiFixes/VegaObjectiveRefresh/
   GameServerFinale/StoryFindability/StoryPackRuntime tests; Client.Tests VegaText/VegaLineBudget/StoryPackClient.
-- ⬜ Step 11 — VEGA as its own pack (#2470)
+- ✅ **Step 11 — the VEGA story as its own pack (#2470)**, 2026-10-12 (needs the local Unity build): VEGA's manifest
+  (kind story, scope world, short name, narrator, `introCutscene: prologue`, `start: chapter:tutorial:b6` + early opt-in,
+  nine chapters Awakening … Resolution reached by beats / `guardian_defeated`, `insights[]` replacing the "six beats"
+  check; all mirrored in `StoryRegistry`). The **prologue** is a real director scene (captions in the frame, orbit →
+  push-in → pilot's seat, VEGA's box glitches in, B0 as her page and heard with it, the new call to adventure
+  `story.vega.call` as the last page), once per newcomer to the story (also a "none" world switched to VEGA), never on a
+  tutorial restart, replayable from the Story tab; older clients keep five full-screen pages; prologue keys moved to the
+  pack locale (names kept). The **story track** (`story:vega_protocol:started`) starts after the basic training, at once
+  without a tutorial, for veterans / players who heard a beat, on **Start the story now** (`startPack`, pause-whitelisted)
+  or in the finale system; until then beats + knowledge, the Guardian reveal, resolution/epilogue lines, insights, relay
+  insights, hack/duel broadcasts and the live ending are **held**; the track start credits them, plays the recap
+  (titles), only the current chapter's opening (its beat line until step 15), the reveal line, the ending. Hosted/arcade
+  newcomers: personal chapter 1 + crew status line. Lazy migration P1–P9 (`migrated:v1`). VEGA's old memory arc reads as
+  neutral archive lines without the VEGA story; relay insights and the core hint are silent without a story; the chip's
+  story ranks wait for the track (fixes the chip flashing on prologue pages / read steps). Story tab: chapter list
+  ("???" ahead), start button, crew line, "The story so far" on demand. Wire: additive `StoryStateMessage.Started /
+  Chapter / WorldChapter / ShowCrewChapter / RelayInsightKeys`. Tests: `VegaStoryPackTests`, Client.Tests
+  `StoryChapterListTests` + rewritten story tests. Docs: STORY_IMPLEMENTATION, STORY_VEGA_PROTOCOL_CONCEPT, CUTSCENES,
+  USER_MANUAL.
 - ⬜ Step 12 — journal + objective tracker (#2471)
 - ⬜ Step 13 — world creation "Stories" page (#2472)
 - ⬜ Step 14 — tutorial cards (#2473)

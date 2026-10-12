@@ -446,6 +446,7 @@ public static class StoryPackValidator
         var chapterIds = new HashSet<string>(StringComparer.Ordinal);
         var stepIds = new HashSet<string>(StringComparer.Ordinal);
         var legacyKeys = new HashSet<string>(StringComparer.Ordinal);
+        int lastFromBeat = -1;
         for (int ci = 0; ci < def.Chapters.Count; ci++)
         {
             var ch = def.Chapters[ci];
@@ -472,6 +473,36 @@ public static class StoryPackValidator
 
             Cutscene($"{cp}.openCutscene", ch.OpenCutscene);
             Cutscene($"{cp}.closeCutscene", ch.CloseCutscene);
+            if (!playerPack)
+            {
+                // #2470: a world pack's chapters are reached by the arc — a beat or an arc event.
+                if (ch.FromBeat < -1 || ch.FromBeat >= def.Beats.Count)
+                {
+                    Error($"{cp}.fromBeat", $"beat {ch.FromBeat} does not exist (0–{def.Beats.Count - 1}, or -1 for none)");
+                }
+
+                if (!string.IsNullOrEmpty(ch.FromEvent) && !StoryChapterEvents.All.Contains(ch.FromEvent))
+                {
+                    Error($"{cp}.fromEvent", $"unknown arc event '{ch.FromEvent}' ({string.Join(", ", StoryChapterEvents.All)})");
+                }
+
+                if (ch.FromBeat < 0 && string.IsNullOrEmpty(ch.FromEvent))
+                {
+                    Warn(cp, "a world-pack chapter without fromBeat or fromEvent is never reached");
+                }
+
+                if (ch.FromBeat >= 0 && ch.FromBeat < lastFromBeat)
+                {
+                    Error($"{cp}.fromBeat", $"beat {ch.FromBeat} comes before the previous chapter's beat {lastFromBeat} — chapters follow the beats in order");
+                }
+
+                lastFromBeat = Math.Max(lastFromBeat, ch.FromBeat);
+            }
+            else if (ch.FromBeat >= 0 || !string.IsNullOrEmpty(ch.FromEvent))
+            {
+                Warn(cp, "fromBeat / fromEvent are read for world packs only");
+            }
+
             foreach (var (lead, li) in ch.Leads.Select((l, i) => (l, i)))
             {
                 Key($"{cp}.leads[{li}].objKey", lead.ObjKey, ChipMaxEn, ChipMaxDe);

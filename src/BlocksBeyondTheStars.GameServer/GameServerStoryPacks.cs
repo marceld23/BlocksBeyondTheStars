@@ -566,7 +566,9 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>Brings every player pack of <paramref name="s"/> up to date: starts what may start, activates what may
-    /// activate, completes what is through. Cheap (milestone lookups); safe to call on every event and tick.</summary>
+    /// activate, completes what is through — and then the world story's track (#2470: a graduation, a skipped training or
+    /// the tutorial switched off starts it at once, so the graduation chains into chapter 1). Cheap (milestone lookups); safe
+    /// to call on every event and tick.</summary>
     private void AdvancePlayer(PlayerSession s, bool offers = false)
     {
         if (!s.Joined || s.Spectating || PlayerPacks.Count == 0)
@@ -584,6 +586,7 @@ public sealed partial class GameServer
         }
 
         SyncStepListeners();
+        TryStartStoryTrack(s);
     }
 
     private void AdvancePack(PlayerSession s, CompiledPack pack)

@@ -708,7 +708,9 @@ public sealed partial class GameServer
             }
         }
 
-        if (StoryActive && _netFragments.Count > 0)
+        // A VEGA tip (#2470, synthesis §4.5 "VEGA-Tipps hängen am VEGA-Start"): only once the player's story track has
+        // started — a newcomer in the basic training is not pointed at story finds (a fragment they pick up still reads).
+        if (StoryActive && _netFragments.Count > 0 && StoryTrackStarted(session))
         {
             GameServer.ServerNetFragment? nearest = null;
             double bestSq = double.MaxValue;

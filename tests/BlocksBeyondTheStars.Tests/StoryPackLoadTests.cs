@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Linq;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Story;
@@ -75,6 +76,16 @@ public class StoryPackLoadTests
         Assert.Equal(builtin.Start.EarlyOptIn, data.Start.EarlyOptIn);
         Assert.Equal(builtin.Chapters.Count, data.Chapters.Count);
         Assert.Equal(builtin.Insights.Count, data.Insights.Count);
+        // #2470: VEGA as its own pack — the chapters (reached by the arc), the insights, the narrator.
+        Assert.Equal(builtin.Chapters.Select(c => (c.Id, c.TitleKey, c.FromBeat, c.FromEvent, c.OpenCutscene, c.CloseCutscene)),
+            data.Chapters.Select(c => (c.Id, c.TitleKey, c.FromBeat, c.FromEvent, c.OpenCutscene, c.CloseCutscene)));
+        Assert.Equal(builtin.Insights.Select(i => (i.Event, i.MinBeat, i.TextKey, i.OnceKey)),
+            data.Insights.Select(i => (i.Event, i.MinBeat, i.TextKey, i.OnceKey)));
+        Assert.Equal(builtin.Narrator.Icon, data.Narrator.Icon);
+        Assert.Equal(builtin.Narrator.Color, data.Narrator.Color);
+        Assert.Equal(builtin.Narrator.Voice, data.Narrator.Voice);
+        Assert.Equal(builtin.Narrator.LineStart, data.Narrator.LineStart);
+        Assert.Equal(builtin.Scope, data.Scope);
         Assert.Equal(builtin.Finale.Type, data.Finale.Type);
         Assert.Equal(builtin.Finale.Cutscenes, data.Finale.Cutscenes);
         Assert.Equal(builtin.Graduation.LineKey, data.Graduation.LineKey); // #2469

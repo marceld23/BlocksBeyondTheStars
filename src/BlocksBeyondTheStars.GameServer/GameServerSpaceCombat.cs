@@ -2972,6 +2972,11 @@ public sealed partial class GameServer
             _finaleReturn[playerId] = origin.Id;
         }
 
+        if (system.Id == GuardianFinaleSystemId)
+        {
+            TryStartStoryTrack(session); // #2470: never leave a player in the finale without its story
+        }
+
         EnterSpace(playerId, skipLaunch: true, hyperjump: true); // warp in; a parked ship took off before (#1614)
         SendStarMap(session); // refresh the travel screen with the now-known system
     }

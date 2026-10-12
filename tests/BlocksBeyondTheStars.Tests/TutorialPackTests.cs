@@ -501,6 +501,7 @@ public sealed class TutorialPackTests : IDisposable
         repo.Initialize();
         var stored = new PlayerState { PlayerId = "Mid", Name = "Mid", KnowledgePoints = 5 };
         stored.Milestones.Add(StoryLegacy.IntroMilestone);
+        stored.Milestones.Add(StoryPackKeys.Beat(StoryRegistry.DefaultStoryId, 0)); // an older build's story catch-up (#2470: not a newcomer to VEGA)
         foreach (string stage in new[] { "mine", "craft", "eat" })
         {
             stored.Milestones.Add(StoryLegacy.StagePrefix + stage);

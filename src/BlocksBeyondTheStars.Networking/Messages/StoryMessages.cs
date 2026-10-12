@@ -57,6 +57,29 @@ public sealed class StoryStateMessage
     /// milestones. The Story tab's "Watch again" list is built from these (and what the client played since). Additive:
     /// an older server leaves it empty.</summary>
     public string[] SeenCutscenes { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>Whether THIS player's story track has started (#2470, <c>story:&lt;id&gt;:started</c>): until then the world
+    /// story's beats and lines are held for them (they play the basic training first). Additive: an older server leaves it
+    /// false — read it together with <see cref="WorldChapter"/>, which a current server always fills.</summary>
+    public bool Started { get; set; }
+
+    /// <summary>THIS player's chapter id (#2470, derived, never stored: <c>max(1, world)</c> once their track started);
+    /// empty before the track starts. Additive.</summary>
+    public string Chapter { get; set; } = string.Empty;
+
+    /// <summary>The world's chapter id — the last chapter the shared arc has reached (#2470). Filled by every current server
+    /// for a story with chapters, so an empty value means an older server. Additive.</summary>
+    public string WorldChapter { get; set; } = string.Empty;
+
+    /// <summary>Whether the Story tab shows the "The crew of this world is in chapter N" status line (#2470, E29): for a
+    /// player whose track has not started on a world past chapter 0, and on a hosted or arcade world where every newcomer
+    /// gets a personal chapter 1 while the crew is further along. Additive.</summary>
+    public bool ShowCrewChapter { get; set; }
+
+    /// <summary>The world story's relay-network insights already spoken in this save (#2470, locale keys such as
+    /// <c>vega.relay.first</c>) — sent only to a player whose track has started, so a player who joined the story later
+    /// finds them in the log silently, and the log survives a rejoin. Additive.</summary>
+    public string[] RelayInsightKeys { get; set; } = System.Array.Empty<string>();
 }
 
 /// <summary>Server → client: an environmental lore text just found (#1111) — a rune inscription read with the
@@ -88,9 +111,10 @@ public sealed class StorySelectIntent
 /// the Journal, the first tutorial card, the Settings and the VEGA panel. <see cref="Action"/> is one of
 /// <see cref="StoryPackActions"/>; <see cref="ChapterId"/> / <see cref="StepId"/> name the target where the action needs
 /// one. Self-service, never a cheat: it changes only the sender's own ledger. The world story is not switched here
-/// (that stays the admin's <see cref="StorySelectIntent"/>). While a singleplayer world is held only
-/// <c>track</c>, <c>untrack</c>, <c>optOut</c>, <c>optIn</c>, <c>skipPack</c> and <c>replayCutscene</c> get through
-/// (synthesis §5.7).
+/// (that stays the admin's <see cref="StorySelectIntent"/>) — but <c>startPack</c> with the world story's id starts the
+/// sender's own story track early ("Start the story now", #2470). While a singleplayer world is held only
+/// <c>track</c>, <c>untrack</c>, <c>optOut</c>, <c>optIn</c>, <c>skipPack</c>, <c>startPack</c> and <c>replayCutscene</c>
+/// get through (synthesis §5.7).
 /// </summary>
 public sealed class StoryPackIntent
 {
@@ -125,7 +149,8 @@ public static class StoryPackActions
     /// <summary>Switch it back on.</summary>
     public const string OptIn = "optIn";
 
-    /// <summary>Start the pack now (an opt-in tutorial, a pack whose start rule allows an early start).</summary>
+    /// <summary>Start the pack now (an opt-in tutorial, a pack whose start rule allows an early start) — for the world story
+    /// (VEGA) the player's own story track: "Start the story now" in the Story tab (#2470).</summary>
     public const string StartPack = "startPack";
 
     /// <summary>"I know the game": skip every mandatory chapter (deep-dive offers stay on).</summary>

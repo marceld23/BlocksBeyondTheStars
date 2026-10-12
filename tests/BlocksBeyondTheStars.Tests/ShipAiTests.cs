@@ -311,8 +311,12 @@ public sealed class ShipAiTests : IDisposable
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
         repo.Initialize();
 
-        // A save that has clearly played before VEGA's lessons existed: knowledge earned, no onboarding state at all.
-        repo.SavePlayer(new PlayerState { PlayerId = "Vet", Name = "Vet", KnowledgePoints = 12 });
+        // A save that has clearly played before VEGA's lessons existed: knowledge earned, no onboarding state at all — on a
+        // VEGA world, so an older build's story catch-up gave them B0 (#2470: a player without any story key would be a
+        // newcomer to the story and get the prologue).
+        var vet = new PlayerState { PlayerId = "Vet", Name = "Vet", KnowledgePoints = 12 };
+        vet.Milestones.Add(StoryPackKeys.Beat(StoryRegistry.DefaultStoryId, 0));
+        repo.SavePlayer(vet);
 
         using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
         using var client = new LoopbackClientTransport(link);

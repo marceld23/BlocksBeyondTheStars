@@ -155,9 +155,48 @@ public static class StoryRegistry
         EpilogueTitle = "The relay network",
         EpilogueTitleKey = "story.vega.epilogue.title", // #2461: the cinematic shows the localized title
         EpilogueTextKey = "story.vega.beat13",
-        // #2466: the pack-manifest fields (kind, scope, priority, shortNameKey, narrator, introCutscene, gates, escalate,
-        // start, chapters, insights, finale) keep their defaults — the data pack sets none yet. Whatever the data pack
-        // gains (step 11) must be mirrored here; StoryPackLoadTests' no-drift test compares them.
+        // #2470: VEGA as its own pack — the manifest fields the data pack sets, mirrored here (StoryPackLoadTests' no-drift
+        // test compares them). The fallback carries no cutscenes, so its prologue plays as the old full-screen pages.
+        Kind = KindStory,
+        Scope = ScopeWorld,
+        ShortNameKey = "story.vega.short",
+        Narrator = new StoryNarrator
+        {
+            Id = StoryNarrator.DefaultId,
+            NameKey = "ui.vega.name",
+            Icon = "icon_vega",
+            Color = "#5FD8FF",
+            Voice = new List<string> { "vega_chatter_1", "vega_chatter_2", "vega_chatter_3" },
+            LineStart = "ai_blip",
+        },
+        IntroCutscene = StoryCutsceneIds.Prologue,
+        Start = new StoryStartRule { After = new List<string> { "chapter:tutorial:b6" }, EarlyOptIn = true },
+        Chapters = new List<StoryChapter>
+        {
+            Chapter("awakening", fromBeat: 0, openCutscene: StoryCutsceneIds.Prologue),
+            Chapter("signature", fromBeat: 1),
+            Chapter("service", fromBeat: 2),
+            Chapter("guardian", fromBeat: 5),
+            Chapter("verdict", fromBeat: 6),
+            Chapter("what_you_are", fromBeat: 9),
+            Chapter("sleeps", fromBeat: 11),
+            Chapter("core", fromBeat: 12),
+            Chapter("resolution", fromEvent: StoryChapterEvents.GuardianDefeated),
+        },
+        Insights = new List<StoryInsight>
+        {
+            new() { Event = "companion_ward", MinBeat = 5, TextKey = "story.vega.insight.companion_ward", OnceKey = "story:insight:companion-ward" },
+            new() { Event = "shape_noncube", MinBeat = 5, TextKey = "story.vega.insight.shape_anomaly", OnceKey = "story:insight:shape-anomaly" },
+        },
+    };
+
+    private static StoryChapter Chapter(string id, int fromBeat = -1, string fromEvent = "", string openCutscene = "") => new()
+    {
+        Id = id,
+        TitleKey = "story.vega.ch." + id,
+        FromBeat = fromBeat,
+        FromEvent = fromEvent,
+        OpenCutscene = openCutscene,
     };
 
     private static StoryBeat Beat(int index, string title, int threshold, int knowledge) => new()

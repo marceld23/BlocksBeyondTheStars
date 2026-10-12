@@ -1443,10 +1443,30 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly BlocksBeyondTheStars.Client.Core.StoryBeatLog _storyBeats = new();
 
+        /// <summary>The beat indexes this player has heard (the server's snapshot plus this session's), ascending — the Story
+        /// tab groups them under their chapters (#2470).</summary>
+        public System.Collections.Generic.List<int> StoryHeardBeats => _storyBeats.Heard;
+
+        /// <summary>The definition of the save's active story, or null (#2470: the Story tab's chapter list reads it).</summary>
+        public BlocksBeyondTheStars.Shared.Story.StoryDefinition StoryPack => ActiveStoryPack();
+
         /// <summary>The definition of the save's active story, or null — no story state yet, the "none" sandbox, or a pack
         /// this client does not have.</summary>
         private BlocksBeyondTheStars.Shared.Story.StoryDefinition ActiveStoryPack()
             => Story != null && Content != null && Content.TryGetStory(Story.StoryId, out var pack) ? pack : null;
+
+        /// <summary>Adds the relay insights the save has spoken (#2470, <c>StoryStateMessage.RelayInsightKeys</c>) to the VEGA log
+        /// — a player whose story track started after them finds them there silently, and they survive a rejoin.</summary>
+        private void MergeRelayInsightsIntoLog()
+        {
+            foreach (string key in Story?.RelayInsightKeys ?? System.Array.Empty<string>())
+            {
+                if (!string.IsNullOrEmpty(key) && !VegaLogKeys.Contains(key))
+                {
+                    VegaLogKeys.Add(key);
+                }
+            }
+        }
 
         /// <summary>Re-readable VEGA tips (locale keys, #737): rebuilt from the server's milestone snapshot on
         /// join (canonical order) and appended live as onboarding/advisor/system lines arrive this session.</summary>
@@ -2958,6 +2978,7 @@ namespace BlocksBeyondTheStars.Client
                 // lessons come from the tutorial pack's own steps (#2469; the client's copy of the old stage list is gone).
                 VegaLogKeys.Clear();
                 VegaLogKeys.AddRange(VegaText.JournalKeys(m.Milestones, Content?.Stories.Values));
+                MergeRelayInsightsIntoLog(); // #2470: the snapshot does not carry the save's relay insights
             };
             Network.RelayNetworkReceived += m => RelayNetwork = m; // #1125: server-authoritative, render-only
             Network.StoryStateReceived += m =>
@@ -2978,6 +2999,7 @@ namespace BlocksBeyondTheStars.Client
 
                 // The beats this player heard (#2462, B08) — the beat list survives a rejoin now.
                 _storyBeats.OnStoryState(pack, m.StoryId, m.HeardBeats);
+                MergeRelayInsightsIntoLog(); // #2470: relay insights spoken before this player's story track started
             };
             Network.NetFragmentsReceived += m => NetFragments = m.Fragments;
             Network.NetFragmentRevealedReceived += m =>

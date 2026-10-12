@@ -91,7 +91,10 @@ namespace BlocksBeyondTheStars.Client
         // panel as every other VEGA line (same measure, same paging, same user UI scale) — they used to get
         // a bespoke full-screen dialog whose near-black plate read as "text across the whole screen". The
         // only prologue extras now are a dim behind the panel and the skip (Esc, the pad's cancel button or the skip
-        // pill — every device since #2461).
+        // pill — every device since #2461). Since #2470 this is the legacy path only: a current server plays the prologue
+        // as the VEGA pack's intro cutscene for this client (it announces cutscenes1) and sends no Kind-4 page; a server
+        // from before still sends the pages, and they still play here. A stray page the director's owed prologue shows
+        // itself is claimed by it first (replaceLineKeys), so the prologue never plays twice.
         private Image _dim;
         private bool _currentIsPrologue;
         private bool _chromeOn; // edge detection for the chrome side effects (chip hide/restore)

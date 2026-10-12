@@ -397,6 +397,11 @@ public static class StoryPackKeys
     /// <summary>The prefix of every per-player key of a pack (<c>story:&lt;pack&gt;:</c>).</summary>
     public static string Prefix(string packId) => "story:" + packId + ":";
 
+    /// <summary><c>story:&lt;pack&gt;:beat:&lt;n&gt;</c> — the player heard beat <paramref name="index"/> of a world story (#2470:
+    /// written when the beat reaches them, which is never before their story track started).</summary>
+    public static string Beat(string packId, int index)
+        => "story:" + packId + ":beat:" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     /// <summary>The marker between a pack and a cutscene id in the ledger keys.</summary>
     private const string CutsceneInfix = ":cut:";
 

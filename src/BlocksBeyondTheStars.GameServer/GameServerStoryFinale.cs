@@ -87,10 +87,12 @@ public sealed partial class GameServer
     /// one that names the jump generator, so whoever was not online for the reveal hears it on their next join.</summary>
     private string GuardianRevealHeardKey => $"story:{_story?.Id ?? "none"}:finale:revealed";
 
-    /// <summary>Speaks the Guardian-system reveal to one player, once (tracked by <see cref="GuardianRevealHeardKey"/>).</summary>
+    /// <summary>Speaks the Guardian-system reveal to one player, once (tracked by <see cref="GuardianRevealHeardKey"/>). Held
+    /// until the player's story track starts (#2470): the key is not written, and the track start speaks it (the finale is
+    /// open, so it carries the jump-generator line the player needs).</summary>
     private void SpeakGuardianRevealedTo(PlayerSession session)
     {
-        if (session.State.Milestones.Add(GuardianRevealHeardKey))
+        if (StoryTrackStarted(session) && session.State.Milestones.Add(GuardianRevealHeardKey))
         {
             SendVegaLine(session, "story.vega.guardian_revealed", 2); // ShipAiLine kind 2 = memory/story
         }
@@ -452,7 +454,7 @@ public sealed partial class GameServer
 
         _coreHackProgress = System.Math.Min(100, _coreHackProgress + CoreHackTickAmount);
         bool complete = _coreHackProgress >= 100;
-        BroadcastToJoined(new CoreHackProgress { Progress = _coreHackProgress, Complete = complete });
+        BroadcastToFinaleAudience(new CoreHackProgress { Progress = _coreHackProgress, Complete = complete });
 
         if (complete)
         {
@@ -516,7 +518,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>The core is argued into shutdown: speak the resolution line, broadcast the won-duel message and
-    /// pacify the galaxy (<see cref="MarkGuardianDefeated"/>). One-way per save.</summary>
+    /// pacify the galaxy (<see cref="MarkGuardianDefeated"/>). One-way per save. Since #2470 the lines and the cinematic
+    /// go to players whose story track has started; for the others (a newcomer still in the basic training) the ending
+    /// waits for their track start. The achievement is everyone's aboard, as before.</summary>
     private void WinDuel(string finalResponseKey = "")
     {
         if (_storyState.GuardianDefeated)
@@ -524,15 +528,15 @@ public sealed partial class GameServer
             return;
         }
 
-        BroadcastToJoined(new CoreDialogueMessage { Node = _duelNode, ResponseKey = finalResponseKey, Won = true });
-        SpeakVegaLineToAll("story.vega.finale_resolved");
+        BroadcastToFinaleAudience(new CoreDialogueMessage { Node = _duelNode, ResponseKey = finalResponseKey, Won = true });
+        SpeakStoryLineToStarted("story.vega.finale_resolved");
         MarkGuardianDefeated();
 
         // The epilogue (#1124) enters the story log like a beat — the handover to what starts AFTER the
         // story — and the resolution cinematic plays for everyone aboard. Latecomers catch up on join.
         if (_story is not null && !string.IsNullOrEmpty(_story.EpilogueTextKey))
         {
-            SpeakVegaLineToAll(_story.EpilogueTextKey);
+            SpeakStoryLineToStarted(_story.EpilogueTextKey);
         }
 
         // Everyone aboard for the resolution earns the finale achievement — the arc is shared, so is the win (#1102).
@@ -540,15 +544,22 @@ public sealed partial class GameServer
         foreach (var session in StoryListeners())
         {
             OnAchievementStoryFinale(session);
-            SendStoryResolved(session); // #1124: resolution screen + credits + epilogue
+            if (StoryTrackStarted(session))
+            {
+                SendStoryResolved(session); // #1124: resolution screen + credits + epilogue
+            }
         }
     }
 
-    /// <summary>Milestone key marking that this player has SEEN the resolution cinematic (#1124) — the join
-    /// catch-up sends it exactly once; the Story tab can always request a replay. Also set, without sending, for
-    /// a player who first meets the story after the win (#2460, N4): the ending is theirs to watch from the Story
-    /// tab, but a won world no longer plays it to every newcomer at the door.</summary>
+    /// <summary>The legacy "ending handled" key (#1124): written whenever the ending is sent, and — without sending — for a
+    /// player who first meets the story after the win (#2460, N4), so an OLDER build does not play it at the door. Since
+    /// #2470 the server itself decides by <see cref="ResolutionWatchedKey"/>, because this key no longer means "watched".</summary>
     private string ResolutionSeenKey => $"story:{_story?.Id ?? "none"}:resolved";
+
+    /// <summary>The player watched the ending (#2470, gap of #2460): the cutscene ledger's key of the ending
+    /// (<c>story:&lt;id&gt;:cut:resolution</c>) — stamped whenever the cinematic is sent; an ending owed to a player whose
+    /// track starts late plays at that start.</summary>
+    private string ResolutionWatchedKey => StoryPackKeys.CutsceneSeen(_story?.Id ?? StoryRegistry.NoneStoryId, StoryCutsceneIds.Resolution);
 
     /// <summary>The per-player key of the arc's last beat (B12 in VEGA) — hearing it is what "was there for the
     /// story" means for the resolution catch-up (#2460, N4).</summary>
@@ -564,33 +575,54 @@ public sealed partial class GameServer
             EpilogueTitleKey = _story?.EpilogueTitleKey ?? string.Empty, // #2461: the localized title (additive)
             EpilogueTextKey = _story?.EpilogueTextKey ?? string.Empty,
         });
-        if (session.State.Milestones.Add(ResolutionSeenKey))
+        bool changed = session.State.Milestones.Add(ResolutionSeenKey);
+        changed |= session.State.Milestones.Add(ResolutionWatchedKey);
+        if (changed)
         {
             _repo.SavePlayer(session.State);
         }
     }
 
-    /// <summary>Join catch-up (#1124): a player who heard the arc out — the last beat, before this join — but was
-    /// not aboard for the win (or an existing finished save from before the cinematic existed) gets the ending once
-    /// on their next join: the resolution line, the finale achievement the others earned at the win (#2460, E23)
-    /// and the cinematic. A player who never heard the last beat before the win — a newcomer on a won world, an
-    /// arcade guest — is not played the ending at the door (#2460, N4); it is marked handled, and the Story tab can
-    /// replay it whenever they like.</summary>
+    /// <summary>Join catch-up (#1124): a player whose story track has started (#2470) and who has not watched the ending
+    /// gets it on their next join — the resolution line and the cinematic, and the finale achievement the others earned at
+    /// the win only when they had heard the arc out (the last beat) before this join (#2460, E23). A player whose track has
+    /// not started — a newcomer on a won world, an arcade guest still in the basic training — is not played the ending at
+    /// the door (#2460, N4): it waits for their track start (<see cref="StartStoryTrack"/>), and the legacy key marks it
+    /// handled for older builds. The Story tab can replay it whenever they like.</summary>
     private void SendStoryResolvedOnJoinIfMissed(PlayerSession session)
     {
-        if (!_storyState.GuardianDefeated || session.Spectating || session.State.Milestones.Contains(ResolutionSeenKey))
+        if (!_storyState.GuardianDefeated || session.Spectating)
         {
             return;
         }
 
-        if (FinalBeatKey is not { } finalBeat || !session.Join.HadStoryKey(finalBeat))
+        bool heardFinal = FinalBeatKey is { } finalBeat && session.Join.HadStoryKey(finalBeat);
+        if (!heardFinal)
         {
-            session.State.Milestones.Add(ResolutionSeenKey); // persists with the player on the next save
+            session.State.Milestones.Add(ResolutionSeenKey); // N4 for older builds; persists with the player on the next save
+        }
+
+        if (StoryTrackStarted(session))
+        {
+            DeliverResolution(session, achievement: heardFinal);
+        }
+    }
+
+    /// <summary>The ending for one player, once (#1124, #2470): the resolution line, then the cinematic (which stamps
+    /// <see cref="ResolutionWatchedKey"/>); <paramref name="achievement"/> grants the finale achievement too (E23).</summary>
+    private void DeliverResolution(PlayerSession session, bool achievement)
+    {
+        if (!_storyState.GuardianDefeated || session.Spectating || session.State.Milestones.Contains(ResolutionWatchedKey))
+        {
             return;
         }
 
         SendVegaLine(session, "story.vega.finale_resolved", 2);
-        OnAchievementStoryFinale(session);
+        if (achievement)
+        {
+            OnAchievementStoryFinale(session);
+        }
+
         SendStoryResolved(session);
     }
 
@@ -612,7 +644,7 @@ public sealed partial class GameServer
         }
 
         var node = _story.CoreArguments[_duelNode];
-        BroadcastToJoined(new CoreDialogueMessage
+        BroadcastToFinaleAudience(new CoreDialogueMessage
         {
             Node = _duelNode,
             PromptKey = node.PromptKey,
@@ -632,11 +664,31 @@ public sealed partial class GameServer
         }
     }
 
-    private void SpeakVegaLineToAll(string textKey)
+    /// <summary>The finale's live broadcasts (the hack meter, the duel nodes) go to the players who are part of it (#2470):
+    /// whoever stands in the Guardian system or whose story track has started — and observers (staff see everything). A
+    /// newcomer in the middle of the basic training on the other side of the galaxy is not handed the core's arguments.</summary>
+    private void BroadcastToFinaleAudience(object message)
+    {
+        foreach (var session in _sessions.Values.Where(s => s.Joined && InFinaleAudience(s)))
+        {
+            Send(session, message);
+        }
+    }
+
+    private bool InFinaleAudience(PlayerSession session)
+        => session.Spectating || IsGuardianSystemLocation(session.CurrentLocationId) || StoryTrackStarted(session);
+
+    /// <summary>Speaks a world-story line (Kind 2) to every story listener whose track has started (#2470: the others hold
+    /// it — the finale's resolution and epilogue reach them with the ending at their track start, a relay insight through
+    /// their log).</summary>
+    private void SpeakStoryLineToStarted(string textKey)
     {
         foreach (var session in StoryListeners())
         {
-            SendVegaLine(session, textKey, 2); // ShipAiLine kind 2 = memory/story
+            if (StoryTrackStarted(session))
+            {
+                SendVegaLine(session, textKey, 2); // ShipAiLine kind 2 = memory/story
+            }
         }
     }
 

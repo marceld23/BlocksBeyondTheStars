@@ -51,6 +51,10 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         /// <summary>The scenes this one may chain to (<c>chainNext</c>, as written in the pack).</summary>
         public IReadOnlyList<string> ChainNext { get; set; } = Array.Empty<string>();
 
+        /// <summary>The scene is bound to a chapter of its pack (an opening, a beat card) and is not the pack's intro — the
+        /// built-in recap leads straight into such a scene (#2470).</summary>
+        public bool ChapterScene { get; set; }
+
         /// <summary>When the message arrived (seconds, the director's clock) — the gate's give-up timer.</summary>
         public float ReceivedAt { get; set; }
 
@@ -80,7 +84,8 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
     /// <item>A scene already queued or playing is not queued again (a rejoin re-offer, a double replay request).</item>
     /// <item>Requested scenes (replays, previews, the dev palette) go to the front and never wait for the cooldown.</item>
     /// <item>After an unrequested card or scene ends, the next one waits <see cref="CooldownSeconds"/> — unless the
-    /// finished one chains to it (<c>chainNext</c>), it is "now or never", or it is a banner.</item>
+    /// finished one chains to it (<c>chainNext</c>; the built-in recap chains to its pack's next scene, #2470), it is "now
+    /// or never", or it is a banner.</item>
     /// </list>
     /// </summary>
     public sealed class CutsceneQueue
@@ -153,7 +158,8 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         /// <summary>Whether the scene that ended last chains to <paramref name="item"/>.</summary>
         public bool IsChained(QueuedCutscene item)
             => item != null && (_chain.Contains(item.PackId + StoryCutsceneIds.PackSeparator + item.DefinitionId)
-                                || (item.DefinitionId == StoryCutsceneIds.Recap && _chain.Contains(StoryCutsceneIds.Recap)));
+                                || (item.DefinitionId == StoryCutsceneIds.Recap && _chain.Contains(StoryCutsceneIds.Recap))
+                                || (item.ChapterScene && _chain.Contains(StoryCutsceneIds.AnyOfPack(item.PackId))));
 
         /// <summary>Whether <paramref name="item"/> may start now as far as the queue is concerned (the safe-moment gate
         /// still decides).</summary>
@@ -212,6 +218,11 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
             _anyEnded = true;
             _lastEndedAt = now;
             _chain.Clear();
+            if (item.DefinitionId == StoryCutsceneIds.Recap)
+            {
+                _chain.Add(StoryCutsceneIds.AnyOfPack(item.PackId)); // #2470: "the story so far" leads into the pack's next scene
+            }
+
             foreach (string next in item.ChainNext ?? Array.Empty<string>())
             {
                 if (!string.IsNullOrEmpty(next))

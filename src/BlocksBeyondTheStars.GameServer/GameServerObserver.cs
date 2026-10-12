@@ -137,6 +137,7 @@ public sealed partial class GameServer
         SendPlayerState(session);
         Send(session, new ServerMessage { Text = "@srv.obs.off" });
         CatchUpStoryLines(session); // the beats the story held back while observing (#2460, N1)
+        TryStartStoryTrack(session); // #2470: the start rule may hold now (observers never start a track)
         CheatLog(p, "left observer mode");
     }
 

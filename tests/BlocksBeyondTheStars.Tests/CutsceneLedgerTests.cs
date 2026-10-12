@@ -402,8 +402,9 @@ public sealed class CutsceneLedgerTests : IDisposable
         Ready(server, p);
         Deliver(server, p, new CutsceneSeenIntent { PackId = C, Ids = new[] { "welcome", "strip@one" } });
         string V = StoryRegistry.DefaultStoryId;
-        // #2469: the newcomer's join played the prologue pages and booked the prologue as seen — this case wants it owed.
-        Assert.True(p.State.Milestones.Remove(StoryPackKeys.CutsceneSeen(V, StoryCutsceneIds.Prologue)));
+        // #2470: the newcomer's join committed the prologue scene (sent, never confirmed) — it stays owed here and is never
+        // folded into the recap (the cold open is no chapter line).
+        Assert.DoesNotContain(StoryPackKeys.CutsceneSeen(V, StoryCutsceneIds.Prologue), p.State.Milestones);
         foreach (string id in new[] { "c3.open", "c1.open", "c2.open", StoryCutsceneIds.Prologue })
         {
             p.State.Milestones.Add(StoryPackKeys.CutsceneSent(V, id));

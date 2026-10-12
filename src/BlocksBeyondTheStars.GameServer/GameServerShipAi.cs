@@ -98,8 +98,8 @@ public sealed partial class GameServer
     /// <item>the finale while the player is in the Guardian system (it beats even a pin — the #1832 lesson);</item>
     /// <item>the pinned story (<c>PlayerState.TrackedStoryId</c>), if it has an objective;</item>
     /// <item>basic training: the tutorial pack's mandatory chapters (#2469 — the old onboarding chain is gone);</item>
-    /// <item>the VEGA finale (Guardian system revealed);</item>
-    /// <item>the VEGA lead (<c>story.obj.*</c>);</item>
+    /// <item>the VEGA finale (Guardian system revealed) — once the player's story track has started (#2470);</item>
+    /// <item>the VEGA lead (<c>story.obj.*</c>) — likewise;</item>
     /// <item>a tutorial deep-dive step or a mission-bridge step;</item>
     /// <item>the other player packs by priority;</item>
     /// <item>nothing.</item>
@@ -126,7 +126,9 @@ public sealed partial class GameServer
             return PackChip(basic, tutorialActive);
         }
 
-        if (StoryObjectiveKey(p).Length > 0)
+        // Ranks 4/5 only once the player's story track has started (#2470): before that the story is held for them — the
+        // chip never shows the story during the prologue, a read step's line or the gap between two lessons.
+        if (StoryTrackStarted(session) && StoryObjectiveKey(p).Length > 0)
         {
             return StoryChip(session, tutorialActive);
         }
@@ -167,7 +169,7 @@ public sealed partial class GameServer
         string pinned = session.State.TrackedStoryId;
         if (StoryActive && _story is not null && string.Equals(_story.Id, pinned, System.StringComparison.OrdinalIgnoreCase))
         {
-            return StoryObjectiveKey(session.State).Length > 0 ? StoryChip(session, tutorialActive) : null;
+            return StoryTrackStarted(session) && StoryObjectiveKey(session.State).Length > 0 ? StoryChip(session, tutorialActive) : null;
         }
 
         return TryGetPlayerPack(pinned, out var pack) && PackObjectiveOf(session, pack) is { } objective
@@ -299,35 +301,15 @@ public sealed partial class GameServer
     public string? ObjectivePackForTest(string playerId)
         => FindSessionByPlayerId(playerId) is { } session ? LiveVegaChip(session).PackId : null;
 
-    /// <summary>Join hook (#2469): the cold open for a newcomer — VEGA's prologue pages (Kind 4) when a world story is active,
-    /// once per player (<see cref="PrologueSeenKey"/>) — then the chip. The basic training itself is the tutorial pack:
-    /// <see cref="StoryPacksOnJoin"/> runs right after (migrate, start, re-speak the step on the chip) and sends the
-    /// <see cref="VegaJournal"/> snapshot. A tutorial restart never comes here, so it never replays the prologue (E17). The
-    /// newcomer decision is the join snapshot (#2460): no onboarding state and no veteran evidence when the player
-    /// arrived — re-evaluating it here read every newcomer on a progressed world as a veteran, because the beat catch-up
-    /// had just paid them knowledge. Step 11 moves the prologue into the VEGA pack's intro cutscene.</summary>
+    /// <summary>Join hook: the context tips stay quiet for a moment, then the chip. The cold open — VEGA's prologue — is the
+    /// world story's intro cutscene since #2470 and plays earlier in the join (<see cref="StoryOnJoin"/>, before the beat
+    /// catch-up); the basic training is the tutorial pack (<see cref="StoryPacksOnJoin"/>, right after). A tutorial restart
+    /// never comes here, so it never replays the prologue (E17).</summary>
     private void ShipAiOnJoin(PlayerSession session)
     {
-        var p = session.State;
         session.VegaTipReadyAt = _uptime + VegaTipJoinQuiet; // context tips (#1077) stay quiet right after a join
-        if (StoryActive && _story is not null && session.Join.Newcomer && p.Milestones.Add(PrologueSeenKey(_story.Id)))
-        {
-            // Narrative framing before VEGA's first words (#738): who-am-I prologue pages, shown by the client as a
-            // full-screen overlay (Kind 4). Only with an active story pack — a "none" sandbox opted out of narrative and
-            // goes straight to the lessons. The once-key is the cutscene ledger's "seen" form of the prologue (synthesis
-            // §5.3: story:<pack>:cut:prologue): the pages ARE the prologue for this build.
-            SendVegaLine(session, "vega.prologue.1", 4);
-            SendVegaLine(session, "vega.prologue.2", 4);
-            SendVegaLine(session, "vega.prologue.3", 4);
-            _repo.SavePlayer(p);
-        }
-
         SendVegaObjective(session); // the chip survives a rejoin (#1110)
     }
-
-    /// <summary>The once-key of the prologue (#2469): the cutscene ledger's confirmed form of the world story's
-    /// <c>prologue</c> (synthesis §5.3), so step 11's prologue cutscene treats a player who heard the pages as one who saw it.</summary>
-    private static string PrologueSeenKey(string storyId) => StoryPackKeys.CutsceneSeen(storyId, StoryCutsceneIds.Prologue);
 
     /// <summary>The join snapshot behind the client's "VEGA tips" log (#737): every persisted vega:* milestone, and since
     /// #2469 the tutorial pack's done steps (<c>story:&lt;pack&gt;:step:&lt;id&gt;</c>, not the skipped ones) — the client maps
@@ -451,7 +433,8 @@ public sealed partial class GameServer
         // most pads — a player who dug 50 blocks straight down under the ship never had a chance. Point at the map
         // marker once, on landing. Sent on the never-muted system channel (#2460): it is the finale's only "walk
         // there, do not dig here", and a player with hints off used to lose it for good — its flag burned unseen.
-        if (_worlds.Active.HasCoreChamber)
+        // The VEGA pack's line (#2470): silent while no story runs (a chamber left from an earlier story in a "none" world).
+        if (StoryActive && _worlds.Active.HasCoreChamber)
         {
             ShipAiHintOnce(session, "guardian_core", kind: 3);
         }
@@ -478,6 +461,7 @@ public sealed partial class GameServer
             var p = session.State;
 
             TickStoryPacksFor(session); // #2466: player packs — start, advance, offers, help escalation (active play time)
+            TryStartStoryTrack(session); // #2470: the world story's start rule (also with no player pack installed)
             // (#2468: queued cutscenes are flushed by TickCutscenes for every joined player, in space too — not from here.)
             RefreshVegaObjective(session); // #1859: the chip follows launches, stations, pickups and travel
 
@@ -555,7 +539,23 @@ public sealed partial class GameServer
     // redeemed one at a time when the player is back aboard the ship — VEGA "reads" them and recovers
     // a beat of her past. Completing the arc hands over the Mk3 core's research materials (#1104): the
     // blueprint itself still has to be researched at the cockpit behind its knowledge threshold — the arc
-    // used to add it straight to the archive, which made the tree's second-most-expensive unlock free. ---
+    // used to add it straight to the archive, which made the tree's second-most-expensive unlock free.
+    // Since #2470 the arc is the VEGA pack's (synthesis §4.4, R3a): VEGA's memories (vega.mem.N) only while the VEGA story
+    // runs; in a world without it the same redemptions read as neutral archive lines — knowledge and the Mk3 parts are
+    // unchanged, the arc never feeds the story score and has no cutscenes. A player-triggered reader: never held. ---
+
+    /// <summary>The neutral archive lines a memory fragment reads as without the VEGA story (#2470), in rotation.</summary>
+    private const int VegaArchiveLines = 3;
+
+    /// <summary>Whether the VEGA story is the world's story — its memory arc and lore lines speak only then.</summary>
+    private bool VegaStoryActive => StoryActive && _story is not null
+                                    && string.Equals(_story.Id, StoryRegistry.DefaultStoryId, System.StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The line of memory beat <paramref name="beat"/>: VEGA's memory under the VEGA story, a neutral archive line
+    /// otherwise (#2470).</summary>
+    private string VegaMemoryLine(int beat)
+        => !VegaStoryActive ? "vega.mem.archive." + (((beat - 1) % VegaArchiveLines) + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : beat <= VegaMemoryBeats ? "vega.mem." + beat.ToString(System.Globalization.CultureInfo.InvariantCulture) : "vega.mem.more";
 
     private void TickVegaMemory(PlayerSession session)
     {
@@ -594,7 +594,7 @@ public sealed partial class GameServer
         p.KnowledgePoints += VegaMemoryKnowledge;
         session.VegaMemoryReadyAt = _uptime + 6.0; // space multiple fragments out so the lines can be read
 
-        SendVegaLine(session, beat <= VegaMemoryBeats ? "vega.mem." + beat : "vega.mem.more", 2);
+        SendVegaLine(session, VegaMemoryLine(beat), 2);
         if (mk3Cost is { Count: > 0 } && pool is not null && p.Milestones.Add("vega:mem:mk3parts"))
         {
             foreach (var part in mk3Cost)
@@ -724,7 +724,10 @@ public sealed partial class GameServer
         string world = _world.Planet?.Key ?? "space";
         double localDay = LocalDayFraction(session.State.Position); // #1865: the local sun
         string phase = localDay is < 0.15 or > 0.85 ? "night" : localDay is < 0.3 or > 0.7 ? "twilight" : "day";
-        int fragments = System.Math.Min(VegaMemoryBeats, RestoredVegaMemories(p));
+        // VEGA's memory is the VEGA story's subject (#2470): no memory talk in a world without it.
+        string memory = VegaStoryActive
+            ? $", {System.Math.Min(VegaMemoryBeats, RestoredVegaMemories(p))}/10 of VEGA's memory restored"
+            : string.Empty;
         string aboard = p.AboardShip ? "aboard the ship" : "on foot";
         // Temperature awareness (#671): only mentioned while the suit is actually fighting the climate,
         // so VEGA's banter can react to a freezing night march or a scorching noon without noise otherwise.
@@ -733,7 +736,7 @@ public sealed partial class GameServer
                 ? ", the suit's heater is fighting dangerous cold"
                 : ", the suit's cooler is fighting dangerous heat"
             : string.Empty;
-        return $"on a {world} world, {phase}, pilot is {aboard}{climate}, {fragments}/10 of VEGA's memory restored";
+        return $"on a {world} world, {phase}, pilot is {aboard}{climate}{memory}";
     }
 
     /// <summary>Situation bucket for the banter cache — coarse on purpose so lines get reused.</summary>

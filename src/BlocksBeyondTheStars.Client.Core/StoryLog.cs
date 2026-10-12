@@ -146,6 +146,20 @@ namespace BlocksBeyondTheStars.Client.Core
         /// <summary>The beats as text keys, in arc order — what the Story tab lists.</summary>
         public List<string> Keys { get; } = new List<string>();
 
+        /// <summary>The heard beat indexes (the snapshot plus this session's), ascending — the Story tab groups them under
+        /// their chapters (#2470).</summary>
+        public List<int> Heard
+        {
+            get
+            {
+                var all = new HashSet<int>(_snapshot);
+                all.UnionWith(_live);
+                var list = new List<int>(all);
+                list.Sort();
+                return list;
+            }
+        }
+
         /// <summary>A story snapshot arrived: its heard beats replace the previous snapshot. Another story id than before
         /// (an admin switched the story) starts the log afresh.</summary>
         public void OnStoryState(StoryDefinition? pack, string? storyId, IEnumerable<int>? heardBeats)

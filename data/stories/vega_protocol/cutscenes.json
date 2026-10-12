@@ -1,19 +1,28 @@
 {
-  // VEGA's cutscenes (#2467; format: docs/developer/CUTSCENES.md, design: synthesis §6.3/§6.5). This first version holds
-  // only the prologue, mirroring today's three prologue pages (title, the orbit around the parked ship, the push-in, the
-  // pilot's seat). Nothing binds it yet: VEGA's start plays it from step 11 on (introCutscene), and the chapter openers,
-  // beat cards and finale set pieces follow with their steps. Ids follow synthesis §5.3 (StoryCutsceneIds.Vega).
+  // VEGA's cutscenes (#2467; format: docs/developer/CUTSCENES.md, design: synthesis §6.3/§6.5). Ids follow synthesis §5.3
+  // (StoryCutsceneIds.Vega); the chapter openers, beat cards and finale set pieces follow with their steps.
+  //
+  // The prologue "Awakening" (#2470) is the cold open of the game, bound as the pack's introCutscene: it plays once per
+  // player (ledger story:vega_protocol:cut:prologue) for a newcomer to the story, never on a tutorial restart, and again
+  // only from the Story tab. Captions sit in the frame — the narration as subtitles, VEGA in her speaker box — page by page
+  // when "Story text: wait for me" is on; the camera moves on its own (a terrain-aware orbit around the player's ship, then
+  // in close), cuts to the pilot's seat as the console wakes, and VEGA's box glitches in for her first words. B0 is her
+  // speaker page (it counts as heard with the prologue, so VEGA never wakes twice) and the call to adventure is the last
+  // page. replaceLineKeys keeps these lines out of the side panel while the scene is owed; a client without cutscenes1 gets
+  // the same five pages as the old full-screen prologue (Kind 4). chainNext: when the story track starts in the same join
+  // (no tutorial for the player, a veteran) "the story so far" follows at once; step 14 adds tutorial/tut.welcome.
   "cutscenes": [
     {
       "id": "prologue",
       "tier": 3,
-      "replaceLineKeys": [ "vega.prologue.1", "vega.prologue.2", "vega.prologue.3" ],
+      "chapter": "awakening",
+      "replaceLineKeys": [ "vega.prologue.1", "vega.prologue.2", "vega.prologue.3", "story.vega.beat00", "story.vega.call" ],
       "music": "music_mystery_signal",
       "shots": [
         {
           "camera": { "type": "player_view" },
           "duration": 3,
-          "captions": [ { "style": "title_card", "kickerKey": "ui.story.prologue", "key": "story.vega_protocol.name", "at": 0.6 } ]
+          "captions": [ { "style": "title_card", "kickerKey": "ui.story.prologue", "key": "story.vega.ch.awakening", "at": 0.6 } ]
         },
         {
           "camera": { "type": "orbit", "anchor": "ship" },
@@ -30,9 +39,19 @@
           "duration": 9,
           "captions": [ { "style": "subtitle", "key": "vega.prologue.3" } ],
           "sfx": [ { "cue": "ai_blip", "at": 0 } ]
+        },
+        {
+          "camera": { "type": "player_view" },
+          "duration": 8,
+          "captions": [ { "style": "speaker", "key": "story.vega.beat00" } ]
+        },
+        {
+          "camera": { "type": "player_view" },
+          "duration": 7,
+          "captions": [ { "style": "speaker", "key": "story.vega.call" } ]
         }
       ],
-      "options": { "holdWorld": true, "lockInput": true, "skippable": true }
+      "options": { "holdWorld": true, "lockInput": true, "skippable": true, "chainNext": [ "__recap" ] }
     }
   ]
 }

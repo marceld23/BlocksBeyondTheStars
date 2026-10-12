@@ -1,6 +1,35 @@
 {
   "id": "vega_protocol",
   "nameKey": "story.vega_protocol.name",
+  // #2470: VEGA as its own pack (synthesis §4.6/§4.7, §5.4). The prologue is the cold open of the game; the story track
+  // (story:vega_protocol:started) starts after the basic training — or at once when the tutorial is off, for a veteran,
+  // on "Start the story now", or in the finale system. Until then the world's beats are held for that player and arrive
+  // as one recap at the start. Chapters follow the beats; a player's chapter is derived (max(1, world)), never stored.
+  // Every behaviour-relevant field here is mirrored in StoryRegistry.BuildVegaProtocol (no-drift test).
+  "kind": "story",
+  "scope": "world",
+  "shortNameKey": "story.vega.short",
+  "narrator": {
+    "id": "vega", "nameKey": "ui.vega.name", "icon": "icon_vega", "color": "#5FD8FF",
+    "voice": [ "vega_chatter_1", "vega_chatter_2", "vega_chatter_3" ], "lineStart": "ai_blip"
+  },
+  "introCutscene": "prologue",
+  "start": { "after": [ "chapter:tutorial:b6" ], "earlyOptIn": true },
+  "chapters": [
+    { "id": "awakening",    "titleKey": "story.vega.ch.awakening",    "fromBeat": 0, "openCutscene": "prologue" },
+    { "id": "signature",    "titleKey": "story.vega.ch.signature",    "fromBeat": 1 },
+    { "id": "service",      "titleKey": "story.vega.ch.service",      "fromBeat": 2 },
+    { "id": "guardian",     "titleKey": "story.vega.ch.guardian",     "fromBeat": 5 },
+    { "id": "verdict",      "titleKey": "story.vega.ch.verdict",      "fromBeat": 6 },
+    { "id": "what_you_are", "titleKey": "story.vega.ch.what_you_are", "fromBeat": 9 },
+    { "id": "sleeps",       "titleKey": "story.vega.ch.sleeps",       "fromBeat": 11 },
+    { "id": "core",         "titleKey": "story.vega.ch.core",         "fromBeat": 12 },
+    { "id": "resolution",   "titleKey": "story.vega.ch.resolution",   "fromEvent": "guardian_defeated" }
+  ],
+  "insights": [
+    { "event": "companion_ward", "minBeat": 5, "textKey": "story.vega.insight.companion_ward", "onceKey": "story:insight:companion-ward" },
+    { "event": "shape_noncube",  "minBeat": 5, "textKey": "story.vega.insight.shape_anomaly",  "onceKey": "story:insight:shape-anomaly" }
+  ],
   "fragmentWeight": 3,
   "killWeight": 1,
   "milestoneWeight": 2,

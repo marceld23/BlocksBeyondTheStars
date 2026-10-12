@@ -119,7 +119,7 @@ public sealed class TamingShapesStoryTests : IDisposable
         var server = Started(out var repo);
         using (repo)
         {
-            server.AddLocalPlayer("Ranger");
+            server.StartStoryTrackForTest(server.AddLocalPlayer("Ranger")); // #2470: insights reach a player in the story
 
             // Fresh arc (only B0 revealed): neither insight speaks, and crucially neither per-player flag is
             // consumed — so a player who tames/shapes early still hears it later.
@@ -148,6 +148,7 @@ public sealed class TamingShapesStoryTests : IDisposable
         using (repo)
         {
             var p = server.AddLocalPlayer("Builder");
+            server.StartStoryTrackForTest(p); // #2470: insights reach a player in the story
             p.State.AboardShip = false;
             p.State.Inventory.Add("stone", 10, 99);
 

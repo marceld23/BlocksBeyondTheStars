@@ -330,6 +330,11 @@ public static class StoryCutsceneIds
         "tut.first_jump", "tut.first_base", "tut.ship_commissioned", "tut.first_circuit", "tut.first_tame", "tut.graduation",
     };
 
+    /// <summary>The chain entry the built-in recap leaves behind (#2470): <c>&lt;pack&gt;/*</c> — "The story so far" leads
+    /// straight into the pack's next scene (the current chapter's opening at a story-track start, synthesis §5.3
+    /// "Spurstart-Folge"), without the 90 s cooldown in between.</summary>
+    public static string AnyOfPack(string packId) => packId + PackSeparator + "*";
+
     /// <summary>Whether <paramref name="id"/> is a built-in id (<c>__recap</c>).</summary>
     public static bool IsBuiltIn(string? id) => id is not null && id.StartsWith(BuiltInPrefix, StringComparison.Ordinal);
 

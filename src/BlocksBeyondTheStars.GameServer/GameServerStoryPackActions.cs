@@ -32,6 +32,13 @@ public sealed partial class GameServer
             return;
         }
 
+        if (action == StoryPackActions.StartPack && _story is not null
+            && string.Equals(_story.Id, intent.PackId, StringComparison.OrdinalIgnoreCase))
+        {
+            StartStoryTrackOnRequest(s); // #2470: "Start the story now" — the world story's per-player track
+            return;
+        }
+
         if (action == StoryPackActions.Untrack)
         {
             s.State.TrackedStoryId = string.Empty;
@@ -509,7 +516,7 @@ public sealed partial class GameServer
         {
             Text = $"Story '{snap.StoryId}': fragments={snap.Fragments}, kills={snap.Kills}, " +
                    $"milestones={snap.Milestones}, beats={snap.BeatsRevealed}/{(_story?.Beats.Count ?? 0)}, " +
-                   $"finaleRevealed={_storyState.GuardianSystemRevealed}, defeated={snap.Defeated}",
+                   $"finaleRevealed={_storyState.GuardianSystemRevealed}, defeated={snap.Defeated}" + StoryTrackStatus(who),
         });
         Send(session, new ServerMessage { Text = StoryPackStatus(who) });
     }

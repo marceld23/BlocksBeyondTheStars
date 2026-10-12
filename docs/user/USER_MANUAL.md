@@ -1877,21 +1877,48 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   copper and lead ore for silicate, traders buy crystal, gold and silver, researchers buy refined uranium and
   sell data fragments and circuit boards, settlers trade food.
 
+### Story: how VEGA's story starts
+- **The prologue** is the first thing you see in a new world with VEGA's story: you wake in the pilot's seat of a small
+  ship, the camera moves around it on its own, the console blinks awake — and VEGA speaks her first words in a box on the
+  screen. Her last page is the call to adventure: her memory lies scattered out there, and you can help her find it.
+  Turn the pages with **N**, pad **Back**, the **Continue** button or a tap; skip it with **Esc**, pad **(B)** or the
+  **Skip** button. It plays once — restarting the tutorial never brings it back — and the Story tab can show it again
+  any time (**Watch again → Prologue — Awakening**).
+- **Then the basic training**, undisturbed. VEGA's story waits for you meanwhile: whatever the world's story reveals
+  while you train (also when others in a multiplayer world move it on) is kept for you.
+- **The story starts** when you finish or skip the basic training — at once if the tutorial is switched off for the world
+  or for you, if you have played this world's story before, or if you fly to the Guardian's system. Don't want to wait?
+  Open the Story tab and press **Start the story now**.
+- **When it starts** you hear what was kept for you in one go: the knowledge of every story moment you missed, a short
+  card **"The story so far"** with the chapters behind you (titles only — the full texts are in the Story tab), then the
+  chapter you are in. If the Guardian's system is already on the map, VEGA tells you where it is and that you need a
+  **jump generator**; if the world's story is already finished, the ending plays for you then.
+- **Chapters.** VEGA's story has nine chapters: *Awakening* (the prologue), *A Familiar Signature*, *The Service*,
+  *The Guardian*, *The Verdict*, *What You Are*, *It Still Sleeps*, *The Guardian Core* and *Resolution*. The chapter
+  follows the world's story — everyone on a world is in the same chapter. The Story tab lists them: the chapters you have
+  reached with the story moments you heard in each, the ones still ahead as **???**. From chapter 2 on, **The story so
+  far** shows the recap card again.
+- **Hosted and arcade worlds:** on a world many players have passed through, a newcomer starts with their own
+  chapter 1; the Story tab says which chapter **the crew of this world** has reached, and **The story so far** fills you
+  in whenever you like.
+- On a world **without a story**, VEGA still teaches and helps — her old memory fragments (data cards you redeem aboard)
+  then read as plain archive entries, with the same knowledge and the same Mk3 parts at the end.
+
 ### Story: finding the thread
-- After the tutorial the **objective chip** keeps a quiet story pointer ("a net fragment is on this
+- Once your story has started, the **objective chip** keeps a quiet story pointer ("a net fragment is on this
   world", "search ruins and wrecks", …) with the arc's progress as its counter. It respects the
   **VEGA hints** setting — turn hints off and the chip clears once the tutorial is done. On a world without
   machines (planet enemies *Off*, no hostile space) it never asks you to drive machines back.
 - Once the Guardian's system is on the map, the chip says **"confront the Guardian core"** — this one is never
   hidden by the hints setting. A player still in the tutorial keeps their current lesson on the chip and only sees
   the finale there while actually in the Guardian's system; the Settings button still says **Skip tutorial** then.
-- The Story tab's **Memories restored** list shows the story beats you have heard — also after rejoining a server.
-  VEGA's other story lines (insights, the reveal of the Guardian's system, relay notes, her old memories) are
+- The Story tab's **Chapters** list shows the story beats you have heard under their chapter — also after rejoining a
+  server. VEGA's other story lines (insights, the reveal of the Guardian's system, relay notes, her old memories) are
   re-readable under **VEGA tips**. An entry your game version has no text for reads "needs a newer version".
 - **Joining doesn't move the story.** The star system you start in is not a discovery, so a new player's
   arrival adds nothing to the world's shared story progress — only mapping systems beyond it does.
-- **Joining late.** A player who joins after the Guardian's system has appeared on the star map hears VEGA's
-  reveal (the only line that tells you a **jump generator** gets you there) once, on joining.
+- **Joining late.** A player whose story starts after the Guardian's system has appeared on the star map hears VEGA's
+  reveal (the only line that tells you a **jump generator** gets you there) once, when their story starts.
 - Net fragments, personal memories and field records open in a **reader panel** and stay re-readable in
   the Story tab (Read buttons) — and they survive rejoining a server.
 - Scanning **runes** at a monument now also reveals their inscription. Settlement folk who know you
@@ -1902,7 +1929,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   **"Watch the ending again"** button once you've earned it. A player who had heard
   the story to its last chapter but was offline for the win gets the ending — and the finale achievement —
   once on their next join; someone who first arrives on an already finished world is not played the ending at
-  the door and can watch it from the Story tab.
+  the door: it plays when their own story starts after the basic training (on hosted and arcade worlds it stays in
+  the Story tab).
 - The hint at the Guardian core ("walk to the marked shaft, don't dig here") shows even with **VEGA hints** off.
 - **Story scenes.** Big story moments can play as short scenes: a **banner** at the top (it never stops you), a
   **card** with a title or VEGA speaking in a box (you can keep moving), or a **staged scene** where the camera shows your

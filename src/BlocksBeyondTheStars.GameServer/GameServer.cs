@@ -1064,6 +1064,11 @@ public sealed partial class GameServer
         OnPlayerTravelled(session, body.Id, body.Name); // complete any "travel to a place" mission objective (item 31)
         if (!session.Spectating)
         {
+            if (IsGuardianSystemLocation(body.Id))
+            {
+                TryStartStoryTrack(session); // #2470: never leave a player in the finale without its story
+            }
+
             ShipAiOnTravelled(session); // VEGA onboarding: a landing after the first launch + world-type flavour
             RaiseGameEvent(session, GameEventKeys.TravelLanded, LandingContext(quickTravel, adminBypass)); // #2465
         }
@@ -3861,8 +3866,10 @@ public sealed partial class GameServer
         // the first tutorial card's "I know the game", shown during a singleplayer hold. Starting, skipping or replaying a
         // chapter moves progress and comes from the Journal, which holds nothing, so those stay out.
         // #2467: watching a scene again from the Story tab changes nothing either.
+        // #2470 (synthesis §5.7): "Start the story now" from the Story tab starts the player's own story track — its lines
+        // and cards wait for the client like any other; the frozen world does not move.
         StoryPackIntent sp => sp.Action is StoryPackActions.Track or StoryPackActions.Untrack or StoryPackActions.OptOut
-            or StoryPackActions.OptIn or StoryPackActions.SkipPack or StoryPackActions.ReplayCutscene,
+            or StoryPackActions.OptIn or StoryPackActions.SkipPack or StoryPackActions.ReplayCutscene or StoryPackActions.StartPack,
         // #2467 (synthesis §5.7): the cutscene director confirms a scene while its own singleplayer hold is still on — the
         // receipt only stamps the player's own seen ledger.
         CutsceneSeenIntent => true,
@@ -4372,7 +4379,7 @@ public sealed partial class GameServer
         SendMarkers(session);      // own + shared map markers on the join world (#1217)
         SendNotes(session);        // the player's own notes (#1844)
         CutscenesOnJoin(session); // #2467: scenes committed in an earlier session but never confirmed — before new ones queue
-        SendStoryStateOnJoin(session); // story meter + per-player beat catch-up (P0)
+        StoryOnJoin(session); // #2470: migration, the prologue for a newcomer to the story, then the meter + catch-up (held until the track starts)
         SendRelayNetwork(session); // SPS relay meters + jump lanes (#1125)
         ArmNpcRadioOnJoin(session); // NPC calls (#1119): quiet period first; the join scan then catches up
         BroadcastLandingPads(session); // the join claimed a pad — everyone's map must show it (#1020)
@@ -4382,8 +4389,9 @@ public sealed partial class GameServer
         SendPaintDesigns(session);      // paint-design registry — before any chunk with painted blocks can arrive
         SendCustomShapes(session);      // …and the form registry, for the same reason (#843)
         QueueWorldTextures(session);    // #1958: the world's textures follow in pages, one per tick
-        ShipAiOnJoin(session); // VEGA: the prologue for a newcomer (#2469: the basic training is the tutorial pack below)
+        ShipAiOnJoin(session); // VEGA: tips quiet, the chip (#2470: the prologue played in StoryOnJoin; the training is the pack below)
         StoryPacksOnJoin(session); // #2466: player packs — migrate, start, advance, re-speak the step on the chip
+        TryStartStoryTrack(session); // #2470: the story track starts here when the training is through or off (or for a veteran)
         SendVegaJournal(session); // the tips log snapshot — after the tutorial's migration, so it lists the migrated steps
         RestoreStationOnJoin(session, savedLocation, savedPosition); // #1925: quit on a station → back on it
 

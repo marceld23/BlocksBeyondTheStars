@@ -6,6 +6,11 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
+    /// The LEGACY staging of the VEGA prologue's full-screen pages (Kind 4). Since #2470 the prologue is the VEGA pack's
+    /// intro cutscene, played by <see cref="CutsceneDirector"/> (captions in the frame, the camera on its own, B0 and the call
+    /// to adventure as VEGA's pages); a current server sends the pages only to a client without <c>cutscenes1</c>. This path
+    /// stays for a server that predates the cutscene (a hosted world behind on its image) — never both for one join.
+    ///
     /// Cinematic staging for the first-spawn VEGA prologue (#760). The server trigger, the three
     /// <c>vega.prologue.*</c> pages and the per-save <c>vega:intro</c> gate stay exactly as they are —
     /// this only adds the stage: letterbox bars, a slow exterior orbit of the player's ACTUAL landed

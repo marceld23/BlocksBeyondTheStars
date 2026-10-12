@@ -210,11 +210,14 @@ public sealed class StoryServerFixesTests : IDisposable
         Assert.Equal(TutorialFirstChip, lines.Last().ObjectiveKey);
         Assert.DoesNotContain(TutorialDone, server.MilestonesForTest("Guest"));
 
-        // The shared arc is untouched by the arrival (N4) — and the catch-up still credits what the world heard.
+        // The shared arc is untouched by the arrival (N4). #2470: what the world heard is held during the training — its
+        // knowledge is credited when the newcomer's story track starts.
         Assert.Equal(milestones, server.StorySnapshot.Milestones);
         Assert.Equal(beatsBefore, server.StorySnapshot.BeatsRevealed);
         var guest = server.Sessions[1];
         Assert.True(guest.Join.Newcomer);
+        Assert.Equal(0, guest.State.KnowledgePoints);
+        server.SkipTutorialForTest(guest);
         Assert.Equal(beatsBefore - 1, guest.State.KnowledgePoints); // B0 pays nothing, B1 pays one
     }
 
@@ -370,7 +373,7 @@ public sealed class StoryServerFixesTests : IDisposable
         var repo = Repo("latecomer");
         var server = new SvGameServer(Config("latecomer"), _content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();
-        server.AddLocalPlayer("Host");
+        server.StartStoryTrackForTest(server.AddLocalPlayer("Host")); // #2470: a player in the story
         CompleteTheArc(server);
         Assert.True(server.HasStoryMilestoneForTest("Host", "story:vega_protocol:finale:revealed")); // heard it live
         server.Stop();
@@ -379,6 +382,7 @@ public sealed class StoryServerFixesTests : IDisposable
         {
             var s = Boot("latecomer", out var client, repo: repo);
             var lines = JoinOverNetwork(s, client, "Late");
+            Send(s, client, new SkipOnboardingIntent()); // #2470: held during the training — the track start speaks it
             s.Stop();
             return lines.Count(l => l.LineKey == "story.vega.guardian_revealed" && l.Kind == 2);
         }
@@ -450,8 +454,9 @@ public sealed class StoryServerFixesTests : IDisposable
     public void AnObserver_HearsNoBeats_UntilObserverModeEnds()
     {
         var server = BootRecording("observer_beats", new RecordingTransport(), c => c.FleetAdminPlayers = new() { "Operator" });
-        server.AddLocalPlayer("Justus");
+        server.StartStoryTrackForTest(server.AddLocalPlayer("Justus")); // #2470: both are in the story
         var op = server.AddLocalPlayer("Operator");
+        server.StartStoryTrackForTest(op);
         Admin(server, op, "spectate", "on");
 
         for (int i = 0; i < 3; i++)
@@ -599,7 +604,8 @@ public sealed class StoryServerFixesTests : IDisposable
         var server = new SvGameServer(Config("ending"), _content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();
         var winner = server.AddLocalPlayer("Winner");
-        server.AddLocalPlayer("Friend");
+        server.StartStoryTrackForTest(winner); // #2470: both are in the story
+        server.StartStoryTrackForTest(server.AddLocalPlayer("Friend"));
         CompleteTheArc(server);                       // Friend hears B12 …
         server.DisconnectLocalPlayerForTest("Friend"); // … and is offline for the win
         WinTheFinale(server, winner);
@@ -621,7 +627,8 @@ public sealed class StoryServerFixesTests : IDisposable
         Assert.Equal((1, true, true), Join("Friend"));
         Assert.Equal(0, Join("Friend").Resolved);    // once
 
-        // A stranger arriving after the win is not played the ending at the door — ever.
+        // A stranger arriving after the win is not played the ending at the door — it waits for their story track to start
+        // after the basic training (#2470, VegaStoryPackTests).
         Assert.Equal((0, false, false), Join("Stranger"));
         Assert.Equal(0, Join("Stranger").Resolved);
     }

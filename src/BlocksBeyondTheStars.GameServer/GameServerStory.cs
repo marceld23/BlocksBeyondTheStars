@@ -262,11 +262,11 @@ public sealed partial class GameServer
         BroadcastStoryState();
     }
 
-    private string BeatMilestoneKey(StoryBeat beat) => "story:" + _storyState.StoryId + ":beat:" + beat.Index;
+    private string BeatMilestoneKey(StoryBeat beat) => StoryPackKeys.Beat(_storyState.StoryId, beat.Index);
 
     private void RevealBeatToAll(StoryBeat beat)
     {
-        foreach (var session in StoryListeners())
+        foreach (var session in StoryListeners().ToList())
         {
             RevealBeatTo(session, beat);
         }
@@ -278,24 +278,56 @@ public sealed partial class GameServer
     private IEnumerable<PlayerSession> StoryListeners() => _sessions.Values.Where(s => s.Joined && !s.Spectating);
 
     /// <summary>Speaks a beat to one player if they haven't heard it (tracked per-player, persisted), granting
-    /// its one-time knowledge reward.</summary>
-    private void RevealBeatTo(PlayerSession session, StoryBeat beat)
+    /// its one-time knowledge reward. Held while the player's story track has not started (#2470, synthesis §4.6): no key,
+    /// no knowledge, no line — the track start hears it and credits its knowledge then. A beat that opens a chapter plays
+    /// the chapter's opening scene first when <paramref name="stage"/> (the join catch-up stages only the current chapter),
+    /// then the beat's own scene, then the line.</summary>
+    private void RevealBeatTo(PlayerSession session, StoryBeat beat, bool stage = true)
     {
-        if (!session.State.Milestones.Add(BeatMilestoneKey(beat)))
+        if (!StoryTrackStarted(session) || !MarkBeatHeard(session, beat))
         {
-            return; // this player already heard this beat
+            return; // held until the track starts — or this player already heard this beat
         }
 
-        if (beat.KnowledgeReward > 0)
+        if (stage && _story is not null)
         {
-            session.State.KnowledgePoints += beat.KnowledgeReward;
-            SendInventory(session); // carries the new KnowledgePoints to the client
+            if (beat.Index > 0 && StoryChapters.OpenedByBeat(_story, beat.Index) is { } chapter)
+            {
+                PlayChapterOpening(session, chapter);
+            }
+
+            if (!string.IsNullOrEmpty(beat.Cutscene))
+            {
+                PlayBoundCutscene(session, _story, beat.Cutscene, _story.Id);
+            }
         }
 
         if (!string.IsNullOrEmpty(beat.TextKey))
         {
             SendVegaLine(session, beat.TextKey, 2); // ShipAiLine kind 2 = memory/story
         }
+    }
+
+    /// <summary>Marks a beat heard for a player and credits its knowledge (once; the key is the per-player ledger). Returns
+    /// whether it was new. <paramref name="sendInventory"/> = false lets a caller that marks several beats send the new
+    /// knowledge once.</summary>
+    private bool MarkBeatHeard(PlayerSession session, StoryBeat beat, bool sendInventory = true)
+    {
+        if (!session.State.Milestones.Add(BeatMilestoneKey(beat)))
+        {
+            return false;
+        }
+
+        if (beat.KnowledgeReward > 0)
+        {
+            session.State.KnowledgePoints += beat.KnowledgeReward;
+            if (sendInventory)
+            {
+                SendInventory(session); // carries the new KnowledgePoints to the client
+            }
+        }
+
+        return true;
     }
 
     /// <summary>On join: send the story meter and catch the player up on beats already revealed world-wide
@@ -316,17 +348,26 @@ public sealed partial class GameServer
 
     /// <summary>Catches a player up on the world's story lines they have not heard: every revealed beat and, while
     /// the finale is open, the Guardian-system reveal (#2460, B10 — the only line that names the jump generator,
-    /// which latecomers never got). Runs on join and when observer mode ends.</summary>
+    /// which latecomers never got). Runs on join and when observer mode ends. Only for a player whose story track has
+    /// started (#2470): before that everything is held, and the track start delivers it as one recap. Of the chapters the
+    /// world crossed meanwhile only the CURRENT chapter's opening plays (synthesis §5.3), not one scene per chapter.</summary>
     private void CatchUpStoryLines(PlayerSession session)
     {
-        if (_story is null || session.Spectating)
+        if (_story is null || session.Spectating || !StoryTrackStarted(session))
         {
             return;
         }
 
+        bool caughtUp = false;
         for (int i = 0; i < _storyState.BeatsRevealed && i < _story.Beats.Count; i++)
         {
-            RevealBeatTo(session, _story.Beats[i]);
+            caughtUp |= !session.State.Milestones.Contains(BeatMilestoneKey(_story.Beats[i]));
+            RevealBeatTo(session, _story.Beats[i], stage: false);
+        }
+
+        if (caughtUp && ChapterAt(TrackChapterIndex(session)) is { } current)
+        {
+            PlayChapterOpening(session, current);
         }
 
         if (_storyState.GuardianSystemRevealed && !_storyState.GuardianDefeated)
@@ -375,6 +416,13 @@ public sealed partial class GameServer
                 .Select(m => m.Substring(LoreMilestonePrefix.Length)).ToArray(),
             HeardBeats = HeardBeats(session), // #2462 (B08): the Story tab's beat list survives a rejoin
             SeenCutscenes = SeenCutscenes(session), // #2468: the Story tab's "Watch again" list
+            // #2470: the player's story track — started, their (derived) chapter, the world's chapter, the crew status
+            // line, and the relay insights the save has spoken (the log of a player who joined the story later).
+            Started = StoryTrackStarted(session),
+            Chapter = ChapterAt(TrackChapterIndex(session))?.Id ?? string.Empty,
+            WorldChapter = ChapterAt(WorldChapterIndex())?.Id ?? string.Empty,
+            ShowCrewChapter = ShowCrewChapterFor(session),
+            RelayInsightKeys = StoryTrackStarted(session) ? RelayInsightKeysSpoken() : System.Array.Empty<string>(),
         };
     }
 
@@ -464,6 +512,7 @@ public sealed partial class GameServer
         }
 
         DeactivateStoryRow(previous);
+        StoryTrackOnStorySwitch(); // #2470: the new story meets the players online now (a "none" world switched to VEGA)
     }
 
     /// <summary>#2460 (B05): clears the active marker on the row an admin switch left behind, so a restart can
@@ -581,53 +630,51 @@ public sealed partial class GameServer
 
     // ---------------- Event-driven story insights (taming ward + non-cube shapes) ----------------
     //
-    // Two discrete, action-triggered VEGA memories that tie the taming + block-shape features into the arc.
-    // Unlike the threshold beats (B0–B12) these are NOT progress-gated and must NOT join the Beats list (that
-    // would break the engine's strict beat ordering) — they are spoken directly on their gameplay event, once
-    // per player, tracked with the same per-player milestone mechanism the beats use.
+    // Discrete, action-triggered VEGA memories that tie the taming + block-shape features into the arc. Unlike the
+    // threshold beats (B0–B12) these are NOT progress-ordered and must NOT join the Beats list (that would break the
+    // engine's strict beat ordering) — they are spoken directly on their gameplay event, once per player, tracked with the
+    // same per-player milestone mechanism the beats use. Since #2470 they are pack data (StoryDefinition.Insights: event,
+    // the beat that must be revealed first, the line, the once-key) — the hard-coded "six beats" check is gone.
 
-    /// <summary>Beats spoken once the Guardian's protective mandate is known (beat B5 "The Guardian"): beats
-    /// 0..5 revealed ⇒ BeatsRevealed ≥ 6. Both insights stay silent until then so an early tame or shape can't
-    /// pre-empt the Guardian reveal — they defer to the next eligible trigger (the per-player flag is only
-    /// consumed once a line is actually spoken). Assumes the default vega_protocol arc shape.</summary>
-    private const int GuardianMandateBeatCount = 6;
+    /// <summary>The insight event names of <see cref="StoryInsight.Event"/> the server raises.</summary>
+    internal const string CompanionWardInsightEvent = "companion_ward";
+    internal const string ShapeAnomalyInsightEvent = "shape_noncube";
 
-    /// <summary>True once the shared arc has named the Guardian and its "protect the living worlds" mandate —
-    /// the premise both insights build on. Requires an active story (silent in the "none" sandbox).</summary>
-    private bool GuardianMandateKnown => StoryActive && _storyState.BeatsRevealed >= GuardianMandateBeatCount;
-
-    private const string CompanionWardInsightKey = "story:insight:companion-ward";
-    private const string ShapeAnomalyInsightKey = "story:insight:shape-anomaly";
-
-    /// <summary>VEGA's realisation the first time a present companion makes a Guardian machine stand down: the
-    /// network reads a creature-bonded human as part of the biosphere it guards, not as prey. Once-only per
-    /// player, gated behind the Guardian reveal. Returns true if it spoke this call. Driven from
-    /// <c>TickEnemies</c> (a warded player within hunt range of a machine).</summary>
-    private bool RevealCompanionWardInsight(PlayerSession session)
+    /// <summary>Speaks the active story's insight for <paramref name="insightEvent"/> to one player, once — only after the
+    /// arc revealed the insight's <see cref="StoryInsight.MinBeat"/> (an early tame or shape must not pre-empt the
+    /// Guardian's reveal) and only once the player's story track has started (#2470: held, the once-key is not written,
+    /// so the insight fires at the next occasion). A pack without the insight (or the "none" sandbox) says nothing. Returns
+    /// whether it spoke.</summary>
+    private bool RevealStoryInsight(PlayerSession session, string insightEvent)
     {
-        if (!GuardianMandateKnown || !session.State.Milestones.Add(CompanionWardInsightKey))
+        var insight = _story?.Insights.FirstOrDefault(i => string.Equals(i.Event, insightEvent, StringComparison.Ordinal));
+        if (insight is null || string.IsNullOrEmpty(insight.TextKey) || _storyState.BeatsRevealed <= insight.MinBeat
+            || !StoryTrackStarted(session))
         {
-            return false; // story too early (flag NOT consumed → may fire later), or already heard
+            return false; // no such insight, story too early or held (flag NOT consumed → may fire later)
         }
 
-        SendVegaLine(session, "story.vega.insight.companion_ward", 2); // ShipAiLine kind 2 = memory/story
+        string onceKey = string.IsNullOrEmpty(insight.OnceKey) ? "story:insight:" + insight.Event : insight.OnceKey;
+        if (!session.State.Milestones.Add(onceKey))
+        {
+            return false; // already heard
+        }
+
+        SendVegaLine(session, insight.TextKey, 2); // ShipAiLine kind 2 = memory/story
         return true;
     }
+
+    /// <summary>VEGA's realisation the first time a present companion makes a Guardian machine stand down: the
+    /// network reads a creature-bonded human as part of the biosphere it guards, not as prey (insight
+    /// <see cref="CompanionWardInsightEvent"/>). Returns true if it spoke this call. Driven from <c>TickEnemies</c> (a
+    /// warded player within hunt range of a machine).</summary>
+    private bool RevealCompanionWardInsight(PlayerSession session) => RevealStoryInsight(session, CompanionWardInsightEvent);
 
     /// <summary>VEGA's recovered memory the first time the player forms a non-cube block: the Service always
     /// built in cubes by design — to the Guardian any deliberate curve or edge is a constructed anomaly, the
-    /// mark of a human hand. Narrative only (no mechanic). Once-only per player, gated behind the reveal.
-    /// Returns true if it spoke this call. Driven from <c>HandleShapeCraft</c>.</summary>
-    private bool RevealShapeAnomalyMemory(PlayerSession session)
-    {
-        if (!GuardianMandateKnown || !session.State.Milestones.Add(ShapeAnomalyInsightKey))
-        {
-            return false;
-        }
-
-        SendVegaLine(session, "story.vega.insight.shape_anomaly", 2);
-        return true;
-    }
+    /// mark of a human hand (insight <see cref="ShapeAnomalyInsightEvent"/>). Narrative only (no mechanic). Returns true if
+    /// it spoke this call. Driven from <c>HandleShapeCraft</c>.</summary>
+    private bool RevealShapeAnomalyMemory(PlayerSession session) => RevealStoryInsight(session, ShapeAnomalyInsightEvent);
 
     // ---------------- P7: world knowledge level (NPC flavour gating) ----------------
 

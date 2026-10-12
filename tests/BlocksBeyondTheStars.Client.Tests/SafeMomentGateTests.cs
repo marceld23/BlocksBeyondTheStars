@@ -271,6 +271,23 @@ public sealed class SafeMomentGateTests
         Assert.Empty(q.Candidates(11f));
     }
 
+    /// <summary>#2470 (synthesis §5.3 "Spurstart-Folge"): "The story so far" leads straight into its pack's next chapter
+    /// scene — the current chapter's opening at a story-track start — not into the intro, not into another pack's scene.</summary>
+    [Fact]
+    public void TheRecap_LeadsIntoItsPacksNextChapterScene_Only()
+    {
+        var q = new CutsceneQueue();
+        q.Enqueue(Q("__recap", pack: "vega_protocol"));
+        q.Start(q.Items[0]);
+        q.Finish(5f);
+        var opening = Q("ch4.open", pack: "vega_protocol");
+        opening.ChapterScene = true;
+        q.Enqueue(opening);
+        q.Enqueue(Q("prologue", CutsceneTiers.Scene, "vega_protocol")); // the intro: no chapter scene
+        q.Enqueue(Q("tut.strip@b3", pack: "tutorial"));
+        Assert.Equal(new[] { "ch4.open" }, q.Candidates(6f).Select(i => i.Id));
+    }
+
     [Fact]
     public void ATemplateInstance_IsChainedByItsDefinitionId()
     {
