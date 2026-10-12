@@ -87,6 +87,12 @@ public sealed partial class GameServer
     /// one that names the jump generator, so whoever was not online for the reveal hears it on their next join.</summary>
     private string GuardianRevealHeardKey => $"story:{_story?.Id ?? "none"}:finale:revealed";
 
+    /// <summary>The Guardian-system reveal line (also a Journal note, #2471).</summary>
+    private const string GuardianRevealedLine = "story.vega.guardian_revealed";
+
+    /// <summary>The line that the finale was won (also a Journal note, #2471).</summary>
+    private const string FinaleResolvedLine = "story.vega.finale_resolved";
+
     /// <summary>Speaks the Guardian-system reveal to one player, once (tracked by <see cref="GuardianRevealHeardKey"/>). Held
     /// until the player's story track starts (#2470): the key is not written, and the track start speaks it (the finale is
     /// open, so it carries the jump-generator line the player needs).</summary>
@@ -94,7 +100,7 @@ public sealed partial class GameServer
     {
         if (StoryTrackStarted(session) && session.State.Milestones.Add(GuardianRevealHeardKey))
         {
-            SendVegaLine(session, "story.vega.guardian_revealed", 2); // ShipAiLine kind 2 = memory/story
+            SendVegaLine(session, GuardianRevealedLine, 2); // ShipAiLine kind 2 = memory/story
         }
     }
 
@@ -529,7 +535,7 @@ public sealed partial class GameServer
         }
 
         BroadcastToFinaleAudience(new CoreDialogueMessage { Node = _duelNode, ResponseKey = finalResponseKey, Won = true });
-        SpeakStoryLineToStarted("story.vega.finale_resolved");
+        SpeakStoryLineToStarted(FinaleResolvedLine);
         MarkGuardianDefeated();
 
         // The epilogue (#1124) enters the story log like a beat — the handover to what starts AFTER the
@@ -617,7 +623,7 @@ public sealed partial class GameServer
             return;
         }
 
-        SendVegaLine(session, "story.vega.finale_resolved", 2);
+        SendVegaLine(session, FinaleResolvedLine, 2);
         if (achievement)
         {
             OnAchievementStoryFinale(session);

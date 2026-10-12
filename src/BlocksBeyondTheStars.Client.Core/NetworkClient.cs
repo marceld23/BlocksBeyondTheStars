@@ -172,6 +172,8 @@ namespace BlocksBeyondTheStars.Client
         public event Action<CoreDialogueMessage>? CoreDialogueReceived;              // argument-duel node / win
         public event Action<StoryResolved>? StoryResolvedReceived;                   // #1124: play the resolution cinematic
         public event Action<CutscenePlay>? CutscenePlayReceived;                     // #2468: play a story pack's cutscene (tag 295)
+        public event Action<ObjectiveList>? ObjectiveListReceived;                   // #2471: the objectives in the chip order (tag 299)
+        public event Action<StoryPackStates>? StoryPackStatesReceived;               // #2471: the Journal's stories (tag 300)
         public event Action<RelayNetworkState>? RelayNetworkReceived;                // #1125: SPS relay meters + jump lanes
         public event Action<NpcDialogState>? NpcDialogReceived;                      // #1127: NPC dialogue step (resolved text)
 
@@ -532,9 +534,14 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>#2466: the player's control of a player story pack (<see cref="StoryPackActions"/>: track, opt out,
-        /// start/skip/replay a chapter, skip a step).</summary>
+        /// start/skip/replay a chapter, skip a step; #2471: restart the pack, replay a chapter).</summary>
         public void SendStoryPack(string packId, string action, string chapterId = "", string stepId = "")
             => Send(new StoryPackIntent { PackId = packId ?? string.Empty, Action = action ?? string.Empty, ChapterId = chapterId ?? string.Empty, StepId = stepId ?? string.Empty });
+
+        /// <summary>#2471: the Journal opened — the server answers with <see cref="StoryPackStates"/> and <see cref="ObjectiveList"/>
+        /// at once (an older server drops the unknown word).</summary>
+        public void SendJournalRequest()
+            => Send(new StoryPackIntent { Action = StoryPackActions.RequestStates });
 
         /// <summary>#2468: "Watch again" from the Story tab — the server re-sends a scene this player has seen
         /// (<see cref="CutscenePlay.Replay"/> = true).</summary>
@@ -1362,6 +1369,8 @@ namespace BlocksBeyondTheStars.Client
                 case CoreDialogueMessage m: CoreDialogueReceived?.Invoke(m); break;
                 case StoryResolved m: StoryResolvedReceived?.Invoke(m); break;
                 case CutscenePlay m: CutscenePlayReceived?.Invoke(m); break;
+                case ObjectiveList m: ObjectiveListReceived?.Invoke(m); break;
+                case StoryPackStates m: StoryPackStatesReceived?.Invoke(m); break;
                 case RelayNetworkState m: RelayNetworkReceived?.Invoke(m); break;
                 case NpcDialogState m: NpcDialogReceived?.Invoke(m); break;
                 case BanditDemand m: BanditDemandReceived?.Invoke(m); break;

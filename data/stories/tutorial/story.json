@@ -275,6 +275,8 @@
           "objective": { "event": "station:boarded" },
           "feasibleIf": [ "world:free_flight", "world:station_in_system" ],
           "alternative": "b6.4a",
+          // #2471: after the marker time VEGA sets the nearest station as the flight target (in space or still landed).
+          "onStart": { "reveal": "nearest_station" },
           "explain": { "startKey": "story.tutorial.b6.dock.start", "chipKey": "story.tutorial.b6.dock.chip" }
         },
         {

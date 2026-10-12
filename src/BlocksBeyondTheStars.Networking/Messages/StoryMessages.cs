@@ -80,6 +80,217 @@ public sealed class StoryStateMessage
     /// <c>vega.relay.first</c>) — sent only to a player whose track has started, so a player who joined the story later
     /// finds them in the log silently, and the log survives a rejoin. Additive.</summary>
     public string[] RelayInsightKeys { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>The world story's narrator lines that are not beats which THIS player has heard (#2471, locale keys): the
+    /// Guardian-system reveal, the insights (companion ward, shape anomaly), the resolution line — derived from their once
+    /// keys, so the Journal's "VEGA's notes" keep them across a rejoin (they used to live in the session's log only).
+    /// Additive: an older server leaves it empty.</summary>
+    public string[] NoteKeys { get; set; } = System.Array.Empty<string>();
+}
+
+/// <summary>
+/// Server → client (#2471, tag 299): the player's current objectives in the chip order of synthesis §5.3 — at most
+/// <see cref="MaxItems"/> rows, one per story (pack), the first is the one on the objective chip (still also carried by
+/// every <see cref="ShipAiLine"/> for older clients). The Journal's live progress and the optional "Show all objectives"
+/// lines read it. Sent to clients with <c>packs1</c> on the join, on a change (at most once a second) and on request.
+/// </summary>
+public sealed class ObjectiveList
+{
+    /// <summary>The most rows a list carries (the chip plus two more lines under it).</summary>
+    public const int MaxItems = 3;
+
+    /// <summary>The rows, the chip's first; empty = no objective at all.</summary>
+    public NetObjective[] Items { get; set; } = System.Array.Empty<NetObjective>();
+}
+
+/// <summary>One row of <see cref="ObjectiveList"/> (#2471).</summary>
+public sealed class NetObjective
+{
+    /// <summary>Where it comes from (<see cref="ObjectiveSources"/>): the label and the hints mute follow it.</summary>
+    public string Source { get; set; } = string.Empty;
+
+    /// <summary>The story (pack) it belongs to — the world story's id for VEGA's lead and the finale.</summary>
+    public string PackId { get; set; } = string.Empty;
+
+    /// <summary>The pack step behind the row (empty for the world story's lead) — the Journal matches its progress by it.</summary>
+    public string StepId { get; set; } = string.Empty;
+
+    /// <summary>Locale key of the objective text.</summary>
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>The text's {0} (a display string), or empty.</summary>
+    public string Arg { get; set; } = string.Empty;
+
+    /// <summary>Progress / target (a counter shows only when the target is above 1).</summary>
+    public int Progress { get; set; }
+
+    public int Target { get; set; }
+
+    /// <summary>The player pinned this story in the Journal (<see cref="StoryPackActions.Track"/>).</summary>
+    public bool Pinned { get; set; }
+}
+
+/// <summary>
+/// Server → client (#2471, tag 300): the Journal's view of every story this player can follow — the player packs (the
+/// tutorial, side stories) with their chapters, active steps and switches, plus one short entry for the world story
+/// (its arc stays on <see cref="StoryStateMessage"/>; no chapters here). Built per receiver; sent to clients with
+/// <c>packs1</c> on the join, after a state change (a step, a chapter, an offer, a switch — coalesced, at most once a
+/// second, never for a mere progress tick: <see cref="ObjectiveList"/> carries live progress) and on request
+/// (<see cref="StoryPackActions.RequestStates"/>).
+/// </summary>
+public sealed class StoryPackStates
+{
+    /// <summary>The stories, in Journal order: tutorial packs, the world story, other packs.</summary>
+    public NetStoryPack[] Packs { get; set; } = System.Array.Empty<NetStoryPack>();
+
+    /// <summary>The story pinned to the chip (<c>PlayerState.TrackedStoryId</c>), empty for the automatic order.</summary>
+    public string TrackedPackId { get; set; } = string.Empty;
+
+    /// <summary>The world's tutorial rule: <c>Auto</c>, <c>OptIn</c> or <c>Off</c>.</summary>
+    public string TutorialPolicy { get; set; } = string.Empty;
+}
+
+/// <summary>One story of <see cref="StoryPackStates"/> (#2471).</summary>
+public sealed class NetStoryPack
+{
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary><c>tutorial</c>, <c>story</c> or <c>side</c>.</summary>
+    public string Kind { get; set; } = string.Empty;
+
+    /// <summary><c>world</c> (the world story, shared arc) or <c>player</c>.</summary>
+    public string Scope { get; set; } = string.Empty;
+
+    /// <summary>Locale keys of the story's name, short name (the chip label) and description.</summary>
+    public string NameKey { get; set; } = string.Empty;
+
+    public string ShortNameKey { get; set; } = string.Empty;
+
+    public string DescriptionKey { get; set; } = string.Empty;
+
+    /// <summary>It runs for this player in this world (world rule, opt-out).</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>Started for this player (the world story: their story track).</summary>
+    public bool Started { get; set; }
+
+    /// <summary>Through: every mandatory chapter done or skipped (the world story: the finale won).</summary>
+    public bool Done { get; set; }
+
+    /// <summary>The player switched it off.</summary>
+    public bool OptedOut { get; set; }
+
+    /// <summary>Pinned to the chip.</summary>
+    public bool Tracked { get; set; }
+
+    /// <summary>The player may start it now (<see cref="StoryPackActions.StartPack"/>).</summary>
+    public bool Startable { get; set; }
+
+    /// <summary>The world rule keeps it off (a tutorial while the world's tutorial is <c>Off</c>): no switch helps.</summary>
+    public bool Blocked { get; set; }
+
+    /// <summary>Its mandatory part still runs (the tutorial's basic training) — "skip all" applies.</summary>
+    public bool MandatoryRunning { get; set; }
+
+    /// <summary>The story's badge: finished by playing (not by skipping) — the world story: the finale won.</summary>
+    public bool Badge { get; set; }
+
+    /// <summary>The chapters in order (empty for the world story).</summary>
+    public NetStoryChapter[] Chapters { get; set; } = System.Array.Empty<NetStoryChapter>();
+
+    /// <summary>The active do steps of the running chapters (empty for the world story).</summary>
+    public NetStoryStep[] Steps { get; set; } = System.Array.Empty<NetStoryStep>();
+}
+
+/// <summary>One chapter of a <see cref="NetStoryPack"/> (#2471).</summary>
+public sealed class NetStoryChapter
+{
+    public string Id { get; set; } = string.Empty;
+
+    public string TitleKey { get; set; } = string.Empty;
+
+    public string SummaryKey { get; set; } = string.Empty;
+
+    /// <summary>One of <see cref="StoryChapterStates"/>.</summary>
+    public string State { get; set; } = string.Empty;
+
+    /// <summary>An opt-in chapter (a deep dive), not part of the mandatory sequence.</summary>
+    public bool Optional { get; set; }
+
+    /// <summary>May be skipped (<see cref="StoryPackActions.SkipChapter"/>).</summary>
+    public bool Skippable { get; set; }
+
+    /// <summary>For a locked chapter: locale keys naming what it still needs (a chapter title, a blueprint name).</summary>
+    public string[] RequiresKeys { get; set; } = System.Array.Empty<string>();
+}
+
+/// <summary>One active do step of a <see cref="NetStoryPack"/> (#2471).</summary>
+public sealed class NetStoryStep
+{
+    public string Id { get; set; } = string.Empty;
+
+    public string ChapterId { get; set; } = string.Empty;
+
+    /// <summary>Locale keys of its chip text and its explanation (variants for the world's rules applied).</summary>
+    public string ChipKey { get; set; } = string.Empty;
+
+    public string StartKey { get; set; } = string.Empty;
+
+    /// <summary>The Codex chapter or guide article the "More" button opens, or empty.</summary>
+    public string MoreGuide { get; set; } = string.Empty;
+
+    /// <summary><c>must</c>, <c>core</c> or <c>opt</c>.</summary>
+    public string Tier { get; set; } = string.Empty;
+
+    /// <summary>Progress / target as of the send (live progress rides on <see cref="ObjectiveList"/>).</summary>
+    public int Progress { get; set; }
+
+    public int Target { get; set; }
+
+    /// <summary>Its place among the chapter's tasks: "step <see cref="Index"/> of <see cref="Count"/>" (1-based).</summary>
+    public int Index { get; set; }
+
+    public int Count { get; set; }
+
+    /// <summary>May be skipped (<see cref="StoryPackActions.SkipStep"/>).</summary>
+    public bool Skippable { get; set; }
+
+    /// <summary>An open extra: a CORE step past its hint time that no longer holds the chapter up but still counts.</summary>
+    public bool Extra { get; set; }
+
+    /// <summary>The step the pack shows on the chip.</summary>
+    public bool OnChip { get; set; }
+}
+
+/// <summary>The values of <see cref="NetStoryChapter.State"/> (#2471).</summary>
+public static class StoryChapterStates
+{
+    /// <summary>Completed by playing.</summary>
+    public const string Done = "done";
+
+    /// <summary>Skipped ("I know this").</summary>
+    public const string Skipped = "skipped";
+
+    /// <summary>Running now.</summary>
+    public const string Active = "active";
+
+    /// <summary>A done chapter played again.</summary>
+    public const string Replay = "replay";
+
+    /// <summary>An opt-in chapter VEGA offered (Start / Later).</summary>
+    public const string Offered = "offered";
+
+    /// <summary>An offered chapter the player put off ("Later") — still startable.</summary>
+    public const string Declined = "declined";
+
+    /// <summary>An opt-in chapter whose requirements hold — startable.</summary>
+    public const string Available = "available";
+
+    /// <summary>A mandatory chapter still ahead in the sequence.</summary>
+    public const string Upcoming = "upcoming";
+
+    /// <summary>An opt-in chapter whose requirements do not hold yet (<see cref="NetStoryChapter.RequiresKeys"/>).</summary>
+    public const string Locked = "locked";
 }
 
 /// <summary>Server → client: an environmental lore text just found (#1111) — a rune inscription read with the
@@ -112,9 +323,9 @@ public sealed class StorySelectIntent
 /// <see cref="StoryPackActions"/>; <see cref="ChapterId"/> / <see cref="StepId"/> name the target where the action needs
 /// one. Self-service, never a cheat: it changes only the sender's own ledger. The world story is not switched here
 /// (that stays the admin's <see cref="StorySelectIntent"/>) — but <c>startPack</c> with the world story's id starts the
-/// sender's own story track early ("Start the story now", #2470). While a singleplayer world is held only
-/// <c>track</c>, <c>untrack</c>, <c>optOut</c>, <c>optIn</c>, <c>skipPack</c>, <c>startPack</c> and <c>replayCutscene</c>
-/// get through (synthesis §5.7).
+/// sender's own story track early ("Start the story now", #2470) and <c>track</c> pins it. Every action gets through
+/// while a singleplayer world is held (#2471: the Journal may be opened from the pause menu); each is validated on the
+/// server and an unknown word, pack, chapter or step is ignored.
 /// </summary>
 public sealed class StoryPackIntent
 {
@@ -159,17 +370,28 @@ public static class StoryPackActions
     /// <summary>Start an optional chapter (accepts an offer).</summary>
     public const string StartChapter = "startChapter";
 
-    /// <summary>"Later" to an offered chapter — it stays listed and startable.</summary>
+    /// <summary>"Later" to an offered chapter (the Journal's decline of an offer) — it stays listed and startable.</summary>
     public const string DeclineChapter = "declineChapter";
 
     /// <summary>Skip the rest of a chapter.</summary>
     public const string SkipChapter = "skipChapter";
 
-    /// <summary>Replay a chapter (evidence off).</summary>
+    /// <summary>Start a chapter over: a running one counts its steps from zero again (#2471), a done or skipped one is
+    /// replayed (evidence off).</summary>
     public const string RestartChapter = "restartChapter";
+
+    /// <summary>Play a done or skipped chapter again (#2471, the Journal's per-chapter "Replay"; evidence off, keys stay).</summary>
+    public const string ReplayChapter = "replayChapter";
+
+    /// <summary>Run the whole pack again from its first mandatory chapter (#2471, the Journal's "Restart"; never the prologue).</summary>
+    public const string RestartPack = "restartPack";
 
     /// <summary>"I know this": skip one active step.</summary>
     public const string SkipStep = "skipStep";
+
+    /// <summary>The Journal opened (#2471): the server answers with <see cref="StoryPackStates"/> and
+    /// <see cref="ObjectiveList"/> at once. <see cref="StoryPackIntent.PackId"/> is ignored. Changes nothing.</summary>
+    public const string RequestStates = "requestStates";
 
     /// <summary>Watch a cutscene again (#2467, <see cref="StoryPackIntent.CutsceneId"/>; any installed pack, the world story
     /// included): the server answers with <see cref="CutscenePlay"/> <c>Replay = true</c> — only for a scene the player has

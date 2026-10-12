@@ -273,7 +273,8 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (tab == Tab.Story)
             {
-                Game?.MarkStorySeen(); // opening the Story tab clears its "new content" badge
+                Game?.MarkStorySeen(); // opening the Journal clears its "new content" badge
+                Game?.Network?.SendJournalRequest(); // #2471: the stories and live progress, fresh (an older server drops it)
             }
             else if (tab == Tab.Companions)
             {

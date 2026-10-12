@@ -199,7 +199,22 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   Chapter / WorldChapter / ShowCrewChapter / RelayInsightKeys`. Tests: `VegaStoryPackTests`, Client.Tests
   `StoryChapterListTests` + rewritten story tests. Docs: STORY_IMPLEMENTATION, STORY_VEGA_PROTOCOL_CONCEPT, CUTSCENES,
   USER_MANUAL.
-- ⬜ Step 12 — journal + objective tracker (#2471)
+- ✅ **Step 12 — journal + objective tracker (#2471)**, 2026-10-12 (needs the local Unity build): the Story tab is the
+  **Journal** — one page per story (the tutorial: status, "What to do now" with "Step i of n" + live counter, Skip step,
+  More in the Codex, Skip part, Start part over; every part with its state, Start/Later for offers, Replay; Track, Skip
+  all, Restart from the beginning, Switch off/on; its scenes to watch again), VEGA's page (meter + bar, Track, chapters,
+  beats, fragments, memories, field records, Start the story now, its scenes), **VEGA's notes** (tips + the world story's
+  non-beat lines, now rejoin-proof via `StoryStateMessage.NoteKeys`), the player's notes; a ★ badge per story finished by
+  playing. The chip reads "Training: …" / "VEGA: …" (story short name instead of "Objective"); pin from the Journal;
+  optional **Show all objectives** (up to 3 lines, hidden while chatting). Settings: **Tutorial: on/off** + **Open the
+  Journal** (the old skip/restart button stays for older servers). Wire: tag 299 `ObjectiveList`, tag 300
+  `StoryPackStates` (join, own action, request, else coalesced ≤ 1/s; progress never re-sends the states), additive
+  `ShipAiLine.SpaceWaypointId`; every `StoryPackIntent` action validated + pause-whitelisted (new `restartPack`,
+  `replayChapter`, `requestStates`; restarting a running part walks it again without losing progress). Admin chat
+  `/tutorial …`, `/story [player]`. Gaps closed: B09 (several missed beats at a join → one "N new entries in your
+  Journal" line), B6.4 (the dock lesson sets the nearest station as the flight target, `nearest_station`), card skip
+  button under the touch layer (taps forwarded), `vega.step.offer_skip` wording. Tests: `StoryJournalTests`, Client.Tests
+  `JournalViewTests`. Docs: USER_MANUAL, STORY_IMPLEMENTATION, TUTORIAL_PACK.
 - ⬜ Step 13 — world creation "Stories" page (#2472)
 - ⬜ Step 14 — tutorial cards (#2473)
 - ⬜ Step 15 — VEGA chapter scenes (#2474)

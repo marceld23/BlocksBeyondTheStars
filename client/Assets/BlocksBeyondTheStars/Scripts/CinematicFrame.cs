@@ -168,6 +168,22 @@ namespace BlocksBeyondTheStars.Client
             LayoutSkipPlate();
         }
 
+        /// <summary>A touch tap the touch layer caught first (#2471): its full-screen look pad (canvas order 100) lies over every
+        /// cinematic frame, so under a card — where the touch controls stay up — a tap meant for the skip button lands there and
+        /// is handed on (<see cref="CutsceneDirector.TapAt"/>). Counts as a click when it hits the visible skip button.</summary>
+        public bool TapSkip(Vector2 screenPos)
+        {
+            if (_skipPlate == null || !_skipPlate.raycastTarget || _canvas == null || !_canvas.gameObject.activeInHierarchy
+                || !RectTransformUtility.RectangleContainsScreenPoint(_skipPlate.rectTransform, screenPos, null))
+            {
+                return false; // overlay canvas: no camera
+            }
+
+            _skipClicked = true;
+            UiSound.Click();
+            return true;
+        }
+
         /// <summary>True once per click/tap on the skip button since the last call.</summary>
         public bool ConsumeSkipClick()
         {

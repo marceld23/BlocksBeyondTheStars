@@ -77,6 +77,33 @@ namespace BlocksBeyondTheStars.Client
             return (CleanName(rest.Substring(0, lastSpace)), minutes);
         }
 
+        /// <summary>
+        /// Splits <c>/tutorial</c> (#2471) into the server's verb line and the optional player — the server case exists since
+        /// #2466 (<c>AdminCommandIntent{Command="tutorial", StringArg, TargetPlayer}</c>):
+        /// <c>/tutorial skip [player]</c>, <c>/tutorial restart [player]</c>, <c>/tutorial chapter &lt;id&gt; [player]</c> and
+        /// <c>/tutorial policy auto|optin|off</c> (the world's rule — never a player). The player is the whole rest of the line
+        /// (names may contain spaces, see <see cref="PlayerArgument"/>). An unknown or missing verb is passed on as it is: the
+        /// server answers with its usage line (so the help stays in one place).
+        /// </summary>
+        public static (string Verb, string Player) Tutorial(string? line)
+        {
+            string t = line ?? string.Empty;
+            string[] p = t.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            string verb = p.Length >= 2 ? p[1].ToLowerInvariant() : string.Empty;
+            switch (verb)
+            {
+                case "skip":
+                case "restart":
+                    return (verb, PlayerArgument(t, 2));
+                case "chapter":
+                    return p.Length >= 3 ? ("chapter " + p[2], PlayerArgument(t, 3)) : ("chapter", string.Empty);
+                case "policy":
+                    return p.Length >= 3 ? ("policy " + p[2].ToLowerInvariant(), string.Empty) : ("policy", string.Empty);
+                default:
+                    return (verb, string.Empty);
+            }
+        }
+
         /// <summary>Trims a typed name down to what the server stores: no surrounding whitespace, no quotes
         /// around it, no leading <c>@</c>. Order matters — <c>"@mincraft Fan"</c> has to lose the quotes
         /// before the <c>@</c> is even reachable.</summary>

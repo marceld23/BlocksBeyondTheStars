@@ -63,6 +63,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True while any scene (a banner included) plays.</summary>
         public bool Playing => _play != null;
 
+        /// <summary>#2471: a touch tap the touch layer's full-screen look pad caught first — under a card the touch controls
+        /// stay up and their canvas (order 100) lies over this frame (67), so the card's skip button, its continue button and
+        /// its speaker box were out of reach on a tablet. Returns whether the playing scene took the tap.</summary>
+        public bool TapAt(Vector2 screenPos) => _play != null && _screen != null && _screen.TapAt(screenPos);
+
         private sealed class Owed
         {
             public StoryDefinition Pack;

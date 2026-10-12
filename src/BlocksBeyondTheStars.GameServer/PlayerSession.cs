@@ -313,6 +313,21 @@ public sealed class PlayerSession
     /// <summary>#2466: the join hook of the story packs ran for this session (re-speaks the active step once).</summary>
     public bool StoryPacksJoined { get; set; }
 
+    /// <summary>#2471: something the Journal shows changed (a step, a chapter, an offer, the chip) since its last push —
+    /// <c>GameServer.TickJournal</c> sends the Journal messages that differ, at most once per
+    /// <c>GameServer.JournalPushGapSeconds</c>. RAM only.</summary>
+    public bool JournalDirty { get; set; }
+
+    /// <summary>#2471: server uptime of the last Journal push (the coalescing clock).</summary>
+    public double JournalPushedAt { get; set; } = double.NegativeInfinity;
+
+    /// <summary>#2471: the encoded <c>StoryPackStates</c> last sent (progress counters zeroed — a progress tick alone never
+    /// re-sends it), to send only a change. RAM only.</summary>
+    public byte[]? JournalStatesSent { get; set; }
+
+    /// <summary>#2471: the encoded <c>ObjectiveList</c> last sent. RAM only.</summary>
+    public byte[]? JournalObjectivesSent { get; set; }
+
     /// <summary>#2467: the client plays data-driven cutscenes (<c>cutscenes1</c>); without it a scene counts as seen at
     /// once and the narrator line alone carries it.</summary>
     public bool SupportsCutscenes => ClientFeatures.Contains(Networking.Messages.ClientFeatures.Cutscenes1);

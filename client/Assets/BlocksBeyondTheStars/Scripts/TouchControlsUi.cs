@@ -624,8 +624,17 @@ namespace BlocksBeyondTheStars.Client
         public void OnDrag(PointerEventData e) => Delta += e.delta;
 
         /// <summary>A tap that never became a look drag (#2126). The pad lies over the whole HUD, so a tap meant for
-        /// VEGA's continue pill or her folded tab lands here first — hand it on (a drag is never a click).</summary>
-        public void OnPointerClick(PointerEventData e) => VegaPanel.Instance?.TapAt(e.position);
+        /// VEGA's continue pill or her folded tab lands here first — hand it on (a drag is never a click). #2471: a playing
+        /// story card (the touch controls stay up under it) gets it first — its skip button, continue button and speaker box.</summary>
+        public void OnPointerClick(PointerEventData e)
+        {
+            if (CutsceneDirector.Instance != null && CutsceneDirector.Instance.TapAt(e.position))
+            {
+                return;
+            }
+
+            VegaPanel.Instance?.TapAt(e.position);
+        }
 
         public void ResetDelta() => Delta = Vector2.zero;
 

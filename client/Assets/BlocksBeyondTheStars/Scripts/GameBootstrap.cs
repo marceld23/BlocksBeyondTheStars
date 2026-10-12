@@ -1455,17 +1455,64 @@ namespace BlocksBeyondTheStars.Client
         private BlocksBeyondTheStars.Shared.Story.StoryDefinition ActiveStoryPack()
             => Story != null && Content != null && Content.TryGetStory(Story.StoryId, out var pack) ? pack : null;
 
-        /// <summary>Adds the relay insights the save has spoken (#2470, <c>StoryStateMessage.RelayInsightKeys</c>) to the VEGA log
-        /// — a player whose story track started after them finds them there silently, and they survive a rejoin.</summary>
+        /// <summary>Adds the relay insights the save has spoken (#2470, <c>StoryStateMessage.RelayInsightKeys</c>) and the world
+        /// story's other narrator lines this player heard (#2471, <c>NoteKeys</c>: the Guardian reveal, the insights, the
+        /// resolution line) to the VEGA log — the Journal's "VEGA's notes" — so they survive a rejoin.</summary>
         private void MergeRelayInsightsIntoLog()
         {
-            foreach (string key in Story?.RelayInsightKeys ?? System.Array.Empty<string>())
+            AddToVegaLog(Story?.RelayInsightKeys);
+            AddToVegaLog(Story?.NoteKeys);
+        }
+
+        private void AddToVegaLog(string[] keys)
+        {
+            foreach (string key in keys ?? System.Array.Empty<string>())
             {
                 if (!string.IsNullOrEmpty(key) && !VegaLogKeys.Contains(key))
                 {
                     VegaLogKeys.Add(key);
                 }
             }
+        }
+
+        /// <summary>#2471: the Journal's stories as last sent by the server (tag 300) — null until a current server sent them
+        /// (an older one never does; the Journal then falls back to the story state and the old tutorial button).</summary>
+        public StoryPackStates StoryPackStates { get; private set; }
+
+        /// <summary>#2471: the player's objectives in the chip order (tag 299) — the Journal's live progress and the optional
+        /// "Show all objectives" lines. Null until a current server sent it.</summary>
+        public ObjectiveList Objectives { get; private set; }
+
+        /// <summary>#2471: bumped whenever the stories or the objective list arrive — the open Journal redraws on a change.</summary>
+        public int JournalVersion { get; private set; }
+
+        /// <summary>#2471: the offered chapters (<c>pack/chapter</c>) seen in this session — a new offer badges the Journal.</summary>
+        private readonly System.Collections.Generic.HashSet<string> _journalOffers = new System.Collections.Generic.HashSet<string>();
+        private bool _journalOffersSeeded;
+
+        /// <summary>#2471: takes a new story list; a chapter offered since the last one badges the Journal tab.</summary>
+        private void OnStoryPackStates(StoryPackStates m)
+        {
+            StoryPackStates = m;
+            JournalVersion++;
+            bool fresh = false;
+            foreach (var pack in m?.Packs ?? System.Array.Empty<NetStoryPack>())
+            {
+                foreach (var chapter in pack.Chapters)
+                {
+                    if (chapter.State == StoryChapterStates.Offered && _journalOffers.Add(pack.Id + "/" + chapter.Id))
+                    {
+                        fresh = true;
+                    }
+                }
+            }
+
+            if (fresh && _journalOffersSeeded)
+            {
+                NewStoryUnseen = true;
+            }
+
+            _journalOffersSeeded = true;
         }
 
         /// <summary>Re-readable VEGA tips (locale keys, #737): rebuilt from the server's milestone snapshot on
@@ -2965,12 +3012,30 @@ namespace BlocksBeyondTheStars.Client
 
                 // Tips log (#737): onboarding (0), advisor (1) and system (3) lines become re-readable the
                 // moment they arrive, and so do the narrator lines that are not beats. Kind 4 (prologue) is
-                // intro-only by design.
-                bool logged = m.Kind is 0 or 1 or 3 or 5 || (m.Kind == 2 && !storyLine);
+                // intro-only by design. #2471: a line that only points at the Journal (or sets a flight target) is not kept.
+                bool logged = (m.Kind is 0 or 1 or 3 or 5 || (m.Kind == 2 && !storyLine)) && !VegaText.IsTransientLine(m.LineKey);
                 if (logged && !string.IsNullOrEmpty(m.LineKey) && !VegaLogKeys.Contains(m.LineKey))
                 {
                     VegaLogKeys.Add(m.LineKey);
                 }
+
+                // #2471 (B09): "N new entries in your Journal" — the beats went to the Journal silently; badge its tab.
+                if (m.LineKey == BlocksBeyondTheStars.Shared.Story.StoryNarratorLines.JournalNews)
+                {
+                    NewStoryUnseen = true;
+                }
+
+                // #2471 (B6.4): the dock lesson's help sets the station as the flight target — unless the player set one.
+                if (ObjectiveTracker.WaypointToAdopt(SpaceWaypointId, SpaceWaypointPos.HasValue, m.SpaceWaypointId) is { } waypoint)
+                {
+                    SpaceWaypointId = waypoint;
+                }
+            };
+            Network.StoryPackStatesReceived += OnStoryPackStates; // #2471: the Journal's stories
+            Network.ObjectiveListReceived += m =>
+            {
+                Objectives = m; // #2471: the objectives in the chip order (live progress, "show all objectives")
+                JournalVersion++;
             };
             Network.VegaJournalReceived += m =>
             {

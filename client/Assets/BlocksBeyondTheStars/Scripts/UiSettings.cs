@@ -306,6 +306,10 @@ namespace BlocksBeyondTheStars.Client
             Toggle(ref y, L("ui.settings.story_text_wait"), S.StoryTextWaitForMe, () => { S.StoryTextWaitForMe = !S.StoryTextWaitForMe; Rebuild(); });
             UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.story_text_wait_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
             y += 28f;
+            // #2471: up to three objectives under VEGA's chip (one per story), hidden while the chat is open.
+            Toggle(ref y, L("ui.settings.show_all_objectives"), S.ShowAllObjectives, () => { S.ShowAllObjectives = !S.ShowAllObjectives; Rebuild(); });
+            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.show_all_objectives_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 28f;
             Toggle(ref y, L("ui.settings.auto_stow"), S.AutoStowOnBoard, () => { S.AutoStowOnBoard = !S.AutoStowOnBoard; Rebuild(); });
             Toggle(ref y, L("ui.settings.show_enemy_health"), S.ShowEnemyHealthBars, () => { S.ShowEnemyHealthBars = !S.ShowEnemyHealthBars; Rebuild(); });
             Toggle(ref y, L("ui.settings.show_session_time"), S.ShowSessionTime, () => { S.ShowSessionTime = !S.ShowSessionTime; Rebuild(); });

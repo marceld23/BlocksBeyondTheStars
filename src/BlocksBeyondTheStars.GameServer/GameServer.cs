@@ -1943,6 +1943,7 @@ public sealed partial class GameServer
         }
 
         Guard("TickCutscenes", TickCutscenes); // #2468: queued cutscenes for every joined player, wherever they are (space too)
+        Guard("TickJournal", TickJournal); // #2471: the Journal's coalesced pushes (only players whose stories changed)
         Guard("TickAmbientWeather", deltaSeconds, TickAmbientWeather); // #2173: the weather of every body in an occupied system
         Guard("SampleHistories", deltaSeconds, SampleHistories); // also advances _uptime
         Guard("SilentSessions", SweepSilentSessions); // release names/slots held by dead clients (#964)
@@ -3862,14 +3863,13 @@ public sealed partial class GameServer
         // ledger or re-send state. SetNpcCallsIntent used to be dropped here, so a call preference changed from the
         // pause menu only took effect at the next join.
         SetNpcCallsIntent or SkipOnboardingIntent or RequestStoryResolutionIntent or StorySelectIntent => true,
-        // #2466 (synthesis §5.7): the pack controls that change only the player's own chip and pack switch — "skipPack" is
-        // the first tutorial card's "I know the game", shown during a singleplayer hold. Starting, skipping or replaying a
-        // chapter moves progress and comes from the Journal, which holds nothing, so those stay out.
-        // #2467: watching a scene again from the Story tab changes nothing either.
-        // #2470 (synthesis §5.7): "Start the story now" from the Story tab starts the player's own story track — its lines
-        // and cards wait for the client like any other; the frozen world does not move.
-        StoryPackIntent sp => sp.Action is StoryPackActions.Track or StoryPackActions.Untrack or StoryPackActions.OptOut
-            or StoryPackActions.OptIn or StoryPackActions.SkipPack or StoryPackActions.ReplayCutscene or StoryPackActions.StartPack,
+        // #2466 (synthesis §5.7): the pack controls change only the player's own ledger — "skipPack" is the first tutorial
+        // card's "I know the game", shown during a singleplayer hold; #2467 watching a scene again changes nothing; #2470
+        // "Start the story now" starts the player's own story track. #2471 (issue: "every action is pause-whitelisted"): the
+        // Journal can be reached from the pause menu's settings, so starting, skipping, restarting or replaying a chapter or a
+        // step, and the Journal's state request, are served too — their lines and cards wait for the client like any other;
+        // the frozen world itself does not move. Each action is validated in HandleStoryPackIntent.
+        StoryPackIntent => true,
         // #2467 (synthesis §5.7): the cutscene director confirms a scene while its own singleplayer hold is still on — the
         // receipt only stamps the player's own seen ledger.
         CutsceneSeenIntent => true,
@@ -4393,6 +4393,7 @@ public sealed partial class GameServer
         StoryPacksOnJoin(session); // #2466: player packs — migrate, start, advance, re-speak the step on the chip
         TryStartStoryTrack(session); // #2470: the story track starts here when the training is through or off (or for a veteran)
         SendVegaJournal(session); // the tips log snapshot — after the tutorial's migration, so it lists the migrated steps
+        PushJournal(session, force: true); // #2471: the Journal's stories and the objective list, once everything above ran
         RestoreStationOnJoin(session, savedLocation, savedPosition); // #1925: quit on a station → back on it
 
         // Hosted worlds: one-time welcome (community rules + beta notice) on the player's FIRST join of

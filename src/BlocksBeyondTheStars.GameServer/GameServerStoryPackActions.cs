@@ -21,17 +21,31 @@ public sealed partial class GameServer
     // Player actions (StoryPackIntent, the tutorial button, admin).
     // ---------------------------------------------------------------------------------------------
 
-    /// <summary>The player's own control of a player pack (#2466, <see cref="StoryPackIntent"/>). Unknown packs and words
-    /// are ignored; every action changes only the sender's ledger.</summary>
+    /// <summary>The player's own control of a story (#2466, <see cref="StoryPackIntent"/>; the Journal's full set since #2471).
+    /// Unknown packs, words, chapters and steps are ignored, and every action is validated against the player's own state
+    /// (a done chapter cannot be skipped, a chapter that never ran cannot be replayed …); each changes only the sender's
+    /// ledger. Afterwards the Journal's messages go out at once where they changed (a click wants its answer now).</summary>
     private void HandleStoryPackIntent(PlayerSession s, StoryPackIntent intent)
     {
         string action = intent.Action ?? string.Empty;
+        if (action == StoryPackActions.RequestStates)
+        {
+            PushJournal(s, force: true); // #2471: the Journal opened — the full picture now, live progress included
+            return;
+        }
+
         if (action == StoryPackActions.ReplayCutscene)
         {
             ReplayCutsceneOnRequest(s, intent.PackId, intent.CutsceneId); // #2467: any pack, the world story included
             return;
         }
 
+        ApplyStoryPackIntent(s, intent, action);
+        PushJournal(s, force: false);
+    }
+
+    private void ApplyStoryPackIntent(PlayerSession s, StoryPackIntent intent, string action)
+    {
         if (action == StoryPackActions.StartPack && _story is not null
             && string.Equals(_story.Id, intent.PackId, StringComparison.OrdinalIgnoreCase))
         {
@@ -63,6 +77,7 @@ public sealed partial class GameServer
             return;
         }
 
+        string chapterId = intent.ChapterId ?? string.Empty;
         switch (action)
         {
             case StoryPackActions.OptOut:
@@ -77,33 +92,41 @@ public sealed partial class GameServer
             case StoryPackActions.SkipPack:
                 SkipPack(s, pack);
                 break;
+            case StoryPackActions.RestartPack:
+                RestartPackOnRequest(s, pack);
+                break;
             case StoryPackActions.StartChapter:
-                if (pack.ChaptersById.TryGetValue(intent.ChapterId ?? string.Empty, out var start))
+                if (pack.ChaptersById.TryGetValue(chapterId, out var start))
                 {
                     StartChapter(s, start);
                 }
 
                 break;
             case StoryPackActions.DeclineChapter:
-                if (pack.ChaptersById.TryGetValue(intent.ChapterId ?? string.Empty, out var decline) && decline.Optional
-                    && !ChapterDoneOrSkipped(s, decline))
+                if (pack.ChaptersById.TryGetValue(chapterId, out var decline))
                 {
-                    MilestonesOf(s).Add(StoryPackKeys.ChapterDeclined(pack.Id, decline.Id));
-                    _repo.SavePlayer(s.State);
+                    DeclineChapter(s, decline);
                 }
 
                 break;
             case StoryPackActions.SkipChapter:
-                if (pack.ChaptersById.TryGetValue(intent.ChapterId ?? string.Empty, out var skip))
+                if (pack.ChaptersById.TryGetValue(chapterId, out var skip))
                 {
                     SkipChapter(s, skip);
                 }
 
                 break;
             case StoryPackActions.RestartChapter:
-                if (pack.ChaptersById.TryGetValue(intent.ChapterId ?? string.Empty, out var restart))
+                if (pack.ChaptersById.TryGetValue(chapterId, out var restart))
                 {
                     RestartChapter(s, restart);
+                }
+
+                break;
+            case StoryPackActions.ReplayChapter:
+                if (pack.ChaptersById.TryGetValue(chapterId, out var replay) && ChapterDoneOrSkipped(s, replay) && !ChapterReplaying(s, replay))
+                {
+                    RestartChapter(s, replay);
                 }
 
                 break;
@@ -126,9 +149,18 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Switches a pack back on. A pack that would not start by itself — an opt-in world's tutorial, a pack off by
+    /// default — starts with it (#2471: the Settings' "Tutorial: on" is one switch for the player, whatever the world rule).</summary>
     private void OptIntoPack(PlayerSession s, CompiledPack pack)
     {
-        if (MilestonesOf(s).Remove(StoryPackKeys.OptOut(pack.Id)))
+        bool changed = MilestonesOf(s).Remove(StoryPackKeys.OptOut(pack.Id));
+        if (!PackStarted(s, pack) && !StoryPackEnabledFor(s, pack.Id) && CanStartPackOnRequest(s, pack))
+        {
+            StartPackOnRequest(s, pack);
+            return;
+        }
+
+        if (changed)
         {
             _repo.SavePlayer(s.State);
             AdvancePlayer(s);
@@ -136,25 +168,59 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Starts a pack on the player's request — an opt-in tutorial, a pack off by default, or an early start the
-    /// pack allows. Refused while the world has the tutorial off.</summary>
-    private bool StartPackOnRequest(PlayerSession s, CompiledPack pack)
+    /// <summary>Whether the player may start a pack now: never while the world has the tutorial off, and a pack that starts by
+    /// itself later only when it allows an early start.</summary>
+    private bool CanStartPackOnRequest(PlayerSession s, CompiledPack pack)
     {
         if (pack.IsTutorial && Rules.TutorialPolicy == TutorialPolicy.Off)
         {
             return false;
         }
 
-        if (!pack.IsTutorial && pack.Def.DefaultEnabled && pack.StartAfter is not null && !pack.Def.Start.EarlyOptIn
-            && !EvaluateStoryCondition(pack.StartAfter, s))
+        return pack.IsTutorial || !pack.Def.DefaultEnabled || pack.StartAfter is null || pack.Def.Start.EarlyOptIn
+               || EvaluateStoryCondition(pack.StartAfter, s);
+    }
+
+    /// <summary>Starts a pack on the player's request — an opt-in tutorial, a pack off by default, or an early start the
+    /// pack allows. Refused while the world has the tutorial off.</summary>
+    private bool StartPackOnRequest(PlayerSession s, CompiledPack pack)
+    {
+        if (!CanStartPackOnRequest(s, pack))
         {
-            return false; // the pack starts by itself later and allows no early start
+            return false; // the world has the tutorial off — or the pack starts by itself later and allows no early start
         }
 
         MilestonesOf(s).Remove(StoryPackKeys.OptOut(pack.Id));
         StartPack(s, pack);
         AdvancePlayer(s);
         SendVegaObjective(s);
+        return true;
+    }
+
+    /// <summary>The Journal's "Restart" (#2471): the whole pack again from its first mandatory chapter (<see cref="RestartPack"/>,
+    /// never the prologue). Refused where the player could not start it (the world's tutorial off).</summary>
+    private bool RestartPackOnRequest(PlayerSession s, CompiledPack pack)
+    {
+        if ((pack.IsTutorial && Rules.TutorialPolicy == TutorialPolicy.Off) || (!PackStarted(s, pack) && !CanStartPackOnRequest(s, pack)))
+        {
+            return false;
+        }
+
+        RestartPack(s, pack);
+        return true;
+    }
+
+    /// <summary>"Later" to an offered (or available) opt-in chapter: it stays listed and startable, VEGA does not offer it
+    /// again. Refused for a mandatory, running or finished chapter.</summary>
+    private bool DeclineChapter(PlayerSession s, CompiledChapter ch)
+    {
+        if (!ch.Optional || ChapterDoneOrSkipped(s, ch) || ChapterRuns(s, ch)
+            || !MilestonesOf(s).Add(StoryPackKeys.ChapterDeclined(ch.Pack.Id, ch.Id)))
+        {
+            return false;
+        }
+
+        _repo.SavePlayer(s.State);
         return true;
     }
 
@@ -193,25 +259,32 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Skips the rest of a chapter (a replay just ends). Grants nothing; <c>chapter:</c> conditions hold after.</summary>
+    /// <summary>Skips the rest of a running chapter (a replay just ends). Grants nothing; <c>chapter:</c> conditions hold
+    /// after. Since #2471 only a chapter that runs now (the Journal offers the skip there): one that is through has nothing
+    /// left to skip, one not reached yet is skipped when it comes up, and nothing runs while the pack is switched off.</summary>
     private bool SkipChapter(PlayerSession s, CompiledChapter ch)
     {
-        if (!(ch.Def.Skippable ?? true) || !PackStarted(s, ch.Pack) || ChapterFinished(s, ch))
+        if (!(ch.Def.Skippable ?? true) || !PackRunsFor(s, ch.Pack) || !ChapterRuns(s, ch))
         {
-            return false; // a chapter that is through (and not being replayed) has nothing left to skip
+            return false;
         }
 
         SkipChapterSteps(s, ch);
-        CompleteChapter(s, ch, skipped: !ChapterReplaying(s, ch), silent: true); // a skip never graduates
+        CompleteChapter(s, ch, skipped: SkipEndsAsSkipped(s, ch), silent: true); // a skip never graduates
         AdvancePlayer(s);
         SendVegaObjective(s);
         return true;
     }
 
+    /// <summary>Whether skipping this chapter stamps it skipped: always, except in a replay of a chapter that was through
+    /// before (the replay just ends, its done key stays) — a restarted running chapter (#2471) was not, so it is skipped.</summary>
+    private static bool SkipEndsAsSkipped(PlayerSession s, CompiledChapter ch)
+        => !ChapterReplaying(s, ch) || !ChapterDoneOrSkipped(s, ch);
+
     /// <summary>"I know this": skips one active step (or the next one of a running chapter). Grants nothing.</summary>
     private bool SkipStep(PlayerSession s, CompiledStep step)
     {
-        if (!(step.Def.Skippable ?? true) || StepComplete(s, step) || !ChapterRuns(s, step.Chapter))
+        if (!(step.Def.Skippable ?? true) || StepComplete(s, step) || !PackRunsFor(s, step.Pack) || !ChapterRuns(s, step.Chapter))
         {
             return false;
         }
@@ -251,12 +324,15 @@ public sealed partial class GameServer
     }
 
     /// <summary>Replays a done (or skipped) chapter with the evidence switched off: its steps run again, recorded in replay
-    /// keys; its done key and step keys stay, so conditions and gates keep holding. No veteran check, no prologue.</summary>
+    /// keys; its done key and step keys stay, so conditions and gates keep holding. No veteran check, no prologue. Since
+    /// #2471 a RUNNING chapter (or one already being replayed) starts over the same way from its first step — what the
+    /// player had done stays done, a step done for the first time in the replay is stamped done, and the chapter completes
+    /// for real at the end of it (<see cref="CompleteChapter"/>).</summary>
     private bool RestartChapter(PlayerSession s, CompiledChapter ch)
     {
-        if (!ChapterDoneOrSkipped(s, ch) || !PackStarted(s, ch.Pack))
+        if (!PackRunsFor(s, ch.Pack) || !(ChapterDoneOrSkipped(s, ch) || ChapterRuns(s, ch)))
         {
-            return false; // a running chapter needs no restart
+            return false; // nothing to restart: a chapter that has not been reached yet, or the pack is off
         }
 
         BeginReplay(s, ch);
@@ -278,6 +354,7 @@ public sealed partial class GameServer
         }
 
         _stepListenersDirty = true;
+        MarkJournalDirty(s);
     }
 
     /// <summary>The tutorial's "restart": opt back in and replay every mandatory chapter from the first (the replays run in
@@ -316,8 +393,9 @@ public sealed partial class GameServer
         SendVegaObjective(s);
     }
 
-    /// <summary>The tutorial packs' answer to the Settings button (<see cref="SkipOnboardingIntent"/>): skip = skip the
-    /// pack, restart = replay its mandatory chapters (refused while the world has the tutorial off).</summary>
+    /// <summary>The tutorial packs' answer to the old Settings button (<see cref="SkipOnboardingIntent"/> — still sent by an
+    /// older client; a current one has "Tutorial: on/off" and the Journal, #2471): skip = skip the pack, restart = replay its
+    /// mandatory chapters (refused while the world has the tutorial off).</summary>
     private void SkipOrRestartTutorialPacks(PlayerSession s, bool restart)
     {
         foreach (var pack in PlayerPacks)
@@ -474,7 +552,7 @@ public sealed partial class GameServer
             if (!previous.Optional && !ChapterFinished(s, previous))
             {
                 SkipChapterSteps(s, previous);
-                CompleteChapter(s, previous, skipped: !ChapterReplaying(s, previous), silent: true);
+                CompleteChapter(s, previous, skipped: SkipEndsAsSkipped(s, previous), silent: true);
             }
         }
 

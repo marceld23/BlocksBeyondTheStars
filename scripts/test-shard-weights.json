@@ -364,6 +364,7 @@
   "StoryConditionTests": 24.0,
   "StoryEngineTests": 0.0,
   "StoryFindabilityTests": 49.9,
+  "StoryJournalTests": 51.0,
   "StoryPackGuardTests": 6.0,
   "StoryPackLoadTests": 0.8,
   "StoryPackRuntimeTests": 53.0,

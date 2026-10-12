@@ -113,8 +113,16 @@ namespace BlocksBeyondTheStars.Client
         private string _objectiveKey = string.Empty;
         private string _objectiveArg = string.Empty; // {0} of the objective line (#1859: the fragment world's name)
         private string _objectiveSource = string.Empty; // tutorial / story / finale / mission; empty from an older server (#2462)
+        private string _objectivePackId = string.Empty; // #2471: the story whose objective is on the chip — its short name labels it
         private int _objProgress, _objTarget;
         private RectTransform _chipRect; // grows from 48 to 72 for a three-line objective (#1859)
+
+        // #2471 "Show all objectives": the objective list's other rows (at most two) in small strips under the chip, hidden
+        // while the chat is open. Redrawn only when something they show changed (_extraSig).
+        private const float ExtraRowH = 30f, ExtraRowGap = 4f;
+        private readonly GameObject[] _extraRows = new GameObject[ObjectiveList.MaxItems - 1];
+        private readonly TMPro.TMP_Text[] _extraTexts = new TMPro.TMP_Text[ObjectiveList.MaxItems - 1];
+        private int _extraSig = int.MinValue;
 
         // VEGA's non-verbal vocoder voice (#761): short ElevenLabs chatter variants chained while a
         // page types out. No words → language-independent, nothing to re-record when texts change.
@@ -211,6 +219,18 @@ namespace BlocksBeyondTheStars.Client
             UiText.Wrap(_chipText, truncate: true);
             _chip.SetActive(false);
 
+            // #2471: the "Show all objectives" strips under the chip (placed per frame below the chip's current height).
+            for (int i = 0; i < _extraRows.Length; i++)
+            {
+                float rowY = ChipY + VegaObjectiveChip.HeightNormal + ExtraRowGap + (i * (ExtraRowH + ExtraRowGap));
+                var row = UiHolo.AddPanel(_canvas.transform, 24, rowY, 640, ExtraRowH, new Color(0.05f, 0.10f, 0.16f, 0.55f), 8f, 1.0f, 0.8f).gameObject;
+                row.name = "VegaObjectiveExtra" + i;
+                _extraTexts[i] = UiText.Add(row.transform, 14, 0, VegaObjectiveChip.TextWidth, ExtraRowH, string.Empty, 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
+                UiText.Wrap(_extraTexts[i], truncate: true);
+                row.SetActive(false);
+                _extraRows[i] = row;
+            }
+
             if (Game?.Network != null)
             {
                 Game.Network.ShipAiLineReceived += OnLine;
@@ -234,6 +254,13 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
+
+        private bool HasKey(string key) => Game?.Localizer != null && !string.IsNullOrEmpty(key) && Game.Localizer.Has(key);
+
+        /// <summary>#2471: the label before an objective — the story's short name ("Training", "VEGA") from the server's story
+        /// list or this client's copy of the story, else the generic "Objective".</summary>
+        private string ObjectivePrefix(string packId)
+            => ObjectiveTracker.Prefix(ObjectiveTracker.ShortNameKey(packId, Game?.StoryPackStates, Game?.Content?.Stories.Values), L, HasKey);
 
         /// <summary>The live panel (one per rig), for client-side one-shot hints (<see cref="SayLocal"/>).</summary>
         public static VegaPanel Instance { get; private set; }
@@ -442,6 +469,7 @@ namespace BlocksBeyondTheStars.Client
             _objectiveKey = m.ObjectiveKey ?? string.Empty;
             _objectiveArg = m.ObjectiveArg ?? string.Empty;
             _objectiveSource = m.ObjectiveSource ?? string.Empty;
+            _objectivePackId = m.ObjectivePackId ?? string.Empty;
             _objProgress = m.ObjectiveProgress;
             _objTarget = m.ObjectiveTarget;
 
@@ -528,8 +556,65 @@ namespace BlocksBeyondTheStars.Client
             _chip.SetActive(hasObjective);
             if (hasObjective)
             {
-                string counter = _objTarget > 1 ? $"({Mathf.Min(_objProgress, _objTarget)}/{_objTarget})" : string.Empty;
-                FitChip($"{L("ui.vega.objective")}: {VegaObjectiveChip.Format(L(_objectiveKey), _objectiveArg)}", counter);
+                // #2471: the story's short name replaces "Objective:" ("Training: Dock at a station", "VEGA: A signal on …").
+                string counter = ObjectiveTracker.Counter(_objProgress, _objTarget);
+                FitChip(ObjectiveTracker.ChipBody(ObjectivePrefix(_objectivePackId), VegaObjectiveChip.Format(L(_objectiveKey), _objectiveArg)), counter);
+            }
+
+            _extraSig = int.MinValue; // the strips under the chip follow it
+        }
+
+        /// <summary>#2471 "Show all objectives": the objective list's other rows under the chip (<see cref="ObjectiveTracker.ExtraRows"/>
+        /// — none while the setting is off, the chip is hidden or the chat is open; a story row hides with the VEGA hints like
+        /// the chip). Cheap per frame: redrawn only when the list, the chip, the chat or a setting changed.</summary>
+        private void UpdateExtraRows()
+        {
+            if (_extraRows[0] == null)
+            {
+                return;
+            }
+
+            var list = Game?.Objectives;
+            bool chipOn = _chip != null && _chip.activeSelf;
+            bool chatOpen = Game != null && Game.ChatTyping;
+            bool showAll = Settings != null && Settings.ShowAllObjectives;
+            bool hintsOn = Settings is not { VegaHints: false };
+            float chipH = _chipRect != null ? _chipRect.sizeDelta.y : VegaObjectiveChip.HeightNormal;
+            int sig;
+            unchecked
+            {
+                sig = list?.GetHashCode() ?? 0; // reference identity: a new list is a new message
+                sig = (sig * 31) + (Game?.StoryPackStates?.GetHashCode() ?? 0);
+                sig = (sig * 31) + (chipOn ? 1 : 0) + (chatOpen ? 2 : 0) + (showAll ? 4 : 0) + (hintsOn ? 8 : 0);
+                sig = (sig * 31) + (int)chipH;
+            }
+
+            if (sig == _extraSig)
+            {
+                return;
+            }
+
+            _extraSig = sig;
+            var rows = chipOn ? ObjectiveTracker.ExtraRows(list, showAll, chatOpen, hintsOn) : null;
+            for (int i = 0; i < _extraRows.Length; i++)
+            {
+                bool on = rows != null && i < rows.Count;
+                if (_extraRows[i].activeSelf != on)
+                {
+                    _extraRows[i].SetActive(on);
+                }
+
+                if (!on)
+                {
+                    continue;
+                }
+
+                var row = rows[i];
+                string body = ObjectiveTracker.ChipBody(ObjectivePrefix(row.PackId), VegaObjectiveChip.Format(L(row.Key), row.Arg));
+                string counter = ObjectiveTracker.Counter(row.Progress, row.Target);
+                _extraTexts[i].text = counter.Length > 0 ? body + "  " + counter : body;
+                _extraRows[i].GetComponent<RectTransform>().anchoredPosition =
+                    new Vector2(24f, -(ChipY + chipH + ExtraRowGap + (i * (ExtraRowH + ExtraRowGap))));
             }
         }
 
@@ -623,6 +708,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             CheckPlaytimeReminder();
+            UpdateExtraRows(); // #2471: "Show all objectives" (cheap unless something changed)
 
             // The ending (or any later staged scene) owns the screen (#2461, B16): VEGA neither types nor talks under
             // it, and no line starts in the moment before it takes over. The queue simply waits and picks up where it

@@ -610,6 +610,12 @@ public static class NetCodec
         // #2469 the tutorial's UI-only lessons: the client reports a UI moment (menu, Codex, map, waypoint, VEGA continue)
         // that a step teaches. Teaching only, never a reward. No protocol bump — an older server drops it.
         Register(298, typeof(UiTutorialEvent));              // Client -> Server
+
+        // #2471 the Journal: the player's objectives in the chip order (live progress, "show all objectives") and every
+        // story's chapters, steps and switches. No protocol bump — an older client drops both (it keeps the chip on
+        // ShipAiLine and the tutorial button).
+        Register(299, typeof(ObjectiveList));                // Server -> Client
+        Register(300, typeof(StoryPackStates));              // Server -> Client
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

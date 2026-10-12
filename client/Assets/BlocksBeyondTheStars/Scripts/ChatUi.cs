@@ -878,7 +878,18 @@ namespace BlocksBeyondTheStars.Client
                     return true;
 
                 // ---- Story finale QA ----
-                case "/story": net.SendAdminCommand("story_status"); return true;
+                // #2471: "/story [player]" — the world story, the player's track and the player packs (the caller's, or the
+                // named player's: the whole rest of the line is the name).
+                case "/story": net.SendAdminCommand("story_status", targetPlayer: AdminChatCommand.PlayerArgument(t)); return true;
+
+                // #2471: tutorial controls — "/tutorial skip|restart [player]", "/tutorial chapter <id> [player]",
+                // "/tutorial policy auto|optin|off". The server owns the checks and answers with its usage line.
+                case "/tutorial":
+                    {
+                        var (verb, who) = AdminChatCommand.Tutorial(t);
+                        net.SendAdminCommand("tutorial", stringArg: verb, targetPlayer: who.Length > 0 ? who : null);
+                        return true;
+                    }
                 case "/advance":
                     net.SendAdminCommand("advance_story",
                         intArg: p.Length >= 2 && int.TryParse(p[1], out var steps) ? steps : 1);
@@ -1017,6 +1028,7 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_inspect"));
             LocalLine(L("ui.admin.help_fleet"));
             LocalLine(L("ui.admin.help_story"));
+            LocalLine(L("ui.admin.help_tutorial"));
             LocalLine(L("ui.admin.help_cutscene"));
             LocalLine(L("ui.admin.help_maintenance"));
             LocalLine(L("ui.admin.help_moderation"));

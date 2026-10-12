@@ -354,7 +354,8 @@ separate unlock; admins can still disable it through server world rules.
 ## 4. Menus & HUD
 
 - **Tab menu** — tabs for Inventory, Crafting, Blueprints (research), Ship (modules/build), Map, Missions,
-  plus **Story** (the story log, and a **Notes** category: up to 20 titled notes of your own,
+  plus **Journal** (your **stories** — the basic training, VEGA's story and any other story of the world, see
+  "The Journal" in §5 — then **VEGA's notes**, and a **Notes** category: up to 20 titled notes of your own,
   saved with your character — `§0`–`§f` colours a span, `§l` makes it bold, `§r` resets), **Creatures** (your tamed
   companions, see §5), **Alliances** (see §5), **Achievements** and **Photos**, with **Settings** (your character's
   look included) pinned far right. On a pad the menu opens with the **Menu** button, on a tablet with the **≡** button. The **Achievements** tab opens with a **Progress** block —
@@ -495,7 +496,8 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   auto-dismiss), and further lines wait in the queue. Leave a line for about 45 seconds and the panel **folds into a
   small VEGA tab** beside the objective, showing how many messages are waiting; press **N** (pad **View**, touch
   **NEXT ▶**) or click/tap the tab to open it again — nothing is lost. Advisor hints can be muted (Settings → VEGA
-  hints); the tutorial can be skipped or **restarted** from the Settings tab.
+  hints); the tutorial is switched on or off in the Settings tab (**Tutorial: on/off**), and its parts are skipped,
+  restarted and replayed in the **Journal** (Settings → **Open the Journal**).
 
 ---
 
@@ -1100,11 +1102,16 @@ players.
     skipped; without hunger there is no eating lesson; in **Creative** crafting is free and the research lesson is
     skipped; a lesson like the berries or the campfire is skipped where no bush or tree grows nearby.
   - **Help when stuck:** after about three minutes on one task VEGA gives a more concrete hint; for "where?" tasks
-    (berries, iron ore) she later marks the nearest spot on your map — only for you; after ten minutes she offers to
-    skip the step. Nothing is ever timed and you can never fail a lesson.
-  - **Skipping and replaying:** Settings → **Skip tutorial** ("I know the game") skips the whole basic training;
-    **Restart tutorial** runs it again from part 1 — for anyone, experienced players included, and without the
-    opening narration. Some lessons you already did early simply tick off by themselves.
+    (berries, iron ore) she later marks the nearest spot on your map — only for you; for docking she sets the nearest
+    **station as your flight target**, so the radar and the arrow at the screen edge lead you there (in flight, or
+    already before you launch; a target you set yourself is kept); after ten minutes she offers to skip the step in the
+    Journal. Nothing is ever timed and you can never fail a lesson.
+  - **Skipping and replaying** — all in the **Journal** (Tab menu → Journal → the training): **Skip step** ("I know
+    this"), **Skip part**, **Start part over**, **Replay** for a part you finished, **Skip all — I know the game**,
+    **Restart from the beginning** (runs it again from part 1 — for anyone, experienced players included, and without
+    the opening narration) and **Switch off**. Some lessons you already did early simply tick off by themselves.
+  - **Tutorial: on/off** in the Settings tab switches the training off for you (VEGA stops the lessons and the
+    course offers) and back on — on an *Opt-in* world "on" starts it. Next to it, **Open the Journal**.
   - **Tutorial on/off for a world:** the world rule *Tutorial* is **Auto** (every new player starts it), **Opt-in**
     (only on request) or **Off** (an admin sets it with `/tutorial policy auto|optin|off`).
   - VEGA's lessons — and the prompts at the ship's cockpit, workshop, cargo hold and console, the crafting
@@ -1645,7 +1652,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   Like every ruin it is not protected — mine whatever you like.
 - **Field records:** ruins, wrecks, buried vaults and data terminals carry **readable texts** — logs,
   notes and plaques that surface while you scavenge them. Each opens in a reader panel, is kept in the
-  Story tab (*Field records*) and the Codex **Lore** chapter, and some only appear once the story has
+  Journal (*Field records*) and the Codex **Lore** chapter, and some only appear once the story has
   come far enough. Data terminals and monument relic caches may also hold a **net fragment** of the
   story itself — VEGA occasionally picks up a **fragment signal** and marks it on your map.
 - **Treasure chests** are standalone lootable caches scattered away from settlements. Each is looted
@@ -1877,29 +1884,57 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   copper and lead ore for silicate, traders buy crystal, gold and silver, researchers buy refined uranium and
   sell data fragments and circuit boards, settlers trade food.
 
+### The Journal: your stories and the objective display
+The Tab menu's **Journal** (it grew out of the old Story tab) keeps every story you follow — in the game they are
+called **stories**:
+- **On the left:** one entry per story — the **basic training** (*Training*), **VEGA's story** and any other story of
+  the world — then **VEGA's notes** and your own **Notes**. A **★** marks a story you finished by playing it (a skipped
+  training gets no badge), a **•** that something waits there (a short course on offer, a story you can start).
+- **The training's page** shows its status, **What to do now** — the task of the running part ("Step 4 of 8: Dock at
+  a station", with its counter), **Skip step** and **More in the Codex** where there is more to read, and for the part
+  **Skip part** and **Start part over** — then every part with its state (*done*, *skipped*, *now*, *coming up*; short
+  courses *offered* with **Start** / **Later**, *available*, or *locked* with what they still need) and **Replay** for a
+  part you finished. At the top: **Track**, **Skip all — I know the game**, **Restart from the beginning** and
+  **Switch off** (**Switch on** brings it back). Below: the training's scenes to watch again.
+- **VEGA's page** shows the star-network meter (also as a bar), **Track**, the chapter list with the story moments you
+  heard, fragments, memories and field records, **Start the story now** before your story has started, **The story so
+  far**, the crew's chapter on hosted worlds, and the story's scenes to watch again (*Prologue — Awakening* among them).
+- **VEGA's notes** keep everything VEGA told you that is not a story moment: her lessons and tips, the reveal of the
+  Guardian's system, her insights, the relay notes — also after rejoining.
+- **Coming back after a while:** if the world's story moved on by several moments while you were away, VEGA says it once
+  ("I have news for you: 3 new entries in your Journal") instead of reading every one out — they are waiting in the
+  Journal, and its tab shows the badge.
+- **The objective display** (the chip under VEGA's panel) names the story in front of the goal: "Training: Dock at a
+  station", "VEGA: A signal on Kepler-3 b". It shows one goal — the order is: the finale while you are in the Guardian's
+  system, then the story you **track** (pin one in the Journal), the basic training, VEGA's story, a short course or a
+  mission, other stories. VEGA's story goal hides when you switch the **VEGA hints** off; the training, the finale and a
+  mission always show.
+- **Show all objectives** (Settings, also in the pause menu's settings under Comfort): up to three goals — one per story —
+  instead of one; the extra lines hide while you type in the chat.
+
 ### Story: how VEGA's story starts
 - **The prologue** is the first thing you see in a new world with VEGA's story: you wake in the pilot's seat of a small
   ship, the camera moves around it on its own, the console blinks awake — and VEGA speaks her first words in a box on the
   screen. Her last page is the call to adventure: her memory lies scattered out there, and you can help her find it.
   Turn the pages with **N**, pad **Back**, the **Continue** button or a tap; skip it with **Esc**, pad **(B)** or the
-  **Skip** button. It plays once — restarting the tutorial never brings it back — and the Story tab can show it again
+  **Skip** button. It plays once — restarting the tutorial never brings it back — and the Journal can show it again
   any time (**Watch again → Prologue — Awakening**).
 - **Then the basic training**, undisturbed. VEGA's story waits for you meanwhile: whatever the world's story reveals
   while you train (also when others in a multiplayer world move it on) is kept for you.
 - **The story starts** when you finish or skip the basic training — at once if the tutorial is switched off for the world
   or for you, if you have played this world's story before, or if you fly to the Guardian's system. Don't want to wait?
-  Open the Story tab and press **Start the story now**.
+  Open the Journal and press **Start the story now**.
 - **When it starts** you hear what was kept for you in one go: the knowledge of every story moment you missed, a short
-  card **"The story so far"** with the chapters behind you (titles only — the full texts are in the Story tab), then the
+  card **"The story so far"** with the chapters behind you (titles only — the full texts are in the Journal), then the
   chapter you are in. If the Guardian's system is already on the map, VEGA tells you where it is and that you need a
   **jump generator**; if the world's story is already finished, the ending plays for you then.
 - **Chapters.** VEGA's story has nine chapters: *Awakening* (the prologue), *A Familiar Signature*, *The Service*,
   *The Guardian*, *The Verdict*, *What You Are*, *It Still Sleeps*, *The Guardian Core* and *Resolution*. The chapter
-  follows the world's story — everyone on a world is in the same chapter. The Story tab lists them: the chapters you have
+  follows the world's story — everyone on a world is in the same chapter. The Journal lists them: the chapters you have
   reached with the story moments you heard in each, the ones still ahead as **???**. From chapter 2 on, **The story so
   far** shows the recap card again.
 - **Hosted and arcade worlds:** on a world many players have passed through, a newcomer starts with their own
-  chapter 1; the Story tab says which chapter **the crew of this world** has reached, and **The story so far** fills you
+  chapter 1; the Journal says which chapter **the crew of this world** has reached, and **The story so far** fills you
   in whenever you like.
 - On a world **without a story**, VEGA still teaches and helps — her old memory fragments (data cards you redeem aboard)
   then read as plain archive entries, with the same knowledge and the same Mk3 parts at the end.
@@ -1911,26 +1946,26 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   machines (planet enemies *Off*, no hostile space) it never asks you to drive machines back.
 - Once the Guardian's system is on the map, the chip says **"confront the Guardian core"** — this one is never
   hidden by the hints setting. A player still in the tutorial keeps their current lesson on the chip and only sees
-  the finale there while actually in the Guardian's system; the Settings button still says **Skip tutorial** then.
-- The Story tab's **Chapters** list shows the story beats you have heard under their chapter — also after rejoining a
+  the finale there while actually in the Guardian's system.
+- The Journal's **Chapters** list shows the story beats you have heard under their chapter — also after rejoining a
   server. VEGA's other story lines (insights, the reveal of the Guardian's system, relay notes, her old memories) are
-  re-readable under **VEGA tips**. An entry your game version has no text for reads "needs a newer version".
+  re-readable under **VEGA's notes**. An entry your game version has no text for reads "needs a newer version".
 - **Joining doesn't move the story.** The star system you start in is not a discovery, so a new player's
   arrival adds nothing to the world's shared story progress — only mapping systems beyond it does.
 - **Joining late.** A player whose story starts after the Guardian's system has appeared on the star map hears VEGA's
   reveal (the only line that tells you a **jump generator** gets you there) once, when their story starts.
 - Net fragments, personal memories and field records open in a **reader panel** and stay re-readable in
-  the Story tab (Read buttons) — and they survive rejoining a server.
+  the Journal (Read buttons) — and they survive rejoining a server.
 - Scanning **runes** at a monument now also reveals their inscription. Settlement folk who know you
   (trade with them!) may share what they know — one of them keeps a page of the settler legend.
 - **Finishing the story is a moment now**: winning the finale plays a short **ending** — the resolution,
   the credits roll, and an epilogue that opens the door to what comes after. It's skippable (**Esc**, pad
-  **(B)** or the **Skip** button), it plays its own music every time you watch it, and the Story tab keeps a
+  **(B)** or the **Skip** button), it plays its own music every time you watch it, and the Journal keeps a
   **"Watch the ending again"** button once you've earned it. A player who had heard
   the story to its last chapter but was offline for the win gets the ending — and the finale achievement —
   once on their next join; someone who first arrives on an already finished world is not played the ending at
   the door: it plays when their own story starts after the basic training (on hosted and arcade worlds it stays in
-  the Story tab).
+  the Journal).
 - The hint at the Guardian core ("walk to the marked shaft, don't dig here") shows even with **VEGA hints** off.
 - **Story scenes.** Big story moments can play as short scenes: a **banner** at the top (it never stops you), a
   **card** with a title or VEGA speaking in a box (you can keep moving), or a **staged scene** where the camera shows your
@@ -1939,7 +1974,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   its text goes back to VEGA's panel ("Story moment saved"). In multiplayer the camera comes back after 30 seconds.
   - **Skip** a scene with **Esc**, the pad's **(B)** or the **Skip** button (on a card, where you can move, Esc or the
     button). Turn the text pages with **N**, pad **Back**, the **Continue** button or a tap on the text.
-  - **Watch again:** the Story tab lists every scene you have seen under **Watch again** — press **Watch**, close the
+  - **Watch again:** the Journal lists every scene you have seen under **Watch again** — press **Watch**, close the
     menu, and it plays again (nothing in the game changes).
 - **After the ending the galaxy is calmer, not empty.** The Guardian's machines don't vanish for good: the
   hunter robots are gone and only a thinned-out remnant of scan-drones keeps roaming (half as many, spawning
@@ -3056,10 +3091,10 @@ boss) without grinding the whole playthrough. Same admin + `CheatsAllowed` gatin
 
 | Command | Effect |
 |---|---|
-| `/story` | Print the story status (fragments, kills, milestones, beats revealed, finale revealed/defeated) |
+| `/story [Player]` | Print the story status (fragments, kills, milestones, beats revealed, finale revealed/defeated, the player's story track and chapter) and the player stories of you or the named player (state, running part, current step) — admin role only, works with cheats off |
 | `/advance [n]` | Advance the shared arc by `n` milestones (default 1), revealing any beats you cross |
 | `/revealfinale` | Drive the arc to completion: reveal all narrator beats **and** place the Guardian finale system on the star map |
-| `/lore` | Reveal **every** story fragment and personal memory to you (fills the Story tab); also completes the readable beats |
+| `/lore` | Reveal **every** story fragment and personal memory to you (fills the Journal); also completes the readable beats |
 | `/jumpdrive` | Fit a **jump generator** (`jump_generator`) to your active ship so you can hyperjump between star systems |
 | `/gotocore` | Reveal the finale (if needed) and drop you straight into the Guardian core chamber — **skips the flight and the orbital gauntlet** |
 
@@ -3071,6 +3106,11 @@ Two ways to test the finale:
 
 The duel cannot be lost — wrong rebuttals are dismissed and you stay on the node — so just keep trying each
 option until the core concedes and shuts down.
+
+**Tutorial controls** (admin role only — works with cheats off): `/tutorial skip [Player]` skips the basic training of you
+or the named player, `/tutorial restart [Player]` runs it again from part 1, `/tutorial chapter <id> [Player]` jumps to a
+part (e.g. `/tutorial chapter b6` — earlier parts count as skipped, a finished one is replayed), and
+`/tutorial policy auto|optin|off` sets the world's tutorial rule for everyone.
 
 **Story scene preview** (admin role only — works with cheats off, changes nothing): `/cutscene <pack> <id>` plays a story
 pack's scene for you alone, e.g. `/cutscene vega_protocol prologue`; `/cutscene <pack> __recap` shows the "story so far"

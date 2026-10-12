@@ -3056,8 +3056,14 @@ public sealed class ShipAiLine
     public string Speaker { get; set; } = string.Empty;
 
     /// <summary>The story pack whose objective is on the CHIP (#2466) — the client shows that pack's short name instead of
-    /// "Objective:" (step 12). Empty = no pack objective (VEGA's chip, a legacy stage, the finale or none). Additive.</summary>
+    /// "Objective:" (#2471). Since #2471 also the world story's id for VEGA's lead and the finale ("VEGA: …"); empty = no
+    /// objective, or a legacy stage of an older client. Additive.</summary>
     public string ObjectivePackId { get; set; } = string.Empty;
+
+    /// <summary>A space-flight nav target this line points at (#2471, a story step's "where" help in space — the station
+    /// to dock at): the client makes it its space waypoint when it has none set, so the radar and the edge arrow lead
+    /// there. Empty = none. Additive: an older client ignores it.</summary>
+    public string SpaceWaypointId { get; set; } = string.Empty;
 }
 
 /// <summary>The values of <see cref="ShipAiLine.ObjectiveSource"/> (#2462). Strings, not an enum, so a later

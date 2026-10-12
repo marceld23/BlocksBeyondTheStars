@@ -337,6 +337,13 @@ namespace BlocksBeyondTheStars.Client
                     + (Game.Notes?.Length ?? 0) * 1511 + Game.NotesVersion * 1523
                     // #2201: the sample case and the research book (a sample taken, a species analysed) — the Samples page.
                     + Game.Bio.Revision * 1613
+                    // #2471: the open Journal follows the server's stories, the objective list, the story state and VEGA's notes
+                    // (only while it is the page on screen — a progress tick must never rebuild another tab under the cursor).
+                    + (_mode == Mode.Story
+                        ? Game.JournalVersion * 1709 + Game.VegaLogKeys.Count * 1721 + (Game.Story?.GetHashCode() ?? 0)
+                        : 0)
+                    // …and the Settings' "Tutorial: on / off" follows a new story list (sent on a state change, never per tick).
+                    + (_mode == Mode.Character ? (Game.StoryPackStates?.GetHashCode() ?? 0) : 0)
                     // #2140: a planet-scanner report arrived, or a module was built / removed (the scan button's gate).
                     + Game.PlanetScanVersion * 1601 + (Game.ShipCombat?.Modules?.Length ?? 0) * 1607
                     // The local custom pixel face + body paintings: applying one in the editor must rebuild the
@@ -1237,15 +1244,26 @@ namespace BlocksBeyondTheStars.Client
                     list.Add(("funk", L("ui.alliance.cat_funk"), "cat_cargo"));
                     break;
                 case Mode.Story:
+                {
+                    // #2471: the Journal — one entry per story the player follows (the tutorial, the VEGA story, side stories),
+                    // VEGA's notes and the player's own notes (#1844). A badge (★) marks a story finished by playing, a dot
+                    // something that waits (an offered part, a story that may be started).
                     list.Clear();
-                    if (_category != "log" && _category != "notes")
+                    var journal = JournalCategories.Build(Game?.StoryPackStates, Game?.Story?.StoryId, Game?.StoryPack?.NameKey,
+                        Game?.Story?.Active ?? false, L, HasLoc);
+                    if (!journal.Any(c => c.Id == _category))
                     {
-                        _category = "log"; // the tab opens with "all" by default — land on the log
+                        _category = JournalCategories.Default(journal, Game?.StoryPackStates, Game?.Objectives); // the tab opens on "all"
                     }
 
-                    list.Add(("log", L("ui.story.cat_log"), "cat_mission")); // the Story Log (read-only)
-                    list.Add(("notes", L("ui.notes.category"), "cat_inventory")); // the player's own notes (#1844)
+                    foreach (var c in journal)
+                    {
+                        string label = c.Label + (c.Badge ? " ★" : string.Empty) + (c.Attention ? " •" : string.Empty);
+                        list.Add((c.Id, label, c.Id == JournalCategories.NotesId ? "cat_inventory" : "cat_mission"));
+                    }
+
                     break;
+                }
                 case Mode.Companions:
                     list.Clear();
                     if (_category != "here" && _category != "all")
@@ -1292,7 +1310,7 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Missions: y = BuildMissionsList(); break;
                 case Mode.Character: y = _category == "people" ? BuildPeopleList() : BuildCharacterList(); break;
                 case Mode.Alliances: y = BuildAlliancesList(); break;
-                case Mode.Story: y = _category == "notes" ? BuildNotesList() : BuildStoryList(); break;
+                case Mode.Story: y = BuildJournalPage(); break;
                 case Mode.Companions: y = BuildCompanionsList(); break;
                 case Mode.Photos: y = BuildPhotosList(); break;
                 case Mode.Achievements: y = BuildAchievementList(); break;
@@ -3525,16 +3543,69 @@ namespace BlocksBeyondTheStars.Client
                 vegaOn ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 96f;
 
-            // Skip the running tutorial / restart a finished one. Lives HERE (not on the HUD chip) because
-            // gameplay captures the mouse — the menu is where the cursor is free to click.
-            bool onboarding = Game?.OnboardingActive ?? false;
-            var tut = UiKit.AddButton(_listContent, 0, y, 780, 78, onboarding ? L("ui.vega.skip") : L("ui.vega.restart"), () =>
+            // #2471: "Show all objectives" — up to three goals under the objective chip (from the objective list), never while
+            // the chat is open. A per-installation preference like the hints switch above.
+            bool showAll = Menu?.Settings?.ShowAllObjectives ?? false;
+            var showAllBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
             {
-                Game?.Network?.SendSkipOnboarding(restart: !onboarding);
-                Invoke(nameof(RebuildList), 0.35f);
+                if (Menu?.Settings != null)
+                {
+                    Menu.Settings.ShowAllObjectives = !Menu.Settings.ShowAllObjectives;
+                    Menu.Settings.Save();
+                    RebuildList();
+                }
             });
-            tut.GetComponent<Image>().color = new Color(0.16f, 0.28f, 0.40f);
+            UiKit.AddText(showAllBtn.transform, 16, 0, 520, 78, L("ui.settings.show_all_objectives"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(showAllBtn.transform, 560, 0, 200, 78, showAll ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
+                showAll ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 96f;
+
+            // The tutorial (#2471): "Tutorial: on / off" (the player's own switch, optOut / optIn — an opt-in world's tutorial
+            // starts with it) plus "Open the Journal", where its parts are skipped, restarted and replayed. Lives HERE (not on
+            // the HUD chip) because gameplay captures the mouse — the menu is where the cursor is free to click. An older
+            // server sends no story list: the old skip / restart button stays for it.
+            var tutorialState = TutorialSwitch.Of(Game?.StoryPackStates);
+            if (tutorialState == TutorialSwitch.State.Unknown)
+            {
+                bool onboarding = Game?.OnboardingActive ?? false;
+                var tut = UiKit.AddButton(_listContent, 0, y, 780, 78, onboarding ? L("ui.vega.skip") : L("ui.vega.restart"), () =>
+                {
+                    Game?.Network?.SendSkipOnboarding(restart: !onboarding);
+                    Invoke(nameof(RebuildList), 0.35f);
+                });
+                tut.GetComponent<Image>().color = new Color(0.16f, 0.28f, 0.40f);
+                y += 96f;
+            }
+            else
+            {
+                if (tutorialState != TutorialSwitch.State.None)
+                {
+                    var tutorial = TutorialSwitch.TutorialOf(Game.StoryPackStates);
+                    string action = TutorialSwitch.ActionFor(tutorialState);
+                    var tutBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
+                    {
+                        if (action.Length > 0 && tutorial != null)
+                        {
+                            Game?.Network?.SendStoryPack(tutorial.Id, action);
+                        }
+                    });
+                    tutBtn.GetComponent<Image>().color = new Color(0.16f, 0.28f, 0.40f);
+                    UiKit.AddText(tutBtn.transform, 16, 0, 520, 78, L("ui.settings.tutorial"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    string value = tutorialState switch
+                    {
+                        TutorialSwitch.State.On => L("ui.toggle.on"),
+                        TutorialSwitch.State.Off => L("ui.toggle.off"),
+                        _ => L("ui.settings.tutorial_blocked"),
+                    };
+                    UiKit.AddText(tutBtn.transform, 560, 0, 210, 78, value, 22,
+                        tutorialState == TutorialSwitch.State.On ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    y += 96f;
+                }
+
+                var journalBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, L("ui.settings.open_journal"), () => OnTab((int)Mode.Story));
+                journalBtn.GetComponent<Image>().color = new Color(0.16f, 0.28f, 0.40f);
+                y += 96f;
+            }
 
             // Explicit save (on top of the periodic autosave).
             var save = UiKit.AddButton(_listContent, 0, y, 780, 78, L("ui.settings.save_game"), () =>
@@ -4725,6 +4796,287 @@ namespace BlocksBeyondTheStars.Client
             return y + 20f;
         }
 
+        // --- The Journal (#2471): the Story tab grew into it — one page per story, VEGA's notes, the player's own notes ---
+
+        /// <summary>The Journal page of the selected category: a player story (the tutorial, a side story — chapters, tasks,
+        /// switches), the world story (VEGA — <see cref="BuildStoryList"/>), VEGA's notes or the player's own notes. Laid out
+        /// in absolute rows like the rest of the tab (no LayoutGroup — the wrapped-text overflow trap).</summary>
+        private float BuildJournalPage()
+        {
+            if (_category == JournalCategories.NotesId)
+            {
+                return BuildNotesList();
+            }
+
+            if (JournalCategories.TryPackId(_category, out string packId))
+            {
+                var story = Game?.Story;
+                if (story != null && story.Active && string.Equals(story.StoryId, packId, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return BuildStoryList();
+                }
+
+                var pack = JournalCategories.Find(Game?.StoryPackStates, _category);
+                if (pack != null)
+                {
+                    return BuildPackPage(pack);
+                }
+            }
+
+            return BuildVegaNotes();
+        }
+
+        private bool HasLoc(string key) => Game?.Localizer != null && !string.IsNullOrEmpty(key) && Game.Localizer.Has(key);
+
+        /// <summary>A locale key's text, or <paramref name="fallback"/> when this client has no text for it.</summary>
+        private string LocOr(string key, string fallback) => HasLoc(key) ? L(key) : fallback;
+
+        /// <summary>A Journal text resolves its <c>{key:…}</c> tokens through the one resolver the VEGA panel uses.</summary>
+        private string ComposeJournalText(string text)
+            => VegaPanel.Instance != null ? VegaPanel.Instance.ComposeLine(text, null) : VegaText.Compose(text, null, a => a);
+
+        /// <summary>A player story's page (#2471, synthesis §5.8): name, description, status and the story's switches (Track,
+        /// Start, Skip all, Restart from the beginning, Switch off / on); "What to do now" — the running parts' tasks ("Step 4 of
+        /// 8: …" with live progress, Skip step, More in the Codex) and the part's Skip / Start over; then every part with its
+        /// state and its buttons (Start / Later for an offer, Replay for a finished one); then the story's scenes to watch
+        /// again. The rules are <see cref="JournalPackPage"/> (Client.Core, unit-tested).</summary>
+        private float BuildPackPage(NetStoryPack pack)
+        {
+            float y = 8f;
+            var live = Game?.Objectives;
+            UiKit.AddText(_listContent, 8, y, 760, 36, LocOr(pack.NameKey, pack.Id) + (pack.Badge ? "  ★" : string.Empty), 24,
+                pack.Badge ? UiKit.Ok : UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 42f;
+            if (HasLoc(pack.DescriptionKey))
+            {
+                y = JournalRow(y, 8f, 760f, L(pack.DescriptionKey), 16, UiKit.CyanDim, FontStyle.Normal);
+            }
+
+            string status = JournalPackPage.Status(pack, L);
+            if (status.Length > 0)
+            {
+                y = JournalRow(y, 8f, 760f, status, 18, pack.Badge ? UiKit.Ok : UiKit.TextCol, FontStyle.Bold);
+            }
+
+            y = JournalButtons(y + 4f, 0f, pack.Id, JournalPackPage.PackActions(pack));
+
+            // What to do now: the running parts' tasks, the chip's first.
+            var running = pack.Chapters.Where(c => c.State == StoryChapterStates.Active || c.State == StoryChapterStates.Replay).ToList();
+            if (running.Count > 0 && pack.Enabled)
+            {
+                y += 6f;
+                y = AllianceSection(L("ui.journal.now"), y);
+                foreach (var ch in running)
+                {
+                    y = JournalRow(y, 8f, 760f, JournalPackPage.Icon(ch.State) + "  " + JournalPackPage.ChapterLabel(pack, ch, L, HasLoc), 18,
+                        UiKit.Cyan, FontStyle.Bold);
+                    foreach (var step in JournalPackPage.StepsOf(pack, ch.Id))
+                    {
+                        var stepActions = JournalPackPage.StepActions(step);
+                        float top = y;
+                        float width = stepActions.Count > 0 ? 780f - 32f - (stepActions.Count * 196f) : 748f;
+                        y = JournalRow(y, 32f, width, JournalPackPage.StepLine(pack, step, live, L, ComposeJournalText), 17,
+                            step.OnChip ? UiKit.TextCol : UiKit.CyanDim, FontStyle.Normal);
+                        float bx = 780f;
+                        for (int i = stepActions.Count - 1; i >= 0; i--)
+                        {
+                            bx -= 196f;
+                            var chosen = stepActions[i];
+                            UiKit.AddButton(_listContent, bx + 6f, top, 190f, 34f, L(chosen.LabelKey), () => RunJournalAction(pack.Id, chosen));
+                        }
+
+                        y = Mathf.Max(y, top + 40f);
+                    }
+
+                    y = JournalButtons(y, 32f, pack.Id, JournalPackPage.RunningChapterActions(ch));
+                }
+            }
+
+            // Every part with its state.
+            y += 6f;
+            y = AllianceSection(L(JournalPackPage.IsTutorial(pack) ? "ui.journal.parts" : "ui.story.chapters"), y);
+            foreach (var ch in pack.Chapters)
+            {
+                var actions = JournalPackPage.ChapterActions(pack, ch);
+                bool active = ch.State == StoryChapterStates.Active || ch.State == StoryChapterStates.Replay;
+                var color = active ? UiKit.Cyan : ch.State == StoryChapterStates.Done || ch.State == StoryChapterStates.Offered ? UiKit.TextCol : UiKit.CyanDim;
+                string row = JournalPackPage.Icon(ch.State) + "  " + JournalPackPage.ChapterLabel(pack, ch, L, HasLoc)
+                             + "   ·   " + JournalPackPage.StateText(ch, L, HasLoc);
+                float top = y;
+                float width = actions.Count > 0 ? 780f - 8f - (actions.Count * 150f) : 760f;
+                y = JournalRow(y, 8f, width, row, 17, color, active ? FontStyle.Bold : FontStyle.Normal);
+                float bx = 780f;
+                for (int i = actions.Count - 1; i >= 0; i--)
+                {
+                    bx -= 150f;
+                    var chosen = actions[i];
+                    UiKit.AddButton(_listContent, bx + 6f, top, 144f, 32f, L(chosen.LabelKey), () => RunJournalAction(pack.Id, chosen));
+                }
+
+                y = Mathf.Max(y, top + (actions.Count > 0 ? 38f : 0f));
+            }
+
+            y = JournalReplaySection(y, pack.Id);
+            return y + 12f;
+        }
+
+        /// <summary>A Journal button: the "More" opens the Codex; everything else is the player's own <see cref="StoryPackIntent"/>
+        /// (the server validates it and answers with the new stories at once — the page redraws when they arrive).</summary>
+        private void RunJournalAction(string packId, JournalAction action)
+        {
+            if (action.OpensCodex)
+            {
+                Menu?.OpenWiki(JournalPackPage.CodexChapter(action.Codex));
+                return;
+            }
+
+            Game?.Network?.SendStoryPack(packId, action.Action, action.ChapterId, action.StepId);
+        }
+
+        /// <summary>A row of Journal buttons from <paramref name="x"/>, wrapping onto the next row when they do not fit; returns
+        /// the next y (unchanged without buttons).</summary>
+        private float JournalButtons(float y, float x, string packId, List<JournalAction> actions)
+        {
+            if (actions == null || actions.Count == 0)
+            {
+                return y;
+            }
+
+            const float H = 40f, Gap = 10f, Right = 780f;
+            float cx = x;
+            foreach (var action in actions)
+            {
+                string label = L(action.LabelKey);
+                float w = Mathf.Clamp(ButtonWidth(label), 140f, Right - x);
+                if (cx + w > Right && cx > x)
+                {
+                    cx = x;
+                    y += H + 8f;
+                }
+
+                var chosen = action;
+                UiKit.AddButton(_listContent, cx, y, w, H, label, () => RunJournalAction(packId, chosen));
+                cx += w + Gap;
+            }
+
+            return y + H + 10f;
+        }
+
+        /// <summary>The width a button needs for its label at the button font (UiKit.AddButton: 22 bold, 18 left, 10 right).</summary>
+        private static float ButtonWidth(string label)
+        {
+            var settings = new TextGenerationSettings
+            {
+                font = UiKit.Font,
+                fontSize = 22,
+                fontStyle = FontStyle.Bold,
+                richText = false,
+                scaleFactor = 1f,
+                lineSpacing = 1f,
+                horizontalOverflow = HorizontalWrapMode.Overflow,
+                verticalOverflow = VerticalWrapMode.Overflow,
+                generationExtents = new Vector2(2000f, 40f),
+                textAnchor = TextAnchor.MiddleLeft,
+                pivot = new Vector2(0f, 1f),
+                color = Color.white,
+            };
+            return StoryMeasurer.GetPreferredWidth(label ?? string.Empty, settings) + 40f;
+        }
+
+        /// <summary>One wrapped Journal text row, measured (the story-log rule) — returns the next y.</summary>
+        private float JournalRow(float y, float x, float width, string text, int size, Color color, FontStyle style)
+        {
+            var settings = new TextGenerationSettings
+            {
+                font = UiKit.Font,
+                fontSize = size,
+                fontStyle = style,
+                richText = false,
+                scaleFactor = 1f,
+                lineSpacing = 1f,
+                horizontalOverflow = HorizontalWrapMode.Wrap,
+                verticalOverflow = VerticalWrapMode.Overflow,
+                generationExtents = new Vector2(width, 0f),
+                textAnchor = TextAnchor.UpperLeft,
+                pivot = new Vector2(0f, 1f),
+                color = Color.white,
+            };
+            float h = 6f + StoryMeasurer.GetPreferredHeight(text ?? string.Empty, settings);
+            var t = UiKit.AddText(_listContent, x, y, width, h, text ?? string.Empty, size, color, TextAnchor.UpperLeft, style);
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
+            return y + h + 6f;
+        }
+
+        /// <summary>Watch again (#2468) for one story: the scenes of that story this player has seen and may replay — the
+        /// prologue on the VEGA page, the tutorial's cards on the tutorial's. The server re-sends one on request (spoiler guard:
+        /// only what was shown); the director plays it once this menu is closed.</summary>
+        private float JournalReplaySection(float y, string packId)
+        {
+            var director = CutsceneDirector.Instance;
+            var replays = director != null ? director.ReplayEntries() : null;
+            var mine = replays?.Where(e => string.Equals(e.Pack.Id, packId, System.StringComparison.OrdinalIgnoreCase)).ToList();
+            if (mine == null || mine.Count == 0)
+            {
+                return y;
+            }
+
+            y += 10f;
+            y = AllianceSection(L("ui.story.replay"), y);
+            foreach (var entry in mine)
+            {
+                float rowTop = y;
+                y = StoryEntry(y, director.ReplayLabel(entry), 660f); // keep clear of the Watch button's lane
+                var chosen = entry;
+                UiKit.AddButton(_listContent, 688, rowTop, 92, 30, L("ui.story.replay_button"), () =>
+                {
+                    Game?.Network?.SendReplayCutscene(chosen.Pack.Id, chosen.CutsceneId);
+                    Hide();
+                });
+            }
+
+            return y;
+        }
+
+        /// <summary>VEGA's notes (#2471): every lesson, tip and narrator line VEGA has said that is not a story beat — rebuilt
+        /// from the server's milestone snapshot (#737), the world story's notes (<c>NoteKeys</c>: the Guardian reveal, the
+        /// insights, the resolution line) and the relay insights, plus what arrived this session. A dismissed line used to be
+        /// gone for good; the non-beat narrator lines used to live only until the next join.</summary>
+        private float BuildVegaNotes()
+        {
+            float y = 8f;
+            var hint = UiKit.AddText(_listContent, 8, y, 760, 44, L("ui.journal.tips_hint"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+            hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+            y += Mathf.Max(30f, hint.preferredHeight + 10f);
+            bool anyTip = false;
+            if (Game?.VegaLogKeys != null)
+            {
+                foreach (var key in Game.VegaLogKeys)
+                {
+                    if (Game?.Localizer == null || !Game.Localizer.Has(key))
+                    {
+                        continue; // a future server hint this client has no translation for — no raw "[key]" (#428)
+                    }
+
+                    // Composed like the speech panel (#2364): key glyphs resolved, a lost {0} reads as "…".
+                    string line = VegaPanel.Instance != null ? VegaPanel.Instance.ComposeLine(L(key), null) : VegaText.Compose(L(key), null, a => a);
+                    y = StoryEntry(y, line);
+                    anyTip = true;
+                }
+            }
+
+            if (!anyTip)
+            {
+                UiKit.AddText(_listContent, 12, y, 756, 28, L("ui.story.vega.none"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += 34f;
+            }
+
+            return y + 12f;
+        }
+
+        /// <summary>The world story's Journal page (#2471: the VEGA page — the Story Log before): the star-network meter with
+        /// its bar, the Track switch, the ending to watch again, the story-track block (Start the story now, the crew's
+        /// chapter, The story so far), the chapter list with the heard beats, fragments, memories and field records, and the
+        /// story's scenes to watch again (the prologue "Prologue — Awakening" among them).</summary>
         private float BuildStoryList()
         {
             float y = 8f;
@@ -4735,11 +5087,32 @@ namespace BlocksBeyondTheStars.Client
             {
                 int pct = s.ProgressTarget > 0 ? Mathf.Clamp(Mathf.RoundToInt(100f * s.Progress / s.ProgressTarget), 0, 100) : 0;
                 UiKit.AddText(_listContent, 8, y, 760, 36, L("ui.story.meter") + ": " + pct + "%", 24, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-                y += 44f;
+                y += 40f;
+                // #2471: the meter as a bar too (the achievement rows' look).
+                float frac = s.ProgressTarget > 0 ? Mathf.Clamp01((float)s.Progress / s.ProgressTarget) : 0f;
+                UiKit.AddImage(_listContent, 8, y, 744f, 10f, null, new Color(1f, 1f, 1f, 0.10f));
+                if (frac > 0f)
+                {
+                    UiKit.AddImage(_listContent, 8, y, 744f * frac, 10f, null, UiKit.Cyan);
+                }
+
+                y += 20f;
                 UiKit.AddText(_listContent, 8, y, 760, 28,
                     L("ui.story.fragments") + ": " + s.FragmentsFound + "   ·   " + L("ui.story.kills") + ": " + s.MachineKills + "   ·   " + L("ui.story.beats") + ": " + s.BeatsRevealed,
                     16, UiKit.CyanDim, TextAnchor.MiddleLeft);
                 y += 40f;
+
+                // #2471: pin the story's lead to the objective display — once the player's own story has started.
+                var entry = Game?.StoryPackStates?.Packs.FirstOrDefault(p => string.Equals(p.Id, s.StoryId, System.StringComparison.OrdinalIgnoreCase));
+                if (entry != null && entry.Started)
+                {
+                    y = JournalButtons(y, 0f, entry.Id, new List<JournalAction>
+                    {
+                        entry.Tracked
+                            ? new JournalAction("ui.journal.tracked", StoryPackActions.Untrack)
+                            : new JournalAction("ui.journal.track", StoryPackActions.Track),
+                    });
+                }
 
                 // #2470: the player's story track. A current server always names the world's chapter; before the track
                 // starts (VEGA begins after the basic training) the story is held for this player.
@@ -4837,54 +5210,12 @@ namespace BlocksBeyondTheStars.Client
                 y += 44f;
             }
 
-            // Watch again (#2468): the story-pack cutscenes this player has seen and may replay — the prologue, chapter
-            // openers, tutorial cards — of any installed pack (the tutorial's run in the sandbox too). The server re-sends
-            // one on request (spoiler guard: only what was shown); the director plays it once this menu is closed.
-            var director = CutsceneDirector.Instance;
-            var replays = director != null ? director.ReplayEntries() : null;
-            if (replays != null && replays.Count > 0)
+            // Watch again (#2468): this story's cutscenes the player has seen and may replay — the prologue, chapter openers.
+            // Each story's page lists its own scenes since #2471 (the tutorial's cards are on the tutorial's page); VEGA's tips
+            // moved to "VEGA's notes".
+            if (storyOn)
             {
-                y += 10f;
-                y = AllianceSection(L("ui.story.replay"), y);
-                foreach (var entry in replays)
-                {
-                    float rowTop = y;
-                    y = StoryEntry(y, director.ReplayLabel(entry), 660f); // keep clear of the Watch button's lane
-                    var chosen = entry;
-                    UiKit.AddButton(_listContent, 688, rowTop, 92, 30, L("ui.story.replay_button"), () =>
-                    {
-                        Game?.Network?.SendReplayCutscene(chosen.Pack.Id, chosen.CutsceneId);
-                        Hide();
-                    });
-                }
-            }
-
-            // VEGA tips (#737): every onboarding lesson and advisor hint already received, rebuilt from the
-            // server's milestone snapshot — a dismissed tip used to be gone for good. Shown with or without
-            // an active story pack (the tutorial runs in the sandbox too).
-            y += 10f;
-            y = AllianceSection(L("ui.story.vega"), y);
-            bool anyTip = false;
-            if (Game?.VegaLogKeys != null)
-            {
-                foreach (var key in Game.VegaLogKeys)
-                {
-                    if (Game?.Localizer == null || !Game.Localizer.Has(key))
-                    {
-                        continue; // a future server hint this client has no translation for — no raw "[key]" (#428)
-                    }
-
-                    // Composed like the speech panel (#2364): key glyphs resolved, a lost {0} reads as "…".
-                    string line = VegaPanel.Instance != null ? VegaPanel.Instance.ComposeLine(L(key), null) : VegaText.Compose(L(key), null, a => a);
-                    y = StoryEntry(y, line);
-                    anyTip = true;
-                }
-            }
-
-            if (!anyTip)
-            {
-                UiKit.AddText(_listContent, 12, y, 756, 28, L("ui.story.vega.none"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
-                y += 34f;
+                y = JournalReplaySection(y, s.StoryId);
             }
 
             return y + 12f;

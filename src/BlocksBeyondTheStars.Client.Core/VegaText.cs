@@ -141,6 +141,16 @@ namespace BlocksBeyondTheStars.Client
             _ => false,
         };
 
+        /// <summary>#2471: lines that point at the Journal (or set a target) rather than say something worth re-reading — they
+        /// are shown, but never kept in VEGA's notes: the join's "N new entries in your Journal" (B09) and the dock lesson's
+        /// "I set the station as your flight target".</summary>
+        public static bool IsTransientLine(string? lineKey) => lineKey switch
+        {
+            BlocksBeyondTheStars.Shared.Story.StoryNarratorLines.JournalNews => true,
+            BlocksBeyondTheStars.Shared.Story.StoryNarratorLines.StepMarkedStation => true,
+            _ => false,
+        };
+
         /// <summary>What a <c>{0}</c> slot reads as when a line is shown without its argument (the tips log, #2364:
         /// the milestones remember the key, not the wreck's name).</summary>
         public const string MissingArg = LineText.MissingArg;

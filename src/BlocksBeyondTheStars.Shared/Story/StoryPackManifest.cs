@@ -404,6 +404,11 @@ public static class StoryRevealProviders
     /// <summary><c>nearest_food_plant</c> — the nearest plant whose harvest is food (berries …) around the player (#2469).</summary>
     public const string NearestFoodPlant = "nearest_food_plant";
 
+    /// <summary><c>nearest_station</c> — the nearest space station of the player's system (#2471, the dock lesson): in flight the
+    /// station of the player's orbit nearest to their ship, landed the first station of the system. Not a ping on the ground
+    /// but the client's space waypoint (<c>ShipAiLine.SpaceWaypointId</c>), so the radar and the edge arrow lead to it.</summary>
+    public const string NearestStation = "nearest_station";
+
     /// <summary>Whether <paramref name="reveal"/> names a known provider (with its argument where one is needed).</summary>
     public static bool IsKnown(string? reveal)
     {
@@ -412,13 +417,27 @@ public static class StoryRevealProviders
             return false;
         }
 
-        if (string.Equals(reveal, NearestSettlement, StringComparison.Ordinal) || string.Equals(reveal, NearestFoodPlant, StringComparison.Ordinal))
+        if (string.Equals(reveal, NearestSettlement, StringComparison.Ordinal) || string.Equals(reveal, NearestFoodPlant, StringComparison.Ordinal)
+            || string.Equals(reveal, NearestStation, StringComparison.Ordinal))
         {
             return true;
         }
 
         return reveal!.StartsWith(NearestOre + ":", StringComparison.Ordinal) && reveal.Length > NearestOre.Length + 1;
     }
+}
+
+/// <summary>Narrator line keys the story runtime sends and the client treats specially (#2471).</summary>
+public static class StoryNarratorLines
+{
+    /// <summary>The help line of a <see cref="StoryRevealProviders.NearestStation"/> step ({0} = the station's name), sent
+    /// with the station as the space waypoint.</summary>
+    public const string StepMarkedStation = "vega.step.marked_station";
+
+    /// <summary>The one line a started player gets at the join instead of one line per missed story beat ({0} = how many
+    /// entries the Journal gained) — the beats go to the Journal silently (#2471, B09). The client never keeps it in the
+    /// notes (it points at them).</summary>
+    public const string JournalNews = "vega.journal.news";
 }
 
 /// <summary>The legacy onboarding vocabulary (the nine VEGA stages before the tutorial pack): the milestone a step's

@@ -599,7 +599,7 @@ public static class StoryPackValidator
                 {
                     if (!StoryRevealProviders.IsKnown(reveal))
                     {
-                        Error($"{sp}.onStart.reveal", $"unknown marker provider '{reveal}' ({StoryRevealProviders.NearestOre}:<block>, {StoryRevealProviders.NearestSettlement}, {StoryRevealProviders.NearestFoodPlant})");
+                        Error($"{sp}.onStart.reveal", $"unknown marker provider '{reveal}' ({StoryRevealProviders.NearestOre}:<block>, {StoryRevealProviders.NearestSettlement}, {StoryRevealProviders.NearestFoodPlant}, {StoryRevealProviders.NearestStation})");
                     }
                     else if (reveal.StartsWith(StoryRevealProviders.NearestOre + ":", StringComparison.Ordinal)
                              && context.BlockExists is { } blockExists

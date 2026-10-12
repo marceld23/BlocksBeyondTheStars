@@ -99,7 +99,7 @@ Every field is optional and defaults to today's behaviour.
 | `alreadyDoneIf` | condition[] — completes the step silently at activation (not during a replay) |
 | `variants` | `[{ when, startKey, chipKey, hintKey, doneKey }]` — whole-line texts per world rule; first match wins; empty fields fall back |
 | `explain` | `{ startKey, chipKey, hintKey, doneKey, moreGuide }` — start line, chip text, escalation hint, completion line, Codex article |
-| `onStart` | `{ cutscene, reveal }` — the scene plays before the start line (not in a replay); `reveal` makes it a "where" step: `nearest_ore:<block>`, `nearest_settlement` or `nearest_food_plant` for the help marker (a ping for this player only, never `RevealPoi`) |
+| `onStart` | `{ cutscene, reveal }` — the scene plays before the start line (not in a replay); `reveal` makes it a "where" step: `nearest_ore:<block>`, `nearest_settlement` or `nearest_food_plant` for the help marker (a ping for this player only, never `RevealPoi`), or `nearest_station` (#2471: the nearest station becomes the player's space waypoint, in flight or landed) |
 | `onComplete` | `{ cutscene }` — plays before the done line when the step completes non-silently (it owned the chip, or a react step) |
 | `escalate` | per-step override of the pack's escalation |
 | `skippable` | default `true` |
@@ -221,7 +221,7 @@ Tier · kind: **M** = must, **C** = core · **do** / **read** / **react**. Event
 | b6.1 | launch at the cockpit `{key:Interact}` | `space:enter` `launch` | M · do | `feasibleIf free_flight` | launch |
 | b6.2 | steering, the chart `{key:FlightMap}` | `flight:flown` × 300 | C · do | `feasibleIf free_flight` | — |
 | b6.3 | the ship scanner: hold until the ring is full | `scan:performed` `asteroid\|anomaly` | C · do | `feasibleIf free_flight` | — |
-| b6.4 | docking `{key:Interact}` | `station:boarded` | M · do | `feasibleIf free_flight, station_in_system`, else b6.4a (trade with a settlement vendor, `trade:barter`) | dock |
+| b6.4 | docking `{key:Interact}`; marker `nearest_station` (the flight target, #2471) | `station:boarded` | M · do | `feasibleIf free_flight, station_in_system`, else b6.4a (trade with a settlement vendor, `trade:barter`) | dock |
 | b6.5 | trading (absorbs `trader_near`) | `trade:*` | M · do | `alreadyDoneIf` b6.4a | trade |
 | b6.6 | a job from a board | `mission:board_accepted` | C · do | — | — |
 | b6.7 | landing on a new world (landing map) | `visit:world` | M · do | `feasibleIf free_flight, new_world_in_system`, else b6.7a (any landing from flight, `travel:landed` `flight`, `feasibleIf free_flight`) | land |
@@ -295,13 +295,34 @@ shows `vega.obj.<id>` exactly while such a step owns it, and steps without a leg
 for such a client — it finishes the new lessons once updated). The nine old lessons therefore run in the new order: eat,
 mine, craft, scan, unlock, launch, dock, trade, land.
 
-### Settings, skip, replay
+### The Journal, settings, skip, replay (#2471)
 
-The Settings button (`SkipOnboardingIntent`) skips the pack ("I know the game": every mandatory chapter skipped, nothing
-granted, `vega.skip` confirms) or restarts it (replays every mandatory chapter from part 1 — keys stay, so gates and
-conditions keep holding; never a veteran check, never the prologue; refused while the world has the tutorial off). The
-admin command `/tutorial skip|restart|chapter <id>|policy …` does the same for a named player; without a tutorial pack it
-answers `tutorial_none`.
+The player controls the tutorial in the **Journal** (the Tab menu's Story tab grew into it; client rules in
+`Client.Core/Journal/JournalView.cs`, server view in `GameServerJournal.cs` — see STORY_IMPLEMENTATION "The Journal and
+the objective tracker"):
+- **The tutorial's page:** its status (running, off, blocked by the world rule, not started, finished — a ★ badge only when
+  every mandatory part was played, not skipped); **What to do now** — the running part's tasks as "Step i of n: …" (live
+  counter from `ObjectiveList`), **Skip step** (`skipStep`) and **More in the Codex** (`explain.moreGuide`: a Codex chapter
+  id opens that chapter, any other id — a guide article — the Guide chapter), the part's **Skip part** (`skipChapter`,
+  running parts only) and **Start part over** (`restartChapter`: the part walks again from its first step; what was done
+  stays done, a step done for the first time in it is stamped done, and the part completes for real at the end); then every
+  part with its state and **Replay** (`replayChapter`) for a finished one, **Start** / **Later** (`startChapter` /
+  `declineChapter`) for an offered deep dive, **Start** for an available or put-off one; at the top **Track**, **Skip all —
+  I know the game** (`skipPack`), **Restart from the beginning** (`restartPack`: every mandatory part replays from part 1 —
+  keys stay, so gates and conditions keep holding; never a veteran check, never the prologue; refused while the world has
+  the tutorial off) and **Switch off** / **Switch on** (`optOut` / `optIn`).
+- **Settings:** the old "Skip / Restart tutorial" button is **Tutorial: on / off** (`TutorialSwitch`: on → `optOut`,
+  off → `optIn`, which also starts an opt-in world's tutorial; shown as "Off in this world" while the world rule is `Off`,
+  left out when the world has no tutorial) plus **Open the Journal**. A server without the Journal messages (older) keeps
+  the old button (`SkipOnboardingIntent`, still served: skip = `skipPack` + `vega.skip`, restart = `RestartPack`).
+- **The chip** reads "Training: …" (the pack's `shortNameKey`) instead of "Objective: …"; the tutorial's chip is never
+  muted.
+- **Stuck on b6.4 (dock):** after `markerAfter` the step's `onStart.reveal: nearest_station` sets the nearest station as the
+  player's space waypoint (`vega.step.marked_station`) — in flight or still landed.
+
+The admin command `/tutorial skip|restart [player]`, `/tutorial chapter <id> [player]`, `/tutorial policy auto|optin|off`
+(chat, parsed by `AdminChatCommand.Tutorial`) does the same for a named player; without a tutorial pack it answers
+`tutorial_none`. `/story [player]` lists the player packs with their state, running chapter and chip step.
 
 ## Adding a chapter
 

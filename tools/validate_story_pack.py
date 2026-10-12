@@ -642,14 +642,14 @@ class Validator:
                     self.unknown_fields(pid, f"{sp}.escalate", step["escalate"], "escalate")
                 reveal = (step.get("onStart") or {}).get("reveal", "")
                 if reveal:
-                    if reveal in ("nearest_settlement", "nearest_food_plant"):
+                    if reveal in ("nearest_settlement", "nearest_food_plant", "nearest_station"):
                         pass
                     elif reveal.startswith("nearest_ore:") and len(reveal) > len("nearest_ore:"):
                         block = reveal[len("nearest_ore:"):]
                         if self.blocks and block not in self.blocks:
                             r.error(pid, f"{sp}.onStart.reveal", f"block '{block}' does not exist")
                     else:
-                        r.error(pid, f"{sp}.onStart.reveal", f"unknown marker provider '{reveal}' (nearest_ore:<block>, nearest_settlement, nearest_food_plant)")
+                        r.error(pid, f"{sp}.onStart.reveal", f"unknown marker provider '{reveal}' (nearest_ore:<block>, nearest_settlement, nearest_food_plant, nearest_station)")
                 for hi, ref in enumerate(self.list_of_strings(pid, f"{sp}.hintRefs", step.get("hintRefs"))):
                     if not ref.strip():
                         r.error(pid, f"{sp}.hintRefs[{hi}]", "an empty hint id")

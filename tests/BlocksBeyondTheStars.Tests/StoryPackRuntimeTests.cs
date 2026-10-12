@@ -748,7 +748,7 @@ public sealed class StoryPackRuntimeTests : IDisposable
         Deliver(server, p, new StoryPackIntent { PackId = T, Action = StoryPackActions.SkipPack });
         Assert.StartsWith("story.obj.", server.ObjectiveKeyForTest("Pilot"));
         Assert.Equal(ObjectiveSources.Story, server.ObjectiveSourceForTest("Pilot"));
-        Assert.Equal(string.Empty, server.ObjectivePackForTest("Pilot"));
+        Assert.Equal(StoryRegistry.DefaultStoryId, server.ObjectivePackForTest("Pilot")); // #2471: the chip reads "VEGA: …"
 
         // 6: a started deep dive comes after the VEGA lead; pinning the world story keeps the lead.
         Deliver(server, p, new StoryPackIntent { PackId = T, Action = StoryPackActions.StartChapter, ChapterId = "t3" });
@@ -1050,17 +1050,18 @@ public sealed class StoryPackRuntimeTests : IDisposable
         Assert.True(server.IsPaused);
     }
 
+    /// <summary>#2471 (issue: "every action is pause-whitelisted"): the Journal can be opened from the pause menu, so the
+    /// progress-moving actions get through a held world too (they were dropped until step 12). Every action's dispatch test:
+    /// <c>StoryJournalTests.WhileHeld_EveryJournalAction_IsServed</c>.</summary>
     [Theory]
     [InlineData(StoryPackActions.SkipChapter)]
     [InlineData(StoryPackActions.SkipStep)]
-    [InlineData(StoryPackActions.StartChapter)]
-    public void WhileHeld_ProgressMovingPackActions_AreDropped(string action)
+    public void WhileHeld_ProgressMovingPackActions_AreServedSinceTheJournal(string action)
     {
-        var (server, p) = HeldSideWorld("held_drop_" + action);
-        Deliver(server, p, new StoryPackIntent { PackId = R, Action = action, ChapterId = action == StoryPackActions.StartChapter ? "c" : "a", StepId = "a.1" });
-        Assert.False(Has(p, StoryPackKeys.ChapterSkipped(R, "a")));
-        Assert.False(Has(p, StoryPackKeys.StepSkipped(R, "a.1")));
-        Assert.False(Has(p, StoryPackKeys.ChapterActive(R, "c")));
+        var (server, p) = HeldSideWorld("held_serve_" + action);
+        Deliver(server, p, new StoryPackIntent { PackId = R, Action = action, ChapterId = "a", StepId = "a.1" });
+        Assert.True(Has(p, StoryPackKeys.ChapterSkipped(R, "a")) || Has(p, StoryPackKeys.StepSkipped(R, "a.1")));
+        Assert.True(server.IsPaused);
     }
 
     // ---------------- Wire ----------------

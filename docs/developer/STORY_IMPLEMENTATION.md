@@ -524,6 +524,8 @@ unknown fields). The checks are listed in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#va
 | 296 | `CutsceneSeenIntent` | C→S | the client is through with these scenes (`PackId`, `Ids[]`, `Skipped`, `Unsupported`) → the seen ledger; passes a held world (#2467) |
 | 297 | `StoryPackIntent` | C→S | the player's control of a player pack (track, opt out, start/skip/replay a chapter, skip a step) (#2466); `replayCutscene` + `CutsceneId` (#2467); `startPack` with the world story's id = "Start the story now" (#2470) |
 | 298 | `UiTutorialEvent` | C→S | a UI moment a tutorial step teaches (`Id`: `vega_continue`, `menu_open`, `codex_open`, `map_open`, `waypoint_set`) → `ui:<id>` on the event bus; teaching only, rate-limited, passes a held world (#2469) |
+| 299 | `ObjectiveList` | S→C | the player's objectives in the chip order, one row per story, at most `MaxItems` = 3, the chip's first: `NetObjective{Source, PackId, StepId, Key, Arg, Progress, Target, Pinned}`; only to `packs1` clients (#2471, "The Journal" below) |
+| 300 | `StoryPackStates` | S→C | the Journal's stories: `NetStoryPack{Id, Kind, Scope, NameKey, ShortNameKey, DescriptionKey, Enabled, Started, Done, OptedOut, Tracked, Startable, Blocked, MandatoryRunning, Badge, Chapters[], Steps[]}` + `TrackedPackId`, `TutorialPolicy`; only to `packs1` clients (#2471) |
 
 Beat speech reuses `ShipAiLine`. Every message is `Register()`'d in NetCodec.
 
@@ -541,6 +543,9 @@ default) — no `Protocol.Version` bump.
 | `StoryStateMessage.Started` / `Chapter` / `WorldChapter` | #2470: this player's story track started; their (derived) chapter id; the world's chapter id — filled by every current server, so an empty `WorldChapter` means an older server | the client treats the track as started and lists chapters from the heard beats |
 | `StoryStateMessage.ShowCrewChapter` | #2470: the Story tab shows "The crew of this world is in chapter N" (waiting players, hosted/arcade newcomers) | false — no line |
 | `StoryStateMessage.RelayInsightKeys` | #2470: the relay insights this save has spoken (to a started player) — they join the VEGA log silently | empty — the log keeps what was spoken live |
+| `StoryStateMessage.NoteKeys` | #2471: the world story's non-beat narrator lines this player heard (Guardian reveal, insights, resolution line — from their once keys) — the Journal's "VEGA's notes" keep them across a rejoin | empty — the notes keep what was spoken this session |
+| `ShipAiLine.ObjectivePackId` | #2466; since #2471 also the world story's id on VEGA's own chip — the client labels the chip with the story's short name ("Training: …", "VEGA: …") instead of "Objective:" | an older client ignores it |
+| `ShipAiLine.SpaceWaypointId` | #2471: a space-flight nav target the line points at (the dock lesson's station, `nearest_station`) — the client makes it its space waypoint when it has none | ignored |
 | `MissionResult.Outcome` / `Title` / `FreeText` | `accepted` / `completed` / `posted` and the mission's title (locale key, or display text when `FreeText`) for the toast (B24) | empty outcome — the client's toast says "Mission updated" and names the mission from its mission list |
 | `SetNpcCallsIntent.VegaHintsMuted` | the client's VEGA hints switch is off (sent at every join and from both settings screens): the server holds advisor hints (Kind 1), context tips and the bandit briefing back WITHOUT burning their once-flags (B31) | absent = hints on (today's behaviour) |
 
@@ -560,7 +565,67 @@ Rules on top of the wire:
   (`VegaText.LessonCoveredByTutorial`) count as given without being spoken while the basic training runs.
 - **Pause.** `PausedMayHandle` serves `SetNpcCallsIntent`, `SkipOnboardingIntent`, `RequestStoryResolutionIntent` and
   `StorySelectIntent` while the world is held (each with a dispatch test in `StoryUiFixesTests`); since #2470 also
-  `StoryPackIntent` `startPack` ("Start the story now", dispatch test in `VegaStoryPackTests`).
+  `StoryPackIntent` `startPack` ("Start the story now", dispatch test in `VegaStoryPackTests`); since #2471 every
+  `StoryPackIntent` action (the Journal can be opened from the pause menu's settings — one dispatch test per action in
+  `StoryJournalTests.WhileHeld_EveryJournalAction_IsServed`).
+
+### The Journal and the objective tracker (#2471)
+
+The Story tab grew into the **Journal** (player-facing word: *stories*, never "pack"). Server side:
+`GameServerJournal.cs`; client rules: `src/BlocksBeyondTheStars.Client.Core/Journal/JournalView.cs`
+(`JournalCategories`, `JournalPackPage`, `ObjectiveTracker`, `TutorialSwitch` — Unity-free and unit-tested in
+`Client.Tests/JournalViewTests`); Unity: `CraftingTechShipUI` (Story mode = the Journal), `VegaPanel` (chip label + "Show
+all objectives"), `GameBootstrap` (`StoryPackStates`, `Objectives`, `JournalVersion`), `ChatUi` (`/tutorial`, `/story`).
+
+- **`StoryPackStates` (tag 300)** per receiver: the tutorial packs, then the world story (a short entry — names, the
+  player's track as `Started`/`Startable`, the finale won as `Done`/`Badge`, the pin; no chapters: the arc stays on tag
+  139), then the other player packs. Per player pack: `Enabled` (`StoryPackEnabledFor`), `Started`, `Done`, `OptedOut`,
+  `Tracked`, `Startable` (`CanStartPackOnRequest`), `Blocked` (a tutorial while the world's `TutorialPolicy` is `Off`),
+  `MandatoryRunning`, `Badge` (done and every mandatory chapter `done`, not skipped); each chapter's state
+  (`StoryChapterStates`: `done | skipped | active | replay | offered | declined | available | upcoming | locked`, locked
+  with `RequiresKeys` — the title of a chapter not yet done, the name of a blueprint not owned); the active DO steps of
+  the running chapters (`ChipKey`/`StartKey` with variants, `MoreGuide`, `Tier`, `Progress`/`Target`, `Index`/`Count` =
+  "step i of n" among the chapter's tasks (a stand-in at its primary's place), `Skippable`, `Extra` = an open extra, `OnChip`).
+- **`ObjectiveList` (tag 299)**: `ChipCandidates(s)` — the §5.3 chip order as a lazy sequence (finale in the Guardian
+  system, pin, basic training, VEGA started → finale/lead, deep dive / mission bridge, every other pack by priority) —
+  the first row of each story, at most three; `LiveVegaChip` is its first element. `StepId` lets the Journal take its live
+  progress from it; `Pinned` marks the tracked story.
+- **When they go out** (only to `packs1`, never to observers): `PushJournal(s, force: true)` at the end of the join and on
+  `StoryPackIntent{requestStates}` (the Journal tab opened); after every other `StoryPackIntent` at once (only what
+  changed); otherwise coalesced — `MarkJournalDirty(s)` from `SendVegaWithObjective` (every VEGA line and chip update)
+  and the runtime's state changes (step start/complete/skip, chapter complete, pack start/done, graduation, offers,
+  replays), flushed by `TickJournal` (`GameServer.Tick`, every joined player, in space too) at most once per
+  `JournalPushGapSeconds` = 1 s, and only the message whose bytes differ from the last send. The states are compared with
+  every step counter zeroed, so a progress tick never re-sends them — the objective list carries live progress.
+- **Actions** (`StoryPackActions`, all validated, all pause-whitelisted): `track`, `untrack`, `optOut`, `optIn` (starts a
+  pack that would not start by itself — an opt-in world's tutorial: the Settings' "Tutorial: on"), `startPack`,
+  `skipPack`, `restartPack` (`RestartPack`, refused while the world's tutorial is off), `startChapter`, `declineChapter`
+  ("Later"; optional, not running, not through), `skipChapter` (only a running chapter now), `restartChapter` (a done
+  chapter is replayed; since #2471 a RUNNING chapter, or a running replay, starts over from its first step the same way),
+  `replayChapter` (done or skipped only), `skipStep` (the pack must run), `replayCutscene`, `requestStates`.
+  **Replay of a chapter that was not through:** a step completed (or skipped) for the first time inside a replay is also
+  stamped `done`/`skipped`, and the chapter completes for real at the end of the replay (`CompleteChapter` writes the done
+  key, plays the closer, may graduate) — so "Start part over" on a running part never loses progress.
+- **Chip label.** The story's short name replaces "Objective:" — `ObjectiveTracker.ShortNameKey(ObjectivePackId, states,
+  local packs)` (server list first, the client's own copy of the pack second, else `ui.vega.objective`). The mute stays
+  with `ObjectiveSource` (only `story` follows the VEGA hints switch; synthesis E22's "speech only once 'don't track'
+  exists" is not active — there is no per-story "don't show" switch for the world story yet).
+- **"Show all objectives"** (`ClientSettings.ShowAllObjectives`, default off; Tab settings + pause-menu Comfort): the
+  list's rows after the chip's in up to two strips under the chip, hidden while the chat is open; a story row follows
+  the hints switch like the chip (`ObjectiveTracker.ExtraRows`).
+- **Notes.** "VEGA's notes" = the VEGA log (`GameBootstrap.VegaLogKeys`): the `VegaJournal` snapshot + `RelayInsightKeys`
+  + `NoteKeys` + this session's lines; lines that only point at the Journal (`VegaText.IsTransientLine`:
+  `vega.journal.news`, `vega.step.marked_station`) are shown but never kept.
+- **Catch-up (B09).** A started `packs1` player who missed `CatchUpCollapseThreshold` = 2 or more beats gets them heard
+  silently (knowledge credited, the story state re-sent) and ONE system line `vega.journal.news` ({0} = how many);
+  one missed beat still speaks, an older client still gets every line. Step 15 may turn the line into a card.
+- **Station marker (B6.4).** Reveal provider `nearest_station` (`StoryRevealProviders.NearestStation`, validator C# +
+  Python): in flight the `SpaceStation` contact of the player's instance nearest to their ship, landed the first station
+  of `StationContactsForCurrentSystem(body)`; the marker is the line `vega.step.marked_station` ({0} = the station's name)
+  carrying `ShipAiLine.SpaceWaypointId` — the client's space waypoint (radar + edge arrow), never a ground ping. The
+  tutorial's b6.4 uses it.
+- **Admin.** `/tutorial skip|restart [player]`, `/tutorial chapter <id> [player]`, `/tutorial policy auto|optin|off`
+  (`AdminChatCommand.Tutorial` → `AdminCommandIntent{tutorial}`), `/story [player]` (`story_status` with the target).
 
 ## Cinematics: one cutscene state, skip on every device, the world-hold arbiter (#2461)
 
@@ -607,7 +672,8 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   teaching verbs, `UiTutorialEvent`, the tutorial's predicates, the hint hold, the migration of the old onboarding),
   `GameServerStoryTrack.cs` (#2470: the world story's per-player track — prologue, start rule, track start, migration);
   `Shared/Story/StoryChapters.cs` (#2470: world-pack chapters, `StoryChapterEvents`); Client.Core `StoryChapterList.cs`
-  (#2470: the Story tab's chapter rows).
+  (#2470: the Story tab's chapter rows); `GameServerJournal.cs` (#2471: `StoryPackStates`, `ObjectiveList`, the coalesced
+  pushes, the world story's notes) and Client.Core `Journal/JournalView.cs` (#2471: the Journal's and the tracker's rules).
 - Data: `data/stories/tutorial/` (#2469) — the basic training (`story.json`, `locales/en.json` + `de.json`); content table
   in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#the-tutorial-pack-datastoriestutorial-2469).
 - Server: `GameServerStory.cs` (state load, Record fragment/kill/milestone, beat reveal, admin selection,
@@ -619,7 +685,8 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   complete; the twelve community tables are guarded by `CommunityLocaleTests`). There is no separate `lore.json`
   catalogue — the authoring schema in LORE_STRUCTURE §E maps onto `story.json`. Validator:
   `tools/validate_story_pack.py` (#2466, replaces `merge_story.py`).
-- Client: `Mode.Story`/`Tab.Story` Story Log tab (meter + re-readable beats/fragments/memories);
+- Client: `Mode.Story`/`Tab.Story` — the Journal since #2471 (one page per story, VEGA's notes, the player's notes; the
+  VEGA page = the old Story Log: meter + re-readable beats/fragments/memories);
   `WorldEntities.cs` three-eyed-robot retheme + `BuildDrone` scan-drone; `FinaleView` (hack bar + duel panel);
   `ClientMusic` finale contexts → `music_boss_*` tracks.
 - World options: `GameRules.StoryId` + `GameRules.StoryDensity` (`--story` / `--story-density`, world-creation

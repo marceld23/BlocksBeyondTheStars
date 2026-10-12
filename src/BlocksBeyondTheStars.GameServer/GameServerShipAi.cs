@@ -62,8 +62,9 @@ public sealed partial class GameServer
     /// after a disconnect; the worst case is one redundant chip refresh, so no cleanup hook is needed.</summary>
     private readonly Dictionary<int, VegaChip> _vegaObjectiveSent = new();
 
-    /// <summary>The objective chip's fields as one comparable value (#2462; the pack of a pack objective since #2466).</summary>
-    private readonly record struct VegaChip(string Key, string Arg, int Progress, int Target, string Source, bool TutorialActive, string PackId = "");
+    /// <summary>The objective chip's fields as one comparable value (#2462; the pack of a pack objective since #2466; the
+    /// world story's id on its own chip and the step behind a pack objective since #2471).</summary>
+    private readonly record struct VegaChip(string Key, string Arg, int Progress, int Target, string Source, bool TutorialActive, string PackId = "", string StepId = "");
 
     private void SendVegaLine(PlayerSession session, string lineKey, byte kind, string arg = "")
     {
@@ -90,6 +91,7 @@ public sealed partial class GameServer
         line.ObjectivePackId = chip.PackId;
         _vegaObjectiveSent[session.ConnectionId] = chip;
         Send(session, line);
+        MarkJournalDirty(session); // #2471: whatever moved the chip or made VEGA speak may change the Journal too
     }
 
     /// <summary>
@@ -108,45 +110,60 @@ public sealed partial class GameServer
     /// </summary>
     private VegaChip LiveVegaChip(PlayerSession session)
     {
-        var p = session.State;
         bool tutorialActive = TutorialPackRunning(session);
+        foreach (var chip in ChipCandidates(session, tutorialActive))
+        {
+            return chip; // the first match of the order (lazy: the later ranks are not evaluated)
+        }
 
+        return new VegaChip(string.Empty, string.Empty, 0, 0, ObjectiveSources.None, tutorialActive);
+    }
+
+    /// <summary>The player's objectives in the chip order of synthesis §5.3 (see <see cref="LiveVegaChip"/>): the first is
+    /// the chip; the Journal's <see cref="ObjectiveList"/> takes the first row of each story from the rest (#2471). A story
+    /// may come up more than once (a pin repeats its own rank). Lazy, so the chip alone costs what it always did.</summary>
+    private IEnumerable<VegaChip> ChipCandidates(PlayerSession session, bool tutorialActive)
+    {
+        var p = session.State;
         if (FinaleObjectiveOverridesTutorial(p))
         {
-            return StoryChip(session, tutorialActive);
+            yield return StoryChip(session, tutorialActive);
         }
 
         if (p.TrackedStoryId.Length > 0 && PinnedChip(session, tutorialActive) is { } pinned)
         {
-            return pinned;
+            yield return pinned;
         }
 
         if (BasicTrainingObjective(session) is { } basic)
         {
-            return PackChip(basic, tutorialActive);
+            yield return PackChip(basic, tutorialActive);
         }
 
         // Ranks 4/5 only once the player's story track has started (#2470): before that the story is held for them — the
         // chip never shows the story during the prologue, a read step's line or the gap between two lessons.
         if (StoryTrackStarted(session) && StoryObjectiveKey(p).Length > 0)
         {
-            return StoryChip(session, tutorialActive);
+            yield return StoryChip(session, tutorialActive);
         }
 
         if (DeepDiveObjective(session) is { } deepDive)
         {
-            return PackChip(deepDive, tutorialActive);
+            yield return PackChip(deepDive, tutorialActive);
         }
 
-        if (OtherPackObjective(session) is { } other)
+        // Rank 7: the other player packs by priority (the chip takes the first; the list goes on to the others).
+        foreach (var pack in PlayerPacks)
         {
-            return PackChip(other, tutorialActive);
+            if (!pack.IsTutorial && PackObjectiveOf(session, pack) is { } other)
+            {
+                yield return PackChip(other, tutorialActive);
+            }
         }
-
-        return new VegaChip(string.Empty, string.Empty, 0, 0, ObjectiveSources.None, tutorialActive);
     }
 
-    /// <summary>The world story's chip (#1110): the finale or the current lead, the arc's score as its counter.</summary>
+    /// <summary>The world story's chip (#1110): the finale or the current lead, the arc's score as its counter. Carries the
+    /// story's id as its pack (#2471: the client labels it with the story's short name, "VEGA: …").</summary>
     private VegaChip StoryChip(PlayerSession session, bool tutorialActive)
     {
         var p = session.State;
@@ -160,7 +177,7 @@ public sealed partial class GameServer
         int target = _story is { Beats.Count: > 0 } d ? d.Beats[d.Beats.Count - 1].Threshold : 0;
         int progress = _story is not null ? StoryEngine.Progress(_story, _storyState, Rules.StoryProgressScale) : 0;
         string source = key == StoryFinaleObjectiveKey ? ObjectiveSources.Finale : ObjectiveSources.Story;
-        return new VegaChip(key, arg, progress, target, source, tutorialActive);
+        return new VegaChip(key, arg, progress, target, source, tutorialActive, _story?.Id ?? string.Empty);
     }
 
     /// <summary>The pinned story's chip, or null when it has no objective now (the order then goes on).</summary>
@@ -178,7 +195,7 @@ public sealed partial class GameServer
     }
 
     private static VegaChip PackChip(PackObjective objective, bool tutorialActive)
-        => new(objective.Key, string.Empty, objective.Progress, objective.Target, objective.Source, tutorialActive, objective.PackId);
+        => new(objective.Key, string.Empty, objective.Progress, objective.Target, objective.Source, tutorialActive, objective.PackId, objective.StepId);
 
     /// <summary>Objective-chip-only update (no new speech) — e.g. the mining counter ticking up.</summary>
     private void SendVegaObjective(PlayerSession session)

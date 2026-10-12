@@ -25,6 +25,7 @@ public sealed class ChatHelpTextTests
         "ui.admin.help_inspect",
         "ui.admin.help_fleet",
         "ui.admin.help_story",
+        "ui.admin.help_tutorial", // #2471
         "ui.admin.help_maintenance",
         "ui.cmd.usage_give",
         "ui.cmd.usage_tpp",

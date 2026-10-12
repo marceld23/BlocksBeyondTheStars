@@ -506,15 +506,15 @@ public sealed partial class GameServer
     /// gets <paramref name="legacyKey"/> when the line has an old equivalent (a tutorial step with a legacy stage — no
     /// <c>Text</c>, it localizes and sets its own keys), else the line composed on the server in its language with
     /// device-neutral key words and an empty <c>LineKey</c> (synthesis §5.7: its <c>Text</c> path fills neither tokens
-    /// nor slots).</summary>
-    private void SendPackLine(PlayerSession s, CompiledPack pack, string key, string arg = "", string? legacyKey = null, byte kind = 0)
+    /// nor slots). <paramref name="waypointId"/> rides along as the line's space waypoint (#2471, the station marker).</summary>
+    private void SendPackLine(PlayerSession s, CompiledPack pack, string key, string arg = "", string? legacyKey = null, byte kind = 0, string waypointId = "")
     {
         if (string.IsNullOrEmpty(key) && string.IsNullOrEmpty(legacyKey))
         {
             return;
         }
 
-        var line = new ShipAiLine { Kind = kind, PackId = pack.Id, Speaker = pack.Narrator };
+        var line = new ShipAiLine { Kind = kind, PackId = pack.Id, Speaker = pack.Narrator, SpaceWaypointId = waypointId ?? string.Empty };
         if (s.SupportsPacks)
         {
             line.LineKey = key;
@@ -639,6 +639,7 @@ public sealed partial class GameServer
             return;
         }
 
+        MarkJournalDirty(s); // #2471
         if (pack.IsTutorial && m.Add(StoryLegacy.IntroMilestone) && !s.SupportsPacks)
         {
             foreach (string intro in StoryLegacy.IntroLines)
@@ -797,6 +798,7 @@ public sealed partial class GameServer
 
         s.StepEscalation[step.ProgressKey] = new StepEscalationState { Since = s.StoryPackPlaySeconds };
         _stepListenersDirty = true;
+        MarkJournalDirty(s); // #2471: a new task in the Journal
         if (step.IsMission && s.State.Missions.Any(m => m.MissionId == step.Args[0] && m.Status == Shared.Missions.MissionStatus.TurnedIn))
         {
             CompleteStep(s, step, silent: true);
@@ -804,14 +806,15 @@ public sealed partial class GameServer
         }
 
         // #2467: the chapter's opener when its first step is presented (not in a replay), then the step's own scene — both
-        // before the start line, so a client that plays them knows which lines they show.
+        // before the start line, so a client that plays them knows which lines they show. #2471: a step the player meets for
+        // the first time inside a replay (a running chapter restarted from the Journal) still gets its own scene.
         bool replay = ChapterReplaying(s, step.Chapter);
         if (s.PresentedPackChapters.Add(PresentedChapterKey(step.Chapter)) && !replay)
         {
             PlayBoundCutscene(s, step.Pack.Def, step.Chapter.Def.OpenCutscene, step.Chapter.Id);
         }
 
-        if (!replay)
+        if (!replay || !StepDoneOrSkipped(s, step))
         {
             PlayBoundCutscene(s, step.Pack.Def, step.Def.OnStart?.Cutscene, step.Id);
         }
@@ -834,13 +837,21 @@ public sealed partial class GameServer
 
     /// <summary>Stamps a step done (a replay: done again in this replay) — the legacy stage of a tutorial step is written
     /// next to it for older builds — removes its counter and, unless <paramref name="silent"/>, speaks its done line.
-    /// The chapter's earlier read steps that are still waiting for "continue" complete with it.</summary>
+    /// The chapter's earlier read steps that are still waiting for "continue" complete with it. A step done for the first
+    /// time inside a replay (#2471: a running chapter restarted from the Journal, an open extra finished in a replay) is
+    /// stamped done as well — the replay key alone would vanish with the replay.</summary>
     private void CompleteStep(PlayerSession s, CompiledStep step, bool silent)
     {
         var m = MilestonesOf(s);
         bool replay = ChapterReplaying(s, step.Chapter);
+        bool first = !StepDoneOrSkipped(s, step);
         m.Add(replay ? StoryPackKeys.StepReplay(step.Pack.Id, step.Id) : StoryPackKeys.StepDone(step.Pack.Id, step.Id));
-        if (!replay && step.Pack.IsTutorial && !string.IsNullOrEmpty(step.Def.LegacyKey))
+        if (replay && first)
+        {
+            m.Add(StoryPackKeys.StepDone(step.Pack.Id, step.Id));
+        }
+
+        if ((!replay || first) && step.Pack.IsTutorial && !string.IsNullOrEmpty(step.Def.LegacyKey))
         {
             m.Add(step.Def.LegacyKey); // double-write (synthesis §5.3): older builds keep their onboarding state
         }
@@ -848,6 +859,7 @@ public sealed partial class GameServer
         s.State.StepProgress.Remove(step.ProgressKey);
         s.StepEscalation.Remove(step.ProgressKey);
         _stepListenersDirty = true;
+        MarkJournalDirty(s);
 
         if (step.IsDo)
         {
@@ -860,7 +872,7 @@ public sealed partial class GameServer
         if (!silent)
         {
             s.PresentedPackChapters.Add(PresentedChapterKey(step.Chapter)); // the player did it: the chapter was shown
-            if (!replay)
+            if (!replay || first)
             {
                 PlayBoundCutscene(s, step.Pack.Def, step.Def.OnComplete?.Cutscene, step.Id); // #2467: before the lines
             }
@@ -882,8 +894,14 @@ public sealed partial class GameServer
     {
         var m = MilestonesOf(s);
         bool replay = ChapterReplaying(s, step.Chapter);
+        bool first = !StepDoneOrSkipped(s, step);
         m.Add(replay ? StoryPackKeys.StepReplay(step.Pack.Id, step.Id) : StoryPackKeys.StepSkipped(step.Pack.Id, step.Id));
-        if (!replay && step.Pack.IsTutorial && !string.IsNullOrEmpty(step.Def.LegacyKey))
+        if (replay && first)
+        {
+            m.Add(StoryPackKeys.StepSkipped(step.Pack.Id, step.Id)); // #2471: see CompleteStep
+        }
+
+        if ((!replay || first) && step.Pack.IsTutorial && !string.IsNullOrEmpty(step.Def.LegacyKey))
         {
             m.Add(step.Def.LegacyKey);
         }
@@ -894,6 +912,7 @@ public sealed partial class GameServer
         }
 
         s.StepEscalation.Remove(step.ProgressKey);
+        MarkJournalDirty(s);
         _repo.SavePlayer(s.State);
     }
 
@@ -901,12 +920,14 @@ public sealed partial class GameServer
     /// extras (CORE/OPT do steps) and armed react steps keep listening; waiting read steps complete. A chapter completed by
     /// play (not skipped, not <paramref name="silent"/> evidence) that finishes the pack's mandatory part graduates the
     /// player (#2469, <see cref="Graduate"/>) — at the end of a replay only when it is the last mandatory chapter (a full
-    /// restart), so replaying one early chapter does not.</summary>
+    /// restart), so replaying one early chapter does not. A chapter that was not through before its replay (#2471: a running
+    /// chapter restarted from the Journal) completes for real at the end of it.</summary>
     private void CompleteChapter(PlayerSession s, CompiledChapter ch, bool skipped, bool silent = false)
     {
         var m = MilestonesOf(s);
         string pack = ch.Pack.Id;
         bool replay = ChapterReplaying(s, ch);
+        bool first = !ChapterDoneOrSkipped(s, ch);
         if (replay)
         {
             m.Remove(StoryPackKeys.ChapterReplay(pack, ch.Id));
@@ -915,10 +936,13 @@ public sealed partial class GameServer
                 m.Remove(StoryPackKeys.StepReplay(pack, step.Id));
             }
         }
-        else
+
+        if (!replay || first)
         {
             m.Add(skipped ? StoryPackKeys.ChapterSkipped(pack, ch.Id) : StoryPackKeys.ChapterDone(pack, ch.Id));
         }
+
+        MarkJournalDirty(s);
 
         m.Remove(StoryPackKeys.ChapterActive(pack, ch.Id));
         foreach (var step in ch.Steps)
@@ -938,13 +962,13 @@ public sealed partial class GameServer
         _repo.SavePlayer(s.State);
 
         // #2467: the closer only for a chapter the player was shown — not when skipped, replayed or completed silently.
-        if (!skipped && !replay && s.PresentedPackChapters.Contains(PresentedChapterKey(ch)))
+        if (!skipped && (!replay || first) && s.PresentedPackChapters.Contains(PresentedChapterKey(ch)))
         {
             PlayBoundCutscene(s, ch.Pack.Def, ch.Def.CloseCutscene, ch.Id);
         }
 
         if (!skipped && !silent && !ch.Optional
-            && (!replay || ch == ch.Pack.Chapters.LastOrDefault(c => !c.Optional))
+            && (!replay || first || ch == ch.Pack.Chapters.LastOrDefault(c => !c.Optional))
             && ch.Pack.Chapters.Where(c => !c.Optional).All(c => ChapterFinished(s, c)))
         {
             Graduate(s, ch.Pack);
@@ -981,6 +1005,7 @@ public sealed partial class GameServer
             }
         }
 
+        MarkJournalDirty(s); // #2471: the badge and the suggested chapters
         _repo.SavePlayer(s.State);
     }
 
@@ -995,6 +1020,7 @@ public sealed partial class GameServer
 
         var m = MilestonesOf(s);
         m.Add(StoryPackKeys.Done(pack.Id));
+        MarkJournalDirty(s); // #2471
         if (pack.IsTutorial)
         {
             WriteLegacyGraduation(s);
@@ -1195,7 +1221,7 @@ public sealed partial class GameServer
     private static readonly bool[] ChipChapterPasses = { false, true };
 
     /// <summary>A pack objective for the chip.</summary>
-    private readonly record struct PackObjective(string PackId, string Key, int Progress, int Target, string Source);
+    private readonly record struct PackObjective(string PackId, string Key, int Progress, int Target, string Source, string StepId = "");
 
     /// <summary>The step of a pack that owns the chip: the first active blocking do step of the first running chapter
     /// (non-optional chapters in order first, then optional ones), or null.</summary>
@@ -1263,7 +1289,7 @@ public sealed partial class GameServer
 
         string source = step.IsMission ? ObjectiveSources.Mission : pack.IsTutorial ? ObjectiveSources.Tutorial : ObjectiveSources.Story;
         s.State.StepProgress.TryGetValue(step.ProgressKey, out int count);
-        return new PackObjective(pack.Id, key, count, step.Required, source);
+        return new PackObjective(pack.Id, key, count, step.Required, source, step.Id);
     }
 
     /// <summary>Rank 3 of the chip order: a tutorial pack's mandatory part ("basic training").</summary>
@@ -1296,20 +1322,6 @@ public sealed partial class GameServer
             if (!pack.IsTutorial && PackObjectiveOf(s, pack) is { Source: ObjectiveSources.Mission } m)
             {
                 return m;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>Rank 7: the other player packs by priority.</summary>
-    private PackObjective? OtherPackObjective(PlayerSession s)
-    {
-        foreach (var pack in PlayerPacks)
-        {
-            if (!pack.IsTutorial && PackObjectiveOf(s, pack) is { } o)
-            {
-                return o;
             }
         }
 
@@ -1379,6 +1391,7 @@ public sealed partial class GameServer
 
             m.Add(StoryPackKeys.ChapterOffered(pack.Id, ch.Id));
             s.LastChapterOfferAt = s.StoryPackPlaySeconds;
+            MarkJournalDirty(s); // #2471: Start / Later in the Journal
             string title = string.IsNullOrEmpty(ch.Def.TitleKey) ? ch.Id : LocalizerFor(s.Locale).Get(ch.Def.TitleKey);
             SendPackLine(s, pack, ChapterOfferLine, title);
             _repo.SavePlayer(s.State);
@@ -1418,11 +1431,7 @@ public sealed partial class GameServer
         if (!esc.MarkerSent && markerAfter > 0 && open >= markerAfter && reveal.Length > 0)
         {
             esc.MarkerSent = true;
-            if (RevealTarget(s, reveal) is { } target)
-            {
-                RaisePrivatePing(s, target);
-                SendPackLine(s, step.Pack, StepMarkedLine);
-            }
+            MarkRevealTarget(s, step, reveal);
         }
 
         if (!esc.OfferSent && offerAfter > 0 && open >= offerAfter && step.Tier == StoryStepTiers.Must
@@ -1432,6 +1441,78 @@ public sealed partial class GameServer
             SendPackLine(s, step.Pack, StepOfferSkipLine);
         }
     }
+
+    /// <summary>The help marker of a "where" step: the nearest station becomes the client's space waypoint
+    /// (<see cref="StoryRevealProviders.NearestStation"/>, #2471 — in flight or still landed, so the dock lesson finally
+    /// points somewhere); every other provider pings a spot on the ground for this session only. Nothing found ⇒ no marker
+    /// and no line. Returns whether a marker went up.</summary>
+    private bool MarkRevealTarget(PlayerSession s, CompiledStep step, string reveal)
+    {
+        if (reveal == StoryRevealProviders.NearestStation)
+        {
+            if (NearestStationFor(s) is not { } station)
+            {
+                return false;
+            }
+
+            SendPackLine(s, step.Pack, StoryNarratorLines.StepMarkedStation, station.Name, waypointId: station.Id);
+            return true;
+        }
+
+        if (RevealTarget(s, reveal) is not { } target)
+        {
+            return false;
+        }
+
+        RaisePrivatePing(s, target);
+        SendPackLine(s, step.Pack, StepMarkedLine);
+        return true;
+    }
+
+    /// <summary>The station the dock lesson's marker points at (#2471): in flight the station contact of the player's own
+    /// orbit nearest to their ship; landed (or between instances) the first station of the system as seen from the body
+    /// they are on — the same list the step's <c>station_in_system</c> feasibility reads. Null when there is none.</summary>
+    private (string Id, string Name)? NearestStationFor(PlayerSession s)
+    {
+        string pid = s.State.PlayerId;
+        if (_playerInstance.TryGetValue(pid, out var instanceId) && _spaceInstances.TryGetValue(instanceId, out var instance))
+        {
+            var at = PilotPositionIn(instance, pid);
+            CombatEntity? best = null;
+            double bestSq = double.MaxValue;
+            foreach (var e in instance.Entities)
+            {
+                if (e.Kind != CombatEntityKind.SpaceStation)
+                {
+                    continue;
+                }
+
+                double dx = e.Position.X - at.X, dy = e.Position.Y - at.Y, dz = e.Position.Z - at.Z;
+                double d = (dx * dx) + (dy * dy) + (dz * dz);
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    best = e;
+                }
+            }
+
+            if (best is not null)
+            {
+                return (best.Id, string.IsNullOrEmpty(best.Name) ? best.Id : best.Name);
+            }
+        }
+
+        if (string.IsNullOrEmpty(s.CurrentLocationId))
+        {
+            return null;
+        }
+
+        var station = StationContactsForCurrentSystem(s.CurrentLocationId).FirstOrDefault();
+        return station is null ? null : (station.Id, station.Name);
+    }
+
+    /// <summary>Test seam: the station id the dock lesson's marker would point at for this player, or null.</summary>
+    internal string? NearestStationForTest(PlayerSession s) => NearestStationFor(s)?.Id;
 
     /// <summary>Where a marker provider points for this player, or null when nothing is in reach (then no ping — the
     /// hint line already said where to look). Reads the player's own world, which is the active cursor in the tick.</summary>

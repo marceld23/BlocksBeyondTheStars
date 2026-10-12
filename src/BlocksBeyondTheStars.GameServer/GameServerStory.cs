@@ -350,7 +350,10 @@ public sealed partial class GameServer
     /// the finale is open, the Guardian-system reveal (#2460, B10 — the only line that names the jump generator,
     /// which latecomers never got). Runs on join and when observer mode ends. Only for a player whose story track has
     /// started (#2470): before that everything is held, and the track start delivers it as one recap. Of the chapters the
-    /// world crossed meanwhile only the CURRENT chapter's opening plays (synthesis §5.3), not one scene per chapter.</summary>
+    /// world crossed meanwhile only the CURRENT chapter's opening plays (synthesis §5.3), not one scene per chapter. Since
+    /// #2471 (B09) a client with the Journal that missed <see cref="CatchUpCollapseThreshold"/> or more beats gets them
+    /// silently in its Journal (heard, knowledge credited, the story state re-sent) and ONE line saying so
+    /// (<see cref="StoryNarratorLines.JournalNews"/>) instead of a flood of lines; a single missed beat still speaks.</summary>
     private void CatchUpStoryLines(PlayerSession session)
     {
         if (_story is null || session.Spectating || !StoryTrackStarted(session))
@@ -358,11 +361,38 @@ public sealed partial class GameServer
             return;
         }
 
-        bool caughtUp = false;
+        var missed = new List<StoryBeat>();
         for (int i = 0; i < _storyState.BeatsRevealed && i < _story.Beats.Count; i++)
         {
-            caughtUp |= !session.State.Milestones.Contains(BeatMilestoneKey(_story.Beats[i]));
-            RevealBeatTo(session, _story.Beats[i], stage: false);
+            if (!session.State.Milestones.Contains(BeatMilestoneKey(_story.Beats[i])))
+            {
+                missed.Add(_story.Beats[i]);
+            }
+        }
+
+        bool caughtUp = missed.Count > 0;
+        if (session.SupportsPacks && missed.Count >= CatchUpCollapseThreshold)
+        {
+            foreach (var beat in missed)
+            {
+                MarkBeatHeard(session, beat, sendInventory: false);
+            }
+
+            if (missed.Any(b => b.KnowledgeReward > 0))
+            {
+                SendInventory(session); // the beats' knowledge, credited at once
+            }
+
+            _repo.SavePlayer(session.State);
+            SendStoryState(session); // the Journal's chapter list now holds the missed beats
+            SendVegaLine(session, StoryNarratorLines.JournalNews, 3, missed.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+        else
+        {
+            foreach (var beat in missed)
+            {
+                RevealBeatTo(session, beat, stage: false);
+            }
         }
 
         if (caughtUp && ChapterAt(TrackChapterIndex(session)) is { } current)
@@ -423,6 +453,7 @@ public sealed partial class GameServer
             WorldChapter = ChapterAt(WorldChapterIndex())?.Id ?? string.Empty,
             ShowCrewChapter = ShowCrewChapterFor(session),
             RelayInsightKeys = StoryTrackStarted(session) ? RelayInsightKeysSpoken() : System.Array.Empty<string>(),
+            NoteKeys = StoryTrackStarted(session) ? StoryNoteKeys(session) : System.Array.Empty<string>(), // #2471: the Journal's notes
         };
     }
 

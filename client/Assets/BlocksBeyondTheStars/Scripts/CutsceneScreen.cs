@@ -162,6 +162,35 @@ namespace BlocksBeyondTheStars.Client
 
         public bool ConsumeSkipClick() => _frame.ConsumeSkipClick();
 
+        /// <summary>#2471: a touch tap the touch layer's look pad caught first (it lies over this frame while a card plays with
+        /// the touch controls up): the skip button skips, the continue button, the speaker box and the reading frame turn the
+        /// page. Returns whether the tap hit one of them.</summary>
+        public bool TapAt(Vector2 screenPos)
+        {
+            if (!Visible)
+            {
+                return false;
+            }
+
+            if (_frame.TapSkip(screenPos))
+            {
+                return true;
+            }
+
+            if (Hit(_continue, screenPos) || Hit(_speaker, screenPos) || Hit(_reader, screenPos))
+            {
+                _continueClicked = true;
+                UiSound.Click();
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool Hit(Image target, Vector2 screenPos)
+            => target != null && target.raycastTarget && target.gameObject.activeInHierarchy
+               && RectTransformUtility.RectangleContainsScreenPoint(target.rectTransform, screenPos, null); // overlay canvas: no camera
+
         /// <summary>True once per click/tap on the continue button since the last call.</summary>
         public bool ConsumeContinueClick()
         {
