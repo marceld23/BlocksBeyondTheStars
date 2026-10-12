@@ -132,14 +132,112 @@ namespace BlocksBeyondTheStars.Client
         /// #2469 (E11, synthesis G12): the client-only VEGA lessons the basic training teaches itself in its flight steps —
         /// the chart, the ship scanner and holding its trigger, scanning an anomaly. While the tutorial runs for the player
         /// (<c>ShipAiLine.TutorialActive</c>) they are not spoken; the step lines carry them, per player on the server, so a
-        /// shared PC no longer decides who heard them. The other lessons (planet card, target lock, wormhole, climbing, the
-        /// bio lab, the pad/touch context list) stay client lessons until a deep-dive chapter covers them.
+        /// shared PC no longer decides who heard them. A deep-dive course covers a lesson through the step that names it in
+        /// its <c>hintRefs</c> (<see cref="LessonCoveredByStoryStep"/>, #2459): the planet card, target lock, wormhole,
+        /// climbing and bio-lab lessons; the pad/touch context list stays a client lesson.
         /// </summary>
         public static bool LessonCoveredByTutorial(string? lineKey) => lineKey switch
         {
             "vega.hint.chart_waypoint" or "vega.hint.ship_scanner" or "vega.hint.ship_scan_hold" or "vega.hint.anomaly_scan" => true,
             _ => false,
         };
+
+        /// <summary>The prefix of a VEGA hint's line key; the rest is the hint id a step names in its <c>hintRefs</c>.</summary>
+        private const string HintKeyPrefix = "vega.hint.";
+
+        /// <summary>
+        /// #2459 (G12, one teaching voice): whether a client-only lesson (<c>vega.hint.&lt;id&gt;</c>, spoken by the client's
+        /// VEGA panel) is a story step's to teach right now — a chapter of a player pack runs or is replayed for this player
+        /// (<paramref name="states"/>, the server's Journal view) and one of its steps names the lesson in its <c>hintRefs</c>
+        /// (<paramref name="packs"/>, this client's copy of the packs) and is active or still ahead: the pilot course's chart,
+        /// planet-scan and target-lock steps, the navigator's wormhole, the climbing step, the bio lab. A step the chapter
+        /// already passed (done or skipped — it stands before the chapter's first active step) no longer covers it; with no
+        /// active step known the whole running chapter does. Optional chapters only offered, not started, cover nothing — the
+        /// lesson is then the only teaching. False for an older server (no states) and for a key that is no VEGA hint.
+        /// </summary>
+        public static bool LessonCoveredByStoryStep(
+            string? lineKey,
+            BlocksBeyondTheStars.Networking.Messages.StoryPackStates? states,
+            IEnumerable<BlocksBeyondTheStars.Shared.Story.StoryDefinition>? packs)
+        {
+            if (lineKey is null || !lineKey.StartsWith(HintKeyPrefix, StringComparison.Ordinal) || states?.Packs is null || packs is null)
+            {
+                return false;
+            }
+
+            string id = lineKey.Substring(HintKeyPrefix.Length);
+            foreach (var net in states.Packs)
+            {
+                if (net?.Chapters is null)
+                {
+                    continue;
+                }
+
+                BlocksBeyondTheStars.Shared.Story.StoryDefinition? def = null;
+                foreach (var pack in packs)
+                {
+                    if (pack != null && string.Equals(pack.Id, net.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        def = pack;
+                        break;
+                    }
+                }
+
+                if (def is null)
+                {
+                    continue;
+                }
+
+                foreach (var chapter in net.Chapters)
+                {
+                    if (chapter is null
+                        || (chapter.State != BlocksBeyondTheStars.Networking.Messages.StoryChapterStates.Active
+                            && chapter.State != BlocksBeyondTheStars.Networking.Messages.StoryChapterStates.Replay))
+                    {
+                        continue;
+                    }
+
+                    var chapterDef = def.Chapters.Find(c => string.Equals(c.Id, chapter.Id, StringComparison.Ordinal));
+                    if (chapterDef != null && ChapterStepAheadNames(chapterDef, net.Steps, id))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Whether a step of a running chapter at or after its first active step names the hint id.</summary>
+        private static bool ChapterStepAheadNames(
+            BlocksBeyondTheStars.Shared.Story.StoryChapter chapter,
+            BlocksBeyondTheStars.Networking.Messages.NetStoryStep[]? active,
+            string hintId)
+        {
+            int firstActive = -1;
+            for (int i = 0; i < chapter.Steps.Count && firstActive < 0; i++)
+            {
+                foreach (var step in active ?? Array.Empty<BlocksBeyondTheStars.Networking.Messages.NetStoryStep>())
+                {
+                    if (step != null && string.Equals(step.ChapterId, chapter.Id, StringComparison.Ordinal)
+                        && string.Equals(step.Id, chapter.Steps[i].Id, StringComparison.Ordinal))
+                    {
+                        firstActive = i;
+                        break;
+                    }
+                }
+            }
+
+            for (int i = Math.Max(0, firstActive); i < chapter.Steps.Count; i++)
+            {
+                if (chapter.Steps[i].HintRefs is { } refs && refs.Contains(hintId))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
 
         /// <summary>#2471: lines that point at the Journal (or set a target) rather than say something worth re-reading — they
         /// are shown, but never kept in VEGA's notes: the join's "N new entries in your Journal" (B09) and the dock lesson's

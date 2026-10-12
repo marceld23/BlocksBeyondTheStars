@@ -845,7 +845,7 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (!replay && StepAlreadyDone(s, step))
+                if (replay ? StepSpentForReplay(s, step) : StepAlreadyDone(s, step))
                 {
                     CompleteStep(s, step, silent: true);
                     changed = true;
@@ -884,6 +884,14 @@ public sealed partial class GameServer
     private bool StepAlreadyDone(PlayerSession s, CompiledStep step)
         => (step.AlreadyDoneIf is not null && EvaluateStoryCondition(step.AlreadyDoneIf, s))
            || (step.IsLeadBridge && LeadBridgeEvidence(s, step));
+
+    /// <summary>#2459: a step a replay cannot ask for again — research when every blueprint it names is known already (the
+    /// tech tree never researches a blueprint twice). A replay walks every step anew and ignores <c>alreadyDoneIf</c>, so such
+    /// a step held the replayed course (the jump drive's research in Navigator, the Crystal Net blueprint in the Crystal
+    /// workshop) until the player skipped it; it now passes silently, like a bridged mission already turned in.</summary>
+    private static bool StepSpentForReplay(PlayerSession s, CompiledStep step)
+        => step.Event == GameEventKeys.ResearchAny && step.Args.Length > 0
+           && step.Args.All(blueprint => s.State.UnlockedBlueprints.Contains(blueprint));
 
     /// <summary>Whether a mission bridge's mission is turned in already (a bridged step then completes at once, silently).</summary>
     private static bool BridgedMissionTurnedIn(PlayerSession s, CompiledStep step)
@@ -1526,11 +1534,31 @@ public sealed partial class GameServer
     /// run), at most one offer per <see cref="ChapterOfferGapSeconds"/>.</summary>
     private void OfferChapters(PlayerSession s, CompiledPack pack)
     {
+        if (DueOffer(s, pack) is not { } ch)
+        {
+            return;
+        }
+
+        MilestonesOf(s).Add(StoryPackKeys.ChapterOffered(pack.Id, ch.Id));
+        s.LastChapterOfferAt = s.StoryPackPlaySeconds;
+        MarkJournalDirty(s); // #2471: Start / Later in the Journal
+        MarkTipsToldByOffer(s, ch); // #2459: the tip of this moment is the offer — it does not follow it
+        string title = string.IsNullOrEmpty(ch.Def.TitleKey) ? ch.Id : LocalizerFor(s.Locale).Get(ch.Def.TitleKey);
+        SendPackLine(s, pack, ChapterOfferLine, title);
+        _repo.SavePlayer(s.State);
+    }
+
+    /// <summary>The optional chapter of this pack an offer pass would offer the player now (the first in pack order whose
+    /// moment holds — one offer at a time), or null: the pack must run, its mandatory chapters be through, the last offer
+    /// be <see cref="ChapterOfferGapSeconds"/> ago, and the chapter not done, offered, put off or running, admitted
+    /// (<c>requires</c>), visible, at its moment (<c>offerWhen</c>) and not through by evidence.</summary>
+    private CompiledChapter? DueOffer(PlayerSession s, CompiledPack pack)
+    {
         if (!PackRunsFor(s, pack) || (pack.IsTutorial && !s.SupportsPacks)
             || s.StoryPackPlaySeconds - s.LastChapterOfferAt < ChapterOfferGapSeconds
             || !pack.Chapters.Where(c => !c.Optional).All(c => ChapterFinished(s, c)))
         {
-            return;
+            return null;
         }
 
         var m = MilestonesOf(s);
@@ -1549,14 +1577,10 @@ public sealed partial class GameServer
                 continue;
             }
 
-            m.Add(StoryPackKeys.ChapterOffered(pack.Id, ch.Id));
-            s.LastChapterOfferAt = s.StoryPackPlaySeconds;
-            MarkJournalDirty(s); // #2471: Start / Later in the Journal
-            string title = string.IsNullOrEmpty(ch.Def.TitleKey) ? ch.Id : LocalizerFor(s.Locale).Get(ch.Def.TitleKey);
-            SendPackLine(s, pack, ChapterOfferLine, title);
-            _repo.SavePlayer(s.State);
-            return; // one offer at a time
+            return ch;
         }
+
+        return null;
     }
 
     /// <summary>The help escalation of one chip step on active play time (synthesis §3.1): after <c>hintAfter</c> the hint

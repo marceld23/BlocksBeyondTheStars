@@ -1151,7 +1151,10 @@ players.
   "Short course" card and ends with the "Part complete!" banner; your docking in the stations course ("Docked — …") and your
   first hyperjump in the navigator course ("New system — …") get a short card of their own, your first base and your first
   own ship a short look from outside ("Your home", "Your own ship"), your first working circuit and your first tamed
-  animal a banner. You can skip a step or the whole course in the Journal. Like the training they pay nothing.
+  animal a banner. You can skip a step or the whole course in the Journal. Like the training they pay nothing. When a
+  course fits the moment, VEGA's offer *is* her tip — she does not explain the data cache, the hard rock or the new Crystal
+  Net first and then offer the course too; and while you take a course, the quick explanations it gives itself (the planet
+  card, climbing, wormholes, the bio lab's tabs, the flight chart …) do not pop up a second time.
   - **Workshop and titanium** (suggested when you finish the training, and offered when your drill bounces off rock that is
     too hard): why titanium ore is out of reach at first, swapping iron ore for titanium ore at your ship's trade console
     (5 for 1), a forge (6 stone, 4 iron plates — no blueprint needed) and your first titanium plate smelted at it.

@@ -787,7 +787,11 @@ mandatory chapter (a full restart). Skips (`SkipPack`, `SkipChapter`, the admin'
 
 **One teaching voice** (#2469, G12). A step's `hintRefs` hold VEGA's matching once-hints (`ShipAiHintOnce`) and context
 tips (`TickVegaContextTips`) through `HintHeldByTutorial`, and `SpeakStepStart` books them as told
-(`MarkHintsToldByStep`); details in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#one-teaching-voice-g12).
+(`MarkHintsToldByStep`); since #2459 the client keeps its own lessons (`VegaPanel.SayLocal`) quiet while a running chapter's
+step that names them is active or ahead (`VegaText.LessonCoveredByStoryStep`), and a course offer due at a tip's moment —
+or made a moment ago — stands in for the hints and tips the course names ("the tip becomes the offer": `OfferAbsorbsHint`,
+`RecentOfferTeaches`, `MarkTipsToldByOffer`; never a safety tip); details in
+[TUTORIAL_PACK.md](TUTORIAL_PACK.md#one-teaching-voice-g12).
 
 **The chip** (synthesis §5.3, `LiveVegaChip`, still the one fill point `SendVegaWithObjective`): 1 the finale while in the
 Guardian system (beats even a pin) → 2 the pinned story (`PlayerState.TrackedStoryId`, `StoryPackIntent{track|untrack}`;

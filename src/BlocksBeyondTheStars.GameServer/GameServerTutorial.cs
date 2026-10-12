@@ -436,35 +436,134 @@ public sealed partial class GameServer
             return;
         }
 
-        var p = s.State;
         foreach (string hint in refs)
         {
-            if (string.IsNullOrWhiteSpace(hint))
+            if (!string.IsNullOrWhiteSpace(hint))
             {
-                continue;
-            }
-
-            if (VegaTips.TryGetValue(hint, out var spec))
-            {
-                if (VegaTipCount(p, hint) == 0)
-                {
-                    p.Milestones.Add("vega:hint:" + hint);
-                }
-
-                s.VegaTipCooldownUntil[hint] = _uptime + spec.Cooldown;
-                s.VegaTipSince.Remove(hint);
-                if (hint == "tier_gate")
-                {
-                    s.VegaTierGateBlock = string.Empty;
-                    s.VegaTierGateTool = string.Empty;
-                }
-            }
-            else
-            {
-                p.Milestones.Add("vega:hint:" + hint);
+                BookHintAsTold(s, hint);
             }
         }
     }
+
+    /// <summary>One hint or tip counts as told without VEGA saying it: a once-hint's flag is burned; a context tip's first
+    /// telling is booked and its cooldown starts (the tool-tier tip also forgets the swing that armed it). An id the server
+    /// does not speak itself (a client-only lesson a step names, #2459) is booked like a once-hint — harmless, and the tips log
+    /// lists the lesson.</summary>
+    private void BookHintAsTold(PlayerSession s, string hint)
+    {
+        var p = s.State;
+        if (VegaTips.TryGetValue(hint, out var spec))
+        {
+            if (VegaTipCount(p, hint) == 0)
+            {
+                p.Milestones.Add("vega:hint:" + hint);
+            }
+
+            s.VegaTipCooldownUntil[hint] = _uptime + spec.Cooldown;
+            s.VegaTipSince.Remove(hint);
+            if (hint == "tier_gate")
+            {
+                s.VegaTierGateBlock = string.Empty;
+                s.VegaTierGateTool = string.Empty;
+            }
+        }
+        else
+        {
+            p.Milestones.Add("vega:hint:" + hint);
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // "The tip becomes the offer" (#2459, synthesis §4.3): at a deep dive's moment VEGA offers the course, not the tip first.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>Seconds of play after a course offer in which a tip the course teaches counts as told by the offer (the
+    /// tool-tier wall's tip is armed by the same swing that makes the offer due; the place tips have a dwell of 3–5 s).</summary>
+    internal const double OfferTipWindowSeconds = 10.0;
+
+    /// <summary>Whether a hint or tip VEGA is about to say stands at the moment a course is due to be offered and the course
+    /// teaches it (one of the due chapter's steps names it in <c>hintRefs</c>): the offer line comes on the next 1 Hz pass
+    /// instead — VEGA's data cache, factory, settlement, animal, ruin, treasure or wreck tip, the tool-tier wall, the bio
+    /// lab or the comm radio's Crystal Net line would otherwise come a second before "New short course: …" and say half of
+    /// it twice. Cheap: a hint no step names returns at once, the due offer is checked only then.</summary>
+    private bool OfferAbsorbsHint(PlayerSession s, string hintId)
+        => PlayerPacks.Count > 0 && StepsByHint.ContainsKey(hintId) && DueChapterOffer(s) is { } due && ChapterTeachesHint(due, hintId);
+
+    /// <summary>Whether VEGA offered a course that teaches this hint or tip within the last <see cref="OfferTipWindowSeconds"/>
+    /// — the offer was its telling (the offer pass runs before the tips pass, so a tip armed by the same moment comes up
+    /// right after it).</summary>
+    private bool RecentOfferTeaches(PlayerSession s, string hintId)
+    {
+        if (s.RecentChapterOfferKey.Length == 0 || s.StoryPackPlaySeconds - s.RecentChapterOfferAt > OfferTipWindowSeconds
+            || PlayerPacks.Count == 0 || !StepsByHint.ContainsKey(hintId))
+        {
+            return false;
+        }
+
+        foreach (var pack in PlayerPacks)
+        {
+            foreach (var ch in pack.Chapters)
+            {
+                if (PresentedChapterKey(ch) == s.RecentChapterOfferKey)
+                {
+                    return ChapterTeachesHint(ch, hintId);
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>A once-hint stands in a course offer's moment (due now, or made a moment ago) — the offer tells it.</summary>
+    private bool OfferTellsHint(PlayerSession s, string hintId) => OfferAbsorbsHint(s, hintId) || RecentOfferTeaches(s, hintId);
+
+    /// <summary>The optional chapter the next offer pass would offer this player (<see cref="OfferChapters"/> walks the packs
+    /// in this order and offers one at a time), or null when none is due.</summary>
+    private CompiledChapter? DueChapterOffer(PlayerSession s)
+    {
+        foreach (var pack in PlayerPacks)
+        {
+            if (DueOffer(s, pack) is { } due)
+            {
+                return due;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool ChapterTeachesHint(CompiledChapter ch, string hintId)
+        => ch.Steps.Any(step => step.Def.HintRefs is { } refs && refs.Contains(hintId));
+
+    /// <summary>A course was offered: it is remembered as the recent offer (<see cref="RecentOfferTeaches"/>), and the
+    /// context tips of the moment it stands in for (tips the course teaches whose situation held on the last tip pass) count
+    /// as told — the first telling booked, the cooldown started — while the offer takes the tips' cadence slot, so no tip
+    /// follows the offer line a few seconds later. A safety tip (the hull, the air …) is never folded into an offer.</summary>
+    private void MarkTipsToldByOffer(PlayerSession s, CompiledChapter ch)
+    {
+        s.RecentChapterOfferKey = PresentedChapterKey(ch);
+        s.RecentChapterOfferAt = s.StoryPackPlaySeconds;
+        bool booked = false;
+        foreach (var step in ch.Steps)
+        {
+            foreach (string hint in step.Def.HintRefs ?? new List<string>())
+            {
+                if (VegaTips.TryGetValue(hint, out var spec) && spec.Priority != VegaTipPriority.Safety && s.VegaTipLive.Contains(hint))
+                {
+                    BookHintAsTold(s, hint);
+                    booked = true;
+                }
+            }
+        }
+
+        if (booked)
+        {
+            s.VegaTipReadyAt = Math.Max(s.VegaTipReadyAt, _uptime + VegaTipGap);
+        }
+    }
+
+    /// <summary>Test seam: <see cref="OfferAbsorbsHint"/>.</summary>
+    internal bool OfferAbsorbsHintForTest(PlayerSession s, string hintId) => OfferAbsorbsHint(s, hintId);
 
     // ---------------------------------------------------------------------------------------------
     // The one-time migration of the old onboarding chain (synthesis §3.8, d1 §6.2).

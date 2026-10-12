@@ -347,7 +347,9 @@ public sealed class StoryStep
     /// <summary>#2469 (synthesis G12, "one teaching voice"): VEGA's advisor hints and context tips this step teaches
     /// itself (<c>vega:hint:&lt;id&gt;</c> ids such as <c>invfull</c>, <c>lamp_off</c>). While the step is still ahead of the
     /// player in a running pack they stay quiet; when the step's own line is shown they count as told; a step that is
-    /// skipped gives them back. Empty = none.</summary>
+    /// skipped gives them back. #2459: a client-only lesson the step teaches (<c>climb</c>, <c>planet_card</c> …) is named
+    /// here too — the client keeps it quiet while the step's chapter runs with the step active or ahead — and an optional
+    /// chapter's offer stands in for the hints and tips its steps name ("the tip becomes the offer"). Empty = none.</summary>
     public List<string> HintRefs { get; set; } = new();
 }
 

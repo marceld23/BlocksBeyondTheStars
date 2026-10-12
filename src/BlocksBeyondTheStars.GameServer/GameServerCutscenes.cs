@@ -7,6 +7,7 @@ using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Localization;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -98,7 +99,8 @@ public sealed partial class GameServer
     /// <summary>
     /// Plays a pack's cutscene for one player. <paramref name="cutsceneId"/> is a definition id, an instance id
     /// (<c>id@owner</c>) or <see cref="StoryCutsceneIds.Recap"/>; <paramref name="arg"/> fills the captions' <c>{0}</c>;
-    /// <paramref name="anchor"/> is the <c>custom</c> anchor. A first play commits the scene to the ledger and sends or
+    /// <paramref name="anchor"/> is the <c>custom</c> anchor (saved with the promise, so a re-offer at the join keeps it —
+    /// #2459). A first play commits the scene to the ledger and sends or
     /// queues it (cooldown, client not in the world yet); a scene the player was already shown or is still owed is not
     /// played again. <paramref name="replay"/> re-sends at once without touching the ledger. Returns true when the scene
     /// was sent or queued for the player's client.
@@ -160,6 +162,18 @@ public sealed partial class GameServer
         }
 
         m.Add(StoryPackKeys.CutsceneSent(pack.Id, cutsceneId));
+        if (anchor is { } at)
+        {
+            // #2459: the place goes into the save with the promise, so a scene re-offered at the next join frames it again.
+            session.State.CutsceneAnchors[CutsceneAnchorKey(pack.Id, cutsceneId)] = new CutsceneAnchor
+            {
+                LocationId = session.CurrentLocationId ?? string.Empty,
+                X = at.X,
+                Y = at.Y,
+                Z = at.Z,
+            };
+        }
+
         _repo.SavePlayer(session.State);
         EnqueueCutscene(session, new PendingCutscene(pack.Id, cutsceneId, def!.Tier, arg, anchor, def.Options?.CooldownExempt ?? false));
         FlushCutscenes(session);
@@ -203,13 +217,33 @@ public sealed partial class GameServer
 
     private static bool IsInstance(string id) => id.IndexOf(StoryCutsceneIds.InstanceSeparator) >= 0;
 
+    /// <summary>The key of an owed scene's stored anchor (<see cref="PlayerState.CutsceneAnchors"/>): <c>&lt;pack&gt;/&lt;id&gt;</c>.</summary>
+    private static string CutsceneAnchorKey(string packId, string id) => packId + StoryCutsceneIds.PackSeparator + id;
+
+    /// <summary>#2459: the anchor a scene was committed with, for its re-offer at the join — only while the player is on the
+    /// world it was taken on (anywhere else the client frames the player instead). Null when none was stored.</summary>
+    private static Vector3f? StoredCutsceneAnchor(PlayerSession session, string packId, string id)
+        => session.State.CutsceneAnchors.TryGetValue(CutsceneAnchorKey(packId, id), out var at)
+           && string.Equals(at.LocationId, session.CurrentLocationId ?? string.Empty, StringComparison.Ordinal)
+            ? new Vector3f(at.X, at.Y, at.Z)
+            : null;
+
+    /// <summary>Stamps a scene seen (the receipt, a stale opener dropped, the join's clean-up) and forgets its stored anchor.
+    /// Returns whether anything changed (the caller saves).</summary>
+    private static bool MarkCutsceneSeen(PlayerSession session, string packId, string id)
+    {
+        bool changed = session.State.Milestones.Add(StoryPackKeys.CutsceneSeen(packId, id));
+        return session.State.CutsceneAnchors.Remove(CutsceneAnchorKey(packId, id)) || changed;
+    }
+
     /// <summary>#2478: a scene the pack binds to a finale stage (<see cref="StoryFinaleBinding.Cutscenes"/>).</summary>
     private static bool IsFinaleScene(StoryDefinition pack, CutsceneDefinition def)
         => pack.Finale?.Cutscenes is { } bindings && bindings.ContainsValue(def.Id);
 
     /// <summary>#2478: the place a re-offered finale scene of the world story frames — the shaft mouth for the descent, the
-    /// core column for the breach (the queue and its anchors are lost with the session; the places are not). Null for every
-    /// other scene, or while the core world is not loaded.</summary>
+    /// core column for the breach. Since #2459 the anchor a scene was committed with is saved with it
+    /// (<see cref="StoredCutsceneAnchor"/>); this recomputed place is the fallback for a promise from an older save, used only
+    /// while the player is on the core world. Null for every other scene, or while the core world is not loaded.</summary>
     private Vector3f? FinaleAnchorFor(StoryDefinition pack, CutsceneDefinition def)
     {
         if (_story is null || !string.Equals(pack.Id, _story.Id, StringComparison.Ordinal))
@@ -283,7 +317,7 @@ public sealed partial class GameServer
                     // #2473: a part card that waited behind the cooldown while its part went by is pointless now — it is
                     // dropped and stamped seen (as the client does with a scene that found no moment); lines it held go out.
                     session.CutsceneQueue.RemoveAt(i--);
-                    dropped |= session.State.Milestones.Add(StoryPackKeys.CutsceneSeen(item.PackId, item.Id));
+                    dropped |= MarkCutsceneSeen(session, item.PackId, item.Id);
                     ReleaseHeldLines(session, item);
                     continue;
                 }
@@ -468,7 +502,6 @@ public sealed partial class GameServer
             return;
         }
 
-        var m = session.State.Milestones;
         bool changed = false;
         foreach (string id in intent.Ids.Take(MaxSeenIdsPerReceipt))
         {
@@ -477,7 +510,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            changed |= m.Add(StoryPackKeys.CutsceneSeen(pack.Id, id));
+            changed |= MarkCutsceneSeen(session, pack.Id, id);
             foreach (var queued in session.CutsceneQueue.Where(q => q.PackId == pack.Id && q.Id == id).ToList())
             {
                 session.CutsceneQueue.Remove(queued);
@@ -510,8 +543,9 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>The join hook (before anything of the join can commit a new scene): every scene committed in an earlier
-    /// session but never confirmed is queued again — it goes out once the client is in the world, spaced by the cooldown.
-    /// A world story's backlog of <see cref="CutsceneRecapThreshold"/> or more chapter scenes becomes ONE recap card with
+    /// session but never confirmed is queued again — it goes out once the client is in the world, spaced by the cooldown,
+    /// with the <c>custom</c> anchor it was committed with when the player is back on that world (#2459). A world story's
+    /// backlog of <see cref="CutsceneRecapThreshold"/> or more chapter scenes becomes ONE recap card with
     /// those chapters' titles (the scenes are stamped seen; the Story tab replays them). A client without
     /// <c>cutscenes1</c> gets them stamped seen; a scene its pack no longer defines is dropped (stamped seen); a pack that is
     /// not installed here, or not enabled for the player (opted out, the world story switched off), keeps its promise.</summary>
@@ -533,7 +567,17 @@ public sealed partial class GameServer
         }
 
         bool changed = false;
-        foreach (var group in owed.GroupBy(o => o.Pack, StringComparer.Ordinal))
+
+        // #2459: the packs in a fixed order — the world story first (its prologue is the cold open and chains into the
+        // tutorial's welcome card), then by priority and id — never the save's hash-set order, which could queue the welcome
+        // first and leave the cold open waiting out the cooldown behind it.
+        var groups = owed
+            .GroupBy(o => o.Pack, StringComparer.Ordinal)
+            .OrderBy(g => _content.Stories.TryGetValue(g.Key, out var p)
+                          && string.Equals(StoryRegistry.EffectiveScope(p), StoryRegistry.ScopeWorld, StringComparison.Ordinal) ? 0 : 1)
+            .ThenByDescending(g => _content.Stories.TryGetValue(g.Key, out var p) ? p.Priority : 0)
+            .ThenBy(g => g.Key, StringComparer.Ordinal);
+        foreach (var group in groups)
         {
             if (!_content.Stories.TryGetValue(group.Key, out var pack) || !StoryPackEnabledFor(session, pack.Id))
             {
@@ -549,7 +593,7 @@ public sealed partial class GameServer
                 }
                 else
                 {
-                    changed |= m.Add(StoryPackKeys.CutsceneSeen(group.Key, id)); // removed by an update: nothing left to show
+                    changed |= MarkCutsceneSeen(session, group.Key, id); // removed by an update: nothing left to show
                 }
             }
 
@@ -557,7 +601,7 @@ public sealed partial class GameServer
             {
                 foreach (var (id, _) in scenes)
                 {
-                    changed |= m.Add(StoryPackKeys.CutsceneSeen(group.Key, id));
+                    changed |= MarkCutsceneSeen(session, group.Key, id);
                 }
 
                 continue;
@@ -587,7 +631,7 @@ public sealed partial class GameServer
                         .ToList();
                     foreach (var (id, _) in chapterScenes)
                     {
-                        m.Add(StoryPackKeys.CutsceneSeen(pack.Id, id));
+                        MarkCutsceneSeen(session, pack.Id, id);
                     }
 
                     changed = true;
@@ -600,7 +644,8 @@ public sealed partial class GameServer
             foreach (var (id, def) in scenes)
             {
                 EnqueueCutscene(session, new PendingCutscene(pack.Id, id, def.Tier, CutsceneArgOf(session, pack, def, id),
-                    FinaleAnchorFor(pack, def), def.Options?.CooldownExempt ?? false));
+                    StoredCutsceneAnchor(session, pack.Id, id) ?? (OnGuardianCoreWorld(session) ? FinaleAnchorFor(pack, def) : null),
+                    def.Options?.CooldownExempt ?? false));
             }
         }
 

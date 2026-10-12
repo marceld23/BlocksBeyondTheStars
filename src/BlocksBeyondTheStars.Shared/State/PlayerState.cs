@@ -257,6 +257,12 @@ public sealed class PlayerState
     /// order of synthesis §5.3). Persisted additively like <see cref="StepProgress"/>.</summary>
     public string TrackedStoryId { get; set; } = string.Empty;
 
+    /// <summary>The <c>custom</c> anchors of the cutscenes committed to this player but not confirmed yet (#2459): key
+    /// <c>&lt;pack&gt;/&lt;id&gt;</c> (the ledger's id, an instance id for a template). A scene re-offered at the next join
+    /// frames the same place again; the entry goes when the scene is confirmed. Persisted additively like
+    /// <see cref="StepProgress"/>.</summary>
+    public Dictionary<string, CutsceneAnchor> CutsceneAnchors { get; set; } = new(StringComparer.Ordinal);
+
     /// <summary>Celestial bodies this player has physically arrived ON (landed via manual flight, hyperjump
     /// or quick-travel). With the Instant Travel world rule OFF, the menu's quick-travel is limited to these
     /// bodies — a never-visited world must be reached by flying there and landing. Server-authoritative,

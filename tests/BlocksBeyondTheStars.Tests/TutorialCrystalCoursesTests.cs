@@ -308,7 +308,7 @@ public sealed class TutorialCrystalCoursesTests : IDisposable
         Assert.Contains("tut.first_circuit", StoryCutsceneIds.Tutorial);
 
         // One teaching voice: the steps whose lines say what a hint would.
-        Assert.Equal(new[] { "crystal_researched" }, StepDef("c8.0").HintRefs);
+        Assert.Equal(new[] { "crystal_researched", "crystal_researchable" }, StepDef("c8.0").HintRefs); // #2459: the radio line too
         Assert.Equal(new[] { "crystal_first" }, StepDef("c8.1").HintRefs);
         Assert.Equal(new[] { "crystal_door" }, StepDef("c8.4").HintRefs);
         Assert.Equal(new[] { "crystal_mechanics", "crystal_phase" }, StepDef("c8.6").HintRefs);
@@ -463,11 +463,12 @@ public sealed class TutorialCrystalCoursesTests : IDisposable
         Assert.Empty(transport.FollowUps(p));
         Assert.Equal(0, server.DialogRadioPendingForTest);
 
-        // A replay: the jobs are handed in, so their bridges are through at once — the banner never comes twice.
+        // A replay: the Crystal Net blueprint is known (#2459: a research step a replay cannot ask for again passes — it no
+        // longer waits for "Skip step") and the jobs are handed in, so their bridges are through at once — the replay ends
+        // there, and the banner never comes twice.
         Deliver(server, p, new StoryPackIntent { PackId = T, Action = StoryPackActions.ReplayChapter, ChapterId = "c8" });
-        Assert.True(Has(p, StoryPackKeys.ChapterReplay(T, "c8")));
-        Deliver(server, p, new StoryPackIntent { PackId = T, Action = StoryPackActions.SkipStep, StepId = "c8.0" }); // researched long ago
         Assert.False(Has(p, StoryPackKeys.ChapterReplay(T, "c8")));
+        Assert.True(Has(p, StoryPackKeys.ChapterDone(T, "c8")));
         Assert.Equal(1, transport.Plays(p).Count(c => c == "tut.first_circuit"));
     }
 

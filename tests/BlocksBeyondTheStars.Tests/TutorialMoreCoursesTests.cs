@@ -296,7 +296,7 @@ public sealed class TutorialMoreCoursesTests : IDisposable
         Assert.Equal(new[] { "favourite_food", "tameable_near" }, StepDef("c9.3").HintRefs);
         Assert.Equal(new[] { "plant_refused" }, StepDef("c10.1").HintRefs);
         Assert.Equal(new[] { "first_sample" }, StepDef("c10.3").HintRefs);
-        Assert.Equal(new[] { "bio_lab_unlocked", "first_analysis" }, StepDef("c10.5").HintRefs);
+        Assert.Equal(new[] { "bio_lab_unlocked", "first_analysis", "bio_lab_tabs" }, StepDef("c10.5").HintRefs); // #2459: + the client lesson
         Assert.Equal(new[] { "settlement_near" }, StepDef("c11.1").HintRefs);
         Assert.Equal(new[] { "rope_gun" }, StepDef("c13.2").HintRefs);
         Assert.Equal(new[] { "player_near" }, StepDef("c15.1").HintRefs);

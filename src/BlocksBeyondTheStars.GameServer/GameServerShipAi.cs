@@ -396,6 +396,11 @@ public sealed partial class GameServer
 
         p.Milestones.Add(key);
         _repo.SavePlayer(p);
+        if (OfferTellsHint(session, hintId))
+        {
+            return; // #2459: told by the course offer due at this very moment (the comm radio's Crystal Net line, the bio lab …)
+        }
+
         SendVegaLine(session, "vega.hint." + HintLineId(hintId), kind, arg);
     }
 

@@ -87,6 +87,10 @@ public sealed class PlayerSnapshot
 
     /// <summary>The pinned story (#2466, <see cref="PlayerState.TrackedStoryId"/>). Absent in older saves ⇒ automatic.</summary>
     public string TrackedStoryId { get; set; } = string.Empty;
+
+    /// <summary>The <c>custom</c> anchors of owed cutscenes (#2459, <see cref="PlayerState.CutsceneAnchors"/>). Absent in older
+    /// saves ⇒ none (a re-offered scene then frames the player, as before); null while empty.</summary>
+    public Dictionary<string, CutsceneAnchor>? CutsceneAnchors { get; set; }
     public List<string> UnlockedGames { get; set; } = new();
 
     /// <summary>The player's custom pixel face (16×16 palette indices as a hex string; empty = none). Opaque
@@ -264,6 +268,7 @@ public static class StateMapper
         Milestones = p.Milestones.ToList(),
         StepProgress = p.StepProgress.Count > 0 ? new Dictionary<string, int>(p.StepProgress, System.StringComparer.Ordinal) : null,
         TrackedStoryId = p.TrackedStoryId,
+        CutsceneAnchors = p.CutsceneAnchors.Count > 0 ? CloneCutsceneAnchors(p.CutsceneAnchors) : null,
         UnlockedGames = p.UnlockedGames.ToList(),
         LandedBodies = p.LandedBodies.ToList(),
         KnownSystems = p.KnownSystems.ToList(),
@@ -380,6 +385,28 @@ public static class StateMapper
 
     /// <summary>Deep-clones the per-NPC memory (item 14) so a snapshot doesn't alias the live state.</summary>
     /// <summary>Deep-copies the scan-site map (#1843) so a snapshot never aliases the live state's entries.</summary>
+    /// <summary>A copy of the owed cutscenes' anchors (#2459); null entries of a hand-edited save are dropped.</summary>
+    private static Dictionary<string, CutsceneAnchor> CloneCutsceneAnchors(Dictionary<string, CutsceneAnchor>? anchors)
+    {
+        var clone = new Dictionary<string, CutsceneAnchor>(System.StringComparer.Ordinal);
+        if (anchors is null)
+        {
+            return clone;
+        }
+
+        foreach (var (key, at) in anchors)
+        {
+            if (at is null || string.IsNullOrEmpty(key))
+            {
+                continue;
+            }
+
+            clone[key] = new CutsceneAnchor { LocationId = at.LocationId ?? string.Empty, X = at.X, Y = at.Y, Z = at.Z };
+        }
+
+        return clone;
+    }
+
     private static Dictionary<string, ScanSite> CloneScanSites(Dictionary<string, ScanSite>? sites)
     {
         var clone = new Dictionary<string, ScanSite>();
@@ -506,6 +533,7 @@ public static class StateMapper
             ? new Dictionary<string, int>(s.StepProgress, System.StringComparer.Ordinal)
             : new Dictionary<string, int>(System.StringComparer.Ordinal),
         TrackedStoryId = s.TrackedStoryId ?? string.Empty,
+        CutsceneAnchors = CloneCutsceneAnchors(s.CutsceneAnchors),
         UnlockedGames = new HashSet<string>(s.UnlockedGames ?? new List<string>()),
         LandedBodies = new HashSet<string>(s.LandedBodies ?? new List<string>()),
         KnownSystems = new HashSet<string>(s.KnownSystems ?? new List<string>()),

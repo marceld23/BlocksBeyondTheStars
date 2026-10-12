@@ -426,6 +426,23 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   (regenerate: `BBTS_UPDATE_STORY_VOCABULARY=1 dotnet test … --filter …StoryVocabularyDocTests`). Doc-comment-only edits:
   the seven achievement-only `CircuitEvents`, the `StoryRegistry` kinds/scopes. Links: docs index, root README,
   STORY_IMPLEMENTATION, TUTORIAL_PACK, CUTSCENES.
+- ✅ **Gap closure before the PR (#2459)**, 2026-10-12 (server + Shared + Persistence + Client.Core + 1 Unity file
+  `VegaPanel.cs`, data; no wire change, no save/protocol bump — one additive save field). A cutscene's `custom` anchor is
+  saved with the promise (`PlayerState.CutsceneAnchors`, `<pack>/<id>` → body + position) and frames the same place when the
+  scene is re-offered at the join, on that body only (the finale's recomputed place stays the fallback for older saves, on
+  the core world); the join catch-up queues the world story's scenes first (the prologue no longer waits behind the welcome
+  card). One teaching voice for the client-only lessons: the course steps name them in `hintRefs` (c3.1 chart, c3.2 planet
+  card + ship scanner, c3.6 target lock, c5.9 wormhole, c10.5 bio lab tabs, c13.1 climbing) and `VegaPanel.SayLocal` keeps a
+  lesson quiet (counted as given) while that chapter runs with the step active or ahead (`VegaText.LessonCoveredByStoryStep`).
+  "The tip becomes the offer": a hint or tip a course teaches is not spoken when that course's offer is due at the same
+  moment or was made a moment ago — the offer books it as told and takes the tips' cadence slot (data cache, factory,
+  settlement, animal, ruin, treasure, wreck, tool-tier wall, bio lab, the comm radio's Crystal Net line via c8.0's new
+  `crystal_researchable` ref; never a safety tip). A replayed course passes a research step whose blueprint is known (C5,
+  C6, C8, C10 replays no longer hang until "Skip step"). Tests: `StoryGapClosureTests` (12: the anchor through a save and a
+  rejoin, the join order, `suit:climate` / `mission:board_accepted` / `companion:cared` fed from their handlers, the jetpack
+  and the speeder inside C13, the tier wall / data cache / comm radio offers vs. a player who still hears the tip, the
+  absorb rule, the replay), `StoryGapClosureClientTests` (12, incl. a guard that every `SayLocal` lesson is taught by a
+  tutorial step). Docs: CUTSCENES, TUTORIAL_PACK, STORY_IMPLEMENTATION, USER_MANUAL.
 - Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text (it asked for a
   hyperjump) and lack `story.obj.help_peaceful` — the translation pass at the end of the package covers both.
 - Open from step 2: the community locales lack `ui.cutscene.skip_key/_pad/_touch`, `ui.hud.hint_pad_glyphs` and

@@ -306,8 +306,9 @@ The finale's set pieces (synthesis §6.5), bound in `story.json`'s `finale.cutsc
   replays the director's ending (`Replay`) for a client that plays it. `ResolutionCinematic` stays for older servers.
 - **The recap never folds the finale away:** a join backlog's recap collapse skips scenes bound to a finale stage
   (`IsFinaleScene`), so an owed stand-down and ending play as themselves after "The story so far". A re-offered descent or
-  breach gets its place again (`FinaleAnchorFor`: the shaft mouth, the column — while the core world is loaded); other
-  `custom` anchors are still not stored.
+  breach gets its place again — the anchor saved with the promise (#2459, see the ledger's **Anchors**), or for a promise
+  from an older save the recomputed place (`FinaleAnchorFor`: the shaft mouth, the column — on the core world, while it is
+  loaded).
 
 ### Bindings — where a pack plays a scene
 
@@ -403,11 +404,18 @@ template. Rules:
   never as one, at most 32 ids of ≤ 96 characters), is stamped seen; unknown ids are ignored; `__recap` is not in the
   ledger; `Unsupported` stamps seen too, so a scene a build cannot play is not offered forever.
 - **Join catch-up** (`CutscenesOnJoin`, before anything of the join can commit a new scene): every `:sent` without the
-  seen key is queued again (pack order: definition order, then the bound chapter). A client without `cutscenes1` gets
+  seen key is queued again — the world story's scenes first, then the other packs by priority and id (#2459: never the
+  save's hash order, which could queue the tutorial's welcome card ahead of the prologue and make the cold open wait out
+  the cooldown behind it); within a pack definition order, then the bound chapter. A client without `cutscenes1` gets
   them stamped seen; a scene the pack no longer defines is dropped (stamped seen); a pack not installed on this server,
   or not enabled for the player (opted out, the world story switched off), keeps its promise. A **world story**'s backlog of **3 or more** chapter scenes (T2+ with a chapter) collapses into ONE
   `__recap` card with those chapters' titles (the scenes are stamped seen; the Story tab replays them) — never the pack's
   intro (the prologue is the cold open, not a chapter line; #2470).
+- **Anchors** (#2459): a scene committed with a `custom` anchor saves it with the promise in
+  `PlayerState.CutsceneAnchors` (key `<pack>/<id>`, the body the player was on and the position — persisted additively,
+  no save-version bump); a re-offer at the join carries it again while the player is on that body (anywhere else it goes
+  without one and the client frames the player). The entry goes when the scene is stamped seen (receipt, a stale opener
+  dropped, the join's clean-up).
 - **Replay** (`replayCutscene`): a replayable scene the player has a key for (spoiler guard) is re-sent with
   `Replay = true` — any installed pack, the world story included; no ledger change; nothing for a client without
   `cutscenes1`. The ending's own "Watch the ending again" (`RequestStoryResolutionIntent`) replays the `resolution` scene the

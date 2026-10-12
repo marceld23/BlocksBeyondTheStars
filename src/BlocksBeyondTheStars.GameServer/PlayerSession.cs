@@ -310,6 +310,13 @@ public sealed class PlayerSession
     /// <summary>#2466: <see cref="StoryPackPlaySeconds"/> of the last chapter offer — offers are spaced out.</summary>
     public double LastChapterOfferAt { get; set; } = double.NegativeInfinity;
 
+    /// <summary>#2459: the chapter VEGA offered last at its moment (<c>&lt;pack&gt;:&lt;chapter&gt;</c>, empty = none) and the
+    /// <see cref="StoryPackPlaySeconds"/> of that offer — a tip the course teaches that comes up right after is told by the
+    /// offer ("the tip becomes the offer"). The graduation's suggestions are no such offer.</summary>
+    public string RecentChapterOfferKey { get; set; } = string.Empty;
+
+    public double RecentChapterOfferAt { get; set; } = double.NegativeInfinity;
+
     /// <summary>#2466: the join hook of the story packs ran for this session (re-speaks the active step once).</summary>
     public bool StoryPacksJoined { get; set; }
 

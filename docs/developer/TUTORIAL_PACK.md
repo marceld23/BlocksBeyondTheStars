@@ -114,7 +114,7 @@ Every field is optional and defaults to today's behaviour.
 | `onComplete` | `{ cutscene }` — plays before the done line when the step completes non-silently (it owned the chip, or a react step) |
 | `escalate` | per-step override of the pack's escalation |
 | `skippable` | default `true` |
-| `hintRefs` | #2469 ("one teaching voice", G12): VEGA's once-hints and context tips this step teaches itself (`invfull`, `lamp_off` …). A `do`/`read` step holds them while it is active in, or still ahead in, a mandatory chapter of a running pack (an active step of a started deep dive too) — not as an open extra past its hint time, not after its chapter is through. When the step's line is shown they count as told (a once-hint's flag is burned, a tip's first telling is booked and its cooldown starts); a skipped step gives them back untold. React steps hold nothing — their event is raised right before the hint they absorb, so the step speaks first |
+| `hintRefs` | #2469 ("one teaching voice", G12): VEGA's once-hints and context tips this step teaches itself (`invfull`, `lamp_off` …). A `do`/`read` step holds them while it is active in, or still ahead in, a mandatory chapter of a running pack (an active step of a started deep dive too) — not as an open extra past its hint time, not after its chapter is through. When the step's line is shown they count as told (a once-hint's flag is burned, a tip's first telling is booked and its cooldown starts); a skipped step gives them back untold. React steps hold nothing — their event is raised right before the hint they absorb, so the step speaks first. #2459: also the client-only lessons the step teaches (`climb`, `planet_card` …, kept quiet by the client while the step's chapter runs with the step active or ahead), and a course's offer stands in for the hints and tips its steps name (see "The tip becomes the offer" below) |
 
 Steps pay **no rewards** (maintainer decision; the validator refuses any reward field in a tutorial pack). The graduation's
 achievement is the one visible reward and carries no items. The rule covers the pack's **own** fields: a mission a step
@@ -293,8 +293,17 @@ Optional chapters after the basic training (synthesis §3.2/§3.4): a player sta
 its moment of need, with `vega.chapter.offer` ("New short course: {0}…") — never while the basic training runs, at most one
 offer every 90 s of play, and (#2481) never a course the player has nothing left to do in: one whose every counting step is
 done or covered by its evidence (`alreadyDoneIf`, a bridged mission turned in) is neither offered nor suggested — it stays
-startable in the Journal and would complete silently. Every **do** step of a course counts (tier `core`/`opt` only marks what the synthesis calls
-optional); read and react steps never block. Each course opens with the card `tut.course` ("Short course" + its title) and
+startable in the Journal and would complete silently. **The tip becomes the offer** (#2459, synthesis §4.3): a VEGA hint
+or tip that a course teaches (one of its steps names it in `hintRefs`) is not spoken when that course's offer is due at the
+same moment (`OfferAbsorbsHint`) or was made a moment ago (`RecentOfferTeaches`, 10 s of play) — the offer line is its
+telling: a once-hint's flag is burned, a context tip's first telling booked and its cooldown started, and the offer takes
+the tips' cadence slot. So the data cache, factory, settlement, animal, ruin, treasure and wreck tips, the tool-tier wall,
+the bio lab and the comm radio's Crystal Net line no longer come right before or after "New short course: …". Safety
+tips are never folded into an offer; a player with no offer due (the course done, put off or running) hears the tip as
+before. Every **do** step of a course counts (tier `core`/`opt` only marks what the synthesis calls
+optional); read and react steps never block. A **replay** walks every step anew and ignores `alreadyDoneIf`, except a
+research step whose every blueprint is known already (it cannot be done twice — #2459, `StepSpentForReplay`): it passes
+silently, like a bridged mission already turned in. Each course opens with the card `tut.course` ("Short course" + its title) and
 closes with the part banner `tut.done`; two firsts get their own card (below). No legacy keys, no rewards; an older client
 (no `packs1`) never runs a course.
 
@@ -581,10 +590,15 @@ The tutorial says when the global advisor systems open (`TutorialGate(session, g
 Steps name the hints and tips they teach in `hintRefs` (table above). Client-only lessons (E11): while the tutorial runs
 for the player (`ShipAiLine.TutorialActive`), the flight lessons the B6 steps teach — `chart_waypoint`, `ship_scanner`,
 `ship_scan_hold`, `anomaly_scan` — are not spoken and count as given (`VegaText.LessonCoveredByTutorial`): the step lines
-carry them per player on the server, so a shared school PC no longer decides who heard them. The other client lessons
-(planet card, target lock, wormhole, climbing, the bio lab tabs, the pad/touch context list B1.7) stay client lessons: the
-deep dives that teach them (C3, C5, C13, C10) run after the training, when `TutorialActive` is off, so a client lesson may
-still pop up next to a course's line (a client change, not yet made).
+carry them per player on the server, so a shared school PC no longer decides who heard them. The deep dives cover the
+other client lessons the same way (#2459): the course step that teaches one names it in its `hintRefs` — `c3.1`
+`chart_waypoint`, `c3.2` `planet_card` + `ship_scanner` + `ship_scan_hold`, `c3.6` `target_lock`, `c5.9` `wormhole`,
+`c10.5` `bio_lab_tabs`, `c13.1` `climb` — and while that course runs (or is replayed) with the step active or still ahead,
+the client keeps the lesson quiet and counts it as given (`VegaText.LessonCoveredByStoryStep`, reading its copy of the pack
+and the server's `StoryPackStates`); an offered, finished or put-off course covers nothing. Only the pad/touch context list
+(B1.7) stays a plain client lesson. The server books such an id as told when the step speaks (a harmless
+`vega:hint:<id>`; the tips log then lists the lesson). A Client.Tests guard fails when a new `SayLocal("vega.hint.…")`
+lesson is taught by no tutorial step.
 
 ### Migration of existing players
 

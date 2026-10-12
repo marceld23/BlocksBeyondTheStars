@@ -296,6 +296,13 @@ namespace BlocksBeyondTheStars.Client
                 return true;
             }
 
+            // #2459: the same for a running deep-dive course whose step (active or still ahead) names this lesson in its
+            // hintRefs — the course's line teaches it, so the lesson counts as given and VEGA does not say it twice.
+            if (Game != null && VegaText.LessonCoveredByStoryStep(lineKey, Game.StoryPackStates, Game.Content?.Stories.Values))
+            {
+                return true;
+            }
+
             if (Settings is { VegaHints: false })
             {
                 return false;

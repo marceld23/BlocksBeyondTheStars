@@ -379,6 +379,15 @@ public sealed partial class GameServer
                 continue;
             }
 
+            if (s.Priority != VegaTipPriority.Safety && RecentOfferTeaches(session, s.Id))
+            {
+                // #2459: the course VEGA offered a moment ago teaches this — the offer was its telling (the tool-tier tip is
+                // armed by the very swing that made the workshop course due, and the offer pass runs before this one).
+                BookHintAsTold(session, s.Id);
+                session.VegaTipReadyAt = System.Math.Max(session.VegaTipReadyAt, _uptime + VegaTipGap);
+                continue;
+            }
+
             // The FIRST safety hint (low O2, freezing …) is the old teaching moment and never waits for
             // the cadence — everything else queues behind whatever VEGA said last.
             if (!gapOpen && !(s.Priority == VegaTipPriority.Safety && count == 0))
@@ -394,6 +403,11 @@ public sealed partial class GameServer
 
         if (best is { } pick)
         {
+            if (pick.Spec.Priority != VegaTipPriority.Safety && OfferAbsorbsHint(session, pick.Spec.Id))
+            {
+                return; // #2459: a course that teaches this is due here — its offer speaks next second and books the tip as told
+            }
+
             FireVegaTip(session, pick.Spec, pick.Arg, pick.Mention);
         }
     }

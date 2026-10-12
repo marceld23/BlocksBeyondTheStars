@@ -480,11 +480,13 @@
         {
           "id": "c3.1", "kind": "do", "tier": "core",
           "objective": { "event": "ui:waypoint_set" },
+          "hintRefs": [ "chart_waypoint" ],
           "explain": { "startKey": "story.tutorial.c3.waypoint.start", "chipKey": "story.tutorial.c3.waypoint.chip", "hintKey": "story.tutorial.c3.waypoint.hint", "moreGuide": "travel" }
         },
         {
           "id": "c3.2", "kind": "do", "tier": "core",
           "objective": { "event": "planet:scanned" },
+          "hintRefs": [ "planet_card", "ship_scanner", "ship_scan_hold" ],
           "explain": { "startKey": "story.tutorial.c3.planet.start", "chipKey": "story.tutorial.c3.planet.chip", "hintKey": "story.tutorial.c3.planet.hint", "moreGuide": "scanner" }
         },
         {
@@ -508,6 +510,7 @@
           // Target lock only matters where something shoots back.
           "id": "c3.6", "kind": "read", "tier": "opt",
           "feasibleIf": [ "world:space_enemies" ],
+          "hintRefs": [ "target_lock" ],
           "explain": { "startKey": "story.tutorial.c3.target.start", "moreGuide": "combat" }
         },
         {
@@ -637,6 +640,7 @@
           "id": "c5.9", "kind": "do", "tier": "opt",
           "objective": { "event": "wormhole:any" },
           "feasibleIf": [ "world:wormhole_known" ],
+          "hintRefs": [ "wormhole" ],
           "explain": { "startKey": "story.tutorial.c5.wormhole.start", "chipKey": "story.tutorial.c5.wormhole.chip", "moreGuide": "wormholes" }
         },
         {
@@ -843,7 +847,7 @@
           "id": "c8.0", "kind": "do", "tier": "core",
           "objective": { "event": "research:any", "arg": "crystal_conduit" },
           "alreadyDoneIf": [ "blueprint:crystal_conduit" ],
-          "hintRefs": [ "crystal_researched" ],
+          "hintRefs": [ "crystal_researched", "crystal_researchable" ],
           "explain": { "startKey": "story.tutorial.c8.net.start", "chipKey": "story.tutorial.c8.net.chip", "hintKey": "story.tutorial.c8.net.hint", "moreGuide": "crystal-net" }
         },
         {
@@ -1053,7 +1057,7 @@
           // Where the lab is built and what comes after the first analysis — VEGA's two lab hints are this step's lines.
           "id": "c10.5", "kind": "do", "tier": "core",
           "objective": { "event": "biolab:used" },
-          "hintRefs": [ "bio_lab_unlocked", "first_analysis" ],
+          "hintRefs": [ "bio_lab_unlocked", "first_analysis", "bio_lab_tabs" ],
           "explain": { "startKey": "story.tutorial.c10.lab.start", "chipKey": "story.tutorial.c10.lab.chip", "hintKey": "story.tutorial.c10.lab.hint", "doneKey": "story.tutorial.c10.lab.done", "moreGuide": "bio-lab" }
         }
       ]
@@ -1146,6 +1150,7 @@
         {
           "id": "c13.1", "kind": "do", "tier": "core",
           "objective": { "event": "move:climbed", "required": 3 },
+          "hintRefs": [ "climb" ],
           "explain": { "startKey": "story.tutorial.c13.climb.start", "chipKey": "story.tutorial.c13.climb.chip", "hintKey": "story.tutorial.c13.climb.hint", "moreGuide": "climbing" }
         },
         {
