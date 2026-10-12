@@ -355,7 +355,7 @@ public sealed class StoryJournalTests : IDisposable
         Act(server, p, T, StoryPackActions.SkipPack);
         list = server.ObjectiveListForTest(p);
         Assert.Equal(StoryRegistry.DefaultStoryId, list.Items[0].PackId);
-        Assert.StartsWith("story.obj.", list.Items[0].Key);
+        Assert.StartsWith(StoryLeads.ObjPrefix, list.Items[0].Key); // #2475: the chapter lead's key
         Assert.Equal(StoryRegistry.DefaultStoryId, server.ObjectivePackForTest("Pilot"));
         Assert.True(list.Items.Length <= ObjectiveList.MaxItems);
         Assert.Equal(list.Items.Length, list.Items.Select(i => i.PackId).Distinct().Count());

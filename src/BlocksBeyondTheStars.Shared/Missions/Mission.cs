@@ -165,6 +165,11 @@ public sealed class MissionDefinition
     /// <summary>#2258: "" (no gate) or a blueprint the player must have researched before the mission is offered — the
     /// Crystal workshop chain appears once the conduit is researched.</summary>
     public string RequiresBlueprint { get; set; } = string.Empty;
+
+    /// <summary>#2475 (synthesis §4.9, E21): whether turning this mission in helps the world story — a story milestone and the
+    /// story's mission threads. Default true (every mission did so far). A teaching chain sets false (the Crystal workshop:
+    /// learning circuits is not story progress; the chapter-lead bonus balances the points it no longer brings).</summary>
+    public bool CountsForStory { get; set; } = true;
 }
 
 /// <summary>Per-player progress on an accepted mission.</summary>

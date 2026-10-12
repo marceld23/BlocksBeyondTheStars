@@ -746,17 +746,17 @@ public sealed class StoryPackRuntimeTests : IDisposable
 
         // 5: with the basics through, the VEGA lead beats the other packs (7).
         Deliver(server, p, new StoryPackIntent { PackId = T, Action = StoryPackActions.SkipPack });
-        Assert.StartsWith("story.obj.", server.ObjectiveKeyForTest("Pilot"));
+        Assert.StartsWith(StoryLeads.ObjPrefix, server.ObjectiveKeyForTest("Pilot")); // #2475: the chapter lead
         Assert.Equal(ObjectiveSources.Story, server.ObjectiveSourceForTest("Pilot"));
         Assert.Equal(StoryRegistry.DefaultStoryId, server.ObjectivePackForTest("Pilot")); // #2471: the chip reads "VEGA: …"
 
         // 6: a started deep dive comes after the VEGA lead; pinning the world story keeps the lead.
         Deliver(server, p, new StoryPackIntent { PackId = T, Action = StoryPackActions.StartChapter, ChapterId = "t3" });
-        Assert.StartsWith("story.obj.", server.ObjectiveKeyForTest("Pilot"));
+        Assert.StartsWith(StoryLeads.ObjPrefix, server.ObjectiveKeyForTest("Pilot"));
         Deliver(server, p, new StoryPackIntent { PackId = T, Action = StoryPackActions.Track });
         Assert.Equal("story.tutorial_test.t31.chip", server.ObjectiveKeyForTest("Pilot"));
         Deliver(server, p, new StoryPackIntent { PackId = StoryRegistry.DefaultStoryId, Action = StoryPackActions.Track });
-        Assert.StartsWith("story.obj.", server.ObjectiveKeyForTest("Pilot"));
+        Assert.StartsWith(StoryLeads.ObjPrefix, server.ObjectiveKeyForTest("Pilot"));
     }
 
     [Fact]
@@ -774,13 +774,13 @@ public sealed class StoryPackRuntimeTests : IDisposable
         var p = Join(server, 1, "Pilot");
         FinishLegacyChain(p);
         Deliver(server, p, new StoryPackIntent { PackId = T, Action = StoryPackActions.SkipPack });
-        Assert.Equal("story.obj.finale", server.ObjectiveKeyForTest("Pilot")); // 4 beats the other packs
+        Assert.Equal(StoryLeads.FinaleJumpKey, server.ObjectiveKeyForTest("Pilot")); // 4 beats the other packs (#2475: no jump generator yet)
 
         Deliver(server, p, new StoryPackIntent { PackId = R, Action = StoryPackActions.Track });
         Assert.Equal("story.runtime_test.a1.chip", server.ObjectiveKeyForTest("Pilot")); // 2 beats 4
 
         server.AdminGotoCore(p);
-        Assert.Equal("story.obj.finale", server.ObjectiveKeyForTest("Pilot")); // 1 beats a pin (#1832)
+        Assert.Equal(StoryLeads.FinaleKey, server.ObjectiveKeyForTest("Pilot")); // 1 beats a pin (#1832)
         Assert.Equal(ObjectiveSources.Finale, server.ObjectiveSourceForTest("Pilot"));
     }
 

@@ -212,12 +212,14 @@
   },
   // #2258 the Crystal workshop — VEGA's little Crystal Net course over the radio. Every step finishes when the circuit
   // WORKS (a "circuit" objective the net reports itself), not when the blocks are merely placed. Each step waits for the
-  // blueprint its circuit needs.
+  // blueprint its circuit needs. #2475 (E21): the course teaches — its turn-ins are no story progress ("countsForStory":
+  // false); the VEGA chapter-lead bonus balances the points they used to bring.
   {
     "id": "crystal_workshop_1",
     "source": "system",
     "nameKey": "mission.crystal_workshop_1.name",
     "descriptionKey": "mission.crystal_workshop_1.desc",
+    "countsForStory": false,
     "chainId": "crystal_workshop", "step": 1, "nextMissionId": "crystal_workshop_2",
     "surface": "radio", "offerAt": "any", "requiresBlueprint": "crystal_conduit",
     "objectives": [ { "type": "circuit", "target": "lamp_by_switch", "required": 1 } ],
@@ -231,6 +233,7 @@
     "source": "system",
     "nameKey": "mission.crystal_workshop_2.name",
     "descriptionKey": "mission.crystal_workshop_2.desc",
+    "countsForStory": false,
     "chainId": "crystal_workshop", "step": 2, "prerequisites": [ "crystal_workshop_1" ], "nextMissionId": "crystal_workshop_3",
     "surface": "radio", "offerAt": "any", "requiresBlueprint": "crystal_sound",
     "objectives": [ { "type": "circuit", "target": "chime_by_plate", "required": 1 } ],
@@ -244,6 +247,7 @@
     "source": "system",
     "nameKey": "mission.crystal_workshop_3.name",
     "descriptionKey": "mission.crystal_workshop_3.desc",
+    "countsForStory": false,
     "chainId": "crystal_workshop", "step": 3, "prerequisites": [ "crystal_workshop_2" ], "nextMissionId": "crystal_workshop_4",
     "surface": "radio", "offerAt": "any", "requiresBlueprint": "crystal_sensors",
     "objectives": [ { "type": "circuit", "target": "lamp_by_daylight", "required": 1 } ],
@@ -257,6 +261,7 @@
     "source": "system",
     "nameKey": "mission.crystal_workshop_4.name",
     "descriptionKey": "mission.crystal_workshop_4.desc",
+    "countsForStory": false,
     "chainId": "crystal_workshop", "step": 4, "prerequisites": [ "crystal_workshop_3" ], "nextMissionId": "crystal_workshop_5",
     "surface": "radio", "offerAt": "any", "requiresBlueprint": "crystal_logic",
     "objectives": [ { "type": "circuit", "target": "door_by_gate", "required": 1 } ],
@@ -270,6 +275,7 @@
     "source": "system",
     "nameKey": "mission.crystal_workshop_5.name",
     "descriptionKey": "mission.crystal_workshop_5.desc",
+    "countsForStory": false,
     "chainId": "crystal_workshop", "step": 5, "prerequisites": [ "crystal_workshop_4" ], "nextMissionId": "crystal_workshop_6",
     "surface": "radio", "offerAt": "any", "requiresBlueprint": "fabricator",
     "objectives": [ { "type": "circuit", "target": "machine_job", "required": 1 } ],
@@ -283,6 +289,7 @@
     "source": "system",
     "nameKey": "mission.crystal_workshop_6.name",
     "descriptionKey": "mission.crystal_workshop_6.desc",
+    "countsForStory": false,
     "chainId": "crystal_workshop", "step": 6, "prerequisites": [ "crystal_workshop_5" ],
     "surface": "radio", "offerAt": "any", "requiresBlueprint": "crystal_mechanics",
     "objectives": [ { "type": "circuit", "target": "phase_open", "required": 1 } ],

@@ -59,6 +59,8 @@ public sealed partial class GameServer
         {
             EnsureGuardianSystemInGalaxy();
         }
+
+        SyncLeadListener(); // #2475: the chapter leads listen on the bus while the story has any
     }
 
     /// <summary>Whether a stored row names something this build can run: an installed world-capable pack (#2465: never a
@@ -251,7 +253,7 @@ public sealed partial class GameServer
             return;
         }
 
-        foreach (var beat in StoryEngine.AdvanceBeats(_story, _storyState, Rules.StoryProgressScale))
+        foreach (var beat in StoryEngine.AdvanceBeats(_story, _storyState, StoryScale)) // #2475: the one scale wrapper
         {
             RevealBeatToAll(beat);
         }
@@ -474,7 +476,7 @@ public sealed partial class GameServer
         {
             StoryId = _storyState.StoryId,
             Active = StoryActive,
-            Progress = _story is null ? 0 : StoryEngine.Progress(_story, _storyState, Rules.StoryProgressScale),
+            Progress = StoryProgressShown(), // #2475: the one scale wrapper, clamped for the meter
             ProgressTarget = target,
             FragmentsFound = _storyState.FragmentsFound,
             MachineKills = _storyState.MachineKills,
@@ -580,6 +582,7 @@ public sealed partial class GameServer
             return; // unknown pack — leave the active story unchanged
         }
 
+        SyncLeadListener();       // #2475: the new story's chapter leads (or none)
         AdvanceStory();           // persists + broadcasts (and reveals B0 for a real pack)
         if (_story is null)
         {
@@ -777,7 +780,7 @@ public sealed partial class GameServer
             return 0;
         }
 
-        double frac = StoryEngine.Progress(_story, _storyState, Rules.StoryProgressScale) / (double)target;
+        double frac = StoryProgressShown() / (double)target; // #2475: the one scale wrapper, clamped (never drops back)
         if (frac >= 0.66) return 3;
         if (frac >= 0.33) return 2;
         if (frac > 0.0) return 1;
@@ -810,7 +813,7 @@ public sealed partial class GameServer
         }
 
         int target = _story.Beats.Count > 0 ? _story.Beats[_story.Beats.Count - 1].Threshold : 0;
-        double scale = System.Math.Max(0.05, Rules.StoryProgressScale);
+        double scale = System.Math.Max(0.05, StoryScale); // #2475: the one scale wrapper (a peaceful world needs fewer)
         int needed = (int)System.Math.Ceiling(target / (double)System.Math.Max(1, _story.MilestoneWeight) / scale) + 2;
         _storyState.Milestones += needed;
         AdvanceStory(); // reveals every crossed beat + the finale, persists + broadcasts once

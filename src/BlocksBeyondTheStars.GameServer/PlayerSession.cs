@@ -318,6 +318,10 @@ public sealed class PlayerSession
     /// <c>GameServer.JournalPushGapSeconds</c>. RAM only.</summary>
     public bool JournalDirty { get; set; }
 
+    /// <summary>#2475: this player's resolved leads of their current world-story chapter (re-resolved only when what they
+    /// depend on changed), and the lead the last marker went up for. RAM only.</summary>
+    internal StoryLeadCache StoryLeads { get; } = new();
+
     /// <summary>#2471: server uptime of the last Journal push (the coalescing clock).</summary>
     public double JournalPushedAt { get; set; } = double.NegativeInfinity;
 

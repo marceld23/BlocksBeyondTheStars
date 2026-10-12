@@ -195,11 +195,43 @@ public sealed class NetStoryPack
     /// <summary>The story's badge: finished by playing (not by skipping) — the world story: the finale won.</summary>
     public bool Badge { get; set; }
 
-    /// <summary>The chapters in order (empty for the world story).</summary>
+    /// <summary>The chapters in order (empty for the world story — its arc is on <see cref="StoryStateMessage"/>).</summary>
     public NetStoryChapter[] Chapters { get; set; } = System.Array.Empty<NetStoryChapter>();
 
     /// <summary>The active do steps of the running chapters (empty for the world story).</summary>
     public NetStoryStep[] Steps { get; set; } = System.Array.Empty<NetStoryStep>();
+
+    /// <summary>The world story only (#2475): the leads of the player's current chapter — the Journal's tasks of the VEGA page
+    /// (the chapter's own leads, plus the stand-in the chip shows when none of them is open here). Empty for player packs, before
+    /// the player's story track starts, and from an older server. Additive.</summary>
+    public NetStoryLead[] Leads { get; set; } = System.Array.Empty<NetStoryLead>();
+}
+
+/// <summary>One chapter lead of the world story's <see cref="NetStoryPack"/> (#2475).</summary>
+public sealed class NetStoryLead
+{
+    /// <summary>The chapter it belongs to (the player's current chapter).</summary>
+    public string ChapterId { get; set; } = string.Empty;
+
+    /// <summary>Its number in the chapter (1-based; the chapter's own leads first, then the stand-ins).</summary>
+    public int Index { get; set; }
+
+    /// <summary>The lead word (<c>fragment</c>, <c>unique_site:observatory</c>, …).</summary>
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>Locale key of its text (the chip text, <c>story.vega.obj.*</c>) and the text's {0} (a display string).</summary>
+    public string Key { get; set; } = string.Empty;
+
+    public string Arg { get; set; } = string.Empty;
+
+    /// <summary>The player followed it.</summary>
+    public bool Done { get; set; }
+
+    /// <summary>It is the one on the chip now.</summary>
+    public bool Current { get; set; }
+
+    /// <summary>A stand-in (a fallback the chapter does not list itself), shown only while it is current.</summary>
+    public bool StandIn { get; set; }
 }
 
 /// <summary>One chapter of a <see cref="NetStoryPack"/> (#2471).</summary>

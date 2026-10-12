@@ -754,7 +754,9 @@ public sealed class VegaStoryPackTests : IDisposable
         var lines = transport.To<ShipAiLine>(p);
         int start = lines.FindIndex(l => l.ObjectiveSource == ObjectiveSources.Story);
         Assert.True(start > 0);
-        Assert.All(lines.Take(start), l => Assert.False(l.ObjectiveKey.StartsWith("story.obj.", StringComparison.Ordinal)));
+        Assert.All(lines.Take(start), l => Assert.False(l.ObjectiveKey.StartsWith("story.obj.", StringComparison.Ordinal)
+                                                         || l.ObjectiveKey.StartsWith(StoryLeads.ObjPrefix, StringComparison.Ordinal)));
+        Assert.StartsWith(StoryLeads.ObjPrefix, lines[start].ObjectiveKey); // #2475: the chapter lead, a current client's key
         Assert.All(lines.Where(l => l.Kind == 4), l => Assert.NotEqual(ObjectiveSources.Story, l.ObjectiveSource));
     }
 

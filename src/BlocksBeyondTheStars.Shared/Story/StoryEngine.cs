@@ -66,4 +66,40 @@ public static class StoryEngine
     /// <summary>True once every beat in the arc has been revealed (the finale is in reach).</summary>
     public static bool AllBeatsRevealed(StoryDefinition def, StoryState state)
         => state.BeatsRevealed >= def.Beats.Count;
+
+    /// <summary>
+    /// #2475 (synthesis §4.9): the factor that makes up for the kill share of the score on a world without machines — the
+    /// arc's target over what is left of it without kills, <c>T / (T − cap·Wk)</c> (VEGA: 204 / (204 − 40) ≈ 1.244), computed
+    /// from the pack, never hard-coded. 1 when the pack has no target or kills could cover all of it.
+    /// </summary>
+    public static float UnavailableKillNormalisation(StoryDefinition def)
+    {
+        if (def is null) throw new ArgumentNullException(nameof(def));
+
+        int target = def.Beats.Count > 0 ? def.Beats[def.Beats.Count - 1].Threshold : 0;
+        int killShare = Math.Max(0, def.KillContributionCap) * Math.Max(0, def.KillWeight);
+        if (target <= 0 || killShare <= 0 || killShare >= target)
+        {
+            return 1f;
+        }
+
+        return target / (float)(target - killShare);
+    }
+
+    /// <summary>
+    /// #2475: the score as the meter, the chip and the knowledge level show it — never below the threshold of the last beat the
+    /// arc revealed (a rule change that lowers the factor, e.g. hostiles switched on mid-save, must not make the meter run
+    /// backwards past a heard beat) and never above the arc's target.
+    /// </summary>
+    public static int DisplayProgress(StoryDefinition def, StoryState state, int progress)
+    {
+        if (def is null) throw new ArgumentNullException(nameof(def));
+        if (state is null) throw new ArgumentNullException(nameof(state));
+
+        int target = def.Beats.Count > 0 ? def.Beats[def.Beats.Count - 1].Threshold : 0;
+        int revealed = Math.Min(state.BeatsRevealed, def.Beats.Count);
+        int floor = revealed > 0 ? def.Beats[revealed - 1].Threshold : 0;
+        int shown = Math.Max(progress, floor);
+        return target > 0 ? Math.Min(shown, target) : shown;
+    }
 }

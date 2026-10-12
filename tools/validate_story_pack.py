@@ -62,6 +62,19 @@ NON_TAKEOVER_CAMERAS = {"player_view", "overlay"}
 ANCHORS = ["player", "ship", "planet", "station", "star_map", "heal_tank", "core", "custom"]
 CAPTION_STYLES = ["subtitle", "title_card", "speaker", "reading_frame", "credits"]
 GRADES = ["none", "memory", "flashback"]
+# #2475: the chapter-lead vocabulary v1 (StoryLeadTypes) - the words, the ones that need an argument, the unique sites.
+LEAD_TYPES = [
+    "fragment", "unique_site", "monument", "settlement_help", "machines", "heal_tank", "research", "module", "finale",
+    "finale_jump", "relay", "explore",
+]
+LEAD_WITH_ARGUMENT = {"unique_site", "research", "module"}
+LEAD_UNIQUE_SITES = ["observatory", "shrine", "derelict"]
+LEAD_OBJ_PREFIX = "story.vega.obj."
+LEAD_BUILT_IN_KEYS = [
+    LEAD_OBJ_PREFIX + k
+    for k in ("fragment", "fragment_here", "settlement_help", "explore", "explore_peaceful", "finale_jump")
+]
+MEMORY_TRIGGERS = ["lead", "monument"]
 ARG_SOURCES = ["body", "system"]  # #2473: what fills {0} besides the bound chapter (CutsceneArgSources)
 RECAP_ID = "__recap"
 CAPTION_LINE = (220, 264)
@@ -83,7 +96,8 @@ KNOWN_FIELDS = {
         "introCutscene", "gates", "escalate", "start", "chapters", "insights", "finale", "fragmentWeight",
         "killWeight", "milestoneWeight", "killContributionCap", "beats", "fragments", "memories", "coreArguments",
         "flavourLines", "missionThreads", "loreSites", "npcThreads", "characters", "dialogs", "epilogueTitle",
-        "epilogueTitleKey", "epilogueTextKey", "graduation",
+        "epilogueTitleKey", "epilogueTextKey", "graduation", "leadBonusMilestones", "normaliseUnavailableDrivers",
+        "memoryTriggers",
     },
     "graduation": {"lineKey", "counter", "suggest", "cutscene"},
     "narrator": {"id", "nameKey", "icon", "color", "voice", "lineStart"},
@@ -130,6 +144,32 @@ class Report:
 
     def warn(self, pack: str, path: str, message: str) -> None:
         self.warnings.append(f"WARNING {pack}: {path}: {message}")
+
+
+def lead_problem(lead_type) -> str | None:
+    """What is wrong with a chapter lead's type, or None (StoryLeadTypes.Problem)."""
+    text = lead_type if isinstance(lead_type, str) else ""
+    kind, colon, arg = text.partition(":")
+    if not kind:
+        return "the lead has no type"
+    if kind not in LEAD_TYPES:
+        return f"unknown lead type '{kind}' ({', '.join(LEAD_TYPES)})"
+    if kind in LEAD_WITH_ARGUMENT and not arg:
+        return f"the lead type '{kind}' needs an argument ('{kind}:<id>')"
+    if kind not in LEAD_WITH_ARGUMENT and colon:
+        return f"the lead type '{kind}' takes no argument"
+    if kind == "unique_site" and arg not in LEAD_UNIQUE_SITES:
+        return f"unknown unique site '{arg}' ({', '.join(LEAD_UNIQUE_SITES)})"
+    return None
+
+
+def lead_default_key(kind: str, arg: str) -> str:
+    """The built-in chip text key of a lead without its own objKey (StoryLeads.ObjKey)."""
+    if kind == "unique_site":
+        return f"{LEAD_OBJ_PREFIX}site.{arg}"
+    if kind == "finale_jump":
+        return f"{LEAD_OBJ_PREFIX}finale_jump"
+    return LEAD_OBJ_PREFIX + kind
 
 
 def load_jsonc(path: pathlib.Path):
@@ -337,6 +377,7 @@ class Validator:
         self.base_de = self.load_table(data_dir / "locales" / "de.json")
         self.missions = {m.get("id") for m in self.load_list(data_dir / "missions.json")}
         self.blueprints = {b.get("key") for b in self.load_list(data_dir / "blueprints.json")}
+        self.modules = {m.get("key") for m in self.load_list(data_dir / "ship_modules.json")}
         self.blocks = {b.get("key") for b in self.load_list(data_dir / "blocks.json")}
         self.packs: dict[str, dict] = {}
         self.folders_by_id: dict[str, list[pathlib.Path]] = {}
@@ -438,6 +479,20 @@ class Validator:
         def key(path: str, value, budget: tuple[int, int] = (0, 0)) -> None:
             if isinstance(value, str) and value:
                 keys.append((path, value, budget[0], budget[1]))
+
+        # #2475: the arc's pacing extras - the lead bonus, the peaceful-world normalisation, the memory triggers.
+        bonus = pack.get("leadBonusMilestones", 0)
+        if not isinstance(bonus, int) or isinstance(bonus, bool) or bonus < 0 or bonus > 10:
+            r.error(pid, "leadBonusMilestones", f"{bonus} is out of range (0-10 milestones per chapter)")
+        for ti, trigger in enumerate(pack.get("memoryTriggers") or []):
+            if trigger not in MEMORY_TRIGGERS:
+                r.error(pid, f"memoryTriggers[{ti}]", f"unknown memory trigger '{trigger}' ({', '.join(MEMORY_TRIGGERS)})")
+        if player_pack and (bonus or pack.get("normaliseUnavailableDrivers") or pack.get("memoryTriggers")):
+            r.warn(pid, "leadBonusMilestones",
+                   "leadBonusMilestones, normaliseUnavailableDrivers and memoryTriggers are read for world packs only")
+        if not player_pack and any((c or {}).get("leads") for c in (pack.get("chapters") or []) if isinstance(c, dict)):
+            for built_in in LEAD_BUILT_IN_KEYS:
+                key("chapters.leads", built_in, CHIP)
 
         last = None
         for i, beat in enumerate(beats):
@@ -583,8 +638,25 @@ class Validator:
             elif (isinstance(from_beat, int) and from_beat >= 0) or from_event:
                 r.warn(pid, cp, "fromBeat / fromEvent are read for world packs only")
             for li, lead in enumerate(chapter.get("leads") or []):
-                self.unknown_fields(pid, f"{cp}.leads[{li}]", lead, "lead")
-                key(f"{cp}.leads[{li}].objKey", lead.get("objKey"), CHIP)
+                lp = f"{cp}.leads[{li}]"
+                self.unknown_fields(pid, lp, lead, "lead")
+                if not isinstance(lead, dict):
+                    continue
+                problem = lead_problem(lead.get("type"))
+                if problem:
+                    r.error(pid, f"{lp}.type", problem)
+                    continue
+                if player_pack:
+                    r.warn(pid, lp, "leads are read for world packs only")
+                lead_kind, _, lead_arg = str(lead.get("type")).partition(":")
+                if lead_kind == "research" and self.blueprints and lead_arg not in self.blueprints:
+                    r.error(pid, f"{lp}.type", f"blueprint '{lead_arg}' does not exist")
+                if lead_kind == "module" and self.modules and lead_arg not in self.modules:
+                    r.error(pid, f"{lp}.type", f"ship module '{lead_arg}' does not exist")
+                if lead.get("objKey"):
+                    key(f"{lp}.objKey", lead.get("objKey"), CHIP)
+                else:
+                    key(f"{lp}.type", lead_default_key(lead_kind, lead_arg), CHIP)
             steps = chapter.get("steps") or []
             if player_pack and not steps:
                 r.warn(pid, cp, "a chapter of a player pack without steps completes at once")

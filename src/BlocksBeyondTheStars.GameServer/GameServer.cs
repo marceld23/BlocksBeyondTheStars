@@ -7900,6 +7900,7 @@ public sealed partial class GameServer
             }
         }
 
+        float storyScaleBefore = StoryScale; // #2475: hostiles switched off make up the kill share at once (and back)
         Apply(intent.CreatureAbundance, v => Rules.CreatureAbundance = v);
         Apply(intent.PlanetEnemies, v => Rules.PlanetEnemies = v);
         Apply(intent.SpaceNpcEnemies, v => Rules.SpaceNpcEnemies = v);
@@ -8002,9 +8003,11 @@ public sealed partial class GameServer
             ResendWorldTexturesToAll(); // #1958: switched off → every client drops them; on → they come back
         }
 
-        if (storyDensityChanged)
+        if (storyDensityChanged || System.Math.Abs(StoryScale - storyScaleBefore) > 0.0001f)
         {
-            AdvanceStory(); // #2472: reveal what the new pace already covers, persist, re-send the meter (no-op without a story)
+            // #2472: reveal what the new pace already covers, persist, re-send the meter (no-op without a story). #2475: also
+            // when the enemy rules changed the peaceful-world factor — beats never go back, the meter is clamped.
+            AdvanceStory();
         }
 
         _log.Info($"World rules updated by '{session.State.Name}': creatures={Rules.CreatureAbundance}, " +

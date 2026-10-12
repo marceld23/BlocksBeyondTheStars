@@ -19,16 +19,34 @@
   "chapters": [
     // #2474: every chapter of the arc opens with its scene (cutscenes.json): at the beat that starts it, and once for the
     // player's current chapter at their story-track start. The resolution's scene comes with the finale (step 17b).
+    // #2475: the chapter leads (synthesis §4.7/§4.8, option O2) — the compass on VEGA's chip and the Journal's tasks; the
+    // score stays the clock (a lead never holds a beat back). Per player: the first open lead that is feasible here; when none
+    // is, a fragment on this world, then a settlement job, then "explore". The first lead anyone follows in a chapter pays
+    // leadBonusMilestones once per save (before B12 only).
     { "id": "awakening",    "titleKey": "story.vega.ch.awakening",    "fromBeat": 0, "openCutscene": "prologue" },
-    { "id": "signature",    "titleKey": "story.vega.ch.signature",    "fromBeat": 1, "openCutscene": "ch1.open" },
-    { "id": "service",      "titleKey": "story.vega.ch.service",      "fromBeat": 2, "openCutscene": "ch2.open" },
-    { "id": "guardian",     "titleKey": "story.vega.ch.guardian",     "fromBeat": 5, "openCutscene": "ch3.open" },
-    { "id": "verdict",      "titleKey": "story.vega.ch.verdict",      "fromBeat": 6, "openCutscene": "ch4.open" },
-    { "id": "what_you_are", "titleKey": "story.vega.ch.what_you_are", "fromBeat": 9, "openCutscene": "ch5.open" },
-    { "id": "sleeps",       "titleKey": "story.vega.ch.sleeps",       "fromBeat": 11, "openCutscene": "ch6.open" },
-    { "id": "core",         "titleKey": "story.vega.ch.core",         "fromBeat": 12, "openCutscene": "ch7.open" },
-    { "id": "resolution",   "titleKey": "story.vega.ch.resolution",   "fromEvent": "guardian_defeated" }
+    { "id": "signature",    "titleKey": "story.vega.ch.signature",    "fromBeat": 1, "openCutscene": "ch1.open",
+      "leads": [ { "type": "fragment" } ] },
+    { "id": "service",      "titleKey": "story.vega.ch.service",      "fromBeat": 2, "openCutscene": "ch2.open",
+      "leads": [ { "type": "unique_site:observatory" }, { "type": "fragment" } ] },
+    { "id": "guardian",     "titleKey": "story.vega.ch.guardian",     "fromBeat": 5, "openCutscene": "ch3.open",
+      "leads": [ { "type": "monument" }, { "type": "settlement_help" } ] },
+    { "id": "verdict",      "titleKey": "story.vega.ch.verdict",      "fromBeat": 6, "openCutscene": "ch4.open",
+      "leads": [ { "type": "unique_site:derelict" }, { "type": "heal_tank" } ] },
+    { "id": "what_you_are", "titleKey": "story.vega.ch.what_you_are", "fromBeat": 9, "openCutscene": "ch5.open",
+      "leads": [ { "type": "research:radar_array" }, { "type": "settlement_help" } ] },
+    { "id": "sleeps",       "titleKey": "story.vega.ch.sleeps",       "fromBeat": 11, "openCutscene": "ch6.open",
+      "leads": [ { "type": "research:jump_generator" }, { "type": "module:jump_generator" } ] },
+    { "id": "core",         "titleKey": "story.vega.ch.core",         "fromBeat": 12, "openCutscene": "ch7.open",
+      "leads": [ { "type": "finale" } ] },
+    { "id": "resolution",   "titleKey": "story.vega.ch.resolution",   "fromEvent": "guardian_defeated",
+      "leads": [ { "type": "relay" } ] }
   ],
+  // #2475: +3 milestones (= +6 points) the first time anyone follows a chapter's lead (once per save and chapter, at most the
+  // six chapters before B12 = 36 points); a world without machines makes up the kill share it can never earn (×204/164); and
+  // there a followed lead or a monument read unlocks the next personal memory (machines drop them elsewhere).
+  "leadBonusMilestones": 3,
+  "normaliseUnavailableDrivers": true,
+  "memoryTriggers": [ "lead", "monument" ],
   "insights": [
     { "event": "companion_ward", "minBeat": 5, "textKey": "story.vega.insight.companion_ward", "onceKey": "story:insight:companion-ward" },
     { "event": "shape_noncube",  "minBeat": 5, "textKey": "story.vega.insight.shape_anomaly",  "onceKey": "story:insight:shape-anomaly" }

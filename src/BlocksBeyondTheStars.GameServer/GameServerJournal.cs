@@ -138,7 +138,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>The world story's short entry: its names, the player's track (started, startable), the finale won as done and
-    /// as the badge, the pin. No chapters or steps — the arc is on <see cref="StoryStateMessage"/>.</summary>
+    /// as the badge, the pin, and (#2475) the current chapter's leads as its tasks. No chapters or steps — the arc is on
+    /// <see cref="StoryStateMessage"/>.</summary>
     private NetStoryPack? WorldStoryEntry(PlayerSession s)
     {
         if (!StoryActive || _story is null)
@@ -162,6 +163,7 @@ public sealed partial class GameServer
             Tracked = string.Equals(s.State.TrackedStoryId, _story.Id, StringComparison.OrdinalIgnoreCase),
             Startable = !started && ((_story.Start?.EarlyOptIn ?? false) || StoryTrackStartReason(s) is not null),
             Badge = won,
+            Leads = JournalLeads(s), // #2475: the current chapter's leads as the VEGA page's tasks
         };
     }
 

@@ -5173,6 +5173,21 @@ namespace BlocksBeyondTheStars.Client
 
                 y = StoryTrackBlock(y, s, pack, started);
 
+                // #2475: the current chapter's leads as tasks — followed (✔), on the chip now (●), open (○). The server sends them
+                // only once the player's story track started; an older server sends none.
+                var leads = JournalPackPage.LeadsOf(entry);
+                if (leads.Count > 0)
+                {
+                    y = AllianceSection(L("ui.journal.leads"), y);
+                    foreach (var lead in leads)
+                    {
+                        y = JournalRow(y, 8f, 760f, JournalPackPage.LeadLine(lead, L, HasLoc), 17,
+                            lead.Current ? UiKit.Cyan : lead.Done ? UiKit.Ok : UiKit.CyanDim, lead.Current ? FontStyle.Bold : FontStyle.Normal);
+                    }
+
+                    y += 8f;
+                }
+
                 var chapters = BlocksBeyondTheStars.Client.Core.StoryChapterList.Build(pack, Game.StoryHeardBeats, s.Chapter, started, s.WorldChapter);
                 if (chapters.Count > 0)
                 {

@@ -331,7 +331,7 @@ public sealed class GameServerFinaleTests : IDisposable
             Assert.StartsWith("story.tutorial.", server.ObjectiveKeyForTest("Pilot"));
 
             pilot.CurrentLocationId = SvGameServer.GuardianCoreBodyId; // … standing on the core world, the finale is it
-            Assert.Equal("story.obj.finale", server.ObjectiveKeyForTest("Pilot"));
+            Assert.Equal(BlocksBeyondTheStars.Shared.Story.StoryLeads.FinaleKey, server.ObjectiveKeyForTest("Pilot")); // #2475: a current client's key
         }
     }
 

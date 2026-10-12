@@ -272,8 +272,8 @@ public sealed partial class GameServer
                 if (_story.Fragments.FirstOrDefault(f => f.Key == parts[1]) is { } frag)
                 {
                     Send(session, new NetFragmentRevealed { Category = frag.Category, TextKey = frag.TextKey });
+                    RaiseGameEvent(session, GameEventKeys.StoryFragment, frag.Key); // #2465 (#2475: before the record — see the pickup)
                     RecordStoryFragment(frag.Key); // shared-arc dedupe — a re-gifted fragment only re-reads
-                    RaiseGameEvent(session, GameEventKeys.StoryFragment, frag.Key); // #2465
                 }
 
                 break;

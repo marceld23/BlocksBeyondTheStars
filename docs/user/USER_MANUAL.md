@@ -1916,9 +1916,11 @@ called **stories**:
   courses *offered* with **Start** / **Later**, *available*, or *locked* with what they still need) and **Replay** for a
   part you finished. At the top: **Track**, **Skip all — I know the game**, **Restart from the beginning** and
   **Switch off** (**Switch on** brings it back). Below: the training's scenes to watch again.
-- **VEGA's page** shows the star-network meter (also as a bar), **Track**, the chapter list with the story moments you
-  heard, fragments, memories and field records, **Start the story now** before your story has started, **The story so
-  far**, the crew's chapter on hosted worlds, and the story's scenes to watch again (*Prologue — Awakening* among them).
+- **VEGA's page** shows the star-network meter (also as a bar), **Track**, **Leads in this chapter** — the chapter's
+  tasks: **✔** done, **●** the one on your chip now, **○** still open (see "Story: finding the thread") — the chapter
+  list with the story moments you heard, fragments, memories and field records, **Start the story now** before your story
+  has started, **The story so far**, the crew's chapter on hosted worlds, and the story's scenes to watch again
+  (*Prologue — Awakening* among them).
 - **VEGA's notes** keep everything VEGA told you that is not a story moment: her lessons and tips, the reveal of the
   Guardian's system, her insights, the relay notes — also after rejoining.
 - **Coming back after a while:** if the world's story moved on by several moments while you were away, VEGA says it once
@@ -1969,13 +1971,30 @@ called **stories**:
   then read as plain archive entries, with the same knowledge and the same Mk3 parts at the end.
 
 ### Story: finding the thread
-- Once your story has started, the **objective chip** keeps a quiet story pointer ("a net fragment is on this
-  world", "search ruins and wrecks", …) with the arc's progress as its counter. It respects the
-  **VEGA hints** setting — turn hints off and the chip clears once the tutorial is done. On a world without
-  machines (planet enemies *Off*, no hostile space) it never asks you to drive machines back.
-- Once the Guardian's system is on the map, the chip says **"confront the Guardian core"** — this one is never
-  hidden by the hints setting. A player still in the tutorial keeps their current lesson on the chip and only sees
-  the finale there while actually in the Guardian's system.
+- **Leads.** Once your story has started, the **objective chip** shows the current chapter's **lead** — what VEGA
+  thinks is worth doing next, with the story's progress as its counter: "VEGA: Find the net fragment on Kepler-3 b",
+  "VEGA: Visit the Sealed Observatory on …", "VEGA: Read the runes of a monument on this world", "VEGA: Help a
+  settlement: do a job from its board", "VEGA: Go to the heal tank aboard your ship", "VEGA: Research the blueprint:
+  Radar Array", … Each chapter has one or two; the chip shows the first one you can follow from where you are, and
+  when it has a place, a marker only you see points at it (a ping on this world, or your flight target for a body in
+  this star system; a fragment keeps its signal on the map). Follow it and the chip moves on to the next — the Journal
+  lists the chapter's leads with **✔** for done. When nothing here fits, the chip suggests a fragment or a settlement job
+  on this world, else **"Explore …"**. Leads never hold the story back: the story moments still come with the world's
+  progress, whatever you do.
+- **The chapter bonus.** The first time anyone on the world follows one of a chapter's leads, the story moves on a little
+  (once per chapter and world, before the Guardian's system appears). In multiplayer everyone has their own leads.
+- The chip respects the **VEGA hints** setting — turn hints off and the story's chip (and its markers) clear once the
+  tutorial is done. On a world without machines (planet enemies *Off*, no hostile space) it never asks you to drive
+  machines back.
+- **Peaceful worlds.** On a world without machines (the peaceful and family settings) the story needs the same effort as
+  on one with combat — the missing machine share is made up — and there following a lead or reading a monument's runes
+  brings VEGA's personal memories that machines would drop elsewhere. A peaceful world saved with an older version may
+  move on one or two story moments when it is first loaded; you hear them as news in the Journal.
+- **The Crystal workshop** (VEGA's circuit course) is learning, not story: its steps no longer move VEGA's story on.
+- Once the Guardian's system is on the map, the chip says **"Fit a jump generator, then fly to the Core"** while your ship
+  has none, then **"Confront the Guardian core"** — this one is never hidden by the hints setting. A player still in the
+  tutorial keeps their current lesson on the chip and only sees the finale there while actually in the Guardian's system.
+  After the win the chip suggests linking the stars with relays, then clears.
 - The Journal's **Chapters** list shows the story beats you have heard under their chapter — also after rejoining a
   server. VEGA's other story lines (insights, the reveal of the Guardian's system, relay notes, her old memories) are
   re-readable under **VEGA's notes**. An entry your game version has no text for reads "needs a newer version".

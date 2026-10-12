@@ -274,6 +274,37 @@ public sealed class JournalViewTests
         Assert.Null(ObjectiveTracker.WaypointToAdopt(null, false, string.Empty));
     }
 
+    // ---------------- #2475: VEGA's chapter leads as tasks ----------------
+
+    [Fact]
+    public void TheVegaPagesLeads_ReadAsTasks_FollowedOnTheChipOrOpen_WithTheirPlace()
+    {
+        var vega = new NetStoryPack
+        {
+            Id = "vega_protocol",
+            Scope = StoryRegistry.ScopeWorld,
+            Started = true,
+            Leads = new[]
+            {
+                new NetStoryLead { ChapterId = "service", Index = 3, Type = "settlement_help", Key = "story.vega.obj.settlement_help", Current = true, StandIn = true },
+                new NetStoryLead { ChapterId = "service", Index = 2, Type = "fragment", Key = "story.vega.obj.fragment_here" },
+                new NetStoryLead { ChapterId = "service", Index = 1, Type = "unique_site:observatory", Key = "story.vega.obj.site.observatory", Arg = "Kepler-3 b", Done = true },
+            },
+        };
+
+        var leads = JournalPackPage.LeadsOf(vega);
+        Assert.Equal(new[] { 1, 2, 3 }, leads.Select(l => l.Index)); // the chapter's own first, the stand-in last
+        static string Loc(string key) => key == "story.vega.obj.site.observatory" ? "Visit the Sealed Observatory on {0}" : "<" + key + ">";
+        Assert.Equal("✔  Visit the Sealed Observatory on Kepler-3 b", JournalPackPage.LeadLine(leads[0], Loc));
+        Assert.Equal("○  <story.vega.obj.fragment_here>", JournalPackPage.LeadLine(leads[1], Loc));
+        Assert.Equal("●  <story.vega.obj.settlement_help>", JournalPackPage.LeadLine(leads[2], Loc));
+
+        // A key this client does not know shows the lead word, never a raw key; a player pack and an older server have none.
+        Assert.Equal("○  fragment", JournalPackPage.LeadLine(leads[1], Loc, has: _ => false));
+        Assert.Empty(JournalPackPage.LeadsOf(Tutorial()));
+        Assert.Empty(JournalPackPage.LeadsOf(null));
+    }
+
     // ---------------- The Settings' tutorial switch ----------------
 
     [Fact]
@@ -350,5 +381,13 @@ public sealed class JournalViewTests
 
         h.Client.SendStoryPack("tutorial", StoryPackActions.OptOut); // the Settings' "Tutorial: off"
         Assert.True(h.PumpUntil(() => TutorialSwitch.Of(states.Last()) == TutorialSwitch.State.Off));
+
+        // #2475: with the training off VEGA's story starts — its page lists the chapter's leads, the chip reads the lead.
+        Assert.True(h.PumpUntil(() => JournalPackPage.LeadsOf(states.Last().Packs.FirstOrDefault(p => p.Id == "vega_protocol")).Count > 0));
+        var lead = JournalPackPage.LeadsOf(states.Last().Packs.First(p => p.Id == "vega_protocol"))[0];
+        Assert.Equal("signature", lead.ChapterId);
+        Assert.Equal("fragment", lead.Type);
+        Assert.True(h.PumpUntil(() => objectives.Last().Items.Length > 0 && objectives.Last().Items[0].PackId == "vega_protocol"));
+        Assert.StartsWith(StoryLeads.ObjPrefix, objectives.Last().Items[0].Key);
     }
 }

@@ -383,8 +383,14 @@ public sealed partial class GameServer
         {
             NpcRadioOnBoardTurnIn(session, missionId, def.GiverName); // #1119: "something new on my board"
         }
-        RecordStoryMilestone();   // settlement helped (mission completed) → story milestone (P3)
-        TryThreadMission(session, def); // P7: a matching mission thread also yields a story fragment
+
+        // #2475 (E21): a teaching chain (the Crystal workshop) is not story progress — the chapter-lead bonus balances it.
+        if (def.CountsForStory)
+        {
+            RecordStoryMilestone();   // settlement helped (mission completed) → story milestone (P3)
+            TryThreadMission(session, def); // P7: a matching mission thread also yields a story fragment
+        }
+
         if (IsChainMission(def))
         {
             OnChainStepTurnedIn(session, def, pr); // #1212: the giver calls about the next step a little later
@@ -430,8 +436,8 @@ public sealed partial class GameServer
                 Send(session, new NetFragmentRevealed { Category = frag.Category, TextKey = frag.TextKey });
             }
 
+            RaiseGameEvent(session, GameEventKeys.StoryFragment, thread.FragmentKey); // #2465 (null session: nothing; #2475: first)
             RecordStoryFragment(thread.FragmentKey); // deduped + advances the arc + broadcasts the meter
-            RaiseGameEvent(session, GameEventKeys.StoryFragment, thread.FragmentKey); // #2465 (null session: nothing)
         }
     }
 

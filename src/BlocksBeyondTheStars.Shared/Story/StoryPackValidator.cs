@@ -56,6 +56,9 @@ public sealed class StoryPackValidationContext
     /// <summary>Whether a block key exists; null = skip.</summary>
     public Func<string, bool>? BlockExists { get; set; }
 
+    /// <summary>Whether a ship module key exists (a <c>module:</c> lead, #2475); null = skip.</summary>
+    public Func<string, bool>? ModuleExists { get; set; }
+
     /// <summary>The English text of a key, or null when it is missing; null = skip the key checks.</summary>
     public Func<string, string?>? English { get; set; }
 
@@ -226,6 +229,25 @@ public static class StoryPackValidator
             }
         }
 
+        // ---- The arc's pacing extras (#2475): the lead bonus, the peaceful-world normalisation, the memory triggers ----
+        if (def.LeadBonusMilestones < 0 || def.LeadBonusMilestones > 10)
+        {
+            Error("leadBonusMilestones", $"{def.LeadBonusMilestones} is out of range (0–10 milestones per chapter)");
+        }
+
+        foreach (var (trigger, ti) in (def.MemoryTriggers ?? new List<string>()).Select((t, i) => (t, i)))
+        {
+            if (!StoryMemoryTriggers.All.Contains(trigger ?? string.Empty, StringComparer.Ordinal))
+            {
+                Error($"memoryTriggers[{ti}]", $"unknown memory trigger '{trigger}' ({string.Join(", ", StoryMemoryTriggers.All)})");
+            }
+        }
+
+        if (playerPack && (def.LeadBonusMilestones > 0 || def.NormaliseUnavailableDrivers || (def.MemoryTriggers?.Count ?? 0) > 0))
+        {
+            Warn("leadBonusMilestones", "leadBonusMilestones, normaliseUnavailableDrivers and memoryTriggers are read for world packs only");
+        }
+
         // ---- Conditions ----
         void CheckCondition(string path, string? text)
         {
@@ -330,6 +352,20 @@ public static class StoryPackValidator
         Key("narrator.nameKey", def.Narrator?.NameKey);
         Key("epilogueTitleKey", def.EpilogueTitleKey);
         Key("epilogueTextKey", def.EpilogueTextKey);
+        if (!playerPack && def.Chapters.Any(c => c.Leads.Count > 0))
+        {
+            // #2475: the lead texts the runtime picks on its own — the fallbacks, "explore" for both rule sets, the rules-aware
+            // variants.
+            foreach (string builtIn in new[]
+            {
+                StoryLeads.FragmentOnKey, StoryLeads.FragmentHereKey, StoryLeads.ObjPrefix + StoryLeadTypes.SettlementHelp,
+                StoryLeads.ExploreKey, StoryLeads.ExplorePeacefulKey, StoryLeads.FinaleJumpKey,
+            })
+            {
+                Key("chapters.leads", builtIn, ChipMaxEn, ChipMaxDe);
+            }
+        }
+
         if (string.IsNullOrEmpty(def.NameKey))
         {
             Error("nameKey", "the pack has no nameKey");
@@ -505,7 +541,45 @@ public static class StoryPackValidator
 
             foreach (var (lead, li) in ch.Leads.Select((l, i) => (l, i)))
             {
-                Key($"{cp}.leads[{li}].objKey", lead.ObjKey, ChipMaxEn, ChipMaxDe);
+                // #2475: the lead vocabulary v1 — a known word, its argument where it needs one, and that argument exists.
+                string lp = $"{cp}.leads[{li}]";
+                if (lead is null)
+                {
+                    Error(lp, "an empty lead");
+                    continue;
+                }
+
+                if (StoryLeadTypes.Problem(lead.Type) is { } leadProblem)
+                {
+                    Error($"{lp}.type", leadProblem);
+                    continue;
+                }
+
+                if (playerPack)
+                {
+                    Warn(lp, "leads are read for world packs only");
+                }
+
+                string leadKind = StoryLeadTypes.KindOf(lead.Type);
+                string leadArg = StoryLeadTypes.ArgOf(lead.Type);
+                if (leadKind == StoryLeadTypes.Research && context.BlueprintExists is { } blueprintExists && !blueprintExists(leadArg))
+                {
+                    Error($"{lp}.type", $"blueprint '{leadArg}' does not exist");
+                }
+
+                if (leadKind == StoryLeadTypes.Module && context.ModuleExists is { } moduleExists && !moduleExists(leadArg))
+                {
+                    Error($"{lp}.type", $"ship module '{leadArg}' does not exist");
+                }
+
+                if (!string.IsNullOrEmpty(lead.ObjKey))
+                {
+                    Key($"{lp}.objKey", lead.ObjKey, ChipMaxEn, ChipMaxDe);
+                }
+                else
+                {
+                    Key($"{lp}.type", StoryLeads.ObjKey(lead, hasPlace: true, needsJump: false), ChipMaxEn, ChipMaxDe); // the built-in text
+                }
             }
 
             if (playerPack && ch.Steps.Count == 0)

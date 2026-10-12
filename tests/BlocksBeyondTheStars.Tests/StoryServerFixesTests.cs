@@ -675,6 +675,7 @@ public sealed class StoryServerFixesTests : IDisposable
             }
         });
         var p = server.AddLocalPlayer("Pilot");
+        p.ClientFeatures.Clear(); // #2475: an older client keeps these keys (a current one reads the chapter leads)
         server.SkipTutorialForTest(p); // past the basic training (#2469)
 
         foreach (var f in server.NetFragmentSnapshots.ToList())

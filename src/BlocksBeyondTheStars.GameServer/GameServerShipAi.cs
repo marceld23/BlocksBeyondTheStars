@@ -107,7 +107,7 @@ public sealed partial class GameServer
     /// <item>the pinned story (<c>PlayerState.TrackedStoryId</c>), if it has an objective;</item>
     /// <item>basic training: the tutorial pack's mandatory chapters (#2469 — the old onboarding chain is gone);</item>
     /// <item>the VEGA finale (Guardian system revealed) — once the player's story track has started (#2470);</item>
-    /// <item>the VEGA lead (<c>story.obj.*</c>) — likewise;</item>
+    /// <item>the VEGA lead — likewise (#2475: the chapter lead as <c>story.vega.obj.*</c>; an older client <c>story.obj.*</c>);</item>
     /// <item>a tutorial deep-dive step or a mission-bridge step;</item>
     /// <item>the other player packs by priority;</item>
     /// <item>nothing.</item>
@@ -147,10 +147,11 @@ public sealed partial class GameServer
         }
 
         // Ranks 4/5 only once the player's story track has started (#2470): before that the story is held for them — the
-        // chip never shows the story during the prologue, a read step's line or the gap between two lessons.
-        if (StoryTrackStarted(session) && StoryObjectiveKey(p).Length > 0)
+        // chip never shows the story during the prologue, a read step's line or the gap between two lessons. Rank 5 is the
+        // chapter lead since #2475 (the finale is the core chapter's lead).
+        if (StoryTrackStarted(session) && StoryChip(session, tutorialActive) is { Key.Length: > 0 } story)
         {
-            yield return StoryChip(session, tutorialActive);
+            yield return story;
         }
 
         if (DeepDiveObjective(session) is { } deepDive)
@@ -168,22 +169,19 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The world story's chip (#1110): the finale or the current lead, the arc's score as its counter. Carries the
-    /// story's id as its pack (#2471: the client labels it with the story's short name, "VEGA: …").</summary>
+    /// <summary>The world story's chip (#1110): the finale or the current lead (#2475: the chapter lead, <see cref="StoryObjectiveFor"/>
+    /// — an older client keeps the old keys), the arc's score as its counter (clamped, <see cref="StoryProgressShown"/>).
+    /// Carries the story's id as its pack (#2471: the client labels it with the story's short name, "VEGA: …").</summary>
     private VegaChip StoryChip(PlayerSession session, bool tutorialActive)
     {
-        var p = session.State;
-        string key = StoryObjectiveKey(p);
+        var (key, arg, source) = StoryObjectiveFor(session);
         if (key.Length == 0)
         {
             return new VegaChip(string.Empty, string.Empty, 0, 0, ObjectiveSources.None, tutorialActive);
         }
 
-        string arg = key == "story.obj.fragment_on" ? FragmentWorldName() : string.Empty;
         int target = _story is { Beats.Count: > 0 } d ? d.Beats[d.Beats.Count - 1].Threshold : 0;
-        int progress = _story is not null ? StoryEngine.Progress(_story, _storyState, Rules.StoryProgressScale) : 0;
-        string source = key == StoryFinaleObjectiveKey ? ObjectiveSources.Finale : ObjectiveSources.Story;
-        return new VegaChip(key, arg, progress, target, source, tutorialActive, _story?.Id ?? string.Empty);
+        return new VegaChip(key, arg, StoryProgressShown(), target, source, tutorialActive, _story?.Id ?? string.Empty);
     }
 
     /// <summary>The pinned story's chip, or null when it has no objective now (the order then goes on).</summary>
@@ -192,7 +190,7 @@ public sealed partial class GameServer
         string pinned = session.State.TrackedStoryId;
         if (StoryActive && _story is not null && string.Equals(_story.Id, pinned, System.StringComparison.OrdinalIgnoreCase))
         {
-            return StoryTrackStarted(session) && StoryObjectiveKey(session.State).Length > 0 ? StoryChip(session, tutorialActive) : null;
+            return StoryTrackStarted(session) && StoryChip(session, tutorialActive) is { Key.Length: > 0 } story ? story : null;
         }
 
         return TryGetPlayerPack(pinned, out var pack) && PackObjectiveOf(session, pack) is { } objective
@@ -221,7 +219,7 @@ public sealed partial class GameServer
             SendVegaObjective(session);
         }
 
-        if (live.Key is "story.obj.fragment_on" or "story.obj.fragment_here")
+        if (IsFragmentObjective(live.Key))
         {
             RevealFragmentSignals();
         }
@@ -269,7 +267,9 @@ public sealed partial class GameServer
     /// <summary>The post-tutorial story objective on the HUD chip (#1110): once VEGA's onboarding is done the
     /// chip no longer goes blank — it says what the story wants next. Keys use the <c>story.obj.</c> prefix so
     /// the client can gate them behind the hints setting (the tutorial chip always shows). Empty when no story
-    /// is active or the finale is won (the chip then clears, as before).</summary>
+    /// is active or the finale is won (the chip then clears, as before). Since #2475 this is the legacy objective — an
+    /// older client (no <c>packs1</c>) and a story without chapter leads; a current client reads the chapter leads
+    /// (<see cref="StoryObjectiveFor"/>). Its keys stay unchanged.</summary>
     private string StoryObjectiveKey(PlayerState p)
     {
         if (!StoryActive || _story is null || _storyState.GuardianDefeated)
@@ -485,6 +485,7 @@ public sealed partial class GameServer
 
             TickStoryPacksFor(session); // #2466: player packs — start, advance, offers, help escalation (active play time)
             TryStartStoryTrack(session); // #2470: the world story's start rule (also with no player pack installed)
+            TickStoryLeads(session); // #2475: leads followed by evidence (research, module, a site, the heal tank) + the marker
             // (#2468: queued cutscenes are flushed by TickCutscenes for every joined player, in space too — not from here.)
             RefreshVegaObjective(session); // #1859: the chip follows launches, stations, pickups and travel
 

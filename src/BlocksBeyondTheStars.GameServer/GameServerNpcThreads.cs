@@ -85,8 +85,8 @@ public sealed partial class GameServer
             && _story.Fragments.FirstOrDefault(f => f.Key == thread.FragmentKey) is { } frag)
         {
             Send(session, new NetFragmentRevealed { Category = frag.Category, TextKey = frag.TextKey });
+            RaiseGameEvent(session, GameEventKeys.StoryFragment, frag.Key); // #2465 (#2475: before the record — see the pickup)
             RecordStoryFragment(frag.Key);
-            RaiseGameEvent(session, GameEventKeys.StoryFragment, frag.Key); // #2465
         }
     }
 

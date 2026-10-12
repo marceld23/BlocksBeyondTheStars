@@ -207,9 +207,9 @@ public sealed class StoryFindabilityTests : IDisposable
 
             string? key = server.ObjectiveKeyForTest(p.State.PlayerId);
             Assert.NotNull(key);
-            Assert.StartsWith("story.obj.", key, StringComparison.Ordinal);
+            Assert.StartsWith(BlocksBeyondTheStars.Shared.Story.StoryLeads.ObjPrefix, key, StringComparison.Ordinal); // #2475: the chapter lead (a current client)
 
-            // Both possible pre-finale objectives are real, translated keys.
+            // Both possible pre-finale objectives are real, translated keys (the old ones stay for older clients).
             var en = _content.CreateLocalizer(GameLocale.English);
             var de = _content.CreateLocalizer(GameLocale.German);
             foreach (var k in new[] { "story.obj.fragment_here", "story.obj.search", "story.obj.help", "story.obj.help_peaceful", "story.obj.finale" })

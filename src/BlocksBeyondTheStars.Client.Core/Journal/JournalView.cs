@@ -421,6 +421,30 @@ namespace BlocksBeyondTheStars.Client
             return pack.Done ? localize(pack.Badge ? "ui.journal.status_badge" : "ui.journal.status_done") : string.Empty;
         }
 
+        /// <summary>#2475: the world story's chapter leads the VEGA page lists as tasks — the chapter's own leads in order, then the
+        /// stand-in the chip shows (a fallback or "explore"). Empty for a player pack and from an older server.</summary>
+        public static List<NetStoryLead> LeadsOf(NetStoryPack? pack)
+            => pack?.Leads == null
+                ? new List<NetStoryLead>()
+                : pack.Leads.OrderBy(l => l.StandIn ? 1 : 0).ThenBy(l => l.Index).ToList();
+
+        /// <summary>#2475: a lead's row on the VEGA page — "✔ Visit the Sealed Observatory on Kepler-3 b" (followed), "● …" (on
+        /// the chip now), "○ …" (open). The text is the lead's chip text with its {0}; a key this client does not know shows the
+        /// lead word rather than a raw key.</summary>
+        public static string LeadLine(NetStoryLead lead, Func<string, string> localize, Func<string, bool>? has = null)
+        {
+            string text = !string.IsNullOrEmpty(lead.Key) && (has == null || has(lead.Key))
+                ? localize(lead.Key)
+                : lead.Type;
+            if (!string.IsNullOrEmpty(lead.Arg))
+            {
+                text = Format(text, lead.Arg);
+            }
+
+            string icon = lead.Done ? Icon(StoryChapterStates.Done) : lead.Current ? Icon(StoryChapterStates.Active) : Icon(null);
+            return icon + "  " + text;
+        }
+
         internal static string Format(string template, params object[] args)
         {
             try

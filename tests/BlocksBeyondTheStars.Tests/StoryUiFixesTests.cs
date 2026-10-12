@@ -158,7 +158,7 @@ public sealed class StoryUiFixesTests : IDisposable
         transport.Sent.Clear();
         Deliver(server, p, new SkipOnboardingIntent()); // skip: the basic training is through, the story objective takes the chip
         var after = transport.To<ShipAiLine>(p).Last();
-        Assert.StartsWith("story.obj.", after.ObjectiveKey);
+        Assert.StartsWith(StoryLeads.ObjPrefix, after.ObjectiveKey); // #2475: a current client reads the chapter lead
         Assert.Equal(ObjectiveSources.Story, after.ObjectiveSource);
         Assert.False(after.TutorialActive);
         Assert.Equal(ObjectiveSources.Story, server.ObjectiveSourceForTest("Pilot"));
@@ -195,16 +195,17 @@ public sealed class StoryUiFixesTests : IDisposable
         Assert.Equal(ObjectiveSources.Tutorial, atHome.ObjectiveSource);
         Assert.True(atHome.TutorialActive);
 
-        // Whoever finished the lessons sees the finale everywhere — it is never muted.
-        Assert.Equal("story.obj.finale", server.ObjectiveKeyForTest("Veteran"));
+        // Whoever finished the lessons sees the finale everywhere — it is never muted. #2475: the core chapter's lead, which
+        // asks a player without a jump generator to fit one first.
+        Assert.Equal(StoryLeads.FinaleJumpKey, server.ObjectiveKeyForTest("Veteran"));
         Assert.Equal(ObjectiveSources.Finale, server.ObjectiveSourceForTest("Veteran"));
 
         transport.Sent.Clear();
         server.AdminGotoCore(newcomer);
         Assert.Equal(SvGameServer.GuardianCoreBodyId, newcomer.CurrentLocationId);
-        Assert.Equal("story.obj.finale", server.ObjectiveKeyForTest("Newcomer"));
+        Assert.Equal(StoryLeads.FinaleKey, server.ObjectiveKeyForTest("Newcomer"));
         var atCore = transport.To<ShipAiLine>(newcomer).Last();
-        Assert.Equal("story.obj.finale", atCore.ObjectiveKey);
+        Assert.Equal(StoryLeads.FinaleKey, atCore.ObjectiveKey);
         Assert.Equal(ObjectiveSources.Finale, atCore.ObjectiveSource);
         Assert.True(atCore.TutorialActive); // the lessons are unfinished — Skip, not Restart
     }
@@ -228,7 +229,7 @@ public sealed class StoryUiFixesTests : IDisposable
 
         var chip = transport.To<ShipAiLine>(p).LastOrDefault();
         Assert.NotNull(chip);
-        Assert.Equal("story.obj.finale", chip!.ObjectiveKey);
+        Assert.Equal(StoryLeads.FinaleKey, chip!.ObjectiveKey); // #2475: a current client's key
         Assert.Equal(ObjectiveSources.Finale, chip.ObjectiveSource);
         Assert.False(chip.TutorialActive);
     }

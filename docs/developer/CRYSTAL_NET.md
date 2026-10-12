@@ -683,7 +683,8 @@ first conduit, the first own network ON, the first door on a wire, the first arr
 refusal, the first old world circuit, each new blueprint family, the night-light tip for a dark base; a settler hands
 eight conduits to a player they know (`settler_crystal_gift`). The radio chain `crystal_workshop_1..6` (first light,
 doorbell, night light, airlock, little factory, secret passage) uses the new `MissionObjectiveType.Circuit` with
-`CircuitEvents` the net reports, gated by `MissionDefinition.RequiresBlueprint`; nine achievements count
+`CircuitEvents` the net reports, gated by `MissionDefinition.RequiresBlueprint`; since #2475 its steps carry
+`"countsForStory": false` (a course, not story progress — no VEGA story milestone on turn-in); nine achievements count
 `crystal:<event>` (first circuit, ding dong, night watch, logician, assembly line, deep driller, secret passage, going
 up, safecracker).
 

@@ -91,6 +91,12 @@ public class StoryPackLoadTests
         Assert.Equal(builtin.Graduation.LineKey, data.Graduation.LineKey); // #2469
         Assert.Equal(builtin.Graduation.Counter, data.Graduation.Counter);
         Assert.Equal(builtin.Graduation.Suggest, data.Graduation.Suggest);
+        // #2475: the chapter leads and the pacing extras (the lead bonus, the peaceful-world normalisation, the memory triggers).
+        Assert.Equal(builtin.Chapters.Select(c => string.Join("|", c.Leads.Select(l => l.Type + "=" + l.ObjKey))),
+            data.Chapters.Select(c => string.Join("|", c.Leads.Select(l => l.Type + "=" + l.ObjKey))));
+        Assert.Equal(builtin.LeadBonusMilestones, data.LeadBonusMilestones);
+        Assert.Equal(builtin.NormaliseUnavailableDrivers, data.NormaliseUnavailableDrivers);
+        Assert.Equal(builtin.MemoryTriggers, data.MemoryTriggers);
     }
 
     /// <summary>#2466: a pack written before the manifest existed loads with every new field at today's behaviour.</summary>
@@ -110,6 +116,9 @@ public class StoryPackLoadTests
         Assert.False(def.Start.EarlyOptIn);
         Assert.Null(def.Escalate.HintAfter);
         Assert.Equal(string.Empty, def.IntroCutscene);
+        Assert.Equal(0, def.LeadBonusMilestones); // #2475: no lead bonus, the old pacing, only the kill drop for memories
+        Assert.False(def.NormaliseUnavailableDrivers);
+        Assert.Empty(def.MemoryTriggers);
     }
 
     /// <summary>#2466: the manifest of a player pack loads into the model — chapters, steps, objectives, variants,

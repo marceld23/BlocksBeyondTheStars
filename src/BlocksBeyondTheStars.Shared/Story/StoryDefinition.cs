@@ -343,6 +343,21 @@ public sealed class StoryDefinition
     /// <summary>Diminishing-returns cap: machine kills beyond this stop adding to progress (anti-grind).</summary>
     public int KillContributionCap { get; set; } = 40;
 
+    /// <summary>World packs (#2475, synthesis §4.8): milestones the arc gains the first time anyone in the save follows a lead
+    /// of a chapter — once per save and chapter, and only before the arc's last beat (VEGA: 3 = +6 points, at most six chapters
+    /// = 36 points before B12). 0 = no bonus (the default — a pack without leads paces exactly as before).</summary>
+    public int LeadBonusMilestones { get; set; }
+
+    /// <summary>World packs (#2475, synthesis §4.9): on a world whose rules field no machines (peaceful, family,
+    /// peaceful-creative) the kill share of the score can never be earned — scale the score so the arc needs the same work as
+    /// on a world with combat (<see cref="StoryEngine.UnavailableKillNormalisation"/>; VEGA: 204/164 ≈ 1.244). False = the old
+    /// pacing.</summary>
+    public bool NormaliseUnavailableDrivers { get; set; }
+
+    /// <summary>World packs (#2475): what else unlocks a player's next personal memory where no machine can drop one
+    /// (<see cref="StoryMemoryTriggers"/>: <c>lead</c>, <c>monument</c>). Empty = only the kill drop (as before).</summary>
+    public List<string> MemoryTriggers { get; set; } = new();
+
     /// <summary>The ordered beat arc (ascending <see cref="StoryBeat.Index"/> and <see cref="StoryBeat.Threshold"/>).
     /// A concrete list so it deserializes cleanly from a pack's <c>story.json</c>.</summary>
     public List<StoryBeat> Beats { get; set; } = new();

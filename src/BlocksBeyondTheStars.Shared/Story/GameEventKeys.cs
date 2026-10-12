@@ -402,6 +402,12 @@ public static class StoryPackKeys
     public static string Beat(string packId, int index)
         => "story:" + packId + ":beat:" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
+    /// <summary><c>story:&lt;pack&gt;:lead:&lt;chapter&gt;:&lt;n&gt;</c> — the player followed lead <paramref name="number"/>
+    /// (1-based, the chapter's lead list then its fallbacks — <see cref="StoryLeads.EffectiveLeads"/>) of a world-story chapter
+    /// (#2475, synthesis §5.6). Per player: in multiplayer every player follows their own leads.</summary>
+    public static string Lead(string packId, string chapterId, int number)
+        => "story:" + packId + ":lead:" + chapterId + ":" + number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     /// <summary>The marker between a pack and a cutscene id in the ledger keys.</summary>
     private const string CutsceneInfix = ":cut:";
 

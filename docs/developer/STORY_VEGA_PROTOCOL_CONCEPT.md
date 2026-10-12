@@ -139,6 +139,35 @@ memories never lock the player in place. Only the big scenes take the camera (a 
 multiplayer never stops). The words are the beats' own texts, the Journal keeps them all, and a skipped scene never takes
 the jump-generator line away. The scene list and the rules: [CUTSCENES.md](CUTSCENES.md#vegas-chapter-scenes-and-beat-cards-2474).
 
+### 3.3 Guidance: chapter leads (#2475)
+
+The hidden score stays the clock; **leads are the compass** (synthesis option O2). Each chapter names one or two things
+worth doing next — VEGA's chip shows the first one the player can follow from where they are ("VEGA: Visit the Sealed
+Observatory on Kepler-3 b"), the map marks it when it has a place, and the Journal lists the chapter's leads as tasks
+(✔ followed, ● on the chip, ○ open). A lead never holds a beat back, so a world that lacks a site never blocks the story:
+
+| Chapter | Leads |
+|---|---|
+| 1 A Familiar Signature | find the net fragment on this world |
+| 2 The Service | visit the Sealed Observatory · find a net fragment |
+| 3 The Guardian | read a monument's runes · help a settlement |
+| 4 The Verdict | board the derelict *The Long Quiet* · go to the heal tank aboard your ship |
+| 5 What You Are | research the radar array · help a settlement |
+| 6 It Still Sleeps | research the jump generator · fit it to your ship |
+| 7 The Guardian Core | confront the Core (first: fit a jump generator) — never muted |
+| 8 Resolution | link the stars with relays |
+
+When none of a chapter's leads can be followed here, the chip falls back to a fragment on this world, then a settlement
+job, then "explore" (worded for the world's rules — no "drive back the machines" on a peaceful world). In multiplayer every
+player follows their own leads; the **first** lead anyone follows in a chapter pays a once-per-save bonus (+6 points, at
+most six chapters = 36 points before B12) — a deliberate second credit next to the action's own points.
+
+**Peaceful worlds** (no machines: the peaceful, family and peaceful-creative presets) could never earn the kill share of
+the score (93 instead of 73 milestones, and the four personal memories never dropped). The score is now made up for it
+(× 204/164 ≈ 1.244, computed from the pack), and there a followed lead or a monument reading unlocks the next personal
+memory. The **Crystal workshop** teaches circuits — its turn-ins no longer count as story progress; the lead bonus
+balances the points. Mechanics: [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md#chapter-leads-the-chapter-bonus-and-peaceful-world-pacing-2475).
+
 ---
 
 ## 4. Evaluation
@@ -307,7 +336,8 @@ Pacing (thresholds), density (weights), combat weighting and on/off are pure num
 **story-selection** control (pick the active pack, or **"None / Sandbox"**) + a **"Story density"** slider in
 world creation. Reuses the existing world-rules model. *As built:* both are creation-time options baked into the
 save's rules, chosen on the world-creation **Stories** page (#2472, with the tutorial rule); the density is live-editable
-by the world admin since #2472 (in-game world rules), the active pack is switched by an admin (`StorySelectIntent`).
+by the world admin since #2472 (in-game world rules), the active pack is switched by an admin (`StorySelectIntent`). Since
+#2475 the pack's `leadBonusMilestones`, `normaliseUnavailableDrivers` and `memoryTriggers` are data too (§3.3).
 
 ## 12. Recommended first slice (MVP)
 1. **Generic story engine + state + threshold beats** (Layer C) on top of `ai_memory_fragment`; a

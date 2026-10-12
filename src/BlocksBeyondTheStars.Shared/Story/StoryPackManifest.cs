@@ -73,13 +73,19 @@ public sealed class StoryStartRule
     public bool EarlyOptIn { get; set; }
 }
 
-/// <summary>A chapter lead (d2 §3.5) — placeholder for the VEGA guidance of step 16; the runtime does not read it yet.</summary>
+/// <summary>A chapter lead of a world story (#2475, synthesis §4.8 option O2) — one entry of the chapter's compass: shown on
+/// VEGA's chip while it is the player's first open, feasible lead, listed in the Journal as a task, and worth the chapter's
+/// once-per-save bonus (<see cref="StoryDefinition.LeadBonusMilestones"/>) when a player follows it. See
+/// <see cref="StoryLeadTypes"/> for the vocabulary and <see cref="StoryLeads"/> for the rules.</summary>
 public sealed class StoryLead
 {
-    /// <summary>The lead vocabulary word (<c>fragment</c>, <c>unique_site:observatory</c>, <c>finale</c>, <c>relay</c> …).</summary>
+    /// <summary>The lead vocabulary word (<c>fragment</c>, <c>unique_site:observatory</c>, <c>research:radar_array</c>,
+    /// <c>finale</c>, <c>relay</c> …).</summary>
     public string Type { get; set; } = string.Empty;
 
-    /// <summary>Locale key of the chip text while this lead is current.</summary>
+    /// <summary>Locale key of the chip / Journal text while this lead is current; empty = the built-in key of its word
+    /// (<see cref="StoryLeads.ObjKey"/>). The rules-aware variants (a fragment on an unnamed world, the finale without a jump
+    /// generator) always use the built-in keys.</summary>
     public string ObjKey { get; set; } = string.Empty;
 }
 
@@ -133,7 +139,8 @@ public sealed class StoryChapter
     /// <summary>World packs: the arc event that reaches this chapter (<c>guardian_defeated</c> …); empty = none.</summary>
     public string FromEvent { get; set; } = string.Empty;
 
-    /// <summary>World packs: the chapter's leads (placeholder for step 16).</summary>
+    /// <summary>World packs: the chapter's leads (#2475) — the compass while the player is in this chapter. The fallbacks
+    /// (<see cref="StoryLeadTypes.Fallbacks"/>, then <see cref="StoryLeadTypes.Explore"/>) follow them on their own.</summary>
     public List<StoryLead> Leads { get; set; } = new();
 
     /// <summary>The chapter's steps in order.</summary>

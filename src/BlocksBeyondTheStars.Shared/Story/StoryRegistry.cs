@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace BlocksBeyondTheStars.Shared.Story;
 
@@ -133,6 +134,11 @@ public static class StoryRegistry
         KillWeight = 1,
         MilestoneWeight = 2,
         KillContributionCap = 40,
+        // #2475: the chapter leads' once-per-save bonus (+6 points per chapter, six chapters before B12), the peaceful-world
+        // pacing (the unreachable kill share made up) and the memories' second way in where no machine can drop one.
+        LeadBonusMilestones = 3,
+        NormaliseUnavailableDrivers = true,
+        MemoryTriggers = new List<string> { StoryMemoryTriggers.Lead, StoryMemoryTriggers.Monument },
         // Beats pay +1 knowledge each (was +3): the arc alone used to out-earn the whole research
         // ladder's knowledge ceiling, trivialising the blueprint gate (#767).
         Beats = new List<StoryBeat>
@@ -176,15 +182,16 @@ public static class StoryRegistry
         Chapters = new List<StoryChapter>
         {
             // #2474: the chapter scenes (the fallback carries no cutscenes — a bound id there only logs once, the line plays).
+            // #2475: each chapter's leads (synthesis §4.7) — the compass on VEGA's chip and the Journal's tasks.
             Chapter("awakening", fromBeat: 0, openCutscene: StoryCutsceneIds.Prologue),
-            Chapter("signature", fromBeat: 1, openCutscene: "ch1.open"),
-            Chapter("service", fromBeat: 2, openCutscene: "ch2.open"),
-            Chapter("guardian", fromBeat: 5, openCutscene: "ch3.open"),
-            Chapter("verdict", fromBeat: 6, openCutscene: "ch4.open"),
-            Chapter("what_you_are", fromBeat: 9, openCutscene: "ch5.open"),
-            Chapter("sleeps", fromBeat: 11, openCutscene: "ch6.open"),
-            Chapter("core", fromBeat: 12, openCutscene: "ch7.open"),
-            Chapter("resolution", fromEvent: StoryChapterEvents.GuardianDefeated),
+            Chapter("signature", fromBeat: 1, openCutscene: "ch1.open", leads: new[] { StoryLeadTypes.Fragment }),
+            Chapter("service", fromBeat: 2, openCutscene: "ch2.open", leads: new[] { "unique_site:observatory", StoryLeadTypes.Fragment }),
+            Chapter("guardian", fromBeat: 5, openCutscene: "ch3.open", leads: new[] { StoryLeadTypes.Monument, StoryLeadTypes.SettlementHelp }),
+            Chapter("verdict", fromBeat: 6, openCutscene: "ch4.open", leads: new[] { "unique_site:derelict", StoryLeadTypes.HealTank }),
+            Chapter("what_you_are", fromBeat: 9, openCutscene: "ch5.open", leads: new[] { "research:radar_array", StoryLeadTypes.SettlementHelp }),
+            Chapter("sleeps", fromBeat: 11, openCutscene: "ch6.open", leads: new[] { "research:jump_generator", "module:jump_generator" }),
+            Chapter("core", fromBeat: 12, openCutscene: "ch7.open", leads: new[] { StoryLeadTypes.Finale }),
+            Chapter("resolution", fromEvent: StoryChapterEvents.GuardianDefeated, leads: new[] { StoryLeadTypes.Relay }),
         },
         Insights = new List<StoryInsight>
         {
@@ -193,13 +200,14 @@ public static class StoryRegistry
         },
     };
 
-    private static StoryChapter Chapter(string id, int fromBeat = -1, string fromEvent = "", string openCutscene = "") => new()
+    private static StoryChapter Chapter(string id, int fromBeat = -1, string fromEvent = "", string openCutscene = "", string[]? leads = null) => new()
     {
         Id = id,
         TitleKey = "story.vega.ch." + id,
         FromBeat = fromBeat,
         FromEvent = fromEvent,
         OpenCutscene = openCutscene,
+        Leads = (leads ?? Array.Empty<string>()).Select(t => new StoryLead { Type = t }).ToList(),
     };
 
     private static StoryBeat Beat(int index, string title, int threshold, int knowledge, string cutscene = "") => new()

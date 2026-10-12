@@ -22,9 +22,10 @@ as remnants of the dormant Guardian core, pacified in the finale by exposing its
 
 **State & pacing.** Story state is per save *and* per `storyId`, lives on `GameServer`, and is persisted.
 Pacing is a threshold score: `progress = fragments·Wf + min(machineKills, killCap)·Wk + milestones·Wm`,
-scaled by a per-world density multiplier (Sparse/Normal/Dense = 0.65/1.0/1.5). Beats fire when the score
-crosses a threshold (not on a specific find), so a linear arc works in a random world. Diminishing returns
-/ a kill cap stop combat grind from trivialising pacing.
+scaled by a per-world density multiplier (Sparse/Normal/Dense = 0.65/1.0/1.5) — and, since #2475, on a world without
+machines by the peaceful-world factor (one wrapper, `StoryScale`; see "Chapter leads, the chapter bonus and
+peaceful-world pacing"). Beats fire when the score crosses a threshold (not on a specific find), so a linear arc works in
+a random world. Diminishing returns / a kill cap stop combat grind from trivialising pacing.
 
 **Three progress drivers** all feed the same score:
 - **Net fragments** — text-only pickups placed deterministically on planet surfaces (datacube-style) from
@@ -33,7 +34,8 @@ crosses a threshold (not on a specific find), so a linear arc works in a random 
 - **Machine kills** — defeating a Guardian machine (planet enemies + space drones/UFOs; organic fauna
   excluded) advances the story and has a chance to drop a **player memory** (a per-player, non-contradictory
   personal unlock; each player is a different imprint).
-- **Milestones** — repeatable: mission turn-in (settlement helped) and first-discovery system mapping (never
+- **Milestones** — repeatable: mission turn-in (settlement helped; not a teaching chain — `countsForStory: false`, the
+  Crystal workshop since #2475) and first-discovery system mapping (never
   the player's first, spawn system — #2460: every new identity used to add +2 just by joining);
   **once per save** (#1105, `RecordStoryMilestone(onceKey)`, keys persisted in `StoryState.MilestoneKeys`):
   first base founded, first player station commissioned, first self-built ship commissioned, first companion
@@ -41,7 +43,8 @@ crosses a threshold (not on a specific find), so a linear arc works in a random 
   (`monument:<body>`). Pacing note: fragments cap
   at 6 (18 pts) and kills at 40, so before #1105 the remaining ~130 of the 204 needed came almost entirely
   from delivery turn-ins; the once-firsts add roughly 10–20 pts per playthrough from building, taming and
-  exploring — they widen the arc's inputs without making any of them farmable.
+  exploring — they widen the arc's inputs without making any of them farmable. Since #2475 the chapter leads add a
+  once-per-save bonus per chapter (`lead:<chapter>:1..3`, at most 36 pts before B12).
 
 **Beats** are spoken through the existing VEGA narrator pipeline (`ShipAiLine`, Kind 2) — always in VEGA's
 voice: a pack has no narrator/speaker field yet (the story-packs manifest adds one, #2459), so no new beat UI.
@@ -232,6 +235,108 @@ Test seams: `StartStoryTrackForTest` (the full start sequence — legacy story t
 `TryStartStoryTrackForTest`, `StoryTrackStartReasonForTest`, `StoryOnJoinForTest`, `MigrateStoryTrackForTest`,
 `WorldChapterIdForTest`, `TrackChapterIdForTest`, `WinDuelForTest`, `FinaleAudienceForTest`, `SpeakRelayInsightForTest`.
 Tests: `VegaStoryPackTests`; Client.Tests `StoryChapterListTests`.
+
+## Chapter leads, the chapter bonus and peaceful-world pacing (#2475)
+
+Synthesis §4.7–§4.9, option O2: **the score stays the clock, the chapter leads are the compass.** A lead never holds a
+beat back — beats still reveal by score. Code: `src/BlocksBeyondTheStars.GameServer/GameServerStoryLeads.cs`; vocabulary
+and rules: `src/BlocksBeyondTheStars.Shared/Story/StoryLeads.cs` (`StoryLeadTypes`, `StoryLeads`, `StoryMemoryTriggers`).
+
+**Data.** Each world-story chapter lists its leads (`chapters[].leads[]`, `{ "type": "<word>[:<arg>]", "objKey": "…" }`;
+`objKey` optional — the built-in `story.vega.obj.*` key of the word otherwise). Pack fields: `leadBonusMilestones`
+(VEGA 3), `normaliseUnavailableDrivers` (VEGA true), `memoryTriggers` (VEGA `["lead", "monument"]`). All three default to
+the old behaviour and are mirrored in `StoryRegistry.BuildVegaProtocol` (no-drift test). VEGA's leads:
+
+| Chapter | Leads |
+|---|---|
+| 1 signature | `fragment` |
+| 2 service | `unique_site:observatory`, `fragment` |
+| 3 guardian | `monument`, `settlement_help` |
+| 4 verdict | `unique_site:derelict`, `heal_tank` |
+| 5 what_you_are | `research:radar_array`, `settlement_help` |
+| 6 sleeps | `research:jump_generator`, `module:jump_generator` |
+| 7 core | `finale` (becomes `finale_jump` without a jump generator outside the Guardian system) |
+| 8 resolution | `relay` (post-game, no bonus) |
+
+**Vocabulary v1** (feasible = can be followed from where the player is; followed = the per-player key is written):
+
+| Word | Feasible | Followed by | Marker |
+|---|---|---|---|
+| `fragment` | an unfound net fragment on the player's current world | a NEW fragment find (`story:fragment`) | the fragment's shared map signal, as before (`RevealFragmentSignals`) |
+| `unique_site:observatory\|shrine\|derelict` | the site exists in this save (a surface site's world pinned it, or was never edited — a world stamped before #1129 recorded a skip and never gets it) and the player can reach it (same system, a jump generator, landed there before, instant travel) | landing there / boarding the derelict (`visit:body`, `station:boarded`), or evidence: landed there before | a ping on the site's world, else the space waypoint for a body of the player's system |
+| `monument` | a monument on the player's world whose runes they have not read (scan ledger) | a first reading of a monument (`scan:any` = monument) | a ping at the monument |
+| `settlement_help` | a settlement on the player's world | a board or chain job turned in that counts for the story (`mission:turned_in`) | a ping at the nearest settlement |
+| `machines` | the world's rules field machines | a machine destroyed (`defeat:any` machine / space machine) | — |
+| `heal_tank` | the player's ship is landed on their world | standing within 3.5 m of its heal tank (1 Hz check) | a ping at the tank |
+| `research:<bp>` | the blueprint exists | `research:any`, or evidence: already researched | — |
+| `module:<key>` | the module exists | `module:built`, or evidence: already fitted | — |
+| `finale` / `finale_jump` | the finale is open | (the win changes the chapter) | — (the Guardian system is on the star map) |
+| `relay` | the finale is won | `relay:commissioned` / `lane:linked` | — |
+| `explore` | always | never | — |
+
+**Resolution** (`LeadsFor(s)`): only for a player whose story track started; the current chapter's effective leads
+(`StoryLeads.EffectiveLeads`: the chapter's own list, then the stand-ins `fragment`, `settlement_help` it does not list —
+numbered on, so `story:<id>:lead:<chapter>:<n>` stays stable) are resolved per player and cached in
+`PlayerSession.StoryLeads`. The cache is rebuilt only when `StoryLeadSignature` changed — the chapter, the location, in
+space or not, the fragments on the player's world, the save's found fragments, the machine rule, the finale flags, the
+player's landed bodies / blueprints / scan ledger counts, the ship, the locale, instant travel, and an epoch bumped by
+`module:built`, `ship:commissioned` and every followed lead. No per-tick galaxy scans: the 1 Hz path compares the
+signature (O(1)); the unique sites' bodies are cached per galaxy. The **current** lead = the first open, feasible one; none
+→ the `explore` fallback (`story.vega.obj.explore` / `explore_peaceful` — rules-aware); after the win there is no
+fallback (the chip clears once the relays are done, as before).
+
+**Following a lead** (`StoryLeadListener` on the bus for `story:fragment`, `visit:body`, `station:boarded`, `scan:any`,
+`mission:turned_in`, `defeat:any`, `research:any`, `module:built`, `ship:commissioned`, `relay:commissioned`,
+`lane:linked` — registered only while the world story has leads; plus `TickStoryLeads` at 1 Hz from `TickShipAi` for the
+evidence and the heal tank): one action books the first open lead it fulfils. The fragment hooks now raise
+`story:fragment` **before** `RecordStoryFragment`, so a find that crosses into the next chapter counts for the chapter it
+was made in. `CompleteLead` writes `story:<id>:lead:<chapter>:<n>` for that player only (in MP each player follows their
+own leads; other players' chips keep theirs), may unlock a memory (below), pays the bonus and moves the chip and the
+Journal on. No line is spoken — the chip, the meter and the Journal's ✔ show it.
+
+**The chapter bonus** (`PayLeadBonus`): the first lead anyone follows in a chapter that lists leads adds
+`leadBonusMilestones` milestones **once per save** (keys `lead:<chapter>:1..n` in `StoryState.MilestoneKeys` — the
+existing once-key bookkeeping, untouched by older builds) and only while the arc's last beat is not revealed. For VEGA
+that is at most the six chapters before B12 = 18 milestones = 36 points (Normal with combat: 73 → 55 milestones to the
+finale).
+
+**Pacing — the one wrapper.** Every reader of the score uses `StoryScale` = the density scale × `StoryDriverNormalisation`:
+the beat reveal (`AdvanceStory`), the meter (`BuildStoryState`), the chip counter, the knowledge level and the admin's
+`reveal_finale`. On a world whose rules field no machines (`StoryMachinesActive` false: planet enemies off or Creative,
+and no space hostiles — the peaceful, family and peaceful-creative presets) and a pack with `normaliseUnavailableDrivers`,
+the factor is `StoryEngine.UnavailableKillNormalisation` = `T / (T − cap·Wk)` from the pack (VEGA 204/164 ≈ 1.244), so a
+peaceful world needs the same work as one with combat (93 → 73 milestones; with the bonus ≈ 55). The meter, the chip and
+the knowledge level read `StoryProgressShown` = `StoryEngine.DisplayProgress` — clamped to the last revealed beat's
+threshold (switching hostiles on mid-save lowers the factor; beats stay, the meter never runs backwards) and to the
+target. `HandleSetWorldRules` runs `AdvanceStory` when the factor changed. **An existing peaceful save** crosses one or two
+beats at its first start with this build (`LoadStoryState` → `AdvanceStory`); the players' join catch-up absorbs them
+(two or more missed beats → silently into the Journal with one line, the recap and the current chapter's opening; one →
+its card).
+
+**Memories without machines** (`TryAlternativeMemory`): where no machine can drop a personal memory, a followed lead
+(`memoryTriggers: lead`) or a first monument reading that follows no lead (`monument`) unlocks the player's next memory —
+only for a player whose story track started.
+
+**Chip and keys** (`StoryObjectiveFor`, rank 5 "VEGA lead" of the §5.3 order; the finale words carry source `finale` and
+are never muted, the rest `story`): a current client (`packs1`) reads `story.vega.obj.*` (pack locale, ≤ 45 EN / 53 DE,
+no "Story:" prefix — the chip's "VEGA:" label names the story); an older client — and any world story without leads —
+keeps today's `story.obj.*` keys (`StoryObjectiveKey`, unchanged). Before a player's track starts only the finale shows
+(rank 1, in the Guardian system).
+
+**Journal.** `NetStoryPack.Leads` (`NetStoryLead{ChapterId, Index, Type, Key, Arg, Done, Current, StandIn}`, additive) on
+the world story's entry: the current chapter's own leads (done or open) plus the stand-in or "explore" while it is on the
+chip. The VEGA page lists them under "Leads in this chapter" (`JournalPackPage.LeadsOf` / `LeadLine`: ✔ followed, ● on the
+chip, ○ open).
+
+**E21.** Tutorial bookkeeping never calls `RecordStory*` (the step runtime has no story hook; real world firsts made during
+the lessons still count through their own hooks). `MissionDefinition.CountsForStory` (default true): the Crystal workshop's
+six radio steps set `false` — their turn-ins add no milestone and thread no fragment; the chapter bonus balances the 12
+points per player they used to bring.
+
+Test seams: `LeadsForTest`, `CurrentLeadForTest`, `LeadResolutionsForTest`, `TickStoryLeadsForTest`,
+`StoryObjectiveForTest`, `StoryScaleForTest`, `StoryProgressShownForTest`, `JournalLeadsForTest`,
+`RecordUniqueSiteSkipForTest`, `PickUpNetFragmentForTest(id, playerId)`. Tests: `VegaChapterLeadsTests`; Client.Tests
+`JournalViewTests` (lead rows, a real client receiving them).
 
 ## Game events, story conditions and the world-story guard (#2465)
 
@@ -800,7 +905,11 @@ fragments, memories, flavour and `coreArguments` are authored + translated (DE+E
   `data_terminal`/`relic_cache` markers roll a fragment per residency (`TryPlaceStructureFragment` —
   deterministic from the marker position, found keys never return). VEGA's `fragment_signal` context tip
   gives a bearing and reveals a `fragment_signal` map POI; after the tutorial the objective chip carries
-  a `story.obj.*` line (gated client-side by the VEGA-hints setting).
+  a `story.obj.*` line (gated client-side by the VEGA-hints setting) — since #2475 the chapter's lead
+  (`story.vega.obj.*`) for a current client.
+- Leads (#2475) that need a galaxy index are not in v1: fragments or monuments on other worlds, the nearest data
+  terminal, an unknown neighbouring system. The `machines` lead exists in the vocabulary but no VEGA chapter lists it.
+  A followed lead speaks no line.
 - Environmental lore (#1111): `data/stories/<pack>/lore_sites.json` — weighted, knowledge-gated texts per
   site kind (monument scan / structure loot), revealed once per player (`PlayerState.Milestones`
   `lore:<key>`), listed in the Codex "Lore" chapter. NPC story threads (#1112): `npcThreads[]` in the

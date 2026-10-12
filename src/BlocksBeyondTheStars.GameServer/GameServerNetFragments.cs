@@ -245,8 +245,8 @@ public sealed partial class GameServer
 
         _netFragments.Remove(frag);
         Send(session, new NetFragmentRevealed { Category = frag.Category, TextKey = frag.TextKey });
-        RecordStoryFragment(frag.Key); // dedupes + advances the arc + broadcasts the meter
-        RaiseGameEvent(session, GameEventKeys.StoryFragment, frag.Key); // #2465
+        RaiseGameEvent(session, GameEventKeys.StoryFragment, frag.Key); // #2465 — #2475: before the record, so a chapter lead
+        RecordStoryFragment(frag.Key); // counts for the chapter the find was made in; dedupes + advances the arc + the meter
         BroadcastNetFragments();
     }
 
@@ -263,6 +263,23 @@ public sealed partial class GameServer
         }
 
         _netFragments.Remove(frag);
+        RecordStoryFragment(frag.Key);
+        return true;
+    }
+
+    /// <summary>Test hook: <paramref name="playerId"/> picks up a fragment by id without the reach/network path — the game
+    /// event first, then the record, as the gameplay pickup does (#2475: a chapter lead may follow).</summary>
+    public bool PickUpNetFragmentForTest(int fragmentId, string playerId)
+    {
+        var frag = _netFragments.FirstOrDefault(f => f.Id == fragmentId);
+        var session = FindSessionByPlayerId(playerId);
+        if (frag is null || session is null)
+        {
+            return false;
+        }
+
+        _netFragments.Remove(frag);
+        RaiseGameEvent(session, GameEventKeys.StoryFragment, frag.Key);
         RecordStoryFragment(frag.Key);
         return true;
     }

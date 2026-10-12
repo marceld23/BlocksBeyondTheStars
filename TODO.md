@@ -252,7 +252,22 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   the prologue = 0). Three ElevenLabs stingers `chapter_sting`, `chapter_sting_memory`, `chapter_sting_reveal` (NOTICES).
   Tests: `VegaChapterScenesTests`, Client.Tests `VegaChapterScenesClientTests` + updated VEGA/tutorial/cutscene tests.
   Docs: CUTSCENES, STORY_IMPLEMENTATION, STORY_VEGA_PROTOCOL_CONCEPT, SOUND_DESIGN, USER_MANUAL, NOTICES.
-- ⬜ Step 16 — VEGA leads, chapter bonus, pacing (#2475) · 16b — VEGA story missions (#2476)
+- ✅ **Step 16 — VEGA chapter leads, chapter bonus, peaceful-world pacing (#2475)**, 2026-10-12 (needs the local Unity
+  build — one Journal block): every VEGA chapter lists its leads in `story.json` (vocabulary v1 `StoryLeadTypes`:
+  `fragment`, `unique_site:observatory|shrine|derelict` with a feasibility check, `monument`, `settlement_help`,
+  `machines`, `heal_tank`, `research:*`, `module:*`, `finale`/`finale_jump`, `relay`, `explore`); resolved per player only
+  when the chapter, the place or a relevant count changed (`StoryLeadSignature`, cached in `PlayerSession.StoryLeads` — no
+  per-tick galaxy scans), followed through the event bus or evidence (`story:<id>:lead:<chapter>:<n>`, per player); the
+  chip shows the first feasible open lead (rank "VEGA lead", `story.vega.obj.*`, 16 en+de keys; older clients keep
+  `story.obj.*`), a private ping or the space waypoint marks its place, the Journal's VEGA page lists the chapter's leads
+  (`NetStoryPack.Leads`, additive); the first lead anyone follows in a chapter pays +3 milestones once per save (keys
+  `lead:<chapter>:1..3`, only before B12 → ≤ 36 points); ONE scale wrapper `StoryScale` (density × the peaceful-world
+  factor 204/164 from the pack) at all five score readers, the meter clamped to the last revealed beat; an existing
+  peaceful save crosses 1–2 beats at its first start (the catch-up absorbs them); on a world without machines a followed
+  lead or a monument reading unlocks the next memory; the Crystal workshop's turn-ins leave the score
+  (`MissionDefinition.CountsForStory`). Tests: `VegaChapterLeadsTests` (37), Client.Tests `JournalViewTests` + updated
+  chip tests. Docs: STORY_IMPLEMENTATION, STORY_VEGA_PROTOCOL_CONCEPT, USER_MANUAL, CRYSTAL_NET.
+- ⬜ Step 16b — VEGA story missions (#2476)
 - ⬜ Step 17a — camera modes (#2477) · 17b — finale set pieces (#2478)
 - ⬜ Steps 18–21 — tutorial deep-dive chapters (#2479, #2480, #2481, #2482)
 - ⬜ Step 22 — side-story test pack + authoring guide (#2483)
@@ -276,6 +291,11 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   card's speaker box while walking, an early skip of chapter 7 bringing the jump-generator line back; a parent watching
   B6/B9 (synthesis §6.6). Deferred: dioramas / the drifting memory chart for chapters 3, 4 and 6 and the B10 multiplayer
   variant (17a/17b).
+- Open from step 16: the 12 community VEGA pack locales lack the 16 `story.vega.obj.*` lead texts and the core tables
+  `ui.journal.leads` (English shows meanwhile — translation pass). Playtest checks: the lead chip and its private
+  ping/flight target on desktop and WebGL, the Journal's "Leads in this chapter" block (DE fits), a peaceful save from an
+  older build jumping 1–2 beats at its first start, the memory a lead brings on a peaceful world. Not in v1 (need a galaxy
+  index): leads to fragments or monuments on other worlds, the nearest data terminal, an unknown neighbouring system.
 
 ### ⚙️ CI long poles: world-gen caches no longer build under a shared lock (#2455), the settlement sweeps split up (#2456) (2026-10-10, branch fix/ci-shard-long-poles) — ✅ done
 

@@ -333,7 +333,7 @@ public sealed class ShipAiTests : IDisposable
         Assert.Contains(lines, l => l.LineKey == "vega.veteran");
         Assert.DoesNotContain(lines, l => l.PackId == Tutorial && l.LineKey.StartsWith("story.tutorial.", StringComparison.Ordinal));
         Assert.DoesNotContain(lines, l => l.Kind == 4); // no prologue for a veteran
-        Assert.StartsWith("story.obj.", lines.Last().ObjectiveKey); // the story objective, not a lesson (#1110)
+        Assert.StartsWith(StoryLeads.ObjPrefix, lines.Last().ObjectiveKey); // the story objective, not a lesson (#1110; #2475: the chapter lead)
     }
 
     [Fact]
@@ -358,7 +358,7 @@ public sealed class ShipAiTests : IDisposable
         Assert.Contains(lines, l => l.LineKey == "vega.skip");
         Assert.DoesNotContain(lines, l => l.LineKey == "story.tutorial.graduated"); // skipping graduates nobody
         Assert.False(lines.Last().TutorialActive);
-        Assert.StartsWith("story.obj.", lines.Last().ObjectiveKey); // post-tutorial the chip shows the story objective (#1110)
+        Assert.StartsWith(StoryLeads.ObjPrefix, lines.Last().ObjectiveKey); // post-tutorial the chip shows the story objective (#1110; #2475: the lead)
     }
 
     [Fact]
