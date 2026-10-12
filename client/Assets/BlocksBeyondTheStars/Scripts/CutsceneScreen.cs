@@ -284,7 +284,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>A colour as VEGA remembers it: its brightness in warm sepia, alpha kept.</summary>
-        private static Color Sepia(Color c)
+        internal static Color Sepia(Color c)
         {
             float lum = c.r * 0.3f + c.g * 0.59f + c.b * 0.11f;
             return new Color(Mathf.Clamp01(lum * 1.07f + 0.05f), Mathf.Clamp01(lum * 0.88f + 0.03f), Mathf.Clamp01(lum * 0.62f), c.a);

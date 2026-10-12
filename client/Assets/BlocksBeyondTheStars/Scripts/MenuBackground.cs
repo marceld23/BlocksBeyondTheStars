@@ -573,7 +573,9 @@ namespace BlocksBeyondTheStars.Client
             mr.receiveShadows = false;
         }
 
-        private static Texture2D CloudTexture()
+        /// <summary>A soft tiling cloud sheet for a planet's cloud shell (a new texture each call — the caller owns it).
+        /// Internal: the cutscene director's space vista (#2477) dresses its planet with it.</summary>
+        internal static Texture2D CloudTexture()
         {
             const int n = 128;
             var tex = new Texture2D(n, n, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear };
@@ -675,8 +677,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Sun-lit-phase material for a celestial body (the same <c>SkyBodyPhase</c> shader the in-game orbit
         /// view uses), lit from the world direction <paramref name="sunDir"/> so a day/night terminator emerges
-        /// instead of flat key light. Falls back to <see cref="Lit"/> when the phase shader isn't available.</summary>
-        private static Material LitPhase(Color c, Vector3 sunDir, Texture2D tex = null, Vector2 tiling = default)
+        /// instead of flat key light. Falls back to <see cref="Lit"/> when the phase shader isn't available. Internal: the
+        /// cutscene director's space vista (#2477) lights its planet with it (a new material — the caller owns it).</summary>
+        internal static Material LitPhase(Color c, Vector3 sunDir, Texture2D tex = null, Vector2 tiling = default)
         {
             var shader = Shader.Find("BlocksBeyondTheStars/SkyBodyPhase");
             if (shader == null)

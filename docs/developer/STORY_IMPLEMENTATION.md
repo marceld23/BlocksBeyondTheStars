@@ -287,8 +287,9 @@ fallback (the chip clears once the relays are done, as before).
 
 **Following a lead** (`StoryLeadListener` on the bus for `story:fragment`, `visit:body`, `station:boarded`, `scan:any`,
 `mission:turned_in`, `defeat:any`, `research:any`, `module:built`, `ship:commissioned`, `relay:commissioned`,
-`lane:linked` — registered only while the world story has leads; plus `TickStoryLeads` at 1 Hz from `TickShipAi` for the
-evidence and the heal tank): one action books the first open lead it fulfils. The fragment hooks now raise
+`lane:linked` — registered only while the world story has leads; plus `TickStoryLeads` at 1 Hz in the story pass for the
+evidence and the heal tank — see [the 1 Hz story pass](#the-1-hz-story-pass-2477)): one action books the first open lead it
+fulfils. The fragment hooks now raise
 `story:fragment` **before** `RecordStoryFragment`, so a find that crosses into the next chapter counts for the chapter it
 was made in. `CompleteLead` writes `story:<id>:lead:<chapter>:<n>` for that player only (in MP each player follows their
 own leads; other players' chips keep theirs), may unlock a memory (below), pays the bonus and moves the chip and the
@@ -416,6 +417,28 @@ Journal badge, and "Skip mission" sends `StoryPackIntent{PackId = <world story>,
 Test seams: `TickStoryMissionsForTest`, `StoryMissionIdsForTest`, `MissionChipStepForTest`, `RunningMissionsForTest`,
 `JournalMissionsForTest`, `MissionLeadResolutionsForTest`, `StoryMissionStatusForTest`. Tests: `VegaStoryMissionsTests`;
 Client.Tests `JournalViewTests` (mission rows).
+
+## The 1 Hz story pass (#2477)
+
+Once a second per joined, non-observing player, `TickStoryPass` (`GameServerShipAi.cs`) runs the story's bookkeeping in
+this order: the player packs (`TickStoryPacksFor`: start, advance, offers, help escalation on active play time), the world
+story's start rule (`TryStartStoryTrack`), the chapter leads (`TickStoryLeads`: evidence, the heal tank, the marker), VEGA's
+story missions (`TickStoryMissions`: hand-out, letting go, evidence, re-checks, escalation) and the objective chip
+(`RefreshVegaObjective`). Queued cutscenes are not part of it — `TickCutscenes` flushes them every server tick (#2468).
+
+Two callers, one per player and second:
+
+- `TickShipAi`, inside the per-world loop, for the players of each loaded world — the active cursor is their world, which a
+  ground marker (`RevealTarget`, a private ping) needs.
+- `TickStoryOutsideWorlds` (#2477), after the per-world loop like `TickCutscenes`, for everyone the loop did not reach: a
+  pilot cruising after an in-flight hyperjump occupies a body whose world was never loaded, and until #2477 their evidence,
+  markers and mission hand-outs waited for the landing (events still booked leads and steps). `GameServer.Tick` records the
+  worlds it ticks (`_storyTickedWorlds`); the same `VegaAdvisorAccum` drives both callers, so a player is never passed twice.
+  Everything in the pass reads the player's own world by id or guards against the cursor (no ground marker in space), and
+  the leads stay lazily resolved — the outside pass adds one set lookup per player and tick.
+
+Neither runs while the world is held. Test: `VegaChapterLeadsTests.APilotOnAnUnloadedWorld_GetsTheStoryPass_FromTheServerTick_OnceASecond`
+(the evidence booked in space, both players passed exactly once a second).
 
 ## Game events, story conditions and the world-story guard (#2465)
 
@@ -615,8 +638,9 @@ compare. `OnStepGameEvent` matches the actor's active steps by key (exact or `pr
 alternatives, or any), adds the amount, completes and advances; a counter tick re-sends the chip. Counters persist with
 the normal player save (no write per event); transitions write the player at once.
 
-**Help escalation** (§3.1), on active play time only (`PlayerSession.StoryPackPlaySeconds`, ticked by the 1 Hz VEGA
-advisor loop, which does not run while the world is held), per session, each stage once, progress restarts the clock:
+**Help escalation** (§3.1), on active play time only (`PlayerSession.StoryPackPlaySeconds`, ticked by the 1 Hz story pass —
+[below](#the-1-hz-story-pass-2477) — which does not run while the world is held), per session, each stage once, progress
+restarts the clock:
 `hintAfter` (default 180 s) → the step's `hintKey` line; `markerAfter` (360 s) on a "where" step (one with
 `onStart.reveal`) → a **private ping** at the provider's target (`nearest_ore:<block>`: the nearest such block in a 33³
 probe; `nearest_settlement`) that only this session sees — RAM, 30 s, never persisted, never broadcast, never

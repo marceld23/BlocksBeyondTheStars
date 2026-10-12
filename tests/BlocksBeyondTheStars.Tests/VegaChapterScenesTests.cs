@@ -246,7 +246,7 @@ public sealed class VegaChapterScenesTests : IDisposable
     [Fact]
     public void TheTiers_FollowDecisionA_CardsKeepTheInputFree_AndOnlyTheBigScenesTakeTheCamera()
     {
-        foreach (string id in new[] { "ch1.open", "ch4.open", "ch6.open" }.Concat(BeatCards))
+        foreach (string id in new[] { "ch1.open" }.Concat(BeatCards))
         {
             var card = Scene(id);
             Assert.Equal(CutsceneTiers.Card, card.Tier);
@@ -260,9 +260,21 @@ public sealed class VegaChapterScenesTests : IDisposable
         Assert.Equal(CutsceneTiers.Scene, ch2.Tier);
         Assert.Contains(ch2.Shots, s => s.Camera.Type == CutsceneCameras.Chart && s.Grade == CutsceneGrades.Memory);
 
-        var ch3 = Scene("ch3.open"); // "The Guardian" under the open sky
+        var ch3 = Scene("ch3.open"); // "The Guardian" in the sleeping-core diorama (#2477; the sky before)
         Assert.Equal(CutsceneTiers.Scene, ch3.Tier);
-        Assert.Contains(ch3.Shots, s => s.Camera.Type == CutsceneCameras.Sky);
+        Assert.Contains(ch3.Shots, s => s.Camera.Type == CutsceneCameras.Diorama && s.Camera.Anchor == CutsceneAnchors.Core
+                                        && s.Captions.Any(c => c.Key == "story.vega.beat05"));
+
+        // #2477: the former chapter cards 4 and 6 are staged now (synthesis §6.5 lists them as T3) — a calm space vista for
+        // "The Verdict", VEGA's memory chart drifting to its rim for "It Still Sleeps"; both in her memory tones.
+        var ch4 = Scene("ch4.open");
+        Assert.Equal(CutsceneTiers.Scene, ch4.Tier);
+        Assert.Contains(ch4.Shots, s => s.Camera.Type == CutsceneCameras.SpaceVista && s.Grade == CutsceneGrades.Memory
+                                        && s.Captions.Any(c => c.Key == "story.vega.beat06"));
+        var ch6 = Scene("ch6.open");
+        Assert.Equal(CutsceneTiers.Scene, ch6.Tier);
+        Assert.Contains(ch6.Shots, s => s.Camera.Type == CutsceneCameras.Diorama && s.Camera.Anchor == CutsceneAnchors.StarMap
+                                        && s.Grade == CutsceneGrades.Memory && s.Captions.Any(c => c.Key == "story.vega.beat11"));
 
         var ch5 = Scene("ch5.open"); // "What You Are" at the player's real heal tank
         Assert.Equal(CutsceneTiers.Scene, ch5.Tier);
@@ -276,15 +288,41 @@ public sealed class VegaChapterScenesTests : IDisposable
                                         && s.Captions.Any(c => c.Key == "story.vega.guardian_revealed"));
         Assert.True(ch7.EffectiveHoldWorld); // a singleplayer world holds while its camera is taken (never in MP — the client)
 
-        // Beats fire on score, not on a place: every camera is place-neutral or anchored to the player's own ship.
+        // Beats fire on score, not on a place: every camera is place-neutral (a synthetic stage always is, #2477) or anchored
+        // to the player's own ship.
         var placeNeutral = new[] { CutsceneAnchors.Player, CutsceneAnchors.Ship, CutsceneAnchors.HealTank, CutsceneAnchors.StarMap, CutsceneAnchors.Core };
         foreach (var scene in Vega.Cutscenes.Where(c => c.Id != StoryCutsceneIds.Prologue))
         {
-            Assert.All(scene.Shots, s => Assert.Contains(string.IsNullOrEmpty(s.Camera.Anchor) ? CutsceneAnchors.Player : s.Camera.Anchor, placeNeutral));
+            Assert.All(scene.Shots.Where(s => !CutsceneCameras.IsSynthetic(s.Camera.Type)),
+                s => Assert.Contains(string.IsNullOrEmpty(s.Camera.Anchor) ? CutsceneAnchors.Player : s.Camera.Anchor, placeNeutral));
             Assert.All(scene.Shots, s => Assert.NotEqual(CutsceneAnchors.Custom, s.Camera.Anchor));
             float length = scene.Shots.Sum(s => s.Duration);
             Assert.True(length <= (scene.Tier == CutsceneTiers.SetPiece ? 40f : 30f), $"{scene.Id}: {length} s"); // synthesis §6.6
         }
+    }
+
+    /// <summary>#2477: the scenes upgraded with a synthetic stage keep their words — the chapter's title card, then the beat
+    /// in VEGA's box — and stay within the length of a VEGA opening (synthesis §6.6: 12–25 s).</summary>
+    [Theory]
+    [InlineData("ch3.open", "story.vega.ch.guardian", "story.vega.beat05", CutsceneCameras.Diorama)]
+    [InlineData("ch4.open", "story.vega.ch.verdict", "story.vega.beat06", CutsceneCameras.SpaceVista)]
+    [InlineData("ch6.open", "story.vega.ch.sleeps", "story.vega.beat11", CutsceneCameras.Diorama)]
+    public void TheStagedOpenings_KeepTheirCaptions_AndTheOpeningsLength(string id, string titleKey, string beatKey, string camera)
+    {
+        var scene = Scene(id);
+        var captions = scene.Shots.SelectMany(s => s.Captions).ToList();
+        Assert.Equal(new[] { titleKey, beatKey }, captions.Select(c => c.Key));
+        Assert.Equal("story.vega.cut.chapter", captions[0].KickerKey);
+        Assert.Equal(CutsceneCaptionStyles.Speaker, captions[1].Style);
+        Assert.Equal(new[] { beatKey }, scene.ReplaceLineKeys);
+
+        Assert.Equal(CutsceneCameras.PlayerView, scene.Shots[0].Camera.Type); // out of black onto the title
+        var staged = scene.Shots[1];
+        Assert.Equal(camera, staged.Camera.Type);
+        Assert.Contains(beatKey, staged.Captions.Select(c => c.Key)); // VEGA speaks over the synthetic stage
+        float length = scene.Shots.Sum(s => s.Duration);
+        Assert.InRange(length, 12f, 25f);
+        Assert.True(scene.Options.Skippable);
     }
 
     [Fact]

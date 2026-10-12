@@ -483,12 +483,7 @@ public sealed partial class GameServer
             session.VegaAdvisorAccum = 0.0;
             var p = session.State;
 
-            TickStoryPacksFor(session); // #2466: player packs — start, advance, offers, help escalation (active play time)
-            TryStartStoryTrack(session); // #2470: the world story's start rule (also with no player pack installed)
-            TickStoryLeads(session); // #2475: leads followed by evidence (research, module, a site, the heal tank) + the marker
-            TickStoryMissions(session); // #2476: VEGA's story missions — handed out, let go, followed by evidence, help escalation
-            // (#2468: queued cutscenes are flushed by TickCutscenes for every joined player, in space too — not from here.)
-            RefreshVegaObjective(session); // #1859: the chip follows launches, stations, pickups and travel
+            TickStoryPass(session); // #2477: the same pass reaches the players outside a loaded world (TickStoryOutsideWorlds)
 
             // Vitals coaching (o2 / energy / hunger / cold / heat) moved to the throttled context tips
             // (#1082): the first occurrence still behaves like the old once-hint, later ones repeat with
@@ -533,6 +528,55 @@ public sealed partial class GameServer
             TickVegaMemory(session);
             TickVegaContextTips(session); // throttled situational tips (#1077): lamp, ore, places, space …
             TickVegaBanterFor(session); // LLM smalltalk once onboarding is done (silent without AI)
+        }
+    }
+
+    /// <summary>
+    /// The 1 Hz story pass of one joined, non-observing player: the player packs (start, advance, offers, help escalation),
+    /// the world story's start rule, the chapter leads (evidence, the heal tank, the marker), VEGA's story missions (hand-out,
+    /// letting go, evidence, re-checks) and the objective chip. Run by <see cref="TickShipAi"/> for the players of the world
+    /// being ticked (the active cursor is theirs — a marker on their world needs it) and, since #2477, by
+    /// <see cref="TickStoryOutsideWorlds"/> for everyone else. Queued cutscenes are flushed by <c>TickCutscenes</c> (#2468).
+    /// </summary>
+    private void TickStoryPass(PlayerSession session)
+    {
+        TickStoryPacksFor(session); // #2466: player packs — start, advance, offers, help escalation (active play time)
+        TryStartStoryTrack(session); // #2470: the world story's start rule (also with no player pack installed)
+        TickStoryLeads(session); // #2475: leads followed by evidence (research, module, a site, the heal tank) + the marker
+        TickStoryMissions(session); // #2476: VEGA's story missions — handed out, let go, followed by evidence, help escalation
+        RefreshVegaObjective(session); // #1859: the chip follows launches, stations, pickups and travel
+    }
+
+    /// <summary>The worlds the per-world loop ticks this server tick (filled by <see cref="Tick"/>): their players get the story
+    /// pass from <see cref="TickShipAi"/>, everyone else from <see cref="TickStoryOutsideWorlds"/>.</summary>
+    private readonly HashSet<string> _storyTickedWorlds = new(System.StringComparer.Ordinal);
+
+    /// <summary>
+    /// #2477: the story pass for the joined, non-observing players no loaded world reaches — a pilot cruising after an
+    /// in-flight hyperjump occupies a body whose world was never loaded, so <see cref="TickShipAi"/> (per loaded world) never
+    /// saw them: evidence, markers and mission hand-outs waited for the landing (events still booked leads and steps). The
+    /// mirror of step 9's <c>TickCutscenes</c>: every server tick, outside the per-world loop, at 1 Hz per player (the same
+    /// accumulator — a player is in one place at a time, so nobody is passed twice). Everything in the pass reads the player's
+    /// own world by id or guards against the cursor (a ground marker needs the player's world loaded — none in space), so it
+    /// is safe with any cursor; cheap: one set lookup per player, the leads stay lazily resolved.
+    /// </summary>
+    private void TickStoryOutsideWorlds(double dt)
+    {
+        foreach (var session in _sessions.Values)
+        {
+            if (!session.Joined || session.Spectating || _storyTickedWorlds.Contains(session.CurrentLocationId ?? string.Empty))
+            {
+                continue;
+            }
+
+            session.VegaAdvisorAccum += dt;
+            if (session.VegaAdvisorAccum < 1.0)
+            {
+                continue;
+            }
+
+            session.VegaAdvisorAccum = 0.0;
+            TickStoryPass(session);
         }
     }
 

@@ -69,8 +69,8 @@ singleplayer world or lock input. One scene plays at a time.
 | `music` | `""` | the scene's track |
 | `arg` | `""` | #2473: what fills the captions' `{0}` when the server plays the scene — `""` the bound chapter (its title, place and count, see [the argument](#bindings--where-a-pack-plays-a-scene)), `body` the name of the body the player is on (the tutorial's first landing), `system` the name of the player's star system |
 | `shots[]` | — | at least one; played in order |
-| `shots[].camera.type` | `player_view` | `player_view` (letterbox + captions over the live view), `overlay` (on a running flight sequence, never moves the camera), `static`, `orbit` (radius by ship size), `crane`, `sky` (tilted up from the player; always clear), `chart` (the galaxy chart; #2474: a `memory`/`flashback` grade tints it sepia, the `core` anchor rings the revealed Guardian system and draws a violet route to it). Step 17a adds `dolly`, `pan`, `flyover`, `space_vista` |
-| `shots[].camera.anchor` | `""` = `player` | `player`, `ship`, `planet`, `station` (the space station the player is aboard), `star_map`, `heal_tank` (the own ship's medbay on this world; #2474: a `static` shot frames it up close inside the room, and a scene whose camera shot needs it plays as a card where it is not found), `core` (the Guardian core chamber; on a `chart`: the Guardian system), `custom` (the coordinates of the `CutscenePlay` message) |
+| `shots[].camera.type` | `player_view` | `player_view` (letterbox + captions over the live view), `overlay` (on a running flight sequence, never moves the camera), `static`, `orbit` (radius by ship size), `crane`, `sky` (tilted up from the player; always clear), `chart` (the galaxy chart; #2474: a `memory`/`flashback` grade tints it sepia, the `core` anchor rings the revealed Guardian system and draws a violet route to it), and since #2477 the moves `dolly`, `pan`, `flyover` and the synthetic stages `space_vista`, `diorama` — see [Cameras](#cameras) |
+| `shots[].camera.anchor` | `""` = `player` | `player`, `ship`, `planet`, `station` (the space station the player is aboard), `star_map`, `heal_tank` (the own ship's medbay on this world; #2474: a `static` shot frames it up close inside the room, and a scene whose camera shot needs it plays as a card where it is not found), `core` (the Guardian core chamber; on a `chart`: the Guardian system), `custom` (the coordinates of the `CutscenePlay` message). A `diorama` shows what its anchor names: `core` or `star_map` (#2477); a `space_vista` reads `ship` and `planet` |
 | `shots[].duration` | — | seconds (a page-gated caption may hold the shot longer) |
 | `shots[].grade` | `none` | `none`, `memory` (VEGA's memory, sepia), `flashback` |
 | `captions[].key` | — | locale key in the core or the pack table; English **and** German mandatory; `{0}` = the play's argument |
@@ -99,6 +99,47 @@ cutscenes — its narrator lines still play.
 **A new file under `data/` must be listed in the WebGL `FallbackManifest`** (`client/.../StreamingAssetsCache.cs`;
 `StoryUiFixesClientTests.TheBuiltInFallbackList_MatchesTheDataFolder` fails otherwise). Whether a `cutscenes.json`
 reaches the browser is only proven by a local WebGL build (PR CI builds no Unity).
+
+### Cameras
+
+Every camera type (`CutsceneCameras`), what the player sees, what it needs, and what it falls back to when the place cannot
+carry it (`CutsceneStaging.Chain`; the director stages each shot when it starts — see [the client director](#the-client-director)).
+Every fallback chain ends in `player_view`, which is always possible. A T1 banner or a T2 card uses only the first two
+(validator); every other type takes the camera, so only a T3/T4 scene may use it.
+
+| Type | What the player sees | Needs | Fallback chain |
+|---|---|---|---|
+| `player_view` | the live view under the letterbox and the captions | — | — |
+| `overlay` | the same, on a running flight sequence (the camera is never touched) | — | — |
+| `static` | a fixed framing 9 blocks (× ship size) from the anchor with a slow push-in; at the `heal_tank` a close framing inside the medbay (#2474) | loaded terrain, a clear spot and line of sight | orbit → crane → sky → view |
+| `orbit` | circling the anchor (16 × size out), ping-ponging across the open arc when the circle is blocked | ≥ 110° of open arc | crane → sky → view |
+| `crane` | rising above the anchor, looking down | ≥ 60° of open arc | orbit → sky → view |
+| `sky` | from the player's eye, tilted up into the sky, slowly turning | the open sky (not aboard, not in the flight view) | view |
+| `chart` | the galaxy chart between the letterbox and the speaker box | the star map | sky → view |
+| `dolly` (#2477) | a straight, eased push-in from 14 to 8 blocks out (× size), sliding 20° around the anchor; it settles at its end while a caption still waits | every point of the path a clear camera spot that sees the anchor (the higher leg 18 → 11 when the low one is blocked) | static → orbit → crane → sky → view |
+| `pan` (#2477) | turning in place across ±35° (±20° when tight) and back: from just above the player's head (2.2 blocks — never the own avatar), facing the view, else the sides or behind; or from a vantage point 9 blocks across the anchor (a ship) | the view open 6 blocks in every direction of the sweep | static → sky → view |
+| `flyover` (#2477) | a high arc 18 blocks out (× size) at 16 (else 24) blocks up over 110°, rising 6 more in the middle, always looking at the anchor | every sampled point of the arc clear | crane → orbit → sky → view |
+| `space_vista` (#2477) | a synthetic space panorama: the stars, the nebula, the sun and a living world; at `planet` the world close, at `ship` the player's **own** ship drifting by in front of it (no ship for a player who never flew — never one that is not theirs) | the Medium or High quality preset | sky → view |
+| `diorama` (#2477) | a small synthetic stage: at `core` the **sleeping Guardian core** — a column of red light in an iron shell open to the front (the finale chamber's blocks, 130 blocks, ≤ 200), the camera rising along it while the red halo breathes slowly (0.4 Hz); at `star_map` **VEGA's memory chart** — the star map's systems as soft glows on a disc (sepia under a memory grade), the camera drifting from the player's system out to the rim, where something faint and red pulses beyond the last star (no name, no marker) | the Medium or High quality preset (the chart: the star map) | sky → view |
+
+- **Moves.** A move is checked along its whole path when the shot starts (`CinematicStageScan`: unloaded chunks blocked,
+  the parked hull blocks the camera spot) and flown over the shot's length with an ease-in-out (`CutsceneMoves`): the dolly
+  and the flyover settle at their end, the pan turns back and forth while a caption waits for the reader. The rig's per-frame
+  safety net keeps the last clear pose if a late chunk blocks the line of sight. "Camera motion" off: still framings — the
+  dolly's close end, the pan's and the flyover's middle.
+- **Synthetic stages** (`CutsceneStage` on the client, the layout and camera paths in Client.Core `SyntheticStages`) need no
+  terrain, so they work wherever the player is — on the ground, aboard, in a station or in the flight view; beats fire on
+  score, not on a place. The stage stands far above the world with its own camera drawn over the world camera, which keeps
+  running but draws nothing meanwhile; it is built from the menu's attract-scene pieces (the real starfield and nebula in
+  menu mode, the layered sun glow, a phase-lit planet with its cloud shell, the ship mesher) and the always-included
+  shaders only — no new shader, texture, keyword or light. The backdrop is built once per world and kept hidden between
+  shots; a shot's set is freed when the shot ends.
+- **Low presets.** On Potato and Low the synthetic stages are skipped: a scene whose only camera shots are synthetic plays
+  as a **card** (`CutsceneRules.NeedsCardFallback`, the same captions on the live view, free input, nothing held); a scene
+  with another camera shot keeps it and lets the synthetic shot fall back to the sky. A stage that cannot be built (a
+  stripped shader, no content yet, no star map) is staged without it.
+- **The shot's grade** reaches a synthetic stage through the post stack like the world (VEGA's memory tones), and the
+  memory chart tints its stars itself.
 
 ### Ids
 
@@ -173,7 +214,9 @@ Maintainer decision (a) — "more and more prominent VEGA": every chapter of the
 B9 "What You Are" (at the player's **real** heal tank) and B12 (the Guardian system on the star map) are big scenes; every
 other beat is a **beat card in the frame with free input**. All captions reuse the beat texts (no new lore) and the scenes
 keep them out of VEGA's panel (`replaceLineKeys`; the Journal has them either way). Beats fire on score, not on a place, so
-every shot is place-neutral (the player's view, the sky, the chart) or anchored to the player's own ship.
+every shot is place-neutral (the player's view, the sky, the chart, a synthetic stage) or anchored to the player's own ship.
+#2477 staged chapters 4 and 6 too (synthesis §6.5 lists them as T3) and gave chapters 3, 4 and 6 a synthetic stage; on the
+Potato/Low presets those three play as cards again (their only camera shots are synthetic).
 
 | Id | Bound to | Tier | Shots and captions | Sound / music |
 |---|---|---|---|---|
@@ -181,12 +224,12 @@ every shot is place-neutral (the player's view, the sky, the chart) or anchored 
 | `b01` | beat B1 | T2 card | VEGA's speaker box with B1 (no title — at a track start it follows chapter 1's card), memory grade | `chapter_sting_memory` |
 | `ch2.open` | chapter `service` (B2) | T3 | title "Chapter 2" / "The Service", then the **star chart tinted sepia** (VEGA's memory: "It mapped these stars") with B2 in her box | `chapter_sting_memory`, `music_mystery_signal` |
 | `b03`, `b04` | beats B3, B4 | T2 cards | "VEGA remembers" over the beat's title ("Not scattered — erased", "Ours, once"), then the beat in VEGA's box, memory grade | `chapter_sting_memory` |
-| `ch3.open` | chapter `guardian` (B5) | **T3 prominent** | out of black onto "Chapter 3" / "The Guardian", then up into the open sky (the player's own view under a roof) with B5 | `chapter_sting_reveal`, `anomaly_hum`, `music_mystery_signal` |
-| `ch4.open` | chapter `verdict` (B6) | T2 card | title "Chapter 4" / "The Verdict", then B6 in VEGA's box — the darkest line stays words on a calm picture | `chapter_sting` |
+| `ch3.open` | chapter `guardian` (B5) | **T3 prominent** | out of black onto "Chapter 3" / "The Guardian", then the **sleeping-core diorama** (#2477): the camera rises along the column of red light in its iron shell while the halo breathes and VEGA says B5 — no grade, the red must read (without the diorama: up into the open sky) | `chapter_sting_reveal`, `anomaly_hum`, `music_mystery_signal` |
+| `ch4.open` | chapter `verdict` (B6) | T3 (#2477; a card before) | out of black onto "Chapter 4" / "The Verdict", then a **space vista** of a living world close (`planet`) in VEGA's memory tones while she says B6 — the darkest line stays words on a calm picture | `chapter_sting`, `music_mystery_signal` |
 | `b07`, `b08` | beats B7, B8 | T2 cards | "VEGA remembers" / "Her stand", "The thought-arcs", then the beat | `chapter_sting_memory` |
 | `ch5.open` | chapter `what_you_are` (B9) | **T3 prominent** | "Chapter 5" / "What You Are", then a close framing of the player's **real heal tank** inside the medbay with a slow push-in while VEGA says B9 — warm, no grade. **No own heal tank on this world** (the ship parked elsewhere, the code-box starter without a medbay): the scene plays as a card (`CutsceneRules.NeedsCardFallback`) | `chapter_sting_reveal`, `clone_tank_bubble`, `music_deep_space_lonely` |
 | `b10` | beat B10 | T2 card | "VEGA remembers" / "Many minds", then the beat (step 17b may add the multiplayer variant) | `chapter_sting_memory` |
-| `ch6.open` | chapter `sleeps` (B11) | T2 card | "Chapter 6" / "It Still Sleeps", then B11 — no marker, no place | `chapter_sting` |
+| `ch6.open` | chapter `sleeps` (B11) | T3 (#2477; a card before) | out of black onto "Chapter 6" / "It Still Sleeps", then **VEGA's memory chart** drifting from the player's system to the rim, a faint red pulse beyond the last star, memory grade, while she says B11 — no marker, no name | `chapter_sting`, `music_mystery_signal` |
 | `ch7.open` | chapter `core` (B12 + the Guardian system revealed, one server call) | **T4** | the sky with B12; the **live star chart** with a violet route from the player's system to the newly revealed Guardian system (ringed, named) while VEGA says `story.vega.guardian_revealed` — the jump-generator line; then "Chapter 7" / "The Guardian Core". `returnOnSkip`: the reveal line comes back to the panel when the player skips before it showed | `chapter_sting_reveal`, `music_boss_approach` |
 
 - **Titles.** The kicker `story.vega.cut.chapter` ("Chapter {1}") takes the chapter's number from the argument: a world
@@ -250,7 +293,8 @@ palette) plays as the instance of the first chapter that binds it (`CutsceneArgs
 - every binding names a cutscene of the pack — never `__recap`, never an instance id (`graduation.cutscene` too, #2473);
 - `arg` is empty, `body` or `system`;
 - ids unique and key-safe, none starting with `__`; tier 1–4; at least one shot; known cameras, anchors, caption styles
-  and grades; shot length > 0 and ≤ 120 s; captions and cues inside their shot; `hold` ≥ 0;
+  and grades (#2477: a `diorama` shows `core` or `star_map`); shot length > 0 and ≤ 120 s; captions and cues inside their
+  shot; `hold` ≥ 0;
 - the tier rules: a T1/T2 never takes the camera; `holdWorld` / `lockInput` only on a T3/T4 that takes it;
 - every caption, kicker and `replaceLineKeys` key exists in English **and** German, within its style's budget
   (`subtitle` / `speaker` 220 EN / 264 DE — one VEGA panel page, the director pages it further; `title_card` title and
@@ -379,7 +423,10 @@ Step 9 (#2468). The Unity-free rules live in Client.Core (`src/BlocksBeyondTheSt
 | `CutscenePlayback` | the clock: shot index and time, which page each caption shows, the hold at a page-gated caption's end, `Continue()` (completes a typing speaker box first), `CanSkip`, due sound cues, `TakeShotChanged()` |
 | `SafeMomentGate` | `Evaluate(request, inputs)` → `Play` / `Defer` / `Abort` with a reason; `ShouldInterrupt` (danger while playing); `CameraCapReached` (MP 30 s) |
 | `CutsceneQueue` | one scene at a time; dedupe by `pack/id`; requests (replays, previews, the dev palette) first; the 90 s cooldown after an unrequested T2+ (measured from its **end** — a scene that waited minutes must not be followed by the next one a second later); `chainNext` lifts it for the named follower; "now or never" and banners never wait |
-| `CutsceneStaging` | a shot's camera with the fallback chain (requested → raised orbit → crane → sky → player view) on `CinematicStageScan` (unloaded chunks blocked, the parked hull blocks the camera spot) and `PrologueOrbit.Scale` |
+| `CutsceneStaging` | a shot's camera with the fallback chain (requested → raised orbit → crane → sky → player view; [per type](#cameras)) on `CinematicStageScan` (unloaded chunks blocked, the parked hull blocks the camera spot) and `PrologueOrbit.Scale`; #2477: the moves' paths (`TryDolly`/`TryPan`/`TryFlyover`, checked along the whole path) and the synthetic stages (`syntheticAllowed`) |
+| `CutsceneMoves` | #2477: how a move travels over its shot — eased one way (dolly, flyover: they settle) or back and forth (pan), the still framing with "Camera motion" off, the position and the pan's yaw at a progress; no allocation (the rig calls it every frame) |
+| `SyntheticStages` | #2477: what a synthetic stage shows (`SetOf(camera, anchor)` → `SyntheticSet`), its layout in stage coordinates (the vista's planet, sun and ship path; the core diorama's ≤ 200 blocks; the memory chart from the star map via `GalaxyChartLayout`, its rim and the red glow beyond it) and its camera paths; the core's breath (`CorePulse`, 0.4 Hz) |
+| `CutsceneRules` | (#2474) hold / freeze / heal-tank / card fallback; #2477: `SyntheticStagesAllowed(preset)` (Medium and up) and the card fallback of a scene made only of synthetic stages on the low presets |
 | `CutsceneCatalog` | the "Watch again" rows (seen, replayable scenes of installed packs, in pack/definition order) and their names (title card "Prologue — Awakening", else the bound chapter's title, else the first caption) |
 
 **Arguments.** `CutscenePlay.Arg` is split at U+001F; a value the localizer knows is localized (a chapter binding sends the
@@ -438,8 +485,13 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   Guardian system, names it and draws a violet route to it from the player's system; a `memory`/`flashback` grade tints the
   chart sepia (the grade itself only reaches the 3D picture). A world shot that fails while chunks may still stream is
   retried every 0.5 s for 4 s (`StagingRetry`) showing
-  the player's view, then the fallback is taken. Nothing world-anchored in the space view (only the chart). "Camera motion"
-  off turns moves into still framings; a late-streamed chunk that blocks the line of sight freezes the last clear pose.
+  the player's view, then the fallback is taken. Nothing world-anchored in the space view (only the chart and the synthetic
+  stages). "Camera motion" off turns moves into still framings; a late-streamed chunk that blocks the line of sight freezes
+  the last clear pose. #2477: a `dolly` / `pan` / `flyover` is flown over the shot's length (`CutsceneCameraRig.Apply(...,
+  duration)` → `CutsceneMoves`); a `space_vista` / `diorama` goes to `CutsceneCameraRig.ApplySynthetic`, which shows
+  `CutsceneStage` (its own camera at y 40000, over the world camera, whose culling mask is emptied meanwhile and restored
+  after; the block shaders' globals are set for it in `RenderPipelineManager.beginCameraRendering`) — a stage that cannot be
+  built is staged without it, and the director never asks for one on Potato/Low ([Cameras](#cameras)).
 - **Shared state and hold.** A T3/T4 scene that takes the camera (or has `lockInput`) opens the `director` reason in
   `GameBootstrap.Cutscenes` — HUD, touch layer, chat, nameplates and IMGUI step aside, the controls freeze, Esc belongs to
   the scene, and the cursor is freed for the buttons. A singleplayer world is held (`WorldHoldArbiter.Cutscene`) only while
@@ -491,11 +543,13 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   scene).
 - A card dims the whole picture by 18 % (HUD included — the crosshair and the chip are not kept bright as d4 sketched); no
   ambience ducking; music is not prefetched when a scene is queued.
-- No `ctx:` variants, no synthetic stages (`space_vista`, dioramas), no `dolly`/`pan`/`flyover` (step 17a); the speaker box
-  has no vocoder chatter (only the line-start cue). #2474's VEGA scenes therefore have one shape for every place: chapter 3's
-  sky becomes the player's own view under a roof, chapter 5 falls back to a card away from the ship, and chapters 4/6 are
-  cards (the synthesis' dioramas and the memory chart drifting to the galaxy's edge wait for 17a); `b10` has no multiplayer
-  variant yet (step 17b).
+- No `ctx:` variants (a scene has one shape for every place — chapter 5 falls back to a card away from the ship); the
+  speaker box has no vocoder chatter (only the line-start cue); `b10` has no multiplayer variant yet (step 17b). ~~No
+  synthetic stages, no `dolly`/`pan`/`flyover`~~ — #2477 (chapters 3, 4 and 6 use them).
+- #2477's dioramas are built in (`core`, `star_map`), not data: d4's data-defined `stages` (block boxes and props per pack)
+  are not built — add them when a pack needs a diorama of its own. A `space_vista` shows the player's own ship only once its
+  design reached the client (after the first flight). A clip recording (`-captureClip`) of a synthetic shot films the
+  emptied world camera, not the stage.
 - ~~The VEGA prologue still runs on `VegaPanel` + `PrologueCinematic`~~ — #2470 bound it as VEGA's `introCutscene`; the
   old path is kept for older servers only.
 
@@ -536,3 +590,12 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   `VegaChapterScenesClientTests` (the cards planned from the data pack in both languages, the heal tank finder, the
   close-up in a cabin and the card fallback, ch7's hold SP-only, the skip give-back, the "Watch again" names, the chain
   `ch1.open → b01`).
+- #2477: Client.Tests `CutsceneCameraModesTests` (the dolly's clear straight push-in, its easing and settling, a wall in
+  its way, the fallback to the still framing; the pan in place above the head, turning away from a cliff, the cave
+  fallback, its back-and-forth; the flyover's high arc rising in the middle and its overhang fallback; the moves without
+  chunks or a world; the synthetic stages without a world and on the low presets, the card fallback of a scene made only of
+  them; the anchor → set mapping; the core diorama's block budget, open front and rising camera; the calm pulse; the memory
+  chart's fit, rim, red glow beyond it and drift; the vista's camera, planet and ship path), `VegaChapterScenesClientTests`
+  (chapter 4 staged over its vista, the three synthetic openings as cards on the low presets with the same words);
+  `CutsceneContentTests` (the new cameras accepted in a staged scene and refused on a card, the diorama's anchors);
+  `VegaChapterScenesTests` (the tiers and cameras of chapters 3, 4 and 6, their unchanged captions within 12–25 s).

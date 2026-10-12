@@ -1957,11 +1957,14 @@ called **stories**:
   reached with the story moments you heard in each, the ones still ahead as **???**. From chapter 2 on, **The story so
   far** shows the recap card again.
 - **Chapter scenes.** Every chapter opens on screen: **"Chapter n"** over the chapter's name with a short sound, then
-  VEGA's words in her box. Three moments are bigger scenes where the camera moves for a few seconds — *The Guardian*
-  looks up into the sky, *What You Are* is told at **your own heal tank** in your ship (away from your ship it plays as a
-  card), and *The Guardian Core* shows the new star on the star map and the way to it. Chapter 2 shows VEGA's memory of
-  the star chart. Every other story moment is a **card** — "VEGA remembers" with the moment's title, then her words —
-  and you can keep moving while it shows. Skip any of them with **Esc**, pad **(B)** or the **Skip** button; the
+  VEGA's words in her box. Several chapters are bigger scenes where the camera moves for a few seconds — *The Guardian*
+  shows the sleeping Guardian core (a column of red light in an iron shell), *The Verdict* a calm view of a living world
+  from space, *What You Are* is told at **your own heal tank** in your ship (away from your ship it plays as a card),
+  *It Still Sleeps* drifts across VEGA's memory of the star chart to its edge, and *The Guardian Core* shows the new star
+  on the star map and the way to it. Chapter 2 shows VEGA's memory of the star chart. On the **Low** and **Potato**
+  quality presets the core, the view from space and the memory chart are left out — those chapters then play as cards.
+  Every other story moment is a **card** — "VEGA remembers" with the moment's title, then her words — and you can keep
+  moving while it shows. Skip any of them with **Esc**, pad **(B)** or the **Skip** button; the
   Journal keeps every text, and if you skip *The Guardian Core* before VEGA mentions the **jump generator**, she says it
   in her panel afterwards. Back after a while away? VEGA says how many moments the Journal now holds, and if the story
   has moved on a chapter, **The story so far** and the new chapter's scene play.
@@ -2029,7 +2032,8 @@ called **stories**:
 - The hint at the Guardian core ("walk to the marked shaft, don't dig here") shows even with **VEGA hints** off.
 - **Story scenes.** Big story moments can play as short scenes: a **banner** at the top (it never stops you), a
   **card** with a title or VEGA speaking in a box (you can keep moving), or a **staged scene** where the camera shows your
-  ship or the sky and the controls rest for a moment (in singleplayer the world waits meanwhile). A scene never starts in
+  ship, the sky, a view from space or a small memory scene, and the controls rest for a moment (in singleplayer the world
+  waits meanwhile). A scene never starts in
   a fight, while you fall, swim, drive, fly or have a menu open — it waits for a calm moment. Taking damage ends it, and
   its text goes back to VEGA's panel ("Story moment saved"). In multiplayer the camera comes back after 30 seconds.
   - **Skip** a scene with **Esc**, the pad's **(B)** or the **Skip** button (on a card, where you can move, Esc or the

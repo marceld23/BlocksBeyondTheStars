@@ -248,7 +248,44 @@ public sealed class CutsceneContentTests
     public void ASceneWithoutShots_IsAnError() => AssertError(Probe(c => c.Shots.Clear()), "at least one shot");
 
     [Fact]
-    public void AnUnknownCamera_IsAnError() => AssertError(Probe(c => c.Shots[0].Camera.Type = "dolly"), "unknown camera");
+    public void AnUnknownCamera_IsAnError() => AssertError(Probe(c => c.Shots[0].Camera.Type = "steadicam"), "unknown camera");
+
+    /// <summary>#2477: the moves and the synthetic stages are known cameras — a staged scene may use them, a card may not
+    /// (they take the camera); a diorama shows the sleeping core or VEGA's memory chart and nothing else.</summary>
+    [Theory]
+    [InlineData(CutsceneCameras.Dolly, CutsceneAnchors.Ship)]
+    [InlineData(CutsceneCameras.Pan, CutsceneAnchors.Player)]
+    [InlineData(CutsceneCameras.Flyover, "")]
+    [InlineData(CutsceneCameras.SpaceVista, CutsceneAnchors.Planet)]
+    [InlineData(CutsceneCameras.SpaceVista, "")]
+    [InlineData(CutsceneCameras.Diorama, CutsceneAnchors.Core)]
+    [InlineData(CutsceneCameras.Diorama, CutsceneAnchors.StarMap)]
+    public void TheNewCameras_AreAcceptedInAStagedScene_AndRefusedOnACard(string camera, string anchor)
+    {
+        var issues = Issues(Probe(c => c.Shots[0].Camera = new CutsceneCamera { Type = camera, Anchor = anchor }));
+        Assert.True(issues.Count == 0, string.Join("\n", issues));
+        Assert.True(CutsceneCameras.TakesCamera(camera));
+        AssertError(Probe(c =>
+        {
+            c.Tier = CutsceneTiers.Card;
+            c.Options.HoldWorld = null;
+            c.Shots[0].Camera = new CutsceneCamera { Type = camera, Anchor = anchor };
+        }), "never takes the camera");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(CutsceneAnchors.Ship)]
+    [InlineData(CutsceneAnchors.HealTank)]
+    public void ADiorama_ShowsTheCoreOrTheMemoryChart_Only(string anchor)
+        => AssertError(Probe(c => c.Shots[0].Camera = new CutsceneCamera { Type = CutsceneCameras.Diorama, Anchor = anchor }), "a diorama shows");
+
+    [Fact]
+    public void OnlyTheSpaceVistaAndTheDiorama_AreSyntheticStages()
+    {
+        Assert.Equal(new[] { CutsceneCameras.SpaceVista, CutsceneCameras.Diorama }, CutsceneCameras.All.Where(CutsceneCameras.IsSynthetic));
+        Assert.Equal(12, CutsceneCameras.All.Count);
+    }
 
     [Fact]
     public void AnUnknownAnchor_IsAnError() => AssertError(Probe(c => c.Shots[0].Camera.Anchor = "station:medbay"), "unknown anchor");

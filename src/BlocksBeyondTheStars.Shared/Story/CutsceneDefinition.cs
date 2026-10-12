@@ -200,7 +200,8 @@ public static class CutsceneTiers
     public static bool IsValid(int tier) => tier >= Banner && tier <= SetPiece;
 }
 
-/// <summary>The camera types of v1 (synthesis §6.3; step 17a adds <c>dolly</c>, <c>pan</c>, <c>flyover</c>, <c>space_vista</c>).</summary>
+/// <summary>The camera types (synthesis §6.3): the v1 set and #2477's moves (<c>dolly</c>, <c>pan</c>, <c>flyover</c>) and
+/// synthetic stages (<c>space_vista</c>, <c>diorama</c>). Reference: docs/developer/CUTSCENES.md "Cameras".</summary>
 public static class CutsceneCameras
 {
     /// <summary>Letterbox and captions over the live view — the camera stays the player's.</summary>
@@ -224,12 +225,41 @@ public static class CutsceneCameras
     /// <summary>The galaxy chart full screen.</summary>
     public const string Chart = "chart";
 
-    /// <summary>Every v1 camera type.</summary>
-    public static readonly IReadOnlyList<string> All = new[] { PlayerView, Overlay, Static, Orbit, Crane, Sky, Chart };
+    /// <summary>#2477: a straight, eased move between two points near the anchor (a slow push-in that slides a little
+    /// sideways), the whole path checked against the terrain.</summary>
+    public const string Dolly = "dolly";
+
+    /// <summary>#2477: turning in place across an arc — from just above the player's head, or from a vantage point across
+    /// the anchor; only where the view stays open.</summary>
+    public const string Pan = "pan";
+
+    /// <summary>#2477: a high arc over the anchor and its ground, rising in the middle, always looking at the anchor.</summary>
+    public const string Flyover = "flyover";
+
+    /// <summary>#2477: a synthetic space panorama (stars, nebula, sun, a planet; with the <c>ship</c> anchor the player's own
+    /// ship) — the same recipe as the menu's attract scene, independent of where the player is (on the ground or in space).</summary>
+    public const string SpaceVista = "space_vista";
+
+    /// <summary>#2477: a small synthetic stage showing what the anchor names: <c>core</c> the sleeping Guardian core (a red
+    /// glowing column in an iron shell), <c>star_map</c> VEGA's memory of the star chart (the camera drifts to the rim).</summary>
+    public const string Diorama = "diorama";
+
+    /// <summary>Every camera type.</summary>
+    public static readonly IReadOnlyList<string> All = new[]
+    {
+        PlayerView, Overlay, Static, Orbit, Crane, Sky, Chart, Dolly, Pan, Flyover, SpaceVista, Diorama,
+    };
+
+    /// <summary>The anchors a <c>diorama</c> can show (#2477).</summary>
+    public static readonly IReadOnlyList<string> DioramaAnchors = new[] { CutsceneAnchors.Core, CutsceneAnchors.StarMap };
 
     /// <summary>Whether the type takes the camera away from the player (everything but <c>player_view</c> and <c>overlay</c>).</summary>
     public static bool TakesCamera(string? type)
         => !string.IsNullOrEmpty(type) && type != PlayerView && type != Overlay;
+
+    /// <summary>#2477: whether the type shows a synthetic stage instead of the world (<c>space_vista</c>, <c>diorama</c>) —
+    /// skipped on the low quality presets, where a scene made only of them plays as a card.</summary>
+    public static bool IsSynthetic(string? type) => type == SpaceVista || type == Diorama;
 }
 
 /// <summary>What a shot's camera is placed around (synthesis §6.3).</summary>

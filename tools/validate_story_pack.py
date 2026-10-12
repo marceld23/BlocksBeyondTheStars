@@ -18,7 +18,8 @@ marker providers, legacy keys (tutorial only), alternatives, a world chapter's s
 chapter's, a title, feasibility, an alternative of the same chapter, do steps with a chip text without a {0}, lead
 bridges naming a lead a player can follow), a tutorial pays no rewards, every locale key exists in
 English and German (pack table or base table), every cutscene binding resolves in the pack's cutscenes.json (#2467),
-every cutscene follows the rules (ids, tier 1-4, cameras, anchors, caption styles, grades, shot lengths, a T1/T2 never
+every cutscene follows the rules (ids, tier 1-4, cameras, anchors (a diorama shows core or star_map, #2477), caption
+styles, grades, shot lengths, a T1/T2 never
 takes the camera, only a T3/T4 that takes it may hold the world or freeze the controls, chainNext references, chapters,
 music in client/Music and sounds in client/Assets/Resources/audio, caption budgets: subtitle/speaker 220 EN / 264 DE,
 title card 60 / 72, reading frame 600 / 720), the short name fits (<= 10 characters) and the text budget
@@ -59,9 +60,13 @@ MAX_DEPTH = 16
 
 # Cutscenes (#2467) -- the same vocabularies as Shared/Story/CutsceneDefinition.cs.
 CUTSCENE_TIERS = {1, 2, 3, 4}  # 1 banner, 2 card, 3 staged scene, 4 set piece
-CAMERAS = ["player_view", "overlay", "static", "orbit", "crane", "sky", "chart"]
+CAMERAS = [
+    "player_view", "overlay", "static", "orbit", "crane", "sky", "chart",
+    "dolly", "pan", "flyover", "space_vista", "diorama",  # #2477: moves and synthetic stages
+]
 NON_TAKEOVER_CAMERAS = {"player_view", "overlay"}
 ANCHORS = ["player", "ship", "planet", "station", "star_map", "heal_tank", "core", "custom"]
+DIORAMA_ANCHORS = ["core", "star_map"]  # #2477: what a diorama can show
 CAPTION_STYLES = ["subtitle", "title_card", "speaker", "reading_frame", "credits"]
 GRADES = ["none", "memory", "flashback"]
 # #2475: the chapter-lead vocabulary v1 (StoryLeadTypes) - the words, the ones that need an argument, the unique sites.
@@ -998,6 +1003,8 @@ class Validator:
                         r.error(pid, f"{sp}.camera.type", f"a T{tier} {kind} never takes the camera (player_view or overlay)")
                 if anchor and anchor not in ANCHORS:
                     r.error(pid, f"{sp}.camera.anchor", f"unknown anchor '{anchor}' ({', '.join(ANCHORS)})")
+                elif ctype == "diorama" and anchor not in DIORAMA_ANCHORS:
+                    r.error(pid, f"{sp}.camera.anchor", f"a diorama shows {' or '.join(DIORAMA_ANCHORS)} (found '{anchor}')")
                 duration = shot.get("duration", 0)
                 if not isinstance(duration, (int, float)) or not 0 < duration <= SHOT_MAX_SECONDS:
                     r.error(pid, f"{sp}.duration", f"a shot lasts more than 0 and at most {SHOT_MAX_SECONDS} seconds (found {duration})")

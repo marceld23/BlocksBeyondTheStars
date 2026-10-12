@@ -385,11 +385,12 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     // #2474: a staged scene about an object this world does not have (VEGA's "What You Are" at the heal tank,
-                    // far from the own ship) plays as a card — the same captions, no camera.
-                    bool missingObject = !owed.Downgraded && CutsceneRules.NeedsCardFallback(plan, AnchorFound);
+                    // far from the own ship) plays as a card — the same captions, no camera. #2477: so does a scene whose only
+                    // pictures are synthetic stages on a preset that skips them (Potato/Low).
+                    bool missingObject = !owed.Downgraded && CutsceneRules.NeedsCardFallback(plan, AnchorFound, SyntheticStagesAllowed());
                     if (missingObject)
                     {
-                        Debug.Log($"[Cutscene] {item.Key}: the object it frames is not here — playing it as a card.");
+                        Debug.Log($"[Cutscene] {item.Key}: the object it frames is not here, or the preset skips its stages — playing it as a card.");
                     }
 
                     Begin(item, owed.Downgraded || missingObject ? plan.AsCard() : plan);
@@ -593,8 +594,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Stages the current shot's camera: the requested type or its fallback (sky, the player's view). A
         /// world shot that fails while chunks may still stream is retried for a few seconds first (synthesis §6.3: "wait up
-        /// to 4 s for streaming"), showing the player's view meanwhile.</summary>
-        private void StageShot()
+        /// to 4 s for streaming"), showing the player's view meanwhile. #2477: a move (dolly, pan, flyover) is flown over the
+        /// shot's length; a synthetic stage (space vista, diorama) needs no chunks — it is shown by the rig's stage, and when
+        /// that cannot be built here (<paramref name="allowSynthetic"/> false on the second try) the shot falls back.</summary>
+        private void StageShot(bool allowSynthetic = true)
         {
             var shot = _play.Shot;
             float now = Time.time;
@@ -622,8 +625,11 @@ namespace BlocksBeyondTheStars.Client
             bool skyOpen = Game.ExposedToSky && !Game.Aboard && !Game.SpaceViewActive;
             bool chart = Game.StarMap?.Systems != null && Game.StarMap.Systems.Length > 0;
             bool closeUp = CutsceneStaging.WantsCloseUp(shot.Anchor); // #2474: the heal tank, framed inside the medbay
-            var staged = CutsceneStaging.Stage(shot.Camera, path, spot, center.x, center.y, center.z, scale, Game.PlayerYaw, skyOpen, chart, closeUp);
-            bool worldShot = shot.Camera != CutsceneCameras.Chart && shot.Camera != CutsceneCameras.Sky;
+            bool synthetic = allowSynthetic && SyntheticStagesAllowed(); // #2477: not on Potato/Low
+            var staged = CutsceneStaging.Stage(shot.Camera, path, spot, center.x, center.y, center.z, scale, Game.PlayerYaw, skyOpen, chart,
+                closeUp, synthetic);
+            bool worldShot = shot.Camera != CutsceneCameras.Chart && shot.Camera != CutsceneCameras.Sky
+                             && !CutsceneCameras.IsSynthetic(shot.Camera); // only these wait for streaming chunks
             _stagingRetry.Record(now, success: !staged.FellBack);
             if (staged.FellBack && worldShot && path != null && !_stagingRetry.GaveUp(now))
             {
@@ -646,10 +652,30 @@ namespace BlocksBeyondTheStars.Client
 
             _screen.HideChart();
             _chartShown = false;
+            if (staged.Synthetic)
+            {
+                // #2477: the stage stands far from the world with its own camera — on the ground, in a station or in space.
+                var set = SyntheticStages.SetOf(shot.Camera, shot.Anchor);
+                bool memory = shot.Grade == CutsceneGrades.Memory || shot.Grade == CutsceneGrades.Flashback;
+                if (set.HasValue && _rig.ApplySynthetic(staged, set.Value, memory, shot.Duration))
+                {
+                    return;
+                }
+
+                Debug.Log($"[Cutscene] {_current?.Key} shot {shot.Index}: the '{shot.Camera}' stage could not be built here — staging the shot without it.");
+                StageShot(allowSynthetic: false);
+                return;
+            }
+
             // A close framing inside the room is flown with the room's own line of sight (the hull counts, the object's cell
-            // does not), so the per-frame safety net agrees with the staging.
-            _rig.Apply(staged, staged.CloseUp && spot != null ? CutsceneStaging.ObjectLine(spot, center.x, center.y, center.z) : path, spot);
+            // does not), so the per-frame safety net agrees with the staging. A move travels over the shot's length (#2477).
+            _rig.Apply(staged, staged.CloseUp && spot != null ? CutsceneStaging.ObjectLine(spot, center.x, center.y, center.z) : path, spot,
+                shot.Duration);
         }
+
+        /// <summary>#2477: whether the player's quality preset builds the synthetic stages (Medium and up).</summary>
+        private bool SyntheticStagesAllowed()
+            => Settings == null || CutsceneRules.SyntheticStagesAllowed((int)Settings.Preset);
 
         private void ShowPlayerView()
         {
@@ -708,7 +734,7 @@ namespace BlocksBeyondTheStars.Client
             _chartShown = true;
         }
 
-        private static string SystemOfBody(StarMapData map, string bodyId)
+        internal static string SystemOfBody(StarMapData map, string bodyId)
         {
             if (map?.Systems == null || string.IsNullOrEmpty(bodyId))
             {
@@ -729,7 +755,7 @@ namespace BlocksBeyondTheStars.Client
             return null;
         }
 
-        private static Color Rgb(int rgb) => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
+        internal static Color Rgb(int rgb) => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
 
         /// <summary>The camera may only be taken by a staged scene (T3/T4). The shared cutscene state — HUD away, controls
         /// frozen, Esc to the director — is on while such a scene takes the camera or freezes the controls, and not after

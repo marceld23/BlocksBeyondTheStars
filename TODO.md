@@ -281,7 +281,22 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   `vaults`, `space_wrecks`, marker provider `unique_site:<site>`; validators (C# + Python) check missions and lead
   bridges. 62 pack keys + 2 core keys (en+de). Tests: `VegaStoryMissionsTests` (21), Client.Tests `JournalViewTests` +1.
   Docs: STORY_IMPLEMENTATION, STORY_VEGA_PROTOCOL_CONCEPT, USER_MANUAL.
-- ⬜ Step 17a — camera modes (#2477) · 17b — finale set pieces (#2478)
+- ✅ **Step 17a — dolly, pan, flyover, space-vista and diorama shots (#2477)**, 2026-10-12 (needs the local Unity build
+  AND a WebGL compile check — 1 new Unity file `CutsceneStage.cs` + 6 edited): new cutscene cameras `dolly` (a straight,
+  eased push-in checked along its whole path), `pan` (turning in place above the player's head or across the anchor where
+  the view stays open), `flyover` (a high arc rising in the middle), each falling back to the still framing of the same
+  place; the synthetic stages `space_vista` (the menu's attract-scene recipe in-game: stars, nebula, sun, a living world;
+  at `ship` the player's own ship) and `diorama` (`core`: the sleeping Guardian core — a column of red light in an iron
+  shell, 130 blocks, breathing at 0.4 Hz; `star_map`: VEGA's memory chart drifting to its rim and a faint red pulse beyond
+  it), shown far above the world with their own camera over the emptied world camera — existing shaders only, no light,
+  skipped on Potato/Low (a scene made only of them plays as a card). Chapters 3 (diorama), 4 (vista) and 6 (memory chart)
+  use them — 4 and 6 are T3 now (synthesis §6.5), captions unchanged. Server: the 1 Hz story pass (player packs, start
+  rule, leads, missions, chip) also reaches players no loaded world reaches (`TickStoryOutsideWorlds` — a pilot after an
+  in-flight hyperjump). Client.Core `CutsceneMoves`, `SyntheticStages`; validators (C# + Python) know the cameras and the
+  diorama anchors. Tests: Client.Tests `CutsceneCameraModesTests` (30) + updated `VegaChapterScenesClientTests`;
+  `CutsceneContentTests`, `VegaChapterScenesTests`, `VegaChapterLeadsTests` (+ the space pass). Docs: CUTSCENES (camera
+  reference), STORY_IMPLEMENTATION (the 1 Hz story pass).
+- ⬜ Step 17b — finale set pieces (#2478)
 - ⬜ Steps 18–21 — tutorial deep-dive chapters (#2479, #2480, #2481, #2482)
 - ⬜ Step 22 — side-story test pack + authoring guide (#2483)
 - Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text (it asked for a
@@ -296,14 +311,19 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   Playtest/on-device checks: the dev-palette prologue on desktop **and** WebGL (orbit staging, fallbacks, hold), a card's
   skip button on touch (the touch layer stays up under a card and may cover the bottom-right button), pad paging of
   cards, the MP camera cap. Deferred to later steps: hold-to-skip / pause-then-skip, ambience ducking, music prefetch,
-  `ctx:` variants and synthetic stages (17a), vocoder chatter under the speaker box.
+  `ctx:` variants, vocoder chatter under the speaker box (synthetic stages: done in 17a).
 - Open from step 15: the 12 community VEGA pack locales lack the seven `story.vega.cut.*` keys (English shows meanwhile —
   translation pass). Playtest/on-device checks: listen to the three stingers (generated unheard; regenerate one with
   `gen_sound.py` if it jars), the heal-tank close-up in the starter ship and in a self-built ship (camera inside the
   medbay, never in a wall), chapter 7's chart route + ring on desktop and WebGL, the sepia memory chart in chapter 2, a
   card's speaker box while walking, an early skip of chapter 7 bringing the jump-generator line back; a parent watching
-  B6/B9 (synthesis §6.6). Deferred: dioramas / the drifting memory chart for chapters 3, 4 and 6 and the B10 multiplayer
-  variant (17a/17b).
+  B6/B9 (synthesis §6.6). Deferred: the B10 multiplayer variant (17b); ~~dioramas / the drifting memory chart for chapters
+  3, 4 and 6~~ — done in 17a.
+- Open from step 17a: playtest/on-device checks — chapter 3's core diorama (the red column, the halo, the rising camera),
+  chapter 4's vista and chapter 6's memory chart on desktop **and** WebGL at Medium, the same three as cards on Low, a
+  `space_vista` at `ship` after a first flight (the own ship's design), the world camera back to normal after each
+  synthetic shot (HUD, visor, far terrain), and a parent watching the chapter 4 vista with B6. Not built: d4's
+  data-defined diorama `stages` (the two dioramas are built in), the clip recorder filming a synthetic shot.
 - Open from step 16: the 12 community VEGA pack locales lack the 16 `story.vega.obj.*` lead texts and the core tables
   `ui.journal.leads` (English shows meanwhile — translation pass). Playtest checks: the lead chip and its private
   ping/flight target on desktop and WebGL, the Journal's "Leads in this chapter" block (DE fits), a peaceful save from an

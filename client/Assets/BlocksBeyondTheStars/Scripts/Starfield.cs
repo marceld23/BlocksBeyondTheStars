@@ -30,6 +30,8 @@ namespace BlocksBeyondTheStars.Client
         private Transform _dome;
         private MeshRenderer _renderer;
         private Material _mat;
+        private Texture2D _dot;
+        private Mesh _domeMesh;
         private float _brightness; // smoothed 0..1 fade
 
         private void Awake()
@@ -41,11 +43,13 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _mat = new Material(shader) { mainTexture = BuildDotTexture() };
+            _dot = BuildDotTexture();
+            _mat = new Material(shader) { mainTexture = _dot };
 
             var go = new GameObject("Starfield");
             go.transform.SetParent(transform, false);
-            go.AddComponent<MeshFilter>().sharedMesh = BuildDomeMesh();
+            _domeMesh = BuildDomeMesh();
+            go.AddComponent<MeshFilter>().sharedMesh = _domeMesh;
             var mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = _mat;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -55,6 +59,27 @@ namespace BlocksBeyondTheStars.Client
             _renderer = mr;
             _dome = go.transform;
             ApplyBrightness(0f);
+        }
+
+        /// <summary>Frees the dome mesh, the dot texture and the material with the field (#2477: the cutscene director's
+        /// synthetic stages build a field of their own; the menu backdrop is rebuilt on every visit) — Unity never collects
+        /// them.</summary>
+        private void OnDestroy()
+        {
+            if (_domeMesh != null)
+            {
+                Destroy(_domeMesh);
+            }
+
+            if (_dot != null)
+            {
+                Destroy(_dot);
+            }
+
+            if (_mat != null)
+            {
+                Destroy(_mat);
+            }
         }
 
         /// <summary>Writes the shader brightness and switches the renderer off entirely while the field is dark

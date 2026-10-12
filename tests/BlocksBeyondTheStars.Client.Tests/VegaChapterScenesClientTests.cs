@@ -41,11 +41,13 @@ public sealed class VegaChapterScenesClientTests
     private static string Localized(string key, GameLocale locale = GameLocale.English) => Content.Value.CreateLocalizer(locale).Get(key);
 
     [Fact]
-    public void AChapterCard_ReadsChapterN_OverItsTitle_ThenVegaSaysTheBeat_WithTheInputFree()
+    public void AChapterScene_ReadsChapterN_OverItsTitle_ThenVegaSaysTheBeat_OverItsSyntheticStage()
     {
+        // #2477: "The Verdict" was a card in #2474; it is staged now — out of black onto the title, then a calm space vista.
         var plan = Plan("ch4.open");
-        Assert.Equal(CutsceneTiers.Card, plan.Tier);
-        Assert.False(plan.TakesCamera || plan.HoldWorld || plan.LockInput || plan.OpensFromBlack);
+        Assert.Equal(CutsceneTiers.Scene, plan.Tier);
+        Assert.True(plan.TakesCamera && plan.HoldWorld && plan.LockInput && plan.OpensFromBlack);
+        Assert.Equal(CutsceneCameras.SpaceVista, plan.Shots[1].Camera);
         var captions = plan.Shots.SelectMany(s => s.Captions).ToList();
         Assert.Equal(("Chapter 4", "The Verdict"), (captions[0].Kicker, captions[0].Text));
         Assert.False(captions[0].PageGated); // the title runs on its own
@@ -56,6 +58,26 @@ public sealed class VegaChapterScenesClientTests
 
         var de = Plan("ch6.open", locale: GameLocale.German).Shots.SelectMany(s => s.Captions).First();
         Assert.Equal(("Kapitel 6", "Er schläft noch"), (de.Kicker, de.Text));
+    }
+
+    [Theory]
+    [InlineData("ch3.open")]
+    [InlineData("ch4.open")]
+    [InlineData("ch6.open")]
+    public void OnTheLowPresets_TheSyntheticOpenings_PlayAsCards_WithTheSameWords(string id)
+    {
+        // #2477: their only camera shot is a space vista or a diorama — skipped on Potato/Low, so the scene is a card.
+        var plan = Plan(id);
+        Assert.False(CutsceneRules.NeedsCardFallback(plan, _ => true)); // Medium and up: the staged scene
+        Assert.True(CutsceneRules.NeedsCardFallback(plan, _ => true, syntheticAllowed: false));
+        var card = plan.AsCard();
+        Assert.Equal(CutsceneTiers.Card, card.Tier);
+        Assert.False(card.TakesCamera || card.HoldWorld || card.LockInput || card.OpensFromBlack);
+        Assert.Equal(plan.Shots.SelectMany(s => s.Captions).Select(c => c.Key), card.Shots.SelectMany(s => s.Captions).Select(c => c.Key));
+
+        // The heal-tank and chart scenes keep their own pictures on any preset.
+        Assert.False(CutsceneRules.NeedsCardFallback(Plan("ch5.open"), _ => true, syntheticAllowed: false));
+        Assert.False(CutsceneRules.NeedsCardFallback(Plan("ch7.open"), _ => true, syntheticAllowed: false));
     }
 
     [Fact]
@@ -118,7 +140,7 @@ public sealed class VegaChapterScenesClientTests
         Assert.Contains(card.Shots.SelectMany(s => s.Captions), c => c.Key == "story.vega.beat09"); // the words stay
         Assert.Equal(plan.ReplaceLineKeys, card.ReplaceLineKeys);
 
-        // Only an object anchor forces the card; the sky, the chart and a card never do.
+        // Only an object anchor forces the card; the sky, the chart and the synthetic stages (on Medium and up) never do.
         Assert.False(CutsceneRules.NeedsCardFallback(Plan("ch3.open"), _ => false));
         Assert.False(CutsceneRules.NeedsCardFallback(Plan("ch7.open"), _ => false));
         Assert.False(CutsceneRules.NeedsCardFallback(Plan("ch4.open"), _ => false));

@@ -37,6 +37,8 @@ namespace BlocksBeyondTheStars.Client
         private Material _mat;
         private float _brightness;        // smoothed 0..1 fade
         private string _builtForSystem = "\0"; // system id the current dome mesh was seeded for
+        private bool _menuBuilt;               // menu mode: the dome was built for _menuSeedBuilt
+        private int _menuSeedBuilt;
 
         private void Awake()
         {
@@ -63,6 +65,21 @@ namespace BlocksBeyondTheStars.Client
             _renderer = mr;
             _dome = go.transform;
             ApplyBrightness(0f);
+        }
+
+        /// <summary>Frees the dome mesh and the material with the field (#2477: the cutscene director's synthetic stages build
+        /// a field of their own; the menu backdrop is rebuilt on every visit) — Unity never collects either.</summary>
+        private void OnDestroy()
+        {
+            if (_mesh != null)
+            {
+                Destroy(_mesh);
+            }
+
+            if (_mat != null)
+            {
+                Destroy(_mat);
+            }
         }
 
         private static readonly int BrightnessId = Shader.PropertyToID("_Brightness");
@@ -93,13 +110,15 @@ namespace BlocksBeyondTheStars.Client
             float r = Mathf.Max(200f, Camera.farClipPlane) * 0.44f; // clipping only — the shader draws at the far plane (#1582)
             _dome.localScale = new Vector3(r, r, r);
 
-            // Menu attract scene: no game — build the fixed-seed dome once and hold a fixed brightness.
+            // Menu attract scene: no game — build the fixed-seed dome once and hold a fixed brightness. The seed is compared
+            // as a number (#2477: the cutscene director's synthetic stages run this mode in-game — no string per frame).
             if (MenuBrightness >= 0f)
             {
-                string menuKey = "menu:" + MenuSeed;
-                if (menuKey != _builtForSystem)
+                if (!_menuBuilt || MenuSeed != _menuSeedBuilt)
                 {
-                    _builtForSystem = menuKey;
+                    _menuBuilt = true;
+                    _menuSeedBuilt = MenuSeed;
+                    _builtForSystem = "menu:" + MenuSeed;
                     var prev = _mesh;
                     _mesh = BuildDomeMesh(MenuSeed);
                     _filter.sharedMesh = _mesh;
@@ -126,6 +145,7 @@ namespace BlocksBeyondTheStars.Client
             if (sysKey != null && sysKey != _builtForSystem)
             {
                 _builtForSystem = sysKey;
+                _menuBuilt = false; // the dome is a system's now
                 var old = _mesh;
                 _mesh = BuildDomeMesh(StableHash(sysKey));
                 _filter.sharedMesh = _mesh;

@@ -14,7 +14,8 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
     /// The cutscene director's decisions that need no Unity (#2474), kept here so they are unit-tested headless: whether a
     /// playing scene holds a singleplayer world or freezes the controls, where the player's real heal tank is, and when a
     /// staged scene has to play as a card because the object it frames is not on this world (synthesis §6.2 "Abstieg": VEGA's
-    /// "What You Are" at the heal tank, played far from the ship).
+    /// "What You Are" at the heal tank, played far from the ship) or because its only pictures are synthetic stages the
+    /// quality preset skips (#2477).
     /// </summary>
     public static class CutsceneRules
     {
@@ -26,13 +27,30 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         /// tank). The other anchors fall back to the player.</summary>
         public static bool NeedsObject(string? anchor) => anchor == CutsceneAnchors.HealTank;
 
+        /// <summary>The lowest quality preset that builds the synthetic stages (#2477; the client's <c>QualityPreset</c> order
+        /// Potato 0, Low 1, Medium 2, High 3): on Potato and Low a space vista or a diorama is skipped (synthesis §6.6 "keine
+        /// zusätzlichen Lichter auf Kartoffel/Niedrig").</summary>
+        public const int SyntheticStagesMinPreset = 2;
+
+        /// <summary>#2477: whether the player's quality preset (<paramref name="presetIndex"/>, the client's <c>QualityPreset</c>
+        /// as a number) builds synthetic stages.</summary>
+        public static bool SyntheticStagesAllowed(int presetIndex) => presetIndex >= SyntheticStagesMinPreset;
+
         /// <summary>Whether a staged scene plays as a card (<see cref="CutscenePlan.AsCard"/>): a shot that takes the camera is
-        /// anchored on an object (<see cref="NeedsObject"/>) this client cannot find (<paramref name="objectFound"/>).</summary>
-        public static bool NeedsCardFallback(CutscenePlan? plan, Func<string, bool>? objectFound)
+        /// anchored on an object (<see cref="NeedsObject"/>) this client cannot find (<paramref name="objectFound"/>) — or
+        /// (#2477) synthetic stages are not allowed here (<paramref name="syntheticAllowed"/>, the low presets) and every shot
+        /// that takes the camera is one (a scene whose only picture is a space vista or a diorama reads best as a card then;
+        /// a scene with another camera shot keeps it and lets the synthetic shot fall back to the sky).</summary>
+        public static bool NeedsCardFallback(CutscenePlan? plan, Func<string, bool>? objectFound, bool syntheticAllowed = true)
         {
             if (plan is null || !plan.TakesCamera)
             {
                 return false;
+            }
+
+            if (!syntheticAllowed && plan.Shots.Where(s => s.TakesCamera).All(s => CutsceneCameras.IsSynthetic(s.Camera)))
+            {
+                return true;
             }
 
             return plan.Shots.Any(s => s.TakesCamera && NeedsObject(s.Anchor) && !(objectFound?.Invoke(s.Anchor) ?? false));

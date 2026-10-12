@@ -770,6 +770,35 @@ public sealed class VegaChapterLeadsTests : IDisposable
         Assert.Equal((before.Milestones, before.Fragments, before.Kills), (after.Milestones, after.Fragments, after.Kills));
     }
 
+    // ---------------- #2477: the story pass reaches every joined player ----------------
+
+    [Fact]
+    public void APilotOnAnUnloadedWorld_GetsTheStoryPass_FromTheServerTick_OnceASecond()
+    {
+        // A pilot cruising after an in-flight hyperjump occupies a body whose world is not loaded — TickShipAi runs per loaded
+        // world and never reached them, so the evidence below waited for the landing. The server tick runs the pass for them.
+        var (server, _) = World("lead_space", TutorialOff);
+        var pilot = Join(server, 1, "Pilot");
+        var walker = Join(server, 2, "Walker");
+        AdvanceTo(server, 9); // chapter 5, "What You Are": research the radar array
+        Assert.Equal("research:radar_array", server.CurrentLeadForTest(pilot)!.Lead.Type);
+
+        pilot.CurrentLocationId = "planet_never_loaded";
+        pilot.State.UnlockedBlueprints.Add("radar_array"); // researched: the evidence books it at the next pass
+        double pilotSeconds = pilot.StoryPackPlaySeconds, walkerSeconds = walker.StoryPackPlaySeconds;
+        for (int i = 0; i < 6; i++)
+        {
+            server.Tick(0.5);
+        }
+
+        Assert.True(Has(pilot, LeadKey("what_you_are", 1)));
+        Assert.False(Has(walker, LeadKey("what_you_are", 1))); // per player
+
+        // Once a second for both — the walker by the world's own pass, the pilot by the new one; nobody twice.
+        Assert.Equal(3.0, pilot.StoryPackPlaySeconds - pilotSeconds);
+        Assert.Equal(3.0, walker.StoryPackPlaySeconds - walkerSeconds);
+    }
+
     // ---------------- Cost ----------------
 
     [Fact]

@@ -917,7 +917,8 @@ public static class StoryPackValidator
     }
 
     /// <summary>The cutscene rules (synthesis §6.2/§6.3): unique key-safe ids (no built-in <c>__</c> id), a known tier, at
-    /// least one shot, known camera types, anchors, caption styles and grades, positive shot lengths with captions and cues
+    /// least one shot, known camera types, anchors (a <c>diorama</c> shows <c>core</c> or <c>star_map</c>, #2477), caption
+    /// styles and grades, positive shot lengths with captions and cues
     /// inside them, every caption key in English and German within its style's budget, the tier rules (a T1/T2 never
     /// takes the camera; only a T3/T4 that takes it may hold the world or freeze the controls), <c>chainNext</c> references
     /// that resolve, a chapter that exists, and (when the context can tell) existing music and sound cues.</summary>
@@ -987,6 +988,11 @@ public static class StoryPackValidator
                 if (anchor.Length > 0 && !CutsceneAnchors.All.Contains(anchor))
                 {
                     error($"{sp}.camera.anchor", $"unknown anchor '{anchor}' ({string.Join(", ", CutsceneAnchors.All)})");
+                }
+                else if (camera == CutsceneCameras.Diorama && !CutsceneCameras.DioramaAnchors.Contains(anchor))
+                {
+                    // #2477: a diorama is a small synthetic stand-in for what its anchor names.
+                    error($"{sp}.camera.anchor", $"a diorama shows {string.Join(" or ", CutsceneCameras.DioramaAnchors)} (found '{anchor}')");
                 }
 
                 if (!(shot.Duration > 0f) || shot.Duration > ShotMaxSeconds)

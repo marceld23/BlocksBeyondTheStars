@@ -1873,6 +1873,8 @@ public sealed partial class GameServer
         // #2173: the worlds whose TickWeather runs this tick — the ambient weather leaves exactly these alone.
         _weatherTicked.Clear();
         _weatherTicked.UnionWith(ticking);
+        _storyTickedWorlds.Clear(); // #2477: their players get the story pass from TickShipAi, the others after the loop
+        _storyTickedWorlds.UnionWith(ticking);
 
         // Decide once per tick whether this is a chunk-sweep tick (throttled), then run the eviction per active
         // world inside the loop so each world's anchors are its own players. See SweepFarChunks.
@@ -1942,6 +1944,7 @@ public sealed partial class GameServer
             }
         }
 
+        Guard("TickStoryOutsideWorlds", deltaSeconds, TickStoryOutsideWorlds); // #2477: the 1 Hz story pass for players no loaded world reaches
         Guard("TickCutscenes", TickCutscenes); // #2468: queued cutscenes for every joined player, wherever they are (space too)
         Guard("TickJournal", TickJournal); // #2471: the Journal's coalesced pushes (only players whose stories changed)
         Guard("TickAmbientWeather", deltaSeconds, TickAmbientWeather); // #2173: the weather of every body in an occupied system
