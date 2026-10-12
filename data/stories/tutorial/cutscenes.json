@@ -22,6 +22,8 @@
   //                   new base core and its zone, "Your home", then what walls and sealed rooms do (synthesis §6.4).
   // tut.ship_commissioned — #2480: the ship builder course's own ship commissioned (c6.7 done): the camera circles the NEW
   //                   ship (the parked ship is the active one now, scaled to its size), "Your own ship".
+  // tut.first_circuit — #2481: the crystal workshop course's first job handed in (c8.1 done — a switch lit a lamp): a short
+  //                   banner "First circuit · It works!" with a chime; the camera and the controls stay the player's.
   // tut.graduation  — the graduation: the achievement, then VEGA's closing line in her speaker box; chains to VEGA's recap
   //                   or, when the world is still in chapter 1, straight to VEGA's chapter 1 card (#2474, §5.3).
   "cutscenes": [
@@ -180,6 +182,18 @@
           "camera": { "type": "static", "anchor": "ship" },
           "duration": 4.5,
           "captions": [ { "style": "subtitle", "key": "story.tutorial.cut.ship.sub" } ]
+        }
+      ]
+    },
+    {
+      "id": "tut.first_circuit",
+      "tier": 1,
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 4,
+          "captions": [ { "style": "title_card", "kickerKey": "story.tutorial.cut.circuit.kicker", "key": "story.tutorial.cut.circuit.title" } ],
+          "sfx": [ { "cue": "chime_1", "at": 0.2 } ]
         }
       ]
     },

@@ -274,6 +274,17 @@ public static class GameEventKeys
     /// <summary>Zero-g construction mode switched aboard a player station. Arg: <c>on</c> or <c>off</c>.</summary>
     public const string StationZeroG = "station:zero_g";
 
+    // ---- #2481: the deep dives "Crystal net" (C8, C14; one line each at an existing handler) ----
+
+    /// <summary>A recipe crafted, by the station it needs (raised next to <see cref="CraftAny"/>, also for a free Creative
+    /// craft). Arg: the station — <c>CraftingStation</c>'s name in lower case (<c>hand</c>, <c>workshop</c>, <c>refinery</c>,
+    /// <c>factory</c>, <c>campfire</c>, <c>market</c>, <c>algaetank</c> …); amount = the batch count. A factory terminal's craft
+    /// is <c>factory</c>.</summary>
+    public const string CraftStation = "craft:station";
+
+    /// <summary>A spawned factory claimed with an access (SPS) code — it became the player's base. Arg: the factory's name.</summary>
+    public const string FactoryClaimed = "factory:claimed";
+
     /// <summary><see cref="ShipRepaired"/> arg: everything affordable at once (the console / cockpit action).</summary>
     public const string ShipRepairAll = "all";
 
@@ -457,6 +468,7 @@ public static class GameEventKeys
             StationLeft, MarkerSet, SalvageFound,
             ShipRepaired, ShipEdited, ShipKeelPlaced, ShipSwitched, BaseBuilt, BaseSealed, BaseWalled, DoorOpened, SpawnSet,
             StationCoreDeployed, StationZeroG,
+            CraftStation, FactoryClaimed,
         };
         foreach (string circuitEvent in new[]
                  {

@@ -743,6 +743,26 @@ public static class StoryWorldPredicates
     /// <summary>#2480: the player owns a commissioned space station.</summary>
     public const string StationOwned = "station_owned";
 
+    /// <summary>#2481: VEGA's tip check found a factory's terminal close to the player in its last pass (the moment the
+    /// "Factory and automation" course is offered at — the tips' own once-a-second sweep, no extra probe).</summary>
+    public const string FactoryNear = "factory_near";
+
+    /// <summary>#2481: a spawned factory stands on the player's world.</summary>
+    public const string FactoryHere = "factory_here";
+
+    /// <summary>#2481: the player carries an access (SPS) code — what claims a factory.</summary>
+    public const string AccessCode = "access_code";
+
+    /// <summary>#2481: the player has claimed a factory (anywhere in the save).</summary>
+    public const string FactoryOwned = "factory_owned";
+
+    /// <summary>#2481: a machine of the player's has finished a job a signal started (the Crystal workshop's fifth job, or any
+    /// such circuit since) — the "machine circuit" the automation lesson builds on.</summary>
+    public const string MachineCircuit = "machine_circuit";
+
+    /// <summary>#2481: running machines catch up on return (the world rule <c>MachineCatchUpMinutes</c> is not 0).</summary>
+    public const string MachineCatchUp = "machine_catchup";
+
     /// <summary>Every known predicate, in documentation order.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
@@ -755,5 +775,6 @@ public static class StoryWorldPredicates
         ForgeReady, WormholeKnown, DebrisFields,
         TierGate, ModuleAffordable, HullDamaged, KeelLaid, ShipBuilt, BaseHere, BaseCoreReady, NightOutside,
         StationCoreReady, StationOwned,
+        FactoryNear, FactoryHere, AccessCode, FactoryOwned, MachineCircuit, MachineCatchUp,
     };
 }

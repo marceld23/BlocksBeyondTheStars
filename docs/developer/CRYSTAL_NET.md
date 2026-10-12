@@ -688,6 +688,21 @@ doorbell, night light, airlock, little factory, secret passage) uses the new `Mi
 `crystal:<event>` (first circuit, ding dong, night watch, logician, assembly line, deep driller, secret passage, going
 up, safecracker).
 
+**VEGA hands the chain out, and the tutorial bridges onto it (#2481).** The six jobs carry `"giverRole": "vega"`
+(`MissionChains.GiverVega`; the content validator allows it only with the radio surface): accepting one records no NPC
+relationship, and after a turn-in `OnChainStepTurnedIn` → `VegaChainFollowUp` has VEGA say in her own panel that the next
+job waits in the Missions tab (`vega.chain.next`, {0} = its name) or which blueprint it still needs
+(`vega.chain.next_research`, {1}) — at once, no radio item, no NPC-calls setting, never muted with the hints (B55: before,
+a coined quartermaster radioed "that job you did for me" 90 s later, only with a radio worn). The tutorial's short course
+**Crystal workshop** (C8, [TUTORIAL_PACK.md](TUTORIAL_PACK.md#the-deep-dives-crystal-net-c8-c14-2481)) is a bridge onto
+these same jobs — mission-bridge steps that complete when a job is turned in; the jobs are not copied, keep their rewards and
+work unchanged for anyone not taking the course (a job done before the course counts silently). While the course runs, its
+next step's line is the follow-up and VEGA's own line stays quiet (`MissionBridgedByRunningStep`). Its first hand-in shows the
+banner `tut.first_circuit` ("First circuit · It works!"). The course **Factory and automation** (C14) follows: a factory
+terminal's bulk craft (`craft:station` `factory`), the SPS-code claim (`factory:claimed`, explained, never asked for) and a
+fabricator crafting by itself (`crystal:craft`), after a machine circuit (the fifth job, or `world:machine_circuit` = the
+`crystal:machine_job` counter) and a forge's goods.
+
 ### 17.10 Client
 
 `ClientCrystalNet` (Client.Core, headless-tested) keeps one list per frame, applies deltas and composes a world-cell

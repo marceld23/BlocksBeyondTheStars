@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -36,6 +37,27 @@ public sealed partial class GameServer
     /// <summary>Per-factory id + bounds + terminal + roster + claim state (test seam).</summary>
     public IReadOnlyList<(int Id, Vector3f Terminal, Vector3i Min, Vector3i Max, IReadOnlyList<string> Roster, int MachineCount, bool Claimable, string OwnerId)> FactoriesForTest
         => _factories.Select(f => (f.Id, f.TerminalPos, f.Min, f.Max, (IReadOnlyList<string>)f.Roster, f.Machines.Count, f.Claimable, f.OwnerId)).ToList();
+
+    /// <summary>Test seam (#2481): registers a claimable factory on the active world whose production terminal stands at
+    /// <paramref name="terminal"/> and makes <paramref name="roster"/> — no hall is stamped (crafting and claiming read the
+    /// terminal's reach, the roster and the claim, nothing else). Returns its id.</summary>
+    internal int AddFactoryForTest(Vector3f terminal, params string[] roster)
+    {
+        var cell = new Vector3i((int)System.Math.Floor(terminal.X), (int)System.Math.Floor(terminal.Y), (int)System.Math.Floor(terminal.Z));
+        var inst = new FactoryInstance
+        {
+            Id = _worlds.Active.NextFactoryId++,
+            Min = new Vector3i(cell.X - 2, cell.Y - 1, cell.Z - 2),
+            Max = new Vector3i(cell.X + 2, cell.Y + 3, cell.Z + 2),
+            Name = "Test Works",
+            TerminalPos = terminal,
+            Key = $"{_world.LocationId}|factory|{cell.X}|{cell.Y}|{cell.Z}",
+            Claimable = true,
+        };
+        inst.Roster.AddRange(roster);
+        _factories.Add(inst);
+        return inst.Id;
+    }
 
     /// <summary>Whether a factory cell is protected against the given actor (test seam for claim/owner/ally rights).</summary>
     public bool FactoryProtectedForTest(Vector3i pos, string actorId, bool isAdmin = false) => IsFactoryProtected(pos, actorId, isAdmin);
@@ -455,6 +477,7 @@ public sealed partial class GameServer
         SendInventory(session);
         BroadcastFactories();
         Send(session, new ServerMessage { Text = "@srv.factory.claim_done:" + f.Name });
+        RaiseGameEvent(session, GameEventKeys.FactoryClaimed, f.Name); // #2481: the factory course's claim
     }
 
     private void HandleClaimStructure(PlayerSession session, ClaimStructureIntent intent)

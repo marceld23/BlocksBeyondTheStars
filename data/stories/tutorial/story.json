@@ -11,7 +11,9 @@
   // "Short course" card (tut.course) and closing with the part banner; docking (c4.1) and the first hyperjump (c5.8) get
   // their own card. Every do step of a deep dive counts; world rules skip a step or put its stand-in in. #2480 added the
   // parts "Ship building" and "Base building": c1 (the titanium route), c6 (modules, repair, an own ship), c7 (a base) and
-  // c17 (a station) — the base founding and the commissioning of an own ship get a short scene.
+  // c17 (a station) — the base founding and the commissioning of an own ship get a short scene. #2481 added the part
+  // "Crystal net": c8 bridges onto VEGA's six Crystal workshop jobs (data/missions.json — the jobs and their rewards stay
+  // where they are) and c14 (factories, a fabricator working by itself); the first working circuit gets a banner.
   "id": "tutorial",
   "kind": "tutorial",
   "scope": "player",
@@ -813,6 +815,146 @@
           "id": "c17.3", "kind": "do", "tier": "opt",
           "objective": { "event": "station:zero_g", "arg": "on" },
           "explain": { "startKey": "story.tutorial.c17.zero_g.start", "chipKey": "story.tutorial.c17.zero_g.chip", "hintKey": "story.tutorial.c17.zero_g.hint", "moreGuide": "stations" }
+        }
+      ]
+    },
+    {
+      // C8 Crystal workshop (part "Crystal net", #2481): a bridge onto VEGA's six workshop jobs crystal_workshop_1..6 in
+      // data/missions.json — the jobs are neither moved nor copied (synthesis §3.7): each step c8.1–c8.6 completes when its job
+      // is TURNED IN (a mission bridge), a job turned in before completes its step silently (a running chain is adopted), and
+      // the jobs keep their own rewards — the "no rewards" rule covers the pack's own fields only. The player takes and hands
+      // in the jobs in the Missions tab, exactly as without the course. Offered once the comm radio is researched; never to a
+      // player who did every job already (the offer skips a course that is through by evidence). The first working circuit's
+      // hand-in shows a banner (tut.first_circuit). A job whose blueprint is still missing says so (variant).
+      "id": "c8",
+      "titleKey": "story.tutorial.ch.c8",
+      "summaryKey": "story.tutorial.ch.c8.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b5", "blueprint:comm_radio" ],
+      "offerWhen": [ "blueprint:comm_radio" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c8.0", "kind": "do", "tier": "core",
+          "objective": { "event": "research:any", "arg": "crystal_conduit" },
+          "alreadyDoneIf": [ "blueprint:crystal_conduit" ],
+          "hintRefs": [ "crystal_researched" ],
+          "explain": { "startKey": "story.tutorial.c8.net.start", "chipKey": "story.tutorial.c8.net.chip", "hintKey": "story.tutorial.c8.net.hint", "moreGuide": "crystal-net" }
+        },
+        {
+          "id": "c8.1", "kind": "do", "tier": "core",
+          "objective": { "type": "Mission", "target": "crystal_workshop_1" },
+          "hintRefs": [ "crystal_first" ],
+          "onComplete": { "cutscene": "tut.first_circuit" },
+          "explain": { "startKey": "story.tutorial.c8.light.start", "chipKey": "story.tutorial.c8.light.chip", "hintKey": "story.tutorial.c8.handin.hint", "moreGuide": "crystal-net" }
+        },
+        {
+          "id": "c8.2", "kind": "do", "tier": "core",
+          "objective": { "type": "Mission", "target": "crystal_workshop_2" },
+          "variants": [
+            { "when": "not:blueprint:crystal_sound", "startKey": "story.tutorial.c8.bell.start_research", "chipKey": "story.tutorial.c8.bell.chip_research" }
+          ],
+          "explain": { "startKey": "story.tutorial.c8.bell.start", "chipKey": "story.tutorial.c8.bell.chip", "hintKey": "story.tutorial.c8.handin.hint", "moreGuide": "crystal-devices" }
+        },
+        {
+          "id": "c8.3", "kind": "do", "tier": "core",
+          "objective": { "type": "Mission", "target": "crystal_workshop_3" },
+          "variants": [
+            { "when": "not:blueprint:crystal_sensors", "startKey": "story.tutorial.c8.night.start_research", "chipKey": "story.tutorial.c8.night.chip_research" }
+          ],
+          "explain": { "startKey": "story.tutorial.c8.night.start", "chipKey": "story.tutorial.c8.night.chip", "hintKey": "story.tutorial.c8.handin.hint", "moreGuide": "crystal-devices" }
+        },
+        {
+          // The door's mode lamp (red locked, green open) is this line's — VEGA's "door on a wire" hint counts as told.
+          "id": "c8.4", "kind": "do", "tier": "core",
+          "objective": { "type": "Mission", "target": "crystal_workshop_4" },
+          "hintRefs": [ "crystal_door" ],
+          "variants": [
+            { "when": "not:blueprint:crystal_logic", "startKey": "story.tutorial.c8.airlock.start_research", "chipKey": "story.tutorial.c8.airlock.chip_research" }
+          ],
+          "explain": { "startKey": "story.tutorial.c8.airlock.start", "chipKey": "story.tutorial.c8.airlock.chip", "hintKey": "story.tutorial.c8.handin.hint", "moreGuide": "crystal-devices" }
+        },
+        {
+          // The machine circuit the factory course's automation lesson builds on (C14, synthesis §3.2 "C8.5").
+          "id": "c8.5", "kind": "do", "tier": "core",
+          "objective": { "type": "Mission", "target": "crystal_workshop_5" },
+          "variants": [
+            { "when": "not:blueprint:fabricator", "startKey": "story.tutorial.c8.machine.start_research", "chipKey": "story.tutorial.c8.machine.chip_research" }
+          ],
+          "explain": { "startKey": "story.tutorial.c8.machine.start", "chipKey": "story.tutorial.c8.machine.chip", "hintKey": "story.tutorial.c8.handin.hint", "moreGuide": "crystal-machines" }
+        },
+        {
+          // Moving blocks and the dyed phase wall are this step's lines — VEGA's two hints about them count as told.
+          "id": "c8.6", "kind": "do", "tier": "core",
+          "objective": { "type": "Mission", "target": "crystal_workshop_6" },
+          "hintRefs": [ "crystal_mechanics", "crystal_phase" ],
+          "variants": [
+            { "when": "not:blueprint:crystal_mechanics", "startKey": "story.tutorial.c8.secret.start_research", "chipKey": "story.tutorial.c8.secret.chip_research" }
+          ],
+          "explain": { "startKey": "story.tutorial.c8.secret.start", "chipKey": "story.tutorial.c8.secret.chip", "hintKey": "story.tutorial.c8.handin.hint", "moreGuide": "crystal-devices" }
+        }
+      ]
+    },
+    {
+      // C14 Factory and automation (part "Crystal net", #2481): crafting in bulk at a found factory's terminal, what an SPS
+      // code does (claiming spends a rare code, so the course explains it and only reacts when the player claims one — it
+      // never asks them to spend it), and a fabricator crafting by itself, plus what machines do while nobody is there.
+      // Offered near a factory (VEGA's factory_near tip moment) or once the fabricator blueprint is researched. The machine
+      // lesson needs a machine circuit (the Crystal workshop's fifth job, C8.5 — or such a circuit built before) and a forge's
+      // goods (C1 — or a forge already at hand): until then the course says so (c14.4) and waits (synthesis §3.2).
+      "id": "c14",
+      "titleKey": "story.tutorial.ch.c14",
+      "summaryKey": "story.tutorial.ch.c14.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b4" ],
+      "offerWhen": [ "any:[world:factory_near,blueprint:fabricator]" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          // A world without a factory: the read stand-in tells what one is good for.
+          "id": "c14.1", "kind": "do", "tier": "core",
+          "objective": { "event": "craft:station", "arg": "factory" },
+          "feasibleIf": [ "world:factory_here" ],
+          "alternative": "c14.1a",
+          "hintRefs": [ "factory_near" ],
+          "explain": { "startKey": "story.tutorial.c14.terminal.start", "chipKey": "story.tutorial.c14.terminal.chip", "hintKey": "story.tutorial.c14.terminal.hint", "moreGuide": "factories" }
+        },
+        {
+          "id": "c14.1a", "kind": "read", "tier": "core",
+          "explain": { "startKey": "story.tutorial.c14.terminal.start_later", "moreGuide": "factories" }
+        },
+        {
+          "id": "c14.2", "kind": "read", "tier": "opt",
+          "feasibleIf": [ "not:world:factory_owned" ],
+          "explain": { "startKey": "story.tutorial.c14.claim.start", "moreGuide": "factories" }
+        },
+        {
+          // Claiming is never asked for (it spends a rare code): when the player claims a factory, VEGA says what changed.
+          "id": "c14.3", "kind": "react", "tier": "opt",
+          "objective": { "event": "factory:claimed" },
+          "requires": [ "not:world:factory_owned" ],
+          "explain": { "startKey": "story.tutorial.c14.claimed.start", "moreGuide": "factories" }
+        },
+        {
+          // Spoken only while a prerequisite is missing; the course then waits at c14.5.
+          "id": "c14.4", "kind": "read", "tier": "opt",
+          "feasibleIf": [ "not:all:[any:[step:tutorial:c8.5,world:machine_circuit],any:[chapter:tutorial:c1,world:forge_ready]]" ],
+          "explain": { "startKey": "story.tutorial.c14.wait.start", "moreGuide": "crystal-machines" }
+        },
+        {
+          "id": "c14.5", "kind": "do", "tier": "core",
+          "objective": { "event": "crystal:craft", "required": 2 },
+          "requires": [ "any:[step:tutorial:c8.5,world:machine_circuit]", "any:[chapter:tutorial:c1,world:forge_ready]" ],
+          "explain": { "startKey": "story.tutorial.c14.line.start", "chipKey": "story.tutorial.c14.line.chip", "hintKey": "story.tutorial.c14.line.hint", "moreGuide": "crystal-machines" }
+        },
+        {
+          "id": "c14.6", "kind": "read", "tier": "opt",
+          "variants": [
+            { "when": "not:world:machine_catchup", "startKey": "story.tutorial.c14.away.start_off" }
+          ],
+          "explain": { "startKey": "story.tutorial.c14.away.start", "moreGuide": "crystal-machines" }
         }
       ]
     }

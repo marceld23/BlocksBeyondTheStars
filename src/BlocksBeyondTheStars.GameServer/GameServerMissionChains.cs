@@ -448,6 +448,11 @@ public sealed partial class GameServer
     /// and across a restart — still has a definition to count against (the bounty pattern, #730).</summary>
     private void OnChainStepAccepted(PlayerSession session, MissionDefinition def, string giverKey, string giverName)
     {
+        if (MissionChains.IsVegaGiver(def))
+        {
+            return; // #2481 (B55): VEGA is the ship's AI, not an NPC — no relationship with a coined quartermaster
+        }
+
         if (!IsBoardMissionId(def.Id))
         {
             // Board ids already went through RecordMissionAccepted; authored chain ids record here.
@@ -499,14 +504,23 @@ public sealed partial class GameServer
 
     /// <summary>After a chain step is turned in: when a next step exists the giver calls a little later
     /// ("I've got something more for you") — through the dialogue-promised-call queue, so it obeys the
-    /// radio gates, the player's NpcCallsMode and the 90 s delay, and gives up if the player stays away.</summary>
+    /// radio gates, the player's NpcCallsMode and the 90 s delay, and gives up if the player stays away.
+    /// A chain VEGA hands out (#2481, B55: <see cref="MissionChains.GiverVega"/>, the Crystal workshop) gets VEGA's own line
+    /// instead (<see cref="VegaChainFollowUp"/>).</summary>
     private void OnChainStepTurnedIn(PlayerSession session, MissionDefinition def, MissionProgress pr)
     {
         // #1291: only a step that is FEASIBLE here counts as "next" — otherwise the giver promises a call
         // about an order this world can never hand out, and the chain quietly stalls at the last real step.
-        if (FeasibleNextSteps(def).Count == 0)
+        var next = FeasibleNextSteps(def);
+        if (next.Count == 0)
         {
             RestartChainIfRepeatable(session, def);
+            return;
+        }
+
+        if (MissionChains.IsVegaGiver(def))
+        {
+            VegaChainFollowUp(session, next[0]);
             return;
         }
 
@@ -519,6 +533,47 @@ public sealed partial class GameServer
         _dialogRadioPending.Add((session.State.PlayerId, giverKey, giverName,
             string.IsNullOrEmpty(placeName) ? giverName : placeName, session.CurrentLocationId,
             ChainRadioLineKey, _uptime + DialogRadioDelaySeconds, _uptime + DialogRadioGiveUpSeconds));
+    }
+
+    /// <summary>VEGA's follow-up when the next part of a chain she hands out is open (#2481, B55): {0} = its name.</summary>
+    internal const string VegaChainNextLine = "vega.chain.next";
+
+    /// <summary>The same when the next part still needs a blueprint: {0} = its name, {1} = the blueprint to research.</summary>
+    internal const string VegaChainNextResearchLine = "vega.chain.next_research";
+
+    /// <summary>#2481 (B55): after a step of a chain VEGA hands out is turned in, VEGA herself says in her panel that the next
+    /// part waits in the Missions tab — or which blueprint it still needs. It replaces the radio nudge of a coined
+    /// quartermaster: no radio item, no NPC-calls preference (VEGA is no NPC caller), no delay that a restart or the
+    /// "missions only" setting could lose, and a mission message is never muted with the hints (kind 0). Nothing is said
+    /// while a running story-pack step already bridges onto that next part — its own start line, spoken a moment before
+    /// when the bridged step completed, is the follow-up (one teaching voice, G12: the Crystal workshop course, C8). A
+    /// client without <c>packs1</c> gets the line composed in its language (its tables lack the key).</summary>
+    private void VegaChainFollowUp(PlayerSession session, MissionDefinition next)
+    {
+        if (MissionBridgedByRunningStep(session, next.Id))
+        {
+            return;
+        }
+
+        string name = string.IsNullOrEmpty(next.NameKey) ? next.Id : Localize(session.Locale, next.NameKey);
+        string blueprint = next.RequiresBlueprint;
+        bool research = blueprint.Length > 0 && !session.State.UnlockedBlueprints.Contains(blueprint);
+        string key = research ? VegaChainNextResearchLine : VegaChainNextLine;
+        string arg = research
+            ? name + Shared.Localization.LineText.ArgSeparator + (_content.Blueprints.TryGetValue(blueprint, out var bp) ? Localize(session.Locale, bp.NameKey) : blueprint)
+            : name;
+        var line = new ShipAiLine { Kind = 0 };
+        if (session.SupportsPacks)
+        {
+            line.LineKey = key;
+            line.LineArg = arg;
+        }
+        else
+        {
+            line.Text = ComposeLegacyText(session.Locale, key, arg);
+        }
+
+        SendVegaWithObjective(session, line);
     }
 
     /// <summary>A repeatable chain (<c>repeatable: true</c> on its LAST step) starts over once that step is

@@ -158,7 +158,8 @@ cards `b01`, `b03`, `b04`, `b07`, `b08`, `b10` — see [VEGA's chapter scenes an
 `tutorial/cutscenes.json` holds the basic training's cards since #2473 — see [The tutorial cards](#the-tutorial-cards-2473);
 #2478 added VEGA's finale set pieces and its ending — see [VEGA's finale](#vegas-finale-2478) — so every VEGA id of the
 list is defined now; #2479 added the flight courses' firsts `tut.first_dock` and `tut.first_jump`, #2480 the building
-courses' `tut.first_base` and `tut.ship_commissioned`; steps 20–21 add `tut.first_circuit` and `tut.first_tame`.
+courses' `tut.first_base` and `tut.ship_commissioned`, #2481 the crystal workshop's banner `tut.first_circuit`; step 21 adds
+`tut.first_tame`.
 
 ### The VEGA prologue (#2470)
 
@@ -197,13 +198,14 @@ graduation is the one card with a line: VEGA's closing line, which it takes out 
 | `tut.welcome` | T2 card, chapter `b1` | part 1's `openCutscene` | title "Basic training" (kicker "Six short parts"), then "First steps" (kicker "Part 1 of 6") | VEGA's prologue chains to it: it follows the cold open at once |
 | `tut.strip` | T2 card, template | `openCutscene` of parts 2–6 | title = the part's title, kicker "Basic training · Part n of 6" (`{1}`/`{2}` of the argument) | waits for the cooldown; dropped once its part is over |
 | `tut.done` | T1 banner, template | every part's `closeCutscene` | "Part complete!" + the part's title | never waits (a banner) |
-| `tut.course` | T2 card, template | every deep dive's `openCutscene` (C2–C5 since #2479) | kicker "Short course" + the chapter's title | waits for the cooldown; dropped once its course is over |
+| `tut.course` | T2 card, template | every deep dive's `openCutscene` (C2–C5 since #2479, C1, C6, C7, C17 since #2480, C8, C14 since #2481) | kicker "Short course" + the chapter's title | waits for the cooldown; dropped once its course is over |
 | `tut.first_launch` | T3, `overlay` | `b6.1` `onComplete` | "Lift-off!" (kicker "First launch"), then "Space begins right above the clouds" — a full letterbox over the launch rise, the flight's camera untouched, no hold | "now or never" (`cooldownExempt`) |
 | `tut.first_dock` | T2 card, `"arg": "body"` (#2479) | `c4.1` `onComplete` (the stations course's docking) | title = the station's name, kicker "Docked"; then "Vendors and a mission board wait inside" | waits for the station's loading veil and the cooldown (not "now or never") |
 | `tut.first_landing` | T3, `orbit`/`static` on the ship, `"arg": "body"` | `b6.7` `onComplete` (not the stand-in `b6.7a`: a known world is no new one) | title = the world's name, kicker "Touchdown on a new world"; subtitle "Every world has its own rocks, plants and creatures." — a singleplayer world holds while the camera circles the ship | waits for the landing's loading veil (so not "now or never"); chains to the graduation |
 | `tut.first_jump` | T2 card, `"arg": "system"` (#2479) | `c5.8` `onComplete` (the navigator course's hyperjump) | title = the new system's name at 2.8 s (after the warp), kicker "New system"; then "Unknown stars show “?” until you have been there" | "now or never" (`cooldownExempt`); the server raises `hyperjump:any` after the warp-in's flight state, so the card lands on the warp like `fin.arrival` |
 | `tut.first_base` | T3, `crane` then `orbit` on the player (#2480) | `c7.1` `onComplete` (the homestead course's base founded) | "Your home" (kicker "Base founded"), then the subtitle "Walls keep animals away — and on airless worlds, sealed rooms hold air." — the camera rises over the player standing at the new core; a singleplayer world holds | waits for a safe moment and the cooldown; 10.5 s |
 | `tut.ship_commissioned` | T3, `orbit`/`static` on the ship (#2480) | `c6.7` `onComplete` (the ship builder course's commissioning) | "Your own ship" (kicker "Commissioned"), then the subtitle "Built by you, block by block — and it flies." — the camera circles the **new** ship (the commissioned ship is the parked, active one now; the radius scales with its size); a singleplayer world holds | waits for a safe moment and the cooldown; 11.5 s |
+| `tut.first_circuit` | T1 banner (#2481) | `c8.1` `onComplete` (the crystal workshop course's first job handed in — a switch lit a lamp) | "It works!" (kicker "First circuit") with `chime_1` — the camera, the HUD and the controls stay the player's (a building moment) | a banner never waits for the cooldown; it waits while a menu is open (the hand-in happens in the Missions tab), then shows; never for a job handed in before the course; 4 s |
 | `tut.graduation` | T2 card | `graduation.cutscene` | "Graduate" (kicker "★ Achievement"), then VEGA's speaker page `story.tutorial.graduated` | chains to `__recap` and `vega_protocol/ch1.open` (#2474): the graduation starts VEGA's track, whose recap or chapter 1 card follows at once |
 
 Interruption budget (synthesis §6.4): within the six parts at most one card or scene per part, except part 6's flight firsts

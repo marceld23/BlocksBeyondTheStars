@@ -881,6 +881,41 @@ public sealed partial class GameServer
         => (step.AlreadyDoneIf is not null && EvaluateStoryCondition(step.AlreadyDoneIf, s))
            || (step.IsLeadBridge && LeadBridgeEvidence(s, step));
 
+    /// <summary>Whether a mission bridge's mission is turned in already (a bridged step then completes at once, silently).</summary>
+    private static bool BridgedMissionTurnedIn(PlayerSession s, CompiledStep step)
+        => step.IsMission && step.Args.Length > 0
+           && s.State.Missions.Any(m => m.MissionId == step.Args[0] && m.Status == Shared.Missions.MissionStatus.TurnedIn);
+
+    /// <summary>#2481: whether every counting step of a chapter is already through for this player — done, or covered by its
+    /// evidence (<c>alreadyDoneIf</c>, a bridged mission turned in, a lead bridge's evidence). Such a deep dive would complete
+    /// silently at its start, so it is never offered (the Crystal workshop course to a player who did the whole chain on the
+    /// radio before — "never offered twice").</summary>
+    private bool ChapterThroughByEvidence(PlayerSession s, CompiledChapter ch)
+        => ch.Steps.Where(StepCountsForChapter).All(st => StepComplete(s, st) || StepAlreadyDone(s, st) || BridgedMissionTurnedIn(s, st));
+
+    /// <summary>#2481 (B55): whether one of this player's running story-pack steps bridges onto <paramref name="missionId"/> —
+    /// an active mission-bridge step of a pack that runs for them. Its start line then is the chain's follow-up, so VEGA's own
+    /// "the next part waits" line stays quiet (<c>VegaChainFollowUp</c>).</summary>
+    private bool MissionBridgedByRunningStep(PlayerSession s, string missionId)
+    {
+        if (PlayerPacks.Count == 0 || s.State.StepProgress.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (string progressKey in s.State.StepProgress.Keys)
+        {
+            if (_stepByProgressKey.TryGetValue(progressKey, out var step) && step.IsMission && step.Args.Length > 0
+                && string.Equals(step.Args[0], missionId, StringComparison.Ordinal)
+                && PackRunsFor(s, step.Pack) && StepRunsForClient(s, step))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>A chapter is through when every step that counts is through (MUST do steps of a non-optional chapter,
     /// every do step of an optional one) and nothing still holds it up — an open CORE step that has not had its hint time
     /// yet, or an alternative standing in for an infeasible step. A CORE step after the last MUST step is therefore still
@@ -901,7 +936,7 @@ public sealed partial class GameServer
         s.StepEscalation[step.ProgressKey] = new StepEscalationState { Since = s.StoryPackPlaySeconds };
         _stepListenersDirty = true;
         MarkJournalDirty(s); // #2471: a new task in the Journal
-        if (step.IsMission && s.State.Missions.Any(m => m.MissionId == step.Args[0] && m.Status == Shared.Missions.MissionStatus.TurnedIn))
+        if (BridgedMissionTurnedIn(s, step))
         {
             CompleteStep(s, step, silent: true);
             return true;
@@ -1109,6 +1144,7 @@ public sealed partial class GameServer
                 && !m.Contains(StoryPackKeys.ChapterDeclined(pack.Id, suggested.Id))
                 && !m.Contains(StoryPackKeys.ChapterActive(pack.Id, suggested.Id))
                 && EvaluateStoryCondition(suggested.Requires, s)
+                && !ChapterThroughByEvidence(s, suggested) // #2481: never suggest a course there is nothing left of
                 && m.Add(StoryPackKeys.ChapterOffered(pack.Id, suggested.Id)))
             {
                 // #2479: the suggestions are this moment's offer — the next deep dive VEGA offers by itself (a data cache in
@@ -1496,7 +1532,8 @@ public sealed partial class GameServer
                 || m.Contains(StoryPackKeys.ChapterDeclined(pack.Id, ch.Id))
                 || m.Contains(StoryPackKeys.ChapterActive(pack.Id, ch.Id))
                 || !EvaluateStoryCondition(ch.Requires, s)
-                || !EvaluateStoryCondition(ch.OfferWhen, s))
+                || !EvaluateStoryCondition(ch.OfferWhen, s)
+                || ChapterThroughByEvidence(s, ch)) // #2481: nothing left to teach (e.g. the whole Crystal workshop done)
             {
                 continue;
             }

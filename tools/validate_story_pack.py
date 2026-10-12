@@ -16,7 +16,8 @@ pack has beats), every condition parses and names existing packs/chapters/steps/
 targets exist in data/missions.json, event keys are published (warning), 'ui:' only in a player pack's step objectives,
 marker providers, legacy keys (tutorial only), alternatives, a world chapter's story missions (#2476: ids that are no
 chapter's, a title, feasibility, an alternative of the same chapter, do steps with a chip text without a {0}, lead
-bridges naming a lead a player can follow), a tutorial pays no rewards, every locale key exists in
+bridges naming a lead a player can follow), a tutorial pays no rewards (its own fields — a mission it bridges onto keeps
+the rewards it has in data/missions.json, #2481), every locale key exists in
 English and German (pack table or base table), every cutscene binding resolves in the pack's cutscenes.json (#2467),
 every finale stage is a known one and its speakers are well-formed (#2478: ids, a name, a #RRGGBB colour, a sound that
 exists), every cutscene follows the rules (ids, tier 1-4, cameras, anchors (a diorama shows core or star_map, #2477;
@@ -103,6 +104,7 @@ FALLBACK_PREDICATES = [
     "job_active", "forge_ready", "wormhole_known", "debris_fields",
     "tier_gate", "module_affordable", "hull_damaged", "keel_laid", "ship_built", "base_here", "base_core_ready",
     "night_outside", "station_core_ready", "station_owned",
+    "factory_near", "factory_here", "access_code", "factory_owned", "machine_circuit", "machine_catchup",
 ]
 
 KNOWN_FIELDS = {

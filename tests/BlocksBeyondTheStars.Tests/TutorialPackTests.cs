@@ -221,6 +221,13 @@ public sealed class TutorialPackTests : IDisposable
     {
         foreach (var step in Pack.Chapters.SelectMany(c => c.Steps).Where(s => s.Kind != StoryStepKinds.Read))
         {
+            if (step.Objective.IsMission)
+            {
+                // #2481: a mission bridge (the crystal workshop course) listens to that mission's turn-in.
+                Assert.True(_content.Missions.ContainsKey(step.Objective.Target), $"step {step.Id} bridges onto a missing mission");
+                continue;
+            }
+
             string evt = step.Objective.Event;
             bool known = GameEventKeys.IsUiEvent(evt)
                 ? GameEventKeys.IsKnownUiEventId(evt.Substring(GameEventKeys.UiPrefix.Length))

@@ -10,7 +10,8 @@ that runs it per player is the **player-pack runtime** (#2466), described in
 > The deep-dive chapters of the parts "Research" and "Flying" — C2–C5 — came with step 18 (#2479,
 > [Deep dives](#the-deep-dives-research-and-flying-c2c5-2479)), the parts "Ship building" and "Base building" — C1, C6, C7,
 > C17 — with step 19 (#2480, [Ship and base building](#the-deep-dives-ship-building-and-base-building-c1-c6-c7-c17-2480));
-> C8–C16 and C18 follow with steps 20–21. The tutorial's cards
+> the part "Crystal net" — C8 (a bridge onto VEGA's Crystal workshop jobs) and C14 — with step 20 (#2481,
+> [Crystal net](#the-deep-dives-crystal-net-c8-c14-2481)); C9–C13, C15, C16 and C18 follow with step 21. The tutorial's cards
 > (`tut.welcome`, `tut.strip` …) came with step 14 (#2473, [Cards](#cards-2473)); VEGA's own pack and the hand-over to its
 > chapter 1 with step 11. Test packs for the runtime live in `tests/BlocksBeyondTheStars.Tests/Fixtures/story_packs/`.
 
@@ -95,7 +96,7 @@ Every field is optional and defaults to today's behaviour.
 | `id` | unique in the pack, carries its chapter (`b3.1`); the done key is `story:<pack>:step:<id>` |
 | `kind` | `do` (default) · `read` (spoken, never blocks, done on `ui:vega_continue` or the next do step) · `react` (armed from the chapter start, never blocks, speaks when its event fires; stays armed after the pack is done until it fired once) |
 | `tier` | `must` (default; the chapter waits) · `core` (waits until its hint time, then an open extra that still counts) · `opt` (never blocks a non-optional chapter). An optional chapter waits for every do step |
-| `objective` | `{ event, arg, required }` — a game event (`GameEventKeys`, a `prefix*` pattern, or `ui:<id>` — only here), `arg` exact or `a\|b` alternatives (empty = any), counted since activation; or `{ type: "Mission", target }` — a mission bridge to `data/missions.json`; or (#2476, a world story's missions only) `{ type: "Lead", target: "<lead word>" }` — a lead bridge, followed like that chapter lead (its events and evidence, its placed chip text and marker; not `explore`, not the finale's words) |
+| `objective` | `{ event, arg, required }` — a game event (`GameEventKeys`, a `prefix*` pattern, or `ui:<id>` — only here), `arg` exact or `a\|b` alternatives (empty = any), counted since activation; or `{ type: "Mission", target }` — a mission bridge to `data/missions.json`: the step completes when that mission is **turned in** (one turned in before completes it silently at activation — a chain the player already runs is adopted); the mission stays where it is, the player takes and hands it in as always, and it keeps its own rewards (#2481, the Crystal workshop course); or (#2476, a world story's missions only) `{ type: "Lead", target: "<lead word>" }` — a lead bridge, followed like that chapter lead (its events and evidence, its placed chip text and marker; not `explore`, not the finale's words) |
 | `legacyKey` | tutorial only: `vega:stage:<mine\|craft\|eat\|scan\|unlock\|launch\|dock\|trade\|land>` — double-written on completion and skip for older builds, read once by the migration, and the old keys an outdated client follows |
 | `requires` | condition[] before the step activates (default: the chapter order); a react step is armed only while it holds |
 | `feasibleIf` | condition[] — false at activation ⇒ skipped silently, the `alternative` stands in (no dead ends); an alternative that is infeasible too is skipped as well |
@@ -110,7 +111,9 @@ Every field is optional and defaults to today's behaviour.
 | `hintRefs` | #2469 ("one teaching voice", G12): VEGA's once-hints and context tips this step teaches itself (`invfull`, `lamp_off` …). A `do`/`read` step holds them while it is active in, or still ahead in, a mandatory chapter of a running pack (an active step of a started deep dive too) — not as an open extra past its hint time, not after its chapter is through. When the step's line is shown they count as told (a once-hint's flag is burned, a tip's first telling is booked and its cooldown starts); a skipped step gives them back untold. React steps hold nothing — their event is raised right before the hint they absorb, so the step speaks first |
 
 Steps pay **no rewards** (maintainer decision; the validator refuses any reward field in a tutorial pack). The graduation's
-achievement is the one visible reward and carries no items.
+achievement is the one visible reward and carries no items. The rule covers the pack's **own** fields: a mission a step
+bridges onto keeps the rewards it has in `data/missions.json` (#2481 — the Crystal workshop's six jobs pay their items and
+knowledge with or without the course; removing them would take something away from everybody who plays the chain).
 
 ## Conditions
 
@@ -149,7 +152,11 @@ active ship has lost hull points), `keel_laid` (a self-built ship exists in the 
 self-built ship is commissioned), `base_here` (a base on the player's body that they own **or that an ally or a crewmate
 owns** — E32), `base_core_ready` (a base core carried or crafted before), `night_outside` (on foot on a world while the
 local sun is down there), `station_core_ready` (a station core carried, or its materials), `station_owned` (a commissioned
-station of the player's). `ui:` is never a condition.
+station of the player's). Since #2481 (the crystal net): `factory_near` (VEGA's tip pass found a factory terminal close to
+the player — `VegaTipLive`, like `data_cache_near`), `factory_here` (a spawned factory stands on the player's world),
+`access_code` (an SPS code in the backpack), `factory_owned` (the player has claimed a factory, anywhere in the save),
+`machine_circuit` (a machine of the player's finished a job a signal started — the achievement counter
+`crystal:machine_job`), `machine_catchup` (the world rule *Machines catch up* is not 0). `ui:` is never a condition.
 
 ## Per-player state
 
@@ -189,7 +196,7 @@ may be written before its event ships); `ui:` only in a player pack's step objec
 reports (a warning otherwise); marker providers and their blocks; legacy keys (tutorial only, one of the nine stages, once
 each); alternatives within the chapter; no empty `hintRefs`; the graduation (its line in both languages within the line
 budget, a `<verb>:<thing>` counter, at most three suggested chapters that are optional chapters of the pack); **no rewards
-in a tutorial**; every key in English **and** German; every cutscene binding resolves in the pack's `cutscenes.json` and
+in a tutorial** (in the pack's own document — a bridged mission keeps the rewards it has in `data/missions.json`); every key in English **and** German; every cutscene binding resolves in the pack's `cutscenes.json` and
 the cutscenes follow their own rules ([CUTSCENES.md](CUTSCENES.md#validation)); the short name ≤ 10 characters; the text
 budget — basic-training lines (a tutorial's non-optional chapters) ≤ 120 EN / 145 DE, other step lines ≤ 200 / 240, chip
 ≤ 45 / 53 (a `{key:…}` token counts 3, a `{0}` slot 10). The C# test also reads every pack strictly, so a misspelt field
@@ -266,7 +273,9 @@ the closing line itself.
 Optional chapters after the basic training (synthesis §3.2/§3.4): a player starts them from the Journal (**Start**, or
 **Later** to put an offer off — it stays listed and startable, VEGA never offers it again). VEGA offers a course once, at
 its moment of need, with `vega.chapter.offer` ("New short course: {0}…") — never while the basic training runs, at most one
-offer every 90 s of play. Every **do** step of a course counts (tier `core`/`opt` only marks what the synthesis calls
+offer every 90 s of play, and (#2481) never a course the player has nothing left to do in: one whose every counting step is
+done or covered by its evidence (`alreadyDoneIf`, a bridged mission turned in) is neither offered nor suggested — it stays
+startable in the Journal and would complete silently. Every **do** step of a course counts (tier `core`/`opt` only marks what the synthesis calls
 optional); read and react steps never block. Each course opens with the card `tut.course` ("Short course" + its title) and
 closes with the part banner `tut.done`; two firsts get their own card (below). No legacy keys, no rewards; an older client
 (no `packs1`) never runs a course.
@@ -373,6 +382,56 @@ Left out of the synthesis' tables (the issue's scope, and every do step of a cou
 apart, a workbench — the workbench needs steel and bronze) and C1.7's "upgrades use up the old tool" (not true for the
 drills: the Titanium Drill's recipe takes no drill). They can be added by data later.
 
+### The deep dives "Crystal net" (C8, C14, #2481)
+
+The same rules as above (optional, the course card and the part banner, every do step counts, no legacy keys). C8 is a
+**bridge**, not a copy (synthesis §3.7, d3 D9): VEGA's six radio jobs `crystal_workshop_1..6` stay in `data/missions.json` —
+the Missions tab offers them (anywhere, once their blueprint is researched), the player takes them and hands them in there,
+and each pays its items and knowledge as before. The course's steps c8.1–c8.6 are mission bridges onto them: a step completes
+when its job is **turned in**. A job handed in before the course completes its step silently, so a chain the player already
+runs is adopted where it stands (no line, no banner for what was done before), and the chain is never offered twice: the jobs
+exist once, and VEGA never offers the course to a player who did every job already (the offer skips a course that is through
+by evidence). A player who declines the course or plays without the tutorial keeps the chain exactly as it was — with VEGA's
+follow-up after each job (below).
+
+| Course | Needs (`requires`) | Offered (`offerWhen`) |
+|---|---|---|
+| **C8 Crystal workshop** (part Crystal net) | `chapter:tutorial:b5`, `blueprint:comm_radio` (the Journal says "needs: Comm Radio") | `blueprint:comm_radio` — the comm radio researched opens the Crystal Net tab (synthesis §3.2) |
+| **C14 Factory and automation** (Crystal net) | `chapter:tutorial:b4` | `any:[world:factory_near, blueprint:fabricator]` — VEGA's `factory_near` tip moment, or the fabricator blueprint researched |
+
+**Hard prerequisites** (synthesis §3.2): C14's machine lesson needs a machine circuit (C8.5 — the workshop's fifth job, or such
+a circuit built before: `world:machine_circuit`) and a forge's goods (C1 — or a forge already at hand: `world:forge_ready`;
+the fabricator needs lubricant and a workbench). Until then c14.4 says so and the course waits at c14.5, active in the Journal.
+
+| Step | Teaches | Event (arg × required) | Kind | World rules / feasibility, evidence, absorbed hints |
+|---|---|---|---|---|
+| c8.0 | crystal wires carry one signal; research the Crystal Net (the conduit) | `research:any` `crystal_conduit` | do | `alreadyDoneIf blueprint:crystal_conduit`; absorbs `crystal_researched` |
+| c8.1 | job 1 "First Light": a switch, conduits, a lamp `{key:Interact}` | mission bridge `crystal_workshop_1` | do | absorbs `crystal_first`; `onComplete` **tut.first_circuit** |
+| c8.2 | job 2 "Doorbell": a step plate rings a chime | mission bridge `crystal_workshop_2` | do | variant `not:blueprint:crystal_sound` → "research it first" (start line and chip) |
+| c8.3 | job 3 "Night Light": a daylight sensor switches a lamp | mission bridge `crystal_workshop_3` | do | variant without `crystal_sensors` |
+| c8.4 | job 4 "Airlock": a NOT logic block opens a door; the door's lamp | mission bridge `crystal_workshop_4` | do | variant without `crystal_logic`; absorbs `crystal_door` |
+| c8.5 | job 5 "Little Factory": a signal starts a machine | mission bridge `crystal_workshop_5` | do | variant without `fabricator` |
+| c8.6 | job 6 "Secret Passage": a phase-block wall opens on a signal | mission bridge `crystal_workshop_6` | do | variant without `crystal_mechanics`; absorbs `crystal_mechanics`, `crystal_phase` |
+| c14.1 | a factory's terminal crafts in bulk (cheap raw ore in) | `craft:station` `factory` | do | `feasibleIf world:factory_here`, else **c14.1a** (read: what a factory is good for); absorbs `factory_near` |
+| c14.2 | an SPS code claims a factory `{key:Interact}`: your base, rebuildable | — | read | `feasibleIf not:world:factory_owned` |
+| c14.3 | "this factory is yours now" | `factory:claimed` | react | `requires not:world:factory_owned` — claiming spends a rare code, so the course never asks for it |
+| c14.4 | the assembly line needs a machine circuit and a forge's goods | — | read | spoken only while one of them is missing |
+| c14.5 | a fabricator crafts by itself, wired to a switch | `crystal:craft` × 2 | do | `requires` the two prerequisites |
+| c14.6 | machines catch up while you are away | — | read | variant `not:world:machine_catchup` ("machines rest on this world") |
+
+Left out: the synthesis' C8.0a ("mine a crystal" — the research step's hint names where crystals come from) and C8.7 ("your
+first powered net" — job 1 is that net). The step lines name each job and what it needs; the jobs' own descriptions in the
+Missions tab keep the full recipe.
+
+**VEGA's follow-up (B55).** The six jobs carry `"giverRole": "vega"` (`MissionChains.GiverVega`, radio surface only — the
+content validator refuses another surface): accepting one builds no NPC relationship, and after a turn-in VEGA herself says in
+her panel what comes next — `vega.chain.next` ("Well done! My next job for you waits in your Missions tab: “{0}”.") or
+`vega.chain.next_research` when its blueprint is still missing ({1}) — at once, without a radio item, whatever the NPC-calls
+preference, never muted with the hints (a mission line, kind 0); an older client gets it composed in its language. Before,
+a coined quartermaster called on the radio 90 s later (only with a radio worn, and lost with "missions only" when deferred).
+While the course runs, the next step's own start line is the follow-up, so VEGA's line stays quiet (one voice, G12). Other
+chains keep their givers' radio nudge.
+
 ### Cards (#2473)
 
 The parts' cards live in `data/stories/tutorial/cutscenes.json` (format, tiers and pacing: [CUTSCENES.md](CUTSCENES.md#the-tutorial-cards-2473)).
@@ -391,8 +450,10 @@ Cards, not cinema: no card takes the camera, holds the world or freezes the cont
 | `c5.8.onComplete` (#2479) | `tut.first_jump` | the navigator course's first hyperjump: "New system" + its name on the warp-in, then "Unknown stars show “?” …" — now or never |
 | `c7.1.onComplete` (#2480) | `tut.first_base` | the homestead course's base founded: a short scene (T3) — the camera rises over the player at the new core, "Base founded · Your home", then "Walls keep animals away — and on airless worlds, sealed rooms hold air"; a singleplayer world holds; not for a base that counted as evidence |
 | `c6.7.onComplete` (#2480) | `tut.ship_commissioned` | the ship builder course's own ship commissioned: the camera circles the **new** ship (scaled to its size), "Commissioned · Your own ship", then "Built by you, block by block — and it flies"; a singleplayer world holds; not for a ship built long ago |
+| `c8.1.onComplete` (#2481) | `tut.first_circuit` | the crystal workshop course's first job handed in (a switch lit a lamp): a short banner (T1, 4 s) "First circuit · It works!" with a chime — the camera and the controls stay the player's; it waits only while a menu is open (the hand-in happens in the Missions tab); not for a job handed in before the course |
 
-A course shows at most two cards: its course card and at most one first (a test counts them). The basic training's budget
+A course shows at most two cards: its course card and at most one first (a test counts them; a banner like
+`tut.first_circuit` is no card). The basic training's budget
 (eight heavier moments) is untouched: the docking card lives in the stations course, not in b6.4.
 
 Each scene plays once per player (`story:tutorial:cut:<id>`, a template once per part, `tut.strip@b3`): "I know the game",

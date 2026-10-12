@@ -213,12 +213,10 @@ public sealed class TutorialCardsTests : IDisposable
     public void TheCards_UseTheBindingIds_AndTheTiersOfSynthesis64()
     {
         var ids = Pack.Cutscenes.Select(c => c.Id).ToList();
-        Assert.Equal(new[] { "tut.welcome", "tut.strip", "tut.done", "tut.course", "tut.first_launch", "tut.first_dock", "tut.first_landing", "tut.first_jump", "tut.first_base", "tut.ship_commissioned", "tut.graduation" }, ids);
+        Assert.Equal(new[] { "tut.welcome", "tut.strip", "tut.done", "tut.course", "tut.first_launch", "tut.first_dock", "tut.first_landing", "tut.first_jump", "tut.first_base", "tut.ship_commissioned", "tut.first_circuit", "tut.graduation" }, ids);
         Assert.All(ids, id => Assert.Contains(id, StoryCutsceneIds.Tutorial));
-        foreach (string later in new[] { "tut.first_circuit", "tut.first_tame" })
-        {
-            Assert.Null(Pack.FindCutscene(later)); // they come with their chapters (the later deep dives)
-        }
+        Assert.Null(Pack.FindCutscene("tut.first_tame")); // it comes with its chapter (the animal friends' deep dive, #2482)
+        Assert.Equal(CutsceneTiers.Banner, Card("tut.first_circuit").Tier); // #2481: a banner, synthesis §6.4
 
         Assert.Equal((CutsceneTiers.Card, false), (Card("tut.welcome").Tier, Card("tut.welcome").Template));
         Assert.Equal("b1", Card("tut.welcome").Chapter);

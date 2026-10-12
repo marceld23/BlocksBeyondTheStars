@@ -579,6 +579,9 @@ teaching verbs (the second block of the table); the deep dives add theirs with s
 | `spawn:set` | `bed` \| `heal_tank` \| `crew_bunk` | a bed, a heal tank or a crew bunk became the spawn point | `GameServerHealTanks.cs` (`HandleSetSpawnPoint`) |
 | `station:core_deployed` | station structure id | a station core deployed on a spacewalk | `GameServerPlayerStations.cs` (`DeployStationCore`) |
 | `station:zero_g` | `on` \| `off` | zero-g construction mode switched aboard a player station (a press that flips nothing raises nothing) | `GameServerStationGravity.cs` (`HandleSetStationZeroG`) |
+| **#2481 — the deep dives "Crystal net"** | | | |
+| `craft:station` | the recipe's station, lower case (`workshop`, `refinery`, `factory`, `campfire`, `market`, `algaetank` …) (batch count) | a recipe crafted, next to `craft:any` — also a free Creative craft; the argument string is built only while someone listens | `GameServer.cs` (`HandleCraft`, `CraftStationArg`) |
+| `factory:claimed` | the factory's name | a spawned factory claimed with an SPS code (a refused claim raises nothing) | `GameServerFactories.cs` (`ClaimFactory`) |
 
 Since #2479 the in-flight jump (`JumpFlightToSystem`) raises `hyperjump:any` after the warp-in's flight state and star map
 went out (it was raised before the warp), so a card a step plays for it lands on the warp-in like the finale's arrival card.
@@ -631,7 +634,10 @@ kept whatever the hints switch, the gates or the cooldowns say; no probe of its 
 the building courses' `tier_gate` (a refused swing within the last minute, `PlayerSession.TierGateRefusedAt`),
 `module_affordable`, `hull_damaged`, `keel_laid`, `ship_built`, `base_here` (an own, allied or crew base on the player's body,
 E32), `base_core_ready`, `night_outside` (the player's own world's clock), `station_core_ready`, `station_owned`
-(`GameServerTutorialBuilding.cs`). A predicate reads the player's own body/system, never the active world cursor. A new predicate is a name in `StoryWorldPredicates` plus
+(`GameServerTutorialBuilding.cs`); since #2481 the crystal-net courses' `factory_near` (the tip pass's moment, like
+`data_cache_near`), `factory_here` (a factory on the player's body), `access_code`, `factory_owned` (a claim in the save's
+metadata), `machine_circuit` (the `crystal:machine_job` achievement counter), `machine_catchup` (the *Machines catch up*
+rule is not 0). A predicate reads the player's own body/system, never the active world cursor. A new predicate is a name in `StoryWorldPredicates` plus
 one line in `GameServer.WorldPredicates`.
 
 **The world-story guard (N11).** A pack carries `kind` (`story` default, `tutorial`, `side`) and `scope` (`world` |
@@ -679,7 +685,9 @@ started it (`story:<pack>:ch:<c>:active` — the one key beyond §5.6, so a star
 **offered** once when `offerWhen` holds (`story:<pack>:ch:<c>:offered`, line `vega.chapter.offer` with the chapter title as
 `{0}`) — never while the pack's mandatory chapters still run (no offers during basic training), at most one offer per
 90 s of play (since #2479 a graduation that suggests chapters counts as an offer moment: `Graduate` stamps
-`LastChapterOfferAt`); `declineChapter` stamps `:declined` ("Later") and keeps it startable. `autoCompleteIf` holding when a chapter
+`LastChapterOfferAt`), and never (nor suggested at a graduation) when every counting step is already through for the player
+— done, or covered by its evidence (`alreadyDoneIf`, a bridged mission turned in, a lead bridge's evidence;
+`ChapterThroughByEvidence`, #2481: the Crystal workshop course is never offered to someone who did the whole chain); `declineChapter` stamps `:declined` ("Later") and keeps it startable. `autoCompleteIf` holding when a chapter
 runs completes it silently (veteran evidence; ignored during a replay). A non-optional chapter is **done** when every
 `must` do step is done or skipped and nothing still holds it up (a CORE step before its hint time, an alternative standing
 in); an optional chapter needs every do step. The pack is done (`story:<pack>:done`) when every non-optional chapter is.
@@ -1036,8 +1044,8 @@ chains. All fields are additive — a stand-alone mission leaves them empty; the
 | `chainId` | groups the steps of one chain |
 | `step` | 1-based position; two defs sharing `chainId` **and** `step` are *alternatives* — the feasible one with the lowest id is offered (e.g. `chain_needs_4a_camp` on bandit worlds, `chain_needs_4b_travel` elsewhere) |
 | `prerequisites[]` | mission ids that must be turned in first |
-| `nextMissionId` | the following step (drives the giver's `npc.call.chain_next` radio nudge after turn-in) |
-| `giverRole` | `quartermaster` (default) · `vendor` · `settler` · `character:<id>` (an authored recurring face — remembers the player globally) |
+| `nextMissionId` | the following step (drives the giver's `npc.call.chain_next` radio nudge after turn-in — or, for a `vega` giver, VEGA's own `vega.chain.next` / `vega.chain.next_research` line at once) |
+| `giverRole` | `quartermaster` (default) · `vendor` · `settler` · `character:<id>` (an authored recurring face — remembers the player globally) · `vega` (#2481, B55: VEGA hands the chain out — radio surface only; no NPC relationship on accept; after a turn-in VEGA says in her panel what comes next, without a radio item or the NPC-calls preference; quiet while a running story-pack step bridges onto that next job — its start line is the follow-up. The Crystal workshop) |
 | `minStage` | `""` · `known` · `trusted` — standing with the giver (NPC memory) |
 | `surface` | `board` (default, at a mission board) · `dialog` (handed out by a dialogue choice with consequence `mission:<id>`) · `radio` (offered anywhere) |
 | `offerAt` | `settlement` (default) · `station` · `any` — which boards offer a board step |

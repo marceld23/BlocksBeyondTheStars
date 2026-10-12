@@ -143,7 +143,8 @@ public sealed class MissionDefinition
     /// <summary>The step that follows (informational — the giver's radio nudge looks for it); empty at the end.</summary>
     public string NextMissionId { get; set; } = string.Empty;
 
-    /// <summary>Who hands the step out: quartermaster (default) | vendor | settler | character:&lt;id&gt;.</summary>
+    /// <summary>Who hands the step out: quartermaster (default) | vendor | settler | vega (#2481: VEGA, radio only) |
+    /// character:&lt;id&gt;.</summary>
     public string GiverRole { get; set; } = string.Empty;
 
     /// <summary>Minimum relationship stage with the giver: "" | known | trusted.</summary>

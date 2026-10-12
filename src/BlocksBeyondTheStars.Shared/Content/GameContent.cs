@@ -1451,7 +1451,12 @@ public sealed class GameContent
 
             if (!BlocksBeyondTheStars.Shared.Missions.MissionChains.IsValidGiverRole(mission.GiverRole))
             {
-                problems.Add($"Mission '{mission.Id}' has an unknown giverRole '{mission.GiverRole}' (quartermaster|vendor|settler|character:<id>).");
+                problems.Add($"Mission '{mission.Id}' has an unknown giverRole '{mission.GiverRole}' (quartermaster|vendor|settler|vega|character:<id>).");
+            }
+            else if (BlocksBeyondTheStars.Shared.Missions.MissionChains.IsVegaGiver(mission)
+                     && BlocksBeyondTheStars.Shared.Missions.MissionChains.SurfaceOf(mission) != BlocksBeyondTheStars.Shared.Missions.MissionChains.SurfaceRadio)
+            {
+                problems.Add($"Mission '{mission.Id}' is handed out by VEGA (giverRole 'vega'), which needs surface 'radio' — VEGA has no board or face of her own.");
             }
 
             if (!BlocksBeyondTheStars.Shared.Missions.MissionChains.IsValidStage(mission.MinStage))

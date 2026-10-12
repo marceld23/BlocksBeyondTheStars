@@ -362,6 +362,29 @@ public sealed class StoryPackValidationTests
     }
 
     [Fact]
+    public void ATutorialMissionBridge_LeavesTheBridgedMissionItsRewards()
+    {
+        // #2481: the rule covers the pack's own document. The Crystal workshop course (C8) bridges onto VEGA's radio jobs, which
+        // keep paying their items and knowledge — the course pays nothing itself.
+        var job = Shipped.Value.Missions["crystal_workshop_1"];
+        Assert.NotEmpty(job.Rewards);
+        Assert.True(job.KnowledgeReward > 0);
+        var def = Side(d =>
+        {
+            d.Kind = StoryRegistry.KindTutorial;
+            Step(d).Objective = new StoryStepObjective { Type = StoryObjectiveTypes.Mission, Target = job.Id };
+        });
+        string raw = "{\"id\":\"probe\",\"kind\":\"tutorial\",\"chapters\":[{\"id\":\"c1\",\"steps\":[{\"id\":\"c1.1\",\"objective\":{\"type\":\"Mission\",\"target\":\"crystal_workshop_1\"}}]}]}";
+        Assert.DoesNotContain(Errors(StoryPackValidator.Validate(def, Context(), raw)), e => e.Message.Contains("rewards", StringComparison.Ordinal));
+
+        // The shipped tutorial's bridges: every one names a job that pays, and the pack itself still passes.
+        var tutorial = Shipped.Value.Stories["tutorial"];
+        var bridged = tutorial.Chapters.SelectMany(c => c.Steps).Where(s => s.Objective.IsMission).Select(s => s.Objective.Target).ToList();
+        Assert.Equal(new[] { "crystal_workshop_1", "crystal_workshop_2", "crystal_workshop_3", "crystal_workshop_4", "crystal_workshop_5", "crystal_workshop_6" }, bridged);
+        Assert.All(bridged, id => Assert.True(Shipped.Value.Missions[id].Rewards.Count > 0 && Shipped.Value.Missions[id].KnowledgeReward > 0, id));
+    }
+
+    [Fact]
     public void AKeyMissingInGerman_IsAnError()
     {
         var context = Context();

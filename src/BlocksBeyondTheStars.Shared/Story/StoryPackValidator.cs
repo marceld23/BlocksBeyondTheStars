@@ -91,7 +91,8 @@ public sealed class StoryPackValidationContext
 /// ids, the graduation (#2469: its line, its counter, at most three suggested optional chapters), a world chapter's story
 /// missions (#2476: ids that are no chapter's, a title, feasibility, an alternative of the same chapter, do steps with a chip
 /// text without a slot, lead bridges naming a lead a player can follow), <c>lore:</c> conditions naming a lore text that
-/// exists, a tutorial pays no rewards, every locale key exists in English and
+/// exists, a tutorial pays no rewards (its own fields: a mission it bridges onto keeps the rewards it has in
+/// <c>data/missions.json</c>, #2481 — the Crystal workshop course), every locale key exists in English and
 /// German, every cutscene binding resolves in the pack's <c>cutscenes.json</c> and every cutscene follows the tier, camera,
 /// caption and budget rules (#2467, <see cref="ValidateCutscenes"/>), the short name fits (≤ 10 characters), and the text budget
 /// (basic-training lines ≤ 120 EN / 145 DE, other step lines ≤ 200 / 240, chip ≤ 45 / 53; a <c>{key:…}</c> token counts
@@ -934,7 +935,8 @@ public static class StoryPackValidator
             }
         }
 
-        // ---- A tutorial pays no rewards (the raw document: fields the model does not know count too) ----
+        // ---- A tutorial pays no rewards (the raw document: fields the model does not know count too). Only the pack's own
+        // document counts — a bridged mission ({type: Mission}) keeps the rewards it has in data/missions.json (#2481). ----
         if (tutorial && !string.IsNullOrEmpty(rawJson))
         {
             try

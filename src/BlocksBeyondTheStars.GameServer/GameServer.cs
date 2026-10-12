@@ -6085,6 +6085,7 @@ public sealed partial class GameServer
             Send(session, new CraftResult { Success = true, RecipeKey = recipe.Key });
             SendInventory(session);
             RaiseGameEvent(session, GameEventKeys.CraftAny, recipe.Key, count); // #2465: a free craft is still a craft
+            RaiseGameEvent(session, GameEventKeys.CraftStation, CraftStationArg(recipe.Station), count); // #2481: by station
             return;
         }
 
@@ -6185,7 +6186,13 @@ public sealed partial class GameServer
         WarnIfPoolOverflowed(session, pool); // #600: outputs that found no room are gone — say so
         OnAchievementCraft(session, recipe.Key);
         RaiseGameEvent(session, GameEventKeys.CraftAny, recipe.Key, count); // #2465: amount = the batch count
+        RaiseGameEvent(session, GameEventKeys.CraftStation, CraftStationArg(recipe.Station), count); // #2481: a factory's craft …
     }
+
+    /// <summary>The argument of <see cref="GameEventKeys.CraftStation"/>: the station's name in lower case (#2481) — only
+    /// built while a step listens (with no listener a raise is one compare, the string would be wasted).</summary>
+    private string CraftStationArg(Shared.Definitions.CraftingStation station)
+        => HasGameEventListener(GameEventKeys.CraftStation) ? station.ToString().ToLowerInvariant() : string.Empty;
 
     /// <summary>
     /// The always-available "Dye"/"Glow" action: turn a held building material into a coloured (and/or

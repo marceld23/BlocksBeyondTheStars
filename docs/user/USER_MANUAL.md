@@ -1178,6 +1178,17 @@ players.
   - **Station builder** (offered when you have a station core or its materials, or after the ship builder course; needs
     the pilot course and space flight): deploying a station core on a spacewalk, building its hull with a door as the
     airlock until it is commissioned, and floating while you build aboard (zero-g building).
+  - **Crystal workshop** (offered once you have researched the comm radio): the Crystal Net blueprint, then VEGA's six
+    workshop jobs from your Missions tab — a switch lights a lamp, a step plate rings a chime, a night light, an airlock
+    door, a machine started by a signal, a secret wall of phase blocks. You take and hand in the jobs in the Missions tab
+    as always, and they pay their usual reward; the course just walks you through them and tells you which blueprint the
+    next one needs. Jobs you handed in before count at once, and VEGA does not offer the course if you did them all.
+    Handing in the first one shows a short "First circuit — It works!" banner.
+  - **Factory and automation** (offered near a factory, or once you have researched the fabricator): crafting in bulk at a
+    factory's terminal (or, where your world has none, what one is good for), what an SPS code does (claiming a factory
+    makes it your base — the course never asks you to spend a code), and a fabricator that crafts by itself on a switch —
+    once you know machine circuits (the workshop's fifth job) and have a forge; until then the course waits and says so.
+    Last, what machines do while you are away.
   - What you have already done counts: a forge you crafted before, blueprints you own, a jump drive already fitted, a
     base on the world, a ship or station you built tick their step off by themselves; lessons your world cannot offer
     (no wormholes, no wrecks, no space combat, an undamaged hull, breathable air …) are skipped or only explained.
@@ -1484,7 +1495,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Getting started.** Research **Crystal Net** in the Blueprints tab (Crystal Net category, after the comm radio) and
   craft at a workshop — every part needs a **crystal**. The first blueprint gives you the conduit, the
   **switch**, the **button** and the **step plate**; the sensors (together with the **Device Eye**), the logic
-  blocks, the sound devices and each machine have blueprints of their own in the same tab.
+  blocks, the sound devices and each machine have blueprints of their own in the same tab. VEGA's six **Crystal
+  workshop** jobs (Missions tab) — or the short course of the same name in your Journal — teach the net step by step.
 - **Using things.** Everything is the normal **Interact** action — press **Interact (E / X / USE)** while
   looking at the block. A **switch** flips ON/OFF and stays where you left it, even after a reload. A
   **button** gives one half-second pulse. A device with settings opens a small **menu** (pictures to pick a
@@ -1839,6 +1851,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   little later if you wandered off. After **three turn-ins at one board** a quartermaster who knows you
   posts a two-part **big order** — a doubled delivery with the pay to match, then a large build or survey.
   Later parts can't be taken early (the server checks), and they stay where you started them.
+- **VEGA's Crystal workshop:** six circuit jobs VEGA hands out herself (offered anywhere once you have researched the
+  Crystal Net; each waits for the blueprint its circuit needs). When you hand one in, **VEGA** tells you right away in her
+  panel which job comes next — or which blueprint it still needs — no radio needed. The short course **Crystal workshop**
+  in your Journal walks you through the same six jobs (see *Short courses*).
 
 ### NPC professions: doctor, shopkeeper, arms dealer, sage, tamer, blockfarmer, streamer, reporter
 - **Where you meet them.** Newly generated villages and towns may have a **clinic, shop, armory, library, stable, quarry,

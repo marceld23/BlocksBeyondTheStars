@@ -48,6 +48,12 @@ public static class MissionChains
     /// <summary>Prefix of an authored-character giver role (<c>character:&lt;id&gt;</c>).</summary>
     public const string CharacterRolePrefix = "character:";
 
+    /// <summary>#2481 (B55): VEGA hands the chain out herself — the ship's AI, not an NPC: accepting a step builds no NPC
+    /// relationship, and after a turn-in VEGA says in her own panel that the next part waits (no coined quartermaster on the
+    /// radio, no radio item needed). Only with <see cref="SurfaceRadio"/> — VEGA has no place of her own. The Crystal
+    /// workshop (<c>crystal_workshop_1..6</c>) uses it.</summary>
+    public const string GiverVega = "vega";
+
     public static bool IsValidStage(string? stage) => string.IsNullOrEmpty(stage) || stage is StageKnown or StageTrusted;
 
     public static bool IsValidSurface(string? surface) => string.IsNullOrEmpty(surface) || surface is SurfaceBoard or SurfaceRadio or SurfaceDialog;
@@ -57,11 +63,14 @@ public static class MissionChains
     /// <summary>"" (no gate) | guardian_defeated.</summary>
     public static bool IsValidRequiresStory(string? story) => string.IsNullOrEmpty(story) || story == StoryGuardianDefeated;
 
-    /// <summary>quartermaster | vendor | settler | character:&lt;id&gt; | "" (the board's quartermaster).</summary>
+    /// <summary>quartermaster | vendor | settler | vega | character:&lt;id&gt; | "" (the board's quartermaster).</summary>
     public static bool IsValidGiverRole(string? role)
         => string.IsNullOrEmpty(role)
-           || role is "quartermaster" or "vendor" or "settler"
+           || role is "quartermaster" or "vendor" or "settler" or GiverVega
            || (role.StartsWith(CharacterRolePrefix, System.StringComparison.Ordinal) && role.Length > CharacterRolePrefix.Length);
+
+    /// <summary>#2481: whether VEGA hands this chain step out (<see cref="GiverVega"/>).</summary>
+    public static bool IsVegaGiver(MissionDefinition def) => def.GiverRole == GiverVega;
 
     /// <summary>The effective surface: an unset surface means the board.</summary>
     public static string SurfaceOf(MissionDefinition def) => string.IsNullOrEmpty(def.Surface) ? SurfaceBoard : def.Surface;

@@ -99,6 +99,15 @@ public sealed partial class GameServer
         [StoryWorldPredicates.NightOutside] = NightOutside,
         [StoryWorldPredicates.StationCoreReady] = StationCoreReady,
         [StoryWorldPredicates.StationOwned] = s => _playerStationCells.Values.Any(st => st.Boardable && st.OwnerId == s.State.PlayerId),
+
+        // #2481: the deep dives "Crystal net" (C8, C14) — the factory course's offer (VEGA's own tip pass), what a world has
+        // for it, and the automation lesson's evidence.
+        [StoryWorldPredicates.FactoryNear] = s => s.VegaTipLive.Contains("factory_near"),
+        [StoryWorldPredicates.FactoryHere] = s => _worlds.Find(s.CurrentLocationId)?.Factories.Count > 0,
+        [StoryWorldPredicates.AccessCode] = s => s.State.Inventory.CountOf("access_code") > 0,
+        [StoryWorldPredicates.FactoryOwned] = s => _meta.Claims.Any(c => c.OwnerId == s.State.PlayerId),
+        [StoryWorldPredicates.MachineCircuit] = s => s.State.AchievementCounters.TryGetValue(AchievementCounters.Crystal(CircuitEvents.MachineJob), out int jobs) && jobs > 0,
+        [StoryWorldPredicates.MachineCatchUp] = _ => Rules.MachineCatchUpMinutes > 0,
     };
 
     /// <summary><c>world:forge_ready</c> (#2479): the player can refine — they crafted a forge before (the achievement

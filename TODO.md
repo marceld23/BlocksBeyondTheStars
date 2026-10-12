@@ -359,7 +359,30 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   `ui.vega.act.EvaDeployStation|ToggleStationZeroG`. Tests: `TutorialBuildingCoursesTests` (15); updated `TutorialPackTests`,
   `TutorialCardsTests`, `TutorialDeepDivesTests`, `CutsceneContentTests`. Docs: TUTORIAL_PACK, CUTSCENES,
   STORY_IMPLEMENTATION, USER_MANUAL.
-- ⬜ Steps 20–21 — tutorial deep-dive chapters C8–C16 and C18 (#2481, #2482)
+- ✅ **Step 20 — tutorial deep dives "Crystal net": C8 Crystal workshop, C14 Factory and automation (#2481)**, 2026-10-12
+  (server + data only, no Unity file): C8 is a **bridge** onto VEGA's six radio jobs `crystal_workshop_1..6` — c8.0 the
+  Crystal Net blueprint, c8.1–c8.6 mission bridges that complete when a job is turned in (the jobs stay in
+  `data/missions.json`, keep their rewards, work unchanged without the course; a job handed in before counts silently, so a
+  running chain is adopted; a job whose blueprint is missing says so in a variant line and chip). Offered once the comm
+  radio is researched; the offer (and a graduation suggestion) now skips any course whose steps are all through by evidence
+  (`ChapterThroughByEvidence` — never the workshop course to someone who did every job). Banner `tut.first_circuit` (T1) on
+  the first job's hand-in. C14: a factory terminal's bulk craft (new verb `craft:station`, read stand-in without a factory),
+  the SPS-code claim explained and only reacted to (`factory:claimed`, a react step — the course never asks to spend a code),
+  a fabricator crafting twice by itself (`crystal:craft`) after the hard prerequisites C8.5 and C1 (or a machine circuit /
+  forge already known; c14.4 says why it waits), and what machines do while you are away (variant when the catch-up rule is
+  0). Offered at VEGA's `factory_near` moment or with the fabricator blueprint. Six predicates (`factory_near`,
+  `factory_here`, `access_code`, `factory_owned`, `machine_circuit`, `machine_catchup`). **B55:** the six jobs carry
+  `giverRole: "vega"` (new giver role, radio only — validated): no NPC relationship on accept, and after a turn-in VEGA says
+  in her panel which job is next or which blueprint it needs (`vega.chain.next`, `vega.chain.next_research`; no radio item,
+  never muted, composed for older clients) instead of a coined quartermaster on the radio; quiet while the course runs (its
+  next line is the follow-up). hintRefs absorb `crystal_researched`, `crystal_first`, `crystal_door`, `crystal_mechanics`,
+  `crystal_phase`, `factory_near`. Keys en+de: 44 pack keys, core `vega.chain.next|next_research`; changed text (re-translate)
+  `vega.hint.crystal_researched` (no "on the radio"). Tests: `TutorialCrystalCoursesTests` (9: shape, offers, the real chain
+  with a real first circuit, rewards, the banner once, adopting a running chain, a declined course with VEGA's follow-up and
+  an older client, C14 through the real terminal/claim/fabricator, world rules and evidence, the new verbs);
+  `StoryPackValidationTests` +1 (a bridged mission keeps its rewards); updated `TutorialDeepDivesTests`, `TutorialCardsTests`.
+  Docs: TUTORIAL_PACK, CRYSTAL_NET, STORY_IMPLEMENTATION, CUTSCENES, USER_MANUAL.
+- ⬜ Step 21 — tutorial deep-dive chapters C9–C13, C15, C16 and C18 (#2482)
 - ⬜ Step 22 — side-story test pack + authoring guide (#2483)
 - Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text (it asked for a
   hyperjump) and lack `story.obj.help_peaceful` — the translation pass at the end of the package covers both.

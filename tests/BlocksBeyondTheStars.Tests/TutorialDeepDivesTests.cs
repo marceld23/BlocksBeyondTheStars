@@ -233,7 +233,7 @@ public sealed class TutorialDeepDivesTests : IDisposable
     public void TheDeepDives_AreOptionalChapters_WithTheirPrerequisitesOffersAndCards()
     {
         var courses = Pack.Chapters.Where(c => c.Optional).ToList();
-        Assert.Equal(new[] { "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c17" }, courses.Select(c => c.Id)); // #2480 added c1, c6, c7, c17
+        Assert.Equal(new[] { "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c17", "c8", "c14" }, courses.Select(c => c.Id)); // #2480 added c1, c6, c7, c17; #2481 c8, c14
         foreach (var c in courses)
         {
             Assert.Equal("tut.course", c.OpenCutscene);
@@ -263,6 +263,12 @@ public sealed class TutorialDeepDivesTests : IDisposable
     {
         foreach (var step in Pack.Chapters.Where(c => c.Optional).SelectMany(c => c.Steps).Where(s => s.Kind != StoryStepKinds.Read))
         {
+            if (step.Objective.IsMission)
+            {
+                Assert.True(_content.Missions.ContainsKey(step.Objective.Target), $"step {step.Id} bridges onto a missing mission"); // #2481: C8
+                continue;
+            }
+
             string evt = step.Objective.Event;
             bool known = GameEventKeys.IsUiEvent(evt)
                 ? GameEventKeys.IsKnownUiEventId(evt.Substring(GameEventKeys.UiPrefix.Length))
