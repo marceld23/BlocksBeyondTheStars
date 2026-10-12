@@ -75,8 +75,9 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   blueprint, an access code claims factories only, one SPS long form (Scout and Pioneer Service); the canon package
   (`vega.mem.1/3/6/7/8/10`, `vega.relay.first`, `mem_the_order` "you were in the room", B1 "a signal out there");
   stale story docs and code comments fixed. EN+DE only — the changed keys are listed for the final translation pass
-  (keys whose tokens changed are dropped from the twelve community tables until then). Open: the dead
-  `vega.sys.crystal_first` stays in all 14 tables until that pass removes it; item descriptions, the other `srv.*`
+  (keys whose tokens changed are dropped from the twelve community tables until then). Open: ~~the dead
+  `vega.sys.crystal_first` stays in all 14 tables until that pass removes it~~ — kept for good by the translation pass
+  (servers up to v2026.10.4 still send it to a new client); item descriptions, the other `srv.*`
   messages, space prompts and "(E)" buttons still name keys (step 10's resolver sweep).
 - ✅ **Step 5 — WorldHost save safety (#2464)**, 2026-10-11: an uploaded save from a newer game build is refused
   up front (`save_too_new`, `SavePaths.ValidateUploadedSave` reads the stored `SaveVersion`); a wake whose game
@@ -443,28 +444,47 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   and the speeder inside C13, the tier wall / data cache / comm radio offers vs. a player who still hears the tip, the
   absorb rule, the replay), `StoryGapClosureClientTests` (12, incl. a guard that every `SayLocal` lesson is taught by a
   tutorial step). Docs: CUTSCENES, TUTORIAL_PACK, STORY_IMPLEMENTATION, USER_MANUAL.
-- Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text (it asked for a
-  hyperjump) and lack `story.obj.help_peaceful` — the translation pass at the end of the package covers both.
-- Open from step 2: the community locales lack `ui.cutscene.skip_key/_pad/_touch`, `ui.hud.hint_pad_glyphs` and
-  the pack key `story.vega.epilogue.title` (English shows meanwhile); `ui.hud.hint_pad`, `ui.intro.skip` and
-  `ui.vega.prologue.skip` are no longer read by the client — drop them from all 14 files in the translation pass.
-  Needs an on-device check: the touch Skip button and VEGA's pills with the touch layer hidden (phone/tablet, WebGL),
+- ✅ **Translation pass (#2459)**, 2026-10-12 (data + tool + docs; no code change except the WebGL fallback list): the
+  package's texts in all 14 languages — per community language 215 base keys (165 new, the 28 token-changed keys step 4
+  had dropped, 22 re-translated because their English meaning changed: the canon package `vega.mem.*`, `vega.relay.first`,
+  `item.access_code.desc`, `vega.intro.1`, the shortened hints …), 106 VEGA-pack keys (100 new, 6 re-translated incl. the
+  SPS name) and the whole tutorial pack (459 keys, twelve new `data/stories/tutorial/locales/<code>.json`, added to the
+  WebGL `FallbackManifest`); machine pass with `translate_locale.py`, then a full hand review per language (~5,000 values
+  corrected: names left in English → the table's item/tab/job names, VEGA's feminine forms and one register, chip forms,
+  docking/lead/short-course/commission traps, over-long lines). "Scout and Pioneer Service"/"SPS" and "The Long Quiet" stay
+  English everywhere; "Journal" got a word per language. Coverage 100 % in all 14. Deleted from all 14 (unused, client-only):
+  `ui.hud.hint_pad`, `ui.intro.skip`, `ui.vega.prologue.skip`, `ui.story.vega`, `ui.story.cat_log`, `ui.worldopt.col_story`,
+  `ui.worldopt.story`; kept on purpose: `vega.resume`, `vega.s.dock.start_far` (EN/DE text back to its original: only an older
+  server sends it), `vega.sys.crystal_first` — line keys a released server still sends to a new client. EN/DE fix: two lines
+  still said "Story tab" (now "your Journal"). Tool: `translate_locale.py` carries each language's own tab/term words and
+  the names found in each chunk (`GLOSSARY_KEYS`, `NAME_KEY`), rejects an unchanged English sentence and writes LF.
+  Reviewers' table fixes outside the pass: Guardian words aligned in it/ko/uk/nl/ru, es "Hiperespacio", ja
+  `ui.vega.restart`, pl workbench typo + observatory, uk campfire ("Вогнище"), it crystal daylight modes. Open (pre-existing
+  table inconsistencies, listed in the review notes): blueprint vs module names (Radar Array, Jump Generator) in fr/pl/ru/uk,
+  "Guardian" still English in a few older tr/it pack lines, masculine VEGA in some older pt/ru/pl lines, uk finale UI
+  "Страж" vs "Охоронець", nl `ui.dock.undock_hint`; and the menu tab of the Character page is labelled `ui.tab.settings`
+  ("Settings") while the tutorial (c11, c16) and the manual say "Character tab" — decide which one changes.
+- ~~Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text and lack
+  `story.obj.help_peaceful`~~ — done in the translation pass (`vega.s.dock.start_far` is back to its original "hyperjump"
+  text in EN/DE: only an older server still sends it, at its dock stage).
+- Open from step 2: ~~the community locales lack `ui.cutscene.skip_key/_pad/_touch`, `ui.hud.hint_pad_glyphs`,
+  `story.vega.epilogue.title`; drop `ui.hud.hint_pad`, `ui.intro.skip`, `ui.vega.prologue.skip`~~ — done in the
+  translation pass. Needs an on-device check: the touch Skip button and VEGA's pills with the touch layer hidden (phone/tablet, WebGL),
   and pad Y on non-XInput pads.
-- Open from step 9: the community locales lack the step-9 keys (`ui.story.so_far*`, `ui.story.replay*`,
-  `ui.settings.story_text_wait*`, `ui.cutscene.saved`, `ui.devseq.*`, `ui.admin.help_cutscene`, `srv.admin.cutscene_*`).
+- Open from step 9: ~~the community locales lack the step-9 keys~~ — done in the translation pass.
   Playtest/on-device checks: the dev-palette prologue on desktop **and** WebGL (orbit staging, fallbacks, hold), a card's
   skip button on touch (the touch layer stays up under a card and may cover the bottom-right button), pad paging of
   cards, the MP camera cap. Deferred to later steps: hold-to-skip / pause-then-skip, ambience ducking, music prefetch,
   `ctx:` variants, vocoder chatter under the speaker box (synthetic stages: done in 17a).
-- Open from step 15: the 12 community VEGA pack locales lack the seven `story.vega.cut.*` keys (English shows meanwhile —
-  translation pass). Playtest/on-device checks: listen to the three stingers (generated unheard; regenerate one with
+- Open from step 15: ~~the 12 community VEGA pack locales lack the seven `story.vega.cut.*` keys~~ — done in the
+  translation pass. Playtest/on-device checks: listen to the three stingers (generated unheard; regenerate one with
   `gen_sound.py` if it jars), the heal-tank close-up in the starter ship and in a self-built ship (camera inside the
   medbay, never in a wall), chapter 7's chart route + ring on desktop and WebGL, the sepia memory chart in chapter 2, a
   card's speaker box while walking, an early skip of chapter 7 bringing the jump-generator line back; a parent watching
   B6/B9 (synthesis §6.6). ~~Deferred: the B10 multiplayer variant~~ — done in 17b; ~~dioramas / the drifting memory chart
   for chapters 3, 4 and 6~~ — done in 17a.
-- Open from step 17b: the community locales lack the eight new keys (`story.vega.cut.arrival`, `story.vega.cut.breach`,
-  `ui.finale.duel_*`). Playtest/on-device checks: the whole finale in SP and two-player MP (arrival card on the warp-in,
+- Open from step 17b: ~~the community locales lack the eight new keys~~ — done in the translation pass.
+  Playtest/on-device checks: the whole finale in SP and two-player MP (arrival card on the warp-in,
   the descent's flyover from the first pad and the sky fallback from a far pad, the breach close-up in the chamber, the duel
   dialogue — buttons by mouse, pad (UiNav + its hint strip next to "Step back") and touch, step back + E to face the core
   again, the banner for a player elsewhere, the stand-down and the ending with the credits on the dark stage, "Watch the
@@ -475,13 +495,13 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   `space_vista` at `ship` after a first flight (the own ship's design), the world camera back to normal after each
   synthetic shot (HUD, visor, far terrain), and a parent watching the chapter 4 vista with B6. Not built: d4's
   data-defined diorama `stages` (the two dioramas are built in), the clip recorder filming a synthetic shot.
-- Open from step 16: the 12 community VEGA pack locales lack the 16 `story.vega.obj.*` lead texts and the core tables
-  `ui.journal.leads` (English shows meanwhile — translation pass). Playtest checks: the lead chip and its private
+- Open from step 16: ~~the 12 community VEGA pack locales lack the 16 `story.vega.obj.*` lead texts and
+  `ui.journal.leads`~~ — done in the translation pass. Playtest checks: the lead chip and its private
   ping/flight target on desktop and WebGL, the Journal's "Leads in this chapter" block (DE fits), a peaceful save from an
   older build jumping 1–2 beats at its first start, the memory a lead brings on a peaceful world. Not in v1 (need a galaxy
   index): leads to fragments or monuments on other worlds, the nearest data terminal, an unknown neighbouring system.
-- Open from step 19: the community locales lack the core bracket words `ui.vega.act.EvaDeployStation|ToggleStationZeroG`
-  (translation pass; the tutorial pack has no community files). Playtest checks: the base card's crane over a fresh base
+- Open from step 19: ~~the community locales lack the core bracket words; the tutorial pack has no community files~~ —
+  done in the translation pass. Playtest checks: the base card's crane over a fresh base
   and the commissioning card circling a self-built ship (size-scaled, from outside), the C7 night offer, the C6 wait for C1
   in the Journal. Not built (the synthesis' C1.4–C1.7: crates, taking things apart, a workbench, "upgrades use up the old
   tool" — the last is not true for the drills) — data-only additions later; "two nights outside" is approximated by the

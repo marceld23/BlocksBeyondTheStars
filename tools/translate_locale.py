@@ -15,6 +15,12 @@ Placeholders like {name} are validated per key (same set as English, no brace ou
 a mismatch discards the chunk and retries
 once, then leaves those keys untranslated (locale_report.py will list them).
 
+Each request carries the target language's own wording from its base table (data/locales/<lang>.json): the menu
+tabs and a few recurring terms (GLOSSARY_KEYS), plus the item/block/blueprint/mission names and quoted UI labels that
+occur in that request's English strings — so a story line names "the Blueprints tab" or "the Titanium Drill" the way
+the player's menu shows it (--no-glossary leaves this out). A value that comes back as the unchanged English sentence
+counts as a failure like a broken placeholder.
+
 Chunks are translated concurrently (--workers, default 4) and each request asks the model for
 minimal reasoning effort (--effort; pass --effort "" for models that reject the parameter) —
 together roughly an order of magnitude faster than the old one-request-at-a-time loop.
@@ -82,10 +88,95 @@ Control tokens like {{key:ToggleLamp}} are placeholders too — copy them byte f
 - Keep formatting: leading/trailing punctuation, newlines (\\n), brackets, ALL-CAPS style where used.
 - Tone: friendly, concise, kid-appropriate. Use the informal address (German "du", French "tu", \
 Spanish "tú", Portuguese "você", Polish "ty", Turkish "sen", Dutch "je/jij", Russian "ты", \nUkrainian "ти"). Japanese: friendly polite です/ます; Korean: friendly 해요체; Chinese: plain friendly register.
-- Keep proper names untranslated: VEGA, Blocks Beyond the Stars. Game terms translate naturally \
-and CONSISTENTLY across keys (e.g. blueprint, knowledge, suit energy, airlock).
+- Keep proper names untranslated: VEGA, Blocks Beyond the Stars, the Scout and Pioneer Service and its \
+short form SPS (the old exploration service of the story — always the English name), and the wreck The Long Quiet. \
+Game terms translate naturally and CONSISTENTLY across keys (e.g. blueprint, knowledge, suit energy, airlock).
 - UI strings must stay short: if the English is one or two words, the translation should be too.
 """
+
+# Terms the player sees on screen — menu tabs, screen titles, a few machines and places. A new sentence that says
+# "open the Journal" or "the Blueprints tab" must use the word the player's menu actually shows, so the prompt carries
+# these keys' existing translations from the target language's base table (#2459). Keys the target does not have
+# yet are skipped.
+GLOSSARY_KEYS = (
+    "ui.tab.story", "ui.tab.tech", "ui.tab.map", "ui.tab.missions", "ui.tab.ship", "ui.tab.settings",
+    "ui.tab.companions", "ui.tab.photos", "ui.tab.wiki", "ui.tab.achievements", "ui.tab.alliances",
+    "ui.crafting.title", "ui.inventory.title", "ui.actions.title", "ui.station.cargo", "ui.vega.restart",
+    "ui.journal.skip_step", "ui.journal.cat_tips", "ui.story.start_now",
+    "block.workbench.name", "block.forge.name", "block.fabricator.name", "block.heal_tank.name", "module.medbay.name",
+    "module.jump_generator.name", "module.radar_array.name", "item.comm_radio.name", "block.bio_lab.name",
+    "ui.marker.mission_board", "ui.tech.cat_crystal", "item.access_code.name",
+    "poi.guardian_core", "poi.observatory", "poi.alien_shrine",
+)
+
+
+# Keys whose text is a NAME the game shows somewhere (an item, block, blueprint, module, place, mission, tab). A story
+# line that mentions "the Titanium Drill" or the job "First Light" must use the translated name the player sees in the
+# inventory or the Missions tab — left alone, the model keeps capitalised names in English.
+NAME_KEY = re.compile(
+    r"^(?:item|block|blueprint|module|planet|poi|ship|mission|achv)\.[a-z0-9_.]+\.name$|^ui\.tab\.[a-z_]+$")
+QUOTED = re.compile(r"[“\"‘]([^”\"’]{3,40})[”\"’]")
+MAX_NAMES = 60
+
+
+class Glossary:
+    """The target language's established wording, added to each request's system prompt: the fixed on-screen terms
+    (GLOSSARY_KEYS) plus the names and quoted UI labels that occur in that request's English strings."""
+
+    def __init__(self, lang: str, language: str, enabled: bool = True) -> None:
+        def table(code: str) -> dict:
+            path = REPO_ROOT / "data" / "locales" / f"{code}.json"
+            return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+        self.language = language
+        self.english = table("en") if enabled else {}
+        self.target = table(lang) if enabled else {}
+        self.fixed = [(self.english[k], self.target[k]) for k in GLOSSARY_KEYS if self.has(k)]
+        self.names: dict[str, str] = {}
+        for key, en in self.english.items():
+            if NAME_KEY.match(key) and self.has(key) and len(en) >= 3 and "{" not in en:
+                tr = self.target[key]
+                self.names.setdefault(en, tr)
+                # "Crystal Workshop: First Light" is quoted as "First Light" in a sentence
+                if ":" in en and (":" in tr or "：" in tr):
+                    sub_en = en.split(":", 1)[1].strip()
+                    sub_tr = re.split(r"[:：]", tr, maxsplit=1)[1].strip()
+                    if len(sub_en) >= 3 and sub_tr:
+                        self.names.setdefault(sub_en, sub_tr)
+        self.labels: dict[str, str] = {}
+        for key, en in self.english.items():
+            if self.has(key) and 3 <= len(en) <= 40 and "{" not in en:
+                self.labels.setdefault(en, self.target[key])
+
+    def has(self, key: str) -> bool:
+        return key in self.english and bool(str(self.target.get(key, "")).strip())
+
+    def block_for(self, texts) -> str:
+        """The prompt block for one request ("" when there is nothing to add)."""
+        text = "\n".join(texts)
+        found: dict[str, str] = {}
+        for en, tr in self.names.items():
+            multi = " " in en
+            pattern = r"(?<![\w-])" + re.escape(en) + r"(?![\w-])"
+            if (multi or en[:1].isupper()) and re.search(pattern, text, re.IGNORECASE if multi else 0):
+                found[en] = tr
+        for quoted in QUOTED.findall(text):
+            if quoted in self.labels:
+                found.setdefault(quoted, self.labels[quoted])
+        fixed = {en: tr for en, tr in self.fixed}
+        found = {en: tr for en, tr in found.items() if en not in fixed}
+        # the longest names first, so "Titanium Drill" is not crowded out by "Drill"
+        named = sorted(found.items(), key=lambda p: -len(p[0]))[:MAX_NAMES]
+        out = ""
+        if fixed:
+            out += (f"\n\nOn-screen terms of this game's {self.language} UI. When the English names one of these "
+                    f"(a menu tab, a screen, a machine, a place), use exactly this {self.language} wording:\n"
+                    + "\n".join(f"- {en} → {tr}" for en, tr in fixed.items()) + "\n")
+        if named:
+            out += (f"\nNames and labels in these strings as the {self.language} game shows them (items, blocks, "
+                    "blueprints, missions, buttons) — use these names, inflected only where the grammar needs it:\n"
+                    + "\n".join(f"- {en} → {tr}" for en, tr in named) + "\n")
+        return out
 
 
 def load_env_key() -> str:
@@ -122,10 +213,16 @@ def chat(api_key: str, model: str, system: str, user: str, timeout: float, effor
     return data["choices"][0]["message"]["content"]
 
 
+def is_untranslated_copy(source: str, value: str) -> bool:
+    """True when a sentence came back as the English source — the model sometimes returns a whole chunk unchanged.
+    Short labels may legitimately read the same ("Journal", "Chat"), so only strings of four words or more count."""
+    return value.strip() == source.strip() and len(re.findall(r"[A-Za-z]{3,}", PLACEHOLDER.sub("", source))) >= 4
+
+
 def translate_chunk(api_key: str, model: str, language: str, chunk: dict[str, str],
-                    timeout: float, effort: str) -> dict[str, str]:
+                    timeout: float, effort: str, glossary: Glossary | None = None) -> dict[str, str]:
     """One API call for one chunk; returns only entries that pass validation."""
-    system = SYSTEM_PROMPT.format(language=language)
+    system = SYSTEM_PROMPT.format(language=language) + (glossary.block_for(chunk.values()) if glossary else "")
     user = json.dumps(chunk, ensure_ascii=False, indent=0)
     raw = chat(api_key, model, system, user, timeout, effort)
     try:
@@ -139,6 +236,8 @@ def translate_chunk(api_key: str, model: str, language: str, chunk: dict[str, st
         if not isinstance(value, str) or not value.strip():
             continue
         if set(PLACEHOLDER.findall(source)) != set(PLACEHOLDER.findall(value)) or has_stray_brace(value):
+            continue
+        if is_untranslated_copy(source, value):
             continue
         good[key] = value
     return good
@@ -156,6 +255,9 @@ def main() -> int:
                     help='reasoning_effort for reasoning models (gpt-5*); "" omits the parameter')
     ap.add_argument("--timeout", type=float, default=180.0, help="per-request timeout seconds")
     ap.add_argument("--dry-run", action="store_true", help="only report what would be translated")
+    ap.add_argument("--no-glossary", action="store_true",
+                    help="leave out the target's established terms and names (GLOSSARY_KEYS, NAME_KEY) "
+                         "read from its base table")
     args = ap.parse_args()
 
     source_path = Path(args.source) if args.source else REPO_ROOT / "data" / "locales" / "en.json"
@@ -186,10 +288,12 @@ def main() -> int:
         ordered.update({k: v for k, v in target.items() if k not in source})  # target-only extras, kept last
         target_path.parent.mkdir(parents=True, exist_ok=True)
         target_path.write_text(
-            json.dumps(ordered, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            json.dumps(ordered, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
+            newline="\n")  # LF like the rest of the repo — text mode would write CRLF on Windows
 
     keys = list(missing)
     language = LANGUAGES[args.lang]
+    glossary = Glossary(args.lang, language, enabled=not args.no_glossary)
 
     def translate_batch(batch: list[str]) -> dict[str, str]:
         """Translate one batch of keys, retrying once for request errors and validation failures."""
@@ -198,7 +302,7 @@ def main() -> int:
         for attempt in (1, 2):
             try:
                 got.update(translate_chunk(api_key, args.model, language, chunk,
-                                           args.timeout, args.effort))
+                                           args.timeout, args.effort, glossary))
             except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as ex:
                 detail = getattr(ex, "read", None)
                 print(f"  request failed (attempt {attempt}): {ex}"

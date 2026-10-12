@@ -29,7 +29,7 @@ public sealed class CutscenePlanTests
                      + "A second sentence follows and adds even more words to the same caption here. "
                      + "And a third one closes the thought, so the text needs more than one page to show.",
         ["ui.story.so_far"] = "The story so far",
-        ["ui.story.so_far_hint"] = "The full texts are in the Story tab.",
+        ["ui.story.so_far_hint"] = "The full texts are in your Journal.",
         ["pack.name"] = "The Test Pack",
     };
 
@@ -182,7 +182,7 @@ public sealed class CutscenePlanTests
         Assert.Equal("The story so far · The Test Pack", caption.Kicker);
         Assert.Contains("✓ Awakening", caption.Text);
         Assert.Contains("✓ A familiar signature", caption.Text);
-        Assert.Contains("The full texts are in the Story tab.", caption.Text);
+        Assert.Contains("The full texts are in your Journal.", caption.Text);
         Assert.True(caption.PageGated);
         Assert.Equal(new[] { "✓ Awakening", "✓ A familiar signature" }, CutscenePlan.RecapLines("ch.one" + LineText.ArgSeparator + "ch.two", Text()));
     }

@@ -13,7 +13,7 @@ The settings screen offers a language automatically once its coverage clears the
 | Layer | Location | Format | What it covers |
 |---|---|---|---|
 | Main locale table | `data/locales/<code>.json` | flat `"key": "text"` JSON | All UI, HUD, menus, editors, minigames (`minigame.*`, `ui.minigame.*`), server messages (`srv.*`), block/item/planet/ship/blueprint names + descriptions, achievements (`achv.*`), missions |
-| Story packs | `data/stories/<id>/locales/<code>.json` | same flat JSON | Story beats, VEGA prologue |
+| Story packs | `data/stories/<id>/locales/<code>.json` | same flat JSON | The VEGA story (`vega_protocol`: prologue, beats, chapters, leads, story missions, cutscene captions, lore) and the basic training with its short courses (`tutorial`) |
 | Codex wiki | `data/wiki/articles.json` | per-article `{"en": …, "de": …, "fr": …, "es": …}` maps | Guide chapters (untranslated articles fall back to English) |
 | What's New | `data/whatsnew.json` (German + English) · `data-online/whatsnew/<code>.json` (every other language) | generated — do not edit | In-game changelog. The language files are exported from the devblog translations; a release without a translation reads English |
 | AI backend | `ai-backend/app/llm.py` `_LANGUAGE_NAMES` | code → language name | LLM-generated NPC lines, VEGA banter, mission flavour |
@@ -64,13 +64,27 @@ Style rules:
   `story.vega.*` in the story pack) stay within one page: at most 220 shown characters in English and 264 in
   German (+20 %), counting a `{key:…}` token as 3 characters and a `{0}` slot as 10 (`VegaLineBudgetTests`).
   Aim for the same in other languages; a longer line pages instead of being cut off.
-- Proper names stay: VEGA, Blocks Beyond the Stars. Translate game terms consistently
-  (build a small glossary first: blueprint, knowledge, suit energy, airlock, …).
+- Proper names stay: VEGA, Blocks Beyond the Stars, the **Scout and Pioneer Service** and its short form **SPS**
+  (the story's old exploration service — English in every language, German included), and the wreck **The Long
+  Quiet** (the game shows its name in English). "The Service" on its own is an ordinary noun and is translated.
+  Translate game terms consistently (build a small glossary first: blueprint, knowledge, suit energy, airlock, …).
+- A sentence that names a menu tab or screen ("open the Journal", "the Blueprints tab", "menu → Crafting") uses
+  the word that tab shows in your language (`ui.tab.*`, `ui.crafting.title`, …), not a new synonym.
 
 ## Step 2 — Story packs
 
 Same flat-JSON drill for `data/stories/<id>/locales/<code>.json` (copy the key list from the
-pack's `en.json`).
+pack's `en.json`). Both shipped packs have all twelve community files: `vega_protocol` (the VEGA story) and
+`tutorial` (the basic training and its short courses, #2459). A pack's keys are looked up over the base table, and a
+key missing from a pack's `<code>.json` reads that pack's English. A **new** pack file (a new pack, or the first
+`<code>.json` of a pack) must also be listed in the WebGL `FallbackManifest`
+(`client/Assets/BlocksBeyondTheStars/Scripts/StreamingAssetsCache.cs`), which
+`StoryUiFixesClientTests.TheBuiltInFallbackList_MatchesTheDataFolder` compares with `data/`.
+
+Line keys an older server still sends stay in the tables even when the current game no longer uses them
+(`vega.resume`, `vega.s.dock.start_far`, `vega.sys.crystal_first`): a new client can join an older server — the
+protocol version did not change — and a missing key would show as `[vega.resume]`. Purely client-side keys can be
+deleted from all 14 files once nothing reads them.
 
 ## Step 3 — Test in-game without any code change
 
@@ -137,9 +151,16 @@ uv run --no-project python tools/locale_report.py --check           # hard-defec
 ```
 
 The tool is incremental and resumable, validates placeholder sets per key, and keeps
-`en.json` key order. It reads `OPENAI_API_KEY` from the environment or
-`tools/ai-assets/.env`. Spot-review names and recurring game terms afterwards; community
-PRs then improve a playable language instead of starting from zero.
+`en.json` key order (LF line endings). It reads `OPENAI_API_KEY` from the environment or
+`tools/ai-assets/.env`. Every request carries the target language's own on-screen terms — the menu tabs, screen
+titles and a few machines and places (`GLOSSARY_KEYS`, read from `data/locales/<code>.json`; `--no-glossary` leaves
+them out) — so translate the base table before a pack whose texts name those tabs. A key whose English text
+changed must be **deleted** from the community tables first: the tool only fills missing keys.
+
+Spot-review names and recurring game terms afterwards (it still gets short labels wrong without context: a bench
+seat becomes a *workbench*, a docking port a *harbour*, a short course a *flight heading*, a lead a *metal*); community
+PRs then improve a playable language instead of starting from zero. After a pass, regenerate the picker's coverage
+manifest with `python scripts/locale-coverage.py` (`LocaleCoverageManifestTests`).
 
 ## "The complete game is covered" checklist
 

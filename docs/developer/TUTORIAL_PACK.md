@@ -27,6 +27,7 @@ data/stories/<id>/
   story.json          the manifest (below)
   locales/en.json     every key the pack uses, English  — mandatory
   locales/de.json     the same keys, German             — mandatory (community languages optional)
+  locales/<code>.json the twelve community languages    — the tutorial pack ships all twelve (#2459)
   cutscenes.json      optional cutscene definitions (format: CUTSCENES.md)
 ```
 
@@ -665,8 +666,10 @@ The admin command `/tutorial skip|restart [player]`, `/tutorial chapter <id> [pl
    impossible.
 2. Need a verb nobody raises yet? Add the key to `GameEventKeys` (+ `All`), raise it with one `RaiseGameEvent` line next to
    the existing hook of the handler, and list it in STORY_IMPLEMENTATION's event table.
-3. Write the texts by hand in `locales/en.json` and `de.json` (budgets above; `{key:…}` tokens only; never add them to the
-   community locales — the translation pass does).
+3. Write the texts by hand in `locales/en.json` and `de.json` (budgets above; `{key:…}` tokens only), then bring the new
+   keys into the twelve community files in the same PR: `translate_locale.py <code> --source
+   data/stories/tutorial/locales/en.json --file data/stories/tutorial/locales/<code>.json` plus a hand check
+   ([TRANSLATION_GUIDE.md](TRANSLATION_GUIDE.md)). A changed English text: delete the key from the twelve files first.
 4. A deep dive the graduation should suggest goes into `graduation.suggest` (at most three).
 5. Run the validator (both tools) and the walkthrough tests (`TutorialPackTests`); a new file goes into the WebGL
    `FallbackManifest`.

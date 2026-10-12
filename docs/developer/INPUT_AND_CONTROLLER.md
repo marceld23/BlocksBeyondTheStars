@@ -84,7 +84,7 @@ cluster.
   (`ui.space.*_fmt` keys take the glyph as `{0}`). The on-foot pad line is composed from the glyphs since #2461
   (`HudUi.PadHint`, template `ui.hud.hint_pad_glyphs` with `{mine} {place} {jump} {crouch} {use} {view}
   {actions} {vega} {menu}`, cached per language / bindings version / glyph set / triggers switch); the old fixed
-  `ui.hud.hint_pad` is unused.
+  `ui.hud.hint_pad` was removed from all 14 tables (#2459).
 - **Cutscene skip (#2461):** every cinematic skips on `InputAction.UiCancel` (Esc, pad **B** or its rebind) via
   `CinematicFrame.SkipPressed()`, plus an on-screen skip button for touch and a free mouse
   (`CinematicFrame.EnableSkipButton`, VEGA's prologue skip pill); the label comes from
