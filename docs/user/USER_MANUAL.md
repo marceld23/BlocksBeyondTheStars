@@ -513,9 +513,12 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   the panel (clickable whenever the mouse cursor is free, tappable on touch) — a line stays until you do (no
   auto-dismiss), and further lines wait in the queue. Leave a line for about 45 seconds and the panel **folds into a
   small VEGA tab** beside the objective, showing how many messages are waiting; press **N** (pad **View**, touch
-  **NEXT ▶**) or click/tap the tab to open it again — nothing is lost. Advisor hints can be muted (Settings → VEGA
-  hints); the tutorial is switched on or off in the Settings tab (**Tutorial: on/off**), and its parts are skipped,
-  restarted and replayed in the **Journal** (Settings → **Open the Journal**).
+  **NEXT ▶**) or click/tap the tab to open it again — nothing is lost. Some lines ask you something and show **two
+  buttons** instead of *Continue* (VEGA's first-start question, a short-course offer): the right one is what **N**
+  (pad **View**, touch **NEXT ▶**) picks; the left one takes a click or tap, or **holding** N (View, NEXT) for a moment —
+  it fills brighter while you hold. **Esc** never picks a button. Advisor hints can be muted (Settings → VEGA
+  hints); the tutorial is switched on or off in the Settings tab (**Tutorial & courses: on/off**), and its parts are
+  skipped, restarted and replayed in the **Journal** (Settings → **Open the Journal**).
 
 ---
 
@@ -1115,6 +1118,12 @@ players.
      a first job from a mission board, landing on a new world, and travelling home via the map.
   At the end VEGA congratulates you and you earn the achievement **Graduate**. There are no items or knowledge for the
   lessons — they teach, they don't pay. Three **short courses** (below) then wait in your Journal.
+  - **"Want me to show you the basics?"** Right after the welcome card on your very first start, VEGA asks whether you
+    want the training, with two buttons in her panel: **Let's go** (press your continue key **N** — or the pad's VEGA
+    button, NEXT on a tablet, or click the button) and **I know the game — skip** (click or tap that button, or **hold**
+    the continue key for a moment; **Esc** never skips). Doing nothing is fine: the training simply runs. If you skip,
+    VEGA tells you the training waits in your **Journal** — start it there any time (**Start basic training**). She asks
+    only once, and only a brand-new player on a world whose tutorial rule is *Auto*.
   - **Cards:** each part opens with a short title card ("Basic training · Part 2 of 6 — Staying alive"; the first one
     welcomes you right after the prologue) and ends with a small "Part complete!" banner. Your first launch gets a
     "Lift-off!" title over the climb, your first landing on a new world a short look around your ship with the world's
@@ -1160,7 +1169,9 @@ players.
   - A game version from before the new tutorial still follows the nine old lessons on a new server.
 - **Short courses (after the basic training — or after skipping it, and on a *Short courses only* world):** deeper
   lessons you choose yourself — VEGA offers one when it fits what you are doing (at most one offer every minute and a half, never during the basic training), and the Journal lists them
-  all with **Start** or **Later** (a course you put off stays there; VEGA does not offer it again). Each opens with a short
+  all with **Start** or **Later** (a course you put off stays there; VEGA does not offer it again). VEGA's offer has the
+  same two buttons right in her panel: **Later** (your continue key **N** — so reading on never starts a course by
+  accident) and **Start now** (click or tap it, or **hold** the continue key for a moment). Each opens with a short
   "Short course" card and ends with the "Part complete!" banner; your docking in the stations course ("Docked — …") and your
   first hyperjump in the navigator course ("New system — …") get a short card of their own, your first base and your first
   own ship a short look from outside ("Your home", "Your own ship"), your first working circuit and your first tamed

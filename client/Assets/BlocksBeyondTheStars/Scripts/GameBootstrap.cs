@@ -3315,6 +3315,9 @@ namespace BlocksBeyondTheStars.Client
                         // #2468: this client plays story-pack cutscenes when its world rig has the director — the server then
                         // sends CutscenePlay (tag 295) instead of stamping every scene seen at once.
                         Network.PlaysCutscenes = CutsceneDirector.Instance != null;
+                        // #2499: VEGA's panel draws a line's buttons (the first-start question, Start now / Later on a course
+                        // offer) — every world rig has the panel, so this client always announces choices1.
+                        Network.ShowsChoices = true;
                         Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, Locale.Code(),
                             string.IsNullOrEmpty(Token) ? null : Token, ViewDistanceChunks,
                             string.IsNullOrEmpty(HostedToken) ? null : HostedToken,

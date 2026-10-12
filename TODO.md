@@ -91,6 +91,20 @@ line per step:
   "Tutorial & courses: on/off". No save/protocol bump (an older server reads 3 as Auto). Docs: TUTORIAL_PACK, SELF_HOSTING,
   STORY_IMPLEMENTATION, STORY_PACK_AUTHORING, USER_MANUAL. ⚠ Unity: the 4-row Stories page and the in-game rule row's
   "Short courses only" fit.
+- ✅ **Step 6 — VEGA asks at the first start; course offers with buttons (#2499)**, 2026-10-13: a VEGA line can carry
+  buttons — the additive contractless `ShipAiLine.Choices` (`labelKey␟action␟packId[␟chapterId]`, `ShipAiChoices`) for a
+  client that announces `choices1` (the Unity client; `NetworkClient.ShowsChoices`). When the basic training starts by
+  itself for a real newcomer on an Auto world (no veteran/migrated progress, not a rejoin, restart or start on request,
+  not Courses/OptIn/Off), VEGA asks once after the welcome card and before the first lesson: "Want me to show you the
+  basics? …" with **[Let's go]** (the continue control; nothing is sent — doing nothing means the training runs) and
+  **[I know the game — skip]** (the ordinary `skipPack` intent → "All right, no training. If you ever want it, it waits
+  in your Journal."; the panel drops the training's waiting lines). Course offers to such a client read "Want to try it
+  now?" with **[Later]** (continue control, `declineChapter`) and **[Start now]** (`startChapter`); everyone else gets
+  today's lines. VegaPanel: the primary replaces the continue pill, the secondary sits where the prologue's skip pill is —
+  a click/tap, or the continue control **held 0.8 s** (keyboard N, pad VEGA button, touch NEXT; no stock pad button is
+  free, never Esc). Line → pill model, hold timing and the queue drop are Client.Core (`VegaChoices.cs`, tested). Docs:
+  TUTORIAL_PACK, STORY_IMPLEMENTATION, INPUT_AND_CONTROLLER, USER_MANUAL. ⚠ Unity: the two pills fit side by side
+  (EN/DE), the hold tint, N/pad/touch picks, the question after the welcome card.
 
 ### ★ Story packs 2026-10 (#2459)
 

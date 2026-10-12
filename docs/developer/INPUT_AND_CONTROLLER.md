@@ -96,6 +96,14 @@ cluster.
   RB mine · d-pad ◄► hotbar / ship system · **d-pad ▲ = OpenChat** · **d-pad ▼ = RotateShape** ·
   **LS = ContextActions** (the list above) · **RS = HotbarAction** (slot pie) · **View = VegaContinue** (`PadButton.Back`, JoystickButton6 — shown as "View", the Xbox One/Series name; Unity's "Back" is the 360 name nobody finds on a modern pad) ·
   **Menu = UiMenu** (`PadButton.Start`, JoystickButton7 — shown as "Menu", the One/Series name; the Xbox-logo button belongs to the Windows Game Bar and never reaches the game). Every other action reaches the pad through the context-actions list or a rebind.
+- **VEGA's buttons: tap or hold `VegaContinue` (#2499).** A VEGA line with two buttons (the first-start question
+  "Let's go / I know the game — skip", a course offer "Later / Start now") puts the primary on the continue pill and
+  the secondary where the prologue's skip pill is. No stock pad button is free for the secondary (the layout above is
+  full), and on foot the mouse cursor is captured, so the secondary rides on the continue control itself: **released
+  before 0.8 s = the primary, held 0.8 s = the secondary** (`VegaChoiceInput` in Client.Core, the same tap/hold idea
+  as LB's target lock above). It works for every source of `VegaContinue` — keyboard N, the pad's View, touch NEXT; an
+  injected press (the context-actions list, `PerfProbe`) is a tap. A click or tap on either pill picks it directly.
+  `UiCancel` (Esc / pad B) never answers a button — Esc is a reflex, and a skip must be deliberate.
 - **Flight target lock (#2277).** At the helm **LB = `FlightTargetNext`** (tap = next target, hold ~0.6 s =
   clear — `SpaceView.Targeting` fires the cycle on the release so the hold can win) and **RS = `FlightTargetHostile`**
   (nearest enemy, again = the next nearest). Both buttons are shared on purpose, like `FlightEnterInterior`'s

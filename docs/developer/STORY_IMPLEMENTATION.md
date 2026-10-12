@@ -835,8 +835,9 @@ a bracket word in EN and DE. A local player (`AddLocalPlayer`) counts as `packs1
 restartChapter | skipStep | replayCutscene` (#2467: `replayCutscene` + `CutsceneId` = watch a scene again); while a
 singleplayer world is held only `track`, `untrack`, `optOut`, `optIn`, `skipPack` and `replayCutscene` get through
 (`PausedMayHandle`, dispatch tests). Tags 295/296 are the cutscene messages — see [CUTSCENES.md](CUTSCENES.md). Fields:
-`JoinRequest.Features` (`ClientFeatures.Packs1` / `Cutscenes1`; `NetworkClient.Features` announces `packs1`, and
-`cutscenes1` once `NetworkClient.PlaysCutscenes` is set — the Unity client does when its cutscene director exists, #2468),
+`JoinRequest.Features` (`ClientFeatures.Packs1` / `Cutscenes1` / `Choices1`; `NetworkClient.Features` announces `packs1`,
+`cutscenes1` once `NetworkClient.PlaysCutscenes` is set — the Unity client does when its cutscene director exists, #2468 —
+and `choices1` once `NetworkClient.ShowsChoices` is set — the Unity client always, its VEGA panel draws `ShipAiLine.Choices`, #2499),
 `ShipAiLine.PackId` / `Speaker` (the line's pack and narrator) / `ObjectivePackId`, `SetWorldRulesIntent.TutorialPolicy`,
 `ServerRules.TutorialPolicy`. Persistence (additive, no save bump): `PlayerSnapshot.StepProgress` (null while empty) and
 `TrackedStoryId` — an older build drops both on re-save, which costs a running count and the pin, nothing else
@@ -896,6 +897,7 @@ default) — no `Protocol.Version` bump.
 | `StoryStateMessage.NoteKeys` | #2471: the world story's non-beat narrator lines this player heard (Guardian reveal, insights, resolution line — from their once keys) — the Journal's "VEGA's notes" keep them across a rejoin | empty — the notes keep what was spoken this session |
 | `ShipAiLine.ObjectivePackId` | #2466; since #2471 also the world story's id on VEGA's own chip — the client labels the chip with the story's short name ("Training: …", "VEGA: …") instead of "Objective:" | an older client ignores it |
 | `ShipAiLine.SpaceWaypointId` | #2471: a space-flight nav target the line points at (the dock lesson's station, `nearest_station`) — the client makes it its space waypoint when it has none | ignored |
+| `ShipAiLine.Choices` | #2499: the line's buttons, only to a client that announced `ClientFeatures.Choices1` (`NetworkClient.ShowsChoices`; the Unity client). Each entry is `ShipAiChoices.Encode` = `labelKey␟action␟packId[␟chapterId]` (U+001F), action `continue` (nothing sent) or a `StoryPackActions` word; the first is the primary (the continue control), the second the secondary (a deliberate click/tap/hold). A pick goes back as an ordinary `StoryPackIntent`. Used by the tutorial's first-start question and the course offers ([TUTORIAL_PACK.md](TUTORIAL_PACK.md#the-first-start-question-and-the-offer-buttons-2499)) | empty — the plain line; a `choices1`-less client never gets one |
 | `MissionResult.Outcome` / `Title` / `FreeText` | `accepted` / `completed` / `posted` and the mission's title (locale key, or display text when `FreeText`) for the toast (B24) | empty outcome — the client's toast says "Mission updated" and names the mission from its mission list |
 | `SetNpcCallsIntent.VegaHintsMuted` | the client's VEGA hints switch is off (sent at every join and from both settings screens): the server holds advisor hints (Kind 1), context tips and the bandit briefing back WITHOUT burning their once-flags (B31) | absent = hints on (today's behaviour) |
 

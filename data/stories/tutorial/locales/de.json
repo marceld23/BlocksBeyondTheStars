@@ -4,6 +4,8 @@
   "story.tutorial.desc": "Sechs kurze Teile: bewegen, überleben, abbauen, herstellen, forschen und fliegen.",
   "story.tutorial.graduated": "Grundausbildung geschafft! Du kannst überleben, bauen, forschen und fliegen – im Journal warten kurze Kurse.",
   "story.tutorial.refresher": "Dein Ausbildungsprotokoll ist recht dünn. Lust auf eine kurze Auffrischung? Öffne das Journal und starte dort das Tutorial neu.",
+  "story.tutorial.ask_skip": "Soll ich dir die Grundlagen zeigen? Wenn du das Spiel schon kennst, kannst du die Ausbildung überspringen.",
+  "story.tutorial.skipped_hint": "Alles klar, keine Ausbildung. Falls du sie doch einmal willst: Sie wartet im Journal auf dich.",
 
   "story.tutorial.cut.title_arg": "{0}",
   "story.tutorial.cut.welcome.kicker": "Sechs kurze Teile",

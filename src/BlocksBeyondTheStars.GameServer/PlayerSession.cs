@@ -343,6 +343,20 @@ public sealed class PlayerSession
     /// once and the narrator line alone carries it.</summary>
     public bool SupportsCutscenes => ClientFeatures.Contains(Networking.Messages.ClientFeatures.Cutscenes1);
 
+    /// <summary>#2499: the client draws a VEGA line's buttons (<c>choices1</c>, <c>ShipAiLine.Choices</c>); without it the
+    /// first-start question is never asked and a course offer is the plain line.</summary>
+    public bool SupportsChoices => ClientFeatures.Contains(Networking.Messages.ClientFeatures.Choices1);
+
+    /// <summary>#2499: the tutorial pack just started by itself for a newcomer whose client draws buttons — the walk that
+    /// follows asks "Want me to show you the basics?" before the first step's line (the pack id; empty = nothing to ask).
+    /// Set and cleared inside one <c>AdvancePack</c>. RAM only.</summary>
+    public string AskSkipDuePack { get; set; } = string.Empty;
+
+    /// <summary>#2499: the pack whose first-start question went out this session and has not been answered with a skip yet
+    /// (empty = none) — a skip of that pack then gets VEGA's "the training waits in your Journal". "Let's go" is never
+    /// sent (doing nothing is the same answer), so it stays set. RAM only.</summary>
+    public string AskSkipOpenPack { get; set; } = string.Empty;
+
     /// <summary>#2467: server uptime of the network join — no cutscene goes out until the client is in the world (its first
     /// position report, or <c>GameServer.CutsceneJoinSettleSeconds</c> later). Negative infinity = not a network join.</summary>
     public double CutsceneJoinAt { get; set; } = double.NegativeInfinity;

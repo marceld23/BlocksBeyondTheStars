@@ -96,7 +96,7 @@ public sealed partial class GameServer
                 StartPackOnRequest(s, pack);
                 break;
             case StoryPackActions.SkipPack:
-                SkipPack(s, pack);
+                SkipPack(s, pack, journalHint: AnswersAskSkip(s, pack)); // #2499: the first-start question's "skip" gets the hint
                 break;
             case StoryPackActions.RestartPack:
                 RestartPackOnRequest(s, pack);
@@ -232,12 +232,19 @@ public sealed partial class GameServer
     }
 
     /// <summary>"I know the game": every mandatory chapter is skipped (deep-dive offers stay on, the graduation's suggested
-    /// courses are marked offered, #2498). Grants nothing.</summary>
-    private void SkipPack(PlayerSession s, CompiledPack pack)
+    /// courses are marked offered, #2498). Grants nothing. <paramref name="journalHint"/> (#2499, the answer to VEGA's
+    /// first-start question): VEGA says the training waits in the Journal — before the world story's lines the skip may set
+    /// off.</summary>
+    private void SkipPack(PlayerSession s, CompiledPack pack, bool journalHint = false)
     {
         StartPack(s, pack, playIntro: false);
         SkipMandatory(s, pack);
         _repo.SavePlayer(s.State);
+        if (journalHint)
+        {
+            SendPackLine(s, pack, SkippedHintLine);
+        }
+
         AdvancePlayer(s);
         SendVegaObjective(s);
     }

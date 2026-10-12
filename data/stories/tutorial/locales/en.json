@@ -4,6 +4,8 @@
   "story.tutorial.desc": "Six short parts: moving, staying alive, mining, crafting, research and flying.",
   "story.tutorial.graduated": "Basic training complete! You can survive, build, research and fly — short courses wait in your Journal.",
   "story.tutorial.refresher": "Your training log looks thin. Want a quick refresher? Open the Journal and restart the tutorial there.",
+  "story.tutorial.ask_skip": "Want me to show you the basics? If you know the game already, you can skip the training.",
+  "story.tutorial.skipped_hint": "All right, no training. If you ever want it, it waits in your Journal.",
 
   "story.tutorial.cut.title_arg": "{0}",
   "story.tutorial.cut.welcome.kicker": "Six short parts",

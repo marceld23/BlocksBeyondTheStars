@@ -69,7 +69,8 @@ public sealed partial class GameServer
     /// <summary>Spoken when a MUST step has been open for the skip-offer time.</summary>
     internal const string StepOfferSkipLine = "vega.step.offer_skip";
 
-    /// <summary>Spoken when an optional chapter is offered ({0} = the chapter title).</summary>
+    /// <summary>Spoken when an optional chapter is offered ({0} = the chapter title) — to a client without buttons; one with
+    /// them (#2499) hears <see cref="ChapterOfferChoiceLine"/> with [Later] / [Start now].</summary>
     internal const string ChapterOfferLine = "vega.chapter.offer";
 
     // ---------------------------------------------------------------------------------------------
@@ -624,8 +625,10 @@ public sealed partial class GameServer
     /// gets <paramref name="legacyKey"/> when the line has an old equivalent (a tutorial step with a legacy stage — no
     /// <c>Text</c>, it localizes and sets its own keys), else the line composed on the server in its language with
     /// device-neutral key words and an empty <c>LineKey</c> (synthesis §5.7: its <c>Text</c> path fills neither tokens
-    /// nor slots). <paramref name="waypointId"/> rides along as the line's space waypoint (#2471, the station marker).</summary>
-    private void SendPackLine(PlayerSession s, CompiledPack pack, string key, string arg = "", string? legacyKey = null, byte kind = 0, string waypointId = "")
+    /// nor slots). <paramref name="waypointId"/> rides along as the line's space waypoint (#2471, the station marker).
+    /// <paramref name="choices"/> are the line's buttons (#2499, <see cref="ShipAiLine.Choices"/>) — only a client that draws
+    /// them (<c>choices1</c>) gets them.</summary>
+    private void SendPackLine(PlayerSession s, CompiledPack pack, string key, string arg = "", string? legacyKey = null, byte kind = 0, string waypointId = "", string[]? choices = null)
     {
         if (string.IsNullOrEmpty(key) && string.IsNullOrEmpty(legacyKey))
         {
@@ -637,6 +640,10 @@ public sealed partial class GameServer
         {
             line.LineKey = key;
             line.LineArg = arg ?? string.Empty;
+            if (choices is { Length: > 0 } && s.SupportsChoices)
+            {
+                line.Choices = choices;
+            }
         }
         else if (!string.IsNullOrEmpty(legacyKey))
         {
@@ -740,6 +747,9 @@ public sealed partial class GameServer
             }
             else
             {
+                // #2499: a newcomer whose client draws buttons is asked once whether they want the training — the walk below
+                // asks it right before the first lesson's line (after part 1's welcome card), AskSkipBeforeFirstStep.
+                s.AskSkipDuePack = AsksBeforeTraining(s, pack) ? pack.Id : string.Empty;
                 StartPack(s, pack);
             }
         }
@@ -761,6 +771,8 @@ public sealed partial class GameServer
                 break;
             }
         }
+
+        s.AskSkipDuePack = string.Empty; // #2499: asked with the first lesson, or there was none to ask before
     }
 
     /// <summary>Starts a pack for a player: the started key, and for a tutorial the legacy intro key (older builds read it
@@ -1011,6 +1023,7 @@ public sealed partial class GameServer
             PlayBoundCutscene(s, step.Pack.Def, step.Def.OnStart?.Cutscene, step.Id);
         }
 
+        AskSkipBeforeFirstStep(s, step); // #2499: "Want me to show you the basics?" — once, before the first lesson's line
         SpeakStepStart(s, step);
         _repo.SavePlayer(s.State);
         return false;
@@ -1612,7 +1625,15 @@ public sealed partial class GameServer
         MarkJournalDirty(s); // #2471: Start / Later in the Journal
         MarkTipsToldByOffer(s, ch); // #2459: the tip of this moment is the offer — it does not follow it
         string title = string.IsNullOrEmpty(ch.Def.TitleKey) ? ch.Id : LocalizerFor(s.Locale).Get(ch.Def.TitleKey);
-        SendPackLine(s, pack, ChapterOfferLine, title);
+        if (s.SupportsChoices && s.SupportsPacks)
+        {
+            SendPackLine(s, pack, ChapterOfferChoiceLine, title, choices: OfferChoices(ch)); // #2499: [Later] [Start now] in the panel
+        }
+        else
+        {
+            SendPackLine(s, pack, ChapterOfferLine, title);
+        }
+
         _repo.SavePlayer(s.State);
     }
 

@@ -449,18 +449,31 @@ namespace BlocksBeyondTheStars.Client
         /// <see cref="Features"/>, keeping the rest of the list as it is.</summary>
         public bool PlaysCutscenes
         {
-            get => Array.IndexOf(Features ?? Array.Empty<string>(), ClientFeatures.Cutscenes1) >= 0;
-            set
-            {
-                var list = new List<string>(Features ?? Array.Empty<string>());
-                list.RemoveAll(f => f == ClientFeatures.Cutscenes1);
-                if (value)
-                {
-                    list.Add(ClientFeatures.Cutscenes1);
-                }
+            get => HasFeature(ClientFeatures.Cutscenes1);
+            set => SetFeature(ClientFeatures.Cutscenes1, value);
+        }
 
-                Features = list.ToArray();
+        /// <summary>Whether this client announces <c>choices1</c> (#2499): set by the Unity client, whose VEGA panel draws a
+        /// line's buttons (<see cref="ShipAiLine.Choices"/>) — the first-start question and the course offers' Start now /
+        /// Later. A headless client leaves it off and keeps the plain lines. Toggles the word in <see cref="Features"/>.</summary>
+        public bool ShowsChoices
+        {
+            get => HasFeature(ClientFeatures.Choices1);
+            set => SetFeature(ClientFeatures.Choices1, value);
+        }
+
+        private bool HasFeature(string word) => Array.IndexOf(Features ?? Array.Empty<string>(), word) >= 0;
+
+        private void SetFeature(string word, bool on)
+        {
+            var list = new List<string>(Features ?? Array.Empty<string>());
+            list.RemoveAll(f => f == word);
+            if (on)
+            {
+                list.Add(word);
             }
+
+            Features = list.ToArray();
         }
 
         public void Join(string playerName, string? password = null, string locale = "en", string? token = null, int viewDistanceChunks = 0, string? hostedToken = null, string? installId = null)

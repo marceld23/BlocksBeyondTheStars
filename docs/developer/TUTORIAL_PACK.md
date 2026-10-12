@@ -306,11 +306,41 @@ no other way to be offered to a skipper, while c1 keeps its offer at the tool-ti
 more than a silent mark. A skip never graduates (no line, no counter). The hand-over to VEGA's chapter 1 is step 11. Since #2473 the graduation card `tut.graduation` shows the achievement and
 the closing line itself.
 
+### The first-start question and the offer buttons (#2499)
+
+A VEGA line can carry **buttons** (`ShipAiLine.Choices`, see STORY_IMPLEMENTATION) for a client that announces
+`choices1` — the Unity client does, a headless client or an older build does not and gets the plain lines.
+
+- **The question.** When the basic training starts **by itself** for a real newcomer (`GameServerVegaChoices.cs`,
+  `AsksBeforeTraining`: the official `tutorial` pack, world rule **Auto**, the join snapshot says newcomer, nothing of
+  the pack done or skipped after the migration, not a training that would complete silently), VEGA asks once — in the
+  first walk, right after b1's opener `tut.welcome` and before b1.1's start line (`AskSkipBeforeFirstStep` in
+  `ActivateStep`): `story.tutorial.ask_skip` "Want me to show you the basics? If you know the game already, you can skip
+  the training." with **[Let's go]** (`continue` — the continue control; nothing is sent) and **[I know the game —
+  skip]** (`skipPack`). Never on a rejoin or a restart (the pack has started), on request (`OptIn`, "Start basic
+  training"), on `Courses` (it skips by itself) or `Off`. The training does not wait for the answer: b1.1 is active and
+  counts from the start — **doing nothing means the training runs**, and a later "Skip all" still works.
+- **The answer.** The skip arrives as the ordinary `StoryPackIntent` (pause-whitelisted, validated like the Journal's).
+  While the question is open for the session (`PlayerSession.AskSkipOpenPack`) and the training still had something to
+  skip, `SkipPack` sends `story.tutorial.skipped_hint` ("All right, no training. If you ever want it, it waits in your
+  Journal.") before `AdvancePlayer`, so it comes ahead of the VEGA story's lines. The client drops the training's lines
+  still waiting in the panel (`PackId == tutorial`). A Journal skip without the question gets no hint.
+- **Course offers.** A client with `choices1` hears `vega.chapter.offer_choice` ("New short course: {0}. Want to try it
+  now? It also waits in your Journal.") with **[Later]** (the continue control → `declineChapter`, the Journal's Later)
+  and **[Start now]** (deliberate → `startChapter`). "Later" is the default on purpose: a player tapping through VEGA's
+  lines never lands in a course they did not choose. Everyone else keeps `vega.chapter.offer`.
+- **On the client** (`VegaPanel`, model in Client.Core `VegaChoices.cs`): the primary button replaces the continue pill,
+  the secondary sits where the prologue's skip pill is. A click or tap picks a pill; the continue control (N, the pad's
+  VEGA button, touch NEXT, the action list) picks the primary when let go and the **secondary when held 0.8 s**
+  (`VegaChoiceInput.HoldSeconds`) — no stock pad button is free, and the cursor is captured on foot. Esc never answers.
+  An entry the client cannot read leaves its place empty (a secondary never moves up onto the continue control).
+
 ### The deep dives "Research" and "Flying" (C2–C5, #2479)
 
 Optional chapters after the basic training (synthesis §3.2/§3.4): a player starts them from the Journal (**Start**, or
 **Later** to put an offer off — it stays listed and startable, VEGA never offers it again). VEGA offers a course once, at
-its moment of need, with `vega.chapter.offer` ("New short course: {0}…") — never while the basic training runs, at most one
+its moment of need, with `vega.chapter.offer` ("New short course: {0}…"; since #2499 a client with buttons hears
+`vega.chapter.offer_choice` with [Later] / [Start now] in the panel, see above) — never while the basic training runs, at most one
 offer every 90 s of play, and (#2481) never a course the player has nothing left to do in: one whose every counting step is
 done or covered by its evidence (`alreadyDoneIf`, a bridged mission turned in) is neither offered nor suggested — it stays
 startable in the Journal and would complete silently. **The tip becomes the offer** (#2459, synthesis §4.3): a VEGA hint
