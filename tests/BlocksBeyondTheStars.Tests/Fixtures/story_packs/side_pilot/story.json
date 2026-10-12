@@ -1,0 +1,73 @@
+{
+  // The pilot side story of step 22 of the story packs (#2483): the proof that a new story is DATA ONLY. NOT shipped content
+  // (the maintainer decided the pilot is a test pack only — it lives under the test project, never under data/stories/).
+  // It is the worked example of docs/developer/STORY_PACK_AUTHORING.md: dropped into a data folder as
+  // data/stories/side_pilot/, it loads, validates and plays without one line of C# written for it (SideStoryPilotTests).
+  //
+  // A player-scope side story (kind "side") with its own narrator (Juno, the beacon keeper), two chapters of existing game
+  // events (lamp:toggled, mine:any, hotbar:select, move:walked) and conditions (the start rule, a world-rule variant), one
+  // template T2 card that opens both chapters ("The Beacon Keeper · Part n of 2" + the chapter's title) and one T1 banner
+  // when the story is through (cutscenes.json), English and German texts (locales/).
+  //
+  // Start: after part 1 of the basic training, or at once for a player the training does not run for (the world has the
+  // tutorial off, or no tutorial pack is installed). "earlyOptIn" lets the player start it from the Journal before that.
+  "id": "side_pilot",
+  "nameKey": "story.side_pilot.name",
+  "shortNameKey": "story.side_pilot.short",
+  "descriptionKey": "story.side_pilot.desc",
+  "kind": "side",
+  "scope": "player",
+  "priority": 10,
+  "narrator": { "id": "juno", "nameKey": "story.side_pilot.juno", "color": "#FFC857" },
+  "start": { "after": [ "any:[chapter:tutorial:b1, not:pack:tutorial:enabled]" ], "earlyOptIn": true },
+  "chapters": [
+    {
+      "id": "p1",
+      "titleKey": "story.side_pilot.ch.p1",
+      "summaryKey": "story.side_pilot.ch.p1.sum",
+      "openCutscene": "pilot.part",
+      "steps": [
+        {
+          "id": "p1.1",
+          "objective": { "event": "lamp:toggled", "arg": "on" },
+          "explain": {
+            "startKey": "story.side_pilot.p1.lamp.start", "chipKey": "story.side_pilot.p1.lamp.chip",
+            "doneKey": "story.side_pilot.p1.lamp.done"
+          }
+        },
+        { "id": "p1.2", "kind": "read", "explain": { "startKey": "story.side_pilot.p1.storm.start" } },
+        {
+          "id": "p1.3",
+          "objective": { "event": "mine:any", "required": 3 },
+          "variants": [ { "when": "world:creative", "startKey": "story.side_pilot.p1.dig.start_creative" } ],
+          "explain": {
+            "startKey": "story.side_pilot.p1.dig.start", "chipKey": "story.side_pilot.p1.dig.chip",
+            "hintKey": "story.side_pilot.p1.dig.hint", "doneKey": "story.side_pilot.p1.dig.done"
+          }
+        }
+      ]
+    },
+    {
+      "id": "p2",
+      "titleKey": "story.side_pilot.ch.p2",
+      "summaryKey": "story.side_pilot.ch.p2.sum",
+      "openCutscene": "pilot.part",
+      "steps": [
+        {
+          "id": "p2.1",
+          "objective": { "event": "hotbar:select" },
+          "explain": { "startKey": "story.side_pilot.p2.slot.start", "chipKey": "story.side_pilot.p2.slot.chip" }
+        },
+        {
+          "id": "p2.2",
+          "objective": { "event": "move:walked", "required": 8 },
+          "onComplete": { "cutscene": "pilot.lit" },
+          "explain": {
+            "startKey": "story.side_pilot.p2.walk.start", "chipKey": "story.side_pilot.p2.walk.chip",
+            "doneKey": "story.side_pilot.p2.walk.done"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -114,6 +114,13 @@ refreshed 2026-08-08.
   onboarding state, older clients, how to add a chapter.
 - [CUTSCENES.md](CUTSCENES.md) — data-driven cutscenes: the `cutscenes.json` format (tiers, shots, cameras, captions,
   options), the pack bindings, validation, the wire messages, the per-player seen ledger, pacing and SP/MP rules.
+- [STORY_PACK_AUTHORING.md](STORY_PACK_AUTHORING.md) — **writing a story pack** (a side story, a tutorial chapter) as
+  data only: folder layout, kinds and scopes, the manifest, several storylines at once, conditions, events, cutscenes,
+  texts and languages, the WebGL list, validation, what still needs C#, the limits of v1 — with the pilot side story
+  `side_pilot` (a test pack) as the worked example.
+- [STORY_VOCABULARY.md](STORY_VOCABULARY.md) — **generated** reference tables of everything a pack may name (events,
+  condition forms, world predicates, camera types, anchors, caption styles, budgets …), rendered from the code constants
+  and their doc comments; `StoryVocabularyDocTests` fails when it drifts.
 - [STORY_VEGA_PROTOCOL_CONCEPT.md](STORY_VEGA_PROTOCOL_CONCEPT.md) — the story's design rationale.
 - [LORE_STRUCTURE.md](LORE_STRUCTURE.md) — the lore bible + content schema.
 - [MUSIC_TRACKS.md](MUSIC_TRACKS.md) — music track library reference.

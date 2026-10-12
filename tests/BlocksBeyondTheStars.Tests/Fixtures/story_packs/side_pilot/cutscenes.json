@@ -1,0 +1,36 @@
+{
+  // The pilot side story's two scenes (#2483; format: docs/developer/CUTSCENES.md) — see story.json.
+  //
+  // pilot.part — T2 card, a template: the opener of both chapters ("The Beacon Keeper · Part n of 2" + the chapter's title;
+  //              {0} = the title, {1}/{2} = place and count, filled by the server from the binding — CutsceneArgs). One
+  //              definition, one ledger entry per chapter (pilot.part@p1, pilot.part@p2). Titles only: a card never waits
+  //              for "continue" while the player walks on.
+  // pilot.lit  — T1 banner when the last step is done (p2.2 onComplete): "Side story complete" + the story's name, a chime.
+  //              The camera and the controls stay the player's.
+  "cutscenes": [
+    {
+      "id": "pilot.part",
+      "tier": 2,
+      "template": true,
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 4,
+          "captions": [ { "style": "title_card", "kickerKey": "story.side_pilot.cut.part.kicker", "key": "story.side_pilot.cut.title", "at": 0.3 } ]
+        }
+      ]
+    },
+    {
+      "id": "pilot.lit",
+      "tier": 1,
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 4,
+          "captions": [ { "style": "title_card", "kickerKey": "story.side_pilot.cut.lit.kicker", "key": "story.side_pilot.name" } ],
+          "sfx": [ { "cue": "chime_1", "at": 0.2 } ]
+        }
+      ]
+    }
+  ]
+}

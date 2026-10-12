@@ -41,13 +41,27 @@ public static class CircuitEvents
     /// <summary>A phase block opened on a signal.</summary>
     public const string PhaseOpen = "phase_open";
 
-    // Achievement-only events.
+    // Achievement-only events (no mission objective names them; the story event bus raises them as crystal:<event> too).
+
+    /// <summary>A crystal source of the player's put power on its network for the first time ("First circuit").</summary>
     public const string NetOn = "net_on";
+
+    /// <summary>A chime of the player's rang.</summary>
     public const string Chime = "chime";
+
+    /// <summary>A logic gate was placed on a network.</summary>
     public const string GatePlaced = "gate_placed";
+
+    /// <summary>A fabricator of the player's crafted something by itself ("Assembly line").</summary>
     public const string Craft = "craft";
+
+    /// <summary>A drill laser of the player's reached its full depth ("Deep driller").</summary>
     public const string LaserDeep = "laser_deep";
+
+    /// <summary>The player rode a lift ("Going up").</summary>
     public const string LiftRide = "lift_ride";
+
+    /// <summary>A vault's phase door opened with the player in the chamber.</summary>
     public const string Vault = "vault";
 
     /// <summary>The events a mission objective may name.</summary>

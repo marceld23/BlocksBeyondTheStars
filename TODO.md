@@ -408,7 +408,24 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   glider, a boat, a train, two players and an observer, a painted block, a looted chest, a ruin — and the new verbs);
   updated `TutorialDeepDivesTests`, `TutorialCardsTests`, `CutsceneContentTests`, the building/crystal course tests (their
   players stand together). Docs: TUTORIAL_PACK, STORY_IMPLEMENTATION, CUTSCENES, USER_MANUAL.
-- ⬜ Step 22 — side-story test pack + authoring guide (#2483)
+- ✅ **Step 22 — data-only side-story test pack + authoring guide (#2483)**, 2026-10-12 (tests + docs; no game logic, no
+  Unity file, no wire/save change). The pilot side story `side_pilot` ("The Beacon Keeper", narrator Juno — a **test pack**,
+  never shipped: `tests/BlocksBeyondTheStars.Tests/Fixtures/story_packs/side_pilot/`, maintainer decision): kind `side`,
+  scope `player`, two chapters of existing events (`lamp:toggled`, `mine:any`, `hotbar:select`, `move:walked`), a start rule
+  (after part 1 of the basic training, at once without one, early from the Journal), a world-rule variant, a template T2
+  chapter card and a T1 banner, en+de texts. `SideStoryPilotTests`: dropped into a copy of `data/` it loads through the
+  real loader, localizes, validates with 0 issues; alone it starts by itself and plays through real handlers (cards
+  ledgered `pilot.part@p1/@p2`, banner, Journal done + badge); together with the basic training and VEGA's story it keeps
+  one chip in the binding order (training → pin → VEGA's lead above the side story) and one Journal (tutorial, VEGA, side
+  story); a second player's side story starts by itself after part 1. `SideStoryPilotClientTests`: a real client builds
+  the three Journal categories and the pinned chip "Beacon: …". **Authoring guide** `docs/developer/STORY_PACK_AUTHORING.md`
+  + **generated** `docs/developer/STORY_VOCABULARY.md` (events, UI flags, condition forms, pack states, world predicates,
+  marker providers, gates, step kinds/tiers, objective types, cutscene tiers/cameras/anchors/caption styles/grades/arg
+  sources, text budgets, lead types, chapter events, finale stages, memory triggers — from the code constants and their
+  `<summary>` doc comments); `StoryVocabularyDocTests` fails when the file drifts or a listed constant lacks a summary
+  (regenerate: `BBTS_UPDATE_STORY_VOCABULARY=1 dotnet test … --filter …StoryVocabularyDocTests`). Doc-comment-only edits:
+  the seven achievement-only `CircuitEvents`, the `StoryRegistry` kinds/scopes. Links: docs index, root README,
+  STORY_IMPLEMENTATION, TUTORIAL_PACK, CUTSCENES.
 - Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text (it asked for a
   hyperjump) and lack `story.obj.help_peaceful` — the translation pass at the end of the package covers both.
 - Open from step 2: the community locales lack `ui.cutscene.skip_key/_pad/_touch`, `ui.hud.hint_pad_glyphs` and

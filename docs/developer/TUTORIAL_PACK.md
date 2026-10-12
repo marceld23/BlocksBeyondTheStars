@@ -3,7 +3,10 @@
 How a **player story pack** is written — the tutorial ("Basic training" B1–B6, later the deep-dive chapters C1–C18) and
 future side stories — and what the shipped tutorial pack contains. The pack is data only (`data/stories/<id>/`); the engine
 that runs it per player is the **player-pack runtime** (#2466), described in
-[STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md#the-player-pack-runtime-2466).
+[STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md#the-player-pack-runtime-2466). Start with the authoring guide
+[STORY_PACK_AUTHORING.md](STORY_PACK_AUTHORING.md) (#2483: the path for an author, the pilot side story as the worked
+example); this document is its field reference, and [STORY_VOCABULARY.md](STORY_VOCABULARY.md) lists every event, condition
+form and world predicate generated from the code.
 
 > **Status.** Since story packs step 10 (#2469) the basic training **is** the tutorial pack `data/stories/tutorial/`: the
 > old hard-coded nine-stage VEGA onboarding (`VegaStages`, `VegaIsVeteran`, the client's copy of the stage list) is gone.
@@ -129,6 +132,10 @@ atom      := step:<pack>:<step> | chapter:<pack>:<chapter> | pack:<pack>:started
 ```
 
 `lore:<key>` (#2476): the player has read that lore text (a `lore_sites.json` key).
+
+The complete list of predicates with their meanings, generated from the code, is
+[STORY_VOCABULARY.md → World predicates](STORY_VOCABULARY.md#world-predicates-worldpredicate) (#2483); the history below says
+which step brought which.
 
 `world:` predicates: `station_in_system`, `settlement_reachable`, `airless`, `fragment_on_world`, `player_near`,
 `enemies`, `space_enemies`, `bandits`, `free_flight`, `hunger`, `oxygen`, `hazards`, `creative`, `creative_flight`,

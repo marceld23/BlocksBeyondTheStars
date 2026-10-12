@@ -127,6 +127,7 @@ public sealed class StoryPackValidationTests
     [InlineData(StoryPackFixtures.Runtime)]
     [InlineData(StoryPackFixtures.Tutorial)]
     [InlineData(StoryPackFixtures.Cutscenes)]
+    [InlineData(StoryPackFixtures.SidePilot)] // #2483: the pilot side story — no warning either
     public void TheTestPacks_PassTheValidator_AndUseOnlyKnownFields(string id)
     {
         string raw = StoryPackFixtures.RawJson(id);
@@ -142,6 +143,7 @@ public sealed class StoryPackValidationTests
             [StoryPackFixtures.Runtime] = StoryPackFixtures.Load(StoryPackFixtures.Runtime),
             [StoryPackFixtures.Tutorial] = StoryPackFixtures.Load(StoryPackFixtures.Tutorial),
             [StoryPackFixtures.Cutscenes] = StoryPackFixtures.Load(StoryPackFixtures.Cutscenes),
+            [StoryPackFixtures.SidePilot] = StoryPackFixtures.Load(StoryPackFixtures.SidePilot),
         };
         var issues = StoryPackValidator.Validate(def, Context(packs, StoryPackFixtures.Dir(id)), raw);
         Assert.True(issues.Count == 0, string.Join("\n", issues));

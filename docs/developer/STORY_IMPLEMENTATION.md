@@ -498,7 +498,10 @@ re-boarded at the join or a resumed flight are not the player's doing).
 
 **Vocabulary** (`Shared/Story/GameEventKeys.cs`; the key names the verb, the entity rides in the argument, so keys never
 grow with content — `mine:any` + `iron_ore`, never `mine:iron_ore`). Step 10 (#2469) added the basic training's
-teaching verbs (the second block of the table); the deep dives add theirs with steps 18–21.
+teaching verbs (the second block of the table); the deep dives add theirs with steps 18–21. The table below adds where
+each key is raised; the complete, generated list with every key's meaning (from its doc comment) is
+[STORY_VOCABULARY.md](STORY_VOCABULARY.md#game-events-objectiveevent) (#2483 — `StoryVocabularyDocTests` fails when it
+drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_PACK_AUTHORING.md).
 
 | Key | Argument (amount) | Raised at | File |
 |---|---|---|---|
@@ -1109,8 +1112,13 @@ switched off in the world rules → that step is never offered rather than offer
 
 ## Adding another storyline
 
-Add a pack under `data/stories/<id>/` — no engine edits. A pack is "story-complete" only once its beats,
-fragments, memories, flavour and `coreArguments` are authored + translated (DE+EN), per LORE_STRUCTURE.
+Add a pack under `data/stories/<id>/` — no engine edits. The authoring path (folder, manifest, conditions, events,
+cutscenes, texts, validation, what still needs C#, the limits of v1) is [STORY_PACK_AUTHORING.md](STORY_PACK_AUTHORING.md),
+with the generated vocabulary tables in [STORY_VOCABULARY.md](STORY_VOCABULARY.md); the pilot side story `side_pilot`
+(a test pack under `tests/BlocksBeyondTheStars.Tests/Fixtures/story_packs/`, #2483) proves that a player pack needs no
+code and runs next to the basic training and VEGA's story. A second **world** story with its own finale is engine work
+(one world story per save in v1). A world pack is "story-complete" only once its beats, fragments, memories, flavour and
+`coreArguments` are authored + translated (DE+EN), per LORE_STRUCTURE.
 
 ## Known remaining gaps / deferred
 

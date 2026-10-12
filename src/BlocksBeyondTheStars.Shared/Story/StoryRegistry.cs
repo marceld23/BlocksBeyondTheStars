@@ -23,19 +23,23 @@ public static class StoryRegistry
     /// <summary>The reserved id that disables the story entirely (pure sandbox).</summary>
     public const string NoneStoryId = "none";
 
-    /// <summary><see cref="StoryDefinition.Kind"/> of a narrative arc (the default).</summary>
+    /// <summary>A narrative arc (the default <see cref="StoryDefinition.Kind"/>) — VEGA's story is one; a world-scoped one with
+    /// beats can be a save's story.</summary>
     public const string KindStory = "story";
 
-    /// <summary><see cref="StoryDefinition.Kind"/> of a pack that teaches the game; such a pack is always player-scoped.</summary>
+    /// <summary>A pack that teaches the game (<see cref="StoryDefinition.Kind"/>); always player-scoped, it follows the world
+    /// rule <c>TutorialPolicy</c>.</summary>
     public const string KindTutorial = "tutorial";
 
-    /// <summary><see cref="StoryDefinition.Kind"/> of a small optional storyline.</summary>
+    /// <summary>A small optional storyline (<see cref="StoryDefinition.Kind"/>), player-scoped — it runs next to the tutorial
+    /// and the world story.</summary>
     public const string KindSide = "side";
 
-    /// <summary><see cref="StoryDefinition.Scope"/>: progress shared by everyone in the save.</summary>
+    /// <summary>Progress shared by everyone in the save (<see cref="StoryDefinition.Scope"/>; the default for a pack with
+    /// beats).</summary>
     public const string ScopeWorld = "world";
 
-    /// <summary><see cref="StoryDefinition.Scope"/>: progress per player.</summary>
+    /// <summary>Progress per player (<see cref="StoryDefinition.Scope"/>; the default for a pack without beats).</summary>
     public const string ScopePlayer = "player";
 
     /// <summary>Pack ids no pack may use (#2465, synthesis §5.3): <c>none</c> is the "no story" sentinel, the others are

@@ -7,7 +7,10 @@ resolves the scene from its own copy of the file and plays it with the **cutscen
 [The client director](#the-client-director)). Everything is additive: no protocol bump, no save-version bump.
 
 Related: [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md) (story engine, the player-pack runtime, the wire table),
-[TUTORIAL_PACK.md](TUTORIAL_PACK.md) (pack manifest and bindings).
+[TUTORIAL_PACK.md](TUTORIAL_PACK.md) (pack manifest and bindings), [STORY_PACK_AUTHORING.md](STORY_PACK_AUTHORING.md)
+(#2483: the authoring guide — a pack's scenes in context, the pilot side story's card and banner as the example) and
+[STORY_VOCABULARY.md](STORY_VOCABULARY.md#cutscenes-cutscenesjson) (the camera types, anchors, caption styles, grades and
+budgets generated from the code).
 
 ## Presentation tiers
 

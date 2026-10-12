@@ -241,7 +241,9 @@ contributor to this list and to the in-game Credits screen ourselves
 > [docs/user/USER_MANUAL.md](docs/user/USER_MANUAL.md); building and verifying builds is in
 > [docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md); the system overview is in
 > [docs/developer/ARCHITECTURE.md](docs/developer/ARCHITECTURE.md) and every developer doc is indexed in
-> [docs/developer/README.md](docs/developer/README.md). (The original German requirement specs under `plans/`
+> [docs/developer/README.md](docs/developer/README.md). Writing a new story (a side story, a tutorial chapter) is data
+> only — see [docs/developer/STORY_PACK_AUTHORING.md](docs/developer/STORY_PACK_AUTHORING.md) and its generated
+> [vocabulary](docs/developer/STORY_VOCABULARY.md). (The original German requirement specs under `plans/`
 > were consolidated and removed.)
 > Docs and code comments are **English**. In-game text is **localized in 14 complete languages — English,
 > German, French, Spanish, Italian, Portuguese, Polish, Turkish, Dutch, Russian, Ukrainian, Japanese,
@@ -379,6 +381,7 @@ ai-backend/                     optional Python LLM service (mission/NPC/ship-AI
 tools/                          editor-export merge tools (Python) + AI asset generation (tools/ai-assets)
 data/                           data-driven content (blocks, items, recipes, blueprints, modules, planets)
 data/locales/                   localization — 14 languages (en, de, fr, es, it, pt, pl, tr, nl, ru, uk, ja, ko, zh)
+data/stories/                   story packs (VEGA's story, the tutorial) — data only, see docs/developer/STORY_PACK_AUTHORING.md
 docs/user/                      player-facing manual (USER_MANUAL.md)
 docs/developer/                 architecture, design/how-it-works docs, ADRs (docs/developer/adr/) — see its README.md index
 scripts/                        build-client.ps1 (Windows) + build-client.sh (Linux) + publish scripts
