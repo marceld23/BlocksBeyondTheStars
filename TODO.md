@@ -382,7 +382,32 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   an older client, C14 through the real terminal/claim/fabricator, world rules and evidence, the new verbs);
   `StoryPackValidationTests` +1 (a bridged mission keeps its rewards); updated `TutorialDeepDivesTests`, `TutorialCardsTests`.
   Docs: TUTORIAL_PACK, CRYSTAL_NET, STORY_IMPLEMENTATION, CUTSCENES, USER_MANUAL.
-- ⬜ Step 21 — tutorial deep-dive chapters C9–C13, C15, C16 and C18 (#2482)
+- ✅ **Step 21 — tutorial deep dives "More to discover": C9–C13, C15, C16, C18 (#2482)**, 2026-10-12 (server + data
+  only, no Unity file): C9 Animal friends (scan an animal, feed a begging herd — new verb `creature:fed`, tame one —
+  banner `tut.first_tame` (T1, synthesis §6.4), name or feed the companion — `companion:cared`), C10 Gardener and lab
+  (`plant:any`, a campfire craft, `sample:taken`, the bio lab researched, `biolab:used`), C11 Neighbours (`npc:talked`,
+  `npc:answered`, the People list `npc:people`, who helps with what), C12 Defence (E9: opt-in, never suggested, worded
+  "fend off / chase away"; robbers explained, `defeat:any` on foot, a hostile ship where space combat is on), C13 On the
+  move (`move:climbed` metres in the climbing pose, the rope gun or a "later" line, jetpack/glider `move:airborne`, a boat
+  or speeder and a train `vehicle:boarded`, beam blocks and lifts), C15 Together (`chat:sent`, a player trade, allies or a
+  crew `ally:joined`, a ping, mute and `/report`), C16 Creative tools (`paint:block`, a form and a colour from the slot
+  actions, a pasted copy, your look), C18 Explorer (`loot:any`, a vault or crashed wreck in reach `poi:reached`, settlers'
+  tips and data cubes, a wreck in space). Offers at the synthesis' moments (VEGA's `tameable_near`, `settlement_near`,
+  `ruin_near`/`treasure_near`/`wreck_signal` tips, a herd begging, a seed carried, a robber's hold-up or a hostile close by,
+  the first climb, another player near — observers never count, researched tools); 16 new predicates. **New chapter field
+  `visibleIf`** (C# + Python validator, runtime, Journal): a course the world rules out — Defence without hostiles, Together
+  on a singleplayer world, Animal friends without animals, Neighbours without settlements — is left out of the Journal and
+  never offered, suggested or started (one the player runs or finished stays listed). hintRefs absorb `feed_herd`,
+  `favourite_food`, `tameable_near`, `plant_refused`, `first_sample`, `bio_lab_unlocked`, `first_analysis`,
+  `settlement_near`, `rope_gun` (its how-to is the step's done line), `player_near`, `treasure_near`, `poi`, `ruin_near` and
+  the wreck/debris tips; safety and reactive hints (`sample_case_full`, `companion_fetch`, `hull_low` …) stay VEGA's.
+  Graduation suggestions unchanged (C3, C4, C1). Keys en+de: 124 pack keys (pack now 459), core bracket words
+  `ui.vega.act.PrimaryFire|LootContainer|OpenChat|RequestTrade|HotbarAction|StowVehicle`. Tests: `TutorialMoreCoursesTests`
+  (15: shape and wording, rule-gated courses left out and coming back live, the offers, every course walked through the real
+  handlers — a real herd fed and tamed with the banner once, a robber chased off, a settler talked to, a wall climbed, a
+  glider, a boat, a train, two players and an observer, a painted block, a looted chest, a ruin — and the new verbs);
+  updated `TutorialDeepDivesTests`, `TutorialCardsTests`, `CutsceneContentTests`, the building/crystal course tests (their
+  players stand together). Docs: TUTORIAL_PACK, STORY_IMPLEMENTATION, CUTSCENES, USER_MANUAL.
 - ⬜ Step 22 — side-story test pack + authoring guide (#2483)
 - Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text (it asked for a
   hyperjump) and lack `story.obj.help_peaceful` — the translation pass at the end of the package covers both.

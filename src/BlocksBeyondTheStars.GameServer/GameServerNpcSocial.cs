@@ -91,6 +91,7 @@ public sealed partial class GameServer
             })
             .ToArray();
         Send(session, new KnownNpcList { People = people });
+        RaiseGameEvent(session, Shared.Story.GameEventKeys.NpcPeople); // #2482: the neighbours course
     }
 
     /// <summary>Stores the player's NPC radio-call preference (#1119) in the save, and takes the session's VEGA hints

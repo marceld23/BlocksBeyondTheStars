@@ -167,6 +167,9 @@ public sealed partial class GameServer
         public StoryCondition? OfferWhen { get; set; }
 
         public StoryCondition? AutoCompleteIf { get; set; }
+
+        /// <summary>#2482: the chapter exists for the player only while this holds (null = always).</summary>
+        public StoryCondition? VisibleIf { get; set; }
     }
 
     /// <summary>A step of a compiled pack.</summary>
@@ -355,6 +358,7 @@ public sealed partial class GameServer
                 Requires = StoryConditionParser.ParseList(chapterDef.Requires, predicates),
                 OfferWhen = StoryConditionParser.ParseList(chapterDef.OfferWhen, predicates),
                 AutoCompleteIf = StoryConditionParser.ParseList(chapterDef.AutoCompleteIf, predicates),
+                VisibleIf = StoryConditionParser.ParseList(chapterDef.VisibleIf, predicates),
             };
             pack.Chapters.Add(chapter);
             pack.ChaptersById[chapter.Id] = chapter;
@@ -893,6 +897,11 @@ public sealed partial class GameServer
     private bool ChapterThroughByEvidence(PlayerSession s, CompiledChapter ch)
         => ch.Steps.Where(StepCountsForChapter).All(st => StepComplete(s, st) || StepAlreadyDone(s, st) || BridgedMissionTurnedIn(s, st));
 
+    /// <summary>#2482: whether an optional chapter exists for this player — its <c>visibleIf</c> (a rule-gated deep dive: combat
+    /// switched on, a world for more than one player). One that does not is never offered, suggested or started.</summary>
+    private bool ChapterVisible(PlayerSession s, CompiledChapter ch)
+        => ch.VisibleIf is null || EvaluateStoryCondition(ch.VisibleIf, s);
+
     /// <summary>#2481 (B55): whether one of this player's running story-pack steps bridges onto <paramref name="missionId"/> —
     /// an active mission-bridge step of a pack that runs for them. Its start line then is the chain's follow-up, so VEGA's own
     /// "the next part waits" line stays quiet (<c>VegaChainFollowUp</c>).</summary>
@@ -1144,6 +1153,7 @@ public sealed partial class GameServer
                 && !m.Contains(StoryPackKeys.ChapterDeclined(pack.Id, suggested.Id))
                 && !m.Contains(StoryPackKeys.ChapterActive(pack.Id, suggested.Id))
                 && EvaluateStoryCondition(suggested.Requires, s)
+                && ChapterVisible(s, suggested) // #2482: never a course the world rules out
                 && !ChapterThroughByEvidence(s, suggested) // #2481: never suggest a course there is nothing left of
                 && m.Add(StoryPackKeys.ChapterOffered(pack.Id, suggested.Id)))
             {
@@ -1532,6 +1542,7 @@ public sealed partial class GameServer
                 || m.Contains(StoryPackKeys.ChapterDeclined(pack.Id, ch.Id))
                 || m.Contains(StoryPackKeys.ChapterActive(pack.Id, ch.Id))
                 || !EvaluateStoryCondition(ch.Requires, s)
+                || !ChapterVisible(s, ch) // #2482: a course the world rules out (combat off, a singleplayer world)
                 || !EvaluateStoryCondition(ch.OfferWhen, s)
                 || ChapterThroughByEvidence(s, ch)) // #2481: nothing left to teach (e.g. the whole Crystal workshop done)
             {

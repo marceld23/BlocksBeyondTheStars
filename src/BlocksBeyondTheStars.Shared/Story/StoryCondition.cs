@@ -763,6 +763,56 @@ public static class StoryWorldPredicates
     /// <summary>#2481: running machines catch up on return (the world rule <c>MachineCatchUpMinutes</c> is not 0).</summary>
     public const string MachineCatchUp = "machine_catchup";
 
+    /// <summary>#2482: the world has animals (the Creature abundance rule is not Off) — the animal friends course exists.</summary>
+    public const string Creatures = "creatures";
+
+    /// <summary>#2482: VEGA's tip check found a tameable animal near the player in its last pass (the player carries the
+    /// translator — the animal friends course's moment, like <see cref="DataCacheNear"/>).</summary>
+    public const string TameableNear = "tameable_near";
+
+    /// <summary>#2482: an animal of a begging herd came to beg the player within the last minute (the moment VEGA explains
+    /// the Feed action).</summary>
+    public const string HerdBegging = "herd_begging";
+
+    /// <summary>#2482: the player has a companion (a tamed animal of theirs).</summary>
+    public const string CompanionOwned = "companion_owned";
+
+    /// <summary>#2482: the player carries something to plant — a sapling or a seed (an item that places a plant).</summary>
+    public const string SeedCarried = "seed_carried";
+
+    /// <summary>#2482: VEGA's tip check found a settlement near the player (not yet inside it) in its last pass.</summary>
+    public const string SettlementNear = "settlement_near";
+
+    /// <summary>#2482: something hostile — a machine, a hostile animal, a robber — is close to the player on their world.</summary>
+    public const string HostileNear = "hostile_near";
+
+    /// <summary>#2482: a robber is holding the player up right now (a demand waits for an answer).</summary>
+    public const string BanditHail = "bandit_hail";
+
+    /// <summary>#2482: the player is climbing a wall right now (the climbing pose).</summary>
+    public const string Climbing = "climbing";
+
+    /// <summary>#2482: a monorail train the player may board runs on their world (a public one, their own or an ally's).</summary>
+    public const string TrainHere = "train_here";
+
+    /// <summary>#2482: the world is hosted for more than one player (not a singleplayer world).</summary>
+    public const string Multiplayer = "multiplayer";
+
+    /// <summary>#2482: the player wears a radio (chat needs one).</summary>
+    public const string RadioWorn = "radio_worn";
+
+    /// <summary>#2482: VEGA's tip check found a ruin near the player in its last pass (a ruined settlement, a vault, a rail ruin).</summary>
+    public const string RuinNear = "ruin_near";
+
+    /// <summary>#2482: VEGA's tip check found a chest a settler revealed near the player in its last pass.</summary>
+    public const string TreasureNear = "treasure_near";
+
+    /// <summary>#2482: VEGA's tip check picked up a wreck's signal in flight in its last pass.</summary>
+    public const string WreckSignal = "wreck_signal";
+
+    /// <summary>#2482: the world generates crashed wrecks on planets (the world option is not off).</summary>
+    public const string PlanetWrecks = "planet_wrecks";
+
     /// <summary>Every known predicate, in documentation order.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
@@ -776,5 +826,7 @@ public static class StoryWorldPredicates
         TierGate, ModuleAffordable, HullDamaged, KeelLaid, ShipBuilt, BaseHere, BaseCoreReady, NightOutside,
         StationCoreReady, StationOwned,
         FactoryNear, FactoryHere, AccessCode, FactoryOwned, MachineCircuit, MachineCatchUp,
+        Creatures, TameableNear, HerdBegging, CompanionOwned, SeedCarried, SettlementNear, HostileNear, BanditHail, Climbing,
+        TrainHere, Multiplayer, RadioWorn, RuinNear, TreasureNear, WreckSignal, PlanetWrecks,
     };
 }

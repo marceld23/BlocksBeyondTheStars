@@ -780,9 +780,15 @@ public static class StoryPackValidator
             CheckConditions($"{cp}.requires", ch.Requires);
             CheckConditions($"{cp}.offerWhen", ch.OfferWhen);
             CheckConditions($"{cp}.autoCompleteIf", ch.AutoCompleteIf);
+            CheckConditions($"{cp}.visibleIf", ch.VisibleIf);
             if (ch.OfferWhen.Count > 0 && !ch.Optional)
             {
                 Warn($"{cp}.offerWhen", "only an optional chapter is offered");
+            }
+
+            if (ch.VisibleIf.Count > 0 && !ch.Optional)
+            {
+                Error($"{cp}.visibleIf", "only an optional chapter can be left out (#2482) — a mandatory one would block the pack");
             }
 
             Cutscene($"{cp}.openCutscene", ch.OpenCutscene);

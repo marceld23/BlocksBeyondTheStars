@@ -87,7 +87,8 @@ public sealed partial class GameServer
 
     private void LabResult(PlayerSession session, int action, bool success, string messageKey, string itemKey = "",
         int stability = 0, bool failed = false, int knowledge = 0, bool washed = false)
-        => Send(session, new BioLabResult
+    {
+        Send(session, new BioLabResult
         {
             Action = action,
             Success = success,
@@ -98,6 +99,11 @@ public sealed partial class GameServer
             Knowledge = knowledge,
             Washed = washed,
         });
+        if (success)
+        {
+            RaiseGameEvent(session, Shared.Story.GameEventKeys.BioLabUsed, BioLabActionArg(action)); // #2482: the gardener course
+        }
+    }
 
     private void LabSound(PlayerSession session, string soundId)
     {

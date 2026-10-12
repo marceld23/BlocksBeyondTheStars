@@ -13,7 +13,11 @@
   // parts "Ship building" and "Base building": c1 (the titanium route), c6 (modules, repair, an own ship), c7 (a base) and
   // c17 (a station) — the base founding and the commissioning of an own ship get a short scene. #2481 added the part
   // "Crystal net": c8 bridges onto VEGA's six Crystal workshop jobs (data/missions.json — the jobs and their rewards stay
-  // where they are) and c14 (factories, a fabricator working by itself); the first working circuit gets a banner.
+  // where they are) and c14 (factories, a fabricator working by itself); the first working circuit gets a banner. #2482
+  // added the part "More to discover": c9 (animals, a companion — the first tame gets a banner), c10 (planting, a campfire,
+  // samples, the bio lab), c11 (settlers), c12 (defence — only where the world has hostiles, never suggested), c13 (climbing,
+  // gliding, vehicles), c15 (playing together — only on a world for more than one player), c16 (paint, forms, colours,
+  // copies) and c18 (chests, ruins, wrecks). A course the world rules out (visibleIf) is left out of the Journal.
   "id": "tutorial",
   "kind": "tutorial",
   "scope": "player",
@@ -955,6 +959,363 @@
             { "when": "not:world:machine_catchup", "startKey": "story.tutorial.c14.away.start_off" }
           ],
           "explain": { "startKey": "story.tutorial.c14.away.start", "moreGuide": "crystal-machines" }
+        }
+      ]
+    },
+    {
+      // C9 Animal friends (part "More to discover", #2482): scanning an animal, feeding a begging herd, taming a companion
+      // (by its favourite food or the creature translator) and looking after it. Only on a world with animals; offered at
+      // VEGA's tameable_near tip (the translator in hand) or when a herd comes begging. The first companion gets a banner.
+      "id": "c9",
+      "titleKey": "story.tutorial.ch.c9",
+      "summaryKey": "story.tutorial.ch.c9.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b5" ],
+      "visibleIf": [ "world:creatures" ],
+      "offerWhen": [ "any:[world:tameable_near,world:herd_begging]" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          // Peaceful worlds (no hostile animals) say so instead of "keep your distance".
+          "id": "c9.1", "kind": "do", "tier": "core",
+          "objective": { "event": "scan:performed", "arg": "creature" },
+          "variants": [
+            { "when": "not:world:enemies", "startKey": "story.tutorial.c9.scan.start_calm" }
+          ],
+          "explain": { "startKey": "story.tutorial.c9.scan.start", "chipKey": "story.tutorial.c9.scan.chip", "hintKey": "story.tutorial.c9.scan.hint", "moreGuide": "creatures" }
+        },
+        {
+          // VEGA's Feed hint is this line (it comes when a herd begs — the step is active then, so its line came first).
+          "id": "c9.2", "kind": "do", "tier": "core",
+          "objective": { "event": "creature:fed" },
+          "hintRefs": [ "feed_herd" ],
+          "explain": { "startKey": "story.tutorial.c9.feed.start", "chipKey": "story.tutorial.c9.feed.chip", "hintKey": "story.tutorial.c9.feed.hint", "moreGuide": "taming" }
+        },
+        {
+          // A companion already at the player's side counts. The first tame gets the banner (synthesis §6.4: T1).
+          "id": "c9.3", "kind": "do", "tier": "core",
+          "objective": { "event": "tame:any" },
+          "alreadyDoneIf": [ "world:companion_owned" ],
+          "hintRefs": [ "favourite_food", "tameable_near" ],
+          "onComplete": { "cutscene": "tut.first_tame" },
+          "explain": { "startKey": "story.tutorial.c9.tame.start", "chipKey": "story.tutorial.c9.tame.chip", "hintKey": "story.tutorial.c9.tame.hint", "moreGuide": "taming" }
+        },
+        {
+          "id": "c9.4", "kind": "do", "tier": "opt",
+          "objective": { "event": "companion:cared" },
+          "feasibleIf": [ "world:companion_owned" ],
+          "explain": { "startKey": "story.tutorial.c9.care.start", "chipKey": "story.tutorial.c9.care.chip", "hintKey": "story.tutorial.c9.care.hint", "moreGuide": "taming" }
+        }
+      ]
+    },
+    {
+      // C10 Gardener and lab (More to discover, #2482): planting, cooking at a campfire, the sample case and the bio lab.
+      // Offered when the player carries a seed or a sapling, or once the bio lab is researched.
+      "id": "c10",
+      "titleKey": "story.tutorial.ch.c10",
+      "summaryKey": "story.tutorial.ch.c10.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b4" ],
+      "offerWhen": [ "any:[world:seed_carried,blueprint:bio_lab]" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c10.1", "kind": "do", "tier": "core",
+          "objective": { "event": "plant:any" },
+          "hintRefs": [ "plant_refused" ],
+          "explain": { "startKey": "story.tutorial.c10.plant.start", "chipKey": "story.tutorial.c10.plant.chip", "hintKey": "story.tutorial.c10.plant.hint", "moreGuide": "farming" }
+        },
+        {
+          // Any campfire recipe counts (torches, water, a meal); without hunger the line leaves the meals out.
+          "id": "c10.2", "kind": "do", "tier": "core",
+          "objective": { "event": "craft:station", "arg": "campfire" },
+          "variants": [
+            { "when": "not:world:hunger", "startKey": "story.tutorial.c10.cook.start_nohunger", "chipKey": "story.tutorial.c10.cook.chip_nohunger" }
+          ],
+          "explain": { "startKey": "story.tutorial.c10.cook.start", "chipKey": "story.tutorial.c10.cook.chip", "hintKey": "story.tutorial.c10.cook.hint", "moreGuide": "farming" }
+        },
+        {
+          // The first sample's hint is this line; "the case is full" stays VEGA's (it comes when it happens).
+          "id": "c10.3", "kind": "do", "tier": "core",
+          "objective": { "event": "sample:taken" },
+          "hintRefs": [ "first_sample" ],
+          "explain": { "startKey": "story.tutorial.c10.sample.start", "chipKey": "story.tutorial.c10.sample.chip", "hintKey": "story.tutorial.c10.sample.hint", "moreGuide": "bio-lab" }
+        },
+        {
+          "id": "c10.4", "kind": "do", "tier": "core",
+          "objective": { "event": "research:any", "arg": "bio_lab" },
+          "alreadyDoneIf": [ "blueprint:bio_lab" ],
+          "explain": { "startKey": "story.tutorial.c10.research.start", "chipKey": "story.tutorial.c10.research.chip", "hintKey": "story.tutorial.c10.research.hint", "moreGuide": "bio-lab" }
+        },
+        {
+          // Where the lab is built and what comes after the first analysis — VEGA's two lab hints are this step's lines.
+          "id": "c10.5", "kind": "do", "tier": "core",
+          "objective": { "event": "biolab:used" },
+          "hintRefs": [ "bio_lab_unlocked", "first_analysis" ],
+          "explain": { "startKey": "story.tutorial.c10.lab.start", "chipKey": "story.tutorial.c10.lab.chip", "hintKey": "story.tutorial.c10.lab.hint", "doneKey": "story.tutorial.c10.lab.done", "moreGuide": "bio-lab" }
+        }
+      ]
+    },
+    {
+      // C11 Neighbours (More to discover, #2482): talking to settlers (#1869 — nobody said {key:Interact} talks), answers and
+      // standing, the "People you know" list, and who helps with what. Only where the world has settlements; offered at VEGA's
+      // settlement_near tip (a settlement close by, the player not yet inside).
+      "id": "c11",
+      "titleKey": "story.tutorial.ch.c11",
+      "summaryKey": "story.tutorial.ch.c11.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b1" ],
+      "visibleIf": [ "world:settlements" ],
+      "offerWhen": [ "world:settlement_near" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c11.1", "kind": "do", "tier": "core",
+          "objective": { "event": "npc:talked" },
+          "hintRefs": [ "settlement_near" ],
+          "onStart": { "reveal": "nearest_settlement" },
+          "explain": { "startKey": "story.tutorial.c11.talk.start", "chipKey": "story.tutorial.c11.talk.chip", "hintKey": "story.tutorial.c11.talk.hint", "moreGuide": "settlements" }
+        },
+        {
+          "id": "c11.2", "kind": "do", "tier": "core",
+          "objective": { "event": "npc:answered" },
+          "explain": { "startKey": "story.tutorial.c11.answer.start", "chipKey": "story.tutorial.c11.answer.chip", "hintKey": "story.tutorial.c11.answer.hint", "moreGuide": "settlements" }
+        },
+        {
+          "id": "c11.3", "kind": "do", "tier": "opt",
+          "objective": { "event": "npc:people" },
+          "explain": { "startKey": "story.tutorial.c11.people.start", "chipKey": "story.tutorial.c11.people.chip", "hintKey": "story.tutorial.c11.people.hint", "moreGuide": "settlements" }
+        },
+        {
+          "id": "c11.4", "kind": "read", "tier": "opt",
+          "explain": { "startKey": "story.tutorial.c11.jobs.start", "moreGuide": "settlements" }
+        }
+      ]
+    },
+    {
+      // C12 Defence (More to discover, #2482, E9): strictly opt-in — never part of the basic training, never suggested at the
+      // graduation, offered only at its moment (a robber's hold-up, or something hostile close by) and only on a world whose
+      // rules have hostiles at all (visibleIf: planet machines, robbers or hostile ships — a peaceful or family world never
+      // lists it). Worded "fend off / chase away" (PARENTS.md); every step a world cannot offer is left out.
+      "id": "c12",
+      "titleKey": "story.tutorial.ch.c12",
+      "summaryKey": "story.tutorial.ch.c12.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b3" ],
+      "visibleIf": [ "any:[world:enemies,world:bandits,all:[world:space_enemies,world:free_flight]]" ],
+      "offerWhen": [ "any:[world:bandit_hail,world:hostile_near]" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          // Robbers first where the world has them: the course is often offered during a hold-up.
+          "id": "c12.1", "kind": "read", "tier": "core",
+          "feasibleIf": [ "world:bandits" ],
+          "explain": { "startKey": "story.tutorial.c12.robbers.start", "moreGuide": "combat" }
+        },
+        {
+          "id": "c12.2", "kind": "do", "tier": "core",
+          "objective": { "event": "defeat:any", "arg": "creature|giant|machine|bandit" },
+          "feasibleIf": [ "any:[world:enemies,world:bandits]" ],
+          "explain": { "startKey": "story.tutorial.c12.fend.start", "chipKey": "story.tutorial.c12.fend.chip", "hintKey": "story.tutorial.c12.fend.hint", "moreGuide": "combat" }
+        },
+        {
+          "id": "c12.3", "kind": "do", "tier": "opt",
+          "objective": { "event": "defeat:any", "arg": "space_machine|raider" },
+          "feasibleIf": [ "world:space_enemies", "world:free_flight" ],
+          "explain": { "startKey": "story.tutorial.c12.space.start", "chipKey": "story.tutorial.c12.space.chip", "hintKey": "story.tutorial.c12.space.hint", "moreGuide": "combat" }
+        }
+      ]
+    },
+    {
+      // C13 On the move (More to discover, #2482): climbing (and the gloves), the rope gun, the jetpack or the glider, a boat or
+      // a speeder, a train, beam pads and lifts. Offered on the first climb after the training, or once the climbing gloves or
+      // the glider are researched. A step the player has no gear for yet is a line about later.
+      "id": "c13",
+      "titleKey": "story.tutorial.ch.c13",
+      "summaryKey": "story.tutorial.ch.c13.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b1" ],
+      "offerWhen": [ "any:[world:climbing,blueprint:climbing_gloves,blueprint:glider]" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c13.1", "kind": "do", "tier": "core",
+          "objective": { "event": "move:climbed", "required": 3 },
+          "explain": { "startKey": "story.tutorial.c13.climb.start", "chipKey": "story.tutorial.c13.climb.chip", "hintKey": "story.tutorial.c13.climb.hint", "moreGuide": "climbing" }
+        },
+        {
+          // VEGA's rope hint (how to reel in, hang and let go) is this step's done line.
+          "id": "c13.2", "kind": "do", "tier": "opt",
+          "objective": { "event": "gadget:used", "arg": "energy_rope_gun" },
+          "feasibleIf": [ "blueprint:energy_rope_gun" ],
+          "alternative": "c13.2a",
+          "hintRefs": [ "rope_gun" ],
+          "explain": { "startKey": "story.tutorial.c13.rope.start", "chipKey": "story.tutorial.c13.rope.chip", "hintKey": "story.tutorial.c13.rope.hint", "doneKey": "story.tutorial.c13.rope.done", "moreGuide": "climbing" }
+        },
+        {
+          "id": "c13.2a", "kind": "read", "tier": "opt",
+          "explain": { "startKey": "story.tutorial.c13.rope.start_later", "moreGuide": "climbing" }
+        },
+        {
+          "id": "c13.3", "kind": "do", "tier": "opt",
+          "objective": { "event": "move:airborne" },
+          "feasibleIf": [ "any:[blueprint:jetpack,blueprint:glider]" ],
+          "explain": { "startKey": "story.tutorial.c13.fly.start", "chipKey": "story.tutorial.c13.fly.chip", "hintKey": "story.tutorial.c13.fly.hint", "moreGuide": "climbing" }
+        },
+        {
+          // A boat needs no blueprint (the workshop makes it); a speeder drives over land once researched.
+          "id": "c13.4", "kind": "do", "tier": "core",
+          "objective": { "event": "vehicle:boarded", "arg": "boat|speeder" },
+          "explain": { "startKey": "story.tutorial.c13.ride.start", "chipKey": "story.tutorial.c13.ride.chip", "hintKey": "story.tutorial.c13.ride.hint", "moreGuide": "travel" }
+        },
+        {
+          "id": "c13.5", "kind": "do", "tier": "opt",
+          "objective": { "event": "vehicle:boarded", "arg": "train" },
+          "feasibleIf": [ "world:train_here" ],
+          "alternative": "c13.5a",
+          "explain": { "startKey": "story.tutorial.c13.train.start", "chipKey": "story.tutorial.c13.train.chip", "hintKey": "story.tutorial.c13.train.hint", "moreGuide": "travel" }
+        },
+        {
+          "id": "c13.5a", "kind": "read", "tier": "opt",
+          "explain": { "startKey": "story.tutorial.c13.train.start_later", "moreGuide": "travel" }
+        },
+        {
+          "id": "c13.6", "kind": "read", "tier": "opt",
+          "explain": { "startKey": "story.tutorial.c13.beam.start", "moreGuide": "travel" }
+        }
+      ]
+    },
+    {
+      // C15 Together (More to discover, #2482): chat and radio tiers, pings, trading with a player, alliances and crews, and
+      // what to do about someone unkind. Only on a world for more than one player (a singleplayer world never lists it), and
+      // offered when another player is close by — an invisible observer never counts (world:player_near, #2460 N2), and no
+      // line of the course names anybody.
+      "id": "c15",
+      "titleKey": "story.tutorial.ch.c15",
+      "summaryKey": "story.tutorial.ch.c15.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b1" ],
+      "visibleIf": [ "world:multiplayer" ],
+      "offerWhen": [ "world:player_near" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          // Without a radio the line says how to get one; VEGA's "a pilot nearby" tip is this course's first word.
+          "id": "c15.1", "kind": "do", "tier": "core",
+          "objective": { "event": "chat:sent" },
+          "hintRefs": [ "player_near" ],
+          "variants": [
+            { "when": "not:world:radio_worn", "startKey": "story.tutorial.c15.chat.start_radio", "chipKey": "story.tutorial.c15.chat.chip_radio" }
+          ],
+          "explain": { "startKey": "story.tutorial.c15.chat.start", "chipKey": "story.tutorial.c15.chat.chip", "hintKey": "story.tutorial.c15.chat.hint", "moreGuide": "house-rules" }
+        },
+        {
+          "id": "c15.2", "kind": "do", "tier": "core",
+          "objective": { "event": "trade:player" },
+          "explain": { "startKey": "story.tutorial.c15.trade.start", "chipKey": "story.tutorial.c15.trade.chip", "hintKey": "story.tutorial.c15.trade.hint", "moreGuide": "alliances" }
+        },
+        {
+          "id": "c15.3", "kind": "do", "tier": "opt",
+          "objective": { "event": "ally:joined" },
+          "explain": { "startKey": "story.tutorial.c15.ally.start", "chipKey": "story.tutorial.c15.ally.chip", "hintKey": "story.tutorial.c15.ally.hint", "moreGuide": "alliances" }
+        },
+        {
+          "id": "c15.4", "kind": "do", "tier": "core",
+          "objective": { "event": "marker:set", "arg": "ping" },
+          "explain": { "startKey": "story.tutorial.c15.ping.start", "chipKey": "story.tutorial.c15.ping.chip", "hintKey": "story.tutorial.c15.ping.hint", "moreGuide": "alliances" }
+        },
+        {
+          "id": "c15.5", "kind": "read", "tier": "core",
+          "explain": { "startKey": "story.tutorial.c15.kind.start", "moreGuide": "house-rules" }
+        }
+      ]
+    },
+    {
+      // C16 Creative tools (More to discover, #2482): the paint tool, forms and colours from the quick bar's slot ring, the
+      // blueprint tool, and the player's own look. Offered once the paint tool or the shaping tool is researched.
+      "id": "c16",
+      "titleKey": "story.tutorial.ch.c16",
+      "summaryKey": "story.tutorial.ch.c16.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b4" ],
+      "offerWhen": [ "any:[blueprint:paint_tool,blueprint:shape_tool]" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c16.1", "kind": "do", "tier": "core",
+          "objective": { "event": "paint:block" },
+          "explain": { "startKey": "story.tutorial.c16.paint.start", "chipKey": "story.tutorial.c16.paint.chip", "hintKey": "story.tutorial.c16.paint.hint", "moreGuide": "own-forms" }
+        },
+        {
+          "id": "c16.2", "kind": "do", "tier": "core",
+          "objective": { "event": "craft:shape" },
+          "explain": { "startKey": "story.tutorial.c16.form.start", "chipKey": "story.tutorial.c16.form.chip", "hintKey": "story.tutorial.c16.form.hint", "moreGuide": "own-forms" }
+        },
+        {
+          "id": "c16.3", "kind": "do", "tier": "core",
+          "objective": { "event": "craft:tint" },
+          "explain": { "startKey": "story.tutorial.c16.colour.start", "chipKey": "story.tutorial.c16.colour.chip", "hintKey": "story.tutorial.c16.colour.hint", "moreGuide": "colours" }
+        },
+        {
+          "id": "c16.4", "kind": "do", "tier": "opt",
+          "objective": { "event": "build:any", "arg": "blueprint_paste" },
+          "explain": { "startKey": "story.tutorial.c16.copy.start", "chipKey": "story.tutorial.c16.copy.chip", "hintKey": "story.tutorial.c16.copy.hint", "moreGuide": "crafting-stations" }
+        },
+        {
+          "id": "c16.5", "kind": "read", "tier": "opt",
+          "explain": { "startKey": "story.tutorial.c16.look.start", "moreGuide": "own-forms" }
+        }
+      ]
+    },
+    {
+      // C18 Explorer (More to discover, #2482): HOW to find things — chests and caches, ruins, vaults and crashed wrecks,
+      // settlers' tips and data cubes, wrecks in space. It hands out no story (fragments and records stay VEGA's). Offered at
+      // VEGA's ruin_near, treasure_near or wreck_signal tip.
+      "id": "c18",
+      "titleKey": "story.tutorial.ch.c18",
+      "summaryKey": "story.tutorial.ch.c18.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b3" ],
+      "offerWhen": [ "any:[world:ruin_near,world:treasure_near,world:wreck_signal]" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c18.1", "kind": "do", "tier": "core",
+          "objective": { "event": "loot:any" },
+          "hintRefs": [ "treasure_near" ],
+          "explain": { "startKey": "story.tutorial.c18.loot.start", "chipKey": "story.tutorial.c18.loot.chip", "hintKey": "story.tutorial.c18.loot.hint", "moreGuide": "ruins-and-treasure" }
+        },
+        {
+          // VEGA's "structural echoes" hint and her ruin tip are this step's line.
+          "id": "c18.2", "kind": "do", "tier": "core",
+          "objective": { "event": "poi:reached" },
+          "feasibleIf": [ "any:[world:vaults,world:planet_wrecks]" ],
+          "alternative": "c18.2a",
+          "hintRefs": [ "poi", "ruin_near" ],
+          "explain": { "startKey": "story.tutorial.c18.ruin.start", "chipKey": "story.tutorial.c18.ruin.chip", "hintKey": "story.tutorial.c18.ruin.hint", "moreGuide": "ruins-and-treasure" }
+        },
+        {
+          "id": "c18.2a", "kind": "read", "tier": "core",
+          "explain": { "startKey": "story.tutorial.c18.ruin.start_none", "moreGuide": "ruins-and-treasure" }
+        },
+        {
+          "id": "c18.3", "kind": "read", "tier": "opt",
+          "explain": { "startKey": "story.tutorial.c18.tips.start", "moreGuide": "mysteries" }
+        },
+        {
+          "id": "c18.4", "kind": "do", "tier": "opt",
+          "objective": { "event": "salvage:found" },
+          "feasibleIf": [ "world:free_flight", "any:[world:space_wrecks,world:debris_fields]" ],
+          "hintRefs": [ "wreck_signal", "wreck_signal_manual", "debris_signal" ],
+          "explain": { "startKey": "story.tutorial.c18.wreck.start", "chipKey": "story.tutorial.c18.wreck.chip", "hintKey": "story.tutorial.c18.wreck.hint", "moreGuide": "travel" }
         }
       ]
     }

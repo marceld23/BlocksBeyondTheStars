@@ -258,6 +258,8 @@ public sealed partial class GameServer
         NotifyCrew(crew, "@srv.crew.joined:" + session.State.Name);
         RefreshCrewAndAllianceRosters(crew);
         RefreshMarkersFor(crew.Members.Keys); // the newcomer and the crew now share each other's markers (#1293)
+        RaiseGameEvent(session, Shared.Story.GameEventKeys.AllyJoined, Shared.Story.GameEventKeys.AllyCrew); // #2482: the "Together" course — the newcomer …
+        RaiseGameEvent(FindSessionByPlayerId(crew.OwnerId), Shared.Story.GameEventKeys.AllyJoined, Shared.Story.GameEventKeys.AllyCrew); // … and who invited them
     }
 
     private void LeaveCrew(PlayerSession session)

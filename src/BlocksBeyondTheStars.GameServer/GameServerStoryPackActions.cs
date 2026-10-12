@@ -311,7 +311,7 @@ public sealed partial class GameServer
         }
 
         if (!PackRunsFor(s, ch.Pack) || (!s.SupportsPacks && ch.Pack.IsTutorial && ch.Optional)
-            || !EvaluateStoryCondition(ch.Requires, s))
+            || !EvaluateStoryCondition(ch.Requires, s) || !ChapterVisible(s, ch)) // #2482: not a course the world rules out
         {
             return false;
         }

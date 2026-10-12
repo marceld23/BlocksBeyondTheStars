@@ -11,7 +11,9 @@ that runs it per player is the **player-pack runtime** (#2466), described in
 > [Deep dives](#the-deep-dives-research-and-flying-c2c5-2479)), the parts "Ship building" and "Base building" — C1, C6, C7,
 > C17 — with step 19 (#2480, [Ship and base building](#the-deep-dives-ship-building-and-base-building-c1-c6-c7-c17-2480));
 > the part "Crystal net" — C8 (a bridge onto VEGA's Crystal workshop jobs) and C14 — with step 20 (#2481,
-> [Crystal net](#the-deep-dives-crystal-net-c8-c14-2481)); C9–C13, C15, C16 and C18 follow with step 21. The tutorial's cards
+> [Crystal net](#the-deep-dives-crystal-net-c8-c14-2481)); the part "More to discover" — C9–C13, C15, C16 and C18 — with step 21
+> (#2482, [More to discover](#the-deep-dives-more-to-discover-c9c13-c15-c16-c18-2482)), which also brought the chapter field
+> `visibleIf` (a course the world's rules rule out is left out). The tutorial's cards
 > (`tut.welcome`, `tut.strip` …) came with step 14 (#2473, [Cards](#cards-2473)); VEGA's own pack and the hand-over to its
 > chapter 1 with step 11. Test packs for the runtime live in `tests/BlocksBeyondTheStars.Tests/Fixtures/story_packs/`.
 
@@ -81,6 +83,7 @@ Every field is optional and defaults to today's behaviour.
 | `optional` | a deep dive: not needed for the pack to be done, offered instead of started |
 | `requires` | condition[] before the chapter is available (default: the previous non-optional chapter done or skipped) |
 | `offerWhen` | condition[] — offers an optional chapter once (never during the mandatory chapters) |
+| `visibleIf` | #2482, optional chapters only: condition[] — the chapter exists for the player only while it holds (a course the world's rules can rule out: combat, animals, settlements, more than one player). While it fails the chapter is left out of the Journal and never offered, suggested or started; one the player runs, replays, finished or skipped stays listed. A mandatory chapter with it is a validator error |
 | `autoCompleteIf` | condition[] — veteran evidence: completes the chapter silently (ignored while it is replayed; never a graduation) |
 | `autoStart` | default `true` for non-optional, `false` for optional chapters |
 | `openCutscene`, `closeCutscene` | cutscene bindings: the opener when the chapter's first step is presented, the closer when a chapter the player was shown is done (not skipped, replayed or completed silently); a `template` scene gets one instance per chapter with the chapter's title as its argument ([CUTSCENES.md](CUTSCENES.md)) |
@@ -156,7 +159,15 @@ station of the player's). Since #2481 (the crystal net): `factory_near` (VEGA's 
 the player — `VegaTipLive`, like `data_cache_near`), `factory_here` (a spawned factory stands on the player's world),
 `access_code` (an SPS code in the backpack), `factory_owned` (the player has claimed a factory, anywhere in the save),
 `machine_circuit` (a machine of the player's finished a job a signal started — the achievement counter
-`crystal:machine_job`), `machine_catchup` (the world rule *Machines catch up* is not 0). `ui:` is never a condition.
+`crystal:machine_job`), `machine_catchup` (the world rule *Machines catch up* is not 0). Since #2482 (More to discover):
+`creatures` (the Creature abundance rule is not Off), `tameable_near`, `settlement_near`, `ruin_near`, `treasure_near`,
+`wreck_signal` (VEGA's tip pass found that situation — `VegaTipLive`, like `data_cache_near`; `wreck_signal` takes the
+manual-steering tip too), `herd_begging` (an animal came to beg the player within the last minute —
+`PlayerSession.HerdBeggedAt`), `companion_owned` (a tamed animal of the player's), `seed_carried` (a sapling or a seed in
+the backpack — an item whose block is a plant), `hostile_near` (a machine, a hostile animal or a hostile robber within 40
+blocks on the player's world), `bandit_hail` (a robber's demand waits for an answer), `climbing` (the climbing pose now),
+`train_here` (a train the player may board runs on their world), `multiplayer` (the world is hosted for more than one
+player), `radio_worn`, `planet_wrecks` (the world option is not off). `ui:` is never a condition.
 
 ## Per-player state
 
@@ -432,6 +443,76 @@ a coined quartermaster called on the radio 90 s later (only with a radio worn, a
 While the course runs, the next step's own start line is the follow-up, so VEGA's line stays quiet (one voice, G12). Other
 chains keep their givers' radio nudge.
 
+### The deep dives "More to discover" (C9–C13, C15, C16, C18, #2482)
+
+The same rules as above (optional, the course card `tut.course` and the part banner `tut.done`, every do step counts, no legacy
+keys, no rewards, at most two cards per course). These courses have no hard prerequisite beyond a part of the basic training;
+each is offered once at its moment of need (synthesis §3.2) and is startable from the Journal any time after. Four of them
+can be ruled out by the world (`visibleIf`, synthesis §3.5 "ausblenden"): such a course is not listed, offered, suggested or
+startable at all — on a peaceful or family world the Journal simply has no Defence course.
+
+| Course | Needs (`requires`) | Exists (`visibleIf`) | Offered (`offerWhen`) |
+|---|---|---|---|
+| **C9 Animal friends** | `chapter:tutorial:b5` | `world:creatures` | `any:[world:tameable_near, world:herd_begging]` — VEGA's tameable tip (a translator in hand) or a herd coming to beg |
+| **C10 Gardener and lab** | `chapter:tutorial:b4` | — | `any:[world:seed_carried, blueprint:bio_lab]` — a seed or a sapling carried, or the bio lab researched |
+| **C11 Neighbours** | `chapter:tutorial:b1` | `world:settlements` | `world:settlement_near` — VEGA's settlement tip (close by, not yet inside) |
+| **C12 Defence** | `chapter:tutorial:b3` | `any:[world:enemies, world:bandits, all:[world:space_enemies, world:free_flight]]` | `any:[world:bandit_hail, world:hostile_near]` — a robber's hold-up, or something hostile close by |
+| **C13 On the move** | `chapter:tutorial:b1` | — | `any:[world:climbing, blueprint:climbing_gloves, blueprint:glider]` — the first climb after the training, or the gear researched |
+| **C15 Together** | `chapter:tutorial:b1` | `world:multiplayer` | `world:player_near` — another (visible) player close by; an invisible observer never counts (#2460 N2) |
+| **C16 Creative tools** | `chapter:tutorial:b4` | — | `any:[blueprint:paint_tool, blueprint:shape_tool]` |
+| **C18 Explorer** | `chapter:tutorial:b3` | — | `any:[world:ruin_near, world:treasure_near, world:wreck_signal]` — VEGA's ruin, treasure or wreck tip |
+
+**E9 (Defence):** strictly opt-in — never part of the basic training, never a graduation suggestion, offered only at its own
+moment, and only on a world whose rules have something hostile; worded "fend off / chase away" ("abwehren / verjagen" — a test
+keeps cruel words out); "walking away" is named as the other choice in the step's own line. **C15** never names anybody: no
+line of the course has a slot, and the offer line carries the course title only.
+
+| Step | Teaches | Event (arg × required) | Kind | World rules / feasibility, evidence, absorbed hints |
+|---|---|---|---|---|
+| c9.1 | most animals are calm; the readout says how one behaves and what it loves, "Aggressive" = keep your distance | `scan:performed` `creature` | do | variant `not:world:enemies` ("the animals on this world are all peaceful") |
+| c9.2 | begging herds: hold food, wait, `{key:FeedCreature}` throws a piece | `creature:fed` | do | absorbs `feed_herd` |
+| c9.3 | taming: its favourite food a few times, or the creature translator | `tame:any` | do | `alreadyDoneIf world:companion_owned`; absorbs `favourite_food`, `tameable_near`; `onComplete` **tut.first_tame** |
+| c9.4 | the companion: a name in the Creatures tab, or food — a strong bond makes it fetch | `companion:cared` (`named`\|`fed`) | do | `feasibleIf world:companion_owned` |
+| c10.1 | seeds and saplings are hand recipes; plant one on soil `{key:Place}` (pot or hydro tray in a base) | `plant:any` | do | absorbs `plant_refused` |
+| c10.2 | a campfire is a little kitchen (a hot meal fills you up better; torches too) | `craft:station` `campfire` | do | variant `not:world:hunger` ("a little workshop": torches, water, salt) |
+| c10.3 | the suit's sample case fills by itself when you harvest | `sample:taken` | do | absorbs `first_sample` (`sample_case_full` stays VEGA's — it comes when it happens) |
+| c10.4 | research the bio lab at the cockpit | `research:any` `bio_lab` | do | `alreadyDoneIf blueprint:bio_lab` |
+| c10.5 | build and place the lab (or its ship module), analyse a sample; done line: mix next | `biolab:used` | do | absorbs `bio_lab_unlocked`, `first_analysis` |
+| c11.1 | people live in settlements: walk up, `{key:Interact}` (#1869); marker `nearest_settlement` | `npc:talked` | do | absorbs `settlement_near` |
+| c11.2 | answers matter: stranger → acquaintance → friend | `npc:answered` | do | — |
+| c11.3 | friends tell you things and call you; the Character tab's "People you know" | `npc:people` | do | — |
+| c11.4 | the doctor heals, the sage sells knowledge, traders swap, the board has jobs | — | read | — |
+| c12.1 | robbers: pay and they leave, or say no and chase them away; camps for a reward | — | read | `feasibleIf world:bandits` |
+| c12.2 | your choice: walk away, or fend off what attacks you `{key:PrimaryFire}`; a tool beats bare hands; hint: armour, stasis, fainting is gentle | `defeat:any` `creature\|giant\|machine\|bandit` | do | `feasibleIf any:[world:enemies, world:bandits]` |
+| c12.3 | hostile ships shoot from afar: fly close, shields up, chase one away | `defeat:any` `space_machine\|raider` | do | `feasibleIf world:space_enemies, world:free_flight` |
+| c13.1 | climb almost any wall: jump at it, push, hold `{key:Jump}`; gloves hold longer | `move:climbed` × 3 (metres) | do | — |
+| c13.2 | the energy rope gun; done line: reel in `{key:Place}`, hang, `{key:Crouch}` drops it | `gadget:used` `energy_rope_gun` | do | `feasibleIf blueprint:energy_rope_gun`, else **c13.2a** (read: what it will do); absorbs `rope_gun` (its how-to is the done line) |
+| c13.3 | jetpack (hold `{key:Jump}`) or glider (opens while you fall) | `move:airborne` | do | `feasibleIf any:[blueprint:jetpack, blueprint:glider]` (no stand-in: c13.2a and c13.6 name the gear) |
+| c13.4 | a boat needs no blueprint (workshop), board with `{key:Interact}`; a speeder the same over land; `{key:StowVehicle}` | `vehicle:boarded` `boat\|speeder` | do | — |
+| c13.5 | a monorail runs here: a stop, the cab `{key:Interact}` | `vehicle:boarded` `train` | do | `feasibleIf world:train_here`, else **c13.5a** (read: build one, towns may have trains) |
+| c13.6 | beam blocks link your places, lifts carry you up and down | — | read | — |
+| c15.1 | chat `{key:OpenChat}`; the radio's reach: world, system, galaxy | `chat:sent` | do | variant `not:world:radio_worn` (research, craft and wear a radio first); absorbs `player_near` |
+| c15.2 | trading face to face `{key:RequestTrade}` | `trade:player` | do | — |
+| c15.3 | allies share bases and stations and never hurt each other; a crew | `ally:joined` | do | — |
+| c15.4 | a ping `{key:PingMarker}` — allies and crew on the world see it | `marker:set` `ping` | do | — |
+| c15.5 | be kind; mute someone unkind, `/report` | — | read | — |
+| c16.1 | the paint tool paints a picture on a placed block `{key:Place}` | `paint:block` | do | — |
+| c16.2 | forms from the slot actions `{key:HotbarAction}` (Form); the shaping tool designs your own | `craft:shape` | do | — |
+| c16.3 | colours from the same actions (dye free, glow a crystal per block) | `craft:tint` | do | — |
+| c16.4 | the blueprint tool copies a build and pastes it block by block | `build:any` `blueprint_paste` | do | — |
+| c16.5 | your look (Character tab) and photos (Photos tab) | — | read | — |
+| c18.1 | chests and caches `{key:LootContainer}` | `loot:any` | do | absorbs `treasure_near` |
+| c18.2 | buried ruins and crashed wrecks hold old tech — walk up to one | `poi:reached` | do | `feasibleIf any:[world:vaults, world:planet_wrecks]`, else **c18.2a** (read: where else chests hide); absorbs `poi`, `ruin_near` |
+| c18.3 | settlers' tips mark hidden chests; data cubes hold games `{key:Interact}` | — | read | — |
+| c18.4 | wrecks in space: follow the signal, salvage inside | `salvage:found` | do | `feasibleIf world:free_flight, any:[world:space_wrecks, world:debris_fields]`; absorbs `wreck_signal`, `wreck_signal_manual`, `debris_signal` |
+
+`move:climbed` is measured like walking: only while a step listens, only rising in the climbing pose, never a report more than
+4 blocks from the last one. `poi:reached` is the 1 Hz advisor check behind VEGA's `poi` hint (a vault entrance or the crashed
+wreck within 48 blocks), raised right before it. Left out (the issue's scope; every do step of a course counts): the
+synthesis' C16.5 as a do step (the client sends its colours at every join, so "changed the look" cannot be told apart — a
+read now), C12.2 armour as a do step (now the fend-off step's hint), C12.4 camp bounties (a sentence in the robbers' line),
+C18.3 "follow a revealed marker" (a read: chests a settler reveals are found and looted like any other).
+
 ### Cards (#2473)
 
 The parts' cards live in `data/stories/tutorial/cutscenes.json` (format, tiers and pacing: [CUTSCENES.md](CUTSCENES.md#the-tutorial-cards-2473)).
@@ -450,10 +531,11 @@ Cards, not cinema: no card takes the camera, holds the world or freezes the cont
 | `c5.8.onComplete` (#2479) | `tut.first_jump` | the navigator course's first hyperjump: "New system" + its name on the warp-in, then "Unknown stars show “?” …" — now or never |
 | `c7.1.onComplete` (#2480) | `tut.first_base` | the homestead course's base founded: a short scene (T3) — the camera rises over the player at the new core, "Base founded · Your home", then "Walls keep animals away — and on airless worlds, sealed rooms hold air"; a singleplayer world holds; not for a base that counted as evidence |
 | `c6.7.onComplete` (#2480) | `tut.ship_commissioned` | the ship builder course's own ship commissioned: the camera circles the **new** ship (scaled to its size), "Commissioned · Your own ship", then "Built by you, block by block — and it flies"; a singleplayer world holds; not for a ship built long ago |
+| `c9.3.onComplete` (#2482) | `tut.first_tame` | the animal friends course's first tame (its favourite food or the translator): a short banner (T1, 4 s) "Tamed · A new friend!" with a chime — the camera and the controls stay the player's; not for a companion the player had before the course, never in a replay |
 | `c8.1.onComplete` (#2481) | `tut.first_circuit` | the crystal workshop course's first job handed in (a switch lit a lamp): a short banner (T1, 4 s) "First circuit · It works!" with a chime — the camera and the controls stay the player's; it waits only while a menu is open (the hand-in happens in the Missions tab); not for a job handed in before the course |
 
 A course shows at most two cards: its course card and at most one first (a test counts them; a banner like
-`tut.first_circuit` is no card). The basic training's budget
+`tut.first_circuit` or `tut.first_tame` is no card). The basic training's budget
 (eight heavier moments) is untouched: the docking card lives in the stations course, not in b6.4.
 
 Each scene plays once per player (`story:tutorial:cut:<id>`, a template once per part, `tut.strip@b3`): "I know the game",
@@ -493,8 +575,9 @@ Steps name the hints and tips they teach in `hintRefs` (table above). Client-onl
 for the player (`ShipAiLine.TutorialActive`), the flight lessons the B6 steps teach — `chart_waypoint`, `ship_scanner`,
 `ship_scan_hold`, `anomaly_scan` — are not spoken and count as given (`VegaText.LessonCoveredByTutorial`): the step lines
 carry them per player on the server, so a shared school PC no longer decides who heard them. The other client lessons
-(planet card, target lock, wormhole, climbing, the bio lab tabs, the pad/touch context list B1.7) stay client lessons until
-a deep-dive chapter covers them.
+(planet card, target lock, wormhole, climbing, the bio lab tabs, the pad/touch context list B1.7) stay client lessons: the
+deep dives that teach them (C3, C5, C13, C10) run after the training, when `TutorialActive` is off, so a client lesson may
+still pop up next to a course's line (a client change, not yet made).
 
 ### Migration of existing players
 
@@ -556,7 +639,7 @@ The admin command `/tutorial skip|restart [player]`, `/tutorial chapter <id> [pl
 ## Adding a chapter
 
 1. Add the chapter to `data/stories/tutorial/story.json` (a deep dive: `"optional": true`, an `offerWhen` condition, maybe
-   `requires`); give every step an id `<chapter>.<n>`, an `objective` from `GameEventKeys` (or a mission bridge), an
+   `requires`, and `visibleIf` when a world's rules can rule the whole course out); give every step an id `<chapter>.<n>`, an `objective` from `GameEventKeys` (or a mission bridge), an
    `explain` with at least `startKey` and `chipKey`, and `feasibleIf` / `alternative` wherever a world could make it
    impossible.
 2. Need a verb nobody raises yet? Add the key to `GameEventKeys` (+ `All`), raise it with one `RaiseGameEvent` line next to

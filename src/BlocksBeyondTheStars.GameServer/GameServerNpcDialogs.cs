@@ -130,6 +130,7 @@ public sealed partial class GameServer
             return;
         }
 
+        RaiseGameEvent(session, GameEventKeys.NpcTalked, npc.Role); // #2482: the neighbours course
         string npcKey = DialogNpcKey(session, npc);
         var dialog = PickDialog(session, npc, npcKey);
         if (dialog is null)
@@ -186,6 +187,7 @@ public sealed partial class GameServer
         _dialogAction = string.Empty;
         _dialogExtraText = string.Empty;
         ApplyDialogConsequence(session, npc, npcKey, choice.Consequence, paysReward);
+        RaiseGameEvent(session, GameEventKeys.NpcAnswered, npc.Role); // #2482: the neighbours course
 
         bool end = choice.Next < 0 || choice.Next >= active.Dialog.Nodes.Count;
         if (end && active.Dialog.OncePerPlayer && !choice.KeepOpen)

@@ -278,6 +278,7 @@ public sealed partial class GameServer
         SendPlayerState(session); // flips the client into vehicle-drive mode + speeder HUD
         SendSpeeders(session);
         BroadcastSpeeders();      // others see the DriverId bond
+        RaiseGameEvent(session, Shared.Story.GameEventKeys.VehicleBoarded, IsBoat(s.Rec) ? Shared.Story.GameEventKeys.VehicleBoat : Shared.Story.GameEventKeys.VehicleSpeeder); // #2482
     }
 
     private void HandleExitSpeeder(PlayerSession session)

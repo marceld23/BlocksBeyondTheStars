@@ -469,6 +469,7 @@ public sealed partial class GameServer
         }
 
         SendBioSpecies(session, entry.Seed);
+        RaiseGameEvent(session, Shared.Story.GameEventKeys.SampleTaken, SampleKindArg(entry.Kind)); // #2482: the gardener course — before the hint it absorbs
         ShipAiHintOnce(session, "first_sample");
         return true;
     }

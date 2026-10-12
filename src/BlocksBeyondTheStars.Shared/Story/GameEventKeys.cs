@@ -285,6 +285,87 @@ public static class GameEventKeys
     /// <summary>A spawned factory claimed with an access (SPS) code — it became the player's base. Arg: the factory's name.</summary>
     public const string FactoryClaimed = "factory:claimed";
 
+    // ---- #2482: the deep dives "More to discover" (C9–C13, C15, C16, C18; one line each at an existing handler) ----
+
+    /// <summary>The Feed action threw a piece of food to a begging animal. Arg: the food's item key.</summary>
+    public const string CreatureFed = "creature:fed";
+
+    /// <summary>The player looked after a companion: named it (<see cref="CompanionNamedArg"/>) or fed it
+    /// (<see cref="CompanionFedArg"/>).</summary>
+    public const string CompanionCared = "companion:cared";
+
+    /// <summary>Something was planted: a flora block (a sapling, a seed, a bred seedling) placed into the ground. Arg: the block
+    /// key.</summary>
+    public const string PlantAny = "plant:any";
+
+    /// <summary>A sample went into the player's sample case — from a harvested plant or tree, an ore deposit, an animal (the
+    /// sampler, a defeat, a companion's gift). Arg: <c>plant</c>, <c>animal</c> or <c>mineral</c>.</summary>
+    public const string SampleTaken = "sample:taken";
+
+    /// <summary>A bio-lab action worked. Arg: <c>analyse</c>, <c>mix</c>, <c>change</c>, <c>wash</c> or <c>seedling</c>.</summary>
+    public const string BioLabUsed = "biolab:used";
+
+    /// <summary>The player talked to someone (a greeting or a conversation — not to a sleeper). Arg: the NPC's role.</summary>
+    public const string NpcTalked = "npc:talked";
+
+    /// <summary>The player picked an answer in a conversation. Arg: the NPC's role.</summary>
+    public const string NpcAnswered = "npc:answered";
+
+    /// <summary>The "People you know" list was opened (the client asks for it while the list is shown).</summary>
+    public const string NpcPeople = "npc:people";
+
+    /// <summary>The player climbed a wall (the climbing pose, rising). Amount: whole metres climbed — measured only while a
+    /// step listens.</summary>
+    public const string MoveClimbed = "move:climbed";
+
+    /// <summary>The jetpack fired, or the glider's wing opened. Arg: <see cref="AirborneJetpack"/> or <see cref="AirborneGlider"/>.</summary>
+    public const string MoveAirborne = "move:airborne";
+
+    /// <summary>The player boarded a vehicle. Arg: <see cref="VehicleSpeeder"/>, <see cref="VehicleBoat"/> or
+    /// <see cref="VehicleTrain"/>.</summary>
+    public const string VehicleBoarded = "vehicle:boarded";
+
+    /// <summary>A chat line of the player's went out on the radio (not a command, not a line the filter dropped).</summary>
+    public const string ChatSent = "chat:sent";
+
+    /// <summary>The player and another became allies or crewmates (raised for both who are online). Arg:
+    /// <see cref="AllyAlliance"/> or <see cref="AllyCrew"/>.</summary>
+    public const string AllyJoined = "ally:joined";
+
+    /// <summary>The paint tool painted a design onto a placed block (or wiped one off). Arg: the block key.</summary>
+    public const string PaintBlock = "paint:block";
+
+    /// <summary>The player stands near a buried vault's entrance or a crashed wreck on a world (the 1 Hz check behind VEGA's
+    /// <c>poi</c> hint, raised right before it).</summary>
+    public const string PoiReached = "poi:reached";
+
+    /// <summary><see cref="CompanionCared"/> arg: the companion got a name.</summary>
+    public const string CompanionNamedArg = "named";
+
+    /// <summary><see cref="CompanionCared"/> arg: the companion was fed.</summary>
+    public const string CompanionFedArg = "fed";
+
+    /// <summary><see cref="MoveAirborne"/> arg: the jetpack.</summary>
+    public const string AirborneJetpack = "jetpack";
+
+    /// <summary><see cref="MoveAirborne"/> arg: the glider.</summary>
+    public const string AirborneGlider = "glider";
+
+    /// <summary><see cref="VehicleBoarded"/> arg: a hover speeder.</summary>
+    public const string VehicleSpeeder = "speeder";
+
+    /// <summary><see cref="VehicleBoarded"/> arg: a boat.</summary>
+    public const string VehicleBoat = "boat";
+
+    /// <summary><see cref="VehicleBoarded"/> arg: a monorail train.</summary>
+    public const string VehicleTrain = "train";
+
+    /// <summary><see cref="AllyJoined"/> arg: an alliance formed.</summary>
+    public const string AllyAlliance = "alliance";
+
+    /// <summary><see cref="AllyJoined"/> arg: a crew joined.</summary>
+    public const string AllyCrew = "crew";
+
     /// <summary><see cref="ShipRepaired"/> arg: everything affordable at once (the console / cockpit action).</summary>
     public const string ShipRepairAll = "all";
 
@@ -469,6 +550,8 @@ public static class GameEventKeys
             ShipRepaired, ShipEdited, ShipKeelPlaced, ShipSwitched, BaseBuilt, BaseSealed, BaseWalled, DoorOpened, SpawnSet,
             StationCoreDeployed, StationZeroG,
             CraftStation, FactoryClaimed,
+            CreatureFed, CompanionCared, PlantAny, SampleTaken, BioLabUsed, NpcTalked, NpcAnswered, NpcPeople, MoveClimbed,
+            MoveAirborne, VehicleBoarded, ChatSent, AllyJoined, PaintBlock, PoiReached,
         };
         foreach (string circuitEvent in new[]
                  {

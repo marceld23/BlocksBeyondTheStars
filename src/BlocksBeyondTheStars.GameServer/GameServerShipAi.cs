@@ -530,6 +530,7 @@ public sealed partial class GameServer
             // Ruins radar: vault entrances and the wreck give a one-time "structures detected" nudge.
             if (NearVegaPoi(p.Position))
             {
+                RaiseGameEvent(session, GameEventKeys.PoiReached); // #2482: the explorer course — before the hint it absorbs
                 ShipAiHintOnce(session, "poi");
             }
 

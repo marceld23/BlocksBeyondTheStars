@@ -501,6 +501,15 @@ public sealed class PlayerSession
     /// the hints switch. Session-only; the default lies far in the past.</summary>
     public double TierGateRefusedAt { get; set; } = double.NegativeInfinity;
 
+    /// <summary>#2482: server uptime when an animal of a begging herd last came to beg this player — the moment the tutorial's
+    /// "Animal friends" course is offered at (<c>world:herd_begging</c>), whatever VEGA's once-hint about it says.
+    /// Session-only; the default lies far in the past.</summary>
+    public double HerdBeggedAt { get; set; } = double.NegativeInfinity;
+
+    /// <summary>#2482: metres climbed on a wall not yet reported as <c>move:climbed</c> (only counted while a step listens).
+    /// RAM only.</summary>
+    public double TutorialClimbAccum { get; set; }
+
     // --- Deferred death respawn (choice between ship and home spawn, issue #462) ---
 
     /// <summary>Server uptime deadline for a pending respawn choice; 0 = no choice pending. While pending the

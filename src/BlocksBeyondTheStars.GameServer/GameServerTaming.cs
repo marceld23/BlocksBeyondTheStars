@@ -709,6 +709,7 @@ public sealed partial class GameServer
         _repo.SavePlayer(session.State);
         BroadcastCreatures();
         SendCompanions(session);
+        RaiseGameEvent(session, GameEventKeys.CompanionCared, GameEventKeys.CompanionNamedArg); // #2482: the animal friends course
     }
 
     private void HandleReleaseCompanion(PlayerSession session, ReleaseCompanionIntent intent)

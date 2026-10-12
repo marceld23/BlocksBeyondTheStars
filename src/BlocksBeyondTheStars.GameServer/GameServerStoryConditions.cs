@@ -108,6 +108,26 @@ public sealed partial class GameServer
         [StoryWorldPredicates.FactoryOwned] = s => _meta.Claims.Any(c => c.OwnerId == s.State.PlayerId),
         [StoryWorldPredicates.MachineCircuit] = s => s.State.AchievementCounters.TryGetValue(AchievementCounters.Crystal(CircuitEvents.MachineJob), out int jobs) && jobs > 0,
         [StoryWorldPredicates.MachineCatchUp] = _ => Rules.MachineCatchUpMinutes > 0,
+
+        // #2482: the deep dives "More to discover" (C9–C13, C15, C16, C18) — their offers at the moment of need (VEGA's own tip
+        // pass, a session stamp, the pose), what the world rules leave of them, and their steps' feasibility
+        // (GameServerTutorialMore.cs).
+        [StoryWorldPredicates.Creatures] = _ => Rules.CreatureAbundance != AlienActivity.Off,
+        [StoryWorldPredicates.TameableNear] = s => s.VegaTipLive.Contains("tameable_near"),
+        [StoryWorldPredicates.HerdBegging] = HerdBegging,
+        [StoryWorldPredicates.CompanionOwned] = s => s.State.TamedCreatures.Count > 0,
+        [StoryWorldPredicates.SeedCarried] = SeedCarried,
+        [StoryWorldPredicates.SettlementNear] = s => s.VegaTipLive.Contains("settlement_near"),
+        [StoryWorldPredicates.HostileNear] = HostileNear,
+        [StoryWorldPredicates.BanditHail] = s => s.BanditDemandId != 0,
+        [StoryWorldPredicates.Climbing] = s => s.State.Climbing && !InSpace(s.State.PlayerId),
+        [StoryWorldPredicates.TrainHere] = TrainHere,
+        [StoryWorldPredicates.Multiplayer] = _ => _config.MaxPlayers > 1,
+        [StoryWorldPredicates.RadioWorn] = HasAnyRadio,
+        [StoryWorldPredicates.RuinNear] = s => s.VegaTipLive.Contains("ruin_near"),
+        [StoryWorldPredicates.TreasureNear] = s => s.VegaTipLive.Contains("treasure_near"),
+        [StoryWorldPredicates.WreckSignal] = s => s.VegaTipLive.Contains("wreck_signal") || s.VegaTipLive.Contains("wreck_signal_manual"),
+        [StoryWorldPredicates.PlanetWrecks] = _ => _meta.Description.PlanetWrecks != Frequency.Off,
     };
 
     /// <summary><c>world:forge_ready</c> (#2479): the player can refine — they crafted a forge before (the achievement

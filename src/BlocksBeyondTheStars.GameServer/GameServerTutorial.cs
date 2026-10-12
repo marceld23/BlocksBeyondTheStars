@@ -82,6 +82,20 @@ public sealed partial class GameServer
             return;
         }
 
+        // #2482: metres climbed up a wall in the climbing pose (the "On the move" course) — the server sees the pose, the
+        // client owns the motion; a report over 4 blocks from the last one never counts.
+        double rise = now.Y - before.Y;
+        if (session.State.Climbing && rise > 0 && rise <= TutorialWalkMaxStep && HasGameEventListener(GameEventKeys.MoveClimbed))
+        {
+            session.TutorialClimbAccum += rise;
+            int metres = (int)session.TutorialClimbAccum;
+            if (metres >= 1)
+            {
+                session.TutorialClimbAccum -= metres;
+                RaiseGameEvent(session, GameEventKeys.MoveClimbed, string.Empty, metres);
+            }
+        }
+
         if (HasGameEventListener(GameEventKeys.MoveWalked))
         {
             double dx = now.X - before.X;

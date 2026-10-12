@@ -233,7 +233,8 @@ public sealed class TutorialDeepDivesTests : IDisposable
     public void TheDeepDives_AreOptionalChapters_WithTheirPrerequisitesOffersAndCards()
     {
         var courses = Pack.Chapters.Where(c => c.Optional).ToList();
-        Assert.Equal(new[] { "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c17", "c8", "c14" }, courses.Select(c => c.Id)); // #2480 added c1, c6, c7, c17; #2481 c8, c14
+        Assert.Equal(new[] { "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c17", "c8", "c14", "c9", "c10", "c11", "c12", "c13", "c15", "c16", "c18" },
+            courses.Select(c => c.Id)); // #2480 added c1, c6, c7, c17; #2481 c8, c14; #2482 the part "More to discover"
         foreach (var c in courses)
         {
             Assert.Equal("tut.course", c.OpenCutscene);

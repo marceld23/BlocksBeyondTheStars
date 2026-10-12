@@ -105,6 +105,9 @@ FALLBACK_PREDICATES = [
     "tier_gate", "module_affordable", "hull_damaged", "keel_laid", "ship_built", "base_here", "base_core_ready",
     "night_outside", "station_core_ready", "station_owned",
     "factory_near", "factory_here", "access_code", "factory_owned", "machine_circuit", "machine_catchup",
+    "creatures", "tameable_near", "herd_begging", "companion_owned", "seed_carried", "settlement_near", "hostile_near",
+    "bandit_hail", "climbing", "train_here", "multiplayer", "radio_worn", "ruin_near", "treasure_near", "wreck_signal",
+    "planet_wrecks",
 ]
 
 KNOWN_FIELDS = {
@@ -122,7 +125,7 @@ KNOWN_FIELDS = {
     "start": {"after", "earlyOptIn"},
     "chapter": {
         "id", "titleKey", "summaryKey", "optional", "requires", "offerWhen", "autoCompleteIf", "autoStart",
-        "openCutscene", "closeCutscene", "fromBeat", "fromEvent", "leads", "steps", "skippable", "missions",
+        "openCutscene", "closeCutscene", "fromBeat", "fromEvent", "leads", "steps", "skippable", "missions", "visibleIf",
     },
     "mission": {"id", "titleKey", "summaryKey", "feasibleIf", "alternative", "skippable", "steps"},
     "lead": {"type", "objKey"},
@@ -819,9 +822,13 @@ class Validator:
             conditions(f"{cp}.requires", chapter.get("requires"))
             conditions(f"{cp}.offerWhen", chapter.get("offerWhen"))
             conditions(f"{cp}.autoCompleteIf", chapter.get("autoCompleteIf"))
+            conditions(f"{cp}.visibleIf", chapter.get("visibleIf"))
             optional = bool(chapter.get("optional"))
             if chapter.get("offerWhen") and not optional:
                 r.warn(pid, f"{cp}.offerWhen", "only an optional chapter is offered")
+            if chapter.get("visibleIf") and not optional:
+                # #2482: a rule-gated deep dive may be left out; a mandatory chapter left out would block the pack.
+                r.error(pid, f"{cp}.visibleIf", "only an optional chapter can be left out (#2482) - a mandatory one would block the pack")
             cutscene(f"{cp}.openCutscene", chapter.get("openCutscene"))
             cutscene(f"{cp}.closeCutscene", chapter.get("closeCutscene"))
             from_beat = chapter.get("fromBeat", -1)

@@ -210,10 +210,16 @@ public sealed partial class GameServer
             Blocked = pack.IsTutorial && Rules.TutorialPolicy == TutorialPolicy.Off,
             MandatoryRunning = runs && mandatory.Count > 0 && !mandatory.All(c => ChapterFinished(s, c)),
             Badge = badge,
-            Chapters = pack.Chapters.Select(c => NetChapterOf(s, c, runs)).ToArray(),
+            Chapters = pack.Chapters.Where(c => JournalListsChapter(s, c)).Select(c => NetChapterOf(s, c, runs)).ToArray(),
             Steps = runs ? ActiveStepsOf(s, pack).ToArray() : Array.Empty<NetStoryStep>(),
         };
     }
+
+    /// <summary>#2482: whether the Journal lists a chapter — always, unless the world rules it out (<c>visibleIf</c>) and the player
+    /// has nothing of it: one they run, replay, finished or skipped stays listed.</summary>
+    private bool JournalListsChapter(PlayerSession s, CompiledChapter ch)
+        => ChapterVisible(s, ch) || ChapterDoneOrSkipped(s, ch) || ChapterReplaying(s, ch)
+           || MilestonesOf(s).Contains(StoryPackKeys.ChapterActive(ch.Pack.Id, ch.Id));
 
     /// <summary>A chapter's Journal state (<see cref="StoryChapterStates"/>).</summary>
     private NetStoryChapter NetChapterOf(PlayerSession s, CompiledChapter ch, bool packRuns)

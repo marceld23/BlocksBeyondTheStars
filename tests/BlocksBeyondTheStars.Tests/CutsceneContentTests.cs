@@ -436,7 +436,8 @@ public sealed class CutsceneContentTests
         Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("tutorial/tut.welcome"))));
         Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("tutorial/tut.first_dock")))); // #2479 added the flight courses' cards
         Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("tutorial/tut.first_base")))); // #2480 added the building courses' cards
-        AssertError(Probe(c => c.Options.ChainNext.Add("tutorial/tut.first_tame")), "has no cutscene 'tut.first_tame'"); // the animal friends' card comes later
+        Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("tutorial/tut.first_tame")))); // #2482 added the animal friends' banner
+        AssertError(Probe(c => c.Options.ChainNext.Add("tutorial/tut.lost")), "has no cutscene 'tut.lost'");
         AssertWarning(Probe(c => c.Options.ChainNext.Add("side_story/intro")), "not installed");
     }
 

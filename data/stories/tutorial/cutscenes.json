@@ -24,6 +24,9 @@
   //                   ship (the parked ship is the active one now, scaled to its size), "Your own ship".
   // tut.first_circuit — #2481: the crystal workshop course's first job handed in (c8.1 done — a switch lit a lamp): a short
   //                   banner "First circuit · It works!" with a chime; the camera and the controls stay the player's.
+  // tut.first_tame — #2482: the animal friends course's first companion (c9.3 done — a tame through the real taming): a short
+  //                   banner "Tamed · A new friend!" with a chime (synthesis §6.4: T1, 4 s); the camera and the controls stay the
+  //                   player's — the new companion is right there in front of them.
   // tut.graduation  — the graduation: the achievement, then VEGA's closing line in her speaker box; chains to VEGA's recap
   //                   or, when the world is still in chapter 1, straight to VEGA's chapter 1 card (#2474, §5.3).
   "cutscenes": [
@@ -193,6 +196,18 @@
           "camera": { "type": "player_view" },
           "duration": 4,
           "captions": [ { "style": "title_card", "kickerKey": "story.tutorial.cut.circuit.kicker", "key": "story.tutorial.cut.circuit.title" } ],
+          "sfx": [ { "cue": "chime_1", "at": 0.2 } ]
+        }
+      ]
+    },
+    {
+      "id": "tut.first_tame",
+      "tier": 1,
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 4,
+          "captions": [ { "style": "title_card", "kickerKey": "story.tutorial.cut.tame.kicker", "key": "story.tutorial.cut.tame.title" } ],
           "sfx": [ { "cue": "chime_1", "at": 0.2 } ]
         }
       ]

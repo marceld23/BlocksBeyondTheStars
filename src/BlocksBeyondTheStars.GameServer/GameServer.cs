@@ -5971,6 +5971,11 @@ public sealed partial class GameServer
             ScheduleSaplingGrowth(pos); // #1774: a planted sapling starts its clock
         }
 
+        if (IsFlora(blockDef.NumericId.Value))
+        {
+            RaiseGameEvent(session, GameEventKeys.PlantAny, blockDef.Key); // #2482: the gardener course
+        }
+
         if (plantedSeed != 0)
         {
             RememberBredPlant(pos, plantedSeed); // #2209: which species stands here
@@ -7571,6 +7576,7 @@ public sealed partial class GameServer
             session,
             new ChatMessage { Sender = sender, SenderId = session.State.PlayerId, Text = text }, // #1209: mute keys on the id
             DeliveryMode.ReliableOrdered);
+        RaiseGameEvent(session, GameEventKeys.ChatSent); // #2482: the "Together" course
     }
 
     /// <summary>Live voice relay (opt-in). A thin, opaque forwarder: the server never decodes the Opus payload —

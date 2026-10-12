@@ -1150,8 +1150,8 @@ players.
   all with **Start** or **Later** (a course you put off stays there; VEGA does not offer it again). Each opens with a short
   "Short course" card and ends with the "Part complete!" banner; your docking in the stations course ("Docked — …") and your
   first hyperjump in the navigator course ("New system — …") get a short card of their own, your first base and your first
-  own ship a short look from outside ("Your home", "Your own ship"). You can skip a step or the whole course in the
-  Journal. Like the training they pay nothing.
+  own ship a short look from outside ("Your home", "Your own ship"), your first working circuit and your first tamed
+  animal a banner. You can skip a step or the whole course in the Journal. Like the training they pay nothing.
   - **Workshop and titanium** (suggested when you finish the training, and offered when your drill bounces off rock that is
     too hard): why titanium ore is out of reach at first, swapping iron ore for titanium ore at your ship's trade console
     (5 for 1), a forge (6 stone, 4 iron plates — no blueprint needed) and your first titanium plate smelted at it.
@@ -1189,9 +1189,37 @@ players.
     makes it your base — the course never asks you to spend a code), and a fabricator that crafts by itself on a switch —
     once you know machine circuits (the workshop's fifth job) and have a forge; until then the course waits and says so.
     Last, what machines do while you are away.
+  - **Animal friends** (offered when a begging herd comes to you, or a tameable animal is near while you carry the
+    creature translator): scanning an animal (its readout says how it behaves and what it loves), feeding a begging herd
+    with **Feed**, taming one — its favourite food a few times, or the translator — and naming or feeding your companion
+    in the Creatures tab. Your first tamed companion gets a short "Tamed — A new friend!" banner; a companion you already
+    have counts at once. Not listed on a world without animals.
+  - **Gardener and lab** (offered when you carry a seed or a sapling, or once the bio lab is researched): planting a seed
+    or sapling, crafting at a campfire (a hot meal — or torches and water where hunger is off), a sample in your sample
+    case from something you harvest, researching the bio lab and analysing a sample in it.
+  - **Neighbours** (offered when a settlement is close by): talking to a settler (walk up and press **E**), answering in a
+    conversation (kind answers make friends), the "People you know" list in the Character tab, and who helps with what.
+    Not listed on a world without settlements.
+  - **Defence** (only on a world whose rules have machines, robbers or hostile ships — a peaceful or family world never
+    lists it, and it is never suggested; offered when a robber stops you or something hostile comes close): it is always
+    your choice to walk away or to fend off what attacks you, what robbers want (pay, or chase them away), and — where
+    hostile ships fly — chasing one away in space.
+  - **On the move** (offered the first time you climb after the training, or once climbing gloves or the glider are
+    researched): climbing a wall 3 m, the rope gun (or what it will do), the jetpack or the glider if you have one, a boat
+    (no blueprint) or a speeder, a train where one runs (or how you build one), beam blocks and lifts.
+  - **Together** (only on a world for more than one player; offered when another player is close by — an invisible
+    admin never counts): chatting (with a worn radio — bigger radios reach the system or the galaxy), trading face to
+    face, becoming allies or joining a crew, pinging a spot for your allies, and muting or `/report`ing someone unkind.
+  - **Creative tools** (offered once the paint tool or the shaping tool is researched): painting a picture on a block,
+    giving a stack a new form and a colour from the quick bar's slot actions, pasting a build copied with the blueprint
+    tool, and where you change your look and find your photos.
+  - **Explorer** (offered near a ruin, a revealed chest or a wreck's signal): emptying a chest or a cache, walking up to
+    a buried ruin or a crashed wreck (or, where your world has none, where else chests hide), settlers' tips and data
+    cubes, and a wreck in space.
   - What you have already done counts: a forge you crafted before, blueprints you own, a jump drive already fitted, a
-    base on the world, a ship or station you built tick their step off by themselves; lessons your world cannot offer
-    (no wormholes, no wrecks, no space combat, an undamaged hull, breathable air …) are skipped or only explained.
+    base on the world, a ship or station you built, a companion at your side tick their step off by themselves; lessons
+    your world cannot offer (no wormholes, no wrecks, no space combat, an undamaged hull, breathable air, no hunger …)
+    are skipped or only explained, and a course your world cannot offer at all is not listed.
 - **Advisor:** one-time contextual hints (full inventory, first nightfall, "ruins detected", world-type
   flavour) plus **context tips** that notice your situation and may come back — rarely: gear you carry
   but aren't using (a suit lamp switched off in the dark, torches underground, food when hungry, a medkit

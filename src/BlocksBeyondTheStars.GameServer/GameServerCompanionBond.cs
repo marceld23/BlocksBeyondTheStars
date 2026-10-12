@@ -150,6 +150,7 @@ public sealed partial class GameServer
         _repo.SavePlayer(session.State);
         SendInventory(session);
         SendCompanions(session);
+        RaiseGameEvent(session, Shared.Story.GameEventKeys.CompanionCared, Shared.Story.GameEventKeys.CompanionFedArg); // #2482
 
         // Say what it bought, not just that it happened: the tiers are the whole point of the number.
         string name = string.IsNullOrEmpty(tc.Name) ? tc.Species.Name : tc.Name;

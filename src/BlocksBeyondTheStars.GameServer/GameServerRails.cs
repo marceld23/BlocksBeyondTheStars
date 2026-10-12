@@ -935,6 +935,7 @@ public sealed partial class GameServer
         session.AwaitingSpawnAdopt = false;
         SendPlayerState(session);
         BroadcastTrains(force: true);
+        RaiseGameEvent(session, Shared.Story.GameEventKeys.VehicleBoarded, Shared.Story.GameEventKeys.VehicleTrain); // #2482: the "On the move" course
     }
 
     private void HandleExitTrain(PlayerSession session) => LeaveTrain(session, setDown: true);

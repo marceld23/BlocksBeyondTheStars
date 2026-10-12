@@ -144,6 +144,7 @@ public sealed partial class GameServer
         var (tint, glow) = _world.GetModifier(pos);
         _world.SetBlock(pos, current, tint, glow, newShape, session.State.PlayerId);
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = current.Value, Tint = tint, Glow = glow, Shape = newShape });
+        RaiseGameEvent(session, GameEventKeys.PaintBlock, _world.Definition(current)?.Key ?? string.Empty); // #2482: the creative tools course
     }
 
     /// <summary>True when a design id is registered AND not a moderation tombstone — the liveness test the

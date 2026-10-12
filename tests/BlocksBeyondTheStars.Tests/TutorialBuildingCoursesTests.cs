@@ -147,6 +147,7 @@ public sealed class TutorialBuildingCoursesTests : IDisposable
         server.TickStoryPacksForTest(p);
         server.SkipTutorialForTest(p);
         Assert.Contains(StoryPackKeys.Done(T), p.State.Milestones);
+        p.State.Milestones.Add(StoryPackKeys.ChapterOffered(T, "c15")); // #2482: these players stand together — "Together" has its own tests
         return p;
     }
 

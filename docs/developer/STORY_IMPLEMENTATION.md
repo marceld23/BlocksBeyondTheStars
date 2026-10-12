@@ -582,6 +582,22 @@ teaching verbs (the second block of the table); the deep dives add theirs with s
 | **#2481 — the deep dives "Crystal net"** | | | |
 | `craft:station` | the recipe's station, lower case (`workshop`, `refinery`, `factory`, `campfire`, `market`, `algaetank` …) (batch count) | a recipe crafted, next to `craft:any` — also a free Creative craft; the argument string is built only while someone listens | `GameServer.cs` (`HandleCraft`, `CraftStationArg`) |
 | `factory:claimed` | the factory's name | a spawned factory claimed with an SPS code (a refused claim raises nothing) | `GameServerFactories.cs` (`ClaimFactory`) |
+| **#2482 — the deep dives "More to discover"** | | | |
+| `creature:fed` | the food's item key | the Feed action threw a piece to a begging animal (a refused throw raises nothing) | `GameServerFoodBegging.cs` (`HandleThrowFood`) |
+| `companion:cared` | `named` \| `fed` | a companion named, or fed (a refused feed raises nothing) | `GameServerTaming.cs` (`HandleSetCompanionName`), `GameServerCompanionBond.cs` (`HandleFeedCompanion`) |
+| `plant:any` | block key | a flora block placed — a sapling, a seed, a bred seedling (next to `build:any`) | `GameServer.cs` (`HandlePlace`) |
+| `sample:taken` | `plant` \| `animal` \| `mineral` | a sample went into the sample case (a harvest, the sampler, a defeat, a companion's gift), raised right before the `first_sample` hint | `GameServerBio.cs` (`GiveSample`) |
+| `biolab:used` | `analyse` \| `mix` \| `change` \| `wash` \| `seedling` | a bio-lab action worked (the single result exit, success only) | `GameServerBioLab.cs` (`LabResult`) |
+| `npc:talked` | the NPC's role | the player talked to someone — a greeting or a conversation (not to a sleeper) | `GameServerNpcDialogs.cs` (`HandleTalkToNpc`) |
+| `npc:answered` | the NPC's role | an answer picked in a conversation | `GameServerNpcDialogs.cs` (`HandleNpcDialogChoice`) |
+| `npc:people` | — | the "People you know" list requested (the client asks while it shows the list) | `GameServerNpcSocial.cs` (`HandleRequestKnownNpcs`) |
+| `move:climbed` | — (whole metres) | rising on a wall in the climbing pose (a report over 4 blocks from the last one never counts) — measured only while a step listens | `GameServer.cs` (`HandleMove`) → `GameServerTutorial.cs` (`TutorialMovementEvents`) |
+| `move:airborne` | `jetpack` \| `glider` | the worn jetpack fired, or the worn glider's wing opened | `GameServerEquipment.cs` (`HandleSetJetpack`, `HandleSetGliding`) |
+| `vehicle:boarded` | `speeder` \| `boat` \| `train` | the player boarded their speeder or boat, or a train | `GameServerSpeeders.cs` (`HandleEnterSpeeder`), `GameServerRails.cs` (`HandleEnterTrain`) |
+| `chat:sent` | — | a chat line went out on the radio (never a slash command, a refused or a filtered-out line) | `GameServer.cs` (`HandleChat`) |
+| `ally:joined` | `alliance` \| `crew` | an alliance formed (both partners) or a crew joined (the newcomer and the founder) | `GameServerAlliances.cs` (`EstablishAlliance`), `GameServerCrews.cs` (`RespondCrewInvite`) |
+| `paint:block` | block key | the paint tool painted (or wiped) a design on a placed block | `GameServerPaint.cs` (`HandlePaintBlock`) |
+| `poi:reached` | — | within 48 blocks of a buried vault's entrance or a crashed wreck (the 1 Hz advisor check, raised right before the `poi` hint) | `GameServerShipAi.cs` (`TickShipAi`, `NearVegaPoi`) |
 
 Since #2479 the in-flight jump (`JumpFlightToSystem`) raises `hyperjump:any` after the warp-in's flight state and star map
 went out (it was raised before the warp), so a card a step plays for it lands on the warp-in like the finale's arrival card.
@@ -637,7 +653,14 @@ E32), `base_core_ready`, `night_outside` (the player's own world's clock), `stat
 (`GameServerTutorialBuilding.cs`); since #2481 the crystal-net courses' `factory_near` (the tip pass's moment, like
 `data_cache_near`), `factory_here` (a factory on the player's body), `access_code`, `factory_owned` (a claim in the save's
 metadata), `machine_circuit` (the `crystal:machine_job` achievement counter), `machine_catchup` (the *Machines catch up*
-rule is not 0). A predicate reads the player's own body/system, never the active world cursor. A new predicate is a name in `StoryWorldPredicates` plus
+rule is not 0); since #2482 the "More to discover" courses' `creatures` (the Creature abundance rule is not Off),
+`tameable_near`, `settlement_near`, `ruin_near`, `treasure_near`, `wreck_signal` (the tip pass's moments, like
+`data_cache_near`; `wreck_signal` also takes the manual-steering variant), `herd_begging` (an animal came to beg within the
+last minute — `PlayerSession.HerdBeggedAt`, stamped where VEGA's `feed_herd` hint fires), `companion_owned`, `seed_carried`
+(an item whose block is a plant), `hostile_near` (a machine, a hostile animal or a hostile robber within 40 blocks on the
+player's own world), `bandit_hail` (a robber's demand is pending), `climbing` (the pose), `train_here` (a train the player may
+board on their world), `multiplayer` (the server hosts more than one player — a singleplayer host passes `--max-players 1`),
+`radio_worn`, `planet_wrecks` (`GameServerTutorialMore.cs`). A predicate reads the player's own body/system, never the active world cursor. A new predicate is a name in `StoryWorldPredicates` plus
 one line in `GameServer.WorldPredicates`.
 
 **The world-story guard (N11).** A pack carries `kind` (`story` default, `tutorial`, `side`) and `scope` (`world` |
@@ -687,7 +710,9 @@ started it (`story:<pack>:ch:<c>:active` — the one key beyond §5.6, so a star
 90 s of play (since #2479 a graduation that suggests chapters counts as an offer moment: `Graduate` stamps
 `LastChapterOfferAt`), and never (nor suggested at a graduation) when every counting step is already through for the player
 — done, or covered by its evidence (`alreadyDoneIf`, a bridged mission turned in, a lead bridge's evidence;
-`ChapterThroughByEvidence`, #2481: the Crystal workshop course is never offered to someone who did the whole chain); `declineChapter` stamps `:declined` ("Later") and keeps it startable. `autoCompleteIf` holding when a chapter
+`ChapterThroughByEvidence`, #2481: the Crystal workshop course is never offered to someone who did the whole chain), and
+never (nor suggested, nor started) while its `visibleIf` fails (#2482, `ChapterVisible`: a course the world's rules rule out —
+the Journal leaves it out too, unless the player runs, replays, finished or skipped it); `declineChapter` stamps `:declined` ("Later") and keeps it startable. `autoCompleteIf` holding when a chapter
 runs completes it silently (veteran evidence; ignored during a replay). A non-optional chapter is **done** when every
 `must` do step is done or skipped and nothing still holds it up (a CORE step before its hint time, an alternative standing
 in); an optional chapter needs every do step. The pack is done (`story:<pack>:done`) when every non-optional chapter is.

@@ -385,6 +385,28 @@ public sealed class StoryPackValidationTests
     }
 
     [Fact]
+    public void VisibleIf_ParsesItsConditions_AndOnlyAnOptionalChapterMayBeLeftOut()
+    {
+        // #2482: a course the world's rules rule out is left out — an optional chapter; a mandatory one would block the pack.
+        var optional = Side(d =>
+        {
+            d.Chapters[0].Optional = true;
+            d.Chapters[0].VisibleIf.Add("world:multiplayer");
+        });
+        Assert.Empty(Errors(StoryPackValidator.Validate(optional, Context())));
+
+        var mandatory = Side(d => d.Chapters[0].VisibleIf.Add("world:creatures"));
+        Assert.Contains(Errors(StoryPackValidator.Validate(mandatory, Context())), e => e.Path.EndsWith(".visibleIf", StringComparison.Ordinal));
+
+        var unknown = Side(d =>
+        {
+            d.Chapters[0].Optional = true;
+            d.Chapters[0].VisibleIf.Add("world:no_such_rule");
+        });
+        Assert.Contains(Errors(StoryPackValidator.Validate(unknown, Context())), e => e.Path.Contains(".visibleIf", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void AKeyMissingInGerman_IsAnError()
     {
         var context = Context();

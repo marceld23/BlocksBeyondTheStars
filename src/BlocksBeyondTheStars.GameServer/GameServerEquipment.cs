@@ -154,6 +154,7 @@ public sealed partial class GameServer
         }
 
         p.Jetpacking = true;
+        RaiseGameEvent(session, GameEventKeys.MoveAirborne, GameEventKeys.AirborneJetpack); // #2482: the "On the move" course
     }
 
     private const string GliderItem = "glider";
@@ -178,6 +179,7 @@ public sealed partial class GameServer
         }
 
         p.Gliding = true;
+        RaiseGameEvent(session, GameEventKeys.MoveAirborne, GameEventKeys.AirborneGlider); // #2482: the "On the move" course
     }
 
     /// <summary>Test seam (#2296): the glide intent as if the client had sent it.</summary>

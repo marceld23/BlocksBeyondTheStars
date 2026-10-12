@@ -118,6 +118,12 @@ public sealed class StoryChapter
     /// chapters still run).</summary>
     public List<string> OfferWhen { get; set; } = new();
 
+    /// <summary>#2482: conditions under which an optional chapter exists for the player at all — a deep dive the world's rules
+    /// can rule out (combat switched on, a world for more than one player). While they do not hold the chapter is left out of
+    /// the Journal and is never offered, suggested or started; one the player runs, finished or skipped stays listed. Empty =
+    /// always there.</summary>
+    public List<string> VisibleIf { get; set; } = new();
+
     /// <summary>Evidence that the player knows the chapter already: when it holds as the chapter becomes available, the
     /// chapter completes silently. Ignored while the chapter is replayed.</summary>
     public List<string> AutoCompleteIf { get; set; } = new();
