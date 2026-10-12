@@ -336,4 +336,56 @@ public sealed class FinaleSetPiecesClientTests
         // On the low presets its synthetic shots fall back to the sky — never a card (the sky shot opens it).
         Assert.False(CutsceneRules.NeedsCardFallback(ending, _ => true, syntheticAllowed: false));
     }
+
+    // ---------------- #2497: the ending listed once, a missed arrival, "plays when you land" ----------------
+
+    [Fact]
+    public void TheEnding_IsTheStanddownAndTheResolution_AndWatchAgainLeavesItOut()
+    {
+        Assert.Equal(new[] { "fin.standdown", StoryCutsceneIds.Resolution }, CutsceneCatalog.EndingIds(Pack));
+        Assert.Empty(CutsceneCatalog.EndingIds(Content.Value.Stories["tutorial"]));
+        Assert.Empty(CutsceneCatalog.EndingIds(null));
+
+        var seen = new[] { StoryCutsceneIds.Prologue, "fin.arrival", "fin.standdown", StoryCutsceneIds.Resolution }
+            .Select(id => CutsceneCatalog.SeenKey(V, id)).ToList();
+        var all = CutsceneCatalog.ReplayEntries(new[] { Pack }, seen).Select(e => e.CutsceneId).ToList();
+        Assert.Equal(new[] { StoryCutsceneIds.Prologue, "fin.arrival", "fin.standdown", StoryCutsceneIds.Resolution }, all);
+
+        // While the Journal shows "Watch the ending again" (it replays both), "Watch again" lists neither.
+        var listed = CutsceneCatalog.ReplayEntries(new[] { Pack }, seen, CutsceneCatalog.EndingKeys(Pack)).Select(e => e.CutsceneId).ToList();
+        Assert.Equal(new[] { StoryCutsceneIds.Prologue, "fin.arrival" }, listed);
+    }
+
+    [Fact]
+    public void AMissedArrival_LeavesItsTitleAsABanner_InBothLanguages()
+    {
+        var banner = Plan("fin.arrival").MissedBanner()!;
+        Assert.Equal(CutsceneTiers.Banner, banner.Tier);
+        var line = Assert.Single(banner.Shots.SelectMany(s => s.Captions));
+        Assert.Equal(("Arrival", "The Guardian Core"), (line.Kicker, line.Text));
+        var de = Assert.Single(Plan("fin.arrival", GameLocale.German).MissedBanner()!.Shots.SelectMany(s => s.Captions));
+        Assert.Equal(("Ankunft", "Der Wächterkern"), (de.Kicker, de.Text));
+    }
+
+    [Fact]
+    public void AReplayOfACameraScene_WaitsForTheLanding_ACardDoesNot()
+    {
+        var flying = new SafeMomentInputs { PilotingInSpace = true };
+        var warping = new SafeMomentInputs { Warping = true };
+        var eva = new SafeMomentInputs { InEva = true };
+        var landed = new SafeMomentInputs();
+        var resolution = Pack.FindCutscene(StoryCutsceneIds.Resolution);
+        var prologue = Pack.FindCutscene(StoryCutsceneIds.Prologue);
+
+        Assert.True(CutsceneRules.ReplayWaitsForLanding(resolution, flying, _ => true));
+        Assert.True(CutsceneRules.ReplayWaitsForLanding(prologue, warping, _ => true));
+        Assert.True(CutsceneRules.ReplayWaitsForLanding(prologue, eva, _ => true));
+        Assert.False(CutsceneRules.ReplayWaitsForLanding(prologue, landed, _ => true));
+        Assert.False(CutsceneRules.ReplayWaitsForLanding(Pack.FindCutscene("fin.arrival"), flying, _ => true)); // a card plays in flight
+        // A scene that plays as a card there: only synthetic stages on a low preset, or its object (the heal tank) not found.
+        Assert.False(CutsceneRules.ReplayWaitsForLanding(Pack.FindCutscene("fin.standdown"), flying, _ => true, syntheticAllowed: false));
+        Assert.True(CutsceneRules.ReplayWaitsForLanding(Pack.FindCutscene("fin.standdown"), flying, _ => true, syntheticAllowed: true));
+        Assert.False(CutsceneRules.ReplayWaitsForLanding(Pack.FindCutscene("ch5.open"), flying, _ => false));
+        Assert.False(CutsceneRules.ReplayWaitsForLanding(null, flying, _ => true));
+    }
 }

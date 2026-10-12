@@ -3634,6 +3634,7 @@
   "ui.cutscene.skip_pad": "Skip · {0}",
   "ui.cutscene.skip_touch": "Skip ▶▶",
   "ui.cutscene.saved": "Story moment saved — watch it again in your Journal.",
+  "ui.cutscene.plays_when_landed": "Plays when you land.",
   "ui.devseq.title": "Cutscene palette (dev) — click a scene to play it here",
   "ui.devseq.close": "Close · F9",
   "ui.vega.tab_one": "VEGA · 1 message · Open {1}",

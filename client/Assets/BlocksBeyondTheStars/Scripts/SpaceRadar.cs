@@ -195,7 +195,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void LateUpdate()
         {
-            bool show = Game != null && Camera != null && Game.InSpace && Game.Space != null && !Game.MenuOpen;
+            // #2496: the radar steps aside with the HUD under a cutscene (GameBootstrap.HudHidden — the ending, a T3 overlay).
+            bool show = Game != null && Camera != null && Game.InSpace && Game.Space != null && !Game.MenuOpen && !GameBootstrap.HudHidden;
             EnsureBuilt();
             if (_canvas.enabled != show)
             {

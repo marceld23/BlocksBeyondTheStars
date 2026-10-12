@@ -443,7 +443,9 @@ separate unlock; admins can still disable it through server world rules.
     the next world start.
   - **Settings → Comfort → Story text: wait for me** (on by default): the texts of story scenes wait until you turn the
     page — **N** (pad **Back**), the **Continue** button, or a tap on the text box. Off, they turn the page by themselves
-    after a reading time. Titles always run on their own.
+    after a reading time — and **N** (or a tap on the text) still skips ahead to the next page. Either way, once you have
+    read a scene's text, the picture moves on about a second later instead of making you wait. Titles always run on
+    their own.
   - Lower graphics presets use fewer particles automatically.
 
 ### Atmosphere effects (Settings → Graphics → Atmosphere effects)
@@ -2127,7 +2129,8 @@ called **stories**:
 - **Finishing the story is a moment now**: winning the duel shows the machines **standing down** — VEGA's words over the
   sleeping core — and then the **ending**: the resolution, the credits roll, and an epilogue that opens the door to what
   comes after. It's skippable (**Esc**, pad **(B)** or the **Skip** button), it plays its own music every time you watch
-  it, and the Journal keeps a **"Watch the ending again"** button once you've earned it. A player who had heard
+  it, and the Journal keeps a **"Watch the ending again"** button once you've earned it — it plays the stand-down and the
+  ending again (so they are not listed a second time under **Watch again**). A player who had heard
   the story to its last chapter but was offline for the win gets the stand-down and the ending — and the finale
   achievement — once on their next join; someone who first arrives on an already finished world is not played the ending
   at the door: it plays when their own story starts after the basic training (on hosted and arcade worlds it stays in
@@ -2135,15 +2138,21 @@ called **stories**:
 - **When the Guardian falls, every world goes quiet** — the machines on all worlds players are on stand down at once.
 - The hint at the Guardian core ("walk to the marked shaft, don't dig here") shows even with **VEGA hints** off.
 - **Story scenes.** Big story moments can play as short scenes: a **banner** at the top (it never stops you), a
-  **card** with a title or VEGA speaking in a box (you can keep moving), or a **staged scene** where the camera shows your
+  **card** with a title or VEGA speaking in a box (you can keep moving — only the world behind it darkens a little; your
+  HUD, crosshair and VEGA's objective stay bright), or a **staged scene** where the camera shows your
   ship, the sky, a view from space or a small memory scene, and the controls rest for a moment (in singleplayer the world
   waits meanwhile). A scene never starts in
   a fight, while you fall, swim, drive, fly or have a menu open — it waits for a calm moment. Taking damage ends it, and
   its text goes back to VEGA's panel ("Story moment saved"). In multiplayer the camera comes back after 30 seconds.
+  A few moments only make sense right then ("Lift-off!", arriving at the Guardian system): if danger is near, they show
+  just their title as a short banner at the top. During "Lift-off!" the flight HUD steps aside for a few seconds — you
+  keep the controls.
   - **Skip** a scene with **Esc**, the pad's **(B)** or the **Skip** button (on a card, where you can move, Esc or the
-    button). Turn the text pages with **N**, pad **Back**, the **Continue** button or a tap on the text.
+    button). Turn the text pages with **N**, pad **Back**, the **Continue** button or a tap on the text — once the last
+    page is read, the scene moves on about a second later.
   - **Watch again:** the Journal lists every scene you have seen under **Watch again** — press **Watch**, close the
-    menu, and it plays again (nothing in the game changes).
+    menu, and it plays again (nothing in the game changes). A scene with its own camera waits until you have landed if you
+    press **Watch** while flying; a short banner says **"Plays when you land."**
 - **After the ending the galaxy is calmer, not empty.** The Guardian's machines don't vanish for good: the
   hunter robots are gone and only a thinned-out remnant of scan-drones keeps roaming (half as many, spawning
   half as often), space stays hostile only where it is dangerous by nature — **pirate havens** and the

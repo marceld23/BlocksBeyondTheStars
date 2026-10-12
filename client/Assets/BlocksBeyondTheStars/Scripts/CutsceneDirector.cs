@@ -62,6 +62,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True while the director shows a card or a scene (T2+): VEGA's panel and the ending wait for it.</summary>
         public static bool HoldsScreen => Instance != null && Instance._play != null && Instance._play.Plan.Tier >= CutsceneTiers.Card;
 
+        /// <summary>#2497: true while the screen holds a card (T2, a scene played as one included) — the player keeps playing
+        /// under it, so VEGA's panel hides only her speech and keeps the objective chip.</summary>
+        public static bool ShowsCard => Instance != null && Instance._play != null && Instance._play.Plan.Tier == CutsceneTiers.Card;
+
         /// <summary>True while any scene (a banner included) plays.</summary>
         public bool Playing => _play != null;
 
@@ -91,7 +95,8 @@ namespace BlocksBeyondTheStars.Client
         private readonly SafeMomentInputs _inputs = new SafeMomentInputs();
         private readonly HashSet<string> _serverSeen = new HashSet<string>(System.StringComparer.Ordinal);
         private readonly HashSet<string> _localSeen = new HashSet<string>(System.StringComparer.Ordinal);
-        private readonly List<(CutsceneScreen Screen, float Left, float Letterbox)> _closing = new List<(CutsceneScreen, float, float)>();
+        private readonly List<(CutsceneScreen Screen, float Left, float Letterbox, float WorldDim)> _closing =
+            new List<(CutsceneScreen, float, float, float)>();
         private readonly StagingRetry _stagingRetry = new StagingRetry();
 
         private bool _subscribed;
@@ -103,6 +108,8 @@ namespace BlocksBeyondTheStars.Client
         private System.Func<string, string> _localize;
 
         private bool _gate;
+        private bool _hudHidden; // #2496: the scene's hideHud applied (a HUD-only reason in GameBootstrap.Cutscenes)
+        private float _worldDim; // #2497: the world dim shown now (eased out with the closing screen)
         private bool _holding;
         private bool _capped;
         private bool _chartShown;
@@ -200,8 +207,10 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The Story tab's "Watch again" rows: the replayable scenes this player has seen, of the packs this client
-        /// has — the world story first, then the others by priority.</summary>
-        public IReadOnlyList<CutsceneReplayEntry> ReplayEntries()
+        /// has — the world story first, then the others by priority. #2497: <paramref name="withoutEnding"/> leaves each pack's
+        /// ending out (the stand-down and the ending — <see cref="CutsceneCatalog.EndingIds"/>) while the Journal shows its
+        /// "Watch the ending again" button, which replays both.</summary>
+        public IReadOnlyList<CutsceneReplayEntry> ReplayEntries(bool withoutEnding = false)
         {
             var content = Game != null ? Game.Content : null;
             if (content == null)
@@ -215,7 +224,38 @@ namespace BlocksBeyondTheStars.Client
                 .ThenByDescending(p => p.Priority)
                 .ThenBy(p => p.Id, System.StringComparer.Ordinal)
                 .ToList();
-            return CutsceneCatalog.ReplayEntries(packs, _serverSeen.Concat(_localSeen));
+            List<string> exclude = withoutEnding ? packs.SelectMany(p => CutsceneCatalog.EndingKeys(p)).ToList() : null;
+            return CutsceneCatalog.ReplayEntries(packs, _serverSeen.Concat(_localSeen), exclude);
+        }
+
+        /// <summary>
+        /// #2497: the Journal's "Watch" (and "Watch the ending again") while the player flies, warps or floats on an EVA: a
+        /// replay of a scene that takes the camera only starts once they have landed (<see cref="SafeMomentGate"/>) — a short
+        /// banner "Plays when you land" says so instead of a silent wait. Call it right after asking the server for the
+        /// replay; the banner shows once the menu has closed. Returns whether it showed.
+        /// </summary>
+        public bool NoteReplayWaits(string packId, IEnumerable<string> cutsceneIds)
+        {
+            if (Game?.Content == null || string.IsNullOrEmpty(packId) || cutsceneIds == null
+                || !Game.Content.TryGetStory(packId, out var pack))
+            {
+                return false;
+            }
+
+            foreach (string id in cutsceneIds)
+            {
+                var def = string.IsNullOrEmpty(id) ? null : pack.FindCutscene(id);
+                if (def == null || !CutsceneRules.ReplayWaitsForLanding(def, _inputs, AnchorFound, SyntheticStagesAllowed()))
+                {
+                    continue;
+                }
+
+                string label = CutsceneCatalog.Label(pack, def, id, TextSource());
+                QueueLocalBanner(packId, "landing." + id, CutscenePlan.LocalBanner(packId, label, L("ui.cutscene.plays_when_landed")));
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>A row's name for <see cref="ReplayEntries"/>.</summary>
@@ -784,6 +824,15 @@ namespace BlocksBeyondTheStars.Client
                 Game.SetCursorOwner(this, gate); // the continue and skip buttons are clickable while the scene owns the screen
             }
 
+            // #2496: a scene's hideHud (T3/T4, not after the multiplayer cap) — a HUD-only reason: the HUD, the flight HUD, the
+            // radar and the name tags step aside, the controls and the touch layer stay (the overlay "Lift-off!").
+            bool hud = CutsceneRules.HidesHud(plan, _capped);
+            if (hud != _hudHidden)
+            {
+                _hudHidden = hud;
+                GameBootstrap.Cutscenes.SetHud(GateReason, hud);
+            }
+
             bool hold = CutsceneRules.HoldsWorld(plan, cameraTaken, _inputs.Multiplayer); // never in multiplayer (#2474 test)
             if (hold && !_holding)
             {
@@ -833,23 +882,12 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            float fade;
-            if (plan.OpensFromBlack)
-            {
-                fade = Mathf.Clamp01(1f - _play.Elapsed / 1.2f); // out of black
-                if (reader)
-                {
-                    fade = Mathf.Max(fade, 0.55f);
-                }
-            }
-            else
-            {
-                fade = banner ? 0f : reader ? 0.55f : 0.18f; // a card dims the live view a little
-            }
-
-            fade = Mathf.Max(fade, credits);
-
+            // Out of black for a staged scene, 0.55 behind a reading frame, the credits' dark stage — on the frame, over
+            // everything. #2497: a card or an overlay dims only the world (0.18 under the HUD): the player keeps playing.
+            var (fade, worldDim) = CutsceneRules.Dims(plan, _play.Elapsed, reader, credits);
             _screen.SetFade(fade);
+            _worldDim = worldDim;
+            _screen.SetWorldDim(worldDim);
 
             // Speaker: the first speaker caption on screen names who talks; its line-start cue plays once per page.
             CutsceneSpeaker speaker = null;
@@ -983,12 +1021,15 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A waiting scene that will not play (a "now or never" moment that found the screen busy, or a scene that
         /// waited too long even as a card): its lines go back to the panel and it is confirmed, so the server does not
-        /// offer it again — the Story tab can still replay it.</summary>
+        /// offer it again — the Story tab can still replay it. #2497: a "now or never" moment leaves its title behind as a
+        /// short banner (<see cref="CutscenePlan.MissedBanner"/>: "First launch · Lift-off!", "Arrival · The Guardian
+        /// Core") instead of nothing.</summary>
         private void AbortWaiting(QueuedCutscene item, string reason)
         {
             _queue.Remove(item);
             Debug.Log($"[Cutscene] Dropped {item.Key} ({reason}).");
-            if (item.Payload is Owed owed)
+            var owed = item.Payload as Owed;
+            if (owed != null)
             {
                 GiveLinesBack(owed);
             }
@@ -997,6 +1038,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game?.Network?.SendCutsceneSeen(item.PackId, new[] { item.Id });
                 _localSeen.Add(CutsceneCatalog.SeenKey(item.PackId, item.Id));
+            }
+
+            if (item.CooldownExempt && !item.Requested && item.Tier >= CutsceneTiers.Card && owed != null
+                && BuildPlan(item, owed)?.MissedBanner() is { } missed)
+            {
+                QueueLocalBanner(item.PackId, "missed." + item.Id, missed);
             }
         }
 
@@ -1023,9 +1070,14 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private void QueueSavedBanner(string packId)
+            => QueueLocalBanner(packId, "saved", CutscenePlan.LocalBanner(packId, string.Empty, L("ui.cutscene.saved")));
+
+        /// <summary>Queues a banner this client makes itself (T1, local: nothing to confirm, never in the ledger) under the
+        /// built-in id <c>__&lt;name&gt;</c> — "Story moment saved", a missed "now or never" title (#2497), "Plays when you
+        /// land" (#2497).</summary>
+        private void QueueLocalBanner(string packId, string name, CutscenePlan plan)
         {
-            var plan = CutscenePlan.LocalBanner(packId, string.Empty, L("ui.cutscene.saved"));
-            var item = new QueuedCutscene(packId, StoryCutsceneIds.BuiltInPrefix + "saved", CutsceneTiers.Banner)
+            var item = new QueuedCutscene(packId, StoryCutsceneIds.BuiltInPrefix + name, CutsceneTiers.Banner)
             {
                 Local = true,
                 ReceivedAt = Time.time,
@@ -1042,6 +1094,12 @@ namespace BlocksBeyondTheStars.Client
                 _gate = false;
                 GameBootstrap.Cutscenes.End(GateReason);
                 Game?.SetCursorOwner(this, false);
+            }
+
+            if (_hudHidden)
+            {
+                _hudHidden = false;
+                GameBootstrap.Cutscenes.SetHud(GateReason, false); // #2496: the HUD comes back with the scene's end
             }
 
             if (_holding)
@@ -1071,21 +1129,24 @@ namespace BlocksBeyondTheStars.Client
                 _screen.ShowContinue(string.Empty, false);
                 _screen.SetHint(string.Empty, 0f);
                 _screen.Render(System.Array.Empty<CaptionView>(), null, false, 0f);
-                _closing.Add((_screen, ScreenCloseSeconds, _letterbox));
+                _closing.Add((_screen, ScreenCloseSeconds, _letterbox, _worldDim));
                 _screen = null;
             }
+
+            _worldDim = 0f;
         }
 
-        /// <summary>Lets the letterbox and the dim of ended scenes ease out instead of vanishing in one frame.</summary>
+        /// <summary>Lets the letterbox and the world dim of ended scenes ease out instead of vanishing in one frame.</summary>
         private void TickClosingScreens()
         {
             for (int i = _closing.Count - 1; i >= 0; i--)
             {
-                var (screen, left, box) = _closing[i];
+                var (screen, left, box, dim) = _closing[i];
                 left -= Time.deltaTime;
                 float k = Mathf.Clamp01(left / ScreenCloseSeconds);
                 screen.SetLetterbox(CinematicTimeline.EaseInOut(box * k));
                 screen.SetFade(0f);
+                screen.SetWorldDim(dim * k); // #2497
                 if (left <= 0f)
                 {
                     screen.Destroy();
@@ -1093,7 +1154,7 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else
                 {
-                    _closing[i] = (screen, left, box);
+                    _closing[i] = (screen, left, box, dim);
                 }
             }
         }
@@ -1241,7 +1302,7 @@ namespace BlocksBeyondTheStars.Client
 
             CloseDuel(); // #2478: its frame is a root-level object, its gate reason and hold must not outlive the world
             TearDownScene();
-            foreach (var (screen, _, _) in _closing)
+            foreach (var (screen, _, _, _) in _closing)
             {
                 screen.Destroy();
             }

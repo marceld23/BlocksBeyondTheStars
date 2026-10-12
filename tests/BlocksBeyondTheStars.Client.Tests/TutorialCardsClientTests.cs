@@ -85,6 +85,39 @@ public sealed class TutorialCardsClientTests
     }
 
     [Fact]
+    public void TheFirstLaunch_HidesTheHud_ACardKeepsIt_AndTheMultiplayerCapGivesItBack()
+    {
+        // #2496: "Lift-off!" is a T3 overlay — its hideHud takes the flight HUD away while the controls stay free.
+        var launch = Plan("tut.first_launch");
+        Assert.True(CutsceneRules.HidesHud(launch, capped: false));
+        Assert.False(CutsceneRules.FreezesControls(launch, capped: false, cameraTaken: false));
+        Assert.False(CutsceneRules.HidesHud(launch, capped: true)); // the captions go on as a card
+        Assert.False(CutsceneRules.HidesHud(launch.AsCard(), capped: false));
+        Assert.False(CutsceneRules.HidesHud(Plan("tut.welcome"), capped: false)); // a card keeps the HUD
+        Assert.False(CutsceneRules.HidesHud(null, capped: false));
+
+        // The opt-out: "hideHud": false on a staged scene.
+        var def = Pack.FindCutscene("tut.first_launch")!;
+        var optOut = new CutsceneDefinition { Id = def.Id, Tier = def.Tier, Shots = def.Shots, Options = new CutsceneOptions { HideHud = false } };
+        Assert.False(CutsceneRules.HidesHud(CutscenePlan.Build(optOut, T, def.Id, null, Text(), waitForReader: true), capped: false));
+    }
+
+    [Fact]
+    public void CardsAndOverlays_DimOnlyTheWorld_ReadingFramesAndBlackOutsCoverTheFrame()
+    {
+        // #2497: a card or the overlay dims the world under the HUD; the frame's cover stays for black-outs and reading frames.
+        Assert.Equal((0f, CutsceneRules.CardWorldDim), CutsceneRules.Dims(Plan("tut.welcome"), 2f, readingFrame: false, credits: 0f));
+        Assert.Equal((0f, CutsceneRules.CardWorldDim), CutsceneRules.Dims(Plan("tut.first_launch"), 2f, readingFrame: false, credits: 0f));
+        Assert.Equal((CutsceneRules.ReadingFrameDim, 0f), CutsceneRules.Dims(Plan("tut.welcome"), 2f, readingFrame: true, credits: 0f));
+        Assert.Equal((0f, 0f), CutsceneRules.Dims(Plan("tut.done@b1"), 2f, readingFrame: false, credits: 0f)); // a banner dims nothing
+
+        var landing = Plan("tut.first_landing", arg: "Kepler-7"); // a staged scene opens out of black, the world dim stays off
+        Assert.Equal((1f, 0f), CutsceneRules.Dims(landing, 0f, readingFrame: false, credits: 0f));
+        Assert.Equal((0f, 0f), CutsceneRules.Dims(landing, 3f, readingFrame: false, credits: 0f));
+        Assert.Equal((0.85f, 0f), CutsceneRules.Dims(landing, 3f, readingFrame: false, credits: 0.85f)); // the credits' dark stage
+    }
+
+    [Fact]
     public void TheFirstLanding_CirclesTheShip_WithTheWorldsName_AndHoldsASingleplayerWorld()
     {
         var plan = Plan("tut.first_landing", arg: "Kepler-7");

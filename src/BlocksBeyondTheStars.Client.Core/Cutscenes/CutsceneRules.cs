@@ -53,12 +53,96 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
                 return false;
             }
 
-            if (!syntheticAllowed && plan.Shots.Where(s => s.TakesCamera).All(s => CutsceneCameras.IsSynthetic(s.Camera)))
+            return CameraShotsFallBack(plan.Shots.Where(s => s.TakesCamera).Select(s => (s.Camera, s.Anchor)).ToList(), objectFound,
+                syntheticAllowed);
+        }
+
+        /// <summary>The card-fallback rule on the camera-taking shots of a scene (camera type, anchor).</summary>
+        private static bool CameraShotsFallBack(IReadOnlyList<(string Camera, string Anchor)> cameraShots, Func<string, bool>? objectFound,
+            bool syntheticAllowed)
+        {
+            if (!syntheticAllowed && cameraShots.All(s => CutsceneCameras.IsSynthetic(s.Camera)))
             {
                 return true;
             }
 
-            return plan.Shots.Any(s => s.TakesCamera && NeedsObject(s.Anchor) && !(objectFound?.Invoke(s.Anchor) ?? false));
+            return cameraShots.Any(s => NeedsObject(s.Anchor) && !(objectFound?.Invoke(s.Anchor) ?? false));
+        }
+
+        /// <summary>#2496: whether a playing scene hides the HUD while the controls stay free (a HUD-only reason in the shared
+        /// cutscene state): the scene's <c>hideHud</c> (from T3 on unless <c>"hideHud": false</c>) on a T3/T4 — never a card
+        /// or a scene played as one — and not after the multiplayer camera cap, where the captions go on as a card. The
+        /// tutorial's T3 overlay "Lift-off!" takes the flight HUD away; a scene that freezes the controls hides it anyway.</summary>
+        public static bool HidesHud(CutscenePlan? plan, bool capped)
+            => plan is not null && plan.HideHud && plan.Tier >= CutsceneTiers.Scene && !capped;
+
+        /// <summary>#2497: how far a card or overlay dims the live picture — only the world (the dim lies under the HUD, so
+        /// HUD, crosshair and objective chip stay bright while the player keeps playing).</summary>
+        public const float CardWorldDim = 0.18f;
+
+        /// <summary>The frame's cover behind a reading frame (the recap, the epilogue) — over the HUD too: it is read, not
+        /// played under.</summary>
+        public const float ReadingFrameDim = 0.55f;
+
+        /// <summary>How long a staged scene takes to open out of black.</summary>
+        public const float OpenFromBlackSeconds = 1.2f;
+
+        /// <summary>
+        /// #2497: the two dims of the cutscene screen — <c>Frame</c>, the frame's own black cover over everything (a staged
+        /// scene opening out of black, <see cref="ReadingFrameDim"/> behind a reading frame, the credits' dark stage
+        /// <paramref name="credits"/>), and <c>World</c>, the world dim under the HUD (<see cref="CardWorldDim"/> for a card
+        /// or an overlay that opens without black). A banner dims nothing.
+        /// </summary>
+        public static (float Frame, float World) Dims(CutscenePlan? plan, float elapsed, bool readingFrame, float credits)
+        {
+            if (plan is null || plan.Tier <= CutsceneTiers.Banner)
+            {
+                return (0f, 0f);
+            }
+
+            float frame;
+            float world = 0f;
+            if (plan.OpensFromBlack)
+            {
+                frame = Math.Min(1f, Math.Max(0f, 1f - (elapsed / OpenFromBlackSeconds)));
+                if (readingFrame)
+                {
+                    frame = Math.Max(frame, ReadingFrameDim);
+                }
+            }
+            else
+            {
+                frame = readingFrame ? ReadingFrameDim : 0f;
+                world = readingFrame ? 0f : CardWorldDim;
+            }
+
+            return (Math.Max(frame, Math.Max(0f, credits)), world);
+        }
+
+        /// <summary>
+        /// #2497: whether a requested replay of <paramref name="def"/> waits for the player to land — the Journal's "Watch"
+        /// then says so ("Plays when you land") instead of waiting silently: a T3/T4 scene that takes the camera never starts
+        /// while the player flies, warps or floats on an EVA (<see cref="SafeMomentGate"/>). A scene that plays as a card there
+        /// (its object not found, only synthetic stages on a low preset — <see cref="NeedsCardFallback"/>'s rule) does not wait.
+        /// </summary>
+        public static bool ReplayWaitsForLanding(CutsceneDefinition? def, SafeMomentInputs? inputs, Func<string, bool>? objectFound,
+            bool syntheticAllowed = true)
+        {
+            if (def is null || inputs is null || !(inputs.PilotingInSpace || inputs.Warping || inputs.InEva))
+            {
+                return false;
+            }
+
+            if (def.Tier < CutsceneTiers.Scene || !def.TakesCamera)
+            {
+                return false;
+            }
+
+            var cameraShots = (def.Shots ?? new List<CutsceneShot>())
+                .Where(s => s != null && CutsceneCameras.TakesCamera(s.Camera?.Type))
+                .Select(s => (s.Camera!.Type, string.IsNullOrEmpty(s.Camera.Anchor) ? CutsceneAnchors.Player : s.Camera.Anchor))
+                .ToList();
+            return !CameraShotsFallBack(cameraShots, objectFound, syntheticAllowed);
         }
 
         /// <summary>Whether the playing scene holds the world now (synthesis §5.3 "Stufen"): only a scene that may

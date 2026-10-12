@@ -5046,11 +5046,13 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Watch again (#2468) for one story: the scenes of that story this player has seen and may replay — the
         /// prologue on the VEGA page, the tutorial's cards on the tutorial's. The server re-sends one on request (spoiler guard:
-        /// only what was shown); the director plays it once this menu is closed.</summary>
-        private float JournalReplaySection(float y, string packId)
+        /// only what was shown); the director plays it once this menu is closed. #2497: <paramref name="withoutEnding"/> leaves
+        /// the ending's two scenes out while the page shows "Watch the ending again" (which replays both); a scene that will
+        /// wait for the player to land says so in a short banner.</summary>
+        private float JournalReplaySection(float y, string packId, bool withoutEnding = false)
         {
             var director = CutsceneDirector.Instance;
-            var replays = director != null ? director.ReplayEntries() : null;
+            var replays = director != null ? director.ReplayEntries(withoutEnding) : null;
             var mine = replays?.Where(e => string.Equals(e.Pack.Id, packId, System.StringComparison.OrdinalIgnoreCase)).ToList();
             if (mine == null || mine.Count == 0)
             {
@@ -5067,6 +5069,7 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddButton(_listContent, 688, rowTop, 92, 30, L("ui.story.replay_button"), () =>
                 {
                     Game?.Network?.SendReplayCutscene(chosen.Pack.Id, chosen.CutsceneId);
+                    CutsceneDirector.Instance?.NoteReplayWaits(chosen.Pack.Id, new[] { chosen.CutsceneId }); // #2497: in flight
                     Hide();
                 });
             }
@@ -5119,6 +5122,7 @@ namespace BlocksBeyondTheStars.Client
             float y = 8f;
             var s = Game?.Story;
             bool storyOn = s != null && s.Active;
+            bool endingButton = false; // #2497: "Watch the ending again" shown — "Watch again" then leaves the ending out
 
             if (storyOn)
             {
@@ -5160,12 +5164,18 @@ namespace BlocksBeyondTheStars.Client
                 // The ending, re-viewable (#1124): once the story is resolved, the resolution cinematic can
                 // be replayed any time. The server re-sends it on request; the cinematic itself waits until
                 // this menu is closed, so the button both asks for it and gets the menu out of the way. Not offered
-                // before the player's own story has started — it would spoil what is waiting for them (#2470).
-                if (s.GuardianDefeated && started)
+                // before the player's own story has started — it would spoil what is waiting for them (#2470). #2497: on a
+                // current server it replays the whole ending (the stand-down, then the ending), which "Watch again" below then
+                // leaves out — the ending is listed once.
+                endingButton = s.GuardianDefeated && started;
+                if (endingButton)
                 {
+                    string storyId = s.StoryId;
+                    var endingIds = BlocksBeyondTheStars.Client.Cutscenes.CutsceneCatalog.EndingIds(pack);
                     UiKit.AddButton(_listContent, 0, y, 780, 56, L("ui.story.view_ending"), () =>
                     {
                         Game?.Network?.SendRequestStoryResolution();
+                        CutsceneDirector.Instance?.NoteReplayWaits(storyId, endingIds); // #2497: "Plays when you land" in flight
                         Hide();
                     });
                     y += 66f;
@@ -5292,7 +5302,7 @@ namespace BlocksBeyondTheStars.Client
             // moved to "VEGA's notes".
             if (storyOn)
             {
-                y = JournalReplaySection(y, s.StoryId);
+                y = JournalReplaySection(y, s.StoryId, withoutEnding: endingButton);
             }
 
             return y + 12f;

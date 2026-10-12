@@ -18,8 +18,8 @@ budgets generated from the code).
 |---|---|---|---|---|
 | T0 | VEGA line | today's panel line — **not a cutscene** | free / free / kept | runs |
 | `1` | Banner | top banner: icon, kicker, one line, 3–4 s | free / free / kept | runs |
-| `2` | Card | title card or beat card in the frame (letterbox, speaker box) | **free / free** / dimmed | runs |
-| `3` | Staged scene | 1–5 shots on real objects, captions in the frame, grade, music | taken / frozen / hidden | SP holds, MP runs |
+| `2` | Card | title card or beat card in the frame (letterbox, speaker box) | **free / free** / kept — only the world is dimmed (#2497) | runs |
+| `3` | Staged scene | 1–5 shots on real objects, captions in the frame, grade, music | taken / frozen / hidden (an `overlay` scene: free / free / hidden, #2496) | SP holds, MP runs |
 | `4` | Set piece | multi-part sequence (B12 reveal, finale, ending) | taken / frozen / hidden | SP holds, MP runs |
 
 Binding rules (synthesis §5.3 "Stufen"): a banner or card **never takes the camera** (only `player_view` / `overlay`
@@ -83,7 +83,7 @@ singleplayer world or lock input. One scene plays at a time.
 | `captions[].at` / `hold` | `0` / `0` | seconds into the shot; how long it stays (`0` = to the end of the shot) |
 | `sfx[].cue` / `at` | — / `0` | the clip and the second it plays |
 | `options.holdWorld` | T3/T4 taking the camera | hold a singleplayer world while the scene plays |
-| `options.hideHud` | tier ≥ 3 | hide the HUD (a card only dims it) |
+| `options.hideHud` | tier ≥ 3 | hide the HUD on a T3/T4 — #2496: also when the controls stay free (the overlay "Lift-off!"; a HUD-only reason, see [the client director](#unity-cutscenedirector)); `false` keeps the HUD under a scene that does not freeze the controls; a card never hides it (it dims only the world) |
 | `options.lockInput` | T3/T4 taking the camera | freeze the controls |
 | `options.skippable` | `true` | the player may skip |
 | `options.minDisplay` | `0` | seconds before a skip is accepted (against an accidental double press) |
@@ -202,7 +202,7 @@ graduation is the one card with a line: VEGA's closing line, which it takes out 
 | `tut.strip` | T2 card, template | `openCutscene` of parts 2–6 | title = the part's title, kicker "Basic training · Part n of 6" (`{1}`/`{2}` of the argument) | waits for the cooldown; dropped once its part is over |
 | `tut.done` | T1 banner, template | every part's `closeCutscene` | "Part complete!" + the part's title | never waits (a banner) |
 | `tut.course` | T2 card, template | every deep dive's `openCutscene` (C2–C5 since #2479, C1, C6, C7, C17 since #2480, C8, C14 since #2481, C9–C13, C15, C16, C18 since #2482) | kicker "Short course" + the chapter's title | waits for the cooldown; dropped once its course is over |
-| `tut.first_launch` | T3, `overlay` | `b6.1` `onComplete` | "Lift-off!" (kicker "First launch"), then "Space begins right above the clouds" — a full letterbox over the launch rise, the flight's camera untouched, no hold | "now or never" (`cooldownExempt`) |
+| `tut.first_launch` | T3, `overlay` | `b6.1` `onComplete` | "Lift-off!" (kicker "First launch"), then "Space begins right above the clouds" — a full letterbox over the launch rise, the flight's camera untouched, no hold; #2496: the flight HUD and the radar step aside meanwhile (the controls and the touch stick stay) | "now or never" (`cooldownExempt`); dropped (danger near) it leaves "First launch · Lift-off!" as a banner (#2497) |
 | `tut.first_dock` | T2 card, `"arg": "body"` (#2479) | `c4.1` `onComplete` (the stations course's docking) | title = the station's name, kicker "Docked"; then "Vendors and a mission board wait inside" | waits for the station's loading veil and the cooldown (not "now or never") |
 | `tut.first_landing` | T3, `orbit`/`static` on the ship, `"arg": "body"` | `b6.7` `onComplete` (not the stand-in `b6.7a`: a known world is no new one) | title = the world's name, kicker "Touchdown on a new world"; subtitle "Every world has its own rocks, plants and creatures." — a singleplayer world holds while the camera circles the ship | waits for the landing's loading veil (so not "now or never"); chains to the graduation |
 | `tut.first_jump` | T2 card, `"arg": "system"` (#2479) | `c5.8` `onComplete` (the navigator course's hyperjump) | title = the new system's name at 2.8 s (after the warp), kicker "New system"; then "Unknown stars show “?” until you have been there" | "now or never" (`cooldownExempt`); the server raises `hyperjump:any` after the warp-in's flight state, so the card lands on the warp like `fin.arrival` |
@@ -274,7 +274,7 @@ The finale's set pieces (synthesis §6.5), bound in `story.json`'s `finale.cutsc
 
 | Stage → id | When (server) | Tier | What the player sees | Multiplayer |
 |---|---|---|---|---|
-| `arrival` → `fin.arrival` | the player's flight warps into the Guardian system (`JumpFlightToSystem`), while the core still waits | T2 card, "now or never" | "Arrival" over "The Guardian Core" as the warp clears (the title at 2.8 s, the warp lasts 2.6 s) — no camera, free input; with danger near it is dropped (the gauntlet banner still counts the machines); `chainNext: fin.descent` | only the pilot who warps in |
+| `arrival` → `fin.arrival` | the player's flight warps into the Guardian system (`JumpFlightToSystem`), while the core still waits | T2 card, "now or never" | "Arrival" over "The Guardian Core" as the warp clears (the title at 2.8 s, the warp lasts 2.6 s) — no camera, free input; with danger near it is dropped and its title shows as a short banner instead (#2497; the gauntlet banner still counts the machines); `chainNext: fin.descent` | only the pilot who warps in |
 | `descent` → `fin.descent` | landing on the core world (`ShipAiWorldFlavour`, before the `guardian_core` hint) — not once the duel runs | T3 | the camera rises from the own ship, flies over the iron-ringed shaft (the server sends the shaft mouth; a shaft too far away to be streamed in shows the sky) while VEGA says the hint itself (`vega.hint.guardian_core`, token-clean since #2463 — no new key), then the sleeping-core diorama; the hint is kept out of the panel and given back on an early skip (`returnOnSkip`) | whoever lands |
 | `breach` → `fin.breach` | the hack completes (`BeginCoreDuel`), for the finale's players **on the core world** | T3, "now or never" | a close framing of the red column in its chamber (the server sends the column), "The core wakes" over "The Guardian Core", `music_boss_dialogue`; then the duel dialogue | on the core world |
 | `duel` → `fin.duel` | the hack completes, for the finale's players **elsewhere** | T1 banner | "The Guardian Core — The duel of arguments has begun at the core." (not replayable) | everyone else of the finale |
@@ -303,7 +303,9 @@ The finale's set pieces (synthesis §6.5), bound in `story.json`'s `finale.cutsc
   `story:<id>:resolved` for older builds; any other client gets the resolution line, the epilogue (live) and
   `StoryResolved` as before. "Handled" = the ledger's seen key **or** its `:sent` key (`ResolutionHandled`), so a
   half-watched ending comes back through the cutscene catch-up, never a second delivery. `RequestStoryResolutionIntent`
-  replays the director's ending (`Replay`) for a client that plays it. `ResolutionCinematic` stays for older servers.
+  replays the director's ending (`Replay`) for a client that plays it — #2497: the stand-down, then the ending (the
+  client plays requested replays first-in, first-out), so the Journal's "Watch the ending again" is the ending's one entry
+  and "Watch again" leaves both scenes out (`CutsceneCatalog.EndingIds`). `ResolutionCinematic` stays for older servers.
 - **The recap never folds the finale away:** a join backlog's recap collapse skips scenes bound to a finale stage
   (`IsFinaleScene`), so an owed stand-down and ending play as themselves after "The story so far". A re-offered descent or
   breach gets its place again — the anchor saved with the promise (#2459, see the ledger's **Anchors**), or for a promise
@@ -418,8 +420,9 @@ template. Rules:
   dropped, the join's clean-up).
 - **Replay** (`replayCutscene`): a replayable scene the player has a key for (spoiler guard) is re-sent with
   `Replay = true` — any installed pack, the world story included; no ledger change; nothing for a client without
-  `cutscenes1`. The ending's own "Watch the ending again" (`RequestStoryResolutionIntent`) replays the `resolution` scene the
-  same way for a client that plays it (#2478), else it re-sends `StoryResolved`.
+  `cutscenes1`. The ending's own "Watch the ending again" (`RequestStoryResolutionIntent`) replays the `standdown` and the
+  `resolution` scene the same way for a client that plays it (#2478; the stand-down too since #2497), else it re-sends
+  `StoryResolved`.
 - **Observers** never get a scene (`PlayCutscene` refuses a spectating session, `PlayCutsceneForListeners` uses
   `StoryListeners()`).
 
@@ -491,15 +494,16 @@ Step 9 (#2468). The Unity-free rules live in Client.Core (`src/BlocksBeyondTheSt
 
 | Type | What it decides |
 |---|---|
-| `CutscenePlan` | a definition (+ the play's `Arg`) → `PlannedShot`s with resolved `PlannedCaption`s: text through `LineText.Compose` with the one key-token resolver (`HudUi.KeyTokenGlyph`, passed in a `CutsceneTextSource`), pages (`CaptionPager`: subtitle 140, speaker 220, reading frame 600 characters, cut at sentence ends), timings. `Build`, `Recap` (the built-in card), `LocalBanner` ("Story moment saved"), `AsCard()` (the downgrade: same captions, no camera, no hold/lock/HUD) |
-| `CutscenePlayback` | the clock: shot index and time, which page each caption shows, the hold at a page-gated caption's end, `Continue()` (completes a typing speaker box first), `CanSkip`, due sound cues, `TakeShotChanged()` |
+| `CutscenePlan` | a definition (+ the play's `Arg`) → `PlannedShot`s with resolved `PlannedCaption`s: text through `LineText.Compose` with the one key-token resolver (`HudUi.KeyTokenGlyph`, passed in a `CutsceneTextSource`), pages (`CaptionPager`: subtitle 140, speaker 220, reading frame 600 characters, cut at sentence ends), timings. `Build`, `Recap` (the built-in card), `LocalBanner` ("Story moment saved"), `AsCard()` (the downgrade: same captions, no camera, no hold/lock/HUD), #2497 `MissedBanner()` (a dropped "now or never" scene's first title as a banner) |
+| `CutscenePlayback` | the clock: shot index and time, which page each caption shows, the hold at a page-gated caption's end, `Continue()` (completes a typing speaker box first; #2494: pages timed captions too), the settle after the reader closed a shot's captions (`ShotLength`, see **Timing** below), the 0.35 s fade-out of a closed caption, `CanSkip`, due sound cues, `TakeShotChanged()` |
 | `SafeMomentGate` | `Evaluate(request, inputs)` → `Play` / `Defer` / `Abort` with a reason; `ShouldInterrupt` (danger while playing); `CameraCapReached` (MP 30 s) |
 | `CutsceneQueue` | one scene at a time; dedupe by `pack/id`; requests (replays, previews, the dev palette) first; the 90 s cooldown after an unrequested T2+ (measured from its **end** — a scene that waited minutes must not be followed by the next one a second later); `chainNext` lifts it for the named follower; "now or never" and banners never wait |
 | `CutsceneStaging` | a shot's camera with the fallback chain (requested → raised orbit → crane → sky → player view; [per type](#cameras)) on `CinematicStageScan` (unloaded chunks blocked, the parked hull blocks the camera spot) and `PrologueOrbit.Scale`; #2477: the moves' paths (`TryDolly`/`TryPan`/`TryFlyover`, checked along the whole path) and the synthetic stages (`syntheticAllowed`) |
 | `CutsceneMoves` | #2477: how a move travels over its shot — eased one way (dolly, flyover: they settle) or back and forth (pan), the still framing with "Camera motion" off, the position and the pan's yaw at a progress; no allocation (the rig calls it every frame) |
 | `SyntheticStages` | #2477: what a synthetic stage shows (`SetOf(camera, anchor)` → `SyntheticSet`), its layout in stage coordinates (the vista's planet, sun and ship path; the core diorama's ≤ 200 blocks; the memory chart from the star map via `GalaxyChartLayout`, its rim and the red glow beyond it) and its camera paths; the core's breath (`CorePulse`, 0.4 Hz) |
-| `CutsceneRules` | (#2474) hold / freeze / heal-tank / card fallback; #2477: `SyntheticStagesAllowed(preset)` (Medium and up) and the card fallback of a scene made only of synthetic stages on the low presets |
-| `CutsceneCatalog` | the "Watch again" rows (seen, replayable scenes of installed packs, in pack/definition order) and their names (title card "Prologue — Awakening", else the bound chapter's title, else the first caption) |
+| `CutsceneRules` | (#2474) hold / freeze / heal-tank / card fallback; #2477: `SyntheticStagesAllowed(preset)` (Medium and up) and the card fallback of a scene made only of synthetic stages on the low presets; #2496 `HidesHud(plan, capped)`; #2497 `Dims(plan, …)` (the frame's cover vs the world dim) and `ReplayWaitsForLanding(def, inputs, …)` |
+| `CutsceneCatalog` | the "Watch again" rows (seen, replayable scenes of installed packs, in pack/definition order; #2497: an `exclude` of seen keys) and their names (title card "Prologue — Awakening", else the bound chapter's title, else the first caption); #2497 `EndingIds(pack)` / `EndingKeys(pack)` — the finale's `standdown` + `resolution` |
+| `CutsceneGate` | (`Client.Core`, not in `Cutscenes/`) the shared "a cutscene owns the screen" state: full reasons (`Begin`/`End`/`Set`, `Active`) and #2496 HUD-only reasons (`SetHud`, `HudHidden`; never counted by `Active` or `ActiveOtherThan`) |
 
 **Arguments.** `CutscenePlay.Arg` is split at U+001F; a value the localizer knows is localized (a chapter binding sends the
 chapter's title **key**), anything else stays (a body name). For `__recap` the values are chapter title keys: the card
@@ -511,6 +515,22 @@ shot holds there (the camera keeps moving) until the reader has turned the last 
 credits and banners — captions are **timed**: each page shows for its reading floor `max(3 s, 1.2 s + chars / 12)`, at most
 10 s, measured on the localized text; a caption (and its shot) shorter than that is stretched.
 
+**The wait after N** (#2494, maintainer decision 2026-10-12). The continue control means "I've read it" in both modes:
+
+- *Wait for me on:* it completes a typing speaker box, turns the page, and the last page **closes** the caption.
+- *Wait for me off:* on a timed subtitle, speaker box or reading frame it shows the next page at once (a per-caption time
+  offset), and the last page closes the caption. Title cards, credits and banners stay timed; no button shows (the key, a
+  tap on the box). No hold-to-fast-forward.
+- A closed caption fades out over 0.35 s (`CutscenePlayback.Visible` keeps it with falling alpha, never waiting).
+- Once the reader has closed a shot's captions (or paged a timed one ahead, so it ends early on its own), the shot ends
+  `CutscenePlayback.SettleSeconds` (1.0 s) later instead of running out its authored length:
+  `min(Duration, max(close + max(1 s, tail), end of every timed caption not closed, the last sound cue still to fire, 2.25 s))`.
+  `tail = Duration − max(End of the reader captions)` keeps an authored `hold`'s "breathing room" (0 unless a caption has
+  a `hold`); nothing is shortened while a caption of the shot has yet to appear or a page-gated one is still open; the
+  minimum shot (`MinShotSeconds`, 2.25 s) keeps a camera shot from flickering past. A shot without captions runs in full.
+  A camera move is simply cut (the rig keeps its own clock). Closed captions count as shown (`ShownKeys`, `returnOnSkip`).
+  The VEGA prologue read fast takes about 21 s instead of about 52 s (`CutscenePlanTests.TheVegaPrologue_ReadFast_…`).
+
 **When a scene may start** (`SafeMomentGate`):
 
 | Scene | Waits for | Gives up |
@@ -519,8 +539,10 @@ credits and banners — captions are **timed**: each page shows for its reading 
 | card (T2) | the above + chat input, the duel, the spawn settle; danger: hostile ≤ 20 m, damage in the last 10 s, space combat in the last 14 s, health or oxygen < 30 % | 600 s → text back to the panel, confirmed |
 | scene taking the camera (T3/T4) | the above + falling, climbing, head under water, a speeder or train, EVA, piloting in space, a warp/transit; prefers the player **at home** (aboard, docked, ≤ 24 m from the parked ship) for 300 s | 1200 s → tried once more **as a card** (`AsCard`), then as above |
 
-A "now or never" scene (`cooldownExempt`) aborts at once when the moment is not safe (its text goes to the panel). A
-requested replay never gives up and skips "prefer at home".
+A "now or never" scene (`cooldownExempt`) aborts at once when the moment is not safe (its text goes to the panel); #2497:
+its first title card then shows as a client-made banner (`CutscenePlan.MissedBanner`, "Arrival · The Guardian Core") —
+never nothing. A requested replay never gives up and skips "prefer at home"; a camera scene's replay waits for the player to
+land, and the Journal says so (below).
 
 ### Unity: `CutsceneDirector`
 
@@ -539,6 +561,15 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   letterbox (45 %), a light dim, the captions, **free input** (the HUD stays; VEGA's panel, the memory flashback and the
   ending wait while it shows — `CutsceneDirector.HoldsScreen`); while the Tab menu is open over a card the card pauses
   hidden. T3/T4: full letterbox, a fade out of black, the camera staged per shot.
+- **Dims** (#2497, `CutsceneRules.Dims`): a card or an overlay dims **only the world** — 0.18 on the screen's own tiny
+  world-dim canvas at sorting order **9** (`CutsceneScreen.WorldDimSortingOrder`: above the name tags 8, below the HUD 10,
+  VEGA's panel 11, the flight HUD 12, the chat 25 and the touch layer 100; a HUD canvas, so with the visor HUD it is drawn into
+  the visor's layer under the HUD), built on the screen's first dim (banners and staged scenes never build one), destroyed
+  with the screen and eased out with it. HUD, crosshair and VEGA's
+  objective chip stay bright — the player keeps playing under a card. The frame's own cover (order 67, over everything)
+  stays for the black-outs of staged scenes, the 0.55 behind a reading frame and the credits' 0.85. Under a T2 card VEGA's
+  panel hides only her speech panel, its folded tab and the prologue dim (`CutsceneDirector.ShowsCard`, a `CanvasGroup`), and
+  keeps the objective chip; every other scene still takes the whole panel away.
 - **Caption styles** (`CutsceneScreen`): `subtitle` (the frame's lower-third caption), `title_card` (kicker + big title,
   centred), `speaker` (box above the lower bar with the narrator's icon, name and colour from the pack's `narrator` — VEGA's
   defaults `ui.vega.name`, `icon_vega`, cyan, `ai_blip` when a page starts; #2478: another id is looked up in the pack's
@@ -576,6 +607,15 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   out of black only when it takes the camera (`CutscenePlan.OpensFromBlack`, #2473): a T3 that lies over a running
   sequence (`overlay`, the tutorial's first launch) keeps the full letterbox but fades in like a card, so it never blacks
   out the moment it frames.
+- **HUD-only (#2496).** A scene's `hideHud` (`CutscenePlan.HideHud`, from T3 on) used to be computed and never applied —
+  the HUD only went with a frozen control. Now the director sets a HUD-only reason `director` in `GameBootstrap.Cutscenes`
+  (`CutsceneGate.SetHud`) while `CutsceneRules.HidesHud(plan, capped)` holds (`hideHud && tier ≥ 3 && !capped`) and clears it
+  in the teardown. `GameBootstrap.HudHidden` (= a full reason or a HUD-only one) is read by `HudUi` (and its pickup icons),
+  the flight HUD (`SpaceView`'s overlay canvas), `SpaceRadar` and `ScreenLabelLayer`; the touch controls, the chat, the
+  context actions and the controls keep reading `CutsceneActive`, so under the overlay "Lift-off!" a touch pilot keeps the
+  stick. `SpaceView`'s launch/landing black fade and its hit flash moved to a small canvas of their own ("Space View
+  Fade", order 12, created before the HUD canvas so the HUD still draws over it), so they keep working while the flight HUD
+  hides. `ActiveOtherThan` ignores HUD-only reasons (the director's "another scene" and VEGA's panel).
 - **Grades:** `memory` → `UrpScenePost.SetFlashback(0.55)`, `flashback` → 0.85 plus one glitch `Burst` per shot (not under
   Reduced effects, never in the browser); halved under Reduced effects. Banners leave the picture alone.
 - **Music and sound:** a scene's `music` is played as `ClientMusic.CutsceneTrack` (context `cutscene:<track>`, looping, in
@@ -588,7 +628,9 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   (`CutscenePlayback.ShownKeys` / `KeysToReturnOnSkip`, #2474): they go back to VEGA's panel (the Guardian reveal's
   jump-generator line).
 - **Continue:** the VEGA continue key (N / pad Back), the "Continue" button at the bottom centre (clear of the touch stick,
-  the action buttons and the hotbar arrows), or a tap on the speaker box / reading frame.
+  the action buttons and the hotbar arrows), or a tap on the speaker box / reading frame. The director forwards every press
+  to `CutscenePlayback.Continue()` (not only while a page-gated caption waits), so #2494's timed-mode paging needs no extra
+  input path; the button itself shows only while a page-gated caption waits.
 - **Danger:** damage or space combat since the scene started, or a hostile ≤ 20 m while the world is not held, ends a card
   or scene: the lines go back to the panel, a "Story moment saved — watch it again in the Story tab" banner follows (for a
   replayable scene), and the scene is confirmed. MP: after 30 s with the camera the scene continues as a card.
@@ -597,7 +639,13 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
 - **Watch again** (Story tab, `CraftingTechShipUI.BuildStoryList`): `CutsceneDirector.ReplayEntries()` = the server's
   `SeenCutscenes` plus what this client confirmed since, as rows with a "Watch" button →
   `NetworkClient.SendReplayCutscene` → the server re-sends it with `Replay = true` (spoiler guard server-side); the menu
-  closes and the scene plays once the screen is free.
+  closes and the scene plays once the screen is free. #2497: while the page shows "Watch the ending again" (which replays
+  the stand-down and the ending), `ReplayEntries(withoutEnding: true)` leaves both out — the ending is listed once. A
+  "Watch" (or the ending button) pressed while flying, warping or on an EVA, for a scene that takes the camera there
+  (`CutsceneRules.ReplayWaitsForLanding`), queues a short local banner "<scene> · Plays when you land."
+  (`ui.cutscene.plays_when_landed`, `CutsceneDirector.NoteReplayWaits`) instead of waiting silently.
+- **Client-made banners** (`QueueLocalBanner`, T1, never confirmed, never in the ledger): "Story moment saved" after an
+  interrupted scene, a dropped "now or never" scene's title (#2497) and "Plays when you land" (#2497).
 
 ### Developer tools
 
@@ -617,8 +665,9 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
 - Hold-to-skip and pause-then-skip (d4 §2.4) are not built: one press skips (step 2's decision); the skip button sits
   bottom right, where on a touch device the touch layer may cover it during a card (the layer only hides under a staged
   scene).
-- A card dims the whole picture by 18 % (HUD included — the crosshair and the chip are not kept bright as d4 sketched); no
-  ambience ducking; music is not prefetched when a scene is queued.
+- ~~A card dims the whole picture by 18 % (HUD included)~~ — #2497: a card dims only the world (HUD, crosshair and chip stay
+  bright). No ambience ducking; music is not prefetched when a scene is queued. With the visor HUD on, the name tags (an
+  overlay, order 8) draw over the visor layer and so stay undimmed under a card.
 - No `ctx:` variants (a scene has one shape for every place — chapter 5 falls back to a card away from the ship); the
   speaker box has no vocoder chatter (only the line-start cue). ~~`b10` has no multiplayer variant~~ — #2478 (the live
   chart with the other players). ~~No synthetic stages, no `dolly`/`pan`/`flyover`~~ — #2477 (chapters 3, 4 and 6 use them).
@@ -692,3 +741,12 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   the core's words and "Argument n of 4" in both languages, facing the core again across the seam, no hold in multiplayer,
   the close framing in the chamber at any yaw, the chart's player labels, b10 as a chart or a card, the arrival, descent,
   stand-down and ending planned from the data pack).
+- Story-pack follow-ups (#2494, #2496, #2497): Client.Tests `CutscenePlanTests` (an orbit shot ends a settle after the
+  close and the caption fades out, an authored `hold` tail kept, a timed title not cut, a later caption or a later timed
+  title blocks the shortening, a pending cue is not skipped, a caption-less shot runs in full, the minimum shot, `ShownKeys`
+  after an early end, timed-mode paging and closing, a timed caption paged ahead, title cards / credits / banners stay
+  timed, the VEGA prologue read fast from the data pack, the missed-card banner), `CinematicsFixesTests` (the HUD-only
+  reasons), `TutorialCardsClientTests` (`HidesHud` for the first launch / a card / capped / the opt-out, `Dims`),
+  `FinaleSetPiecesClientTests` (`EndingIds`, "Watch again" without the ending, the missed arrival in both languages,
+  `ReplayWaitsForLanding`); server `VegaFinaleSetPiecesTests` (the ending button replays the stand-down, then the ending, to
+  a `cutscenes1` client and `StoryResolved` to an older one, no ledger change).

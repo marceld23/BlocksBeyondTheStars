@@ -721,7 +721,9 @@ public sealed partial class GameServer
 
     /// <summary>Story tab "watch the ending" (#1124): replays the resolution — only once the story IS
     /// resolved, so the button can never spoil anything. #2478: on the director (a replay, no ledger change) for a client
-    /// that plays it there, else the old cinematic.</summary>
+    /// that plays it there, else the old cinematic. #2497: the director gets the whole ending — the stand-down, then the
+    /// ending (the client plays requested replays first-in, first-out) — so the Journal lists the ending once, as this
+    /// button, and leaves both scenes out of "Watch again".</summary>
     private void HandleRequestStoryResolution(PlayerSession session)
     {
         if (!_storyState.GuardianDefeated)
@@ -731,8 +733,15 @@ public sealed partial class GameServer
 
         if (ResolutionOnDirector(session) && _story is not null)
         {
-            string id = FinaleCutsceneId(StoryFinaleStages.Resolution);
-            PlayCutscene(session, _story.Id, id, CutsceneArgOf(session, _story, _story.FindCutscene(id)!, id), replay: true);
+            foreach (string stage in new[] { StoryFinaleStages.Standdown, StoryFinaleStages.Resolution })
+            {
+                string id = FinaleCutsceneId(stage);
+                if (id.Length > 0 && _story.FindCutscene(id) is { Template: false } def)
+                {
+                    PlayCutscene(session, _story.Id, id, CutsceneArgOf(session, _story, def, id), replay: true);
+                }
+            }
+
             return;
         }
 

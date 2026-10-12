@@ -71,8 +71,9 @@ namespace BlocksBeyondTheStars.Client
         public void World(Camera cam, Vector3 world, string text, Color color, bool bold = false,
                           float fadeStart = 0f, float fadeEnd = 0f)
         {
-            // Under a cutscene no nameplate is pushed (#2461), so the end-of-frame sweep hides every label at once.
-            if (cam == null || string.IsNullOrEmpty(text) || GameBootstrap.CutsceneActive)
+            // Under a cutscene no nameplate is pushed (#2461), so the end-of-frame sweep hides every label at once — #2496: nor
+            // while a scene hides the HUD (GameBootstrap.HudHidden).
+            if (cam == null || string.IsNullOrEmpty(text) || GameBootstrap.HudHidden)
             {
                 return;
             }
@@ -120,7 +121,7 @@ namespace BlocksBeyondTheStars.Client
         public void WorldBar(Camera cam, Vector3 world, float frac, Color color,
                              float width = 46f, float fadeStart = 0f, float fadeEnd = 0f)
         {
-            if (cam == null || GameBootstrap.CutsceneActive) // no health bars over a cutscene either (#2461)
+            if (cam == null || GameBootstrap.HudHidden) // no health bars over a cutscene either (#2461, #2496)
             {
                 return;
             }

@@ -17,6 +17,12 @@ namespace BlocksBeyondTheStars.Client
     /// scene chained into the next) must not clear each other — the state ends only when the LAST reason ends.
     /// <see cref="Begin"/> and <see cref="End"/> are idempotent per reason, so an owner may call them from every path.
     /// </para>
+    /// <para>
+    /// #2496: a scene may also hide only the HUD — a T3 overlay over the launch rise ("Lift-off!") keeps the controls free
+    /// but its <c>hideHud</c> takes the flight HUD away. Such a reason is set with <see cref="SetHud"/>: it counts for
+    /// <see cref="HudHidden"/> (the HUD, the flight HUD, the space radar, the name tags) but not for <see cref="Active"/>
+    /// (the controls, the touch layer, the chat, Esc), and never for <see cref="ActiveOtherThan"/>.
+    /// </para>
     /// Unity-free so the rule is covered by plain .NET tests; the client holds the one live instance
     /// (<c>GameBootstrap.Cutscenes</c>).
     /// </summary>
@@ -32,9 +38,36 @@ namespace BlocksBeyondTheStars.Client
         public const string Intro = "intro";
 
         private readonly HashSet<string> _reasons = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _hudReasons = new HashSet<string>(StringComparer.Ordinal);
 
         /// <summary>True while at least one cinematic owns the screen.</summary>
         public bool Active => _reasons.Count > 0;
+
+        /// <summary>#2496: whether the HUD steps aside — a cinematic owns the screen (<see cref="Active"/>) or a scene hides
+        /// only the HUD (<see cref="SetHud"/>).</summary>
+        public bool HudHidden => _reasons.Count > 0 || _hudReasons.Count > 0;
+
+        /// <summary>#2496: whether <paramref name="reason"/> hides the HUD only.</summary>
+        public bool IsHudActive(string reason) => reason != null && _hudReasons.Contains(reason);
+
+        /// <summary>#2496: opens or closes a HUD-only reason (the director while a scene's <c>hideHud</c> applies). Idempotent
+        /// like <see cref="Set"/>; it never touches the full reasons of the same name.</summary>
+        public void SetHud(string reason, bool on)
+        {
+            if (string.IsNullOrEmpty(reason))
+            {
+                throw new ArgumentException("A cutscene reason needs a name.", nameof(reason));
+            }
+
+            if (on)
+            {
+                _hudReasons.Add(reason);
+            }
+            else
+            {
+                _hudReasons.Remove(reason);
+            }
+        }
 
         /// <summary>How many reasons are open right now.</summary>
         public int Count => _reasons.Count;
@@ -43,7 +76,8 @@ namespace BlocksBeyondTheStars.Client
         public bool IsActive(string reason) => reason != null && _reasons.Contains(reason);
 
         /// <summary>True while a cinematic OTHER than <paramref name="reason"/> owns the screen — for an overlay that is
-        /// itself the presenter of one cinematic (VEGA's panel shows the prologue's text) but must yield to every other.</summary>
+        /// itself the presenter of one cinematic (VEGA's panel shows the prologue's text) but must yield to every other.
+        /// HUD-only reasons (<see cref="SetHud"/>) never count: they own no screen.</summary>
         public bool ActiveOtherThan(string reason) => _reasons.Count > (IsActive(reason) ? 1 : 0);
 
         /// <summary>Opens <paramref name="reason"/>. Returns true when it was not open yet.</summary>
@@ -74,7 +108,11 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Drops every reason — the world that ran the cinematics is gone.</summary>
-        public void Clear() => _reasons.Clear();
+        /// <summary>Drops every reason, the HUD-only ones too — the world that ran the cinematics is gone.</summary>
+        public void Clear()
+        {
+            _reasons.Clear();
+            _hudReasons.Clear();
+        }
     }
 }

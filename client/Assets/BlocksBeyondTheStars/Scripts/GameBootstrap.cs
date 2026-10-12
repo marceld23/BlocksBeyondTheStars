@@ -1546,6 +1546,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True while any cutscene owns the screen — see <see cref="Cutscenes"/>.</summary>
         public static bool CutsceneActive => Cutscenes.Active;
 
+        /// <summary>#2496: true while the HUD steps aside — a cutscene owns the screen, or a scene hides only the HUD (its
+        /// <c>hideHud</c> on a T3 overlay such as the tutorial's "Lift-off!", the controls stay free). Read by the HUD, the flight
+        /// HUD, the space radar and the name tags; the touch controls, the chat and the controls keep reading
+        /// <see cref="CutsceneActive"/>, so a touch pilot keeps the stick under an overlay.</summary>
+        public static bool HudHidden => Cutscenes.HudHidden;
+
         /// <summary>A fresh process (or an Editor play session without a domain reload) starts with no cutscene.</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetCutscenesOnLoad() => Cutscenes.Clear();

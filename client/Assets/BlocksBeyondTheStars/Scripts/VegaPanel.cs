@@ -65,6 +65,9 @@ namespace BlocksBeyondTheStars.Client
         // The collapsed tab (#2126) and its state: the fold rule is Unity-free (Client.Core, tested headless).
         private readonly VegaCollapse _collapse = new VegaCollapse();
         private GameObject _tab;
+        private CanvasGroup _speechGroup; // #2497: hides the speech panel under a card (the chip stays)
+        private CanvasGroup _tabGroup;
+        private bool _speechYielded;
         private RectTransform _tabRect;
         private TMPro.TMP_Text _tabText;
         private int _tabCount = -1;                    // the count last drawn, to flash the tab when a line arrives
@@ -723,14 +726,19 @@ namespace BlocksBeyondTheStars.Client
             // ending waits for a running prologue instead (ResolutionCinematic.CanStart).
             // A director card (T2, free input) does not open the shared state, but it speaks in the frame — VEGA waits for it
             // too (#2468), so the two never talk at once and the continue key reaches only the card.
+            // #2497: under a card (T2, free input) she only falls silent — her speech panel hides, the objective chip stays, as the
+            // HUD does under a card; every other scene takes the whole panel away.
             var ending = ResolutionCinematic.Instance;
-            bool yieldToScene = GameBootstrap.Cutscenes.ActiveOtherThan(CutsceneGate.Prologue)
-                                || (ending != null && ending.Pending && !_prologueStarted)
-                                || CutsceneDirector.HoldsScreen;
-            if (_canvas.enabled == yieldToScene)
+            bool hideAll = GameBootstrap.Cutscenes.ActiveOtherThan(CutsceneGate.Prologue)
+                           || (ending != null && ending.Pending && !_prologueStarted)
+                           || (CutsceneDirector.HoldsScreen && !CutsceneDirector.ShowsCard);
+            bool yieldToScene = hideAll || CutsceneDirector.HoldsScreen;
+            if (_canvas.enabled == hideAll)
             {
-                _canvas.enabled = !yieldToScene;
+                _canvas.enabled = !hideAll;
             }
+
+            SetSpeechYielded(yieldToScene && !hideAll);
 
             if (yieldToScene)
             {
@@ -1099,6 +1107,43 @@ namespace BlocksBeyondTheStars.Client
 
             _collapse.Reset();
             _tabCount = -1;
+        }
+
+        /// <summary>#2497: under a card VEGA's speech panel, her folded tab and the prologue dim step aside (transparent, no
+        /// clicks) while the objective chip and its extra rows stay — the player keeps playing under a card. Their own
+        /// active state is left alone, so the line she was saying shows again as it was once the card is gone.</summary>
+        private void SetSpeechYielded(bool yielded)
+        {
+            if (yielded == _speechYielded || _speech == null)
+            {
+                return;
+            }
+
+            _speechYielded = yielded;
+            if (_speechGroup == null)
+            {
+                _speechGroup = _speech.AddComponent<CanvasGroup>();
+            }
+
+            if (_tabGroup == null && _tab != null)
+            {
+                _tabGroup = _tab.AddComponent<CanvasGroup>();
+            }
+
+            foreach (var group in new[] { _speechGroup, _tabGroup })
+            {
+                if (group != null)
+                {
+                    group.alpha = yielded ? 0f : 1f;
+                    group.blocksRaycasts = !yielded;
+                    group.interactable = !yielded;
+                }
+            }
+
+            if (_dim != null)
+            {
+                _dim.enabled = !yielded;
+            }
         }
 
         /// <summary>Keeps the tab's text, size and row spot current: the waiting lines (flashing when one more arrives),

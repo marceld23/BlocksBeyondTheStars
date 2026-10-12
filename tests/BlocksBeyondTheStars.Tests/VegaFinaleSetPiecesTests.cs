@@ -532,16 +532,20 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
         Assert.Contains("story.vega.beat13", transport.LineKeys(old));
         Assert.True(HasFinaleAchievement(old));
 
-        // Confirmed, the ending counts as watched (the Journal note) — and "watch the ending again" replays it on the director.
+        // Confirmed, the ending counts as watched (the Journal note) — and "watch the ending again" replays it on the director:
+        // #2497 the whole ending, the stand-down first, both as replays (the Journal lists the ending once, as this button).
         Deliver(server, crew, new CutsceneSeenIntent { PackId = V, Ids = new[] { "fin.standdown", StoryCutsceneIds.Resolution } });
         Assert.True(Has(crew, StoryPackKeys.CutsceneSeen(V, StoryCutsceneIds.Resolution)));
+        var ledger = crew.State.Milestones.ToHashSet();
         transport.Sent.Clear();
         Deliver(server, crew, new RequestStoryResolutionIntent());
         Deliver(server, old, new RequestStoryResolutionIntent());
-        var replay = Assert.Single(transport.To<CutscenePlay>(crew));
-        Assert.Equal((StoryCutsceneIds.Resolution, true), (replay.CutsceneId, replay.Replay));
+        var replays = transport.To<CutscenePlay>(crew);
+        Assert.Equal(new[] { ("fin.standdown", true), (StoryCutsceneIds.Resolution, true) }, replays.Select(p => (p.CutsceneId, p.Replay)));
         Assert.Empty(transport.To<StoryResolved>(crew));
-        Assert.Single(transport.To<StoryResolved>(old));
+        Assert.True(ledger.SetEquals(crew.State.Milestones)); // a replay changes no ledger
+        Assert.Single(transport.To<StoryResolved>(old)); // an older client keeps the old cinematic
+        Assert.Empty(transport.To<CutscenePlay>(old));
     }
 
     [Fact]

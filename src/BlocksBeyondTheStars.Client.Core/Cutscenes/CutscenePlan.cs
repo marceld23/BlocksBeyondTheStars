@@ -422,6 +422,25 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
             return new CutscenePlan(packId, string.Empty, CutsceneTiers.Banner, new[] { shot }) { IsLocalBanner = true };
         }
 
+        /// <summary>#2497: the trace a "now or never" scene leaves when it is dropped (the moment came while it was not safe —
+        /// danger near, a menu open): its first title card's kicker and title as a client-made banner (T1, never waits, nothing
+        /// to confirm) — "First launch · Lift-off!", "Arrival · The Guardian Core". Null when the scene has no title card.</summary>
+        public CutscenePlan? MissedBanner()
+        {
+            foreach (var shot in Shots)
+            {
+                foreach (var c in shot.Captions)
+                {
+                    if (c.Style == CutsceneCaptionStyles.TitleCard && !string.IsNullOrWhiteSpace(c.Text))
+                    {
+                        return LocalBanner(PackId, c.Kicker, c.Text);
+                    }
+                }
+            }
+
+            return null;
+        }
+
         /// <summary>The same scene as a card (the downgrade path, synthesis §6.2 "Abstieg"): every shot keeps its captions
         /// and timings but stays on the player's view, nothing holds the world, freezes the controls or hides the HUD. A
         /// banner or card is returned as it is.</summary>

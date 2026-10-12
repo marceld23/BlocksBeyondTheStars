@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.Client.Cutscenes
 {
@@ -49,7 +50,13 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
     /// <item>A page-gated caption (subtitle, speaker box, reading frame with "Story text: wait for me") shows page by page
     /// on <see cref="Continue"/>; once its window has run out, the shot holds there (the camera keeps moving) until the
     /// reader has turned the last page. A first press on a typing speaker box completes the typing.</item>
-    /// <item>Timed captions page through their planned page lengths and fade in and out.</item>
+    /// <item>Timed captions page through their planned page lengths and fade in and out. #2494: the continue control works on
+    /// them too ("Story text: wait for me" off) — it turns a subtitle, a speaker box or a reading frame to its next page, and
+    /// its last page closes it. Title cards and credits always run on their own.</item>
+    /// <item>#2494: once the reader has closed a shot's last caption, the shot ends <see cref="SettleSeconds"/> later instead of
+    /// running out its authored length — never before an authored <c>hold</c> tail, a timed caption still to show, a sound
+    /// cue still to fire or <see cref="MinShotSeconds"/>, and not while a caption of the shot has yet to appear. A closed
+    /// caption fades out over <see cref="CaptionFade"/>. A shot without captions runs in full.</item>
     /// <item>A skip is accepted after the scene's <c>minDisplay</c>; a requested replay is skippable at once, even a scene
     /// marked unskippable.</item>
     /// </list>
@@ -59,6 +66,15 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         /// <summary>Caption fade in/out (seconds).</summary>
         public const float CaptionFade = 0.35f;
 
+        /// <summary>#2494: how long a shot settles after the reader closed its last caption (the camera move goes on, the
+        /// caption fades) before it cuts to the next one.</summary>
+        public const float SettleSeconds = 1f;
+
+        /// <summary>#2494: the shortest a shot runs when the reader closes its captions early — a camera shot never flickers.</summary>
+        public const float MinShotSeconds = 2.25f;
+
+        private const float PageJumpEpsilon = 0.001f;
+
         private readonly CutscenePlan _plan;
         private int[] _page = Array.Empty<int>();
         private bool[] _acked = Array.Empty<bool>();
@@ -66,6 +82,10 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         private float[] _pageStart = Array.Empty<float>();
         private bool[] _typed = Array.Empty<bool>();
         private bool[] _sfxFired = Array.Empty<bool>();
+        private float[] _closedAt = Array.Empty<float>();    // #2494: Elapsed when the reader closed the caption
+        private float[] _closedAlpha = Array.Empty<float>(); // #2494: its alpha then — the fade-out starts there
+        private float[] _skipped = Array.Empty<float>();     // #2494: seconds a timed caption was moved ahead by the reader
+        private float _lastCloseShotTime = -1f;              // #2494: ShotTime of the reader's last close in this shot (-1 = none)
         private readonly List<string> _dueSfx = new List<string>();
         private readonly HashSet<string> _shown = new HashSet<string>(StringComparer.Ordinal);
         private bool _shotChanged = true;
@@ -194,7 +214,7 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
             }
 
             RecordShown(shot);
-            if (!Waiting && ShotTime >= shot.Duration && !AnyPageGatedOpen(shot))
+            if (!Waiting && ShotTime >= ShotEnd(shot) && !AnyPageGatedOpen(shot))
             {
                 foreach (var c in shot.Captions)
                 {
@@ -212,6 +232,78 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
             }
         }
 
+        /// <summary>#2494: how long the current shot runs now — its <see cref="PlannedShot.Duration"/>, or less once the reader
+        /// closed its captions (<see cref="SettleSeconds"/> after the last close, within the limits of the class summary).</summary>
+        public float ShotLength => Done ? ShotTime : ShotEnd(Shot);
+
+        /// <summary>
+        /// #2494: the point the shot ends at: the planned duration, or — once the reader closed a caption (or paged a timed one
+        /// ahead) and no caption of the shot is still open or yet to appear — <c>min(Duration, max(close + max(Settle, tail),
+        /// end of every timed caption the reader did not close, the last cue still to fire, MinShot))</c>. <c>close</c> is the
+        /// reader's last close (or the earlier end of a timed caption they paged ahead); <c>tail</c> is what the author left
+        /// after the reader captions' windows (<c>Duration − max(End)</c>; 0 unless a caption has a <c>hold</c>), so an
+        /// authored "breathing room" stays and only the time kept free for reading is cut.
+        /// </summary>
+        private float ShotEnd(PlannedShot shot)
+        {
+            float close = _lastCloseShotTime;
+            float readerEnd = 0f;
+            bool anyReader = false;
+            float timedEnd = 0f;
+            for (int i = 0; i < shot.Captions.Count; i++)
+            {
+                var c = shot.Captions[i];
+                if (!_started[i] || c.At > ShotTime)
+                {
+                    return shot.Duration; // a caption still to come — never shortened ahead of it
+                }
+
+                if (c.PageGated && !_acked[i])
+                {
+                    return shot.Duration; // a reader caption still open (it holds the shot anyway)
+                }
+
+                if (IsReaderCaption(c))
+                {
+                    readerEnd = Math.Max(readerEnd, c.End);
+                    anyReader = true;
+                }
+
+                if (!c.PageGated && !_acked[i])
+                {
+                    float end = c.End - _skipped[i];
+                    timedEnd = Math.Max(timedEnd, end); // a timed caption is never cut
+                    if (_skipped[i] > 0f)
+                    {
+                        close = Math.Max(close, end); // paged ahead by the reader: it ends early on its own
+                    }
+                }
+            }
+
+            if (close < 0f)
+            {
+                return shot.Duration; // the reader closed nothing: the shot runs as written (a caption-less one in full)
+            }
+
+            float cueEnd = 0f;
+            for (int i = 0; i < shot.Sfx.Count; i++)
+            {
+                if (!_sfxFired[i])
+                {
+                    cueEnd = Math.Max(cueEnd, shot.Sfx[i].At); // a later sound cue still plays
+                }
+            }
+
+            float tail = anyReader ? Math.Max(0f, shot.Duration - readerEnd) : 0f;
+            float settled = Math.Max(close + Math.Max(SettleSeconds, tail), Math.Max(timedEnd, Math.Max(cueEnd, MinShotSeconds)));
+            return Math.Min(shot.Duration, settled);
+        }
+
+        /// <summary>#2494: a caption the reader closes with the continue control — a page-gated one, or in timed mode a
+        /// subtitle, speaker box or reading frame (never a title card, credits or anything of a banner).</summary>
+        private bool IsReaderCaption(PlannedCaption c)
+            => c.PageGated || (_plan.Tier > CutsceneTiers.Banner && CutscenePlan.IsPageGatedStyle(c.Style));
+
         /// <summary>Records the captions of the current shot whose last page is fully on screen now.</summary>
         private void RecordShown(PlannedShot shot)
         {
@@ -225,9 +317,9 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
 
                 int last = c.Pages.Count - 1;
                 bool typedOut = TypedChars(i, c, c.Pages[last]) >= c.Pages[last].Length;
-                bool shown = c.PageGated
-                    ? _acked[i] || (_page[i] >= last && typedOut)
-                    : TimedPage(c, ShotTime - c.At) >= last && typedOut;
+                bool shown = _acked[i] || (c.PageGated
+                    ? _page[i] >= last && typedOut
+                    : TimedPage(c, ShotTime - c.At + _skipped[i]) >= last && typedOut);
                 if (shown)
                 {
                     MarkShown(c);
@@ -244,8 +336,11 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         }
 
         /// <summary>The reader's continue (the VEGA continue key, a click or tap on the caption or the ▶ button): completes a
-        /// typing speaker box, else turns the page of the first page-gated caption on screen; the last page closes it.
-        /// Returns false when nothing waited for it.</summary>
+        /// typing speaker box, else turns the page of the first page-gated caption on screen; the last page closes it. #2494:
+        /// with "Story text: wait for me" off it does the same for a timed subtitle, speaker box or reading frame — the next
+        /// page shows at once, the last page closes the caption (title cards, credits and banners stay timed). Closing a
+        /// shot's last caption lets the shot end <see cref="SettleSeconds"/> later (<see cref="ShotLength"/>). Returns false
+        /// when nothing waited for it.</summary>
         public bool Continue()
         {
             if (Done)
@@ -257,9 +352,34 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
             for (int i = 0; i < shot.Captions.Count; i++)
             {
                 var c = shot.Captions[i];
-                if (!c.PageGated || _acked[i] || !_started[i] || ShotTime < c.At)
+                if (_acked[i] || !_started[i] || ShotTime < c.At)
                 {
                     continue;
+                }
+
+                if (!c.PageGated)
+                {
+                    if (!IsReaderCaption(c) || ShotTime + _skipped[i] >= c.End || c.Pages.Count == 0)
+                    {
+                        continue; // a title card, the credits, a banner, or a timed caption already gone
+                    }
+
+                    int p = TimedPage(c, ShotTime - c.At + _skipped[i]);
+                    if (p < c.Pages.Count - 1)
+                    {
+                        float nextStart = 0f;
+                        for (int k = 0; k <= p && k < c.PageSeconds.Count; k++)
+                        {
+                            nextStart += c.PageSeconds[k];
+                        }
+
+                        // The next page shows from now (a hair past its start, so the float sum lands on it).
+                        _skipped[i] = Math.Max(_skipped[i], nextStart - (ShotTime - c.At) + PageJumpEpsilon);
+                        return true;
+                    }
+
+                    Close(i, c, CaptionAlpha(i, c));
+                    return true;
                 }
 
                 string page = c.Pages[Math.Min(_page[i], c.Pages.Count - 1)];
@@ -269,25 +389,48 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
                     return true;
                 }
 
+                if (_page[i] + 1 >= c.Pages.Count)
+                {
+                    Close(i, c, CaptionAlpha(i, c)); // the reader turned its last page
+                    return true;
+                }
+
                 _page[i]++;
                 _pageStart[i] = Elapsed;
                 _typed[i] = false;
-                if (_page[i] >= c.Pages.Count)
-                {
-                    _acked[i] = true;
-                    MarkShown(c); // the reader turned its last page
-                }
-
                 return true;
             }
 
             return false;
         }
 
+        /// <summary>#2494: the reader closed caption <paramref name="i"/>: it fades out from <paramref name="alpha"/> and counts as
+        /// shown, and the shot may settle (<see cref="ShotEnd"/>).</summary>
+        private void Close(int i, PlannedCaption c, float alpha)
+        {
+            _acked[i] = true;
+            _closedAt[i] = Elapsed;
+            _closedAlpha[i] = alpha;
+            _lastCloseShotTime = ShotTime;
+            MarkShown(c);
+        }
+
+        /// <summary>The alpha caption <paramref name="i"/> shows with now (open captions only).</summary>
+        private float CaptionAlpha(int i, PlannedCaption c)
+        {
+            if (c.PageGated)
+            {
+                return _page[i] > 0 ? 1f : Clamp01((Elapsed - _pageStart[i]) / CaptionFade); // fades in once, pages cut
+            }
+
+            return CinematicTimeline.FadeWindow(ShotTime + _skipped[i], c.At, c.End, CaptionFade);
+        }
+
         /// <summary>Ends the scene now (skip, interrupt, teardown).</summary>
         public void End() => Done = true;
 
-        /// <summary>What every caption of the current shot shows now; hidden captions are left out.</summary>
+        /// <summary>What every caption of the current shot shows now; hidden captions are left out. #2494: a caption the reader
+        /// just closed stays for <see cref="CaptionFade"/> with falling alpha, its last page in full, waiting for nobody.</summary>
         public IReadOnlyList<CaptionView> Visible()
         {
             var views = new List<CaptionView>();
@@ -305,30 +448,36 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
                     continue;
                 }
 
-                if (c.PageGated)
+                if (_acked[i])
                 {
-                    if (_acked[i])
+                    float fade = _closedAlpha[i] * (1f - Clamp01((Elapsed - _closedAt[i]) / CaptionFade));
+                    if (fade > 0f && c.Pages.Count > 0)
                     {
-                        continue;
+                        int last = c.PageGated ? Math.Min(_page[i], c.Pages.Count - 1) : TimedPage(c, ShotTime - c.At + _skipped[i]);
+                        string closed = c.Pages[last];
+                        views.Add(new CaptionView(c, last, closed, closed.Length, fade, waitsForReader: false));
                     }
 
+                    continue;
+                }
+
+                if (c.PageGated)
+                {
                     int p = Math.Min(_page[i], c.Pages.Count - 1);
                     string page = c.Pages[p];
                     int typed = TypedChars(i, c, page);
-                    float alpha = p > 0 ? 1f : Clamp01((Elapsed - _pageStart[i]) / CaptionFade); // fades in once, pages cut
-                    views.Add(new CaptionView(c, p, page, typed, alpha, typed >= page.Length));
+                    views.Add(new CaptionView(c, p, page, typed, CaptionAlpha(i, c), typed >= page.Length));
                 }
                 else
                 {
-                    if (ShotTime >= c.End)
+                    if (ShotTime + _skipped[i] >= c.End)
                     {
                         continue;
                     }
 
-                    int p = TimedPage(c, ShotTime - c.At);
-                    float alpha = CinematicTimeline.FadeWindow(ShotTime, c.At, c.End, CaptionFade);
+                    int p = TimedPage(c, ShotTime - c.At + _skipped[i]);
                     string page = c.Pages[p];
-                    views.Add(new CaptionView(c, p, page, page.Length, alpha, waitsForReader: false));
+                    views.Add(new CaptionView(c, p, page, page.Length, CaptionAlpha(i, c), waitsForReader: false));
                 }
             }
 
@@ -364,6 +513,10 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
             _started = new bool[n];
             _pageStart = new float[n];
             _typed = new bool[n];
+            _closedAt = new float[n];
+            _closedAlpha = new float[n];
+            _skipped = new float[n];
+            _lastCloseShotTime = -1f;
             _sfxFired = new bool[shot.Sfx.Count];
             _shotChanged = true;
         }

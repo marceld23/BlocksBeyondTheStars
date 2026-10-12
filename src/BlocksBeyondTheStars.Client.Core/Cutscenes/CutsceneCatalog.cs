@@ -57,10 +57,14 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         }
 
         /// <summary>The replayable seen scenes of <paramref name="packs"/>, grouped by pack in the given pack order and in
-        /// each pack's definition order (instances of one template by their owner's place in the chapters).</summary>
-        public static IReadOnlyList<CutsceneReplayEntry> ReplayEntries(IEnumerable<StoryDefinition> packs, IEnumerable<string> seen)
+        /// each pack's definition order (instances of one template by their owner's place in the chapters). #2497:
+        /// <paramref name="exclude"/> leaves scenes out by their <see cref="SeenKey"/> (the ending, which the Journal's
+        /// "Watch the ending again" replays — <see cref="EndingIds"/>).</summary>
+        public static IReadOnlyList<CutsceneReplayEntry> ReplayEntries(IEnumerable<StoryDefinition> packs, IEnumerable<string> seen,
+            IEnumerable<string>? exclude = null)
         {
             var set = new HashSet<string>(seen ?? Array.Empty<string>(), StringComparer.Ordinal);
+            set.ExceptWith(exclude ?? Array.Empty<string>());
             var entries = new List<CutsceneReplayEntry>();
             foreach (var pack in packs ?? Array.Empty<StoryDefinition>())
             {
@@ -137,6 +141,34 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
 
             return cutsceneId;
         }
+
+        /// <summary>#2497: the scenes of a pack's ending — its finale's <c>standdown</c> and <c>resolution</c> bindings
+        /// (<c>story.json</c> <c>finale.cutscenes</c>; VEGA: <c>fin.standdown</c>, <c>resolution</c>). The Journal's "Watch the
+        /// ending again" replays both in that order, so "Watch again" leaves them out instead of listing the ending three
+        /// times. Empty for a pack without a finale.</summary>
+        public static IReadOnlyList<string> EndingIds(StoryDefinition? pack)
+        {
+            var ids = new List<string>();
+            var bindings = pack?.Finale?.Cutscenes;
+            if (bindings is null)
+            {
+                return ids;
+            }
+
+            foreach (string stage in new[] { StoryFinaleStages.Standdown, StoryFinaleStages.Resolution })
+            {
+                if (bindings.TryGetValue(stage, out string? id) && !string.IsNullOrEmpty(id) && !ids.Contains(id!))
+                {
+                    ids.Add(id!);
+                }
+            }
+
+            return ids;
+        }
+
+        /// <summary>#2497: <see cref="EndingIds"/> as <see cref="SeenKey"/>s — the <c>exclude</c> of <see cref="ReplayEntries"/>.</summary>
+        public static IEnumerable<string> EndingKeys(StoryDefinition? pack)
+            => pack is null ? Array.Empty<string>() : EndingIds(pack).Select(id => SeenKey(pack.Id, id));
 
         /// <summary>The chapter a scene belongs to: an instance's owner chapter (or the chapter of its owner step), else the
         /// scene's own <c>chapter</c> — the server's rule (<see cref="CutsceneArgs.ChapterOf"/>).</summary>

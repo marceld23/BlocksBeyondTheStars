@@ -98,6 +98,36 @@ public sealed class CinematicsFixesTests
         Assert.False(gate.Active);
     }
 
+    [Fact]
+    public void CutsceneGate_AHudOnlyReason_HidesTheHud_ButOwnsNoScreen()
+    {
+        // #2496: the T3 overlay "Lift-off!" hides the HUD while the controls, the touch layer and the chat stay.
+        var gate = new CutsceneGate();
+        Assert.False(gate.HudHidden);
+
+        gate.SetHud("director", true);
+        gate.SetHud("director", true); // idempotent
+        Assert.True(gate.HudHidden);
+        Assert.True(gate.IsHudActive("director"));
+        Assert.False(gate.Active);                          // the controls stay free
+        Assert.Equal(0, gate.Count);
+        Assert.False(gate.ActiveOtherThan(CutsceneGate.Prologue)); // VEGA's panel and the director's "another scene" ignore it
+        Assert.False(gate.IsActive("director"));
+
+        gate.Begin(CutsceneGate.Resolution); // a full reason hides the HUD too
+        gate.SetHud("director", false);
+        Assert.True(gate.HudHidden);
+        gate.End(CutsceneGate.Resolution);
+        Assert.False(gate.HudHidden);
+
+        gate.SetHud("director", true);
+        gate.End("director"); // ending a full reason of the same name leaves the HUD-only one alone
+        Assert.True(gate.HudHidden);
+        gate.Clear();         // the world is gone: everything goes
+        Assert.False(gate.HudHidden);
+        Assert.Throws<ArgumentException>(() => gate.SetHud(string.Empty, true));
+    }
+
     // ---- PrologueOrbit ---------------------------------------------------------------------------------------------
 
     [Theory]

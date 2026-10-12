@@ -24,7 +24,8 @@ namespace BlocksBeyondTheStars.Client
     /// title card, the speaker box with the narrator's icon, name and colour from the pack, the framed reading panel, the
     /// credits roll, the "Continue" button for page-gated captions and the galaxy chart of a <c>chart</c> shot. Pure
     /// presentation; the director decides what shows. Text is legacy uGUI on the frame's 1920×1080 canvas (Rajdhani with
-    /// the Noto fallbacks), the fonts follow the player's UI scale like the frame's own caption (#2461).
+    /// the Noto fallbacks), the fonts follow the player's UI scale like the frame's own caption (#2461). #2497: plus a world
+    /// dim on a tiny canvas of its own under the HUD (<see cref="WorldDimSortingOrder"/>) — a card dims only the world.
     /// </summary>
     public sealed class CutsceneScreen
     {
@@ -39,8 +40,16 @@ namespace BlocksBeyondTheStars.Client
         private const float ChartSize = RefH - BarH - 26f - SpeakerH - 8f - ChartTop;
         private const float ContinueW = 320f, ContinueH = 46f;
 
+        /// <summary>#2497: the world dim's sorting order — above the world labels (<c>ScreenLabelLayer</c>, 8), below the HUD (10),
+        /// VEGA's panel (11), the flight HUD (12), the chat (25) and the touch layer (100).</summary>
+        public const int WorldDimSortingOrder = 9;
+
         private readonly CinematicFrame _frame;
         private readonly Transform _root;
+        private readonly string _name;
+        private Canvas _worldDimCanvas; // #2497: built on the first dim (a banner or a staged scene never needs one)
+        private Image _worldDim;
+        private bool _destroyed;
 
         private readonly Image _banner;
         private readonly Image _bannerIcon;
@@ -68,10 +77,11 @@ namespace BlocksBeyondTheStars.Client
         private GalaxyChartWidget _chart;
         private float _scale = -1f;
 
-        private CutsceneScreen(CinematicFrame frame)
+        private CutsceneScreen(CinematicFrame frame, string name)
         {
             _frame = frame;
             _root = frame.Root;
+            _name = name ?? "Cutscene";
 
             _banner = UiKit.AddPanel(_root, (RefW - BannerW) * 0.5f, BannerY, BannerW, BannerH, new Color(0.04f, 0.09f, 0.15f, 0.9f));
             _bannerIcon = UiKit.AddImage(_banner.transform, 18f, 14f, 64f, 64f, null, Color.white);
@@ -136,12 +146,12 @@ namespace BlocksBeyondTheStars.Client
                 frame.EnableSkipButton();
             }
 
-            return new CutsceneScreen(frame);
+            return new CutsceneScreen(frame, name);
         }
 
         public CinematicFrame Frame => _frame;
 
-        /// <summary>Whether the screen is drawn (the frame's canvas is a root-level object of its own).</summary>
+        /// <summary>Whether the screen is drawn (the frame's canvas and the world dim are root-level objects of their own).</summary>
         public bool Visible
         {
             get => _root != null && _root.gameObject.activeSelf;
@@ -151,12 +161,68 @@ namespace BlocksBeyondTheStars.Client
                 {
                     _root.gameObject.SetActive(value);
                 }
+
+                if (_worldDimCanvas != null && _worldDimCanvas.gameObject.activeSelf != value)
+                {
+                    _worldDimCanvas.gameObject.SetActive(value);
+                }
             }
         }
 
         public void SetLetterbox(float amount01) => _frame.SetLetterbox(amount01);
 
+        /// <summary>The frame's own black cover — over everything (a black-out, a reading frame, the credits).</summary>
         public void SetFade(float alpha) => _frame.SetFade(alpha);
+
+        /// <summary>#2497: the world dim under the HUD (a card or an overlay).</summary>
+        public void SetWorldDim(float alpha)
+        {
+            float a = Mathf.Clamp01(alpha);
+            if (_worldDim == null)
+            {
+                if (a <= 0.001f || _destroyed)
+                {
+                    return;
+                }
+
+                BuildWorldDim();
+            }
+
+            if (!Mathf.Approximately(_worldDim.color.a, a))
+            {
+                _worldDim.color = new Color(0f, 0f, 0f, a);
+            }
+
+            bool on = a > 0.001f; // no full-screen quad drawn for nothing
+            if (_worldDim.enabled != on)
+            {
+                _worldDim.enabled = on;
+            }
+        }
+
+        /// <summary>#2497: a card dims only the world — a full-screen shade on a tiny canvas of its own under the HUD
+        /// (<see cref="WorldDimSortingOrder"/>), so the HUD, the crosshair and VEGA's objective chip stay bright while the player
+        /// keeps playing under the card. A HUD canvas (diegetic), so with the visor HUD it is drawn into the visor's layer under
+        /// the HUD, not over it; the frame's own cover stays for black-outs, reading frames and the credits.</summary>
+        private void BuildWorldDim()
+        {
+            _worldDimCanvas = UiKit.CreateDiegeticCanvas(_name + "WorldDim", UiKit.HudRefW, UiKit.HudRefH);
+            _worldDimCanvas.sortingOrder = WorldDimSortingOrder;
+            var dimGo = new GameObject("WorldDim", typeof(RectTransform));
+            dimGo.transform.SetParent(_worldDimCanvas.transform, false);
+            var dimRt = dimGo.GetComponent<RectTransform>();
+            dimRt.anchorMin = Vector2.zero;
+            dimRt.anchorMax = Vector2.one;
+            dimRt.offsetMin = dimRt.offsetMax = Vector2.zero;
+            _worldDim = dimGo.AddComponent<Image>();
+            _worldDim.sprite = UiKit.SolidSprite;
+            _worldDim.color = new Color(0f, 0f, 0f, 0f);
+            _worldDim.raycastTarget = false;
+            if (_root != null && !_root.gameObject.activeSelf)
+            {
+                _worldDimCanvas.gameObject.SetActive(false); // the screen hides (a card under the menu): so does its dim
+            }
+        }
 
         public void SetFlash(float alpha) => _frame.SetFlash(alpha);
 
@@ -299,13 +365,19 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Tears the screen down (the frame's canvas goes with it).</summary>
+        /// <summary>Tears the screen down (the frame's canvas and the world dim go with it).</summary>
         public void Destroy()
         {
+            _destroyed = true;
             HideChart();
             if (_frame != null)
             {
                 Object.Destroy(_frame.gameObject);
+            }
+
+            if (_worldDimCanvas != null)
+            {
+                Object.Destroy(_worldDimCanvas.gameObject);
             }
         }
 

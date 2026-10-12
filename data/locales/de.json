@@ -3634,6 +3634,7 @@
   "ui.cutscene.skip_pad": "Überspringen · {0}",
   "ui.cutscene.skip_touch": "Überspringen ▶▶",
   "ui.cutscene.saved": "Story-Moment gespeichert — in deinem Journal kannst du ihn noch einmal ansehen.",
+  "ui.cutscene.plays_when_landed": "Läuft, sobald du gelandet bist.",
   "ui.devseq.title": "Szenen-Palette (Entwicklung) — eine Szene anklicken spielt sie hier ab",
   "ui.devseq.close": "Schließen · F9",
   "ui.vega.tab_one": "VEGA · 1 Nachricht · Öffnen {1}",

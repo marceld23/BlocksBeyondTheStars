@@ -297,8 +297,9 @@ namespace BlocksBeyondTheStars.Client
 
             // Hidden while a menu is open — and during every cutscene (#760, #2461: the ending used to play over
             // the full HUD): vitals/hotbar/crosshair in the frame break the letterboxed shot. The VEGA speech panel
-            // and the CinematicFrame chrome live on their own canvases, so the story text stays visible.
-            bool show = !Game.MenuOpen && !Game.VegaPrologueActive && !Game.CinematicCameraActive && !GameBootstrap.CutsceneActive;
+            // and the CinematicFrame chrome live on their own canvases, so the story text stays visible. #2496: also under a
+            // scene that hides only the HUD (a T3 overlay's hideHud — GameBootstrap.HudHidden).
+            bool show = !Game.MenuOpen && !Game.VegaPrologueActive && !Game.CinematicCameraActive && !GameBootstrap.HudHidden;
             if (_canvas.enabled != show)
             {
                 _canvas.enabled = show;
@@ -592,9 +593,9 @@ namespace BlocksBeyondTheStars.Client
         {
             var cam = Camera.main;
             var def = Game?.Content?.BlockById(block);
-            if (cam == null || def == null || Game.Atlas == null || GameBootstrap.CutsceneActive)
+            if (cam == null || def == null || Game.Atlas == null || GameBootstrap.HudHidden)
             {
-                return; // #2461: no icon flies across a cutscene (its canvas sits above every frame)
+                return; // #2461: no icon flies across a cutscene (its canvas sits above every frame) — #2496: nor to a hidden hotbar
             }
 
             Vector3 sp = cam.WorldToScreenPoint(worldPos);

@@ -53,6 +53,21 @@ line per step:
   the achievement, once (`station:told:<id>`; older live tells are back-filled from the counter, #2492). A visible fleet
   admin's `/goto` is booked silently like an observer's — no hyperjump/system milestone, frontier or explorer credit
   (#2493). Docs: TUTORIAL_PACK, STORY_IMPLEMENTATION, USER_MANUAL.
+- ✅ **Step 3 — cutscene feel: the wait after N, HideHud, cards/ending/banners (#2494, #2496, #2497)**, 2026-10-12: once
+  the reader closed a shot's captions, the shot ends ~1 s later (`CutscenePlayback.SettleSeconds`) instead of running out
+  its authored length — authored `hold` tails, timed captions still to show, later sound cues and a 2.25 s minimum shot are
+  kept, nothing is cut while a caption has yet to appear; a closed caption fades out in 0.35 s; with "Story text: wait for
+  me" off, N pages a timed subtitle / speaker box / reading frame and closes it (titles, credits, banners stay timed). The
+  VEGA prologue read fast: ~21 s instead of ~52 s (#2494). `hideHud` is applied at last: a HUD-only reason in
+  `CutsceneGate` (`SetHud`/`HudHidden`, never counted as "owns the screen"), `CutsceneRules.HidesHud`; HudUi, the flight
+  HUD, the space radar and the name tags follow `GameBootstrap.HudHidden`, the touch stick stays; SpaceView's launch fade and
+  hit flash moved to their own canvas — "Lift-off!" no longer shows the cruise HUD under the letterbox (#2496). Cards dim
+  only the world (a 0.18 world-dim canvas at order 9 under the HUD; the frame keeps black-outs, reading frames, credits);
+  under a card VEGA hides only her speech, the objective chip stays; "Watch the ending again" replays the stand-down and
+  then the ending (server, `cutscenes1`), and "Watch again" leaves both out (`CutsceneCatalog.EndingIds`); a dropped "now
+  or never" scene shows its title as a banner; "Watch" while flying says "Plays when you land." (#2497). Docs: CUTSCENES,
+  USER_MANUAL. ⚠ Unity: check in the Editor — the settle and fade feel, "Lift-off!" without HUD (launch fade intact), a card
+  over the HUD with the visor on and off, VEGA's chip under a card.
 
 ### ★ Story packs 2026-10 (#2459)
 
