@@ -191,7 +191,7 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   without a tutorial, for veterans / players who heard a beat, on **Start the story now** (`startPack`, pause-whitelisted)
   or in the finale system; until then beats + knowledge, the Guardian reveal, resolution/epilogue lines, insights, relay
   insights, hack/duel broadcasts and the live ending are **held**; the track start credits them, plays the recap
-  (titles), only the current chapter's opening (its beat line until step 15), the reveal line, the ending. Hosted/arcade
+  (titles), only the current chapter's opening (its scene since step 15), the reveal line, the ending. Hosted/arcade
   newcomers: personal chapter 1 + crew status line. Lazy migration P1–P9 (`migrated:v1`). VEGA's old memory arc reads as
   neutral archive lines without the VEGA story; relay insights and the core hint are silent without a story; the chip's
   story ranks wait for the track (fixes the chip flashing on prologue pages / read steps). Story tab: chapter list
@@ -237,7 +237,21 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   chapter opener whose part is over is dropped, a line a waiting scene shows is held with it, an overlay scene does not
   open from black. Tests: `TutorialCardsTests`, Client.Tests `TutorialCardsClientTests`. Docs: CUTSCENES, TUTORIAL_PACK,
   USER_MANUAL.
-- ⬜ Step 15 — VEGA chapter scenes (#2474)
+- ✅ **Step 15 — VEGA chapter scenes and beat cards (#2474)**, 2026-10-12 (needs the local Unity build): every chapter of
+  the arc opens with its scene in `data/stories/vega_protocol/cutscenes.json` — title cards (T2: "Chapter n" over the
+  title, a sting, VEGA's beat in her speaker box, free input) for chapters 1, 4, 6; chapter 2 as VEGA's sepia memory of
+  the star chart (T3); the big scenes **"The Guardian"** (B5, T3, the sky + the anomaly's hum), **"What You Are"** (B9,
+  T3, a close framing of the player's real heal tank inside the medbay — a card where this world has no own tank) and
+  **"The Guardian Core"** (B12 + reveal, T4: the live star chart with a violet route to the new Guardian system while VEGA
+  names the jump generator; the line comes back to the panel when skipped early — new option `returnOnSkip`); beat cards
+  `b01 b03 b04 b07 b08 b10` ("VEGA remembers" + the beat's title, then the beat; free input). Captions are the beats' own
+  texts, kept out of VEGA's panel (`replaceLineKeys`). Track start: recap → only the current chapter's scene (chapter 1's
+  card is followed by B1's card); the prologue and the graduation chain into `ch1.open`. B09 catch-up: the scenes are
+  committed before the lines, a recap when the missed beats crossed into a later chapter, one card for one missed beat
+  (the Journal line stays). Chapter numbers follow the Story tab (`CutsceneArgs`: a world story's arc chapters count from
+  the prologue = 0). Three ElevenLabs stingers `chapter_sting`, `chapter_sting_memory`, `chapter_sting_reveal` (NOTICES).
+  Tests: `VegaChapterScenesTests`, Client.Tests `VegaChapterScenesClientTests` + updated VEGA/tutorial/cutscene tests.
+  Docs: CUTSCENES, STORY_IMPLEMENTATION, STORY_VEGA_PROTOCOL_CONCEPT, SOUND_DESIGN, USER_MANUAL, NOTICES.
 - ⬜ Step 16 — VEGA leads, chapter bonus, pacing (#2475) · 16b — VEGA story missions (#2476)
 - ⬜ Step 17a — camera modes (#2477) · 17b — finale set pieces (#2478)
 - ⬜ Steps 18–21 — tutorial deep-dive chapters (#2479, #2480, #2481, #2482)
@@ -255,6 +269,13 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   skip button on touch (the touch layer stays up under a card and may cover the bottom-right button), pad paging of
   cards, the MP camera cap. Deferred to later steps: hold-to-skip / pause-then-skip, ambience ducking, music prefetch,
   `ctx:` variants and synthetic stages (17a), vocoder chatter under the speaker box.
+- Open from step 15: the 12 community VEGA pack locales lack the seven `story.vega.cut.*` keys (English shows meanwhile —
+  translation pass). Playtest/on-device checks: listen to the three stingers (generated unheard; regenerate one with
+  `gen_sound.py` if it jars), the heal-tank close-up in the starter ship and in a self-built ship (camera inside the
+  medbay, never in a wall), chapter 7's chart route + ring on desktop and WebGL, the sepia memory chart in chapter 2, a
+  card's speaker box while walking, an early skip of chapter 7 bringing the jump-generator line back; a parent watching
+  B6/B9 (synthesis §6.6). Deferred: dioramas / the drifting memory chart for chapters 3, 4 and 6 and the B10 multiplayer
+  variant (17a/17b).
 
 ### ⚙️ CI long poles: world-gen caches no longer build under a shared lock (#2455), the settlement sweeps split up (#2456) (2026-10-10, branch fix/ci-shard-long-poles) — ✅ done
 

@@ -356,12 +356,26 @@ public sealed class CutsceneContentTests
         AssertError(Probe(c => c.Options.ChainNext.Add("nowhere")), "is not defined in the pack");
         AssertError(Probe(c => c.Options.ChainNext.Add("scene")), "chain to itself");
         AssertError(Probe(c => c.Options.ChainNext.Add(string.Empty)), "empty chain reference");
-        AssertError(Probe(c => c.Options.ChainNext.Add("vega_protocol/ch1.open")), "has no cutscene 'ch1.open'");
+        Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("vega_protocol/ch1.open")))); // #2474 added VEGA's chapter scenes
+        AssertError(Probe(c => c.Options.ChainNext.Add("vega_protocol/fin.arrival")), "has no cutscene 'fin.arrival'"); // step 17b
         Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("vega_protocol/prologue"))));
         // #2469: the tutorial pack is installed, so a chain to one of its scenes must resolve — #2473 added its cards.
         Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("tutorial/tut.welcome"))));
         AssertError(Probe(c => c.Options.ChainNext.Add("tutorial/tut.first_dock")), "has no cutscene 'tut.first_dock'"); // step 18
         AssertWarning(Probe(c => c.Options.ChainNext.Add("side_story/intro")), "not installed");
+    }
+
+    [Fact]
+    public void AReturnOnSkipLine_MustBeOneTheSceneReplaces()
+    {
+        // #2474: a line a skip gives back to the panel must be one the scene takes out of it.
+        Assert.Empty(Issues(Probe(c =>
+        {
+            c.ReplaceLineKeys.Add("vega.prologue.1");
+            c.Options.ReturnOnSkip.Add("vega.prologue.1");
+        })));
+        AssertError(Probe(c => c.Options.ReturnOnSkip.Add("vega.prologue.2")), "is not one of the scene's replaceLineKeys");
+        AssertError(Probe(c => c.Options.ReturnOnSkip.Add(string.Empty)), "is not one of the scene's replaceLineKeys");
     }
 
     // ---------------- Ledger keys and ids ----------------

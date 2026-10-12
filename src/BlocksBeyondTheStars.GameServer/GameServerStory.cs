@@ -280,8 +280,9 @@ public sealed partial class GameServer
     /// <summary>Speaks a beat to one player if they haven't heard it (tracked per-player, persisted), granting
     /// its one-time knowledge reward. Held while the player's story track has not started (#2470, synthesis §4.6): no key,
     /// no knowledge, no line — the track start hears it and credits its knowledge then. A beat that opens a chapter plays
-    /// the chapter's opening scene first when <paramref name="stage"/> (the join catch-up stages only the current chapter),
-    /// then the beat's own scene, then the line.</summary>
+    /// the chapter's opening scene first when <paramref name="stage"/> (the join catch-up of several beats stages only the
+    /// current chapter), then the beat's own scene (#2474: the beat cards), then the line — which the scene shows itself
+    /// (<c>replaceLineKeys</c>): the client keeps it out of VEGA's panel, the log still has it.</summary>
     private void RevealBeatTo(PlayerSession session, StoryBeat beat, bool stage = true)
     {
         if (!StoryTrackStarted(session) || !MarkBeatHeard(session, beat))
@@ -353,7 +354,10 @@ public sealed partial class GameServer
     /// world crossed meanwhile only the CURRENT chapter's opening plays (synthesis §5.3), not one scene per chapter. Since
     /// #2471 (B09) a client with the Journal that missed <see cref="CatchUpCollapseThreshold"/> or more beats gets them
     /// silently in its Journal (heard, knowledge credited, the story state re-sent) and ONE line saying so
-    /// (<see cref="StoryNarratorLines.JournalNews"/>) instead of a flood of lines; a single missed beat still speaks.</summary>
+    /// (<see cref="StoryNarratorLines.JournalNews"/>) instead of a flood of lines; a single missed beat still speaks (#2474:
+    /// with its beat card). #2474: the current chapter's opening is committed before any line (a line it shows waits with
+    /// it), and a client that plays cutscenes whose missed beats crossed into a later chapter gets "The story so far" first
+    /// (<see cref="PlayCatchUpRecap"/>) — the Journal line stays: it names the count and lights the Journal's badge.</summary>
     private void CatchUpStoryLines(PlayerSession session)
     {
         if (_story is null || session.Spectating || !StoryTrackStarted(session))
@@ -371,7 +375,23 @@ public sealed partial class GameServer
         }
 
         bool caughtUp = missed.Count > 0;
-        if (session.SupportsPacks && missed.Count >= CatchUpCollapseThreshold)
+        bool collapse = session.SupportsPacks && missed.Count >= CatchUpCollapseThreshold;
+        var current = caughtUp ? ChapterAt(TrackChapterIndex(session)) : null;
+
+        // #2474: the scenes go first, so a line a queued scene shows (its replaceLineKeys) waits with it and the client never
+        // reads it twice. When the missed beats crossed into a later chapter, "the story so far" (titles only) leads into the
+        // current chapter's opening; a beat card plays for a single missed beat.
+        if (collapse && current is not null)
+        {
+            PlayCatchUpRecap(session, missed);
+        }
+
+        if (current is not null)
+        {
+            PlayChapterOpening(session, current);
+        }
+
+        if (collapse)
         {
             foreach (var beat in missed)
             {
@@ -391,19 +411,44 @@ public sealed partial class GameServer
         {
             foreach (var beat in missed)
             {
-                RevealBeatTo(session, beat, stage: false);
+                RevealBeatTo(session, beat, stage: missed.Count == 1); // one missed beat: its card (its opening already played)
             }
-        }
-
-        if (caughtUp && ChapterAt(TrackChapterIndex(session)) is { } current)
-        {
-            PlayChapterOpening(session, current);
         }
 
         if (_storyState.GuardianSystemRevealed && !_storyState.GuardianDefeated)
         {
             SpeakGuardianRevealedTo(session);
         }
+    }
+
+    /// <summary>#2474 (B09): a client that plays cutscenes and missed beats that crossed into a later chapter gets "The story
+    /// so far" — the titles of the chapters before its current one, as at a track start — which leads straight into the
+    /// current chapter's opening. Missed beats within the chapter the player was in bring no recap.</summary>
+    private void PlayCatchUpRecap(PlayerSession session, IReadOnlyCollection<StoryBeat> missed)
+    {
+        var def = _story;
+        if (def is null || !session.SupportsCutscenes)
+        {
+            return;
+        }
+
+        int heardUpTo = 0;
+        for (int i = 0; i < _storyState.BeatsRevealed && i < def.Beats.Count; i++)
+        {
+            if (!missed.Contains(def.Beats[i]))
+            {
+                heardUpTo = Math.Max(heardUpTo, def.Beats[i].Index);
+            }
+        }
+
+        int before = StoryChapters.TrackChapterIndex(def, StoryChapters.ChapterIndexOfBeat(def, heardUpTo));
+        int current = TrackChapterIndex(session);
+        if (current < 2 || current <= before)
+        {
+            return;
+        }
+
+        PlayRecap(session, def.Id, def.Chapters.Skip(1).Take(current - 1).Select(c => c.TitleKey).Where(k => !string.IsNullOrEmpty(k)));
     }
 
     private void SendStoryState(PlayerSession session) => Send(session, BuildStoryState(session));

@@ -148,6 +148,17 @@ public sealed class VegaStoryPackTests : IDisposable
         server.TickCutscenesForTest(p);
     }
 
+    /// <summary>#2474: the cooldown runs out <paramref name="times"/> times, each followed by a queue tick — every queued
+    /// scene (and the lines it holds) goes out.</summary>
+    private static void Drain(SvGameServer server, PlayerSession p, int times = 4)
+    {
+        for (int i = 0; i < times; i++)
+        {
+            server.AdvanceUptimeForTest(SvGameServer.CutsceneCooldownSeconds);
+            server.TickCutscenesForTest(p);
+        }
+    }
+
     private static void Deliver(SvGameServer server, PlayerSession who, object message)
         => server.HandlePayloadForTest(who.ConnectionId, NetCodec.Encode(message));
 
@@ -395,12 +406,16 @@ public sealed class VegaStoryPackTests : IDisposable
         int knowledge = rookie.State.KnowledgePoints;
 
         server.AdminAdvanceStory(ToB1);
+        Drain(server, started); // #2474: the line waits with its beat card
+        Drain(server, rookie);
 
         Assert.True(Has(started, Beat(1)));
         Assert.Contains("story.vega.beat01", transport.LineKeys(started));
+        Assert.Contains("b01", transport.Plays(started));
         Assert.False(Has(rookie, Beat(1)));
         Assert.Equal(knowledge, rookie.State.KnowledgePoints);
         Assert.DoesNotContain("story.vega.beat01", transport.LineKeys(rookie));
+        Assert.DoesNotContain("b01", transport.Plays(rookie));
     }
 
     [Fact]
@@ -430,7 +445,9 @@ public sealed class VegaStoryPackTests : IDisposable
         Assert.DoesNotContain(p.State.PlayerId, server.FinaleAudienceForTest()); // the hack and duel broadcasts skip them
 
         server.SkipTutorialForTest(p);
+        Drain(server, p); // #2474: the line waits with chapter 7's set piece, which shows it
         Assert.Contains("story.vega.guardian_revealed", transport.LineKeys(p)); // the jump generator line, at the start
+        Assert.Contains("ch7.open", transport.Plays(p));
         Assert.Contains(p.State.PlayerId, server.FinaleAudienceForTest());
     }
 
@@ -518,7 +535,9 @@ public sealed class VegaStoryPackTests : IDisposable
         var recap = Assert.Single(transport.To<CutscenePlay>(rookie), c => c.CutsceneId == StoryCutsceneIds.Recap);
         Assert.Equal(new[] { "story.vega.ch.signature", "story.vega.ch.service", "story.vega.ch.guardian", "story.vega.ch.verdict" },
             LineText.SplitArgs(recap.Arg)); // titles of the chapters before the current one
-        Assert.Equal(new[] { "story.vega.beat09" }, transport.LineKeys(rookie).Where(k => k.StartsWith("story.vega.", StringComparison.Ordinal)));
+        // #2474: only the current chapter's scene follows the recap at once — it shows B9 itself, so no beat line is spoken
+        Assert.Equal(new[] { StoryCutsceneIds.Recap, "ch5.open" }, transport.To<CutscenePlay>(rookie).Where(c => c.PackId == V).Select(c => c.CutsceneId));
+        Assert.DoesNotContain(transport.LineKeys(rookie), k => k.StartsWith("story.vega.beat", StringComparison.Ordinal));
         var state = server.StoryStateForTest("Rookie")!;
         Assert.True(state.Started);
         Assert.Equal("what_you_are", state.Chapter);
@@ -551,10 +570,7 @@ public sealed class VegaStoryPackTests : IDisposable
     [Fact]
     public void ABoundChapterOpening_FollowsTheRecapAtOnce_AndCarriesTheBeat()
     {
-        // Step 15 binds the real chapter openings; until then a card stands in for chapter 4's.
-        var vega = _content.Stories[V];
-        vega.Cutscenes.Add(new CutsceneDefinition { Id = "ch4.open", Chapter = "verdict", Tier = CutsceneTiers.Card, Shots = { new CutsceneShot { Duration = 4 } } });
-        vega.Chapters.Single(c => c.Id == "verdict").OpenCutscene = "ch4.open";
+        // #2474: chapter 4's real opening card.
         var (server, transport) = World("bound_opening");
         server.AdminAdvanceStory(ToB8);
         var p = Join(server, 1, "Rookie");
@@ -573,17 +589,18 @@ public sealed class VegaStoryPackTests : IDisposable
     [Fact]
     public void ALiveBeat_ThatOpensAChapter_PlaysItsOpeningBeforeTheLine()
     {
-        var vega = _content.Stories[V];
-        vega.Cutscenes.Add(new CutsceneDefinition { Id = "ch2.open", Chapter = "service", Tier = CutsceneTiers.Card, Shots = { new CutsceneShot { Duration = 4 } } });
-        vega.Chapters.Single(c => c.Id == "service").OpenCutscene = "ch2.open";
         var (server, transport) = World("live_opening");
         var p = Join(server, 1, "Crew");
         server.SkipTutorialForTest(p);
 
         server.AdminAdvanceStory(7); // B2 opens chapter 2
+        Drain(server, p); // #2474: the line waits with its scene
 
         Assert.True(Has(p, StoryPackKeys.CutsceneSent(V, "ch2.open")));
-        Assert.Contains("story.vega.beat02", transport.LineKeys(p));
+        var sent = transport.Sent.Where(x => x.Conn == p.ConnectionId).Select(x => x.Msg).ToList();
+        int scene = sent.FindIndex(m => m is CutscenePlay c && c.CutsceneId == "ch2.open");
+        int line = sent.FindIndex(m => m is ShipAiLine l && l.LineKey == "story.vega.beat02");
+        Assert.True(scene >= 0 && line > scene, $"scene at {scene}, line at {line}"); // the client claims the line for the scene
     }
 
     [Fact]
@@ -642,6 +659,8 @@ public sealed class VegaStoryPackTests : IDisposable
         var (server, transport) = World("p4", repo: repo);
         server.AdminRevealFinale();
         var p = Join(server, 1, "Seeker");
+        Ready(server, p);
+        Drain(server, p); // #2474: the reveal line waits with chapter 7's set piece
 
         Assert.True(Has(p, Started));
         Assert.Equal("core", server.TrackChapterIdForTest(p));
@@ -754,7 +773,6 @@ public sealed class VegaStoryPackTests : IDisposable
     [Fact]
     public void TheRecap_LeadsStraightIntoThePacksNextScene()
     {
-        _content.Stories[V].Cutscenes.Add(new CutsceneDefinition { Id = "ch1.open", Chapter = "signature", Tier = CutsceneTiers.Card, Shots = { new CutsceneShot { Duration = 4 } } });
         var (server, transport) = World("recap_chain");
         var p = Join(server, 1, "Viewer", cutscenes: false); // the prologue as pages, so no scene is sent yet
         p.ClientFeatures.Add(ClientFeatures.Cutscenes1);

@@ -351,6 +351,19 @@ top only when the client sees no attacker and the ship inside a field. The promp
 | capsule aboard | a salvage capsule vanishes within tractor reach of the ship (2D, with the beam) | `salvage_capsule` | EL |
 | raider warp-in | the `SpaceWarpFx` flash flagged `Raider` (3D at the arrival point) | `raider_warp_in` | EL |
 
+## 20. Story chapter stings (#2474) — *ElevenLabs clips*
+
+VEGA's chapter scenes and beat cards ([CUTSCENES.md](CUTSCENES.md#vegas-chapter-scenes-and-beat-cards-2474)) open with a
+short sting played by the cutscene director (`sfx` cue of the scene, `ClientAudio.Cue`). Calm, friendly sci-fi — a
+"chapter begins" signal for kids, never a scare; 2.5–3 s, each under 50 KB because every `Resources/audio` clip is part of
+the browser download. Generated with `tools/ai-assets/gen_sound.py` (`--influence 0.5`), 2026-10-12, prompts below.
+
+| Sound | Trigger | File | Prompt (duration) |
+|---|---|---|---|
+| chapter begins | chapter cards 1, 4, 6 | `chapter_sting` | "Short calm sci-fi chapter title sting: a soft warm synth pad swells up and resolves on one gentle bright chime, hopeful and friendly, clean and simple, no drums, no voice" (2.5 s) |
+| VEGA remembers | chapter 2's memory chart, every beat card | `chapter_sting_memory` | "Short dreamy sci-fi memory sting: soft shimmering crystal bells over a warm low synth pad, gentle and a little mysterious, like a fond memory coming back, no drums, no voice" (2.5 s) |
+| a big reveal | chapters 3, 5 and 7 (the staged scenes) | `chapter_sting_reveal` | "Short sci-fi discovery sting: a deep soft synth swell rising into a wide glowing chord with a gentle sparkle on top, wondrous and awe-inspiring but never scary, no drums, no voice" (3 s) |
+
 ---
 
 ## Totals & rollout

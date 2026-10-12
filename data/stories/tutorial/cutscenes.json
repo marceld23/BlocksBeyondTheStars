@@ -14,7 +14,8 @@
   // tut.first_launch  — the first launch (b6.1 done): a letterbox over the launch rise, the camera untouched; now or never.
   // tut.first_landing — the first landing on a new world (b6.7 done): the camera circles the ship, the world's name as the
   //                   title ({0} = the body, "arg": "body"); a singleplayer world holds while the camera is away.
-  // tut.graduation  — the graduation: the achievement, then VEGA's closing line in her speaker box; chains to VEGA's recap.
+  // tut.graduation  — the graduation: the achievement, then VEGA's closing line in her speaker box; chains to VEGA's recap
+  //                   or, when the world is still in chapter 1, straight to VEGA's chapter 1 card (#2474, §5.3).
   "cutscenes": [
     {
       "id": "tut.welcome",
@@ -123,7 +124,7 @@
           "captions": [ { "style": "speaker", "key": "story.tutorial.graduated" } ]
         }
       ],
-      "options": { "chainNext": [ "__recap" ] }
+      "options": { "chainNext": [ "__recap", "vega_protocol/ch1.open" ] }
     }
   ]
 }

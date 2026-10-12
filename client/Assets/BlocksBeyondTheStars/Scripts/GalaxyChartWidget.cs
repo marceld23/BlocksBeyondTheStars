@@ -40,6 +40,7 @@ namespace BlocksBeyondTheStars.Client
         private const float MarkerPad = StarDisc * 0.5f + 10f;
         private const float SnapRadius = 26f;
         private const float LaneThickness = 2f;
+        private const float RouteThickness = 4f;
 
         private static readonly Color BackingCol = new Color(0.01f, 0.03f, 0.07f, 0.78f);
         private static readonly Color LaneCol = new Color(0.4f, 0.85f, 1f, 0.55f);
@@ -74,9 +75,11 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>(Re)draws the galaxy: every star, the lanes between them, the wormhole pairs the player knows
-        /// (#2242), and the selection ring on <paramref name="selectedId"/> (null for none).</summary>
+        /// (#2242), and the selection ring on <paramref name="selectedId"/> (null for none). #2474: <paramref name="routeFrom"/>
+        /// and <paramref name="routeTo"/> (both set) draw a bold violet line between two stars — VEGA's chapter 7 scene draws
+        /// it from the player's system to the newly revealed Guardian system.</summary>
         public void Show(IReadOnlyList<Star> stars, IReadOnlyList<(string A, string B)> lanes, string selectedId,
-            IReadOnlyList<(string A, string B)> wormholes = null)
+            IReadOnlyList<(string A, string B)> wormholes = null, string routeFrom = null, string routeTo = null)
         {
             for (int i = transform.childCount - 1; i >= 0; i--)
             {
@@ -158,6 +161,13 @@ namespace BlocksBeyondTheStars.Client
                         prev = next;
                     }
                 }
+            }
+
+            // #2474: a route between two stars (the Guardian reveal) — over the lanes, under the stars.
+            if (!string.IsNullOrEmpty(routeFrom) && !string.IsNullOrEmpty(routeTo)
+                && byId.TryGetValue(routeFrom, out int ra) && byId.TryGetValue(routeTo, out int rb))
+            {
+                Line(chart[ra], chart[rb], FinaleCol, RouteThickness);
             }
 
             for (int i = 0; i < stars.Count; i++)

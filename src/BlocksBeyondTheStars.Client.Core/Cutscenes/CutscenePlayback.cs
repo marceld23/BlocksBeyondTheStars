@@ -67,6 +67,7 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         private bool[] _typed = Array.Empty<bool>();
         private bool[] _sfxFired = Array.Empty<bool>();
         private readonly List<string> _dueSfx = new List<string>();
+        private readonly HashSet<string> _shown = new HashSet<string>(StringComparer.Ordinal);
         private bool _shotChanged = true;
 
         public CutscenePlayback(CutscenePlan plan)
@@ -96,6 +97,26 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
 
         /// <summary>Whether a skip is accepted now.</summary>
         public bool CanSkip => _plan.Replay || (_plan.Skippable && Elapsed >= _plan.MinDisplay);
+
+        /// <summary>#2474: the caption keys whose last page has been fully on screen (typed out, turned, or its shot ran
+        /// through).</summary>
+        public IReadOnlyCollection<string> ShownKeys => _shown;
+
+        /// <summary>#2474: what a skip gives back to the narrator panel — the plan's <see cref="CutscenePlan.ReturnOnSkip"/>
+        /// lines whose caption has not been on screen yet (the player skipped before VEGA said it).</summary>
+        public IReadOnlyList<string> KeysToReturnOnSkip()
+        {
+            var keys = new List<string>();
+            foreach (string key in _plan.ReturnOnSkip)
+            {
+                if (!_shown.Contains(key))
+                {
+                    keys.Add(key);
+                }
+            }
+
+            return keys;
+        }
 
         /// <summary>True once per shot start (the first shot included) until read — the director re-stages the camera.</summary>
         public bool TakeShotChanged()
@@ -172,8 +193,14 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
                 }
             }
 
+            RecordShown(shot);
             if (!Waiting && ShotTime >= shot.Duration && !AnyPageGatedOpen(shot))
             {
+                foreach (var c in shot.Captions)
+                {
+                    MarkShown(c); // the shot ran through: every caption had its window
+                }
+
                 if (ShotIndex + 1 >= _plan.Shots.Count)
                 {
                     Done = true;
@@ -182,6 +209,37 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
                 {
                     EnterShot(ShotIndex + 1);
                 }
+            }
+        }
+
+        /// <summary>Records the captions of the current shot whose last page is fully on screen now.</summary>
+        private void RecordShown(PlannedShot shot)
+        {
+            for (int i = 0; i < shot.Captions.Count; i++)
+            {
+                var c = shot.Captions[i];
+                if (!_started[i] || ShotTime < c.At || c.Pages.Count == 0)
+                {
+                    continue;
+                }
+
+                int last = c.Pages.Count - 1;
+                bool typedOut = TypedChars(i, c, c.Pages[last]) >= c.Pages[last].Length;
+                bool shown = c.PageGated
+                    ? _acked[i] || (_page[i] >= last && typedOut)
+                    : TimedPage(c, ShotTime - c.At) >= last && typedOut;
+                if (shown)
+                {
+                    MarkShown(c);
+                }
+            }
+        }
+
+        private void MarkShown(PlannedCaption c)
+        {
+            if (!string.IsNullOrEmpty(c.Key))
+            {
+                _shown.Add(c.Key);
             }
         }
 
@@ -217,6 +275,7 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
                 if (_page[i] >= c.Pages.Count)
                 {
                     _acked[i] = true;
+                    MarkShown(c); // the reader turned its last page
                 }
 
                 return true;

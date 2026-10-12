@@ -17,7 +17,8 @@ namespace BlocksBeyondTheStars.Shared.Story;
 /// <item>A scene bound to a chapter — a template instance's owner chapter (or the chapter of its owner step), else the
 /// scene's own <c>chapter</c> — plays with that chapter's title <b>key</b> as <c>{0}</c> (the client localizes an argument
 /// that is a key), its place among the pack's chapters of the same kind (mandatory or optional, counted from 1) as
-/// <c>{1}</c> and how many there are as <c>{2}</c>: the tutorial's part cards read "Part 3 of 6".</item>
+/// <c>{1}</c> and how many there are as <c>{2}</c>: the tutorial's part cards read "Part 3 of 6". A world story's arc
+/// chapter is numbered as the Story tab numbers it (the prologue's chapter is 0): VEGA's cards read "Chapter 3" (#2474).</item>
 /// <item>A scene whose <see cref="CutsceneDefinition.Arg"/> names a source plays with that value instead: <c>body</c> = the
 /// name of the body the player is on (the first landing), <c>system</c> = the name of the player's star system.</item>
 /// <item>Anything else plays without an argument.</item>
@@ -47,12 +48,27 @@ public static class CutsceneArgs
     }
 
     /// <summary>The place of <paramref name="chapter"/> among the pack's chapters of the same kind (mandatory chapters
-    /// among the mandatory ones, an optional chapter among the optional ones), counted from 1, and how many there are.</summary>
+    /// among the mandatory ones, an optional chapter among the optional ones), counted from 1, and how many there are.
+    /// #2474: a world story's arc chapter (reached by a beat or an event, <see cref="IsArcChapter"/>) is numbered as the
+    /// Story tab numbers it — by its index, so the prologue's chapter is 0 and "Chapter 3 — The Guardian" reads the same on
+    /// the card and in the Journal — and the count is the number of the last chapter.</summary>
     public static (int Place, int Count) PlaceOf(StoryDefinition pack, StoryChapter chapter)
     {
-        var sameKind = (pack?.Chapters ?? new List<StoryChapter>()).Where(c => c.Optional == chapter.Optional).ToList();
+        var chapters = pack?.Chapters ?? new List<StoryChapter>();
+        if (IsArcChapter(chapter) && pack is not null
+            && string.Equals(StoryRegistry.EffectiveScope(pack), StoryRegistry.ScopeWorld, StringComparison.Ordinal))
+        {
+            return (chapters.IndexOf(chapter), chapters.Count - 1);
+        }
+
+        var sameKind = chapters.Where(c => c.Optional == chapter.Optional).ToList();
         return (sameKind.IndexOf(chapter) + 1, sameKind.Count);
     }
+
+    /// <summary>Whether a chapter follows the world arc — reached by a beat (<see cref="StoryChapter.FromBeat"/>) or an arc
+    /// event (<see cref="StoryChapter.FromEvent"/>) rather than by playing its steps.</summary>
+    public static bool IsArcChapter(StoryChapter? chapter)
+        => chapter is not null && (chapter.FromBeat >= 0 || !string.IsNullOrEmpty(chapter.FromEvent));
 
     /// <summary>The argument for playing <paramref name="cutsceneId"/> (a definition or instance id of
     /// <paramref name="def"/>) of <paramref name="pack"/>. <paramref name="bodyName"/> and <paramref name="systemName"/> are

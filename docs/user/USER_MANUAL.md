@@ -1953,6 +1953,15 @@ called **stories**:
   follows the world's story — everyone on a world is in the same chapter. The Journal lists them: the chapters you have
   reached with the story moments you heard in each, the ones still ahead as **???**. From chapter 2 on, **The story so
   far** shows the recap card again.
+- **Chapter scenes.** Every chapter opens on screen: **"Chapter n"** over the chapter's name with a short sound, then
+  VEGA's words in her box. Three moments are bigger scenes where the camera moves for a few seconds — *The Guardian*
+  looks up into the sky, *What You Are* is told at **your own heal tank** in your ship (away from your ship it plays as a
+  card), and *The Guardian Core* shows the new star on the star map and the way to it. Chapter 2 shows VEGA's memory of
+  the star chart. Every other story moment is a **card** — "VEGA remembers" with the moment's title, then her words —
+  and you can keep moving while it shows. Skip any of them with **Esc**, pad **(B)** or the **Skip** button; the
+  Journal keeps every text, and if you skip *The Guardian Core* before VEGA mentions the **jump generator**, she says it
+  in her panel afterwards. Back after a while away? VEGA says how many moments the Journal now holds, and if the story
+  has moved on a chapter, **The story so far** and the new chapter's scene play.
 - **Hosted and arcade worlds:** on a world many players have passed through, a newcomer starts with their own
   chapter 1; the Journal says which chapter **the crew of this world** has reached, and **The story so far** fills you
   in whenever you like.

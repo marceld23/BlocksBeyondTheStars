@@ -34,7 +34,9 @@ namespace BlocksBeyondTheStars.Client
         private const float BannerW = 900f, BannerH = 92f, BannerY = 112f;
         private const float SpeakerW = 1180f, SpeakerH = 206f;
         private const float ReaderW = 1100f, ReaderH = 620f;
-        private const float ChartSize = 820f;
+        // #2474: the chart fits between the top letterbox bar and the speaker box (a chart shot usually has VEGA speaking).
+        private const float ChartTop = BarH + 4f;
+        private const float ChartSize = RefH - BarH - 26f - SpeakerH - 8f - ChartTop;
         private const float ContinueW = 320f, ContinueH = 46f;
 
         private readonly CinematicFrame _frame;
@@ -260,12 +262,32 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Shows the galaxy chart (a <c>chart</c> shot) — built once per shot from the caller's stars.</summary>
-        public void ShowChart(IReadOnlyList<GalaxyChartWidget.Star> stars, IReadOnlyList<(string A, string B)> lanes)
+        /// <summary>Shows the galaxy chart (a <c>chart</c> shot) — built once per shot from the caller's stars. #2474: it sits
+        /// between the letterbox bars and above the speaker box (which draws over it), under every caption;
+        /// <paramref name="selectedId"/> rings a star, <paramref name="routeFrom"/>/<paramref name="routeTo"/> draw the violet
+        /// route of the Guardian reveal, and <paramref name="memory"/> tints the whole chart sepia — VEGA's memory of the stars
+        /// (the scene's memory grade only reaches the 3D picture, not this overlay).</summary>
+        public void ShowChart(IReadOnlyList<GalaxyChartWidget.Star> stars, IReadOnlyList<(string A, string B)> lanes,
+            string selectedId = null, string routeFrom = null, string routeTo = null, bool memory = false)
         {
             HideChart();
-            _chart = GalaxyChartWidget.Create(_root, (RefW - ChartSize) * 0.5f, (RefH - ChartSize) * 0.5f - 30f, ChartSize);
-            _chart.Show(stars, lanes, null);
+            _chart = GalaxyChartWidget.Create(_root, (RefW - ChartSize) * 0.5f, ChartTop, ChartSize);
+            _chart.transform.SetSiblingIndex(_banner.transform.GetSiblingIndex()); // under the captions, the speaker box on top
+            _chart.Show(stars, lanes, selectedId, null, routeFrom, routeTo);
+            if (memory)
+            {
+                foreach (var g in _chart.GetComponentsInChildren<Graphic>(true))
+                {
+                    g.color = Sepia(g.color);
+                }
+            }
+        }
+
+        /// <summary>A colour as VEGA remembers it: its brightness in warm sepia, alpha kept.</summary>
+        private static Color Sepia(Color c)
+        {
+            float lum = c.r * 0.3f + c.g * 0.59f + c.b * 0.11f;
+            return new Color(Mathf.Clamp01(lum * 1.07f + 0.05f), Mathf.Clamp01(lum * 0.88f + 0.03f), Mathf.Clamp01(lum * 0.62f), c.a);
         }
 
         public void HideChart()

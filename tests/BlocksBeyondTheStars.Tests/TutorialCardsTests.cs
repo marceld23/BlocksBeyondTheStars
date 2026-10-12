@@ -248,7 +248,8 @@ public sealed class TutorialCardsTests : IDisposable
         var graduation = Card("tut.graduation");
         Assert.Equal(CutsceneTiers.Card, graduation.Tier);
         Assert.Equal(new[] { "story.tutorial.graduated" }, graduation.ReplaceLineKeys);
-        Assert.Equal(new[] { StoryCutsceneIds.Recap }, graduation.Options.ChainNext); // "graduation → recap" (§5.3)
+        // "graduation → ch1.open / recap" (§5.3 "Verkettungen"; VEGA's chapter 1 card since #2474)
+        Assert.Equal(new[] { StoryCutsceneIds.Recap, V + "/ch1.open" }, graduation.Options.ChainNext);
     }
 
     [Fact]
@@ -420,9 +421,12 @@ public sealed class TutorialCardsTests : IDisposable
 
         Walk(server, p); // the rest of the part: the trip home, then the graduation
         Assert.True(Has(p, StoryPackKeys.Done(T)));
-        var plays = transport.Plays(p);
-        Assert.Contains("tut.done@b6", plays);
-        Assert.Equal("tut.graduation", plays.Last());
+        var plays = transport.To<CutscenePlay>(p);
+        Assert.Contains(plays, c => c.CutsceneId == "tut.done@b6");
+        int graduation = plays.FindIndex(c => c.CutsceneId == "tut.graduation");
+        Assert.True(graduation >= 0);
+        // #2474: the graduation starts VEGA's story track; its chapter 1 card follows the graduation card at once (chained).
+        Assert.Equal(new[] { (T, "tut.graduation"), (V, "ch1.open") }, plays.Skip(graduation).Select(c => (c.PackId, c.CutsceneId)));
         Cooldown(server, p);
         Assert.Equal(1, transport.Plays(p).Count(id => id == "tut.graduation"));
     }
@@ -486,7 +490,7 @@ public sealed class TutorialCardsTests : IDisposable
         var (server, transport) = World("cards_skip");
         var p = Join(server, 1, "Veteran");
         Ready(server, p);
-        int before = transport.Plays(p).Count;
+        int before = transport.To<CutscenePlay>(p).Count(c => c.PackId == T);
 
         Deliver(server, p, new StoryPackIntent { PackId = T, Action = StoryPackActions.SkipPack });
         for (int i = 0; i < 3; i++)
@@ -495,8 +499,10 @@ public sealed class TutorialCardsTests : IDisposable
         }
 
         Assert.True(Has(p, StoryPackKeys.Done(T)));
-        Assert.Equal(before, transport.Plays(p).Count); // no part banner for skipped parts, no graduation
+        Assert.Equal(before, transport.To<CutscenePlay>(p).Count(c => c.PackId == T)); // no part banner for skipped parts, no graduation
         Assert.False(Has(p, StoryPackKeys.CutsceneSent(T, "tut.graduation")));
+        // #2474: the skip starts VEGA's story track — its chapter 1 card is the one card that comes
+        Assert.Contains(transport.To<CutscenePlay>(p), c => c.PackId == V && c.CutsceneId == "ch1.open");
     }
 
     [Fact]

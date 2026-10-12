@@ -384,7 +384,15 @@ namespace BlocksBeyondTheStars.Client
                         return;
                     }
 
-                    Begin(item, owed.Downgraded ? plan.AsCard() : plan);
+                    // #2474: a staged scene about an object this world does not have (VEGA's "What You Are" at the heal tank,
+                    // far from the own ship) plays as a card — the same captions, no camera.
+                    bool missingObject = !owed.Downgraded && CutsceneRules.NeedsCardFallback(plan, AnchorFound);
+                    if (missingObject)
+                    {
+                        Debug.Log($"[Cutscene] {item.Key}: the object it frames is not here — playing it as a card.");
+                    }
+
+                    Begin(item, owed.Downgraded || missingObject ? plan.AsCard() : plan);
                     return;
                 }
 
@@ -613,7 +621,8 @@ namespace BlocksBeyondTheStars.Client
 
             bool skyOpen = Game.ExposedToSky && !Game.Aboard && !Game.SpaceViewActive;
             bool chart = Game.StarMap?.Systems != null && Game.StarMap.Systems.Length > 0;
-            var staged = CutsceneStaging.Stage(shot.Camera, path, spot, center.x, center.y, center.z, scale, Game.PlayerYaw, skyOpen, chart);
+            bool closeUp = CutsceneStaging.WantsCloseUp(shot.Anchor); // #2474: the heal tank, framed inside the medbay
+            var staged = CutsceneStaging.Stage(shot.Camera, path, spot, center.x, center.y, center.z, scale, Game.PlayerYaw, skyOpen, chart, closeUp);
             bool worldShot = shot.Camera != CutsceneCameras.Chart && shot.Camera != CutsceneCameras.Sky;
             _stagingRetry.Record(now, success: !staged.FellBack);
             if (staged.FellBack && worldShot && path != null && !_stagingRetry.GaveUp(now))
@@ -631,13 +640,15 @@ namespace BlocksBeyondTheStars.Client
             if (staged.Kind == StagedCameraKind.Chart)
             {
                 _rig.Release();
-                ShowChart();
+                ShowChart(shot.Anchor, shot.Grade);
                 return;
             }
 
             _screen.HideChart();
             _chartShown = false;
-            _rig.Apply(staged, path, spot);
+            // A close framing inside the room is flown with the room's own line of sight (the hull counts, the object's cell
+            // does not), so the per-frame safety net agrees with the staging.
+            _rig.Apply(staged, staged.CloseUp && spot != null ? CutsceneStaging.ObjectLine(spot, center.x, center.y, center.z) : path, spot);
         }
 
         private void ShowPlayerView()
@@ -648,27 +659,36 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The galaxy chart (<c>chart</c> camera): every star of the map, the known ones by name, the current one
-        /// ringed, the relay lanes.</summary>
-        private void ShowChart()
+        /// ringed, the relay lanes. #2474: anchored at <c>core</c> it shows the Guardian reveal — the revealed Guardian system
+        /// named and ringed, a violet route to it from the player's system (VEGA's chapter 7); a <c>memory</c> or
+        /// <c>flashback</c> grade tints it sepia (VEGA's memory of the stars, chapter 2).</summary>
+        private void ShowChart(string anchor, string grade)
         {
             var map = Game.StarMap;
             var stars = new List<GalaxyChartWidget.Star>();
             var lanes = new List<(string A, string B)>();
             string here = SystemOfBody(map, map?.ActiveLocationId);
+            string finale = null;
             foreach (var sys in map?.Systems ?? System.Array.Empty<NetStarSystem>())
             {
                 bool current = sys.Id == here;
+                bool isFinale = sys.Id != null && sys.Id.StartsWith("guardian_finale", System.StringComparison.Ordinal);
                 bool known = current || Game.KnowsSystem(sys.Id);
+                if (isFinale)
+                {
+                    finale = sys.Id;
+                }
+
                 stars.Add(new GalaxyChartWidget.Star
                 {
                     Id = sys.Id,
                     MapX = sys.MapX,
                     MapY = sys.MapY,
-                    Label = known ? sys.Name : "?",
+                    Label = known || isFinale ? sys.Name : "?", // the revealed Guardian system is on everyone's map by name
                     Color = sys.StarColor != 0 ? Rgb(sys.StarColor) : new Color(1f, 0.86f, 0.55f),
                     Current = current,
-                    Known = known,
-                    Finale = sys.Id != null && sys.Id.StartsWith("guardian_finale", System.StringComparison.Ordinal),
+                    Known = known || isFinale,
+                    Finale = isFinale,
                     Players = string.Empty,
                 });
             }
@@ -682,7 +702,9 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            _screen.ShowChart(stars, lanes);
+            bool reveal = anchor == CutsceneAnchors.Core && finale != null;
+            bool memory = grade == CutsceneGrades.Memory || grade == CutsceneGrades.Flashback;
+            _screen.ShowChart(stars, lanes, reveal ? finale : null, reveal ? here : null, reveal ? finale : null, memory);
             _chartShown = true;
         }
 
@@ -715,7 +737,7 @@ namespace BlocksBeyondTheStars.Client
         /// "Stufen"); in multiplayer a hold would be a group vote, so the director never asks.</summary>
         private void UpdateGateAndHold(CutscenePlan plan, bool cameraTaken)
         {
-            bool gate = plan.Tier >= CutsceneTiers.Scene && !_capped && (plan.LockInput || cameraTaken);
+            bool gate = CutsceneRules.FreezesControls(plan, _capped, cameraTaken);
             if (gate != _gate)
             {
                 _gate = gate;
@@ -723,7 +745,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.SetCursorOwner(this, gate); // the continue and skip buttons are clickable while the scene owns the screen
             }
 
-            bool hold = plan.HoldWorld && cameraTaken && !_inputs.Multiplayer;
+            bool hold = CutsceneRules.HoldsWorld(plan, cameraTaken, _inputs.Multiplayer); // never in multiplayer (#2474 test)
             if (hold && !_holding)
             {
                 Game.WorldHold.Hold(WorldHoldArbiter.Cutscene, Time.realtimeSinceStartup);
@@ -871,6 +893,8 @@ namespace BlocksBeyondTheStars.Client
         {
             var item = _current;
             var plan = _play?.Plan;
+            // #2474: a skip gives back the lines the player must not miss (returnOnSkip) whose captions never showed.
+            var returnOnSkip = outcome == Outcome.Skipped && _play != null ? _play.KeysToReturnOnSkip() : null;
             _play?.End();
             _play = null;
             _current = null;
@@ -891,6 +915,10 @@ namespace BlocksBeyondTheStars.Client
                 {
                     QueueSavedBanner(item.PackId);
                 }
+            }
+            else if (returnOnSkip != null && returnOnSkip.Count > 0 && owed != null)
+            {
+                GiveLinesBack(owed, returnOnSkip); // VEGA's Guardian reveal: the jump generator, never skipped away unread
             }
 
             if (!item.Requested && !plan.IsLocalBanner && !plan.IsRecap)
@@ -928,6 +956,17 @@ namespace BlocksBeyondTheStars.Client
             }
 
             owed.Lines.Clear();
+        }
+
+        /// <summary>#2474: gives back only the claimed lines with one of <paramref name="keys"/>.</summary>
+        private static void GiveLinesBack(Owed owed, IReadOnlyList<string> keys)
+        {
+            var panel = VegaPanel.Instance;
+            foreach (var line in owed.Lines.Where(l => keys.Contains(l.LineKey)).ToList())
+            {
+                panel?.Requeue(line);
+                owed.Lines.Remove(line);
+            }
         }
 
         private void QueueSavedBanner(string packId)
@@ -1075,12 +1114,10 @@ namespace BlocksBeyondTheStars.Client
                 case CutsceneAnchors.Ship:
                     return Game.ShipPosition ?? player;
                 case CutsceneAnchors.HealTank:
-                    foreach (var st in Game.Stations ?? System.Array.Empty<NetShipStation>())
+                    // #2474: the own ship's real heal tank on this world (its medbay cell), near enough to frame.
+                    if (CutsceneRules.TryFindHealTank(Game.Stations, player.x, player.y, player.z, Game.Circumference, out float tx, out float ty, out float tz))
                     {
-                        if (st != null && st.Type == "medbay")
-                        {
-                            return new Vector3(st.X, st.Y, st.Z);
-                        }
+                        return new Vector3(tx, ty, tz);
                     }
 
                     return Game.ShipPosition ?? player;
@@ -1090,6 +1127,20 @@ namespace BlocksBeyondTheStars.Client
                 default:
                     return player; // player, planet, station, star_map
             }
+        }
+
+        /// <summary>#2474: whether the object an anchor names is on this world for this client (only the heal tank needs one —
+        /// <see cref="CutsceneRules.NeedsObject"/>). Not in the space view: nothing world-anchored there.</summary>
+        private bool AnchorFound(string anchor)
+        {
+            if (anchor != CutsceneAnchors.HealTank)
+            {
+                return true;
+            }
+
+            Vector3 at = Game.PlayerPosition;
+            return !Game.SpaceViewActive
+                   && CutsceneRules.TryFindHealTank(Game.Stations, at.x, at.y, at.z, Game.Circumference, out _, out _, out _);
         }
 
         /// <summary>The ship-size factor of the player's own landed ship (<see cref="PrologueOrbit.Scale"/>), 1 until its

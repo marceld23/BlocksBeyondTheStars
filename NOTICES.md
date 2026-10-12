@@ -16,7 +16,8 @@ also keeps the generator scripts from painting over it.
 
 *(none yet)*
 
-**Sound effects:** `client/Assets/Resources/audio/*.mp3` (315 files, incl. the debris fields' `debris_bump` /
+**Sound effects:** `client/Assets/Resources/audio/*.mp3` (318 files, incl. VEGA's three chapter stings `chapter_sting`,
+`chapter_sting_memory`, `chapter_sting_reveal` (#2474, `gen_sound.py`, 2026-10-12), the debris fields' `debris_bump` /
 `salvage_capsule` and the raider's `raider_warp_in` (#2358, `gen_sound.py`, 2026-10-06), the energy rope gun's four cues
 `rope_fire`/`rope_anchor`/`rope_reel`/`rope_release` (#2322, `gen_sound.py`, 2026-10-05), the splash intro, the
 `terrain_scan` prospecting pulse (Feature 40), the boat's outboard loop `boat_engine_loop` + `boat_splash`

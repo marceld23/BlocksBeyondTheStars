@@ -174,6 +174,11 @@ public sealed class CutsceneOptions
 
     /// <summary>Whether the Story tab may replay the scene once seen (default true).</summary>
     public bool Replayable { get; set; } = true;
+
+    /// <summary>#2474: lines of <see cref="CutsceneDefinition.ReplaceLineKeys"/> the player must not miss: when the player
+    /// skips the scene before such a line's caption was on screen, the client gives the line back to the narrator panel
+    /// (VEGA's Guardian reveal carries the jump-generator requirement). Every other replaced line stays in the log only.</summary>
+    public List<string> ReturnOnSkip { get; set; } = new();
 }
 
 /// <summary>The values of <see cref="CutsceneDefinition.Tier"/> (synthesis §6.2; T0 is a plain VEGA line).</summary>

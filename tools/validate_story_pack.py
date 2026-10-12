@@ -113,6 +113,7 @@ KNOWN_FIELDS = {
     "sfx": {"cue", "at"},
     "cutscene_options": {
         "holdWorld", "hideHud", "lockInput", "skippable", "minDisplay", "chainNext", "cooldownExempt", "replayable",
+        "returnOnSkip",
     },
 }
 
@@ -889,6 +890,11 @@ class Validator:
                 r.error(pid, f"{cp}.options.minDisplay", "minDisplay must not be negative")
             for ni, ref in enumerate(options.get("chainNext") or []):
                 self.check_chain(pid, f"{cp}.options.chainNext[{ni}]", cid, ref, ids)
+            # #2474: a line given back on a skip must be one the scene takes out of the panel in the first place.
+            replaced = cut.get("replaceLineKeys") or []
+            for li, line in enumerate(options.get("returnOnSkip") or []):
+                if not line or line not in replaced:
+                    r.error(pid, f"{cp}.options.returnOnSkip[{li}]", f"'{line}' is not one of the scene's replaceLineKeys")
 
     def check_chain(self, pid: str, path: str, from_id: str, ref, own_ids: set) -> None:
         """A chainNext entry: __recap, an id of the same pack, or <pack>/<id> (a warning when that pack is not installed)."""

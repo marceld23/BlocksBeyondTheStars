@@ -893,6 +893,15 @@ public static class StoryPackValidator
             {
                 CheckChainReference(def, context, cut, $"{cp}.options.chainNext[{ni}]", next, error, warn);
             }
+
+            // #2474: a line given back on a skip must be one the scene takes out of the panel in the first place.
+            foreach (var (line, li) in (options.ReturnOnSkip ?? new List<string>()).Select((k, i) => (k, i)))
+            {
+                if (string.IsNullOrEmpty(line) || !(cut.ReplaceLineKeys ?? new List<string>()).Contains(line!))
+                {
+                    error($"{cp}.options.returnOnSkip[{li}]", $"'{line}' is not one of the scene's replaceLineKeys");
+                }
+            }
         }
     }
 

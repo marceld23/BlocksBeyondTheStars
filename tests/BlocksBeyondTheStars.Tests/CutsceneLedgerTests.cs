@@ -387,7 +387,7 @@ public sealed class CutsceneLedgerTests : IDisposable
     [Fact]
     public void AWorldStoryBacklog_CollapsesIntoOneRecapCard()
     {
-        // The VEGA data pack, given three chapters with an opener each (step 11 authors the real ones).
+        // The VEGA data pack, given three more chapters with an opener each (beside its real chapter scenes, #2474).
         var content = StoryPackFixtures.ContentWith(C);
         var vega = content.Stories[StoryRegistry.DefaultStoryId];
         foreach (string chapter in new[] { "c1", "c2", "c3" })
@@ -407,6 +407,8 @@ public sealed class CutsceneLedgerTests : IDisposable
         Ready(server, p);
         Deliver(server, p, new CutsceneSeenIntent { PackId = C, Ids = new[] { "welcome", "strip@one" } });
         string V = StoryRegistry.DefaultStoryId;
+        // #2474: the story track started at this join (no tutorial here) — VEGA's real chapter 1 card, watched.
+        Deliver(server, p, new CutsceneSeenIntent { PackId = V, Ids = new[] { "ch1.open" } });
         // #2470: the newcomer's join committed the prologue scene (sent, never confirmed) — it stays owed here and is never
         // folded into the recap (the cold open is no chapter line).
         Assert.DoesNotContain(StoryPackKeys.CutsceneSeen(V, StoryCutsceneIds.Prologue), p.State.Milestones);

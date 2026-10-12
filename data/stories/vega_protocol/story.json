@@ -17,14 +17,16 @@
   "introCutscene": "prologue",
   "start": { "after": [ "chapter:tutorial:b6" ], "earlyOptIn": true },
   "chapters": [
+    // #2474: every chapter of the arc opens with its scene (cutscenes.json): at the beat that starts it, and once for the
+    // player's current chapter at their story-track start. The resolution's scene comes with the finale (step 17b).
     { "id": "awakening",    "titleKey": "story.vega.ch.awakening",    "fromBeat": 0, "openCutscene": "prologue" },
-    { "id": "signature",    "titleKey": "story.vega.ch.signature",    "fromBeat": 1 },
-    { "id": "service",      "titleKey": "story.vega.ch.service",      "fromBeat": 2 },
-    { "id": "guardian",     "titleKey": "story.vega.ch.guardian",     "fromBeat": 5 },
-    { "id": "verdict",      "titleKey": "story.vega.ch.verdict",      "fromBeat": 6 },
-    { "id": "what_you_are", "titleKey": "story.vega.ch.what_you_are", "fromBeat": 9 },
-    { "id": "sleeps",       "titleKey": "story.vega.ch.sleeps",       "fromBeat": 11 },
-    { "id": "core",         "titleKey": "story.vega.ch.core",         "fromBeat": 12 },
+    { "id": "signature",    "titleKey": "story.vega.ch.signature",    "fromBeat": 1, "openCutscene": "ch1.open" },
+    { "id": "service",      "titleKey": "story.vega.ch.service",      "fromBeat": 2, "openCutscene": "ch2.open" },
+    { "id": "guardian",     "titleKey": "story.vega.ch.guardian",     "fromBeat": 5, "openCutscene": "ch3.open" },
+    { "id": "verdict",      "titleKey": "story.vega.ch.verdict",      "fromBeat": 6, "openCutscene": "ch4.open" },
+    { "id": "what_you_are", "titleKey": "story.vega.ch.what_you_are", "fromBeat": 9, "openCutscene": "ch5.open" },
+    { "id": "sleeps",       "titleKey": "story.vega.ch.sleeps",       "fromBeat": 11, "openCutscene": "ch6.open" },
+    { "id": "core",         "titleKey": "story.vega.ch.core",         "fromBeat": 12, "openCutscene": "ch7.open" },
     { "id": "resolution",   "titleKey": "story.vega.ch.resolution",   "fromEvent": "guardian_defeated" }
   ],
   "insights": [
@@ -36,17 +38,19 @@
   "milestoneWeight": 2,
   "killContributionCap": 40,
   "beats": [
+    // #2474: a beat that opens no chapter shows as a beat card in the frame (its `cutscene`; free input) — the chapter
+    // openers carry the beats that start their chapters. Step 17b may upgrade b01/b03/b04/b07/b08/b10 to beat moments.
     { "index": 0,  "title": "Systems online",        "textKey": "story.vega.beat00", "threshold": 0,   "knowledgeReward": 0 },
-    { "index": 1,  "title": "A familiar signature",  "textKey": "story.vega.beat01", "threshold": 6,   "knowledgeReward": 1 },
+    { "index": 1,  "title": "A familiar signature",  "textKey": "story.vega.beat01", "threshold": 6,   "knowledgeReward": 1, "cutscene": "b01" },
     { "index": 2,  "title": "The Service",           "textKey": "story.vega.beat02", "threshold": 14,  "knowledgeReward": 1 },
-    { "index": 3,  "title": "Not scattered, erased", "textKey": "story.vega.beat03", "threshold": 24,  "knowledgeReward": 1 },
-    { "index": 4,  "title": "Ours, once",            "textKey": "story.vega.beat04", "threshold": 36,  "knowledgeReward": 1 },
+    { "index": 3,  "title": "Not scattered, erased", "textKey": "story.vega.beat03", "threshold": 24,  "knowledgeReward": 1, "cutscene": "b03" },
+    { "index": 4,  "title": "Ours, once",            "textKey": "story.vega.beat04", "threshold": 36,  "knowledgeReward": 1, "cutscene": "b04" },
     { "index": 5,  "title": "The Guardian",          "textKey": "story.vega.beat05", "threshold": 50,  "knowledgeReward": 1 },
     { "index": 6,  "title": "The verdict",           "textKey": "story.vega.beat06", "threshold": 66,  "knowledgeReward": 1 },
-    { "index": 7,  "title": "Her stand",             "textKey": "story.vega.beat07", "threshold": 84,  "knowledgeReward": 1 },
-    { "index": 8,  "title": "The thought-arcs",      "textKey": "story.vega.beat08", "threshold": 104, "knowledgeReward": 1 },
+    { "index": 7,  "title": "Her stand",             "textKey": "story.vega.beat07", "threshold": 84,  "knowledgeReward": 1, "cutscene": "b07" },
+    { "index": 8,  "title": "The thought-arcs",      "textKey": "story.vega.beat08", "threshold": 104, "knowledgeReward": 1, "cutscene": "b08" },
     { "index": 9,  "title": "What you are",          "textKey": "story.vega.beat09", "threshold": 126, "knowledgeReward": 1 },
-    { "index": 10, "title": "Many minds",            "textKey": "story.vega.beat10", "threshold": 150, "knowledgeReward": 1 },
+    { "index": 10, "title": "Many minds",            "textKey": "story.vega.beat10", "threshold": 150, "knowledgeReward": 1, "cutscene": "b10" },
     { "index": 11, "title": "It still sleeps",       "textKey": "story.vega.beat11", "threshold": 176, "knowledgeReward": 1 },
     { "index": 12, "title": "The choice",            "textKey": "story.vega.beat12", "threshold": 204, "knowledgeReward": 1 }
   ],

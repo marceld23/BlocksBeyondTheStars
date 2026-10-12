@@ -24,8 +24,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// resolution and epilogue lines, insights, relay insights (to the log silently at the start), the hack and duel broadcasts
 /// (players in the finale system excepted) and the live ending. Player-triggered readers and the star map are not held.</item>
 /// <item><b>Track start</b> (§5.3 "Spurstart-Folge"): the held beats are heard and their knowledge credited now; when the
-/// world is past chapter 1 a recap card ("The story so far", titles only); then only the CURRENT chapter's opening (or,
-/// until the chapter scenes exist, its beat as a line); with the finale open the Guardian reveal; on a won world the ending.
+/// world is past chapter 1 a recap card ("The story so far", titles only); then only the CURRENT chapter's opening (#2474:
+/// its scene shows the beat that starts the chapter; chapter 1's title card is followed by B1's card; a client without
+/// cutscenes hears the newest beat as a line); with the finale open the Guardian reveal; on a won world the ending.
 /// On a hosted or arcade world a newcomer gets a personal chapter 1 instead (E29: chapter 1's opening, the crew's chapter as
 /// a status line in the Story tab, the recap on demand).</item>
 /// <item><b>Chapters</b> follow the beats (<see cref="StoryChapters"/>): a player's chapter is derived — <c>max(1, world)</c>
@@ -447,8 +448,11 @@ public sealed partial class GameServer
     /// <item>"The story so far" (<c>__recap</c>, titles only) when the world is past chapter 1 and the player had not lived
     /// through those chapters (a player from before the pack gets only their current chapter's card);</item>
     /// <item>only the current chapter's opening — chapter 1's for a newcomer on a hosted or arcade world (E29, personal chapter
-    /// 1). Until a chapter has its scene (step 15) its beat speaks as a line instead;</item>
-    /// <item>with the finale open the Guardian reveal — the line with the jump generator (the B12 card of step 15);</item>
+    /// 1). Its scene shows the beat that starts the chapter (#2474); chapter 1's title card is followed by B1's card when B1
+    /// was crossed (<see cref="PlayOpeningBeatAfterTitle"/>). Without a scene for the client (an older build, the built-in
+    /// fallback pack) the newest beat speaks as a line instead;</item>
+    /// <item>with the finale open the Guardian reveal — the line with the jump generator, held with chapter 7's set piece
+    /// (<c>ch7.open</c>, which shows it) when that is queued;</item>
     /// <item>on a won world the ending (deferred from the join), not for a hosted or arcade newcomer's personal chapter 1;</item>
     /// <item>the chip: the story's objective from now on.</item>
     /// </list>
@@ -489,6 +493,8 @@ public sealed partial class GameServer
         var chapter = ChapterAt(personal ? StoryChapters.TrackChapterIndex(def, 0) : current);
         if (chapter is null || !PlayChapterOpening(s, chapter))
         {
+            // No scene for the client (an older build: stamped seen; the built-in fallback pack: none defined) — the newest
+            // beat (personal: chapter 1's) speaks as a line, as before the chapter scenes (#2470).
             var line = personal
                 ? heard.FirstOrDefault(b => chapter is not null && b.Index == chapter.FromBeat)
                 : heard.LastOrDefault();
@@ -496,6 +502,10 @@ public sealed partial class GameServer
             {
                 SendVegaLine(s, line.TextKey, 2);
             }
+        }
+        else
+        {
+            PlayOpeningBeatAfterTitle(s, def, chapter);
         }
 
         if (FinaleOpen)
@@ -525,6 +535,32 @@ public sealed partial class GameServer
         }
 
         return PlayBoundCutscene(s, _story, chapter.OpenCutscene, chapter.Id);
+    }
+
+    /// <summary>
+    /// #2474, at a story-track start: a chapter opening shows the beat that starts its chapter (<c>replaceLineKeys</c>) —
+    /// except chapter 1's card, which carries the title only, because a track may start before the world crossed B1. When
+    /// the opening beat was crossed and the opening does not show it, the beat follows: its own beat card (VEGA's <c>b01</c>,
+    /// chained to <c>ch1.open</c>, so it goes at once), else its line.
+    /// </summary>
+    private void PlayOpeningBeatAfterTitle(PlayerSession s, StoryDefinition def, StoryChapter chapter)
+    {
+        if (chapter.FromBeat < 1 || chapter.FromBeat >= _storyState.BeatsRevealed)
+        {
+            return; // the chapter's beat lies ahead — it comes live with its card
+        }
+
+        var beat = def.Beats.FirstOrDefault(b => b.Index == chapter.FromBeat);
+        if (beat is null || string.IsNullOrEmpty(beat.TextKey)
+            || (def.FindCutscene(chapter.OpenCutscene) is { } opening && opening.ReplaceLineKeys.Contains(beat.TextKey)))
+        {
+            return; // the opening shows it
+        }
+
+        // As at a live reveal: the card first, then the line — held with the queued card and claimed by a client that plays
+        // it; a client without the card reads it in the panel.
+        PlayBoundCutscene(s, def, beat.Cutscene, def.Id);
+        SendVegaLine(s, beat.TextKey, 2);
     }
 
     /// <summary>The story-track part of <c>/story</c>: started or waiting, the player's chapter and the world's.</summary>

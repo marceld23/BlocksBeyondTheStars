@@ -60,6 +60,10 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         public float ArcCenter { get; set; }
         public float ArcHalf { get; set; }
 
+        /// <summary>#2474: a close framing of a small object inside a room (<see cref="CutsceneStaging.TryCloseUp"/>) — flown
+        /// with the room's own line of sight (<see cref="CutsceneStaging.ObjectLine"/>).</summary>
+        public bool CloseUp { get; set; }
+
         /// <summary>Whether the shot takes the camera away from the player.</summary>
         public bool TakesCamera => Kind != StagedCameraKind.PlayerView;
 
@@ -102,18 +106,36 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         /// <summary>Look target height above the anchor (scaled).</summary>
         public const float LookHeight = 2f;
 
+        /// <summary>The close-up's look target above the object's floor (#2474: the middle of the heal tank).</summary>
+        public const float CloseUpLookHeight = 0.8f;
+
+        /// <summary>The close-up's camera distances from the object, the preferred first.</summary>
+        private static readonly float[] CloseUpRadii = { 3f, 2.4f, 4f };
+
+        /// <summary>The close-up's camera heights above the object's floor, the preferred (standing eye height) first.</summary>
+        private static readonly float[] CloseUpHeights = { 1.6f, 1.1f, 2.2f };
+
         /// <summary>
         /// Stages a shot of type <paramref name="cameraType"/> around (<paramref name="cx"/>, <paramref name="cy"/>,
         /// <paramref name="cz"/>). <paramref name="path"/> answers "known air" for the line of sight, <paramref name="spot"/>
         /// for the camera position (terrain and parked hulls); either may be null (no world — only the sky, the chart and
         /// the player's view remain). <paramref name="skyOpen"/>: the player stands under the open sky;
-        /// <paramref name="chartAvailable"/>: the star map has arrived.
+        /// <paramref name="chartAvailable"/>: the star map has arrived. <paramref name="closeUp"/> (#2474): the anchor is a
+        /// small object inside a room (<see cref="WantsCloseUp"/>, the heal tank) — a <c>static</c> shot first tries a close
+        /// framing inside the room (<see cref="TryCloseUp"/>) before the usual chain, whose wide shots then show the room's
+        /// outside (the ship).
         /// </summary>
         public static StagedCamera Stage(string? cameraType, CinematicStageScan.ClearSampler? path, CinematicStageScan.ClearSampler? spot,
-            float cx, float cy, float cz, float scale, float startYawDeg, bool skyOpen, bool chartAvailable)
+            float cx, float cy, float cz, float scale, float startYawDeg, bool skyOpen, bool chartAvailable, bool closeUp = false)
         {
             string requested = string.IsNullOrEmpty(cameraType) ? CutsceneCameras.PlayerView : cameraType!;
             float s = Math.Max(1f, scale);
+            if (closeUp && requested == CutsceneCameras.Static && TryCloseUp(spot, cx, cy, cz, startYawDeg) is { } close)
+            {
+                close.Requested = requested;
+                return close;
+            }
+
             foreach (var kind in Chain(requested))
             {
                 StagedCamera? staged = kind switch
@@ -150,6 +172,70 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
 
         private static StagedCamera Simple(StagedCameraKind kind, float cx, float cy, float cz, float yaw)
             => new StagedCamera { Kind = kind, CenterX = cx, CenterY = cy, CenterZ = cz, StartAngle = yaw };
+
+        /// <summary>Whether an anchor is a small object inside a room that a shot frames up close (#2474: the heal tank in the
+        /// ship's medbay) rather than from afar.</summary>
+        public static bool WantsCloseUp(string? anchor) => anchor == CutsceneAnchors.HealTank;
+
+        /// <summary>
+        /// The line of sight to an object inside a room (#2474): every cell must be open by <paramref name="spot"/> — the
+        /// camera-spot sampler, which reads the parked hull as solid, so the line stays inside the room — except the object's
+        /// own cells (its floor cell at (<paramref name="cx"/>, <paramref name="cy"/>, <paramref name="cz"/>) and the one
+        /// above), which hold the look target. The director flies the close-up with it too.
+        /// </summary>
+        public static CinematicStageScan.ClearSampler ObjectLine(CinematicStageScan.ClearSampler spot, float cx, float cy, float cz)
+        {
+            int ox = (int)Math.Floor(cx), oy = (int)Math.Floor(cy), oz = (int)Math.Floor(cz);
+            return (x, y, z) => (x == ox && z == oz && (y == oy || y == oy + 1)) || spot(x, y, z);
+        }
+
+        /// <summary>
+        /// A close framing of a small object inside a room (#2474, VEGA's "What You Are" at the heal tank): the camera
+        /// 2.4–4 blocks away at standing height, tried around the object starting behind the player's view; the camera spot
+        /// clear by <paramref name="spot"/> (the room, not the hull) and the whole line to the object open
+        /// (<see cref="ObjectLine"/>). A slow push-in keeps the still frame alive. Null when the room has no such spot.
+        /// </summary>
+        public static StagedCamera? TryCloseUp(CinematicStageScan.ClearSampler? spot, float cx, float cy, float cz, float yaw)
+        {
+            if (spot is null)
+            {
+                return null;
+            }
+
+            var line = ObjectLine(spot, cx, cy, cz);
+            foreach (float r in CloseUpRadii)
+            {
+                foreach (float h in CloseUpHeights)
+                {
+                    for (int k = 0; k < 12; k++)
+                    {
+                        float angle = yaw + 150f + 30f * k;
+                        double rad = angle * Math.PI / 180.0;
+                        float px = cx + (float)Math.Sin(rad) * r;
+                        float pz = cz + (float)Math.Cos(rad) * r;
+                        if (CinematicStageScan.CameraClear(line, spot, cx, cy + CloseUpLookHeight, cz, px, cy + h, pz))
+                        {
+                            return new StagedCamera
+                            {
+                                Kind = StagedCameraKind.Static,
+                                CenterX = cx,
+                                CenterY = cy,
+                                CenterZ = cz,
+                                LookHeight = CloseUpLookHeight,
+                                StartRadius = r,
+                                StartHeight = h,
+                                Radius = r * 0.85f, // the push-in toward the tank
+                                Height = h,
+                                StartAngle = angle,
+                                CloseUp = true,
+                            };
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
 
         /// <summary>The prologue's orbit (#777/#2461): settle ring 16·s, entry ring 22·s two blocks higher, at rising heights;
         /// the widest open arc of both.</summary>

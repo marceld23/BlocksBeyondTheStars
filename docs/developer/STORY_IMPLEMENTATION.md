@@ -142,7 +142,9 @@ Titles are `story.vega.ch.<id>`. A chapter is **reached** when the arc revealed 
 player's chapter is **derived, never stored**: `max(1, world)` once their track started (`StoryChapters.TrackChapterIndex`).
 The validator (C# and Python) refuses a world chapter whose `fromBeat` is outside the arc, an unknown `fromEvent`, and
 chapters out of beat order. The condition atom `chapter:vega_protocol:<id>` holds once the player's chapter is at or past
-it. Chapter openings (`openCutscene`, bound from step 15 on) play at the beat that starts the chapter, before its line.
+it. Chapter openings (`openCutscene`, bound since #2474 — `ch1.open` … `ch7.open`, see
+[CUTSCENES.md](CUTSCENES.md#vegas-chapter-scenes-and-beat-cards-2474)) play at the beat that starts the chapter, before
+its line; the beats that open no chapter (B1, B3, B4, B7, B8, B10) carry a beat card (beat `cutscene`).
 
 **Prologue** — the cold open of the game (synthesis §5.3 "Prolog vs. Spur"). It plays once (ledger
 `story:<id>:cut:prologue`, sent or seen) for a player who arrived with **no** `story:<id>:*` key (the join snapshot): a
@@ -188,15 +190,18 @@ track too.
    chapter, relay insights);
 2. "The story so far" (`__recap`, titles of chapters 1 … current − 1) when the world is past chapter 1 and the player
    catches up on held beats (a player from before the pack lived through them — no recap);
-3. only the CURRENT chapter's opening — or, while a chapter has no scene yet, its newest beat as a line. The recap chains
-   straight into the pack's next chapter scene on server and client (`StoryCutsceneIds.AnyOfPack`), never into the intro;
-4. with the finale open the Guardian reveal (the jump-generator line; step 15's B12 card);
+3. only the CURRENT chapter's opening (#2474) — its scene shows the beat that starts the chapter; chapter 1's card shows
+   the title only (a track may start before B1), so B1's card follows it at once when B1 was crossed
+   (`PlayOpeningBeatAfterTitle`). A client without cutscenes (stamped seen) or the built-in fallback pack (no scenes) hears
+   the newest beat as a line instead. The recap chains straight into the pack's next chapter scene on server and client
+   (`StoryCutsceneIds.AnyOfPack`), never into the intro;
+4. with the finale open the Guardian reveal (the jump-generator line — held with `ch7.open`, which shows it);
 5. on a won world the ending (unless watched) — with the achievement for whoever had heard B12 before this join;
 6. the chip shows the story's objective.
 
 **Hosted and arcade worlds** (E29; `PersonalChapterOneFor`: the instance runs behind the WorldHost join gate, or the
 player is an arcade guest with an install id): a newcomer catching up gets a **personal chapter 1** — chapter 1's opening
-(B1's line until step 15), no automatic recap, no automatic ending; the Story tab shows "The crew of this world is in
+and B1's card (#2474), no automatic recap, no automatic ending; the Story tab shows "The crew of this world is in
 chapter N" (`StoryStateMessage.ShowCrewChapter`) and "The story so far" on demand.
 
 **Migration** (`MigrateStoryTrack`, lazy at the join, idempotent, marker `story:<id>:migrated:v1`; synthesis §4.10):
@@ -619,7 +624,11 @@ all objectives"), `GameBootstrap` (`StoryPackStates`, `Objectives`, `JournalVers
   `vega.journal.news`, `vega.step.marked_station`) are shown but never kept.
 - **Catch-up (B09).** A started `packs1` player who missed `CatchUpCollapseThreshold` = 2 or more beats gets them heard
   silently (knowledge credited, the story state re-sent) and ONE system line `vega.journal.news` ({0} = how many);
-  one missed beat still speaks, an older client still gets every line. Step 15 may turn the line into a card.
+  one missed beat still speaks, an older client still gets every line. #2474: the current chapter's opening is committed
+  **before** any line (a line it shows waits with it — never read twice); a `cutscenes1` client whose missed beats crossed
+  into a later chapter also gets "The story so far" (titles of chapters 1 … current − 1, `PlayCatchUpRecap`) leading into
+  that opening; a single missed beat plays its beat card. The Journal line stays (it names the count and lights the
+  Journal's badge).
 - **Station marker (B6.4).** Reveal provider `nearest_station` (`StoryRevealProviders.NearestStation`, validator C# +
   Python): in flight the `SpaceStation` contact of the player's instance nearest to their ship, landed the first station
   of `StationContactsForCurrentSystem(body)`; the marker is the line `vega.step.marked_station` ({0} = the station's name)

@@ -214,6 +214,10 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         /// <summary>Narrator lines the scene shows itself (dropped from the VEGA panel while it is owed).</summary>
         public IReadOnlyList<string> ReplaceLineKeys { get; private set; } = Array.Empty<string>();
 
+        /// <summary>#2474: the replaced lines a skip gives back to the panel when their caption had not been on screen yet
+        /// (<see cref="CutscenePlayback.KeysToReturnOnSkip"/>).</summary>
+        public IReadOnlyList<string> ReturnOnSkip { get; private set; } = Array.Empty<string>();
+
         public bool Skippable { get; private set; } = true;
 
         public float MinDisplay { get; private set; }
@@ -352,6 +356,7 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
                 Replay = replay,
                 Music = def.Music ?? string.Empty,
                 ReplaceLineKeys = (def.ReplaceLineKeys ?? new List<string>()).Where(k => !string.IsNullOrEmpty(k)).ToArray(),
+                ReturnOnSkip = (options.ReturnOnSkip ?? new List<string>()).Where(k => !string.IsNullOrEmpty(k)).ToArray(),
                 Skippable = options.Skippable,
                 MinDisplay = Math.Max(0f, options.MinDisplay),
                 HoldWorld = def.EffectiveHoldWorld,
@@ -436,6 +441,7 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
                 IsLocalBanner = IsLocalBanner,
                 Music = Music,
                 ReplaceLineKeys = ReplaceLineKeys,
+                ReturnOnSkip = ReturnOnSkip,
                 Skippable = Skippable,
                 MinDisplay = MinDisplay,
             };

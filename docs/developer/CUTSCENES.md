@@ -51,7 +51,8 @@ singleplayer world or lock input. One scene plays at a time.
         "holdWorld": true, "hideHud": true, "lockInput": true,   // null/absent = derived from the tier
         "skippable": true, "minDisplay": 0,
         "chainNext": [ "tutorial/tut.welcome" ],
-        "cooldownExempt": false, "replayable": true
+        "cooldownExempt": false, "replayable": true,
+        "returnOnSkip": []                                       // #2474: replaced lines a skip must not lose
       }
     }
   ]
@@ -68,8 +69,8 @@ singleplayer world or lock input. One scene plays at a time.
 | `music` | `""` | the scene's track |
 | `arg` | `""` | #2473: what fills the captions' `{0}` when the server plays the scene — `""` the bound chapter (its title, place and count, see [the argument](#bindings--where-a-pack-plays-a-scene)), `body` the name of the body the player is on (the tutorial's first landing), `system` the name of the player's star system |
 | `shots[]` | — | at least one; played in order |
-| `shots[].camera.type` | `player_view` | `player_view` (letterbox + captions over the live view), `overlay` (on a running flight sequence, never moves the camera), `static`, `orbit` (radius by ship size), `crane`, `sky` (tilted up from the player; always clear), `chart` (the galaxy chart). Step 17a adds `dolly`, `pan`, `flyover`, `space_vista` |
-| `shots[].camera.anchor` | `""` = `player` | `player`, `ship`, `planet`, `station` (the space station the player is aboard), `star_map`, `heal_tank` (the ship's medbay), `core` (the Guardian core chamber), `custom` (the coordinates of the `CutscenePlay` message) |
+| `shots[].camera.type` | `player_view` | `player_view` (letterbox + captions over the live view), `overlay` (on a running flight sequence, never moves the camera), `static`, `orbit` (radius by ship size), `crane`, `sky` (tilted up from the player; always clear), `chart` (the galaxy chart; #2474: a `memory`/`flashback` grade tints it sepia, the `core` anchor rings the revealed Guardian system and draws a violet route to it). Step 17a adds `dolly`, `pan`, `flyover`, `space_vista` |
+| `shots[].camera.anchor` | `""` = `player` | `player`, `ship`, `planet`, `station` (the space station the player is aboard), `star_map`, `heal_tank` (the own ship's medbay on this world; #2474: a `static` shot frames it up close inside the room, and a scene whose camera shot needs it plays as a card where it is not found), `core` (the Guardian core chamber; on a `chart`: the Guardian system), `custom` (the coordinates of the `CutscenePlay` message) |
 | `shots[].duration` | — | seconds (a page-gated caption may hold the shot longer) |
 | `shots[].grade` | `none` | `none`, `memory` (VEGA's memory, sepia), `flashback` |
 | `captions[].key` | — | locale key in the core or the pack table; English **and** German mandatory; `{0}` = the play's argument |
@@ -86,6 +87,7 @@ singleplayer world or lock input. One scene plays at a time.
 | `options.chainNext` | `[]` | scenes that may follow this one **at once** instead of after the cooldown: `<id>` (same pack), `<pack>/<id>`, `__recap`. Chaining only lifts the cooldown — it never plays the follower by itself |
 | `options.cooldownExempt` | `false` | a "now or never" moment (first launch, after-warp card, finale arrival) — never waits for the cooldown |
 | `options.replayable` | `true` | the Story tab may replay it once seen |
+| `options.returnOnSkip` | `[]` | #2474: keys of `replaceLineKeys` the player must not miss — when the player **skips** the scene before such a line's caption was fully on screen, the client gives the line back to the narrator panel (VEGA's Guardian reveal, the one line that names the jump generator). Every other replaced line stays in the log only after a skip. Each key must be one of the scene's `replaceLineKeys` (validator) |
 
 The model is `Shared/Story/CutsceneDefinition.cs` (`StoryCutsceneFile`, `CutsceneDefinition`, `CutsceneShot`,
 `CutsceneCamera`, `CutsceneCaption`, `CutsceneSfx`, `CutsceneOptions`, the vocabularies `CutsceneTiers`,
@@ -108,12 +110,13 @@ reaches the browser is only proven by a local WebGL build (PR CI builds no Unity
   `tut.first_tame`, `tut.graduation`.
 - **Built in:** `__recap` — the "The story so far" card. Never defined or bound by a pack; the server sends it.
 
-`CutsceneContentTests.TheOfficialPacks_UseOnlyTheBindingIds` holds the two official packs to these lists. Today
-`vega_protocol/cutscenes.json` holds only `prologue`, bound as VEGA's `introCutscene` (and chapter 0's opener) since
-#2470 — see [The VEGA prologue](#the-vega-prologue-2470); `tutorial/cutscenes.json` holds the basic training's cards since
-#2473 — see [The tutorial cards](#the-tutorial-cards-2473); steps 15/17 add VEGA's chapter scenes and finale set pieces,
-steps 18–21 the deep dives' firsts (`tut.first_dock`, `tut.first_jump`, `tut.first_base`, `tut.ship_commissioned`,
-`tut.first_circuit`, `tut.first_tame`).
+`CutsceneContentTests.TheOfficialPacks_UseOnlyTheBindingIds` holds the two official packs to these lists.
+`vega_protocol/cutscenes.json` holds the `prologue`, bound as VEGA's `introCutscene` (and chapter 0's opener) since #2470 —
+see [The VEGA prologue](#the-vega-prologue-2470) — and since #2474 the chapter scenes `ch1.open` … `ch7.open` and the beat
+cards `b01`, `b03`, `b04`, `b07`, `b08`, `b10` — see [VEGA's chapter scenes and beat cards](#vegas-chapter-scenes-and-beat-cards-2474);
+`tutorial/cutscenes.json` holds the basic training's cards since #2473 — see [The tutorial cards](#the-tutorial-cards-2473);
+step 17b adds VEGA's finale set pieces (and may upgrade the beat cards to beat moments), steps 18–21 the deep dives' firsts
+(`tut.first_dock`, `tut.first_jump`, `tut.first_base`, `tut.ship_commissioned`, `tut.first_circuit`, `tut.first_tame`).
 
 ### The VEGA prologue (#2470)
 
@@ -136,8 +139,9 @@ The server plays it for a newcomer to the story (no `story:vega_protocol:*` key 
 client without `cutscenes1` (an older build, a local player) and the built-in fallback pack (no cutscenes) get the old
 five full-screen pages instead (Kind 4: the three narration keys, B0, and the call as server-composed text). The
 `VegaPanel` + `PrologueCinematic` path stays only for a server that predates this (it sends Kind-4 pages to everyone); a
-current server never sends both. `chainNext` holds `__recap` (the story track starting in the same join) and
-`tutorial/tut.welcome` (#2473): when the basic training starts, its welcome card follows the cold open at once.
+current server never sends both. `chainNext` holds `__recap` and `ch1.open` (#2474) — the story track starting in the same
+join: "the story so far" or chapter 1's card follows at once — and `tutorial/tut.welcome` (#2473): when the basic training
+starts, its welcome card follows the cold open at once.
 
 ### The tutorial cards (#2473)
 
@@ -154,7 +158,7 @@ graduation is the one card with a line: VEGA's closing line, which it takes out 
 | `tut.course` | T2 card, template | the deep dives' `openCutscene` (steps 18–21; unbound today) | kicker "Short course" + the chapter's title | — |
 | `tut.first_launch` | T3, `overlay` | `b6.1` `onComplete` | "Lift-off!" (kicker "First launch"), then "Space begins right above the clouds" — a full letterbox over the launch rise, the flight's camera untouched, no hold | "now or never" (`cooldownExempt`) |
 | `tut.first_landing` | T3, `orbit`/`static` on the ship, `"arg": "body"` | `b6.7` `onComplete` (not the stand-in `b6.7a`: a known world is no new one) | title = the world's name, kicker "Touchdown on a new world"; subtitle "Every world has its own rocks, plants and creatures." — a singleplayer world holds while the camera circles the ship | waits for the landing's loading veil (so not "now or never"); chains to the graduation |
-| `tut.graduation` | T2 card | `graduation.cutscene` | "Graduate" (kicker "★ Achievement"), then VEGA's speaker page `story.tutorial.graduated` | chains to `__recap` (step 15 adds `vega_protocol/ch1.open`) |
+| `tut.graduation` | T2 card | `graduation.cutscene` | "Graduate" (kicker "★ Achievement"), then VEGA's speaker page `story.tutorial.graduated` | chains to `__recap` and `vega_protocol/ch1.open` (#2474): the graduation starts VEGA's track, whose recap or chapter 1 card follows at once |
 
 Interruption budget (synthesis §6.4): within the six parts at most one card or scene per part, except part 6's flight firsts
 — welcome, five part cards, first launch, first landing = 8 — plus the graduation card at the hand-over
@@ -162,6 +166,47 @@ Interruption budget (synthesis §6.4): within the six parts at most one card or 
 part card: the welcome is its opener (the first join shows only the prologue and the tutorial's start card, §6.2). Since the
 card carries "Part n of 6", the parts' first step lines no longer say it. The tutorial's pacing relies on the general rules
 below: the cooldown, chains, a part card dropped once its part is over, and a line held with its waiting card.
+
+### VEGA's chapter scenes and beat cards (#2474)
+
+Maintainer decision (a) — "more and more prominent VEGA": every chapter of the arc opens with its scene; B5 "The Guardian",
+B9 "What You Are" (at the player's **real** heal tank) and B12 (the Guardian system on the star map) are big scenes; every
+other beat is a **beat card in the frame with free input**. All captions reuse the beat texts (no new lore) and the scenes
+keep them out of VEGA's panel (`replaceLineKeys`; the Journal has them either way). Beats fire on score, not on a place, so
+every shot is place-neutral (the player's view, the sky, the chart) or anchored to the player's own ship.
+
+| Id | Bound to | Tier | Shots and captions | Sound / music |
+|---|---|---|---|---|
+| `ch1.open` | chapter `signature` (B1) | T2 card | title "Chapter 1" / "A Familiar Signature" — **title only**: a track may start before the world crossed B1; `chainNext: b01` | `chapter_sting` |
+| `b01` | beat B1 | T2 card | VEGA's speaker box with B1 (no title — at a track start it follows chapter 1's card), memory grade | `chapter_sting_memory` |
+| `ch2.open` | chapter `service` (B2) | T3 | title "Chapter 2" / "The Service", then the **star chart tinted sepia** (VEGA's memory: "It mapped these stars") with B2 in her box | `chapter_sting_memory`, `music_mystery_signal` |
+| `b03`, `b04` | beats B3, B4 | T2 cards | "VEGA remembers" over the beat's title ("Not scattered — erased", "Ours, once"), then the beat in VEGA's box, memory grade | `chapter_sting_memory` |
+| `ch3.open` | chapter `guardian` (B5) | **T3 prominent** | out of black onto "Chapter 3" / "The Guardian", then up into the open sky (the player's own view under a roof) with B5 | `chapter_sting_reveal`, `anomaly_hum`, `music_mystery_signal` |
+| `ch4.open` | chapter `verdict` (B6) | T2 card | title "Chapter 4" / "The Verdict", then B6 in VEGA's box — the darkest line stays words on a calm picture | `chapter_sting` |
+| `b07`, `b08` | beats B7, B8 | T2 cards | "VEGA remembers" / "Her stand", "The thought-arcs", then the beat | `chapter_sting_memory` |
+| `ch5.open` | chapter `what_you_are` (B9) | **T3 prominent** | "Chapter 5" / "What You Are", then a close framing of the player's **real heal tank** inside the medbay with a slow push-in while VEGA says B9 — warm, no grade. **No own heal tank on this world** (the ship parked elsewhere, the code-box starter without a medbay): the scene plays as a card (`CutsceneRules.NeedsCardFallback`) | `chapter_sting_reveal`, `clone_tank_bubble`, `music_deep_space_lonely` |
+| `b10` | beat B10 | T2 card | "VEGA remembers" / "Many minds", then the beat (step 17b may add the multiplayer variant) | `chapter_sting_memory` |
+| `ch6.open` | chapter `sleeps` (B11) | T2 card | "Chapter 6" / "It Still Sleeps", then B11 — no marker, no place | `chapter_sting` |
+| `ch7.open` | chapter `core` (B12 + the Guardian system revealed, one server call) | **T4** | the sky with B12; the **live star chart** with a violet route from the player's system to the newly revealed Guardian system (ringed, named) while VEGA says `story.vega.guardian_revealed` — the jump-generator line; then "Chapter 7" / "The Guardian Core". `returnOnSkip`: the reveal line comes back to the panel when the player skips before it showed | `chapter_sting_reveal`, `music_boss_approach` |
+
+- **Titles.** The kicker `story.vega.cut.chapter` ("Chapter {1}") takes the chapter's number from the argument: a world
+  story's arc chapters are numbered as the Story tab numbers them — by their index, the prologue's chapter is 0
+  (`CutsceneArgs.PlaceOf`, `IsArcChapter`). Beat titles `story.vega.cut.b03.title` … are the beats' authored titles.
+- **When.** A chapter scene plays at the beat that starts its chapter and once for the player's current chapter at their
+  track start (after "the story so far"); a beat card at its beat — only for players whose story track started (the others
+  get the beat with their track start). Chapter 1's card is followed at once by B1's card when B1 was already crossed
+  (server `PlayOpeningBeatAfterTitle`, the chain `ch1.open → b01`). The prologue and the tutorial's graduation chain into
+  `ch1.open`.
+- **The join catch-up (B09).** A started player who missed beats while offline: the current chapter's opening is committed
+  before any line; a `cutscenes1` client whose missed beats crossed into a later chapter gets "The story so far" first; a
+  single missed beat plays its card ([STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md)).
+- **Multiplayer.** Each player's track gets its own copy, deferred on its own; the world is never held in multiplayer (the
+  client's `CutsceneRules.HoldsWorld`); after 30 s with the camera a scene goes on as a card.
+- **Older clients** (no `cutscenes1`) and the built-in fallback pack get the beat lines as before; the scenes are stamped
+  seen and never owed.
+- **Stingers** (`client/Assets/Resources/audio`, ElevenLabs `gen_sound.py`, 2026-10-12, each ≤ 50 KB for the browser
+  payload): `chapter_sting` (calm, a soft pad resolving on a chime), `chapter_sting_memory` (shimmering bells — VEGA
+  remembers), `chapter_sting_reveal` (a wondrous rising chord — the big scenes); see `docs/developer/SOUND_DESIGN.md`.
 
 ### Bindings — where a pack plays a scene
 
@@ -188,7 +233,9 @@ opener). On the wire and in receipts the instance id is the `CutsceneId`; the de
 `Shared/Story/CutsceneArgs.For`): a scene bound to a chapter — a template instance's owner chapter (or its owner step's), else
 the scene's own `chapter` — sends the chapter's title **key** as `{0}` (a client localizes an argument that is a key), its
 place among the pack's chapters of the same kind (mandatory among the mandatory ones, optional among the optional ones,
-counted from 1) as `{1}` and how many there are as `{2}` (#2473: the tutorial's "Part 3 of 6"). A scene with `"arg": "body"`
+counted from 1) as `{1}` and how many there are as `{2}` (#2473: the tutorial's "Part 3 of 6"). A world story's arc
+chapter (reached by a beat or an event) is numbered as the Story tab numbers it — by its index, the prologue's chapter is 0,
+`{2}` the number of the last chapter (#2474: VEGA's "Chapter 3"). A scene with `"arg": "body"`
 or `"system"` sends the name of the body / star system the player is on at that moment instead (a replay or a join re-offer
 reads where the player is then). Several values are joined by U+001F (`LineText.ArgSeparator`); `LineText.Compose` fills
 every slot, not only `{0}`. The server API may pass any text. For `__recap` it is the reached chapters' title keys in
@@ -210,7 +257,7 @@ palette) plays as the instance of the first chapter that binds it (`CutsceneArgs
   kicker 60 / 72; `reading_frame` 600 / 720; `credits` none; a `{key:…}` token counts 3, a `{0}` slot 10);
 - `chapter` names a chapter of the pack; `chainNext` resolves (an id of the pack, `<pack>/<id>` of an installed pack,
   `__recap`; a pack that is not installed is a warning); `music` exists in `client/Music`, every `sfx` cue in
-  `client/Assets/Resources/audio`;
+  `client/Assets/Resources/audio`; every `returnOnSkip` key is one of the scene's `replaceLineKeys` (#2474);
 - warnings: a `kickerKey` outside a `title_card`, a `speaker` outside a `speaker` caption, unknown fields (the Python
   tool; the C# tests read the file strictly).
 
@@ -379,17 +426,25 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   typewriter 42 chars/s), `reading_frame` (a framed panel ≤ 1100 px wide over a 55 % dim — the recap), `credits` (a roll
   over the caption's window). Fonts follow the UI scale; positions stay on the 1920×1080 frame canvas.
 - **Camera** (`CutsceneStaging` + `CutsceneCameraRig`): anchors `player`, `ship` (scaled by the own ship's size),
-  `heal_tank` (the ship's `medbay` station), `planet` (the player, wider), `station`/`star_map` (the player), `core` and
-  `custom` (the message's coordinates, else the player). `orbit` circles (ping-pong across the open arc), `crane` rises,
-  `static` frames with a slow push-in, `sky` looks up from the player's eye (only under the open sky, not aboard), `chart`
-  shows the galaxy chart (`GalaxyChartWidget`: every star, known ones named, the current one ringed, the relay lanes) over
-  the frame. A world shot that fails while chunks may still stream is retried every 0.5 s for 4 s (`StagingRetry`) showing
+  `heal_tank` (the own ship's `medbay` station within 64 m on this world, `CutsceneRules.TryFindHealTank`), `planet` (the
+  player, wider), `station`/`star_map` (the player), `core` and `custom` (the message's coordinates, else the player).
+  `orbit` circles (ping-pong across the open arc), `crane` rises, `static` frames with a slow push-in, `sky` looks up from
+  the player's eye (only under the open sky, not aboard), `chart` shows the galaxy chart (`GalaxyChartWidget`: every star,
+  known ones named, the current one ringed, the relay lanes) between the letterbox and the speaker box. #2474: a `static`
+  shot of the heal tank first tries a **close framing inside the medbay** (`CutsceneStaging.TryCloseUp`: 2.4–4 blocks off at
+  standing height, the line of sight inside the room — `ObjectLine` reads the hull as solid except the tank's own cells —
+  flown with that line too), then the usual chain (the ship from outside); a scene whose camera shot needs the heal tank
+  and finds none plays as a card (`CutsceneRules.NeedsCardFallback`). A `chart` anchored at `core` rings the revealed
+  Guardian system, names it and draws a violet route to it from the player's system; a `memory`/`flashback` grade tints the
+  chart sepia (the grade itself only reaches the 3D picture). A world shot that fails while chunks may still stream is
+  retried every 0.5 s for 4 s (`StagingRetry`) showing
   the player's view, then the fallback is taken. Nothing world-anchored in the space view (only the chart). "Camera motion"
   off turns moves into still framings; a late-streamed chunk that blocks the line of sight freezes the last clear pose.
 - **Shared state and hold.** A T3/T4 scene that takes the camera (or has `lockInput`) opens the `director` reason in
   `GameBootstrap.Cutscenes` — HUD, touch layer, chat, nameplates and IMGUI step aside, the controls freeze, Esc belongs to
   the scene, and the cursor is freed for the buttons. A singleplayer world is held (`WorldHoldArbiter.Cutscene`) only while
-  the camera is actually taken (a `player_view` shot in between releases it), and never in multiplayer. A staged scene opens
+  the camera is actually taken (a `player_view` shot in between releases it), and never in multiplayer
+  (`CutsceneRules.HoldsWorld` / `FreezesControls`, #2474 — unit-tested in Client.Core). A staged scene opens
   out of black only when it takes the camera (`CutscenePlan.OpensFromBlack`, #2473): a T3 that lies over a running
   sequence (`overlay`, the tutorial's first launch) keeps the full letterbox but fades in like a card, so it never blacks
   out the moment it frames.
@@ -400,7 +455,10 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   playing — a scene is never delayed for music). `sfx` cues go to `ClientAudio.Cue`.
 - **Skip:** one press — Esc or the pad's cancel button on a scene that owns the screen; on a card (input free, pad B is
   crouch) the keyboard's Esc — or the frame's skip button (click/tap), after `minDisplay`, at once on a replay. The hint
-  follows the device (`CinematicFrame.SkipLabel`); on a pad a card shows none (it pages with the continue button).
+  follows the device (`CinematicFrame.SkipLabel`); on a pad a card shows none (it pages with the continue button). A skip
+  keeps the claimed lines in the log only — except a scene's `returnOnSkip` lines whose caption had not been fully on screen
+  (`CutscenePlayback.ShownKeys` / `KeysToReturnOnSkip`, #2474): they go back to VEGA's panel (the Guardian reveal's
+  jump-generator line).
 - **Continue:** the VEGA continue key (N / pad Back), the "Continue" button at the bottom centre (clear of the touch stick,
   the action buttons and the hotbar arrows), or a tap on the speaker box / reading frame.
 - **Danger:** damage or space combat since the scene started, or a hostile ≤ 20 m while the world is not held, ends a card
@@ -434,7 +492,10 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
 - A card dims the whole picture by 18 % (HUD included — the crosshair and the chip are not kept bright as d4 sketched); no
   ambience ducking; music is not prefetched when a scene is queued.
 - No `ctx:` variants, no synthetic stages (`space_vista`, dioramas), no `dolly`/`pan`/`flyover` (step 17a); the speaker box
-  has no vocoder chatter (only the line-start cue).
+  has no vocoder chatter (only the line-start cue). #2474's VEGA scenes therefore have one shape for every place: chapter 3's
+  sky becomes the player's own view under a roof, chapter 5 falls back to a card away from the ship, and chapters 4/6 are
+  cards (the synthesis' dioramas and the memory chart drifting to the galaxy's edge wait for 17a); `b10` has no multiplayer
+  variant yet (step 17b).
 - ~~The VEGA prologue still runs on `VegaPanel` + `PrologueCinematic`~~ — #2470 bound it as VEGA's `introCutscene`; the
   old path is kept for older servers only.
 
@@ -465,3 +526,13 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   `graduation.cutscene` checks); Client.Tests `TutorialCardsClientTests` (the cards planned from the data pack in both
   languages, the overlay that does not open from black, the "Watch again" names, the dev palette's argument, the client
   queue's cross-pack chain).
+- #2474: `VegaChapterScenesTests` (every chapter of the arc bound to its opening and the other beats to their cards, the
+  built-in mirror; the tiers — cards with free input, the big scenes' cameras; every caption a beat text kept out of the
+  panel; "Chapter n" as the Story tab numbers it, both languages; the stingers' size; the track start in chapter 1 (card +
+  B1's card at once, the line held for it), before B1, later on (recap → only the current chapter's scene), with the finale
+  open (ch7 with the reveal line after it); a live beat as a card for started players only; B12's set piece; an older
+  client's lines; the join catch-up across chapters (recap + scene + the Journal line), within a chapter, one missed beat,
+  a missed chapter opener), `CutsceneContentTests.AReturnOnSkipLine_MustBeOneTheSceneReplaces`; Client.Tests
+  `VegaChapterScenesClientTests` (the cards planned from the data pack in both languages, the heal tank finder, the
+  close-up in a cabin and the card fallback, ch7's hold SP-only, the skip give-back, the "Watch again" names, the chain
+  `ch1.open → b01`).

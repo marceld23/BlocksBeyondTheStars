@@ -137,17 +137,18 @@ public static class StoryRegistry
         // ladder's knowledge ceiling, trivialising the blueprint gate (#767).
         Beats = new List<StoryBeat>
         {
+            // #2474: the beats that open no chapter carry their beat card (the chapter openers play at their beat).
             Beat(0,  "Systems online",        0,   0),
-            Beat(1,  "A familiar signature",  6,   1),
+            Beat(1,  "A familiar signature",  6,   1, "b01"),
             Beat(2,  "The Service",           14,  1),
-            Beat(3,  "Not scattered — erased", 24, 1),
-            Beat(4,  "Ours, once",            36,  1),
+            Beat(3,  "Not scattered — erased", 24, 1, "b03"),
+            Beat(4,  "Ours, once",            36,  1, "b04"),
             Beat(5,  "The Guardian",          50,  1),
             Beat(6,  "The verdict",           66,  1),
-            Beat(7,  "Her stand",             84,  1),
-            Beat(8,  "The thought-arcs",      104, 1),
+            Beat(7,  "Her stand",             84,  1, "b07"),
+            Beat(8,  "The thought-arcs",      104, 1, "b08"),
             Beat(9,  "What you are",          126, 1),  // the clone reveal
-            Beat(10, "Many minds",            150, 1),
+            Beat(10, "Many minds",            150, 1, "b10"),
             Beat(11, "It still sleeps",       176, 1),  // locates the dormant Guardian system
             Beat(12, "The choice",            204, 1),  // finale opens
         },
@@ -174,14 +175,15 @@ public static class StoryRegistry
         Start = new StoryStartRule { After = new List<string> { "chapter:tutorial:b6" }, EarlyOptIn = true },
         Chapters = new List<StoryChapter>
         {
+            // #2474: the chapter scenes (the fallback carries no cutscenes — a bound id there only logs once, the line plays).
             Chapter("awakening", fromBeat: 0, openCutscene: StoryCutsceneIds.Prologue),
-            Chapter("signature", fromBeat: 1),
-            Chapter("service", fromBeat: 2),
-            Chapter("guardian", fromBeat: 5),
-            Chapter("verdict", fromBeat: 6),
-            Chapter("what_you_are", fromBeat: 9),
-            Chapter("sleeps", fromBeat: 11),
-            Chapter("core", fromBeat: 12),
+            Chapter("signature", fromBeat: 1, openCutscene: "ch1.open"),
+            Chapter("service", fromBeat: 2, openCutscene: "ch2.open"),
+            Chapter("guardian", fromBeat: 5, openCutscene: "ch3.open"),
+            Chapter("verdict", fromBeat: 6, openCutscene: "ch4.open"),
+            Chapter("what_you_are", fromBeat: 9, openCutscene: "ch5.open"),
+            Chapter("sleeps", fromBeat: 11, openCutscene: "ch6.open"),
+            Chapter("core", fromBeat: 12, openCutscene: "ch7.open"),
             Chapter("resolution", fromEvent: StoryChapterEvents.GuardianDefeated),
         },
         Insights = new List<StoryInsight>
@@ -200,12 +202,13 @@ public static class StoryRegistry
         OpenCutscene = openCutscene,
     };
 
-    private static StoryBeat Beat(int index, string title, int threshold, int knowledge) => new()
+    private static StoryBeat Beat(int index, string title, int threshold, int knowledge, string cutscene = "") => new()
     {
         Index = index,
         Title = title,
         TextKey = "story.vega.beat" + index.ToString("00", System.Globalization.CultureInfo.InvariantCulture),
         Threshold = threshold,
         KnowledgeReward = knowledge,
+        Cutscene = cutscene,
     };
 }

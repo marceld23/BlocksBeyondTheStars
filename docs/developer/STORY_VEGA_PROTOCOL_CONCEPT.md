@@ -126,6 +126,19 @@ chapter — in multiplayer a latecomer catches up with the crew this way; on hos
 personal chapter 1 and sees the crew's chapter as a status line. VEGA's older memory arc belongs to this pack: a world
 without the VEGA story hears neutral archive lines instead. Mechanics: [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md).
 
+### 3.2 How the story is presented (#2474)
+
+VEGA no longer speaks her memories only from the side panel. Every chapter **opens with its scene** in the frame — a
+"Chapter n" title over the chapter's name with a short sting, and VEGA's beat in her speaker box (her portrait and colour).
+The three turning points are staged: **"The Guardian"** (B5) looks up into the sky while the anomaly hums; **"What You
+Are"** (B9) is told warm and gently at the player's **own heal tank** — the cradle, as the line says; **"The Guardian
+Core"** (B12) draws the line on the star map from where the player stands to the violet star that has just woken, while
+VEGA names the jump generator. Chapter 2 shows her memory of the star chart in sepia ("It mapped these stars"). Every other
+beat is a **beat card** in the frame — "VEGA remembers" over the beat's title, then her words — and the controls stay free:
+memories never lock the player in place. Only the big scenes take the camera (a singleplayer world waits meanwhile;
+multiplayer never stops). The words are the beats' own texts, the Journal keeps them all, and a skipped scene never takes
+the jump-generator line away. The scene list and the rules: [CUTSCENES.md](CUTSCENES.md#vegas-chapter-scenes-and-beat-cards-2474).
+
 ---
 
 ## 4. Evaluation
