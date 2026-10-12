@@ -26,7 +26,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// (<c>SetWorldRulesIntent.StoryDensity</c>, new) next to the tutorial rule — persisted, re-sent in <c>ServerRules</c>, a
 /// faster pace revealing at once what its score covers and a slower one never taking a heard beat back; numbers and
 /// non-admins change nothing; no preset switches the tutorial off (family = Auto); a server started without story flags
-/// (a hosted or glitch world) runs the default story with the tutorial on Auto.
+/// (a hosted or glitch world) runs the default story with the tutorial on Auto. #2498: the fourth rule "Short courses only"
+/// (<c>courses</c>) parses, is set live, survives a relaunch and is stored as the appended number 3.
 /// </summary>
 public sealed class WorldStoriesRulesTests : IDisposable
 {
@@ -308,6 +309,79 @@ public sealed class WorldStoriesRulesTests : IDisposable
         Assert.Equal("Sparse", rules.StoryDensity);
         Assert.Equal(string.Empty, new ServerRules().StoryDensity); // the client hides the row for an older server
         Assert.Equal(string.Empty, new SetWorldRulesIntent().StoryDensity); // empty = unchanged
+    }
+
+    // ---- "Short courses only" (#2498) -------------------------------------------------------------
+
+    [Theory]
+    [InlineData("courses")]
+    [InlineData("Courses")]
+    [InlineData(" COURSES ")]
+    public void TheShortCoursesWord_Parses_OnTheCommandLineAndInTheParser(string word)
+    {
+        Assert.True(ServerConfig.TryParseTutorialPolicy(word, out var policy));
+        Assert.Equal(TutorialPolicy.Courses, policy);
+
+        var config = new ServerConfig();
+        Assert.Contains("tutorial", config.ApplyCommandLine(new[] { "--tutorial", word.Trim() }));
+        Assert.Equal(TutorialPolicy.Courses, config.Rules.TutorialPolicy);
+        Assert.False(ServerConfig.TryParseTutorialPolicy("3", out _)); // the word, never its number
+    }
+
+    [Fact]
+    public void TheAdmin_SetsShortCoursesOnlyLive_ItPersists_AndEveryoneIsTold()
+    {
+        var (server, config, transport) = Boot("live_courses");
+        var admin = Admin(server);
+        var other = server.AddLocalPlayer("Kid");
+
+        Deliver(server, admin, new SetWorldRulesIntent { TutorialPolicy = "Courses" });
+
+        Assert.Equal(TutorialPolicy.Courses, config.Rules.TutorialPolicy);
+        Assert.Equal(TutorialPolicy.Courses, server.Metadata.RulesOverride!.TutorialPolicy);
+        Assert.Equal("Courses", transport.To<ServerRules>(admin).Last().TutorialPolicy);
+        Assert.Equal("Courses", transport.To<ServerRules>(other).Last().TutorialPolicy);
+        Assert.Equal("Courses", server.StoryPackStatesForTest(other).TutorialPolicy); // the Journal's copy of the rule
+    }
+
+    [Fact]
+    public void ShortCoursesOnly_IsBakedIntoTheSave_AndALaterLaunchKeepsIt()
+    {
+        var paths = new SaveGamePaths(_root, "baked_courses");
+        using (var repo = new SqliteWorldRepository(paths))
+        {
+            var config = Config("baked_courses");
+            config.ApplyCommandLine(new[] { "--tutorial", "courses" });
+            var server = new SvGameServer(config, Content, new RecordingTransport(), repo);
+            server.Start();
+            server.Stop();
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        using (var repo2 = new SqliteWorldRepository(paths))
+        {
+            var relaunch = Config("baked_courses");
+            relaunch.ApplyCommandLine(new[] { "--tutorial", "auto" }); // a creation flag on a later launch…
+            var server2 = new SvGameServer(relaunch, Content, new RecordingTransport(), repo2);
+            server2.Start();
+            Assert.Equal(TutorialPolicy.Courses, relaunch.Rules.TutorialPolicy); // …is overruled by the save's own rules
+            Assert.Equal(TutorialPolicy.Courses, repo2.LoadMetadata()!.RulesOverride!.TutorialPolicy);
+            server2.Stop();
+        }
+    }
+
+    /// <summary>The save stores the rule as a number (default System.Text.Json): "Short courses only" is the appended 3, so
+    /// a save's 0/1/2 keep their meaning, and an older server — which has no 3 — reads it as Auto (its switch default).</summary>
+    [Fact]
+    public void TheMetadata_StoresShortCoursesOnly_AsTheNumber3()
+    {
+        string json = JsonSerializer.Serialize(new WorldMetadata { WorldName = "w", RulesOverride = new GameRules { TutorialPolicy = TutorialPolicy.Courses } });
+        Assert.Contains("\"TutorialPolicy\":3", json, StringComparison.Ordinal);
+
+        var meta = JsonSerializer.Deserialize<WorldMetadata>("{\"WorldName\":\"w\",\"RulesOverride\":{\"TutorialPolicy\":3}}")!;
+        Assert.Equal(TutorialPolicy.Courses, meta.RulesOverride!.TutorialPolicy);
+        Assert.Equal(TutorialPolicy.Off, JsonSerializer.Deserialize<WorldMetadata>("{\"RulesOverride\":{\"TutorialPolicy\":2}}")!.RulesOverride!.TutorialPolicy);
     }
 
     // ---- Presets -------------------------------------------------------------------------------

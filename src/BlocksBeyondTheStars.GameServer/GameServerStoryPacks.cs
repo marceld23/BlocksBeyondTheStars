@@ -470,6 +470,10 @@ public sealed partial class GameServer
     private bool PackRunsFor(PlayerSession s, CompiledPack pack)
         => PackStarted(s, pack) && StoryPackEnabledFor(s, pack.Id);
 
+    /// <summary>#2498: the world's "Short courses only" rule applies to this pack — a tutorial on a
+    /// <see cref="TutorialPolicy.Courses"/> world starts with its mandatory part skipped silently.</summary>
+    private bool SkipsBasicTraining(CompiledPack pack) => pack.IsTutorial && Rules.TutorialPolicy == TutorialPolicy.Courses;
+
     private static bool StepDoneOrSkipped(PlayerSession s, CompiledStep step)
         => MilestonesOf(s).Contains(StoryPackKeys.StepDone(step.Pack.Id, step.Id))
            || MilestonesOf(s).Contains(StoryPackKeys.StepSkipped(step.Pack.Id, step.Id));
@@ -724,7 +728,20 @@ public sealed partial class GameServer
                 return;
             }
 
-            StartPack(s, pack);
+            if (SkipsBasicTraining(pack))
+            {
+                // #2498 "Short courses only": the basic training is skipped silently for a player who never started it —
+                // no welcome card, no line, no achievement (an older client hears no old intro or send-off either). The
+                // story track starts right after (AdvancePlayer), the courses come at their moment. A player already in
+                // the training when the rule changes keeps it: only a pack that has not started takes this path.
+                StartPack(s, pack, playIntro: false, legacyIntro: false);
+                SkipMandatory(s, pack, legacySendOff: false);
+                _repo.SavePlayer(s.State);
+            }
+            else
+            {
+                StartPack(s, pack);
+            }
         }
 
         for (int pass = 0; pass < 64; pass++) // bounded: each pass that changes something completes a step or a chapter
@@ -747,10 +764,11 @@ public sealed partial class GameServer
     }
 
     /// <summary>Starts a pack for a player: the started key, and for a tutorial the legacy intro key (older builds read it
-    /// as "the intro was shown") — with the old intro lines for an older client that has not heard them. The pack's
+    /// as "the intro was shown") — with the old intro lines for an older client that has not heard them (unless
+    /// <paramref name="legacyIntro"/> is off: the silent start of a "Short courses only" world, #2498). The pack's
     /// <c>introCutscene</c> plays unless <paramref name="playIntro"/> is off ("I know the game") or the pack would complete
     /// silently for this player (#2467: a veteran never gets the welcome card).</summary>
-    private void StartPack(PlayerSession s, CompiledPack pack, bool playIntro = true)
+    private void StartPack(PlayerSession s, CompiledPack pack, bool playIntro = true, bool legacyIntro = true)
     {
         MigratePackIfNeeded(s, pack); // #2469: the old state is read before anything of this pack is written (skip, restart, start on request)
         var m = MilestonesOf(s);
@@ -760,7 +778,7 @@ public sealed partial class GameServer
         }
 
         MarkJournalDirty(s); // #2471
-        if (pack.IsTutorial && m.Add(StoryLegacy.IntroMilestone) && !s.SupportsPacks)
+        if (pack.IsTutorial && m.Add(StoryLegacy.IntroMilestone) && !s.SupportsPacks && legacyIntro)
         {
             foreach (string intro in StoryLegacy.IntroLines)
             {
@@ -1115,6 +1133,12 @@ public sealed partial class GameServer
         {
             m.Add(skipped ? StoryPackKeys.ChapterSkipped(pack, ch.Id) : StoryPackKeys.ChapterDone(pack, ch.Id));
         }
+        else if (!skipped && !silent && m.Remove(StoryPackKeys.ChapterSkipped(pack, ch.Id)))
+        {
+            // #2498: a skipped chapter replayed to its end by play ("Start basic training" after a skip) is learnt now — done,
+            // not skipped, so the Journal reads it as finished and its badge can be earned. A skip of the replay keeps it skipped.
+            m.Add(StoryPackKeys.ChapterDone(pack, ch.Id));
+        }
 
         MarkJournalDirty(s);
 
@@ -1173,10 +1197,28 @@ public sealed partial class GameServer
             Advance(s, graduation.Counter);
         }
 
+        SuggestCourses(s, pack);
+        MarkJournalDirty(s); // #2471: the badge and the suggested chapters
+        _repo.SavePlayer(s.State);
+    }
+
+    /// <summary>Marks the graduation's suggested courses (<c>graduation.suggest</c>, at most
+    /// <see cref="StoryGraduation.MaxSuggestions"/>) offered — silently: the Journal lists them with Start / Later and its
+    /// badge, VEGA says nothing. Never one that is done, skipped, declined, running, not admitted (<c>requires</c>), ruled out
+    /// by the world or through by evidence. Run by the graduation and, since #2498, by every skip of the mandatory part
+    /// (<paramref name="skip"/>: "Skip all — I know the game", the silent skip of a "Short courses only" world): the flight
+    /// courses c3 and c4 have no moment of their own, so a skipper was never offered them. A skip leaves a suggested course
+    /// that has its own moment (<c>offerWhen</c>, e.g. the workshop course c1 at the tool-tier wall) to that moment — VEGA's
+    /// offer there tells a player who skipped the training more than a silent mark.</summary>
+    private void SuggestCourses(PlayerSession s, CompiledPack pack, bool skip = false)
+    {
+        var graduation = pack.Def.Graduation ?? new StoryGraduation();
         var m = MilestonesOf(s);
+        bool marked = false;
         foreach (string id in graduation.Suggest.Take(StoryGraduation.MaxSuggestions))
         {
             if (pack.ChaptersById.TryGetValue(id ?? string.Empty, out var suggested) && suggested.Optional
+                && !(skip && suggested.OfferWhen is not null)
                 && !ChapterDoneOrSkipped(s, suggested)
                 && !m.Contains(StoryPackKeys.ChapterDeclined(pack.Id, suggested.Id))
                 && !m.Contains(StoryPackKeys.ChapterActive(pack.Id, suggested.Id))
@@ -1188,16 +1230,21 @@ public sealed partial class GameServer
                 // #2479: the suggestions are this moment's offer — the next deep dive VEGA offers by itself (a data cache in
                 // reach …) waits the usual gap, so the graduation's cards and lines are not followed by an offer line at once.
                 s.LastChapterOfferAt = s.StoryPackPlaySeconds;
+                marked = true;
             }
         }
 
-        MarkJournalDirty(s); // #2471: the badge and the suggested chapters
-        _repo.SavePlayer(s.State);
+        if (marked)
+        {
+            MarkJournalDirty(s); // #2471: Start / Later and the badge
+        }
     }
 
     /// <summary>Stamps the pack done once every non-optional chapter is through. A tutorial writes all nine legacy stage
-    /// keys (an older build then sees a finished onboarding) and an older client hears the old send-off.</summary>
-    private bool CheckPackDone(PlayerSession s, CompiledPack pack)
+    /// keys (an older build then sees a finished onboarding) and an older client hears the old send-off — unless
+    /// <paramref name="legacySendOff"/> is off (the silent skip of a "Short courses only" world, #2498: no training, no
+    /// send-off).</summary>
+    private bool CheckPackDone(PlayerSession s, CompiledPack pack, bool legacySendOff = true)
     {
         if (PackDone(s, pack) || !pack.Chapters.Where(c => !c.Optional).All(c => ChapterFinished(s, c)))
         {
@@ -1210,7 +1257,7 @@ public sealed partial class GameServer
         if (pack.IsTutorial)
         {
             WriteLegacyGraduation(s);
-            if (!s.SupportsPacks)
+            if (!s.SupportsPacks && legacySendOff)
             {
                 SendVegaLine(s, StoryLegacy.DoneLine, 0);
             }

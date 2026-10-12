@@ -561,7 +561,7 @@ namespace BlocksBeyondTheStars.Client
             string tutorialPolicy = "", string storyDensity = "")
             => Send(new SetWorldRulesIntent
             {
-                TutorialPolicy = tutorialPolicy, // #2466/#2472: "Auto" | "OptIn" | "Off", empty = unchanged
+                TutorialPolicy = tutorialPolicy, // #2466/#2472/#2498: "Auto" | "Courses" | "OptIn" | "Off", empty = unchanged
                 StoryDensity = storyDensity,     // #2472: "Sparse" | "Normal" | "Dense", empty = unchanged
                 MachineCatchUpMinutes = machineCatchUpMinutes, // #2269: -1 = unchanged
                 WorldTextures = worldTextures,

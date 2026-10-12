@@ -107,10 +107,12 @@ public enum StoryDensity { Sparse, Normal, Dense }
 
 /// <summary>Whether the tutorial pack runs in this world (#2466, synthesis §5.3 "Weltregel"): <see cref="Auto"/> (default)
 /// starts it for every new player, who can skip or switch it off at any time; <see cref="OptIn"/> lists it and starts it
-/// only on the player's request (veteran servers); <see cref="Off"/> does not offer it. Nothing forces it — every step,
-/// chapter and the pack stay skippable. Governs packs of kind <c>tutorial</c> only; the world story is
-/// <see cref="GameRules.StoryId"/>.</summary>
-public enum TutorialPolicy { Auto, OptIn, Off }
+/// only on the player's request (veteran servers); <see cref="Off"/> does not offer it; <see cref="Courses"/> ("Short courses
+/// only", #2498) skips the basic training silently for every new player (no card, no line, no achievement — the story starts
+/// at once) and keeps the short courses, offered at their moment. Nothing forces it — every step, chapter and the pack stay
+/// skippable. Governs packs of kind <c>tutorial</c> only; the world story is <see cref="GameRules.StoryId"/>. Appended values
+/// only: saves store the number (<c>Courses</c> = 3, which an older server reads as Auto — a graceful downgrade).</summary>
+public enum TutorialPolicy { Auto, OptIn, Off, Courses }
 
 /// <summary>How the server screens text chat (#1207, kid safety). <see cref="Filtered"/> masks profanity, drops
 /// slurs/hate terms and masks personal data (phone numbers, e-mails, links); <see cref="Safe"/> additionally drops
@@ -221,7 +223,7 @@ public sealed class GameRules
     public StoryDensity StoryDensity { get; set; } = StoryDensity.Normal;
 
     /// <summary>Whether the tutorial pack runs in this world (#2466). Set at world creation (the <c>tutorial</c> option,
-    /// <c>--tutorial auto|optin|off</c>) and baked into the save's rules; the admin changes it live
+    /// <c>--tutorial auto|courses|optin|off</c>) and baked into the save's rules; the admin changes it live
     /// (<c>/tutorial policy</c>, <c>SetWorldRulesIntent.TutorialPolicy</c>). An older save without the field reads
     /// <see cref="TutorialPolicy.Auto"/> — the safe default; an older build that re-saves drops it back to Auto.</summary>
     public TutorialPolicy TutorialPolicy { get; set; } = TutorialPolicy.Auto;

@@ -81,7 +81,7 @@ namespace BlocksBeyondTheStars.Client
         /// Splits <c>/tutorial</c> (#2471) into the server's verb line and the optional player — the server case exists since
         /// #2466 (<c>AdminCommandIntent{Command="tutorial", StringArg, TargetPlayer}</c>):
         /// <c>/tutorial skip [player]</c>, <c>/tutorial restart [player]</c>, <c>/tutorial chapter &lt;id&gt; [player]</c> and
-        /// <c>/tutorial policy auto|optin|off</c> (the world's rule — never a player). The player is the whole rest of the line
+        /// <c>/tutorial policy auto|courses|optin|off</c> (the world's rule — never a player). The player is the whole rest of the line
         /// (names may contain spaces, see <see cref="PlayerArgument"/>). An unknown or missing verb is passed on as it is: the
         /// server answers with its usage line (so the help stays in one place).
         /// </summary>

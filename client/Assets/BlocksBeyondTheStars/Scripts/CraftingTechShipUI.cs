@@ -3379,13 +3379,15 @@ namespace BlocksBeyondTheStars.Client
                 y += 40f;
             }
 
-            // #2472: the stories' world rules, live — the tutorial (Auto / On request / Off, with the chosen rule's one-line
-            // explanation) and the story pace. The same words as the world-creation Stories page (WorldStoryOptions); the
-            // server checks the admin role. An older server sends no value — then the row is not there.
+            // #2472: the stories' world rules, live — the tutorial (Auto / Short courses only / On request / Off, #2498, with
+            // the chosen rule's one-line explanation) and the story pace. The same words and order as the world-creation
+            // Stories page (WorldStoryOptions); the server checks the admin role. An older server sends no value — then the
+            // row is not there.
             void StoryRuleRow(string label, string[] steps, string[] nameKeys, int idx, System.Action<string> send)
             {
                 UiKit.AddText(_listContent, 16, y, 360, 56, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
-                UiKit.AddText(_listContent, 380, y, 180, 56, L(nameKeys[idx]), 20, UiKit.Cyan, TextAnchor.MiddleCenter);
+                var ruleName = UiKit.AddText(_listContent, 380, y, 180, 56, L(nameKeys[idx]), 20, UiKit.Cyan, TextAnchor.MiddleCenter);
+                UiKit.FitLabel(ruleName, 12, 20); // "Short courses only" is the longest step name
                 UiKit.AddButton(_listContent, 570, y + 6, 80, 44, "−", () =>
                 {
                     if (idx > 0) { send(steps[idx - 1]); Invoke(nameof(RebuildList), 0.35f); }
@@ -3597,8 +3599,8 @@ namespace BlocksBeyondTheStars.Client
                 showAll ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 96f;
 
-            // The tutorial (#2471): "Tutorial: on / off" (the player's own switch, optOut / optIn — an opt-in world's tutorial
-            // starts with it) plus "Open the Journal", where its parts are skipped, restarted and replayed. Lives HERE (not on
+            // The tutorial (#2471): "Tutorial & courses: on / off" (#2498 named the courses — the player's own switch for the
+            // whole pack, optOut / optIn; an opt-in world's tutorial starts with it) plus "Open the Journal", where its parts are skipped, restarted and replayed. Lives HERE (not on
             // the HUD chip) because gameplay captures the mouse — the menu is where the cursor is free to click. An older
             // server sends no story list: the old skip / restart button stays for it.
             var tutorialState = TutorialSwitch.Of(Game?.StoryPackStates);

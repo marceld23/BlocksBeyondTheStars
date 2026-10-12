@@ -359,7 +359,9 @@ namespace BlocksBeyondTheStars.Client
             => !string.IsNullOrEmpty(moreGuide) && CodexChapters.Contains(moreGuide!) ? moreGuide! : "guide";
 
         /// <summary>The story's own switches: Track / Tracked, Start (not started), Skip all (the mandatory part still runs),
-        /// Restart from the beginning (started, the world allows it), Switch off / Switch on.</summary>
+        /// Restart from the beginning (started, the world allows it) — "Start basic training" when the player never did any of
+        /// it (#2498: <see cref="SkippedWhole"/>, after "Skip all" or on a "Short courses only" world) — Switch off / Switch
+        /// on.</summary>
         public static List<JournalAction> PackActions(NetStoryPack pack)
         {
             var actions = new List<JournalAction>();
@@ -393,11 +395,36 @@ namespace BlocksBeyondTheStars.Client
 
             if (pack.Started)
             {
-                actions.Add(new JournalAction("ui.journal.restart_pack", StoryPackActions.RestartPack));
+                actions.Add(new JournalAction(SkippedWhole(pack) ? "ui.journal.start_basic_training" : "ui.journal.restart_pack",
+                    StoryPackActions.RestartPack));
                 actions.Add(new JournalAction("ui.journal.off", StoryPackActions.OptOut));
             }
 
             return actions;
+        }
+
+        /// <summary>#2498: the story's mandatory part was skipped as a whole and none of it played — every mandatory chapter
+        /// reads <see cref="StoryChapterStates.Skipped"/> (none done, none running or replaying). Its restart then starts the
+        /// basic training for the first time. False for a story without mandatory chapters.</summary>
+        public static bool SkippedWhole(NetStoryPack pack)
+        {
+            bool any = false;
+            foreach (var chapter in pack.Chapters)
+            {
+                if (chapter.Optional)
+                {
+                    continue;
+                }
+
+                if (!string.Equals(chapter.State, StoryChapterStates.Skipped, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                any = true;
+            }
+
+            return any;
         }
 
         /// <summary>The status line under the story's name: switched off by the world or the player, not started, finished.</summary>
@@ -583,8 +610,9 @@ namespace BlocksBeyondTheStars.Client
             => !string.IsNullOrEmpty(suggested) && string.IsNullOrEmpty(currentId) && !hasFreePoint ? suggested : null;
     }
 
-    /// <summary>The Settings' "Tutorial: on / off" switch (#2471, synthesis §5.8 "Einstellungen") — it replaced the old
-    /// "Skip / Restart tutorial" button. Pure, unit-tested headless.</summary>
+    /// <summary>The Settings' "Tutorial &amp; courses: on / off" switch (#2471, synthesis §5.8 "Einstellungen"; named so since
+    /// #2498 — it switches the basic training and the short courses together) — it replaced the old "Skip / Restart tutorial"
+    /// button. Pure, unit-tested headless.</summary>
     public static class TutorialSwitch
     {
         /// <summary>What the switch shows.</summary>

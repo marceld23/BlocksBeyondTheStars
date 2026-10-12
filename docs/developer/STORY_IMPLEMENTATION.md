@@ -844,7 +844,7 @@ singleplayer world is held only `track`, `untrack`, `optOut`, `optIn`, `skipPack
 
 **Admin** (world management, not a cheat — the role is the gate, above the cheats switch; the slash parsing in the
 client comes with step 12): `AdminCommandIntent{Command = "tutorial", StringArg = "skip" | "restart" | "chapter <id>" |
-"policy auto|optin|off", TargetPlayer = <name or empty for yourself>}` — without an installed tutorial pack every verb but
+"policy auto|courses|optin|off", TargetPlayer = <name or empty for yourself>}` — without an installed tutorial pack every verb but
 `policy` answers `tutorial_none` (#2469). `story_status` (`/story`) now also lists the world's tutorial rule and the
 player packs of the caller (or `TargetPlayer`), and is a read-only report above the cheats switch.
 
@@ -979,7 +979,7 @@ all objectives"), `GameBootstrap` (`StoryPackStates`, `Objectives`, `JournalVers
   of `StationContactsForCurrentSystem(body)`; the marker is the line `vega.step.marked_station` ({0} = the station's name)
   carrying `ShipAiLine.SpaceWaypointId` — the client's space waypoint (radar + edge arrow), never a ground ping. The
   tutorial's b6.4 uses it.
-- **Admin.** `/tutorial skip|restart [player]`, `/tutorial chapter <id> [player]`, `/tutorial policy auto|optin|off`
+- **Admin.** `/tutorial skip|restart [player]`, `/tutorial chapter <id> [player]`, `/tutorial policy auto|courses|optin|off`
   (`AdminChatCommand.Tutorial` → `AdminCommandIntent{tutorial}`), `/story [player]` (`story_status` with the target).
 
 ## Cinematics: one cutscene state, skip on every device, the world-hold arbiter (#2461)
@@ -1047,7 +1047,8 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   `CutsceneDirectorDuel.cs` + `DuelDialogueScreen.cs`, rules in Client.Core `Cutscenes/CoreDuel.cs`);
   `ClientMusic` finale contexts → `music_boss_*` tracks.
 - World options: `GameRules.StoryId` + `GameRules.StoryDensity` (`--story` / `--story-density`) and
-  `GameRules.TutorialPolicy` (`--tutorial auto|optin|off`, #2466), set when the world is created and baked into its rules.
+  `GameRules.TutorialPolicy` (`--tutorial auto|courses|optin|off`, #2466; `courses` = "Short courses only", #2498), set
+  when the world is created and baked into its rules.
   The world-creation panel shows them as ONE row "Stories: VEGA · Tutorial Auto ›" that opens the **Stories** page
   (#2472, `UiWorldOptions.BuildStories`): main story = every installed pack with `StoryRegistry.CanBeWorldStory` (default
   first, then priority, capped at `WorldStoryOptions.MaxChoices`) plus "None (sandbox)", the chosen pack's

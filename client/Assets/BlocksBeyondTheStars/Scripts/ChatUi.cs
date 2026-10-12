@@ -883,7 +883,7 @@ namespace BlocksBeyondTheStars.Client
                 case "/story": net.SendAdminCommand("story_status", targetPlayer: AdminChatCommand.PlayerArgument(t)); return true;
 
                 // #2471: tutorial controls — "/tutorial skip|restart [player]", "/tutorial chapter <id> [player]",
-                // "/tutorial policy auto|optin|off". The server owns the checks and answers with its usage line.
+                // "/tutorial policy auto|courses|optin|off". The server owns the checks and answers with its usage line.
                 case "/tutorial":
                     {
                         var (verb, tutorialTarget) = AdminChatCommand.Tutorial(t);

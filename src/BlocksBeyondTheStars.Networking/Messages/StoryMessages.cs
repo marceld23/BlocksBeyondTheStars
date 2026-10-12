@@ -146,7 +146,7 @@ public sealed class StoryPackStates
     /// <summary>The story pinned to the chip (<c>PlayerState.TrackedStoryId</c>), empty for the automatic order.</summary>
     public string TrackedPackId { get; set; } = string.Empty;
 
-    /// <summary>The world's tutorial rule: <c>Auto</c>, <c>OptIn</c> or <c>Off</c>.</summary>
+    /// <summary>The world's tutorial rule: <c>Auto</c>, <c>OptIn</c>, <c>Off</c> or <c>Courses</c> (#2498).</summary>
     public string TutorialPolicy { get; set; } = string.Empty;
 }
 

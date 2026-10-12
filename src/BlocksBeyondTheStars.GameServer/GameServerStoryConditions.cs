@@ -156,8 +156,9 @@ public sealed partial class GameServer
 
     /// <summary>Whether a story pack runs for this player in this world (<c>pack:&lt;id&gt;:enabled</c>): the active world
     /// story, or an installed player-scoped pack the player has not switched off (#2466) — a tutorial by the world's
-    /// <see cref="TutorialPolicy"/> (<c>Auto</c>: yes; <c>OptIn</c>: once the player started it; <c>Off</c>: no), any
-    /// other player pack by its <c>defaultEnabled</c> or once the player started it.</summary>
+    /// <see cref="TutorialPolicy"/> (<c>Auto</c>: yes; <c>OptIn</c>: once the player started it; <c>Off</c>: no;
+    /// <c>Courses</c>: yes, like Auto — the start then skips the basic training silently, #2498), any other player pack by its
+    /// <c>defaultEnabled</c> or once the player started it.</summary>
     internal bool StoryPackEnabledFor(PlayerSession who, string packId)
     {
         if (_story is not null && string.Equals(_story.Id, packId, StringComparison.OrdinalIgnoreCase))
@@ -179,7 +180,7 @@ public sealed partial class GameServer
             {
                 TutorialPolicy.Off => false,
                 TutorialPolicy.OptIn => started,
-                _ => true,
+                _ => true, // Auto, and Courses (#2498): the pack runs — its courses are offered, AdvancePack skips the training
             };
         }
 

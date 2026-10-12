@@ -718,7 +718,7 @@ public sealed class ServerConfig
                     if (Enum.TryParse<StoryDensity>(value, ignoreCase: true, out var storyDens)) { Rules.StoryDensity = storyDens; applied.Add("story-density"); }
                     break;
                 case "tutorial":
-                    // #2466: the tutorial pack's world rule (auto | optin | off) — a fresh world only, like every world
+                    // #2466: the tutorial pack's world rule (auto | courses | optin | off) — a fresh world only, like every world
                     // option: the save's baked rules win on later launches.
                     if (TryParseTutorialPolicy(value, out var tutorialPolicy)) { Rules.TutorialPolicy = tutorialPolicy; applied.Add("tutorial"); }
                     break;
@@ -966,8 +966,9 @@ public sealed class ServerConfig
         return false;
     }
 
-    /// <summary>Parses a tutorial policy word (#2466): <c>auto</c>, <c>optin</c> (also <c>opt-in</c>/<c>opt_in</c>) or
-    /// <c>off</c>, case-insensitive. Numbers are refused (an enum parse would take any integer).</summary>
+    /// <summary>Parses a tutorial policy word (#2466): <c>auto</c>, <c>optin</c> (also <c>opt-in</c>/<c>opt_in</c>),
+    /// <c>off</c> or <c>courses</c> ("Short courses only", #2498), case-insensitive. Numbers are refused (an enum parse would
+    /// take any integer).</summary>
     public static bool TryParseTutorialPolicy(string? value, out TutorialPolicy policy)
     {
         string word = (value ?? string.Empty).Trim().Replace("-", string.Empty).Replace("_", string.Empty);

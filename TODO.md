@@ -79,6 +79,18 @@ line per step:
   ducked. Both validators: every narrator/speaker `voice` clip and the narrator's `lineStart` must exist in
   `Resources/audio`. Docs: CUTSCENES, SOUND_DESIGN, USER_MANUAL. ⚠ Unity/playtest: the chatter's 0.5 under the scene music
   and the duck levels — tune by ear.
+- ✅ **Step 5 — "Short courses only", course suggestions after skipping (#2498)**, 2026-10-13: a fourth tutorial rule
+  `TutorialPolicy.Courses` (appended = 3; `--tutorial courses`, `/tutorial policy courses`, "Short courses only" / "Nur
+  Kurzkurse"): a new player's basic training is skipped silently (no welcome card, no line, no achievement — an older
+  client hears no old intro/send-off and is not stuck), so the prologue leads straight into VEGA's chapter 1 and the
+  courses come at their moments; a running training is left alone on a live switch. Every skip ("Skip all", the silent
+  one) now marks the graduation's suggestions without a moment of their own (c3 Pilot, c4 Stations — before, a skipper was
+  never offered them) silently in the Journal; c1 keeps its tier-wall offer. The Journal's restart reads "Start basic
+  training" after a whole skip, and a skipped part replayed to its end becomes done (★). World creation's Stories page has
+  four tutorial rows (Auto · Short courses only · On request · Off), the in-game rule row follows; the Settings switch is
+  "Tutorial & courses: on/off". No save/protocol bump (an older server reads 3 as Auto). Docs: TUTORIAL_PACK, SELF_HOSTING,
+  STORY_IMPLEMENTATION, STORY_PACK_AUTHORING, USER_MANUAL. ⚠ Unity: the 4-row Stories page and the in-game rule row's
+  "Short courses only" fit.
 
 ### ★ Story packs 2026-10 (#2459)
 

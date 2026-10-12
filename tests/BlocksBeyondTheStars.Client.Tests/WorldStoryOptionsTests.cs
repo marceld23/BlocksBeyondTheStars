@@ -12,7 +12,8 @@ namespace BlocksBeyondTheStars.Client.Tests;
 /// #2472 — world creation's "Stories" page (<see cref="WorldStoryOptions"/>): the main-story list (installed world
 /// stories only, the default first, "None" last, capped), the summary row ("VEGA · Tutorial Auto ›" in English and German
 /// from the real tables), the server arguments (non-defaults only, and they parse back into the rules the server bakes),
-/// the fallbacks for a pack this client cannot name and the server words the in-game world rules read.
+/// the fallbacks for a pack this client cannot name and the server words the in-game world rules read. #2498 added the fourth
+/// tutorial rule "Short courses only" as the page's second row.
 /// </summary>
 public sealed class WorldStoryOptionsTests
 {
@@ -64,20 +65,48 @@ public sealed class WorldStoryOptionsTests
         var (de, deHas) = Real(GameLocale.German);
         var stories = Content.Value.Stories;
 
-        var opt = new WorldStoryOptions { Density = 2, Tutorial = 1 };
+        var opt = new WorldStoryOptions { Density = 2, Tutorial = 2 };
         Assert.Equal("VEGA (Fast) · Tutorial On request ›", opt.Summary(stories, en, enHas));
         Assert.Equal("VEGA (Schnell) · Tutorial Auf Wunsch ›", opt.Summary(stories, de, deHas));
 
-        opt = new WorldStoryOptions { StoryId = StoryRegistry.NoneStoryId, Density = 0, Tutorial = 2 };
+        opt = new WorldStoryOptions { StoryId = StoryRegistry.NoneStoryId, Density = 0, Tutorial = 3 };
         Assert.Equal("None · Tutorial Off ›", opt.Summary(stories, en, enHas)); // no pace without a story
         Assert.Equal("Keine · Tutorial Aus ›", opt.Summary(stories, de, deHas));
+
+        opt = new WorldStoryOptions { Tutorial = 1 }; // #2498: the second row
+        Assert.Equal("VEGA · Tutorial Short courses only ›", opt.Summary(stories, en, enHas));
+        Assert.Equal("VEGA · Tutorial Nur Kurzkurse ›", opt.Summary(stories, de, deHas));
+    }
+
+    /// <summary>#2498: the page lists four tutorial rules, from the most guidance to none — Auto, Short courses only, On request,
+    /// Off — each named and explained in English and German; the order is the page's (the enum appended Courses as 3).</summary>
+    [Fact]
+    public void TheTutorialRows_AreAutoShortCoursesOnRequestOff_WithTheirTexts()
+    {
+        Assert.Equal(new[] { "Auto", "Courses", "OptIn", "Off" }, WorldStoryOptions.TutorialSteps);
+        Assert.Equal(new[] { "auto", "courses", "optin", "off" }, WorldStoryOptions.TutorialCliWords);
+        Assert.Equal(3, (int)TutorialPolicy.Courses); // appended: a save's 0/1/2 keep their meaning
+
+        var (en, enHas) = Real(GameLocale.English);
+        var (de, deHas) = Real(GameLocale.German);
+        Assert.Equal(new[] { "Auto", "Short courses only", "On request", "Off" }, WorldStoryOptions.TutorialNameKeys.Select(en).ToArray());
+        Assert.Equal(new[] { "Auto", "Nur Kurzkurse", "Auf Wunsch", "Aus" }, WorldStoryOptions.TutorialNameKeys.Select(de).ToArray());
+        foreach (string key in WorldStoryOptions.TutorialHintKeys)
+        {
+            Assert.True(enHas(key) && deHas(key), key);
+            Assert.True(en(key).Length <= 90 && de(key).Length <= 90, $"{key}: one short line under the row");
+        }
+
+        Assert.Contains("short courses", en("ui.worldopt.tutorial_courses_hint"), StringComparison.Ordinal);
+        Assert.Contains("Kurzkurse", de("ui.worldopt.tutorial_courses_hint"), StringComparison.Ordinal);
     }
 
     [Theory]
     [InlineData("none", 1, 0, " --story none")]
     [InlineData("vega_protocol", 0, 0, " --story-density Sparse")]
-    [InlineData("", 2, 2, " --story-density Dense --tutorial off")]
-    [InlineData("vega_protocol", 1, 1, " --tutorial optin")]
+    [InlineData("", 2, 3, " --story-density Dense --tutorial off")]
+    [InlineData("vega_protocol", 1, 2, " --tutorial optin")]
+    [InlineData("vega_protocol", 1, 1, " --tutorial courses")] // #2498
     [InlineData("side_arc", 1, 0, " --story side_arc")]
     [InlineData("VEGA_PROTOCOL", 1, 0, "")]
     public void TheArguments_AreTheNonDefaultsOnly(string storyId, int density, int tutorial, string expected)
@@ -87,10 +116,11 @@ public sealed class WorldStoryOptionsTests
     }
 
     [Theory]
-    [InlineData("none", 0, 2)]
-    [InlineData("vega_protocol", 2, 1)]
-    [InlineData("side_arc", 1, 0)]
-    public void TheArguments_ParseBackIntoTheRulesTheServerBakes(string storyId, int density, int tutorial)
+    [InlineData("none", 0, 3, TutorialPolicy.Off)]
+    [InlineData("vega_protocol", 2, 2, TutorialPolicy.OptIn)]
+    [InlineData("vega_protocol", 1, 1, TutorialPolicy.Courses)] // #2498
+    [InlineData("side_arc", 1, 0, TutorialPolicy.Auto)]
+    public void TheArguments_ParseBackIntoTheRulesTheServerBakes(string storyId, int density, int tutorial, TutorialPolicy policy)
     {
         var opt = new WorldStoryOptions { StoryId = storyId, Density = density, Tutorial = tutorial };
         var config = new ServerConfig();
@@ -98,18 +128,23 @@ public sealed class WorldStoryOptionsTests
 
         Assert.Equal(storyId == StoryRegistry.DefaultStoryId ? string.Empty : storyId, config.Rules.StoryId);
         Assert.Equal((StoryDensity)density, config.Rules.StoryDensity);
-        Assert.Equal((TutorialPolicy)tutorial, config.Rules.TutorialPolicy);
+        Assert.Equal(policy, config.Rules.TutorialPolicy);
     }
 
     [Fact]
     public void TheStepTables_FollowTheServerEnums()
     {
         Assert.Equal(Enum.GetNames<StoryDensity>(), WorldStoryOptions.DensitySteps);
-        Assert.Equal(Enum.GetNames<TutorialPolicy>(), WorldStoryOptions.TutorialSteps);
+        // #2498: every tutorial rule once, in the page's order (not the enum's) — each step is a server word, and its CLI word
+        // parses to the same rule.
+        Assert.Equal(Enum.GetNames<TutorialPolicy>().OrderBy(n => n), WorldStoryOptions.TutorialSteps.OrderBy(n => n));
+        Assert.Equal(WorldStoryOptions.TutorialSteps.Length, WorldStoryOptions.TutorialCliWords.Length);
         for (int i = 0; i < WorldStoryOptions.TutorialCliWords.Length; i++)
         {
             Assert.True(ServerConfig.TryParseTutorialPolicy(WorldStoryOptions.TutorialCliWords[i], out var p));
-            Assert.Equal((TutorialPolicy)i, p);
+            Assert.Equal(Enum.Parse<TutorialPolicy>(WorldStoryOptions.TutorialSteps[i]), p);
+            Assert.True(ServerConfig.TryParseTutorialPolicy(WorldStoryOptions.TutorialSteps[i], out var wire)); // the in-game row's word
+            Assert.Equal(p, wire);
         }
 
         Assert.Equal((int)StoryDensity.Normal, WorldStoryOptions.NormalDensity);
@@ -276,8 +311,9 @@ public sealed class WorldStoryOptionsTests
 
     [Theory]
     [InlineData("Auto", 0)]
-    [InlineData("optin", 1)]
-    [InlineData("OFF", 2)]
+    [InlineData("Courses", 1)] // #2498
+    [InlineData("optin", 2)]
+    [InlineData("OFF", 3)]
     [InlineData("", -1)]
     [InlineData(null, -1)]
     [InlineData("On", -1)]

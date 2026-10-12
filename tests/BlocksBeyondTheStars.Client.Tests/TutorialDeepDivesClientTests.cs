@@ -45,9 +45,12 @@ public sealed class TutorialDeepDivesClientTests
         h.Client.SendStoryPack(Tutorial, StoryPackActions.SkipPack); // "I know the game": the courses are open
         Assert.True(h.PumpUntil(() => TutorialOf(states.LastOrDefault())?.Done == true));
         Assert.Equal(StoryChapterStates.Available, ChapterOf(states.Last(), "c2")!.State);
+        Assert.Equal(StoryChapterStates.Offered, ChapterOf(states.Last(), "c4")!.State); // #2498: the skip suggests the stations course
 
-        // A data cache in reach (VEGA's tip pass sees it): the research course is offered, once, in VEGA's words.
+        // A data cache in reach (VEGA's tip pass sees it): the research course is offered, once, in VEGA's words — a while
+        // after the skip (its silent suggestions count as an offer, the next one waits the gap).
         var session = h.Server.Sessions.Values.Single();
+        session.StoryPackPlaySeconds += 90;
         for (int i = 0; i < 5 && !lines.Any(l => l.LineKey == "vega.chapter.offer"); i++)
         {
             session.VegaTipLive = new[] { "data_cache_near" };

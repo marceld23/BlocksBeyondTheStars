@@ -67,9 +67,11 @@ Last updated: 2026-10-04.
   - **Main story** — the story this world tells: **The VEGA Protocol** (default; a line under the list says what it is
     about) or **None (sandbox)** for free exploring and building. More stories appear in this list once they are installed.
   - **Story pace** — *Slow / Normal / Fast*: how quickly the story's chapters unfold as you play.
-  - **Tutorial** — **Auto** (default: every new player starts with the basic training and can skip it at any time),
-    **On request** (it does not start by itself; players start it in their Journal) or **Off** (no basic training in
-    this world). A world without a story still has the tutorial when it is on.
+  - **Tutorial** — four rows, each with a line saying what it means: **Auto** (default: every new player starts with the
+    basic training and can skip it at any time), **Short courses only** (no basic training at the start — the story
+    begins right after VEGA's opening, and VEGA offers the short courses when they fit; a player can still start the
+    training in the Journal), **On request** (it does not start by itself; players start it in their Journal) or **Off**
+    (no basic training and no short courses in this world). A world without a story still has the tutorial when it is on.
 
   The summary row shows your choice (e.g. "VEGA (Fast) · Tutorial Off ›"); the presets reset it to VEGA · Normal · Auto.
   The world admin can change the **tutorial** and the **story pace** later in-game (Settings tab → world rules); the main
@@ -1131,13 +1133,20 @@ players.
   - **Skipping and replaying** — all in the **Journal** (Tab menu → Journal → the training): **Skip step** ("I know
     this"), **Skip part**, **Start part over**, **Replay** for a part you finished, **Skip all — I know the game**,
     **Restart from the beginning** (runs it again from part 1 — for anyone, experienced players included, and without
-    the opening narration) and **Switch off**. Some lessons you already did early simply tick off by themselves.
-  - **Tutorial: on/off** in the Settings tab switches the training off for you (VEGA stops the lessons and the
-    course offers) and back on — on an *On request* world "on" starts it. Next to it, **Open the Journal**.
-  - **Tutorial on/off for a world:** the world rule *Tutorial* is **Auto** (every new player starts it), **On request**
-    (only on request) or **Off** — chosen on the world-creation **Stories** page (§1), and changed later by the world
-    admin under Tab → Settings → world rules (*Tutorial*, with a line saying what the choice means) or with
-    `/tutorial policy auto|optin|off`.
+    the opening narration) and **Switch off**. Some lessons you already did early simply tick off by themselves. **Skip
+    all** puts the two flight courses (*Pilot* and *Stations, trade and jobs*) on offer in your Journal straight away,
+    quietly — the other courses come when they fit. If you skipped the whole training without doing any of it, the
+    restart button reads **Start basic training**; play it through and its parts count as done (with the ★).
+  - **Tutorial & courses: on/off** in the Settings tab switches the training and the short courses off for you (VEGA
+    stops the lessons and the course offers) and back on — on an *On request* world "on" starts it. Next to it, **Open
+    the Journal**.
+  - **Tutorial on/off for a world:** the world rule *Tutorial* is **Auto** (every new player starts it), **Short courses
+    only** (new players skip the basic training without a word — no welcome card, no lesson, no achievement — VEGA's
+    opening leads straight into chapter 1, the two flight courses wait in the Journal and the other courses are offered
+    when they fit; someone already in the training when the rule is switched keeps it), **On request** (only on request)
+    or **Off** — chosen on the world-creation **Stories** page (§1), and changed later by the world admin under Tab →
+    Settings → world rules (*Tutorial*, with a line saying what the choice means) or with
+    `/tutorial policy auto|courses|optin|off`.
   - VEGA's lessons — and the prompts at the ship's cockpit, workshop, cargo hold and console, the crafting
     stations, the bed, the heal tank, the transporter pad and a factory terminal — name the control of the device
     you are using: the key you bound, the pad button, or on a tablet the on-screen button (USE, MAP, JUMP, MINE,
@@ -1149,8 +1158,8 @@ players.
   - While the basic training runs, VEGA's matching tips wait for their lesson, so you never hear the same thing
     twice (the flight chart and ship-scanner explanations, for example, come with part 6).
   - A game version from before the new tutorial still follows the nine old lessons on a new server.
-- **Short courses (after the basic training):** deeper lessons you choose yourself — VEGA offers one when it fits what
-  you are doing (at most one offer every minute and a half, never during the basic training), and the Journal lists them
+- **Short courses (after the basic training — or after skipping it, and on a *Short courses only* world):** deeper
+  lessons you choose yourself — VEGA offers one when it fits what you are doing (at most one offer every minute and a half, never during the basic training), and the Journal lists them
   all with **Start** or **Later** (a course you put off stays there; VEGA does not offer it again). Each opens with a short
   "Short course" card and ends with the "Part complete!" banner; your docking in the stations course ("Docked — …") and your
   first hyperjump in the navigator course ("New system — …") get a short card of their own, your first base and your first
@@ -1165,10 +1174,10 @@ players.
   - **Knowledge and research** (offered when a data cache is close by, or when you dig a lot without a terrain scanner):
     scanning three new things, mining a data cache (two data fragments), what a blueprint costs, a DataQube game, reading
     a rune stone, the terrain scanner (or, before you have its blueprint, what it needs) and the Achievements tab.
-  - **Pilot** (suggested when you finish the training; needs space flight): setting a waypoint on the chart, scanning a
+  - **Pilot** (suggested when you finish or skip the training; needs space flight): setting a waypoint on the chart, scanning a
     planet before you land, breaking an asteroid with the ship's laser, walking around inside your flying ship and a
     spacewalk through the hatch — plus target lock where enemies fly, and what to do when you float above a world's air.
-  - **Stations, trade and jobs** (suggested when you finish the training): docking at a station, the vendors and their
+  - **Stations, trade and jobs** (suggested when you finish or skip the training): docking at a station, the vendors and their
     trades (researchers sell data fragments), taking a job from the mission board, undocking, and handing the job in
     where you took it. Without a reachable station the course runs at a settlement.
   - **Navigator** (offered once the pilot course is done): markers and pings on the planet map, map travel between worlds,
@@ -2006,8 +2015,9 @@ called **stories**:
   a station", with its counter), **Skip step** and **More in the Codex** where there is more to read, and for the part
   **Skip part** and **Start part over** — then every part with its state (*done*, *skipped*, *now*, *coming up*; short
   courses *offered* with **Start** / **Later**, *available*, or *locked* with what they still need) and **Replay** for a
-  part you finished. At the top: **Track**, **Skip all — I know the game**, **Restart from the beginning** and
-  **Switch off** (**Switch on** brings it back). Below: the training's scenes to watch again.
+  part you finished. At the top: **Track**, **Skip all — I know the game**, **Restart from the beginning** (**Start basic
+  training** when you skipped all of it) and **Switch off** (**Switch on** brings it back). Below: the training's scenes
+  to watch again.
 - **VEGA's page** shows the star-network meter (also as a bar), **Track**, **Missions in this chapter** — VEGA's story
   mission with its steps (**✔** done, **●** now, **○** next) and **Skip mission** — then **Leads in this chapter** — the
   chapter's tasks: **✔** done, **●** the one on your chip now, **○** still open (see "Story: finding the thread") — the chapter
@@ -3292,7 +3302,7 @@ option (the answer buttons; only a player on the Guardian Core can answer) until
 **Tutorial controls** (admin role only — works with cheats off): `/tutorial skip [Player]` skips the basic training of you
 or the named player, `/tutorial restart [Player]` runs it again from part 1, `/tutorial chapter <id> [Player]` jumps to a
 part (e.g. `/tutorial chapter b6` — earlier parts count as skipped, a finished one is replayed), and
-`/tutorial policy auto|optin|off` sets the world's tutorial rule for everyone.
+`/tutorial policy auto|courses|optin|off` sets the world's tutorial rule for everyone (`courses` = *Short courses only*).
 
 **Story scene preview** (admin role only — works with cheats off, changes nothing): `/cutscene <pack> <id>` plays a story
 pack's scene for you alone, e.g. `/cutscene vega_protocol prologue`; `/cutscene <pack> __recap` shows the "story so far"

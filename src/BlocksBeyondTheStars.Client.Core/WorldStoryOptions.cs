@@ -23,20 +23,28 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Story pace steps, index = <c>StoryDensity</c> enum order (the server's words).</summary>
         public static readonly string[] DensitySteps = { "Sparse", "Normal", "Dense" };
 
-        /// <summary>Tutorial rule steps, index = <c>TutorialPolicy</c> enum order (the server's words).</summary>
-        public static readonly string[] TutorialSteps = { "Auto", "OptIn", "Off" };
+        /// <summary>Tutorial rule steps in the page's order, from the most guidance to none (the server's
+        /// <c>TutorialPolicy</c> words): Auto · Short courses only (#2498) · On request · Off. The order is the page's, not
+        /// the enum's — the wire and the command line carry the words, never an index.</summary>
+        public static readonly string[] TutorialSteps = { "Auto", "Courses", "OptIn", "Off" };
 
-        /// <summary>The CLI words of <see cref="TutorialSteps"/> (<c>--tutorial auto|optin|off</c>).</summary>
-        public static readonly string[] TutorialCliWords = { "auto", "optin", "off" };
+        /// <summary>The CLI words of <see cref="TutorialSteps"/> (<c>--tutorial auto|courses|optin|off</c>).</summary>
+        public static readonly string[] TutorialCliWords = { "auto", "courses", "optin", "off" };
 
         /// <summary>Locale keys naming the pace steps (the world-creation slider's words, also the in-game rules row).</summary>
         public static readonly string[] DensityNameKeys = { "ui.worldopt.density_sparse", "ui.worldopt.density_normal", "ui.worldopt.density_dense" };
 
         /// <summary>Locale keys naming the tutorial steps.</summary>
-        public static readonly string[] TutorialNameKeys = { "ui.worldopt.tutorial_auto", "ui.worldopt.tutorial_optin", "ui.worldopt.tutorial_off" };
+        public static readonly string[] TutorialNameKeys =
+        {
+            "ui.worldopt.tutorial_auto", "ui.worldopt.tutorial_courses", "ui.worldopt.tutorial_optin", "ui.worldopt.tutorial_off",
+        };
 
         /// <summary>Locale keys of the one-line explanation under each tutorial step.</summary>
-        public static readonly string[] TutorialHintKeys = { "ui.worldopt.tutorial_auto_hint", "ui.worldopt.tutorial_optin_hint", "ui.worldopt.tutorial_off_hint" };
+        public static readonly string[] TutorialHintKeys =
+        {
+            "ui.worldopt.tutorial_auto_hint", "ui.worldopt.tutorial_courses_hint", "ui.worldopt.tutorial_optin_hint", "ui.worldopt.tutorial_off_hint",
+        };
 
         /// <summary>Index of the server default pace (<c>Normal</c>).</summary>
         public const int NormalDensity = 1;
@@ -236,8 +244,8 @@ namespace BlocksBeyondTheStars.Client
             return Format(localize("ui.worldopt.stories_summary"), story, tutorial);
         }
 
-        /// <summary>The <see cref="TutorialSteps"/> index of a server word ("Auto" / "OptIn" / "Off", case-insensitive), or
-        /// -1 (an older server sends nothing).</summary>
+        /// <summary>The <see cref="TutorialSteps"/> index of a server word ("Auto" / "Courses" / "OptIn" / "Off",
+        /// case-insensitive), or -1 (an older server sends nothing).</summary>
         public static int TutorialIndex(string? serverWord) => IndexOf(TutorialSteps, serverWord);
 
         /// <summary>The <see cref="DensitySteps"/> index of a server word ("Sparse" / "Normal" / "Dense"), or -1.</summary>

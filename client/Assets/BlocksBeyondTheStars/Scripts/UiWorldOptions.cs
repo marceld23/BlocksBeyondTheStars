@@ -226,8 +226,8 @@ namespace BlocksBeyondTheStars.Client
             => shell.Localizer != null && !string.IsNullOrEmpty(key) && shell.Localizer.Has(key);
 
         /// <summary>The Stories page (#2472, synthesis §5.8): the world's main story (every installed world story, then "None
-        /// (sandbox)") with the chosen one's description and its pace, and the tutorial's world rule (Auto / On request /
-        /// Off, one explanation each). Creation-only like the rest of the panel: the choices become <c>--story</c>,
+        /// (sandbox)") with the chosen one's description and its pace, and the tutorial's world rule (Auto / Short courses
+        /// only / On request / Off — #2498 added the second — one explanation each). Creation-only like the rest of the panel: the choices become <c>--story</c>,
         /// <c>--story-density</c> and <c>--tutorial</c> (non-defaults only, <see cref="WorldStoryOptions.ToArgs"/>); a world
         /// admin can change the pace and the tutorial later in the in-game world rules. Returns a refresher that re-reads
         /// every control from <paramref name="opt"/>.</summary>
@@ -296,7 +296,8 @@ namespace BlocksBeyondTheStars.Client
             AddSliderRow(parent, 30f, sy, 740f, shell.L("ui.worldopt.story_density"), paceSteps,
                 () => opt.Stories.Density, v => opt.Stories.Density = v, refreshers);
 
-            // Right column: the tutorial's world rule — three choices, each with its one-line explanation.
+            // Right column: the tutorial's world rule — four choices (WorldStoryOptions.TutorialSteps), each with its one-line
+            // explanation.
             float ty = StoriesHeaderY;
             UiKit.AddText(parent, 820f, ty, 700f, 24f, shell.L("ui.worldopt.tutorial"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             ty = StoriesListY;

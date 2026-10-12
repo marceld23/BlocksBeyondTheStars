@@ -25,7 +25,7 @@ How the server runs packs (the step runtime, the chip, the Journal, the wire) is
 | `kind` | `scope` | Runs | Examples |
 |---|---|---|---|
 | `side` | `player` | per player, as many at once as are installed | the pilot `side_pilot` |
-| `tutorial` | `player` (always) | per player, under the world rule `TutorialPolicy` (Auto / On request / Off) | `data/stories/tutorial/` (basic training B1–B6 + the short courses) |
+| `tutorial` | `player` (always) | per player, under the world rule `TutorialPolicy` (Auto / Short courses only / On request / Off) | `data/stories/tutorial/` (basic training B1–B6 + the short courses) |
 | `story` | `world` | one per save, chosen at world creation; progress shared by everyone, a per-player track on top | `data/stories/vega_protocol/` (VEGA) |
 
 `scope` defaults to `world` for a pack with beats and `player` for one without. A **player pack** has chapters of steps,

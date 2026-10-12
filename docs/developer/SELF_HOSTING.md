@@ -82,8 +82,12 @@ when it is landed on the same body, never in a fight or while falling, once ever
 `dangerous` preset**, so a hard world keeps the walk back.
 
 **Tutorial (#2466).** Whether the tutorial story pack runs: `rules.tutorialPolicy` = `Auto` (default — every new player
-starts it and can skip it at any time), `OptIn` (offered, starts only on the player's request — veteran servers) or `Off`;
-CLI `--tutorial auto|optin|off` for a fresh world (the save keeps its rule afterwards). An admin changes it on a running
+starts it and can skip it at any time), `Courses` ("Short courses only", #2498 — new players skip the basic training
+silently and the story starts at once, while VEGA still offers the short courses at their moments; a player already in the
+training keeps it), `OptIn` (offered, starts only on the player's request — veteran servers) or `Off` (no training, no
+courses); CLI `--tutorial auto|courses|optin|off` for a fresh world (the save keeps its rule afterwards). The save stores
+the rule as a number and `Courses` is the appended 3: a server older than #2498 reads such a save as `Auto`; in a
+`config/server.json` write `Courses` only for a server that knows it. An admin changes it on a running
 world in the in-game world rules (Tab → Settings, *Tutorial*) or with the chat command `/tutorial policy <value>`. The
 story choice (`--story none`) never switches the tutorial off. No preset switches it off (`family` = `Auto`).
 

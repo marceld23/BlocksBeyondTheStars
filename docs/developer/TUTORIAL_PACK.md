@@ -193,12 +193,27 @@ player), `radio_worn`, `planet_wrecks` (the world option is not off). `ui:` is n
 
 ## The world rule
 
-`GameRules.TutorialPolicy` = `Auto` (default; starts for every new player, skippable at every level) · `OptIn` (listed,
-starts on the player's request) · `Off` (not offered). Set at world creation (the world-creation **Stories** page, #2472:
-"Auto / On request / Off" with one line each → `--tutorial auto|optin|off`, emitted only when not `Auto`, baked into the
-save's rules), changed live by the admin (the *Tutorial* row of the in-game world rules → `SetWorldRulesIntent.TutorialPolicy`,
-or the admin command `tutorial policy …`). A save without the field reads `Auto`; no server preset switches it off
-(`family` = `Auto`); hosted and glitch worlds pass no flag (`Auto`).
+`GameRules.TutorialPolicy` = `Auto` (default; starts for every new player, skippable at every level) · `Courses`
+("Short courses only", #2498, see below) · `OptIn` (listed, starts on the player's request) · `Off` (not offered — no
+courses either). Set at world creation (the world-creation **Stories** page, #2472: "Auto / Short courses only / On
+request / Off" with one line each — the page's order, from the most guidance to none, not the enum's → `--tutorial
+auto|courses|optin|off`, emitted only when not `Auto`, baked into the save's rules), changed live by the admin (the
+*Tutorial* row of the in-game world rules → `SetWorldRulesIntent.TutorialPolicy`, or the admin command `tutorial policy …`).
+A save without the field reads `Auto`; no server preset switches it off (`family` = `Auto`); hosted and glitch worlds pass
+no flag (`Auto`).
+
+**Short courses only (`Courses`, #2498).** The pack runs as under `Auto` (`StoryPackEnabledFor` — so the courses are
+offered and the Settings switch reads "on"), but `AdvancePack` starts a player's tutorial that has not started yet with its
+mandatory part skipped **silently**: `StartPack(playIntro: false, legacyIntro: false)` + `SkipMandatory(legacySendOff:
+false)` — no welcome card, no line (an older client hears neither the old intro nor `vega.done`), no achievement; the
+legacy graduation keys are written as for a skip. The VEGA story's start rule (`chapter:tutorial:b6`) then holds, so the
+join reads: prologue → story track start (reason `Training`) → `ch1.open` (the prologue's `chainNext` to `tut.welcome`
+never fires — b1 is skipped). Only a pack that has not started takes this path: a live switch leaves a running training
+alone, and anyone not yet started (an `OptIn` or `Off` world switched to `Courses`) gets the silent skip on the next
+advance (`SetTutorialPolicy` / the live world-rules edit re-advance everyone). The player can still run the training from
+the Journal ("Start basic training", below). The enum value is appended (int 3, saves store the number): an older server
+reads it as `Auto` (its policy switch's default) — a graceful downgrade; only a `config/server.json` written with the
+string `"Courses"` would not parse on an older server.
 
 ## Validation
 
@@ -284,7 +299,11 @@ Tier · kind: **M** = must, **C** = core · **do** / **read** / **react**. Event
 courses wait in your Journal." — neutral, without `vega.done`'s memory hook), the achievement **Graduate** (`graduate`,
 counter `tutorial:graduated`, no items), the suggested deep dives `c3` (Pilot), `c4` (Stations, trade and jobs) and since
 #2480 `c1` (Workshop and titanium) marked offered — in the Journal, without a line. The suggestions count as that moment's
-offer, so the next offer VEGA makes by herself waits the usual 90 s. The hand-over to VEGA's chapter 1 is step 11. Since #2473 the graduation card `tut.graduation` shows the achievement and
+offer, so the next offer VEGA makes by herself waits the usual 90 s. Since #2498 every **skip** of the basic training
+("Skip all", the old Settings button, `/tutorial skip`, the silent skip of a `Courses` world — `SkipMandatory`) marks the
+suggestions too (`SuggestCourses(skip: true)`), but only those without a moment of their own (`offerWhen`): c3 and c4 had
+no other way to be offered to a skipper, while c1 keeps its offer at the tool-tier wall, which tells a player who skipped
+more than a silent mark. A skip never graduates (no line, no counter). The hand-over to VEGA's chapter 1 is step 11. Since #2473 the graduation card `tut.graduation` shows the achievement and
 the closing line itself.
 
 ### The deep dives "Research" and "Flying" (C2–C5, #2479)
@@ -311,8 +330,8 @@ closes with the part banner `tut.done`; two firsts get their own card (below). N
 | Course | Needs (`requires`) | Offered (`offerWhen`) |
 |---|---|---|
 | **C2 Knowledge and research** (part Research) | `chapter:tutorial:b5` | `any:[world:data_cache_near, world:scanner_unknown]` — the tips' moment |
-| **C3 Pilot** (Flying) | `chapter:tutorial:b6`, `world:free_flight` | suggested at the graduation |
-| **C4 Stations, trade and jobs** (Flying) | `chapter:tutorial:b6` | suggested at the graduation |
+| **C3 Pilot** (Flying) | `chapter:tutorial:b6`, `world:free_flight` | suggested at the graduation and on a skip (#2498) |
+| **C4 Stations, trade and jobs** (Flying) | `chapter:tutorial:b6` | suggested at the graduation and on a skip (#2498) |
 | **C5 Navigator** (Flying) | `chapter:tutorial:c3` (the pilot course first) | `any:[chapter:tutorial:c3, world:jump_ready]` — right after C3 (and the gap) |
 
 Without free flight C3 and C5 are locked (not suggested, not startable); C4 then runs at a settlement. The forge C5 needs
@@ -361,7 +380,7 @@ the course card `tut.course` and the part banner `tut.done`, no legacy keys, no 
 
 | Course | Needs (`requires`) | Offered (`offerWhen`) |
 |---|---|---|
-| **C1 Workshop and titanium** (part Ship building) | `chapter:tutorial:b4` | `any:[world:tier_gate, all:[step:tutorial:c6.3, not:blueprint:ship_builder]]` — a swing the tool tier refused (the synthesis' `NoteTierGate` moment), or the ship builder course waiting for titanium; suggested at the graduation (third place) |
+| **C1 Workshop and titanium** (part Ship building) | `chapter:tutorial:b4` | `any:[world:tier_gate, all:[step:tutorial:c6.3, not:blueprint:ship_builder]]` — a swing the tool tier refused (the synthesis' `NoteTierGate` moment), or the ship builder course waiting for titanium; suggested at the graduation (third place — a skip leaves it to this moment, #2498) |
 | **C6 Ship builder** (Ship building) | `chapter:tutorial:b5` | `any:[world:module_affordable, world:hull_damaged]` |
 | **C7 Homestead** (Base building) | `chapter:tutorial:b4` | `any:[world:base_core_ready, all:[world:night_outside, not:world:base_here]]` — a base core crafted or carried, or a night out on foot with no base on that world (the synthesis' "two nights outside": the training spans several game days, so the first night after it stands in) |
 | **C17 Station builder** (Ship building) | `chapter:tutorial:c3`, `world:free_flight` (the pilot course's spacewalk first) | `any:[world:station_core_ready, chapter:tutorial:c6]` |
@@ -639,7 +658,9 @@ done counts as through (`MandatoryChapterThrough` — the same `LegacyChapterPas
 chapter) wherever the server asks "does the training still run?": the VEGA story's start rule (`StoryStartConditionHolds`,
 so the track starts with the reason "basic training through or off"), the veteran path (`TutorialPackRunning`), the chip's
 tutorial flag and the `banter` gate. Without it the story never started for an older client and VEGA never chatted. Nothing
-is written: the same player on a current client later gets the new lessons (the story keeps running).
+is written: the same player on a current client later gets the new lessons (the story keeps running). On a `Courses` world
+(#2498) an older client gets the silent skip like everyone else — the pack is done, the nine legacy keys are written (its
+onboarding reads finished), the story starts at the join, and it hears neither the old intro lines nor `vega.done`.
 
 ### The Journal, settings, skip, replay (#2471)
 
@@ -656,8 +677,13 @@ the objective tracker"):
   `declineChapter`) for an offered deep dive, **Start** for an available or put-off one; at the top **Track**, **Skip all —
   I know the game** (`skipPack`), **Restart from the beginning** (`restartPack`: every mandatory part replays from part 1 —
   keys stay, so gates and conditions keep holding; never a veteran check, never the prologue; refused while the world has
-  the tutorial off) and **Switch off** / **Switch on** (`optOut` / `optIn`).
-- **Settings:** the old "Skip / Restart tutorial" button is **Tutorial: on / off** (`TutorialSwitch`: on → `optOut`,
+  the tutorial off) and **Switch off** / **Switch on** (`optOut` / `optIn`). #2498: when every mandatory part reads
+  *skipped* and none *done* (`JournalPackPage.SkippedWhole` — after "Skip all" or on a `Courses` world) the restart button
+  reads **Start basic training** (`ui.journal.start_basic_training`, the same `restartPack`). A skipped part replayed to
+  its end by play is stamped *done* (its skipped key goes, `CompleteChapter`), so after the whole training the button reads
+  "Restart" again and the ★ is earned; skipping the replay keeps it skipped. Replays play no part cards.
+- **Settings:** the old "Skip / Restart tutorial" button is **Tutorial & courses: on / off** (named so since #2498 — it
+  switches the training and the short courses together; `TutorialSwitch`: on → `optOut`,
   off → `optIn`, which also starts an opt-in world's tutorial; shown as "Off in this world" while the world rule is `Off`,
   left out when the world has no tutorial) plus **Open the Journal**. A server without the Journal messages (older) keeps
   the old button (`SkipOnboardingIntent`, still served: skip = `skipPack` + `vega.skip`, restart = `RestartPack`).
@@ -666,7 +692,7 @@ the objective tracker"):
 - **Stuck on b6.4 (dock):** after `markerAfter` the step's `onStart.reveal: nearest_station` sets the nearest station as the
   player's space waypoint (`vega.step.marked_station`) — in flight or still landed.
 
-The admin command `/tutorial skip|restart [player]`, `/tutorial chapter <id> [player]`, `/tutorial policy auto|optin|off`
+The admin command `/tutorial skip|restart [player]`, `/tutorial chapter <id> [player]`, `/tutorial policy auto|courses|optin|off`
 (chat, parsed by `AdminChatCommand.Tutorial`) does the same for a named player; without a tutorial pack it answers
 `tutorial_none`. `/story [player]` lists the player packs with their state, running chapter and chip step.
 

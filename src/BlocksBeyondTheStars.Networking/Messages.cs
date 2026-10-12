@@ -1424,7 +1424,8 @@ public sealed class ServerRules
     /// founded base whose owner is home (zone edge only, never inside, never destructive). Opt-in.</summary>
     public bool BaseVisitors { get; set; }
 
-    /// <summary>The world's tutorial rule (#2466): "Auto", "OptIn" or "Off". EMPTY from a server that predates it.</summary>
+    /// <summary>The world's tutorial rule (#2466): "Auto", "OptIn", "Off" or "Courses" (#2498, "Short courses only" — an older
+    /// client does not know the word and hides the row). EMPTY from a server that predates it.</summary>
     public string TutorialPolicy { get; set; } = string.Empty;
 
     /// <summary>The world's story pace (#2472): "Sparse", "Normal" or "Dense" (<c>GameRules.StoryDensity</c>). EMPTY from a
@@ -1495,7 +1496,7 @@ public sealed class SetWorldRulesIntent
     /// <summary>Visitors-at-the-base toggle (#1224): "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string BaseVisitors { get; set; } = string.Empty;
 
-    /// <summary>The tutorial rule (#2466): "Auto"/"OptIn"/"Off" to set it, empty to leave unchanged.</summary>
+    /// <summary>The tutorial rule (#2466): "Auto"/"OptIn"/"Off"/"Courses" (#2498) to set it, empty to leave unchanged.</summary>
     public string TutorialPolicy { get; set; } = string.Empty;
 
     /// <summary>The story pace (#2472): "Sparse"/"Normal"/"Dense" to set it, empty to leave unchanged.</summary>

@@ -156,7 +156,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>Switches a pack back on. A pack that would not start by itself — an opt-in world's tutorial, a pack off by
-    /// default — starts with it (#2471: the Settings' "Tutorial: on" is one switch for the player, whatever the world rule).</summary>
+    /// default — starts with it (#2471: the Settings' "Tutorial &amp; courses: on" is one switch for the player, whatever the
+    /// world rule; on a "Short courses only" world the pack then starts with its basic training skipped, #2498).</summary>
     private void OptIntoPack(PlayerSession s, CompiledPack pack)
     {
         bool changed = MilestonesOf(s).Remove(StoryPackKeys.OptOut(pack.Id));
@@ -230,10 +231,25 @@ public sealed partial class GameServer
         return true;
     }
 
-    /// <summary>"I know the game": every mandatory chapter is skipped (deep-dive offers stay on). Grants nothing.</summary>
+    /// <summary>"I know the game": every mandatory chapter is skipped (deep-dive offers stay on, the graduation's suggested
+    /// courses are marked offered, #2498). Grants nothing.</summary>
     private void SkipPack(PlayerSession s, CompiledPack pack)
     {
         StartPack(s, pack, playIntro: false);
+        SkipMandatory(s, pack);
+        _repo.SavePlayer(s.State);
+        AdvancePlayer(s);
+        SendVegaObjective(s);
+    }
+
+    /// <summary>The skip of a pack's mandatory part (#2498, shared by "Skip all" and the silent start of a "Short courses only"
+    /// world): every mandatory chapter not yet through is skipped with its open steps — no card, no closing line, no
+    /// graduation, nothing granted — a tutorial writes the legacy graduation keys, the pack is stamped done, and the
+    /// graduation's suggested courses without a moment of their own (the flight courses) are marked offered silently (Start /
+    /// Later and the badge in the Journal; this counts as an offer, so the next one waits the usual gap).
+    /// <paramref name="legacySendOff"/> off: an older client does not hear the old send-off either.</summary>
+    private void SkipMandatory(PlayerSession s, CompiledPack pack, bool legacySendOff = true)
+    {
         foreach (var ch in pack.Chapters)
         {
             if (!ch.Optional && !ChapterFinished(s, ch))
@@ -248,10 +264,8 @@ public sealed partial class GameServer
             WriteLegacyGraduation(s);
         }
 
-        CheckPackDone(s, pack);
-        _repo.SavePlayer(s.State);
-        AdvancePlayer(s);
-        SendVegaObjective(s);
+        CheckPackDone(s, pack, legacySendOff);
+        SuggestCourses(s, pack, skip: true);
     }
 
     private void SkipChapterSteps(PlayerSession s, CompiledChapter ch)
@@ -400,8 +414,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>The tutorial packs' answer to the old Settings button (<see cref="SkipOnboardingIntent"/> — still sent by an
-    /// older client; a current one has "Tutorial: on/off" and the Journal, #2471): skip = skip the pack, restart = replay its
-    /// mandatory chapters (refused while the world has the tutorial off).</summary>
+    /// older client; a current one has "Tutorial &amp; courses: on/off" and the Journal, #2471): skip = skip the pack,
+    /// restart = replay its mandatory chapters (refused while the world has the tutorial off).</summary>
     private void SkipOrRestartTutorialPacks(PlayerSession s, bool restart)
     {
         foreach (var pack in PlayerPacks)
@@ -469,8 +483,8 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>The server side of <c>/tutorial</c> (#2466): <c>skip|restart|chapter &lt;id&gt;</c> for the caller or the named
-    /// player, <c>policy auto|optin|off</c> for the world. World management, not a cheat — the role is the gate. The verb
-    /// line rides in <see cref="AdminCommandIntent.StringArg"/>, the player in <see cref="AdminCommandIntent.TargetPlayer"/>.</summary>
+    /// player, <c>policy auto|courses|optin|off</c> for the world. World management, not a cheat — the role is the gate. The
+    /// verb line rides in <see cref="AdminCommandIntent.StringArg"/>, the player in <see cref="AdminCommandIntent.TargetPlayer"/>.</summary>
     private void HandleTutorialAdmin(PlayerSession session, AdminCommandIntent cmd)
     {
         string[] words = (cmd.StringArg ?? string.Empty).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -581,7 +595,9 @@ public sealed partial class GameServer
         return ChapterRuns(s, ch);
     }
 
-    /// <summary>Sets the world's tutorial rule live: persisted into the save's rules and re-sent to everyone.</summary>
+    /// <summary>Sets the world's tutorial rule live: persisted into the save's rules and re-sent to everyone, whose packs then
+    /// advance under it — "Short courses only" (#2498) skips the basic training silently for whoever has not started it and
+    /// leaves a running training alone.</summary>
     private void SetTutorialPolicy(TutorialPolicy policy)
     {
         Rules.TutorialPolicy = policy;

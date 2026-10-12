@@ -117,7 +117,8 @@ public sealed class WorldOptionsLayoutTests
 
     /// <summary>#2472: the Stories page is a fixed grid too. Its main-story list is data (every installed world story,
     /// capped at <see cref="WorldStoryOptions.MaxChoices"/>), followed by the chosen story's description and the pace row; the
-    /// tutorial rule's three rows sit in the right column. Both columns must end above the footer even with a full list.</summary>
+    /// tutorial rule's four rows (#2498 added "Short courses only") sit in the right column. Both columns must end above the
+    /// footer even with a full list.</summary>
     [Fact]
     public void StoriesPage_ColumnsEndAboveTheFooterButtons_EvenWithAFullList()
     {
@@ -140,7 +141,10 @@ public sealed class WorldOptionsLayoutTests
         Assert.True(leftBottom + MinClearance <= footerY,
             $"With {WorldStoryOptions.MaxChoices} main stories the Stories page's left column ends at y={leftBottom}, under the footer at y={footerY}.");
 
-        // Right: the tutorial's description, then one row per tutorial rule.
+        // Right: the tutorial's description, then one row per tutorial rule — the page loops over the steps table, so a fourth
+        // rule is a fourth row.
+        Assert.Equal(4, WorldStoryOptions.TutorialSteps.Length);
+        Assert.Contains("for (int i = 0; i < WorldStoryOptions.TutorialSteps.Length; i++)", source, StringComparison.Ordinal);
         float rightBottom = listY + tutorialOffset + ((WorldStoryOptions.TutorialSteps.Length - 1) * tutorialPitch) + tutorialH;
         Assert.True(rightBottom + MinClearance <= footerY,
             $"The tutorial rows end at y={rightBottom}, under the footer at y={footerY}.");

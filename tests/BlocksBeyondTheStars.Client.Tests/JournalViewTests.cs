@@ -212,6 +212,44 @@ public sealed class JournalViewTests
         Assert.Empty(Words(blocked));
     }
 
+    /// <summary>#2498: after "Skip all" — or on a "Short courses only" world, where the training was skipped silently — the
+    /// restart reads "Start basic training": every mandatory part skipped, none played. Once a part was done (or one runs
+    /// again), it is the restart it always was; the courses (optional) do not count.</summary>
+    [Fact]
+    public void TheRestart_ReadsStartBasicTraining_WhenTheWholeTrainingWasSkipped()
+    {
+        static string RestartLabel(NetStoryPack p) => JournalPackPage.PackActions(p).Single(a => a.Action == StoryPackActions.RestartPack).LabelKey;
+
+        NetStoryPack Skipper(params NetStoryChapter[] chapters)
+        {
+            var p = Tutorial(chapters);
+            p.MandatoryRunning = false;
+            p.Done = true;
+            return p;
+        }
+
+        var skipped = Skipper(
+            Chapter("b1", StoryChapterStates.Skipped), Chapter("b2", StoryChapterStates.Skipped),
+            Chapter("c3", StoryChapterStates.Offered, optional: true), Chapter("c2", StoryChapterStates.Done, optional: true));
+        Assert.True(JournalPackPage.SkippedWhole(skipped));
+        Assert.Equal("ui.journal.start_basic_training", RestartLabel(skipped));
+        Assert.Equal(new[] { StoryPackActions.Track, StoryPackActions.RestartPack, StoryPackActions.OptOut },
+            JournalPackPage.PackActions(skipped).Select(a => a.Action).ToArray()); // the same buttons — only the words differ
+
+        var partlyPlayed = Skipper(Chapter("b1", StoryChapterStates.Done), Chapter("b2", StoryChapterStates.Skipped));
+        Assert.Equal("ui.journal.restart_pack", RestartLabel(partlyPlayed));
+
+        var replaying = Skipper(Chapter("b1", StoryChapterStates.Replay), Chapter("b2", StoryChapterStates.Skipped));
+        Assert.Equal("ui.journal.restart_pack", RestartLabel(replaying)); // started: it is under way
+
+        var graduated = Skipper(Chapter("b1", StoryChapterStates.Done), Chapter("b2", StoryChapterStates.Done));
+        Assert.Equal("ui.journal.restart_pack", RestartLabel(graduated));
+
+        var coursesOnly = Skipper(Chapter("c1", StoryChapterStates.Skipped, optional: true));
+        Assert.False(JournalPackPage.SkippedWhole(coursesOnly)); // no mandatory part to start
+        Assert.Equal("ui.journal.restart_pack", RestartLabel(coursesOnly));
+    }
+
     [Fact]
     public void TheStatusLine_SaysOff_Blocked_NotStarted_Finished()
     {
@@ -393,6 +431,7 @@ public sealed class JournalViewTests
     [InlineData("/tutorial chapter b3", "chapter b3", "")]
     [InlineData("/tutorial chapter b3 Kid", "chapter b3", "Kid")]
     [InlineData("/tutorial policy OptIn", "policy optin", "")]
+    [InlineData("/tutorial policy Courses", "policy courses", "")] // #2498
     [InlineData("/tutorial policy", "policy", "")]
     [InlineData("/tutorial chapter", "chapter", "")]
     [InlineData("/tutorial", "", "")]
