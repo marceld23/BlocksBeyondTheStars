@@ -886,8 +886,9 @@ namespace BlocksBeyondTheStars.Client
                 // "/tutorial policy auto|optin|off". The server owns the checks and answers with its usage line.
                 case "/tutorial":
                     {
-                        var (verb, who) = AdminChatCommand.Tutorial(t);
-                        net.SendAdminCommand("tutorial", stringArg: verb, targetPlayer: who.Length > 0 ? who : null);
+                        var (verb, tutorialTarget) = AdminChatCommand.Tutorial(t);
+                        net.SendAdminCommand("tutorial", stringArg: verb,
+                            targetPlayer: tutorialTarget.Length > 0 ? tutorialTarget : null);
                         return true;
                     }
                 case "/advance":
