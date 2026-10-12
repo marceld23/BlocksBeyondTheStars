@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -133,6 +134,7 @@ public sealed partial class GameServer
         }
 
         Send(session, new ServerMessage { Text = intent.Enabled ? "@srv.station.zero_g_on" : "@srv.station.zero_g_off" });
+        RaiseGameEvent(session, GameEventKeys.StationZeroG, intent.Enabled ? "on" : "off"); // #2480: the station builder course
     }
 
     /// <summary>Drops zero-g construction mode (#1842) — on leaving the station, on any world change, on a

@@ -233,7 +233,7 @@ public sealed class TutorialDeepDivesTests : IDisposable
     public void TheDeepDives_AreOptionalChapters_WithTheirPrerequisitesOffersAndCards()
     {
         var courses = Pack.Chapters.Where(c => c.Optional).ToList();
-        Assert.Equal(new[] { "c2", "c3", "c4", "c5" }, courses.Select(c => c.Id));
+        Assert.Equal(new[] { "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c17" }, courses.Select(c => c.Id)); // #2480 added c1, c6, c7, c17
         foreach (var c in courses)
         {
             Assert.Equal("tut.course", c.OpenCutscene);
@@ -251,7 +251,7 @@ public sealed class TutorialDeepDivesTests : IDisposable
         Assert.Empty(Chapter("c3").OfferWhen); // suggested at the graduation
         Assert.Empty(Chapter("c4").OfferWhen);
         Assert.Equal(new[] { "any:[chapter:tutorial:c3,world:jump_ready]" }, Chapter("c5").OfferWhen);
-        Assert.Equal(new[] { "c3", "c4" }, Pack.Graduation.Suggest);
+        Assert.Equal(new[] { "c3", "c4", "c1" }, Pack.Graduation.Suggest); // #2480: the workshop course third
 
         Assert.Equal("tut.first_dock", StepDef("c4.1").OnComplete.Cutscene);
         Assert.Equal("tut.first_jump", StepDef("c5.8").OnComplete.Cutscene);

@@ -213,9 +213,9 @@ public sealed class TutorialCardsTests : IDisposable
     public void TheCards_UseTheBindingIds_AndTheTiersOfSynthesis64()
     {
         var ids = Pack.Cutscenes.Select(c => c.Id).ToList();
-        Assert.Equal(new[] { "tut.welcome", "tut.strip", "tut.done", "tut.course", "tut.first_launch", "tut.first_dock", "tut.first_landing", "tut.first_jump", "tut.graduation" }, ids);
+        Assert.Equal(new[] { "tut.welcome", "tut.strip", "tut.done", "tut.course", "tut.first_launch", "tut.first_dock", "tut.first_landing", "tut.first_jump", "tut.first_base", "tut.ship_commissioned", "tut.graduation" }, ids);
         Assert.All(ids, id => Assert.Contains(id, StoryCutsceneIds.Tutorial));
-        foreach (string later in new[] { "tut.first_base", "tut.ship_commissioned", "tut.first_circuit", "tut.first_tame" })
+        foreach (string later in new[] { "tut.first_circuit", "tut.first_tame" })
         {
             Assert.Null(Pack.FindCutscene(later)); // they come with their chapters (the later deep dives)
         }
@@ -581,7 +581,7 @@ public sealed class TutorialCardsTests : IDisposable
         // The owner a template previews as: the first chapter that binds it, else the first chapter.
         Assert.Equal("b2", CutsceneArgs.DefaultOwner(Pack, Card("tut.strip")));
         Assert.Equal("b1", CutsceneArgs.DefaultOwner(Pack, Card("tut.done")));
-        Assert.Equal("c2", CutsceneArgs.DefaultOwner(Pack, Card("tut.course"))); // #2479: the first deep dive that binds it
+        Assert.Equal("c1", CutsceneArgs.DefaultOwner(Pack, Card("tut.course"))); // #2479/#2480: the first deep dive that binds it
     }
 
     [Fact]

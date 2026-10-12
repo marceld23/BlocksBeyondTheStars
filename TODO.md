@@ -339,7 +339,27 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   jump generator, the world-rule variants), Client.Tests `TutorialDeepDivesClientTests` (the Journal's buttons from a real
   client); updated `TutorialPackTests`, `TutorialCardsTests`, `CutsceneContentTests`. Docs: TUTORIAL_PACK (the courses),
   CUTSCENES (the two firsts), STORY_IMPLEMENTATION (events, predicates, offers), USER_MANUAL (short courses).
-- ⬜ Steps 19–21 — tutorial deep-dive chapters C1 and C6–C18 (#2480, #2481, #2482)
+- ✅ **Step 19 — tutorial deep dives "Ship building" and "Base building": C1 Workshop and titanium, C6 Ship builder, C7
+  Homestead, C17 Station builder (#2480)**, 2026-10-12 (server + data only, no Unity file): four optional chapters (24 steps
+  + 2 stand-ins, §3.4) — C1 the tool-tier wall, iron ore → titanium ore at the ship's trade console, a forge (no blueprint,
+  E7), the first titanium plate; C6 a module, the repair, building onto the parked ship, then an own ship (Shipwright
+  blueprint, keel, commissioning, switching); C7 a base core, building in its zone, lights, a door, a sealed room, a wall
+  ring, a bed; C17 a station core on a spacewalk, its hull and airlock, zero-g building. Offers: C1 at a refused swing
+  (`world:tier_gate`, within a minute) and suggested at the graduation (`suggest` = c3, c4, c1); C6 at an affordable module
+  or a damaged hull; C7 at a base core crafted/carried or a night outside without a base; C17 at a station core (or after
+  C6). Hard prerequisites: C6 waits at the blueprint (c6.4 says why) until C1 is through; C17 needs C3 and free flight. E32:
+  an ally's or a crewmate's base on the world counts (evidence, the zone, the sealed room, the wall ring). Eleven new verbs
+  (`ship:repaired|edited|keel_placed|switched`, `base:built|sealed|walled`, `door:opened`, `spawn:set`,
+  `station:core_deployed|zero_g`; sealed/walled are 1 Hz state checks only while the player's own step waits) and ten
+  predicates (`tier_gate`, `module_affordable`, `hull_damaged`, `keel_laid`, `ship_built`, `base_here`, `base_core_ready`,
+  `night_outside`, `station_core_ready`, `station_owned`); world rules: undamaged hull / breathable air → read stand-ins,
+  no oxygen / no visitors → skipped, Creative → "crafting is free" variant + evidence. Cards (T3): `tut.first_base`
+  (c7.1) and `tut.ship_commissioned` (c6.7). hintRefs absorb `tier_gate`, `hull_low`, `base_walls`, `base_airless`. C2's
+  terrain-scanner step now also runs once C1 is through (variant line). Keys en+de: 80 pack keys, core
+  `ui.vega.act.EvaDeployStation|ToggleStationZeroG`. Tests: `TutorialBuildingCoursesTests` (15); updated `TutorialPackTests`,
+  `TutorialCardsTests`, `TutorialDeepDivesTests`, `CutsceneContentTests`. Docs: TUTORIAL_PACK, CUTSCENES,
+  STORY_IMPLEMENTATION, USER_MANUAL.
+- ⬜ Steps 20–21 — tutorial deep-dive chapters C8–C16 and C18 (#2481, #2482)
 - ⬜ Step 22 — side-story test pack + authoring guide (#2483)
 - Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text (it asked for a
   hyperjump) and lack `story.obj.help_peaceful` — the translation pass at the end of the package covers both.
@@ -378,6 +398,12 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   ping/flight target on desktop and WebGL, the Journal's "Leads in this chapter" block (DE fits), a peaceful save from an
   older build jumping 1–2 beats at its first start, the memory a lead brings on a peaceful world. Not in v1 (need a galaxy
   index): leads to fragments or monuments on other worlds, the nearest data terminal, an unknown neighbouring system.
+- Open from step 19: the community locales lack the core bracket words `ui.vega.act.EvaDeployStation|ToggleStationZeroG`
+  (translation pass; the tutorial pack has no community files). Playtest checks: the base card's crane over a fresh base
+  and the commissioning card circling a self-built ship (size-scaled, from outside), the C7 night offer, the C6 wait for C1
+  in the Journal. Not built (the synthesis' C1.4–C1.7: crates, taking things apart, a workbench, "upgrades use up the old
+  tool" — the last is not true for the drills) — data-only additions later; "two nights outside" is approximated by the
+  first night out after the training.
 
 ### ⚙️ CI long poles: world-gen caches no longer build under a shared lock (#2455), the settlement sweeps split up (#2456) (2026-10-10, branch fix/ci-shard-long-poles) — ✅ done
 

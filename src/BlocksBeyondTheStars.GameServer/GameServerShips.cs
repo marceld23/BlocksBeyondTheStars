@@ -5,6 +5,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -287,6 +288,9 @@ public sealed partial class GameServer
             bool underConstruction = _ships.TryGetValue(intent.ShipId, out var ship)
                 && ship.IsCustom && !ship.Commissioned;
             Reject(session, "switch_ship", underConstruction ? "@srv.ship.not_commissioned" : "@srv.misc.not_your_ship");
+            return;
         }
+
+        RaiseGameEvent(session, GameEventKeys.ShipSwitched, intent.ShipId); // #2480: the shipwright course's fleet lesson
     }
 }

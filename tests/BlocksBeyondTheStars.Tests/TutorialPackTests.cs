@@ -202,8 +202,7 @@ public sealed class TutorialPackTests : IDisposable
         Assert.Equal(new[] { "b1", "b2", "b3", "b4", "b5", "b6" }, pack.Chapters.Where(c => !c.Optional).Select(c => c.Id).ToArray());
         Assert.All(pack.Chapters.Where(c => c.Id.StartsWith("b", StringComparison.Ordinal)), c => Assert.False(c.Optional));
         Assert.All(pack.Chapters.Where(c => c.Id.StartsWith("c", StringComparison.Ordinal)), c => Assert.True(c.Optional));
-        Assert.All(pack.Chapters.SelectMany(c => c.Steps), s => Assert.StartsWith(s.Id.Substring(0, 2) + ".", s.Id)); // b3.2 sits in b3
-        Assert.All(pack.Chapters, c => Assert.All(c.Steps, s => Assert.StartsWith(c.Id + ".", s.Id)));
+        Assert.All(pack.Chapters, c => Assert.All(c.Steps, s => Assert.StartsWith(c.Id + ".", s.Id))); // b3.2 sits in b3, c17.1 in c17
 
         var legacy = pack.Chapters.SelectMany(c => c.Steps).Where(s => s.LegacyKey.Length > 0).Select(s => StoryLegacy.StageIdOf(s.LegacyKey)).ToList();
         Assert.Equal(StoryLegacy.StageIds.OrderBy(x => x), legacy.OrderBy(x => x));
@@ -214,7 +213,7 @@ public sealed class TutorialPackTests : IDisposable
         Assert.Equal(600, pack.Escalate.OfferSkipAfter);
         Assert.Equal("story.tutorial.graduated", pack.Graduation.LineKey);
         Assert.Contains(_content.Achievements, a => a.Key == "graduate" && a.Counter == pack.Graduation.Counter && a.Rewards.Count == 0);
-        Assert.Equal(new[] { "c3", "c4" }, pack.Graduation.Suggest); // #2479: the flight courses (the workshop course joins later)
+        Assert.Equal(new[] { "c3", "c4", "c1" }, pack.Graduation.Suggest); // #2479: the flight courses; #2480: the workshop course
     }
 
     [Fact]

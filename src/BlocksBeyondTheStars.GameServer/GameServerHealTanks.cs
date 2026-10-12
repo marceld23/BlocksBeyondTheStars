@@ -4,6 +4,7 @@
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -154,6 +155,8 @@ public sealed partial class GameServer
         p.CustomSpawnLabel = ResolveCustomSpawnLabel(session);
         _repo.SavePlayer(p);
         Send(session, new ServerMessage { Text = "@spawn_set" }); // token → localized toast client-side
+        RaiseGameEvent(session, GameEventKeys.SpawnSet, cellBlock == _healTankBlockId ? GameEventKeys.SpawnHealTank
+            : cellBlock == _bedBlockId ? GameEventKeys.SpawnBed : GameEventKeys.SpawnBunk); // #2480: the homestead course's bed
     }
 
     /// <summary>Cosmetic label for the stored spawn: the boarded station's name, else the name of the

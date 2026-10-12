@@ -145,7 +145,8 @@ public sealed partial class GameServer
 
     /// <summary>1 Hz from <c>TickShipAi</c> (the player's world is the active cursor there): walked back to the landed
     /// ship after having been far from it (<c>ship:returned</c> <c>walk</c>), a data fragment carried (<c>data:found</c>
-    /// <c>fragment</c>). Each check only while a step waits for it.</summary>
+    /// <c>fragment</c>), and since #2480 a base's sealed room or wall ring (<c>base:sealed</c>, <c>base:walled</c>). Each
+    /// check only while a step waits for it.</summary>
     private void TutorialStateEvents(PlayerSession session)
     {
         var p = session.State;
@@ -174,6 +175,8 @@ public sealed partial class GameServer
         {
             RaiseGameEvent(session, GameEventKeys.DataFound, "fragment");
         }
+
+        TutorialBaseStateEvents(session); // #2480: a sealed room, a closed wall ring — only while this player's step waits
     }
 
     // ---------------------------------------------------------------------------------------------

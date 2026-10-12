@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -394,6 +395,10 @@ public sealed partial class GameServer
         }
 
         BroadcastDoors();
+        if (door.Open)
+        {
+            RaiseGameEvent(session, GameEventKeys.DoorOpened, door.Kind); // #2480: the homestead course's door lesson
+        }
     }
 
     /// <summary>Test/util entrypoint: a player toggles a hinge door they're standing at (mirrors pressing E).</summary>

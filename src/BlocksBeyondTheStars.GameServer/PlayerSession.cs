@@ -496,6 +496,11 @@ public sealed class PlayerSession
 
     public string VegaTierGateTool { get; set; } = string.Empty;
 
+    /// <summary>#2480: server uptime of the last swing a tool-tier gate turned away (a better tool exists) — the moment the
+    /// tutorial's "Workshop and titanium" course is offered at (<c>world:tier_gate</c>), independent of the tip's pacing and
+    /// the hints switch. Session-only; the default lies far in the past.</summary>
+    public double TierGateRefusedAt { get; set; } = double.NegativeInfinity;
+
     // --- Deferred death respawn (choice between ship and home spawn, issue #462) ---
 
     /// <summary>Server uptime deadline for a pending respawn choice; 0 = no choice pending. While pending the

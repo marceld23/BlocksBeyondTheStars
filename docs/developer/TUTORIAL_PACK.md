@@ -8,7 +8,9 @@ that runs it per player is the **player-pack runtime** (#2466), described in
 > **Status.** Since story packs step 10 (#2469) the basic training **is** the tutorial pack `data/stories/tutorial/`: the
 > old hard-coded nine-stage VEGA onboarding (`VegaStages`, `VegaIsVeteran`, the client's copy of the stage list) is gone.
 > The deep-dive chapters of the parts "Research" and "Flying" — C2–C5 — came with step 18 (#2479,
-> [Deep dives](#the-deep-dives-research-and-flying-c2c5-2479)); C1 and C6–C18 follow with steps 19–21. The tutorial's cards
+> [Deep dives](#the-deep-dives-research-and-flying-c2c5-2479)), the parts "Ship building" and "Base building" — C1, C6, C7,
+> C17 — with step 19 (#2480, [Ship and base building](#the-deep-dives-ship-building-and-base-building-c1-c6-c7-c17-2480));
+> C8–C16 and C18 follow with steps 20–21. The tutorial's cards
 > (`tut.welcome`, `tut.strip` …) came with step 14 (#2473, [Cards](#cards-2473)); VEGA's own pack and the hand-over to its
 > chapter 1 with step 11. Test packs for the runtime live in `tests/BlocksBeyondTheStars.Tests/Fixtures/story_packs/`.
 
@@ -139,7 +141,15 @@ has a jump generator fitted), `arcade_ready` (the player owns a DataQube game, o
 `monument_unread` (a rune monument on the player's world they have not read), `asteroid_mining` (the Asteroid destruction
 rule is not Off), `docked` (aboard a station), `job_active` (a board or settlement-chain job in progress), `forge_ready`
 (a forge crafted before or carried, or a refinery fitted), `wormhole_known` (a wormhole opens in a system the player
-knows), `debris_fields` (the world option is not off). `ui:` is never a condition.
+knows), `debris_fields` (the world option is not off). Since #2480 (ship and base building): `tier_gate` (a tool-tier gate
+turned one of the player's swings away within the last minute — `PlayerSession.TierGateRefusedAt`, stamped by
+`NoteTierGate`, whatever the tip's pacing or the hints switch say), `module_affordable` (a ship module the active ship lacks,
+its blueprint owned, its materials in the backpack or the hold — the free starter modules never count), `hull_damaged` (the
+active ship has lost hull points), `keel_laid` (a self-built ship exists in the fleet, finished or not), `ship_built` (a
+self-built ship is commissioned), `base_here` (a base on the player's body that they own **or that an ally or a crewmate
+owns** — E32), `base_core_ready` (a base core carried or crafted before), `night_outside` (on foot on a world while the
+local sun is down there), `station_core_ready` (a station core carried, or its materials), `station_owned` (a commissioned
+station of the player's). `ui:` is never a condition.
 
 ## Per-player state
 
@@ -246,10 +256,9 @@ Tier · kind: **M** = must, **C** = core · **do** / **read** / **react**. Event
 
 **Graduation:** `story.tutorial.graduated` ("Basic training complete! You can survive, build, research and fly — short
 courses wait in your Journal." — neutral, without `vega.done`'s memory hook), the achievement **Graduate** (`graduate`,
-counter `tutorial:graduated`, no items), the suggested deep dives `c3` (Pilot) and `c4` (Stations, trade and jobs) marked
-offered — in the Journal, without a line; the third place is free for the workshop course (C1, step 19: one id more in
-`graduation.suggest`). The suggestions count as that moment's offer, so the next offer VEGA makes by herself waits the usual
-90 s. The hand-over to VEGA's chapter 1 is step 11. Since #2473 the graduation card `tut.graduation` shows the achievement and
+counter `tutorial:graduated`, no items), the suggested deep dives `c3` (Pilot), `c4` (Stations, trade and jobs) and since
+#2480 `c1` (Workshop and titanium) marked offered — in the Journal, without a line. The suggestions count as that moment's
+offer, so the next offer VEGA makes by herself waits the usual 90 s. The hand-over to VEGA's chapter 1 is step 11. Since #2473 the graduation card `tut.graduation` shows the achievement and
 the closing line itself.
 
 ### The deep dives "Research" and "Flying" (C2–C5, #2479)
@@ -279,7 +288,7 @@ for the lubricant is its own step (no blueprint needed), not a chapter prerequis
 | c2.3 | what a blueprint costs (the Blueprints tab) | `research:any` | do | `feasibleIf not:world:all_blueprints`; absorbs `blueprint_affordable` |
 | c2.4 | DataQube games teach knowledge | `minigame:played` | do | `feasibleIf world:arcade_ready` |
 | c2.5 | rune stones tell old stories | `scan:any` `monument` | do | `feasibleIf world:monument_unread` |
-| c2.6 | the terrain scanner | `gadget:used` `terrain_scanner` | do | `feasibleIf blueprint:terrain_scanner`, else **c2.6a** (read: "its blueprint needs titanium plates — a forge makes them"); absorbs `scanner_idle`, `scanner_unknown`. Step 19 can widen the condition by data (`any:[blueprint:terrain_scanner,chapter:tutorial:c1]`) |
+| c2.6 | the terrain scanner | `gadget:used` `terrain_scanner` | do | `feasibleIf any:[blueprint:terrain_scanner, chapter:tutorial:c1]` (#2480: the workshop course through — the step then runs with the variant line "research it, craft it, use it"), else **c2.6a** (read: "its blueprint needs titanium plates — a forge makes them"); absorbs `scanner_idle`, `scanner_unknown` |
 | c2.7 | the Achievements tab | `ui:progress_open` | do | — |
 | c3.1 | waypoints on the chart `{key:FlightMap}`, the autopilot `{key:FlightAutopilot}` | `ui:waypoint_set` | do | — |
 | c3.2 | scan a world before landing (its card) | `planet:scanned` | do | — |
@@ -308,6 +317,62 @@ Not taught here: C4.4 of the synthesis (a settlement's job chain, `chain_needs_1
 to C11 Neighbours (step 21) and can be added there by data. The client-only lessons `planet_card`, `target_lock` and
 `wormhole` stay client lessons (a course runs after the training, `ShipAiLine.TutorialActive` is off then).
 
+### The deep dives "Ship building" and "Base building" (C1, C6, C7, C17, #2480)
+
+The same rules as C2–C5 (above): optional, started from the Journal or at VEGA's one offer line, every **do** step counts,
+the course card `tut.course` and the part banner `tut.done`, no legacy keys, no rewards, at most two cards per course.
+
+| Course | Needs (`requires`) | Offered (`offerWhen`) |
+|---|---|---|
+| **C1 Workshop and titanium** (part Ship building) | `chapter:tutorial:b4` | `any:[world:tier_gate, all:[step:tutorial:c6.3, not:blueprint:ship_builder]]` — a swing the tool tier refused (the synthesis' `NoteTierGate` moment), or the ship builder course waiting for titanium; suggested at the graduation (third place) |
+| **C6 Ship builder** (Ship building) | `chapter:tutorial:b5` | `any:[world:module_affordable, world:hull_damaged]` |
+| **C7 Homestead** (Base building) | `chapter:tutorial:b4` | `any:[world:base_core_ready, all:[world:night_outside, not:world:base_here]]` — a base core crafted or carried, or a night out on foot with no base on that world (the synthesis' "two nights outside": the training spans several game days, so the first night after it stands in) |
+| **C17 Station builder** (Ship building) | `chapter:tutorial:c3`, `world:free_flight` (the pilot course's spacewalk first) | `any:[world:station_core_ready, chapter:tutorial:c6]` |
+
+**Hard prerequisites** (synthesis §3.2): titanium plates for C6 from the blueprint on — a player without the workshop course
+(and without the Shipwright blueprint) hears c6.4 ("take the short course Workshop and titanium first") and the course waits
+at c6.5 (`requires any:[chapter:tutorial:c1, blueprint:ship_builder]`) until C1 is through (or skipped); the chapter stays
+active in the Journal meanwhile. C17 needs C3 (its spacewalk) and free flight; without them it is locked ("needs: Pilot").
+**E7:** the titanium route is this course, not the basic training, and the forge stays blueprint-free. **E32:** a base an
+ally or a crewmate owns on the player's world counts as theirs (`world:base_here`, the `base:built` zone test, the sealed
+room and the wall ring all accept own or allied bases — `AreAllied` answers both alliances and crews).
+
+| Step | Teaches | Event (arg × required) | Kind | World rules / feasibility, evidence, absorbed hints |
+|---|---|---|---|---|
+| c1.1 | titanium ore is too hard for the drill, and the Titanium Drill needs titanium plates itself — the way round | — | read | `creative` → "crafting is free here, but this is still the way"; absorbs `tier_gate` |
+| c1.2 | the ship's trade console swaps 5 iron ore for 1 titanium ore (iron is the price; marker `nearest_ore:iron_ore`) | `craft:any` `market_iron_to_titanium` × 2 | do | — |
+| c1.3 | a forge (6 stone, 4 iron plates, no blueprint) | `craft:any` `forge` | do | `alreadyDoneIf world:forge_ready` |
+| c1.4 | placed on a world, the forge smelts 2 titanium ore into a plate | `craft:any` `titanium_plate` | do | — |
+| c1.5 | titanium plates open bigger blueprints | — | read | — |
+| c6.1 | ship modules at the workshop, one of each kind, half back when taken out | `module:built` | do | — |
+| c6.2 | repair the hull at the console `{key:RepairWreck}`, 10 hull points per iron plate | `ship:repaired` | do | `feasibleIf world:hull_damaged`, else **c6.2a** (read: how it works); absorbs `hull_low` |
+| c6.3 | build onto the parked ship, furnish the cabin | `ship:edited` | do | — |
+| c6.4 | an own ship needs the Shipwright blueprint, and that needs titanium plates | — | read | `feasibleIf not:any:[chapter:tutorial:c1, blueprint:ship_builder]` (only while the titanium route is unknown) |
+| c6.5 | research the Shipwright blueprint | `research:any` `ship_builder` | do | `requires any:[chapter:tutorial:c1, blueprint:ship_builder]`; `alreadyDoneIf blueprint:ship_builder` |
+| c6.6 | craft and lay a ship keel | `ship:keel_placed` | do | `alreadyDoneIf world:keel_laid` |
+| c6.7 | hull, helm, engine, door, sealed — commission at the helm `{key:Interact}` | `ship:commissioned` | do | `alreadyDoneIf world:ship_built`; `onComplete` **tut.ship_commissioned** |
+| c6.8 | the fleet: switch ships in the Ship tab | `ship:switched` | do | — |
+| c7.1 | a base core (6 stone, 2 iron plates, no blueprint) claims a home | `base:founded` | do | `alreadyDoneIf world:base_here` (an ally's base counts, E32); `onComplete` **tut.first_base** |
+| c7.2 | the base zone: build freely, the air stays good, animals keep away | `base:built` × 10 | do | absorbs `base_walls`, `base_airless` — VEGA's two founding hints fire right after the founding, when this step is already active, so its line (with the base card) is the first word on walls and air (G12) |
+| c7.3 | lights: torches, lanterns, lamps, a campfire | `base:built` `torch\|lantern\|campfire\|light_white\|light_red\|light_green\|strip_light_cyan\|strip_light_warm` × 2 | do | — |
+| c7.4 | a wooden door, opened with `{key:Interact}` | `door:opened` | do | — |
+| c7.5 | a sealed room holds air (stone, metal, glass; only an energy door keeps it in) | `base:sealed` | do | `feasibleIf world:airless, world:oxygen`, else **c7.5a** (read, `feasibleIf world:oxygen`); with no oxygen rule neither runs; absorbs `base_airless` |
+| c7.6 | a closed wall ring, 2 high, keeps animals out further | `base:walled` | do | absorbs `base_walls` |
+| c7.7 | a bed (or a heal tank) as the wake-up spot | `spawn:set` | do | — |
+| c7.8 | residents and visitors | — | read | `feasibleIf world:base_visitors` |
+| c17.1 | a station core, deployed on a spacewalk `{key:EvaDeployStation}` | `station:core_deployed` | do | `alreadyDoneIf world:station_owned` |
+| c17.2 | a hull of a dozen blocks and a door as the airlock commission it | `station:commissioned` | do | `alreadyDoneIf world:station_owned` |
+| c17.3 | zero-g building aboard `{key:ToggleStationZeroG}` | `station:zero_g` `on` | do | — |
+
+`base:sealed` and `base:walled` are state checks: the 1 Hz `TutorialStateEvents` pass runs them only while one of the
+player's own active steps waits for them (`StepWaitsFor`), on the player's own world — the air model (`RefreshBaseAir`, a
+supplied sealed room of a base the player owns or shares) and the wall model (`RefreshBaseWalls`: the player's feet in a
+fenced-in part of such a base) are the ones the game already runs, with their own caches.
+
+Left out of the synthesis' tables (the issue's scope, and every do step of a course counts): C1.4–C1.6 (crates, taking things
+apart, a workbench — the workbench needs steel and bronze) and C1.7's "upgrades use up the old tool" (not true for the
+drills: the Titanium Drill's recipe takes no drill). They can be added by data later.
+
 ### Cards (#2473)
 
 The parts' cards live in `data/stories/tutorial/cutscenes.json` (format, tiers and pacing: [CUTSCENES.md](CUTSCENES.md#the-tutorial-cards-2473)).
@@ -324,6 +389,8 @@ Cards, not cinema: no card takes the camera, holds the world or freezes the cont
 | every deep dive's `openCutscene` (#2479) | `tut.course` (template) | a course the player started: "Short course" + its title |
 | `c4.1.onComplete` (#2479) | `tut.first_dock` | the stations course's docking: "Docked" + the station's name, then what waits inside — after the station's loading veil (not "now or never") |
 | `c5.8.onComplete` (#2479) | `tut.first_jump` | the navigator course's first hyperjump: "New system" + its name on the warp-in, then "Unknown stars show “?” …" — now or never |
+| `c7.1.onComplete` (#2480) | `tut.first_base` | the homestead course's base founded: a short scene (T3) — the camera rises over the player at the new core, "Base founded · Your home", then "Walls keep animals away — and on airless worlds, sealed rooms hold air"; a singleplayer world holds; not for a base that counted as evidence |
+| `c6.7.onComplete` (#2480) | `tut.ship_commissioned` | the ship builder course's own ship commissioned: the camera circles the **new** ship (scaled to its size), "Commissioned · Your own ship", then "Built by you, block by block — and it flies"; a singleplayer world holds; not for a ship built long ago |
 
 A course shows at most two cards: its course card and at most one first (a test counts them). The basic training's budget
 (eight heavier moments) is untouched: the docking card lives in the stations course, not in b6.4.

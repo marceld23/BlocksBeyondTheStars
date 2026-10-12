@@ -567,6 +567,18 @@ teaching verbs (the second block of the table); the deep dives add theirs with s
 | `station:left` | station id | undocked from a boarded station | `GameServerSpaceStations.cs` (`LeaveStation`) |
 | `marker:set` | `marker` \| `ping` | a planet-map marker set (or moved), or a spot pinged | `GameServerMarkers.cs` (`SetMarker`, `RaisePing`) |
 | `salvage:found` | `wreck` \| `debris` \| `capsule` | a derelict or debris field reached for the first time, or a salvage capsule emptied into the hold | `GameServerSpaceWrecks.cs` (`MarkSpaceWreckVisited`), `GameServerSpaceCombat.cs` (`StowDrop`) |
+| **#2480 — the deep dives "Ship building" and "Base building"** | | | |
+| `ship:repaired` | `all` \| `cell` | the own ship repaired: the console's "repair everything affordable" (something was repaired), or one hole refilled | `GameServerShipRepair.cs` (`RepairShipAll`, `RepairShipCell`) |
+| `ship:edited` | block key | a block built onto or into the parked ship on foot (authored or commissioned self-built; a door too) | `GameServerSpaceStructure.cs` (`HandleLandedShipEdit`) |
+| `ship:keel_placed` | fleet id | a ship keel laid (a self-built ship's construction site founded) | `GameServerCustomShips.cs` (`HandleShipCorePlace`) |
+| `ship:switched` | ship id | the active ship switched in the fleet (a refused switch raises nothing) | `GameServerShips.cs` (`HandleSwitchShip`) |
+| `base:built` | block key | a block placed in the build zone of a base the player owns or shares with an ally or a crewmate (the core itself not) — tested only while someone listens | `GameServer.cs` (`HandlePlace`) |
+| `base:sealed` | body id | a base the player owns or shares holds air in a supplied sealed room on their world — the 1 Hz check, only while one of the player's own steps waits | `GameServerTutorialBuilding.cs` (`TutorialBaseStateEvents`, from `TutorialStateEvents`) |
+| `base:walled` | body id | the player's feet stand in a fenced-in part of such a base (the wall fill) — same | same |
+| `door:opened` | door kind (`wood`, `hinge`) | a hand-operated door opened by the player (closing raises nothing) | `GameServerDoors.cs` (`HandleDoorInteract`) |
+| `spawn:set` | `bed` \| `heal_tank` \| `crew_bunk` | a bed, a heal tank or a crew bunk became the spawn point | `GameServerHealTanks.cs` (`HandleSetSpawnPoint`) |
+| `station:core_deployed` | station structure id | a station core deployed on a spacewalk | `GameServerPlayerStations.cs` (`DeployStationCore`) |
+| `station:zero_g` | `on` \| `off` | zero-g construction mode switched aboard a player station (a press that flips nothing raises nothing) | `GameServerStationGravity.cs` (`HandleSetStationZeroG`) |
 
 Since #2479 the in-flight jump (`JumpFlightToSystem`) raises `hyperjump:any` after the warp-in's flight state and star map
 went out (it was raised before the warp), so a card a step plays for it lands on the warp-in like the finale's arrival card.
@@ -615,8 +627,11 @@ unique site exists in this save and the player can reach it — the lead's rule)
 (the world options are not off); since #2479 the tutorial's deep dives: `data_cache_near` / `scanner_unknown` (the moment
 VEGA's 1 Hz tip pass found that situation for the player — `PlayerSession.VegaTipLive`, the candidate ids of the last pass,
 kept whatever the hints switch, the gates or the cooldowns say; no probe of its own), `jump_ready`, `arcade_ready`,
-`monument_unread`, `asteroid_mining`, `docked`, `job_active`, `forge_ready`, `wormhole_known`, `debris_fields`. A predicate
-reads the player's own body/system, never the active world cursor. A new predicate is a name in `StoryWorldPredicates` plus
+`monument_unread`, `asteroid_mining`, `docked`, `job_active`, `forge_ready`, `wormhole_known`, `debris_fields`; since #2480
+the building courses' `tier_gate` (a refused swing within the last minute, `PlayerSession.TierGateRefusedAt`),
+`module_affordable`, `hull_damaged`, `keel_laid`, `ship_built`, `base_here` (an own, allied or crew base on the player's body,
+E32), `base_core_ready`, `night_outside` (the player's own world's clock), `station_core_ready`, `station_owned`
+(`GameServerTutorialBuilding.cs`). A predicate reads the player's own body/system, never the active world cursor. A new predicate is a name in `StoryWorldPredicates` plus
 one line in `GameServer.WorldPredicates`.
 
 **The world-story guard (N11).** A pack carries `kind` (`story` default, `tutorial`, `side`) and `scope` (`world` |
@@ -954,7 +969,8 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   `GameServerGameEvents.cs` (event bus), `GameServerStoryConditions.cs` (condition context + world predicates),
   `GameServerStoryPacks.cs` (the player-pack runtime, chip helpers, `/tutorial`), `GameServerTutorial.cs` (#2469: the
   teaching verbs, `UiTutorialEvent`, the tutorial's predicates, the hint hold, the migration of the old onboarding),
-  `GameServerStoryTrack.cs` (#2470: the world story's per-player track — prologue, start rule, track start, migration);
+  `GameServerTutorialBuilding.cs` (#2480: the ship and base building courses' predicates, the own-or-allied base tests,
+  the 1 Hz sealed-room and wall-ring checks), `GameServerStoryTrack.cs` (#2470: the world story's per-player track — prologue, start rule, track start, migration);
   `Shared/Story/StoryChapters.cs` (#2470: world-pack chapters, `StoryChapterEvents`); Client.Core `StoryChapterList.cs`
   (#2470: the Story tab's chapter rows); `GameServerJournal.cs` (#2471: `StoryPackStates`, `ObjectiveList`, the coalesced
   pushes, the world story's notes) and Client.Core `Journal/JournalView.cs` (#2471: the Journal's and the tracker's rules).

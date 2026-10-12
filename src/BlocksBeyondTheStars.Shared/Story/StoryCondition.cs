@@ -711,6 +711,38 @@ public static class StoryWorldPredicates
     /// <summary>#2479: the world generates debris fields in space (the world option is not off).</summary>
     public const string DebrisFields = "debris_fields";
 
+    /// <summary>#2480: a tool-tier gate turned one of the player's swings away within the last minute (and a better tool
+    /// exists) — the moment the "Workshop and titanium" course is offered at.</summary>
+    public const string TierGate = "tier_gate";
+
+    /// <summary>#2480: the player could build a ship module now — one their active ship lacks, its blueprint owned, its
+    /// materials in the backpack or the hold (a free Creative build counts).</summary>
+    public const string ModuleAffordable = "module_affordable";
+
+    /// <summary>#2480: the player's active ship has lost hull points (it never heals by itself).</summary>
+    public const string HullDamaged = "hull_damaged";
+
+    /// <summary>#2480: the player has laid a ship keel — a self-built ship exists in their fleet, finished or not.</summary>
+    public const string KeelLaid = "keel_laid";
+
+    /// <summary>#2480: the player has commissioned a self-built ship.</summary>
+    public const string ShipBuilt = "ship_built";
+
+    /// <summary>#2480: a base the player owns — or an ally's or a crewmate's (E32) — stands on the player's body.</summary>
+    public const string BaseHere = "base_here";
+
+    /// <summary>#2480: the player carries a base core (backpack or hold) or has crafted one before.</summary>
+    public const string BaseCoreReady = "base_core_ready";
+
+    /// <summary>#2480: the player is out on foot on a world's surface while the local sun is down.</summary>
+    public const string NightOutside = "night_outside";
+
+    /// <summary>#2480: the player carries a station core, or has the materials to craft one.</summary>
+    public const string StationCoreReady = "station_core_ready";
+
+    /// <summary>#2480: the player owns a commissioned space station.</summary>
+    public const string StationOwned = "station_owned";
+
     /// <summary>Every known predicate, in documentation order.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
@@ -721,5 +753,7 @@ public static class StoryWorldPredicates
         FragmentsLeft, ObservatoryReachable, DerelictReachable, Settlements, Vaults, SpaceWrecks,
         DataCacheNear, ScannerUnknown, JumpReady, ArcadeReady, MonumentUnread, AsteroidMining, Docked, JobActive,
         ForgeReady, WormholeKnown, DebrisFields,
+        TierGate, ModuleAffordable, HullDamaged, KeelLaid, ShipBuilt, BaseHere, BaseCoreReady, NightOutside,
+        StationCoreReady, StationOwned,
     };
 }

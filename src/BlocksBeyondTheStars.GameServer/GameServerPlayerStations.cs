@@ -107,6 +107,7 @@ public sealed partial class GameServer
         }
 
         Send(session, new ServerMessage { Text = "@srv.station.core_deployed" });
+        RaiseGameEvent(session, GameEventKeys.StationCoreDeployed, s.Id); // #2480: the station builder course's first step
     }
 
     private void HandleDeployStationCore(PlayerSession session) => DeployStationCore(session.State.PlayerId);

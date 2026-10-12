@@ -157,8 +157,8 @@ see [The VEGA prologue](#the-vega-prologue-2470) — and since #2474 the chapter
 cards `b01`, `b03`, `b04`, `b07`, `b08`, `b10` — see [VEGA's chapter scenes and beat cards](#vegas-chapter-scenes-and-beat-cards-2474);
 `tutorial/cutscenes.json` holds the basic training's cards since #2473 — see [The tutorial cards](#the-tutorial-cards-2473);
 #2478 added VEGA's finale set pieces and its ending — see [VEGA's finale](#vegas-finale-2478) — so every VEGA id of the
-list is defined now; #2479 added the flight courses' firsts `tut.first_dock` and `tut.first_jump`, steps 19–21 add the
-other deep dives' firsts (`tut.first_base`, `tut.ship_commissioned`, `tut.first_circuit`, `tut.first_tame`).
+list is defined now; #2479 added the flight courses' firsts `tut.first_dock` and `tut.first_jump`, #2480 the building
+courses' `tut.first_base` and `tut.ship_commissioned`; steps 20–21 add `tut.first_circuit` and `tut.first_tame`.
 
 ### The VEGA prologue (#2470)
 
@@ -202,6 +202,8 @@ graduation is the one card with a line: VEGA's closing line, which it takes out 
 | `tut.first_dock` | T2 card, `"arg": "body"` (#2479) | `c4.1` `onComplete` (the stations course's docking) | title = the station's name, kicker "Docked"; then "Vendors and a mission board wait inside" | waits for the station's loading veil and the cooldown (not "now or never") |
 | `tut.first_landing` | T3, `orbit`/`static` on the ship, `"arg": "body"` | `b6.7` `onComplete` (not the stand-in `b6.7a`: a known world is no new one) | title = the world's name, kicker "Touchdown on a new world"; subtitle "Every world has its own rocks, plants and creatures." — a singleplayer world holds while the camera circles the ship | waits for the landing's loading veil (so not "now or never"); chains to the graduation |
 | `tut.first_jump` | T2 card, `"arg": "system"` (#2479) | `c5.8` `onComplete` (the navigator course's hyperjump) | title = the new system's name at 2.8 s (after the warp), kicker "New system"; then "Unknown stars show “?” until you have been there" | "now or never" (`cooldownExempt`); the server raises `hyperjump:any` after the warp-in's flight state, so the card lands on the warp like `fin.arrival` |
+| `tut.first_base` | T3, `crane` then `orbit` on the player (#2480) | `c7.1` `onComplete` (the homestead course's base founded) | "Your home" (kicker "Base founded"), then the subtitle "Walls keep animals away — and on airless worlds, sealed rooms hold air." — the camera rises over the player standing at the new core; a singleplayer world holds | waits for a safe moment and the cooldown; 10.5 s |
+| `tut.ship_commissioned` | T3, `orbit`/`static` on the ship (#2480) | `c6.7` `onComplete` (the ship builder course's commissioning) | "Your own ship" (kicker "Commissioned"), then the subtitle "Built by you, block by block — and it flies." — the camera circles the **new** ship (the commissioned ship is the parked, active one now; the radius scales with its size); a singleplayer world holds | waits for a safe moment and the cooldown; 11.5 s |
 | `tut.graduation` | T2 card | `graduation.cutscene` | "Graduate" (kicker "★ Achievement"), then VEGA's speaker page `story.tutorial.graduated` | chains to `__recap` and `vega_protocol/ch1.open` (#2474): the graduation starts VEGA's track, whose recap or chapter 1 card follows at once |
 
 Interruption budget (synthesis §6.4): within the six parts at most one card or scene per part, except part 6's flight firsts
@@ -212,7 +214,8 @@ card carries "Part n of 6", the parts' first step lines no longer say it. The tu
 below: the cooldown, chains, a part card dropped once its part is over, and a line held with its waiting card. A deep dive
 (#2479) shows at most two cards — its course card and at most one first
 (`TutorialDeepDivesTests.TheCourseCards_AreCardsAndFirsts_AtMostTwoPerCourse`); the docking card lives in the stations course,
-so the basic training's budget stays at eight.
+so the basic training's budget stays at eight. The two building firsts (#2480) are short **scenes** (T3, synthesis §6.4) —
+the deep dives' only camera moments: the base is seen from above, the new ship from outside.
 
 ### VEGA's chapter scenes and beat cards (#2474)
 

@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -290,6 +291,7 @@ public sealed partial class GameServer
         note += missingAfter == 0 && _ship.Hull >= _shipHullMax ? "." : Localize(session.Locale, "srv.repair.result_more");
         Send(session, new ServerMessage { Text = note });
         SendShipRepairStatus(session);
+        RaiseGameEvent(session, GameEventKeys.ShipRepaired, GameEventKeys.ShipRepairAll); // #2480: the shipwright course's repair
     }
 
     /// <summary>Guided per-cell repair (field/EVA): refills one missing design cell with its original block.</summary>
@@ -334,6 +336,7 @@ public sealed partial class GameServer
         CommitShipRepairCell(session, live, instance, cell, def.NumericId);
         SendInventory(session);
         SendShipRepairStatus(session);
+        RaiseGameEvent(session, GameEventKeys.ShipRepaired, GameEventKeys.ShipRepairCell); // #2480
     }
 
     /// <summary>Writes a repaired cell into the live structure, persists it as a per-cell delta (same durable

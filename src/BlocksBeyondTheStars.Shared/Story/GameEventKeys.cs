@@ -234,6 +234,61 @@ public static class GameEventKeys
     /// the hold. Arg: <see cref="SalvageWreck"/>, <see cref="SalvageDebris"/> or <see cref="SalvageCapsule"/>.</summary>
     public const string SalvageFound = "salvage:found";
 
+    // ---- #2480: the deep dives "Ship building" and "Base building" (C1, C6, C7, C17; one line each at an existing handler) ----
+
+    /// <summary>The player repaired their own ship (the hull points, or a hole refilled). Arg: <see cref="ShipRepairAll"/> (the
+    /// console's "repair everything affordable") or <see cref="ShipRepairCell"/> (one hole refilled on a walk-around or EVA).</summary>
+    public const string ShipRepaired = "ship:repaired";
+
+    /// <summary>A block was built onto (or into) the player's parked ship on foot — the ship grows. Arg: the block key.</summary>
+    public const string ShipEdited = "ship:edited";
+
+    /// <summary>A ship keel was laid: the construction site of a self-built ship. Arg: the new fleet id.</summary>
+    public const string ShipKeelPlaced = "ship:keel_placed";
+
+    /// <summary>The player switched their active ship in the fleet. Arg: the ship id switched to.</summary>
+    public const string ShipSwitched = "ship:switched";
+
+    /// <summary>A block was placed inside a base zone the player owns or shares with an ally (the core itself not). Arg: the
+    /// block key.</summary>
+    public const string BaseBuilt = "base:built";
+
+    /// <summary>A base the player owns or shares with an ally holds air in a sealed room on the player's world (the 1 Hz check,
+    /// only while a step listens). Arg: the body id.</summary>
+    public const string BaseSealed = "base:sealed";
+
+    /// <summary>The player stands inside a closed wall ring of a base they own or share with an ally (the 1 Hz check, only while
+    /// a step listens). Arg: the body id.</summary>
+    public const string BaseWalled = "base:walled";
+
+    /// <summary>A hand-operated door (wood, hinge) was opened by the player. Arg: the door kind.</summary>
+    public const string DoorOpened = "door:opened";
+
+    /// <summary>A bed, a heal tank or a crew bunk became the player's spawn point. Arg: <see cref="SpawnBed"/>,
+    /// <see cref="SpawnHealTank"/> or <see cref="SpawnBunk"/>.</summary>
+    public const string SpawnSet = "spawn:set";
+
+    /// <summary>A station core was deployed on a spacewalk — the start of a player station. Arg: the station structure id.</summary>
+    public const string StationCoreDeployed = "station:core_deployed";
+
+    /// <summary>Zero-g construction mode switched aboard a player station. Arg: <c>on</c> or <c>off</c>.</summary>
+    public const string StationZeroG = "station:zero_g";
+
+    /// <summary><see cref="ShipRepaired"/> arg: everything affordable at once (the console / cockpit action).</summary>
+    public const string ShipRepairAll = "all";
+
+    /// <summary><see cref="ShipRepaired"/> arg: one missing hull cell refilled.</summary>
+    public const string ShipRepairCell = "cell";
+
+    /// <summary><see cref="SpawnSet"/> arg: a bed.</summary>
+    public const string SpawnBed = "bed";
+
+    /// <summary><see cref="SpawnSet"/> arg: a heal tank.</summary>
+    public const string SpawnHealTank = "heal_tank";
+
+    /// <summary><see cref="SpawnSet"/> arg: a crew bunk.</summary>
+    public const string SpawnBunk = "crew_bunk";
+
     /// <summary><see cref="EvaStarted"/> arg: out through the hatch of the ship floating in space.</summary>
     public const string EvaHatch = "hatch";
 
@@ -400,6 +455,8 @@ public static class GameEventKeys
             MissionBoardAccepted, VisitWorld,
             MinigamePlayed, GadgetUsed, PlanetScanned, AsteroidDestroyed, InteriorEntered, EvaStarted, PlayerZeroG,
             StationLeft, MarkerSet, SalvageFound,
+            ShipRepaired, ShipEdited, ShipKeelPlaced, ShipSwitched, BaseBuilt, BaseSealed, BaseWalled, DoorOpened, SpawnSet,
+            StationCoreDeployed, StationZeroG,
         };
         foreach (string circuitEvent in new[]
                  {

@@ -347,6 +347,7 @@ public sealed partial class GameServer
         BroadcastOwnedShips();
         EnsureConstructionSite(session);
         Send(session, new ServerMessage { Text = "@srv.ship.core_placed" });
+        RaiseGameEvent(session, GameEventKeys.ShipKeelPlaced, id); // #2480: the shipwright course's keel
         _log.Info($"Ship keel laid by {p.Name} at ({pos.X},{pos.Y},{pos.Z}) on {_world.LocationId} (fleet id {id}).");
     }
 

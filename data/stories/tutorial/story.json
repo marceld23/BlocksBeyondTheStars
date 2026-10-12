@@ -9,7 +9,9 @@
   // The deep dives (#2479, synthesis §3.4) follow the basic training as optional chapters c2–c5: offered at the moment of
   // need (a data cache in reach, C3 done) or suggested at the graduation, started from the Journal, each opening with the
   // "Short course" card (tut.course) and closing with the part banner; docking (c4.1) and the first hyperjump (c5.8) get
-  // their own card. Every do step of a deep dive counts; world rules skip a step or put its stand-in in.
+  // their own card. Every do step of a deep dive counts; world rules skip a step or put its stand-in in. #2480 added the
+  // parts "Ship building" and "Base building": c1 (the titanium route), c6 (modules, repair, an own ship), c7 (a base) and
+  // c17 (a station) — the base founding and the commissioning of an own ship get a short scene.
   "id": "tutorial",
   "kind": "tutorial",
   "scope": "player",
@@ -27,9 +29,9 @@
   "graduation": {
     "lineKey": "story.tutorial.graduated",
     "counter": "tutorial:graduated",
-    // #2479: the two flight courses; the third place is free for the workshop course (C1, step 19). C2 and C5 come with
-    // their own moments (a data cache in reach, the pilot course done).
-    "suggest": [ "c3", "c4" ],
+    // #2479: the two flight courses; #2480: the workshop course (the titanium route) third. C2, C5, C6, C7 and C17 come
+    // with their own moments (a data cache in reach, the pilot course done, a module affordable, a base core, …).
+    "suggest": [ "c3", "c4", "c1" ],
     "cutscene": "tut.graduation"
   },
   "chapters": [
@@ -346,6 +348,51 @@
       ]
     },
     {
+      // C1 Workshop and titanium (part "Ship building", #2480): the way round the tool-tier wall — iron ore for titanium ore
+      // at the ship's trade console, a forge (no blueprint, E7) and the first titanium plate. Offered at a refused swing, or
+      // when the ship builder course waits for titanium; suggested at the graduation.
+      "id": "c1",
+      "titleKey": "story.tutorial.ch.c1",
+      "summaryKey": "story.tutorial.ch.c1.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b4" ],
+      "offerWhen": [ "any:[world:tier_gate,all:[step:tutorial:c6.3,not:blueprint:ship_builder]]" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c1.1", "kind": "read", "tier": "core",
+          "hintRefs": [ "tier_gate" ],
+          "variants": [
+            { "when": "world:creative", "startKey": "story.tutorial.c1.wall.start_free" }
+          ],
+          "explain": { "startKey": "story.tutorial.c1.wall.start", "moreGuide": "mining-crafting" }
+        },
+        {
+          // "Iron": the trade console's price. Short of iron ore after the hint time, the marker shows the nearest vein.
+          "id": "c1.2", "kind": "do", "tier": "core",
+          "objective": { "event": "craft:any", "arg": "market_iron_to_titanium", "required": 2 },
+          "onStart": { "reveal": "nearest_ore:iron_ore" },
+          "explain": { "startKey": "story.tutorial.c1.ore.start", "chipKey": "story.tutorial.c1.ore.chip", "hintKey": "story.tutorial.c1.ore.hint", "moreGuide": "trading" }
+        },
+        {
+          "id": "c1.3", "kind": "do", "tier": "core",
+          "objective": { "event": "craft:any", "arg": "forge" },
+          "alreadyDoneIf": [ "world:forge_ready" ],
+          "explain": { "startKey": "story.tutorial.c1.forge.start", "chipKey": "story.tutorial.c1.forge.chip", "moreGuide": "crafting-stations" }
+        },
+        {
+          "id": "c1.4", "kind": "do", "tier": "core",
+          "objective": { "event": "craft:any", "arg": "titanium_plate" },
+          "explain": { "startKey": "story.tutorial.c1.plate.start", "chipKey": "story.tutorial.c1.plate.chip", "hintKey": "story.tutorial.c1.plate.hint", "moreGuide": "crafting-stations" }
+        },
+        {
+          "id": "c1.5", "kind": "read", "tier": "opt",
+          "explain": { "startKey": "story.tutorial.c1.next.start", "moreGuide": "knowledge" }
+        }
+      ]
+    },
+    {
       // C2 Knowledge and research (part "Research"): offered when VEGA's tip pass finds a data cache in reach or the
       // player digging without the terrain scanner.
       "id": "c2",
@@ -390,12 +437,16 @@
           "explain": { "startKey": "story.tutorial.c2.runes.start", "chipKey": "story.tutorial.c2.runes.chip", "hintKey": "story.tutorial.c2.runes.hint", "moreGuide": "monuments" }
         },
         {
-          // The terrain scanner needs titanium plates; until the player owns its blueprint the read stand-in names it.
+          // The terrain scanner needs titanium plates; until the player owns its blueprint — or knows the titanium route
+          // from the workshop course (#2480) — the read stand-in names it.
           "id": "c2.6", "kind": "do", "tier": "core",
           "objective": { "event": "gadget:used", "arg": "terrain_scanner" },
-          "feasibleIf": [ "blueprint:terrain_scanner" ],
+          "feasibleIf": [ "any:[blueprint:terrain_scanner,chapter:tutorial:c1]" ],
           "alternative": "c2.6a",
           "hintRefs": [ "scanner_idle", "scanner_unknown" ],
+          "variants": [
+            { "when": "not:blueprint:terrain_scanner", "startKey": "story.tutorial.c2.scanner.start_research" }
+          ],
           "explain": { "startKey": "story.tutorial.c2.scanner.start", "chipKey": "story.tutorial.c2.scanner.chip", "hintKey": "story.tutorial.c2.scanner.hint", "moreGuide": "prospecting" }
         },
         {
@@ -588,6 +639,180 @@
           "feasibleIf": [ "any:[world:space_wrecks,world:debris_fields]" ],
           "hintRefs": [ "wreck_signal", "debris_signal" ],
           "explain": { "startKey": "story.tutorial.c5.salvage.start", "chipKey": "story.tutorial.c5.salvage.chip", "hintKey": "story.tutorial.c5.salvage.hint", "moreGuide": "mysteries" }
+        }
+      ]
+    },
+    {
+      // C6 Ship builder (part "Ship building", #2480): modules, the repair, growing the parked ship, then an own ship —
+      // the Shipwright blueprint, a keel, commissioning, switching. Offered when a module becomes affordable or the hull is
+      // damaged. Titanium plates are a hard prerequisite from the blueprint on (synthesis §3.2): without the workshop course
+      // (or the blueprint) the course says so (c6.4) and waits at the blueprint until C1 is through.
+      "id": "c6",
+      "titleKey": "story.tutorial.ch.c6",
+      "summaryKey": "story.tutorial.ch.c6.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b5" ],
+      "offerWhen": [ "any:[world:module_affordable,world:hull_damaged]" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c6.1", "kind": "do", "tier": "core",
+          "objective": { "event": "module:built" },
+          "explain": { "startKey": "story.tutorial.c6.module.start", "chipKey": "story.tutorial.c6.module.chip", "hintKey": "story.tutorial.c6.module.hint", "moreGuide": "ships-modules" }
+        },
+        {
+          // A hull that never took damage has nothing to repair: the read stand-in tells how it works.
+          "id": "c6.2", "kind": "do", "tier": "core",
+          "objective": { "event": "ship:repaired" },
+          "feasibleIf": [ "world:hull_damaged" ],
+          "alternative": "c6.2a",
+          "hintRefs": [ "hull_low" ],
+          "explain": { "startKey": "story.tutorial.c6.repair.start", "chipKey": "story.tutorial.c6.repair.chip", "hintKey": "story.tutorial.c6.repair.hint", "moreGuide": "ships-modules" }
+        },
+        {
+          "id": "c6.2a", "kind": "read", "tier": "core",
+          "explain": { "startKey": "story.tutorial.c6.repair.start_later", "moreGuide": "ships-modules" }
+        },
+        {
+          "id": "c6.3", "kind": "do", "tier": "opt",
+          "objective": { "event": "ship:edited" },
+          "explain": { "startKey": "story.tutorial.c6.grow.start", "chipKey": "story.tutorial.c6.grow.chip", "hintKey": "story.tutorial.c6.grow.hint", "moreGuide": "ships-modules" }
+        },
+        {
+          // Spoken only while the titanium route is still unknown: the course waits at c6.5 until C1 is through.
+          "id": "c6.4", "kind": "read", "tier": "opt",
+          "feasibleIf": [ "not:any:[chapter:tutorial:c1,blueprint:ship_builder]" ],
+          "explain": { "startKey": "story.tutorial.c6.titanium.start", "moreGuide": "mining-crafting" }
+        },
+        {
+          "id": "c6.5", "kind": "do", "tier": "opt",
+          "objective": { "event": "research:any", "arg": "ship_builder" },
+          "requires": [ "any:[chapter:tutorial:c1,blueprint:ship_builder]" ],
+          "alreadyDoneIf": [ "blueprint:ship_builder" ],
+          "explain": { "startKey": "story.tutorial.c6.blueprint.start", "chipKey": "story.tutorial.c6.blueprint.chip", "hintKey": "story.tutorial.c6.blueprint.hint", "moreGuide": "knowledge" }
+        },
+        {
+          "id": "c6.6", "kind": "do", "tier": "opt",
+          "objective": { "event": "ship:keel_placed" },
+          "alreadyDoneIf": [ "world:keel_laid" ],
+          "explain": { "startKey": "story.tutorial.c6.keel.start", "chipKey": "story.tutorial.c6.keel.chip", "hintKey": "story.tutorial.c6.keel.hint", "moreGuide": "ships-modules" }
+        },
+        {
+          "id": "c6.7", "kind": "do", "tier": "opt",
+          "objective": { "event": "ship:commissioned" },
+          "alreadyDoneIf": [ "world:ship_built" ],
+          "onComplete": { "cutscene": "tut.ship_commissioned" },
+          "explain": { "startKey": "story.tutorial.c6.commission.start", "chipKey": "story.tutorial.c6.commission.chip", "hintKey": "story.tutorial.c6.commission.hint", "moreGuide": "ships-modules" }
+        },
+        {
+          "id": "c6.8", "kind": "do", "tier": "opt",
+          "objective": { "event": "ship:switched" },
+          "explain": { "startKey": "story.tutorial.c6.switch.start", "chipKey": "story.tutorial.c6.switch.chip", "moreGuide": "ships-modules" }
+        }
+      ]
+    },
+    {
+      // C7 Homestead (part "Base building", #2480): a base core, building in its zone, lights, a door, air in a sealed room
+      // (airless worlds; elsewhere only explained), a wall ring, a bed. An ally's or a crewmate's base on this world counts
+      // (E32). Offered when a base core is crafted or carried, or on a night outside with no base on this world.
+      "id": "c7",
+      "titleKey": "story.tutorial.ch.c7",
+      "summaryKey": "story.tutorial.ch.c7.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b4" ],
+      "offerWhen": [ "any:[world:base_core_ready,all:[world:night_outside,not:world:base_here]]" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c7.1", "kind": "do", "tier": "core",
+          "objective": { "event": "base:founded" },
+          "alreadyDoneIf": [ "world:base_here" ],
+          "onComplete": { "cutscene": "tut.first_base" },
+          "explain": { "startKey": "story.tutorial.c7.core.start", "chipKey": "story.tutorial.c7.core.chip", "hintKey": "story.tutorial.c7.core.hint", "moreGuide": "base-air" }
+        },
+        {
+          // The step right after the founding: its line (with the base card) is the first word on walls and air, so VEGA's
+          // two founding hints count as told (G12); c7.5 and c7.6 teach the details.
+          "id": "c7.2", "kind": "do", "tier": "core",
+          "objective": { "event": "base:built", "required": 10 },
+          "hintRefs": [ "base_walls", "base_airless" ],
+          "explain": { "startKey": "story.tutorial.c7.zone.start", "chipKey": "story.tutorial.c7.zone.chip", "hintKey": "story.tutorial.c7.zone.hint", "moreGuide": "base-air" }
+        },
+        {
+          "id": "c7.3", "kind": "do", "tier": "core",
+          "objective": { "event": "base:built", "arg": "torch|lantern|campfire|light_white|light_red|light_green|strip_light_cyan|strip_light_warm", "required": 2 },
+          "explain": { "startKey": "story.tutorial.c7.light.start", "chipKey": "story.tutorial.c7.light.chip", "hintKey": "story.tutorial.c7.light.hint", "moreGuide": "colours" }
+        },
+        {
+          "id": "c7.4", "kind": "do", "tier": "core",
+          "objective": { "event": "door:opened" },
+          "explain": { "startKey": "story.tutorial.c7.door.start", "chipKey": "story.tutorial.c7.door.chip", "hintKey": "story.tutorial.c7.door.hint", "moreGuide": "base-air" }
+        },
+        {
+          // Air only matters on an airless world with the oxygen rule on; elsewhere the read stand-in explains it, and with
+          // no oxygen at all neither runs.
+          "id": "c7.5", "kind": "do", "tier": "core",
+          "objective": { "event": "base:sealed" },
+          "feasibleIf": [ "world:airless", "world:oxygen" ],
+          "alternative": "c7.5a",
+          "hintRefs": [ "base_airless" ],
+          "explain": { "startKey": "story.tutorial.c7.air.start", "chipKey": "story.tutorial.c7.air.chip", "hintKey": "story.tutorial.c7.air.hint", "moreGuide": "base-air" }
+        },
+        {
+          "id": "c7.5a", "kind": "read", "tier": "core",
+          "feasibleIf": [ "world:oxygen" ],
+          "explain": { "startKey": "story.tutorial.c7.air.start_later", "moreGuide": "base-air" }
+        },
+        {
+          "id": "c7.6", "kind": "do", "tier": "core",
+          "objective": { "event": "base:walled" },
+          "hintRefs": [ "base_walls" ],
+          "explain": { "startKey": "story.tutorial.c7.walls.start", "chipKey": "story.tutorial.c7.walls.chip", "hintKey": "story.tutorial.c7.walls.hint", "moreGuide": "base-air" }
+        },
+        {
+          "id": "c7.7", "kind": "do", "tier": "core",
+          "objective": { "event": "spawn:set" },
+          "explain": { "startKey": "story.tutorial.c7.bed.start", "chipKey": "story.tutorial.c7.bed.chip", "hintKey": "story.tutorial.c7.bed.hint", "moreGuide": "survival" }
+        },
+        {
+          // Residents and visitors only where the world sends visitors to bases.
+          "id": "c7.8", "kind": "read", "tier": "opt",
+          "feasibleIf": [ "world:base_visitors" ],
+          "explain": { "startKey": "story.tutorial.c7.residents.start", "moreGuide": "base-air" }
+        }
+      ]
+    },
+    {
+      // C17 Station builder (part "Ship building", #2480): a station core deployed on a spacewalk, a hull and an airlock
+      // around it (commissioned), zero-g building aboard. Needs the pilot course (its spacewalk, C3) and free flight; offered
+      // when a station core is craftable or carried, or after the ship builder course.
+      "id": "c17",
+      "titleKey": "story.tutorial.ch.c17",
+      "summaryKey": "story.tutorial.ch.c17.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:c3", "world:free_flight" ],
+      "offerWhen": [ "any:[world:station_core_ready,chapter:tutorial:c6]" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c17.1", "kind": "do", "tier": "opt",
+          "objective": { "event": "station:core_deployed" },
+          "alreadyDoneIf": [ "world:station_owned" ],
+          "explain": { "startKey": "story.tutorial.c17.core.start", "chipKey": "story.tutorial.c17.core.chip", "hintKey": "story.tutorial.c17.core.hint", "moreGuide": "stations" }
+        },
+        {
+          "id": "c17.2", "kind": "do", "tier": "opt",
+          "objective": { "event": "station:commissioned" },
+          "alreadyDoneIf": [ "world:station_owned" ],
+          "explain": { "startKey": "story.tutorial.c17.hull.start", "chipKey": "story.tutorial.c17.hull.chip", "hintKey": "story.tutorial.c17.hull.hint", "moreGuide": "stations" }
+        },
+        {
+          "id": "c17.3", "kind": "do", "tier": "opt",
+          "objective": { "event": "station:zero_g", "arg": "on" },
+          "explain": { "startKey": "story.tutorial.c17.zero_g.start", "chipKey": "story.tutorial.c17.zero_g.chip", "hintKey": "story.tutorial.c17.zero_g.hint", "moreGuide": "stations" }
         }
       ]
     }

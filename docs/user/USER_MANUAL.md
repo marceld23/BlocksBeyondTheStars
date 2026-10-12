@@ -1108,7 +1108,7 @@ players.
   6. **Lift-off** — launching from the cockpit, flying and the chart, the ship scanner, docking at a station, trading,
      a first job from a mission board, landing on a new world, and travelling home via the map.
   At the end VEGA congratulates you and you earn the achievement **Graduate**. There are no items or knowledge for the
-  lessons — they teach, they don't pay. Two **short courses** (below) then wait in your Journal.
+  lessons — they teach, they don't pay. Three **short courses** (below) then wait in your Journal.
   - **Cards:** each part opens with a short title card ("Basic training · Part 2 of 6 — Staying alive"; the first one
     welcomes you right after the prologue) and ends with a small "Part complete!" banner. Your first launch gets a
     "Lift-off!" title over the climb, your first landing on a new world a short look around your ship with the world's
@@ -1149,8 +1149,12 @@ players.
   you are doing (at most one offer every minute and a half, never during the basic training), and the Journal lists them
   all with **Start** or **Later** (a course you put off stays there; VEGA does not offer it again). Each opens with a short
   "Short course" card and ends with the "Part complete!" banner; your docking in the stations course ("Docked — …") and your
-  first hyperjump in the navigator course ("New system — …") get a short card of their own. You can skip a step or the
-  whole course in the Journal. Like the training they pay nothing.
+  first hyperjump in the navigator course ("New system — …") get a short card of their own, your first base and your first
+  own ship a short look from outside ("Your home", "Your own ship"). You can skip a step or the whole course in the
+  Journal. Like the training they pay nothing.
+  - **Workshop and titanium** (suggested when you finish the training, and offered when your drill bounces off rock that is
+    too hard): why titanium ore is out of reach at first, swapping iron ore for titanium ore at your ship's trade console
+    (5 for 1), a forge (6 stone, 4 iron plates — no blueprint needed) and your first titanium plate smelted at it.
   - **Knowledge and research** (offered when a data cache is close by, or when you dig a lot without a terrain scanner):
     scanning three new things, mining a data cache (two data fragments), what a blueprint costs, a DataQube game, reading
     a rune stone, the terrain scanner (or, before you have its blueprint, what it needs) and the Achievements tab.
@@ -1163,8 +1167,20 @@ players.
   - **Navigator** (offered once the pilot course is done): markers and pings on the planet map, map travel between worlds,
     a forge (no blueprint needed) and lubricant, researching the Radar Array and the Jump Generator, fitting the jump
     generator, your first hyperjump — and wormholes and wrecks where your world has them.
-  - What you have already done counts: a forge you crafted before, blueprints you own or a jump drive already fitted tick
-    their step off by themselves; lessons your world cannot offer (no wormholes, no wrecks, no space combat …) are skipped.
+  - **Ship builder** (offered when you could build a ship module or your hull is damaged): building a module, repairing
+    the hull at the console, building onto your parked ship — and then a ship of your own: the Shipwright blueprint (it
+    needs titanium plates — without the workshop course the course tells you so and waits for it), a keel, the hull with
+    a helm, an engine and a door, commissioning it at the helm, and switching between your ships.
+  - **Homestead** (offered when you craft or carry a base core, or out on foot at night with no base on that world): a
+    base core, building in its zone, two lights, a wooden door, a sealed room that holds air (on airless worlds; elsewhere
+    only explained), a closed wall ring that keeps animals out, and a bed to wake up in. A friend's base on the same world
+    counts as yours when you are allies or in one crew.
+  - **Station builder** (offered when you have a station core or its materials, or after the ship builder course; needs
+    the pilot course and space flight): deploying a station core on a spacewalk, building its hull with a door as the
+    airlock until it is commissioned, and floating while you build aboard (zero-g building).
+  - What you have already done counts: a forge you crafted before, blueprints you own, a jump drive already fitted, a
+    base on the world, a ship or station you built tick their step off by themselves; lessons your world cannot offer
+    (no wormholes, no wrecks, no space combat, an undamaged hull, breathable air …) are skipped or only explained.
 - **Advisor:** one-time contextual hints (full inventory, first nightfall, "ruins detected", world-type
   flavour) plus **context tips** that notice your situation and may come back — rarely: gear you carry
   but aren't using (a suit lamp switched off in the dark, torches underground, food when hungry, a medkit

@@ -3622,6 +3622,8 @@
   "ui.vega.act.FlightEnterInterior": "[Step inside]",
   "ui.vega.act.Disembark": "[Undock]",
   "ui.vega.act.PingMarker": "[Ping]",
+  "ui.vega.act.EvaDeployStation": "[Deploy station]",
+  "ui.vega.act.ToggleStationZeroG": "[Zero-g]",
   "ui.vega.next_key": "Continue · [{0}]",
   "ui.vega.next_pad": "Continue · {0}",
   "ui.vega.next_touch": "Continue · NEXT ▶",

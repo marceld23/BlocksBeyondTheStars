@@ -969,6 +969,7 @@ public sealed partial class GameServer
 
         session.VegaTierGateBlock = LocalizedName(session.Locale, block.NameKey, block.Key);
         session.VegaTierGateTool = LocalizedName(session.Locale, wanted.NameKey, wanted.Key);
+        session.TierGateRefusedAt = _uptime; // #2480: the "Workshop and titanium" course's moment (world:tier_gate)
         RaiseGameEvent(session, GameEventKeys.MineRefused, block.Key); // #2469: the tutorial's tool-tier reaction (it absorbs the tip's first telling)
     }
 

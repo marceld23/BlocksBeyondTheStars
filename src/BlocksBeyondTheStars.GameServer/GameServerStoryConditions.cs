@@ -86,6 +86,19 @@ public sealed partial class GameServer
         [StoryWorldPredicates.WormholeKnown] = s => _galaxy is not null
                                                     && _galaxy.Wormholes.Any(w => !IsStoryLockedSystem(w.SystemId) && s.State.KnownSystems.Contains(w.SystemId)),
         [StoryWorldPredicates.DebrisFields] = _ => _meta.Description.DebrisFields != Frequency.Off,
+
+        // #2480: the deep dives "Ship building" and "Base building" (C1, C6, C7, C17) — their offers and their evidence
+        // (GameServerTutorialBuilding.cs).
+        [StoryWorldPredicates.TierGate] = s => _uptime - s.TierGateRefusedAt <= TierGateOfferWindowSeconds,
+        [StoryWorldPredicates.ModuleAffordable] = ModuleAffordable,
+        [StoryWorldPredicates.HullDamaged] = HullDamaged,
+        [StoryWorldPredicates.KeelLaid] = s => s.Ships.Values.Any(ship => ship.IsCustom),
+        [StoryWorldPredicates.ShipBuilt] = s => s.Ships.Values.Any(ship => ship.IsCustom && ship.Commissioned),
+        [StoryWorldPredicates.BaseHere] = s => _bases.Any(b => b.Planet == s.CurrentLocationId && OwnOrAllied(b.OwnerId, s.State.PlayerId)),
+        [StoryWorldPredicates.BaseCoreReady] = BaseCoreReady,
+        [StoryWorldPredicates.NightOutside] = NightOutside,
+        [StoryWorldPredicates.StationCoreReady] = StationCoreReady,
+        [StoryWorldPredicates.StationOwned] = s => _playerStationCells.Values.Any(st => st.Boardable && st.OwnerId == s.State.PlayerId),
     };
 
     /// <summary><c>world:forge_ready</c> (#2479): the player can refine — they crafted a forge before (the achievement

@@ -18,6 +18,10 @@
   //                   on the warp-in like the finale's arrival card (the title after the warp); now or never.
   // tut.first_landing — the first landing on a new world (b6.7 done): the camera circles the ship, the world's name as the
   //                   title ({0} = the body, "arg": "body"); a singleplayer world holds while the camera is away.
+  // tut.first_base  — #2480: the homestead course's base founded (c7.1 done): a crane rising over the player standing at the
+  //                   new base core and its zone, "Your home", then what walls and sealed rooms do (synthesis §6.4).
+  // tut.ship_commissioned — #2480: the ship builder course's own ship commissioned (c6.7 done): the camera circles the NEW
+  //                   ship (the parked ship is the active one now, scaled to its size), "Your own ship".
   // tut.graduation  — the graduation: the achievement, then VEGA's closing line in her speaker box; chains to VEGA's recap
   //                   or, when the world is still in chapter 1, straight to VEGA's chapter 1 card (#2474, §5.3).
   "cutscenes": [
@@ -146,6 +150,38 @@
         }
       ],
       "options": { "cooldownExempt": true }
+    },
+    {
+      "id": "tut.first_base",
+      "tier": 3,
+      "shots": [
+        {
+          "camera": { "type": "crane" },
+          "duration": 6,
+          "captions": [ { "style": "title_card", "kickerKey": "story.tutorial.cut.base.kicker", "key": "story.tutorial.cut.base.title", "at": 0.8 } ]
+        },
+        {
+          "camera": { "type": "orbit" },
+          "duration": 4.5,
+          "captions": [ { "style": "subtitle", "key": "story.tutorial.cut.base.sub" } ]
+        }
+      ]
+    },
+    {
+      "id": "tut.ship_commissioned",
+      "tier": 3,
+      "shots": [
+        {
+          "camera": { "type": "orbit", "anchor": "ship" },
+          "duration": 7,
+          "captions": [ { "style": "title_card", "kickerKey": "story.tutorial.cut.ship.kicker", "key": "story.tutorial.cut.ship.title", "at": 0.8 } ]
+        },
+        {
+          "camera": { "type": "static", "anchor": "ship" },
+          "duration": 4.5,
+          "captions": [ { "style": "subtitle", "key": "story.tutorial.cut.ship.sub" } ]
+        }
+      ]
     },
     {
       "id": "tut.graduation",

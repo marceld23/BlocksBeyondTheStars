@@ -101,6 +101,8 @@ FALLBACK_PREDICATES = [
     "fragments_left", "observatory_reachable", "derelict_reachable", "settlements", "vaults", "space_wrecks",
     "data_cache_near", "scanner_unknown", "jump_ready", "arcade_ready", "monument_unread", "asteroid_mining", "docked",
     "job_active", "forge_ready", "wormhole_known", "debris_fields",
+    "tier_gate", "module_affordable", "hull_damaged", "keel_laid", "ship_built", "base_here", "base_core_ready",
+    "night_outside", "station_core_ready", "station_owned",
 ]
 
 KNOWN_FIELDS = {

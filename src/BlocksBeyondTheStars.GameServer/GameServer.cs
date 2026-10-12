@@ -6038,6 +6038,11 @@ public sealed partial class GameServer
         SendInventory(session);
         OnAchievementBuild(session);
         RaiseGameEvent(session, GameEventKeys.BuildAny, blockDef.Key); // #2465
+        if (blockDef.Key != BaseCoreBlock && HasGameEventListener(GameEventKeys.BaseBuilt) && InOwnOrAlliedBaseZone(session.State.PlayerId, pos))
+        {
+            RaiseGameEvent(session, GameEventKeys.BaseBuilt, blockDef.Key); // #2480: built at home (the homestead course)
+        }
+
         if (ShapeCode.ShapeOf(placeShape) != 0 && (place.Yaw is >= 0 and <= 3 || ShapeCode.IsValidUpFace(place.UpFace)))
         {
             RaiseGameEvent(session, GameEventKeys.BuildRotated, blockDef.Key); // a form/prop turned with the rotate key

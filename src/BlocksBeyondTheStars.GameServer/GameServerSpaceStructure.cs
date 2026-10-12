@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Shared.Bio;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -1234,6 +1235,7 @@ public sealed partial class GameServer
             CommitCustomShipCells(session, _ship, rec, commissioned: true, cells, pos,
                 DoorBlocks.IsDoorBlock(blockDef.Key) ? BlockId.AirValue : blockDef.NumericId.Value,
                 intent.DeviceDir >= 0 ? intent.DeviceDir : intent.Yaw);
+            RaiseGameEvent(session, GameEventKeys.ShipEdited, blockDef.Key); // #2480: the ship grows (the shipwright course)
             return;
         }
 
@@ -1243,6 +1245,7 @@ public sealed partial class GameServer
         {
             BuildShipDoor(s, pos, blockDef, p.Yaw);
             RefreshParkedShipDoors(rec);
+            RaiseGameEvent(session, GameEventKeys.ShipEdited, blockDef.Key); // #2480
             return;
         }
 
@@ -1277,6 +1280,7 @@ public sealed partial class GameServer
         }
 
         OnCrystalShipCellPlaced(session, rec, pos, blockDef, intent.DeviceDir >= 0 ? intent.DeviceDir : intent.Yaw); // #2268
+        RaiseGameEvent(session, GameEventKeys.ShipEdited, blockDef.Key); // #2480: the ship grows (the shipwright course)
     }
 
     /// <summary>Writes one cell of a ship/station structure as a player edit: the live grid, the durable delta
