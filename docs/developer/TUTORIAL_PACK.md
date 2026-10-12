@@ -7,9 +7,10 @@ that runs it per player is the **player-pack runtime** (#2466), described in
 
 > **Status.** Since story packs step 10 (#2469) the basic training **is** the tutorial pack `data/stories/tutorial/`: the
 > old hard-coded nine-stage VEGA onboarding (`VegaStages`, `VegaIsVeteran`, the client's copy of the stage list) is gone.
-> The deep-dive chapters C1–C18 come with steps 18–21; the tutorial's cards (`tut.welcome`, `tut.strip` …) came with step
-> 14 (#2473, [Cards](#cards-2473)); VEGA's own pack and the hand-over to its chapter 1 with step 11. Test packs for the runtime live in
-> `tests/BlocksBeyondTheStars.Tests/Fixtures/story_packs/`.
+> The deep-dive chapters of the parts "Research" and "Flying" — C2–C5 — came with step 18 (#2479,
+> [Deep dives](#the-deep-dives-research-and-flying-c2c5-2479)); C1 and C6–C18 follow with steps 19–21. The tutorial's cards
+> (`tut.welcome`, `tut.strip` …) came with step 14 (#2473, [Cards](#cards-2473)); VEGA's own pack and the hand-over to its
+> chapter 1 with step 11. Test packs for the runtime live in `tests/BlocksBeyondTheStars.Tests/Fixtures/story_packs/`.
 
 ## Folder
 
@@ -131,7 +132,14 @@ option hands every blueprint out), `new_world_in_system` (a planet, moon or aste
 on). The two probes read loaded blocks around the player and run only when a step activates. Since #2476 (the story
 missions): `fragments_left` (the world story has an unfound net fragment), `observatory_reachable`, `derelict_reachable`
 (the unique site exists in this save and the player can reach it), `settlements`, `vaults`, `space_wrecks` (the world
-options are not off). `ui:` is never a condition.
+options are not off). Since #2479 (the deep dives): `data_cache_near` and `scanner_unknown` (VEGA's once-a-second tip pass
+found that situation for the player — a data cache in reach, digging a lot without the terrain scanner; read from
+`PlayerSession.VegaTipLive`, no extra probe — the "moment of need" a course is offered at), `jump_ready` (the active ship
+has a jump generator fitted), `arcade_ready` (the player owns a DataQube game, or a data cube waits on their world),
+`monument_unread` (a rune monument on the player's world they have not read), `asteroid_mining` (the Asteroid destruction
+rule is not Off), `docked` (aboard a station), `job_active` (a board or settlement-chain job in progress), `forge_ready`
+(a forge crafted before or carried, or a refinery fitted), `wormhole_known` (a wormhole opens in a system the player
+knows), `debris_fields` (the world option is not off). `ui:` is never a condition.
 
 ## Per-player state
 
@@ -236,10 +244,69 @@ Tier · kind: **M** = must, **C** = core · **do** / **read** / **react**. Event
 | b6.7 | landing on a new world (landing map) | `visit:world` | M · do | `feasibleIf free_flight, new_world_in_system`, else b6.7a (any landing from flight, `travel:landed` `flight`, `feasibleIf free_flight`) | land |
 | b6.8 | map travel home | `travel:landed` `quick` | C · do | `feasibleIf free_flight or instant_travel`; `instant_travel` variant | — |
 
-**Graduation:** `story.tutorial.graduated` ("Basic training complete! … The galaxy is yours." — neutral, without
-`vega.done`'s memory hook), the achievement **Graduate** (`graduate`, counter `tutorial:graduated`, no items), no suggested
-deep dives yet (steps 18–21 add the chapters and their ids to `graduation.suggest`). The hand-over to VEGA's chapter 1 is
-step 11. Since #2473 the graduation card `tut.graduation` shows the achievement and the closing line itself.
+**Graduation:** `story.tutorial.graduated` ("Basic training complete! You can survive, build, research and fly — short
+courses wait in your Journal." — neutral, without `vega.done`'s memory hook), the achievement **Graduate** (`graduate`,
+counter `tutorial:graduated`, no items), the suggested deep dives `c3` (Pilot) and `c4` (Stations, trade and jobs) marked
+offered — in the Journal, without a line; the third place is free for the workshop course (C1, step 19: one id more in
+`graduation.suggest`). The suggestions count as that moment's offer, so the next offer VEGA makes by herself waits the usual
+90 s. The hand-over to VEGA's chapter 1 is step 11. Since #2473 the graduation card `tut.graduation` shows the achievement and
+the closing line itself.
+
+### The deep dives "Research" and "Flying" (C2–C5, #2479)
+
+Optional chapters after the basic training (synthesis §3.2/§3.4): a player starts them from the Journal (**Start**, or
+**Later** to put an offer off — it stays listed and startable, VEGA never offers it again). VEGA offers a course once, at
+its moment of need, with `vega.chapter.offer` ("New short course: {0}…") — never while the basic training runs, at most one
+offer every 90 s of play. Every **do** step of a course counts (tier `core`/`opt` only marks what the synthesis calls
+optional); read and react steps never block. Each course opens with the card `tut.course` ("Short course" + its title) and
+closes with the part banner `tut.done`; two firsts get their own card (below). No legacy keys, no rewards; an older client
+(no `packs1`) never runs a course.
+
+| Course | Needs (`requires`) | Offered (`offerWhen`) |
+|---|---|---|
+| **C2 Knowledge and research** (part Research) | `chapter:tutorial:b5` | `any:[world:data_cache_near, world:scanner_unknown]` — the tips' moment |
+| **C3 Pilot** (Flying) | `chapter:tutorial:b6`, `world:free_flight` | suggested at the graduation |
+| **C4 Stations, trade and jobs** (Flying) | `chapter:tutorial:b6` | suggested at the graduation |
+| **C5 Navigator** (Flying) | `chapter:tutorial:c3` (the pilot course first) | `any:[chapter:tutorial:c3, world:jump_ready]` — right after C3 (and the gap) |
+
+Without free flight C3 and C5 are locked (not suggested, not startable); C4 then runs at a settlement. The forge C5 needs
+for the lubricant is its own step (no blueprint needed), not a chapter prerequisite — evidence (`world:forge_ready`) skips it.
+
+| Step | Teaches | Event (arg × required) | Kind | World rules / feasibility, absorbed hints |
+|---|---|---|---|---|
+| c2.1 | plants, animals, rocks teach different things | `scan:any` `flora\|tree\|creature\|block` × 3 | do | — |
+| c2.2 | data caches deep in the rock hold 2 fragments; marker `nearest_ore:data_cache` | `mine:any` `data_cache` | do | absorbs `data_cache_near` |
+| c2.3 | what a blueprint costs (the Blueprints tab) | `research:any` | do | `feasibleIf not:world:all_blueprints`; absorbs `blueprint_affordable` |
+| c2.4 | DataQube games teach knowledge | `minigame:played` | do | `feasibleIf world:arcade_ready` |
+| c2.5 | rune stones tell old stories | `scan:any` `monument` | do | `feasibleIf world:monument_unread` |
+| c2.6 | the terrain scanner | `gadget:used` `terrain_scanner` | do | `feasibleIf blueprint:terrain_scanner`, else **c2.6a** (read: "its blueprint needs titanium plates — a forge makes them"); absorbs `scanner_idle`, `scanner_unknown`. Step 19 can widen the condition by data (`any:[blueprint:terrain_scanner,chapter:tutorial:c1]`) |
+| c2.7 | the Achievements tab | `ui:progress_open` | do | — |
+| c3.1 | waypoints on the chart `{key:FlightMap}`, the autopilot `{key:FlightAutopilot}` | `ui:waypoint_set` | do | — |
+| c3.2 | scan a world before landing (its card) | `planet:scanned` | do | — |
+| c3.3 | the ship laser breaks asteroids, the tractor beam | `asteroid:destroyed` | do | `feasibleIf world:asteroid_mining`; absorbs `asteroid_near` |
+| c3.4 | walk inside the flying ship `{key:FlightEnterInterior}` | `interior:entered` | do | — |
+| c3.5 | a spacewalk through the hatch | `eva:started` | do | — |
+| c3.6 | target lock `{key:FlightTargetNext}` | — | read | `feasibleIf world:space_enemies` |
+| c3.7 | floating above the air | `player:zero_g` | react | absorbs `zero_g` |
+| c4.1 | dock at a station; marker `nearest_station` | `station:boarded` | do | `feasibleIf any:[docked, free_flight ∧ station_in_system]`, `alreadyDoneIf world:docked`; else **c4.1a** (read: settlements trade and give jobs too); `onComplete` `tut.first_dock` |
+| c4.2 | vendors have trades; researchers sell fragments | `trade:barter` | do | a station or a settlement in reach; absorbs `trader_near` |
+| c4.3 | the mission board; survey jobs pay knowledge | `mission:board_accepted` | do | same; `alreadyDoneIf world:job_active` |
+| c4.4 | undock `{key:Disembark}` | `station:left` | do | `feasibleIf world:docked` |
+| c4.5 | hand a job in where it was taken | `mission:turned_in` | do | `feasibleIf world:job_active` |
+| c5.1 | the planet map `{key:PlanetMap}`, markers, pings `{key:PingMarker}` | `marker:set` | do | — |
+| c5.2 | systems; map travel | `travel:landed` `quick` | do | `feasibleIf any:[free_flight, instant_travel]`; `instant_travel` variant |
+| c5.3 | a forge (no blueprint) | `craft:any` `forge` | do | `alreadyDoneIf world:forge_ready` |
+| c5.4 | lubricant at the forge | `craft:any` `refine_oil_lubricant\|refine_bio_lubricant` | do | — |
+| c5.5 | research the Radar Array | `research:any` `radar_array` | do | `alreadyDoneIf blueprint:radar_array` |
+| c5.6 | research the Jump Generator | `research:any` `jump_generator` | do | `alreadyDoneIf blueprint:jump_generator` |
+| c5.7 | fit the jump generator module | `module:built` `jump_generator` | do | `alreadyDoneIf world:jump_ready` |
+| c5.8 | hyperjump via the chart's Hyperspace tab | `hyperjump:any` | do | absorbs `jump_ready`; `onComplete` `tut.first_jump` |
+| c5.9 | wormholes are shortcuts | `wormhole:any` | do | `feasibleIf world:wormhole_known` |
+| c5.10 | wrecks and debris fields | `salvage:found` | do | `feasibleIf any:[space_wrecks, debris_fields]`; absorbs `wreck_signal`, `debris_signal` |
+
+Not taught here: C4.4 of the synthesis (a settlement's job chain, `chain_needs_1`) needs talking to people first — it belongs
+to C11 Neighbours (step 21) and can be added there by data. The client-only lessons `planet_card`, `target_lock` and
+`wormhole` stay client lessons (a course runs after the training, `ShipAiLine.TutorialActive` is off then).
 
 ### Cards (#2473)
 
@@ -254,7 +321,12 @@ Cards, not cinema: no card takes the camera, holds the world or freezes the cont
 | `b6.1.onComplete` | `tut.first_launch` | the first launch: a letterbox over the launch rise, "now or never" |
 | `b6.7.onComplete` | `tut.first_landing` | the first landing on a new world: the camera circles the ship, the world's name as the title (not for the stand-in `b6.7a`) |
 | `graduation.cutscene` | `tut.graduation` | the graduation: "★ Achievement · Graduate" and VEGA's closing line |
-| (deep dives, steps 18–21) | `tut.course` (template) | an accepted deep dive starts: "Short course" + its title |
+| every deep dive's `openCutscene` (#2479) | `tut.course` (template) | a course the player started: "Short course" + its title |
+| `c4.1.onComplete` (#2479) | `tut.first_dock` | the stations course's docking: "Docked" + the station's name, then what waits inside — after the station's loading veil (not "now or never") |
+| `c5.8.onComplete` (#2479) | `tut.first_jump` | the navigator course's first hyperjump: "New system" + its name on the warp-in, then "Unknown stars show “?” …" — now or never |
+
+A course shows at most two cards: its course card and at most one first (a test counts them). The basic training's budget
+(eight heavier moments) is untouched: the docking card lives in the stations course, not in b6.4.
 
 Each scene plays once per player (`story:tutorial:cut:<id>`, a template once per part, `tut.strip@b3`): "I know the game",
 a restart and a replayed part show no card again, and a client without cutscenes gets the lines only (the cards count as
@@ -268,7 +340,8 @@ and measures nothing unless a step listens (walk, jump, flight distance and the 
 
 `UiTutorialEvent { Id }` (client → server) reports a UI moment a step teaches: `vega_continue` (the VEGA panel's last page
 of a line read through), `menu_open` (the Tab menu opened), `codex_open` (`GameMenu.OpenWiki`), `map_open` (the Map tab or
-the flight chart), `waypoint_set` (a click on the flight chart) — the list is `GameEventKeys.UiEvents`. The server raises
+the flight chart), `waypoint_set` (a click on the flight chart), `progress_open` (#2479: the Achievements tab — `GameMenu`'s
+tab switch) — the list is `GameEventKeys.UiEvents`. The server raises
 `ui:<id>` on its event bus, where only an active step waiting for exactly that flag listens. A flag is **teaching only**:
 it never pays, never unlocks, never counts for the story, is never stored and never appears in a condition. Rate-limited
 (the client sends the same flag at most every 0.5 s, the server accepts it at most every 0.25 s); passes a held

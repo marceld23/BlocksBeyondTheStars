@@ -128,6 +128,7 @@ public sealed partial class GameServer
         _repo.SavePlayer(p);
         IndexSharedMarkers(p);
         BroadcastMarkersOn(loc);
+        RaiseGameEvent(session, Shared.Story.GameEventKeys.MarkerSet, Shared.Story.GameEventKeys.MarkerSetArg); // #2479: the navigator course
     }
 
     private void RemoveMarker(PlayerSession session, string id)
@@ -175,6 +176,7 @@ public sealed partial class GameServer
             ExpiresAt = _uptime + PingTtlSeconds,
         });
         BroadcastMarkersOn(loc);
+        RaiseGameEvent(session, Shared.Story.GameEventKeys.MarkerSet, Shared.Story.GameEventKeys.MarkerPingArg); // #2479: the navigator course
     }
 
     /// <summary>A ping the SERVER raises for a player (#1668): the spot it chose for something of theirs — the

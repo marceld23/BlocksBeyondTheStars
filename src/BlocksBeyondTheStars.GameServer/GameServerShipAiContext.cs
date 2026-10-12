@@ -334,6 +334,8 @@ public sealed partial class GameServer
             }
         }
 
+        session.VegaTipLive = seen; // #2479: the moment a deep dive is offered at (world:data_cache_near …), whatever the hints say
+
         // #2462 (B31): with the hints muted no tip goes out — each one counts its tellings in the save, so a tip sent to
         // a muted panel was spent unseen. The dwell bookkeeping above keeps running, so a tip whose situation still
         // holds speaks up once the hints are on again. A refused swing's tier-gate arming is dropped rather than kept

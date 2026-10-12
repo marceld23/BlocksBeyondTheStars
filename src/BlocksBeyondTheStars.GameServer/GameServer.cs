@@ -2320,6 +2320,7 @@ public sealed partial class GameServer
             {
                 if (above)
                 {
+                    RaiseGameEvent(session, GameEventKeys.PlayerZeroG); // #2479: the pilot course's react step — before the hint it absorbs
                     ShipAiHintOnce(session, "zero_g"); // first float above a planet: how to get back down (#2276)
                 }
                 else

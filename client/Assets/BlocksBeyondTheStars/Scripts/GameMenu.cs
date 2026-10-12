@@ -20,7 +20,8 @@ namespace BlocksBeyondTheStars.Client
         public ClientSettings Settings;   // for in-game character customization
         public PlayerAvatar Avatar;       // local avatar, recoloured live
 
-        private enum Tab { Inventory, Crafting, Tech, Ship, Map, Missions, Character, Alliances, Story, Companions, Photos }
+        // Values match CraftingTechShipUI.Mode (the uGUI screen passes its mode index through SwitchFromUi).
+        private enum Tab { Inventory, Crafting, Tech, Ship, Map, Missions, Character, Alliances, Story, Companions, Photos, Achievements }
 
         /// <summary>Which full-screen browser sub-screen (if any) replaces the tab view while the menu is open.
         /// The Wiki ("Codex") and Arcade are reached from buttons in the menu header.</summary>
@@ -280,6 +281,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network?.SendRequestCompanions(); // refresh the companion roster on open
                 Game?.MarkCompanionsSeen();            // clear the "new companion" badge
+            }
+            else if (tab == Tab.Achievements)
+            {
+                Game?.Network?.SendUiTutorialEvent(BlocksBeyondTheStars.Shared.Story.GameEventKeys.UiProgressOpenId); // #2479: the research course
             }
         }
 

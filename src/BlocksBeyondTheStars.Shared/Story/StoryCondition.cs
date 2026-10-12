@@ -677,6 +677,40 @@ public static class StoryWorldPredicates
     /// <summary>#2476: the world generates wrecks drifting in space (the world option is not off).</summary>
     public const string SpaceWrecks = "space_wrecks";
 
+    /// <summary>#2479: VEGA's tip check found a data cache within reach of the player in its last pass (the moment the
+    /// "Knowledge &amp; research" course is offered — read from the tips' own once-a-second sweep, no extra probe).</summary>
+    public const string DataCacheNear = "data_cache_near";
+
+    /// <summary>#2479: VEGA's tip check found the player digging a lot without knowing the terrain scanner in its last pass.</summary>
+    public const string ScannerUnknown = "scanner_unknown";
+
+    /// <summary>#2479: the player's active ship has a jump generator fitted.</summary>
+    public const string JumpReady = "jump_ready";
+
+    /// <summary>#2479: the player owns a DataQube game, or a data cube waits on their world.</summary>
+    public const string ArcadeReady = "arcade_ready";
+
+    /// <summary>#2479: a rune monument stands on the player's world whose runes they have not read yet.</summary>
+    public const string MonumentUnread = "monument_unread";
+
+    /// <summary>#2479: asteroids may be broken (the Asteroid destruction rule is not Off).</summary>
+    public const string AsteroidMining = "asteroid_mining";
+
+    /// <summary>#2479: the player is aboard a space station.</summary>
+    public const string Docked = "docked";
+
+    /// <summary>#2479: the player has a job from a mission board (or a settlement's job chain) in progress.</summary>
+    public const string JobActive = "job_active";
+
+    /// <summary>#2479: the player can refine — a forge crafted before or carried, or a refinery fitted to their ship.</summary>
+    public const string ForgeReady = "forge_ready";
+
+    /// <summary>#2479: a wormhole opens in a star system the player knows.</summary>
+    public const string WormholeKnown = "wormhole_known";
+
+    /// <summary>#2479: the world generates debris fields in space (the world option is not off).</summary>
+    public const string DebrisFields = "debris_fields";
+
     /// <summary>Every known predicate, in documentation order.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
@@ -685,5 +719,7 @@ public static class StoryWorldPredicates
         InstantTravel, ReturnToShip, StarterTeleporter, BaseVisitors, SpaceStations, StoryActive,
         FoodPlantsNear, TreesNear, ShapeBlockCarried, ResearchReady, AllBlueprints, NewWorldInSystem,
         FragmentsLeft, ObservatoryReachable, DerelictReachable, Settlements, Vaults, SpaceWrecks,
+        DataCacheNear, ScannerUnknown, JumpReady, ArcadeReady, MonumentUnread, AsteroidMining, Docked, JobActive,
+        ForgeReady, WormholeKnown, DebrisFields,
     };
 }

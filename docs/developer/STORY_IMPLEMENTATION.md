@@ -556,14 +556,29 @@ teaching verbs (the second block of the table); the deep dives add theirs with s
 | `flight:flown` | — (whole flight units) | the own ship flying (a pose jump over 60 units — a hyperjump, a warp, a fresh entry — never counts) — measured only while a step listens | `GameServerSpaceCombat.cs` (`ShipMove`) → `TutorialFlightEvents` |
 | `mission:board_accepted` | mission id | a job the player picked: a board's or a mission chain's (`MissionAcceptCountsAsTrade`, B58 — never a story character's errand) | `GameServerMissions.cs`, `GameServerMissionChains.cs` |
 | `visit:world` | body id | the first arrival on a planet, moon or asteroid (`visit:body` counts stations too) | `GameServer.cs` (`MarkArrivedOnBody`) |
+| **#2479 — the deep dives "Research" and "Flying"** | | | |
+| `minigame:played` | game key | a finished run of a DataQube game from the catalogue (a replay too; an abandoned run never) | `GameServerDataCubes.cs` (`HandleMinigameResult`) |
+| `gadget:used` | gadget item key | a gadget did its work (a refused or empty use raises nothing) | `GameServerGadgets.cs` (`HandleUseGadget`) |
+| `planet:scanned` | body id | a world's overview card read (the ship scanner on a planet, or the Map tab's planet scan) | `GameServerPlanetScan.cs` (`HandlePlanetScan`) |
+| `asteroid:destroyed` | — | the player's ship weapon broke an asteroid (a split counts) | `GameServerSpaceCombat.cs` (`FireWeapon`) |
+| `interior:entered` | — | stepped from the helm (or in from a spacewalk) into the floating ship's interior | `GameServerShipInterior.cs` (`EnterShipInterior`) |
+| `eva:started` | `hatch` \| `flight` | a spacewalk began: out through the hatch of the floating ship, or from the flight view | `GameServerShipInterior.cs` (`ReturnToFlight`), `GameServerSpaceCombat.cs` (`HandleSetEva`) |
+| `player:zero_g` | — | floated up above a planet's atmosphere line on foot (raised right before the `zero_g` hint it absorbs) | `GameServer.cs` (`UpdateAboveAtmosphere`) |
+| `station:left` | station id | undocked from a boarded station | `GameServerSpaceStations.cs` (`LeaveStation`) |
+| `marker:set` | `marker` \| `ping` | a planet-map marker set (or moved), or a spot pinged | `GameServerMarkers.cs` (`SetMarker`, `RaisePing`) |
+| `salvage:found` | `wreck` \| `debris` \| `capsule` | a derelict or debris field reached for the first time, or a salvage capsule emptied into the hold | `GameServerSpaceWrecks.cs` (`MarkSpaceWreckVisited`), `GameServerSpaceCombat.cs` (`StowDrop`) |
+
+Since #2479 the in-flight jump (`JumpFlightToSystem`) raises `hyperjump:any` after the warp-in's flight state and star map
+went out (it was raised before the warp), so a card a step plays for it lands on the warp-in like the finale's arrival card.
 
 **`ui:<id>` (client teaching flags, synthesis §3.6, #2469).** Tag **298 `UiTutorialEvent { Id }`** (C→S) reports a UI
-moment a step teaches — `vega_continue`, `menu_open`, `codex_open`, `map_open`, `waypoint_set` (`GameEventKeys.UiEvents`);
+moment a step teaches — `vega_continue`, `menu_open`, `codex_open`, `map_open`, `waypoint_set`, `progress_open` (#2479, the
+Achievements tab) (`GameEventKeys.UiEvents`);
 `HandleUiTutorialEvent` raises `ui:<id>` on the bus for a known id at most every 0.25 s of server time. Teaching only: no
 step but one waiting for exactly that flag listens, it pays nothing, unlocks nothing, counts for no story and is never
 stored; it is never a condition (the parser refuses `ui:`). Pause-whitelisted (`PausedMayHandle`). Clients:
 `NetworkClient.SendUiTutorialEvent` (the same flag at most every 0.5 s) from `VegaPanel` (a line read through),
-`GameMenu` (menu opened, Codex, Map tab) and `SpaceMap` (chart opened, waypoint set).
+`GameMenu` (menu opened, Codex, Map tab, Achievements tab) and `SpaceMap` (chart opened, waypoint set).
 
 **Conditions** (`Shared/Story/StoryCondition.cs`). One small grammar for a step's `requires` / `feasibleIf` /
 `alreadyDoneIf`, a chapter's `offerWhen`, a pack's `start.after` and its `gates`, parsed once at load by
@@ -597,8 +612,12 @@ probes of the loaded blocks around the player, run when a step activates), `shap
 `all_blueprints`, `new_world_in_system` (`GameServerTutorial.cs`); since #2476 the story missions' feasibility checks
 `fragments_left` (the world story still has an unfound fragment), `observatory_reachable` / `derelict_reachable` (the
 unique site exists in this save and the player can reach it — the lead's rule), `settlements`, `vaults`, `space_wrecks`
-(the world options are not off). A predicate reads the player's own body/system, never
-the active world cursor. A new predicate is a name in `StoryWorldPredicates` plus one line in `GameServer.WorldPredicates`.
+(the world options are not off); since #2479 the tutorial's deep dives: `data_cache_near` / `scanner_unknown` (the moment
+VEGA's 1 Hz tip pass found that situation for the player — `PlayerSession.VegaTipLive`, the candidate ids of the last pass,
+kept whatever the hints switch, the gates or the cooldowns say; no probe of its own), `jump_ready`, `arcade_ready`,
+`monument_unread`, `asteroid_mining`, `docked`, `job_active`, `forge_ready`, `wormhole_known`, `debris_fields`. A predicate
+reads the player's own body/system, never the active world cursor. A new predicate is a name in `StoryWorldPredicates` plus
+one line in `GameServer.WorldPredicates`.
 
 **The world-story guard (N11).** A pack carries `kind` (`story` default, `tutorial`, `side`) and `scope` (`world` |
 `player`; unset = `world` exactly when it has beats; a tutorial is always `player` — `StoryRegistry.EffectiveScope`).
@@ -644,7 +663,8 @@ shown"). The world story (VEGA) is not run here — its per-player track is step
 started it (`story:<pack>:ch:<c>:active` — the one key beyond §5.6, so a started deep dive survives a rejoin) and is
 **offered** once when `offerWhen` holds (`story:<pack>:ch:<c>:offered`, line `vega.chapter.offer` with the chapter title as
 `{0}`) — never while the pack's mandatory chapters still run (no offers during basic training), at most one offer per
-90 s of play; `declineChapter` stamps `:declined` ("Later") and keeps it startable. `autoCompleteIf` holding when a chapter
+90 s of play (since #2479 a graduation that suggests chapters counts as an offer moment: `Graduate` stamps
+`LastChapterOfferAt`); `declineChapter` stamps `:declined` ("Later") and keeps it startable. `autoCompleteIf` holding when a chapter
 runs completes it silently (veteran evidence; ignored during a replay). A non-optional chapter is **done** when every
 `must` do step is done or skipped and nothing still holds it up (a CORE step before its hint time, an alternative standing
 in); an optional chapter needs every do step. The pack is done (`story:<pack>:done`) when every non-optional chapter is.
@@ -782,7 +802,7 @@ unknown fields). The checks are listed in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#va
 | 295 | `CutscenePlay` | S→C | play a pack's cutscene (`PackId`, `CutsceneId`, `Arg`, `HasAnchor` + `AnchorX/Y/Z`, `Replay`); only to `cutscenes1` clients (#2467, [CUTSCENES.md](CUTSCENES.md)) |
 | 296 | `CutsceneSeenIntent` | C→S | the client is through with these scenes (`PackId`, `Ids[]`, `Skipped`, `Unsupported`) → the seen ledger; passes a held world (#2467) |
 | 297 | `StoryPackIntent` | C→S | the player's control of a player pack (track, opt out, start/skip/replay a chapter, skip a step) (#2466); `replayCutscene` + `CutsceneId` (#2467); `startPack` with the world story's id = "Start the story now" (#2470) |
-| 298 | `UiTutorialEvent` | C→S | a UI moment a tutorial step teaches (`Id`: `vega_continue`, `menu_open`, `codex_open`, `map_open`, `waypoint_set`) → `ui:<id>` on the event bus; teaching only, rate-limited, passes a held world (#2469) |
+| 298 | `UiTutorialEvent` | C→S | a UI moment a tutorial step teaches (`Id`: `vega_continue`, `menu_open`, `codex_open`, `map_open`, `waypoint_set`, `progress_open`) → `ui:<id>` on the event bus; teaching only, rate-limited, passes a held world (#2469) |
 | 299 | `ObjectiveList` | S→C | the player's objectives in the chip order, one row per story, at most `MaxItems` = 3, the chip's first: `NetObjective{Source, PackId, StepId, Key, Arg, Progress, Target, Pinned}`; only to `packs1` clients (#2471, "The Journal" below) |
 | 300 | `StoryPackStates` | S→C | the Journal's stories: `NetStoryPack{Id, Kind, Scope, NameKey, ShortNameKey, DescriptionKey, Enabled, Started, Done, OptedOut, Tracked, Startable, Blocked, MandatoryRunning, Badge, Chapters[], Steps[]}` + `TrackedPackId`, `TutorialPolicy`; only to `packs1` clients (#2471) |
 

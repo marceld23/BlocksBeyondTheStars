@@ -747,7 +747,7 @@ public sealed partial class GameServer
     public void LeaveStation(string playerId)
     {
         var session = FindSessionByPlayerId(playerId);
-        if (session is null || !_boardedStation.Remove(playerId))
+        if (session is null || !_boardedStation.Remove(playerId, out var leftStationId))
         {
             return;
         }
@@ -797,6 +797,7 @@ public sealed partial class GameServer
         }
 
         Send(session, new ServerMessage { Text = fromEva ? "@srv.station.back_outside" : "@srv.station.undocked" });
+        RaiseGameEvent(session, GameEventKeys.StationLeft, leftStationId); // #2479: the stations course's undock lesson
     }
 
     /// <summary>Tells the client that the body under the flight view is current again — the world the player just

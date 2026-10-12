@@ -197,6 +197,64 @@ public static class GameEventKeys
     /// Arg: the body id.</summary>
     public const string VisitWorld = "visit:world";
 
+    // ---- #2479: the deep dives "Research" and "Flying" (C2–C5; one line each at an existing handler) ----
+
+    /// <summary>A finished run of a DataQube game from the shipped catalogue (every completed run, a replay too — the
+    /// knowledge it pays is the handler's business). Arg: the game key.</summary>
+    public const string MinigamePlayed = "minigame:played";
+
+    /// <summary>A gadget did its work (the terrain scanner pulsed, the medkit healed …; a refused or empty use raises
+    /// nothing). Arg: the gadget's item key.</summary>
+    public const string GadgetUsed = "gadget:used";
+
+    /// <summary>A world's overview card was read — the ship scanner held on a planet, or the Map's planet scan. Arg: the body id.</summary>
+    public const string PlanetScanned = "planet:scanned";
+
+    /// <summary>The player's ship weapon broke an asteroid (a big one splits into smaller ones — that counts too).</summary>
+    public const string AsteroidDestroyed = "asteroid:destroyed";
+
+    /// <summary>The pilot stepped from the helm (or in from a spacewalk) into the ship's walkable interior in space.</summary>
+    public const string InteriorEntered = "interior:entered";
+
+    /// <summary>A spacewalk began. Arg: <see cref="EvaHatch"/> (out through the hatch of the floating ship) or
+    /// <see cref="EvaFlight"/> (from the flight view).</summary>
+    public const string EvaStarted = "eva:started";
+
+    /// <summary>The player floated up above a planet's atmosphere line on foot (raised right before VEGA's <c>zero_g</c> hint).</summary>
+    public const string PlayerZeroG = "player:zero_g";
+
+    /// <summary>The player undocked from a boarded station. Arg: the station id.</summary>
+    public const string StationLeft = "station:left";
+
+    /// <summary>A map marker was set (or moved) on a world, or a spot pinged. Arg: <see cref="MarkerSetArg"/> or
+    /// <see cref="MarkerPingArg"/>.</summary>
+    public const string MarkerSet = "marker:set";
+
+    /// <summary>Salvage in space: a derelict or a debris field reached for the first time, or a salvage capsule emptied into
+    /// the hold. Arg: <see cref="SalvageWreck"/>, <see cref="SalvageDebris"/> or <see cref="SalvageCapsule"/>.</summary>
+    public const string SalvageFound = "salvage:found";
+
+    /// <summary><see cref="EvaStarted"/> arg: out through the hatch of the ship floating in space.</summary>
+    public const string EvaHatch = "hatch";
+
+    /// <summary><see cref="EvaStarted"/> arg: started from the flight view.</summary>
+    public const string EvaFlight = "flight";
+
+    /// <summary><see cref="MarkerSet"/> arg: a marker set (or moved) on the planet map.</summary>
+    public const string MarkerSetArg = "marker";
+
+    /// <summary><see cref="MarkerSet"/> arg: a "look here!" ping.</summary>
+    public const string MarkerPingArg = "ping";
+
+    /// <summary><see cref="SalvageFound"/> arg: a derelict ship reached.</summary>
+    public const string SalvageWreck = "wreck";
+
+    /// <summary><see cref="SalvageFound"/> arg: a debris field reached.</summary>
+    public const string SalvageDebris = "debris";
+
+    /// <summary><see cref="SalvageFound"/> arg: a salvage capsule emptied into the hold.</summary>
+    public const string SalvageCapsule = "capsule";
+
     /// <summary><see cref="MoveJump"/> arg: a jump.</summary>
     public const string MoveJumpArg = "jump";
 
@@ -268,6 +326,9 @@ public static class GameEventKeys
     /// <summary>A waypoint was set on the flight chart.</summary>
     public const string UiWaypointSet = UiPrefix + UiWaypointSetId;
 
+    /// <summary>#2479: the Achievements tab (what you have done and what comes next) was opened.</summary>
+    public const string UiProgressOpen = UiPrefix + UiProgressOpenId;
+
     /// <summary>The id of <see cref="UiVegaContinue"/> on the wire (<c>UiTutorialEvent.Id</c>).</summary>
     public const string UiVegaContinueId = "vega_continue";
 
@@ -283,9 +344,12 @@ public static class GameEventKeys
     /// <summary>The id of <see cref="UiWaypointSet"/> on the wire.</summary>
     public const string UiWaypointSetId = "waypoint_set";
 
+    /// <summary>The id of <see cref="UiProgressOpen"/> on the wire (#2479).</summary>
+    public const string UiProgressOpenId = "progress_open";
+
     /// <summary>The teaching-flag ids a client reports (#2469). The server raises <c>ui:&lt;id&gt;</c> only for these; a pack
     /// step naming another <c>ui:</c> flag is reported by the validator (a warning — no client sends it).</summary>
-    public static readonly IReadOnlyList<string> UiEvents = new[] { UiVegaContinueId, UiMenuOpenId, UiCodexOpenId, UiMapOpenId, UiWaypointSetId };
+    public static readonly IReadOnlyList<string> UiEvents = new[] { UiVegaContinueId, UiMenuOpenId, UiCodexOpenId, UiMapOpenId, UiWaypointSetId, UiProgressOpenId };
 
     /// <summary>Whether <paramref name="key"/> is a client teaching flag (<see cref="UiPrefix"/>).</summary>
     public static bool IsUiEvent(string? key) => key is not null && key.StartsWith(UiPrefix, StringComparison.Ordinal);
@@ -334,6 +398,8 @@ public static class GameEventKeys
             MoveWalked, MoveJump, HotbarSelect, ItemGained, ItemMoved, GearEquipped, CargoStowed, InventoryFull,
             ShipReturned, LampToggled, SuitAutoFeed, SuitClimate, PlayerRespawned, MineRefused, DataFound, FlightFlown,
             MissionBoardAccepted, VisitWorld,
+            MinigamePlayed, GadgetUsed, PlanetScanned, AsteroidDestroyed, InteriorEntered, EvaStarted, PlayerZeroG,
+            StationLeft, MarkerSet, SalvageFound,
         };
         foreach (string circuitEvent in new[]
                  {

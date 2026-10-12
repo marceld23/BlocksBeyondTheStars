@@ -787,7 +787,12 @@ public sealed partial class GameServer
         {
             if (Rules.FreeSpaceFlight && InSpace(p.PlayerId))
             {
+                bool started = !p.InEva;
                 p.InEva = true;
+                if (started)
+                {
+                    RaiseGameEvent(session, GameEventKeys.EvaStarted, GameEventKeys.EvaFlight); // #2479: the spacewalk lesson
+                }
             }
         }
         else
@@ -1294,6 +1299,11 @@ public sealed partial class GameServer
             PayEntityLoot(instance, target, session);
         }
 
+        if (target.Kind == CombatEntityKind.Asteroid && session is not null)
+        {
+            RaiseGameEvent(session, GameEventKeys.AsteroidDestroyed); // #2479: the pilot course's asteroid lesson
+        }
+
         BroadcastToInstance(instance, new SpaceEntityDestroyed { Id = target.Id });
         BroadcastSpaceState(instance);
     }
@@ -1686,6 +1696,11 @@ public sealed partial class GameServer
             instance.Entities.Remove(drop);
             if (drop.Kind == CombatEntityKind.SalvageCapsule)
             {
+                if (collector is not null)
+                {
+                    RaiseGameEvent(collector, GameEventKeys.SalvageFound, GameEventKeys.SalvageCapsule); // #2479: the salvage lesson
+                }
+
                 OnSalvageCapsuleCollected(drop); // #2354: paid once per galaxy
             }
         }
@@ -2963,7 +2978,6 @@ public sealed partial class GameServer
         session.State.InEva = false;
         OnAchievementHyperjump(session);        // "Jump Pilot" (#1102)
         RecordStoryMilestone("hyperjump:first"); // the save's first jump between stars advances the arc (#1105)
-        RaiseGameEvent(session, GameEventKeys.HyperjumpAny, system.Id); // #2465
         MarkSystemKnown(session, system.Id); // its bodies + mini map are now revealed on the travel screen
 
         // Finale (P6): remember the world we jumped FROM so a death in the boss arena returns us there (no loop).
@@ -2979,6 +2993,10 @@ public sealed partial class GameServer
 
         EnterSpace(playerId, skipLaunch: true, hyperjump: true); // warp in; a parked ship took off before (#1614)
         SendStarMap(session); // refresh the travel screen with the now-known system
+
+        // #2465; #2479: raised once the flight state of the new system went out, so a card a step plays for it (the
+        // navigator course's "New system", tut.first_jump) lands on the warp-in — like the finale's arrival card below.
+        RaiseGameEvent(session, GameEventKeys.HyperjumpAny, system.Id);
 
         // #2478: the finale's arrival card — once per player, while the core still waits (the flight state went out first,
         // so the card lands on the warp-in).

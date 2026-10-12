@@ -198,8 +198,10 @@ public sealed class TutorialPackTests : IDisposable
         Assert.Equal(StoryRegistry.KindTutorial, pack.Kind);
         Assert.Equal(StoryRegistry.ScopePlayer, StoryRegistry.EffectiveScope(pack));
         Assert.Equal(100, pack.Priority);
-        Assert.Equal(new[] { "b1", "b2", "b3", "b4", "b5", "b6" }, pack.Chapters.Select(c => c.Id).ToArray());
-        Assert.All(pack.Chapters, c => Assert.False(c.Optional));
+        // #2479: the six parts of the basic training, then the deep dives (optional chapters).
+        Assert.Equal(new[] { "b1", "b2", "b3", "b4", "b5", "b6" }, pack.Chapters.Where(c => !c.Optional).Select(c => c.Id).ToArray());
+        Assert.All(pack.Chapters.Where(c => c.Id.StartsWith("b", StringComparison.Ordinal)), c => Assert.False(c.Optional));
+        Assert.All(pack.Chapters.Where(c => c.Id.StartsWith("c", StringComparison.Ordinal)), c => Assert.True(c.Optional));
         Assert.All(pack.Chapters.SelectMany(c => c.Steps), s => Assert.StartsWith(s.Id.Substring(0, 2) + ".", s.Id)); // b3.2 sits in b3
         Assert.All(pack.Chapters, c => Assert.All(c.Steps, s => Assert.StartsWith(c.Id + ".", s.Id)));
 
@@ -212,7 +214,7 @@ public sealed class TutorialPackTests : IDisposable
         Assert.Equal(600, pack.Escalate.OfferSkipAfter);
         Assert.Equal("story.tutorial.graduated", pack.Graduation.LineKey);
         Assert.Contains(_content.Achievements, a => a.Key == "graduate" && a.Counter == pack.Graduation.Counter && a.Rewards.Count == 0);
-        Assert.Empty(pack.Graduation.Suggest); // the deep-dive chapters come with steps 18–21 — no dangling ids
+        Assert.Equal(new[] { "c3", "c4" }, pack.Graduation.Suggest); // #2479: the flight courses (the workshop course joins later)
     }
 
     [Fact]
@@ -368,7 +370,7 @@ public sealed class TutorialPackTests : IDisposable
         Deliver(server, p, new StoryPackIntent { PackId = Tutorial, Action = StoryPackActions.SkipPack });
 
         Assert.True(Has(p, StoryPackKeys.Done(Tutorial)));
-        Assert.All(Pack.Chapters, c => Assert.True(Has(p, StoryPackKeys.ChapterSkipped(Tutorial, c.Id))));
+        Assert.All(Pack.Chapters.Where(c => !c.Optional), c => Assert.True(Has(p, StoryPackKeys.ChapterSkipped(Tutorial, c.Id))));
         Assert.DoesNotContain("story.tutorial.graduated", transport.LineKeys(p));
         Assert.DoesNotContain("graduate", p.State.Achievements);
         Assert.True(server.TutorialGateForTest(p, StoryGateNames.Banter));
@@ -554,7 +556,7 @@ public sealed class TutorialPackTests : IDisposable
         var p = Join(server, 1, "Done");
 
         Assert.True(Has(p, StoryPackKeys.Done(Tutorial)));
-        Assert.All(Pack.Chapters, c => Assert.True(Has(p, StoryPackKeys.ChapterDone(Tutorial, c.Id))));
+        Assert.All(Pack.Chapters.Where(c => !c.Optional), c => Assert.True(Has(p, StoryPackKeys.ChapterDone(Tutorial, c.Id))));
         Assert.Null(server.ChipStepForTest(p, Tutorial));
         Assert.DoesNotContain(transport.LineKeys(p), k => k.StartsWith("story.tutorial.b", StringComparison.Ordinal));
         Assert.DoesNotContain("story.tutorial.graduated", transport.LineKeys(p));

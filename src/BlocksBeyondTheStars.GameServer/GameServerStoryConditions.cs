@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Configuration;
+using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 
@@ -68,7 +70,36 @@ public sealed partial class GameServer
         [StoryWorldPredicates.Settlements] = _ => _meta.Description.Settlements != Frequency.Off,
         [StoryWorldPredicates.Vaults] = _ => _meta.Description.Vaults != Frequency.Off,
         [StoryWorldPredicates.SpaceWrecks] = _ => _meta.Description.Wrecks != Frequency.Off,
+
+        // #2479: the tutorial's deep dives (C2–C5) — their offers at the moment of need (VEGA's own tip pass, no extra
+        // probe) and the feasibility of their steps.
+        [StoryWorldPredicates.DataCacheNear] = s => s.VegaTipLive.Contains("data_cache_near"),
+        [StoryWorldPredicates.ScannerUnknown] = s => s.VegaTipLive.Contains("scanner_unknown"),
+        [StoryWorldPredicates.JumpReady] = s => s.Ships.TryGetValue(s.ActiveShipId, out var ship) && ship.HasModule("jump_generator"),
+        [StoryWorldPredicates.ArcadeReady] = s => s.State.UnlockedGames.Count > 0 || _worlds.Find(s.CurrentLocationId)?.DataCubes.Count > 0,
+        [StoryWorldPredicates.MonumentUnread] = s => _worlds.Find(s.CurrentLocationId) is { } world && UnreadMonument(s, world) is not null,
+        [StoryWorldPredicates.AsteroidMining] = _ => Rules.AsteroidDestruction != AsteroidDestructionMode.Off,
+        [StoryWorldPredicates.Docked] = s => InStation(s.State.PlayerId),
+        [StoryWorldPredicates.JobActive] = s => s.State.Missions.Any(m => m.Status == MissionStatus.Active
+                                                                         && GetMissionDef(m.MissionId) is { } def && MissionAcceptCountsAsTrade(def)),
+        [StoryWorldPredicates.ForgeReady] = ForgeReady,
+        [StoryWorldPredicates.WormholeKnown] = s => _galaxy is not null
+                                                    && _galaxy.Wormholes.Any(w => !IsStoryLockedSystem(w.SystemId) && s.State.KnownSystems.Contains(w.SystemId)),
+        [StoryWorldPredicates.DebrisFields] = _ => _meta.Description.DebrisFields != Frequency.Off,
     };
+
+    /// <summary><c>world:forge_ready</c> (#2479): the player can refine — they crafted a forge before (the achievement
+    /// counter), carry one (backpack or the ship's hold), or their ship has the refinery module.</summary>
+    private bool ForgeReady(PlayerSession who)
+    {
+        var p = who.State;
+        if ((p.AchievementCounters.TryGetValue(AchievementCounters.Craft("forge"), out int crafted) && crafted > 0) || p.Inventory.Has("forge", 1))
+        {
+            return true;
+        }
+
+        return who.Ships.TryGetValue(who.ActiveShipId, out var ship) && (ship.HasModule("refinery") || ship.Cargo.Has("forge", 1));
+    }
 
     /// <summary>The names the server can evaluate — what the pack loader passes to <see cref="StoryConditionParser"/>.</summary>
     internal IReadOnlyCollection<string> WorldPredicateNames => WorldPredicates.Keys;

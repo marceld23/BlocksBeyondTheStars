@@ -213,11 +213,11 @@ public sealed class TutorialCardsTests : IDisposable
     public void TheCards_UseTheBindingIds_AndTheTiersOfSynthesis64()
     {
         var ids = Pack.Cutscenes.Select(c => c.Id).ToList();
-        Assert.Equal(new[] { "tut.welcome", "tut.strip", "tut.done", "tut.course", "tut.first_launch", "tut.first_landing", "tut.graduation" }, ids);
+        Assert.Equal(new[] { "tut.welcome", "tut.strip", "tut.done", "tut.course", "tut.first_launch", "tut.first_dock", "tut.first_landing", "tut.first_jump", "tut.graduation" }, ids);
         Assert.All(ids, id => Assert.Contains(id, StoryCutsceneIds.Tutorial));
-        foreach (string later in new[] { "tut.first_dock", "tut.first_jump", "tut.first_base", "tut.ship_commissioned", "tut.first_circuit", "tut.first_tame" })
+        foreach (string later in new[] { "tut.first_base", "tut.ship_commissioned", "tut.first_circuit", "tut.first_tame" })
         {
-            Assert.Null(Pack.FindCutscene(later)); // they come with their chapters (steps 18–21)
+            Assert.Null(Pack.FindCutscene(later)); // they come with their chapters (the later deep dives)
         }
 
         Assert.Equal((CutsceneTiers.Card, false), (Card("tut.welcome").Tier, Card("tut.welcome").Template));
@@ -277,7 +277,8 @@ public sealed class TutorialCardsTests : IDisposable
     public void TheBindings_PutACardOnEveryPart_AndTheFirstsOnTheirSteps()
     {
         Assert.Equal(string.Empty, Pack.IntroCutscene); // the welcome is part 1's opener: a migrated player who starts later gets that part's card
-        Assert.Equal(new[] { "tut.welcome", "tut.strip", "tut.strip", "tut.strip", "tut.strip", "tut.strip" }, Pack.Chapters.Select(c => c.OpenCutscene));
+        Assert.Equal(new[] { "tut.welcome", "tut.strip", "tut.strip", "tut.strip", "tut.strip", "tut.strip" }, Pack.Chapters.Where(c => !c.Optional).Select(c => c.OpenCutscene));
+        Assert.All(Pack.Chapters.Where(c => c.Optional), c => Assert.Equal("tut.course", c.OpenCutscene)); // #2479: every deep dive
         Assert.All(Pack.Chapters, c => Assert.Equal("tut.done", c.CloseCutscene));
         Assert.Equal("tut.first_launch", StepDef("b6.1").OnComplete.Cutscene);
         Assert.Equal("tut.first_landing", StepDef("b6.7").OnComplete.Cutscene);
@@ -580,7 +581,7 @@ public sealed class TutorialCardsTests : IDisposable
         // The owner a template previews as: the first chapter that binds it, else the first chapter.
         Assert.Equal("b2", CutsceneArgs.DefaultOwner(Pack, Card("tut.strip")));
         Assert.Equal("b1", CutsceneArgs.DefaultOwner(Pack, Card("tut.done")));
-        Assert.Equal("b1", CutsceneArgs.DefaultOwner(Pack, Card("tut.course"))); // bound by the deep dives later
+        Assert.Equal("c2", CutsceneArgs.DefaultOwner(Pack, Card("tut.course"))); // #2479: the first deep dive that binds it
     }
 
     [Fact]

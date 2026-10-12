@@ -434,7 +434,8 @@ public sealed class CutsceneContentTests
         Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("vega_protocol/prologue"))));
         // #2469: the tutorial pack is installed, so a chain to one of its scenes must resolve — #2473 added its cards.
         Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("tutorial/tut.welcome"))));
-        AssertError(Probe(c => c.Options.ChainNext.Add("tutorial/tut.first_dock")), "has no cutscene 'tut.first_dock'"); // step 18
+        Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("tutorial/tut.first_dock")))); // #2479 added the flight courses' cards
+        AssertError(Probe(c => c.Options.ChainNext.Add("tutorial/tut.first_base")), "has no cutscene 'tut.first_base'"); // the base-building course's card comes later
         AssertWarning(Probe(c => c.Options.ChainNext.Add("side_story/intro")), "not installed");
     }
 

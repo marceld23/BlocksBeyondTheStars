@@ -10,8 +10,12 @@
   // tut.strip       — template: the opener of parts 2–6, "Basic training · Part n of 6" + the part's title ({0} = the title,
   //                   {1}/{2} = place and count, CutsceneArgs). A card still waiting when its part is over is dropped.
   // tut.done        — template: the closer of every part, a short banner "Part complete!" + the part's title.
-  // tut.course      — template: the opener of an accepted deep-dive chapter (bound by the deep dives, steps 18–21).
+  // tut.course      — template: the opener of an accepted deep-dive chapter, "Short course" + its title (c2–c5 since #2479).
   // tut.first_launch  — the first launch (b6.1 done): a letterbox over the launch rise, the camera untouched; now or never.
+  // tut.first_dock  — #2479: the stations course's docking (c4.1 done): "Docked" + the station's name ("arg": "body"), then
+  //                   what waits inside. It waits for the station's loading veil, so it is no "now or never".
+  // tut.first_jump  — #2479: the navigator course's first hyperjump (c5.8 done): "New system" + its name ("arg": "system"),
+  //                   on the warp-in like the finale's arrival card (the title after the warp); now or never.
   // tut.first_landing — the first landing on a new world (b6.7 done): the camera circles the ship, the world's name as the
   //                   title ({0} = the body, "arg": "body"); a singleplayer world holds while the camera is away.
   // tut.graduation  — the graduation: the achievement, then VEGA's closing line in her speaker box; chains to VEGA's recap
@@ -91,6 +95,23 @@
       "options": { "cooldownExempt": true }
     },
     {
+      "id": "tut.first_dock",
+      "tier": 2,
+      "arg": "body",
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 4,
+          "captions": [ { "style": "title_card", "kickerKey": "story.tutorial.cut.dock.kicker", "key": "story.tutorial.cut.title_arg", "at": 0.3 } ]
+        },
+        {
+          "camera": { "type": "player_view" },
+          "duration": 4,
+          "captions": [ { "style": "title_card", "key": "story.tutorial.cut.dock.inside" } ]
+        }
+      ]
+    },
+    {
       "id": "tut.first_landing",
       "tier": 3,
       "arg": "body",
@@ -107,6 +128,24 @@
         }
       ],
       "options": { "chainNext": [ "tut.graduation" ] }
+    },
+    {
+      "id": "tut.first_jump",
+      "tier": 2,
+      "arg": "system",
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 6.5,
+          "captions": [ { "style": "title_card", "kickerKey": "story.tutorial.cut.jump.kicker", "key": "story.tutorial.cut.title_arg", "at": 2.8 } ]
+        },
+        {
+          "camera": { "type": "player_view" },
+          "duration": 4,
+          "captions": [ { "style": "title_card", "key": "story.tutorial.cut.jump.unknown" } ]
+        }
+      ],
+      "options": { "cooldownExempt": true }
     },
     {
       "id": "tut.graduation",

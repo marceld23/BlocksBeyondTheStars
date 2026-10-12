@@ -1108,9 +1108,12 @@ public sealed partial class GameServer
                 && !ChapterDoneOrSkipped(s, suggested)
                 && !m.Contains(StoryPackKeys.ChapterDeclined(pack.Id, suggested.Id))
                 && !m.Contains(StoryPackKeys.ChapterActive(pack.Id, suggested.Id))
-                && EvaluateStoryCondition(suggested.Requires, s))
+                && EvaluateStoryCondition(suggested.Requires, s)
+                && m.Add(StoryPackKeys.ChapterOffered(pack.Id, suggested.Id)))
             {
-                m.Add(StoryPackKeys.ChapterOffered(pack.Id, suggested.Id));
+                // #2479: the suggestions are this moment's offer — the next deep dive VEGA offers by itself (a data cache in
+                // reach …) waits the usual gap, so the graduation's cards and lines are not followed by an offer line at once.
+                s.LastChapterOfferAt = s.StoryPackPlaySeconds;
             }
         }
 

@@ -316,7 +316,30 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   `ui.finale.duel_resume`. Tests: `VegaFinaleSetPiecesTests` (16), Client.Tests `FinaleSetPiecesClientTests`; updated
   `CutsceneContentTests`, `VegaChapterScenesTests`, `VegaStoryPackTests`, `StoryPackLoadTests`. Docs: CUTSCENES (VEGA's
   finale), STORY_IMPLEMENTATION (finale flow), USER_MANUAL (finale scenes, duel buttons).
-- ⬜ Steps 18–21 — tutorial deep-dive chapters (#2479, #2480, #2481, #2482)
+- ✅ **Step 18 — tutorial deep dives "Research" and "Flying": C2 Knowledge and research, C3 Pilot, C4 Stations, trade
+  and jobs, C5 Navigator (#2479)**, 2026-10-12 (needs the local Unity build — one edited file, `GameMenu.cs`: the
+  Achievements tab reports `progress_open`): four optional chapters of the tutorial pack (29 steps + 2 stand-ins, §3.4) with
+  their prerequisites (C5 after C3; C3 needs free flight), offered at the moment of need (C2 when VEGA's tip pass finds a
+  data cache in reach or digging without the terrain scanner, C5 once C3 is through) or suggested at the graduation (C3,
+  C4 — the third place stays for C1); offers never during the training and at least 90 s apart (the graduation counts as
+  one); "Later" keeps a course startable. Every step is a real handler: ten new verbs (`minigame:played`, `gadget:used`,
+  `planet:scanned`, `asteroid:destroyed`, `interior:entered`, `eva:started`, `player:zero_g`, `station:left`,
+  `marker:set`, `salvage:found`), the UI flag `progress_open`, eleven new `world:` predicates (`data_cache_near`,
+  `scanner_unknown`, `jump_ready`, `arcade_ready`, `monument_unread`, `asteroid_mining`, `docked`, `job_active`,
+  `forge_ready`, `wormhole_known`, `debris_fields`); world rules skip a step or put a stand-in in (no blueprint → the
+  scanner read step, no station → the settlement, no wormholes/wrecks/space combat → skipped), evidence ticks a known
+  forge, blueprint or jump drive off. Cards: `tut.course` bound to every course; new `tut.first_dock` (the docking of C4)
+  and `tut.first_jump` (the first hyperjump, on the warp-in — `hyperjump:any` is raised after the flight state now);
+  hintRefs absorb `data_cache_near`, `blueprint_affordable`, `scanner_idle/_unknown`, `asteroid_near`, `zero_g`,
+  `trader_near`, `jump_ready`, `wreck_signal`, `debris_signal`. The graduation line now points at the Journal's courses.
+  Keys en+de: 92 new pack keys `story.tutorial.c2…c5.*`, `story.tutorial.ch.c2…c5(.sum)`, `story.tutorial.cut.dock.*`,
+  `story.tutorial.cut.jump.*`; core `ui.vega.act.FlightEnterInterior|Disembark|PingMarker`. Tests: `TutorialDeepDivesTests`
+  (19: shape, offers, the Journal path, every verb by its handler, a real-handler walk per course incl. docking, the market,
+  a board job taken and handed in, the ship scanner, an asteroid, the interior and a spacewalk, a hyperjump with a fitted
+  jump generator, the world-rule variants), Client.Tests `TutorialDeepDivesClientTests` (the Journal's buttons from a real
+  client); updated `TutorialPackTests`, `TutorialCardsTests`, `CutsceneContentTests`. Docs: TUTORIAL_PACK (the courses),
+  CUTSCENES (the two firsts), STORY_IMPLEMENTATION (events, predicates, offers), USER_MANUAL (short courses).
+- ⬜ Steps 19–21 — tutorial deep-dive chapters C1 and C6–C18 (#2480, #2481, #2482)
 - ⬜ Step 22 — side-story test pack + authoring guide (#2483)
 - Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text (it asked for a
   hyperjump) and lack `story.obj.help_peaceful` — the translation pass at the end of the package covers both.

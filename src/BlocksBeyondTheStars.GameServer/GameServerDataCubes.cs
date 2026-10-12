@@ -227,6 +227,8 @@ public sealed partial class GameServer
             return;
         }
 
+        RaiseGameEvent(session, Shared.Story.GameEventKeys.MinigamePlayed, key); // #2479: the research course's DataQube lesson
+
         var milestones = session.State.Milestones;
         int rank = ArcadeGameRank(milestones, key);
         if (rank == 0)

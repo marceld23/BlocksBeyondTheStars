@@ -6,6 +6,10 @@
   // older builds (and the evidence the one-time migration reads). The cards (#2473, cutscenes.json): every part opens with a
   // card (b1 the welcome, b2–b6 the part card tut.strip, which carries "Part n of 6") and closes with a banner (tut.done);
   // the first launch (b6.1) and the first landing on a new world (b6.7) get a short scene, the graduation its own card.
+  // The deep dives (#2479, synthesis §3.4) follow the basic training as optional chapters c2–c5: offered at the moment of
+  // need (a data cache in reach, C3 done) or suggested at the graduation, started from the Journal, each opening with the
+  // "Short course" card (tut.course) and closing with the part banner; docking (c4.1) and the first hyperjump (c5.8) get
+  // their own card. Every do step of a deep dive counts; world rules skip a step or put its stand-in in.
   "id": "tutorial",
   "kind": "tutorial",
   "scope": "player",
@@ -23,7 +27,9 @@
   "graduation": {
     "lineKey": "story.tutorial.graduated",
     "counter": "tutorial:graduated",
-    "suggest": [],
+    // #2479: the two flight courses; the third place is free for the workshop course (C1, step 19). C2 and C5 come with
+    // their own moments (a data cache in reach, the pilot course done).
+    "suggest": [ "c3", "c4" ],
     "cutscene": "tut.graduation"
   },
   "chapters": [
@@ -336,6 +342,252 @@
             { "when": "world:instant_travel", "startKey": "story.tutorial.b6.home.start_instant" }
           ],
           "explain": { "startKey": "story.tutorial.b6.home.start", "chipKey": "story.tutorial.b6.home.chip" }
+        }
+      ]
+    },
+    {
+      // C2 Knowledge and research (part "Research"): offered when VEGA's tip pass finds a data cache in reach or the
+      // player digging without the terrain scanner.
+      "id": "c2",
+      "titleKey": "story.tutorial.ch.c2",
+      "summaryKey": "story.tutorial.ch.c2.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b5" ],
+      "offerWhen": [ "any:[world:data_cache_near,world:scanner_unknown]" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c2.1", "kind": "do", "tier": "core",
+          "objective": { "event": "scan:any", "arg": "flora|tree|creature|block", "required": 3 },
+          "explain": { "startKey": "story.tutorial.c2.kinds.start", "chipKey": "story.tutorial.c2.kinds.chip", "hintKey": "story.tutorial.c2.kinds.hint", "moreGuide": "knowledge" }
+        },
+        {
+          "id": "c2.2", "kind": "do", "tier": "core",
+          "objective": { "event": "mine:any", "arg": "data_cache" },
+          "hintRefs": [ "data_cache_near" ],
+          "onStart": { "reveal": "nearest_ore:data_cache" },
+          "explain": { "startKey": "story.tutorial.c2.cache.start", "chipKey": "story.tutorial.c2.cache.chip", "hintKey": "story.tutorial.c2.cache.hint", "moreGuide": "knowledge" }
+        },
+        {
+          // The research tab and what a blueprint costs (the issue's "blueprint costs"); nothing to research where all is handed out.
+          "id": "c2.3", "kind": "do", "tier": "core",
+          "objective": { "event": "research:any" },
+          "feasibleIf": [ "not:world:all_blueprints" ],
+          "hintRefs": [ "blueprint_affordable" ],
+          "explain": { "startKey": "story.tutorial.c2.costs.start", "chipKey": "story.tutorial.c2.costs.chip", "hintKey": "story.tutorial.c2.costs.hint", "moreGuide": "knowledge" }
+        },
+        {
+          "id": "c2.4", "kind": "do", "tier": "opt",
+          "objective": { "event": "minigame:played" },
+          "feasibleIf": [ "world:arcade_ready" ],
+          "explain": { "startKey": "story.tutorial.c2.cube.start", "chipKey": "story.tutorial.c2.cube.chip", "hintKey": "story.tutorial.c2.cube.hint", "moreGuide": "arcade" }
+        },
+        {
+          "id": "c2.5", "kind": "do", "tier": "opt",
+          "objective": { "event": "scan:any", "arg": "monument" },
+          "feasibleIf": [ "world:monument_unread" ],
+          "explain": { "startKey": "story.tutorial.c2.runes.start", "chipKey": "story.tutorial.c2.runes.chip", "hintKey": "story.tutorial.c2.runes.hint", "moreGuide": "monuments" }
+        },
+        {
+          // The terrain scanner needs titanium plates; until the player owns its blueprint the read stand-in names it.
+          "id": "c2.6", "kind": "do", "tier": "core",
+          "objective": { "event": "gadget:used", "arg": "terrain_scanner" },
+          "feasibleIf": [ "blueprint:terrain_scanner" ],
+          "alternative": "c2.6a",
+          "hintRefs": [ "scanner_idle", "scanner_unknown" ],
+          "explain": { "startKey": "story.tutorial.c2.scanner.start", "chipKey": "story.tutorial.c2.scanner.chip", "hintKey": "story.tutorial.c2.scanner.hint", "moreGuide": "prospecting" }
+        },
+        {
+          "id": "c2.6a", "kind": "read", "tier": "core",
+          "hintRefs": [ "scanner_unknown" ],
+          "explain": { "startKey": "story.tutorial.c2.scanner.start_later", "moreGuide": "prospecting" }
+        },
+        {
+          "id": "c2.7", "kind": "do", "tier": "opt",
+          "objective": { "event": "ui:progress_open" },
+          "explain": { "startKey": "story.tutorial.c2.progress.start", "chipKey": "story.tutorial.c2.progress.chip" }
+        }
+      ]
+    },
+    {
+      // C3 Pilot (part "Flying"): suggested at the graduation; needs free flight.
+      "id": "c3",
+      "titleKey": "story.tutorial.ch.c3",
+      "summaryKey": "story.tutorial.ch.c3.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b6", "world:free_flight" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c3.1", "kind": "do", "tier": "core",
+          "objective": { "event": "ui:waypoint_set" },
+          "explain": { "startKey": "story.tutorial.c3.waypoint.start", "chipKey": "story.tutorial.c3.waypoint.chip", "hintKey": "story.tutorial.c3.waypoint.hint", "moreGuide": "travel" }
+        },
+        {
+          "id": "c3.2", "kind": "do", "tier": "core",
+          "objective": { "event": "planet:scanned" },
+          "explain": { "startKey": "story.tutorial.c3.planet.start", "chipKey": "story.tutorial.c3.planet.chip", "hintKey": "story.tutorial.c3.planet.hint", "moreGuide": "scanner" }
+        },
+        {
+          "id": "c3.3", "kind": "do", "tier": "core",
+          "objective": { "event": "asteroid:destroyed" },
+          "feasibleIf": [ "world:asteroid_mining" ],
+          "hintRefs": [ "asteroid_near" ],
+          "explain": { "startKey": "story.tutorial.c3.asteroid.start", "chipKey": "story.tutorial.c3.asteroid.chip", "hintKey": "story.tutorial.c3.asteroid.hint" }
+        },
+        {
+          "id": "c3.4", "kind": "do", "tier": "core",
+          "objective": { "event": "interior:entered" },
+          "explain": { "startKey": "story.tutorial.c3.inside.start", "chipKey": "story.tutorial.c3.inside.chip", "moreGuide": "ships-modules" }
+        },
+        {
+          "id": "c3.5", "kind": "do", "tier": "core",
+          "objective": { "event": "eva:started" },
+          "explain": { "startKey": "story.tutorial.c3.eva.start", "chipKey": "story.tutorial.c3.eva.chip", "hintKey": "story.tutorial.c3.eva.hint" }
+        },
+        {
+          // Target lock only matters where something shoots back.
+          "id": "c3.6", "kind": "read", "tier": "opt",
+          "feasibleIf": [ "world:space_enemies" ],
+          "explain": { "startKey": "story.tutorial.c3.target.start", "moreGuide": "combat" }
+        },
+        {
+          "id": "c3.7", "kind": "react", "tier": "core",
+          "objective": { "event": "player:zero_g" },
+          "hintRefs": [ "zero_g" ],
+          "explain": { "startKey": "story.tutorial.c3.zero_g.start" }
+        }
+      ]
+    },
+    {
+      // C4 Stations, trade and jobs (part "Flying"): suggested at the graduation. Without a station in reach the
+      // settlements serve (their vendors and boards); the undock step only for a player who is docked.
+      "id": "c4",
+      "titleKey": "story.tutorial.ch.c4",
+      "summaryKey": "story.tutorial.ch.c4.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:b6" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c4.1", "kind": "do", "tier": "core",
+          "objective": { "event": "station:boarded" },
+          "feasibleIf": [ "any:[world:docked,all:[world:free_flight,world:station_in_system]]" ],
+          "alreadyDoneIf": [ "world:docked" ],
+          "alternative": "c4.1a",
+          "onStart": { "reveal": "nearest_station" },
+          "onComplete": { "cutscene": "tut.first_dock" },
+          "explain": { "startKey": "story.tutorial.c4.dock.start", "chipKey": "story.tutorial.c4.dock.chip", "hintKey": "story.tutorial.c4.dock.hint", "moreGuide": "stations" }
+        },
+        {
+          "id": "c4.1a", "kind": "read", "tier": "core",
+          "explain": { "startKey": "story.tutorial.c4.dock.start_settlement", "moreGuide": "settlements" }
+        },
+        {
+          "id": "c4.2", "kind": "do", "tier": "core",
+          "objective": { "event": "trade:barter" },
+          "feasibleIf": [ "any:[world:docked,all:[world:free_flight,world:station_in_system],world:settlement_reachable]" ],
+          "hintRefs": [ "trader_near" ],
+          "explain": { "startKey": "story.tutorial.c4.market.start", "chipKey": "story.tutorial.c4.market.chip", "hintKey": "story.tutorial.c4.market.hint", "moreGuide": "trading" }
+        },
+        {
+          "id": "c4.3", "kind": "do", "tier": "core",
+          "objective": { "event": "mission:board_accepted" },
+          "feasibleIf": [ "any:[world:docked,all:[world:free_flight,world:station_in_system],world:settlement_reachable]" ],
+          "alreadyDoneIf": [ "world:job_active" ],
+          "explain": { "startKey": "story.tutorial.c4.job.start", "chipKey": "story.tutorial.c4.job.chip", "hintKey": "story.tutorial.c4.job.hint", "moreGuide": "missions" }
+        },
+        {
+          "id": "c4.4", "kind": "do", "tier": "core",
+          "objective": { "event": "station:left" },
+          "feasibleIf": [ "world:docked" ],
+          "explain": { "startKey": "story.tutorial.c4.undock.start", "chipKey": "story.tutorial.c4.undock.chip" }
+        },
+        {
+          "id": "c4.5", "kind": "do", "tier": "core",
+          "objective": { "event": "mission:turned_in" },
+          "feasibleIf": [ "world:job_active" ],
+          "explain": { "startKey": "story.tutorial.c4.turnin.start", "chipKey": "story.tutorial.c4.turnin.chip", "hintKey": "story.tutorial.c4.turnin.hint", "moreGuide": "missions" }
+        }
+      ]
+    },
+    {
+      // C5 Navigator (part "Flying"): needs the pilot course and is offered when it is through (or a jump drive is
+      // fitted). The forge it needs for the lubricant is its own step (no blueprint) — evidence skips it.
+      "id": "c5",
+      "titleKey": "story.tutorial.ch.c5",
+      "summaryKey": "story.tutorial.ch.c5.sum",
+      "optional": true,
+      "requires": [ "chapter:tutorial:c3" ],
+      "offerWhen": [ "any:[chapter:tutorial:c3,world:jump_ready]" ],
+      "openCutscene": "tut.course",
+      "closeCutscene": "tut.done",
+      "steps": [
+        {
+          "id": "c5.1", "kind": "do", "tier": "core",
+          "objective": { "event": "marker:set" },
+          "explain": { "startKey": "story.tutorial.c5.marker.start", "chipKey": "story.tutorial.c5.marker.chip", "hintKey": "story.tutorial.c5.marker.hint", "moreGuide": "travel" }
+        },
+        {
+          "id": "c5.2", "kind": "do", "tier": "core",
+          "objective": { "event": "travel:landed", "arg": "quick" },
+          "feasibleIf": [ "any:[world:free_flight,world:instant_travel]" ],
+          "variants": [
+            { "when": "world:instant_travel", "startKey": "story.tutorial.c5.travel.start_instant" }
+          ],
+          "explain": { "startKey": "story.tutorial.c5.travel.start", "chipKey": "story.tutorial.c5.travel.chip", "moreGuide": "fast-travel" }
+        },
+        {
+          "id": "c5.3", "kind": "do", "tier": "core",
+          "objective": { "event": "craft:any", "arg": "forge" },
+          "alreadyDoneIf": [ "world:forge_ready" ],
+          "explain": { "startKey": "story.tutorial.c5.forge.start", "chipKey": "story.tutorial.c5.forge.chip", "moreGuide": "crafting-stations" }
+        },
+        {
+          "id": "c5.4", "kind": "do", "tier": "core",
+          "objective": { "event": "craft:any", "arg": "refine_oil_lubricant|refine_bio_lubricant" },
+          "explain": { "startKey": "story.tutorial.c5.lube.start", "chipKey": "story.tutorial.c5.lube.chip", "hintKey": "story.tutorial.c5.lube.hint", "moreGuide": "oil" }
+        },
+        {
+          "id": "c5.5", "kind": "do", "tier": "core",
+          "objective": { "event": "research:any", "arg": "radar_array" },
+          "alreadyDoneIf": [ "blueprint:radar_array" ],
+          "explain": { "startKey": "story.tutorial.c5.radar.start", "chipKey": "story.tutorial.c5.radar.chip", "hintKey": "story.tutorial.c5.radar.hint", "moreGuide": "knowledge" }
+        },
+        {
+          "id": "c5.6", "kind": "do", "tier": "core",
+          "objective": { "event": "research:any", "arg": "jump_generator" },
+          "alreadyDoneIf": [ "blueprint:jump_generator" ],
+          "explain": { "startKey": "story.tutorial.c5.jumpbp.start", "chipKey": "story.tutorial.c5.jumpbp.chip", "hintKey": "story.tutorial.c5.radar.hint", "moreGuide": "knowledge" }
+        },
+        {
+          "id": "c5.7", "kind": "do", "tier": "core",
+          "objective": { "event": "module:built", "arg": "jump_generator" },
+          "alreadyDoneIf": [ "world:jump_ready" ],
+          "explain": { "startKey": "story.tutorial.c5.module.start", "chipKey": "story.tutorial.c5.module.chip", "hintKey": "story.tutorial.c5.module.hint", "moreGuide": "ships-modules" }
+        },
+        {
+          "id": "c5.8", "kind": "do", "tier": "core",
+          "objective": { "event": "hyperjump:any" },
+          "hintRefs": [ "jump_ready" ],
+          "onComplete": { "cutscene": "tut.first_jump" },
+          "explain": { "startKey": "story.tutorial.c5.jump.start", "chipKey": "story.tutorial.c5.jump.chip", "hintKey": "story.tutorial.c5.jump.hint", "moreGuide": "travel" }
+        },
+        {
+          "id": "c5.9", "kind": "do", "tier": "opt",
+          "objective": { "event": "wormhole:any" },
+          "feasibleIf": [ "world:wormhole_known" ],
+          "explain": { "startKey": "story.tutorial.c5.wormhole.start", "chipKey": "story.tutorial.c5.wormhole.chip", "moreGuide": "wormholes" }
+        },
+        {
+          "id": "c5.10", "kind": "do", "tier": "opt",
+          "objective": { "event": "salvage:found" },
+          "feasibleIf": [ "any:[world:space_wrecks,world:debris_fields]" ],
+          "hintRefs": [ "wreck_signal", "debris_signal" ],
+          "explain": { "startKey": "story.tutorial.c5.salvage.start", "chipKey": "story.tutorial.c5.salvage.chip", "hintKey": "story.tutorial.c5.salvage.hint", "moreGuide": "mysteries" }
         }
       ]
     }

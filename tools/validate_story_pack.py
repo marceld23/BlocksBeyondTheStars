@@ -99,6 +99,8 @@ FALLBACK_PREDICATES = [
     "instant_travel", "return_to_ship", "starter_teleporter", "base_visitors", "space_stations", "story_active",
     "food_plants_near", "trees_near", "shape_block_carried", "research_ready", "all_blueprints", "new_world_in_system",
     "fragments_left", "observatory_reachable", "derelict_reachable", "settlements", "vaults", "space_wrecks",
+    "data_cache_near", "scanner_unknown", "jump_ready", "arcade_ready", "monument_unread", "asteroid_mining", "docked",
+    "job_active", "forge_ready", "wormhole_known", "debris_fields",
 ]
 
 KNOWN_FIELDS = {

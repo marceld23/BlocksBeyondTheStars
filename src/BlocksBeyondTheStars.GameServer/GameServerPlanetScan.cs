@@ -40,6 +40,8 @@ public sealed partial class GameServer
             {
                 SendInventory(session); // the knowledge total rides the inventory update
             }
+
+            RaiseGameEvent(session, Shared.Story.GameEventKeys.PlanetScanned, result.BodyId); // #2479: the pilot course's planet card
         }
         else
         {

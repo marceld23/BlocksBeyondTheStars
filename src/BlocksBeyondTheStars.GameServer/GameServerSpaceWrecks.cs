@@ -206,6 +206,8 @@ public sealed partial class GameServer
 
         RecordPlaceDiscovery(session, body); // #1113: a "Places" Codex entry + the knowledge grant
         SendStarMap(session);
+        RaiseGameEvent(session, Shared.Story.GameEventKeys.SalvageFound, // #2479: the navigator course's salvage lesson
+            body.Kind == CelestialKind.DebrisField ? Shared.Story.GameEventKeys.SalvageDebris : Shared.Story.GameEventKeys.SalvageWreck);
     }
 
     /// <summary>Called on every ship pose update: the first time a pilot comes within

@@ -206,6 +206,7 @@ public sealed partial class GameServer
         if (happened)
         {
             BroadcastGadgetOutcome(session, intent.GadgetKey, target); // #2158: the user's client plays the effect on this
+            RaiseGameEvent(session, Shared.Story.GameEventKeys.GadgetUsed, intent.GadgetKey); // #2479: the terrain-scanner lesson
         }
     }
 

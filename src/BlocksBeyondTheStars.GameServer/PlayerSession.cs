@@ -428,6 +428,10 @@ public sealed class PlayerSession
     /// <summary>Per tip id: uptime the condition first became true in the current run (dwell / hysteresis).</summary>
     public Dictionary<string, double> VegaTipSince { get; } = new();
 
+    /// <summary>#2479: the tip ids whose situation held in the last 1 Hz tip pass (before the hints switch, the gates, the
+    /// dwell and the cooldowns) — the "moment of need" a tutorial deep dive is offered at (<c>world:data_cache_near</c> …).</summary>
+    public IReadOnlyCollection<string> VegaTipLive { get; set; } = System.Array.Empty<string>();
+
     /// <summary>Per tip id: uptime before which the same tip does not repeat.</summary>
     public Dictionary<string, double> VegaTipCooldownUntil { get; } = new();
 

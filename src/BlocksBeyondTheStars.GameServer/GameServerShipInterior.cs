@@ -70,6 +70,7 @@ public sealed partial class GameServer
 
         Send(session, new SpaceClosed { Reason = "@srv.misc.stepped_inside", ShipDisabled = false });
         LoadShipInteriorFor(session);
+        RaiseGameEvent(session, Shared.Story.GameEventKeys.InteriorEntered); // #2479: the pilot course's walk-inside lesson
         _log.Info($"Player '{session.State.Name}' stepped inside their ship (world 'shipint:{playerId}').");
     }
 
@@ -189,6 +190,7 @@ public sealed partial class GameServer
             inst.PlayerPoses[playerId] = ret.Ship with { Eva = true };
             session.State.InEva = true; // stepping out the airlock starts the spacewalk → oxygen drains
             SendPlayerState(session);   // tell the client it is now floating in EVA next to the ship
+            RaiseGameEvent(session, Shared.Story.GameEventKeys.EvaStarted, Shared.Story.GameEventKeys.EvaHatch); // #2479: the spacewalk lesson
         }
 
         _log.Info($"Player '{session.State.Name}' {(eva ? "stepped out for an EVA" : "took the helm again")} (flight view).");

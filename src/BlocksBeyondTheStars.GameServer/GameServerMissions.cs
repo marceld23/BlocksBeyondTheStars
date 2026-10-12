@@ -193,6 +193,10 @@ public sealed partial class GameServer
     /// <summary>Test hook: a mission definition's first objective, or null for an unknown mission.</summary>
     public MissionObjective? FirstObjectiveForTest(string missionId) => GetMissionDef(missionId)?.Objectives.FirstOrDefault();
 
+    /// <summary>Test seam (#2479): every objective of a mission (a board job's whole list), or none for an unknown id.</summary>
+    internal IReadOnlyList<MissionObjective> ObjectivesForTest(string missionId)
+        => GetMissionDef(missionId)?.Objectives ?? (IReadOnlyList<MissionObjective>)System.Array.Empty<MissionObjective>();
+
     private void HandleAcceptMission(PlayerSession session, string missionId)
     {
         var def = GetMissionDef(missionId);

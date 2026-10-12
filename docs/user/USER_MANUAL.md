@@ -1108,7 +1108,7 @@ players.
   6. **Lift-off** — launching from the cockpit, flying and the chart, the ship scanner, docking at a station, trading,
      a first job from a mission board, landing on a new world, and travelling home via the map.
   At the end VEGA congratulates you and you earn the achievement **Graduate**. There are no items or knowledge for the
-  lessons — they teach, they don't pay.
+  lessons — they teach, they don't pay. Two **short courses** (below) then wait in your Journal.
   - **Cards:** each part opens with a short title card ("Basic training · Part 2 of 6 — Staying alive"; the first one
     welcomes you right after the prologue) and ends with a small "Part complete!" banner. Your first launch gets a
     "Lift-off!" title over the climb, your first landing on a new world a short look around your ship with the world's
@@ -1145,6 +1145,26 @@ players.
   - While the basic training runs, VEGA's matching tips wait for their lesson, so you never hear the same thing
     twice (the flight chart and ship-scanner explanations, for example, come with part 6).
   - A game version from before the new tutorial still follows the nine old lessons on a new server.
+- **Short courses (after the basic training):** deeper lessons you choose yourself — VEGA offers one when it fits what
+  you are doing (at most one offer every minute and a half, never during the basic training), and the Journal lists them
+  all with **Start** or **Later** (a course you put off stays there; VEGA does not offer it again). Each opens with a short
+  "Short course" card and ends with the "Part complete!" banner; your docking in the stations course ("Docked — …") and your
+  first hyperjump in the navigator course ("New system — …") get a short card of their own. You can skip a step or the
+  whole course in the Journal. Like the training they pay nothing.
+  - **Knowledge and research** (offered when a data cache is close by, or when you dig a lot without a terrain scanner):
+    scanning three new things, mining a data cache (two data fragments), what a blueprint costs, a DataQube game, reading
+    a rune stone, the terrain scanner (or, before you have its blueprint, what it needs) and the Achievements tab.
+  - **Pilot** (suggested when you finish the training; needs space flight): setting a waypoint on the chart, scanning a
+    planet before you land, breaking an asteroid with the ship's laser, walking around inside your flying ship and a
+    spacewalk through the hatch — plus target lock where enemies fly, and what to do when you float above a world's air.
+  - **Stations, trade and jobs** (suggested when you finish the training): docking at a station, the vendors and their
+    trades (researchers sell data fragments), taking a job from the mission board, undocking, and handing the job in
+    where you took it. Without a reachable station the course runs at a settlement.
+  - **Navigator** (offered once the pilot course is done): markers and pings on the planet map, map travel between worlds,
+    a forge (no blueprint needed) and lubricant, researching the Radar Array and the Jump Generator, fitting the jump
+    generator, your first hyperjump — and wormholes and wrecks where your world has them.
+  - What you have already done counts: a forge you crafted before, blueprints you own or a jump drive already fitted tick
+    their step off by themselves; lessons your world cannot offer (no wormholes, no wrecks, no space combat …) are skipped.
 - **Advisor:** one-time contextual hints (full inventory, first nightfall, "ruins detected", world-type
   flavour) plus **context tips** that notice your situation and may come back — rarely: gear you carry
   but aren't using (a suit lamp switched off in the dark, torches underground, food when hungry, a medkit
