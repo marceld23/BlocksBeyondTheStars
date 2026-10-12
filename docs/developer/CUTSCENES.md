@@ -35,6 +35,7 @@ singleplayer world or lock input. One scene plays at a time.
       "template": false,                            // see "Templates" below
       "replaceLineKeys": [ "vega.prologue.1" ],     // narrator lines the scene shows itself
       "music": "music_mystery_signal",              // a file in client/Music (no extension); empty = keep the music
+      "arg": "",                                    // what fills {0}: "" = the bound chapter, "body", "system" (#2473)
       "shots": [
         {
           "camera": { "type": "orbit", "anchor": "ship" },
@@ -65,6 +66,7 @@ singleplayer world or lock input. One scene plays at a time.
 | `template` | `false` | one definition for several bindings (each binding is its own instance) |
 | `replaceLineKeys` | `[]` | lines a client playing the scene keeps out of the VEGA panel (they still reach the log). Resolved from the client's **own** definition, so a client without the scene drops nothing |
 | `music` | `""` | the scene's track |
+| `arg` | `""` | #2473: what fills the captions' `{0}` when the server plays the scene — `""` the bound chapter (its title, place and count, see [the argument](#bindings--where-a-pack-plays-a-scene)), `body` the name of the body the player is on (the tutorial's first landing), `system` the name of the player's star system |
 | `shots[]` | — | at least one; played in order |
 | `shots[].camera.type` | `player_view` | `player_view` (letterbox + captions over the live view), `overlay` (on a running flight sequence, never moves the camera), `static`, `orbit` (radius by ship size), `crane`, `sky` (tilted up from the player; always clear), `chart` (the galaxy chart). Step 17a adds `dolly`, `pan`, `flyover`, `space_vista` |
 | `shots[].camera.anchor` | `""` = `player` | `player`, `ship`, `planet`, `station` (the space station the player is aboard), `star_map`, `heal_tank` (the ship's medbay), `core` (the Guardian core chamber), `custom` (the coordinates of the `CutscenePlay` message) |
@@ -108,8 +110,10 @@ reaches the browser is only proven by a local WebGL build (PR CI builds no Unity
 
 `CutsceneContentTests.TheOfficialPacks_UseOnlyTheBindingIds` holds the two official packs to these lists. Today
 `vega_protocol/cutscenes.json` holds only `prologue`, bound as VEGA's `introCutscene` (and chapter 0's opener) since
-#2470 — see [The VEGA prologue](#the-vega-prologue-2470); steps 14/15/17 add the tutorial cards, chapter scenes and finale
-set pieces.
+#2470 — see [The VEGA prologue](#the-vega-prologue-2470); `tutorial/cutscenes.json` holds the basic training's cards since
+#2473 — see [The tutorial cards](#the-tutorial-cards-2473); steps 15/17 add VEGA's chapter scenes and finale set pieces,
+steps 18–21 the deep dives' firsts (`tut.first_dock`, `tut.first_jump`, `tut.first_base`, `tut.ship_commissioned`,
+`tut.first_circuit`, `tut.first_tame`).
 
 ### The VEGA prologue (#2470)
 
@@ -132,7 +136,32 @@ The server plays it for a newcomer to the story (no `story:vega_protocol:*` key 
 client without `cutscenes1` (an older build, a local player) and the built-in fallback pack (no cutscenes) get the old
 five full-screen pages instead (Kind 4: the three narration keys, B0, and the call as server-composed text). The
 `VegaPanel` + `PrologueCinematic` path stays only for a server that predates this (it sends Kind-4 pages to everyone); a
-current server never sends both. The chain to `tut.welcome` (`chainNext`) comes with step 14, which adds that scene.
+current server never sends both. `chainNext` holds `__recap` (the story track starting in the same join) and
+`tutorial/tut.welcome` (#2473): when the basic training starts, its welcome card follows the cold open at once.
+
+### The tutorial cards (#2473)
+
+The basic training gets **cards, not cinema** (synthesis §6.4; `data/stories/tutorial/cutscenes.json`). A card never takes
+the camera, never holds the world, never freezes the controls and shows **titles only** — never the VEGA line the panel says
+next (G12); title captions run on their own, so a card never stops to wait for "continue" while the player walks on. The
+graduation is the one card with a line: VEGA's closing line, which it takes out of the panel (`replaceLineKeys`).
+
+| Id | Tier | Bound to (TUTORIAL_PACK.md) | Shots and captions | Pacing |
+|---|---|---|---|---|
+| `tut.welcome` | T2 card, chapter `b1` | part 1's `openCutscene` | title "Basic training" (kicker "Six short parts"), then "First steps" (kicker "Part 1 of 6") | VEGA's prologue chains to it: it follows the cold open at once |
+| `tut.strip` | T2 card, template | `openCutscene` of parts 2–6 | title = the part's title, kicker "Basic training · Part n of 6" (`{1}`/`{2}` of the argument) | waits for the cooldown; dropped once its part is over |
+| `tut.done` | T1 banner, template | every part's `closeCutscene` | "Part complete!" + the part's title | never waits (a banner) |
+| `tut.course` | T2 card, template | the deep dives' `openCutscene` (steps 18–21; unbound today) | kicker "Short course" + the chapter's title | — |
+| `tut.first_launch` | T3, `overlay` | `b6.1` `onComplete` | "Lift-off!" (kicker "First launch"), then "Space begins right above the clouds" — a full letterbox over the launch rise, the flight's camera untouched, no hold | "now or never" (`cooldownExempt`) |
+| `tut.first_landing` | T3, `orbit`/`static` on the ship, `"arg": "body"` | `b6.7` `onComplete` (not the stand-in `b6.7a`: a known world is no new one) | title = the world's name, kicker "Touchdown on a new world"; subtitle "Every world has its own rocks, plants and creatures." — a singleplayer world holds while the camera circles the ship | waits for the landing's loading veil (so not "now or never"); chains to the graduation |
+| `tut.graduation` | T2 card | `graduation.cutscene` | "Graduate" (kicker "★ Achievement"), then VEGA's speaker page `story.tutorial.graduated` | chains to `__recap` (step 15 adds `vega_protocol/ch1.open`) |
+
+Interruption budget (synthesis §6.4): within the six parts at most one card or scene per part, except part 6's flight firsts
+— welcome, five part cards, first launch, first landing = 8 — plus the graduation card at the hand-over
+(`TutorialCardsTests.TheBasicTraining_HasAtMostEightHeavierMoments_OnePerPart_ButTheFlightFirsts`). Part 1 has no separate
+part card: the welcome is its opener (the first join shows only the prologue and the tutorial's start card, §6.2). Since the
+card carries "Part n of 6", the parts' first step lines no longer say it. The tutorial's pacing relies on the general rules
+below: the cooldown, chains, a part card dropped once its part is over, and a line held with its waiting card.
 
 ### Bindings — where a pack plays a scene
 
@@ -144,6 +173,7 @@ current server never sends both. The chain to `tut.welcome` (`chainNext`) comes 
 | step `onStart.cutscene` | the step activates with its line (before the line; not in a replay) |
 | step `onComplete.cutscene` | the step completes **non-silently** (it was the chip step, or a react step) — before the done line; not in a replay |
 | beat `cutscene` | the beat reaches a player whose story track has started (#2470: `RevealBeatTo`, after the chapter opening, before the line) |
+| pack `graduation.cutscene` | #2473: a player pack's graduation (its mandatory chapters finished by playing — not skipped, not by migration evidence), before the closing line; once per player, so a full restart's second graduation shows no card |
 | `finale.cutscenes{arrival, descent, breach, standdown, resolution}` | wired by the finale code in step 17b |
 
 A scene goes out **before** its trigger's narrator line, so a client that plays it knows which lines it shows.
@@ -154,17 +184,24 @@ or the pack id for the intro), with its own ledger entry, and plays with the bou
 plain scene plays **once per player** however often it is bound (the prologue can be the pack intro and chapter 0's
 opener). On the wire and in receipts the instance id is the `CutsceneId`; the definition is the part before `@`.
 
-**The argument** (`CutscenePlay.Arg`, the captions' `{0}`): a chapter binding sends the chapter's title **key** (a client
-localizes an argument that is a key), the server API may pass any text (a body name), several values joined by U+001F
-(`LineText.ArgSeparator`). For `__recap` it is the reached chapters' title keys in chapter order — titles only, no beat
-text, so no spoilers.
+**The argument** (`CutscenePlay.Arg`, the captions' `{0}`, `{1}`…; one rule for server and client,
+`Shared/Story/CutsceneArgs.For`): a scene bound to a chapter — a template instance's owner chapter (or its owner step's), else
+the scene's own `chapter` — sends the chapter's title **key** as `{0}` (a client localizes an argument that is a key), its
+place among the pack's chapters of the same kind (mandatory among the mandatory ones, optional among the optional ones,
+counted from 1) as `{1}` and how many there are as `{2}` (#2473: the tutorial's "Part 3 of 6"). A scene with `"arg": "body"`
+or `"system"` sends the name of the body / star system the player is on at that moment instead (a replay or a join re-offer
+reads where the player is then). Several values are joined by U+001F (`LineText.ArgSeparator`); `LineText.Compose` fills
+every slot, not only `{0}`. The server API may pass any text. For `__recap` it is the reached chapters' title keys in
+chapter order — titles only, no beat text, so no spoilers. A template played without a binding (the admin preview, the dev
+palette) plays as the instance of the first chapter that binds it (`CutsceneArgs.DefaultOwner`).
 
 ## Validation
 
 `StoryPackValidator` (Shared, run by `StoryPackValidationTests` for every data pack and the test packs) and its twin
 `tools/validate_story_pack.py` (`uv run --no-project python tools/validate_story_pack.py [<pack-dir>]`) check:
 
-- every binding names a cutscene of the pack — never `__recap`, never an instance id;
+- every binding names a cutscene of the pack — never `__recap`, never an instance id (`graduation.cutscene` too, #2473);
+- `arg` is empty, `body` or `system`;
 - ids unique and key-safe, none starting with `__`; tier 1–4; at least one shot; known cameras, anchors, caption styles
   and grades; shot length > 0 and ≤ 120 s; captions and cues inside their shot; `hold` ≥ 0;
 - the tier rules: a T1/T2 never takes the camera; `holdWorld` / `lockInput` only on a T3/T4 that takes it;
@@ -240,6 +277,15 @@ flush it:
   scene** (bound to a chapter, not the intro — `StoryCutsceneIds.AnyOfPack`, #2470): "the story so far" leads straight
   into the current chapter's opening at a story-track start. The client keeps the same rule (`QueuedCutscene.ChapterScene`).
 - **Now or never** (`cooldownExempt`) goes at once and restarts the cooldown.
+- **A chapter opener past its chapter** (#2473): a queued `openCutscene` of a player pack whose chapter the player finished
+  or skipped meanwhile (the tutorial's part card behind the cooldown while a quick part went by) is dropped and stamped seen
+  instead of announcing a part that is over (`IsStaleChapterOpener`).
+- **Lines wait with their scene** (#2473): a narrator line that a scene still waiting in this queue shows itself (a key of its
+  `replaceLineKeys`) is held with that scene and sent right after its `CutscenePlay` (`HoldLineForQueuedCutscene`, at the one
+  line fill point `SendVegaWithObjective`), so the client keeps it out of the VEGA panel — without this, a card held back by
+  the cooldown would arrive after its line and the player would read it twice (the graduation card). A held line goes out
+  anyway when its scene leaves the queue unsent (dropped, confirmed); it is lost with the session only together with the
+  scene, which the join re-offers with the text on it.
 - The queue is lost with the session; the `:sent` key re-offers its scenes at the next join.
 
 ### Server API for later steps
@@ -343,7 +389,10 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
 - **Shared state and hold.** A T3/T4 scene that takes the camera (or has `lockInput`) opens the `director` reason in
   `GameBootstrap.Cutscenes` — HUD, touch layer, chat, nameplates and IMGUI step aside, the controls freeze, Esc belongs to
   the scene, and the cursor is freed for the buttons. A singleplayer world is held (`WorldHoldArbiter.Cutscene`) only while
-  the camera is actually taken (a `player_view` shot in between releases it), and never in multiplayer.
+  the camera is actually taken (a `player_view` shot in between releases it), and never in multiplayer. A staged scene opens
+  out of black only when it takes the camera (`CutscenePlan.OpensFromBlack`, #2473): a T3 that lies over a running
+  sequence (`overlay`, the tutorial's first launch) keeps the full letterbox but fades in like a card, so it never blacks
+  out the moment it frames.
 - **Grades:** `memory` → `UrpScenePost.SetFlashback(0.55)`, `flashback` → 0.85 plus one glitch `Burst` per shot (not under
   Reduced effects, never in the browser); halved under Reduced effects. Banners leave the picture alone.
 - **Music and sound:** a scene's `music` is played as `ClientMusic.CutsceneTrack` (context `cutscene:<track>`, looping, in
@@ -368,8 +417,9 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
 
 - **Dev palette** (`CutsceneDevPalette.cs`): in the Editor, a development build, or any build started with **`-devSeq`**,
   **F9** opens a list of every cutscene of the loaded packs (and each world story's `__recap`); a click plays it on this
-  client alone (`CutsceneDirector.PlayLocal`: no server, no ledger, no receipt; a template as its first chapter's
-  instance, the recap with every chapter title). The smoke path for VEGA's `prologue` before step 11 binds it.
+  client alone (`CutsceneDirector.PlayLocal`: no server, no ledger, no receipt; a template as the instance of the first
+  chapter that binds it, the argument by the server's rule with the body and system from the star map —
+  `CutsceneCatalog.PlayArg`; the recap with every chapter title). The smoke path for VEGA's `prologue` before step 11 binds it.
 - **Admin preview** `/cutscene <pack> <id>` (server round trip, see above) — what the scene looks like for a real
   `CutscenePlay`.
 - **Clip recorder** (`-captureClip`): a `ClipSpec` with `"cutscene": "<pack>/<id>"` plays the scene through the director
@@ -407,3 +457,11 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
 - #2470: `VegaStoryPackTests` (the prologue scene for a newcomer, the five pages for an older client, once / never on a
   restart, a "none" world switched to VEGA, the recap chaining into a chapter scene, a bound chapter opening at the track
   start and at its beat); `SafeMomentGateTests.TheRecap_LeadsIntoItsPacksNextChapterScene_Only`.
+- #2473: `TutorialCardsTests` (the cards' ids, tiers and titles-only rule, the bindings, the interruption budget, the part
+  number on the card and not in the lines; a fresh player's prologue → welcome chain, the part cards behind the cooldown and
+  dropped once their part is over, the "now or never" first launch, the first landing with the world's name chaining into
+  the graduation card, a graduation line held with its waiting card, once per player through "I know the game" and a full
+  restart, older clients, migrated saves; `CutsceneArgs` and `LineText.Compose`'s later slots; the validator's `arg` and
+  `graduation.cutscene` checks); Client.Tests `TutorialCardsClientTests` (the cards planned from the data pack in both
+  languages, the overlay that does not open from black, the "Watch again" names, the dev palette's argument, the client
+  queue's cross-pack chain).

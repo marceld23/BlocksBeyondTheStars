@@ -1109,6 +1109,12 @@ players.
      a first job from a mission board, landing on a new world, and travelling home via the map.
   At the end VEGA congratulates you and you earn the achievement **Graduate**. There are no items or knowledge for the
   lessons — they teach, they don't pay.
+  - **Cards:** each part opens with a short title card ("Basic training · Part 2 of 6 — Staying alive"; the first one
+    welcomes you right after the prologue) and ends with a small "Part complete!" banner. Your first launch gets a
+    "Lift-off!" title over the climb, your first landing on a new world a short look around your ship with the world's
+    name, and finishing the training a card with your **Graduate** achievement. Cards never stop you — you can keep moving
+    while they show; only the look around after the landing rests the controls for a few seconds — and each one plays only
+    once (skip it with **Esc** or its **Skip** button; the Journal's **Watch again** has the bigger moments).
   - **No dead ends:** a lesson your world cannot offer is skipped or swapped — with **no station in your system**
     you trade with a settlement vendor instead of docking; with **space flight switched off** the flight lessons are
     skipped; without hunger there is no eating lesson; in **Creative** crafting is free and the research lesson is

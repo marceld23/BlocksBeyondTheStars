@@ -54,6 +54,12 @@ public sealed class CutsceneDefinition
     /// <c>music_mystery_signal</c>); empty = the music keeps playing.</summary>
     public string Music { get; set; } = string.Empty;
 
+    /// <summary>What fills the captions' <c>{0}</c> when the server plays the scene (#2473, <see cref="CutsceneArgSources"/>):
+    /// empty = the bound chapter (its title key, then its place and the count, <see cref="CutsceneArgs.For"/>); <c>body</c>
+    /// = the name of the body the player is on (the tutorial's first landing); <c>system</c> = the name of the player's star
+    /// system.</summary>
+    public string Arg { get; set; } = string.Empty;
+
     /// <summary>The shots, played in order (at least one; a banner is one <c>player_view</c> shot).</summary>
     public List<CutsceneShot> Shots { get; set; } = new();
 
@@ -272,6 +278,26 @@ public static class CutsceneCaptionStyles
 
     /// <summary>Every style.</summary>
     public static readonly IReadOnlyList<string> All = new[] { Subtitle, TitleCard, Speaker, ReadingFrame, Credits };
+}
+
+/// <summary>The values of <see cref="CutsceneDefinition.Arg"/> (#2473): what fills a scene's <c>{0}</c>.</summary>
+public static class CutsceneArgSources
+{
+    /// <summary>The bound chapter: its title key as <c>{0}</c>, its place among the pack's chapters of its kind as
+    /// <c>{1}</c> and how many there are as <c>{2}</c> (the default).</summary>
+    public const string Chapter = "";
+
+    /// <summary>The name of the body the player is on when the scene is played (a landing).</summary>
+    public const string Body = "body";
+
+    /// <summary>The name of the player's star system when the scene is played (a hyperjump).</summary>
+    public const string System = "system";
+
+    /// <summary>Every source an author may write (the default is written by leaving the field out).</summary>
+    public static readonly IReadOnlyList<string> All = new[] { Body, System };
+
+    /// <summary>Whether <paramref name="source"/> is the default or a known source.</summary>
+    public static bool IsValid(string? source) => string.IsNullOrEmpty(source) || All.Contains(source!);
 }
 
 /// <summary>Colour grades of a shot.</summary>

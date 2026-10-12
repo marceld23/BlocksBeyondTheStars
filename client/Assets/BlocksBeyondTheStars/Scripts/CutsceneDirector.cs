@@ -142,12 +142,15 @@ namespace BlocksBeyondTheStars.Client
         {
             var m = new CutscenePlay { PackId = packId ?? string.Empty, CutsceneId = cutsceneId ?? string.Empty, Arg = arg ?? string.Empty };
             if (Game != null && m.CutsceneId != StoryCutsceneIds.Recap && string.IsNullOrEmpty(m.Arg)
-                && Game.Content != null && Game.Content.TryGetStory(m.PackId, out var pack))
+                && Game.Content != null && Game.Content.TryGetStory(m.PackId, out var pack)
+                && pack.FindCutscene(m.CutsceneId) is { } def)
             {
-                if (pack.FindCutscene(m.CutsceneId) is { Template: true } def && m.CutsceneId.IndexOf(StoryCutsceneIds.InstanceSeparator) < 0)
+                if (def.Template && m.CutsceneId.IndexOf(StoryCutsceneIds.InstanceSeparator) < 0)
                 {
-                    m.CutsceneId = StoryCutsceneIds.Instance(def.Id, pack.Chapters.FirstOrDefault()?.Id ?? pack.Id); // a template plays as an instance
+                    m.CutsceneId = StoryCutsceneIds.Instance(def.Id, CutsceneArgs.DefaultOwner(pack, def)); // a template plays as an instance
                 }
+
+                m.Arg = CutsceneCatalog.PlayArg(pack, def, m.CutsceneId, Game.StarMap); // #2473: the server's argument rule
             }
 
             if (m.CutsceneId == StoryCutsceneIds.Recap && string.IsNullOrEmpty(m.Arg) && Game?.Content != null
@@ -441,9 +444,9 @@ namespace BlocksBeyondTheStars.Client
             _lastSpeakerPage = -1;
             _flash = 0f;
             _screen = CutsceneScreen.Create("CutsceneFrame", FrameSortingOrder, skipButton: plan.Tier >= CutsceneTiers.Card);
-            if (plan.Tier >= CutsceneTiers.Scene)
+            if (plan.OpensFromBlack)
             {
-                _screen.SetFade(1f); // a staged scene opens out of black (synthesis §6.5, prologue shot 1)
+                _screen.SetFade(1f); // a staged scene opens out of black (synthesis §6.5, prologue shot 1); an overlay does not (#2473)
             }
 
             _musicTrack = string.IsNullOrEmpty(plan.Music) ? null : plan.Music;
@@ -760,7 +763,7 @@ namespace BlocksBeyondTheStars.Client
             var views = _play.Visible();
             bool reader = views.Any(v => v.Caption.Style == CutsceneCaptionStyles.ReadingFrame);
             float fade;
-            if (plan.Tier >= CutsceneTiers.Scene)
+            if (plan.OpensFromBlack)
             {
                 fade = Mathf.Clamp01(1f - _play.Elapsed / 1.2f); // out of black
                 if (reader)

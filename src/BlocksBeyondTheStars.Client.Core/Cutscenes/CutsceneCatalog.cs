@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Story;
 
@@ -98,25 +99,33 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         /// <summary>
         /// The name of a scene in the list: its title card ("Prologue — The VEGA Protocol"), else the bound chapter's title,
         /// else the start of its first caption, else its id. A template instance reads with its owner chapter's title as
-        /// the <c>{0}</c> — the same text the scene shows.
+        /// the <c>{0}</c> — the same text the scene shows (#2473: with its place and the count, "Part 3 of 6"). A title that
+        /// is only known when the scene plays (the first landing's body name) leaves just its kicker.
         /// </summary>
         public static string Label(StoryDefinition pack, CutsceneDefinition def, string cutsceneId, CutsceneTextSource text)
         {
             var chapter = ChapterOf(pack, def, cutsceneId);
-            string arg = chapter is { TitleKey.Length: > 0 } ? text.Localize(chapter.TitleKey) : string.Empty;
+            string chapterTitle = chapter is { TitleKey.Length: > 0 } ? text.Localize(chapter.TitleKey) : string.Empty;
+            string arg = CutscenePlan.ResolveArg(CutsceneArgs.For(pack, def, cutsceneId), text);
             var captions = (def.Shots ?? new List<CutsceneShot>()).SelectMany(s => s?.Captions ?? new List<CutsceneCaption>()).Where(c => c != null).ToList();
 
             var title = captions.FirstOrDefault(c => c.Style == CutsceneCaptionStyles.TitleCard && !string.IsNullOrEmpty(c.Key));
             if (title != null)
             {
-                string main = LineText.Compose(text.Localize(title.Key), arg, text.Glyph);
+                string rawMain = text.Localize(title.Key);
+                string main = LineText.Compose(rawMain, arg, text.Glyph);
                 string kicker = string.IsNullOrEmpty(title.KickerKey) ? string.Empty : LineText.Compose(text.Localize(title.KickerKey), arg, text.Glyph);
+                if (arg.Length == 0 && LineText.HasSlot(rawMain) && kicker.Length > 0)
+                {
+                    return kicker; // its title is filled in only when it plays
+                }
+
                 return kicker.Length > 0 ? kicker + " — " + main : main;
             }
 
-            if (arg.Length > 0)
+            if (chapterTitle.Length > 0)
             {
-                return arg;
+                return chapterTitle;
             }
 
             var first = captions.FirstOrDefault(c => !string.IsNullOrEmpty(c.Key));
@@ -130,23 +139,31 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         }
 
         /// <summary>The chapter a scene belongs to: an instance's owner chapter (or the chapter of its owner step), else the
-        /// scene's own <c>chapter</c> — the server's rule (<c>GameServer.ChapterOfCutscene</c>).</summary>
+        /// scene's own <c>chapter</c> — the server's rule (<see cref="CutsceneArgs.ChapterOf"/>).</summary>
         public static StoryChapter? ChapterOf(StoryDefinition pack, CutsceneDefinition def, string cutsceneId)
+            => CutsceneArgs.ChapterOf(pack, def, cutsceneId);
+
+        /// <summary>The argument a scene plays with when this client plays it on its own (the dev palette, the clip
+        /// recorder): the server's rule (<see cref="CutsceneArgs.For"/>) with the body and star system the player is on, read
+        /// from the star map (#2473).</summary>
+        public static string PlayArg(StoryDefinition pack, CutsceneDefinition def, string cutsceneId, StarMapData? map)
         {
-            string owner = StoryCutsceneIds.OwnerOf(cutsceneId ?? string.Empty);
-            var chapters = pack?.Chapters ?? new List<StoryChapter>();
-            if (owner.Length > 0)
+            string body = string.Empty;
+            string system = string.Empty;
+            string here = map?.ActiveLocationId ?? string.Empty;
+            foreach (var sys in map?.Systems ?? Array.Empty<NetStarSystem>())
             {
-                foreach (var chapter in chapters)
+                foreach (var b in sys?.Bodies ?? Array.Empty<NetBody>())
                 {
-                    if (chapter.Id == owner || (chapter.Steps?.Any(st => st.Id == owner) ?? false))
+                    if (b != null && here.Length > 0 && b.Id == here)
                     {
-                        return chapter;
+                        body = b.Name ?? string.Empty;
+                        system = sys!.Name ?? string.Empty;
                     }
                 }
             }
 
-            return string.IsNullOrEmpty(def?.Chapter) ? null : chapters.FirstOrDefault(c => c.Id == def!.Chapter);
+            return CutsceneArgs.For(pack, def, cutsceneId, body, system);
         }
 
         private static int OwnerOrder(StoryDefinition pack, string id)

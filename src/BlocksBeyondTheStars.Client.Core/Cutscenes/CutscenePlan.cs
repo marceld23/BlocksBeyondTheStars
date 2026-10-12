@@ -230,6 +230,11 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         /// <summary>Whether any shot wants the camera.</summary>
         public bool TakesCamera => Shots.Any(s => s.TakesCamera);
 
+        /// <summary>Whether the scene opens out of black (a staged scene that takes the camera, synthesis §6.5). A T3 that
+        /// only lies over a running sequence (#2473: the tutorial's first launch, an <c>overlay</c> on the launch rise) must
+        /// not black out the very moment it frames — it fades its letterbox in like a card.</summary>
+        public bool OpensFromBlack => Tier >= CutsceneTiers.Scene && TakesCamera;
+
         /// <summary>The length when nothing waits for the reader.</summary>
         public float TimedLength => Shots.Sum(s => s.Duration);
 

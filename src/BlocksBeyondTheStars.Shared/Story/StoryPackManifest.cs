@@ -307,6 +307,10 @@ public sealed class StoryGraduation
     /// <summary>Optional chapters of this pack offered at graduation (at most <see cref="MaxSuggestions"/>; only those
     /// whose <c>requires</c> hold and that are not done, declined or running).</summary>
     public List<string> Suggest { get; set; } = new();
+
+    /// <summary>#2473: a cutscene of the pack played at the graduation, before the closing line (the tutorial's
+    /// <c>tut.graduation</c> card). Empty = none.</summary>
+    public string Cutscene { get; set; } = string.Empty;
 }
 
 /// <summary>Data form of a VEGA insight (d3 §5.1.1) — read by the insight code from step 16 on.</summary>

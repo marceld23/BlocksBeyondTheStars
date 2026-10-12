@@ -975,13 +975,15 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The graduation (#2469, synthesis §3.3 "Absolvent"): the pack's closing line (a client with <c>packs1</c> —
+    /// <summary>The graduation (#2469, synthesis §3.3 "Absolvent"): the pack's graduation cutscene (#2473, once per player —
+    /// a full restart does not show it again), the closing line (a client with <c>packs1</c> —
     /// an older client of a tutorial hears the old <c>vega.done</c> when the pack is stamped done), its achievement
     /// counter, and its suggested deep dives marked offered (the Journal lists them; never more than three, never one that
     /// is done, declined, running or not yet available). No item, no knowledge (maintainer decision: no tutorial rewards).</summary>
     private void Graduate(PlayerSession s, CompiledPack pack)
     {
         var graduation = pack.Def.Graduation ?? new StoryGraduation();
+        PlayBoundCutscene(s, pack.Def, graduation.Cutscene, pack.Id); // #2473: the card before the line it shows (once per player)
         if (s.SupportsPacks && !string.IsNullOrEmpty(graduation.LineKey))
         {
             SendPackLine(s, pack, graduation.LineKey);

@@ -116,7 +116,7 @@ public static class LineText
         }
 
         text = ExpandKeyTokens(text!, glyph);
-        if (text.IndexOf("{0}", StringComparison.Ordinal) < 0)
+        if (!HasSlot(text))
         {
             return text; // no slot — the common case
         }
@@ -148,6 +148,32 @@ public static class LineText
     /// client that cannot localize the line's key itself.</summary>
     public static string ComposeNeutral(string? text, string? lineArg, Func<string, string?> tryLocalize)
         => Compose(text, lineArg, action => NeutralActionWord(action, tryLocalize));
+
+    /// <summary>Whether <paramref name="text"/> has a <c>{n}</c> slot — any number, not only <c>{0}</c> (#2473: the
+    /// tutorial's part card fills "Part {1} of {2}" from its argument's second and third values).</summary>
+    public static bool HasSlot(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
+
+        for (int i = text!.IndexOf('{'); i >= 0 && i < text.Length - 2; i = text.IndexOf('{', i + 1))
+        {
+            int j = i + 1;
+            while (j < text.Length && char.IsDigit(text[j]))
+            {
+                j++;
+            }
+
+            if (j > i + 1 && j < text.Length && text[j] == '}')
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>Replaces the <c>{0}</c>…<c>{9}</c> slots with <see cref="MissingArg"/>.</summary>
     private static string NeutralisePlaceholders(string text)

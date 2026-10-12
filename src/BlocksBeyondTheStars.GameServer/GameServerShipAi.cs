@@ -78,9 +78,15 @@ public sealed partial class GameServer
     }
 
     /// <summary>Fills the objective chip of a VEGA line from the live objective, remembers it for the 1 Hz refresh and
-    /// sends the line. Every line carries the chip, so this is the one place the chip — and its source — is set.</summary>
+    /// sends the line. Every line carries the chip, so this is the one place the chip — and its source — is set. A line
+    /// that a cutscene still waiting in the player's queue shows itself waits with that scene (#2473).</summary>
     private void SendVegaWithObjective(PlayerSession session, ShipAiLine line)
     {
+        if (HoldLineForQueuedCutscene(session, line))
+        {
+            return; // #2473: it goes right after the scene that shows it (GameServerCutscenes.SendQueuedCutscene)
+        }
+
         var chip = LiveVegaChip(session);
         line.ObjectiveKey = chip.Key;
         line.ObjectiveArg = chip.Arg;

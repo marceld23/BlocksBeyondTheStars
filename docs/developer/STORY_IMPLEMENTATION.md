@@ -451,7 +451,8 @@ tips and the progression sweep; default open), `TickVegaBanterFor` (VEGA's bante
 tip (default open).
 
 **Graduation** (#2469). A chapter completed by play (not skipped, not `autoCompleteIf` evidence) that finishes the
-mandatory part calls `Graduate`: the pack's `graduation.lineKey` (a `packs1` client), `Advance(graduation.counter)` (the
+mandatory part calls `Graduate`: the pack's `graduation.cutscene` (#2473, before the line, once per player — the tutorial's
+`tut.graduation` card), `graduation.lineKey` (a `packs1` client), `Advance(graduation.counter)` (the
 tutorial's "Graduate" achievement), `graduation.suggest` chapters marked offered. A replay graduates only at its last
 mandatory chapter (a full restart). Skips (`SkipPack`, `SkipChapter`, the admin's chapter jump) and the migration never do.
 

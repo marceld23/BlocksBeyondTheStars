@@ -62,6 +62,7 @@ NON_TAKEOVER_CAMERAS = {"player_view", "overlay"}
 ANCHORS = ["player", "ship", "planet", "station", "star_map", "heal_tank", "core", "custom"]
 CAPTION_STYLES = ["subtitle", "title_card", "speaker", "reading_frame", "credits"]
 GRADES = ["none", "memory", "flashback"]
+ARG_SOURCES = ["body", "system"]  # #2473: what fills {0} besides the bound chapter (CutsceneArgSources)
 RECAP_ID = "__recap"
 CAPTION_LINE = (220, 264)
 TITLE_CARD = (60, 72)
@@ -84,7 +85,7 @@ KNOWN_FIELDS = {
         "flavourLines", "missionThreads", "loreSites", "npcThreads", "characters", "dialogs", "epilogueTitle",
         "epilogueTitleKey", "epilogueTextKey", "graduation",
     },
-    "graduation": {"lineKey", "counter", "suggest"},
+    "graduation": {"lineKey", "counter", "suggest", "cutscene"},
     "narrator": {"id", "nameKey", "icon", "color", "voice", "lineStart"},
     "escalate": {"hintAfter", "markerAfter", "offerSkipAfter"},
     "start": {"after", "earlyOptIn"},
@@ -105,7 +106,7 @@ KNOWN_FIELDS = {
     "finale": {"type", "cutscenes"},
     "beat": {"index", "title", "textKey", "threshold", "knowledgeReward", "cutscene"},
     "cutscene_file": {"cutscenes"},
-    "cutscene": {"id", "tier", "chapter", "template", "replaceLineKeys", "music", "shots", "options"},
+    "cutscene": {"id", "tier", "chapter", "template", "replaceLineKeys", "music", "arg", "shots", "options"},
     "shot": {"camera", "duration", "captions", "grade", "sfx"},
     "camera": {"type", "anchor"},
     "caption": {"key", "style", "kickerKey", "speaker", "at", "hold"},
@@ -689,6 +690,7 @@ class Validator:
             for gi, chapter_id in enumerate(suggest):
                 if chapter_id not in optional_ids:
                     r.error(pid, f"graduation.suggest[{gi}]", f"'{chapter_id}' is not an optional chapter of this pack")
+            cutscene("graduation.cutscene", graduation.get("cutscene"))  # #2473
 
         # Every key in English and German (the pack's own table over the base table), within its budget.
         pack_en = self.load_table(pack_dir / "locales" / "en.json")
@@ -801,6 +803,10 @@ class Validator:
             chapter = cut.get("chapter") or ""
             if chapter and chapter not in chapter_ids:
                 r.error(pid, f"{cp}.chapter", f"the pack has no chapter '{chapter}'")
+            arg_source = cut.get("arg") or ""
+            if arg_source and arg_source not in ARG_SOURCES:
+                r.error(pid, f"{cp}.arg",
+                        f"unknown argument source '{arg_source}' ({', '.join(ARG_SOURCES)}, or none for the bound chapter)")
             for i, line in enumerate(cut.get("replaceLineKeys") or []):
                 key(f"{cp}.replaceLineKeys[{i}]", line)
             music = cut.get("music") or ""

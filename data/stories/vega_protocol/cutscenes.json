@@ -10,7 +10,8 @@
   // speaker page (it counts as heard with the prologue, so VEGA never wakes twice) and the call to adventure is the last
   // page. replaceLineKeys keeps these lines out of the side panel while the scene is owed; a client without cutscenes1 gets
   // the same five pages as the old full-screen prologue (Kind 4). chainNext: when the story track starts in the same join
-  // (no tutorial for the player, a veteran) "the story so far" follows at once; step 14 adds tutorial/tut.welcome.
+  // (no tutorial for the player, a veteran) "the story so far" follows at once; when the basic training starts, its welcome
+  // card (tutorial/tut.welcome, #2473) follows at once — whichever the join queued next.
   "cutscenes": [
     {
       "id": "prologue",
@@ -51,7 +52,7 @@
           "captions": [ { "style": "speaker", "key": "story.vega.call" } ]
         }
       ],
-      "options": { "holdWorld": true, "lockInput": true, "skippable": true, "chainNext": [ "__recap" ] }
+      "options": { "holdWorld": true, "lockInput": true, "skippable": true, "chainNext": [ "__recap", "tutorial/tut.welcome" ] }
     }
   ]
 }

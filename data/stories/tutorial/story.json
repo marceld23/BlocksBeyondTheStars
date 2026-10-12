@@ -3,7 +3,9 @@
   // by the player-pack runtime (GameServerStoryPacks.cs). Every step is: explain → try it → the server verifies it.
   // Reference for authors: docs/developer/TUTORIAL_PACK.md. Step ids carry their chapter (b3.2); texts live in
   // locales/en.json + de.json (story.tutorial.*). The legacyKey of a step is the old onboarding stage it double-writes for
-  // older builds (and the evidence the one-time migration reads).
+  // older builds (and the evidence the one-time migration reads). The cards (#2473, cutscenes.json): every part opens with a
+  // card (b1 the welcome, b2–b6 the part card tut.strip, which carries "Part n of 6") and closes with a banner (tut.done);
+  // the first launch (b6.1) and the first landing on a new world (b6.7) get a short scene, the graduation its own card.
   "id": "tutorial",
   "kind": "tutorial",
   "scope": "player",
@@ -21,13 +23,16 @@
   "graduation": {
     "lineKey": "story.tutorial.graduated",
     "counter": "tutorial:graduated",
-    "suggest": []
+    "suggest": [],
+    "cutscene": "tut.graduation"
   },
   "chapters": [
     {
       "id": "b1",
       "titleKey": "story.tutorial.ch.b1",
       "summaryKey": "story.tutorial.ch.b1.sum",
+      "openCutscene": "tut.welcome",
+      "closeCutscene": "tut.done",
       "steps": [
         {
           "id": "b1.1", "kind": "do", "tier": "must",
@@ -73,6 +78,8 @@
       "id": "b2",
       "titleKey": "story.tutorial.ch.b2",
       "summaryKey": "story.tutorial.ch.b2.sum",
+      "openCutscene": "tut.strip",
+      "closeCutscene": "tut.done",
       "steps": [
         {
           "id": "b2.1", "kind": "read", "tier": "must",
@@ -136,6 +143,8 @@
       "id": "b3",
       "titleKey": "story.tutorial.ch.b3",
       "summaryKey": "story.tutorial.ch.b3.sum",
+      "openCutscene": "tut.strip",
+      "closeCutscene": "tut.done",
       "steps": [
         {
           "id": "b3.1", "kind": "do", "tier": "must", "legacyKey": "vega:stage:mine",
@@ -176,6 +185,8 @@
       "id": "b4",
       "titleKey": "story.tutorial.ch.b4",
       "summaryKey": "story.tutorial.ch.b4.sum",
+      "openCutscene": "tut.strip",
+      "closeCutscene": "tut.done",
       "steps": [
         {
           "id": "b4.1", "kind": "do", "tier": "must", "legacyKey": "vega:stage:craft",
@@ -220,6 +231,8 @@
       "id": "b5",
       "titleKey": "story.tutorial.ch.b5",
       "summaryKey": "story.tutorial.ch.b5.sum",
+      "openCutscene": "tut.strip",
+      "closeCutscene": "tut.done",
       "steps": [
         {
           "id": "b5.1", "kind": "do", "tier": "must", "legacyKey": "vega:stage:scan",
@@ -251,11 +264,14 @@
       "id": "b6",
       "titleKey": "story.tutorial.ch.b6",
       "summaryKey": "story.tutorial.ch.b6.sum",
+      "openCutscene": "tut.strip",
+      "closeCutscene": "tut.done",
       "steps": [
         {
           "id": "b6.1", "kind": "do", "tier": "must", "legacyKey": "vega:stage:launch",
           "objective": { "event": "space:enter", "arg": "launch" },
           "feasibleIf": [ "world:free_flight" ],
+          "onComplete": { "cutscene": "tut.first_launch" },
           "explain": { "startKey": "story.tutorial.b6.launch.start", "chipKey": "story.tutorial.b6.launch.chip" }
         },
         {
@@ -302,6 +318,7 @@
           "objective": { "event": "visit:world" },
           "feasibleIf": [ "world:free_flight", "world:new_world_in_system" ],
           "alternative": "b6.7a",
+          "onComplete": { "cutscene": "tut.first_landing" },
           "explain": { "startKey": "story.tutorial.b6.land.start", "chipKey": "story.tutorial.b6.land.chip" }
         },
         {

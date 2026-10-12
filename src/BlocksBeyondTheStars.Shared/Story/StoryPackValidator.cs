@@ -670,6 +670,8 @@ public static class StoryPackValidator
             }
         }
 
+        Cutscene("graduation.cutscene", graduation.Cutscene); // #2473
+
         // ---- Cutscene definitions (cutscenes.json, #2467) ----
         ValidateCutscenes(def, context, chapterIds, Key, Error, Warn);
 
@@ -749,6 +751,11 @@ public static class StoryPackValidator
             if (!string.IsNullOrEmpty(cut.Chapter) && !chapterIds.Contains(cut.Chapter))
             {
                 error($"{cp}.chapter", $"the pack has no chapter '{cut.Chapter}'");
+            }
+
+            if (!CutsceneArgSources.IsValid(cut.Arg))
+            {
+                error($"{cp}.arg", $"unknown argument source '{cut.Arg}' ({string.Join(", ", CutsceneArgSources.All)}, or none for the bound chapter)");
             }
 
             foreach (var (line, i) in (cut.ReplaceLineKeys ?? new List<string>()).Select((l, i) => (l, i)))

@@ -226,7 +226,17 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   (`WorldStoryOptions`); VEGA got `descriptionKey` `story.vega.desc`. Tests: `WorldStoriesRulesTests`, Client.Tests
   `WorldStoryOptionsTests` + `WorldOptionsLayoutTests` (link rows counted, Stories page fits). Docs: USER_MANUAL,
   SELF_HOSTING, STORY_IMPLEMENTATION, TUTORIAL_PACK.
-- ⬜ Step 14 — tutorial cards (#2473)
+- ✅ **Step 14 — tutorial cards (#2473)**, 2026-10-12 (needs the local Unity build): `data/stories/tutorial/cutscenes.json`
+  — `tut.welcome` (part 1's opener, chained straight after VEGA's prologue), `tut.strip` (part card "Basic training · Part n
+  of 6" for parts 2–6, template), `tut.done` (part banner), `tut.course` (deep-dive card, bound by steps 18–21),
+  `tut.first_launch` (T3 overlay on the launch rise, now or never), `tut.first_landing` (orbit around the ship, the world's
+  name as the title, SP hold), `tut.graduation` (achievement + VEGA's closing line, chains to the recap); at most 8 heavier
+  moments in the six parts. The part number moved from the parts' first lines onto the cards (G12). Engine: chapter
+  bindings play with title key + place + count (`{1}`/`{2}`, `CutsceneArgs`, shared by server and client), new cutscene
+  field `arg` (`body`/`system`) and pack field `graduation.cutscene`, `LineText.Compose` fills later slots, a queued
+  chapter opener whose part is over is dropped, a line a waiting scene shows is held with it, an overlay scene does not
+  open from black. Tests: `TutorialCardsTests`, Client.Tests `TutorialCardsClientTests`. Docs: CUTSCENES, TUTORIAL_PACK,
+  USER_MANUAL.
 - ⬜ Step 15 — VEGA chapter scenes (#2474)
 - ⬜ Step 16 — VEGA leads, chapter bonus, pacing (#2475) · 16b — VEGA story missions (#2476)
 - ⬜ Step 17a — camera modes (#2477) · 17b — finale set pieces (#2478)

@@ -117,6 +117,11 @@ public sealed class CutsceneLedgerTests : IDisposable
         return server.Sessions[conn];
     }
 
+    /// <summary>The argument of a scene bound to the test pack's chapter <paramref name="chapter"/> ("one" or "two", both
+    /// mandatory): its title key, its place and the count (#2473, <see cref="CutsceneArgs.For"/>).</summary>
+    private static string ChapterArg(string chapter)
+        => string.Join(LineText.ArgSeparator.ToString(), "story.cutscene_test.ch." + chapter, chapter == "one" ? "1" : "2", "2");
+
     /// <summary>The client is in the world (the join settle time passed) and the queue had its tick.</summary>
     private static void Ready(SvGameServer server, PlayerSession p)
     {
@@ -160,7 +165,7 @@ public sealed class CutsceneLedgerTests : IDisposable
         Assert.All(plays, x => Assert.False(x.Replay));
         Assert.All(plays, x => Assert.False(x.HasAnchor));
         Assert.Equal(string.Empty, plays[0].Arg);
-        Assert.Equal("story.cutscene_test.ch.one", plays[1].Arg); // a chapter binding carries the chapter's title key
+        Assert.Equal(ChapterArg("one"), plays[1].Arg); // a chapter binding carries the chapter's title key, place and count
 
         server.TickCutscenesForTest(p);
         Assert.Equal(2, transport.Plays(p).Count); // sent once
@@ -259,7 +264,7 @@ public sealed class CutsceneLedgerTests : IDisposable
             "play:strip@two",                      // the next opener — first_mine chains to the card
             "line:story.cutscene_test.two1.start", // big_moment (onStart, T3) waits for the cooldown
         }, order);
-        Assert.Equal("story.cutscene_test.ch.one", transport.To<CutscenePlay>(p).Single(x => x.CutsceneId == "done@one").Arg);
+        Assert.Equal(ChapterArg("one"), transport.To<CutscenePlay>(p).Single(x => x.CutsceneId == "done@one").Arg);
         Assert.Equal("big_moment", Assert.Single(p.CutsceneQueue).Id);
         Assert.True(Has(p, Sent("big_moment")));
 
@@ -337,7 +342,7 @@ public sealed class CutsceneLedgerTests : IDisposable
         Ready(server, again);
         var play = Assert.Single(transport.To<CutscenePlay>(again));
         Assert.Equal("strip@one", play.CutsceneId);
-        Assert.Equal("story.cutscene_test.ch.one", play.Arg); // the argument is derived again
+        Assert.Equal(ChapterArg("one"), play.Arg); // the argument is derived again
 
         Deliver(server, again, new CutsceneSeenIntent { PackId = C, Ids = new[] { "strip@one" } });
         server.DisconnectLocalPlayerForTest("Pilot");
@@ -563,7 +568,7 @@ public sealed class CutsceneLedgerTests : IDisposable
         Assert.True(play.Replay);
         Assert.True(play.HasAnchor);
         Assert.Equal(admin.State.Position.X, play.AnchorX);
-        Assert.Equal("story.cutscene_test.ch.two", play.Arg); // the scene's chapter title key
+        Assert.Equal(ChapterArg("two"), play.Arg); // the scene's chapter title key, place and count
         Assert.Contains(transport.To<ServerMessage>(admin), m => m.Text == "@srv.admin.cutscene_preview:" + C + "/big_moment");
         Assert.Equal(keys, admin.State.Milestones.Count);
         Assert.False(Has(admin, Sent("big_moment")));
@@ -579,7 +584,7 @@ public sealed class CutsceneLedgerTests : IDisposable
         Assert.Equal(new[] { "big_moment", "welcome", "strip@one", StoryCutsceneIds.Prologue, StoryCutsceneIds.Recap },
             plays.Select(x => x.CutsceneId));
         Assert.Equal(StoryRegistry.DefaultStoryId, plays[3].PackId);
-        Assert.Equal("story.cutscene_test.ch.one", plays[2].Arg);
+        Assert.Equal(ChapterArg("one"), plays[2].Arg);
         Assert.Equal(new[] { "story.cutscene_test.ch.one", "story.cutscene_test.ch.two" }, LineText.SplitArgs(plays[4].Arg));
         Assert.All(plays, x => Assert.True(x.Replay));
         Assert.Equal(keys, admin.State.Milestones.Count);

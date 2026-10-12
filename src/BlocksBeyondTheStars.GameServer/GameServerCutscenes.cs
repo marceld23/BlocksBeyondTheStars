@@ -45,6 +45,10 @@ public sealed class PendingCutscene
 
     /// <summary>A "now or never" scene — it never waits for the cooldown.</summary>
     public bool CooldownExempt { get; }
+
+    /// <summary>#2473: narrator lines the scene shows itself (its <c>replaceLineKeys</c>) that came up while it waited here —
+    /// they go out right after the scene, so the client knows to keep them out of the VEGA panel.</summary>
+    public List<ShipAiLine> HeldLines { get; } = new();
 }
 
 /// <summary>
@@ -194,32 +198,29 @@ public sealed partial class GameServer
         }
 
         string id = def.Template ? StoryCutsceneIds.Instance(def.Id, owner) : def.Id;
-        return PlayCutscene(session, pack.Id, id, CutsceneArgOf(pack, def, id));
+        return PlayCutscene(session, pack.Id, id, CutsceneArgOf(session, pack, def, id));
     }
 
     private static bool IsInstance(string id) => id.IndexOf(StoryCutsceneIds.InstanceSeparator) >= 0;
 
-    /// <summary>The argument a binding plays with: the title key of the chapter the scene is bound to (an instance's owner
-    /// chapter, the chapter of an owner step) or of the scene's own <c>chapter</c>; else empty.</summary>
-    private static string CutsceneArgOf(StoryDefinition pack, CutsceneDefinition def, string id)
-        => ChapterOfCutscene(pack, def, id)?.TitleKey ?? string.Empty;
-
-    private static StoryChapter? ChapterOfCutscene(StoryDefinition pack, CutsceneDefinition def, string id)
+    /// <summary>The argument a binding plays with (<see cref="CutsceneArgs.For"/>, #2473): the bound chapter's title key,
+    /// place and count, or — for a scene whose <c>arg</c> asks for it — the name of the body or star system the player is
+    /// on right now (a replay or a join re-offer reads where the player is then).</summary>
+    private string CutsceneArgOf(PlayerSession session, StoryDefinition pack, CutsceneDefinition def, string id)
     {
-        string owner = StoryCutsceneIds.OwnerOf(id);
-        if (owner.Length > 0)
+        string source = def.Arg ?? string.Empty;
+        if (source.Length == 0)
         {
-            foreach (var chapter in pack.Chapters)
-            {
-                if (chapter.Id == owner || chapter.Steps.Any(st => st.Id == owner))
-                {
-                    return chapter;
-                }
-            }
+            return CutsceneArgs.For(pack, def, id);
         }
 
-        return string.IsNullOrEmpty(def.Chapter) ? null : pack.Chapters.FirstOrDefault(c => c.Id == def.Chapter);
+        var body = ResolveLocationBody(session.CurrentLocationId);
+        string system = body is null ? string.Empty : _galaxy?.Systems.FirstOrDefault(s => s.Id == body.SystemId)?.Name ?? string.Empty;
+        return CutsceneArgs.For(pack, def, id, body?.Name ?? string.Empty, system);
     }
+
+    private static StoryChapter? ChapterOfCutscene(StoryDefinition pack, CutsceneDefinition def, string id)
+        => CutsceneArgs.ChapterOf(pack, def, id);
 
     // ---------------------------------------------------------------------------------------------
     // The queue: client in the world, the cooldown, chains.
@@ -248,12 +249,23 @@ public sealed partial class GameServer
         }
 
         bool sent;
+        bool dropped = false;
         do
         {
             sent = false;
             for (int i = 0; i < session.CutsceneQueue.Count; i++)
             {
                 var item = session.CutsceneQueue[i];
+                if (IsStaleChapterOpener(session, item))
+                {
+                    // #2473: a part card that waited behind the cooldown while its part went by is pointless now — it is
+                    // dropped and stamped seen (as the client does with a scene that found no moment); lines it held go out.
+                    session.CutsceneQueue.RemoveAt(i--);
+                    dropped |= session.State.Milestones.Add(StoryPackKeys.CutsceneSeen(item.PackId, item.Id));
+                    ReleaseHeldLines(session, item);
+                    continue;
+                }
+
                 if (!CutsceneMayGoNow(session, item))
                 {
                     continue;
@@ -266,6 +278,28 @@ public sealed partial class GameServer
             }
         }
         while (sent && session.CutsceneQueue.Count > 0);
+
+        if (dropped)
+        {
+            _repo.SavePlayer(session.State);
+        }
+    }
+
+    /// <summary>A queued opener of a player pack's chapter (its <c>openCutscene</c>, e.g. the tutorial's part card) whose
+    /// chapter the player has already finished or skipped (#2473): the card would announce a part that is over.</summary>
+    private bool IsStaleChapterOpener(PlayerSession session, PendingCutscene item)
+    {
+        if (item.DefinitionId == StoryCutsceneIds.Recap || !_content.Stories.TryGetValue(item.PackId, out var pack)
+            || !string.Equals(StoryRegistry.EffectiveScope(pack), StoryRegistry.ScopePlayer, StringComparison.Ordinal)
+            || pack.FindCutscene(item.Id) is not { } def
+            || ChapterOfCutscene(pack, def, item.Id) is not { } chapter
+            || !string.Equals(chapter.OpenCutscene, def.Id, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var m = session.State.Milestones;
+        return m.Contains(StoryPackKeys.ChapterDone(pack.Id, chapter.Id)) || m.Contains(StoryPackKeys.ChapterSkipped(pack.Id, chapter.Id));
     }
 
     private bool CutsceneMayGoNow(PlayerSession session, PendingCutscene item)
@@ -288,6 +322,7 @@ public sealed partial class GameServer
     private void SendQueuedCutscene(PlayerSession session, PendingCutscene item)
     {
         SendCutscenePlay(session, item.PackId, item.Id, item.Arg, item.Anchor, replay: false);
+        ReleaseHeldLines(session, item); // #2473: after the scene, so the client claims them
         if (item.Tier <= CutsceneTiers.Banner)
         {
             return; // a banner never blocks anything
@@ -314,6 +349,51 @@ public sealed partial class GameServer
             session.CutsceneChain.Add(next == StoryCutsceneIds.Recap || next.IndexOf(StoryCutsceneIds.PackSeparator) >= 0
                 ? next
                 : item.PackId + StoryCutsceneIds.PackSeparator + next);
+        }
+    }
+
+    /// <summary>
+    /// #2473: a narrator line one of the player's queued (not yet sent) scenes shows itself — a key of its
+    /// <c>replaceLineKeys</c> — waits with that scene and goes out right after it. A scene is sent before its trigger's line
+    /// so the client can keep that line out of the VEGA panel; a scene held back by the cooldown would otherwise arrive after
+    /// its line, and the player would read it twice (the tutorial's graduation card and its closing line). Returns whether
+    /// the line was held.
+    /// </summary>
+    private bool HoldLineForQueuedCutscene(PlayerSession session, ShipAiLine line)
+    {
+        if (session.CutsceneQueue.Count == 0 || string.IsNullOrEmpty(line?.LineKey))
+        {
+            return false;
+        }
+
+        foreach (var item in session.CutsceneQueue)
+        {
+            if (item.DefinitionId != StoryCutsceneIds.Recap
+                && FindPackCutscene(item.PackId, item.Id) is { } def
+                && def.ReplaceLineKeys.Contains(line!.LineKey))
+            {
+                item.HeldLines.Add(line);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Sends the lines a scene held (<see cref="HoldLineForQueuedCutscene"/>) — after the scene, or when it leaves
+    /// the queue without being sent.</summary>
+    private void ReleaseHeldLines(PlayerSession session, PendingCutscene item)
+    {
+        if (item.HeldLines.Count == 0)
+        {
+            return;
+        }
+
+        var lines = item.HeldLines.ToList();
+        item.HeldLines.Clear();
+        foreach (var line in lines)
+        {
+            SendVegaWithObjective(session, line);
         }
     }
 
@@ -376,7 +456,11 @@ public sealed partial class GameServer
             }
 
             changed |= m.Add(StoryPackKeys.CutsceneSeen(pack.Id, id));
-            session.CutsceneQueue.RemoveAll(q => q.PackId == pack.Id && q.Id == id);
+            foreach (var queued in session.CutsceneQueue.Where(q => q.PackId == pack.Id && q.Id == id).ToList())
+            {
+                session.CutsceneQueue.Remove(queued);
+                ReleaseHeldLines(session, queued); // #2473: confirmed without being sent — its held lines still reach the panel
+            }
         }
 
         if (changed)
@@ -491,7 +575,7 @@ public sealed partial class GameServer
 
             foreach (var (id, def) in scenes)
             {
-                EnqueueCutscene(session, new PendingCutscene(pack.Id, id, def.Tier, CutsceneArgOf(pack, def, id), null,
+                EnqueueCutscene(session, new PendingCutscene(pack.Id, id, def.Tier, CutsceneArgOf(session, pack, def, id), null,
                     def.Options?.CooldownExempt ?? false));
             }
         }
@@ -520,7 +604,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        return PlayCutscene(session, pack.Id, cutsceneId!, CutsceneArgOf(pack, def, cutsceneId!), replay: true);
+        return PlayCutscene(session, pack.Id, cutsceneId!, CutsceneArgOf(session, pack, def, cutsceneId!), replay: true);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -585,9 +669,9 @@ public sealed partial class GameServer
         else if (pack.FindCutscene(id) is { } def)
         {
             wireId = def.Template
-                ? (IsInstance(id) ? id : StoryCutsceneIds.Instance(def.Id, pack.Chapters.FirstOrDefault()?.Id ?? pack.Id))
+                ? (IsInstance(id) ? id : StoryCutsceneIds.Instance(def.Id, CutsceneArgs.DefaultOwner(pack, def)))
                 : def.Id;
-            playArg = CutsceneArgOf(pack, def, wireId);
+            playArg = CutsceneArgOf(session, pack, def, wireId);
         }
         else
         {

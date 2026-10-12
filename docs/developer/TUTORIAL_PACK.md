@@ -7,8 +7,8 @@ that runs it per player is the **player-pack runtime** (#2466), described in
 
 > **Status.** Since story packs step 10 (#2469) the basic training **is** the tutorial pack `data/stories/tutorial/`: the
 > old hard-coded nine-stage VEGA onboarding (`VegaStages`, `VegaIsVeteran`, the client's copy of the stage list) is gone.
-> The deep-dive chapters C1–C18 come with steps 18–21; the tutorial's cards (`tut.welcome`, `tut.strip` …) with step 14;
-> VEGA's own pack and the hand-over to its chapter 1 with step 11. Test packs for the runtime live in
+> The deep-dive chapters C1–C18 come with steps 18–21; the tutorial's cards (`tut.welcome`, `tut.strip` …) came with step
+> 14 (#2473, [Cards](#cards-2473)); VEGA's own pack and the hand-over to its chapter 1 with step 11. Test packs for the runtime live in
 > `tests/BlocksBeyondTheStars.Tests/Fixtures/story_packs/`.
 
 ## Folder
@@ -64,7 +64,7 @@ Every field is optional and defaults to today's behaviour.
 | `gates` | `{ opportunityTips, banter, stationNear }` → condition | — | tutorial only: when the global advisor systems open (see [Gates](#gates)) |
 | `escalate` | `{ hintAfter, markerAfter, offerSkipAfter }` seconds | 180 / 360 / 600 | the help escalation defaults; `0` switches a stage off |
 | `start` | `{ after: condition[], earlyOptIn }` | at the first join | when the pack starts for a player; `earlyOptIn` allows `startPack` before `after` holds |
-| `graduation` | `{ lineKey, counter, suggest[] }` | — | #2469: when a player finishes the mandatory chapters **by playing** (not skipped, not by migration evidence): the closing line (a client with `packs1`; an older client of a tutorial hears `vega.done`), the achievement counter advanced once (`data/achievements.json` says which achievement watches it), up to three optional chapters marked offered (only those that are available and not done, declined or running). The end of a full restart (the last mandatory chapter's replay) graduates again; replaying one earlier chapter does not |
+| `graduation` | `{ lineKey, counter, suggest[], cutscene }` | — | #2469: when a player finishes the mandatory chapters **by playing** (not skipped, not by migration evidence): the graduation cutscene (#2473, before the line, once per player), the closing line (a client with `packs1`; an older client of a tutorial hears `vega.done`), the achievement counter advanced once (`data/achievements.json` says which achievement watches it), up to three optional chapters marked offered (only those that are available and not done, declined or running). The end of a full restart (the last mandatory chapter's replay) graduates again; replaying one earlier chapter does not |
 | `chapters` | Chapter[] | [] | below |
 | `insights` | `[{ event, minBeat, textKey, onceKey }]` | [] | world packs (read from step 16) |
 | `finale` | `{ type, cutscenes{…} }` | — | world packs (presentation bindings) |
@@ -176,7 +176,8 @@ fails; the Python tool reports it as a warning. Neither tool ever changes a file
 `kind: tutorial`, player scope, priority 100, narrator VEGA, short name "Training" / "Ausbildung", escalation 180 / 360 /
 600 s. VEGA presents it in **neutral words** (maintainer decision): the amnesia premise appears only as whole-line variants
 under `pack:vega_protocol:enabled` (b1.3 "what's left of me", b1.6 "I wrote it before the crash"). Every step is: explain →
-try it → the server verifies it. The first step line of each part says "Part n of 6".
+try it → the server verifies it. Each part opens with a card that says "Part n of 6" (#2473, [Cards](#cards-2473)) — the
+part's first step line no longer repeats it (G12).
 
 ### Content
 
@@ -232,7 +233,26 @@ Tier · kind: **M** = must, **C** = core · **do** / **read** / **react**. Event
 **Graduation:** `story.tutorial.graduated` ("Basic training complete! … The galaxy is yours." — neutral, without
 `vega.done`'s memory hook), the achievement **Graduate** (`graduate`, counter `tutorial:graduated`, no items), no suggested
 deep dives yet (steps 18–21 add the chapters and their ids to `graduation.suggest`). The hand-over to VEGA's chapter 1 is
-step 11.
+step 11. Since #2473 the graduation card `tut.graduation` shows the achievement and the closing line itself.
+
+### Cards (#2473)
+
+The parts' cards live in `data/stories/tutorial/cutscenes.json` (format, tiers and pacing: [CUTSCENES.md](CUTSCENES.md#the-tutorial-cards-2473)).
+Cards, not cinema: no card takes the camera, holds the world or freezes the controls, and a card shows titles only.
+
+| Binding | Scene | When the player sees it |
+|---|---|---|
+| `b1.openCutscene` | `tut.welcome` | part 1 starts — right after VEGA's prologue (its `chainNext` names `tutorial/tut.welcome`), or on its own without the story; "Basic training · six short parts", then "Part 1 of 6 · First steps". A migrated save that starts at a later part gets that part's card instead; a veteran the pack completes for silently gets nothing |
+| `b2`…`b6.openCutscene` | `tut.strip` (template) | a part starts: "Basic training · Part n of 6" + the part's title — after the 90 s cooldown, and dropped if the part is over by then |
+| every part's `closeCutscene` | `tut.done` (template, banner) | a part the player was shown is done (not when skipped, replayed or completed silently): "Part complete!" + the part's title |
+| `b6.1.onComplete` | `tut.first_launch` | the first launch: a letterbox over the launch rise, "now or never" |
+| `b6.7.onComplete` | `tut.first_landing` | the first landing on a new world: the camera circles the ship, the world's name as the title (not for the stand-in `b6.7a`) |
+| `graduation.cutscene` | `tut.graduation` | the graduation: "★ Achievement · Graduate" and VEGA's closing line |
+| (deep dives, steps 18–21) | `tut.course` (template) | an accepted deep dive starts: "Short course" + its title |
+
+Each scene plays once per player (`story:tutorial:cut:<id>`, a template once per part, `tut.strip@b3`): "I know the game",
+a restart and a replayed part show no card again, and a client without cutscenes gets the lines only (the cards count as
+seen at once).
 
 The teaching verbs above (`move:walked` … `visit:world`) are listed with their raise sites in
 [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md) ("Game events"); each is raised next to the existing hook of its handler
