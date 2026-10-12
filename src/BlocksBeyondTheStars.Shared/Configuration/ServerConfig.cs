@@ -936,4 +936,18 @@ public sealed class ServerConfig
 
         return Enum.TryParse(word, ignoreCase: true, out policy) && Enum.IsDefined(typeof(TutorialPolicy), policy);
     }
+
+    /// <summary>Parses a story pace word (#2472, the live world-rules edit): <c>Sparse</c>, <c>Normal</c> or <c>Dense</c>,
+    /// case-insensitive. Numbers are refused (an enum parse would take any integer).</summary>
+    public static bool TryParseStoryDensity(string? value, out StoryDensity density)
+    {
+        string word = (value ?? string.Empty).Trim();
+        density = StoryDensity.Normal;
+        if (word.Length == 0 || char.IsDigit(word[0]) || word[0] == '-' || word[0] == '+')
+        {
+            return false;
+        }
+
+        return Enum.TryParse(word, ignoreCase: true, out density) && Enum.IsDefined(typeof(StoryDensity), density);
+    }
 }

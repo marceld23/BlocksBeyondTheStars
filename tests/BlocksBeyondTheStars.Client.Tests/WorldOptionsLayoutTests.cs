@@ -44,8 +44,9 @@ public sealed class WorldOptionsLayoutTests
     }
 
     /// <summary>Replays the main page's vertical cursor for one column: the start value, every literal
-    /// <c>ly/ry += n f</c> step (section headers and gaps) and one <c>RowH</c> per <c>Row(leftCol, …)</c>
-    /// call, in source order. Returns the y the column ended on and how many rows it drew.</summary>
+    /// <c>ly/ry += n f</c> step (section headers and gaps) and one <c>RowH</c> per <c>Row(leftCol, …)</c> or
+    /// <c>LinkRow(leftCol, …)</c> call (#2472: a row that opens a sub-page takes a slider row's pitch), in source
+    /// order. Returns the y the column ended on and how many rows it drew.</summary>
     private static (float End, int Rows) Column(string source, bool left)
     {
         string cursor = left ? "ly" : "ry";
@@ -60,7 +61,7 @@ public sealed class WorldOptionsLayoutTests
         // the Row() helper is not matched (no numeric literal), so rows are counted exactly once.
         var steps = Regex.Matches(
             source,
-            $@"(?<step>\b{cursor} \+= (?<n>[0-9.]+)f;)|(?<row>\bRow\((?<side>true|false),)",
+            $@"(?<step>\b{cursor} \+= (?<n>[0-9.]+)f;)|(?<row>\b(?:Row|LinkRow)\((?<side>true|false),)",
             RegexOptions.CultureInvariant,
             TimeSpan.FromSeconds(5));
 
@@ -100,6 +101,49 @@ public sealed class WorldOptionsLayoutTests
             $"The {(left ? "left" : "right")} world-options column ends at y={bottom} with {rows} rows, but the footer "
             + $"buttons start at y={footerY}. The bottom row would be drawn underneath them and could not be "
             + $"clicked (#983). Reduce RowH, drop a row, or move the row to the other column.");
+    }
+
+    /// <summary>#2472: the story choices are ONE row on the main page — "Stories: VEGA · Tutorial Auto ›", opening the
+    /// Stories page — not the old storyline and pace sliders (the right column had 14 px left; the next row would have slid
+    /// under the footer). The main page must not grow a story slider back.</summary>
+    [Fact]
+    public void MainPage_HasOneStoriesRow_AndNoStorySliders()
+    {
+        string source = Source();
+        Assert.Single(Regex.Matches(source, @"\bLinkRow\((?:true|false), shell\.L\(""ui\.worldopt\.stories""\)", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2)));
+        Assert.DoesNotMatch(@"\bRow\((?:true|false), shell\.L\(""ui\.worldopt\.(?:story|story_density)""\)", source);
+        Assert.Contains("BuildStories(shell, stories.transform, opt,", source, StringComparison.Ordinal);
+    }
+
+    /// <summary>#2472: the Stories page is a fixed grid too. Its main-story list is data (every installed world story,
+    /// capped at <see cref="WorldStoryOptions.MaxChoices"/>), followed by the chosen story's description and the pace row; the
+    /// tutorial rule's three rows sit in the right column. Both columns must end above the footer even with a full list.</summary>
+    [Fact]
+    public void StoriesPage_ColumnsEndAboveTheFooterButtons_EvenWithAFullList()
+    {
+        string source = Source();
+        float footerY = Constant(source, @"FooterY = ([0-9.]+)f;", "FooterY");
+        float listY = Constant(source, @"const float StoriesListY = ([0-9.]+)f;", "StoriesListY");
+        float choiceH = Constant(source, @"const float StoriesChoiceH = ([0-9.]+)f;", "StoriesChoiceH");
+        float pitch = Constant(source, @"const float StoriesChoicePitch = ([0-9.]+)f;", "StoriesChoicePitch");
+        float descH = Constant(source, @"const float StoriesDescriptionH = ([0-9.]+)f;", "StoriesDescriptionH");
+        float tutorialOffset = Constant(source, @"const float StoriesTutorialOffset = ([0-9.]+)f;", "StoriesTutorialOffset");
+        float tutorialH = Constant(source, @"const float StoriesTutorialH = ([0-9.]+)f;", "StoriesTutorialH");
+        float tutorialPitch = Constant(source, @"const float StoriesTutorialPitch = ([0-9.]+)f;", "StoriesTutorialPitch");
+
+        Assert.True(pitch >= choiceH + MinClearance / 2f, $"StoriesChoicePitch {pitch} leaves no gap between {choiceH} px choice rows.");
+        Assert.True(tutorialPitch >= tutorialH + MinClearance / 2f, $"StoriesTutorialPitch {tutorialPitch} leaves no gap between {tutorialH} px rows.");
+
+        // Left: the list, the description box (4 px gap, 8 px after it), then one slider row (LabelH tall).
+        Assert.Matches(@"sy \+= 4f \+ StoriesDescriptionH \+ 8f;", source);
+        float leftBottom = listY + (WorldStoryOptions.MaxChoices * pitch) + 4f + descH + 8f + LabelH;
+        Assert.True(leftBottom + MinClearance <= footerY,
+            $"With {WorldStoryOptions.MaxChoices} main stories the Stories page's left column ends at y={leftBottom}, under the footer at y={footerY}.");
+
+        // Right: the tutorial's description, then one row per tutorial rule.
+        float rightBottom = listY + tutorialOffset + ((WorldStoryOptions.TutorialSteps.Length - 1) * tutorialPitch) + tutorialH;
+        Assert.True(rightBottom + MinClearance <= footerY,
+            $"The tutorial rows end at y={rightBottom}, under the footer at y={footerY}.");
     }
 
     /// <summary>The planet-type page is data-driven (one row per selectable type in <c>data/planets.json</c>),

@@ -160,6 +160,7 @@ public static class StoryRegistry
         Kind = KindStory,
         Scope = ScopeWorld,
         ShortNameKey = "story.vega.short",
+        DescriptionKey = "story.vega.desc", // #2472: the world-creation Stories page's line under the main story
         Narrator = new StoryNarrator
         {
             Id = StoryNarrator.DefaultId,

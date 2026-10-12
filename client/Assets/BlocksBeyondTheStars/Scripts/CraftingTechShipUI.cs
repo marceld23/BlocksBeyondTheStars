@@ -3379,6 +3379,43 @@ namespace BlocksBeyondTheStars.Client
                 y += 40f;
             }
 
+            // #2472: the stories' world rules, live — the tutorial (Auto / On request / Off, with the chosen rule's one-line
+            // explanation) and the story pace. The same words as the world-creation Stories page (WorldStoryOptions); the
+            // server checks the admin role. An older server sends no value — then the row is not there.
+            void StoryRuleRow(string label, string[] steps, string[] nameKeys, int idx, System.Action<string> send)
+            {
+                UiKit.AddText(_listContent, 16, y, 360, 56, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
+                UiKit.AddText(_listContent, 380, y, 180, 56, L(nameKeys[idx]), 20, UiKit.Cyan, TextAnchor.MiddleCenter);
+                UiKit.AddButton(_listContent, 570, y + 6, 80, 44, "−", () =>
+                {
+                    if (idx > 0) { send(steps[idx - 1]); Invoke(nameof(RebuildList), 0.35f); }
+                });
+                UiKit.AddButton(_listContent, 660, y + 6, 80, 44, "+", () =>
+                {
+                    if (idx < steps.Length - 1) { send(steps[idx + 1]); Invoke(nameof(RebuildList), 0.35f); }
+                });
+            }
+
+            int tutorialIdx = WorldStoryOptions.TutorialIndex(rules?.TutorialPolicy);
+            if (tutorialIdx >= 0)
+            {
+                StoryRuleRow(L("ui.worldopt.tutorial"), WorldStoryOptions.TutorialSteps, WorldStoryOptions.TutorialNameKeys, tutorialIdx,
+                    v => Game?.Network?.SendSetWorldRules(tutorialPolicy: v));
+                y += 50f;
+                var tutorialHint = UiKit.AddText(_listContent, 16, y, 760, 30, L(WorldStoryOptions.TutorialHintKeys[tutorialIdx]), 15,
+                    UiKit.CyanDim, TextAnchor.MiddleLeft);
+                UiKit.FitLabel(tutorialHint, 10, 15);
+                y += 40f;
+            }
+
+            int paceIdx = WorldStoryOptions.DensityIndex(rules?.StoryDensity);
+            if (paceIdx >= 0)
+            {
+                StoryRuleRow(L("ui.worldopt.story_density"), WorldStoryOptions.DensitySteps, WorldStoryOptions.DensityNameKeys, paceIdx,
+                    v => Game?.Network?.SendSetWorldRules(storyDensity: v));
+                y += 62f;
+            }
+
             // Instant Travel (world option): when on, the travel screen may quick-travel anywhere; when off
             // (default) it is limited to worlds you've already landed on. The server enforces the admin gate.
             bool instant = rules?.InstantTravel ?? false;

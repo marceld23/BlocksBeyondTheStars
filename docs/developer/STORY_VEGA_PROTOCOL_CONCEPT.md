@@ -293,7 +293,8 @@ spawn position + an in-radius aggression modifier in `GameServerEnemies` / `Game
 Pacing (thresholds), density (weights), combat weighting and on/off are pure numbers — expose a
 **story-selection** control (pick the active pack, or **"None / Sandbox"**) + a **"Story density"** slider in
 world creation. Reuses the existing world-rules model. *As built:* both are creation-time options baked into the
-save's rules; the density is not live-editable, the active pack is switched by an admin (`StorySelectIntent`).
+save's rules, chosen on the world-creation **Stories** page (#2472, with the tutorial rule); the density is live-editable
+by the world admin since #2472 (in-game world rules), the active pack is switched by an admin (`StorySelectIntent`).
 
 ## 12. Recommended first slice (MVP)
 1. **Generic story engine + state + threshold beats** (Layer C) on top of `ai_memory_fragment`; a

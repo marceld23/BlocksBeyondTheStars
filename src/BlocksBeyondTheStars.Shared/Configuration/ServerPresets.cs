@@ -69,6 +69,9 @@ public static class ServerPresets
             AsteroidDestruction = AsteroidDestructionMode.MiningOnly,
             PersonalLandingZones = true,
             PersonalLandingZoneProtection = LandingZoneProtection.All,
+            // #2472 (synthesis §5.3 "Weltregel": family/school = Auto): every new player starts the basic training and
+            // can skip it. Said explicitly here because it is the preset a school or a family picks; no preset turns it off.
+            TutorialPolicy = TutorialPolicy.Auto,
         },
         "coop-survival" => new GameRules
         {

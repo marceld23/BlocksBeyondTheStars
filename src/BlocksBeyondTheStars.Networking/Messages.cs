@@ -1427,6 +1427,10 @@ public sealed class ServerRules
     /// <summary>The world's tutorial rule (#2466): "Auto", "OptIn" or "Off". EMPTY from a server that predates it.</summary>
     public string TutorialPolicy { get; set; } = string.Empty;
 
+    /// <summary>The world's story pace (#2472): "Sparse", "Normal" or "Dense" (<c>GameRules.StoryDensity</c>). EMPTY from a
+    /// server that predates the live edit — the client then hides the world-rules row.</summary>
+    public string StoryDensity { get; set; } = string.Empty;
+
     /// <summary>Whether the server accepts/relays live voice chat (opt-in; default off on dedicated servers).
     /// When false the client keeps voice capture disabled and shows voice comms as unavailable.</summary>
     public bool VoiceChatEnabled { get; set; }
@@ -1493,6 +1497,9 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>The tutorial rule (#2466): "Auto"/"OptIn"/"Off" to set it, empty to leave unchanged.</summary>
     public string TutorialPolicy { get; set; } = string.Empty;
+
+    /// <summary>The story pace (#2472): "Sparse"/"Normal"/"Dense" to set it, empty to leave unchanged.</summary>
+    public string StoryDensity { get; set; } = string.Empty;
 }
 
 // --- Missions ---

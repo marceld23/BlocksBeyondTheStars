@@ -557,9 +557,12 @@ namespace BlocksBeyondTheStars.Client
         public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "",
             string bandits = "", string instantTravel = "", string keepInventory = "", string keepShip = "", string hazards = "",
             string autoAim = "", string starterTeleporter = "", string frontierDanger = "", string baseVisitors = "",
-            string worldTextures = "", int machineCatchUpMinutes = -1, string returnToShip = "")
+            string worldTextures = "", int machineCatchUpMinutes = -1, string returnToShip = "",
+            string tutorialPolicy = "", string storyDensity = "")
             => Send(new SetWorldRulesIntent
             {
+                TutorialPolicy = tutorialPolicy, // #2466/#2472: "Auto" | "OptIn" | "Off", empty = unchanged
+                StoryDensity = storyDensity,     // #2472: "Sparse" | "Normal" | "Dense", empty = unchanged
                 MachineCatchUpMinutes = machineCatchUpMinutes, // #2269: -1 = unchanged
                 WorldTextures = worldTextures,
                 ReturnToShip = returnToShip, // #2286

@@ -215,7 +215,17 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   Journal" line), B6.4 (the dock lesson sets the nearest station as the flight target, `nearest_station`), card skip
   button under the touch layer (taps forwarded), `vega.step.offer_skip` wording. Tests: `StoryJournalTests`, Client.Tests
   `JournalViewTests`. Docs: USER_MANUAL, STORY_IMPLEMENTATION, TUTORIAL_PACK.
-- ⬜ Step 13 — world creation "Stories" page (#2472)
+- ✅ **Step 13 — world creation "Stories" page (#2472)**, 2026-10-12 (needs the local Unity build): the world options'
+  storyline + pace sliders are ONE row **"Stories: VEGA · Tutorial Auto ›"** opening a **Stories** sub-page — main story
+  (every installed world story from the content, "None (sandbox)" last, the chosen one's description), story pace, and the
+  tutorial rule **Auto / On request / Off** with one line each; creation emits only non-defaults (`--story <id>`,
+  `--story-density`, `--tutorial`), baked into the save. The world admin changes the **story pace live** now (new additive
+  `SetWorldRulesIntent.StoryDensity` / `ServerRules.StoryDensity`; a faster pace reveals the beats its score covers at once)
+  and the tutorial rule from the in-game world rules (Settings tab). Presets keep Auto (server `family` says so); hosted /
+  glitch worlds keep VEGA + Auto (no portal option); old saves read Normal / Auto. Model in Client.Core
+  (`WorldStoryOptions`); VEGA got `descriptionKey` `story.vega.desc`. Tests: `WorldStoriesRulesTests`, Client.Tests
+  `WorldStoryOptionsTests` + `WorldOptionsLayoutTests` (link rows counted, Stories page fits). Docs: USER_MANUAL,
+  SELF_HOSTING, STORY_IMPLEMENTATION, TUTORIAL_PACK.
 - ⬜ Step 14 — tutorial cards (#2473)
 - ⬜ Step 15 — VEGA chapter scenes (#2474)
 - ⬜ Step 16 — VEGA leads, chapter bonus, pacing (#2475) · 16b — VEGA story missions (#2476)

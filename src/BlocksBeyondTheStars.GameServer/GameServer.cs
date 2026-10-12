@@ -7873,6 +7873,7 @@ public sealed partial class GameServer
             FrontierDanger = r.FrontierDanger,
             BaseVisitors = r.BaseVisitors,
             TutorialPolicy = r.TutorialPolicy.ToString(), // #2466
+            StoryDensity = r.StoryDensity.ToString(), // #2472 (empty = a server without the live edit)
             VoiceChatEnabled = _config.VoiceChatEnabled,
             ChatMode = EffectiveChatMode.ToString(),
             PlayerModeNames = modeNames,
@@ -7970,6 +7971,15 @@ public sealed partial class GameServer
             tutorialPolicyChanged = true;
         }
 
+        // #2472: the story pace, live (was creation-only). A faster pace may already cover the next beats — they are
+        // revealed right away by AdvanceStory below; a slower one only stretches what is still ahead (heard beats stay).
+        bool storyDensityChanged = false;
+        if (ServerConfig.TryParseStoryDensity(intent.StoryDensity, out var storyDensity) && storyDensity != Rules.StoryDensity)
+        {
+            Rules.StoryDensity = storyDensity;
+            storyDensityChanged = true;
+        }
+
         _meta.RulesOverride = Rules.Clone(); // the world owns its rules — persist the edit
         _repo.SaveMetadata(_meta);
 
@@ -7992,10 +8002,16 @@ public sealed partial class GameServer
             ResendWorldTexturesToAll(); // #1958: switched off → every client drops them; on → they come back
         }
 
+        if (storyDensityChanged)
+        {
+            AdvanceStory(); // #2472: reveal what the new pace already covers, persist, re-send the meter (no-op without a story)
+        }
+
         _log.Info($"World rules updated by '{session.State.Name}': creatures={Rules.CreatureAbundance}, " +
                   $"planet={Rules.PlanetEnemies}, space={Rules.SpaceNpcEnemies}, ufos={Rules.AlienUfos}, " +
                   $"bandits={Rules.Bandits}, instantTravel={Rules.InstantTravel}, hazards={Rules.EnvironmentalHazards}, " +
-                  $"autoAim={Rules.AutoAim}, starterTeleporter={Rules.StarterTeleporter}, returnToShip={Rules.ReturnToShip}.");
+                  $"autoAim={Rules.AutoAim}, starterTeleporter={Rules.StarterTeleporter}, returnToShip={Rules.ReturnToShip}, " +
+                  $"tutorial={Rules.TutorialPolicy}, storyDensity={Rules.StoryDensity}.");
     }
 
     /// <summary>Rearranges the player's personal inventory by swapping two slots (B58 — customising the quick-bar,

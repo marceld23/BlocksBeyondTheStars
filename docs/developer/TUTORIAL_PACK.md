@@ -144,9 +144,11 @@ on). The two probes read loaded blocks around the player and run only when a ste
 ## The world rule
 
 `GameRules.TutorialPolicy` = `Auto` (default; starts for every new player, skippable at every level) · `OptIn` (listed,
-starts on the player's request) · `Off` (not offered). Set at world creation (`--tutorial auto|optin|off`, baked into the
-save's rules), changed live by the admin (`SetWorldRulesIntent.TutorialPolicy`, admin command `tutorial policy …`). A
-save without the field reads `Auto`.
+starts on the player's request) · `Off` (not offered). Set at world creation (the world-creation **Stories** page, #2472:
+"Auto / On request / Off" with one line each → `--tutorial auto|optin|off`, emitted only when not `Auto`, baked into the
+save's rules), changed live by the admin (the *Tutorial* row of the in-game world rules → `SetWorldRulesIntent.TutorialPolicy`,
+or the admin command `tutorial policy …`). A save without the field reads `Auto`; no server preset switches it off
+(`family` = `Auto`); hosted and glitch worlds pass no flag (`Auto`).
 
 ## Validation
 

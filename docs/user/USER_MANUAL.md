@@ -60,6 +60,18 @@ Last updated: 2026-10-04.
   wrecks, vaults, stations, wormholes, exotic worlds, universe size), plus an **advanced page** with a frequency
   slider per planet type. The world *owns* its rules from then on; the world admin can live-edit the
   creature/enemy activity later in-game (Settings tab → "Weltregeln").
+- **Stories** ("Geschichten") at world creation: the row **"Stories: VEGA · Tutorial Auto ›"** at the bottom of the
+  world options opens its own page with three choices:
+  - **Main story** — the story this world tells: **The VEGA Protocol** (default; a line under the list says what it is
+    about) or **None (sandbox)** for free exploring and building. More stories appear in this list once they are installed.
+  - **Story pace** — *Slow / Normal / Fast*: how quickly the story's chapters unfold as you play.
+  - **Tutorial** — **Auto** (default: every new player starts with the basic training and can skip it at any time),
+    **On request** (it does not start by itself; players start it in their Journal) or **Off** (no basic training in
+    this world). A world without a story still has the tutorial when it is on.
+
+  The summary row shows your choice (e.g. "VEGA (Fast) · Tutorial Off ›"); the presets reset it to VEGA · Normal · Auto.
+  The world admin can change the **tutorial** and the **story pace** later in-game (Settings tab → world rules); the main
+  story stays what the world was created with. Official (hosted) worlds always start with VEGA and the tutorial on Auto.
 - The **Editors** submenu (main menu) holds the creation tools — see §6.
 - **Window mode** (Settings tab): the **"Window mode" / "Fenstermodus"** option cycles **Windowed → Borderless →
   Exclusive** and applies immediately. The default is **Windowed** (a normal movable, maximizable window);
@@ -1111,9 +1123,11 @@ players.
     **Restart from the beginning** (runs it again from part 1 — for anyone, experienced players included, and without
     the opening narration) and **Switch off**. Some lessons you already did early simply tick off by themselves.
   - **Tutorial: on/off** in the Settings tab switches the training off for you (VEGA stops the lessons and the
-    course offers) and back on — on an *Opt-in* world "on" starts it. Next to it, **Open the Journal**.
-  - **Tutorial on/off for a world:** the world rule *Tutorial* is **Auto** (every new player starts it), **Opt-in**
-    (only on request) or **Off** (an admin sets it with `/tutorial policy auto|optin|off`).
+    course offers) and back on — on an *On request* world "on" starts it. Next to it, **Open the Journal**.
+  - **Tutorial on/off for a world:** the world rule *Tutorial* is **Auto** (every new player starts it), **On request**
+    (only on request) or **Off** — chosen on the world-creation **Stories** page (§1), and changed later by the world
+    admin under Tab → Settings → world rules (*Tutorial*, with a line saying what the choice means) or with
+    `/tutorial policy auto|optin|off`.
   - VEGA's lessons — and the prompts at the ship's cockpit, workshop, cargo hold and console, the crafting
     stations, the bed, the heal tank, the transporter pad and a factory terminal — name the control of the device
     you are using: the key you bound, the pad button, or on a tablet the on-screen button (USE, MAP, JUMP, MINE,

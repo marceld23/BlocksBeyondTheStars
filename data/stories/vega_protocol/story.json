@@ -9,6 +9,7 @@
   "kind": "story",
   "scope": "world",
   "shortNameKey": "story.vega.short",
+  "descriptionKey": "story.vega.desc", // #2472: the one line under the main story on the world-creation Stories page
   "narrator": {
     "id": "vega", "nameKey": "ui.vega.name", "icon": "icon_vega", "color": "#5FD8FF",
     "voice": [ "vega_chatter_1", "vega_chatter_2", "vega_chatter_3" ], "lineStart": "ai_blip"

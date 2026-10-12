@@ -21,8 +21,6 @@ namespace BlocksBeyondTheStars.Client
         public static readonly string[] HungerSteps = { "Off", "Slow", "Normal", "Fast" };
         public static readonly string[] HazardSteps = { "Off", "Light", "Normal", "Hard" };
         public static readonly string[] DeathSteps = { "None", "Light", "Normal", "Hard" };
-        public static readonly string[] StoryModes = { "Default", "None" };           // 0 = built-in pack, 1 = sandbox
-        public static readonly string[] StoryDensitySteps = { "Sparse", "Normal", "Dense" };
 
         // Gameplay (AlienActivity indices; live-editable later in-game)
         public int Creatures = 2;      // Normal
@@ -91,9 +89,9 @@ namespace BlocksBeyondTheStars.Client
         /// in a forward cone by themselves; OFF means only what is under the crosshair can be hit.</summary>
         public bool AutoAim = true;
 
-        // Story (P8 world option): which story pack runs + how fast it unfolds.
-        public int Story = 0;          // 0 = Default pack, 1 = None (sandbox)
-        public int StoryDensity = 1;   // 0 Sparse · 1 Normal · 2 Dense
+        /// <summary>The "Stories" page (#2472): the main story (an installed world story or none), its pace and the
+        /// tutorial's world rule. The model and its server arguments live in Client.Core (unit-tested).</summary>
+        public readonly WorldStoryOptions Stories = new WorldStoryOptions();
 
         /// <summary>Advanced page: per-planet-type frequency overrides (type key → Freq index).
         /// Empty = the simple "exotic worlds" slider + data weights decide.</summary>
@@ -104,6 +102,8 @@ namespace BlocksBeyondTheStars.Client
         /// shoot one surface per planet type. Emitted as <c>--start-planet</c>.</summary>
         public string StartPlanetType = "";
 
+        /// <summary>The family preset. Its stories stay at the defaults on purpose — the main story, Normal pace and the
+        /// tutorial on Auto (synthesis §5.3: family/school = Auto), like the server's <c>family</c> preset.</summary>
         public static WorldCreationOptions Peaceful()
             => new WorldCreationOptions { Creatures = 3, PlanetEnemies = 0, SpaceNpcs = 0, Ufos = 0, Bandits = 0, Hazards = 1, DeathPenalty = 0, SpaceCombat = false };
 
@@ -129,7 +129,7 @@ namespace BlocksBeyondTheStars.Client
             StationTemplates = other.StationTemplates; SettlementTemplates = other.SettlementTemplates;
             Oxygen = other.Oxygen; Hunger = other.Hunger; Hazards = other.Hazards; DeathPenalty = other.DeathPenalty;
             SpaceCombat = other.SpaceCombat; KeepShip = other.KeepShip; AutoAim = other.AutoAim;
-            Story = other.Story; StoryDensity = other.StoryDensity;
+            Stories.CopyFrom(other.Stories);
             StartPlanetType = other.StartPlanetType;
             PlanetTypes.Clear();
             foreach (var kv in other.PlanetTypes)
@@ -229,8 +229,8 @@ namespace BlocksBeyondTheStars.Client
             if (!KeepShip) Arg("keep-ship", "false");
             if (!AutoAim) Arg("auto-aim", "false");
 
-            if (Story == 1) Arg("story", "none");                              // sandbox (no story)
-            if (StoryDensity != 1) Arg("story-density", StoryDensitySteps[StoryDensity]);
+            // Stories (#2472): main story, pace and the tutorial rule — non-defaults only (--story, --story-density, --tutorial).
+            sb.Append(Stories.ToArgs());
 
             if (PlanetTypes.Count > 0)
             {

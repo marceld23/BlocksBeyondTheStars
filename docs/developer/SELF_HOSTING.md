@@ -84,8 +84,17 @@ when it is landed on the same body, never in a fight or while falling, once ever
 **Tutorial (#2466).** Whether the tutorial story pack runs: `rules.tutorialPolicy` = `Auto` (default — every new player
 starts it and can skip it at any time), `OptIn` (offered, starts only on the player's request — veteran servers) or `Off`;
 CLI `--tutorial auto|optin|off` for a fresh world (the save keeps its rule afterwards). An admin changes it on a running
-world with the admin command `tutorial policy <value>` (the chat command arrives with the Journal). The story choice
-(`--story none`) never switches the tutorial off.
+world in the in-game world rules (Tab → Settings, *Tutorial*) or with the chat command `/tutorial policy <value>`. The
+story choice (`--story none`) never switches the tutorial off. No preset switches it off (`family` = `Auto`).
+
+**Main story and story pace (#2472).** `--story <id>` picks the world's main story for a fresh world (an installed
+world-story pack; `none` = no story, sandbox; empty = the default VEGA story) and `--story-density sparse|normal|dense`
+how fast it unfolds — both are what the game's world-creation **Stories** page emits (together with `--tutorial`, only
+values that differ from the defaults), and both are baked into the save like every world option. The pace is
+live-editable by a world admin (in-game world rules, *Story pace*; `SetWorldRulesIntent.StoryDensity`): a faster pace
+reveals the beats its score already covers at once, a slower one never takes a heard beat back. Hosted worlds (WorldHost,
+glitch) pass no story flag, so they run VEGA with the tutorial on `Auto`; an uploaded singleplayer save keeps the rules it
+was created with.
 
 ### Environment-variable overrides (containers)
 

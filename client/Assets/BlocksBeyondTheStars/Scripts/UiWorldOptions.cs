@@ -11,7 +11,8 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The "Weltoptionen" overlay of the world picker: quick presets (Friedlich/Standard/Feindselig)
     /// over discrete sliders for creatures, enemies, flora, ore, structures, universe size, exotic
-    /// worlds and the survival rules — plus an advanced page with a per-planet-type frequency list.
+    /// worlds and the survival rules — plus an advanced page with a per-planet-type frequency list and the
+    /// Stories page (#2472: main story, story pace, tutorial rule).
     /// Pure UI: it edits a <see cref="WorldCreationOptions"/>; the picker turns that into server CLI
     /// overrides at launch, and the server bakes them into the new save.
     /// </summary>
@@ -29,6 +30,19 @@ namespace BlocksBeyondTheStars.Client
         private const float AdvancedListH = 676f;
         private const float AdvancedRowPitch = 56f;
 
+        /// <summary>The Stories page (#2472): column headers, the first choice row, the main-story choice rows (height and
+        /// pitch; at most <see cref="WorldStoryOptions.MaxChoices"/>), the chosen story's description box under them, and the
+        /// tutorial rule's rows (they start <see cref="StoriesTutorialOffset"/> under the list top, below the tutorial's own
+        /// description). WorldOptionsLayoutTests holds these sums against the footer.</summary>
+        private const float StoriesHeaderY = 96f;
+        private const float StoriesListY = 130f;
+        private const float StoriesChoiceH = 40f;
+        private const float StoriesChoicePitch = 48f;
+        private const float StoriesDescriptionH = 60f;
+        private const float StoriesTutorialOffset = 46f;
+        private const float StoriesTutorialH = 66f;
+        private const float StoriesTutorialPitch = 74f;
+
         /// <summary>Builds the (initially hidden) overlay; returns its root for the caller to toggle.</summary>
         public static GameObject Build(AppShell shell, Transform root, WorldCreationOptions opt)
         {
@@ -37,15 +51,17 @@ namespace BlocksBeyondTheStars.Client
             var (overlay, panel) = UiKit.AddModalOverlay(root, 160f, 90f, 1600f, 900f);
             UiKit.AddText(panel, 30f, 20f, 800f, 34f, shell.L("ui.worldopt.title"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
-            // Stacked views inside the panel: the main sliders, the advanced per-type list, and the
-            // authored-structure (template) controls. Each view owns a shared footer row (FooterY):
+            // Stacked views inside the panel: the main sliders, the advanced per-type list, the
+            // authored-structure (template) controls and the Stories page (#2472). Each view owns a shared footer row (FooterY):
             // page-navigation on the left, ONE "leave this page" action bottom-right (Done on main,
             // Back on sub-pages) — so only a single page's controls are ever visible at once.
             var main = UiKit.AddPanel(panel, 0f, 64f, 1600f, 826f, new Color(0f, 0f, 0f, 0f)).gameObject;
             var advanced = UiKit.AddPanel(panel, 0f, 64f, 1600f, 826f, new Color(0f, 0f, 0f, 0f)).gameObject;
             var structures = UiKit.AddPanel(panel, 0f, 64f, 1600f, 826f, new Color(0f, 0f, 0f, 0f)).gameObject;
+            var stories = UiKit.AddPanel(panel, 0f, 64f, 1600f, 826f, new Color(0f, 0f, 0f, 0f)).gameObject; // #2472
             advanced.SetActive(false);
             structures.SetActive(false);
+            stories.SetActive(false);
 
             // The content's structure-template packs feed the pack picker; the option model translates the
             // disabled set into the enabled list the server wants at launch.
@@ -97,6 +113,17 @@ namespace BlocksBeyondTheStars.Client
                 if (leftCol) { ly += RowH; } else { ry += RowH; }
             }
 
+            // A row that opens a sub-page instead of holding a slider (#2472): the label left, a summary of the sub-page's
+            // choices right (refreshed with the sliders). Same height and pitch as a slider row — WorldOptionsLayoutTests
+            // counts these calls as rows too.
+            void LinkRow(bool leftCol, string label, System.Func<string> summary, System.Action open)
+            {
+                float x = leftCol ? lx : rx;
+                float y = leftCol ? ly : ry;
+                AddLinkRow(main.transform, x, y, 740f, label, summary, open, rebuilders);
+                if (leftCol) { ly += RowH; } else { ry += RowH; }
+            }
+
             // Left column: the living world + threats.
             UiKit.AddText(main.transform, lx, ly, 700f, 24f, shell.L("ui.worldopt.col_life"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             ly += 34f;
@@ -135,16 +162,19 @@ namespace BlocksBeyondTheStars.Client
             // new system whenever a player hyperjumps into one of the current outermost ones.
             Row(false, shell.L("ui.worldopt.universe"), L5("ui.worldopt.size"), () => opt.UniverseSize, v => opt.UniverseSize = v);
 
-            // Story (P8): which story pack runs + how fast it unfolds.
+            // Stories (#2472, was the "Story" header + the storyline and pace sliders): ONE row "Stories: VEGA · Tutorial
+            // Auto ›" that opens the Stories page — main story, pace and the tutorial's world rule. The page is a sub-page
+            // because this column has no room for another row (14 px left above the footer, WorldOptionsLayoutTests).
             ry += 10f;
-            UiKit.AddText(main.transform, rx, ry, 700f, 24f, shell.L("ui.worldopt.col_story"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            ry += 34f;
-            Row(false, shell.L("ui.worldopt.story"),
-                new[] { shell.L("ui.worldopt.story_default"), shell.L("ui.worldopt.story_none") },
-                () => opt.Story, v => opt.Story = v);
-            Row(false, shell.L("ui.worldopt.story_density"),
-                new[] { shell.L("ui.worldopt.density_sparse"), shell.L("ui.worldopt.density_normal"), shell.L("ui.worldopt.density_dense") },
-                () => opt.StoryDensity, v => opt.StoryDensity = v);
+            System.Action refreshStories = null;
+            LinkRow(false, shell.L("ui.worldopt.stories"),
+                () => opt.Stories.Summary(shell.Content?.Stories, shell.L, key => HasText(shell, key)),
+                () =>
+                {
+                    main.SetActive(false);
+                    stories.SetActive(true);
+                    refreshStories?.Invoke(); // a preset may have replaced the choices since the page was built
+                });
 
             // ── Footer (main page): page navigation left, Done right ───────────────────────
             UiKit.AddButton(main.transform, 30f, FooterY, 560f, 48f, shell.L("ui.worldopt.structures_btn"), () =>
@@ -175,8 +205,135 @@ namespace BlocksBeyondTheStars.Client
                 main.SetActive(true);
             });
 
+            // ── Stories: main story, pace, tutorial rule (#2472) ────────────────────────────
+            refreshStories = BuildStories(shell, stories.transform, opt, () =>
+            {
+                stories.SetActive(false);
+                main.SetActive(true);
+                foreach (var r in rebuilders)
+                {
+                    r(); // the main page's Stories summary row follows the page's choices
+                }
+            });
+            rebuilders.Add(refreshStories); // a preset resets the stories too
+
             overlay.SetActive(false);
             return overlay;
+        }
+
+        /// <summary>Whether this client has a text for <paramref name="key"/> (a pack may name keys an older locale table lacks).</summary>
+        private static bool HasText(AppShell shell, string key)
+            => shell.Localizer != null && !string.IsNullOrEmpty(key) && shell.Localizer.Has(key);
+
+        /// <summary>The Stories page (#2472, synthesis §5.8): the world's main story (every installed world story, then "None
+        /// (sandbox)") with the chosen one's description and its pace, and the tutorial's world rule (Auto / On request /
+        /// Off, one explanation each). Creation-only like the rest of the panel: the choices become <c>--story</c>,
+        /// <c>--story-density</c> and <c>--tutorial</c> (non-defaults only, <see cref="WorldStoryOptions.ToArgs"/>); a world
+        /// admin can change the pace and the tutorial later in the in-game world rules. Returns a refresher that re-reads
+        /// every control from <paramref name="opt"/>.</summary>
+        private static System.Action BuildStories(AppShell shell, Transform parent, WorldCreationOptions opt, System.Action onBack)
+        {
+            var choices = WorldStoryOptions.MainStoryChoices(shell.Content?.Stories?.Values);
+            opt.Stories.Normalize(choices);
+            var stories = shell.Content?.Stories;
+            bool Has(string key) => HasText(shell, key);
+            var refreshers = new List<System.Action>();
+            void Refresh()
+            {
+                opt.Stories.Normalize(choices); // a preset or an older pick may name a story this page does not list
+                foreach (var r in refreshers)
+                {
+                    r();
+                }
+            }
+
+            UiKit.AddText(parent, 30f, 4f, 1000f, 28f, shell.L("ui.worldopt.stories"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            var note = UiKit.AddText(parent, 30f, 34f, 1520f, 44f, shell.L("ui.worldopt.stories_note"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+            note.horizontalOverflow = HorizontalWrapMode.Wrap;
+
+            // Back in the shared footer slot, built first so the page can never trap the player.
+            UiKit.AddButton(parent, 1290f, FooterY, 280f, 48f, shell.L("ui.menu.back"), onBack, "btn_singleplayer");
+
+            // Left column: the main story — one choice per row (the list is data: every installed world story, capped
+            // at WorldStoryOptions.MaxChoices so it always ends above the footer), its description, then the pace.
+            float sy = StoriesHeaderY;
+            UiKit.AddText(parent, 30f, sy, 700f, 24f, shell.L("ui.worldopt.main_story"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            sy = StoriesListY;
+            foreach (string id in choices)
+            {
+                string choice = id;
+                var btn = UiKit.AddButton(parent, 30f, sy, 740f, StoriesChoiceH, string.Empty, () =>
+                {
+                    opt.Stories.StoryId = choice;
+                    Refresh();
+                });
+                var mark = UiKit.AddText(btn.transform, 14f, 0f, 30f, StoriesChoiceH, string.Empty, 18, UiKit.Ok, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var name = UiKit.AddText(btn.transform, 52f, 0f, 670f, StoriesChoiceH,
+                    WorldStoryOptions.StoryName(choice, stories, shell.L, Has), 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.FitLabel(name, 11, 17);
+                refreshers.Add(() =>
+                {
+                    bool chosen = opt.Stories.IsChosen(choice);
+                    mark.text = chosen ? "●" : string.Empty;
+                    name.color = chosen ? UiKit.Ok : UiKit.TextCol;
+                });
+                sy += StoriesChoicePitch;
+            }
+
+            var description = UiKit.AddText(parent, 30f, sy + 4f, 740f, StoriesDescriptionH, string.Empty, 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+            description.horizontalOverflow = HorizontalWrapMode.Wrap;
+            refreshers.Add(() => description.text = WorldStoryOptions.StoryDescription(
+                opt.Stories.IsDefaultStory ? BlocksBeyondTheStars.Shared.Story.StoryRegistry.DefaultStoryId : opt.Stories.StoryId,
+                stories, shell.L, Has));
+            sy += 4f + StoriesDescriptionH + 8f;
+
+            var paceSteps = new string[WorldStoryOptions.DensityNameKeys.Length];
+            for (int i = 0; i < paceSteps.Length; i++)
+            {
+                paceSteps[i] = shell.L(WorldStoryOptions.DensityNameKeys[i]);
+            }
+
+            AddSliderRow(parent, 30f, sy, 740f, shell.L("ui.worldopt.story_density"), paceSteps,
+                () => opt.Stories.Density, v => opt.Stories.Density = v, refreshers);
+
+            // Right column: the tutorial's world rule — three choices, each with its one-line explanation.
+            float ty = StoriesHeaderY;
+            UiKit.AddText(parent, 820f, ty, 700f, 24f, shell.L("ui.worldopt.tutorial"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            ty = StoriesListY;
+            var tutorialPack = WorldStoryOptions.TutorialPack(stories?.Values);
+            if (tutorialPack != null && Has(tutorialPack.DescriptionKey))
+            {
+                var desc = UiKit.AddText(parent, 820f, ty, 740f, 40f, shell.L(tutorialPack.DescriptionKey), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+                desc.horizontalOverflow = HorizontalWrapMode.Wrap;
+            }
+
+            ty += StoriesTutorialOffset;
+            for (int i = 0; i < WorldStoryOptions.TutorialSteps.Length; i++)
+            {
+                int step = i;
+                var btn = UiKit.AddButton(parent, 820f, ty, 740f, StoriesTutorialH, string.Empty, () =>
+                {
+                    opt.Stories.Tutorial = step;
+                    Refresh();
+                });
+                var mark = UiKit.AddText(btn.transform, 14f, 0f, 30f, 36f, string.Empty, 18, UiKit.Ok, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var name = UiKit.AddText(btn.transform, 52f, 4f, 670f, 30f, shell.L(WorldStoryOptions.TutorialNameKeys[step]), 17,
+                    UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.FitLabel(name, 11, 17);
+                var hint = UiKit.AddText(btn.transform, 52f, 32f, 670f, 30f, shell.L(WorldStoryOptions.TutorialHintKeys[step]), 14,
+                    UiKit.CyanDim, TextAnchor.UpperLeft);
+                UiKit.FitLabel(hint, 10, 14);
+                refreshers.Add(() =>
+                {
+                    bool chosen = opt.Stories.Tutorial == step;
+                    mark.text = chosen ? "●" : string.Empty;
+                    name.color = chosen ? UiKit.Ok : UiKit.TextCol;
+                });
+                ty += StoriesTutorialPitch;
+            }
+
+            Refresh();
+            return Refresh;
         }
 
         /// <summary>The advanced page: every selectable planet type with its own frequency slider.
@@ -368,6 +525,19 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UiKit.AddButton(parent, 1290f, FooterY, 280f, 48f, shell.L("ui.menu.back"), onBack, "btn_singleplayer");
+        }
+
+        /// <summary>A row that opens a sub-page (#2472): one button over the row's 40 px with the label where a slider row
+        /// has its label and the sub-page's summary (from <paramref name="summary"/>, refreshed with the sliders) on the
+        /// right in the value colour.</summary>
+        private static void AddLinkRow(Transform parent, float x, float y, float w, string label, System.Func<string> summary,
+            System.Action open, List<System.Action> rebuilders)
+        {
+            var btn = UiKit.AddButton(parent, x, y, w, 40f, string.Empty, open);
+            UiKit.AddText(btn.transform, 12f, 0f, 268f, 40f, label, 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+            var value = UiKit.AddText(btn.transform, 290f, 0f, w - 290f - 14f, 40f, summary(), 15, UiKit.Cyan, TextAnchor.MiddleRight);
+            UiKit.FitLabel(value, 10, 15);
+            rebuilders?.Add(() => value.text = summary());
         }
 
         /// <summary>A labelled discrete slider (whole steps) with the current step's name beside it.</summary>

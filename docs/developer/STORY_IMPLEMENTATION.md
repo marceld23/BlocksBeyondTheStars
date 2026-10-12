@@ -689,12 +689,20 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   VEGA page = the old Story Log: meter + re-readable beats/fragments/memories);
   `WorldEntities.cs` three-eyed-robot retheme + `BuildDrone` scan-drone; `FinaleView` (hack bar + duel panel);
   `ClientMusic` finale contexts → `music_boss_*` tracks.
-- World options: `GameRules.StoryId` + `GameRules.StoryDensity` (`--story` / `--story-density`, world-creation
-  panel), set when the world is created and baked into its rules. The density is not live-editable
-  (`SetWorldRulesIntent` carries no story field); the active pack can be switched by an admin
-  (`StorySelectIntent`, see "Active story row" above). `GameRules.TutorialPolicy` (`--tutorial auto|optin|off`, #2466) is
-  baked the same way but live-editable (`SetWorldRulesIntent.TutorialPolicy`, admin `tutorial policy …`). Admin QA cmds:
-  `advance_story`, `reveal_finale`, `story_status`, `reveal_lore`, `goto_core`, `tutorial`.
+- World options: `GameRules.StoryId` + `GameRules.StoryDensity` (`--story` / `--story-density`) and
+  `GameRules.TutorialPolicy` (`--tutorial auto|optin|off`, #2466), set when the world is created and baked into its rules.
+  The world-creation panel shows them as ONE row "Stories: VEGA · Tutorial Auto ›" that opens the **Stories** page
+  (#2472, `UiWorldOptions.BuildStories`): main story = every installed pack with `StoryRegistry.CanBeWorldStory` (default
+  first, then priority, capped at `WorldStoryOptions.MaxChoices`) plus "None (sandbox)", the chosen pack's
+  `descriptionKey` under the list, the pace slider, and the tutorial rule with one line per choice. The model, its
+  non-default-only arguments and the summary text are `WorldStoryOptions` (Client.Core, unit-tested); the player word is
+  "Stories" / "Geschichten", never "pack". Live edits: the density (#2472, `SetWorldRulesIntent.StoryDensity`, re-sent in
+  `ServerRules.StoryDensity`; a change runs `AdvanceStory`, so a faster pace reveals what its score covers at once and a
+  slower one never takes a beat back) and the tutorial rule (`SetWorldRulesIntent.TutorialPolicy`, admin
+  `tutorial policy …`) — both rows in the in-game world rules (Settings tab, admin). The active pack can only be switched by
+  an admin intent (`StorySelectIntent`, see "Active story row" above; no client UI). Hosted/glitch worlds pass no story
+  flag (VEGA + `Auto`). Admin QA cmds: `advance_story`, `reveal_finale`, `story_status`, `reveal_lore`, `goto_core`,
+  `tutorial`.
 
 ## Story and VEGA text conventions (#2463)
 
