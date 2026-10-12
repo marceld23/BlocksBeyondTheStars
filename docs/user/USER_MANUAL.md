@@ -48,7 +48,9 @@ Last updated: 2026-10-04.
   servers** — every world belongs to a player. To play with friends: set a **join password**, then
   **list the world publicly** (world's **Manage** dialog → *"List publicly"*; only password-protected
   worlds can be listed). Friends find it under *Official Worlds → Public worlds* and join with your
-  password. Worlds are private by default and only visible to their owner until listed.
+  password. Worlds are private by default and only visible to their owner until listed. On an official
+  world **the owner is its world admin** — a friend who happens to arrive first is a normal player. The shared
+  **glitch.fun arcade worlds** have no player admins at all; the game's operators look after them.
 - **Join Server:** enter your **player name**, the server address, port and (if the server has one) the
   password. **Name verification:** the first join under a name claims it for your installation — later
   joins under that name from other machines are rejected ("name belongs to another player"), and a name

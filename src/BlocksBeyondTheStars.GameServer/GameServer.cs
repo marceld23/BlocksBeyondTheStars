@@ -4266,12 +4266,18 @@ public sealed partial class GameServer
             state.Role = PlayerRole.Admin;
         }
 
+        // Hosted worlds: the join token proved this is the control plane's owner account for this world.
+        bool verifiedOwner = !string.IsNullOrEmpty(_config.WorldOwnerAccountId)
+            && hostedAccountId == _config.WorldOwnerAccountId;
+
+        // #2486: on an instance without player admins (the arcade pool), a saved admin role is taken back here —
+        // AFTER the name check above, so a rejected impostor can never demote the real holder of a name.
+        EnforceNoPlayerAdmins(state, name, verifiedOwner);
+
         // Owner bootstrap (hosted worlds): the token-verified owner account is granted WorldAdmin even when
         // someone else already holds that role — an uploaded singleplayer save carries its old first-joiner
         // WorldAdmin, and without this the uploader could be locked out of administering their own world.
-        if (!string.IsNullOrEmpty(_config.WorldOwnerAccountId)
-            && hostedAccountId == _config.WorldOwnerAccountId
-            && state.Role != PlayerRole.WorldAdmin)
+        if (verifiedOwner && state.Role != PlayerRole.WorldAdmin)
         {
             state.Role = PlayerRole.WorldAdmin;
             _repo.SavePlayer(state); // persist immediately, like the name claim above
@@ -4451,6 +4457,35 @@ public sealed partial class GameServer
         return sb.ToString();
     }
 
+    /// <summary>Whether a brand-new player record gets WorldAdmin as the world's first-ever joiner (#2486). Only on
+    /// a world without a control-plane owner (singleplayer, LAN, self-hosting — whoever creates such a world owns
+    /// it) and only where player admins exist at all. A hosted world names its owner (<c>BBS_WORLD_OWNER</c>) and
+    /// the owner rule in <see cref="HandleJoin"/> grants them WorldAdmin, so its first joiner is just a Player: on a
+    /// portal world that may be a friend who arrives before the owner, on an arcade pool world it is the first
+    /// anonymous guest (owner id <c>glitch</c> never matches a guest's <c>glitch:&lt;install&gt;</c>). An uploaded
+    /// save keeps its existing rows — this only decides roles for records created now.</summary>
+    private bool FirstJoinerBecomesWorldAdmin()
+        => string.IsNullOrEmpty(_config.WorldOwnerAccountId)
+            && !_config.NoPlayerAdmins
+            && _repo.ListPlayerIds().Count == 0;
+
+    /// <summary><see cref="ServerConfig.NoPlayerAdmins"/> (#2486): a joining player whose saved role is Admin or
+    /// WorldAdmin is demoted to Player — written straight back and logged — unless the name is a configured
+    /// <see cref="ServerConfig.AdminPlayers"/> entry or the join is the token-verified world owner. Fleet admins are
+    /// a session flag, not a role, so their powers are untouched. No-op without the flag.</summary>
+    private void EnforceNoPlayerAdmins(PlayerState state, string name, bool verifiedOwner)
+    {
+        if (!_config.NoPlayerAdmins || !state.IsAdmin || verifiedOwner || _config.AdminPlayers.Contains(name))
+        {
+            return;
+        }
+
+        var held = state.Role;
+        state.Role = PlayerRole.Player;
+        _repo.SavePlayer(state); // persist immediately, like the name claim and the owner bootstrap
+        _log.Warn($"Player '{name}' held the {held} role on a world without player admins (no-player-admins) — demoted to Player.");
+    }
+
     private PlayerState CreateNewPlayer(string name)
     {
         int spawnX = 0, spawnZ = 0;
@@ -4478,8 +4513,9 @@ public sealed partial class GameServer
             // only anchor that is truly theirs here; SetupPlayerShip re-anchors to their own heal tank.
             RespawnPoint = spawn,
             AboardShip = true,
-            // The very first player to join becomes the world admin (world creator).
-            Role = _repo.ListPlayerIds().Count == 0
+            // The very first player to join becomes the world admin (world creator) — unless the world has a
+            // control-plane owner or no player admins at all (#2486, see FirstJoinerBecomesWorldAdmin).
+            Role = FirstJoinerBecomesWorldAdmin()
                 ? PlayerRole.WorldAdmin
                 : (_config.AdminPlayers.Contains(name) ? PlayerRole.Admin : PlayerRole.Player),
         };
@@ -4657,6 +4693,8 @@ public sealed partial class GameServer
         {
             state.Role = PlayerRole.Admin;
         }
+
+        EnforceNoPlayerAdmins(state, name, verifiedOwner: false); // #2486: same rule as the network join
 
         int connectionId = _nextLocalConnectionId--;
 

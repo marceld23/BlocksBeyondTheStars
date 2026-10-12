@@ -586,6 +586,26 @@ public sealed class GlitchGatewayTests : IDisposable
     }
 
     [Fact]
+    public void BuildRunArgs_OnlyArcadeWorldsRunWithoutPlayerAdmins()
+    {
+        // #2486: arcade players are anonymous guests — the instance must not let a saved role make one of them an
+        // admin. Portal worlds keep their owner-granted WorldAdmin, so they never get the flag.
+        var config = NewConfig();
+        var registry = NewRegistry(config);
+        var arcade = registry.CreateGlitchWorld("Glitch Arcade 1").World!;
+        var (_, _, accountId, _) = registry.CreateAccount("Owner", "super-secret-1", acceptedTermsVersion: 1);
+        var portal = registry.CreateWorld(accountId, "Family World").World!;
+
+        var arcadeArgs = DockerCliLauncher.BuildRunArgs(config, arcade, "saves");
+        var portalArgs = DockerCliLauncher.BuildRunArgs(config, portal, "saves");
+
+        int at = arcadeArgs.IndexOf("BBS_NO_PLAYER_ADMINS=1");
+        Assert.True(at > 0 && arcadeArgs[at - 1] == "-e", "the arcade instance gets the flag as an env value");
+        Assert.Contains($"BBS_WORLD_OWNER={WorldChannel.Glitch}", arcadeArgs); // the owner id no guest ever matches
+        Assert.DoesNotContain(portalArgs, a => a.StartsWith("BBS_NO_PLAYER_ADMINS", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task WakePool_CreatesAndWakesEveryArcadeWorld_AndIsIdempotentAsync()
     {
         var config = NewConfig();

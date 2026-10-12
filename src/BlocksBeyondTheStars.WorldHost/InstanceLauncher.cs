@@ -134,6 +134,15 @@ public sealed class DockerCliLauncher : IInstanceLauncher
 
         args.AddRange(new[] { "--pids-limit", "256" });
 
+        // Arcade worlds have no player admins (#2486): their players are anonymous glitch.fun guests, and the pool's
+        // owner id ("glitch") is never a real join. The instance demotes any saved Admin/WorldAdmin row at join;
+        // moderation there is the fleet admins' (BBS_FLEET_ADMINS) and the install bans'. Portal worlds keep
+        // their owner-granted WorldAdmin.
+        if (world.Channel == WorldChannel.Glitch)
+        {
+            args.AddRange(new[] { "-e", "BBS_NO_PLAYER_ADMINS=1" });
+        }
+
         // Per-tick chunk-stream budget (#360): a hosted world's tick is single-threaded, so a cold-worldgen
         // burst would otherwise stall simulation for everyone in that world. Forward the operator's budget so
         // the instance caps gen+send time per tick (>=1 chunk still streams, the rest resume next tick). 0 = off.

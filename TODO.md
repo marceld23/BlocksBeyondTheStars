@@ -24,6 +24,22 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Story-pack follow-ups 2026-10 (#2485)
+
+Fixes and polish after the story-pack release — one integration branch `fix/story-followups`, one PR at the end. One
+line per step:
+
+- ✅ **Step 1 — arcade guests no longer become WorldAdmin (#2486, N5)**, 2026-10-12: the first-joiner WorldAdmin rule
+  applies only when no control-plane owner is configured (`BBS_WORLD_OWNER` empty). Hosted worlds get WorldAdmin
+  only through the token-verified owner, so a portal friend who arrives first is a Player and an arcade guest is never
+  admin. Singleplayer, LAN and self-hosting are unchanged; uploaded saves keep their rows. A new instance flag
+  `ServerConfig.NoPlayerAdmins` (`BBS_NO_PLAYER_ADMINS=1`, `--no-player-admins true`) demotes a saved Admin/WorldAdmin
+  at join (saved + logged; `BBS_ADMINS` names and a verified owner are exempt; fleet admins are no role and keep
+  their powers). The WorldHost launcher sets it for `glitch` worlds. Docs: HOSTED_WORLDS, SELF_HOSTING, USER_MANUAL.
+  ⚠ Operator, after the release + pool recycle: check the live pool worlds' roles (`/admin/worlds/<id>` → Players →
+  Role) and their `server.log` (`demoted to Player`, `[CHEAT]`, `World rules updated by`, world textures) and clean
+  up any misuse (`/texturewipe`, `/paintwipe`, install ban).
+
 ### ★ Story packs 2026-10 (#2459)
 
 Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines — one integration branch

@@ -111,7 +111,7 @@ command line**, so env vars override the file but the in-game host's CLI flags s
 | `BBS_MAX_PLAYERS` | `maxPlayers` | `BBS_SAVES` | `savesRoot` |
 | `BBS_PASSWORD` (`BBS_SERVER_PASSWORD`) | `serverPassword` | `BBS_DATA` | `dataDir` |
 | `BBS_ADMINS` | `adminPlayers` (comma-separated) | `BBS_USERCONTENT` | `userContentDir` |
-| `BBS_FLEET_ADMINS` | `fleetAdminPlayers` (comma-separated) | | |
+| `BBS_FLEET_ADMINS` | `fleetAdminPlayers` (comma-separated) | `BBS_NO_PLAYER_ADMINS` | `noPlayerAdmins` (`1`/`true`; default off) |
 | `BBS_SEED` | `seed` | `BBS_TICK_RATE` | `tickRate` |
 | `BBS_START_PLANET` | `startPlanet` | `BBS_VIEW_DISTANCE` | `viewDistanceChunks` |
 | `BBS_FREE_FLIGHT` | `rules.freeSpaceFlight` | `BBS_SPACE_COMBAT` | `rules.spaceCombat` |
@@ -130,7 +130,16 @@ container with little RAM, `1` keeps most of the gain.
 ### Fleet admin vs. world admin
 
 `BBS_ADMINS` grants the in-game **Admin** role: cheats, announcements, restarts. The first player to join a
-world becomes its **WorldAdmin** and keeps those powers for their own world.
+world becomes its **WorldAdmin** and keeps those powers for their own world. On a hosted fleet the first-joiner rule
+is off while `BBS_WORLD_OWNER` is set: there the owner account is the WorldAdmin, not whoever joins first (#2486).
+
+`BBS_NO_PLAYER_ADMINS=1` (CLI `--no-player-admins true`, `server.json` `noPlayerAdmins`) is for a server where every
+player is an anonymous guest, like the glitch.fun arcade worlds, which the WorldHost starts with it. No saved player
+role grants admin there. A player whose saved role is Admin or WorldAdmin is demoted to Player when they join, and the
+change is saved and logged. A fresh world's first joiner is not made WorldAdmin either. Admin then comes only from the
+configuration: names in `BBS_ADMINS` and a verified `BBS_WORLD_OWNER` keep their role, and fleet admins keep their
+powers because those were never a role. Off by default; leave it off for a normal community server, or nobody can
+change its world rules in-game.
 
 `BBS_FLEET_ADMINS` is a step above and means "operator of this installation". It is the only thing that unlocks
 the invisible **observer mode** (`/spectate`) and the cross-body `/goto`, because those reach into worlds other
@@ -164,7 +173,8 @@ are built in: a name that is **currently online** cannot join a second time, and
 join under a name **claims** it with a per-install client secret — later joins must present
 the same secret or are rejected ("name belongs to another player"). Only a hash of the
 secret is stored in the save. The very first player ever to join a fresh world becomes its
-**WorldAdmin**; names listed in `adminPlayers` get the Admin role on join.
+**WorldAdmin** (unless a hosted owner or `noPlayerAdmins` is configured, see above); names listed in
+`adminPlayers` get the Admin role on join.
 
 > **In-game hosting:** the client's main-menu **Host Game** runs this same server as a
 > child process (any singleplayer save, "open to LAN" style) with `--max-players`,

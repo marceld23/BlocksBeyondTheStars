@@ -255,9 +255,21 @@ public sealed class ServerConfig
     public string JoinTokenSecret { get; set; } = string.Empty;
 
     /// <summary>Account id of the world's owner in the control plane. A token-verified join whose account id
-    /// matches is granted WorldAdmin regardless of the "first joiner becomes WorldAdmin" rule — required for
-    /// uploaded saves, where someone else may already hold that role. Empty (default) = no owner mapping.</summary>
+    /// matches is granted WorldAdmin — required for uploaded saves, where someone else may already hold that
+    /// role. While this is set, the "first joiner becomes WorldAdmin" rule is OFF (#2486): on a hosted world the
+    /// owner rule is the only way to WorldAdmin, so a stranger who happens to join before the owner (or the first
+    /// guest on an arcade pool world, whose owner id never matches a guest) stays a Player. Empty (default) = no
+    /// owner mapping, and the first joiner of a fresh world becomes its WorldAdmin as before.</summary>
     public string WorldOwnerAccountId { get; set; } = string.Empty;
+
+    /// <summary>No player admins on this instance (#2486, env <c>BBS_NO_PLAYER_ADMINS=1</c>, CLI
+    /// <c>--no-player-admins true</c>). A save's player records cannot hold an admin role here: at join, a player
+    /// whose saved role is Admin or WorldAdmin is demoted to Player — saved and logged — unless the name is in
+    /// <see cref="AdminPlayers"/> or the join is the token-verified <see cref="WorldOwnerAccountId"/>. Admin then
+    /// comes only from this instance's configuration. The WorldHost sets it for the glitch.fun arcade worlds,
+    /// whose players are anonymous guests; fleet admins (<see cref="FleetAdminPlayers"/>) are not a role and keep
+    /// their powers. Off (default) everywhere else — singleplayer, LAN and self-hosting are unchanged.</summary>
+    public bool NoPlayerAdmins { get; set; }
 
     /// <summary>Shared secret the control plane must present (X-Announce-Token header) to push a maintenance
     /// announcement via the WebSocket gateway's <c>POST /announce</c>. Empty (default) = endpoint disabled;
@@ -570,6 +582,10 @@ public sealed class ServerConfig
                 case "fleet-admins":
                     // Comma-separated player names granted fleet admin (observer mode). See FleetAdminPlayers.
                     FleetAdminPlayers = SplitNames(value); applied.Add("fleet-admins");
+                    break;
+                case "no-player-admins":
+                    // #2486: no saved player role grants admin on this instance (see NoPlayerAdmins).
+                    if (TryParseFlag(value, out var npa)) { NoPlayerAdmins = npa; applied.Add("no-player-admins"); }
                     break;
                 case "seed":
                     if (long.TryParse(value, out var sd)) { Seed = sd; applied.Add("seed"); }
@@ -914,6 +930,7 @@ public sealed class ServerConfig
         if (Env("BBS_IDLE_SHUTDOWN_MINUTES") is { } idleStr && int.TryParse(idleStr, out var idle)) { IdleShutdownMinutes = idle; applied.Add("BBS_IDLE_SHUTDOWN_MINUTES"); }
         if (Env("BBS_JOIN_TOKEN_SECRET") is { } joinSecret) { JoinTokenSecret = joinSecret; applied.Add("BBS_JOIN_TOKEN_SECRET"); }
         if (Env("BBS_WORLD_OWNER") is { } worldOwner) { WorldOwnerAccountId = worldOwner; applied.Add("BBS_WORLD_OWNER"); }
+        if (Env("BBS_NO_PLAYER_ADMINS") is { } noPlayerAdminsStr && TryParseFlag(noPlayerAdminsStr, out var noPlayerAdmins)) { NoPlayerAdmins = noPlayerAdmins; applied.Add("BBS_NO_PLAYER_ADMINS"); }
         if (Env("BBS_ANNOUNCE_TOKEN") is { } announceToken) { AnnounceToken = announceToken; applied.Add("BBS_ANNOUNCE_TOKEN"); }
 
         return applied;
@@ -922,6 +939,32 @@ public sealed class ServerConfig
     /// <summary>Splits a comma-separated name list, trimming entries and dropping empties.</summary>
     private static List<string> SplitNames(string value)
         => value.Split(',').Select(n => n.Trim()).Where(n => n.Length > 0).ToList();
+
+    /// <summary>Parses an on/off switch: <c>true</c>/<c>false</c> (case-insensitive) like every other boolean option,
+    /// plus the shell-style <c>1</c>/<c>0</c>, <c>yes</c>/<c>no</c> and <c>on</c>/<c>off</c>. Anything else is refused,
+    /// so a typo leaves the default in place rather than guessing.</summary>
+    public static bool TryParseFlag(string? value, out bool flag)
+    {
+        string word = (value ?? string.Empty).Trim();
+        if (bool.TryParse(word, out flag))
+        {
+            return true;
+        }
+
+        if (word == "1" || string.Equals(word, "yes", StringComparison.OrdinalIgnoreCase) || string.Equals(word, "on", StringComparison.OrdinalIgnoreCase))
+        {
+            flag = true;
+            return true;
+        }
+
+        if (word == "0" || string.Equals(word, "no", StringComparison.OrdinalIgnoreCase) || string.Equals(word, "off", StringComparison.OrdinalIgnoreCase))
+        {
+            flag = false;
+            return true;
+        }
+
+        return false;
+    }
 
     /// <summary>Parses a tutorial policy word (#2466): <c>auto</c>, <c>optin</c> (also <c>opt-in</c>/<c>opt_in</c>) or
     /// <c>off</c>, case-insensitive. Numbers are refused (an enum parse would take any integer).</summary>

@@ -131,6 +131,48 @@ public sealed class ServerConfigTests
         Assert.Contains("chat-mode", cliApplied);
     }
 
+    [Theory]
+    [InlineData("1", true)]
+    [InlineData("true", true)]
+    [InlineData("ON", true)]
+    [InlineData("yes", true)]
+    [InlineData("0", false)]
+    [InlineData("False", false)]
+    [InlineData("off", false)]
+    public void ApplyEnvironment_MapsNoPlayerAdmins(string value, bool expected)
+    {
+        // #2486: the WorldHost starts arcade worlds with BBS_NO_PLAYER_ADMINS=1 — the shell-style "1" must count.
+        WithEnvironment(new Dictionary<string, string?> { ["BBS_NO_PLAYER_ADMINS"] = value }, () =>
+        {
+            var config = new ServerConfig { NoPlayerAdmins = !expected };
+            var applied = config.ApplyEnvironment();
+
+            Assert.Equal(expected, config.NoPlayerAdmins);
+            Assert.Contains("BBS_NO_PLAYER_ADMINS", applied);
+        });
+    }
+
+    [Fact]
+    public void NoPlayerAdmins_IsOffByDefault_RefusesGarbage_AndIsSettableByCommandLineAndFile()
+    {
+        Assert.False(new ServerConfig().NoPlayerAdmins); // singleplayer, LAN and self-hosting are unchanged
+
+        WithEnvironment(new Dictionary<string, string?> { ["BBS_NO_PLAYER_ADMINS"] = "maybe" }, () =>
+        {
+            var config = new ServerConfig();
+            Assert.DoesNotContain("BBS_NO_PLAYER_ADMINS", config.ApplyEnvironment());
+            Assert.False(config.NoPlayerAdmins); // a typo never guesses
+        });
+
+        var cli = new ServerConfig();
+        Assert.Contains("no-player-admins", cli.ApplyCommandLine(new[] { "--no-player-admins", "true", "--port", "31550" }));
+        Assert.True(cli.NoPlayerAdmins);
+        Assert.Equal(31550, cli.GameplayPort); // the valued flag consumed exactly its value
+
+        Assert.True(ServerConfig.FromJson("{ \"noPlayerAdmins\": true }").NoPlayerAdmins);
+        Assert.True(ServerConfig.FromJson(new ServerConfig { NoPlayerAdmins = true }.ToJson()).NoPlayerAdmins);
+    }
+
     [Fact]
     public void ApplyCommandLine_OverridesSpaceRules()
     {

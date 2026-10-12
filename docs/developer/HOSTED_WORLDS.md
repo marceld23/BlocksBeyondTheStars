@@ -43,9 +43,27 @@ The three hosting tiers, side by side:
   them fleet-ready: `BBS_IDLE_SHUTDOWN_MINUTES` (empty world saves + exits → sleeping worlds cost
   ~nothing), `GET /status` on the WS gateway (live joined count for the reaper/allocator),
   `BBS_JOIN_TOKEN_SECRET` (only control-plane-vouched joins get in), `BBS_WORLD_OWNER` (the owner
-  account gets WorldAdmin even on an uploaded save with a foreign first-joiner admin).
+  account gets WorldAdmin even on an uploaded save with a foreign first-joiner admin),
+  `BBS_NO_PLAYER_ADMINS=1` (arcade worlds only — see "Who is admin on a hosted world" below).
   **Containers run with `--restart=no`** — an auto-restart policy would wake idle-stopped worlds
   right back up.
+- **Who is admin on a hosted world** (#2486) — three sources, and none of them is "whoever joined
+  first":
+  - **Owner:** the token-verified join of the `BBS_WORLD_OWNER` account is made WorldAdmin. While
+    an owner is configured, the classic "first joiner of a fresh world becomes WorldAdmin" rule is
+    off. On a portal world a friend who arrives before the owner is just a Player. Singleplayer, LAN
+    and self-hosted servers have no owner and keep the first-joiner rule. An uploaded save keeps its
+    existing rows, including its old founder's WorldAdmin.
+  - **Arcade worlds (`glitch` channel):** the pool owner id is the literal `glitch`, while guests
+    join as `glitch:<install_id>`, so the owner rule never fires and an arcade world has no player
+    admin at all. The launcher also starts these containers with `BBS_NO_PLAYER_ADMINS=1`. With that
+    flag the instance demotes a joining player whose saved role is Admin or WorldAdmin to Player,
+    saves the row right away and logs one line (`… demoted to Player`). This cleans up pool worlds
+    whose first guest became WorldAdmin before the fix. Names in `BBS_ADMINS` and a verified owner
+    are exempt.
+  - **Fleet admins** (`BBS_FLEET_ADMINS`) are a session flag, not a role. They keep observer mode,
+    `/goto` and the role-gated admin commands on every world, the arcade included; moderation of
+    arcade worlds is theirs plus the install bans.
 - **Join flow** — `POST /api/worlds/{id}/join {playerName}` (Bearer session) → orchestrator ensures
   the instance runs (fast-path route, or `docker run` + poll `/status` until healthy, default 90 s
   budget) → returns a `JoinGrant`: `wssUrl` (browser), `nativeHost`/`nativePort` (desktop UDP) and a
@@ -498,6 +516,12 @@ Operational notes:
 - Arcade worlds are normal fleet citizens otherwise: idle-shutdown, reaper, archive/restore and the
   `BBS_WH_MAX_ACTIVE` budget all apply (2 arcade worlds on a budget of 10). Their player cap is
   `BBS_WH_GLITCH_MAX_PLAYERS` (instance env `BBS_MAX_PLAYERS`, applied on the next container start).
+- No arcade guest is ever an admin (#2486): the instance runs with `BBS_NO_PLAYER_ADMINS=1`, and the
+  `glitch` owner id never matches a guest — see "Who is admin on a hosted world" above. World textures,
+  world rules, `/gamemode` and the role-gated admin commands are therefore out of a guest's reach.
+  Rollout: the variable comes with a WorldHost deploy, and the demotion needs a server image with #2486.
+  An older image ignores the variable, so either can ship first. A pool world picks both up on its next
+  container start (a pool recycle).
 - Worlds are persistent by design (returning players = retention = payout); griefing recourse is
   the admin stop/wake + install bans. In-game `/report <name> [note]` works for arcade guests too since
   #1222: the server intercepts it (no portal session needed), attaches the last chat lines it relayed and
