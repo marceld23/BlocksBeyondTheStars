@@ -53,6 +53,8 @@ public sealed class StoryConditionTests : IDisposable
         public bool HasBlueprint(string blueprintKey) => Ask($"blueprint:{blueprintKey}");
 
         public bool IsWorldPredicateTrue(string predicate) => Ask($"world:{predicate}");
+
+        public bool HasReadLore(string loreKey) => Ask($"lore:{loreKey}");
     }
 
     // ---------------- Grammar ----------------
@@ -62,6 +64,7 @@ public sealed class StoryConditionTests : IDisposable
     [InlineData("chapter:tutorial:b6", StoryConditionKind.Chapter, "tutorial", "b6")]
     [InlineData("blueprint:comm_radio", StoryConditionKind.Blueprint, "", "comm_radio")]
     [InlineData("world:station_in_system", StoryConditionKind.World, "", "station_in_system")]
+    [InlineData("lore:observatory_log", StoryConditionKind.Lore, "", "observatory_log")] // #2476
     public void Atoms_ParseIntoTheirParts(string text, StoryConditionKind kind, string pack, string id)
     {
         var c = StoryConditionParser.Parse(text);
@@ -116,6 +119,7 @@ public sealed class StoryConditionTests : IDisposable
     [InlineData("pack:tutorial:finished", "unknown pack state")]
     [InlineData("pack:tutorial", "':started'")]
     [InlineData("blueprint:", "blueprint key")]
+    [InlineData("lore:", "lore key")] // #2476
     [InlineData("world:lava_everywhere", "unknown world predicate")]
     [InlineData("world:", "world predicate")]
     [InlineData("mission:crystal_workshop_1", "unknown condition 'mission:'")]

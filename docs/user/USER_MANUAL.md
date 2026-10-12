@@ -1916,8 +1916,9 @@ called **stories**:
   courses *offered* with **Start** / **Later**, *available*, or *locked* with what they still need) and **Replay** for a
   part you finished. At the top: **Track**, **Skip all — I know the game**, **Restart from the beginning** and
   **Switch off** (**Switch on** brings it back). Below: the training's scenes to watch again.
-- **VEGA's page** shows the star-network meter (also as a bar), **Track**, **Leads in this chapter** — the chapter's
-  tasks: **✔** done, **●** the one on your chip now, **○** still open (see "Story: finding the thread") — the chapter
+- **VEGA's page** shows the star-network meter (also as a bar), **Track**, **Missions in this chapter** — VEGA's story
+  mission with its steps (**✔** done, **●** now, **○** next) and **Skip mission** — then **Leads in this chapter** — the
+  chapter's tasks: **✔** done, **●** the one on your chip now, **○** still open (see "Story: finding the thread") — the chapter
   list with the story moments you heard, fragments, memories and field records, **Start the story now** before your story
   has started, **The story so far**, the crew's chapter on hosted worlds, and the story's scenes to watch again
   (*Prologue — Awakening* among them).
@@ -1981,8 +1982,19 @@ called **stories**:
   lists the chapter's leads with **✔** for done. When nothing here fits, the chip suggests a fragment or a settlement job
   on this world, else **"Explore …"**. Leads never hold the story back: the story moments still come with the world's
   progress, whatever you do.
-- **The chapter bonus.** The first time anyone on the world follows one of a chapter's leads, the story moves on a little
-  (once per chapter and world, before the Guardian's system appears). In multiplayer everyone has their own leads.
+- **Story missions.** In each chapter VEGA also gives you a short **story mission** — right after the chapter's scene
+  (never during the basic training), with a few words from her: *Follow the Signal* (find a net fragment), *The Sealed
+  Observatory* (fly there and read the survey post's last log), *What the Stones Remember* (read a monument's runes, then
+  help a settlement), *The Long Quiet* (board the old derelict and find her cargo manifest), *Eyes on Far Stars* and *The
+  Jump Generator* (research them, then build them into your ship) and, after the finale, *Survey Orders* from a station
+  board. While a mission runs, the chip shows its current step instead of the lead ("VEGA: Read the observatory's last
+  log"), and the Journal lists it under **Missions in this chapter** with **Skip mission** if you would rather not. If a
+  world cannot offer what a mission needs (no observatory in reach, every fragment already found …), VEGA picks another
+  one. A mission never holds the story back: when the world reaches the next chapter, an unfinished mission is simply let
+  go and the next chapter brings its own. The finale's chapter has none — the Guardian core is that chapter's mission.
+- **The chapter bonus.** The first time anyone on the world follows one of a chapter's leads — or finishes its story
+  mission — the story moves on a little (once per chapter and world, before the Guardian's system appears). In
+  multiplayer everyone has their own leads and missions.
 - The chip respects the **VEGA hints** setting — turn hints off and the story's chip (and its markers) clear once the
   tutorial is done. On a world without machines (planet enemies *Off*, no hostile space) it never asks you to drive
   machines back.

@@ -305,6 +305,63 @@ public sealed class JournalViewTests
         Assert.Empty(JournalPackPage.LeadsOf(null));
     }
 
+    // ---------------- #2476: VEGA's story missions ----------------
+
+    [Fact]
+    public void TheVegaPagesMissions_ListRunningFirst_WithTheirSteps_AndASkipButtonWhileRunning()
+    {
+        var vega = new NetStoryPack
+        {
+            Id = "vega_protocol",
+            Scope = StoryRegistry.ScopeWorld,
+            Started = true,
+            Missions = new[]
+            {
+                new NetStoryMission { Id = "m_archive", ChapterId = "service", TitleKey = "story.vega.m.archive.title", State = StoryChapterStates.Done },
+                new NetStoryMission
+                {
+                    Id = "m_observatory", ChapterId = "service", TitleKey = "story.vega.m.observatory.title", State = StoryChapterStates.Active,
+                    Skippable = true,
+                    Steps = new[]
+                    {
+                        new NetStoryMissionStep { Id = "m_observatory.1", Key = "story.vega.obj.site.observatory", Arg = "Kepler-3 b", State = StoryChapterStates.Done, Progress = 1, Target = 1 },
+                        new NetStoryMissionStep { Id = "m_observatory.2", Key = "story.vega.m.observatory.2.obj", State = StoryChapterStates.Active, Progress = 1, Target = 2, OnChip = true },
+                        new NetStoryMissionStep { Id = "m_observatory.3", Key = "story.vega.m.unknown", State = StoryChapterStates.Upcoming },
+                    },
+                },
+            },
+        };
+
+        var missions = JournalPackPage.MissionsOf(vega);
+        Assert.Equal(new[] { "m_observatory", "m_archive" }, missions.Select(m => m.Id)); // the running one first
+        static string Loc(string key) => key switch
+        {
+            "story.vega.m.observatory.title" => "The Sealed Observatory",
+            "story.vega.m.archive.title" => "The Deep Archive",
+            "story.vega.obj.site.observatory" => "Visit the Sealed Observatory on {0}",
+            "story.vega.m.observatory.2.obj" => "Read the observatory's last log",
+            _ => "<" + key + ">",
+        };
+        static bool Has(string key) => key != "story.vega.m.unknown";
+
+        Assert.Equal("●  The Sealed Observatory", JournalPackPage.MissionTitle(missions[0], Loc, Has));
+        Assert.Equal("✔  The Deep Archive", JournalPackPage.MissionTitle(missions[1], Loc, Has));
+        var steps = missions[0].Steps;
+        Assert.Equal("✔  Visit the Sealed Observatory on Kepler-3 b", JournalPackPage.MissionStepLine(steps[0], Loc, Has));
+        Assert.Equal("●  Read the observatory's last log (1/2)", JournalPackPage.MissionStepLine(steps[1], Loc, Has));
+        Assert.Equal("○  ", JournalPackPage.MissionStepLine(steps[2], Loc, Has)); // an unknown key never shows raw
+
+        // Skip only a running, skippable mission — as the world story's skipChapter with the mission's id.
+        var skip = Assert.Single(JournalPackPage.MissionActions(missions[0]));
+        Assert.Equal(("ui.journal.skip_mission", StoryPackActions.SkipChapter, "m_observatory"), (skip.LabelKey, skip.Action, skip.ChapterId));
+        Assert.Empty(JournalPackPage.MissionActions(missions[1]));
+
+        // A player pack and an older server have none; the title falls back to the id for an unknown key.
+        Assert.Empty(JournalPackPage.MissionsOf(Tutorial()));
+        Assert.Empty(JournalPackPage.MissionsOf(null));
+        Assert.Equal("●  m_x", JournalPackPage.MissionTitle(new NetStoryMission { Id = "m_x", TitleKey = "story.vega.m.unknown", State = StoryChapterStates.Active }, Loc, Has));
+    }
+
     // ---------------- The Settings' tutorial switch ----------------
 
     [Fact]

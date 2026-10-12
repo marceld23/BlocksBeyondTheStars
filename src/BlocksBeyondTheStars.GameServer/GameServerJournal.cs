@@ -97,10 +97,23 @@ public sealed partial class GameServer
             st.Progress = 0;
         }
 
+        // #2476: the story missions' step counters likewise.
+        var missionSteps = states.Packs.SelectMany(p => p.Missions).SelectMany(m => m.Steps).ToList();
+        var savedMission = missionSteps.Select(st => st.Progress).ToList();
+        foreach (var st in missionSteps)
+        {
+            st.Progress = 0;
+        }
+
         byte[] bytes = NetCodec.Encode(states);
         for (int i = 0; i < steps.Count; i++)
         {
             steps[i].Progress = saved[i];
+        }
+
+        for (int i = 0; i < missionSteps.Count; i++)
+        {
+            missionSteps[i].Progress = savedMission[i];
         }
 
         return bytes;
@@ -164,6 +177,7 @@ public sealed partial class GameServer
             Startable = !started && ((_story.Start?.EarlyOptIn ?? false) || StoryTrackStartReason(s) is not null),
             Badge = won,
             Leads = JournalLeads(s), // #2475: the current chapter's leads as the VEGA page's tasks
+            Missions = JournalMissions(s), // #2476: the current chapter's story missions
         };
     }
 

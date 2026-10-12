@@ -72,6 +72,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (_story is not null && string.Equals(_story.Id, intent.PackId, StringComparison.OrdinalIgnoreCase))
+        {
+            ApplyStoryMissionIntent(s, intent, action); // #2476: the world story's own actions are its story missions' skips
+            return;
+        }
+
         if (!TryGetPlayerPack(intent.PackId, out var pack))
         {
             return;

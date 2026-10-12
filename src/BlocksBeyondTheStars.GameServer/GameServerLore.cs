@@ -66,6 +66,7 @@ public sealed partial class GameServer
         p.Milestones.Add(LoreMilestonePrefix + pick.Key);
         _repo.SavePlayer(p);
         Send(session, new LoreTextRevealed { Key = pick.Key, Site = pick.Site, TextKey = pick.TextKey });
+        RaiseGameEvent(session, GameEventKeys.LoreRead, string.IsNullOrEmpty(pick.Site) ? site : pick.Site); // #2476: "read the observatory's last log"
     }
 
     /// <summary>The lore-site kind of a structure-loot container, derived from its id

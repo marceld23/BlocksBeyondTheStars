@@ -119,6 +119,11 @@ public static class GameEventKeys
     /// <summary>A story net fragment was handed to the player (picked up, mission thread, NPC). Arg: the fragment key.</summary>
     public const string StoryFragment = "story:fragment";
 
+    /// <summary>#2476: the player read a lore text new to them (a rune inscription, a wreck log, a vault plaque, the
+    /// observatory's last log — whatever opened in the reader). Arg: the site kind (<c>monument</c>, <c>vault</c>,
+    /// <c>observatory</c>, <c>derelict</c>, <c>data_terminal</c> …).</summary>
+    public const string LoreRead = "lore:read";
+
     /// <summary>The prefix of the Crystal Net circuit events: <c>crystal:&lt;event&gt;</c> with the event of
     /// <see cref="CircuitEvents"/> (raised for the circuit's owner). Arg: empty.</summary>
     public const string CrystalPrefix = "crystal:";
@@ -324,6 +329,7 @@ public static class GameEventKeys
             ResearchAny, SpaceEnter, StationBoarded, TradeBarter, TradePlayer, MissionAccepted, MissionTurnedIn,
             TravelLanded, VisitBody, VisitSystem, HyperjumpAny, ModuleBuilt, ShipCommissioned, StationCommissioned,
             BaseFounded, TameAny, LootAny, DefeatAny, WormholeAny, RelayCommissioned, LaneLinked, StoryFragment,
+            LoreRead,
             InsightCompanionWard, InsightShapeNoncube,
             MoveWalked, MoveJump, HotbarSelect, ItemGained, ItemMoved, GearEquipped, CargoStowed, InventoryFull,
             ShipReturned, LampToggled, SuitAutoFeed, SuitClimate, PlayerRespawned, MineRefused, DataFound, FlightFlown,

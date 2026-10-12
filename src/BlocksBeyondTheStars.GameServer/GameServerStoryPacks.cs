@@ -96,6 +96,46 @@ public sealed partial class GameServer
         public StoryCondition? StartAfter { get; set; }
 
         public Dictionary<string, StoryCondition> Gates { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>#2476: a world story's story missions, compiled as a per-player sub-track of that story (each mission an
+        /// optional chapter, keyed by the story's id) — run by <c>GameServerStoryMissions.cs</c>, never by the player-pack
+        /// walk (<see cref="AdvancePack"/> hands it over).</summary>
+        public bool IsStoryMissions { get; set; }
+
+        /// <summary>#2476: the missions in arc order (only for <see cref="IsStoryMissions"/>).</summary>
+        public List<CompiledMission> Missions { get; } = new();
+    }
+
+    /// <summary>#2476: one story mission of a world story — the chapter that runs its steps, the arc chapter it belongs to and
+    /// its feasibility.</summary>
+    internal sealed class CompiledMission
+    {
+        public CompiledMission(CompiledChapter chapter, StoryMission def, string storyChapterId, int storyChapterIndex)
+        {
+            Chapter = chapter;
+            Def = def;
+            StoryChapterId = storyChapterId;
+            StoryChapterIndex = storyChapterIndex;
+        }
+
+        /// <summary>The optional chapter of the missions pack that runs the mission's steps (its id is the mission's).</summary>
+        public CompiledChapter Chapter { get; }
+
+        public StoryMission Def { get; }
+
+        public string Id => Chapter.Id;
+
+        /// <summary>The world story's chapter the mission belongs to, and its index in the arc.</summary>
+        public string StoryChapterId { get; }
+
+        public int StoryChapterIndex { get; }
+
+        public StoryCondition? FeasibleIf { get; set; }
+
+        public CompiledMission? Alternative { get; set; }
+
+        /// <summary>This mission is another one's alternative: it runs only standing in for it.</summary>
+        public bool IsAlternative { get; set; }
     }
 
     /// <summary>A chapter of a compiled pack.</summary>
@@ -145,6 +185,13 @@ public sealed partial class GameServer
             {
                 Event = GameEventKeys.MissionTurnedIn;
                 Args = new[] { objective.Target };
+            }
+            else if (objective.IsLead)
+            {
+                // #2476: a lead bridge listens through the lead listener (GameServerStoryLeads) — not on the step listener.
+                Event = string.Empty;
+                Args = Array.Empty<string>();
+                LeadType = objective.Target ?? string.Empty;
             }
             else
             {
@@ -204,10 +251,24 @@ public sealed partial class GameServer
         public bool IsReact => Kind == StoryStepKinds.React;
 
         public bool IsMission => Def.Objective?.IsMission == true;
+
+        /// <summary>#2476: the bridged lead word of a lead bridge (<c>unique_site:observatory</c> …), else empty.</summary>
+        public string LeadType { get; } = string.Empty;
+
+        /// <summary>#2476: a lead bridge — completed the way its lead is followed.</summary>
+        public bool IsLeadBridge => LeadType.Length > 0;
+
+        public string LeadKind => StoryLeadTypes.KindOf(LeadType);
+
+        public string LeadArg => StoryLeadTypes.ArgOf(LeadType);
     }
 
     private List<CompiledPack>? _playerPacks;
     private readonly Dictionary<string, CompiledStep> _stepByProgressKey = new(StringComparer.Ordinal);
+
+    /// <summary>#2476: the story missions of every installed world story that has any, by story id (compiled with the player
+    /// packs; only the active world story's run — <see cref="StoryPackEnabledFor"/>).</summary>
+    private readonly Dictionary<string, CompiledPack> _storyMissionPacks = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The installed player packs, compiled once (highest priority first, then by id).</summary>
     internal IReadOnlyList<CompiledPack> PlayerPacks => _playerPacks ??= CompilePlayerPacks();
@@ -216,12 +277,28 @@ public sealed partial class GameServer
     {
         var result = new List<CompiledPack>();
         _stepByProgressKey.Clear();
+        _storyMissionPacks.Clear();
         foreach (var def in _content.Stories.Values)
         {
-            if (StoryRegistry.IsReservedPackId(def.Id)
-                || !string.Equals(StoryRegistry.EffectiveScope(def), StoryRegistry.ScopePlayer, StringComparison.Ordinal)
-                || def.Chapters is not { Count: > 0 })
+            if (StoryRegistry.IsReservedPackId(def.Id) || def.Chapters is not { Count: > 0 })
             {
+                continue;
+            }
+
+            if (!string.Equals(StoryRegistry.EffectiveScope(def), StoryRegistry.ScopePlayer, StringComparison.Ordinal))
+            {
+                if (def.Chapters.Any(c => c.Missions is { Count: > 0 }))
+                {
+                    try
+                    {
+                        _storyMissionPacks[def.Id] = CompileStoryMissions(def); // #2476
+                    }
+                    catch (FormatException ex)
+                    {
+                        _log.Warn($"The story missions of '{def.Id}' are not run: {ex.Message}");
+                    }
+                }
+
                 continue;
             }
 
@@ -238,7 +315,7 @@ public sealed partial class GameServer
         result.Sort((a, b) => a.Def.Priority != b.Def.Priority
             ? b.Def.Priority.CompareTo(a.Def.Priority)
             : string.CompareOrdinal(a.Id, b.Id));
-        foreach (var pack in result)
+        foreach (var pack in result.Concat(_storyMissionPacks.Values))
         {
             foreach (var step in pack.StepsById.Values)
             {
@@ -281,39 +358,53 @@ public sealed partial class GameServer
             };
             pack.Chapters.Add(chapter);
             pack.ChaptersById[chapter.Id] = chapter;
-            foreach (var stepDef in chapterDef.Steps)
-            {
-                if (string.IsNullOrEmpty(stepDef.Id) || pack.StepsById.ContainsKey(stepDef.Id))
-                {
-                    throw new FormatException($"step id '{stepDef.Id}' is empty or used twice");
-                }
-
-                var step = new CompiledStep(chapter, stepDef)
-                {
-                    Requires = StoryConditionParser.ParseList(stepDef.Requires, predicates),
-                    FeasibleIf = StoryConditionParser.ParseList(stepDef.FeasibleIf, predicates),
-                    AlreadyDoneIf = StoryConditionParser.ParseList(stepDef.AlreadyDoneIf, predicates),
-                };
-                if (!StoryStepKinds.All.Contains(step.Kind) || !StoryStepTiers.All.Contains(step.Tier))
-                {
-                    throw new FormatException($"step '{step.Id}' has an unknown kind '{step.Kind}' or tier '{step.Tier}'");
-                }
-
-                if (GameEventKeys.IsUiEvent(step.Event) && step.Event.EndsWith("*", StringComparison.Ordinal))
-                {
-                    throw new FormatException($"step '{step.Id}' listens to a 'ui:' pattern — a teaching flag must be named exactly");
-                }
-
-                foreach (var variant in stepDef.Variants)
-                {
-                    step.Variants.Add((StoryConditionParser.Parse(variant.When ?? string.Empty, predicates), variant));
-                }
-
-                chapter.Steps.Add(step);
-                pack.StepsById[step.Id] = step;
-            }
+            CompileSteps(pack, chapter, predicates);
         }
 
+        LinkStepAlternatives(pack);
+        return pack;
+    }
+
+    /// <summary>Compiles a chapter's steps (its <see cref="StoryChapter.Steps"/>) into the pack. Throws <see cref="FormatException"/>
+    /// on a structural or condition error.</summary>
+    private static void CompileSteps(CompiledPack pack, CompiledChapter chapter, IReadOnlyCollection<string> predicates)
+    {
+        foreach (var stepDef in chapter.Def.Steps)
+        {
+            if (string.IsNullOrEmpty(stepDef.Id) || pack.StepsById.ContainsKey(stepDef.Id))
+            {
+                throw new FormatException($"step id '{stepDef.Id}' is empty or used twice");
+            }
+
+            var step = new CompiledStep(chapter, stepDef)
+            {
+                Requires = StoryConditionParser.ParseList(stepDef.Requires, predicates),
+                FeasibleIf = StoryConditionParser.ParseList(stepDef.FeasibleIf, predicates),
+                AlreadyDoneIf = StoryConditionParser.ParseList(stepDef.AlreadyDoneIf, predicates),
+            };
+            if (!StoryStepKinds.All.Contains(step.Kind) || !StoryStepTiers.All.Contains(step.Tier))
+            {
+                throw new FormatException($"step '{step.Id}' has an unknown kind '{step.Kind}' or tier '{step.Tier}'");
+            }
+
+            if (GameEventKeys.IsUiEvent(step.Event) && step.Event.EndsWith("*", StringComparison.Ordinal))
+            {
+                throw new FormatException($"step '{step.Id}' listens to a 'ui:' pattern — a teaching flag must be named exactly");
+            }
+
+            foreach (var variant in stepDef.Variants)
+            {
+                step.Variants.Add((StoryConditionParser.Parse(variant.When ?? string.Empty, predicates), variant));
+            }
+
+            chapter.Steps.Add(step);
+            pack.StepsById[step.Id] = step;
+        }
+    }
+
+    /// <summary>Resolves every step's <c>alternative</c> (another step of the same chapter).</summary>
+    private static void LinkStepAlternatives(CompiledPack pack)
+    {
         foreach (var chapter in pack.Chapters)
         {
             foreach (var step in chapter.Steps)
@@ -333,8 +424,6 @@ public sealed partial class GameServer
                 alternative.IsAlternative = true;
             }
         }
-
-        return pack;
     }
 
     /// <summary>The compiled player pack with this id, if installed and runnable.</summary>
@@ -393,9 +482,10 @@ public sealed partial class GameServer
 
     private static bool StepActive(PlayerSession s, CompiledStep step) => s.State.StepProgress.ContainsKey(step.ProgressKey);
 
-    /// <summary>A client without <c>packs1</c> follows only a tutorial's steps with a legacy stage (synthesis §5.7).</summary>
+    /// <summary>A client without <c>packs1</c> follows only a tutorial's steps with a legacy stage (synthesis §5.7) — and no
+    /// story mission (#2476: it has neither the Journal nor the chip text for one; it keeps the story chip it knows).</summary>
     private static bool StepRunsForClient(PlayerSession s, CompiledStep step)
-        => s.SupportsPacks || !step.Pack.IsTutorial || step.LegacyStageId is not null;
+        => s.SupportsPacks || (!step.Pack.IsTutorial && !step.Pack.IsStoryMissions) || step.LegacyStageId is not null;
 
     /// <summary>Whether a do step holds up its chapter: every do step of an optional chapter; in a non-optional chapter a
     /// MUST step, and a CORE step until its hint time has passed (then it is an open extra).</summary>
@@ -591,6 +681,12 @@ public sealed partial class GameServer
 
     private void AdvancePack(PlayerSession s, CompiledPack pack)
     {
+        if (pack.IsStoryMissions)
+        {
+            AdvanceStoryMissions(s); // #2476: a world story's missions have their own rules (no start, no migration, no "done")
+            return;
+        }
+
         if (!StoryPackEnabledFor(s, pack.Id))
         {
             return; // switched off for this player or this world — every key stays, nothing runs
@@ -745,7 +841,7 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (!replay && step.AlreadyDoneIf is not null && EvaluateStoryCondition(step.AlreadyDoneIf, s))
+                if (!replay && StepAlreadyDone(s, step))
                 {
                     CompleteStep(s, step, silent: true);
                     changed = true;
@@ -778,6 +874,12 @@ public sealed partial class GameServer
 
         return changed;
     }
+
+    /// <summary>Evidence that a step is known already when it activates: its <c>alreadyDoneIf</c>, and (#2476) for a lead bridge
+    /// the lead's own evidence (the blueprint researched, the module fitted, the site landed on before).</summary>
+    private bool StepAlreadyDone(PlayerSession s, CompiledStep step)
+        => (step.AlreadyDoneIf is not null && EvaluateStoryCondition(step.AlreadyDoneIf, s))
+           || (step.IsLeadBridge && LeadBridgeEvidence(s, step));
 
     /// <summary>A chapter is through when every step that counts is through (MUST do steps of a non-optional chapter,
     /// every do step of an optional one) and nothing still holds it up — an open CORE step that has not had its hint time
@@ -965,6 +1067,11 @@ public sealed partial class GameServer
         if (!skipped && (!replay || first) && s.PresentedPackChapters.Contains(PresentedChapterKey(ch)))
         {
             PlayBoundCutscene(s, ch.Pack.Def, ch.Def.CloseCutscene, ch.Id);
+        }
+
+        if (ch.Pack.IsStoryMissions)
+        {
+            OnStoryMissionClosed(s, ch, skipped); // #2476: a finished mission counts for the chapter bonus
         }
 
         if (!skipped && !silent && !ch.Optional
@@ -1526,6 +1633,13 @@ public sealed partial class GameServer
         }
 
         var pos = s.State.Position;
+        if (reveal.StartsWith(StoryRevealProviders.UniqueSite + ":", StringComparison.Ordinal))
+        {
+            // #2476: the site's own spot while the player is on its world ("read the observatory's last log").
+            string kind = reveal.Substring(StoryRevealProviders.UniqueSite.Length + 1);
+            return UniqueSiteTarget(kind) is { } site && site == s.CurrentLocationId ? UniqueSiteGroundSpot(kind, site) : null;
+        }
+
         if (reveal == StoryRevealProviders.NearestFoodPlant)
         {
             return NearestBlockOf(s, FoodPlantBlocks) is { } plant ? new Vector3f(plant.X + 0.5f, plant.Y + 0.5f, plant.Z + 0.5f) : null; // #2469
@@ -1604,7 +1718,8 @@ public sealed partial class GameServer
         foreach (string key in s.State.StepProgress.Keys.ToList())
         {
             int colon = key.IndexOf(':');
-            if (colon > 0 && TryGetPlayerPack(key.Substring(0, colon), out _) && !_stepByProgressKey.ContainsKey(key))
+            string owner = colon > 0 ? key.Substring(0, colon) : string.Empty;
+            if (colon > 0 && (TryGetPlayerPack(owner, out _) || _storyMissionPacks.ContainsKey(owner)) && !_stepByProgressKey.ContainsKey(key))
             {
                 s.State.StepProgress.Remove(key);
             }

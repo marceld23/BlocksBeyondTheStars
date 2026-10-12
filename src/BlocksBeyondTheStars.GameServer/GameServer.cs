@@ -4392,6 +4392,7 @@ public sealed partial class GameServer
         ShipAiOnJoin(session); // VEGA: tips quiet, the chip (#2470: the prologue played in StoryOnJoin; the training is the pack below)
         StoryPacksOnJoin(session); // #2466: player packs — migrate, start, advance, re-speak the step on the chip
         TryStartStoryTrack(session); // #2470: the story track starts here when the training is through or off (or for a veteran)
+        StoryMissionsOnJoin(session); // #2476: a running story mission listens again
         SendVegaJournal(session); // the tips log snapshot — after the tutorial's migration, so it lists the migrated steps
         PushJournal(session, force: true); // #2471: the Journal's stories and the objective list, once everything above ran
         RestoreStationOnJoin(session, savedLocation, savedPosition); // #1925: quit on a station → back on it

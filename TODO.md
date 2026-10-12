@@ -267,7 +267,20 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   lead or a monument reading unlocks the next memory; the Crystal workshop's turn-ins leave the score
   (`MissionDefinition.CountsForStory`). Tests: `VegaChapterLeadsTests` (37), Client.Tests `JournalViewTests` + updated
   chip tests. Docs: STORY_IMPLEMENTATION, STORY_VEGA_PROTOCOL_CONCEPT, USER_MANUAL, CRYSTAL_NET.
-- ⬜ Step 16b — VEGA story missions (#2476)
+- ✅ **Step 16b — VEGA story missions per chapter (#2476)**, 2026-10-12 (needs the local Unity build — one Journal block
+  + the Journal badge): VEGA's chapters carry `missions[]` in `story.json` (*Follow the Signal*, *The Sealed Observatory* /
+  stand-in *The Deep Archive*, *What the Stones Remember*, *The Long Quiet* / stand-in *Ships That Remember*, *Eyes on Far
+  Stars*, *The Jump Generator*, epilogue *Survey Orders*; none in the finale's chapter), compiled as a per-player sub-track
+  of the world story and run by the step runtime (`GameServerStoryMissions.cs`): handed out after the chapter's scene and
+  never during the basic training, one at a time, with VEGA's briefing; the running step takes the lead's place on the
+  chip (never over the open finale); lead bridges (`objective.type: Lead`) follow a step like a chapter lead (events,
+  evidence, placed text, marker); infeasible missions/steps give way to stand-ins; an unfinished mission is let go when
+  the chapter moves on (no beat ever waits); finishing one pays the chapter bonus once per save and chapter (shared with
+  the leads); Journal `NetStoryPack.Missions` (additive) + "Skip mission"; older clients get none. New: event `lore:read`,
+  condition atom `lore:<key>`, predicates `fragments_left`, `observatory_reachable`, `derelict_reachable`, `settlements`,
+  `vaults`, `space_wrecks`, marker provider `unique_site:<site>`; validators (C# + Python) check missions and lead
+  bridges. 62 pack keys + 2 core keys (en+de). Tests: `VegaStoryMissionsTests` (21), Client.Tests `JournalViewTests` +1.
+  Docs: STORY_IMPLEMENTATION, STORY_VEGA_PROTOCOL_CONCEPT, USER_MANUAL.
 - ⬜ Step 17a — camera modes (#2477) · 17b — finale set pieces (#2478)
 - ⬜ Steps 18–21 — tutorial deep-dive chapters (#2479, #2480, #2481, #2482)
 - ⬜ Step 22 — side-story test pack + authoring guide (#2483)

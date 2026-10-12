@@ -486,6 +486,7 @@ public sealed partial class GameServer
             TickStoryPacksFor(session); // #2466: player packs — start, advance, offers, help escalation (active play time)
             TryStartStoryTrack(session); // #2470: the world story's start rule (also with no player pack installed)
             TickStoryLeads(session); // #2475: leads followed by evidence (research, module, a site, the heal tank) + the marker
+            TickStoryMissions(session); // #2476: VEGA's story missions — handed out, let go, followed by evidence, help escalation
             // (#2468: queued cutscenes are flushed by TickCutscenes for every joined player, in space too — not from here.)
             RefreshVegaObjective(session); // #1859: the chip follows launches, stations, pickups and travel
 

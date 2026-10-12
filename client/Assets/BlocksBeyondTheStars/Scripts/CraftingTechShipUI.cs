@@ -5173,6 +5173,31 @@ namespace BlocksBeyondTheStars.Client
 
                 y = StoryTrackBlock(y, s, pack, started);
 
+                // #2476: the chapter's story missions VEGA handed out — running (●) or done (✔), each with its steps (done ✔, on the
+                // chip ●, ahead ○) and "Skip mission" under a running one. Sent once the player's story track started; an older
+                // server sends none.
+                var missions = JournalPackPage.MissionsOf(entry);
+                if (missions.Count > 0 && entry != null)
+                {
+                    y = AllianceSection(L("ui.journal.missions"), y);
+                    foreach (var mission in missions)
+                    {
+                        bool running = mission.State == StoryChapterStates.Active;
+                        y = JournalRow(y, 8f, 760f, JournalPackPage.MissionTitle(mission, L, HasLoc), 18,
+                            running ? UiKit.Cyan : UiKit.Ok, FontStyle.Bold);
+                        foreach (var step in mission.Steps)
+                        {
+                            y = JournalRow(y, 32f, 736f, JournalPackPage.MissionStepLine(step, L, HasLoc), 17,
+                                step.OnChip ? UiKit.Cyan : step.State == StoryChapterStates.Done ? UiKit.Ok : UiKit.CyanDim,
+                                step.OnChip ? FontStyle.Bold : FontStyle.Normal);
+                        }
+
+                        y = JournalButtons(y, 32f, entry.Id, JournalPackPage.MissionActions(mission));
+                    }
+
+                    y += 8f;
+                }
+
                 // #2475: the current chapter's leads as tasks — followed (✔), on the chip now (●), open (○). The server sends them
                 // only once the player's story track started; an older server sends none.
                 var leads = JournalPackPage.LeadsOf(entry);

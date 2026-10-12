@@ -567,7 +567,7 @@ public sealed partial class GameServer
     private string StoryTrackStatus(PlayerSession who)
         => _story is null
             ? string.Empty
-            : $", track of {who.State.Name}={(StoryTrackStarted(who) ? "started" : "waiting")}, chapter={ChapterAt(TrackChapterIndex(who))?.Id ?? "-"}, worldChapter={ChapterAt(WorldChapterIndex())?.Id ?? "-"}";
+            : $", track of {who.State.Name}={(StoryTrackStarted(who) ? "started" : "waiting")}, chapter={ChapterAt(TrackChapterIndex(who))?.Id ?? "-"}, worldChapter={ChapterAt(WorldChapterIndex())?.Id ?? "-"}{StoryMissionStatus(who)}";
 
     // ---------------------------------------------------------------------------------------------
     // Test seams.

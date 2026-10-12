@@ -26,6 +26,9 @@ public enum StoryConditionKind
     /// (<see cref="StoryWorldPredicates"/>).</summary>
     World,
 
+    /// <summary><c>lore:&lt;key&gt;</c> — the player has read that lore text (a <c>lore_sites.json</c> entry, #2476).</summary>
+    Lore,
+
     /// <summary><c>all:[a,b,…]</c> — every child holds.</summary>
     All,
 
@@ -71,6 +74,10 @@ public interface IStoryConditionContext
 
     /// <summary>The value of the world predicate <paramref name="predicate"/> (one of <see cref="StoryWorldPredicates.All"/>).</summary>
     bool IsWorldPredicateTrue(string predicate);
+
+    /// <summary>Whether the player has read the lore text <paramref name="loreKey"/> (#2476: the <c>lore:&lt;key&gt;</c> milestone the
+    /// reader writes).</summary>
+    bool HasReadLore(string loreKey);
 }
 
 /// <summary>
@@ -84,7 +91,7 @@ public interface IStoryConditionContext
 /// list      := condition ("," condition)*
 /// atom      := "step:" pack ":" step | "chapter:" pack ":" chapter
 ///            | "pack:" pack ":" ("started" | "done" | "enabled" | "optedout")
-///            | "blueprint:" key | "world:" predicate
+///            | "blueprint:" key | "world:" predicate | "lore:" key
 /// </code>
 /// Ids are letters, digits, <c>_</c>, <c>.</c> and <c>-</c> (a step id is <c>b2.2</c>). <c>ui:*</c> events are never a
 /// condition (they are client claims, synthesis §5.5).
@@ -118,7 +125,7 @@ public sealed class StoryCondition
     /// <summary>The operands of <c>all</c> / <c>any</c> (one or more) and <c>not</c> (exactly one); empty for atoms.</summary>
     public IReadOnlyList<StoryCondition> Children { get; }
 
-    /// <summary>True for the five atom kinds.</summary>
+    /// <summary>True for the six atom kinds.</summary>
     public bool IsAtom => Kind is not (StoryConditionKind.All or StoryConditionKind.Any or StoryConditionKind.Not);
 
     internal static StoryCondition Atom(StoryConditionKind kind, string packId, string id, StoryPackState state = StoryPackState.Started)
@@ -147,6 +154,8 @@ public sealed class StoryCondition
                 return context.HasBlueprint(Id);
             case StoryConditionKind.World:
                 return context.IsWorldPredicateTrue(Id);
+            case StoryConditionKind.Lore:
+                return context.HasReadLore(Id);
             case StoryConditionKind.All:
                 foreach (var child in Children)
                 {
@@ -219,6 +228,9 @@ public sealed class StoryCondition
                 break;
             case StoryConditionKind.World:
                 sb.Append("world:").Append(Id);
+                break;
+            case StoryConditionKind.Lore:
+                sb.Append("lore:").Append(Id);
                 break;
             case StoryConditionKind.Not:
                 sb.Append("not:");
@@ -445,6 +457,8 @@ public static class StoryConditionParser
 
                 case "blueprint":
                     return StoryCondition.Atom(StoryConditionKind.Blueprint, string.Empty, ReadRequiredId("the blueprint key"));
+                case "lore":
+                    return StoryCondition.Atom(StoryConditionKind.Lore, string.Empty, ReadRequiredId("the lore key"));
                 case "world":
                     {
                         int at = _pos;
@@ -463,7 +477,7 @@ public static class StoryConditionParser
                     throw Error("'ui:' events are client claims and never a condition");
                 default:
                     _pos = start;
-                    throw Error($"unknown condition '{word}:' (step, chapter, pack, blueprint, world, all, any, not)");
+                    throw Error($"unknown condition '{word}:' (step, chapter, pack, blueprint, world, lore, all, any, not)");
             }
         }
 
@@ -644,6 +658,25 @@ public static class StoryWorldPredicates
     /// <summary>#2469: the player's system has a planet, moon or asteroid they have never landed on — the landing lesson.</summary>
     public const string NewWorldInSystem = "new_world_in_system";
 
+    /// <summary>#2476: the world story still has a net fragment nobody has found (a fragment mission can be done).</summary>
+    public const string FragmentsLeft = "fragments_left";
+
+    /// <summary>#2476: the Sealed Observatory exists in this save (a world stamped before the unique sites skipped it) and the
+    /// player can get there (same system, a jump generator, a landing there before, instant travel) — the lead's rule.</summary>
+    public const string ObservatoryReachable = "observatory_reachable";
+
+    /// <summary>#2476: the derelict <i>The Long Quiet</i> exists and the player can get to it — the lead's rule.</summary>
+    public const string DerelictReachable = "derelict_reachable";
+
+    /// <summary>#2476: the world generates settlements (the world option is not off).</summary>
+    public const string Settlements = "settlements";
+
+    /// <summary>#2476: the world generates buried vaults (the world option is not off).</summary>
+    public const string Vaults = "vaults";
+
+    /// <summary>#2476: the world generates wrecks drifting in space (the world option is not off).</summary>
+    public const string SpaceWrecks = "space_wrecks";
+
     /// <summary>Every known predicate, in documentation order.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
@@ -651,5 +684,6 @@ public static class StoryWorldPredicates
         Enemies, SpaceEnemies, Bandits, FreeFlight, Hunger, Oxygen, Hazards, Creative, CreativeFlight,
         InstantTravel, ReturnToShip, StarterTeleporter, BaseVisitors, SpaceStations, StoryActive,
         FoodPlantsNear, TreesNear, ShapeBlockCarried, ResearchReady, AllBlueprints, NewWorldInSystem,
+        FragmentsLeft, ObservatoryReachable, DerelictReachable, Settlements, Vaults, SpaceWrecks,
     };
 }

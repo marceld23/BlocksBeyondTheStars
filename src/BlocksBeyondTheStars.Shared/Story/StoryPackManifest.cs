@@ -143,6 +143,11 @@ public sealed class StoryChapter
     /// (<see cref="StoryLeadTypes.Fallbacks"/>, then <see cref="StoryLeadTypes.Explore"/>) follow them on their own.</summary>
     public List<StoryLead> Leads { get; set; } = new();
 
+    /// <summary>World packs: the chapter's story missions (#2476, synthesis §4.8 option O3) — VEGA hands them to each player
+    /// whose story track reaches this chapter, one at a time in this order, and lets an unfinished one go when the player's
+    /// chapter moves on. They never hold a beat back. See <see cref="StoryMission"/>.</summary>
+    public List<StoryMission> Missions { get; set; } = new();
+
     /// <summary>The chapter's steps in order.</summary>
     public List<StoryStep> Steps { get; set; } = new();
 
@@ -150,9 +155,50 @@ public sealed class StoryChapter
     public bool? Skippable { get; set; }
 }
 
+/// <summary>
+/// A story mission of a world-story chapter (#2476, synthesis §4.8 option O3: "VEGA story missions per chapter —
+/// automatically accepted steps, layered on the leads"). A mission is a short, titled task list in the narrator's voice that
+/// points at the chapter's story drivers: when a player's story track reaches the chapter (and the chapter's scene went out,
+/// and no basic training runs), VEGA starts the chapter's first mission that is feasible here — her first step line is the
+/// briefing — and the Journal's VEGA page lists it under "Missions in this chapter". Its steps are ordinary pack steps run by
+/// the player-pack runtime (events, a mission bridge, or a lead bridge: <see cref="StoryObjectiveTypes.Lead"/>), one after the
+/// other. Per player: in multiplayer everyone does their own. Finishing one counts as following a lead for the chapter bonus
+/// (<see cref="StoryDefinition.LeadBonusMilestones"/>, still once per save and chapter); there is no other reward. A mission
+/// never holds a beat back: the score keeps revealing them, and when the player's chapter moves on an unfinished mission is let
+/// go (closed as skipped). Older clients (no <c>packs1</c>) get no missions — they keep the story chip they know.
+/// </summary>
+public sealed class StoryMission
+{
+    /// <summary>Mission id, unique within the pack (and distinct from its chapter ids — it shares their keys:
+    /// <c>story:&lt;pack&gt;:ch:&lt;mission&gt;:active|done|skipped</c>).</summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>Locale key of the mission title (the Journal's row).</summary>
+    public string TitleKey { get; set; } = string.Empty;
+
+    /// <summary>Locale key of a one-line summary for the Journal; empty = none.</summary>
+    public string SummaryKey { get; set; } = string.Empty;
+
+    /// <summary>Conditions under which the mission can be done in this world (checked when its turn comes): false ⇒ it is
+    /// skipped silently and its <see cref="Alternative"/> runs instead, if it has one (no dead ends).</summary>
+    public List<string> FeasibleIf { get; set; } = new();
+
+    /// <summary>Mission id (same chapter) that stands in when this one is infeasible; it runs only standing in.</summary>
+    public string Alternative { get; set; } = string.Empty;
+
+    /// <summary>Whether the player may skip the mission in the Journal; unset = allowed.</summary>
+    public bool? Skippable { get; set; }
+
+    /// <summary>The mission's steps in order (two to four is the rule of thumb; every step needs a chip text — the Journal's
+    /// line).</summary>
+    public List<StoryStep> Steps { get; set; } = new();
+}
+
 /// <summary>What completes a step (synthesis §5.4): an event count since activation (<see cref="Event"/>, optional
-/// <see cref="Arg"/>, <see cref="Required"/>) or a mission bridge (<see cref="Type"/> = <c>Mission</c>,
-/// <see cref="Target"/> = mission id — satisfied on that mission's turn-in, or at activation when it is already turned in).</summary>
+/// <see cref="Arg"/>, <see cref="Required"/>), a mission bridge (<see cref="Type"/> = <c>Mission</c>,
+/// <see cref="Target"/> = mission id — satisfied on that mission's turn-in, or at activation when it is already turned in) or,
+/// in a world story's mission, a lead bridge (#2476: <see cref="Type"/> = <c>Lead</c>, <see cref="Target"/> = a lead word of
+/// <see cref="StoryLeadTypes"/> — satisfied the way that lead is followed, its evidence included).</summary>
 public sealed class StoryStepObjective
 {
     /// <summary>The game event (<c>GameEventKeys</c>), a prefix pattern ending in <c>*</c>, or a client teaching flag
@@ -166,14 +212,18 @@ public sealed class StoryStepObjective
     /// <summary>How many times (the events' amounts summed) since the step activated.</summary>
     public int Required { get; set; } = 1;
 
-    /// <summary><c>Mission</c> for a mission bridge; empty for an event count.</summary>
+    /// <summary><c>Mission</c> for a mission bridge, <c>Lead</c> for a lead bridge (#2476); empty for an event count.</summary>
     public string Type { get; set; } = string.Empty;
 
-    /// <summary>The bridged mission id (must exist in <c>data/missions.json</c>).</summary>
+    /// <summary>The bridged mission id (must exist in <c>data/missions.json</c>), or the bridged lead word
+    /// (<c>unique_site:observatory</c>, <c>research:radar_array</c> …).</summary>
     public string Target { get; set; } = string.Empty;
 
     /// <summary>Whether this is a mission bridge.</summary>
     public bool IsMission => string.Equals(Type, StoryObjectiveTypes.Mission, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Whether this is a lead bridge (#2476).</summary>
+    public bool IsLead => string.Equals(Type, StoryObjectiveTypes.Lead, StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>A step's texts (locale keys): the line spoken at activation, the chip text, the escalation hint and the
@@ -383,6 +433,19 @@ public static class StoryObjectiveTypes
 {
     /// <summary>A mission bridge.</summary>
     public const string Mission = "Mission";
+
+    /// <summary>A lead bridge (#2476, a world story's missions only): the step is the chapter-lead word in
+    /// <see cref="StoryStepObjective.Target"/> — completed by the same actions and evidence that follow that lead, shown with the
+    /// lead's own place-aware text (and marker) wherever it can be followed from where the player is.</summary>
+    public const string Lead = "Lead";
+
+    /// <summary>The lead words a lead bridge may name: every word that a player's action follows — not <c>explore</c> (never
+    /// done) and not the finale's (the finale is chapter 7's own set piece, never a mission step).</summary>
+    public static bool IsBridgeableLead(string? leadType)
+    {
+        string kind = StoryLeadTypes.KindOf(leadType);
+        return StoryLeadTypes.Problem(leadType) is null && kind != StoryLeadTypes.Explore && !StoryLeadTypes.IsFinale(kind);
+    }
 }
 
 /// <summary>The gate names a pack's <see cref="StoryDefinition.Gates"/> may set (synthesis §5.3 "Tore"). A tutorial pack
@@ -420,6 +483,10 @@ public static class StoryRevealProviders
     /// but the client's space waypoint (<c>ShipAiLine.SpaceWaypointId</c>), so the radar and the edge arrow lead to it.</summary>
     public const string NearestStation = "nearest_station";
 
+    /// <summary><c>unique_site:&lt;observatory|shrine|derelict&gt;</c> — the spot of that one-of-a-kind site while the player is on its
+    /// world (#2476: "read the observatory's last log" once they landed there). Nothing elsewhere.</summary>
+    public const string UniqueSite = "unique_site";
+
     /// <summary>Whether <paramref name="reveal"/> names a known provider (with its argument where one is needed).</summary>
     public static bool IsKnown(string? reveal)
     {
@@ -434,7 +501,21 @@ public static class StoryRevealProviders
             return true;
         }
 
-        return reveal!.StartsWith(NearestOre + ":", StringComparison.Ordinal) && reveal.Length > NearestOre.Length + 1;
+        if (reveal!.StartsWith(UniqueSite + ":", StringComparison.Ordinal))
+        {
+            string kind = reveal.Substring(UniqueSite.Length + 1);
+            foreach (string known in StoryLeadTypes.UniqueSiteKinds)
+            {
+                if (string.Equals(known, kind, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return reveal.StartsWith(NearestOre + ":", StringComparison.Ordinal) && reveal.Length > NearestOre.Length + 1;
     }
 }
 

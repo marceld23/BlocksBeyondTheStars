@@ -23,23 +23,104 @@
     // score stays the clock (a lead never holds a beat back). Per player: the first open lead that is feasible here; when none
     // is, a fragment on this world, then a settlement job, then "explore". The first lead anyone follows in a chapter pays
     // leadBonusMilestones once per save (before B12 only).
+    // #2476: the story missions (synthesis §4.8 option O3) — VEGA hands a chapter's mission to each player whose track is in
+    // that chapter (after the chapter's scene; never during the basic training), one at a time; it takes the lead's place on
+    // the chip while it runs and is let go when the player's chapter moves on. A mission never holds a beat back. "Lead" steps
+    // are followed exactly like that chapter lead (and show its placed text); a mission or step this world cannot offer is
+    // skipped and its alternative stands in. Finishing one counts as following a lead for the chapter bonus (once per save and
+    // chapter). Chapter 7 has none: the finale is its mission. Not mirrored in BuildVegaProtocol (its texts live in this pack).
     { "id": "awakening",    "titleKey": "story.vega.ch.awakening",    "fromBeat": 0, "openCutscene": "prologue" },
     { "id": "signature",    "titleKey": "story.vega.ch.signature",    "fromBeat": 1, "openCutscene": "ch1.open",
-      "leads": [ { "type": "fragment" } ] },
+      "leads": [ { "type": "fragment" } ],
+      "missions": [
+        { "id": "m_signal", "titleKey": "story.vega.m.signal.title", "steps": [
+          { "id": "m_signal.1", "tier": "core", "objective": { "type": "Lead", "target": "fragment" },
+            "feasibleIf": [ "world:fragments_left" ], "alternative": "m_signal.1a",
+            "explain": { "startKey": "story.vega.m.signal.1.start", "chipKey": "story.vega.m.signal.1.obj",
+                         "hintKey": "story.vega.m.hint.fragment", "doneKey": "story.vega.m.signal.1.done" } },
+          { "id": "m_signal.1a", "tier": "core", "objective": { "type": "Lead", "target": "settlement_help" },
+            "feasibleIf": [ "world:settlements" ],
+            "explain": { "startKey": "story.vega.m.signal.1a.start", "chipKey": "story.vega.obj.settlement_help",
+                         "hintKey": "story.vega.m.hint.settlement", "doneKey": "story.vega.m.signal.1a.done" } } ] } ] },
     { "id": "service",      "titleKey": "story.vega.ch.service",      "fromBeat": 2, "openCutscene": "ch2.open",
-      "leads": [ { "type": "unique_site:observatory" }, { "type": "fragment" } ] },
+      "leads": [ { "type": "unique_site:observatory" }, { "type": "fragment" } ],
+      "missions": [
+        { "id": "m_observatory", "titleKey": "story.vega.m.observatory.title",
+          "feasibleIf": [ "world:observatory_reachable" ], "alternative": "m_archive", "steps": [
+          { "id": "m_observatory.1", "tier": "core", "objective": { "type": "Lead", "target": "unique_site:observatory" },
+            "explain": { "startKey": "story.vega.m.observatory.1.start", "chipKey": "story.vega.m.observatory.1.obj",
+                         "hintKey": "story.vega.m.observatory.1.hint" } },
+          { "id": "m_observatory.2", "tier": "core", "objective": { "event": "lore:read", "arg": "observatory" },
+            "alreadyDoneIf": [ "lore:observatory_log" ],
+            "onStart": { "reveal": "unique_site:observatory" }, "escalate": { "markerAfter": 5 },
+            "explain": { "startKey": "story.vega.m.observatory.2.start", "chipKey": "story.vega.m.observatory.2.obj",
+                         "hintKey": "story.vega.m.observatory.2.hint", "doneKey": "story.vega.m.observatory.2.done" } } ] },
+        { "id": "m_archive", "titleKey": "story.vega.m.archive.title", "feasibleIf": [ "world:vaults" ], "steps": [
+          { "id": "m_archive.1", "tier": "core", "objective": { "event": "lore:read", "arg": "vault" },
+            "alreadyDoneIf": [ "lore:vault_plaque" ],
+            "explain": { "startKey": "story.vega.m.archive.1.start", "chipKey": "story.vega.m.archive.1.obj",
+                         "hintKey": "story.vega.m.archive.1.hint", "doneKey": "story.vega.m.archive.1.done" } } ] } ] },
     { "id": "guardian",     "titleKey": "story.vega.ch.guardian",     "fromBeat": 5, "openCutscene": "ch3.open",
-      "leads": [ { "type": "monument" }, { "type": "settlement_help" } ] },
+      "leads": [ { "type": "monument" }, { "type": "settlement_help" } ],
+      "missions": [
+        { "id": "m_runes", "titleKey": "story.vega.m.runes.title", "steps": [
+          { "id": "m_runes.1", "tier": "core", "objective": { "type": "Lead", "target": "monument" },
+            "explain": { "startKey": "story.vega.m.runes.1.start", "chipKey": "story.vega.m.runes.1.obj",
+                         "hintKey": "story.vega.m.runes.1.hint" } },
+          { "id": "m_runes.2", "tier": "core", "objective": { "type": "Lead", "target": "settlement_help" },
+            "feasibleIf": [ "world:settlements" ],
+            "explain": { "startKey": "story.vega.m.runes.2.start", "chipKey": "story.vega.obj.settlement_help",
+                         "hintKey": "story.vega.m.hint.settlement", "doneKey": "story.vega.m.runes.2.done" } } ] } ] },
     { "id": "verdict",      "titleKey": "story.vega.ch.verdict",      "fromBeat": 6, "openCutscene": "ch4.open",
-      "leads": [ { "type": "unique_site:derelict" }, { "type": "heal_tank" } ] },
+      "leads": [ { "type": "unique_site:derelict" }, { "type": "heal_tank" } ],
+      "missions": [
+        { "id": "m_long_quiet", "titleKey": "story.vega.m.long_quiet.title",
+          "feasibleIf": [ "world:derelict_reachable" ], "alternative": "m_wrecks", "steps": [
+          { "id": "m_long_quiet.1", "tier": "core", "objective": { "type": "Lead", "target": "unique_site:derelict" },
+            "explain": { "startKey": "story.vega.m.long_quiet.1.start", "chipKey": "story.vega.m.long_quiet.1.obj",
+                         "hintKey": "story.vega.m.long_quiet.1.hint" } },
+          { "id": "m_long_quiet.2", "tier": "core", "objective": { "event": "lore:read", "arg": "derelict" },
+            "alreadyDoneIf": [ "lore:derelict_manifest" ],
+            "explain": { "startKey": "story.vega.m.long_quiet.2.start", "chipKey": "story.vega.m.long_quiet.2.obj",
+                         "hintKey": "story.vega.m.long_quiet.2.hint", "doneKey": "story.vega.m.long_quiet.2.done" } } ] },
+        { "id": "m_wrecks", "titleKey": "story.vega.m.wrecks.title",
+          "feasibleIf": [ "world:free_flight", "world:space_wrecks" ], "steps": [
+          { "id": "m_wrecks.1", "tier": "core", "objective": { "event": "scan:any", "arg": "wreck" },
+            "explain": { "startKey": "story.vega.m.wrecks.1.start", "chipKey": "story.vega.m.wrecks.1.obj",
+                         "hintKey": "story.vega.m.wrecks.1.hint", "doneKey": "story.vega.m.wrecks.1.done" } } ] } ] },
     { "id": "what_you_are", "titleKey": "story.vega.ch.what_you_are", "fromBeat": 9, "openCutscene": "ch5.open",
-      "leads": [ { "type": "research:radar_array" }, { "type": "settlement_help" } ] },
+      "leads": [ { "type": "research:radar_array" }, { "type": "settlement_help" } ],
+      "missions": [
+        { "id": "m_radar", "titleKey": "story.vega.m.radar.title", "steps": [
+          { "id": "m_radar.1", "tier": "core", "objective": { "type": "Lead", "target": "research:radar_array" },
+            "explain": { "startKey": "story.vega.m.radar.1.start", "chipKey": "story.vega.m.radar.1.obj",
+                         "hintKey": "story.vega.m.hint.research" } },
+          { "id": "m_radar.2", "tier": "core", "objective": { "type": "Lead", "target": "module:radar_array" },
+            "explain": { "startKey": "story.vega.m.radar.2.start", "chipKey": "story.vega.m.radar.2.obj",
+                         "hintKey": "story.vega.m.hint.module", "doneKey": "story.vega.m.radar.2.done" } } ] } ] },
     { "id": "sleeps",       "titleKey": "story.vega.ch.sleeps",       "fromBeat": 11, "openCutscene": "ch6.open",
-      "leads": [ { "type": "research:jump_generator" }, { "type": "module:jump_generator" } ] },
+      "leads": [ { "type": "research:jump_generator" }, { "type": "module:jump_generator" } ],
+      "missions": [
+        { "id": "m_jump", "titleKey": "story.vega.m.jump.title", "steps": [
+          { "id": "m_jump.1", "tier": "core", "objective": { "type": "Lead", "target": "research:jump_generator" },
+            "explain": { "startKey": "story.vega.m.jump.1.start", "chipKey": "story.vega.m.jump.1.obj",
+                         "hintKey": "story.vega.m.hint.research" } },
+          { "id": "m_jump.2", "tier": "core", "objective": { "type": "Lead", "target": "module:jump_generator" },
+            "explain": { "startKey": "story.vega.m.jump.2.start", "chipKey": "story.vega.m.jump.2.obj",
+                         "hintKey": "story.vega.m.hint.module", "doneKey": "story.vega.m.jump.2.done" } } ] } ] },
     { "id": "core",         "titleKey": "story.vega.ch.core",         "fromBeat": 12, "openCutscene": "ch7.open",
       "leads": [ { "type": "finale" } ] },
     { "id": "resolution",   "titleKey": "story.vega.ch.resolution",   "fromEvent": "guardian_defeated",
-      "leads": [ { "type": "relay" } ] }
+      "leads": [ { "type": "relay" } ],
+      "missions": [
+        { "id": "m_survey", "titleKey": "story.vega.m.survey.title", "steps": [
+          { "id": "m_survey.1", "tier": "core", "objective": { "type": "Mission", "target": "relay_survey_1" },
+            "feasibleIf": [ "world:space_stations" ], "alternative": "m_survey.1a",
+            "explain": { "startKey": "story.vega.m.survey.1.start", "chipKey": "story.vega.m.survey.1.obj",
+                         "hintKey": "story.vega.m.survey.1.hint", "doneKey": "story.vega.m.survey.1.done" } },
+          { "id": "m_survey.1a", "tier": "core", "objective": { "type": "Lead", "target": "relay" },
+            "explain": { "startKey": "story.vega.m.survey.1a.start", "chipKey": "story.vega.obj.relay",
+                         "hintKey": "story.vega.m.survey.1a.hint", "doneKey": "story.vega.m.survey.1a.done" } } ] } ] }
   ],
   // #2475: +3 milestones (= +6 points) the first time anyone follows a chapter's lead (once per save and chapter, at most the
   // six chapters before B12 = 36 points); a world without machines makes up the kill share it can never earn (×204/164); and

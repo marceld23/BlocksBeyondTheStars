@@ -102,6 +102,16 @@ internal sealed class StoryLeadCache
 
     /// <summary>The lead the last marker went up for (<see cref="ResolvedStoryLead.Identity"/>).</summary>
     public string MarkedFor { get; set; } = string.Empty;
+
+    /// <summary>#2476: the lead a story mission's lead bridge on the chip resolves to (its placed text, its marker, the heal tank's
+    /// spot) — resolved again only when the step or <see cref="MissionSignature"/> changed.</summary>
+    public ResolvedStoryLead? MissionLead { get; set; }
+
+    /// <summary>#2476: the progress key of the step <see cref="MissionLead"/> was resolved for.</summary>
+    public string MissionLeadStep { get; set; } = string.Empty;
+
+    /// <summary>#2476: the signature <see cref="MissionLead"/> was resolved under.</summary>
+    public StoryLeadSignature MissionSignature { get; set; }
 }
 
 /// <summary>
@@ -167,7 +177,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>Whether the world story has leads at all — without, every client keeps the old story objectives.</summary>
-    private bool LeadsActive => _leadListener is not null;
+    private bool LeadsActive => _storyHasLeads;
+
+    /// <summary>The active world story lists chapter leads (set with the listener, <see cref="SyncLeadListener"/>).</summary>
+    private bool _storyHasLeads;
 
     // ---------------------------------------------------------------------------------------------
     // Pacing: the one wrapper around the score.
@@ -195,12 +208,25 @@ public sealed partial class GameServer
     // The listener.
     // ---------------------------------------------------------------------------------------------
 
-    /// <summary>Registers the lead listener while the world story has leads, removes it otherwise (story load, story switch).</summary>
+    /// <summary>Registers the lead listener while the world story has leads — or (#2476) story missions with a lead bridge, which
+    /// are followed through the same events — and removes it otherwise (story load, story switch).</summary>
     private void SyncLeadListener()
     {
-        bool want = _story is not null && _story.Chapters.Any(c => c.Leads.Count > 0);
+        bool hasLeads = _story is not null && _story.Chapters.Any(c => c.Leads.Count > 0);
+        bool want = hasLeads || (_story is not null && _story.Chapters.Any(c =>
+            c.Missions.Any(m => m is not null && m.Steps.Any(st => st.Objective?.IsLead == true))));
+        bool changed = hasLeads != _storyHasLeads;
+        _storyHasLeads = hasLeads;
         if (want == (_leadListener is not null))
         {
+            if (changed)
+            {
+                foreach (var s in _sessions.Values)
+                {
+                    s.StoryLeads.Valid = false;
+                }
+            }
+
             return;
         }
 
@@ -230,7 +256,7 @@ public sealed partial class GameServer
 
     /// <summary>A bus event of a player whose track started: the first open lead of their current chapter it fulfils is booked
     /// (one action, one lead). The events are raised before the story records their points, so the lead counts for the chapter
-    /// the player was in when they acted.</summary>
+    /// the player was in when they acted. Then (#2476) the same action may finish a story mission's lead bridge.</summary>
     private void OnLeadGameEvent(PlayerSession actor, string key, string arg)
     {
         if (_story is null || !StoryTrackStarted(actor))
@@ -239,53 +265,37 @@ public sealed partial class GameServer
         }
 
         var cache = LeadsFor(actor);
-        switch (key)
+        if (key is GameEventKeys.ModuleBuilt or GameEventKeys.ShipCommissioned)
         {
-            case GameEventKeys.StoryFragment:
-                if (!_storyState.FoundFragmentKeys.Contains(arg))
-                {
-                    CompleteFirstOpen(actor, cache, l => l.Kind == StoryLeadTypes.Fragment); // a NEW find (a re-gift only re-reads)
-                }
-
-                break;
-            case GameEventKeys.VisitBody:
-            case GameEventKeys.StationBoarded:
-                CompleteFirstOpen(actor, cache, l => l.Kind == StoryLeadTypes.UniqueSite && l.TargetBodyId.Length > 0 && l.TargetBodyId == arg);
-                break;
-            case GameEventKeys.ScanAny when arg == "monument":
-                // A monument read the player had not read: the monument lead — or, where no machine can drop one, a memory.
-                if (!CompleteFirstOpen(actor, cache, l => l.Kind == StoryLeadTypes.Monument))
-                {
-                    TryAlternativeMemory(actor, StoryMemoryTriggers.Monument);
-                }
-
-                break;
-            case GameEventKeys.MissionTurnedIn:
-                if (_missionDefs.TryGetValue(arg, out var def) && def.CountsForStory && MissionAcceptCountsAsTrade(def))
-                {
-                    CompleteFirstOpen(actor, cache, l => l.Kind == StoryLeadTypes.SettlementHelp);
-                }
-
-                break;
-            case GameEventKeys.DefeatAny when arg is GameEventKeys.DefeatMachine or GameEventKeys.DefeatSpaceMachine:
-                CompleteFirstOpen(actor, cache, l => l.Kind == StoryLeadTypes.Machines);
-                break;
-            case GameEventKeys.ResearchAny:
-                CompleteFirstOpen(actor, cache, l => l.Kind == StoryLeadTypes.Research && l.Arg == arg);
-                break;
-            case GameEventKeys.ModuleBuilt:
-                actor.StoryLeads.Epoch++; // a jump generator changes what is reachable and the finale's text
-                CompleteFirstOpen(actor, cache, l => l.Kind == StoryLeadTypes.Module && l.Arg == arg);
-                break;
-            case GameEventKeys.ShipCommissioned:
-                actor.StoryLeads.Epoch++;
-                break;
-            case GameEventKeys.RelayCommissioned:
-            case GameEventKeys.LaneLinked:
-                CompleteFirstOpen(actor, cache, l => l.Kind == StoryLeadTypes.Relay);
-                break;
+            actor.StoryLeads.Epoch++; // a jump generator changes what is reachable and the finale's text; a new ship too
         }
+
+        bool booked = CompleteFirstOpen(actor, cache, l => LeadFulfilledBy(l.Kind, l.Arg, l.TargetBodyId, key, arg));
+        if (!booked && key == GameEventKeys.ScanAny && arg == "monument")
+        {
+            TryAlternativeMemory(actor, StoryMemoryTriggers.Monument); // where no machine can drop one, a monument read gives a memory
+        }
+
+        OnMissionLeadEvent(actor, key, arg); // #2476
     }
+
+    /// <summary>Whether a bus event follows a lead of this word (the one rule for chapter leads and the missions' lead bridges,
+    /// #2476): a NEW fragment find (a re-gift only re-reads), a landing on / boarding of the site's body, a first-time monument
+    /// read, a settlement or chain job that counts for the story, a destroyed machine, the blueprint researched, the module
+    /// fitted, a relay or lane completed. The heal tank is followed by standing there (the 1 Hz pass), never by an event.</summary>
+    private bool LeadFulfilledBy(string kind, string leadArg, string targetBodyId, string key, string arg) => key switch
+    {
+        GameEventKeys.StoryFragment => kind == StoryLeadTypes.Fragment && !_storyState.FoundFragmentKeys.Contains(arg),
+        GameEventKeys.VisitBody or GameEventKeys.StationBoarded => kind == StoryLeadTypes.UniqueSite && targetBodyId.Length > 0 && targetBodyId == arg,
+        GameEventKeys.ScanAny => kind == StoryLeadTypes.Monument && arg == "monument",
+        GameEventKeys.MissionTurnedIn => kind == StoryLeadTypes.SettlementHelp
+                                         && _missionDefs.TryGetValue(arg, out var def) && def.CountsForStory && MissionAcceptCountsAsTrade(def),
+        GameEventKeys.DefeatAny => kind == StoryLeadTypes.Machines && arg is GameEventKeys.DefeatMachine or GameEventKeys.DefeatSpaceMachine,
+        GameEventKeys.ResearchAny => kind == StoryLeadTypes.Research && leadArg == arg,
+        GameEventKeys.ModuleBuilt => kind == StoryLeadTypes.Module && leadArg == arg,
+        GameEventKeys.RelayCommissioned or GameEventKeys.LaneLinked => kind == StoryLeadTypes.Relay,
+        _ => false,
+    };
 
     /// <summary>Books the first lead of the cached list that matches and is not done yet. Returns whether one was booked.</summary>
     private bool CompleteFirstOpen(PlayerSession s, StoryLeadCache cache, Func<ResolvedStoryLead, bool> match)
@@ -581,10 +591,9 @@ public sealed partial class GameServer
             return;
         }
 
-        if (world is not null && world.LocationId == target && lead.Arg != "derelict"
-            && _meta.Placements.Find(r => r.LocationId == target && r.Kind == "unique:" + UniqueSiteKey(lead.Arg) && r.Index == 0) is { Placed: true } record)
+        if (world is not null && world.LocationId == target && UniqueSiteGroundSpot(lead.Arg, target) is { } spot)
         {
-            lead.GroundTarget = new Vector3f(record.X + 0.5f, record.GroundY + 1f, record.Z + 0.5f);
+            lead.GroundTarget = spot;
         }
         else if (string.Equals(ResolveLocationHostBody(s.CurrentLocationId)?.SystemId, _galaxy?.FindBody(target)?.SystemId, StringComparison.Ordinal)
                  && s.CurrentLocationId != target)
@@ -592,6 +601,14 @@ public sealed partial class GameServer
             lead.WaypointId = target;
         }
     }
+
+    /// <summary>Where a surface unique site stands on its world (its pinned placement), or null — the derelict drifts in space,
+    /// and a world that has not stamped the site yet has no spot.</summary>
+    private Vector3f? UniqueSiteGroundSpot(string kind, string bodyId)
+        => kind != "derelict"
+           && _meta.Placements.Find(r => r.LocationId == bodyId && r.Kind == "unique:" + UniqueSiteKey(kind) && r.Index == 0) is { Placed: true } record
+            ? new Vector3f(record.X + 0.5f, record.GroundY + 1f, record.Z + 0.5f)
+            : null;
 
     /// <summary>The site key of a lead's unique-site word (the shrine's placement kind is <c>alien_shrine</c>).</summary>
     private static string UniqueSiteKey(string kind) => kind == "shrine" ? ShrineSiteKey : kind;
@@ -755,6 +772,14 @@ public sealed partial class GameServer
     {
         var lead = cache.Current;
         string identity = lead?.Identity ?? string.Empty;
+        if (!FinaleOpen && MissionChipStep(s) is { } step)
+        {
+            // #2476: a story mission on the chip marks its own target — a lead bridge's place where it can be followed from
+            // here — and nothing else (the lead's marker would point somewhere the chip does not talk about).
+            lead = step.IsLeadBridge && MissionLeadFor(s, step) is { Feasible: true } bridged ? bridged : null;
+            identity = "mission:" + step.Id + (lead is null ? string.Empty : ":" + lead.Identity);
+        }
+
         if (identity == cache.MarkedFor)
         {
             return;
@@ -789,6 +814,13 @@ public sealed partial class GameServer
         if (!StoryActive || _story is null)
         {
             return (string.Empty, string.Empty, ObjectiveSources.None);
+        }
+
+        // #2476: a running story mission is the chapter's compass while it runs — it takes the lead's place on the chip (its lead
+        // bridge with the lead's own placed text). Never over the open finale: that stays the finale's (never muted).
+        if (!FinaleOpen && MissionObjectiveFor(s) is { } mission)
+        {
+            return mission;
         }
 
         if (!LeadsActive || !s.SupportsPacks)

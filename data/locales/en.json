@@ -893,6 +893,8 @@
   "ui.journal.track": "Track",
   "ui.journal.tracked": "Tracked ✓",
   "ui.journal.leads": "Leads in this chapter",
+  "ui.journal.missions": "Missions in this chapter",
+  "ui.journal.skip_mission": "Skip mission",
   "ui.journal.start": "Start",
   "ui.journal.later": "Later",
   "ui.journal.replay": "Replay",

@@ -445,6 +445,57 @@ namespace BlocksBeyondTheStars.Client
             return icon + "  " + text;
         }
 
+        /// <summary>#2476: the world story's missions the VEGA page lists under "Missions in this chapter" — running ones first, then
+        /// done ones, each in the server's order. Empty for a player pack and from an older server.</summary>
+        public static List<NetStoryMission> MissionsOf(NetStoryPack? pack)
+            => pack?.Missions == null
+                ? new List<NetStoryMission>()
+                : pack.Missions.Select((m, i) => (m, i))
+                    .OrderBy(x => x.m.State == StoryChapterStates.Active ? 0 : 1).ThenBy(x => x.i)
+                    .Select(x => x.m).ToList();
+
+        /// <summary>#2476: a mission's title row — "● The Sealed Observatory" (running) or "✔ …" (done); an unknown key shows the
+        /// mission id rather than a raw key.</summary>
+        public static string MissionTitle(NetStoryMission mission, Func<string, string> localize, Func<string, bool>? has = null)
+        {
+            string title = !string.IsNullOrEmpty(mission.TitleKey) && (has == null || has(mission.TitleKey))
+                ? localize(mission.TitleKey)
+                : mission.Id;
+            return Icon(mission.State == StoryChapterStates.Done ? StoryChapterStates.Done : StoryChapterStates.Active) + "  " + title;
+        }
+
+        /// <summary>#2476: one step row of a mission — "✔ Visit the Sealed Observatory", "● Read the observatory's last log (1/2)"
+        /// (running, with a counter only above 1), "○ …" (ahead). The text is the step's chip text with its {0}; a key this client
+        /// does not know shows nothing rather than a raw key.</summary>
+        public static string MissionStepLine(NetStoryMissionStep step, Func<string, string> localize, Func<string, bool>? has = null)
+        {
+            string text = !string.IsNullOrEmpty(step.Key) && (has == null || has(step.Key)) ? localize(step.Key) : string.Empty;
+            if (!string.IsNullOrEmpty(step.Arg))
+            {
+                text = Format(text, step.Arg);
+            }
+
+            if (step.State == StoryChapterStates.Active && step.Target > 1)
+            {
+                text += " " + ObjectiveTracker.Counter(step.Progress, step.Target);
+            }
+
+            string? state = step.State == StoryChapterStates.Done || step.State == StoryChapterStates.Active ? step.State : null;
+            return Icon(state) + "  " + text;
+        }
+
+        /// <summary>#2476: the buttons under a running mission — "Skip mission" (the world story's id with the mission's id).</summary>
+        public static List<JournalAction> MissionActions(NetStoryMission mission)
+        {
+            var actions = new List<JournalAction>();
+            if (mission.State == StoryChapterStates.Active && mission.Skippable)
+            {
+                actions.Add(new JournalAction("ui.journal.skip_mission", StoryPackActions.SkipChapter, mission.Id));
+            }
+
+            return actions;
+        }
+
         internal static string Format(string template, params object[] args)
         {
             try

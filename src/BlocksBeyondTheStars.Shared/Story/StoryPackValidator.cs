@@ -59,6 +59,10 @@ public sealed class StoryPackValidationContext
     /// <summary>Whether a ship module key exists (a <c>module:</c> lead, #2475); null = skip.</summary>
     public Func<string, bool>? ModuleExists { get; set; }
 
+    /// <summary>Whether a lore text key exists in some installed pack's <c>lore_sites.json</c> (a <c>lore:</c> condition, #2476);
+    /// null = only the validated pack's own lore texts are looked at (none: skip).</summary>
+    public Func<string, bool>? LoreExists { get; set; }
+
     /// <summary>The English text of a key, or null when it is missing; null = skip the key checks.</summary>
     public Func<string, string?>? English { get; set; }
 
@@ -84,8 +88,10 @@ public sealed class StoryPackValidationContext
 /// a world pack has beats), every condition parses and names existing packs/chapters/steps/blueprints, mission-bridge
 /// targets exist, event keys are published (warning otherwise), <c>ui:</c> only in a player pack's step objectives (and one a
 /// client reports — a warning otherwise, #2469), marker providers, legacy keys (tutorial only), alternatives, empty hint
-/// ids, the graduation (#2469: its line, its counter, at most three suggested optional chapters), a tutorial pays no
-/// rewards, every locale key exists in English and
+/// ids, the graduation (#2469: its line, its counter, at most three suggested optional chapters), a world chapter's story
+/// missions (#2476: ids that are no chapter's, a title, feasibility, an alternative of the same chapter, do steps with a chip
+/// text without a slot, lead bridges naming a lead a player can follow), <c>lore:</c> conditions naming a lore text that
+/// exists, a tutorial pays no rewards, every locale key exists in English and
 /// German, every cutscene binding resolves in the pack's <c>cutscenes.json</c> and every cutscene follows the tier, camera,
 /// caption and budget rules (#2467, <see cref="ValidateCutscenes"/>), the short name fits (≤ 10 characters), and the text budget
 /// (basic-training lines ≤ 120 EN / 145 DE, other step lines ≤ 200 / 240, chip ≤ 45 / 53; a <c>{key:…}</c> token counts
@@ -296,13 +302,26 @@ public static class StoryPackValidator
                         break;
                     }
 
-                    if (atom.Kind == StoryConditionKind.Step && !target.Chapters.SelectMany(c => c.Steps).Any(s => s.Id == atom.Id))
+                    // #2476: a world story's missions count as chapters (they share the chapter keys) and their steps as steps.
+                    if (atom.Kind == StoryConditionKind.Step
+                        && !target.Chapters.SelectMany(c => c.Steps.Concat(c.Missions.Where(m => m is not null).SelectMany(m => m.Steps))).Any(s => s.Id == atom.Id))
                     {
                         Error(path, $"pack '{atom.PackId}' has no step '{atom.Id}'");
                     }
-                    else if (atom.Kind == StoryConditionKind.Chapter && !target.Chapters.Any(c => c.Id == atom.Id))
+                    else if (atom.Kind == StoryConditionKind.Chapter
+                             && !target.Chapters.Any(c => c.Id == atom.Id || c.Missions.Any(m => m is not null && m.Id == atom.Id)))
                     {
                         Error(path, $"pack '{atom.PackId}' has no chapter '{atom.Id}'");
+                    }
+
+                    break;
+                case StoryConditionKind.Lore:
+                    // #2476: a lore text of any installed pack (lore_sites.json), else of this pack.
+                    var loreExists = context.LoreExists
+                        ?? (def.LoreSites.Count > 0 ? key => def.LoreSites.Any(l => l.Key == key) : (Func<string, bool>?)null);
+                    if (loreExists is not null && !loreExists(atom.Id))
+                    {
+                        Error(path, $"lore text '{atom.Id}' does not exist in any lore_sites.json");
                     }
 
                     break;
@@ -482,6 +501,229 @@ public static class StoryPackValidator
         var chapterIds = new HashSet<string>(StringComparer.Ordinal);
         var stepIds = new HashSet<string>(StringComparer.Ordinal);
         var legacyKeys = new HashSet<string>(StringComparer.Ordinal);
+        var missionIds = new HashSet<string>(StringComparer.Ordinal);
+        var allChapterIds = new HashSet<string>(def.Chapters.Where(c => c is not null).Select(c => c.Id ?? string.Empty), StringComparer.Ordinal);
+
+        // One chapter's steps, or (#2476) one story mission's: ids unique in the pack, the objective (event, mission bridge or
+        // — in a mission only — a lead bridge), conditions, alternatives, markers, cutscene hooks and the texts in budget.
+        void CheckSteps(string ownerPath, string ownerWord, string ownerId, List<StoryStep> steps, int lineEn, int lineDe, bool mission)
+        {
+            for (int si = 0; si < steps.Count; si++)
+            {
+                var step = steps[si];
+                string sp = $"{ownerPath}.steps[{si}]";
+                if (string.IsNullOrEmpty(step.Id) || !IsKeySafeId(step.Id, allowDot: true) || !stepIds.Add(step.Id))
+                {
+                    Error(sp, $"step id '{step.Id}' is empty, not key-safe or used twice in the pack");
+                }
+
+                string stepKind = (step.Kind ?? string.Empty).ToLowerInvariant();
+                if (!StoryStepKinds.All.Contains(stepKind))
+                {
+                    Error($"{sp}.kind", $"unknown kind '{step.Kind}' (do, read, react)");
+                }
+                else if (mission && stepKind != StoryStepKinds.Do)
+                {
+                    Error($"{sp}.kind", "a mission's steps are tasks: kind 'do'");
+                }
+
+                if (!StoryStepTiers.All.Contains((step.Tier ?? string.Empty).ToLowerInvariant()))
+                {
+                    Error($"{sp}.tier", $"unknown tier '{step.Tier}' (must, core, opt)");
+                }
+
+                var objective = step.Objective ?? new StoryStepObjective();
+                if (objective.IsMission)
+                {
+                    if (string.IsNullOrEmpty(objective.Target))
+                    {
+                        Error($"{sp}.objective", "a mission bridge needs a target mission");
+                    }
+                    else if (context.MissionExists is { } missionExists && !missionExists(objective.Target))
+                    {
+                        Error($"{sp}.objective", $"mission '{objective.Target}' does not exist in data/missions.json");
+                    }
+                }
+                else if (objective.IsLead)
+                {
+                    // #2476: a lead bridge — a world story's mission step that is followed like the chapter lead it names.
+                    if (!mission)
+                    {
+                        Error($"{sp}.objective.type", "a lead bridge is read in a world story's missions only");
+                    }
+                    else if (StoryLeadTypes.Problem(objective.Target) is { } leadProblem)
+                    {
+                        Error($"{sp}.objective.target", leadProblem);
+                    }
+                    else if (!StoryObjectiveTypes.IsBridgeableLead(objective.Target))
+                    {
+                        Error($"{sp}.objective.target", $"'{objective.Target}' cannot be a mission step (explore is never done; the finale is chapter 7's own set piece)");
+                    }
+                    else
+                    {
+                        string leadKind = StoryLeadTypes.KindOf(objective.Target);
+                        string leadArg = StoryLeadTypes.ArgOf(objective.Target);
+                        if (leadKind == StoryLeadTypes.Research && context.BlueprintExists is { } blueprintExists && !blueprintExists(leadArg))
+                        {
+                            Error($"{sp}.objective.target", $"blueprint '{leadArg}' does not exist");
+                        }
+
+                        if (leadKind == StoryLeadTypes.Module && context.ModuleExists is { } moduleExists && !moduleExists(leadArg))
+                        {
+                            Error($"{sp}.objective.target", $"ship module '{leadArg}' does not exist");
+                        }
+                    }
+                }
+                else if (!string.IsNullOrEmpty(objective.Type))
+                {
+                    Error($"{sp}.objective.type", $"unknown objective type '{objective.Type}' (Mission, Lead, or none for an event count)");
+                }
+                else if (string.IsNullOrEmpty(objective.Event))
+                {
+                    if (stepKind != StoryStepKinds.Read)
+                    {
+                        Error($"{sp}.objective", "a do or react step needs an event or a mission bridge");
+                    }
+                }
+                else
+                {
+                    CheckEvent($"{sp}.objective.event", objective.Event, playerPack, Error, Warn);
+                }
+
+                if (objective.Required < 1)
+                {
+                    Error($"{sp}.objective.required", "required must be at least 1");
+                }
+
+                if (!string.IsNullOrEmpty(step.LegacyKey))
+                {
+                    if (!tutorial)
+                    {
+                        Error($"{sp}.legacyKey", "only a tutorial pack may name legacy keys");
+                    }
+                    else if (StoryLegacy.StageIdOf(step.LegacyKey) is null)
+                    {
+                        Error($"{sp}.legacyKey", $"'{step.LegacyKey}' is not one of the legacy stages ({StoryLegacy.StagePrefix}{string.Join("|", StoryLegacy.StageIds)})");
+                    }
+                    else if (!legacyKeys.Add(step.LegacyKey))
+                    {
+                        Error($"{sp}.legacyKey", $"'{step.LegacyKey}' is used by two steps");
+                    }
+                }
+
+                CheckConditions($"{sp}.requires", step.Requires);
+                CheckConditions($"{sp}.feasibleIf", step.FeasibleIf);
+                CheckConditions($"{sp}.alreadyDoneIf", step.AlreadyDoneIf);
+                if (!string.IsNullOrEmpty(step.Alternative)
+                    && (step.Alternative == step.Id || !steps.Any(s => s.Id == step.Alternative)))
+                {
+                    Error($"{sp}.alternative", $"'{step.Alternative}' is not another step of {ownerWord} '{ownerId}'");
+                }
+
+                string reveal = step.OnStart?.Reveal ?? string.Empty;
+                if (reveal.Length > 0)
+                {
+                    if (!StoryRevealProviders.IsKnown(reveal))
+                    {
+                        Error($"{sp}.onStart.reveal", $"unknown marker provider '{reveal}' ({StoryRevealProviders.NearestOre}:<block>, {StoryRevealProviders.NearestSettlement}, {StoryRevealProviders.NearestFoodPlant}, {StoryRevealProviders.NearestStation}, {StoryRevealProviders.UniqueSite}:<site>)");
+                    }
+                    else if (reveal.StartsWith(StoryRevealProviders.NearestOre + ":", StringComparison.Ordinal)
+                             && context.BlockExists is { } blockExists
+                             && !blockExists(reveal.Substring(StoryRevealProviders.NearestOre.Length + 1)))
+                    {
+                        Error($"{sp}.onStart.reveal", $"block '{reveal.Substring(StoryRevealProviders.NearestOre.Length + 1)}' does not exist");
+                    }
+                }
+
+                Cutscene($"{sp}.onStart.cutscene", step.OnStart?.Cutscene);
+                Cutscene($"{sp}.onComplete.cutscene", step.OnComplete?.Cutscene);
+                foreach (var (hint, hi) in (step.HintRefs ?? new List<string>()).Select((h, i) => (h, i)))
+                {
+                    if (string.IsNullOrWhiteSpace(hint))
+                    {
+                        Error($"{sp}.hintRefs[{hi}]", "an empty hint id");
+                    }
+                }
+
+                var explain = step.Explain ?? new StoryStepExplain();
+                Key($"{sp}.explain.startKey", explain.StartKey, lineEn, lineDe);
+                Key($"{sp}.explain.hintKey", explain.HintKey, lineEn, lineDe);
+                Key($"{sp}.explain.doneKey", explain.DoneKey, lineEn, lineDe);
+                Key($"{sp}.explain.chipKey", explain.ChipKey, ChipMaxEn, ChipMaxDe);
+                if (mission && string.IsNullOrEmpty(explain.ChipKey))
+                {
+                    Error($"{sp}.explain.chipKey", "a mission step needs a chip text — it is the step's line in the Journal");
+                }
+                else if (mission && context.English?.Invoke(explain.ChipKey) is { } chipEn && Localization.LineText.HasSlot(chipEn))
+                {
+                    Error($"{sp}.explain.chipKey", $"'{explain.ChipKey}' needs a {{0}} — a mission step's own chip text is shown without one (a lead bridge brings the lead's placed text itself)");
+                }
+                else if (stepKind == StoryStepKinds.Do && string.IsNullOrEmpty(explain.ChipKey) && step.Variants.All(v => string.IsNullOrEmpty(v.ChipKey)))
+                {
+                    Warn($"{sp}.explain.chipKey", "a do step without a chip text leaves the chip to the next source");
+                }
+
+                foreach (var (variant, vi) in step.Variants.Select((v, i) => (v, i)))
+                {
+                    string vp = $"{sp}.variants[{vi}]";
+                    CheckCondition($"{vp}.when", variant.When);
+                    Key($"{vp}.startKey", variant.StartKey, lineEn, lineDe);
+                    Key($"{vp}.hintKey", variant.HintKey, lineEn, lineDe);
+                    Key($"{vp}.doneKey", variant.DoneKey, lineEn, lineDe);
+                    Key($"{vp}.chipKey", variant.ChipKey, ChipMaxEn, ChipMaxDe);
+                }
+            }
+        }
+
+        // #2476: a world chapter's story missions — ids unique in the pack and never a chapter's id (they share the chapter
+        // keys), a title, feasibility, an alternative of the same chapter, and steps by the mission rules (do steps with a chip
+        // text; lead bridges allowed).
+        void CheckMissions(string cp, StoryChapter ch)
+        {
+            var missions = ch.Missions ?? new List<StoryMission>();
+            for (int mi = 0; mi < missions.Count; mi++)
+            {
+                var m = missions[mi];
+                string mp = $"{cp}.missions[{mi}]";
+                if (m is null)
+                {
+                    Error(mp, "an empty mission");
+                    continue;
+                }
+
+                if (playerPack)
+                {
+                    Warn(mp, "story missions are read for world packs only");
+                }
+
+                if (string.IsNullOrEmpty(m.Id) || !IsKeySafeId(m.Id, allowDot: true) || allChapterIds.Contains(m.Id) || !missionIds.Add(m.Id))
+                {
+                    Error(mp, $"mission id '{m.Id}' is empty, not key-safe, used twice or a chapter's id");
+                }
+
+                if (string.IsNullOrEmpty(m.TitleKey))
+                {
+                    Error(mp, "the mission has no titleKey");
+                }
+
+                Key($"{mp}.titleKey", m.TitleKey);
+                Key($"{mp}.summaryKey", m.SummaryKey);
+                CheckConditions($"{mp}.feasibleIf", m.FeasibleIf);
+                if (!string.IsNullOrEmpty(m.Alternative) && (m.Alternative == m.Id || !missions.Any(o => o is not null && o.Id == m.Alternative)))
+                {
+                    Error($"{mp}.alternative", $"'{m.Alternative}' is not another mission of chapter '{ch.Id}'");
+                }
+
+                var steps = m.Steps ?? new List<StoryStep>();
+                if (steps.Count == 0)
+                {
+                    Error($"{mp}.steps", "a mission needs at least one step");
+                }
+
+                CheckSteps(mp, "mission", m.Id, steps, LineMaxEn, LineMaxDe, mission: true);
+            }
+        }
+
         int lastFromBeat = -1;
         for (int ci = 0; ci < def.Chapters.Count; ci++)
         {
@@ -590,129 +832,8 @@ public static class StoryPackValidator
             bool basic = tutorial && !ch.Optional;
             int lineEn = basic ? BasicLineMaxEn : LineMaxEn;
             int lineDe = basic ? BasicLineMaxDe : LineMaxDe;
-            for (int si = 0; si < ch.Steps.Count; si++)
-            {
-                var step = ch.Steps[si];
-                string sp = $"{cp}.steps[{si}]";
-                if (string.IsNullOrEmpty(step.Id) || !IsKeySafeId(step.Id, allowDot: true) || !stepIds.Add(step.Id))
-                {
-                    Error(sp, $"step id '{step.Id}' is empty, not key-safe or used twice in the pack");
-                }
-
-                string stepKind = (step.Kind ?? string.Empty).ToLowerInvariant();
-                if (!StoryStepKinds.All.Contains(stepKind))
-                {
-                    Error($"{sp}.kind", $"unknown kind '{step.Kind}' (do, read, react)");
-                }
-
-                if (!StoryStepTiers.All.Contains((step.Tier ?? string.Empty).ToLowerInvariant()))
-                {
-                    Error($"{sp}.tier", $"unknown tier '{step.Tier}' (must, core, opt)");
-                }
-
-                var objective = step.Objective ?? new StoryStepObjective();
-                if (objective.IsMission)
-                {
-                    if (string.IsNullOrEmpty(objective.Target))
-                    {
-                        Error($"{sp}.objective", "a mission bridge needs a target mission");
-                    }
-                    else if (context.MissionExists is { } missionExists && !missionExists(objective.Target))
-                    {
-                        Error($"{sp}.objective", $"mission '{objective.Target}' does not exist in data/missions.json");
-                    }
-                }
-                else if (!string.IsNullOrEmpty(objective.Type))
-                {
-                    Error($"{sp}.objective.type", $"unknown objective type '{objective.Type}' (Mission, or none for an event count)");
-                }
-                else if (string.IsNullOrEmpty(objective.Event))
-                {
-                    if (stepKind != StoryStepKinds.Read)
-                    {
-                        Error($"{sp}.objective", "a do or react step needs an event or a mission bridge");
-                    }
-                }
-                else
-                {
-                    CheckEvent($"{sp}.objective.event", objective.Event, playerPack, Error, Warn);
-                }
-
-                if (objective.Required < 1)
-                {
-                    Error($"{sp}.objective.required", "required must be at least 1");
-                }
-
-                if (!string.IsNullOrEmpty(step.LegacyKey))
-                {
-                    if (!tutorial)
-                    {
-                        Error($"{sp}.legacyKey", "only a tutorial pack may name legacy keys");
-                    }
-                    else if (StoryLegacy.StageIdOf(step.LegacyKey) is null)
-                    {
-                        Error($"{sp}.legacyKey", $"'{step.LegacyKey}' is not one of the legacy stages ({StoryLegacy.StagePrefix}{string.Join("|", StoryLegacy.StageIds)})");
-                    }
-                    else if (!legacyKeys.Add(step.LegacyKey))
-                    {
-                        Error($"{sp}.legacyKey", $"'{step.LegacyKey}' is used by two steps");
-                    }
-                }
-
-                CheckConditions($"{sp}.requires", step.Requires);
-                CheckConditions($"{sp}.feasibleIf", step.FeasibleIf);
-                CheckConditions($"{sp}.alreadyDoneIf", step.AlreadyDoneIf);
-                if (!string.IsNullOrEmpty(step.Alternative)
-                    && (step.Alternative == step.Id || !ch.Steps.Any(s => s.Id == step.Alternative)))
-                {
-                    Error($"{sp}.alternative", $"'{step.Alternative}' is not another step of chapter '{ch.Id}'");
-                }
-
-                string reveal = step.OnStart?.Reveal ?? string.Empty;
-                if (reveal.Length > 0)
-                {
-                    if (!StoryRevealProviders.IsKnown(reveal))
-                    {
-                        Error($"{sp}.onStart.reveal", $"unknown marker provider '{reveal}' ({StoryRevealProviders.NearestOre}:<block>, {StoryRevealProviders.NearestSettlement}, {StoryRevealProviders.NearestFoodPlant}, {StoryRevealProviders.NearestStation})");
-                    }
-                    else if (reveal.StartsWith(StoryRevealProviders.NearestOre + ":", StringComparison.Ordinal)
-                             && context.BlockExists is { } blockExists
-                             && !blockExists(reveal.Substring(StoryRevealProviders.NearestOre.Length + 1)))
-                    {
-                        Error($"{sp}.onStart.reveal", $"block '{reveal.Substring(StoryRevealProviders.NearestOre.Length + 1)}' does not exist");
-                    }
-                }
-
-                Cutscene($"{sp}.onStart.cutscene", step.OnStart?.Cutscene);
-                Cutscene($"{sp}.onComplete.cutscene", step.OnComplete?.Cutscene);
-                foreach (var (hint, hi) in (step.HintRefs ?? new List<string>()).Select((h, i) => (h, i)))
-                {
-                    if (string.IsNullOrWhiteSpace(hint))
-                    {
-                        Error($"{sp}.hintRefs[{hi}]", "an empty hint id");
-                    }
-                }
-
-                var explain = step.Explain ?? new StoryStepExplain();
-                Key($"{sp}.explain.startKey", explain.StartKey, lineEn, lineDe);
-                Key($"{sp}.explain.hintKey", explain.HintKey, lineEn, lineDe);
-                Key($"{sp}.explain.doneKey", explain.DoneKey, lineEn, lineDe);
-                Key($"{sp}.explain.chipKey", explain.ChipKey, ChipMaxEn, ChipMaxDe);
-                if (stepKind == StoryStepKinds.Do && string.IsNullOrEmpty(explain.ChipKey) && step.Variants.All(v => string.IsNullOrEmpty(v.ChipKey)))
-                {
-                    Warn($"{sp}.explain.chipKey", "a do step without a chip text leaves the chip to the next source");
-                }
-
-                foreach (var (variant, vi) in step.Variants.Select((v, i) => (v, i)))
-                {
-                    string vp = $"{sp}.variants[{vi}]";
-                    CheckCondition($"{vp}.when", variant.When);
-                    Key($"{vp}.startKey", variant.StartKey, lineEn, lineDe);
-                    Key($"{vp}.hintKey", variant.HintKey, lineEn, lineDe);
-                    Key($"{vp}.doneKey", variant.DoneKey, lineEn, lineDe);
-                    Key($"{vp}.chipKey", variant.ChipKey, ChipMaxEn, ChipMaxDe);
-                }
-            }
+            CheckSteps(cp, "chapter", ch.Id, ch.Steps, lineEn, lineDe, mission: false);
+            CheckMissions(cp, ch);
         }
 
         // ---- Graduation (#2469) ----

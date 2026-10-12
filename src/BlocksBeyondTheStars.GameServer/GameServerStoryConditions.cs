@@ -60,6 +60,14 @@ public sealed partial class GameServer
         [StoryWorldPredicates.ResearchReady] = ResearchReady,
         [StoryWorldPredicates.AllBlueprints] = _ => CreativeGrantsActive,
         [StoryWorldPredicates.NewWorldInSystem] = NewWorldInSystem,
+
+        // #2476: the VEGA story missions' feasibility — what the world can offer, and the unique sites by the lead's own rule.
+        [StoryWorldPredicates.FragmentsLeft] = _ => _story is not null && _story.Fragments.Any(f => !_storyState.FoundFragmentKeys.Contains(f.Key)),
+        [StoryWorldPredicates.ObservatoryReachable] = s => UniqueSiteFollowable(s, "observatory"),
+        [StoryWorldPredicates.DerelictReachable] = s => UniqueSiteFollowable(s, "derelict"),
+        [StoryWorldPredicates.Settlements] = _ => _meta.Description.Settlements != Frequency.Off,
+        [StoryWorldPredicates.Vaults] = _ => _meta.Description.Vaults != Frequency.Off,
+        [StoryWorldPredicates.SpaceWrecks] = _ => _meta.Description.Wrecks != Frequency.Off,
     };
 
     /// <summary>The names the server can evaluate — what the pack loader passes to <see cref="StoryConditionParser"/>.</summary>
@@ -168,6 +176,9 @@ public sealed partial class GameServer
         };
 
         public bool HasBlueprint(string blueprintKey) => _who.State.UnlockedBlueprints.Contains(blueprintKey);
+
+        // #2476: the reader writes "lore:<key>" when a lore text opens for this player (GameServerLore).
+        public bool HasReadLore(string loreKey) => Milestones.Contains(LoreMilestonePrefix + loreKey);
 
         public bool IsWorldPredicateTrue(string predicate)
             => _server.WorldPredicates.TryGetValue(predicate, out var test) && test(_who);

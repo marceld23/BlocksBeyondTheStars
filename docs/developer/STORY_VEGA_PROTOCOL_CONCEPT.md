@@ -168,6 +168,31 @@ the score (93 instead of 73 milestones, and the four personal memories never dro
 memory. The **Crystal workshop** teaches circuits — its turn-ins no longer count as story progress; the lead bonus
 balances the points. Mechanics: [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md#chapter-leads-the-chapter-bonus-and-peaceful-world-pacing-2475).
 
+### 3.4 Story missions per chapter (#2476)
+
+So that VEGA feels like a mission pack (synthesis option O3, on top of the leads): when a player reaches a chapter, VEGA hands
+them that chapter's **story mission** — after the chapter's scene, never during the basic training — with a short briefing
+in her voice. A mission is a small titled task list built from the chapter's own drivers; the Journal's VEGA page shows it
+under "Missions in this chapter" (✔ done, ● now, ○ next) and the chip shows its current step in the lead's place. It
+**never holds a beat back** — the score keeps revealing the story; when the chapter moves on, an unfinished mission is let go.
+What a world cannot offer is skipped and a stand-in takes its place, so there is no dead end. Finishing a mission counts as
+following a lead for the chapter bonus (still once per save and chapter); there is no other reward. In multiplayer every
+player does their own. The texts reuse the canon — the beats, the call, the lore the world already carries (the
+observatory's last log, the vault plaque, the derelict's manifest); no new lore.
+
+| Chapter | Mission | Steps (stand-in) |
+|---|---|---|
+| 1 A Familiar Signature | **Follow the Signal** | find a net fragment (help a settlement, once every fragment is found) |
+| 2 The Service | **The Sealed Observatory** | visit it → read the survey post's last log (**The Deep Archive**: read the notes in a buried vault, when the observatory cannot be reached) |
+| 3 The Guardian | **What the Stones Remember** | read a monument's runes → help a settlement |
+| 4 The Verdict | **The Long Quiet** | board the derelict → find her cargo manifest (**Ships That Remember**: scan a drifting wreck) |
+| 5 What You Are | **Eyes on Far Stars** | research the radar array → build it into the ship |
+| 6 It Still Sleeps | **The Jump Generator** | research the jump generator → build it into the ship |
+| 7 The Guardian Core | — | the finale is this chapter's mission |
+| 8 Resolution | **Survey Orders** | do the first survey order from a station board (link the stars with relays, without stations) |
+
+Mechanics: [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md#story-missions-per-chapter-2476).
+
 ---
 
 ## 4. Evaluation

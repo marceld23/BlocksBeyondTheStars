@@ -1505,6 +1505,15 @@ namespace BlocksBeyondTheStars.Client
                         fresh = true;
                     }
                 }
+
+                // #2476: a story mission VEGA just handed out lights the Journal tab too.
+                foreach (var mission in pack.Missions ?? System.Array.Empty<NetStoryMission>())
+                {
+                    if (mission.State == StoryChapterStates.Active && _journalOffers.Add(pack.Id + "/mission/" + mission.Id))
+                    {
+                        fresh = true;
+                    }
+                }
             }
 
             if (fresh && _journalOffersSeeded)

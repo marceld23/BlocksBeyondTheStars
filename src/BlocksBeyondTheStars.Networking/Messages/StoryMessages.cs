@@ -205,6 +205,59 @@ public sealed class NetStoryPack
     /// (the chapter's own leads, plus the stand-in the chip shows when none of them is open here). Empty for player packs, before
     /// the player's story track starts, and from an older server. Additive.</summary>
     public NetStoryLead[] Leads { get; set; } = System.Array.Empty<NetStoryLead>();
+
+    /// <summary>The world story only (#2476): the story missions of the player's current chapter that VEGA handed out — running
+    /// or done — with their steps. Empty for player packs, before the player's story track starts, for an older client's story
+    /// and from an older server. Additive.</summary>
+    public NetStoryMission[] Missions { get; set; } = System.Array.Empty<NetStoryMission>();
+}
+
+/// <summary>One story mission of the world story's <see cref="NetStoryPack"/> (#2476).</summary>
+public sealed class NetStoryMission
+{
+    /// <summary>The mission id (<see cref="StoryPackActions.SkipChapter"/> skips it by this id).</summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>The chapter it belongs to (the player's current chapter).</summary>
+    public string ChapterId { get; set; } = string.Empty;
+
+    /// <summary>Locale keys of its title and its one-line summary (may be empty).</summary>
+    public string TitleKey { get; set; } = string.Empty;
+
+    public string SummaryKey { get; set; } = string.Empty;
+
+    /// <summary><see cref="StoryChapterStates.Active"/> (running) or <see cref="StoryChapterStates.Done"/>.</summary>
+    public string State { get; set; } = string.Empty;
+
+    /// <summary>The player may skip it now (a running mission that allows it).</summary>
+    public bool Skippable { get; set; }
+
+    /// <summary>Its steps in order (a stand-in at the place of the step it replaces; skipped steps left out).</summary>
+    public NetStoryMissionStep[] Steps { get; set; } = System.Array.Empty<NetStoryMissionStep>();
+}
+
+/// <summary>One step of a <see cref="NetStoryMission"/> (#2476).</summary>
+public sealed class NetStoryMissionStep
+{
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>Locale key of its text and the text's {0} (a display string) — the running step shows what the chip shows (a
+    /// lead bridge its placed text), the others their own chip text.</summary>
+    public string Key { get; set; } = string.Empty;
+
+    public string Arg { get; set; } = string.Empty;
+
+    /// <summary><see cref="StoryChapterStates.Done"/>, <see cref="StoryChapterStates.Active"/> or
+    /// <see cref="StoryChapterStates.Upcoming"/>.</summary>
+    public string State { get; set; } = string.Empty;
+
+    /// <summary>Progress / target as of the send (a counter shows only for a target above 1).</summary>
+    public int Progress { get; set; }
+
+    public int Target { get; set; }
+
+    /// <summary>It is the step VEGA's chip shows now.</summary>
+    public bool OnChip { get; set; }
 }
 
 /// <summary>One chapter lead of the world story's <see cref="NetStoryPack"/> (#2475).</summary>

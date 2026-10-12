@@ -12,9 +12,11 @@ A story pack is hand-authored JSON:
 
 The checks are the same as the C# StoryPackValidator (StoryPackValidationTests), for authors without .NET:
 ids (unique, not reserved, key-safe), kind/scope (a tutorial is player-scoped, a player pack has no beats, a world
-pack has beats), every condition parses and names existing packs/chapters/steps/blueprints, mission-bridge targets
-exist in data/missions.json, event keys are published (warning), 'ui:' only in a player pack's step objectives,
-marker providers, legacy keys (tutorial only), alternatives, a tutorial pays no rewards, every locale key exists in
+pack has beats), every condition parses and names existing packs/chapters/steps/blueprints/lore texts, mission-bridge
+targets exist in data/missions.json, event keys are published (warning), 'ui:' only in a player pack's step objectives,
+marker providers, legacy keys (tutorial only), alternatives, a world chapter's story missions (#2476: ids that are no
+chapter's, a title, feasibility, an alternative of the same chapter, do steps with a chip text without a {0}, lead
+bridges naming a lead a player can follow), a tutorial pays no rewards, every locale key exists in
 English and German (pack table or base table), every cutscene binding resolves in the pack's cutscenes.json (#2467),
 every cutscene follows the rules (ids, tier 1-4, cameras, anchors, caption styles, grades, shot lengths, a T1/T2 never
 takes the camera, only a T3/T4 that takes it may hold the world or freeze the controls, chainNext references, chapters,
@@ -88,6 +90,7 @@ FALLBACK_PREDICATES = [
     "space_enemies", "bandits", "free_flight", "hunger", "oxygen", "hazards", "creative", "creative_flight",
     "instant_travel", "return_to_ship", "starter_teleporter", "base_visitors", "space_stations", "story_active",
     "food_plants_near", "trees_near", "shape_block_carried", "research_ready", "all_blueprints", "new_world_in_system",
+    "fragments_left", "observatory_reachable", "derelict_reachable", "settlements", "vaults", "space_wrecks",
 ]
 
 KNOWN_FIELDS = {
@@ -105,8 +108,9 @@ KNOWN_FIELDS = {
     "start": {"after", "earlyOptIn"},
     "chapter": {
         "id", "titleKey", "summaryKey", "optional", "requires", "offerWhen", "autoCompleteIf", "autoStart",
-        "openCutscene", "closeCutscene", "fromBeat", "fromEvent", "leads", "steps", "skippable",
+        "openCutscene", "closeCutscene", "fromBeat", "fromEvent", "leads", "steps", "skippable", "missions",
     },
+    "mission": {"id", "titleKey", "summaryKey", "feasibleIf", "alternative", "skippable", "steps"},
     "lead": {"type", "objKey"},
     "step": {
         "id", "kind", "tier", "legacyKey", "objective", "requires", "feasibleIf", "alternative", "alreadyDoneIf",
@@ -346,6 +350,12 @@ class ConditionParser:
                 self.fail("the blueprint key is missing")
             atoms.append(("blueprint", "", key))
             return
+        if word == "lore":
+            key = self.read_id()
+            if not key:
+                self.fail("the lore key is missing")
+            atoms.append(("lore", "", key))
+            return
         if word == "world":
             name = self.read_id()
             if name not in self.predicates:
@@ -355,7 +365,7 @@ class ConditionParser:
         self.pos = start
         if word == "ui":
             self.fail("'ui:' events are client claims and never a condition")
-        self.fail(f"unknown condition '{word}:' (step, chapter, pack, blueprint, world, all, any, not)")
+        self.fail(f"unknown condition '{word}:' (step, chapter, pack, blueprint, world, lore, all, any, not)")
 
 
 class Validator:
@@ -381,6 +391,7 @@ class Validator:
         self.blocks = {b.get("key") for b in self.load_list(data_dir / "blocks.json")}
         self.packs: dict[str, dict] = {}
         self.folders_by_id: dict[str, list[pathlib.Path]] = {}
+        self.lore_keys: set[str] = set()  # #2476: every pack's lore_sites.json keys (lore: conditions)
         stories = data_dir / "stories"
         if stories.exists():
             for folder in sorted(p for p in stories.iterdir() if p.is_dir()):
@@ -393,6 +404,12 @@ class Validator:
                     if isinstance(manifest, dict) and manifest.get("id"):
                         self.packs.setdefault(manifest["id"], manifest)
                         self.folders_by_id.setdefault(manifest["id"], []).append(folder.resolve())
+                lore = folder / "lore_sites.json"
+                if lore.exists():
+                    try:
+                        self.lore_keys |= {e.get("key") for e in self.load_list(lore) if isinstance(e, dict) and e.get("key")}
+                    except (json.JSONDecodeError, OSError):
+                        pass
 
     @staticmethod
     def load_table(path: pathlib.Path) -> dict:
@@ -532,16 +549,22 @@ class Validator:
                     if self.blueprints and ident not in self.blueprints:
                         r.error(pid, path, f"blueprint '{ident}' does not exist")
                     continue
+                if form == "lore":
+                    if self.lore_keys and ident not in self.lore_keys:
+                        r.error(pid, path, f"lore text '{ident}' does not exist in any lore_sites.json")
+                    continue
                 if form not in ("step", "chapter", "pack"):
                     continue
                 target = pack if atom_pack == pid else self.packs.get(atom_pack)
                 if target is None:
                     r.error(pid, path, f"pack '{atom_pack}' is not installed")
                     continue
-                chapters = target.get("chapters") or []
-                if form == "step" and not any(s.get("id") == ident for c in chapters for s in (c.get("steps") or [])):
+                chapters = [c for c in (target.get("chapters") or []) if isinstance(c, dict)]
+                missions = [m for c in chapters for m in (c.get("missions") or []) if isinstance(m, dict)]
+                all_steps = [s for c in chapters for s in (c.get("steps") or [])] + [s for m in missions for s in (m.get("steps") or [])]
+                if form == "step" and not any(s.get("id") == ident for s in all_steps if isinstance(s, dict)):
                     r.error(pid, path, f"pack '{atom_pack}' has no step '{ident}'")
-                if form == "chapter" and not any(c.get("id") == ident for c in chapters):
+                if form == "chapter" and not any(c.get("id") == ident for c in chapters + missions):
                     r.error(pid, path, f"pack '{atom_pack}' has no chapter '{ident}'")
 
         def conditions(path: str, value) -> None:
@@ -600,6 +623,147 @@ class Validator:
         chapter_ids: set[str] = set()
         step_ids: set[str] = set()
         legacy_keys: set[str] = set()
+        mission_ids: set[str] = set()
+        all_chapter_ids = {c.get("id") for c in (pack.get("chapters") or []) if isinstance(c, dict)}
+
+        def check_steps(owner_path: str, owner_word: str, owner_id: str, steps: list, line_budget: tuple[int, int], mission: bool) -> None:
+            """One chapter's steps, or (#2476) one story mission's (do steps with a chip text; lead bridges allowed)."""
+            for si, step in enumerate(steps):
+                sp = f"{owner_path}.steps[{si}]"
+                self.unknown_fields(pid, sp, step, "step")
+                sid = step.get("id") or ""
+                if not sid or not is_key_safe(sid, allow_dot=True) or sid in step_ids:
+                    r.error(pid, sp, f"step id '{sid}' is empty, not key-safe or used twice in the pack")
+                step_ids.add(sid)
+                skind = str(step.get("kind", "do")).lower()
+                if skind not in STEP_KINDS:
+                    r.error(pid, f"{sp}.kind", f"unknown kind '{skind}' (do, read, react)")
+                elif mission and skind != "do":
+                    r.error(pid, f"{sp}.kind", "a mission's steps are tasks: kind 'do'")
+                if str(step.get("tier", "must")).lower() not in STEP_TIERS:
+                    r.error(pid, f"{sp}.tier", f"unknown tier '{step.get('tier')}' (must, core, opt)")
+                objective = step.get("objective") or {}
+                self.unknown_fields(pid, f"{sp}.objective", objective, "objective")
+                otype = str(objective.get("type", ""))
+                event = objective.get("event", "")
+                if otype.lower() == "mission":
+                    target = objective.get("target", "")
+                    if not target:
+                        r.error(pid, f"{sp}.objective", "a mission bridge needs a target mission")
+                    elif self.missions and target not in self.missions:
+                        r.error(pid, f"{sp}.objective", f"mission '{target}' does not exist in data/missions.json")
+                elif otype.lower() == "lead":
+                    # #2476: a lead bridge - a world story's mission step that is followed like the chapter lead it names.
+                    target = objective.get("target", "")
+                    problem = lead_problem(target)
+                    lead_kind, _, lead_arg = str(target).partition(":")
+                    if not mission:
+                        r.error(pid, f"{sp}.objective.type", "a lead bridge is read in a world story's missions only")
+                    elif problem:
+                        r.error(pid, f"{sp}.objective.target", problem)
+                    elif lead_kind in ("explore", "finale", "finale_jump"):
+                        r.error(pid, f"{sp}.objective.target", f"'{target}' cannot be a mission step (explore is never done; the finale is chapter 7's own set piece)")
+                    elif lead_kind == "research" and self.blueprints and lead_arg not in self.blueprints:
+                        r.error(pid, f"{sp}.objective.target", f"blueprint '{lead_arg}' does not exist")
+                    elif lead_kind == "module" and self.modules and lead_arg not in self.modules:
+                        r.error(pid, f"{sp}.objective.target", f"ship module '{lead_arg}' does not exist")
+                elif otype:
+                    r.error(pid, f"{sp}.objective.type", f"unknown objective type '{otype}' (Mission, Lead, or none)")
+                elif not event:
+                    if skind != "read":
+                        r.error(pid, f"{sp}.objective", "a do or react step needs an event or a mission bridge")
+                else:
+                    self.check_event(pid, f"{sp}.objective.event", event, player_pack)
+                if int(objective.get("required", 1)) < 1:
+                    r.error(pid, f"{sp}.objective.required", "required must be at least 1")
+                legacy = step.get("legacyKey", "")
+                if legacy:
+                    stage = legacy[len("vega:stage:"):] if legacy.startswith("vega:stage:") else None
+                    if not tutorial:
+                        r.error(pid, f"{sp}.legacyKey", "only a tutorial pack may name legacy keys")
+                    elif stage not in LEGACY_STAGES:
+                        r.error(pid, f"{sp}.legacyKey", f"'{legacy}' is not one of the legacy stages (vega:stage:{'|'.join(LEGACY_STAGES)})")
+                    elif legacy in legacy_keys:
+                        r.error(pid, f"{sp}.legacyKey", f"'{legacy}' is used by two steps")
+                    legacy_keys.add(legacy)
+                conditions(f"{sp}.requires", step.get("requires"))
+                conditions(f"{sp}.feasibleIf", step.get("feasibleIf"))
+                conditions(f"{sp}.alreadyDoneIf", step.get("alreadyDoneIf"))
+                alternative = step.get("alternative", "")
+                if alternative and (alternative == sid or not any(s.get("id") == alternative for s in steps)):
+                    r.error(pid, f"{sp}.alternative", f"'{alternative}' is not another step of {owner_word} '{owner_id}'")
+                for hook in ("onStart", "onComplete"):
+                    if hook in step:
+                        self.unknown_fields(pid, f"{sp}.{hook}", step[hook], "hook")
+                        cutscene(f"{sp}.{hook}.cutscene", (step[hook] or {}).get("cutscene"))
+                if "escalate" in step:
+                    self.unknown_fields(pid, f"{sp}.escalate", step["escalate"], "escalate")
+                reveal = (step.get("onStart") or {}).get("reveal", "")
+                if reveal:
+                    if reveal in ("nearest_settlement", "nearest_food_plant", "nearest_station") or (
+                        reveal.startswith("unique_site:") and reveal[len("unique_site:"):] in LEAD_UNIQUE_SITES
+                    ):
+                        pass
+                    elif reveal.startswith("nearest_ore:") and len(reveal) > len("nearest_ore:"):
+                        block = reveal[len("nearest_ore:"):]
+                        if self.blocks and block not in self.blocks:
+                            r.error(pid, f"{sp}.onStart.reveal", f"block '{block}' does not exist")
+                    else:
+                        r.error(pid, f"{sp}.onStart.reveal", f"unknown marker provider '{reveal}' (nearest_ore:<block>, nearest_settlement, nearest_food_plant, nearest_station, unique_site:<site>)")
+                for hi, ref in enumerate(self.list_of_strings(pid, f"{sp}.hintRefs", step.get("hintRefs"))):
+                    if not ref.strip():
+                        r.error(pid, f"{sp}.hintRefs[{hi}]", "an empty hint id")
+                explain = step.get("explain") or {}
+                self.unknown_fields(pid, f"{sp}.explain", explain, "explain")
+                key(f"{sp}.explain.startKey", explain.get("startKey"), line_budget)
+                key(f"{sp}.explain.hintKey", explain.get("hintKey"), line_budget)
+                key(f"{sp}.explain.doneKey", explain.get("doneKey"), line_budget)
+                key(f"{sp}.explain.chipKey", explain.get("chipKey"), CHIP)
+                variants = step.get("variants") or []
+                chip_en = self.chip_text_en(pack_dir, explain.get("chipKey"))
+                if mission and not explain.get("chipKey"):
+                    r.error(pid, f"{sp}.explain.chipKey", "a mission step needs a chip text - it is the step's line in the Journal")
+                elif mission and chip_en is not None and re.search(r"\{\d+\}", chip_en):
+                    r.error(pid, f"{sp}.explain.chipKey", f"'{explain.get('chipKey')}' needs a {{0}} - a mission step's own chip text is shown without one")
+                elif skind == "do" and not explain.get("chipKey") and not any(v.get("chipKey") for v in variants):
+                    r.warn(pid, f"{sp}.explain.chipKey", "a do step without a chip text leaves the chip to the next source")
+                for vi, variant in enumerate(variants):
+                    vp = f"{sp}.variants[{vi}]"
+                    self.unknown_fields(pid, vp, variant, "variant")
+                    condition(f"{vp}.when", variant.get("when"))
+                    key(f"{vp}.startKey", variant.get("startKey"), line_budget)
+                    key(f"{vp}.hintKey", variant.get("hintKey"), line_budget)
+                    key(f"{vp}.doneKey", variant.get("doneKey"), line_budget)
+                    key(f"{vp}.chipKey", variant.get("chipKey"), CHIP)
+
+        def check_missions(cp: str, chapter: dict) -> None:
+            """#2476: a world chapter's story missions - ids that are no chapter's, a title, feasibility, an alternative of
+            the same chapter, and steps by the mission rules."""
+            missions = chapter.get("missions") or []
+            for mi, mission in enumerate(missions):
+                mp = f"{cp}.missions[{mi}]"
+                self.unknown_fields(pid, mp, mission, "mission")
+                if not isinstance(mission, dict):
+                    continue
+                if player_pack:
+                    r.warn(pid, mp, "story missions are read for world packs only")
+                mid = mission.get("id") or ""
+                if not mid or not is_key_safe(mid, allow_dot=True) or mid in all_chapter_ids or mid in mission_ids:
+                    r.error(pid, mp, f"mission id '{mid}' is empty, not key-safe, used twice or a chapter's id")
+                mission_ids.add(mid)
+                if not mission.get("titleKey"):
+                    r.error(pid, mp, "the mission has no titleKey")
+                key(f"{mp}.titleKey", mission.get("titleKey"))
+                key(f"{mp}.summaryKey", mission.get("summaryKey"))
+                conditions(f"{mp}.feasibleIf", mission.get("feasibleIf"))
+                alternative = mission.get("alternative", "")
+                if alternative and (alternative == mid or not any(isinstance(o, dict) and o.get("id") == alternative for o in missions)):
+                    r.error(pid, f"{mp}.alternative", f"'{alternative}' is not another mission of chapter '{chapter.get('id')}'")
+                steps = mission.get("steps") or []
+                if not steps:
+                    r.error(pid, f"{mp}.steps", "a mission needs at least one step")
+                check_steps(mp, "mission", mid, steps, LINE, True)
+
         last_from_beat = -1
         for ci, chapter in enumerate(pack.get("chapters") or []):
             cp = f"chapters[{ci}]"
@@ -661,89 +825,8 @@ class Validator:
             if player_pack and not steps:
                 r.warn(pid, cp, "a chapter of a player pack without steps completes at once")
             line_budget = BASIC_LINE if tutorial and not optional else LINE
-            for si, step in enumerate(steps):
-                sp = f"{cp}.steps[{si}]"
-                self.unknown_fields(pid, sp, step, "step")
-                sid = step.get("id") or ""
-                if not sid or not is_key_safe(sid, allow_dot=True) or sid in step_ids:
-                    r.error(pid, sp, f"step id '{sid}' is empty, not key-safe or used twice in the pack")
-                step_ids.add(sid)
-                skind = str(step.get("kind", "do")).lower()
-                if skind not in STEP_KINDS:
-                    r.error(pid, f"{sp}.kind", f"unknown kind '{skind}' (do, read, react)")
-                if str(step.get("tier", "must")).lower() not in STEP_TIERS:
-                    r.error(pid, f"{sp}.tier", f"unknown tier '{step.get('tier')}' (must, core, opt)")
-                objective = step.get("objective") or {}
-                self.unknown_fields(pid, f"{sp}.objective", objective, "objective")
-                otype = str(objective.get("type", ""))
-                event = objective.get("event", "")
-                if otype.lower() == "mission":
-                    target = objective.get("target", "")
-                    if not target:
-                        r.error(pid, f"{sp}.objective", "a mission bridge needs a target mission")
-                    elif self.missions and target not in self.missions:
-                        r.error(pid, f"{sp}.objective", f"mission '{target}' does not exist in data/missions.json")
-                elif otype:
-                    r.error(pid, f"{sp}.objective.type", f"unknown objective type '{otype}' (Mission, or none)")
-                elif not event:
-                    if skind != "read":
-                        r.error(pid, f"{sp}.objective", "a do or react step needs an event or a mission bridge")
-                else:
-                    self.check_event(pid, f"{sp}.objective.event", event, player_pack)
-                if int(objective.get("required", 1)) < 1:
-                    r.error(pid, f"{sp}.objective.required", "required must be at least 1")
-                legacy = step.get("legacyKey", "")
-                if legacy:
-                    stage = legacy[len("vega:stage:"):] if legacy.startswith("vega:stage:") else None
-                    if not tutorial:
-                        r.error(pid, f"{sp}.legacyKey", "only a tutorial pack may name legacy keys")
-                    elif stage not in LEGACY_STAGES:
-                        r.error(pid, f"{sp}.legacyKey", f"'{legacy}' is not one of the legacy stages (vega:stage:{'|'.join(LEGACY_STAGES)})")
-                    elif legacy in legacy_keys:
-                        r.error(pid, f"{sp}.legacyKey", f"'{legacy}' is used by two steps")
-                    legacy_keys.add(legacy)
-                conditions(f"{sp}.requires", step.get("requires"))
-                conditions(f"{sp}.feasibleIf", step.get("feasibleIf"))
-                conditions(f"{sp}.alreadyDoneIf", step.get("alreadyDoneIf"))
-                alternative = step.get("alternative", "")
-                if alternative and (alternative == sid or not any(s.get("id") == alternative for s in steps)):
-                    r.error(pid, f"{sp}.alternative", f"'{alternative}' is not another step of chapter '{cid}'")
-                for hook in ("onStart", "onComplete"):
-                    if hook in step:
-                        self.unknown_fields(pid, f"{sp}.{hook}", step[hook], "hook")
-                        cutscene(f"{sp}.{hook}.cutscene", (step[hook] or {}).get("cutscene"))
-                if "escalate" in step:
-                    self.unknown_fields(pid, f"{sp}.escalate", step["escalate"], "escalate")
-                reveal = (step.get("onStart") or {}).get("reveal", "")
-                if reveal:
-                    if reveal in ("nearest_settlement", "nearest_food_plant", "nearest_station"):
-                        pass
-                    elif reveal.startswith("nearest_ore:") and len(reveal) > len("nearest_ore:"):
-                        block = reveal[len("nearest_ore:"):]
-                        if self.blocks and block not in self.blocks:
-                            r.error(pid, f"{sp}.onStart.reveal", f"block '{block}' does not exist")
-                    else:
-                        r.error(pid, f"{sp}.onStart.reveal", f"unknown marker provider '{reveal}' (nearest_ore:<block>, nearest_settlement, nearest_food_plant, nearest_station)")
-                for hi, ref in enumerate(self.list_of_strings(pid, f"{sp}.hintRefs", step.get("hintRefs"))):
-                    if not ref.strip():
-                        r.error(pid, f"{sp}.hintRefs[{hi}]", "an empty hint id")
-                explain = step.get("explain") or {}
-                self.unknown_fields(pid, f"{sp}.explain", explain, "explain")
-                key(f"{sp}.explain.startKey", explain.get("startKey"), line_budget)
-                key(f"{sp}.explain.hintKey", explain.get("hintKey"), line_budget)
-                key(f"{sp}.explain.doneKey", explain.get("doneKey"), line_budget)
-                key(f"{sp}.explain.chipKey", explain.get("chipKey"), CHIP)
-                variants = step.get("variants") or []
-                if skind == "do" and not explain.get("chipKey") and not any(v.get("chipKey") for v in variants):
-                    r.warn(pid, f"{sp}.explain.chipKey", "a do step without a chip text leaves the chip to the next source")
-                for vi, variant in enumerate(variants):
-                    vp = f"{sp}.variants[{vi}]"
-                    self.unknown_fields(pid, vp, variant, "variant")
-                    condition(f"{vp}.when", variant.get("when"))
-                    key(f"{vp}.startKey", variant.get("startKey"), line_budget)
-                    key(f"{vp}.hintKey", variant.get("hintKey"), line_budget)
-                    key(f"{vp}.doneKey", variant.get("doneKey"), line_budget)
-                    key(f"{vp}.chipKey", variant.get("chipKey"), CHIP)
+            check_steps(cp, "chapter", cid, steps, line_budget, False)
+            check_missions(cp, chapter)
 
         self.validate_cutscenes(pid, cutscene_defs, chapter_ids, key)
 
@@ -786,6 +869,13 @@ class Validator:
 
         if tutorial:
             self.find_rewards(pid, pack, "$")
+
+    def chip_text_en(self, pack_dir: pathlib.Path, chip_key) -> str | None:
+        """The English text of a chip key (the pack's table over the base table), or None."""
+        if not isinstance(chip_key, str) or not chip_key:
+            return None
+        table = self.load_table(pack_dir / "locales" / "en.json")
+        return table.get(chip_key, self.base_en.get(chip_key))
 
     def check_event(self, pid: str, path: str, event: str, player_pack: bool) -> None:
         if event.startswith("ui:"):

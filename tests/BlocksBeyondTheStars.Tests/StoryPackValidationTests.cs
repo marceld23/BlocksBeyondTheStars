@@ -69,6 +69,7 @@ public sealed class StoryPackValidationTests
             BlueprintExists = key => content.GetBlueprint(key) is not null,
             BlockExists = key => content.GetBlock(key) is not null,
             ModuleExists = key => content.GetShipModule(key) is not null, // #2475: module: leads
+            LoreExists = key => installed.Values.Any(p => p.LoreSites.Any(l => l.Key == key)), // #2476: lore: conditions
             English = k => en.TryGetValue(k, out var v) ? v : null,
             German = k => de.TryGetValue(k, out var v) ? v : null,
             // #2467: the installed packs' cutscenes (a pack validated from its story.json alone finds its own here), and

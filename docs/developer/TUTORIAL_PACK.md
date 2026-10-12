@@ -83,6 +83,7 @@ Every field is optional and defaults to today's behaviour.
 | `skippable` | default `true` |
 | `steps` | Step[] in order |
 | `fromBeat`, `fromEvent`, `leads` | world packs only (VEGA chapters, steps 11 and 16) |
+| `missions` | world packs only (#2476): the chapter's story missions `[{ id, titleKey, summaryKey, feasibleIf, alternative, skippable, steps }]` — run per player by this runtime as optional chapters of the story's id, one at a time, handed out when the player's track is in the chapter; every step a `do` step with a `chipKey` (no `{0}`); see [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md#story-missions-per-chapter-2476) |
 
 ## Step fields
 
@@ -91,7 +92,7 @@ Every field is optional and defaults to today's behaviour.
 | `id` | unique in the pack, carries its chapter (`b3.1`); the done key is `story:<pack>:step:<id>` |
 | `kind` | `do` (default) · `read` (spoken, never blocks, done on `ui:vega_continue` or the next do step) · `react` (armed from the chapter start, never blocks, speaks when its event fires; stays armed after the pack is done until it fired once) |
 | `tier` | `must` (default; the chapter waits) · `core` (waits until its hint time, then an open extra that still counts) · `opt` (never blocks a non-optional chapter). An optional chapter waits for every do step |
-| `objective` | `{ event, arg, required }` — a game event (`GameEventKeys`, a `prefix*` pattern, or `ui:<id>` — only here), `arg` exact or `a\|b` alternatives (empty = any), counted since activation; or `{ type: "Mission", target }` — a mission bridge to `data/missions.json` |
+| `objective` | `{ event, arg, required }` — a game event (`GameEventKeys`, a `prefix*` pattern, or `ui:<id>` — only here), `arg` exact or `a\|b` alternatives (empty = any), counted since activation; or `{ type: "Mission", target }` — a mission bridge to `data/missions.json`; or (#2476, a world story's missions only) `{ type: "Lead", target: "<lead word>" }` — a lead bridge, followed like that chapter lead (its events and evidence, its placed chip text and marker; not `explore`, not the finale's words) |
 | `legacyKey` | tutorial only: `vega:stage:<mine\|craft\|eat\|scan\|unlock\|launch\|dock\|trade\|land>` — double-written on completion and skip for older builds, read once by the migration, and the old keys an outdated client follows |
 | `requires` | condition[] before the step activates (default: the chapter order); a react step is armed only while it holds |
 | `feasibleIf` | condition[] — false at activation ⇒ skipped silently, the `alternative` stands in (no dead ends); an alternative that is infeasible too is skipped as well |
@@ -99,7 +100,7 @@ Every field is optional and defaults to today's behaviour.
 | `alreadyDoneIf` | condition[] — completes the step silently at activation (not during a replay) |
 | `variants` | `[{ when, startKey, chipKey, hintKey, doneKey }]` — whole-line texts per world rule; first match wins; empty fields fall back |
 | `explain` | `{ startKey, chipKey, hintKey, doneKey, moreGuide }` — start line, chip text, escalation hint, completion line, Codex article |
-| `onStart` | `{ cutscene, reveal }` — the scene plays before the start line (not in a replay); `reveal` makes it a "where" step: `nearest_ore:<block>`, `nearest_settlement` or `nearest_food_plant` for the help marker (a ping for this player only, never `RevealPoi`), or `nearest_station` (#2471: the nearest station becomes the player's space waypoint, in flight or landed) |
+| `onStart` | `{ cutscene, reveal }` — the scene plays before the start line (not in a replay); `reveal` makes it a "where" step: `nearest_ore:<block>`, `nearest_settlement` or `nearest_food_plant` for the help marker (a ping for this player only, never `RevealPoi`), or `nearest_station` (#2471: the nearest station becomes the player's space waypoint, in flight or landed), or `unique_site:<observatory\|shrine\|derelict>` (#2476: the site's spot while the player is on its world) |
 | `onComplete` | `{ cutscene }` — plays before the done line when the step completes non-silently (it owned the chip, or a react step) |
 | `escalate` | per-step override of the pack's escalation |
 | `skippable` | default `true` |
@@ -115,8 +116,10 @@ One grammar everywhere (`StoryConditionParser`, synthesis §5.3):
 ```
 condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 atom      := step:<pack>:<step> | chapter:<pack>:<chapter> | pack:<pack>:started|done|enabled|optedout
-           | blueprint:<key> | world:<predicate>
+           | blueprint:<key> | world:<predicate> | lore:<key>
 ```
+
+`lore:<key>` (#2476): the player has read that lore text (a `lore_sites.json` key).
 
 `world:` predicates: `station_in_system`, `settlement_reachable`, `airless`, `fragment_on_world`, `player_near`,
 `enemies`, `space_enemies`, `bandits`, `free_flight`, `hunger`, `oxygen`, `hazards`, `creative`, `creative_flight`,
@@ -125,7 +128,10 @@ atom      := step:<pack>:<step> | chapter:<pack>:<chapter> | pack:<pack>:started
 within a short walk), `shape_block_carried` (a shaped material or a prop block in the backpack), `research_ready` (the
 knowledge covers a blueprint researchable now without a data fragment), `all_blueprints` (Creative or the head-start
 option hands every blueprint out), `new_world_in_system` (a planet, moon or asteroid of the player's system never landed
-on). The two probes read loaded blocks around the player and run only when a step activates. `ui:` is never a condition.
+on). The two probes read loaded blocks around the player and run only when a step activates. Since #2476 (the story
+missions): `fragments_left` (the world story has an unfound net fragment), `observatory_reachable`, `derelict_reachable`
+(the unique site exists in this save and the player can reach it), `settlements`, `vaults`, `space_wrecks` (the world
+options are not off). `ui:` is never a condition.
 
 ## Per-player state
 

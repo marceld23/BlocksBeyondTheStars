@@ -338,6 +338,85 @@ Test seams: `LeadsForTest`, `CurrentLeadForTest`, `LeadResolutionsForTest`, `Tic
 `RecordUniqueSiteSkipForTest`, `PickUpNetFragmentForTest(id, playerId)`. Tests: `VegaChapterLeadsTests`; Client.Tests
 `JournalViewTests` (lead rows, a real client receiving them).
 
+## Story missions per chapter (#2476)
+
+Synthesis §4.8 option O3, layered on O2: **VEGA hands each player a short story mission per chapter** — a titled task list
+in her voice that points at the chapter's story drivers. Beats still reveal by score: a mission never holds one back.
+Code: `src/BlocksBeyondTheStars.GameServer/GameServerStoryMissions.cs` (+ small hooks in `GameServerStoryPacks.cs`,
+`GameServerStoryLeads.cs`); model: `StoryMission` in `Shared/Story/StoryPackManifest.cs`.
+
+**Shape (the choice).** The missions live in the world story's manifest (`chapters[].missions[]`, each
+`{ id, titleKey, summaryKey?, feasibleIf[], alternative?, skippable?, steps[] }`), and the server compiles them once into a
+**per-player sub-track of the world story** — a `CompiledPack` with the story's own id (`IsStoryMissions`) whose optional
+chapters are the missions — run by the player-pack step runtime of #2466 (activation, the event bus, the mission bridge,
+`feasibleIf` / `alternative` / `alreadyDoneIf`, escalation, completion). A separate companion pack was the other option; it
+was not taken because it would need its own enable/start rules tied to the world story, a hidden Journal category and its
+own locale, while the sub-track gets "runs while the player's VEGA track runs" for free (`story:<id>:started` is the
+track key; `StoryPackEnabledFor` is the world story) and keeps the texts and the Journal on the VEGA page. Keys: the
+mission is a chapter of the story's id — `story:<id>:ch:<mission>:active|done|skipped`, its steps
+`story:<id>:step:<step>[:skipped]`, the running counters `<id>:<step>` in `PlayerState.StepProgress` — per player, so in
+multiplayer everyone does their own. The sub-track never starts, migrates, graduates or is stamped "done" (`AdvancePack`
+hands it to `AdvanceStoryMissions`). Mission ids must not be chapter ids. The built-in fallback (`BuildVegaProtocol`) carries
+no missions — like the cutscenes, their texts live in the pack, which is what the fallback stands in for.
+
+**Steps.** Ordinary pack steps (kind `do`, every one with a `chipKey` — it is its Journal line), verified by events
+(`lore:read`, `scan:any` …), a mission bridge (`{type: Mission, target}`), or a **lead bridge** (`{type: Lead, target:
+<lead word>}`, #2476 — not `explore`, not the finale's words): followed exactly like that chapter lead (the lead listener's
+events via `LeadFulfilledBy`, the lead's evidence — blueprint researched, module fitted, site landed on before — and the heal
+tank's spot), shown with the lead's own placed text on the chip where it can be followed from here (`Visit the Sealed
+Observatory on Kepler-3 b`, `Find the net fragment on …` — the fragment's map signal comes with it), else with the step's own
+chip text, and marked like the lead (a private ping / the space waypoint). A step's `onStart.reveal` may also name
+`unique_site:<site>` (the site's spot while the player is on its world).
+
+**Handing out** (`AdvanceStoryMissions`, from the 1 Hz `TickStoryMissions` and after every mission event): for a `packs1`
+player whose track started, the missions of their current chapter (`TrackChapterIndex`) run one at a time in data order.
+The next one starts when none of the chapter runs, **no basic training runs for the player** and **no story card or scene
+waits in their cutscene queue** (the chapter's scene comes first, then her briefing — the first step's start line). A
+mission whose `feasibleIf` does not hold is closed as skipped silently and its `alternative` (a mission of the same chapter
+that runs only standing in) starts instead; a step that cannot be done here gives way to its step `alternative` — at
+activation, and for the running step also later when its world fact goes away (the last fragment found by someone else).
+**Letting go:** when the player's chapter moves on, a running mission of an earlier chapter is closed — done when its steps
+are through, otherwise skipped with no further line. A mission none of whose steps was done (each impossible here) closes
+as skipped. Never handed out at the join itself; never to an older client (no `packs1`: no lines, no state — it keeps its
+`story.obj.*` chip).
+
+**Chip** (`StoryObjectiveFor` → `MissionObjectiveFor`): the running mission's step **takes the chapter lead's place** (rank 5
+"VEGA lead", source `story`, the story's id as the pack — "VEGA: …"); leads keep counting in the background and come back
+when the mission is through. Never over the open finale (its lead stays on the chip, source `finale`, never muted). The
+basic training (rank 3) and the finale in its system (rank 1) still rank above; a pin on the world story shows the mission.
+
+**Bonus.** A mission finished by playing counts as following a lead of its chapter: `PayLeadBonus(chapter)` — once per save
+and chapter (the same `lead:<chapter>:1..n` keys, so never on top of a lead's), never after the arc's last beat. Nothing
+else is paid (no items, no knowledge, no memory trigger).
+
+**Journal / wire / actions.** `NetStoryPack.Missions` (additive, the world story's entry): `NetStoryMission{Id, ChapterId,
+TitleKey, SummaryKey, State active|done, Skippable, Steps: NetStoryMissionStep{Id, Key, Arg, State done|active|upcoming,
+Progress, Target, OnChip}}` — the current chapter's running and done missions; skipped steps and unused stand-ins are left
+out; the running step carries the chip's text. The VEGA page shows them under "Missions in this chapter" above the leads
+(`JournalPackPage.MissionsOf` / `MissionTitle` / `MissionStepLine` / `MissionActions`), a new running mission lights the
+Journal badge, and "Skip mission" sends `StoryPackIntent{PackId = <world story>, Action = skipChapter, ChapterId =
+<mission>}` (`skipStep` works too) — handled by `ApplyStoryMissionIntent` (already pause-whitelisted). `/story` shows
+`mission=<id>/<step>, missionsDone=n/m`.
+
+**VEGA's missions** (`data/stories/vega_protocol/story.json`, texts `story.vega.m.*` in the pack locale, en + de):
+
+| Chapter | Mission | Steps |
+|---|---|---|
+| 1 signature | *Follow the Signal* | find a net fragment (lead `fragment`, `world:fragments_left`) — stand-in: help a settlement (lead `settlement_help`, `world:settlements`) |
+| 2 service | *The Sealed Observatory* (`world:observatory_reachable`) | visit it (lead `unique_site:observatory`) → read the post's last log (`lore:read` observatory; `alreadyDoneIf lore:observatory_log`; marker `unique_site:observatory` after 5 s) |
+| 2 service | *The Deep Archive* — stands in (`world:vaults`) | read the notes in a buried vault (`lore:read` vault; `alreadyDoneIf lore:vault_plaque`) |
+| 3 guardian | *What the Stones Remember* | read a monument's runes (lead `monument`) → help a settlement (lead `settlement_help`, `world:settlements`) |
+| 4 verdict | *The Long Quiet* (`world:derelict_reachable`) | board the derelict (lead `unique_site:derelict`) → find its cargo manifest (`lore:read` derelict; `alreadyDoneIf lore:derelict_manifest`) |
+| 4 verdict | *Ships That Remember* — stands in (`world:free_flight`, `world:space_wrecks`) | scan a wreck drifting in space (`scan:any` wreck) |
+| 5 what_you_are | *Eyes on Far Stars* | research the radar array → build it into the ship (leads `research:` / `module:radar_array`) |
+| 6 sleeps | *The Jump Generator* | research the jump generator → build it into the ship |
+| 7 core | — | the finale is the chapter's mission (its lead, never muted, and its set pieces) |
+| 8 resolution | *Survey Orders* (epilogue) | do the first survey order from a station board (mission bridge `relay_survey_1`, `world:space_stations`) — stand-in: link the stars with relays (lead `relay`) |
+
+Test seams: `TickStoryMissionsForTest`, `StoryMissionIdsForTest`, `MissionChipStepForTest`, `RunningMissionsForTest`,
+`JournalMissionsForTest`, `MissionLeadResolutionsForTest`, `StoryMissionStatusForTest`. Tests: `VegaStoryMissionsTests`;
+Client.Tests `JournalViewTests` (mission rows).
+
 ## Game events, story conditions and the world-story guard (#2465)
 
 Groundwork for the story packs (#2459): the per-player step runtime of the tutorial and side packs (#2466) listens
@@ -397,6 +476,7 @@ teaching verbs (the second block of the table); the deep dives add theirs with s
 | `story:fragment` | fragment key | a story fragment handed over (picked up, mission thread, NPC dialog, NPC thread) | `GameServerNetFragments.cs`, `GameServerMissions.cs`, `GameServerNpcDialogs.cs`, `GameServerNpcThreads.cs` |
 | `insight:companion_ward` | — | a companion made a machine stand down near the player (at most every 30 s) | `GameServerEnemies.cs` |
 | `insight:shape_noncube` | base item key | a non-cube form crafted | `GameServer.cs` (`RaiseShapeCrafted`) |
+| `lore:read` | site kind (`monument`, `vault`, `observatory`, `derelict`, `data_terminal` …) | #2476: a lore text new to the player opened in the reader (a rune inscription, a vault plaque, the observatory's last log, a wreck's manifest) | `GameServerLore.cs` (`TryRevealLoreText`) |
 | **#2469 — the basic training's verbs** | | | |
 | `move:walked` | — (whole metres) | walking on a surface (no speeder, no train; a report over 4 blocks from the last one never counts) — measured only while a step listens | `GameServer.cs` (`HandleMove`) → `GameServerTutorial.cs` (`TutorialMovementEvents`) |
 | `move:jump` | `jump` \| `crouch` | a jump (upward speed > 2.5 blocks/s, not climbing) or the start of a crouch, at most once a second — only while a step listens | same |
@@ -433,8 +513,12 @@ into a `StoryCondition` tree and evaluated purely over an `IStoryConditionContex
 ```
 condition := atom | all:[c, c, …] | any:[c, c, …] | not:c
 atom      := step:<pack>:<step> | chapter:<pack>:<chapter> | pack:<pack>:started|done|enabled|optedout
-           | blueprint:<key> | world:<predicate>
+           | blueprint:<key> | world:<predicate> | lore:<key>
 ```
+
+`lore:<key>` (#2476) holds when the player has read that lore text (`lore_sites.json` entry; the reader's `lore:<key>`
+milestone) — e.g. a mission step's `alreadyDoneIf: ["lore:observatory_log"]`. A world story's mission ids count as
+`chapter:` targets (they share the chapter keys) and their steps as `step:` targets.
 
 Ids are letters, digits, `_ . -` (a step id is `b2.2`); spaces around brackets and commas are fine. Content errors
 (`StoryConditionException`, message names the problem and the position): unknown forms, unknown world predicates,
@@ -450,7 +534,10 @@ player pack not opted out — since #2466 a tutorial also by the world's tutoria
 override), `creative_flight`, `instant_travel`, `return_to_ship`, `starter_teleporter`, `base_visitors`,
 `space_stations`, `story_active`; since #2469 the tutorial's feasibility checks `food_plants_near`, `trees_near` (bounded
 probes of the loaded blocks around the player, run when a step activates), `shape_block_carried`, `research_ready`,
-`all_blueprints`, `new_world_in_system` (`GameServerTutorial.cs`). A predicate reads the player's own body/system, never
+`all_blueprints`, `new_world_in_system` (`GameServerTutorial.cs`); since #2476 the story missions' feasibility checks
+`fragments_left` (the world story still has an unfound fragment), `observatory_reachable` / `derelict_reachable` (the
+unique site exists in this save and the player can reach it — the lead's rule), `settlements`, `vaults`, `space_wrecks`
+(the world options are not off). A predicate reads the player's own body/system, never
 the active world cursor. A new predicate is a name in `StoryWorldPredicates` plus one line in `GameServer.WorldPredicates`.
 
 **The world-story guard (N11).** A pack carries `kind` (`story` default, `tutorial`, `side`) and `scope` (`world` |
