@@ -459,6 +459,14 @@ public sealed partial class GameServer
         // The VEGA pack's line (#2470): silent while no story runs (a chamber left from an earlier story in a "none" world).
         if (StoryActive && _worlds.Active.HasCoreChamber)
         {
+            // #2478: the descent set piece shows this very hint (its replaceLineKeys) over the shaft — committed first, so a
+            // client that plays it keeps the line out of the panel (and gets it back on an early skip). Not while the duel
+            // already runs (whoever lands then goes straight to the core's dialogue).
+            if (FinaleOpen && !_coreHacked && !session.Spectating)
+            {
+                PlayFinaleCutscene(session, StoryFinaleStages.Descent, CoreShaftAnchor());
+            }
+
             ShipAiHintOnce(session, "guardian_core", kind: 3);
         }
     }

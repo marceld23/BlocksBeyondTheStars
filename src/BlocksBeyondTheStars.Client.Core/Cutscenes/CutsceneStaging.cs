@@ -277,8 +277,9 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
             => new StagedCamera { Kind = kind, CenterX = cx, CenterY = cy, CenterZ = cz, StartAngle = yaw };
 
         /// <summary>Whether an anchor is a small object inside a room that a shot frames up close (#2474: the heal tank in the
-        /// ship's medbay) rather than from afar.</summary>
-        public static bool WantsCloseUp(string? anchor) => anchor == CutsceneAnchors.HealTank;
+        /// ship's medbay; #2478: the Guardian core's column in its 9×9 chamber — the breach and the duel dialogue) rather than
+        /// from afar.</summary>
+        public static bool WantsCloseUp(string? anchor) => anchor == CutsceneAnchors.HealTank || anchor == CutsceneAnchors.Core;
 
         /// <summary>
         /// The line of sight to an object inside a room (#2474): every cell must be open by <paramref name="spot"/> — the

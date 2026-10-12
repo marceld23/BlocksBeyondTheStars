@@ -369,6 +369,35 @@ public static class StoryPackValidator
         Key("nameKey", def.NameKey);
         Key("descriptionKey", def.DescriptionKey);
         Key("narrator.nameKey", def.Narrator?.NameKey);
+
+        // #2478: the pack's other voices (a cutscene caption's `speaker`, the finale's duel dialogue) — ids unique next to the
+        // narrator's, a name in both languages, a colour the client can read, a line-start cue that exists.
+        var speakerIds = new HashSet<string>(StringComparer.Ordinal) { def.Narrator?.Id ?? StoryNarrator.DefaultId };
+        foreach (var (speaker, si) in (def.Speakers ?? new List<StoryNarrator>()).Select((s, i) => (s, i)))
+        {
+            string sp = $"speakers[{si}]";
+            if (speaker is null || !IsKeySafeId(speaker.Id) || !speakerIds.Add(speaker.Id))
+            {
+                Error(sp, $"speaker id '{speaker?.Id}' is empty, not key-safe or used twice (the narrator's id included)");
+                continue;
+            }
+
+            if (string.IsNullOrEmpty(speaker.NameKey))
+            {
+                Error($"{sp}.nameKey", "a speaker needs a name (a locale key)");
+            }
+
+            Key($"{sp}.nameKey", speaker.NameKey);
+            if (!string.IsNullOrEmpty(speaker.Color) && !IsHexColor(speaker.Color))
+            {
+                Error($"{sp}.color", $"'{speaker.Color}' is not a #RRGGBB colour");
+            }
+
+            if (!string.IsNullOrEmpty(speaker.LineStart) && context.SoundExists is { } speakerSound && !speakerSound(speaker.LineStart))
+            {
+                Error($"{sp}.lineStart", $"sound '{speaker.LineStart}' does not exist in client/Assets/Resources/audio");
+            }
+        }
         Key("epilogueTitleKey", def.EpilogueTitleKey);
         Key("epilogueTextKey", def.EpilogueTextKey);
         if (!playerPack && def.Chapters.Any(c => c.Leads.Count > 0))
@@ -494,6 +523,12 @@ public static class StoryPackValidator
 
         foreach (var binding in def.Finale?.Cutscenes ?? new Dictionary<string, string>())
         {
+            // #2478: the finale code plays exactly these stages — another name would never play.
+            if (!StoryFinaleStages.All.Contains(binding.Key))
+            {
+                Error($"finale.cutscenes.{binding.Key}", $"unknown finale stage '{binding.Key}' ({string.Join(", ", StoryFinaleStages.All)})");
+            }
+
             Cutscene($"finale.cutscenes.{binding.Key}", binding.Value);
         }
 
@@ -994,6 +1029,11 @@ public static class StoryPackValidator
                     // #2477: a diorama is a small synthetic stand-in for what its anchor names.
                     error($"{sp}.camera.anchor", $"a diorama shows {string.Join(" or ", CutsceneCameras.DioramaAnchors)} (found '{anchor}')");
                 }
+                else if (anchor == CutsceneAnchors.Players && camera != CutsceneCameras.Chart)
+                {
+                    // #2478: the other players are names on the star chart — no other camera can frame them.
+                    error($"{sp}.camera.anchor", "the players anchor labels the star chart — it needs a chart camera");
+                }
 
                 if (!(shot.Duration > 0f) || shot.Duration > ShotMaxSeconds)
                 {
@@ -1047,9 +1087,10 @@ public static class StoryPackValidator
                     key($"{kp}.key", caption.Key, maxEn, maxDe);
                     if (!string.IsNullOrEmpty(caption.KickerKey))
                     {
-                        if (style != CutsceneCaptionStyles.TitleCard)
+                        // #2478: a reading frame shows its kicker as the heading (the recap, the epilogue's title).
+                        if (style != CutsceneCaptionStyles.TitleCard && style != CutsceneCaptionStyles.ReadingFrame)
                         {
-                            warn($"{kp}.kickerKey", "only a title_card shows a kicker");
+                            warn($"{kp}.kickerKey", "only a title_card or a reading_frame shows a kicker");
                         }
 
                         key($"{kp}.kickerKey", caption.KickerKey, TitleCardMaxEn, TitleCardMaxDe);
@@ -1058,6 +1099,11 @@ public static class StoryPackValidator
                     if (!string.IsNullOrEmpty(caption.Speaker) && style != CutsceneCaptionStyles.Speaker)
                     {
                         warn($"{kp}.speaker", "only a speaker caption names a speaker");
+                    }
+                    else if (!string.IsNullOrEmpty(caption.Speaker) && def.FindSpeaker(caption.Speaker) is null)
+                    {
+                        // #2478: an unknown speaker id still plays (it reads as its own name), but it is most likely a typo.
+                        warn($"{kp}.speaker", $"speaker '{caption.Speaker}' is neither the pack's narrator nor one of its speakers");
                     }
 
                     if (caption.At < 0f || (shot.Duration > 0f && caption.At >= shot.Duration))
@@ -1217,6 +1263,26 @@ public static class StoryPackValidator
         {
             bool ok = c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_' or '-' || (allowDot && c == '.');
             if (!ok)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>#2478: whether a colour reads as <c>#RRGGBB</c> (a speaker's accent colour).</summary>
+    public static bool IsHexColor(string? value)
+    {
+        if (value is null || value.Length != 7 || value[0] != '#')
+        {
+            return false;
+        }
+
+        for (int i = 1; i < value.Length; i++)
+        {
+            char c = value[i];
+            if (!(c is (>= '0' and <= '9') or (>= 'a' and <= 'f') or (>= 'A' and <= 'F')))
             {
                 return false;
             }

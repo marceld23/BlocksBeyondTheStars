@@ -1129,6 +1129,11 @@ public sealed partial class GameServer
         SendSystemWeather(session); // #2173: the live weather of the system's bodies (sky bodies, maps)
         SendShipRepairStatus(session); // the repair panel follows the ship, not the last console press (#1561)
         SyncAppearance(session); // faces + body paintings both ways — appearance is per-world state (#982)
+        if (body.Id == GuardianCoreBodyId)
+        {
+            SendDuelNodeTo(session); // #2478: a duel running at the core shows its current node to whoever lands there
+        }
+
         Send(session, new ServerMessage
         {
             Text = hyperjump
@@ -3879,6 +3884,10 @@ public sealed partial class GameServer
         // #2469 (synthesis §5.7): the tutorial's UI teaching flags come from the pause menu too ("Codex" there, VEGA's
         // continue while the menu holds the world) — a flag only ticks off the sender's own lesson.
         UiTutorialEvent => true,
+        // #2478: the duel dialogue holds a singleplayer world while the core waits for an answer (like any scene that takes
+        // the camera) — the answer itself must get through. It moves the duel and, at the last node, the story (the win
+        // pacifies the machines); nothing of the frozen simulation ticks with it.
+        CoreDialogueChoiceIntent => true,
         _ => false,
     };
 

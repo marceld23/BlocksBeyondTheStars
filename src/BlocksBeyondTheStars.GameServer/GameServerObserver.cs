@@ -136,7 +136,16 @@ public sealed partial class GameServer
         BroadcastFace(session);
         SendPlayerState(session);
         Send(session, new ServerMessage { Text = "@srv.obs.off" });
+        // #2478 (E23): whoever had heard the arc out (B12) before the win counts as being there for it — read before the
+        // catch-up below hears any missed beat. An observer is not aboard at the win, so the ending (and its achievement)
+        // reaches them when observing ends.
+        bool heardFinal = FinalBeatKey is { } finalBeat && p.Milestones.Contains(finalBeat);
         CatchUpStoryLines(session); // the beats the story held back while observing (#2460, N1)
+        if (StoryTrackStarted(session))
+        {
+            DeliverResolution(session, achievement: heardFinal);
+        }
+
         TryStartStoryTrack(session); // #2470: the start rule may hold now (observers never start a track)
         CheatLog(p, "left observer mode");
     }

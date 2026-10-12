@@ -1,6 +1,6 @@
 {
   // VEGA's cutscenes (#2467; format: docs/developer/CUTSCENES.md, design: synthesis §6.3/§6.5). Ids follow synthesis §5.3
-  // (StoryCutsceneIds.Vega); the finale set pieces and the ending follow with step 17b. Listed in arc order — the Story
+  // (StoryCutsceneIds.Vega); the finale set pieces and the ending close the list (#2478). Listed in arc order — the Story
   // tab's "Watch again" keeps this order.
   //
   // The prologue "Awakening" (#2470) is the cold open of the game, bound as the pack's introCutscene: it plays once per
@@ -285,20 +285,28 @@
       "options": { "skippable": true }
     },
     {
+      // B10 "Many minds" — the one beat moment (#2478, synthesis §6.5 "T2; in MP T3"): with other players on the star map the
+      // LIVE chart names where they are while VEGA says every other spacefarer is another imprint (a short T3 on the chart:
+      // the camera is the chart, the world never holds in multiplayer, after 30 s it goes on as a card). Alone — nobody else
+      // on the map — it plays as the beat card it always was (the players anchor needs another player, like the heal tank).
+      // The other beat cards stay cards (maintainer decision (a): free input; upgrades after the playtest).
       "id": "b10",
-      "tier": 2,
+      "tier": 3,
       "chapter": "what_you_are",
       "replaceLineKeys": [ "story.vega.beat10" ],
       "shots": [
         {
           "camera": { "type": "player_view" },
+          "duration": 3.5,
+          "grade": "memory",
+          "captions": [ { "style": "title_card", "kickerKey": "story.vega.cut.remembers", "key": "story.vega.cut.b10.title", "at": 0.3 } ],
+          "sfx": [ { "cue": "chapter_sting_memory", "at": 0 } ]
+        },
+        {
+          "camera": { "type": "chart", "anchor": "players" },
           "duration": 8,
           "grade": "memory",
-          "captions": [
-            { "style": "title_card", "kickerKey": "story.vega.cut.remembers", "key": "story.vega.cut.b10.title", "at": 0.3, "hold": 3.5 },
-            { "style": "speaker", "key": "story.vega.beat10", "at": 1.2 }
-          ],
-          "sfx": [ { "cue": "chapter_sting_memory", "at": 0 } ]
+          "captions": [ { "style": "speaker", "key": "story.vega.beat10", "at": 0.4 } ]
         }
       ],
       "options": { "skippable": true }
@@ -356,6 +364,139 @@
         }
       ],
       "options": { "skippable": true, "returnOnSkip": [ "story.vega.guardian_revealed" ] }
+    },
+    {
+      // The finale set pieces (#2478, synthesis §6.5; bound in story.json's finale.cutscenes, played once per player whose
+      // story track started, never to an observer). The arrival: the flight warps into the Guardian system — a "now or never"
+      // card (no camera, free input) whose title lands as the warp clears; with danger near it is simply dropped. It chains
+      // to the descent, so landing soon after does not wait for the cooldown.
+      "id": "fin.arrival",
+      "tier": 2,
+      "chapter": "core",
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 6.5,
+          "captions": [ { "style": "title_card", "kickerKey": "story.vega.cut.arrival", "key": "story.vega.ch.core", "at": 2.8 } ],
+          "sfx": [ { "cue": "chapter_sting_reveal", "at": 2.7 } ]
+        }
+      ],
+      "options": { "skippable": true, "cooldownExempt": true, "chainNext": [ "fin.descent" ] }
+    },
+    {
+      // The descent: landing on the core world. The camera rises from the ship and flies over the one iron-ringed shaft (the
+      // server sends the shaft mouth as the core anchor; a shaft too far away to be streamed in yet shows the sky instead)
+      // while VEGA says where the chamber is — the guardian_core hint itself ("walk there, do not dig here"), kept out of
+      // the panel; a skip before it showed gives it back. Last, what sleeps below: the core diorama of chapter 3.
+      "id": "fin.descent",
+      "tier": 3,
+      "chapter": "core",
+      "replaceLineKeys": [ "vega.hint.guardian_core" ],
+      "music": "music_boss_approach",
+      "shots": [
+        {
+          "camera": { "type": "crane", "anchor": "ship" },
+          "duration": 5,
+          "sfx": [ { "cue": "anomaly_hum", "at": 0.5 } ]
+        },
+        {
+          "camera": { "type": "flyover", "anchor": "core" },
+          "duration": 10,
+          "captions": [ { "style": "speaker", "key": "vega.hint.guardian_core", "at": 0.6 } ]
+        },
+        {
+          "camera": { "type": "diorama", "anchor": "core" },
+          "duration": 5,
+          "sfx": [ { "cue": "anomaly_hum", "at": 0.3 } ]
+        }
+      ],
+      "options": { "skippable": true, "returnOnSkip": [ "vega.hint.guardian_core" ] }
+    },
+    {
+      // The breach: the hack is complete and the core wakes — for the players on the core world, a close framing of the red
+      // column in its chamber (the server sends the column as the core anchor), then the duel dialogue takes over. "Now or
+      // never": it never waits for the cooldown (the dialogue follows at once).
+      "id": "fin.breach",
+      "tier": 3,
+      "chapter": "core",
+      "music": "music_boss_dialogue",
+      "shots": [
+        {
+          "camera": { "type": "static", "anchor": "core" },
+          "duration": 7,
+          "captions": [ { "style": "title_card", "kickerKey": "story.vega.cut.breach", "key": "ui.finale.duel_title", "at": 1.2 } ],
+          "sfx": [ { "cue": "anomaly_hum", "at": 0.2 }, { "cue": "chapter_sting_reveal", "at": 1.0 } ]
+        }
+      ],
+      "options": { "skippable": true, "cooldownExempt": true }
+    },
+    {
+      // The duel elsewhere: the dialogue shows only on the core world (E28) — everyone else of the finale gets this banner.
+      "id": "fin.duel",
+      "tier": 1,
+      "chapter": "core",
+      "shots": [
+        {
+          "camera": { "type": "player_view" },
+          "duration": 4,
+          "captions": [ { "style": "title_card", "kickerKey": "ui.finale.duel_title", "key": "ui.finale.duel_begun" } ]
+        }
+      ],
+      "options": { "replayable": false }
+    },
+    {
+      // The stand-down: the duel is won. The sleeping core (the diorama) while VEGA says the machines are standing down —
+      // her line, kept out of the panel — then the own ship before a living world. Every started player gets it (at the win
+      // or, when away, at their next join), followed at once by the ending.
+      "id": "fin.standdown",
+      "tier": 4,
+      "chapter": "resolution",
+      "replaceLineKeys": [ "story.vega.finale_resolved" ],
+      "music": "music_boss_resolution",
+      "shots": [
+        {
+          "camera": { "type": "diorama", "anchor": "core" },
+          "duration": 9,
+          "captions": [ { "style": "speaker", "key": "story.vega.finale_resolved", "at": 0.8 } ],
+          "sfx": [ { "cue": "chapter_sting_reveal", "at": 0.3 } ]
+        },
+        {
+          "camera": { "type": "space_vista", "anchor": "ship" },
+          "duration": 6,
+          "captions": [ { "style": "subtitle", "key": "ui.finale.resolved", "at": 0.5 } ]
+        }
+      ],
+      "options": { "skippable": true, "chainNext": [ "resolution" ] }
+    },
+    {
+      // The ending on the director (#1124's card, credits and epilogue): the open sky under "Resolution — The VEGA Protocol",
+      // the credits rolling over a calm space vista (dimmed for reading), the epilogue in a reading frame before the own
+      // ship. Replayable from the Journal; an older client (or the built-in pack) gets the old StoryResolved ending instead —
+      // never both.
+      "id": "resolution",
+      "tier": 4,
+      "chapter": "resolution",
+      "replaceLineKeys": [ "story.vega.beat13" ],
+      "music": "music_boss_resolution",
+      "shots": [
+        {
+          "camera": { "type": "sky" },
+          "duration": 6,
+          "captions": [ { "style": "title_card", "kickerKey": "story.vega.ch.resolution", "key": "story.vega_protocol.name", "at": 0.8 } ],
+          "sfx": [ { "cue": "chapter_sting_reveal", "at": 0.5 } ]
+        },
+        {
+          "camera": { "type": "space_vista", "anchor": "planet" },
+          "duration": 26,
+          "captions": [ { "style": "credits", "key": "ui.credits.body", "at": 0.5 } ]
+        },
+        {
+          "camera": { "type": "space_vista", "anchor": "ship" },
+          "duration": 12,
+          "captions": [ { "style": "reading_frame", "kickerKey": "story.vega.epilogue.title", "key": "story.vega.beat13", "at": 0.6 } ]
+        }
+      ],
+      "options": { "skippable": true }
     }
   ]
 }

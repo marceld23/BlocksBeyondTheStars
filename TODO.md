@@ -296,7 +296,26 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   diorama anchors. Tests: Client.Tests `CutsceneCameraModesTests` (30) + updated `VegaChapterScenesClientTests`;
   `CutsceneContentTests`, `VegaChapterScenesTests`, `VegaChapterLeadsTests` (+ the space pass). Docs: CUTSCENES (camera
   reference), STORY_IMPLEMENTATION (the 1 Hz story pass).
-- ⬜ Step 17b — finale set pieces (#2478)
+- ✅ **Step 17b — finale set pieces, beat moment b10, duel dialogue, the ending on the director (#2478)**, 2026-10-12
+  (needs the local Unity build — 2 new Unity files `DuelDialogueScreen.cs`, `CutsceneDirectorDuel.cs` (+ `.meta`) and 4
+  edited): VEGA's `finale.cutscenes` (`arrival`, `descent`, `breach`, `duel`, `standdown`, `resolution`; mirrored in
+  `StoryRegistry`) — the arrival card when the flight warps into the Guardian system, the descent over the iron-ringed shaft
+  showing the `guardian_core` hint, the breach close on the red column for the core world's players (a banner for the
+  others), the stand-down over the sleeping core and the ending (card → credits → epilogue) on the director, each once per
+  started player with the catch-up for whoever missed the win; an older client keeps `StoryResolved` (never both). The duel
+  is the director's dialogue mode on the core world — the core's box ("Argument n of 4", its reply in italics), the answers
+  as its own buttons (mouse/pad/touch), never the hotbar digits (E28); step back with Esc / (B), face the core again with
+  the use key; SP holds the world, MP never. Server: answers only from the core world (B50), the current node for whoever
+  lands or relogs mid-duel, `CoreDialogueChoiceIntent` passes a held world, the machines of every loaded world stand down
+  (B51), the finale achievement once — also for an observer who had heard B12 (E23), the recap never folds the ending.
+  b10 "Many minds" became the one beat moment (the live chart with the other players' names; alone the card); the other
+  beat cards stay cards (decision (a)). Pack `speakers` (VEGA: `core`) and the anchor `players`; validators (C# + Python)
+  check finale stages, speakers, the players anchor (and allow a reading frame's kicker). Drive-by: `FinaleView`'s breach
+  hint and gauntlet banner never drew since the on-demand IMGUI (#1553). Keys en+de: pack `story.vega.cut.arrival`,
+  `story.vega.cut.breach`; core `ui.finale.duel_begun`, `ui.finale.duel_progress`, `ui.finale.duel_leave_key/_pad/_touch`,
+  `ui.finale.duel_resume`. Tests: `VegaFinaleSetPiecesTests` (16), Client.Tests `FinaleSetPiecesClientTests`; updated
+  `CutsceneContentTests`, `VegaChapterScenesTests`, `VegaStoryPackTests`, `StoryPackLoadTests`. Docs: CUTSCENES (VEGA's
+  finale), STORY_IMPLEMENTATION (finale flow), USER_MANUAL (finale scenes, duel buttons).
 - ⬜ Steps 18–21 — tutorial deep-dive chapters (#2479, #2480, #2481, #2482)
 - ⬜ Step 22 — side-story test pack + authoring guide (#2483)
 - Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text (it asked for a
@@ -317,8 +336,15 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   `gen_sound.py` if it jars), the heal-tank close-up in the starter ship and in a self-built ship (camera inside the
   medbay, never in a wall), chapter 7's chart route + ring on desktop and WebGL, the sepia memory chart in chapter 2, a
   card's speaker box while walking, an early skip of chapter 7 bringing the jump-generator line back; a parent watching
-  B6/B9 (synthesis §6.6). Deferred: the B10 multiplayer variant (17b); ~~dioramas / the drifting memory chart for chapters
-  3, 4 and 6~~ — done in 17a.
+  B6/B9 (synthesis §6.6). ~~Deferred: the B10 multiplayer variant~~ — done in 17b; ~~dioramas / the drifting memory chart
+  for chapters 3, 4 and 6~~ — done in 17a.
+- Open from step 17b: the community locales lack the eight new keys (`story.vega.cut.arrival`, `story.vega.cut.breach`,
+  `ui.finale.duel_*`). Playtest/on-device checks: the whole finale in SP and two-player MP (arrival card on the warp-in,
+  the descent's flyover from the first pad and the sky fallback from a far pad, the breach close-up in the chamber, the duel
+  dialogue — buttons by mouse, pad (UiNav + its hint strip next to "Step back") and touch, step back + E to face the core
+  again, the banner for a player elsewhere, the stand-down and the ending with the credits on the dark stage, "Watch the
+  ending again"), b10 with two players (the names on the chart), the breach hint and gauntlet banner now drawing. Not
+  built: a client-side "red light fades to warm" in the real chamber, the arrival's gauntlet variant.
 - Open from step 17a: playtest/on-device checks — chapter 3's core diorama (the red column, the halo, the rising camera),
   chapter 4's vista and chapter 6's memory chart on desktop **and** WebGL at Medium, the same three as cards on Low, a
   `space_vista` at `ship` after a first flight (the own ship's design), the world camera back to normal after each

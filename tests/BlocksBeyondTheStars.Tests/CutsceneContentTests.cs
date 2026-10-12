@@ -386,6 +386,41 @@ public sealed class CutsceneContentTests
         AssertWarning(Probe(c => c.Shots[0].Captions[0].Speaker = "vega"), "only a speaker caption");
     }
 
+    /// <summary>#2478: the finale's stages are a closed set; the pack's speakers are well-formed and a caption names a known
+    /// one; the players anchor labels the star chart only; a reading frame shows its kicker as its heading.</summary>
+    [Fact]
+    public void FinaleStages_Speakers_AndThePlayersAnchor_AreValidated()
+    {
+        Assert.Empty(Issues(Probe(editPack: d => d.Finale.Cutscenes[StoryFinaleStages.Breach] = "scene")));
+        AssertError(Probe(editPack: d => d.Finale.Cutscenes["epilogue"] = "scene"), "unknown finale stage 'epilogue'");
+
+        var core = new StoryNarrator { Id = "core", NameKey = "ui.finale.duel_title", Color = "#FF5A4A", LineStart = "anomaly_hum" };
+        Assert.Empty(Issues(Probe(c => c.Shots[0].Captions[0].Style = CutsceneCaptionStyles.Speaker, d => d.Speakers.Add(core))));
+        AssertError(Probe(editPack: d => d.Speakers.Add(new StoryNarrator { Id = "vega", NameKey = "ui.finale.duel_title" })), "used twice");
+        AssertError(Probe(editPack: d => d.Speakers.Add(new StoryNarrator { Id = "core" })), "a speaker needs a name");
+        AssertError(Probe(editPack: d => d.Speakers.Add(new StoryNarrator { Id = "core", NameKey = "ui.finale.duel_title", Color = "red" })),
+            "is not a #RRGGBB colour");
+        AssertError(Probe(editPack: d => d.Speakers.Add(new StoryNarrator { Id = "core", NameKey = "ui.finale.duel_title", LineStart = "no_such_cue" })),
+            "sound 'no_such_cue' does not exist");
+        AssertWarning(Probe(c =>
+        {
+            c.Shots[0].Captions[0].Style = CutsceneCaptionStyles.Speaker;
+            c.Shots[0].Captions[0].Speaker = "yara";
+        }), "neither the pack's narrator nor one of its speakers");
+
+        AssertError(Probe(c => c.Shots[0].Camera = new CutsceneCamera { Type = CutsceneCameras.Orbit, Anchor = CutsceneAnchors.Players }),
+            "the players anchor labels the star chart");
+        Assert.Empty(Issues(Probe(c => c.Shots[0].Camera = new CutsceneCamera { Type = CutsceneCameras.Chart, Anchor = CutsceneAnchors.Players })));
+
+        Assert.Empty(Issues(Probe(c =>
+        {
+            c.Shots[0].Captions[0].Style = CutsceneCaptionStyles.ReadingFrame;
+            c.Shots[0].Captions[0].KickerKey = "ui.story.prologue";
+        })));
+        Assert.True(StoryPackValidator.IsHexColor("#5fd8FF"));
+        Assert.False(StoryPackValidator.IsHexColor("#5FD8F"));
+    }
+
     [Fact]
     public void ChainReferences_Resolve()
     {
@@ -394,7 +429,8 @@ public sealed class CutsceneContentTests
         AssertError(Probe(c => c.Options.ChainNext.Add("scene")), "chain to itself");
         AssertError(Probe(c => c.Options.ChainNext.Add(string.Empty)), "empty chain reference");
         Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("vega_protocol/ch1.open")))); // #2474 added VEGA's chapter scenes
-        AssertError(Probe(c => c.Options.ChainNext.Add("vega_protocol/fin.arrival")), "has no cutscene 'fin.arrival'"); // step 17b
+        Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("vega_protocol/fin.arrival")))); // #2478 added the finale's scenes
+        AssertError(Probe(c => c.Options.ChainNext.Add("vega_protocol/fin.nowhere")), "has no cutscene 'fin.nowhere'");
         Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("vega_protocol/prologue"))));
         // #2469: the tutorial pack is installed, so a chain to one of its scenes must resolve — #2473 added its cards.
         Assert.Empty(Issues(Probe(c => c.Options.ChainNext.Add("tutorial/tut.welcome"))));

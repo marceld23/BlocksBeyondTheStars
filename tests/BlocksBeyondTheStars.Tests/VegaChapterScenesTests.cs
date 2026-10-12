@@ -201,6 +201,9 @@ public sealed class VegaChapterScenesTests : IDisposable
 
     private StoryBeat BeatDef(int n) => Vega.Beats.Single(b => b.Index == n);
 
+    /// <summary>#2478: a scene bound to a finale stage (the arrival … the ending) — not one of the arc's chapter or beat scenes.</summary>
+    private bool IsFinaleScene(string id) => Vega.Finale.Cutscenes.ContainsValue(id);
+
     // Milestones (×2 points each) the world needs to reach a beat's threshold at Normal density.
     private const int ToB1 = 3;
     private const int ToB3 = 12;
@@ -246,7 +249,9 @@ public sealed class VegaChapterScenesTests : IDisposable
     [Fact]
     public void TheTiers_FollowDecisionA_CardsKeepTheInputFree_AndOnlyTheBigScenesTakeTheCamera()
     {
-        foreach (string id in new[] { "ch1.open" }.Concat(BeatCards))
+        // #2478: b10 is the one beat moment (the live chart of the other players in multiplayer; a card alone) — see
+        // VegaFinaleSetPiecesTests. Every other beat stays a card.
+        foreach (string id in new[] { "ch1.open" }.Concat(BeatCards.Where(b => b != "b10")))
         {
             var card = Scene(id);
             Assert.Equal(CutsceneTiers.Card, card.Tier);
@@ -288,10 +293,15 @@ public sealed class VegaChapterScenesTests : IDisposable
                                         && s.Captions.Any(c => c.Key == "story.vega.guardian_revealed"));
         Assert.True(ch7.EffectiveHoldWorld); // a singleplayer world holds while its camera is taken (never in MP — the client)
 
-        // Beats fire on score, not on a place: every camera is place-neutral (a synthetic stage always is, #2477) or anchored
-        // to the player's own ship.
-        var placeNeutral = new[] { CutsceneAnchors.Player, CutsceneAnchors.Ship, CutsceneAnchors.HealTank, CutsceneAnchors.StarMap, CutsceneAnchors.Core };
-        foreach (var scene in Vega.Cutscenes.Where(c => c.Id != StoryCutsceneIds.Prologue))
+        // Beats fire on score, not on a place: every camera is place-neutral (a synthetic stage always is, #2477; the other
+        // players on the chart, #2478) or anchored to the player's own ship. (The finale's set pieces have places of their
+        // own — VegaFinaleSetPiecesTests.)
+        var placeNeutral = new[]
+        {
+            CutsceneAnchors.Player, CutsceneAnchors.Ship, CutsceneAnchors.HealTank, CutsceneAnchors.StarMap, CutsceneAnchors.Core,
+            CutsceneAnchors.Players,
+        };
+        foreach (var scene in Vega.Cutscenes.Where(c => c.Id != StoryCutsceneIds.Prologue && !IsFinaleScene(c.Id)))
         {
             Assert.All(scene.Shots.Where(s => !CutsceneCameras.IsSynthetic(s.Camera.Type)),
                 s => Assert.Contains(string.IsNullOrEmpty(s.Camera.Anchor) ? CutsceneAnchors.Player : s.Camera.Anchor, placeNeutral));
@@ -329,7 +339,7 @@ public sealed class VegaChapterScenesTests : IDisposable
     public void EveryCaption_ReusesTheBeatsOwnText_AndKeepsItOutOfThePanel_SoNothingIsReadTwice()
     {
         var beatKeys = Vega.Beats.Select(b => b.TextKey).ToHashSet();
-        foreach (var scene in Vega.Cutscenes.Where(c => c.Id != StoryCutsceneIds.Prologue))
+        foreach (var scene in Vega.Cutscenes.Where(c => c.Id != StoryCutsceneIds.Prologue && !IsFinaleScene(c.Id)))
         {
             foreach (var caption in scene.Shots.SelectMany(s => s.Captions))
             {

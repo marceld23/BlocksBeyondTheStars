@@ -18,8 +18,9 @@ marker providers, legacy keys (tutorial only), alternatives, a world chapter's s
 chapter's, a title, feasibility, an alternative of the same chapter, do steps with a chip text without a {0}, lead
 bridges naming a lead a player can follow), a tutorial pays no rewards, every locale key exists in
 English and German (pack table or base table), every cutscene binding resolves in the pack's cutscenes.json (#2467),
-every cutscene follows the rules (ids, tier 1-4, cameras, anchors (a diorama shows core or star_map, #2477), caption
-styles, grades, shot lengths, a T1/T2 never
+every finale stage is a known one and its speakers are well-formed (#2478: ids, a name, a #RRGGBB colour, a sound that
+exists), every cutscene follows the rules (ids, tier 1-4, cameras, anchors (a diorama shows core or star_map, #2477;
+the players anchor only on a chart, #2478), caption styles, grades, shot lengths, a T1/T2 never
 takes the camera, only a T3/T4 that takes it may hold the world or freeze the controls, chainNext references, chapters,
 music in client/Music and sounds in client/Assets/Resources/audio, caption budgets: subtitle/speaker 220 EN / 264 DE,
 title card 60 / 72, reading frame 600 / 720), the short name fits (<= 10 characters) and the text budget
@@ -65,8 +66,10 @@ CAMERAS = [
     "dolly", "pan", "flyover", "space_vista", "diorama",  # #2477: moves and synthetic stages
 ]
 NON_TAKEOVER_CAMERAS = {"player_view", "overlay"}
-ANCHORS = ["player", "ship", "planet", "station", "star_map", "heal_tank", "core", "custom"]
+ANCHORS = ["player", "ship", "planet", "station", "star_map", "heal_tank", "core", "custom", "players"]
 DIORAMA_ANCHORS = ["core", "star_map"]  # #2477: what a diorama can show
+# #2478: the finale stages a world pack binds a scene to (StoryFinaleStages).
+FINALE_STAGES = ["arrival", "descent", "breach", "duel", "standdown", "resolution"]
 CAPTION_STYLES = ["subtitle", "title_card", "speaker", "reading_frame", "credits"]
 GRADES = ["none", "memory", "flashback"]
 # #2475: the chapter-lead vocabulary v1 (StoryLeadTypes) - the words, the ones that need an argument, the unique sites.
@@ -105,7 +108,7 @@ KNOWN_FIELDS = {
         "killWeight", "milestoneWeight", "killContributionCap", "beats", "fragments", "memories", "coreArguments",
         "flavourLines", "missionThreads", "loreSites", "npcThreads", "characters", "dialogs", "epilogueTitle",
         "epilogueTitleKey", "epilogueTextKey", "graduation", "leadBonusMilestones", "normaliseUnavailableDrivers",
-        "memoryTriggers",
+        "memoryTriggers", "speakers",
     },
     "graduation": {"lineKey", "counter", "suggest", "cutscene"},
     "narrator": {"id", "nameKey", "icon", "color", "voice", "lineStart"},
@@ -589,6 +592,29 @@ class Validator:
         key("nameKey", pack.get("nameKey"))
         key("descriptionKey", pack.get("descriptionKey"))
         key("narrator.nameKey", (pack.get("narrator") or {}).get("nameKey"))
+        # #2478: the pack's other voices (a caption's speaker, the finale's duel dialogue).
+        speaker_ids = {(pack.get("narrator") or {}).get("id") or "vega"}
+        audio_dir = self.data.parent / "client" / "Assets" / "Resources" / "audio"
+        for si, speaker in enumerate(pack.get("speakers") or []):
+            sp = f"speakers[{si}]"
+            self.unknown_fields(pid, sp, speaker, "narrator")
+            if not isinstance(speaker, dict):
+                r.error(pid, sp, "expected an object")
+                continue
+            sid = speaker.get("id") or ""
+            if not is_key_safe(sid) or sid in speaker_ids:
+                r.error(pid, sp, f"speaker id '{sid}' is empty, not key-safe or used twice (the narrator's id included)")
+                continue
+            speaker_ids.add(sid)
+            if not speaker.get("nameKey"):
+                r.error(pid, f"{sp}.nameKey", "a speaker needs a name (a locale key)")
+            key(f"{sp}.nameKey", speaker.get("nameKey"))
+            color = speaker.get("color") or ""
+            if color and not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
+                r.error(pid, f"{sp}.color", f"'{color}' is not a #RRGGBB colour")
+            cue = speaker.get("lineStart") or ""
+            if cue and audio_dir.exists() and not any(p.suffix != ".meta" for p in audio_dir.glob(f"{cue}.*")):
+                r.error(pid, f"{sp}.lineStart", f"sound '{cue}' does not exist in client/Assets/Resources/audio")
         key("epilogueTitleKey", pack.get("epilogueTitleKey"))
         key("epilogueTextKey", pack.get("epilogueTextKey"))
         if pack.get("shortNameKey"):
@@ -623,6 +649,9 @@ class Validator:
         for i, beat in enumerate(beats):
             cutscene(f"beats[{i}].cutscene", beat.get("cutscene"))
         for stage, value in ((pack.get("finale") or {}).get("cutscenes") or {}).items():
+            # #2478: the finale code plays exactly these stages - another name would never play.
+            if stage not in FINALE_STAGES:
+                r.error(pid, f"finale.cutscenes.{stage}", f"unknown finale stage '{stage}' ({', '.join(FINALE_STAGES)})")
             cutscene(f"finale.cutscenes.{stage}", value)
 
         chapter_ids: set[str] = set()
@@ -833,7 +862,7 @@ class Validator:
             check_steps(cp, "chapter", cid, steps, line_budget, False)
             check_missions(cp, chapter)
 
-        self.validate_cutscenes(pid, cutscene_defs, chapter_ids, key)
+        self.validate_cutscenes(pid, cutscene_defs, chapter_ids, key, speaker_ids)
 
         # #2469: the graduation (a player pack finished by playing).
         graduation = pack.get("graduation") or {}
@@ -942,10 +971,11 @@ class Validator:
             return None
         return {c.get("id") for c in self.load_cutscenes(folders[0]) if isinstance(c, dict) and c.get("id")}
 
-    def validate_cutscenes(self, pid: str, defs: list, chapter_ids: set[str], key) -> None:
+    def validate_cutscenes(self, pid: str, defs: list, chapter_ids: set[str], key, speaker_ids: set | None = None) -> None:
         """The cutscene rules of the C# StoryPackValidator (synthesis 6.2/6.3): ids, tiers, cameras, anchors, caption styles,
         grades, shot lengths, caption/cue times, caption keys and budgets, the tier rules (a T1/T2 never takes the camera;
-        only a T3/T4 that takes it may hold the world or freeze the controls), chains, chapters, music and sounds."""
+        only a T3/T4 that takes it may hold the world or freeze the controls), chains, chapters, music and sounds; #2478 the
+        players anchor only on a chart, a caption's speaker the narrator or one of the pack's speakers (a warning)."""
         r = self.report
         repo = self.data.parent
         music_dir = repo / "client" / "Music"
@@ -1005,6 +1035,8 @@ class Validator:
                     r.error(pid, f"{sp}.camera.anchor", f"unknown anchor '{anchor}' ({', '.join(ANCHORS)})")
                 elif ctype == "diorama" and anchor not in DIORAMA_ANCHORS:
                     r.error(pid, f"{sp}.camera.anchor", f"a diorama shows {' or '.join(DIORAMA_ANCHORS)} (found '{anchor}')")
+                elif anchor == "players" and ctype != "chart":
+                    r.error(pid, f"{sp}.camera.anchor", "the players anchor labels the star chart - it needs a chart camera")
                 duration = shot.get("duration", 0)
                 if not isinstance(duration, (int, float)) or not 0 < duration <= SHOT_MAX_SECONDS:
                     r.error(pid, f"{sp}.duration", f"a shot lasts more than 0 and at most {SHOT_MAX_SECONDS} seconds (found {duration})")
@@ -1036,11 +1068,15 @@ class Validator:
                     budget = {"title_card": TITLE_CARD, "reading_frame": READING_FRAME, "credits": (0, 0)}.get(style, CAPTION_LINE)
                     key(f"{kp}.key", caption.get("key"), budget)
                     if caption.get("kickerKey"):
-                        if style != "title_card":
-                            r.warn(pid, f"{kp}.kickerKey", "only a title_card shows a kicker")
+                        # #2478: a reading frame shows its kicker as the heading (the recap, the epilogue's title).
+                        if style not in ("title_card", "reading_frame"):
+                            r.warn(pid, f"{kp}.kickerKey", "only a title_card or a reading_frame shows a kicker")
                         key(f"{kp}.kickerKey", caption.get("kickerKey"), TITLE_CARD)
                     if caption.get("speaker") and style != "speaker":
                         r.warn(pid, f"{kp}.speaker", "only a speaker caption names a speaker")
+                    elif caption.get("speaker") and speaker_ids is not None and caption.get("speaker") not in speaker_ids:
+                        r.warn(pid, f"{kp}.speaker",
+                               f"speaker '{caption.get('speaker')}' is neither the pack's narrator nor one of its speakers")
                     at = caption.get("at", 0)
                     if at < 0 or (duration > 0 and at >= duration):
                         r.error(pid, f"{kp}.at", f"the caption at {at} s lies outside the {duration} s shot")

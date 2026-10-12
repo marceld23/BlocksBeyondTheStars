@@ -11,12 +11,16 @@ namespace BlocksBeyondTheStars.Client
     /// Guardian gauntlet and landed on the Guardian Core, they <b>hack</b> it open — holding the breach key
     /// channels <see cref="CoreHackIntent"/> ticks; the server replies with <see cref="CoreHackProgress"/>,
     /// shown as a bar — and then win the <b>argument duel</b>: the core states its logic
-    /// (<see cref="CoreDialogueMessage"/>) and the player answers with a number key, sending
-    /// <see cref="CoreDialogueChoiceIntent"/>. A correct contradiction advances; the wrong ones are dismissed.
-    /// Clearing the last node powers the core down (pacification).
-    ///
-    /// Drawn with IMGUI (like the other HUD overlays) and driven entirely by keyboard, so it needs no Canvas
-    /// wiring and never fights the first-person cursor lock. All text is localized (bilingual DE+EN).
+    /// (<see cref="CoreDialogueMessage"/>) and the player answers, sending <see cref="CoreDialogueChoiceIntent"/>.
+    /// A correct contradiction advances; the wrong ones are dismissed. Clearing the last node powers the core down.
+    /// <para>
+    /// #2478 (E28): the duel itself is the cutscene director's dialogue mode now (<see cref="CutsceneDirector"/>,
+    /// <see cref="DuelDialogueScreen"/>) — shown only on the core world, the answers on its own buttons. The IMGUI duel box and
+    /// its number keys are gone: the digits were the hotbar's, and players anywhere picked answers by accident. This view keeps
+    /// the duel's state for the music, the hack bar, the gauntlet banner, the breach hint and — when the player stepped back
+    /// from the dialogue — the hint to face the core again (the use control).
+    /// </para>
+    /// Drawn with IMGUI (like the other HUD overlays), so it needs no Canvas wiring. All text is localized (bilingual DE+EN).
     /// </summary>
     public sealed class FinaleView : MonoBehaviour
     {
@@ -46,18 +50,14 @@ namespace BlocksBeyondTheStars.Client
         private bool _hacked;
         private float _hackBarVisibleUntil;
 
-        // Argument duel.
+        // Argument duel (its state; the dialogue is the director's, #2478).
         private bool _duelActive;
-        private int _duelNode;
-        private string _promptKey = string.Empty;
-        private string[] _choiceKeys = System.Array.Empty<string>();
-        private string _responseKey = string.Empty;
 
         // Resolution flash after the duel is won.
         private bool _won;
         private float _resolveVisibleUntil;
 
-        private GUIStyle _box, _title, _body, _choice, _hint, _bar, _barFill;
+        private GUIStyle _box, _title, _body, _hint, _bar, _barFill;
 
         /// <summary>On the finale body, on foot. #1831: judged by the location id first — <c>JoinAccepted</c> names the
         /// system too, but only <c>WorldReset</c> ever reached <see cref="_systemName"/>, so a save joined while
@@ -67,6 +67,14 @@ namespace BlocksBeyondTheStars.Client
             => !(Game?.SpaceViewActive ?? false)
                && ((Game?.StarMap?.ActiveLocationId is { } here && here.StartsWith("guardian_finale", System.StringComparison.Ordinal))
                    || string.Equals(_systemName, GuardianSystemName, System.StringComparison.Ordinal));
+
+        /// <summary>#2478: the player stands on the Guardian core world (the duel's dialogue and its music belong there).</summary>
+        public bool OnCoreWorld => OnGuardianWorld;
+
+        /// <summary>#2478: the player stepped back from the duel dialogue and may face the core again here.</summary>
+        private bool DuelResumeHint
+            => _duelActive && FinaleActive && CutsceneDirector.Instance != null && CutsceneDirector.Instance.DuelResumable;
+
         private bool FinaleActive => Game?.Story != null && Game.Story.GuardianSystemRevealed && !Game.Story.GuardianDefeated;
 
         /// <summary>True while holding the breach control would do something: finale live, on the Guardian
@@ -78,18 +86,25 @@ namespace BlocksBeyondTheStars.Client
         private void Awake()
         {
             Instance = this;
-            _overlay = ImguiOverlay.Attach(gameObject, DrawOverlay, repaintOnly: false); // the duel has buttons
+            _overlay = ImguiOverlay.Attach(gameObject, DrawOverlay, repaintOnly: true); // labels only — the duel's buttons are the director's (#2478)
         }
 
         private void LateUpdate()
         {
-            // IMGUI draws above every canvas, so the overlay steps aside under any cutscene (#2461) — the duel and the
-            // banners come back the moment it ends.
-            _overlay.Sync((_duelActive
-                           || (_won && Time.time < _resolveVisibleUntil)
-                           || Time.time < _hackBarVisibleUntil)
-                          && !GameBootstrap.CutsceneActive);
+            // IMGUI draws above every canvas, so the overlay steps aside under any cutscene (#2461) — the banners come back
+            // the moment it ends. #2478: the gauntlet banner and the breach hint are things to show too — since the overlay
+            // became on-demand (#1553) they only drew while the hack bar happened to be up.
+            _overlay.Sync(WantsOverlay() && !GameBootstrap.CutsceneActive);
         }
+
+        /// <summary>Whether anything of the overlay has something to show: the won banner, the hack bar, the resume hint, the
+        /// breach hint on the core world, the gauntlet banner in the finale's flight.</summary>
+        private bool WantsOverlay()
+            => (_won && Time.time < _resolveVisibleUntil && !CutsceneDirector.HoldsScreen)
+               || Time.time < _hackBarVisibleUntil
+               || DuelResumeHint
+               || (FinaleActive && OnGuardianWorld && !_hacked)
+               || InGauntlet(out _);
 
         private void Update()
         {
@@ -120,17 +135,11 @@ namespace BlocksBeyondTheStars.Client
                 _hackTickTimer = HackTickInterval; // primed so the first hold fires immediately
             }
 
-            // Duel: a number key picks the matching rebuttal.
-            if (_duelActive && _choiceKeys.Length > 0)
+            // #2478: the duel's answers are the dialogue's own buttons (never the hotbar digits, E28). A player who stepped
+            // back faces the core again with the use control near it.
+            if (DuelResumeHint && !GameBootstrap.CutsceneActive && !Game.MenuOpen && InputMap.Down(InputAction.Interact))
             {
-                for (int i = 0; i < _choiceKeys.Length && i < 9; i++)
-                {
-                    if (Input.GetKeyDown(KeyCode.Alpha1 + i) || Input.GetKeyDown(KeyCode.Keypad1 + i))
-                    {
-                        Game.Network.SendCoreDialogueChoice(i);
-                        break;
-                    }
-                }
+                CutsceneDirector.Instance.ResumeDuel();
             }
         }
 
@@ -146,7 +155,11 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDialogue(CoreDialogueMessage m)
         {
-            _responseKey = m.ResponseKey ?? string.Empty;
+            if (m == null)
+            {
+                return;
+            }
+
             if (m.Won)
             {
                 _duelActive = false;
@@ -155,10 +168,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _duelActive = true;
-            _duelNode = m.Node;
-            _promptKey = m.PromptKey ?? string.Empty;
-            _choiceKeys = m.ChoiceKeys ?? System.Array.Empty<string>();
+            _duelActive = true; // the dialogue itself is the director's (#2478)
         }
 
         private void OnSystemRevealed(GuardianSystemRevealed m)
@@ -182,19 +192,20 @@ namespace BlocksBeyondTheStars.Client
         {
             EnsureStyles();
 
-            if (_duelActive)
-            {
-                DrawDuel();
-            }
-            else if (_won && Time.time < _resolveVisibleUntil && !(ResolutionCinematic.Instance?.Playing ?? false))
+            if (_won && Time.time < _resolveVisibleUntil && !(ResolutionCinematic.Instance?.Playing ?? false) && !CutsceneDirector.HoldsScreen)
             {
                 // IMGUI draws above every canvas, so the banner must yield while the resolution
-                // cinematic (#1124) is on screen — it says the same thing, bigger.
+                // cinematic (#1124) or the director's stand-down card (#2478) is on screen — it says the same thing, bigger.
                 DrawCentredBanner(L("ui.finale.resolved", "The Guardian core powers down. The galaxy is at peace."));
             }
             else if (Time.time < _hackBarVisibleUntil)
             {
                 DrawHackBar();
+            }
+            else if (DuelResumeHint)
+            {
+                // #2478: the player stepped back from the duel dialogue — the use control faces the core again.
+                DrawHint(HudUi.ExpandKeyTokens(Game?.Localizer, L("ui.finale.duel_resume", "Press {key:Interact} to answer the Guardian core")));
             }
             else if (InGauntlet(out int hostiles))
             {
@@ -284,48 +295,6 @@ namespace BlocksBeyondTheStars.Client
             GUI.Label(new Rect(r.x + 24f, r.y + 18f, r.width - 48f, r.height - 36f), text, _title);
         }
 
-        private void DrawDuel()
-        {
-            float w = Mathf.Min(860f, Screen.width * 0.74f);
-            float h = Mathf.Min(440f, Screen.height * 0.66f);
-            var r = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
-            GUI.Box(r, GUIContent.none, _box);
-
-            float pad = 26f;
-            float cx = r.x + pad, cw = r.width - pad * 2f;
-            float cy = r.y + pad;
-
-            GUI.Label(new Rect(cx, cy, cw, 24f), L("ui.finale.duel_title", "The Guardian Core"), _title);
-            cy += 34f;
-
-            // The core's statement.
-            string prompt = L(_promptKey, _promptKey);
-            float promptH = _body.CalcHeight(new GUIContent(prompt), cw);
-            GUI.Label(new Rect(cx, cy, cw, promptH), prompt, _body);
-            cy += promptH + 10f;
-
-            // Its reaction to the previous (wrong) pick, if any.
-            if (!string.IsNullOrEmpty(_responseKey))
-            {
-                string resp = L(_responseKey, _responseKey);
-                float respH = _body.CalcHeight(new GUIContent(resp), cw);
-                GUI.Label(new Rect(cx, cy, cw, respH), resp, _body);
-                cy += respH + 12f;
-            }
-
-            // Numbered rebuttals.
-            for (int i = 0; i < _choiceKeys.Length; i++)
-            {
-                string line = $"{i + 1})  {L(_choiceKeys[i], _choiceKeys[i])}";
-                float ch = _choice.CalcHeight(new GUIContent(line), cw);
-                if (GUI.Button(new Rect(cx, cy, cw, ch + 8f), line, _choice))
-                {
-                    Game.Network.SendCoreDialogueChoice(i);
-                }
-                cy += ch + 14f;
-            }
-        }
-
         private void EnsureStyles()
         {
             if (_box != null)
@@ -355,10 +324,6 @@ namespace BlocksBeyondTheStars.Client
 
             _body = new GUIStyle(GUI.skin.label) { fontSize = 15, wordWrap = true };
             _body.normal.textColor = new Color(0.88f, 0.92f, 0.97f);
-
-            _choice = new GUIStyle(GUI.skin.button) { fontSize = 15, wordWrap = true, alignment = TextAnchor.MiddleLeft };
-            _choice.normal.textColor = new Color(0.92f, 0.96f, 1f);
-            _choice.padding = new RectOffset(12, 12, 8, 8);
 
             _hint = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
             _hint.normal.textColor = new Color(1f, 0.6f, 0.5f);

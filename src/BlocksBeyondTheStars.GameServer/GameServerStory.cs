@@ -347,6 +347,7 @@ public sealed partial class GameServer
 
         CatchUpStoryLines(session);
         SendStoryResolvedOnJoinIfMissed(session); // #1124: the ending, for whoever heard the arc out but missed the win
+        SendDuelNodeTo(session); // #2478: a player who relogged mid-duel sees its current node again
     }
 
     /// <summary>Catches a player up on the world's story lines they have not heard: every revealed beat and, while
@@ -631,7 +632,9 @@ public sealed partial class GameServer
     // ---------------- Finale pacification (P6) ----------------
 
     /// <summary>Finale win: the Guardian core is shut down — pacify the galaxy. One-way per-save: despawns the
-    /// live planet machines on the active world (the dramatic beat), persists, and broadcasts. The game continues
+    /// live planet machines on every loaded world (the dramatic beat — "across every world the machines stand down"; #2478,
+    /// B51: it used to clear only the active world cursor, so the machines of a friend's world kept hunting until the
+    /// Remnant rules thinned them out), persists, and broadcasts. The game continues
     /// afterwards under the Remnant Protocol (#1206, see <c>RemnantEra</c>): the flag no longer switches every
     /// spawn off — the planet cap halves, refills slow down, only scan-drones remain, space waves keep only
     /// pirate havens / the frontier-danger tier, bandit ships keep only their havens.</summary>
@@ -643,8 +646,16 @@ public sealed partial class GameServer
         }
 
         _storyState.GuardianDefeated = true;
-        _planetEnemies.Clear();   // despawn live planet machines on the active world
-        BroadcastPlanetEnemies();
+        foreach (var world in _worlds.Loaded)
+        {
+            if (world.PlanetEnemies.Count > 0)
+            {
+                world.PlanetEnemies.Clear(); // despawn the live planet machines of this world
+                world.EnemyListDirty = true; // its players get the empty list at the end of its next tick (#1530)
+            }
+        }
+
+        BroadcastPlanetEnemies(); // the active world's list goes out either way (as before)
         PersistStoryState();
         BroadcastStoryState();
     }

@@ -88,6 +88,9 @@ public class StoryPackLoadTests
         Assert.Equal(builtin.Scope, data.Scope);
         Assert.Equal(builtin.Finale.Type, data.Finale.Type);
         Assert.Equal(builtin.Finale.Cutscenes, data.Finale.Cutscenes);
+        // #2478: the finale's voices (the Guardian core in the duel dialogue).
+        Assert.Equal(builtin.Speakers.Select(s => (s.Id, s.NameKey, s.Icon, s.Color, s.LineStart)),
+            data.Speakers.Select(s => (s.Id, s.NameKey, s.Icon, s.Color, s.LineStart)));
         Assert.Equal(builtin.Graduation.LineKey, data.Graduation.LineKey); // #2469
         Assert.Equal(builtin.Graduation.Counter, data.Graduation.Counter);
         Assert.Equal(builtin.Graduation.Suggest, data.Graduation.Suggest);

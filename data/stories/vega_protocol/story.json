@@ -14,11 +14,26 @@
     "id": "vega", "nameKey": "ui.vega.name", "icon": "icon_vega", "color": "#5FD8FF",
     "voice": [ "vega_chatter_1", "vega_chatter_2", "vega_chatter_3" ], "lineStart": "ai_blip"
   },
+  // #2478: the pack's other voice — the Guardian core in the duel dialogue (red, the anomaly's hum when it speaks).
+  "speakers": [
+    { "id": "core", "nameKey": "ui.finale.duel_title", "color": "#FF5A4A", "lineStart": "anomaly_hum" }
+  ],
   "introCutscene": "prologue",
+  // #2478: the finale set pieces (cutscenes.json), each played once per player whose story track started: the arrival card
+  // when the flight enters the Guardian system, the descent when landing on the core world (it shows the guardian_core hint),
+  // the breach when the hack completes (on the core world; elsewhere the duel banner), the stand-down when the duel is won
+  // (owed to whoever missed it) and the ending on the director (an older client gets StoryResolved instead).
+  "finale": {
+    "type": "guardian_core",
+    "cutscenes": {
+      "arrival": "fin.arrival", "descent": "fin.descent", "breach": "fin.breach", "duel": "fin.duel",
+      "standdown": "fin.standdown", "resolution": "resolution"
+    }
+  },
   "start": { "after": [ "chapter:tutorial:b6" ], "earlyOptIn": true },
   "chapters": [
     // #2474: every chapter of the arc opens with its scene (cutscenes.json): at the beat that starts it, and once for the
-    // player's current chapter at their story-track start. The resolution's scene comes with the finale (step 17b).
+    // player's current chapter at their story-track start. The resolution's scene is the finale's (finale.cutscenes).
     // #2475: the chapter leads (synthesis §4.7/§4.8, option O2) — the compass on VEGA's chip and the Journal's tasks; the
     // score stays the clock (a lead never holds a beat back). Per player: the first open lead that is feasible here; when none
     // is, a fragment on this world, then a settlement job, then "explore". The first lead anyone follows in a chapter pays

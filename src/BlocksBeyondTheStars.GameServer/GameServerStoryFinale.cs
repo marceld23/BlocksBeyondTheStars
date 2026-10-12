@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.Story;
@@ -240,7 +241,7 @@ public sealed partial class GameServer
             surfaceY = 64; // the finale core must bury cleanly even over low terrain
         }
 
-        int floorY = surfaceY - 24;
+        int floorY = surfaceY - (CoreShaftDepth + 1); // 24 down; the column's floor cell (the centre) 23 below the surface
         aw.CoreChamberCenter = new Vector3i(ax, floorY + 1, az);
         aw.HasCoreChamber = true;
 
@@ -313,7 +314,7 @@ public sealed partial class GameServer
 
         // Route A — the aperture: a 3×3 open shaft from the surface down into the chamber, offset toward the
         // +Z wall so you drop onto open floor (not onto the core) and walk in to the heart.
-        int shaftZ = az + 3;
+        int shaftZ = az + CoreShaftOffsetZ;
         for (int dy = floorY + 6; dy <= surfaceY + 1; dy++)
             for (int dx = -1; dx <= 1; dx++)
                 for (int dz = -1; dz <= 1; dz++)
@@ -471,7 +472,9 @@ public sealed partial class GameServer
 
     // ---------------- Stage 4: the argument duel ----------------
 
-    /// <summary>Opens the duel at the first node (or wins immediately if the pack scripts no duel).</summary>
+    /// <summary>Opens the duel at the first node (or wins immediately if the pack scripts no duel). #2478: before the first
+    /// node, the finale's players get their scene — the breach (the core wakes, framed in its chamber) on the core world,
+    /// the duel banner everywhere else (the dialogue itself shows only on the core world).</summary>
     private void BeginCoreDuel()
     {
         _duelNode = 0;
@@ -481,15 +484,30 @@ public sealed partial class GameServer
             return;
         }
 
+        var column = CoreColumnAnchor();
+        foreach (var session in _sessions.Values.Where(s => s.Joined && !s.Spectating && InFinaleAudience(s)).ToList())
+        {
+            if (OnGuardianCoreWorld(session))
+            {
+                PlayFinaleCutscene(session, StoryFinaleStages.Breach, column);
+            }
+            else
+            {
+                PlayFinaleCutscene(session, StoryFinaleStages.Duel);
+            }
+        }
+
         BroadcastDuelNode(string.Empty);
     }
 
     /// <summary>Handles a rebuttal pick (P6 stage 4). A correct (contradiction) choice advances the duel — and,
     /// at the last node, shuts the core down; a wrong choice is dismissed and the same node is re-presented.
-    /// The duel cannot be lost, only stalled (weapons can't end the core — only its own contradiction can).</summary>
+    /// The duel cannot be lost, only stalled (weapons can't end the core — only its own contradiction can). #2478 (B50,
+    /// E28): only a player standing on the core world answers — the dialogue shows only there, and a pick from anywhere
+    /// else (an older client's number keys, a player at the other end of the galaxy) is dropped.</summary>
     private void HandleCoreDialogueChoice(PlayerSession session, CoreDialogueChoiceIntent intent)
     {
-        if (!StoryActive || !_coreHacked || _storyState.GuardianDefeated || _story is null)
+        if (!StoryActive || !_coreHacked || _storyState.GuardianDefeated || _story is null || !OnGuardianCoreWorld(session))
         {
             return;
         }
@@ -523,10 +541,12 @@ public sealed partial class GameServer
         BroadcastDuelNode(choice.ResponseKey);
     }
 
-    /// <summary>The core is argued into shutdown: speak the resolution line, broadcast the won-duel message and
-    /// pacify the galaxy (<see cref="MarkGuardianDefeated"/>). One-way per save. Since #2470 the lines and the cinematic
+    /// <summary>The core is argued into shutdown: broadcast the won-duel message, pacify the galaxy
+    /// (<see cref="MarkGuardianDefeated"/>) and deliver the ending. One-way per save. Since #2470 the lines and the cinematic
     /// go to players whose story track has started; for the others (a newcomer still in the basic training) the ending
-    /// waits for their track start. The achievement is everyone's aboard, as before.</summary>
+    /// waits for their track start. The achievement is everyone's aboard, as before. #2478: a client that plays cutscenes
+    /// gets the stand-down set piece (VEGA's resolution line) and the ending on the director instead of the old cinematic
+    /// (<see cref="DeliverResolution"/>).</summary>
     private void WinDuel(string finalResponseKey = "")
     {
         if (_storyState.GuardianDefeated)
@@ -534,26 +554,35 @@ public sealed partial class GameServer
             return;
         }
 
-        BroadcastToFinaleAudience(new CoreDialogueMessage { Node = _duelNode, ResponseKey = finalResponseKey, Won = true });
-        SpeakStoryLineToStarted(FinaleResolvedLine);
+        BroadcastToFinaleAudience(new CoreDialogueMessage
+        {
+            Node = _duelNode,
+            NodeCount = _story?.CoreArguments.Count ?? 0,
+            ResponseKey = finalResponseKey,
+            Won = true,
+        });
         MarkGuardianDefeated();
 
-        // The epilogue (#1124) enters the story log like a beat — the handover to what starts AFTER the
-        // story — and the resolution cinematic plays for everyone aboard. Latecomers catch up on join.
-        if (_story is not null && !string.IsNullOrEmpty(_story.EpilogueTextKey))
-        {
-            SpeakStoryLineToStarted(_story.EpilogueTextKey);
-        }
-
         // Everyone aboard for the resolution earns the finale achievement — the arc is shared, so is the win (#1102).
-        // An invisible observer is not aboard (#2460, N1).
-        foreach (var session in StoryListeners())
+        // An invisible observer is not aboard (#2460, N1). The resolution line, the ending and — live only — the epilogue,
+        // which enters the story log like a beat (#1124), go to whoever's story track has started.
+        foreach (var session in StoryListeners().ToList())
         {
-            OnAchievementStoryFinale(session);
+            GrantFinaleAchievement(session);
             if (StoryTrackStarted(session))
             {
-                SendStoryResolved(session); // #1124: resolution screen + credits + epilogue
+                DeliverResolution(session, achievement: false, live: true);
             }
+        }
+    }
+
+    /// <summary>The finale achievement, once per player (#1102; E23: also for whoever heard the arc out but missed the win —
+    /// the counter guards against a second count when both paths meet).</summary>
+    private void GrantFinaleAchievement(PlayerSession session)
+    {
+        if (!session.State.AchievementCounters.TryGetValue(AchievementCounters.StoryFinale, out int counted) || counted <= 0)
+        {
+            OnAchievementStoryFinale(session);
         }
     }
 
@@ -565,7 +594,18 @@ public sealed partial class GameServer
     /// <summary>The player watched the ending (#2470, gap of #2460): the cutscene ledger's key of the ending
     /// (<c>story:&lt;id&gt;:cut:resolution</c>) — stamped whenever the cinematic is sent; an ending owed to a player whose
     /// track starts late plays at that start.</summary>
-    private string ResolutionWatchedKey => StoryPackKeys.CutsceneSeen(_story?.Id ?? StoryRegistry.NoneStoryId, StoryCutsceneIds.Resolution);
+    private string ResolutionWatchedKey => StoryPackKeys.CutsceneSeen(_story?.Id ?? StoryRegistry.NoneStoryId, ResolutionLedgerId);
+
+    /// <summary>#2478: the ending's ledger id — the scene the pack binds to <see cref="StoryFinaleStages.Resolution"/>, else
+    /// <see cref="StoryCutsceneIds.Resolution"/> (VEGA binds exactly that, so the key of #2470 stays the same).</summary>
+    private string ResolutionLedgerId
+    {
+        get
+        {
+            string bound = FinaleCutsceneId(StoryFinaleStages.Resolution);
+            return bound.Length > 0 ? bound : StoryCutsceneIds.Resolution;
+        }
+    }
 
     /// <summary>The per-player key of the arc's last beat (B12 in VEGA) — hearing it is what "was there for the
     /// story" means for the resolution catch-up (#2460, N4).</summary>
@@ -614,51 +654,206 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The ending for one player, once (#1124, #2470): the resolution line, then the cinematic (which stamps
-    /// <see cref="ResolutionWatchedKey"/>); <paramref name="achievement"/> grants the finale achievement too (E23).</summary>
-    private void DeliverResolution(PlayerSession session, bool achievement)
+    /// <summary>
+    /// The ending for one player, once (#1124, #2470, #2478): <paramref name="achievement"/> grants the finale achievement too
+    /// (E23). A client that plays cutscenes, on a pack that binds the ending (<see cref="StoryFinaleStages.Resolution"/>),
+    /// gets the stand-down set piece and the ending on the director — committed BEFORE the lines they show, so the client
+    /// keeps those out of VEGA's panel (a scene queued behind the cooldown holds them); the ledger's <c>:sent</c> key then
+    /// means "handled" and an unconfirmed ending comes back at the next join through the cutscene catch-up. Any other client
+    /// (an older build, the built-in pack) gets the resolution line, the epilogue (<paramref name="live"/>: at the win, where
+    /// it enters the story log like a beat) and then the old cinematic (<see cref="StoryResolved"/>), which takes the epilogue
+    /// back out of the panel. Never both.
+    /// </summary>
+    private void DeliverResolution(PlayerSession session, bool achievement, bool live = false)
     {
-        if (!_storyState.GuardianDefeated || session.Spectating || session.State.Milestones.Contains(ResolutionWatchedKey))
+        if (!_storyState.GuardianDefeated || session.Spectating || ResolutionHandled(session))
         {
             return;
         }
 
-        SendVegaLine(session, FinaleResolvedLine, 2);
         if (achievement)
         {
-            OnAchievementStoryFinale(session);
+            GrantFinaleAchievement(session);
+        }
+
+        string epilogue = live ? _story?.EpilogueTextKey ?? string.Empty : string.Empty;
+        if (ResolutionOnDirector(session))
+        {
+            PlayFinaleCutscene(session, StoryFinaleStages.Standdown); // the stand-down first (owed to whoever missed the win)
+            PlayFinaleCutscene(session, StoryFinaleStages.Resolution); // chained to it: the ending follows at once
+            SendVegaLine(session, FinaleResolvedLine, 2);
+            if (epilogue.Length > 0)
+            {
+                SendVegaLine(session, epilogue, 2);
+            }
+
+            if (session.State.Milestones.Add(ResolutionSeenKey)) // an older build of this save must not replay it at the door
+            {
+                _repo.SavePlayer(session.State);
+            }
+
+            return;
+        }
+
+        SendVegaLine(session, FinaleResolvedLine, 2);
+        if (epilogue.Length > 0)
+        {
+            SendVegaLine(session, epilogue, 2);
         }
 
         SendStoryResolved(session);
     }
 
-    /// <summary>Story tab "watch the ending" (#1124): replays the resolution — only once the story IS
-    /// resolved, so the button can never spoil anything.</summary>
-    private void HandleRequestStoryResolution(PlayerSession session)
+    /// <summary>#2478: whether the player's ending is handled — watched (the ledger's seen key, also stamped by the old
+    /// cinematic) or committed to their director (the <c>:sent</c> key; the join catch-up re-offers it until confirmed).</summary>
+    private bool ResolutionHandled(PlayerSession session)
     {
-        if (_storyState.GuardianDefeated)
-        {
-            SendStoryResolved(session);
-        }
+        var m = session.State.Milestones;
+        return m.Contains(ResolutionWatchedKey)
+               || (_story is not null && m.Contains(StoryPackKeys.CutsceneSent(_story.Id, ResolutionLedgerId)));
     }
 
-    private void BroadcastDuelNode(string responseKey)
+    /// <summary>#2478: the ending plays on the player's cutscene director: the client plays cutscenes and the pack binds a
+    /// defined ending scene (the built-in fallback binds one but defines none — its players keep the old cinematic).</summary>
+    private bool ResolutionOnDirector(PlayerSession session)
+        => session.SupportsCutscenes && _story is not null
+           && _story.FindCutscene(FinaleCutsceneId(StoryFinaleStages.Resolution)) is { Template: false };
+
+    /// <summary>Story tab "watch the ending" (#1124): replays the resolution — only once the story IS
+    /// resolved, so the button can never spoil anything. #2478: on the director (a replay, no ledger change) for a client
+    /// that plays it there, else the old cinematic.</summary>
+    private void HandleRequestStoryResolution(PlayerSession session)
     {
-        if (_story is null || _duelNode < 0 || _duelNode >= _story.CoreArguments.Count)
+        if (!_storyState.GuardianDefeated)
         {
             return;
         }
 
+        if (ResolutionOnDirector(session) && _story is not null)
+        {
+            string id = FinaleCutsceneId(StoryFinaleStages.Resolution);
+            PlayCutscene(session, _story.Id, id, CutsceneArgOf(session, _story, _story.FindCutscene(id)!, id), replay: true);
+            return;
+        }
+
+        SendStoryResolved(session);
+    }
+
+    private void BroadcastDuelNode(string responseKey)
+    {
+        if (DuelNodeMessage(responseKey) is { } message)
+        {
+            BroadcastToFinaleAudience(message);
+        }
+    }
+
+    /// <summary>The current duel node as the clients get it (#2478: with the node count and the core column for the dialogue's
+    /// camera), or null when no duel node is open.</summary>
+    private CoreDialogueMessage? DuelNodeMessage(string responseKey)
+    {
+        if (_story is null || _duelNode < 0 || _duelNode >= _story.CoreArguments.Count)
+        {
+            return null;
+        }
+
         var node = _story.CoreArguments[_duelNode];
-        BroadcastToFinaleAudience(new CoreDialogueMessage
+        var column = CoreColumnAnchor();
+        return new CoreDialogueMessage
         {
             Node = _duelNode,
+            NodeCount = _story.CoreArguments.Count,
             PromptKey = node.PromptKey,
             ChoiceKeys = node.Choices.Select(c => c.TextKey).ToArray(),
             ResponseKey = responseKey,
             Won = false,
-        });
+            HasAnchor = column.HasValue,
+            AnchorX = column?.X ?? 0f,
+            AnchorY = column?.Y ?? 0f,
+            AnchorZ = column?.Z ?? 0f,
+        };
     }
+
+    /// <summary>#2478: the open duel's current node for one player who just came to it — a join or a landing in the Guardian
+    /// system while the duel runs. The nodes are only broadcast when they change, so a player who relogged mid-duel never saw
+    /// the dialogue again (and alone on the core, nobody could answer it any more).</summary>
+    private void SendDuelNodeTo(PlayerSession session)
+    {
+        if (!_coreHacked || _storyState.GuardianDefeated || !session.Joined || !InFinaleAudience(session)
+            || DuelNodeMessage(string.Empty) is not { } message)
+        {
+            return;
+        }
+
+        Send(session, message);
+    }
+
+    // ---------------- #2478: the finale set pieces ----------------
+
+    /// <summary>The cutscene the active pack binds to a finale stage (<see cref="StoryFinaleStages"/>), or "".</summary>
+    private string FinaleCutsceneId(string stage)
+        => _story?.Finale?.Cutscenes is { } bindings && bindings.TryGetValue(stage, out var id) && !string.IsNullOrEmpty(id) ? id : string.Empty;
+
+    /// <summary>Plays the scene bound to a finale stage for one player (#2478) — once by the cutscene ledger, only once their
+    /// story track has started, never for an observer; <paramref name="anchor"/> rides along as the <c>core</c> anchor (the
+    /// shaft mouth for the descent, the core column for the breach). Returns whether it was sent or queued.</summary>
+    private bool PlayFinaleCutscene(PlayerSession session, string stage, Vector3f? anchor = null)
+    {
+        var def = _story;
+        string id = FinaleCutsceneId(stage);
+        if (def is null || id.Length == 0 || !StoryTrackStarted(session))
+        {
+            return false;
+        }
+
+        if (def.FindCutscene(id) is not { Template: false } scene)
+        {
+            return PlayCutscene(session, def.Id, id); // not defined (the built-in pack): logs once, plays nothing
+        }
+
+        return PlayCutscene(session, def.Id, scene.Id, CutsceneArgOf(session, def, scene, scene.Id), anchor);
+    }
+
+    /// <summary>#2478 (B50): whether the player stands on the Guardian core world — landed there, not flying over it (a pilot
+    /// in the finale system's flight is anchored on the same body).</summary>
+    private bool OnGuardianCoreWorld(PlayerSession session)
+        => session.CurrentLocationId == GuardianCoreBodyId && !InSpace(session.State.PlayerId);
+
+    /// <summary>The loaded world that holds the Guardian core chamber, or null (the core world is not loaded).</summary>
+    private LoadedWorld? CoreChamberWorld()
+    {
+        foreach (var w in _worlds.Loaded)
+        {
+            if (w.HasCoreChamber && w.LocationId == GuardianCoreBodyId)
+            {
+                return w;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>The core column on the core world — the centre of its floor cell (the chamber stamp's
+    /// <see cref="LoadedWorld.CoreChamberCenter"/>) — the breach's and the duel dialogue's camera anchor; null while the core
+    /// world is not loaded.</summary>
+    private Vector3f? CoreColumnAnchor()
+        => CoreChamberWorld() is { } w
+            ? new Vector3f(w.CoreChamberCenter.X + 0.5f, w.CoreChamberCenter.Y, w.CoreChamberCenter.Z + 0.5f)
+            : null;
+
+    /// <summary>The mouth of the aperture shaft above the chamber — the descent's camera anchor. The stamp
+    /// (<see cref="StampGuardianCoreChamber"/>) puts the column's floor cell 23 blocks under the surface it measured at the
+    /// chamber's centre and carves the shaft 3 blocks towards +Z up to that surface.</summary>
+    private Vector3f? CoreShaftAnchor()
+        => CoreChamberWorld() is { } w
+            ? new Vector3f(w.CoreChamberCenter.X + 0.5f, w.CoreChamberCenter.Y + CoreShaftDepth, w.CoreChamberCenter.Z + CoreShaftOffsetZ + 0.5f)
+            : null;
+
+    /// <summary>How far the surface lies above the column's floor cell (the stamp: floor 24 below the surface, the column one
+    /// above the floor).</summary>
+    private const int CoreShaftDepth = 23;
+
+    /// <summary>How far the shaft sits from the column towards +Z (the stamp's <c>shaftZ = az + 3</c>).</summary>
+    private const int CoreShaftOffsetZ = 3;
 
     // ---------------- Helpers ----------------
 
@@ -755,6 +950,25 @@ public sealed partial class GameServer
 
     /// <summary>Test hook: whether a position is within breach range of the core terminal on the active world.</summary>
     public bool IsWithinCoreChamberForTest(Vector3f pos) => IsWithinCoreChamber(pos);
+
+    /// <summary>Test seam (#2478): the player's flight warps into the Guardian system (the in-flight hyperjump's last step,
+    /// past the jump-generator gate) — the arrival card's trigger.</summary>
+    internal void JumpIntoGuardianSystemForTest(PlayerSession session)
+    {
+        EnsureGuardianSystemInGalaxy();
+        var system = _galaxy!.Systems.First(s => s.Id == GuardianFinaleSystemId);
+        JumpFlightToSystem(session, system, system.Bodies[0]);
+    }
+
+    /// <summary>Test seam (#2478): the core column's anchor (the breach's and the dialogue's camera), or null.</summary>
+    internal Vector3f? CoreColumnAnchorForTest => CoreColumnAnchor();
+
+    /// <summary>Test seam (#2478): the shaft mouth's anchor (the descent's camera), or null.</summary>
+    internal Vector3f? CoreShaftAnchorForTest => CoreShaftAnchor();
+
+    /// <summary>Test seam (#2478, B51): the live planet machines of a loaded world (-1 when it is not loaded).</summary>
+    internal int PlanetEnemyCountOnForTest(string locationId)
+        => _worlds.Find(locationId) is { } world ? world.PlanetEnemies.Count : -1;
 
     /// <summary>Test/inspection: the Stage-1 gauntlet roster (hostile count + the toughest hull) built without a
     /// full flight setup — verifies the finale system fields an elite wave, not the ambient hostile spawn.</summary>

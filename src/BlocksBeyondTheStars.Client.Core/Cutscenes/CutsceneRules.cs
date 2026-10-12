@@ -24,8 +24,13 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
         public const float HealTankReach = 64f;
 
         /// <summary>Whether a shot's anchor names the object the shot is about — without it the shot means nothing (the heal
-        /// tank). The other anchors fall back to the player.</summary>
-        public static bool NeedsObject(string? anchor) => anchor == CutsceneAnchors.HealTank;
+        /// tank; #2478: the other players on the star chart — alone, VEGA's "Many minds" is the beat card it always was). The
+        /// other anchors fall back to the player.</summary>
+        public static bool NeedsObject(string? anchor) => anchor == CutsceneAnchors.HealTank || anchor == CutsceneAnchors.Players;
+
+        /// <summary>#2478: whether the Guardian core's duel dialogue holds a singleplayer world while it is on screen — like a
+        /// scene that takes the camera (the core waits for an answer as long as it takes to read), never in multiplayer.</summary>
+        public static bool DuelHoldsWorld(bool dialogueShown, bool multiplayer) => dialogueShown && !multiplayer;
 
         /// <summary>The lowest quality preset that builds the synthetic stages (#2477; the client's <c>QualityPreset</c> order
         /// Potato 0, Low 1, Medium 2, High 3): on Potato and Low a space vista or a diorama is skipped (synthesis §6.6 "keine

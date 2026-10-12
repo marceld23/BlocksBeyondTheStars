@@ -643,13 +643,26 @@ public sealed class CoreDialogueMessage
 
     /// <summary>True once the last node is cleared — the core powers down (the galaxy is pacified).</summary>
     public bool Won { get; set; }
+
+    /// <summary>#2478: how many nodes the duel has ("argument 2 of 4" in the dialogue); 0 from an older server. Additive
+    /// (contractless): an older client ignores it.</summary>
+    public int NodeCount { get; set; }
+
+    /// <summary>#2478: the core column's position on the core world (its floor cell's centre) — where the client's duel
+    /// dialogue frames its camera. False from an older server (the dialogue then keeps the player's view).</summary>
+    public bool HasAnchor { get; set; }
+
+    public float AnchorX { get; set; }
+    public float AnchorY { get; set; }
+    public float AnchorZ { get; set; }
 }
 
 /// <summary>Server → client (#1124): the story is RESOLVED — play the resolution cinematic (resolution
 /// line → credits roll → epilogue handover). Sent to everyone online when the finale duel is won, once as
 /// join catch-up to anyone who missed it (tracked per player via a milestone), and again on request from
 /// the Story tab's "watch the ending" button. All text is locale keys / pack strings — the client
-/// localizes.</summary>
+/// localizes. #2478: only to a client that does not play cutscenes (or a pack without its ending scene) — the others get
+/// the stand-down and the ending as cutscenes, never both.</summary>
 public sealed class StoryResolved
 {
     /// <summary>Locale key of the story pack's display name (for the cinematic's title card).</summary>
@@ -668,12 +681,14 @@ public sealed class StoryResolved
 }
 
 /// <summary>Client → server (#1124): the player wants to watch the ending again (Story tab). The server
-/// answers with <see cref="StoryResolved"/> — but only when the story actually IS resolved.</summary>
+/// answers with <see cref="StoryResolved"/> — but only when the story actually IS resolved. #2478: a client that plays
+/// cutscenes gets the pack's ending scene as a replay (<c>CutscenePlay</c> with <c>Replay</c>) instead.</summary>
 public sealed class RequestStoryResolutionIntent { }
 
 /// <summary>Client → server: the player offers a rebuttal at the current duel node. The server validates the
 /// index against the active node; a correct (contradiction) choice advances the duel, a wrong one is dismissed
-/// and the node is re-presented (the duel cannot be lost, only stalled).</summary>
+/// and the node is re-presented (the duel cannot be lost, only stalled). #2478 (B50): only a player standing on the core
+/// world answers — a pick from anywhere else is dropped. Served while a singleplayer world is held (the dialogue holds it).</summary>
 public sealed class CoreDialogueChoiceIntent
 {
     public int ChoiceIndex { get; set; }

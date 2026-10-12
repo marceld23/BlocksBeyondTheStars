@@ -1964,7 +1964,8 @@ called **stories**:
   on the star map and the way to it. Chapter 2 shows VEGA's memory of the star chart. On the **Low** and **Potato**
   quality presets the core, the view from space and the memory chart are left out — those chapters then play as cards.
   Every other story moment is a **card** — "VEGA remembers" with the moment's title, then her words — and you can keep
-  moving while it shows. Skip any of them with **Esc**, pad **(B)** or the **Skip** button; the
+  moving while it shows. In multiplayer, *Many minds* shows the star map with the **other players' names** on the stars
+  they are at (alone it is a card like the others). Skip any of them with **Esc**, pad **(B)** or the **Skip** button; the
   Journal keeps every text, and if you skip *The Guardian Core* before VEGA mentions the **jump generator**, she says it
   in her panel afterwards. Back after a while away? VEGA says how many moments the Journal now holds, and if the story
   has moved on a chapter, **The story so far** and the new chapter's scene play.
@@ -2021,14 +2022,27 @@ called **stories**:
   the Journal (Read buttons) — and they survive rejoining a server.
 - Scanning **runes** at a monument now also reveals their inscription. Settlement folk who know you
   (trade with them!) may share what they know — one of them keeps a page of the settler legend.
-- **Finishing the story is a moment now**: winning the finale plays a short **ending** — the resolution,
-  the credits roll, and an epilogue that opens the door to what comes after. It's skippable (**Esc**, pad
-  **(B)** or the **Skip** button), it plays its own music every time you watch it, and the Journal keeps a
-  **"Watch the ending again"** button once you've earned it. A player who had heard
-  the story to its last chapter but was offline for the win gets the ending — and the finale achievement —
-  once on their next join; someone who first arrives on an already finished world is not played the ending at
-  the door: it plays when their own story starts after the basic training (on hosted and arcade worlds it stays in
+- **The finale on screen.** Warping into the Guardian's system shows **"Arrival — The Guardian Core"** as the jump
+  clears. Landing on the Guardian Core, the camera flies over the **iron-ringed shaft** while VEGA tells you to walk
+  there instead of digging (the same words stay in her panel if you skip early), then shows what sleeps below. When your
+  hack breaks the core open, the camera moves close to the red column — **"The core wakes"** — and the **argument duel**
+  begins.
+- **The duel.** The core speaks in its own red box at the top ("Argument 2 of 4"); your answers are **big buttons** below
+  it — click them, tap them, or pick one with the pad's stick and **(A)**. The number keys no longer answer (they are
+  your hotbar). A wrong answer is never lost: the core replies (in italics) and asks again. In singleplayer the world
+  waits while the core does. **Esc**, pad **(B)** or **Step back** leaves the duel waiting; walk back to the core and press
+  the **use** key (**E**, the **USE** button) to face it again. Only players **on the Guardian Core** can answer — the
+  others see a short banner that the duel has begun. In multiplayer the duel steps aside if you take damage and comes
+  back once it is safe.
+- **Finishing the story is a moment now**: winning the duel shows the machines **standing down** — VEGA's words over the
+  sleeping core — and then the **ending**: the resolution, the credits roll, and an epilogue that opens the door to what
+  comes after. It's skippable (**Esc**, pad **(B)** or the **Skip** button), it plays its own music every time you watch
+  it, and the Journal keeps a **"Watch the ending again"** button once you've earned it. A player who had heard
+  the story to its last chapter but was offline for the win gets the stand-down and the ending — and the finale
+  achievement — once on their next join; someone who first arrives on an already finished world is not played the ending
+  at the door: it plays when their own story starts after the basic training (on hosted and arcade worlds it stays in
   the Journal).
+- **When the Guardian falls, every world goes quiet** — the machines on all worlds players are on stand down at once.
 - The hint at the Guardian core ("walk to the marked shaft, don't dig here") shows even with **VEGA hints** off.
 - **Story scenes.** Big story moments can play as short scenes: a **banner** at the top (it never stops you), a
   **card** with a title or VEGA speaking in a box (you can keep moving), or a **staged scene** where the camera shows your
@@ -3169,7 +3183,7 @@ Two ways to test the finale:
 - **Shortcut:** `/lore` (to read everything) → `/gotocore` → hack the core and win the duel.
 
 The duel cannot be lost — wrong rebuttals are dismissed and you stay on the node — so just keep trying each
-option until the core concedes and shuts down.
+option (the answer buttons; only a player on the Guardian Core can answer) until the core concedes and shuts down.
 
 **Tutorial controls** (admin role only — works with cheats off): `/tutorial skip [Player]` skips the basic training of you
 or the named player, `/tutorial restart [Player]` runs it again from part 1, `/tutorial chapter <id> [Player]` jumps to a

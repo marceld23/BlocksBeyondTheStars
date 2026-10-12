@@ -74,9 +74,11 @@ never the count — toggled by `GameRules.MachineWreckCoupling`.
 4. **Stage 3 — hack:** hold to channel a server-authoritative `CoreHackProgress`; at 100% the duel opens.
 5. **Stage 4 — argument duel:** data-driven from the pack's `coreArguments`; a correct contradiction
    advances, a wrong pick re-presents the node (the duel can stall but never be lost). Clearing the last node
-   calls `MarkGuardianDefeated`.
+   calls `MarkGuardianDefeated`. Since #2478 only a player standing on the core world answers (B50), and the client shows
+   the duel as the cutscene director's dialogue mode with its own answer buttons there (see below).
 6. **Pacification → Remnant Protocol (#1206):** the one-way `guardianDefeated` flag despawns the live planet
-   machines at the moment of the win (the dramatic beat) and then acts as a *factor*, not a switch: the planet
+   machines of every loaded world at the moment of the win (the dramatic beat; #2478, B51 — it used to be only the active
+   world cursor) and then acts as a *factor*, not a switch: the planet
    cap halves (floor one, `PlanetEnemyCap`), refills run at twice the interval (`RemnantPaceFactor`), only
    scan-drones spawn (`RemnantEra`); the finale gauntlet stays down; ambient space waves survive only in
    pirate havens and the frontier-danger tier (`RemnantSpaceHostile`); bandit ships keep only pirate havens
@@ -84,13 +86,17 @@ never the count — toggled by `GameRules.MachineWreckCoupling`.
    sliders; PlanetEnemies *Off* still means zero. A death in the boss system respawns the clone on the world
    it launched from (no death-loop).
 
-**Ending catch-up.** Winning gives the finale achievement to everyone aboard and plays `StoryResolved` (with the
-`finale_resolved` and epilogue lines) to every player whose story track has started (#2470). "Watched" is the cutscene
-ledger key `story:<id>:cut:resolution` (stamped whenever the cinematic is sent); `story:<id>:resolved` is kept as the
-legacy key older builds read. On a later join a started player who has not watched it gets it once — the achievement
-only when they had heard the arc's last beat **before** that join (#2460, E23). A player who first meets the story
-after the win is not played the ending at the door (N4): it waits for their track start (after the basic training), and
-on a hosted or arcade world (personal chapter 1) it stays in the Story tab.
+**Ending catch-up.** Winning gives the finale achievement to everyone aboard and delivers the ending (with the
+`finale_resolved` and epilogue lines) to every player whose story track has started (#2470) — since #2478 as the
+stand-down set piece and the `resolution` scene on the cutscene director for a client that plays cutscenes, else as
+`StoryResolved` (never both; `DeliverResolution`). "Watched" is the cutscene ledger key `story:<id>:cut:resolution`
+(stamped by the old cinematic when sent, by the director's receipt); "handled" is that key or its `:sent` key, so an
+unconfirmed ending comes back through the cutscene catch-up, never as a second delivery. `story:<id>:resolved` is kept as
+the legacy key older builds read. On a later join a started player who has not had it gets it once — the achievement
+only when they had heard the arc's last beat **before** that join (#2460, E23; #2478: also an observer who had heard it,
+when observing ends — `ExitSpectate`; the achievement counts once, `GrantFinaleAchievement`). A player who first meets the
+story after the win is not played the ending at the door (N4): it waits for their track start (after the basic training),
+and on a hosted or arcade world (personal chapter 1) it stays in the Story tab.
 
 **Knowledge level** (`WorldKnowledgeLevel`, gates lore, flavour lines and NPC threads): 0–3 follow the arc's
 progress (1 > 0 %, 2 ≥ 33 %, 3 ≥ 66 %); **4 is the win alone** (#2460) — its lines say the machines went still.
@@ -440,6 +446,37 @@ Two callers, one per player and second:
 Neither runs while the world is held. Test: `VegaChapterLeadsTests.APilotOnAnUnloadedWorld_GetsTheStoryPass_FromTheServerTick_OnceASecond`
 (the evidence booked in space, both players passed exactly once a second).
 
+## The finale's set pieces, the duel dialogue and the ending on the director (#2478)
+
+The finale flow above is presented with the cutscene system (details, tiers and shots: [CUTSCENES.md](CUTSCENES.md#vegas-finale-2478)).
+The pack binds a scene per stage in `finale.cutscenes` (`StoryFinaleStages`: `arrival`, `descent`, `breach`, `duel`,
+`standdown`, `resolution`; mirrored in `StoryRegistry`); `PlayFinaleCutscene(session, stage, anchor)` plays one — once per
+player by the ledger, only once their story track has started, never for an observer:
+
+| Moment (server) | Scene | Who |
+|---|---|---|
+| the flight warps into the Guardian system (`JumpFlightToSystem`), the core still waiting | `fin.arrival` (card, now or never; chains to the descent) | the pilot |
+| landing on the core world (`ShipAiWorldFlavour`, before the never-muted `guardian_core` hint, which it shows) — not once the duel runs | `fin.descent` (anchor: the shaft mouth, `CoreShaftAnchor`) | the lander |
+| the hack completes (`BeginCoreDuel`, before the first node) | `fin.breach` (anchor: the column, `CoreColumnAnchor`) on the core world, the banner `fin.duel` elsewhere | the finale's audience (`InFinaleAudience`) |
+| the duel is won (`WinDuel` → `DeliverResolution`) or a missed win catches up (join, track start, end of observing) | `fin.standdown` → `resolution` | every started player |
+
+- **The duel on the server (B50, E28):** `HandleCoreDialogueChoice` accepts an answer only from a player on the core world
+  (`OnGuardianCoreWorld`: the location is the core body and the player is not in its flight — a pilot over the core is
+  anchored on the same body); `CoreDialogueChoiceIntent` passes a held singleplayer world (`PausedMayHandle` — the client's
+  dialogue holds it). The node message carries `NodeCount` and the column (`HasAnchor`, `AnchorX/Y/Z`, additive), and
+  whoever lands on the core world or joins while the duel runs gets the current node (`SendDuelNodeTo`).
+- **The duel on the client:** the director's dialogue mode (`CutsceneDirectorDuel.cs`, `DuelDialogueScreen.cs`; rules in
+  Client.Core `CoreDuel.cs`) — only on the core world, the answers on the dialogue's own buttons, never the hotbar digits;
+  elsewhere nothing but the banner. `FinaleView` keeps the duel's state (music, the "face the core again" hint) and no
+  longer draws the IMGUI duel box.
+- **The ending:** see "Ending catch-up" above; the recap of a join backlog never folds a finale scene (`IsFinaleScene`).
+- **B51:** `MarkGuardianDefeated` clears the planet machines of every loaded world and marks each one's enemy list dirty.
+- **B10 (latecomers):** checked — the Guardian reveal (#2460), the relay insights (silently in the log at the track start,
+  `RelayInsightKeys`, #2470), the resolution line and the achievement (above) all reach a latecomer; nothing left to add.
+
+Test seams: `JumpIntoGuardianSystemForTest`, `CoreColumnAnchorForTest`, `CoreShaftAnchorForTest`,
+`PlanetEnemyCountOnForTest`. Tests: `VegaFinaleSetPiecesTests`; Client.Tests `FinaleSetPiecesClientTests`.
+
 ## Game events, story conditions and the world-story guard (#2465)
 
 Groundwork for the story packs (#2459): the per-player step runtime of the tutorial and side packs (#2466) listens
@@ -734,13 +771,13 @@ unknown fields). The checks are listed in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#va
 | 141 | `NetFragmentRevealed` | S→C | category + archive text key |
 | 142 | `PlayerMemoryRevealed` | S→C | a personal memory unlocked by a machine kill |
 | 143 | `GuardianSystemRevealed` | S→C | adds the finale system to the star map |
-| 144 | `CoreDialogueMessage` | S→C | the core's claim + rebuttals (duel) |
-| 145 | `CoreDialogueChoiceIntent` | C→S | the player's chosen rebuttal |
+| 144 | `CoreDialogueMessage` | S→C | the core's claim + rebuttals (duel); additive `NodeCount`, `HasAnchor` + `AnchorX/Y/Z` (the column) since #2478 |
+| 145 | `CoreDialogueChoiceIntent` | C→S | the player's chosen rebuttal — only from the core world (#2478, B50); passes a held SP world |
 | 146 | `CoreHackIntent` | C→S | channel one hack tick |
 | 147 | `StorySelectIntent` | C→S | admin sets the active story |
 | 148 | `NetFragmentList` | S→C | fragments on the current world |
 | 149 | `CoreHackProgress` | S→C | hack channel progress + complete |
-| 220 | `StoryResolved` | S→C | play the resolution cinematic (win, join catch-up, replay) (#1124); additive `EpilogueTitleKey` since #2461 |
+| 220 | `StoryResolved` | S→C | play the resolution cinematic (win, join catch-up, replay) (#1124); additive `EpilogueTitleKey` since #2461; since #2478 only to a client that plays no cutscenes (the others get the `resolution` scene) |
 | 221 | `RequestStoryResolutionIntent` | C→S | Story tab "watch the ending again" (#1124) |
 | 295 | `CutscenePlay` | S→C | play a pack's cutscene (`PackId`, `CutsceneId`, `Arg`, `HasAnchor` + `AnchorX/Y/Z`, `Replay`); only to `cutscenes1` clients (#2467, [CUTSCENES.md](CUTSCENES.md)) |
 | 296 | `CutsceneSeenIntent` | C→S | the client is through with these scenes (`PackId`, `Ids[]`, `Skipped`, `Unsupported`) → the seen ledger; passes a held world (#2467) |
@@ -789,7 +826,8 @@ Rules on top of the wire:
   `StorySelectIntent` while the world is held (each with a dispatch test in `StoryUiFixesTests`); since #2470 also
   `StoryPackIntent` `startPack` ("Start the story now", dispatch test in `VegaStoryPackTests`); since #2471 every
   `StoryPackIntent` action (the Journal can be opened from the pause menu's settings — one dispatch test per action in
-  `StoryJournalTests.WhileHeld_EveryJournalAction_IsServed`).
+  `StoryJournalTests.WhileHeld_EveryJournalAction_IsServed`); since #2478 `CoreDialogueChoiceIntent` (the duel dialogue holds a
+  singleplayer world — `VegaFinaleSetPiecesTests.WhileHeld_ADuelAnswerIsServed`).
 
 ### The Journal and the objective tracker (#2471)
 
@@ -904,7 +942,7 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#the-tutorial-pack-datastoriestutorial-2469).
 - Server: `GameServerStory.cs` (state load, Record fragment/kill/milestone, beat reveal, admin selection,
   knowledge level), `GameServerNetFragments.cs` (placement + pickup), `GameServerStoryFinale.cs` (reveal,
-  hack, duel, gauntlet, chamber stamping, respawn, pacification).
+  hack, duel, gauntlet, chamber stamping, respawn, pacification; #2478 the set pieces, the ending's delivery).
 - Persistence: `story_state` table (`StoredStoryState` + `IWorldRepository.SaveStoryState`/`ListStoryStates`).
 - Data: `data/stories/vega_protocol/` — `story.json` (beats, fragments, memories, flavour, threads, duel),
   `lore_sites.json` (environmental lore, #1111) and `locales/<code>.json` in all 14 languages (EN + DE mandatory and
@@ -913,7 +951,8 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   `tools/validate_story_pack.py` (#2466, replaces `merge_story.py`).
 - Client: `Mode.Story`/`Tab.Story` — the Journal since #2471 (one page per story, VEGA's notes, the player's notes; the
   VEGA page = the old Story Log: meter + re-readable beats/fragments/memories);
-  `WorldEntities.cs` three-eyed-robot retheme + `BuildDrone` scan-drone; `FinaleView` (hack bar + duel panel);
+  `WorldEntities.cs` three-eyed-robot retheme + `BuildDrone` scan-drone; `FinaleView` (hack bar, gauntlet banner, breach and resume hints — #2478: the duel itself is
+  `CutsceneDirectorDuel.cs` + `DuelDialogueScreen.cs`, rules in Client.Core `Cutscenes/CoreDuel.cs`);
   `ClientMusic` finale contexts → `music_boss_*` tracks.
 - World options: `GameRules.StoryId` + `GameRules.StoryDensity` (`--story` / `--story-density`) and
   `GameRules.TutorialPolicy` (`--tutorial auto|optin|off`, #2466), set when the world is created and baked into its rules.

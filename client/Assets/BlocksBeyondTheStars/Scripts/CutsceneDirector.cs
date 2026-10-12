@@ -35,10 +35,11 @@ namespace BlocksBeyondTheStars.Client
     /// (chunks not streamed after a 4 s wait, space view, nothing clear) falls back to the sky or the player's own view.</item>
     /// </list>
     /// Runs before the app shell (execution order −20), so the Esc that skips a card is marked handled before the pause
-    /// menu sees it; the camera itself is written by <see cref="CutsceneCameraRig"/> at order 211.
+    /// menu sees it; the camera itself is written by <see cref="CutsceneCameraRig"/> at order 211. #2478: it also runs the
+    /// Guardian core's duel as a dialogue (CutsceneDirectorDuel.cs) whenever no scene plays.
     /// </summary>
     [DefaultExecutionOrder(-20)]
-    public sealed class CutsceneDirector : MonoBehaviour
+    public sealed partial class CutsceneDirector : MonoBehaviour
     {
         public GameBootstrap Game;
         public Camera Camera;
@@ -51,6 +52,7 @@ namespace BlocksBeyondTheStars.Client
 
         private const int FrameSortingOrder = 67;
         private const float ScreenCloseSeconds = 0.45f;
+        private const float CreditsDim = 0.85f; // #2478: the credits' dark stage
         private const float AtHomeShipRadius = 24f;
         private const float FallingSpeed = -6f;
 
@@ -257,6 +259,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.CutscenePlayReceived += OnCutscenePlay;
                 Game.Network.StoryStateReceived += OnStoryState;
+                Game.Network.CoreDialogueReceived += OnCoreDialogue; // #2478: the duel's dialogue mode
                 _subscribed = true;
             }
 
@@ -272,9 +275,9 @@ namespace BlocksBeyondTheStars.Client
             {
                 RunScene();
             }
-            else
+            else if (!TickDuel())
             {
-                StartNext();
+                StartNext(); // no scene, and the duel dialogue does not hold the screen
             }
         }
 
@@ -695,6 +698,9 @@ namespace BlocksBeyondTheStars.Client
             var lanes = new List<(string A, string B)>();
             string here = SystemOfBody(map, map?.ActiveLocationId);
             string finale = null;
+            // #2478: the players anchor names where the other players are (VEGA's "Many minds" — the live chart).
+            bool players = anchor == CutsceneAnchors.Players;
+            var others = players ? CutsceneChart.PlayersBySystem(map, Game.PlayerName) : null;
             foreach (var sys in map?.Systems ?? System.Array.Empty<NetStarSystem>())
             {
                 bool current = sys.Id == here;
@@ -703,6 +709,12 @@ namespace BlocksBeyondTheStars.Client
                 if (isFinale)
                 {
                     finale = sys.Id;
+                }
+
+                string there = string.Empty;
+                if (others != null && sys.Id != null && others.TryGetValue(sys.Id, out var names))
+                {
+                    there = names;
                 }
 
                 stars.Add(new GalaxyChartWidget.Star
@@ -715,7 +727,7 @@ namespace BlocksBeyondTheStars.Client
                     Current = current,
                     Known = known || isFinale,
                     Finale = isFinale,
-                    Players = string.Empty,
+                    Players = there,
                 });
             }
 
@@ -729,7 +741,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool reveal = anchor == CutsceneAnchors.Core && finale != null;
-            bool memory = grade == CutsceneGrades.Memory || grade == CutsceneGrades.Flashback;
+            // The other players' chart is live — it stays in colour under a memory grade (the grade still tints the world).
+            bool memory = (grade == CutsceneGrades.Memory || grade == CutsceneGrades.Flashback) && !players;
             _screen.ShowChart(stars, lanes, reveal ? finale : null, reveal ? here : null, reveal ? finale : null, memory);
             _chartShown = true;
         }
@@ -810,6 +823,16 @@ namespace BlocksBeyondTheStars.Client
 
             var views = _play.Visible();
             bool reader = views.Any(v => v.Caption.Style == CutsceneCaptionStyles.ReadingFrame);
+            // #2478: the credits roll on a dark stage (the old ending's 0.88 black) — readable over any picture, faded with it.
+            float credits = 0f;
+            foreach (var v in views)
+            {
+                if (v.Caption.Style == CutsceneCaptionStyles.Credits)
+                {
+                    credits = Mathf.Max(credits, CreditsDim * Mathf.Clamp01(v.Alpha));
+                }
+            }
+
             float fade;
             if (plan.OpensFromBlack)
             {
@@ -823,6 +846,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 fade = banner ? 0f : reader ? 0.55f : 0.18f; // a card dims the live view a little
             }
+
+            fade = Mathf.Max(fade, credits);
 
             _screen.SetFade(fade);
 
@@ -887,18 +912,20 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Who a speaker box shows: the pack's narrator (name key, icon, colour, line-start cue from the pack
-        /// manifest), or for VEGA without a manifest entry her defaults; another speaker id reads as its own name.</summary>
+        /// <summary>Who a speaker box shows: the pack's narrator — or (#2478) one of its other <c>speakers</c>, the Guardian core
+        /// in VEGA's pack — with the name key, icon, colour and line-start cue from the pack manifest; for VEGA without a
+        /// manifest entry her defaults; another speaker id reads as its own name.</summary>
         private CutsceneSpeaker SpeakerFor(StoryDefinition pack, string speakerId)
         {
             var narrator = pack?.Narrator;
             string id = string.IsNullOrEmpty(speakerId) ? (narrator?.Id ?? StoryNarrator.DefaultId) : speakerId;
-            bool fromPack = narrator != null && id == narrator.Id;
+            var entry = pack?.FindSpeaker(id);
+            bool fromPack = entry != null;
             bool vega = id == StoryNarrator.DefaultId;
-            string nameKey = fromPack && !string.IsNullOrEmpty(narrator.NameKey) ? narrator.NameKey : vega ? "ui.vega.name" : string.Empty;
-            string icon = fromPack && !string.IsNullOrEmpty(narrator.Icon) ? narrator.Icon : vega ? "icon_vega" : string.Empty;
+            string nameKey = fromPack && !string.IsNullOrEmpty(entry.NameKey) ? entry.NameKey : vega ? "ui.vega.name" : string.Empty;
+            string icon = fromPack && !string.IsNullOrEmpty(entry.Icon) ? entry.Icon : vega ? "icon_vega" : string.Empty;
             var color = vega ? UiKit.Cyan : new Color(1f, 0.82f, 0.55f);
-            if (fromPack && !string.IsNullOrEmpty(narrator.Color) && ColorUtility.TryParseHtmlString(narrator.Color, out var parsed))
+            if (fromPack && !string.IsNullOrEmpty(entry.Color) && ColorUtility.TryParseHtmlString(entry.Color, out var parsed))
             {
                 color = parsed;
             }
@@ -908,7 +935,7 @@ namespace BlocksBeyondTheStars.Client
                 Name = nameKey.Length > 0 ? L(nameKey) : id,
                 Icon = icon.Length > 0 ? UiKit.Icon(icon) : null,
                 Color = color,
-                LineStartCue = fromPack && !string.IsNullOrEmpty(narrator.LineStart) ? narrator.LineStart : vega ? "ai_blip" : string.Empty,
+                LineStartCue = fromPack && !string.IsNullOrEmpty(entry.LineStart) ? entry.LineStart : vega ? "ai_blip" : string.Empty,
             };
         }
 
@@ -1113,7 +1140,7 @@ namespace BlocksBeyondTheStars.Client
             s.AnotherScene = GameBootstrap.Cutscenes.ActiveOtherThan(GateReason) || Game.VegaPrologueActive
                              || (Game.CinematicCameraActive && !_rig.Holding)
                              || (ending != null && (ending.Playing || ending.Pending));
-            s.DuelOpen = FinaleView.Instance != null && FinaleView.Instance.DuelActive;
+            s.DuelOpen = _duelScreen != null; // #2478: the duel dialogue on screen (a duel elsewhere blocks nothing)
             s.Falling = Game.PlayerVerticalVelocity < FallingSpeed && !Game.Aboard;
             s.Climbing = Player != null && Player.ClimbingWall;
             s.HeadUnderwater = Player != null && Player.IsHeadUnderwater();
@@ -1155,10 +1182,16 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>#2474: whether the object an anchor names is on this world for this client (only the heal tank needs one —
-        /// <see cref="CutsceneRules.NeedsObject"/>). Not in the space view: nothing world-anchored there.</summary>
+        /// <summary>#2474: whether the object an anchor names is on this world for this client (the heal tank — not in the
+        /// space view, nothing world-anchored there; #2478: the other players, anywhere on the star map —
+        /// <see cref="CutsceneRules.NeedsObject"/>).</summary>
         private bool AnchorFound(string anchor)
         {
+            if (anchor == CutsceneAnchors.Players)
+            {
+                return CutsceneChart.AnyOtherPlayer(Game.StarMap, Game.PlayerName); // #2478: alone, "Many minds" stays a card
+            }
+
             if (anchor != CutsceneAnchors.HealTank)
             {
                 return true;
@@ -1203,8 +1236,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.CutscenePlayReceived -= OnCutscenePlay;
                 Game.Network.StoryStateReceived -= OnStoryState;
+                Game.Network.CoreDialogueReceived -= OnCoreDialogue;
             }
 
+            CloseDuel(); // #2478: its frame is a root-level object, its gate reason and hold must not outlive the world
             TearDownScene();
             foreach (var (screen, _, _) in _closing)
             {

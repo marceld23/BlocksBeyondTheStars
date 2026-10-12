@@ -289,8 +289,13 @@ public static class CutsceneAnchors
     /// <summary>The coordinates carried by the <c>CutscenePlay</c> message.</summary>
     public const string Custom = "custom";
 
+    /// <summary>#2478: the other players — on a <c>chart</c> their star systems are labelled with their names (VEGA's "Many
+    /// minds" in multiplayer). It needs another player on the star map; without one (singleplayer) the scene plays as a
+    /// card, like a heal tank that is not there.</summary>
+    public const string Players = "players";
+
     /// <summary>Every anchor.</summary>
-    public static readonly IReadOnlyList<string> All = new[] { Player, Ship, Planet, Station, StarMap, HealTank, Core, Custom };
+    public static readonly IReadOnlyList<string> All = new[] { Player, Ship, Planet, Station, StarMap, HealTank, Core, Custom, Players };
 }
 
 /// <summary>Caption styles (synthesis §6.3).</summary>

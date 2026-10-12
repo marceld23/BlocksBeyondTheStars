@@ -22,6 +22,11 @@ namespace BlocksBeyondTheStars.Client
     /// key": the player may be mid-walk when it starts); its epilogue title is a locale key; and the music director
     /// plays the resolution track whenever it STARTS (<see cref="Plays"/>), replays included.
     /// </para>
+    /// <para>
+    /// #2478: a current server plays the ending on the cutscene director instead (the pack's <c>resolution</c> scene, after
+    /// the <c>fin.standdown</c> set piece) for every client that plays cutscenes, and sends <see cref="StoryResolved"/> only to
+    /// the others — never both. This cinematic stays for an older server (and the built-in pack, which defines no scenes).
+    /// </para>
     /// </summary>
     public sealed class ResolutionCinematic : MonoBehaviour
     {

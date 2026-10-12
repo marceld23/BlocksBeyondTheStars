@@ -70,13 +70,13 @@ singleplayer world or lock input. One scene plays at a time.
 | `arg` | `""` | #2473: what fills the captions' `{0}` when the server plays the scene — `""` the bound chapter (its title, place and count, see [the argument](#bindings--where-a-pack-plays-a-scene)), `body` the name of the body the player is on (the tutorial's first landing), `system` the name of the player's star system |
 | `shots[]` | — | at least one; played in order |
 | `shots[].camera.type` | `player_view` | `player_view` (letterbox + captions over the live view), `overlay` (on a running flight sequence, never moves the camera), `static`, `orbit` (radius by ship size), `crane`, `sky` (tilted up from the player; always clear), `chart` (the galaxy chart; #2474: a `memory`/`flashback` grade tints it sepia, the `core` anchor rings the revealed Guardian system and draws a violet route to it), and since #2477 the moves `dolly`, `pan`, `flyover` and the synthetic stages `space_vista`, `diorama` — see [Cameras](#cameras) |
-| `shots[].camera.anchor` | `""` = `player` | `player`, `ship`, `planet`, `station` (the space station the player is aboard), `star_map`, `heal_tank` (the own ship's medbay on this world; #2474: a `static` shot frames it up close inside the room, and a scene whose camera shot needs it plays as a card where it is not found), `core` (the Guardian core chamber; on a `chart`: the Guardian system), `custom` (the coordinates of the `CutscenePlay` message). A `diorama` shows what its anchor names: `core` or `star_map` (#2477); a `space_vista` reads `ship` and `planet` |
+| `shots[].camera.anchor` | `""` = `player` | `player`, `ship`, `planet`, `station` (the space station the player is aboard), `star_map`, `heal_tank` (the own ship's medbay on this world; #2474: a `static` shot frames it up close inside the room, and a scene whose camera shot needs it plays as a card where it is not found), `core` (the Guardian core: the coordinates the server sends with the play — the shaft mouth for the descent, the column for the breach; #2478: a `static` shot frames the column up close inside its chamber; on a `chart`: the Guardian system), `custom` (the coordinates of the `CutscenePlay` message), `players` (#2478: on a `chart` only — the other players' names on their systems; a scene whose camera shot needs it plays as a card when nobody else is on the star map). A `diorama` shows what its anchor names: `core` or `star_map` (#2477); a `space_vista` reads `ship` and `planet` |
 | `shots[].duration` | — | seconds (a page-gated caption may hold the shot longer) |
 | `shots[].grade` | `none` | `none`, `memory` (VEGA's memory, sepia), `flashback` |
 | `captions[].key` | — | locale key in the core or the pack table; English **and** German mandatory; `{0}` = the play's argument |
 | `captions[].style` | `subtitle` | `subtitle` (lower third, paged at sentence ends), `title_card` (kicker + title), `speaker` (speaker box: avatar, name, typewriter, voice), `reading_frame` (framed panel over the dimmed scene — recap, epilogue), `credits` |
-| `captions[].kickerKey` | `""` | `title_card` only: the small line above the title |
-| `captions[].speaker` | `""` = the pack's narrator | `speaker` only: the narrator id of the box |
+| `captions[].kickerKey` | `""` | `title_card`: the small line above the title; `reading_frame`: its heading (#2478 — the recap, the epilogue's title) |
+| `captions[].speaker` | `""` = the pack's narrator | `speaker` only: who talks — the narrator's id or one of the pack's `speakers` (#2478, `story.json`: id, `nameKey`, `icon`, `color`, `lineStart`, like the narrator; VEGA's pack has `core`, the Guardian core) |
 | `captions[].at` / `hold` | `0` / `0` | seconds into the shot; how long it stays (`0` = to the end of the shot) |
 | `sfx[].cue` / `at` | — / `0` | the clip and the second it plays |
 | `options.holdWorld` | T3/T4 taking the camera | hold a singleplayer world while the scene plays |
@@ -111,11 +111,11 @@ Every fallback chain ends in `player_view`, which is always possible. A T1 banne
 |---|---|---|---|
 | `player_view` | the live view under the letterbox and the captions | — | — |
 | `overlay` | the same, on a running flight sequence (the camera is never touched) | — | — |
-| `static` | a fixed framing 9 blocks (× ship size) from the anchor with a slow push-in; at the `heal_tank` a close framing inside the medbay (#2474) | loaded terrain, a clear spot and line of sight | orbit → crane → sky → view |
+| `static` | a fixed framing 9 blocks (× ship size) from the anchor with a slow push-in; at the `heal_tank` a close framing inside the medbay (#2474), at the `core` the same inside the Guardian core's chamber (#2478: 2.4–4 blocks from the red column, under the glass panes) | loaded terrain, a clear spot and line of sight | orbit → crane → sky → view |
 | `orbit` | circling the anchor (16 × size out), ping-ponging across the open arc when the circle is blocked | ≥ 110° of open arc | crane → sky → view |
 | `crane` | rising above the anchor, looking down | ≥ 60° of open arc | orbit → sky → view |
 | `sky` | from the player's eye, tilted up into the sky, slowly turning | the open sky (not aboard, not in the flight view) | view |
-| `chart` | the galaxy chart between the letterbox and the speaker box | the star map | sky → view |
+| `chart` | the galaxy chart between the letterbox and the speaker box; #2478: at the `players` anchor the other players' names on their systems, in live colours even under a memory grade | the star map | sky → view |
 | `dolly` (#2477) | a straight, eased push-in from 14 to 8 blocks out (× size), sliding 20° around the anchor; it settles at its end while a caption still waits | every point of the path a clear camera spot that sees the anchor (the higher leg 18 → 11 when the low one is blocked) | static → orbit → crane → sky → view |
 | `pan` (#2477) | turning in place across ±35° (±20° when tight) and back: from just above the player's head (2.2 blocks — never the own avatar), facing the view, else the sides or behind; or from a vantage point 9 blocks across the anchor (a ship) | the view open 6 blocks in every direction of the sweep | static → sky → view |
 | `flyover` (#2477) | a high arc 18 blocks out (× size) at 16 (else 24) blocks up over 110°, rising 6 more in the middle, always looking at the anchor | every sampled point of the arc clear | crane → orbit → sky → view |
@@ -156,8 +156,9 @@ Every fallback chain ends in `player_view`, which is always possible. A T1 banne
 see [The VEGA prologue](#the-vega-prologue-2470) — and since #2474 the chapter scenes `ch1.open` … `ch7.open` and the beat
 cards `b01`, `b03`, `b04`, `b07`, `b08`, `b10` — see [VEGA's chapter scenes and beat cards](#vegas-chapter-scenes-and-beat-cards-2474);
 `tutorial/cutscenes.json` holds the basic training's cards since #2473 — see [The tutorial cards](#the-tutorial-cards-2473);
-step 17b adds VEGA's finale set pieces (and may upgrade the beat cards to beat moments), steps 18–21 the deep dives' firsts
-(`tut.first_dock`, `tut.first_jump`, `tut.first_base`, `tut.ship_commissioned`, `tut.first_circuit`, `tut.first_tame`).
+#2478 added VEGA's finale set pieces and its ending — see [VEGA's finale](#vegas-finale-2478) — so every VEGA id of the
+list is defined now; steps 18–21 add the deep dives' firsts (`tut.first_dock`, `tut.first_jump`, `tut.first_base`,
+`tut.ship_commissioned`, `tut.first_circuit`, `tut.first_tame`).
 
 ### The VEGA prologue (#2470)
 
@@ -228,7 +229,7 @@ Potato/Low presets those three play as cards again (their only camera shots are 
 | `ch4.open` | chapter `verdict` (B6) | T3 (#2477; a card before) | out of black onto "Chapter 4" / "The Verdict", then a **space vista** of a living world close (`planet`) in VEGA's memory tones while she says B6 — the darkest line stays words on a calm picture | `chapter_sting`, `music_mystery_signal` |
 | `b07`, `b08` | beats B7, B8 | T2 cards | "VEGA remembers" / "Her stand", "The thought-arcs", then the beat | `chapter_sting_memory` |
 | `ch5.open` | chapter `what_you_are` (B9) | **T3 prominent** | "Chapter 5" / "What You Are", then a close framing of the player's **real heal tank** inside the medbay with a slow push-in while VEGA says B9 — warm, no grade. **No own heal tank on this world** (the ship parked elsewhere, the code-box starter without a medbay): the scene plays as a card (`CutsceneRules.NeedsCardFallback`) | `chapter_sting_reveal`, `clone_tank_bubble`, `music_deep_space_lonely` |
-| `b10` | beat B10 | T2 card | "VEGA remembers" / "Many minds", then the beat (step 17b may add the multiplayer variant) | `chapter_sting_memory` |
+| `b10` | beat B10 | T3 beat moment (#2478; a card before) | "VEGA remembers" / "Many minds", then the beat over the **live star chart with the other players' names** on their systems (the `players` anchor; synthesis §6.5 "T2; in MP T3"). **Alone** — nobody else on the star map — it plays as the card it was (`CutsceneRules.NeedsCardFallback`); the world never holds in multiplayer | `chapter_sting_memory` |
 | `ch6.open` | chapter `sleeps` (B11) | T3 (#2477; a card before) | out of black onto "Chapter 6" / "It Still Sleeps", then **VEGA's memory chart** drifting from the player's system to the rim, a faint red pulse beyond the last star, memory grade, while she says B11 — no marker, no name | `chapter_sting`, `music_mystery_signal` |
 | `ch7.open` | chapter `core` (B12 + the Guardian system revealed, one server call) | **T4** | the sky with B12; the **live star chart** with a violet route from the player's system to the newly revealed Guardian system (ringed, named) while VEGA says `story.vega.guardian_revealed` — the jump-generator line; then "Chapter 7" / "The Guardian Core". `returnOnSkip`: the reveal line comes back to the panel when the player skips before it showed | `chapter_sting_reveal`, `music_boss_approach` |
 
@@ -251,6 +252,49 @@ Potato/Low presets those three play as cards again (their only camera shots are 
   payload): `chapter_sting` (calm, a soft pad resolving on a chime), `chapter_sting_memory` (shimmering bells — VEGA
   remembers), `chapter_sting_reveal` (a wondrous rising chord — the big scenes); see `docs/developer/SOUND_DESIGN.md`.
 
+### VEGA's finale (#2478)
+
+The finale's set pieces (synthesis §6.5), bound in `story.json`'s `finale.cutscenes` (mirrored in `StoryRegistry`), each played
+**once per player** (the ledger) and only for a player whose story track has started — never for an observer. The finale code
+(`GameServerStoryFinale.cs`, `PlayFinaleCutscene`) plays each at its moment; anchors ride along as the `core` anchor.
+
+| Stage → id | When (server) | Tier | What the player sees | Multiplayer |
+|---|---|---|---|---|
+| `arrival` → `fin.arrival` | the player's flight warps into the Guardian system (`JumpFlightToSystem`), while the core still waits | T2 card, "now or never" | "Arrival" over "The Guardian Core" as the warp clears (the title at 2.8 s, the warp lasts 2.6 s) — no camera, free input; with danger near it is dropped (the gauntlet banner still counts the machines); `chainNext: fin.descent` | only the pilot who warps in |
+| `descent` → `fin.descent` | landing on the core world (`ShipAiWorldFlavour`, before the `guardian_core` hint) — not once the duel runs | T3 | the camera rises from the own ship, flies over the iron-ringed shaft (the server sends the shaft mouth; a shaft too far away to be streamed in shows the sky) while VEGA says the hint itself (`vega.hint.guardian_core`, token-clean since #2463 — no new key), then the sleeping-core diorama; the hint is kept out of the panel and given back on an early skip (`returnOnSkip`) | whoever lands |
+| `breach` → `fin.breach` | the hack completes (`BeginCoreDuel`), for the finale's players **on the core world** | T3, "now or never" | a close framing of the red column in its chamber (the server sends the column), "The core wakes" over "The Guardian Core", `music_boss_dialogue`; then the duel dialogue | on the core world |
+| `duel` → `fin.duel` | the hack completes, for the finale's players **elsewhere** | T1 banner | "The Guardian Core — The duel of arguments has begun at the core." (not replayable) | everyone else of the finale |
+| `standdown` → `fin.standdown` | the duel is won (`WinDuel` → `DeliverResolution`), and at the next join / track start / end of observing for a started player who missed it | T4 | VEGA's resolution line (`story.vega.finale_resolved`, kept out of the panel) over the sleeping-core diorama, then the own ship before a living world with "The Guardian core powers down …"; `chainNext: resolution`; on Low/Potato a card | every started player |
+| `resolution` → `resolution` | right after the stand-down; "Watch the ending again" replays it | T4 | the open sky under "Resolution — The VEGA Protocol", the credits rolling over a space vista on a dark stage (the director dims 0.85 while a `credits` caption shows), the epilogue in a reading frame headed "The relay network"; `music_boss_resolution`; the epilogue line is kept out of the panel | every started player |
+
+- **The duel's dialogue mode** (E28; client, `CutsceneDirectorDuel.cs` + `DuelDialogueScreen.cs`, rules in Client.Core
+  `CoreDuel.cs`): every `CoreDialogueMessage` (additive since #2478: `NodeCount`, `HasAnchor` + `AnchorX/Y/Z` — the column)
+  feeds `CoreDuelState`; **on the core world** (landed — not its flight, not as an observer) the director shows the
+  dialogue whenever no scene plays: a full letterbox, the camera close on the column (`CutsceneStaging` close framing, else
+  the player's own view), the core's box under the top bar (the pack speaker `core`: its name, Guardian red, the anomaly's
+  hum per node; its reply to the last answer in italics, then its statement; "Argument n of 4") and the answers as the
+  dialogue's **own buttons** (mouse, pad via `UiNav`, touch) — never the hotbar digits. After a pick the buttons wait for the
+  core's next node (or 4 s). HUD, touch layer and controls step aside (gate reason `duel`); a singleplayer world holds while
+  it shows (`CutsceneRules.DuelHoldsWorld`; the answer passes the pause — `PausedMayHandle`); in multiplayer the camera
+  returns after 30 s (the dialogue stays) and danger closes it until it is safe again (`CoreDuelRules.MayOpen` /
+  `StepsAsideForDanger`). Esc / pad B / the corner button **steps back**; near the core (12 blocks) the use control
+  (`{key:Interact}`, `ui.finale.duel_resume` from `FinaleView`) faces it again, and a new node reopens it by itself. The
+  breach plays first. The IMGUI duel box and its number keys are gone (`FinaleView` keeps the duel's state for the music,
+  which plays `boss_dialogue` only on the core world).
+- **Server authority (B50):** `HandleCoreDialogueChoice` takes an answer only from a player **on the core world** (landed,
+  not in flight — `OnGuardianCoreWorld`); whoever lands or joins while the duel runs gets its current node
+  (`SendDuelNodeTo`) — a relog mid-duel used to leave the dialogue empty until somebody else answered.
+- **The ending on the director, never twice:** `DeliverResolution` gives a `cutscenes1` client (on a pack that defines the
+  ending) the stand-down and the ending as scenes — committed before the lines they show — and the legacy key
+  `story:<id>:resolved` for older builds; any other client gets the resolution line, the epilogue (live) and
+  `StoryResolved` as before. "Handled" = the ledger's seen key **or** its `:sent` key (`ResolutionHandled`), so a
+  half-watched ending comes back through the cutscene catch-up, never a second delivery. `RequestStoryResolutionIntent`
+  replays the director's ending (`Replay`) for a client that plays it. `ResolutionCinematic` stays for older servers.
+- **The recap never folds the finale away:** a join backlog's recap collapse skips scenes bound to a finale stage
+  (`IsFinaleScene`), so an owed stand-down and ending play as themselves after "The story so far". A re-offered descent or
+  breach gets its place again (`FinaleAnchorFor`: the shaft mouth, the column — while the core world is loaded); other
+  `custom` anchors are still not stored.
+
 ### Bindings — where a pack plays a scene
 
 | Field | Plays when (server) |
@@ -262,7 +306,7 @@ Potato/Low presets those three play as cards again (their only camera shots are 
 | step `onComplete.cutscene` | the step completes **non-silently** (it was the chip step, or a react step) — before the done line; not in a replay |
 | beat `cutscene` | the beat reaches a player whose story track has started (#2470: `RevealBeatTo`, after the chapter opening, before the line) |
 | pack `graduation.cutscene` | #2473: a player pack's graduation (its mandatory chapters finished by playing — not skipped, not by migration evidence), before the closing line; once per player, so a full restart's second graduation shows no card |
-| `finale.cutscenes{arrival, descent, breach, standdown, resolution}` | wired by the finale code in step 17b |
+| `finale.cutscenes{arrival, descent, breach, duel, standdown, resolution}` | #2478, by the finale code — see [VEGA's finale](#vegas-finale-2478) (`StoryFinaleStages`; `duel` is the banner for the finale's players away from the core world, an addition to the synthesis' list) |
 
 A scene goes out **before** its trigger's narrator line, so a client that plays it knows which lines it shows.
 
@@ -291,6 +335,11 @@ palette) plays as the instance of the first chapter that binds it (`CutsceneArgs
 `tools/validate_story_pack.py` (`uv run --no-project python tools/validate_story_pack.py [<pack-dir>]`) check:
 
 - every binding names a cutscene of the pack — never `__recap`, never an instance id (`graduation.cutscene` too, #2473);
+  #2478: a `finale.cutscenes` key is one of `StoryFinaleStages` (`arrival`, `descent`, `breach`, `duel`, `standdown`,
+  `resolution`);
+- #2478: the pack's `speakers` — ids key-safe and unique next to the narrator's, a `nameKey` in both languages, a
+  `#RRGGBB` colour, a `lineStart` sound that exists; a caption's `speaker` naming neither the narrator nor a speaker is a
+  warning; the `players` anchor only on a `chart`;
 - `arg` is empty, `body` or `system`;
 - ids unique and key-safe, none starting with `__`; tier 1–4; at least one shot; known cameras, anchors, caption styles
   and grades (#2477: a `diorama` shows `core` or `star_map`); shot length > 0 and ≤ 120 s; captions and cues inside their
@@ -302,8 +351,8 @@ palette) plays as the instance of the first chapter that binds it (`CutsceneArgs
 - `chapter` names a chapter of the pack; `chainNext` resolves (an id of the pack, `<pack>/<id>` of an installed pack,
   `__recap`; a pack that is not installed is a warning); `music` exists in `client/Music`, every `sfx` cue in
   `client/Assets/Resources/audio`; every `returnOnSkip` key is one of the scene's `replaceLineKeys` (#2474);
-- warnings: a `kickerKey` outside a `title_card`, a `speaker` outside a `speaker` caption, unknown fields (the Python
-  tool; the C# tests read the file strictly).
+- warnings: a `kickerKey` outside a `title_card` or a `reading_frame` (#2478: the reading frame shows it as its heading), a
+  `speaker` outside a `speaker` caption, unknown fields (the Python tool; the C# tests read the file strictly).
 
 ## Wire (additive)
 
@@ -347,7 +396,8 @@ template. Rules:
   intro (the prologue is the cold open, not a chapter line; #2470).
 - **Replay** (`replayCutscene`): a replayable scene the player has a key for (spoiler guard) is re-sent with
   `Replay = true` — any installed pack, the world story included; no ledger change; nothing for a client without
-  `cutscenes1`. The ending keeps its own `RequestStoryResolutionIntent` path.
+  `cutscenes1`. The ending's own "Watch the ending again" (`RequestStoryResolutionIntent`) replays the `resolution` scene the
+  same way for a client that plays it (#2478), else it re-sends `StoryResolved`.
 - **Observers** never get a scene (`PlayCutscene` refuses a spectating session, `PlayCutsceneForListeners` uses
   `StoryListeners()`).
 
@@ -469,9 +519,13 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   hidden. T3/T4: full letterbox, a fade out of black, the camera staged per shot.
 - **Caption styles** (`CutsceneScreen`): `subtitle` (the frame's lower-third caption), `title_card` (kicker + big title,
   centred), `speaker` (box above the lower bar with the narrator's icon, name and colour from the pack's `narrator` — VEGA's
-  defaults `ui.vega.name`, `icon_vega`, cyan, `ai_blip` when a page starts; another `speaker` id reads as its own name;
-  typewriter 42 chars/s), `reading_frame` (a framed panel ≤ 1100 px wide over a 55 % dim — the recap), `credits` (a roll
-  over the caption's window). Fonts follow the UI scale; positions stay on the 1920×1080 frame canvas.
+  defaults `ui.vega.name`, `icon_vega`, cyan, `ai_blip` when a page starts; #2478: another id is looked up in the pack's
+  `speakers`, else it reads as its own name; typewriter 42 chars/s), `reading_frame` (a framed panel ≤ 1100 px wide over a
+  55 % dim, its kicker as the heading — the recap, the epilogue), `credits` (a roll over the caption's window; #2478: on a
+  dark stage — the picture dims to 0.85 while it shows). Fonts follow the UI scale; positions stay on the 1920×1080 frame
+  canvas.
+- **The duel dialogue** (#2478): whenever no scene plays, the director runs the Guardian core's duel as its dialogue mode on
+  the core world — see [VEGA's finale](#vegas-finale-2478).
 - **Camera** (`CutsceneStaging` + `CutsceneCameraRig`): anchors `player`, `ship` (scaled by the own ship's size),
   `heal_tank` (the own ship's `medbay` station within 64 m on this world, `CutsceneRules.TryFindHealTank`), `planet` (the
   player, wider), `station`/`star_map` (the player), `core` and `custom` (the message's coordinates, else the player).
@@ -544,8 +598,13 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
 - A card dims the whole picture by 18 % (HUD included — the crosshair and the chip are not kept bright as d4 sketched); no
   ambience ducking; music is not prefetched when a scene is queued.
 - No `ctx:` variants (a scene has one shape for every place — chapter 5 falls back to a card away from the ship); the
-  speaker box has no vocoder chatter (only the line-start cue); `b10` has no multiplayer variant yet (step 17b). ~~No
-  synthetic stages, no `dolly`/`pan`/`flyover`~~ — #2477 (chapters 3, 4 and 6 use them).
+  speaker box has no vocoder chatter (only the line-start cue). ~~`b10` has no multiplayer variant~~ — #2478 (the live
+  chart with the other players). ~~No synthetic stages, no `dolly`/`pan`/`flyover`~~ — #2477 (chapters 3, 4 and 6 use them).
+- #2478: the finale's pictures are built from what exists — the stand-down shows the sleeping-core diorama (its red glow
+  still breathes; "the core sleeps"), no client-side "red light fades to warm" of the real chamber; the descent's flyover
+  shows the real shaft only when it is streamed in (the first pad lies about 50 blocks from it — farther pads see the sky);
+  the arrival has no gauntlet variant (the gauntlet banner counts the machines). The other beat cards stay cards (decision
+  (a)); upgrade them after the playtest.
 - #2477's dioramas are built in (`core`, `star_map`), not data: d4's data-defined `stages` (block boxes and props per pack)
   are not built — add them when a pack needs a diorama of its own. A `space_vista` shows the player's own ship only once its
   design reached the client (after the first flight). A clip recording (`-captureClip`) of a synthetic shot films the
@@ -599,3 +658,15 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   (chapter 4 staged over its vista, the three synthetic openings as cards on the low presets with the same words);
   `CutsceneContentTests` (the new cameras accepted in a staged scene and refused on a card, the diorama's anchors);
   `VegaChapterScenesTests` (the tiers and cameras of chapters 3, 4 and 6, their unchanged captions within 12–25 s).
+- #2478: `VegaFinaleSetPiecesTests` (the finale's bindings and their mirror, the core's voice; the set pieces' tiers,
+  cameras and chains; b10 the one beat moment; the duel node's new fields on the wire; the arrival for the pilot who warps
+  in — once, nobody else, an older client stamped seen, never after the win; the descent over the shaft before the hint
+  line, re-offered with its place after a relog; the breach on the core world and the banner elsewhere, the breach before the first node, answers only from the core
+  world — never from a pilot over it; the node for whoever lands or relogs mid-duel; an answer through a held world; the win
+  on the director vs `StoryResolved` for an older client, never both, the replay; the catch-up of a player who missed the
+  win with the achievement, once; the recap that never folds the ending away; an observer's ending when observing ends;
+  every loaded world's machines standing down), `CutsceneContentTests.FinaleStages_Speakers_AndThePlayersAnchor_AreValidated`;
+  Client.Tests `FinaleSetPiecesClientTests` (the duel state, where the dialogue shows, the buttons waiting for the core,
+  the core's words and "Argument n of 4" in both languages, facing the core again across the seam, no hold in multiplayer,
+  the close framing in the chamber at any yaw, the chart's player labels, b10 as a chart or a card, the arrival, descent,
+  stand-down and ending planned from the data pack).

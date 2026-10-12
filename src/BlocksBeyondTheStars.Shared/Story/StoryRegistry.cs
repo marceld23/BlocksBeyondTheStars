@@ -177,7 +177,27 @@ public static class StoryRegistry
             Voice = new List<string> { "vega_chatter_1", "vega_chatter_2", "vega_chatter_3" },
             LineStart = "ai_blip",
         },
+        // #2478: the Guardian core's voice in the duel dialogue (red, the anomaly's hum when it speaks).
+        Speakers = new List<StoryNarrator>
+        {
+            new() { Id = "core", NameKey = "ui.finale.duel_title", Color = "#FF5A4A", LineStart = "anomaly_hum" },
+        },
         IntroCutscene = StoryCutsceneIds.Prologue,
+        // #2478: the finale set pieces (the fallback carries no cutscenes — the bound ids only log once, the lines play and
+        // an older client's ending stays StoryResolved).
+        Finale = new StoryFinaleBinding
+        {
+            Type = "guardian_core",
+            Cutscenes = new Dictionary<string, string>
+            {
+                [StoryFinaleStages.Arrival] = "fin.arrival",
+                [StoryFinaleStages.Descent] = "fin.descent",
+                [StoryFinaleStages.Breach] = "fin.breach",
+                [StoryFinaleStages.Duel] = "fin.duel",
+                [StoryFinaleStages.Standdown] = "fin.standdown",
+                [StoryFinaleStages.Resolution] = StoryCutsceneIds.Resolution,
+            },
+        },
         Start = new StoryStartRule { After = new List<string> { "chapter:tutorial:b6" }, EarlyOptIn = true },
         Chapters = new List<StoryChapter>
         {

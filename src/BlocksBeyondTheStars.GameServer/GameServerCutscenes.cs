@@ -203,6 +203,28 @@ public sealed partial class GameServer
 
     private static bool IsInstance(string id) => id.IndexOf(StoryCutsceneIds.InstanceSeparator) >= 0;
 
+    /// <summary>#2478: a scene the pack binds to a finale stage (<see cref="StoryFinaleBinding.Cutscenes"/>).</summary>
+    private static bool IsFinaleScene(StoryDefinition pack, CutsceneDefinition def)
+        => pack.Finale?.Cutscenes is { } bindings && bindings.ContainsValue(def.Id);
+
+    /// <summary>#2478: the place a re-offered finale scene of the world story frames — the shaft mouth for the descent, the
+    /// core column for the breach (the queue and its anchors are lost with the session; the places are not). Null for every
+    /// other scene, or while the core world is not loaded.</summary>
+    private Vector3f? FinaleAnchorFor(StoryDefinition pack, CutsceneDefinition def)
+    {
+        if (_story is null || !string.Equals(pack.Id, _story.Id, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        if (def.Id == FinaleCutsceneId(StoryFinaleStages.Descent))
+        {
+            return CoreShaftAnchor();
+        }
+
+        return def.Id == FinaleCutsceneId(StoryFinaleStages.Breach) ? CoreColumnAnchor() : null;
+    }
+
     /// <summary>The argument a binding plays with (<see cref="CutsceneArgs.For"/>, #2473): the bound chapter's title key,
     /// place and count, or — for a scene whose <c>arg</c> asks for it — the name of the body or star system the player is
     /// on right now (a replay or a join re-offer reads where the player is then).</summary>
@@ -550,10 +572,12 @@ public sealed partial class GameServer
 
             if (string.Equals(StoryRegistry.EffectiveScope(pack), StoryRegistry.ScopeWorld, StringComparison.Ordinal))
             {
-                // The pack's intro (VEGA's prologue, chapter "awakening") is the cold open, never a line in a recap (#2470).
+                // The pack's intro (VEGA's prologue, chapter "awakening") is the cold open, never a line in a recap (#2470); the
+                // finale's set pieces (#2478: the stand-down, the ending) are owed as themselves, never folded into the titles.
                 var chapterScenes = scenes
                     .Where(x => x.Def.Tier >= CutsceneTiers.Card && ChapterOfCutscene(pack, x.Def, x.Id) is not null
-                                && !string.Equals(x.Id, pack.IntroCutscene, StringComparison.Ordinal))
+                                && !string.Equals(x.Id, pack.IntroCutscene, StringComparison.Ordinal)
+                                && !IsFinaleScene(pack, x.Def))
                     .ToList();
                 if (chapterScenes.Count >= CutsceneRecapThreshold)
                 {
@@ -575,8 +599,8 @@ public sealed partial class GameServer
 
             foreach (var (id, def) in scenes)
             {
-                EnqueueCutscene(session, new PendingCutscene(pack.Id, id, def.Tier, CutsceneArgOf(session, pack, def, id), null,
-                    def.Options?.CooldownExempt ?? false));
+                EnqueueCutscene(session, new PendingCutscene(pack.Id, id, def.Tier, CutsceneArgOf(session, pack, def, id),
+                    FinaleAnchorFor(pack, def), def.Options?.CooldownExempt ?? false));
             }
         }
 

@@ -484,9 +484,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var fv = FinaleView.Instance;
-            if (fv != null && fv.DuelActive)
+            if (fv != null && fv.DuelActive && fv.OnCoreWorld)
             {
-                return FinaleDialogue;
+                return FinaleDialogue; // #2478: the duel's track plays where its dialogue does — on the core world
             }
 
             if (fv != null && fv.Hacking)

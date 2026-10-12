@@ -392,8 +392,40 @@ public sealed class StoryFinaleBinding
     /// <summary><c>guardian_core</c> or empty (= none).</summary>
     public string Type { get; set; } = string.Empty;
 
-    /// <summary>Cutscene per finale stage (<c>arrival</c>, <c>descent</c>, <c>breach</c>, <c>standdown</c>, <c>resolution</c>).</summary>
+    /// <summary>Cutscene per finale stage (<see cref="StoryFinaleStages"/>: <c>arrival</c>, <c>descent</c>, <c>breach</c>,
+    /// <c>duel</c>, <c>standdown</c>, <c>resolution</c>). A stage without a binding plays nothing (its narrator line, if
+    /// any, still speaks).</summary>
     public Dictionary<string, string> Cutscenes { get; set; } = new();
+}
+
+/// <summary>
+/// The finale stages a world pack binds a cutscene to (<see cref="StoryFinaleBinding.Cutscenes"/>, synthesis §5.3
+/// "Bindungsfelder"; #2478). The finale code plays each at its moment, once per player, only for players whose story track
+/// has started.
+/// </summary>
+public static class StoryFinaleStages
+{
+    /// <summary>The player's flight enters the Guardian system (a hyperjump in flight) — a short "now or never" card.</summary>
+    public const string Arrival = "arrival";
+
+    /// <summary>The player lands on the core world — the way to the iron-ringed shaft (the <c>guardian_core</c> hint).</summary>
+    public const string Descent = "descent";
+
+    /// <summary>The hack is complete and the duel begins — for the players on the core world.</summary>
+    public const string Breach = "breach";
+
+    /// <summary>The duel begins — the banner for the players of the finale who are NOT on the core world (#2478: the duel
+    /// dialogue itself shows only there). Not in the synthesis' binding list; added with the dialogue mode.</summary>
+    public const string Duel = "duel";
+
+    /// <summary>The duel is won — the machines stand down (before the ending; also owed to whoever missed the win).</summary>
+    public const string Standdown = "standdown";
+
+    /// <summary>The ending (card → credits → epilogue) on the director; older clients get <c>StoryResolved</c>.</summary>
+    public const string Resolution = "resolution";
+
+    /// <summary>Every stage.</summary>
+    public static readonly IReadOnlyList<string> All = new[] { Arrival, Descent, Breach, Duel, Standdown, Resolution };
 }
 
 /// <summary>The values of <see cref="StoryStep.Kind"/>.</summary>

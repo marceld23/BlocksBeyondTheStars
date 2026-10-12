@@ -2979,6 +2979,13 @@ public sealed partial class GameServer
 
         EnterSpace(playerId, skipLaunch: true, hyperjump: true); // warp in; a parked ship took off before (#1614)
         SendStarMap(session); // refresh the travel screen with the now-known system
+
+        // #2478: the finale's arrival card — once per player, while the core still waits (the flight state went out first,
+        // so the card lands on the warp-in).
+        if (system.Id == GuardianFinaleSystemId && FinaleOpen && !session.Spectating)
+        {
+            PlayFinaleCutscene(session, StoryFinaleStages.Arrival);
+        }
     }
 
     /// <summary>#1614: re-sends the flight state of a pilot whose automatic transit ended without leaving the flight

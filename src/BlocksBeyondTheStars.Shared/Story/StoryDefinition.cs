@@ -270,6 +270,35 @@ public sealed class StoryDefinition
     /// <summary>Who speaks the pack's lines (<c>vega</c> by default).</summary>
     public StoryNarrator Narrator { get; set; } = new();
 
+    /// <summary>#2478: the pack's other voices — a cutscene caption's <c>speaker</c> (or the finale's duel dialogue) names one
+    /// of them by id: name key, icon, colour and line-start cue like the <see cref="Narrator"/> (VEGA's pack: <c>core</c>,
+    /// the Guardian core). Empty = the narrator only; an unknown speaker id reads as its own name.</summary>
+    public List<StoryNarrator> Speakers { get; set; } = new();
+
+    /// <summary>The speaker with this id — the <see cref="Narrator"/> or one of the <see cref="Speakers"/> — or null.</summary>
+    public StoryNarrator? FindSpeaker(string? id)
+    {
+        if (string.IsNullOrEmpty(id))
+        {
+            return Narrator;
+        }
+
+        if (Narrator is not null && string.Equals(Narrator.Id, id, StringComparison.Ordinal))
+        {
+            return Narrator;
+        }
+
+        foreach (var speaker in Speakers ?? new List<StoryNarrator>())
+        {
+            if (speaker is not null && string.Equals(speaker.Id, id, StringComparison.Ordinal))
+            {
+                return speaker;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>Player packs other than a tutorial: whether the pack runs for every player by default (a tutorial follows
     /// the world's <c>TutorialPolicy</c> instead). Default true.</summary>
     public bool DefaultEnabled { get; set; } = true;

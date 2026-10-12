@@ -461,15 +461,21 @@ public sealed class VegaStoryPackTests : IDisposable
         server.AdminRevealFinale();
 
         server.WinDuelForTest();
+        Drain(server, crew, times: 24); // the arc's beat cards from the reveal go first, one per cooldown
 
-        Assert.Single(transport.To<StoryResolved>(crew));
+        // #2478: a client that plays cutscenes gets the stand-down and the ending on its director — never StoryResolved too.
+        Assert.Empty(transport.To<StoryResolved>(crew));
+        Assert.Contains("fin.standdown", transport.Plays(crew));
+        Assert.Contains(StoryCutsceneIds.Resolution, transport.Plays(crew));
         Assert.Contains("story.vega.finale_resolved", transport.LineKeys(crew));
-        Assert.Empty(transport.To<StoryResolved>(rookie));
+        Assert.DoesNotContain(StoryCutsceneIds.Resolution, transport.Plays(rookie));
         Assert.DoesNotContain("story.vega.finale_resolved", transport.LineKeys(rookie));
 
         server.SkipTutorialForTest(rookie);
-        Assert.Single(transport.To<StoryResolved>(rookie)); // deferred to the start
-        Assert.True(Has(rookie, StoryPackKeys.CutsceneSeen(V, StoryCutsceneIds.Resolution)));
+        Drain(server, rookie, times: 24);
+        Assert.Contains(StoryCutsceneIds.Resolution, transport.Plays(rookie)); // deferred to the start
+        Assert.Empty(transport.To<StoryResolved>(rookie));
+        Assert.True(Has(rookie, StoryPackKeys.CutsceneSent(V, StoryCutsceneIds.Resolution)));
     }
 
     [Fact]
@@ -614,10 +620,18 @@ public sealed class VegaStoryPackTests : IDisposable
 
         server.SkipTutorialForTest(p);
 
-        Assert.Single(transport.To<StoryResolved>(p));
         Assert.Equal("resolution", server.TrackChapterIdForTest(p));
         Assert.Contains(p.CutsceneQueue, q => q.Id == StoryCutsceneIds.Recap
                                               && LineText.SplitArgs(q.Arg).Contains("story.vega.ch.core"));
+
+        // #2478: the recap, then the stand-down and the ending on the director (chained, no 90 s gaps) — no StoryResolved.
+        Drain(server, p);
+        var plays = transport.Plays(p);
+        int recap = plays.IndexOf(StoryCutsceneIds.Recap);
+        int standdown = plays.IndexOf("fin.standdown");
+        int ending = plays.IndexOf(StoryCutsceneIds.Resolution);
+        Assert.True(recap >= 0 && standdown > recap && ending > standdown, string.Join(", ", plays));
+        Assert.Empty(transport.To<StoryResolved>(p));
     }
 
     // ---------------- Migration P1–P9 ----------------
@@ -690,8 +704,11 @@ public sealed class VegaStoryPackTests : IDisposable
         server.AdminRevealFinale();
         server.MarkGuardianDefeatedForTest();
         var p = Join(server, 1, "Away");
+        Ready(server, p);
+        Drain(server, p);
 
-        Assert.Single(transport.To<StoryResolved>(p));
+        Assert.Contains(StoryCutsceneIds.Resolution, transport.Plays(p)); // #2478: on the director
+        Assert.Empty(transport.To<StoryResolved>(p));
         Assert.True(p.State.AchievementCounters.TryGetValue(AchievementCounters.StoryFinale, out int n) && n > 0);
     }
 
