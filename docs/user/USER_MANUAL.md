@@ -1201,7 +1201,7 @@ players.
     or sapling, crafting at a campfire (a hot meal — or torches and water where hunger is off), a sample in your sample
     case from something you harvest, researching the bio lab and analysing a sample in it.
   - **Neighbours** (offered when a settlement is close by): talking to a settler (walk up and press **E**), answering in a
-    conversation (kind answers make friends), the "People you know" list in the Character tab, and who helps with what.
+    conversation (kind answers make friends), the "People you know" list in the Settings tab (your character page), and who helps with what.
     Not listed on a world without settlements.
   - **Defence** (only on a world whose rules have machines, robbers or hostile ships — a peaceful or family world never
     lists it, and it is never suggested; offered when a robber stops you or something hostile comes close): it is always
