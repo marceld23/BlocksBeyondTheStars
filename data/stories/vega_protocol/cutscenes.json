@@ -493,7 +493,9 @@
         {
           "camera": { "type": "space_vista", "anchor": "ship" },
           "duration": 12,
-          "captions": [ { "style": "reading_frame", "kickerKey": "story.vega.epilogue.title", "key": "story.vega.beat13", "at": 0.6 } ]
+          "captions": [ { "style": "reading_frame", "kickerKey": "story.vega.epilogue.title", "key": "story.vega.beat13", "at": 0.6 } ],
+          // #2495: VEGA's radio chirp as her epilogue appears — the one first-person VEGA text outside a speaker box.
+          "sfx": [ { "cue": "ai_blip", "at": 0.6 } ]
         }
       ],
       "options": { "skippable": true }

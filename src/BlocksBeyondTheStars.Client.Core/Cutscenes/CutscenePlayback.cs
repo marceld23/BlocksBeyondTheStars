@@ -10,7 +10,8 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
     /// <summary>What one caption shows right now (#2468).</summary>
     public readonly struct CaptionView
     {
-        public CaptionView(PlannedCaption caption, int page, string text, int visibleChars, float alpha, bool waitsForReader)
+        public CaptionView(PlannedCaption caption, int page, string text, int visibleChars, float alpha, bool waitsForReader,
+            bool closing = false)
         {
             Caption = caption;
             Page = page;
@@ -18,6 +19,7 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
             VisibleChars = visibleChars;
             Alpha = alpha;
             WaitsForReader = waitsForReader;
+            Closing = closing;
         }
 
         public PlannedCaption Caption { get; }
@@ -36,6 +38,9 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
 
         /// <summary>A page-gated page that has typed out: the continue control is live.</summary>
         public bool WaitsForReader { get; }
+
+        /// <summary>#2495: the reader closed the caption and it is fading out (#2494) — a speaker box falls silent.</summary>
+        public bool Closing { get; }
 
         /// <summary>The part of the page shown so far.</summary>
         public string Shown => VisibleChars >= Text.Length ? Text : Text.Substring(0, Math.Max(0, VisibleChars));
@@ -455,7 +460,7 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
                     {
                         int last = c.PageGated ? Math.Min(_page[i], c.Pages.Count - 1) : TimedPage(c, ShotTime - c.At + _skipped[i]);
                         string closed = c.Pages[last];
-                        views.Add(new CaptionView(c, last, closed, closed.Length, fade, waitsForReader: false));
+                        views.Add(new CaptionView(c, last, closed, closed.Length, fade, waitsForReader: false, closing: true));
                     }
 
                     continue;

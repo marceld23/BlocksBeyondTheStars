@@ -364,6 +364,14 @@ the browser download. Generated with `tools/ai-assets/gen_sound.py` (`--influenc
 | VEGA remembers | chapter 2's memory chart, every beat card | `chapter_sting_memory` | "Short dreamy sci-fi memory sting: soft shimmering crystal bells over a warm low synth pad, gentle and a little mysterious, like a fond memory coming back, no drums, no voice" (2.5 s) |
 | a big reveal | chapters 3, 5 and 7 (the staged scenes) | `chapter_sting_reveal` | "Short sci-fi discovery sting: a deep soft synth swell rising into a wide glowing chord with a gentle sparkle on top, wondrous and awe-inspiring but never scary, no drums, no voice" (3 s) |
 
+**VEGA's voice and ambience ducking in scenes (#2495)** — no new clips. VEGA's non-verbal chatter (`vega_chatter_1..3`,
+#761) now also plays in the cutscene speaker box while it types: one shared `NarratorVoice` (the panel and the director;
+random clip, never the same twice in a row, pitch 0.94–1.08, master × SFX × 0.5, silent behind the loading veil). The
+clips a speaker uses come from the pack's `narrator.voice` / `speakers[].voice` (both validators check they exist); the
+Guardian core has none. While a scene plays, `ClientAudio` ducks the **ambience beds** (weather/biome/cave bed,
+water/lava/fire/fence bed, ship hum, thunder) to 0.7 under a card and 0.4 under a staged scene, eased over about a second;
+cues, the voice and the music are never ducked. Details: [CUTSCENES.md](CUTSCENES.md#unity-cutscenedirector).
+
 ---
 
 ## Totals & rollout

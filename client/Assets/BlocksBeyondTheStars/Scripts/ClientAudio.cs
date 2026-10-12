@@ -72,6 +72,14 @@ namespace BlocksBeyondTheStars.Client
         private float _thunderDelay;
         private readonly System.Random _rng = new System.Random();
 
+        // #2495: ambience ducking under a cutscene — the director sets the level per scene (CutsceneRules.AmbienceDuck: a card
+        // 0.7, a staged scene 0.4) and 1 again at its end; the factor eases there (DuckFadeSeconds for the whole range) and
+        // scales only the ambience beds (weather/biome/cave bed, water/lava/fire bed, the ship's hum) and thunder. Cues,
+        // player-action loops, creatures, the narrator's voice and the music keep their level.
+        private const float DuckFadeSeconds = 1f;
+        private float _duck = 1f;
+        private float _duckTarget = 1f;
+
         private void Awake()
         {
             Instance = this;
@@ -222,11 +230,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float sfx = SfxVol();
+            _duck = Mathf.MoveTowards(_duck, _duckTarget, Time.deltaTime / DuckFadeSeconds);
+            float bed = sfx * _duck; // #2495: the ambience beds' level (ducked under a cutscene)
 
             // Ship interior hum swells while aboard, fades out on foot.
             if (_hum != null)
             {
-                float target = (Game != null && Game.Aboard) ? sfx * 0.45f : 0f;
+                float target = (Game != null && Game.Aboard) ? bed * 0.45f : 0f;
                 _hum.volume = Mathf.MoveTowards(_hum.volume, target, Time.deltaTime * 0.6f);
             }
 
@@ -237,7 +247,7 @@ namespace BlocksBeyondTheStars.Client
                 // The smoothed intensity (#900), so a bed swells and fades with the episode instead of
                 // jumping at every 5 s broadcast.
                 float intensity = Game != null ? Game.WeatherIntensity : (Game?.Environment?.Intensity ?? 0.4f);
-                float target = sfx * Mathf.Clamp(0.2f + 0.45f * intensity, 0.18f, 0.6f);
+                float target = bed * Mathf.Clamp(0.2f + 0.45f * intensity, 0.18f, 0.6f);
                 bool weatherBed = _ambienceId is "rain_loop" or "storm_loop" or "sandstorm_loop" or "ash_loop"
                     or "wind_strong" or "gale_loop" or "blizzard_loop" or "drizzle_loop" or "acid_hiss"
                     or "ion_crackle" or "spore_amb" or "meteor_streak" or "toxic_storm_loop";
@@ -271,7 +281,7 @@ namespace BlocksBeyondTheStars.Client
                 _thunderDelay -= Time.deltaTime;
                 if (_thunderDelay <= 0f)
                 {
-                    Cue(_pendingThunder);
+                    Cue(_pendingThunder, _duck); // weather: ducked with the beds (#2495)
                     _pendingThunder = null;
                 }
             }
@@ -352,7 +362,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_fluid != null && _fluid.clip != null)
             {
-                _fluid.volume = Mathf.MoveTowards(_fluid.volume, _fluidId.Length == 0 ? 0f : sfx * 0.4f, Time.deltaTime * 0.8f);
+                _fluid.volume = Mathf.MoveTowards(_fluid.volume, _fluidId.Length == 0 ? 0f : bed * 0.4f, Time.deltaTime * 0.8f);
             }
         }
 
@@ -662,6 +672,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The raw clip behind a cue id, or null — creature voices need the AudioClip itself to
         /// bake a species variant from it.</summary>
         public AudioClip Clip(string id) => _clips.TryGetValue(id, out var clip) ? clip : null;
+
+        /// <summary>#2495: the level the ambience beds duck to while a cutscene plays (<c>CutsceneRules.AmbienceDuck</c>; 1 =
+        /// not ducked). Set by the director every scene frame and back to 1 at the scene's end; the beds ease there.</summary>
+        public void SetCutsceneDuck(float level) => _duckTarget = Mathf.Clamp01(level);
 
         /// <summary>Switches the looping weather/ambience bed (crossfades via the volume in Update).</summary>
         public void SetAmbience(string id)

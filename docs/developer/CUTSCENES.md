@@ -356,7 +356,8 @@ palette) plays as the instance of the first chapter that binds it (`CutsceneArgs
   `resolution`);
 - #2478: the pack's `speakers` — ids key-safe and unique next to the narrator's, a `nameKey` in both languages, a
   `#RRGGBB` colour, a `lineStart` sound that exists; a caption's `speaker` naming neither the narrator nor a speaker is a
-  warning; the `players` anchor only on a `chart`;
+  warning; the `players` anchor only on a `chart`; #2495: every `voice` clip of the narrator and of each speaker (an empty
+  name is an error too) and the narrator's own `lineStart` exist in `client/Assets/Resources/audio`;
 - `arg` is empty, `body` or `system`;
 - ids unique and key-safe, none starting with `__`; tier 1–4; at least one shot; known cameras, anchors, caption styles
   and grades (#2477: a `diorama` shows `core` or `star_map`); shot length > 0 and ≤ 120 s; captions and cues inside their
@@ -501,7 +502,8 @@ Step 9 (#2468). The Unity-free rules live in Client.Core (`src/BlocksBeyondTheSt
 | `CutsceneStaging` | a shot's camera with the fallback chain (requested → raised orbit → crane → sky → player view; [per type](#cameras)) on `CinematicStageScan` (unloaded chunks blocked, the parked hull blocks the camera spot) and `PrologueOrbit.Scale`; #2477: the moves' paths (`TryDolly`/`TryPan`/`TryFlyover`, checked along the whole path) and the synthetic stages (`syntheticAllowed`) |
 | `CutsceneMoves` | #2477: how a move travels over its shot — eased one way (dolly, flyover: they settle) or back and forth (pan), the still framing with "Camera motion" off, the position and the pan's yaw at a progress; no allocation (the rig calls it every frame) |
 | `SyntheticStages` | #2477: what a synthetic stage shows (`SetOf(camera, anchor)` → `SyntheticSet`), its layout in stage coordinates (the vista's planet, sun and ship path; the core diorama's ≤ 200 blocks; the memory chart from the star map via `GalaxyChartLayout`, its rim and the red glow beyond it) and its camera paths; the core's breath (`CorePulse`, 0.4 Hz) |
-| `CutsceneRules` | (#2474) hold / freeze / heal-tank / card fallback; #2477: `SyntheticStagesAllowed(preset)` (Medium and up) and the card fallback of a scene made only of synthetic stages on the low presets; #2496 `HidesHud(plan, capped)`; #2497 `Dims(plan, …)` (the frame's cover vs the world dim) and `ReplayWaitsForLanding(def, inputs, …)` |
+| `CutsceneRules` | (#2474) hold / freeze / heal-tank / card fallback; #2477: `SyntheticStagesAllowed(preset)` (Medium and up) and the card fallback of a scene made only of synthetic stages on the low presets; #2496 `HidesHud(plan, capped)`; #2497 `Dims(plan, …)` (the frame's cover vs the world dim) and `ReplayWaitsForLanding(def, inputs, …)`; #2495 `AmbienceDuck(plan, capped)` (card 0.7, T3/T4 0.4, banner 1) |
+| `CutsceneVoice` | #2495: a narrator's vocoder chatter — `VoiceOf(pack, speakerId)` (the narrator's or speaker's `voice`, else `VegaDefault` = `vega_chatter_1..3` for `vega`, else none: the Guardian core), `ShouldChatter(view, pageAge, hasVoice)` (a `speaker` caption, not `Closing`: page-gated while it types, timed for its typing time `SpeakingSeconds` = chars / 42 from the page's start), `PickClip(count, previous, roll)` (never the same clip twice in a row), `Pitch(roll)` 0.94–1.08, `Volume(master, sfx)` = master × SFX × 0.5 |
 | `CutsceneCatalog` | the "Watch again" rows (seen, replayable scenes of installed packs, in pack/definition order; #2497: an `exclude` of seen keys) and their names (title card "Prologue — Awakening", else the bound chapter's title, else the first caption); #2497 `EndingIds(pack)` / `EndingKeys(pack)` — the finale's `standdown` + `resolution` |
 | `CutsceneGate` | (`Client.Core`, not in `Cutscenes/`) the shared "a cutscene owns the screen" state: full reasons (`Begin`/`End`/`Set`, `Active`) and #2496 HUD-only reasons (`SetHud`, `HudHidden`; never counted by `Active` or `ActiveOtherThan`) |
 
@@ -621,6 +623,22 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
 - **Music and sound:** a scene's `music` is played as `ClientMusic.CutsceneTrack` (context `cutscene:<track>`, looping, in
   either music mode; outranks every context but the ending's own track; a track still downloading leaves the current music
   playing — a scene is never delayed for music). `sfx` cues go to `ClientAudio.Cue`.
+- **VEGA's voice** (#2495): the speaker box speaks with the speaker's `voice` (`CutsceneSpeaker.Voice` =
+  `CutsceneVoice.VoiceOf`: VEGA's `vega_chatter_1..3` from the pack's narrator, her default without one; the Guardian core
+  has none and keeps its `anomaly_hum` line start). `NarratorVoice` (in `CutsceneScreen.cs`, shared with `VegaPanel`, which
+  keeps its #761 behaviour) owns one 2D `AudioSource` on the director: a random clip, never the same twice in a row, pitch
+  0.94–1.08, volume master × SFX × 0.5, silent behind the loading veil. It chatters while `CutsceneVoice.ShouldChatter` holds —
+  a page-gated box while it types (N completing the typing stops it), a timed box ("wait for me" off, the page shows whole)
+  for its typing time from the page's start — and stops on a typed-out or closed box, under the Tab menu (a hidden card), on
+  skip, interrupt and the end (`TearDownScene`). Subtitles never chatter: the prologue's three narration lines ("You
+  wake…") stay silent, then the blip as the console wakes, then VEGA's voice. The `ai_blip` line start still plays per page;
+  the ending's epilogue reading frame chirps once as it appears (an `ai_blip` cue in `cutscenes.json`, data only).
+- **Ambience ducking** (#2495): while a scene plays the director sets `ClientAudio.SetCutsceneDuck(CutsceneRules.AmbienceDuck(
+  plan, capped))` every frame — a card 0.7, a T3/T4 0.4 (0.7 again after the multiplayer camera cap), a banner 1 — and 1
+  again under the Tab menu and in the teardown. `ClientAudio` eases its duck factor there (1 s for the whole range) and
+  multiplies it into the **ambience beds only**: the weather/biome/cave bed, the water/lava/fire/fence bed, the ship's hum
+  and thunder. The scene's `sfx` cues, the line-start sounds, every other cue and player-action loop, creatures, the
+  narrator's voice and the music keep their level (`SfxVol()` itself is unchanged).
 - **Skip:** one press — Esc or the pad's cancel button on a scene that owns the screen; on a card (input free, pad B is
   crouch) the keyboard's Esc — or the frame's skip button (click/tap), after `minDisplay`, at once on a replay. The hint
   follows the device (`CinematicFrame.SkipLabel`); on a pad a card shows none (it pages with the continue button). A skip
@@ -666,10 +684,12 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   bottom right, where on a touch device the touch layer may cover it during a card (the layer only hides under a staged
   scene).
 - ~~A card dims the whole picture by 18 % (HUD included)~~ — #2497: a card dims only the world (HUD, crosshair and chip stay
-  bright). No ambience ducking; music is not prefetched when a scene is queued. With the visor HUD on, the name tags (an
-  overlay, order 8) draw over the visor layer and so stay undimmed under a card.
-- No `ctx:` variants (a scene has one shape for every place — chapter 5 falls back to a card away from the ship); the
-  speaker box has no vocoder chatter (only the line-start cue). ~~`b10` has no multiplayer variant~~ — #2478 (the live
+  bright). ~~No ambience ducking~~ — #2495 (the beds duck under a scene); music is not prefetched when a scene is queued.
+  With the visor HUD on, the name tags (an overlay, order 8) draw over the visor layer and so stay undimmed under a card.
+  The voice's 0.5 level under the scene music and the duck levels (0.7 / 0.4) are d4's first guesses — tune them in the
+  playtest.
+- No `ctx:` variants (a scene has one shape for every place — chapter 5 falls back to a card away from the ship);
+  ~~the speaker box has no vocoder chatter~~ — #2495 (VEGA's voice). ~~`b10` has no multiplayer variant~~ — #2478 (the live
   chart with the other players). ~~No synthetic stages, no `dolly`/`pan`/`flyover`~~ — #2477 (chapters 3, 4 and 6 use them).
 - #2478: the finale's pictures are built from what exists — the stand-down shows the sleeping-core diorama (its red glow
   still breathes; "the core sleeps"), no client-side "red light fades to warm" of the real chamber; the descent's flyover
@@ -750,3 +770,9 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   `FinaleSetPiecesClientTests` (`EndingIds`, "Watch again" without the ending, the missed arrival in both languages,
   `ReplayWaitsForLanding`); server `VegaFinaleSetPiecesTests` (the ending button replays the stand-down, then the ending, to
   a `cutscenes1` client and `StoryResolved` to an older one, no ledger change).
+- #2495: Client.Tests `CutsceneVoiceTests` (VEGA's pack speaks with the panel's clips, the core and an unknown speaker are
+  silent, VEGA's default without a pack voice, another narrator without one silent; `ShouldChatter` only for a speaker box
+  with a voice while it types — the prologue's narration silent, N completing the typing stops it —, a timed box for its
+  typing time, a closed box silent; `PickClip` never repeats, pitch and volume; the epilogue's blip; `AmbienceDuck` per tier,
+  capped and as a card); server `CutsceneContentTests.AMissingVoiceClip_IsAnError` (a narrator's or speaker's missing or
+  empty `voice` clip, the narrator's missing `lineStart`).

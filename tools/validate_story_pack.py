@@ -20,7 +20,7 @@ bridges naming a lead a player can follow), a tutorial pays no rewards (its own 
 the rewards it has in data/missions.json, #2481), every locale key exists in
 English and German (pack table or base table), every cutscene binding resolves in the pack's cutscenes.json (#2467),
 every finale stage is a known one and its speakers are well-formed (#2478: ids, a name, a #RRGGBB colour, a sound that
-exists), every cutscene follows the rules (ids, tier 1-4, cameras, anchors (a diorama shows core or star_map, #2477;
+exists), every voice clip of the narrator and the speakers and the narrator's line-start sound exist (#2495), every cutscene follows the rules (ids, tier 1-4, cameras, anchors (a diorama shows core or star_map, #2477;
 the players anchor only on a chart, #2478), caption styles, grades, shot lengths, a T1/T2 never
 takes the camera, only a T3/T4 that takes it may hold the world or freeze the controls, chainNext references, chapters,
 music in client/Music and sounds in client/Assets/Resources/audio, caption budgets: subtitle/speaker 220 EN / 264 DE,
@@ -601,9 +601,34 @@ class Validator:
         key("nameKey", pack.get("nameKey"))
         key("descriptionKey", pack.get("descriptionKey"))
         key("narrator.nameKey", (pack.get("narrator") or {}).get("nameKey"))
+        audio_dir = self.data.parent / "client" / "Assets" / "Resources" / "audio"
+
+        def sound_missing(cue: str) -> bool:
+            return audio_dir.exists() and not any(p.suffix != ".meta" for p in audio_dir.glob(f"{cue}.*"))
+
+        # #2495: the voices the client plays - every chatter clip a narrator or a speaker names (`voice`, played while its
+        # speaker box types) and the narrator's line-start cue exist in client/Assets/Resources/audio.
+        def check_voice(path: str, entry) -> None:
+            if not isinstance(entry, dict) or entry.get("voice") is None:
+                return
+            clips = entry.get("voice")
+            if not isinstance(clips, list):
+                r.error(pid, f"{path}.voice", "expected a list of sound clip names")
+                return
+            for ci, clip in enumerate(clips):
+                if not isinstance(clip, str) or not clip:
+                    r.error(pid, f"{path}.voice[{ci}]", "a voice clip needs a name")
+                elif sound_missing(clip):
+                    r.error(pid, f"{path}.voice[{ci}]", f"sound '{clip}' does not exist in client/Assets/Resources/audio")
+
+        narrator = pack.get("narrator") or {}
+        check_voice("narrator", narrator)
+        narrator_cue = (narrator.get("lineStart") or "") if isinstance(narrator, dict) else ""
+        if isinstance(narrator_cue, str) and narrator_cue and sound_missing(narrator_cue):
+            r.error(pid, "narrator.lineStart", f"sound '{narrator_cue}' does not exist in client/Assets/Resources/audio")
+
         # #2478: the pack's other voices (a caption's speaker, the finale's duel dialogue).
         speaker_ids = {(pack.get("narrator") or {}).get("id") or "vega"}
-        audio_dir = self.data.parent / "client" / "Assets" / "Resources" / "audio"
         for si, speaker in enumerate(pack.get("speakers") or []):
             sp = f"speakers[{si}]"
             self.unknown_fields(pid, sp, speaker, "narrator")
@@ -622,8 +647,9 @@ class Validator:
             if color and not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
                 r.error(pid, f"{sp}.color", f"'{color}' is not a #RRGGBB colour")
             cue = speaker.get("lineStart") or ""
-            if cue and audio_dir.exists() and not any(p.suffix != ".meta" for p in audio_dir.glob(f"{cue}.*")):
+            if cue and sound_missing(cue):
                 r.error(pid, f"{sp}.lineStart", f"sound '{cue}' does not exist in client/Assets/Resources/audio")
+            check_voice(sp, speaker)
         key("epilogueTitleKey", pack.get("epilogueTitleKey"))
         key("epilogueTextKey", pack.get("epilogueTextKey"))
         if pack.get("shortNameKey"):

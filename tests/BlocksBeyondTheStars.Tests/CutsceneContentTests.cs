@@ -421,6 +421,37 @@ public sealed class CutsceneContentTests
         Assert.False(StoryPackValidator.IsHexColor("#5FD8F"));
     }
 
+    /// <summary>#2495: the director plays a speaker's <c>voice</c> while its box types — every clip a narrator or a speaker names
+    /// must exist in Resources/audio (a missing one is an error, like a missing line-start cue), and so must the narrator's own
+    /// line-start cue.</summary>
+    [Fact]
+    public void AMissingVoiceClip_IsAnError()
+    {
+        Assert.Empty(Issues(Probe(editPack: d => d.Narrator.Voice.AddRange(new[] { "vega_chatter_1", "vega_chatter_2", "vega_chatter_3" }))));
+        Assert.Empty(Issues(Probe(editPack: d => d.Speakers.Add(new StoryNarrator
+        {
+            Id = "core",
+            NameKey = "ui.finale.duel_title",
+            LineStart = "anomaly_hum",
+            Voice = { "vega_chatter_2" },
+        }))));
+
+        AssertError(Probe(editPack: d => d.Narrator.Voice.AddRange(new[] { "vega_chatter_1", "vega_chatter_9" })),
+            "sound 'vega_chatter_9' does not exist in client/Assets/Resources/audio");
+        AssertError(Probe(editPack: d => d.Narrator.Voice.Add(string.Empty)), "a voice clip needs a name");
+        AssertError(Probe(editPack: d => d.Narrator.LineStart = "blip_nowhere"), "sound 'blip_nowhere' does not exist");
+        AssertError(Probe(editPack: d => d.Speakers.Add(new StoryNarrator
+        {
+            Id = "core",
+            NameKey = "ui.finale.duel_title",
+            Voice = { "core_nowhere" },
+        })), "sound 'core_nowhere' does not exist");
+
+        var issue = Issues(Probe(editPack: d => d.Narrator.Voice.AddRange(new[] { "vega_chatter_1", "vega_chatter_9" })))
+            .Single(i => i.Severity == StoryPackIssueSeverity.Error);
+        Assert.Equal("narrator.voice[1]", issue.Path);
+    }
+
     [Fact]
     public void ChainReferences_Resolve()
     {

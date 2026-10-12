@@ -119,6 +119,29 @@ namespace BlocksBeyondTheStars.Client.Cutscenes
             return (Math.Max(frame, Math.Max(0f, credits)), world);
         }
 
+        /// <summary>#2495: the ambience level under a card (T2, or a scene played as one) — d4's −3 dB.</summary>
+        public const float CardAmbience = 0.7f;
+
+        /// <summary>#2495: the ambience level under a staged scene (T3/T4) — the rain and wind beds step back for the space
+        /// vistas, the dioramas and VEGA's voice.</summary>
+        public const float SceneAmbience = 0.4f;
+
+        /// <summary>
+        /// #2495: how far the world's ambience beds (weather and biome bed, cave bed, the water/lava/fire bed, the ship's hum,
+        /// thunder) duck while a scene plays: <see cref="CardAmbience"/> under a card, <see cref="SceneAmbience"/> under a T3/T4
+        /// (a card again after the multiplayer camera cap, <paramref name="capped"/>), 1 for a banner or no scene. The scene's
+        /// own sound cues, the line-start sounds, the narrator's voice and the music are never ducked.
+        /// </summary>
+        public static float AmbienceDuck(CutscenePlan? plan, bool capped)
+        {
+            if (plan is null || plan.Tier <= CutsceneTiers.Banner)
+            {
+                return 1f;
+            }
+
+            return plan.Tier >= CutsceneTiers.Scene && !capped ? SceneAmbience : CardAmbience;
+        }
+
         /// <summary>
         /// #2497: whether a requested replay of <paramref name="def"/> waits for the player to land — the Journal's "Watch"
         /// then says so ("Plays when you land") instead of waiting silently: a T3/T4 scene that takes the camera never starts

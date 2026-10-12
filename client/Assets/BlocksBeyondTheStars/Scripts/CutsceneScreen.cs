@@ -16,6 +16,121 @@ namespace BlocksBeyondTheStars.Client
         public Sprite Icon;
         public Color Color = UiKit.Cyan;
         public string LineStartCue = string.Empty;
+
+        /// <summary>#2495: the vocoder chatter clips played while the box types (<see cref="CutsceneVoice.VoiceOf"/>); empty =
+        /// silent (the Guardian core keeps only its line-start hum).</summary>
+        public IReadOnlyList<string> Voice = System.Array.Empty<string>();
+    }
+
+    /// <summary>
+    /// #2495: a narrator's non-verbal vocoder voice — VEGA's chatter (#761), shared by her panel and the cutscene director's
+    /// speaker box. Owns one 2D <see cref="AudioSource"/> on its host and chains clips while the caller says the narrator is
+    /// speaking: a random clip, never the same twice in a row, pitch jitter 0.94–1.08, volume master × SFX × 0.5
+    /// (<see cref="CutsceneVoice"/>, Client.Core). Silent behind the loading veil — the narrator speaks only once the world
+    /// is visible. Clips come from <c>Resources/audio</c>, loaded once per name. Not ducked (#2495: the scene ducks only the
+    /// ambience beds) and has no mute of its own: it follows the Master and SFX sliders.
+    /// </summary>
+    public sealed class NarratorVoice
+    {
+        private readonly GameObject _host;
+        private readonly System.Func<ClientSettings> _settings;
+        private readonly Dictionary<string, AudioClip> _loaded = new Dictionary<string, AudioClip>(System.StringComparer.Ordinal);
+        private readonly List<AudioClip> _clips = new List<AudioClip>();
+        private readonly List<string> _names = new List<string>();
+        private AudioSource _source;
+        private int _last = -1;
+
+        public NarratorVoice(GameObject host, System.Func<ClientSettings> settings)
+        {
+            _host = host;
+            _settings = settings;
+        }
+
+        /// <summary>Whether any of the names given to <see cref="SetClips"/> resolved to a clip.</summary>
+        public bool HasClips => _clips.Count > 0;
+
+        /// <summary>The clips to chatter with, by name (<c>Resources/audio/&lt;name&gt;</c>; a missing one is left out). The
+        /// same names again are a no-op (cheap per frame); a new set stops the clip that plays.</summary>
+        public void SetClips(IReadOnlyList<string> names)
+        {
+            int count = names?.Count ?? 0;
+            bool same = count == _names.Count;
+            for (int i = 0; same && i < count; i++)
+            {
+                same = string.Equals(names[i], _names[i], System.StringComparison.Ordinal);
+            }
+
+            if (same)
+            {
+                return;
+            }
+
+            Stop();
+            _names.Clear();
+            _clips.Clear();
+            _last = -1;
+            for (int i = 0; i < count; i++)
+            {
+                string name = names[i] ?? string.Empty;
+                _names.Add(name);
+                if (name.Length == 0)
+                {
+                    continue;
+                }
+
+                if (!_loaded.TryGetValue(name, out var clip))
+                {
+                    clip = Resources.Load<AudioClip>("audio/" + name);
+                    _loaded[name] = clip;
+                }
+
+                if (clip != null)
+                {
+                    _clips.Add(clip);
+                }
+            }
+        }
+
+        /// <summary>Chains the next clip while <paramref name="speaking"/> (and the world is visible); otherwise falls silent
+        /// at once — trailing babble under a finished page reads as a glitch.</summary>
+        public void Tick(bool speaking, bool veilShown)
+        {
+            if (!speaking || veilShown || _clips.Count == 0 || _host == null)
+            {
+                Stop();
+                return;
+            }
+
+            if (_source == null)
+            {
+                _source = _host.AddComponent<AudioSource>();
+                _source.spatialBlend = 0f;
+                _source.playOnAwake = false;
+            }
+
+            if (_source.isPlaying)
+            {
+                return;
+            }
+
+            _last = CutsceneVoice.PickClip(_clips.Count, _last, UnityEngine.Random.value);
+            _source.clip = _clips[_last];
+            _source.pitch = CutsceneVoice.Pitch(UnityEngine.Random.value);
+            var settings = _settings?.Invoke();
+            float master = settings != null ? settings.MasterVolume : 0.8f;
+            float sfx = settings != null ? settings.SfxVolume : 1f;
+            _source.volume = CutsceneVoice.Volume(master, sfx);
+            _source.Play();
+        }
+
+        /// <summary>Cuts the clip that plays (typed out, fast-forwarded, skipped, hidden, torn down).</summary>
+        public void Stop()
+        {
+            if (_source != null && _source.isPlaying)
+            {
+                _source.Stop();
+            }
+        }
     }
 
     /// <summary>

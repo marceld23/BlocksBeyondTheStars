@@ -68,6 +68,17 @@ line per step:
   or never" scene shows its title as a banner; "Watch" while flying says "Plays when you land." (#2497). Docs: CUTSCENES,
   USER_MANUAL. ⚠ Unity: check in the Editor — the settle and fade feel, "Lift-off!" without HUD (launch fade intact), a card
   over the HUD with the visor on and off, VEGA's chip under a card.
+- ✅ **Step 4 — VEGA's voice in the speaker box, ambience ducking (#2495)**, 2026-10-13: the cutscene speaker box chatters
+  with the speaker's `voice` while it types (a timed box for its typing time) — VEGA's `vega_chatter_1..3` from the pack's
+  narrator or by default, none for the Guardian core; the prologue's narration subtitles stay silent; it stops when typed
+  out or closed, under the Tab menu, on skip/interrupt/end. One shared `NarratorVoice` (CutsceneScreen.cs) serves the
+  director and VEGA's panel (unchanged, now never the same clip twice in a row); the rules are Client.Core
+  `CutsceneVoice` (tested). The epilogue's reading frame chirps (`ai_blip`, data). While a scene plays the ambience beds
+  (weather/biome/cave, water/lava/fire, ship hum, thunder) duck to 0.7 under a card and 0.4 under a staged scene
+  (`CutsceneRules.AmbienceDuck`, `ClientAudio.SetCutsceneDuck`, eased); cues, line starts, the voice and the music are not
+  ducked. Both validators: every narrator/speaker `voice` clip and the narrator's `lineStart` must exist in
+  `Resources/audio`. Docs: CUTSCENES, SOUND_DESIGN, USER_MANUAL. ⚠ Unity/playtest: the chatter's 0.5 under the scene music
+  and the duck levels — tune by ear.
 
 ### ★ Story packs 2026-10 (#2459)
 

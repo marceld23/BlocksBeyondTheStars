@@ -120,6 +120,8 @@ namespace BlocksBeyondTheStars.Client
         private string _musicTrack;
         private PlannedCaption _lastSpeakerCaption;
         private int _lastSpeakerPage = -1;
+        private float _speakerPageAt; // #2495: the scene time the speaker box's page appeared (a timed page's voice window)
+        private NarratorVoice _voice;  // #2495: the speaker's vocoder chatter (VEGA's clips) while the box types
         private float _flash;
 
         private float _lastHealth = -1f;
@@ -132,6 +134,7 @@ namespace BlocksBeyondTheStars.Client
             Instance = this;
             _localize = L;
             _rig = gameObject.AddComponent<CutsceneCameraRig>();
+            _voice = new NarratorVoice(gameObject, () => Settings);
         }
 
         private void Start()
@@ -494,6 +497,7 @@ namespace BlocksBeyondTheStars.Client
             _letterbox = 0f;
             _lastSpeakerCaption = null;
             _lastSpeakerPage = -1;
+            _speakerPageAt = 0f;
             _flash = 0f;
             _screen = CutsceneScreen.Create("CutsceneFrame", FrameSortingOrder, skipButton: plan.Tier >= CutsceneTiers.Card);
             if (plan.OpensFromBlack)
@@ -513,10 +517,13 @@ namespace BlocksBeyondTheStars.Client
             bool card = plan.Tier == CutsceneTiers.Card;
             bool banner = plan.Tier <= CutsceneTiers.Banner;
 
-            // A card keeps the input free, so the Tab menu may open over it: the card waits (hidden) until it closes.
+            // A card keeps the input free, so the Tab menu may open over it: the card waits (hidden) until it closes — silent
+            // (#2495: no chatter, the ambience back to its level).
             if ((card || banner) && !_gate && Game.MenuOpen)
             {
                 _screen.Visible = false;
+                _voice.Stop();
+                ClientAudio.Instance?.SetCutsceneDuck(1f);
                 return;
             }
 
@@ -568,6 +575,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UpdateGateAndHold(plan, cameraTaken);
+            // #2495: the world's ambience beds step back under the scene (a card 0.7, a T3/T4 0.4, a banner not at all); the
+            // scene's own cues below, the line-start sounds, the narrator's voice and the music are not ducked.
+            ClientAudio.Instance?.SetCutsceneDuck(CutsceneRules.AmbienceDuck(plan, _capped));
             foreach (string cue in _play.TakeDueSfx())
             {
                 ClientAudio.Instance?.Cue(cue);
@@ -889,8 +899,11 @@ namespace BlocksBeyondTheStars.Client
             _worldDim = worldDim;
             _screen.SetWorldDim(worldDim);
 
-            // Speaker: the first speaker caption on screen names who talks; its line-start cue plays once per page.
+            // Speaker: the first speaker caption on screen names who talks; its line-start cue plays once per page. #2495: the
+            // speaker's voice chatters while the box types (a timed page: as long as it would take to type) — subtitles stay
+            // silent (the prologue's narration), a closed box falls silent with its fade.
             CutsceneSpeaker speaker = null;
+            bool chatter = false;
             foreach (var v in views)
             {
                 if (v.Caption.Style == CutsceneCaptionStyles.Speaker || banner)
@@ -905,15 +918,24 @@ namespace BlocksBeyondTheStars.Client
 
                         _lastSpeakerCaption = v.Caption;
                         _lastSpeakerPage = v.Page;
+                        _speakerPageAt = _play.Elapsed;
                         if (!string.IsNullOrEmpty(speaker.LineStartCue))
                         {
                             ClientAudio.Instance?.Cue(speaker.LineStartCue);
                         }
                     }
 
+                    chatter = CutsceneVoice.ShouldChatter(v, _play.Elapsed - _speakerPageAt, speaker.Voice.Count > 0);
                     break;
                 }
             }
+
+            if (chatter)
+            {
+                _voice.SetClips(speaker.Voice);
+            }
+
+            _voice.Tick(chatter, _inputs.LoadingVeil);
 
             if (banner && speaker == null)
             {
@@ -974,6 +996,7 @@ namespace BlocksBeyondTheStars.Client
                 Icon = icon.Length > 0 ? UiKit.Icon(icon) : null,
                 Color = color,
                 LineStartCue = fromPack && !string.IsNullOrEmpty(entry.LineStart) ? entry.LineStart : vega ? "ai_blip" : string.Empty,
+                Voice = CutsceneVoice.VoiceOf(pack, speakerId), // #2495: the pack's voice, VEGA's chatter by default
             };
         }
 
@@ -1089,6 +1112,8 @@ namespace BlocksBeyondTheStars.Client
         private void TearDownScene()
         {
             _rig.Release();
+            _voice?.Stop(); // #2495: skip, interrupt and the end all come through here
+            ClientAudio.Instance?.SetCutsceneDuck(1f);
             if (_gate)
             {
                 _gate = false;

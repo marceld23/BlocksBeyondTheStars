@@ -2147,6 +2147,9 @@ called **stories**:
   A few moments only make sense right then ("Lift-off!", arriving at the Guardian system): if danger is near, they show
   just their title as a short banner at the top. During "Lift-off!" the flight HUD steps aside for a few seconds — you
   keep the controls.
+  - **Sound:** while VEGA's box types she "speaks" with the same robot babble as in her side panel (no words — it follows
+    the **Master volume** and **Effects volume** sliders). The narration at the very start stays silent. While a scene plays, rain,
+    wind and other background sounds get quieter (a little under a card, more under a staged scene) and come back after it.
   - **Skip** a scene with **Esc**, the pad's **(B)** or the **Skip** button (on a card, where you can move, Esc or the
     button). Turn the text pages with **N**, pad **Back**, the **Continue** button or a tap on the text — once the last
     page is read, the scene moves on about a second later.

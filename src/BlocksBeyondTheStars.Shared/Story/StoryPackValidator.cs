@@ -371,6 +371,29 @@ public static class StoryPackValidator
         Key("descriptionKey", def.DescriptionKey);
         Key("narrator.nameKey", def.Narrator?.NameKey);
 
+        // #2495: the voices the client plays — every chatter clip a narrator or a speaker names (`voice`, played while its
+        // speaker box types) and the narrator's line-start cue exist in client/Assets/Resources/audio.
+        void CheckVoice(string path, StoryNarrator? voice)
+        {
+            foreach (var (clip, ci) in (voice?.Voice ?? new List<string>()).Select((c, i) => (c, i)))
+            {
+                if (string.IsNullOrEmpty(clip))
+                {
+                    Error($"{path}.voice[{ci}]", "a voice clip needs a name");
+                }
+                else if (context.SoundExists is { } voiceSound && !voiceSound(clip))
+                {
+                    Error($"{path}.voice[{ci}]", $"sound '{clip}' does not exist in client/Assets/Resources/audio");
+                }
+            }
+        }
+
+        CheckVoice("narrator", def.Narrator);
+        if (!string.IsNullOrEmpty(def.Narrator?.LineStart) && context.SoundExists is { } narratorSound && !narratorSound(def.Narrator!.LineStart))
+        {
+            Error("narrator.lineStart", $"sound '{def.Narrator.LineStart}' does not exist in client/Assets/Resources/audio");
+        }
+
         // #2478: the pack's other voices (a cutscene caption's `speaker`, the finale's duel dialogue) — ids unique next to the
         // narrator's, a name in both languages, a colour the client can read, a line-start cue that exists.
         var speakerIds = new HashSet<string>(StringComparer.Ordinal) { def.Narrator?.Id ?? StoryNarrator.DefaultId };
@@ -398,7 +421,10 @@ public static class StoryPackValidator
             {
                 Error($"{sp}.lineStart", $"sound '{speaker.LineStart}' does not exist in client/Assets/Resources/audio");
             }
+
+            CheckVoice(sp, speaker);
         }
+
         Key("epilogueTitleKey", def.EpilogueTitleKey);
         Key("epilogueTextKey", def.EpilogueTextKey);
         if (!playerPack && def.Chapters.Any(c => c.Leads.Count > 0))

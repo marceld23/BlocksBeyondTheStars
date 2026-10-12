@@ -68,7 +68,7 @@ Every field is optional and defaults to today's behaviour.
 | `priority` | int | 0 | Journal order and chip tie-break between player packs (higher first) |
 | `shortNameKey` | key | — | ≤ 10 characters EN/DE; replaces "Objective:" on the chip while this pack's step is on it |
 | `descriptionKey` | key | — | one line for world creation / the Journal |
-| `narrator` | `{ id, nameKey, icon, color, voice[], lineStart }` | `{ id: "vega" }` | who speaks (`ShipAiLine.Speaker`); an unknown id uses VEGA's style |
+| `narrator` | `{ id, nameKey, icon, color, voice[], lineStart }` | `{ id: "vega" }` | who speaks (`ShipAiLine.Speaker`); an unknown id uses VEGA's style. #2495: `voice` = the chatter clips (`Resources/audio`) a cutscene speaker box plays while it types (empty: VEGA's `vega_chatter_1..3` for `vega`, none for another id); the validators require every `voice` clip and `lineStart` to exist |
 | `defaultEnabled` | bool | `true` | non-tutorial player packs: runs for everyone unless the player opts out |
 | `introCutscene` | cutscene id | — | played when the pack starts for the player — not on "I know the game", not for a veteran the pack completes for silently ([CUTSCENES.md](CUTSCENES.md#bindings--where-a-pack-plays-a-scene)) |
 | `gates` | `{ opportunityTips, banter, stationNear }` → condition | — | tutorial only: when the global advisor systems open (see [Gates](#gates)) |

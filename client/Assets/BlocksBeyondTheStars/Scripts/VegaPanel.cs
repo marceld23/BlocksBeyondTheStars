@@ -129,8 +129,8 @@ namespace BlocksBeyondTheStars.Client
 
         // VEGA's non-verbal vocoder voice (#761): short ElevenLabs chatter variants chained while a
         // page types out. No words → language-independent, nothing to re-record when texts change.
-        private AudioClip[] _chatterClips;
-        private AudioSource _chatterSource;
+        // #2495: the shared NarratorVoice (CutsceneScreen.cs) — the cutscene director's speaker box speaks with it too.
+        private NarratorVoice _voice;
         private WorldLoadingOverlay _worldVeil; // chatter never plays behind the loading curtain
 
         // How many break reminders have fired this session — drives the escalating wording and the next due time.
@@ -239,20 +239,9 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.ShipAiLineReceived += OnLine;
             }
 
-            // Load every bundled chatter variant (vega_chatter_1..n); none bundled → silent typewriter.
-            var chatter = new List<AudioClip>();
-            for (int i = 1; ; i++)
-            {
-                var clip = Resources.Load<AudioClip>("audio/vega_chatter_" + i);
-                if (clip == null)
-                {
-                    break;
-                }
-
-                chatter.Add(clip);
-            }
-
-            _chatterClips = chatter.ToArray();
+            // VEGA's chatter clips (vega_chatter_1..3, #2495: the one default list in Client.Core); none bundled → silent typewriter.
+            _voice = new NarratorVoice(gameObject, () => Settings);
+            _voice.SetClips(BlocksBeyondTheStars.Client.Cutscenes.CutsceneVoice.VegaDefault);
             _worldVeil = FindAnyObjectByType<WorldLoadingOverlay>();
         }
 
@@ -392,53 +381,16 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Starts/chains a chatter segment while a page is typing (#761): random variant, a
-        /// touch of pitch jitter so the babble never sounds looped, volume from the audio settings.
-        /// The existing per-line "ai_blip" stays as the radio keying transient.</summary>
-        private void UpdateChatter()
-        {
-            if (_chatterClips == null || _chatterClips.Length == 0)
-            {
-                return;
-            }
-
-            // A line typing behind the loading curtain (veteran greeting, a landing transition) must not
-            // be audible before anything is visible — VEGA speaks only once the world does.
-            if (_worldVeil != null && _worldVeil.VeilActive)
-            {
-                StopChatter();
-                return;
-            }
-
-            if (_chatterSource == null)
-            {
-                _chatterSource = gameObject.AddComponent<AudioSource>();
-                _chatterSource.spatialBlend = 0f;
-                _chatterSource.playOnAwake = false;
-            }
-
-            if (_chatterSource.isPlaying)
-            {
-                return;
-            }
-
-            _chatterSource.clip = _chatterClips[Random.Range(0, _chatterClips.Length)];
-            _chatterSource.pitch = Random.Range(0.94f, 1.08f);
-            float master = Settings != null ? Settings.MasterVolume : 0.8f;
-            float sfx = Settings != null ? Settings.SfxVolume : 1f;
-            _chatterSource.volume = Mathf.Clamp01(master * sfx) * 0.5f;
-            _chatterSource.Play();
-        }
+        /// <summary>Starts/chains a chatter segment while a page is typing (#761): random variant (#2495: never the same twice
+        /// in a row), a touch of pitch jitter so the babble never sounds looped, volume from the audio settings — the shared
+        /// <see cref="NarratorVoice"/>. The existing per-line "ai_blip" stays as the radio keying transient. A line typing
+        /// behind the loading curtain (veteran greeting, a landing transition) must not be audible before anything is
+        /// visible — VEGA speaks only once the world does.</summary>
+        private void UpdateChatter() => _voice?.Tick(true, _worldVeil != null && _worldVeil.VeilActive);
 
         /// <summary>Cuts the chatter the moment the reveal completes, is fast-forwarded or dismissed —
         /// trailing babble under a finished page reads as a glitch.</summary>
-        private void StopChatter()
-        {
-            if (_chatterSource != null && _chatterSource.isPlaying)
-            {
-                _chatterSource.Stop();
-            }
-        }
+        private void StopChatter() => _voice?.Stop();
 
         /// <summary>True when any queued line still carries the prologue flag.</summary>
         private bool QueueHasPrologue()
