@@ -60,6 +60,11 @@ Style rules:
 
 - Kid-friendly tone, informal address (German "du", French "tu", Spanish "tú").
 - Keep UI strings short — panels do not grow. One English word → one translated word if possible.
+  VEGA's two answer buttons (`ui.vega.choice.*`, #2499) share one row of her panel: the right one reads
+  "Let's go · [N]" in a pill of about 200 px, the left one "Hold [N]: I know the game — skip"
+  (`ui.vega.choice.hold`) in about 330 px — roughly 12 and 30 characters for the labels in Latin scripts (German:
+  "Kenne ich schon – überspringen"), fewer in CJK. The Official Worlds status chip (`ui.portal.needs_update`, a 220 px cell) reuses the portal's own
+  `worlds.js.status.needs_update` word.
 - Never name a key in the text ("press Tab", "E at the cockpit"): write the `{key:Action}` token instead
   (`{key:UiMenu}`, `{key:Interact}`, `{key:PlanetMap}`, …). The game shows the player's own binding, the pad
   button, or on a tablet the on-screen button (USE, MAP, ≡) — a literal key is wrong on two of three devices

@@ -151,6 +151,21 @@ line per step:
   `VegaLineBudgetTests.ItemBlockBlueprintAndModuleDescriptions_NameNoKeyLiterally` (EN/DE). Docs: TRANSLATION_GUIDE,
   INPUT_AND_CONTROLLER, USER_MANUAL. Open: the Codex articles (`data/wiki/articles.json`) still name keys (later
   item). ⚠ Unity: CraftingTechShipUI.cs + WikiUI.cs — check a description on keyboard (rebound Interact), pad, touch.
+- ✅ **Step 11 — translation pass for steps 2–7, docs pass**, 2026-10-13 (text + docs only): the keys steps 2–7 added or
+  changed in all twelve community languages — 14 new base keys (the "Plays when you land." banner, "Short courses only"
+  + its hint, "Start basic training", the course offer with buttons, the five `ui.vega.choice.*` keys, "done — nothing
+  left to practise" and VEGA's line, the unknown-story notice, the Official Worlds chip), 4 changed (`ui.settings.tutorial`
+  "Tutorial & courses", the Off hint, the two `/tutorial policy auto|courses|optin|off` help lines — only the policy list
+  swapped), and in the tutorial pack the first-start question, the skip hint and the re-worded wall-ring hint. Machine
+  pass with `translate_locale.py` on a filtered source, then every value reviewed by hand: each table's own words for
+  the basic training, the short course, the Journal, its "done"/"Later"/"Start" and the Settings switch; VEGA feminine,
+  the player's gender left open (ru/pl/uk); the hold line built like each table's `ui.space.scan_hold_hint`; button
+  labels short enough for the two pills; `ui.portal.needs_update` copied from the portal's
+  `worlds.js.status.needs_update`. Community coverage back to 100 % (`locale_coverage.json` 1.0 in all 14). Docs pass:
+  USER_MANUAL (the first-start question at the new-world start), STORY_IMPLEMENTATION (`Courses` and the question in the
+  pack-enabled rule), SELF_HOSTING (the question under `Auto`), TRANSLATION_GUIDE (answer-button and status-chip
+  lengths); older open items this package closed are struck through below (N5 pool check, ducking/chatter, the table
+  inconsistencies).
 
 ### ★ Story packs 2026-10 (#2459)
 
@@ -218,8 +233,9 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   both). Portal texts in all 14 languages, client `ui.portal.err_*` en+de. Tests: `WorldHostSaveVersionTests`,
   `SaveCompatibilityTests` (+4), `GlitchGatewayTests` (+1). ⚠ After the final merge the **WorldHost image** must be
   built and deployed (`deploy.yml`, 7-char sha tag) — and the game-server image of the next release carries the
-  pre-upgrade copy. Open (ops, no code): check N5 (pool-world owner id `glitch` → first joiner WorldAdmin) on the
-  two live pool worlds.
+  pre-upgrade copy. ~~Open (ops, no code): check N5 (pool-world owner id `glitch` → first joiner WorldAdmin) on the
+  two live pool worlds~~ — fixed in code by the follow-ups' step 1 (#2486); the live check of the pool worlds after the
+  release is that step's operator item.
 - ✅ **Step 6 — game-event bus and beat-less pack guard (#2465)**, 2026-10-11 (invisible to players): one server entry
   point `RaiseGameEvent(actor, key, arg, amount)` next to the achievement/VEGA/story hooks at ~35 gameplay sites
   (`mine:any`, `build:any`/`build:rotated`, `craft:any|tint|shape|paint`, `eat:any`, `scan:performed|any`,
@@ -245,7 +261,7 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   in `TrackedStoryId` (both additive in the player snapshot), chapter order, open extras, react arming, offers, skip
   step/chapter/pack, replay with the evidence off (done keys stay), opt-out, legacy-key double-write + one-time migration
   marker, help escalation on play time (hint → a private 30 s marker ping for that session only, never `RevealPoi` →
-  skip offer); the world rule `GameRules.TutorialPolicy` (`Auto|OptIn|Off`, `--tutorial`, baked, live via
+  skip offer); the world rule `GameRules.TutorialPolicy` (`Auto|OptIn|Off` — `Courses` added by the follow-ups' step 5, `--tutorial`, baked, live via
   `SetWorldRulesIntent`/admin); the full chip order (finale in system → pin → basic training → VEGA finale → VEGA lead
   → deep dive/mission → other packs) with `ShipAiLine.ObjectivePackId`/`PackId`/`Speaker`; `JoinRequest.Features`
   (`packs1` announced by the client) and the legacy tutorial mode for older clients (old keys without text, other lines
@@ -335,7 +351,7 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   beats, fragments, memories, field records, Start the story now, its scenes), **VEGA's notes** (tips + the world story's
   non-beat lines, now rejoin-proof via `StoryStateMessage.NoteKeys`), the player's notes; a ★ badge per story finished by
   playing. The chip reads "Training: …" / "VEGA: …" (story short name instead of "Objective"); pin from the Journal;
-  optional **Show all objectives** (up to 3 lines, hidden while chatting). Settings: **Tutorial: on/off** + **Open the
+  optional **Show all objectives** (up to 3 lines, hidden while chatting). Settings: **Tutorial: on/off** (since the follow-ups' step 5 "Tutorial & courses") + **Open the
   Journal** (the old skip/restart button stays for older servers). Wire: tag 299 `ObjectiveList`, tag 300
   `StoryPackStates` (join, own action, request, else coalesced ≤ 1/s; progress never re-sends the states), additive
   `ShipAiLine.SpaceWaypointId`; every `StoryPackIntent` action validated + pause-whitelisted (new `restartPack`,
@@ -347,7 +363,7 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
 - ✅ **Step 13 — world creation "Stories" page (#2472)**, 2026-10-12 (needs the local Unity build): the world options'
   storyline + pace sliders are ONE row **"Stories: VEGA · Tutorial Auto ›"** opening a **Stories** sub-page — main story
   (every installed world story from the content, "None (sandbox)" last, the chosen one's description), story pace, and the
-  tutorial rule **Auto / On request / Off** with one line each; creation emits only non-defaults (`--story <id>`,
+  tutorial rule **Auto / On request / Off** (+ *Short courses only* since the follow-ups' step 5) with one line each; creation emits only non-defaults (`--story <id>`,
   `--story-density`, `--tutorial`), baked into the save. The world admin changes the **story pace live** now (new additive
   `SetWorldRulesIntent.StoryDensity` / `ServerRules.StoryDensity`; a faster pace reveals the beats its score covers at once)
   and the tutorial rule from the in-game world rules (Settings tab). Presets keep Auto (server `family` says so); hosted /
@@ -587,10 +603,10 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   still said "Story tab" (now "your Journal"). Tool: `translate_locale.py` carries each language's own tab/term words and
   the names found in each chunk (`GLOSSARY_KEYS`, `NAME_KEY`), rejects an unchanged English sentence and writes LF.
   Reviewers' table fixes outside the pass: Guardian words aligned in it/ko/uk/nl/ru, es "Hiperespacio", ja
-  `ui.vega.restart`, pl workbench typo + observatory, uk campfire ("Вогнище"), it crystal daylight modes. Open (pre-existing
+  `ui.vega.restart`, pl workbench typo + observatory, uk campfire ("Вогнище"), it crystal daylight modes. ~~Open (pre-existing
   table inconsistencies, listed in the review notes): blueprint vs module names (Radar Array, Jump Generator) in fr/pl/ru/uk,
   "Guardian" still English in a few older tr/it pack lines, masculine VEGA in some older pt/ru/pl lines, uk finale UI
-  "Страж" vs "Охоронець", nl `ui.dock.undock_hint`; and the menu tab of the Character page is labelled `ui.tab.settings`
+  "Страж" vs "Охоронець", nl `ui.dock.undock_hint`~~ — fixed in the follow-ups' step 8 (#2501). Still open: the menu tab of the Character page is labelled `ui.tab.settings`
   ("Settings") while the tutorial (c11, c16) and the manual say "Character tab" — decide which one changes.
 - ~~Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text and lack
   `story.obj.help_peaceful`~~ — done in the translation pass (`vega.s.dock.start_far` is back to its original "hyperjump"
@@ -602,8 +618,9 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
 - Open from step 9: ~~the community locales lack the step-9 keys~~ — done in the translation pass.
   Playtest/on-device checks: the dev-palette prologue on desktop **and** WebGL (orbit staging, fallbacks, hold), a card's
   skip button on touch (the touch layer stays up under a card and may cover the bottom-right button), pad paging of
-  cards, the MP camera cap. Deferred to later steps: hold-to-skip / pause-then-skip, ambience ducking, music prefetch,
-  `ctx:` variants, vocoder chatter under the speaker box (synthetic stages: done in 17a).
+  cards, the MP camera cap. Deferred to later steps: hold-to-skip / pause-then-skip, ~~ambience ducking~~, music
+  prefetch, `ctx:` variants, ~~vocoder chatter under the speaker box~~ (synthetic stages: done in 17a; ducking and
+  VEGA's voice: done in the follow-ups' step 4, #2495).
 - Open from step 15: ~~the 12 community VEGA pack locales lack the seven `story.vega.cut.*` keys~~ — done in the
   translation pass. Playtest/on-device checks: listen to the three stingers (generated unheard; regenerate one with
   `gen_sound.py` if it jars), the heal-tank close-up in the starter ship and in a self-built ship (camera inside the

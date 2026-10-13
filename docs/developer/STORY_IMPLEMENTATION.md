@@ -710,9 +710,11 @@ shipped player packs so a fixture runs alone.
 (`PlayerPacks`, highest `priority` first): conditions are parsed against the server's `world:` predicates, chapters and
 steps indexed; a pack with a structural or condition error is logged and not run. A pack runs for a player when it is
 **enabled** (`StoryPackEnabledFor`, = `pack:<id>:enabled`) and **started** (`story:<pack>:started`). Enabled: the player
-has not opted out, and for a `tutorial` pack the world rule `GameRules.TutorialPolicy` says so (`Auto` → yes, `OptIn` →
-once the player started it, `Off` → no); any other player pack by its `defaultEnabled` or once started. A pack starts by
-itself when enabled and its `start.after` holds (empty = at once); `StoryPackIntent{startPack}` starts an opt-in tutorial
+has not opted out, and for a `tutorial` pack the world rule `GameRules.TutorialPolicy` says so (`Auto` → yes, `Courses` →
+yes, `OptIn` → once the player started it, `Off` → no); any other player pack by its `defaultEnabled` or once started. A
+pack starts by itself when enabled and its `start.after` holds (empty = at once) — a `Courses` world starts the tutorial
+with its mandatory part skipped silently (#2498), and on an `Auto` world a newcomer with a `choices1` client is first asked
+whether they want the training (#2499, both in TUTORIAL_PACK); `StoryPackIntent{startPack}` starts an opt-in tutorial
 (refused while the policy is `Off`). A tutorial's start also writes `vega:intro` (older builds read it as "the intro was
 shown"). The world story (VEGA) is not run here — its per-player track is step 11.
 

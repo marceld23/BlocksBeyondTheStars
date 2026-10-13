@@ -82,7 +82,8 @@ when it is landed on the same body, never in a fight or while falling, once ever
 `dangerous` preset**, so a hard world keeps the walk back.
 
 **Tutorial (#2466).** Whether the tutorial story pack runs: `rules.tutorialPolicy` = `Auto` (default — every new player
-starts it and can skip it at any time), `Courses` ("Short courses only", #2498 — new players skip the basic training
+starts it and can skip it at any time; a brand-new player with a current client is asked once whether they want it,
+#2499), `Courses` ("Short courses only", #2498 — new players skip the basic training
 silently and the story starts at once, while VEGA still offers the short courses at their moments; a player already in the
 training keeps it), `OptIn` (offered, starts only on the player's request — veteran servers) or `Off` (no training, no
 courses); CLI `--tutorial auto|courses|optin|off` for a fresh world (the save keeps its rule afterwards). The save stores

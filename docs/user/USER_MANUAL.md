@@ -94,7 +94,8 @@ Last updated: 2026-10-04.
 - On the **very first start** a short (~28 s) **intro cinematic** plays between the title splash and the
   menu — any key, pad button or tap skips it, and the Credits screen's **"Watch intro"** button replays it any time.
 - On a **new world**, the ship AI **VEGA** boots up and walks you through the **basic training** (six short parts,
-  see §5 → VEGA) — her opening narration is staged like a scene (letterbox, an orbit shot of your landed ship, scaled
+  see §5 → VEGA; right after the welcome card she asks whether you want it — **I know the game — skip** if you do,
+  and on a world set to *Short courses only* or *Off* there is no training at the start) — her opening narration is staged like a scene (letterbox, an orbit shot of your landed ship, scaled
   to your ship's size). Veteran saves get a one-line "systems online" instead.
 - **Skipping a cutscene works on every device:** **Esc** on the keyboard, the pad's back button **(B)** (or
   whatever you bound to *Close / back*), or a click / tap on the **Skip** button in the corner — this goes for
