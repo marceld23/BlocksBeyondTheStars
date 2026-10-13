@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### ★ Character tab, story switch, pad lines, Codex (2026-10)
+### ★ Character tab, story switch, pad lines, Codex (2026-10) — ✅ done (released in v2026.10.13; ⚠ playtest open)
 
 Issues #2505–#2508 (label `package: codex & story switch 2026-10`) — one integration branch `feat/codex-story-switch`,
 one PR at the end. One line per step:
@@ -100,7 +100,7 @@ one PR at the end. One line per step:
   Descontaminador. No canonical term changed. Open (listed in the report): the G.D.S. city guards' name in ja/ko/tr,
   the monument "arcade" in other languages, more item/blueprint/module name splits per language.
 
-### ★ Story-pack follow-ups 2026-10 (#2485)
+### ★ Story-pack follow-ups 2026-10 (#2485) — ✅ done (released in v2026.10.13; ⚠ playtest + pool-world role check open)
 
 Fixes and polish after the story-pack release — one integration branch `fix/story-followups`, one PR at the end. One
 line per step:
@@ -243,7 +243,7 @@ line per step:
   lengths); older open items this package closed are struck through below (N5 pool check, ducking/chatter, the table
   inconsistencies).
 
-### ★ Story packs 2026-10 (#2459)
+### ★ Story packs 2026-10 (#2459) — ✅ done (released in v2026.10.13; ⚠ playtest open)
 
 Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines — one integration branch
 `feat/story-packs`, one PR at the end. One line per step:
@@ -729,7 +729,7 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   tool" — the last is not true for the drills) — data-only additions later; "two nights outside" is approximated by the
   first night out after the training.
 
-### ⚙️ CI long poles: world-gen caches no longer build under a shared lock (#2455), the settlement sweeps split up (#2456) (2026-10-10, branch fix/ci-shard-long-poles) — ✅ done
+### ⚙️ CI long poles: world-gen caches no longer build under a shared lock (#2455), the settlement sweeps split up (#2456) (2026-10-10, branch fix/ci-shard-long-poles) — ✅ done (released in v2026.10.13)
 
 Found while shipping v2026.10.12: the PR gate's shard 7 tripped the 120 s guard three times in a row (520/520 passed,
 a different test each time), and the full tier's shard 2 ran ~8 min longer than the rest.

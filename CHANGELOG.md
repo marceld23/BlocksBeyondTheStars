@@ -11,6 +11,129 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.13] — 2026-10-13
+
+The story release. **The game now tells its stories in separate storylines.** The **basic training** is a tutorial of
+its own in six short parts, and **18 short courses** teach the rest of the game when the moment fits. **VEGA's story**
+runs as its own storyline in nine chapters, and its big moments are **staged as real scenes** with camera flights. The
+new **Journal** tab shows where you are in each storyline and lets you start, skip or replay any part. On top of that,
+the menu tab with your character is now called **Character**, world admins can **pause the main story** without
+anyone losing progress, the **Codex** reads in all 14 languages, and hints, buttons and the Codex name **the keys and
+gamepad buttons you actually use** (#2459, follow-ups #2485).
+
+ℹ️ **Compatibility:** the network protocol stays at **version 11**, the save version at **3** and the terrain generation
+at **23**: your saves and worlds carry over unchanged, including your VEGA progress. Before the server updates an older
+save, it now keeps a copy of it in the world's backups. An older game can still join a 2026.10.13 server and gets the
+old tutorial there; the Journal, the short courses and the main-story switch need the game and the server on
+2026.10.13, so update both. The desktop game updates itself on start, and the browser version is always current.
+
+### 🎓 Basic training and short courses (#2463 #2466 #2469 #2473 #2479 #2480 #2481 #2482 #2487 #2488 #2498 #2499)
+
+- **The basic training is a tutorial of its own now**, in six parts with 40 short steps. Every step works the same
+  way: VEGA explains something, you try it, and the game checks that it worked.
+- **18 optional short courses** cover the rest of the game: research, flying, stations and trade, the navigator, the
+  workshop and titanium, the ship builder, your homestead, station building, the crystal workshop, factories, animal
+  friends, the garden and the lab, neighbours, defence, travelling, playing together, the creative tools and exploring.
+  VEGA offers a course when it fits what you are doing.
+- **VEGA asks first.** After her welcome she asks once whether you want the training: **"Let's go"** or **"I know the
+  game — skip"**. A course offer comes with **"Start now"** and **"Later"**; hold <kbd>N</kbd> or click to start, tap
+  <kbd>N</kbd> for later.
+- **Skipping the basic training** suggests the short courses that match instead.
+- **New world option "Short courses only":** no basic training at the start, but VEGA still offers the short courses.
+  The switch in the settings is now called **"Tutorial & courses"**.
+- **"Restart tutorial" works again.** Before, it did nothing.
+- An older game version on a 2026.10.13 server gets the required tutorial parts again, so VEGA's story starts there too.
+- In the homestead course, a closed cave or a sealed room no longer counts as a fenced-in yard: the yard needs open sky.
+
+### 📓 The Journal and the new world's Stories page (#2462 #2471 #2472 #2500)
+
+- A new **Journal** tab in the menu lists every storyline you follow: the basic training, the short courses and VEGA's
+  story.
+- You can **start, skip, replay or restart** any part there and switch single courses on or off. If a step gets stuck,
+  skip it in the Journal.
+- **"Start the story now"** begins VEGA's first chapter straight away, without the basic training.
+- A course you have already done says so, instead of offering steps you have long finished.
+- **Creating a world** has a new **Stories** page: which story the world tells, how fast it unfolds, and whether new
+  players start with the basic training. A world admin can change all three later in the world rules.
+
+### 🤖 VEGA's story in nine chapters (#2460 #2462 #2465 #2470 #2475 #2476 #2490 #2491 #2492 #2493)
+
+- **VEGA's story is its own storyline for the whole world**, with nine chapters, leads and story missions. The
+  prologue opens the game; chapter 1 follows the basic training or starts right away with "Start the story now".
+- The story still moves on with what everyone does in the world and never waits for one quest to be finished.
+- **Joining a world where the story is already further along:** what happened before you arrived is told as one short
+  recap.
+- **A new player on an older multiplayer, arcade or LAN world** now gets the prologue and the tutorial. Before, they
+  counted as a veteran and got neither.
+- **The Guardian system no longer disappears from the star map** after a restart.
+- An operator watching a world, an admin's silent jump and every new guest name no longer push the story forward.
+- The list of story moments is no longer lost when you rejoin, and mission messages are translated.
+- If your station is put into service while you are offline, you hear about it the next time you join.
+- A story marker whose target is out of reach for a moment is set again a little later instead of being lost.
+
+### 🎬 Story scenes (#2461 #2467 #2468 #2474 #2477 #2478 #2494 #2495 #2496 #2497)
+
+- **VEGA's big moments are staged as scenes:** chapter openings with camera flights, the real heal tank in "What You
+  Are", the Guardian system revealed on the star map, the finale, and a duel dialogue with its own answer buttons. The
+  basic training uses short title cards, and three new chapter sounds play at the big turns.
+- **Skipping works everywhere:** <kbd>Esc</kbd>, the gamepad's B button or the on-screen Skip button. Before, only Esc
+  worked.
+- **<kbd>N</kbd> moves the text on**, and a scene ends about a second after its last line, instead of waiting out its
+  full length.
+- VEGA's voice crackles in her speaker box, and the background sound gets quieter under cards and scenes.
+- The flight HUD and the radar hide during big scenes such as "Lift-off!", and the ending hides the HUD and holds the
+  controls until it is over.
+- Cards dim only the world; the HUD and the crosshair stay bright.
+- A card you missed during a flight comes back as a banner after landing, and **"Watch again"** lists the ending once.
+
+### 🧑‍🚀 The Character tab and the main-story switch (#2505 #2506)
+
+- The menu tab with your character, "People you know" and the world options is now called **Character**. The
+  **Settings** screen in the main and pause menu (graphics, sound, controls, language) keeps its name.
+- **World admins can switch the main story** between VEGA and **None** in the world rules of the Character tab. Leaving
+  a running story asks first, and everyone online gets a message.
+- **With "None", nothing of VEGA runs:** no lines, leads or missions, no net fragments, and the Guardian system is off the
+  map. Everyone's VEGA progress is kept, so the story continues where it stopped once you switch back.
+
+### ⌨️ Key names that match your controls (#2502 #2503 #2507)
+
+- Hints, flight and spacewalk lines, buttons, server messages and item and block descriptions no longer name fixed
+  keys. They show **the key you bound**, the matching button on your gamepad, or "ACT" on a touch screen.
+- **The gamepad's flight and spacewalk lines** are built from your pad's real buttons, with Xbox, PlayStation or
+  Nintendo names and your trigger setting.
+
+### 📖 The Codex in all 14 languages (#2508)
+
+- All 40 Codex articles are now in every language of the game, translated and then checked by hand.
+- The Codex names your own keys and buttons too, like the rest of the game.
+
+### 🌍 Texts (#2501 #2508)
+
+- In the 12 community languages, about 675 texts now use **one name per thing**. For example: the Ukrainian matter
+  forge and matter dust no longer read like a swear word, Polish no longer calls the forge a refinery, the Turkish
+  matter forge no longer has three names, and the Chinese detoxifier no longer shares the decontaminator's name.
+- The five texts that still said "tech tree" now say **Blueprints**, like the tab.
+
+### 🛡️ Hosted worlds and the arcade (#2464 #2486 #2500)
+
+- **A guest on a glitch.fun arcade world no longer becomes the world's admin.** Before, whoever joined a fresh arcade
+  world first got admin powers. Arcade worlds now turn such powers back into a normal player at the next join. On
+  worlds from the portal, only the owner becomes admin.
+- **An uploaded save from a newer game version** is refused with a clear message, and a world that needs a newer server
+  says so instead of failing to wake up. Official Worlds shows a **"needs a server update"** label on such a world.
+- A world that runs a story your game does not know yet shows a one-time notice.
+
+### 🛠️ For tinkerers
+
+- **New storylines are data only:** a story pack is a folder of JSON files with chapters, steps, texts and scenes, and
+  needs no C#. `docs/developer/STORY_PACK_AUTHORING.md` explains how to write one, and `tools/validate_story_pack.py`
+  checks it (#2483).
+- A broken story pack is skipped and logged instead of stopping the server from loading the rest (#2489).
+- Self-hosters: the new server option `BBS_NO_PLAYER_ADMINS` / `--no-player-admins` turns player admins back into
+  players at join (#2486). See `docs/developer/SELF_HOSTING.md`.
+- The tests on every pull request finish sooner: the world-generation caches no longer wait on one shared lock, and the
+  two longest settlement tests are split up (#2455 #2456).
+
 ## [2026.10.12] — 2026-10-10
 
 The voyage release. **Travelling from the map is a real trip now:** when your ship is parked on the ground and you pick
@@ -7428,7 +7551,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.12...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.13...HEAD
+[2026.10.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.12...v2026.10.13
 [2026.10.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.11...v2026.10.12
 [2026.10.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.10...v2026.10.11
 [2026.10.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.9...v2026.10.10
