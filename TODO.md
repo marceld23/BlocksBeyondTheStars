@@ -75,6 +75,13 @@ one PR at the end. One line per step:
   + bracket words in 14 tables, list = EN/DE tables, every table: English keys/tokens/markup — block order, inline tags
   per block, nesting), `WikiArticleTextTests`, `WikiMarkupTests`; `CommunityLocaleTests` scans the Codex tables too.
   Open: S5 translates the 12 community languages (and adds their files to the `FallbackManifest`).
+- ✅ **S5 — the Codex in all 14 languages (#2508, part 2)**, 2026-10-13: all 40 articles (title + body) in fr, es, it,
+  pt, nl, pl, ru, uk, tr, ja, ko, zh — machine pass with `translate_locale.py --chunk 4` (failed bodies retried or written
+  by hand), then every value reviewed by hand against each core table (item/block/module names, `ui.tab.*` incl. the new
+  Character tab, `ui.wiki.*` chapter names, canonical terms, VEGA feminine, informal address, no player gender in
+  pl/ru/uk); 60–73 of 80 values per language rewritten in review (English leftovers, wrong game terms, meaning errors,
+  stiff tone, ko particles / tr suffixes glued to tokens). Tokens and markup kept (guards above). The 12 tables are in the
+  WebGL `FallbackManifest`. EN *base-air* lost a stray German "(Grundstein)".
 
 ### ★ Story-pack follow-ups 2026-10 (#2485)
 

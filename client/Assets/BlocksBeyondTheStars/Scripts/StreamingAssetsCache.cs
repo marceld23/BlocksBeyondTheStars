@@ -120,6 +120,18 @@ namespace BlocksBeyondTheStars.Client
             "wiki/img/circuit_secret_door.png",
             "wiki/locales/de.json",
             "wiki/locales/en.json",
+            "wiki/locales/es.json",
+            "wiki/locales/fr.json",
+            "wiki/locales/it.json",
+            "wiki/locales/ja.json",
+            "wiki/locales/ko.json",
+            "wiki/locales/nl.json",
+            "wiki/locales/pl.json",
+            "wiki/locales/pt.json",
+            "wiki/locales/ru.json",
+            "wiki/locales/tr.json",
+            "wiki/locales/uk.json",
+            "wiki/locales/zh.json",
             "wormholes.json",
         };
 
