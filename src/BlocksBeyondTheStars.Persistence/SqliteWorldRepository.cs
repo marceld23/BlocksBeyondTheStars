@@ -174,6 +174,9 @@ public sealed class SqliteWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS fluid_cell (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 level INTEGER NOT NULL, falling INTEGER NOT NULL, PRIMARY KEY (planet, x, y, z));
+            CREATE TABLE IF NOT EXISTS fluid_source (
+                planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
+                PRIMARY KEY (planet, x, y, z));
             CREATE TABLE IF NOT EXISTS fire_cell (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 remaining REAL NOT NULL, gen INTEGER NOT NULL, PRIMARY KEY (planet, x, y, z));
@@ -1179,6 +1182,69 @@ public sealed class SqliteWorldRepository : IWorldRepository
             ps[2].Value = worldPosition.Y;
             ps[3].Value = worldPosition.Z;
             cmd.ExecuteNonQuery();
+        }
+    }
+
+    // --- Player-placed water sources (#2515) ---
+
+    public void SaveFluidSource(string planet, Vector3i worldPosition)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT OR IGNORE INTO fluid_source (planet, x, y, z) VALUES ($p, $x, $y, $z);";
+            cmd.Parameters.AddWithValue("$p", planet);
+            cmd.Parameters.AddWithValue("$x", worldPosition.X);
+            cmd.Parameters.AddWithValue("$y", worldPosition.Y);
+            cmd.Parameters.AddWithValue("$z", worldPosition.Z);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<Vector3i> ListFluidSources(string planet)
+    {
+        var result = new List<Vector3i>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT x, y, z FROM fluid_source WHERE planet = $p;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new Vector3i(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2)));
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteFluidSource(string planet, Vector3i worldPosition)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM fluid_source WHERE planet = $p AND x = $x AND y = $y AND z = $z;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            cmd.Parameters.AddWithValue("$x", worldPosition.X);
+            cmd.Parameters.AddWithValue("$y", worldPosition.Y);
+            cmd.Parameters.AddWithValue("$z", worldPosition.Z);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public int MarkPlacedWaterSources(ushort waterBlock)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText =
+                "INSERT OR IGNORE INTO fluid_source (planet, x, y, z) " +
+                "SELECT e.planet, e.x, e.y, e.z FROM block_edit e " +
+                "WHERE e.block = $w AND e.owner_id <> 0 AND NOT EXISTS (" +
+                "SELECT 1 FROM fluid_cell f WHERE f.planet = e.planet AND f.x = e.x AND f.y = e.y AND f.z = e.z);";
+            cmd.Parameters.AddWithValue("$w", (int)waterBlock);
+            return cmd.ExecuteNonQuery();
         }
     }
 

@@ -258,6 +258,12 @@ namespace BlocksBeyondTheStars.Client
             // Persistent background-music director: spans splash → menu → loading → in-game so the shell
             // screens get music too, and cross-fades context tracks (synth or the AI track library).
             gameObject.AddComponent<ClientMusic>().Shell = this;
+
+            // The feedback hotkey in the main menu and the menu screens around it (#2523): a lean FeedbackUi with no
+            // world behind it. It sleeps while a world is loaded — the world rig brings its own instance.
+            var menuFeedback = gameObject.AddComponent<FeedbackUi>();
+            menuFeedback.Shell = this;
+            menuFeedback.Settings = Settings;
         }
 
         private void ConfigureOptionalWebAutoJoin()
@@ -1772,10 +1778,17 @@ namespace BlocksBeyondTheStars.Client
             // up, so it neither races the modal for an empty selection nor keeps one on a control hidden behind
             // the scrim. Re-applied every frame — a rebuilt menu (late content load, #1368 re-arm) comes back with
             // a fresh, unsuspended UiNavFocus. A no-op while nothing changes.
+            // The menu's F1 feedback form — and a developer reply it shows — is such a modal over every menu screen (#2523).
+            bool feedbackModal = FeedbackUi.ShellModalOpen;
             if (_uiMenu != null)
             {
-                UiNav.SetSuspended(_uiMenu, _uiWhatsNew != null || _uiUpdateNotice != null);
+                UiNav.SetSuspended(_uiMenu, _uiWhatsNew != null || _uiUpdateNotice != null || feedbackModal);
             }
+
+            UiNav.SetSuspended(_uiSaveSelect, feedbackModal); // no-ops while a screen is absent or unchanged
+            UiNav.SetSuspended(_uiSettings, feedbackModal);
+            UiNav.SetSuspended(_uiCredits, feedbackModal);
+            UiNav.SetSuspended(_uiEditors, feedbackModal);
 
             if (Phase == ShellPhase.Loading && _uiLoading == null)
             {
@@ -1923,9 +1936,11 @@ namespace BlocksBeyondTheStars.Client
             // exception is the pause dialog itself: while it is UP the world is held and B is nobody's
             // crouch, so B resumes — the pad's way in is the "Pause menu" button on the Start screen
             // (CraftingTechShipUI → OpenPauseMenu), since every stock pad button is already spoken for.
+            // The menu's F1 feedback form (#2523) takes its own cancel first — closing it must not also leave the
+            // screen underneath (its flag covers the frame it closed in, whichever Update ran first).
             bool cancel = Phase == ShellPhase.InGame
                 ? Input.GetKeyDown(KeyCode.Escape) || (_confirmQuit && InputMap.Down(InputAction.UiCancel))
-                : InputMap.Down(InputAction.UiCancel);
+                : InputMap.Down(InputAction.UiCancel) && !FeedbackUi.ShellOwnsCancel;
             if (cancel)
             {
                 if (Phase == ShellPhase.InGame)

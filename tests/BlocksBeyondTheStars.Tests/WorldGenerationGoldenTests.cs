@@ -129,6 +129,11 @@ public sealed class WorldGenerationGoldenTests
         // Generation 22 (2026-10-07, #2370/#2371): full-height oil pockets and the seeps — a living world's chunks are the
         // same as generation 21 but for the pockets and their chimneys (OilSeepsWorldTests checks those directly).
         new("jungle-gen22", 20260927, "jungle", 0, false, null, 22),
+        // Generation 24 (2026-10-13, #2516): sealed water — caves keep clear of the neighbouring columns' water, ponds fill
+        // to one level, rivers stay below their banks. A sea coast, a pond country and a river land.
+        new("varied-gen24", 1, "varied", 0, false, null, 24),
+        new("meadowlands-gen24", 7, "meadowlands", 0, false, null, 24),
+        new("river_lowlands-gen24", 20260903, "river_lowlands", 0, false, null, 24),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -224,6 +229,10 @@ public sealed class WorldGenerationGoldenTests
             // Pinned 2026-10-07 (oil you can find, generation 22; Windows 11, .NET 10). Equal to jungle-gen18: no pocket or
             // seep lies under the three sample columns, and nothing else of generations 19–22 moved them.
             ["jungle-gen22"] = 0x77b4051ac5c69436UL,
+            // Pinned 2026-10-13 (sealed water, generation 24, #2516; Windows 11, .NET 10).
+            ["varied-gen24"] = 0xd2ba6b884ce1e82fUL,
+            ["meadowlands-gen24"] = 0x6fa9ef726c989f21UL,
+            ["river_lowlands-gen24"] = 0xe759e341a5c0de94UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

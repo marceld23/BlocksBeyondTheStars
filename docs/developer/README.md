@@ -163,3 +163,4 @@ ones are marked, not deleted.
 - [0014 — Moving blocks: twin swaps, step-wise bridges and pistons, server-owned lift platforms](adr/0014-moving-blocks-twins-and-server-owned-lifts.md)
 - [0015 — Unity 6.6, the Supported-release cadence, and WebGPU first in the browser](adr/0015-unity-6-6-supported-releases-and-webgpu-first.md)
 - [0016 — Lava, crystals and the glowing flora light their surroundings (quietly)](adr/0016-natural-emitters-light-their-surroundings.md)
+- [0017 — Endless water by class, finite still water, and falls that keep their level](adr/0017-water-classes-finite-still-water-and-bounded-falls.md)

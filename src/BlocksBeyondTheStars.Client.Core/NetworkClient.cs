@@ -745,7 +745,26 @@ namespace BlocksBeyondTheStars.Client
                 Z = z,
             });
 
-        public void SendSelectHotbar(int slot) => Send(new SelectHotbarIntent { Slot = slot });
+        /// <summary>
+        /// The quick-bar slot this client shows as selected (#2525): 0 until the player picks another one, and kept
+        /// across reconnects. The server keeps (and saves) its own copy and mines with it, so the client re-sends this
+        /// slot after every <see cref="Networking.Messages.JoinAccepted"/> and <see cref="WorldReset"/>. Before that, a
+        /// restarted game showed slot 0 with the drill while the server still held the slot saved at the quit: a block
+        /// in hand, and stone refused. The Unity HUD reads its slot from here, so the slot on screen and the slot
+        /// re-sent cannot drift apart.
+        /// </summary>
+        public int SelectedHotbarSlot { get; private set; }
+
+        /// <summary>Selects a quick-bar slot: remembers it as <see cref="SelectedHotbarSlot"/> and tells the server.</summary>
+        public void SendSelectHotbar(int slot)
+        {
+            SelectedHotbarSlot = slot;
+            Send(new SelectHotbarIntent { Slot = slot });
+        }
+
+        /// <summary>#2525: re-sends the remembered slot when the client enters a world (join, reconnect, world change).
+        /// Marked as a resync, so the server reports no <c>hotbar:select</c> event for it.</summary>
+        private void ResyncHotbarSlot() => Send(new SelectHotbarIntent { Slot = SelectedHotbarSlot, Resync = true });
 
         /// <summary>Rearranges the personal inventory: swap two slots, or stow out of the quick-bar with toSlot=-1
         /// (B58 — customising the quick-bar).</summary>
@@ -1249,6 +1268,7 @@ namespace BlocksBeyondTheStars.Client
 
                     _joined = true;
                     AdoptWorld(m.WorldId);
+                    ResyncHotbarSlot(); // #2525: the server restored the slot saved at the quit; the hand on screen wins
                     JoinAccepted?.Invoke(m);
                     ReplayHeldBeforeJoin();
                     break;
@@ -1332,6 +1352,7 @@ namespace BlocksBeyondTheStars.Client
                 case WorldEnvironment m: WorldEnvironmentReceived?.Invoke(m); break;
                 case WorldReset m:
                     AdoptWorld(m.WorldId);
+                    ResyncHotbarSlot(); // #2525: a world change may load another saved slot — keep the one on screen
                     WorldResetReceived?.Invoke(m);
                     ReplayFutureWorld();
                     break;

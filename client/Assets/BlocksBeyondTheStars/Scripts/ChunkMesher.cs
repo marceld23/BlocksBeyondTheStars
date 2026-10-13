@@ -746,7 +746,8 @@ namespace BlocksBeyondTheStars.Client
                 bool foliage = (tf & TraitFoliage) != 0;
                 // TEXCOORD2.x: +1 foliage cutout, -1 clear glass (#1274 — the transparent shader skips its frost
                 // on the negative sentinel; the channel is already packed for every face, so no layout change), 0 else.
-                float leafFlag = foliage ? 1f : (tf & TraitClearGlass) != 0 ? -1f : 0f;
+                // A cube face of foliage is a crown shell face (LeafCodeCrown); the cross billboards below write their own code.
+                float leafFlag = foliage ? LeafCodeCrown : (tf & TraitClearGlass) != 0 ? -1f : 0f;
                 // Water + fire render but don't collide — you swim/sink into water and walk through (and burn
                 // in) fire. Lava DOES collide: you stand on its surface (and take contact damage from the cell
                 // below) rather than dropping straight through it into a cave/void — you must not fall through
@@ -840,7 +841,9 @@ namespace BlocksBeyondTheStars.Client
                 bool isFallingLava = isLava && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz, loadedFn);
 
                 // #1902: a plant or slim prop the water surrounds stands IN the water — draw its cell's water volume.
-                if (atlas != null && (tf & (TraitFloraPrefix | TraitSlimProp)) != 0 && WetProp(wx, wy, wz))
+                // #2519: the cross-plant path below reads the same answer (an aquatic plant keeps its sway under cover).
+                bool propWet = atlas != null && (tf & (TraitFloraPrefix | TraitSlimProp)) != 0 && WetProp(wx, wy, wz);
+                if (propWet)
                 {
                     EmitWetCellWater(x, y, z, wx, wy, wz);
                 }
@@ -1019,13 +1022,21 @@ namespace BlocksBeyondTheStars.Client
                     }
                     // A DYED torch/lantern (#1126) switches from the flame-flicker mode (7, which takes no
                     // tint) to the player-dye recolour (3) carrying the cell's dye — the flame pixels tint
-                    // with the body, which reads as a coloured flame. Undyed props keep the classic flicker.
+                    // with the body, which reads as a coloured flame. Undyed props keep the classic flicker;
+                    // an unlit one (torch_off / lantern_off, #2520 — no emission) has no flame to flicker.
+                    // #2519: the prop is a RIGID cutout (LeafCodeRigid) — clipped like a plant, but it never
+                    // sways in the wind; a plant bends from its root (LeafCodePlant), and a plant the water
+                    // surrounds (kelp, seagrass, a flooded reed — the same WetProp rule that draws its cell's
+                    // water) keeps swaying under cover as if in a current (LeafCodeAquatic).
+                    float propMode = dyed ? 3f : emission > 0f ? 7f : 0f;
+                    float plantCode = isTorchProp ? LeafCodeRigid : propWet ? LeafCodeAquatic : LeafCodePlant;
                     AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         new Vector3(x, y, z), plantCol, uv, plantSky, isTorchProp && dyed ? dye : speciesTint,
                         plantBl, plantBlDir, plantLean,
                         plantJitter, plantSpin, plantH, plantW,
-                        (isTorchProp ? (dyed ? 3f : 7f) : 1f) + animCode, // 7 = flame flicker (no tint); 3 = dye; 1 = flora
-                        hangingPlant);
+                        (isTorchProp ? propMode : 1f) + animCode, // 7 = flame flicker (no tint); 3 = dye; 1 = flora
+                        hangingPlant,
+                        plantCode);
                     continue;
                 }
 
@@ -1071,6 +1082,8 @@ namespace BlocksBeyondTheStars.Client
                 // "plant" read at ~cube cost, carrying the same flora tint (mode 1) + emission (glowcaps etc.).
                 if (atlas != null && (tf & TraitSolidFlora) != 0)
                 {
+                    // #2519: ONE skylight value for the whole form — the shader scales the flora sway by it
+                    // (BbtsSwayShelter), so per-face values would move the faces apart. Keep solid flora on this path.
                     float flSky = Skylight(wx, wy + 1, wz);
                     Vector3 flBl = BlockLightAt(wx, wy + 1, wz);
                     Vector3 flBlDir = BlockLightDirAt(wx, wy + 1, wz);
@@ -1664,17 +1677,37 @@ namespace BlocksBeyondTheStars.Client
         // half-planes of coverage, so a plant reads as a rounded 3D tuft from every angle instead of a flat cross.
         private static readonly float[] PlantPlaneAngles = { 0f, 60f, 120f };
 
+        // #2519: the cutout codes in TEXCOORD2.x of the opaque submesh. Every code above 0.5 is alpha-clipped; the code
+        // decides how the vertex moves in the wind (BbtsBlockSway in AtmosphereCommon.hlsl). All codes are exact in the
+        // packed Float16 channel. Public so the EditMode tests can pin them.
+        /// <summary>A tree-crown shell face: sways as one rigid piece, so a crown's leaf cubes never tear apart.</summary>
+        public const float LeafCodeCrown = 1f;
+
+        /// <summary>A rigid cutout prop (torch, lantern): clipped like foliage, never sways.</summary>
+        public const float LeafCodeRigid = 2f;
+
+        /// <summary>A cross-billboard plant: bends from its root, and stands still out of the wind (sky-light scaled —
+        /// all its vertices carry the one skylight value of the plant, so the scale cannot split it).</summary>
+        public const float LeafCodePlant = 3f;
+
+        /// <summary>A cross-billboard plant the water surrounds (kelp, seagrass): bends like <see cref="LeafCodePlant"/>
+        /// but is never sky-light scaled — the water above it counts as cover for the skylight, and underwater plants keep
+        /// their sway (it reads as current).</summary>
+        public const float LeafCodeAquatic = 4f;
+
         /// <summary>Adds a leafy plant as a THREE-plane rosette of cutout quads through the cell (T3): fuller +
         /// more volumetric than the old flat cross, each plane emitted with BOTH windings (the atlas shaders cull
         /// back faces). <paramref name="lean"/> tilts the top for per-plant variation so a field doesn't look
         /// like uniform flat cards. Render-only — no collider, so small plants stay walk-through.
         /// <paramref name="heightScale"/> / <paramref name="widthScale"/> give each plant its own size;
         /// <paramref name="centerJitter"/> shifts the rosette off the cell centre and <paramref name="spinDeg"/>
-        /// rotates it (#675) so a field doesn't read as identical stamps on a grid.</summary>
+        /// rotates it (#675) so a field doesn't read as identical stamps on a grid. <paramref name="leafCode"/> is the
+        /// cutout code (#2519): <see cref="LeafCodePlant"/> for a plant, <see cref="LeafCodeAquatic"/> for one under water,
+        /// <see cref="LeafCodeRigid"/> for a torch/lantern.</summary>
         private static void AddCrossPlant(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
             List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight, List<Vector3> blockLightDir, Vector3 cell, Color col, Rect uv, float sky,
             Color tint, Vector3 bl, Vector3 blDir, Vector2 lean, Vector2 centerJitter, float spinDeg,
-            float heightScale = 1f, float widthScale = 1f, float tintMode = 1f, bool hanging = false)
+            float heightScale = 1f, float widthScale = 1f, float tintMode = 1f, bool hanging = false, float leafCode = LeafCodePlant)
         {
             // Each plane is a vertical quad through the cell centre, its floor line along a rosette angle; the
             // width scales about the middle and is clamped inside the cell to avoid bleeding into neighbours.
@@ -1718,7 +1751,7 @@ namespace BlocksBeyondTheStars.Client
                         // Tint/anim mode: 1 = flora (species/world tint). A torch passes 7, which takes NO tint
                         // and instead makes the shader flicker its glow like a real flame.
                         skyUv.Add(new Vector2(sky, tintMode));
-                        leafUv.Add(new Vector4(1f, tint.r, tint.g, tint.b)); // cutout on + per-species tint
+                        leafUv.Add(new Vector4(leafCode, tint.r, tint.g, tint.b)); // cutout code + per-species tint
                         blockLight.Add(bl); // coloured block-light reaching the plant
                         blockLightDir.Add(blDir); // matching block-light direction
                     }
@@ -1974,8 +2007,14 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            return content.BlockById(id)?.Key is "torch" or "lantern" or "ladder";
+            string key = content.BlockById(id)?.Key;
+            return IsTorchPropKey(key) || key == "ladder";
         }
+
+        /// <summary>The torch/lantern slim props — lit, or switched off by the Crystal Net (#2520: <c>torch_off</c> /
+        /// <c>lantern_off</c> used to mesh as full collidable cubes wearing the darkened tile; an unlit torch is still
+        /// a torch on the wall).</summary>
+        private static bool IsTorchPropKey(string key) => key is "torch" or "lantern" or "torch_off" or "lantern_off";
 
         /// <summary>The up-face that leans the ladder's wall plate against the first solid horizontal
         /// neighbour (#803), or -1 when the ladder stands free (→ slim pole instead). The Panel's body sits
@@ -2596,8 +2635,8 @@ namespace BlocksBeyondTheStars.Client
                     if (key == "gas_dense") f |= TraitGas | TraitDenseGas; // #2134: the dense gas under it — the darker haze (mode 6)
                     if (key == "lava") f |= TraitLava;
                     if (key == "fire") f |= TraitFire;
-                    if (key == "torch" || key == "lantern") f |= TraitTorchProp;
-                    if (key == "lantern") f |= TraitLantern;
+                    if (IsTorchPropKey(key)) f |= TraitTorchProp; // #2520: the unlit twins too
+                    if (key == "lantern" || key == "lantern_off") f |= TraitLantern;
                     if (key == "ladder") f |= TraitLadder;
                     if (key == "iron_wall") f |= TraitIronWall;
                     if (key == "flower_pot") f |= TraitFlowerPot;

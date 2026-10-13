@@ -943,6 +943,8 @@ public sealed partial class WorldGenerator
             _columnProfiles.Clear();
         }
 
+        InvalidatePondLevels(); // #2516: a pond's level reads the same columns
+
         lock (_volcanoLock)
         {
             _volcanoCells.Clear(); // #1631: the sea-mount lift depends on the world mode + calibration

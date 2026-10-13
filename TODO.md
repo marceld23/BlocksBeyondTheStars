@@ -24,6 +24,49 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-13 (Lyxette, a fresh world + her old one on v2026.10.12) + a new water model — epic #2524, branch fix/player-reports-1013 — ✅ done (terrain generation 24; ⚠ playtest open)
+
+Eight F1 reports from one day plus Marcel's call for "endless waterfalls AND flowing water that never floods" — one PR:
+
+- **#2514 station protection leaked onto every planet** — `IsStationBlock` tested every stamped station's box (all
+  stamped at (8, 64, 8) in their own void worlds) without checking the active world, so after any docking a ~100×19×84
+  phantom box refused mining and placing on every planet (on her start planet it covered the home pad). It now only
+  answers inside a `station:` world, for that one station. Nothing was persisted; a reload had cleared it.
+- **#2515 water model** (ADR 0017) — a fall keeps its level (water + lava), so a flow ends ~7 cells from its source;
+  water classes by position (`WaterKindAt`): the sea at/below sea level, rivers, generated waterfalls (confined — they
+  fall, never spread), placed water (`fluid_source` table + one-time migration) and `water_spout` are endless; ponds and
+  lakes above sea level are **finite** — a breached body settles layer by layer into the lowest reachable air (sills
+  respected), drains slowly through the gap with a short stream, and stops when the gap is plugged; bodies over 2 048
+  cells act as reservoirs. Measured on her seed: a sea–cave contact went from +15 000–30 000 cells to +87–225; walling a
+  pond in and filling it with sand leaves 0 stray cells; an old flood recedes on load (14 956 → 814 in ~60 s).
+- **#2516 terrain generation 24** — caves and worm tunnels keep clear of the neighbouring columns' water, ponds fill to
+  one flat level (lowest rim), no one-block spike ponds, river reaches no higher than the lower bank. Older generations
+  byte-identical (goldens unchanged; three gen-24 golden groups added).
+- **#2517 planet drones every 15 s** — the slow refill pace only switched on once the live count reached the cap, so a
+  player who shot every machine on sight stayed on the 5 s start cadence forever. Now only the first `cap` spawns after a
+  load are quick (`EnemyQuickSpawns`).
+- **#2518 damage feedback** — every 15 Hz health update of chip damage re-fired the full-screen red, vignette, visor
+  glitch and shake with fixed minimums. `DamageFeedback` (Client.Core) accumulates 0.5 s windows, scales by the share of
+  max HP, flashes only from 5 %, caps damage shake at 0.3; "Screen shake" + "Camera motion" moved to Comfort.
+- **#2519 torches swayed in the wind, also underground** — torch/lantern quads carry a rigid cutout code; plants sway
+  scaled by sky light (caves, indoors and dense canopy stand still; plants under water keep swaying).
+- **#2520 torch/lantern drawn on a dark/beige card** — the tiles had no alpha; `tools/ai-assets/bake_prop_alpha.py`
+  bakes a hard mask; `torch_off`/`lantern_off` use the prop path instead of full cubes.
+- **#2521 wild animals inside walled bases** — no wild ground spawn on a player-placed block, and wild animals on
+  player floor / in a walled or sealed base area leave while nobody looks (pets, clones, animals being tamed stay).
+- **#2522 "Random world" ignored the typed name** — it now uses the typed name with a random seed (`RandomWorldName`).
+- **#2523 F1 in the main menu** — the feedback form works in the menu, world list, settings, credits and editors
+  overview (client-direct upload, menu screenshot, replies shown in the menu).
+- **#2525 hotbar slot out of sync after a restart** — the server restored the saved slot while the client showed slot 0,
+  so the drill on screen was not the tool the server mined with; the client re-sends its slot on every join/world change
+  (`SelectHotbarIntent.Resync`). "Not strong enough" is now only said for a real tier gate; a wrong kind / empty hand gets
+  `srv.mine.need_tool_in_hand*`, and VEGA's tier-gate tip only fires on real tier gates.
+- **#2513 German texts with ASCII umlauts** — nine strings fixed, spaced hyphens → em dashes, `GermanLocaleSpellingTests`.
+- The missing server `/bump` twin of her reports is local to her machine (a 10.13 test report arrived as both rows).
+- Docs: USER_MANUAL (water, animals and bases, damage feedback/settings, wind, F1 in the menu, Random world, mining
+  messages), WORLD_GENERATION §8/§41, FLUID_ROUTING, VFX, ADVANCED_GRAPHICS, PLAYER_FEEDBACK, STORY_IMPLEMENTATION,
+  ADR 0017. 7 new/changed keys in all 14 languages.
+
 ### ★ Character tab, story switch, pad lines, Codex (2026-10) — ✅ done (released in v2026.10.13; ⚠ playtest open)
 
 Issues #2505–#2508 (label `package: codex & story switch 2026-10`) — one integration branch `feat/codex-story-switch`,

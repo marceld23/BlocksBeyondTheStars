@@ -2895,8 +2895,7 @@ namespace BlocksBeyondTheStars.Client
         private void SelectEvaSlot(int slot)
         {
             if (slot == Game.SelectedHotbarSlot) { return; }
-            Game.SelectedHotbarSlot = slot;
-            Game.Network?.SendSelectHotbar(slot);
+            Game.Network?.SendSelectHotbar(slot); // #2525: the network client keeps the slot Game.SelectedHotbarSlot reads
         }
 
         private void UpdateEvaBuild()

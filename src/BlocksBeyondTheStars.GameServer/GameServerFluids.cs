@@ -31,6 +31,13 @@ namespace BlocksBeyondTheStars.GameServer;
 /// by the <b>canonical</b> cell (<see cref="FluidCell"/>, #2447). The automaton walks neighbours as
 /// <c>pos ± 1</c>, so without that one cell beside the world's X seam had two spellings, and a flowing cell
 /// read under the spelling without a level row passed for a source.
+///
+/// The water model of #2515 (ADR 0017) bounds every flow: <b>a fall keeps its level</b> — a falling cell carries
+/// the level of the cell above it instead of refilling to full, so no flow travels more than about seven cells from
+/// the source that feeds it, however many steps, shafts and cave floors lie below. And not every untracked water cell
+/// is a source any more: only <b>endless</b> water is — at or below the sea level, routed rivers, generated waterfall
+/// columns (which fall but never spread) and water a player placed. Still water above the sea level is finite and
+/// settles as a whole (<c>GameServerFluidSettle.cs</c>). Lava sources stay endless; the fall rule applies to lava too.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -246,10 +253,19 @@ public sealed partial class GameServer
     /// that had already come to rest never grew to its new size. They are queued without reading them: a source at
     /// the edge of the loaded world must not generate the chunk beyond (#1824) — the step parks what it cannot read
     /// yet and drops what is no fluid.
+    /// </para>
+    /// <para>
+    /// Placed water is marked as a source (#2515, W1): generated water above the sea level is finite, but a block the
+    /// player places stays bottomless — the fall rule alone keeps it to about seven cells of travel.
     /// </para></summary>
     public void RegisterFluidSource(Vector3i pos)
     {
         UntrackFluid(pos);
+        if (_waterId != 0 && _world.GetBlock(pos).Value == _waterId)
+        {
+            MarkPlacedSource(pos);
+        }
+
         WakeFluidCell(pos);
         WakeFluidCell(new Vector3i(pos.X + 1, pos.Y, pos.Z));
         WakeFluidCell(new Vector3i(pos.X - 1, pos.Y, pos.Z));
@@ -264,6 +280,11 @@ public sealed partial class GameServer
     private void TrackFluid(Vector3i pos, byte level, bool falling)
     {
         var cell = FluidCell(pos);
+        if (_placedSources.Count > 0)
+        {
+            ForgetPlacedSource(cell); // a flowing cell is never a placed source
+        }
+
         _fluidLevel[cell] = level;
         if (falling)
         {
@@ -278,7 +299,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>Drops a cell's flowing state (memory + save) — it dried up, became a source, or its block
-    /// was replaced. Safe to call for cells that were never tracked.</summary>
+    /// was replaced — and its placed-source mark (#2515). Safe to call for cells that were never tracked.</summary>
     private void UntrackFluid(Vector3i pos)
     {
         var cell = FluidCell(pos);
@@ -288,6 +309,7 @@ public sealed partial class GameServer
         }
 
         _fallingFluid.Remove(cell);
+        ForgetPlacedSource(cell);
     }
 
     /// <summary>Restores this world's persisted flowing-fluid cells (levels + falling flags) and wakes them,
@@ -298,9 +320,14 @@ public sealed partial class GameServer
     /// A row written before the keys were canonical (#2447) is moved to the canonical cell; a cell that ended up
     /// with a row under each spelling keeps the higher level. Water a seam flood already left in a save stays as
     /// it is — a stored flood cannot be told apart from water placed on purpose.
+    /// </para>
+    /// <para>
+    /// The placed-source marks come back first (#2515). Waking the rows is also what heals a save flooded under the
+    /// old rules: re-evaluated with "a fall keeps its level", a long tongue loses its feed and recedes.
     /// </para></summary>
     private void LoadFluidState()
     {
+        _ = _placedSources; // the marks load on first use; reading them here runs the one-time migration at boot
         var rows = new Dictionary<Vector3i, (byte Level, bool Falling)>();
         List<(Vector3i Stored, Vector3i Cell)>? moved = null;
         foreach (var row in _repo.ListFluidCells(_world.LocationId))
@@ -387,10 +414,12 @@ public sealed partial class GameServer
 
     /// <summary>Whether a falling water cell hangs from a waterfall block: walks up the falling column above it and
     /// answers true if the block at its top is a spout. Only evaluated for the cell at the foot of a fall — the one
-    /// place an ordinary column would start to spread — so the walk costs the column's height, once per landing.</summary>
+    /// place an ordinary column would start to spread — so the walk costs the column's height, once per landing.
+    /// A generated waterfall column (#2515) counts like a spout: water poured from it into a dug-out foot stays a
+    /// confined fall too.</summary>
     private bool FedByASpout(Vector3i p, ushort id)
     {
-        if (id != _waterId || _spoutId == 0)
+        if (id != _waterId)
         {
             return false;
         }
@@ -410,9 +439,15 @@ public sealed partial class GameServer
                 return true;
             }
 
-            if (u != id || !IsFallingCell(up))
+            if (u != id)
             {
                 return false;
+            }
+
+            if (!IsFallingCell(up))
+            {
+                var upCell = FluidCell(up);
+                return !_fluidLevel.ContainsKey(upCell) && ClassifyWater(upCell) == WaterClass.ConfinedFall;
             }
 
             c = up;
@@ -437,7 +472,8 @@ public sealed partial class GameServer
 
     private void TickFluids(double dt)
     {
-        if (_activeFluid.Count == 0 && _worlds.Active.ParkedFluid.Count == 0) // parked cells (#1824) still need their re-check
+        // Parked cells (#1824) still need their re-check; a settle (#2515) its steps, and a held-back wake its turn.
+        if (_activeFluid.Count == 0 && _worlds.Active.ParkedFluid.Count == 0 && _settles.Count == 0 && _worlds.Active.SettleDeferred.Count == 0)
         {
             _sinceFluid = 0;
             return;
@@ -466,6 +502,7 @@ public sealed partial class GameServer
     {
         CollectFluidAnchors();
         UnparkFluid();
+        StepSettles(); // #2515: still water that is settling or draining moves first; what it wakes is handled below
         var todo = new List<Vector3i>(_activeFluid);
         _activeFluid.Clear();
         int budget = FluidUpdatesPerTick;
@@ -534,6 +571,27 @@ public sealed partial class GameServer
             bool isSource = !_fluidLevel.ContainsKey(pos);
             byte level;
             bool changed = false;
+            bool confinedFall = false;
+
+            if (isSource && id == _waterId)
+            {
+                // #2515: only endless water is a source. A cell a running settle owns waits for it (a draining
+                // outlet keeps its stream going); finite still water never spreads as a flow — with somewhere to go,
+                // the whole body settles; at rest it sleeps. A body too big to settle is a reservoir and falls through.
+                if (_settling.Contains(pos))
+                {
+                    FeedDrainStream(pos);
+                    continue;
+                }
+
+                var waterClass = ClassifyWater(pos);
+                if (waterClass == WaterClass.Finite && (!HasAirNeighbor(pos) || TrySettle(pos)))
+                {
+                    continue;
+                }
+
+                confinedFall = waterClass == WaterClass.ConfinedFall; // a generated waterfall column: it falls, it never spreads
+            }
 
             if (isSource)
             {
@@ -564,7 +622,9 @@ public sealed partial class GameServer
             var below = new Vector3i(pos.X, pos.Y - 1, pos.Z);
             if (FluidCanEnter(below))
             {
-                FillFluid(below, kind, FluidFull, falling: true); // fluid falls full
+                // #2515: a fall keeps its level. It used to refill to FluidFull, so every step down re-armed a fresh
+                // seven-cell spread and a flood grew with the terrain — stepped ground, cave shafts and cave floors.
+                FillFluid(below, kind, level, falling: true);
                 changed = true;
             }
             else if (level > 1)
@@ -575,7 +635,7 @@ public sealed partial class GameServer
                 bool feedingFall = IsFluid(belowId) && IsFallingCell(below);
                 // ...and a column poured by a waterfall block (#1726) never spreads at all, not even where it
                 // lands: the whole point of that block is a fall that ends where it hits, not a sheet across the floor.
-                bool confined = !feedingFall && _fallingFluid.Contains(pos) && FedByASpout(pos, id);
+                bool confined = confinedFall || (!feedingFall && _fallingFluid.Contains(pos) && FedByASpout(pos, id));
                 if (!feedingFall && !confined)
                 {
                     Spread(new Vector3i(pos.X + 1, pos.Y, pos.Z), kind, level, ref changed);
@@ -588,7 +648,7 @@ public sealed partial class GameServer
             // Keep a cell active while it still has somewhere to flow: it changed this step, or it's a full
             // source with an open neighbour. A settled full cell (a calm body of water) goes dormant, so a big
             // sea doesn't keep every cell active forever — mining wakes the frontier again via OnFluidRemoved.
-            if (changed || (isSource && HasAirNeighbor(pos)))
+            if (changed || (isSource && !confinedFall && HasAirNeighbor(pos)))
             {
                 _activeFluid.Add(pos);
             }
@@ -670,19 +730,27 @@ public sealed partial class GameServer
     /// <summary>Test seam (#2447): how many fluid cells wait for the next step — 0 once every body has come to rest.</summary>
     public int ActiveFluidCountForTest => _worlds.Active.ActiveFluid.Count;
 
-    /// <summary>The level a <i>flowing</i> cell can sustain from its surroundings: full if the same fluid sits
-    /// directly above (a falling column feeds it), otherwise the strongest horizontal neighbour's level minus
-    /// one (a source counts as full). 0 means nothing feeds it any more → it should dry up. Only the same kind
-    /// of fluid feeds (water never sustains lava or vice-versa).</summary>
+    /// <summary>The level a <i>flowing</i> cell can sustain from its surroundings: the level of the same fluid directly
+    /// above (a falling column carries its level down — #2515; a feeding source or the waterfall block counts as full),
+    /// or the strongest horizontal neighbour's level minus one, whichever is higher. 0 means nothing feeds it any more →
+    /// it should dry up. Only the same kind of fluid feeds (water never sustains lava or vice-versa), and finite still
+    /// water feeds nothing (<see cref="FeedsAsSource"/>).</summary>
     private int SupportedLevel(Vector3i p, ushort id)
     {
-        ushort above = _world.GetBlock(new Vector3i(p.X, p.Y + 1, p.Z)).Value;
-        if (above == id || (id == _waterId && IsSpout(above)))
+        var up = new Vector3i(p.X, p.Y + 1, p.Z);
+        ushort above = _world.GetBlock(up).Value;
+        if (id == _waterId && IsSpout(above))
         {
-            return FluidFull; // fed from directly above (a waterfall column, or the waterfall block itself — #1726)
+            return FluidFull; // fed by the waterfall block itself (#1726)
         }
 
         int best = 0;
+        if (above == id)
+        {
+            var upCell = FluidCell(up);
+            best = _fluidLevel.TryGetValue(upCell, out var upLevel) ? upLevel : FeedsAsSource(upCell, id) ? FluidFull : 0;
+        }
+
         best = Math.Max(best, NeighborFeed(new Vector3i(p.X + 1, p.Y, p.Z), id));
         best = Math.Max(best, NeighborFeed(new Vector3i(p.X - 1, p.Y, p.Z), id));
         best = Math.Max(best, NeighborFeed(new Vector3i(p.X, p.Y, p.Z + 1), id));
@@ -690,8 +758,8 @@ public sealed partial class GameServer
         return best;
     }
 
-    /// <summary>How much a horizontal neighbour can feed this cell: a source feeds at FluidFull−1, a flowing
-    /// neighbour at its own level−1, anything else (air / the other fluid) feeds nothing.</summary>
+    /// <summary>How much a horizontal neighbour can feed this cell: an endless source feeds at FluidFull−1, a flowing
+    /// neighbour at its own level−1, anything else (air / the other fluid / finite still water) feeds nothing.</summary>
     private int NeighborFeed(Vector3i n, ushort id)
     {
         if (_world.GetBlock(n).Value != id)
@@ -699,8 +767,13 @@ public sealed partial class GameServer
             return 0;
         }
 
-        byte nl = _fluidLevel.TryGetValue(FluidCell(n), out var lv) ? lv : FluidFull; // untracked neighbour = full source
-        return nl - 1;
+        var cell = FluidCell(n);
+        if (_fluidLevel.TryGetValue(cell, out var lv))
+        {
+            return lv - 1;
+        }
+
+        return FeedsAsSource(cell, id) ? FluidFull - 1 : 0;
     }
 
     private void Spread(Vector3i n, BlockId kind, byte level, ref bool changed)
@@ -713,9 +786,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>A fluid may enter a cell only if it's air AND not inside a ship interior — so a sea/lava body
-    /// can never flow into (or refill) a landed ship's cabin, keeping a submerged ship watertight and dry.</summary>
+    /// can never flow into (or refill) a landed ship's cabin, keeping a submerged ship watertight and dry. A cell a
+    /// running drain has just emptied is closed too (#2515), so a draining pond's own stream does not run back in.</summary>
     private bool FluidCanEnter(Vector3i p)
-        => _world.GetBlock(p).IsAir && !InShipInterior(p);
+        => _world.GetBlock(p).IsAir && !InShipInterior(p) && (_drained.Count == 0 || !_drained.Contains(FluidCell(p)));
 
     /// <summary>True if a cell lies inside any parked ship's bounds (cheap no-op when no ship is placed).</summary>
     private bool InShipInterior(Vector3i p)
@@ -796,10 +870,15 @@ public sealed partial class GameServer
         || FluidCanEnter(new Vector3i(p.X, p.Y - 1, p.Z));
 
     /// <summary>When a fluid cell is removed (mined), wake the surrounding fluid so it flows back into the
-    /// hole and any orphaned flowing tail recedes. Worldgen sea cells are untracked → treated as full sources,
-    /// so digging into a body refills; a flowing stream cut off here dries up via <see cref="SupportedLevel"/>.
+    /// hole and any orphaned flowing tail recedes. Endless water refills the hole as a flow; finite still water
+    /// (#2515) settles into it from the top of its body; a flowing stream cut off here dries up via
+    /// <see cref="SupportedLevel"/>. The removed cell's placed-source mark goes with it.
     /// Bounded by the per-tick budget + the settle guard in <see cref="TickFluids"/>.</summary>
-    private void OnFluidRemoved(Vector3i pos) => WakeNeighbors(pos);
+    private void OnFluidRemoved(Vector3i pos)
+    {
+        ForgetPlacedSource(pos);
+        WakeNeighbors(pos);
+    }
 
     private void WakeNeighbors(Vector3i p)
     {

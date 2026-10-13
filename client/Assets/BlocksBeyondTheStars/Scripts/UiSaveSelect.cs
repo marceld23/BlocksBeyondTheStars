@@ -152,16 +152,17 @@ namespace BlocksBeyondTheStars.Client
             bool host = shell.HostMode;
             int[] maxPlayers = { 12 };
             string[] hostPass = { "" };
+            // seed 0 = the server derives it from the name; "Random world" under a typed name passes its own (#2522).
             void Launch(string world, bool unlockAll = false, bool allShips = false, bool kit = false, bool sandbox = false,
-                WorldCreationOptions options = null, bool flight = false)
+                WorldCreationOptions options = null, bool flight = false, long seed = 0)
             {
                 if (host)
                 {
-                    shell.StartHostWorld(world, maxPlayers[0], hostPass[0], 0, unlockAll, allShips, kit, sandbox, options, flight);
+                    shell.StartHostWorld(world, maxPlayers[0], hostPass[0], seed, unlockAll, allShips, kit, sandbox, options, flight);
                 }
                 else
                 {
-                    shell.StartSingleplayerWorld(world, 0, unlockAll, allShips, kit, sandbox, options, flight);
+                    shell.StartSingleplayerWorld(world, seed, unlockAll, allShips, kit, sandbox, options, flight);
                 }
             }
 
@@ -231,7 +232,7 @@ namespace BlocksBeyondTheStars.Client
             // dropped, and Create refuses an empty or duplicate name out loud instead of half-working.
             // The label doubles as the message line — the panel has no spare row, and a warning right above
             // the box is where the eye already is.
-            string[] name = { "new_world" };
+            string[] name = { RandomWorldName.DefaultName };
             InputField nameInput = null;
             void SayName(string key, bool warn)
             {
@@ -359,10 +360,19 @@ namespace BlocksBeyondTheStars.Client
                 Launch(world, UnlockAll(), AllShips(), Kit(), mode[0] == 2, worldOptions, Flight());
             }
 
+            // "Random world" honours a name the player actually typed (#2522): it used to create world_<n> every
+            // time while the typed name stayed in the box as if it had been used. An edited, free name now gets a
+            // random seed under that name; an empty, untouched or taken one keeps world_<n> (RandomWorldName).
+            void CreateRandom()
+            {
+                var pick = RandomWorldName.Resolve(SanitizeWorldName(name[0]), RandomWorldName.DefaultName,
+                    LocalServerLauncher.ListWorlds(), new System.Random());
+                Launch(pick.Name, UnlockAll(), AllShips(), Kit(), mode[0] == 2, worldOptions, Flight(), pick.Seed);
+            }
+
             UiKit.AddButton(right, 20f, 428f, 320f, 50f, shell.L("ui.save.create"), CreateNamed, "btn_singleplayer");
-            UiKit.AddButton(right, 360f, 428f, 320f, 50f, shell.L("ui.save.random"),
-                () => Launch("world_" + Random.Range(1000, 999999), UnlockAll(), AllShips(), Kit(), mode[0] == 2, worldOptions, Flight()), "btn_join");
-            UiKit.AddText(right, 20f, 486f, 660f, 50f, shell.L("ui.save.hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft).horizontalOverflow = HorizontalWrapMode.Wrap;
+            UiKit.AddButton(right, 360f, 428f, 320f, 50f, shell.L("ui.save.random"), CreateRandom, "btn_join");
+            UiKit.AddText(right, 20f, 486f, 660f, 54f, shell.L("ui.save.hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft).horizontalOverflow = HorizontalWrapMode.Wrap;
 
             // ── Host options (host mode only): player cap + optional join password ───────────────
             if (host)

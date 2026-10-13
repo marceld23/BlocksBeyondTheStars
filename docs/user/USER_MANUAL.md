@@ -23,7 +23,9 @@ Last updated: 2026-10-04.
   to the terminal then starts the game) or `./BlocksBeyondTheStars.x86_64` directly.
   From the main menu: **Singleplayer** → pick an existing save (newest first; a long list scrolls with the mouse
   wheel, the scrollbar or the gamepad; **✕** deletes a save after a confirmation) or
-  start a **New world** (name + seed), **Host Game** → host a world for friends, **Join Server**, or
+  start a **New world**: type a name and press **Create / Play**, or press **Random world** for a surprise
+  world — under the name you typed, or as `world_<number>` when the name box is empty, still says
+  `new_world` or holds the name of a world you already have. **Host Game** → host a world for friends, **Join Server**, or
   **Official Worlds** → online multiplayer on the official servers (see below).
 - **Host Game (in-game multiplayer hosting):** the same world picker as singleplayer — *any* saved world
   can be hosted ("open to LAN" style) or a new one created — plus a host bar with **max players** (2–16)
@@ -436,6 +438,9 @@ separate unlock; admins can still disable it through server world rules.
   - A creature or robot you hit flashes white.
   - Little stars circle over a creature or bandit the shock gloves made dizzy; a dizzy robot fizzes with sparks.
   - When something hurts you, a red marker around the crosshair points toward the closest threat.
+  - Damage shows as red at the edge of the screen, as strong as the share of your health it took. Steady small
+    damage (a scan drone, a bite, lava) pulses the edge about twice a second. Only a real hit — 5 % of your health
+    or more — flashes the whole screen red and gives the view a light shake.
   - Beaten creatures break apart into sparkles, robots fall to parts, and bandits beam away.
 - **Mining.**
   - Cracks spread over the block as it weakens.
@@ -458,8 +463,8 @@ separate unlock; admins can still disable it through server world rules.
   blade's chop, a punch, both arms for the shock gloves) and you hear the swing where they stand. Gadgets (medkit,
   stasis, blaster, terrain scanner) only show their effect once the game has accepted the use.
 - **Comfort settings:**
-  - **Settings → Controls → Screen shake** (0–100 %) sets how hard hits, weapon kicks and explosions rattle the view.
-    **Camera motion** off still stops all of it.
+  - **Settings → Comfort → Screen shake** (0–100 %) sets how hard hits, weapon kicks and explosions rattle the view.
+    **Settings → Comfort → Camera motion** off still stops all of it.
   - **Settings → Comfort → Reduce flashes** turns big full-screen flashes into a soft wash, for light-sensitive eyes.
   - **Settings → Comfort → Reduced effects** draws fewer particles and calmer screen effects; some of it applies from
     the next world start.
@@ -480,7 +485,9 @@ The air and the weather leave their mark on the world (atmosphere package, Octob
 - **Eyes adapt to the dark**: a cave starts dark and resolves after a few seconds; stepping back into daylight
   dazzles for a moment. Nothing flashes — it is a slow ramp.
 - **Flickering torchlight**: the light of torches, campfires and lanterns breathes; lamps and crystals stay steady.
-- **Wind in leaves and grass**: crowns, plants and grass tufts sway — gently on a calm day, hard in a storm.
+- **Wind in leaves and grass**: crowns, plants and grass tufts sway — gently on a calm day, hard in a storm. Plants
+  out of the wind stand still: in caves, indoors and under a roof or a thick canopy. Kelp, seagrass and other plants
+  under water keep swaying with the current. Torches and lanterns never sway.
 - **Wet ground and snow caps**: rain darkens and glosses the open ground and dries again over minutes; snowfall caps
   the upward faces (roofs too) and the snow melts when it warms up.
 - **Rain splashes** where drops meet the ground near you; rain, snow, hail and ash are soft drops and flakes.
@@ -687,6 +694,15 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   stays. Water flowing into lava still chills to obsidian at the contact face.
 - **Lava is slow, water is quick**: placed water runs about seven blocks in a second, while lava creeps one
   block every half second — a quarter of the water's pace — so a breached crater gives you time to step back.
+- **Where water comes from**: the **sea** (and everything at or below the sea level), **rivers**, natural
+  **waterfalls** and the **waterfall block** never run dry, and neither does a water block you place yourself.
+  **Ponds and lakes above the sea level hold only what they hold**: open one and it drains slowly through the
+  gap — down to the gap's height, with a little stream running out — and the water seeps away; put a block
+  into the gap and the draining stops. Dig a hole under a pond and the pond fills it from its top. Wall in a
+  pond and fill it with sand, and the water is gone for good.
+- **Flowing water stays near its source**: a stream runs at most about **seven blocks** from where it starts,
+  however many steps, shafts or cave floors lie below — it no longer floods valleys and cave systems. For a
+  tall cascade that keeps pouring, use the **waterfall block**.
 - **Lava and fire burn everybody**: animals, robbers and Guardian machines take contact damage exactly as
   you do (lava −15/s, fire −10/s), so a flooded fire trench really defends a base. Land animals are kept out
   of a lava column anyway and mostly never reach it; what burns is what flies in, what was inside when you
@@ -817,8 +833,13 @@ players.
   breaks and yields its **drops**. Powerful drills can clear a small radius — the sweep only takes blocks
   the drill could mine directly (same tier rules).
 - **The game tells you which tool a block wants.** Scanning a block lists a `Needs:` line naming the cheapest
-  tool that opens it, and a swing the held tool cannot land is refused by name ("Needs: Titanium Drill")
-  rather than a bare "wrong tool". The first time a tier gate turns you away, VEGA explains it once.
+  tool that opens it, and a swing the held tool cannot land is refused by name rather than a bare "wrong tool".
+  A drill that is too weak gets "not strong enough … Needs: Titanium Drill". With the wrong thing in hand — a
+  block, a weapon, nothing at all — the message says "You need this tool in your hand for that: Basic Drill",
+  and if you carry a fitting tool it adds where it is (select it in the quick-bar, or move it there from the
+  backpack first). Only a real tier gate (the right kind of tool, too weak) makes VEGA explain it, once.
+  The slot you select is the hand you mine with: the game tells the server your selected quick-bar slot every
+  time you join a world, so after a restart the tool shown in hand is the tool that swings.
   Tier-2 blocks (machine housings, factory terminals, titanium/platinum/tungsten and the rare ores) will not
   budge for the starter drill — and since titanium ore is itself tier 2, your first titanium comes from a
   wreck, from loot or from **trade**, never from digging. The reliable road is open from the start: the **trade
@@ -2429,6 +2450,17 @@ called **stories**:
   Flora regrows when its host block survives. Nothing spawns inside a **sealed room** of a founded base
   (the same airtight rooms the base core supplies with air), no single species fills the whole area, and
   an animal you wall or floor in while it sleeps wakes up and steps clear.
+- **Animals and your base.** No ground or cave animal spawns within 24 blocks of a base core. Farther out, wild
+  animals stay out of a base's sealed rooms and of a **closed ring of walls** (at least 2 blocks high, closed all
+  round at feet level) as far out as you have built around the core — at least 48 blocks, at most 192. **No ground
+  animal ever spawns on a floor you built** (any solid block you placed, base or no base — water you poured and plants
+  that grew back don't count). A wild animal that gets in
+  anyway — through an open gate or a gap, or before a far wall had loaded — **leaves again while nobody is looking
+  at it**: one standing on your floor or inside your walled yard or sealed rooms simply isn't there any more when
+  you turn back. That includes wild animals in a pen on your base floor: they wander off when nobody looks — tame
+  them to keep them. Your pets, bio-lab clones and an animal you are busy with (fighting, feeding, calling with the
+  caller, taming it) always stay. Fliers and cave dwellers are not stopped by walls or floors, and fish and other
+  water or lava animals are never sent away.
 - **Every animal moves the way its body says.** Walkers jump one-block ledges (like you) and are stopped by
   two; crawlers (legless, serpentine or many-legged things) haul over one block and never jump; giants
   step but never jump; fliers land to rest and to sleep and take off again when disturbed — a skittish bird
@@ -3112,9 +3144,17 @@ The **widest** radio you carry sets your reach. Without any radio you can't tran
   and an optional e-mail. A screenshot and a small technical snapshot (player name, version, position,
   stats) travel with it to the developers' inbox. No connection? The report is queued and sent on a
   later start.
+- **F1 works in the main menu too** — and on the world list, Settings, Credits and the Editors overview —
+  so a problem you hit before a world is even loaded (say, while creating one) can be reported right
+  there. The menu form asks for the same title, description and optional e-mail; it attaches a
+  screenshot of the menu and basic technical data (player name, version, your device), but no world
+  data, because there is no world yet. It does not open while you are typing in a text field or while
+  Settings waits for you to press a key. A report queued offline from the menu goes out with your next
+  world. (Not in the editors themselves — their keys are busy.)
 - **The developers can answer you in the game.** When they reply to one of your reports, a line shows
   on the HUD and a window opens with the conversation — what you reported, their answer, and
   "Fixed in version …" when the fix has shipped. **OK** (or Esc) closes it; you see each answer once.
+  The window also opens in the main menu (there without the HUD line), or else in your next world.
 - When the developers **ask you a question**, the same window has an answer box: type your answer and
   press **Send answer** — it is stored with your report (up to three answers per report). Never put
   personal data in there.

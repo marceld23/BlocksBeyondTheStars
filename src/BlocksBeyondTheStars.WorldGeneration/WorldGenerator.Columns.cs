@@ -201,6 +201,9 @@ public sealed partial class WorldGenerator
         // Scratch spans reused by every column (#705/#708) — allocated once per chunk (CA2014).
         System.Span<ColumnBand> bandScratch = stackalloc ColumnBand[MaxColumnBands];
         System.Span<(int Lo, int Hi)> tunnelScratch = stackalloc (int Lo, int Hi)[TunnelMaxSpans];
+        // Generation 24 (#2516): the neighbouring columns' fluid spans, refilled per column.
+        System.Span<(int Lo, int Hi)> sealSpans = stackalloc (int Lo, int Hi)[4];
+        bool waterSealed = WaterSealed;
         // Generation 11: each column's ground top + water top, for the cave flora pass after the column loop.
         System.Span<int> groundTops = stackalloc int[WorldConstants.ChunkSize * WorldConstants.ChunkSize];
         System.Span<int> waterTops = stackalloc int[WorldConstants.ChunkSize * WorldConstants.ChunkSize];
@@ -312,6 +315,25 @@ public sealed partial class WorldGenerator
                 // Generation 21 (#2336): what a crown band wears — the biome of its own height (Air = the column's biome).
                 var crownSurface = col.CrownSurface.IsAir ? biome.Surface : col.CrownSurface;
                 var crownSub = col.CrownSub.IsAir ? biome.Sub : col.CrownSub;
+
+                // Generation 24 (#2516): the generated fluid of the four neighbouring columns. No cave or tunnel cell is
+                // carved at a height where a neighbour holds it, and a tunnel never opens the bed under this column's own
+                // water — an open side is exactly where the fluid automaton would let it go. Empty on every older world.
+                int sealCount = 0;
+                bool ownFluid = false;
+                if (waterSealed)
+                {
+                    ownFluid = waterTop > seabedY && !columnFluid.IsAir;
+                    for (int d = 0; d < 4; d++)
+                    {
+                        var nb = ColumnProfileFor(ctx, worldX + (d == 0 ? 1 : d == 1 ? -1 : 0), worldZ + (d == 2 ? 1 : d == 3 ? -1 : 0),
+                            bandScratch, tunnelScratch);
+                        if (nb.WaterTop > nb.SeabedY && !nb.ColumnFluid.IsAir)
+                        {
+                            sealSpans[sealCount++] = (nb.SeabedY + 1, nb.WaterTop);
+                        }
+                    }
+                }
 
                 for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
                 {
@@ -590,6 +612,14 @@ public sealed partial class WorldGenerator
                             }
                         }
 
+                        // Generation 24 (#2516): sealed water — the cell stays rock beside a neighbour's fluid, and under the
+                        // column's own fluid the bed stays shut.
+                        if (inTunnel && sealCount + (ownFluid ? 1 : 0) > 0
+                            && ((ownFluid && worldY >= seabedY) || InSealSpans(sealSpans, sealCount, worldY)))
+                        {
+                            inTunnel = false;
+                        }
+
                         if (inTunnel)
                         {
                             // Below the lava table the same molten-pocket rule as blob caves applies (#580).
@@ -615,7 +645,8 @@ public sealed partial class WorldGenerator
 
                     // Carve caves below the surface layer (quantile-calibrated per world, #472). The cave shield
                     // (generation 3) is the rock around a sub-surface fluid span; empty on a classic column.
-                    if (caveThreshold > 0.0 && depth > 1 && (worldY < shieldLo || worldY > shieldHi))
+                    if (caveThreshold > 0.0 && depth > 1 && (worldY < shieldLo || worldY > shieldHi)
+                        && (sealCount == 0 || !InSealSpans(sealSpans, sealCount, worldY)))
                     {
                         double cave = SampleField(samplers, CaveSampler, seed + 7777, worldX, worldZ, 22.0, 16.0, 22.0, worldY);
                         if (cave > caveThreshold)
@@ -1030,11 +1061,11 @@ public sealed partial class WorldGenerator
         if (ponds && surfaceY > fluidLevel)
         {
             pondMask = PondMaskAt(planet, seed, worldX, worldZ);
-            int pondDepth = PondDepthFromMask(planet, seed, worldX, worldZ, pondThreshold, pondMask.Value);
-            if (pondDepth > 0)
+            // Below generation 24 the pond fills flush to this column's own ground; from 24 (#2516) to the pond's one level.
+            if (TryGetPondWater(planet, seed, worldX, worldZ, surfaceY, fluidLevel, pondThreshold, pondMask.Value, out int pondTop, out int pondBed))
             {
-                seabedY = surfaceY - pondDepth;
-                waterTop = surfaceY;
+                seabedY = pondBed;
+                waterTop = pondTop;
                 columnFluid = hotHere && !craterLavaId.IsAir ? craterLavaId : seaWaterId;
                 pondHere = true;
             }

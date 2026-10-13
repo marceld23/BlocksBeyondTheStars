@@ -29,6 +29,17 @@ public static class MiningRules
     }
 
     /// <summary>
+    /// Whether <paramref name="tool"/> fails on <paramref name="block"/> only because its tier is too low (#2525): it is
+    /// a real tool of the kind the block wants (or the block takes any kind), and a stronger one of the same sort would
+    /// do. An empty hand, a block or a weapon in the hand is a kind mismatch instead: "your tool is not strong enough"
+    /// is wrong for it, and so are VEGA's tier-gate tip and the tutorial's tier-gate moment.
+    /// </summary>
+    public static bool IsTierGate(ToolProperties tool, BlockDefinition block)
+        => tool.Kind != ToolKind.None
+           && (block.RequiredTool == ToolKind.None || tool.Kind == block.RequiredTool)
+           && tool.Tier < block.MinToolTier;
+
+    /// <summary>
     /// The cheapest tool in the content set that WOULD break <paramref name="block"/>, or null when nothing
     /// does. "Cheapest" = the lowest tier that clears the gate, then the lowest mining power, then the item
     /// key — so a tier-2 wall names the Titanium Drill rather than whichever tier-3 laser happens to sort

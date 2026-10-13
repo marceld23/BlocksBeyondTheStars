@@ -196,8 +196,18 @@ public sealed class WorldDescription
     /// #2080 the bipeds + favourite foods + Mini-Michi-Paul, #2085 the Fifi plant, #2073 Arena Nigra, #2104 Justus' package:
     /// oil pockets, the worm body plan, the gas giant, #2125 the intercity monorail, #2166 the abandoned monorail stations,
     /// #2331 the spectacle terrain package, #2370/#2371 the full-height oil pockets and the oil seeps, #2437 a gas giant in
-    /// almost every system).</summary>
-    public const int CurrentTerrainGeneration = 23;
+    /// almost every system, #2516 generated water sealed against caves and lower ground).</summary>
+    public const int CurrentTerrainGeneration = 24;
+
+    /// <summary>The generation of sealed water (#2516, 2026-10): generated water is enclosed. Blob caves and worm tunnels keep
+    /// one cell away from the water of the neighbouring columns (and a tunnel never opens the bed under a column's own water);
+    /// a pond fills to ONE level — the lowest ground on its rim — instead of each column's own height, so its surface is flat
+    /// and never stands above the ground beside it (a pond-mask column whose carved bed would sit above that level stays dry
+    /// land, a component too large to resolve keeps the classic fill); the pond slope gate also looks at the direct
+    /// neighbours; and a flowing river reach lowers its water to its lowest bank. The fluid automaton treats generated water
+    /// above the sea level as finite (#2515), so an open side used to let a pond drain the moment it was touched. Every older
+    /// generation keeps its chunks bit for bit.</summary>
+    public const int WaterSealGeneration = 24;
 
     /// <summary>The generation from which almost every star system has a gas giant (#2437, 2026-10): the outermost planet of
     /// every system with at least two planets becomes one in about 85 % of systems, and a system of four planets or more

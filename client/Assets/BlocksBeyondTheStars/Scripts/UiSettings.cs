@@ -30,6 +30,11 @@ namespace BlocksBeyondTheStars.Client
         private InputAction? _rebinding;    // the control row currently capturing a new KEYBOARD key (else null)
         private InputAction? _rebindingPad; // the control row currently capturing a new GAMEPAD button (else null)
 
+        /// <summary>True while a control row waits for "press a key" (#2523): the shell's F1 feedback form must not
+        /// open on the very key the player is binding. Sampled at the top of <see cref="Update"/>, so it still reads
+        /// true for the rest of the frame the capture consumes the key in.</summary>
+        public static bool CapturingKey { get; private set; }
+
         public static GameObject Build(AppShell shell)
         {
             var canvas = UiKit.CreateCanvas("SettingsUI");
@@ -217,12 +222,6 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.fov_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
             y += 28f;
             Toggle(ref y, L("ui.settings.invert_y"), S.InvertY, () => { S.InvertY = !S.InvertY; ApplyLiveWorld(); Rebuild(); });
-            Toggle(ref y, L("ui.settings.camera_motion"), S.CameraMotion, () => { S.CameraMotion = !S.CameraMotion; ApplyLiveWorld(); Rebuild(); });
-            // #2152: how hard hits, weapon kicks and explosions rattle the view (0–100 %, 10 % steps).
-            Stepper(ref y, L("ui.settings.screen_shake"), Mathf.Clamp01(S.ScreenShake), 0, 1,
-                () => { S.ScreenShake = Mathf.Clamp01(Mathf.Round((S.ScreenShake - 0.1f) * 10f) / 10f); ApplyLiveWorld(); Rebuild(); },
-                () => { S.ScreenShake = Mathf.Clamp01(Mathf.Round((S.ScreenShake + 0.1f) * 10f) / 10f); ApplyLiveWorld(); Rebuild(); },
-                Mathf.RoundToInt(Mathf.Clamp01(S.ScreenShake) * 100f) + "%");
 
             // Rebindable key controls (Stream C): one row per remappable action; click to capture a new key.
             Head(ref y, L("ui.settings.controls_keys"));
@@ -294,6 +293,14 @@ namespace BlocksBeyondTheStars.Client
             y += 28f;
 
             Head(ref y, L("ui.settings.comfort"));
+            // #2518: the view's motion lives with the other comfort switches, where players look for it (it sat under
+            // Controls). Same settings keys and saved values as before — only the row moved.
+            Toggle(ref y, L("ui.settings.camera_motion"), S.CameraMotion, () => { S.CameraMotion = !S.CameraMotion; ApplyLiveWorld(); Rebuild(); });
+            // #2152: how hard hits, weapon kicks and explosions rattle the view (0–100 %, 10 % steps).
+            Stepper(ref y, L("ui.settings.screen_shake"), Mathf.Clamp01(S.ScreenShake), 0, 1,
+                () => { S.ScreenShake = Mathf.Clamp01(Mathf.Round((S.ScreenShake - 0.1f) * 10f) / 10f); ApplyLiveWorld(); Rebuild(); },
+                () => { S.ScreenShake = Mathf.Clamp01(Mathf.Round((S.ScreenShake + 0.1f) * 10f) / 10f); ApplyLiveWorld(); Rebuild(); },
+                Mathf.RoundToInt(Mathf.Clamp01(S.ScreenShake) * 100f) + "%");
             // #2152: photosensitivity — big full-screen flashes become a soft wash.
             Toggle(ref y, L("ui.settings.reduce_flashes"), S.ReduceFlashes, () => { S.ReduceFlashes = !S.ReduceFlashes; ApplyLiveWorld(); Rebuild(); });
             UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.reduce_flashes_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
@@ -574,10 +581,15 @@ namespace BlocksBeyondTheStars.Client
         // The action → locale-key table lives in InputMap.LabelKey (shared with the context-actions list, #1042).
         private static string KeyLabel(InputAction action) => InputMap.LabelKey(action);
 
+        /// <summary>The screen is torn down with every phase change — a capture left open must not keep blocking F1.</summary>
+        private void OnDestroy() => CapturingKey = false;
+
         /// <summary>While a control row is capturing, bind the next key / pad button pressed (Escape cancels).
         /// Returns immediately when not rebinding, so it costs nothing in normal use.</summary>
         private void Update()
         {
+            CapturingKey = _rebinding != null || _rebindingPad != null;
+
             // Gamepad capture: only joystick buttons count, so stray keyboard presses can't land here.
             if (_rebindingPad is { } padAction)
             {

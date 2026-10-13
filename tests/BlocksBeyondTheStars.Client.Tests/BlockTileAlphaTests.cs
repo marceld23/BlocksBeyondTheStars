@@ -21,7 +21,8 @@ namespace BlocksBeyondTheStars.Client.Tests;
 /// </para>
 /// <para>
 /// The cutouts that ARE wanted come from deliberate, separate steps — <c>bake_leaf_alpha.py</c> for
-/// foliage, <c>bundle_fire.py</c> for the flame — never from the image model, so they are named here.
+/// foliage, <c>bundle_fire.py</c> for the flame, <c>bake_prop_alpha.py</c> for the torch and lantern — never
+/// from the image model, so they are named here.
 /// </para>
 /// </summary>
 public sealed class BlockTileAlphaTests
@@ -100,6 +101,46 @@ public sealed class BlockTileAlphaTests
             + "re-bundle the tile with tools/ai-assets/bundle_textures.py (it flattens block-tile alpha), "
             + "or add it to IsIntentionalCutout if the cutout is deliberate. Offenders: "
             + string.Join(", ", offenders));
+    }
+
+    /// <summary>
+    /// #2520: the billboard tiles must actually BE cutouts. Being classified <see cref="TextureAlphaMode.Cutout"/>
+    /// only exempts a tile from the opaque rule above — it never checked that a mask was baked, and the torch and
+    /// lantern shipped fully opaque for months: every wall torch stood on a dark card (the lantern on a beige one)
+    /// that its own light lit up grey. A billboard needs a real share of fully transparent pixels around the
+    /// object, and still a body that survives the shader's 0.5 clip.
+    /// </summary>
+    [Theory]
+    [InlineData("torch")]
+    [InlineData("lantern")]
+    [InlineData("fire")]
+    public void BillboardCutoutTiles_HaveARealShareOfTransparentPixels(string key)
+    {
+        Assert.Equal(TextureAlphaMode.Cutout, TextureTiles.AlphaModeOf(key));
+        string file = Path.Combine(TextureDir(), key + ".bytes");
+        Assert.True(File.Exists(file), $"{key}.bytes is missing — the billboard has no tile.");
+
+        byte[] raw = File.ReadAllBytes(file);
+        Assert.Equal(RawSize, raw.Length);
+        int clear = 0, body = 0;
+        for (int i = 3; i < raw.Length; i += 4)
+        {
+            if (raw[i] == 0)
+            {
+                clear++;
+            }
+            else if (raw[i] >= 128)
+            {
+                body++;
+            }
+        }
+
+        int pixels = raw.Length / 4;
+        Assert.True(
+            clear >= pixels / 4,
+            $"{key}.bytes has only {clear}/{pixels} fully transparent pixels — the billboard would draw its background "
+            + "card. Bake the mask (tools/ai-assets/bake_prop_alpha.py for torch/lantern, bundle_fire.py for fire).");
+        Assert.True(body >= pixels / 20, $"{key}.bytes keeps only {body}/{pixels} pixels above the 0.5 clip — the object itself was cut away.");
     }
 
     /// <summary>

@@ -51,6 +51,26 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
   `_Sc_SeaLevel` (from the far-terrain world info) keeps wet ground and snow caps off the seabed (#2414); the far-terrain
   sea takes the world's water tint and the rainbow bands from the same globals as the near water — vertex alpha 0.5
   marks it (#2415); the IMGUI underwater wash thins to ~15 % while the shader-side underwater haze is active (#2416).
+- **Wind sway by cutout code** (2026-10-13, #2519/#2520): `TEXCOORD2.x` of the opaque chunk mesh is a *cutout code*,
+  not a flag — every code above 0.5 is alpha-clipped, and `BbtsBlockSway` (`AtmosphereCommon.hlsl`, called by the
+  forward, shadow and depth passes alike) reads how the vertex moves: **1** a tree-crown shell face sways as one rigid
+  piece (the offset depends on the world position only, so a crown's leaf cubes never tear apart — they used to bend
+  per cube from the tile's `v`, which opened slits between stacked crown cubes); **2** a rigid cutout prop — the torch
+  and lantern (lit or the Crystal Net's unlit twins) — never sways and skips the leaf back-light; **3** a cross-billboard
+  plant bends from its root; **4** an aquatic plant — a cross plant the water surrounds (the mesher's `WetProp` rule,
+  the one that draws its cell's water) — bends like 3. Plants and solid flora are scaled by
+  `BbtsSwayShelter(skylight)` = `smoothstep(0.55, 0.9)`: the mesher's shade floor gives every cell up to six blocks
+  under cover 0.55, so plants in caves, indoors and under a thick canopy stand still while open ground keeps the
+  calm-day breathing. Each plant carries ONE skylight value on all its vertices — solid flora too, because it is always
+  meshed as one shaped form (`AddShapedBlock`, one skylight per block), never through the cube-face path; keep it that
+  way, or its faces would drift apart (an EditMode test pins it; leaving solid flora unscaled instead would set cave
+  caps and spore pods swaying underground). Crown faces carry a skylight per face (the air each face looks into), so
+  crowns are deliberately not scaled — scaling them would move a leaf cube's top but not its underside. Aquatic plants are not scaled either: the skylight counts the water above as cover, and under
+  water the sway reads as current (Marcel: caves and indoors stand still, kelp and seagrass keep swaying — a plant in a
+  flooded cave sways too). The ChunkMesher constants `LeafCodeCrown/Rigid/Plant/Aquatic` are the source of the codes
+  (pinned by `ChunkMesherCutoutCodeEditModeTests`). The torch
+  and lantern tiles got their alpha mask the same day (`tools/ai-assets/bake_prop_alpha.py`; `BlockTileAlphaTests`
+  holds every billboard tile to a real share of transparent pixels).
 
 ## Design rationale worth keeping
 

@@ -88,6 +88,11 @@ public sealed partial class WorldGenerator
             return 0;
         }
 
+        if (WaterSealed && !PondFitsItsNeighbours(planet, worldX, worldZ))
+        {
+            return 0; // generation 24 (#2516): a one-block spike passes the ±2 sample, never this one
+        }
+
         return (int)System.Math.Round(System.Math.Min(1.0, strength) * PondMaxDepth);
     }
 
@@ -301,7 +306,8 @@ public sealed partial class WorldGenerator
             bool morph = w.RiverMorphology;
             return RiverField.Build(net, Height, _circumference, fillFluid: waterId,
                 channelFlowThreshold: 1, fullWidthAccum: 8, sunkRegion: sunk,
-                sinuosity: morph ? 1.0 : 0.0, distributaries: morph ? 4 : 0, floodplainWidth: morph ? 6 : 0);
+                sinuosity: morph ? 1.0 : 0.0, distributaries: morph ? 4 : 0, floodplainWidth: morph ? 6 : 0,
+                bankClamp: WaterSealed); // generation 24 (#2516): no water above the lower bank
         }
 
         // LAVA rivers (L2): only the `lava` and `ashen` worlds (user decision). Magma is viscous, so the
@@ -315,7 +321,8 @@ public sealed partial class WorldGenerator
             // reaches full width without needing tributaries — the old absolute divisor kept every lava
             // channel at width 1 (FlowAccum never exceeds 1 on a lava world), making this tuning inert.
             return RiverField.Build(net, Height, _circumference, fillFluid: lavaId,
-                channelFlowThreshold: 1, maxWidth: 9, fullWidthAccum: 1, maxLakeDepth: 4, estuaryWiden: 4);
+                channelFlowThreshold: 1, maxWidth: 9, fullWidthAccum: 1, maxLakeDepth: 4, estuaryWiden: 4,
+                bankClamp: WaterSealed); // generation 24 (#2516)
         }
 
         return RiverField.Empty(_circumference);
@@ -324,25 +331,35 @@ public sealed partial class WorldGenerator
     /// <summary>Upland-pond carve depth (0 = none) at a surface column — the same scattered-water gate
     /// <see cref="Generate"/> applies (B7), but with this world's pond-enable, threshold and seed resolved
     /// internally so callers (tree placement, ship landing) can keep things out of the water without
-    /// duplicating the rule. Returns 0 on worlds that have no water ponds (dry / lava / airless).</summary>
+    /// duplicating the rule. Returns 0 on worlds that have no water ponds (dry / lava / airless). From terrain
+    /// generation 24 (#2516) it is the depth of the water the column actually holds (0 on a dry pond-mask column).</summary>
     public int SurfacePondDepth(PlanetType planet, int worldX, int worldZ)
+        => TryGetSurfacePond(planet, worldX, worldZ, out int top, out int bed) ? top - bed : 0;
+
+    /// <summary>The upland pond at a surface column — its water's top cell and its bed — under exactly the gates
+    /// <see cref="Generate"/> applies. False where no pond holds water.</summary>
+    private bool TryGetSurfacePond(PlanetType planet, int worldX, int worldZ, out int top, out int bed)
     {
+        top = bed = 0;
         var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
         var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
         double pondAbundance = planet.WaterAbundance
             ?? (string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase) ? 0.0 : 0.55);
         if (!(pondAbundance > 0.15) || seaFluid != waterId || waterId.IsAir)
         {
-            return 0; // ponds only on watery worlds (matches Generate)
+            return false; // ponds only on watery worlds (matches Generate)
         }
 
-        if (SurfaceHeight(planet, worldX, worldZ) <= seaLevel)
+        int surfaceY = SurfaceHeight(planet, worldX, worldZ);
+        if (surfaceY <= seaLevel)
         {
-            return 0; // below the global sea — the sea fills this column, not a pond
+            return false; // below the global sea — the sea fills this column, not a pond
         }
 
         double pondThreshold = 0.70 - pondAbundance * 0.12;
-        return PondDepthAt(planet, PlanetSeed(planet), worldX, worldZ, pondThreshold);
+        long seed = PlanetSeed(planet);
+        return TryGetPondWater(planet, seed, worldX, worldZ, surfaceY, seaLevel, pondThreshold,
+            PondMaskAt(planet, seed, worldX, worldZ), out top, out bed);
     }
 
     /// <summary>River water depth (0 = none) at a surface column — resolved from the routed
@@ -517,17 +534,17 @@ public sealed partial class WorldGenerator
             return true;
         }
 
-        // Upland pond: a carved bowl filled flush to the original surface (pond-first precedence).
-        int pond = SurfacePondDepth(planet, worldX, worldZ);
-        if (pond > 0)
+        // Upland pond: a carved bowl filled flush to the original surface (pond-first precedence) — from generation 24
+        // filled to the pond's one level (#2516).
+        if (TryGetSurfacePond(planet, worldX, worldZ, out int pondTop, out int pondBed))
         {
             if (IsHotZoneAt(planet, worldX, worldZ))
             {
                 return false; // generation 8 (Titas): a hot zone's pond holds lava
             }
 
-            waterTopY = surfaceY;
-            seabedY = surfaceY - pond;
+            waterTopY = pondTop;
+            seabedY = pondBed;
             return true;
         }
 
@@ -577,10 +594,10 @@ public sealed partial class WorldGenerator
         if (surfaceY > seaLevel)
         {
             // Generation 8 (Titas): a hot zone's upland pond is molten (pond-first precedence, like the water queries).
-            if (IsHotZoneAt(planet, worldX, worldZ) && SurfacePondDepth(planet, worldX, worldZ) is > 0 and int hotPond)
+            if (IsHotZoneAt(planet, worldX, worldZ) && TryGetSurfacePond(planet, worldX, worldZ, out int hotTop, out int hotBed))
             {
-                lavaTopY = surfaceY;
-                bedY = surfaceY - hotPond;
+                lavaTopY = hotTop;
+                bedY = hotBed;
                 return true;
             }
 

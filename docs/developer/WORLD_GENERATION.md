@@ -383,9 +383,21 @@ volume (**body-aware** for large species: the hull margin grows by `Size × 0.5`
 titan flatness, the large-body volume (#750), a founded base's **sealed rooms** (`InSealedBaseRoom`,
 the cached air fill — #1314: nothing spawns inside a room the player has made airtight) and its **walled
 areas** (`InWalledBaseArea`, `GameServerBaseWalls.cs` — #1315): an outside-in flood from the boundary of
-the base's 97×97 reach box at the candidate's feet level through passable cells; whatever it never reaches
-is fenced in, roof or no roof. Cached per (base, level) on the air fill's interval, fail-open on unloaded
-columns, shut doors count as walls; fliers and cave dwellers stay ungated, hostile machines are out of scope. Only
+the base's reach box (at least 97×97, grown with the build up to 385×385, #1862) at the candidate's feet level
+through passable cells; whatever it never reaches is fenced in, roof or no roof. Cached per (base, level),
+fail-open on unloaded columns, shut doors count as walls; fliers and cave dwellers stay ungated, hostile machines
+are out of scope. Independent of that fill, no land animal (nor an amphibian ashore) spawns **on a block a player
+placed** (#2521, `OnPlayerBuiltFloor`: the cell under the feet — plus the feet cell when a slab fills it — has an
+`owner_id <> 0` edit; one indexed lookup, the one `PlayerBuiltPocket` uses). Only solid, non-fluid, non-flora,
+non-prop cells are asked about, and a body standing in fluid is on no floor: a cell's owner **sticks** (the upsert
+keeps the last player editor when the server rewrites the cell), so water that flowed back into a dug channel or a
+plant that regrew still carries a player's name. And because the enclosure is only asked at spawn time,
+a throttled sweep (`GameServerBaseIntruders.cs`, every 3 s per world) despawns a wild **land** animal standing on
+player floor, in a sealed room or in a walled area (an amphibian only on player floor; water, lava, air and cave life
+never — a fish in a deep moat reads as walled in) — never a pet, a clone, a giant, the shapeshifter, or an animal that is
+provoked, hunting, begging/called, held in stasis or the target of anyone's taming session — but only while no player is looking at it: within the
+player's streaming radius, inside a ±70° cone around the yaw and with a sightline that only real walls block
+(glass, shaped forms, props and fluids see through); closer than 3 blocks always counts as seen. Only
 **awake, hostile** creatures deal damage — sleepers never attack — and the day/night cycle gates
 which species are awake. Bite + aggro ranges grow gently with species size past 2 (bite capped at
 the player's own 6-block attack reach).
@@ -474,14 +486,42 @@ Per column the precedence is **pond > river > sea**. On lava worlds the *same* m
 
 **Live flow (`GameServerFluids.cs`):** a server-authoritative cellular automaton stepping every 0.125 s
 (`FluidInterval`, ~8 Hz since #2449 — a seven-cell spread takes about a second) with a per-step budget — cells
-flow down, else spread sideways with a decaying level; sources are untracked and bottomless, flowing cells
-persist their level (#657). **Lava moves on every fourth step only** (`LavaStepEvery`; #1316 — one cell per
+flow down, else spread sideways with a decaying level; sources are untracked and bottomless (since #2515 only
+*endless* water is a source — see the water model below), flowing cells persist their level (#657). **Lava moves on every fourth step only** (`LavaStepEvery`; #1316 — one cell per
 0.5 s, a readability decision: fast lava kills before you can react); the water↔lava quench (#1284) fires on
 wake and never waits for the cadence. A placed source wakes its six neighbours (#2448), so water dropped into
 a resting pond makes it grow. Every fluid structure — levels, falling flags, the woken and parked sets, the
 persisted rows — is keyed by the **canonical** cell (`FluidCell`, #2447): the automaton walks neighbours as
 `pos ± 1`, and without that, one cell at the X seam had two spellings, a flowing cell read under the wrong one
 passed for a source, and water placed on both sides of x = 0 (where every first spawn lies) flooded without end.
+
+**The water model (#2515, [ADR 0017](adr/0017-water-classes-finite-still-water-and-bounded-falls.md)).** Two rules bound
+every flow and give water a sea level:
+
+- **A fall keeps its level** (water and lava): a falling cell carries the level of the cell above it instead of refilling
+  to full, so no flow travels more than about seven cells from the source that feeds it — however many steps, shafts and
+  cave floors lie below. Before, every step down re-armed a fresh spread and one wake at a sea–cave contact flooded
+  15 000–31 000 cells.
+- **Only endless water is a source.** `WorldGenerator.WaterKindAt` names what the generator put into a cell: everything
+  at or below the sea level (`BelowSeaLevel` — the sea and the ground water under it), a routed river reach, a river
+  waterfall column, a waterfall band, an underground river reach, or `Still` water. Endless are all but `Still`, plus the
+  cells a player placed (marked in the `fluid_source` table; a one-time migration marked the water players placed before
+  the marks existed) and lava. Generated falls are **confined**: they fall but never spread, and water poured from one
+  into a dug-out foot stays confined like a `water_spout` column.
+- **Still water above the sea level is finite** (`GameServerFluidSettle.cs`). It never spreads as a flow and feeds none.
+  A woken body with an open side **settles**: layer by layer from the top, its cells move into the lowest air reachable
+  through cells no higher than the layer (communicating vessels, a sill holds), and a layer that reaches the open surface
+  of lower endless water, more than 8 blocks of runoff past the body, or more room than 4 096 explored cells seeps away.
+  The plan moves one cell per step and opening (24 at most) — a breached pond drains slowly and visibly, its outlet
+  pours a short stream into the gap, and the plan is renewed every second, so plugging the gap stops the drain. A body
+  over 2 048 cells is a reservoir (endless, still bounded by the fall rule), and so is any body that meets a reservoir
+  cell. Only open cells count toward the exploration cap. At most two plans run per fluid step, a body found at rest is
+  planned at most about once a second (its wakes are deferred, not dropped), a cell that met a running settle is retried
+  when it ends, and a settle never touches a chunk that is not resident. Planning a body at the cap costs 8–14 ms warm
+  (the first plan of a session more: JIT, and any terrain the reach has to generate); a pond of a few hundred cells well
+  under 3 ms. Placed-source marks load on first use, so a station (void) world has them too.
+- **Saves heal.** `LoadFluidState` wakes every stored flowing cell; under the fall rule an old flood's long tongues lose
+  their feed and recede.
 
 **Granular blocks (`GameServerGranular.cs`, #1319):** `"granular": true` in `blocks.json` (sand, ash, snow)
 marks loose material that settles when its support goes — **instant** through air (one `SetBlock` pair,
@@ -2450,7 +2490,7 @@ placed a giant in every Lone Giant system and on the outermost orbit of any othe
 system in four, and his seed had rolled no Lone Giant and a single outer-orbit hit, hidden in the unnamed catalogue
 system he skipped. About 4 % of galaxies had none at all.
 
-`WorldDescription.CurrentTerrainGeneration` is **23** (`GasGiantPerSystemGeneration`). `UniverseGenerator.ApplyGasGiants`
+`WorldDescription.CurrentTerrainGeneration` became **23** (`GasGiantPerSystemGeneration`). `UniverseGenerator.ApplyGasGiants`
 keeps the old roll for a description below 23 (the galaxy is re-derived from the seed on every start, so a saved world's
 pinned generation keeps its planets), and from 23 on:
 
@@ -2473,3 +2513,38 @@ would have rolled under the old rule is unchanged. `GasGiantPerSystemTests` pins
 a second giant only from four planets, one-planet systems untouched, ≥ 70 % of eligible systems with a giant) and that a
 generation-22 description still obeys the old rule. The system chart paints a gas giant in its own amber and half again
 as big as the other dots (`SystemMapWidget.GasGiantColor` / `DotScale`), visited or not.
+
+## 41. Generation 24 — sealed water (#2516, 2026-10-13)
+
+The water model of #2515 (§8, [ADR 0017](adr/0017-water-classes-finite-still-water-and-bounded-falls.md)) makes still water
+above the sea line finite and bounds every flow. What it cannot do is close a side the generator left open: a cave carved
+beside the sea, a pond filled to each column's own ground (a stepped surface that stands above its lower neighbours), a
+river cross-section flat at the centreline's height above a low bank, a pond on a one-block spike. In a generation-23 world
+those are thousands of cells near every spawn (on the tester's seed: 2 044 sea cells touching cave air and 1 613 pond cells
+with air beside them within 256 blocks), all dormant until a player touches them — then a pond drains or a cave fills.
+
+`WorldDescription.CurrentTerrainGeneration` is **24** (`WaterSealGeneration`). From this generation:
+
+- **Caves keep clear of water.** The chunk fill reads the four neighbouring columns' fluid spans (`seabed + 1 .. water
+  top`, memoised column profiles) and carves no blob-cave or worm-tunnel cell at those heights; a tunnel never opens the
+  bed under a column's own fluid. Lava counts as fluid here too.
+- **One flat level per pond** (`WorldGenerator.WaterSealGen24.cs`). The 4-connected pond-mask columns form one pond; its
+  level is the lowest ground among the columns that touch it (`PondLevelAt`, memoised for the whole component). A pond
+  column holds water to that level when its ground stands at most `PondMaxBank` (2) above it — it is dug out to a bed at
+  least one below the level — and stays dry land otherwise; a pond whose rim dips to the sea line is no pond. A component
+  over `PondComponentCap` (4 096 columns) keeps the classic per-column fill — every column of it reaches the cap, so the
+  verdict does not depend on which column asked, and a search that meets a column an earlier search of the same
+  component memoised takes over that verdict at once (no huge component is walked again column by column).
+  `SurfacePondDepth`, `TryGetWaterSurface` and the hot-pond lava query
+  answer from the same rule (`TryGetSurfacePond`). One sample (meadowlands, seed 7, 257 × 257 columns): 2 408 → 595 pond
+  water cells — ponds are flatter and smaller.
+- **No spike ponds.** The pond gate also requires every direct neighbour within two blocks of the column's ground
+  (`PondFitsItsNeighbours`) — the ±2 slope sample could not see a one-block spike.
+- **Rivers no higher than their banks.** A flowing reach's water drops to the lower of its two bank columns
+  (`RiverField.Build(bankClamp: true)`, for water and lava rivers); no lips are raised. Pooled lakes and the along-flow
+  steps of a reach are unchanged (the automaton treats river water as endless, and the fall rule bounds a step's spill).
+
+`WaterSealGenerationTests` scans sample windows of three worlds (the tester's seed among them) for generated water with air
+beside or below it — zero outside river columns and generated falls on generation 24, and the same scan finds the leaks on
+generation 23 — checks that every pond holds one level, and pins `WaterKindAt`. New goldens: `varied-gen24`,
+`meadowlands-gen24`, `river_lowlands-gen24`; every older group is unchanged.

@@ -138,6 +138,13 @@ Hits:
 
 - The server's hull drop flashes the creature or robot white with a small squash (`FxDefeat.HitFlash`).
 - Player damage adds camera trauma.
+- #2518: the HUD feeds the 15 Hz health stream through `DamageFeedback` (Client.Core). The first drop after a quiet
+  spell fires at once and opens a 0.5 s window; damage inside it fires as one effect when it closes, and a single drop
+  of ≥ 5 % of max health breaks through. Every part scales with the share of max health, no fixed minimums: the red
+  edge vignette (square root of the share, so chip damage still shows), the visor glitch, the full-screen red flash
+  (only from 5 %) and the camera trauma, which damage can build up to 0.3 at most (`FxCamera.AddDamageTrauma`; trauma
+  something else added is never lowered). Before, every update re-fired the full effect with fixed minimums, so a
+  scan drone's 2 HP/s aura held the screen red and stacked the shake to its maximum.
 - A red marker on a ring around the crosshair points at the nearest hostile. The server reports damage, not its source.
 
 ### Defeat (kid-friendly)
@@ -288,7 +295,8 @@ Emitter caps per kind are in `FxKit.BaseBudget`. Full breaks are limited to 6 pe
 
 ## Accessibility
 
-- **Screen shake** (0–100 %, default 70 %) scales all trauma and kicks. *Camera motion* off silences them.
+- **Screen shake** (0–100 %, default 70 %) scales all trauma and kicks. *Camera motion* off silences them. Both sit
+  in the Comfort section since #2518 (they were under Controls; the settings keys did not change).
 - **Reduce flashes** follows XAG 118 / WCAG 2.3.1. It clamps the full-screen flashes: damage, death, ship destroyed, the hyperjump flash, the photo shutter, the flight hit flash and the big explosion and blast flashes.
 - **Reduced effects** is now exposed in the settings (Comfort section).
 - Colour is never the only signal. Shield vs hull also differs in shape: hex ripple vs sparks.

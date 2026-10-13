@@ -23,9 +23,9 @@ namespace BlocksBeyondTheStars.Client
     /// wording of the boxes was approved as it stands (<c>ui.tex.submit.check_*</c>); a change of meaning needs
     /// a new <see cref="TextureSubmission.ConsentTextVersion"/>.
     ///
-    /// Lives on the texture editor's object and works without a world: the main menu has no
-    /// <see cref="FeedbackUi"/>. A report it could not deliver goes to the shared spool, which the next world
-    /// session flushes.
+    /// Lives on the texture editor's object and works without a world: the menu's own <see cref="FeedbackUi"/>
+    /// (#2523) sleeps inside the editors. A report it could not deliver goes to the shared spool, which the next
+    /// world session flushes.
     /// </summary>
     public sealed class TextureSubmitDialog : MonoBehaviour
     {

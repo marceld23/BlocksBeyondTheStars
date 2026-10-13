@@ -1259,24 +1259,25 @@ public sealed partial class GameServer
     /// <summary>True if a mission is offered by a space station board.</summary>
     public bool IsStationMission(string missionId) => _stationMissionIds.Contains(missionId);
 
+    /// <summary>True if the cell belongs to the stamped NPC station of the ACTIVE world. Every NPC station is stamped at
+    /// the same origin in its own void world (<c>station:&lt;id&gt;</c>), so the box only means something while that
+    /// station's world is the one being edited. #2514: the check used to loop over every station stamped this run,
+    /// whatever world was active — after one docking the box (air included) protected the same coordinates on
+    /// every planet ("This station is protected" on natural ground, the home pad among it). <c>Stamped</c> itself
+    /// stays set: it also keeps a station from being re-stamped and its mission board from being re-stocked.</summary>
     private bool IsStationBlock(Vector3i pos)
     {
-        foreach (var station in _stationsById.Values)
+        string loc = _world.LocationId;
+        if (!loc.StartsWith(StationLocationIdPrefix, System.StringComparison.Ordinal)
+            || !_stationsById.TryGetValue(loc.Substring(StationLocationIdPrefix.Length), out var station)
+            || !station.Stamped || station.Structure is null)
         {
-            if (!station.Stamped || station.Structure is null)
-            {
-                continue;
-            }
-
-            if (pos.X >= station.Origin.X && pos.X < station.Origin.X + station.Structure.Width &&
-                pos.Y >= station.Origin.Y && pos.Y < station.Origin.Y + station.Structure.Height &&
-                pos.Z >= station.Origin.Z && pos.Z < station.Origin.Z + station.Structure.Length)
-            {
-                return true;
-            }
+            return false;
         }
 
-        return false;
+        return pos.X >= station.Origin.X && pos.X < station.Origin.X + station.Structure.Width &&
+               pos.Y >= station.Origin.Y && pos.Y < station.Origin.Y + station.Structure.Height &&
+               pos.Z >= station.Origin.Z && pos.Z < station.Origin.Z + station.Structure.Length;
     }
 
     private void HandleBoardStation(PlayerSession session, BoardStationIntent intent)

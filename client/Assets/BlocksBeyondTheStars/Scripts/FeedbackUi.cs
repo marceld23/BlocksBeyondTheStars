@@ -45,11 +45,31 @@ namespace BlocksBeyondTheStars.Client
     /// can answer from inside the game. Shown entries are acknowledged so they appear once.
     ///
     /// Wired by <see cref="WorldRig"/> next to <see cref="HudUi"/> / <see cref="ChatUi"/>.
+    ///
+    /// <b>Shell mode (#2523).</b> <see cref="AppShell"/> adds a second, lean instance to itself with <see cref="Shell"/>
+    /// set instead of <see cref="Game"/>, so the hotkey also works in the main menu and the menu screens around it
+    /// (<see cref="IsShellFeedbackScreen"/>) — a tester found a bug while creating a world and had nowhere to report
+    /// it. It sends title, description and optional e-mail plus a screenshot of the menu as the same client-direct
+    /// upload, under the same reply credential, but there is no world: no <c>/bump</c> snapshot, no world hold, no
+    /// game stats in the report. It shows developer replies in the menu too; the world's own instance polls
+    /// separately once a world is loaded (the shell one sleeps then), and both read the same
+    /// <see cref="SentReportsLog"/>. The in-world instance is unchanged.
     /// </summary>
     public sealed class FeedbackUi : MonoBehaviour
     {
         public GameBootstrap Game;
         public ClientSettings Settings;
+
+        /// <summary>Set on the shell's own instance (#2523) — and only there; the world rig sets <see cref="Game"/>.</summary>
+        public AppShell Shell;
+
+        /// <summary>The shell instance: no world behind it, so no game data, no <c>/bump</c> and no world hold.</summary>
+        private bool ShellMode => Game == null && Shell != null;
+
+        // The shell instance's modal state, for AppShell's own cancel key and pad focus (#2523).
+        private static FeedbackUi _shellInstance;
+        private static int _shellCancelFrame = -1;
+        private object _builtWithLocalizer; // shell mode: the Localizer the dialogs were built with
 
         private const float W = 1920f, H = 1080f;
 
@@ -131,9 +151,40 @@ namespace BlocksBeyondTheStars.Client
         /// placeholder in locale hint strings.</summary>
         public static string HotkeyName => Hotkey == KeyCode.F2 ? "F2" : "F1";
 
-        private string L(string key) => Game?.Localizer?.Get(key) ?? key;
+        private string L(string key)
+        {
+            if (Game != null)
+            {
+                return Game.Localizer?.Get(key) ?? key;
+            }
+
+            return Shell != null ? Shell.L(key) : key;
+        }
 
         private static long NowUnix() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        private static string SentLogPath => Path.Combine(AppPaths.Root, "feedback", "sent.json");
+
+        /// <summary>The sent-reports memory. <see cref="SentReportsLog"/> caches its file on first use, which suits the
+        /// per-world instance; the shell instance lives as long as the app while the world's instance writes the same
+        /// file in between, so it reads the file fresh each time (as <see cref="TextureSubmitDialog"/> does).</summary>
+        private SentReportsLog SentLog => ShellMode ? new SentReportsLog(SentLogPath) : _sentLog;
+
+        /// <summary>True while the shell instance's feedback dialog or reply window is on screen (#2523) — AppShell then
+        /// suspends the menu screen's pad focus.</summary>
+        public static bool ShellModalOpen => _shellInstance != null && (_shellInstance._open || _shellInstance._replyOpen);
+
+        /// <summary>True while the shell dialog owns the cancel key — including the frame it closed in, so the same
+        /// Esc / pad B press does not also back AppShell out of the screen underneath, whichever Update runs first.</summary>
+        public static bool ShellOwnsCancel => ShellModalOpen || _shellCancelFrame == Time.frameCount;
+
+        /// <summary>The shell screens the menu form opens on (#2523): the main menu and the plain menu screens around it.
+        /// Not splash, intro or loading (the hand-off into a world must not wait on a form), and not the editors,
+        /// whose own keys and canvases own the screen. A loaded world is excluded separately — Settings opened from
+        /// the pause menu belongs to the world.</summary>
+        public static bool IsShellFeedbackScreen(ShellPhase phase) =>
+            phase == ShellPhase.MainMenu || phase == ShellPhase.SaveSelect || phase == ShellPhase.Settings
+            || phase == ShellPhase.Credits || phase == ShellPhase.Editors;
 
         private void Start()
         {
@@ -142,12 +193,22 @@ namespace BlocksBeyondTheStars.Client
             _uploader = new FeedbackUploader(FeedbackUploader.DefaultEndpoint, BugReportBuildSecrets.ApiKey);
             _spool = new FeedbackSpool(Path.Combine(AppPaths.Root, "feedback"));
             _replies = new FeedbackReplyClient(FeedbackReplyClient.EndpointFor(FeedbackUploader.DefaultEndpoint), BugReportBuildSecrets.ApiKey);
-            _sentLog = new SentReportsLog(Path.Combine(AppPaths.Root, "feedback", "sent.json"));
+            _sentLog = new SentReportsLog(SentLogPath);
             _replyKey = ComputeReplyKey();
+            if (ShellMode)
+            {
+                _shellInstance = this;
+            }
 
             if (_uploader.IsConfigured)
             {
-                FlushSpool(); // deliver what an earlier session couldn't (bounded attempts, see FeedbackSpool)
+                // The spool is the world instance's to flush: two instances draining it at once could send a queued
+                // report twice, and the shell's queued reports go out with the next world session.
+                if (!ShellMode)
+                {
+                    FlushSpool(); // deliver what an earlier session couldn't (bounded attempts, see FeedbackSpool)
+                }
+
                 _nextPollAt = Time.unscaledTime + FirstPollDelaySeconds;
             }
         }
@@ -182,6 +243,11 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(_replyCanvas.gameObject);
                 _replyCanvas = null;
             }
+
+            if (_shellInstance == this)
+            {
+                _shellInstance = null;
+            }
         }
 
         /// <summary>The install's reply-thread credential: a one-way hash of the install secret. Desktop and
@@ -208,6 +274,11 @@ namespace BlocksBeyondTheStars.Client
         {
             if (Game == null)
             {
+                if (Shell != null)
+                {
+                    UpdateShell(); // the menu's own instance (#2523); the world rig's instance never has a Shell
+                }
+
                 return;
             }
 
@@ -230,7 +301,66 @@ namespace BlocksBeyondTheStars.Client
             // The keep-alive that tells the server we are still here while the dialog holds the world runs in the
             // world's hold arbiter (GameBootstrap.WorldHold, #2461).
 
-            // Marshal the background upload result back onto the main thread.
+            PumpUploadResult();
+            TickReplyInbox(canLaunch);
+        }
+
+        /// <summary>
+        /// The shell instance's frame (#2523): the hotkey on the menu screens, Esc / pad B to close, the upload result
+        /// and the reply inbox. It sleeps — and closes whatever it had open — while a world is loaded or a phase that is
+        /// no menu screen owns the display (splash, loading, the editors); the world's own instance takes over there.
+        /// </summary>
+        private void UpdateShell()
+        {
+            bool onMenuScreen = Shell.CurrentBoot == null && IsShellFeedbackScreen(Shell.Phase) && Shell.Localizer != null;
+            if (!onMenuScreen)
+            {
+                if (_open)
+                {
+                    Close();
+                }
+
+                if (_replyOpen)
+                {
+                    CloseReply(); // not acknowledged, so the world's own instance shows the thread again
+                }
+
+                // Threads still waiting here are the world instance's to show now; back in the menu they would only
+                // repeat what it already showed and acknowledged.
+                _inbox.Clear();
+
+                if (_nextPollAt >= 0f)
+                {
+                    // The world's instance polls while a world is loaded; this one resumes a little after the menu is back.
+                    _nextPollAt = Mathf.Max(_nextPollAt, Time.unscaledTime + FirstPollDelaySeconds);
+                }
+            }
+
+            // Not while the player types (a world name, a server address — F1 there belongs to the field), not while
+            // Settings waits for "press a key" (F1 may be the key being bound), and not over the other window.
+            bool canLaunch = onMenuScreen && !UiKit.TextFieldFocused() && !UiSettings.CapturingKey;
+
+            if (!_open && !_replyOpen && canLaunch && Input.GetKeyDown(Hotkey))
+            {
+                Open();
+            }
+
+            if (_open && !_sending && CancelPressed())
+            {
+                Close(); // stamps the cancel frame, so AppShell does not also leave the screen underneath on this press
+            }
+
+            PumpUploadResult();
+            TickReplyInbox(canLaunch);
+        }
+
+        /// <summary>The key that closes the dialog and the reply window: Escape in a world (pad B is crouch there),
+        /// the menu's cancel — Escape or pad B — in the shell.</summary>
+        private bool CancelPressed() => ShellMode ? InputMap.Down(InputAction.UiCancel) : Input.GetKeyDown(KeyCode.Escape);
+
+        /// <summary>Marshals the background upload result back onto the main thread.</summary>
+        private void PumpUploadResult()
+        {
             if (_uploadTask != null && _uploadTask.IsCompleted)
             {
                 var task = _uploadTask;
@@ -240,8 +370,6 @@ namespace BlocksBeyondTheStars.Client
                 catch (Exception e) { result = new FeedbackUploadResult { Error = e.GetType().Name }; }
                 OnUploadFinished(result);
             }
-
-            TickReplyInbox(canLaunch);
         }
 
         // --- Open / close ----------------------------------------------------------------------------------
@@ -250,7 +378,7 @@ namespace BlocksBeyondTheStars.Client
         /// visible, dialog not yet shown — then dims the screen and shows the form.</summary>
         public void Open()
         {
-            if (_open || Game == null)
+            if (_open || (Game == null && !ShellMode))
             {
                 return;
             }
@@ -268,7 +396,10 @@ namespace BlocksBeyondTheStars.Client
             // THEIR Update, and this frame's HudUi.Update has already run — WorldRig adds HudUi to the rig
             // before FeedbackUi, so it updates first — while the flight overlay's prompts are the only thing
             // that can go missing from the shot when SpaceView.Update runs after us.
-            Game.SetMenuOwner(this, true);
+            //
+            // The shell instance (#2523) has no world and no menu-owner arbiter: its modality is the dialog's own scrim,
+            // ShellOwnsCancel for AppShell's cancel key and ShellModalOpen for the menu's pad focus.
+            Game?.SetMenuOwner(this, true);
             StartCoroutine(OpenRoutine());
         }
 
@@ -297,6 +428,11 @@ namespace BlocksBeyondTheStars.Client
 
             _shotJpg = EncodeJpg(shot);
 
+            if (ShellMode)
+            {
+                RebuildIfLanguageChanged();
+            }
+
             EnsureDialog();
             ResetFields();
             _dialog.SetActive(true);
@@ -319,6 +455,39 @@ namespace BlocksBeyondTheStars.Client
 
             ReleaseWorld(WorldHoldArbiter.Feedback); // every close path ends here (Esc, Cancel, the auto-close after a send)
             Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other owner is open (#413)
+            if (ShellMode)
+            {
+                _shellCancelFrame = Time.frameCount;
+            }
+        }
+
+        /// <summary>
+        /// Shell mode: the dialogs are built once, but the shell instance lives through language changes in Settings,
+        /// each of which makes a new Localizer — so a dialog built in the old language is dropped and rebuilt. Called
+        /// only right before a window is shown, while it is still hidden. (The world's instance dies with its world.)
+        /// </summary>
+        private void RebuildIfLanguageChanged()
+        {
+            object current = Shell != null ? Shell.Localizer : null;
+            if (ReferenceEquals(current, _builtWithLocalizer))
+            {
+                return;
+            }
+
+            _builtWithLocalizer = current;
+            if (_dialogCanvas != null && (_dialog == null || !_dialog.activeSelf))
+            {
+                Destroy(_dialogCanvas.gameObject);
+                _dialogCanvas = null;
+                _dialog = null; // Destroy is deferred to the end of the frame — EnsureDialog must build anew right now
+            }
+
+            if (_replyCanvas != null && !_replyOpen)
+            {
+                Destroy(_replyCanvas.gameObject);
+                _replyCanvas = null;
+                _replyOverlay = null;
+            }
         }
 
         /// <summary>
@@ -420,7 +589,8 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(panel, m, 330, innerW, 20, L("ui.feedback.email_label"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             _emailInput = UiKit.AddInput(panel, m, 352, innerW, 40, string.Empty, null, L("ui.feedback.email_placeholder"), 120);
 
-            var hint = UiKit.AddText(panel, m, 404, innerW, 116, L("ui.feedback.hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+            // The menu form sends no game data — its note says what it does send (#2523).
+            var hint = UiKit.AddText(panel, m, 404, innerW, 116, L(ShellMode ? "ui.feedback.hint_menu" : "ui.feedback.hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
             hint.horizontalOverflow = HorizontalWrapMode.Wrap;
             hint.verticalOverflow = VerticalWrapMode.Truncate;
 
@@ -490,6 +660,13 @@ namespace BlocksBeyondTheStars.Client
                 _uploadTask = Task.Run(() => _uploader.UploadRawJson(json));
 #endif
             }
+            else if (ShellMode)
+            {
+                // A build without the inbox key (a local or fork build) — and in the menu there is no world to keep a
+                // /bump snapshot either, so nothing went anywhere. Say so instead of a reassuring "saved".
+                if (_status != null) { _status.text = L("ui.feedback.not_configured"); _status.color = UiKit.Warn; }
+                _sending = false;
+            }
             else
             {
                 // Dev build without an API key: the local /bump snapshot was still written.
@@ -526,6 +703,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Offline / inbox down: the report is queued on disk and retried on later sessions with
                 // bounded attempts — nothing to re-type, so tell the player and close.
+                WebGlStorage.Sync(); // browser: the queued report must survive a reload (no-op elsewhere)
                 if (_status != null) { _status.text = L("ui.feedback.queued"); _status.color = UiKit.Ok; }
                 Game?.ShowMessage(L("ui.feedback.queued"));
                 Invoke(nameof(Close), 1.6f);
@@ -541,12 +719,13 @@ namespace BlocksBeyondTheStars.Client
         /// what the poll's threads are keyed by in the UI; a missing id (legacy backend) just means no memory.</summary>
         private void RememberSent(string reportId, string title)
         {
-            if (_sentLog == null || string.IsNullOrEmpty(reportId))
+            var log = SentLog;
+            if (log == null || string.IsNullOrEmpty(reportId))
             {
                 return;
             }
 
-            if (_sentLog.Record(reportId, title, NowUnix()))
+            if (log.Record(reportId, title, NowUnix()))
             {
                 WebGlStorage.Sync(); // browser: make the memory durable across reloads (no-op elsewhere)
             }
@@ -571,6 +750,19 @@ namespace BlocksBeyondTheStars.Client
                 ["sessionSeconds"] = Game != null ? Mathf.RoundToInt(Game.SessionSeconds) : 0,
                 ["language"] = Settings != null ? Settings.Language : string.Empty,
             };
+            if (ShellMode)
+            {
+                // Sent from the menu (#2523): there is no world, so a place, a seed and zeroed stats would only
+                // mislead — the screen the player was on says where instead.
+                foreach (string worldKey in new[] { "location", "station", "worldSeed", "health", "oxygen", "energy", "hunger", "sessionSeconds" })
+                {
+                    reportJson.Remove(worldKey);
+                }
+
+                reportJson["source"] = "menu";
+                reportJson["shellScreen"] = Shell.Phase.ToString();
+            }
+
             // Machine facts + "did the last session die?" — the same keys the crash reporter sends, so a blue
             // screen / driver-reset report can be judged without asking the player (#1564). Main thread here.
             DeviceInfo.Get().WriteTo(reportJson);
@@ -587,7 +779,8 @@ namespace BlocksBeyondTheStars.Client
                 GameVersion = AppShell.Version,
                 BuildNumber = Application.buildGUID ?? string.Empty,
                 PlayerId = Settings != null ? Settings.PlayerToken : string.Empty,
-                PlayerName = Settings != null && !string.IsNullOrEmpty(Settings.PlayerName) ? Settings.PlayerName : (Game != null ? Game.PlayerName : string.Empty),
+                PlayerName = Settings != null && !string.IsNullOrEmpty(Settings.PlayerName) ? Settings.PlayerName
+                    : Game != null ? Game.PlayerName : (Shell != null ? (Shell.PlayerName ?? string.Empty) : string.Empty),
                 ReplyKey = _replyKey,
                 SessionId = _sessionId,
                 Platform = Application.platform.ToString(),
@@ -709,21 +902,22 @@ namespace BlocksBeyondTheStars.Client
                 ShowThread(_inbox.Dequeue());
             }
 
-            if (_replyOpen && !_answering && Input.GetKeyDown(KeyCode.Escape))
+            if (_replyOpen && !_answering && CancelPressed())
             {
-                Game.MarkMenuInputHandled();
+                Game?.MarkMenuInputHandled();
                 AcknowledgeAndClose();
             }
         }
 
         private void StartPoll()
         {
-            if (_replies == null || !_replies.IsConfigured || string.IsNullOrEmpty(_replyKey) || _sentLog == null)
+            var log = SentLog;
+            if (_replies == null || !_replies.IsConfigured || string.IsNullOrEmpty(_replyKey) || log == null)
             {
                 return;
             }
 
-            if (!_sentLog.ShouldPoll(NowUnix()))
+            if (!log.ShouldPoll(NowUnix()))
             {
                 return; // nothing sent recently → no request at all (no phone-home without a reason)
             }
@@ -732,7 +926,7 @@ namespace BlocksBeyondTheStars.Client
             // our key as `gone`, and OnPollFinished forgets them — otherwise a deleted or pruned report
             // would be polled for up to 90 days.
             var known = new List<string>();
-            foreach (var sent in _sentLog.List(NowUnix()))
+            foreach (var sent in log.List(NowUnix()))
             {
                 known.Add(sent.Id);
             }
@@ -772,9 +966,10 @@ namespace BlocksBeyondTheStars.Client
 
             // Reports the inbox no longer has for our key are forgotten, so the poll gate closes once the
             // last remembered report is gone (#1369).
+            var log = result.Gone.Count > 0 ? SentLog : null;
             foreach (string goneId in result.Gone)
             {
-                _sentLog?.Forget(goneId);
+                log?.Forget(goneId);
             }
 
             FeedbackReplyThread first = null;
@@ -800,9 +995,14 @@ namespace BlocksBeyondTheStars.Client
 
         private void ShowThread(FeedbackReplyThread thread)
         {
-            if (thread == null || Game == null)
+            if (thread == null || (Game == null && !ShellMode))
             {
                 return;
+            }
+
+            if (ShellMode)
+            {
+                RebuildIfLanguageChanged();
             }
 
             EnsureReplyDialog();
@@ -826,7 +1026,7 @@ namespace BlocksBeyondTheStars.Client
             SetReplyBody(ThreadText(thread)); // after activation — the chunk heights are measured against live rects
             UiKit.OpenModal(_replyOverlay); // #2302: the open effect — ShowThread only runs while no reply is open
             HoldWorld(WorldHoldArbiter.FeedbackReply); // reading/answering holds the world like the F1 dialog (#1330)
-            Game.SetMenuOwner(_replyOwner, true);
+            Game?.SetMenuOwner(_replyOwner, true); // none in the shell (#2523): the overlay's scrim is the modality there
         }
 
         /// <summary>Fills the scrollable body with the thread text: one plain (non-rich) Text per
@@ -996,6 +1196,10 @@ namespace BlocksBeyondTheStars.Client
             if (_replyOverlay != null) _replyOverlay.SetActive(false);
             ReleaseWorld(WorldHoldArbiter.FeedbackReply);
             Game?.SetMenuOwner(_replyOwner, false);
+            if (ShellMode)
+            {
+                _shellCancelFrame = Time.frameCount;
+            }
         }
 
         private void OnAnswerClicked()

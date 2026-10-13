@@ -46,6 +46,15 @@ public sealed class WeatherDepositRow
     public double Timer { get; set; }
 }
 
+/// <summary>One player-placed water source (#2515) as a snapshot row.</summary>
+public sealed class FluidSourceRow
+{
+    public string Planet { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+}
+
 /// <summary>One persisted in-space structure edit as a snapshot row.</summary>
 public sealed class StructureEditRow
 {
@@ -97,6 +106,9 @@ public sealed class MemoryWorldSnapshot
     public List<StructureEditRow> StructureEdits { get; set; } = new();
     public Dictionary<string, string> LocationStatuses { get; set; } = new();
     public List<MissionDefinition> Missions { get; set; } = new();
+
+    /// <summary>Player-placed water sources (#2515). Additive: a snapshot written before them reads back as an empty list.</summary>
+    public List<FluidSourceRow> FluidSources { get; set; } = new();
 }
 
 /// <summary>
@@ -123,6 +135,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, double Timer, int Tint)> _flora = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, double Timer)> _deposits = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (byte Level, bool Falling)> _fluidCells = new();
+    private readonly HashSet<(string Planet, int X, int Y, int Z)> _fluidSources = new(); // #2515
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (double Remaining, int Generation)> _fireCells = new();
     private readonly Dictionary<string, string> _players = new();       // id → PlayerSnapshot JSON
     private readonly Dictionary<string, string> _ships = new();         // id → ShipSnapshot JSON
@@ -237,6 +250,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
             SpaceStructures = _spaceStructures.Values.Select(json => JsonSerializer.Deserialize<StoredSpaceStructure>(json, JsonOptions)!).ToList(),
             LocationStatuses = new Dictionary<string, string>(_locationStatuses),
             Missions = _missions.Values.Select(json => JsonSerializer.Deserialize<MissionDefinition>(json, JsonOptions)!).ToList(),
+            FluidSources = _fluidSources.Select(k => new FluidSourceRow { Planet = k.Planet, X = k.X, Y = k.Y, Z = k.Z }).ToList(),
         };
 
         foreach (var kv in _blockEdits)
@@ -324,6 +338,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
         _structureEdits.Clear();
         _locationStatuses.Clear();
         _missions.Clear();
+        _fluidSources.Clear();
 
         foreach (var kv in snapshot.BlockPalette)
         {
@@ -454,6 +469,11 @@ public sealed class MemoryWorldRepository : IWorldRepository
         foreach (var mission in snapshot.Missions)
         {
             _missions[mission.Id] = JsonSerializer.Serialize(mission, JsonOptions);
+        }
+
+        foreach (var row in snapshot.FluidSources ?? new List<FluidSourceRow>())
+        {
+            _fluidSources.Add((row.Planet, row.X, row.Y, row.Z));
         }
     }
 
@@ -909,6 +929,53 @@ public sealed class MemoryWorldRepository : IWorldRepository
         {
             _dirty = true;
             _fluidCells.Remove((planet, worldPosition.X, worldPosition.Y, worldPosition.Z));
+        }
+    }
+
+    // ---------------- Player-placed water sources (#2515) ----------------
+
+    public void SaveFluidSource(string planet, Vector3i worldPosition)
+    {
+        lock (_gate)
+        {
+            _dirty = true;
+            _fluidSources.Add((planet, worldPosition.X, worldPosition.Y, worldPosition.Z));
+        }
+    }
+
+    public IReadOnlyList<Vector3i> ListFluidSources(string planet)
+    {
+        lock (_gate)
+        {
+            return _fluidSources.Where(k => k.Planet == planet).Select(k => new Vector3i(k.X, k.Y, k.Z)).ToList();
+        }
+    }
+
+    public void DeleteFluidSource(string planet, Vector3i worldPosition)
+    {
+        lock (_gate)
+        {
+            _dirty = true;
+            _fluidSources.Remove((planet, worldPosition.X, worldPosition.Y, worldPosition.Z));
+        }
+    }
+
+    public int MarkPlacedWaterSources(ushort waterBlock)
+    {
+        lock (_gate)
+        {
+            int marked = 0;
+            foreach (var kv in _blockEdits)
+            {
+                if (kv.Value.Block == waterBlock && !string.IsNullOrEmpty(kv.Value.Owner)
+                    && !_fluidCells.ContainsKey(kv.Key) && _fluidSources.Add(kv.Key))
+                {
+                    marked++;
+                }
+            }
+
+            _dirty |= marked > 0;
+            return marked;
         }
     }
 

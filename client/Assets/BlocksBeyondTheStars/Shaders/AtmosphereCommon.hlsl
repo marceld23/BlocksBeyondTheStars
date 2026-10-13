@@ -121,6 +121,48 @@ float3 BbtsWindSway(float3 wp, bool foliage, bool flora, float tip)
     return offset;
 }
 
+// #2519: how much wind reaches a plant, from its skylight (0 cave … 1 open sky). The mesher gives every cell up to six
+// blocks under cover — a roof, an overhang, a shallow cave, a thick canopy — at least 0.55 (its shade floor), so the
+// ramp starts there: plants indoors and in caves stand still, plants in the open keep the full sway (the small calm-day
+// breathing included), and the edge of a canopy or a cave mouth fades between the two.
+float BbtsSwayShelter(float skylight)
+{
+    return smoothstep(0.55, 0.9, skylight);
+}
+
+// #2519: the wind sway of one block-atlas vertex — the forward, shadow and depth passes all call this, so the shadow
+// follows the leaf. `leafCode` is TEXCOORD2.x, the cutout code the chunk mesher writes:
+//   1 = a tree-crown shell face: sways as ONE rigid piece (constant reach). Every crown face at a shared corner gets the
+//       same offset (it depends on the world position only), so the leaf cubes of a crown never tear apart.
+//   2 = a rigid cutout prop (torch, lantern): clipped like foliage, never sways.
+//   3 = a cross-billboard plant: bends from its root (`tip` = the tile's 0 root … 1 tip).
+//   4 = a cross-billboard plant the water surrounds (kelp, seagrass): bends like 3, never sheltered (see below).
+// Solid flora (no cutout, tint mode 1) bends like a plant. Plants and solid flora are scaled by BbtsSwayShelter: each of
+// them carries ONE skylight value on all its vertices (the open sky above the plant), so the scale cannot split a plant.
+// For solid flora that holds because the mesher always draws it as one shaped form (AddShapedBlock, a single skylight
+// for the whole block) — never through the cube-face path, where the skylight is per face; the only cube faces in tint
+// mode 1 are crown faces, which carry code 1. ChunkMesherCutoutCodeEditModeTests pins this. Leaving solid flora
+// unscaled instead would set the cave caps, mushrooms and spore pods swaying underground again.
+// Crown faces are NOT scaled: they carry a skylight per FACE (the air each face looks into — a crown's underside sits
+// in the shade floor, its top in the open), and scaling by it would move the top of a leaf cube but not its underside,
+// opening cracks along the edges. Crowns grow under the open sky anyway, and the "wind in leaves" switch stops them.
+// Aquatic plants are NOT scaled either: the skylight counts the water above them as cover, but under water the sway
+// reads as current, so kelp and seagrass keep it.
+float3 BbtsBlockSway(float3 wp, float leafCode, float tintMode, float skylight, float tip)
+{
+    bool crown = leafCode > 0.5 && leafCode < 1.5;
+    bool plant = leafCode > 2.5 && leafCode < 3.5;
+    bool aquatic = leafCode > 3.5 && leafCode < 4.5;
+    bool solidFlora = abs(leafCode) < 0.5 && tintMode > 0.5 && tintMode < 1.5;
+    if (!(crown || plant || aquatic || solidFlora))
+    {
+        return float3(0.0, 0.0, 0.0);
+    }
+
+    float3 offset = BbtsWindSway(wp, true, !crown, tip);
+    return (crown || aquatic) ? offset : offset * BbtsSwayShelter(skylight);
+}
+
 // Mist density at height y: 1 at and below the floor, falling off exponentially above it.
 float BbtsMistDensity(float y)
 {

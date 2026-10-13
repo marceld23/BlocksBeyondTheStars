@@ -192,6 +192,12 @@ public sealed class UnlockBlueprintIntent
 public sealed class SelectHotbarIntent
 {
     public int Slot { get; set; }
+
+    /// <summary>#2525: true when the client re-sends the slot it shows after a join or a world change, rather than the
+    /// player picking one. The server adopts the slot all the same (it mines with its own copy) but reports no
+    /// <c>hotbar:select</c> game event for it, so a rejoin does not tick off a tutorial step. Older clients never set
+    /// it, and older servers ignore it.</summary>
+    public bool Resync { get; set; }
 }
 
 /// <summary>

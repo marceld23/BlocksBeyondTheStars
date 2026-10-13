@@ -448,6 +448,22 @@ public interface IWorldRepository : IDisposable
     /// was replaced).</summary>
     void DeleteFluidCell(string planet, Vector3i worldPosition);
 
+    /// <summary>Marks a player-placed water source (#2515). Placed water stays a bottomless source, while generated
+    /// water above the sea level is finite — so the mark is what tells the two apart after a restart. Idempotent.</summary>
+    void SaveFluidSource(string planet, Vector3i worldPosition);
+
+    /// <summary>Lists the player-placed water sources on a planet (restored into the fluid automaton on world load).</summary>
+    IReadOnlyList<Vector3i> ListFluidSources(string planet);
+
+    /// <summary>Removes a placed-source mark (the water was mined, displaced, quenched or replaced).</summary>
+    void DeleteFluidSource(string planet, Vector3i worldPosition);
+
+    /// <summary>The one-time migration of #2515: marks every cell whose block edit holds <paramref name="waterBlock"/>,
+    /// names a player as its last editor and carries no flowing-level row — water a player placed before the marks
+    /// existed. A cell the automaton filled always has a level row, so a hole a player dug and the water then ran
+    /// into is not mistaken for a placed block. Returns the number of cells marked.</summary>
+    int MarkPlacedWaterSources(ushort waterBlock);
+
     /// <summary>Stores (inserts or replaces) a burning cell's remaining burn time + spread generation.</summary>
     void SaveFireCell(string planet, Vector3i worldPosition, double remaining, int generation);
 

@@ -170,7 +170,8 @@ namespace BlocksBeyondTheStars.Client
         private float _dmgDirTimer;
         private Vector3 _dmgDirFrom;
         private TMP_Text _dmgCause;
-        private float _prevHealth = 100f, _flashTimer, _causeTimer;
+        private float _flashTimer, _causeTimer;
+        private readonly DamageFeedback _damageFeedback = new DamageFeedback(); // #2518: sums the 15 Hz health drops into one effect per half second
         private string _causeKey = string.Empty;
         private float _o2BeepTimer; // periodic low-oxygen warning tone (interval shrinks as O₂ drops)
 
@@ -374,21 +375,27 @@ namespace BlocksBeyondTheStars.Client
             return null;
         }
 
-        /// <summary>Flashes the screen red + names the cause whenever the player's health drops (B21), so
-        /// environmental damage (lava, suffocation, starvation) or a hit never kills you "out of nowhere".</summary>
+        /// <summary>Tints the screen red + names the cause whenever the player's health drops (B21), so
+        /// environmental damage (lava, suffocation, starvation) or a hit never kills you "out of nowhere".
+        /// #2518: the 15 Hz health drops are summed into one effect per half second (<see cref="DamageFeedback"/>) and
+        /// scaled by the share of max health — chip damage (a drone's aura, a bite, lava) pulses a red screen edge, only
+        /// a hit of 5 % or more flashes the whole screen, and the damage shake stops at a light rattle.</summary>
         private void UpdateDamageFeedback()
         {
             float dt = Time.deltaTime;
             float h = Game.Health;
-            if (h < _prevHealth - 0.05f)
+            if (_damageFeedback.Update(h, DamageFeedback.PlayerMaxHealth, dt, out var pulse))
             {
-                float drop = _prevHealth - h;
-                _flashTimer = Mathf.Min(0.6f, 0.22f + drop * 0.03f); // a bigger hit flashes longer
+                if (pulse.FullScreenFlash)
+                {
+                    _flashTimer = Mathf.Max(_flashTimer, pulse.FlashSeconds); // a bigger hit flashes longer
+                }
+
                 _causeTimer = 2.2f;
                 _causeKey = InferDamageCause();
-                UrpScenePost.Instance?.PulseVignette(0.4f + Mathf.Clamp01(drop / 25f) * 0.6f); // vignette kick
-                VisorHud.Kick(0.35f + Mathf.Clamp01(drop / 25f) * 0.65f); // the hologram glitches with the hit
-                FxCamera.AddTrauma(0.12f + Mathf.Clamp01(drop / 30f) * 0.35f); // #2152: the hit rattles the view
+                UrpScenePost.Instance?.PulseVignette(pulse.Vignette); // the red edge — all a chip of damage gets
+                VisorHud.Kick(pulse.VisorGlitch); // the hologram glitches with the hit
+                FxCamera.AddDamageTrauma(pulse.Trauma); // #2152: the hit rattles the view (capped, #2518)
                 if (NearestThreat(out var threat))
                 {
                     _dmgDirFrom = threat;
@@ -401,13 +408,12 @@ namespace BlocksBeyondTheStars.Client
             if (_wasDead && !dead)
             {
                 _bootPending = true;
+                _damageFeedback.Reset(h); // damage held from before the death is not felt after it
             }
 
             _wasDead = dead;
 
             UpdateOxygenAlarm(dt);
-
-            _prevHealth = h;
 
             if (_flashTimer > 0f) { _flashTimer = Mathf.Max(0f, _flashTimer - dt); }
             if (_dmgFlash != null)

@@ -121,6 +121,56 @@ public sealed class EnemySpawnPacingTests : IDisposable
     }
 
     [Fact]
+    public void KillingEveryMachineOnSight_DoesNotKeepTheQuickCadence()
+    {
+        // #2517: the quick 5 s start used to last until the LIVE count reached the cap — a player who destroyed each
+        // machine the moment it appeared never let it get there, and a new one arrived exactly 15 s after every kill.
+        // Only the first `cap` spawns after a load may come quickly; every later one waits the slow interval (20–45 s).
+        var server = Started("killonsight", r => { }, out var repo); // default rules: Survival + PlanetEnemies Normal
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Fighter");
+            pilot.State.AboardShip = false;
+            int cap = server.PlanetEnemyCapForTest(1);
+            Assert.True(cap >= 1);
+
+            const double step = 0.5;
+            double clock = 0;
+            var seen = new System.Collections.Generic.HashSet<string>();
+            var spawnTimes = new System.Collections.Generic.List<double>();
+            for (int i = 0; i < 600; i++) // five minutes
+            {
+                pilot.State.Oxygen = 100f; // the toxic air must not send the fighter back to the ship mid-test
+                pilot.State.Health = 100f;
+                server.Tick(step);
+                clock += step;
+                foreach (var e in server.PlanetEnemies.ToList())
+                {
+                    if (seen.Add(e.Id))
+                    {
+                        spawnTimes.Add(clock);
+                    }
+
+                    // Destroy it on sight: weaken it, stand on it, one punch — the real kill path (loot, kill grace).
+                    e.Hull = 1f;
+                    pilot.State.Position = e.Position;
+                    server.AttackEntity("Fighter", e.Id);
+                }
+
+                Assert.Empty(server.PlanetEnemies); // every machine dies the tick it is noticed
+            }
+
+            Assert.True(spawnTimes.Count > cap, $"the spawner must keep working (saw {spawnTimes.Count} spawns)");
+            for (int n = cap; n < spawnTimes.Count; n++)
+            {
+                double gap = spawnTimes[n] - spawnTimes[n - 1];
+                Assert.True(gap >= 20.0,
+                    $"spawn #{n + 1} came {gap:F1} s after the previous machine was destroyed — after the first {cap} spawns every refill waits at least 20 s");
+            }
+        }
+    }
+
+    [Fact]
     public void PlanetMachines_FarFromEveryPlayer_Despawn()
     {
         var server = Started("farprune", r => { }, out var repo);

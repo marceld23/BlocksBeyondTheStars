@@ -167,7 +167,8 @@ public sealed class RiverField
         int sunkHeadroom = 3,
         double sinuosity = 0.0,
         int distributaries = 0,
-        int floodplainWidth = 0)
+        int floodplainWidth = 0,
+        bool bankClamp = false)
     {
         var cols = new Dictionary<(int, int), RiverColumn>();
         var floodplain = new HashSet<(int, int)>();
@@ -409,7 +410,17 @@ public sealed class RiverField
                 else
                 {
                     surface = terrain;                  // thin sheet following the ground (no floating wall)
-                    bed = terrain - channelDepth;
+                    if (bankClamp)
+                    {
+                        // Terrain generation 24 (#2516): the cross-section is flat at the centreline's height, so on a
+                        // side slope the low bank stood below the water — an open side the fluid automaton spills from.
+                        // The water drops to the lower of the two banks instead (no lips are raised).
+                        int bankA = axis == 0 ? height(wx, wz - half - 1) : height(wx - half - 1, wz);
+                        int bankB = axis == 0 ? height(wx, wz + half + 1) : height(wx + half + 1, wz);
+                        surface = System.Math.Min(surface, System.Math.Min(bankA, bankB));
+                    }
+
+                    bed = surface - channelDepth;
                 }
 
                 // Waterfall (#475): inside a network-flagged cascade cell a 3-block sheer step fires; far

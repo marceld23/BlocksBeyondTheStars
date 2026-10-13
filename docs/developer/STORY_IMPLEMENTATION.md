@@ -582,7 +582,7 @@ drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_
 | **#2469 — the basic training's verbs** | | | |
 | `move:walked` | — (whole metres) | walking on a surface (no speeder, no train; a report over 4 blocks from the last one never counts) — measured only while a step listens | `GameServer.cs` (`HandleMove`) → `GameServerTutorial.cs` (`TutorialMovementEvents`) |
 | `move:jump` | `jump` \| `crouch` | a jump (upward speed > 2.5 blocks/s, not climbing) or the start of a crouch, at most once a second — only while a step listens | same |
-| `hotbar:select` | slot number (1-based) | another quick-bar slot picked (no event when the slot does not change) | `GameServer.cs` (`Dispatch`, `SelectHotbarIntent`) |
+| `hotbar:select` | slot number (1-based) | another quick-bar slot picked (no event when the slot does not change, nor for the client's `Resync` of its slot after a join or world change, #2525) | `GameServer.cs` (`Dispatch`, `SelectHotbarIntent`) |
 | `item:gained` | base item key (count) | a mined or harvested block's drops reach the player | `GameServer.cs` (`BreakBlockCore`) |
 | `item:moved` | — | an item moved between two backpack/quick-bar slots | `GameServer.cs` (`HandleMoveItem`) |
 | `gear:equipped` | base item key | a piece of gear put on | `GameServerEquipment.cs` (`HandleEquipItem`) |
@@ -689,7 +689,8 @@ unique site exists in this save and the player can reach it — the lead's rule)
 VEGA's 1 Hz tip pass found that situation for the player — `PlayerSession.VegaTipLive`, the candidate ids of the last pass,
 kept whatever the hints switch, the gates or the cooldowns say; no probe of its own), `jump_ready`, `arcade_ready`,
 `monument_unread`, `asteroid_mining`, `docked`, `job_active`, `forge_ready`, `wormhole_known`, `debris_fields`; since #2480
-the building courses' `tier_gate` (a refused swing within the last minute, `PlayerSession.TierGateRefusedAt`),
+the building courses' `tier_gate` (a swing the tool TIER refused within the last minute — the right kind of tool, too
+weak; a wrong kind or an empty hand does not count, #2525 — `PlayerSession.TierGateRefusedAt`),
 `module_affordable`, `hull_damaged`, `keel_laid`, `ship_built`, `base_here` (an own, allied or crew base on the player's body,
 E32), `base_core_ready`, `night_outside` (the player's own world's clock), `station_core_ready`, `station_owned`
 (`GameServerTutorialBuilding.cs`); since #2481 the crystal-net courses' `factory_near` (the tip pass's moment, like

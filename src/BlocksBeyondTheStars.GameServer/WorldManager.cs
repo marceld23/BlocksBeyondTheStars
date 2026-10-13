@@ -258,6 +258,43 @@ internal sealed class LoadedWorld
     /// <summary>#1824: <see cref="ServerWorld.ChunkLoads"/> when the parked set was last re-checked.</summary>
     public long ParkedFluidCheckedAt { get; set; } = -1;
     public HashSet<Vector3i> FallingFluid { get; } = new(); // flowing cells filled from above (feed a waterfall)
+
+    /// <summary>#2515: water cells a player placed — bottomless sources, persisted in <c>fluid_source</c>.</summary>
+    public HashSet<Vector3i> PlacedFluidSources { get; } = new();
+
+    /// <summary>#2515: whether <see cref="PlacedFluidSources"/> was read from the save yet — loaded on first use, so a
+    /// station (void) world, which never runs the planet fluid boot, gets its marks too.</summary>
+    public bool PlacedFluidSourcesLoaded { get; set; }
+
+    /// <summary>#2515: still water found at rest within the current second — a wake of it waits in
+    /// <see cref="SettleDeferred"/> until the memo clears, so one pond is planned at most about once a second.</summary>
+    public HashSet<Vector3i> SettleRestMemo { get; } = new();
+
+    /// <summary>#2515: wakes held back by the rest memo; woken again when it clears.</summary>
+    public HashSet<Vector3i> SettleDeferred { get; } = new();
+
+    /// <summary>#2515: the fluid step the rest memo was last cleared on.</summary>
+    public long SettleRestMemoStep { get; set; }
+
+    /// <summary>#2515: cells whose settle met a body another settle owns — woken again when a settle ends.</summary>
+    public HashSet<Vector3i> SettleWaiting { get; } = new();
+
+    /// <summary>#2515: finite still water that is settling or draining right now, and the jobs that move it. Transient:
+    /// a restart leaves whole cells behind, and the next wake settles them again.</summary>
+    public List<GameServer.FluidSettle> FluidSettles { get; } = new();
+
+    /// <summary>#2515: every cell an active settle owns (its body and the cells it fills) — the step leaves them alone.</summary>
+    public HashSet<Vector3i> SettlingFluid { get; } = new();
+
+    /// <summary>#2515: cells an active drain has emptied — a draining pond's own stream must not run back into them.</summary>
+    public HashSet<Vector3i> DrainedFluid { get; } = new();
+
+    /// <summary>#2515: water bodies bigger than the settle cap count as reservoirs — remembered per cell so the feed test
+    /// and the step agree without collecting the body again.</summary>
+    public HashSet<Vector3i> ReservoirFluid { get; } = new();
+
+    /// <summary>#2515: the generator's endless water per column, memoised for the feed test and the settle (soft-capped).</summary>
+    public Dictionary<(int X, int Z), BlocksBeyondTheStars.WorldGeneration.WaterColumnKinds> WaterColumns { get; } = new();
     public HashSet<Vector3i> ActiveGranular { get; } = new(); // loose blocks woken by a mutation (#1319) — transient, never saved
     public int FluidStep { get; set; } // fluid steps so far — lava advances on every second one (#1316)
     public Dictionary<Vector3i, float> FireTimer { get; } = new(); // burning cells → remaining burn time (item 30)
@@ -338,13 +375,17 @@ internal sealed class LoadedWorld
     public double CreatureBroadcastTimer { get; set; }
     public int CreatureSpawnRotor { get; set; }
     public int CreatureRingRotor { get; set; } // #470: ring slot counter, SEPARATE from the species rotor
+    public double SinceBaseIntruderSweep { get; set; } // #2521: throttle of the wild-animals-in-a-base sweep
     public double EnemySpawnTimer { get; set; }
     // #740 enemy-spawn pacing: once a world has filled to its machine cap, refills switch from the quick
     // initial cadence to a slow jittered interval — the fields carry the "seen the cap" flag, the rolled
-    // current interval and the ordinal that seeds the next roll (deterministic per world).
+    // current interval and the ordinal that seeds the next roll (deterministic per world). #2517: the quick
+    // start is counted in SPAWNS (EnemyQuickSpawns) — a player who destroyed every machine before the live
+    // count reached the cap kept the world on the 5 s cadence for good.
     public bool EnemyCapSeen { get; set; }
     public double EnemyNextSpawnIn { get; set; }
     public int EnemySpawnOrdinal { get; set; }
+    public int EnemyQuickSpawns { get; set; }
     public double SinceBanditSync { get; set; }  // bandit movement stream throttle (per-world, like SinceEnemySync)
     public double SinceFluid { get; set; }
     public double SinceGranular { get; set; } // granular settle cadence (#1319) — the fluid interval, own timer

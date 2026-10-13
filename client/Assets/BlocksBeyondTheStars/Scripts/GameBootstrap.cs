@@ -1583,8 +1583,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Current knowledge total, kept in sync via inventory updates (item 11 — shown in the trade UI).</summary>
         public int Knowledge { get; private set; }
 
-        /// <summary>Hotbar slot the player has selected (written by the player controller).</summary>
-        public int SelectedHotbarSlot;
+        /// <summary>Hotbar slot the player has selected — the network client's own record (#2525). The player controller
+        /// and the EVA view select through <see cref="NetworkClient.SendSelectHotbar"/>, and the client re-sends that
+        /// slot after every join and world change, so the hand the HUD shows is the hand the server mines with.</summary>
+        public int SelectedHotbarSlot => Network != null ? Network.SelectedHotbarSlot : 0;
 
         /// <summary>True while an in-game UI panel is open; the player controller pauses look/move.
         /// Derived from the menu-owner set — panels register via <see cref="SetMenuOwner"/> instead of

@@ -303,6 +303,13 @@ public sealed partial class GameServer
             BroadcastCreatures();
         }
 
+        // #2521: a wild animal that got into a base anyway — an open gate, a gap, a wall that loaded late — leaves it
+        // again, quietly, while nobody is looking (throttled; see GameServerBaseIntruders).
+        if (PruneBaseIntruders(dt))
+        {
+            BroadcastCreatures();
+        }
+
         // Position-sync cadence so clients can interpolate wandering/fleeing/hunting creatures.
         _creatureBroadcastTimer += dt;
         if (_creatures.Count > 0 && _creatureBroadcastTimer >= CreatureBroadcastInterval)
@@ -654,6 +661,15 @@ public sealed partial class GameServer
         // walled-yard gate below exempts cave dwellers on purpose (#1315). The player's own block edits around
         // the spot settle it; only cave candidates pay the lookup.
         if (sp.Habitat == CreatureHabitat.Cave && PlayerBuiltPocket(cell))
+        {
+            return false;
+        }
+
+        // #2521: nor on a block a player placed — a floor, a deck, a paved yard. One indexed lookup, independent of
+        // the walled-yard fill below (no budget, no unloaded wall columns, no gap in the wall to leak through), and
+        // the plain answer to "does the floor matter?". Land animals and amphibians ashore only: water and lava life is
+        // never on a floor (a moat, an aquarium), fliers and cave dwellers keep their exemption, as with walls.
+        if (FloorRuleApplies(sp) && OnPlayerBuiltFloor(pos))
         {
             return false;
         }

@@ -810,6 +810,23 @@ public sealed class TutorialPackTests : IDisposable
     }
 
     [Fact]
+    public void AQuickBarResync_MovesTheServersSlot_ButIsNoPick()
+    {
+        // #2525: the client re-sends the slot it shows after every join and world change. The server mines with its own
+        // copy, so it adopts the slot — but a rejoin is no pick, and must not tick off the tutorial's quick-bar step.
+        var (server, events, p) = Verbs("verb_resync");
+        p.State.SelectedHotbarSlot = 4; // the slot saved at the quit
+
+        Deliver(server, p, new SelectHotbarIntent { Slot = 0, Resync = true });
+
+        Assert.Equal(0, p.State.SelectedHotbarSlot);
+        Assert.Empty(events.Of(GameEventKeys.HotbarSelect));
+
+        Deliver(server, p, new SelectHotbarIntent { Slot = 2 }); // the player's own pick still counts
+        Assert.Contains(events.Of(GameEventKeys.HotbarSelect), e => e.Arg == "3");
+    }
+
+    [Fact]
     public void AFullBackpack_TheHold_AndARespawn_AreReportedFromTheirHandlers()
     {
         var (server, events, p) = Verbs("verb_survival", c => c.PlaceStarterShip = true);

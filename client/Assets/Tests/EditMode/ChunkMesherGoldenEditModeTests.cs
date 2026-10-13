@@ -36,10 +36,12 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // keys — every block added since September shifted them, so the same scene meshed different blocks. Nothing in
         // the mesher changed (vertex and triangle counts are unchanged); when this fails right after a block was added
         // or removed, that is the cause, and re-pinning is the fix. Verified stable across two runs on 10-04 and 10-05.
+        // Re-pinned 2026-10-13 (#2519): TEXCOORD2.x became a cutout code (1 crown, 2 rigid torch/lantern, 3 cross plant,
+        // 4 plant under water); only the surface chunk carries those blocks, so only its checksum moved.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
             ["deep (5,1,7)"] = 0xbb39ed6835e938bdUL,
-            ["surface (5,2,7)"] = 0xe5d2444146dbf131UL,
+            ["surface (5,2,7)"] = 0xf8a5b4863db28021UL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

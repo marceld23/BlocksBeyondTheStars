@@ -972,11 +972,14 @@ public sealed partial class GameServer
     /// <summary>
     /// Remembers that a tool-tier gate just refused a swing (#1686) so VEGA can explain it on the next cadence
     /// slot. Only armed when the content set actually HAS a tool that opens the gate — "you need something
-    /// better" is worthless advice when nothing better exists.
+    /// better" is worthless advice when nothing better exists. #2525: and only for a real tier gate — the right kind
+    /// of tool in hand, too weak. Stone swung at with a block or an empty hand is no gate: the tip ("too hard for your
+    /// drill") and the tutorial's tier-gate moment would talk nonsense there.
     /// </summary>
     private void NoteTierGate(PlayerSession session, BlockDefinition block)
     {
-        if (MiningRules.CheapestToolFor(_content, block) is not { } wanted)
+        if (!MiningRules.IsTierGate(ActiveTool(session.State), block)
+            || MiningRules.CheapestToolFor(_content, block) is not { } wanted)
         {
             return;
         }

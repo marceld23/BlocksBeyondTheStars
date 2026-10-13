@@ -3931,7 +3931,8 @@ public sealed partial class GameServer
                 int previousSlot = session.State.SelectedHotbarSlot;
                 session.State.SelectedHotbarSlot = System.Math.Clamp(hotbar.Slot, 0, HotbarSlots - 1);
                 ClearRopeIfNotHeld(session.State); // #2319: putting the rope gun away drops the rope
-                if (session.State.SelectedHotbarSlot != previousSlot)
+                // #2525: a resync (the client re-sending the slot it shows after a join or world change) is no pick.
+                if (session.State.SelectedHotbarSlot != previousSlot && !hotbar.Resync)
                 {
                     RaiseGameEvent(session, GameEventKeys.HotbarSelect, (session.State.SelectedHotbarSlot + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)); // #2469
                 }
@@ -7326,13 +7327,54 @@ public sealed partial class GameServer
     /// and never said what would work. When the content set has a tool that WOULD break it, the token carries
     /// that tool's name (localized for this session) so the message can name it. Falls back to the old
     /// wording when nothing in the game can break the block at all.
+    /// <para>#2525: "not strong enough" is only said for a real tier gate (the right kind of tool, too weak). An empty
+    /// hand, a block or a weapon in the hand gets "you need this tool in your hand" instead, and when the player
+    /// carries a tool that would do, the message names that one and says where it is: stone refused with a block in
+    /// hand used to read "your tool is not strong enough — needs: Basic Drill" while that drill sat in the quick-bar.</para>
     /// </summary>
     private string WrongToolReason(PlayerSession session, BlockDefinition block)
     {
+        if (MiningRules.IsTierGate(ActiveTool(session.State), block))
+        {
+            var stronger = MiningRules.CheapestToolFor(_content, block);
+            return stronger is null
+                ? "@srv.mine.wrong_tool"
+                : "@srv.mine.wrong_tool_named:" + LocalizedName(session.Locale, stronger.NameKey, stronger.Key);
+        }
+
+        if (CarriedToolFor(session.State, block) is { } carried)
+        {
+            return (carried.InQuickBar ? "@srv.mine.need_tool_in_hand_quickbar:" : "@srv.mine.need_tool_in_hand_backpack:")
+                   + LocalizedName(session.Locale, carried.Tool.NameKey, carried.Tool.Key);
+        }
+
         var wanted = MiningRules.CheapestToolFor(_content, block);
         return wanted is null
             ? "@srv.mine.wrong_tool"
-            : "@srv.mine.wrong_tool_named:" + LocalizedName(session.Locale, wanted.NameKey, wanted.Key);
+            : "@srv.mine.need_tool_in_hand:" + LocalizedName(session.Locale, wanted.NameKey, wanted.Key);
+    }
+
+    /// <summary>#2525: the first tool in the player's own inventory that would mine <paramref name="block"/> (quick-bar
+    /// slots come first, so a tool there wins), with whether it sits in the quick-bar; null when none does. Judged by
+    /// the tool's effective values, like <see cref="ActiveTool"/> (#2206: a bio-lab change rides in the item key).</summary>
+    private (ItemDefinition Tool, bool InQuickBar)? CarriedToolFor(PlayerState player, BlockDefinition block)
+    {
+        var slots = player.Inventory.Slots;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            if (slots[i] is not { IsEmpty: false } stack
+                || _content.GetItem(stack.Item) is not { Category: ItemCategory.Tool, Tool: not null } def)
+            {
+                continue;
+            }
+
+            if (Shared.Bio.ToolMods.Effective(def, stack.Item) is { } tool && ToolCanMine(tool, block))
+            {
+                return (def, i < HotbarSlots);
+            }
+        }
+
+        return null;
     }
 
     private bool StationAvailable(PlayerState player, CraftingStation station) => StationAvailable(player, _ship, station);

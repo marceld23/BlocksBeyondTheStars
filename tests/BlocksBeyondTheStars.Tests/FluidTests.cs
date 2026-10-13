@@ -121,14 +121,17 @@ public sealed class FluidTests : IDisposable
             var water = _content.GetBlock("water")!.NumericId;
             int y0 = 60;
 
-            // A stone basin (floor at y0) filled with a 9x9x3 body of static "sea" water (y0+1..y0+3).
-            for (int x = -4; x <= 4; x++)
-                for (int z = -4; z <= 4; z++)
+            // A stone basin (floor at y0, walls around) filled with a 9x9x3 body of static water (y0+1..y0+3). Since
+            // #2515 still water above the sea line is finite, so the basin must hold it: a free-standing block of water
+            // on open ground would rightly run off once disturbed. The body fills the hole from its top.
+            for (int x = -5; x <= 5; x++)
+                for (int z = -5; z <= 5; z++)
                 {
                     server.World.SetBlock(new Vector3i(x, y0, z), stone);
+                    bool wall = x == -5 || x == 5 || z == -5 || z == 5;
                     for (int y = y0 + 1; y <= y0 + 3; y++)
                     {
-                        server.World.SetBlock(new Vector3i(x, y, z), water);
+                        server.World.SetBlock(new Vector3i(x, y, z), wall ? stone : water);
                     }
                 }
 
@@ -438,6 +441,11 @@ public sealed class FluidTests : IDisposable
             var pond = new Vector3i(2, 130, 0);
             server.World.SetBlock(source, new BlockId(lava));
             server.World.SetBlock(pond, new BlockId(water));
+            // The pond is still water above the sea line — finite since #2515 — so it is walled in on its other sides,
+            // or the wake the quench gives it would let it run off the one-block floor.
+            server.World.SetBlock(new Vector3i(3, 130, 0), new BlockId(stone));
+            server.World.SetBlock(new Vector3i(2, 130, 1), new BlockId(stone));
+            server.World.SetBlock(new Vector3i(2, 130, -1), new BlockId(stone));
             server.RegisterFluidSource(source);
 
             for (int i = 0; i < 6; i++)

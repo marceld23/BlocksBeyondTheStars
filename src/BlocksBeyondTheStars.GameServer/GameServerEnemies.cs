@@ -17,7 +17,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const double EnemySpawnInterval = 5.0;      // initial fill cadence while a fresh world ramps to its cap
+    private const double EnemySpawnInterval = 5.0;      // initial fill cadence: the first `cap` spawns after a world load (#2517)
     private const double EnemyRefillMinInterval = 20.0; // #740: once the cap was reached, refills come slow…
     private const double EnemyRefillMaxInterval = 45.0; //       …and jittered, so machine encounters read as events
     private const double EnemyKillSpawnGrace = 10.0;    // #740: extra breather added when a machine is destroyed
@@ -154,6 +154,15 @@ public sealed partial class GameServer
             bool asDrone = Rules.PlanetDrones && (RemnantEra || droneCount * 5 < (_planetEnemies.Count + 1) * 2);
             SpawnPlanetEnemyNear(targets[_planetEnemies.Count % targets.Count].State, asDrone);
             BroadcastPlanetEnemies();
+
+            // #2517: the quick start is the first `cap` SPAWNS after a world load, not "until the live count reaches
+            // the cap" — a player who destroyed every machine the moment it showed up never let the count get there,
+            // so the world stayed on the 5 s cadence for good and a new machine arrived exactly 15 s after each kill.
+            // From here on every spawn waits the slow jittered interval (rolled above) plus the kill grace.
+            if (!_worlds.Active.EnemyCapSeen && ++_worlds.Active.EnemyQuickSpawns >= cap)
+            {
+                _worlds.Active.EnemyCapSeen = true;
+            }
         }
 
         // #740: machines that ended up far from every surface player despawn — walking away from a fight

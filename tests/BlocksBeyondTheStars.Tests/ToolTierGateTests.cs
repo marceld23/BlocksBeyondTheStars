@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
@@ -13,6 +14,7 @@ using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Localization;
+using BlocksBeyondTheStars.Shared.State;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -87,6 +89,23 @@ public sealed class ToolTierGateTests : IDisposable
     }
 
     [Fact]
+    public void Rule_OnlyTheRightKindTooWeak_IsATierGate()
+    {
+        // #2525: "not strong enough" (and VEGA's tier-gate tip) only for the right kind of tool that is too weak.
+        var machineHousing = _content.GetBlock("machine_block")!;
+        var stone = _content.GetBlock("stone")!;
+        var basic = _content.GetItem("basic_drill")!.Tool!;
+        var machete = _content.GetItem("machete")!.Tool!;
+        var hands = new ToolProperties { Kind = ToolKind.None, Tier = 0 };
+
+        Assert.True(MiningRules.IsTierGate(basic, machineHousing));   // a drill, one tier short
+        Assert.False(MiningRules.IsTierGate(machete, machineHousing)); // the wrong kind entirely
+        Assert.False(MiningRules.IsTierGate(hands, machineHousing));   // nothing (or a block) in hand
+        Assert.False(MiningRules.IsTierGate(hands, stone));
+        Assert.False(MiningRules.IsTierGate(basic, stone));            // no refusal at all
+    }
+
+    [Fact]
     public void Rule_UngatedBlock_TakesBareHands()
     {
         var dirt = _content.GetBlock("dirt")!;
@@ -141,7 +160,80 @@ public sealed class ToolTierGateTests : IDisposable
             Assert.StartsWith("@srv.mine.wrong_tool_named:", reason);
             // The tail is the tool's name in the session's language, ready for the client's {name} slot.
             Assert.Equal("Titanium Drill", reason!.Substring("@srv.mine.wrong_tool_named:".Length));
+
+            // A real tier gate arms VEGA's tip and the tutorial's tier-gate moment (#2525 keeps exactly this case).
+            Assert.Equal("Titanium Drill", p.VegaTierGateTool);
+            Assert.False(double.IsNegativeInfinity(p.TierGateRefusedAt), "A real tier gate must arm world:tier_gate.");
         }
+    }
+
+    // --- #2525: the wrong kind of tool, or none, is not "not strong enough" -----------------------
+
+    /// <summary>Puts plain stone under a fresh starter player (Basic Drill in quick-bar slot 0), lets
+    /// <paramref name="arrange"/> change the hand or the inventory, swings once, and returns the mine rejection.</summary>
+    private string? SwingAtStone(Action<PlayerSession> arrange, out PlayerSession player)
+    {
+        var transport = new RecordingTransport();
+        var server = Started(out var repo, transport);
+        using (repo)
+        {
+            player = server.AddLocalPlayer("Miner");
+            player.State.Position = new Vector3f(0.5f, 66f, 0.5f);
+            Assert.Equal("basic_drill", player.State.Inventory.Slots[0]?.Item);
+            arrange(player);
+
+            var pos = new Vector3i(0, 64, 0);
+            server.World.SetBlock(pos, _content.GetBlock("stone")!.NumericId);
+            server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z);
+
+            Assert.False(server.World.GetBlock(pos).IsAir, "Stone must not break without a drill in hand.");
+            return transport.Sent.Select(s => s.Msg).OfType<ActionRejected>()
+                .Where(m => m.Action == "mine").Select(m => m.Reason).LastOrDefault();
+        }
+    }
+
+    [Fact]
+    public void WrongKind_WithTheDrillInTheQuickBar_SaysSelectIt_AndArmsNoTierGate()
+    {
+        // The reported case: a block in hand (the server's saved slot), the drill in quick-bar slot 0.
+        string? reason = SwingAtStone(p =>
+        {
+            p.State.Inventory.SetSlot(4, new ItemStack("stone", 5));
+            p.State.SelectedHotbarSlot = 4;
+        }, out var player);
+
+        Assert.Equal("@srv.mine.need_tool_in_hand_quickbar:Basic Drill", reason);
+        Assert.Equal(string.Empty, player.VegaTierGateBlock);
+        Assert.Equal(string.Empty, player.VegaTierGateTool);
+        Assert.True(double.IsNegativeInfinity(player.TierGateRefusedAt), "A kind mismatch must not arm world:tier_gate.");
+    }
+
+    [Fact]
+    public void EmptyHand_WithTheDrillInTheBackpack_SaysPutItInTheQuickBar()
+    {
+        string? reason = SwingAtStone(p =>
+        {
+            p.State.Inventory.SetSlot(20, p.State.Inventory.Slots[0]);
+            p.State.Inventory.SetSlot(0, null);
+        }, out var player);
+
+        Assert.Equal("@srv.mine.need_tool_in_hand_backpack:Basic Drill", reason);
+        Assert.True(double.IsNegativeInfinity(player.TierGateRefusedAt));
+    }
+
+    [Fact]
+    public void WrongKind_WithoutASuitableTool_NamesTheCheapestOne()
+    {
+        // The machete is a tool, but the wrong kind for stone; no drill anywhere in the inventory.
+        string? reason = SwingAtStone(p =>
+        {
+            p.State.Inventory.SetSlot(0, null);
+            int machete = Enumerable.Range(0, p.State.Inventory.SlotCount).First(i => p.State.Inventory.Slots[i]?.Item == "machete");
+            p.State.SelectedHotbarSlot = machete;
+        }, out var player);
+
+        Assert.Equal("@srv.mine.need_tool_in_hand:Basic Drill", reason);
+        Assert.True(double.IsNegativeInfinity(player.TierGateRefusedAt));
     }
 
     [Fact]
@@ -173,6 +265,14 @@ public sealed class ToolTierGateTests : IDisposable
             string named = loc.Get("srv.mine.wrong_tool_named");
             Assert.DoesNotContain("srv.mine.wrong_tool_named", named); // resolved, not echoed back
             Assert.Contains("{name}", named);
+
+            // #2525: the wrong kind or an empty hand, plain and with where the carried tool is.
+            foreach (string key in new[] { "srv.mine.need_tool_in_hand", "srv.mine.need_tool_in_hand_quickbar", "srv.mine.need_tool_in_hand_backpack" })
+            {
+                string text = loc.Get(key);
+                Assert.DoesNotContain(key, text);
+                Assert.Contains("{name}", text);
+            }
 
             string tip = loc.Get("vega.hint.tier_gate");
             Assert.DoesNotContain("vega.hint.tier_gate", tip);

@@ -93,6 +93,15 @@ asset is the **sound**: `client/Assets/Resources/audio/water_fall.mp3` (ElevenLa
 by `ClientAudio.WaterBedFor` for a nearby falling/impacting column (drop ≥ 4), ranked above the calm
 beds (`water_fall` > `water_brook` > `water_surf` > `water_shore`).
 
+**In the live simulation (#2515, [ADR 0017](adr/0017-water-classes-finite-still-water-and-bounded-falls.md)).**
+Routed river water is *endless* to the server's fluid automaton (`WorldGenerator.WaterKindAt` → `River`), and so is the
+standing column of a river waterfall (`RiverFall`) and every generated waterfall band (`Waterfall`). A generated fall is
+**confined**: woken, it keeps falling but never spreads sideways at its own height, and water it pours into a dug-out
+foot stays confined like a `water_spout` column — before, every cell of a woken fall spread seven cells out (one woken
+generation-0 fall grew 18 000 flowing cells). A breach in a river bank spills a flow, and since a fall keeps its level
+that flow ends about seven cells out. From terrain generation 24 (#2516) a flowing reach's water also sits no higher than
+its lower bank (`RiverField.Build(bankClamp: true)`), so a river along a hillside no longer stands above its low side.
+
 ---
 
 ## 4. Lava — the same machinery, viscous-tuned
@@ -163,6 +172,9 @@ Guarded by `RiverFieldTests` (and the lava analogue in `WorldGenerationTests`):
 - **Lava parity** — `LavaWorld_CarvesLavaRivers`: the field fills lava and channels hold lava near
   the surface on `lava`/`ashen`.
 - **Density lever** — `MoreSources_WidenAndMultiplyRivers`: source count scales rivers monotonically.
+- **Sealed (generation 24)** — `WaterSealGenerationTests`: no generated water outside river columns and falls has air
+  beside or below it; `WaterKindAt` names a river, its fall and a waterfall band. `WaterModelTests` pins the live side: a
+  woken river fall never spreads.
 
 Per the project verification routine, `client/Assets` changes (shaders, VFX, audio) want a **local
 Unity build** to eyeball cascades, embers, heat-haze and the new sounds in-engine and confirm

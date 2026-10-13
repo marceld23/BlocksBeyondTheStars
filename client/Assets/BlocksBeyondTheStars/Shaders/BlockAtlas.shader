@@ -73,7 +73,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float4 tangent : TANGENT;
                 float2 uv : TEXCOORD0;
                 float2 sky : TEXCOORD1;  // x = skylight, y = tint mode (1 flora, 2 hull paint, 3 player dye, 4 bark)
-                float4 leaf : TEXCOORD2; // x = foliage flag, yzw = flora/hull/dye/bark tint (black = use global flora hue)
+                float4 leaf : TEXCOORD2; // x = cutout code (0 none, 1 crown face, 2 rigid prop, 3 cross plant, 4 aquatic plant — #2519), yzw = flora/hull/dye/bark tint (black = use global flora hue)
                 float3 bl : TEXCOORD3;   // propagated coloured block-light (placed lights illuminate)
                 float3 blDir : TEXCOORD4; // dominant block-light direction (toward source); 0 = none
                 float4 color : COLOR;    // r=gloss, g=metal, b=face AO, a=emission
@@ -120,7 +120,8 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float tintMode;
                 o.uv = BbtsAnimatedUv(v.uv, v.sky.y, tintMode);
                 // #2397: leaves and plants sway in the wind (the tile's v = 0 root … 1 tip for a plant quad).
-                wp += BbtsWindSway(wp, v.leaf.x > 0.5, tintMode > 0.5 && tintMode < 1.5, frac(v.uv.y * 32.0));
+                // #2519: torches and lanterns stand rigid, sheltered plants stand still (BbtsBlockSway).
+                wp += BbtsBlockSway(wp, v.leaf.x, tintMode, v.sky.x, frac(v.uv.y * 32.0));
                 o.positionCS = TransformWorldToHClip(wp);
                 o.wn = TransformObjectToWorldNormal(v.normal);
                 o.wt = float4(TransformObjectToWorldDir(v.tangent.xyz), v.tangent.w);
@@ -257,7 +258,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // #2403: thin, translucent things let the sun through — leaves and plants glow when the sun is behind
                 // them (a wrap-lit back-light term, strongest looking into a low sun), so a canopy reads as foliage,
                 // not as painted cubes. Skylit faces only; the shadow map keeps a shaded crown dark.
-                bool translucent = i.leaf.x > 0.5 || (i.skyl.y > 0.5 && i.skyl.y < 1.5);
+                // #2519: a torch or lantern (cutout code 2) is a cutout, not a leaf — no sun glowing through it.
+                bool rigidProp = i.leaf.x > 1.5 && i.leaf.x < 2.5;
+                bool translucent = !rigidProp && (i.leaf.x > 0.5 || (i.skyl.y > 0.5 && i.skyl.y < 1.5));
                 if (translucent)
                 {
                     float back = pow(saturate(dot(-V, L)), 3.0);
@@ -408,7 +411,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 SVary o;
                 float3 wp = TransformObjectToWorld(v.positionOS.xyz);
                 float tintMode = fmod(v.sky.y, 16.0);
-                wp += BbtsWindSway(wp, v.leaf.x > 0.5, tintMode > 0.5 && tintMode < 1.5, frac(v.uv.y * 32.0));
+                wp += BbtsBlockSway(wp, v.leaf.x, tintMode, v.sky.x, frac(v.uv.y * 32.0)); // #2519: same sway as the forward pass
                 float3 wn = TransformObjectToWorldNormal(v.normal);
                 float4 cs = TransformWorldToHClip(ApplyShadowBias(wp, wn, _LightDirection));
                 #if UNITY_REVERSED_Z
@@ -461,7 +464,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 DVary o;
                 float3 wp = TransformObjectToWorld(v.positionOS.xyz);
                 float tintMode = fmod(v.sky.y, 16.0);
-                wp += BbtsWindSway(wp, v.leaf.x > 0.5, tintMode > 0.5 && tintMode < 1.5, frac(v.uv.y * 32.0));
+                wp += BbtsBlockSway(wp, v.leaf.x, tintMode, v.sky.x, frac(v.uv.y * 32.0)); // #2519: same sway as the forward pass
                 o.positionCS = TransformWorldToHClip(wp);
                 o.uv = v.uv;
                 return o;
@@ -512,7 +515,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float4 tangent : TANGENT;
                 float2 uv : TEXCOORD0;
                 float2 sky : TEXCOORD1;  // x = skylight (1 sees sky, 0 underground/indoors); y = tint mode (1 flora, 2 hull paint, 3 player dye)
-                float4 leaf : TEXCOORD2; // x = foliage flag (1 → alpha-cutout); yzw = flora/hull/dye tint
+                float4 leaf : TEXCOORD2; // x = cutout code (1 crown, 2 torch/lantern, 3 cross plant, 4 aquatic plant → alpha-cutout); yzw = flora/hull/dye tint
                 float3 bl : TEXCOORD3;   // propagated coloured block-light (placed lights illuminate)
                 float3 blDir : TEXCOORD4; // dominant block-light direction (toward source); 0 = none
                 fixed4 color : COLOR;   // r=gloss, g=metal, b=face AO

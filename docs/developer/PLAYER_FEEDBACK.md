@@ -7,7 +7,8 @@ a screenshot are attached. On send the client posts the report to the official r
 ReportHost on the VPS — see [REPORT_HOST](REPORT_HOST.md)) and also fires the existing `/bump`
 snapshot. (The key is advertised in the on-foot HUD controls hint, `ui.hud.hint`, and in the space-flight
 cruise hint, `ui.space.controls`, via the `{feedback_key}` placeholder — it works in both modes;
-only menus/chat/death-prompt block it.)
+only menus/chat/death-prompt block it. A lean variant works in the main menu as well — see
+[In the main menu](#in-the-main-menu-2523).)
 
 **The world is held while the dialog is open (#1330).** Opening the form sends the same `PauseIntent` the
 Esc menu sends (see the pause notes on #612/#908/#973): in singleplayer the world stops — and saves — the
@@ -110,6 +111,38 @@ local-only). This also means SP server **crash reports** now upload automaticall
 world instances get the key from the WorldHost (`BBS_WH_CRASH_REPORT_KEY`, #363). **Self-hosted
 dedicated servers** — off by default (no phone-home), opt-in via the config/env above.
 
+## In the main menu (#2523)
+
+The hotkey also works in the shell: `AppShell` adds a second `FeedbackUi` to itself with `Shell` set instead of
+`Game` ("shell mode"). It is awake only on `FeedbackUi.IsShellFeedbackScreen` phases — main menu, world list,
+Settings, Credits, the Editors overview — and only while no world is loaded (`AppShell.CurrentBoot == null`, so
+Settings opened from the pause menu stays the world's). Splash, intro, loading and the editors themselves are
+left out: the hand-off into a world must not wait on a form, and the editors' own keys and canvases own the screen.
+
+- **Same form, same path, less data.** Title, description, optional e-mail and a screenshot of the menu go out as
+  the same client-direct upload (WebGL: the same `UnityWebRequest` transport) under the same reply key
+  (`FeedbackUi.ReplyKeyFor`). There is no world, so no `/bump`, no world hold and no game stats: the world keys
+  (`location`, `worldSeed`, `health`, …) are dropped and `reportJson.source = "menu"` plus
+  `reportJson.shellScreen` (the phase) say where the player was. The privacy note is `ui.feedback.hint_menu`;
+  a build without the inbox key says `ui.feedback.not_configured` (in a world the `/bump` snapshot is still
+  written locally, so that path keeps `sent_local`).
+- **Hotkey guard.** It does not open while a text field has focus (`UiKit.TextFieldFocused`, which includes the
+  pad's on-screen keyboard) or while Settings waits for "press a key" (`UiSettings.CapturingKey`) — F1 may be
+  the very key being bound.
+- **Modality without a world.** There is no menu-owner arbiter in the shell, so the dialog's own scrim blocks
+  clicks, `FeedbackUi.ShellOwnsCancel` keeps AppShell's cancel (Esc / pad B) from also leaving the screen
+  underneath (it covers the frame the dialog closed in, whichever `Update` runs first), and
+  `FeedbackUi.ShellModalOpen` suspends the menu screens' pad focus like the What's-new modal does (#2165).
+- **Replies.** The shell instance polls and shows developer replies in the menu too, under the same rules
+  (only with a report in `sent.json`). While a world is loaded it sleeps — the world's own instance polls —
+  closes anything it had open without acknowledging it and drops its queue, so a thread is shown by whichever
+  instance is awake. Because `SentReportsLog` caches its file on first use and the shell instance lives as long
+  as the app, shell mode opens the log fresh for every read and write (as `TextureSubmitDialog` does).
+- **Spool.** Only the world's instance flushes `FeedbackSpool` at its start — two instances draining it at once
+  could send a queued report twice — so a report queued offline from the menu goes out with the next world.
+- **Language.** The dialogs are built once per instance; the shell instance rebuilds them when Settings changed
+  the language (a new `Localizer`) before it shows one again.
+
 ## Textures in reports (#1964) and texture submissions (#1965)
 
 **Every F1 report and every client crash report** carries a `reportJson.texturePack` node:
@@ -159,6 +192,7 @@ stays off until all three are ticked; consent is never remembered between textur
 | Texture-pack note in reports | `src/BlocksBeyondTheStars.Client.Core/Feedback/TexturePackReportInfo.cs` (snapshot kept by `GameTextures.ReportInfo`) |
 | Tests (submission body, consent gate, texture-pack note) | `tests/BlocksBeyondTheStars.Client.Tests/TextureSubmissionTests.cs` |
 | Wired into the world | `client/Assets/BlocksBeyondTheStars/Scripts/WorldRig.cs` |
+| Wired into the menu (shell mode, #2523) | `client/Assets/BlocksBeyondTheStars/Scripts/AppShell.cs` |
 | API key (build secret) | `client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.cs` |
 | Icon | `client/Assets/Resources/icons/btn_feedback.png` |
 | Strings | `data/locales/{de,en}.json` — `ui.feedback.*`, `ui.contribute.feedback` |

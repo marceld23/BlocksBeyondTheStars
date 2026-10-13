@@ -28,6 +28,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Adds shake trauma (0..1). A light hit ≈ 0.15, an explosion nearby ≈ 0.6.</summary>
         public static void AddTrauma(float amount) => _trauma = Mathf.Clamp01(_trauma + Mathf.Max(0f, amount));
 
+        /// <summary>#2518: trauma from the player's own damage. It builds up to <see cref="DamageFeedback.MaxTrauma"/> at
+        /// most (a light rattle, never the explosion-level shake continuous damage used to stack up to) and never lowers
+        /// trauma something else already added.</summary>
+        public static void AddDamageTrauma(float amount) => _trauma = DamageFeedback.AddCappedTrauma(_trauma, amount);
+
         /// <summary>A recoil kick of <paramref name="degrees"/> upward pitch that springs back (weapons).</summary>
         public static void Kick(float degrees) => _kickVel += degrees * 18f;
 

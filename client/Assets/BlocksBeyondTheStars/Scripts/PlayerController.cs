@@ -2573,7 +2573,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Game.SelectedHotbarSlot = slot;
+            // #2525: the network client keeps the slot (Game.SelectedHotbarSlot reads it) and re-sends it on every join.
             Game.Network?.SendSelectHotbar(slot);
         }
 
@@ -5607,6 +5607,7 @@ namespace BlocksBeyondTheStars.Client
             => IsSolidKey(key)
                && key != "torch"
                && key != "lantern" // slim prop like the torch (#809)
+               && key != "torch_off" && key != "lantern_off" // the Crystal Net's unlit twins are the same slim props (#2520)
                && key != "ladder"  // walk-through since #803 — a climber stands INSIDE the ladder cell
                && key != "fire"        // burns, doesn't block — meshed without a collider
                && key != "energy_gate" // walk-through membrane — meshed without a collider
