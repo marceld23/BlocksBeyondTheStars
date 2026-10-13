@@ -49,7 +49,7 @@ foreach ($p in $projects) {
 Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue
 
 # Copy the data-driven content so the client can load definitions + locales at runtime. This also carries
-# the in-game wiki (data/wiki/articles.json) and arcade catalogue (data/minigames/catalog.json), both of
+# the in-game wiki (data/wiki/: article list + per-language texts) and arcade catalogue (data/minigames/catalog.json), both of
 # which the native UI reads from StreamingAssets. See docs/developer/MINIGAMES_AND_WIKI.md.
 Copy-Item (Join-Path $repo 'data/*') $streaming -Recurse -Force
 

@@ -93,7 +93,8 @@ Last updated: 2026-10-04.
   Spanish, Italian, Portuguese, Dutch, Polish, Turkish, Russian, Ukrainian, Chinese, Japanese and Korean.
   A language appears in the picker once its translation clears **45 % coverage**; a text a language does
   not have yet is shown in English (want to help? See `docs/developer/TRANSLATION_GUIDE.md` in the
-  repository).
+  repository). The Codex's guide articles follow the language as well; an article your language does not have
+  yet reads in English.
 - **What's new?** (main menu, bottom bar): the release notes of every version, newest first. The dialog
   also opens by itself once after an update. The notes are shown in your language as soon as a release
   has been translated; until then — and while you are offline — they are in English (in German when the
@@ -280,7 +281,7 @@ flying, in EVA), prompts like "G: loot" or "Launch (E)", the crate buttons and t
 your rebinding, and on a pad they name the pad button — or **LS** (the Actions list) for a verb without a
 button of its own. So do the item, block and blueprint descriptions (in the crafting, inventory and Blueprints
 panes and the Codex lists): "Press E on it" names your use key, "Use RMB to magnify" reads "Use LB …" on a pad and
-"Use PLACE …" on a tablet. Only the Codex's long articles still name the default keys.
+"Use PLACE …" on a tablet. The Codex's guide articles do the same ("press E", "hold Space", "the planet map (M)").
 
 ### Touch controls (experimental — tablet / touch browser)
 
@@ -970,7 +971,7 @@ players.
   next to — **workbench** (workshop), **forge** (refinery), **detoxifier**, **matter forge** (transmuter),
   **algae tank**, **campfire** — or the matching **ship module** while you're aboard. The menu names the block
   a recipe needs and where the nearest one is; aiming at a placed station block shows on the HUD which
-  menu tab it powers. The Codex guide *Stations & the Tab menu* has the full table.
+  menu tab it powers. The Codex guide *Stations & menu tabs* has the full table.
 - The **workshop** is your everyday bench: it smelts the common ores (iron, copper, gold, silver, …) into
   ingots and fabricates parts, tools, weapons and building blocks.
 - The **refinery** (the *forge* block — a workbench craft from stone and iron plates that needs **no blueprint** —

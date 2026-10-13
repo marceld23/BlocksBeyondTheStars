@@ -118,6 +118,8 @@ namespace BlocksBeyondTheStars.Client
             "wiki/img/circuit_lucky_dice.png",
             "wiki/img/circuit_night_light.png",
             "wiki/img/circuit_secret_door.png",
+            "wiki/locales/de.json",
+            "wiki/locales/en.json",
             "wormholes.json",
         };
 

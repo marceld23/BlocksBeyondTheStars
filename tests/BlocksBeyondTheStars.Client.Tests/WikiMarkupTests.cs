@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 
 using BlocksBeyondTheStars.Client;
+using BlocksBeyondTheStars.Shared.Localization;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Client.Tests;
@@ -76,5 +77,29 @@ public sealed class WikiMarkupTests
 
         Assert.Single(WikiMarkup.Segments("<p>just text</p>"));
         Assert.Equal("A\n\nB", WikiMarkup.ToUnityRichText("<p>A</p><img src=\"wiki/img/x.png\"><p>B</p>"));
+    }
+
+    /// <summary>#2508: an article's <c>{key:Action}</c> tokens pass the conversion untouched and are filled after it, so a
+    /// glyph that looks like markup lands verbatim — the other order would strip "&lt;Tab&gt;" as an unknown tag.</summary>
+    [Fact]
+    public void KeyTokens_AreFilledAfterTheConversion_SoAGlyphIsNeverTakenForMarkup()
+    {
+        static string Expand(string text) => LineText.ExpandKeyTokens(text, action => action switch
+        {
+            "Interact" => "<Tab>",
+            "PlanetMap" => "&lt;",
+            _ => "[" + action + "]",
+        });
+
+        const string body = "<p>Press <b>{key:Interact}</b> &amp; go.</p><p>The map ({key:PlanetMap}), then {key:Jump}.</p>";
+        Assert.Equal("Press <b><Tab></b> & go.\n\nThe map (&lt;), then [Jump].", WikiMarkup.ToUnityRichText(body, Expand));
+
+        // Filled first, the glyph would be lost: the conversion drops "<Tab>" and decodes "&lt;".
+        Assert.Equal("Press <b></b> & go.\n\nThe map (<), then [Jump].", WikiMarkup.ToUnityRichText(Expand(body)));
+
+        // A pad glyph that wears its own parentheses is not doubled; no expander leaves the tokens for later.
+        Assert.Equal("The map (X)", WikiMarkup.ToUnityRichText("<p>The map ({key:PlanetMap})</p>", t => LineText.ExpandKeyTokens(t, _ => "(X)")));
+        Assert.Equal("press {key:Interact}", WikiMarkup.ToUnityRichText("<p>press {key:Interact}</p>", null));
+        Assert.Equal(string.Empty, WikiMarkup.ToUnityRichText(null, Expand));
     }
 }

@@ -48,7 +48,7 @@ for entry in "${PROJECTS[@]}"; do
 done
 
 # Copy data-driven content into StreamingAssets. This also carries the in-game wiki
-# (data/wiki/articles.json) and arcade catalogue (data/minigames/catalog.json), both read by the native UI.
+# (data/wiki/: article list + per-language texts) and arcade catalogue (data/minigames/catalog.json), both read by the native UI.
 cp -r "$REPO/data/"* "$STREAMING/"
 
 # Copy the background-music library (client/Music/*.mp3, tracked) into StreamingAssets/music. It lives

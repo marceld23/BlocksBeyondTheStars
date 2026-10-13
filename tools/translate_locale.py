@@ -11,7 +11,8 @@ instead of starting from zero. See docs/developer/TRANSLATION_GUIDE.md.
 
 The tool is resumable and incremental: keys already present in the target file are skipped,
 output is written after every chunk, and a re-run only translates what is still missing.
-Placeholders like {name} are validated per key (same set as English, no brace outside a token) —
+Placeholders like {name} are validated per key (same set as English, no brace outside a token), and so are
+markup tags (the Codex articles' <p>/<b>/<span …> — the same tags as English, #2508) —
 a mismatch discards the chunk and retries
 once, then leaves those keys untranslated (locale_report.py will list them).
 
@@ -51,6 +52,15 @@ if hasattr(sys.stdout, "reconfigure"):
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLACEHOLDER = re.compile(r"\{(?:key:)?[A-Za-z0-9_]+\}")  # {name} and the {key:Action} control tokens (#1077)
+# A markup tag: the Codex articles' HTML subset (data/wiki/locales, #2508) and the few <b>/<code>/<color> tags of the
+# other tables. A translation must carry exactly the English tags, attributes included.
+MARKUP_TAG = re.compile(r"</?[A-Za-z][^<>]*>")
+
+
+def same_markup(source: str, value: str) -> bool:
+    """True when the translation carries the same markup tags as the English, attributes included (order may move
+    with the sentence; tests/BlocksBeyondTheStars.Client.Tests/CodexTextGuardTests.cs holds the Codex to the block order)."""
+    return sorted(MARKUP_TAG.findall(source)) == sorted(MARKUP_TAG.findall(value))
 
 
 def has_stray_brace(text: str) -> bool:
@@ -86,6 +96,9 @@ Control tokens like {{key:ToggleLamp}} are placeholders too — copy them byte f
 - Never ADD a placeholder or any brace syntax the English does not have — no plural or conditional forms like \
 {{count?a:b}}. Where the English has a plain number, write the plain number.
 - Keep formatting: leading/trailing punctuation, newlines (\\n), brackets, ALL-CAPS style where used.
+- Some values are article markup (<p>, <ul>, <li>, <b>, <i>, <img src="…">, <span class="link" data-link="…">): keep \
+every tag byte for byte, attributes included, in the same order, and translate only the text between the tags. Keep \
+entities like &amp; as they are.
 - Tone: friendly, concise, kid-appropriate. Use the informal address (German "du", French "tu", \
 Spanish "tú", Portuguese "você", Polish "ty", Turkish "sen", Dutch "je/jij", Russian "ты", \nUkrainian "ти"). Japanese: friendly polite です/ます; Korean: friendly 해요체; Chinese: plain friendly register.
 - Keep proper names untranslated: VEGA, Blocks Beyond the Stars, the Scout and Pioneer Service and its \
@@ -236,6 +249,8 @@ def translate_chunk(api_key: str, model: str, language: str, chunk: dict[str, st
         if not isinstance(value, str) or not value.strip():
             continue
         if set(PLACEHOLDER.findall(source)) != set(PLACEHOLDER.findall(value)) or has_stray_brace(value):
+            continue
+        if not same_markup(source, value):
             continue
         if is_untranslated_copy(source, value):
             continue

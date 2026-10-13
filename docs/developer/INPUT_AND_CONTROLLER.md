@@ -127,7 +127,9 @@ cluster.
   `{key:EvaDeployStation}`, `{key:ToggleThermal}`): `CraftingTechShipUI.Desc` and `WikiUI.Desc` (the Codex's
   Items/Blocks/Tech/Ships/Modules lists) return `HudUi.ExpandKeyTokens(…)` — prompt form, so a tablet reads ACT for a
   verb without its own button. `VegaLineBudgetTests.ItemBlockBlueprintAndModuleDescriptions_NameNoKeyLiterally` guards
-  EN/DE. The Codex articles (`data/wiki/articles.json`) still name keys literally (a later item).
+  EN/DE. Since #2508 the Codex articles (`data/wiki/locales/<code>.json`) carry tokens too ("press {key:Interact}",
+  "hold {key:Jump}", "({key:PlanetMap})"): `WikiUI` fills titles and bodies with `HudUi.ExpandKeyTokens` (prompt form),
+  a body after `WikiMarkup.ToUnityRichText` so a glyph is never taken for a tag; `CodexTextGuardTests` guards EN/DE.
 - **Cutscene skip (#2461):** every cinematic skips on `InputAction.UiCancel` (Esc, pad **B** or its rebind) via
   `CinematicFrame.SkipPressed()`, plus an on-screen skip button for touch and a free mouse
   (`CinematicFrame.EnableSkipButton`, VEGA's prologue skip pill); the label comes from

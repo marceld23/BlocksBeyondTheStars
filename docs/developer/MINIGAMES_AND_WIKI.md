@@ -32,7 +32,8 @@ Data cube on a planet (server entity, deterministic per body, some bodies have n
                                                        ─→ GameUnlocks (server→client) ─→ Arcade collection
 
 Menu "Codex"/"DataQubes" button
-   ├─ WikiUI      → renders articles natively from articles.json via WikiMarkup
+   ├─ WikiUI      → renders articles natively: list articles.json + texts wiki/locales/<code>.json
+                      (WikiArticleText) via WikiMarkup, {key:Action} tokens filled
    └─ ArcadeUI    → MinigameHostUI runs MinigameRegistry.Create(key) — a pure C# IMinigame
                       └─ on game-over: MinigameHost reports {score, rating} → server grants knowledge,
                          local best stored in ClientSettings
@@ -65,8 +66,10 @@ Menu "Codex"/"DataQubes" button
   `Canvas2D` each frame. Needs no UWB/CEF, so it builds on every platform.
 - `MinigameCatalog.cs` (Unity) — loads `StreamingAssets/data/minigames/catalog.json` for UI metadata
   (icon/title/desc + cube seed → game). On WebGL this comes from the cached StreamingAssets data folder.
-- `WikiUI.cs` + `WikiMarkup` (`Client.Core`) — load `StreamingAssets/data/wiki/articles.json` and render the
-  articles natively (discovery-gated Systems & Worlds chapters from the player's visited set).
+- `WikiUI.cs` + `WikiArticleText` + `WikiMarkup` (`Client.Core`) — load the article list
+  `StreamingAssets/data/wiki/articles.json` and the texts of the player's language (`wiki/locales/<code>.json`, with
+  English beside it), and render the articles natively (discovery-gated Systems & Worlds chapters from the player's
+  visited set). See **Codex articles** below for the storage, the fallback and the key tokens.
   A chapter is rendered as a **column of uGUI Texts**, split by `UiTextChunks.Split` (`Client.Core`) at
   paragraph boundaries into chunks of ≤ 10 000 characters: one uGUI `Text` past ~16 250 characters trips
   `VertexHelper`'s 65 000-vertex `ArgumentException` and draws **nothing** — the Guide and Items chapters
@@ -91,12 +94,43 @@ Menu "Codex"/"DataQubes" button
 `StreamingAssets/music/`, see `MUSIC_TRACKS.md`). `data/` is also bundled into the dedicated-server build
 (`scripts/publish-server.ps1`/`.sh`), so the server gets the catalogue too:
 - `data/minigames/catalog.json` — the game catalogue (order is authoritative; see below).
-- `data/wiki/articles.json` — the Wiki articles.
-- Bilingual via the existing locale files (`data/locales/{en,de}.json`, also synced).
+- `data/wiki/articles.json` — the Codex guide's article list (ids, order); `data/wiki/locales/<code>.json` — the
+  article texts per language (see **Codex articles** below).
+- The rest of the UI text comes from the existing locale files (`data/locales/<code>.json`, also synced).
 - **In-game information only.** The Wiki articles and the `*.desc` texts the Codex shows (planets, blocks, items,
   blueprints) describe a thing as the player meets it in the game. Who had the idea is credited in the Credits
   screen (`ui.credits.body`), the README, the changelog and the devblog, never in a description (#2182, guarded by
   `ContentTests.Descriptions_HoldInGameInformationOnly_NoCreditLines`).
+
+### Codex articles (#2508)
+- **Storage.** `data/wiki/articles.json` is the article **list**: `[ { "id": "welcome" }, … ]` — ids and order, no text.
+  The **texts** are flat per-language tables `data/wiki/locales/<code>.json`, the format of the game's locale tables:
+  `"wiki.<id>.title": "…"`, `"wiki.<id>.body": "<p>…</p>"`. English and German hold every article; the other twelve
+  languages may hold any subset. `WikiArticleText` (`Client.Core`) reads the list, `en.json` and the player's table
+  from the data folder (`StreamingAssetsCache.DataDir` — the browser build downloads the tables like any data file).
+- **Fallback per article.** An article reads in the player's language only when that table has its title **and** its
+  body; otherwise the whole article reads English — so a half-translated Codex, and an article added after the last
+  translation pass, are normal states. A missing table reads English, a broken one too (WikiUI logs a warning).
+- **Key tokens.** A body or title names a control as `{key:Action}` (a real `InputAction` such as `Interact`,
+  `PlanetMap`, `FeedCreature`, or a pseudo-action `Jump`, `Crouch`, `Mine`, `Place`, …) — never as a key letter, a
+  mouse button or a pad button. WikiUI fills them with `HudUi.ExpandKeyTokens` (prompt form, like the item
+  descriptions): the player's bound key on the keyboard, the pad button, the touch label (or ACT for a verb without its
+  own button). A body's tokens are filled **after** `WikiMarkup.ToUnityRichText`, so a glyph that looks like markup
+  stays verbatim. Write the sentence so it reads with "E", "(X)", "LB" or "USE" alike; "({key:PlanetMap})" never shows
+  doubled parentheses. Every action used needs its bracket word `ui.vega.act.<Action>` in all fourteen core tables.
+- **Markup.** The body is the small HTML subset `WikiMarkup` converts (`<p> <ul> <li> <b> <i> <img src="wiki/img/…">
+  <span class="link" data-link="…">`); `&amp;` for "&".
+- **Adding an article.** Add `{ "id": "my-topic" }` at its place in `articles.json` (lower case, hyphens), then
+  `wiki.my-topic.title` and `wiki.my-topic.body` to **both** `data/wiki/locales/en.json` and `de.json` (same position).
+  The community languages follow with the next translation pass (`TRANSLATION_GUIDE.md`, Step 6); until then the
+  article reads English there. Changing an English article's meaning: delete its two keys from the twelve community
+  tables first, then re-translate.
+- **Guards** (`CodexTextGuardTests`, client suite): the list and the EN/DE tables name the same articles; EN/DE name no
+  key literally; every token is a real action with its bracket word in all fourteen tables; every table holds only
+  articles English has, no blank text, the English tokens and the English markup — the same paragraphs, list items and
+  pictures in the same order and, within each, the same inline tags (their order may follow the language's word
+  order), properly nested. `WikiArticleTextTests` covers the reader and the fallback; a new table file must also be in
+  `StreamingAssetsCache.FallbackManifest` (`StoryUiFixesClientTests.TheBuiltInFallbackList_MatchesTheDataFolder`).
 
 ### Generated assets (via `tools/ai-assets`, committed to the project)
 - `Resources/props/data_cube.png` (OpenAI) — cube texture.

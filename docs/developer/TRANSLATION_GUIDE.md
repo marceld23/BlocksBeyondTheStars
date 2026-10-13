@@ -14,7 +14,7 @@ The settings screen offers a language automatically once its coverage clears the
 |---|---|---|---|
 | Main locale table | `data/locales/<code>.json` | flat `"key": "text"` JSON | All UI, HUD, menus, editors, minigames (`minigame.*`, `ui.minigame.*`), server messages (`srv.*`), block/item/planet/ship/blueprint names + descriptions, achievements (`achv.*`), missions |
 | Story packs | `data/stories/<id>/locales/<code>.json` | same flat JSON | The VEGA story (`vega_protocol`: prologue, beats, chapters, leads, story missions, cutscene captions, lore) and the basic training with its short courses (`tutorial`) |
-| Codex wiki | `data/wiki/articles.json` | per-article `{"en": …, "de": …, "fr": …, "es": …}` maps | Guide chapters (untranslated articles fall back to English) |
+| Codex articles | `data/wiki/locales/<code>.json` (list and order: `data/wiki/articles.json`) | same flat JSON, `wiki.<id>.title` / `wiki.<id>.body`, bodies in a small HTML subset | The Codex guide chapter (an article your language does not have reads English) — see "Step 2b" |
 | What's New | `data/whatsnew.json` (German + English) · `data-online/whatsnew/<code>.json` (every other language) | generated — do not edit | In-game changelog. The language files are exported from the devblog translations; a release without a translation reads English |
 | AI backend | `ai-backend/app/llm.py` `_LANGUAGE_NAMES` | code → language name | LLM-generated NPC lines, VEGA banter, mission flavour |
 | Web portal | `src/BlocksBeyondTheStars.WorldHost/Locales/<code>.json` | flat `"key": "text"` JSON, embedded in the assembly | play.blocksbeyondthestars.de (landing, My Worlds, rules, page chrome, API error texts) + the in-game community-rules screen through `GET /api/terms` |
@@ -77,8 +77,8 @@ Style rules:
   vendor/workshop questions ("Launch ({key:Interact})"), the map/chart details and the creative-flight, photo and
   discovery hints (#2502), and the item, block, blueprint and ship-module descriptions (#2503 — the crafting,
   inventory, Blueprints and ship panes and the Codex's lists: "press {key:Interact}", "Use {key:Place} to …",
-  "{key:LootContainer} to take"). **Only the Codex articles (`data/wiki/articles.json`) do not yet** — keep naming
-  the key there until that screen expands tokens, a token would show up literally there.
+  "{key:LootContainer} to take"), and the Codex articles (`data/wiki/locales/<code>.json`, #2508 — "press
+  {key:Interact}", "hold {key:Jump}", "the planet map ({key:PlanetMap})").
 - In a short "X: verb" prompt a tablet reads an action without its own touch button as **ACT** (`ui.touch.actions`,
   the label of the button that opens the action list); VEGA's longer lines say "the on-screen action menu"
   (`ui.vega.key_touch`). A token reads differently per device, so it takes no case ending or particle: Turkish
@@ -151,6 +151,31 @@ Line keys an older server still sends stay in the tables even when the current g
 protocol version did not change — and a missing key would show as `[vega.resume]`. Purely client-side keys can be
 deleted from all 14 files once nothing reads them.
 
+## Step 2b — Codex articles
+
+The Codex guide's articles (#2508) are flat tables too: `data/wiki/locales/<code>.json`, two keys per article —
+`wiki.<id>.title` and `wiki.<id>.body` — in the order of `en.json` (which follows the article list
+`data/wiki/articles.json`). English and German hold every article. Any other language may hold any subset: an
+article reads in your language only when your table has its title **and** its body; otherwise the whole article
+reads English (never your title over an English body). So translate an article completely or leave both keys out.
+
+A body is a small HTML subset (`WikiMarkup`). Rules on top of the hard rules above (`CodexTextGuardTests`):
+
+- Translate only the words between the tags. Keep every tag byte for byte, attributes included —
+  `<span class="link" data-link="cat:blocks">`, `<img src="wiki/img/circuit_lift.png">` — and keep `&amp;` as it is.
+- Keep the structure: the same paragraphs (`<p>…</p>`), list items (`<li>`) and pictures in the same order. Within
+  one paragraph or list item the inline tags (`<b>`, `<i>`, `<span …>`) may move with your word order — Japanese,
+  Korean or Turkish often put the bold object before the verb — but keep each pair, and close them in order
+  (`<b>…<i>…</i>…</b>`, never `<b>…<i>…</b>…</i>`).
+- Keep every `{key:Action}` token (they name the player's own key, pad button or touch button — "press E", "(X)",
+  "USE"); the token rules above apply (no case ending or particle on the token itself).
+- Name menu tabs, items, machines and places with your table's own words (the canonical terms above, `ui.tab.*`, the
+  `.name` keys). The menu tab with the character page is **Character** (`ui.tab.settings`, #2505).
+
+Adding or changing an article is a developer step (`MINIGAMES_AND_WIKI.md`, "Codex articles"): the English and German
+texts land first, the community languages follow with the next translation pass — until then the article reads
+English there. A changed English article: delete its two keys from the twelve community tables, then re-translate.
+
 ## Step 3 — Test in-game without any code change
 
 Set `"Language": "<code>"` by hand in `client_settings.json` and start the game — every
@@ -169,7 +194,7 @@ comments coverage.
 1. `src/BlocksBeyondTheStars.Shared/Localization/GameLocale.cs`: enum member + `Code()` +
    `TryParse` cases (code, `xx-xx`, English + native name) + `NativeName()`.
 2. `client/Assets/BlocksBeyondTheStars/Scripts/StreamingAssetsCache.cs`: add
-   `locales/<code>.json` (+ story-pack locale paths) to `FallbackManifest` — the real
+   `locales/<code>.json` (+ story-pack locale paths and `wiki/locales/<code>.json`) to `FallbackManifest` — the real
    manifest and the build-time fallback list (`Resources/streaming_data_files.txt`, #2462) are generated by the
    WebGL build; the built-in last-resort list must still match `data/`, which
    `StoryUiFixesClientTests.TheBuiltInFallbackList_MatchesTheDataFolder` checks.
@@ -182,8 +207,9 @@ The picker, coverage gating, launcher splash and everything key-driven need **no
 
 ## Step 5 — Prose layers (optional, per language)
 
-- **Wiki**: add your language to each article's `title`/`body` map in
-  `data/wiki/articles.json`; high-traffic articles first. Untranslated ones fall back to EN.
+- **Codex articles**: `data/wiki/locales/<code>.json` (Step 2b); high-traffic articles first. A new table file must
+  also be listed in the WebGL `FallbackManifest` (`StreamingAssetsCache.cs`, like the pack files in Step 2).
+  Untranslated articles read English.
 - **What's New**: nothing to translate by hand. The release notes are the devblog release posts, and
   the devblog is translated into all twelve other website languages by the maintainer's (git-ignored)
   blog-sync tooling, which also writes `data-online/whatsnew/<code>.json` — the files the game fetches
@@ -212,11 +238,13 @@ uv run --no-project python tools/translate_locale.py fr --file data/stories/vega
 uv run --no-project python tools/translate_locale.py fr \
     --source src/BlocksBeyondTheStars.WorldHost/Locales/en.json \
     --file   src/BlocksBeyondTheStars.WorldHost/Locales/fr.json   # the web portal
+uv run --no-project python tools/translate_locale.py fr --chunk 4 \
+    --source data/wiki/locales/en.json --file data/wiki/locales/fr.json   # the Codex articles (long bodies: small chunks)
 uv run --no-project python tools/locale_report.py --check           # hard-defect validation
 ```
 
-The tool is incremental and resumable, validates placeholder sets per key, and keeps
-`en.json` key order (LF line endings). It reads `OPENAI_API_KEY` from the environment or
+The tool is incremental and resumable, validates placeholder sets and markup tags per key (a value whose tags differ
+from the English is retried, #2508), and keeps `en.json` key order (LF line endings). It reads `OPENAI_API_KEY` from the environment or
 `tools/ai-assets/.env`. Every request carries the target language's own on-screen terms — the menu tabs, screen
 titles and a few machines and places (`GLOSSARY_KEYS`, read from `data/locales/<code>.json`; `--no-glossary` leaves
 them out) — so translate the base table before a pack whose texts name those tabs. A key whose English text
@@ -231,7 +259,8 @@ manifest with `python scripts/locale-coverage.py` (`LocaleCoverageManifestTests`
 
 - [ ] `data/locales/<code>.json` at 100 % (`locale_report.py`)
 - [ ] `data/stories/*/locales/<code>.json` complete
-- [ ] Wiki articles translated (or accepted EN fallback)
+- [ ] Codex articles translated: `data/wiki/locales/<code>.json` (or accepted EN fallback), listed in the
+      `FallbackManifest`
 - [ ] What's New: `data-online/whatsnew/<code>.json` exists (exported from the devblog translations; optional —
       missing releases read English)
 - [ ] AI backend maps the language name

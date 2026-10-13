@@ -515,7 +515,7 @@ taps the buttons directly. Everything rides the existing **Interact** action —
    a listener with a status, assert both halves: the status shows in `CrystalDeviceOutput`, its own network stays
    OFF, and a Device Eye in front of it drives the network behind the eye.
 9. **Docs** — the catalogue above, `docs/user/USER_MANUAL.md` (Crystal Net subsection), the Codex article
-   `crystal-net` in `data/wiki/articles.json`, `TODO.md`.
+   `crystal-net` in `data/wiki/locales/en.json` + `de.json` (#2508), `TODO.md`.
 
 ## 15. Testing
 

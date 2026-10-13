@@ -90,6 +90,17 @@ namespace BlocksBeyondTheStars.Client
             return result;
         }
 
+        /// <summary>#2508: an article body as uGUI rich text with its <c>{key:Action}</c> tokens filled by
+        /// <paramref name="expandTokens"/> (the Codex passes <c>HudUi.ExpandKeyTokens</c>). The tokens are expanded AFTER the
+        /// conversion, on purpose: a token passes the conversion untouched (no angle bracket, no ampersand), while the glyph
+        /// that replaces it lands verbatim in the finished rich text — a key or button name that looks like markup ("&lt;",
+        /// "&lt;Tab&gt;", "&amp;lt;") could otherwise be stripped as an unknown tag or decoded as an entity.</summary>
+        public static string ToUnityRichText(string? html, Func<string, string>? expandTokens)
+        {
+            string rich = ToUnityRichText(html);
+            return expandTokens == null || rich.Length == 0 ? rich : expandTokens(rich);
+        }
+
         public static string ToUnityRichText(string? html)
         {
             if (string.IsNullOrEmpty(html))

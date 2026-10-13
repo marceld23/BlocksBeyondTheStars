@@ -58,6 +58,23 @@ one PR at the end. One line per step:
   now includes the triggers switch, and VEGA's pad pseudo-actions read "RB/RT" too once the triggers mine. Tests:
   `PadControlNamesTests`, `VegaLineBudgetTests` (pad controls written in). nl's keyboard flight line now docks with
   the canonical "aanmeren" like the pad line. Open: a real-pad check of the three glyph sets.
+- ✅ **S4 — Codex articles: key placeholders, texts in per-language tables (#2508, part 1)**, 2026-10-13: the 40 article
+  texts moved out of `data/wiki/articles.json` (now only the list: ids + order) into flat tables
+  `data/wiki/locales/<code>.json` (`wiki.<id>.title` / `.body`, EN + DE now) — the locale-table format, so
+  `translate_locale.py --source data/wiki/locales/en.json --file data/wiki/locales/<code>.json --chunk 4` translates them
+  as they are (the tool now also rejects a value whose markup tags differ from English). Client.Core `WikiArticleText`
+  reads list + English + the player's table for all 14 languages, English per article (title and body together; an
+  article added later reads English too). `WikiUI` fills `{key:Action}` tokens in titles and bodies
+  (`HudUi.ExpandKeyTokens`, prompt form; bodies after `WikiMarkup.ToUnityRichText`, so a glyph is never taken for a
+  tag). EN/DE: 17 articles (18 texts), 28 places per language rewritten ("press E", Tab menu, G/H, "(M)", M, Q, right-click, middle mouse,
+  "hold Jump", "Crouch", the action key, "the mine button" → `{key:Interact}`, `UiMenu`, `DepositToCrate`,
+  `LootContainer`, `PlanetMap`, `FlightMap`, `FeedCreature`, `Place`, `HotbarAction`, `Jump`, `Crouch`, `Mine`; no new
+  act words needed); the article *Stations & the Tab menu* is *Stations & menu tabs*; "hold the fire button" (scanner)
+  stays — the flight fire control has no token of its own; DE *Das Biolabor* lost one extra `<b>` so its markup matches
+  English. Guards: `CodexTextGuardTests` (EN/DE name no key, tokens real
+  + bracket words in 14 tables, list = EN/DE tables, every table: English keys/tokens/markup — block order, inline tags
+  per block, nesting), `WikiArticleTextTests`, `WikiMarkupTests`; `CommunityLocaleTests` scans the Codex tables too.
+  Open: S5 translates the 12 community languages (and adds their files to the `FallbackManifest`).
 
 ### ★ Story-pack follow-ups 2026-10 (#2485)
 
@@ -184,8 +201,8 @@ line per step:
   table's own "stow key"/"Interact" words), 16 restructured keys re-translated and reviewed; a few broken values fixed
   on the way (it beam pad desc + block name, pt/ru/uk beam pad, ko doors, uk "Сканер Терну"). Guard:
   `VegaLineBudgetTests.ItemBlockBlueprintAndModuleDescriptions_NameNoKeyLiterally` (EN/DE). Docs: TRANSLATION_GUIDE,
-  INPUT_AND_CONTROLLER, USER_MANUAL. Open: the Codex articles (`data/wiki/articles.json`) still name keys (later
-  item). ⚠ Unity: CraftingTechShipUI.cs + WikiUI.cs — check a description on keyboard (rebound Interact), pad, touch.
+  INPUT_AND_CONTROLLER, USER_MANUAL. The Codex articles followed in #2508 (package "Character tab, story switch, pad
+  lines, Codex", S4). ⚠ Unity: CraftingTechShipUI.cs + WikiUI.cs — check a description on keyboard (rebound Interact), pad, touch.
 - ✅ **Step 11 — translation pass for steps 2–7, docs pass**, 2026-10-13 (text + docs only): the keys steps 2–7 added or
   changed in all twelve community languages — 14 new base keys (the "Plays when you land." banner, "Short courses only"
   + its hint, "Start basic training", the course offer with buttons, the five `ui.vega.choice.*` keys, "done — nothing

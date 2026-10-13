@@ -71,7 +71,7 @@ public class CommunityLocaleTests
 
     /// <summary>Every translated table the game and its web portal ship — the places the machine pass
     /// (<c>tools/translate_locale.py</c>) writes to: the base table, every story pack's <c>locales/</c> (#2465 — the
-    /// packs are enumerated, not hard-coded to VEGA) and the portal's own tables.</summary>
+    /// packs are enumerated, not hard-coded to VEGA), the Codex articles (#2508) and the portal's own tables.</summary>
     private static IEnumerable<string> LocaleDirs()
     {
         yield return Path.Combine("data", "locales");
@@ -80,8 +80,13 @@ public class CommunityLocaleTests
             yield return Path.Combine("data", "stories", pack, "locales");
         }
 
+        yield return CodexLocaleDir;
         yield return Path.Combine("src", "BlocksBeyondTheStars.WorldHost", "Locales");
     }
+
+    /// <summary>The Codex articles' tables (#2508), <c>wiki.&lt;id&gt;.title/body</c> per language; their own guards
+    /// (keys, tokens, markup) are <c>CodexTextGuardTests</c> in the client suite.</summary>
+    private static readonly string CodexLocaleDir = Path.Combine("data", "wiki", "locales");
 
     /// <summary>The story-pack folders under <c>data/stories</c> that carry a <c>locales/</c> table, in ordinal order.</summary>
     private static IEnumerable<string> StoryPackFolders()
@@ -364,6 +369,12 @@ public class CommunityLocaleTests
             {
                 tables.Add(($"stories/{pack}/locales/{code}.json", PackTable(pack, code)));
             }
+        }
+
+        string codex = Path.Combine(TestPaths.RepoRoot(), CodexLocaleDir, code + ".json");
+        if (File.Exists(codex))
+        {
+            tables.Add(($"wiki/locales/{code}.json", JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(codex)) ?? []));
         }
 
         var hits = new List<string>();

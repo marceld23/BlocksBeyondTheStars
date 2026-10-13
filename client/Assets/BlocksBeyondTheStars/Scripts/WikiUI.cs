@@ -17,8 +17,9 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The in-game Wiki ("Codex") — a NATIVE uGUI screen (Stream D: replaces the embedded-browser version so the
     /// client no longer needs the Windows-only CEF engine for the Codex). A left sidebar selects a chapter; the
-    /// right pane scrolls the content. The Guide chapter renders the bundled articles (via
-    /// <see cref="WikiMarkup"/>); the reference chapters list the game's content straight from the loaded
+    /// right pane scrolls the content. The Guide chapter renders the bundled articles in the player's language
+    /// (<see cref="WikiArticleText"/>, via <see cref="WikiMarkup"/>, their <c>{key:Action}</c> tokens filled — #2508); the
+    /// reference chapters list the game's content straight from the loaded
     /// <see cref="GameContent"/>, localized through the same localizer the rest of the UI uses. Opened from the
     /// in-game menu header; <see cref="GameMenu"/> drives <see cref="Show"/>/<see cref="Hide"/>.
     ///
@@ -40,13 +41,11 @@ namespace BlocksBeyondTheStars.Client
         private bool _builtCanvas;
         private string _chapter = "guide";
 
-        // Guide articles, loaded once from the bundled wiki content (StreamingAssets/data/wiki/articles.json).
-        // Optional community-language fields fall back to English per article, so a partially
-        // translated wiki is a supported state (same rule as the locale tables).
-        [Serializable] private sealed class LocText { public string en = ""; public string de = ""; public string fr = ""; public string es = ""; }
-        [Serializable] private sealed class Article { public string id = ""; public LocText title; public LocText body; }
-        [Serializable] private sealed class ArticleList { public Article[] items; }
-        private Article[] _articles;
+        // Guide articles (#2508): the list is StreamingAssets/data/wiki/articles.json, the texts the per-language tables
+        // wiki/locales/<code>.json, read through WikiArticleText (Client.Core). An article the player's language does not
+        // have reads English as a whole, so a partially translated Codex is a supported state. Read again when the
+        // language changes.
+        private WikiArticleText _articleText;
 
         private static readonly (string Id, string LabelKey)[] Chapters =
         {
@@ -238,16 +237,22 @@ namespace BlocksBeyondTheStars.Client
         /// the column; one that cannot be read is skipped.</summary>
         private float RenderGuide(Transform content, float textW, float y)
         {
-            LoadArticles();
+            var articles = LoadArticles();
             var sb = new StringBuilder();
-            foreach (var a in _articles)
+            foreach (string id in articles.Ids)
             {
-                sb.Append("<b><size=24>").Append(Loc(a.title)).Append("</size></b>\n\n");
-                foreach (var seg in WikiMarkup.Segments(Loc(a.body)))
+                var (title, body) = articles.Article(id);
+                if (title.Length == 0 && body.Length == 0)
+                {
+                    continue; // listed, but no table holds it — nothing to show
+                }
+
+                sb.Append("<b><size=24>").Append(ExpandKeys(title)).Append("</size></b>\n\n");
+                foreach (var seg in WikiMarkup.Segments(body))
                 {
                     if (!seg.IsImage)
                     {
-                        sb.Append(WikiMarkup.ToUnityRichText(seg.Text)).Append("\n\n");
+                        sb.Append(WikiMarkup.ToUnityRichText(seg.Text, ExpandKeys)).Append("\n\n");
                         continue;
                     }
 
@@ -912,61 +917,40 @@ namespace BlocksBeyondTheStars.Client
 
         private string BuildGuide()
         {
-            LoadArticles();
+            var articles = LoadArticles();
             var sb = new StringBuilder();
-            foreach (var a in _articles)
+            foreach (string id in articles.Ids)
             {
-                sb.Append("<b><size=24>").Append(Loc(a.title)).Append("</size></b>\n\n");
-                sb.Append(WikiMarkup.ToUnityRichText(Loc(a.body))).Append("\n\n\n");
+                var (title, body) = articles.Article(id);
+                if (title.Length == 0 && body.Length == 0)
+                {
+                    continue;
+                }
+
+                sb.Append("<b><size=24>").Append(ExpandKeys(title)).Append("</size></b>\n\n");
+                sb.Append(WikiMarkup.ToUnityRichText(body, ExpandKeys)).Append("\n\n\n");
             }
 
             return sb.ToString();
         }
 
-        private string Loc(LocText t)
+        /// <summary>#2508: an article's <c>{key:Action}</c> tokens read as the player's own key, pad button or touch button —
+        /// the prompt form of the item descriptions (<see cref="Desc"/>), so a tablet reads ACT for a verb without its own
+        /// button. Bodies go through <see cref="WikiMarkup.ToUnityRichText(string, Func{string, string})"/>, which expands
+        /// after the markup conversion so a glyph is never mistaken for a tag.</summary>
+        private string ExpandKeys(string text) => HudUi.ExpandKeyTokens(Game?.Localizer, text);
+
+        /// <summary>The guide's articles in the player's language (#2508), read once per language. A missing or broken file
+        /// used to remove every hand-written article without a trace (#428): the reader reports it here.</summary>
+        private WikiArticleText LoadArticles()
         {
-            if (t == null)
+            string code = LocaleCode;
+            if (_articleText == null || _articleText.LocaleCode != code)
             {
-                return string.Empty;
+                _articleText = WikiArticleText.Load(StreamingAssetsCache.DataDir, code, problem => Debug.LogWarning("[WikiUI] " + problem));
             }
 
-            string chosen = LocaleCode switch
-            {
-                "de" => t.de,
-                "fr" => t.fr,
-                "es" => t.es,
-                _ => t.en,
-            };
-            return !string.IsNullOrEmpty(chosen) ? chosen : (t.en ?? string.Empty);
-        }
-
-        private void LoadArticles()
-        {
-            if (_articles != null)
-            {
-                return;
-            }
-
-            try
-            {
-                string path = Path.Combine(StreamingAssetsCache.DataDir, "wiki", "articles.json");
-                if (File.Exists(path))
-                {
-                    // JsonUtility can't parse a top-level array, so wrap it as { "items": [...] }.
-                    var list = JsonUtility.FromJson<ArticleList>("{\"items\":" + File.ReadAllText(path) + "}");
-                    _articles = list?.items ?? Array.Empty<Article>();
-                }
-                else
-                {
-                    _articles = Array.Empty<Article>();
-                }
-            }
-            catch (Exception e)
-            {
-                // A corrupt articles.json used to remove every hand-written article without a trace (#428).
-                Debug.LogWarning($"[WikiUI] failed to load wiki/articles.json: {e.Message}");
-                _articles = Array.Empty<Article>();
-            }
+            return _articleText;
         }
 
         private void OnDestroy()

@@ -3,9 +3,9 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using BlocksBeyondTheStars.Client;
+using BlocksBeyondTheStars.Shared.Localization;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Client.Tests;
@@ -101,21 +101,23 @@ public sealed class UiTextChunksTests
     }
 
     /// <summary>The regression itself: the whole Guide chapter, rendered the way WikiUI renders it (every
-    /// article's title + WikiMarkup body concatenated), is OVER the uGUI limit for both mandatory languages —
-    /// and split with the default budget every chunk is safely under it, without losing a character.</summary>
+    /// article's title + WikiMarkup body concatenated, read from the per-language tables since #2508, the key tokens
+    /// filled with a short glyph), is OVER the uGUI limit for both mandatory languages — and split with the default
+    /// budget every chunk is safely under it, without losing a character.</summary>
     [Theory]
     [InlineData("en")]
     [InlineData("de")]
     public void RealGuideChapter_ExceedsOneText_ButEveryChunkFits(string lang)
     {
-        string path = Path.Combine(ClientTestPaths.DataDir(), "wiki", "articles.json");
-        using var doc = JsonDocument.Parse(File.ReadAllText(path));
+        var articles = WikiArticleText.Load(ClientTestPaths.DataDir(), lang);
+        Assert.NotEmpty(articles.Ids);
 
         var sb = new StringBuilder();
-        foreach (var article in doc.RootElement.EnumerateArray())
+        foreach (string id in articles.Ids)
         {
-            sb.Append("<b><size=24>").Append(Loc(article.GetProperty("title"), lang)).Append("</size></b>\n\n");
-            sb.Append(WikiMarkup.ToUnityRichText(Loc(article.GetProperty("body"), lang))).Append("\n\n\n");
+            var (title, body) = articles.Article(id);
+            sb.Append("<b><size=24>").Append(title).Append("</size></b>\n\n");
+            sb.Append(WikiMarkup.ToUnityRichText(body, text => LineText.ExpandKeyTokens(text, _ => "E"))).Append("\n\n\n");
         }
 
         string guide = sb.ToString();
@@ -136,9 +138,4 @@ public sealed class UiTextChunksTests
             Assert.EndsWith("\n", chunks[i - 1]);
         }
     }
-
-    private static string Loc(JsonElement loc, string lang)
-        => loc.TryGetProperty(lang, out var v) && v.GetString() is { Length: > 0 } s
-            ? s
-            : loc.GetProperty("en").GetString() ?? string.Empty;
 }
