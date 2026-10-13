@@ -154,7 +154,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The fire control's name on the active device — what the "hold … to scan" line asks for.</summary>
         private string FireGlyph() => InputMap.ActiveDevice switch
         {
-            InputDeviceKind.Gamepad => InputMap.PadGlyph(KeyCode.JoystickButton5) ?? "RB",
+            InputDeviceKind.Gamepad => HudUi.PadControlGlyph(Game.Localizer, "Mine") ?? InputMap.PadGlyph(KeyCode.JoystickButton5) ?? "RB", // #2507: "RB/RT" with triggers on
             InputDeviceKind.Touch => Loc("ui.touch.fire", "FIRE"),
             _ => Loc("ui.key.mouse_left", "LMB"),
         };
