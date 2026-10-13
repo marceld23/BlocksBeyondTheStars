@@ -7233,7 +7233,7 @@ public sealed partial class GameServer
         CheatLog(session.State, $"set {target.State.Name}'s mode override to {over.Value}");
 
         // The target's client re-reads its effective rules (mode label, O2 bar, flight) right away; every
-        // admin's Settings tab re-renders its player-mode rows from the re-broadcast roster.
+        // admin's Character tab re-renders its player-mode rows from the re-broadcast roster.
         foreach (var s in _sessions.Values)
         {
             if (s.Joined && (s == target || s.State.IsAdmin))
@@ -7919,7 +7919,7 @@ public sealed partial class GameServer
         // The mode + its derived switches are the receiver's EFFECTIVE ones (#1121): a per-player override
         // makes the kid's client read "Creative" (and hide the O2 bar) while the world stays Survival.
         var over = session.State.ModeOverride;
-        // World admins additionally get the online players' overrides, feeding the Settings-tab rows.
+        // World admins additionally get the online players' overrides, feeding the Character-tab rows.
         string[] modeNames = System.Array.Empty<string>();
         string[] modeValues = System.Array.Empty<string>();
         if (session.State.IsAdmin)

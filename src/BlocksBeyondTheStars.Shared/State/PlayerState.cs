@@ -221,7 +221,7 @@ public sealed class PlayerState
     public bool Fly { get; set; }
     public bool InstantBuild { get; set; }
 
-    /// <summary>Per-player mode override (#1121), set by the world admin (<c>/mode</c> or the Settings tab):
+    /// <summary>Per-player mode override (#1121), set by the world admin (<c>/mode</c> or the Character tab):
     /// this player plays Creative or Survival regardless of the world's mode — the rule getters consult it
     /// via the <c>GameRules.*For</c> twins. None = the world's mode. Persisted, so the kid's creative
     /// override survives a rejoin without the admin re-issuing it.</summary>

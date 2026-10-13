@@ -36,7 +36,8 @@ namespace BlocksBeyondTheStars.Client
         // Tab bar display order (left→right), decoupled from the Mode enum value so tabs can be reordered without
         // renumbering the modes: each entry carries its Mode (used for activation, routing and badges) and label
         // key. Core build/travel loop first, then the world/social cluster (Story/Creatures/Alliances), with
-        // Settings pinned far right (config convention). Note Mode.Character is labelled "Settings".
+        // Character pinned far right. Mode.Character is labelled "Character" (#2505; "Settings" before — the key is still
+        // ui.tab.settings): it holds the character page, the people you know and the in-world options.
         private static readonly (Mode Mode, string Loc)[] Tabs =
         {
             (Mode.Inventory, "ui.inventory.title"),
@@ -86,7 +87,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _built;
         // The page (mode+category / selection) last rendered into each scroll view. A rebuild that changes
         // the page scrolls back to the top; an in-place refresh (live data, volume/colour cycling) keeps the
-        // player's scroll position. Without this, switching from a scrolled-down page (e.g. Settings) to a
+        // player's scroll position. Without this, switching from a scrolled-down page (e.g. Character) to a
         // short one (e.g. Space) leaves it scrolled past the top, hiding the first rows (the launch button).
         private string _listPage, _detailPage;
         private AvatarPreviewRig _avatarPreview; // live faced-avatar preview for the colour menu (B25)
@@ -731,7 +732,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                // Auto-fit the label so a long localized tab (e.g. German "Einstellungen") shrinks to fit the
+                // Auto-fit the label so a long localized tab (e.g. Polish "Osiągnięcia") shrinks to fit the
                 // fixed-width button instead of spilling over its graphic (B28); short labels keep full size.
                 UiKit.FitLabel(b.GetComponentInChildren<Text>(), 12, 22);
 

@@ -174,7 +174,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>AI-core tier of the active ship (1 = bare VEGA, 2 = Mk2, 3 = Mk3) — gates the autopilot.</summary>
         public int AiCoreTier { get; private set; } = 1;
 
-        /// <summary>True while the basic training runs (#2469: the tutorial pack) — the Settings tab offers "skip tutorial" then,
+        /// <summary>True while the basic training runs (#2469: the tutorial pack) — the Character tab offers "skip tutorial" then,
         /// "restart tutorial" otherwise. Since #2462 the server reports it on every VEGA line
         /// (<c>ShipAiLine.TutorialActive</c>), whatever the chip shows; an older server is read from the chip's key.</summary>
         public bool OnboardingActive { get; private set; }

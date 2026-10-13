@@ -1446,7 +1446,7 @@ public sealed class ServerRules
     public string ChatMode { get; set; } = string.Empty;
 
     /// <summary>Per-player mode overrides (#1121), parallel to <see cref="PlayerModeValues"/> — the online
-    /// players' names, filled only when the RECEIVER is a world admin (they feed the Settings-tab
+    /// players' names, filled only when the RECEIVER is a world admin (they feed the Character-tab
     /// "player modes" rows). Empty for everyone else. Note <see cref="GameMode"/> above is already the
     /// receiver's EFFECTIVE mode, override included.</summary>
     public string[] PlayerModeNames { get; set; } = System.Array.Empty<string>();

@@ -890,7 +890,7 @@ default) — no `Protocol.Version` bump.
 | Field | Meaning | Older peer |
 |---|---|---|
 | `ShipAiLine.ObjectiveSource` | where the chip's objective comes from — `ObjectiveSources.Tutorial` / `Story` / `Finale` / `Mission`, empty = no objective. Set in ONE place, `SendVegaWithObjective` (every VEGA line carries the chip; the 1 Hz refresh compares the whole `VegaChip`) | an older client keeps its `story.obj.` prefix guess; a new client facing an older server uses the same guess (`ObjectiveSourceRules.Effective`, which now also treats `story.obj.finale` as finale) |
-| `ShipAiLine.TutorialActive` | this player's tutorial still runs, whatever the chip shows — the Settings button offers *Skip* then, *Restart* otherwise (B03) | read only when `ObjectiveSource` is set |
+| `ShipAiLine.TutorialActive` | this player's tutorial still runs, whatever the chip shows — the Character tab's button offers *Skip* then, *Restart* otherwise (B03) | read only when `ObjectiveSource` is set |
 | `StoryStateMessage.HeardBeats` | the beat indexes this player has heard (`story:<id>:beat:<n>` milestones), ascending | empty — the client keeps the beats heard live this session |
 | `StoryStateMessage.SeenCutscenes` | #2468: this player's confirmed cutscenes of every pack, `<pack>/<id>` sorted (`story:<pack>:cut:<id>` milestones, not the `:sent` form) — the Story tab's "Watch again" list ([CUTSCENES.md](CUTSCENES.md)) | empty — the client lists what it confirmed this session |
 | `StoryStateMessage.Started` / `Chapter` / `WorldChapter` | #2470: this player's story track started; their (derived) chapter id; the world's chapter id — filled by every current server, so an empty `WorldChapter` means an older server | the client treats the track as started and lists chapters from the heard beats |
@@ -960,7 +960,7 @@ all objectives"), `GameBootstrap` (`StoryPackStates`, `Objectives`, `JournalVers
   `JournalPushGapSeconds` = 1 s, and only the message whose bytes differ from the last send. The states are compared with
   every step counter zeroed, so a progress tick never re-sends them — the objective list carries live progress.
 - **Actions** (`StoryPackActions`, all validated, all pause-whitelisted): `track`, `untrack`, `optOut`, `optIn` (starts a
-  pack that would not start by itself — an opt-in world's tutorial: the Settings' "Tutorial: on"), `startPack`,
+  pack that would not start by itself — an opt-in world's tutorial: the Character tab's "Tutorial: on"), `startPack`,
   `skipPack`, `restartPack` (`RestartPack`, refused while the world's tutorial is off), `startChapter`, `declineChapter`
   ("Later"; optional, not running, not through), `skipChapter` (only a running chapter now), `restartChapter` (a done
   chapter is replayed; since #2471 a RUNNING chapter, or a running replay, starts over from its first step the same way),
@@ -972,7 +972,7 @@ all objectives"), `GameBootstrap` (`StoryPackStates`, `Objectives`, `JournalVers
   local packs)` (server list first, the client's own copy of the pack second, else `ui.vega.objective`). The mute stays
   with `ObjectiveSource` (only `story` follows the VEGA hints switch; synthesis E22's "speech only once 'don't track'
   exists" is not active — there is no per-story "don't show" switch for the world story yet).
-- **"Show all objectives"** (`ClientSettings.ShowAllObjectives`, default off; Tab settings + pause-menu Comfort): the
+- **"Show all objectives"** (`ClientSettings.ShowAllObjectives`, default off; Character tab + pause-menu Settings → Comfort): the
   list's rows after the chip's in up to two strips under the chip, hidden while the chat is open; a story row follows
   the hints switch like the chip (`ObjectiveTracker.ExtraRows`).
 - **Notes.** "VEGA's notes" = the VEGA log (`GameBootstrap.VegaLogKeys`): the `VegaJournal` snapshot + `RelayInsightKeys`
@@ -1068,7 +1068,7 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   "Stories" / "Geschichten", never "pack". Live edits: the density (#2472, `SetWorldRulesIntent.StoryDensity`, re-sent in
   `ServerRules.StoryDensity`; a change runs `AdvanceStory`, so a faster pace reveals what its score covers at once and a
   slower one never takes a beat back) and the tutorial rule (`SetWorldRulesIntent.TutorialPolicy`, admin
-  `tutorial policy …`) — both rows in the in-game world rules (Settings tab, admin). The active pack can only be switched by
+  `tutorial policy …`) — both rows in the in-game world rules (Character tab, admin). The active pack can only be switched by
   an admin intent (`StorySelectIntent`, see "Active story row" above; no client UI). Hosted/glitch worlds pass no story
   flag (VEGA + `Auto`). Admin QA cmds: `advance_story`, `reveal_finale`, `story_status`, `reveal_lore`, `goto_core`,
   `tutorial`.

@@ -14,7 +14,9 @@ components, a category sidebar and blueprint state.
 
 - **One uGUI screen.** `CraftingTechShipUI` (new Canvas UI, not IMGUI) hosts Crafting, Tech, Ship and
   the other menu tabs it now owns (Inventory, Map, Missions, Story, Companions, Alliances, and
-  Settings — `Mode.Character` is labelled "Settings"). A
+  Character — `Mode.Character`, labelled "Character" since #2505, key `ui.tab.settings`; it was "Settings" before and
+  holds the character page, "People you know" and the in-world options; graphics, sound, controls and language live
+  in the separate Settings screen, `UiSettings`). A
   `Mode`/tab header selects the view; the canvas scales with screen size (reference 1920×1080,
   `ScreenMatchMode.Expand`), so cards and text stay readable on 4K and unshrunk on small displays.
   It does **not** follow the player's `ClientSettings.UiScale` setting: this screen lays out in

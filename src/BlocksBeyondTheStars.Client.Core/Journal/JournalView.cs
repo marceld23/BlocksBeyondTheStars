@@ -627,7 +627,7 @@ namespace BlocksBeyondTheStars.Client
             => !string.IsNullOrEmpty(suggested) && string.IsNullOrEmpty(currentId) && !hasFreePoint ? suggested : null;
     }
 
-    /// <summary>The Settings' "Tutorial &amp; courses: on / off" switch (#2471, synthesis §5.8 "Einstellungen"; named so since
+    /// <summary>The Character tab's "Tutorial &amp; courses: on / off" switch (#2471, synthesis §5.8 "Einstellungen"; named so since
     /// #2498 — it switches the basic training and the short courses together) — it replaced the old "Skip / Restart tutorial"
     /// button. Pure, unit-tested headless.</summary>
     public static class TutorialSwitch

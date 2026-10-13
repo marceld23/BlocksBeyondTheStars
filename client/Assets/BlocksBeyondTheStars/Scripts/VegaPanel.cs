@@ -216,7 +216,7 @@ namespace BlocksBeyondTheStars.Client
             _tab.SetActive(false);
 
             // Objective chip: small persistent strip below the speech spot. (Skipping/restarting the
-            // tutorial lives in the Settings tab — the mouse is captured for camera control out here,
+            // tutorial lives in the Character tab — the mouse is captured for camera control out here,
             // so a button on the chip was unreachable.)
             _chip = UiHolo.AddPanel(_canvas.transform, 24, ChipY, 640, VegaObjectiveChip.HeightNormal, new Color(0.05f, 0.10f, 0.16f, 0.66f), 10f, 1.2f, 0.9f).gameObject;
             _chipRect = _chip.GetComponent<RectTransform>();

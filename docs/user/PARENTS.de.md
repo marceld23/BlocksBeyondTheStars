@@ -87,7 +87,7 @@ haben, und Sie halten jeden Schalter (Roboter, Banditen und andere Gegner, Sprac
   eine Einreichung verwendet wird, schreiben Sie uns – wir löschen sie, und eine bereits veröffentlichte
   Textur entfernen wir mit der nächsten Version.
 - **Texturen anderer Spieler.** In einer Mehrspieler-Welt können deren Administratoren Texturen für alle
-  dort ersetzen. *Einstellungen → Texturen dieser Welt anzeigen → Aus* schaltet das für das Spiel Ihres
+  dort ersetzen. *Tab-Menü → Charakter → Texturen dieser Welt anzeigen → Aus* schaltet das für das Spiel Ihres
   Kindes ab, in jeder Welt.
 - Das optionale KI-Backend (für dynamische NPC-Dialoge) verarbeitet den Gesprächstext im Spiel, um
   Antworten zu erzeugen; es ist aus, solange der Host es nicht einrichtet, und hat einen Nicht-KI-Ersatz.

@@ -63,7 +63,7 @@ Last updated: 2026-10-04.
   survival (oxygen, hunger, hazards, death penalty), generated world (flora, ore, settlements,
   wrecks, vaults, stations, wormholes, exotic worlds, universe size), plus an **advanced page** with a frequency
   slider per planet type. The world *owns* its rules from then on; the world admin can live-edit the
-  creature/enemy activity later in-game (Settings tab → "Weltregeln").
+  creature/enemy activity later in-game (Character tab → "World rules" / "Weltregeln").
 - **Stories** ("Geschichten") at world creation: the row **"Stories: VEGA · Tutorial Auto ›"** at the bottom of the
   world options opens its own page with three choices:
   - **Main story** — the story this world tells: **The VEGA Protocol** (default; a line under the list says what it is
@@ -76,13 +76,13 @@ Last updated: 2026-10-04.
     (no basic training and no short courses in this world). A world without a story still has the tutorial when it is on.
 
   The summary row shows your choice (e.g. "VEGA (Fast) · Tutorial Off ›"); the presets reset it to VEGA · Normal · Auto.
-  The world admin can change the **tutorial** and the **story pace** later in-game (Settings tab → world rules); the main
+  The world admin can change the **tutorial** and the **story pace** later in-game (Character tab → world rules); the main
   story stays what the world was created with. Official (hosted) worlds always start with VEGA and the tutorial on Auto.
 - The **Editors** submenu (main menu) holds the creation tools — see §6.
-- **Window mode** (Settings tab): the **"Window mode" / "Fenstermodus"** option cycles **Windowed → Borderless →
+- **Window mode** (Settings → Graphics — from the main menu or the pause menu): the **"Window mode" / "Fenstermodus"** option cycles **Windowed → Borderless →
   Exclusive** and applies immediately. The default is **Windowed** (a normal movable, maximizable window);
   Borderless fills whichever monitor the window currently sits on; Exclusive is classic full-screen.
-- **Language** (Settings tab): switch the whole game between **14 languages** — English, German, French,
+- **Language** (the language button at the bottom of Settings): switch the whole game between **14 languages** — English, German, French,
   Spanish, Italian, Portuguese, Dutch, Polish, Turkish, Russian, Ukrainian, Chinese, Japanese and Korean.
   A language appears in the picker once its translation clears **45 % coverage**; a text a language does
   not have yet is shown in English (want to help? See `docs/developer/TRANSLATION_GUIDE.md` in the
@@ -137,7 +137,7 @@ Last updated: 2026-10-04.
   the graphics driver, RAM/XMP, power or heat. What helps us: the **stop code** from *Event Viewer → Windows
   Logs → System*, source **BugCheck** (event **1001**); the newest `C:\Windows\Minidump\*.dmp`; your **GPU
   model and driver version** (updating the driver is the first thing to try); and whether it happens at a
-  particular moment (loading, mining, flying). If you have turned **VSync off** in the Settings tab, set a
+  particular moment (loading, mining, flying). If you have turned **VSync off** in Settings → Graphics, set a
   **frame-rate cap** (e.g. 120) there — uncapped, the GPU runs at 100 % even in light scenes, which is exactly
   the load that exposes a flaky driver or power supply.
 
@@ -173,7 +173,7 @@ Last updated: 2026-10-04.
 | **V** | Toggle first / third-person camera |
 | **I** | Toggle **thermal vision** while looking through the thermal binoculars (see §5 → Binoculars) |
 | **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter; also opens the folded VEGA tab) — rebindable; gamepad **View** (Back), touch **NEXT ▶** |
-| **Tab** | Open / close the gameplay menu (Inventory, Crafting, Blueprints, Ship, Map, Missions, Story, …, Settings); also closes full-screen menu screens such as the Codex |
+| **Tab** | Open / close the gameplay menu (Inventory, Crafting, Blueprints, Ship, Map, Missions, Journal, …, Character); also closes full-screen menu screens such as the Codex |
 | **M** | Toggle the world map (top-down planet view; click to set a waypoint) — rebindable; touch **MAP** |
 | **Enter** | Open the chat box (Esc cancels) |
 | **J** | Hide / show the chat scrollback for this session (rebindable; see also Settings → Comfort → Chat display) |
@@ -207,7 +207,7 @@ buttons — retuning is tracked in issue #195):
 | **Menu** (☰ — the three-lines button right of the Xbox logo; Unity and 360-era pads call it Start. The Xbox-logo button itself belongs to Windows' Game Bar and never reaches the game) | Open / close the gameplay menu — its top strip has the **Pause menu** button (Resume / Settings / Quit, the same dialog **Esc** opens on the keyboard); **(B)** resumes |
 
 In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes back — that includes **every
-tab of the gameplay menu** (Inventory, Crafting, Blueprints, Ship, Map, Missions, Settings, …), the Codex, the
+tab of the gameplay menu** (Inventory, Crafting, Blueprints, Ship, Map, Missions, Character, …), the Codex, the
 Arcade, the landing-pad chooser (pick a pad with the stick, **(A)** lands, **(B)** cancels), trade and
 docking requests, the bandit demand, the blueprint / beacon / transporter windows, the bio lab, crystal devices,
 a storage crate's filter, the train cab, an NPC interview, and both maps. **(B)**
@@ -382,8 +382,9 @@ separate unlock; admins can still disable it through server world rules.
   plus **Journal** (your **stories** — the basic training, VEGA's story and any other story of the world, see
   "The Journal" in §5 — then **VEGA's notes**, and a **Notes** category: up to 20 titled notes of your own,
   saved with your character — `§0`–`§f` colours a span, `§l` makes it bold, `§r` resets), **Creatures** (your tamed
-  companions, see §5), **Alliances** (see §5), **Achievements** and **Photos**, with **Settings** (your character's
-  look included) pinned far right. On a pad the menu opens with the **Menu** button, on a tablet with the **≡** button. The **Achievements** tab opens with a **Progress** block —
+  companions, see §5), **Alliances** (see §5), **Achievements** and **Photos**, with **Character** (your look, the people
+  you know, and the in-world options — world rules, VEGA hints, tutorial, save; called "Settings" before) pinned far right.
+  Graphics, sound, controls and language are not here but in **Settings** (main menu, or the pause menu). On a pad the menu opens with the **Menu** button, on a tablet with the **≡** button. The **Achievements** tab opens with a **Progress** block —
   research N of M blueprints, Codex discoveries (with a button straight into the Codex chapter, where every entry
   now names the planet and system it was first scanned on), story %, achievements done — and a **Journey** grid of your
   lifetime tallies (worlds visited, systems entered, blocks mined/placed, subjects scanned, missions …); the
@@ -525,9 +526,9 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   **NEXT ▶**) or click/tap the tab to open it again — nothing is lost. Some lines ask you something and show **two
   buttons** instead of *Continue* (VEGA's first-start question, a short-course offer): the right one is what **N**
   (pad **View**, touch **NEXT ▶**) picks; the left one takes a click or tap, or **holding** N (View, NEXT) for a moment —
-  it fills brighter while you hold. **Esc** never picks a button. Advisor hints can be muted (Settings → VEGA
-  hints); the tutorial is switched on or off in the Settings tab (**Tutorial & courses: on/off**), and its parts are
-  skipped, restarted and replayed in the **Journal** (Settings → **Open the Journal**).
+  it fills brighter while you hold. **Esc** never picks a button. Advisor hints can be muted (Character tab → VEGA
+  hints); the tutorial is switched on or off in the Character tab (**Tutorial & courses: on/off**), and its parts are
+  skipped, restarted and replayed in the **Journal** (Character tab → **Open the Journal**).
 
 ---
 
@@ -562,7 +563,7 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   best carried liner counts — armor pieces also carry a little insulation; the liners also slow a toxic world's
   corrosive air, see below). In vacuum the readout shows
   the sun-side/shadow hull temperature (about +120 °C to −150 °C). The world option **Environmental
-  hazards** (world creation, or live in the in-game Settings tab as world admin) scales this from Off to
+  hazards** (world creation, or live in the in-game Character tab as world admin) scales this from Off to
   Hard; Creative/Sandbox worlds are always exempt — and in Creative/Sandbox the **suit battery never drains** either
   (powered tools, the beam, the teleporter, jetpack and cloak are free), like oxygen and hunger.
 - **Titas** (a very rare frozen planet — only one per galaxy): the suit's climate control is not enough there. An
@@ -1155,7 +1156,7 @@ players.
     all** puts the two flight courses (*Pilot* and *Stations, trade and jobs*) on offer in your Journal straight away,
     quietly — the other courses come when they fit. If you skipped the whole training without doing any of it, the
     restart button reads **Start basic training**; play it through and its parts count as done (with the ★).
-  - **Tutorial & courses: on/off** in the Settings tab switches the training and the short courses off for you (VEGA
+  - **Tutorial & courses: on/off** in the Character tab switches the training and the short courses off for you (VEGA
     stops the lessons and the course offers) and back on — on an *On request* world "on" starts it. Next to it, **Open
     the Journal**.
   - **Tutorial on/off for a world:** the world rule *Tutorial* is **Auto** (every new player starts it), **Short courses
@@ -1163,7 +1164,7 @@ players.
     opening leads straight into chapter 1, the two flight courses wait in the Journal and the other courses are offered
     when they fit; someone already in the training when the rule is switched keeps it), **On request** (only on request)
     or **Off** — chosen on the world-creation **Stories** page (§1), and changed later by the world admin under Tab →
-    Settings → world rules (*Tutorial*, with a line saying what the choice means) or with
+    Character → world rules (*Tutorial*, with a line saying what the choice means) or with
     `/tutorial policy auto|courses|optin|off`.
   - VEGA's lessons — and the prompts at the ship's cockpit, workshop, cargo hold and console, the crafting
     stations, the bed, the heal tank, the transporter pad and a factory terminal — name the control of the device
@@ -1235,7 +1236,7 @@ players.
     or sapling, crafting at a campfire (a hot meal — or torches and water where hunger is off), a sample in your sample
     case from something you harvest, researching the bio lab and analysing a sample in it.
   - **Neighbours** (offered when a settlement is close by): talking to a settler (walk up and press **E**), answering in a
-    conversation (kind answers make friends), the "People you know" list in the Settings tab (your character page), and who helps with what.
+    conversation (kind answers make friends), the "People you know" list in the Character tab, and who helps with what.
     Not listed on a world without settlements.
   - **Defence** (only on a world whose rules have machines, robbers or hostile ships — a peaceful or family world never
     lists it, and it is never suggested; offered when a robber stops you or something hostile comes close): it is always
@@ -1265,7 +1266,7 @@ players.
   factory / trader / other player close by, and in space minable asteroids, a station, a low hull or a
   ready jump generator. Low oxygen/energy/hunger and temperature warnings repeat with a long cooldown.
   Every tip waits a few seconds, VEGA says at most one every couple of minutes, each repeats at most two
-  or three times per save (and stops for good once you react to it). Mute via Settings → **VEGA hints**.
+  or three times per save (and stops for good once you react to it). Mute via Character tab → **VEGA hints**.
   A hint VEGA keeps back while the hints are off is **not used up**: switch them on again and it still comes the
   next time the situation arises (before, a muted hint counted as told and never came back).
 - **AI-core modules:** `ai_core_mk2` adds +6 terrain-scanner radius, hostile-contact callouts in space and
@@ -1472,7 +1473,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   A sentry's kill **counts for you**: bandit and machine bounty steps progress, a scout it finishes still
   counts towards *Guard the homestead* and the base-defended tally, and the drops land on the ground where
   the target fell. Only the plain "defeat" achievement stays yours to earn by hand.
-- **Visitors at the base** (Settings → world rules, world admin, **off by default** — on in the `dangerous`
+- **Visitors at the base** (Character tab → world rules, world admin, **off by default** — on in the `dangerous`
   preset): with it on, and only while **you are home**, two bandit **scouts** occasionally walk up to the
   **edge of your zone**, stand there for about a minute, and wander off again. They **never step inside, never
   demand anything, never damage a block and never take a thing** — they look, and that is all; your sentry
@@ -1534,7 +1535,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     Non-allied players are never listed, and the server checks the alliance again on every jump.
 - Both jumps cost **10 suit energy** and share a **30 s cooldown**; neither works while flying in space, and the
   ally jump is refused while that ally is **aboard their ship** (ships stay private) or on **another body**.
-- **Multiplayer hosts:** the world rule **Starter teleporter for everyone** (Tab → Settings → world rules,
+- **Multiplayer hosts:** the world rule **Starter teleporter for everyone** (Tab → Character → world rules,
   world admin; or launch with `--starter-teleporter true`) hands every player who joins without one a suit
   teleporter — switching it on also gives one to everybody online. It stays an ordinary item (unlike the
   protected starter kit) and is off by default, so singleplayer progression is unchanged.
@@ -1548,7 +1549,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   something hurt you in the last 10 seconds, or a robber is still waiting for your answer) and while you are
   **falling** — land first. One use every **3 minutes**; the button shows the time left and is greyed out meanwhile.
   The suit teleporter stays the quicker way once you have crafted it (30 s cooldown, 10 energy).
-- World rule **"Back to my ship" in the pause menu** (Tab → Settings → world rules, world admin; or launch with
+- World rule **"Back to my ship" in the pause menu** (Tab → Character → world rules, world admin; or launch with
   `--return-to-ship false`): **on by default**, **off on the `dangerous` preset** — a hard world keeps the walk back.
 
 ### Crystal Net (signals, sensors, automation)
@@ -1699,7 +1700,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   see § The bio lab.
 - **Where it works.** On planets, moons, asteroids, **your own space stations** and **your own ship** — and only
   **while someone is on that world**: your base wakes up with you. **Machines that were running when you left
-  catch up** for a while when you come back (one hour by default — a world rule, Tab → Settings → world rules,
+  catch up** for a while when you come back (one hour by default — a world rule, Tab → Character → world rules,
   *Machines catch up*), and VEGA tells you what they did; timers, sounds and moving blocks just start again.
 - **In your ship.** Conduits, switches, buttons, step plates, proximity sensors, logic, timer and dice blocks,
   Device Eyes, the sound blocks, lamps, phase blocks, trapdoors, displays, signal senders and receivers and the
@@ -2060,7 +2061,7 @@ called **stories**:
   system, then the story you **track** (pin one in the Journal), the basic training, VEGA's story, a short course or a
   mission, other stories. VEGA's story goal hides when you switch the **VEGA hints** off; the training, the finale and a
   mission always show.
-- **Show all objectives** (Settings, also in the pause menu's settings under Comfort): up to three goals — one per story —
+- **Show all objectives** (Character tab, also in the pause menu's Settings under Comfort): up to three goals — one per story —
   instead of one; the extra lines hide while you type in the chat.
 
 ### Story: how VEGA's story starts
@@ -2315,7 +2316,7 @@ called **stories**:
   the **Launch into space / Leave space** button), then **Hyperspace** for the other systems. Selecting a
   system you've visited shows its worlds and an animated mini star map on the right.
 - **Quick-travel** ("Travel" / "Hyperjump" on a world) is gated by the **Instant Travel** world option
-  (Settings, world admin):
+  (Character tab, world admin):
   - **Off (default):** you can only quick-travel to worlds you've already **landed on manually**. To reach a
     new world, **launch into space and fly there**, then land (pick a pad). A never-visited star system shows
     only as a single **"Hyperjump to this system"** entry — jumping there drops you into its flight space, and
@@ -2347,11 +2348,11 @@ called **stories**:
   buried vault and monument**, and structure caches carry a bonus late-game find. Your starter ores (iron,
   copper, …) are the same everywhere — the frontier is the better place to *return to*, never the better
   place to begin.
-- **Frontier danger** (Settings → world rules, world admin, off by default): when switched on, the machines
+- **Frontier danger** (Character tab → world rules, world admin, off by default): when switched on, the machines
   out in the frontier hit like the toughest world settings — richness and risk scale together. On
   peaceful/family worlds there are no machines at all, so those stay "richer, never more dangerous". The
   `dangerous` preset ships with it on.
-- **Visitors at the base** (Settings → world rules, world admin, off by default): bandit scouts look at a
+- **Visitors at the base** (Character tab → world rules, world admin, off by default): bandit scouts look at a
   founded base from its edge while the owner is home — never inside, never destructive; see § Bases. Gated
   on the **Bandits** slider (no robbers, no scouts); the `dangerous` preset ships with it on.
 - **Growing galaxy** (world creation → Universe size → **"Growing"**): the galaxy starts at the normal 12
@@ -2829,7 +2830,7 @@ look up: what a mix does follows from what goes in, and the same things always g
   aboard ships and stations, where a self-made form becomes a plain cube as before.
 
 ### Appearance: colours, your pixel face and body paint
-- **Tab → Settings → Appearance** opens one screen for how your figure looks. Along the top are tabs for
+- **Tab → Character → Appearance** opens one screen for how your figure looks. Along the top are tabs for
   **Face · Torso · Arms · Legs · Helmet**; a slowly turning figure beside the canvas shows what you are doing,
   including the back you just painted. Switching tabs saves the part you were on, **Apply** saves and closes,
   **Back** leaves the part you are on unsaved. The same screen sits behind the **Appearance** button in the
@@ -2911,10 +2912,10 @@ outer hull.
   texture pack (a folder next to your settings; PNG files you can also edit in any paint program — *Open
   folder* / *Reload folder*); **Remove mine** brings the shipped one back; **hold "Before"** to compare;
   **Copy / Paste code** shares a texture as text. A block tile can never get a hole — the editor fills it, so
-  nobody can paint themselves an X-ray view. The editor also opens **inside a world** (Settings tab →
+  nobody can paint themselves an X-ray view. The editor also opens **inside a world** (Character tab →
   *Textures*), where a **world admin** additionally gets **Publish for everyone** / **Take back**.
   - **World textures:** what an admin publishes is shown to everyone in that world and **wins over your own
-    pack** there. Two switches in the Settings tab are yours alone: *Use my textures* and *Show this world's
+    pack** there. Two switches in the Character tab are yours alone: *Use my textures* and *Show this world's
     textures* — the second one is the way out if you do not like what a world shows. The world option *World
     textures: Admins / Off* decides whether admins may publish at all. `/reporttexture <key>` flags a world
     texture for the operator; admins remove them with `/texturewipe <key | player | all>`.
@@ -3243,7 +3244,7 @@ must not mean two different things depending on who types it.
 #### Per-player mode — one world, mixed Survival and Creative
 
 A shared world normally has ONE mode. As **world admin** you can give a single player their own: with
-`/mode Player creative` (or the **Player modes** rows on the Settings tab, listed there only for admins)
+`/mode Player creative` (or the **Player modes** rows on the Character tab, listed there only for admins)
 that player plays **Creative** — free crafting and research, creative flight (double-tap **Space**), no
 oxygen/hunger/temperature, and machines, bandits and aggressive creatures ignore them — while everyone
 else keeps playing the world as it is. The classic family setup: the kid builds carefree in the shared

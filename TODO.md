@@ -24,6 +24,23 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Character tab, story switch, pad lines, Codex (2026-10)
+
+Issues #2505–#2508 (label `package: codex & story switch 2026-10`) — one integration branch `feat/codex-story-switch`,
+one PR at the end. One line per step:
+
+- ✅ **S1 — the Settings tab is now the Character tab (#2505)**, 2026-10-13: the menu tab with the character page,
+  "People you know" and the in-world options (world rules, VEGA hints, tutorial switch, save) reads **Character** /
+  **Charakter** — in the 12 community languages the same word as each table's own `ui.settings.character` (es
+  Personaje, fr Personnage, it Personaggio, ja キャラクター, ko 캐릭터, nl Personage, pl Postać, pt Personagem, ru/uk
+  Персонаж, tr Karakter, zh 角色). The key stays `ui.tab.settings`. Every text naming the tab follows in all 14
+  languages: the tutorial lines `story.tutorial.c11.people.start`/`.hint` and `c16.look.start` (ja/ko `.hint` also lost
+  their leftover English "People you know"), the Codex (game modes, EN+DE), USER_MANUAL, PARENTS (EN+DE), the developer
+  docs and code comments. The **Settings** screen (main menu / pause menu: graphics, sound, controls, comfort,
+  language) keeps its name; the manual's "Window mode / Language / VSync (Settings tab)" lines were wrong and now point
+  there. Every new label is shorter than the old one and fits the 150 px tab (`UiKit.FitLabel`); only it "Personaggio"
+  is the longest Italian tab label (one letter longer than "Inventario", one shorter than "Impostazioni").
+
 ### ★ Story-pack follow-ups 2026-10 (#2485)
 
 Fixes and polish after the story-pack release — one integration branch `fix/story-followups`, one PR at the end. One
@@ -606,8 +623,9 @@ Tutorial as its own pack, VEGA as its own pack, cutscenes, several storylines �
   `ui.vega.restart`, pl workbench typo + observatory, uk campfire ("Вогнище"), it crystal daylight modes. ~~Open (pre-existing
   table inconsistencies, listed in the review notes): blueprint vs module names (Radar Array, Jump Generator) in fr/pl/ru/uk,
   "Guardian" still English in a few older tr/it pack lines, masculine VEGA in some older pt/ru/pl lines, uk finale UI
-  "Страж" vs "Охоронець", nl `ui.dock.undock_hint`~~ — fixed in the follow-ups' step 8 (#2501). Still open: the menu tab of the Character page is labelled `ui.tab.settings`
-  ("Settings") while the tutorial (c11, c16) and the manual say "Character tab" — decide which one changes.
+  "Страж" vs "Охоронець", nl `ui.dock.undock_hint`~~ — fixed in the follow-ups' step 8 (#2501). ~~Still open: the menu tab of the Character page is labelled `ui.tab.settings`
+  ("Settings") while the tutorial (c11, c16) and the manual say "Character tab" — decide which one changes.~~ — the tab
+  is now labelled "Character" in all 14 languages (#2505, 2026-10-13).
 - ~~Open from step 1: the 12 community locales still carry the old `vega.s.dock.start_far` text and lack
   `story.obj.help_peaceful`~~ — done in the translation pass (`vega.s.dock.start_far` is back to its original "hyperjump"
   text in EN/DE: only an older server still sends it, at its dock stage).

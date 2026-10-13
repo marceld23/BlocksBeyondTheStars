@@ -89,7 +89,7 @@ training keeps it), `OptIn` (offered, starts only on the player's request — ve
 courses); CLI `--tutorial auto|courses|optin|off` for a fresh world (the save keeps its rule afterwards). The save stores
 the rule as a number and `Courses` is the appended 3: a server older than #2498 reads such a save as `Auto`; in a
 `config/server.json` write `Courses` only for a server that knows it. An admin changes it on a running
-world in the in-game world rules (Tab → Settings, *Tutorial*) or with the chat command `/tutorial policy <value>`. The
+world in the in-game world rules (Tab → Character, *Tutorial*) or with the chat command `/tutorial policy <value>`. The
 story choice (`--story none`) never switches the tutorial off. No preset switches it off (`family` = `Auto`).
 
 **Main story and story pace (#2472).** `--story <id>` picks the world's main story for a fresh world (an installed

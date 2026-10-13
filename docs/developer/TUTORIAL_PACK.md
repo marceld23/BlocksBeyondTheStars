@@ -203,7 +203,7 @@ A save without the field reads `Auto`; no server preset switches it off (`family
 no flag (`Auto`).
 
 **Short courses only (`Courses`, #2498).** The pack runs as under `Auto` (`StoryPackEnabledFor` — so the courses are
-offered and the Settings switch reads "on"), but `AdvancePack` starts a player's tutorial that has not started yet with its
+offered and the Character tab's switch reads "on"), but `AdvancePack` starts a player's tutorial that has not started yet with its
 mandatory part skipped **silently**: `StartPack(playIntro: false, legacyIntro: false)` + `SkipMandatory(legacySendOff:
 false)` — no welcome card, no line (an older client hears neither the old intro nor `vega.done`), no achievement; the
 legacy graduation keys are written as for a skip. The VEGA story's start rule (`chapter:tutorial:b6`) then holds, so the
@@ -300,7 +300,7 @@ courses wait in your Journal." — neutral, without `vega.done`'s memory hook), 
 counter `tutorial:graduated`, no items), the suggested deep dives `c3` (Pilot), `c4` (Stations, trade and jobs) and since
 #2480 `c1` (Workshop and titanium) marked offered — in the Journal, without a line. The suggestions count as that moment's
 offer, so the next offer VEGA makes by herself waits the usual 90 s. Since #2498 every **skip** of the basic training
-("Skip all", the old Settings button, `/tutorial skip`, the silent skip of a `Courses` world — `SkipMandatory`) marks the
+("Skip all", the old Skip button in the Character tab, `/tutorial skip`, the silent skip of a `Courses` world — `SkipMandatory`) marks the
 suggestions too (`SuggestCourses(skip: true)`), but only those without a moment of their own (`offerWhen`): c3 and c4 had
 no other way to be offered to a skipper, while c1 keeps its offer at the tool-tier wall, which tells a player who skipped
 more than a silent mark. A skip never graduates (no line, no counter). The hand-over to VEGA's chapter 1 is step 11. Since #2473 the graduation card `tut.graduation` shows the achievement and
@@ -680,7 +680,7 @@ are evidence only, never live state, and keep being written:
 
 | Evidence | Becomes |
 |---|---|
-| all nine `vega:stage:*` (a finished chain, or the old veteran auto-skip) | the whole basic training done, silently (no line, no card, no achievement); with **thin evidence** — fewer than three of `mine:any`, `craft:any`, `build:any`, `scan:any`, `research:any` in the achievement counters — one line `story.tutorial.refresher` offers a refresher (Settings → Restart tutorial; E30, never forced) |
+| all nine `vega:stage:*` (a finished chain, or the old veteran auto-skip) | the whole basic training done, silently (no line, no card, no achievement); with **thin evidence** — fewer than three of `mine:any`, `craft:any`, `build:any`, `scan:any`, `research:any` in the achievement counters — one line `story.tutorial.refresher` offers a refresher (Character tab → Restart tutorial; E30, never forced) |
 | no `vega:intro`, no stage, no tutorial key, but the join snapshot's veteran evidence (knowledge, blueprints, missions on a non-Creative world — a save from before VEGA's lessons) | the basic training skipped silently, with VEGA's old "systems online" (`vega.veteran`) |
 | a step's `legacyKey` | that step done (b2.2 eat, b3.1 mine, b4.1 craft, b5.1 scan, b5.3 unlock, b6.1 launch, b6.4 dock, b6.5 trade, b6.7 land) |
 | `vega:intro` | b1.3, b1.5, b1.6 (VEGA, the menu and the Codex were introduced) |
@@ -731,7 +731,7 @@ the objective tracker"):
   reads **Start basic training** (`ui.journal.start_basic_training`, the same `restartPack`). A skipped part replayed to
   its end by play is stamped *done* (its skipped key goes, `CompleteChapter`), so after the whole training the button reads
   "Restart" again and the ★ is earned; skipping the replay keeps it skipped. Replays play no part cards.
-- **Settings:** the old "Skip / Restart tutorial" button is **Tutorial & courses: on / off** (named so since #2498 — it
+- **Character tab** (called "Settings" before #2505): the old "Skip / Restart tutorial" button is **Tutorial & courses: on / off** (named so since #2498 — it
   switches the training and the short courses together; `TutorialSwitch`: on → `optOut`,
   off → `optIn`, which also starts an opt-in world's tutorial; shown as "Off in this world" while the world rule is `Off`,
   left out when the world has no tutorial) plus **Open the Journal**. A server without the Journal messages (older) keeps

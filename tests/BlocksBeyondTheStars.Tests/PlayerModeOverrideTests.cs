@@ -171,7 +171,7 @@ public sealed class PlayerModeOverrideTests : IDisposable
         client.Poll();
 
         // The client was told right away: effective mode, oxygen off, flight on — and the admin's own
-        // roster row carries the override for the Settings-tab rows.
+        // roster row carries the override for the Character-tab rows.
         Assert.Equal("Creative", rules!.GameMode);
         Assert.False(rules.OxygenEnabled);
         Assert.True(status!.CanFly);

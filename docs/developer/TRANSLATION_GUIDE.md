@@ -98,6 +98,12 @@ Style rules:
 - A sentence that names a menu tab or screen ("open the Journal", "the Blueprints tab", "menu → Crafting") uses
   the word that tab shows in your language (`ui.tab.*`, `ui.crafting.title`, …), not a new synonym. There is no
   "tech tree" in the game: blueprints are researched "under Blueprints" (`ui.tab.tech`).
+- The menu tab with the character page, "People you know" and the in-world options (world rules, VEGA hints, the
+  tutorial switch) is **Character** (`ui.tab.settings` — the key kept its old name when the tab was renamed from
+  "Settings", #2505); it uses the same word as the page's own `ui.settings.character`. **Settings** (`ui.menu.settings`,
+  `ui.settings.title`) is the separate screen from the main menu and the pause menu: graphics, sound, controls,
+  comfort, language. A text that sends the player to their look, their friends, the world rules or the tutorial switch
+  names the Character tab; one about graphics, keys or comfort options names Settings.
 - Running text that names an item, block, blueprint or module uses that thing's `.name` (inflected where the grammar
   needs it). Rename a thing, and every sentence that names it follows.
 - VEGA is female: her first-person lines take feminine forms where the language marks them (ru "поняла",

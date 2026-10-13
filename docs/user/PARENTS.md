@@ -84,7 +84,7 @@ exactly the players you invited, and you hold every switch (robots, bandits and 
   the latest. If you do not want a submission to be used, write to us — we delete it, and a texture that has
   already shipped is removed with the next version.
 - **Textures other players made.** On a multiplayer world its administrators can replace textures for
-  everyone there. *Settings → Show this world's textures → Off* switches that off for your child's game, on
+  everyone there. *Tab menu → Character → Show this world's textures → Off* switches that off for your child's game, on
   every world.
 - The optional AI backend (for dynamic NPC dialogue) processes the in-game conversation text to generate
   replies; it is off unless the host sets it up, and it has a non-AI fallback.
