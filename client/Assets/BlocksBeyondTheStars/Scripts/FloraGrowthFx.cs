@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Primitives;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -55,23 +56,71 @@ namespace BlocksBeyondTheStars.Client
         private void OnRegrowStarted(FloraRegrowStarted m)
         {
             var cell = new Vector3Int(m.X, m.Y, m.Z);
+            string key = Game?.Content?.BlockById(new BlockId(m.Block))?.Key;
             if (_sprouts.TryGetValue(cell, out var existing) && existing != null)
             {
+                existing.PlantKey = key;
                 existing.Restart(Mathf.Max(0.1f, m.Seconds));
                 return;
             }
 
             var sprout = Sprout.Spawn(cell, Mathf.Max(0.1f, m.Seconds), Width, Height, StartFraction);
+            sprout.PlantKey = key;
             sprout.OnFinished = () => _sprouts.Remove(cell);
             _sprouts[cell] = sprout;
         }
 
         /// <summary>The real plant (or any block) arrived on a tracked cell — the sprout has served its purpose,
-        /// drop it so it doesn't overlap the freshly meshed flora.</summary>
+        /// drop it so it doesn't overlap the freshly meshed flora. #2532: when a cell turns into air or a fluid, the
+        /// sprout standing on it (and a hanging plant's sprout under it) has lost its ground — the server cancels
+        /// that regrow, so the sprout goes too instead of floating over the hole until its timer runs out.</summary>
         private void OnBlockChanged(BlockChanged m)
         {
             var cell = new Vector3Int(m.X, m.Y, m.Z);
-            if (m.Block != 0 && _sprouts.TryGetValue(cell, out var sprout))
+            if (m.Block != 0)
+            {
+                RemoveSprout(cell);
+            }
+
+            if (_sprouts.Count == 0 || (m.Block != 0 && !IsFluid(m.Block)))
+            {
+                return;
+            }
+
+            RemoveIfRootedIn(cell + Vector3Int.up, m.Block, hanging: false);
+            RemoveIfRootedIn(cell + Vector3Int.down, m.Block, hanging: true);
+        }
+
+        /// <summary>#2532: drops the sprout in <paramref name="cell"/> when its plant rooted in the neighbour that just
+        /// lost its block — a standing plant above it, a hanging one (#1759) below it. A lily keeps its sprout over
+        /// water: that fluid is its ground (the server's rule, <c>FloraRootsIn</c>).</summary>
+        private void RemoveIfRootedIn(Vector3Int cell, ushort hostBlock, bool hanging)
+        {
+            if (!_sprouts.TryGetValue(cell, out var sprout) || sprout == null)
+            {
+                return;
+            }
+
+            string key = sprout.PlantKey;
+            bool plantHangs = key != null && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsHanging(key);
+            if (plantHangs != hanging)
+            {
+                return;
+            }
+
+            if (hostBlock != 0 && key != null
+                && BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.Find(key) is { } species
+                && System.Array.IndexOf(species.Hosts, Game?.Content?.BlockById(new BlockId(hostBlock))?.Key) >= 0)
+            {
+                return; // rooted in this very fluid
+            }
+
+            RemoveSprout(cell);
+        }
+
+        private void RemoveSprout(Vector3Int cell)
+        {
+            if (_sprouts.TryGetValue(cell, out var sprout))
             {
                 _sprouts.Remove(cell);
                 if (sprout != null)
@@ -79,6 +128,13 @@ namespace BlocksBeyondTheStars.Client
                     Destroy(sprout.gameObject);
                 }
             }
+        }
+
+        /// <summary>Water, lava or a still liquid such as oil (#2106) — what a plant cannot stand on.</summary>
+        private bool IsFluid(ushort block)
+        {
+            var def = Game?.Content?.BlockById(new BlockId(block));
+            return def != null && (def.Key is "water" or "lava" || def.Liquid);
         }
 
         private static Material _mat;
@@ -100,6 +156,9 @@ namespace BlocksBeyondTheStars.Client
         private sealed class Sprout : MonoBehaviour
         {
             public System.Action OnFinished;
+
+            /// <summary>The block key of the plant that regrows here (#2532: tells a hanging plant from a standing one).</summary>
+            public string PlantKey;
 
             private float _seconds;
             private float _t;

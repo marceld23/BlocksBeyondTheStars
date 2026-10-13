@@ -17,8 +17,10 @@ namespace BlocksBeyondTheStars.Client
     {
         /// <summary>The look of the held item. <see cref="Gloves"/> (#2278) is worn on BOTH hands: the first-person view
         /// builds the right glove with <see cref="Build"/> and the left one with <c>left: true</c> (the mirror image), the
-        /// avatar draws one on each hand. Every other kind stays one-handed.</summary>
-        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget, Hand, Hoe, Hammer, Gloves }
+        /// avatar draws one on each hand. Every other kind stays one-handed. <see cref="Vehicle"/>, <see cref="Plant"/> and
+        /// <see cref="Icon"/> (#2534) are the held miniatures of <see cref="HeldMiniatures"/>: the vehicle's hull, the plant's
+        /// in-world look, and the extruded icon of any other item without a model.</summary>
+        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget, Hand, Hoe, Hammer, Gloves, Vehicle, Plant, Icon }
 
         /// <summary>What a working NPC carries (#1869), from the server's <c>NetNpc.Held</c> hint — not an item:
         /// the gardener's hoe, the craftsman's hammer, the guard's blade.</summary>
@@ -46,6 +48,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Resolves an item key to its held model from the item data (#1962,
         /// <c>ItemDefinition.HeldModel</c>); null = the model of the item's kind. Wired by GameBootstrap.</summary>
         public static System.Func<string, System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart>> ModelResolver;
+
+        /// <summary>The world's content, block atlas and chunk materials, which the held vehicle and plant miniatures are
+        /// meshed with (#2534). Wired by GameBootstrap; null (or a missing atlas) falls back to the gadget model / the
+        /// block cube.</summary>
+        public static System.Func<(GameContent Content, BlockTextureAtlas Atlas, Material Opaque, Material Transparent)> MeshKitResolver;
 
         /// <summary>Resolves the local player's suit arm colour so the empty-slot hand matches the
         /// avatar's glove. Wired by GameBootstrap; null falls back to the default suit blue.</summary>
@@ -80,6 +87,23 @@ namespace BlocksBeyondTheStars.Client
                 return (Kind.None, Color.white, null);
             }
 
+            // #2534: everything is held as a real miniature — a vehicle as its hull (it used to be the generic gadget
+            // emitter), a seed, sapling or torch as its plant / prop (it used to be an opaque cube printed with the cross
+            // tile), and every item without a block, a tool or a vehicle as its extruded icon (it used to be nothing).
+            var placed = string.IsNullOrEmpty(def.PlacesBlock) ? null : content.GetBlock(def.PlacesBlock);
+            switch (HeldItemShapes.MiniatureFor(def, placed))
+            {
+                case HeldItemShapes.Miniature.Vehicle:
+                    return (Kind.Vehicle, GadgetTint(itemKey), null); // the tint is the gadget fallback's, without an atlas
+                case HeldItemShapes.Miniature.Plant:
+                    return (Kind.Plant, WorldMap.MapColor(def.PlacesBlock), def.PlacesBlock);
+                case HeldItemShapes.Miniature.Icon:
+                    // Only an item without any icon is left with the bare hand.
+                    return IconResolver.ItemTexture(itemKey) != null
+                        ? (Kind.Icon, Color.white, null)
+                        : (Kind.Hand, HandTintResolver?.Invoke() ?? DefaultGlove, null);
+            }
+
             if (!string.IsNullOrEmpty(def.PlacesBlock))
             {
                 return (Kind.Block, WorldMap.MapColor(def.PlacesBlock), def.PlacesBlock);
@@ -95,7 +119,7 @@ namespace BlocksBeyondTheStars.Client
             var tool = def.Tool;
             if (tool == null)
             {
-                return (Kind.None, Color.white, null); // raw material — nothing meaningful to hold up
+                return (Kind.None, Color.white, null); // unreachable since #2534 (a tool-less item is held as its icon)
             }
 
             switch (tool.Kind)
@@ -153,6 +177,31 @@ namespace BlocksBeyondTheStars.Client
 
             var holder = new GameObject(left ? "HeldLeft" : "Held");
             holder.transform.SetParent(parent, false);
+
+            // #2534: the held miniatures. Without the world's atlas a vehicle falls back to the gadget emitter and a plant
+            // to the textured block cube; an item without an icon never gets here (For hands it the bare hand).
+            switch (kind)
+            {
+                case Kind.Vehicle:
+                    if (HeldMiniatures.AttachVehicle(holder.transform, itemKey))
+                    {
+                        return holder;
+                    }
+
+                    kind = Kind.Gadget;
+                    break;
+                case Kind.Plant:
+                    if (HeldMiniatures.AttachPlant(holder.transform, blockKey))
+                    {
+                        return holder;
+                    }
+
+                    kind = Kind.Block;
+                    break;
+                case Kind.Icon:
+                    HeldMiniatures.AttachIcon(holder.transform, itemKey);
+                    return holder;
+            }
 
             // #1931: every drill, gun, blade and scanner has its own parts (the base item keeps the model its kind had).
             var model = look != null && look.Count > 0 ? look : (itemKey != null ? ModelResolver?.Invoke(BlocksBeyondTheStars.Shared.State.ItemKey.Base(itemKey)) : null);
@@ -327,6 +376,11 @@ namespace BlocksBeyondTheStars.Client
             for (int i = 0; i < root.childCount; i++)
             {
                 var c = root.GetChild(i);
+                if (c.name == HeldMiniatures.NodeName)
+                {
+                    continue; // a scaled miniature (#2534) is not a unit cube part — and has no muzzle
+                }
+
                 float front = c.localPosition.z + c.localScale.z * 0.5f;
                 if (front > bestZ)
                 {
@@ -443,9 +497,15 @@ namespace BlocksBeyondTheStars.Client
             return material;
         }
 
-        /// <summary>Drops the shared part materials (session teardown).</summary>
+        /// <summary>One glowing cube part under <paramref name="parent"/> in the shared part material (the held speeder's
+        /// engine glows, #2534).</summary>
+        internal static GameObject GlowPart(Transform parent, Vector3 localPos, Vector3 scale, Color color)
+            => Cube(parent, localPos, scale, color, glow: true);
+
+        /// <summary>Drops the shared part materials and the held miniatures' meshes (session teardown).</summary>
         public static void ReleasePartMaterials()
         {
+            HeldMiniatures.ReleaseAll();
             foreach (var material in PartMaterials.Values)
             {
                 if (material != null)

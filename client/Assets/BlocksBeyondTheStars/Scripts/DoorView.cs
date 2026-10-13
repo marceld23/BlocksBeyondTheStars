@@ -643,7 +643,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 string key = d.Open ? "ui.door.hint_close" : "ui.door.hint_open";
                 string hint = (Game.Localizer != null ? Game.Localizer.Get(key) : "{key}: Door").Replace("{key}", InteractKeyName());
-                ScreenLabelLayer.Instance.World(cam, d.Go.transform.position + Vector3.up * 2.2f, hint, UiKit.Cyan);
+                ScreenLabelLayer.Instance.World(cam, d.Go.transform.position + Vector3.up * 2.2f, hint, UiKit.Cyan, occludeIn: Game); // #2531
             }
         }
 

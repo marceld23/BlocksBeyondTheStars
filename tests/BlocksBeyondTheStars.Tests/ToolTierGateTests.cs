@@ -232,7 +232,9 @@ public sealed class ToolTierGateTests : IDisposable
             p.State.SelectedHotbarSlot = machete;
         }, out var player);
 
-        Assert.Equal("@srv.mine.need_tool_in_hand:Basic Drill", reason);
+        // #2536: the cheapest tool for stone is the wooden pickaxe now — and it is the one the player can make by hand,
+        // anywhere (the basic drill has no recipe).
+        Assert.Equal("@srv.mine.need_tool_in_hand:Wooden Pickaxe", reason);
         Assert.True(double.IsNegativeInfinity(player.TierGateRefusedAt));
     }
 

@@ -201,7 +201,7 @@ namespace BlocksBeyondTheStars.Client
 
             // #2502: "{key:Interact}: Recover net fragment" — the use button of the device in hand.
             string label = HudUi.ExpandKeyTokens(Game.Localizer, Game.Localizer?.Get("ui.netfragment.prompt") ?? "{key:Interact}: Recover net fragment");
-            ScreenLabelLayer.Instance.World(cam, f.Go.transform.position + Vector3.up * 1.3f, label, UiKit.Cyan);
+            ScreenLabelLayer.Instance.World(cam, f.Go.transform.position + Vector3.up * 1.3f, label, UiKit.Cyan, occludeIn: Game); // #2531
         }
 
         private void OnDestroy()

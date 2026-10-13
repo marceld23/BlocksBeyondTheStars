@@ -115,6 +115,10 @@ ITEMS = [
     ("basic_drill", "a handheld mining power drill"),
     ("titanium_drill", "a heavy-duty titanium mining drill"),
     ("hand_scanner", "a small handheld scanner device"),
+    # #2536: the hand-made wooden tools — rough, primitive, no metal.
+    ("wood_pickaxe", "a simple primitive wooden pickaxe, a rough brown wooden handle with a sharpened grey stone head lashed on with green plant-fibre cord"),
+    ("wood_club", "a simple primitive wooden club, a thick knobbly brown log tapering to a grip wrapped in green plant-fibre cord"),
+    ("wood_spear", "a simple primitive long wooden spear, a straight brown wooden shaft with a sharp grey flint stone tip bound on with green plant-fibre cord, shown diagonally"),
     # Weapons
     ("machete", "a steel machete blade with a grip handle"),
     ("scrap_pistol", "a crude makeshift sci-fi scrap pistol cobbled together from salvaged metal pipes, a taped grip, exposed wires and a short barrel, worn and improvised"),

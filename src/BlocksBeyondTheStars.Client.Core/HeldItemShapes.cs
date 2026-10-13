@@ -221,6 +221,71 @@ namespace BlocksBeyondTheStars.Client
             return parts;
         }
 
+        /// <summary>How an item is held when it has no cube model of its own (#2534): as a miniature of the real thing.</summary>
+        public enum Miniature
+        {
+            /// <summary>Not a miniature: a placed block's cube, a tool's parts, the gloves.</summary>
+            None,
+
+            /// <summary>A vehicle item (the speeder, the boat): its real voxel hull, scaled down.</summary>
+            Vehicle,
+
+            /// <summary>An item that places a plant or a slim prop (seeds, saplings, leaves, torches): the block's real
+            /// in-world mesh — the crossed cut-out cards of a plant — scaled down.</summary>
+            Plant,
+
+            /// <summary>Everything else (materials, components, food …): the item's icon, extruded into pixel voxels.</summary>
+            Icon,
+        }
+
+        /// <summary>
+        /// The miniature an item is held as (#2534). A vehicle item shows its vehicle; an item that places a plant or a
+        /// slim prop (<see cref="IsPlantBlock"/>) shows that block's in-world look; an item with neither a block, a tool
+        /// nor a two-handed grip shows its extruded icon. Every other item keeps its cube model (<see cref="Miniature.None"/>).
+        /// <paramref name="placed"/> is the block the item places, when it places one.
+        /// </summary>
+        public static Miniature MiniatureFor(ItemDefinition? item, BlockDefinition? placed)
+        {
+            if (item == null)
+            {
+                return Miniature.None;
+            }
+
+            if (item.Vehicle != null)
+            {
+                return Miniature.Vehicle;
+            }
+
+            if (!string.IsNullOrEmpty(item.PlacesBlock))
+            {
+                return placed != null && IsPlantBlock(placed.Key, placed.Category) ? Miniature.Plant : Miniature.None;
+            }
+
+            if (item.Tool != null || HeldGrips.IsGloves(item))
+            {
+                return Miniature.None;
+            }
+
+            return Miniature.Icon;
+        }
+
+        /// <summary>
+        /// True for a block the world draws as something other than a full cube that a held cube would misrepresent:
+        /// every plant (<c>flora_*</c> — crossed cut-out cards or a rounded solid plant), the leafy flora blocks (tree
+        /// crowns, fronds, mushroom parts) and the torch/lantern slim props, lit or not (the mesher's slim-prop set).
+        /// </summary>
+        public static bool IsPlantBlock(string? key, string? category)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                return false;
+            }
+
+            return key!.StartsWith("flora_", System.StringComparison.Ordinal)
+                || category == "flora"
+                || key is "torch" or "lantern" or "torch_off" or "lantern_off";
+        }
+
         private static Part P(float x, float y, float z, float w, float h, float d, Rgb color)
             => new Part(new Vector3(x, y, z), new Vector3(w, h, d), color);
     }

@@ -98,9 +98,11 @@ namespace BlocksBeyondTheStars.Client
                 // family of cursor-fights (#413) — the modal's own Esc/Tab handling closes it instead.
                 // UiMenu toggles the menu: Tab on the keyboard, Start on the pad (#1198).
                 // Nor under a cutscene (#2461): the menu (order 50) would open invisibly behind the cinematic's frame.
+                // The taming panel is a HUD-level owner (#2530): the menu may open over it — to hand-craft the bait the
+                // creature wants — and the panel steps aside until the menu closes again.
                 if (InputMap.Down(InputAction.UiMenu)
                     && !Game.AwaitingRespawnConfirm && !Game.ChatTyping && !typingRecent
-                    && !Game.MenuInputHandledThisFrame && (_open || (!Game.MenuOpen && !GameBootstrap.CutsceneActive)))
+                    && !Game.MenuInputHandledThisFrame && (_open || (!Game.ScreenMenuOpen && !GameBootstrap.CutsceneActive)))
                 {
                     Game.MarkMenuInputHandled();
                     SetOpen(!_open);

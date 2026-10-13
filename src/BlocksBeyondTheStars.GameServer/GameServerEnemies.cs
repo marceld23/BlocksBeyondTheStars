@@ -910,9 +910,10 @@ public sealed partial class GameServer
         // both directions; the enemy→player half was already sightline-gated everywhere
         // (see the proximity damage above, GameServerCreatures and GameServerBandits), so this side was it.
         //
-        // Same voxel sightline the machines use, so cover behaves identically whoever is shooting; glass
-        // blocks it too, being Solid.
-        if (!HasLineOfSight(p.Position, targetPos))
+        // Same voxel sightline the machines use, so a wall is cover whoever is shooting; glass blocks it too,
+        // being Solid. One difference (#2533): the player's shot passes what the player walks through — leaves,
+        // grass and other flora, a torch — while the machines' sight keeps treating foliage as cover.
+        if (!HasAttackLineOfSight(p.Position, targetPos))
         {
             Reject(session, "attack", "@srv.attack.no_line");
             return false;

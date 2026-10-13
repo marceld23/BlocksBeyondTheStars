@@ -133,6 +133,16 @@ g?:true }`, ≤ 32, validated (`HeldModelPart.IsValid`). The eleven tools that h
 carry it as data; `HeldItemShapes` keeps only the model every item of a KIND falls back to. `HeldItem` resolves
 through `ModelResolver`, draws glowing parts fully lit and shares one material per (colour, glow).
 
+Items without a cube model are held as **miniatures** (#2534, `HeldItemShapes.MiniatureFor` decides, the Unity side
+is `HeldMiniatures.cs`): a vehicle item as its hull (the `VehicleVoxels` design `SpeederView` also builds from,
+chunk-meshed with the world atlas), an item placing a plant or a slim prop as that one block meshed by `ChunkMesher`
+(sway codes forced to the rigid prop's, so the plant does not whip about), and every other tool-less item as its
+icon extruded into pixel voxels (`HeldIconVoxels`: crop → alpha-weighted downsample to 24² → front/back runs + edge
+walls, vertex-coloured in `VertexColorOpaque`). The icons are imported unreadable, so their pixels come back once per
+item through a blit + `GpuReadback`. Meshes are cached per vehicle kind / block / item and shared by every hand;
+holders lease them (`HeldMiniatureLease`) so the LRU (64) only drops meshes nobody shows; `ReleasePartMaterials`
+frees all at teardown.
+
 A **tool look** (`Shared/State/ToolLook.cs`) is an 8×8×16 voxel model from a **fixed** palette of fifteen
 colours with a glow mask (`"t1:GGGG:"` + 1024 hex digits), merged per colour into ≤ 32 `HeldModelPart`s. It
 follows the body-paint pattern: bound to the **player** and a base item key (never the item instance — some

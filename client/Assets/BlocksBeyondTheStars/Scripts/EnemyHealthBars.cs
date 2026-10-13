@@ -28,10 +28,11 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Feeds one entity's replicated state for this frame and draws its bar when the policy
         /// says so. <paramref name="anchor"/> is the world-space point above the body; <paramref name="targeted"/>
-        /// marks the caller's own current target (space fire lock) on top of the on-foot crosshair aim.</summary>
+        /// marks the caller's own current target (space fire lock) on top of the on-foot crosshair aim. <paramref name="occlude"/>
+        /// hides the bar while terrain blocks the view of it (#2531: on-planet entities; space hostiles leave it off).</summary>
         public static void Push(GameBootstrap game, Camera cam, string id, Vector3 anchor,
                                 float hull, float hullMax, bool friendly,
-                                float fadeStart, float fadeEnd, bool targeted = false)
+                                float fadeStart, float fadeEnd, bool targeted = false, bool occlude = false)
         {
             if (game == null || cam == null || string.IsNullOrEmpty(id) || hullMax <= 1f)
             {
@@ -71,7 +72,7 @@ namespace BlocksBeyondTheStars.Client
             _shownFrac[id] = shown;
 
             var col = friendly ? UiKit.Cyan : Ramp(shown);
-            ScreenLabelLayer.Instance.WorldBar(cam, anchor, shown, col, 46f, fadeStart, fadeEnd);
+            ScreenLabelLayer.Instance.WorldBar(cam, anchor, shown, col, 46f, fadeStart, fadeEnd, occlude ? game : null);
         }
 
         /// <summary>Drops an entity's bookkeeping when it despawns/dies, so ids never accumulate.</summary>

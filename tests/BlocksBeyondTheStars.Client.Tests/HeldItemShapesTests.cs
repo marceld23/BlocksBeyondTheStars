@@ -25,9 +25,9 @@ public sealed class HeldItemShapesTests
                 p.Position.X, p.Position.Y, p.Position.Z, p.Size.X, p.Size.Y, p.Size.Z, p.Color.R, p.Color.G, p.Color.B)));
 
     [Theory]
-    [InlineData("Drill", "basic_drill", "titanium_drill", "diamond_drill", "mining_beam")]
+    [InlineData("Drill", "basic_drill", "titanium_drill", "diamond_drill", "mining_beam", "wood_pickaxe")]
     [InlineData("Gun", "some_gun", "scrap_pistol", "gauss_pistol", "laser_pistol", "plasma_blaster")]
-    [InlineData("Blade", "some_blade", "machete", "vibro_knife", "plasma_sword")]
+    [InlineData("Blade", "some_blade", "machete", "vibro_knife", "plasma_sword", "wood_club", "wood_spear")]
     [InlineData("Scanner", "hand_scanner", "advanced_scanner")]
     public void EveryItemOfAKind_LooksDifferent(string kind, params string[] items)
     {

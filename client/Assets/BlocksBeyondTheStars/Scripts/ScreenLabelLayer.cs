@@ -44,6 +44,32 @@ namespace BlocksBeyondTheStars.Client
             public Image Fill;
         }
 
+        // #2531: terrain occlusion for labels pushed with an `occludeIn` world. The labels themselves are pooled by
+        // push order (no stable identity), so the line-of-sight results live in a small cache matched by position: each
+        // occluding push claims the nearest unclaimed entry within OcclMatchRadius (a walking NPC moves a few cm per
+        // frame), re-tests it about 5 times a second and fades its visibility instead of popping. Entries nobody
+        // claims for OcclForgetSeconds are dropped. Plain struct array — no allocation per frame.
+        private const float OcclMatchRadius = 1.5f;
+        private const float OcclForgetSeconds = 1f;
+        private const float OcclTestMin = 0.18f;   // re-test interval (staggered so labels don't all test on one frame)
+        private const float OcclTestMax = 0.24f;
+        private const float OcclFadePerSecond = 7f; // ~0.15 s fade in/out
+        private const float OcclEndSlack = 0.75f;  // ignore blocks this close to the label: an anchor may sit in a lintel/ceiling
+        private const int OcclMaxSteps = 400;      // voxel steps per test (a giant's bar reads from ~220 m)
+
+        private struct Occl
+        {
+            public Vector3 Pos;     // where the label was last pushed
+            public float NextTest;  // unscaled time of the next line-of-sight test
+            public float Vis;       // faded visibility 0..1
+            public bool Hidden;     // last test: terrain between camera and label
+            public int Frame;       // frame that claimed the entry (one label per entry per frame)
+            public float Seen;      // unscaled time of the last claim
+        }
+
+        private Occl[] _occl = new Occl[32];
+        private int _occlCount;
+
         /// <summary>Lazily creates (or returns) the singleton layer.</summary>
         public static ScreenLabelLayer Instance
         {
@@ -67,9 +93,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Pushes a label anchored to a world position (skipped if behind the camera).
         /// When <paramref name="fadeEnd"/> &gt; 0 the label fades out with distance: fully opaque up to
         /// <paramref name="fadeStart"/>, linearly down to zero at <paramref name="fadeEnd"/>, and dropped
-        /// entirely beyond it — so names only read up close instead of across the whole world.</summary>
+        /// entirely beyond it — so names only read up close instead of across the whole world.
+        /// #2531: with <paramref name="occludeIn"/> (the live world) the label hides while solid terrain stands between
+        /// the camera and it — NPC plates, hints, health bars. Leave it null for things that are MEANT to show through
+        /// walls (beacons, beams, thermal contacts, ore markers, other players' names).</summary>
         public void World(Camera cam, Vector3 world, string text, Color color, bool bold = false,
-                          float fadeStart = 0f, float fadeEnd = 0f)
+                          float fadeStart = 0f, float fadeEnd = 0f, GameBootstrap occludeIn = null)
         {
             // Under a cutscene no nameplate is pushed (#2461), so the end-of-frame sweep hides every label at once — #2496: nor
             // while a scene hides the HUD (GameBootstrap.HudHidden).
@@ -99,6 +128,15 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            if (occludeIn != null)
+            {
+                alpha *= Visibility(occludeIn, cam.transform.position, world);
+                if (alpha <= 0.001f)
+                {
+                    return; // behind a hill or a wall (#2531)
+                }
+            }
+
             BeginFrameIfNeeded();
             var e = Acquire();
             RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, new Vector2(sp.x, sp.y), null, out var local);
@@ -117,9 +155,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Pushes a horizontal bar (track + fill) anchored to a world position — the world-space
         /// sibling of <see cref="HudUi"/>'s vitals. Same per-frame contract and distance fade as
-        /// <see cref="World"/>; callers re-push every frame from <c>LateUpdate</c>.</summary>
+        /// <see cref="World"/>; callers re-push every frame from <c>LateUpdate</c>. <paramref name="occludeIn"/> as in
+        /// <see cref="World"/> (#2531).</summary>
         public void WorldBar(Camera cam, Vector3 world, float frac, Color color,
-                             float width = 46f, float fadeStart = 0f, float fadeEnd = 0f)
+                             float width = 46f, float fadeStart = 0f, float fadeEnd = 0f, GameBootstrap occludeIn = null)
         {
             if (cam == null || GameBootstrap.HudHidden) // no health bars over a cutscene either (#2461, #2496)
             {
@@ -147,6 +186,15 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            if (occludeIn != null)
+            {
+                alpha *= Visibility(occludeIn, cam.transform.position, world);
+                if (alpha <= 0.001f)
+                {
+                    return; // behind a hill or a wall (#2531)
+                }
+            }
+
             BeginFrameIfNeeded();
             var e = AcquireBar();
             RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, new Vector2(sp.x, sp.y), null, out var local);
@@ -159,6 +207,124 @@ namespace BlocksBeyondTheStars.Client
             e.Fill.color = fill;
             e.Fill.fillAmount = Mathf.Clamp01(frac);
             e.Rt.gameObject.SetActive(true);
+        }
+
+        /// <summary>The faded line-of-sight visibility (0..1) of a label at <paramref name="target"/> seen from
+        /// <paramref name="eye"/> (#2531). Throttled per label through the position-matched cache; a label seen for the
+        /// first time is tested at once, so it never flashes up before hiding. Always 1 in the space view (the chunks
+        /// in memory are the planet's, not what the camera looks through) or before the world is wired.</summary>
+        private float Visibility(GameBootstrap game, Vector3 eye, Vector3 target)
+        {
+            var world = game.World;
+            var content = game.Content;
+            if (world == null || content == null || game.SpaceViewActive)
+            {
+                return 1f;
+            }
+
+            float now = Time.unscaledTime;
+            int frame = Time.frameCount;
+            int best = -1;
+            float bestSq = OcclMatchRadius * OcclMatchRadius;
+            for (int i = 0; i < _occlCount; i++)
+            {
+                if (now - _occl[i].Seen > OcclForgetSeconds)
+                {
+                    _occl[i] = _occl[--_occlCount]; // swap-remove a label nobody pushed lately
+                    i--;
+                    continue;
+                }
+
+                if (_occl[i].Frame == frame)
+                {
+                    continue; // already claimed by another label this frame
+                }
+
+                float sq = (_occl[i].Pos - target).sqrMagnitude;
+                if (sq < bestSq)
+                {
+                    bestSq = sq;
+                    best = i;
+                }
+            }
+
+            if (best < 0)
+            {
+                if (_occlCount == _occl.Length)
+                {
+                    System.Array.Resize(ref _occl, _occl.Length * 2); // rare: more occluding labels than ever before
+                }
+
+                best = _occlCount++;
+                bool hidden = Blocked(world, content, eye, target);
+                _occl[best] = new Occl
+                {
+                    Hidden = hidden,
+                    Vis = hidden ? 0f : 1f,
+                    NextTest = now + Random.Range(OcclTestMin, OcclTestMax),
+                };
+            }
+
+            ref var o = ref _occl[best];
+            o.Pos = target;
+            o.Frame = frame;
+            o.Seen = now;
+            if (now >= o.NextTest)
+            {
+                o.Hidden = Blocked(world, content, eye, target);
+                o.NextTest = now + Random.Range(OcclTestMin, OcclTestMax);
+            }
+
+            o.Vis = Mathf.MoveTowards(o.Vis, o.Hidden ? 0f : 1f, Time.unscaledDeltaTime * OcclFadePerSecond);
+            return o.Vis;
+        }
+
+        /// <summary>Whether a block that fills its cell sits on the segment eye → target (#2531): a voxel DDA over the
+        /// client's streamed chunks — exact and independent of colliders. Air, see-through blocks (glass, water, force
+        /// fields), plants, leaves and slim props never hide a label — the same "doesn't seal the face behind it" rule the
+        /// chunk mesher culls by. The camera's own cell and the last <see cref="OcclEndSlack"/> before the label are
+        /// skipped, so a camera grazing a wall or an anchor tucked into a door lintel doesn't count. Unstreamed chunks
+        /// read as air (visible).</summary>
+        private static bool Blocked(ClientWorld world,
+                                    BlocksBeyondTheStars.Shared.Content.GameContent content, Vector3 eye, Vector3 target)
+        {
+            var delta = target - eye;
+            float limit = delta.magnitude - OcclEndSlack;
+            if (limit <= 0f)
+            {
+                return false;
+            }
+
+            var dir = delta.normalized;
+            int x = Mathf.FloorToInt(eye.x), y = Mathf.FloorToInt(eye.y), z = Mathf.FloorToInt(eye.z);
+            int sx = dir.x >= 0 ? 1 : -1, sy = dir.y >= 0 ? 1 : -1, sz = dir.z >= 0 ? 1 : -1;
+            float invx = Mathf.Abs(dir.x) > 1e-6f ? 1f / Mathf.Abs(dir.x) : float.PositiveInfinity;
+            float invy = Mathf.Abs(dir.y) > 1e-6f ? 1f / Mathf.Abs(dir.y) : float.PositiveInfinity;
+            float invz = Mathf.Abs(dir.z) > 1e-6f ? 1f / Mathf.Abs(dir.z) : float.PositiveInfinity;
+            float tMaxX = float.IsInfinity(invx) ? float.PositiveInfinity : (dir.x > 0 ? (x + 1 - eye.x) : (eye.x - x)) * invx;
+            float tMaxY = float.IsInfinity(invy) ? float.PositiveInfinity : (dir.y > 0 ? (y + 1 - eye.y) : (eye.y - y)) * invy;
+            float tMaxZ = float.IsInfinity(invz) ? float.PositiveInfinity : (dir.z > 0 ? (z + 1 - eye.z) : (eye.z - z)) * invz;
+
+            for (int i = 0; i < OcclMaxSteps; i++)
+            {
+                // Step first: the camera's own cell never occludes.
+                float t;
+                if (tMaxX <= tMaxY && tMaxX <= tMaxZ) { x += sx; t = tMaxX; tMaxX += invx; }
+                else if (tMaxY <= tMaxZ) { y += sy; t = tMaxY; tMaxY += invy; }
+                else { z += sz; t = tMaxZ; tMaxZ += invz; }
+
+                if (t >= limit)
+                {
+                    return false;
+                }
+
+                if (!ChunkMesher.NeighbourExposesOpaqueFace(content, world.GetBlock(x, y, z)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void BeginFrameIfNeeded()

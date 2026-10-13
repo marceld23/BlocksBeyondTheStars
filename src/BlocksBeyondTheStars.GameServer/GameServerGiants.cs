@@ -1108,18 +1108,19 @@ public sealed partial class GameServer
 
     /// <summary>The leviathan's head came down on the water (#2111): every boat in reach takes hull damage — twice the strike
     /// (a boat is not armoured like a suit) — and sinks when the hull gives; a parked boat too. The driver is hurt by the
-    /// strike itself like anyone standing there.</summary>
+    /// strike itself like anyone standing there. A speeder hovering over the water (#2535) is out there like a boat and
+    /// is struck the same way.</summary>
     private void StrikeBoatsNear(Vector3f at, float radius, CreatureSpecies sp)
     {
         int hit = 0;
         foreach (var s in _speeders.ToList())
         {
-            if (!IsBoat(s.Rec))
+            var pos = new Vector3f(s.Rec.X, s.Rec.Y, s.Rec.Z);
+            if (!VehicleOnWater(s, pos))
             {
                 continue;
             }
 
-            var pos = new Vector3f(s.Rec.X, s.Rec.Y, s.Rec.Z);
             var un = Unwrapped(at, pos);
             float dx = un.X - at.X, dz = un.Z - at.Z;
             if (dx * dx + dz * dz > radius * radius || System.Math.Abs(pos.Y - at.Y) > sp.WormGirth + 3f)
@@ -1308,7 +1309,8 @@ public sealed partial class GameServer
     // =====================================================================================================
 
     /// <summary>Every accepted move: a player walking (not sneaking) or driving over the sand sends step pulses; a swimmer or
-    /// a boat under way (#2111) sends the water's pulses; a jetpack, a ship, flying and sitting send nothing.</summary>
+    /// a boat under way (#2111) — or a speeder hovering over the water (#2535) — sends the water's pulses; a jetpack, a ship,
+    /// flying and sitting send nothing.</summary>
     private void GiantsOnPlayerMoved(PlayerSession session, Vector3f before, Vector3f after)
     {
         if (!Giants.HasWorms)
@@ -1329,7 +1331,7 @@ public sealed partial class GameServer
         float dx = un.X - before.X, dz = un.Z - before.Z;
         float moved = (float)System.Math.Sqrt(dx * dx + dz * dz);
         float speed = moved / (float)since;
-        bool boating = TryGetDrivenSpeeder(p, out var vehicle) && IsBoat(vehicle.Rec);
+        bool boating = TryGetDrivenSpeeder(p, out var vehicle) && VehicleOnWater(vehicle, after); // #2535: a speeder over the sea is heard like a boat
         bool driving = !boating && vehicle is not null;
         bool swimming = !boating && !driving && Giants.Leviathan is not null && FeetInWater(p);
         if (!driving && !boating && !swimming && !GiantRules.WalkShakes(speed))
@@ -1427,6 +1429,7 @@ public sealed partial class GameServer
             {
                 _world.SetBlock(t.Cell, BlockId.Air);
                 BroadcastToWorld(new BlockChanged { X = t.Cell.X, Y = t.Cell.Y, Z = t.Cell.Z, Block = BlockId.AirValue });
+                OnSupportRemoved(t.Cell); // #2532: what stood on the thumper (sand, a torch) does not float on
             }
         }
     }

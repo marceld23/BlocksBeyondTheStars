@@ -22,6 +22,10 @@ the device central rather than a re-skinned capture ball.
    **bait category** it craves.
 2. **Respond** — offer the bait it wants / calm it / approach slowly / give space. Correct responses raise a
    hidden **trust** meter; wrong ones lower it — skittish bolt, territorial/aggressive provoke, passive forgive.
+   Raw food is a **weak bait** (#2530): without the crafted bait, `creature_meat` stands in for `meat_bait` and
+   berries / raw fruit (`GameServer.RawBaitsFor`, never the toxic twins) for `forage_bait` / `nectar_lure`, but a raw
+   bite counts half — the first one leaves the creature hungry on the same step (`TameAttempt.HalfFed`,
+   `creature.tame.msg.weakbait`), the second completes it. Crafted bait is always consumed first.
 3. **Repeat** until trust ≥ threshold → tamed → name prompt → the companion spawns.
 
 **Difficulty + randomization.** Required trust and patience scale with **temperament** (Passive → Skittish →
@@ -79,7 +83,13 @@ plus `OwnerId`/`CustomName` added to `NetCreature`.
 - Persistence: `PlayerSnapshot.TamedCreatures` / `TamedCreatureDto` + `StateMapper` (player JSON blob).
 - Data: `creature_translator` gadget + 3 bait consumables (`forage_bait`/`meat_bait`/`nectar_lure`) +
   recipes + a knowledge-gated blueprint + bilingual locales + OpenAI-generated icons.
-- Client: HudUi taming prompt (mood/need/trust + four response buttons); `CraftingTechShipUI` Companions tab
+- Client: HudUi taming prompt (mood/need/trust + four response buttons). While a ritual runs it is a
+  **HUD-level menu owner** (`GameBootstrap.SetHudMenuOwner`, #2530): the cursor is free and the controller paused like
+  under NpcDialogUi, [1]–[4] answer, Esc / pad B stop, UiNav drives it on a pad — but the HUD stays up and the Tab
+  menu may open over it (`GameBootstrap.ScreenMenuOpen` excludes HUD-level owners); the panel hides only then. Because it freezes the player, an attempt never
+  ends silently: the server's `SweepTameAttempts` (every creature tick) ends one whose animal died, despawned, was
+  tamed by someone else or is beyond 12 blocks and sends a failed `TameResult` ("gone"); the client also lets go on its
+  own when the animal leaves its creature list or is beyond 16 blocks; `CraftingTechShipUI` Companions tab
   (roster/rename/release + "new companion" badge); `CreatureView`/`CreatureBuilder` friendly tint + nameplate.
 - Tests: `CreatureTamingTests.cs` (9) — ritual by temperament, seed variance, persistence round-trip,
   home-body binding, per-world cap, first-tame-knowledge gate. Full suite 598/598.

@@ -1613,6 +1613,7 @@ namespace BlocksBeyondTheStars.Client
         // still-open UI (or an unlocked one over live gameplay).
         private readonly System.Collections.Generic.HashSet<object> _menuOwners = new();
         private readonly System.Collections.Generic.HashSet<object> _cursorOwners = new();
+        private readonly System.Collections.Generic.HashSet<object> _hudMenuOwners = new(); // #2530: a subset of _menuOwners
 
         /// <summary>Registers/unregisters <paramref name="owner"/> as an open menu-style panel: frees the
         /// cursor AND pauses player/flight control (via <see cref="MenuOpen"/>). Idempotent per owner.</summary>
@@ -1630,6 +1631,46 @@ namespace BlocksBeyondTheStars.Client
             else
             {
                 _menuOwners.Remove(owner);
+            }
+        }
+
+        /// <summary>Registers/unregisters <paramref name="owner"/> as a HUD-level menu owner (#2530 — the creature
+        /// translator's taming panel): it frees the cursor and pauses player control like any menu owner (it counts in
+        /// <see cref="MenuOpen"/>), but the HUD stays up and the Tab menu may still open over it — see
+        /// <see cref="ScreenMenuOpen"/>. Idempotent per owner.</summary>
+        public void SetHudMenuOwner(object owner, bool open)
+        {
+            if (owner == null)
+            {
+                return;
+            }
+
+            SetMenuOwner(owner, open);
+            if (open)
+            {
+                _hudMenuOwners.Add(owner);
+            }
+            else
+            {
+                _hudMenuOwners.Remove(owner);
+            }
+        }
+
+        /// <summary>True while a screen-level menu is open — any menu owner other than the HUD-level ones
+        /// (<see cref="SetHudMenuOwner"/>). Only these hide the HUD and keep the Tab menu shut (#2530).</summary>
+        public bool ScreenMenuOpen
+        {
+            get
+            {
+                foreach (var owner in _menuOwners)
+                {
+                    if (!_hudMenuOwners.Contains(owner))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
             }
         }
 
@@ -2546,6 +2587,9 @@ namespace BlocksBeyondTheStars.Client
 
             // A tool's own look comes from the item data (#1962).
             HeldItem.ModelResolver = key => Content?.GetItem(key)?.HeldModel;
+
+            // #2534: the held vehicle / plant miniatures mesh with the world's own atlas + chunk materials.
+            HeldItem.MeshKitResolver = () => (Content, Atlas, ChunkMaterial, ChunkMaterialTransparent);
 
             // The empty-slot hand (#1033) wears a glove in the player's suit arm colour — and the player's
             // own arm painting from the appearance editor, so first person matches third person (#1427).
@@ -4718,7 +4762,8 @@ namespace BlocksBeyondTheStars.Client
             ShapeIconFactory.ClearCache();
             HeldItem.BlockTileResolver = null;
             HeldItem.ModelResolver = null;
-            HeldItem.ReleasePartMaterials();
+            HeldItem.MeshKitResolver = null; // #2534 (captures this object graph, like the resolvers above)
+            HeldItem.ReleasePartMaterials(); // also frees the held miniatures' meshes
             PropTextures.Release(); // the doors and machines that used them are going away with the world
             HeldItem.HandTintResolver = null;  // both closures capture Settings (and this object graph) — #1464
             HeldItem.HandPaintResolver = null;

@@ -323,6 +323,47 @@ public sealed class VegaChapterLeadsTests : IDisposable
     }
 
     [Fact]
+    public void TheChipCounter_CountsTheWayToTheNextBeat_NotTheWholeArc()
+    {
+        // #2537: score 8, B1 (6) heard, B2 at 14 — the chip reads 2/8, not 8/204.
+        Assert.Equal((6, 14), (Vega.Beats[1].Threshold, Vega.Beats[2].Threshold));
+        Assert.Equal((2, 8), StoryEngine.NextBeatProgress(Vega, new StoryState { BeatsRevealed = 2 }, 8));
+
+        Assert.Equal((0, 6), StoryEngine.NextBeatProgress(Vega, new StoryState { BeatsRevealed = 1 }, 0));   // B0 is free
+        Assert.Equal((0, 8), StoryEngine.NextBeatProgress(Vega, new StoryState { BeatsRevealed = 2 }, 3));   // never below the heard beat
+        Assert.Equal((8, 8), StoryEngine.NextBeatProgress(Vega, new StoryState { BeatsRevealed = 2 }, 20));  // the reveal is a tick away
+        Assert.Equal((10, 28), StoryEngine.NextBeatProgress(Vega, new StoryState { BeatsRevealed = 12 }, 186)); // B12 is the last gap
+
+        // Every beat heard — the finale is in reach: no counter at all (the client hides a target of 0).
+        Assert.Equal((0, 0), StoryEngine.NextBeatProgress(Vega, new StoryState { BeatsRevealed = Vega.Beats.Count }, 204));
+        Assert.Equal((0, 0), StoryEngine.NextBeatProgress(new StoryDefinition(), new StoryState(), 5));
+    }
+
+    [Fact]
+    public void TheStoryChip_ShowsTheNextBeatsGap_AndHidesItsCounterAfterTheLastBeat()
+    {
+        var (server, _) = World("chip_next_beat", TutorialOff);
+        Join(server, 1, "Pilot");
+        AdvanceTo(server, 2);
+        Assert.Equal(V, server.ObjectivePackForTest("Pilot"));
+
+        int revealed = server.StorySnapshot.BeatsRevealed;
+        int floor = Vega.Beats[revealed - 1].Threshold;
+        int gap = Vega.Beats[revealed].Threshold - floor;
+        var (progress, target) = server.ObjectiveCounterForTest("Pilot");
+        Assert.Equal(gap, target); // the gap to the next beat, never the arc's 204
+        Assert.Equal(server.StoryProgressShownForTest - floor, progress);
+        Assert.InRange(progress, 0, target);
+
+        // The finale: every beat is heard, the chip keeps its task but drops the counter.
+        server.AdminRevealFinale();
+        Assert.Equal(Vega.Beats.Count, server.StorySnapshot.BeatsRevealed);
+        Assert.False(string.IsNullOrEmpty(server.ObjectiveKeyForTest("Pilot")));
+        Assert.Equal((0, 0), server.ObjectiveCounterForTest("Pilot"));
+        Assert.True(server.StoryStateForTest("Pilot")!.Progress > 0); // the journal's meter keeps the whole arc
+    }
+
+    [Fact]
     public void APeacefulWorld_MakesUpTheKillShare_ThroughTheOneScale_AndTheMeterNeverRunsBackwards()
     {
         var (combat, _) = World("pace_combat", TutorialOff);

@@ -72,6 +72,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/Visor",
             "BlocksBeyondTheStars/VisorGlass",
             "BlocksBeyondTheStars/Wormhole",   // #2242: the tear in space-time and its glow (WormholeView)
+            "BlocksBeyondTheStars/WorldText",  // #2531: depth-tested world TextMesh labels (WorldTextMaterial)
             "BlocksBeyondTheStars/UiHolo",   // shader-drawn HUD chrome (UiHolo.cs)
             "TextMeshPro/Distance Field",    // runtime-created SDF font materials (UiText.cs) — all keyword variants (glow/underlay)
             "TextMeshPro/Mobile/Distance Field",

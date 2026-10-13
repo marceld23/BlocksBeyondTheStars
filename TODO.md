@@ -24,6 +24,38 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-13 evening (Screelit = Justus, v2026.10.13) — epic #2529, branch fix/screelit-reports-2026-10-13 — ✅ done (⚠ playtest open)
+
+Seven F1 reports (all with their `/bump` twin) plus one side finding — one PR:
+
+- **#2530 creature translator menu could not be used** — the taming panel never took the cursor, so on desktop it
+  was un-clickable (and every way to free the cursor hid it). It is now a HUD-level menu owner while a taming attempt
+  runs: [1]–[4] answer, Esc stops, mouse/pad/touch work, Tab still opens the menu to craft bait. The need line names
+  the crafted bait and its recipe; **raw food counts as half a bait** (two raw bites = one step, crafted bait first).
+  An attempt now always ends with a message when the creature dies, leaves reach or is tamed by someone else (server
+  sweep + client fallback), so the panel never holds the player frozen.
+- **#2531 "Zzz" and world labels through walls** — world TextMeshes use the new `BlocksBeyondTheStars/WorldText`
+  shader (ZTest LEqual, Always-Included); NPC Zzz fades out at 18–28 m like creatures'; `ScreenLabelLayer` gained a
+  throttled voxel occlusion test, on for NPC plates, health bars and prop hints, off for beacons/thermal/ore scan/players.
+- **#2532 floating plants** — the regrow sprout vanishes when its ground goes; the server pops standing/hanging flora,
+  saplings and standing torches/lanterns whose host turned to air or fluid (`GameServerPropSupport`): wild flora
+  vanishes, fruit drops its harvest, saplings/bred plants/lamps drop their item; saplings without ground don't grow. Pops raised inside a crystal-net
+  beat are deferred until after it; ship-frame writes never pop world props; the area drill harvests the plants above
+  its centre before breaking it.
+- **#2533 shooting through foliage (player only)** — one shared walk-through list (`WalkThroughBlocks`); player weapon
+  and melee traces and the server's attack sight pass leaves, flora and torches; glass and walls still block; enemy
+  sight is unchanged, so foliage stays cover against them.
+- **#2534 held items as miniatures** — vehicles as their real voxel model, plants/torches as cut-out props, every
+  other item as an extruded pixel model of its icon (`HeldIconVoxels`, `HeldMiniatures`, cached meshes).
+- **#2535 speeder over water** — `vehicle.hoverOverWater` on the speeder: it hovers over water, lava and oil stay a
+  stop (lava, oil and gas — now also server-side, one shared `IsHoverHazard` rule), dismounting over water drops you
+  in, the leviathan treats it like a boat. The client weapon trace stops only where the server's attack sight stops.
+- **#2536 simple crafting by hand** — wooden boat and wooden ladder hand recipes; new wooden pickaxe, club and spear
+  (hand recipes, generated icons, data held models). Without a drill, the mining hint now names the wooden pickaxe.
+- **#2537 story chip counter** — the VEGA chip counts toward the next beat (8/204 → 2/8), hidden after the last beat.
+- Docs: USER_MANUAL (taming, labels, plants and lamps, foliage, held items, speeder + recipe fix, hand crafting, leads),
+  CREATURE_TAMING, CREATOR_SUITE, STORY_IMPLEMENTATION. 8 new + 5 changed keys in all 14 languages; independent review before the first push (6 findings, all fixed).
+
 ### 📬 Player reports 2026-10-13 (Lyxette, a fresh world + her old one on v2026.10.12) + a new water model — epic #2524, branch fix/player-reports-1013 — ✅ done (released in v2026.10.14; terrain generation 24; ⚠ playtest open)
 
 Eight F1 reports from one day plus Marcel's call for "endless waterfalls AND flowing water that never floods" — one PR:

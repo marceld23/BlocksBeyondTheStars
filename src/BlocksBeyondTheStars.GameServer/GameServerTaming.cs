@@ -38,7 +38,20 @@ public sealed partial class GameServer
         public int Strikes;
         public int Patience;
         public int Step;
+
+        /// <summary>#2530: one raw-food bite already eaten on the current feeding step — a second one completes it.</summary>
+        public bool HalfFed;
     }
+
+    // #2530: raw food is a WEAK bait — it counts half (two bites fill one feeding step), so the hand-crafted bait stays
+    // the better choice while a player without one no longer stalls. Raw meat for the meat-eaters, berries and raw fruit
+    // (never the toxic twins) for the foragers and nectar-lovers; the cheapest, most common one is tried first.
+    private static readonly string[] RawMeatBaits = { "creature_meat" };
+    private static readonly string[] RawPlantBaits = { "berries", "fruit_round", "fruit_long", "fruit_grape", "fruit_banana" };
+
+    /// <summary>The raw foods a creature craving <paramref name="bait"/> takes as a weak stand-in (#2530).</summary>
+    internal static IReadOnlyList<string> RawBaitsFor(string bait)
+        => bait == "meat_bait" ? RawMeatBaits : RawPlantBaits;
 
     private readonly Dictionary<string, TameAttempt> _tameAttempts = new();
 
@@ -137,17 +150,34 @@ public sealed partial class GameServer
         if (need == "feed")
         {
             string bait = PreferredBait(creature.Id);
-            if (!p.Inventory.Has(bait, 1))
+            if (p.Inventory.Has(bait, 1))
+            {
+                p.Inventory.Remove(bait, 1);
+                SendInventory(session);
+            }
+            else if (FirstRawBait(p, bait) is { } raw)
+            {
+                // #2530: raw food is a weak bait — the first bite only takes the edge off (the creature stays hungry
+                // on the same step), the second one completes the feeding step like a crafted bait would.
+                p.Inventory.Remove(raw, 1);
+                SendInventory(session);
+                if (!attempt.HalfFed)
+                {
+                    attempt.HalfFed = true;
+                    creature.FrozenTimer = System.Math.Max(creature.FrozenTimer, CompanionHoldSeconds);
+                    SendTameStep(session, creature, sp, attempt, "creature.tame.msg.weakbait");
+                    return;
+                }
+            }
+            else
             {
                 // right idea, no bait in hand — no progress, tell them exactly what it wants.
                 SendTameStep(session, creature, sp, attempt, "creature.tame.msg.nobait");
                 return;
             }
-
-            p.Inventory.Remove(bait, 1);
-            SendInventory(session);
         }
 
+        attempt.HalfFed = false; // a half-eaten step is finished either way
         attempt.Trust++;
         attempt.Step++;
         creature.FrozenTimer = System.Math.Max(creature.FrozenTimer, CompanionHoldSeconds);
@@ -275,6 +305,80 @@ public sealed partial class GameServer
         SreekmakraFollowsATame(session, creature.SpeciesId); // #1926: the shapeshifter wearing this kind comes along
     }
 
+    private readonly List<string> _tameEndScratch = new();
+
+    /// <summary>Ends one player's taming attempt that stopped without a <see cref="TameResult"/> of its own (#2530) — the
+    /// creature died, despawned or was tamed by someone else, or it is out of reach — and TELLS the player: the client's
+    /// taming panel holds the cursor and pauses the controls while an attempt is open, so a silent removal left the
+    /// player frozen in place until they pressed a button (perhaps while being bitten).</summary>
+    private void EndTameAttempt(string playerId, string messageKey = "creature.tame.msg.gone")
+    {
+        if (!_tameAttempts.TryGetValue(playerId, out var attempt))
+        {
+            return;
+        }
+
+        _tameAttempts.Remove(playerId);
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            Send(session, new TameResult { CreatureId = attempt.CreatureId, Success = false, MessageKey = messageKey });
+        }
+    }
+
+    /// <summary>Per creature tick on the active world (#2530): ends every attempt of a player here whose creature is no
+    /// longer a living wild animal within <see cref="TameLoseRange"/> of them, or who took off into space; drops the
+    /// attempts of players who left the server. Players on another world are judged when their own world ticks (their
+    /// creature is not in that world's list, so a world change ends the attempt there).</summary>
+    private void SweepTameAttempts()
+    {
+        if (_tameAttempts.Count == 0)
+        {
+            return;
+        }
+
+        _tameEndScratch.Clear();
+        string here = _worlds.Active?.LocationId ?? string.Empty;
+        foreach (var kv in _tameAttempts)
+        {
+            var session = FindSessionByPlayerId(kv.Key);
+            if (session is null)
+            {
+                _tameEndScratch.Add(kv.Key); // left the server — nobody left to tell
+                continue;
+            }
+
+            if (session.CurrentLocationId != here)
+            {
+                continue;
+            }
+
+            if (InSpace(kv.Key) || !TameTargetInReach(session.State.Position, kv.Value.CreatureId))
+            {
+                _tameEndScratch.Add(kv.Key);
+            }
+        }
+
+        foreach (var playerId in _tameEndScratch)
+        {
+            EndTameAttempt(playerId);
+        }
+    }
+
+    /// <summary>Whether the creature of a taming attempt is still a living wild animal on this world within
+    /// <see cref="TameLoseRange"/> of <paramref name="playerPos"/> — the same reach a response is checked against.</summary>
+    private bool TameTargetInReach(Vector3f playerPos, string creatureId)
+    {
+        foreach (var c in _creatures)
+        {
+            if (c.Id == creatureId)
+            {
+                return !c.IsCompanion && c.Hull > 0f && WrapDistSq(playerPos, c.Position) <= TameLoseRange * TameLoseRange;
+            }
+        }
+
+        return false;
+    }
+
     private void SendTameStep(PlayerSession session, CombatEntity creature, CreatureSpecies sp, TameAttempt attempt, string messageKey)
     {
         string need = NeedForStep(sp, creature.Id, attempt.Step);
@@ -364,6 +468,21 @@ public sealed partial class GameServer
     {
         string[] baits = { "forage_bait", "meat_bait", "nectar_lure" };
         return baits[Hash(creatureId, "bait") % (uint)baits.Length];
+    }
+
+    /// <summary>The first raw food in the player's inventory a creature craving <paramref name="bait"/> would take (#2530),
+    /// or null.</summary>
+    private static string? FirstRawBait(Shared.State.PlayerState p, string bait)
+    {
+        foreach (var raw in RawBaitsFor(bait))
+        {
+            if (p.Inventory.Has(raw, 1))
+            {
+                return raw;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>What the creature wants on a given step (deterministic per creature + step), skewed by
@@ -951,6 +1070,18 @@ public sealed partial class GameServer
 
         return NeedForStep(sp, creature.Id, a.Step);
     }
+
+    /// <summary>Test/util: the creature of the player's current attempt (empty if no attempt).</summary>
+    public string TameTargetForTest(string playerId)
+        => _tameAttempts.TryGetValue(playerId, out var a) ? a.CreatureId : string.Empty;
+
+    /// <summary>Test/util: the trust the player's current attempt has earned so far (-1 if no attempt).</summary>
+    public int TameTrustForTest(string playerId)
+        => _tameAttempts.TryGetValue(playerId, out var a) ? a.Trust : -1;
+
+    /// <summary>Test/util: the crafted bait the creature of the player's current attempt craves (empty if no attempt).</summary>
+    public string TamePreferredBaitForTest(string playerId)
+        => _tameAttempts.TryGetValue(playerId, out var a) ? PreferredBait(a.CreatureId) : string.Empty;
 
     /// <summary>Test/util: the player's tamed-creature records.</summary>
     public IReadOnlyList<TamedCreature> TamedCreaturesForTest(string playerId)

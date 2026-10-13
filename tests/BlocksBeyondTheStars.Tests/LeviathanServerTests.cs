@@ -183,6 +183,59 @@ public sealed class LeviathanServerTests : IDisposable
         }
     }
 
+    /// <summary>#2535: the hover speeder crosses the sea now — and out there it is a boat to the leviathan: its strike
+    /// cracks the speeder's hull the same way.</summary>
+    [Fact]
+    public void Leviathan_StrikesAHoverSpeederOutOnTheSea_LikeABoat()
+    {
+        var (server, repo, p, _) = DeepSeaScene(CreatureTemperament.Aggressive);
+        using (repo)
+        {
+            int x = (int)Math.Floor(p.State.Position.X), z = (int)Math.Floor(p.State.Position.Z);
+            var water = _content.GetBlock("water")!.NumericId;
+            int wy = (int)Math.Floor(p.State.Position.Y) + 3;
+            while (server.World.GetBlock(new Vector3i(x, wy, z)) != water)
+            {
+                wy--; // the top water cell under the swimmer
+            }
+
+            // A stone stand three blocks ahead to deploy from — a speeder still needs dry land to unfold.
+            var stone = _content.GetBlock("stone")!.NumericId;
+            for (int y = wy - 2; y <= wy; y++)
+            {
+                server.World.SetBlock(new Vector3i(x, y, z + 3), stone);
+            }
+
+            p.State.Yaw = 0f;
+            p.State.Position = new Vector3f(x + 0.5f, wy + 1.3f, z + 0.5f);
+            p.State.Inventory.Add("speeder", 1, 1);
+            string speeder = server.DeploySpeederForTest("Justus");
+            Assert.False(string.IsNullOrEmpty(speeder), "the speeder found no dry stand to unfold on");
+            server.EnterSpeederForTest("Justus", speeder);
+            Assert.Equal(speeder, p.State.InSpeeder);
+
+            var at = new Vector3f(x + 0.5f, wy + 2.3f, z + 0.5f); // hovering 1.3 over the surface
+            server.DriveSpeederStepForTest("Justus", at);
+            float hullBefore = server.SpeederSnapshots.Single(s => s.Id == speeder).Hull;
+
+            for (int i = 0; i < 6; i++)
+            {
+                server.EmitVibrationForTest(at, VibrationSource.Boat);
+            }
+
+            bool cracked = false;
+            for (int i = 0; i < 200 && !cracked; i++)
+            {
+                p.State.Position = at;
+                server.TickForTest(0.25);
+                var snap = server.SpeederSnapshots.SingleOrDefault(s => s.Id == speeder);
+                cracked = snap.Id is null || snap.Hull < hullBefore; // a wreck counts too
+            }
+
+            Assert.True(cracked, "the leviathan's strike passed over a speeder out on the sea");
+        }
+    }
+
     // ---------------- helpers ----------------
 
     /// <summary>A deep-sea column near the spawn; with <paramref name="run"/>, one with deep sea all along 30 blocks west to 60 east

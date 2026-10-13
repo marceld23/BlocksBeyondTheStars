@@ -21,6 +21,8 @@
   // The boat (#1215) is the early-game water vehicle: no blueprint, wood + a little iron — a river or a shore
   // should not wait for the speeder tech.
   { "key": "boat",             "station": "workshop", "inputs": [ { "item": "wood_log", "count": 8 }, { "item": "iron_plate", "count": 2 }, { "item": "cable", "count": 1 } ], "outputs": [ { "item": "boat", "count": 1 } ] },
+  // #2536: the same boat by hand, anywhere — all wood, lashed together with plant fibre (a little more of both).
+  { "key": "boat_wood",        "station": "hand",     "inputs": [ { "item": "wood_log", "count": 10 }, { "item": "plant_fiber", "count": 6 } ], "outputs": [ { "item": "boat", "count": 1 } ] },
   { "key": "camera",           "station": "workshop", "requiredBlueprint": "camera",  "inputs": [ { "item": "iron_plate", "count": 2 }, { "item": "glass", "count": 1 }, { "item": "cable", "count": 2 }, { "item": "circuit_board", "count": 1 } ], "outputs": [ { "item": "camera", "count": 1 } ] },
   { "key": "paint_tool",       "station": "workshop", "requiredBlueprint": "paint_tool", "inputs": [ { "item": "iron_plate", "count": 1 }, { "item": "berries", "count": 4 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "paint_tool", "count": 1 } ] },
   // The shaping tool is the paint tool's twin: it opens the form editor and copies a form off a placed block.
@@ -229,6 +231,8 @@
   { "key": "market_blocks_basalt", "station": "market", "marketTheme": "blocks", "inputs": [ { "item": "copper_ore", "count": 1 } ], "outputs": [ { "item": "basalt", "count": 12 } ] },
 
   { "key": "ladder", "station": "hand", "inputs": [ { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "ladder", "count": 3 } ] },
+  // #2536: a wooden ladder by hand, for the player who has wood but no carbon yet.
+  { "key": "ladder_wood", "station": "hand", "inputs": [ { "item": "wood_log", "count": 2 } ], "outputs": [ { "item": "ladder", "count": 3 } ] },
   { "key": "stairs", "station": "hand", "inputs": [ { "item": "stone", "count": 2 } ], "outputs": [ { "item": "stairs", "count": 4 } ] },
 
   { "key": "gold_ingot",     "station": "workshop", "inputs": [ { "item": "gold_ore", "count": 2 } ],      "outputs": [ { "item": "gold_ingot", "count": 1 } ] },
@@ -286,6 +290,10 @@
   { "key": "crate",       "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 3 }, { "item": "wood_log", "count": 2 } ], "outputs": [ { "item": "crate", "count": 1 } ] },
   { "key": "door_wood",   "station": "hand",     "inputs": [ { "item": "wood_log", "count": 4 } ],                                          "outputs": [ { "item": "door_wood", "count": 1 } ] },
   { "key": "torch",       "station": "hand",     "inputs": [ { "item": "wood_log", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "torch", "count": 4 } ] },
+  // #2536: the wooden tools — made by hand from wood, plant fibre and stone, a little weaker than the ship's own.
+  { "key": "wood_pickaxe", "station": "hand",    "inputs": [ { "item": "wood_log", "count": 3 }, { "item": "plant_fiber", "count": 2 }, { "item": "stone", "count": 1 } ], "outputs": [ { "item": "wood_pickaxe", "count": 1 } ] },
+  { "key": "wood_club",    "station": "hand",    "inputs": [ { "item": "wood_log", "count": 2 }, { "item": "plant_fiber", "count": 1 } ],                                     "outputs": [ { "item": "wood_club", "count": 1 } ] },
+  { "key": "wood_spear",   "station": "hand",    "inputs": [ { "item": "wood_log", "count": 2 }, { "item": "plant_fiber", "count": 2 }, { "item": "stone", "count": 1 } ], "outputs": [ { "item": "wood_spear", "count": 1 } ] },
   { "key": "door_hinge",  "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "bronze_gear", "count": 1 } ], "outputs": [ { "item": "door_hinge", "count": 1 } ] },
   { "key": "door_slide",  "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "circuit_board", "count": 1 }, { "item": "bronze_gear", "count": 1 } ], "outputs": [ { "item": "door_slide", "count": 1 } ] },
   { "key": "door_energy", "station": "workshop", "requiredBlueprint": "door_energy", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "circuit_board", "count": 1 }, { "item": "crystal", "count": 1 } ], "outputs": [ { "item": "door_energy", "count": 1 } ] },

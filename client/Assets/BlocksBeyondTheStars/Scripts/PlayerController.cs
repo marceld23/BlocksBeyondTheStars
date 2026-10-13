@@ -442,7 +442,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _drivingBoat;        // the vehicle we boarded is a boat (remembered for the dismount cue)
         private float _speederBlockedSeconds; // the speeder wants to move but the capsule does not: wedged against a lip (#1660)
         private bool _speederAutoHop;         // next frame's hover gets a hop to clear that lip
-        private Vector3 _speederLastDryPos;   // last driven pose with no water under the hull (shore stop, #1660)
+        private Vector3 _speederLastDryPos;   // last driven pose over nothing the speeder may not cross (shore stop, #1660/#2535)
         private bool _speederHasDryPos;
         private Vector3 _boatVel;         // planar hull velocity — lags the bow, so the boat drifts through turns
         private float _boatBobPhase;      // sine phase of the idle bob
@@ -1168,8 +1168,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Finds the enemy/creature under the crosshair (#693): an analytic ray-vs-sphere sweep over
         /// the replicated entities — their meshes deliberately carry no colliders — occluded by terrain via a
-        /// voxel march. Hitboxes are deliberately generous (kid-friendly forgiveness). Also reports how far
-        /// the ray flies before hitting terrain, for the miss tracer.</summary>
+        /// voxel march (the weapon trace: leaves, grass and torches are no cover, #2533). Hitboxes are deliberately
+        /// generous (kid-friendly forgiveness). Also reports how far the ray flies before hitting terrain, for the
+        /// miss tracer.</summary>
         private bool AimEnemy(float maxRange, out string id, out Vector3 pos, out float terrainDist)
         {
             id = null;
@@ -1231,7 +1232,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Nearest attackable entity inside the camera-forward cone (auto-aim / melee sweep).
         /// Point-blank targets (&lt; 1.5 blocks) ignore the cone — something chewing on your boots is hittable
-        /// even while you look past it.</summary>
+        /// even while you look past it. A target behind a wall is skipped (#2533): the server refuses a hit without a
+        /// clear line of fire, so the sweep picking it used to swing at the wall while a target in the open stood
+        /// beside it. The line is the server's (feet + 1.5 on both ends) through the weapon trace, so leaves, grass
+        /// and torches are no cover here either.</summary>
         private string BestConeTarget(float reach, float cone, out Vector3 pos)
         {
             string bestId = null;
@@ -1239,8 +1243,9 @@ namespace BlocksBeyondTheStars.Client
             float bestSq = reach * reach;
             Vector3 eye = Camera != null ? Camera.transform.position : transform.position;
             Vector3 fwd = Camera != null ? Camera.transform.forward : transform.forward;
+            Vector3 sightFrom = transform.position + Vector3.up * 1.5f; // the server's eye (ValidateAim), not the chase camera
 
-            void Consider(string cid, Vector3 p)
+            void Consider(string cid, Vector3 p, Vector3 sightTo)
             {
                 var to = p + Vector3.up * 0.9f - eye;
                 float d = to.sqrMagnitude;
@@ -1254,6 +1259,11 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
+                if (!WeaponLineClear(sightFrom, sightTo))
+                {
+                    return; // behind a wall — the server would refuse the hit
+                }
+
                 bestSq = d;
                 bestId = cid;
                 bestPos = p;
@@ -1261,7 +1271,8 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var e in Game.PlanetEnemies)
             {
-                Consider(e.Id, Game.ScenePos(e.X, e.Y, e.Z));
+                var ep = Game.ScenePos(e.X, e.Y, e.Z);
+                Consider(e.Id, ep, ep + Vector3.up * 1.5f);
             }
 
             // Creatures (fauna) are attackable too — the server shares the hit path. Never a companion or pet (#2281):
@@ -1278,29 +1289,64 @@ namespace BlocksBeyondTheStars.Client
                     // #1998: a giant counts from the nearest point of its body (and a buried sandworm not at all).
                     if (CreatureView.GiantNearestPoint(c.Id, eye, out var near))
                     {
-                        Consider(c.Id, near - Vector3.up * 0.9f);
+                        Consider(c.Id, near - Vector3.up * 0.9f, near); // the server's giant aim point is the body point itself
                     }
 
                     continue;
                 }
 
-                Consider(c.Id, Game.ScenePos(c.X, c.Y, c.Z));
+                var cp = Game.ScenePos(c.X, c.Y, c.Z);
+                Consider(c.Id, cp, cp + Vector3.up * 1.5f);
             }
 
             pos = bestPos;
             return bestId;
         }
 
-        /// <summary>Distance the aim ray travels before hitting solid terrain (voxel DDA like
+        /// <summary>Whether the weapon trace runs from <paramref name="from"/> to <paramref name="to"/> without striking
+        /// terrain (#2533) — the auto-aim/melee sweep's mirror of the server's line of fire. Lenient by half a block at
+        /// the far end, since the server skips the target's own end of the line.</summary>
+        private bool WeaponLineClear(Vector3 from, Vector3 to)
+        {
+            Vector3 span = to - from;
+            float len = span.magnitude;
+            if (len < 1f)
+            {
+                return true; // point-blank — nothing fits between
+            }
+
+            return TerrainDistance(from, span / len, len) >= len - 0.5f;
+        }
+
+        /// <summary>Distance the WEAPON ray travels before hitting solid terrain (voxel DDA like
         /// <see cref="AimBlock"/>, but with a caller-chosen range — weapon range exceeds block reach).
-        /// Fluids are passed through, matching the block-aim behaviour.</summary>
+        /// It stops exactly where the server's line of fire stops (<see cref="StopsWeapon"/>): non-solid blocks (water,
+        /// oil, a rug, an open door) and everything the player walks through (#2533: leaves, grass and other flora,
+        /// torches, the ladder) are passed — including the cell the camera stands in, so a player inside a tree crown no
+        /// longer has a reach of zero. Glass and walls still stop it.</summary>
         private float TerrainDistance(Vector3 o, Vector3 dir, float maxDist)
-            => TerrainHit(o, dir, maxDist, out _, out float dist) ? dist : maxDist;
+            => TerrainHit(o, dir, maxDist, out _, out float dist, skipWalkThrough: true) ? dist : maxDist;
+
+        /// <summary>Whether a cell stops the player's shot — the client twin of the server's attack sightline
+        /// (<c>GameServer.HasAttackLineOfSight</c>): a block that is <c>Solid</c> (or unknown) and not one the player walks
+        /// through. A non-solid decor block would otherwise make auto-aim skip a target the server accepts (#2533).</summary>
+        private bool StopsWeapon(BlocksBeyondTheStars.Shared.Primitives.BlockId id)
+        {
+            if (id.IsAir)
+            {
+                return false;
+            }
+
+            var def = Game.Content?.BlockById(id);
+            return def == null || (def.Solid && !BlocksBeyondTheStars.Shared.Definitions.WalkThroughBlocks.IsWalkThrough(def.Key));
+        }
 
         /// <summary>The first solid terrain cell along the aim ray within <paramref name="maxDist"/>, and how
-        /// far along the ray it sits. Used for the miss tracer's endpoint and, for an igniting weapon, as the
-        /// cell a missed shot sets alight (#788).</summary>
-        private bool TerrainHit(Vector3 o, Vector3 dir, float maxDist, out Vector3Int cell, out float distance)
+        /// far along the ray it sits. Used for the miss tracer's endpoint (through <see cref="TerrainDistance"/>, with
+        /// <paramref name="skipWalkThrough"/>: the server's line-of-fire rule, <see cref="StopsWeapon"/>), and — without it,
+        /// any non-air, non-fluid block, so a leaf still counts — for the rope gun's anchor and the cell a missed shot of
+        /// an igniting weapon sets alight (#788).</summary>
+        private bool TerrainHit(Vector3 o, Vector3 dir, float maxDist, out Vector3Int cell, out float distance, bool skipWalkThrough = false)
         {
             cell = default;
             distance = maxDist;
@@ -1322,7 +1368,7 @@ namespace BlocksBeyondTheStars.Client
             for (int i = 0; i < 160 && t <= maxDist; i++)
             {
                 var id = Game.World.GetBlock(x, y, z);
-                if (!id.IsAir && !IsFluidBlock(id))
+                if (skipWalkThrough ? StopsWeapon(id) : !id.IsAir && !IsFluidBlock(id))
                 {
                     cell = new Vector3Int(x, y, z);
                     distance = t;
@@ -4209,17 +4255,22 @@ namespace BlocksBeyondTheStars.Client
                 // over water anyway (a slope pushed it in, or it was deployed into the sea before the deploy
                 // check existed) it floats on the surface, can only back out, and eases toward the last dry
                 // pose the way a beached boat eases back to the water.
-                bool overWater = SpeederOverWater(transform.position, out float waterSurface);
-                if (overWater)
+                // #2535: a speeder whose item says "hoverOverWater" (the hover speeder does) takes the water surface
+                // for ground — no shore stop, no reverse-only cap. Lava, oil and gas stay a stop for every speeder: they
+                // are checked explicitly here, never as ground (the block column skips them as it always did).
+                bool waterOk = profile?.HoverOverWater ?? false;
+                var under = SpeederFluidUnder(transform.position, out float fluidSurface);
+                bool stranded = under == SpeederFluid.Hazard || (under == SpeederFluid.Water && !waterOk);
+                if (stranded)
                 {
                     targetSpeed = Mathf.Min(0f, throttle) * cruise * 0.3f;
                     _speederSpeed = Mathf.MoveTowards(_speederSpeed, targetSpeed, accel * 2.5f * Time.deltaTime);
                 }
                 else
                 {
-                    _speederLastDryPos = transform.position;
+                    _speederLastDryPos = transform.position; // a safe pose: dry ground, or water this speeder hovers over
                     _speederHasDryPos = true;
-                    if (_speederSpeed > 0f && WaterAhead(transform.position, transform.forward, 1.6f + _speederSpeed * 0.3f))
+                    if (_speederSpeed > 0f && FluidAhead(transform.position, transform.forward, 1.6f + _speederSpeed * 0.3f, waterOk))
                     {
                         targetSpeed = Mathf.Min(targetSpeed, 0f);
                         _speederSpeed = Mathf.MoveTowards(_speederSpeed, targetSpeed, accel * 2.5f * Time.deltaTime);
@@ -4248,13 +4299,17 @@ namespace BlocksBeyondTheStars.Client
                     groundY = columnY;
                 }
 
-                bool hovering = !float.IsNaN(groundY) || overWater;
+                bool overFluid = under != SpeederFluid.None;
+                bool hovering = !float.IsNaN(groundY) || overFluid;
                 if (hovering)
                 {
-                    float targetY = float.IsNaN(groundY) ? waterSurface + 0.4f : groundY + SpeederHoverHeight;
-                    if (overWater)
+                    // Over water it may cross (#2535) the surface is the ground: full hover height above it. Stranded
+                    // over a fluid it may not cross, it only floats on top while it backs out, as before.
+                    float overSurface = fluidSurface + (stranded ? 0.4f : SpeederHoverHeight);
+                    float targetY = float.IsNaN(groundY) ? overSurface : groundY + SpeederHoverHeight;
+                    if (overFluid)
                     {
-                        targetY = Mathf.Max(targetY, waterSurface + 0.4f); // never below the surface
+                        targetY = Mathf.Max(targetY, overSurface); // never below the surface
                     }
 
                     vSpeed = Mathf.Clamp((targetY - transform.position.y) * 6f, -10f, 8f);
@@ -4271,7 +4326,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 planar = transform.forward * _speederSpeed;
-                if (overWater && _speederHasDryPos)
+                if (stranded && _speederHasDryPos)
                 {
                     Vector3 back = _speederLastDryPos - transform.position;
                     back.y = 0f;
@@ -4281,7 +4336,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                Game.VehicleAground = overWater;
+                Game.VehicleAground = stranded;
             }
 
             Vector3 before = transform.position;
@@ -4388,32 +4443,88 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
-        /// <summary>Whether the hover speeder at <paramref name="pos"/> has water under its hull (the feet cell or
-        /// the two below), and the top of that water. Unknown terrain (a chunk not streamed yet) is not judged.</summary>
-        private bool SpeederOverWater(Vector3 pos, out float surface)
+        /// <summary>What a hover speeder's hull is over (#2535): nothing to speak of, water, or a fluid no speeder may
+        /// cross (lava, or a still liquid such as oil).</summary>
+        private enum SpeederFluid
+        {
+            None,
+            Water,
+            Hazard,
+        }
+
+        /// <summary>The fluid under the hover speeder at <paramref name="pos"/>: the first cell from the feet down (two
+        /// below at most) that is neither air nor a walk-through prop, and the top of that fluid. Real ground first means
+        /// no fluid — a bridge over a lake is ground. The client twin of the server's <c>FluidUnderHull</c>. Unknown
+        /// terrain (a chunk not streamed yet) is not judged.</summary>
+        private SpeederFluid SpeederFluidUnder(Vector3 pos, out float surface)
         {
             surface = float.NaN;
             int fx = Mathf.FloorToInt(pos.x), fz = Mathf.FloorToInt(pos.z), feet = Mathf.FloorToInt(pos.y);
             if (Game?.World == null || !Game.World.TryGetBlock(fx, feet, fz, out _))
             {
-                return false;
+                return SpeederFluid.None;
             }
 
             for (int y = feet; y >= feet - 2; y--)
             {
-                if (BlockKeyAt(new Vector3(pos.x, y + 0.5f, pos.z)) == "water")
+                var kind = FluidKindAt(new Vector3(pos.x, y + 0.5f, pos.z), out bool ground);
+                if (kind != SpeederFluid.None)
                 {
                     surface = y + 1f;
-                    return true;
+                    return kind;
+                }
+
+                if (ground)
+                {
+                    return SpeederFluid.None;
                 }
             }
 
-            return false;
+            return SpeederFluid.None;
         }
 
-        /// <summary>Water within <paramref name="dist"/> metres ahead at hull height (feet down to two below) —
-        /// the shore stop's look-ahead, scaled by speed by the caller so the speeder brakes before the bank.</summary>
-        private bool WaterAhead(Vector3 pos, Vector3 forward, float dist)
+        /// <summary>The speeder's fluid kind of one cell; <paramref name="ground"/> is set for a cell that is real ground
+        /// (neither air, a fluid nor a walk-through prop such as grass on the bank).</summary>
+        private SpeederFluid FluidKindAt(Vector3 at, out bool ground)
+        {
+            ground = false;
+            if (Game?.World == null || Game.Content == null)
+            {
+                return SpeederFluid.None;
+            }
+
+            var id = Game.World.GetBlock(Mathf.FloorToInt(at.x), Mathf.FloorToInt(at.y), Mathf.FloorToInt(at.z));
+            if (id.IsAir)
+            {
+                return SpeederFluid.None;
+            }
+
+            // The same classification as the server's FluidUnderHull: water is the one fluid a flagged speeder crosses,
+            // VehicleProperties.IsHoverHazard (lava, oil, a gas giant's gas sea) is a stop for every speeder.
+            var def = Game.Content.BlockById(id);
+            if (def?.Key == BlocksBeyondTheStars.Shared.Definitions.VehicleProperties.HoverWaterKey)
+            {
+                return SpeederFluid.Water;
+            }
+
+            if (BlocksBeyondTheStars.Shared.Definitions.VehicleProperties.IsHoverHazard(def))
+            {
+                return SpeederFluid.Hazard;
+            }
+
+            if (def != null && BlocksBeyondTheStars.Shared.Definitions.WalkThroughBlocks.IsWalkThrough(def.Key))
+            {
+                return SpeederFluid.None;
+            }
+
+            ground = true;
+            return SpeederFluid.None;
+        }
+
+        /// <summary>A fluid the speeder may not cross within <paramref name="dist"/> metres ahead at hull height (feet
+        /// down to two below) — the shore stop's look-ahead, scaled by speed by the caller so the speeder brakes before
+        /// the bank. Lava, oil and gas always count; water only when <paramref name="waterOk"/> is off (#2535).</summary>
+        private bool FluidAhead(Vector3 pos, Vector3 forward, float dist, bool waterOk)
         {
             forward.y = 0f;
             if (forward.sqrMagnitude < 1e-4f)
@@ -4428,9 +4539,15 @@ namespace BlocksBeyondTheStars.Client
                 Vector3 probe = pos + forward * d;
                 for (int y = feet; y >= feet - 2; y--)
                 {
-                    if (BlockKeyAt(new Vector3(probe.x, y + 0.5f, probe.z)) == "water")
+                    var kind = FluidKindAt(new Vector3(probe.x, y + 0.5f, probe.z), out bool ground);
+                    if (kind == SpeederFluid.Hazard || (kind == SpeederFluid.Water && !waterOk))
                     {
                         return true;
+                    }
+
+                    if (kind != SpeederFluid.None || ground)
+                    {
+                        break; // crossable water or real ground at this probe — look further ahead
                     }
                 }
             }
@@ -5602,16 +5719,11 @@ namespace BlocksBeyondTheStars.Client
         /// player walks straight through them; treating them as solid would make the out-of-world guard think a
         /// player standing in a grass tuft (or next to a wall torch) was embedded in geometry, and would make a
         /// torch overhead cancel the auto-step. Tree crowns (#2184) are excluded already by <see cref="IsSolidKey"/>.
+        /// The prop list (flora, torch/lantern lit or unlit, ladder, fire, energy gate) is the Shared one the server's
+        /// movement mirror reads too (#2533), so the two can no longer drift.
         /// </summary>
         internal static bool IsCollidingKey(string key)
-            => IsSolidKey(key)
-               && key != "torch"
-               && key != "lantern" // slim prop like the torch (#809)
-               && key != "torch_off" && key != "lantern_off" // the Crystal Net's unlit twins are the same slim props (#2520)
-               && key != "ladder"  // walk-through since #803 — a climber stands INSIDE the ladder cell
-               && key != "fire"        // burns, doesn't block — meshed without a collider
-               && key != "energy_gate" // walk-through membrane — meshed without a collider
-               && !key.StartsWith("flora_", System.StringComparison.Ordinal);
+            => IsSolidKey(key) && !BlocksBeyondTheStars.Shared.Definitions.WalkThroughBlocks.IsProp(key);
 
         /// <summary>Whether there is solid footing just past the player's edge in a horizontal direction — used by
         /// the sneak edge-stop. Samples a little ahead of the capsule and allows a single step-down (so you can

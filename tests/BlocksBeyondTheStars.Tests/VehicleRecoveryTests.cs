@@ -153,23 +153,17 @@ public sealed class VehicleRecoveryTests : IDisposable
         }
     }
 
+    /// <summary>A ground vehicle without the hover-over-water flag (the speeder before #2535) still stops at the shore:
+    /// driven into the sea anyway, it is set back onto dry ground.</summary>
     [Fact]
-    public void Driving_IntoTheSea_SetsTheSpeederBackOntoDryGround()
+    public void Driving_IntoTheSea_WithoutTheHoverFlag_SetsTheSpeederBackOntoDryGround()
     {
+        _content.GetItem("speeder")!.Vehicle!.HoverOverWater = false;
         var t = new RecordingTransport();
         var server = NewServer(out var repo, transport: t);
         using (repo)
         {
-            var p = Pilot(server);
-            StonePad(server);
-            Fill(server, "water", 8, 12, 78, 79, 16, 22); // a pool further out, off the deploy spot
-            string id = server.DeploySpeederForTest("Pilot");
-            var dry = server.SpeederSnapshots.Single().Pos;
-            p.State.Position = dry;
-            server.EnterSpeederForTest("Pilot", id);
-            server.DriveSpeederStepForTest("Pilot", dry); // judged dry → remembered
-
-            var wet = new Vector3f(10.5f, 80f, 18.5f); // over the pool: water two cells under the feet
+            var p = DriveOntoAPoolOf(server, "water", out var dry, out var wet);
             for (int i = 0; i < 29; i++)
             {
                 server.DriveSpeederStepForTest("Pilot", wet);
@@ -182,6 +176,114 @@ public sealed class VehicleRecoveryTests : IDisposable
             Assert.Equal(dry.Z, server.SpeederSnapshots.Single().Pos.Z, 2);
             Assert.Contains("@srv.speeder.in_water", MessagesTo(t, p));
         }
+    }
+
+    /// <summary>#2535: the hover speeder crosses water — the data flags it, and no number of reports over the sea sets it back.</summary>
+    [Fact]
+    public void Driving_OverTheSea_TheHoverSpeederIsNeverSetBack()
+    {
+        Assert.True(_content.GetItem("speeder")!.Vehicle!.HoverOverWater, "the speeder item must hover over water (#2535)");
+        Assert.False(_content.GetItem("boat")!.Vehicle!.HoverOverWater);
+        var t = new RecordingTransport();
+        var server = NewServer(out var repo, transport: t);
+        using (repo)
+        {
+            var p = DriveOntoAPoolOf(server, "water", out _, out var wet);
+            for (int i = 0; i < 90; i++)
+            {
+                server.DriveSpeederStepForTest("Pilot", wet);
+            }
+
+            Assert.Equal(wet.Z, p.State.Position.Z);
+            Assert.Equal(wet.Z, server.SpeederSnapshots.Single().Pos.Z, 2);
+            Assert.DoesNotContain("@srv.speeder.in_water", MessagesTo(t, p));
+        }
+    }
+
+    /// <summary>#2535: the fluids no hover vehicle crosses — lava and every still liquid (oil, a gas giant's gas sea) —
+    /// against water, the one a flagged speeder may cross. Client and server both classify through this one rule.</summary>
+    [Fact]
+    public void HoverHazards_AreLavaOilAndGas_NeverWater()
+    {
+        foreach (var key in new[] { "lava", "oil", "gas", "gas_dense" })
+        {
+            Assert.True(BlocksBeyondTheStars.Shared.Definitions.VehicleProperties.IsHoverHazard(_content.GetBlock(key)), key);
+        }
+
+        foreach (var key in new[] { "water", "stone", "sand" })
+        {
+            Assert.False(BlocksBeyondTheStars.Shared.Definitions.VehicleProperties.IsHoverHazard(_content.GetBlock(key)), key);
+        }
+
+        Assert.NotNull(_content.GetBlock(BlocksBeyondTheStars.Shared.Definitions.VehicleProperties.HoverWaterKey));
+    }
+
+    /// <summary>#2535: lava, oil and a gas sea stay a stop for every speeder — driven onto one, it is set back onto safe ground.</summary>
+    [Theory]
+    [InlineData("lava")]
+    [InlineData("oil")]
+    [InlineData("gas")]
+    public void Driving_OntoLavaOilOrGas_StillSetsTheSpeederBack(string fluid)
+    {
+        var t = new RecordingTransport();
+        var server = NewServer(out var repo, transport: t);
+        using (repo)
+        {
+            var p = DriveOntoAPoolOf(server, fluid, out var dry, out var wet);
+            for (int i = 0; i < 30; i++)
+            {
+                server.DriveSpeederStepForTest("Pilot", wet);
+            }
+
+            Assert.Equal(dry.Z, p.State.Position.Z, 2);
+            Assert.Equal(dry.Z, server.SpeederSnapshots.Single().Pos.Z, 2);
+            Assert.Contains("@srv.speeder.in_liquid", MessagesTo(t, p));
+        }
+    }
+
+    /// <summary>#2535: a speeder parked out on the water sets its driver down the way a boat does — into the water beside
+    /// the hull, not on the seat.</summary>
+    [Fact]
+    public void Exit_OverOpenWater_PutsTheDriverInTheWaterBesideTheHull()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var p = Pilot(server);
+            StonePad(server);
+            Fill(server, "water", 0, 24, 76, 79, 15, 32); // a lake from z 15 on, far past the dry search ring
+            Fill(server, "air", 0, 24, 80, 86, 25, 32);
+            string id = server.DeploySpeederForTest("Pilot");
+            Assert.NotEqual(string.Empty, id); // on the stone at z 13
+            p.State.Position = server.SpeederSnapshots.Single().Pos;
+            server.EnterSpeederForTest("Pilot", id);
+
+            var mid = new Vector3f(10.5f, 81.3f, 22.5f); // hovering 1.3 over the surface (y 80)
+            server.DriveSpeederStepForTest("Pilot", mid);
+            server.ExitSpeederForTest("Pilot");
+
+            Assert.Equal(string.Empty, p.State.InSpeeder);
+            Assert.Equal(79f, p.State.Position.Y); // a block under the waterline: swimming at once
+            Assert.NotEqual(mid.X, p.State.Position.X); // beside the hull, not on the seat
+            Assert.Equal(mid.Z, server.SpeederSnapshots.Single().Pos.Z, 2); // the speeder stays out there
+        }
+    }
+
+    /// <summary>The pilot deploys on the stone pad, boards, and reports one dry pose; <paramref name="fluid"/> fills a
+    /// pool further out (y 78..79, surface 80), and <paramref name="wet"/> is a pose over it.</summary>
+    private BlocksBeyondTheStars.GameServer.PlayerSession DriveOntoAPoolOf(SvGameServer server, string fluid, out Vector3f dry, out Vector3f wet)
+    {
+        var p = Pilot(server);
+        StonePad(server);
+        Fill(server, fluid, 8, 12, 78, 79, 16, 22); // a pool further out, off the deploy spot
+        string id = server.DeploySpeederForTest("Pilot");
+        Assert.NotEqual(string.Empty, id);
+        dry = server.SpeederSnapshots.Single().Pos;
+        p.State.Position = dry;
+        server.EnterSpeederForTest("Pilot", id);
+        server.DriveSpeederStepForTest("Pilot", dry); // judged dry → remembered
+        wet = new Vector3f(10.5f, 80f, 18.5f); // over the pool: the fluid one cell under the feet
+        return p;
     }
 
     // ---------------- #1661: the seat is released on death, the ship recalls a stranded vehicle ----------------

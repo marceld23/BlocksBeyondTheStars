@@ -215,7 +215,7 @@ namespace BlocksBeyondTheStars.Client
 
                 labels ??= ScreenLabelLayer.Instance;
                 var col = d.Output ? new Color(0.55f, 0.95f, 1f) : new Color(0.55f, 0.6f, 0.75f);
-                labels.World(cam, pos, text, col, true, 16f, 24f);
+                labels.World(cam, pos, text, col, true, 16f, 24f, occludeIn: Game); // #2531: hidden behind terrain
             }
         }
 

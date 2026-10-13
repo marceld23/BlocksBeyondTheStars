@@ -515,7 +515,7 @@ namespace BlocksBeyondTheStars.Client
                             ? entry.Worm.HeadScenePos + Vector3.up * (c.WormGirth + 2f)
                             : entry.Root.transform.position + Vector3.up * (c.GiantHeight + 3f);
                         EnemyHealthBars.Push(Game, cam, c.Id, anchor, c.Hull, c.HullMax, friendly: false,
-                            fadeStart: 150f, fadeEnd: 220f);
+                            fadeStart: 150f, fadeEnd: 220f, occlude: true); // #2531
                     }
                 }
                 else
@@ -523,7 +523,7 @@ namespace BlocksBeyondTheStars.Client
                     EnemyHealthBars.Push(Game, cam, c.Id,
                         entry.Root.transform.position + Vector3.up * barHeight,
                         c.Hull, c.HullMax, friendly: !string.IsNullOrEmpty(c.OwnerId),
-                        fadeStart: 18f, fadeEnd: 28f);
+                        fadeStart: 18f, fadeEnd: 28f, occlude: true); // #2531: not through walls
                 }
             }
 
@@ -585,7 +585,7 @@ namespace BlocksBeyondTheStars.Client
                 var tm = np.AddComponent<TextMesh>();
                 tm.font = UiKit.Font;
                 var mr = np.GetComponent<MeshRenderer>();
-                if (mr != null && UiKit.Font != null) mr.sharedMaterial = UiKit.Font.material;
+                if (mr != null && UiKit.Font != null) mr.sharedMaterial = WorldTextMaterial.Shared; // #2531: depth-tested, walls hide it
                 tm.fontSize = 48;
                 tm.characterSize = 0.05f;
                 tm.anchor = TextAnchor.LowerCenter;
@@ -635,11 +635,6 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>A creature in its off-phase (night for a diurnal animal, day for a nocturnal one) sleeps in
-        /// place — the server flags it <see cref="NetCreature.Asleep"/>. Render it as resting: settle a touch
-        /// lower with a slow breathing bob, and float a soft "z z z" above it so the player can read that it is
-        /// asleep (and can be snuck up on, or woken by coming close / hitting it). Label is built lazily, kept
-        /// under the game root (upright, not the creature rig) and billboarded + distance-faded like nameplates.</summary>
         /// <summary>#2278: while the server reports the creature dazed by a shock-glove push, a few little stars circle over
         /// its head; the moment the daze starts a soft dizzy "boing" plays there. Nothing at all otherwise.</summary>
         private void UpdateDaze(Entry e, NetCreature c)
@@ -659,6 +654,12 @@ namespace BlocksBeyondTheStars.Client
             FxShots.Daze(e.Root.transform.position + (Vector3.up * ((1.1f * s) + 0.35f)), 0.22f + (0.12f * s), robot: false, ref e.NextDazeSpark);
         }
 
+        /// <summary>A creature in its off-phase (night for a diurnal animal, day for a nocturnal one) sleeps in
+        /// place — the server flags it <see cref="NetCreature.Asleep"/>. Render it as resting: settle a touch
+        /// lower with a slow breathing bob, and float a soft "z z z" above it so the player can read that it is
+        /// asleep (and can be snuck up on, or woken by coming close / hitting it). Label is built lazily, kept
+        /// under the game root (upright, not the creature rig) and billboarded + distance-faded like nameplates.
+        /// #2531: drawn depth-tested (<see cref="WorldTextMaterial"/>), so a sleeper behind a wall stays hidden.</summary>
         private void UpdateSleep(Entry e, NetCreature c)
         {
             if (!c.Asleep)
@@ -678,7 +679,7 @@ namespace BlocksBeyondTheStars.Client
                 var tm = z.AddComponent<TextMesh>();
                 tm.font = UiKit.Font;
                 var mr = z.GetComponent<MeshRenderer>();
-                if (mr != null && UiKit.Font != null) mr.sharedMaterial = UiKit.Font.material;
+                if (mr != null && UiKit.Font != null) mr.sharedMaterial = WorldTextMaterial.Shared; // #2531: depth-tested, walls hide it
                 tm.fontSize = 48;
                 tm.characterSize = 0.05f;
                 tm.anchor = TextAnchor.LowerCenter;

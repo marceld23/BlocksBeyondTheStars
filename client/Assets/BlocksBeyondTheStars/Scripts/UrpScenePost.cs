@@ -169,7 +169,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_menuBlur != null && Game != null)
             {
-                bool open = Game.MenuOpen;
+                bool open = Game.ScreenMenuOpen; // #2530: not under the taming panel — the creature must stay sharp
                 if (_menuBlur.active != open)
                 {
                     _menuBlur.active = open;

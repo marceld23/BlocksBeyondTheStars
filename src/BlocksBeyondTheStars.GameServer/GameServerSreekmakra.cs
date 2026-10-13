@@ -448,7 +448,7 @@ public sealed partial class GameServer
         _creatures.Remove(sreek);
         foreach (var attempt in _tameAttempts.Where(a => a.Value.CreatureId == sreek.Id).Select(a => a.Key).ToList())
         {
-            _tameAttempts.Remove(attempt); // anyone else mid-ritual on it loses the thread
+            EndTameAttempt(attempt); // anyone else mid-ritual on it loses the thread — and is told so (#2530)
         }
 
         Sreek.Clear();

@@ -221,7 +221,7 @@ namespace BlocksBeyondTheStars.Client
                 : HudUi.ExpandKeyTokens(Game.Localizer, Game.Localizer?.Get("ui.datacube.prompt") ?? "{key:Interact}: Extract fragment");
 
             ScreenLabelLayer.Instance.World(cam, c.Go.transform.position + Vector3.up * 1.3f, label,
-                owned ? UiKit.Ok : UiKit.Cyan);
+                owned ? UiKit.Ok : UiKit.Cyan, occludeIn: Game); // #2531: no prompt through a wall
         }
 
         private void OnDestroy()

@@ -78,6 +78,21 @@ public sealed class VehicleProperties
 
     /// <summary>Whether driving drains an onboard energy cell (the speeder) or is free (the boat).</summary>
     public bool Fuel { get; set; } = true;
+
+    /// <summary>A ground vehicle that hovers over WATER too (#2535, the speeder): the water surface counts as ground for
+    /// its hover height, there is no shore stop, and the server does not set it back onto dry land. Lava, oil and gas stay
+    /// a stop whatever this says (<see cref="IsHoverHazard"/>), and deploying it still needs dry land. Off by default (a ground vehicle stops at the
+    /// shore, #1660); meaningless for a water vehicle.</summary>
+    public bool HoverOverWater { get; set; }
+
+    /// <summary>The one fluid a ground vehicle may hover over (#2535), and only with <see cref="HoverOverWater"/>.</summary>
+    public const string HoverWaterKey = "water";
+
+    /// <summary>A fluid NO hover vehicle may cross (#2535): lava and every still liquid by block data — oil, and a gas
+    /// giant's gas sea (<c>gas</c>, <c>gas_dense</c>). Water is the only fluid <see cref="HoverOverWater"/> lifts the stop
+    /// for. The server's hull probe and the client's shore stop both ask this, so the two sets cannot drift.</summary>
+    public static bool IsHoverHazard(BlockDefinition? block)
+        => block != null && block.Key != HoverWaterKey && (block.Key == "lava" || block.Liquid);
 }
 
 /// <summary>

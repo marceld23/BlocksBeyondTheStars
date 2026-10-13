@@ -372,10 +372,11 @@ public sealed partial class GameServer
                     }
                 }
 
-        if (IsBoat(s.Rec))
+        if (IsBoat(s.Rec) || HoversOverWater(s.Rec))
         {
             // Mid-lake (#1671): into the water beside the hull, feet a block under the waterline so the client's
-            // swim physics takes over at once. Same side cells as the dry search, nearest first.
+            // swim physics takes over at once. Same side cells as the dry search, nearest first. A speeder that
+            // hovers over water (#2535) parks out there like a boat, so its driver gets off the same way.
             foreach (int side in new[] { 2, -2, 3, -3 })
             {
                 foreach (int ahead in new[] { 0, 1, -1 })
@@ -464,22 +465,88 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The speeder's mirror of <see cref="TickBoatAshore"/> (#1660): a hover speeder is a land vehicle —
-    /// the client stops it at the shoreline — but a client that keeps driving into the sea anyway (or one that
-    /// sank before the shore stop existed) is set back onto the last pose judged dry after
-    /// <see cref="SpeederWetReports"/> consecutive wet reports. Judged only in loaded chunks, like the boat.</summary>
+    /// <summary>What lies under a ground vehicle's hull (#2535): the first cell from the feet down that is not air or a
+    /// walk-through prop (grass on a bank), up to <see cref="BoatHullProbeDepth"/> below. Judged only in loaded chunks,
+    /// like the boat (<see cref="BoatOverWater"/>) — an unloaded probe is <see cref="HullFluid.Unknown"/>, never a verdict.</summary>
+    private enum HullFluid
+    {
+        Unknown,
+        Dry,
+        Water,
+        Hazard, // VehicleProperties.IsHoverHazard: lava, oil, a gas sea — never a surface to hover over
+    }
+
+    private HullFluid FluidUnderHull(Vector3f pos)
+    {
+        int x = (int)Math.Floor(pos.X);
+        int z = (int)Math.Floor(pos.Z);
+        int feet = (int)Math.Floor(pos.Y);
+        var probe = WorldConstants.CanonicalBlock(new Vector3i(x, feet, z), _world.Circumference);
+        if (!_world.IsChunkLoaded(WorldConstants.WorldToChunk(probe)))
+        {
+            return HullFluid.Unknown;
+        }
+
+        for (int dy = 0; dy <= BoatHullProbeDepth; dy++)
+        {
+            var id = _world.GetBlockIfLoaded(new Vector3i(x, feet - dy, z));
+            if (id.IsAir)
+            {
+                continue;
+            }
+
+            var def = _content.BlockById(id);
+            if (def?.Key == Shared.Definitions.VehicleProperties.HoverWaterKey)
+            {
+                return HullFluid.Water;
+            }
+
+            if (Shared.Definitions.VehicleProperties.IsHoverHazard(def))
+            {
+                return HullFluid.Hazard; // lava, oil, a gas sea — the same set the client's shore stop reads
+            }
+
+            if (def != null && Shared.Definitions.WalkThroughBlocks.IsWalkThrough(def.Key))
+            {
+                continue;
+            }
+
+            return HullFluid.Dry; // real ground (a bridge over a lake included)
+        }
+
+        return HullFluid.Dry;
+    }
+
+    /// <summary>Whether this ground vehicle hovers over water too (#2535) — the item's
+    /// <see cref="Shared.Definitions.VehicleProperties.HoverOverWater"/> flag; never a boat.</summary>
+    private bool HoversOverWater(DeployedSpeeder rec)
+        => !IsBoat(rec) && (_content.GetItem(VehicleItem(rec))?.Vehicle?.HoverOverWater ?? false);
+
+    /// <summary>Whether a vehicle at <paramref name="pos"/> is out on the water like a boat (#2535): a boat always, a
+    /// speeder that hovers over water when there is water under its hull. The leviathan strikes and hears these.</summary>
+    private bool VehicleOnWater(ServerSpeeder s, Vector3f pos)
+        => IsBoat(s.Rec) || (HoversOverWater(s.Rec) && FluidUnderHull(pos) == HullFluid.Water);
+
+    /// <summary>The speeder's mirror of <see cref="TickBoatAshore"/> (#1660): the client stops a hover speeder at the
+    /// edge of a fluid it cannot cross, but a client that keeps driving in anyway (or one that sank before the shore
+    /// stop existed) is set back onto the last safe pose after <see cref="SpeederWetReports"/> consecutive reports
+    /// over it. Since #2535 a speeder flagged <see cref="Shared.Definitions.VehicleProperties.HoverOverWater"/> crosses
+    /// water freely — only lava, oil and gas (<see cref="Shared.Definitions.VehicleProperties.IsHoverHazard"/>) set it back. Judged only in loaded chunks, like the boat.</summary>
     private void TickSpeederInWater(PlayerSession session, ServerSpeeder s)
     {
         var p = session.State;
-        bool? wet = BoatOverWater(p.Position);
-        if (wet != true)
+        var under = FluidUnderHull(p.Position);
+        if (under == HullFluid.Unknown)
         {
-            if (wet == false)
-            {
-                s.LastDryPos = p.Position;
-                s.HasDryPos = true;
-            }
+            s.WetReports = 0;
+            return;
+        }
 
+        bool stranded = under == HullFluid.Hazard || (under == HullFluid.Water && !HoversOverWater(s.Rec));
+        if (!stranded)
+        {
+            s.LastDryPos = p.Position; // a safe pose — dry ground, or water under a speeder that hovers over it
+            s.HasDryPos = true;
             s.WetReports = 0;
             return;
         }
@@ -498,7 +565,7 @@ public sealed partial class GameServer
         session.AwaitingSpawnAdopt = true;
         SendPlayerState(session);
         Send(session, new BeamTeleported { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z });
-        Send(session, new ServerMessage { Text = "@srv.speeder.in_water" });
+        Send(session, new ServerMessage { Text = under == HullFluid.Hazard ? "@srv.speeder.in_liquid" : "@srv.speeder.in_water" });
     }
 
     // ---------------------------------------------------------------------------------------------

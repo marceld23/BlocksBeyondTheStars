@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -34,7 +35,7 @@ namespace BlocksBeyondTheStars.Client
             public Vector3 LastPos;
             public float DustTimer;
             public bool HasPos;
-            public bool Boat;                    // built from BoatCells(): wake instead of dust, no engine glow (#1215)
+            public bool Boat;                    // built from the boat's HullCells(): wake instead of dust, no engine glow (#1215)
         }
 
         private readonly Dictionary<string, Obj> _objs = new();
@@ -44,6 +45,13 @@ namespace BlocksBeyondTheStars.Client
         // The centred mesh offset (the design spans x:0..2, z:0..4) so the seat sits on the root (the driver).
         private static readonly Vector3 MeshOffset = new Vector3(-1f, -0.2f, -2f);
         private static readonly Vector3 BoatMeshOffset = new Vector3(-1f, -0.8f, -2f);
+
+        /// <summary>The speeder's mesh offset from its root, for the held miniature (#2534).</summary>
+        internal static Vector3 SpeederMeshOffset => MeshOffset;
+
+        /// <summary>The speeder's two engine glows at the rear, root-local (design z=0 → root-local z = -2 after
+        /// centring); the held miniature (#2534) puts its own at the same spots.</summary>
+        internal static readonly Vector3[] EngineGlows = { new Vector3(-0.7f, 0.45f, -1.95f), new Vector3(0.7f, 0.45f, -1.95f) };
 
         private void Update()
         {
@@ -220,7 +228,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             obj.Boat = s.Kind == "boat";
-            var cells = obj.Boat ? BoatCells() : SpeederCells();
+            var cells = HullCells(Game.Content, obj.Boat);
             if (cells.Count == 0)
             {
                 return;
@@ -231,7 +239,7 @@ namespace BlocksBeyondTheStars.Client
                 : new[] { Game.ChunkMaterial };
 
             // Unpainted default: the speeder's silver-blue, the boat's warm wood.
-            int hull = s.HullColor != 0 ? s.HullColor : (obj.Boat ? 0xB07A46 : 0x9FB6D6);
+            int hull = s.HullColor != 0 ? s.HullColor : DefaultHullColor(obj.Boat);
             var paint = ShipMeshBuilder.HullPaint(Game.Content,
                 new Color(((hull >> 16) & 0xFF) / 255f, ((hull >> 8) & 0xFF) / 255f, (hull & 0xFF) / 255f));
 
@@ -245,7 +253,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // No worldShape delegate (unlike the ship paths in #420 M12): the speeder hull is a fixed procedural
-            // cube grid built by SpeederCells() with no shaped (slab/ramp/…) cells, so no cube face can border a
+            // cube grid built by HullCells() with no shaped (slab/ramp/…) cells, so no cube face can border a
             // shaped neighbour and there are no see-through holes to rescue.
             var (mesh, collider) = ChunkMesher.Build(chunk, Game.Content, CellAt, Game.Atlas, paintTint: paint);
 
@@ -286,8 +294,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Engine glow at the rear (design z=0 → root-local z = -2 after centring).
-            obj.Glow0 = MakeGlow(root.transform, new Vector3(-0.7f, 0.45f, -1.95f));
-            obj.Glow1 = MakeGlow(root.transform, new Vector3(0.7f, 0.45f, -1.95f));
+            obj.Glow0 = MakeGlow(root.transform, EngineGlows[0]);
+            obj.Glow1 = MakeGlow(root.transform, EngineGlows[1]);
         }
 
         private Transform MakeGlow(Transform parent, Vector3 localPos)
@@ -345,90 +353,17 @@ namespace BlocksBeyondTheStars.Client
             Game.PendingSpeederFx.Clear();
         }
 
-        /// <summary>The hand-authored voxel design of the speeder: a small open sled — chassis floor, side rails,
-        /// a backrest and a glass windscreen. Built from blocks that always exist; a missing key is skipped.</summary>
-        private Dictionary<Vector3i, BlockId> SpeederCells()
+        /// <summary>The voxel design of a speeder or (<paramref name="boat"/>) a boat — chassis, rails, backrest and glass
+        /// windscreen; or the wooden hull with its bow, gunwales, transom and outboard motor (#1215). The designs live in
+        /// <see cref="VehicleVoxels"/>, shared with the miniature held in the hand (#2534). Built from blocks that always
+        /// exist; a missing key falls back along its chain.</summary>
+        public static Dictionary<Vector3i, BlockId> HullCells(GameContent content, bool boat)
         {
-            var cells = new Dictionary<Vector3i, BlockId>();
-            var hull = BlockKey("iron_wall") ?? BlockKey("metal_panel") ?? BlockKey("stone");
-            var glass = BlockKey("glass") ?? hull;
-            if (hull == null)
-            {
-                return cells;
-            }
-
-            // Floor (y=0): a 3×5 chassis.
-            for (int x = 0; x <= 2; x++)
-            for (int z = 0; z <= 4; z++)
-            {
-                cells[new Vector3i(x, 0, z)] = hull.Value;
-            }
-
-            // Side rails (y=1, x=0 and x=2) along the middle.
-            for (int z = 1; z <= 3; z++)
-            {
-                cells[new Vector3i(0, 1, z)] = hull.Value;
-                cells[new Vector3i(2, 1, z)] = hull.Value;
-            }
-
-            // Backrest (y=1, z=0).
-            for (int x = 0; x <= 2; x++)
-            {
-                cells[new Vector3i(x, 1, 0)] = hull.Value;
-            }
-
-            // Glass windscreen at the front (y=1, z=4).
-            for (int x = 0; x <= 2; x++)
-            {
-                cells[new Vector3i(x, 1, 4)] = glass.Value;
-            }
-
-            return cells;
+            BlockId? Block(string key) => content?.GetBlock(key) is { } def ? def.NumericId : (BlockId?)null;
+            return boat ? VehicleVoxels.BoatCells(Block) : VehicleVoxels.SpeederCells(Block);
         }
 
-        /// <summary>The hand-authored voxel design of the boat (#1215): a 3×5 wooden hull with a pointed bow, low
-        /// gunwales, a transom and a small metal outboard motor at the stern. Same footprint as the speeder so the
-        /// centring offset and the driver seat (the root) line up; no glass, no glow. Wood first, metal fallback.</summary>
-        private Dictionary<Vector3i, BlockId> BoatCells()
-        {
-            var cells = new Dictionary<Vector3i, BlockId>();
-            var wood = BlockKey("wood_log") ?? BlockKey("wood_crate") ?? BlockKey("iron_wall") ?? BlockKey("stone");
-            var metal = BlockKey("iron_wall") ?? BlockKey("metal_panel") ?? wood;
-            if (wood == null)
-            {
-                return cells;
-            }
-
-            // Hull floor (y=0): full 3 wide from the stern to z=3, a single centre block as the bow tip.
-            for (int x = 0; x <= 2; x++)
-            for (int z = 0; z <= 3; z++)
-            {
-                cells[new Vector3i(x, 0, z)] = wood.Value;
-            }
-
-            cells[new Vector3i(1, 0, 4)] = wood.Value;
-
-            // Gunwales (y=1) along both sides, meeting at the bow post.
-            for (int z = 1; z <= 3; z++)
-            {
-                cells[new Vector3i(0, 1, z)] = wood.Value;
-                cells[new Vector3i(2, 1, z)] = wood.Value;
-            }
-
-            cells[new Vector3i(1, 1, 4)] = wood.Value;
-
-            // Transom (y=1, z=0) with the outboard motor in the middle.
-            cells[new Vector3i(0, 1, 0)] = wood.Value;
-            cells[new Vector3i(2, 1, 0)] = wood.Value;
-            cells[new Vector3i(1, 1, 0)] = metal!.Value;
-
-            return cells;
-        }
-
-        private BlockId? BlockKey(string key)
-        {
-            var def = Game.Content?.GetBlock(key);
-            return def != null ? def.NumericId : (BlockId?)null;
-        }
+        /// <summary>The unpainted hull colour (0xRRGGBB): the speeder's silver-blue, the boat's warm wood.</summary>
+        public static int DefaultHullColor(bool boat) => boat ? 0xB07A46 : 0x9FB6D6;
     }
 }

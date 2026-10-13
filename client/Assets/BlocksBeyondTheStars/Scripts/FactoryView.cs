@@ -422,7 +422,10 @@ namespace BlocksBeyondTheStars.Client
                 colour = UiKit.Cyan;
             }
 
-            ScreenLabelLayer.Instance.World(cam, scene + Vector3.up * 1.2f, label, colour);
+            // #2531: hidden behind terrain like the other prompts. Anchored over the terminal cell's CENTRE — the cell
+            // corner it used to sit on can lie on the far face of the wall the terminal is set into, and the occlusion
+            // test would then read that wall as standing between the player and the prompt.
+            ScreenLabelLayer.Instance.World(cam, scene + new Vector3(0.5f, 1.2f, 0.5f), label, colour, occludeIn: Game);
         }
 
         private void OnDestroy()

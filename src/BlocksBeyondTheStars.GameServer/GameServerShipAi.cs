@@ -170,8 +170,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>The world story's chip (#1110): the finale or the current lead (#2475: the chapter lead, <see cref="StoryObjectiveFor"/>
-    /// — an older client keeps the old keys), the arc's score as its counter (clamped, <see cref="StoryProgressShown"/>).
-    /// Carries the story's id as its pack (#2471: the client labels it with the story's short name, "VEGA: …").</summary>
+    /// — an older client keeps the old keys), the way to the next beat as its counter (#2537, <see cref="StoryEngine.NextBeatProgress"/>
+    /// over the clamped <see cref="StoryProgressShown"/>; hidden once every beat is heard — the journal's meter keeps the
+    /// whole arc). Carries the story's id as its pack (#2471: the client labels it with the story's short name, "VEGA: …").</summary>
     private VegaChip StoryChip(PlayerSession session, bool tutorialActive)
     {
         var (key, arg, source) = StoryObjectiveFor(session);
@@ -180,8 +181,9 @@ public sealed partial class GameServer
             return new VegaChip(string.Empty, string.Empty, 0, 0, ObjectiveSources.None, tutorialActive);
         }
 
-        int target = _story is { Beats.Count: > 0 } d ? d.Beats[d.Beats.Count - 1].Threshold : 0;
-        return new VegaChip(key, arg, StoryProgressShown(), target, source, tutorialActive, _story?.Id ?? string.Empty);
+        // #2537: the arc's score next to one task ("Find the net fragment (8/204)") read as "8 of 204 fragments".
+        var (progress, target) = _story is null ? (0, 0) : StoryEngine.NextBeatProgress(_story, _storyState, StoryProgressShown());
+        return new VegaChip(key, arg, progress, target, source, tutorialActive, _story?.Id ?? string.Empty);
     }
 
     /// <summary>The pinned story's chip, or null when it has no objective now (the order then goes on).</summary>
@@ -323,6 +325,10 @@ public sealed partial class GameServer
     /// <summary>Test seam: the pack whose objective is on the chip for this player right now (#2466), empty for none.</summary>
     public string? ObjectivePackForTest(string playerId)
         => FindSessionByPlayerId(playerId) is { } session ? LiveVegaChip(session).PackId : null;
+
+    /// <summary>Test seam: the objective chip's counter for this player right now (#2537); (0, 0) = no counter.</summary>
+    public (int Progress, int Target) ObjectiveCounterForTest(string playerId)
+        => FindSessionByPlayerId(playerId) is { } session && LiveVegaChip(session) is var chip ? (chip.Progress, chip.Target) : (0, 0);
 
     /// <summary>Join hook: the context tips stay quiet for a moment, then the chip. The cold open — VEGA's prologue — is the
     /// world story's intro cutscene since #2470 and plays earlier in the join (<see cref="StoryOnJoin"/>, before the beat

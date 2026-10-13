@@ -5243,7 +5243,15 @@ public sealed partial class GameServer
         }
 
         var pool = new MaterialPool(_content, session.State, _ship);
-        BreakBlockAt(session, pos, def, pool);
+        if (tool.MiningRadius > 0)
+        {
+            BreakAreaColumnAbove(session, pos, tool.MiningRadius, tool, pool); // #2532: the plant on the aimed block first
+        }
+
+        if (_world.GetBlock(pos) == current) // a hanging plant aimed at fell with its host above (#2532) — no second yield
+        {
+            BreakBlockAt(session, pos, def, pool);
+        }
 
         // Powerful drills clear a small area at once.
         if (tool.MiningRadius > 0)
@@ -5437,8 +5445,11 @@ public sealed partial class GameServer
     /// low-tier area drill cannot sweep up ore above its own tier.</summary>
     private void BreakArea(PlayerSession session, Vector3i center, int radius, ToolProperties tool, MaterialPool pool)
     {
+        // Top layer first (#2532): a plant on a cell of the burst is harvested before its ground goes — mined the other
+        // way round, the ground's support hook would pop it (wild flora vanishes) before the sweep reached it. The
+        // centre column above the aimed block went even earlier (BreakAreaColumnAbove, before the centre itself).
         for (int dx = -radius; dx <= radius; dx++)
-            for (int dy = -radius; dy <= radius; dy++)
+            for (int dy = radius; dy >= -radius; dy--)
                 for (int dz = -radius; dz <= radius; dz++)
                 {
                     if (dx == 0 && dy == 0 && dz == 0)
@@ -5446,25 +5457,40 @@ public sealed partial class GameServer
                         continue;
                     }
 
-                    var p = new Vector3i(center.X + dx, center.Y + dy, center.Z + dz);
-                    var b = _world.GetBlock(p);
-                    if (b.IsAir || IsShipBlock(p) || IsSettlementProtected(p, b) || IsStationBlock(p)
-                        || IsGuardianCoreProtected(p) // #1830
-                        || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
-                    {
-                        continue;
-                    }
-
-                    var d = _world.Definition(b);
-                    if (d is null || !d.Mineable || !ToolCanMine(tool, d))
-                    {
-                        continue;
-                    }
-
-                    // A full inventory no longer stops the sweep: every block falls and the pool's leftovers
-                    // are spilled ONCE by the caller, so a burst leaves one ground packet, not one per cell.
-                    BreakBlockAt(session, p, d, pool);
+                    BreakAreaCell(session, new Vector3i(center.X + dx, center.Y + dy, center.Z + dz), tool, pool);
                 }
+    }
+
+    /// <summary>#2532: the burst's cells straight above the aimed block, top first — broken BEFORE the aimed block, so
+    /// a plant standing on it is harvested rather than popped by its ground's support hook.</summary>
+    private void BreakAreaColumnAbove(PlayerSession session, Vector3i center, int radius, ToolProperties tool, MaterialPool pool)
+    {
+        for (int dy = radius; dy >= 1; dy--)
+        {
+            BreakAreaCell(session, new Vector3i(center.X, center.Y + dy, center.Z), tool, pool);
+        }
+    }
+
+    /// <summary>One cell of an area burst: broken when it is mineable by the tool and nobody's protected block.</summary>
+    private void BreakAreaCell(PlayerSession session, Vector3i p, ToolProperties tool, MaterialPool pool)
+    {
+        var b = _world.GetBlock(p);
+        if (b.IsAir || IsShipBlock(p) || IsSettlementProtected(p, b) || IsStationBlock(p)
+            || IsGuardianCoreProtected(p) // #1830
+            || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
+        {
+            return;
+        }
+
+        var d = _world.Definition(b);
+        if (d is null || !d.Mineable || !ToolCanMine(tool, d))
+        {
+            return;
+        }
+
+        // A full inventory no longer stops the sweep: every block falls and the pool's leftovers
+        // are spilled ONCE by the caller, so a burst leaves one ground packet, not one per cell.
+        BreakBlockAt(session, p, d, pool);
     }
 
     /// <summary>

@@ -226,6 +226,10 @@ public sealed partial class GameServer
 
     private void TickCreatures(double dt)
     {
+        // #2530: first, on every world (a station or a barren moon too): a taming attempt whose animal died, despawned or
+        // is out of reach ends — and its player is told, so the taming panel never holds the controls for nothing.
+        SweepTameAttempts();
+
         // Orbital stations (void worlds) have no wildlife at all — only peaceful NPCs.
         if (_world.Planet.Void)
         {

@@ -948,8 +948,12 @@ players.
   no workbench in reach, a full stack per order — and the craft panel says so instead of "Materials missing". The
   only refusal left is a full inventory.
 - **Every tool looks like itself in your hand:** the titanium and diamond drills, the mining beam, each pistol and
-  blaster, the machete, vibro knife and plasma sword and the advanced scanner all have their own model. The shock and
-  energy gloves sit on both hands.
+  blaster, the machete, vibro knife and plasma sword, the wooden pickaxe, club and spear and the advanced scanner all
+  have their own model. The shock and energy gloves sit on both hands.
+- **Everything else is a little model in your hand, too:** the speeder and the boat show a miniature of the vehicle,
+  seeds, saplings, leaves, torches and lanterns show the plant or lamp as it stands in the world, and every other
+  item — ores, materials, components, food, bait — is held as its inventory picture made solid, pixel by pixel. Other
+  players see the same in your hand. Only an item without any picture leaves you with the bare hand.
 - **Throwing things away:** select an item in the **Inventory** or **Cargo Hold** tab and press **"Throw
   away"** — it asks once ("Really throw away?"), and the second click destroys *every* stack of that item.
   This cannot be undone and gives nothing back. Your starting equipment (drill, scanner, suit lamp, machete,
@@ -993,6 +997,14 @@ players.
   **algae tank**, **campfire** — or the matching **ship module** while you're aboard. The menu names the block
   a recipe needs and where the nearest one is; aiming at a placed station block shows on the HUD which
   menu tab it powers. The Codex guide *Stations & menu tabs* has the full table.
+- **Crafting by hand — no station needed.** The simple things are made anywhere, straight from the crafting menu,
+  without a workbench or your ship: **torches**, the **bed**, the **campfire**, the **wood crate**, the **lantern**
+  (it needs a piece of glass), the **wooden door**, **ladders** (from wood or carbon), the **wooden boat** (10 logs
+  + 6 plant fibre), the **wooden tools** and all three **baits** (forage bait, meat bait, nectar lure). The wooden
+  tools (#2536) are the **wooden pickaxe** (3 logs + 2 plant fibre + 1 stone — mines what the basic drill mines,
+  only slower, and needs no energy), the **wooden club** (2 logs + 1 plant fibre — close combat, a little weaker than
+  the machete) and the **wooden spear** (2 logs + 2 plant fibre + 1 stone — close combat with a longer reach, swings
+  a little slower).
 - The **workshop** is your everyday bench: it smelts the common ores (iron, copper, gold, silver, …) into
   ingots and fabricates parts, tools, weapons and building blocks.
 - The **refinery** (the *forge* block — a workbench craft from stone and iron plates that needs **no blueprint** —
@@ -1337,6 +1349,10 @@ players.
 - Damaged enemies (and the one under your crosshair) show a small **health bar** that ramps
   green → amber → red; tamed companions show a friendly cyan bar. Turn bars off under
   **Settings → Comfort → "Enemy health bars"**.
+- Health bars, nameplates, the sleepers' *z z z* and the little "press to use" hints only show where you could
+  actually **see** the thing: a hill, a cave wall or a house wall hides them (glass, water and leaves don't).
+  Things that are *meant* to show through walls — beacons, thermal-vision contacts, ore-scan markers and other
+  players' names — still do.
 - When one of **your** shots lands, the crosshair flashes a **hit marker**.
 - **Auto-aim** is a **world rule** (default **on**): weapons pick a target in a forward cone by
   themselves — kid- and gamepad-friendly. The world admin can turn it **off** in the in-game
@@ -1348,7 +1364,9 @@ players.
   **5 damage, at most one every 1.2 s** — even the starter machete does better, and every crafted weapon more so.
 - **Tools dig, weapons fight.** A drill, a scanner or a gadget in your hand hits exactly like the bare hand (the same
   5 damage, the same one punch every 1.2 s, no suit energy) — only a crafted **weapon** brings its own damage, cooldown
-  and reach. Want to win a fight? Switch to the machete, not the drill.
+  and reach. Want to win a fight? Switch to the machete, not the drill. No machete at hand? A **wooden club** or
+  **wooden spear** is made by hand anywhere (see § Crafting) — a little weaker than the machete, but better than fists;
+  the spear reaches further.
 - **Companions and pets can't be attacked** — not your own, not a friend's, not a tamer's. The crosshair and
   auto-aim pass them by (they never turn the reticle red), and a swing at one is refused with a friendly note.
 
@@ -1797,12 +1815,21 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   Leaves, needles and fronds drop as blocks now, so you can build and shape a canopy by hand — and a sapling
   planted on the dirt floor of a sealed station hall grows just like one on a planet, so an arboretum in orbit
   is a matter of dirt, saplings and headroom. A sapling you pick up stays a sapling.
+- **Plants and lamps need something to stand on.** Dig away the block under a plant, a sapling, a torch or a
+  lantern — or the block a hanging plant or a fruit hangs from — and it falls: a wild plant is simply gone, while a
+  fruit, a sapling, a bred plant (as its seedling), a torch or a lantern lies on the ground for you to pick up. A torch or
+  lantern with a wall beside it or a block above it stays where it is, and a picked plant whose ground you dig
+  away does not grow back.
 - **Bred plants and seedlings.** A **bio lab** raises a **seedling** from any plant sample — also from a plant you
   crossed yourself. It grows on natural plant ground, on a hydroponic tray or in a flower pot, on any world whose
   air is not corrosive: see § The bio lab.
 - **You walk through tree crowns** — leaves, needles and fronds — just like through grass and ferns; only the
   trunk stops you. So you can't stand on top of a tree: you drop through the crown to the ground (or onto the
   trunk). A hedge you build from leaves is decoration, not a wall. Crowns still hide you from view.
+- **What you walk through, you shoot and hit through** — leaves, grass and other small plants, torches, lanterns and
+  ladders don't stop your weapons, laser or melee, even while you stand inside a tree. Walls and **glass** still do.
+  It only works one way: drones, robots, animals, bandits and sentries **can't** see you through foliage, so a bush
+  or a crown is still cover against them. Your drill still hits the leaves you aim at.
 
 ### Ruins & treasure chests
 - **Ruins** are the collapsed remains of fallen settlements — mostly surviving ground walls, one
@@ -2012,7 +2039,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **People keep the hours of the sun above them.** By day they are at work, in the evening they sit down on a
   **chair or bench** near home (every chair belongs to one person — when the tavern runs out of chairs, the others
   use a chair at home or spend the evening standing), and at night they walk to **their bed** and sleep in it (*"asleep"* on the
-  nameplate, a soft *z z z* above them). Without a bed they rest where they live. Talk to a sleeper and you get
+  nameplate, a soft *z z z* above them — only up close, and never through a wall). Without a bed they rest where they live. Talk to a sleeper and you get
   a mumbled *"come back in the morning"*. This goes for your residents, for **villagers** (every house has a
   bed) and for **station crew** — a station keeps its own clock, and its deck lights **dim at station night**
   (the HUD clock shows it). On a modular station every crew member has a **cabin of its own** and the evening is
@@ -2137,7 +2164,9 @@ called **stories**:
 
 ### Story: finding the thread
 - **Leads.** Once your story has started, the **objective chip** shows the current chapter's **lead** — what VEGA
-  thinks is worth doing next, with the story's progress as its counter: "VEGA: Find the net fragment on Kepler-3 b",
+  thinks is worth doing next, with the way to VEGA's **next story beat** as its counter (e.g. "(2/8)": 2 of the 8
+  points until VEGA tells you more — not a number of fragments; once every beat is told, the counter disappears, and
+  the Journal's story meter keeps the whole story): "VEGA: Find the net fragment on Kepler-3 b",
   "VEGA: Visit the Sealed Observatory on …", "VEGA: Read the runes of a monument on this world", "VEGA: Help a
   settlement: do a job from its board", "VEGA: Go to the heal tank aboard your ship", "VEGA: Research the blueprint:
   Radar Array", … Each chapter has one or two; the chip shows the first one you can follow from where you are, and
@@ -2548,7 +2577,7 @@ called **stories**:
   twelve blocks deep). It does everything the sandworm does, in water: it hears **swimmers, boats and the fish** through the
   water (a step on a pier, a raft or the shore is silent, and so is mining), a **wake** rolls toward you and VEGA warns you,
   then it **breaches** in an arc or rears up and **strikes** the spot — a boat under its head takes heavy **hull damage** (a
-  parked one too), whoever is on it is hurt, and every fish in reach is **swallowed**, leaving a little meat. You can only
+  parked one too; a hover speeder out on the water counts as a boat), whoever is on it is hurt, and every fish in reach is **swallowed**, leaving a little meat. You can only
   hit it while it is above the water. Get to the shore, or hold still.
 - **A sky giant** (new galaxies since generation 18, Justus' idea) drifts over every **gas giant**: a sailer 40–80 blocks
   long — a row of tall sails along its back, glide fins, a fluke — that circles slowly between the islands 40–70 blocks
@@ -2558,12 +2587,23 @@ called **stories**:
 - A defeated giant is gone for a few in-game days, then another one comes. None of them ever changes a block.
 
 ### Taming creatures (companions)
-- Craft a **Creature Translator** (`creature_translator`, workshop recipe + blueprint) and some **bait**
-  (`forage_bait` / `meat_bait` / `nectar_lure`, hand-crafted). Select the translator and **right-click** a
-  wild creature to start a **taming ritual**.
+- Craft a **Creature Translator** (`creature_translator`, workshop recipe + blueprint) and some **bait** — all three
+  are **crafted by hand** in the Tab menu: **Meat Bait** from creature meat, **Forage Bait** from plant fibre and
+  berries, **Nectar Lure** from berries and salt. Select the translator and **right-click** a wild creature to start
+  a **taming ritual**.
 - A HUD panel shows the creature's **mood** and what it **wants now** — offer the bait it craves, **calm** it,
-  **approach** slowly, or **give it space**. Each correct response builds **trust**; reach the threshold and it
-  becomes your **companion** and is named. A first tame of a species also grants **research knowledge**.
+  **approach** slowly, or **give it space**. When it is hungry, the panel names the exact bait and how to make it.
+  Each correct response builds **trust**; reach the threshold and it becomes your **companion** and is named. A first
+  tame of a species also grants **research knowledge**.
+- **Answering:** while the ritual runs the mouse cursor is free and you stand still. Click a button, or press
+  **1** (offer bait), **2** (calm), **3** (approach), **4** (give space) — the keys are printed on the buttons — and
+  **Esc** stops the ritual. With a **gamepad**, the stick moves between the buttons, **A** answers, **B** stops; on a
+  **touch screen**, tap the buttons. **Tab** still opens the menu (for example to craft the bait the creature wants);
+  the panel steps aside and comes back when the menu closes.
+- **Raw food works a little:** without the crafted bait, a meat-eater also takes **raw creature meat**, and a forager
+  or nectar-lover takes **berries or raw fruit** (never the toxic kind). Raw food only counts half — the first bite
+  takes the edge off, it stays hungry, and a **second bite** completes the step that one crafted bait completes on its
+  own. Crafted bait is always used first when you carry it.
 - **Harder creatures are harder to tame:** skittish animals **bolt** at the first wrong move, territorial and
   aggressive ones turn on you; placid grazers forgive mistakes. Exotic (cave/lava/flying), glowing and oversized
   creatures need more steps — and two animals of the same kind can behave differently.
@@ -2729,16 +2769,22 @@ look up: what a mix does follows from what goes in, and the same things always g
 
 ### Hover speeder (surface vehicle)
 - Craft a **hover speeder** (`speeder`, blueprint-gated workshop recipe: titanium_plate ×8, cable ×10,
-  energy_cell_1 ×4, circuit_board ×2, crystal ×2). It's a single-seat ground vehicle for crossing a planet fast.
+  energy_cell_1 ×4, circuit_board ×2, crystal ×2, light_alloy ×2, lubricant ×2). It's a single-seat hover vehicle for
+  crossing a planet fast — over land **and water**.
 - **Deploy** it from its hotbar slot (**right-click**), then **board** with **E**. While driving: **W/A/S/D** to
   steer (arcade hover handling), the camera follows in a chase view, **R** refuels it from an `energy_cell_1`,
   and **F** dismounts. Press **X** near a parked speeder you own to **pack it back up** into the item.
 - The speeder has its **own energy tank** (driving drains it) and a **voxel hull** that takes collision damage —
   hard impacts dent it and enough damage destroys it. It persists with you across reloads (like a companion).
-- It is a **land vehicle**: it unfolds only on dry ground (deploying towards water is refused) and **stops at the
-  shoreline** — water ahead caps the throttle, and if it does get pushed into water it floats and can only back out.
+- It **hovers over water** too: drive off the shore and it keeps its hover height above the surface, across lakes and
+  seas (out on a deep sea it is as loud as a boat to a **leviathan** — see Giants). It still **unfolds only on dry
+  ground** (deploying towards water is refused). **Lava, oil and a gas giant's gas sea** are a stop: any of them ahead
+  caps the throttle, and
+  if it does get pushed over them it floats and can only back out; keep driving anyway and after a few seconds it is
+  set back onto the last safe spot.
   A speeder wedged against a lip hops over it by itself after a moment; a hull that ends up inside a block lifts out.
-- **Dismounting** puts you on the ground **beside** the hull, and a parked speeder or boat is **solid** — you can
+- **Dismounting** puts you on the ground **beside** the hull — out on the water, into the water beside it, like
+  getting off a boat (swim back and press **E** to board again). A parked speeder or boat is **solid** — you can
   stand on it, not walk through it.
 - **Boarding:** walk up to your parked speeder or boat — the centre prompt reads **Board (E) · Pack up (X)** (pad and
   touch: the USE button boards, the ACT list carries the pack-up).
@@ -2751,14 +2797,16 @@ look up: what a mix does follows from what goes in, and the same things always g
   afterwards.
 
 #### Boat (water vehicle)
-- The **boat** (`boat`) is the water kind of the same system — an early-game workshop craft with **no
-  blueprint**: wood_log ×8, iron_plate ×2, cable ×1. On an **ocean** world you start with one.
+- The **boat** (`boat`) is the water kind of the same system — an early-game craft with **no
+  blueprint**: **by hand, anywhere**, from wood_log ×10 + plant_fiber ×6 (#2536), or at the workshop from
+  wood_log ×8, iron_plate ×2, cable ×1. On an **ocean** world you start with one.
 - Stand at the shore (or swim) and **use** it from the hotbar: it needs **open water in front of you** (2–5
   blocks ahead, a little to either side) and is set onto the **waterline**; on dry land you get "you need open
   water" and keep the item. **E** boards it from the bank or while swimming, **F** gets off, **X** packs it up.
 - While driving: **W/A/S/D** as in the speeder but slower (9 m/s, **Shift** 13), lazier steering and the hull
   **drifts** through turns; there is **no hop** and **no energy** — the boat never runs dry and the HUD shows no
-  gauge. It keeps your **head above water** (the speeder would follow the seabed and drain your oxygen).
+  gauge. It keeps your **head above water**. (The later hover speeder crosses water too, faster — but it needs a
+  blueprint and runs on energy cells.)
 - Leave the water and the boat **runs aground**: it settles onto the sand, forward speed bleeds off, you can
   reverse off or step out — no damage. Keep driving over land anyway and after a few seconds the server sets you
   back onto the last spot that floated. Shallow water lets you nose onto a beach to get out.

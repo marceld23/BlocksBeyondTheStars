@@ -49,9 +49,15 @@ public sealed partial class GameServer
 
     private bool IsGranular(BlockId id) => !id.IsAir && _world.Definition(id)?.Granular == true;
 
-    /// <summary>Wakes the cell above a vacated <paramref name="pos"/> when it is loose material. Every path that
-    /// turns a cell into air calls this (mining, blasting, fire, fluid retraction, a settling block's origin).</summary>
-    private void OnSupportRemoved(Vector3i pos) => ActivateGranular(new Vector3i(pos.X, pos.Y + 1, pos.Z));
+    /// <summary>Wakes the cell above a vacated <paramref name="pos"/> when it is loose material, and pops the props that
+    /// stood on it or hung from it (#2532 — plants, saplings, torches, lanterns; see <see cref="OnPropSupportRemoved"/>).
+    /// Every path that turns a cell into air calls this (mining, blasting, fire, fluid retraction, a settling block's
+    /// origin, a swallowed thumper, a popped prop).</summary>
+    private void OnSupportRemoved(Vector3i pos)
+    {
+        ActivateGranular(new Vector3i(pos.X, pos.Y + 1, pos.Z));
+        OnPropSupportRemoved(pos);
+    }
 
     /// <summary>Queues a cell for the next settle step if it holds a granular block (placement, a burn-out's
     /// ash, a block that just landed on fluid and may keep sinking).</summary>

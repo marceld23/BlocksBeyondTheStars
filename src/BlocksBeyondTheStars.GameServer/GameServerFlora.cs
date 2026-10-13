@@ -212,12 +212,23 @@ public sealed partial class GameServer
     }
 
     /// <summary>A sapling picked up before it grew is gone for good (it is in the pocket now) — drop its timer.</summary>
-    private void ForgetSaplingGrowth(Vector3i pos)
+    private void ForgetSaplingGrowth(Vector3i pos) => ForgetFloraRegrow(pos);
+
+    /// <summary>Drops a cell's growth timer — a regrow or a sapling's clock — from the queue and the save (#2532: also
+    /// when the ground a waiting plant would root in is gone).</summary>
+    private void ForgetFloraRegrow(Vector3i pos)
     {
         if (_floraRegrow.Remove(pos))
         {
             _repo.DeleteFloraRegrow(_world.LocationId, pos);
         }
+    }
+
+    /// <summary>#2532: a sapling whose ground is gone — air or a fluid under it — grows nothing: no floating tree.</summary>
+    private bool SaplingLostGround(Vector3i pos)
+    {
+        var below = _world.GetBlock(new Vector3i(pos.X, pos.Y - 1, pos.Z));
+        return below.IsAir || IsFluid(below.Value) || IsLiquid(below);
     }
 
     /// <summary>Test seam (#1774): how the world's tree from a sapling is shaped at a cell.</summary>
@@ -230,9 +241,9 @@ public sealed partial class GameServer
     /// like any planted cell. Returns false when the tree could not grow yet.</summary>
     private bool TryGrowTree(Vector3i pos)
     {
-        if (_saplingLogId == 0 || _saplingLeafId == 0 || _world.GetBlock(pos).Value != _saplingId)
+        if (_saplingLogId == 0 || _saplingLeafId == 0 || _world.GetBlock(pos).Value != _saplingId || SaplingLostGround(pos))
         {
-            return false;
+            return false; // #2532: without ground under it a sapling grows no tree
         }
 
         int height = 4 + (System.Math.Abs(pos.X * 31 + pos.Z * 17 + pos.Y) % 2); // 4 or 5, fixed per cell
@@ -546,9 +557,10 @@ public sealed partial class GameServer
             }
 
             // #1774: a sapling's timer means "try to grow", not "come back": gone → forget it; no room → ask again later.
+            // #2532: its ground gone → forget it as well (the support hook normally pops such a sapling first).
             if (IsSapling(floraId))
             {
-                if (_world.GetBlock(pos).Value != floraId || TryGrowTree(pos))
+                if (_world.GetBlock(pos).Value != floraId || SaplingLostGround(pos) || TryGrowTree(pos))
                 {
                     (done ??= new List<Vector3i>()).Add(pos);
                 }

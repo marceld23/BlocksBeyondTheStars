@@ -46,9 +46,14 @@ namespace BlocksBeyondTheStars.Client
             public string CachedActivityKey;
             public string CachedActivityText;
             public GameObject Zzz;         // the soft "z z z" over a sleeper
+            public TextMesh ZzzText;       // its text component (faded with distance, #2531)
         }
 
         private const float GreetingSeconds = 7f; // how long a greeting bubble stays up
+
+        // #2531: the sleep sign reads only up close, on the same 18–28 m fade as the animals' "z z z" and the nameplates.
+        private const float ZzzFadeStart = 18f;
+        private const float ZzzFadeEnd = 28f;
 
         private readonly Dictionary<int, Npc> _npcs = new Dictionary<int, Npc>();
         private bool _subscribed;
@@ -117,7 +122,9 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>A soft "z z z" floats over a sleeping NPC (#1869), the sleeping animals' sign (CreatureView).</summary>
+        /// <summary>A soft "z z z" floats over a sleeping NPC (#1869), the sleeping animals' sign (CreatureView).
+        /// #2531: drawn depth-tested (<see cref="WorldTextMaterial"/>) so walls hide it, and faded out between 18 m and
+        /// 28 m like the animals' sign and the nameplates — a sleeping village no longer shows across the map.</summary>
         private void UpdateZzz(Npc n)
         {
             if (n.Pose != 2)
@@ -139,7 +146,7 @@ namespace BlocksBeyondTheStars.Client
                 var mr = z.GetComponent<MeshRenderer>();
                 if (mr != null && UiKit.Font != null)
                 {
-                    mr.sharedMaterial = UiKit.Font.material;
+                    mr.sharedMaterial = WorldTextMaterial.Shared;
                 }
 
                 tm.fontSize = 48;
@@ -149,6 +156,31 @@ namespace BlocksBeyondTheStars.Client
                 tm.text = "z z z";
                 tm.color = new Color(0.8f, 0.88f, 1f, 0.85f);
                 n.Zzz = z;
+                n.ZzzText = tm;
+            }
+
+            var cam = Camera.main;
+            float bob = Mathf.Sin(WorldNow * 1.2f) * 0.08f;
+            var headward = Quaternion.Euler(0f, n.Yaw, 0f) * Vector3.forward;
+            var pos = n.Go.transform.position + headward * (1.6f * n.Go.transform.localScale.y) + Vector3.up * (0.7f + bob);
+            float alpha = 1f;
+            if (cam != null)
+            {
+                float dist = Vector3.Distance(cam.transform.position, pos);
+                if (dist >= ZzzFadeEnd)
+                {
+                    if (n.Zzz.activeSelf)
+                    {
+                        n.Zzz.SetActive(false);
+                    }
+
+                    return;
+                }
+
+                if (dist > ZzzFadeStart)
+                {
+                    alpha = 1f - (dist - ZzzFadeStart) / (ZzzFadeEnd - ZzzFadeStart);
+                }
             }
 
             if (!n.Zzz.activeSelf)
@@ -156,13 +188,16 @@ namespace BlocksBeyondTheStars.Client
                 n.Zzz.SetActive(true);
             }
 
-            var cam = Camera.main;
-            float bob = Mathf.Sin(WorldNow * 1.2f) * 0.08f;
-            var headward = Quaternion.Euler(0f, n.Yaw, 0f) * Vector3.forward;
-            n.Zzz.transform.position = n.Go.transform.position + headward * (1.6f * n.Go.transform.localScale.y) + Vector3.up * (0.7f + bob);
+            n.Zzz.transform.position = pos;
             if (cam != null)
             {
-                n.Zzz.transform.rotation = Quaternion.LookRotation(n.Zzz.transform.position - cam.transform.position);
+                n.Zzz.transform.rotation = Quaternion.LookRotation(pos - cam.transform.position);
+            }
+
+            var col = new Color(0.8f, 0.88f, 1f, 0.85f * alpha);
+            if (n.ZzzText != null && n.ZzzText.color != col)
+            {
+                n.ZzzText.color = col;
             }
         }
 
@@ -435,7 +470,7 @@ namespace BlocksBeyondTheStars.Client
                 var plateAnchor = n.Pose == 2 ? n.Go.transform.position + Vector3.up * 0.9f
                     : n.Pose == 1 ? n.Go.transform.position + Vector3.up * 1.7f
                     : n.Go.transform.position + Vector3.up * 2.1f;
-                labels.World(cam, plateAnchor, label, UiKit.Cyan, false, 18f, 28f);
+                labels.World(cam, plateAnchor, label, UiKit.Cyan, false, 18f, 28f, occludeIn: Game); // #2531: not through walls
 
                 // A live greeting bubble sits just above the nameplate (item 15).
                 if (!string.IsNullOrEmpty(n.Greeting) && WorldNow < n.GreetingUntil)
@@ -446,7 +481,7 @@ namespace BlocksBeyondTheStars.Client
                         n.CachedGreetingQuoted = $"“{n.Greeting}”";
                     }
 
-                    labels.World(cam, n.Go.transform.position + Vector3.up * 2.5f, n.CachedGreetingQuoted, UiKit.TextCol, false, 18f, 28f);
+                    labels.World(cam, n.Go.transform.position + Vector3.up * 2.5f, n.CachedGreetingQuoted, UiKit.TextCol, false, 18f, 28f, occludeIn: Game);
                 }
             }
         }

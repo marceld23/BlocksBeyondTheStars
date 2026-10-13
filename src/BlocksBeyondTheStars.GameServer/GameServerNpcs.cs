@@ -548,6 +548,17 @@ public sealed partial class GameServer
     /// post's end by an eye height put the last samples in the cell ABOVE the post, so a roof block (or a second
     /// post stacked on top) blinded it against everything standing on its own floor.</summary>
     private bool HasLineOfSight(Vector3f from, Vector3f to, float fromLift, float toLift, bool skipToCell)
+        => HasLineOfSight(from, to, fromLift, toLift, skipToCell, walkThroughPasses: false);
+
+    /// <summary>The PLAYER's line of fire (#2533): the plain sightline, except that every cell the player walks through —
+    /// a tree crown, a grass tuft or other flora, a torch, a ladder (<see cref="Shared.Definitions.WalkThroughBlocks"/>) —
+    /// is no cover. What you can walk through, you can shoot and hit through. Glass and walls still stop the shot, and
+    /// fluids still eat it. Only the player's attack validation uses this: every enemy, creature, bandit, sentry and
+    /// companion keeps <see cref="HasLineOfSight(Vector3f, Vector3f)"/>, so a bush or a crown stays cover against them.</summary>
+    private bool HasAttackLineOfSight(Vector3f from, Vector3f to)
+        => HasLineOfSight(from, to, SightEyeHeight, SightEyeHeight, skipToCell: false, walkThroughPasses: true);
+
+    private bool HasLineOfSight(Vector3f from, Vector3f to, float fromLift, float toLift, bool skipToCell, bool walkThroughPasses)
     {
         var dst = Unwrapped(from, to);
         float ax = from.X, ay = from.Y + fromLift, az = from.Z;
@@ -579,6 +590,12 @@ public sealed partial class GameServer
             var id = _world.GetBlock(new Vector3i(x, y, z)); // #1530: one read for both tests below
             if (IsSolidBlock(id))
             {
+                if (walkThroughPasses && _content.BlockById(id) is { } def
+                    && Shared.Definitions.WalkThroughBlocks.IsWalkThrough(def.Key))
+                {
+                    continue; // #2533: the player's shot passes what the player walks through (leaves, flora, a torch)
+                }
+
                 return false; // a wall stops sight on the very first cell, as it always did
             }
 
@@ -604,6 +621,9 @@ public sealed partial class GameServer
     /// <summary>Test/util: expose the sightline check so the line-of-sight gating can be verified directly,
     /// without fighting the enemy/creature ground-snapping that would move a hand-placed combatant.</summary>
     public bool HasLineOfSightForTest(Vector3f from, Vector3f to) => HasLineOfSight(from, to);
+
+    /// <summary>Test/util: the player's line of fire (#2533), which passes walk-through cells.</summary>
+    public bool HasAttackLineOfSightForTest(Vector3f from, Vector3f to) => HasAttackLineOfSight(from, to);
 
     /// <summary>True if an NPC's body (feet + head) would sit inside a colliding block at this position — a wall,
     /// so it can't stroll there. A doorway opening stays air, so NPCs pass through doorways but not walls.
@@ -667,14 +687,15 @@ public sealed partial class GameServer
     }
 
     /// <summary>Blocks that are solid on paper but have <b>no collider</b> in the mesher, so bodies pass through
-    /// them (mirrors the client's <c>PlayerController.IsCollidingKey</c>). <paramref name="foliagePasses"/> adds
+    /// them — the Shared prop list the client's <c>PlayerController.IsCollidingKey</c> reads too (#2533). This mirror
+    /// used to miss fire, the energy gate and the unlit torch/lantern; all four are <c>Solid: false</c> in the data, so
+    /// <see cref="IsCollidingBlock"/> already let bodies through them and adding them moved no NPC. <paramref name="foliagePasses"/> adds
     /// tree canopies for FLYING creatures — a winged animal weaves through a crown rather than bouncing off it.
     /// The player walks through crowns too since #2184, but ground NPCs and animals deliberately do not: this
     /// predicate also decides where they stand, where falling sand stops and where a supply drop may land, and a
     /// crown hangs above their heads anyway.</summary>
     private static bool IsWalkThroughProp(string key, bool foliagePasses)
-        => key.StartsWith("flora_", System.StringComparison.Ordinal)
-            || key is "torch" or "lantern" or "ladder"
+        => BlocksBeyondTheStars.Shared.Definitions.WalkThroughBlocks.IsProp(key)
             || (foliagePasses && BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.IsKey(key)); // every crown kind (it used to miss needles, fronds and the Fifi leaves)
 
     // NOTE: BroadcastNpcs runs on the 0.2 s position-sync cadence — per-receiver standings (#1118) must

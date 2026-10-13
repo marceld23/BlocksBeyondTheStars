@@ -354,7 +354,10 @@ the factor is `StoryEngine.UnavailableKillNormalisation` = `T / (T − cap·Wk)`
 peaceful world needs the same work as one with combat (93 → 73 milestones; with the bonus ≈ 55). The meter, the chip and
 the knowledge level read `StoryProgressShown` = `StoryEngine.DisplayProgress` — clamped to the last revealed beat's
 threshold (switching hostiles on mid-save lowers the factor; beats stay, the meter never runs backwards) and to the
-target. `HandleSetWorldRules` runs `AdvanceStory` when the factor changed. **An existing peaceful save** crosses one or two
+target. The meter and the knowledge level show that whole-arc score; the **chip counter** (#2537) shows only the way to
+the next beat — `StoryEngine.NextBeatProgress`: the points since the last revealed beat's threshold out of the gap to the
+next one (score 8, B1 = 6 heard, B2 = 14 → 2/8), and no counter (0/0) once every beat is revealed — because the arc's
+score next to a single task ("Find the net fragment (8/204)") read as a fragment count. `HandleSetWorldRules` runs `AdvanceStory` when the factor changed. **An existing peaceful save** crosses one or two
 beats at its first start with this build (`LoadStoryState` → `AdvanceStory`); the players' join catch-up absorbs them
 (two or more missed beats → silently into the Journal with one line, the recap and the current chapter's opening; one →
 its card).

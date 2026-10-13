@@ -1238,8 +1238,13 @@ public sealed partial class GameServer
     /// built base one pass over the cells every 100 ms plus the sensor queries every 500 ms.</summary>
     private void TickCrystalNet(double dt)
     {
-        TickCrystalWorldNet(dt);
-        TickCrystalShipNets(); // #2268: the own ships parked here — they wake up with the world they stand on
+        // #2532: props that lose their block during the beats (a drill's bite, a retracted deck) pop after the tick — a
+        // popped wired lamp must not leave the cell table while a beat is still walking it.
+        WithPropPopsDeferred(() =>
+        {
+            TickCrystalWorldNet(dt);
+            TickCrystalShipNets(); // #2268: the own ships parked here — they wake up with the world they stand on
+        });
     }
 
     private void TickCrystalWorldNet(double dt)

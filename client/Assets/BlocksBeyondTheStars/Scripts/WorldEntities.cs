@@ -197,7 +197,7 @@ namespace BlocksBeyondTheStars.Client
                 // Floating health bar over machines + bandits (#692); also attributes hull drops to the
                 // local player's latest shot for the crosshair hit marker. Same fade band as NPC nameplates.
                 EnemyHealthBars.Push(Game, cam, e.Id, en.Root.transform.position + Vector3.up * 2.1f,
-                    e.Hull, e.HullMax, friendly: false, fadeStart: 18f, fadeEnd: 28f);
+                    e.Hull, e.HullMax, friendly: false, fadeStart: 18f, fadeEnd: 28f, occlude: true); // #2531
             }
 
             // Remove enemies whose entity is gone (killed / out of range).

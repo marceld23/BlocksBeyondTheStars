@@ -87,7 +87,8 @@ public static class StoryEngine
     }
 
     /// <summary>
-    /// #2475: the score as the meter, the chip and the knowledge level show it — never below the threshold of the last beat the
+    /// #2475: the score as the meter and the knowledge level show it (the chip counts the way to the next beat from it,
+    /// <see cref="NextBeatProgress"/>, #2537) — never below the threshold of the last beat the
     /// arc revealed (a rule change that lowers the factor, e.g. hostiles switched on mid-save, must not make the meter run
     /// backwards past a heard beat) and never above the arc's target.
     /// </summary>
@@ -101,5 +102,34 @@ public static class StoryEngine
         int floor = revealed > 0 ? def.Beats[revealed - 1].Threshold : 0;
         int shown = Math.Max(progress, floor);
         return target > 0 ? Math.Min(shown, target) : shown;
+    }
+
+    /// <summary>
+    /// #2537: the objective chip's counter — the way to the NEXT beat, not the whole arc. The arc's score next to a single
+    /// task ("Find the net fragment on Spee (8/204)") read as "8 of 204 fragments". <c>Progress</c> is the points since the
+    /// last revealed beat's threshold, <c>Target</c> the gap to the next beat's threshold: score 8 with beat 1 (6) heard and
+    /// beat 2 at 14 reads 2/8. <paramref name="progress"/> is the shown score (<see cref="DisplayProgress"/>). Both are 0 —
+    /// the client hides the counter — once every beat is revealed (the finale is in reach) or when the next beat sits no
+    /// higher than the last one. The journal's story meter keeps the whole arc (<see cref="DisplayProgress"/>).
+    /// </summary>
+    public static (int Progress, int Target) NextBeatProgress(StoryDefinition def, StoryState state, int progress)
+    {
+        if (def is null) throw new ArgumentNullException(nameof(def));
+        if (state is null) throw new ArgumentNullException(nameof(state));
+
+        int revealed = Math.Max(0, state.BeatsRevealed);
+        if (revealed >= def.Beats.Count)
+        {
+            return (0, 0);
+        }
+
+        int floor = revealed > 0 ? def.Beats[revealed - 1].Threshold : 0;
+        int gap = def.Beats[revealed].Threshold - floor;
+        if (gap <= 0)
+        {
+            return (0, 0);
+        }
+
+        return (Math.Min(Math.Max(progress - floor, 0), gap), gap);
     }
 }
