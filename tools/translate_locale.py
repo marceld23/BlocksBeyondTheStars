@@ -53,8 +53,12 @@ if hasattr(sys.stdout, "reconfigure"):
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLACEHOLDER = re.compile(r"\{(?:key:)?[A-Za-z0-9_]+\}")  # {name} and the {key:Action} control tokens (#1077)
 # A markup tag: the Codex articles' HTML subset (data/wiki/locales, #2508) and the few <b>/<code>/<color> tags of the
-# other tables. A translation must carry exactly the English tags, attributes included.
-MARKUP_TAG = re.compile(r"</?[A-Za-z][^<>]*>")
+# other tables. A translation must carry exactly the English tags, attributes included. Only real tag names count —
+# usage placeholders such as "<name>", "<id>" or "<minutes 1-{max}>" in command help may be localized.
+MARKUP_TAG = re.compile(
+    r"</?(?:p|b|i|u|s|em|strong|span|div|ul|ol|li|img|br|a|h[1-6]|code|color|size|sub|sup)(?=[\s/>])[^<>]*>",
+    re.IGNORECASE,
+)
 
 
 def same_markup(source: str, value: str) -> bool:

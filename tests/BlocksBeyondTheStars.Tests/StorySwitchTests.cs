@@ -461,6 +461,57 @@ public sealed class StorySwitchTests : IDisposable
         server.Stop();
     }
 
+    /// <summary>A save from before world options (no rules of its own — it reads the launch config) is not given a whole
+    /// baked rule set by a story switch, so later config edits keep applying; the active row still decides at a restart.</summary>
+    [Fact]
+    public void ASaveWithoutItsOwnRules_KeepsReadingTheConfig_AfterASwitch()
+    {
+        var repo = Repo("legacy_rules");
+        var (server, _) = World("legacy_rules", repo: repo);
+        server.Stop();
+        var meta = repo.LoadMetadata()!;
+        meta.RulesOverride = null;
+        repo.SaveMetadata(meta);
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        (server, _) = World("legacy_rules", repo: repo);
+        var admin = Join(server, 1, "Admin", admin: true);
+        Switch(server, admin, None);
+        Assert.Equal(None, server.StorySnapshot.StoryId);
+        server.Stop();
+        Assert.Null(repo.LoadMetadata()!.RulesOverride);
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        (server, _) = World("legacy_rules", repo: repo);
+        Assert.Equal(None, server.StorySnapshot.StoryId); // the active row decides
+        server.Stop();
+    }
+
+    /// <summary>A pilot flying in the Guardian system when the story is switched off can still land on the body they are at
+    /// — the system is off the map and no jump leads there, but nobody is stranded.</summary>
+    [Fact]
+    public void APilotInTheGuardianSystem_CanStillLand_WhenTheStoryIsSwitchedOff()
+    {
+        var (server, _) = World("guardian_land", c =>
+        {
+            c.Rules.FreeSpaceFlight = true;
+            c.PlaceStarterShip = true;
+        });
+        var admin = Join(server, 1, "Admin", admin: true);
+        PlayAWhile(server, admin);
+        server.AdminRevealFinale();
+        server.Ship.Modules.Add("jump_generator");
+        server.HyperjumpToSystem(admin.State.PlayerId, SvGameServer.GuardianFinaleSystemId);
+        Assert.True(server.InSpace(admin.State.PlayerId));
+        var anchor = server.Galaxy.FindBody(admin.CurrentLocationId)!;
+        Assert.Equal(SvGameServer.GuardianFinaleSystemId, anchor.SystemId);
+
+        Switch(server, admin, None);
+        server.LandOnBody(admin.State.PlayerId, anchor.Id);
+        Assert.False(server.InSpace(admin.State.PlayerId));
+        Assert.Equal(anchor.Id, admin.CurrentLocationId);
+    }
+
     [Fact]
     public void ANoneWorld_SwitchedToVegaForTheFirstTime_StartsItFresh()
     {

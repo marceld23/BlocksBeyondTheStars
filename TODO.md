@@ -48,6 +48,10 @@ one PR at the end. One line per step:
   fragments (hidden, not pickable), the Guardian system (off the map, no jump, no gauntlet) and queued VEGA scenes (they
   wait). Capability: `ServerRules.MainStory`, sent to world admins only — an older server gets no row. 7 keys × 14
   languages (`ui.worldopt.story_switch_*`, `srv.story.switched_*`, `ui.worldopt.stories_note` now says "all three").
+  Pre-push review fixes: a pilot flying in the Guardian system when the story goes off can still land on the body they
+  are at; a save without its own rules (older than world options) is not given a baked rule set by a switch; the map
+  markers of players on other loaded worlds follow the switch too; `translate_locale.py`'s markup check counts only
+  real tag names (usage placeholders like `<name>` may be localized).
   New `StorySwitchTests`. Open: fragments on worlds first loaded under "none" roll at their next load; a player who
   joined under "none" with an owed VEGA scene sees it at the next join.
 - ✅ **S3 — the pad's flight and spacewalk lines name the real buttons (#2507)**, 2026-10-13: `ui.space.controls_pad` /

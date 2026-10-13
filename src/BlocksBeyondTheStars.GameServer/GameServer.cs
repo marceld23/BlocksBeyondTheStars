@@ -955,7 +955,11 @@ public sealed partial class GameServer
         }
 
         var body = _galaxy?.FindBody(intent.DestinationBodyId);
-        if (body is null || GuardianSystemHidden(body.SystemId)) // #2506: no way into the Guardian system while the story is off
+        // #2506: no way into the Guardian system while the story is off — but a pilot already flying there may still land on
+        // the body they are at (the leave-space path), so nobody is stranded.
+        bool landingWhereTheyAre = allowCurrentBody
+            && string.Equals(intent.DestinationBodyId, session.CurrentLocationId, StringComparison.Ordinal);
+        if (body is null || (GuardianSystemHidden(body.SystemId) && !landingWhereTheyAre))
         {
             Reject(session, "travel", "@srv.travel.no_destination");
             return false;

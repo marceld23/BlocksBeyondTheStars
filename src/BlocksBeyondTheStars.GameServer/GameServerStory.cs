@@ -711,7 +711,7 @@ public sealed partial class GameServer
         }
 
         ResendNetFragmentsToAll();
-        BroadcastPlanetPois();
+        ResendPlanetPoisToAll();
         StoryTrackOnStorySwitch(); // #2470: the new story meets the players online now (a "none" world switched to VEGA)
         foreach (var s in _sessions.Values.Where(s => s.Joined && s.State.IsAdmin).ToList())
         {
@@ -721,12 +721,33 @@ public sealed partial class GameServer
         return true;
     }
 
+    /// <summary>#2506: after a story switch every player's map markers follow it (fragment signals, the Guardian core) —
+    /// each from the loaded world they are on, not just the players of the active world. The serving cursors are put
+    /// back afterwards.</summary>
+    private void ResendPlanetPoisToAll()
+    {
+        var served = _current;
+        foreach (var s in _sessions.Values.Where(s => s.Joined && _worlds.IsLoaded(s.CurrentLocationId)).ToList())
+        {
+            Serve(s);
+            SendPlanetPois(s);
+        }
+
+        if (served is not null)
+        {
+            Serve(served);
+        }
+    }
+
     /// <summary>The save's row of a story pack (any spelling of its id), or null when the save never ran it.</summary>
     private StoredStoryState? FindStoryRow(string storyId)
         => _repo.ListStoryStates().FirstOrDefault(r => string.Equals(r.StoryId, storyId, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>#2506: the world's rules name the running story (<c>GameRules.StoryId</c>), persisted into the save's rules
-    /// like any live rule edit — the save's rules and its active story row then agree.</summary>
+    /// like any live rule edit — the save's rules and its active story row then agree. A save without its own rules (one
+    /// older than world options, still reading the launch config) only gets the in-memory value: baking the whole rule set
+    /// in for a story switch would silently stop later config edits from applying, and the active story row decides at a
+    /// restart anyway.</summary>
     private void RecordStoryChoiceInRules()
     {
         string id = _story?.Id ?? StoryRegistry.NoneStoryId;
@@ -736,6 +757,11 @@ public sealed partial class GameServer
         }
 
         Rules.StoryId = id;
+        if (_meta.RulesOverride is null)
+        {
+            return;
+        }
+
         _meta.RulesOverride = Rules.Clone();
         _repo.SaveMetadata(_meta);
     }
