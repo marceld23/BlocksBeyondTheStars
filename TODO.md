@@ -82,6 +82,19 @@ one PR at the end. One line per step:
   pl/ru/uk); 60–73 of 80 values per language rewritten in review (English leftovers, wrong game terms, meaning errors,
   stiff tone, ko particles / tr suffixes glued to tokens). Tokens and markup kept (guards above). The 12 tables are in the
   WebGL `FallbackManifest`. EN *base-air* lost a stray German "(Grundstein)".
+- ✅ **S6 — one name per thing in the community tables (#2508 follow-up)**, 2026-10-13: defects the Codex translators
+  found in the 12 core tables, fixed by hand with every value naming the same thing (names, descriptions, VEGA,
+  tutorial, Codex; case/gender follow) — 266 values. zh arches 拱廊 (not an arcade machine), 跳跃发生器, Detoxifier
+  解毒器 (the station no longer shares the Decontaminator's 净化器), 水晶网络; tr Madde Ocağı (was three names, one
+  meaning "fight"), Enerji Geçidi, bitki yemi; ko 자동 굴착기, 콜러, 에너지 게이트 vs 에너지 도어, 단축바; ja マター送信機/受信機,
+  クリーチャー翻訳機, シェイプツール, ramp スロープ; nl Tonen, Wachtpost; pl crafting station Kuźnia (EN "Forge"), Promień
+  wydobywczy / ściągający, Nadajnik radiowy, Projektor stazy, Toksyczny gruczoł, pamięć danych; ru Гидропонный лоток,
+  Излив водопада, Призыватель, Резервуар с водорослями; uk бур (titanium, basic, diamond), Видобувний промінь, свіже,
+  Титанова пластина, гіперстрибок, and the matter forge/dust no longer read "матерний" (Кузня/Пил матерії); fr
+  préleveur, Cuve à Clones; es Portón de energía (the gate, apart from the door), punto de reaparición; it Falò (also the
+  two station labels); pt Bagas (berries, apart from tree fruit; also 12 flora texts that said "berry" in English),
+  Descontaminador. No canonical term changed. Open (listed in the report): the G.D.S. city guards' name in ja/ko/tr,
+  the monument "arcade" in other languages, more item/blueprint/module name splits per language.
 
 ### ★ Story-pack follow-ups 2026-10 (#2485)
 
