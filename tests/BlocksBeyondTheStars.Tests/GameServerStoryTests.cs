@@ -122,7 +122,7 @@ public sealed class GameServerStoryTests : IDisposable
     }
 
     [Fact]
-    public void Switching_pack_resets_progress_and_reveals_the_first_beat()
+    public void Reselecting_the_running_pack_keeps_its_progress()
     {
         Run("switch", server =>
         {
@@ -131,11 +131,27 @@ public sealed class GameServerStoryTests : IDisposable
                 server.RecordStoryFragmentForTest("f" + i);
             }
 
-            server.SetActiveStoryForTest("vega_protocol"); // re-select resets
-            var snap = server.StorySnapshot;
-            Assert.Equal("vega_protocol", snap.StoryId);
-            Assert.Equal(0, snap.Fragments);
-            Assert.Equal(1, snap.BeatsRevealed); // back to just B0
+            var before = server.StorySnapshot;
+            server.SetActiveStoryForTest("vega_protocol"); // #2506: re-selecting changes nothing (it used to reset in place)
+            Assert.Equal(before, server.StorySnapshot);
+            Assert.Equal(6, server.StorySnapshot.Fragments);
+        });
+    }
+
+    [Fact]
+    public void Switching_away_and_back_restores_the_progress()
+    {
+        Run("switch_back", server =>
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                server.RecordStoryFragmentForTest("f" + i);
+            }
+
+            var before = server.StorySnapshot;
+            server.SetActiveStoryForTest("none");
+            server.SetActiveStoryForTest("vega_protocol"); // #2506: back where it stopped, not a fresh B0
+            Assert.Equal(before, server.StorySnapshot);
         });
     }
 

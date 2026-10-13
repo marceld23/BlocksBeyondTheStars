@@ -207,8 +207,26 @@ public sealed partial class GameServer
         return candidates[candidates.Count - 1];
     }
 
+    /// <summary>The active world's fragments to one player — none while the world has no story (#2506: an admin switched it
+    /// off; the fragments stay where they lie and show again when the story comes back).</summary>
     private void SendNetFragments(PlayerSession session)
-        => Send(session, new NetFragmentList { Fragments = _netFragments.Select(ToNetFragment).ToArray() });
+        => Send(session, new NetFragmentList { Fragments = StoryActive ? _netFragments.Select(ToNetFragment).ToArray() : System.Array.Empty<NetStoryFragment>() });
+
+    /// <summary>#2506: after a story switch every player's fragment list follows the story — hidden while it is off, back
+    /// when it is on again. Each player gets the list of the loaded world they are on.</summary>
+    private void ResendNetFragmentsToAll()
+    {
+        foreach (var session in _sessions.Values.Where(s => s.Joined).ToList())
+        {
+            if (_worlds.Find(session.CurrentLocationId) is { } world)
+            {
+                Send(session, new NetFragmentList
+                {
+                    Fragments = StoryActive ? world.NetFragments.Select(ToNetFragment).ToArray() : System.Array.Empty<NetStoryFragment>(),
+                });
+            }
+        }
+    }
 
     private static NetStoryFragment ToNetFragment(ServerNetFragment f) => new()
     {
@@ -233,9 +251,9 @@ public sealed partial class GameServer
     private void HandleNetFragmentFound(PlayerSession session, NetFragmentFoundIntent intent)
     {
         var frag = _netFragments.FirstOrDefault(f => f.Id == intent.FragmentId);
-        if (frag is null)
+        if (frag is null || !StoryActive)
         {
-            return; // unknown fragment (stale client / wrong world)
+            return; // unknown fragment (stale client / wrong world), or the story is switched off (#2506: it stays for later)
         }
 
         if (WrapDistSq(session.State.Position, frag.Pos) > NetFragmentReach * NetFragmentReach)

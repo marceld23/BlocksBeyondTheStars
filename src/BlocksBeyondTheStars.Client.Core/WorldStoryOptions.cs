@@ -136,6 +136,52 @@ namespace BlocksBeyondTheStars.Client
             return list;
         }
 
+        /// <summary>#2506: whether the in-game world rules show the "Main story" row — only when the server names the world's
+        /// main story (<c>ServerRules.MainStory</c>). A server whose switch keeps progress fills it for world admins; an older
+        /// server (its switch started the story over) and every non-admin get nothing, so there is no row.</summary>
+        public static bool ShowsMainStoryRow(string? serverMainStory) => !string.IsNullOrEmpty(serverMainStory);
+
+        /// <summary>#2506: the in-game "Main story" row's choices — the world stories this client knows
+        /// (<see cref="MainStoryChoices"/>: the default story first, "None" last). The server's running story stays in the
+        /// list even when this client lacks its pack (it goes in before "None"), so the row can always show it.</summary>
+        public static IReadOnlyList<string> SwitchChoices(IEnumerable<StoryDefinition>? stories, string? current)
+        {
+            var list = new List<string>(MainStoryChoices(stories));
+            if (!string.IsNullOrEmpty(current) && ChoiceIndex(list, current) < 0)
+            {
+                list.Insert(list.Count - 1, current!);
+            }
+
+            return list;
+        }
+
+        /// <summary>#2506: the index of a story id among the row's choices (case-insensitive), or -1.</summary>
+        public static int ChoiceIndex(IReadOnlyList<string> choices, string? id)
+        {
+            if (choices is null || string.IsNullOrEmpty(id))
+            {
+                return -1;
+            }
+
+            for (int i = 0; i < choices.Count; i++)
+            {
+                if (string.Equals(choices[i], id, StringComparison.OrdinalIgnoreCase))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        /// <summary>#2506: whether switching from the running story to <paramref name="target"/> asks first — leaving a story
+        /// that runs (anything but "None") for another choice. Switching a story on from "None" needs no question; the
+        /// question says the progress is kept.</summary>
+        public static bool SwitchNeedsConfirm(string? current, string? target)
+            => !string.IsNullOrEmpty(current)
+               && !string.Equals(current, StoryRegistry.NoneStoryId, StringComparison.OrdinalIgnoreCase)
+               && !string.Equals(current, target, StringComparison.OrdinalIgnoreCase);
+
         /// <summary>Keeps the choices inside what the page can offer: a story id that is not among
         /// <paramref name="choices"/> (a pack removed since) falls back to the default story; the indexes are clamped.</summary>
         public void Normalize(IReadOnlyList<string> choices)

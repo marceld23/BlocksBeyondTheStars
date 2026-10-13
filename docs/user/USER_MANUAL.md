@@ -76,8 +76,15 @@ Last updated: 2026-10-04.
     (no basic training and no short courses in this world). A world without a story still has the tutorial when it is on.
 
   The summary row shows your choice (e.g. "VEGA (Fast) · Tutorial Off ›"); the presets reset it to VEGA · Normal · Auto.
-  The world admin can change the **tutorial** and the **story pace** later in-game (Character tab → world rules); the main
-  story stays what the world was created with. Official (hosted) worlds always start with VEGA and the tutorial on Auto.
+  The world admin can change all three later in-game (Character tab → world rules): the **Main story** row (VEGA /
+  None, above *Tutorial* and *Story pace*), the **tutorial** and the **story pace**. Switching the main story **keeps
+  the progress**: switch VEGA off and the story takes a break for everyone — VEGA tells no story, the Journal has no VEGA
+  part, the story's fragments and the Guardian system are hidden — and switch it on again and it carries on exactly
+  where it stopped, the world's progress and every player's chapters alike. (On a world where the Guardian was beaten,
+  the calmer machines of that ending come back with the story too — without a story the world's enemy rules apply as
+  they are.) Switching a story off asks first; switching
+  it on does not. Everyone online reads a short line about the switch. A world that never had VEGA starts it from the
+  beginning. Official (hosted) worlds always start with VEGA and the tutorial on Auto.
 - The **Editors** submenu (main menu) holds the creation tools — see §6.
 - **Window mode** (Settings → Graphics — from the main menu or the pause menu): the **"Window mode" / "Fenstermodus"** option cycles **Windowed → Borderless →
   Exclusive** and applies immediately. The default is **Windowed** (a normal movable, maximizable window);

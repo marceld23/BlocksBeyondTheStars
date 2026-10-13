@@ -139,7 +139,7 @@ public sealed partial class GameServer
         }
 
         // Finale (P6 Stage 2): the Guardian-core aperture is the navigation target on the finale body.
-        if (_worlds.Active.HasCoreChamber)
+        if (StoryActive && _worlds.Active.HasCoreChamber) // #2506: not while the story is switched off
         {
             var c = _worlds.Active.CoreChamberCenter;
             pois.Add(new NetPoi { Type = "guardian_core", Name = Localize(session.Locale, "poi.guardian_core"), X = c.X, Z = c.Z });
@@ -170,8 +170,8 @@ public sealed partial class GameServer
         }
 
         // Fragment signals (#1109): a net fragment VEGA has called out stays marked until someone picks it
-        // up (the pickup removes the fragment, so the marker drops off on its own).
-        foreach (var frag in _netFragments)
+        // up (the pickup removes the fragment, so the marker drops off on its own). #2506: none while the story is off.
+        foreach (var frag in StoryActive ? _netFragments : new List<ServerNetFragment>())
         {
             if (_meta.RevealedPois.Contains(_world.LocationId + "|frag:" + frag.Key))
             {

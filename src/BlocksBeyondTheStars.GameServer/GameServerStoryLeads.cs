@@ -912,6 +912,9 @@ public sealed partial class GameServer
     /// <summary>Test seam: how many lead resolutions ran so far.</summary>
     internal int LeadResolutionsForTest => _leadResolutions;
 
+    /// <summary>Test seam (#2506): the lead listener is on the event bus.</summary>
+    internal bool LeadListenerActiveForTest => _leadListener is not null;
+
     /// <summary>Test seam: the 1 Hz lead pass for one player.</summary>
     internal void TickStoryLeadsForTest(PlayerSession s) => TickStoryLeads(s);
 

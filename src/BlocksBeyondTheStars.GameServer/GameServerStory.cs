@@ -147,17 +147,7 @@ public sealed partial class GameServer
 
         if (stored is not null && _content.TryGetWorldStory(stored.StoryId, out var def))
         {
-            _story = def;
-            _storyState.StoryId = stored.StoryId;
-            _storyState.FragmentsFound = stored.FragmentsFound;
-            _storyState.MachineKills = stored.MachineKills;
-            _storyState.Milestones = stored.Milestones;
-            _storyState.BeatsRevealed = stored.BeatsRevealed;
-            _storyState.GuardianSystemRevealed = stored.GuardianSystemRevealed;
-            _storyState.GuardianDefeated = stored.GuardianDefeated;
-            _storyState.FoundFragmentKeys = new HashSet<string>(stored.FoundFragmentKeys ?? new List<string>(), StringComparer.Ordinal);
-            _storyState.MilestoneKeys = new HashSet<string>(stored.MilestoneKeys ?? new List<string>(), StringComparer.Ordinal);
-            _storyState.BodiesWithoutFragment = stored.BodiesWithoutFragment;
+            ApplyStoryRow(stored, def);
         }
         else if (stored is null && string.Equals(Rules.StoryId, StoryRegistry.NoneStoryId, StringComparison.OrdinalIgnoreCase))
         {
@@ -182,6 +172,23 @@ public sealed partial class GameServer
         // one). No players are joined yet, so this only advances the shared state; per-player reveal happens
         // on join via catch-up.
         AdvanceStory();
+    }
+
+    /// <summary>Puts a saved row's progress into the runtime story state as the running story (at server start, and when an
+    /// admin switches back to a story the save already ran, #2506).</summary>
+    private void ApplyStoryRow(StoredStoryState stored, StoryDefinition def)
+    {
+        _story = def;
+        _storyState.StoryId = stored.StoryId;
+        _storyState.FragmentsFound = stored.FragmentsFound;
+        _storyState.MachineKills = stored.MachineKills;
+        _storyState.Milestones = stored.Milestones;
+        _storyState.BeatsRevealed = stored.BeatsRevealed;
+        _storyState.GuardianSystemRevealed = stored.GuardianSystemRevealed;
+        _storyState.GuardianDefeated = stored.GuardianDefeated;
+        _storyState.FoundFragmentKeys = new HashSet<string>(stored.FoundFragmentKeys ?? new List<string>(), StringComparer.Ordinal);
+        _storyState.MilestoneKeys = new HashSet<string>(stored.MilestoneKeys ?? new List<string>(), StringComparer.Ordinal);
+        _storyState.BodiesWithoutFragment = stored.BodiesWithoutFragment;
     }
 
     /// <summary>#2489: the id of the save's story pack that failed to load this run, or null. While set, the stand-in story's
@@ -592,41 +599,100 @@ public sealed partial class GameServer
             return;
         }
 
-        SetActiveStory(intent.StoryId);
+        if (SetActiveStory(intent.StoryId))
+        {
+            AnnounceStorySwitch(session);
+        }
     }
 
-    /// <summary>Switches the save's active story pack (admin / world option). "none" disables the story; an
-    /// unknown id — or a pack that cannot be the world story, like the beat-less tutorial (#2465) — is ignored.
-    /// Switching resets the per-save progress to a fresh state for the chosen pack.</summary>
-    public void SetActiveStory(string storyId)
+    /// <summary>
+    /// Switches the save's active story pack (admin / world option). "none" disables the story; an unknown id — or a pack
+    /// that cannot be the world story, like the beat-less tutorial (#2465) — is ignored. Since #2506 a switch keeps
+    /// progress:
+    /// <list type="bullet">
+    /// <item>a pack the save already ran comes back from its saved row — fragments, milestones, revealed beats and the
+    /// Guardian flags — marked active again; a pack it never ran starts fresh (B0), as before;</item>
+    /// <item>the story being left is saved one last time and steps back (<see cref="DeactivateStoryRow"/>) with all its
+    /// progress; the players' own keys of it are never touched, so their track, chapters and Journal carry on when it
+    /// returns;</item>
+    /// <item>re-selecting the running story changes nothing (it used to start it over in place) — except while the save's
+    /// own pack failed to load (#2489): choosing the running fallback story then adopts it as the save's story.</item>
+    /// </list>
+    /// The world's rules follow the choice (<c>GameRules.StoryId</c>, persisted like a live rule edit), so the save's rules
+    /// and its active row agree; the active row still decides at a restart. Returns whether the story changed.
+    /// </summary>
+    public bool SetActiveStory(string storyId)
     {
-        string previous = _storyState.StoryId;
+        StoryDefinition? def = null;
+        string target;
         if (string.Equals(storyId, StoryRegistry.NoneStoryId, StringComparison.OrdinalIgnoreCase))
         {
-            _story = null;
-            ResetStoryState(StoryRegistry.NoneStoryId);
+            target = StoryRegistry.NoneStoryId;
         }
-        else if (_content.TryGetWorldStory(storyId, out var def))
+        else if (_content.TryGetWorldStory(storyId, out var found))
         {
-            _story = def;
-            ResetStoryState(def.Id);
+            def = found;
+            target = found.Id;
         }
         else
         {
-            return; // unknown pack — leave the active story unchanged
+            return false; // unknown pack — leave the active story unchanged
+        }
+
+        string previous = _storyState.StoryId;
+        string? held = _storyRowHeldFor;
+        bool same = string.Equals(target, previous, StringComparison.OrdinalIgnoreCase);
+        if (same && (held is null || RunsBuiltInStandIn(target)))
+        {
+            return false; // #2506: the running story stays as it is — no reset in place
+        }
+
+        if (same)
+        {
+            // #2489: the admin chose the fallback story that runs while the save's own pack failed to load — it is the save's
+            // story from now on (persisted below), the broken pack's row steps back.
+            _storyRowHeldFor = null;
+        }
+        else
+        {
+            if (held is null)
+            {
+                PersistStoryState(); // the story being left keeps everything it has, up to this moment
+            }
+
+            ResetStoryState(target);
+            _story = def;
+            _storyRowHeldFor = null;
+            var row = def is null ? null : FindStoryRow(def.Id);
+            if (def is not null && row is not null)
+            {
+                ApplyStoryRow(row, def); // #2506: back where it stopped
+                if (_content.StoryPackFailedToLoad(def.Id) && RunsBuiltInStandIn(def.Id))
+                {
+                    // #2489: only the built-in stand-in runs this id — it never writes over the row; the row itself is
+                    // marked active again, so a restart with the pack repaired picks it up.
+                    _storyRowHeldFor = def.Id;
+                    row.Active = true;
+                    row.UpdatedUtc = UtcNowIso();
+                    _repo.SaveStoryState(row);
+                }
+            }
         }
 
         // #2489: an admin's explicit choice replaces the save's story whose pack failed to load — that row steps back like
         // any switched-away pack's (below), and the new story is saved from now on.
-        string? held = _storyRowHeldFor;
-        _storyRowHeldFor = null;
-        if (held is not null)
+        if (held is not null && !string.Equals(held, _storyRowHeldFor, StringComparison.OrdinalIgnoreCase))
         {
             DeactivateStoryRow(held);
         }
 
+        if (_storyState.GuardianSystemRevealed)
+        {
+            EnsureGuardianSystemInGalaxy(); // #2506: a restored story whose finale was open (a restart under "none" dropped it)
+        }
+
         SyncLeadListener();       // #2475: the new story's chapter leads (or none)
-        AdvanceStory();           // persists + broadcasts (and reveals B0 for a real pack)
+        AdvanceStory();           // persists + broadcasts (and reveals B0 for a fresh pack)
         if (_story is null)
         {
             PersistStoryState();  // AdvanceStory no-ops when disabled — persist the "none" choice here
@@ -634,7 +700,71 @@ public sealed partial class GameServer
         }
 
         DeactivateStoryRow(previous);
+        RecordStoryChoiceInRules();
+
+        // #2506: what the story put into the world follows it — the Guardian system on the star map (hidden while no story
+        // runs), the net fragments and their map markers, the Guardian-core marker. They stay where they are and show again
+        // when the story comes back.
+        if (_galaxy?.Systems.Any(s => s.Id == GuardianFinaleSystemId) == true)
+        {
+            BroadcastStarMap();
+        }
+
+        ResendNetFragmentsToAll();
+        BroadcastPlanetPois();
         StoryTrackOnStorySwitch(); // #2470: the new story meets the players online now (a "none" world switched to VEGA)
+        foreach (var s in _sessions.Values.Where(s => s.Joined && s.State.IsAdmin).ToList())
+        {
+            SendRules(s); // #2506: the admins' "Main story" row follows
+        }
+
+        return true;
+    }
+
+    /// <summary>The save's row of a story pack (any spelling of its id), or null when the save never ran it.</summary>
+    private StoredStoryState? FindStoryRow(string storyId)
+        => _repo.ListStoryStates().FirstOrDefault(r => string.Equals(r.StoryId, storyId, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>#2506: the world's rules name the running story (<c>GameRules.StoryId</c>), persisted into the save's rules
+    /// like any live rule edit — the save's rules and its active story row then agree.</summary>
+    private void RecordStoryChoiceInRules()
+    {
+        string id = _story?.Id ?? StoryRegistry.NoneStoryId;
+        if (string.Equals(Rules.StoryId, id, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        Rules.StoryId = id;
+        _meta.RulesOverride = Rules.Clone();
+        _repo.SaveMetadata(_meta);
+    }
+
+    /// <summary>#2506: tells everyone online that the world admin switched the main story — a system line in each player's
+    /// language: switched off (its progress is kept), or switched on with the story's name.</summary>
+    private void AnnounceStorySwitch(PlayerSession admin)
+    {
+        foreach (var s in _sessions.Values.Where(s => s.Joined).ToList())
+        {
+            string text = _story is null
+                ? Localize(s.Locale, "srv.story.switched_off")
+                : Localize(s.Locale, "srv.story.switched_on").Replace("{story}", StoryDisplayName(s.Locale, _story));
+            Send(s, new ServerMessage { Text = text.Replace("{player}", admin.State.Name) });
+        }
+    }
+
+    /// <summary>A story's name for a line: its short name ("VEGA"), else its name, else its id.</summary>
+    private string StoryDisplayName(string locale, StoryDefinition def)
+    {
+        foreach (string? key in new[] { def.ShortNameKey, def.NameKey })
+        {
+            if (!string.IsNullOrEmpty(key) && LocalizerFor(locale).Has(key!))
+            {
+                return Localize(locale, key!);
+            }
+        }
+
+        return def.Id;
     }
 
     /// <summary>#2460 (B05): clears the active marker on the row an admin switch left behind, so a restart can
@@ -643,7 +773,7 @@ public sealed partial class GameServer
     {
         if (string.IsNullOrEmpty(storyId) || string.Equals(storyId, _storyState.StoryId, StringComparison.OrdinalIgnoreCase))
         {
-            return; // re-selecting the active pack resets it in place — its row stays the active one
+            return; // the running story's row stays the active one
         }
 
         foreach (var row in _repo.ListStoryStates())

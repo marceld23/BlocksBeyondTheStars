@@ -888,7 +888,7 @@ public sealed partial class GameServer
             // hostiles — the anchor body id (the "space:" prefix already stripped above) keys the check.
             if (IsGuardianSystemLocation(anchorId))
             {
-                if (!_storyState.GuardianDefeated)
+                if (StoryActive && !_storyState.GuardianDefeated) // #2506: no gauntlet while the story is switched off
                 {
                     SpawnGuardianGauntlet(instance);
                 }
@@ -2890,7 +2890,7 @@ public sealed partial class GameServer
         Serve(session); // _ship = this player's ship
 
         var system = _galaxy?.Systems.FirstOrDefault(s => s.Id == systemId);
-        if (system is null || system.Bodies.Count == 0)
+        if (system is null || system.Bodies.Count == 0 || GuardianSystemHidden(system.Id)) // #2506: not while the story is off
         {
             RejectSpace(session, "@srv.space.unknown_system");
             return;

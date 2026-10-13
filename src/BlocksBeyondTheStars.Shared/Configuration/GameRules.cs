@@ -213,7 +213,8 @@ public sealed class GameRules
 
     /// <summary>The active story pack for a fresh save (P8 world option): a pack id (e.g. "vega_protocol"),
     /// "none" to play sandbox with no story, or empty to use the built-in default pack. Only consulted when a
-    /// save has no persisted story state yet; thereafter the admin switches packs live (resets progress).</summary>
+    /// save has no persisted story state yet; thereafter the admin switches packs live — every pack keeps its progress, and
+    /// the switch writes the new choice here too (#2506), while the save's active story row decides at a restart.</summary>
     public string StoryId { get; set; } = string.Empty;
 
     /// <summary>Story pacing speed (P8 world option): how fast beats + the finale unfold. Set at world creation

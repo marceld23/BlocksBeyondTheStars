@@ -366,6 +366,37 @@ public sealed class StoryPackGuardTests : IDisposable
         Assert.Equal(5, row.Milestones);
     }
 
+    /// <summary>#2489 with #2506: while the VEGA pack failed to load, an admin switches the story off and back on. The switch
+    /// back restores the save's real row into the stand-in — and the stand-in still never writes over it; the row is the
+    /// active one again, so a restart with the pack repaired carries on from it. Re-selecting VEGA while the stand-in runs
+    /// changes nothing.</summary>
+    [Fact]
+    public void WhileTheVegaPackFailedToLoad_ASwitchOffAndBack_NeverWritesTheStandInOverTheRow()
+    {
+        var broken = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+        broken.SetStories(broken.Stories.Values.Where(s => s.Id != StoryRegistry.DefaultStoryId).ToList());
+        broken.SetFailedStoryPacks(new[] { StoryRegistry.DefaultStoryId });
+        var repo = Repo("held_vega_switch");
+        repo.Initialize();
+        repo.SaveStoryState(new StoredStoryState { StoryId = StoryRegistry.DefaultStoryId, Milestones = 5, Active = true, UpdatedUtc = "2026-10-11T10:00:00Z" });
+
+        var server = Started(broken, "held_vega_switch", repo: repo);
+        Assert.False(server.SetActiveStory(StoryRegistry.DefaultStoryId)); // the stand-in runs the row already
+        Assert.True(server.SetActiveStory(StoryRegistry.NoneStoryId));
+        Assert.False(repo.ListStoryStates().Single(r => r.StoryId == StoryRegistry.DefaultStoryId).Active);
+
+        Assert.True(server.SetActiveStory(StoryRegistry.DefaultStoryId));
+        Assert.Equal(5, server.StorySnapshot.Milestones); // the row's progress, restored
+        server.RecordStoryMilestoneForTest();
+        server.Stop();
+
+        var rows = repo.ListStoryStates();
+        var vega = rows.Single(r => r.StoryId == StoryRegistry.DefaultStoryId);
+        Assert.True(vega.Active);
+        Assert.Equal(5, vega.Milestones); // the stand-in's session never wrote it
+        Assert.False(rows.Single(r => r.StoryId == StoryRegistry.NoneStoryId).Active);
+    }
+
     /// <summary>The shipped data loads without a single collision or pack warning.</summary>
     [Fact]
     public void TheShippedData_LoadsWithoutPackWarnings()

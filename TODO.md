@@ -40,6 +40,16 @@ one PR at the end. One line per step:
   language) keeps its name; the manual's "Window mode / Language / VSync (Settings tab)" lines were wrong and now point
   there. Every new label is shorter than the old one and fits the 150 px tab (`UiKit.FitLabel`); only it "Personaggio"
   is the longest Italian tab label (one letter longer than "Inventario", one shorter than "Impostazioni").
+- ✅ **S2 — the world admin switches the main story in-game, progress kept (#2506)**, 2026-10-13: a **Main story** row
+  (VEGA / None) above *Tutorial* and *Story pace* in the Character tab's world rules; leaving a running story asks first
+  ("takes a break … nothing is lost"), everyone online reads a system line. Server: `SetActiveStory` restores a pack's
+  saved row instead of resetting it, re-selecting is a no-op, the #2489 stand-in hold survives a switch back, the rules'
+  `StoryId` follows. While "none" runs, nothing of VEGA does — besides the guarded lines/leads/missions also the net
+  fragments (hidden, not pickable), the Guardian system (off the map, no jump, no gauntlet) and queued VEGA scenes (they
+  wait). Capability: `ServerRules.MainStory`, sent to world admins only — an older server gets no row. 7 keys × 14
+  languages (`ui.worldopt.story_switch_*`, `srv.story.switched_*`, `ui.worldopt.stories_note` now says "all three").
+  New `StorySwitchTests`. Open: fragments on worlds first loaded under "none" roll at their next load; a player who
+  joined under "none" with an owed VEGA scene sees it at the next join.
 
 ### ★ Story-pack follow-ups 2026-10 (#2485)
 

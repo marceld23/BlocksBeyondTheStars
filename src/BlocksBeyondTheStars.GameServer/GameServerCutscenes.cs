@@ -312,6 +312,11 @@ public sealed partial class GameServer
             for (int i = 0; i < session.CutsceneQueue.Count; i++)
             {
                 var item = session.CutsceneQueue[i];
+                if (WaitsForItsWorldStory(item))
+                {
+                    continue; // #2506: its story was switched off while it waited — it goes out when the story comes back
+                }
+
                 if (IsStaleChapterOpener(session, item))
                 {
                     // #2473: a part card that waited behind the cooldown while its part went by is pointless now — it is
@@ -340,6 +345,14 @@ public sealed partial class GameServer
             _repo.SavePlayer(session.State);
         }
     }
+
+    /// <summary>#2506: a queued scene (or recap) of a world story that is not the running one — the admin switched the story
+    /// off while the scene waited behind the cooldown. It stays in the queue with the lines it holds, so nothing of the story
+    /// plays while it is off and nothing is lost: it goes out when that story is switched on again.</summary>
+    private bool WaitsForItsWorldStory(PendingCutscene item)
+        => _content.Stories.TryGetValue(item.PackId, out var pack)
+           && string.Equals(StoryRegistry.EffectiveScope(pack), StoryRegistry.ScopeWorld, StringComparison.Ordinal)
+           && (_story is null || !string.Equals(_story.Id, pack.Id, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>A queued opener of a player pack's chapter (its <c>openCutscene</c>, e.g. the tutorial's part card) whose
     /// chapter the player has already finished or skipped (#2473): the card would announce a part that is over.</summary>

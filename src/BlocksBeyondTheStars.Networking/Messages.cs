@@ -1436,6 +1436,12 @@ public sealed class ServerRules
     /// server that predates the live edit — the client then hides the world-rules row.</summary>
     public string StoryDensity { get; set; } = string.Empty;
 
+    /// <summary>The world's main story (#2506): the running world story's pack id, or "none" — filled only for a world admin,
+    /// and only by a server whose <see cref="StorySelectIntent"/> keeps progress (switching back restores the story where it
+    /// stopped). EMPTY from an older server, whose switch started the story over, and for everyone else — the client then
+    /// shows no "Main story" row.</summary>
+    public string MainStory { get; set; } = string.Empty;
+
     /// <summary>Whether the server accepts/relays live voice chat (opt-in; default off on dedicated servers).
     /// When false the client keeps voice capture disabled and shows voice comms as unavailable.</summary>
     public bool VoiceChatEnabled { get; set; }

@@ -202,6 +202,12 @@ public sealed partial class GameServer
     private bool IsGuardianSystemLocation(string locationId)
         => !string.IsNullOrEmpty(locationId) && _galaxy?.FindBody(locationId)?.SystemId == GuardianFinaleSystemId;
 
+    /// <summary>#2506: the Guardian system belongs to the running story — while the world has none (an admin switched the
+    /// story off with the finale open) it is off the star map and no jump leads there. It stays in the galaxy, so a player
+    /// who is there is never stranded, and it is back on the map when the story is switched on again.</summary>
+    private bool GuardianSystemHidden(string? systemId)
+        => !StoryActive && string.Equals(systemId, GuardianFinaleSystemId, System.StringComparison.Ordinal);
+
     // ---------------- Stage 2: the inner-core chamber + its two routes ----------------
 
     /// <summary>How close to the core terminal the player must be for the breach to channel (chamber-sized).</summary>

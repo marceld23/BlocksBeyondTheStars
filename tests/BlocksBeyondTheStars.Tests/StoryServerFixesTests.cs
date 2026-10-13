@@ -296,7 +296,7 @@ public sealed class StoryServerFixesTests : IDisposable
         server = Boot2();
         server.Start();
         Assert.Equal("vega_protocol", server.StorySnapshot.StoryId);
-        Assert.Equal(0, server.StorySnapshot.Fragments); // a switch resets — the fresh row is the active one
+        Assert.Equal(1, server.StorySnapshot.Fragments); // #2506: switching back restores the row, which is the active one again
         Assert.Equal(2, repo.ListStoryStates().Count);
         Assert.Single(repo.ListStoryStates(), r => r.Active);
         server.Stop();

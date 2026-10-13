@@ -344,4 +344,60 @@ public sealed class WorldStoryOptionsTests
         Assert.Equal(string.Empty, new WorldStoryOptions { StoryId = "bad id\" --admins x" }.ToArgs());
         Assert.Equal(string.Empty, new WorldStoryOptions { StoryId = "mem" }.ToArgs()); // a reserved id
     }
+
+    // ---------------- #2506: the in-game "Main story" row ----------------
+
+    [Theory]
+    [InlineData(StoryRegistry.DefaultStoryId, true)]
+    [InlineData(StoryRegistry.NoneStoryId, true)]
+    [InlineData("", false)]   // an older server (its switch started the story over) — or a player who is not an admin
+    [InlineData(null, false)]
+    public void TheMainStoryRow_ShowsOnlyWhenTheServerNamesTheMainStory(string? serverMainStory, bool shown)
+        => Assert.Equal(shown, WorldStoryOptions.ShowsMainStoryRow(serverMainStory));
+
+    [Fact]
+    public void TheMainStoryRow_OffersVegaAndNone_FromTheShippedData()
+    {
+        var choices = WorldStoryOptions.SwitchChoices(Content.Value.Stories.Values, StoryRegistry.DefaultStoryId);
+        Assert.Equal(new[] { StoryRegistry.DefaultStoryId, StoryRegistry.NoneStoryId }, choices);
+        Assert.Equal(0, WorldStoryOptions.ChoiceIndex(choices, StoryRegistry.DefaultStoryId));
+        Assert.Equal(1, WorldStoryOptions.ChoiceIndex(choices, "NONE"));
+        Assert.Equal(-1, WorldStoryOptions.ChoiceIndex(choices, "tutorial")); // a player pack is never offered
+        Assert.Equal(-1, WorldStoryOptions.ChoiceIndex(choices, null));
+    }
+
+    [Fact]
+    public void TheMainStoryRow_KeepsAServerStoryThisClientLacks_BeforeNone()
+    {
+        var choices = WorldStoryOptions.SwitchChoices(Content.Value.Stories.Values, "server_arc");
+        Assert.Equal(new[] { StoryRegistry.DefaultStoryId, "server_arc", StoryRegistry.NoneStoryId }, choices);
+        Assert.Equal(1, WorldStoryOptions.ChoiceIndex(choices, "server_arc"));
+    }
+
+    [Theory]
+    [InlineData(StoryRegistry.DefaultStoryId, StoryRegistry.NoneStoryId, true)] // leaving a running story asks first
+    [InlineData(StoryRegistry.DefaultStoryId, "other_arc", true)]
+    [InlineData(StoryRegistry.NoneStoryId, StoryRegistry.DefaultStoryId, false)] // switching one on does not
+    [InlineData(StoryRegistry.DefaultStoryId, StoryRegistry.DefaultStoryId, false)]
+    [InlineData("", StoryRegistry.NoneStoryId, false)]
+    public void LeavingARunningStory_AsksFirst(string current, string target, bool asks)
+        => Assert.Equal(asks, WorldStoryOptions.SwitchNeedsConfirm(current, target));
+
+    [Fact]
+    public void TheMainStoryRow_NamesTheChoices_AndTheConfirmNamesTheStory_InEnglishAndGerman()
+    {
+        var (en, enHas) = Real(GameLocale.English);
+        Assert.Equal("VEGA", WorldStoryOptions.StoryShortName(StoryRegistry.DefaultStoryId, Content.Value.Stories, en, enHas));
+        Assert.Equal("None", WorldStoryOptions.StoryShortName(StoryRegistry.NoneStoryId, Content.Value.Stories, en, enHas));
+        Assert.Equal("Main story", en("ui.worldopt.main_story"));
+        Assert.StartsWith("The VEGA Protocol takes a break",
+            en("ui.worldopt.story_switch_text").Replace("{story}", WorldStoryOptions.StoryName(StoryRegistry.DefaultStoryId, Content.Value.Stories, en, enHas)),
+            StringComparison.Ordinal);
+
+        var (de, deHas) = Real(GameLocale.German);
+        Assert.Equal("Keine", WorldStoryOptions.StoryShortName(StoryRegistry.NoneStoryId, Content.Value.Stories, de, deHas));
+        Assert.StartsWith("Das VEGA-Protokoll macht",
+            de("ui.worldopt.story_switch_text").Replace("{story}", WorldStoryOptions.StoryName(StoryRegistry.DefaultStoryId, Content.Value.Stories, de, deHas)),
+            StringComparison.Ordinal);
+    }
 }

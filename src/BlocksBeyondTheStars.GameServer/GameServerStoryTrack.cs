@@ -137,7 +137,11 @@ public sealed partial class GameServer
     }
 
     /// <summary>An admin switched the world story (#2470): the new story meets every player online now — the migration, the
-    /// prologue for whoever holds no key of it (a "none" world switched to VEGA), the start rule, the fresh story state.</summary>
+    /// prologue for whoever holds no key of it (a "none" world switched to VEGA), the start rule, the story state. #2506: a
+    /// story switched back on comes back with its progress; a player whose track of it had started before catches up on
+    /// whatever the world revealed while they were away (<see cref="CatchUpStoryLines"/>, nothing when they heard it all) and
+    /// on a won world gets the ending they missed. The help clocks of the story's running mission steps start again — they
+    /// stood still for the story while it was off.</summary>
     private void StoryTrackOnStorySwitch()
     {
         if (_story is null)
@@ -146,9 +150,11 @@ public sealed partial class GameServer
         }
 
         string prefix = StoryPackKeys.Prefix(_story.Id);
+        string stepPrefix = StoryPackKeys.ProgressKey(_story.Id, string.Empty);
         foreach (var s in StoryListeners().ToList())
         {
             bool newcomer = !s.State.Milestones.Any(k => k.StartsWith(prefix, StringComparison.Ordinal));
+            bool startedBefore = StoryTrackStarted(s);
             MigrateStoryTrack(s);
             if (newcomer)
             {
@@ -156,6 +162,17 @@ public sealed partial class GameServer
             }
 
             TryStartStoryTrack(s);
+            if (startedBefore)
+            {
+                CatchUpStoryLines(s);
+                SendStoryResolvedOnJoinIfMissed(s);
+            }
+
+            foreach (var esc in s.StepEscalation.Where(e => e.Key.StartsWith(stepPrefix, StringComparison.Ordinal)))
+            {
+                esc.Value.Since = s.StoryPackPlaySeconds;
+            }
+
             SendStoryState(s);
             SendVegaObjective(s);
         }

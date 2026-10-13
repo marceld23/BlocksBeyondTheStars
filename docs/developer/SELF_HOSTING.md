@@ -97,7 +97,9 @@ world-story pack; `none` = no story, sandbox; empty = the default VEGA story) an
 how fast it unfolds — both are what the game's world-creation **Stories** page emits (together with `--tutorial`, only
 values that differ from the defaults), and both are baked into the save like every world option. The pace is
 live-editable by a world admin (in-game world rules, *Story pace*; `SetWorldRulesIntent.StoryDensity`): a faster pace
-reveals the beats its score already covers at once, a slower one never takes a heard beat back. Hosted worlds (WorldHost,
+reveals the beats its score already covers at once, a slower one never takes a heard beat back. The main story is
+switchable live too (#2506, in-game world rules, *Main story*): switching VEGA off and on again keeps the world's and the
+players' progress, and on a restart the save's last choice wins over `--story`. Hosted worlds (WorldHost,
 glitch) pass no story flag, so they run VEGA with the tutorial on `Auto`; an uploaded singleplayer save keeps the rules it
 was created with.
 

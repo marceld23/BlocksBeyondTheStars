@@ -401,7 +401,9 @@ public sealed class LoreTextRevealed
 
 /// <summary>
 /// Client → server (admin only): choose the save's active story pack, or "none" to disable the story
-/// (sandbox). Switching resets the per-save story progress to a fresh state for the chosen pack.
+/// (sandbox). Since #2506 the switch keeps progress: a pack the save already ran comes back where it stopped (its saved
+/// row), a pack it never ran starts fresh, and re-selecting the running story changes nothing. An older server reset the
+/// chosen pack instead — a current client offers the switch only when <see cref="ServerRules.MainStory"/> is filled.
 /// </summary>
 public sealed class StorySelectIntent
 {

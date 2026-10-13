@@ -34,7 +34,7 @@ public sealed partial class GameServer
         [StoryWorldPredicates.StationInSystem] = s => StationContactsForCurrentSystem(s.CurrentLocationId).Any(), // = the dock lesson's skip rule (#2460)
         [StoryWorldPredicates.SettlementReachable] = s => _worlds.Find(s.CurrentLocationId)?.Settlements.Count > 0,
         [StoryWorldPredicates.Airless] = s => !BodyBreathable(s.CurrentLocationId),
-        [StoryWorldPredicates.FragmentOnWorld] = s => _worlds.Find(s.CurrentLocationId)?.NetFragments.Count > 0,
+        [StoryWorldPredicates.FragmentOnWorld] = s => StoryActive && _worlds.Find(s.CurrentLocationId)?.NetFragments.Count > 0, // #2506: hidden while the story is off
         [StoryWorldPredicates.PlayerNear] = PlayerNear,
 
         // Rules of the save (a per-player mode override counts for "creative").

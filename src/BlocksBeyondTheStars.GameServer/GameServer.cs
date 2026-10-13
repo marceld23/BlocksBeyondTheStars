@@ -955,7 +955,7 @@ public sealed partial class GameServer
         }
 
         var body = _galaxy?.FindBody(intent.DestinationBodyId);
-        if (body is null)
+        if (body is null || GuardianSystemHidden(body.SystemId)) // #2506: no way into the Guardian system while the story is off
         {
             Reject(session, "travel", "@srv.travel.no_destination");
             return false;
@@ -7751,7 +7751,7 @@ public sealed partial class GameServer
 
     private void SendStarMap(PlayerSession session)
     {
-        var systems = _galaxy.Systems.Select(sys => new NetStarSystem
+        var systems = _galaxy.Systems.Where(sys => !GuardianSystemHidden(sys.Id)).Select(sys => new NetStarSystem // #2506
         {
             Id = sys.Id,
             Name = sys.Name,
@@ -7955,6 +7955,7 @@ public sealed partial class GameServer
             BaseVisitors = r.BaseVisitors,
             TutorialPolicy = r.TutorialPolicy.ToString(), // #2466
             StoryDensity = r.StoryDensity.ToString(), // #2472 (empty = a server without the live edit)
+            MainStory = session.State.IsAdmin ? _storyState.StoryId : string.Empty, // #2506: the admins' "Main story" row
             VoiceChatEnabled = _config.VoiceChatEnabled,
             ChatMode = EffectiveChatMode.ToString(),
             PlayerModeNames = modeNames,
