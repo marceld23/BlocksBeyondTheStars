@@ -166,6 +166,27 @@ public sealed class TutorialCrystalCoursesTests : IDisposable
         return p;
     }
 
+    /// <summary>#2500: a network client past the basic training — <paramref name="choices"/> = a client of this build (it announces
+    /// <c>choices1</c>), else an older Journal (<c>packs1</c> without it).</summary>
+    private static PlayerSession NetworkPastTraining(SvGameServer server, int conn, string name, bool choices)
+    {
+        server.HandlePayloadForTest(conn, NetCodec.Encode(new JoinRequest
+        {
+            ContentFingerprint = TestJoin.Fingerprint,
+            PlayerName = name,
+            Features = choices
+                ? new[] { ClientFeatures.Packs1, ClientFeatures.Cutscenes1, ClientFeatures.Choices1 }
+                : new[] { ClientFeatures.Packs1, ClientFeatures.Cutscenes1 },
+        }));
+        var p = server.Sessions[conn];
+        server.TickStoryPacksForTest(p);
+        server.SkipTutorialForTest(p);
+        Assert.Contains(StoryPackKeys.Done(T), p.State.Milestones);
+        p.StoryPackPlaySeconds += 90; // the skip's suggestions were an offer — the next waits the gap
+        p.State.Milestones.Add(StoryPackKeys.ChapterOffered(T, "c15"));
+        return p;
+    }
+
     private static void Deliver(SvGameServer server, PlayerSession who, object message)
         => server.HandlePayloadForTest(who.ConnectionId, NetCodec.Encode(message));
 
@@ -360,10 +381,12 @@ public sealed class TutorialCrystalCoursesTests : IDisposable
 
         server.TickStoryPacksForTest(veteran, 5);
         Assert.Empty(transport.Offers(veteran));
-        Assert.Equal(StoryChapterStates.Available, ChapterState(server, veteran, "c8").State); // still startable from the Journal
+        Assert.Equal(StoryChapterStates.Available, ChapterState(server, veteran, "c8").State);
+        Assert.True(ChapterState(server, veteran, "c8").NothingLeft); // #2500: the Journal shows no Start — "nothing left to practise"
 
         // One job left: the course is offered — it adopts the rest.
         veteran.State.Missions.RemoveAll(m => m.MissionId == Jobs[5]);
+        Assert.False(ChapterState(server, veteran, "c8").NothingLeft);
         server.TickStoryPacksForTest(veteran);
         Assert.Equal("Crystal workshop", Assert.Single(transport.Offers(veteran)).LineArg);
     }
@@ -465,12 +488,89 @@ public sealed class TutorialCrystalCoursesTests : IDisposable
         Assert.Equal(0, server.DialogRadioPendingForTest);
 
         // A replay: the Crystal Net blueprint is known (#2459: a research step a replay cannot ask for again passes — it no
-        // longer waits for "Skip step") and the jobs are handed in, so their bridges are through at once — the replay ends
-        // there, and the banner never comes twice.
+        // longer waits for "Skip step") and the jobs are handed in, so their bridges would be through at once. #2500: the
+        // Journal therefore flags the course "nothing left to practise" (no Replay), and a Replay from an older Journal is
+        // answered instead of starting a replay that ends without a word — the banner never comes twice.
+        var spent = ChapterState(server, p, "c8");
+        Assert.Equal(StoryChapterStates.Done, spent.State);
+        Assert.True(spent.NothingLeft);
+        Assert.False(ChapterState(server, p, "b1").NothingLeft); // a part of the training (skipped) can always be replayed
+        int said = transport.To<ShipAiLine>(p).Count;
         Deliver(server, p, new StoryPackIntent { PackId = T, Action = StoryPackActions.ReplayChapter, ChapterId = "c8" });
         Assert.False(Has(p, StoryPackKeys.ChapterReplay(T, "c8")));
         Assert.True(Has(p, StoryPackKeys.ChapterDone(T, "c8")));
         Assert.Equal(1, transport.Plays(p).Count(c => c == "tut.first_circuit"));
+        var answer = Assert.Single(transport.To<ShipAiLine>(p).Skip(said), l => l.LineKey.Length > 0 || l.Text.Length > 0);
+        Assert.Equal("You've already done everything in Crystal workshop.", answer.Text); // a local player: composed (no choices1)
+        Assert.Equal(T, answer.PackId);
+        Assert.DoesNotContain(transport.To<ShipAiLine>(p).Skip(said), l => l.LineKey.StartsWith("story.tutorial.c8.", StringComparison.Ordinal));
+    }
+
+    /// <summary>#2500: a course the player has already done by other means (every workshop job handed in on the radio) has
+    /// nothing left to practise. The Journal flags it (no Start); a Start that still comes — an older Journal, or a click that
+    /// raced the flag, or the offer's "Start now" — does not start it: VEGA says "You've already done everything in …", and the
+    /// course is stamped done silently (its tasks done, no card, no step line). A client of this build hears the key with the
+    /// title as its argument; an older one (packs1 without choices1) has no text for the key and gets the line composed in
+    /// its language. The done course then still reads "nothing left" — and a Replay is answered the same way.</summary>
+    [Fact]
+    public void ACourseDoneByOtherMeans_HasNothingLeft_AndAStartIsAnsweredAndStampedDoneSilently()
+    {
+        var (server, transport) = World("c8_spent_start");
+        var current = NetworkPastTraining(server, 1, "Current", choices: true);
+        var older = NetworkPastTraining(server, 2, "Older", choices: false);
+        foreach (var p in new[] { current, older })
+        {
+            Unlock(p, "comm_radio", "crystal_conduit");
+            foreach (string job in Jobs)
+            {
+                p.State.Missions.Add(new MissionProgress { MissionId = job, ChainId = "crystal_workshop", Status = MissionStatus.TurnedIn, ObjectiveProgress = { 1 } });
+            }
+
+            var row = ChapterState(server, p, "c8");
+            Assert.Equal(StoryChapterStates.Available, row.State);
+            Assert.True(row.NothingLeft);
+
+            int said = transport.To<ShipAiLine>(p).Count;
+            int plays = transport.Plays(p).Count;
+            Start(server, p, "c8");
+            Assert.False(Has(p, StoryPackKeys.ChapterActive(T, "c8"))); // never started …
+            Assert.True(Has(p, StoryPackKeys.ChapterDone(T, "c8"))); // … but stamped done: it is through
+            Assert.All(Enumerable.Range(0, 7), i => Assert.True(Done(p, "c8." + i)));
+            Assert.Equal(plays, transport.Plays(p).Count); // no course card, no closing card
+            var lines = transport.To<ShipAiLine>(p).Skip(said).Where(l => l.LineKey.Length > 0 || l.Text.Length > 0).ToList();
+            var answer = Assert.Single(lines);
+            if (p == current)
+            {
+                Assert.Equal((SvGameServer.ChapterNothingLeftLine, "Crystal workshop", string.Empty), (answer.LineKey, answer.LineArg, answer.Text));
+            }
+            else
+            {
+                Assert.Equal((string.Empty, "You've already done everything in Crystal workshop."), (answer.LineKey, answer.Text));
+            }
+
+            var done = ChapterState(server, p, "c8");
+            Assert.Equal(StoryChapterStates.Done, done.State);
+            Assert.True(done.NothingLeft); // a replay would pass every task at once
+
+            said = transport.To<ShipAiLine>(p).Count;
+            Deliver(server, p, new StoryPackIntent { PackId = T, Action = StoryPackActions.ReplayChapter, ChapterId = "c8" });
+            Assert.False(Has(p, StoryPackKeys.ChapterReplay(T, "c8")));
+            Assert.Single(transport.To<ShipAiLine>(p).Skip(said), l => l.LineKey == SvGameServer.ChapterNothingLeftLine || l.Text.Length > 0);
+        }
+
+        // Where a start is refused anyway, nothing is said: the story switched off.
+        var off = NetworkPastTraining(server, 3, "Off", choices: true);
+        Unlock(off, "comm_radio", "crystal_conduit");
+        foreach (string job in Jobs)
+        {
+            off.State.Missions.Add(new MissionProgress { MissionId = job, ChainId = "crystal_workshop", Status = MissionStatus.TurnedIn, ObjectiveProgress = { 1 } });
+        }
+
+        Deliver(server, off, new StoryPackIntent { PackId = T, Action = StoryPackActions.OptOut });
+        int quiet = transport.To<ShipAiLine>(off).Count;
+        Start(server, off, "c8");
+        Assert.False(Has(off, StoryPackKeys.ChapterDone(T, "c8")));
+        Assert.DoesNotContain(transport.To<ShipAiLine>(off).Skip(quiet), l => l.LineKey == SvGameServer.ChapterNothingLeftLine || l.Text.Length > 0);
     }
 
     [Fact]

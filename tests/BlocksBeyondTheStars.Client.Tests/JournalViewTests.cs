@@ -153,6 +153,61 @@ public sealed class JournalViewTests
         Assert.Empty(JournalPackPage.ChapterActions(pack, done));
     }
 
+    /// <summary>#2500: a part with nothing left to practise — a finished course whose replay would pass every task at once, or a
+    /// course the player has already done by other means — has no Replay, Start or Later; its row reads "done — nothing left to
+    /// practise" with the done mark, and an offer of it asks for no attention. An older server never sets the flag: the buttons
+    /// stay as they were. The flag survives the wire.</summary>
+    [Fact]
+    public void APartWithNothingLeft_HasNoButtons_AndReadsDoneNothingLeftToPractise()
+    {
+        var spentDone = Chapter("c8", StoryChapterStates.Done, optional: true);
+        spentDone.NothingLeft = true;
+        var spentAvailable = Chapter("c9", StoryChapterStates.Available, optional: true);
+        spentAvailable.NothingLeft = true;
+        var spentOffer = Chapter("c10", StoryChapterStates.Offered, optional: true);
+        spentOffer.NothingLeft = true;
+        var olderServer = Chapter("c11", StoryChapterStates.Done, optional: true);
+        var pack = Tutorial(spentDone, spentAvailable, spentOffer, olderServer);
+        pack.MandatoryRunning = false;
+
+        Assert.Empty(JournalPackPage.ChapterActions(pack, spentDone));
+        Assert.Empty(JournalPackPage.ChapterActions(pack, spentAvailable));
+        Assert.Empty(JournalPackPage.ChapterActions(pack, spentOffer));
+        Assert.Equal(new[] { StoryPackActions.ReplayChapter }, JournalPackPage.ChapterActions(pack, olderServer).Select(a => a.Action).ToArray());
+
+        Assert.Equal("<ui.journal.nothing_left>", JournalPackPage.StateText(spentDone, L));
+        Assert.Equal("<ui.journal.nothing_left>", JournalPackPage.StateText(spentAvailable, L));
+        Assert.Equal("<ui.journal.state.done>", JournalPackPage.StateText(olderServer, L));
+        Assert.Equal("✔", JournalPackPage.ChapterIcon(spentAvailable));
+        Assert.Equal("✔", JournalPackPage.ChapterIcon(spentOffer));
+        Assert.Equal("○", JournalPackPage.ChapterIcon(Chapter("c12", StoryChapterStates.Available, optional: true)));
+
+        // The offer has no Start / Later, so the left list does not call for attention for it.
+        var states = new StoryPackStates { Packs = new[] { pack } };
+        Assert.False(JournalCategories.Build(states, null, null, false, L)[0].Attention);
+        spentOffer.NothingLeft = false;
+        Assert.True(JournalCategories.Build(states, null, null, false, L)[0].Attention);
+
+        // Over the wire (contractless, additive): the flag arrives; a payload without it reads false.
+        spentOffer.NothingLeft = true;
+        var back = Assert.IsType<StoryPackStates>(BlocksBeyondTheStars.Networking.NetCodec.Decode(BlocksBeyondTheStars.Networking.NetCodec.Encode(states)));
+        Assert.Equal(new[] { true, true, true, false }, back.Packs[0].Chapters.Select(c => c.NothingLeft).ToArray());
+    }
+
+    /// <summary>#2500: a task whose text this client does not have (a story of a newer build) reads as the neutral "needs a newer
+    /// version" note, never as a raw key.</summary>
+    [Fact]
+    public void ATaskOfAStoryThisClientLacks_ReadsTheNeutralNote()
+    {
+        var pack = Tutorial(Chapter("x1", StoryChapterStates.Active));
+        var step = new NetStoryStep { Id = "x1.1", ChapterId = "x1", ChipKey = "story.newer.x1.chip", Index = 1, Count = 2, Target = 1 };
+        static string Loc(string k) => k == "ui.journal.step_row" ? "Step {0} of {1}: {2}" : "<" + k + ">";
+
+        Assert.Equal("Step 1 of 2: <ui.story.entry_missing>", JournalPackPage.StepLine(pack, step, null, Loc, null, k => k != step.ChipKey));
+        Assert.Equal("Step 1 of 2: <story.newer.x1.chip>", JournalPackPage.StepLine(pack, step, null, Loc, null, _ => true));
+        Assert.Equal("Step 1 of 2: <story.newer.x1.chip>", JournalPackPage.StepLine(pack, step, null, Loc)); // no check: as before
+    }
+
     [Fact]
     public void ATask_ReadsStepNOfM_WithLiveProgress_AndAnOpenExtraReadsExtra()
     {
@@ -446,6 +501,7 @@ public sealed class JournalViewTests
     {
         Assert.True(VegaText.IsTransientLine(StoryNarratorLines.JournalNews));
         Assert.True(VegaText.IsTransientLine(StoryNarratorLines.StepMarkedStation));
+        Assert.True(VegaText.IsTransientLine(StoryNarratorLines.ChapterNothingLeft)); // #2500: the answer to a click
         Assert.False(VegaText.IsTransientLine("story.vega.guardian_revealed"));
         Assert.False(VegaText.IsTransientLine(null));
     }

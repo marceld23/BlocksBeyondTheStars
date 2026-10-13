@@ -50,7 +50,9 @@ Last updated: 2026-10-04.
   worlds can be listed). Friends find it under *Official Worlds → Public worlds* and join with your
   password. Worlds are private by default and only visible to their owner until listed. On an official
   world **the owner is its world admin** — a friend who happens to arrive first is a normal player. The shared
-  **glitch.fun arcade worlds** have no player admins at all; the game's operators look after them.
+  **glitch.fun arcade worlds** have no player admins at all; the game's operators look after them. A world
+  marked **"needs a server update"** (amber) was saved by a newer version of the game than the official
+  servers run — it opens again once they are updated.
 - **Join Server:** enter your **player name**, the server address, port and (if the server has one) the
   password. **Name verification:** the first join under a name claims it for your installation — later
   joins under that name from other machines are rejected ("name belongs to another player"), and a name
@@ -107,7 +109,8 @@ Last updated: 2026-10-04.
   backup over `world.db`. A world that was last saved by a **newer** version of the game is not opened by an
   older one — the game says so and leaves the world untouched. On the **Official Worlds** the same holds: a
   save from a newer game version than the server's is refused at upload, and a world the server cannot open
-  yet says so when you join it (the worlds page on the portal marks it **"needs a server update"**) — it opens
+  yet says so when you join it (the worlds page on the portal and the in-game *Official Worlds* list mark it
+  **"needs a server update"** in amber; **Play** still works and tells you the same) — it opens
   again once the server is updated. And a server whose game
   version has a different set of blocks refuses the join with "This server runs a different version of the
   game" — update the game (or the server).
@@ -2026,9 +2029,15 @@ called **stories**:
   a station", with its counter), **Skip step** and **More in the Codex** where there is more to read, and for the part
   **Skip part** and **Start part over** — then every part with its state (*done*, *skipped*, *now*, *coming up*; short
   courses *offered* with **Start** / **Later**, *available*, or *locked* with what they still need) and **Replay** for a
-  part you finished. At the top: **Track**, **Skip all — I know the game**, **Restart from the beginning** (**Start basic
-  training** when you skipped all of it) and **Switch off** (**Switch on** brings it back). Below: the training's scenes
-  to watch again.
+  part you finished. A course with nothing left to practise reads **✔ done — nothing left to practise** and has no
+  button — for example the *Crystal workshop* once every workshop job is handed in, also when you did them on the radio
+  before the course came. (Pressing **Start** or **Replay** there in an older version of the game makes VEGA say "You've
+  already done everything in …" instead of nothing.) At the top: **Track**, **Skip all — I know the game**, **Restart
+  from the beginning** (**Start basic training** when you skipped all of it) and **Switch off** (**Switch on** brings it
+  back). Below: the training's scenes to watch again.
+- **A story your game does not know yet:** when a world plays a story that only a newer version of the game has, VEGA
+  says so once ("This world plays a story your game doesn't know yet — update the game to follow it"), and that story's
+  lines, goals and tasks read *(This entry needs a newer version of the game.)* until you update.
 - **VEGA's page** shows the star-network meter (also as a bar), **Track**, **Missions in this chapter** — VEGA's story
   mission with its steps (**✔** done, **●** now, **○** next) and **Skip mission** — then **Leads in this chapter** — the
   chapter's tasks: **✔** done, **●** the one on your chip now, **○** still open (see "Story: finding the thread") — the chapter

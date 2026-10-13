@@ -246,6 +246,7 @@ namespace BlocksBeyondTheStars.Client
         {
             BlocksBeyondTheStars.Shared.Story.StoryNarratorLines.JournalNews => true,
             BlocksBeyondTheStars.Shared.Story.StoryNarratorLines.StepMarkedStation => true,
+            BlocksBeyondTheStars.Shared.Story.StoryNarratorLines.ChapterNothingLeft => true, // #2500: the answer to a click
             _ => false,
         };
 

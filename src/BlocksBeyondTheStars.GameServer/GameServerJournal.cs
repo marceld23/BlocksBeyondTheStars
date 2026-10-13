@@ -272,6 +272,7 @@ public sealed partial class GameServer
             Optional = ch.Optional,
             Skippable = ch.Def.Skippable ?? true,
             RequiresKeys = state == StoryChapterStates.Locked ? RequirementKeys(s, ch.Requires) : Array.Empty<string>(),
+            NothingLeft = state != StoryChapterStates.Locked && ChapterSpentFor(s, ch), // #2500: no Replay / Start, "nothing left"
         };
     }
 

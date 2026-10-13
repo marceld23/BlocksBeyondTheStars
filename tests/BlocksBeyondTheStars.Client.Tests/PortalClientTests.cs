@@ -91,6 +91,25 @@ public sealed class PortalClientTests
         Assert.True(world.IsPublic);
     }
 
+    /// <summary>#2500: the WorldHost marks a world whose save its server refused as written by a newer build
+    /// (<c>needsNewerServer</c>, #2464); the row then says "needs a server update" instead of the raw status. An older
+    /// WorldHost sends no such field: it reads false and the status shows as before.</summary>
+    [Fact]
+    public void ParseWorlds_ReadsTheServerUpdateFlag_AndAbsentReadsFalse()
+    {
+        var r = PortalClient.ParseWorlds(200,
+            "{\"worlds\":[{\"id\":\"aabbccddee11\",\"name\":\"Newer\",\"status\":\"stopped\",\"needsNewerServer\":true}," +
+            "{\"id\":\"aabbccddee22\",\"name\":\"Fine\",\"status\":\"running\",\"needsNewerServer\":false}," +
+            "{\"id\":\"aabbccddee33\",\"name\":\"Old host\",\"status\":\"stopped\"}]}");
+        Assert.True(r.Ok);
+        Assert.Equal(new[] { true, false, false }, r.Worlds.Select(w => w.NeedsNewerServer).ToArray());
+
+        static string L(string key) => "<" + key + ">";
+        Assert.Equal("<ui.portal.needs_update>", r.Worlds[0].StatusLabel(L));
+        Assert.Equal("running", r.Worlds[1].StatusLabel(L));
+        Assert.Equal("stopped", r.Worlds[2].StatusLabel(L));
+    }
+
     [Fact]
     public void ParseJoin_ReadsTheGrant_AndSurfacesPlayerSafeErrors()
     {

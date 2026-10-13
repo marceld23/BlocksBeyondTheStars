@@ -307,6 +307,12 @@ public sealed class NetStoryChapter
 
     /// <summary>For a locked chapter: locale keys naming what it still needs (a chapter title, a blueprint name).</summary>
     public string[] RequiresKeys { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>#2500: nothing left to practise — a finished chapter whose replay would pass every task at once (the blueprints
+    /// it researches are known, the jobs it bridges are handed in), or a course not started yet that the player has already done
+    /// by other means. The Journal shows no Replay / Start for it and reads "done — nothing left to practise". Additive
+    /// (contractless): an older server never sets it, so the Journal keeps its buttons there.</summary>
+    public bool NothingLeft { get; set; }
 }
 
 /// <summary>One active do step of a <see cref="NetStoryPack"/> (#2471).</summary>

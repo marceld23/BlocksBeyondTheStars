@@ -255,6 +255,14 @@ namespace BlocksBeyondTheStars.Client
 
         private bool HasKey(string key) => Game?.Localizer != null && !string.IsNullOrEmpty(key) && Game.Localizer.Has(key);
 
+        /// <summary>#2500: a story key's text for the panel and the chip — a key of a story this client does not have (a newer
+        /// build's pack) reads as the neutral "needs a newer version" note, never as a raw <c>[key]</c>
+        /// (<see cref="UnknownStoryPacks.Text"/>).</summary>
+        private string StoryKeyText(string key, string packId)
+            => Game != null && Game.Localizer != null
+                ? Game.UnknownStories.Text(key, packId, L, HasKey, Game.HasStoryPack)
+                : L(key);
+
         /// <summary>#2471: the label before an objective — the story's short name ("Training", "VEGA") from the server's story
         /// list or this client's copy of the story, else the generic "Objective".</summary>
         private string ObjectivePrefix(string packId)
@@ -500,7 +508,8 @@ namespace BlocksBeyondTheStars.Client
                 // suit lamp is on L" reads right after a rebind, on a pad, and on touch — expanded BEFORE the
                 // packed {0}… arguments (#1079) are filled in: string.Format reads "{key:" as a broken placeholder
                 // and threw the debris-field tip out of the poll for every pilot in 2026.10.8 (#2363).
-                string text = VegaText.Compose(L(m.LineKey), m.LineArg, KeyGlyphFor);
+                // #2500: a line of a story this client does not have reads as the neutral note, not as its raw key.
+                string text = VegaText.Compose(StoryKeyText(m.LineKey, m.PackId), m.LineArg, KeyGlyphFor);
 
                 // Prologue pages (Kind 4, #754) ride the normal queue with a flag — same panel, same
                 // paging, plus the dim + the skip (Esc, pad cancel, the skip pill) while one is showing.
@@ -534,7 +543,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 // #2471: the story's short name replaces "Objective:" ("Training: Dock at a station", "VEGA: A signal on …").
                 string counter = ObjectiveTracker.Counter(_objProgress, _objTarget);
-                FitChip(ObjectiveTracker.ChipBody(ObjectivePrefix(_objectivePackId), VegaObjectiveChip.Format(L(_objectiveKey), _objectiveArg)), counter);
+                FitChip(ObjectiveTracker.ChipBody(ObjectivePrefix(_objectivePackId),
+                    VegaObjectiveChip.Format(StoryKeyText(_objectiveKey, _objectivePackId), _objectiveArg)), counter); // #2500
             }
 
             _extraSig = int.MinValue; // the strips under the chip follow it
@@ -586,7 +596,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var row = rows[i];
-                string body = ObjectiveTracker.ChipBody(ObjectivePrefix(row.PackId), VegaObjectiveChip.Format(L(row.Key), row.Arg));
+                string body = ObjectiveTracker.ChipBody(ObjectivePrefix(row.PackId), VegaObjectiveChip.Format(StoryKeyText(row.Key, row.PackId), row.Arg));
                 string counter = ObjectiveTracker.Counter(row.Progress, row.Target);
                 _extraTexts[i].text = counter.Length > 0 ? body + "  " + counter : body;
                 _extraRows[i].GetComponent<RectTransform>().anchoredPosition =
@@ -645,6 +655,21 @@ namespace BlocksBeyondTheStars.Client
             _queue.Enqueue(new VegaQueuedLine(L(key), false, key)); // shows via the normal typewriter path; bypasses the VegaHints mute by design
         }
 
+        /// <summary>#2500: this world plays a story the client does not have (GameBootstrap noted it from the story list or the
+        /// story state) — the panel says so once per world session: "update the game to follow it". Like the break reminder it
+        /// bypasses the VegaHints mute (it explains why that story's lines read "needs a newer version") and is not kept in the
+        /// notes.</summary>
+        private void CheckUnknownStoryNotice()
+        {
+            if (Game == null || !Game.UnknownStories.TakeNotice())
+            {
+                return;
+            }
+
+            _queue.Enqueue(new VegaQueuedLine(L(UnknownStoryPacks.NoticeKey), false, UnknownStoryPacks.NoticeKey));
+            Refresh();
+        }
+
         /// <summary>True when the continue control should be ignored: the in-game menu is open, or a text
         /// field (chat, beacon label) currently has keyboard focus. Only a focused INPUT FIELD counts —
         /// uGUI also leaves an ordinary Button selected after any click, and with pad focus
@@ -684,6 +709,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             CheckPlaytimeReminder();
+            CheckUnknownStoryNotice();
             UpdateExtraRows(); // #2471: "Show all objectives" (cheap unless something changed)
 
             // The ending (or any later staged scene) owns the screen (#2461, B16): VEGA neither types nor talks under

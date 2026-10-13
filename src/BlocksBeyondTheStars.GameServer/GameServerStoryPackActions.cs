@@ -102,7 +102,7 @@ public sealed partial class GameServer
                 RestartPackOnRequest(s, pack);
                 break;
             case StoryPackActions.StartChapter:
-                if (pack.ChaptersById.TryGetValue(chapterId, out var start))
+                if (pack.ChaptersById.TryGetValue(chapterId, out var start) && !AnswerNothingLeft(s, start))
                 {
                     StartChapter(s, start);
                 }
@@ -123,14 +123,15 @@ public sealed partial class GameServer
 
                 break;
             case StoryPackActions.RestartChapter:
-                if (pack.ChaptersById.TryGetValue(chapterId, out var restart))
+                if (pack.ChaptersById.TryGetValue(chapterId, out var restart) && !AnswerNothingLeft(s, restart))
                 {
                     RestartChapter(s, restart);
                 }
 
                 break;
             case StoryPackActions.ReplayChapter:
-                if (pack.ChaptersById.TryGetValue(chapterId, out var replay) && ChapterDoneOrSkipped(s, replay) && !ChapterReplaying(s, replay))
+                if (pack.ChaptersById.TryGetValue(chapterId, out var replay) && ChapterDoneOrSkipped(s, replay) && !ChapterReplaying(s, replay)
+                    && !AnswerNothingLeft(s, replay))
                 {
                     RestartChapter(s, replay);
                 }
@@ -320,6 +321,59 @@ public sealed partial class GameServer
         AdvancePlayer(s);
         SendVegaObjective(s);
         return true;
+    }
+
+    /// <summary>#2500, the server half of "nothing left to practise": a Start, Replay or Start over of a chapter with nothing
+    /// left (<see cref="ChapterSpentFor"/>) — from an older Journal that has no <see cref="NetStoryChapter.NothingLeft"/>, or a
+    /// click that raced the flag — does not start it: it would end at once without a word. VEGA says so instead
+    /// (<see cref="ChapterNothingLeftLine"/>), and a course not started yet is stamped done silently (it is through; the Journal
+    /// then lists it done). True when answered — the caller then starts nothing. Where the start would be refused anyway (the
+    /// story switched off, a course the player is not admitted to or the world rules out, an older client's course) nothing is
+    /// said either.</summary>
+    private bool AnswerNothingLeft(PlayerSession s, CompiledChapter ch)
+    {
+        if (!PackRunsFor(s, ch.Pack) || !ChapterSpentFor(s, ch))
+        {
+            return false;
+        }
+
+        if (!ChapterDoneOrSkipped(s, ch))
+        {
+            if ((!s.SupportsPacks && ch.Pack.IsTutorial) || !EvaluateStoryCondition(ch.Requires, s) || !ChapterVisible(s, ch))
+            {
+                return false; // StartChapter refuses it silently
+            }
+
+            foreach (var step in ch.Steps.Where(StepCountsForChapter).Where(st => !StepComplete(s, st)))
+            {
+                CompleteStep(s, step, silent: true); // what the start would have done: the evidence counts, nothing is said
+            }
+
+            CompleteChapter(s, ch, skipped: false, silent: true);
+        }
+
+        SendNothingLeftLine(s, ch);
+        return true;
+    }
+
+    /// <summary>"You've already done everything in {0}." A client of this build or newer (<see cref="ClientFeatures.Choices1"/>
+    /// came with it) localizes the key itself; an older one — the Journal this fallback is for — has no text for it, so the line
+    /// goes out composed in the player's language.</summary>
+    private void SendNothingLeftLine(PlayerSession s, CompiledChapter ch)
+    {
+        string title = string.IsNullOrEmpty(ch.Def.TitleKey) ? ch.Id : LocalizerFor(s.Locale).Get(ch.Def.TitleKey);
+        if (s.SupportsPacks && s.SupportsChoices)
+        {
+            SendPackLine(s, ch.Pack, ChapterNothingLeftLine, title);
+            return;
+        }
+
+        SendVegaWithObjective(s, new ShipAiLine
+        {
+            PackId = ch.Pack.Id,
+            Speaker = ch.Pack.Narrator,
+            Text = ComposeLegacyText(s.Locale, ChapterNothingLeftLine, title),
+        });
     }
 
     /// <summary>Starts an optional chapter (or a non-optional one that does not start by itself); a chapter that is done

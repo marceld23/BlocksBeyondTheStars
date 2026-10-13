@@ -342,8 +342,8 @@ Optional chapters after the basic training (synthesis §3.2/§3.4): a player sta
 its moment of need, with `vega.chapter.offer` ("New short course: {0}…"; since #2499 a client with buttons hears
 `vega.chapter.offer_choice` with [Later] / [Start now] in the panel, see above) — never while the basic training runs, at most one
 offer every 90 s of play, and (#2481) never a course the player has nothing left to do in: one whose every counting step is
-done or covered by its evidence (`alreadyDoneIf`, a bridged mission turned in) is neither offered nor suggested — it stays
-startable in the Journal and would complete silently. **The tip becomes the offer** (#2459, synthesis §4.3): a VEGA hint
+done or covered by its evidence (`alreadyDoneIf`, a bridged mission turned in) is neither offered nor suggested — the
+Journal reads it "done — nothing left to practise" without a **Start** (#2500, below). **The tip becomes the offer** (#2459, synthesis §4.3): a VEGA hint
 or tip that a course teaches (one of its steps names it in `hintRefs`) is not spoken when that course's offer is due at the
 same moment (`OfferAbsorbsHint`) or was made a moment ago (`RecentOfferTeaches`, 10 s of play) — the offer line is its
 telling: a once-hint's flag is burned, a context tip's first telling booked and its cooldown started, and the offer takes
@@ -353,7 +353,25 @@ tips are never folded into an offer; a player with no offer due (the course done
 before. Every **do** step of a course counts (tier `core`/`opt` only marks what the synthesis calls
 optional); read and react steps never block. A **replay** walks every step anew and ignores `alreadyDoneIf`, except a
 research step whose every blueprint is known already (it cannot be done twice — #2459, `StepSpentForReplay`): it passes
-silently, like a bridged mission already turned in. Each course opens with the card `tut.course` ("Short course" + its title) and
+silently, like a bridged mission already turned in.
+
+**Spent courses — "nothing left to practise" (#2500).** `ChapterSpentFor` (GameServerStoryPacks.cs) says a chapter has
+nothing left: a finished one (done or skipped, not replaying) whose every counting step a replay passes at once
+(`StepSpentForReplay` or `BridgedMissionTurnedIn` — the Crystal workshop with every job handed in), or a course not started
+yet that is through by evidence (`ChapterThroughByEvidence`). Never a running or replaying chapter, a mandatory one still
+ahead, or one without counting steps. The Journal gets it as the additive `NetStoryChapter.NothingLeft`: no Replay / Start /
+Later (`JournalPackPage.ChapterActions`), the row reads `ui.journal.nothing_left` ("done — nothing left to practise") with
+the ✔ (`ChapterIcon`), and such an offer asks for no attention (no • badge). The server half covers older Journals and a
+click that raced the flag (`AnswerNothingLeft`, GameServerStoryPackActions.cs): a `startChapter`, `replayChapter` or
+`restartChapter` of a spent chapter does not start it; VEGA says `vega.chapter.nothing_left` ("You've already done
+everything in {0}.", {0} = the title; transient — not kept in VEGA's notes), and a course not started yet is stamped done
+silently first (its counting steps `CompleteStep(silent)`, the chapter `CompleteChapter(silent)` — no card, no step line, no
+graduation). A client that announces `choices1` (this build on) gets the key; an older one has no text for it and gets the
+line composed in its language (`ComposeLegacyText`). Where the start would be refused anyway (the story switched off, not
+admitted, ruled out by the world, an older client's course) nothing is said. The admin `/tutorial chapter` keeps its old
+path.
+
+Each course opens with the card `tut.course` ("Short course" + its title) and
 closes with the part banner `tut.done`; two firsts get their own card (below). No legacy keys, no rewards; an older client
 (no `packs1`) never runs a course.
 
@@ -704,7 +722,8 @@ the objective tracker"):
   running parts only) and **Start part over** (`restartChapter`: the part walks again from its first step; what was done
   stays done, a step done for the first time in it is stamped done, and the part completes for real at the end); then every
   part with its state and **Replay** (`replayChapter`) for a finished one, **Start** / **Later** (`startChapter` /
-  `declineChapter`) for an offered deep dive, **Start** for an available or put-off one; at the top **Track**, **Skip all —
+  `declineChapter`) for an offered deep dive, **Start** for an available or put-off one — none of them for a part with
+  nothing left to practise (#2500, `NothingLeft`: "done — nothing left to practise"); at the top **Track**, **Skip all —
   I know the game** (`skipPack`), **Restart from the beginning** (`restartPack`: every mandatory part replays from part 1 —
   keys stay, so gates and conditions keep holding; never a veteran check, never the prologue; refused while the world has
   the tutorial off) and **Switch off** / **Switch on** (`optOut` / `optIn`). #2498: when every mandatory part reads

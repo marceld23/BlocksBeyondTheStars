@@ -1191,7 +1191,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 var mDlg = OpenModalPanel(460f, 150f, 1000f, 780f);
                 UiKit.AddText(mDlg, 30f, 24f, 940f, 30f, world.Name, 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-                var mStatus = UiKit.AddText(mDlg, 40f, 58f, 920f, 24f, world.Status + (world.HasPassword ? "  [PW]" : ""), 14, UiKit.CyanDim, TextAnchor.MiddleCenter);
+                var mStatus = UiKit.AddText(mDlg, 40f, 58f, 920f, 24f, world.StatusLabel(shell.L) + (world.HasPassword ? "  [PW]" : ""), 14,
+                    world.NeedsNewerServer ? UiKit.Warn : UiKit.CyanDim, TextAnchor.MiddleCenter); // #2500: "needs a server update"
                 var mWarn = UiKit.AddText(mDlg, 76f, 596f, 884f, 56f, "", 14, warnCol, TextAnchor.UpperLeft, FontStyle.Bold);
                 mWarn.horizontalOverflow = HorizontalWrapMode.Wrap;
                 UiKit.AddSpinner(mDlg, 42f, 596f, 26f, mWarn); // spins while a manage action is in progress
@@ -1843,10 +1844,13 @@ namespace BlocksBeyondTheStars.Client
                 {
                     var w = world; // capture per row (Play joins; Manage is owner-only)
                     UiKit.AddText(list, 30f, ry + 8f, 380f, 26f, w.Name, 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    // #2500: a world whose save the server refused as written by a newer build says "needs a server update" in
+                    // the warn colour instead of a plain "stopped" (as the web portal does); Play stays enabled.
+                    string rowStatus = w.StatusLabel(shell.L);
                     string status = owned
-                        ? w.Status + (w.HasPassword ? " [PW]" : "") + (w.IsPublic ? " [PUB]" : "")
-                        : w.Status + " [PW]"; // public worlds are always password-gated
-                    var st = UiKit.AddText(list, 420f, ry + 8f, 220f, 26f, status, 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                        ? rowStatus + (w.HasPassword ? " [PW]" : "") + (w.IsPublic ? " [PUB]" : "")
+                        : rowStatus + " [PW]"; // public worlds are always password-gated
+                    var st = UiKit.AddText(list, 420f, ry + 8f, 220f, 26f, status, 13, w.NeedsNewerServer ? UiKit.Warn : UiKit.CyanDim, TextAnchor.MiddleLeft);
                     st.horizontalOverflow = HorizontalWrapMode.Wrap;
                     UiKit.AddButton(list, col[3], ry, colW, 44f, shell.L("ui.portal.play"), () => DoJoinWorld(w.Id), "btn_join");
                     if (owned)
@@ -1904,11 +1908,11 @@ namespace BlocksBeyondTheStars.Client
                     {
                         var w = world;
                         UiKit.AddText(list, 30f, ry + 8f, 380f, 26f, w.Name, 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-                        string flags = w.Status
+                        string flags = w.StatusLabel(shell.L) // #2500: "needs a server update" (warn colour) instead of the status
                             + (w.HasPassword ? " [PW]" : "")
                             + (w.IsPublic ? " [PUB]" : " [PRIV]")
                             + (string.IsNullOrEmpty(w.Owner) ? "" : " · " + w.Owner);
-                        var st = UiKit.AddText(list, 420f, ry + 8f, 230f, 26f, flags, 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                        var st = UiKit.AddText(list, 420f, ry + 8f, 230f, 26f, flags, 13, w.NeedsNewerServer ? UiKit.Warn : UiKit.CyanDim, TextAnchor.MiddleLeft);
                         st.horizontalOverflow = HorizontalWrapMode.Wrap;
                         UiKit.AddButton(list, col[3], ry, colW, 44f, shell.L("ui.portal.play"), () => DoJoinWorld(w.Id), "btn_join");
                         ry += 52f;

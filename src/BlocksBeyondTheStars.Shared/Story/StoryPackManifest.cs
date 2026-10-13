@@ -570,6 +570,10 @@ public static class StoryNarratorLines
     /// entries the Journal gained) — the beats go to the Journal silently (#2471, B09). The client never keeps it in the
     /// notes (it points at them).</summary>
     public const string JournalNews = "vega.journal.news";
+
+    /// <summary>The answer to a Start or Replay of a chapter with nothing left to practise ({0} = the chapter title, #2500). A
+    /// reply to a click, so the client never keeps it in the notes.</summary>
+    public const string ChapterNothingLeft = "vega.chapter.nothing_left";
 }
 
 /// <summary>The legacy onboarding vocabulary (the nine VEGA stages before the tutorial pack): the milestone a step's

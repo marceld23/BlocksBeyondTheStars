@@ -273,7 +273,8 @@ code. WorldHost treats it as its own state instead of a wake timeout:
   `:latest` or a rebuilt `:local` that now carries a newer server heals without an operator). A
   successful wake clears the mark.
 - **Visibility.** The owner's world card shows the chip "needs a server update" (`needsNewerServer` in
-  `GET /api/worlds`, `/public` and `/all`); the fleet table and the world detail page on `/admin` show
+  `GET /api/worlds`, `/public` and `/all`) — since #2500 the in-game *Official Worlds* list too (`PortalWorldInfo.NeedsNewerServer`,
+  `ui.portal.needs_update` in the warn colour instead of the status word; Play stays enabled); the fleet table and the world detail page on `/admin` show
   "needs newer server" with the refusing image; the reaper logs one error per refusal
   (`DrainSaveTooNewWorlds`), so the operator learns the fleet image lags behind a player's save.
 - **The way back after a rollback.** Before a newer server stamps an older save with its save version it

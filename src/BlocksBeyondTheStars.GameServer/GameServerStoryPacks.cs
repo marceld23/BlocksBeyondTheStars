@@ -73,6 +73,10 @@ public sealed partial class GameServer
     /// them (#2499) hears <see cref="ChapterOfferChoiceLine"/> with [Later] / [Start now].</summary>
     internal const string ChapterOfferLine = "vega.chapter.offer";
 
+    /// <summary>#2500: spoken instead of a silent nothing when the player starts or replays a chapter with nothing left to
+    /// practise ({0} = the chapter title) — <see cref="ChapterSpentFor"/>.</summary>
+    internal const string ChapterNothingLeftLine = StoryNarratorLines.ChapterNothingLeft;
+
     // ---------------------------------------------------------------------------------------------
     // The compiled pack model.
     // ---------------------------------------------------------------------------------------------
@@ -954,6 +958,28 @@ public sealed partial class GameServer
     /// radio before — "never offered twice").</summary>
     private bool ChapterThroughByEvidence(PlayerSession s, CompiledChapter ch)
         => ch.Steps.Where(StepCountsForChapter).All(st => StepComplete(s, st) || StepAlreadyDone(s, st) || BridgedMissionTurnedIn(s, st));
+
+    /// <summary>#2500: whether a chapter has nothing left to practise for this player — a Replay or a Start would end at once,
+    /// silently. A finished chapter (done or skipped, not being replayed) whose every counting step a replay passes at once
+    /// (<see cref="StepSpentForReplay"/>: research of blueprints known already; <see cref="BridgedMissionTurnedIn"/>: the Crystal
+    /// workshop's jobs handed in); a course not started yet that is through by evidence (<see cref="ChapterThroughByEvidence"/>
+    /// — never offered for that reason, #2481). A running or replaying chapter, a mandatory one still ahead and a chapter
+    /// without counting steps never are. The Journal hides Replay / Start for it (<see cref="NetStoryChapter.NothingLeft"/>).</summary>
+    private bool ChapterSpentFor(PlayerSession s, CompiledChapter ch)
+    {
+        var counting = ch.Steps.Where(StepCountsForChapter).ToList();
+        if (counting.Count == 0 || ChapterReplaying(s, ch))
+        {
+            return false;
+        }
+
+        if (ChapterDoneOrSkipped(s, ch))
+        {
+            return counting.All(st => StepSpentForReplay(s, st) || BridgedMissionTurnedIn(s, st));
+        }
+
+        return ch.Optional && !MilestonesOf(s).Contains(StoryPackKeys.ChapterActive(ch.Pack.Id, ch.Id)) && ChapterThroughByEvidence(s, ch);
+    }
 
     /// <summary>#2482: whether an optional chapter exists for this player — its <c>visibleIf</c> (a rule-gated deep dive: combat
     /// switched on, a world for more than one player). One that does not is never offered, suggested or started.</summary>

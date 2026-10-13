@@ -4914,7 +4914,7 @@ namespace BlocksBeyondTheStars.Client
                         var stepActions = JournalPackPage.StepActions(step);
                         float top = y;
                         float width = stepActions.Count > 0 ? 780f - 32f - (stepActions.Count * 196f) : 748f;
-                        y = JournalRow(y, 32f, width, JournalPackPage.StepLine(pack, step, live, L, ComposeJournalText), 17,
+                        y = JournalRow(y, 32f, width, JournalPackPage.StepLine(pack, step, live, L, ComposeJournalText, HasLoc), 17,
                             step.OnChip ? UiKit.TextCol : UiKit.CyanDim, FontStyle.Normal);
                         float bx = 780f;
                         for (int i = stepActions.Count - 1; i >= 0; i--)
@@ -4936,10 +4936,10 @@ namespace BlocksBeyondTheStars.Client
             y = AllianceSection(L(JournalPackPage.IsTutorial(pack) ? "ui.journal.parts" : "ui.story.chapters"), y);
             foreach (var ch in pack.Chapters)
             {
-                var actions = JournalPackPage.ChapterActions(pack, ch);
+                var actions = JournalPackPage.ChapterActions(pack, ch); // #2500: none when nothing is left to practise
                 bool active = ch.State == StoryChapterStates.Active || ch.State == StoryChapterStates.Replay;
-                var color = active ? UiKit.Cyan : ch.State == StoryChapterStates.Done || ch.State == StoryChapterStates.Offered ? UiKit.TextCol : UiKit.CyanDim;
-                string row = JournalPackPage.Icon(ch.State) + "  " + JournalPackPage.ChapterLabel(pack, ch, L, HasLoc)
+                var color = active ? UiKit.Cyan : ch.State == StoryChapterStates.Done || ch.State == StoryChapterStates.Offered || ch.NothingLeft ? UiKit.TextCol : UiKit.CyanDim;
+                string row = JournalPackPage.ChapterIcon(ch) + "  " + JournalPackPage.ChapterLabel(pack, ch, L, HasLoc)
                              + "   ·   " + JournalPackPage.StateText(ch, L, HasLoc);
                 float top = y;
                 float width = actions.Count > 0 ? 780f - 8f - (actions.Count * 150f) : 760f;

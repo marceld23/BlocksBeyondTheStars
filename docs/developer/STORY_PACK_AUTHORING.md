@@ -343,7 +343,11 @@ BBTS_UPDATE_STORY_VOCABULARY=1 dotnet test tests/BlocksBeyondTheStars.Tests -c R
   world flags and knowledge levels) are phase 10 of the plan and not built; the finale code knows VEGA's Guardian core
   only.
 - **Install on both sides.** The server runs the pack; texts and cutscenes resolve on the client from its own copy. A
-  client without the pack shows the raw keys. Desktop: the client's `StreamingAssets/data/stories/`. The browser build and
+  client without the pack cannot show its texts: since #2500 it says once "This world plays a story your game doesn't know
+  yet — update the game to follow it" (`ui.story.pack_missing`) and shows that pack's lines, chip goals and Journal tasks as
+  the neutral `ui.story.entry_missing` (Client.Core `UnknownStoryPacks`) — never raw keys; names and titles read as their ids.
+  A server-side text fallback for such a client is deferred until community packs exist. Desktop: the client's
+  `StreamingAssets/data/stories/`. The browser build and
   the hosted worlds ship official packs only (the operator vouches for what children read).
 - **No scripts.** A pack is data; it cannot add a verb, a predicate or a rule — see §14.
 - **No rewards** in a pack's own fields (a mission it bridges onto keeps its rewards); a tutorial's only reward is the

@@ -139,8 +139,9 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
+                    // #2500: an offer with nothing left to practise has no Start / Later, so it never asks for attention.
                     bool attention = !pack.Started && pack.Startable && !pack.Blocked
-                                     || pack.Chapters.Any(c => c.State == StoryChapterStates.Offered);
+                                     || pack.Chapters.Any(c => c.State == StoryChapterStates.Offered && !c.NothingLeft);
                     list.Add(new JournalCategory(PackCategory(pack.Id), Name(pack.NameKey, pack.Id, localize, has), pack.Badge, attention));
                 }
             }
@@ -227,9 +228,20 @@ namespace BlocksBeyondTheStars.Client
             _ => "○",
         };
 
-        /// <summary>The state word after a chapter row — for a locked chapter with what it still needs.</summary>
+        /// <summary>The mark in front of a chapter row: its state's (<see cref="Icon"/>), or "✔" when there is nothing left to
+        /// practise (#2500 — a course the player has already done by other means reads as done).</summary>
+        public static string ChapterIcon(NetStoryChapter chapter)
+            => chapter.NothingLeft ? Icon(StoryChapterStates.Done) : Icon(chapter.State);
+
+        /// <summary>The state word after a chapter row — for a locked chapter with what it still needs; "done — nothing left to
+        /// practise" when its Replay / Start would end at once (#2500, <see cref="NetStoryChapter.NothingLeft"/>).</summary>
         public static string StateText(NetStoryChapter chapter, Func<string, string> localize, Func<string, bool>? has = null)
         {
+            if (chapter.NothingLeft)
+            {
+                return localize("ui.journal.nothing_left");
+            }
+
             string state = string.IsNullOrEmpty(chapter.State) ? StoryChapterStates.Upcoming : chapter.State;
             string word = localize("ui.journal.state." + state);
             if (state != StoryChapterStates.Locked || chapter.RequiresKeys.Length == 0)
@@ -242,11 +254,12 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The buttons of a chapter row: Start / Later for an offer, Start for an available or put-off chapter, Replay
-        /// for a finished one (not while the story is switched off).</summary>
+        /// for a finished one (not while the story is switched off) — none when there is nothing left to practise (#2500: the
+        /// replay or the start would end at once, without a word).</summary>
         public static List<JournalAction> ChapterActions(NetStoryPack pack, NetStoryChapter chapter)
         {
             var actions = new List<JournalAction>();
-            if (!pack.Started || !pack.Enabled)
+            if (!pack.Started || !pack.Enabled || chapter.NothingLeft)
             {
                 return actions;
             }
@@ -312,11 +325,15 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>A task's line: "Step 4 of 8: Dock at a station  (2/3)" — an open extra as "Extra: …". The text resolves
-        /// <c>{key:…}</c> tokens through <paramref name="compose"/> (the client's one resolver).</summary>
+        /// <c>{key:…}</c> tokens through <paramref name="compose"/> (the client's one resolver). A text this client does not have
+        /// (<paramref name="has"/> — a story of a newer build, #2500) reads as the neutral "needs a newer version" note
+        /// (<see cref="UnknownStoryPacks.FallbackKey"/>), never as a raw key.</summary>
         public static string StepLine(NetStoryPack pack, NetStoryStep step, ObjectiveList? live, Func<string, string> localize,
-            Func<string, string>? compose = null)
+            Func<string, string>? compose = null, Func<string, bool>? has = null)
         {
-            string text = string.IsNullOrEmpty(step.ChipKey) ? step.Id : localize(step.ChipKey);
+            string text = string.IsNullOrEmpty(step.ChipKey) ? step.Id
+                : has == null || has(step.ChipKey) ? localize(step.ChipKey)
+                : localize(UnknownStoryPacks.FallbackKey);
             if (compose != null)
             {
                 text = compose(text);

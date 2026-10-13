@@ -56,6 +56,20 @@ namespace BlocksBeyondTheStars.Client.Portal
         /// <summary>Owner display name — only filled by the operator listing (issue #495), which may name
         /// owners because the operator moderates; the public listing never carries it.</summary>
         public string Owner { get; set; } = string.Empty;
+
+        /// <summary>#2500: the fleet's server refused this world's save as written by a newer version of the game (the
+        /// WorldHost's <c>needsNewerServer</c>, #2464) — it opens again once the server is updated. Absent (an older WorldHost)
+        /// reads false.</summary>
+        public bool NeedsNewerServer { get; set; }
+
+        /// <summary>The locale key the world list shows instead of the raw status when the world waits for a server update.</summary>
+        public const string NeedsUpdateKey = "ui.portal.needs_update";
+
+        /// <summary>The status a world row shows: "needs a server update" (<see cref="NeedsUpdateKey"/>, the UI draws it in the
+        /// warn colour) or the WorldHost's status word as it comes. Play stays enabled either way — a join tries again after
+        /// the server's retry window and otherwise answers with the localized reason.</summary>
+        public string StatusLabel(Func<string, string> localize)
+            => NeedsNewerServer && localize != null ? localize(NeedsUpdateKey) : Status;
     }
 
     /// <summary>One message the fleet has for this player (#496): why they were banned, that a ban was
@@ -622,6 +636,7 @@ namespace BlocksBeyondTheStars.Client.Portal
                             HasPassword = w.TryGetProperty("hasPassword", out var hp) && hp.ValueKind == JsonValueKind.True,
                             IsPublic = w.TryGetProperty("isPublic", out var ip) && ip.ValueKind == JsonValueKind.True,
                             Owner = GetString(w, "owner"), // only the operator listing fills this (#495)
+                            NeedsNewerServer = w.TryGetProperty("needsNewerServer", out var nn) && nn.ValueKind == JsonValueKind.True, // #2500
                         });
                     }
                 }

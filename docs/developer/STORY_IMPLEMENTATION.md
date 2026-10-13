@@ -912,6 +912,13 @@ Rules on top of the wire:
 - **Beat list.** `StoryBeatLog` (Client.Core) rebuilds the Story tab's *Memories restored* list from `HeardBeats` plus
   the beats heard live (the join sends the snapshot BEFORE its catch-up lines), in arc order, and holds only pack beats
   (`StoryLog.BeatIndexOf`); other Kind-2 lines go to the VEGA log. Missing locale keys render as `ui.story.entry_missing`.
+- **A story the client lacks (#2500).** `UnknownStoryPacks` (Client.Core, one per world session on GameBootstrap) notes the
+  pack ids of `StoryPackStates` and `StoryStateMessage` this client's content does not have and makes a one-time notice due —
+  VEGA's panel queues `ui.story.pack_missing` (never muted, not kept in the notes). The panel's lines, the chip and the "Show
+  all objectives" rows resolve keys through `UnknownStoryPacks.Text`: a missing key of such a pack (a line's `PackId` the
+  client lacks, or no pack id while any story is missing — the world story's beats carry none) reads as
+  `ui.story.entry_missing`; a missing key of a known pack stays `[key]` (a content bug). The Journal's task lines
+  (`JournalPackPage.StepLine(…, has)`) use the same note.
 - **Client one-shot lessons** (`VegaPanel.SayLocal`) return whether the line was queued; callers set their
   `ClientSettings.*HintShown` flag only then. Since #2469 the flight lessons the tutorial's B6 steps teach
   (`VegaText.LessonCoveredByTutorial`) count as given without being spoken while the basic training runs.

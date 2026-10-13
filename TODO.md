@@ -105,6 +105,18 @@ line per step:
   free, never Esc). Line → pill model, hold timing and the queue drop are Client.Core (`VegaChoices.cs`, tested). Docs:
   TUTORIAL_PACK, STORY_IMPLEMENTATION, INPUT_AND_CONTROLLER, USER_MANUAL. ⚠ Unity: the two pills fit side by side
   (EN/DE), the hold tint, N/pad/touch picks, the question after the welcome card.
+- ✅ **Step 7 — Journal "nothing left to practise", Official Worlds update chip, unknown-story notice (#2500)**,
+  2026-10-13: a chapter with nothing left (`ChapterSpentFor`: a finished one whose replay would pass every task at once —
+  the Crystal workshop with every job handed in — or a course not started yet that is through by evidence) is flagged by
+  the additive `NetStoryChapter.NothingLeft`; the Journal shows no Replay/Start/Later and reads "✔ done — nothing left to
+  practise". An older Journal's (or a racing) Start/Replay is answered by VEGA ("You've already done everything in {0}."
+  — the key for `choices1` clients, composed text for older ones) instead of a silent nothing, and a not-started course is
+  stamped done silently. The in-game Official Worlds list reads `needsNewerServer` (`PortalWorldInfo.NeedsNewerServer`) and
+  shows "needs a server update" in amber; Play stays enabled. A world story / player pack this client lacks
+  (`UnknownStoryPacks`, Client.Core) gets a one-time VEGA notice "update the game to follow it" and its lines, chip and
+  Journal tasks read the neutral "(This entry needs a newer version of the game.)" instead of raw keys. Docs:
+  TUTORIAL_PACK, STORY_IMPLEMENTATION, STORY_PACK_AUTHORING, HOSTED_WORLDS, USER_MANUAL. ⚠ Unity: the amber chip in the
+  world rows, the notice on a world with an unknown story, the ✔ row without buttons.
 
 ### ★ Story packs 2026-10 (#2459)
 
