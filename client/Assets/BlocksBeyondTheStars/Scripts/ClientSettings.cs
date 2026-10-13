@@ -102,10 +102,8 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public enum WindowMode { Windowed, Borderless, Exclusive }
 
-    /// <summary>Which layout the on-screen button NAMES follow (#1219). Purely cosmetic: a pad reports the
-    /// same button numbers whatever is printed on it, so this only picks the wording, matched by physical
-    /// position — see <see cref="InputMap.PadGlyph"/>.</summary>
-    public enum PadGlyphSet { Xbox, PlayStation, Nintendo }
+    // PadGlyphSet (Xbox / PlayStation / Nintendo button names, #1219) moved to Client.Core with the glyph table
+    // (PadGlyphTable, #2507); same namespace and values, and JsonUtility stores it as its number either way.
 
     /// <summary>
     /// Local, client-only settings (display, audio, input, comfort). These never affect the

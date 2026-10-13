@@ -264,9 +264,11 @@ normal sensitivity, **invert up/down for the pad only**, **mine and place on the
 LB/RB — switch it off again if your controller mines by itself, which some pads do because they report
 their triggers differently), the **button names** shown in hints (Xbox, PlayStation or Nintendo — the
 buttons themselves do not change, only what we call them), and a **vibration** switch whose setting is
-remembered but which nothing acts on yet. The on-foot controls line at the bottom of the HUD follows these
-settings: it uses the chosen button names, shows your rebound buttons, and adds the triggers to mine and
-place once you switch them on. Walking with the keyboard while a pad is plugged in keeps the keyboard hints.
+remembered but which nothing acts on yet. The controls lines at the bottom of the HUD — on foot, in flight and
+on a spacewalk — follow these settings: they use the chosen button names (a PlayStation pad reads "R1 fire ·
+(Square) land/dock"), show your rebound buttons, and add the triggers to mine, place and fire once you switch
+them on. A control you leave without a pad button simply drops out of the flight and spacewalk lines. Walking
+with the keyboard while a pad is plugged in keeps the keyboard hints.
 
 **Rebinding:** every control row in **Settings** has two buttons — the keyboard key and the pad button.
 Tap the pad button and press any controller button to rebind it (actions marked **—** have no pad button

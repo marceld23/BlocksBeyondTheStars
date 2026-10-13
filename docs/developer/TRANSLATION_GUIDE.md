@@ -71,7 +71,9 @@ Style rules:
   (#2463). Texts that expand tokens: VEGA's lines and the story/tutorial texts, every `@srv.*` server message, the
   HUD prompts (stations, crafting stations, bed, heal tank, transporter pad, factory terminal, loot/stash/feed,
   scanner, wreck repair, base core, station/dock/trade hints, data cube and net fragment labels), the keyboard
-  controls line and the flight/EVA lines, the chat toast, the crate buttons and filter hint, the launch and
+  controls line and the flight/EVA lines (keyboard and pad — in the pad's `ui.space.controls_pad` /
+  `eva_controls_pad` keep " · ", a dot with a space on each side, between the controls and keep every token: the game
+  drops a control the player left without a button segment by segment, #2507), the chat toast, the crate buttons and filter hint, the launch and
   vendor/workshop questions ("Launch ({key:Interact})"), the map/chart details and the creative-flight, photo and
   discovery hints (#2502), and the item, block, blueprint and ship-module descriptions (#2503 — the crafting,
   inventory, Blueprints and ship panes and the Codex's lists: "press {key:Interact}", "Use {key:Place} to …",

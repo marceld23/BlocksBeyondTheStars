@@ -554,48 +554,21 @@ namespace BlocksBeyondTheStars.Client
         /// The wording follows the layout the player picked in the controller settings (#1219): the BUTTON
         /// NUMBER never changes — a pad reports the same code whatever is printed on it — only the name
         /// does, matched by PHYSICAL POSITION (JoystickButton0 is the bottom face button: Xbox A,
-        /// PlayStation Cross, Nintendo B).
-        ///
-        /// The PlayStation shapes are spelled out rather than drawn: the bundled UI font (Rajdhani) is
-        /// Latin-only, so ✕ ○ □ △ would come out as missing-glyph boxes — and glyph SPRITES would cost the
-        /// WebGL build more than a control hint is worth.</summary>
-        public static string PadGlyph(KeyCode button)
-        {
-            var set = GamepadInputSource.Settings != null ? GamepadInputSource.Settings.PadGlyphs : PadGlyphSet.Xbox;
-            return button switch
-            {
-                KeyCode.JoystickButton0 => set switch { PadGlyphSet.PlayStation => "(Cross)", PadGlyphSet.Nintendo => "(B)", _ => "(A)" },
-                KeyCode.JoystickButton1 => set switch { PadGlyphSet.PlayStation => "(Circle)", PadGlyphSet.Nintendo => "(A)", _ => "(B)" },
-                KeyCode.JoystickButton2 => set switch { PadGlyphSet.PlayStation => "(Square)", PadGlyphSet.Nintendo => "(Y)", _ => "(X)" },
-                KeyCode.JoystickButton3 => set switch { PadGlyphSet.PlayStation => "(Triangle)", PadGlyphSet.Nintendo => "(X)", _ => "(Y)" },
-                KeyCode.JoystickButton4 => set switch { PadGlyphSet.PlayStation => "L1", PadGlyphSet.Nintendo => "L", _ => "LB" },
-                KeyCode.JoystickButton5 => set switch { PadGlyphSet.PlayStation => "R1", PadGlyphSet.Nintendo => "R", _ => "RB" },
-                // "View" is what the button is called on every Xbox pad since the One (the two overlapping
-                // rectangles); "Back" was the 360's name, which is Unity's — and no player looking at a
-                // modern pad found it, so VEGA lines seemed undismissable on a controller.
-                KeyCode.JoystickButton6 => set switch { PadGlyphSet.PlayStation => "Share", PadGlyphSet.Nintendo => "-", _ => "View" },
-                // Same story for "Start": since the Xbox One it is the "Menu" button (three lines, right of
-                // the logo). A player reading "Start" reached for the Xbox-logo button — which Windows'
-                // Game Bar owns — and concluded the game had no way into its menus on a pad.
-                KeyCode.JoystickButton7 => set switch { PadGlyphSet.PlayStation => "Options", PadGlyphSet.Nintendo => "+", _ => "Menu" },
-                KeyCode.JoystickButton8 => set == PadGlyphSet.Xbox ? "LS" : "L3",
-                KeyCode.JoystickButton9 => set == PadGlyphSet.Xbox ? "RS" : "R3",
-                >= KeyCode.JoystickButton10 and <= KeyCode.JoystickButton19 => "B" + (button - KeyCode.JoystickButton0),
-                _ => null,
-            };
-        }
+        /// PlayStation Cross, Nintendo B). The table itself lives in Client.Core (<see cref="PadGlyphTable"/>,
+        /// #2507) so the composed pad lines are tested headless.</summary>
+        public static string PadGlyph(KeyCode button) => PadGlyphTable.Button(PadButtonIndex(button), PadGlyphs);
+
+        /// <summary>The number of a pad button (<see cref="KeyCode.JoystickButton0"/>…19 → 0…19), or −1 for
+        /// <see cref="KeyCode.None"/> and every code that is no pad button.</summary>
+        public static int PadButtonIndex(KeyCode button)
+            => button >= KeyCode.JoystickButton0 && button <= KeyCode.JoystickButton19 ? button - KeyCode.JoystickButton0 : -1;
 
         /// <summary>The name of a trigger in the player's glyph set (#2461): RT/LT on Xbox, R2/L2 on PlayStation, ZR/ZL
         /// on Nintendo. The triggers are an axis, not a button, so <see cref="PadGlyph"/> cannot name them.</summary>
-        public static string PadTriggerGlyph(bool right)
-        {
-            var set = GamepadInputSource.Settings != null ? GamepadInputSource.Settings.PadGlyphs : PadGlyphSet.Xbox;
-            return set switch
-            {
-                PadGlyphSet.PlayStation => right ? "R2" : "L2",
-                PadGlyphSet.Nintendo => right ? "ZR" : "ZL",
-                _ => right ? "RT" : "LT",
-            };
-        }
+        public static string PadTriggerGlyph(bool right) => PadGlyphTable.Trigger(right, PadGlyphs);
+
+        /// <summary>The player's pad glyph set — Xbox with no settings loaded.</summary>
+        public static PadGlyphSet PadGlyphs
+            => GamepadInputSource.Settings != null ? GamepadInputSource.Settings.PadGlyphs : PadGlyphSet.Xbox;
     }
 }

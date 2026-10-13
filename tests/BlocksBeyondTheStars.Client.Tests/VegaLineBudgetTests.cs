@@ -55,6 +55,8 @@ public sealed class VegaLineBudgetTests
         "ui.save.creative_flight", "ui.photos.empty", "ui.wiki.discoveries.empty",
         // #2502 — the flight and EVA lines (SpaceView)
         "ui.space.controls", "ui.space.eva_controls", "ui.vega.autopilot.hint", "ui.spacemap.key_hint",
+        // #2507 — the pad's flight and EVA lines (HudUi.PadLine): no "(X)", "RB", "LS" or "Left stick" written in
+        "ui.space.controls_pad", "ui.space.eva_controls_pad",
         // #2502 — rewritten without a key
         "npc.streamer.ask", "ui.chat.hint",
     };
@@ -87,6 +89,13 @@ public sealed class VegaLineBudgetTests
         @"^[A-Z]:\s|\([A-Z]\)|\[[A-Z]\]|(?i:\b(?:right|left)[ -](?:mouse|click))|\b(?:LMB|RMB|LMT|RMT)\b|\bWASD\b"
         + @"|(?i:(?:press|hold|tap)\s+)Space\b|\bSpace(?:×|/|\s+(?:jump|up)\b)|\bLeertaste\b|(?i:\b(?:rechts|links)klick)"
         + @"|(?i:\b(?:rechte|linke)n? Maustaste)|\bStrg\b|\bCtrl\b",
+        RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, RegexTimeout);
+
+    /// <summary>#2507: a pad control written in — the shoulder buttons, triggers and stick clicks of the three glyph sets
+    /// ("RB fire", "L1", "ZR", "LS actions") and the sticks and the d-pad by name ("Left stick fly", "Steuerkreuz"). The
+    /// pad's flight and EVA lines read like that before they became templates; a token names the player's own button.</summary>
+    private static readonly Regex LiteralPadControl = new(
+        @"\b(?:RB|LB|RT|LT|RS|LS|R1|L1|R2|L2|R3|L3|ZR|ZL)\b|(?i:\b(?:left|right) stick\b|\b(?:linker|rechter) Stick\b|\bD-pad\b|\bSteuerkreuz\b)",
         RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, RegexTimeout);
 
     /// <summary>The description keys (#2503): item, block, blueprint and ship-module texts, drawn by the crafting/inventory/
@@ -241,6 +250,45 @@ public sealed class VegaLineBudgetTests
             bad.Count == 0,
             $"{code}: texts that name a key literally — use a {{key:Action}} token (the game shows the player's own key, "
             + "pad button or touch button): " + string.Join(" | ", bad));
+    }
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("de")]
+    public void ConvertedPrompts_NameNoPadControlLiterally(string code)
+    {
+        // #2507: "RB fire · LB target · (X) land/dock" was right only for an Xbox pad with the stock buttons.
+        var bad = Core(code)
+            .Where(e => ConvertedPrompts.Contains(e.Key) && LiteralPadControl.IsMatch(e.Value))
+            .Select(e => $"{e.Key}: \"{e.Value}\"")
+            .ToList();
+
+        Assert.True(
+            bad.Count == 0,
+            $"{code}: texts that name a pad control literally — use a {{key:Action}} token ({{key:Mine}}, {{key:Move}}, "
+            + "{key:Hotbar}, {key:ContextActions} …; the game names the player's own button in their glyph set): " + string.Join(" | ", bad));
+    }
+
+    [Fact]
+    public void LiteralPadControlPattern_CatchesButtonNames_ButNotWordsOrTokens()
+    {
+        foreach (string literal in new[]
+                 {
+                     "RB fire · LB target", "LS actions", "R1/R2 mine", "ZL place", "Left stick fly", "Linker Stick fliegen",
+                     "D-pad system", "Steuerkreuz System",
+                 })
+        {
+            Assert.Matches(LiteralPadControl, literal);
+        }
+
+        foreach (string fine in new[]
+                 {
+                     "{key:Mine} fire · {key:FlightTargetNext} target", "{key:ContextActions} actions", "Stick to the plan",
+                     "Rbx", "LSD", "Rtm", "a stick of dynamite", "Holzstick",
+                 })
+        {
+            Assert.DoesNotMatch(LiteralPadControl, fine);
+        }
     }
 
     [Theory]

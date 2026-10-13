@@ -50,6 +50,14 @@ one PR at the end. One line per step:
   languages (`ui.worldopt.story_switch_*`, `srv.story.switched_*`, `ui.worldopt.stories_note` now says "all three").
   New `StorySwitchTests`. Open: fragments on worlds first loaded under "none" roll at their next load; a player who
   joined under "none" with an owed VEGA scene sees it at the next join.
+- ✅ **S3 — the pad's flight and spacewalk lines name the real buttons (#2507)**, 2026-10-13: `ui.space.controls_pad` /
+  `eva_controls_pad` were fixed Xbox text; they are `{key:Action}` templates now (14 languages), composed by
+  `HudUi.PadLine` → Client.Core `PadControlNames` from the bindings, the glyph set (Xbox / PlayStation / Nintendo) and
+  the triggers switch ("RB/RT fire"). An unbound control drops its segment. The button-name table moved to Client.Core
+  (`PadGlyphTable`, with the `PadGlyphSet` enum) — `InputMap.PadGlyph`/`PadTriggerGlyph` read it; `HudUi.GlyphStamp`
+  now includes the triggers switch, and VEGA's pad pseudo-actions read "RB/RT" too once the triggers mine. Tests:
+  `PadControlNamesTests`, `VegaLineBudgetTests` (pad controls written in). nl's keyboard flight line now docks with
+  the canonical "aanmeren" like the pad line. Open: a real-pad check of the three glyph sets.
 
 ### ★ Story-pack follow-ups 2026-10 (#2485)
 

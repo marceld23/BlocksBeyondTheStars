@@ -5939,7 +5939,8 @@ namespace BlocksBeyondTheStars.Client
                 var loc = Game.Localizer;
                 // Device-aware controls hint: pad glyphs on a gamepad; blank on touch (the on-screen buttons
                 // are self-labelling); the keyboard text otherwise — its keys are {key:Action} tokens since #2502,
-                // expanded when the device, the language or a binding changes, not every frame.
+                // expanded when the device, the language or a binding changes, not every frame. The pad line is a
+                // template too since #2507: the player's buttons in their glyph set, an unbound one left out.
                 var evaDevice = InputMap.ActiveDevice;
                 var evaStamp = HudUi.GlyphStamp;
                 if (_evaHint == null || evaDevice != _evaHintDevice || !ReferenceEquals(loc, _evaHintLoc) || !evaStamp.Equals(_evaHintStamp))
@@ -5950,7 +5951,7 @@ namespace BlocksBeyondTheStars.Client
                     _evaHint = evaDevice switch
                     {
                         InputDeviceKind.Touch => string.Empty,
-                        InputDeviceKind.Gamepad => loc != null ? loc.Get("ui.space.eva_controls_pad")
+                        InputDeviceKind.Gamepad => loc != null ? HudUi.PadLine(loc, "ui.space.eva_controls_pad")
                             : "EVA — Left stick float · Right stick look · (A)/(B) up·down · (X) board",
                         _ => loc != null ? HudUi.ExpandKeyTokens(loc, loc.Get("ui.space.eva_controls"))
                             : "EVA — WASD/Mouse float · Space/Ctrl up/down · E board",
@@ -5996,8 +5997,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 _fade.color = new Color(0f, 0f, 0f, 0f);
                 var loc = Game.Localizer;
-                // Device-aware controls hint (pad glyphs on a gamepad; blank on touch — the on-screen buttons
-                // are self-labelling; the keyboard text otherwise).
+                // Device-aware controls hint (pad glyphs on a gamepad — composed from the player's buttons and glyph
+                // set since #2507; blank on touch — the on-screen buttons are self-labelling; the keyboard text otherwise).
                 // #1516: the hint depends only on (device, autopilot tier, localizer) — build it when one of
                 // those changes and assign once. Assigning the base and appending with `+=` every frame dirtied
                 // the Text mesh each frame although the final string never changed.
@@ -6014,7 +6015,7 @@ namespace BlocksBeyondTheStars.Client
                     string hint = device switch
                     {
                         InputDeviceKind.Touch => string.Empty,
-                        InputDeviceKind.Gamepad => loc != null ? loc.Get("ui.space.controls_pad")
+                        InputDeviceKind.Gamepad => loc != null ? HudUi.PadLine(loc, "ui.space.controls_pad")
                             : "Left stick fly · Right stick steer · RB fire · (X) land/dock · (Y) view",
                         _ => loc != null ? HudUi.ExpandKeyTokens(loc, loc.Get("ui.space.controls")).Replace("{feedback_key}", FeedbackUi.HotkeyName)
                             : "WASD/Mouse fly · V view · E land/dock · L return · G EVA",
@@ -6440,13 +6441,13 @@ namespace BlocksBeyondTheStars.Client
         private InputDeviceKind _flightHintDevice;
         private bool _flightHintAutopilot;
         private object _flightHintLoc;
-        private (ClientSettings, int, PadGlyphSet) _flightHintStamp;
+        private (ClientSettings, int, PadGlyphSet, bool) _flightHintStamp;
 
         // #2502: the EVA controls line, cached like the flight line (its keys are {key:Action} tokens now).
         private string _evaHint;
         private InputDeviceKind _evaHintDevice;
         private object _evaHintLoc;
-        private (ClientSettings, int, PadGlyphSet) _evaHintStamp;
+        private (ClientSettings, int, PadGlyphSet, bool) _evaHintStamp;
         private string _cargoText;
         private int _cargoTextCount = -1;
         private string _cargoTextLabel;

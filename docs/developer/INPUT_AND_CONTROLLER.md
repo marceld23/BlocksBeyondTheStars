@@ -79,12 +79,33 @@ cluster.
   (shown "—") can still be bound.
 - **Glyphs:** `InputMap.Glyph(action)` returns the pad label while a pad is the active device, else the
   bound key name; `InputMap.PadGlyph(keyCode)` names all 20 pad buttons, `InputMap.PadTriggerGlyph(right)` the
-  triggers (RT/LT, R2/L2, ZR/ZL). Wired into: the HUD control hint, the speeder exit/refuel hint, the flight + EVA
-  controls hints (`ui.space.controls_pad` / `ui.space.eva_controls_pad`), and the board/land prompts
-  (`ui.space.*_fmt` keys take the glyph as `{0}`). The on-foot pad line is composed from the glyphs since #2461
-  (`HudUi.PadHint`, template `ui.hud.hint_pad_glyphs` with `{mine} {place} {jump} {crouch} {use} {view}
-  {actions} {vega} {menu}`, cached per language / bindings version / glyph set / triggers switch); the old fixed
-  `ui.hud.hint_pad` was removed from all 14 tables (#2459).
+  triggers (RT/LT, R2/L2, ZR/ZL). Since #2507 both read the ONE table in Client.Core (`PadGlyphTable.Button(index,
+  set)` / `.Trigger`, with the `PadGlyphSet` enum moved there from `ClientSettings` — same namespace and values,
+  JsonUtility stores the number); `InputMap.PadButtonIndex(keyCode)` turns `JoystickButton0..19` into the table's
+  index. Wired into: the HUD control hint, the speeder exit/refuel hint, the flight + EVA controls hints, and the
+  board/land prompts (`ui.space.*_fmt` keys take the glyph as `{0}`). The on-foot pad line is composed from the
+  glyphs since #2461 (`HudUi.PadHint`, template `ui.hud.hint_pad_glyphs` with `{mine} {place} {jump} {crouch} {use}
+  {view} {actions} {vega} {menu}`, cached per language / bindings version / glyph set / triggers switch); the old
+  fixed `ui.hud.hint_pad` was removed from all 14 tables (#2459).
+- **The pad's flight and EVA lines (#2507):** `ui.space.controls_pad` / `ui.space.eva_controls_pad` were fixed Xbox text
+  ("RB fire · (X) land/dock"); they are `{key:Action}` templates now, one token per control — `{key:Move}` /
+  `{key:Look}` (the sticks), `{key:Mine}` (fire / mine), `{key:Place}`, `{key:Jump}`/`{key:Crouch}` (up·down),
+  `{key:Hotbar}` (the d-pad's system cycle), `{key:FlightTargetNext}`, `{key:Interact}`, `{key:ToggleThirdPerson}`,
+  `{key:ContextActions}` — with the verbs translatable around them. `HudUi.PadLine(loc, key)` composes them through
+  `PadControlNames.ComposeLine` (Client.Core): the template's ` · ` segments, each token named by
+  `HudUi.PadControlGlyph` → `PadControlNames.Glyph(action, buttonOf, set, triggers, localize)` — the stick and d-pad
+  names (`ui.key.pad_left_stick` / `_right_stick` / `ui.key.pad_dpad` + ◄ ►), the fixed face and shoulder buttons
+  (with "/RT" etc. beside RB/LB while the triggers switch is on), and every rebindable action by its bound pad button
+  (`GamepadInputSource.ButtonFor`). A control without a pad button drops its whole segment — never "?", "—" or the
+  Actions-list fallback (the line already ends in "LS actions"). Only the dot with spaces separates, so "up·down"
+  stays one segment. `SpaceView` caches the result per device, language and `HudUi.GlyphStamp`, which carries the
+  triggers switch too since #2507. The pseudo-actions' pad branch of `KeyTokenGlyph` reads the same
+  `PadControlGlyph`, so a VEGA line says "RB/RT" as well once the triggers mine; for a real action without a pad
+  button `KeyTokenGlyph` still names the Actions list. Keyboard and touch never show these two lines (touch: blank;
+  keyboard: `ui.space.controls` / `eva_controls`). Guards: `PadControlNamesTests` (Xbox, PlayStation, Nintendo, the
+  triggers, a rebound and an unbound button; every language names the same controls as English and fits the
+  160-character bottom row in its longest form, PlayStation names with triggers) and
+  `VegaLineBudgetTests.ConvertedPrompts_NameNoPadControlLiterally` (no "RB", "LS", "Left stick" or "D-pad" written in).
 - **`{key:Action}` tokens (#2463, #2502):** locale texts name a control by token, never by letter; the one resolver
   is `HudUi.KeyTokenGlyph(loc, action[, prompt])` (`HudUi.ExpandKeyTokens` for a whole text). Keyboard: the bound
   key (`HudUi.GlyphText` — mouse buttons as LMB/RMB, Unity's "Return" as "Enter"); pad: the pad button, or for a
@@ -100,8 +121,8 @@ cluster.
   `HudUi.PromptGlyph` / `KeyTokenGlyph(…, prompt: true)` instead of `InputMap.Glyph`, which fell back to the key
   letter on a tablet ("Press E to board" → "Press USE to board"). A pad glyph already wears parentheses: "(X)" is
   never wrapped again (`LineText.ExpandKeyTokens` drops the text's pair around a lone token, `LineText.InParentheses`,
-  `CollapseGlyphParentheses`). The pad lines `ui.space.controls_pad` / `eva_controls_pad` stay fixed Xbox text for
-  now. Since #2503 the item, block, blueprint and ship-module descriptions are tokenised too ("press
+  `CollapseGlyphParentheses`). The pad lines `ui.space.controls_pad` / `eva_controls_pad` are templates since #2507
+  (previous bullet). Since #2503 the item, block, blueprint and ship-module descriptions are tokenised too ("press
   {key:Interact}", "Use {key:Place} to …", `{key:LootContainer}`/`{key:DepositToCrate}`, `{key:StowVehicle}`,
   `{key:EvaDeployStation}`, `{key:ToggleThermal}`): `CraftingTechShipUI.Desc` and `WikiUI.Desc` (the Codex's
   Items/Blocks/Tech/Ships/Modules lists) return `HudUi.ExpandKeyTokens(…)` — prompt form, so a tablet reads ACT for a
