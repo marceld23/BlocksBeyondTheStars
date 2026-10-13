@@ -11,6 +11,125 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.14] — 2026-10-13
+
+The water release. **Water now knows where it comes from.** The sea, rivers, waterfalls and every water block you
+place never run dry, but **ponds and lakes above the sea hold only what they hold**: open one and it drains slowly
+through the gap, plug the gap and it stops. **A stream runs at most about seven blocks** from its source, so it no
+longer floods valleys and cave systems. **New worlds seal their water** as well: caves keep clear of ponds and rivers,
+and every pond has one flat surface (#2515 #2516). Most of the rest comes from **Lyxette's** latest round of reports:
+protected ground after a station visit, drones that never stopped coming, a screen that flashed red at every scratch,
+swaying torches, wild animals in the base, and more (#2524).
+
+ℹ️ **Compatibility:** the network protocol stays at **version 11** and the save version at **3**, so your saves carry
+over. **The terrain generation moves to 24**, but only new worlds use it: existing worlds keep their land block for
+block. The new water rules apply to every world, though. **Most ponds in an existing world have an open side, so they
+drain when you touch them**, and a channel you once dug from a pond no longer gets endless water from it. Water you
+placed yourself stays endless. The water, animal, drone and station fixes run on the server, so update both the game
+and the server. The desktop game updates itself on start, and the browser version is always current.
+
+### 💧 Where water comes from (#2515)
+
+- **The sea never runs dry**, and neither does anything at or below the sea level, **rivers**, natural
+  **waterfalls**, the **Waterfall Spout** or a water block you place yourself. Water you placed before this version
+  is recognised once when the world loads, so it stays endless too.
+- **Ponds and lakes above the sea hold only what they hold.** Open one and it drains slowly through the gap, down to
+  the gap's height, with a short stream running out, and the water seeps away. Put a block into the gap and the
+  draining stops.
+- Dig a hole under a pond and the pond fills it from the top. Wall a pond in and fill it with sand, and the water is
+  gone for good.
+- **A stream runs at most about seven blocks from its source**, however many steps, shafts or cave floors lie below
+  it. It no longer floods valleys and cave systems. For a tall cascade that keeps pouring, use the Waterfall Spout.
+- **Lava flows end the same way**, about seven blocks from their source.
+- **Old floods draw back.** Water that had flooded an area in an existing world loses its supply when the world loads
+  and recedes.
+
+### 🏞️ Sealed water in new worlds: terrain generation 24 (#2516)
+
+- **Caves and tunnels keep clear of ponds, lakes and rivers**, so breaking into a cave no longer lets a lake pour in.
+- **Every pond has one flat surface** at the height of its lowest rim, and no pond stands higher than the ground beside
+  it.
+- **Rivers no longer run higher than their banks.**
+- As a result, new worlds have fewer and flatter ponds. Existing worlds keep their land exactly as it was.
+
+### 🛰️ Station protection stays on the station (#2514)
+
+- After you docked at a space station, **"This station is protected"** could block mining and building on natural
+  ground inside a large invisible box, on every planet. On Lyxette's start planet the box covered the home pad. The
+  station's protection now applies on the station only. None of this was saved, so a restart already cleared it.
+
+### 🤖 Drones keep their pace (#2517)
+
+- **Planet drones no longer come back every 15 seconds.** After a world loads, machines still arrive quickly until the
+  planet has its usual number. After that, a destroyed machine is replaced at the normal, slower pace. Before, if you
+  shot every machine as soon as it showed up, the quick pace never ended.
+
+### ❤️ Calmer damage feedback (#2518)
+
+- **Damage shows as red at the edge of the screen**, as strong as the share of your health it took. Steady small
+  damage, such as a scan drone, a bite or lava, pulses the edge about twice a second.
+- **Only a real hit** (5 % of your health or more) flashes the whole screen red and gives the view a light shake.
+  Before, every little bit of damage flashed the whole screen and shook the view at full strength, many times a
+  second.
+- **Screen shake** and **Camera motion** moved from Settings → Controls to **Settings → Comfort & wellbeing**, next
+  to Reduce flashes and Reduced effects.
+
+### 🔥 Torches and wind (#2519 #2520)
+
+- **Torches and lanterns no longer sway in the wind.** Before, they did, even deep underground.
+- **Plants out of the wind stand still:** in caves, indoors, under a roof or under a thick canopy. Kelp, seagrass and
+  other plants under water keep swaying with the current.
+- **Torches and lanterns no longer sit on a dark or beige square.** Only the torch or lantern itself is drawn. A torch
+  or lantern that has gone out now looks the same way too, instead of showing as a full block.
+
+### 🐾 Wild animals stay out of your base (#2521)
+
+- **No ground animal spawns on a floor you built**, base or no base: any solid block you placed counts.
+- **A wild animal that gets in anyway**, through an open gate or a gap, **leaves while nobody is looking at it**. If it
+  is on your floor, in your walled yard or in your sealed rooms, it is gone when you turn back.
+- **This includes wild animals in a pen on your base floor.** Tame them to keep them. Your pets, bio-lab clones and an
+  animal you are fighting, feeding, calling or taming always stay. Fliers, cave dwellers and water animals are not
+  sent away.
+
+### ⛏️ The tool in your hand (#2525)
+
+- **After a restart, the tool shown in your hand is the tool you mine with.** Before, the game showed the first
+  quick-bar slot but still mined with the slot you had picked last time. The game now reports your selected slot
+  every time you join a world or move to another one.
+- **"Not strong enough" only appears when the right kind of tool is too weak.** If you hold the wrong thing (a block,
+  a weapon or nothing at all), the message says **"You need this tool in your hand for that: Basic Drill"**. If you
+  carry a fitting tool, the message also tells you where it is. VEGA explains tool tiers only when a tool really is
+  too weak.
+
+### 🌱 Starting a world and F1 (#2522 #2523)
+
+- **"Random world" uses the name you typed**, with a random seed. Before, it always made `world_<number>`. It still
+  does that when the name box is empty, says `new_world` or holds the name of a world you already have.
+- **F1 works in the main menu**, and also on the world list, Settings, Credits and the Editors overview, so you can
+  report a problem right away, even before a world is loaded. The menu form attaches a screenshot of the menu and
+  basic technical data, but no world data. Answers from the developers open in the main menu too.
+
+### 🌍 Texts (#2513)
+
+- German: nine texts in browser dialogs and error messages wrote umlauts as "ae", "oe" or "ue" ("Loeschen",
+  "beschaedigt"). They use real umlauts now.
+- The seven new or changed texts in this release are available in all 14 languages.
+
+### 🛠️ For tinkerers
+
+- The water model is documented in **ADR 0017** (`docs/developer/adr/`), including the water classes and the settle
+  rules (#2515).
+- Saves get a new `fluid_source` table for the water players placed. The server creates it on its own and fills it
+  once from the existing edits, on SQLite and PostgreSQL alike.
+- `tools/ai-assets/bake_prop_alpha.py` bakes a hard alpha mask into prop tiles such as the torch and the lantern
+  (#2520).
+- A new test catches German texts that write umlauts as "ae", "oe" or "ue" (#2513).
+
+### 🙏 Thank you
+
+- **Lyxette** came back with a fresh world and an old one, and every report from that round is fixed here. Thank
+  you, Lyxette 🙏
+
 ## [2026.10.13] — 2026-10-13
 
 The story release. **The game now tells its stories in separate storylines.** The **basic training** is a tutorial of
@@ -7551,7 +7670,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.13...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.14...HEAD
+[2026.10.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.13...v2026.10.14
 [2026.10.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.12...v2026.10.13
 [2026.10.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.11...v2026.10.12
 [2026.10.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.10...v2026.10.11

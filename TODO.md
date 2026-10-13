@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 📬 Player reports 2026-10-13 (Lyxette, a fresh world + her old one on v2026.10.12) + a new water model — epic #2524, branch fix/player-reports-1013 — ✅ done (terrain generation 24; ⚠ playtest open)
+### 📬 Player reports 2026-10-13 (Lyxette, a fresh world + her old one on v2026.10.12) + a new water model — epic #2524, branch fix/player-reports-1013 — ✅ done (released in v2026.10.14; terrain generation 24; ⚠ playtest open)
 
 Eight F1 reports from one day plus Marcel's call for "endless waterfalls AND flowing water that never floods" — one PR:
 
