@@ -7742,7 +7742,10 @@ namespace BlocksBeyondTheStars.Client
         {
             // Localizer.Get returns "[key]" (never the bare key) on a miss, so comparing against the key
             // can't detect one — ask Has() instead, like WikiUI does, and show nothing for absent texts.
-            return Game?.Localizer?.Has(key) == true ? L(key) : string.Empty;
+            // #2503: item, blueprint and module descriptions name controls by {key:Action} tokens ("press
+            // {key:Interact}", "Use {key:Place} to …") — resolved like a HUD prompt, so they follow the device and
+            // the player's rebinding.
+            return Game?.Localizer?.Has(key) == true ? HudUi.ExpandKeyTokens(Game.Localizer, L(key)) : string.Empty;
         }
     }
 }

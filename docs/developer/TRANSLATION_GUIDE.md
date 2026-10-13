@@ -68,14 +68,17 @@ Style rules:
   scanner, wreck repair, base core, station/dock/trade hints, data cube and net fragment labels), the keyboard
   controls line and the flight/EVA lines, the chat toast, the crate buttons and filter hint, the launch and
   vendor/workshop questions ("Launch ({key:Interact})"), the map/chart details and the creative-flight, photo and
-  discovery hints (#2502). **Item, block and blueprint descriptions and the Codex do not yet** — keep naming the
-  key there until their screen expands tokens (#2503), a token would show up literally there.
+  discovery hints (#2502), and the item, block, blueprint and ship-module descriptions (#2503 — the crafting,
+  inventory, Blueprints and ship panes and the Codex's lists: "press {key:Interact}", "Use {key:Place} to …",
+  "{key:LootContainer} to take"). **Only the Codex articles (`data/wiki/articles.json`) do not yet** — keep naming
+  the key there until that screen expands tokens, a token would show up literally there.
 - In a short "X: verb" prompt a tablet reads an action without its own touch button as **ACT** (`ui.touch.actions`,
   the label of the button that opens the action list); VEGA's longer lines say "the on-screen action menu"
   (`ui.vega.key_touch`). A token reads differently per device, so it takes no case ending or particle: Turkish
-  writes "{key:Interact} tuşuna bas", Korean "{key:Interact} 키를 누르세요", Japanese "{key:Interact} を押す"
-  (#2502). A pad glyph wears its own parentheses ("(X)"); "Launch ({key:Interact})" then reads "Launch (X)", never
-  "((X))".
+  writes "{key:Interact} tuşuna bas", Korean "{key:Interact} 키를 누르세요" (for the mouse actions `Place`, `Mine`,
+  `Scan`: "{key:Place} 버튼으로" — on a pad and a tablet they are buttons), Japanese "{key:Interact} を押す"
+  (#2502, #2503). A pad glyph wears its own parentheses ("(X)"); "Launch ({key:Interact})" then reads "Launch (X)",
+  never "((X))".
 - A text the **server** composes itself and sends as plain text (`npc.streamer.ask`, the NPC greetings, `srv.*` keys
   the server `Localize`s directly) must not name a key at all — neither a letter nor a token (the client would show
   the braces). Say "come and talk to me", the HUD names the key (`VegaLineBudgetTests` guards the known ones).

@@ -12,8 +12,8 @@ namespace BlocksBeyondTheStars.Client.Tests;
 /// <list type="bullet">
 /// <item>a VEGA line fits one panel page (it used to run two or three pages, every page one more key press);</item>
 /// <item>a <c>{key:Action}</c> token names a real <c>InputAction</c> (an unknown name renders as the bare word);</item>
-/// <item>the tutorial lines, the advisor tips and the converted HUD prompts never name a key literally — "press Tab"
-/// is wrong on a pad and on a tablet, the token is right on all three.</item>
+/// <item>the tutorial lines, the advisor tips, the converted HUD prompts and the item/block/blueprint/module descriptions
+/// (#2503) never name a key literally — "press Tab" is wrong on a pad and on a tablet, the token is right on all three.</item>
 /// </list>
 /// </summary>
 public sealed class VegaLineBudgetTests
@@ -87,6 +87,22 @@ public sealed class VegaLineBudgetTests
         @"^[A-Z]:\s|\([A-Z]\)|\[[A-Z]\]|(?i:\b(?:right|left)[ -](?:mouse|click))|\b(?:LMB|RMB|LMT|RMT)\b|\bWASD\b"
         + @"|(?i:(?:press|hold|tap)\s+)Space\b|\bSpace(?:×|/|\s+(?:jump|up)\b)|\bLeertaste\b|(?i:\b(?:rechts|links)klick)"
         + @"|(?i:\b(?:rechte|linke)n? Maustaste)|\bStrg\b|\bCtrl\b",
+        RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, RegexTimeout);
+
+    /// <summary>The description keys (#2503): item, block, blueprint and ship-module texts, drawn by the crafting/inventory/
+    /// tech/ship detail panes (<c>CraftingTechShipUI.Desc</c>) and the Codex (<c>WikiUI.Desc</c>), both of which expand
+    /// <c>{key:Action}</c> tokens.</summary>
+    private static readonly Regex DescriptionKey = new(
+        @"^(?:item|block|blueprint|module)\.[a-z0-9_.]+\.desc$", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, RegexTimeout);
+
+    /// <summary>#2503: what the two patterns above miss in a description — any lone key letter ("G to take, H to store",
+    /// "(press B)", "Taste B"; "A" and the roman "I" of "Oxygen Tank I" are words, "N-ten" is no key), a key named by its
+    /// job ("the stow key", "die Wärmebild-Taste") and the action's name used as a key ("press Interact", "Benutzen
+    /// drücken"). "Hold the fire button" stays legal: the ship's fire control has no token yet.</summary>
+    private static readonly Regex LiteralKeyInDescription = new(
+        @"(?<![\p{L}\p{N}_{:\-])[B-HJ-Z](?![\p{L}\p{N}_}\-])"
+        + @"|(?i:\b(?:stow|thermal|einpack|wärmebild)[- ]?(?:key|taste)\b)"
+        + @"|(?i:\bpress(?:es|ing)?\s+interact\b)|(?i:\bbenutzen\s+drücken\b|\bdrücke\s+benutzen\b)",
         RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, RegexTimeout);
 
     private static Dictionary<string, string> Table(params string[] relative)
@@ -225,6 +241,61 @@ public sealed class VegaLineBudgetTests
             bad.Count == 0,
             $"{code}: texts that name a key literally — use a {{key:Action}} token (the game shows the player's own key, "
             + "pad button or touch button): " + string.Join(" | ", bad));
+    }
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("de")]
+    public void ItemBlockBlueprintAndModuleDescriptions_NameNoKeyLiterally(string code)
+    {
+        // #2503: "Press E on it", "Right-click to magnify", "G to take, H to store" — the descriptions now say
+        // {key:Interact}, {key:Place}, {key:LootContainer} and read as the player's own key, pad button or touch button.
+        var descriptions = Core(code).Where(e => DescriptionKey.IsMatch(e.Key)).ToList();
+        Assert.True(descriptions.Count > 100, $"{code}: only {descriptions.Count} description keys found — did the key scheme change?");
+
+        var bad = descriptions
+            .Where(e => LiteralKey.IsMatch(e.Value) || LiteralKeyWide.IsMatch(e.Value) || LiteralKeyInDescription.IsMatch(e.Value))
+            .Select(e => $"{e.Key}: \"{e.Value}\"")
+            .ToList();
+
+        Assert.True(
+            bad.Count == 0,
+            $"{code}: descriptions that name a key literally — use a {{key:Action}} token (\"press {{key:Interact}}\", "
+            + "\"Use {key:Place} to …\"; CraftingTechShipUI.Desc and WikiUI.Desc expand it): " + string.Join(" | ", bad));
+    }
+
+    [Fact]
+    public void DescriptionKeyPattern_CatchesTheOldTexts_ButNotNumeralsOrTokens()
+    {
+        foreach (string literal in new[]
+                 {
+                     "Place it to stash items at a base: G to take, H to store.", "Deploy it on a spacewalk (press B)",
+                     "Beim Weltraumspaziergang einsetzen (Taste B)", "Press the stow key to pack it back",
+                     "drücke beim Durchsehen die Wärmebild-Taste", "mit der Einpack-Taste daneben", "press Interact and its network",
+                     "ansehen und Benutzen drücken",
+                 })
+        {
+            Assert.Matches(LiteralKeyInDescription, literal);
+        }
+
+        // The old texts the narrow and the wide pattern already caught.
+        Assert.Matches(LiteralKey, "Press E on it to make it your home spawn");
+        Assert.Matches(LiteralKeyWide, "Right-click to magnify");
+        Assert.Matches(LiteralKeyWide, "Linksklick schießt; halte die rechte Maustaste");
+        Assert.Matches(LiteralKeyWide, "just steer with WASD");
+
+        foreach (string fine in new[]
+                 {
+                     "upgraded from Oxygen Tank I", "+32 cargo slots on top of Expansion I", "löst bei jedem N-ten Impuls aus",
+                     "fires every Nth pulse", "A simple cot of logs", "press {key:Interact} on it", "Use {key:Place} to magnify",
+                     "{key:LootContainer} to take, {key:DepositToCrate} to store", "hold the fire button on a target",
+                     "A swinging door that opens when you interact with it.", "its network is ON or OFF", "sein Netz ist AN oder AUS",
+                 })
+        {
+            Assert.DoesNotMatch(LiteralKeyInDescription, fine);
+            Assert.DoesNotMatch(LiteralKey, fine);
+            Assert.DoesNotMatch(LiteralKeyWide, fine);
+        }
     }
 
     [Fact]

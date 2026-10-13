@@ -101,7 +101,12 @@ cluster.
   letter on a tablet ("Press E to board" → "Press USE to board"). A pad glyph already wears parentheses: "(X)" is
   never wrapped again (`LineText.ExpandKeyTokens` drops the text's pair around a lone token, `LineText.InParentheses`,
   `CollapseGlyphParentheses`). The pad lines `ui.space.controls_pad` / `eva_controls_pad` stay fixed Xbox text for
-  now; item descriptions and the Codex still name keys literally (#2503).
+  now. Since #2503 the item, block, blueprint and ship-module descriptions are tokenised too ("press
+  {key:Interact}", "Use {key:Place} to …", `{key:LootContainer}`/`{key:DepositToCrate}`, `{key:StowVehicle}`,
+  `{key:EvaDeployStation}`, `{key:ToggleThermal}`): `CraftingTechShipUI.Desc` and `WikiUI.Desc` (the Codex's
+  Items/Blocks/Tech/Ships/Modules lists) return `HudUi.ExpandKeyTokens(…)` — prompt form, so a tablet reads ACT for a
+  verb without its own button. `VegaLineBudgetTests.ItemBlockBlueprintAndModuleDescriptions_NameNoKeyLiterally` guards
+  EN/DE. The Codex articles (`data/wiki/articles.json`) still name keys literally (a later item).
 - **Cutscene skip (#2461):** every cinematic skips on `InputAction.UiCancel` (Esc, pad **B** or its rebind) via
   `CinematicFrame.SkipPressed()`, plus an on-screen skip button for touch and a free mouse
   (`CinematicFrame.EnableSkipButton`, VEGA's prologue skip pill); the label comes from

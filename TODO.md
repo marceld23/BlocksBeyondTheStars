@@ -140,6 +140,17 @@ line per step:
   (tr/ko by hand), meaning changes re-translated and reviewed. Guards: `VegaLineBudgetTests` (converted prompts + a
   wider literal-key pattern, server-composed texts carry no token). Docs: TRANSLATION_GUIDE, INPUT_AND_CONTROLLER,
   USER_MANUAL. ⚠ Unity: 16 client files — check keyboard (rebound Interact), pad (Xbox + PlayStation glyphs) and touch.
+- ✅ **Step 10 — key placeholders in item and block descriptions (#2503, stage 2)**, 2026-10-13: the 38 item/block
+  descriptions that said "press E", "Right-click to …", "Left-click", "G to take, H to store", "(press B)", "the stow
+  key", "the thermal key", "press Interact" or "steer with WASD" use `{key:Action}` tokens now ("Use {key:Place} to …",
+  `{key:Mine}`/`{key:Scan}`/`{key:Crouch}`, `{key:StowVehicle}`, `{key:EvaDeployStation}`, new act word
+  `ui.vega.act.ToggleThermal`). `CraftingTechShipUI.Desc` (crafting, inventory, catalog, Blueprints, ship modules) and
+  `WikiUI.Desc` (Codex lists) expand them in the prompt form. Community: 22 keys token-swapped (tr/ko/ja by hand, the
+  table's own "stow key"/"Interact" words), 16 restructured keys re-translated and reviewed; a few broken values fixed
+  on the way (it beam pad desc + block name, pt/ru/uk beam pad, ko doors, uk "Сканер Терну"). Guard:
+  `VegaLineBudgetTests.ItemBlockBlueprintAndModuleDescriptions_NameNoKeyLiterally` (EN/DE). Docs: TRANSLATION_GUIDE,
+  INPUT_AND_CONTROLLER, USER_MANUAL. Open: the Codex articles (`data/wiki/articles.json`) still name keys (later
+  item). ⚠ Unity: CraftingTechShipUI.cs + WikiUI.cs — check a description on keyboard (rebound Interact), pad, touch.
 
 ### ★ Story packs 2026-10 (#2459)
 

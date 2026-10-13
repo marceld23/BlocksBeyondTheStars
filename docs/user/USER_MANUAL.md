@@ -268,7 +268,9 @@ stay fixed so nobody can bind away the key that leaves a window — the pad butt
 are rebindable as usual. The hints on screen name **your** key: the controls lines at the bottom (on foot,
 flying, in EVA), prompts like "G: loot" or "Launch (E)", the crate buttons and the server's messages follow
 your rebinding, and on a pad they name the pad button — or **LS** (the Actions list) for a verb without a
-button of its own. Item descriptions and the Codex still name the default keys.
+button of its own. So do the item, block and blueprint descriptions (in the crafting, inventory and Blueprints
+panes and the Codex lists): "Press E on it" names your use key, "Use RMB to magnify" reads "Use LB …" on a pad and
+"Use PLACE …" on a tablet. Only the Codex's long articles still name the default keys.
 
 ### Touch controls (experimental — tablet / touch browser)
 
