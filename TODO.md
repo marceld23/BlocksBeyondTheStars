@@ -50,7 +50,7 @@ line per step:
   `supply_cables` is a board job (`surface: board`, `offerAt: any`, `countsForStory: false`): offered and taken only at a
   settlement or station board, a real board accept for the job lessons; a held row still turns in; `first_iron`
   unchanged (#2491). A station an ally commissioned while its owner was away is told to the owner at the next join, with
-  the achievement, once (`station:told:<id>`; older live tells are back-filled from the counter, #2492). A visible fleet
+  the achievement, once (`station:told:<id>`; stations owned before this build are marked told silently at the first join — `station:told-baseline`, #2492). A visible fleet
   admin's `/goto` is booked silently like an observer's — no hyperjump/system milestone, frontier or explorer credit
   (#2493). Docs: TUTORIAL_PACK, STORY_IMPLEMENTATION, USER_MANUAL.
 - ✅ **Step 3 — cutscene feel: the wait after N, HideHud, cards/ending/banners (#2494, #2496, #2497)**, 2026-10-12: once

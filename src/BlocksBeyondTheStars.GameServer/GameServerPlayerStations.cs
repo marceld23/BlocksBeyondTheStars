@@ -197,11 +197,15 @@ public sealed partial class GameServer
     /// <summary>#2492: the player milestone that says the owner was told their station is commissioned.</summary>
     internal static string StationToldMilestone(string stationId) => "station:told:" + stationId;
 
+    /// <summary>#2492: written at a player's first join with this build. Older builds wrote no told milestones (and the
+    /// commission counter is younger than player stations), so every station the player owns by then is marked told
+    /// silently, once — a station they commissioned themselves is never announced again. A commission an ally made under
+    /// an older build stays untold, as it was then.</summary>
+    internal const string StationToldBaselineMilestone = "station:told-baseline";
+
     /// <summary>#2492, at the join: a station of this player that an ally commissioned while they were away — the
     /// "commissioned" message and the "Station Master" achievement now, once (the told milestone). Live commissions
-    /// write the milestone at once. A station commissioned before this build wrote no milestone: as many of those as the
-    /// player's commission counter says they were told of (counter minus told milestones) are marked told silently, so an
-    /// owner is not told again about a station they commissioned themselves.</summary>
+    /// write the milestone at once; stations from before this build are covered by <see cref="StationToldBaselineMilestone"/>.</summary>
     private void TellOwnerOfStationsCommissionedAway(PlayerSession session)
     {
         if (session.Spectating)
@@ -214,22 +218,26 @@ public sealed partial class GameServer
             .Where(st => st.Boardable && st.OwnerId == p.PlayerId && !p.Milestones.Contains(StationToldMilestone(st.Id)))
             .OrderBy(st => st.Id, StringComparer.Ordinal)
             .ToList();
+        if (!p.Milestones.Contains(StationToldBaselineMilestone))
+        {
+            p.Milestones.Add(StationToldBaselineMilestone);
+            foreach (var station in untold)
+            {
+                p.Milestones.Add(StationToldMilestone(station.Id)); // owned before this build — told then, or never
+            }
+
+            _repo.SavePlayer(p);
+            return;
+        }
+
         if (untold.Count == 0)
         {
             return;
         }
 
-        p.AchievementCounters.TryGetValue(AchievementCounters.StationCommissioned, out int credited);
-        int toldBefore = credited - p.Milestones.Count(m => m.StartsWith("station:told:", StringComparison.Ordinal));
         foreach (var station in untold)
         {
             p.Milestones.Add(StationToldMilestone(station.Id));
-            if (toldBefore > 0)
-            {
-                toldBefore--; // told live by an older build — no milestone back then
-                continue;
-            }
-
             Send(session, new ServerMessage { Text = "@srv.station.commissioned:" + station.Name });
             OnAchievementStationCommissioned(session); // "Station Master" (#1102)
             _log.Info($"Told '{p.Name}' that their station '{station.Name}' ({station.Id}) was commissioned while they were away.");

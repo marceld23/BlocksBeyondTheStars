@@ -571,14 +571,18 @@ public sealed class StoryServerFixesTests : IDisposable
         Assert.False(bob.State.AchievementCounters.ContainsKey(AchievementCounters.StationCommissioned));
         Assert.Contains(SvGameServer.StationToldMilestone(id), alice.State.Milestones); // #2492: told — never again at a join
 
-        // #2492: a station told live by an older build (no milestone back then) is not told again either — the counter knows.
+        // #2492: a station from before this build (no told milestone, no baseline, and — older than the commission counter
+        // — no count either) is marked told silently at the first join, not announced again.
         alice.State.Milestones.Remove(SvGameServer.StationToldMilestone(id));
+        alice.State.Milestones.Remove(SvGameServer.StationToldBaselineMilestone);
+        alice.State.AchievementCounters.Remove(AchievementCounters.StationCommissioned);
         server.DisconnectLocalPlayerForTest("Alice");
         transport.Sent.Clear();
         var back = server.AddLocalPlayer("Alice");
         Assert.DoesNotContain(transport.Sent, x => x.Msg is ServerMessage m && m.Text.StartsWith("@srv.station.commissioned", StringComparison.Ordinal));
-        Assert.Equal(1, back.State.AchievementCounters[AchievementCounters.StationCommissioned]);
+        Assert.False(back.State.AchievementCounters.ContainsKey(AchievementCounters.StationCommissioned));
         Assert.Contains(SvGameServer.StationToldMilestone(id), back.State.Milestones);
+        Assert.Contains(SvGameServer.StationToldBaselineMilestone, back.State.Milestones);
     }
 
     /// <summary>#2492: an ally commissions the station while its owner is offline — the owner used to hear nothing and never

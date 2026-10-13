@@ -343,6 +343,29 @@ public sealed class StoryPackGuardTests : IDisposable
         Assert.False(switched.ListStoryStates().Single(r => r.StoryId == "my_arc").Active);
     }
 
+    /// <summary>#2489: the VEGA pack itself failed to load — the built-in VEGA stand-in fills its id, so the id still
+    /// resolves. The stand-in (beats only) runs for the session but never writes over the save's real VEGA row.</summary>
+    [Fact]
+    public void ASaveWhoseVegaPackFailedToLoad_RunsTheBuiltInStandIn_WithoutWritingItsRow()
+    {
+        var broken = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+        broken.SetStories(broken.Stories.Values.Where(s => s.Id != StoryRegistry.DefaultStoryId).ToList());
+        broken.SetFailedStoryPacks(new[] { StoryRegistry.DefaultStoryId });
+        Assert.Same(StoryRegistry.Default, broken.Stories[StoryRegistry.DefaultStoryId]);
+        var repo = Repo("held_vega");
+        repo.Initialize();
+        repo.SaveStoryState(new StoredStoryState { StoryId = StoryRegistry.DefaultStoryId, Milestones = 5, Active = true, UpdatedUtc = "2026-10-11T10:00:00Z" });
+
+        var server = Started(broken, "held_vega", repo: repo);
+        Assert.Equal(StoryRegistry.DefaultStoryId, server.StorySnapshot.StoryId);
+        server.RecordStoryMilestoneForTest();
+        server.Stop();
+
+        var row = repo.ListStoryStates().Single(r => r.StoryId == StoryRegistry.DefaultStoryId);
+        Assert.True(row.Active);
+        Assert.Equal(5, row.Milestones);
+    }
+
     /// <summary>The shipped data loads without a single collision or pack warning.</summary>
     [Fact]
     public void TheShippedData_LoadsWithoutPackWarnings()

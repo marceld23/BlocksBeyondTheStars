@@ -57,7 +57,8 @@ public sealed partial class GameServer
         var intended = SelectActiveStoryRow(rows, Rules.StoryId, _content.DefaultStory.Id,
             id => IsUsableStoryRow(id) || _content.StoryPackFailedToLoad(id));
         string intendedId = intended?.StoryId ?? Rules.StoryId;
-        _storyRowHeldFor = !IsUsableStoryRow(intendedId) && _content.StoryPackFailedToLoad(intendedId) ? intendedId : null;
+        _storyRowHeldFor = _content.StoryPackFailedToLoad(intendedId)
+                           && (!IsUsableStoryRow(intendedId) || RunsBuiltInStandIn(intendedId)) ? intendedId : null;
         if (_storyRowHeldFor is not null)
         {
             _log.Error($"Story pack '{_storyRowHeldFor}' of this save failed to load — running the default story for now without saving it; "
@@ -81,6 +82,12 @@ public sealed partial class GameServer
     /// beat-less or player pack, <see cref="Shared.Content.GameContent.TryGetWorldStory"/>) or the "none" sandbox.</summary>
     private bool IsUsableStoryRow(string storyId)
         => string.Equals(storyId, StoryRegistry.NoneStoryId, StringComparison.OrdinalIgnoreCase) || _content.TryGetWorldStory(storyId, out _);
+
+    /// <summary>#2489: the id resolves only to the built-in VEGA stand-in (<see cref="StoryRegistry.Default"/>) — the data
+    /// pack of that id failed to load, so the stand-in (beats only: no chapters, cutscenes or data missions) must not
+    /// write over the save's real row.</summary>
+    private bool RunsBuiltInStandIn(string storyId)
+        => _content.Stories.TryGetValue(storyId, out var def) && ReferenceEquals(def, StoryRegistry.Default);
 
     /// <summary>#2460 (B05/B07): which persisted <c>story_state</c> row is the save's active one. A save holds one
     /// row per pack it ever ran (an admin switch writes a new row and leaves the old one), and the database lists
