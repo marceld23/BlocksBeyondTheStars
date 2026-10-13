@@ -128,6 +128,18 @@ namespace BlocksBeyondTheStars.Client
             };
         }
 
+        /// <summary>The locale key VEGA's lines name an action by on a tablet when the touch layout has no button of its own
+        /// for it (<see cref="TouchControlLabel"/> is null): "the on-screen action menu" — the verb waits in that list.</summary>
+        public const string TouchMenuFallbackKey = "ui.vega.key_touch";
+
+        /// <summary>The same fallback for the HUD's short "X: verb" prompts and buttons (#2502): the label of the ACT button that
+        /// opens the list — "ACT: undock", "Store all materials (ACT)" — instead of a phrase that does not fit a prompt.</summary>
+        public const string TouchPromptFallbackKey = "ui.touch.actions";
+
+        /// <summary>Which fallback a tablet reads for an action without its own touch button: <see cref="TouchPromptFallbackKey"/>
+        /// in a HUD prompt (<paramref name="prompt"/>), <see cref="TouchMenuFallbackKey"/> in VEGA's sentences.</summary>
+        public static string TouchFallbackKey(bool prompt) => prompt ? TouchPromptFallbackKey : TouchMenuFallbackKey;
+
         /// <summary>
         /// #2469 (E11, synthesis G12): the client-only VEGA lessons the basic training teaches itself in its flight steps —
         /// the chart, the ship scanner and holding its trigger, scanning an anomaly. While the tutorial runs for the player

@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using BlocksBeyondTheStars.Shared.Localization;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Client.Tests;
@@ -342,5 +343,55 @@ public sealed class VegaTextTests
         Assert.Equal("Inventory full ({0}).", VegaText.ExpandKeyTokens("Inventory full ({0}).", Glyph)); // {0} placeholders untouched
         Assert.Equal("broken {key:ToggleLamp", VegaText.ExpandKeyTokens("broken {key:ToggleLamp", Glyph)); // unterminated token survives verbatim
         Assert.Equal("", VegaText.ExpandKeyTokens("", Glyph));
+    }
+
+    // ---- #2502: key tokens on HUD prompts and buttons ----
+
+    [Fact]
+    public void ExpandKeyTokens_KeepsOnePairOfParentheses_AroundAPadGlyphThatWearsItsOwn()
+    {
+        string Pad(string action) => action switch
+        {
+            "Interact" => "(X)",
+            "UiMenu" => "Menu",
+            "LootContainer" => "LS",
+            _ => action,
+        };
+
+        Assert.Equal("Launch (X)", VegaText.ExpandKeyTokens("Launch ({key:Interact})", Pad)); // not "Launch ((X))"
+        Assert.Equal("Launch (E)", VegaText.ExpandKeyTokens("Launch ({key:Interact})", _ => "E"));
+        Assert.Equal("menu (Menu) → Crafting", VegaText.ExpandKeyTokens("menu ({key:UiMenu}) → Crafting", Pad));
+        Assert.Equal("Take everything out (LS)", VegaText.ExpandKeyTokens("Take everything out ({key:LootContainer})", Pad));
+        Assert.Equal("(X): rename base", VegaText.ExpandKeyTokens("{key:Interact}: rename base", Pad));
+        Assert.Equal("((X) now)", VegaText.ExpandKeyTokens("({key:Interact} now)", Pad)); // only a pair that wraps the token alone
+        Assert.Equal("(X)(X)", VegaText.ExpandKeyTokens("({key:Interact})({key:Interact})", Pad));
+    }
+
+    [Fact]
+    public void InParentheses_AndCollapse_NeverDoubleAPadGlyphsPair()
+    {
+        Assert.Equal("(E)", LineText.InParentheses("E"));
+        Assert.Equal("(X)", LineText.InParentheses("(X)"));
+        Assert.Equal("(ACT)", LineText.InParentheses("ACT"));
+        Assert.True(LineText.IsParenthesised("(Cross)"));
+        Assert.False(LineText.IsParenthesised("("));
+        Assert.False(LineText.IsParenthesised(null));
+        Assert.Equal("Talk to Ana (X)", LineText.CollapseGlyphParentheses("Talk to Ana ((X))", "(X)"));
+        Assert.Equal("Talk to Ana (E)", LineText.CollapseGlyphParentheses("Talk to Ana (E)", "E"));
+        Assert.Equal("Ana（(X)）", LineText.CollapseGlyphParentheses("Ana（(X)）", "(X)")); // full-width pairs are the text's own
+    }
+
+    [Fact]
+    public void TouchFallback_IsTheActButton_InAPrompt_AndTheActionMenu_InVegasLines()
+    {
+        var en = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(Path.Combine(ClientTestPaths.DataDir(), "locales", "en.json")))!;
+        var de = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(Path.Combine(ClientTestPaths.DataDir(), "locales", "de.json")))!;
+
+        Assert.Equal(VegaText.TouchPromptFallbackKey, VegaText.TouchFallbackKey(prompt: true));
+        Assert.Equal(VegaText.TouchMenuFallbackKey, VegaText.TouchFallbackKey(prompt: false));
+        Assert.Equal("ACT", en[VegaText.TouchPromptFallbackKey]); // the label the touch layout prints on that button
+        Assert.Equal("AKTION", de[VegaText.TouchPromptFallbackKey]);
+        Assert.Equal("the on-screen action menu", en[VegaText.TouchMenuFallbackKey]);
+        Assert.True(de.ContainsKey(VegaText.TouchMenuFallbackKey));
     }
 }

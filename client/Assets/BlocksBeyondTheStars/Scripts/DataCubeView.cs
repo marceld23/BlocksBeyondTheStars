@@ -215,9 +215,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // The cube reads as a data fragment to recover — the contents stay a surprise until collected.
+            // #2502: "{key:Interact}: Extract fragment" — the use button of the device in hand (FactoryView's pattern).
             string label = owned
                 ? (Game.Localizer?.Get("ui.datacube.owned") ?? "✓ Fragment recovered")
-                : (Game.Localizer?.Get("ui.datacube.prompt") ?? "E: Extract fragment");
+                : HudUi.ExpandKeyTokens(Game.Localizer, Game.Localizer?.Get("ui.datacube.prompt") ?? "{key:Interact}: Extract fragment");
 
             ScreenLabelLayer.Instance.World(cam, c.Go.transform.position + Vector3.up * 1.3f, label,
                 owned ? UiKit.Ok : UiKit.Cyan);

@@ -675,7 +675,7 @@ namespace BlocksBeyondTheStars.Client
             var log = Game?.Discoveries;
             if (log == null || log.Count == 0)
             {
-                sb.Append(L("ui.wiki.discoveries.empty"));
+                sb.Append(HudUi.ExpandKeyTokens(Game?.Localizer, L("ui.wiki.discoveries.empty"))); // "press {key:Scan}" (#2502)
                 return sb.ToString();
             }
 

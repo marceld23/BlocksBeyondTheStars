@@ -127,6 +127,19 @@ line per step:
   twelve community values re-translated and hand-reviewed). New guards in `CommunityLocaleTests`: no word mixing Latin
   and Cyrillic letters, no combining accents, and a per-language `ForbiddenTerms` table. Docs: TRANSLATION_GUIDE
   (canonical terms per language), USER_MANUAL ("tech tree" wording).
+- ✅ **Step 9 — key placeholders in HUD, flight lines, buttons and server messages (#2502, stage 1)**, 2026-10-13: ~40
+  texts that named keys literally ("G: loot", "Launch (E)", "[P] Autopilot", "Space×2 fly", "press U", "right mouse
+  button", the keyboard/flight/EVA controls lines) use `{key:Action}` tokens now, wrapped in `HudUi.ExpandKeyTokens` at
+  their draw site (HudUi, PlayerInteractions, DataCube/NetFragment labels, chat toast, crate + filter UI, arcade, map
+  details, space chart, launch and vendor/workshop questions, save-select, photos, Codex discoveries, SpaceView). The
+  pad no longer reads "Space×2", "[P] Autopilot" or "[M] Chart"; a tablet reads USE in the flight/EVA prompts, and a
+  verb without its own touch button reads **ACT** in short prompts (`VegaText.TouchPromptFallbackKey`; VEGA keeps "the
+  on-screen action menu"). `srv.ship.commissioned` names the real button ("Launch into space"); `npc.streamer.ask`
+  (composed by the server) and `ui.chat.hint` say no key at all; 8 dead keys deleted from all 14 tables; 5 new
+  `ui.vega.act.*` words. A pad glyph's own parentheses are never doubled ("Launch (X)"). Community values token-swapped
+  (tr/ko by hand), meaning changes re-translated and reviewed. Guards: `VegaLineBudgetTests` (converted prompts + a
+  wider literal-key pattern, server-composed texts carry no token). Docs: TRANSLATION_GUIDE, INPUT_AND_CONTROLLER,
+  USER_MANUAL. ⚠ Unity: 16 client files — check keyboard (rebound Interact), pad (Xbox + PlayStation glyphs) and touch.
 
 ### ★ Story packs 2026-10 (#2459)
 

@@ -305,7 +305,7 @@ namespace BlocksBeyondTheStars.Client
             if (!_typing && !Game.MenuOpen && InputMap.Down(InputAction.ToggleChat))
             {
                 _hiddenByKey = !_hiddenByKey;
-                Game.ShowMessage(L(_hiddenByKey ? "ui.chat.hidden" : "ui.chat.shown"));
+                Game.ShowMessage(HudUi.ExpandKeyTokens(Game.Localizer, L(_hiddenByKey ? "ui.chat.hidden" : "ui.chat.shown"))); // "press {key:ToggleChat} again" (#2502)
                 RefreshLog();
             }
         }

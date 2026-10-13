@@ -265,7 +265,10 @@ Tap the pad button and press any controller button to rebind it (actions marked 
 by default but can be given one). *Reset controls* restores both keyboard and pad defaults. The **Menus**
 group at the bottom (close/back, open the menu) shows its keyboard keys greyed out: **Esc** and **Tab**
 stay fixed so nobody can bind away the key that leaves a window — the pad buttons **(B)** and **Menu**
-are rebindable as usual.
+are rebindable as usual. The hints on screen name **your** key: the controls lines at the bottom (on foot,
+flying, in EVA), prompts like "G: loot" or "Launch (E)", the crate buttons and the server's messages follow
+your rebinding, and on a pad they name the pad button — or **LS** (the Actions list) for a verb without a
+button of its own. Item descriptions and the Codex still name the default keys.
 
 ### Touch controls (experimental — tablet / touch browser)
 
@@ -279,7 +282,7 @@ cutscene they step aside — tap its **Skip** button to leave it, or the **Conti
 | **Drag** anywhere on the right | Look / steer the ship |
 | **◄ ►** | Cycle hotbar slot (ship-systems bar — laser ↔ tractor beam — at the helm) |
 | **…** (beside ►) | **Hotbar slot actions** on the selected slot (see §5); shown only when the menu can open |
-| **ACT** (beside ◄) | **Actions** — a list of everything you can do right now: rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair a wreck, lamp, thermal vision, deploy a station in EVA, leave / refuel the speeder, … Tap an entry to do it. Shown only when something applies |
+| **ACT** (beside ◄) | **Actions** — a list of everything you can do right now: rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair a wreck, lamp, thermal vision, deploy a station in EVA, leave / refuel the speeder, … Tap an entry to do it. Shown only when something applies. A hint on screen that reads "ACT: undock" or "Store all materials (ACT)" means: find it in this list |
 | **NEXT ▶** (top-centre) | **VEGA: continue** — advance or dismiss the ship AI's line; also opens the folded VEGA tab; shown only while a line is up |
 | **≡** (top-right) | Open / close the gameplay menu |
 | *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT · VIEW · MAP** | Jump (at a wall, with the stick pushed towards it: hold JUMP to hold on and climb, let go of it to slide down) · mine · place · use/board · descend (on a wall: drop off) · open chat · camera · planet map |
@@ -1073,7 +1076,7 @@ players.
   **door**, and an **airtight hull** — glass and doors seal fine, any open gap does not.
 - Stand at the helm and press **E** ("Commission ship"). If something is missing the message tells you what;
   once it passes, the build becomes your **active ship**, parked right where you built it. Launch as usual
-  via menu (Tab) → Map → *Enter space*.
+  via menu (Tab) → Map → *Launch into space*.
 - **It flies the way you built it:** hull strength grows with the hull size, speed and handling come from
   engines versus weight — more engines fly faster, a heavy brick turns slowly. You can keep editing your
   ship on foot afterwards; the launch check re-runs every start (no engine → grounded until you add one).

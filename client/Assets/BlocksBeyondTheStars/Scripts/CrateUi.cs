@@ -244,8 +244,9 @@ namespace BlocksBeyondTheStars.Client
 
             // --- The bulk moves + the filter, between the halves ---
             float bw = (PanelW - 2f * X0 - 2f * 12f) / 3f;
-            UiKit.AddButton(panel, X0, y, bw, 44f, L("ui.crate.stash_all"), () => Game.Network?.SendDepositContainer(_containerId));
-            UiKit.AddButton(panel, X0 + bw + 12f, y, bw, 44f, L("ui.crate.take_all"), () => Game.Network?.SendLootContainer(_containerId));
+            // #2502: "({key:DepositToCrate})" / "({key:LootContainer})" — the keys that do the same without opening the crate.
+            UiKit.AddButton(panel, X0, y, bw, 44f, HudUi.ExpandKeyTokens(Game?.Localizer, L("ui.crate.stash_all")), () => Game.Network?.SendDepositContainer(_containerId));
+            UiKit.AddButton(panel, X0 + bw + 12f, y, bw, 44f, HudUi.ExpandKeyTokens(Game?.Localizer, L("ui.crate.take_all")), () => Game.Network?.SendLootContainer(_containerId));
             UiKit.AddButton(panel, X0 + 2f * (bw + 12f), y, bw, 44f, L("ui.crate.filter"), () =>
             {
                 string id = _containerId;

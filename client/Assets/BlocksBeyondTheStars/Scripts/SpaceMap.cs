@@ -747,7 +747,7 @@ namespace BlocksBeyondTheStars.Client
                 string name = WaypointName();
                 _info.text = (string.IsNullOrEmpty(name) ? L("ui.spacemap.free_point") : name)
                     + "\n" + string.Format(L("ui.spacemap.distance_fmt"), BlocksBeyondTheStars.Client.Core.SpaceDistance.Group(BlocksBeyondTheStars.Client.Core.SpaceDistance.Km(dist))) // km, #1599
-                    + "\n\n" + L(Game.AiCoreTier >= 2 ? "ui.spacemap.autopilot_ready" : "ui.spacemap.autopilot_needs_core");
+                    + "\n\n" + HudUi.ExpandKeyTokens(Game.Localizer, L(Game.AiCoreTier >= 2 ? "ui.spacemap.autopilot_ready" : "ui.spacemap.autopilot_needs_core")); // {key:FlightAutopilot} (#2502)
             }
             else
             {

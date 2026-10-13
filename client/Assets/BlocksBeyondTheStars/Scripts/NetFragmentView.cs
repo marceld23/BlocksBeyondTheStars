@@ -199,7 +199,8 @@ namespace BlocksBeyondTheStars.Client
             int near = NearestNetFragment(Game.PlayerPosition, Reach + 0.6f, out _);
             if (near == 0 || !_frags.TryGetValue(near, out var f)) return;
 
-            string label = Game.Localizer?.Get("ui.netfragment.prompt") ?? "E: Recover net fragment";
+            // #2502: "{key:Interact}: Recover net fragment" — the use button of the device in hand.
+            string label = HudUi.ExpandKeyTokens(Game.Localizer, Game.Localizer?.Get("ui.netfragment.prompt") ?? "{key:Interact}: Recover net fragment");
             ScreenLabelLayer.Instance.World(cam, f.Go.transform.position + Vector3.up * 1.3f, label, UiKit.Cyan);
         }
 

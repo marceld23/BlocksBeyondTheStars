@@ -307,12 +307,14 @@ namespace BlocksBeyondTheStars.Client
 
             // Flight is not a checkbox — it comes with both non-Explorer modes — but it has to be SAID, or it
             // stays as invisible as the /fly command it replaces. This is the line the player was missing.
-            UiKit.AddText(cp.transform, 12f, 136f, 636f, 24f, shell.L("ui.save.creative_flight"), 14,
+            // #2502: "double-tap {key:Jump}" — the jump control of the device in hand, not a fixed "Space".
+            string flightHint = HudUi.ExpandKeyTokens(shell.Localizer, shell.L("ui.save.creative_flight"));
+            UiKit.AddText(cp.transform, 12f, 136f, 636f, 24f, flightHint, 14,
                 UiKit.Cyan, TextAnchor.MiddleLeft);
 
             // Sandbox: no checklist — everything is on by design; a short hint says what the mode does.
             var sh = UiKit.AddText(right, 20f, 210f, 660f, 140f,
-                shell.L("ui.save.sandbox_hint") + "\n" + shell.L("ui.save.creative_flight"), 15,
+                shell.L("ui.save.sandbox_hint") + "\n" + flightHint, 15,
                 UiKit.CyanDim, TextAnchor.UpperLeft);
             sh.horizontalOverflow = HorizontalWrapMode.Wrap;
             sandboxHint = sh.gameObject;

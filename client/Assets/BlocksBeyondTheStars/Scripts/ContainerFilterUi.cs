@@ -123,7 +123,8 @@ namespace BlocksBeyondTheStars.Client
 
             var head = UiKit.AddText(panel, 32f, 28f, 900f, 40f, L("ui.container_filter.title"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddOutline(head);
-            UiKit.AddText(panel, 32f, 76f, 936f, 48f, L("ui.container_filter.hint"), 17, UiKit.CyanDim, TextAnchor.UpperLeft);
+            // #2502: "when you press {key:DepositToCrate}" — the bound key, the pad's Actions list, the tablet's ACT.
+            UiKit.AddText(panel, 32f, 76f, 936f, 48f, HudUi.ExpandKeyTokens(Game.Localizer, L("ui.container_filter.hint")), 17, UiKit.CyanDim, TextAnchor.UpperLeft);
 
             const float cell = 132f, pitch = 156f, x0 = 32f, y0 = 140f;
             int shown = Mathf.Min(_candidates.Count, MaxShown);

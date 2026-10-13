@@ -63,10 +63,22 @@ Style rules:
 - Never name a key in the text ("press Tab", "E at the cockpit"): write the `{key:Action}` token instead
   (`{key:UiMenu}`, `{key:Interact}`, `{key:PlanetMap}`, …). The game shows the player's own binding, the pad
   button, or on a tablet the on-screen button (USE, MAP, ≡) — a literal key is wrong on two of three devices
-  (#2463). VEGA's lines, the HUD prompts (the ship stations, crafting stations, bed, heal tank, transporter pad,
-  factory terminal) and every `@srv.*` server message expand tokens; other texts (item descriptions, the space
-  flight prompts, buttons like "Launch (E)") do not yet and must keep naming the key until their screen expands
-  tokens — a token there would show up literally.
+  (#2463). Texts that expand tokens: VEGA's lines and the story/tutorial texts, every `@srv.*` server message, the
+  HUD prompts (stations, crafting stations, bed, heal tank, transporter pad, factory terminal, loot/stash/feed,
+  scanner, wreck repair, base core, station/dock/trade hints, data cube and net fragment labels), the keyboard
+  controls line and the flight/EVA lines, the chat toast, the crate buttons and filter hint, the launch and
+  vendor/workshop questions ("Launch ({key:Interact})"), the map/chart details and the creative-flight, photo and
+  discovery hints (#2502). **Item, block and blueprint descriptions and the Codex do not yet** — keep naming the
+  key there until their screen expands tokens (#2503), a token would show up literally there.
+- In a short "X: verb" prompt a tablet reads an action without its own touch button as **ACT** (`ui.touch.actions`,
+  the label of the button that opens the action list); VEGA's longer lines say "the on-screen action menu"
+  (`ui.vega.key_touch`). A token reads differently per device, so it takes no case ending or particle: Turkish
+  writes "{key:Interact} tuşuna bas", Korean "{key:Interact} 키를 누르세요", Japanese "{key:Interact} を押す"
+  (#2502). A pad glyph wears its own parentheses ("(X)"); "Launch ({key:Interact})" then reads "Launch (X)", never
+  "((X))".
+- A text the **server** composes itself and sends as plain text (`npc.streamer.ask`, the NPC greetings, `srv.*` keys
+  the server `Localize`s directly) must not name a key at all — neither a letter nor a token (the client would show
+  the braces). Say "come and talk to me", the HUD names the key (`VegaLineBudgetTests` guards the known ones).
 - VEGA's speech panel holds about 220 characters per page. English and German VEGA lines (`vega.*`, and
   `story.vega.*` in the story pack) stay within one page: at most 220 shown characters in English and 264 in
   German (+20 %), counting a `{key:…}` token as 3 characters and a `{0}` slot as 10 (`VegaLineBudgetTests`).

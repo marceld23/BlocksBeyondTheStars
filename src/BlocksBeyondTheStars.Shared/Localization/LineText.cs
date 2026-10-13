@@ -37,7 +37,9 @@ public static class LineText
     /// <summary>
     /// Replaces <c>{key:Action}</c> tokens with what <paramref name="glyph"/> returns for the action name (a key, a pad
     /// button, a touch label or a neutral word). A token the resolver does not know reads as its action name, so a stale
-    /// locale never shows raw braces. Lines without tokens are returned untouched.
+    /// locale never shows raw braces. Lines without tokens are returned untouched. A token the text puts in parentheses —
+    /// "Launch ({key:Interact})" — keeps one pair when the glyph wears its own (a pad's "(X)"): "Launch (X)", never
+    /// "Launch ((X))" (#2502).
     /// </summary>
     public static string ExpandKeyTokens(string text, Func<string, string> glyph)
     {
@@ -67,12 +69,34 @@ public static class LineText
             sb.Append(text, i, start - i);
             string action = text.Substring(start + KeyTokenOpen.Length, end - start - KeyTokenOpen.Length);
             string resolved = glyph(action);
-            sb.Append(string.IsNullOrEmpty(resolved) ? action : resolved);
+            string shown = string.IsNullOrEmpty(resolved) ? action : resolved;
+            if (IsParenthesised(shown) && start > i && text[start - 1] == '(' && end + 1 < text.Length && text[end + 1] == ')')
+            {
+                sb.Length--; // the text's "(" just copied — the glyph brings its own pair
+                sb.Append(shown);
+                i = end + 2;
+                continue;
+            }
+
+            sb.Append(shown);
             i = end + 1;
         }
 
         return sb.ToString();
     }
+
+    /// <summary>Whether a control glyph already wears parentheses — the pad's face buttons read "(A)", "(X)", "(Cross)".</summary>
+    public static bool IsParenthesised(string? glyph)
+        => glyph is { Length: >= 2 } && glyph[0] == '(' && glyph[glyph.Length - 1] == ')';
+
+    /// <summary>A control glyph in parentheses for a prompt — "Board (E)" — without doubling the pair a pad glyph already
+    /// has: "Board (X)", never "Board ((X))" (#2502).</summary>
+    public static string InParentheses(string glyph) => IsParenthesised(glyph) ? glyph : "(" + glyph + ")";
+
+    /// <summary>A prompt a locale template formatted around a glyph in its own parentheses ("Talk to {0} ({1})"): the doubled
+    /// pair around a pad glyph that wears one collapses to one — "Talk to Ana (X)" (#2502). Other text is untouched.</summary>
+    public static string CollapseGlyphParentheses(string text, string glyph)
+        => IsParenthesised(glyph) && !string.IsNullOrEmpty(text) ? text.Replace("(" + glyph + ")", glyph) : text;
 
     /// <summary>The action names of every <c>{key:Action}</c> token in <paramref name="text"/>, in order.</summary>
     public static IEnumerable<string> KeyTokenActions(string? text)

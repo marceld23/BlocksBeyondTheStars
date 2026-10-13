@@ -1085,8 +1085,11 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   HUD prompts and the `@srv.*` server messages (`GameBootstrap.ResolveServerToken`) resolve them through
   `HudUi.KeyTokenGlyph` — the binding, the pad button (the Actions list for an
   action without one), or on a tablet the layout's own button (`VegaText.TouchControlLabel`: USE, MAP, ≡ …) and else
-  "the on-screen action menu". `VegaLineBudgetTests` (Client.Tests) fails on a token that names no `InputAction` and
-  on a literal key in the VEGA lines and the converted prompts.
+  "the on-screen action menu" — in a short HUD prompt, button or toast (`HudUi.ExpandKeyTokens`) "ACT", the button
+  that opens that list (#2502). `VegaLineBudgetTests` (Client.Tests) fails on a token that names no `InputAction` and
+  on a literal key in the VEGA lines (core, both packs) and the converted prompts (since #2502 also the HUD, flight
+  and button texts, with a wider pattern: "G:", "(E)", "[P]", mouse buttons, WASD, Space, Ctrl). A text the server
+  `Localize`s itself (`npc.streamer.ask`) never carries a token — the client would show the braces.
 - **Length.** One VEGA panel page holds about 220 characters. English VEGA lines (`vega.*`, `story.vega.*`) stay at or
   under 220 shown characters, German under 264 (`{key:…}` counts as 3, `{0}` as 10); the epilogue
   `story.vega.beat13` is exempt — the ending card shows it, not the panel.

@@ -27,6 +27,7 @@ namespace BlocksBeyondTheStars.Client
 
         private Canvas _canvas;
         private GameObject _overlay;
+        private UnityEngine.UI.Text _yesLabel; // re-set per offer: the label names the live Interact glyph (#2502)
         private bool _shown;
         private float _openedAt;
         private Action _onDecline;
@@ -53,6 +54,13 @@ namespace BlocksBeyondTheStars.Client
 
             EnsureUi();
             _onDecline = onDecline;
+            if (_yesLabel != null)
+            {
+                // #2502: "Launch ({key:Interact})" — named per offer, so a rebind or a switch to the pad or a tablet since the
+                // first offer reads right ("Launch (E)", "Launch (X)", "Launch (USE)").
+                _yesLabel.text = HudUi.ExpandKeyTokens(Game.Localizer, Tr("ui.launch.yes"));
+            }
+
             _overlay.SetActive(true);
             UiKit.OpenModal(_overlay); // #2302: the scrim fades in place, the question rises (TryOffer refuses while shown)
             _shown = true;
@@ -108,7 +116,7 @@ namespace BlocksBeyondTheStars.Client
             var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, (1920f - w) / 2f, (1080f - h) / 2f, w, h);
             _overlay = overlay;
             UiKit.AddText(panel, 0, 34, w, 60, Tr("ui.launch.title"), 34, new Color(0.96f, 0.97f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(panel, 60, 140, 240, 64, Tr("ui.launch.yes"), Confirm, "btn_join");
+            _yesLabel = UiKit.AddButton(panel, 60, 140, 240, 64, string.Empty, Confirm, "btn_join").GetComponentInChildren<UnityEngine.UI.Text>();
             UiKit.AddButton(panel, 340, 140, 240, 64, Tr("ui.launch.no"), Decline, "btn_exit");
             _overlay.SetActive(false);
         }
@@ -124,7 +132,7 @@ namespace BlocksBeyondTheStars.Client
             return key switch
             {
                 "ui.launch.title" => "Launch into space?",
-                "ui.launch.yes" => "Launch (E)",
+                "ui.launch.yes" => "Launch ({key:Interact})",
                 "ui.launch.no" => "Not yet — map",
                 _ => key,
             };

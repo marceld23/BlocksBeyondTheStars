@@ -56,7 +56,7 @@ namespace BlocksBeyondTheStars.Client
             // Play region (right).
             UiKit.AddPanel(_root, RegionX, RegionY, RegionW, RegionH, new Color(0.03f, 0.06f, 0.11f, 0.96f));
             _placeholder = BuildText("ArcadePlaceholder", L("ui.browser.unavailable_title"), L("ui.browser.unavailable_body"));
-            _emptyState = BuildText("ArcadeEmpty", L("ui.arcade.empty_title"), L("ui.arcade.empty_body"));
+            _emptyState = BuildText("ArcadeEmpty", L("ui.arcade.empty_title"), HudUi.ExpandKeyTokens(Game?.Localizer, L("ui.arcade.empty_body"))); // "press {key:Interact}" (#2502)
             _brokenState = BuildText("ArcadeBroken", L("ui.arcade.broken_title"), L("ui.arcade.broken_body"));
             _canvas.enabled = false; // first Show() enables it + runs OnOpen()
             _built = true;

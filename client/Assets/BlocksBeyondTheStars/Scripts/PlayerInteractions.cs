@@ -236,23 +236,24 @@ namespace BlocksBeyondTheStars.Client
             string hint = null;
             if (!dock && !trade && !tradeAsk && !Game.MenuOpen && !Game.SpaceViewActive && !GameBootstrap.CutsceneActive)
             {
-                // The keyboard hints name letters (U / T / K); on pad and touch those verbs live in the
-                // context-actions list, so the hint points there instead (#1042/#1043).
+                // The keyboard hints name the bound keys ({key:Disembark} / {key:RequestTrade} / {key:RequestDock} tokens
+                // since #2502, U / T / K by default); on pad and touch those verbs live in the context-actions list, so
+                // the hint points there instead (#1042/#1043).
                 bool keys = InputMap.ActiveDevice == InputDeviceKind.KeyboardMouse;
                 if (!string.IsNullOrEmpty(Game.StationName))
                 {
-                    hint = loc.Get(keys ? "ui.station.leave_hint" : "ui.station.leave_hint_actions");
+                    hint = HudUi.ExpandKeyTokens(loc, loc.Get(keys ? "ui.station.leave_hint" : "ui.station.leave_hint_actions"));
                 }
                 else if (Game.Dock != null && Game.Dock.Docked)
                 {
-                    hint = $"{loc.Get("ui.dock.docked")} {Game.Dock.Partner} · {loc.Get(keys ? "ui.dock.undock_hint" : "ui.dock.undock_hint_actions")}";
+                    hint = $"{loc.Get("ui.dock.docked")} {Game.Dock.Partner} · {HudUi.ExpandKeyTokens(loc, loc.Get(keys ? "ui.dock.undock_hint" : "ui.dock.undock_hint_actions"))}";
                 }
                 else
                 {
                     string near = NearbyPlayer();
                     if (!string.IsNullOrEmpty(near))
                     {
-                        hint = $"{loc.Get(keys ? "ui.interact.trade_dock" : "ui.interact.trade_dock_actions")} {near}";
+                        hint = $"{HudUi.ExpandKeyTokens(loc, loc.Get(keys ? "ui.interact.trade_dock" : "ui.interact.trade_dock_actions"))} {near}";
                     }
                 }
             }

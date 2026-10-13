@@ -36,12 +36,32 @@ public sealed class VegaLineBudgetTests
     private static readonly HashSet<string> NotPanelText = new(StringComparer.Ordinal) { "story.vega.beat13" };
 
     /// <summary>Prompts that expand <c>{key:Action}</c> tokens since #2463: the HUD (HudUi, FactoryView) and the ship
-    /// stations' server messages (GameBootstrap.ResolveServerToken).</summary>
+    /// stations' server messages (GameBootstrap.ResolveServerToken). #2502 (stage 1) adds the server messages whose path
+    /// already expanded, the HUD/world/button texts (each wrapped in <c>HudUi.ExpandKeyTokens</c> where it is drawn), the
+    /// flight and EVA lines, and the two texts rewritten without a key (the streamer's greeting, which the server composes
+    /// itself, and the chat field's title).</summary>
     private static readonly HashSet<string> ConvertedPrompts = new(StringComparer.Ordinal)
     {
         "ui.hud.use", "ui.beam.use_hint", "ui.factory.claim_prompt",
         "srv.station.cargo", "srv.station.cockpit", "srv.station.console", "srv.station.workshop",
+        // #2502 — server messages (@srv tokens, GameBootstrap.ResolveServerToken)
+        "srv.base.founded", "srv.rail.placed", "srv.ship.commissioned", "srv.ship.core_placed", "srv.station.zero_g",
+        // #2502 — HUD, world labels and buttons
+        "ui.wreck.repair_hint", "ui.base.rename_hint", "ui.hud.loot", "ui.hud.feed", "ui.hud.stash_keys", "ui.hud.stash_filter_key",
+        "ui.scan.use_hint", "ui.hud.hint", "ui.hud.hint_fly", "ui.station.leave_hint", "ui.dock.undock_hint",
+        "ui.interact.trade_dock", "ui.datacube.prompt", "ui.netfragment.prompt", "ui.chat.hidden", "ui.container_filter.hint",
+        "ui.crate.stash_all", "ui.crate.take_all", "ui.arcade.empty_body", "ui.map.wreck_detail", "ui.map.debris_detail",
+        "ui.spacemap.autopilot_ready", "ui.launch.yes", "ui.vendor.trade_choice", "ui.bio.workshop_choice_craft",
+        "ui.save.creative_flight", "ui.photos.empty", "ui.wiki.discoveries.empty",
+        // #2502 — the flight and EVA lines (SpaceView)
+        "ui.space.controls", "ui.space.eva_controls", "ui.vega.autopilot.hint", "ui.spacemap.key_hint",
+        // #2502 — rewritten without a key
+        "npc.streamer.ask", "ui.chat.hint",
     };
+
+    /// <summary>#2502: texts the SERVER localizes itself (<c>Localize(s.Locale, …)</c>) and sends as plain text — a
+    /// <c>{key:Action}</c> token there would reach every client as raw braces, so they never carry one.</summary>
+    private static readonly string[] ServerComposedTexts = { "npc.streamer.ask" };
 
     private const string StationBlockPrompts = "ui.station.block.";
 
@@ -57,6 +77,16 @@ public sealed class VegaLineBudgetTests
     /// "im Tab „Karte“" for a menu tab — that noun is not a key and passes.</summary>
     private static readonly Regex LiteralKey = new(
         @"(?<![\p{L}\p{N}_{:])(?:E|M|R|Q)(?![\p{L}\p{N}_}])|\(Tab\)|(?i:press|drück\w*)\s+Tab\b|\bTab(?:-Menü|\s+menu)",
+        RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, RegexTimeout);
+
+    /// <summary>#2502: the wider net over the same texts — any key letter in a prompt shape ("G: loot", "Launch (E)",
+    /// "[P] Autopilot"), the mouse buttons by name ("right mouse button", "Rechtsklick", LMB/RMB, LMT/RMT), WASD, the space
+    /// bar ("press Space", "Space×2", "Leertaste") and Ctrl/Strg. <c>vega.hint.rope_gun</c> ("Hold the right mouse button
+    /// (pad LB, touch PLACE)") slipped through the narrow pattern; "Space begins right above the clouds" is not a key.</summary>
+    private static readonly Regex LiteralKeyWide = new(
+        @"^[A-Z]:\s|\([A-Z]\)|\[[A-Z]\]|(?i:\b(?:right|left)[ -](?:mouse|click))|\b(?:LMB|RMB|LMT|RMT)\b|\bWASD\b"
+        + @"|(?i:(?:press|hold|tap)\s+)Space\b|\bSpace(?:×|/|\s+(?:jump|up)\b)|\bLeertaste\b|(?i:\b(?:rechts|links)klick)"
+        + @"|(?i:\b(?:rechte|linke)n? Maustaste)|\bStrg\b|\bCtrl\b",
         RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, RegexTimeout);
 
     private static Dictionary<string, string> Table(params string[] relative)
@@ -186,7 +216,8 @@ public sealed class VegaLineBudgetTests
                         || e.Key.StartsWith(StationBlockPrompts, StringComparison.Ordinal)
                         || ConvertedPrompts.Contains(e.Key))
             .Concat(TutorialPack(code)) // #2469: every line of the basic training
-            .Where(e => LiteralKey.IsMatch(e.Value))
+            .Concat(Pack(code).Where(e => e.Key.StartsWith("story.vega.", StringComparison.Ordinal))) // #2502: VEGA's story lines too
+            .Where(e => LiteralKey.IsMatch(e.Value) || LiteralKeyWide.IsMatch(e.Value))
             .Select(e => $"{e.Key}: \"{e.Value}\"")
             .ToList();
 
@@ -208,6 +239,48 @@ public sealed class VegaLineBudgetTests
         Assert.DoesNotMatch(LiteralKey, "press {key:UiMenu} at the {key:Interact}");
         Assert.DoesNotMatch(LiteralKey, "Table, Mk3, Escape, Mars, Riding, Quiet, slot 1, {0}");
         Assert.DoesNotMatch(LiteralKey, "Diese Karte findest du später im Tab „Karte“ wieder.");
+    }
+
+    [Fact]
+    public void WideLiteralKeyPattern_CatchesPromptShapesAndMouseWords_ButNotWordsOrTokens()
+    {
+        foreach (string literal in new[]
+                 {
+                     "G: loot", "Launch (E)", "[P] Autopilot", "Hold the right mouse button", "left-click it", "LMB: scan",
+                     "LMT abbauen", "WASD move", "press Space", "Space×2 fly", "Space/Ctrl up·down", "Leertaste×2 fliegen",
+                     "mit Rechtsklick ein Foto", "Halte die rechte Maustaste", "Strg/C ducken", "Ctrl/C crouch",
+                 })
+        {
+            Assert.Matches(LiteralKeyWide, literal);
+        }
+
+        foreach (string fine in new[]
+                 {
+                     "{key:LootContainer}: loot", "Launch ({key:Interact})", "{key:FlightAutopilot} autopilot",
+                     "Space begins right above the clouds", "a space station", "Spacewalk", "EVA spacewalk",
+                     "VEGA: hello", "Mk2 (Tier 2)", "click the button", "Gold: 3",
+                 })
+        {
+            Assert.DoesNotMatch(LiteralKeyWide, fine);
+        }
+    }
+
+    [Fact]
+    public void ServerComposedTexts_NameNoKeyToken_InAnyLanguage()
+    {
+        // #2502: the streamer's greeting used to say "Talk to me (E)!" — a key in a text the server sends as plain text.
+        foreach (string code in new[] { "en", "de", "es", "fr", "it", "ja", "ko", "nl", "pl", "pt", "ru", "tr", "uk", "zh" })
+        {
+            var table = Core(code);
+            foreach (string key in ServerComposedTexts)
+            {
+                if (table.TryGetValue(key, out var text))
+                {
+                    Assert.DoesNotMatch(KeyToken, text);
+                    Assert.DoesNotMatch(LiteralKeyWide, text);
+                }
+            }
+        }
     }
 
     [Fact]

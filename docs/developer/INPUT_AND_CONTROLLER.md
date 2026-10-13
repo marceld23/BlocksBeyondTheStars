@@ -85,6 +85,23 @@ cluster.
   (`HudUi.PadHint`, template `ui.hud.hint_pad_glyphs` with `{mine} {place} {jump} {crouch} {use} {view}
   {actions} {vega} {menu}`, cached per language / bindings version / glyph set / triggers switch); the old fixed
   `ui.hud.hint_pad` was removed from all 14 tables (#2459).
+- **`{key:Action}` tokens (#2463, #2502):** locale texts name a control by token, never by letter; the one resolver
+  is `HudUi.KeyTokenGlyph(loc, action[, prompt])` (`HudUi.ExpandKeyTokens` for a whole text). Keyboard: the bound
+  key (`HudUi.GlyphText` — mouse buttons as LMB/RMB, Unity's "Return" as "Enter"); pad: the pad button, or for a
+  verb without one the Actions list (`ActionGlyph`, **LS**); tablet: the layout's own button (`VegaText.
+  TouchControlLabel` — USE, MAP, FEED, ≡ …), else a fallback: **ACT** (`ui.touch.actions`, the button that opens
+  the list) in HUD prompts, buttons and toasts (`prompt: true`, which `ExpandKeyTokens` uses), "the on-screen action
+  menu" (`ui.vega.key_touch`) in VEGA's lines and cutscene captions. Pseudo-actions (`Move`, `Look`, `Jump`, `Crouch`,
+  `Mine`, `Place`, `Scan`, `Hotbar`) name the fixed controls per device. Since #2502 the keyboard controls line
+  (`ui.hud.hint`, `HudUi.KeyboardHint`), the flight/EVA keyboard lines (`ui.space.controls` / `eva_controls`) and the
+  appended autopilot/chart/fly hints are tokenised and cached per language + `HudUi.GlyphStamp` (settings object,
+  bindings version, pad glyph set) — so the pad no longer reads "Space×2", "[P] Autopilot" or "[M] Chart". The
+  `{0}`-slot prompts (`ui.space.*_fmt`, `ui.hud.talk`, `hud.speeder.*`, stow cargo, recall vehicle) take
+  `HudUi.PromptGlyph` / `KeyTokenGlyph(…, prompt: true)` instead of `InputMap.Glyph`, which fell back to the key
+  letter on a tablet ("Press E to board" → "Press USE to board"). A pad glyph already wears parentheses: "(X)" is
+  never wrapped again (`LineText.ExpandKeyTokens` drops the text's pair around a lone token, `LineText.InParentheses`,
+  `CollapseGlyphParentheses`). The pad lines `ui.space.controls_pad` / `eva_controls_pad` stay fixed Xbox text for
+  now; item descriptions and the Codex still name keys literally (#2503).
 - **Cutscene skip (#2461):** every cinematic skips on `InputAction.UiCancel` (Esc, pad **B** or its rebind) via
   `CinematicFrame.SkipPressed()`, plus an on-screen skip button for touch and a free mouse
   (`CinematicFrame.EnableSkipButton`, VEGA's prologue skip pill); the label comes from
@@ -311,7 +328,8 @@ layer, added to `InputMap`'s combine exactly like the pad — no gameplay change
   cutscene plays (`GameBootstrap.CutsceneActive`, #2461): its canvas (order 100) sat above every cinematic
   frame and its look pad swallowed the taps meant for the skip/continue buttons, which uGUI now receives directly.
 - **Device glyphs:** `InputDeviceKind.Touch` is tracked; the HUD/flight text hints blank on touch (the
-  on-screen buttons are self-labelling).
+  on-screen buttons are self-labelling). Prompts that name a control read the button's label — USE, MAP, … — and
+  **ACT** for a verb that only lives in the action list (#2502, see "`{key:Action}` tokens" above).
 - **Tap-vs-drag:** the shared EventSystem scales its `pixelDragThreshold` to ≈1 mm from `Screen.dpi` on
   touch devices (the 10 px mouse default misreads finger taps as drags in menus).
 

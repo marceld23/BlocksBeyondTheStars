@@ -68,7 +68,8 @@ namespace BlocksBeyondTheStars.Client
             _title.text = title;
             if (_firstLabel != null)
             {
-                _firstLabel.text = firstLabel;
+                // #2502: "Trade ({key:Interact})" / "Workshop ({key:Interact})" — the live Interact glyph of the device in hand.
+                _firstLabel.text = HudUi.ExpandKeyTokens(Game.Localizer, firstLabel);
             }
 
             if (_secondLabel != null)
@@ -161,7 +162,7 @@ namespace BlocksBeyondTheStars.Client
             return key switch
             {
                 "ui.vendor.choice_title" => "Trade or talk?",
-                "ui.vendor.trade_choice" => "Trade (E)",
+                "ui.vendor.trade_choice" => "Trade ({key:Interact})",
                 "ui.vendor.talk" => "Talk",
                 _ => key,
             };

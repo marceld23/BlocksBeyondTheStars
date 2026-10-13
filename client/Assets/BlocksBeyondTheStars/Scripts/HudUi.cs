@@ -1202,14 +1202,15 @@ namespace BlocksBeyondTheStars.Client
                 // On touch the on-screen buttons are self-labelling, so the text hint just adds clutter.
                 InputDeviceKind.Touch => string.Empty,
                 InputDeviceKind.Gamepad => PadHint(loc), // #2461 (N9): glyph set, bindings and triggers, not a fixed string
-                _ => loc.Get("ui.hud.hint").Replace("{feedback_key}", FeedbackUi.HotkeyName),
+                _ => KeyboardHint(loc), // #2502: the bound keys ({key:Action} tokens), not a fixed letter list
             };
 
             // Creative/Sandbox worlds only: the one control the hint can't afford to omit, because flight has
             // no other tell. Appended rather than baked into ui.hud.hint so Explorer worlds stay uncluttered.
+            // #2502: "{key:Jump}×2" — the pad line used to append the keyboard's "Space×2".
             if (Game.CanFly && hint.Length > 0)
             {
-                hint += " · " + loc.Get("ui.hud.hint_fly");
+                hint += " · " + ExpandKeyTokens(loc, loc.Get("ui.hud.hint_fly"));
             }
 
             // Holding a rotatable block (a crafted shape or furniture): surface the rotate control (#863) —
@@ -1254,13 +1255,14 @@ namespace BlocksBeyondTheStars.Client
                     prompt = $"{ExpandKeyTokens(loc, loc.Get("ui.hud.use"))}: {loc.Get(stationKey)}"; // "Press {key:Interact}" (#2463)
                     if (Game.NearbyStation == "cargo")
                     {
-                        prompt += $"  ·  {loc.Get("ui.hud.stow_cargo")} ({InputMap.Glyph(InputAction.DepositToCrate)})";
+                        // #2502: the glyph names the pad's Actions list / the tablet's ACT button, not the key letter.
+                        prompt += $"  ·  {loc.Get("ui.hud.stow_cargo")} {InParentheses(PromptGlyph(loc, InputAction.DepositToCrate))}";
                     }
                     if ((Game.NearbyStation == "cockpit" || Game.NearbyStation == "console")
                         && Game.LoadingPlanetType != "ship_interior" && OwnParkedVehicleCount() > 0)
                     {
                         // The ship can call a vehicle left out on this world back beside it (#1661).
-                        prompt += $"  ·  {loc.Get("ui.key.recall_vehicle")} ({InputMap.Glyph(InputAction.RecallVehicle)})";
+                        prompt += $"  ·  {loc.Get("ui.key.recall_vehicle")} {InParentheses(PromptGlyph(loc, InputAction.RecallVehicle))}";
                     }
                     if ((Game.NearbyStation == "cockpit" || Game.NearbyStation == "console") && Game.ShipRepair != null
                         && InputMap.ActiveDevice != InputDeviceKind.Touch)
@@ -1282,8 +1284,8 @@ namespace BlocksBeyondTheStars.Client
                     // Beside an own parked speeder/boat (#1670): nothing on screen ever said how to board —
                     // "Board (E) · Pack up (X)", the same verbs PlayerController polls on foot. Glyphs follow
                     // the active device, and the pad/touch ACT list carries the pack-up too.
-                    prompt = $"{loc.Get("hud.speeder.board")} ({InputMap.Glyph(InputAction.Interact)})"
-                        + $"  ·  {loc.Get("hud.speeder.stow")} ({InputMap.Glyph(InputAction.StowVehicle)})";
+                    prompt = $"{loc.Get("hud.speeder.board")} {InParentheses(PromptGlyph(loc, InputAction.Interact))}"
+                        + $"  ·  {loc.Get("hud.speeder.stow")} {InParentheses(PromptGlyph(loc, InputAction.StowVehicle))}";
                 }
                 else if (!string.IsNullOrEmpty(Game.AimedStationBlock))
                 {
@@ -1311,21 +1313,26 @@ namespace BlocksBeyondTheStars.Client
                 {
                     // Only when the scanner would actually read something — an unconditional hint over a
                     // target the scan can't acquire read as "titans can't be scanned" (#1458).
-                    prompt = loc.Get("ui.scan.use_hint");
+                    prompt = ExpandKeyTokens(loc, loc.Get("ui.scan.use_hint")); // "{key:Scan}: scan" (#2502)
                 }
                 else if (string.IsNullOrEmpty(Game.InSpeeder) && NearestTalkableNpc() is { } npcName)
                 {
                     // #1869: E has talked to people since #1127, but nothing on screen ever said so. Same reach and
                     // the same "no station block in reach" rule as PlayerController's E.
-                    prompt = string.Format(loc.Get("ui.hud.talk"), npcName, InputMap.Glyph(InputAction.Interact));
+                    string talkGlyph = PromptGlyph(loc, InputAction.Interact); // #2502: USE on a tablet, not "E"
+                    prompt = BlocksBeyondTheStars.Shared.Localization.LineText.CollapseGlyphParentheses(
+                        string.Format(loc.Get("ui.hud.talk"), npcName, talkGlyph), talkGlyph);
                 }
                 else if (string.IsNullOrEmpty(Game.InSpeeder) && OwnParkedVehicleOutOfReach(out string vehicleKind, out float vehicleDist))
                 {
                     // An own vehicle a few metres off but beyond the pack-up reach (#1661): the X action used to
                     // stay silent exactly when the speeder had sunk or wedged just out of reach.
-                    prompt = string.Format(loc.Get("hud.speeder.out_of_reach"),
-                        loc.Get(vehicleKind == "boat" ? "item.boat.name" : "item.speeder.name"),
-                        Mathf.RoundToInt(vehicleDist), InputMap.Glyph(InputAction.StowVehicle));
+                    string stowGlyph = PromptGlyph(loc, InputAction.StowVehicle); // #2502: the Actions list / ACT, not "X"
+                    prompt = BlocksBeyondTheStars.Shared.Localization.LineText.CollapseGlyphParentheses(
+                        string.Format(loc.Get("hud.speeder.out_of_reach"),
+                            loc.Get(vehicleKind == "boat" ? "item.boat.name" : "item.speeder.name"),
+                            Mathf.RoundToInt(vehicleDist), stowGlyph),
+                        stowGlyph);
                 }
             }
 
@@ -2187,8 +2194,16 @@ namespace BlocksBeyondTheStars.Client
         internal static string GlyphText(BlocksBeyondTheStars.Shared.Localization.Localizer loc, InputAction action)
         {
             string glyph = InputMap.Glyph(action);
-            string mouseKey = InputMap.MouseLocaleKey(InputMap.Key(action));
-            return mouseKey != null && glyph == InputMap.Key(action).ToString() ? loc.Get(mouseKey) : glyph;
+            KeyCode key = InputMap.Key(action);
+            string mouseKey = InputMap.MouseLocaleKey(key);
+            if (mouseKey != null && glyph == key.ToString())
+            {
+                return loc.Get(mouseKey);
+            }
+
+            // #2502: Unity names the Enter key "Return" — the chat key read "Return chat" once the controls line named the
+            // bound key instead of a hard-coded "Enter".
+            return key == KeyCode.Return && glyph == "Return" ? "Enter" : glyph;
         }
 
         /// <summary>Like <see cref="GlyphText"/>, but on a gamepad an action without a pad button (the lamp, the cloak) names
@@ -2211,10 +2226,17 @@ namespace BlocksBeyondTheStars.Client
         /// short names). A name that is no <see cref="InputAction"/> reads as itself, so a stale locale never shows
         /// braces.</summary>
         internal static string KeyTokenGlyph(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string action)
+            => KeyTokenGlyph(loc, action, prompt: false);
+
+        /// <summary><see cref="KeyTokenGlyph(BlocksBeyondTheStars.Shared.Localization.Localizer, string)"/> for a HUD prompt
+        /// (<paramref name="prompt"/>, #2502): on a tablet an action without its own button reads as the ACT button that
+        /// opens the list (<see cref="VegaText.TouchPromptFallbackKey"/>) — "ACT: undock" — instead of VEGA's "the on-screen
+        /// action menu", which does not fit a short "X: verb" prompt. Keyboard and pad read the same either way.</summary>
+        internal static string KeyTokenGlyph(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string action, bool prompt)
         {
             if (VegaText.IsPseudoAction(action))
             {
-                return PseudoActionGlyph(loc, action); // #2469: move, look, jump, crouch, mine, place, scan, the quick bar
+                return PseudoActionGlyph(loc, action, prompt); // #2469: move, look, jump, crouch, mine, place, scan, the quick bar
             }
 
             if (!System.Enum.TryParse<InputAction>(action, out var a))
@@ -2225,24 +2247,33 @@ namespace BlocksBeyondTheStars.Client
             if (InputMap.ActiveDevice == InputDeviceKind.Touch)
             {
                 string touch = VegaText.TouchControlLabel(action, key => loc != null ? loc.Get(key) : key);
-                return touch ?? (loc != null ? loc.Get("ui.vega.key_touch") : action);
+                return touch ?? (loc != null ? loc.Get(VegaText.TouchFallbackKey(prompt)) : action);
             }
 
             return loc != null ? ActionGlyph(loc, a) : InputMap.Glyph(a);
         }
+
+        /// <summary>The glyph a HUD prompt names an action by (#2502) — <see cref="KeyTokenGlyph(BlocksBeyondTheStars.Shared.Localization.Localizer, string, bool)"/>
+        /// in its prompt form, so a tablet reads its USE button or ACT, never the key letter <see cref="InputMap.Glyph"/>
+        /// falls back to there, and a pad names the Actions list for a verb without a pad button.</summary>
+        internal static string PromptGlyph(BlocksBeyondTheStars.Shared.Localization.Localizer loc, InputAction action)
+            => KeyTokenGlyph(loc, action.ToString(), prompt: true);
+
+        /// <summary>"(E)" for a prompt — a pad glyph that wears its own parentheses stays "(X)", never "((X))" (#2502).</summary>
+        private static string InParentheses(string glyph) => BlocksBeyondTheStars.Shared.Localization.LineText.InParentheses(glyph);
 
         /// <summary>What a pseudo-action token (<see cref="VegaText.PseudoActions"/>, #2469) reads as: the continuous controls
         /// are no rebindable <see cref="InputAction"/>, so each device names them its own way — the keyboard by its fixed keys
         /// (WASD, the mouse, Space, Ctrl/C, LMB/RMB, 1–9), the pad by its sticks and fixed buttons (RB mines, LB places, the
         /// bottom face button jumps, B crouches, the d-pad cycles the quick bar), the tablet by the layout's buttons, stick
         /// and look pad (<see cref="VegaText.TouchControlLabel"/>).</summary>
-        private static string PseudoActionGlyph(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string action)
+        private static string PseudoActionGlyph(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string action, bool prompt)
         {
             string L(string key) => loc != null ? loc.Get(key) : key;
             switch (InputMap.ActiveDevice)
             {
                 case InputDeviceKind.Touch:
-                    return VegaText.TouchControlLabel(action, L) ?? (loc != null ? loc.Get("ui.vega.key_touch") : action);
+                    return VegaText.TouchControlLabel(action, L) ?? (loc != null ? loc.Get(VegaText.TouchFallbackKey(prompt)) : action);
                 case InputDeviceKind.Gamepad:
                     return action switch
                     {
@@ -2270,10 +2301,43 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>A HUD prompt with its <c>{key:Action}</c> tokens resolved by <see cref="KeyTokenGlyph"/> (#2463) —
-        /// "menu ({key:UiMenu})" reads "menu (Tab)", "menu (Menu)" on a pad and "menu (≡)" on a tablet.</summary>
+        /// <summary>A HUD prompt, button or toast with its <c>{key:Action}</c> tokens resolved by <see cref="KeyTokenGlyph"/>
+        /// (#2463) — "menu ({key:UiMenu})" reads "menu (Tab)", "menu (Menu)" on a pad and "menu (≡)" on a tablet. Prompt
+        /// form (#2502): a verb without its own touch button reads "ACT" (the button that opens the list), not VEGA's
+        /// longer phrase; VEGA's panel and the cutscene captions keep that through <see cref="KeyTokenGlyph"/>.</summary>
         internal static string ExpandKeyTokens(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string text)
-            => VegaText.ExpandKeyTokens(text, action => KeyTokenGlyph(loc, action));
+            => VegaText.ExpandKeyTokens(text, action => KeyTokenGlyph(loc, action, prompt: true));
+
+        /// <summary>What can change a token's glyph without a device switch (#2502): another settings object, a key or pad
+        /// rebind (<see cref="ClientSettings.BindingsVersion"/>) or the pad's glyph set — the cache key of the expanded
+        /// controls lines, next to the device and the language.</summary>
+        internal static (ClientSettings Settings, int Bindings, PadGlyphSet Glyphs) GlyphStamp
+        {
+            get
+            {
+                var settings = GamepadInputSource.Settings;
+                return (settings, settings != null ? settings.BindingsVersion : -1, settings != null ? settings.PadGlyphs : PadGlyphSet.Xbox);
+            }
+        }
+
+        // #2502: the keyboard controls line names the bound keys now ({key:Action} tokens) — expanded once per language,
+        // binding and feedback key, not on every 10 Hz refresh.
+        private static string _keyboardHint;
+        private static (string Template, (ClientSettings, int, PadGlyphSet) Stamp, string Feedback) _keyboardHintKey;
+
+        /// <summary>The on-foot controls line for the keyboard (#2502): <c>ui.hud.hint</c> with the player's bound keys.</summary>
+        internal static string KeyboardHint(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            var key = (loc.Get("ui.hud.hint"), GlyphStamp, FeedbackUi.HotkeyName);
+            if (_keyboardHint != null && key.Equals(_keyboardHintKey))
+            {
+                return _keyboardHint;
+            }
+
+            _keyboardHint = ExpandKeyTokens(loc, key.Item1).Replace("{feedback_key}", key.Item3);
+            _keyboardHintKey = key;
+            return _keyboardHint;
+        }
 
         /// <summary>The jump control's name for a hint (#2290): the pad's bottom face button, the tablet's JUMP button or the
         /// keyboard's space bar. Jump is no rebindable action (the legacy "Jump" axis), so <see cref="InputMap.Glyph"/>
@@ -3318,7 +3382,7 @@ namespace BlocksBeyondTheStars.Client
                     needs = "  " + string.Join(", ", keys);
                 }
 
-                _wreckHint.text = loc.Get("ui.wreck.repair_hint") + needs;
+                _wreckHint.text = ExpandKeyTokens(loc, loc.Get("ui.wreck.repair_hint")) + needs; // "press {key:RepairWreck}" (#2502)
             }
         }
 
@@ -3525,7 +3589,7 @@ namespace BlocksBeyondTheStars.Client
                 ? loc.Get("ui.base.air_status").Replace("{cells}", b.AirCells.ToString()).Replace("{rooms}", b.SealedRooms.ToString())
                 : loc.Get("ui.base.air_none");
             string here = Game.LifeSupportSource == 3 ? loc.Get("ui.base.air_here_ok") : loc.Get("ui.base.air_here_no");
-            return $"{loc.Get("ui.base.rename_hint")}  ·  {air}  ·  {here}";
+            return $"{ExpandKeyTokens(loc, loc.Get("ui.base.rename_hint"))}  ·  {air}  ·  {here}"; // #2502: {key:Interact}
         }
 
         /// <summary>#2018: the Feed prompt while food is held and a begging animal is near — it shares the loot line, and a herd
@@ -3539,7 +3603,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_playerRig != null && _playerRig.CanFeedCreature)
             {
-                return loc.Get("ui.hud.feed");
+                return ExpandKeyTokens(loc, loc.Get("ui.hud.feed")); // "{key:FeedCreature}: feed the herd" (#2502)
             }
 
             return LootText(loc);
@@ -3570,10 +3634,11 @@ namespace BlocksBeyondTheStars.Client
                 string label = nearest.Filter is { Length: > 0 }
                     ? $"{loc.Get("ui.hud.stash")} ({nearest.ItemCount})  ·  {loc.Get("ui.hud.stash_filtered")}"
                     : $"{loc.Get("ui.hud.stash")} ({nearest.ItemCount})";
-                return $"{label}  ·  {loc.Get("ui.hud.stash_keys")}  ·  {loc.Get("ui.hud.stash_filter_key")}";
+                // #2502: the take/store/open keys are {key:Action} tokens — the bound keys, the pad's Actions list, ACT.
+                return $"{label}  ·  {ExpandKeyTokens(loc, loc.Get("ui.hud.stash_keys"))}  ·  {ExpandKeyTokens(loc, loc.Get("ui.hud.stash_filter_key"))}";
             }
 
-            return $"{loc.Get("ui.hud.loot")} ({nearest.ItemCount})";
+            return $"{ExpandKeyTokens(loc, loc.Get("ui.hud.loot"))} ({nearest.ItemCount})";
         }
 
         private bool HoldingScanner()

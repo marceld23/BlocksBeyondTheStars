@@ -4353,7 +4353,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (shots.Count == 0)
             {
-                var empty = UiKit.AddText(_listContent, 8, y, 760, 80, L("ui.photos.empty"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                var empty = UiKit.AddText(_listContent, 8, y, 760, 80, HudUi.ExpandKeyTokens(Game?.Localizer, L("ui.photos.empty")), 18, UiKit.CyanDim, TextAnchor.UpperLeft); // {key:Place} (#2502)
                 empty.horizontalOverflow = HorizontalWrapMode.Wrap;
                 return y + 90f;
             }
@@ -6582,14 +6582,14 @@ namespace BlocksBeyondTheStars.Client
             // read on approach and its plating carved in flight. Say so instead of silently offering nothing.
             if (body.Kind == "Wreck")
             {
-                UiKit.AddText(_detail, 8, y, 600, 90, L(body.Salvaged ? "ui.map.wreck_salvaged_detail" : "ui.map.wreck_detail"), 18, new Color(1f, 0.8f, 0.45f), TextAnchor.UpperLeft);
+                UiKit.AddText(_detail, 8, y, 600, 90, HudUi.ExpandKeyTokens(Game?.Localizer, L(body.Salvaged ? "ui.map.wreck_salvaged_detail" : "ui.map.wreck_detail")), 18, new Color(1f, 0.8f, 0.45f), TextAnchor.UpperLeft); // "flight chart ({key:FlightMap})" (#2502)
                 return y + 98f;
             }
 
             // A debris field (#2353): the same kind of place — flown to, read on approach, carved and pulled in flight.
             if (body.Kind == "DebrisField")
             {
-                UiKit.AddText(_detail, 8, y, 600, 110, L("ui.map.debris_detail"), 18, new Color(0.95f, 0.7f, 0.45f), TextAnchor.UpperLeft);
+                UiKit.AddText(_detail, 8, y, 600, 110, HudUi.ExpandKeyTokens(Game?.Localizer, L("ui.map.debris_detail")), 18, new Color(0.95f, 0.7f, 0.45f), TextAnchor.UpperLeft);
                 return y + 118f;
             }
 
