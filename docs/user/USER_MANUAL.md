@@ -381,8 +381,8 @@ separate unlock; admins can still disable it through server world rules.
   research N of M blueprints, Codex discoveries (with a button straight into the Codex chapter, where every entry
   now names the planet and system it was first scanned on), story %, achievements done — and a **Journey** grid of your
   lifetime tallies (worlds visited, systems entered, blocks mined/placed, subjects scanned, missions …); the
-  goals below run from the first blocks to the late game (thousands of blocks, dozens of worlds, the whole
-  tech tree, your own station or ship, the Guardian finale) and each pays an item reward. The **Blueprints** tab
+  goals below run from the first blocks to the late game (thousands of blocks, dozens of worlds, every
+  blueprint, your own station or ship, the Guardian finale) and each pays an item reward. The **Blueprints** tab
   header shows how much of the tree you have researched and which blueprint you could research next; its filter
   row shows your **knowledge points** and data fragments and has an **"Enough knowledge"** toggle that hides every
   blueprint your knowledge does not cover yet (each card also shows *Knowledge have/need*). Crafting/Blueprints/Ship are **location-bound**: Crafting to a station **block**
@@ -2337,7 +2337,7 @@ called **stories**:
 ### The frontier — why flying far pays
 - Systems far from your home system carry a **"Frontier"** tag on the star map (shown even before you know
   their name — it's the reason to go). Out there worlds generate **richer rare-ore veins** (titanium, cobalt,
-  uranium, platinum, tungsten, neodymium, diamond — everything the late tech tree wants), roll an **extra
+  uranium, platinum, tungsten, neodymium, diamond — everything the late blueprints want), roll an **extra
   buried vault and monument**, and structure caches carry a bonus late-game find. Your starter ores (iron,
   copper, …) are the same everywhere — the frontier is the better place to *return to*, never the better
   place to begin.
@@ -3075,7 +3075,7 @@ Your radio determines **how far** your comms carry — text chat and voice both 
 - **System Radio** (upgrade) — everyone in the **same star system**.
 - **Galaxy Radio** (upgrade) — **everyone**, anywhere in the galaxy.
 
-Craft the upgrades at the workshop (each tier builds on the previous one and unlocks via the tech tree).
+Craft the upgrades at the workshop (each tier builds on the previous one; research it under **Blueprints**).
 The **widest** radio you carry sets your reach. Without any radio you can't transmit (you'll get a
 "need a comm radio" notice).
 

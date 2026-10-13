@@ -23,6 +23,10 @@ namespace BlocksBeyondTheStars.Tests;
 /// and a locale file no <see cref="GameLocale"/> member loads. Each failure message names the exact keys so a
 /// contributor can fix them without a local checkout.
 /// </para>
+/// <para>
+/// A few terminology guards (#2501) sit here too: no word that mixes Latin and Cyrillic letters, no combining accent,
+/// and a short per-language table of terms that once slipped in and must not come back (<see cref="ForbiddenTerms"/>).
+/// </para>
 /// </summary>
 public class CommunityLocaleTests
 {
@@ -35,6 +39,35 @@ public class CommunityLocaleTests
         @"\{(?:key:)?[A-Za-z0-9_]+\}",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(2));
+
+    /// <summary>A run of letters — a word, split at spaces, digits, hyphens and punctuation. Used by the mixed-script guard,
+    /// so "SPS-реле", "Mk2" or a placeholder next to a Cyrillic word never count as one word.</summary>
+    private static readonly Regex LetterRun = new(
+        @"\p{L}+",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(2));
+
+    /// <summary>Terms that once slipped into a community table and must not come back (#2501): an English name a machine
+    /// pass left untranslated, or a word that means something else in the language. <c>Codes</c> is a comma list, "*" for
+    /// all twelve languages; <c>Use</c> names the canonical wording the failure message suggests. Checked in the base table
+    /// and every story pack's table of that language. The canonical terms per language are listed in
+    /// TRANSLATION_GUIDE.md. (fr and it keep the English name "AI Core" on purpose — their names say so too.)</summary>
+    private static readonly (string Codes, Regex Term, string Use)[] ForbiddenTerms =
+    [
+        ("*", Term(@"(?i)\bguardian\b"), "the language's own name for the Guardian (Koruyucu, Strażnik, Bewaker, Guardiano, ガーディアン …)"),
+        ("es,ja,ko,nl,pl,pt,ru,tr,uk,zh", Term(@"\bAI Core\b"), "the language's own name of the AI core, as in module.ai_core_mk3.name"),
+        ("*", Term(@"(?i)\bship (?:keel|helm|engine)\b|\bkeel\b|\bshipwright\b|\bself-built ship\b|\bstarter ship\b"),
+            "the language's own ship-part names (item.ship_core/ship_helm/ship_engine.name, blueprint.ship_builder.name, ship.*.name)"),
+        ("tr", Term(@"(?i)hiperspace|hipermekan"), "Hiperuzay"),
+        ("pl", Term(@"(?i)fabryfikator"), "Fabrykator"),
+        ("it", Term(@"(?i)\bfabricator"), "Fabbricatore"),
+        ("fr", Term(@"(?i)\bétrier"), "Poste de pilotage (the ship's helm)"),
+        ("nl", Term(@"(?i)\bafme(?:ren|ert|erde|erden)\b|\bafgemeerd\b"), "loskoppelen (undock); aanmeren / aangemeerd (dock)"),
+        ("uk", Term(@"(?i)\bстраж(?:а|у|ем|і)?\b|\bсторож(?:а|у|ем)?\b"), "Охоронець / Серце Охоронця"),
+    ];
+
+    private static Regex Term(string pattern)
+        => new(pattern, RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2));
 
     /// <summary>Every translated table the game and its web portal ship — the places the machine pass
     /// (<c>tools/translate_locale.py</c>) writes to: the base table, every story pack's <c>locales/</c> (#2465 — the
@@ -276,6 +309,90 @@ public class CommunityLocaleTests
             + $"the game does no conditional or plural formatting, so it would show up literally: {string.Join("; ", stray.Take(20))}");
     }
 
+    /// <summary>A word that mixes Latin and Cyrillic letters — "Uплінк", "вырастet", or an Italian "Rottа" whose last
+    /// letter is a Cyrillic а (#2501). Machine passes and keyboard-layout slips leave these behind; they look almost right
+    /// on screen but read as typos and break search. Placeholders are blanked first and words split at every non-letter,
+    /// so "SPS-реле", "Mk2" or a <c>{key:…}</c> token next to Cyrillic text stay legal.</summary>
+    [Fact]
+    public void EveryLocaleFile_HasNoMixedScriptWords()
+    {
+        var mixed = new List<string>();
+        foreach (var (file, key, value) in LocaleValues())
+        {
+            foreach (Match word in LetterRun.Matches(PlaceholderPattern.Replace(value, " ")))
+            {
+                if (word.Value.Any(IsLatinLetter) && word.Value.Any(IsCyrillicLetter))
+                {
+                    mixed.Add($"{file}: {key} (\"{word.Value}\")");
+                }
+            }
+        }
+
+        Assert.True(
+            mixed.Count == 0,
+            $"{mixed.Count} locale word(s) mix Latin and Cyrillic letters — retype the word in one script: "
+            + string.Join("; ", mixed.Take(20)));
+    }
+
+    /// <summary>A combining accent (U+0300–U+036F) in a locale value: a stray stress mark ("Ста́йный") or a decomposed
+    /// letter ("s" + U+0301 instead of "ś", #2501). Game text never needs either, and fonts render them as a detached
+    /// accent.</summary>
+    [Fact]
+    public void EveryLocaleFile_HasNoCombiningAccents()
+    {
+        var marked = LocaleValues()
+            .Where(v => v.Value.Any(c => c is >= '̀' and <= 'ͯ'))
+            .Select(v => $"{v.File}: {v.Key}")
+            .ToList();
+
+        Assert.True(
+            marked.Count == 0,
+            $"{marked.Count} locale value(s) contain a combining accent — a stress mark or a decomposed letter; write the "
+            + $"precomposed letter (ś, é) or drop the mark: {string.Join("; ", marked.Take(20))}");
+    }
+
+    /// <summary>Each community language keeps its canonical terms (<see cref="ForbiddenTerms"/>, #2501) in its base table
+    /// and in every story pack's table.</summary>
+    [Theory]
+    [MemberData(nameof(CommunityLocales))]
+    public void CommunityLocale_KeepsItsCanonicalTerms(string code)
+    {
+        var tables = new List<(string Name, Dictionary<string, string> Table)> { ($"locales/{code}.json", TestLocales.Load(code)) };
+        foreach (string pack in StoryPackFolders())
+        {
+            if (File.Exists(Path.Combine(TestPaths.DataDir(), "stories", pack, "locales", code + ".json")))
+            {
+                tables.Add(($"stories/{pack}/locales/{code}.json", PackTable(pack, code)));
+            }
+        }
+
+        var hits = new List<string>();
+        foreach (var (codes, term, use) in ForbiddenTerms)
+        {
+            if (codes != "*" && !codes.Split(',').Contains(code, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            foreach (var (name, table) in tables)
+            {
+                foreach (var (key, value) in table)
+                {
+                    Match found = term.Match(value);
+                    if (found.Success)
+                    {
+                        hits.Add($"{name}: {key} (\"{found.Value}\" — use {use})");
+                    }
+                }
+            }
+        }
+
+        Assert.True(
+            hits.Count == 0,
+            $"{code}: {hits.Count} value(s) use a term this language replaced with its canonical wording: "
+            + string.Join("; ", hits.Take(20)));
+    }
+
     [Fact]
     public void EveryLocaleFile_IsLoadedBySomeGameLocale()
     {
@@ -316,6 +433,29 @@ public class CommunityLocaleTests
                 $"locale '{code}' produced no text for 'ui.menu.play' — neither its own table nor the English fallback resolved");
         }
     }
+
+    /// <summary>Every (file, key, value) of every table in <see cref="LocaleDirs"/>, the file as a repo-relative path.</summary>
+    private static IEnumerable<(string File, string Key, string Value)> LocaleValues()
+    {
+        foreach (string dir in LocaleDirs())
+        {
+            foreach (string path in Directory.GetFiles(Path.Combine(TestPaths.RepoRoot(), dir), "*.json").OrderBy(p => p, StringComparer.Ordinal))
+            {
+                string file = Path.GetRelativePath(TestPaths.RepoRoot(), path).Replace('\\', '/');
+                var table = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path)) ?? [];
+                foreach (var (key, value) in table)
+                {
+                    yield return (file, key, value);
+                }
+            }
+        }
+    }
+
+    private static bool IsLatinLetter(char c)
+        => c is (>= 'A' and <= 'Z') or (>= 'a' and <= 'z') or (>= 'À' and <= 'ɏ');
+
+    private static bool IsCyrillicLetter(char c)
+        => c is >= 'Ѐ' and <= 'ӿ';
 
     private static HashSet<string> Placeholders(string text)
         => PlaceholderPattern.Matches(text).Select(m => m.Value).ToHashSet(StringComparer.Ordinal);

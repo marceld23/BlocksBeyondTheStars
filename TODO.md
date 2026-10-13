@@ -117,6 +117,16 @@ line per step:
   Journal tasks read the neutral "(This entry needs a newer version of the game.)" instead of raw keys. Docs:
   TUTORIAL_PACK, STORY_IMPLEMENTATION, STORY_PACK_AUTHORING, HOSTED_WORLDS, USER_MANUAL. ⚠ Unity: the amber chip in the
   world rows, the notice on a world with an unknown story, the ✔ row without buttons.
+- ✅ **Step 8 — community terminology, "tech tree" wording, locale guards (#2501)**, 2026-10-13 (text only): ~350 hand
+  fixes in the twelve community languages (base tables and both story packs) — one name each for the Radar Array and
+  the Jump Generator (fr, pl, ru, uk, ko), the Guardian in every language's own word (tr, it, pl, nl, pt, es, ja, ko,
+  uk, ru), VEGA feminine (ru, pl, pt, uk), ship parts no longer in English (ja, ko, nl, zh, uk; nl helm → roer, fr
+  "étrier" → poste de pilotage), the AI core named like its module (ja, ko, nl, zh, pl, uk, ru, tr), nl undock =
+  loskoppelen, pl Fabrykator, tr Hiperuzay, nl Auto-boor, mixed Latin/Cyrillic words and stray stress marks (ru, uk,
+  it, pl), plus grammar slips. The five "tech tree" texts now say "under Blueprints" / "unter Baupläne" (EN/DE; the
+  twelve community values re-translated and hand-reviewed). New guards in `CommunityLocaleTests`: no word mixing Latin
+  and Cyrillic letters, no combining accents, and a per-language `ForbiddenTerms` table. Docs: TRANSLATION_GUIDE
+  (canonical terms per language), USER_MANUAL ("tech tree" wording).
 
 ### ★ Story packs 2026-10 (#2459)
 

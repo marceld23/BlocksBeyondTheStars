@@ -48,6 +48,13 @@ Hard rules (CI fails on violations; `locale_report.py --check` finds them first)
   the English has a plain number, write the plain number.
 - No blank values, no invented keys.
 - Keep formatting characters (`\n`, leading `[`, trailing `:`) intact.
+- No word that mixes Latin and Cyrillic letters ("Uплінк", an Italian "Rottа" whose last letter is a Cyrillic а) and
+  no combining accent (a stress mark like "Ста́йный", or "s" + U+0301 instead of "ś") — `CommunityLocaleTests`
+  checks every table, the web portal's included (#2501).
+- Terms in `CommunityLocaleTests.ForbiddenTerms` fail CI in their language: the English names "Guardian", "AI Core"
+  (where the language has its own name), "Ship Keel/Helm/Engine", "Shipwright", "Self-built Ship", "Starter Ship",
+  and the misfits tr "Hiperspace", pl "Fabryfikator", it "Fabricatore", fr "Étrier", nl "afmeren", uk
+  "Страж"/"Сторожа" (#2501). The table below lists what to write instead.
 
 Style rules:
 
@@ -69,7 +76,37 @@ Style rules:
   Quiet** (the game shows its name in English). "The Service" on its own is an ordinary noun and is translated.
   Translate game terms consistently (build a small glossary first: blueprint, knowledge, suit energy, airlock, …).
 - A sentence that names a menu tab or screen ("open the Journal", "the Blueprints tab", "menu → Crafting") uses
-  the word that tab shows in your language (`ui.tab.*`, `ui.crafting.title`, …), not a new synonym.
+  the word that tab shows in your language (`ui.tab.*`, `ui.crafting.title`, …), not a new synonym. There is no
+  "tech tree" in the game: blueprints are researched "under Blueprints" (`ui.tab.tech`).
+- Running text that names an item, block, blueprint or module uses that thing's `.name` (inflected where the grammar
+  needs it). Rename a thing, and every sentence that names it follows.
+- VEGA is female: her first-person lines take feminine forms where the language marks them (ru "поняла",
+  "я проверяла"; uk "я перевірила"; pl "wykryłam"; pt "preocupada").
+
+### Canonical terms per language (#2501)
+
+The majority form across `ui.tab.*`, the `.name` keys, the VEGA story and the reviewed tutorial. A new text uses
+these; `translate_locale.py` feeds the names to the model from the base table.
+
+| Lang | Blueprints tab | Hyperspace tab | Jump Generator | Radar Array | Guardian / its core | AI core | Ship keel · helm · engine |
+|---|---|---|---|---|---|---|---|
+| es | Planos | Hiperespacio | Generador de salto | Antena radar | El Guardián / Núcleo guardián | Núcleo IA Mk2 | Quilla · Timón · Propulsor de nave |
+| fr | Plans | Hyperespace | Générateur de saut | Antenne radar | Le Gardien / Noyau Gardien | AI Core Mk2 | Quille de vaisseau · Poste de pilotage · Propulseur de vaisseau |
+| it | Progetti | Iperspazio | Generatore di Salto | Array Radar | Il Guardiano / Nucleo Guardiano | AI Core Mk2 | Chiglia · Timone · Motore della nave |
+| ja | 設計図 | ハイパースペース | ジャンプジェネレーター | レーダーアレイ | ガーディアン / ガーディアン・コア | AIコア Mk2 | 船のキール · 操縦席 · 船のエンジン |
+| ko | 도면 | 하이퍼스페이스 | 점프 엔진 | 레이더 어레이 | 가디언 / 가디언 코어 | AI 코어 Mk2 | 함선 용골 · 조타석 · 함선 엔진 |
+| nl | Blauwdrukken | Hyperruimte | Spronggenerator | Radararray | De Bewaker / Bewakerskern | AI-kern Mk2 | Scheepskiel · Scheepsroer · Scheepsmotor |
+| pl | Schematy | Nadprzestrzeń | Generator skoku | Zestaw radarowy | Strażnik / Rdzeń Strażnika | Rdzeń AI Mk2 | Kil statku · Sterownia · Silnik statku |
+| pt | Plantas | Hiperespaço | Gerador de Salto | Matriz de Radar | O Guardião / Núcleo Guardião | Núcleo de IA Mk2 | Quilha · Leme · Motor da Nave |
+| ru | Чертежи | Гиперпространство | Генератор прыжка | Радарная решётка | Страж / Ядро Стража | Ядро ИИ Mk2 | Киль · Штурвал · Двигатель корабля |
+| tr | Planlar | Hiperuzay | Atlama Jeneratörü | Radar Dizisi | Koruyucu / Koruyucu Çekirdek | Yapay Zeka Çekirdeği Mk2 | Gemi Omurgası · Gemi Dümeni · Gemi Motoru |
+| uk | Креслення | Гіперпростір | Генератор стрибка | Радарна антена | Охоронець / Серце Охоронця | Ядро ШІ Mk2 | Кіль · Штурвал · Двигун корабля |
+| zh | 蓝图 | 超空间 | 跳跃发生器 | 雷达阵列 | 守护者 / 守护核心 | AI 核心 Mk2 | 飞船龙骨 · 飞船驾驶台 · 飞船引擎 |
+
+Notes: nl "helm" is the helmet (`item.helmet.name`), so the ship's helm is "roer"; nl docking is "aanmeren", undocking
+"loskoppelen" ("afmeren" means to moor). pl names the Fabricator "Fabrykator", uk the jump lane "стрибкова смуга". fr
+and it keep the English "AI Core" in all four names on purpose. "The Service" (the old SPS) is translated in it
+("il Servizio"), while the full name "Scout and Pioneer Service" stays English everywhere.
 
 ## Step 2 — Story packs
 
