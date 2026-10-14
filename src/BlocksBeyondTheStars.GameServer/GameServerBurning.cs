@@ -131,6 +131,7 @@ public sealed partial class GameServer
         {
             list.Remove(e);
             _enemyWander.Remove(e.Id);
+            ForgetWadePlan(e.Id); // #2554: a robot that burns while wading out leaves no exit plan behind
             SpillToGround(e.Position.ToBlock(), e.Loot, creatureLoot: creatures);
             if (creatures)
             {

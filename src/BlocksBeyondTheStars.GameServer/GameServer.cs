@@ -890,6 +890,7 @@ public sealed partial class GameServer
         _creatures.Clear();
         _speciesRoster = System.Array.Empty<Shared.Definitions.CreatureSpecies>();
         _planetEnemies.Clear();
+        _wadePlans.Clear(); // #2554: robot water-exit plans belong to the old world's machines
         _bandits.Clear();
         _banditCamps.Clear();
         _monuments.Clear();

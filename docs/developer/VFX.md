@@ -59,13 +59,14 @@ All of these are URP SubShaders. The FX shaders fall back to `Particle`/`Particl
 
 | Shader | Use |
 |---|---|
-| `FxCommon.hlsl` | FX light + scan-wave globals and functions, value noise. Included by BlockAtlas, LitColor, VertexColorOpaque, SkyBodyPhase, FxDebris, FxBeam, FxShell, FxTunnel, FxCrack. |
+| `FxCommon.hlsl` | FX light + scan-wave globals and functions, value noise. Included by BlockAtlas, LitColor, VertexColorOpaque, SkyBodyPhase, FxDebris, FxBeam, FxShell, FxTunnel, FxCrack, FxOutline. |
 | `FxBeam` | Layered beam: white core, coloured glow, two procedural noises, optional pulse rings. Used for LineRenderers (Tile mode: uv.x in world units) and for the slash ribbons (`_Tint`). |
 | `FxRing` | Flat ring / shockwave / scan ring on a quad. |
 | `FxShell` | Fresnel sphere: scan shells, shield hex bubble with up to 8 hit ripples (`_FxHits` array via a property block), re-entry plasma. |
 | `FxHolo` | Hologram cube. A `SRPDefaultUnlit` pass with `ZTest Greater` draws the x-ray glow behind terrain; a `UniversalForward` pass draws the bright edges in view. Queue `Transparent+50`. |
 | `FxDebris` | Lit vertex-colour mesh particles (chips, rubble, robot parts). |
 | `FxCrack` | Procedural Voronoi crack overlay with mining-beam heat. |
+| `FxOutline` | The selection frame on the aimed block (#2556). One 12-ribbon mesh; the vertex shader spreads each edge camera-facing to its width, never thinner than `_MinPixels` on screen (counted at 1080p), with round corner joints and a view-ray depth pull against z-fighting. Premultiplied alpha (`Blend One OneMinusSrcAlpha`): a bright HDR blue core on a thin deep-blue backing, readable at night and on snow. Shimmer: breathing, a data packet running along each edge, an occasional dimmed cell; `_Shimmer` 0 freezes it. Queue `Transparent+40`. No shader fallback — `MiningFx` falls back to the primitive-cube frame on `Unlit/Color`. |
 | `FxSpaceDust` | Camera-wrapped dust quads stretched along velocity, one draw call. |
 | `FxTunnel` | The hyperjump tunnel streaks. |
 | `Wormhole` | The wormhole rift (#2242): a jagged tear with a hot inner edge and a halo; on Medium+ (`_Sc_ScreenFx`) it bends the scene behind it via `SampleSceneColor`. See [WORMHOLES.md](WORMHOLES.md). |
@@ -173,6 +174,7 @@ Hits:
 
 ### Mining (`MiningFx`)
 
+- **Selection frame** (#2556): `FxOutline` on `PlayerController.AimOutlineCell` (voxel, parked-ship cell, or a water/lava cell when the held item would act on it). Hologram blue (`UiKit.Cyan`), lerped towards orange with the mining fraction via `_Color`; `_Shimmer` is 0 under *Reduce flashes* or *Reduced effects*. One mesh, one material, written only when a value changes.
 - **Crack:** `FxCrack` spreads with `MiningProgress.Fraction` and wobbles on every hit. Under the mining beam it glows red→white-hot.
 - **Per tick, from the struck face**, in the block's colours:
   - basic drill: dust and grit;

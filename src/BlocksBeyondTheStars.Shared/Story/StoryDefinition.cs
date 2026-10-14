@@ -308,8 +308,9 @@ public sealed class StoryDefinition
     public string IntroCutscene { get; set; } = string.Empty;
 
     /// <summary>Tutorial packs: when the global advisor systems open (<see cref="StoryGateNames"/> → condition). A gate the
-    /// pack does not set keeps today's behaviour.</summary>
-    public Dictionary<string, string> Gates { get; set; } = new();
+    /// pack does not set keeps today's behaviour. #2549: <c>gates.holdHints</c> (<see cref="StoryGates.HoldHints"/>) holds
+    /// one-time VEGA hints back until the basic training reaches their topic.</summary>
+    public StoryGates Gates { get; set; } = new();
 
     /// <summary>The pack's help escalation defaults (unset = the built-in 180 / 360 / 600 s).</summary>
     public StoryEscalation Escalate { get; set; } = new();

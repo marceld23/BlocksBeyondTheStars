@@ -18,7 +18,9 @@ namespace BlocksBeyondTheStars.Client
     /// clickable pill too — for the mouse wherever the cursor is free (space flight, open prompts) and for
     /// touch. Lines arrive as locale KEYS (<see cref="ShipAiLine"/>) and are
     /// localized here, so the companion is fully bilingual and offline-safe. Advisor hints (Kind 1)
-    /// respect the settings mute.
+    /// respect the settings mute. Waiting lines follow <see cref="VegaLineQueue"/> (#2551): a client lesson bound to a
+    /// moment goes unseen once it waited 30 s, a story pack's step line goes ahead of waiting hints, story lines keep
+    /// their order.
     /// </summary>
     public sealed class VegaPanel : MonoBehaviour
     {
@@ -77,7 +79,14 @@ namespace BlocksBeyondTheStars.Client
 
         // Each queued line keeps its locale key (empty for a client-side reminder) so the ending can withdraw the epilogue
         // line it shows itself (#2461, WithdrawLine) — and since #2499 its pack and its buttons (VegaQueuedLine, Client.Core).
-        private readonly Queue<VegaQueuedLine> _queue = new Queue<VegaQueuedLine>();
+        // #2551: the queue's rules live in Client.Core (VegaLineQueue, tested headless): a client lesson that waited unseen for
+        // 30 s is dropped (its once-flag stays unspent), a step line goes ahead of waiting hints, story lines keep their order.
+        private readonly VegaLineQueue _queue = new VegaLineQueue();
+
+        /// <summary>The queue's clock (#2551): real seconds, so a lesson's wait runs on through a pause or a scene — its
+        /// moment passes either way.</summary>
+        private static double Now => Time.unscaledTimeAsDouble;
+
         private string _current = string.Empty;  // the page being typed/read (not the whole line)
         private string _currentKey = string.Empty; // the locale key of the line on screen (#2461)
 
@@ -285,13 +294,30 @@ namespace BlocksBeyondTheStars.Client
         /// rules of a Kind-1 server line: the VegaHints mute, <c>{key:Action}</c> glyphs, the same speech
         /// queue, and the tips log for the session (a rejoin rebuilds the log from server milestones, so a
         /// purely local lesson drops out of it then — by design, it is a one-liner). Returns whether the line was
-        /// queued: a caller with a once-flag sets it only then (#2462, B31) — a lesson muted by the hints switch must
-        /// still come once the hints are back on, not be spent unseen.</summary>
-        public bool SayLocal(string lineKey)
+        /// queued (or is already waiting or on screen). A caller with a once-flag passes its setter as
+        /// <paramref name="onShown"/> (#2551): it runs when the line comes up on screen — or at once when a running training
+        /// or course counts the lesson as given — and never for a line muted by the hints switch (#2462, B31: it must still
+        /// come once the hints are back on) or dropped unseen: a lesson is bound to its moment, so one still waiting after
+        /// <see cref="VegaLineQueue.LessonExpirySeconds"/> goes (the player has walked on) and may come again the next time
+        /// the situation happens. Saying a lesson that already waits keeps its place and starts its wait over.</summary>
+        public bool SayLocal(string lineKey, System.Action onShown = null)
         {
             if (string.IsNullOrEmpty(lineKey))
             {
                 return false;
+            }
+
+            // #2551: the situation asks again for a lesson VEGA is already holding — no second copy; the wait starts over.
+            if (_queue.RefreshLesson(lineKey, Now))
+            {
+                return true;
+            }
+
+            // ...or she is saying it right now (another anomaly in range): it counts as given.
+            if (_current.Length > 0 && string.Equals(_currentKey, lineKey, System.StringComparison.Ordinal))
+            {
+                onShown?.Invoke();
+                return true;
             }
 
             // #2469 (E11, G12): while the basic training runs, its flight steps teach this lesson themselves — per player, on
@@ -299,6 +325,7 @@ namespace BlocksBeyondTheStars.Client
             // is set; the tutorial line was never muted, so this holds with the hints off too).
             if (VegaText.LessonCoveredByTutorial(lineKey) && Game != null && Game.OnboardingActive)
             {
+                onShown?.Invoke();
                 return true;
             }
 
@@ -306,6 +333,7 @@ namespace BlocksBeyondTheStars.Client
             // hintRefs — the course's line teaches it, so the lesson counts as given and VEGA does not say it twice.
             if (Game != null && VegaText.LessonCoveredByStoryStep(lineKey, Game.StoryPackStates, Game.Content?.Stories.Values))
             {
+                onShown?.Invoke();
                 return true;
             }
 
@@ -314,7 +342,7 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            _queue.Enqueue(new VegaQueuedLine(VegaText.Compose(L(lineKey), null, KeyGlyphFor), false, lineKey));
+            _queue.Enqueue(new VegaQueuedLine(VegaText.Compose(L(lineKey), null, KeyGlyphFor), false, lineKey), VegaLineClass.Lesson, Now, onShown);
             if (Game != null && !Game.VegaLogKeys.Contains(lineKey))
             {
                 Game.VegaLogKeys.Add(lineKey);
@@ -366,24 +394,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            int before = _queue.Count;
-            if (before > 0)
-            {
-                var keep = new List<VegaQueuedLine>(before);
-                while (_queue.Count > 0)
-                {
-                    var item = _queue.Dequeue();
-                    if (!string.Equals(item.Key, lineKey, System.StringComparison.Ordinal))
-                    {
-                        keep.Add(item);
-                    }
-                }
-
-                foreach (var item in keep)
-                {
-                    _queue.Enqueue(item);
-                }
-            }
+            _queue.Withdraw(lineKey);
 
             if (_speechText != null && _current.Length > 0 && string.Equals(_currentKey, lineKey, System.StringComparison.Ordinal))
             {
@@ -411,18 +422,7 @@ namespace BlocksBeyondTheStars.Client
         private void StopChatter() => _voice?.Stop();
 
         /// <summary>True when any queued line still carries the prologue flag.</summary>
-        private bool QueueHasPrologue()
-        {
-            foreach (var item in _queue)
-            {
-                if (item.Prologue)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
+        private bool QueueHasPrologue() => _queue.HasPrologue;
 
         /// <summary>Winds down the staged prologue (#760), if it is running, and resets the staging state
         /// so a deliberately restarted onboarding can stage again.</summary>
@@ -496,11 +496,15 @@ namespace BlocksBeyondTheStars.Client
             // #2499: the line's buttons (the first-start question, a course offer) — read once here; a line this client cannot
             // act on stays a plain line. The pack rides along so a skip can drop that pack's waiting lines.
             var choices = m.Kind == 4 ? VegaChoiceSet.None : VegaChoiceSet.Parse(m.Choices);
+
+            // #2551: a story pack's line (the current tutorial or course step) goes ahead of the hints still waiting; hints wait
+            // behind it; story beats, dialogue and given-back cutscene narration keep their order and are never dropped.
+            var lineClass = VegaLineQueue.ClassOf(m.Kind, m.PackId);
             if (!string.IsNullOrEmpty(m.Text) && !muted)
             {
                 // LLM-authored line (already in the player's language). The prologue flag keys on Kind,
                 // NOT on the text source — an authored Kind-4 page must not lose its staging (#760).
-                _queue.Enqueue(new VegaQueuedLine(m.Text, m.Kind == 4, m.LineKey ?? string.Empty, m.PackId, choices));
+                _queue.Enqueue(new VegaQueuedLine(m.Text, m.Kind == 4, m.LineKey ?? string.Empty, m.PackId, choices), lineClass, Now);
             }
             else if (!string.IsNullOrEmpty(m.LineKey) && !muted)
             {
@@ -513,7 +517,7 @@ namespace BlocksBeyondTheStars.Client
 
                 // Prologue pages (Kind 4, #754) ride the normal queue with a flag — same panel, same
                 // paging, plus the dim + the skip (Esc, pad cancel, the skip pill) while one is showing.
-                _queue.Enqueue(new VegaQueuedLine(text, m.Kind == 4, m.LineKey, m.PackId, choices));
+                _queue.Enqueue(new VegaQueuedLine(text, m.Kind == 4, m.LineKey, m.PackId, choices), lineClass, Now);
             }
 
             Refresh();
@@ -652,7 +656,7 @@ namespace BlocksBeyondTheStars.Client
                 2 => "ui.reminder.break.again",
                 _ => "ui.reminder.break.long",
             };
-            _queue.Enqueue(new VegaQueuedLine(L(key), false, key)); // shows via the normal typewriter path; bypasses the VegaHints mute by design
+            _queue.Enqueue(new VegaQueuedLine(L(key), false, key), VegaLineClass.Story, Now); // shows via the normal typewriter path; bypasses the VegaHints mute by design
         }
 
         /// <summary>#2500: this world plays a story the client does not have (GameBootstrap noted it from the story list or the
@@ -666,7 +670,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _queue.Enqueue(new VegaQueuedLine(L(UnknownStoryPacks.NoticeKey), false, UnknownStoryPacks.NoticeKey));
+            _queue.Enqueue(new VegaQueuedLine(L(UnknownStoryPacks.NoticeKey), false, UnknownStoryPacks.NoticeKey), VegaLineClass.Story, Now);
             Refresh();
         }
 
@@ -712,6 +716,14 @@ namespace BlocksBeyondTheStars.Client
             CheckUnknownStoryNotice();
             UpdateExtraRows(); // #2471: "Show all objectives" (cheap unless something changed)
 
+            // #2551: a lesson the client raised for a moment that has passed — it waited unseen behind other lines (or a folded
+            // tab, or a scene) for 30 s — goes; its once-flag stays unspent, so it comes again when the situation does.
+            int expired = _queue.Expire(Now);
+            if (expired > 0)
+            {
+                Debug.Log($"[VEGA] {expired} waiting lesson(s) expired unseen (queued={_queue.Count}).");
+            }
+
             // The ending (or any later staged scene) owns the screen (#2461, B16): VEGA neither types nor talks under
             // it, and no line starts in the moment before it takes over. The queue simply waits and picks up where it
             // stopped. The prologue is the one scene VEGA presents herself, so it never silences her — and a pending
@@ -754,30 +766,13 @@ namespace BlocksBeyondTheStars.Client
                 // the join's beat catch-up (B0 "systems online", Kind 2) is sent before ShipAiOnJoin queues the
                 // prologue — would otherwise show first and stall the cinematic behind a keypress. Stable
                 // partition — prologue pages first, everything else after, both in their original order.
-                if (!_prologueStarted && !_queue.Peek().Prologue && QueueHasPrologue())
+                if (!_prologueStarted && _queue.PromotePrologue())
                 {
-                    var story = new List<VegaQueuedLine>();
-                    var rest = new List<VegaQueuedLine>();
-                    while (_queue.Count > 0)
-                    {
-                        var item = _queue.Dequeue();
-                        (item.Prologue ? story : rest).Add(item);
-                    }
-
-                    foreach (var item in story)
-                    {
-                        _queue.Enqueue(item);
-                    }
-
-                    foreach (var item in rest)
-                    {
-                        _queue.Enqueue(item);
-                    }
-
-                    Debug.Log($"[Cinematic] Reordered queue: {story.Count} story page(s) ahead of {rest.Count} other line(s).");
+                    Debug.Log($"[Cinematic] Reordered queue: story pages ahead of the other line(s) ({_queue.Count} queued).");
                 }
 
-                var queued = _queue.Dequeue();
+                // Coming up on screen now: a lesson's once-flag is spent here (#2551, the shown callback), not when it queued.
+                _queue.TryDequeue(out var queued);
                 string text = queued.Text;
                 bool prologue = queued.Prologue;
                 _currentIsPrologue = prologue;
@@ -865,10 +860,7 @@ namespace BlocksBeyondTheStars.Client
             if (_currentIsPrologue && ((CinematicFrame.SkipPressed() && !InputCaptured()) || skipClicked))
             {
                 Game?.MarkMenuInputHandled(); // this Esc is spent here, whatever runs later this frame
-                while (_queue.Count > 0 && _queue.Peek().Prologue)
-                {
-                    _queue.Dequeue();
-                }
+                _queue.DropLeadingPrologue();
 
                 _current = string.Empty;
                 _currentKey = string.Empty;
@@ -1043,7 +1035,7 @@ namespace BlocksBeyondTheStars.Client
                 Game?.Network?.SendStoryPack(choice.PackId, choice.Action, choice.ChapterId);
                 if (choice.DropsPackLines)
                 {
-                    int dropped = VegaQueuedLine.DropPack(_queue, choice.PackId);
+                    int dropped = _queue.DropPack(choice.PackId);
                     Debug.Log($"[VEGA] Choice '{choice.Action}' for '{choice.PackId}': dropped {dropped} waiting line(s) of the pack.");
                 }
             }

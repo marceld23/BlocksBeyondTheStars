@@ -235,7 +235,8 @@ public sealed class ArachnidServerTests : IDisposable
 
             var p = server.AddLocalPlayer("Admin");
             p.State.AboardShip = false;
-            const int cx = 300, cz = 300;
+            // The summon stands it on the generator's ground around the admin: dry ground, or it is refused (#2553).
+            var (cx, cz) = DryGround.Find(server, 26);
             int padY = BuildPad(server, cx, cz, 30);
             p.State.Position = new Vector3f(cx + 0.5f, padY + 1, cz + 0.5f);
             int before = server.SpeciesRoster.Count;

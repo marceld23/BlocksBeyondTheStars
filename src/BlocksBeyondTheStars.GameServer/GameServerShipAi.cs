@@ -395,9 +395,12 @@ public sealed partial class GameServer
     {
         var p = session.State;
         string key = "vega:hint:" + hintId;
-        if (p.Milestones.Contains(key) || HintMutedFor(session, kind) || HintHeldByTutorial(session, hintId))
+        if (p.Milestones.Contains(key) || HintMutedFor(session, kind) || HintHeldByTutorial(session, hintId)
+            || TutorialHoldsHint(session, hintId))
         {
-            return; // told — muted (kept for later, #2462) — or a tutorial step teaches it (#2469, G12)
+            // told — muted (kept for later, #2462) — a tutorial step teaches it (#2469, G12) — or the basic training has not
+            // reached its topic yet (#2549, gates.holdHints: kept for its next occasion, the flag stays unset)
+            return;
         }
 
         p.Milestones.Add(key);

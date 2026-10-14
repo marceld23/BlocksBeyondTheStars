@@ -37,7 +37,7 @@ namespace BlocksBeyondTheStars.Client
         public bool SendsIntent => Action != ShipAiChoices.Continue;
 
         /// <summary>Picking it skips the pack's training — the lines of that pack still waiting in the panel are dropped
-        /// (<see cref="VegaQueuedLine.DropPack"/>): they teach what the player just said they know.</summary>
+        /// (<see cref="VegaLineQueue.DropPack"/>): they teach what the player just said they know.</summary>
         public bool DropsPackLines => Action == StoryPackActions.SkipPack && PackId.Length > 0;
     }
 
@@ -223,8 +223,8 @@ namespace BlocksBeyondTheStars.Client
         }
     }
 
-    /// <summary>A line waiting in VEGA's speech queue (#2499: it now keeps its pack and its buttons — a skip drops the
-    /// skipped pack's waiting lines, and the buttons show when the line comes up).</summary>
+    /// <summary>A line waiting in VEGA's speech queue (<see cref="VegaLineQueue"/>; #2499: it now keeps its pack and its buttons —
+    /// a skip drops the skipped pack's waiting lines, and the buttons show when the line comes up).</summary>
     public readonly struct VegaQueuedLine
     {
         public VegaQueuedLine(string text, bool prologue, string key, string packId = "", VegaChoiceSet? choices = null)
@@ -250,32 +250,5 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Its buttons (<see cref="VegaChoiceSet.None"/> = a plain line).</summary>
         public VegaChoiceSet Choices { get; }
-
-        /// <summary>Removes every waiting line of <paramref name="packId"/>, keeping the rest in order; returns how many went.</summary>
-        public static int DropPack(Queue<VegaQueuedLine> queue, string packId)
-        {
-            if (queue is null || queue.Count == 0 || string.IsNullOrEmpty(packId))
-            {
-                return 0;
-            }
-
-            int before = queue.Count;
-            var keep = new List<VegaQueuedLine>(before);
-            while (queue.Count > 0)
-            {
-                var item = queue.Dequeue();
-                if (!string.Equals(item.PackId, packId, StringComparison.Ordinal))
-                {
-                    keep.Add(item);
-                }
-            }
-
-            foreach (var item in keep)
-            {
-                queue.Enqueue(item);
-            }
-
-            return before - keep.Count;
-        }
     }
 }

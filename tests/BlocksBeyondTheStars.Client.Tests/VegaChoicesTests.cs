@@ -177,16 +177,16 @@ public sealed class VegaChoicesTests
     [Fact]
     public void ASkip_DropsOnlyTheSkippedPacksWaitingLines_InOrder()
     {
-        var queue = new Queue<VegaQueuedLine>();
-        queue.Enqueue(new VegaQueuedLine("walk", false, "story.tutorial.b1.walk.start", Tutorial));
-        queue.Enqueue(new VegaQueuedLine("vega", false, "story.vega.ch1.lead", "vega_protocol"));
-        queue.Enqueue(new VegaQueuedLine("jump", false, "story.tutorial.b1.jump.start", Tutorial));
-        queue.Enqueue(new VegaQueuedLine("break", false, "ui.reminder.break"));
+        var queue = new VegaLineQueue();
+        queue.Enqueue(new VegaQueuedLine("walk", false, "story.tutorial.b1.walk.start", Tutorial), VegaLineClass.Step, 0);
+        queue.Enqueue(new VegaQueuedLine("vega", false, "story.vega.ch1.lead", "vega_protocol"), VegaLineClass.Step, 0);
+        queue.Enqueue(new VegaQueuedLine("jump", false, "story.tutorial.b1.jump.start", Tutorial), VegaLineClass.Step, 0);
+        queue.Enqueue(new VegaQueuedLine("break", false, "ui.reminder.break"), VegaLineClass.Story, 0);
 
-        Assert.Equal(2, VegaQueuedLine.DropPack(queue, Tutorial));
-        Assert.Equal(new[] { "vega", "break" }, queue.Select(l => l.Text));
-        Assert.Equal(0, VegaQueuedLine.DropPack(queue, string.Empty));
-        Assert.Same(VegaChoiceSet.None, queue.Peek().Choices);
+        Assert.Equal(2, queue.DropPack(Tutorial));
+        Assert.Equal(new[] { "vega", "break" }, queue.Lines.Select(l => l.Text));
+        Assert.Equal(0, queue.DropPack(string.Empty));
+        Assert.Same(VegaChoiceSet.None, queue.Lines.First().Choices);
     }
 
     // ---------------- A real client ----------------
@@ -223,19 +223,20 @@ public sealed class VegaChoicesTests
         Assert.Equal("ui.vega.choice.know_game", set.Secondary!.LabelKey);
 
         // The panel's queue: the question, then the first lesson waiting behind it — the skip drops the lesson.
-        var queue = new Queue<VegaQueuedLine>();
+        var queue = new VegaLineQueue();
         foreach (var line in lines.Where(l => l.LineKey.Length > 0))
         {
-            queue.Enqueue(new VegaQueuedLine(line.LineKey, false, line.LineKey, line.PackId, VegaChoiceSet.Parse(line.Choices)));
+            queue.Enqueue(new VegaQueuedLine(line.LineKey, false, line.LineKey, line.PackId, VegaChoiceSet.Parse(line.Choices)),
+                VegaLineQueue.ClassOf(line.Kind, line.PackId), 0);
         }
 
-        var question = queue.Dequeue();
+        Assert.True(queue.TryDequeue(out var question));
         Assert.Equal("story.tutorial.ask_skip", question.Key);
-        Assert.Contains(queue, l => l.Key == "story.tutorial.b1.walk.start");
+        Assert.Contains(queue.Lines, l => l.Key == "story.tutorial.b1.walk.start");
         var skip = question.Choices.Secondary!;
         h.Client.SendStoryPack(skip.PackId, skip.Action, skip.ChapterId);
-        VegaQueuedLine.DropPack(queue, skip.PackId);
-        Assert.DoesNotContain(queue, l => l.PackId == Tutorial);
+        queue.DropPack(skip.PackId);
+        Assert.DoesNotContain(queue.Lines, l => l.PackId == Tutorial);
 
         Assert.True(h.PumpUntil(() => lines.Any(l => l.LineKey == "story.tutorial.skipped_hint")));
         Assert.Single(lines, l => l.LineKey == "story.tutorial.skipped_hint");

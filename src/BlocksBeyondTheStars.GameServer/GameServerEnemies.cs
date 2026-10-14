@@ -5,6 +5,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 
@@ -152,16 +153,20 @@ public sealed partial class GameServer
             // Remnant era (#1206): only the scan-drones are left; the world option PlanetDrones=false keeps
             // its meaning (then the few remnants are walkers — still fewer and slower than before the win).
             bool asDrone = Rules.PlanetDrones && (RemnantEra || droneCount * 5 < (_planetEnemies.Count + 1) * 2);
-            SpawnPlanetEnemyNear(targets[_planetEnemies.Count % targets.Count].State, asDrone);
-            BroadcastPlanetEnemies();
-
-            // #2517: the quick start is the first `cap` SPAWNS after a world load, not "until the live count reaches
-            // the cap" — a player who destroyed every machine the moment it showed up never let the count get there,
-            // so the world stayed on the 5 s cadence for good and a new machine arrived exactly 15 s after each kill.
-            // From here on every spawn waits the slow jittered interval (rolled above) plus the kill grace.
-            if (!_worlds.Active.EnemyCapSeen && ++_worlds.Active.EnemyQuickSpawns >= cap)
+            // #2554: a walking robot never appears with water on its feet — when every spot tried is wet (a player on
+            // an island), this spawn is skipped and the next interval tries again.
+            if (SpawnPlanetEnemyNear(targets[_planetEnemies.Count % targets.Count].State, asDrone))
             {
-                _worlds.Active.EnemyCapSeen = true;
+                BroadcastPlanetEnemies();
+
+                // #2517: the quick start is the first `cap` SPAWNS after a world load, not "until the live count reaches
+                // the cap" — a player who destroyed every machine the moment it showed up never let the count get there,
+                // so the world stayed on the 5 s cadence for good and a new machine arrived exactly 15 s after each kill.
+                // From here on every spawn waits the slow jittered interval (rolled above) plus the kill grace.
+                if (!_worlds.Active.EnemyCapSeen && ++_worlds.Active.EnemyQuickSpawns >= cap)
+                {
+                    _worlds.Active.EnemyCapSeen = true;
+                }
             }
         }
 
@@ -187,6 +192,7 @@ public sealed partial class GameServer
                 _planetEnemies.RemoveAt(i);
                 _enemyWander.Remove(e.Id);
                 _enemySightSeenAt.Remove(e.Id);
+                ForgetWadePlan(e.Id);
                 pruned = true;
             }
         }
@@ -266,6 +272,12 @@ public sealed partial class GameServer
                     }
                 }
             }
+        }
+
+        // #2554: a robot that found no way out of deep water powers down (removed after the pass, which iterates the list).
+        if (RemoveStrandedMachines())
+        {
+            BroadcastPlanetEnemies();
         }
 
         // Stream the new positions, throttled so a wandering pack doesn't flood the channel.
@@ -382,7 +394,9 @@ public sealed partial class GameServer
     /// stop-and-go), with kind-specific behaviour: a walking robot stalks the nearest detectable player straight
     /// in (heavy + deliberate) or patrols with pause-and-scan; the flying scan-drone orbits/strafes the player at
     /// a standoff and hover-bobs instead of ramming. Terrain-following; a cliff step taller than 3 blocks blocks
-    /// the move and re-rolls the heading. Returns true when the enemy actually moved.</summary>
+    /// the move and re-rolls the heading, and so does water deeper than a walking robot wades (#2554) — one that
+    /// stands in such water already walks out of it first (<see cref="WadeOutOfWater"/>). Returns true when the
+    /// enemy actually moved.</summary>
     private bool MovePlanetEnemy(CombatEntity enemy, List<PlayerSession> targets, HashSet<string> warded, double dt)
     {
         // Safety net: a machine that ended up inside a parked ship (ship placed/grown over it) is pushed back
@@ -397,6 +411,24 @@ public sealed partial class GameServer
         {
             return false; // #2278: dazed by a shock-glove push — it stands where the push left it
         }
+
+        bool drone = enemy.Kind == CombatEntityKind.ScanDrone;
+        int hover = drone ? ScanDroneHover : 0; // scan-drones float above the ground
+        // Ground from REAL blocks (like creatures, #650), not the pure noise surface, so machines honour
+        // stamped structures and player edits instead of walking on air over them (#711). The reference Y
+        // is the feet (a drone's hover offset removed); noise surface only when the chunk isn't loaded.
+        int refY = (int)System.Math.Floor(enemy.Position.Y) - hover;
+        int ownX = (int)System.Math.Floor(enemy.Position.X), ownZ = (int)System.Math.Floor(enemy.Position.Z);
+        int prevGround = drone ? GroundFeetYAt(ownX, ownZ, refY) : WalkerFeetAt(ownX, ownZ, refY);
+
+        // #2554: a walking robot that stands in water deeper than it wades — a pond dug or flooded around it, a
+        // push, an older spawn — neither hunts nor patrols down there: it walks out to the nearest dry ground first.
+        if (!drone && MachineWaterDepth(ownX, ownZ, prevGround) > MachineWadeDepth)
+        {
+            return WadeOutOfWater(enemy, targets, ownX, ownZ, prevGround, dt);
+        }
+
+        ForgetWadePlan(enemy.Id); // out of the deep water (or never in it): no exit plan to keep
 
         // Nearest detectable player — cloaked, god-mode and companion-warded players read as undetectable, so
         // the machine never paths toward them.
@@ -434,7 +466,6 @@ public sealed partial class GameServer
             }
         }
 
-        bool drone = enemy.Kind == CombatEntityKind.ScanDrone;
         var profile = drone ? DroneProfile : (enemy.Kind == CombatEntityKind.AlienMonster ? ToughRobotProfile : RobotProfile);
 
         MoveMode intent;
@@ -477,13 +508,8 @@ public sealed partial class GameServer
 
         float nx = (float)WorldConstants.WrapX(res.Position.X, _world.Circumference);
         float nz = (float)WorldConstants.WrapZ(res.Position.Z, _world.Circumference);
-        int hover = drone ? ScanDroneHover : 0;          // scan-drones float above the ground
-        float bob = drone ? DroneBob * res.VertWave : 0f; // ...and hover-bob; robots stay grounded
-        // Ground from REAL blocks (like creatures, #650), not the pure noise surface, so machines honour
-        // stamped structures and player edits instead of walking on air over them (#711). The reference Y
-        // is the feet (a drone's hover offset removed); noise surface only when the chunk isn't loaded.
-        int refY = (int)System.Math.Floor(enemy.Position.Y) - hover;
-        int prevGround = GroundFeetYAt((int)System.Math.Floor(enemy.Position.X), (int)System.Math.Floor(enemy.Position.Z), refY);
+        float bob = drone ? DroneBob * res.VertWave : 0f; // scan-drones hover-bob; robots stay grounded
+        int nextX = (int)System.Math.Floor(nx), nextZ = (int)System.Math.Floor(nz);
         // #1482: the destination column is read from REAL blocks only. The old probe fell back to the noise
         // surface when nothing standable sat within its ±6 window — which is exactly what a wall taller than
         // six blocks looks like from its foot — so a walking robot read a seven-block wall as level ground
@@ -493,11 +519,20 @@ public sealed partial class GameServer
         // hover clears three; anything higher is an obstacle. (The standable probe already demands two free
         // cells above the feet, so a walker's body never lands inside a wall; a drone keeps weaving through
         // tree crowns and trunks at hover height as it always has.)
-        if (!MachineGroundAt((int)System.Math.Floor(nx), (int)System.Math.Floor(nz), refY, out int groundY)
+        if (!MachineGroundAt(nextX, nextZ, refY, realWaterBed: !drone, out int groundY)
             || groundY - prevGround > (drone ? ScanDroneHover - 1 : MachineStepUp)
-            || prevGround - groundY > 3)
+            || prevGround - groundY > MachineStepDown)
         {
             enemy.Loco.ModeTimer = 0f; // wall/cliff/spike in the way — pick a new direction next tick
+            return false;
+        }
+
+        // #2554: water deeper than a walking robot wades is a wall to it, chasing or patrolling alike — a chaser stops
+        // at the shore, a patroller turns back. It used to walk the lake bed under water (a column of water was "no
+        // wall"), which read as a glitch and left a robot nobody could fight properly. A drone hovers over a lake as before.
+        if (!drone && MachineWaterDepth(nextX, nextZ, groundY) > MachineWadeDepth)
+        {
+            enemy.Loco.ModeTimer = 0f;
             return false;
         }
 
@@ -531,12 +566,65 @@ public sealed partial class GameServer
     /// <summary>Blocks a walking machine steps up in one go (#1482): a natural two-block ledge, never a three-block wall.</summary>
     private const int MachineStepUp = 2;
 
+    /// <summary>Blocks a machine steps down in one go; a deeper drop is a cliff it turns away from.</summary>
+    private const int MachineStepDown = 3;
+
+    /// <summary>Water a walking robot wades through (#2554): one block, like a land animal
+    /// (<see cref="CreatureBehaviour.TerrainStepBlocked"/>); two or more is a wall to it.</summary>
+    private const int MachineWadeDepth = 1;
+
+    /// <summary>How many cells up from the feet <see cref="MachineWaterDepth"/> looks: past a stack of seabed plants
+    /// (an underwater forest's kelp grows twelve cells tall) to the water above them.</summary>
+    private const int MachineWaterScan = 16;
+
+    /// <summary>How far (columns, each way) a robot standing in deep water searches for dry ground (#2554): the
+    /// search runs in a fixed (2r+1)² grid, so it is bounded and allocation-free.</summary>
+    private const int MachineExitRadius = 12;
+
+    private const int MachineExitSide = (2 * MachineExitRadius) + 1;
+
+    /// <summary>Blocks per second a robot walks out of deep water — its patrol pace.</summary>
+    private const float MachineWadeOutSpeed = EnemyWanderSpeed;
+
+    // #2554: reused buffers of the water-exit search (one search at a time on the tick thread, no per-tick allocation).
+    private readonly int[] _exitQueue = new int[MachineExitSide * MachineExitSide];
+    private readonly int[] _exitFeet = new int[MachineExitSide * MachineExitSide];
+    private readonly int[] _exitParent = new int[MachineExitSide * MachineExitSide];
+    private readonly int[] _exitSeen = new int[MachineExitSide * MachineExitSide];
+    private int _exitStamp;
+    private readonly List<CombatEntity> _strandedMachines = new(); // robots with no way out of deep water this tick
+    private System.Func<int, int, int, ushort>? _machineBlockAt;   // no-load block read for WetCell, cached once
+
+    /// <summary>Shortest gap (seconds of the robot's own walking) between two water-exit searches for one robot (#2554).</summary>
+    private const double MachineWadeReplanSeconds = 0.5;
+
+    /// <summary>#2554: a robot's planned way out of deep water — the column it planned from, the side neighbour it walks
+    /// into, the seconds since the plan, and whether the planned step failed — so the search runs about once per column
+    /// crossed instead of every tick. A struct in a dictionary keyed by the robot's id: no allocation per tick.</summary>
+    private struct WadePlan
+    {
+        public int FromX, FromZ, StepX, StepZ;
+        public double Age;
+        public bool Stale;
+    }
+
+    private readonly Dictionary<string, WadePlan> _wadePlans = new();
+    private int _waterExitSearches; // test seam: how often TryFindWaterExit ran
+
     /// <summary>The feet cell a planet machine would rest on in a column (#1482): a REAL standable cell near the
     /// reference height, or the generator surface when the column's chunk is not loaded or the column is water /
-    /// lava in the probe window (a lake is no wall — machines cross it the way they always did, on the noise
+    /// lava in the probe window (a lake is no wall to a drone — it crosses it the way it always did, on the noise
     /// surface). A loaded column with nothing standable and no fluid in the window is solid ground-to-sky as
     /// far as the machine can see: a wall.</summary>
     private bool MachineGroundAt(int x, int z, int refY, out int feetY)
+        => MachineGroundAt(x, z, refY, realWaterBed: false, out feetY);
+
+    /// <summary>As <see cref="MachineGroundAt(int, int, int, out int)"/>; with <paramref name="realWaterBed"/> (a
+    /// walking robot, #2554) a loaded WATER column answers the feet on its real bed — the lowest water (or plant in
+    /// water) cell of the body in the probe window — instead of the generator's surface, which knows nothing of a
+    /// pond the player dug and flooded. The walker's water gate measures the depth from there. Lava, and a water
+    /// column that hangs in the air (a waterfall), keep the generator surface as before.</summary>
+    private bool MachineGroundAt(int x, int z, int refY, bool realWaterBed, out int feetY)
     {
         if (TryGroundFeetYAt(x, z, refY, out feetY))
         {
@@ -544,19 +632,374 @@ public sealed partial class GameServer
         }
 
         bool loaded = _world.IsChunkLoaded(WorldConstants.WorldToChunk(new Vector3i(x, refY, z)));
-        bool fluidColumn = false;
-        for (int dy = -CreatureGroundScan; dy <= CreatureGroundScan && loaded && !fluidColumn; dy++)
+        int fluidTop = int.MinValue; // the topmost fluid cell in the probe window
+        for (int dy = CreatureGroundScan; dy >= -CreatureGroundScan && loaded; dy--)
         {
-            fluidColumn = IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, refY + dy, z)).Value);
+            if (IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, refY + dy, z)).Value))
+            {
+                fluidTop = refY + dy;
+                break;
+            }
         }
 
-        if (!loaded || fluidColumn)
+        if (loaded && fluidTop == int.MinValue)
         {
-            feetY = _generator.SurfaceHeight(_world.Planet, x, z) + 1; // off-screen or over water: the noise surface, as before
+            return false;
+        }
+
+        if (realWaterBed && loaded && _waterId != 0 && _world.GetBlockIfLoaded(new Vector3i(x, fluidTop, z)).Value == _waterId)
+        {
+            int y = fluidTop;
+            int floor = fluidTop - FluidColumnScan;
+            while (y > floor && MachineCellWet(x, y - 1, z))
+            {
+                y--;
+            }
+
+            if (IsSupportCell(x, y - 1, z))
+            {
+                feetY = y; // on the bed, in the water
+                return true;
+            }
+        }
+
+        feetY = _generator.SurfaceHeight(_world.Planet, x, z) + 1; // off-screen or over a fluid: the noise surface, as before
+        return true;
+    }
+
+    /// <summary>A walking robot's feet in its own column: <see cref="MachineGroundAt(int, int, int, bool, out int)"/>
+    /// with the real water bed, or the creatures' probe (generator surface fallback) when the column reads as a wall.</summary>
+    private int WalkerFeetAt(int x, int z, int refY)
+        => MachineGroundAt(x, z, refY, realWaterBed: true, out int feet) ? feet : GroundFeetYAt(x, z, refY);
+
+    /// <summary>How deep the water stands on feet at <paramref name="feetY"/> (#2554), capped at
+    /// <see cref="MachineWadeDepth"/> + 1 (0 = dry, 1 = wading, 2 = too deep): the cells from the feet up that are
+    /// water — or a plant, prop or building form that the water fills (<see cref="WetCell"/>'s rule) or that stands in
+    /// a stack of such cells with water above it, so seabed kelp, seagrass and coral under a lake count as the lake.
+    /// Real blocks where the column is loaded; the generator's water body elsewhere. No-load reads.</summary>
+    private int MachineWaterDepth(int x, int z, int feetY)
+    {
+        const int Cap = MachineWadeDepth + 1;
+        if (_waterId == 0)
+        {
+            return 0;
+        }
+
+        if (!_world.IsChunkLoaded(WorldConstants.WorldToChunk(new Vector3i(x, feetY, z))))
+        {
+            int cx = WorldConstants.WrapX(x, _world.Circumference), cz = WorldConstants.WrapZ(z, _world.Circumference);
+            return _generator.TryGetWaterSurface(_world.Planet, cx, cz, out int top, out _) && top >= feetY
+                ? System.Math.Min(top - feetY + 1, Cap)
+                : 0;
+        }
+
+        _machineBlockAt ??= (bx, by, bz) => _world.GetBlockIfLoaded(new Vector3i(bx, by, bz)).Value;
+        int depth = 0, pending = 0; // pending: plant cells below that count only if water turns up above them
+        for (int y = feetY; y < feetY + MachineWaterScan && depth < Cap; y++)
+        {
+            var id = _world.GetBlockIfLoaded(new Vector3i(x, y, z));
+            if (id.Value == _waterId)
+            {
+                depth += pending + 1;
+                pending = 0;
+            }
+            else if (!id.IsAir && MachineNonFullCell(id, new Vector3i(x, y, z)))
+            {
+                if (WetCell.WaterSurrounds(_machineBlockAt, _waterId, x, y, z))
+                {
+                    depth += pending + 1;
+                    pending = 0;
+                }
+                else
+                {
+                    pending++;
+                }
+            }
+            else
+            {
+                break; // air or a full block: the water above the feet ends here
+            }
+        }
+
+        return System.Math.Min(depth, Cap);
+    }
+
+    /// <summary>Whether a cell is wet for <see cref="MachineGroundAt(int, int, int, bool, out int)"/>'s bed descent:
+    /// water, or a plant / prop / form that water surrounds (<see cref="WetCell.IsWet"/>), or a plant with a wet cell
+    /// straight above it (the foot of a kelp stalk in a kelp forest).</summary>
+    private bool MachineCellWet(int x, int y, int z)
+    {
+        var id = _world.GetBlockIfLoaded(new Vector3i(x, y, z));
+        if (id.Value == _waterId)
+        {
             return true;
         }
 
-        return false;
+        if (id.IsAir || !MachineNonFullCell(id, new Vector3i(x, y, z)))
+        {
+            return false;
+        }
+
+        _machineBlockAt ??= (bx, by, bz) => _world.GetBlockIfLoaded(new Vector3i(bx, by, bz)).Value;
+        if (WetCell.WaterSurrounds(_machineBlockAt, _waterId, x, y, z))
+        {
+            return true;
+        }
+
+        // The bed descent comes from above, so the cell above was wet already: a stalk standing in the lake.
+        var above = _world.GetBlockIfLoaded(new Vector3i(x, y + 1, z));
+        return above.Value == _waterId || (!above.IsAir && MachineNonFullCell(above, new Vector3i(x, y + 1, z)));
+    }
+
+    /// <summary>A block that fills only part of its cell (#1902): every plant, the slim props, a non-cube building form.</summary>
+    private bool MachineNonFullCell(BlockId id, Vector3i pos)
+        => WetCell.IsNonFullKey(_content.BlockById(id)?.Key) || !ShapeCode.IsCube(_world.GetShapeIfLoaded(pos));
+
+    /// <summary>#2554: a walking robot standing in water deeper than it wades walks out — straight at the next column
+    /// of the shortest walkable path (<see cref="TryFindWaterExit"/>) to the nearest dry ground, at its patrol pace,
+    /// re-planned once it stands in a new column or its step is refused (<see cref="WadePlan"/>, at most every
+    /// <see cref="MachineWadeReplanSeconds"/>), so each stride goes between two columns the search approved. It neither hunts nor
+    /// patrols until it is out (its damage aura still works). A robot with no way out within
+    /// <see cref="MachineExitRadius"/> — a flooded pit with sheer walls — powers down: it is removed after the
+    /// movement pass, like a machine left far behind. Returns true when it moved.</summary>
+    private bool WadeOutOfWater(CombatEntity enemy, List<PlayerSession> targets, int ownX, int ownZ, int feet, double dt)
+    {
+        // The search runs when there is no plan yet, and again once the robot stands in a new column (normally the step it
+        // was walking to) or the planned step failed — at most every MachineWadeReplanSeconds, never per tick.
+        bool planned = _wadePlans.TryGetValue(enemy.Id, out var plan);
+        plan.Age += dt;
+        if (!planned || ((plan.FromX != ownX || plan.FromZ != ownZ || plan.Stale) && plan.Age >= MachineWadeReplanSeconds))
+        {
+            if (!TryFindWaterExit(ownX, ownZ, feet, out int nextX, out int nextZ))
+            {
+                _wadePlans.Remove(enemy.Id);
+                _strandedMachines.Add(enemy);
+                return false;
+            }
+
+            plan = new WadePlan { FromX = ownX, FromZ = ownZ, StepX = nextX, StepZ = nextZ };
+        }
+
+        _wadePlans[enemy.Id] = plan;
+        int stepX = plan.StepX, stepZ = plan.StepZ;
+
+        // The next column's centre in the robot's own (unwrapped) frame: a straight line from inside one column to the
+        // centre of a side neighbour crosses only those two columns.
+        float dx = stepX + 0.5f - enemy.Position.X;
+        float dz = stepZ + 0.5f - enemy.Position.Z;
+        float dist = (float)System.Math.Sqrt((dx * dx) + (dz * dz));
+        float stride = System.Math.Min(MachineWadeOutSpeed * (float)dt, dist);
+        if (stride <= 1e-4f)
+        {
+            return false;
+        }
+
+        float nx = (float)WorldConstants.WrapX(enemy.Position.X + (dx / dist * stride), _world.Circumference);
+        float nz = (float)WorldConstants.WrapZ(enemy.Position.Z + (dz / dist * stride), _world.Circumference);
+        if (!MachineGroundAt((int)System.Math.Floor(nx), (int)System.Math.Floor(nz), feet, realWaterBed: true, out int groundY)
+            || groundY - feet > MachineStepUp || feet - groundY > MachineStepDown)
+        {
+            MarkWadePlanStale(enemy.Id); // the world changed under the plan — search again (throttled)
+            return false;
+        }
+
+        var candidate = new Vector3f(nx, groundY, nz);
+        if (EntityBlockedByShip(candidate) || BlockedByEnergyFence(enemy.Position, candidate))
+        {
+            MarkWadePlanStale(enemy.Id);
+            return false;
+        }
+
+        foreach (var s in targets)
+        {
+            if (WrapDistSq(s.State.Position, candidate) <= EnemyStopRange * EnemyStopRange)
+            {
+                return false; // never into a player's body (#749)
+            }
+        }
+
+        enemy.Loco.Heading = (float)System.Math.Atan2(dz, dx);
+        enemy.Loco.Speed = MachineWadeOutSpeed;
+        enemy.Loco.ModeTimer = 0f; // once out, it picks a fresh patrol heading
+        enemy.Position = candidate;
+        return true;
+    }
+
+    /// <summary>Flags a robot's water-exit plan for a new search (#2554) — its planned step was refused.</summary>
+    private void MarkWadePlanStale(string enemyId)
+    {
+        if (_wadePlans.TryGetValue(enemyId, out var plan))
+        {
+            plan.Stale = true;
+            _wadePlans[enemyId] = plan;
+        }
+    }
+
+    /// <summary>Drops a robot's water-exit plan (#2554): it is out of the deep water, gone or destroyed.</summary>
+    private void ForgetWadePlan(string enemyId)
+    {
+        if (_wadePlans.Count > 0)
+        {
+            _wadePlans.Remove(enemyId);
+        }
+    }
+
+    /// <summary>#2554: a breadth-first search over the columns around a robot standing in deep water, by the robot's
+    /// own step rules (up <see cref="MachineStepUp"/>, down <see cref="MachineStepDown"/>, no ship hull, no energy
+    /// fence; any water depth on the way — it is in the water already), for the nearest column where the water on
+    /// its feet is gone — or, if no dry ground is in reach, one it can wade. Answers the FIRST step of that path (a
+    /// side neighbour of the robot's column). Bounded by <see cref="MachineExitRadius"/>; reuses fixed buffers.</summary>
+    private bool TryFindWaterExit(int ownX, int ownZ, int feet, out int stepX, out int stepZ)
+    {
+        stepX = ownX;
+        stepZ = ownZ;
+        _waterExitSearches++;
+        if (++_exitStamp == int.MaxValue)
+        {
+            System.Array.Clear(_exitSeen, 0, _exitSeen.Length);
+            _exitStamp = 1;
+        }
+
+        int start = (MachineExitRadius * MachineExitSide) + MachineExitRadius;
+        int head = 0, tail = 0;
+        _exitQueue[tail++] = start;
+        _exitSeen[start] = _exitStamp;
+        _exitFeet[start] = feet;
+        _exitParent[start] = -1;
+        int goal = -1, wade = -1;
+        while (head < tail && goal < 0)
+        {
+            int i = _exitQueue[head++];
+            int gx = i % MachineExitSide, gz = i / MachineExitSide;
+            int fromFeet = _exitFeet[i];
+            int fromX = ownX + gx - MachineExitRadius, fromZ = ownZ + gz - MachineExitRadius;
+            foreach (var (ddx, ddz) in WallFillDirs)
+            {
+                int ngx = gx + ddx, ngz = gz + ddz;
+                if (ngx < 0 || ngz < 0 || ngx >= MachineExitSide || ngz >= MachineExitSide)
+                {
+                    continue;
+                }
+
+                int j = (ngz * MachineExitSide) + ngx;
+                if (_exitSeen[j] == _exitStamp)
+                {
+                    continue;
+                }
+
+                int cx = fromX + ddx, cz = fromZ + ddz;
+                if (!MachineGroundAt(cx, cz, fromFeet, realWaterBed: true, out int f)
+                    || f - fromFeet > MachineStepUp || fromFeet - f > MachineStepDown)
+                {
+                    continue; // not from here — another neighbour may still reach it
+                }
+
+                var from = new Vector3f(WorldConstants.WrapX(fromX, _world.Circumference) + 0.5f, fromFeet,
+                    WorldConstants.WrapZ(fromZ, _world.Circumference) + 0.5f);
+                var to = new Vector3f(WorldConstants.WrapX(cx, _world.Circumference) + 0.5f, f,
+                    WorldConstants.WrapZ(cz, _world.Circumference) + 0.5f);
+                if (EntityBlockedByShip(to) || BlockedByEnergyFence(from, to))
+                {
+                    continue;
+                }
+
+                _exitSeen[j] = _exitStamp;
+                _exitFeet[j] = f;
+                _exitParent[j] = i;
+                int depth = MachineWaterDepth(cx, cz, f);
+                if (depth == 0)
+                {
+                    goal = j;
+                    break;
+                }
+
+                if (depth <= MachineWadeDepth && wade < 0)
+                {
+                    wade = j;
+                }
+
+                _exitQueue[tail++] = j;
+            }
+        }
+
+        if (goal < 0)
+        {
+            goal = wade;
+        }
+
+        if (goal < 0)
+        {
+            return false;
+        }
+
+        int k = goal;
+        while (_exitParent[k] != start)
+        {
+            k = _exitParent[k];
+        }
+
+        stepX = ownX + (k % MachineExitSide) - MachineExitRadius;
+        stepZ = ownZ + (k / MachineExitSide) - MachineExitRadius;
+        return true;
+    }
+
+    /// <summary>Drops the robots that found no way out of deep water this tick (#2554) — after the movement pass, which
+    /// iterates the list. Returns true when any went.</summary>
+    private bool RemoveStrandedMachines()
+    {
+        if (_strandedMachines.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var e in _strandedMachines)
+        {
+            _planetEnemies.Remove(e);
+            _enemyWander.Remove(e.Id);
+            _enemySightSeenAt.Remove(e.Id);
+            ForgetWadePlan(e.Id);
+        }
+
+        _strandedMachines.Clear();
+        return true;
+    }
+
+    /// <summary>A walking Guardian robot (not the hovering scan-drone, not a bandit) — the machines the water rule binds.</summary>
+    private static bool IsWalkingMachine(CombatEntity e) => e.Kind is CombatEntityKind.Creature or CombatEntityKind.AlienMonster;
+
+    /// <summary>The water on a planet machine's or bandit's feet for the /bump snapshot (#2555): "dry", "wading" or
+    /// "deep" — measured at its own cell (a hovering drone's body, not the ground under it).</summary>
+    private string MachineWaterWord(CombatEntity e)
+        => MachineWaterDepth((int)System.Math.Floor(e.Position.X), (int)System.Math.Floor(e.Position.Z), (int)System.Math.Floor(e.Position.Y)) switch
+        {
+            0 => "dry",
+            1 => "wading",
+            _ => "deep",
+        };
+
+    /// <summary>What a planet machine or bandit is doing, in a word, for the /bump snapshot (#2555): dazed by a push,
+    /// leaving deep water, or its locomotion mode — chasing (it locked on to a player, or a bandit heads for its mark /
+    /// camp), patrolling, pausing between patrol legs, fleeing.</summary>
+    private string MachineMotionWord(CombatEntity e)
+    {
+        if (IsStaggered(e))
+        {
+            return "dazed";
+        }
+
+        if (IsWalkingMachine(e) && MachineWaterDepth((int)System.Math.Floor(e.Position.X), (int)System.Math.Floor(e.Position.Z),
+                (int)System.Math.Floor(e.Position.Y)) > MachineWadeDepth)
+        {
+            return "leavingWater";
+        }
+
+        return e.Loco.Mode switch
+        {
+            MoveMode.Seek => "chasing",
+            MoveMode.Flee => "fleeing",
+            MoveMode.Pause => "pausing",
+            _ => "patrolling",
+        };
     }
 
     /// <summary>Returns <paramref name="to"/> expressed in <paramref name="from"/>'s local frame across the world's
@@ -566,7 +1009,14 @@ public sealed partial class GameServer
         to.Y,
         from.Z + (float)WorldConstants.WrapDeltaZ(to.Z - from.Z, _world.Circumference));
 
-    private void SpawnPlanetEnemyNear(Shared.State.PlayerState player, bool asDrone)
+    /// <summary>Spots a walking robot's spawn tries (#2554) before it gives up for this interval: the classic spot first,
+    /// then the next golden-angle slots around the same anchor.</summary>
+    private const int PlanetEnemySpawnTries = 6;
+
+    /// <summary>Spawns one planet machine near <paramref name="player"/> (or at a wreck / SPS lab near them). A walking
+    /// robot never appears with water on its feet (#2554): a wet spot is passed over for the next slot, and when every
+    /// try is wet nothing spawns (returns false). A hovering scan-drone takes the classic spot as before.</summary>
+    private bool SpawnPlanetEnemyNear(Shared.State.PlayerState player, bool asDrone)
     {
         // Frontier danger (#1122, opt-in world rule): out in the full-frontier tier the machines hit like
         // the Frequent/Extreme ones — never in the home system, never unless the admin switched it on
@@ -574,20 +1024,13 @@ public sealed partial class GameServer
         bool tougher = !asDrone && (Rules.PlanetEnemies is AlienActivity.Frequent or AlienActivity.Extreme
             || (Rules.FrontierDanger && FrontierTierForBody(_world.LocationId) >= 2));
 
-        // Spawn well OUTSIDE the 28-block detection range (9–13 felt like an ambush): fiends appear
-        // 35–50 blocks out, roam the area on wander headings, and only start hunting when the player
-        // comes near them. Spread around the player with the golden angle, then drop onto the actual
-        // surface at that column so they never spawn buried in the terrain.
         int n = _planetEnemies.Count;
-        double ang = n * 2.39996323; // golden angle (radians)
-        float dist = 35f + (n % 4) * 5f; // 35..50 blocks out — beyond EnemyHuntRange
-        int ex = (int)System.Math.Round(player.Position.X + System.Math.Cos(ang) * dist);
-        int ez = (int)System.Math.Round(player.Position.Z + System.Math.Sin(ang) * dist);
 
         // Count-neutral wreck coupling (P5): when a wreck is near the player, bias THIS spawn's position to
         // cluster at the wreck (the count + cadence are unchanged — only where it appears), and make a
         // wreck-spawned machine hit harder. Crashed network tech becomes a danger zone you learn to read.
         bool atWreck = false;
+        float wreckX = 0f, wreckZ = 0f;
         if (Rules.MachineWreckCoupling && _worlds.Active.WreckStamped && _worlds.Active.WreckMarkers.Count > 0)
         {
             var markers = _worlds.Active.WreckMarkers;
@@ -597,30 +1040,63 @@ public sealed partial class GameServer
             float wdz = cz - player.Position.Z;
             if (wdx * wdx + wdz * wdz <= WreckCouplingRange * WreckCouplingRange)
             {
-                double wang = n * 2.39996323;
-                float wr = 4f + (n % 4) * 3f; // 4..13 blocks around the wreck centroid
-                // Leave ex unwrapped (like the golden-angle path) so it stays in the same coordinate space as
-                // the wreck markers; SurfaceHeight wraps internally.
-                ex = (int)System.Math.Round(cx + System.Math.Cos(wang) * wr);
-                ez = (int)System.Math.Round(cz + System.Math.Sin(wang) * wr);
                 atWreck = true;
+                wreckX = cx;
+                wreckZ = cz;
             }
         }
 
         // 2026-09 (Titas): near an abandoned SPS lab the machines gather at the lab — they still guard it.
-        if (!atWreck && NearestSpsLab(player.Position, SpsLabGuardRange) is { } lab)
+        var lab = atWreck ? null : NearestSpsLab(player.Position, SpsLabGuardRange);
+
+        int ex = 0, ez = 0, ey = 0;
+        bool placed = false;
+        for (int attempt = 0; attempt < (asDrone ? 1 : PlanetEnemySpawnTries) && !placed; attempt++)
         {
-            double lang = n * 2.39996323;
-            float lr = 20f + (n % 4) * 4f; // 20..32 blocks around the compound's centre — just outside its modules
-            ex = (int)System.Math.Round(lab.X + System.Math.Cos(lang) * lr);
-            ez = (int)System.Math.Round(lab.Z + System.Math.Sin(lang) * lr);
+            int slot = n + attempt; // attempt 0 is the classic spot
+            double ang = slot * 2.39996323; // golden angle (radians)
+            if (atWreck)
+            {
+                float wr = 4f + (slot % 4) * 3f; // 4..13 blocks around the wreck centroid
+                // Leave ex unwrapped (like the golden-angle path) so it stays in the same coordinate space as
+                // the wreck markers; SurfaceHeight wraps internally.
+                ex = (int)System.Math.Round(wreckX + System.Math.Cos(ang) * wr);
+                ez = (int)System.Math.Round(wreckZ + System.Math.Sin(ang) * wr);
+            }
+            else if (lab is { } l)
+            {
+                float lr = 20f + (slot % 4) * 4f; // 20..32 blocks around the compound's centre — just outside its modules
+                ex = (int)System.Math.Round(l.X + System.Math.Cos(ang) * lr);
+                ez = (int)System.Math.Round(l.Z + System.Math.Sin(ang) * lr);
+            }
+            else
+            {
+                // Spawn well OUTSIDE the 28-block detection range (9–13 felt like an ambush): fiends appear
+                // 35–50 blocks out, roam the area on wander headings, and only start hunting when the player
+                // comes near them. Spread around the player with the golden angle, then drop onto the actual
+                // surface at that column so they never spawn buried in the terrain.
+                float dist = 35f + (slot % 4) * 5f; // 35..50 blocks out — beyond EnemyHuntRange
+                ex = (int)System.Math.Round(player.Position.X + System.Math.Cos(ang) * dist);
+                ez = (int)System.Math.Round(player.Position.Z + System.Math.Sin(ang) * dist);
+            }
+
+            // Stand on the ground, not in it — real blocks when the column is loaded, noise surface otherwise.
+            int refY = _generator.SurfaceHeight(_world.Planet, ex, ez) + 1;
+            if (asDrone)
+            {
+                ey = GroundFeetYAt(ex, ez, refY) + ScanDroneHover; // the flying scan-drone hovers above the surface
+                placed = true;
+            }
+            else
+            {
+                ey = WalkerFeetAt(ex, ez, refY);
+                placed = MachineWaterDepth(ex, ez, ey) == 0; // #2554: no water on a walking robot's feet
+            }
         }
 
-        // Stand on the ground, not in it — real blocks when the column is loaded, noise surface otherwise.
-        int ey = GroundFeetYAt(ex, ez, _generator.SurfaceHeight(_world.Planet, ex, ez) + 1);
-        if (asDrone)
+        if (!placed)
         {
-            ey += ScanDroneHover; // the flying scan-drone hovers above the surface
+            return false;
         }
 
         float hull = asDrone ? 25f : (tougher ? 60f : 30f);
@@ -638,6 +1114,7 @@ public sealed partial class GameServer
             DamagePerSecond = (asDrone ? 2f : (tougher ? 6f : 4f)) * (atWreck ? 1.5f : 1f), // wreck machines are angrier
             Loot = { new ItemAmount("carbon", 2) }, // all Guardian machines drop salvage carbon
         });
+        return true;
     }
 
     private const float WreckCouplingRange = 64f; // bias spawns to a wreck within this of the player (P5)
@@ -840,6 +1317,7 @@ public sealed partial class GameServer
 
         list.Remove(target);
         _enemyWander.Remove(target.Id); // drop the dead enemy's wander state
+        ForgetWadePlan(target.Id);
         var pool = new MaterialPool(_content, p, _ship);
         // The kill already happened, so the loot cannot be refused — a full inventory drops it at the fallen
         // enemy's feet instead of losing it (#853).
@@ -1007,4 +1485,11 @@ public sealed partial class GameServer
 
     /// <summary>Test/util: run one enemy tick for the active world without the rest of the simulation.</summary>
     public void TickEnemiesForTest(double dt) => TickEnemies(dt);
+
+    /// <summary>Test seam (#2554): the water standing on feet at (<paramref name="x"/>, <paramref name="feetY"/>,
+    /// <paramref name="z"/>) as a walking robot measures it — 0 dry, 1 wading, 2 too deep.</summary>
+    public int MachineWaterDepthForTest(int x, int z, int feetY) => MachineWaterDepth(x, z, feetY);
+
+    /// <summary>Test seam (#2554): how many water-exit searches have run — once per column crossed, not per tick.</summary>
+    public int WaterExitSearchesForTest => _waterExitSearches;
 }

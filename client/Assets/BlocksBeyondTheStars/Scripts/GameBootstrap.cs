@@ -3221,12 +3221,16 @@ namespace BlocksBeyondTheStars.Client
                     OpenOverviewOnNextPlanetScan = false;
                     PlanetOverviewCard.Show(this, m); // #2239: the flight scanner read a planet — what awaits there
                     // #2247: the first card says once what the colours mean and where the report lives on — "once"
-                    // counting only a line that went out (#2462, B31: muted, it waits for a later card).
-                    if (Settings != null && !Settings.PlanetCardHintShown && m.Rows != null && m.Rows.Length > 0
-                        && VegaPanel.Instance?.SayLocal("vega.hint.planet_card") == true)
+                    // counting only a line that came up (#2462, B31: muted, it waits for a later card; #2551: dropped
+                    // unseen after waiting behind other lines, too).
+                    if (Settings != null && !Settings.PlanetCardHintShown && m.Rows != null && m.Rows.Length > 0)
                     {
-                        Settings.PlanetCardHintShown = true;
-                        Settings.Save();
+                        var settings = Settings;
+                        VegaPanel.Instance?.SayLocal("vega.hint.planet_card", () =>
+                        {
+                            settings.PlanetCardHintShown = true;
+                            settings.Save();
+                        });
                     }
                 }
             };

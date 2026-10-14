@@ -341,7 +341,8 @@ public sealed class HerdServerTests : IDisposable
             var sp = ForceBeggar(server, group: 12);
             var p = server.AddLocalPlayer("Bait");
             p.State.AboardShip = false;
-            const int cx = 300, cz = 300;
+            // The members stand on the generator's ground, not on the pad: dry ground, or they are refused (#2553).
+            var (cx, cz) = DryGround.Find(server, 16);
             int padY = BuildPad(server, cx, cz, 22);
             p.State.Position = new Vector3f(cx + 0.5f, padY + 1, cz + 0.5f);
 

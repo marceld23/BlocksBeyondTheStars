@@ -54,6 +54,7 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/FxSpaceDust",
             "BlocksBeyondTheStars/FxTunnel",
             "BlocksBeyondTheStars/FxCrack",
+            "BlocksBeyondTheStars/FxOutline", // #2556: the blue selection frame on the aimed block (MiningFx)
             "BlocksBeyondTheStars/HeatHaze",
             "BlocksBeyondTheStars/LitColor",
             "BlocksBeyondTheStars/Nebula",

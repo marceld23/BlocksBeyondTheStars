@@ -80,6 +80,38 @@ Eight F1 reports (all with their `/bump` twin) plus side findings — one PR:
   attacker arrow); the world story's chapter-lead marker is still a 30 s ping, the berries step (b2.3) never reaches
   its marker time (core steps leave the chip at the hint time).
 
+### 📬 Player reports 2026-10-14 (Bloody Mary, v2026.10.14) — epic #2557, branch fix/bloody-mary-reports-2026-10-14 — ✅ done 2026-10-14 (⚠ playtest open)
+
+Four F1 reports from a brand-new world (all with their `/bump` twin) plus three side findings — one PR:
+
+- **#2548 "the bar at the top shows your goal"** — there is no such bar; the objective chip sits directly below VEGA's
+  text. Both intro lines (`story.tutorial.b1.vega.start` / `_story`) say so now, in all 14 languages.
+- **#2549 advanced hints wait for the training** — new data-driven `gates.holdHints` in the tutorial pack (`StoryGates`):
+  `crystal_mined` and `poi` wait for part 5, `tier_gate` for part 3. A held hint spends nothing and fires at its next
+  occasion; nothing is held where the training does not run (off, skipped, done, short courses only, older clients).
+- **#2550 step b2.5 "walk away and back"** — measured like the compass (flat, wrap-aware, to the compass's ship point),
+  texts name the 40 m and the compass (top right), a one-time "far enough" line (new step field `midKey`).
+- **#2551 VEGA's queue** — Unity-free `VegaLineQueue` (Client.Core): situation lessons (climbing, scanner, chart, …)
+  expire unseen after 30 s and spend their once-flag only when shown; training-step lines overtake waiting hints;
+  story lines are never dropped.
+- **#2552 flying animals trapped in pond floors** — `RestSurfaceYAt` measured the hover height from the cave below a
+  pond; Air spawns started at bed + 4 inside ponds; seabed plants read as air pockets. (The reported "Guardian" was a
+  hostile flying animal.)
+- **#2553 land animals under water** — seabed plants with water above count as water for the 1-deep wading rule; no land
+  spawns on pond floors.
+- **#2554 walking Guardian robots** wade at most 1 deep and turn back (chase and patrol), stand on the real bed of a
+  flooded pit, walk out of deep water (bounded BFS; no way out within 12 columns → removed), never spawn in water;
+  `block.base_core.desc` / `srv.basewalls.rules` say so in all 14 languages.
+- **#2555 `/bump` snapshot** lists nearby planet machines and bandits (kind, motion, water state) and the player's
+  training progress (`tutorial.activeSteps`, `story:tutorial:*` / `vega:hint:*` milestones).
+- **#2556 selection outline** — new `BlocksBeyondTheStars/FxOutline` shader (Always-Included): one 12-ribbon mesh, thin
+  hologram-blue line on a dark backing (readable at night and on snow), minimum on-screen width, slow breathing, a data
+  packet along each edge and a rare flickering cell; still warms to orange while mining; still under Reduce flashes /
+  Reduced effects.
+- Docs: USER_MANUAL (VEGA panel + queue, training part 2, held hints, robots and water, `/bump`, `/basewalls`, the
+  selection frame), TUTORIAL_PACK, STORY_IMPLEMENTATION, VFX, PLAYER_FEEDBACK.
+- Open: playtest on the reporter's seed (−5938770429998441295, Vioraiel) once released.
+
 ### 📬 Player report 2026-10-14 (Lyxette, v2026.10.14) — epic #2546, branch fix/reports-2026-10-14-base-air — ✅ done 2026-10-14 (⚠ playtest open)
 
 An underground base in a reshaped cave on an airless world: the stairs next to the Grundstein breathed, the big,

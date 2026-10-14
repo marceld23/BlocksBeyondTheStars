@@ -320,6 +320,7 @@ public sealed partial class GameServer
         _bandits.Remove(target);
         _creatures.Remove(target);
         _enemyWander.Remove(target.Id);
+        ForgetWadePlan(target.Id); // #2554: a robot shot while wading out of deep water leaves no exit plan behind
 
         // #1699: an animal's remains are creature loot (the short-lived pickup packet), and its death rides
         // the creature list rather than the planet-enemy wire.

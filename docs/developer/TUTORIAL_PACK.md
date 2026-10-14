@@ -71,7 +71,7 @@ Every field is optional and defaults to today's behaviour.
 | `narrator` | `{ id, nameKey, icon, color, voice[], lineStart }` | `{ id: "vega" }` | who speaks (`ShipAiLine.Speaker`); an unknown id uses VEGA's style. #2495: `voice` = the chatter clips (`Resources/audio`) a cutscene speaker box plays while it types (empty: VEGA's `vega_chatter_1..3` for `vega`, none for another id); the validators require every `voice` clip and `lineStart` to exist |
 | `defaultEnabled` | bool | `true` | non-tutorial player packs: runs for everyone unless the player opts out |
 | `introCutscene` | cutscene id | — | played when the pack starts for the player — not on "I know the game", not for a veteran the pack completes for silently ([CUTSCENES.md](CUTSCENES.md#bindings--where-a-pack-plays-a-scene)) |
-| `gates` | `{ opportunityTips, banter, stationNear }` → condition | — | tutorial only: when the global advisor systems open (see [Gates](#gates)) |
+| `gates` | `{ opportunityTips, banter, stationNear }` → condition, plus `holdHints: { <hint id>: condition }` | — | tutorial only: when the global advisor systems open, and (#2549) which one-time VEGA hints wait until the training reaches their topic (see [Gates](#gates)) |
 | `escalate` | `{ hintAfter, markerAfter, offerSkipAfter }` seconds | 180 / 360 / 600 | the help escalation defaults; `0` switches a stage off |
 | `start` | `{ after: condition[], earlyOptIn }` | at the first join | when the pack starts for a player; `earlyOptIn` allows `startPack` before `after` holds |
 | `graduation` | `{ lineKey, counter, suggest[], cutscene }` | — | #2469: when a player finishes the mandatory chapters **by playing** (not skipped, not by migration evidence): the graduation cutscene (#2473, before the line, once per player), the closing line (a client with `packs1`; an older client of a tutorial hears `vega.done`), the achievement counter advanced once (`data/achievements.json` says which achievement watches it), up to three optional chapters marked offered (only those that are available and not done, declined or running). The end of a full restart (the last mandatory chapter's replay) graduates again; replaying one earlier chapter does not |
@@ -109,8 +109,8 @@ Every field is optional and defaults to today's behaviour.
 | `feasibleIf` | condition[] — false at activation ⇒ skipped silently, the `alternative` stands in (no dead ends); an alternative that is infeasible too is skipped as well |
 | `alternative` | another step of the same chapter that runs only standing in for this one (a `do` or a `read` step) |
 | `alreadyDoneIf` | condition[] — completes the step silently at activation (not during a replay) |
-| `variants` | `[{ when, startKey, chipKey, hintKey, doneKey }]` — whole-line texts per world rule; first match wins; empty fields fall back |
-| `explain` | `{ startKey, chipKey, hintKey, doneKey, moreGuide }` — start line, chip text, escalation hint, completion line, Codex article |
+| `variants` | `[{ when, startKey, chipKey, hintKey, doneKey, midKey }]` — whole-line texts per world rule; first match wins; empty fields fall back |
+| `explain` | `{ startKey, chipKey, hintKey, doneKey, midKey, moreGuide }` — start line, chip text, escalation hint, completion line, half-way line, Codex article. `midKey` (#2550) is spoken once per activation at the objective's half-way moment, before it completes — today only the walk-back objective `ship:returned`: the moment the player is far enough from the ship (it also restarts the help clock, like progress); other objectives never speak it |
 | `onStart` | `{ cutscene, reveal }` — the scene plays before the start line (not in a replay); `reveal` makes it a "where" step: `nearest_ore:<block>`, `nearest_settlement` or `nearest_food_plant` for the help marker (for this player only, never `RevealPoi`; on the map and the compass until the step is done or skipped, #2570), or `nearest_station` (#2471: the nearest station becomes the player's space waypoint, in flight or landed), or `unique_site:<observatory\|shrine\|derelict>` (#2476: the site's spot while the player is on its world) |
 | `onComplete` | `{ cutscene }` — plays before the done line when the step completes non-silently (it owned the chip, or a react step) |
 | `escalate` | per-step override of the pack's escalation |
@@ -228,11 +228,13 @@ player, a player pack has no beats, a world pack has beats); every condition par
 steps and blueprints; mission-bridge targets exist in `data/missions.json`; event keys are published (a warning — a pack
 may be written before its event ships); `ui:` only in a player pack's step objectives, and one of the flags a client
 reports (a warning otherwise); marker providers and their blocks; legacy keys (tutorial only, one of the nine stages, once
-each); alternatives within the chapter; no empty `hintRefs`; the graduation (its line in both languages within the line
+each); alternatives within the chapter; no empty `hintRefs`; `gates.holdHints` (#2549: a hint id without spaces and a
+condition that parses; a warning outside a tutorial); the graduation (its line in both languages within the line
 budget, a `<verb>:<thing>` counter, at most three suggested chapters that are optional chapters of the pack); **no rewards
 in a tutorial** (in the pack's own document — a bridged mission keeps the rewards it has in `data/missions.json`); every key in English **and** German; every cutscene binding resolves in the pack's `cutscenes.json` and
 the cutscenes follow their own rules ([CUTSCENES.md](CUTSCENES.md#validation)); the short name ≤ 10 characters; the text
-budget — basic-training lines (a tutorial's non-optional chapters) ≤ 120 EN / 145 DE, other step lines ≤ 200 / 240, chip
+budget — basic-training lines (start, hint, done and half-way lines of a tutorial's non-optional chapters) ≤ 120 EN /
+145 DE, other step lines ≤ 200 / 240, chip
 ≤ 45 / 53 (a `{key:…}` token counts 3, a `{0}` slot 10). The C# test also reads every pack strictly, so a misspelt field
 fails; the Python tool reports it as a warning. Neither tool ever changes a file.
 
@@ -254,7 +256,7 @@ Tier · kind: **M** = must, **C** = core · **do** / **read** / **react**. Event
 | **B1 First steps** | | | | | |
 | b1.1 | walk `{key:Move}`, look `{key:Look}` | `move:walked` × 8 | M · do | — | — |
 | b1.2 | jump, crouch at edges | `move:jump` | C · do | `creative_flight` → "press twice to fly" | — |
-| b1.3 | "I'm VEGA; the bar shows your goal" | `ui:vega_continue` | M · read | VEGA story → premise variant | — |
+| b1.3 | "I'm VEGA; right below my text you always see your goal" (the objective chip sits directly under VEGA's panel — #2548: never "the bar at the top") | `ui:vega_continue` | M · read | VEGA story → premise variant | — |
 | b1.4 | quick bar: slot 2 then slot 1 | `hotbar:select` × 2 | M · do | — | — |
 | b1.5 | the menu `{key:UiMenu}` | `ui:menu_open` | M · do | — | — |
 | b1.6 | the Codex | `ui:codex_open` | C · do | VEGA story → premise variant | — |
@@ -263,7 +265,7 @@ Tier · kind: **M** = must, **C** = core · **do** / **read** / **react**. Event
 | b2.2 | eat food `{key:Place}` | `eat:any` | M · do | `feasibleIf hunger` | eat |
 | b2.3 | bushes drop berries; marker `nearest_food_plant` | `item:gained` `berries` × 3 | C · do | `feasibleIf hunger, food_plants_near` | — |
 | b2.4 | the suit's ration dispenser | `suit:auto_feed` | C · react | `requires hunger` | — |
-| b2.5 | the compass's ship blip, the way back (absorbs `ship_far`) | `ship:returned` (`menu`/`teleport`/`walk`) | M · do | hint variants: starter teleporter, no "Back to my ship" | — |
+| b2.5 | the compass's ship blip (top right): walk 40 m away, then find the way back (absorbs `ship_far`). #2550: `walk` measures like the compass's "Ship N m" — flat and seam-aware, to the landed ship's anchor (`ShipPlacement`), with the compass's rounding (`Mathf.RoundToInt`, a .5 to the even metre): the compass reading 40 on foot (≥ 39.5 m), then aboard or reading 10 (≤ 10.5 m); only while the player's **own** step waits (the event bus is shared), and the step's activation starts the walk afresh; VEGA's half-way line (`midKey` "Far enough — now find your way back") once when the 40 m are reached; the hints remind of the 40 m | `ship:returned` (`menu`/`teleport`/`walk`) | M · do | hint variants: starter teleporter, no "Back to my ship" | — |
 | b2.6 | the lamp `{key:ToggleLamp}` (absorbs `night`, `lamp_off`) | `lamp:toggled` | C · do | — | — |
 | b2.7 | the suit fights cold/heat; a roof helps | `suit:climate` | C · react | `requires hazards` | — |
 | b2.8 | fainting is gentle | `player:respawned` | M · react | one line for every death rule | — |
@@ -657,6 +659,27 @@ The tutorial says when the global advisor systems open (`TutorialGate(session, g
 | `opportunityTips` | `all:[step:tutorial:b2.2, step:tutorial:b3.1, step:tutorial:b4.1]` — eating, mining and crafting done or skipped (the moment the old "scan" stage marked) | `OpportunityTipsOpen` → the `AfterScanStage` context tips and the progression sweep (`craftable_now`, `blueprint_affordable`) |
 | `banter` | `pack:tutorial:done` — the basic training done or skipped | `TickVegaBanterFor` (VEGA's LLM smalltalk) |
 | `stationNear` | `not:step:tutorial:b6.4` — while the docking step is open | the `station_near` tip |
+
+**Held hints (`gates.holdHints`, #2549).** Some one-time VEGA hints are about things the training only gets to later — the
+first crystal mined spoke of the comm radio and the Crystal Net while a player was still learning to walk back to the
+ship. `holdHints` maps a hint id (the `<id>` of `vega:hint:<id>`, a once-hint or a context tip) to the condition that
+**releases** it. While that condition fails for a player whose basic training runs, VEGA keeps the hint back **without
+spending it** — the once-flag stays unset (a context tip's telling is not counted either), so the hint comes at its next
+occasion after the release: the next crystal, the next second near a ruin, the next refused swing. Readers:
+`ShipAiHintOnce` (the once-hints) and the context-tip pass (`TickVegaContextTips`) — `TutorialHoldsHint` in
+`GameServerTutorial.cs`. The tool-tier tip's arming (the refused swing) is dropped while it is held, as for a muted
+panel: that tip is only worth hearing at the wall. Unlike the gates above, a hold applies only while the tutorial pack
+**runs** for the player — never with the world rule `Off`, `OptIn` not started, the player switched off, the pack done
+(graduated, or skipped — a skip also marks every mandatory chapter skipped, which `chapter:` counts), a `Courses` world
+(skipped at the start), or an older client (no `packs1`: its nine legacy lessons never mark the chapters these conditions
+ask for). Those players keep today's behaviour. Unlike `hintRefs` (a step that teaches the hint itself and books it as
+told when its line is shown), a held hint is simply postponed.
+
+| Hint | Released by | Why |
+|---|---|---|
+| `crystal_mined` | `chapter:tutorial:b5` | the Crystal Net, blueprints and the comm radio — after scanning and research (B5) |
+| `poi` | `chapter:tutorial:b5` | ruins and wrecks hold old tech — after B5 (the explorer course c18 teaches them) |
+| `tier_gate` | `chapter:tutorial:b2` | rock too hard for the drill — once B3 runs, where b3.3 explains it at the next wall |
 
 ### One teaching voice (G12)
 

@@ -357,6 +357,22 @@ public static class StoryPackValidator
             }
         }
 
+        // #2549: the hints the basic training holds back — hint id → the condition that releases it.
+        foreach (var hold in def.Gates?.HoldHints ?? new Dictionary<string, string>())
+        {
+            string hp = $"gates.{StoryGates.HoldHintsField}.{hold.Key}";
+            if (string.IsNullOrWhiteSpace(hold.Key) || hold.Key.Any(char.IsWhiteSpace))
+            {
+                Error(hp, "a hint id (the <id> of vega:hint:<id>) without spaces");
+            }
+
+            CheckCondition(hp, hold.Value);
+            if (!tutorial)
+            {
+                Warn(hp, "only a tutorial pack holds hints back");
+            }
+        }
+
         // ---- Keys and texts ----
         var keys = new List<(string Path, string Key, int MaxEn, int MaxDe)>();
         void Key(string path, string? key, int maxEn = 0, int maxDe = 0)
@@ -711,6 +727,7 @@ public static class StoryPackValidator
                 Key($"{sp}.explain.startKey", explain.StartKey, lineEn, lineDe);
                 Key($"{sp}.explain.hintKey", explain.HintKey, lineEn, lineDe);
                 Key($"{sp}.explain.doneKey", explain.DoneKey, lineEn, lineDe);
+                Key($"{sp}.explain.midKey", explain.MidKey, lineEn, lineDe); // #2550: the half-way line
                 Key($"{sp}.explain.chipKey", explain.ChipKey, ChipMaxEn, ChipMaxDe);
                 if (mission && string.IsNullOrEmpty(explain.ChipKey))
                 {
@@ -732,6 +749,7 @@ public static class StoryPackValidator
                     Key($"{vp}.startKey", variant.StartKey, lineEn, lineDe);
                     Key($"{vp}.hintKey", variant.HintKey, lineEn, lineDe);
                     Key($"{vp}.doneKey", variant.DoneKey, lineEn, lineDe);
+                    Key($"{vp}.midKey", variant.MidKey, lineEn, lineDe);
                     Key($"{vp}.chipKey", variant.ChipKey, ChipMaxEn, ChipMaxDe);
                 }
             }

@@ -696,6 +696,156 @@ public sealed class TutorialPackTests : IDisposable
         Assert.False(off.HintHeldByTutorialForTest(q, "lamp_off"));
     }
 
+    // ---------------- The hold list (#2549, gates.holdHints) ----------------
+
+    /// <summary>Plays the training one step at a time (<see cref="WalkThrough"/>) until <paramref name="stop"/> owns the
+    /// chip — a step id, or a chapter prefix such as "b3.".</summary>
+    private void PlayUntil(SvGameServer server, PlayerSession p, string stop)
+    {
+        for (int i = 0; i < 80; i++)
+        {
+            string? id = server.ChipStepForTest(p, Tutorial);
+            Assert.NotNull(id);
+            if (id == stop || (stop.EndsWith('.') && id!.StartsWith(stop, StringComparison.Ordinal)))
+            {
+                return;
+            }
+
+            WalkThrough(server, p, maxSteps: 1);
+        }
+
+        Assert.Fail($"the training never reached {stop}");
+    }
+
+    [Fact]
+    public void TheHoldList_KeepsAdvancedOnceHintsBack_WithoutSpendingThem_UntilTheTrainingReachesTheirTopic()
+    {
+        Assert.Equal(new[] { "crystal_mined", "poi", "tier_gate" }, Pack.Gates.HoldHints.Keys.OrderBy(x => x, StringComparer.Ordinal));
+        Assert.Equal(new[] { StoryGateNames.OpportunityTips, StoryGateNames.Banter, StoryGateNames.StationNear }.OrderBy(x => x),
+            Pack.Gates.Keys.OrderBy(x => x)); // the hold list is no gate of its own
+
+        var transport = new RecordingTransport();
+        var server = Boot("hold_list", transport);
+        var p = Join(server, 1, "Kid");
+        Assert.True(server.TutorialHoldsHintForTest(p, "crystal_mined"));
+        Assert.True(server.TutorialHoldsHintForTest(p, "poi"));
+        Assert.True(server.TutorialHoldsHintForTest(p, "tier_gate"));
+        Assert.False(server.TutorialHoldsHintForTest(p, "invfull")); // not on the list
+
+        // The first crystal and a ruin in part 1 (the report: "Crystal Net, blueprints …" before she could walk back to the
+        // ship): VEGA keeps both for later — the once-flags stay unset.
+        server.ShipAiHintOnceForTest(p, "crystal_mined");
+        server.ShipAiHintOnceForTest(p, "poi");
+        Assert.DoesNotContain("vega.hint.crystal_mined", transport.LineKeys(p));
+        Assert.DoesNotContain("vega.hint.poi", transport.LineKeys(p));
+        Assert.False(Has(p, "vega:hint:crystal_mined"));
+        Assert.False(Has(p, "vega:hint:poi"));
+
+        // Part 2 through: part 3 runs and explains the tool-tier wall itself, so that tip is released; the crystal and the
+        // ruins wait for part 5.
+        PlayUntil(server, p, "b3.");
+        Assert.False(server.TutorialHoldsHintForTest(p, "tier_gate"));
+        Assert.True(server.TutorialHoldsHintForTest(p, "crystal_mined"));
+        Assert.True(server.TutorialHoldsHintForTest(p, "poi"));
+
+        // Part 5 through: the next crystal and the next ruin get their line after all.
+        PlayUntil(server, p, "b6.");
+        Assert.False(server.TutorialHoldsHintForTest(p, "crystal_mined"));
+        Assert.False(server.TutorialHoldsHintForTest(p, "poi"));
+        server.ShipAiHintOnceForTest(p, "crystal_mined");
+        server.ShipAiHintOnceForTest(p, "poi");
+        Assert.Single(transport.LineKeys(p), k => k == "vega.hint.crystal_mined");
+        Assert.Single(transport.LineKeys(p), k => k == "vega.hint.poi");
+        Assert.True(Has(p, "vega:hint:crystal_mined"));
+        Assert.True(Has(p, "vega:hint:poi"));
+    }
+
+    [Fact]
+    public void TheHoldList_HoldsNothing_WhereTheTrainingDoesNotRun()
+    {
+        // A world without the tutorial: today's behaviour — the first crystal gets its line at once.
+        var offTransport = new RecordingTransport();
+        var off = Boot("hold_list_off", offTransport, c => c.Rules.TutorialPolicy = TutorialPolicy.Off);
+        var free = Join(off, 1, "Free");
+        Assert.False(off.TutorialHoldsHintForTest(free, "crystal_mined"));
+        off.ShipAiHintOnceForTest(free, "crystal_mined");
+        Assert.Contains("vega.hint.crystal_mined", offTransport.LineKeys(free));
+        Assert.True(Has(free, "vega:hint:crystal_mined"));
+
+        // "Short courses only": the training is skipped silently at the start.
+        var courses = Boot("hold_list_courses", new RecordingTransport(), c => c.Rules.TutorialPolicy = TutorialPolicy.Courses);
+        var student = Join(courses, 1, "Student");
+        Assert.False(courses.TutorialHoldsHintForTest(student, "poi"));
+
+        // A player who skipped the training, one who switched it off, and an older client (its nine legacy lessons never mark
+        // the chapters the hold list asks for).
+        var transport = new RecordingTransport();
+        var server = Boot("hold_list_skip", transport);
+        var skipper = Join(server, 1, "Skipper");
+        Deliver(server, skipper, new StoryPackIntent { PackId = Tutorial, Action = StoryPackActions.SkipPack });
+        Assert.False(server.TutorialHoldsHintForTest(skipper, "poi"));
+        server.ShipAiHintOnceForTest(skipper, "poi");
+        Assert.Contains("vega.hint.poi", transport.LineKeys(skipper));
+
+        var optedOut = Join(server, 2, "NoThanks");
+        Assert.True(server.TutorialHoldsHintForTest(optedOut, "tier_gate"));
+        Deliver(server, optedOut, new StoryPackIntent { PackId = Tutorial, Action = StoryPackActions.OptOut });
+        Assert.False(server.TutorialHoldsHintForTest(optedOut, "tier_gate"));
+
+        var old = Join(server, 3, "Old", packs: false);
+        Assert.False(server.TutorialHoldsHintForTest(old, "crystal_mined"));
+    }
+
+    [Fact]
+    public void TheToolTierTip_WaitsForPart3_WithoutBeingSpent_AndPart3TeachesTheNextWall()
+    {
+        // The same refused swing in part 1 and on a world without the tutorial.
+        (SvGameServer Server, RecordingTransport Transport, PlayerSession Player) HitTheWall(string world, TutorialPolicy policy)
+        {
+            var transport = new RecordingTransport();
+            var server = Boot(world, transport, c => c.Rules.TutorialPolicy = policy);
+            server.SetDayFractionForTest(0.5);
+            var p = Join(server, 1, "Digger");
+            p.State.AboardShip = false;
+            foreach (string vital in new[] { "o2", "energy", "hunger", "cold", "heat", "medkit" })
+            {
+                p.State.Milestones.Add("vega:hint:" + vital + "#done"); // the vitals outrank an equipment tip
+            }
+
+            Swing(server, p);
+            Assert.Contains("tier_gate", server.VegaTipCandidatesForTest(p.State.PlayerId).Candidates); // armed by the swing
+            for (int i = 0; i < 6 && !transport.LineKeys(p).Contains("vega.hint.tier_gate"); i++)
+            {
+                server.SkipVegaTipCooldownsForTest(p.State.PlayerId);
+                server.Tick(1.1);
+            }
+
+            return (server, transport, p);
+        }
+
+        void Swing(SvGameServer server, PlayerSession p)
+        {
+            var pos = new Vector3i((int)Math.Floor(p.State.Position.X), (int)Math.Floor(p.State.Position.Y) - 1, (int)Math.Floor(p.State.Position.Z));
+            server.World.SetBlock(pos, _content.GetBlock("machine_block")!.NumericId);
+            server.MineBlockOnce(p.State.PlayerId, pos.X, pos.Y, pos.Z); // the starter drill cannot open a tier-2 block
+        }
+
+        var (_, freeTransport, free) = HitTheWall("tier_hold_off", TutorialPolicy.Off);
+        Assert.Contains("vega.hint.tier_gate", freeTransport.LineKeys(free)); // today's behaviour without the training
+
+        var (kidServer, kidTransport, kid) = HitTheWall("tier_hold_kid", TutorialPolicy.Auto);
+        Assert.DoesNotContain("vega.hint.tier_gate", kidTransport.LineKeys(kid));
+        Assert.False(Has(kid, "vega:hint:tier_gate")); // not spent
+        Assert.DoesNotContain("tier_gate", kidServer.VegaTipCandidatesForTest(kid.State.PlayerId).Candidates); // the arming is dropped
+
+        // Part 3 runs: the next wall is the tutorial's own tool-tier moment (b3.3), which tells the tip.
+        PlayUntil(kidServer, kid, "b3.");
+        kid.State.AboardShip = false;
+        Swing(kidServer, kid);
+        Assert.Contains("story.tutorial.b3.tier.start", kidTransport.LineKeys(kid));
+        Assert.True(Has(kid, StoryPackKeys.StepDone(Tutorial, "b3.3")));
+    }
+
     // ---------------- UI teaching flags (tag 298) ----------------
 
     [Fact]
@@ -868,6 +1018,16 @@ public sealed class TutorialPackTests : IDisposable
     {
         var (server, events, p) = Verbs("verb_state", c => c.PlaceStarterShip = true);
         var tank = p.State.RespawnPoint;
+
+        // #2550: a listener on the bus is not enough — only the player's own waiting step lets the walk count.
+        p.State.AboardShip = false;
+        p.State.Position = new Vector3f(tank.X + 60f, tank.Y, tank.Z);
+        server.TutorialStateEventsForTest(p);
+        p.State.AboardShip = true;
+        server.TutorialStateEventsForTest(p);
+        Assert.Empty(events.Of(GameEventKeys.ShipReturned));
+
+        PlayUntil(server, p, "b2.5");
         p.State.AboardShip = false;
         p.State.Position = new Vector3f(tank.X + 60f, tank.Y, tank.Z);
         server.TutorialStateEventsForTest(p); // far …
@@ -879,6 +1039,91 @@ public sealed class TutorialPackTests : IDisposable
         p.State.Inventory.SetSlot(25, new ItemStack("data_fragment", 1));
         server.TutorialStateEventsForTest(p);
         Assert.Contains(events.Of(GameEventKeys.DataFound), e => e.Arg == "fragment");
+    }
+
+    [Fact]
+    public void TheWalkBackStep_MeasuresLikeTheCompass_SaysFarEnoughOnce_AndCompletesBackAtTheShip()
+    {
+        // #2550: a player stood 30 m out for 18 minutes — the 40 was hidden, the server measured the heal tank in 3-D while
+        // the compass showed the flat distance to the ship, and nothing said "far enough".
+        var transport = new RecordingTransport();
+        var server = Boot("walk_back", transport, c => c.PlaceStarterShip = true);
+        var p = Join(server, 1, "Kid");
+        PlayUntil(server, p, "b2.5");
+        Assert.Contains("story.tutorial.b2.home.start", transport.LineKeys(p));
+
+        var anchor = server.ShipAnchorOf(p.State.PlayerId);
+        float ax = anchor.X + 0.5f, az = anchor.Z + 0.5f; // the point the compass's ship blip sits on (ShipPlacement)
+        p.State.AboardShip = false;
+
+        // "Ship N m": flat — a hill does not count — and the short way round the world's seam.
+        p.State.Position = new Vector3f(ax + 30f, anchor.Y + 40f, az);
+        Assert.Equal(30.0, server.ShipCompassDistanceForTest(p)!.Value, 3);
+        p.State.Position = new Vector3f(ax + server.World.Circumference - 25f, anchor.Y, az);
+        Assert.Equal(25.0, server.ShipCompassDistanceForTest(p)!.Value, 3);
+
+        // 39.4 m — the compass (Mathf.RoundToInt) reads "Ship 39 m" — 30 m up a hill (about 49 m in a straight line): not far
+        // enough yet.
+        p.State.Position = new Vector3f(ax + 39.4f, anchor.Y + 30f, az);
+        server.TutorialStateEventsForTest(p);
+        Assert.DoesNotContain("story.tutorial.b2.home.far", transport.LineKeys(p));
+
+        // 39.6 m: the compass reads "Ship 40 m", so it counts — VEGA says so once, however long the player stays out there.
+        p.State.Position = new Vector3f(ax, anchor.Y, az + 39.6f);
+        server.TutorialStateEventsForTest(p);
+        server.TutorialStateEventsForTest(p);
+        Assert.Single(transport.LineKeys(p), k => k == "story.tutorial.b2.home.far");
+        Assert.Equal("b2.5", server.ChipStepForTest(p, Tutorial));
+
+        // Halfway back is not back, nor is 10.6 m ("Ship 11 m"); 10.4 m ("Ship 10 m") is.
+        p.State.Position = new Vector3f(ax + 20f, anchor.Y, az);
+        server.TutorialStateEventsForTest(p);
+        p.State.Position = new Vector3f(ax + 10.6f, anchor.Y, az);
+        server.TutorialStateEventsForTest(p);
+        Assert.False(Has(p, StoryPackKeys.StepDone(Tutorial, "b2.5")));
+        p.State.Position = new Vector3f(ax + 10.4f, anchor.Y, az);
+        server.TutorialStateEventsForTest(p);
+        Assert.True(Has(p, StoryPackKeys.StepDone(Tutorial, "b2.5")));
+        Assert.Single(transport.LineKeys(p), k => k == "story.tutorial.b2.home.far");
+    }
+
+    [Fact]
+    public void AWalkBeforeTheWalkBackStepActivates_NeverCounts_NotUnderAnotherPlayersStepNorBeforeASkip()
+    {
+        // #2550: the event bus is shared — the walk-back check ran for everyone while ANY player's step waited, and a "far"
+        // noted then, or before a skip, later completed the step at the ship without a walk and without the line.
+        var transport = new RecordingTransport();
+        var server = Boot("walk_back_mp", transport, c => c.PlaceStarterShip = true);
+        var host = Join(server, 1, "Host");
+        PlayUntil(server, host, "b2.5"); // the host's step listens for ship:returned …
+        var kid = Join(server, 2, "Kid");
+        Assert.NotEqual("b2.5", server.ChipStepForTest(kid, Tutorial));
+
+        // … while the kid, still in part 1, walks 60 m out.
+        var anchor = server.ShipAnchorOf(kid.State.PlayerId);
+        float ax = anchor.X + 0.5f, az = anchor.Z + 0.5f;
+        kid.State.AboardShip = false;
+        kid.State.Position = new Vector3f(ax + 60f, anchor.Y, az);
+        server.TutorialStateEventsForTest(kid);
+        Assert.False(kid.TutorialFarFromShip);
+
+        // A flag left over from before (another step, a skip) is reset when the step activates.
+        kid.TutorialFarFromShip = true;
+        PlayUntil(server, kid, "b2.5");
+        Assert.False(kid.TutorialFarFromShip);
+        kid.State.AboardShip = false;
+        kid.State.Position = new Vector3f(ax + 5f, anchor.Y, az);
+        server.TutorialStateEventsForTest(kid);
+        Assert.False(Has(kid, StoryPackKeys.StepDone(Tutorial, "b2.5"))); // standing at the ship is no walk back
+        Assert.DoesNotContain("story.tutorial.b2.home.far", transport.LineKeys(kid));
+
+        // The real walk still counts.
+        kid.State.Position = new Vector3f(ax + 45f, anchor.Y, az);
+        server.TutorialStateEventsForTest(kid);
+        kid.State.Position = new Vector3f(ax + 5f, anchor.Y, az);
+        server.TutorialStateEventsForTest(kid);
+        Assert.True(Has(kid, StoryPackKeys.StepDone(Tutorial, "b2.5")));
+        Assert.Single(transport.LineKeys(kid), k => k == "story.tutorial.b2.home.far");
     }
 
     [Fact]

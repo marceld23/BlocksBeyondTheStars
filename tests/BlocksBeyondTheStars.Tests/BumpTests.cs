@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
@@ -74,6 +75,48 @@ public sealed class BumpTests : IDisposable
         // #2276: planetType is the save's START type (kept); bodyPlanetType is the body the reporter stands on.
         Assert.True(location.TryGetProperty("planetType", out _));
         Assert.Equal(server.World.Planet.Key, location.GetProperty("bodyPlanetType").GetString());
+    }
+
+    [Fact]
+    public void BumpSnapshot_ListsTheMachinesAround_AndTheTrainingProgress()
+    {
+        // #2555: a "Guardian in the water" report could not be resolved — the snapshot listed only fauna, and nothing
+        // said which training step the player was on or which tips VEGA had already given.
+        var (server, _, paths) = StartWorld();
+        var (connectionId, session) = server.Sessions.First(kv => kv.Value.Joined);
+        var p = session.State;
+        p.Milestones.Add("story:tutorial:step:b1.1");
+        p.Milestones.Add("vega:hint:lamp_off");
+        p.Milestones.Add("vega:mem:1"); // neither a tutorial nor a hint key — stays out
+        p.StepProgress["tutorial:b1.2"] = 3;
+
+        var at = new BlocksBeyondTheStars.Shared.Geometry.Vector3f(p.Position.X + 3f, p.Position.Y, p.Position.Z);
+        server.SpawnPlanetEnemyAtForTest(at, CombatEntityKind.Creature, damagePerSecond: 0f);
+        string robotId = server.PlanetEnemies[^1].Id;
+        server.SpawnBanditAtForTest(new BlocksBeyondTheStars.Shared.Geometry.Vector3f(p.Position.X - 4f, p.Position.Y, p.Position.Z), p.PlayerId);
+        string banditId = server.Bandits[^1].Id;
+
+        // Straight into the handler — no tick in between that could move or retire the test's machines.
+        server.HandlePayloadForTest(connectionId, NetCodec.Encode(new ChatIntent { Text = "/bump a guardian in the pond" }));
+
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Assert.Single(MyBumpFiles(paths, "*.json"))));
+        var machines = doc.RootElement.GetProperty("nearby").GetProperty("machines").EnumerateArray().ToList();
+        var robot = Assert.Single(machines, m => m.GetProperty("Id").GetString() == robotId);
+        Assert.Equal("Creature", robot.GetProperty("kind").GetString());
+        Assert.True(robot.GetProperty("Hostile").GetBoolean());
+        Assert.Contains(robot.GetProperty("motion").GetString(), new[] { "patrolling", "chasing", "pausing", "fleeing", "dazed", "leavingWater" });
+        Assert.Contains(robot.GetProperty("water").GetString(), new[] { "dry", "wading", "deep" });
+        var bandit = Assert.Single(machines, m => m.GetProperty("Id").GetString() == banditId);
+        Assert.Equal("Approach", bandit.GetProperty("banditPhase").GetString());
+
+        var tutorial = doc.RootElement.GetProperty("tutorial");
+        var milestones = tutorial.GetProperty("milestones").EnumerateArray().Select(m => m.GetString()).ToList();
+        Assert.Contains("story:tutorial:step:b1.1", milestones);
+        Assert.Contains("vega:hint:lamp_off", milestones);
+        Assert.DoesNotContain("vega:mem:1", milestones);
+        var steps = tutorial.GetProperty("activeSteps").EnumerateArray().ToList();
+        var step = Assert.Single(steps, s => s.GetProperty("step").GetString() == "tutorial:b1.2");
+        Assert.Equal(3, step.GetProperty("count").GetInt32());
     }
 
     [Fact]

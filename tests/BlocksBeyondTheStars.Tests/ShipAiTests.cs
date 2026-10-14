@@ -859,7 +859,11 @@ public sealed class ShipAiTests : IDisposable
         using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
         using var client = new LoopbackClientTransport(link);
         var lines = CaptureVega(client);
-        var server = new SvGameServer(Config(), _content, serverTransport, repo);
+        // #2549: during the basic training the tip waits until part 3 runs (its b3.3 explains the wall itself) — the tip on
+        // its own is a world without the training (TutorialPackTests covers the hold).
+        var config = Config();
+        config.Rules.TutorialPolicy = TutorialPolicy.Off;
+        var server = new SvGameServer(config, _content, serverTransport, repo);
         server.Start();
         JoinAndDrain(server, client, "Rookie");
 

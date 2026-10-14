@@ -143,11 +143,15 @@ namespace BlocksBeyondTheStars.Client
         {
             _scanLetGoTimer = 2.5f;
             var settings = Game.Settings;
-            // Spent only when the line went out (#2462, B31): muted, it waits for the next early let-go.
-            if (settings != null && !settings.ShipScanHoldHintShown && VegaPanel.Instance?.SayLocal("vega.hint.ship_scan_hold") == true)
+            // Spent only when the line comes up (#2462, B31; #2551): muted, or dropped unseen after waiting behind other lines,
+            // it waits for the next early let-go.
+            if (settings != null && !settings.ShipScanHoldHintShown)
             {
-                settings.ShipScanHoldHintShown = true;
-                settings.Save();
+                VegaPanel.Instance?.SayLocal("vega.hint.ship_scan_hold", () =>
+                {
+                    settings.ShipScanHoldHintShown = true;
+                    settings.Save();
+                });
             }
         }
 
@@ -654,15 +658,38 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // With the hints muted the lesson waits for a flight with them on (#2462, B31) — it used to be marked shown
-            // and then dropped by the muted panel.
+            // and then dropped by the muted panel. #2551: the flag is spent when the line comes up; while it waits, the
+            // flight keeps asking for it (each ask restarts its 30 s wait), so it is only dropped once the flight is over.
             if (!settings.ShipScannerHintShown && settings.VegaHints)
             {
                 _scannerHintTimer -= dt;
-                if (_scannerHintTimer <= 0f && VegaPanel.Instance?.SayLocal("vega.hint.ship_scanner") == true)
+                if (_scannerHintTimer <= 0f)
                 {
-                    settings.ShipScannerHintShown = true;
-                    settings.Save();
+                    VegaPanel.Instance?.SayLocal("vega.hint.ship_scanner", _scannerHintShown ??= MarkScannerHintShown);
                 }
+            }
+        }
+
+        // Cached once-flag setters (#2551): these lessons are asked for every frame while they wait in VEGA's queue.
+        private System.Action _scannerHintShown, _wormholeHintShown;
+
+        private void MarkScannerHintShown()
+        {
+            var settings = Game != null ? Game.Settings : null;
+            if (settings != null && !settings.ShipScannerHintShown)
+            {
+                settings.ShipScannerHintShown = true;
+                settings.Save();
+            }
+        }
+
+        private void MarkWormholeHintShown()
+        {
+            var settings = Game != null ? Game.Settings : null;
+            if (settings != null && !settings.WormholeHintShown)
+            {
+                settings.WormholeHintShown = true;
+                settings.Save();
             }
         }
 
@@ -700,12 +727,8 @@ namespace BlocksBeyondTheStars.Client
                 {
                     if (e.Kind == "Wormhole" && (new Vector3(e.X, e.Y, e.Z) - shipPos).sqrMagnitude <= 500f * 500f)
                     {
-                        if (VegaPanel.Instance?.SayLocal("vega.hint.wormhole") == true) // muted: wait (#2462, B31)
-                        {
-                            settings.WormholeHintShown = true;
-                            settings.Save();
-                        }
-
+                        // Spent when the line comes up (#2551) — muted (#2462, B31) or dropped unseen, it waits.
+                        VegaPanel.Instance?.SayLocal("vega.hint.wormhole", _wormholeHintShown ??= MarkWormholeHintShown);
                         break;
                     }
                 }
