@@ -426,6 +426,7 @@ public sealed partial class GameServer
             Owner = session.State.PlayerId,
         });
         _repo.SaveDoor(new StoredDoor { Planet = _world.LocationId, X = pos.X, Y = pos.Y, Z = pos.Z, Kind = kind, AxisX = axisX, Owner = session.State.PlayerId });
+        BaseAirDoorsChanged(); // #2543: an energy door bounds and links base-air pockets
         BroadcastDoors();
         RefreshStationBoundsAfterDoorChange(); // a doorway on a station's outer face is part of its box (#1559)
     }
@@ -507,6 +508,7 @@ public sealed partial class GameServer
         int bx = (int)System.Math.Floor(door.Pos.X), by = (int)System.Math.Floor(door.Pos.Y), bz = (int)System.Math.Floor(door.Pos.Z);
         _doors.Remove(door);
         _repo.DeleteDoor(_world.LocationId, bx, by, bz);
+        BaseAirDoorsChanged(); // #2543
 
         pool.Add(doorItem, 1); // give the door block back
         BroadcastDoors();
@@ -520,6 +522,7 @@ public sealed partial class GameServer
     private void LoadPlayerDoors()
     {
         _doors.RemoveAll(d => d.PlayerBuilt);
+        BaseAirDoorsChanged(); // #2543: every registry rebuild ends here
         if (_nextDoorId < 1)
         {
             _nextDoorId = 1; // door id 0 means "none" to the client's NearestHinge — never hand it out

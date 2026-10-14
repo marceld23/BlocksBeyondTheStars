@@ -56,6 +56,13 @@ components, a category sidebar and blueprint state.
 - Data sources (no new data needed): `ItemDefinition` (category/tool/effects), `RecipeDefinition`
   (station/blueprint/inputs/outputs), `BlueprintDefinition` (category/prerequisites/costs),
   `ShipModuleDefinition` / `ShipDefinition` (stats/cost/blueprint), `Game.OwnedShips`.
+- A recipe card and its detail page are titled with the output item's name — unless the recipe carries its own
+  optional `nameKey` / `descriptionKey` (#2544, `RecipeTitle`): a second recipe of the same item that must read
+  differently, like the hand-built **Wooden boat** (`boat_wood`) next to the workshop's **Boat**. The search box
+  matches that title too. A factory twin keeps its "· Factory terminal" suffix.
+- Every detail pane's description (crafting, catalog, inventory, tech, ship module) is one block that grows with its
+  text (`AddDetailDescription`, #2545: at least 80 px, else `preferredHeight`) — a fixed 80 px box let long texts run
+  into the ingredient rows below.
 - Backend: blueprint sync (unlocked-blueprints push → client `Unlocked` set); station gates + locator in
   `GameServerStationAffordances.cs` (`StationsInReach`, `LocateStationIntent`/`StationLocation`); the ship
   structure emits station markers (`medbay / cockpit / workshop / cargo / quarters / console` — see

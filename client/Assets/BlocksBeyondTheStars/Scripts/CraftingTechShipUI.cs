@@ -1407,12 +1407,12 @@ namespace BlocksBeyondTheStars.Client
                 bool isMarket = r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Market;
                 if (_category == "market")
                 {
-                    if (!isMarket || !Game.MarketOfferedHere(r) || !MatchesSearch(ItemName(outItem.Item)))
+                    if (!isMarket || !Game.MarketOfferedHere(r) || !MatchesSearch(RecipeTitle(r, outItem.Item)))
                     {
                         continue;
                     }
                 }
-                else if (isMarket || !MatchesCategory(outItem.Item) || !MatchesSearch(ItemName(outItem.Item)))
+                else if (isMarket || !MatchesCategory(outItem.Item) || !MatchesSearch(RecipeTitle(r, outItem.Item)))
                 {
                     continue;
                 }
@@ -1453,7 +1453,7 @@ namespace BlocksBeyondTheStars.Client
                     : (e.can ? L("ui.craft.ready") : L("ui.craft.blocked"));
                 // The factory twin names its terminal — two cards reading "Eisenplatte" with the same icon told a
                 // player nothing about which one the ship's workshop makes.
-                string cardTitle = ItemName(e.outItem);
+                string cardTitle = RecipeTitle(e.r, e.outItem);
                 if (e.r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Factory)
                 {
                     cardTitle += " · " + L("ui.craft.station_factory");
@@ -2881,9 +2881,7 @@ namespace BlocksBeyondTheStars.Client
             string desc = Desc($"item.{item}.desc");
             if (!string.IsNullOrEmpty(desc))
             {
-                var t = UiKit.AddText(_detail, 8, y, 620, 80, desc, 20, UiKit.CyanDim, TextAnchor.UpperLeft);
-                t.horizontalOverflow = HorizontalWrapMode.Wrap;
-                y += 84f;
+                y = AddDetailDescription(desc, y);
             }
 
             UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.craft.source")}: {Owned(item)}", 20, UiKit.Cyan, TextAnchor.UpperLeft);
@@ -5619,7 +5617,7 @@ namespace BlocksBeyondTheStars.Client
 
             var outItem = r.Outputs.First();
             float y = 0f;
-            string heading = ItemName(outItem.Item) + (outItem.Count > 1 ? $"  ×{outItem.Count}" : "");
+            string heading = RecipeTitle(r, outItem.Item) + (outItem.Count > 1 ? $"  ×{outItem.Count}" : "");
             if (r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Factory)
             {
                 heading += " · " + L("ui.craft.station_factory"); // the card's suffix, so the page matches the card
@@ -5627,12 +5625,10 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddText(_detail, 8, y, 620, 40, heading, 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 48f;
-            string desc = Desc($"item.{outItem.Item}.desc");
+            string desc = Desc(string.IsNullOrEmpty(r.DescriptionKey) ? $"item.{outItem.Item}.desc" : r.DescriptionKey);
             if (!string.IsNullOrEmpty(desc))
             {
-                var t = UiKit.AddText(_detail, 8, y, 620, 80, desc, 20, UiKit.CyanDim, TextAnchor.UpperLeft);
-                t.horizontalOverflow = HorizontalWrapMode.Wrap;
-                y += 84f;
+                y = AddDetailDescription(desc, y);
             }
 
             UiKit.AddText(_detail, 8, y, 620, 28, L("ui.craft.needs"), 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
@@ -5751,13 +5747,7 @@ namespace BlocksBeyondTheStars.Client
             string desc = Desc($"blueprint.{bp.Key}.desc");
             if (!string.IsNullOrEmpty(desc))
             {
-                var t = UiKit.AddText(_detail, 8, y, 620, 80, desc, 20, UiKit.CyanDim, TextAnchor.UpperLeft);
-                t.horizontalOverflow = HorizontalWrapMode.Wrap;
-                // A longer description (#2249: the bio lab blueprints name their tab and where the lab stands) grows
-                // the block instead of running into the status line.
-                float descH = Mathf.Max(80f, t.preferredHeight);
-                t.rectTransform.sizeDelta = new Vector2(620f, descH);
-                y += descH + 4f;
+                y = AddDetailDescription(desc, y);
             }
 
             var (status, col) = TechStatus(bp);
@@ -5950,9 +5940,7 @@ namespace BlocksBeyondTheStars.Client
                 string desc = Desc($"module.{m.Key}.desc");
                 if (!string.IsNullOrEmpty(desc))
                 {
-                    var t = UiKit.AddText(_detail, 8, y, 620, 80, desc, 20, UiKit.CyanDim, TextAnchor.UpperLeft);
-                    t.horizontalOverflow = HorizontalWrapMode.Wrap;
-                    y += 84f;
+                    y = AddDetailDescription(desc, y);
                 }
 
                 // #1471: on a cargo module, spell out what the hold is made of and what the next tier adds — a
@@ -6299,9 +6287,7 @@ namespace BlocksBeyondTheStars.Client
             string desc = Desc($"item.{BlocksBeyondTheStars.Shared.State.ItemKey.Base(item)}.desc");
             if (!string.IsNullOrEmpty(desc))
             {
-                var t = UiKit.AddText(_detail, 8, y, 620, 80, desc, 20, UiKit.CyanDim, TextAnchor.UpperLeft);
-                t.horizontalOverflow = HorizontalWrapMode.Wrap;
-                y += 84f;
+                y = AddDetailDescription(desc, y);
             }
 
             y = AddBioItemInfo(item, y);
@@ -7824,6 +7810,24 @@ namespace BlocksBeyondTheStars.Client
 
         private System.Func<int, string> _customFormName;
         private System.Func<uint, string> _speciesName;
+        /// <summary>A description block in the detail pane that grows with its text (#2545): a fixed 80 px box with a
+        /// fixed 84 px step let a long text — the boat's, a cargo module's — run into "Needs:" and the ingredient rows
+        /// below. The tech tab grew its own block since #2249 (the bio lab blueprints); every detail pane now shares
+        /// this. Returns the next y.</summary>
+        private float AddDetailDescription(string desc, float y)
+        {
+            var t = UiKit.AddText(_detail, 8, y, 620, 80, desc, 20, UiKit.CyanDim, TextAnchor.UpperLeft);
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
+            float height = Mathf.Max(80f, t.preferredHeight);
+            t.rectTransform.sizeDelta = new Vector2(620f, height);
+            return y + height + 4f;
+        }
+
+        /// <summary>A recipe's card and page title (#2544): its own <c>nameKey</c> when it has one (the hand-built "Wooden
+        /// boat" beside the workshop's "Boat"), else the output item's name.</summary>
+        private string RecipeTitle(RecipeDefinition r, string outItem)
+            => !string.IsNullOrEmpty(r.NameKey) && Game?.Localizer?.Has(r.NameKey) == true ? L(r.NameKey) : ItemName(outItem);
+
         private string Desc(string key)
         {
             // Localizer.Get returns "[key]" (never the bare key) on a miss, so comparing against the key

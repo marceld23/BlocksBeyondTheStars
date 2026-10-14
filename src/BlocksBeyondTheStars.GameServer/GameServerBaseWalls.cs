@@ -33,7 +33,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// deep — is not walked; a one-deep pond is waded, on its surface, exactly as
 /// <see cref="CreatureBehaviour.TerrainStepBlocked"/> lets a walker wade one cell and refuses two. Before this
 /// the fill crossed every pond on its surface and a hand-dug moat fenced nothing.</item>
-/// <item>Cached per (base, feet level) like <c>_baseAir</c>: invalidated by a block set or a gate toggled inside
+/// <item>Cached per (base, feet level) like the air's <c>_baseAirGroups</c>: invalidated by a block set or a gate toggled inside
 /// the box (#1367, with <see cref="WalledRecomputeInterval"/> as the backstop), a budget that scales with the
 /// box (<see cref="WalledFillBudgetFor"/>), <see cref="ServerWorld.GetBlockIfLoaded"/> so an idle base never
 /// drags chunk generation. <b>Fail-open</b>: an unloaded column reads as air, the fill leaks in, the spawn is
@@ -682,6 +682,31 @@ public sealed partial class GameServer
             : L("srv.basewalls.here_open");
         lines.Add(L("srv.basewalls.here").Replace("{state}", state));
         lines.Add(L("srv.basewalls.rules"));
+
+        // #2542: the air at the caller's cell and why there is none — the four reasons a room stays without air
+        // (too large, too far, a leak, not connected) used to read the same, so a closed hall over the budget sent
+        // its builder looking for a hole. The feet cell, like the oxygen tick asks.
+        var air = DiagnoseBaseAir(cell);
+        string budget = WorldConstants.BaseSealedRoomMaxCells.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        string airState = air.Status switch
+        {
+            BaseAirStatus.Zone => L("srv.basewalls.air_zone"),
+            BaseAirStatus.Supplied => L("srv.basewalls.air_supplied")
+                .Replace("{cells}", air.Cells.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                .Replace("{rooms}", air.Rooms.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            BaseAirStatus.TooLarge => L("srv.basewalls.air_too_large").Replace("{budget}", budget),
+            BaseAirStatus.TooFar => L("srv.basewalls.air_too_far")
+                .Replace("{reach}", air.Reach.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            BaseAirStatus.NoBase => L("srv.basewalls.air_too_far") // past every partner box: beyond what the core reaches
+                .Replace("{reach}", BaseWallReach(nearest).ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            BaseAirStatus.Disconnected => L("srv.basewalls.air_disconnected")
+                .Replace("{cells}", air.Cells.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            _ => L("srv.basewalls.air_leak"),
+        };
+        lines.Add(L("srv.basewalls.air").Replace("{state}", airState));
+        lines.Add(L("srv.basewalls.air_rules")
+            .Replace("{budget}", budget)
+            .Replace("{reach}", BaseWallReach(nearest).ToString(System.Globalization.CultureInfo.InvariantCulture)));
         return lines;
     }
 

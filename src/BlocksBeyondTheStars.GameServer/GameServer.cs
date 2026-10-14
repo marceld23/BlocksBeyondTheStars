@@ -756,6 +756,7 @@ public sealed partial class GameServer
         });
         var resident = world.World;
         resident.BlockSet += cell => MarkBaseWallsDirty(resident, cell); // #1367: a build inside a base's box refreshes its wall fill
+        resident.BlockSet += cell => MarkBaseAirDirty(resident, cell); // #2543: ...and its sealed-room air
         resident.PlayerBlockSet += cell => GrowBaseWallReach(resident, cell); // #1862: what a player builds sizes the base's fill box
         resident.BlockSet += cell => MarkBaseIndexDirty(resident, cell); // #1865: a bed, a post or a crop changed near a base
         var npcWorld = world;
@@ -895,6 +896,7 @@ public sealed partial class GameServer
         _npcs.Clear();
         _worlds.Active.NpcPathQueue.Clear(); // #1866
         _doors.Clear();
+        BaseAirDoorsChanged(); // #2543
         _dataCubes.Clear();
         _settlements.Clear();
         _settlementMarkers.Clear();
@@ -2144,6 +2146,9 @@ public sealed partial class GameServer
                 : atBase ? 3
                 : factoryAir ? 4
                 : cityAir ? 5 : 0);
+            // #2542: walking out of base air into a room that is too large, too far out or not connected says why.
+            TrackBaseAirPresence(session, playerCell, atBase,
+                otherLifeSupport: p.AboardShip || insideShip || stationAir || factoryAir || cityAir);
             // Submerged underwater the suit runs on its own air, even on a breathable world — diving spends
             // the oxygen tank just like a toxic/airless atmosphere does (the extractor can't pull from water).
             // Life support overrides this (ship cabin, station, base zone): an underwater base is a dome.

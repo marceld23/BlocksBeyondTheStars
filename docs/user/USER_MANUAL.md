@@ -1000,7 +1000,8 @@ players.
 - **Crafting by hand — no station needed.** The simple things are made anywhere, straight from the crafting menu,
   without a workbench or your ship: **torches**, the **bed**, the **campfire**, the **wood crate**, the **lantern**
   (it needs a piece of glass), the **wooden door**, **ladders** (from wood or carbon), the **wooden boat** (10 logs
-  + 6 plant fibre), the **wooden tools** and all three **baits** (forage bait, meat bait, nectar lure). The wooden
+  + 6 plant fibre — the crafting list shows it as **Wooden boat** next to the workshop's **Boat**; both make the
+  same boat), the **wooden tools** and all three **baits** (forage bait, meat bait, nectar lure). The wooden
   tools (#2536) are the **wooden pickaxe** (3 logs + 2 plant fibre + 1 stone — mines what the basic drill mines,
   only slower, and needs no energy), the **wooden club** (2 logs + 1 plant fibre — close combat, a little weaker than
   the machete) and the **wooden spear** (2 logs + 2 plant fibre + 1 stone — close combat with a longer reach, swings
@@ -1506,6 +1507,16 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   oxygen until the hole is closed. **Check it:** aim at your own core — the prompt shows how many cells and
   sealed rooms currently have air and whether the spot you stand on does (*here: air*). VEGA explains the
   three rules once when you found a core on a world without breathable air.
+- **How big, how far** (#2539–#2543): one sealed room holds up to **64,000 air blocks** (e.g. 40×40×40) — a bigger
+  hall gets no air even when it is perfectly closed, so **split a huge cave with walls and energy doors** into
+  several rooms (each up to 64,000; the chain has no limit). The air reaches as far as you **built or dug** around
+  the core (the same reach as the wall ring: at least 48 blocks in every direction, up and down too, and up to 192
+  if you built that far) — a cave you walled in or dug out is in reach by itself. **Allies share their air:** the
+  bases of you and your allies on the same body count as one — a room touching an ally's core zone, or linked to
+  it door by door, breathes for all of you. **Why no air?** The game says it: when a room loses its air, everyone
+  at the base hears the reason (*too large*, *reaches too far from the core*, *no longer airtight*, *not connected*),
+  and walking from air into a room that is too large, too far out or not connected tells you once, too. Type
+  **`/basewalls`** in the chat (owners may) for the air at your spot and the reason, plus the air rules.
 - **Sentry post** (workshop, blueprint-gated after the Heal Tank): a small automatic turret you place inside
   your own base zone. It fires at hostile machines, at **hostile animals**, and at robbers who have
   **already started a fight** — never at players, never at tame animals, and never at somebody walking up to
@@ -2798,8 +2809,9 @@ look up: what a mix does follows from what goes in, and the same things always g
 
 #### Boat (water vehicle)
 - The **boat** (`boat`) is the water kind of the same system — an early-game craft with **no
-  blueprint**: **by hand, anywhere**, from wood_log ×10 + plant_fiber ×6 (#2536), or at the workshop from
-  wood_log ×8, iron_plate ×2, cable ×1. On an **ocean** world you start with one.
+  blueprint**: **by hand, anywhere**, from wood_log ×10 + plant_fiber ×6 (#2536 — listed as **Wooden boat**,
+  #2544), or at the workshop from wood_log ×8, iron_plate ×2, cable ×1 (listed as **Boat**). Both make the same
+  boat. On an **ocean** world you start with one.
 - Stand at the shore (or swim) and **use** it from the hotbar: it needs **open water in front of you** (2–5
   blocks ahead, a little to either side) and is set onto the **waterline**; on dry land you get "you need open
   water" and keep the item. **E** boards it from the bank or while swimming, **F** gets off, **X** packs it up.
@@ -3317,7 +3329,7 @@ and that option is off by default on hosted worlds.
 | `/players` | Every player this world knows — role, body, position and when they were last seen. Offline players come from the save |
 | `/builds [Player]` | Named structures (bases, beacons, beam pads, stations) with owner, body and a ready-to-use `/goto` line; optionally for one player |
 | `/where Player` | One player's body, position and last-seen time — works while they are offline |
-| `/basewalls` | Why animals do (not) spawn in a yard: the nearest base core, the enclosure fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed / sealed / open, and the rules (2-high walls, hinge doors leak, unloaded chunks read as open; walking Guardian robots step up two blocks and are stopped by a wall of three or more, hovering scan-drones by four or more; fliers are not) |
+| `/basewalls` | Why animals do (not) spawn in a yard: the nearest base core, the enclosure fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed / sealed / open, and the rules (2-high walls, hinge doors leak, unloaded chunks read as open; walking Guardian robots step up two blocks and are stopped by a wall of three or more, hovering scan-drones by four or more; fliers are not). Since #2542 also the **air at your cell** and why there is none (too large — over 64,000 air blocks, too far from the core, leaky, or sealed but not connected) and the air rules with the base's current reach |
 | `/creatures` | Creature footing within 48 blocks: per animal its species and motion class, feet height, the real ground of its column, the delta between them, the generator's noise surface and a verdict (ok / floating / BURIED) — the readout for "animals standing in the ground" reports |
 | `/silence Player [Minutes]` | Pauses that player's chat for a while (10 minutes by default, a day at most). They are told how long, and can keep playing — see below |
 | `/unsilence Player` | Ends the pause right away |

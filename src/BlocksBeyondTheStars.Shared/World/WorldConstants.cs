@@ -37,6 +37,11 @@ public static class WorldConstants
     /// hint and the server's authoritative checks can never disagree about the zone size.</summary>
     public const int BaseZoneRadius = 8;
 
+    /// <summary>Most air cells one sealed room of a base may hold (#2539; station parity with #1559). A bigger room counts
+    /// as not sealed — and is told so (#2542). Was 16 000, which a dug-out cave hall blew while perfectly closed. Shared
+    /// so the core's readout on the client quotes the server's number; <c>vega.hint.base_airless</c> spells it out.</summary>
+    public const int BaseSealedRoomMaxCells = 64000;
+
     /// <summary>Half-extent (in blocks) around a base_core within which wild creature spawning is excluded.
     /// Shared so player-facing text and the server's authoritative spawn check use the same value.</summary>
     public const int BaseSpawnExclusionRadius = 24;

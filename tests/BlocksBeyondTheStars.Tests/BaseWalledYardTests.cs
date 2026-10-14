@@ -136,11 +136,13 @@ public sealed class BaseWalledYardTests : IDisposable
             builder.State.Position = new Vector3f(Cx + 2.5f, padY + 1, Cz + 0.5f); // inside the ring
 
             var lines = server.BaseWallsReportForTest(builder);
-            Assert.Equal(4, lines.Count);
+            Assert.Equal(6, lines.Count);
             Assert.Contains("48", lines[0]);                       // the reach box
             Assert.Contains("fill complete", lines[1]);            // no budget exhaustion on a small yard
             Assert.Contains("enclosed", lines[2]);                 // this cell: no spawns
             Assert.Contains("2 blocks", lines[3]);                 // the rules line names the wall height
+            Assert.StartsWith("Air at your cell", lines[4], StringComparison.Ordinal); // #2542: the air at this cell, and why
+            Assert.StartsWith("Air rules", lines[5], StringComparison.Ordinal);
 
             server.RemoveBlockForTest(Cx + Ring, padY + 1, Cz);
             server.RemoveBlockForTest(Cx + Ring, padY + 2, Cz);

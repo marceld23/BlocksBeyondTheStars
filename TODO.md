@@ -24,6 +24,38 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player report 2026-10-14 (Lyxette, v2026.10.14) — epic #2546, branch fix/reports-2026-10-14-base-air — ✅ done 2026-10-14 (⚠ playtest open)
+
+An underground base in a reshaped cave on an airless world: the stairs next to the Grundstein breathed, the big,
+completely walled hall did not — *"what can you do so that really large cavities can be sealed and ventilated?"* The
+hall was over the sealed-room budget and/or past the fixed 48-block reach, while the game only ever said "not sealed"
+(the report's title answered it: *"Yes, the cave IS airtight."*). Decided by Marcel: no second Grundstein per body; the base's
+air grows with the build instead. One PR:
+
+- **#2539 budget 16 000 → 64 000** air cells per sealed room (`WorldConstants.BaseSealedRoomMaxCells`, station parity
+  with #1559). Probe: a closed 40×10×42 room (16 800) had no air before.
+- **#2540 reach follows the build** — the air box is the wall ring's `BaseWallReach` (#1862: outermost player-edited
+  cell + 6, min 48, cap 192); a wall just outside the box still bounds a pocket, only an open cell there leaks.
+- **#2541 allies share air** — the fill runs per partner group (owner + allies on the body): any partner's cube
+  supplies, the leak box is the union of their boxes, every partner's energy doors seed.
+- **#2542 why no air** — each pocket records `TooLarge` / `TooFar` / `Open` / `Disconnected`; a room dropping out tells
+  everyone in reach the cause (`srv.base.air_*`; before, only the loss of ALL air warned), walking out of base air into
+  a too-large / too-far / unconnected room tells the player once (5 min de-dup), `/basewalls` gets an air line + the
+  air rules; `ui.base.air_none`, `vega.hint.base_airless` and `item.base_core.desc` name the limits. 14 new + 3 changed
+  keys in all 14 languages.
+- **#2543 cost guard** — the fill stops at the open sky (`AirOpenToSky`: seeds, power-of-two cells, every 512th) and a
+  group refills only when a block was set in its boxes (`ServerWorld.BlockSet`), the door registry changed or a reach
+  grew (1.5 s rate limit, 8 s backstop). Measured before: a sealed 15k room 24 ms, the leaky core pocket 4 ms per 1.5 s
+  (17 ms at a 64k budget, 48 ms at 128k); now a core in the open visits a handful of cells and an idle base none.
+- **#2544 crafting: two "Boat" cards** — recipes may carry their own `nameKey` / `descriptionKey`; the hand recipe
+  `boat_wood` reads **Wooden boat / Holzboot** (same `boat` item).
+- **#2545 detail-pane overlap** — every detail description (crafting, catalog, inventory, tech, ship module) grows with
+  its text (`AddDetailDescription`) instead of a fixed 80 px box that let long texts run into "Needs:".
+- Docs: new [docs/developer/BASE_LIFE_SUPPORT.md](docs/developer/BASE_LIFE_SUPPORT.md); USER_MANUAL (bases: how big,
+  how far, allies, why no air; `/basewalls`; wooden boat), CRAFTING_TECH_SHIP_UI. Tests: `BaseAirReachTests` (10).
+- Open: playtest on the reporter's seed (−6457353509591164307, Gheyee II-b) once released; these reports still arrive without the
+  server `/bump` twin (local to that machine, see 10-13).
+
 ### 📬 Player reports 2026-10-13 evening (Screelit = Justus, v2026.10.13) — epic #2529, branch fix/screelit-reports-2026-10-13 — ✅ done (⚠ playtest open)
 
 Seven F1 reports (all with their `/bump` twin) plus one side finding — one PR:

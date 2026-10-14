@@ -22,7 +22,8 @@
   // should not wait for the speeder tech.
   { "key": "boat",             "station": "workshop", "inputs": [ { "item": "wood_log", "count": 8 }, { "item": "iron_plate", "count": 2 }, { "item": "cable", "count": 1 } ], "outputs": [ { "item": "boat", "count": 1 } ] },
   // #2536: the same boat by hand, anywhere — all wood, lashed together with plant fibre (a little more of both).
-  { "key": "boat_wood",        "station": "hand",     "inputs": [ { "item": "wood_log", "count": 10 }, { "item": "plant_fiber", "count": 6 } ], "outputs": [ { "item": "boat", "count": 1 } ] },
+  // #2544: its own card title + text, so the list shows "Wooden boat" next to the workshop's "Boat" (same item).
+  { "key": "boat_wood",        "station": "hand",     "nameKey": "recipe.boat_wood.name", "descriptionKey": "recipe.boat_wood.desc", "inputs": [ { "item": "wood_log", "count": 10 }, { "item": "plant_fiber", "count": 6 } ], "outputs": [ { "item": "boat", "count": 1 } ] },
   { "key": "camera",           "station": "workshop", "requiredBlueprint": "camera",  "inputs": [ { "item": "iron_plate", "count": 2 }, { "item": "glass", "count": 1 }, { "item": "cable", "count": 2 }, { "item": "circuit_board", "count": 1 } ], "outputs": [ { "item": "camera", "count": 1 } ] },
   { "key": "paint_tool",       "station": "workshop", "requiredBlueprint": "paint_tool", "inputs": [ { "item": "iron_plate", "count": 1 }, { "item": "berries", "count": 4 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "paint_tool", "count": 1 } ] },
   // The shaping tool is the paint tool's twin: it opens the form editor and copies a form off a placed block.

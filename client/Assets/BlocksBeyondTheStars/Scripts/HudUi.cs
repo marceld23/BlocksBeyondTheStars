@@ -3742,7 +3742,7 @@ namespace BlocksBeyondTheStars.Client
         {
             string air = b.SealedRooms > 0
                 ? loc.Get("ui.base.air_status").Replace("{cells}", b.AirCells.ToString()).Replace("{rooms}", b.SealedRooms.ToString())
-                : loc.Get("ui.base.air_none");
+                : loc.Get("ui.base.air_none").Replace("{budget}", BlocksBeyondTheStars.Shared.World.WorldConstants.BaseSealedRoomMaxCells.ToString(System.Globalization.CultureInfo.InvariantCulture)); // #2542: the rules incl. the size limit
             string here = Game.LifeSupportSource == 3 ? loc.Get("ui.base.air_here_ok") : loc.Get("ui.base.air_here_no");
             return $"{ExpandKeyTokens(loc, loc.Get("ui.base.rename_hint"))}  ·  {air}  ·  {here}"; // #2502: {key:Interact}
         }

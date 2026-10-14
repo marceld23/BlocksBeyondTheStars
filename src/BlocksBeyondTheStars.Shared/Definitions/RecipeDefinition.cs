@@ -11,6 +11,15 @@ public sealed class RecipeDefinition
 {
     public string Key { get; set; } = string.Empty;
 
+    /// <summary>Optional locale key for this recipe's own card title (#2544). Null = the output item's name. For a second
+    /// recipe of the same item that must read differently in the crafting list — the hand-built "Wooden boat" next to
+    /// the workshop's "Boat" — while still making the very same item.</summary>
+    public string? NameKey { get; set; }
+
+    /// <summary>Optional locale key for this recipe's own description in the crafting detail pane (#2544). Null = the
+    /// output item's description.</summary>
+    public string? DescriptionKey { get; set; }
+
     /// <summary>Where this recipe can be crafted.</summary>
     public CraftingStation Station { get; set; } = CraftingStation.Hand;
 
