@@ -394,7 +394,10 @@ separate unlock; admins can still disable it through server world rules.
 - **Tab menu** — tabs for Inventory, Crafting, Blueprints (research), Ship (modules/build), Map, Missions,
   plus **Journal** (your **stories** — the basic training, VEGA's story and any other story of the world, see
   "The Journal" in §5 — then **VEGA's notes**, and a **Notes** category: up to 20 titled notes of your own,
-  saved with your character — `§0`–`§f` colours a span, `§l` makes it bold, `§r` resets), **Creatures** (your tamed
+  saved with your character — the buttons above the text make it **bold** (B), give it one of **eight colours** or
+  make it **plain** again: select text first to style just that, or click without a selection to style what you type
+  next; *Preview* shows the result. Behind the buttons are codes you may also type yourself: `§0`–`§f` colours a span,
+  `§l` makes it bold, `§r` resets), **Creatures** (your tamed
   companions, see §5), **Alliances** (see §5), **Achievements** and **Photos**, with **Character** (your look, the people
   you know, and the in-world options — world rules, VEGA hints, tutorial, save; called "Settings" before) pinned far right.
   Graphics, sound, controls and language are not here but in **Settings** (main menu, or the pause menu). On a pad the menu opens with the **Menu** button, on a tablet with the **≡** button. The **Achievements** tab opens with a **Progress** block —
@@ -3085,7 +3088,9 @@ outer hull.
   - **Submit to the developers:** offers your texture for the game itself. You give it a name and a
     **nickname** (please not your real name — or choose *No name*), may add a note, and tick three boxes: you
     painted it yourself, the developers may use, change and distribute it with the game, and you are at least 16
-    or your parents agreed. Sent are the texture, those texts, the game version and an anonymous id for the
+    or your parents agreed. Click a sentence to tick its box. If you press *Submit* while a box is still empty,
+    nothing is sent: the dialog tells you to tick all three and marks the empty boxes in amber. Sent are the
+    texture, those texts, the game version and an anonymous id for the
     answer — **no e-mail, no location**. The developers look at every submission by hand and answer you **in the
     game**; a submission that is not adopted is deleted after twelve months at the latest.
 - **Form Editor.** Design the forms your shaping tool places — with a large layer canvas, undo, mirror, shift,

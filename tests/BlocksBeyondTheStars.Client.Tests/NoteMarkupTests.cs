@@ -90,4 +90,82 @@ public sealed class NoteMarkupTests
     [InlineData(null, "")]
     public void FirstLine_IsTheFirstNonEmptyLine_WithoutMarkup(string? input, string expected)
         => Assert.Equal(expected, NoteMarkup.FirstLine(input));
+
+    // --- the toolbar (#2577): style buttons instead of codes a child has to know ---
+
+    [Fact]
+    public void ApplyStyle_NothingSelected_InsertsTheCodeAtTheCaret()
+    {
+        Assert.Equal("Hello §cworld", NoteMarkup.ApplyStyle("Hello world", 6, 6, 'c', out int caret));
+        Assert.Equal(8, caret); // right after the code: what is typed next takes the style
+    }
+
+    [Fact]
+    public void ApplyStyle_SelectionToTheLineEnd_NeedsNoReset()
+    {
+        string raw = NoteMarkup.ApplyStyle("Hello world", 6, 11, 'c', out int caret);
+        Assert.Equal("Hello §cworld", raw);
+        Assert.Equal(raw.Length, caret);
+        Assert.Equal("Hello <color=#FF9C9C>world</color>", NoteMarkup.Render(raw));
+    }
+
+    [Fact]
+    public void ApplyStyle_SelectionInTheMiddle_StylesOnlyTheSelection()
+    {
+        string raw = NoteMarkup.ApplyStyle("a big dog", 2, 5, '4', out int caret);
+        Assert.Equal("a §4big§r dog", raw);
+        Assert.Equal(9, caret); // after the styled word and its reset
+        Assert.Equal("a <color=#FF6B6B>big</color> dog", NoteMarkup.Render(raw));
+    }
+
+    /// <summary>The text after the selection keeps the look it had: bold before the coloured word stays bold after it.</summary>
+    [Fact]
+    public void ApplyStyle_RestoresTheStyleThatWasActive_AfterTheSelection()
+    {
+        string raw = NoteMarkup.ApplyStyle("§lBold text more", 7, 11, 'c', out _);
+        Assert.Equal("§lBold §ctext§r§l more", raw);
+        Assert.Equal("<b>Bold <color=#FF9C9C>text</color></b><b> more</b>", NoteMarkup.Render(raw));
+    }
+
+    [Fact]
+    public void ApplyStyle_ASelectionOverSeveralLines_StylesEveryLine()
+    {
+        string raw = NoteMarkup.ApplyStyle("one\ntwo", 0, 7, 'l', out int caret);
+        Assert.Equal("§lone\n§ltwo", raw); // styles never cross a line break, so each line gets its own code
+        Assert.Equal(raw.Length, caret);
+        Assert.Equal("<b>one</b>\n<b>two</b>", NoteMarkup.Render(raw));
+    }
+
+    [Fact]
+    public void ApplyStyle_Plain_RemovesTheCodesInside_AndKeepsTheLookAfter()
+    {
+        Assert.Equal("x red y", NoteMarkup.ApplyStyle("x §4red§r y", 0, 11, 'r', out _));
+
+        string raw = NoteMarkup.ApplyStyle("§cred text here", 6, 10, 'r', out _);
+        Assert.Equal("§cred §rtext§c here", raw);
+        Assert.Equal("<color=#FF9C9C>red </color>text<color=#FF9C9C> here</color>", NoteMarkup.Render(raw));
+    }
+
+    [Fact]
+    public void ApplyStyle_NeverSplitsACodePair()
+    {
+        Assert.Equal("§l§4red", NoteMarkup.ApplyStyle("§4red", 1, 5, 'l', out _));       // start between "§" and "4"
+        Assert.Equal("§lab§4§r§4cd", NoteMarkup.ApplyStyle("ab§4cd", 0, 3, 'l', out _)); // end between "§" and "4"
+    }
+
+    [Theory]
+    [InlineData("abc", -5, 99, 'l', "§labc")]  // clamped to the text
+    [InlineData("abc", 3, 0, 'L', "§labc")]    // reversed range, upper-case code
+    [InlineData("abc", 0, 3, 'x', "abc")]      // unknown code: nothing changes
+    [InlineData(null, 0, 0, '2', "§2")]
+    public void ApplyStyle_IsForgiving(string? input, int start, int end, char code, string expected)
+        => Assert.Equal(expected, NoteMarkup.ApplyStyle(input, start, end, code, out _));
+
+    [Fact]
+    public void ToolbarColors_AreValidPaletteCodes()
+    {
+        Assert.Equal(8, NoteMarkup.ToolbarColors.Length);
+        Assert.All(NoteMarkup.ToolbarColors, c => Assert.Matches("^[0-9a-f]$", c.ToString()));
+        Assert.Equal(NoteMarkup.ToolbarColors.Length, NoteMarkup.ToolbarColors.Distinct().Count());
+    }
 }

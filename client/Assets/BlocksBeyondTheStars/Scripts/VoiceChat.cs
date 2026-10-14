@@ -442,7 +442,18 @@ namespace BlocksBeyondTheStars.Client
                 _speakers[frame.FromPlayerId] = sp;
             }
 
-            int decoded = sp.Decoder.Decode(frame.Opus, _decodePcm, FrameSamples, false);
+            int decoded = TryDecode(sp.Decoder, frame.Opus, _decodePcm, FrameSamples, out var error);
+            if (error != null)
+            {
+                // A packet the decoder rejects is 20 ms of lost audio, nothing more (#2579): it used to throw out of
+                // NetworkClient.Poll, abort the frame's whole Update and file a "client crash". A failed decode can
+                // leave the decoder's state unusable, so this speaker starts over with a fresh one.
+                DisposeDecoder(sp.Decoder);
+                sp.Decoder = OpusCodecFactory.CreateDecoder(SampleRate, 1);
+                WarnDroppedFrame(frame.FromPlayerId, error);
+                return;
+            }
+
             if (decoded <= 0)
             {
                 return;
@@ -464,6 +475,55 @@ namespace BlocksBeyondTheStars.Client
                 sp.Source.Play();
                 sp.Playing = true;
             }
+        }
+
+        /// <summary>The longest packet Opus defines (RFC 6716 §3.2.1); anything longer is not a voice frame.</summary>
+        public const int MaxOpusPacketBytes = 1275;
+
+        private const float DropWarningIntervalSeconds = 30f;
+        private float _lastDropWarning = float.NegativeInfinity;
+        private int _droppedSinceWarning;
+
+        /// <summary>
+        /// Decodes one relayed packet into <paramref name="pcm"/> and never throws: voice is untrusted network input,
+        /// and Concentus answers a packet it cannot read with an exception (#2579). Returns the decoded sample count;
+        /// on an empty, oversized or rejected packet it returns 0 and hands the reason back in <paramref name="error"/>.
+        /// </summary>
+        public static int TryDecode(IOpusDecoder decoder, byte[] packet, short[] pcm, int frameSamples, out System.Exception error)
+        {
+            error = null;
+            if (decoder == null || packet == null || packet.Length == 0 || packet.Length > MaxOpusPacketBytes)
+            {
+                error = new System.ArgumentException($"not a voice packet ({packet?.Length ?? 0} bytes)");
+                return 0;
+            }
+
+            try
+            {
+                return decoder.Decode(packet, pcm, frameSamples, false);
+            }
+            catch (System.Exception e)
+            {
+                error = e;
+                return 0;
+            }
+        }
+
+        private static void DisposeDecoder(IOpusDecoder decoder) => (decoder as System.IDisposable)?.Dispose();
+
+        /// <summary>A warning, not an exception — the crash reporter only files exceptions — and at most one every
+        /// <see cref="DropWarningIntervalSeconds"/>, so a speaker sending nothing but bad packets cannot flood the log.</summary>
+        private void WarnDroppedFrame(string playerId, System.Exception error)
+        {
+            _droppedSinceWarning++;
+            if (Time.unscaledTime - _lastDropWarning < DropWarningIntervalSeconds)
+            {
+                return;
+            }
+
+            Debug.LogWarning($"[Voice] dropped {_droppedSinceWarning} undecodable voice frame(s), last from '{playerId}': {error.Message}");
+            _lastDropWarning = Time.unscaledTime;
+            _droppedSinceWarning = 0;
         }
 
         private Speaker CreateSpeaker(string playerId)
@@ -517,6 +577,7 @@ namespace BlocksBeyondTheStars.Client
                         Destroy(sp.Source.gameObject);
                     }
 
+                    DisposeDecoder(sp.Decoder);
                     _speakers.Remove(id);
                 }
             }

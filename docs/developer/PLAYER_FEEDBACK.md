@@ -169,8 +169,16 @@ on the log callback's thread, where the live layers must not be touched.
 **"Submit to the developers"** in the texture editor offers a painted texture for the game itself. It rides
 this channel — same endpoint, spam key, spool, reply thread — but is its own dialog
 (`TextureSubmitDialog`), because it asks for something else: three explicit consents (painted it myself /
-the developers may use, change and distribute it / 16 or older, or the parents agreed). The submit button
-stays off until all three are ticked; consent is never remembered between textures.
+the developers may use, change and distribute it / 16 or older, or the parents agreed). Nothing is sent
+until all three are ticked, but Submit stays clickable: pressed with a box still open, it names what is
+missing (`ui.tex.submit.need_consent`) and rings the open boxes in amber (#2576) — a button that was merely off
+looked clickable and did nothing. Consent is never remembered between textures.
+
+- The consent sentences are laid out as a point-anchored rect (position + size) with best fit 15→11, so the
+  whole sentence fits its box in every language. Do not inset a `UiKit.AddButton` label with
+  `offsetMin`/`offsetMax`: that is an inset only on a stretched rect — on the button's point-anchored label it
+  produced a width of −24 and all three sentences vanished (#2575). `TextureSubmitDialogEditModeTests` builds
+  the real dialog and checks the fit in all 14 languages.
 
 - The body is built by `TextureSubmission.Build` (Client.Core, unit-tested): `reportJson.reportType =
   "texture-submission"`, `reportJson.texture { key, kind, name, nickname, frames, fps, consent{…, textVersion} }`
@@ -205,6 +213,7 @@ stays off until all three are ticked; consent is never remembered between textur
 | Texture submission: body / dialog | `src/BlocksBeyondTheStars.Client.Core/Feedback/TextureSubmission.cs` / `client/Assets/BlocksBeyondTheStars/Scripts/TextureSubmitDialog.cs` |
 | Texture-pack note in reports | `src/BlocksBeyondTheStars.Client.Core/Feedback/TexturePackReportInfo.cs` (snapshot kept by `GameTextures.ReportInfo`) |
 | Tests (submission body, consent gate, texture-pack note) | `tests/BlocksBeyondTheStars.Client.Tests/TextureSubmissionTests.cs` |
+| Tests (submit dialog: consent layout in 14 languages, missing-consent hint) | `client/Assets/Tests/EditMode/TextureSubmitDialogEditModeTests.cs` |
 | Wired into the world | `client/Assets/BlocksBeyondTheStars/Scripts/WorldRig.cs` |
 | Wired into the menu (shell mode, #2523) | `client/Assets/BlocksBeyondTheStars/Scripts/AppShell.cs` |
 | API key (build secret) | `client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.cs` |

@@ -123,6 +123,14 @@ Raspberry-Pi tick) and leaks no social signal. Entries match the id the server s
 (`ChatMessage.SenderId`) *or* the display name, so the list survives ids and names diverging. The legacy
 voice-only `MutedVoicePlayers` field is folded in on load and then left empty.
 
+**Bad packets are dropped, never thrown (#2579).** A relayed frame is untrusted input, and Concentus answers a
+packet it cannot read with an exception. Unguarded, that exception ran out of `NetworkClient.Poll`, aborted the
+frame's whole `GameBootstrap.Update` and was filed as a client crash. `VoiceChat.TryDecode` drops an empty
+packet, an oversized one (> 1275 bytes, the Opus maximum) and any packet the decoder rejects. That speaker then
+gets a fresh decoder, because a failed decode can leave the old one unusable, and a warning is logged at most
+every 30 s (the crash reporter files exceptions only). A recycled speaker's decoder is disposed. Covered by
+`VoiceDecodeEditModeTests` (EditMode, compiled only with `BBS_VOICE`).
+
 ## Known limitations (v1)
 
 - **Native client only.** Unity's `Microphone` API does not work in WebGL, so a future browser client would

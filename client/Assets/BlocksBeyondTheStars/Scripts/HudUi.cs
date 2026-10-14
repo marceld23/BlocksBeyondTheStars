@@ -1008,7 +1008,12 @@ namespace BlocksBeyondTheStars.Client
             _speederFuelBg = UiKit.AddImage(_speederPanel.transform, 12, 52, 316, 16, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f, 0.9f));
             _speederFuel = MakeBar(_speederPanel.transform, 12, 52, 316, 16);
             _speederFuelLabel = UiText.Add(_speederPanel.transform, 18, 52, 304, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _speederHint = UiText.Add(_speederPanel.transform, 12, 80, 316, 18, string.Empty, 12, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            // The key hint was the smallest, dimmest text on the panel (12 pt, dim cyan) and players missed "F: Exit"
+            // (#2578): bright bold text with the key itself in the accent colour, shrinking only for a long warning.
+            _speederHint = UiText.Add(_speederPanel.transform, 12, 76, 316, 26, string.Empty, 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _speederHint.enableAutoSizing = true;
+            _speederHint.fontSizeMin = 11f;
+            _speederHint.fontSizeMax = 15f;
             _speederPanel.SetActive(false);
 
             // Scan result panel (bottom-left): the scanner's detail readout — subject, description,
@@ -1726,22 +1731,32 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Key letters come from the live bindings (keyboard key or pad glyph), not hardcoded F/R.
-            string hint = $"{InputMap.Glyph(InputAction.SpeederExit)}: {loc.Get("hud.speeder.exit")}";
+            string hint = KeyHint(InputAction.SpeederExit, loc.Get("hud.speeder.exit"));
+            bool warning = false;
             if (hasFuel)
             {
-                hint += $"  ·  {InputMap.Glyph(InputAction.SpeederRefuel)}: {loc.Get("hud.speeder.refuel")}";
+                hint += "  ·  " + KeyHint(InputAction.SpeederRefuel, loc.Get("hud.speeder.refuel"));
                 if (s.Fuel <= 0.01f)
                 {
                     hint = loc.Get("hud.speeder.nofuel");
+                    warning = true;
                 }
             }
             else if (Game.VehicleAground)
             {
                 hint = loc.Get("hud.boat.aground");
+                warning = true;
             }
 
             _speederHint.text = hint;
+            _speederHint.color = warning ? UiKit.Warn : UiKit.TextCol;
         }
+
+        private static readonly string KeyHintColor = ColorUtility.ToHtmlStringRGB(UiKit.Cyan);
+
+        /// <summary>"F: Exit" with the key in the accent colour, so WHICH key stands out from the words (#2578).</summary>
+        private static string KeyHint(InputAction action, string label)
+            => $"<color=#{KeyHintColor}>{InputMap.Glyph(action)}</color>: {label}";
 
         /// <summary>A horizontal fill bar (dark track + a coloured fill) for the vehicle gauges.</summary>
         private Image MakeBar(Transform parent, float x, float y, float w, float h)

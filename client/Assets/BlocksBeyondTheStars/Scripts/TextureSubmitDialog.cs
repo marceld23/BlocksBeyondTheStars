@@ -19,7 +19,9 @@ namespace BlocksBeyondTheStars.Client
     ///
     /// The players are often children. The dialog therefore asks for a NICKNAME and says not to use the real
     /// name, offers "no name", sends neither e-mail nor location nor machine facts (see
-    /// <see cref="TextureSubmission"/>), and keeps the submit button off until all three boxes are ticked. The
+    /// <see cref="TextureSubmission"/>), and sends nothing until all three boxes are ticked. Submit stays
+    /// clickable all the same: a click with a box still open names what is missing and rings the open boxes
+    /// (#2576) — a button that is merely off looked clickable and did nothing, which a child reads as "broken". The
     /// wording of the boxes was approved as it stands (<c>ui.tex.submit.check_*</c>); a change of meaning needs
     /// a new <see cref="TextureSubmission.ConsentTextVersion"/>.
     ///
@@ -30,6 +32,13 @@ namespace BlocksBeyondTheStars.Client
     public sealed class TextureSubmitDialog : MonoBehaviour
     {
         private const float W = 1920f, H = 1080f;
+
+        /// <summary>Inset of a consent sentence inside its button (left, right).</summary>
+        private const float ConsentInsetLeft = 14f, ConsentInsetRight = 10f;
+
+        /// <summary>Object names the EditMode tests find the dialog's parts by.</summary>
+        public const string CanvasName = "TextureSubmitDialog", SubmitName = "Submit", CancelName = "Cancel",
+            StatusName = "Status", ConsentName = "Consent", ConsentRingName = "ConsentRing";
 
         /// <summary>The nickname typed last, offered again for the next texture of the same sitting.</summary>
         private static string _lastNickname = string.Empty;
@@ -45,9 +54,12 @@ namespace BlocksBeyondTheStars.Client
         private InputField _nameInput, _nickInput, _noteInput;
         private Button _noNameBtn, _submitBtn, _cancelBtn;
         private readonly Button[] _checks = new Button[3];
+        private readonly Image[] _checkRings = new Image[3];
         private readonly bool[] _checked = new bool[3];
         private Text _status;
         private bool _noName;
+        private bool _consentMissingShown; // Submit was pressed with a box open: the open boxes wear the ring
+        private bool _done;                // sent or queued — the dialog is closing, nothing goes out twice
 
         private string _key;
         private bool _icon;
@@ -82,6 +94,8 @@ namespace BlocksBeyondTheStars.Client
             _frames = frames;
             _fps = fps;
             _noName = false;
+            _consentMissingShown = false;
+            _done = false;
             Array.Clear(_checked, 0, _checked.Length); // consent is given per texture, never remembered
             Build(displayName ?? key);
         }
@@ -107,7 +121,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Build(string displayName)
         {
-            _canvas = UiKit.CreateCanvas("TextureSubmitDialog");
+            _canvas = UiKit.CreateCanvas(CanvasName);
             _openDialogs++;
             _canvas.sortingOrder = 70; // above the editor
             UiNav.Enable(_canvas.gameObject);
@@ -145,24 +159,18 @@ namespace BlocksBeyondTheStars.Client
             y += 96f;
 
             // The three consents. Each is a button over the whole sentence, so a child hits it easily and a
-            // gamepad can walk them.
+            // gamepad can walk them. The amber ring behind each one lights up when Submit was pressed while that
+            // box was still open.
             float[] heights = { 40f, 62f, 40f };
             for (int i = 0; i < 3; i++)
             {
                 int index = i;
+                _checkRings[i] = UiKit.AddImage(panel, m - 3f, y - 3f, innerW + 6f, heights[i] + 6f, UiKit.PanelSprite, UiKit.Warn, Image.Type.Sliced);
+                _checkRings[i].gameObject.name = ConsentRingName + (i + 1);
+                _checkRings[i].enabled = false;
                 _checks[i] = UiKit.AddButton(panel, m, y, innerW, heights[i], string.Empty, () => ToggleCheck(index));
-                var label = _checks[i].GetComponentInChildren<Text>();
-                if (label != null)
-                {
-                    label.alignment = TextAnchor.MiddleLeft;
-                    label.fontSize = 15;
-                    label.horizontalOverflow = HorizontalWrapMode.Wrap;
-                    label.resizeTextForBestFit = false;
-                    var rt = label.rectTransform;
-                    rt.offsetMin = new Vector2(14f, rt.offsetMin.y);
-                    rt.offsetMax = new Vector2(-10f, rt.offsetMax.y);
-                }
-
+                _checks[i].gameObject.name = ConsentName + (i + 1);
+                LayoutConsentLabel(_checks[i].GetComponentInChildren<Text>(), innerW, heights[i]);
                 y += heights[i] + 8f;
             }
 
@@ -172,13 +180,39 @@ namespace BlocksBeyondTheStars.Client
 
             _status = UiKit.AddText(panel, m, y, innerW, 40f, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             _status.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _status.gameObject.name = StatusName;
 
             float half = (innerW - 28f) / 2f;
             _submitBtn = UiKit.AddButton(panel, m, ph - 76f, half, 52f, L("ui.tex.submit.send"), OnSubmitClicked, "btn_feedback");
+            _submitBtn.gameObject.name = SubmitName;
             _cancelBtn = UiKit.AddButton(panel, m + half + 28f, ph - 76f, half, 52f, L("ui.tex.submit.cancel"), Close, "btn_exit");
+            _cancelBtn.gameObject.name = CancelName;
 
             RefreshLabels();
         }
+
+        /// <summary>
+        /// Lays a consent sentence over its button. <see cref="UiKit.AddButton"/> pins the label to a top-left POINT
+        /// anchor (<see cref="UiKit.Place"/>), so the inset is a position plus a size. <c>offsetMin</c>/<c>offsetMax</c>
+        /// are an inset only on a rect STRETCHED over its parent; here they turned the label into a rect from x = 14 to
+        /// x = −10, a width of −24, and all three sentences vanished (#2575). Best fit (15 down to 11) keeps the WHOLE
+        /// sentence inside the box in every language: a consent the child cannot read in full is no consent.
+        /// </summary>
+        private static void LayoutConsentLabel(Text label, float width, float height)
+        {
+            if (label == null)
+            {
+                return;
+            }
+
+            label.alignment = TextAnchor.MiddleLeft;
+            var rt = label.rectTransform;
+            rt.anchoredPosition = new Vector2(ConsentInsetLeft, 0f);
+            rt.sizeDelta = new Vector2(width - ConsentInsetLeft - ConsentInsetRight, height);
+            UiKit.FitLabel(label, 11, 15);
+        }
+
+        private bool AllConsentsGiven => _checked[0] && _checked[1] && _checked[2];
 
         private static Text Wrapped(Transform parent, float x, float y, float w, float h, string text, int size, Color color)
         {
@@ -196,12 +230,18 @@ namespace BlocksBeyondTheStars.Client
 
         private void ToggleCheck(int index)
         {
-            if (_sending)
+            if (_sending || _done)
             {
                 return;
             }
 
             _checked[index] = !_checked[index];
+            if (_consentMissingShown && AllConsentsGiven)
+            {
+                _consentMissingShown = false;
+                SetStatus(string.Empty, UiKit.CyanDim); // the hint has done its job
+            }
+
             RefreshLabels();
         }
 
@@ -216,11 +256,16 @@ namespace BlocksBeyondTheStars.Client
             for (int i = 0; i < 3; i++)
             {
                 SetLabel(_checks[i], (_checked[i] ? "☑  " : "☐  ") + L("ui.tex.submit.check_" + (i + 1)));
+                if (_checkRings[i] != null)
+                {
+                    _checkRings[i].enabled = _consentMissingShown && !_checked[i];
+                }
             }
 
             if (_submitBtn != null)
             {
-                _submitBtn.interactable = !_sending && _checked[0] && _checked[1] && _checked[2];
+                // Not gated on the boxes: a click with one open says what is missing (OnSubmitClicked).
+                _submitBtn.interactable = !_sending && !_done;
             }
 
             if (_cancelBtn != null)
@@ -263,7 +308,15 @@ namespace BlocksBeyondTheStars.Client
             if (_canvas != null)
             {
                 UiKit.ReleaseTextFieldFocus(_canvas.transform);
-                Destroy(_canvas.gameObject);
+                if (Application.isPlaying)
+                {
+                    Destroy(_canvas.gameObject);
+                }
+                else
+                {
+                    DestroyImmediate(_canvas.gameObject); // EditMode tests close the dialog through its Cancel button
+                }
+
                 _canvas = null;
                 _openDialogs = Mathf.Max(0, _openDialogs - 1);
                 _closedFrame = Time.frameCount;
@@ -274,8 +327,16 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnSubmitClicked()
         {
-            if (_sending)
+            if (_sending || _done)
             {
+                return;
+            }
+
+            if (!AllConsentsGiven)
+            {
+                _consentMissingShown = true;
+                RefreshLabels();
+                SetStatus(L("ui.tex.submit.need_consent"), UiKit.Warn);
                 return;
             }
 
@@ -387,13 +448,9 @@ namespace BlocksBeyondTheStars.Client
 
         private void Finish(string message)
         {
+            _done = true; // sent is sent — no second copy by a double click while the dialog fades out
             SetStatus(message, UiKit.Ok);
             RefreshLabels();
-            if (_submitBtn != null)
-            {
-                _submitBtn.interactable = false; // sent is sent — no second copy by a double click
-            }
-
             OnOutcome?.Invoke(message, UiKit.Ok);
             Invoke(nameof(DestroyDialog), 1.8f);
         }

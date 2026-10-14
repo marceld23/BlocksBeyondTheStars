@@ -16,7 +16,8 @@
     "nunit.framework.dll",
     "BlocksBeyondTheStars.Client.Core.dll",
     "BlocksBeyondTheStars.Shared.dll",
-    "BlocksBeyondTheStars.Networking.dll"
+    "BlocksBeyondTheStars.Networking.dll",
+    "Concentus.dll"
   ],
   "autoReferenced": false,
   "defineConstraints": [

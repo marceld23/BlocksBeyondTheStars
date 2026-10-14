@@ -28,7 +28,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var go = new GameObject("UiSound");
-            Object.DontDestroyOnLoad(go);
+            if (Application.isPlaying)
+            {
+                Object.DontDestroyOnLoad(go); // play mode only — it throws in edit mode, where EditMode tests click buttons
+            }
+
             _src = go.AddComponent<AudioSource>();
             _src.playOnAwake = false;
             _src.spatialBlend = 0f;

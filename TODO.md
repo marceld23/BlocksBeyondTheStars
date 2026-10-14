@@ -24,6 +24,38 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🖌️ Texture editor: "Submit to the developers" could not submit (Marcel, 2026-10-14) + the afternoon reports (Screelit, Bloody Mary, v2026.10.14) — #2575–#2579, branch fix/texture-submit-consents — ✅ done 2026-10-14 (⚠ playtest open)
+
+Reports of 2026-10-14 afternoon (package label `package: reports 2026-10-14 late`):
+
+- **#2577 notes: bold and colour need buttons** (Screelit: "I don't understand what to type") — the §-codes
+  were the only way, and their effect only showed in *Preview*. Now a toolbar over the note body: bold
+  (localized letter), eight colour swatches, *Plain*; it styles the selection on every line it touches and
+  restores the previous style after it, or inserts at the caret. Logic in `NoteMarkup.ApplyStyle` (unit-tested);
+  `NoteSelectionMemory` keeps the selection the InputField drops when a button takes the click. 3 keys × 14 languages.
+- **#2578 vehicle key hint** ("F: Exit" should be easier to see) — the speeder/boat hint was 12 pt dim cyan:
+  now 15 pt bold bright with the key in the accent colour, auto-shrinking; warnings (empty cell, aground) in amber.
+- **#2579 voice crash** (Bloody Mary, `OpusException` from `VoiceChat.EnqueueForPlayback`) — a packet the
+  decoder rejects threw out of `NetworkClient.Poll` and aborted the frame's `Update`. Now `VoiceChat.TryDecode`
+  drops it, the speaker gets a fresh decoder, a rate-limited warning replaces the exception; recycled
+  decoders are disposed. `VoiceDecodeEditModeTests`.
+
+Texture submit:
+
+- **#2575 the three consent boxes rendered empty** — the consent labels were inset with `offsetMin`/`offsetMax`
+  on `UiKit.AddButton`'s point-anchored label, which made them −24 wide; the clicks toggled invisibly and Submit
+  never visibly came on. Broken since the dialog shipped (#1965, 2026-09-20). Now position + size with best fit
+  15→11, so the whole sentence fits in every language. Checked: the shape and form editors have no
+  submit dialog, and no other UI uses the offset idiom on a point-anchored label.
+- **#2576 Submit explains instead of playing dead** — always clickable (except while sending/after sending);
+  with a box open it shows `ui.tex.submit.need_consent` (all 14 languages) and rings the open boxes in amber.
+- `TextureSubmitDialogEditModeTests` (consent fit in all 14 languages, the hint, Cancel); `UiSound` and the
+  dialog's close are edit-mode safe (`Application.isPlaying` guards, like `OnScreenKeyboardUi`).
+- Side finding, open: the button icons (`btn_feedback`, `btn_exit`) did not show in the texture editor on
+  Marcel's screenshot (labels at the no-icon inset) — cause not found in code; check whether the menu icons show.
+
+---
+
 ### 📬 Player reports 2026-10-14 evening (Screelit = Justus on v2026.10.13, Bloody Mary on v2026.10.14, a radio report from a locally hosted multiplayer session) — epic #2572, branch fix/reports-2026-10-14-evening — ✅ done 2026-10-14 (⚠ playtest open)
 
 Eight F1 reports (all with their `/bump` twin) plus side findings — one PR:

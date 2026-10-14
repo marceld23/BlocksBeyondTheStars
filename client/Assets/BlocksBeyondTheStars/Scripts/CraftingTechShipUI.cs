@@ -4539,6 +4539,91 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True while the body pane shows the rendered markup instead of the text field.</summary>
         private bool _notePreview;
 
+        /// <summary>The note body's selection memory while the editor is up (null in preview) — the style toolbar
+        /// reads and moves the caret through it (#2577).</summary>
+        private NoteSelectionMemory _noteBodyMemory;
+
+        /// <summary>The style toolbar over the note body (#2577): bold, the eight vivid colours, plain. The buttons
+        /// write the §-codes so nobody has to know them — see <see cref="NoteMarkup.ApplyStyle"/>.</summary>
+        private void BuildNoteToolbar(string key, float x, float y)
+        {
+            UiKit.AddButton(_detail, x, y, 44, 38, L("ui.notes.style_bold"), () => ApplyNoteStyle(key, 'l'));
+            x += 50f;
+            foreach (char code in NoteMarkup.ToolbarColors)
+            {
+                char c = code;
+                var swatch = UiKit.AddButton(_detail, x, y, 30, 38, string.Empty, () => ApplyNoteStyle(key, c));
+                ColorUtility.TryParseHtmlString("#" + NoteMarkup.Palette[System.Convert.ToInt32(c.ToString(), 16)], out var colour);
+                UiKit.AddImage(swatch.transform, 6, 8, 18, 22, UiKit.SolidSprite, colour);
+                x += 34f;
+            }
+
+            UiKit.AddButton(_detail, x + 2f, y, 96, 38, L("ui.notes.style_plain"), () => ApplyNoteStyle(key, 'r'));
+        }
+
+        /// <summary>Applies a toolbar style to the remembered selection (or at the end when the body was never
+        /// clicked), keeps the draft, and gives the field its focus and caret back.</summary>
+        private void ApplyNoteStyle(string key, char code)
+        {
+            var memory = _noteBodyMemory;
+            if (memory == null || memory.Field == null)
+            {
+                return;
+            }
+
+            string text = memory.Field.text ?? string.Empty;
+            int start = memory.HasSelection ? memory.Anchor : text.Length;
+            int end = memory.HasSelection ? memory.Focus : text.Length;
+            string styled = NoteMarkup.ApplyStyle(text, start, end, code, out int caret);
+            if (styled.Length > NoteBodyMax)
+            {
+                return; // the note is full — the field would cut the codes off anyway
+            }
+
+            memory.Field.text = styled; // onValueChanged keeps the draft too
+            _noteDraftBody[key] = styled;
+            memory.PutCaret(caret);
+        }
+
+        /// <summary>
+        /// Remembers the note body's selection while it has focus, and puts the caret back after a style was applied
+        /// (#2577). uGUI's InputField forgets its selection the moment a toolbar button takes the click (deactivating
+        /// the field moves the caret to 0), so the toolbar reads what was recorded in the frames before.
+        /// </summary>
+        private sealed class NoteSelectionMemory : MonoBehaviour
+        {
+            public InputField Field;
+            public int Anchor = -1, Focus = -1;
+            private int _pendingCaret = -1;
+
+            public bool HasSelection => Anchor >= 0 && Focus >= 0;
+
+            public void PutCaret(int caret)
+            {
+                Anchor = Focus = caret;
+                _pendingCaret = caret;
+                Field.ActivateInputField();
+            }
+
+            private void LateUpdate()
+            {
+                if (Field == null || !Field.isFocused)
+                {
+                    return;
+                }
+
+                if (_pendingCaret >= 0)
+                {
+                    // Activation selected the whole text; setting the caret collapses that to the right spot.
+                    Field.caretPosition = Mathf.Min(_pendingCaret, Field.text.Length);
+                    _pendingCaret = -1;
+                }
+
+                Anchor = Field.selectionAnchorPosition;
+                Focus = Field.selectionFocusPosition;
+            }
+        }
+
         /// <summary>The note a save is pending for (null = none) and the notes version at that moment: once the
         /// server's answer bumps the version, the draft is dropped (the pane then shows the stored, possibly
         /// masked, text) and a NEW note is selected. A refused save bumps nothing, so the draft stays.</summary>
@@ -4646,16 +4731,29 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddInput(_detail, 8, y, 624, 44, title, v => _noteDraftTitle[key] = v, L("ui.notes.title_ph"), NoteTitleMax, 20);
             y += 52f;
 
-            // Preview ⇄ Edit toggle + the one-line markup cheat sheet.
+            // Preview ⇄ Edit toggle. Editing gets the style toolbar (#2577) — bold, eight colours, plain — and a hint a
+            // child can follow; the one-line code cheat sheet stays for the preview.
+            _noteBodyMemory = null;
             UiKit.AddButton(_detail, 8, y, 170, 38, L(_notePreview ? "ui.notes.edit" : "ui.notes.preview"), () =>
             {
                 UiKit.ReleaseTextFieldFocus(_detail);
                 _notePreview = !_notePreview;
                 RebuildDetail();
             });
-            var cheat = UiKit.AddText(_detail, 190, y, 442, 38, L("ui.notes.markup_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            cheat.horizontalOverflow = HorizontalWrapMode.Wrap;
-            y += 46f;
+            if (_notePreview)
+            {
+                var cheat = UiKit.AddText(_detail, 190, y, 442, 38, L("ui.notes.markup_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                cheat.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += 46f;
+            }
+            else
+            {
+                BuildNoteToolbar(key, 190f, y);
+                y += 44f;
+                var tip = UiKit.AddText(_detail, 8, y, 624, 36, L("ui.notes.toolbar_hint"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
+                tip.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += 40f;
+            }
 
             if (_notePreview)
             {
@@ -4680,7 +4778,9 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                UiKit.AddInput(_detail, 8, y, 624, NoteBodyHeight, body, v => _noteDraftBody[key] = v, L("ui.notes.body_ph"), NoteBodyMax, 17, multiline: true);
+                var bodyInput = UiKit.AddInput(_detail, 8, y, 624, NoteBodyHeight, body, v => _noteDraftBody[key] = v, L("ui.notes.body_ph"), NoteBodyMax, 17, multiline: true);
+                _noteBodyMemory = bodyInput.gameObject.AddComponent<NoteSelectionMemory>();
+                _noteBodyMemory.Field = bodyInput;
                 y += NoteBodyHeight + 8f;
             }
 

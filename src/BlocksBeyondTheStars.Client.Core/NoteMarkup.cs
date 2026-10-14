@@ -143,6 +143,197 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>The colour codes the note editor's toolbar offers (#2577): the vivid entries of
+        /// <see cref="Palette"/>, in rainbow order — red, gold, yellow, green, aqua, blue, purple, pink.</summary>
+        public static readonly char[] ToolbarColors = { '4', '6', 'e', '2', '3', '1', '5', 'd' };
+
+        /// <summary>
+        /// What the note editor's style buttons do (#2577) — so nobody has to know the codes. <paramref name="code"/>
+        /// is a colour digit <c>0</c>–<c>f</c>, <c>l</c> for bold or <c>r</c> for plain.
+        /// <list type="bullet">
+        /// <item>Nothing selected (<paramref name="start"/> == <paramref name="end"/>): the code goes in at the caret,
+        /// so what is typed next takes the style.</item>
+        /// <item>A selection: the style covers it on every line it touches (styles never cross a line break), and
+        /// right after it the style that was active there comes back, so the rest of the line keeps its look. Plain
+        /// also removes the codes inside the selection.</item>
+        /// </list>
+        /// A selection edge that falls between "§" and its code character moves outward, so no code is ever split.
+        /// Returns the new raw text; <paramref name="caret"/> is where the caret belongs afterwards (after the inserted
+        /// code, or after the styled selection). An unknown <paramref name="code"/> changes nothing.
+        /// </summary>
+        public static string ApplyStyle(string? raw, int start, int end, char code, out int caret)
+        {
+            string s = raw ?? string.Empty;
+            if (start > end)
+            {
+                (start, end) = (end, start);
+            }
+
+            start = start < 0 ? 0 : (start > s.Length ? s.Length : start);
+            end = end < 0 ? 0 : (end > s.Length ? s.Length : end);
+            code = char.ToLowerInvariant(code);
+            if (HexValue(code) < 0 && code != 'l' && code != 'r')
+            {
+                caret = end;
+                return s;
+            }
+
+            if (IsCodeChar(s, start))
+            {
+                start--; // between "§" and its code: start before the pair
+            }
+
+            if (IsCodeChar(s, end))
+            {
+                end++; // between "§" and its code: take the whole pair
+            }
+
+            var sb = new StringBuilder(s.Length + 16);
+            if (start == end)
+            {
+                sb.Append(s, 0, start).Append(Escape).Append(code).Append(s, start, s.Length - start);
+                caret = start + 2;
+                return sb.ToString();
+            }
+
+            int copied = 0;
+            caret = end;
+            int segStart = start;
+            while (true)
+            {
+                int lineEnd = s.IndexOf('\n', segStart);
+                if (lineEnd < 0)
+                {
+                    lineEnd = s.Length;
+                }
+
+                int segEnd = end < lineEnd ? end : lineEnd;
+                if (segEnd > segStart)
+                {
+                    sb.Append(s, copied, segStart - copied);
+                    string piece = s.Substring(segStart, segEnd - segStart);
+                    bool lineGoesOn = segEnd < lineEnd; // at a line end every style stops anyway
+                    var after = StateAt(s, segEnd);
+                    if (code == 'r')
+                    {
+                        if (StateAt(s, segStart) != (-1, false))
+                        {
+                            sb.Append(Escape).Append('r');
+                        }
+
+                        sb.Append(Strip(piece));
+                        if (lineGoesOn)
+                        {
+                            AppendState(sb, after);
+                        }
+                    }
+                    else
+                    {
+                        sb.Append(Escape).Append(code).Append(piece);
+                        if (lineGoesOn)
+                        {
+                            sb.Append(Escape).Append('r');
+                            AppendState(sb, after);
+                        }
+                    }
+
+                    copied = segEnd;
+                    caret = sb.Length;
+                }
+
+                if (lineEnd >= end)
+                {
+                    break;
+                }
+
+                segStart = lineEnd + 1;
+            }
+
+            sb.Append(s, copied, s.Length - copied);
+            return sb.ToString();
+        }
+
+        /// <summary>True when <paramref name="index"/> is the code character of a "§x" pair — pairs read from the line
+        /// start exactly as <see cref="Render"/> reads them ("§" plus whatever follows it).</summary>
+        private static bool IsCodeChar(string s, int index)
+        {
+            if (index <= 0 || index >= s.Length)
+            {
+                return false;
+            }
+
+            int i = s.LastIndexOf('\n', index - 1) + 1;
+            while (i < index)
+            {
+                if (s[i] == Escape && i + 1 < s.Length)
+                {
+                    if (i + 1 == index)
+                    {
+                        return true;
+                    }
+
+                    i += 2;
+                }
+                else
+                {
+                    i++;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>The style in force just before <paramref name="index"/>: colour (-1 = none) and bold, read from the
+        /// start of that line.</summary>
+        private static (int Color, bool Bold) StateAt(string s, int index)
+        {
+            int color = -1;
+            bool bold = false;
+            int i = index > 0 ? s.LastIndexOf('\n', index - 1) + 1 : 0;
+            while (i < index)
+            {
+                if (s[i] == Escape && i + 1 < s.Length)
+                {
+                    char c = char.ToLowerInvariant(s[i + 1]);
+                    int hex = HexValue(c);
+                    if (hex >= 0)
+                    {
+                        color = hex;
+                    }
+                    else if (c == 'l')
+                    {
+                        bold = true;
+                    }
+                    else if (c == 'r')
+                    {
+                        color = -1;
+                        bold = false;
+                    }
+
+                    i += 2;
+                }
+                else
+                {
+                    i++;
+                }
+            }
+
+            return (color, bold);
+        }
+
+        private static void AppendState(StringBuilder sb, (int Color, bool Bold) state)
+        {
+            if (state.Color >= 0)
+            {
+                sb.Append(Escape).Append("0123456789abcdef"[state.Color]);
+            }
+
+            if (state.Bold)
+            {
+                sb.Append(Escape).Append('l');
+            }
+        }
+
         /// <summary>The text with every markup code removed — what a note "says", for search and list cards.</summary>
         public static string Strip(string? raw)
         {
