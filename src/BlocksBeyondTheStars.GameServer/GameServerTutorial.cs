@@ -21,7 +21,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// (<see cref="UiTutorialEvent"/>, tag 298), the tutorial's world predicates (plants and trees in reach, a shaped block
 /// carried, knowledge for a blueprint, every blueprint handed out, an unvisited world in the system), the
 /// <c>nearest_food_plant</c> marker probe, the "one teaching voice" hold over VEGA's hints and tips (a step's
-/// <c>hintRefs</c>, G12) and the one-time migration of the old onboarding chain into the official tutorial pack.
+/// <c>hintRefs</c>, G12), the pack's hold list for hints about later topics (<c>gates.holdHints</c>, #2549) and the
+/// one-time migration of the old onboarding chain into the official tutorial pack.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -38,11 +39,21 @@ public sealed partial class GameServer
     /// <summary>Upward speed (blocks/s) that reads as a jump.</summary>
     private const float TutorialJumpSpeed = 2.5f;
 
-    /// <summary>The "walked back to the ship" check: far means at least this far from the landed ship's heal tank …</summary>
+    /// <summary>The "walked back to the ship" check, in the metres the compass shows as "Ship N m" (#2550): far means the
+    /// compass reads at least this …</summary>
     private const double TutorialShipFarDistance = 40.0;
 
-    /// <summary>… and back means aboard or within this distance again.</summary>
+    /// <summary>… and back means aboard or the compass reads at most this again.</summary>
     private const double TutorialShipNearDistance = 10.0;
+
+    /// <summary>#2550: the compass rounds its distance with Unity's <c>Mathf.RoundToInt</c> — to the nearest whole metre, an
+    /// exact .5 to the even one (39.5 reads 40, 10.5 reads 10). The server compares the exact flat distance with these edges,
+    /// so the moment the compass reads "Ship 40 m" counts as far and "Ship 10 m" as back — never "the compass says 40 but
+    /// the step disagrees" (both readings are even, so the .5 edge itself reads as the reading).</summary>
+    private const double TutorialShipFarEdge = TutorialShipFarDistance - 0.5;
+
+    /// <inheritdoc cref="TutorialShipFarEdge"/>
+    private const double TutorialShipNearEdge = TutorialShipNearDistance + 0.5;
 
     /// <summary>Half-size (blocks, horizontal) of the probe behind <c>food_plants_near</c>, <c>trees_near</c> and the
     /// <c>nearest_food_plant</c> marker.</summary>
@@ -160,22 +171,32 @@ public sealed partial class GameServer
     /// <summary>1 Hz from <c>TickShipAi</c> (the player's world is the active cursor there): walked back to the landed
     /// ship after having been far from it (<c>ship:returned</c> <c>walk</c>), a data fragment carried (<c>data:found</c>
     /// <c>fragment</c>), and since #2480 a base's sealed room or wall ring (<c>base:sealed</c>, <c>base:walled</c>). Each
-    /// check only while a step waits for it.</summary>
+    /// check only while a step waits for it — the walk back only while one of THIS player's steps waits for it (#2550:
+    /// the event bus is shared, so another player's open step must not let this one's walk count early).</summary>
     private void TutorialStateEvents(PlayerSession session)
     {
         var p = session.State;
         if (HasGameEventListener(GameEventKeys.ShipReturned))
         {
             var landed = _worlds.Active.LandedFor(p.PlayerId);
-            if (landed.Placed && !InSpace(p.PlayerId) && !InStation(p.PlayerId))
+            if (!StepWaitsFor(session, GameEventKeys.ShipReturned))
             {
-                double d2 = WrapDistSq(p.Position, landed.HealTank);
+                session.TutorialFarFromShip = false; // #2550: a walk only counts while the player's own step waits for it
+            }
+            else if (landed.Placed && !InSpace(p.PlayerId) && !InStation(p.PlayerId))
+            {
+                // #2550: what the compass shows ("Ship N m", rounded — see TutorialShipFarEdge), not the heal tank in 3-D.
+                double d2 = ShipCompassDistSq(p.Position, landed);
                 bool onFoot = !p.AboardShip && !p.InEva && !ShipInteriorContains(p.Position);
-                if (onFoot && d2 >= TutorialShipFarDistance * TutorialShipFarDistance)
+                if (onFoot && d2 >= TutorialShipFarEdge * TutorialShipFarEdge)
                 {
-                    session.TutorialFarFromShip = true;
+                    if (!session.TutorialFarFromShip)
+                    {
+                        session.TutorialFarFromShip = true;
+                        SpeakStepMidLines(session, GameEventKeys.ShipReturned); // #2550: "far enough — now find your way back"
+                    }
                 }
-                else if (session.TutorialFarFromShip && (p.AboardShip || d2 <= TutorialShipNearDistance * TutorialShipNearDistance))
+                else if (session.TutorialFarFromShip && (p.AboardShip || d2 <= TutorialShipNearEdge * TutorialShipNearEdge))
                 {
                     session.TutorialFarFromShip = false;
                     RaiseGameEvent(session, GameEventKeys.ShipReturned, "walk");
@@ -191,6 +212,34 @@ public sealed partial class GameServer
         }
 
         TutorialBaseStateEvents(session); // #2480: a sealed room, a closed wall ring — only while this player's step waits
+    }
+
+    /// <summary>#2550: the squared distance the compass shows as "Ship N m" — flat (height does not count) and the short way
+    /// round the world's seams, from <paramref name="pos"/> to the landed ship's anchor (the floor centre, at the block's
+    /// middle — exactly the point <see cref="SendShipPlacement"/> gives the client's compass). The walk-back step measures
+    /// with it, so the player can read their progress off the compass.</summary>
+    private double ShipCompassDistSq(Vector3f pos, LandedShip landed)
+    {
+        var anchor = AnchorOf(landed);
+        return WorldConstants.WrapDistanceSquared(
+            new Vector3f(pos.X, 0f, pos.Z), new Vector3f(anchor.X + 0.5f, 0f, anchor.Z + 0.5f), _world.Circumference);
+    }
+
+    /// <summary>#2550: a step that waits for <c>ship:returned</c> activates (also in a replay): the walk starts afresh, so a
+    /// "far" noted before — under another step, or before a skip — never completes it at the ship without a walk.</summary>
+    private static void ResetTutorialWalk(PlayerSession s, CompiledStep step)
+    {
+        if (step.Event.Length > 0 && GameEventKeys.Matches(step.Event, GameEventKeys.ShipReturned))
+        {
+            s.TutorialFarFromShip = false;
+        }
+    }
+
+    /// <summary>Test seam: <see cref="ShipCompassDistSq"/> for a player's own landed ship (as a distance), or null without one.</summary>
+    internal double? ShipCompassDistanceForTest(PlayerSession s)
+    {
+        var landed = _worlds.Active.LandedFor(s.State.PlayerId);
+        return landed.Placed ? Math.Sqrt(ShipCompassDistSq(s.State.Position, landed)) : null;
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -419,6 +468,38 @@ public sealed partial class GameServer
             if ((active || !step.IsAlternative) && !ChapterFinished(s, step.Chapter))
             {
                 return true; // an alternative only while it stands in
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>#2549: whether the basic training holds this one-time hint back for now — a running tutorial pack names it in
+    /// <c>gates.holdHints</c> and the condition that releases it does not hold yet for this player (today: the crystal and
+    /// the ruins-and-wrecks hints until part 5 is through, the tool-tier wall until part 3 runs). A held hint is <b>not
+    /// spent</b> — its once-flag stays unset — so it comes at its next occasion once released. Never held, which keeps
+    /// today's behaviour: no tutorial pack names it, the tutorial does not run for the player (world rule <c>Off</c>,
+    /// <c>OptIn</c> not started, opted out, not started yet), the pack is done (graduated or skipped — a skip marks every
+    /// mandatory chapter skipped, which the <c>chapter:</c> conditions count too), or an older client (no <c>packs1</c>: its
+    /// nine legacy lessons never mark the chapters the conditions ask for). Readers: <see cref="ShipAiHintOnce"/> and the
+    /// context-tip pass (<c>TickVegaContextTips</c>).</summary>
+    private bool TutorialHoldsHint(PlayerSession s, string hintId)
+    {
+        if (!s.SupportsPacks || PlayerPacks.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var pack in PlayerPacks)
+        {
+            if (!pack.IsTutorial || !pack.HoldHints.TryGetValue(hintId, out var release))
+            {
+                continue;
+            }
+
+            if (PackRunsFor(s, pack) && !MilestonesOf(s).Contains(StoryPackKeys.Done(pack.Id)) && !EvaluateStoryCondition(release, s))
+            {
+                return true;
             }
         }
 
@@ -684,6 +765,12 @@ public sealed partial class GameServer
 
     /// <summary>Test seam: <see cref="HintHeldByTutorial"/>.</summary>
     internal bool HintHeldByTutorialForTest(PlayerSession s, string hintId) => HintHeldByTutorial(s, hintId);
+
+    /// <summary>Test seam: <see cref="TutorialHoldsHint"/>.</summary>
+    internal bool TutorialHoldsHintForTest(PlayerSession s, string hintId) => TutorialHoldsHint(s, hintId);
+
+    /// <summary>Test seam: <see cref="ShipAiHintOnce"/>.</summary>
+    internal void ShipAiHintOnceForTest(PlayerSession s, string hintId) => ShipAiHintOnce(s, hintId);
 
     /// <summary>Test seam: the per-player answer of a <c>world:</c> predicate.</summary>
     internal bool WorldPredicateForTest(PlayerSession s, string predicate) => WorldPredicates.TryGetValue(predicate, out var test) && test(s);

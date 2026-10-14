@@ -11,6 +11,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Feedback;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -32,13 +33,21 @@ public sealed class BumpSample
 /// <summary>
 /// The <c>/bump</c> debug command: a player types <c>/bump &lt;description&gt;</c> in chat (works without
 /// a comm radio) and the server writes a detailed JSON snapshot of their situation — player state,
-/// environment, surrounding blocks, nearby entities and a short rolling history (the situation before)
-/// — to <c>&lt;world&gt;/bumps/</c> so a developer can reproduce and fix the reported bug.
+/// environment, surrounding blocks, nearby entities (fauna, NPCs, players, doors, containers and, since #2555,
+/// the planet machines and bandits with what they are doing), the training progress (active story-pack steps,
+/// tutorial and VEGA hint milestones) and a short rolling history (the situation before) — to
+/// <c>&lt;world&gt;/bumps/</c> so a developer can reproduce and fix the reported bug.
 /// </summary>
 public sealed partial class GameServer
 {
     private double _uptime;
     private int _bumpCount;
+
+    /// <summary>How far around the reporter the snapshot lists planet machines and bandits (#2555).</summary>
+    private const float BumpMachineRange = 48f;
+
+    /// <summary>The prefix of VEGA's once-hint milestones (<c>vega:hint:&lt;id&gt;</c>, <c>#2</c>…, <c>#done</c>).</summary>
+    private const string VegaHintPrefix = "vega:hint:";
 
     /// <summary>Number of bump snapshots written this session (test hook).</summary>
     public int BumpsWritten => _bumpCount;
@@ -182,6 +191,7 @@ public sealed partial class GameServer
         object others = new List<object>();
         object containers = new List<object>();
         object doors = new List<object>(); // #1773: a door is an entity, never a voxel — without this a doorway reads as a hole
+        object machines = new List<object>(); // #2555: Guardian robots, scan-drones and bandits — a "Guardian" report was unresolvable
 
         if (inSpace && _playerInstance.TryGetValue(p.PlayerId, out var instanceId)
             && _spaceInstances.TryGetValue(instanceId, out var instance))
@@ -266,7 +276,36 @@ public sealed partial class GameServer
                 .Select(d => new { d.Id, d.Kind, d.PlayerBuilt, d.Open, x = d.Pos.X, y = d.Pos.Y, z = d.Pos.Z }).ToList();
             containers = _containers.Where(c => Dist2(p.Position, c.Position) < r2)
                 .Select(c => new { c.Id, c.Kind, items = c.Items.Count, c.Position.X, c.Position.Y, c.Position.Z }).ToList();
+
+            // #2555: the planet machines and bandits around (wider than the 24-block lists — a walking robot hunts from
+            // 28 blocks, a drone fires from 16 at hover height): kind, hostile, where, what it is doing, water on its feet.
+            machines = _planetEnemies.Concat(_bandits).Where(e => WrapDistSq(p.Position, e.Position) < BumpMachineRange * BumpMachineRange)
+                .Select(e => new
+                {
+                    e.Id,
+                    kind = e.Kind.ToString(),
+                    e.Hostile,
+                    x = e.Position.X,
+                    y = e.Position.Y,
+                    z = e.Position.Z,
+                    e.Hull,
+                    motion = MachineMotionWord(e),
+                    water = MachineWaterWord(e),
+                    banditPhase = e.IsBandit ? e.BanditPhase.ToString() : null,
+                }).ToList();
         }
+
+        // #2555: where the player stands in the basic training and which tips VEGA already gave — the active story-pack
+        // steps (key "<pack>:<step>" → events counted) and the tutorial's and VEGA's hint milestones, names only.
+        string tutorialPrefix = StoryPackKeys.Prefix(OfficialTutorialPackId);
+        var tutorial = new
+        {
+            activeSteps = p.StepProgress.OrderBy(kv => kv.Key, StringComparer.Ordinal)
+                .Select(kv => new { step = kv.Key, count = kv.Value }).ToList(),
+            milestones = p.Milestones
+                .Where(m => m.StartsWith(tutorialPrefix, StringComparison.Ordinal) || m.StartsWith(VegaHintPrefix, StringComparison.Ordinal))
+                .OrderBy(m => m, StringComparer.Ordinal).ToList(),
+        };
 
         try
         {
@@ -334,11 +373,12 @@ public sealed partial class GameServer
                     rations,
                     equipment, // #2110: the worn gear by slot
                 },
+                tutorial, // #2555: active training steps + tutorial / VEGA hint milestones
                 environment = worldResident ? BuildEnvironment(p.Position) : null, // the player's local biome weather; null while the body is not loaded (#1567)
                 ship = new { _ship.ShipType, _ship.Hull, hullMax = _shipHullMax, _ship.Shield, shieldMax = _shipShieldMax, modules = _ship.Modules },
                 surroundings = blocks,
                 surroundingsCensus = census, // wider block-type histogram (terrain + voxel flora); empty in space
-                nearby = new { creatures, npcs, players = others, containers, doors },
+                nearby = new { creatures, npcs, players = others, containers, doors, machines },
                 space, // ship flight position + nearby space entities when flying; null on a surface/interior
                 historyBefore = session.History,
             };

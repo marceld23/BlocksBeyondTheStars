@@ -78,6 +78,28 @@ public sealed class TamingShapesStoryTests : IDisposable
         return new CombatEntityRef(creature.Id, creature.Position);
     }
 
+    /// <summary>Stands the player on solid ground in their own column: when the tamed animal was a fish the player swam
+    /// where it was, in a lake — then one stone set into the water's surface carries them (a fish companion stays close
+    /// enough in the water below to ward them). A machine placed on a swimming player stood in deep water, which a walking
+    /// robot leaves for the shore since #2554 instead of hanging there biting.</summary>
+    private void StandOnTheSurface(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession p)
+    {
+        var water = _content.GetBlock("water")!.NumericId;
+        int x = (int)Math.Floor(p.State.Position.X), y = (int)Math.Floor(p.State.Position.Y), z = (int)Math.Floor(p.State.Position.Z);
+        if (server.World.GetBlock(new Vector3i(x, y, z)).Value != water.Value)
+        {
+            return; // already on land
+        }
+
+        while (server.World.GetBlock(new Vector3i(x, y + 1, z)).Value == water.Value)
+        {
+            y++; // up to the water's top cell
+        }
+
+        server.World.SetBlock(new Vector3i(x, y, z), _content.GetBlock("stone")!.NumericId);
+        p.State.Position = new Vector3f(x + 0.5f, y + 1, z + 0.5f);
+    }
+
     /// <summary>Runs the taming ritual to completion on the creature nearest the player. Returns true if tamed.</summary>
     private static bool TameNearest(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession p, string playerId, CombatEntityRef target)
     {
@@ -214,6 +236,7 @@ public sealed class TamingShapesStoryTests : IDisposable
             var p = Ranger(server);
             server.Tick(6.0);
             Assert.True(TameNearest(server, p, "Ranger", FirstWild(server, CreatureTemperament.Passive)));
+            StandOnTheSurface(server, p); // the machines below appear on the player — on ground, not in a lake (#2554)
             Assert.True(server.PlayerWardedByCompanionForTest("Ranger"));
 
             // A machine appears right on top of the warded player.

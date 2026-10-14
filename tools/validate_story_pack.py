@@ -134,8 +134,8 @@ KNOWN_FIELDS = {
         "variants", "explain", "onStart", "onComplete", "escalate", "skippable", "hintRefs",
     },
     "objective": {"event", "arg", "required", "type", "target"},
-    "explain": {"startKey", "chipKey", "hintKey", "doneKey", "moreGuide"},
-    "variant": {"when", "startKey", "chipKey", "hintKey", "doneKey"},
+    "explain": {"startKey", "chipKey", "hintKey", "doneKey", "midKey", "moreGuide"},
+    "variant": {"when", "startKey", "chipKey", "hintKey", "doneKey", "midKey"},
     "hook": {"cutscene", "reveal"},
     "insight": {"event", "minBeat", "textKey", "onceKey"},
     "finale": {"type", "cutscenes"},
@@ -590,6 +590,18 @@ class Validator:
 
         conditions("start.after", (pack.get("start") or {}).get("after"))
         for gate, text in (pack.get("gates") or {}).items():
+            if gate.lower() == "holdhints":
+                # #2549: hint id -> the condition that releases it (the basic training holds the hint back until then)
+                if not isinstance(text, dict):
+                    r.error(pid, f"gates.{gate}", "expected an object of hint id -> condition")
+                    continue
+                for hint, release in text.items():
+                    if not hint.strip() or any(ch.isspace() for ch in hint):
+                        r.error(pid, f"gates.{gate}.{hint}", "a hint id (the <id> of vega:hint:<id>) without spaces")
+                    condition(f"gates.{gate}.{hint}", release)
+                    if not tutorial:
+                        r.warn(pid, f"gates.{gate}.{hint}", "only a tutorial pack holds hints back")
+                continue
             condition(f"gates.{gate}", text)
             if gate not in GATES:
                 r.warn(pid, f"gates.{gate}", f"unknown gate (known: {', '.join(sorted(GATES))})")
@@ -787,6 +799,7 @@ class Validator:
                 key(f"{sp}.explain.startKey", explain.get("startKey"), line_budget)
                 key(f"{sp}.explain.hintKey", explain.get("hintKey"), line_budget)
                 key(f"{sp}.explain.doneKey", explain.get("doneKey"), line_budget)
+                key(f"{sp}.explain.midKey", explain.get("midKey"), line_budget)  # #2550: the half-way line
                 key(f"{sp}.explain.chipKey", explain.get("chipKey"), CHIP)
                 variants = step.get("variants") or []
                 chip_en = self.chip_text_en(pack_dir, explain.get("chipKey"))
@@ -803,6 +816,7 @@ class Validator:
                     key(f"{vp}.startKey", variant.get("startKey"), line_budget)
                     key(f"{vp}.hintKey", variant.get("hintKey"), line_budget)
                     key(f"{vp}.doneKey", variant.get("doneKey"), line_budget)
+                    key(f"{vp}.midKey", variant.get("midKey"), line_budget)
                     key(f"{vp}.chipKey", variant.get("chipKey"), CHIP)
 
         def check_missions(cp: str, chapter: dict) -> None:

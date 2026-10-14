@@ -843,12 +843,13 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Spent only when the line went out (#2462, B31): with the hints muted it waits for the next lock.
-            if (VegaPanel.Instance?.SayLocal("vega.hint.target_lock") == true)
+            // Spent only when the line comes up (#2462, B31; #2551): with the hints muted, or dropped unseen after waiting
+            // behind other lines, it waits for the next lock.
+            VegaPanel.Instance?.SayLocal("vega.hint.target_lock", () =>
             {
                 settings.TargetLockHintShown = true;
                 settings.Save();
-            }
+            });
         }
 
         // ---------------- HUD ----------------

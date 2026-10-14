@@ -69,7 +69,7 @@ public sealed class StoryGapClosureClientTests
         // Every SayLocal("vega.hint.<id>") in the Unity scripts: the basic training covers it (E11), or a course step names it.
         string scripts = Path.Combine(ClientTestPaths.RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts");
         var lessons = Directory.GetFiles(scripts, "*.cs")
-            .SelectMany(f => Regex.Matches(File.ReadAllText(f), @"SayLocal\(""vega\.hint\.(?<id>[a-z0-9_]+)""\)", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5))
+            .SelectMany(f => Regex.Matches(File.ReadAllText(f), @"SayLocal\(""vega\.hint\.(?<id>[a-z0-9_]+)""[,)]", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5))
                 .Select(m => m.Groups["id"].Value))
             .Distinct()
             .ToList();
@@ -120,7 +120,7 @@ public sealed class StoryGapClosureClientTests
     public void ThePanel_AsksTheCourses_BeforeItSpeaksALesson()
     {
         string panel = File.ReadAllText(Path.Combine(ClientTestPaths.RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts", "VegaPanel.cs"));
-        int say = panel.IndexOf("public bool SayLocal(string lineKey)", StringComparison.Ordinal);
+        int say = panel.IndexOf("public bool SayLocal(string lineKey", StringComparison.Ordinal);
         int covered = panel.IndexOf("VegaText.LessonCoveredByStoryStep(lineKey, Game.StoryPackStates", say, StringComparison.Ordinal);
         int muted = panel.IndexOf("Settings is { VegaHints: false }", say, StringComparison.Ordinal);
         Assert.True(say >= 0 && covered > say && muted > covered, "SayLocal must check the running courses before the hints mute");

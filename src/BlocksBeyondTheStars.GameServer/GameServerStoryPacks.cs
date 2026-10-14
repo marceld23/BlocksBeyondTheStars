@@ -38,6 +38,9 @@ public sealed class StepEscalationState
 
     /// <summary>An open CORE step stopped blocking its chapter (an "open extra" that still counts silently).</summary>
     public bool Deferred { get; set; }
+
+    /// <summary>#2550: the step's half-way line (<c>explain.midKey</c>) went out — once per activation.</summary>
+    public bool MidSent { get; set; }
 }
 
 /// <summary>
@@ -109,6 +112,9 @@ public sealed partial class GameServer
         public StoryCondition? StartAfter { get; set; }
 
         public Dictionary<string, StoryCondition> Gates { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>#2549: <c>gates.holdHints</c> — hint id → the condition that releases it.</summary>
+        public Dictionary<string, StoryCondition> HoldHints { get; } = new(StringComparer.Ordinal);
 
         /// <summary>#2476: a world story's story missions, compiled as a per-player sub-track of that story (each mission an
         /// optional chapter, keyed by the story's id) — run by <c>GameServerStoryMissions.cs</c>, never by the player-pack
@@ -356,6 +362,14 @@ public sealed partial class GameServer
             if (!string.IsNullOrWhiteSpace(gate.Value))
             {
                 pack.Gates[gate.Key] = StoryConditionParser.Parse(gate.Value, predicates);
+            }
+        }
+
+        foreach (var hold in def.Gates?.HoldHints ?? new Dictionary<string, string>())
+        {
+            if (!string.IsNullOrWhiteSpace(hold.Key) && !string.IsNullOrWhiteSpace(hold.Value))
+            {
+                pack.HoldHints[hold.Key] = StoryConditionParser.Parse(hold.Value, predicates);
             }
         }
 
@@ -620,6 +634,56 @@ public sealed partial class GameServer
     private string StepHintKey(PlayerSession s, CompiledStep step) => StepText(s, step, v => v.HintKey, e => e.HintKey);
 
     private string StepDoneKey(PlayerSession s, CompiledStep step) => StepText(s, step, v => v.DoneKey, e => e.DoneKey);
+
+    private string StepMidKey(PlayerSession s, CompiledStep step) => StepText(s, step, v => v.MidKey, e => e.MidKey);
+
+    /// <summary>#2550: this player's active (or armed) steps of running packs that wait for <paramref name="eventKey"/> —
+    /// the match <see cref="OnStepGameEvent"/> counts with, arguments aside. Empty when none.</summary>
+    private List<CompiledStep> StepsWaitingFor(PlayerSession s, string eventKey)
+    {
+        var hits = new List<CompiledStep>();
+        foreach (string progressKey in s.State.StepProgress.Keys)
+        {
+            if (_stepByProgressKey.TryGetValue(progressKey, out var step)
+                && step.Event.Length > 0
+                && GameEventKeys.Matches(step.Event, eventKey)
+                && PackRunsFor(s, step.Pack)
+                && StepRunsForClient(s, step))
+            {
+                hits.Add(step);
+            }
+        }
+
+        return hits;
+    }
+
+    /// <summary>#2550: the half-way moment of the objective <paramref name="eventKey"/> for this player (the walk-back step:
+    /// far enough from the ship). Every active step of a running pack that waits for that event and has a half-way line
+    /// (<c>explain.midKey</c>, or its variant's) speaks it — once per activation (the step's escalation state, renewed at each
+    /// activation, remembers it) — and the help clock restarts, as with any progress.</summary>
+    private void SpeakStepMidLines(PlayerSession s, string eventKey)
+    {
+        foreach (var step in StepsWaitingFor(s, eventKey))
+        {
+            string key = StepMidKey(s, step);
+            if (key.Length == 0)
+            {
+                continue;
+            }
+
+            if (!s.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
+            {
+                s.StepEscalation[step.ProgressKey] = esc = new StepEscalationState { Since = s.StoryPackPlaySeconds };
+            }
+
+            esc.Since = s.StoryPackPlaySeconds; // progress resets the help clock
+            if (!esc.MidSent)
+            {
+                esc.MidSent = true;
+                SendPackLine(s, step.Pack, key);
+            }
+        }
+    }
 
     // ---------------------------------------------------------------------------------------------
     // Sending lines (packs1 and the legacy mode).
@@ -1027,6 +1091,7 @@ public sealed partial class GameServer
         }
 
         s.StepEscalation[step.ProgressKey] = new StepEscalationState { Since = s.StoryPackPlaySeconds };
+        ResetTutorialWalk(s, step); // #2550: a walk back to the ship counts from this activation on, never from before it
         _stepListenersDirty = true;
         MarkJournalDirty(s); // #2471: a new task in the Journal
         if (BridgedMissionTurnedIn(s, step))

@@ -232,8 +232,8 @@ public sealed class StoryStepObjective
     public bool IsLead => string.Equals(Type, StoryObjectiveTypes.Lead, StringComparison.OrdinalIgnoreCase);
 }
 
-/// <summary>A step's texts (locale keys): the line spoken at activation, the chip text, the escalation hint and the
-/// line spoken on completion. Any may be empty.</summary>
+/// <summary>A step's texts (locale keys): the line spoken at activation, the chip text, the escalation hint, the line
+/// spoken on completion and (#2550) the half-way line. Any may be empty.</summary>
 public sealed class StoryStepExplain
 {
     /// <summary>Spoken when the step activates (and again at a rejoin while it is on the chip).</summary>
@@ -247,6 +247,11 @@ public sealed class StoryStepExplain
 
     /// <summary>Spoken when the step completes while it was the chip's step.</summary>
     public string DoneKey { get; set; } = string.Empty;
+
+    /// <summary>#2550: spoken once per activation at the objective's half-way moment, before it completes — today the
+    /// walk-back objective (<c>ship:returned</c>): the moment the player is far enough from the ship. An objective without
+    /// such a moment never speaks it.</summary>
+    public string MidKey { get; set; } = string.Empty;
 
     /// <summary>A Codex article id for "More" (presentation only).</summary>
     public string MoreGuide { get; set; } = string.Empty;
@@ -270,6 +275,9 @@ public sealed class StoryStepVariant
 
     /// <inheritdoc cref="StoryStepExplain.DoneKey"/>
     public string DoneKey { get; set; } = string.Empty;
+
+    /// <inheritdoc cref="StoryStepExplain.MidKey"/>
+    public string MidKey { get; set; } = string.Empty;
 }
 
 /// <summary>What happens around a step: a cutscene binding (#2467: played before the step's start line, on

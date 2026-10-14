@@ -10,7 +10,8 @@ namespace BlocksBeyondTheStars.Client
     /// control only — no auto-dismiss, because slow readers missed lines — and a young tester who never pressed it had the
     /// panel on screen for 13–26 minutes. Now a fully revealed, non-prologue page that nobody has advanced for
     /// <see cref="CollapseAfterSeconds"/> collapses to a tab ("VEGA" + the waiting lines); the continue control or a click
-    /// on the tab opens it again with the text intact, and the timer starts over. Nothing is ever dismissed unread.
+    /// on the tab opens it again with the text intact, and the timer starts over. The folded line is never dismissed unread
+    /// (a client lesson still waiting behind it may expire, #2551 — <see cref="VegaLineQueue"/>).
     /// Unity-free so the rule is covered by plain .NET tests; <c>VegaPanel</c> owns the drawing.
     /// </summary>
     public sealed class VegaCollapse

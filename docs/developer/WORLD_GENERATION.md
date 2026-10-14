@@ -428,6 +428,15 @@ Y is resolved each tick (`GameServer.ResolveVertical`, state in `CombatEntity.Ve
   when the player nears), or when hurt. A perched bird whose branch is removed falls and re-launches.
 - **Hoverers** never land and never sink: the buoyant band eases at 2 blocks/s (a gas sac visibly lags
   the terrain), asleep they simply hold altitude.
+- **Air fliers and hoverers over water (#1697, #2552)** measure their band from what they would come down
+  onto (`RestSurfaceYAt`): over a pond that is the water's surface, never its bed — also when the reference
+  cell under the band lies among the plants on the floor (a kelp bed is under water, not ground), in the sand
+  of the floor or in the rock under it, as long as that water is **open to the sky** (nothing solid right on
+  its top and no rock between it and the column's natural surface — a flooded cave keeps the cave rules of
+  #1711/#1854). `AirRestSurfaceYAt` adds the body's own cell: an air animal whose body is in a pond's water or
+  floor rides up over the surface even when its reference cell lies in a cave below, where the probe would
+  otherwise hold its depth. Air spawns (leader and herd) are placed at that band (`AirSpawnY`), no longer at
+  the generator surface + 4, which over a pond was inside the water.
 - **Swimmers** porpoise their local water column as before.
 
 The wire carries the class and vertical state as additive `NetCreature` fields (`Motion`,
@@ -439,7 +448,11 @@ landing squash, crawler undulation). The scan readout lists the class as a speci
 is gated per step (`CreatureBehaviour.TerrainStepBlocked`, keyed on the motion class since #1331,
 the same discard mechanic as the ship hull and energy fences): ground movers take the rises/drops
 above and never enter water deeper than 1 cell (amphibians excepted); water species never step out
-of their water body; fliers and hoverers are unaffected. Ground heights come from **real blocks**
+of their water body; fliers and hoverers are unaffected. A plant standing in water — kelp, seagrass,
+coral, anything `flora_*` with water above it or above the rest of its stalk — counts as water for the
+depth (`IsWaterOrSubmergedPlant`, #2553): a cell holds one block, so a stalk deletes the water in its cell
+and a planted pond floor used to read as dry ground. The same predicate feeds the floor probes, so a fish
+swims in among the plants, and a land spawn with water on its feet is refused (`HabitatSuitable`). Ground heights come from **real blocks**
 (#650 — a nearest-standable-cell probe via `GetBlockIfLoaded`, generator fallback for unloaded
 columns; a cave dweller with no cell near its depth holds that depth), so fauna honours player
 walls, dug pits and built floors; a creature's OWN column probe is species-aware (#1320): a large land

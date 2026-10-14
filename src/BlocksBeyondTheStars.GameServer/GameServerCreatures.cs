@@ -589,7 +589,8 @@ public sealed partial class GameServer
                 {
                     // Land spawns stand on the REAL ground (#650) — a dug pit's floor or a built platform,
                     // not the generator's original surface (which would float them over player terraforming).
-                    y = sp.Habitat == CreatureHabitat.Air ? surface + 4f : GroundFeetYAt(x, z, surface + 1);
+                    // Air spawns start at their own band over it (#2552) — over a pond, over the water.
+                    y = sp.Habitat == CreatureHabitat.Air ? AirSpawnY(sp, x, z, surface) : GroundFeetYAt(x, z, surface + 1);
                 }
 
                 var pos = new Vector3f(px + 0.5f, y, pz + 0.5f);
@@ -848,7 +849,7 @@ public sealed partial class GameServer
         }
         else
         {
-            y = sp.Habitat == CreatureHabitat.Air ? surface + 4f : GroundFeetYAt(mx, mz, surface + 1); // real ground (#650)
+            y = sp.Habitat == CreatureHabitat.Air ? AirSpawnY(sp, mx, mz, surface) : GroundFeetYAt(mx, mz, surface + 1); // real ground (#650), the band (#2552)
         }
 
         // Herd members run the leader's full reject list (#638/#750/#855/#1314): the herd stays smaller
@@ -937,8 +938,14 @@ public sealed partial class GameServer
                     && !_world.GetBlockIfLoaded(new Vector3i((int)System.Math.Floor(at.X), (int)System.Math.Floor(at.Y) - 1, (int)System.Math.Floor(at.Z))).IsAir;
             case CreatureHabitat.Amphibian:
                 return BlockValueAt(at) == _creatureWaterId || WaterWithin(at, 2); // in or beside water
+            case CreatureHabitat.Land:
+                // #2553: never with water standing on its feet. Over open water the land placement falls back to the
+                // generator surface — the pond floor — and over kelp or seagrass the floor reads as standable ground,
+                // so land animals appeared on pond beds and walked along them under water. A plant in the water
+                // counts as water here as in the wading gate.
+                return WaterDepthAtFeet((int)System.Math.Floor(at.X), (int)System.Math.Floor(at.Z), (int)System.Math.Floor(at.Y)) == 0;
             default:
-                return true; // Land, Air
+                return true; // Air
         }
     }
 
@@ -1729,6 +1736,14 @@ public sealed partial class GameServer
         return StepBlockedByTerrain(sp, EffectiveMotion(c, sp), c.Position, next);
     }
 
+    /// <summary>Test seam (#2553): the water standing on feet at <paramref name="feetY"/> as the wading gate reads it.</summary>
+    public int WaterDepthAtFeetForTest(int x, int z, int feetY) => WaterDepthAtFeet(x, z, feetY);
+
+    /// <summary>Test seam (#2552): the Y the spawner places an air animal of a species at over a column whose
+    /// natural surface is <paramref name="surface"/> (the generator's answer in the spawner; a test passes the
+    /// floor of the pond it built).</summary>
+    public float AirSpawnYForTest(string speciesId, int x, int z, int surface) => AirSpawnY(_speciesById[speciesId], x, z, surface);
+
     /// <summary>Test seam: the generator's water body in a column of the active world (surface top, bed), or null.</summary>
     public (int Top, int Bed)? WaterSurfaceForTest(int x, int z)
         => _generator.TryGetWaterSurface(_world.Planet, x, z, out int top, out int bed) ? (top, bed) : null;
@@ -1748,19 +1763,15 @@ public sealed partial class GameServer
     /// bug: ground heights moved onto real blocks in #650, water depth never followed.</para>
     ///
     /// <para>The generator remains the answer for a column whose chunk is not streamed in: there are no real
-    /// blocks to read there, and the old behaviour is the safe one.</para></summary>
+    /// blocks to read there, and the old behaviour is the safe one.</para>
+    ///
+    /// <para>#2553: a plant standing in the water counts as water (<see cref="SubmergedDepthAt"/>) — a kelp or
+    /// seagrass stalk read as "depth 0" and land animals walked the pond floor between the stalks.</para></summary>
     private int WaterDepthAtFeet(int x, int z, int feetY)
     {
         if (_creatureWaterId != 0 && _world.IsChunkLoaded(WorldConstants.WorldToChunk(new Vector3i(x, feetY, z))))
         {
-            int depth = 0;
-            while (depth < FluidColumnScan
-                   && _world.GetBlockIfLoaded(new Vector3i(x, feetY + depth, z)).Value == _creatureWaterId)
-            {
-                depth++;
-            }
-
-            return depth;
+            return SubmergedDepthAt(x, z, feetY);
         }
 
         if (!_generator.TryGetWaterSurface(_world.Planet, x, z, out int top, out int bed))
@@ -1770,6 +1781,70 @@ public sealed partial class GameServer
 
         return top >= feetY - 1 ? top - bed : 0;
     }
+
+    /// <summary>How many plant cells a stalk may stack before the water above it is looked for: a kelp forest grows
+    /// twelve (#1757), and nothing else that grows in water is taller.</summary>
+    private const int SubmergedPlantScan = 16;
+
+    /// <summary>#2552/#2553: water, or a plant standing in it. A cell holds ONE block id, so a kelp or seagrass stalk,
+    /// a coral clump or a reed deletes the water in its cell, and every probe that asked only "is this water?" read a
+    /// planted pond floor as dry: land animals walked the bed between the stalks ("standable, depth 0") and a flying
+    /// animal over a kelp bed measured its band from the sand under the water. A plant counts as water when water
+    /// stands above it — directly or above the rest of its stalk; a plant with air above it (a tuft on the bank, a
+    /// lily pad on the surface, a coral in water one cell deep) is just a plant. Real blocks, no-load reads (an unloaded
+    /// cell is air, so not water). The one predicate every wading body reads: the creatures' depth gate and floor
+    /// probes, and the walking robots.</summary>
+    private bool IsWaterOrSubmergedPlant(int x, int y, int z)
+    {
+        if (_creatureWaterId == 0)
+        {
+            return false;
+        }
+
+        for (int dy = 0; dy <= SubmergedPlantScan; dy++)
+        {
+            ushort id = _world.GetBlockIfLoaded(new Vector3i(x, y + dy, z)).Value;
+            if (id == _creatureWaterId)
+            {
+                return true;
+            }
+
+            if (!IsFlora(id))
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The water standing on feet at <paramref name="feetY"/>, from REAL blocks (#1697) with the plants in it
+    /// counted as water (#2553): the cells from the feet up to the topmost water cell of the run of water and plants
+    /// that starts there. 0 when the feet cell is neither (dry ground, a floor built over a pond) or when the plants
+    /// at the feet have only air above them. No-load reads; <see cref="WaterDepthAtFeet"/> adds the generator's
+    /// answer for an unloaded column.</summary>
+    private int SubmergedDepthAt(int x, int z, int feetY)
+    {
+        int depth = 0;
+        for (int d = 0; d < FluidColumnScan; d++)
+        {
+            ushort id = _world.GetBlockIfLoaded(new Vector3i(x, feetY + d, z)).Value;
+            if (id == _creatureWaterId && id != 0)
+            {
+                depth = d + 1; // water up to here
+            }
+            else if (!IsFlora(id))
+            {
+                break; // a plant continues the run (it counts once water is found above it); anything else ends it
+            }
+        }
+
+        return depth;
+    }
+
+    /// <summary>A fluid cell (water or lava), or a plant standing in water (<see cref="IsWaterOrSubmergedPlant"/>).</summary>
+    private bool IsFluidOrSubmergedPlant(int x, int y, int z)
+        => IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, y, z)).Value) || IsWaterOrSubmergedPlant(x, y, z);
 
     /// <summary>The fluid body of one kind (water or lava) in a column, for the SPAWN probes (#1718): real
     /// blocks first, the generator only where nothing is streamed in — the #1697 rule applied to placement.
@@ -1822,16 +1897,18 @@ public sealed partial class GameServer
     }
 
     /// <summary>The top cell of the fluid body filling this column at <paramref name="fromY"/>, or
-    /// <see cref="int.MinValue"/> when that cell holds no fluid. Real blocks, no-load reads.</summary>
+    /// <see cref="int.MinValue"/> when that cell holds no fluid. A plant standing in the water is part of the body
+    /// (#2552): from a kelp stalk the body is followed up through the stalk to the water's top. Real blocks, no-load
+    /// reads.</summary>
     private int FluidTopAt(int x, int z, int fromY)
     {
-        if (!IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, fromY, z)).Value))
+        if (!IsFluidOrSubmergedPlant(x, fromY, z))
         {
             return int.MinValue;
         }
 
         int top = fromY;
-        while (top - fromY < FluidColumnScan && IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, top + 1, z)).Value))
+        while (top - fromY < FluidColumnScan && IsFluidOrSubmergedPlant(x, top + 1, z))
         {
             top++;
         }
@@ -1848,11 +1925,15 @@ public sealed partial class GameServer
     /// the caller then answered with the generator's PRE-EXCAVATION surface — which for a moat dug into the
     /// terrain and filled flush is exactly the waterline. That is what let animals walk on water. The bed is
     /// the honest answer; whether the animal may go in at all is the water-depth gate's decision, not the
-    /// probe's.</para></summary>
+    /// probe's.</para>
+    ///
+    /// <para>#2552: the plants on a pond floor are part of the water. A kelp or seagrass stalk under the surface
+    /// read as an air pocket, the probe gave up and the caller fell back to the noise surface — three cells under
+    /// the water, which is where a flying animal over a kelp bed then measured its band from.</para></summary>
     private int SubmergedFeetYAt(int x, int z, int refY, int maxScan)
     {
         int start = refY;
-        if (!IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, start, z)).Value))
+        if (!IsFluidOrSubmergedPlant(x, start, z))
         {
             // The reference sits above the surface (a walker on the bank looking into the moat): find the
             // body below it, but never past real ground — a pond under a floor is not this column's answer.
@@ -1864,7 +1945,7 @@ public sealed partial class GameServer
                     break;
                 }
 
-                if (IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, start - r, z)).Value))
+                if (IsFluidOrSubmergedPlant(x, start - r, z))
                 {
                     found = start - r;
                     break;
@@ -1886,7 +1967,7 @@ public sealed partial class GameServer
                 return y; // feet on the bed
             }
 
-            if (!IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, y - 1, z)).Value))
+            if (!IsFluidOrSubmergedPlant(x, y - 1, z))
             {
                 return int.MinValue; // an air pocket under the water — not a bed this probe can vouch for
             }
@@ -1904,7 +1985,11 @@ public sealed partial class GameServer
     {
         if (TryGroundFeetYAt(x, z, refY, out int feet))
         {
-            return feet; // dry standable ground — a probe hit never lands inside a fluid
+            // Dry standable ground — a probe hit never lands inside a fluid. But a pond floor planted with kelp or
+            // seagrass passes the probe (plants are walk-through), and that "ground" is under the water (#2552):
+            // the band rides on the water's surface there too, not three cells down on the sand.
+            int planted = FluidTopAt(x, z, feet);
+            return planted != int.MinValue ? planted + 1 : feet;
         }
 
         int bed = SubmergedFeetYAt(x, z, refY, CreatureWideGroundScan);
@@ -1912,6 +1997,17 @@ public sealed partial class GameServer
         if (top != int.MinValue)
         {
             return top + 1;
+        }
+
+        // #2552: the reference cell is IN THE FLOOR of a pond — the sand under the water, the rock under that. Water
+        // is never standable, so the through-rock search below went on down to a cave under the pond (a flying
+        // animal with an eleven-cell band then hovered inside the pond floor), and with no cave there the roof
+        // guard held it at its depth. The pond is what the animal would come down onto: when the column above the
+        // reference rises through solid ground into water that is open to the sky, the band rides on its surface.
+        // A cave, an air pocket or a sealed flooded cavern above the reference leaves the rules below in charge.
+        if (IsSupportCell(x, refY, z) && TryOpenWaterTopAbove(x, z, refY, out int pondTop, out _))
+        {
+            return pondTop + 1;
         }
 
         // #1854: the reference cell is INSIDE a block — a gas-sac grazer that bobbed into a player's concrete
@@ -1987,6 +2083,84 @@ public sealed partial class GameServer
 
         return toY > scanTo; // surface further up than we looked — do not teleport blind
     }
+
+    /// <summary>#2552: the top of the water standing OPEN TO THE SKY above a cell in a pond's floor or in its water.
+    /// From <paramref name="fromY"/> the scan rises through solid ground (at most <see cref="CreatureWideGroundScan"/>
+    /// cells, the through-rock window; <paramref name="groundAbove"/> says how many it crossed), must then meet water
+    /// (a plant standing in it counts, <see cref="IsWaterOrSubmergedPlant"/>) and follows that water to its top cell.
+    /// Open to the sky means nothing a body collides with sits right on the top (a lily pad, a reed or a crown does
+    /// not count) and no solid ground lies between it and the column's natural surface (<see cref="RoofBetween"/>,
+    /// the #1711 guard) — so a flooded cave, a water pocket in the rock or a covered cistern never pulls a creature up
+    /// through its ceiling. False when the first open cell above is not water (a cave, the open air). Real blocks,
+    /// no-load reads.</summary>
+    private bool TryOpenWaterTopAbove(int x, int z, int fromY, out int waterTop, out int groundAbove)
+    {
+        waterTop = int.MinValue;
+        groundAbove = 0;
+        while (groundAbove <= CreatureWideGroundScan && IsSupportCell(x, fromY + groundAbove, z))
+        {
+            groundAbove++;
+        }
+
+        int y = fromY + groundAbove;
+        if (groundAbove > CreatureWideGroundScan || !IsWaterOrSubmergedPlant(x, y, z))
+        {
+            return false;
+        }
+
+        int top = FluidTopAt(x, z, y);
+        if (top == int.MinValue
+            || IsCollidingCellIfLoaded(x, top + 1, z, foliagePasses: true)
+            || RoofBetween(x, z, top + 1, _generator.SurfaceHeight(_world.Planet, x, z) + 1))
+        {
+            return false;
+        }
+
+        waterTop = top;
+        return true;
+    }
+
+    /// <summary>The Y an AIR creature's band is measured from, for a body at <paramref name="bodyY"/> riding
+    /// <paramref name="hover"/> over it: <see cref="RestSurfaceYAt"/> at the reference cell under the band — unless
+    /// the body itself is under the surface of open water (#2552): in the water or among the plants on the floor, or
+    /// in the pond's floor with the water nearer above it than any open cell below. The reference cell of such a body
+    /// can lie in a cave under the pond, where the probe holds its depth (#1711), and the creature then sat in the
+    /// pond's floor for good (reported at 62.3, the water's top at 65, a cave at 41–52 below). An air creature never
+    /// belongs under water, so it rides up to its band over the surface. A body in a cave's ceiling, with the cave
+    /// right under it, is left to the cave's rules.</summary>
+    private int AirRestSurfaceYAt(int x, int z, float bodyY, float hover)
+    {
+        int body = (int)System.Math.Floor(bodyY);
+        if (TryOpenWaterTopAbove(x, z, body, out int waterTop, out int groundAbove)
+            && (groundAbove == 0 || SolidForCellsBelow(x, z, body, groundAbove)))
+        {
+            return waterTop + 1;
+        }
+
+        return RestSurfaceYAt(x, z, (int)System.Math.Floor(bodyY - hover));
+    }
+
+    /// <summary>True when the <paramref name="cells"/> cells under <paramref name="y"/> are all solid ground — the
+    /// nearest open cell below lies further down than that.</summary>
+    private bool SolidForCellsBelow(int x, int z, int y, int cells)
+    {
+        for (int d = 1; d <= cells; d++)
+        {
+            if (!IsSupportCell(x, y - d, z))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Where an AIR animal is placed when it spawns (#2552): at its own band over what it would come down
+    /// onto — the surface of a pond, not the bed under it — exactly as <see cref="AdjustHabitatHeight"/> places it.
+    /// It used to be the generator surface + 4, which over a pond is the pond floor + 4: in the water or in the sand,
+    /// where the band probe then locked it in.</summary>
+    private float AirSpawnY(CreatureSpecies sp, int x, int z, int surface)
+        => RestSurfaceYAt(x, z, surface + 1) + HoverOf(sp);
 
     /// <summary>The feet cell a ground mover of this species stands on in a column, nearest to
     /// <paramref name="refY"/>: real blocks first (#650), then the bed of a fluid body (#1697); a cave dweller
@@ -2438,7 +2612,7 @@ public sealed partial class GameServer
             case CreatureHabitat.Air:
                 float hover = sp.HoverAltitude > 0f ? sp.HoverAltitude : CreatureFlyAltitude;
                 // #1697: over a pond the band is measured from the water, not from the bed underneath it.
-                return new Vector3f(p.X, RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y - hover)) + hover, p.Z);
+                return new Vector3f(p.X, AirRestSurfaceYAt(x, z, p.Y, hover) + hover, p.Z);
             case CreatureHabitat.Water:
                 return new Vector3f(p.X, WaterColumnY(x, z, 0f, surface), p.Z);
             case CreatureHabitat.Lava:
@@ -2483,9 +2657,10 @@ public sealed partial class GameServer
                     // #1697: the band rides on what the creature would come down onto — the surface of a
                     // fluid body when the column holds one, the ground otherwise. Measuring from the BED
                     // parked gas sacs and sleeping fliers inside a player's water moat.
+                    // #2552: an air hoverer whose body is under a pond's surface rides up over it (AirRestSurfaceYAt).
                     bool airborne = sp.Habitat == CreatureHabitat.Air;
                     int rest = airborne
-                        ? RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y - HoverOf(sp)))
+                        ? AirRestSurfaceYAt(x, z, p.Y, HoverOf(sp))
                         : RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y));
                     float baseY = rest + (airborne ? HoverOf(sp) : LandHovererHeight);
                     float target = baseY + prof.VertAmp * vertWave;
@@ -2559,8 +2734,8 @@ public sealed partial class GameServer
     {
         int x = (int)System.Math.Floor(p.X), z = (int)System.Math.Floor(p.Z);
         float hover = HoverOf(sp);
-        // #1697: over water the cruise band rides on the SURFACE, not on the bed under it.
-        float airTarget = RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y - hover)) + hover + prof.VertAmp * vertWave;
+        // #1697: over water the cruise band rides on the SURFACE, not on the bed under it (#2552: nor in it).
+        float airTarget = AirRestSurfaceYAt(x, z, p.Y, hover) + hover + prof.VertAmp * vertWave;
         bool mustFly = intent is MoveMode.Seek or MoveMode.Flee || c.PanicTimer > 0 || c.ProvokeTimer > 0;
         bool wantsDown = !mustFly && (asleep || c.Loco.Mode == MoveMode.Pause);
         ref var v = ref c.Vert;

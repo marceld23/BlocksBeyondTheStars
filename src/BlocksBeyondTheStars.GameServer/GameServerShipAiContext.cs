@@ -363,6 +363,20 @@ public sealed partial class GameServer
                 continue; // a tutorial step teaches this topic itself (#2469, G12: one teaching voice)
             }
 
+            if (TutorialHoldsHint(session, s.Id))
+            {
+                // #2549: the basic training has not reached this topic yet (gates.holdHints) — nothing is spent. The tool-tier
+                // arming is dropped like for a muted panel: that tip is only worth hearing at the wall, so the next refused
+                // swing after the release arms it again.
+                if (s.Id == "tier_gate")
+                {
+                    session.VegaTierGateBlock = string.Empty;
+                    session.VegaTierGateTool = string.Empty;
+                }
+
+                continue;
+            }
+
             if (_uptime - session.VegaTipSince[s.Id] < s.Dwell)
             {
                 continue;

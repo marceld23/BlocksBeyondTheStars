@@ -953,9 +953,18 @@ Rules on top of the wire:
   client lacks, or no pack id while any story is missing — the world story's beats carry none) reads as
   `ui.story.entry_missing`; a missing key of a known pack stays `[key]` (a content bug). The Journal's task lines
   (`JournalPackPage.StepLine(…, has)`) use the same note.
-- **Client one-shot lessons** (`VegaPanel.SayLocal`) return whether the line was queued; callers set their
-  `ClientSettings.*HintShown` flag only then. Since #2469 the flight lessons the tutorial's B6 steps teach
-  (`VegaText.LessonCoveredByTutorial`) count as given without being spoken while the basic training runs.
+- **Client one-shot lessons** (`VegaPanel.SayLocal`): callers pass the setter of their `ClientSettings.*HintShown` flag as
+  `onShown` (#2551) — it runs when the line comes up on screen, or at once when the lesson counts as given, never for a
+  line muted by the hints switch (#2462, B31) or dropped unseen. Since #2469 the flight lessons the tutorial's B6 steps
+  teach (`VegaText.LessonCoveredByTutorial`) count as given without being spoken while the basic training runs.
+- **VEGA's speech queue** (#2551, `VegaLineQueue` in Client.Core, tested in `Client.Tests/VegaLineQueueTests`). A client
+  lesson is bound to its moment: one still waiting unseen after `LessonExpirySeconds` (30 s, real time — a folded tab, a
+  pause or a scene included) is dropped and its flag stays unspent, so it comes again the next time the situation does;
+  saying a lesson that already waits keeps its place and restarts its wait (the wall probe, the first flight and a nearby
+  wormhole keep asking while their situation lasts). A story pack's line (`ShipAiLine.Kind` 0 with a `PackId` — the current
+  tutorial or course step's start, hint, done line or skip offer) goes ahead of the hints still waiting (Kind 1, Kind 5 and
+  client lessons step back behind it in their own order); story beats, dialogue, system notices and given-back cutscene
+  narration are never dropped and keep their arrival order. Server hints never expire — the server books them as told.
 - **Pause.** `PausedMayHandle` serves `SetNpcCallsIntent`, `SkipOnboardingIntent`, `RequestStoryResolutionIntent` and
   `StorySelectIntent` while the world is held (each with a dispatch test in `StoryUiFixesTests`); since #2470 also
   `StoryPackIntent` `startPack` ("Start the story now", dispatch test in `VegaStoryPackTests`); since #2471 every

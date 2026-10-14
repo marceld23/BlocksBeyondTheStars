@@ -41,6 +41,7 @@ namespace BlocksBeyondTheStars.Client
             "BlocksBeyondTheStars/FxHolo",
             "BlocksBeyondTheStars/FxDebris",
             "BlocksBeyondTheStars/FxCrack",
+            "BlocksBeyondTheStars/FxOutline", // #2556: the selection frame — on screen from the first frame of play
             "BlocksBeyondTheStars/FxSpaceDust",
             "BlocksBeyondTheStars/FxTunnel",
             "BlocksBeyondTheStars/Wormhole", // #2242: no hitch when the first rift comes into view

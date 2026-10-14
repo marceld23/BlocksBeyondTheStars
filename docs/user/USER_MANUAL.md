@@ -443,6 +443,8 @@ separate unlock; admins can still disable it through server world rules.
     or more — flashes the whole screen red and gives the view a light shake.
   - Beaten creatures break apart into sparkles, robots fall to parts, and bandits beam away.
 - **Mining.**
+  - A thin, softly shimmering blue frame marks the block you aim at — exactly the one a click would mine or fill — and
+    turns orange while you mine it. *Reduce flashes* or *Reduced effects* keep it still.
   - Cracks spread over the block as it weakens.
   - Chips in the block's own colour fly off the face you work.
   - The block splits into little cubes, and the resource flies to you as a glowing gem.
@@ -536,11 +538,15 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   until the arrow points to the top of the dial and walk; VEGA reminds you of this once you are a long way from
   the hull.
 - **VEGA panel** — the ship AI speaks through a typewriter speech panel with a persistent **objective
-  chip** (live progress, e.g. "mine 1/3") during the basic training. Advance lines with **N** or the **Continue** button in
+  chip** directly below it (live progress, e.g. "mine 1/3") during the basic training. Advance lines with **N** or the **Continue** button in
   the panel (clickable whenever the mouse cursor is free, tappable on touch) — a line stays until you do (no
   auto-dismiss), and further lines wait in the queue. Leave a line for about 45 seconds and the panel **folds into a
   small VEGA tab** beside the objective, showing how many messages are waiting; press **N** (pad **View**, touch
-  **NEXT ▶**) or click/tap the tab to open it again — nothing is lost. Some lines ask you something and show **two
+  **NEXT ▶**) or click/tap the tab to open it again — nothing is lost. The training's next instruction goes ahead of
+  tips that are still waiting. A tip about what you are doing right now (a high wall to climb, a screen you just
+  opened, something your ship's scanner could read) waits at most about 30 seconds: if it has not come up by then,
+  VEGA drops it, because the moment has passed, and gives it the next time it fits. Story lines are never dropped and
+  always come in their order. Some lines ask you something and show **two
   buttons** instead of *Continue* (VEGA's first-start question, a short-course offer): the right one is what **N**
   (pad **View**, touch **NEXT ▶**) picks; the left one takes a click or tap, or **holding** N (View, NEXT) for a moment —
   it fills brighter while you hold. **Esc** never picks a button. Advisor hints can be muted (Character tab → VEGA
@@ -708,6 +714,12 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   of a lava column anyway and mostly never reach it; what burns is what flies in, what was inside when you
   flooded it, and what gets driven in. Tame companions never burn, creatures that live in lava are at home
   in it, and with **environmental hazards off** (or on a Creative world) nothing burns at all.
+- **Walking Guardian robots stay out of deep water**: like land animals they wade through water **one block**
+  deep, but water **two or more blocks deep** is a wall to them (kelp, seagrass and coral under a lake count as
+  the lake) — a robot chasing you stops at the shore, and a moat two blocks deep keeps them out (hovering
+  scan-drones fly over it). A robot that ends up in deep water anyway — you dug or flooded a pond around it, or
+  pushed it in — walks out to the nearest dry ground; one stuck in a flooded pit with no way out shuts down and
+  is gone. Robots never appear standing in water.
 - **Aim at water and lava**: holding a block, the crosshair stops at a fluid's surface and the block goes
   *into* that cell (the fluid makes way) — so you can bridge a lake or a lava field from its edge. Holding
   a tier-3 drill (mining beam, diamond drill) the surface is mineable too. While you are swimming the aim
@@ -1156,12 +1168,13 @@ players.
 
 ### VEGA — the ship AI
 - **Basic training (new players):** VEGA walks you through six short parts — every lesson is *explain → try it →
-  the game checks it*, one at a time, with the current task on the objective chip:
-  1. **First steps** — walking and looking around, jumping and crouching, VEGA and the objective bar, the quick bar
-     (slot 1 drill, slot 2 scanner), the menu and the Codex.
+  the game checks it*, one at a time, with the current task on the objective chip — **directly below VEGA's text**:
+  1. **First steps** — walking and looking around, jumping and crouching, VEGA and the goal right below her text, the
+     quick bar (slot 1 drill, slot 2 scanner), the menu and the Codex.
   2. **Staying alive** — health, air and food, eating, berries from bushes, the suit's ration dispenser, the blue
-     ship marker on the compass and the way back (pause menu → *Back to my ship*), the lamp, cold and heat, and that
-     fainting only wakes you up again.
+     ship marker on the compass (top right) and the way back: walk **40 m** away — the compass's "Ship … m" counts
+     along, and VEGA says when you are far enough — then find your way back to the ship (lost? pause menu → *Back to my
+     ship*), the lamp, cold and heat, and that fainting only wakes you up again.
   3. **Mining and carrying** — mining, iron ore a few blocks down, rock that is too hard for your drill, the
      backpack, gear that only works while worn (take the lamp off and put it back on), the cargo hold.
   4. **Crafting and building** — iron ingots and a plate at the ship's workshop, placing blocks, turning shaped
@@ -1219,7 +1232,11 @@ players.
     as done, a finished old tutorial counts as a finished basic training, and a save that played before VEGA's
     lessons existed gets a one-line "systems online" instead.
   - While the basic training runs, VEGA's matching tips wait for their lesson, so you never hear the same thing
-    twice (the flight chart and ship-scanner explanations, for example, come with part 6).
+    twice (the flight chart and ship-scanner explanations, for example, come with part 6). A few one-time hints about
+    things that come later wait until the training gets there, so the simple things come first: what crystal is good
+    for and that ruins or wrecks are nearby wait until part 5 is done, rock too hard for your drill until part 3 — and
+    then come the next time it happens (the next crystal, the next ruin, the next hard rock). Without the training
+    (switched off, skipped or finished) VEGA tells them right away as before.
   - A game version from before the new tutorial still follows the nine old lessons on a new server.
 - **Short courses (after the basic training — or after skipping it, and on a *Short courses only* world):** deeper
   lessons you choose yourself — VEGA offers one when it fits what you are doing (at most one offer every minute and a half, never during the basic training), and the Journal lists them
@@ -2506,6 +2523,11 @@ called **stories**:
   step but never jump; fliers land to rest and to sleep and take off again when disturbed — a skittish bird
   flushes when you get close; gas sacs and medusae just hover. Everything on the ground falls if you dig
   its floor away. The scan readout names the type ("Walks and jumps", "Crawls", "Flies, perches to rest"…).
+- **Animals and water.** Land animals wade through water **one block** deep; deeper water is a wall to them —
+  and the kelp, seagrass and coral on a pond's floor count as the pond, so a land animal never walks along a lake
+  bed between the plants, and none ever appears on one. Flying animals keep their height above a pond's
+  **surface**: they never sink into the water or its floor, and they appear at their flying height over it. Fish
+  swim in among the water plants; amphibians go in and out as before.
 - **Individuals of a kind vary in size.** Within any one species/type, each plant, tree or animal gets its
   own size (most near the normal size, the occasional runt or giant) — a wood is a mix of saplings and tall
   trees with varying crown widths, a herd has small and large animals. The variation is cosmetic (a creature's
@@ -3225,7 +3247,9 @@ The **widest** radio you carry sets your reach. Without any radio you can't tran
 ### `/bump` — debug snapshot + screenshot (any player, no radio needed)
 - **Syntax:** `/bump Description of the problem`
 - Writes a detailed JSON snapshot of your current situation (player state **and inventory**, environment,
-  nearby blocks/creatures/players + a wider block/flora census, ship status, and a 30-second history)
+  nearby blocks/creatures/players + a wider block/flora census, the Guardian robots, scan-drones and bandits
+  around you with what they are doing and whether they stand in water, your training progress (the active
+  steps plus the tutorial and VEGA tip milestones), ship status, and a 30-second history)
   **plus a screenshot** of the moment (the chat box is hidden for the shot; the HUD stays). It adapts to
   your context: on a surface it captures the terrain around you; **while flying in space** it instead
   records your ship's position in the system and the nearby asteroids/hostiles. The server replies with
@@ -3329,7 +3353,7 @@ and that option is off by default on hosted worlds.
 | `/players` | Every player this world knows — role, body, position and when they were last seen. Offline players come from the save |
 | `/builds [Player]` | Named structures (bases, beacons, beam pads, stations) with owner, body and a ready-to-use `/goto` line; optionally for one player |
 | `/where Player` | One player's body, position and last-seen time — works while they are offline |
-| `/basewalls` | Why animals do (not) spawn in a yard: the nearest base core, the enclosure fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed / sealed / open, and the rules (2-high walls, hinge doors leak, unloaded chunks read as open; walking Guardian robots step up two blocks and are stopped by a wall of three or more, hovering scan-drones by four or more; fliers are not). Since #2542 also the **air at your cell** and why there is none (too large — over 64,000 air blocks, too far from the core, leaky, or sealed but not connected) and the air rules with the base's current reach |
+| `/basewalls` | Why animals do (not) spawn in a yard: the nearest base core, the enclosure fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed / sealed / open, and the rules (2-high walls, hinge doors leak, unloaded chunks read as open; walking Guardian robots step up two blocks and are stopped by a wall of three or more and by water two or more blocks deep, hovering scan-drones by four or more; fliers are not). Since #2542 also the **air at your cell** and why there is none (too large — over 64,000 air blocks, too far from the core, leaky, or sealed but not connected) and the air rules with the base's current reach |
 | `/creatures` | Creature footing within 48 blocks: per animal its species and motion class, feet height, the real ground of its column, the delta between them, the generator's noise surface and a verdict (ok / floating / BURIED) — the readout for "animals standing in the ground" reports |
 | `/silence Player [Minutes]` | Pauses that player's chat for a while (10 minutes by default, a day at most). They are told how long, and can keep playing — see below |
 | `/unsilence Player` | Ends the pause right away |

@@ -12,7 +12,8 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// Mining/placing feedback (M27 polish, reworked in the VFX overhaul #2155). The action players repeat most:
     /// <list type="bullet">
-    /// <item>a wireframe selection box on the block the player is looking at;</item>
+    /// <item>a thin, softly shimmering hologram-blue selection frame (<c>FxOutline</c>, #2556) on the block the player is
+    /// looking at, warming towards orange while that block is mined;</item>
     /// <item>a <b>crack overlay</b> (<c>FxCrack</c>) that spreads cell by cell with the server's MiningProgress fraction,
     /// wobbles on every hit, and glows red→white-hot under the mining beam;</item>
     /// <item><b>chips from the struck face</b> in the block's own colour (sampled from its atlas tile), plus the drill's
@@ -36,8 +37,21 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The world's mining effects (one per world rig).</summary>
         public static MiningFx Instance { get; private set; }
 
+        /// <summary>The selection frame at rest (#2556): the HUD's hologram blue instead of the old near-black, which
+        /// vanished at night, in caves and against dark foliage.</summary>
+        private static Color OutlineIdle => UiKit.Cyan;
+
+        /// <summary>The selection frame warms towards this orange with the mining progress.</summary>
+        private static readonly Color OutlineHot = new Color(1f, 0.45f, 0.12f);
+
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int ShimmerId = Shader.PropertyToID("_Shimmer");
+
         private GameObject _outline;
         private Material _outlineMat;
+        private Mesh _outlineMesh;
+        private float _outlineTint = -1f;    // the mining fraction last written to the material (-1 = never)
+        private float _outlineShimmer = -1f; // the _Shimmer value last written (-1 = never)
         private bool _subscribed;
 
         private MeshRenderer _crack;
@@ -52,11 +66,56 @@ namespace BlocksBeyondTheStars.Client
         private void Start()
         {
             // The outline tints with the crack, so it owns its material (one per world, destroyed with it).
-            var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
-            _outlineMat = shader != null ? new Material(shader) { color = FxKit.Lin(new Color(0.05f, 0.05f, 0.06f)) } : null;
-            _outline = BuildWireCube(_outlineMat);
+            // #2556: a thin, shimmering hologram-blue frame — ONE mesh with one material (FxOutline). A missing or
+            // unsupported shader falls back to the old primitive-cube frame on the built-in Unlit/Color, in the same blue.
+            var holo = Shader.Find("BlocksBeyondTheStars/FxOutline");
+            if (holo != null && holo.isSupported)
+            {
+                _outlineMat = new Material(holo) { name = "FxOutline (selection)" };
+                _outlineMesh = BuildOutlineMesh();
+                _outline = new GameObject("BlockOutline");
+                _outline.AddComponent<MeshFilter>().sharedMesh = _outlineMesh;
+                var mr = _outline.AddComponent<MeshRenderer>();
+                mr.sharedMaterial = _outlineMat;
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                mr.receiveShadows = false;
+                mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+                mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            }
+            else
+            {
+                var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
+                _outlineMat = shader != null ? new Material(shader) : null;
+                _outline = BuildWireCube(_outlineMat);
+            }
+
+            TintOutline(0f);
             _outline.transform.SetParent(transform, false);
             _outline.SetActive(false);
+        }
+
+        /// <summary>Hologram blue at rest, warming towards orange with the mining progress <paramref name="frac"/>; the
+        /// shimmer is frozen under Reduce flashes or Reduced effects. Writes the material only when a value changes
+        /// (no per-frame allocations, no per-frame uploads while nothing happens).</summary>
+        private void TintOutline(float frac)
+        {
+            if (_outlineMat == null)
+            {
+                return;
+            }
+
+            if (!Mathf.Approximately(frac, _outlineTint))
+            {
+                _outlineTint = frac;
+                _outlineMat.SetColor(ColorId, FxKit.Lin(Color.Lerp(OutlineIdle, OutlineHot, frac)));
+            }
+
+            float shimmer = FxKit.ReduceFlashes || FxKit.ReducedEffects ? 0f : 1f;
+            if (!Mathf.Approximately(shimmer, _outlineShimmer))
+            {
+                _outlineShimmer = shimmer;
+                _outlineMat.SetFloat(ShimmerId, shimmer);
+            }
         }
 
         private void OnDestroy()
@@ -69,6 +128,11 @@ namespace BlocksBeyondTheStars.Client
             if (_outlineMat != null)
             {
                 Destroy(_outlineMat);
+            }
+
+            if (_outlineMesh != null)
+            {
+                Destroy(_outlineMesh);
             }
 
             if (_crackMat != null)
@@ -124,11 +188,7 @@ namespace BlocksBeyondTheStars.Client
                 // Crack + tint while this block is being worked (fresh progress for this very cell).
                 bool working = bx == _crackX && by == _crackY && bz == _crackZ && Time.time - _crackAt < 0.6f;
                 float frac = working ? _crackFrac : 0f;
-                if (_outlineMat != null)
-                {
-                    _outlineMat.color = FxKit.Lin(Color.Lerp(new Color(0.05f, 0.05f, 0.06f), new Color(1f, 0.45f, 0.12f), frac));
-                }
-
+                TintOutline(frac);
                 ShowCrack(working, center);
             }
             else
@@ -523,10 +583,70 @@ namespace BlocksBeyondTheStars.Client
             return new Vector3Int(Mathf.FloorToInt(p.x), y, Mathf.FloorToInt(p.z));
         }
 
+        /// <summary>The selection frame as ONE mesh for <c>FxOutline</c> (#2556): twelve ribbons, one per cube edge, each
+        /// a quad whose four vertices all sit on the edge's centre line — the shader spreads them camera-facing to the
+        /// line width (and past the ends, for round corner joints). Per vertex: position = one end of the edge, normal =
+        /// the edge direction, uv = (0 at the start / 1 at the end, side -1 / +1), uv2 = (the edge's shimmer phase, the
+        /// edge's length).</summary>
+        private static Mesh BuildOutlineMesh()
+        {
+            const float e = 0.503f; // half the frame's size: the edges sit a hair proud of the block's faces
+            const int edges = 12;
+            var vertices = new Vector3[edges * 4];
+            var normals = new Vector3[edges * 4];
+            var uv = new Vector2[edges * 4];
+            var uv2 = new Vector2[edges * 4];
+            var triangles = new int[edges * 6];
+            int k = 0;
+            for (int a = 0; a < 3; a++)
+            {
+                var axis = a == 0 ? Vector3.right : a == 1 ? Vector3.up : Vector3.forward;
+                for (int i = 0; i < 4; i++)
+                {
+                    float u = (i & 1) == 0 ? -e : e;
+                    float v = (i & 2) == 0 ? -e : e;
+                    var offset = a == 0 ? new Vector3(0f, u, v) : a == 1 ? new Vector3(u, 0f, v) : new Vector3(u, v, 0f);
+                    var start = offset - axis * e;
+                    var end = offset + axis * e;
+                    float phase = Mathf.Repeat(k * 0.618034f, 1f); // golden-ratio spread: no two edges shimmer in step
+                    int b = k * 4;
+                    for (int c = 0; c < 4; c++)
+                    {
+                        vertices[b + c] = c < 2 ? start : end;
+                        normals[b + c] = axis;
+                        uv[b + c] = new Vector2(c < 2 ? 0f : 1f, (c & 1) == 0 ? -1f : 1f);
+                        uv2[b + c] = new Vector2(phase, 2f * e);
+                    }
+
+                    int t = k * 6;
+                    triangles[t] = b;
+                    triangles[t + 1] = b + 1;
+                    triangles[t + 2] = b + 2;
+                    triangles[t + 3] = b + 2;
+                    triangles[t + 4] = b + 1;
+                    triangles[t + 5] = b + 3;
+                    k++;
+                }
+            }
+
+            var mesh = new Mesh { name = "BlockOutline (FxOutline)" };
+            mesh.vertices = vertices;
+            mesh.normals = normals;
+            mesh.uv = uv;
+            mesh.uv2 = uv2;
+            mesh.triangles = triangles;
+            // The vertex shader moves every vertex off the centre line (a few centimetres up close, more at range, where
+            // the line keeps a minimum width in pixels): generous bounds so the frame is never culled while on screen.
+            // Set after the triangles, whose setter recomputes the bounds from the collapsed vertices.
+            mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 2.5f);
+            return mesh;
+        }
+
+        /// <summary>The fallback frame when <c>FxOutline</c> is missing: twelve thin primitive cubes on one material.</summary>
         private static GameObject BuildWireCube(Material mat)
         {
-            const float t = 0.05f;   // edge thickness
-            const float s = 1.04f;    // edge length (slightly proud of the block)
+            const float t = 0.03f;    // edge thickness (#2556: thinner than the old 0.05)
+            const float s = 1f + t;   // edge length: the corners close, a hair proud of the block
             var root = new GameObject("BlockOutline");
 
             // Twelve edges of a unit cube centred on the root: 4 along each axis.

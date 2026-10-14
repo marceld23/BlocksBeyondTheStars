@@ -18,6 +18,12 @@
   // samples, the bio lab), c11 (settlers), c12 (defence — only where the world has hostiles, never suggested), c13 (climbing,
   // gliding, vehicles), c15 (playing together — only on a world for more than one player), c16 (paint, forms, colours,
   // copies) and c18 (chests, ruins, wrecks). A course the world rules out (visibleIf) is left out of the Journal.
+  // #2549: gates.holdHints keeps VEGA's one-time hints about later topics quiet until the training gets there — hint id
+  // (vega:hint:<id>) → the condition that releases it. A held hint is not spent: it comes at its next occasion after the
+  // release. Never held when the tutorial does not run for the player (off, on request and not started, switched off),
+  // once the pack is done or skipped, or for an older client. A chapter: condition counts a skipped chapter too.
+  // #2550: b2.5's midKey is VEGA's "far enough" line — the walk-back step measures like the compass ("Ship N m": flat,
+  // to the ship's anchor), 40 m out, then back within 10 m or aboard.
   "id": "tutorial",
   "kind": "tutorial",
   "scope": "player",
@@ -29,7 +35,14 @@
   "gates": {
     "opportunityTips": "all:[step:tutorial:b2.2,step:tutorial:b3.1,step:tutorial:b4.1]",
     "banter": "pack:tutorial:done",
-    "stationNear": "not:step:tutorial:b6.4"
+    "stationNear": "not:step:tutorial:b6.4",
+    "holdHints": {
+      // The first crystal mined ("research the Crystal Net …") and ruins or wrecks nearby: after part 5 (scanning and research).
+      "crystal_mined": "chapter:tutorial:b5",
+      "poi": "chapter:tutorial:b5",
+      // Rock too hard for the drill: once part 3 runs (part 2 through), where b3.3 explains it.
+      "tier_gate": "chapter:tutorial:b2"
+    }
   },
   "escalate": { "hintAfter": 180, "markerAfter": 360, "offerSkipAfter": 600 },
   "graduation": {
@@ -132,7 +145,7 @@
             { "when": "world:starter_teleporter", "hintKey": "story.tutorial.b2.home.hint_teleporter" },
             { "when": "not:world:return_to_ship", "hintKey": "story.tutorial.b2.home.hint_compass" }
           ],
-          "explain": { "startKey": "story.tutorial.b2.home.start", "chipKey": "story.tutorial.b2.home.chip", "hintKey": "story.tutorial.b2.home.hint" }
+          "explain": { "startKey": "story.tutorial.b2.home.start", "chipKey": "story.tutorial.b2.home.chip", "hintKey": "story.tutorial.b2.home.hint", "midKey": "story.tutorial.b2.home.far" }
         },
         {
           "id": "b2.6", "kind": "do", "tier": "core",

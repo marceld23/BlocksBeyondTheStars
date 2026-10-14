@@ -5643,8 +5643,20 @@ namespace BlocksBeyondTheStars.Client
 
             _climbHintTimer = 0.5f;
             if (probe.TryFindWall(pos.x, pos.y, pos.z, wish.x, wish.z, out var hold)
-                && probe.HoldAt(pos.x, pos.y, pos.z, hold.DirX, hold.DirZ, 2.4f) != ClimbSurface.None
-                && VegaPanel.Instance?.SayLocal("vega.hint.climb") == true)
+                && probe.HoldAt(pos.x, pos.y, pos.z, hold.DirX, hold.DirZ, 2.4f) != ClimbSurface.None)
+            {
+                // #2551: the flag is spent when the line comes up on screen. A lesson that waited unseen in VEGA's queue
+                // (the player walked on — aboard, it read as nonsense) is dropped after 30 s and may come at the next wall.
+                VegaPanel.Instance?.SayLocal("vega.hint.climb", _climbHintShown ??= MarkClimbHintShown);
+            }
+        }
+
+        private System.Action _climbHintShown; // cached: the probe may ask every half second while the lesson waits
+
+        private void MarkClimbHintShown()
+        {
+            var settings = Game?.Settings;
+            if (settings != null && !settings.ClimbHintShown)
             {
                 settings.ClimbHintShown = true;
                 settings.Save();
