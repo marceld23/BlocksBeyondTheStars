@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Client.Core;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Localization;
@@ -81,12 +82,19 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The scan title: the subject's name — a wormhole reads "Wormhole → {its twin system}" (#2242), a
-        /// Guardian machine its kind (#2238), everything else as before.</summary>
+        /// Guardian machine and an anomaly their kind (#2238, #2588), everything else as before.</summary>
         public static string Title(GameContent content, Localizer loc, ScanResult scan)
         {
             if (scan.Kind == "wormhole")
             {
                 return loc.Get("ui.scan.subject.wormhole") + " → " + (string.IsNullOrEmpty(scan.Subject) ? "???" : scan.Subject);
+            }
+
+            // #2588: an anomaly is titled by its kind — a server before #2588 sends its entity name "???", which is what
+            // an unknown wormhole's destination reads.
+            if (scan.Kind == AnomalyHint.ReadoutKind)
+            {
+                return loc.Get(AnomalyHint.NameKey);
             }
 
             return SubjectName(content, loc, string.IsNullOrEmpty(scan.Subject) ? scan.SubjectKey : scan.Subject);

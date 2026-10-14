@@ -113,8 +113,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Shows a closed door of <paramref name="kind"/> (width 1) in a world cell, turned for the wall
         /// axis (#1975): the door the server will hang when the held door block is placed here. The mesh comes from
-        /// the shared <see cref="DoorGeometry"/>, so the hologram cannot promise a door the world then hangs differently.</summary>
-        public void ShowDoor(Vector3Int cell, string kind, bool axisX)
+        /// the shared <see cref="DoorGeometry"/>, so the hologram cannot promise a door the world then hangs differently.
+        /// <paramref name="withField"/> adds an energy door's field (#2607: out in space a closed energy door shows it).</summary>
+        public void ShowDoor(Vector3Int cell, string kind, bool axisX, bool withField = false)
         {
             if (_go == null)
             {
@@ -123,14 +124,14 @@ namespace BlocksBeyondTheStars.Client
 
             // Door keys live below zero, apart from the (shape, yaw, up-face) keys of block ghosts.
             int kindIndex = kind switch { DoorBlocks.Slide => 0, DoorBlocks.Wood => 1, DoorBlocks.Energy => 2, _ => 3 };
-            int key = -1 - (kindIndex * 2 + (axisX ? 1 : 0));
+            int key = -1 - (kindIndex * 4 + (withField ? 2 : 0) + (axisX ? 1 : 0));
             if (key != _builtKey)
             {
                 _builtKey = key;
                 var verts = new List<Vector3>();
                 var cols = new List<Color>();
                 var tris = new List<int>();
-                DoorMesh.Append(verts, cols, tris, DoorGeometry.Closed(kind, 1f), axisX, Vector3.zero, _ => Color.white, withField: false);
+                DoorMesh.Append(verts, cols, tris, DoorGeometry.Closed(kind, 1f), axisX, Vector3.zero, _ => Color.white, withField);
                 _mesh.Clear();
                 _mesh.SetVertices(verts);
                 _mesh.SetTriangles(tris, 0);
@@ -144,10 +145,10 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>#2119: the same closed door, placed by a world position and rotation — for a door built onto a ship
-        /// floating in space, whose grid turns with the ship instead of lining up with the world.</summary>
-        public void ShowDoorAt(Vector3 position, Quaternion rotation, string kind, bool axisX)
+        /// floating in space, whose grid turns with the ship instead of lining up with the world (#2607: or onto a station).</summary>
+        public void ShowDoorAt(Vector3 position, Quaternion rotation, string kind, bool axisX, bool withField = false)
         {
-            ShowDoor(Vector3Int.zero, kind, axisX);
+            ShowDoor(Vector3Int.zero, kind, axisX, withField);
             _go.transform.SetPositionAndRotation(position, rotation);
         }
 

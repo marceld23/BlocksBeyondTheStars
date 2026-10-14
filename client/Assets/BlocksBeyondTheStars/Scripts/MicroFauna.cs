@@ -20,6 +20,23 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>When a critter is active across the day/night cycle.</summary>
     public enum CritterTime { Day, Night, Any }
 
+    /// <summary>How the micro-fauna column probe (#2581) classes one cell — what a critter could stand on or
+    /// cruise over.</summary>
+    public enum FaunaCell
+    {
+        Air,    // empty — nothing there
+        Liquid, // water, lava or a still liquid (oil, gas, gas_dense): a surface a flier follows, never a floor
+        Ground, // any other non-air cell — terrain, a deck, grass and flora alike (the probe's rule before #2581)
+    }
+
+    /// <summary>A world column the micro-fauna probe reads cell by cell (#2581). Implemented by a struct so
+    /// <see cref="MicroFauna.ColumnTopY{TColumn}"/> scans the live world every frame without allocating
+    /// (#1554), and by a plain array in the EditMode tests.</summary>
+    public interface IFaunaColumn
+    {
+        FaunaCell CellAt(int y);
+    }
+
     /// <summary>
     /// One kind of "Kleinstlebewesen" (micro-fauna) archetype: a tiny, purely-cosmetic critter that makes a
     /// planet feel alive. Defined entirely client-side (no server/netcode) — the world VFX views own these the
@@ -179,14 +196,22 @@ namespace BlocksBeyondTheStars.Client
                 case "frozen":
                 case "tundra":
                 case "snow": return 0.4f;
+                case "gas_giant": return 0.4f; // #2582: a −120 °C toxic gale — a few drifters, not a meadow's worth
                 default: return 0.8f;
             }
         }
 
+        /// <summary>The species a world type is known for (#2582): always hosted there, whatever the per-planet
+        /// ~70 % species subset (<see cref="MicroFaunaView"/>'s <c>RefreshPlanetSeed</c>) rolled — the gas
+        /// giant's drifting gas-bag. Returns the index into <see cref="Kinds"/>, or -1 when the world has none.</summary>
+        public static int SignatureKind(string biome)
+            => LowerBiome(biome) == "gas_giant" ? Index("gasbag") : -1;
+
         /// <summary>Weighted surface (fly+crawl+hop+drift) kinds for a biome, already filtered to the active
         /// day/night window. Repeated entries == higher spawn weight. <paramref name="wet"/> (rain/storm)
         /// grounds most flyers and brings out the worms and snails instead. Exotic biome keys (crystal, lava,
-        /// ice, desert…) add their own alien signature species on top of the coarse lush/cold/hot buckets.
+        /// ice, desert…) add their own alien signature species on top of the coarse lush/cold/hot buckets; the
+        /// gas giant replaces the buckets with a roster of its own (#2582).
         /// Returns indices into <see cref="Kinds"/>.</summary>
         public static void SurfaceKinds(string biome, bool night, bool wet, List<int> into)
         {
@@ -202,6 +227,29 @@ namespace BlocksBeyondTheStars.Client
             void Add(string key, int w) { int i = Index(key); for (int k = 0; k < w; k++) into.Add(i); }
             // Flyers thin out heavily while it rains; drifting gas-bags don't mind the wet.
             void AddFly(string key, int w) { if (wet) w = w >= 3 ? 1 : 0; Add(key, w); }
+
+            if (b == "gas_giant")
+            {
+                // #2582: the gas giant has its own roster instead of the generic bucket's butterflies and bees
+                // in a −120 °C toxic gale — drifters that suit a sea of cold gas (the gas-bag is its signature,
+                // see SignatureKind) and the cold crawler, which only finds a floor on the decks and islands
+                // (#2581). Rain makes no difference: drifters ignore it and the frostmite is no flyer.
+                if (night)
+                {
+                    Add("gasbag", 2);
+                    Add("sporedrifter", 3);
+                    Add("wisp", 2);
+                    Add("frostmite", 1);
+                }
+                else
+                {
+                    Add("gasbag", 4);
+                    Add("wisp", 1);
+                    Add("frostmite", 2);
+                }
+
+                return;
+            }
 
             if (night)
             {
@@ -253,6 +301,32 @@ namespace BlocksBeyondTheStars.Client
             if (night) { Add3(into, Index("glowplankton")); }
 
             static void Add3(List<int> l, int i) { l.Add(i); l.Add(i); l.Add(i); }
+        }
+
+        /// <summary>The surface of a column for a critter (#2581). Scanning down from <paramref name="topY"/> to
+        /// <paramref name="bottomY"/>, the first non-air cell with air directly above it is the column's
+        /// surface. A liquid surface counts only when <paramref name="liquidIsFloor"/>: fliers and drifters
+        /// cruise over a pond or the gas giant's sea, but a crawler or hopper needs a real floor — before, the
+        /// top cell of the gas sea passed for ground and beetles walked on the see-through haze, i.e. in mid-air.
+        /// The scan stops at that liquid surface instead of searching on below, which would seat a beetle on the
+        /// sea bed or in a cave under the lake. Returns the surface Y, or <see cref="int.MinValue"/> when the
+        /// column has no usable surface in the window.</summary>
+        public static int ColumnTopY<TColumn>(TColumn column, int topY, int bottomY, bool liquidIsFloor)
+            where TColumn : struct, IFaunaColumn
+        {
+            FaunaCell above = column.CellAt(topY + 1);
+            for (int y = topY; y >= bottomY; y--)
+            {
+                FaunaCell cell = column.CellAt(y);
+                if (cell != FaunaCell.Air && above == FaunaCell.Air)
+                {
+                    return cell == FaunaCell.Liquid && !liquidIsFloor ? int.MinValue : y;
+                }
+
+                above = cell;
+            }
+
+            return int.MinValue;
         }
 
         /// <summary>Deterministic FNV-1a string hash for per-planet cosmetic seeds. Never use

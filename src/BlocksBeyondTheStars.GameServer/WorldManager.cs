@@ -238,6 +238,11 @@ internal sealed class LoadedWorld
     /// documented "stable per world") — hashed once instead of an interpolated string 15× per second.</summary>
     public double? FaunaJitter { get; set; }
 
+    /// <summary>#2583: the top cell of this world's gas sea (a gas giant's sea level), or <see cref="int.MinValue"/> on every
+    /// world whose sea is not gas — a pure function of the body, resolved once on first use (the creature probes read it
+    /// for every airborne animal every tick).</summary>
+    public int? GasSeaTop { get; set; }
+
     /// <summary>#2024: the traits this world rolled (<see cref="WorldTraits"/>) — a pure function of seed, body, type and
     /// generation, resolved once on first use (the vitals tick reads it every tick).</summary>
     public WorldTraits? Traits { get; set; }

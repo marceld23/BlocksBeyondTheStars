@@ -45,8 +45,16 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnStations(ShipStations m)
         {
+            // #2606: an empty list means "no ship in this world" (a space station, a body the ship is not on) — it
+            // clears the ship's decor, but it is no new hull. Keep the last ship's signature, so walking back to the
+            // same ship (undocking from a station) is no restamp and plays no sweep.
+            if (m.Stations == null || m.Stations.Length == 0)
+            {
+                return;
+            }
+
             var sb = new System.Text.StringBuilder();
-            foreach (var s in m.Stations ?? System.Array.Empty<NetShipStation>())
+            foreach (var s in m.Stations)
             {
                 sb.Append(s.Type).Append(s.X).Append(s.Y).Append(s.Z).Append('|');
             }
@@ -55,8 +63,7 @@ namespace BlocksBeyondTheStars.Client
             bool first = _signature == null;
             bool changed = _signature != sig;
             _signature = sig;
-            if (first || !changed || m.Stations == null || m.Stations.Length == 0
-                || Game.SpaceViewActive)
+            if (first || !changed || Game.SpaceViewActive)
             {
                 return;
             }

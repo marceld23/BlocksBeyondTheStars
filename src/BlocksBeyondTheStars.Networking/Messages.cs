@@ -1982,13 +1982,34 @@ public sealed class SpaceShipDesign
 
     /// <summary>#2119: the doors the owner built into this ship (design-local doorway base cells, parallel arrays):
     /// the kind ("slide"/"hinge"/"wood"/"energy") and whether the leaf runs along X. The flight view draws a closed
-    /// door there — the cell itself is air, like every doorway. The design's own doors are not listed (the hatch
-    /// keeps its energy field). Contractless-additive: older payloads carry none.</summary>
+    /// door there — the cell itself is air, like every doorway; a closed energy door shows its blue field in space
+    /// (#2607). #2607: a player station lists the doors built into it the same way (on a spacewalk or aboard). The
+    /// design's own doors are not listed (the hatch keeps its energy field, see <see cref="HatchX"/>).
+    /// Contractless-additive: older payloads carry none.</summary>
     public int[] DoorX { get; set; } = System.Array.Empty<int>();
     public int[] DoorY { get; set; } = System.Array.Empty<int>();
     public int[] DoorZ { get; set; } = System.Array.Empty<int>();
     public string[] DoorKind { get; set; } = System.Array.Empty<string>();
     public bool[] DoorAxisX { get; set; } = System.Array.Empty<bool>();
+
+    /// <summary>#2587: the doorways of the design's OWN doors that open to space — an authored ship's rear hatch — as
+    /// design-local cells (parallel arrays): every air cell such a door fills, its width × three high. The flight view
+    /// caps exactly these with the hatch's energy panel instead of guessing the opening from the stern's cells, which
+    /// leaves and blocks built around the hull used to throw off. The doors the owner built are in <see cref="DoorX"/>,
+    /// never here. Contractless-additive: an older server sends none (the client then guesses), an older client ignores them.</summary>
+    public int[] HatchX { get; set; } = System.Array.Empty<int>();
+    public int[] HatchY { get; set; } = System.Array.Empty<int>();
+    public int[] HatchZ { get; set; } = System.Array.Empty<int>();
+
+    /// <summary>#2587: true when the server named the hatch cells above, so EMPTY hatch arrays mean "no doorway opens to
+    /// space" (a room built behind the stern closed it in) and the client caps nothing — while an older server (false,
+    /// the default of a payload without the field) leaves the client to guess. Contractless-additive.</summary>
+    public bool HatchKnown { get; set; }
+
+    /// <summary>#2607: the structure's owner — a player station's builder, a ship's pilot; empty for generated structures.
+    /// The spacewalk's door preview shows only where the server lets the suit build (the owner and their allies).
+    /// Contractless-additive: an older server sends none.</summary>
+    public string OwnerId { get; set; } = string.Empty;
 }
 
 /// <summary>Server → client: a player's ship parked on the current world as a placed voxel OBJECT

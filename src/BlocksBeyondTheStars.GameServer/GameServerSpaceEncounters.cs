@@ -86,7 +86,9 @@ public sealed partial class GameServer
         {
             Id = id,
             Kind = pod ? CombatEntityKind.EscapePod : CombatEntityKind.Anomaly,
-            Name = pod ? NameGenerator.Person(rng) : "???",
+            // #2588: an anomaly has no name of its own — the client labels it by its kind ("Anomaly"). It used to be
+            // "???", exactly what an unknown wormhole's destination reads, and a player took it for a wormhole.
+            Name = pod ? NameGenerator.Person(rng) : string.Empty,
             Hostile = false,
             Hull = 1f,
             HullMax = 1f,

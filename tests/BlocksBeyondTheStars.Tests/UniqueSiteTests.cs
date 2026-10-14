@@ -254,6 +254,30 @@ public sealed class UniqueSiteTests : IDisposable
         }
     }
 
+    /// <summary>#2588: an anomaly was named "???" — what an unknown wormhole's destination reads — and a player took it
+    /// for a wormhole. It has no name of its own now (the client labels it by kind), and its scan card and Codex entry
+    /// carry the subject key the client localizes ("Anomaly"), for an older client too.</summary>
+    [Fact]
+    public void AnAnomaly_IsNamedByItsKind_NeverQuestionMarks()
+    {
+        var server = NewServer("anomaly_name", 3, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Surveyor");
+            server.EnterSpace("Surveyor");
+            string anomalyId = server.SpawnEncounterForTest("Surveyor", 2);
+            var anomaly = server.SpaceEntitiesFor("Surveyor").First(e => e.Id == anomalyId);
+            Assert.Equal(string.Empty, anomaly.Name);
+
+            var result = server.ScanSpaceEntity("Surveyor", anomalyId);
+            Assert.Equal("anomaly", result.Subject);
+            Assert.Equal("anomaly", result.SubjectKey);
+            Assert.DoesNotContain("???", pilot.State.ScannedNames.Values);
+            Assert.Contains("anomaly", pilot.State.ScannedNames.Values);
+            server.Stop();
+        }
+    }
+
     // ---------------- Content consistency ----------------
 
     [Fact]

@@ -60,7 +60,9 @@ in GraphicsSettings Always-Included; every new block was added to the atlas and 
   pulsing red emergency light + `hull_alarm` below 25% (hysteresis at 30%).
 - **Build preview + materialize** (WP-15): a validity-tinted (green/red, pulsing) ship-editor placement
   ghost, plus a client-side restamp materialize sweep (rising holo ring + shimmer, keyed off
-  `ShipStations` changes) instead of the hull popping in.
+  `ShipStations` changes) instead of the hull popping in. An empty list ("no ship in this world", e.g.
+  aboard a space station, #2606) clears the decor but is no restamp — undocking back to the same ship
+  plays no sweep.
 
 ## Key files
 

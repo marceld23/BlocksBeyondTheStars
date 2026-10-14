@@ -568,8 +568,9 @@ public sealed partial class GameServer
             SendInventory(session);
         }
 
-        // #2219: a block that only works in a world's block grid is decoration in the hull being built.
-        NoteShipDecor(session, blockDef);
+        // #2219: a block that only works in a world's block grid is decoration in the hull being built. #2585: so is a
+        // station block whose module the new ship lacks — asked of the ship on the keel, not of the one parked elsewhere.
+        NoteShipDecor(session, blockDef, uc.Ship);
 
         cells[pos] = blockDef.NumericId;
         CommitCustomShipCells(session, uc.Ship, rec, commissioned: false, cells, pos,

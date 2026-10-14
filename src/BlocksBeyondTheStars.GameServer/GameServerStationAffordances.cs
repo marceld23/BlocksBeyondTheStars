@@ -1,3 +1,4 @@
+using System.Globalization;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
@@ -66,6 +67,72 @@ public sealed partial class GameServer
         CraftingStation.Decontaminator => "decontaminator", // #2067
         _ => null,
     };
+
+    /// <summary>#2585: the ship module that does the job of a crafting-station BLOCK aboard (forge → refinery, workbench →
+    /// workshop, …), or null for a block no module stands in for (a campfire, an algae tank, any other block).</summary>
+    internal static string? StationModuleForBlock(string blockKey)
+    {
+        foreach (var station in GatedStations)
+        {
+            if (StationBlockFor(station) == blockKey)
+            {
+                return StationModuleFor(station);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// #2585: why a recipe's station is out of reach, as the token the client localizes. Off the ship it is the station
+    /// itself (<c>@need_station:refinery</c> — a placed forge in reach would do). Aboard, only a fitted ship module counts
+    /// (<see cref="StationAvailable(PlayerState, ShipState, CraftingStation)"/>; a station block built into a ship is
+    /// decoration, #2248), so the token names the module that does the job (<c>@srv.craft.need_module:Refinery</c>) — or,
+    /// for a station no module provides (a campfire, an algae tank), says it works on a world only
+    /// (<c>@srv.craft.world_only:Campfire</c>). Both names are localized here, for the session's language. A player who
+    /// built a forge right beside the cabin's workbench to make titanium plates was told "you need a forge nearby" and
+    /// never learned that aboard it is the refinery module. The factory keeps <c>@need_station:factory</c> aboard too:
+    /// "next to this block" would point at a terminal block, and a player-placed terminal never produces (#1265) — only a
+    /// spawned factory does.
+    /// </summary>
+    private string StationMissingReason(PlayerSession session, CraftingStation station)
+    {
+        if (session.State.AboardShip && station != CraftingStation.Factory)
+        {
+            if (StationModuleFor(station) is { } moduleKey)
+            {
+                return "@srv.craft.need_module:" + LocalizedName(session.Locale, _content.GetShipModule(moduleKey)?.NameKey, moduleKey);
+            }
+
+            if (StationBlockFor(station) is { } blockKey)
+            {
+                return "@srv.craft.world_only:" + LocalizedName(session.Locale, _content.GetBlock(blockKey)?.NameKey, blockKey);
+            }
+        }
+
+        return "@need_station:" + station.ToString().ToLowerInvariant();
+    }
+
+    /// <summary>#2585: the materials a refused craft lacks, named with what the player has and what the batch needs —
+    /// <c>@srv.craft.missing_named:Titanium Ore (0/2), Carbon (1/3)</c>. Counted from the very <see cref="MaterialPool"/>
+    /// the check used, so the ship's hold counts exactly when it counts for the craft (aboard) and a changed tool counts
+    /// like a plain one. The item names are localized for the session; the client puts the list into its sentence as it
+    /// is. "Missing materials." never said which one.</summary>
+    private string MissingMaterialsReason(PlayerSession session, MaterialPool pool, IEnumerable<ItemAmount> inputs)
+    {
+        var missing = new List<string>();
+        foreach (var need in inputs)
+        {
+            int have = pool.Count(need.Item);
+            if (have < need.Count)
+            {
+                missing.Add(LocalizedName(session.Locale, _content.GetItem(need.Item)?.NameKey, need.Item)
+                    + " (" + have.ToString(CultureInfo.InvariantCulture) + "/" + need.Count.ToString(CultureInfo.InvariantCulture) + ")");
+            }
+        }
+
+        return missing.Count == 0 ? "@srv.craft.missing_materials" : "@srv.craft.missing_named:" + string.Join(", ", missing);
+    }
 
     /// <summary>The ship of a session without touching the ship cursor.</summary>
     private ShipState ShipOf(PlayerSession session)

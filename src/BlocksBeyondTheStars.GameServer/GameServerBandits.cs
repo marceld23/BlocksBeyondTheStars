@@ -260,7 +260,8 @@ public sealed partial class GameServer
             ex = (int)System.Math.Round(player.Position.X + System.Math.Cos(a) * dist);
             ez = (int)System.Math.Round(player.Position.Z + System.Math.Sin(a) * dist);
             // Real-block ground when the column is loaded (player builds/pits are honoured); noise surface otherwise.
-            ey = GroundFeetYAt(ex, ez, _generator.SurfaceHeight(_world.Planet, ex, ez) + 1);
+            // #2586: on a gas giant from the real top of the column over the gas — the noise surface lies under it.
+            ey = GroundFeetYAt(ex, ez, GroundProbeRefY(ex, ez));
             placed = !BanditColumnRejected(ex, ey, ez);
         }
 
@@ -627,11 +628,12 @@ public sealed partial class GameServer
     /// <summary>Whether a bandit may NOT be placed with its feet at a column's feet cell (#1855): inside a
     /// walled base area or a sealed base room (the two enclosure predicates the creature spawner honours —
     /// the player noticed her animals respect the walls and her scouts did not), or standing in or on water
-    /// or lava (real blocks when the column is loaded, the generator's fluid bodies otherwise).</summary>
+    /// or lava (real blocks when the column is loaded, the generator's fluid bodies otherwise) — or in or on a gas
+    /// giant's gas sea (#2586: over open gas the probe answers the heightfield buried under it, where a robber burns).</summary>
     private bool BanditColumnRejected(int x, int feetY, int z)
     {
         var feet = new Vector3i(x, feetY, z);
-        if (InWalledBaseArea(feet) || InSealedBaseRoom(feet))
+        if (InWalledBaseArea(feet) || InSealedBaseRoom(feet) || FeetInGasSeaAt(x, feetY, z))
         {
             return true;
         }
@@ -1001,6 +1003,16 @@ public sealed partial class GameServer
             BanditTargetId = targetPlayerId,
             Loot = { new ItemAmount("iron_plate", 2) },
         });
+    }
+
+    /// <summary>Test seam (#2586): one lone robber placed near a player exactly as an ambush roll places it — no pacing,
+    /// no roll; nothing is added when no column around the player qualifies.</summary>
+    public void SpawnLoneBanditNearForTest(string playerId)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            SpawnLoneBanditNear(session.State);
+        }
     }
 
     /// <summary>Test seam (#2307): the terrain gate of a bandit step from <paramref name="cur"/> to <paramref name="cand"/>,

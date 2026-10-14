@@ -6192,8 +6192,9 @@ public sealed partial class GameServer
             // Send a machine-readable token so the client can localize it AND name the exact station
             // the recipe needs (Severin playtest #2: "crafting station not available" while standing at
             // a workbench — meat actually needs a detoxifier). The station enum name maps to the existing
-            // "ui.craft.station_<name>" locale keys client-side.
-            CraftFail(session, recipe.Key, "@need_station:" + recipe.Station.ToString().ToLowerInvariant());
+            // "ui.craft.station_<name>" locale keys client-side. #2585: aboard, the token names the ship MODULE instead
+            // (a forge built into the cabin is decoration) — see StationMissingReason.
+            CraftFail(session, recipe.Key, StationMissingReason(session, recipe.Station));
             return;
         }
 
@@ -6241,7 +6242,8 @@ public sealed partial class GameServer
         var scaledInputs = recipe.Inputs.Select(i => new ItemAmount(i.Item, i.Count * count)).ToList();
         if (!pool.Has(scaledInputs))
         {
-            CraftFail(session, recipe.Key, "@srv.craft.missing_materials");
+            // #2585: name what is missing ("Titanium Ore (0/2)") — "Missing materials." left the player guessing.
+            CraftFail(session, recipe.Key, MissingMaterialsReason(session, pool, scaledInputs));
             return;
         }
 

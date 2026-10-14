@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Shared.Bio;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -665,9 +666,14 @@ public sealed partial class GameServer
     /// its job: once per player, not once per block kind. Every path that turns a placed item into a ship cell
     /// calls this once the block is accepted and paid for: the landed ship and its walkable interior, the spacewalk
     /// on the own hull, the keel's construction site and the commissioned self-built ship. A station is no ship: it
-    /// becomes a world when it is boarded and has its own rule (<see cref="RefusedOnStationSpacewalk"/>).</summary>
-    private void NoteShipDecor(PlayerSession session, BlockDefinition def)
+    /// becomes a world when it is boarded and has its own rule (<see cref="RefusedOnStationSpacewalk"/>). A crafting
+    /// station's block (a forge, a workbench …) gets its own notice (<see cref="NoteShipStationBlock"/>, #2585);
+    /// <paramref name="ship"/> is the ship the block went into when that is not the player's active one (the keel's
+    /// construction site).</summary>
+    private void NoteShipDecor(PlayerSession session, BlockDefinition def, ShipState? ship = null)
     {
+        NoteShipStationBlock(session, def, ship ?? ShipOf(session));
+
         if (!NeedsWorldGrid(def) || CrystalNetRules.WorksAboard(CrystalNetRules.KindOf(def)))
         {
             return; // #2268: a switch, a gate, a lamp … works aboard the own ship (once it is parked or walked)
@@ -693,6 +699,35 @@ public sealed partial class GameServer
     }
 
     private const string ShipDecorMilestone = "vega:hint:ship_decor";
+
+    /// <summary>
+    /// #2585: a crafting station's BLOCK built into a ship — a forge, a workbench, a detoxifier, a matter forge, a
+    /// decontaminator — is decoration there as well: aboard, crafting asks for the ship's MODULE only
+    /// (<see cref="StationAvailable(PlayerState, ShipState, CraftingStation)"/>, #2248). A player who built a forge right
+    /// beside the cabin's workbench to make titanium plates heard nothing, and the plates still would not come. So while
+    /// <paramref name="ship"/> lacks the module that does the block's job, VEGA names that module — once per block kind
+    /// (<c>vega:hint:ship_station:&lt;block&gt;</c>), not under the shared decoration flag, so a forge after a bio lab is
+    /// still explained. A system line (kind 3), like the decoration notice: muted hints must not burn the flag unseen.
+    /// With the module fitted the block is a harmless second station and nothing is said; the campfire and the algae
+    /// tank have no module (the craft refusal says they work on a world). The build itself is never refused.
+    /// </summary>
+    private void NoteShipStationBlock(PlayerSession session, BlockDefinition def, ShipState ship)
+    {
+        if (StationModuleForBlock(def.Key) is not { } moduleKey || ship.HasModule(moduleKey))
+        {
+            return;
+        }
+
+        var p = session.State;
+        if (p.Milestones.Add(ShipStationMilestonePrefix + def.Key))
+        {
+            _repo.SavePlayer(p);
+            SendVegaLine(session, "vega.hint.ship_station_module", 3,
+                LocalizedName(session.Locale, _content.GetShipModule(moduleKey)?.NameKey, moduleKey));
+        }
+    }
+
+    private const string ShipStationMilestonePrefix = "vega:hint:ship_station:";
 
     /// <summary>#2219: a block the world place handler has to REGISTER before it does anything — a conduit and every
     /// Crystal Net device (their net cell), a radio beacon and a beam pad (their named entry), a water spout and a
@@ -797,6 +832,13 @@ public sealed partial class GameServer
                 return;
             }
 
+            // #2607: …and so does a door built into a station (the owner's or an ally's).
+            if (existing.IsAir && s.Kind == "station" && PlacedDoorCovering(s, pos) is { } stationDoor)
+            {
+                TakeStationDoor(session, instance, s, stationDoor);
+                return;
+            }
+
             if (existing.IsAir)
             {
                 Reject(session, "structure", "@srv.structure.nothing");
@@ -870,6 +912,7 @@ public sealed partial class GameServer
             }
 
             _structureMiningProgress.Remove((s.Id, pos));
+            var boxBefore = s.Kind == "station" ? CellBox(s) : default;
             s.Set(pos, BlockId.Air);
 
             // item 20 S4 durable save: a hull cell the owner mined out persists as a per-cell delta (only
@@ -879,6 +922,16 @@ public sealed partial class GameServer
                 // #2121: the owner took it out on purpose — the new design, never "damage" for the repair.
                 _repo.SetStructureBlock(StructureEditStoreId(s), pos, BlockId.AirValue, OwnerRemovedMark);
                 s.OwnerRemoved.Add(pos);
+            }
+            else if (s.Kind == "station")
+            {
+                // #2607: the interior loses the block now, and the persisted build too — a commissioned station's mined
+                // cell was saved only with the next build, so a restart in between brought the block back.
+                MirrorStationCellOutside(s, pos, BlockId.Air);
+                if (s.Boardable)
+                {
+                    PersistStation(instance, s);
+                }
             }
 
             // Bank the mined block's drops (ore from asteroids; rebuild materials from a ship hull) — the
@@ -897,6 +950,11 @@ public sealed partial class GameServer
                 Z = pos.Z,
                 Block = BlockId.AirValue,
             });
+
+            if (s.Kind == "station")
+            {
+                ResendStationDesignIfBoxChanged(instance, s, boxBefore); // #2607: after the block change, so the chips still fly
+            }
 
             // A fully mined-out asteroid is gone — remove its body + paired entity (the field respawns later).
             if (isAsteroid && s.Cells.Count == 0)
@@ -957,8 +1015,10 @@ public sealed partial class GameServer
             return;
         }
 
-        // #2148: a ship's doorways stay open — the owner's own doors (#2119) and the design's openings alike.
-        if (s.Kind == "ship" && (PlacedDoorCovering(s, pos) is not null || DoorOpeningCells(s).Contains(pos)))
+        // #2148: a ship's doorways stay open — the owner's own doors (#2119) and the design's openings alike; #2607: a
+        // station's doorways too.
+        if ((s.Kind == "ship" && (PlacedDoorCovering(s, pos) is not null || DoorOpeningCells(s).Contains(pos)))
+            || (s.Kind == "station" && PlacedDoorCovering(s, pos) is not null))
         {
             Reject(session, "structure", "@srv.place.door_here");
             return;
@@ -1009,7 +1069,21 @@ public sealed partial class GameServer
             return;
         }
 
+        // #2607: …and so is one built onto a station (it used to become a solid door block). The station's grid is the
+        // flight frame, so the suit's own heading turns it.
+        if (s.Kind == "station" && DoorBlocks.IsDoorBlock(blockDef.Key))
+        {
+            float suitYaw = instance.PlayerPoses.TryGetValue(p.PlayerId, out var suitPose) ? suitPose.Yaw : 0f;
+            BuildStationDoor(session, instance, s, pos, blockDef, suitYaw);
+            return;
+        }
+
+        var stationBoxBefore = s.Kind == "station" ? CellBox(s) : default;
         s.Set(pos, blockDef.NumericId);
+        if (s.Kind == "station")
+        {
+            MirrorStationCellOutside(s, pos, blockDef.NumericId); // #2607: the interior gets the block now, not at the next stamp
+        }
 
         // item 20 S4 durable save: a hull cell the owner built persists as a per-cell delta (own ship only;
         // a station's whole build is persisted via PersistStation below).
@@ -1032,6 +1106,7 @@ public sealed partial class GameServer
         // keep an already-commissioned station's persisted build up to date.
         if (s.Kind == "station")
         {
+            ResendStationDesignIfBoxChanged(instance, s, stationBoxBefore); // #2607
             if (!s.Boardable)
             {
                 TryCommissionStation(instance, s, session);
@@ -1455,8 +1530,12 @@ public sealed partial class GameServer
             i++;
         }
 
-        // #2119: the doors the owner built, drawn closed by the flight view (their cells are air).
+        // #2119: the doors the owner built, drawn closed by the flight view (their cells are air) — #2607: a player
+        // station's doors too.
         var doors = s.PlacedDoorAxes.OrderBy(d => d.Key.X).ThenBy(d => d.Key.Y).ThenBy(d => d.Key.Z).ToList();
+
+        // #2587: the design's own doorways to space (the rear hatch), so the flight view caps exactly those.
+        var hatch = ShipHatchCells(s);
 
         Send(session, new SpaceShipDesign
         {
@@ -1465,6 +1544,11 @@ public sealed partial class GameServer
             DoorZ = doors.Select(d => d.Key.Z).ToArray(),
             DoorKind = doors.Select(d => s.DoorKinds.TryGetValue(d.Key, out var k) ? k : DoorBlocks.Energy).ToArray(),
             DoorAxisX = doors.Select(d => d.Value).ToArray(),
+            HatchX = hatch.Select(c => c.X).ToArray(),
+            HatchY = hatch.Select(c => c.Y).ToArray(),
+            HatchZ = hatch.Select(c => c.Z).ToArray(),
+            HatchKnown = s.Kind == "ship", // #2587: an empty list from this server means "no hatch", not "guess"
+            OwnerId = s.OwnerId,
             Id = s.Id,
             Kind = kindOverride ?? s.Kind,
             PosX = s.Position.X,

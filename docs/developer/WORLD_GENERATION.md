@@ -2264,6 +2264,20 @@ about three in five; the sky giant is passive — a spectacle. The class is one 
   salted seed on a gas world — the type is gated, so no older roster moves), and a settlement seats **only on an island**
   (`GameServerSettlements`: `wantIsland` is forced, the guaranteed search returns false instead of a ground seat — a
   build too big for an island has no spot).
+- **The animals and the machines keep out of the gas (#2583, #2586).** For the creature probes the gas is neither ground
+  nor water, so every hover band used to be measured from the heightfield buried under it: the fliers hung in the gas and
+  burned (91 of 102 spawns within a second, the spawner refilling for good). On a gas world an airborne animal's band
+  is measured from the gas surface at the least (`LiftOutOfGasSea`: `SeaLevel + 1` — a body already in the gas rises
+  out), a spawn measures from the real top of its column above the gas — an island of any tier, a deck, a build — or
+  from the gas surface (`GasColumnAirRestY`), `SpawnSpotClear` rejects every spot where `GasContactDpsAt` burns, a
+  flier never perches on or drops into the gas (one that is in it pops straight up to its band), and nothing that walks
+  steps from dry footing into it (`StepsIntoGasSea`, companions included). The same hole held for the **planet machines, a lone robber and a
+  base's scouts (#2586)** — placed from the generator surface, the machines burned one after another on the same spot:
+  their placement probes from the real column top (`GroundProbeRefY`), a walking robot or a robber with no island or
+  deck under it is not placed (`FeetInGasSeaAt`, also in `BanditColumnRejected`), a walking robot treats the gas as a
+  wall (`WalkerStepsIntoGasSea`, its walk and a shock-glove push), and a scan-drone crosses open gas at its hover over
+  the surface (`GasSurfaceFloorFor`, as it crosses a lake). A structure's legacy ground seat (`FootprintWet`) counts the
+  whole gas sea as wet. The sky giant keeps its own altitude.
 - **The decks.** Every landing pad of a gas world is a **metal deck** (`LandingPad.Deck`, `LandingPadFlatten.Deck`, flag
   32 in the pinned pads, code 3 on the far-terrain wire): `DecidePad` seats it at `SeaLevel + IsletRise` like an ocean
   islet, and `FlattenLandingPads` builds a platform instead of a mound — a `steel_floor` top over three blocks of
@@ -2291,8 +2305,8 @@ about three in five; the sky giant is passive — a spectacle. The class is one 
   `GameServerShipAi` (`vega.hint.world.gas_giant`), test lists (`TerrainTagsAndGenerationTests`, `ToxicaMaximaWorldTests`).
 
 Tests: `GasGiantWorldTests` (the data, the flooded heightfield with islands above, the galaxy placement, the all-flying
-roster, the sky giant's rules), `GasGiantServerTests` (the deck, the contact rule, the city air, the sky giant), golden
-`gas_giant-gen18`.
+roster, the sky giant's rules), `GasGiantServerTests` (the deck, the contact rule, the city air, the sky giant, the
+animals, machines and robbers kept out of the gas), golden `gas_giant-gen18`.
 
 ## 35. Generation 19 — the intercity monorail (#2125, 2026-09-28, Justus' idea, Marcel's rules)
 

@@ -230,6 +230,9 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _aimHighlight;    // marker on the aimed cell
         private Material _aimHighlightMat;   // marker material — tinted by mining progress (#685)
         private PlacementGhost _evaDoorGhost; // #2119: the door a held door block will hang, shown on the aimed cell
+        private List<SpaceDoors.Door> _shipDoors = new();        // #2607: the doors built into the own ship (cells are air)
+        private HashSet<Vector3i> _shipDoorCells = new();        // …the cells they fill — the spacewalk aim stops on them
+        private Material _doorPanelMat, _doorRimMat, _doorFieldMat; // #2607: shared by every door drawn in space
         private string _evaMineProgressStructId; // structure of the last server mining-progress report (#685)
         private Vector3Int _evaMineProgressCell; // its structure-local cell
         private float _evaMineProgressFraction;  // 0..1 of the way to breaking
@@ -266,6 +269,12 @@ namespace BlocksBeyondTheStars.Client
             public bool HasDock;
             public Vector3 Dock;
             public Vector3 DockOut;
+
+            // #2607: a player station's doors (drawn as doors, aimed at on a spacewalk) and its owner (the door preview
+            // shows only where the suit may build: the owner and their allies).
+            public List<SpaceDoors.Door> Doors = new();
+            public HashSet<Vector3i> DoorCells = new();
+            public string OwnerId = string.Empty;
 
             public bool IsStation => Kind == "station";
         }
@@ -1820,6 +1829,7 @@ namespace BlocksBeyondTheStars.Client
 
             // #2242: a wormhole within reach takes E before anything else (rifts open far from planets and stations).
             UpdateNearWormhole(pos);
+            UpdateNearAnomaly(pos); // #2588: flying up to an anomaly says what it is (it is not a wormhole)
             if (_nearWormholeId != null && InputMap.Down(InputAction.Interact))
             {
                 BeginWormholeTransit();
@@ -1846,6 +1856,10 @@ namespace BlocksBeyondTheStars.Client
                 {
                     // One press opens the planet map; you pick the pad to land on there (item 38 / B?).
                     OpenPadChooser(_landTargetId);
+                }
+                else
+                {
+                    SayAnomalyHintOnInteract(); // #2588: E at an anomaly said nothing — now it says how to read it
                 }
             }
 
@@ -2694,7 +2708,10 @@ namespace BlocksBeyondTheStars.Client
 
             if (InputMap.Down(InputAction.Interact))
             {
-                bool stationCloser = _nearStationId != null && (!_evaNearShip || _nearStationSq <= _evaShipSq);
+                // #2607: aimed at one of the station's doors, E goes in there even with the ship nearer — the server
+                // sees the suit beside the door and lets the player in on its inside.
+                bool stationCloser = _nearStationId != null
+                    && (!_evaNearShip || _nearStationSq <= _evaShipSq || AimingAtStationDoor(_nearStationId));
                 if (stationCloser)
                 {
                     DockStationFromEva();
@@ -2705,6 +2722,11 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
         }
+
+        /// <summary>#2607: whether the suit's aim rests on a door of that station (the cells its doorways fill).</summary>
+        private bool AimingAtStationDoor(string stationId)
+            => _evaHasAim && stationId != null && _evaAimStructId == stationId
+               && _structs.TryGetValue(stationId, out var vs) && vs.DoorCells.Contains(new Vector3i(_evaAimHit.x, _evaAimHit.y, _evaAimHit.z));
 
         // ---------------- item 20 S2/S3: free-space build/mine + voxel collision (ship + asteroids) ----------------
 
@@ -2790,9 +2812,12 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Ray-marches one structure's voxel grid from the suit's eye (a design-space DDA mirroring the
-        /// on-foot AimBlock). Returns the hit cell, the empty cell before it, and the hit distance.</summary>
+        /// on-foot AimBlock). Returns the hit cell, the empty cell before it, and the hit distance. #2607: the ray also
+        /// stops on <paramref name="doors"/> (the cells the structure's built doors fill — air in the grid), so a door hung
+        /// in space can be aimed at and picked up again with the mining button.</summary>
         private bool RayMarchCells(Transform t, Dictionary<Vector3i, BlockId> cells, Vector3 centre,
-            Vector3 rootOrigin, Vector3 rootDir, out Vector3Int hitCell, out Vector3Int placeCell, out float dist)
+            Vector3 rootOrigin, Vector3 rootDir, out Vector3Int hitCell, out Vector3Int placeCell, out float dist,
+            HashSet<Vector3i> doors = null)
         {
             hitCell = default; placeCell = default; dist = 0f;
             Vector3 o = ToDesign(t, centre, rootOrigin);
@@ -2811,7 +2836,8 @@ namespace BlocksBeyondTheStars.Client
             float tt = 0f;
             for (int i = 0; i < 80 && tt <= EvaReach; i++)
             {
-                if (cells.ContainsKey(new Vector3i(x, y, z)))
+                var cell = new Vector3i(x, y, z);
+                if (cells.ContainsKey(cell) || (doors != null && doors.Contains(cell)))
                 {
                     hitCell = new Vector3Int(x, y, z);
                     placeCell = new Vector3Int(px, py, pz);
@@ -2843,7 +2869,7 @@ namespace BlocksBeyondTheStars.Client
             Vector3Int bestHit = default, bestPlace = default;
 
             if (_shipCells != null && _ship != null && _shipCells.Count > 0
-                && RayMarchCells(_ship.transform, _shipCells, _shipCentre, _evaPos, rootDir, out var sh, out var sp, out var sd)
+                && RayMarchCells(_ship.transform, _shipCells, _shipCentre, _evaPos, rootDir, out var sh, out var sp, out var sd, _shipDoorCells)
                 && sd < bestT)
             {
                 bestT = sd; bestId = _shipStructureId; bestHit = sh; bestPlace = sp;
@@ -2857,7 +2883,7 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
-                if (RayMarchCells(vs.Root.transform, vs.Cells, vs.Centre, _evaPos, rootDir, out var hc, out var pc, out var d)
+                if (RayMarchCells(vs.Root.transform, vs.Cells, vs.Centre, _evaPos, rootDir, out var hc, out var pc, out var d, vs.DoorCells)
                     && d < bestT)
                 {
                     bestT = d; bestId = kv.Key; bestHit = hc; bestPlace = pc;
@@ -2933,68 +2959,142 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#2119: while a door block is held on a spacewalk and the suit aims at the own ship, the door it will
         /// hang shows in the cell — turned the way the server will turn it (jambs decide, else it faces the suit), so a
-        /// door never looks like a block before it is placed.</summary>
+        /// door never looks like a block before it is placed. #2607: the same at a player station the suit may build on
+        /// (its owner's, an ally's) — a station's grid is the flight frame, so the suit's own heading turns the door — and
+        /// an energy door's preview shows its blue field, the way the closed door looks out here.</summary>
         private void UpdateEvaDoorGhost()
         {
             string doorKind = null;
-            if (_evaHasAim && !Game.MenuOpen && _evaAimStructId == _shipStructureId && _shipCells != null && _ship != null)
+            Transform t = null;
+            Dictionary<Vector3i, BlockId> cells = null;
+            Vector3 centre = Vector3.zero;
+            float yawInGrid = 0f;
+            if (_evaHasAim && !Game.MenuOpen)
             {
                 string item = Game.ItemInSlot(Game.SelectedHotbarSlot);
                 string placed = string.IsNullOrEmpty(item) ? null : Game.Content?.GetItem(item)?.PlacesBlock;
                 doorKind = DoorBlocks.IsDoorBlock(placed) ? DoorBlocks.KindForBlock(placed) : null;
+                if (doorKind != null && _evaAimStructId == _shipStructureId && _shipCells != null && _ship != null)
+                {
+                    t = _ship.transform;
+                    cells = _shipCells;
+                    centre = _shipCentre;
+                    yawInGrid = _evaYaw - _yaw;
+                }
+                else if (doorKind != null && _evaAimStructId != null && _structs.TryGetValue(_evaAimStructId, out var vs)
+                         && vs.IsStation && vs.Root != null && vs.Cells != null && MayBuildOnStation(vs))
+                {
+                    t = vs.Root.transform;
+                    cells = vs.Cells;
+                    centre = vs.Centre;
+                    yawInGrid = _evaYaw;
+                }
             }
 
-            if (doorKind == null)
+            if (doorKind == null || t == null)
             {
                 _evaDoorGhost?.Hide();
                 return;
             }
 
-            var cells = _shipCells;
             var cell = _evaAimPlace;
+            var grid = cells;
             bool axisX = DoorProbe.AxisForPlacedDoor(
-                (x, y, z) => cells.TryGetValue(new Vector3i(x, y, z), out var b) && !b.IsAir,
-                cell.x, cell.y, cell.z, _evaYaw - _yaw);
-            var t = _ship.transform;
+                (x, y, z) => grid.TryGetValue(new Vector3i(x, y, z), out var b) && !b.IsAir,
+                cell.x, cell.y, cell.z, yawInGrid);
             _evaDoorGhost ??= new PlacementGhost();
-            _evaDoorGhost.ShowDoorAt(t.TransformPoint(new Vector3(cell.x + 0.5f, cell.y, cell.z + 0.5f) - _shipCentre), t.rotation, doorKind, axisX);
+            _evaDoorGhost.ShowDoorAt(t.TransformPoint(new Vector3(cell.x + 0.5f, cell.y, cell.z + 0.5f) - centre), t.rotation, doorKind, axisX,
+                withField: SpaceDoors.ShowsFieldInSpace(doorKind));
         }
 
-        /// <summary>#2119: the doors the owner built into the ship, drawn closed in their doorways (the cells are air).
-        /// Built from the design's door list; the flight view never opens them — you board through the hatch.</summary>
-        private void AddPlacedDoors(GameObject ship, BlocksBeyondTheStars.Networking.Messages.SpaceShipDesign d, Vector3 centre)
+        /// <summary>#2607: whether the local player may build onto this station from a spacewalk — its owner or an ally,
+        /// the server's own rule (an ownerless, generated station hull takes no build at all).</summary>
+        private bool MayBuildOnStation(VoxStruct vs)
         {
-            int n = d.DoorX?.Length ?? 0;
-            if (n == 0 || d.DoorY == null || d.DoorZ == null || d.DoorKind == null || d.DoorAxisX == null)
+            var allies = Game.Alliances?.Allies;
+            var allyIds = new List<string>();
+            if (allies != null)
+            {
+                foreach (var a in allies)
+                {
+                    allyIds.Add(a.PartnerId);
+                }
+            }
+
+            return SpaceDoors.MayBuildOnStation(vs.OwnerId, Game.LocalPlayerId, allyIds);
+        }
+
+        /// <summary>#2119: the doors built into a ship (#2607: or a player station), drawn closed in their doorways (the
+        /// cells are air). The flight view never opens them — you board through the hatch or dock. #2607: a closed ENERGY
+        /// door shows its blue field in a glowing frame out here (decision 5: it read as a grey slab before); a sliding, a
+        /// hinge or a wooden door keeps its closed panels. The meshes are children of <paramref name="parent"/>; each is
+        /// listed in <paramref name="meshes"/> when given, so the caller can free them with the structure.</summary>
+        private void AddPlacedDoors(Transform parent, IReadOnlyList<SpaceDoors.Door> doors, Vector3 centre, List<Mesh> meshes = null)
+        {
+            if (doors == null || doors.Count == 0)
             {
                 return;
             }
 
-            n = Mathf.Min(n, Mathf.Min(d.DoorY.Length, Mathf.Min(d.DoorZ.Length, Mathf.Min(d.DoorKind.Length, d.DoorAxisX.Length))));
-            var mat = Lit(new Color(0.62f, 0.68f, 0.76f));
-            for (int i = 0; i < n; i++)
+            _doorPanelMat ??= Lit(new Color(0.62f, 0.68f, 0.76f));
+            _doorRimMat ??= Unlit(new Color(0.2f, 0.85f, 1f));
+            _doorFieldMat ??= EnergyField(new Color(0.35f, 0.80f, 1f, 0.6f));
+            var frame = new List<DoorGeometry.Box>();
+            var field = new List<DoorGeometry.Box>();
+            foreach (var door in doors)
             {
-                var verts = new List<Vector3>();
-                var cols = new List<Color>();
-                var tris = new List<int>();
-                DoorMesh.Append(verts, cols, tris, DoorGeometry.Closed(d.DoorKind[i] ?? DoorBlocks.Energy, 1f), d.DoorAxisX[i], Vector3.zero, _ => Color.white, withField: false);
-                if (verts.Count == 0)
+                var at = new Vector3(door.Cell.X + 0.5f, door.Cell.Y, door.Cell.Z + 0.5f) - centre;
+                var boxes = DoorGeometry.Closed(door.Kind, 1f);
+                if (!SpaceDoors.ShowsFieldInSpace(door.Kind))
                 {
+                    AddDoorPart(parent, "PlacedDoor", boxes, door.AxisX, at, _doorPanelMat, withField: false, meshes);
                     continue;
                 }
 
-                var mesh = new Mesh { name = "PlacedDoor" };
-                mesh.SetVertices(verts);
-                mesh.SetTriangles(tris, 0);
-                mesh.RecalculateNormals();
-                mesh.RecalculateBounds();
+                frame.Clear();
+                field.Clear();
+                foreach (var box in boxes)
+                {
+                    if (box.Part == DoorGeometry.Part.Field)
+                    {
+                        field.Add(box);
+                    }
+                    else if (box.Part == DoorGeometry.Part.PostMinus || box.Part == DoorGeometry.Part.PostPlus)
+                    {
+                        frame.Add(box);
+                    }
+                }
 
-                var go = new GameObject("PlacedDoor");
-                go.transform.SetParent(ship.transform, false);
-                go.transform.localPosition = new Vector3(d.DoorX[i] + 0.5f, d.DoorY[i], d.DoorZ[i] + 0.5f) - centre;
-                go.AddComponent<MeshFilter>().sharedMesh = mesh;
-                go.AddComponent<MeshRenderer>().sharedMaterial = mat;
+                AddDoorPart(parent, "PlacedDoorFrame", frame, door.AxisX, at, _doorRimMat, withField: false, meshes);
+                AddDoorPart(parent, "PlacedDoorField", field, door.AxisX, at, _doorFieldMat, withField: true, meshes);
             }
+        }
+
+        /// <summary>One mesh of a door drawn in space: the given boxes, turned for the wall axis, at a parent-local spot.</summary>
+        private static void AddDoorPart(Transform parent, string name, IReadOnlyList<DoorGeometry.Box> boxes, bool axisX, Vector3 at,
+            Material mat, bool withField, List<Mesh> meshes)
+        {
+            var verts = new List<Vector3>();
+            var cols = new List<Color>();
+            var tris = new List<int>();
+            DoorMesh.Append(verts, cols, tris, boxes, axisX, Vector3.zero, _ => Color.white, withField);
+            if (verts.Count == 0)
+            {
+                return;
+            }
+
+            var mesh = new Mesh { name = name };
+            mesh.SetVertices(verts);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            meshes?.Add(mesh);
+
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = at;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = mat;
         }
 
         /// <summary>Shows a small glowing marker on the cell the suit is aiming at (build/mine feedback).</summary>
@@ -3135,7 +3235,10 @@ namespace BlocksBeyondTheStars.Client
             var vs = new VoxStruct
             {
                 Cells = cells, Centre = centre, Pos = new Vector3(m.PosX, m.PosY, m.PosZ), Root = null, MeshDirty = true, Kind = m.Kind,
+                Doors = SpaceDoors.DoorsOf(m), // #2607: a player station's doors are doors out here too
+                OwnerId = m.OwnerId ?? string.Empty,
             };
+            vs.DoorCells = SpaceDoors.DoorwayCells(vs.Doors);
 
             // Authored dye/glow + shapes ride along, so a station's blue solar wings and its shaped cells mesh as designed.
             bool hasTint = m.Tint != null && m.Tint.Length == m.Block.Length;
@@ -3315,6 +3418,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 BuildVoxChunks(vs.Root.transform, vs.Cells, vs.Centre, null, vs.Mods, vs.Shapes);
+                AddPlacedDoors(vs.Root.transform, vs.Doors, vs.Centre); // #2607 (the next rebuild clears them with the chunks)
                 vs.MeshDirty = false;
                 stationBuilt |= vs.IsStation;
             }
@@ -3768,6 +3872,7 @@ namespace BlocksBeyondTheStars.Client
             StopScanner();          // #2237: no lock brackets or charging fan outlive the flight view
             ResetTargetLock();      // #2277: landing, docking, the interior, a jump, a new instance — the lock goes
             _nearWormholeId = null; // #2242
+            _anomalyHint.Reset();   // #2588: the next flight's first look at an anomaly is a fresh approach
             FxSpaceDust.Hide();
             Sky.SpaceSunDir = Vector3.zero;
             UrpScenePost.Instance?.SetMotion(0f);
@@ -3840,6 +3945,9 @@ namespace BlocksBeyondTheStars.Client
             _aimHighlightMat = null; // its material dies with it (#685)
             _evaDoorGhost?.Destroy(); // #2119: the door preview is a scene object of its own
             _evaDoorGhost = null;
+            _doorPanelMat = _doorRimMat = _doorFieldMat = null; // #2607: rebuilt with the next view, like the asteroid material
+            _shipDoors.Clear();
+            _shipDoorCells.Clear();
             _ship = null;
             _exhaust = null;
             _thruster = null; // particle thruster lived under the destroyed _ship
@@ -4488,105 +4596,56 @@ namespace BlocksBeyondTheStars.Client
             _shipVox.SetParent(ship.transform, false);
             RebuildShipVoxels();
 
-            // Tail FX, placed just behind the hull's rear (-Z) face so the EVA hatch pulse still reads on the voxel
-            // ship. Local Z of the rear face after centring:
-            float rearZ = minZ - _shipCentre.z;
-            float lowY = minY - _shipCentre.y + 0.5f;
+            // #2119 / #2607: the doors the owner built (their cells are air, the door fills its doorway three high) — drawn
+            // as doors in flight, aimed at on a spacewalk.
+            _shipDoors = SpaceDoors.DoorsOf(d);
+            _shipDoorCells = SpaceDoors.DoorwayCells(_shipDoors);
+
+            // #2587: where the rear hatch is — the server's hatch cells, or (an older server) the robust guess over the
+            // design box's cells. The owner's own doors are wall to the guess: they show their own field.
+            var tuples = new List<(int X, int Y, int Z)>(cells.Count);
+            foreach (var c in cells.Keys)
+            {
+                tuples.Add((c.X, c.Y, c.Z));
+            }
+
+            var ownerDoors = new List<(int X, int Y, int Z)>(_shipDoors.Count);
+            foreach (var door in _shipDoors)
+            {
+                ownerDoors.Add((door.Cell.X, door.Cell.Y, door.Cell.Z));
+            }
+
+            var hatch = ShipHatch.Find(tuples, d.Width, d.Height, d.Length, SpaceDoors.HatchOf(d), ownerDoors);
+
+            // Tail FX: the glowing marker that pulses on an EVA ("board here"). #2587: on the stern wall under the hatch;
+            // the hull's global rear only when no wall was found — a leaf behind the stern used to push it into space.
+            Vector3 marker = hatch.HasMarker
+                ? new Vector3(hatch.MarkerX - _shipCentre.x, hatch.MarkerY - _shipCentre.y, hatch.MarkerZ - _shipCentre.z + 0.1f)
+                : new Vector3(0f, minY - _shipCentre.y + 0.5f, minZ - _shipCentre.z + 0.1f);
             _hatchMat = Unlit(new Color(0.2f, 0.85f, 1f));
-            Cube("Hatch", ship.transform, new Vector3(0f, lowY, rearZ + 0.1f), new Vector3(1.0f, 0.6f, 0.25f), _hatchMat);
+            Cube("Hatch", ship.transform, marker, new Vector3(1.0f, 0.6f, 0.25f), _hatchMat);
             BuildNozzlePlumes(ship.transform, cells); // #2157/#2162: one plume per real engine, none on the door
 
             // Cap the rear hatch opening with a powered energy door so the ship isn't a hole at the stern (you
             // used to see straight into the hull). The field drops (hides) on an EVA so you can still board.
-            // Detected from the cells so it tracks any ship's actual rear opening, not a hard-coded box.
-            AddRearHatchDoor(ship, cells, _shipCentre, minX, maxX, minY, maxY, minZ, maxZ);
-            AddPlacedDoors(ship, d, _shipCentre); // #2119: the doors the owner built are doors in flight too
+            AddRearHatchDoor(ship, hatch, _shipCentre);
+            AddPlacedDoors(ship.transform, _shipDoors, _shipCentre); // #2119: the doors the owner built are doors in flight too
             return ship;
         }
 
-        /// <summary>Finds the rear (-Z) wall's hatch opening in <paramref name="cells"/> and caps it with a
-        /// powered energy door (a translucent blue field in an emissive rim) parented to the ship, stored in
-        /// <see cref="_hatchDoor"/>. No-op when the rear is already sealed (no opening). The rear wall is the
-        /// lowest-z near-solid face; its enclosed air cells are the opening.</summary>
-        private void AddRearHatchDoor(GameObject ship, Dictionary<Vector3i, BlockId> cells, Vector3 centre,
-            int minX, int maxX, int minY, int maxY, int minZ, int maxZ)
+        /// <summary>Caps the hatch openings <paramref name="hatch"/> names (#2587, <see cref="ShipHatch"/>) with a powered
+        /// energy door each — a translucent blue field in an emissive rim — under one <see cref="_hatchDoor"/> parented to
+        /// the ship (hidden on an EVA). No-op when there is nothing to cap (a sealed stern).</summary>
+        private void AddRearHatchDoor(GameObject ship, ShipHatch.Plan hatch, Vector3 centre)
         {
             _hatchDoor = null;
-
-            // Locate the rear wall: the lowest z whose plane is a mostly-solid face (an end cap), not sparse
-            // engine/wing cells poking out behind it.
-            int zWall = int.MinValue;
-            for (int z = minZ; z <= maxZ; z++)
-            {
-                int count = 0, sxMin = int.MaxValue, sxMax = int.MinValue, syMin = int.MaxValue, syMax = int.MinValue;
-                for (int x = minX; x <= maxX; x++)
-                for (int y = minY; y <= maxY; y++)
-                {
-                    if (cells.ContainsKey(new Vector3i(x, y, z)))
-                    {
-                        count++;
-                        if (x < sxMin) sxMin = x; if (x > sxMax) sxMax = x;
-                        if (y < syMin) syMin = y; if (y > syMax) syMax = y;
-                    }
-                }
-
-                if (count == 0)
-                {
-                    continue;
-                }
-
-                int area = (sxMax - sxMin + 1) * (syMax - syMin + 1);
-                if (area >= 6 && count >= area * 0.55f) // a real wall face (≥ a small grid, mostly filled)
-                {
-                    zWall = z;
-                    break; // lowest such z = the rear end cap
-                }
-            }
-
-            if (zWall == int.MinValue)
+            if (hatch.Panels.Count == 0)
             {
                 return;
             }
 
-            // The opening = air cells enclosed by the solid bounds of that wall face.
-            int wxMin = int.MaxValue, wxMax = int.MinValue, wyMin = int.MaxValue, wyMax = int.MinValue;
-            for (int x = minX; x <= maxX; x++)
-            for (int y = minY; y <= maxY; y++)
-            {
-                if (cells.ContainsKey(new Vector3i(x, y, zWall)))
-                {
-                    if (x < wxMin) wxMin = x; if (x > wxMax) wxMax = x;
-                    if (y < wyMin) wyMin = y; if (y > wyMax) wyMax = y;
-                }
-            }
-
-            int oxMin = int.MaxValue, oxMax = int.MinValue, oyMin = int.MaxValue, oyMax = int.MinValue, holes = 0;
-            for (int x = wxMin; x <= wxMax; x++)
-            for (int y = wyMin; y <= wyMax; y++)
-            {
-                if (!cells.ContainsKey(new Vector3i(x, y, zWall)))
-                {
-                    holes++;
-                    if (x < oxMin) oxMin = x; if (x > oxMax) oxMax = x;
-                    if (y < oyMin) oyMin = y; if (y > oyMax) oyMax = y;
-                }
-            }
-
-            if (holes == 0)
-            {
-                return; // sealed rear — nothing to close
-            }
-
-            // One panel covering the opening's bounding box, sitting in the wall plane (centred like the mesh).
-            float cxLocal = (oxMin + oxMax + 1) * 0.5f - centre.x;
-            float cyLocal = (oyMin + oyMax + 1) * 0.5f - centre.y;
-            float czLocal = zWall + 0.5f - centre.z;
-            float w = oxMax - oxMin + 1;
-            float h = oyMax - oyMin + 1;
-
             var door = new GameObject("HatchDoor");
             door.transform.SetParent(ship.transform, false);
-            door.transform.localPosition = new Vector3(cxLocal, cyLocal, czLocal);
             _hatchDoor = door;
 
             // A powered ENERGY door (same look as the on-foot energy doors, item 35): a translucent blue field
@@ -4594,13 +4653,28 @@ namespace BlocksBeyondTheStars.Client
             // powered airlock instead of the bare hull hole you used to see straight through. The rim + field
             // slightly over-fill the opening so there's no visible seam gap at the half flight scale.
             var rim = Unlit(new Color(0.2f, 0.85f, 1f));
+            var fieldMat = EnergyField(new Color(0.35f, 0.80f, 1f, 0.6f));
             const float t = 0.16f; // rim bar thickness
-            Cube("RimTop", door.transform, new Vector3(0f, h * 0.5f - t * 0.5f, 0f), new Vector3(w, t, 0.26f), rim);
-            Cube("RimBottom", door.transform, new Vector3(0f, -h * 0.5f + t * 0.5f, 0f), new Vector3(w, t, 0.26f), rim);
-            Cube("RimLeft", door.transform, new Vector3(-w * 0.5f + t * 0.5f, 0f, 0f), new Vector3(t, h, 0.26f), rim);
-            Cube("RimRight", door.transform, new Vector3(w * 0.5f - t * 0.5f, 0f, 0f), new Vector3(t, h, 0.26f), rim);
-            Cube("EnergyField", door.transform, Vector3.zero, new Vector3(w - t, h - t, 0.12f),
-                EnergyField(new Color(0.35f, 0.80f, 1f, 0.6f)));
+            foreach (var p in hatch.Panels)
+            {
+                // The panel stands in its wall plane (centred like the mesh): across Z in the stern, across X in a
+                // side wall (a self-built ship's side door) — the same panel turned a quarter about Y.
+                float w = p.FacesZ ? p.MaxX - p.MinX + 1 : p.MaxZ - p.MinZ + 1;
+                float h = p.MaxY - p.MinY + 1;
+                var panel = new GameObject("HatchPanel");
+                panel.transform.SetParent(door.transform, false);
+                panel.transform.localPosition = new Vector3(
+                    (p.MinX + p.MaxX + 1) * 0.5f - centre.x,
+                    (p.MinY + p.MaxY + 1) * 0.5f - centre.y,
+                    (p.MinZ + p.MaxZ + 1) * 0.5f - centre.z);
+                panel.transform.localRotation = p.FacesZ ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
+
+                Cube("RimTop", panel.transform, new Vector3(0f, h * 0.5f - t * 0.5f, 0f), new Vector3(w, t, 0.26f), rim);
+                Cube("RimBottom", panel.transform, new Vector3(0f, -h * 0.5f + t * 0.5f, 0f), new Vector3(w, t, 0.26f), rim);
+                Cube("RimLeft", panel.transform, new Vector3(-w * 0.5f + t * 0.5f, 0f, 0f), new Vector3(t, h, 0.26f), rim);
+                Cube("RimRight", panel.transform, new Vector3(w * 0.5f - t * 0.5f, 0f, 0f), new Vector3(t, h, 0.26f), rim);
+                Cube("EnergyField", panel.transform, Vector3.zero, new Vector3(w - t, h - t, 0.12f), fieldMat);
+            }
         }
 
         /// <summary>(Re)builds the ship's voxel chunk meshes + colliders from <see cref="_shipCells"/> (item 20

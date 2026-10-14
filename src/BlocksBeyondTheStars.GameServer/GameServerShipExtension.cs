@@ -229,38 +229,108 @@ public sealed partial class GameServer
     private static HashSet<Vector3i> DoorOpeningCells(SpaceStructure s)
     {
         var cells = new HashSet<Vector3i>();
-        bool Solid(int x, int y, int z) => !s.Get(new Vector3i(x, y, z)).IsAir;
         foreach (var d in s.DoorCells)
         {
-            bool axisX;
-            int lo, hi;
-            if (s.PlacedDoorAxes.TryGetValue(d, out bool placedAxis))
+            AddDoorOpening(s, d, cells, out _);
+        }
+
+        return cells;
+    }
+
+    /// <summary>Adds the air cells one door of the ship fills (see <see cref="DoorOpeningCells"/>) and names the wall
+    /// axis it hangs along.</summary>
+    private static void AddDoorOpening(SpaceStructure s, Vector3i d, ICollection<Vector3i> into, out bool axisX)
+    {
+        bool Solid(int x, int y, int z) => !s.Get(new Vector3i(x, y, z)).IsAir;
+        int lo, hi;
+        if (s.PlacedDoorAxes.TryGetValue(d, out bool placedAxis))
+        {
+            axisX = placedAxis;
+            lo = hi = 0;
+        }
+        else
+        {
+            var fit = DoorProbe.Measure(Solid, d.X, d.Y, d.Z, d.Z == 0 ? true : null);
+            axisX = fit.AxisX;
+            lo = fit.Lo;
+            hi = fit.Hi;
+        }
+
+        for (int w = lo; w <= hi; w++)
+        {
+            for (int dy = 0; dy <= 2; dy++)
             {
-                axisX = placedAxis;
-                lo = hi = 0;
+                var c = axisX ? new Vector3i(d.X + w, d.Y + dy, d.Z) : new Vector3i(d.X, d.Y + dy, d.Z + w);
+                if (!Solid(c.X, c.Y, c.Z) && !into.Contains(c))
+                {
+                    into.Add(c);
+                }
             }
-            else
+        }
+    }
+
+    /// <summary>
+    /// #2587: the doorways of the design's OWN doors that open to space — an authored ship's rear hatch (a self-built
+    /// ship's outer doors alike) — sent with the design so the flight view caps exactly these with the hatch's energy
+    /// panel. It used to guess the opening from the stern's cells, and a few leaves beside the stern grew the panel past
+    /// the hull. A doorway opens to space when a straight line across its wall, from any of its cells, leaves the ship's
+    /// extents without meeting a block or another doorway: the hatch looks out of the stern, a door between two cabins
+    /// looks at walls both ways (the Courier's inner door stands in line with the hatch — that doorway's door closes the
+    /// view), and a room the owner built behind the stern (#2120) closes the hatch in. Line of sight rather than the
+    /// sealed air: a hull with a hole leaks everywhere, and every inner door would get a panel. The owner's own doors
+    /// (#2119) are not design doors; they travel in <c>DoorX</c> and show their own field (#2607).
+    /// </summary>
+    private static List<Vector3i> ShipHatchCells(SpaceStructure s)
+    {
+        var hatch = new List<Vector3i>();
+        if (s.Kind != "ship" || s.DoorCells.Count == s.PlacedDoorAxes.Count)
+        {
+            return hatch;
+        }
+
+        var (min, max) = CellExtents(s);
+        var doorways = DoorOpeningCells(s);
+        bool ClearToSpace(Vector3i from, int dx, int dz)
+        {
+            for (var c = new Vector3i(from.X + dx, from.Y, from.Z + dz);
+                 c.X >= min.X && c.X <= max.X && c.Z >= min.Z && c.Z <= max.Z;
+                 c = new Vector3i(c.X + dx, c.Y, c.Z + dz))
             {
-                var fit = DoorProbe.Measure(Solid, d.X, d.Y, d.Z, d.Z == 0 ? true : null);
-                axisX = fit.AxisX;
-                lo = fit.Lo;
-                hi = fit.Hi;
+                if (!s.Get(c).IsAir || doorways.Contains(c))
+                {
+                    return false;
+                }
             }
 
-            for (int w = lo; w <= hi; w++)
+            return true;
+        }
+
+        var opening = new List<Vector3i>();
+        foreach (var d in s.DoorCells)
+        {
+            if (s.PlacedDoorAxes.ContainsKey(d))
             {
-                for (int dy = 0; dy <= 2; dy++)
+                continue;
+            }
+
+            opening.Clear();
+            AddDoorOpening(s, d, opening, out bool axisX);
+            int dx = axisX ? 0 : 1, dz = axisX ? 1 : 0; // across the wall
+            if (!opening.Exists(c => ClearToSpace(c, dx, dz) || ClearToSpace(c, -dx, -dz)))
+            {
+                continue;
+            }
+
+            foreach (var c in opening)
+            {
+                if (!hatch.Contains(c))
                 {
-                    var c = axisX ? new Vector3i(d.X + w, d.Y + dy, d.Z) : new Vector3i(d.X, d.Y + dy, d.Z + w);
-                    if (!Solid(c.X, c.Y, c.Z))
-                    {
-                        cells.Add(c);
-                    }
+                    hatch.Add(c);
                 }
             }
         }
 
-        return cells;
+        return hatch;
     }
 
     /// <summary>#2120: true when the position stands in a sealed pocket of the parked ship (feet or head cell).</summary>
@@ -366,6 +436,9 @@ public sealed partial class GameServer
         var s = _worlds.Active.LandedFor(playerId).Structure;
         return s.PlacedDoorAxes.Select(d => (d.Key, s.DoorKinds.TryGetValue(d.Key, out var k) ? k : string.Empty, d.Value)).ToList();
     }
+
+    /// <summary>Test/inspection (#2587): the hatch cells a ship structure's design message carries.</summary>
+    public static IReadOnlyList<Vector3i> ShipHatchCellsForTest(SpaceStructure s) => ShipHatchCells(s);
 
     /// <summary>Test/inspection: whether a structure-local cell of a player's parked ship holds sealed ship air.</summary>
     public bool ShipCellSealedForTest(string playerId, int x, int y, int z)

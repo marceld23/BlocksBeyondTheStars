@@ -112,9 +112,25 @@ Both used to render as the generic red placeholder cube. They now have their own
   cubes orbiting it and a calm hum (`anomaly_hum`); a completed scan calls `React()` — a ripple, `anomaly_react`,
   then a calmer state.
 
-Both are static encounters (never interpolated), show on the radar (pod orange, anomaly violet pulse) pinned at the
-rim, and on the system chart as markers and waypoint targets. VEGA mentions once that an anomaly needs the scanner
-(`vega.hint.anomaly_scan`).
+Both are static encounters (never interpolated), show on the radar (pod orange, anomaly a teal blip that shifts
+colour) pinned at the rim, and on the system chart as markers and waypoint targets. VEGA mentions once that an anomaly
+needs the scanner (`vega.hint.anomaly_scan`).
+
+**Anomaly ≠ wormhole (#2588).** A player took the bubble for a wormhole and pressed E at it — nothing happened, and
+nothing said why. So:
+
+- **Named by kind, never "???".** The server spawns an anomaly with an empty `Name` (it used to be `"???"` — what an
+  unknown wormhole's destination reads) and its scan readout carries `Display = "anomaly"`, which every client
+  localizes through `ui.scan.subject.anomaly`. The client never shows an anomaly's entity name either: the radar rim
+  (`SpaceEncounterLabel.Rim`), the chart marker, the lock frame (`TargetName`) and the scan card title
+  (`ScanReadoutText.Title`) all label it by kind — so an older server that still sends `"???"` reads right too.
+- **Approach / E explains it.** `AnomalyHint` (Client.Core) decides, `SpaceView.Encounters.cs` (`UpdateNearAnomaly`,
+  `SayAnomalyHintOnInteract`) shows it as the HUD toast: flying within 28 flight units (twice the pod's rescue range)
+  of an anomaly says `ui.space.anomaly_hint` ("An anomaly — not a wormhole. Pick the scanner and hold fire on it.")
+  while it is unscanned, `ui.space.anomaly_read` once this pilot has read it (`SpaceState.ScannedIds`, or a scan sent
+  this flight). Every approach speaks — the ship has to fall back beyond 40 units first, so circling on the edge does
+  not repeat it — and E pressed with nothing else to dock, land on or fly through says it again; no two lines within
+  4 s. Presentation only: the anomaly itself stays scan-only.
 
 ## 7. Tests
 
@@ -122,6 +138,8 @@ rim, and on the system chart as markers and waypoint targets. VEGA mentions once
   machines / raiders, no scanning of drops and no hammering one target, the overview per tier (and without loading
   another body's world), the Quantum scanner replacing the Deep scanner, the content wiring.
 - `PlanetScannerTests.Scan_WithoutTheModule_GivesTheOverview_ButNoResources` — tier 1 gets rows, no ores.
+- `UniqueSiteTests.AnAnomaly_IsNamedByItsKind_NeverQuestionMarks` and `AnomalyHintTests` (Client.Tests) — #2588: no
+  "???" name, the radar label by kind, the approach / E line with its range, rearm and cooldown.
 - `NetCodecTests` — the golden message list (285).
 
 ## 8. Adding things

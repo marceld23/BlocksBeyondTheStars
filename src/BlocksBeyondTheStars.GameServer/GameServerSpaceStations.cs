@@ -505,24 +505,33 @@ public sealed partial class GameServer
         _boardedReturn[playerId] = (session.CurrentLocationId, _world.PlanetKey);
 
         // Docking on an EVA: the ship stays floating where it is — remember its spot so undocking returns you
-        // to the float next to it, rather than re-launching.
+        // to the float next to it, rather than re-launching. #2607: floating beside one of the station's doors, E boards
+        // through that door — the server decides from the suit's position, so the board intent stays as it was.
+        Vector3i? throughDoor = null;
         if (session.State.InEva)
         {
             _dockedFromEva[playerId] = PilotPositionIn(instance, playerId); // #994: THIS pilot's float spot
+            if (_playerStationCells.TryGetValue(stationId, out var build))
+            {
+                throughDoor = StationDoorNearSuit(instance, playerId, build);
+            }
         }
 
         instance.Players.Remove(playerId);
         _playerInstance.Remove(playerId);
 
-        EnterBoardedStation(session, station);
+        EnterBoardedStation(session, station, throughDoor: throughDoor);
     }
 
     /// <summary>The world-transition half of boarding (shared by in-space docking and the travel-screen "board a
     /// visited station" path): switches the player into the station's own free-floating void world, stamps its
     /// interior, spawns the crew, marks it visited and tells the client to reload. The caller has already arranged
     /// the return location (<see cref="_boardedReturn"/>) and torn down any prior presence (space instance / station).
-    /// <paramref name="at"/> wakes the player at that spot instead of the arrivals point (a rejoin, #1925).</summary>
-    private void EnterBoardedStation(PlayerSession session, BoardableStation station, Vector3f? at = null)
+    /// <paramref name="at"/> wakes the player at that spot instead of the arrivals point (a rejoin, #1925).
+    /// <paramref name="throughDoor"/> (#2607, a player station's door record the suit floated beside) puts the player on
+    /// that door's sealed inside — judged after the stamp, with the doors hung — or, when it has none, at the arrival
+    /// next to the core (#2606).</summary>
+    private void EnterBoardedStation(PlayerSession session, BoardableStation station, Vector3f? at = null, Vector3i? throughDoor = null)
     {
         string playerId = session.State.PlayerId;
 
@@ -548,6 +557,11 @@ public sealed partial class GameServer
             SpawnStationNpcs(station);             // (re)populate the crew when the station world is fresh
         }
 
+        if (at is null && throughDoor is { } door && playerCells is not null)
+        {
+            at = StationDoorArrival(station, playerCells, door); // #2607: in through the door it floated at
+        }
+
         _boardedStation[playerId] = station.Id;
         if (IsPlayerStationId(station.Id) && StationHasUnstaffedPost(station))
         {
@@ -570,7 +584,10 @@ public sealed partial class GameServer
         SendEnvironment(session);
         SendInventory(session);
         SendNpcs(session); // the station's crew (vendor / quartermaster / dockhands)
-        SendDoors(session); // the station's sliding doors
+        // The station's doors — to everyone aboard (#2607): the registry was rebuilt above with fresh ids (and the doors
+        // hung since), so a player already inside would otherwise keep stale door ids.
+        BroadcastDoors();
+        SendShipStations(session); // #2606: no ship here — an empty list clears the ship's decor and prompts on the client
         Send(session, new StationBoarded
         {
             StationId = station.Id,

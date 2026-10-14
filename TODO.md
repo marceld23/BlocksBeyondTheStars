@@ -24,6 +24,74 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-14 night (Screelit = Justus, v2026.10.14): critters in mid-air on the gas giant, no titanium plates aboard, hatch panel, anomaly, doors in space, station arrival — epic #2584, branch fix/screelit-gas-giant-fauna — ✅ done 2026-10-15 (⚠ playtest open)
+
+Package label `package: screelit reports 2026-10-14`. Eight reports: „Tiere auf Gassriesen?!", „Kleine Txtur Tiere
+hier?" (the same bug), „Keine Titanplatten für mich! :(", „Meine TÜR?", „Wurm Loch?", „Die Tür geht nicht!" and
+„Die Raumstation!" (+ Marcel's note that the station had no air until a reload).
+
+- **#2581 micro-fauna floor** — `MicroFaunaView.GroundTopY` took any non-air cell with air above for ground, so the
+  top of the gas sea (and of every pond, lava lake and oil pool) was a floor: beetles, worms and spiders crawled on the
+  see-through gas = in mid-air. Now crawlers and hoppers need a real floor (`MicroFauna.ColumnTopY`, a liquid surface is
+  no floor and the scan stops there); fliers/drifters keep the liquid surface as their reference; swarm members without
+  a floor are left out; hoppers turn at a deck's edge and the shore. `MicroFaunaEditModeTests`.
+- **#2582 the gas giant's own critters** — it had the generic insect roster (butterflies and bees at −120 °C). Now
+  gas-bags (its signature, always kept), wisps, spore-drifters at night and the frostmite on decks/islands, richness 0.4.
+- **#2583 gas-giant fauna burned to death** (side finding, verified by a probe: 91 of 102 spawns burned within a second,
+  a spawn-and-burn loop) — the air band was measured from the heightfield buried under the gas. Now air bands never sit
+  below the gas top + 1 (`LiftOutOfGasSea`), spawns over an island/deck measure from its real top
+  (`GasColumnAirRestY`), `SpawnSpotClear` rejects gas contact, a perch in the gas is no perch, walkers/companions/
+  knockback never step into the gas (`StepsIntoGasSea`), companion spots and taming shoves skip the gas.
+  5 tests in `GasGiantServerTests`.
+- **#2586 machines in the gas too** (side finding of #2583) — planet machines spawned at the buried heightfield and
+  burned in a loop. Now machine, lone-robber and base-scout placement probe from the real column top and reject gas
+  contact; walking robots never step or get knocked into the gas; drones cross open gas at gas top + ~4 instead of
+  freezing (every open-gas column used to read as a wall); a flier already in the gas snaps out to its band; the legacy
+  structure path counts the gas sea as wet (`FootprintWet`). On a gas giant walkers only spawn where an island/deck
+  lies in the spawn ring, so there are fewer of them (mostly drones) — a drone fallback would be a follow-up.
+  3 more tests in `GasGiantServerTests`; WORLD_GENERATION.md §34.
+- **#2585 titanium plates aboard** — aboard, crafting stations are ship modules (#2248), a forge built into the ship
+  is decoration — but the recipe page and the refusal sent Justus to a forge („Du brauchst einen Schmiede in der Nähe"),
+  and a missing-material refusal only said „Das hat nicht funktioniert.". Now: aboard the texts name the module first
+  (`CraftStationText` in Client.Core), the server sends `@srv.craft.need_module:` / `@srv.craft.world_only:`, a refusal
+  names the missing items with counts (`@srv.craft.missing_named:` „Es fehlt: Titanerz (0/2)."), `CraftFailMessage`
+  resolves every `@srv.*` token, building a forge/workbench/detoxifier/matter forge/decontaminator into a ship without
+  its module gets a one-time VEGA line per block kind naming the module, German station texts lost their fixed article,
+  VEGA's titanium tip names forge (world) and refinery module (aboard). 10 keys × 14 languages.
+  `ShipStationCraftingTests`, `CraftStationTextTests`.
+- **#2588 the anomaly is no wormhole** („Wurm Loch?") — the scan-only anomaly (#1129/#2241) was literally named „???",
+  like an unknown wormhole, and did nothing up close. Now it is labelled „Anomalie"/"Anomaly" by kind (radar rim, scan
+  card; the server spawns it with an empty name), and flying within ~28 units or pressing E next to it says „Eine
+  Anomalie – kein Wurmloch. Wähl den Scanner und halte die Feuertaste auf sie." (once per approach, 4 s cooldown), after
+  the scan „schon ausgelesen" (`AnomalyHint` in Client.Core). The manual called its radar blip violet — it is teal
+  (violet is the wormhole). 2 keys × 14 languages. `AnomalyHintTests`, `UniqueSiteTests`.
+- **#2606 boarding the own station** („Die Raumstation!") — boarding arrived at the build's bounding-box centre (on
+  the first boarding a 3×3 pad was cut there, even in empty space between two wings) and the previous ship's room decor
+  (cockpit hologram, medbay tank, terminals) kept floating in the station world. Now the arrival is the standable cell
+  nearest the station core, a sealed air pocket first, on every boarding, no forced pad; boarding and "no ship placed"
+  send an empty ship-stations list (the client clears the decor; `ShipBuildFx` ignores an empty list, so undocking does
+  not replay the materialise sweep). 5 tests in `PlayerStationReportsTests`; STATION_AS_LOCATION.md.
+- **#2607 doors in space** („Die Tür geht nicht!" + the station without air) — on the station spacewalk a door became a
+  solid door block (the commission "airlock"), the ship cabin and the station spacewalk showed no door preview, and the
+  station's inside was copied from its cells only once per server run, so outside edits reached it only after a reload.
+  Marcel's decisions: a door built on a station spacewalk is a real door record (persisted in the structure-edit store
+  under the station id, axis like #2119; old door blocks stay blocks and still count as the airlock); the inside is
+  refreshed on every boarding (door sync → absorb → top-up → bounds → arrival) and outside edits are mirrored live; E
+  beside a door of the own station on a spacewalk boards at the door's sealed inside (fallback: the #2606 core arrival);
+  the door preview shows in the cabin and on station spacewalks; a CLOSED energy door shows its field in space (ship and
+  station, preview too), other kinds keep their panels. Side fixes: a block mined from a commissioned station on a
+  spacewalk was never saved; renaming a station dropped its stamp anchor (#1481). `GameServerStationDoors.cs`,
+  Client.Core `SpaceDoors`; 14 `StationDoorTests`. STATION_AS_LOCATION.md, VFX.md.
+- **#2587 rear-hatch panel** („Meine TÜR?") — the flight view guessed the hatch from all cells, so leaves at the stern
+  grew the blue panel past the hull. The server now sends the design's own hatch cells (`SpaceShipDesign.HatchX/Y/Z`,
+  `OwnerId`, optional fields; `ShipHatchCells`: doorways that open to space, owner doors never); the client puts one
+  panel per opening there, and an older server gets the robust guess (`ShipHatch`: design box only, enclosed air only,
+  owner doors count as wall). `ShipHatchCellsTests` (all 8 designs), `ShipHatchTests`.
+- Open: playtest (Justus on his gas giant „GasGUT!!!", in his ship and at his station „Blumenhall"); the tips log does
+  not list the new per-block VEGA line (its milestone has no tips-log entry).
+
+---
+
 ### 🖌️ Texture editor: "Submit to the developers" could not submit (Marcel, 2026-10-14) + the afternoon reports (Screelit, Bloody Mary, v2026.10.14) — #2575–#2579, branch fix/texture-submit-consents — ✅ done 2026-10-14 (⚠ playtest open)
 
 Reports of 2026-10-14 afternoon (package label `package: reports 2026-10-14 late`):

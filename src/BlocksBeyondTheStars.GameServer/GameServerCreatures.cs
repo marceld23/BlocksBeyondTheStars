@@ -632,6 +632,14 @@ public sealed partial class GameServer
             return false; // never spawn inside (or clipping into) a landed ship
         }
 
+        // #2583: nor where the gas sea burns. A gas giant's animals all fly, and a band measured from the heightfield buried
+        // under the gas put 91 of 102 spawns into it — the burn-off kept the spawner refilling the cap for good. Every
+        // placement runs this list, so a band that ever dips into the gas can no longer feed that loop.
+        if (InGasSea(pos))
+        {
+            return false;
+        }
+
         if (CreatureBodyBlocked(sp, pos))
         {
             return false; // its body would materialise inside a wall / ruin masonry (#855)
@@ -1371,16 +1379,22 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Every barrier a step must pass (#1331): ship hull, energy fence, the terrain gate (wild fauna;
-    /// companions keep their freedom to follow the owner anywhere), and the swept body check — swept at the
-    /// RAISED height when the step is a ledge the animal will have climbed first, so the ledge's own block
-    /// doesn't read as a wall the way it used to.</summary>
+    /// <summary>Every barrier a step must pass (#1331): ship hull, energy fence, a gas giant's gas sea (#2583), the
+    /// terrain gate (wild fauna; companions keep their freedom to follow the owner anywhere), and the swept body
+    /// check — swept at the RAISED height when the step is a ledge the animal will have climbed first, so the
+    /// ledge's own block doesn't read as a wall the way it used to.</summary>
     private bool StepBlocked(CombatEntity c, CreatureSpecies sp, MotionClass motion, Vector3f cur, Vector3f cand,
         bool needsRise, bool terrainGates, int? nextFeet = null)
     {
         if (EntityBlockedByShip(cand, CreatureShipMargin(sp)) || BlockedByEnergyFence(cur, cand))
         {
             return true; // body-aware hull guard for large species (#1320)
+        }
+
+        // #2583: a gas giant's gas sea carries nobody — not even a companion, which keeps its freedom from the terrain gate.
+        if (StepsIntoGasSea(sp, motion, cur, cand, nextFeet))
+        {
+            return true;
         }
 
         if (terrainGates && StepBlockedByTerrain(sp, motion, cur, cand, nextFeet))
@@ -1423,12 +1437,13 @@ public sealed partial class GameServer
     }
 
     /// <summary>Test seam (#1862): every barrier of <see cref="StepBlocked"/> — hull, fence, terrain gate, shut
-    /// doors, body sweep — for a wild creature stepping to <paramref name="next"/> from where it stands.</summary>
-    public bool CreatureStepBlockedForTest(string creatureId, Vector3f next)
+    /// doors, body sweep — for a wild creature stepping to <paramref name="next"/> from where it stands; with
+    /// <paramref name="terrainGates"/> false, as a companion steps (#2583).</summary>
+    public bool CreatureStepBlockedForTest(string creatureId, Vector3f next, bool terrainGates = true)
     {
         var c = _creatures.First(x => x.Id == creatureId);
         var sp = _speciesById[c.SpeciesId];
-        return StepBlocked(c, sp, EffectiveMotion(c, sp), c.Position, next, needsRise: false, terrainGates: true);
+        return StepBlocked(c, sp, EffectiveMotion(c, sp), c.Position, next, needsRise: false, terrainGates);
     }
 
     /// <summary>The jump that clears a one-block ledge on this world (Q9: lighter worlds jump higher, exactly
@@ -2128,17 +2143,20 @@ public sealed partial class GameServer
     /// can lie in a cave under the pond, where the probe holds its depth (#1711), and the creature then sat in the
     /// pond's floor for good (reported at 62.3, the water's top at 65, a cave at 41–52 below). An air creature never
     /// belongs under water, so it rides up to its band over the surface. A body in a cave's ceiling, with the cave
-    /// right under it, is left to the cave's rules.</summary>
+    /// right under it, is left to the cave's rules.
+    ///
+    /// <para>#2583: nor in a gas giant's gas sea — whatever the probes answer, every path ends in
+    /// <see cref="LiftOutOfGasSea"/> (they look through the gas to the heightfield buried under it).</para></summary>
     private int AirRestSurfaceYAt(int x, int z, float bodyY, float hover)
     {
         int body = (int)System.Math.Floor(bodyY);
         if (TryOpenWaterTopAbove(x, z, body, out int waterTop, out int groundAbove)
             && (groundAbove == 0 || SolidForCellsBelow(x, z, body, groundAbove)))
         {
-            return waterTop + 1;
+            return LiftOutOfGasSea(x, z, bodyY, waterTop + 1);
         }
 
-        return RestSurfaceYAt(x, z, (int)System.Math.Floor(bodyY - hover));
+        return LiftOutOfGasSea(x, z, bodyY, RestSurfaceYAt(x, z, (int)System.Math.Floor(bodyY - hover)));
     }
 
     /// <summary>True when the <paramref name="cells"/> cells under <paramref name="y"/> are all solid ground — the
@@ -2159,9 +2177,15 @@ public sealed partial class GameServer
     /// <summary>Where an AIR animal is placed when it spawns (#2552): at its own band over what it would come down
     /// onto — the surface of a pond, not the bed under it — exactly as <see cref="AdjustHabitatHeight"/> places it.
     /// It used to be the generator surface + 4, which over a pond is the pond floor + 4: in the water or in the sand,
-    /// where the band probe then locked it in.</summary>
+    /// where the band probe then locked it in. #2583: on a gas giant the generator surface is the heightfield buried under
+    /// the gas, so <paramref name="surface"/> is not asked there — the band rides over the real top of the column above
+    /// the gas, or over the gas sea itself (<see cref="GasColumnAirRestY"/>).</summary>
     private float AirSpawnY(CreatureSpecies sp, int x, int z, int surface)
-        => RestSurfaceYAt(x, z, surface + 1) + HoverOf(sp);
+    {
+        int gasTop = GasSeaTopY();
+        int rest = gasTop != int.MinValue ? GasColumnAirRestY(x, z, gasTop) : RestSurfaceYAt(x, z, surface + 1);
+        return rest + HoverOf(sp);
+    }
 
     /// <summary>The feet cell a ground mover of this species stands on in a column, nearest to
     /// <paramref name="refY"/>: real blocks first (#650), then the bed of a fluid body (#1697); a cave dweller
@@ -2675,7 +2699,8 @@ public sealed partial class GameServer
                     }
 
                     float ease = CreatureMotion.IsSkyGlider(sp) ? SkyGliderEaseRate : HovererEaseRate;
-                    return new Vector3f(p.X, VerticalMotion.Ease(p.Y, target, dt, ease, 24f), p.Z);
+                    float snap = airborne ? AirEaseSnap(x, p.Y, z) : 24f; // #2583: out of a gas giant's gas at once
+                    return new Vector3f(p.X, VerticalMotion.Ease(p.Y, target, dt, ease, snap), p.Z);
                 }
 
             case MotionClass.Flier:
@@ -2769,9 +2794,18 @@ public sealed partial class GameServer
                 // Sitting: plain gravity — if the perch is dug away it falls to the next floor, and once it has
                 // landed there it takes off again (#1332 as decided, #1367): a bird whose branch went does not
                 // simply sit on the ground below; it flushes and looks for a perch afresh.
+                int sitOn = RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y));
+                if (LiftOutOfGasSea(x, z, p.Y, sitOn) != sitOn)
+                {
+                    // #2583: the perch went and only a gas giant's gas sea lies under it — it takes wing at once
+                    // instead of dropping in (the probe answers the heightfield buried under the gas).
+                    v.Flight = FlightPhase.TakingOff;
+                    v.Airborne = false;
+                    goto case FlightPhase.TakingOff;
+                }
+
                 bool wasAirborne = v.Airborne;
-                float sit = VerticalMotion.Ground(ref v, p.Y, RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y)),
-                    VerticalMotion.Gravity(_gravityFactor), dt);
+                float sit = VerticalMotion.Ground(ref v, p.Y, sitOn, VerticalMotion.Gravity(_gravityFactor), dt);
                 if (wasAirborne && !v.Airborne)
                 {
                     v.Flight = FlightPhase.TakingOff;
@@ -2781,7 +2815,7 @@ public sealed partial class GameServer
 
             case FlightPhase.TakingOff:
                 v.Airborne = false;
-                float up = VerticalMotion.Ease(p.Y, airTarget, dt, FlierClimbRate, 24f);
+                float up = VerticalMotion.Ease(p.Y, airTarget, dt, FlierClimbRate, AirEaseSnap(x, p.Y, z)); // #2583: out of the gas at once
                 if (System.Math.Abs(up - airTarget) <= TakeOffSettle)
                 {
                     v.Flight = FlightPhase.Flying;
@@ -2798,13 +2832,15 @@ public sealed partial class GameServer
                     return VerticalMotion.Ease(p.Y, perchY, dt, FlierDescendRate, 24f);
                 }
 
-                return VerticalMotion.Ease(p.Y, airTarget, dt, FlierCruiseRate, 24f);
+                return VerticalMotion.Ease(p.Y, airTarget, dt, FlierCruiseRate, AirEaseSnap(x, p.Y, z));
         }
     }
 
     /// <summary>A standable feet cell under a flier within its hover band plus <see cref="PerchReach"/>, read
     /// from real blocks, where its body fits with the canopy counted as SOLID (a bird sits on a crown, never
-    /// inside it). False over a pit, deep water or an unloaded column — the flier keeps hovering.</summary>
+    /// inside it). False over a pit, deep water, a block standing in a gas giant's gas sea (#2583; over open gas there is
+    /// nothing to sit on at all, so a resting or sleeping flier keeps its band there) or an unloaded column — the flier
+    /// keeps hovering.</summary>
     private bool TryPerchSpot(CreatureSpecies sp, Vector3f p, float hover, out float perchY)
     {
         int x = (int)System.Math.Floor(p.X), z = (int)System.Math.Floor(p.Z);
@@ -2823,6 +2859,13 @@ public sealed partial class GameServer
         // #1697: a dry standable cell with water standing on it is no perch — a shallow pool over a real
         // floor passes the probe, and the bird was then set down under the surface. Nothing perches in a puddle.
         if (FluidTopAt(x, z, feet) != int.MinValue)
+        {
+            return false;
+        }
+
+        // #2583: nor in a gas giant's gas sea — the gas is no colliding block, so a block standing in it passes the probe
+        // with gas for headroom.
+        if (GasSeaTopY() != int.MinValue && GasAtFeetIfLoaded(x, feet, z))
         {
             return false;
         }

@@ -338,16 +338,15 @@ public sealed partial class GameServer
         return !WithinShipExtents(rec, pos, 0.4f);
     }
 
+    /// <summary>Sends the interactive ship stations of the active world. #2606: always a list — an EMPTY one where no
+    /// ship is parked (a space station, a body the ship is not on). The client keeps the last list it was sent and
+    /// draws the ship's room decor from it (the cockpit's hologram map, the medbay tank, the console terminals), so
+    /// sending nothing left the previous ship's decor floating at its old coordinates inside a station.</summary>
     private void SendShipStations(PlayerSession session)
     {
         // The parked ship's stations plus the construction site's helm ("shipyard" — the commission prompt,
         // #948). Either may exist without the other: a fresh keel exists before any ship station change.
         var construction = ConstructionFor(session.State.PlayerId);
-        if (!_shipPlaced && construction is null)
-        {
-            return;
-        }
-
         var stations = _shipPlaced ? _stations.AsEnumerable() : Enumerable.Empty<(string Type, Vector3f Pos)>();
         if (construction is not null)
         {

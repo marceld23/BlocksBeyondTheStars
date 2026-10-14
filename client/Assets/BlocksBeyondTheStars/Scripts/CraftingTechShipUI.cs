@@ -1366,7 +1366,10 @@ namespace BlocksBeyondTheStars.Client
             var loc = CurrentLocation(missing);
             _whereText.text = missing == null ? string.Empty : WhereText(missing);
             _whereShow.gameObject.SetActive(loc != null && loc.Found);
-            _whereCraft.gameObject.SetActive(missing != null && loc != null && !loc.Found && RecipeForStationBlock(missing) != null);
+            // #2585: aboard, a station a module provides is not offered as a block to craft — built into the ship it would
+            // be decoration (that is how a forge ended up beside the cabin's workbench); the hint names the module instead.
+            _whereCraft.gameObject.SetActive(missing != null && loc != null && !loc.Found
+                && CraftStationText.OffersStationBlock(missing, AboardShipNow()) && RecipeForStationBlock(missing) != null);
         }
 
         // Colour palette for the always-available Dye/Glow action (swatch grid; 0xRRGGBB): a spread of
@@ -5802,11 +5805,13 @@ namespace BlocksBeyondTheStars.Client
 
             y += 8f;
             // "Station: [icon] Workbench ✓/✗" — the BLOCK's name and tile (#1071), ticked when the server says
-            // it is in reach right now (hand/market/factory keep their own wording).
+            // it is in reach right now (hand/market/factory keep their own wording). #2585: aboard, a station a module
+            // provides is that MODULE ("Refinery module ✗", with the module's icon) — a forge in the ship is decoration.
             {
                 string stKey = StationKeyOf(r.Station);
                 bool gated = r.Station != CraftingStation.Hand && r.Station != CraftingStation.Market && r.Station != CraftingStation.Factory;
-                var stSprite = gated ? StationSprite(stKey) : null;
+                string stModule = gated && AboardShipNow() ? CraftStationText.ModuleKey(stKey) : null;
+                var stSprite = !gated ? null : stModule != null ? IconResolver.Resolve(stModule, Game) : StationSprite(stKey);
                 float sx = 8f;
                 string label = L("ui.craft.station") + ": ";
                 if (stSprite != null)
@@ -5818,7 +5823,7 @@ namespace BlocksBeyondTheStars.Client
                     label = string.Empty;
                 }
 
-                string stName = gated ? StationName(stKey) : L("ui.craft.station_" + stKey);
+                string stName = gated ? CraftStationText.StationLineName(stKey, StationName(stKey), AboardShipNow(), L) : L("ui.craft.station_" + stKey);
                 bool ok = !gated || StationAvailable(r.Station);
                 UiKit.AddText(_detail, sx, y, 620 - sx, 26, label + stName + (gated ? (ok ? "  ✓" : "  ✗") : string.Empty), 18,
                     ok ? UiKit.CyanDim : new Color(1f, 0.8f, 0.4f), TextAnchor.UpperLeft);
@@ -5843,8 +5848,7 @@ namespace BlocksBeyondTheStars.Client
             bool can = CanCraft(r, out string reason);
             if (!can)
             {
-                UiKit.AddText(_detail, 8, y, 620, 26, reason, 18, new Color(1f, 0.6f, 0.4f), TextAnchor.UpperLeft);
-                y += 30f;
+                y = AddWrappedDetailLine(reason, y, 26f, 18, new Color(1f, 0.6f, 0.4f)) + 4f;
             }
 
             // Quantity stepper — craft more than one at a time (the server crafts N in a single action).
@@ -6637,8 +6641,7 @@ namespace BlocksBeyondTheStars.Client
                 y += 56f;
                 if (anyYield && !atWorkshop)
                 {
-                    UiKit.AddText(_detail, 8, y, 620, 24, NeedStationText("workshop"), 16, new Color(1f, 0.8f, 0.4f), TextAnchor.UpperLeft);
-                    y += 28f;
+                    y = AddWrappedDetailLine(NeedStationText("workshop"), y, 24f, 16, new Color(1f, 0.8f, 0.4f)) + 4f;
                 }
             }
 
@@ -7430,17 +7433,6 @@ namespace BlocksBeyondTheStars.Client
             _ => null,
         };
 
-        /// <summary>The ship module that provides a crafting station aboard, or null.</summary>
-        private static string StationModuleKey(string station) => station switch
-        {
-            "workshop" => "workshop",
-            "refinery" => "refinery",
-            "detoxifier" => "detoxifier",
-            "transmuter" => "transmuter",
-            "decontaminator" => "decontaminator", // #2067
-            _ => null,
-        };
-
         /// <summary>Player-facing name of a station gate — the BLOCK's name (Workbench, Forge, …), the
         /// cockpit for research, the workshop module for ship building.</summary>
         private string StationName(string station)
@@ -7503,7 +7495,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The reason line for a recipe whose station is out of reach: "Needs a 🔧 Workbench nearby
-        /// — or your ship's Workshop module." (module clause only for stations a module can provide).</summary>
+        /// — or your ship's Workshop module." (module clause only for stations a module can provide). #2585: aboard,
+        /// the ship's module comes first — where it is built, and that the block in the ship is only decoration
+        /// (<see cref="CraftStationText.NeedStation"/>).</summary>
         private string NeedStationText(string station)
         {
             if (station == "research")
@@ -7516,10 +7510,7 @@ namespace BlocksBeyondTheStars.Client
                 return AboardShipNow() ? L("ui.craft.hint_shipbuild_module") : L("ui.craft.hint_shipbuild_aboard");
             }
 
-            string module = StationModuleKey(station);
-            string t = module != null ? L("ui.craft.need_block_or_module") : L("ui.craft.need_block");
-            return t.Replace("{block}", StationName(station))
-                .Replace("{module}", module != null ? L("module." + module + ".name") : string.Empty);
+            return CraftStationText.NeedStation(station, StationName(station), AboardShipNow(), L);
         }
 
         /// <summary>Header hint for a tab whose gate is not met (empty when it is).</summary>
@@ -7532,11 +7523,12 @@ namespace BlocksBeyondTheStars.Client
                 case "shipbuild":
                     return AboardShipNow() ? L("ui.craft.hint_shipbuild_module") : L("ui.craft.hint_shipbuild_aboard");
                 default:
-                    // No station at all in reach → "hand recipes only here"; a specific recipe's station → its block.
-                    string t = !AnyStationInReach() && missing == "workshop" && !SelectedRecipeNeeds(missing)
-                        ? L("ui.craft.hint_hand_only")
-                        : L("ui.craft.hint_need_block");
-                    return t.Replace("{block}", StationName(missing));
+                    // No station at all in reach → "hand recipes only here"; a specific recipe's station → its block, or
+                    // aboard (#2585) the ship's module / "only on a world" — and with no station aboard, the workshop
+                    // module rather than a workbench, which is decoration in a ship.
+                    return !AnyStationInReach() && missing == "workshop" && !SelectedRecipeNeeds(missing)
+                        ? CraftStationText.HandOnlyHint(StationName(missing), AboardShipNow(), L)
+                        : CraftStationText.Hint(missing, StationName(missing), AboardShipNow(), L);
             }
         }
 
@@ -7965,6 +7957,19 @@ namespace BlocksBeyondTheStars.Client
             float height = Mathf.Max(80f, t.preferredHeight);
             t.rectTransform.sizeDelta = new Vector2(620f, height);
             return y + height + 4f;
+        }
+
+        /// <summary>A detail-pane line that wraps when its text is longer than the pane is wide (#2585): the aboard station
+        /// reason names the ship's module, where it is built and that the block in the ship is decoration — two lines, which
+        /// a fixed one-line box let run off the pane's right edge. The box grows with its text like
+        /// <see cref="AddDetailDescription"/>, so the rows below move down. Returns the y just below the text.</summary>
+        private float AddWrappedDetailLine(string text, float y, float lineHeight, int size, Color color)
+        {
+            var t = UiKit.AddText(_detail, 8, y, 620, lineHeight, text, size, color, TextAnchor.UpperLeft);
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
+            float height = Mathf.Max(lineHeight, t.preferredHeight);
+            t.rectTransform.sizeDelta = new Vector2(620f, height);
+            return y + height;
         }
 
         /// <summary>A recipe's card and page title (#2544): its own <c>nameKey</c> when it has one (the hand-built "Wooden

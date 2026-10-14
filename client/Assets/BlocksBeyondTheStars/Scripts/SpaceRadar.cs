@@ -64,18 +64,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2241: the anomaly's blip shimmers through teal and its neighbours, like the bubble itself.</summary>
         private static Color AnomalyCol(float t) => Color.HSVToRGB(0.42f + Mathf.Sin(t * 1.5f) * 0.08f, 0.55f, 1f);
 
-        /// <summary>The rim label of a pinned entity: a life pod reads "SOS · {name}", an anomaly "???", a wormhole its
-        /// localized name; everything else its own name.</summary>
+        /// <summary>The rim label of a pinned entity: a life pod reads "SOS · {name}", an anomaly and a wormhole their
+        /// localized kind, everything else its own name (<see cref="SpaceEncounterLabel.Rim"/>). #2588: the anomaly read
+        /// "???" here — what an unknown wormhole's destination reads, so a player took it for a wormhole.</summary>
         private string EncounterLabel(BlocksBeyondTheStars.Networking.Messages.NetCombatEntity e)
         {
             var loc = Game != null ? Game.Localizer : null;
-            switch (e.Kind)
-            {
-                case "EscapePod": return "SOS · " + e.Name;
-                case "Anomaly": return "???";
-                case "Wormhole": return loc != null ? loc.Get("ui.scan.subject.wormhole") : "Wormhole";
-                default: return e.Name;
-            }
+            return SpaceEncounterLabel.Rim(e.Kind, e.Name, key => loc != null ? loc.Get(key)
+                : key == AnomalyHint.NameKey ? "Anomaly" : "Wormhole");
         }
 
         private static readonly Color WaypointCol = new Color(1f, 0.85f, 0.3f);

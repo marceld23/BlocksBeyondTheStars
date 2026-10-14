@@ -16,10 +16,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// generator floods the whole heightfield with the <c>gas</c> block (a still liquid, <c>PlanetType.SeaFluid</c>) and the
 /// floating islands are the only ground (#2134: under the gas lies <c>gas_dense</c> down to the floor, never rock); here
 /// live the three server rules of the class — the <b>gas sea kills</b> (<see cref="GasContactDpsAt"/>, faster than lava,
-/// the dense gas faster still, no armour), a <b>sky city breathes</b> (<see cref="InSkyCityAir"/>: a pocket
-/// of air over every inhabited settlement on an island) — and the <b>sky giant</b>, the class's own giant: a 40–80 block
-/// sailer that drifts on a slow lane between the islands, calls now and then, never lands and never strikes. It lives in
-/// the giant slots like the colossus (<c>GameServerGiants</c>) and is hit along its trailing body.
+/// the dense gas faster still, no armour; the world's own animals keep out of it, #2583), a <b>sky city breathes</b>
+/// (<see cref="InSkyCityAir"/>: a pocket of air over every inhabited settlement on an island) — and the <b>sky giant</b>,
+/// the class's own giant: a 40–80 block sailer that drifts on a slow lane between the islands, calls now and then, never
+/// lands and never strikes. It lives in the giant slots like the colossus (<c>GameServerGiants</c>) and is hit along its
+/// trailing body.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -65,6 +66,254 @@ public sealed partial class GameServer
         }
 
         return _gasId != 0 && (at == _gasId || under == _gasId) ? GasContactDps : 0f;
+    }
+
+    // ---- the animals and the gas sea (#2583) ----
+    //
+    // Every animal of a gas giant flies (#2112), but the creature probes knew nothing of the gas: it is not solid and not one
+    // of the automaton's two fluids, so the probes looked straight through it to the heightfield buried five to nine cells
+    // under its surface, measured every hover band from there and parked the animals in the gas — 91 of 102 spawns burned
+    // to death within a second, and the spawner kept refilling the cap. The rules below keep them out: an airborne animal's
+    // band is measured from the gas sea's surface at the least (or from the rock an island holds over it), nothing spawns
+    // where the gas burns, and nothing that walks steps into it.
+
+    /// <summary>#2583: the top cell of the active world's gas sea — a gas giant's sea level, the highest cell the generator
+    /// fills with gas (the first air cell is one above) — or <see cref="int.MinValue"/> on every world whose sea is not gas.
+    /// Resolved once per world.</summary>
+    private int GasSeaTopY()
+    {
+        var active = _worlds.Active;
+        if (active.GasSeaTop is { } known)
+        {
+            return known;
+        }
+
+        var planet = _world.Planet;
+        int top = planet is { IsGasWorld: true } && _generator.SeaIsGas(planet) ? _generator.SeaLevel(planet) : int.MinValue;
+        active.GasSeaTop = top;
+        return top;
+    }
+
+    private bool IsGasId(ushort id) => id != 0 && (id == _gasId || id == _denseGasId);
+
+    /// <summary>#2583: the contact rule of <see cref="GasContactDpsAt"/> on real blocks, without loading anything: feet at
+    /// <paramref name="feetY"/> stand in the gas (or the dense gas), or right on it. An unloaded cell reads as air.</summary>
+    private bool GasAtFeetIfLoaded(int x, int feetY, int z)
+    {
+        ResolveGasIds();
+        return IsGasId(_world.GetBlockIfLoaded(new Vector3i(x, feetY, z)).Value)
+            || IsGasId(_world.GetBlockIfLoaded(new Vector3i(x, feetY - 1, z)).Value);
+    }
+
+    /// <summary>#2583: whether a body at this position would burn in the gas sea — the contact rule
+    /// (<see cref="FeetInGasSeaAt"/>, no chunk is loaded or generated), asked on a gas giant only.</summary>
+    private bool InGasSea(Vector3f pos)
+    {
+        var feet = pos.ToBlock();
+        return FeetInGasSeaAt(feet.X, feet.Y, feet.Z);
+    }
+
+    /// <summary>#2583: the rest surface an AIR animal measures its band from, lifted out of the gas sea. Where the column
+    /// opens onto the gas (the cell at the gas line is gas, or not streamed in) or the body is in the gas already, a rest
+    /// surface at or under the gas line becomes the first cell over it: an animal over open gas rides its band above the
+    /// surface, and one that sank in rises out instead of holding its depth (the roof guard of #1711 had held it there). A
+    /// dry pocket under the gas line — a room dug into an island's keel — keeps its own floor; a deck or an island over the
+    /// gas answers above the line anyway. Every other world gets <paramref name="rest"/> back unchanged.</summary>
+    private int LiftOutOfGasSea(int x, int z, float bodyY, int rest)
+    {
+        int top = GasSeaTopY();
+        if (top == int.MinValue || rest > top)
+        {
+            return rest;
+        }
+
+        ResolveGasIds();
+        var line = new Vector3i(x, top, z);
+        bool opensOntoGas = !_world.IsChunkLoaded(WorldConstants.WorldToChunk(line)) || IsGasId(_world.GetBlockIfLoaded(line).Value);
+        return opensOntoGas || GasAtFeetIfLoaded(x, (int)System.Math.Floor(bodyY), z) ? top + 1 : rest;
+    }
+
+    /// <summary>How far over a column's highest natural top (#2583) the spawn scan starts looking for what stands on it — a
+    /// sky city's houses, a deck's rail, a player's build.</summary>
+    private const int GasColumnBuildHeadroom = 32;
+
+    /// <summary>#2583: what an AIR animal spawning over a gas giant's column would come down onto — the REAL top of the
+    /// column above the gas (an island of any tier, a landing deck, a sky city, a player's build, or water standing on one)
+    /// or, where nothing stands over the gas, the first cell over the gas sea. The spawner used to measure from the
+    /// generator's surface, which on a gas giant is the heightfield buried under the gas, and scanned only six cells
+    /// around it: under an island the animal appeared far below the rock, in the gas. The scan reads real blocks without
+    /// loading (one column, from <see cref="GasColumnBuildHeadroom"/> over the highest island band the generator puts
+    /// there, or over the gas line where none floats, down to the gas); an island whose chunk is not streamed in yet
+    /// answers with the generator's top.</summary>
+    private int GasColumnAirRestY(int x, int z, int gasTop)
+    {
+        bool island = _generator.TryGetHighestBand(_world.Planet, x, z, out var band) && band.Top > gasTop;
+        int ceiling = (island ? band.Top : gasTop) + GasColumnBuildHeadroom;
+        bool open = !GasColumnSurfaceAt(x, ceiling + 1, z);
+        for (int y = ceiling; y > gasTop; y--)
+        {
+            if (island && y == band.Top && !_world.IsChunkLoaded(WorldConstants.WorldToChunk(new Vector3i(x, y, z))))
+            {
+                return y + 1;
+            }
+
+            bool surface = GasColumnSurfaceAt(x, y, z);
+            if (surface && open)
+            {
+                return y + 1;
+            }
+
+            open = !surface;
+        }
+
+        return gasTop + 1;
+    }
+
+    /// <summary>A cell an airborne animal would come down onto in <see cref="GasColumnAirRestY"/>: a supporting block, or
+    /// water (scanning down from above, the first water cell is the water's top — the band rides on it, #2552).</summary>
+    private bool GasColumnSurfaceAt(int x, int y, int z)
+        => IsSupportCell(x, y, z) || (_creatureWaterId != 0 && _world.GetBlockIfLoaded(new Vector3i(x, y, z)).Value == _creatureWaterId);
+
+    /// <summary>#2583: whether a step takes a walking body — a walker, a crawler, a floating land grazer; wild, a companion
+    /// or one pushed by a shock glove — from dry footing into the gas sea. The gas carries nobody: over open gas the ground
+    /// probe finds only the heightfield buried under it, so a wild animal could walk off a deck or an island rim into the
+    /// sea and burn, and a companion (the gas spares it) would sink to the hidden floor and trot on under its owner. A deck's
+    /// rail stops everybody; at a gap in it, on an island's rim or a player's bridge the drop gate held most wild steps
+    /// already — this one holds for everybody, as the lava gate holds the melt. A body already in the gas may walk out. Off
+    /// a gas giant it is one comparison.</summary>
+    private bool StepsIntoGasSea(CreatureSpecies sp, MotionClass motion, Vector3f cur, Vector3f next, int? knownNextFeet)
+    {
+        int top = GasSeaTopY();
+        if (top == int.MinValue || !CreatureMotion.ObeysGroundRules(sp, motion))
+        {
+            return false;
+        }
+
+        int cx = (int)System.Math.Floor(cur.X), cz = (int)System.Math.Floor(cur.Z);
+        int nx = (int)System.Math.Floor(next.X), nz = (int)System.Math.Floor(next.Z);
+        if (cx == nx && cz == nz)
+        {
+            return false;
+        }
+
+        int feet = (int)System.Math.Floor(cur.Y);
+        int nextFeet = knownNextFeet ?? GroundFeetFor(sp, nx, nz, feet);
+        return FeetInGasSea(nx, nextFeet, nz, top) && !FeetInGasSea(cx, feet, cz, top);
+    }
+
+    /// <summary>#2583: whether feet at <paramref name="feetY"/> stand in the gas sea or right on it — the contact rule of
+    /// <see cref="GasContactDpsAt"/> (the feet cell or the cell under them), without loading anything: a streamed-in cell
+    /// answers with its real block; a cell that is not streamed in answers with the generator's fill, which is gas at and
+    /// under the gas line — the ground probe's last resort, the noise surface, lies deep in it, and its cells need not be
+    /// loaded for the gate to know that. A loaded dry cell under the gas line (a room dug into an island's keel) is no gas.</summary>
+    private bool FeetInGasSea(int x, int feetY, int z, int gasTop)
+    {
+        ResolveGasIds();
+        return GasOrUnloadedSeaCell(x, feetY, z, gasTop) || GasOrUnloadedSeaCell(x, feetY - 1, z, gasTop);
+    }
+
+    /// <summary>One cell of <see cref="FeetInGasSea"/>: gas or dense gas where it is streamed in, at or under the gas line
+    /// where it is not.</summary>
+    private bool GasOrUnloadedSeaCell(int x, int y, int z, int gasTop)
+    {
+        var cell = new Vector3i(x, y, z);
+        return _world.IsChunkLoaded(WorldConstants.WorldToChunk(cell)) ? IsGasId(_world.GetBlockIfLoaded(cell).Value) : y <= gasTop;
+    }
+
+    /// <summary>#2586: <see cref="FeetInGasSea"/> on a gas giant, false on every other world (no read at all there).</summary>
+    private bool FeetInGasSeaAt(int x, int feetY, int z)
+    {
+        int top = GasSeaTopY();
+        return top != int.MinValue && FeetInGasSea(x, feetY, z, top);
+    }
+
+    /// <summary>#2583: the snap distance of an AIR animal's vertical ease — the usual 24 cells, or none while its body is in
+    /// a gas giant's gas (<see cref="FeetInGasSeaAt"/>: a gas cell at or under the feet, or a cell under the gas line that
+    /// is not streamed in — never a loaded dry pocket): there it pops straight up to its band instead of burning for the
+    /// seconds the ease takes.</summary>
+    private float AirEaseSnap(int x, float bodyY, int z)
+        => FeetInGasSeaAt(x, (int)System.Math.Floor(bodyY), z) ? 0f : 24f;
+
+    // ---- the machines, the robbers and the gas sea (#2586) ----
+    //
+    // The planet machines, a lone robber and a base's scouts were placed like the animals were: from the generator surface,
+    // the heightfield buried under the gas — the machines appeared in the gas and burned, one after another on the same
+    // spot. They are placed from the real top of the column now (or not at all), a walking robot treats the gas as a wall,
+    // and a scan-drone crosses open gas at its hover over the surface, as it crosses a lake.
+
+    /// <summary>#2586: the reference Y a ground placement probes down from in a column: the generator surface + 1 — or on a
+    /// gas giant, where that surface lies under the gas, the real top of the column above the gas
+    /// (<see cref="GasColumnAirRestY"/>; the first cell over the gas where nothing stands on it).</summary>
+    private int GroundProbeRefY(int x, int z)
+    {
+        int top = GasSeaTopY();
+        return top != int.MinValue ? GasColumnAirRestY(x, z, top) : _generator.SurfaceHeight(_world.Planet, x, z) + 1;
+    }
+
+    /// <summary>#2586: the floor a hovering scan-drone crosses open gas on — the first cell over the gas sea, as it crosses a
+    /// lake on the surface — where the column opens onto the gas (the gas line is gas, or not streamed in) and nothing
+    /// solid stands between that floor and a body <paramref name="hover"/> cells over it. <see cref="int.MinValue"/>
+    /// elsewhere, and on every world whose sea is not gas.</summary>
+    private int GasSurfaceFloorFor(int x, int z, int hover)
+    {
+        int top = GasSeaTopY();
+        if (top == int.MinValue)
+        {
+            return int.MinValue;
+        }
+
+        ResolveGasIds();
+        var line = new Vector3i(x, top, z);
+        if (_world.IsChunkLoaded(WorldConstants.WorldToChunk(line)) && !IsGasId(_world.GetBlockIfLoaded(line).Value))
+        {
+            return int.MinValue;
+        }
+
+        for (int dy = 1; dy <= hover + 2; dy++)
+        {
+            if (IsSupportCell(x, top + dy, z))
+            {
+                return int.MinValue;
+            }
+        }
+
+        return top + 1;
+    }
+
+    /// <summary>#2586: the ground under a scan-drone in a column — real blocks first, then the gas sea's surface
+    /// (<see cref="GasSurfaceFloorFor"/>), then the generator surface: the creatures' probe on every other world.</summary>
+    private int DroneGroundAt(int x, int z, int refY)
+    {
+        if (TryGroundFeetYAt(x, z, refY, out int feet))
+        {
+            return DroneFloorOverGas(x, z, feet);
+        }
+
+        int gasFloor = GasSurfaceFloorFor(x, z, ScanDroneHover);
+        return gasFloor != int.MinValue ? gasFloor : _generator.SurfaceHeight(_world.Planet, x, z) + 1;
+    }
+
+    /// <summary>#2586: a drone's floor at or under the gas line — a block standing in the gas (the gas is no colliding
+    /// block, so the probe stands on it) — is the gas surface where the column opens onto the gas: four cells over a block
+    /// sunk deep enough are still in the gas. Any other floor, and every floor off a gas giant, is returned unchanged.</summary>
+    private int DroneFloorOverGas(int x, int z, int feet)
+    {
+        int top = GasSeaTopY();
+        if (top == int.MinValue || feet > top)
+        {
+            return feet;
+        }
+
+        int gasFloor = GasSurfaceFloorFor(x, z, ScanDroneHover);
+        return gasFloor != int.MinValue ? gasFloor : feet;
+    }
+
+    /// <summary>#2586: whether a walking robot's step takes its feet from dry footing into the gas sea — <see cref="FeetInGasSea"/>
+    /// at the step's column and not at its own. Off a gas giant it is one comparison.</summary>
+    private bool WalkerStepsIntoGasSea(int ownX, int ownZ, int feet, int nextX, int nextZ, int nextFeet)
+    {
+        int top = GasSeaTopY();
+        return top != int.MinValue && FeetInGasSea(nextX, nextFeet, nextZ, top) && !FeetInGasSea(ownX, feet, ownZ, top);
     }
 
     // ---- the sky cities ----
