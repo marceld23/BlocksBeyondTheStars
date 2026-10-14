@@ -57,6 +57,7 @@ public sealed class LlmStagesTests : IDisposable
         public MissionPlan? Generate(string context) { MissionContext = context; return null; }
         public string? GenerateNpcLine(NpcLineRequest request) { LastLine = request; return Line; }
         public MissionTextResult? GenerateMissionText(MissionTextRequest request) { LastText = request; TextCalls++; return Text; }
+        public string[]? GenerateNpcLines(NpcLinesRequest request) => null;
     }
 
     /// <summary>Starts a world with an inhabited settlement and a player at its vendor (the same seed

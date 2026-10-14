@@ -101,8 +101,8 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (requireKnown
-            && (!p.NpcMemory.TryGetValue(npcKey, out var rel) || RelationshipTier(rel.Value) is not ("known" or "trusted")))
+        // #2598: a villager without an own entry reads the floor of the old shared standing.
+        if (requireKnown && RelationshipTier(RelationshipValue(p, npcKey)) is not ("known" or "trusted"))
         {
             return false;
         }
@@ -306,21 +306,23 @@ public sealed partial class GameServer
                 continue;
             }
 
-            foreach (string role in new[] { "quartermaster", "vendor", "settler" })
+            foreach (string role in ThreadCallRoles)
             {
-                string npcKey = NpcKey(SettlementLocationKey(s.Name), role);
-                if (!session.State.NpcMemory.TryGetValue(npcKey, out var rel)
-                    || PeekNpcThread(session, role, npcKey) is not { } thread)
+                foreach (string npcKey in ThreadCallKeys(session.State, SettlementLocationKey(s.Name), role))
                 {
-                    continue;
-                }
+                    if (!session.State.NpcMemory.TryGetValue(npcKey, out var rel)
+                        || PeekNpcThread(session, role, npcKey) is not { } thread)
+                    {
+                        continue;
+                    }
 
-                string name = string.IsNullOrEmpty(rel.Name) ? CoinGiverName(s.Name) : rel.Name;
-                if (TryNpcRadioCallText(session, npcKey, name, s.Name, _world.LocationId,
-                        "thread:" + thread.Key, Localize(session.Locale, thread.TextKey), isMission: false))
-                {
-                    CommitNpcThread(session, thread);
-                    return;
+                    string name = string.IsNullOrEmpty(rel.Name) ? CoinGiverName(s.Name) : rel.Name;
+                    if (TryNpcRadioCallText(session, npcKey, name, s.Name, _world.LocationId,
+                            "thread:" + thread.Key, Localize(session.Locale, thread.TextKey), isMission: false))
+                    {
+                        CommitNpcThread(session, thread);
+                        return;
+                    }
                 }
             }
         }

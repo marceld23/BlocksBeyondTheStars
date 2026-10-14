@@ -106,6 +106,7 @@ def _make_llm(max_tokens: int):
 class NpcLineInput(TypedDict, total=False):
     npc_name: str
     role: str
+    job: str             # #2590: "guard" / "gardener" / a profession such as "doctor" — "" when none
     theme: str
     is_robot: bool
     settlement: str
@@ -120,12 +121,17 @@ class NpcLineInput(TypedDict, total=False):
 
 # --- Deterministic fallback (no LLM / error) -------------------------------------------------
 def _template_line(req: "NpcLineInput") -> str:
+    """The no-model line. Only the vendor and the quartermaster have one (it is about trading / the job
+    board); every other role answers "" so the game shows its own localized line for that NPC instead of
+    a merchant's "Care to trade?" (#2590). Current servers send the player name as the placeholder
+    {player} and fill in the receiving player's name themselves — the template simply copies it."""
+    role = req.get("role") or ""
+    if role not in ("vendor", "quartermaster"):
+        return ""  # settlers, guards, professions, VEGA banter … — the game's scripted lines cover them
     de = (req.get("language") or "en").lower().startswith("de")
     name = req.get("player_name") or ("Reisender" if de else "traveler")
     known = (req.get("past_interactions") or 0) > 0
-    if req.get("role") == "ship_ai":
-        return ""  # VEGA banter is LLM-only flavour — the scripted lines cover the rest
-    if req.get("role") == "quartermaster":
+    if role == "quartermaster":
         if de:
             return f"Schön dich wiederzusehen, {name}. Am Brett gibt es Arbeit." if known \
                 else f"Suchst du Arbeit, {name}? Sieh dich am Brett um."
@@ -141,9 +147,11 @@ def _template_line(req: "NpcLineInput") -> str:
 
 _SYSTEM = (
     "You write a single short in-character line for a character in a sci-fi voxel space "
-    "exploration game. Keep it to ONE or TWO sentences, natural and grounded, with a hint of the "
-    "character's role and personality. Do NOT use quotation marks, emojis, stage directions or the "
-    "player's stats verbatim — just the spoken line. Write it in {language}."
+    "exploration game played by families and kids. Keep it to ONE or TWO sentences, natural, "
+    "friendly and grounded, with a hint of the character's role and personality. Keep it "
+    "kid-friendly: bandits are chased off, never hurt; no fear, no romance, no violence, no insults. "
+    "Do NOT use quotation marks, emojis, stage directions or the player's stats verbatim — just the "
+    "spoken line. Write it in {language}."
 )
 
 _HUMAN = (
@@ -156,15 +164,40 @@ _HUMAN = (
     "Relationship with this player: {tier} (score {relationship}, {past_interactions} past visits)\n"
     "What they remember of this player recently: {recent_events}\n"
     "Current situation: {situation}\n\n"
+    "If you use the player's name, write it EXACTLY as given above, character for character — it may "
+    "be the placeholder {{player}}, which the game replaces with the real name. Copy it with its "
+    "braces and never invent, translate or change a name.\n"
     "Write the line now."
 )
 
+# Role and job descriptions (#2590): a settler is described by what they do, so a gardener doesn't
+# sound like a merchant. The server sends the NPC's job next to its role; a known job wins.
 _ROLE_DESC = {
     "vendor": "merchant who barters goods themed around the settlement",
     "quartermaster": "mission-giver who hands out field jobs from a board",
     "ship_ai": "the player's ship AI: dry, laconic, deadpan-witty but loyal; it comments on the "
                "current situation in passing, like a co-pilot making conversation",
+    "settler": "villager who lives here and likes a friendly chat with visitors",
+    "guardian": "guardian machine that watches over an ancient city",
+    "guard": "guard who keeps watch at the walls and sends bandit scouts on their way",
+    "gardener": "gardener who grows berries, fruit and seedlings for everyone",
+    "craftsman": "craftsman who works at the workbench and the forge",
+    "innkeeper": "innkeeper who runs the tavern and always knows the latest news",
+    "doctor": "doctor who looks after everyone's health and sells medkits",
+    "grocer": "grocer who sells food and fresh produce in a little shop",
+    "arms_dealer": "trader of tools and gear for explorers",
+    "sage": "wise sage who reads old books and gladly shares what they know",
+    "tamer": "animal tamer who cares for tame creatures",
+    "blockfarmer": "blockfarmer who quarries building blocks outside the village",
+    "rail_dealer": "rail dealer who sells monorail parts at the depot",
+    "streamer": "streamer who loves taking photos and sharing adventures",
+    "reporter": "reporter who interviews people and writes the local news",
 }
+
+
+def _role_desc(role: str, job: str = "") -> str:
+    """How a speaker is described to the model: by its job when known, else by its role."""
+    return _ROLE_DESC.get(job or "") or _ROLE_DESC.get(role or "", "settlement inhabitant")
 
 
 def _build_line_graph():
@@ -194,7 +227,7 @@ def _build_line_graph():
                 "language": _language_name(r.get("language", "en")),
                 "npc_name": r.get("npc_name") or "(unnamed)",
                 "role": r.get("role") or "vendor",
-                "role_desc": _ROLE_DESC.get(r.get("role", ""), "settlement inhabitant"),
+                "role_desc": _role_desc(r.get("role", ""), r.get("job", "")),
                 "persona": r.get("persona") or "(no specific persona)",
                 "settlement": r.get("settlement") or "a frontier settlement",
                 "kind": "an android" if r.get("is_robot") else "a person",
@@ -225,8 +258,9 @@ def llm_enabled() -> bool:
 
 def generate_npc_line(req: NpcLineInput) -> str:
     """Returns a line, always. Tries the LLM graph; on any failure falls back to a deterministic
-    bilingual template so the endpoint never errors out. (For role "ship_ai" the fallback is empty
-    — banter is pure LLM flavour and the game has scripted VEGA lines for everything else.)"""
+    bilingual template so the endpoint never errors out. (For every role but vendor/quartermaster the
+    fallback is empty — the game has its own localized lines for them, and VEGA banter is pure LLM
+    flavour.)"""
     if _LINE_GRAPH is not None:
         try:
             out = _LINE_GRAPH.invoke({"req": req, "text": ""})
@@ -236,6 +270,251 @@ def generate_npc_line(req: NpcLineInput) -> str:
         except Exception:
             pass
     return _template_line(req)
+
+
+# ==============================================================================================
+# /npc-lines (#2591) — ONE path for every new NPC/VEGA line of the village-life package. The game
+# always has an authored, localized line; the model only re-words it in the speaker's voice. Exact
+# facts (names, numbers, items, places) travel as placeholder tokens such as {player} that the
+# server fills in per receiving player — so the model must copy tokens literally and invent nothing.
+# The C# server validates the answer again (count, length, tokens, digits) and drops it on any doubt.
+# ==============================================================================================
+class NpcLinesSpeaker(TypedDict, total=False):
+    token: str
+    role: str
+    job: str
+    persona: str
+    is_robot: bool
+
+
+class NpcLinesInput(TypedDict, total=False):
+    purpose: str
+    language: str
+    place: str
+    theme: str
+    stage: str
+    away_days: int
+    situation: str
+    speakers: list[NpcLinesSpeaker]
+    topic_hint: str
+    facts: list[str]
+    tokens: list[str]
+    authored: list[str]
+    line_count: int
+    max_chars: int
+
+
+# Hard sanity bounds — the server never asks for more (a festival cheer is 6 lines).
+_MAX_LINE_COUNT = 8
+_MAX_LINE_CHARS = 400
+
+# One sentence of guidance per purpose. An unknown purpose still works (generic guidance).
+_PURPOSE_DESC = {
+    "passing_hello": "A quick, friendly hello as the player walks past — one short sentence.",
+    "welcome_back": "The character is glad the player is back after being away for a while.",
+    "resident_hello": "A resident of the player's own home base says hello and shares that all is well at home.",
+    "dialog_open": "Re-word the authored opening line of a conversation in the speaker's voice; keep its meaning "
+                   "exactly, because the player's answer choices follow it.",
+    "friend_hello": "A good friend is happy to see the player and greets them warmly.",
+    "friend_gift": "A friend hands the player a small present and says something kind about it.",
+    "chatter": "Two villagers chat with each other about the topic; the player only overhears them.",
+    "cheer": "Villagers cheer happily at a village festival held in the player's honour.",
+    "festival_thanks": "The quartermaster thanks the player warmly for all their help, at the village festival.",
+    "news_deed": "A short, cheerful local news headline about something good the player did.",
+    "wish_ask": "A villager politely asks the player for a small favour; there is no hurry and no deadline.",
+    "wish_thanks": "A villager happily thanks the player for bringing what they wished for.",
+    "guest_greet": "A friendly visitor arrives at the player's base and says hello.",
+    "guest_offer": "A visitor at the player's base offers a small gift, their goods or asks for a little help.",
+    "trader_hail": "A trader who just landed calls out to the player to come and trade.",
+    "vega_welcome": "VEGA, the player's ship AI, welcomes the player back — dry, warm and loyal.",
+    "vega_news": "VEGA, the player's ship AI, passes on news from the player's base — calm and short.",
+    "vega_praise": "VEGA, the player's ship AI, praises the player for an achievement — dry but proud.",
+}
+
+_LINES_SYSTEM = (
+    "You write short spoken lines for characters in a friendly sci-fi voxel space exploration game "
+    "played by families and kids. Every line is friendly, warm and simple. Bandits are only ever "
+    "chased away or sent off, never hurt. No romance, no fear, no violence, no insults, nothing scary.\n"
+    "Rules:\n"
+    "- Each line has at most {max_chars} characters and is just what the character says: no quotation "
+    "marks, no emojis, no stage directions, no speaker names or labels in front.\n"
+    "- Placeholders: the request lists the allowed tokens, such as {{player}}. They stand for names, "
+    "numbers, items and places that the game fills in. Write a token EXACTLY as given, braces included, "
+    "and only the listed ones. Never replace a token with a real value.\n"
+    "- Never invent names, numbers, items or places, and never write digits. Only mention facts from "
+    "the request.\n"
+    "- If the written lines are given, keep their meaning (and every token they use) — just say it in "
+    "the speaker's own voice.\n"
+    "- When there are several speakers, the lines alternate between them in the order given: line 1 "
+    "is the first speaker, line 2 the second, and so on, starting again from the first.\n"
+    "- Write every line in {language}.\n"
+    "Return ONLY a JSON array of exactly {line_count} strings — no markdown fences, no commentary."
+)
+
+_LINES_HUMAN = (
+    "Purpose: {purpose} — {purpose_desc}\n"
+    "Place: {place}\n"
+    "Community: {theme}\n"
+    "Relationship with the player: {stage}\n"
+    "Days the player was away: {away_days}\n"
+    "Situation: {situation}\n"
+    "Speakers, in speaking order:\n{speakers}\n"
+    "Topic: {topic_hint}\n"
+    "Facts you may mention:\n{facts}\n"
+    "Allowed tokens: {tokens}\n"
+    "The written lines (keep their meaning):\n{authored}\n\n"
+    "Write the JSON array of {line_count} lines now."
+)
+
+
+def _bullets(items: list[str] | None, empty: str) -> str:
+    rows = [f"- {str(i).strip()}" for i in (items or []) if str(i).strip()]
+    return "\n".join(rows) if rows else empty
+
+
+def _speakers_text(speakers: list[NpcLinesSpeaker] | None) -> str:
+    rows = []
+    for n, s in enumerate(speakers or [], start=1):
+        kind = "an android" if s.get("is_robot") else "a person"
+        token = s.get("token") or "(not named in the lines)"
+        persona = s.get("persona") or "(no specific persona)"
+        rows.append(f"{n}. {token}: {kind}, a {_role_desc(s.get('role', ''), s.get('job', ''))}; "
+                    f"persona: {persona}")
+    return "\n".join(rows) if rows else "1. a friendly villager"
+
+
+def _parse_json_array(raw: str) -> list | None:
+    """Extracts the first JSON array from an LLM reply (tolerates ```json fences and prose)."""
+    if not raw:
+        return None
+    text = raw.strip()
+    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.IGNORECASE)
+    start = text.find("[")
+    end = text.rfind("]")
+    if start < 0 or end <= start:
+        return None
+    try:
+        arr = json.loads(text[start:end + 1])
+        return arr if isinstance(arr, list) else None
+    except Exception:
+        return None
+
+
+_QUOTES = "\"'`“”„‚‘’«»‹›「」『』"
+
+
+def _clean_lines(arr: list | None, line_count: int) -> list[str]:
+    """Exactly `line_count` non-empty strings (whitespace collapsed, wrapping quotes stripped), else
+    []. The server repeats every check — this only keeps obviously broken answers off the wire."""
+    if not isinstance(arr, list) or len(arr) != line_count:
+        return []
+    lines = []
+    for item in arr:
+        if not isinstance(item, str):
+            return []
+        text = " ".join(item.split()).strip().strip(_QUOTES).strip()
+        if not text:
+            return []
+        lines.append(text)
+    return lines
+
+
+def _lines_max_tokens(line_count: int) -> int:
+    """~70 tokens per line, capped — enough for a short line in any language plus JSON overhead."""
+    return min(600, 70 * max(1, line_count))
+
+
+_LINES_CHAINS: dict = {}
+
+
+def _lines_chain(max_tokens: int):
+    """A prompt→model→text chain for one max_tokens budget, built on first use and kept (the line count
+    only takes a handful of values, so this stays tiny). None when the stack is unavailable."""
+    if max_tokens in _LINES_CHAINS:
+        return _LINES_CHAINS[max_tokens]
+    llm = _make_llm(max_tokens=max_tokens)
+    chain = None
+    if llm is not None:
+        try:
+            from langchain_core.output_parsers import StrOutputParser
+            from langchain_core.prompts import ChatPromptTemplate
+
+            prompt = ChatPromptTemplate.from_messages([("system", _LINES_SYSTEM), ("human", _LINES_HUMAN)])
+            chain = prompt | llm | StrOutputParser()
+        except Exception:
+            chain = None
+    _LINES_CHAINS[max_tokens] = chain
+    return chain
+
+
+def _build_lines_graph():
+    """Compile a LangGraph that runs the /npc-lines prompt→model→JSON chain in a single node (like the
+    other flows). Returns the compiled graph, or None if the LLM stack is unavailable / unconfigured."""
+    if _make_llm(max_tokens=_lines_max_tokens(1)) is None:
+        return None
+    try:
+        from langgraph.graph import END, START, StateGraph
+    except Exception:
+        return None
+
+    class GraphState(TypedDict):
+        req: NpcLinesInput
+        lines: list[str]
+
+    def generate(state: GraphState) -> GraphState:
+        r = state["req"]
+        line_count = int(r.get("line_count") or 1)
+        chain = _lines_chain(_lines_max_tokens(line_count))
+        if chain is None:
+            return {"req": r, "lines": []}
+        tokens = [t for t in (r.get("tokens") or []) if str(t).strip()]
+        for s in r.get("speakers") or []:
+            if s.get("token") and s["token"] not in tokens:
+                tokens.append(s["token"])
+        purpose = r.get("purpose") or "line"
+        raw = chain.invoke(
+            {
+                "language": _language_name(r.get("language", "en")),
+                "max_chars": int(r.get("max_chars") or 120),
+                "line_count": line_count,
+                "purpose": purpose,
+                "purpose_desc": _PURPOSE_DESC.get(purpose, "A short, friendly line that fits the situation."),
+                "place": r.get("place") or "a frontier settlement",
+                "theme": r.get("theme") or "(none)",
+                "stage": r.get("stage") or "(not relevant)",
+                "away_days": int(r.get("away_days") or 0),
+                "situation": r.get("situation") or "(an ordinary day)",
+                "speakers": _speakers_text(r.get("speakers")),
+                "topic_hint": r.get("topic_hint") or "(free)",
+                "facts": _bullets(r.get("facts"), "(none)"),
+                "tokens": ", ".join(tokens) if tokens else "(none — do not use any braces)",
+                "authored": _bullets(r.get("authored"), "(none)"),
+            }
+        )
+        return {"req": r, "lines": _clean_lines(_parse_json_array(raw), line_count)}
+
+    g = StateGraph(GraphState)
+    g.add_node("generate", generate)
+    g.add_edge(START, "generate")
+    g.add_edge("generate", END)
+    return g.compile()
+
+
+_LINES_GRAPH = _build_lines_graph()
+
+
+def generate_npc_lines(req: NpcLinesInput) -> list[str]:
+    """Returns exactly `line_count` lines, or [] (no model configured, a failed call, a malformed or
+    wrong-length answer, or an out-of-range request). [] makes the server keep its authored lines."""
+    line_count = int(req.get("line_count") or 0)
+    max_chars = int(req.get("max_chars") or 0)
+    if _LINES_GRAPH is None or not 1 <= line_count <= _MAX_LINE_COUNT or not 1 <= max_chars <= _MAX_LINE_CHARS:
+        return []
+    try:
+        out = _LINES_GRAPH.invoke({"req": req, "lines": []})
+        return list(out.get("lines") or [])
+    except Exception:
+        return []
 
 
 # ==============================================================================================

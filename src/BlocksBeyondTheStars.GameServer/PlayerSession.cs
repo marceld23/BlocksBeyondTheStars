@@ -487,6 +487,13 @@ public sealed class PlayerSession
     /// favour is not asked again until the next visit, so "not today" lets the ordinary smalltalk through.</summary>
     public HashSet<string> DeclinedMissionDialogs { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>Villager person keys whose passing hello already paid its +1 standing this session (#2598).</summary>
+    public HashSet<string> HelloStandingPaid { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>The player's <c>PlayerState.LastSeenUtc</c> as it was BEFORE this join overwrote it (#2595): when they
+    /// were last online — what VEGA's "welcome back after a long time" reads. "" for a first join or an old save.</summary>
+    public string PreviousSeenUtc { get; set; } = string.Empty;
+
     /// <summary>The reporter who just asked this player for an interview (2026-09), 0 = none — an answer is accepted only
     /// for them, once.</summary>
     public int PendingInterviewNpcId { get; set; }

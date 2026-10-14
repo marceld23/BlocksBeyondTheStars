@@ -44,7 +44,7 @@ public sealed partial class GameServer
         }
 
         // (b) A hidden chest — a secret kept for players this NPC already knows (tier "known"+).
-        int rel = session.State.NpcMemory.TryGetValue(npcKey, out var r) ? r.Value : 0;
+        int rel = RelationshipValue(session.State, npcKey); // #2598: a villager without an own entry reads the floor
         if (RelationshipTier(rel) is not ("known" or "trusted"))
         {
             return string.Empty;

@@ -73,7 +73,14 @@ public sealed class PersistenceTests : IDisposable
     public void Player_RoundTripsNpcMemory()
     {
         var player = new PlayerState { PlayerId = "p1", Name = "Pilot" };
-        var rel = new NpcRelationship { Name = "Kra Thraxon", Role = "quartermaster", Value = 7 };
+        var rel = new NpcRelationship
+        {
+            Name = "Kra Thraxon",
+            Role = "quartermaster",
+            Value = 7,
+            LastSeenUtc = "2026-10-14T18:30:00.0000000Z", // #2595
+            LastGiftAt = 4321.5,                          // #2598
+        };
         rel.Log.Add(new NpcInteraction { Kind = NpcInteractionKind.MissionAccepted });
         rel.Log.Add(new NpcInteraction { Kind = NpcInteractionKind.Trade });
         player.NpcMemory["settle_123:quartermaster"] = rel;
@@ -94,6 +101,30 @@ public sealed class PersistenceTests : IDisposable
         Assert.Equal(2, r.Log.Count);
         Assert.Equal(NpcInteractionKind.MissionAccepted, r.Log[0].Kind);
         Assert.Equal(NpcInteractionKind.Trade, r.Log[1].Kind);
+
+        // #2595/#2598: the two memory fields go through the hand-written CloneNpcMemory — a field missing there is
+        // silently dropped on every save.
+        Assert.Equal("2026-10-14T18:30:00.0000000Z", r.LastSeenUtc);
+        Assert.Equal(4321.5, r.LastGiftAt);
+    }
+
+    [Fact]
+    public void Player_NpcMemoryFromAnOlderBuild_LoadsWithEmptyStampAndNoGift()
+    {
+        // What a build from before #2595/#2598 wrote: the relationship without the two new fields.
+        var player = new PlayerState { PlayerId = "p1", Name = "Pilot" };
+        player.NpcMemory["settle_123:settler"] = new NpcRelationship { Name = "Mira", Role = "settler", Value = 45 };
+        var node = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(StateMapper.ToSnapshot(player)))!.AsObject();
+        var relNode = node["NpcMemory"]!["settle_123:settler"]!.AsObject();
+        Assert.True(relNode.Remove("LastSeenUtc"));
+        Assert.True(relNode.Remove("LastGiftAt"));
+
+        var loaded = StateMapper.PlayerFromJson(node.ToJsonString(), "p1", new System.Text.Json.JsonSerializerOptions());
+
+        var r = loaded.NpcMemory["settle_123:settler"];
+        Assert.Equal(45, r.Value);
+        Assert.Equal(string.Empty, r.LastSeenUtc); // an empty stamp: only stamped, never a "long time no see"
+        Assert.Equal(0.0, r.LastGiftAt);            // never gifted
     }
 
     [Fact]

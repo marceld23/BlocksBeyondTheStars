@@ -46,6 +46,14 @@ namespace BlocksBeyondTheStars.Client
             _settings = settings;
         }
 
+        // #2592: when any narrator voice (VEGA's panel, a cutscene speaker box) last chattered — unscaled time.
+        private static float _lastSpokeAt = float.NegativeInfinity;
+
+        /// <summary>#2592: true while VEGA's (or a cutscene speaker's) chatter plays — a narrator voice ticked "speaking"
+        /// within the last quarter second. The NPC voice budget (<see cref="NpcVoiceGate"/>) keeps the NPCs quiet meanwhile:
+        /// only the NPC the player talks to babbles, at half volume.</summary>
+        public static bool AnySpeaking => Time.unscaledTime - _lastSpokeAt < 0.25f;
+
         /// <summary>Whether any of the names given to <see cref="SetClips"/> resolved to a clip.</summary>
         public bool HasClips => _clips.Count > 0;
 
@@ -100,6 +108,8 @@ namespace BlocksBeyondTheStars.Client
                 Stop();
                 return;
             }
+
+            _lastSpokeAt = Time.unscaledTime; // #2592: the NPCs hold their tongues while VEGA speaks
 
             if (_source == null)
             {

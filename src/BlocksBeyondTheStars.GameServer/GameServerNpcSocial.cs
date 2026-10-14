@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
-using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.State;
 
@@ -42,13 +41,17 @@ public sealed partial class GameServer
             : string.Empty;
     }
 
-    /// <summary>The stable memory key for a live NPC as seen by this player — mirrors the greeting
-    /// pipeline's derivation (the NPC's settlement; else the receiver's boarded station).</summary>
+    /// <summary>The stable memory key for a live NPC as seen by this player — the ONE derivation every reader uses
+    /// (greetings, dialogues, standings, hints, radio, #2598): an authored character's global key, a base resident's
+    /// slot key, a villager's own <see cref="ServerNpc.PersonKey"/>, else the shared role key of the NPC's settlement
+    /// or the receiver's boarded station.</summary>
     private string NpcKeyForNpc(PlayerSession session, ServerNpc npc)
         => !string.IsNullOrEmpty(npc.CharacterId)
             ? "char:" + npc.CharacterId // an authored character (#1128) remembers the player GLOBALLY
             : npc.BaseId > 0
                 ? BaseResidentKey(npc.BaseId, npc.BaseSlot) // a base resident: keyed by base id + slot, rename-proof (#1262, #1865)
+            : !string.IsNullOrEmpty(npc.PersonKey)
+                ? npc.PersonKey // #2598: a villager is a PERSON — friendship per bed/post, not per role
             : !string.IsNullOrEmpty(npc.Settlement)
                 ? NpcKey(SettlementLocationKey(npc.Settlement), npc.Role)
                 : _boardedStation.TryGetValue(session.State.PlayerId, out var stationId)
@@ -56,41 +59,30 @@ public sealed partial class GameServer
                     : NpcKey(SettlementLocationKey(string.Empty), npc.Role);
 
     /// <summary>Per-receiver stages for the live NPCs (#1118). Only non-strangers are listed — absence
-    /// means stranger, so the common case (a fresh settlement) is an empty message.</summary>
+    /// means stranger, so the common case (a fresh settlement) is an empty message. A villager without an entry of
+    /// their own shows the floor of the old shared standing (#2598).</summary>
     private void SendNpcStandings(PlayerSession session)
     {
         var ids = new List<int>();
         var stages = new List<string>();
         foreach (var npc in _npcs)
         {
-            if (session.State.NpcMemory.TryGetValue(NpcKeyForNpc(session, npc), out var rel)
-                && RelationshipTier(rel.Value) != "stranger")
+            int value = RelationshipValue(session.State, NpcKeyForNpc(session, npc));
+            if (RelationshipTier(value) != "stranger")
             {
                 ids.Add(npc.Id);
-                stages.Add(NpcStageKey(rel.Value));
+                stages.Add(NpcStageKey(value));
             }
         }
 
         Send(session, new NpcStandingList { NpcIds = ids.ToArray(), StageKeys = stages.ToArray() });
     }
 
-    /// <summary>The "People you know" roster (#1118): everyone with a standing, friendliest first.</summary>
+    /// <summary>The "People you know" roster (#1118): everyone with a standing, friendliest first. A villager shows
+    /// their job when it has a name of its own (#2598: "Innkeeper", "Doctor"), else the role.</summary>
     private void HandleRequestKnownNpcs(PlayerSession session)
     {
-        var people = session.State.NpcMemory.Values
-            .Where(r => r.Value != 0 && !string.IsNullOrEmpty(r.Name))
-            .OrderByDescending(r => r.Value)
-            .Take(64)
-            .Select(r => new NetKnownNpc
-            {
-                Name = r.Name,
-                RoleKey = "npc.role." + (string.IsNullOrEmpty(r.Role) ? "vendor" : r.Role),
-                StageKey = NpcStageKey(r.Value),
-                Place = r.Place,
-                Standing = r.Value,
-            })
-            .ToArray();
-        Send(session, new KnownNpcList { People = people });
+        Send(session, new KnownNpcList { People = KnownNpcEntries(session.State) });
         RaiseGameEvent(session, Shared.Story.GameEventKeys.NpcPeople); // #2482: the neighbours course
     }
 

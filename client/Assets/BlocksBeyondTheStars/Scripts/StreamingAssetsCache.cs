@@ -110,6 +110,7 @@ namespace BlocksBeyondTheStars.Client
             "stories/vega_protocol/lore_sites.json",
             "stories/vega_protocol/story.json",
             "structure_kits.json",
+            "village_life.json",
             "whatsnew.json",
             "wiki/articles.json",
             "wiki/img/circuit_airlock.png",

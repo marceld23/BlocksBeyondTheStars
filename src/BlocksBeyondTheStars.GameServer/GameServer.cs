@@ -77,7 +77,8 @@ public sealed partial class GameServer
     private readonly IObjectServerTransport? _objectTransport;
     private readonly IWorldRepository _repo;
     private readonly IGameLogger _log;
-    private readonly IAiMissionProvider _ai;
+    // Not readonly only for the SetAiProviderForTest seam (#2591), which swaps in a fake behind the same screen.
+    private IAiMissionProvider _ai;
 
     private readonly Lazy<CrashReportWriter> _crashWriter;
 
@@ -1137,6 +1138,7 @@ public sealed partial class GameServer
         SendCrystalNet(session); // #2046: the Crystal Net lists of this world
         SendRails(session);      // #2113: the rail lines and trains of this world
         SendBases(session); // player-founded bases on this body (Grundstein markers)
+        MigrateSettlementMemory(session); // #2598: this body's old shared villager entries become people (once)
         BroadcastLandingPads(session); // the arrival claimed a pad — everyone's map must show it (#1020)
         SendContainers(session);
         SendStarMap(session);
@@ -3659,6 +3661,7 @@ public sealed partial class GameServer
             CancelTradesFor(session.State.PlayerId);
             SetCurrent(session);
             SaveFleet(session); // the whole fleet + the fleet index on the state, before it is written below
+            session.State.LastSeenUtc = WallUtcNowIso(); // #2595: "last online" — the next join's welcome-back reads it
             _repo.SavePlayer(session.State);
 
             string loc = session.CurrentLocationId;
@@ -4339,7 +4342,9 @@ public sealed partial class GameServer
         // blueprints into the state (the spawn-system mapping, the Creative grants, the story beat catch-up).
         session.Join = TakeJoinSnapshot(state);
         _sessions[connectionId] = session;
-        state.LastSeenUtc = UtcNowIso(); // "last seen" for the admin player list (issue #488)
+        session.PreviousSeenUtc = state.LastSeenUtc ?? string.Empty; // #2595: when they were last online, before the overwrite
+        state.LastSeenUtc = WallUtcNowIso(); // "last seen" for the admin player list (issue #488)
+        MigrateSettlementMemory(session); // #2598: the join world's old shared villager entries become people (once)
         SetupPlayerShip(session); // give the player their own ship, stamped into their world
         EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
         session.AwaitingSpawnAdopt = true; // #865: drop pre-snap position reports until the client is here
@@ -4739,7 +4744,9 @@ public sealed partial class GameServer
         session.Join = TakeJoinSnapshot(state); // #2460: the arrival state, like the network join path
         _sessions[connectionId] = session;
         session.AnnouncedWorldId = WorldIdOf(joinBody); // #2117: joined on this body, like a JoinAccepted would say
-        state.LastSeenUtc = UtcNowIso();
+        session.PreviousSeenUtc = state.LastSeenUtc ?? string.Empty; // #2595: like the network join, before the overwrite
+        state.LastSeenUtc = WallUtcNowIso();
+        MigrateSettlementMemory(session); // #2598: like the network join
         SetupPlayerShip(session); // local/test players get their own ship too
         EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
         session.AwaitingSpawnAdopt = true; // #865: drop pre-snap position reports until the client is here
@@ -7515,6 +7522,7 @@ public sealed partial class GameServer
                 }
 
                 SaveFleet(session); // each player's own ships; also refreshes the fleet index on their state
+                session.State.LastSeenUtc = WallUtcNowIso(); // #2595: online right now — "last seen" stays current
                 _repo.SavePlayer(session.State);
             }
 

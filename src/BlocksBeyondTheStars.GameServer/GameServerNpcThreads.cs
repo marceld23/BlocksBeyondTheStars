@@ -51,7 +51,7 @@ public sealed partial class GameServer
 
         var p = session.State;
         int knowledge = WorldKnowledgeLevel();
-        int rel = p.NpcMemory.TryGetValue(npcKey, out var r) ? r.Value : 0;
+        int rel = RelationshipValue(p, npcKey); // #2598: a villager without an own entry reads the floor
         int stage = StageRank(RelationshipTier(rel));
 
         foreach (var t in _story.NpcThreads)

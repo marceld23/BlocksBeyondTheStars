@@ -30,6 +30,13 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<BarEntry> _barPool = new List<BarEntry>();
         private int _barUsed;
 
+        // #2605: NPC speech bubbles have their own small pool — wrapped text, growing upward from the anchor, so a long line
+        // no longer runs off as one strip across the nameplate.
+        private const float BubbleWidth = 360f;
+        private const float BubbleLineHeight = 22f;
+        private readonly List<Entry> _bubblePool = new List<Entry>();
+        private int _bubbleUsed;
+
         private sealed class Entry
         {
             public RectTransform Rt;
@@ -150,6 +157,68 @@ namespace BlocksBeyondTheStars.Client
             shadow.a = 0.7f * alpha;
             e.Shadow.color = shadow;
             e.Main.fontStyle = e.Shadow.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
+            e.Rt.gameObject.SetActive(true);
+        }
+
+        /// <summary>
+        /// #2605: pushes an NPC speech bubble anchored to a world position — like <see cref="World"/> (the same per-frame
+        /// contract, distance fade and <paramref name="occludeIn"/> terrain occlusion), but the text wraps at
+        /// <see cref="BubbleWidth"/> and grows UPWARD from the anchor (bottom pivot), so the nameplate under it stays free.
+        /// Its own small pool; shown verbatim (no rich-text tags — the line may come from an AI backend).
+        /// </summary>
+        public void Bubble(Camera cam, Vector3 world, string text, Color color,
+                           float fadeStart = 0f, float fadeEnd = 0f, GameBootstrap occludeIn = null)
+        {
+            if (cam == null || string.IsNullOrEmpty(text) || GameBootstrap.HudHidden)
+            {
+                return;
+            }
+
+            var sp = cam.WorldToScreenPoint(world);
+            if (sp.z <= 0f)
+            {
+                return; // behind the camera
+            }
+
+            float alpha = 1f;
+            if (fadeEnd > 0f)
+            {
+                float dist = Vector3.Distance(cam.transform.position, world);
+                if (dist >= fadeEnd)
+                {
+                    return;
+                }
+
+                if (dist > fadeStart && fadeEnd > fadeStart)
+                {
+                    alpha = 1f - (dist - fadeStart) / (fadeEnd - fadeStart);
+                }
+            }
+
+            if (occludeIn != null)
+            {
+                alpha *= Visibility(occludeIn, cam.transform.position, world);
+                if (alpha <= 0.001f)
+                {
+                    return; // behind a hill or a wall (#2531)
+                }
+            }
+
+            BeginFrameIfNeeded();
+            var e = AcquireBubble();
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, new Vector2(sp.x, sp.y), null, out var local);
+            e.Rt.anchoredPosition = local;
+            if (!ReferenceEquals(e.Main.text, text))
+            {
+                e.Main.text = e.Shadow.text = text;
+            }
+
+            var main = color;
+            main.a *= alpha;
+            e.Main.color = main;
+            var shadow = e.Shadow.color;
+            shadow.a = 0.7f * alpha;
+            e.Shadow.color = shadow;
             e.Rt.gameObject.SetActive(true);
         }
 
@@ -337,6 +406,39 @@ namespace BlocksBeyondTheStars.Client
             _frame = Time.frameCount;
             _used = 0;
             _barUsed = 0;
+            _bubbleUsed = 0;
+        }
+
+        /// <summary>#2605: a pooled speech bubble — <see cref="BubbleWidth"/> wide, pivot at its bottom centre; the wrapped
+        /// lines sit on the bottom edge and overflow upward.</summary>
+        private Entry AcquireBubble()
+        {
+            if (_bubbleUsed < _bubblePool.Count)
+            {
+                return _bubblePool[_bubbleUsed++];
+            }
+
+            var go = new GameObject("SpeechBubble", typeof(RectTransform));
+            go.transform.SetParent(_root, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0f);
+            rt.sizeDelta = new Vector2(BubbleWidth, BubbleLineHeight);
+
+            var shadow = MakeText(rt, new Vector2(1f, -1f), new Color(0f, 0f, 0f, 0.7f));
+            var main = MakeText(rt, Vector2.zero, UiKit.TextCol);
+            foreach (var t in new[] { shadow, main })
+            {
+                t.alignment = TextAnchor.LowerCenter;
+                t.horizontalOverflow = HorizontalWrapMode.Wrap;
+                t.verticalOverflow = VerticalWrapMode.Overflow;
+                t.supportRichText = false; // the line may come from an AI backend — shown verbatim
+            }
+
+            var e = new Entry { Rt = rt, Main = main, Shadow = shadow };
+            _bubblePool.Add(e);
+            _bubbleUsed++;
+            return e;
         }
 
         private Entry Acquire()
@@ -441,8 +543,17 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
+                for (int i = _bubbleUsed; i < _bubblePool.Count; i++)
+                {
+                    if (_bubblePool[i].Rt.gameObject.activeSelf)
+                    {
+                        _bubblePool[i].Rt.gameObject.SetActive(false);
+                    }
+                }
+
                 _used = 0; // next producer call starts a fresh frame
                 _barUsed = 0;
+                _bubbleUsed = 0;
             }
         }
     }

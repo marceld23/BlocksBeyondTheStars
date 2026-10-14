@@ -635,6 +635,38 @@ namespace BlocksBeyondTheStars.Client
             src.Play();
         }
 
+        /// <summary>#2592: plays the clip <paramref name="id"/> on a CALLER-OWNED positional source — the NPC voices keep their
+        /// own babble/reaction channels so the voice budget can fade and cut them (a pooled one-shot has no handle). Same
+        /// spatial setup, SFX volume and underwater muffle as <see cref="AtClip"/>. Returns the clip's length in seconds
+        /// (0 = no such clip, nothing played).</summary>
+        public float PlayVoiceOn(AudioSource src, string id, Vector3 pos, float pitch, float vol)
+        {
+            if (src == null || !_clips.TryGetValue(id, out var clip) || clip == null)
+            {
+                return 0f;
+            }
+
+            if (_submerged)
+            {
+                clip = SampleKit.Muffle(clip);
+            }
+
+            src.transform.position = pos;
+            src.clip = clip;
+            src.spatialBlend = 1f;
+            src.minDistance = 4f;
+            src.maxDistance = 20f;
+            src.rolloffMode = AudioRolloffMode.Linear;
+            src.pitch = pitch;
+            src.volume = Mathf.Clamp01(vol * SfxVol());
+            src.Play();
+            return clip.length;
+        }
+
+        /// <summary>#2592: master × SFX — the level a caller-owned voice channel scales by when it changes its volume live
+        /// (the NPC babble ducking under VEGA).</summary>
+        public float SfxLevel => SfxVol();
+
         private readonly List<AudioSource> _sfxPool = new List<AudioSource>();
         private int _sfxPoolNext;
         private const int SfxPoolMax = 24;

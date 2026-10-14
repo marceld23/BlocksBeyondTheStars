@@ -253,6 +253,8 @@ namespace BlocksBeyondTheStars.Client
 
         // Research toast (#763): "New research available!" with the blueprint's icon, top-centre under
         // the IN SPACE/observer lines. One toast at a time; further keys wait in Game.ResearchAvailable.
+        // #2597: the slot celebrates achievements too (Game.AchievementsUnlocked, after any waiting research) — gold glow,
+        // a star, 4 s, the success sound as it appears.
         private GameObject _researchGo;
         private RectTransform _researchRect;
         private CanvasGroup _researchFade;
@@ -263,6 +265,10 @@ namespace BlocksBeyondTheStars.Client
         private float _researchAge = -1f; // <0 = idle, no toast up
         private const float ResearchW = 480f, ResearchH = 86f, ResearchY = 64f;
         private const float ResearchPop = 0.25f, ResearchHold = 3.0f, ResearchFade = 0.5f;
+        private const float AchievementHold = 4.0f;
+        private float _toastHoldNow = ResearchHold;                   // the hold of the toast that is up
+        private Color _toastGlow = new Color(0.4f, 0.82f, 1f);        // its glow: research cyan, achievement gold
+        private static readonly Color AchievementGold = new Color(1f, 0.82f, 0.3f);
 
         // Perf: the text-heavy HUD refresh runs at ~10 Hz, not every frame — rebuilding dozens of strings
         // per frame is pure GC churn and the readouts (vitals, clock, prompts) don't change faster than
@@ -2791,9 +2797,10 @@ namespace BlocksBeyondTheStars.Client
 
         // --- research toast (#763) ---
 
-        /// <summary>Drives the "new research available" toast: pops the next queued blueprint when idle
-        /// and the HUD is visible, animates the pop/glow/shine, then fades out. Queued keys survive
-        /// menus and flight — the announcement is rare enough to arrive late rather than be dropped.</summary>
+        /// <summary>Drives the HUD's celebration slot — the "new research available" toast (#763) and, #2597, the achievement
+        /// banner: pops the next queued item when idle and the HUD is visible (research first, then achievements; nothing
+        /// starts while a cutscene plays), animates the pop/glow/shine, then fades out. Queued keys survive menus and
+        /// flight — the announcement is rare enough to arrive late rather than be dropped.</summary>
         private void UpdateResearchToast(float dt)
         {
             if (_researchAge >= 0f && _researchGo == null)
@@ -2803,31 +2810,40 @@ namespace BlocksBeyondTheStars.Client
 
             if (_researchAge < 0f)
             {
-                if (Game.ResearchAvailable.Count == 0 || _canvas == null || !_canvas.enabled)
+                bool cutscene = GameBootstrap.CutsceneActive || (CutsceneDirector.Instance != null && CutsceneDirector.Instance.Playing);
+                if ((Game.ResearchAvailable.Count == 0 && Game.AchievementsUnlocked.Count == 0)
+                    || _canvas == null || !_canvas.enabled || cutscene)
                 {
                     return;
                 }
 
-                StartResearchToast(Game.ResearchAvailable.Dequeue());
+                if (Game.ResearchAvailable.Count > 0)
+                {
+                    StartResearchToast(Game.ResearchAvailable.Dequeue());
+                }
+                else
+                {
+                    StartAchievementToast(Game.AchievementsUnlocked.Dequeue());
+                }
             }
 
             _researchAge += dt;
-            if (_researchAge >= ResearchHold + ResearchFade)
+            if (_researchAge >= _toastHoldNow + ResearchFade)
             {
                 _researchAge = -1f;
                 _researchGo.SetActive(false);
                 return;
             }
 
-            float alpha = _researchAge >= ResearchHold
-                ? 1f - (_researchAge - ResearchHold) / ResearchFade
+            float alpha = _researchAge >= _toastHoldNow
+                ? 1f - (_researchAge - _toastHoldNow) / ResearchFade
                 : (UiKit.ReducedMotion ? Mathf.Clamp01(_researchAge / 0.2f) : 1f);
             _researchFade.alpha = alpha;
 
             if (UiKit.ReducedMotion)
             {
                 _researchRect.localScale = Vector3.one;
-                _researchGlow.color = new Color(0.4f, 0.82f, 1f, 0.22f * alpha);
+                _researchGlow.color = new Color(_toastGlow.r, _toastGlow.g, _toastGlow.b, 0.22f * alpha);
                 _researchShine.gameObject.SetActive(false);
                 return;
             }
@@ -2838,7 +2854,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Soft glow pulsing behind the icon for the toast's whole life.
             float pulse = Mathf.Sin(_researchAge * 4.2f) * 0.5f + 0.5f;
-            _researchGlow.color = new Color(0.4f, 0.82f, 1f, (0.14f + pulse * 0.24f) * alpha);
+            _researchGlow.color = new Color(_toastGlow.r, _toastGlow.g, _toastGlow.b, (0.14f + pulse * 0.24f) * alpha);
             float gs = 1f + pulse * 0.18f;
             _researchGlow.rectTransform.localScale = new Vector3(gs, gs, 1f);
 
@@ -2861,12 +2877,48 @@ namespace BlocksBeyondTheStars.Client
             var loc = Game.Localizer;
             _researchHead.text = loc.Get("ui.tech.research_available").ToUpperInvariant();
             _researchName.text = loc.Get($"blueprint.{bpKey}.name");
+            _researchHead.color = UiKit.CyanDim; // #2597: the slot is shared — research keeps its cyan
+            _researchName.color = UiKit.Cyan;
+            _researchIcon.enabled = true;
             SetBlueprintIcon(_researchIcon, bpKey);
+            _toastHoldNow = ResearchHold;
+            _toastGlow = new Color(0.4f, 0.82f, 1f);
             _researchGo.SetActive(true);
             _researchAge = 0f;
             _researchFade.alpha = UiKit.ReducedMotion ? 0f : 1f;
             _researchRect.localScale = UiKit.ReducedMotion ? Vector3.one : Vector3.one * 0.75f;
             ClientAudio.Instance?.Cue("research_available", 0.9f);
+        }
+
+        /// <summary>#2597: fills and shows the celebration banner for one unlocked achievement — "ACHIEVEMENT UNLOCKED!", its
+        /// name, a gold star with a gold glow, held 4 s — and plays the success sound as it appears (it replaced the status
+        /// line and the sound at the unlock). Never shows a raw key: a nameless achievement reads as "Achievements".</summary>
+        private void StartAchievementToast(string key)
+        {
+            EnsureResearchToast();
+            var loc = Game.Localizer;
+            _researchHead.text = loc.Get("ui.achv.banner").ToUpperInvariant();
+            string nameKey = $"achv.{key}.name";
+            string name = loc.Get(nameKey);
+            _researchName.text = string.IsNullOrEmpty(name) || name == nameKey ? loc.Get("ui.achv.title") : name;
+            _researchHead.color = new Color(AchievementGold.r * 0.85f, AchievementGold.g * 0.85f, AchievementGold.b * 0.85f);
+            _researchName.color = AchievementGold;
+            var star = UiKit.Icon("map_mark_star");
+            _researchIcon.enabled = star != null;
+            if (star != null)
+            {
+                _researchIcon.texture = star.texture;
+                _researchIcon.uvRect = new Rect(0, 0, 1, 1);
+                _researchIcon.color = AchievementGold;
+            }
+
+            _toastHoldNow = AchievementHold;
+            _toastGlow = AchievementGold;
+            _researchGo.SetActive(true);
+            _researchAge = 0f;
+            _researchFade.alpha = UiKit.ReducedMotion ? 0f : 1f;
+            _researchRect.localScale = UiKit.ReducedMotion ? Vector3.one : Vector3.one * 0.75f;
+            ClientAudio.Instance?.Cue("ui_success", 0.9f);
         }
 
         /// <summary>Builds the toast hierarchy once: panel + glow disc + icon + two text lines + the

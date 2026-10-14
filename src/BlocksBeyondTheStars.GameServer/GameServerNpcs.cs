@@ -60,6 +60,11 @@ public sealed partial class GameServer
         public string Settlement = string.Empty; // name of the settlement this NPC belongs to (memory/greeting key)
         public int BaseId; // the founded base this settler belongs to (#1262) — its rename-proof memory key; 0 = none
         public string CharacterId = string.Empty; // authored story character occupying this slot (#1128), "" = none
+
+        /// <summary>#2598: this villager's own memory key, <c>settle_&lt;hash&gt;#&lt;slot&gt;:&lt;role&gt;</c> (the slot is
+        /// their bed or post cell in the settlement layout) — friendship is per PERSON. "" = the NPC keeps the shared role
+        /// key (the classic vendor and the quartermaster, guardians, station crew, base residents).</summary>
+        public string PersonKey = string.Empty;
         public string NameKey = string.Empty;
         public string Name = string.Empty; // coined personal name (item 12)
         public Vector3f Home;
@@ -719,6 +724,7 @@ public sealed partial class GameServer
     private void SendNpcs(PlayerSession session)
     {
         Send(session, new NpcList { Npcs = NpcsInReachOf(session) });
+        MigrateSettlementMemory(session); // #2598: old shared villager entries become people (once per settlement)
         SendNpcStandings(session); // #1118: the receiver's relationship stages for these NPCs
     }
 

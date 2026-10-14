@@ -445,6 +445,23 @@ public sealed class GameContent
         _spaceSalvageFromData = salvage is not null;
     }
 
+    /// <summary>"The village lives" (epic #2589) from <c>data/village_life.json</c>: friend presents, villager chatter, the
+    /// festival. Empty sections when the file (or a section) is absent — that part of village life simply does nothing.</summary>
+    public VillageLifeDefinition VillageLife { get; private set; } = new();
+
+    /// <summary>Installs the village-life data (called by the content loader); null keeps the empty defaults. Null lists
+    /// from a hand-edited file become empty ones so no reader has to guard against them.</summary>
+    public void SetVillageLife(VillageLifeDefinition? villageLife)
+    {
+        var v = villageLife ?? new VillageLifeDefinition();
+        v.Chatter ??= new List<VillageChatterTopic>();
+        v.FriendGifts ??= new List<ItemAmount>();
+        v.Festival ??= new VillageFestivalDefinition();
+        v.Festival.Gift ??= new List<ItemAmount>();
+        v.Festival.Cheers ??= new List<string>();
+        VillageLife = v;
+    }
+
     private IReadOnlyList<DialogDefinition> _dialogs = new List<DialogDefinition>();
 
     /// <summary>Engine NPC dialogues (#1127) in authored order — empty when <c>data/dialogs.json</c> is
@@ -1508,6 +1525,22 @@ public sealed class GameContent
                         problems.Add($"Dialogue '{dialog.Key}' hands out unknown mission '{parts[1]}'.");
                     }
                 }
+            }
+        }
+
+        // #2598: a villager friend's presents name real items in a sane amount — a typo would hand out nothing.
+        foreach (var gift in VillageLife.FriendGifts)
+        {
+            if (gift is null || string.IsNullOrEmpty(gift.Item))
+            {
+                problems.Add("Village life: a friend gift without an item.");
+                continue;
+            }
+
+            RequireItem("Village life friend gift", gift.Item);
+            if (gift.Count < 1)
+            {
+                problems.Add($"Village life friend gift '{gift.Item}' has a count below 1 ({gift.Count}).");
             }
         }
 

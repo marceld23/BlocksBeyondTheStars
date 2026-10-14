@@ -80,8 +80,14 @@ public sealed partial class GameServer
     private DialogDefinition? PickDialog(PlayerSession session, ServerNpc npc, string npcKey)
     {
         var p = session.State;
-        int rel = p.NpcMemory.TryGetValue(npcKey, out var r) ? r.Value : 0;
+        int rel = RelationshipValue(p, npcKey); // #2598: a villager without an own entry reads the floor
         int stage = StageRank(RelationshipTier(rel));
+
+        // #2598: a villager friend first hands over a little present (at most every half hour of playtime).
+        if (FriendGiftDue(session, npc, npcKey) && FriendGiftDialog() is { Nodes.Count: > 0 } friendGift)
+        {
+            return friendGift;
+        }
 
         foreach (var d in AllDialogs())
         {
@@ -126,7 +132,8 @@ public sealed partial class GameServer
         if (npc.Pose == 2)
         {
             // #1867: someone asleep in bed mumbles and stays there — no dialogue, no job talk at midnight.
-            Send(session, new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, Text = Localize(session.Locale, "npc.greet.sleepy") });
+            // #2593: a bubble of its own (id) — the client mumbles it lower and quieter.
+            Send(session, new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, Text = Localize(session.Locale, "npc.greet.sleepy"), GreetingId = NextGreetingId() });
             return;
         }
 
@@ -136,6 +143,7 @@ public sealed partial class GameServer
         if (dialog is null)
         {
             EmitGreeting(session, npc); // nothing to decide — the familiar over-head line
+            StampNpcSeen(session.State, npcKey); // #2595: AFTER the greeting — a welcome-back check reads the old stamp
             return;
         }
 
@@ -149,6 +157,7 @@ public sealed partial class GameServer
             Choices = node.Choices.Select(c => Localize(session.Locale, c.TextKey)).ToArray(),
             End = node.Choices.Count == 0,
         });
+        StampNpcSeen(session.State, npcKey); // #2595: an acquaintance saw the player now (existing entries only)
     }
 
     /// <summary>The player picks a reply. The server owns the walk: validate against ITS node, record the
@@ -186,6 +195,7 @@ public sealed partial class GameServer
         p.Milestones.Add(DialogFlagMilestonePrefix + active.Dialog.Key + ":" + active.Node + ":" + intent.ChoiceIndex);
         _dialogAction = string.Empty;
         _dialogExtraText = string.Empty;
+        _dialogResponseOverride = string.Empty;
         ApplyDialogConsequence(session, npc, npcKey, choice.Consequence, paysReward);
         RaiseGameEvent(session, GameEventKeys.NpcAnswered, npc.Role); // #2482: the neighbours course
 
@@ -212,7 +222,8 @@ public sealed partial class GameServer
             {
                 NpcId = npc.Id,
                 Name = npc.Name,
-                Text = Localize(session.Locale, choice.ResponseKey) + _dialogExtraText,
+                Text = (_dialogResponseOverride.Length > 0 ? _dialogResponseOverride : Localize(session.Locale, choice.ResponseKey))
+                    + _dialogExtraText, // #2598: a consequence may replace the authored answer (a present that doesn't fit)
                 End = true,
                 Action = _dialogAction,
             });
@@ -241,7 +252,10 @@ public sealed partial class GameServer
             return false;
         }
 
-        session.DialogRewardCooldownUntil[key] = _uptime + DialogRewardCooldownSeconds;
+        // #2598: talking to a PERSON pays every 10 minutes (a child gets to "known" in one session); the shared role
+        // keys of the stall and the board keep their hour.
+        session.DialogRewardCooldownUntil[key] = _uptime
+            + (IsPersonKey(npcKey) ? PersonDialogRewardCooldownSeconds : DialogRewardCooldownSeconds);
         return true;
     }
 
@@ -263,11 +277,11 @@ public sealed partial class GameServer
                 break; // on reward cooldown (#1162)
 
             case "standing" when parts.Length >= 2 && int.TryParse(parts[1], out int bump):
-                if (session.State.NpcMemory.TryGetValue(npcKey, out var rel))
-                {
-                    rel.Value = Math.Clamp(rel.Value + bump, -100, 100);
-                }
+                AddStanding(session.State, npcKey, bump, "dialog"); // #2598: a villager's new entry starts at the floor
+                break;
 
+            case FriendGiftConsequence:
+                GiveFriendGift(session, npcKey); // #2598: a friend's present (a full bag keeps it for next time)
                 break;
 
             case "fragment" when parts.Length >= 2 && StoryActive && _story is not null:

@@ -74,6 +74,7 @@ public sealed partial class GameServer
         int count = System.Math.Max(System.Math.Min(beds.Count, ResidentCap(settlement.Tier)), services);
         var freeBeds = new List<Vector3i>(beds);
         int seatCursor = 0;
+        int bedlessResidents = 0; // #2598: the fallback slot ordinal of a resident with neither post nor bed
 
         for (int i = 0; i < count; i++)
         {
@@ -118,6 +119,8 @@ public sealed partial class GameServer
                 npc.Name = CoinGiverName(settlement.Name); // the mission-giver's name matches its missions (item 13)
             }
 
+            // #2598: the villager's own memory key, from their place in the layout (post cell, else bed cell).
+            npc.PersonKey = SettlementPersonKey(settlement, npc, hasPost ? posts[i].Pos : null, bed, ref bedlessResidents);
             ApplyAuthoredCharacter(npc, "settlement", settlement.Name); // #1128: a pack face may claim this slot
             npc.RoutineEnabled = true; // #1867: villagers keep a daily routine
             _npcs.Add(npc);

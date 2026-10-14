@@ -67,6 +67,8 @@ public sealed partial class GameServer
             npc.Bed = TakeNearestBed(freeBeds, standing);
             npc.FurnitureScanned = true;
             npc.Seat = EveningSeatFor(settlement, seats, ref seatCursor, npc.Bed); // a free one only (#2122)
+            int noFallback = 0; // a profession always has its post marker — the fallback ordinal is never used
+            npc.PersonKey = SettlementPersonKey(settlement, npc, pos, npc.Bed, ref noFallback); // #2598: <job>@<post cell>
 
             npc.RoutineEnabled = true;
             _npcs.Add(npc);
@@ -255,7 +257,17 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                Send(s, new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, Text = Localize(s.Locale, "npc.streamer.ask") });
+                // #2593: the streamer calls out to a player walking by — a passing line with a wave, not an addressed one.
+                Send(s, new NpcGreeting
+                {
+                    NpcId = npc.Id,
+                    Name = npc.Name,
+                    Role = npc.Role,
+                    Text = Localize(s.Locale, "npc.streamer.ask"),
+                    GreetingId = NextGreetingId(),
+                    Kind = NpcGreetingKinds.Passing,
+                    Gesture = NpcGestures.Wave,
+                });
             }
         }
     }

@@ -1,8 +1,13 @@
 # AI Backend — Decision
 
 Covers the optional AI mission system and the LLM text endpoints: mission plans (L0), NPC greetings
-(L1/L2), board-mission texts (L3) and ship-AI (VEGA) banter. Endpoint details live in
-[ai-backend/README.md](../../ai-backend/README.md).
+(L1/L2), board-mission texts (L3), ship-AI (VEGA) banter and the shared **`/npc-lines`** path every new
+NPC/VEGA line uses (#2591). Endpoint details live in [ai-backend/README.md](../../ai-backend/README.md).
+
+> **2026-10 (#2590/#2591):** cached AI lines name the player only as the placeholder `{player}` (filled per
+> receiver — a cached greeting used to greet every other player with the first player's name), keep up to three
+> variants per key in a bounded cache, and the prompts are kid-friendly. New lines go through `/npc-lines` with
+> placeholder tokens, server-side validation and a per-world budget — see the last two sections.
 
 > **Status (2026-06-19):** **all LLM stages SHIPPED** — L1 (NPC greetings, 2026-06-10), then L0 (real LLM
 > behind `/mission-plan`), L2 (persona + relationship memory in the prompt), L3 (`/mission-text` board
@@ -26,13 +31,15 @@ Covers the optional AI mission system and the LLM text endpoints: mission plans 
 | Level | Behaviour |
 |---|---|
 | `Off` | Server never contacts the backend (default). |
-| `TextOnly` | (Reserved) AI only writes text for existing missions; no full generation. |
+| `TextOnly` | AI only writes **text** (greetings, banter, board texts, `/npc-lines` wording); no full mission generation. The hosted worlds run this. |
 | `Suggest` | Valid AI missions are stored as **inactive drafts** for admin review. |
 | `Auto` | Valid AI missions are **published** immediately. |
 
 Any level **other than `Off`** also lets the server fetch the flavour-text endpoints: **NPC greetings**
-(`/npc-line`), **ship-AI (VEGA) banter** (same endpoint, role `ship_ai`) and **board-mission texts**
-(`/mission-text` — Title/Description written around the FIXED server-coined job; objective/reward untouched).
+(`/npc-line`), **ship-AI (VEGA) banter** (same endpoint, role `ship_ai`), **board-mission texts**
+(`/mission-text` — Title/Description written around the FIXED server-coined job; objective/reward untouched) and
+the **`/npc-lines`** wording of new NPC/VEGA lines. AI-proposed **content** (not just wording — e.g. a wish's item
+picked from a whitelist) stays reserved for `Suggest`/`Auto`, like full missions.
 
 ## Flow
 
@@ -67,9 +74,96 @@ Flow (server side, `GameServerNpcGreeting.cs`):
 1. The player opens an interaction — a vendor's market (client `NpcGreetIntent`) or a mission board
    (server-side in `SendMissionList`). The server picks the nearest in-reach NPC of that role (proximity-gated).
 2. It builds context from the **player↔NPC relationship memory** (score + tier + past visits), the NPC
-   (name/role/theme/android), the settlement, and the player's **locale**, then asks the backend.
+   (name/role/job/theme/android), the settlement, and the player's **locale**, then asks the backend.
+   **`PlayerName` is always the placeholder `{player}`** (#2590) — never the real name.
 3. Generation runs **off the game thread** (never blocks the tick) and the line is **cached** by
-   `npcKey|locale|relationship-tier`; a 25 s per-NPC cooldown stops re-open spam.
-4. The line is sent as an `NpcGreeting` and shown as a **speech bubble** over the NPC. When `AiLevel = Off` or
+   `npcKey|locale|relationship-tier` — a key without the player, so it is shared by everyone at that NPC,
+   standing and language. That is exactly why the line may only hold the `{player}` token: the server fills in
+   the **receiving** player's own (join-screened) name at both send sites — the instant cached line and the late
+   off-thread upgrade drained by `TickGreetings`. A backend answer with any other placeholder or a stray brace is
+   dropped. A 25 s per-NPC cooldown stops re-open spam.
+4. **Variants (#2590):** each key holds up to **three** lines, one picked at random per greeting; while fewer than
+   three exist, a cache hit asks for one more in the background 30 % of the time, so an NPC no longer says the
+   same sentence forever. The cache is **bounded** (2048 keys, first-in-first-out). Misses and top-ups draw on the
+   world's AI line budget (below) — a miss as `PlayerInitiated`, a top-up as `Personal`.
+5. The line is sent as an `NpcGreeting` and shown as a **speech bubble** over the NPC. When `AiLevel = Off` or
    the backend is unreachable the server sends an empty line and the **client renders a localized static
    fallback** (`npc.greet.*`, DE+EN), so greetings always appear. Greetings are flavour only — never gameplay.
+
+The prompts are **kid-friendly** like `/mission-text` (played by families and kids; bandits are chased off, never
+hurt; no fear, romance or violence). The backend's no-model template only exists for the vendor and the
+quartermaster — every other role gets `""`, so the client shows its own line instead of a merchant's "Care to
+trade?". `Job` (gardener, guard, a profession such as doctor …) lets the prompt describe a settler by what they
+do. VEGA banter uses the same token rule (its cache is per world/day-phase/locale).
+
+## `/npc-lines` — one AI path for every new line (#2591)
+
+Every new NPC/VEGA line of the village-life package (passing hellos, welcome-backs, villager chatter, friend
+gifts, wishes, guests, traders, festival cheers, deed news, VEGA welcome/news/praise) uses ONE endpoint and ONE
+server helper, `GameServerAiLines.cs`. The rule never changes: **the authored, localized line is always there and
+shown at once; AI only re-words it, and only when the re-worded line is already cached.**
+
+**Contract.** `POST /npc-lines` with `NpcLinesRequest { Purpose, Language, Place, Theme, Stage, AwayDays,
+Situation, Speakers[{Token, Role, Job, Persona, IsRobot}], TopicHint, Facts[], Tokens[], Authored[], LineCount,
+MaxChars }` (PascalCase) → `{ "Lines": [...] }`. Purposes are listed in `NpcLinePurposes` (C#) and
+`_PURPOSE_DESC` (backend). No model → `[]`; an older backend → 404; both are `null` from
+`IAiMissionProvider.GenerateNpcLines` and the authored line stays. `GenerateNpcLines` is declared explicitly on
+the interface (no default interface member — the GameServer also builds for `netstandard2.1`).
+
+**Placeholder tokens.** Exact facts never reach the model as values: names, numbers, items and places travel as
+tokens (`{player} {a} {b} {npc} {place} {trader} {item} {count} {thing} {0} {1}` — `AiLineTokens`). `Facts` are
+written with tokens too ("{player} chased the bandits out of their camp near {place}"). The server fills them per
+**receiving** player (`FillAiLine`: `{player}` = their own name, the rest from the caller's values), so one
+generated line serves every player of that language. A token without a value or a leftover brace → the authored
+line. Filled values are never scanned again (a player called "{a}" cannot inject a token).
+
+**Validation** (`AiLineText.Validate`, pure and unit-tested) — any failure drops the WHOLE answer:
+exactly `LineCount` lines, none empty (whitespace collapsed, wrapping quotes trimmed); only allowed tokens
+(`Tokens` + every speaker's token) and no stray/nested brace; no digit outside a token; a line longer than
+`MaxChars + 16` is cut at a word boundary to `MaxChars` with "…" (a hard cut for space-less scripts never splits a
+token); every required token appears at least once in the set (after cutting). Then the content screen
+(`ScreenedAiTextProvider` — one refused line drops the set).
+
+**Cache keys** never contain a player id or name: `purpose|subject|p{personaIndex}|locale|stage`
+(`AiLineCacheKey`; subject = topic, wish template, guest kind, achievement category …; `PersonaIndexFor` gives
+the voice). Up to three validated variants per key, 4096 keys, first-in-first-out.
+
+**Budget per world** (`AiLineBudget`, shared with the `/npc-line` greetings): a token bucket of 6 refilled at
+`aiLinesPerMinute` (default 4, env `BBS_AI_LINES_PER_MINUTE`, 0 = no AI lines), at most **2 requests in flight**,
+one token per request. A priority may only take a token when its reserve stays in the bucket afterwards:
+
+| Priority | Used for | Reserve |
+|---|---|---|
+| `PlayerInitiated` | E-greeting, wish dialog, dialog opening | 0 |
+| `Personal` | hello, welcome back, friend gift, thanks | 1 |
+| `Vega` | VEGA welcome / news / praise | 1 |
+| `News` | deed headlines | 2 |
+| `Chatter` | villagers talking, festival cheers | 3 |
+
+A refused request is simply not made (no queue). Strangers never get AI hellos (a caller rule — cost). Worst
+case ≈ 240 lines per hour per world.
+
+**Delivery.** Speech bubbles may be upgraded up to ~5 s later with the same `GreetingId`; dialog windows and VEGA
+lines are never swapped after they appeared (callers prefetch instead: `RequestAiLines` when the moment is near,
+`CachedAiLines` when it happens).
+
+**Using it from server code** (game thread):
+
+```csharp
+string key = AiLineCacheKey(NpcLinePurposes.PassingHello, job, PersonaIndexFor(personKey, npc.IsRobot, npc.Role),
+                            session.Locale, stage);
+string[]? ai = AiLinesFor(key, AiLinePriority.Personal, () => new NpcLinesRequest
+{
+    Purpose = NpcLinePurposes.PassingHello, Language = session.Locale, Stage = stage, LineCount = 1, MaxChars = 90,
+    Speakers = { new NpcLinesSpeaker { Role = npc.Role, Job = npc.Job, IsRobot = npc.IsRobot,
+                                       Persona = PersonaFor(personKey, npc.Theme, npc.IsRobot, npc.Role) } },
+    Tokens = { AiLineTokens.Player }, Authored = { authoredLineWithTokens },
+}, requiredTokens: new[] { AiLineTokens.Player });
+string text = ai is { } lines && FillAiLine(lines[0], session) is { } filled ? filled : authoredLine;
+```
+
+`AiLinesFor` returns a cached variant (or null) and, on a miss, starts one background request; on a hit with fewer
+than three variants it asks for another 30 % of the time, one priority step lower. Test seams:
+`SetAiProviderForTest`, `RunAiLinesSynchronouslyForTest`, `SetAiVariantRollForTest`, `RequestAiLinesForTest`,
+`AiLinesForTest`, `AiLinesCacheForTest`, `FillAiLineForTest`, `AiLineTokensForTest`, `AiLinesInFlightForTest`
+(see `NpcAiLineTests`).

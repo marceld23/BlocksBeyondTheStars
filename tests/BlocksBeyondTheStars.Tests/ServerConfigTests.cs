@@ -340,6 +340,7 @@ public sealed class ServerConfigTests
             ["BBS_SHIP_WEAPONS"] = "All",
             ["BBS_SPACE_NPCS"] = "Normal",
             ["BBS_AI_LEVEL"] = "Suggest",
+            ["BBS_AI_LINES_PER_MINUTE"] = "2.5",
             ["BBS_DATABASE_PROVIDER"] = "postgresql",
             ["BBS_POSTGRES_CONNECTION_STRING"] = "Host=db;Database=bbs;Username=bbs;Password=secret",
         };
@@ -362,12 +363,14 @@ public sealed class ServerConfigTests
             Assert.Equal(ShipWeaponMode.All, config.Rules.ShipWeapons);
             Assert.Equal(AlienActivity.Normal, config.Rules.SpaceNpcEnemies);
             Assert.Equal(AiLevel.Suggest, config.AiLevel);
+            Assert.Equal(2.5, config.AiLinesPerMinute); // #2591: the per-world AI line budget
             Assert.Equal("postgresql", config.DatabaseProvider);
             Assert.Equal("Host=db;Database=bbs;Username=bbs;Password=secret", config.PostgresConnectionString);
             Assert.Contains("BBS_PORT", applied);
             Assert.Contains("BBS_ADMIN_BIND", applied);
             Assert.Contains("BBS_FREE_FLIGHT", applied);
             Assert.Contains("BBS_AI_LEVEL", applied);
+            Assert.Contains("BBS_AI_LINES_PER_MINUTE", applied);
         });
     }
 

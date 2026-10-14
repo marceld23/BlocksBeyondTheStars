@@ -180,6 +180,12 @@ public sealed class ServerConfig
     /// (BBTS_AI_TIMEOUT, default 30 s) so the backend's template fallback beats this deadline.</summary>
     public int AiTimeoutSeconds { get; set; } = 35;
 
+    /// <summary>#2591: how many AI-personalised NPC/VEGA lines this world may request per minute (the refill rate of
+    /// a token bucket that holds at most 6; at most 2 requests run at once). Every line has an authored fallback, so
+    /// a spent budget only means "the written line this time". 0 = no AI-personalised lines at all. Env
+    /// <c>BBS_AI_LINES_PER_MINUTE</c>. Only read while <see cref="AiLevel"/> is not Off.</summary>
+    public double AiLinesPerMinute { get; set; } = 4.0;
+
     /// <summary>Maximum time (seconds) to wait for the client to report one stage of an automatic landed-ship
     /// transit (#1614) — the take-off, or the warp into another system — as played before the server moves the
     /// transit on by itself. Each stage gets the full time.</summary>
@@ -916,6 +922,7 @@ public sealed class ServerConfig
         if (Env("BBS_AI_LEVEL") is { } aiStr && Enum.TryParse<AiLevel>(aiStr, ignoreCase: true, out var ai)) { AiLevel = ai; applied.Add("BBS_AI_LEVEL"); }
         if (Env("BBS_AI_BACKEND_URL") is { } aiUrl) { AiBackendUrl = aiUrl; applied.Add("BBS_AI_BACKEND_URL"); }
         if (Env("BBS_AI_TIMEOUT_SECONDS") is { } aiToStr && int.TryParse(aiToStr, out var aiTo) && aiTo > 0) { AiTimeoutSeconds = aiTo; applied.Add("BBS_AI_TIMEOUT_SECONDS"); }
+        if (Env("BBS_AI_LINES_PER_MINUTE") is { } aiLpmStr && double.TryParse(aiLpmStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var aiLpm) && aiLpm >= 0 && !double.IsInfinity(aiLpm)) { AiLinesPerMinute = aiLpm; applied.Add("BBS_AI_LINES_PER_MINUTE"); }
         if (Env("BBS_CRASH_REPORT_ENDPOINT") is { } crashUrl) { CrashReportEndpoint = crashUrl; applied.Add("BBS_CRASH_REPORT_ENDPOINT"); }
         if (Env("BBS_CRASH_REPORT_KEY") is { } crashKey) { CrashReportApiKey = crashKey; applied.Add("BBS_CRASH_REPORT_KEY"); }
         if (Env("BBS_NOTIFY_URL") is { } notifyUrl) { NotifyUrl = notifyUrl; applied.Add("BBS_NOTIFY_URL"); }

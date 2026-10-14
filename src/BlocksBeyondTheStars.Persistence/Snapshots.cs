@@ -451,6 +451,8 @@ public static class StateMapper
                 Place = rel.Place,
                 Value = rel.Value,
                 Log = rel.Log.Select(i => new NpcInteraction { Kind = i.Kind }).ToList(),
+                LastSeenUtc = rel.LastSeenUtc ?? string.Empty, // #2595 — every field by hand, or the save drops it
+                LastGiftAt = rel.LastGiftAt,                    // #2598
             };
         }
 

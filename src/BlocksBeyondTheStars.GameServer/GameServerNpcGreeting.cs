@@ -28,15 +28,43 @@ public sealed partial class GameServer
     /// <summary>Greetings produced off-thread, waiting to be sent on the next tick (connection id + message).</summary>
     private readonly ConcurrentQueue<(int ConnectionId, NpcGreeting Message)> _greetingOutbox = new();
 
+    /// <summary>Most greeting cache keys held (#2590 — FIFO beyond, so a long-running world can't grow it forever).</summary>
+    private const int GreetingCacheCapacity = 2048;
+
     /// <summary>Cache of generated LLM lines, keyed by npcKey|locale|relationship-tier, so a repeat visit (and
-    /// other players at the same standing + language) reuse a line instead of re-calling the backend.</summary>
-    private readonly ConcurrentDictionary<string, string> _greetingCache = new();
+    /// other players at the same standing + language) reuse a line instead of re-calling the backend. #2590: up to
+    /// three variants per key, picked at random, and the lines hold the player only as the <c>{player}</c> token —
+    /// the receiver's own name is filled in at send time (<see cref="FillPlayerToken"/>).</summary>
+    private readonly AiVariantCache<string> _greetingCache =
+        new(GreetingCacheCapacity, AiLineMaxVariants, (a, b) => string.Equals(a, b, System.StringComparison.Ordinal), seed: 0x6E37);
 
     /// <summary>Cache keys with an LLM request already running, so concurrent opens don't fan out duplicates.</summary>
     private readonly ConcurrentDictionary<string, byte> _greetingInFlight = new();
 
     /// <summary>Per (player|npc) cooldown so a re-opened panel doesn't re-trigger the bubble. Game-thread only.</summary>
     private readonly Dictionary<string, double> _lastGreetAt = new();
+
+    /// <summary>#2593: the last <see cref="NpcGreeting.GreetingId"/> handed out (see <see cref="NextGreetingId"/>).</summary>
+    private int _greetingIdCounter;
+
+    /// <summary>
+    /// #2593: a fresh id for a NEW speech bubble (<see cref="NpcGreeting.GreetingId"/>) — increasing across this server, never
+    /// 0 (0 means "an older server" to the client). Stamp it on the first message of a bubble and reuse the SAME id on its
+    /// AI upgrade: the client replaces the text of a known id without playing the voice or the gesture again, and plays
+    /// both once for a new id. Thread-safe (Interlocked), so an off-thread AI task may also call it.
+    /// </summary>
+    internal int NextGreetingId()
+    {
+        int id = System.Threading.Interlocked.Increment(ref _greetingIdCounter);
+        if (id <= 0)
+        {
+            // Wrapped after ~2 billion bubbles — start over at 1 (the client treats a smaller id after a pause as new).
+            System.Threading.Interlocked.CompareExchange(ref _greetingIdCounter, 1, id);
+            id = 1;
+        }
+
+        return id;
+    }
 
     /// <summary>Normalizes a client-sent locale to a supported locale code; anything unknown → English.
     /// Delegates to <see cref="GameLocaleExtensions.Parse"/> so a language added to <see cref="GameLocale"/>
@@ -75,17 +103,13 @@ public sealed partial class GameServer
     {
         var player = session.State;
 
-        // The stable NPC key — settlement board vs. boarded-station board — matches the relationship memory
-        // key; an authored character (#1128) uses their GLOBAL key so they remember the player everywhere.
-        string locationKey = NearSpaceStationVendor(player) && _boardedStation.TryGetValue(player.PlayerId, out var st)
-            ? StationLocationKey(st)
-            : SettlementLocationKey(npc.Settlement);
-        string npcKey = !string.IsNullOrEmpty(npc.CharacterId) ? "char:" + npc.CharacterId
-            : npc.BaseId > 0 ? BaseResidentKey(npc.BaseId, npc.BaseSlot) // a base resident is keyed by base id + slot, rename-proof (#1262, #1865)
-            : NpcKey(locationKey, npc.Role);
+        // The stable NPC key — the ONE derivation (#2598): an authored character's global key (#1128), a base
+        // resident's slot key, a villager's own person key, else the settlement/station role key. It also fixes station
+        // crew away from the vendor, who used to fall back to the key of a settlement named "".
+        string npcKey = NpcKeyForNpc(session, npc);
 
         var rel = player.NpcMemory.TryGetValue(npcKey, out var r) ? r : null;
-        int relValue = rel?.Value ?? 0;
+        int relValue = RelationshipValue(player, npcKey); // #2598: a villager without an own entry reads the floor
         int interactions = rel?.Log.Count ?? 0;
         string cacheKey = $"{npcKey}|{session.Locale}|{RelationshipTier(relValue)}";
 
@@ -93,10 +117,13 @@ public sealed partial class GameServer
         {
             NpcName = npc.Name,
             Role = npc.Role,
+            Job = npc.Job,
             Theme = npc.Theme,
             IsRobot = npc.IsRobot,
             Settlement = string.IsNullOrEmpty(npc.Settlement) ? _settlementName : npc.Settlement,
-            PlayerName = player.Name,
+            // #2590: never the real name — the cache key has no player, so a line naming "Justus" would greet every
+            // other player at this NPC/standing/language as Justus. The token is filled per receiver at send time.
+            PlayerName = AiLineTokens.Player,
             Relationship = relValue,
             PastInteractions = interactions,
             Language = session.Locale,
@@ -108,14 +135,20 @@ public sealed partial class GameServer
 
     // L2: a small pool of persona voices, assigned deterministically per NPC (stable across visits)
     // and flavoured by kind — androids get precise/literal voices, organics the warmer ones.
+    // #2591 (E14): ten kid-friendly organic voices, so the villagers of one place rarely share a voice. Changing the
+    // pool re-deals the voices once (tone only — nothing is stored).
     private static readonly string[] PersonaPoolOrganic =
     {
-        "gruff veteran who speaks in short sentences but means well",
-        "cheerful chatterbox who loves local gossip",
-        "weary pragmatist counting the days to retirement",
-        "superstitious frontier soul who reads omens into everything",
+        "gruff old-timer who speaks in short sentences but has a warm heart",
+        "cheerful chatterbox who loves to share the local news",
+        "calm, patient helper who always finds a kind word",
+        "curious tinkerer who gets excited about gadgets and how things work",
         "proud craftsman who respects good gear and hates waste",
         "dry humorist who deadpans even good news",
+        "sunny optimist who sees the bright side of everything",
+        "shy, gentle soul who speaks softly and smiles a lot",
+        "storyteller who loves old tales of the frontier and the stars",
+        "busy go-getter who is always in a hurry but never too busy to wave",
     };
 
     private static readonly string[] PersonaPoolRobot =
@@ -138,9 +171,29 @@ public sealed partial class GameServer
         }
 
         var pool = isRobot ? PersonaPoolRobot : PersonaPoolOrganic;
-        ulong h = (ulong)BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash("persona:" + npcKey);
-        string persona = pool[(int)(h % (ulong)pool.Length)];
+        string persona = pool[PersonaSlot(npcKey, pool.Length)];
         return string.IsNullOrEmpty(theme) ? persona : $"{persona}; lives among {theme}";
+    }
+
+    /// <summary>#2591: the persona of an NPC as a small number for AI-line cache keys (<c>p{index}</c>) — the same
+    /// deterministic pick as <see cref="PersonaFor"/>: organic voices 0..9, robot voices after them, the guardian voice
+    /// last. Two villagers with the same voice share cached lines; the key never names anyone.</summary>
+    internal static int PersonaIndexFor(string npcKey, bool isRobot, string role)
+    {
+        if (role == "guardian")
+        {
+            return PersonaPoolOrganic.Length + PersonaPoolRobot.Length;
+        }
+
+        return isRobot
+            ? PersonaPoolOrganic.Length + PersonaSlot(npcKey, PersonaPoolRobot.Length)
+            : PersonaSlot(npcKey, PersonaPoolOrganic.Length);
+    }
+
+    private static int PersonaSlot(string npcKey, int poolSize)
+    {
+        ulong h = (ulong)BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash("persona:" + npcKey);
+        return (int)(h % (ulong)poolSize);
     }
 
     /// <summary>L2: the NPC's recent memory of this player as a compact line ("trade, mission accepted").</summary>
@@ -187,7 +240,7 @@ public sealed partial class GameServer
         string thread = TryEmitNpcThread(session, npc, npcKey);
         if (thread.Length > 0)
         {
-            Send(session, new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, Text = thread });
+            Send(session, new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, Text = thread, GreetingId = NextGreetingId() });
             return;
         }
 
@@ -198,13 +251,15 @@ public sealed partial class GameServer
         string hint = TryEmitHint(session, npcKey);
         if (hint.Length > 0)
         {
-            Send(session, new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, Text = hint });
+            Send(session, new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, Text = hint, GreetingId = NextGreetingId() });
             return;
         }
 
-        // 1) Instant response: a cached LLM line if we have one, else empty → the client shows its localized
-        //    fallback. Either way the player always gets a greeting, with or without an AI backend.
-        string immediate = _greetingCache.TryGetValue(cacheKey, out var cached) ? cached : string.Empty;
+        // 1) Instant response: a cached LLM line if we have one (#2590: one of up to three variants, with THIS
+        //    player's name filled into its {player} token), else empty → the client shows its localized fallback.
+        //    Either way the player always gets a greeting, with or without an AI backend.
+        string? cachedLine = _config.AiLevel == AiLevel.Off ? null : _greetingCache.Pick(cacheKey);
+        string immediate = cachedLine is null ? string.Empty : FillPlayerToken(cachedLine, session);
 
         // P7: with no LLM backend, let settlement/station NPCs occasionally speak a story flavour line — gated
         // by the world's knowledge level + tags + the NPC's role — so villages react to the unfolding story.
@@ -213,33 +268,64 @@ public sealed partial class GameServer
             immediate = PickStoryFlavourText(session, npc);
         }
 
-        Send(session, new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, Text = immediate });
+        // #2593: the bubble's id — the AI upgrade below reuses it, so the client swaps the text without a second voice.
+        int greetingId = NextGreetingId();
+        Send(session, new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, Text = immediate, GreetingId = greetingId });
 
-        // 2) If AI is enabled and nothing is cached, generate a line off the game thread and push it when ready.
-        if (_config.AiLevel == AiLevel.Off || immediate.Length > 0)
+        // 2) With AI on: nothing cached → generate a line off the game thread and push it as the upgrade of this
+        //    bubble when ready. A cache hit → while fewer than three variants exist, ask for one more in the
+        //    background 30 % of the time (#2590), so an NPC doesn't say the same sentence on every visit. Both draw on
+        //    the world's AI line budget (GameServerAiLines.cs). Decided by the CACHE, not by `immediate`, so an authored
+        //    instant line never stops the AI line from being made.
+        if (_config.AiLevel == AiLevel.Off)
         {
             return;
         }
 
+        if (cachedLine is not null)
+        {
+            if (_greetingCache.VariantCount(cacheKey) < AiLineMaxVariants && AiTopUpRoll())
+            {
+                StartGreetingLine(cacheKey, req, AiLinePriority.Personal, session.ConnectionId, upgrade: null);
+            }
+
+            return;
+        }
+
+        // #2593: the upgrade of the bubble sent above — same id, no gesture (it played with the first message).
+        var upgrade = new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, GreetingId = greetingId, Gesture = NpcGestures.None };
+        StartGreetingLine(cacheKey, req, AiLinePriority.PlayerInitiated, session.ConnectionId, upgrade);
+    }
+
+    /// <summary>#2590: generates one greeting variant off the game thread — deduped per cache key, on the world's AI
+    /// line budget — and caches it with the player only as the <c>{player}</c> token. With <paramref name="upgrade"/>
+    /// the line is also queued for <paramref name="connectionId"/> as the late upgrade of that bubble;
+    /// <see cref="TickGreetings"/> fills in the receiver's own name when it sends it.</summary>
+    private void StartGreetingLine(string cacheKey, NpcLineRequest req, AiLinePriority priority, int connectionId, NpcGreeting? upgrade)
+    {
         if (!_greetingInFlight.TryAdd(cacheKey, 1))
         {
             return; // a request for this exact line is already running
         }
 
-        int connId = session.ConnectionId;
-        int npcId = npc.Id;
-        string npcName = npc.Name;
-        string role = npc.Role;
+        if (!TryTakeAiBudget(priority))
+        {
+            _greetingInFlight.TryRemove(cacheKey, out _);
+            return; // budget spent — the static fallback stays, the next visit tries again
+        }
 
-        _ = System.Threading.Tasks.Task.Run(() =>
+        RunAiOffThread(() =>
         {
             try
             {
-                var line = _ai.GenerateNpcLine(req);
-                if (!string.IsNullOrWhiteSpace(line))
+                if (AcceptGreetingLine(_ai.GenerateNpcLine(req)) is { } line)
                 {
-                    _greetingCache[cacheKey] = line!;
-                    _greetingOutbox.Enqueue((connId, new NpcGreeting { NpcId = npcId, Name = npcName, Role = role, Text = line! }));
+                    _greetingCache.Add(cacheKey, line);
+                    if (upgrade is not null)
+                    {
+                        upgrade.Text = line;
+                        _greetingOutbox.Enqueue((connectionId, upgrade));
+                    }
                 }
             }
             catch
@@ -249,8 +335,33 @@ public sealed partial class GameServer
             finally
             {
                 _greetingInFlight.TryRemove(cacheKey, out _);
+                _aiLineBudget.Release();
             }
         });
+    }
+
+    /// <summary>The only placeholder a /npc-line greeting may contain.</summary>
+    private static readonly string[] GreetingTokens = { AiLineTokens.Player };
+
+    /// <summary>#2590: a /npc-line answer we may cache — trimmed, wrapping quotes removed, and no placeholder but
+    /// <c>{player}</c> (no stray brace). Anything else is dropped like a backend failure.</summary>
+    private static string? AcceptGreetingLine(string? line)
+    {
+        string text = AiLineText.Normalize(line);
+        return text.Length > 0 && AiLineText.TokensAllowed(text, GreetingTokens) ? text : null;
+    }
+
+    /// <summary>#2590: fills the <c>{player}</c> token of an AI line with THIS receiver's own name (screened at join).
+    /// Text without a token passes through unchanged.</summary>
+    private static string FillPlayerToken(string text, PlayerSession receiver)
+    {
+        if (text.IndexOf('{') < 0)
+        {
+            return text;
+        }
+
+        var values = new Dictionary<string, string>(System.StringComparer.Ordinal) { [AiLineTokens.Player] = receiver.State.Name ?? string.Empty };
+        return AiLineText.FillTokens(text, values) ?? text;
     }
 
     // ---------------- P7: story flavour lines ----------------
@@ -354,6 +465,8 @@ public sealed partial class GameServer
         {
             if (_sessions.TryGetValue(pending.ConnectionId, out var session) && session.Joined)
             {
+                // #2590: an AI line names the player only as {player} — fill in THIS receiver's name at send time.
+                pending.Message.Text = FillPlayerToken(pending.Message.Text ?? string.Empty, session);
                 Send(session, pending.Message);
             }
         }
@@ -374,38 +487,79 @@ public sealed partial class GameServer
     /// <summary>Test seam: synchronously resolves the greeting line the nearest in-reach NPC of <paramref
     /// name="role"/> would show this player — the same context + provider + cache path <see cref="EmitGreeting"/>
     /// uses off-thread. Returns null if no such NPC is in reach; an empty string means "no AI line" (the client
-    /// would render its localized static fallback); otherwise the (now-cached) generated line.</summary>
+    /// would render its localized static fallback); otherwise the (now-cached) generated line — one of the cached
+    /// variants, with THIS player's name filled into its <c>{player}</c> token, exactly as the player would see it.
+    /// Draws on the AI line budget like the real path; never asks for an extra variant (see
+    /// <see cref="EmitGreetingForTest"/> for that).</summary>
     public string? GreetingLineForTest(string playerId, string role)
     {
-        if (FindSessionByPlayerId(playerId) is not { } session)
-        {
-            return null;
-        }
-
-        if (NearestNpc(session.State, role) is not { } npc
-            || WrapDistSq(session.State.Position, npc.Pos) > NpcGreetRange * NpcGreetRange)
+        if (FindSessionByPlayerId(playerId) is not { } session || GreetingNpcInReach(session, role) is not { } npc)
         {
             return null;
         }
 
         var (req, _, cacheKey) = NpcContext(session, npc);
-        if (_greetingCache.TryGetValue(cacheKey, out var cached))
+        if (_config.AiLevel != AiLevel.Off && _greetingCache.Pick(cacheKey) is { } cached)
         {
-            return cached;
+            return FillPlayerToken(cached, session);
         }
 
-        if (_config.AiLevel == AiLevel.Off)
+        if (_config.AiLevel == AiLevel.Off || !TryTakeAiBudget(AiLinePriority.PlayerInitiated))
         {
             return string.Empty; // client shows its static localized fallback
         }
 
-        var line = _ai.GenerateNpcLine(req);
-        if (!string.IsNullOrWhiteSpace(line))
+        try
         {
-            _greetingCache[cacheKey] = line!;
-            return line;
+            if (AcceptGreetingLine(_ai.GenerateNpcLine(req)) is { } line)
+            {
+                _greetingCache.Add(cacheKey, line);
+                return FillPlayerToken(line, session);
+            }
+        }
+        finally
+        {
+            _aiLineBudget.Release();
         }
 
         return string.Empty;
     }
+
+    /// <summary>Test seam: the real greeting path (<see cref="EmitGreeting"/>) for the nearest in-reach NPC of
+    /// <paramref name="role"/> — what the client's NpcGreetIntent triggers. False when none is in reach. Pair with
+    /// <see cref="RunAiLinesSynchronouslyForTest"/> + <see cref="TickGreetingsForTest"/> to see the AI upgrade.</summary>
+    public bool EmitGreetingForTest(string playerId, string role)
+    {
+        if (FindSessionByPlayerId(playerId) is not { } session || GreetingNpcInReach(session, role) is not { } npc)
+        {
+            return false;
+        }
+
+        EmitGreeting(session, npc);
+        return true;
+    }
+
+    /// <summary>Test seam: sends the AI greetings finished off-thread (what every tick does).</summary>
+    public void TickGreetingsForTest() => TickGreetings();
+
+    /// <summary>Test seam: the cached greeting variants (tokens unfilled) the nearest in-reach NPC of
+    /// <paramref name="role"/> has for this player's cache key (their standing + language).</summary>
+    public IReadOnlyList<string> GreetingVariantsForTest(string playerId, string role)
+    {
+        if (FindSessionByPlayerId(playerId) is not { } session || GreetingNpcInReach(session, role) is not { } npc)
+        {
+            return System.Array.Empty<string>();
+        }
+
+        return _greetingCache.Variants(NpcContext(session, npc).CacheKey);
+    }
+
+    /// <summary>Test seam: how many greeting cache keys the cache holds at most (#2590).</summary>
+    public int GreetingCacheCapacityForTest => _greetingCache.Capacity;
+
+    private ServerNpc? GreetingNpcInReach(PlayerSession session, string role)
+        => NearestNpc(session.State, role) is { } npc
+           && WrapDistSq(session.State.Position, npc.Pos) <= NpcGreetRange * NpcGreetRange
+            ? npc
+            : null;
 }

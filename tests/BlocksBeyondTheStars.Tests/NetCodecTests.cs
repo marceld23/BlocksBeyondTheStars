@@ -527,6 +527,52 @@ public sealed class NetCodecTests
     }
 
     [Fact]
+    public void NpcGreeting_IdKindGesture_RoundTrip_AndDefaultToALegacyGreeting()
+    {
+        // #2593: GreetingId, Kind and Gesture are ADDITIVE fields on tag 110 — no new tag, no protocol bump. A legacy greeting
+        // (no fields) reads as id 0 (an older server), kind Addressed, no gesture; a populated one survives both codecs.
+        var legacy = new NpcGreeting();
+        Assert.Equal(0, legacy.GreetingId);
+        Assert.Equal(NpcGreetingKinds.Addressed, legacy.Kind);
+        Assert.Equal(NpcGestures.None, legacy.Gesture);
+
+        var greeting = new NpcGreeting
+        {
+            NpcId = 12,
+            Name = "Mira",
+            Role = "settler",
+            Text = "Hello, Justus!",
+            GreetingId = 4711,
+            Kind = NpcGreetingKinds.Passing,
+            Gesture = NpcGestures.Wave,
+        };
+        foreach (var payload in new[] { WithMessagePack(() => NetCodec.Encode(greeting)), NetCodec.EncodeJson(greeting) })
+        {
+            var back = Assert.IsType<NpcGreeting>(NetCodec.Decode(payload));
+            Assert.Equal((12, "Mira", "settler", "Hello, Justus!"), (back.NpcId, back.Name, back.Role, back.Text));
+            Assert.Equal(4711, back.GreetingId);
+            Assert.Equal(NpcGreetingKinds.Passing, back.Kind);
+            Assert.Equal(NpcGestures.Wave, back.Gesture);
+        }
+
+        foreach (var payload in new[] { WithMessagePack(() => NetCodec.Encode(legacy)), NetCodec.EncodeJson(legacy) })
+        {
+            var back = Assert.IsType<NpcGreeting>(NetCodec.Decode(payload));
+            Assert.Equal((0, (byte)0, (byte)0), (back.GreetingId, back.Kind, back.Gesture));
+        }
+
+        // The constants are the wire contract — pinned.
+        Assert.Equal(
+            new byte[] { 0, 1, 2, 3, 4, 5, 6 },
+            new[]
+            {
+                NpcGreetingKinds.Addressed, NpcGreetingKinds.Passing, NpcGreetingKinds.Welcome, NpcGreetingKinds.Chatter,
+                NpcGreetingKinds.Cheer, NpcGreetingKinds.Guest, NpcGreetingKinds.Alert,
+            });
+        Assert.Equal(new byte[] { 0, 1, 2, 3 }, new[] { NpcGestures.None, NpcGestures.Wave, NpcGestures.Nod, NpcGestures.Cheer });
+    }
+
+    [Fact]
     public void NetCreature_MotionFields_RoundTrip_AndDefaultToAGroundedWalker()
     {
         // #1333: the motion class + vertical state are ADDITIVE fields on the creature list — a legacy

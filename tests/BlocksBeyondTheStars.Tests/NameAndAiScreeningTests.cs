@@ -77,6 +77,8 @@ public sealed class NameAndAiScreeningTests : IDisposable
 
         public MissionTextResult? GenerateMissionText(MissionTextRequest request)
             => new() { Title = "A delivery", Description = _text };
+
+        public string[]? GenerateNpcLines(NpcLinesRequest request) => new[] { _text };
     }
 
     /// <summary>Keeps the server's info lines. The operator ping itself is an HTTP post through

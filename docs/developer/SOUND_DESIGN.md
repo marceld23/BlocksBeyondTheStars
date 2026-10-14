@@ -6,7 +6,7 @@ and **how it is sourced**. This was the M26 audio plan; the bulk of it has since
 > Status today: **mostly implemented.** The recorded ElevenLabs SFX banks (P1–P4 below) are
 > generated and bundled under `client/Assets/Resources/audio/` — mining ×4, place/loot/heal,
 > drill/weapons/melee, footsteps, ship & space one-shots, **6×5 creature banks**, **2×5 NPC
-> banks**, and weather/biome beds — and are loaded by `ClientAudio` (filename → clip). Procedural
+> reaction banks + 6×3 NPC speech banks** (§9), and weather/biome beds — and are loaded by `ClientAudio` (filename → clip). Procedural
 > cues (UI hover/click/confirm/back, scan ping, alarms, toggles, ambience-loop fallbacks) live in
 > `ProceduralAudio`; **menu/shell UI sounds are wired** via `UiSound` (UiKit buttons play click on
 > press, hover on enter). Both Synth and Suno **music** modes ship (`ClientMusic`). The remaining
@@ -24,7 +24,8 @@ and **how it is sourced**. This was the M26 audio plan; the bulk of it has since
   3. **MIDI / synth music** (code) — free. Background music tracks.
 - **Spatialisation:** world sounds (creatures, NPCs, weapons, doors, lava) are 3D AudioSources at
   the source position; UI/music/own-vitals are 2D.
-- **NPCs make non-verbal sounds only — no speech** (grunts/chirps/beeps), humans *and* aliens.
+- **NPCs never speak words** — a wordless vocoder babble per speech bubble plus a few non-verbal reactions, humans
+  *and* androids, all through one voice budget (§9).
 - **Variety from few assets:** pitch/rate-shift a small bank per instance (esp. creatures) instead
   of authoring one sound per species — the game has unbounded procedural species.
 - Every bundled audio file is logged in `NOTICES.md` with source + licence.
@@ -153,11 +154,48 @@ seamless loop) and `sky_giant_call` (a vast, slow, resonant whale-like moan carr
 `CreatureView.PlayWorldFx` for the server's `skycall` kind at the giant's position every half minute or so, no camera
 shake: it is far up).
 
-## 9. NPCs (humans + aliens) — *ElevenLabs, NON-VERBAL*
+## 9. NPCs (humans + androids) — *ElevenLabs, wordless speech + reactions* (#2592, 2026-10-14)
 
-No speech. Short vocalisations only: **idle murmur, greet/notice, acknowledge, trade-confirm,
-alert/flee** = 5 states × **{human, alien}** = **~10 sounds**, pitch-varied per NPC. Hooks: settlement/
-station NPC markers + trade/mission interactions.
+No words, ever — nothing to translate or re-record. Until #2592 the ten NPC clips were bundled but never played (this
+section used to call them wired). Now NPCs **speak like VEGA** (#761/#2495): whenever an NPC shows a speech bubble, a
+short babble of vocoder clips plays at the NPC. The Unity-free rules live in `Client.Core` (`NpcVoice`, `NpcVoiceGate`,
+`NpcGreetingTracker`; tested in `NpcVoiceTests` / `NpcVoiceGateTests` / `NpcGreetingTrackerTests`); `NpcView` plays them.
+
+**Speech banks — 6 × 3 clips** (`npc_voice_{human,robot}_{f,m,n}_{1..3}`, ~1.6 s each): human female / male / neutral,
+robot bright / deep / neutral. Each clip is non-verbal babble (questioning, exclaiming, explaining).
+
+- **A voice per NPC, matching the look** (`NpcVoice.VoiceFor`), deterministic from the face seed the avatar is built
+  with: a human with facial hair (`NpcLooks.FacialHairFor`) speaks male (~80 %) or neutral, **never female**; other
+  humans female ~45 % / male ~35 % / neutral ~20 %; androids one of the robot banks; the G.D.S. guardians the deep robot
+  voice. Plus a **stable pitch** 0.92–1.08 (a human's divided by √body size), ±2 % jitter per clip.
+- **Babble length** (`NpcVoice.BabblePlan`): one clip per ~40 characters of the bubble, 1–3 clips, chained, never the
+  same clip twice in a row (also not across two lines of the same NPC). A sleepy NPC (greeted in bed) speaks lower
+  (×0.88) and quieter (×0.5).
+- **When:** every new bubble (greeting, passing hello, welcome, villager chatter, cheer, guest), and every line of the
+  dialog panel (`NpcDialogUi` → `NpcView.DialogLine`; the first line as the greeting, later answers with a nod). An **AI
+  upgrade** of a bubble (same `NpcGreeting.GreetingId`) only swaps the text — never a second babble or gesture.
+
+**Reactions — the optional layer** (`NpcVoice.ReactionsEnabled`, on): `npc_human_{idle,trade,alert}` for humans,
+`NpcVoice.RobotReactionPrefix` (`npc_alien_`, decided in the maintainer's sound review — one constant) for androids. A
+finished market trade → the nearest vendor nods and plays *trade*; an alarm bubble (`Kind = Alert`) plays *alert*
+instead of a babble; a rare quiet *idle* murmur from an NPC within 6 m (each NPC every 30–60 s). The old *greet* and
+*ack* grunts are replaced by the babble (never both for one bubble).
+
+**The voice budget** (`NpcVoiceGate` — maintainer requirement: a station deck or a busy village must never become a
+jumble). Every NPC sound asks it first; a refused request is dropped, never queued — the bubble still shows, silent.
+
+| Rule | Value |
+|---|---|
+| Babble channel | **one babble at a time**, globally. Priority: addressed (dialog / E greeting) > passing, welcome, guest > chatter, cheer > idle. A higher priority cuts the current babble (0.15 s fade); lower or equal is dropped. The speaking NPC may start its own next line. Requests of one frame resolve nearest-first. |
+| Audible radius | babble ≤ 12 m from the listener (the addressed NPC ≤ 20 m), reactions ≤ 10 m |
+| Crowd (> 6 NPCs within 15 m of the player) | every non-addressed babble shares one 6 s gap; chatter only from the conversation nearest the player; greetings at ×0.6; no idle murmurs |
+| Reactions | one at a time, never over a babble (a babble cuts a reaction); alarm ≤ 1 per 8 s; idle murmur ≥ 20 s apart globally and ≥ 5 s after a babble |
+| VEGA / cutscenes | while VEGA's chatter plays (`NarratorVoice.AnySpeaking`) or a cutscene runs, only the addressed NPC babbles, at ×0.5; everything else is skipped (a running babble fades out) |
+| Per NPC | ≥ 1 s between two of its own babbles |
+
+Playback: two caller-owned positional babble sources (a cut one fades while the next starts) and one reaction source on
+`NpcView` (`ClientAudio.PlayVoiceOn`: 3D, linear 4–20 m rolloff, master × SFX, the underwater muffle), following the
+speaker's head. The banks are preloaded when the first NPC with that voice appears (a browser fetches audio on demand).
 
 ## 10. Weather & environment — *ElevenLabs loops + procedural ambience*
 
@@ -384,8 +422,8 @@ The planned rollout has largely landed. Current state:
 - **ElevenLabs (recorded, now blanket-approved):** the recorded banks are **generated and bundled**
   under `Resources/audio/` — mining ×4, place/loot/heal, drill loop + impact, gauss/laser/plasma +
   melee, 5 footstep surfaces, ship & space one-shots (engine, launch/land, hyperspace, weapon/hull/
-  shield/destroyed, asteroid, doors), **6×5 creature banks**, **2×5 NPC banks**, and weather/biome
-  beds (wind, rain/storm, 3 thunder, per-biome ambience, lava/water). **Done.**
+  shield/destroyed, asteroid, doors), **6×5 creature banks**, **2×5 NPC reaction banks + 6×3 NPC speech banks**
+  (played since #2592, §9), and weather/biome beds (wind, rain/storm, 3 thunder, per-biome ambience, lava/water). **Done.**
 - **Music:** both Synth and Suno **Tracks** modes ship (`ClientMusic`); see §11 + [MUSIC_TRACKS.md](MUSIC_TRACKS.md).
 
 Rollout history (P1–P4), all shipped:

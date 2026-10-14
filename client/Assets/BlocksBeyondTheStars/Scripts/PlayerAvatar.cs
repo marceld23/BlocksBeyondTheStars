@@ -172,6 +172,16 @@ namespace BlocksBeyondTheStars.Client
         private float _walkPhase;
         private float _swingTimer;
 
+        // #2593: greeting gestures (AvatarGestures curves) and the head turning towards someone. Timers count down; the look
+        // target is NaN when the head is free (the idle look-around), its eased blend keeps every other pose unchanged at 0.
+        private float _waveTimer;
+        private bool _waveLeft;
+        private float _nodTimer;
+        private float _cheerTimer;
+        private float _lookYawTarget = float.NaN;
+        private float _lookYaw;
+        private float _lookYawBlend;
+
         /// <summary>Brow (and facial-hair) colour of an avatar without a hair tone — bald NPCs, players.</summary>
         private static readonly Color DefaultBrowColor = new Color(0.18f, 0.14f, 0.11f);
 
@@ -507,6 +517,9 @@ namespace BlocksBeyondTheStars.Client
             float armL = -swing, armR = swing, legL = swing, legR = -swing;
             float kneeL = 0f, kneeR = 0f, elbowL = 12f + run * 25f, elbowR = 12f + run * 25f;
             float headYaw = 0f;
+            // #2593: the gestures also turn the arms sideways (roll, Z) and a little forward (yaw, Y) — 0 for every other pose,
+            // so the joint writes below stay what they always were.
+            float rollL = 0f, rollR = 0f, yawL = 0f, yawR = 0f, elbowRollL = 0f, elbowRollR = 0f;
 
             bool airborne = Mathf.Abs(vy) > 2.6f;
             bool idle = moving < 0.03f && !airborne;
@@ -522,6 +535,7 @@ namespace BlocksBeyondTheStars.Client
                 kneeL = kneeR = 0f;
                 headYaw = 0f;
                 _swingTimer = 0f;
+                _waveTimer = _cheerTimer = _nodTimer = 0f; // #2593: nobody waves in their sleep
             }
             else if (_climbing)
             {
@@ -603,6 +617,57 @@ namespace BlocksBeyondTheStars.Client
                 PosePunch(c, ref armL, ref armR, ref elbowL, ref elbowR);
             }
 
+            // #2593: the greeting gestures ride on top of whatever pose plays (standing, sitting): a wave of one arm, a cheer
+            // of both. AvatarGestures (Client.Core) holds the curves; each starts and ends at rest, so nothing snaps.
+            if (_waveTimer > 0f)
+            {
+                _waveTimer -= dt;
+                var (k, wag) = AvatarGestures.Wave(1f - Mathf.Clamp01(_waveTimer / AvatarGestures.WaveSeconds));
+                float side = _waveLeft ? -1f : 1f;               // +Z roll lifts the right (+X) arm outward, −Z the left
+                float roll = side * 100f * k;                    // the upper arm out to the side, a little above level
+                float yaw = -side * 20f * k;                     // … and a little forward, so the hand waves in front
+                float forearm = side * (60f + 25f * wag) * k;    // the forearm up, wagging
+                if (_waveLeft)
+                {
+                    armL = Mathf.Lerp(armL, -15f, k);
+                    elbowL = Mathf.Lerp(elbowL, 0f, k);
+                    rollL = roll;
+                    yawL = yaw;
+                    elbowRollL = forearm;
+                }
+                else
+                {
+                    armR = Mathf.Lerp(armR, -15f, k);
+                    elbowR = Mathf.Lerp(elbowR, 0f, k);
+                    rollR = roll;
+                    yawR = yaw;
+                    elbowRollR = forearm;
+                }
+            }
+
+            if (_cheerTimer > 0f)
+            {
+                _cheerTimer -= dt;
+                var (k, bob) = AvatarGestures.Cheer(1f - Mathf.Clamp01(_cheerTimer / AvatarGestures.CheerSeconds));
+                float lift = (150f + 12f * bob) * k;             // both arms up in a V, pumping
+                float forearm = (10f + 15f * Mathf.Max(0f, bob)) * k;
+                armL = Mathf.Lerp(armL, -10f, k);
+                armR = Mathf.Lerp(armR, -10f, k);
+                elbowL = Mathf.Lerp(elbowL, 0f, k);
+                elbowR = Mathf.Lerp(elbowR, 0f, k);
+                rollL = -lift;
+                rollR = lift;
+                elbowRollL = -forearm;
+                elbowRollR = forearm;
+            }
+
+            float nod = 0f;
+            if (_nodTimer > 0f)
+            {
+                _nodTimer -= dt;
+                nod = AvatarGestures.Nod(1f - Mathf.Clamp01(_nodTimer / AvatarGestures.NodSeconds));
+            }
+
             // #2322: on the rope the right arm points at the anchor, straight — the rope leaves the hand.
             if (_roped)
             {
@@ -611,14 +676,15 @@ namespace BlocksBeyondTheStars.Client
                 float elevation = Mathf.Atan2(toAnchor.y, Mathf.Max(0.01f, flat)) * Mathf.Rad2Deg;
                 armR = Mathf.Clamp(-90f - elevation, -175f, -20f);
                 elbowR = 0f;
+                rollR = yawR = elbowRollR = 0f; // the rope arm stays straight at its anchor, whatever else plays
             }
 
-            _armL.localRotation = Quaternion.Euler(armL, 0f, 0f);
-            _armR.localRotation = Quaternion.Euler(armR, 0f, 0f);
+            _armL.localRotation = Quaternion.Euler(armL, yawL, rollL);
+            _armR.localRotation = Quaternion.Euler(armR, yawR, rollR);
             _legL.localRotation = Quaternion.Euler(legL, 0f, 0f);
             _legR.localRotation = Quaternion.Euler(legR, 0f, 0f);
-            if (_elbowL != null) _elbowL.localRotation = Quaternion.Euler(elbowL, 0f, 0f);
-            if (_elbowR != null) _elbowR.localRotation = Quaternion.Euler(elbowR, 0f, 0f);
+            if (_elbowL != null) _elbowL.localRotation = Quaternion.Euler(elbowL, 0f, elbowRollL);
+            if (_elbowR != null) _elbowR.localRotation = Quaternion.Euler(elbowR, 0f, elbowRollR);
             if (_kneeL != null) _kneeL.localRotation = Quaternion.Euler(-kneeL, 0f, 0f); // bends the lower leg back
             if (_kneeR != null) _kneeR.localRotation = Quaternion.Euler(-kneeR, 0f, 0f);
             // #2434: the head nods to where its player looks (clamped — a head does not fold onto the chest), eased so the
@@ -626,7 +692,23 @@ namespace BlocksBeyondTheStars.Client
             float wantPitch = _lying ? 0f : Mathf.Clamp(_lookPitch, -LookPitchLimit, LookPitchLimit);
             _headPitch = dt > 0f ? Mathf.Lerp(_headPitch, wantPitch, 1f - Mathf.Exp(-dt * 10f)) : wantPitch;
             _crouchBlend = dt > 0f ? Mathf.MoveTowards(_crouchBlend, _crouched ? 1f : 0f, dt * 6f) : (_crouched ? 1f : 0f);
-            if (_head != null) _head.localRotation = Quaternion.Euler(_headPitch, headYaw, 0f);
+
+            // #2593: the head turns towards someone (SetLookYaw) instead of the idle look-around, eased both ways; with no
+            // target the blend sinks to 0 and the yaw is the pose's own again.
+            bool looking = !float.IsNaN(_lookYawTarget) && !_lying;
+            float lookEase = dt > 0f ? 1f - Mathf.Exp(-dt * 8f) : 1f;
+            if (looking)
+            {
+                _lookYaw = Mathf.Lerp(_lookYaw, Mathf.Clamp(_lookYawTarget, -AvatarGestures.LookYawLimit, AvatarGestures.LookYawLimit), lookEase);
+            }
+
+            _lookYawBlend = Mathf.Lerp(_lookYawBlend, looking ? 1f : 0f, lookEase);
+            if (_lookYawBlend > 0.001f)
+            {
+                headYaw = Mathf.Lerp(headYaw, _lookYaw, _lookYawBlend);
+            }
+
+            if (_head != null) _head.localRotation = Quaternion.Euler(_headPitch + nod, headYaw, 0f);
         }
 
         /// <summary>#2435: how far the caller lowers the avatar root while <see cref="CrouchBlend"/> is 1 — the folded legs
@@ -646,6 +728,49 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#2434: where the player looks (degrees, up negative like the camera pitch) — the head nods to it.</summary>
         public void SetLookPitch(float pitch) => _lookPitch = float.IsNaN(pitch) ? 0f : pitch;
+
+        /// <summary>#2593: turns the head to <paramref name="yaw"/> degrees relative to the body (positive = to its right,
+        /// clamped to ±<see cref="AvatarGestures.LookYawLimit"/>) instead of the idle look-around — an NPC looking at a
+        /// player nearby. NaN frees the head again. Eased both ways; ignored while lying.</summary>
+        public void SetLookYaw(float yaw) => _lookYawTarget = yaw;
+
+        /// <summary>#2593: a greeting wave (~1.2 s): one arm out to the side, the forearm up and wagging. The free hand —
+        /// <paramref name="leftHand"/> when the right one holds a tool. Ignored while lying or while a wave plays.</summary>
+        public void Wave(bool leftHand = false)
+        {
+            if (_lying || _waveTimer > 0f)
+            {
+                return;
+            }
+
+            _waveLeft = leftHand;
+            _waveTimer = AvatarGestures.WaveSeconds;
+            _cheerTimer = 0f; // one arm gesture at a time
+        }
+
+        /// <summary>#2593: a short nod (~0.6 s) — a dialog answer, a trade. Ignored while lying.</summary>
+        public void Nod()
+        {
+            if (!_lying)
+            {
+                _nodTimer = AvatarGestures.NodSeconds;
+            }
+        }
+
+        /// <summary>#2593: a cheer (~1.2 s): both arms up in a V, pumping — the village festival. Ignored while lying.</summary>
+        public void Cheer()
+        {
+            if (_lying)
+            {
+                return;
+            }
+
+            _cheerTimer = AvatarGestures.CheerSeconds;
+            _waveTimer = 0f;
+        }
+
+        /// <summary>#2593: whether a wave or a cheer plays (the caller holds back its work swings meanwhile).</summary>
+        public bool Gesturing => _waveTimer > 0f || _cheerTimer > 0f;
 
         /// <summary>Poses the avatar seated (#806) — thighs forward, knees bent. Driven from the presence
         /// broadcast for remotes; the caller also lowers the avatar so the pelvis meets the seat.</summary>

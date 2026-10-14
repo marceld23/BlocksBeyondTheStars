@@ -50,4 +50,13 @@ public sealed class NpcRelationship
 
     /// <summary>The most recent interactions (oldest first), capped to the last few.</summary>
     public List<NpcInteraction> Log { get; set; } = new();
+
+    /// <summary>ISO-8601 UTC wall-clock time this NPC last met the player (an interaction, a talk, a passing hello) —
+    /// what "welcome back after a long time" reads (#2595). Empty in memories from before it existed: an empty stamp is
+    /// only stamped, never greeted as a long absence.</summary>
+    public string LastSeenUtc { get; set; } = string.Empty;
+
+    /// <summary>World playtime (<see cref="WorldMetadata.CumulativePlaytimeSeconds"/>) of this friend's last present
+    /// (#2598) — a friend gives at most one every half hour of play. 0 = never.</summary>
+    public double LastGiftAt { get; set; }
 }

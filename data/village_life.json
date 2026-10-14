@@ -1,0 +1,13 @@
+{
+  // "The village lives" (epic #2589). Every section is optional — a missing one simply turns that part off.
+
+  // #2598 (C3): what a villager FRIEND (own standing >= 40) hands over when you talk, at most every 30 min of world
+  // playtime. One row is picked at random; small, kid-friendly presents only (never power creep).
+  "friendGifts": [
+    { "item": "berries", "count": 3 },
+    { "item": "fruit_round", "count": 2 },
+    { "item": "lantern", "count": 1 },
+    { "item": "flower_pot", "count": 1 },
+    { "item": "emergency_ration", "count": 1 }
+  ]
+}

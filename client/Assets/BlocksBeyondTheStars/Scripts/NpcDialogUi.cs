@@ -77,8 +77,15 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDialog(NpcDialogState m)
         {
+            // #2592: the NPC speaks every line it says here in its own wordless voice — the conversation's first line as
+            // its greeting, every later one (an answer) with a nod.
+            bool opening = _state is null || _state.NpcId != m.NpcId;
             _state = m;
             ClientAudio.Instance?.Cue("ui_open", 0.6f);
+            if (!string.IsNullOrEmpty(m.Text) && NpcView.Instance != null)
+            {
+                NpcView.Instance.DialogLine(m.NpcId, m.Text, opening);
+            }
 
             // 2026-09 professions: the streamer's photo and the reporter's interview follow the closing line.
             if (m.Action == "photo")

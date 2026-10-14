@@ -2079,6 +2079,13 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   piece of the story, or make someone **call you on the radio later**. Talking itself counts toward your
   standing. A few **recurring faces** exist out there — the same person at more than one place, and they
   remember you everywhere.
+- **Friends with names.** Every villager is their own person: talking to someone counts for **them** (every
+  ten minutes), the first meeting already helps a little, and a friendly hello in passing too (up to
+  *Acquaintance*). Become a **Friend** of a villager and now and then — at most every half hour of play — they
+  hand you a **small present** (berries, a fruit, a lantern …); with a full bag they keep it for next time. The
+  stall and the board keep one standing for the place. From older saves, the person "People you know" named
+  keeps the friendship, everyone else in that village starts as an *Acquaintance*, and the village itself is
+  listed as "*Place* · Villagers".
 - **Favours for friends.** A vendor who **knows** you will, in conversation, ask for a favour — the
   three-part *"A favour for a regular"* chain (crystals → a plant survey → titanium for a trusted friend).
   Saying yes puts the job straight into **Tab → Missions**; hand it in to the **same vendor, in person**.

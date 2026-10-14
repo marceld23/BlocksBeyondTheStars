@@ -82,6 +82,32 @@ public sealed class ScreenedAiTextProvider : IAiMissionProvider
         return text;
     }
 
+    /// <summary>#2591: a set of lines (one speech bubble, or a whole villager conversation). Every line is screened
+    /// and ONE refusal drops the whole set: a conversation with one line missing would no longer make sense, and the
+    /// caller's authored lines are always there to take over. An empty line is passed on unchanged — the caller's
+    /// own validation rejects it.</summary>
+    public string[]? GenerateNpcLines(NpcLinesRequest request)
+    {
+        var lines = _inner.GenerateNpcLines(request);
+        if (lines is null)
+        {
+            return null;
+        }
+
+        var kept = new string[lines.Length];
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (Refused(lines[i], out string? line))
+            {
+                return null;
+            }
+
+            kept[i] = line ?? string.Empty;
+        }
+
+        return kept;
+    }
+
     /// <summary>Screens one field. Returns true when it must not be shown; otherwise <paramref name="kept"/>
     /// carries the text to use. An empty field is never a refusal — several of these are optional.</summary>
     private bool Refused(string? value, out string? kept)

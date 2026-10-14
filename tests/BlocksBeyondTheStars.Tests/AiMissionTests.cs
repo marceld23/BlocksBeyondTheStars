@@ -32,6 +32,7 @@ public sealed class AiMissionTests : IDisposable
         public MissionPlan? Generate(string context) { LastContext = context; return _plan; }
         public string? GenerateNpcLine(NpcLineRequest request) => null;
         public MissionTextResult? GenerateMissionText(MissionTextRequest request) => null;
+        public string[]? GenerateNpcLines(NpcLinesRequest request) => null;
     }
 
     private (SvGameServer server, SqliteWorldRepository repo) Start(AiLevel level, IAiMissionProvider provider, string world)

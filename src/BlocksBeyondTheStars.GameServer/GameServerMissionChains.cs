@@ -94,7 +94,7 @@ public sealed partial class GameServer
             return true;
         }
 
-        int value = p.NpcMemory.TryGetValue(giverKey, out var rel) ? rel.Value : 0;
+        int value = RelationshipValue(p, giverKey); // #2598: a villager without an own entry reads the floor
         return MissionChains.StageRank(RelationshipTier(value)) >= MissionChains.StageRank(def.MinStage);
     }
 
@@ -374,8 +374,11 @@ public sealed partial class GameServer
                     return false;
                 }
 
-                // A place-bound chain continues with the SAME giver (an authored character is the same person anywhere).
+                // A place-bound chain continues at the SAME place (an authored character is the same person anywhere).
+                // #2598: a villager's person key carries a "#slot" — compare places, and still accept a chain bound
+                // before (its bound place may carry the slot of a base resident's key).
                 if (bound.Length > 0 && !dialogGiverKey.StartsWith("char:", StringComparison.Ordinal)
+                    && PlaceOfNpcKey(dialogGiverKey) != bound
                     && !dialogGiverKey.StartsWith(bound + ":", StringComparison.Ordinal))
                 {
                     reason = "@srv.mission.chain_giver";
@@ -685,7 +688,8 @@ public sealed partial class GameServer
         }
 
         // The chain binds to the giver's place; an authored character binds to wherever you met them.
-        string acceptedFrom = npcKey.StartsWith("char:", StringComparison.Ordinal) ? place : npcKey[..Math.Max(0, npcKey.IndexOf(':'))];
+        // #2598: PlaceOfNpcKey cuts a villager's "#slot" too — the chain binds to the settlement, not to a bed.
+        string acceptedFrom = npcKey.StartsWith("char:", StringComparison.Ordinal) ? place : PlaceOfNpcKey(npcKey);
         p.Missions.Add(NewMissionProgress(p, def, acceptedFrom));
         OnChainStepAccepted(session, def, npcKey, npc.Name);
         Send(session, MissionSucceeded(session, def, MissionOutcomes.Accepted));

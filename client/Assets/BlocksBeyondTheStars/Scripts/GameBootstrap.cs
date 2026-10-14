@@ -1397,6 +1397,14 @@ namespace BlocksBeyondTheStars.Client
         /// being ABLE to research something is rare enough to announce a little late rather than drop.</summary>
         public readonly Queue<string> ResearchAvailable = new Queue<string>();
 
+        /// <summary>#2597: achievement keys just unlocked — the HUD's celebration banner (the research toast's slot) consumes
+        /// these after any waiting research, one at a time with the success sound. Like research they survive menus and
+        /// flight (the banner waits for the HUD); at most <see cref="AchievementBannerQueueCap"/> wait.</summary>
+        public readonly Queue<string> AchievementsUnlocked = new Queue<string>();
+
+        /// <summary>#2597: the most achievement banners that wait at once (a burst beyond that is not replayed one by one).</summary>
+        public const int AchievementBannerQueueCap = 6;
+
         /// <summary>False until the first InventoryUpdate after a join landed — that one is the
         /// baseline snapshot, not a pickup (#745).</summary>
         private bool _inventoryBaselined;
@@ -2662,6 +2670,7 @@ namespace BlocksBeyondTheStars.Client
                 _inventoryBaselined = false; // next InventoryUpdate is the join baseline, not a pickup (#745)
                 PickupGains.Clear();
                 ResearchAvailable.Clear();
+                AchievementsUnlocked.Clear(); // #2597
                 LocalPlayerId = m.PlayerId;
                 LocationName = string.IsNullOrEmpty(m.SystemName)
                     ? m.PlanetName
@@ -3266,10 +3275,12 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                string name = Localizer?.Get($"achv.{m.Key}.name") ?? m.Key;
-                string template = Localizer?.Get("ui.achv.unlocked") ?? "Achievement unlocked: {name}";
-                LastMessage = template.Replace("{name}", name);
-                ClientAudio.Instance?.Cue("ui_success", 0.9f);
+                // #2597: a celebration banner (HudUi, the research toast's slot) replaces the status line; the success
+                // sound plays when the banner appears, not here.
+                if (AchievementsUnlocked.Count < AchievementBannerQueueCap)
+                {
+                    AchievementsUnlocked.Enqueue(m.Key);
+                }
             };
             Network.AchievementRewardDeferredReceived += m =>
             {

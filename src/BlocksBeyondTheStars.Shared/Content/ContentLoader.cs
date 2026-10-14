@@ -148,6 +148,12 @@ public static class ContentLoader
             ? JsonSerializer.Deserialize<SpaceSalvageDefinition>(File.ReadAllText(salvageFile), JsonOptions)
             : null);
 
+        // "The village lives" (#2589): no village_life.json → no friend presents, chatter or festival (each part optional).
+        string villageFile = Path.Combine(dataDir, "village_life.json");
+        content.SetVillageLife(File.Exists(villageFile)
+            ? JsonSerializer.Deserialize<VillageLifeDefinition>(File.ReadAllText(villageFile), JsonOptions)
+            : null);
+
         content.Validate();
         return content;
     }
