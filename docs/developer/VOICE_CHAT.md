@@ -23,9 +23,12 @@ Three craftable radio items, each a strict upgrade in **reach**:
 Defined in `data/items.json`, `data/recipes.json`, `data/blueprints.json`, localized in
 `data/locales/{de,en}.json`. The blueprints chain via `prerequisites`, so you unlock comm → system → galaxy.
 
-**Server side** (`GameServer.cs`): the audience is chosen by the **widest** tier the sender holds:
+**Server side** (`GameServer.cs`): the audience is chosen by the **widest** tier the sender **wears** — since
+#2110 a radio works only in a suit module slot (`PlayerState.Equipment`); holding one does nothing:
 
-- `HasAnyRadio(session)` — the chat/voice gate (holds any tier).
+- `HasAnyRadio(session)` — the chat/voice gate (wears any tier).
+- `CarriesUnwornRadio(session)` (#2567) — a radio in the backpack/quick-bar or the active ship's hold, not worn.
+  A refused chat line then carries `@srv.misc.radio_not_worn` ("put it on") instead of `@srv.misc.need_radio`.
 - `RadioAudience(sender)` — the recipient set: galaxy = all joined; system = same `CelestialBody.SystemId`;
   comm = same `CurrentLocationId`. Station/void worlds (no resolvable system) fall back to same-world reach.
 - `SendToRadioAudience(...)` / `SendToRadioAudienceExcept(...)` — encode once, send to that set. Text chat
@@ -48,7 +51,7 @@ client: VoiceReceived → per-speaker jitter buffer → Opus decode → streamin
 - **Message:** `VoiceFrame` (`Messages.cs`), NetCodec tag **169**, used both directions. Sent
   `DeliveryMode.Unreliable` — a dropped 20 ms frame is inaudible and beats waiting for a resend.
 - **Server:** `GameServer.HandleVoice` — drops the frame unless `ServerConfig.VoiceChatEnabled`, the player
-  holds a radio, and the payload is ≤ 4 KB; stamps the authoritative sender id; relays via the tiered
+  wears a radio, and the payload is ≤ 4 KB; stamps the authoritative sender id; relays via the tiered
   audience. The server does **zero** audio processing.
 - **Server flag:** `ServerConfig.VoiceChatEnabled`. Overridable by `--voice true` (CLI) or `BBS_VOICE=true`
   (env, for Docker). Surfaced to clients on `ServerRules.VoiceChatEnabled`. Default is **false** in raw
@@ -58,6 +61,31 @@ client: VoiceReceived → per-speaker jitter buffer → Opus decode → streamin
   `NetworkClient.SendVoice` / `NetworkClient.VoiceReceived` plumbing (in `Client.Core`, always compiled). A
   master **Settings → Voice chat** toggle (`ClientSettings.VoiceEnabled`, default on) turns the whole
   feature off client-side.
+
+### Push-to-talk key and the worn-radio check (#2568/#2569)
+
+- **Default key: Caps Lock** (`PushToTalkKeys.Default` in `Client.Core/Input/PushToTalkKeys.cs`). The old
+  default V was `InputAction.ToggleThirdPerson`'s key, so every word flipped the camera. `ClientSettings.Load`
+  moves a saved `"V"` to Caps Lock once (`PushToTalkKeys.Migrate`, done-flag `PushToTalkMigrated` — a V picked
+  later on purpose is kept).
+- **Picker** (Settings → Voice chat): cycles `PushToTalkKeys.Candidates` minus every key an `InputAction` is
+  bound to right now (`InputMap.Key` for every action, rebinds included — `PushToTalkKeys.Next`). No candidate
+  is read by a hard-wired control (WASD, Space, Ctrl/C crouch, Shift, the number keys, Esc/Tab/Enter).
+- **Collision guard:** should a player rebind an action onto the talk key anyway, `VoiceChat.TalkKeyClaims`
+  makes the camera-view poll sites (`PlayerController`, `SpaceView`) ignore the press while voice is live and
+  the talk key is held.
+- **Caps Lock caveat:** the key still toggles the OS caps-lock state; Unity's `Input.GetKey(KeyCode.CapsLock)`
+  reads the physical press on Windows and Linux (macOS would report the lock state — no macOS client ships).
+- **Worn radio:** `VoiceChat` captures and sends nothing without a worn radio (`RadioGear.Worn` over
+  `GameBootstrap.Wears`); holding the key then shows `ui.voice.no_radio` instead of `ui.voice.talking` (the server
+  would drop every frame anyway). `VoiceChat.Current` exposes the live instance.
+- **Discoverability:** the radio tab (Tab → Alliances → Radio, `CraftingTechShipUI.DetailFunk`) names the worn
+  radio and its reach, warns when none is worn (with a "Wear …" button for a carried one — `RadioGear.Carried`,
+  `SendEquipItem(slot, -1, fromCargo)`), shows `ui.voice.hint` ("Hold {key}: talk") while voice works, or
+  `ui.voice.unavailable` when the server has voice off. The context-actions list shows the same hint on foot.
+- Tests: `tests/BlocksBeyondTheStars.Client.Tests/PushToTalkKeysTests.cs`, `RadioGearTests.cs`; the EditMode
+  `InputAbstractionEditModeTests.PushToTalkDefault_IsBoundToNoAction_AndThePickerSkipsEveryDefaultKey` checks the
+  default against the live `InputMap.DefaultKey` table.
 
 Privacy: audio is relayed live and **never recorded or stored**, by client or server.
 

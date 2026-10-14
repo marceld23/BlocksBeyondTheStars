@@ -187,7 +187,7 @@ Last updated: 2026-10-04.
 | **M** | Toggle the world map (top-down planet view; click to set a waypoint) — rebindable; touch **MAP** |
 | **Enter** | Open the chat box (Esc cancels) |
 | **J** | Hide / show the chat scrollback for this session (rebindable; see also Settings → Comfort → Chat display) |
-| **V** (hold) | Push-to-talk voice (if the server enabled voice; needs a radio; key is configurable) |
+| **Caps Lock** (hold) | Push-to-talk voice (if the server enabled voice; needs a **worn** radio; key is configurable — see §7 → Voice chat) |
 | **Esc** | Close the current screen; if no game screen is open, open the pause menu (Resume · Settings · **Back to my ship** while on foot · Quit) |
 
 Interaction reach is ~6 m (extended by reach equipment).
@@ -328,6 +328,7 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 | **W / A / S / D** | Thrust forward / strafe / back |
 | **Mouse** | Yaw + pitch (turn). Sensitivity scales with the ship's **handling** stat |
 | **V** | Toggle cockpit / third-person camera |
+| **Caps Lock** (hold) | Push-to-talk voice, as on foot (needs a **worn** radio; see §7 → Voice chat) |
 | **W/A/S/D** | Fly through the **system** — every planet/moon is out there at its real position |
 | **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens the **landing map**: the planet's real terrain, the day/night band and — switchable with **☁ Weather: on/off** (remembered) — its **live weather**, with drifting fronts marked "◀ front ▶". Every pad says the weather waiting there (e.g. "⚡ Storm", "☀ Clear"), so you can pick a sunny pad. Click a free pad (or its number key) to land; **Esc** cancels |
 | **E** | Board a nearby space station (within range of its hull; the ship flies round to the station's hangar mouth and docks there before you board) — or, next to a **wormhole**, fly through it (see *Wormholes* below) |
@@ -403,8 +404,14 @@ separate unlock; admins can still disable it through server world rules.
   goals below run from the first blocks to the late game (thousands of blocks, dozens of worlds, every
   blueprint, your own station or ship, the Guardian finale) and each pays an item reward. The **Blueprints** tab
   header shows how much of the tree you have researched and which blueprint you could research next; its filter
-  row shows your **knowledge points** and data fragments and has an **"Enough knowledge"** toggle that hides every
-  blueprint your knowledge does not cover yet (each card also shows *Knowledge have/need*). Crafting/Blueprints/Ship are **location-bound**: Crafting to a station **block**
+  row shows your **knowledge points** and data fragments and has a **"Researchable now"** toggle (*Jetzt
+  erforschbar*; it was "Enough knowledge" before) that keeps only the blueprints you can research right now —
+  prerequisites done, enough knowledge **and** all research materials at hand, so every card left reads
+  *Unlockable* (each card also shows *Knowledge have/need*). Within each tier the blueprints are listed A–Z. The
+  **Crafting** list puts what you can craft right now on top, then the recipes that only lack materials, then the
+  factory recipes with no terminal in reach, then the locked ones — each group **A–Z in your game language** (Ä next
+  to A in German, not after Z); its **"Craftable now"** toggle (*Jetzt baubar*) keeps only the top group, which is
+  then simply alphabetical. The market's barter offers keep the trader's own order. Crafting/Blueprints/Ship are **location-bound**: Crafting to a station **block**
   (workbench, forge, …), Blueprints to your ship's **cockpit**, Ship to the **workshop module** aboard. The **gate row**
   above the list names the block you need (with its icon), how far away the nearest one is and in which
   direction; **Show** marks it on your compass, **Craft one →** jumps to its recipe when you don't own one yet.
@@ -437,7 +444,12 @@ separate unlock; admins can still disable it through server world rules.
 - **Hits and defeats.**
   - A creature or robot you hit flashes white.
   - Little stars circle over a creature or bandit the shock gloves made dizzy; a dizzy robot fizzes with sparks.
-  - When something hurts you, a red marker around the crosshair points toward the closest threat.
+  - When something hurts you, a red marker around the crosshair points toward the creature, robot or bandit that
+    hit you, and it follows that attacker as it moves. A small red arrow beside the marker shows when the attacker
+    is clearly above you (a flier overhead) or below you. The attacker itself blinks red for a moment. Damage
+    with no attacker (lava, hunger, no air) points the marker at the closest threat instead, if there is one.
+  - A creature that bites you lunges at you and makes its attack sound, whether it is right next to you or a few
+    blocks away. Big creatures reach further.
   - Damage shows as red at the edge of the screen, as strong as the share of your health it took. Steady small
     damage (a scan drone, a bite, lava) pulses the edge about twice a second. Only a real hit — 5 % of your health
     or more — flashes the whole screen red and gives the view a light shake.
@@ -532,7 +544,9 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   moves around the dial marks north (the map is north-up, so the two agree). A blue **arrow on the rim** points
   the way to your ship and stays readable however far off it is; the blue square inside the dial is the ship
   itself and the amber pin the waypoint, and the captions under the dial ("Ship 114 m", "Waypoint 138 m") give
-  each distance. Beacons and saved markers show as smaller blips, a landed trader ship as a gold ship icon. Turn
+  each distance. Beacons and saved markers show as smaller blips, a landed trader ship as a gold ship icon, and a
+  goal VEGA marked for you (see *Help when stuck* under the basic training) as a **violet flag** with its own caption
+  ("Goal 85 m"). Turn
   until the arrow points to the top of the dial and walk; VEGA reminds you of this once you are a long way from
   the hull.
 - **VEGA panel** — the ship AI speaks through a typewriter speech panel with a persistent **objective
@@ -565,7 +579,8 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   edible and grow back after two minutes), raid a settlement's
   **greenhouse** (see below), craft emergency rations — or build an **algae tank** (workshop, no blueprint)
   at a base: standing next to it grows 2 algae rations from 1 water (melt 2 snow or 2 ice into water by
-  hand if there is no lake).
+  hand if there is no lake). **To eat**, select the food in the hotbar and press the place button (right mouse
+  button). When you get hungry while carrying something edible, VEGA names it and tells you that key.
 - **Suit energy** (max 100, **150 with a worn suit battery**): powers the stealth-suit cloak (**B**), the
   **jetpack** (hold Space in the air to thrust up) — and the suit's **climate control** (below); consumers
   stop when it hits 0. Recharges aboard the ship and refills fully at a heal-tank. The **glider** needs none.
@@ -703,6 +718,14 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
 - **Flowing water stays near its source**: a stream runs at most about **seven blocks** from where it starts,
   however many steps, shafts or cave floors lie below — it no longer floods valleys and cave systems. For a
   tall cascade that keeps pouring, use the **waterfall block**.
+- **Doors keep water out**: water and lava never run, seep or settle through a doorway — shut **or open**, any
+  kind of door. A door at the bottom of your base holds back the sea, a river or a bog, and opening it lets
+  nothing in. A stream an older version let run through a door dries up by itself; water that already stands
+  still in a room stays until you clear it (next point).
+- **Drying a flooded room**: first close every hole the water came in through (a gap in a wall, a broken
+  window). Then put a block into **every** water cell — sand or dirt is cheap — before you mine any of them
+  out again: a placed block takes the water's place, and once no water is left the room stays dry. The
+  **fluid pump** (see *Scanning & knowledge*) does the same job one cell at a time.
 - **Lava and fire burn everybody**: animals, robbers and Guardian machines take contact damage exactly as
   you do (lava −15/s, fire −10/s), so a flooded fire trench really defends a base. Land animals are kept out
   of a lava column anyway and mostly never reach it; what burns is what flies in, what was inside when you
@@ -942,7 +965,8 @@ players.
   materials moved into the hold automatically each time you board (it says what it stowed, and nothing when
   there was nothing to stow). Off by default.
 - **Sandbox: All items.** In a Sandbox world (or while an admin gave you the Creative mode) the Inventory has an
-  **All items** page: every item of the game, searchable — pick one and **Take 1** or take a full stack. Nothing has
+  **All items** page: every item of the game, searchable (tools first, raw materials last, A–Z in your game language
+  within each group) — pick one and **Take 1** or take a full stack. Nothing has
   to be crafted.
 - **Sandbox: crafting is free.** In the same mode every recipe can simply be crafted — no materials, no blueprint,
   no workbench in reach, a full stack per order — and the craft panel says so instead of "Materials missing". The
@@ -1189,7 +1213,10 @@ players.
     skipped; without hunger there is no eating lesson; in **Creative** crafting is free and the research lesson is
     skipped; a lesson like the berries or the campfire is skipped where no bush or tree grows nearby.
   - **Help when stuck:** after about three minutes on one task VEGA gives a more concrete hint; for "where?" tasks
-    (berries, iron ore) she later marks the nearest spot on your map — only for you; for docking she sets the nearest
+    (iron ore, for example) she later marks the nearest spot — only for you — with a **violet goal flag** on your planet map
+    (**M**), labelled with the task, and on your **compass** ("Goal 85 m"). The flag stays until you have done or
+    skipped the task (on another world it waits for your return); during the basic training she marks only the task
+    shown on the objective bar. For docking she sets the nearest
     **station as your flight target**, so the radar and the arrow at the screen edge lead you there (in flight, or
     already before you launch; a target you set yourself is kept); after ten minutes she offers to skip the step in the
     Journal. Nothing is ever timed and you can never fail a lesson.
@@ -1551,7 +1578,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 ### Alliances (shared access + no friendly fire)
 - Two players can form an **alliance** from the **Alliances** menu tab. It has three views: **Allies**
   (accept/decline incoming requests, end an alliance), **Find players** (propose an alliance to any online
-  player), and **Radio / Funk** (a live chat scrollback with a transmit box).
+  player), and **Radio / Funk** (a live chat scrollback with a transmit box, the radio you wear and its reach, the
+  push-to-talk key — see §7).
 - Allies gain **access to each other's built space stations and planet bases** (boarding and building inside the
   base's protection zone), and **cannot harm one another** even with PvP enabled. Player-built **stations are
   private** — only the owner and their allies can board them.
@@ -1607,8 +1635,13 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - It only works **on foot** (not aboard, not in space or EVA, not in a speeder or a train) and only when your **own
   ship is landed on the world you are standing on**. It refuses while you are **in a fight** (you hit something or
   something hurt you in the last 10 seconds, or a robber is still waiting for your answer) and while you are
-  **falling** — land first. One use every **3 minutes**; the button shows the time left and is greyed out meanwhile.
-  The suit teleporter stays the quicker way once you have crafted it (30 s cooldown, 10 energy).
+  **falling** — land first. Hunger, cold, gas or a hard landing hurt, but they are no fight. The 10 seconds also run
+  while the pause menu is open: open it, wait, and the button lights up — the paused world stops every attacker
+  anyway. During a fight the button is greyed out and counts the seconds down (*fight, 7 s left*); while a robber waits
+  for your answer it says so instead, without a countdown — answer the robber first. One use every
+  **3 minutes**; the button shows that time too and is greyed out meanwhile (this wait pauses with the world). The
+  menu stays open until you are aboard: if the trip is refused, the reason appears right under the buttons. The
+  suit teleporter stays the quicker way once you have crafted it (30 s cooldown, 10 energy).
 - World rule **"Back to my ship" in the pause menu** (Tab → Character → world rules, world admin; or launch with
   `--return-to-ship false`): **on by default**, **off on the `dangerous` preset** — a hard world keeps the walk back.
 
@@ -1790,8 +1823,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   recipes turn **cheaper, less-rare raw materials into the same output as the workshop, but in bulk** —
   more input per step, fewer refining stages. The catch: each factory only makes the **1–4 items on its
   own roster**, so a recipe the menu lists may say *"Use a factory terminal that makes this"* — you'll need
-  a different factory. In the list a factory recipe is labelled **· Factory terminal** and sorts below its
-  workbench twin while no terminal is in reach, so two same-named cards (e.g. *Iron plate*) read apart. Factory
+  a different factory. In the list a factory recipe is labelled **· Factory terminal**; while no terminal is in
+  reach it sorts into its own group further down the list, and in the same group it comes right after its
+  same-named workbench twin, so two cards like *Iron plate* read apart. Factory
   crafts **cannot be disassembled** back into their inputs.
 - Besides the basic parts (plates, panels, cable, glass, steel, energy cells, circuit boards, polymer) factories
   run a **raw-ore tier**: light alloy, bronze, brass, power cells, carbide, magnets, diamonds and even reactor
@@ -2029,13 +2063,13 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   three-part *"A favour for a regular"* chain (crystals → a plant survey → titanium for a trusted friend).
   Saying yes puts the job straight into **Tab → Missions**; hand it in to the **same vendor, in person**.
   "Not today" is fine — they ask again on your next visit, and the ordinary smalltalk stays available.
-- **The world calls you.** People you know reach out over the radio — "📻 Name (Place)" in chat: a
+- **The world calls you.** People you know reach out over the radio — "☎ Name (Place)" in chat: a
   quartermaster with bandits dug in **near their settlement** points you at the bounty (clearing a camp you
   were called about earns extra gratitude), a refilled mission board gets a mention, a trader landing near
   your base hails you, raider ships sighted in your star system draw a warning, a settlement running short
   on food asks for a delivery, and a friend may pass along a **story rumour**. The most recent calls are
-  also listed at the top of **Tab → Missions**, so nothing drowns in chat. Calls need a **radio you carry**
-  (comm = same world, system = same system, galaxy = anywhere), come at most every few minutes, and never
+  also listed at the top of **Tab → Missions**, so nothing drowns in chat. Calls need a **radio you wear** in a
+  module slot of your suit (comm = same world, system = same system, galaxy = anywhere), come at most every few minutes, and never
   repeat themselves. The **Settings → Comfort → NPC radio calls** option switches them to *missions only*
   or *off*.
 - **Your base attracts life.** Trader ships prefer worlds with a founded base. Once your base holds a few
@@ -2304,7 +2338,9 @@ called **stories**:
   ground with a small **oil puddle** in the middle, and under it a column of soft tar straight down to the pocket —
   dig along the black trail. From then on the pockets are also taller (up to ten cells of oil). It is a **deposit**:
   what you pump is gone, the pocket never refills and never floods a cave; a drill cannot mine it. Water and
-  lava flow back as they do for a tier-3 drill. Oil **burns** (a torch or lava sets a pocket alight), and the
+  lava flow back as they do for a tier-3 drill — but still water in a pond or a flooded room above the sea level
+  only fills the hole from its top, so every cell you pump out is gone for good: the pump empties a flooded
+  room cell by cell. Oil **burns** (a torch or lava sets a pocket alight), and the
   **refinery** turns it into polymer (3 per cell) — see §crafting. You can place oil again; you sink into it
   and cannot breathe in it, like water.
 
@@ -2381,6 +2417,9 @@ called **stories**:
 - **Ping ("look here!"):** press **C** (rebindable; pad/touch: the Actions list) to drop a **pulsing pin** at
   your crosshair for ~30 seconds, visible to your allies + crew on the world — perfect for "the entrance is
   HERE". Rate-limited to one every few seconds; pings are never saved.
+- **VEGA's goal flag:** when VEGA marks the goal of a story task you are stuck on, it shows as a **violet flag**
+  labelled with the task (also listed with its distance under *Points of interest*) and on your compass. Only you
+  see it, and it goes away by itself once the task is done or skipped.
 
 ### Travel & the star map
 - Open **Tab → Map**. The system list is grouped: **Current system** at the top (its reachable worlds, plus
@@ -3156,8 +3195,12 @@ reminds you.
 ## 7. Chat & admin / cheat commands
 
 ### Chat
-- Press **Enter**, type, **Enter** to send (scrollback in the chat panel). Normal chat requires a **comm
-  radio** in your inventory; messages are rate-limited and length-capped.
+- Press **Enter**, type, **Enter** to send (scrollback in the chat panel). Normal chat requires a **radio
+  worn** in a module slot of your suit (**Inventory → Suit**) — in your hand, on the quick-bar or in the backpack it
+  does nothing, and the server says so ("Your radio must be worn …"). Messages are rate-limited and length-capped.
+- **Tab → Alliances → Radio** sends a line too and shows your radio: the one you wear and how far it reaches, or a
+  warning when none is worn — with a radio in your backpack (or, aboard, in the hold) a **Wear …** button puts it
+  into a free module slot right there.
 - The scrollback **fades out on its own** a few seconds after the last line (opening the chat box always
   brings the recent lines back). **Long answers scroll:** while the chat box is open, the **mouse wheel** or
   **PageUp/PageDown** pages back through the recent lines — a dim ▲/▼ row says when more is out of view. The
@@ -3185,16 +3228,26 @@ Your radio determines **how far** your comms carry — text chat and voice both 
 - **Galaxy Radio** (upgrade) — **everyone**, anywhere in the galaxy.
 
 Craft the upgrades at the workshop (each tier builds on the previous one; research it under **Blueprints**).
-The **widest** radio you carry sets your reach. Without any radio you can't transmit (you'll get a
-"need a comm radio" notice).
+A radio works only while it is **worn** in a module slot of your suit; the **widest** radio you wear sets your
+reach. Without a worn radio you can't transmit: with one in your backpack, hand or hold you are told to put it on,
+with none at all that you need one.
 
 ### Voice chat (push-to-talk)
-- Hold the **push-to-talk key** (default **V**, configurable in Settings → Voice chat) to talk to your
-  radio audience; a "● Talking…" indicator shows while you transmit. Release to stop.
+- Hold the **push-to-talk key** (default **Caps Lock**, configurable in Settings → Voice chat) to talk to your
+  radio audience; a "● Talking…" indicator shows while you transmit. Release to stop. (Caps Lock also switches
+  the keyboard's caps-lock light each time you press it — that changes nothing in the game, but text you type
+  next may come out in CAPITALS; press it once more, or pick another key.)
 - Voice is **on by default**. When you **host a world for friends** it works out of the box; it needs the
-  same **radio** as text chat and carries to the same tiered reach (planet / system / galaxy).
+  same **worn radio** as text chat and carries to the same tiered reach (planet / system / galaxy). Holding
+  the key **without a worn radio** sends nothing and shows "No radio worn — nobody can hear you" instead.
+- Where to find it: **Tab → Alliances → Radio** shows "Hold Caps Lock: talk" (with your key) while voice works
+  and a radio is worn — or "Voice chat is disabled on this server" — and the **actions list** (pad **LS**,
+  touch **⋯**) shows the same hint on foot.
 - Settings → Voice chat: a master **on/off** switch, **Voice volume**, **Transmit mic** (turn your own mic
-  off while still hearing others), and the **push-to-talk key**.
+  off while still hearing others), and the **push-to-talk key**. The key picker offers only keys **no other
+  control uses** (Caps Lock, Z, Y, Left Alt, the two mouse side buttons — and V, B, T, G or H once you have
+  rebound their action elsewhere). Players who still had the old default **V** (the camera view's key) are
+  moved to Caps Lock once.
 - Audio is relayed **live through the server and never recorded**. Use a **headset** to avoid echo.
 - *On a standalone **dedicated** server, the admin must enable voice (`voiceChatEnabled` / `--voice true` /
   `BBS_VOICE=true`); local hosting enables it automatically.*

@@ -366,10 +366,12 @@ public sealed partial class GameServer
     }
 
     /// <summary>The connected finite still water around <paramref name="start"/> (6-connected). Endless water and flowing
-    /// tongues bound it; a cell another settle owns, or a neighbour in an unloaded chunk, defers it.</summary>
+    /// tongues bound it; a cell another settle owns, or a neighbour in an unloaded chunk, defers it. Water standing in a
+    /// doorway (#2561) belongs to no body: it bounds it, and is woken so the step clears it.</summary>
     private HashSet<Vector3i> CollectStillBody(Vector3i start, out BodyOutcome outcome, out int top, out int bottom, out int radius)
     {
         _settleChunkKnown = false;
+        var doorCells = FluidDoorCells;
         var body = new HashSet<Vector3i> { start };
         var queue = new Queue<Vector3i>();
         queue.Enqueue(start);
@@ -395,6 +397,12 @@ public sealed partial class GameServer
 
                 if (_world.GetBlock(n).Value != _waterId || _fluidLevel.ContainsKey(n))
                 {
+                    continue;
+                }
+
+                if (doorCells.Count > 0 && doorCells.Contains(n))
+                {
+                    WakeFluidCell(n); // #2561: an older save's water in a doorway — the step clears it
                     continue;
                 }
 
@@ -520,10 +528,12 @@ public sealed partial class GameServer
     /// <summary>Where one layer's water can go: the air below it reachable through cells no higher than the layer (the
     /// body's own water, air, and flowing tongues — passable, never filled), sorted lowest first; or a sink — lower endless
     /// water reached through the air, the runoff limit, or more room than the exploration cap. Openings counts the distinct
-    /// gaps through which the water leaves the body toward somewhere lower — the drain rate follows it.</summary>
+    /// gaps through which the water leaves the body toward somewhere lower — the drain rate follows it. A doorway is a wall
+    /// (#2561), whatever it holds: still water never settles through a door, open or shut.</summary>
     private LayerReach ReachFromLayer(List<Vector3i> layer, HashSet<Vector3i> water, int h, Vector3i start, int runoff)
     {
         _settleChunkKnown = false;
+        var doorCells = FluidDoorCells;
         var seen = new HashSet<Vector3i>(layer);
         var queue = new Queue<Vector3i>(layer);
         var origin = new Dictionary<Vector3i, Vector3i>();      // a cell outside the body → the gap it was reached through
@@ -554,6 +564,11 @@ public sealed partial class GameServer
                 if (!SettleCanRead(n))
                 {
                     continue; // never generate terrain for a settle: an unloaded cell is a wall
+                }
+
+                if (doorCells.Count > 0 && doorCells.Contains(n))
+                {
+                    continue; // #2561: a doorway is a wall — and like every wall it never counts toward the cap
                 }
 
                 var b = _world.GetBlock(n);
@@ -686,9 +701,11 @@ public sealed partial class GameServer
                         break;
                     }
 
-                    if (!_world.GetBlock(a).IsAir || InShipInterior(a))
+                    if (!_world.GetBlock(a).IsAir || InShipInterior(a) || FluidDoorCells.Contains(a))
                     {
-                        settle.NextCheck = 0; // the cell filled up meanwhile: re-plan rather than lose the matching water
+                        // The cell filled up (or a door was hung in it, #2561) meanwhile: re-plan rather than lose the
+                        // matching water.
+                        settle.NextCheck = 0;
                         break;
                     }
 

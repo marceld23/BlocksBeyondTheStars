@@ -466,12 +466,23 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
+                    if (StoryMarkerText.IsStory(m))
+                    {
+                        // #2570: VEGA's help marker of an open story step — a steady goal flag (it stays until the step is
+                        // done or skipped), labelled with the step's objective and listed with its distance.
+                        string goal = StoryMarkerLabel(m);
+                        Marker(m.X, m.Z, 38f, StoryTargetCol, "⚑", "map_mark_flag");
+                        MarkerLabel(m.X, m.Z, goal, StoryTargetCol);
+                        poiLines.Append($"\n⚑ {goal}  —  {Mathf.RoundToInt(GroundDistance(m.X, m.Z))} m");
+                        continue;
+                    }
+
                     if (m.Ping)
                     {
                         // A ping pulses: it must jump out for its 30 seconds, then it is gone.
                         float pulse = 34f + 6f * Mathf.Sin(Time.time * 6f);
                         Marker(m.X, m.Z, pulse, new Color(1f, 0.9f, 0.4f), "✹", "map_mark_star");
-                        MarkerLabel(m.X, m.Z, "Ping · " + m.OwnerId, new Color(1f, 0.9f, 0.4f));
+                        MarkerLabel(m.X, m.Z, StoryMarkerText.PingLabel(m.OwnerId, L), new Color(1f, 0.9f, 0.4f)); // #2570: localized
                         continue;
                     }
 
@@ -775,6 +786,19 @@ namespace BlocksBeyondTheStars.Client
         /// thing. Hot rose: nothing else on the map or the dial uses it.</summary>
         public static readonly Color GuardianCoreCol = new Color(1f, 0.32f, 0.5f);
 
+        /// <summary>The colour of VEGA's story help marker (#2570) — a soft violet no other map marker or compass blip uses,
+        /// shared with its compass blip and caption.</summary>
+        public static readonly Color StoryTargetCol = new Color(0.78f, 0.6f, 1f);
+
+        /// <summary>#2570: the label of VEGA's story help marker — the step's objective, resolved like the objective chip's (a
+        /// key of a story this client lacks reads as the neutral note), else the localized "Goal".</summary>
+        private string StoryMarkerLabel(BlocksBeyondTheStars.Networking.Messages.NetMarker m)
+            => StoryMarkerText.Label(m,
+                (key, pack) => Game?.Localizer != null
+                    ? Game.UnknownStories.Text(key, pack, L, k => Game.Localizer.Has(k), Game.HasStoryPack)
+                    : L(key),
+                L);
+
         /// <summary>POI type of a landed trader ship (#1904) — the server's live marker at the pilot, gone on lift-off.</summary>
         public const string TraderShipPoi = "trader_ship";
 
@@ -991,7 +1015,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var markers = Game.Markers;
-            if (markers == null || markers.Length == 0)
+            // Pings and VEGA's story marker (#2570, also flagged Ping) are not listed — with nothing else the hint stays.
+            if (markers == null || System.Array.TrueForAll(markers, mk => mk == null || mk.Ping))
             {
                 UiKit.AddText(_markerPanel, 0, 0, 840, 60, L("ui.marker.none"), 15, UiKit.CyanDim, TextAnchor.UpperLeft);
                 return;

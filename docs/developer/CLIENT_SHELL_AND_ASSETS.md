@@ -138,7 +138,8 @@ from StreamingAssets instead (never under `StreamingAssets/data/`, whose manifes
 `NOTICES.md` (repo root) tracks third-party asset/library attribution. (M20 originally
 bundled no art/audio — runtime-generated placeholders only.) **Superseded:** `NOTICES.md` now
 lists the bundled assets — AI-generated sound effects/music (ElevenLabs, Suno), AI-generated
-UI/item/block/avatar textures (OpenAI image API), and the Rajdhani UI font (SIL OFL 1.1).
+UI/item/block/avatar textures (OpenAI image API), the Rajdhani UI font and its Noto fallbacks (Noto Sans, Noto Sans
+CJK and a tiny Noto Sans Symbols 2 subset for the weather glyphs, #2571; all SIL OFL 1.1).
 Every new asset must be added there with its licence before bundling; copyleft/NC-only assets
 are rejected. The project code is AGPL-3.0-or-later, but bundled assets are kept deliberately
 permissive (or owned) so the founders can also ship the closed-platform console build.

@@ -30,7 +30,6 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     private const double CreatureSpawnInterval = 4.0;
-    private const float CreatureProximityRange = 4f;
     private const int CreatureCapPerPlayer = 4;
     private const float CreatureDespawnRange = 70f; // creatures far from every player despawn (frees the cap)
     private const double CreatureBroadcastInterval = 0.5;  // position-sync cadence (client interpolates)
@@ -367,8 +366,9 @@ public sealed partial class GameServer
             // A titan's bite reaches further than a sheep-sized nip: the proximity range grows with the
             // species size past 2 (#638), so a provoked giant can't be safely poked from just outside 4
             // blocks. Half-rate growth caps it at 6 for the size-6 giants — exactly EnemyAttackReach, so
-            // anything that can bite the player can always be hit back.
-            float prox = CreatureProximityRange + System.Math.Max(0f, (sp.Size - 2f) * 0.5f);
+            // anything that can bite the player can always be hit back. #2565: the rule lives in Shared — the
+            // client's lunge and attack call use the same reach, so no bite lands silently any more.
+            float prox = CreatureReach.BiteRange(sp.Size);
 
             foreach (var session in targets)
             {
@@ -392,6 +392,7 @@ public sealed partial class GameServer
 
                     p.Health = System.Math.Max(0f, p.Health - Mitigate(p, bite));
                     NoteCombat(session); // #2286
+                    NoteHitFrom(session, creature, creature.Position); // #2564: the HUD marker points at this animal
                     MarkPlayerStateDirty(session); // #1530
                     if (p.Health <= 0f)
                     {
@@ -3040,6 +3041,7 @@ public sealed partial class GameServer
             Activity = (sp?.Activity ?? CreatureActivity.Diurnal).ToString(),
             Temperament = (sp?.Temperament ?? CreatureTemperament.Passive).ToString(),
             Size = (sp?.Size ?? 1f) * e.SizeScale, // species size × this individual's own variance (cosmetic)
+            SpeciesSize = sp?.Size ?? 1f, // #2565: the size the bite reach (CreatureReach) is measured by
             Legs = sp?.Legs ?? 4,
             HasWings = sp?.HasWings ?? false,
             HasTail = sp?.HasTail ?? false,

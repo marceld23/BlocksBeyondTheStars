@@ -387,6 +387,29 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Seconds until "Back to my ship" may be used again; 0 when it is ready (#2286). Frozen with the world.</summary>
         public float ReturnToShipCooldownLeft => Mathf.Max(0f, _returnToShipReadyAt - _worldClock.Now);
 
+        /// <summary>#2559: the <c>Time.realtimeSinceStartup</c> at which the fight stops blocking "Back to my ship", from the
+        /// server's last state update (or its last refusal). REAL time, unlike the cooldown: the server's fight grace keeps
+        /// running while the pause menu holds the world (#2558), and that menu is where this countdown is shown.</summary>
+        private float _returnToShipFightUntil;
+
+        /// <summary>Seconds a fight still blocks "Back to my ship"; 0 when none does (#2559). Runs on while the world is held.</summary>
+        public float ReturnToShipFightLeft => Mathf.Max(0f, _returnToShipFightUntil - Time.realtimeSinceStartup);
+
+        /// <summary>#2559: a robber waits for the player's answer — "Back to my ship" is blocked without a countdown (the
+        /// hold-up ends with the answer, not with a clock). From the server's last state update.</summary>
+        public bool ReturnToShipRobberWaiting { get; private set; }
+
+        /// <summary>#2559: bumped when the server puts the player back aboard through "Back to my ship" (the
+        /// <c>@srv.return_ship.done</c> snap) — the pause menu closes on it, and only on it.</summary>
+        public int ReturnToShipArrivals { get; private set; }
+
+        /// <summary>#2559: bumped on every refused "Back to my ship" (<c>ActionRejected</c> with action "return_ship"); the
+        /// open pause menu shows <see cref="ReturnToShipRefusalText"/> instead of closing.</summary>
+        public int ReturnToShipRefusals { get; private set; }
+
+        /// <summary>#2559: the last refusal of "Back to my ship", localized — shown inside the pause menu.</summary>
+        public string ReturnToShipRefusalText { get; private set; } = string.Empty;
+
         /// <summary>Whether the pause menu offers "Back to my ship" right now (#2286): the world rule is on (an older server
         /// never sends it and gets no button — it would drop the intent anyway) and the player is on foot — not aboard,
         /// not flying or in EVA, not driving, not riding a train, not observing. The server checks all of it again, plus
@@ -737,7 +760,7 @@ namespace BlocksBeyondTheStars.Client
         private const int RecentChatMax = 60;
 
         /// <summary>NPC radio calls (#1158, newest last, capped) — a call is easy to lose in chat scrollback,
-        /// so the Missions tab shows the recent ones in its own 📻 block.</summary>
+        /// so the Missions tab shows the recent ones in its own ☎ block.</summary>
         public System.Collections.Generic.IReadOnlyList<ChatMessage> RecentNpcCalls => _recentNpcCalls;
         private readonly System.Collections.Generic.List<ChatMessage> _recentNpcCalls = new();
         private const int RecentNpcCallsMax = 6;
@@ -890,6 +913,10 @@ namespace BlocksBeyondTheStars.Client
         /// views attribute an observed hull drop to "my hit" and flash the crosshair hit marker.</summary>
         public string LastShotTargetId { get; set; }
         public float LastShotTime { get; set; } = -999f;
+
+        /// <summary>#2564: the last blow the server reported on the local player — who hit (entity id), from where, and
+        /// when (on the <see cref="Time.time"/> clock). The HUD's damage marker points there; the attacker blinks red.</summary>
+        public readonly HitSourceTracker LastHit = new HitSourceTracker();
 
         /// <summary>Live procedural creatures near the player (fauna), with their species descriptor.</summary>
         public NetCreature[] Creatures { get; private set; } = System.Array.Empty<NetCreature>();
@@ -1841,6 +1868,8 @@ namespace BlocksBeyondTheStars.Client
                 key = key.Substring(0, colon);
             }
 
+            // #2559: the fight refusal with its seconds reads its own key; the plain key keeps an older client's sentence.
+            key = BlocksBeyondTheStars.Shared.Definitions.ReturnToShipRules.ReasonKey(key, arg);
             string template = Localizer?.Get(key);
             if (string.IsNullOrEmpty(template))
             {
@@ -2916,7 +2945,7 @@ namespace BlocksBeyondTheStars.Client
                 if (_recentChat.Count > RecentChatMax) _recentChat.RemoveAt(0);
                 if (m.IsNpcCall)
                 {
-                    _recentNpcCalls.Add(m); // mirrored into the Missions tab's 📻 block (#1158)
+                    _recentNpcCalls.Add(m); // mirrored into the Missions tab's ☎ block (#1158)
                     if (_recentNpcCalls.Count > RecentNpcCallsMax) _recentNpcCalls.RemoveAt(0);
                 }
             };
@@ -3299,6 +3328,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 LastMessage = ServerMessageText(m.Reason);
                 RespawnTarget = new Vector3(m.X, m.Y, m.Z); // teleport the body to the heal-tank on respawn
+                if (m.Reason == BlocksBeyondTheStars.Shared.Definitions.ReturnToShipRules.DoneToken)
+                {
+                    ReturnToShipArrivals++; // #2559: the pause menu that asked closes now
+                }
             };
             Network.RespawnOptionsReceived += m => LastMessage = ServerMessageText(m.Reason); // deferred death: reason shows under the choice modal
             Network.ServerRulesReceived += m => { Rules = m; LastMessage = $"Mode: {m.GameMode} · PvP: {m.Pvp}"; };
@@ -3314,6 +3347,18 @@ namespace BlocksBeyondTheStars.Client
                 else if (m.Action == "glider")
                 {
                     GliderRejections++; // #2296: no glider worn as the server sees it — PlayerController folds the wing
+                }
+                else if (m.Action == "return_ship")
+                {
+                    // #2559: the open pause menu shows why instead of closing — and a fight refusal carries the seconds
+                    // left, so the row greys out at once even if no state update said so yet.
+                    ReturnToShipRefusalText = LastMessage;
+                    ReturnToShipRefusals++;
+                    float fight = (float)BlocksBeyondTheStars.Shared.Definitions.ReturnToShipRules.FightSecondsOf(m.Reason);
+                    if (fight > 0f)
+                    {
+                        _returnToShipFightUntil = Mathf.Max(_returnToShipFightUntil, Time.realtimeSinceStartup + fight);
+                    }
                 }
 
                 // The server is authoritative: if a dig is rejected because the cell is "already empty", the
@@ -4115,6 +4160,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Bio.OnPlayerState(m); // #2202: the running status effects and the shield cushion
+            LastHit.Observe(m.LastHitSeq, m.LastHitEntityId, m.LastHitFromX, m.LastHitFromY, m.LastHitFromZ, Time.time); // #2564: before the health, which the HUD reads
             Health = m.Health;
             Oxygen = m.Oxygen;
             SuitEnergy = m.SuitEnergy;
@@ -4173,6 +4219,8 @@ namespace BlocksBeyondTheStars.Client
 
             CanFly = m.CanFly;
             _returnToShipReadyAt = _worldClock.Now + m.ReturnToShipCooldownSeconds; // #2286: 0 from the server = ready now; world clock, so it freezes with the hold
+            _returnToShipFightUntil = Time.realtimeSinceStartup + Mathf.Max(0f, m.ReturnToShipFightSeconds); // #2559: real time — the grace runs on through the hold (#2558)
+            ReturnToShipRobberWaiting = m.ReturnToShipFightSeconds < 0f; // #2559: a robber waits for the answer — blocked, no countdown
 
             // Zero-g construction mode on a player station (#1842): its own hints, worded for the station, replace
             // the planet's "left the atmosphere" line for the float that comes with the flip.

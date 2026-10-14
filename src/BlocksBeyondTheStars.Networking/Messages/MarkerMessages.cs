@@ -33,8 +33,22 @@ public sealed class NetMarker
     /// <summary>True when visible to the owner's allies + crew on this body (false = private).</summary>
     public bool Shared { get; set; }
 
-    /// <summary>True for a transient ping (expires server-side ~30 s after it was raised).</summary>
+    /// <summary>True for a transient ping (expires server-side ~30 s after it was raised) — and for a <see cref="Story"/>
+    /// marker, so an older client draws that one as a ping.</summary>
     public bool Ping { get; set; }
+
+    /// <summary>#2570: VEGA's help marker of an open story step — the spot it marked after the player was stuck. It stays
+    /// until the step is done or skipped (RAM only, for this one player, shown while they are on its body) and is labelled
+    /// with <see cref="LabelKey"/>. Additive: an older server never sets it.</summary>
+    public bool Story { get; set; }
+
+    /// <summary>#2570: for a <see cref="Story"/> marker, the locale key of the step's objective (the chip text of the story
+    /// <see cref="PackId"/>); empty reads as a localized "Goal".</summary>
+    public string LabelKey { get; set; } = string.Empty;
+
+    /// <summary>#2570: the story (pack) a <see cref="Story"/> marker belongs to — the client's text for a key of a story it
+    /// lacks reads as the neutral "needs a newer version" note.</summary>
+    public string PackId { get; set; } = string.Empty;
 }
 
 /// <summary>The full set of markers this player should see on their CURRENT world (server → client): their

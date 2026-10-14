@@ -28,10 +28,18 @@ namespace BlocksBeyondTheStars.Client
         private const float LodFar = 90f;
         private const float LodHysteresis = 2f; // so a creature sitting on a boundary does not flicker
 
+        /// <summary>#2564: a blow the server reported counts as this animal's for the red blink / the lunge for this long
+        /// (seconds) — a biter reports one every server tick, so it stays fresh while it bites.</summary>
+        internal const float AttackerBlinkFreshSeconds = 0.4f;
+
+        /// <summary>#2564: an attacker that keeps biting blinks again after this many seconds at the earliest.</summary>
+        internal const float AttackerBlinkInterval = 1.1f;
+
         private sealed class Entry
         {
             public GameObject Root;
             public Vector3 Target;
+            public float NextBlink; // #2564: Time.time from which the attacker's red blink may play again
             public string Bank;   // creature_{size}_{disposition} voice bank (hurt/alert/attack/die)
             public CreatureVoice Voice; // this species' generated voice — call, phrase, cadence, timbre (#902)
             public float Pitch;   // per-species voice pitch (size + a per-species offset)
@@ -443,6 +451,14 @@ namespace BlocksBeyondTheStars.Client
                     FxDefeat.HitFlash(entry.Root, 1f); // #2154: a hit reads on the body, not only in the ears
                 }
 
+                // #2564: the animal the server just named as the player's attacker blinks red — about once a second while
+                // it keeps biting — so the eye finds what the HUD's damage marker points at.
+                if (Time.time >= entry.NextBlink && Game.LastHit.IsFreshFrom(c.Id, Time.time, AttackerBlinkFreshSeconds))
+                {
+                    entry.NextBlink = Time.time + AttackerBlinkInterval;
+                    FxDefeat.AttackerBlink(entry.Root);
+                }
+
                 var audio = ClientAudio.Instance;
                 if (audio != null)
                 {
@@ -466,8 +482,13 @@ namespace BlocksBeyondTheStars.Client
 
                     // No bite-lunge once the player has fled into their ship: the server stops targeting a
                     // boarded player (no proximity damage), so the render side must not keep mauling the hull.
+                    // #2565: the lunge and the attack call fire within the server's own bite reach (CreatureReach, by the
+                    // species size) — a fixed 3 blocks left a flier biting from 3–5 blocks silent and still. An animal the
+                    // server just named as the attacker (#2564) lunges too, wherever smoothing has it drawn.
+                    float biteReach = CreatureReach.BiteRange(c.SpeciesSize > 0f ? c.SpeciesSize : c.Size); // 0: an older server
                     if (c.Hostile && !Game.Aboard && !c.Staggered && now >= entry.NextAttack && c.GiantHeight <= 0f // a giant stomps/strikes instead; a dazed one (#2278) does not bite
-                        && (entry.Root.transform.position - Game.PlayerPosition).sqrMagnitude < 9f)
+                        && ((entry.Root.transform.position - Game.PlayerPosition).sqrMagnitude < biteReach * biteReach
+                            || Game.LastHit.IsFreshFrom(c.Id, Time.time, AttackerBlinkFreshSeconds)))
                     {
                         entry.NextAttack = now + Random.Range(1.5f, 3.5f);
                         PlayCue(entry, "_attack", 1f);

@@ -390,8 +390,13 @@ namespace BlocksBeyondTheStars.Client
         public bool VoiceEnabled = true;
         public float VoiceVolume = 1f;
         public bool VoiceInputEnabled = true;
-        /// <summary>Push-to-talk key, stored as a <see cref="UnityEngine.KeyCode"/> name (default "V").</summary>
-        public string PushToTalkKey = "V";
+        /// <summary>Push-to-talk key, stored as a <see cref="UnityEngine.KeyCode"/> name. Default Caps Lock (#2568): the old
+        /// default V was the camera view's key, so talking flipped the view.</summary>
+        public string PushToTalkKey = PushToTalkKeys.Default;
+
+        /// <summary>#2568: the one-time move of a saved push-to-talk V (the old default) to <see cref="PushToTalkKeys.Default"/>
+        /// has run. Once set, a V picked later on purpose is kept.</summary>
+        public bool PushToTalkMigrated = false;
 
         /// <summary>Remapped controls (Stream C): per-<see cref="InputAction"/> key overrides resolved by
         /// <see cref="InputMap"/>. An action absent here uses its built-in default, so an empty list = stock
@@ -986,6 +991,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 settings.UpdateFeedUrl = DefaultUpdateFeedUrl;
             }
+
+            // Migration (#2568): push-to-talk defaulted to V, the camera view's key — holding it to talk flipped the
+            // view every time. A saved V moves to Caps Lock once; the flag keeps a V the player picks later on purpose.
+            settings.PushToTalkKey = PushToTalkKeys.Migrate(settings.PushToTalkKey, settings.PushToTalkMigrated);
+            settings.PushToTalkMigrated = true;
 
             if (freshInstall)
             {

@@ -94,6 +94,9 @@ namespace BlocksBeyondTheStars.Client
         private TMP_Text _compassFragDist; // nearest net-fragment signal (#1859) — shares the core line's row
         private RectTransform _compassFrag;
         private int _lastCompassFragDist = int.MinValue;
+        private TMP_Text _compassStoryDist; // VEGA's story help marker (#2570) — the core line's row, before the fragment
+        private RectTransform _compassStory;
+        private int _lastCompassStoryDist = int.MinValue;
         private RectTransform _compassTrader; // a landed trader ship on this world (#1904) — blip only, no caption row left
         private TMP_Text _observer; // SPECTATOR badge while fleet-admin observer mode is active (issue #487)
         private GameObject _playtimePanel; // optional session/total playtime readout (top-right, under the clock)
@@ -175,8 +178,12 @@ namespace BlocksBeyondTheStars.Client
         private Image _dmgFlash;
         private RectTransform _dmgDir;   // #2154: a red marker on a ring around the crosshair, pointing at the threat
         private Image _dmgDirImg;
+        private Image _dmgDirArrow;      // #2564: the chevron beside it when the attacker is clearly above or below
         private float _dmgDirTimer;
         private Vector3 _dmgDirFrom;
+        private string _dmgDirEntity = string.Empty; // #2564: the attacker the marker follows (empty: a fixed spot)
+        private const float DamageDirSeconds = 2.2f;     // #2564: how long the marker shows (was 1.4 s)…
+        private const float DamageDirFadeSeconds = 0.8f; // …fading out over its last part
         private TMP_Text _dmgCause;
         private float _flashTimer, _causeTimer;
         private readonly DamageFeedback _damageFeedback = new DamageFeedback(); // #2518: sums the 15 Hz health drops into one effect per half second
@@ -407,10 +414,11 @@ namespace BlocksBeyondTheStars.Client
                 UrpScenePost.Instance?.PulseVignette(pulse.Vignette); // the red edge — all a chip of damage gets
                 VisorHud.Kick(pulse.VisorGlitch); // the hologram glitches with the hit
                 FxCamera.AddDamageTrauma(pulse.Trauma); // #2152: the hit rattles the view (capped, #2518)
-                if (NearestThreat(out var threat))
+                if (DamageSource(out var threat, out string attackerId))
                 {
                     _dmgDirFrom = threat;
-                    _dmgDirTimer = 1.4f;
+                    _dmgDirEntity = attackerId;
+                    _dmgDirTimer = DamageDirSeconds;
                 }
             }
 
@@ -445,7 +453,8 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Turns and fades the damage direction marker (#2154).</summary>
+        /// <summary>Turns and fades the damage direction marker (#2154). #2564: it follows the attacker while that one moves,
+        /// and a chevron beside it points up or down when the attacker is clearly above or below (HitDirection).</summary>
         private void UpdateDamageDirection(float dt)
         {
             if (_dmgDir == null || _dmgDirImg == null)
@@ -458,16 +467,100 @@ namespace BlocksBeyondTheStars.Client
             if (_dmgDirTimer <= 0f || cam == null || Game.Health <= 0f)
             {
                 _dmgDirImg.color = new Color(1f, 0.25f, 0.2f, 0f);
+                if (_dmgDirArrow != null)
+                {
+                    _dmgDirArrow.color = new Color(1f, 0.25f, 0.2f, 0f);
+                }
+
+                _dmgDirEntity = string.Empty;
                 return;
             }
 
-            // Angle of the threat around the view axis: 0 = ahead (marker on top), 90 = to the right.
-            var to = _dmgDirFrom - cam.transform.position;
-            float right = Vector3.Dot(to, cam.transform.right);
-            float fwd = Vector3.Dot(to, Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up).normalized);
-            float angle = Mathf.Atan2(right, fwd) * Mathf.Rad2Deg;
-            _dmgDir.localRotation = Quaternion.Euler(0f, 0f, -angle);
-            _dmgDirImg.color = new Color(1f, 0.25f, 0.2f, Mathf.Clamp01(_dmgDirTimer / 0.6f) * 0.85f);
+            if (_dmgDirEntity.Length > 0 && AttackerScenePos(_dmgDirEntity, out var live))
+            {
+                _dmgDirFrom = live; // the marker stays on the attacker while it circles or swoops
+            }
+
+            // Angle of the threat around the view axis: 0 = ahead (marker on top), 90 = to the right; plus above/below.
+            var camT = cam.transform;
+            var f = camT.forward;
+            var u = camT.up;
+            HitDirection.ScreenHeading(f.x, f.y, f.z, u.x, u.z, out float headX, out float headZ);
+            var to = _dmgDirFrom - camT.position;
+            var bearing = HitDirection.Classify(to.x, to.y, to.z, headX, headZ);
+            _dmgDir.localRotation = Quaternion.Euler(0f, 0f, -bearing.AngleDegrees);
+            float alpha = Mathf.Clamp01(_dmgDirTimer / DamageDirFadeSeconds) * 0.85f;
+            _dmgDirImg.color = new Color(1f, 0.25f, 0.2f, alpha);
+            if (_dmgDirArrow != null)
+            {
+                // Above/below is measured from the player's eyes — a third-person camera sits behind and above them.
+                var fromEyes = _dmgDirFrom - (Game.PlayerPosition + (Vector3.up * 1.6f));
+                var height = HitDirection.Classify(fromEyes.x, fromEyes.y, fromEyes.z, headX, headZ).Height;
+
+                // The chevron rides the turning ring just outside the bar; turned back by the ring's angle it points
+                // straight up (or down) on the screen wherever the bar stands.
+                float flip = height == HitHeight.Below ? 180f : 0f;
+                _dmgDirArrow.rectTransform.localRotation = Quaternion.Euler(0f, 0f, bearing.AngleDegrees + flip);
+                _dmgDirArrow.color = new Color(1f, 0.25f, 0.2f, height == HitHeight.Level ? 0f : alpha);
+            }
+        }
+
+        /// <summary>#2564: where the hit came from. A fresh report from the server names the real attacker — its live scene
+        /// position while it is in view, else the spot the blow came from. Without one (lava, hunger, an older server)
+        /// the marker falls back to the old guess: the nearest hostile within 24 blocks.</summary>
+        private bool DamageSource(out Vector3 at, out string entityId)
+        {
+            var hit = Game.LastHit;
+            if (hit.IsFresh(Time.time))
+            {
+                entityId = hit.EntityId;
+                if (!AttackerScenePos(entityId, out at))
+                {
+                    at = Game.ScenePos(hit.X, hit.Y, hit.Z) + Vector3.up;
+                }
+
+                return true;
+            }
+
+            entityId = string.Empty;
+            return NearestThreat(out at);
+        }
+
+        /// <summary>#2564: the live scene position (about the body's middle, like <see cref="NearestThreat"/>) of the
+        /// planet enemy, bandit or creature with this id. False when it is not in view — and for a giant, whose blow came
+        /// from a foot or a stretch of its long body that the reported spot pins down better than its root.</summary>
+        private bool AttackerScenePos(string id, out Vector3 at)
+        {
+            at = default;
+            if (string.IsNullOrEmpty(id))
+            {
+                return false;
+            }
+
+            foreach (var e in Game.PlanetEnemies)
+            {
+                if (e.Id == id)
+                {
+                    at = Game.ScenePos(e.X, e.Y, e.Z) + Vector3.up;
+                    return true;
+                }
+            }
+
+            foreach (var c in Game.Creatures)
+            {
+                if (c.Id == id)
+                {
+                    if (c.GiantHeight > 0f)
+                    {
+                        return false;
+                    }
+
+                    at = Game.ScenePos(c.X, c.Y, c.Z) + Vector3.up;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>The closest hostile planet enemy or creature within 24 blocks (scene position), if any.</summary>
@@ -729,7 +822,8 @@ namespace BlocksBeyondTheStars.Client
             _dmgCause = UiText.Add(root, W / 2f - 220, H / 2f - 90, 440, 28, string.Empty, 20, new Color(1f, 0.45f, 0.4f), TextAnchor.MiddleCenter, FontStyle.Bold);
 
             // #2154: the damage direction marker — a short red bar on a ring around the crosshair, turned toward the
-            // threat that most likely hit you (the server reports damage, not its source, so the nearest hostile).
+            // threat that hit you. #2564: the server names the attacker now (the nearest hostile is only the fallback);
+            // the bar grew from 70×9 to 96×12, and a chevron just outside it says "above" or "below".
             var dirGo = new GameObject("DamageDirection", typeof(RectTransform));
             dirGo.transform.SetParent(root, false);
             _dmgDir = dirGo.GetComponent<RectTransform>();
@@ -739,12 +833,22 @@ namespace BlocksBeyondTheStars.Client
             bar.transform.SetParent(_dmgDir, false);
             var brt = bar.GetComponent<RectTransform>();
             brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f);
-            brt.sizeDelta = new Vector2(70f, 9f);
+            brt.sizeDelta = new Vector2(96f, 12f);
             brt.anchoredPosition = new Vector2(0f, 150f);
             _dmgDirImg = bar.AddComponent<Image>();
             _dmgDirImg.sprite = UiKit.SolidSprite;
             _dmgDirImg.color = new Color(1f, 0.25f, 0.2f, 0f);
             _dmgDirImg.raycastTarget = false;
+            var chevron = new GameObject("HeightChevron", typeof(RectTransform));
+            chevron.transform.SetParent(_dmgDir, false);
+            var crt = chevron.GetComponent<RectTransform>();
+            crt.anchorMin = crt.anchorMax = new Vector2(0.5f, 0.5f);
+            crt.sizeDelta = new Vector2(26f, 18f);
+            crt.anchoredPosition = new Vector2(0f, 170f); // just outside the bar (150 + 6 + a gap + 9)
+            _dmgDirArrow = chevron.AddComponent<Image>();
+            _dmgDirArrow.sprite = UiKit.TriangleSprite; // points up; UpdateDamageDirection turns it
+            _dmgDirArrow.color = new Color(1f, 0.25f, 0.2f, 0f);
+            _dmgDirArrow.raycastTarget = false;
 
             // Crosshair.
             _crosshair = new GameObject("Crosshair", typeof(RectTransform));
@@ -851,6 +955,10 @@ namespace BlocksBeyondTheStars.Client
             // caption row (the core wins when both exist): a fourth row would sit on the time-of-day panel below.
             _compassFragDist = UiText.Add(comp.transform, 0, 136, 120, 18, string.Empty, 14, FragmentSignalCol, TextAnchor.MiddleCenter, FontStyle.Bold);
             _compassFrag = Blip(comp.transform, FragmentSignalCol, 10f);
+            // VEGA's story help marker (#2570): the goal flag of the map in its violet, plus "Goal 120 m" on the same shared
+            // row — after the core, before the fragment (it is the one thing VEGA just pointed the player at).
+            _compassStoryDist = UiText.Add(comp.transform, 0, 136, 120, 18, string.Empty, 14, WorldMap.StoryTargetCol, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _compassStory = Blip(comp.transform, WorldMap.StoryTargetCol, 14f, "map_mark_flag");
             // A landed trader ship (#1904): its map marker's ship icon in trade gold. Created before the own-ship blip
             // so that one stays on top where the two meet.
             _compassTrader = Blip(comp.transform, WorldMap.TraderShipCol, 14f, "map_ship");
@@ -976,7 +1084,7 @@ namespace BlocksBeyondTheStars.Client
                 UiText.Style(glow, UiText.Look.Glow);
             }
 
-            foreach (var outline in new TMP_Text[] { _locPlace, _loot, _hint, _todText, _compassDist, _compassWpDist, _compassCoreDist, _compassFragDist, _dmgCause, _playtimeText,
+            foreach (var outline in new TMP_Text[] { _locPlace, _loot, _hint, _todText, _compassDist, _compassWpDist, _compassCoreDist, _compassFragDist, _compassStoryDist, _dmgCause, _playtimeText,
                          _wreckName, _wreckProg, _wreckHint, _shipRepairProg, _shipRepairHint, _tameMood, _tameNeed, _tameTrust,
                          _speederSpeed, _speederHullLabel, _speederFuelLabel, _speederHint })
             {
@@ -2917,12 +3025,25 @@ namespace BlocksBeyondTheStars.Client
                 _compassCoreDist.text = coreDistNow >= 0 ? $"{CompassLabel("poi.guardian_core", "Guardian core")} {coreDistNow} m" : string.Empty;
             }
 
+            // VEGA's story help marker (#2570): the target of the story step the player has been stuck on, up until that
+            // step is done or skipped. Its own flag blip (the nearest one, should there be several); its caption takes the
+            // shared row unless the core holds it.
+            bool haveStory = TryGetStoryMarker(out var storyPos);
+            PlaceBlip(_compassStory, haveStory, storyPos, radius, out float storyDist);
+            int storyDistNow = haveStory && !haveCore ? Mathf.RoundToInt(storyDist) : -1;
+            if (storyDistNow != _lastCompassStoryDist)
+            {
+                _lastCompassStoryDist = storyDistNow;
+                _compassStoryDist.text = storyDistNow >= 0 ? StoryMarkerText.CompassCaption(storyDistNow, CompassL) : string.Empty;
+            }
+
             // Net-fragment signal (#1859): the nearest revealed fragment marker on this world — the story chip
-            // says "follow VEGA's signal", this is the signal. The core keeps the row when both are on the map.
+            // says "follow VEGA's signal", this is the signal. The core keeps the row when both are on the map; the story
+            // marker's caption (#2570) keeps it from the fragment's (the fragment's blip stays).
             Vector3 fragPos = Vector3.zero; // assigned up front: the out-call is skipped while the core holds the row
             bool haveFrag = !haveCore && TryGetFragmentSignal(out fragPos);
             PlaceBlip(_compassFrag, haveFrag, fragPos, radius, out float fragDist);
-            int fragDistNow = haveFrag ? Mathf.RoundToInt(fragDist) : -1;
+            int fragDistNow = haveFrag && storyDistNow < 0 ? Mathf.RoundToInt(fragDist) : -1;
             if (fragDistNow != _lastCompassFragDist)
             {
                 _lastCompassFragDist = fragDistNow;
@@ -2965,6 +3086,12 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var m = markers[i];
+                if (StoryMarkerText.IsStory(m))
+                {
+                    _compassMarkers[i].gameObject.SetActive(false); // #2570: drawn as its own flag blip (_compassStory)
+                    continue;
+                }
+
                 var img = _compassMarkers[i].GetComponent<Image>();
                 if (img != null)
                 {
@@ -3192,11 +3319,46 @@ namespace BlocksBeyondTheStars.Client
             return best < float.MaxValue;
         }
 
+        /// <summary>#2570: the nearest of VEGA's story help markers on this world (the server sends the player's own only,
+        /// while the story step behind it is open) — wrap-resolved through the same bearing the blips use.</summary>
+        private bool TryGetStoryMarker(out Vector3 pos)
+        {
+            pos = Vector3.zero;
+            float best = float.MaxValue;
+            var markers = Game.Markers;
+            if (markers == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < markers.Length; i++)
+            {
+                if (!StoryMarkerText.IsStory(markers[i]))
+                {
+                    continue;
+                }
+
+                var candidate = new Vector3(markers[i].X, markers[i].Y, markers[i].Z);
+                CompassBearing(candidate, out float dist);
+                if (dist < best)
+                {
+                    best = dist;
+                    pos = candidate;
+                }
+            }
+
+            return best < float.MaxValue;
+        }
+
         private string CompassLabel(string key, string fallback)
         {
             var loc = Game?.Localizer;
             return loc != null ? loc.Get(key) : fallback;
         }
+
+        /// <summary>#2570: <see cref="CompassLabel"/> as a one-argument lookup for the Client.Core text helpers (without a
+        /// localizer the story caption reads in English).</summary>
+        private string CompassL(string key) => CompassLabel(key, key == StoryMarkerText.CompassKey ? "Goal {0} m" : key);
 
         /// <summary>Size and rim radius of the ship pointer on the 120 px dial (#1682): 50 + half of 14 = 57,
         /// so the whole glyph stays inside the ring border at 60, and clear of the blips, which only reach

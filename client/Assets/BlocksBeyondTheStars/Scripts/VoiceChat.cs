@@ -20,7 +20,8 @@ namespace BlocksBeyondTheStars.Client
     /// is decoded and played through a per-speaker streaming <see cref="AudioSource"/>.
     ///
     /// Voice is doubly gated: the server must opt in (<see cref="ServerRules.VoiceChatEnabled"/>) AND the player
-    /// must hold a radio (server-enforced, same as chat). It is also a build-time opt-in: the Opus codec is
+    /// must WEAR a radio in a module slot (server-enforced, same as chat; #2110). Without a worn radio the client sends
+    /// nothing and the indicator says so instead of "Talking…" (#2569). It is also a build-time opt-in: the Opus codec is
     /// provided by the Concentus plugin, compiled in via the <c>BBS_VOICE</c> scripting define (mirroring the
     /// <c>BBS_UWB</c> browser plugin). Without that define the component stays completely inert — no microphone
     /// access, no capture — so a default build is unchanged. See docs/developer/VOICE_CHAT.md.
@@ -44,6 +45,7 @@ namespace BlocksBeyondTheStars.Client
 
         private bool _available;                    // server enabled + codec compiled in + a mic exists
         private bool _transmitting;
+        private bool _heldWithoutRadio;             // #2569: the talk key is held, but no radio is worn
         private int _sequence;
 
         // Players currently producing audio (for nameplate / HUD "speaking" indicators).
@@ -88,6 +90,43 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Whether a given player is currently speaking (for nameplate indicators).</summary>
         public bool IsSpeaking(string playerId) => _speaking.Contains(playerId);
 
+        /// <summary>The live instance (one per world rig) — the radio tab, the context-actions list and the camera-view
+        /// toggles read it (#2568/#2569). Null outside a world.</summary>
+        public static VoiceChat Current { get; private set; }
+
+        /// <summary>True while the server carries voice (<see cref="ServerRules.VoiceChatEnabled"/>), whatever the local
+        /// microphone — the radio tab's "voice chat is off on this server" line.</summary>
+        public bool ServerVoiceOn => Game != null && Game.Rules != null && Game.Rules.VoiceChatEnabled;
+
+        /// <summary>#2569: true while a radio is worn — text and voice comms work only then (#2110); holding one does nothing.</summary>
+        public static bool WearsRadio(GameBootstrap game) => game != null && RadioGear.Worn(game.Wears) != null;
+
+        /// <summary>The push-to-talk key's on-screen name ("Caps Lock" / "Feststelltaste", "V", …).</summary>
+        public string KeyLabel()
+        {
+            string name = PushToTalkKey().ToString();
+            string labelKey = PushToTalkKeys.LabelKey(name);
+            return labelKey != null && Game?.Localizer != null ? Game.Localizer.Get(labelKey) : name;
+        }
+
+        /// <summary>#2568: true while push-to-talk is live, its key is held and <paramref name="action"/> is bound to that
+        /// same key — the action's poll site then ignores the press, so talking never also flips the camera view. The
+        /// defaults never collide and the settings picker offers no bound key; this covers a player who rebinds an
+        /// action onto the talk key afterwards.</summary>
+        public static bool TalkKeyClaims(InputAction action)
+        {
+            var voice = Current;
+            if (voice == null || !voice._available || (voice.Settings != null && !voice.Settings.VoiceInputEnabled))
+            {
+                return false;
+            }
+
+            var key = voice.PushToTalkKey();
+            return key != KeyCode.None && InputMap.Key(action) == key && Input.GetKey(key);
+        }
+
+        private void Awake() => Current = this;
+
         private void Start()
         {
             if (Game?.Network != null)
@@ -98,6 +137,11 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
+            if (Current == this)
+            {
+                Current = null;
+            }
+
             if (Game?.Network != null)
             {
                 Game.Network.VoiceReceived -= OnVoiceFrame;
@@ -150,6 +194,12 @@ namespace BlocksBeyondTheStars.Client
                     StopTransmit();
                 }
 
+                _heldWithoutRadio = false;
+                if (_indicator != null)
+                {
+                    _indicator.enabled = false; // voice switched off mid-sentence: no stale "Talking…"
+                }
+
                 return;
             }
 
@@ -178,6 +228,14 @@ namespace BlocksBeyondTheStars.Client
             if (_transmitting)
             {
                 _indicator.text = Game?.Localizer?.Get("ui.voice.talking") ?? "● Talking…";
+                _indicator.color = TalkingColor;
+                _indicator.enabled = true;
+            }
+            else if (_heldWithoutRadio)
+            {
+                // #2569: the key is held but nothing goes out — say why instead of a "Talking…" nobody hears.
+                _indicator.text = Game?.Localizer?.Get("ui.voice.no_radio") ?? "No radio worn";
+                _indicator.color = UiKit.Warn;
                 _indicator.enabled = true;
             }
             else
@@ -185,6 +243,8 @@ namespace BlocksBeyondTheStars.Client
                 _indicator.enabled = false;
             }
         }
+
+        private static readonly Color TalkingColor = new Color(0.55f, 1f, 0.7f, 0.95f);
 
         private void EnsureHud()
         {
@@ -195,8 +255,8 @@ namespace BlocksBeyondTheStars.Client
 
             _hud = UiKit.CreateCanvas("VoiceHUD");
             _hud.sortingOrder = 26; // just above the chat overlay (25)
-            _indicator = UiKit.AddText(_hud.transform, 760f, 120f, 400f, 32f, string.Empty, 20,
-                new Color(0.55f, 1f, 0.7f, 0.95f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            _indicator = UiKit.AddText(_hud.transform, 710f, 120f, 500f, 32f, string.Empty, 20,
+                TalkingColor, TextAnchor.MiddleCenter, FontStyle.Bold);
             _indicator.enabled = false;
             _hudBuilt = true;
         }
@@ -226,7 +286,7 @@ namespace BlocksBeyondTheStars.Client
         // #1554: Enum.TryParse splits the name and boxes the result on every call — cache per setting value
         // (the setting string is reference-stable until the player rebinds it).
         private string _pttName;
-        private KeyCode _pttKey = KeyCode.V;
+        private KeyCode _pttKey = KeyCode.CapsLock;
 
         private KeyCode PushToTalkKey()
         {
@@ -239,7 +299,7 @@ namespace BlocksBeyondTheStars.Client
             _pttName = name;
             _pttKey = !string.IsNullOrEmpty(name) && System.Enum.TryParse(name, ignoreCase: true, out KeyCode k)
                 ? k
-                : KeyCode.V;
+                : KeyCode.CapsLock; // PushToTalkKeys.Default (#2568)
             return _pttKey;
         }
 
@@ -249,8 +309,12 @@ namespace BlocksBeyondTheStars.Client
             bool blocked = (Game != null && (Game.ChatTyping || Game.MenuOpen))
                            || (Settings != null && !Settings.VoiceInputEnabled);
             var key = PushToTalkKey();
+            bool held = !blocked && Input.GetKey(key);
 
-            if (!blocked && Input.GetKey(key))
+            // #2569: a radio works only while worn (#2110). Without one the server drops every frame, so nothing is
+            // captured or sent, and the indicator says why instead of a "Talking…" nobody hears.
+            _heldWithoutRadio = held && !WearsRadio(Game);
+            if (held && !_heldWithoutRadio)
             {
                 if (!_transmitting)
                 {

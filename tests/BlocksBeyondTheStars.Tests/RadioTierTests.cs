@@ -182,8 +182,62 @@ public sealed class RadioTierTests : IDisposable
         Assert.False(transport.Sent.Any(x => x.Msg is ChatMessage), "No radio → no chat is relayed.");
         Assert.True(transport.Sent.Any(x => x.Conn == alice.ConnectionId && x.Msg is ActionRejected r && r.Action == "chat"),
             "No radio → the sender gets a rejection.");
+        Assert.Equal("@srv.misc.need_radio", ChatRejection(transport, alice)); // #2567: none at all → "you need a radio"
         _ = bob;
     }
+
+    /// <summary>#2567: a radio in the hand (the quick-bar) does nothing until it is worn — the refusal says to put it on
+    /// instead of claiming the player has no radio. Worn, the same line goes out.</summary>
+    [Fact]
+    public void CarriedRadio_IsRefusedAsNotWorn_ThenWornIsRelayed()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("radio_carried", transport);
+
+        var alice = server.AddLocalPlayer("Alice");
+        var bob = server.AddLocalPlayer("Bob");
+        Assert.Equal(0, alice.State.Inventory.Add("comm_radio", 1, 1)); // in the backpack / on the quick-bar, not worn
+
+        transport.Sent.Clear();
+        server.Chat("Alice", "can you hear me?");
+
+        Assert.DoesNotContain(transport.Sent, s => s.Msg is ChatMessage);
+        Assert.Equal("@srv.misc.radio_not_worn", ChatRejection(transport, alice));
+        var en = _content.CreateLocalizer(Shared.Localization.GameLocale.English);
+        var de = _content.CreateLocalizer(Shared.Localization.GameLocale.German);
+        Assert.True(en.Has("srv.misc.radio_not_worn") && de.Has("srv.misc.radio_not_worn"));
+
+        TestGear.Wear(alice.State, "comm_radio");
+        transport.Sent.Clear();
+        server.Chat("Alice", "now you can");
+
+        Assert.True(GotChat(transport, bob, "now you can"), "a worn radio transmits");
+        Assert.Null(ChatRejection(transport, alice));
+    }
+
+    /// <summary>#2567: a radio left in the ship's hold counts as carried too — the player has one, it is just not on.</summary>
+    [Fact]
+    public void RadioInTheHold_IsRefusedAsNotWorn()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("radio_hold", transport);
+
+        var alice = server.AddLocalPlayer("Alice");
+        Assert.True(alice.Ships.TryGetValue(alice.ActiveShipId, out var ship), "the test player needs an active ship");
+        Assert.Equal(0, ship!.Cargo.Add("system_radio", 1, 1));
+
+        transport.Sent.Clear();
+        server.Chat("Alice", "hello?");
+
+        Assert.Equal("@srv.misc.radio_not_worn", ChatRejection(transport, alice));
+    }
+
+    /// <summary>The reason of the chat rejection the player got, or null.</summary>
+    private static string? ChatRejection(RecordingTransport transport, BlocksBeyondTheStars.GameServer.PlayerSession who)
+        => transport.Sent
+            .Where(x => x.Conn == who.ConnectionId && x.Msg is ActionRejected { Action: "chat" })
+            .Select(x => ((ActionRejected)x.Msg).Reason)
+            .FirstOrDefault();
 
     // ---------------- Voice relay ----------------
 

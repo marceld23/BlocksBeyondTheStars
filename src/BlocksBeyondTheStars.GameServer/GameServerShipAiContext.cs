@@ -429,7 +429,14 @@ public sealed partial class GameServer
             session.VegaTipMentioned.Add(mention);
         }
 
-        SendVegaLine(session, "vega.hint." + spec.Id, count == 0 ? (byte)1 : VegaTipRepeatKind, arg);
+        // #2560: the hunger tip with something edible in the pocket names it (its argument) and the key that eats it — the
+        // same tip, pacing and count, in a variant line. The plain line (where food grows) stays for an empty pocket.
+        string lineKey = spec.Id == "hunger" && arg.Length > 0 ? "vega.hint.hunger_food" : "vega.hint." + spec.Id;
+        SendVegaLine(session, lineKey, count == 0 ? (byte)1 : VegaTipRepeatKind, arg);
+        if (lineKey == "vega.hint.hunger_food")
+        {
+            session.VegaTipCooldownUntil["eat_now"] = _uptime + VegaTips["eat_now"].Cooldown; // it just said the same
+        }
 
         // The tool-tier gate (#1686) is armed by a refused swing and disarmed once it has been explained —
         // the collector deliberately leaves it standing so a losing cadence slot does not swallow the tip.
@@ -494,7 +501,7 @@ public sealed partial class GameServer
 
         if (p.Hunger < 40f)
         {
-            Add("hunger");
+            Add("hunger", EdibleFoodName(session)); // #2560: carried food is named in the line (empty = none)
         }
 
         if (p.SuitClimateActive)
@@ -918,6 +925,24 @@ public sealed partial class GameServer
         }
 
         return false;
+    }
+
+    /// <summary>#2560: the localized name of something the player can eat right now — a consumable (what the held item's
+    /// right-click eats) that fills the stomach without hurting (toxic berries fill a little too, but VEGA does not
+    /// recommend them), the quick-bar first (slots 0..8 lead the personal inventory) — or empty when the pockets hold
+    /// nothing edible.</summary>
+    private string EdibleFoodName(PlayerSession session)
+    {
+        foreach (var slot in session.State.Inventory.Slots)
+        {
+            if (slot is not null
+                && _content.GetItem(slot.Item) is { Category: ItemCategory.Consumable, ConsumeHunger: > 0f, ConsumeHealth: >= 0f })
+            {
+                return ItemDisplayName(session, slot.Item);
+            }
+        }
+
+        return string.Empty;
     }
 
     private bool HasHealingItem(PlayerState p)

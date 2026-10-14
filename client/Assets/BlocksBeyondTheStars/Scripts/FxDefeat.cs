@@ -13,6 +13,7 @@ namespace BlocksBeyondTheStars.Client
     /// <list type="bullet">
     /// <item><see cref="HitFlash"/> — a short white flash on every renderer of the hit model (a <c>_HitFlash</c> property
     /// block on LitColor / VertexColorOpaque, a <c>_Color</c> override on plain Unlit parts) plus a little recoil squash.</item>
+    /// <item><see cref="AttackerBlink"/> — #2564: the one that just hurt the player blinks soft red.</item>
     /// <item><see cref="BreakApart"/> — bodies are jointed cubes (ART_BIBLE §2.8), so the parts come loose, tumble,
     /// shrink and pop into sparkles with a soft puff. Robots throw sparks and little bolts too.</item>
     /// <item><see cref="BeamOut"/> — the bandit shrinks into a rising teleport column and is gone.</item>
@@ -85,6 +86,64 @@ namespace BlocksBeyondTheStars.Client
                 if (root != null)
                 {
                     root.transform.localScale = baseScale;
+                }
+            }, root);
+        }
+
+        /// <summary>The colour an attacker blinks toward (#2564): a warm, soft red.</summary>
+        private static readonly Color AttackerRed = new Color(1f, 0.16f, 0.12f);
+
+        /// <summary>#2564: the creature, machine or bandit that just hurt the player blinks soft red twice, so the eye finds
+        /// the attacker the HUD's damage marker points at. A colour blink only — no squash, nothing gory — through a
+        /// <c>_Color</c> property block (creature and robot bodies are LitColor; parts without <c>_Color</c> keep their
+        /// look). Reduce flashes keeps it to one fainter pulse.</summary>
+        public static void AttackerBlink(GameObject root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            var renderers = root.GetComponentsInChildren<Renderer>(false);
+            if (renderers.Length == 0)
+            {
+                return;
+            }
+
+            bool calm = FxKit.ReduceFlashes;
+            float peak = calm ? 0.35f : 0.6f;
+            float pulses = calm ? 1f : 2f;
+            FxKit.Animate(calm ? 0.3f : 0.5f, t =>
+            {
+                // sin² rises and falls smoothly and is 0 at both ends, so the blink never snaps on or off.
+                float s = Mathf.Sin(t * Mathf.PI * pulses);
+                float f = s * s * peak;
+                foreach (var r in renderers)
+                {
+                    if (r == null || r is ParticleSystemRenderer || r is LineRenderer)
+                    {
+                        continue;
+                    }
+
+                    var m = r.sharedMaterial;
+                    if (m == null || !m.HasProperty(ColorId))
+                    {
+                        continue;
+                    }
+
+                    var b = FxKit.Block;
+                    b.Clear();
+                    b.SetColor(ColorId, Color.Lerp(m.color, AttackerRed, f));
+                    r.SetPropertyBlock(b);
+                }
+            }, () =>
+            {
+                foreach (var r in renderers)
+                {
+                    if (r != null)
+                    {
+                        r.SetPropertyBlock(null);
+                    }
                 }
             }, root);
         }

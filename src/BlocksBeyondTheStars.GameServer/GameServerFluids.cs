@@ -38,6 +38,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// is a source any more: only <b>endless</b> water is — at or below the sea level, routed rivers, generated waterfall
 /// columns (which fall but never spread) and water a player placed. Still water above the sea level is finite and
 /// settles as a whole (<c>GameServerFluidSettle.cs</c>). Lava sources stay endless; the fall rule applies to lava too.
+///
+/// A doorway is a wall to both fluids (#2561, <see cref="FluidDoorCells"/>): a door keeps water and lava out, open or shut.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -472,6 +474,8 @@ public sealed partial class GameServer
 
     private void TickFluids(double dt)
     {
+        _ = FluidDoorCells; // #2561: a changed door registry rebuilds the doorway set and wakes water standing in one
+
         // Parked cells (#1824) still need their re-check; a settle (#2515) its steps, and a held-back wake its turn.
         if (_activeFluid.Count == 0 && _worlds.Active.ParkedFluid.Count == 0 && _settles.Count == 0 && _worlds.Active.SettleDeferred.Count == 0)
         {
@@ -506,6 +510,7 @@ public sealed partial class GameServer
         var todo = new List<Vector3i>(_activeFluid);
         _activeFluid.Clear();
         int budget = FluidUpdatesPerTick;
+        var doorCells = FluidDoorCells; // #2561
 
         foreach (var queued in todo)
         {
@@ -537,6 +542,14 @@ public sealed partial class GameServer
             if (!IsFluid(id))
             {
                 UntrackFluid(pos);
+                continue;
+            }
+
+            if (doorCells.Count > 0 && doorCells.Contains(pos))
+            {
+                // #2561: a doorway holds no fluid. What an older save left in one — the tongue that ran through a shut
+                // door — dries up here, and whatever it fed downstream loses its feed and recedes with it.
+                RetractFluid(pos);
                 continue;
             }
 
@@ -787,9 +800,99 @@ public sealed partial class GameServer
 
     /// <summary>A fluid may enter a cell only if it's air AND not inside a ship interior — so a sea/lava body
     /// can never flow into (or refill) a landed ship's cabin, keeping a submerged ship watertight and dry. A cell a
-    /// running drain has just emptied is closed too (#2515), so a draining pond's own stream does not run back in.</summary>
+    /// running drain has just emptied is closed too (#2515), so a draining pond's own stream does not run back in.
+    /// A doorway is closed as well (#2561, <see cref="FluidDoorCells"/>): a door keeps water and lava out.</summary>
     private bool FluidCanEnter(Vector3i p)
-        => _world.GetBlock(p).IsAir && !InShipInterior(p) && (_drained.Count == 0 || !_drained.Contains(FluidCell(p)));
+    {
+        if (!_world.GetBlock(p).IsAir || InShipInterior(p))
+        {
+            return false;
+        }
+
+        var doorCells = FluidDoorCells;
+        if (_drained.Count == 0 && doorCells.Count == 0)
+        {
+            return true;
+        }
+
+        var cell = FluidCell(p);
+        return !_drained.Contains(cell) && !doorCells.Contains(cell);
+    }
+
+    /// <summary>
+    /// #2561: every cell a door fills on the active world — open or shut, any kind, hung by a player or stamped with a
+    /// structure (the door's width along its wall × the three-high opening, as <see cref="DoorCellsWhere"/> lays it out).
+    /// <para>
+    /// A door is an entity standing in an AIR cell, and the automaton only ever asks "is it air?" — so water used to flow
+    /// straight through a shut door (a tester's base flooded through its wooden door), and the player could not plug the
+    /// gap, because nothing may be built into a doorway. Now a doorway is a wall to both fluids: the flow, the settle of
+    /// still water and the drain stream all refuse it. An open door is no drain either — one rule, whatever the door's
+    /// state, so opening a door never floods a room. Lava shares the rule (it enters cells through the same check).
+    /// </para>
+    /// <para>
+    /// Kept as a set per world, rebuilt only when the door registry changes (the version every door add, removal and
+    /// rebuild bumps), so the check in the hot <see cref="FluidCanEnter"/> stays one hash lookup without allocation.
+    /// </para>
+    /// </summary>
+    private HashSet<Vector3i> FluidDoorCells
+    {
+        get
+        {
+            var world = _worlds.Active;
+            if (world.FluidDoorCellsVersion != _baseAirDoorsVersion)
+            {
+                RebuildFluidDoorCells(world);
+            }
+
+            return world.FluidDoorCells;
+        }
+    }
+
+    /// <summary>#2561: rebuilds the active world's doorway set from the door registry. A doorway that is gone (a door was
+    /// taken down) wakes the fluid around it, so the water it held back flows into the opening; fluid already standing in a
+    /// doorway — an older save, or the upper cells of a door just hung — is woken so <see cref="StepFluids"/> clears it.
+    /// Only resident chunks are read; a doorway in an unloaded chunk is cleared on its next wake.</summary>
+    private void RebuildFluidDoorCells(LoadedWorld world)
+    {
+        world.FluidDoorCellsVersion = _baseAirDoorsVersion;
+        var cells = world.FluidDoorCells;
+        var fresh = _doors.Count > 0 ? DoorCellsWhere(_ => true) : null;
+        foreach (var gone in cells)
+        {
+            if (fresh is null || !fresh.Contains(gone))
+            {
+                foreach (var d in SettleDirs)
+                {
+                    WakeFluidIfLoaded(new Vector3i(gone.X + d.X, gone.Y + d.Y, gone.Z + d.Z));
+                }
+            }
+        }
+
+        cells.Clear();
+        if (fresh is null)
+        {
+            return;
+        }
+
+        cells.UnionWith(fresh);
+        foreach (var c in cells)
+        {
+            WakeFluidIfLoaded(c);
+        }
+    }
+
+    /// <summary>Wakes the cell if it holds a fluid or a waterfall block — read without ever loading its chunk.</summary>
+    private void WakeFluidIfLoaded(Vector3i p)
+    {
+        ushort id = _world.GetBlockIfLoaded(p).Value;
+        if (IsFluid(id) || IsSpout(id))
+        {
+            WakeFluidCell(p);
+        }
+    }
+
+    /// <summary>Test seam (#2561): whether fluids treat the cell as a doorway.</summary>
+    internal bool IsFluidDoorCellForTest(int x, int y, int z) => FluidDoorCells.Contains(FluidCell(new Vector3i(x, y, z)));
 
     /// <summary>True if a cell lies inside any parked ship's bounds (cheap no-op when no ship is placed).</summary>
     private bool InShipInterior(Vector3i p)

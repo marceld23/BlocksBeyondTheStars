@@ -67,7 +67,10 @@ namespace BlocksBeyondTheStars.Client
         public static float Cover(string? state, float cloudDensity)
             => Math.Clamp(Math.Max(cloudDensity, Sky(state, cloudDensity).Cover), 0f, 1f);
 
-        /// <summary>The HUD/map glyph for a state ("☀" for a clear sky on the maps; the HUD hides clear).</summary>
+        /// <summary>The HUD/map glyph for a state ("☀" for a clear sky on the maps; the HUD hides clear).
+        /// <para>#2571: every glyph must be one the bundled UI fonts carry — Rajdhani has ≈ and •, the rest come from
+        /// the tiny Noto Sans Symbols 2 subset in both fallback chains. A new glyph has to be added to that subset first
+        /// (recipe in NOTICES.md), or it renders as □; <c>WeatherGlyphFontTests</c> pins the set.</para></summary>
         public static string Glyph(string? state) => state switch
         {
             "clear" => "☀",

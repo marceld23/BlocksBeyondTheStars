@@ -25,6 +25,13 @@ public sealed class StepEscalationState
     /// <summary>The marker went up (#2490: only then — a provider that found nothing retries).</summary>
     public bool MarkerSent { get; set; }
 
+    /// <summary>#2570: the body the step's help marker stands on — null until a ground marker went up. The marker lives as
+    /// long as this state, i.e. until the step is done or skipped, and is shown while the player is on that body.</summary>
+    public string? MarkerLocationId { get; set; }
+
+    /// <summary>#2570: the spot the help marker points at (with <see cref="MarkerLocationId"/>).</summary>
+    public Vector3f MarkerAt { get; set; }
+
     /// <summary>#2490: where the last marker probe found nothing (<see cref="GameServer"/>'s location key), or null before
     /// the first miss. A new location retries at once.</summary>
     public string? MarkerMissAt { get; set; }
@@ -63,8 +70,9 @@ public sealed partial class GameServer
     /// <summary>Half-size of the block probe of the <c>nearest_ore</c> marker provider (one probe per step and session).</summary>
     private const int RevealProbeRadius = 16;
 
-    /// <summary>Spoken when the help marker of a "where" step went up.</summary>
-    internal const string StepMarkedLine = "vega.step.marked";
+    /// <summary>Spoken when the help marker of a "where" step went up (#2570: it names the compass and the map — the old
+    /// <c>vega.step.marked</c> "Follow the pulse!" is no longer sent).</summary>
+    internal const string StepMarkedLine = StoryNarratorLines.StepMarkedSpot;
 
     /// <summary>Spoken when a MUST step has been open for the skip-offer time.</summary>
     internal const string StepOfferSkipLine = "vega.step.offer_skip";
@@ -1703,11 +1711,12 @@ public sealed partial class GameServer
     internal const double MarkerRetrySeconds = 30.0;
 
     /// <summary>The help escalation of one chip step on active play time (synthesis §3.1): after <c>hintAfter</c> the hint
-    /// line (an open CORE step of a non-optional chapter then stops blocking), after <c>markerAfter</c> a marker ping for
-    /// this session only on a "where" step, after <c>offerSkipAfter</c> the skip offer on a MUST step. Each fires once
-    /// per session; progress restarts the clock. A marker whose provider found nothing (the site is on another world, no
-    /// ore in reach yet) is not spent (#2490): it tries again when the player's location changes, or after
-    /// <see cref="MarkerRetrySeconds"/> on the same spot.</summary>
+    /// line (an open CORE step of a non-optional chapter then stops blocking), after <c>markerAfter</c> a marker for this
+    /// session only on a "where" step (#2570: it stays until the step is done or skipped), after <c>offerSkipAfter</c> the
+    /// skip offer on a MUST step. Each fires once per session; progress restarts the clock. A marker whose provider found
+    /// nothing (the site is on another world, no ore in reach yet) is not spent (#2490): it tries again when the player's
+    /// location changes, or after <see cref="MarkerRetrySeconds"/> on the same spot. During the basic training only the step
+    /// on the objective chip gets a marker (#2570, <see cref="MarkerFitsTheChip"/>).</summary>
     private void EscalateStep(PlayerSession s, CompiledStep step)
     {
         if (!s.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
@@ -1733,7 +1742,8 @@ public sealed partial class GameServer
         }
 
         string reveal = step.Def.OnStart?.Reveal ?? string.Empty;
-        if (!esc.MarkerSent && markerAfter > 0 && open >= markerAfter && reveal.Length > 0 && MarkerProbeDue(s, esc))
+        if (!esc.MarkerSent && markerAfter > 0 && open >= markerAfter && reveal.Length > 0 && MarkerProbeDue(s, esc)
+            && MarkerFitsTheChip(s, step, esc))
         {
             if (MarkRevealTarget(s, step, reveal))
             {
@@ -1772,8 +1782,9 @@ public sealed partial class GameServer
 
     /// <summary>The help marker of a "where" step: the nearest station becomes the client's space waypoint
     /// (<see cref="StoryRevealProviders.NearestStation"/>, #2471 — in flight or still landed, so the dock lesson finally
-    /// points somewhere); every other provider pings a spot on the ground for this session only. Nothing found ⇒ no marker
-    /// and no line. Returns whether a marker went up.</summary>
+    /// points somewhere); every other provider marks a spot on the ground for this session only — on the compass and the
+    /// planet map until the step is done or skipped (#2570, <see cref="RaiseStoryMarker"/>). Nothing found ⇒ no marker and
+    /// no line. Returns whether a marker went up.</summary>
     private bool MarkRevealTarget(PlayerSession s, CompiledStep step, string reveal)
     {
         if (reveal == StoryRevealProviders.NearestStation)
@@ -1787,12 +1798,11 @@ public sealed partial class GameServer
             return true;
         }
 
-        if (RevealTarget(s, reveal) is not { } target)
+        if (RevealTarget(s, reveal) is not { } target || !RaiseStoryMarker(s, step, target))
         {
             return false;
         }
 
-        RaisePrivatePing(s, target);
         SendPackLine(s, step.Pack, StepMarkedLine);
         return true;
     }

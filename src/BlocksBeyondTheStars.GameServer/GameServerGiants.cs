@@ -616,7 +616,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            HurtPlayer(s, sp.AttackDamage, "@srv.death.giant");
+            HurtPlayer(s, e, at, sp.AttackDamage, "@srv.death.giant");
         }
     }
 
@@ -636,7 +636,9 @@ public sealed partial class GameServer
         return false;
     }
 
-    private void HurtPlayer(PlayerSession s, float amount, string deathReason)
+    /// <summary>A giant's blow on a player: <paramref name="giant"/> struck from <paramref name="from"/> (the stomping foot,
+    /// the sandworm's strike spot or the body part that swept them) — recorded for the HUD marker (#2564).</summary>
+    private void HurtPlayer(PlayerSession s, CombatEntity giant, Vector3f from, float amount, string deathReason)
     {
         var p = s.State;
         if (p.GodMode)
@@ -652,6 +654,7 @@ public sealed partial class GameServer
 
         p.Health = System.Math.Max(0f, p.Health - Mitigate(p, amount));
         NoteCombat(s); // #2286
+        NoteHitFrom(s, giant, from); // #2564
         MarkPlayerStateDirty(s);
         if (p.Health <= 0f)
         {
@@ -1042,7 +1045,7 @@ public sealed partial class GameServer
                 if (dx * dx + dz * dz <= radius * radius && System.Math.Abs(p.Position.Y - at.Y) < sp.WormGirth + 3f)
                 {
                     g.HitThisMove.Add(p.PlayerId);
-                    HurtPlayer(s, sp.AttackDamage, "@srv.death.giant");
+                    HurtPlayer(s, e, at, sp.AttackDamage, "@srv.death.giant");
                 }
             }
         }
@@ -1078,7 +1081,7 @@ public sealed partial class GameServer
                     if (dx * dx + dy * dy + dz * dz <= reach * reach)
                     {
                         g.HitThisMove.Add(p.PlayerId);
-                        HurtPlayer(s, sp.AttackDamage * WormBodyHitShare, "@srv.death.giant");
+                        HurtPlayer(s, e, c, sp.AttackDamage * WormBodyHitShare, "@srv.death.giant");
                         BroadcastToWorld(new WorldFx { Kind = sp.BodyPlan == CreatureBodyPlan.Leviathan ? "sea_strike" : "stomp", X = c.X, Y = c.Y, Z = c.Z, Strength = 0.5f, Radius = reach + 1.5f });
                         break;
                     }

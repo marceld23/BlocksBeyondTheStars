@@ -491,6 +491,148 @@ public sealed class StoryPackRuntimeTests : IDisposable
         Assert.Single(transport.LineKeys(p), k => k == SvGameServer.StepMarkedLine); // spent once it went up
     }
 
+    /// <summary>A stone block two blocks from the player — in reach of the <c>nearest_ore:stone</c> marker probe.</summary>
+    private void PlaceStoneNear(SvGameServer server, PlayerSession p)
+    {
+        var pos = p.State.Position;
+        var stone = new Vector3i((int)Math.Floor(pos.X) + 2, (int)Math.Floor(pos.Y), (int)Math.Floor(pos.Z));
+        server.World.SetBlock(stone, _lastContent!.GetBlock("stone")!.NumericId);
+    }
+
+    /// <summary>#2570 (Bloody Mary's report): VEGA's help marker is no 30-second ping any more. It stays while its step is open
+    /// — play time and server uptime both long past 30 s — labelled with the step's objective, and goes with the step: done ⇒
+    /// gone from the view, and the 1 Hz story pass tells the client. The line says where to look, without the "pulse".</summary>
+    [Fact]
+    public void TheHelpMarker_StaysWhileTheStepIsOpen_AndGoesWhenItIsDone()
+    {
+        var (server, transport) = SideWorld("story_marker_done");
+        var p = SidePlayer(server, 1, "Pilot");
+        PlaceStoneNear(server, p);
+
+        transport.Sent.Clear();
+        server.TickStoryPacksForTest(p, 10); // markerAfter 10
+        Assert.Equal("vega.step.marked_spot", SvGameServer.StepMarkedLine);
+        Assert.Single(transport.LineKeys(p), k => k == SvGameServer.StepMarkedLine);
+        Assert.DoesNotContain("vega.step.marked", transport.LineKeys(p)); // the old "Follow the pulse!" line is gone
+        var marker = Assert.Single(server.StoryMarkersForTest("Pilot"));
+        Assert.Equal("story.runtime_test.a1.chip", marker.LabelKey); // the chip's objective names it on the map
+        Assert.Equal(R, marker.PackId);
+        Assert.True(marker.Ping); // an older client draws it as a ping
+        Assert.Contains(transport.To<MarkerList>(p).Last().Markers, m => m.Story); // pushed at once
+
+        server.AdvanceUptimeForTest(120); // a ping would have expired four times over
+        server.TickMarkerPingsForTest();
+        server.TickStoryPacksForTest(p, 60);
+        server.SyncStoryMarkersForTest(p);
+        Assert.Single(server.StoryMarkersForTest("Pilot"));
+        Assert.Contains(transport.To<MarkerList>(p).Last().Markers, m => m.Story);
+        Assert.Single(transport.LineKeys(p), k => k == SvGameServer.StepMarkedLine); // said once
+
+        Event(server, p, GameEventKeys.MineAny, "stone", amount: 3); // a.1 done
+        Assert.True(Has(p, StoryPackKeys.StepDone(R, "a.1")));
+        Assert.Empty(server.StoryMarkersForTest("Pilot"));
+        transport.Sent.Clear();
+        server.Tick(1.0); // the 1 Hz story pass notices and re-sends the view
+        Assert.DoesNotContain(transport.To<MarkerList>(p).Last().Markers, m => m.Story);
+    }
+
+    /// <summary>#2570: skipping the step from the Journal takes its marker along at once (the answer to the click).</summary>
+    [Fact]
+    public void SkippingTheStep_TakesItsHelpMarkerAlong_AtOnce()
+    {
+        var (server, transport) = SideWorld("story_marker_skip");
+        var p = SidePlayer(server, 1, "Pilot");
+        PlaceStoneNear(server, p);
+        server.TickStoryPacksForTest(p, 10);
+        Assert.Single(server.StoryMarkersForTest("Pilot"));
+
+        transport.Sent.Clear();
+        Deliver(server, p, new StoryPackIntent { PackId = R, Action = StoryPackActions.SkipStep, StepId = "a.1" });
+        Assert.True(Has(p, StoryPackKeys.StepSkipped(R, "a.1")));
+        Assert.Empty(server.StoryMarkersForTest("Pilot"));
+        Assert.DoesNotContain(transport.To<MarkerList>(p).Last().Markers, m => m.Story);
+    }
+
+    /// <summary>#2570: the marker belongs to the body it was raised on — off it while the player is elsewhere, back when they
+    /// return and the step is still open.</summary>
+    [Fact]
+    public void TheHelpMarker_StaysOnItsBody_AndIsBackWhenThePlayerReturns()
+    {
+        var (server, transport) = SideWorld("story_marker_travel", c => c.Rules.FreeSpaceFlight = true);
+        var p = SidePlayer(server, 1, "Pilot");
+        PlaceStoneNear(server, p);
+        string home = p.CurrentLocationId;
+        server.TickStoryPacksForTest(p, 10);
+        Assert.Single(server.StoryMarkersForTest("Pilot"));
+
+        string away = server.Galaxy.AllBodies().First(b =>
+            b.Kind is BlocksBeyondTheStars.Shared.World.CelestialKind.Planet or BlocksBeyondTheStars.Shared.World.CelestialKind.Moon
+            && b.SystemId == server.Galaxy.FindBody(home)!.SystemId
+            && !string.IsNullOrEmpty(b.PlanetType) && _lastContent!.GetPlanet(b.PlanetType!) is not null
+            && b.Id != home).Id;
+        server.Travel("Pilot", away);
+        Assert.Equal(away, p.CurrentLocationId);
+        Assert.Empty(server.StoryMarkersForTest("Pilot"));
+        Assert.DoesNotContain(transport.To<MarkerList>(p).Last().Markers, m => m.Story);
+
+        server.Travel("Pilot", home);
+        Assert.Equal(home, p.CurrentLocationId);
+        Assert.Single(server.StoryMarkersForTest("Pilot")); // the step is still open
+        Assert.Contains(transport.To<MarkerList>(p).Last().Markers, m => m.Story);
+    }
+
+    /// <summary>#2570: during the basic training only the step on the objective chip gets a help marker. An open CORE step
+    /// becomes an open extra at its hint time; when its marker time is the same moment (both 5 s here), the chip has moved on
+    /// already — so no marker and no "I've marked your goal" for a step the chip no longer shows, then or later.</summary>
+    [Fact]
+    public void ADeferredExtra_GetsNoHelpMarker_DuringTheBasicTraining()
+    {
+        var tutorial = StoryPackFixtures.Load(T);
+        var extra = tutorial.Chapters[0].Steps.Single(st => st.Id == "t1.2");
+        extra.Tier = StoryStepTiers.Core;
+        extra.OnStart.Reveal = "nearest_ore:stone";
+        extra.Escalate = new StoryEscalation { HintAfter = 5, MarkerAfter = 5 };
+        var content = StoryPackFixtures.ContentWith();
+        content.SetStories(content.Stories.Values.Concat(new[] { tutorial }).ToList());
+        _lastContent = content;
+        var transport = new RecordingTransport();
+        var server = Boot("story_marker_deferred", transport, content, c => c.Rules.StoryId = StoryRegistry.NoneStoryId);
+        var p = Join(server, 1, "Kid");
+        PlaceStoneNear(server, p);
+        Event(server, p, GameEventKeys.MineAny, amount: 2); // t1.1 done: the CORE step t1.2 owns the chip
+        Assert.Equal("t1.2", server.ChipStepForTest(p, T));
+
+        transport.Sent.Clear();
+        server.TickStoryPacksForTest(p, 5); // hint time = marker time: t1.2 is deferred, the chip moves on to t1.3
+        Assert.Equal("t1.3", server.ChipStepForTest(p, T));
+        Assert.Empty(server.StoryMarkersForTest("Kid"));
+        Assert.DoesNotContain(SvGameServer.StepMarkedLine, transport.LineKeys(p));
+
+        server.TickStoryPacksForTest(p, 60);
+        Assert.Empty(server.StoryMarkersForTest("Kid"));
+        Assert.DoesNotContain(SvGameServer.StepMarkedLine, transport.LineKeys(p));
+    }
+
+    /// <summary>#2570: while the basic training holds the chip, another story's step gets no help marker either (VEGA would point
+    /// at something the chip does not show) — it comes once the training is through.</summary>
+    [Fact]
+    public void AnotherStorysStep_GetsItsHelpMarker_OnlyOnceTheBasicTrainingIsThrough()
+    {
+        var (server, transport) = TutorialWorld("story_marker_side", c => c.Rules.StoryId = StoryRegistry.NoneStoryId);
+        var p = Join(server, 1, "Pilot");
+        PlaceStoneNear(server, p);
+        Assert.Equal(T, server.ObjectivePackForTest("Pilot")); // the training owns the chip
+
+        server.TickStoryPacksForTest(p, 12); // the side story's a.1 is past its marker time (10)
+        Assert.Empty(server.StoryMarkersForTest("Pilot"));
+        Assert.DoesNotContain(SvGameServer.StepMarkedLine, transport.LineKeys(p));
+
+        Deliver(server, p, new StoryPackIntent { PackId = T, Action = StoryPackActions.SkipPack });
+        server.TickStoryPacksForTest(p);
+        Assert.Contains(SvGameServer.StepMarkedLine, transport.LineKeys(p));
+        Assert.Equal(R, Assert.Single(server.StoryMarkersForTest("Pilot")).PackId);
+    }
+
     [Fact]
     public void TheHelpClock_StandsStill_WhileTheWorldIsHeld()
     {

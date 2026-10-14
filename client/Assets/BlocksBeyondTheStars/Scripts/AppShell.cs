@@ -1886,7 +1886,7 @@ namespace BlocksBeyondTheStars.Client
             if (_confirmQuit)
             {
                 RefreshPauseStatus();
-                RefreshReturnShipButton(); // #2286: the cooldown on the "Back to my ship" row counts down live
+                RefreshReturnShipButton(); // #2286: the cooldown on the "Back to my ship" row counts down live (#2559: the fight too, and a press's answer lands here)
             }
 
             // Track chat focus across frames: an Esc that closes the chat clears ChatTyping in the SAME
@@ -2089,11 +2089,13 @@ namespace BlocksBeyondTheStars.Client
             UiNav.Enable(canvas.gameObject); // pad: stick walks Resume / Settings / Quit, A picks, B resumes
 
             // "Back to my ship" (#2286) only while on foot in a world whose rule allows it — the server decides the rest
-            // (own ship landed here, not in a fight, not falling, the three-minute cooldown) and answers with a toast.
+            // (own ship landed here, not in a fight, not falling, the three-minute cooldown). Its refusal is shown in a
+            // line of its own at the bottom of the panel (#2559), so the row adds that line too.
             var boot = Boot();
             bool returnShip = boot != null && boot.ReturnToShipOffered;
             const float Row = 64f;
-            float panelH = returnShip ? 340f + Row : 340f;
+            const float ReasonH = 48f;
+            float panelH = returnShip ? 340f + Row + ReasonH : 340f;
             var (_, panel) = UiKit.AddModalOverlay(canvas.transform, 720f, (1080f - panelH) / 2f, 480f, panelH);
             UiKit.AddText(panel.transform, 24f, 24f, 432f, 44f,
                 L("ui.pause.title"), 26, UiKit.TextCol, TextAnchor.MiddleCenter);
@@ -2104,7 +2106,10 @@ namespace BlocksBeyondTheStars.Client
             y += Row;
             _returnShipButton = null;
             _returnShipLabel = null;
-            _returnShipShownSecond = int.MinValue; // a fresh row shows its first state right away
+            _returnShipReasonText = null;
+            _returnShipShownState = int.MinValue; // a fresh row shows its first state right away
+            _returnShipBlocked = false;
+            _returnShipWaitUntil = 0f; // an answer to a menu that was closed before it came is not this menu's
             if (returnShip)
             {
                 _returnShipButton = UiKit.AddButton(panel.transform, 90f, y, 300f, 56f, L("ui.pause.return_ship"), ReturnToShip);
@@ -2121,26 +2126,62 @@ namespace BlocksBeyondTheStars.Client
             _pauseStatusText = UiKit.AddText(panel.transform, 24f, y, 432f, 40f,
                 string.Empty, 16, UiKit.CyanDim, TextAnchor.MiddleCenter);
             RefreshPauseStatus();
+
+            if (returnShip)
+            {
+                // #2559: a refused trip keeps the menu open and says why right here, under the status line — it used to
+                // close the menu first and leave the reason to a toast behind it. Two lines at most (the fight refusal
+                // names its seconds too).
+                _returnShipReasonText = UiKit.AddText(panel.transform, 24f, y + 40f, 432f, ReasonH,
+                    string.Empty, 16, UiKit.Warn, TextAnchor.UpperCenter);
+                _returnShipReasonText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            }
         }
 
         private UnityEngine.UI.Text _pauseStatusText;
         private UnityEngine.UI.Button _returnShipButton; // #2286: the "Back to my ship" row (null when the menu has none)
         private UnityEngine.UI.Text _returnShipLabel;
-        private int _returnShipShownSecond = int.MinValue; // the whole second the row last showed (0 = ready); the label is only re-formatted when it changes
+        private UnityEngine.UI.Text _returnShipReasonText; // #2559: the server's refusal, shown inside the menu
+        private int _returnShipShownState = int.MinValue; // what the row last showed (second · kind · waiting); the label is only re-formatted when it changes
+        private bool _returnShipBlocked; // the row was greyed by a fight or the cooldown when it was last drawn
+        private float _returnShipWaitUntil; // #2559: realtime until which the row waits for the server's answer (0 = not waiting)
+        private int _returnShipArrivalsSeen; // GameBootstrap.ReturnToShipArrivals when the row was pressed
+        private int _returnShipRefusalsSeen; // GameBootstrap.ReturnToShipRefusals when the row was pressed
 
-        /// <summary>"Back to my ship" (#2286): closes the menu and asks the server, so the snap aboard — or the server's
-        /// reason for refusing — is seen in the world, not behind the pause panel. The menu closes FIRST: in
-        /// singleplayer this menu is what holds the world, and the release must be on the wire before the intent (the
-        /// server serves the intent through a hold too, but the order keeps it from ever depending on that).</summary>
+        /// <summary>How long the row waits for the server's answer before it may be pressed again — a lost answer must
+        /// not grey it out for good (the reliable channel delivers one long before that).</summary>
+        private const float ReturnShipAnswerWait = 5f;
+
+        /// <summary>"Back to my ship" (#2286): asks the server and keeps the menu open until it answers (#2559). The trip
+        /// closes the menu (<see cref="GameBootstrap.ReturnToShipArrivals"/>); a refusal keeps it open and shows the
+        /// reason inside it. Before #2559 the menu closed first, so a refused child found only a toast and the next click
+        /// meant reopening the menu. In singleplayer this menu holds the world: the server serves the intent through the
+        /// hold (<c>PausedMayHandle</c>) and its fight grace runs on behind it (#2558); the close after the snap releases
+        /// the hold. In multiplayer nothing waits on a hold — the flow is the same.</summary>
         private void ReturnToShip()
         {
-            CancelQuit();
-            Boot()?.Network?.SendReturnToShip();
+            var boot = Boot();
+            if (boot?.Network == null || _returnShipWaitUntil > 0f)
+            {
+                return; // no world — or the last press is still waiting for its answer
+            }
+
+            _returnShipArrivalsSeen = boot.ReturnToShipArrivals;
+            _returnShipRefusalsSeen = boot.ReturnToShipRefusals;
+            _returnShipWaitUntil = Time.realtimeSinceStartup + ReturnShipAnswerWait;
+            if (_returnShipReasonText != null)
+            {
+                _returnShipReasonText.text = string.Empty; // the old reason belongs to the old press
+            }
+
+            boot.Network.SendReturnToShip();
+            RefreshReturnShipButton(); // greyed while the answer is on its way — no second intent behind the first
         }
 
-        /// <summary>Greys the "Back to my ship" row while its cooldown runs and shows the time left on it (m:ss),
-        /// counting down between the server's state updates. Called every frame the menu is up, so the label is only
-        /// re-formatted when the shown second changes — not three strings per frame.</summary>
+        /// <summary>Follows the server's answer to a press (closes the menu on the trip, shows a refusal) and greys the
+        /// "Back to my ship" row while something blocks it, with the time left on it: a fight (#2559, whole seconds, real
+        /// time — the grace runs on behind the menu) or the cooldown (m:ss, frozen with the world), whichever lasts longer.
+        /// Called every frame the menu is up, so the label is only re-formatted when what it shows changes.</summary>
         private void RefreshReturnShipButton()
         {
             if (_returnShipButton == null)
@@ -2148,22 +2189,62 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            float left = Boot()?.ReturnToShipCooldownLeft ?? 0f;
-            int second = Mathf.CeilToInt(Mathf.Max(0f, left)); // what FormatRemaining shows: rounded up, 0 = ready
-            if (second == _returnShipShownSecond)
+            var boot = Boot();
+            if (_returnShipWaitUntil > 0f && boot != null)
+            {
+                if (boot.ReturnToShipArrivals != _returnShipArrivalsSeen)
+                {
+                    _returnShipWaitUntil = 0f;
+                    CancelQuit(); // aboard: the menu closes (and releases the hold) — the snap and its toast are seen in the world
+                    return;
+                }
+
+                if (boot.ReturnToShipRefusals != _returnShipRefusalsSeen)
+                {
+                    _returnShipWaitUntil = 0f;
+                    if (_returnShipReasonText != null)
+                    {
+                        _returnShipReasonText.text = boot.ReturnToShipRefusalText;
+                    }
+                }
+                else if (Time.realtimeSinceStartup >= _returnShipWaitUntil)
+                {
+                    _returnShipWaitUntil = 0f; // no answer came: the row may be pressed again
+                }
+            }
+
+            float cooldown = boot?.ReturnToShipCooldownLeft ?? 0f;
+            float fight = boot?.ReturnToShipFightLeft ?? 0f;
+            bool robber = boot != null && boot.ReturnToShipRobberWaiting; // blocked until the hold-up is answered — no countdown
+            bool fightShown = fight > 0f && fight >= cooldown; // the longer wait names the row
+            int second = Mathf.CeilToInt(Mathf.Max(0f, Mathf.Max(cooldown, fight))); // rounded up, 0 = ready
+            bool waiting = _returnShipWaitUntil > 0f;
+            int state = second * 8 + (fightShown ? 1 : 0) + (waiting ? 2 : 0) + (robber ? 4 : 0);
+            if (state == _returnShipShownState)
             {
                 return;
             }
 
-            _returnShipShownSecond = second;
-            bool ready = second <= 0;
-            _returnShipButton.interactable = ready;
+            _returnShipShownState = state;
+            bool blocked = second > 0 || robber;
+            if (_returnShipBlocked && !blocked && _returnShipReasonText != null)
+            {
+                _returnShipReasonText.text = string.Empty; // the wait the refusal named is over — its seconds are stale now
+            }
+
+            _returnShipBlocked = blocked;
+            _returnShipButton.interactable = !blocked && !waiting;
             if (_returnShipLabel != null)
             {
-                _returnShipLabel.text = ready
+                _returnShipLabel.text = !blocked
                     ? L("ui.pause.return_ship")
-                    : string.Format(L("ui.pause.return_ship_cooldown"),
-                        BlocksBeyondTheStars.Shared.Definitions.ReturnToShipRules.FormatRemaining(left));
+                    : robber
+                        ? L("ui.pause.return_ship_robber")
+                    : fightShown
+                        ? string.Format(L("ui.pause.return_ship_fight"),
+                            BlocksBeyondTheStars.Shared.Definitions.ReturnToShipRules.FormatFightSeconds(fight))
+                        : string.Format(L("ui.pause.return_ship_cooldown"),
+                            BlocksBeyondTheStars.Shared.Definitions.ReturnToShipRules.FormatRemaining(cooldown));
             }
         }
 

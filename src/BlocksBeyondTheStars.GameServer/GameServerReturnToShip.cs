@@ -22,12 +22,27 @@ namespace BlocksBeyondTheStars.GameServer;
 /// "Falling" is read from the player's own position reports (the client owns on-foot movement): the vertical speed
 /// between the last two reports in different ticks is below −<see cref="ReturnToShipRules.FallingSpeed"/>.
 /// </para>
+/// <para>
+/// Both of those gates age on <see cref="GateClock"/>, which keeps running while the pause menu holds the world (#2558);
+/// only the cooldown runs on the server uptime, which stands still in a held world.
+/// </para>
 /// </summary>
 public sealed partial class GameServer
 {
     /// <summary>playerId → server uptime at which "Back to my ship" may be used again. Not persisted: like the suit
     /// teleporter's cooldown it lives for the server run, which is what every other per-player timer here does.</summary>
     private readonly Dictionary<string, double> _returnToShipReadyAt = new();
+
+    /// <summary>Seconds the world has stood held by the pause menu over this server run (#2558) — summed up by the held
+    /// branch of <see cref="Tick"/>, the one place the hold's time passes without advancing the uptime.</summary>
+    private double _heldSeconds;
+
+    /// <summary>The clock the fight grace and the fall reading age on (#2558): the server uptime plus the time the world
+    /// stood held. The uptime alone stands still behind the singleplayer pause menu — the very menu the button lives
+    /// in — so a menu opened within the grace of a blow refused "Back to my ship" on every click for as long as it
+    /// stayed open. A held world stops every attacker, so a grace that runs out behind the menu is no way around a
+    /// fight. The three-minute cooldown stays on the uptime.</summary>
+    private double GateClock => _uptime + _heldSeconds;
 
     /// <summary>Puts the player back aboard their ship if every gate holds (public entry for tests and tools).</summary>
     public void ReturnToShip(string playerId)
@@ -59,7 +74,7 @@ public sealed partial class GameServer
             X = p.Position.X,
             Y = p.Position.Y,
             Z = p.Position.Z,
-            Reason = "@srv.return_ship.done",
+            Reason = ReturnToShipRules.DoneToken, // #2559: the client's pause menu closes on exactly this
         });
         SendPlayerState(session);
         RaiseGameEvent(session, Shared.Story.GameEventKeys.ShipReturned, "menu"); // #2469: the tutorial's way-home lesson
@@ -97,7 +112,12 @@ public sealed partial class GameServer
 
         if (InCombat(session))
         {
-            return "@srv.return_ship.in_combat";
+            // #2559: a blow's grace names its seconds in the token's argument (a client reads them from the "_left" key; the
+            // plain key has no slot, so an older client reads its sentence unchanged). A waiting robber has no clock to
+            // name — the hold-up ends with the player's answer — so that refusal is the bare token.
+            return session.BanditDemandId != 0
+                ? ReturnToShipRules.InCombatToken
+                : ReturnToShipRules.InCombatToken + ":" + ReturnToShipRules.FormatFightSeconds(ReturnToShipFightLeft(session));
         }
 
         if (IsFalling(session))
@@ -113,18 +133,45 @@ public sealed partial class GameServer
         return null;
     }
 
-    /// <summary>The player was part of a blow less than the grace ago, or a robber is still waiting for their answer.</summary>
+    /// <summary>The player was part of a blow less than the grace ago, or a robber is still waiting for their answer.
+    /// The grace runs on <see cref="GateClock"/>, so it also runs out behind the pause menu (#2558).</summary>
     private bool InCombat(PlayerSession session)
-        => _uptime - session.LastCombatAt < ReturnToShipRules.CombatGraceSeconds || session.BanditDemandId != 0;
+        => GateClock - session.LastCombatAt < ReturnToShipRules.CombatGraceSeconds || session.BanditDemandId != 0;
 
-    /// <summary>The player's last two position reports say they are dropping faster than a hop — and the reading is fresh.</summary>
+    /// <summary>Seconds the fight still blocks "Back to my ship" (#2559), 0 when it does not: what is left of the grace
+    /// after the last blow. While a robber waits for an answer it is <see cref="ReturnToShipRules.RobberWaitingFightSeconds"/>
+    /// — no countdown: the hold-up ends with the player's answer (and its deadline runs on <c>_uptime</c>, which stands
+    /// still behind the pause menu, so any number here would count down to a refusal). For the state update, whose
+    /// pause-menu row counts it down, and for the refusal's text.</summary>
+    private double ReturnToShipFightLeft(PlayerSession session)
+    {
+        if (session.BanditDemandId != 0)
+        {
+            return ReturnToShipRules.RobberWaitingFightSeconds;
+        }
+
+        double left = ReturnToShipRules.CombatGraceSeconds - (GateClock - session.LastCombatAt);
+        return left > 0 ? left : 0;
+    }
+
+    /// <summary>The player's last two position reports say they are dropping faster than a hop — and the reading is
+    /// fresh on <see cref="GateClock"/>, so it goes stale behind the pause menu too (#2558).</summary>
     private bool IsFalling(PlayerSession session)
         => session.LastMoveAt > 0
-           && _uptime - session.LastMoveAt <= ReturnToShipRules.FallSampleMaxAgeSeconds
+           && GateClock - session.LastMoveAt <= ReturnToShipRules.FallSampleMaxAgeSeconds
            && session.VerticalSpeed < -ReturnToShipRules.FallingSpeed;
 
-    /// <summary>Stamps the player as being in a fight right now — called wherever a blow lands on foot (#2286).</summary>
-    private void NoteCombat(PlayerSession session) => session.LastCombatAt = _uptime;
+    /// <summary>Stamps the player as being in a fight right now — called wherever a blow lands on foot (#2286) — and
+    /// queues a state update, so the pause menu's row learns about the fight (#2559): a blow the player lands sends
+    /// none of its own.</summary>
+    private void NoteCombat(PlayerSession session)
+    {
+        session.LastCombatAt = GateClock;
+        if (session.State.Health > 0f)
+        {
+            MarkPlayerStateDirty(session); // a lethal blow is the caller's to send (the death path sends at once)
+        }
+    }
 
     /// <summary>Seconds until this player may use "Back to my ship" again (0 = ready) — for the state update.</summary>
     private float ReturnToShipCooldownLeft(PlayerSession session)
@@ -133,25 +180,27 @@ public sealed partial class GameServer
             : 0f;
 
     /// <summary>Reads the vertical speed out of two consecutive position reports (#2286). Reports inside one tick share
-    /// the tick's uptime, so only the first report of a new tick measures; a report after a long silence measures
-    /// nothing (the player stood still, or was somewhere else) and resets the speed.</summary>
+    /// the tick's clock, so only the first report of a new tick measures; a report after a long silence measures
+    /// nothing (the player stood still, or was somewhere else) and resets the speed. Stamped on <see cref="GateClock"/>
+    /// (#2558), so a pause between two reports counts as the silence it is.</summary>
     private void TrackVerticalSpeed(PlayerSession session, float fromY, float toY)
     {
+        double now = GateClock;
         if (session.LastMoveAt <= 0)
         {
-            session.LastMoveAt = _uptime > 0 ? _uptime : double.Epsilon;
+            session.LastMoveAt = now > 0 ? now : double.Epsilon;
             session.VerticalSpeed = 0f;
             return;
         }
 
-        double dt = _uptime - session.LastMoveAt;
+        double dt = now - session.LastMoveAt;
         if (dt <= 0)
         {
             return; // same tick as the report that measured it
         }
 
         session.VerticalSpeed = dt > ReturnToShipRules.FallSampleMaxAgeSeconds ? 0f : (float)((toY - fromY) / dt);
-        session.LastMoveAt = _uptime;
+        session.LastMoveAt = now;
     }
 
     /// <summary>Test seam (#2286): the refusal token "Back to my ship" would answer this player with right now, or null

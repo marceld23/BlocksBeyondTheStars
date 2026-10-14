@@ -609,13 +609,13 @@ public sealed class PlayerSession
 
     // --- "Back to my ship" gates (#2286) ---
 
-    /// <summary>Server uptime of the last blow this player was part of on foot — a hit they landed on a creature, a
-    /// machine or a bandit, or damage one of those did to them. "In a fight" for <c>ReturnToShipRules.CombatGraceSeconds</c>
-    /// after it. Negative infinity = never.</summary>
+    /// <summary>Gate clock (server uptime plus the time the world stood held, #2558) of the last blow this player was part
+    /// of on foot — a hit they landed on a creature, a machine or a bandit, or damage one of those did to them. "In a
+    /// fight" for <c>ReturnToShipRules.CombatGraceSeconds</c> after it. Negative infinity = never.</summary>
     public double LastCombatAt { get; set; } = double.NegativeInfinity;
 
-    /// <summary>Server uptime of the last position report that advanced the clock (several reports within one tick share
-    /// it; the first one measures the speed). 0 = none yet.</summary>
+    /// <summary>Gate clock (as <see cref="LastCombatAt"/>) of the last position report that advanced it (several reports
+    /// within one tick share it; the first one measures the speed). 0 = none yet.</summary>
     public double LastMoveAt { get; set; }
 
     /// <summary>Vertical speed (blocks per second, + up) between the last two position reports in different ticks — the
@@ -717,6 +717,17 @@ public sealed class PlayerSession
     /// <summary>#1530: a combat/vitals path changed the player's state this tick — GameServer.FlushEntityLists
     /// sends ONE PlayerStateUpdate at the end of the world tick (each biting attacker used to send its own).</summary>
     public bool PlayerStateDirty { get; set; }
+
+    // --- The last blow on this player (#2564) — sent with every PlayerStateUpdate (LastHit*) ---
+
+    /// <summary>Entity id of the creature, machine, bandit or giant that last hurt this player (empty = none yet).</summary>
+    public string LastHitEntityId { get; set; } = string.Empty;
+
+    /// <summary>Where that blow came from: the attacker's position, or a giant's stomp/strike spot.</summary>
+    public BlocksBeyondTheStars.Shared.Geometry.Vector3f LastHitFrom { get; set; }
+
+    /// <summary>Counts the blows (0 = none yet this session) — the client treats every change as a fresh hit.</summary>
+    public int LastHitSeq { get; set; }
 
     // #1530: presence on change + keep-alive. Per viewer: the hash of the presence they last received and the
     // beat it was sent on; a subject is (re)sent to a viewer when the hash changed, the viewer never had it,

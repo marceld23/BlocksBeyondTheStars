@@ -214,13 +214,19 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // #2569: push-to-talk is a held key, not a verb the list can fire — so it is a hint line, shown on foot while
+            // voice is live and a radio is worn (the only time the key does anything).
+            string talkHint = OnFoot && VoiceChat.Current is { Available: true } voice && VoiceChat.WearsRadio(Game)
+                ? L("ui.voice.hint").Replace("{key}", voice.KeyLabel())
+                : null;
+
             var root = _canvas.transform;
             var dim = UiKit.AddModalDim(root, 0.55f); // lighter than a dialog — the world stays readable behind the list
             var t = dim.transform;
 
             const float cx = 960f;   // canvas reference centre (1920×1080)
             const float w = 460f, h = 54f, gap = 8f;
-            int rows = _scratch.Count + 1; // + Close
+            int rows = _scratch.Count + 1 + (talkHint != null ? 1 : 0); // + Close (+ the talk hint)
             float totalH = 44f + rows * (h + gap);
             float y = 540f - totalH * 0.5f;
 
@@ -232,6 +238,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 var action = _scratch[i];
                 UiKit.AddButton(t, cx - w * 0.5f, y, w, h, L(InputMap.LabelKey(action)), () => Pick(action));
+                y += h + gap;
+            }
+
+            if (talkHint != null)
+            {
+                var hint = UiKit.AddText(t, cx - w * 0.5f, y, w, h, talkHint, 20, UiKit.Cyan, TextAnchor.MiddleCenter);
+                UiKit.AddOutline(hint);
                 y += h + gap;
             }
 

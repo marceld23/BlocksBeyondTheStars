@@ -377,6 +377,35 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         }
 
         [Test]
+        public void PushToTalkDefault_IsBoundToNoAction_AndThePickerSkipsEveryDefaultKey()
+        {
+            // #2568: push-to-talk defaulted to V — the camera view's key — so talking flipped the view. Checked against the
+            // live default table, so a new action on Caps Lock fails here (and the headless PushToTalkKeysTests list follows).
+            var defaults = new System.Collections.Generic.List<string>();
+            foreach (InputAction action in System.Enum.GetValues(typeof(InputAction)))
+            {
+                var key = InputMap.DefaultKey(action);
+                Assert.AreNotEqual(PushToTalkKeys.Default, key.ToString(), action + " uses the push-to-talk default key");
+                if (key != KeyCode.None)
+                {
+                    defaults.Add(key.ToString());
+                }
+            }
+
+            // The collisions from the report against the live default table: the camera view (V), stealth (B), trade (T) and
+            // fire (F) keys are never offered — and the picker still has something to offer.
+            var offered = PushToTalkKeys.Free(defaults);
+            foreach (var taken in new[] { "V", "B", "T", "F" })
+            {
+                CollectionAssert.DoesNotContain(offered, taken, taken + " is bound by default but offered for push-to-talk");
+            }
+
+            Assert.IsNotEmpty(offered, "the push-to-talk picker has no free key at all");
+
+            Assert.AreEqual(PushToTalkKeys.Default, new ClientSettings().PushToTalkKey);
+        }
+
+        [Test]
         public void InjectNextFrame_ArmsTheEdge_ForTheFollowingFrameOnly()
         {
             // The context-actions list fires a verb by injection; the edge is for the NEXT frame (the list has

@@ -24,6 +24,62 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-14 evening (Screelit = Justus on v2026.10.13, Bloody Mary on v2026.10.14, a radio report from a locally hosted multiplayer session) — epic #2572, branch fix/reports-2026-10-14-evening — ✅ done 2026-10-14 (⚠ playtest open)
+
+Eight F1 reports (all with their `/bump` twin) plus side findings — one PR:
+
+- **#2558 "Back to my ship" refused forever from the pause menu** — the 10 s fight grace and the fall reading ran on
+  `_uptime`, which stands still while the singleplayer menu holds the world; a menu opened right after a hit refused
+  every click. Both now run on a gate clock (`_uptime` + held seconds); the 180 s cooldown stays on `_uptime`.
+  Starvation/cold/gas/falls never counted as a fight (tests pin it).
+- **#2559 the fight shows in the menu** — `PlayerStateUpdate.ReturnToShipFightSeconds`, the row reads "fight, N s
+  left" (real-time countdown while held), the refusal names the seconds (`@srv.return_ship.in_combat:<s>`, shown from
+  the new `srv.return_ship.in_combat_left`; the plain key keeps its slot-free text, so old clients and old servers
+  both read a clean sentence), and the menu stays open on a refusal and closes only on the trip. A waiting robber is
+  `-1` = "a robber is waiting for your answer", no countdown (its deadline stands still behind the menu).
+- **#2560 starving with food in the pocket** — the hunger tip names a carried edible item and the eat key
+  (`vega.hint.hunger_food`); toxic food never counts.
+- **#2561 doors keep water out** — door cells (open or shut) are walls to water and lava (`FluidCanEnter`, the
+  settle search; a per-world door-cell cache keyed on the door registry version); water standing in a doorway is
+  removed when woken, so streams fed through a door dry up. Side fix: weather snow is never laid on a fluid surface.
+- **#2562 endless up/down wobble** — the weapon-kick spring was explicit Euler, unstable below ~15.5 FPS (the
+  reporter's laptop GPU); now an exact closed-form step in `Client.Core` (`CameraKickSpring`), bounded and NaN-safe,
+  the 60 FPS feel unchanged.
+- **#2563 Blueprints filter "Researchable now"** — replaces "Enough knowledge": only blueprints with prerequisites,
+  knowledge and unlock materials (`BlueprintResearch.StateOf`, one test for the card status, the badge and "next").
+- **#2564 the real attacker** — every blow on a player records attacker id, position and a sequence
+  (`LastHitFrom*`, `LastHitEntityId`, `LastHitSeq` on `PlayerStateUpdate`); the HUD marker points at it (bigger,
+  2.2 s, an up/down chevron for height, `HitDirection` in Client.Core), the attacker blinks red briefly.
+- **#2565 silent bites** — the client lunge/attack sound uses the server's bite reach (`CreatureReach.BiteRange`,
+  `NetCreature.SpeciesSize`) instead of a fixed 3 blocks.
+- **#2566 crafting list A–Z** — within each reach group by the displayed title in the GAME language
+  (`LocaleCollation`, runtime-checked with a folding fallback for players without culture data); also the Blueprints
+  tab and the Sandbox catalog.
+- **#2567 the radio must be worn** — the server says `srv.misc.radio_not_worn` when a radio is carried but not
+  worn; the radio tab shows the worn radio + reach, a warning and a "Wear …" button; radio texts and the manual say
+  "worn" (they said "have/carry" since #2110, `ui.funk.hint` also claimed "everyone on the server").
+- **#2568 push-to-talk ≠ third-person view** — the default moved from V (shared with the camera toggle) to Caps Lock,
+  a saved V migrates once, the picker offers only keys no action uses, the camera toggle ignores a held talk key.
+- **#2569 voice you can find** — "Hold {key}: talk" in the radio tab and the actions list; without a worn radio the
+  indicator says "No radio worn — nobody can hear you" and nothing is sent (before: "● Talking…" while the server
+  dropped every frame).
+- **#2570 VEGA's help marker stays** — no longer a 30 s ping but a per-step story marker until the step is done or
+  skipped (map flag + compass "Goal N m", labelled with the objective, hidden off-body); during the basic training only
+  the chip's step escalates; the line `vega.step.marked_spot` replaces "Follow the pulse!"; the map's "Ping" label is
+  localized.
+- **#2571 weather glyphs □** — ☀ ☁ ☂ ⚡ ❄ ☣ ★ ▲ ❋ were in no bundled font; a 4 KB Noto Sans Symbols 2 subset (OFL)
+  joins both fallback chains (TMP + legacy); the NPC radio-call mark 📻 became ☎ for the same reason.
+- Docs: USER_MANUAL (return to ship, hunger, water + doors, hit feedback, crafting/blueprint lists, radio, voice +
+  keys, VEGA goal flag), VOICE_CHAT, VFX, CRAFTING_TECH_SHIP_UI, STORY_IMPLEMENTATION, TUTORIAL_PACK,
+  WORLD_GENERATION, ADR 0017 addendum, CLIENT_SHELL_AND_ASSETS, NOTICES. 20 new, 6 changed and 2 removed keys in all 14 languages
+  (machine pass + hand QA: suit/workshop/radio names per locale, two reversed refusals, VEGA's gender in pl/ru);
+  independent review before the first push (5 findings: hold-up countdown and the `{name}` key split fixed, a weak
+  EditMode assertion replaced, Caps Lock's OS toggle kept as decided and documented, new server-sent keys on old
+  clients accepted as for every package).
+- Open: playtest (Justus: a pistol + a storm on the old laptop, the flooded base after the update; Verena: marker and
+  attacker arrow); the world story's chapter-lead marker is still a 30 s ping, the berries step (b2.3) never reaches
+  its marker time (core steps leave the chip at the hint time).
+
 ### 📬 Player report 2026-10-14 (Lyxette, v2026.10.14) — epic #2546, branch fix/reports-2026-10-14-base-air — ✅ done 2026-10-14 (⚠ playtest open)
 
 An underground base in a reshaped cave on an airless world: the stairs next to the Grundstein breathed, the big,

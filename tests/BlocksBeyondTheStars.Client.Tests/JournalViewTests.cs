@@ -501,6 +501,7 @@ public sealed class JournalViewTests
     {
         Assert.True(VegaText.IsTransientLine(StoryNarratorLines.JournalNews));
         Assert.True(VegaText.IsTransientLine(StoryNarratorLines.StepMarkedStation));
+        Assert.True(VegaText.IsTransientLine(StoryNarratorLines.StepMarkedSpot)); // #2570: its marker goes with the step
         Assert.True(VegaText.IsTransientLine(StoryNarratorLines.ChapterNothingLeft)); // #2500: the answer to a click
         Assert.False(VegaText.IsTransientLine("story.vega.guardian_revealed"));
         Assert.False(VegaText.IsTransientLine(null));

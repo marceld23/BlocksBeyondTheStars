@@ -80,3 +80,18 @@ keeps a disturbed body awake until it balances.
 - **No save-version change.** No block was added, the classes are positional, and the new table is additive.
 - **The server stays light.** Classification is memoised per cell above the sea line; a settle runs only when a finite
   body with an open side is woken, re-plans once a second while it moves, and moves at most 24 cells per step.
+
+## Addendum — doors are walls to fluids (#2561, 2026-10-14)
+
+A tester's base on v2026.10.13 flooded through its wooden door: a door is an entity standing in an **air** cell, every
+fluid path asked only "is it air?", and nothing may be built into a doorway, so the gap could not be plugged. Under this
+ADR a woken finite pond would also have **settled** through it into the lowest air — a base floor behind the door.
+
+Every cell a door fills (its width × the three-high opening; open or shut, any kind, hung by a player or stamped with a
+structure) is now a wall to both fluids: `FluidCanEnter` (flow, fall, spout, drain stream), the settle's body collection
+and reach, and a running settle's fills, which re-plan when a door is hung in a target cell. An open door is no drain —
+one rule regardless of state. Lava follows the same rule because it enters cells through the same check. Fluid an older
+save left in a doorway is removed when the step wakes the cell, and what it fed downstream recedes; still water that
+already settled into a room stays (the manual explains how to clear it). The cells live in a per-world set rebuilt only
+when the door registry changes, so the hot check stays one hash lookup without allocation; a rebuild wakes the fluid
+standing in a resident doorway and the fluid beside a doorway that went away. No protocol or save change.

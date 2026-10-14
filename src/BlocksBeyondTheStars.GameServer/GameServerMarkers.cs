@@ -24,6 +24,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <para>Pings are the transient cousin: a "look here" pulse at the crosshair with a
 /// <see cref="PingTtlSeconds"/>-second lifetime and a per-player rate limit, visible to the same audience,
 /// never persisted. Labels go through the same sanitize + content screen as beacon labels.</para>
+///
+/// <para>A player's view also carries VEGA's story help markers (#2570, <c>GameServerStoryMarkers.cs</c>): their own only,
+/// RAM only, alive until the story step behind them is done or skipped.</para>
 /// </summary>
 public sealed partial class GameServer
 {
@@ -202,10 +205,11 @@ public sealed partial class GameServer
         BroadcastMarkersOn(loc);
     }
 
-    /// <summary>#2466: the story-pack help marker — a ping at <paramref name="at"/> that only THIS session sees (synthesis
-    /// §5.3): RAM only, <see cref="PingTtlSeconds"/> seconds, never persisted, never broadcast to the circle and never
-    /// <c>RevealPoi</c> (which writes the world's shared data and tells everyone). Only the receiver's marker view is
-    /// re-sent.</summary>
+    /// <summary>#2466: a ping at <paramref name="at"/> that only THIS session sees (synthesis §5.3) — today the marker of the
+    /// world story's lead (#2475; a story STEP's help marker stays until the step closes since #2570,
+    /// <see cref="RaiseStoryMarker"/>): RAM only, <see cref="PingTtlSeconds"/> seconds, never persisted, never broadcast to the
+    /// circle and never <c>RevealPoi</c> (which writes the world's shared data and tells everyone). Only the receiver's marker
+    /// view is re-sent.</summary>
     private void RaisePrivatePing(PlayerSession session, Vector3f at)
     {
         string loc = session.CurrentLocationId;
@@ -407,6 +411,7 @@ public sealed partial class GameServer
             }
         }
 
+        AddStoryMarkers(viewer, loc, result); // #2570: VEGA's help markers of the viewer's open story steps
         return new MarkerList { Markers = result.ToArray() };
     }
 
@@ -423,7 +428,11 @@ public sealed partial class GameServer
         Shared = m.Shared,
     };
 
-    private void SendMarkers(PlayerSession session) => Send(session, MarkersFor(session));
+    private void SendMarkers(PlayerSession session)
+    {
+        Send(session, MarkersFor(session));
+        NoteStoryMarkersSent(session); // #2570: the 1 Hz story pass re-sends only when these change
+    }
 
     /// <summary>Re-sends the marker view to every joined player on the given body (each gets their own
     /// filtered list — visibility is per viewer, so there is no one broadcast payload).</summary>
@@ -474,6 +483,7 @@ public sealed partial class GameServer
         if (disconnected)
         {
             _nextPingAt.Remove(me);
+            _storyMarkersSent.Remove(session.ConnectionId); // #2570: the help markers were RAM of this session
             if (_sharedMarkersSeeded)
             {
                 IndexSharedMarkers(session.State);

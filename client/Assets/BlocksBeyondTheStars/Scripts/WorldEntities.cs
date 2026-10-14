@@ -39,6 +39,7 @@ namespace BlocksBeyondTheStars.Client
             public bool IsGunner;         // ranged bandit variant (tracer shots instead of claw swipes)
             public bool PrevStaggered;    // #2278: to detect the daze starting (one dizzy cue per push)
             public float NextDazeSpark;   // #2278: paces a dazed robot's sparks
+            public float NextBlink;       // #2564: Time.time from which the attacker's red blink may play again
         }
 
         private readonly Dictionary<string, Entry> _enemies = new();
@@ -127,6 +128,14 @@ namespace BlocksBeyondTheStars.Client
 
                 en.Root.transform.position = scenePos;
                 Animate(en, vel.magnitude / Mathf.Max(Game.WorldDeltaTime, 1e-4f), e.Hostile);
+
+                // #2564: the machine or bandit the server just named as the player's attacker blinks red, so the eye finds
+                // what the HUD's damage marker points at (about once a second while its aura keeps hurting).
+                if (Time.time >= en.NextBlink && Game.LastHit.IsFreshFrom(e.Id, Time.time, CreatureView.AttackerBlinkFreshSeconds))
+                {
+                    en.NextBlink = Time.time + CreatureView.AttackerBlinkInterval;
+                    FxDefeat.AttackerBlink(en.Root);
+                }
 
                 var audio = ClientAudio.Instance;
                 if (audio != null)

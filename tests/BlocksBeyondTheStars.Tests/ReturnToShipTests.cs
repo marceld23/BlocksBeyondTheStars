@@ -200,25 +200,159 @@ public sealed class ReturnToShipTests : IDisposable
 
         server.AttackEntity("Lost", bandit.Id); // the blow lands — the starter drill punches like a fist (#2306)
         Assert.True(bandit.Hull < bandit.HullMax, "the punch must land for this test to mean anything");
-        Assert.Equal("@srv.return_ship.in_combat", server.ReturnToShipRefusalForTest("Lost"));
+        // #2559: the refusal names the seconds the fight still blocks the trip.
+        Assert.Equal("@srv.return_ship.in_combat:10", server.ReturnToShipRefusalForTest("Lost"));
 
         server.AdvanceUptimeForTest(ReturnToShipRules.CombatGraceSeconds - 1.0);
-        Assert.Equal("@srv.return_ship.in_combat", server.ReturnToShipRefusalForTest("Lost"));
+        Assert.Equal("@srv.return_ship.in_combat:1", server.ReturnToShipRefusalForTest("Lost"));
 
         server.AdvanceUptimeForTest(1.5);
         Assert.Null(server.ReturnToShipRefusalForTest("Lost"));
     }
 
     [Fact]
-    public void APendingHoldUp_CountsAsAFight()
+    public void APendingHoldUp_CountsAsAFight_WithoutACountdown()
     {
-        var server = Started("rts_holdup");
+        // #2559 review: a hold-up ends with the player's answer, not with a clock — and its deadline runs on _uptime, which
+        // stands still behind the pause menu. A number would count down to zero, light the button and be refused again,
+        // for as long as the robber waits. So the refusal is the bare token and the state update says "robber waiting".
+        var transport = new RecordingTransport();
+        var server = Started("rts_holdup", transport);
         var p = OnFoot(server, "Lost");
         p.BanditDemandId = 7; // a robber is waiting for the answer
-        Assert.Equal("@srv.return_ship.in_combat", server.ReturnToShipRefusalForTest("Lost"));
+        string? refusal = server.ReturnToShipRefusalForTest("Lost");
+        Assert.Equal(ReturnToShipRules.InCombatToken, refusal);
+        Assert.Equal(0.0, ReturnToShipRules.FightSecondsOf(refusal));
+
+        transport.Sent.Clear();
+        p.PlayerStateDirty = true;
+        server.TickForTest(0.1);
+        Assert.Contains(transport.Sent, x => x.Msg is PlayerStateUpdate u && u.PlayerId == "Lost"
+            && u.ReturnToShipFightSeconds == ReturnToShipRules.RobberWaitingFightSeconds);
 
         p.BanditDemandId = 0;
         Assert.Null(server.ReturnToShipRefusalForTest("Lost"));
+    }
+
+    [Theory]
+    [InlineData("srv.return_ship.in_combat", "7", "srv.return_ship.in_combat_left")]
+    [InlineData("srv.return_ship.in_combat", null, "srv.return_ship.in_combat")] // a hold-up, or an older server
+    [InlineData("srv.return_ship.in_combat", "", "srv.return_ship.in_combat")]
+    [InlineData("srv.return_ship.cooldown", "0:07", "srv.return_ship.cooldown")]
+    public void ReasonKey_ReadsTheFightSecondsFromTheirOwnKey(string key, string? arg, string expected)
+        => Assert.Equal(expected, ReturnToShipRules.ReasonKey(key, arg));
+
+    [Fact]
+    public void AMachinesBlow_StartsTheFight_AndTheStateUpdateCountsItDown()
+    {
+        // The report (#2558): a drone shot at the player. Its blow is a fight — and the state update tells the pause menu
+        // how long it still blocks the trip (#2559).
+        var transport = new RecordingTransport();
+        var server = Started("rts_drone", transport, r => r.PlanetEnemies = AlienActivity.Rare);
+        var p = OnFoot(server, "Lost");
+        p.State.GodMode = false; // a god-mode player is invisible to the machines
+        var pos = p.State.Position;
+        server.SpawnPlanetEnemyAtForTest(new Vector3f(pos.X + 3f, pos.Y, pos.Z), CombatEntityKind.ScanDrone, damagePerSecond: 5f);
+        float health = p.State.Health;
+        transport.Sent.Clear();
+
+        server.TickForTest(0.1);
+
+        Assert.True(p.State.Health < health, "the drone's shot must land for this test to mean anything");
+        Assert.StartsWith(ReturnToShipRules.InCombatToken + ":", server.ReturnToShipRefusalForTest("Lost"));
+        Assert.Contains(transport.Sent, x => x.Msg is PlayerStateUpdate u && u.PlayerId == "Lost"
+            && u.ReturnToShipFightSeconds > ReturnToShipRules.CombatGraceSeconds - 1.0
+            && u.ReturnToShipFightSeconds <= ReturnToShipRules.CombatGraceSeconds);
+    }
+
+    [Fact]
+    public void StarvingOrAHardLanding_IsNoFight()
+    {
+        // Screelit was starving when he was refused — hunger, a fall and the other vitals hurt, but nobody struck a blow.
+        var transport = new RecordingTransport();
+        var server = Started("rts_vitals", transport);
+        var p = OnFoot(server, "Lost");
+        p.State.GodMode = false;
+        float health = p.State.Health;
+        for (int i = 0; i < 6; i++)
+        {
+            p.State.Hunger = 0f; // starving — and no ration in the dispenser may save the stomach between the ticks
+            server.TickForTest(0.5);
+        }
+
+        server.SetGravityFactorForTest(1f); // safe landing speed 14
+        server.FallDamageForTest("Lost", 20f);
+
+        Assert.True(p.State.Health < health, "the vitals must hurt for this test to mean anything");
+        Assert.Null(server.ReturnToShipRefusalForTest("Lost"));
+        Assert.DoesNotContain(transport.Sent, x => x.Msg is PlayerStateUpdate u && u.PlayerId == "Lost" && u.ReturnToShipFightSeconds > 0f);
+    }
+
+    [Fact]
+    public void TheFightGrace_RunsOutBehindTheHeldPauseMenu_TheCooldownDoesNot()
+    {
+        // #2558: the server's uptime stands still while the singleplayer pause menu holds the world — the very menu the
+        // button lives in. The grace used to stand still with it, so a menu opened within ten seconds of a blow refused
+        // every click for as long as it stayed open. Through the real dispatcher, as the held menu sends it.
+        var transport = new RecordingTransport();
+        var server = Started("rts_heldfight", transport);
+        var p = OnFoot(server, "Lost");
+        var outside = p.State.Position;
+        server.SpawnBanditAtForTest(new Vector3f(outside.X + 2f, outside.Y, outside.Z), "Lost");
+        server.AttackEntity("Lost", server.Bandits[^1].Id); // the blow lands
+
+        server.PauseForTest(p, true);
+        Assert.True(server.IsPaused);
+        var intent = NetCodec.Encode(new ReturnToShipIntent());
+        server.HandlePayloadForTest(p.ConnectionId, intent);
+        Assert.False(p.State.AboardShip);
+        Assert.Contains(transport.Sent, x => x.Msg is ActionRejected r && r.Action == "return_ship"
+            && r.Reason == "@srv.return_ship.in_combat:10");
+
+        for (int i = 0; i < 11; i++)
+        {
+            server.TickForTest(1.0); // eleven seconds behind the menu — the world stays held
+        }
+
+        Assert.True(server.IsPaused);
+        server.HandlePayloadForTest(p.ConnectionId, intent);
+        Assert.True(p.State.AboardShip); // the grace ran out behind the menu
+        Assert.Contains(transport.Sent, x => x.Msg is RespawnNotice n && n.Reason == ReturnToShipRules.DoneToken);
+
+        // The three-minute cooldown stays on the uptime: three held minutes later it has not moved.
+        p.State.AboardShip = false;
+        p.State.Position = outside;
+        for (int i = 0; i < 18; i++)
+        {
+            server.TickForTest(10.0);
+        }
+
+        Assert.True(server.IsPaused);
+        transport.Sent.Clear();
+        server.HandlePayloadForTest(p.ConnectionId, intent);
+        Assert.False(p.State.AboardShip);
+        Assert.Contains(transport.Sent, x => x.Msg is ActionRejected r && r.Action == "return_ship"
+            && r.Reason == "@srv.return_ship.cooldown:3:00");
+    }
+
+    [Fact]
+    public void AFallReading_GoesStaleBehindTheHeldPauseMenu()
+    {
+        // #2558: a menu opened mid-fall refused with "falling" for the whole pause — the reading never aged.
+        var server = Started("rts_heldfall");
+        var p = OnFoot(server, "Lost");
+        var pos = p.State.Position;
+        server.MoveForTest("Lost", pos.X, pos.Y, pos.Z);
+        server.AdvanceUptimeForTest(0.1);
+        server.MoveForTest("Lost", pos.X, pos.Y - 3f, pos.Z); // 30 blocks per second down
+        Assert.Equal("@srv.return_ship.falling", server.ReturnToShipRefusalForTest("Lost"));
+
+        server.PauseForTest(p, true);
+        server.TickForTest(ReturnToShipRules.FallSampleMaxAgeSeconds + 0.5);
+        Assert.True(server.IsPaused);
+
+        server.HandlePayloadForTest(p.ConnectionId, NetCodec.Encode(new ReturnToShipIntent()));
+        Assert.True(p.State.AboardShip);
     }
 
     [Fact]
@@ -313,6 +447,25 @@ public sealed class ReturnToShipTests : IDisposable
     public void FormatRemaining_IsMinutesAndSeconds_RoundedUp(double seconds, string expected)
         => Assert.Equal(expected, ReturnToShipRules.FormatRemaining(seconds));
 
+    [Theory]
+    [InlineData(10.0, "10")]
+    [InlineData(6.2, "7")]
+    [InlineData(0.3, "1")]
+    [InlineData(0.0, "1")]
+    public void FormatFightSeconds_IsWholeSeconds_RoundedUp_NeverZero(double seconds, string expected)
+        => Assert.Equal(expected, ReturnToShipRules.FormatFightSeconds(seconds));
+
+    [Theory]
+    [InlineData("@srv.return_ship.in_combat:7", 7.0)]
+    [InlineData("@srv.return_ship.in_combat", 0.0)] // an older server's bare token
+    [InlineData("@srv.return_ship.in_combat:", 0.0)]
+    [InlineData("@srv.return_ship.in_combat:soon", 0.0)]
+    [InlineData("@srv.return_ship.in_combat:Infinity", 0.0)]
+    [InlineData("@srv.return_ship.cooldown:0:07", 0.0)]
+    [InlineData(null, 0.0)]
+    public void FightSecondsOf_ReadsOnlyAFightRefusal(string? reason, double expected)
+        => Assert.Equal(expected, ReturnToShipRules.FightSecondsOf(reason));
+
     [Fact]
     public void EveryReturnToShipLocaleKey_ExistsInBothLanguages()
     {
@@ -320,10 +473,11 @@ public sealed class ReturnToShipTests : IDisposable
         var de = TestLocales.Load("de");
         foreach (var key in new[]
                  {
-                     "ui.pause.return_ship", "ui.pause.return_ship_cooldown", "ui.worldopt.return_ship",
+                     "ui.pause.return_ship", "ui.pause.return_ship_cooldown", "ui.pause.return_ship_fight",
+                     "ui.pause.return_ship_robber", "ui.worldopt.return_ship",
                      "srv.return_ship.done", "srv.return_ship.disabled", "srv.return_ship.aboard",
                      "srv.return_ship.on_foot_only", "srv.return_ship.no_ship_here", "srv.return_ship.in_combat",
-                     "srv.return_ship.falling", "srv.return_ship.cooldown",
+                     ReturnToShipRules.InCombatLeftKey, "srv.return_ship.falling", "srv.return_ship.cooldown",
                  })
         {
             Assert.True(en.ContainsKey(key), $"missing EN locale key: {key}");
@@ -334,5 +488,13 @@ public sealed class ReturnToShipTests : IDisposable
         Assert.Contains("{name}", de["srv.return_ship.cooldown"]);
         Assert.Contains("{0}", en["ui.pause.return_ship_cooldown"]);
         Assert.Contains("{0}", de["ui.pause.return_ship_cooldown"]);
+        // #2559: the fight refusal and the fight row carry the seconds left the same way — the refusal through its own
+        // "_left" key, so the plain key keeps the slot-free sentence an older client (or an older server's bare token) reads.
+        Assert.Contains("{name}", en[ReturnToShipRules.InCombatLeftKey]);
+        Assert.Contains("{name}", de[ReturnToShipRules.InCombatLeftKey]);
+        Assert.DoesNotContain("{name}", en["srv.return_ship.in_combat"]);
+        Assert.DoesNotContain("{name}", de["srv.return_ship.in_combat"]);
+        Assert.Contains("{0}", en["ui.pause.return_ship_fight"]);
+        Assert.Contains("{0}", de["ui.pause.return_ship_fight"]);
     }
 }

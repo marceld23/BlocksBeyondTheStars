@@ -471,13 +471,14 @@ Client.Tests `JournalViewTests` (mission rows).
 Once a second per joined, non-observing player, `TickStoryPass` (`GameServerShipAi.cs`) runs the story's bookkeeping in
 this order: the player packs (`TickStoryPacksFor`: start, advance, offers, help escalation on active play time), the world
 story's start rule (`TryStartStoryTrack`), the chapter leads (`TickStoryLeads`: evidence, the heal tank, the marker), VEGA's
-story missions (`TickStoryMissions`: hand-out, letting go, evidence, re-checks, escalation) and the objective chip
-(`RefreshVegaObjective`). Queued cutscenes are not part of it — `TickCutscenes` flushes them every server tick (#2468).
+story missions (`TickStoryMissions`: hand-out, letting go, evidence, re-checks, escalation), the objective chip
+(`RefreshVegaObjective`) and the story help markers (`SyncStoryMarkers`, #2570: a closed step's marker leaves the client's
+map and compass). Queued cutscenes are not part of it — `TickCutscenes` flushes them every server tick (#2468).
 
 Two callers, one per player and second:
 
 - `TickShipAi`, inside the per-world loop, for the players of each loaded world — the active cursor is their world, which a
-  ground marker (`RevealTarget`, a private ping) needs.
+  ground marker (`RevealTarget`, a story help marker or a lead's private ping) needs.
 - `TickStoryOutsideWorlds` (#2477), after the per-world loop like `TickCutscenes`, for everyone the loop did not reach: a
   pilot cruising after an in-flight hyperjump occupies a body whose world was never loaded, and until #2477 their evidence,
   markers and mission hand-outs waited for the landing (events still booked leads and steps). `GameServer.Tick` records the
@@ -795,9 +796,22 @@ the normal player save (no write per event); transitions write the player at onc
 [below](#the-1-hz-story-pass-2477) — which does not run while the world is held), per session, each stage once, progress
 restarts the clock:
 `hintAfter` (default 180 s) → the step's `hintKey` line; `markerAfter` (360 s) on a "where" step (one with
-`onStart.reveal`) → a **private ping** at the provider's target (`nearest_ore:<block>`: the nearest such block in a 33³
-probe; `nearest_settlement`) that only this session sees — RAM, 30 s, never persisted, never broadcast, never
-`RevealPoi` (`GameServer.RaisePrivatePing`, `ServerPing.SessionId`) — plus `vega.step.marked`; nothing found → no ping
+`onStart.reveal`) → a **story help marker** at the provider's target (`nearest_ore:<block>`: the nearest such block in a 33³
+probe; `nearest_settlement`, `nearest_food_plant`, `unique_site:*`) that only this session sees — RAM, never persisted,
+never broadcast, never `RevealPoi` — plus `vega.step.marked_spot` ("I've marked your goal — you can see it on your compass
+and on the map", `StoryNarratorLines.StepMarkedSpot`, a transient line the client keeps out of VEGA's notes). Since #2570
+the marker is **no 30-second ping**: it lives on the step's escalation state (`StepEscalationState.MarkerLocationId` /
+`MarkerAt`, `GameServer.RaiseStoryMarker`, `GameServerStoryMarkers.cs`) and so exactly as long as the step is open —
+completing or skipping the step, its chapter or its story drops it, a story the player switched off hides it. It shows
+while the player is on the body it was raised on (gone elsewhere, back on return) and reaches the client inside the
+normal marker view as a `NetMarker` with `Story = true`, `LabelKey` = the step's chip key and `PackId` (also `Ping = true`,
+so an older client draws a ping); the planet map draws a violet goal flag labelled with that objective and the compass a
+flag blip with a "Goal 120 m" caption (`StoryMarkerText`). The view is pushed when the marker goes up, after every Journal
+action (`HandleStoryPackIntent`) and otherwise by the 1 Hz story pass (`SyncStoryMarkers` compares what the client was
+last sent). The old `vega.step.marked` ("Follow the pulse!") stays in the locales only for older servers. **During the
+basic training only the step on the objective chip gets a marker** (`MarkerFitsTheChip`: `LiveVegaChip`'s pack and step) —
+no marker for an open extra (a deferred CORE step) or another story's step while the training holds the chip; a refusal
+is not spent. Nothing found → no marker
 and the marker is **not spent** (#2490: `StepEscalationState.MarkerSent` is set only when a marker went up; a miss records
 `MarkerMissAt` — the player's place as `ground|space|station` + body — and `MarkerMissTime`, and the probe runs again at
 once on a new place or after `MarkerRetrySeconds` = 30 s of play on the same one — at most one probe per 30 s per chip

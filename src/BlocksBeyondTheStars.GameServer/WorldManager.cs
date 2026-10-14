@@ -295,6 +295,14 @@ internal sealed class LoadedWorld
 
     /// <summary>#2515: the generator's endless water per column, memoised for the feed test and the settle (soft-capped).</summary>
     public Dictionary<(int X, int Z), BlocksBeyondTheStars.WorldGeneration.WaterColumnKinds> WaterColumns { get; } = new();
+
+    /// <summary>#2561: every cell a door fills on this world (canonical; open or shut, any kind) — a wall to water and
+    /// lava. Rebuilt from the door registry whenever <see cref="FluidDoorCellsVersion"/> lags the server's door version.</summary>
+    public HashSet<Vector3i> FluidDoorCells { get; } = new();
+
+    /// <summary>#2561: the server's door-registry version <see cref="FluidDoorCells"/> was built for (-1 = never built).</summary>
+    public int FluidDoorCellsVersion { get; set; } = -1;
+
     public HashSet<Vector3i> ActiveGranular { get; } = new(); // loose blocks woken by a mutation (#1319) — transient, never saved
     public int FluidStep { get; set; } // fluid steps so far — lava advances on every second one (#1316)
     public Dictionary<Vector3i, float> FireTimer { get; } = new(); // burning cells → remaining burn time (item 30)

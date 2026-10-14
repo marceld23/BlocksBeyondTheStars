@@ -323,7 +323,7 @@ public sealed partial class GameServer
         {
             _guardWarnedUntil[b.Id] = _uptime + GuardWarnCooldown;
             string text = Localize(owner.Locale, "npc.call.guard_scouts").Replace("{0}", b.Name);
-            Send(owner, new ChatMessage { Sender = $"📻 {npc.Name} ({b.Name})", Text = text, IsNpcCall = true });
+            Send(owner, new ChatMessage { Sender = $"☎ {npc.Name} ({b.Name})", Text = text, IsNpcCall = true });
         }
 
         if (bestSq <= GuardDriveOffRange * GuardDriveOffRange)

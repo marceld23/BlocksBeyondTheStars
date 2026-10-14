@@ -253,11 +253,12 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#2471: lines that point at the Journal (or set a target) rather than say something worth re-reading — they
         /// are shown, but never kept in VEGA's notes: the join's "N new entries in your Journal" (B09) and the dock lesson's
-        /// "I set the station as your flight target".</summary>
+        /// "I set the station as your flight target" — and (#2570) "I've marked your goal", whose marker goes with its step.</summary>
         public static bool IsTransientLine(string? lineKey) => lineKey switch
         {
             BlocksBeyondTheStars.Shared.Story.StoryNarratorLines.JournalNews => true,
             BlocksBeyondTheStars.Shared.Story.StoryNarratorLines.StepMarkedStation => true,
+            BlocksBeyondTheStars.Shared.Story.StoryNarratorLines.StepMarkedSpot => true,
             BlocksBeyondTheStars.Shared.Story.StoryNarratorLines.ChapterNothingLeft => true, // #2500: the answer to a click
             _ => false,
         };

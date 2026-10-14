@@ -158,6 +158,7 @@ public sealed partial class GameServer
                 {
                     p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dps * dt)));
                     NoteCombat(session); // #2286
+                    NoteHitFrom(session, bandit, bandit.Position); // #2564: the HUD marker points at this robber
                     MarkPlayerStateDirty(session); // #1530
                     if (p.Health <= 0f)
                     {

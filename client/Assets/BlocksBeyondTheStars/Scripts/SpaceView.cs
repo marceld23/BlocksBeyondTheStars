@@ -591,7 +591,8 @@ namespace BlocksBeyondTheStars.Client
 
             // V: first/third person. Behind the same gate as the cruise/EVA controls (#1858) — this sat above
             // every early-out, so a "v" typed into the chat box or the feedback dialog flipped the camera.
-            if (FlightInputAllowed && InputMap.Down(InputAction.ToggleThirdPerson))
+            // #2568: and not while the same key is the held push-to-talk key (a rebind onto it).
+            if (FlightInputAllowed && InputMap.Down(InputAction.ToggleThirdPerson) && !VoiceChat.TalkKeyClaims(InputAction.ToggleThirdPerson))
             {
                 _viewMode = 1 - _viewMode;
             }

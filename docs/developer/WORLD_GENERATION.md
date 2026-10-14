@@ -522,6 +522,12 @@ every flow and give water a sea level:
   under 3 ms. Placed-source marks load on first use, so a station (void) world has them too.
 - **Saves heal.** `LoadFluidState` wakes every stored flowing cell; under the fall rule an old flood's long tongues lose
   their feed and recede.
+- **Doors are walls to fluids** (#2561). A door is an entity standing in an air cell, so every fluid path used to treat a
+  doorway as open. Now each cell a door fills — its width × the three-high opening, open or shut, any kind — is closed to
+  water and lava: `FluidCanEnter` (flow, fall, spout, drain stream), the settle's body and reach, and a running settle's
+  fills. The cells sit in a per-world set (`LoadedWorld.FluidDoorCells`) rebuilt only when the door registry changes, so
+  the hot check stays one hash lookup. Fluid an older save left in a doorway is removed when the step wakes it (a rebuild
+  wakes the resident ones); taking a door down wakes the fluid beside its opening.
 
 **Granular blocks (`GameServerGranular.cs`, #1319):** `"granular": true` in `blocks.json` (sand, ash, snow)
 marks loose material that settles when its support goes — **instant** through air (one `SetBlock` pair,

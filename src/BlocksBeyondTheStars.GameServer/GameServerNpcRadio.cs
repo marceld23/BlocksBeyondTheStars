@@ -11,7 +11,7 @@ namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
 /// NPC radio calls (#1119): the world reaches out. An NPC the player KNOWS (relationship ≥ known) calls
-/// them over the radio — "📻 Name (Place)" in chat — about a bandit camp bounty, a refilled mission board,
+/// them over the radio — "☎ Name (Place)" in chat — about a bandit camp bounty, a refilled mission board,
 /// or a trader setting down near their base (#1120). Gated by the player's radio tier (comm = same world,
 /// system = same system, galaxy = anywhere), throttled to ≤1 call / 10 min with per-call cooldowns (the
 /// VEGA context-tip pattern), and governed by the persisted <see cref="PlayerState.NpcCallsMode"/>
@@ -107,7 +107,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        Send(session, new ChatMessage { Sender = $"📻 {npcName} ({place})", Text = text, IsNpcCall = true });
+        Send(session, new ChatMessage { Sender = $"☎ {npcName} ({place})", Text = text, IsNpcCall = true });
         session.NpcCallReadyAt = _uptime + NpcCallGap;
         session.NpcCallCooldownUntil[cooldownKey] = _uptime + NpcCallRepeatCooldown;
         return true;
@@ -200,7 +200,7 @@ public sealed partial class GameServer
             // (they already received the call, so they hold a radio).
             Send(session, new ChatMessage
             {
-                Sender = $"📻 {call.Name} ({call.Place})",
+                Sender = $"☎ {call.Name} ({call.Place})",
                 Text = Localize(session.Locale, "npc.call.camp_thanks"),
                 IsNpcCall = true,
             });

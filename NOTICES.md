@@ -116,6 +116,17 @@ tileable 64px tiles that the avatar/creatures tint by colour — see `tools/ai-a
 - `client/Assets/Resources/fonts/Rajdhani-Medium.ttf` — Rajdhani, by Indian Type Foundry —
   SIL Open Font License 1.1 (bundled as `Rajdhani-OFL.txt` next to the font) —
   https://fonts.google.com/specimen/Rajdhani
+- `client/Assets/Resources/fonts/NotoSans-Medium.ttf` and `NotoSansJP-/KR-/SC-Medium.otf` — Noto Sans and
+  Noto Sans CJK (the fallbacks for Cyrillic/Greek and the CJK locales), by the Noto Project Authors — SIL Open Font
+  License 1.1 (bundled as `NotoSans-OFL.txt` / `NotoSansCJK-OFL.txt` next to the fonts) — https://notofonts.github.io
+- `client/Assets/Resources/fonts/NotoSansSymbols2-Subset.ttf` — a subset of Noto Sans Symbols 2 (Regular), by the
+  Noto Project Authors — SIL Open Font License 1.1 (bundled as `NotoSansSymbols2-OFL.txt` next to the font; no
+  Reserved Font Name) — https://github.com/notofonts/symbols. It carries only the weather glyphs, the small
+  arrows (◀ ▶ ▼ ► ◄) and the radio-call ☎ Rajdhani lacks (#2571) and is a fallback for the HUD and the menus. Made
+  from the Google Fonts copy with fontTools: `pyftsubset NotoSansSymbols2-Regular.ttf
+  --unicodes=U+2600-2602,U+2605,U+260E,U+2623,U+26A1,U+2744,U+274B,U+25B2,U+25B6,U+25BA,U+25BC,U+25C0,U+25C4
+  --output-file=NotoSansSymbols2-Subset.ttf --name-IDs='*' --name-languages='*' --no-hinting --layout-features=''
+  --notdef-outline` — add a code point there to give a new weather glyph a shape.
 
 **No third-party models** are bundled — the rest of the visuals remain runtime-generated
 (vertex/atlas block colours, code-built avatars + logo, procedural UI panels). See

@@ -565,6 +565,7 @@ public sealed partial class GameServer
         TickStoryLeads(session); // #2475: leads followed by evidence (research, module, a site, the heal tank) + the marker
         TickStoryMissions(session); // #2476: VEGA's story missions — handed out, let go, followed by evidence, help escalation
         RefreshVegaObjective(session); // #1859: the chip follows launches, stations, pickups and travel
+        SyncStoryMarkers(session); // #2570: a step done or skipped takes its help marker off the map and the compass
     }
 
     /// <summary>The worlds the per-world loop ticks this server tick (filled by <see cref="Tick"/>): their players get the story

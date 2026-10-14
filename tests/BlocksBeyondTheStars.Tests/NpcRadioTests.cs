@@ -122,7 +122,7 @@ public sealed class NpcRadioTests : IDisposable
             server.Tick(0.1);
             client.Poll();
             var call = Assert.Single(calls);
-            Assert.StartsWith("📻 ", call.Sender);
+            Assert.StartsWith("☎ ", call.Sender);
             Assert.False(string.IsNullOrWhiteSpace(call.Text));
 
             // The same camp never calls twice inside the cooldown (and the global cadence holds too).
@@ -382,7 +382,7 @@ public sealed class NpcRadioTests : IDisposable
             server.Tick(0.1);
             client.Poll();
             var call = Assert.Single(calls);
-            Assert.Equal("📻 Sel-9 (Somewhere)", call.Sender);
+            Assert.Equal("☎ Sel-9 (Somewhere)", call.Sender);
             Assert.False(string.IsNullOrWhiteSpace(call.Text));
             Assert.Equal(0, server.DialogRadioPendingForTest);
 

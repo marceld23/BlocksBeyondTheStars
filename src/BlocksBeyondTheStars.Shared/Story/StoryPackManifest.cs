@@ -505,8 +505,8 @@ public static class StoryGateNames
     public static readonly IReadOnlyList<string> All = new[] { OpportunityTips, Banter, StationNear };
 }
 
-/// <summary>The marker providers a step's <c>onStart.reveal</c> may name (synthesis §5.3: the help marker is a ping for
-/// one player, in RAM, for 30 s — never <c>RevealPoi</c>).</summary>
+/// <summary>The marker providers a step's <c>onStart.reveal</c> may name (synthesis §5.3: the help marker is for one player,
+/// in RAM — never <c>RevealPoi</c>; since #2570 it stays on the map and the compass until the step is done or skipped).</summary>
 public static class StoryRevealProviders
 {
     /// <summary><c>nearest_ore:&lt;block key&gt;</c> — the nearest block of that kind around the player (a bounded probe).</summary>
@@ -565,6 +565,11 @@ public static class StoryNarratorLines
     /// <summary>The help line of a <see cref="StoryRevealProviders.NearestStation"/> step ({0} = the station's name), sent
     /// with the station as the space waypoint.</summary>
     public const string StepMarkedStation = "vega.step.marked_station";
+
+    /// <summary>#2570: the help line of every other "where" step — its target is marked on the compass and the planet map until
+    /// the step is done or skipped. Replaced <c>vega.step.marked</c> ("Follow the pulse!"), which an older server still sends.
+    /// The client never keeps it in the notes (the marker goes with the step).</summary>
+    public const string StepMarkedSpot = "vega.step.marked_spot";
 
     /// <summary>The one line a started player gets at the join instead of one line per missed story beat ({0} = how many
     /// entries the Journal gained) — the beats go to the Journal silently (#2471, B09). The client never keeps it in the

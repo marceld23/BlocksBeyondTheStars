@@ -789,15 +789,17 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Blueprints tab (#1191): the same strip carries the player's knowledge balance — the detail pane
                 // used to be the only place it showed — plus the data fragments owned (68 of 72 blueprints cost
-                // them), and an "enough knowledge" toggle that hides blueprints whose knowledge cost exceeds the
-                // balance (and the ones already researched). The balance is part of the data hash, so the strip
-                // refreshes when a scan or minigame pays out while the tab is open.
+                // them), and a "Researchable now" toggle (#2563; "Enough knowledge" before) that keeps only the
+                // blueprints the player can research right now — prerequisites, knowledge AND materials, the same
+                // test as the card status, so it never shows a "Materials missing" card (the crafting tab's
+                // "Craftable now" is just as strict). The balance and the inventory are part of the data hash, so the
+                // strip and the list refresh when a scan or minigame pays out while the tab is open.
                 var know = UiKit.AddText(p, 392, 168, 470, 44,
                     $"{L("ui.tech.knowledge")}: {Game.Knowledge}   ·   {L("item.data_fragment.name")}: {Owned("data_fragment")}",
                     22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
                 UiKit.FitLabel(know, 14, 22);
                 var t = UiKit.AddButton(p, 880, 168, 300, 44,
-                    (_craftableOnly ? "[x] " : "[ ] ") + L("ui.tech.enough_knowledge"),
+                    (_craftableOnly ? "[x] " : "[ ] ") + L("ui.tech.researchable_now"),
                     () => { _craftableOnly = !_craftableOnly; BuildHeader(); RebuildList(); });
                 if (_craftableOnly)
                 {
@@ -1379,6 +1381,10 @@ namespace BlocksBeyondTheStars.Client
         private static Color RgbToColor(int rgb)
             => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
 
+        /// <summary>#2566: the A–Z order of the lists (crafting, blueprints, Sandbox catalog) in the language the titles are
+        /// shown in — not the operating system's culture, which put a German "Äpfel" wherever the PC's language wanted it.</summary>
+        private System.StringComparer NameOrder => LocaleCollation.Comparer(Game.Localizer?.Locale ?? Game.Locale);
+
         private float BuildCraftingList()
         {
             if (_category == "color")
@@ -1427,20 +1433,21 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Reachability ordering (#826): craftable first, blueprint-unlocked-but-missing-materials in the
-            // middle, blueprint-locked last; within a tier simpler recipes first. The within-tier key is
-            // static (inventory-independent), so cards only move when they change tier. Market keeps the
-            // authored order — barter offers are a vendor's stall, not a progression list.
+            // middle, blueprint-locked last; within a tier A–Z by the card title in the game language (#2566 — it
+            // was "simpler recipes first", which read as no order at all; with "Craftable now" on, the list is
+            // simply alphabetical). The within-tier key is static (inventory-independent), so cards only move when
+            // they change tier. Market keeps the authored order — barter offers are a vendor's stall, not a
+            // progression list.
             // A factory recipe is the bulk twin of a bench recipe and carries the same output name, so while no
-            // terminal offering it is in reach it sorts BEHIND its twin: raw ore is "shallower" than an ingot, which
-            // used to put the factory "Eisenplatte" above the workbench one — a pilot repairing at the cockpit read
-            // "Station: Fabrikterminal" first and went looking for a factory (2026-10-09).
+            // terminal offering it is in reach it sorts BEHIND its twin (tier 2), and with one in reach the twins share
+            // a title and the bench card still comes first — a factory "Eisenplatte" above the workbench one sent a
+            // pilot repairing at the cockpit looking for a factory (2026-10-09).
             if (_category != "market")
             {
                 entries = entries
                     .OrderBy(e => ReachTier(e.r.RequiredBlueprint, e.r.Inputs, stationInReach: !IsFactoryRecipeAway(e.r)))
-                    .ThenBy(e => e.r.Inputs.Count)
-                    .ThenBy(e => Game.Content.MaxInputDepth(e.r.Inputs))
-                    .ThenBy(e => e.r.Inputs.Sum(i => i.Count))
+                    .ThenBy(e => RecipeTitle(e.r, e.outItem), NameOrder)
+                    .ThenBy(e => e.r.Station == CraftingStation.Factory ? 1 : 0)
                     .ToList();
             }
 
@@ -1768,11 +1775,11 @@ namespace BlocksBeyondTheStars.Client
         private float BuildTechList()
         {
             // A progression tree: order by tier (prerequisite depth) and indent each tier, so the unlock
-            // chain reads top-to-bottom / left-to-right like a tech tree.
+            // chain reads top-to-bottom / left-to-right like a tech tree; A–Z in the game language within a tier (#2566).
             var shown = Game.Content.Blueprints.Values
                 .Where(bp => (_category == "all" || bp.Category == _category) && MatchesSearch(L($"blueprint.{bp.Key}.name"))
-                             && (!_craftableOnly || EnoughKnowledge(bp)))
-                .OrderBy(TechTier).ThenBy(bp => L($"blueprint.{bp.Key}.name"))
+                             && (!_craftableOnly || ResearchableNow(bp)))
+                .OrderBy(TechTier).ThenBy(bp => L($"blueprint.{bp.Key}.name"), NameOrder)
                 .ToList();
 
             float y = 0f;
@@ -1791,8 +1798,7 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
-                    if (bp.Prerequisites.All(Game.UnlockedBlueprints.Contains) && HasAll(bp.UnlockCost) && Game.Knowledge >= bp.KnowledgeCost
-                        && (next == null || bp.KnowledgeCost < next.KnowledgeCost))
+                    if (ResearchableNow(bp) && (next == null || bp.KnowledgeCost < next.KnowledgeCost))
                     {
                         next = bp; // the cheapest researchable one is the natural "next"
                     }
@@ -1837,7 +1843,7 @@ namespace BlocksBeyondTheStars.Client
             if (_craftableOnly && shown.Count == 0)
             {
                 // Filter on, nothing left: say so instead of leaving an empty pane under the progress header.
-                var none = UiKit.AddText(_listContent, 0, y, 760, 52, L("ui.tech.enough_knowledge_none"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                var none = UiKit.AddText(_listContent, 0, y, 760, 52, L("ui.tech.researchable_now_none"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
                 none.horizontalOverflow = HorizontalWrapMode.Wrap;
                 y += 56f;
             }
@@ -1845,11 +1851,16 @@ namespace BlocksBeyondTheStars.Client
             return y;
         }
 
-        /// <summary>The "enough knowledge" filter (#1191): not yet researched and the knowledge balance covers
-        /// the cost. Materials and prerequisites are deliberately NOT part of it — the question is "what can my
-        /// knowledge buy"; the card status still names whatever else is missing.</summary>
-        private bool EnoughKnowledge(BlueprintDefinition bp)
-            => !Game.UnlockedBlueprints.Contains(bp.Key) && Game.Knowledge >= bp.KnowledgeCost;
+        /// <summary>The "Researchable now" filter (#2563; "Enough knowledge" before, #1191, which left prerequisites and
+        /// materials out and so still listed "Materials missing" / "Locked" cards): not yet researched, prerequisites done,
+        /// the knowledge balance covers the cost and the research materials are owned. One test with the card status, the
+        /// header's "next" line and the Tech badge — see <see cref="BlueprintResearch"/>.</summary>
+        private bool ResearchableNow(BlueprintDefinition bp) => ResearchState(bp) == BlueprintResearchState.Researchable;
+
+        /// <summary>Where <paramref name="bp"/> stands for this player (<see cref="BlueprintResearch.StateOf"/>), from the
+        /// researched set, the knowledge balance and what inventory + cargo hold.</summary>
+        private BlueprintResearchState ResearchState(BlueprintDefinition bp)
+            => BlueprintResearch.StateOf(bp, Game.UnlockedBlueprints, Game.Knowledge, Owned);
 
         private readonly Dictionary<string, int> _tierCache = new();
 
@@ -2850,7 +2861,7 @@ namespace BlocksBeyondTheStars.Client
                 .Select(d => (Def: d, Name: ItemName(d.Key)))
                 .Where(e => MatchesSearch(e.Name))
                 .OrderBy(e => CatalogRank(e.Def.Category))
-                .ThenBy(e => e.Name, System.StringComparer.CurrentCultureIgnoreCase);
+                .ThenBy(e => e.Name, NameOrder); // #2566: the game language's A–Z, not the PC's culture
             foreach (var (def, name) in entries)
             {
                 string key = def.Key;
@@ -4203,13 +4214,56 @@ namespace BlocksBeyondTheStars.Client
             return y;
         }
 
+        /// <summary>The radio pane (Alliances → Radio). #2567: comms work only with a radio WORN in a module slot (#2110) —
+        /// holding one does nothing — so the pane names the worn radio and its reach, or warns and, with a radio carried,
+        /// offers to put it on (the server picks a free module slot). #2569: the push-to-talk line, or that this server
+        /// has voice chat off.</summary>
         private float DetailFunk()
         {
             float y = 0f;
             UiKit.AddText(_detail, 8, y, 620, 32, L("ui.funk.title"), 24, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 44f;
-            UiKit.AddText(_detail, 8, y, 620, 60, L("ui.funk.hint"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
-            y += 70f;
+            y = FunkLine(L("ui.funk.hint"), y, 16, UiKit.CyanDim, FontStyle.Normal);
+
+            var voice = VoiceChat.Current;
+            string worn = RadioGear.Worn(Game.Wears);
+            if (worn != null)
+            {
+                string wornLine = L("ui.funk.worn").Replace("{radio}", ItemName(worn)).Replace("{reach}", L(RadioGear.ReachLabelKey(worn)));
+                y = FunkLine(wornLine, y, 17, UiKit.Ok, FontStyle.Bold);
+                if (voice != null && voice.Available)
+                {
+                    y = FunkLine(L("ui.voice.hint").Replace("{key}", voice.KeyLabel()), y, 17, UiKit.Cyan, FontStyle.Normal);
+                }
+            }
+            else
+            {
+                y = FunkLine(L("ui.funk.not_worn"), y, 17, UiKit.Warn, FontStyle.Bold);
+                if (RadioGear.Carried(Game.Personal, AboardShipNow() ? Game.Cargo : null) is { } carried)
+                {
+                    // Straight into a free module slot — from the backpack, or aboard from the hold (the server checks both).
+                    int fromSlot = carried.Stack.Slot;
+                    bool fromCargo = carried.FromCargo;
+                    var wear = UiKit.AddButton(_detail, 8, y, 360, 48, L("ui.funk.equip").Replace("{radio}", ItemName(carried.Stack.Item)), () =>
+                    {
+                        Game.Network?.SendEquipItem(fromSlot, -1, fromCargo);
+                        ClientAudio.Instance?.Cue("gear_equip");
+                    });
+                    wear.GetComponent<Image>().color = new Color(0.2f, 0.5f, 0.36f);
+                    y += 60f;
+                }
+                else
+                {
+                    y = FunkLine(L("ui.funk.no_radio"), y, 16, UiKit.CyanDim, FontStyle.Normal);
+                }
+            }
+
+            if (voice != null && Game.Rules != null && !voice.ServerVoiceOn)
+            {
+                y = FunkLine(L("ui.voice.unavailable"), y, 16, UiKit.CyanDim, FontStyle.Italic);
+            }
+
+            y += 6f;
             UiKit.AddInput(_detail, 8, y, 620, 46, _funkDraft, v => _funkDraft = v, L("ui.funk.placeholder"));
             y += 56f;
             var send = UiKit.AddButton(_detail, 8, y, 220, 48, L("ui.funk.send"), SendFunk);
@@ -4229,6 +4283,14 @@ namespace BlocksBeyondTheStars.Client
             Game.Network?.SendChat(t);
             _funkDraft = string.Empty;
             RebuildDetail(); // clear the input box
+        }
+
+        /// <summary>One wrapped text line of the radio pane at <paramref name="y"/>; returns the y below it.</summary>
+        private float FunkLine(string text, float y, int size, Color color, FontStyle style)
+        {
+            var line = UiKit.AddText(_detail, 8, y, 620, 28, text, size, color, TextAnchor.UpperLeft, style);
+            line.horizontalOverflow = HorizontalWrapMode.Wrap;
+            return y + Mathf.Max(28f, line.preferredHeight) + 8f;
         }
 
         /// <summary>A non-selectable section heading inside the Alliances list; returns the y below it.</summary>
@@ -6951,33 +7013,18 @@ namespace BlocksBeyondTheStars.Client
 
         // --- logic helpers ---
 
-        private (string, Color) TechStatus(BlueprintDefinition bp)
+        /// <summary>The card / detail status of a blueprint. Knowledge and materials are separate gates (#1191): a node
+        /// that only lacks knowledge used to read "Materials missing", sending the player to mine when they should scan;
+        /// knowledge is named first (<see cref="BlueprintResearch.StateOf"/>). "Unlockable" is exactly what the
+        /// "Researchable now" filter keeps (#2563).</summary>
+        private (string, Color) TechStatus(BlueprintDefinition bp) => ResearchState(bp) switch
         {
-            if (Game.UnlockedBlueprints.Contains(bp.Key))
-            {
-                return (L("ui.tech.unlocked"), UiKit.Ok);
-            }
-
-            if (!bp.Prerequisites.All(Game.UnlockedBlueprints.Contains))
-            {
-                return (L("ui.tech.locked"), new Color(0.6f, 0.6f, 0.7f));
-            }
-
-            // Knowledge and materials are separate gates (#1191): a node that only lacks knowledge used to read
-            // "Materials missing", sending the player to mine when they should scan. Knowledge first — it is
-            // the slower faucet, so it is the one worth naming when both are short.
-            if (Game.Knowledge < bp.KnowledgeCost)
-            {
-                return (L("ui.tech.knowledge_missing"), new Color(1f, 0.7f, 0.3f));
-            }
-
-            if (!HasAll(bp.UnlockCost))
-            {
-                return (L("ui.tech.materials_missing"), new Color(1f, 0.7f, 0.3f));
-            }
-
-            return (L("ui.tech.unlockable"), UiKit.Cyan);
-        }
+            BlueprintResearchState.Researched => (L("ui.tech.unlocked"), UiKit.Ok),
+            BlueprintResearchState.Locked => (L("ui.tech.locked"), new Color(0.6f, 0.6f, 0.7f)),
+            BlueprintResearchState.KnowledgeMissing => (L("ui.tech.knowledge_missing"), new Color(1f, 0.7f, 0.3f)),
+            BlueprintResearchState.MaterialsMissing => (L("ui.tech.materials_missing"), new Color(1f, 0.7f, 0.3f)),
+            _ => (L("ui.tech.unlockable"), UiKit.Cyan),
+        };
 
         /// <summary>True when at least one blueprint is unlockable right now (prerequisites met, materials owned and
         /// enough knowledge points) — drives the "new research available" badge on the Tech menu entry.</summary>
@@ -6990,10 +7037,7 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var bp in Game.Content.Blueprints.Values)
             {
-                if (!Game.UnlockedBlueprints.Contains(bp.Key)
-                    && bp.Prerequisites.All(Game.UnlockedBlueprints.Contains)
-                    && HasAll(bp.UnlockCost)
-                    && Game.Knowledge >= bp.KnowledgeCost)
+                if (ResearchableNow(bp))
                 {
                     return true;
                 }

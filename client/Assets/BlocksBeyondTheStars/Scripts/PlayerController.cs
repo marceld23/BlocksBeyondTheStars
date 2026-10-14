@@ -912,7 +912,8 @@ namespace BlocksBeyondTheStars.Client
                 PingAtCrosshair();
             }
 
-            if (InputMap.Down(InputAction.ToggleThirdPerson))
+            // #2568: not while the same key is the held push-to-talk key (a rebind onto it) — talking must not flip the view.
+            if (InputMap.Down(InputAction.ToggleThirdPerson) && !VoiceChat.TalkKeyClaims(InputAction.ToggleThirdPerson))
             {
                 ThirdPerson = !ThirdPerson;
                 ApplyCameraMode();
@@ -5898,7 +5899,9 @@ namespace BlocksBeyondTheStars.Client
             float amt = (_moving ? 1f : 0f) * motion;
             // #2188: on a wall the bob is the slower, deeper hand-over-hand reach instead of the stride.
             bool onWall = _climbing || _pullingUp;
-            _bobPhase += dt * (_moving ? (onWall ? 6f : 9f) : 0f) * motion;
+            // #2562: wrapped to one full cycle (both waves below repeat every 2π) so hours of walking never grow the
+            // phase until float precision makes the bob stutter.
+            _bobPhase = Mathf.Repeat(_bobPhase + (dt * (_moving ? (onWall ? 6f : 9f) : 0f) * motion), 2f * Mathf.PI);
             float bobY = Mathf.Sin(_bobPhase * 2f) * (onWall ? 0.05f : 0.035f) * amt;
             float bobX = Mathf.Cos(_bobPhase) * 0.025f * amt;
 

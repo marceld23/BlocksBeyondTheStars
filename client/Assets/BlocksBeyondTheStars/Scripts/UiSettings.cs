@@ -183,7 +183,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 VolRow(ref y, L("ui.settings.voice_volume"), () => S.VoiceVolume, v => S.VoiceVolume = v);
                 Toggle(ref y, L("ui.settings.voice_input"), S.VoiceInputEnabled, () => { S.VoiceInputEnabled = !S.VoiceInputEnabled; Rebuild(); });
-                Cycle(ref y, L("ui.settings.push_to_talk"), S.PushToTalkKey, () => { S.PushToTalkKey = NextPttKey(S.PushToTalkKey); Rebuild(); });
+                Cycle(ref y, L("ui.settings.push_to_talk"), PttLabel(S.PushToTalkKey), () => { S.PushToTalkKey = NextPttKey(S.PushToTalkKey); Rebuild(); });
             }
 
             // Muted players (#1209) — one row each with an Unmute button, so the list is never a dead end a
@@ -771,14 +771,26 @@ namespace BlocksBeyondTheStars.Client
             return FpsCaps[(idx + 1) % FpsCaps.Length];
         }
 
-        // A small curated set of comfortable push-to-talk keys to cycle through.
-        private static readonly string[] PttKeys = { "V", "B", "T", "F", "CapsLock", "LeftAlt", "LeftControl", "Mouse2" };
+        /// <summary>#2568: the next push-to-talk key — from a curated list (<see cref="PushToTalkKeys.Candidates"/>), minus
+        /// every key an input action is bound to right now (the player's rebinds included), so talking never also fires
+        /// a game control. The old list cycled V (camera view), B, T, F, Ctrl and the middle mouse button.</summary>
+        private static string NextPttKey(string current) => PushToTalkKeys.Next(current, BoundKeyNames());
 
-        private static string NextPttKey(string current)
+        /// <summary>The live keyboard key of every input action (rebinds included), as KeyCode names.</summary>
+        private static System.Collections.Generic.IEnumerable<string> BoundKeyNames()
         {
-            int idx = System.Array.IndexOf(PttKeys, current);
-            return PttKeys[(idx + 1) % PttKeys.Length];
+            foreach (InputAction action in System.Enum.GetValues(typeof(InputAction)))
+            {
+                var key = InputMap.Key(action);
+                if (key != KeyCode.None)
+                {
+                    yield return key.ToString();
+                }
+            }
         }
+
+        /// <summary>The push-to-talk key's on-screen name ("Caps Lock" / "Feststelltaste" instead of "CapsLock").</summary>
+        private string PttLabel(string keyName) => PushToTalkKeys.LabelKey(keyName) is { } labelKey ? L(labelKey) : keyName;
 
         private static Color Next(Color current)
         {

@@ -258,6 +258,7 @@ public sealed partial class GameServer
                 {
                     p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(enemy.DamagePerSecond * dt)));
                     NoteCombat(session); // #2286
+                    NoteHitFrom(session, enemy, enemy.Position); // #2564: the HUD marker points at this machine
                     MarkPlayerStateDirty(session); // #1530: one state per tick, not one per biting machine
                     if (p.Health <= 0f)
                     {

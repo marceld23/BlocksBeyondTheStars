@@ -26,6 +26,16 @@ components, a category sidebar and blueprint state.
   pane with ingredients (have/need, pooled from inventory + ship cargo), required station/blueprint,
   the effect/benefit, and the action button with a reason when disabled. A "craftable now" filter,
   search and the category sidebar narrow the list.
+- **List order and filters (#826, #2563, #2566).** Crafting sorts by reach tier (`ReachTier`: craftable, materials
+  missing, factory terminal out of reach, blueprint locked), then **A–Z by the card title** (`RecipeTitle`, before
+  the factory suffix), then bench before factory twin; the market category keeps its authored order. The Blueprints
+  tab sorts by tree tier, then A–Z; the Sandbox catalog by item rank, then A–Z. Every A–Z uses
+  `LocaleCollation.Comparer(game locale)` (Client.Core) — the game language's collation, never the OS culture —
+  which probes the platform's culture comparer once and falls back to an accent-folding comparer where collation
+  data is missing (invariant globalization, a stripped IL2CPP/WebGL player). The Blueprints tab's **"Researchable
+  now"** toggle (`ui.tech.researchable_now`; "Enough knowledge" before) keeps only the nodes whose
+  `BlueprintResearch.StateOf` (Client.Core) is `Researchable` — the same test as the card status, the header's
+  "next" line and the Tech badge, mirroring the server's unlock gates (prerequisites, knowledge, materials).
 - **Always show "why".** A disabled action states the reason — missing material (with have/need
   counts), needs a station, needs a blueprint, or disabled by a server rule. The blocking reason is
   computed client-side so cards explain *before* you click; server reject text is still surfaced.

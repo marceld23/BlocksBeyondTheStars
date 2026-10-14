@@ -111,7 +111,7 @@ Every field is optional and defaults to today's behaviour.
 | `alreadyDoneIf` | condition[] — completes the step silently at activation (not during a replay) |
 | `variants` | `[{ when, startKey, chipKey, hintKey, doneKey }]` — whole-line texts per world rule; first match wins; empty fields fall back |
 | `explain` | `{ startKey, chipKey, hintKey, doneKey, moreGuide }` — start line, chip text, escalation hint, completion line, Codex article |
-| `onStart` | `{ cutscene, reveal }` — the scene plays before the start line (not in a replay); `reveal` makes it a "where" step: `nearest_ore:<block>`, `nearest_settlement` or `nearest_food_plant` for the help marker (a ping for this player only, never `RevealPoi`), or `nearest_station` (#2471: the nearest station becomes the player's space waypoint, in flight or landed), or `unique_site:<observatory\|shrine\|derelict>` (#2476: the site's spot while the player is on its world) |
+| `onStart` | `{ cutscene, reveal }` — the scene plays before the start line (not in a replay); `reveal` makes it a "where" step: `nearest_ore:<block>`, `nearest_settlement` or `nearest_food_plant` for the help marker (for this player only, never `RevealPoi`; on the map and the compass until the step is done or skipped, #2570), or `nearest_station` (#2471: the nearest station becomes the player's space waypoint, in flight or landed), or `unique_site:<observatory\|shrine\|derelict>` (#2476: the site's spot while the player is on its world) |
 | `onComplete` | `{ cutscene }` — plays before the done line when the step completes non-silently (it owned the chip, or a react step) |
 | `escalate` | per-step override of the pack's escalation |
 | `skippable` | default `true` |
@@ -740,6 +740,14 @@ the objective tracker"):
   muted.
 - **Stuck on b6.4 (dock):** after `markerAfter` the step's `onStart.reveal: nearest_station` sets the nearest station as the
   player's space waypoint (`vega.step.marked_station`) — in flight or still landed.
+- **Stuck on a "where" step on the ground** (iron b3.2; the berries b2.3 are a CORE step, which leaves the chip at its
+  hint time — 180 s, before the marker's 360 s — so they get the hint but no marker): after `markerAfter` VEGA marks the provider's
+  target — a violet goal flag on the planet map labelled with the step's chip text and a flag blip on the compass with
+  "Goal 120 m" — and says so (`vega.step.marked_spot`: "I've marked your goal — you can see it on your compass and on the
+  map"). Since #2570 the marker stays until the step is done or skipped (it used to be a 30-second ping that was usually
+  gone by the time the line was read). **During the basic training only the step on the chip gets a marker**: an open
+  extra (a CORE step past its hint time) or another story's step gets none while the training holds the chip.
+  Details: [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md) (help escalation).
 
 The admin command `/tutorial skip|restart [player]`, `/tutorial chapter <id> [player]`, `/tutorial policy auto|courses|optin|off`
 (chat, parsed by `AdminChatCommand.Tutorial`) does the same for a named player; without a tutorial pack it answers

@@ -42,6 +42,7 @@ public sealed partial class GameServer
 
         ApplyStoryPackIntent(s, intent, action);
         PushJournal(s, force: false);
+        SyncStoryMarkers(s); // #2570: a skipped step (or story) takes its help marker along at once — also while paused
     }
 
     private void ApplyStoryPackIntent(PlayerSession s, StoryPackIntent intent, string action)

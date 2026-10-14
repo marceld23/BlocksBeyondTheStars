@@ -1854,6 +1854,8 @@ public sealed partial class GameServer
         // maintenance intake, but no simulation advances: no hunger, no creatures, no weather, no clock.
         if (HoldingPause(deltaSeconds))
         {
+            // #2558: the one clock that does run — "Back to my ship"'s fight grace and fall reading age behind the menu.
+            _heldSeconds += deltaSeconds;
             Guard("Moderation", deltaSeconds, TickModeration);
             Guard("Maintenance", deltaSeconds, TickMaintenance);
 
@@ -7660,7 +7662,9 @@ public sealed partial class GameServer
 
         if (!HasAnyRadio(session) && !session.Spectating)
         {
-            Reject(session, "chat", "@srv.misc.need_radio");
+            // #2567: a radio in the backpack, on the quick-bar or in the hold does nothing until it is worn — say so,
+            // instead of claiming the player has no radio while one sits in their hand.
+            Reject(session, "chat", CarriesUnwornRadio(session) ? "@srv.misc.radio_not_worn" : "@srv.misc.need_radio");
             return;
         }
 
@@ -7800,6 +7804,12 @@ public sealed partial class GameServer
             Shield = p.Shield,
             Stealthed = p.Stealthed, // #2291: the own cloak (others see it through the presence)
             ReturnToShipCooldownSeconds = ReturnToShipCooldownLeft(session), // #2286: the pause menu greys its button
+            ReturnToShipFightSeconds = (float)ReturnToShipFightLeft(session), // #2559: … and counts a fight down on it
+            LastHitFromX = session.LastHitFrom.X, // #2564: who hurt the player last — the HUD marker points at them
+            LastHitFromY = session.LastHitFrom.Y,
+            LastHitFromZ = session.LastHitFrom.Z,
+            LastHitEntityId = session.LastHitEntityId,
+            LastHitSeq = session.LastHitSeq,
         });
     }
 
@@ -8414,6 +8424,26 @@ public sealed partial class GameServer
         => Wears(s.State, "comm_radio")      // #2110: a radio works only while worn (a module slot)
         || Wears(s.State, "system_radio")
         || Wears(s.State, "galaxy_radio");
+
+    /// <summary>#2567: whether the player has a radio with them that is NOT worn — in the backpack (quick-bar included) or
+    /// in the active ship's hold. Tells "put it on" apart from "you have none" when comms are refused.</summary>
+    private static bool CarriesUnwornRadio(PlayerSession s)
+    {
+        return HasRadio(s.State.Inventory) || (ActiveShipOf(s) is { } ship && HasRadio(ship.Cargo));
+
+        static bool HasRadio(Inventory inv)
+        {
+            foreach (var stack in inv.Slots)
+            {
+                if (stack is { IsEmpty: false } && ItemKey.Base(stack.Item) is "comm_radio" or "system_radio" or "galaxy_radio")
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
 
     /// <summary>The players who can hear <paramref name="sender"/>'s comms, by the widest radio tier they hold
     /// (the tiers stack as upgrades). <c>galaxy_radio</c> = everyone joined; <c>system_radio</c> = everyone on a

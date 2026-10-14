@@ -12,6 +12,9 @@ namespace BlocksBeyondTheStars.Client
     /// ROTATION-only Perlin noise (translation shake clips the camera into blocks). Everything is scaled by the
     /// Screen-shake slider and silenced by the Camera-motion comfort setting. The first-person controller and the
     /// flight camera both <see cref="Sample"/> it once per frame.
+    /// <para>#2562: every part is frame-rate independent and bounded — the kick is an exact closed-form spring
+    /// (<see cref="CameraKickSpring"/>; its old Euler step blew up below ~15 FPS and wobbled the view without end),
+    /// trauma and the FOV punch fade linearly and are clamped, and a non-finite input is ignored.</para>
     /// </summary>
     public static class FxCamera
     {
@@ -19,25 +22,47 @@ namespace BlocksBeyondTheStars.Client
         private const float MaxYaw = 5f;
         private const float MaxRoll = 4f;
         private const float Frequency = 22f;
+        private const float MaxFovPunch = 20f;
 
+        /// <summary>The shake noise's time wraps after this many noise units so its input never grows large enough to
+        /// lose float precision in a long session (a jump in the noise is invisible — it already changes every frame).</summary>
+        private const double NoisePeriod = 4096.0;
+
+        private static readonly CameraKickSpring KickSpring = new CameraKickSpring(); // degrees of upward kick
         private static float _trauma;
-        private static float _kick;      // degrees of upward kick, springs back
-        private static float _kickVel;
         private static float _fovPunch;  // degrees, eases back
 
         /// <summary>Adds shake trauma (0..1). A light hit ≈ 0.15, an explosion nearby ≈ 0.6.</summary>
-        public static void AddTrauma(float amount) => _trauma = Mathf.Clamp01(_trauma + Mathf.Max(0f, amount));
+        public static void AddTrauma(float amount)
+        {
+            if (Finite(amount))
+            {
+                _trauma = Mathf.Clamp01(_trauma + Mathf.Max(0f, amount));
+            }
+        }
 
         /// <summary>#2518: trauma from the player's own damage. It builds up to <see cref="DamageFeedback.MaxTrauma"/> at
         /// most (a light rattle, never the explosion-level shake continuous damage used to stack up to) and never lowers
         /// trauma something else already added.</summary>
-        public static void AddDamageTrauma(float amount) => _trauma = DamageFeedback.AddCappedTrauma(_trauma, amount);
+        public static void AddDamageTrauma(float amount)
+        {
+            if (Finite(amount))
+            {
+                _trauma = DamageFeedback.AddCappedTrauma(_trauma, amount);
+            }
+        }
 
         /// <summary>A recoil kick of <paramref name="degrees"/> upward pitch that springs back (weapons).</summary>
-        public static void Kick(float degrees) => _kickVel += degrees * 18f;
+        public static void Kick(float degrees) => KickSpring.Kick(degrees);
 
         /// <summary>A brief FOV widening (boost, hyperjump arrival, a heavy shot).</summary>
-        public static void FovPunch(float degrees) => _fovPunch = Mathf.Max(_fovPunch, degrees);
+        public static void FovPunch(float degrees)
+        {
+            if (Finite(degrees))
+            {
+                _fovPunch = Mathf.Clamp(Mathf.Max(_fovPunch, degrees), 0f, MaxFovPunch);
+            }
+        }
 
         /// <summary>The current trauma, for effects that scale with it.</summary>
         public static float Trauma => _trauma;
@@ -46,18 +71,21 @@ namespace BlocksBeyondTheStars.Client
         /// degrees) and the FOV offset to add this frame. Zero when the Camera-motion setting is off.</summary>
         public static void Sample(float dt, out Vector3 euler, out float fov)
         {
-            _trauma = Mathf.MoveTowards(_trauma, 0f, dt * 1.1f);
+            if (!Finite(dt) || dt < 0f)
+            {
+                dt = 0f; // a broken frame time advances nothing rather than poisoning the camera
+            }
 
-            // Critically-damped-ish spring for the kick.
-            _kickVel += (-_kick * 220f - _kickVel * 24f) * dt;
-            _kick += _kickVel * dt;
+            _trauma = Mathf.MoveTowards(_trauma, 0f, dt * 1.1f);
+            // #2562: exact for any frame time — a slow frame can no longer make the kick oscillate and grow.
+            float kick = KickSpring.Step(dt);
             _fovPunch = Mathf.MoveTowards(_fovPunch, 0f, dt * 18f);
 
             float scale = FxKit.CameraMotion ? 1f : 0f;
             float shake = _trauma * _trauma * FxKit.ScreenShake * scale;
-            float t = Time.time * Frequency;
+            float t = (float)((Time.timeAsDouble * Frequency) % NoisePeriod);
             euler = new Vector3(
-                (Mathf.PerlinNoise(t, 0.13f) * 2f - 1f) * MaxPitch * shake - _kick * scale * Mathf.Max(0.35f, FxKit.ScreenShake),
+                (Mathf.PerlinNoise(t, 0.13f) * 2f - 1f) * MaxPitch * shake - kick * scale * Mathf.Max(0.35f, FxKit.ScreenShake),
                 (Mathf.PerlinNoise(t, 7.71f) * 2f - 1f) * MaxYaw * shake,
                 (Mathf.PerlinNoise(t, 3.37f) * 2f - 1f) * MaxRoll * shake);
             fov = _fovPunch * scale;
@@ -67,9 +95,10 @@ namespace BlocksBeyondTheStars.Client
         public static void Reset()
         {
             _trauma = 0f;
-            _kick = 0f;
-            _kickVel = 0f;
+            KickSpring.Reset();
             _fovPunch = 0f;
         }
+
+        private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     }
 }

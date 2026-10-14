@@ -1328,6 +1328,29 @@ public sealed class PlayerStateUpdate
     /// button and counts the rest down between updates. New field on an existing contractless MessagePack message: an
     /// older client ignores it, an older server leaves it 0.</summary>
     public float ReturnToShipCooldownSeconds { get; set; }
+
+    /// <summary>Seconds a fight still blocks "Back to my ship" (#2559), 0 when none does — the grace after the last blow.
+    /// The pause menu greys its row with a countdown that runs in REAL time: the grace keeps running while the menu holds
+    /// the world (#2558). A negative value (<c>ReturnToShipRules.RobberWaitingFightSeconds</c>) means a robber waits for
+    /// the player's answer: blocked, no countdown. New field on an existing contractless MessagePack message: an older
+    /// client ignores it, an older server leaves it 0.</summary>
+    public float ReturnToShipFightSeconds { get; set; }
+
+    /// <summary>#2564: where the last blow on this player came from — the attacker's position when it hit (a stomp's or a
+    /// strike's spot for a giant). The HUD's damage marker points there (and above/below), instead of guessing the
+    /// nearest hostile. Only meaningful once <see cref="LastHitSeq"/> is not 0. New fields on an existing contractless
+    /// MessagePack message: an older client ignores them, an older server leaves them 0/empty.</summary>
+    public float LastHitFromX { get; set; }
+    public float LastHitFromY { get; set; }
+    public float LastHitFromZ { get; set; }
+
+    /// <summary>#2564: the entity id of that attacker (creature, machine, bandit or giant) — the client blinks it red and
+    /// keeps the marker on it while it moves.</summary>
+    public string LastHitEntityId { get; set; } = string.Empty;
+
+    /// <summary>#2564: changes with every blow the server records on this player (0 = none yet this session), so the
+    /// client can tell a fresh hit from a repeated report of an old one.</summary>
+    public int LastHitSeq { get; set; }
 }
 
 public sealed class CraftResult
@@ -2318,6 +2341,12 @@ public sealed class NetCreature
     public float EvPeak { get; set; }
     public float EvStrike { get; set; }
     public int EvLeg { get; set; }
+
+    /// <summary>#2565: the SPECIES size — <see cref="Size"/> carries this individual's cosmetic variance on top. The
+    /// client measures the bite reach by it (<c>CreatureReach.BiteRange</c>, the server's own rule). New field on an
+    /// existing contractless MessagePack message: an older client ignores it, an older server leaves it 0 (the client
+    /// then falls back to <see cref="Size"/>).</summary>
+    public float SpeciesSize { get; set; }
 }
 
 /// <summary>A world effect at a spot (#1998): a thumper's thump, a colossus stomp, a sandworm breaching or striking. The

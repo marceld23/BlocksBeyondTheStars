@@ -35,7 +35,7 @@ All effect code lives in `client/Assets/BlocksBeyondTheStars/Scripts`.
 | `FxLights` | Up to 8 shader-global point lights: one-shot flashes, lights that track a moving point, persistent ones attached to a transform. Each frame it uploads the most relevant (intensity × radius ÷ camera distance) as `_Sc_FxLightPos/_Sc_FxLightCol/_Sc_FxLightCount`. Slots: 8; Low 4; Potato 2. |
 | `FxLightBridge` | Mirrors an existing Unity `Light` (beam pad, emergency lamp, landing-engine glow, data cube, glowing creature) into an FX light. Those lights rendered nothing before. |
 | `FxScanWave` | The scan wave: `_Sc_ScanWave/_Sc_ScanWaveCol/_Sc_ScanWaveParams`. It is an expanding band (sharp lead edge, soft trail, faint lines) that BlockAtlas, LitColor and VertexColorOpaque draw from their own world position. No full-screen pass, no depth texture. |
-| `FxCamera` | Trauma-based camera shake (Eiserloh: trauma², rotation-only Perlin noise), weapon kick (a spring) and FOV punch. Sampled by `PlayerController` on foot and `SpaceView` in flight. Scaled by *Screen shake*, silenced by *Camera motion*. |
+| `FxCamera` | Trauma-based camera shake (Eiserloh: trauma², rotation-only Perlin noise), weapon kick (a spring) and FOV punch. Sampled by `PlayerController` on foot and `SpaceView` in flight. Scaled by *Screen shake*, silenced by *Camera motion*. Frame-rate independent and bounded (#2562): the kick is `CameraKickSpring` (Client.Core, unit-tested), stepped with the exact closed-form solution of the damped spring, so a slow frame cannot make it oscillate and grow (the old Euler step did below ~15 FPS); its constants reproduce the old 60 FPS curve. Kick, velocity, trauma and FOV punch are clamped, and a non-finite input is ignored or resets the spring. |
 | `FxLook` | Unity view of the data-driven `fx` look of an item or ship module, resolved by `FxStyleResolver` (Client.Core, unit-tested). The resolver falls back to key heuristics for content without `fx`. |
 | `FxShots` | On-foot weapon personalities, projectiles, slash ribbons, muzzle flashes, impacts, electric arcs. |
 | `FxGadgets` | Hand scan, terrain scan, weather scan, translator, medkit, stasis, blaster, pump, teleport column, holo boxes. |
@@ -145,7 +145,25 @@ Hits:
   (only from 5 %) and the camera trauma, which damage can build up to 0.3 at most (`FxCamera.AddDamageTrauma`; trauma
   something else added is never lowered). Before, every update re-fired the full effect with fixed minimums, so a
   scan drone's 2 HP/s aura held the screen red and stacked the shake to its maximum.
-- A red marker on a ring around the crosshair points at the nearest hostile. The server reports damage, not its source.
+- #2564: a red marker on a ring around the crosshair (96×12 px, 2.2 s, fading over the last 0.8 s) points at the
+  attacker. Every blow a creature, machine, bandit or giant lands records the attacker on the server's `PlayerSession`
+  (`NoteHitFrom`, `GameServerHitSource.cs`): entity id, the spot the blow came from (a giant's stomp or strike spot) and
+  a sequence number that moves on with every blow. The hit already marks the state dirty, so the `PlayerStateUpdate`
+  at the end of the same tick carries `LastHitFromX/Y/Z`, `LastHitEntityId` and `LastHitSeq`. On the client,
+  `HitSourceTracker` (Client.Core, `GameBootstrap.LastHit`) treats a changed, non-zero sequence as a fresh blow. When a
+  damage pulse fires with a blow less than 1 s old, the marker takes the attacker's live position while its entity is
+  in view (else the reported spot; giants always use the reported spot) and follows it while it moves. Without one
+  (lava, hunger, an older server) it falls back to the nearest hostile within 24 blocks. `HitDirection.Classify` turns
+  the offset into the angle around the view axis and an above/below class (more than 2.5 blocks AND steeper than
+  30°), which shows as a `UiKit.TriangleSprite` chevron just outside the bar, counter-turned to point straight up or
+  down on screen.
+- #2564: the attacker blinks soft red (`FxDefeat.AttackerBlink`: two sin² pulses over 0.5 s through a `_Color`
+  property block, one fainter pulse with Reduce flashes) at most every 1.1 s while the server keeps naming it
+  (`CreatureView`, `WorldEntities`).
+- #2565: a creature's lunge and attack call fire within `CreatureReach.BiteRange(speciesSize)` (Shared), the same reach
+  the server bites with (4 blocks, plus 0.5 per species size step past 2). `NetCreature.SpeciesSize` carries the species
+  size, because `Size` includes the individual's cosmetic ±30 %. A creature the server just named as the attacker
+  lunges too. Before, the client used a fixed 3 blocks, so a flier biting from 3–5 blocks away was silent and still.
 
 ### Defeat (kid-friendly)
 

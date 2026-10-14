@@ -332,8 +332,8 @@ public sealed partial class GameServer
                 continue;
             }
 
-            // Don't stack snow on snow, on ice, or on anything already fluid.
-            if (here.Value == _weatherSnowId)
+            // Never stack snow on snow or lay it on a fluid or liquid surface (water, lava, oil, gas) — it would float.
+            if (here.Value == _weatherSnowId || IsFluid(here.Value) || IsLiquid(here))
             {
                 return false;
             }
@@ -404,6 +404,14 @@ public sealed partial class GameServer
         _weatherIdsResolved = true;
         _weatherSnowId = _content.GetBlock("snow")?.NumericId.Value ?? 0;
         DepositSnowAt(new Vector3i(x, y, z), _worlds.Active.WeatherDeposits);
+    }
+
+    /// <summary>Test seam: the cell the snow pass would lay a drift in for this column (false = none).</summary>
+    internal bool SnowSurfaceForTest(int x, int fromY, int z, out Vector3i cell)
+    {
+        _weatherIdsResolved = true;
+        _weatherSnowId = _content.GetBlock("snow")?.NumericId.Value ?? 0;
+        return TryFindSnowSurface(x, fromY, z, out cell);
     }
 
     /// <summary>Test seam: one melt pass with the thaw forced (every tracked deposit within the pass budget goes).</summary>

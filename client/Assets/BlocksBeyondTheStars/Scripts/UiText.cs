@@ -10,9 +10,9 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// SDF text for the HUD (TextMeshPro, which ships inside the uGUI 2.0 package). The font asset is built at
     /// RUNTIME from the bundled Rajdhani TTF (dynamic atlas, glyphs rasterised on demand), with the Noto fonts
-    /// as dynamic fallbacks for the non-Latin locales — no baked font asset, in keeping with "everything in
-    /// code" (ADR 0002). Three looks share the one atlas: plain, a soft dark underlay (readable over bright
-    /// terrain — replaces the vertex-copying <see cref="UiOutline"/>) and a cyan hologram glow.
+    /// as dynamic fallbacks for the non-Latin locales and the weather symbols (#2571) — no baked font asset, in
+    /// keeping with "everything in code" (ADR 0002). Three looks share the one atlas: plain, a soft dark underlay
+    /// (readable over bright terrain — replaces the vertex-copying <see cref="UiOutline"/>) and a cyan hologram glow.
     /// Legacy <c>UnityEngine.UI.Text</c> stays in use for the menus; only the diegetic HUD moved here.
     /// </summary>
     public static class UiText
@@ -46,9 +46,18 @@ namespace BlocksBeyondTheStars.Client
                 _font.name = "Rajdhani SDF (runtime)";
                 // A runtime-created font asset has NO fallback list yet (null, not empty) — create it.
                 _font.fallbackFontAssetTable ??= new System.Collections.Generic.List<TMP_FontAsset>();
-                // Fallbacks: Noto Sans (Cyrillic/Greek/extended Latin) first, then the CJK faces. Dynamic atlases
-                // cost one 1024² Alpha8 texture each (1 MB) and only fill when a locale actually needs them.
-                foreach (var name in new[] { "fonts/NotoSans-Medium", "fonts/NotoSansJP-Medium", "fonts/NotoSansKR-Medium", "fonts/NotoSansSC-Medium" })
+                // Fallbacks: Noto Sans (Cyrillic/Greek/extended Latin) first, then the symbol subset, then the CJK
+                // faces. Dynamic atlases cost one Alpha8 texture each (1024² = 1 MB) and only fill when a locale
+                // actually needs them. #2571: the symbol subset (NotoSansSymbols2-Subset, ~4 KB, OFL) carries exactly
+                // the weather glyphs Rajdhani lacks (☀ ☁ ☂ ⚡ ❄ ☣ ★ ▲ ❋ — WeatherLook.Glyph) plus the small arrows
+                // ◀ ▶ ▼ ► ◄ and the radio-call ☎ — without it the HUD weather chip showed a □. Its 15 glyphs fit a
+                // 512² atlas. The legacy Text menus/maps get the same font through Rajdhani's importer fallback list
+                // (Rajdhani-Medium.ttf.meta).
+                foreach (var (name, atlas) in new[]
+                {
+                    ("fonts/NotoSans-Medium", 1024), ("fonts/NotoSansSymbols2-Subset", 512),
+                    ("fonts/NotoSansJP-Medium", 1024), ("fonts/NotoSansKR-Medium", 1024), ("fonts/NotoSansSC-Medium", 1024),
+                })
                 {
                     var fb = Resources.Load<Font>(name);
                     if (fb == null)
@@ -56,7 +65,7 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
-                    var fbAsset = Create(fb, 1024);
+                    var fbAsset = Create(fb, atlas);
                     if (fbAsset == null)
                     {
                         continue;
