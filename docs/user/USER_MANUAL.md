@@ -580,7 +580,8 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   hunger). At 0 → death (see below).
 - **Oxygen** (max 100 + tank bonuses): refills aboard ship / on breathable worlds; drains outside on
   toxic/airless worlds. An `oxygen_extractor` cuts the drain on extractable atmospheres.
-- **Hunger** (max 100): drains off-ship; below ~15 the suit auto-eats stored/loose rations. Food that hurts
+- **Hunger** (max 100): drains off-ship — at your base too: the base gives you air, not food (a **Heal Tank**
+  feeds you there, and VEGA reminds you once when you get hungry at home); below ~15 the suit auto-eats stored/loose rations. Food that hurts
   (contaminated meat, spoiled food, toxic berries) never goes into the suit's ration dispenser — eat it by hand, if at all.
   Food sources: hunt creatures (meat), harvest berry flora (replantable via seeds), pick the **fruit** that hangs
   under tree crowns on newer worlds (it grows back; toxic exactly when its tree is — scan first), pick the berries under
@@ -1094,7 +1095,8 @@ players.
   key). The **sliding** and **energy doors** open by themselves when you walk up to them. A right-click at a closed
   door places nothing — it only reminds you how that door opens — and nothing can be built into a doorway (no block,
   no second door: *"A door is standing there."*). A door hangs along the wall beside it; flowers or grass in front
-  of the doorway don't count as wall.
+  of the doorway don't count as wall. **Every door holds air** at a base and on a station (see *Bases (Grundstein)*): a closed
+  room behind any door breathes, and a door is a bulkhead — a hole in one room never empties the rooms behind it.
 - The **transmuter** (the *matter forge* block or ship module, both unlocked as a blueprint) compacts spare terrain
   (sand, dirt, stone, …) into *matter dust* and synthesises it back into ore — a sink for surplus digging.
   With the **matter resynth** blueprint it also rebuilds titanium, silver and cobalt ore and lithium from dust
@@ -1527,13 +1529,15 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **In through the door**: on a spacewalk, float up to one of your station's doors and press **E** — you come in
   right behind that door when a sealed room lies behind it (else beside the core). Docking with the ship still
   puts you beside the core.
-- **Air only fills sealed rooms** in a station you built: walls, glass and doors are airtight, a hole in the
-  hull means **helmet on** (the suit tank takes over, and you get a warning) until you patch it — a
-  **force-field block** seals an opening you want to keep. **Crew** (two civilians) moves in once you build a
-  **trading post** or a **mission board** aboard — in a sealed room; a post open to space stays unstaffed
-  until you seal it. Visiting traders still dock regardless. Windows show the planet you orbit, the sun and a moon.
-  The crew keeps the **station clock**: at station night the deck lights dim and the crew sleeps in the beds of
-  their rooms (see *Daily routines & jobs*).
+- **Air fills every closed room** in a station you built, however big and however many: walls, glass and doors
+  are airtight. A hole in the hull means **helmet on** in that room (the suit tank takes over, and you get a
+  warning) until you patch it — the rooms behind its doors keep their air. A **force-field block** seals an
+  opening you want to keep. **Crew** (two civilians) moves in once you build a **trading post** or a **mission
+  board** aboard — in a closed room; a post open to space stays unstaffed until you seal it (a hole elsewhere
+  only takes the keeper of that room). Visiting traders still dock regardless. Windows show the planet you orbit,
+  the sun and a moon. The crew keeps the **station clock**: at station night the deck lights dim and the crew
+  sleeps in a bed on the station — one in the room of its post if there is one, else the nearest free bed
+  anywhere aboard; a bed you build later is taken within seconds (see *Daily routines & jobs*).
 - **Stations are built from modules.** A new station is assembled from docking segments — an arrival hall,
   corridors, a market hall, a mission office, a canteen or a bar, a medbay, hydroponics, a store room, the hangar,
   and **crew quarters with one cabin per crew member** (bed, locker, lamp, a chair). Big stations have two decks
@@ -1584,35 +1588,33 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   greets you with *"Life support: <base name>"* when you step in. **Anyone** may breathe at a base (guests
   still can't build or mine there), and the field disappears with the base if the core is mined. It even works
   under water — sink the zone and you've built a diving dome. On worlds without breathable air the zone shows
-  as a soft **blue shield dome** so you can see where the air ends.
-- **Sealed rooms extend the air**: rooms built at the base out of **airtight materials** — stone, metals,
-  concrete, bricks, glass (natural rock counts too: dig a cave!) — get life support **beyond the zone cube**,
-  as long as they are **sealed** and **connected to the base**. Loose stuff (dirt, sand, snow, plants), geyser
-  vents and shaped blocks (ramps, spheres) leak — ice seals. A cave ceiling of **sand** with the open sky above it
-  lets the air out: build a layer of stone, metal, ice or glass **under** the sand (don't mine the sand — it slides
-  down and opens a hole). Doorways need the **Energy Door** (workshop, blueprint-gated): its blue
-  field is an **air curtain** — you walk right through, the air stays in. Ordinary doors (wood, hinged,
-  sliding) do NOT hold air. Holding any door shows a **hologram of it in the target cell**, turned by the wall
-  beside it, so you see which way it will face before you place it. Chain rooms door by door to grow a whole airtight outpost; if a wall is mined or
-  burns away, everyone at the base gets a **"no longer airtight"** warning and the rooms fall back to suit
-  oxygen until the hole is closed. **Check it:** aim at your own core — the prompt shows how many cells and
-  sealed rooms currently have air and whether the spot you stand on does (*here: air*; when other rooms breathe
-  but your spot does not, it adds *· /basewalls tells you why*). VEGA explains the
-  three rules once when you found a core on a world without breathable air.
-- **How big, how far** (#2539–#2543): one sealed room holds up to **64,000 air blocks** (e.g. 40×40×40) — a bigger
-  hall gets no air even when it is perfectly closed, so **split a huge cave with walls and energy doors** into
-  several rooms (each up to 64,000; the chain has no limit). The air reaches as far as you **built or dug** around
-  the core (the same reach as the wall ring: at least 48 blocks in every direction, up and down too, and up to 192
-  if you built that far) — a cave you walled in or dug out is in reach by itself. **Allies share their air:** the
-  bases of you and your allies on the same body count as one — a room touching an ally's core zone, or linked to
-  it door by door, breathes for all of you. **Why no air?** The game says it: when a room loses its air, everyone
-  at the base hears the reason (*too large*, *reaches too far from the core*, *no longer airtight*, *not connected*),
-  and walking from air into a room that is too large, too far out or not connected tells you once, too. Walking
-  into a room that **leaks** — behind an energy door, or under a roof — names **where the air gets out**: the
-  block, its coordinates and how far above you (e.g. *"the air escapes through Sand at 30/130/0, 10 blocks above
-  you"*; for an open hole, the column above it). Each reason is told at most once every five minutes. Type
-  **`/basewalls`** in the chat (owners may) for the air at your spot and the reason (for a leak with the same block
-  and coordinates), plus the air rules.
+  as a soft **blue shield dome** — the **start zone** where you breathe before you have built a room. As soon as
+  one closed room of your base has air, the dome fades away (every closed room breathes, see below); it comes back
+  when your base has no room with air left.
+- **Every closed room breathes** (#2649): rooms built at the base out of **airtight materials** — stone, metals,
+  concrete, bricks, glass (natural rock counts too: dig a cave!) — get life support **as long as they are closed**,
+  **no matter how many rooms and how big they are** and however far you build. **Every door holds the air** —
+  wooden, hinged, sliding or energy door, open or closed — so a room behind any door breathes, and so does an upper
+  floor up the stairs. Loose stuff (dirt, sand, snow, plants), geyser vents and shaped blocks (ramps, spheres,
+  stairs, slabs) leak — ice seals. A cave ceiling of **sand** with the open sky above it lets the air out: build a
+  layer of stone, metal, ice or glass **under** the sand (don't mine the sand — it slides down and opens a hole).
+  The **base core is the air machine**: a room belongs to your base when you reach it from the core or through one
+  of the doors you built at the base — even a long chain of rooms far out. A closed hut far away from every base
+  core has no air. Holding any door shows a **hologram of it in the target cell**, turned by the wall beside it, so
+  you see which way it will face before you place it.
+- **Doors are bulkheads**: if a wall is mined or burns away, **only the room with the hole** loses its air — the
+  rooms behind its doors and the core zone keep theirs. Everyone in or at that room gets a **"no longer airtight"**
+  warning, and the room falls back to suit oxygen until the hole is closed (nobody who lives there moves out because
+  of it). The **Energy Door** (workshop, blueprint-gated) is the bulkhead you walk straight through: its blue field
+  is an **air curtain**. **Check it:** aim at your own core — the prompt shows how many cells and closed rooms
+  currently have air and whether the spot you stand on does (*here: air*; when other rooms breathe but your spot
+  does not, it adds *· /basewalls tells you why*). VEGA explains the rules once when you found a core on a world
+  without breathable air.
+- **Why no air?** Walking from air into a room that **leaks** names **where the air gets out**: the block or the
+  opening, its coordinates and its height (e.g. *"the air escapes through Sand at 30/130/0, 10 blocks above you"*,
+  or the hole in a wall at your height). Each reason is told at most once every five minutes. Type **`/basewalls`**
+  in the chat (owners may) for the air at your spot and the reason, plus the air rules. **Allies share their air:**
+  the bases of you and your allies on the same body count as one.
 - **Sentry post** (workshop, blueprint-gated after the Heal Tank): a small automatic turret you place inside
   your own base zone. It fires at hostile machines, at **hostile animals**, and at robbers who have
   **already started a fight** — never at players, never at tame animals, and never at somebody walking up to
@@ -2295,15 +2297,20 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   machines (workbench, forge, …), a **settler moves in** — they know you from day one and count toward your
   people. **Every bed** you place inside your base brings **one more resident**, up to **five** people: a bed
   counts in the core zone, in a sealed room, inside your walls, or in any **closed room** (walls, a roof and a
-  door) at the base — a bed out in the open field brings nobody. Take a bed away and its sleeper moves on.
-  No visitor ever damages a block.
+  door) at the base — a bed out in the open field brings nobody. **Everyone keeps their own bed and job**: a new
+  bed never makes the others swap, and the newest resident waits for a free bed until the next one stands (whoever
+  has waited longest gets it). Take a bed away and **exactly the one who slept in it** moves on — build a bed again
+  and the same person comes back; moving a bed keeps its sleeper. A hole in a bedroom wall takes the air, not the
+  sleeper. Who sleeps where survives a reload. No visitor ever damages a block.
 - **E to talk.** Standing next to someone shows *"Talk to … (E)"*.
 
 ### Daily routines & jobs
 - **People keep the hours of the sun above them.** By day they are at work, in the evening they sit down on a
   **chair or bench** near home (every chair belongs to one person — when the tavern runs out of chairs, the others
   use a chair at home or spend the evening standing), and at night they walk to **their bed** and sleep in it (*"asleep"* on the
-  nameplate, a soft *z z z* above them — only up close, and never through a wall). Without a bed they rest where they live. Talk to a sleeper and you get
+  nameplate, a soft *z z z* above them — only up close, and never through a wall). Everyone keeps their bed while it
+  stands; someone without one takes the next free bed within seconds of it being built — preferably in the room
+  where they work, else the nearest. Without a bed they rest where they live. Talk to a sleeper and you get
   a mumbled *"come back in the morning"*. This goes for your residents, for **villagers** (every house has a
   bed) and for **station crew** — a station keeps its own clock, and its deck lights **dim at station night**
   (the HUD clock shows it). On a modular station every crew member has a **cabin of its own** and the evening is
@@ -3615,7 +3622,7 @@ and that option is off by default on hosted worlds.
 | `/players` | Every player this world knows — role, body, position and when they were last seen. Offline players come from the save |
 | `/builds [Player]` | Named structures (bases, beacons, beam pads, stations) with owner, body and a ready-to-use `/goto` line; optionally for one player |
 | `/where Player` | One player's body, position and last-seen time — works while they are offline |
-| `/basewalls` | Why animals do (not) spawn in a yard: the nearest base core, the enclosure fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed / sealed / open **for animals**, and the rules (2-high walls, hinge doors leak, unloaded chunks read as open; walking Guardian robots step up two blocks and are stopped by a wall of three or more and by water two or more blocks deep, hovering scan-drones by four or more; fliers are not). Since #2542 also the **air at your cell** and why there is none (too large — over 64,000 air blocks, too far from the core, leaky, or sealed but not connected) and the air rules with the base's current reach; since #2614 a leak names where the air gets out (the block, its coordinates and its height above you) |
+| `/basewalls` | Why animals do (not) spawn in a yard: the nearest base core, the enclosure fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed / sealed / open **for animals**, and the rules (2-high walls, hinge doors leak, unloaded chunks read as open; walking Guardian robots step up two blocks and are stopped by a wall of three or more and by water two or more blocks deep, hovering scan-drones by four or more; fliers are not). Since #2542 also the **air at your cell** and why there is none (leaky — since #2649 every closed room of a base breathes, however big, and every door holds air) and the air rules; since #2614 a leak names where the air gets out (the block or the opening, its coordinates and its height) |
 | `/creatures` | Creature footing within 48 blocks: per animal its species and motion class, feet height, the real ground of its column, the delta between them, the generator's noise surface and a verdict (ok / floating / BURIED) — the readout for "animals standing in the ground" reports |
 | `/silence Player [Minutes]` | Pauses that player's chat for a while (10 minutes by default, a day at most). They are told how long, and can keep playing — see below |
 | `/unsilence Player` | Ends the pause right away |
