@@ -24,6 +24,44 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🫧 Life support without limits + NPC beds that belong to someone — epic #2649, #2650–#2659, branch feat/air-and-beds-2026-10 — ✅ done 2026-10-16 (⚠ playtest open)
+
+Screelit (Justus) reported on 2026-10-15 (v2026.10.16, his gas-giant base): a room one floor up, reached by stairs through
+a door, had no air — *"I want all connected rooms that are closed to get air, not such a boundary"* — and the base did not
+feed him. The same pass reworks how NPCs get their beds (Marcel's question: how does an NPC that a block brought find its
+quarters?). Package label `package: life support & beds 2026-10`. All decisions by Marcel, 2026-10-15.
+
+- **Shared air engine (#2650):** `AirFill` walks vertical spans (per-column span lists) instead of remembering every cell;
+  fills are time-sliced to 2 ms per tick with the previous result answering meanwhile; an emergency brake (2 M cells /
+  200 k spans) keeps air and logs once; unloaded cells are unknown, with the unbuilt sky over roof holes and carry-over of
+  rooms hidden by unloaded chunks. A 1 M-cell hall is 10 000 spans, 29 × 2 ms steps, ~1.7 MB. `AirRoomIdAt` gives the room
+  identity.
+- **Base air (#2651):** every door holds air (any kind, open or shut); no size, reach or "connected" limit; rooms seeded
+  from the core and both sides of every door in reach, chained through the doors of sealed rooms; the sky line follows the
+  highest build; the core stays the air machine (no air in rooms of no base); `/basewalls` gains `air_unknown` for a
+  closed room no door leads into.
+- **Station air (#2652):** the same engine for player stations and derelicts; no 64 000-cell budget.
+- **Doors are bulkheads (#2653):** a leak empties only its own room; base → A (leak) → B keeps B; an open energy door is
+  still a wall; on a station only the damaged room's post loses its keeper. A leak never evicts a resident
+  (`BaseIndex.StickyInside`).
+- **Warnings (#2654):** a leak is named at its opening (side holes at their height, roof holes at the hole), told only
+  to players in the damaged room; `@base_air_lost` only when every room fails; the station hull warning is located;
+  *too large* / *too far* / *not connected* removed.
+- **Beds (#2655–#2657):** one shared bed/seat assignment — keep what you have, BlockSet release + a furniture
+  generation (replaces the one-shot `FurnitureScanned`), fair queue (`BedlessSince`), same room as the work spot first.
+  Base residents keep bed **and job**; the one who lost the bed moves out, a rebuilt bed brings the same person back
+  (lowest free slot), the plan is saved per base in `WorldMetadata.BaseResidents`. Station crew takes any bed of the
+  station in air (the post's room first) and looks again when beds change or a room seals.
+- **Hunger (#2658):** no rule change; a one-time VEGA hint `base_hunger` points a hungry player in base air to the heal
+  tank.
+- **Dome (#2659):** `BaseShieldView` fades the dome out once the base has a sealed room with air (rule in
+  `Client.Core/BaseDomeFade`); texts call it the start zone.
+- **Docs:** `BASE_LIFE_SUPPORT.md` rewritten (bases + stations), ADR 0018, `NPC_ROUTINES.md` (§6a), USER_MANUAL (base and
+  station air, doors, beds, hunger, dome). Texts in all 14 languages. No block change (save version stays 4), no protocol
+  change.
+- **Playtest:** Justus' upper floor behind an ordinary door; a room with a hole behind a door (only it loses air); moving a
+  bed; a station crew quarters wing far from the posts; the dome fading.
+
 ### 🛖 Wilderness folk — lodges, their residents, wanderers; gatherers, miners, woodcutters and hunters outside the settlements — epic #2639, #2640–#2647, branch feat/wilderness-folk, PR #2648 — ✅ done 2026-10-15 (⚠ playtest open; new saves only)
 
 Marcel wanted people you meet outside the settlements — NPCs who hunt, harvest or mine, and some with a small house they
