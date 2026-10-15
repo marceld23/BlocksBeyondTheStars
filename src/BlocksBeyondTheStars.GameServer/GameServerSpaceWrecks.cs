@@ -222,6 +222,17 @@ public sealed partial class GameServer
         PlayerSession? session = null;
         foreach (var e in instance.Entities)
         {
+            if (e.Kind == CombatEntityKind.SpaceStation && IsGeneratedDerelictId(e.Id))
+            {
+                session ??= FindSessionByPlayerId(playerId);
+                if (session is not null)
+                {
+                    CheckDerelictApproach(session, e, pos); // #2632: VEGA's first word about a derelict
+                }
+
+                continue;
+            }
+
             bool wreck = e.Kind == CombatEntityKind.Wreck;
             bool field = e.Kind == CombatEntityKind.DebrisField; // #2353: the flight recorder is read the same way
             if ((!wreck && !field) || e.Position.DistanceSquared(pos) > (wreck ? rangeSq : fieldRangeSq))

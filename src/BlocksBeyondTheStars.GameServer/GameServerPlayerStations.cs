@@ -372,8 +372,15 @@ public sealed partial class GameServer
     private void LoadPlayerStations()
     {
         _persistedStationsByLocation.Clear();
+        _storedDerelictRows.Clear();
         foreach (var row in _repo.ListSpaceStructures())
         {
+            if (IsDerelictId(row.Id))
+            {
+                _storedDerelictRows[row.Id] = row; // #2634: a derelict's edited build — RegisterDerelicts reads it, it is nobody's station
+                continue;
+            }
+
             // #1493: rows written before #1480 carry the launch instance's RAW key — for a ship that never landed
             // on another body that is the save's planet-TYPE placeholder, no body at all. Everything that finds a
             // station again (the per-location list, the contact filter, the instance lookup) resolves through
@@ -549,15 +556,19 @@ public sealed partial class GameServer
         station.Markers.Clear();
         PlacePlayerStationArrival(station, src);
 
-        if (firstStamp && _stationHostBody.TryGetValue(station.Id, out var hostLoc))
+        if (firstStamp && !PersistIfDerelict(src) && _stationHostBody.TryGetValue(station.Id, out var hostLoc))
         {
-            PersistStation(hostLoc, src); // the anchor is part of the row from now on
+            PersistStation(hostLoc, src); // the anchor is part of the row from now on (#2634: a derelict's row too)
         }
 
         // Manual placeables (Feature 2): vendor / mission-board / container blocks the owner built into their
         // station become interaction points, reusing the SAME trade/mission/loot code paths procedural
         // stations use (SpawnStationNpcs staffs the vendor/board markers; placed containers are lootable).
-        RegisterPlayerStationPlaceables(station, src);
+        // #2632: never on a derelict — its old trading posts are broken, nobody staffs or trades at them.
+        if (!IsDerelictId(station.Id))
+        {
+            RegisterPlayerStationPlaceables(station, src);
+        }
 
         station.Structure = null; // player station: no procedural structure bounds
         station.Stamped = true;
@@ -641,7 +652,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (_stationHostBody.TryGetValue(station.Id, out var hostLoc))
+        if (!PersistIfDerelict(src) && _stationHostBody.TryGetValue(station.Id, out var hostLoc))
         {
             PersistStation(hostLoc, src);
         }
@@ -664,7 +675,7 @@ public sealed partial class GameServer
     /// station's door records follow too, so the hull seen from a spacewalk shows the door (and loses it again).</summary>
     private void RefreshStationBoundsAfterDoorChange()
     {
-        if (!IsPlayerStationWorld(_world.LocationId))
+        if (!IsPlayerStationWorld(_world.LocationId) && !IsGeneratedDerelictWorld(_world.LocationId)) // #2634: a derelict too
         {
             return;
         }
@@ -715,7 +726,7 @@ public sealed partial class GameServer
         var (min, max) = CellBox(src);
         var centre = StationCellToWorld(station, new Vector3i((min.X + max.X) / 2, min.Y, (min.Z + max.Z) / 2)); // the bottom layer
         var core = StationCoreWorldCell(station, src);
-        var near = core ?? new Vector3i(centre.X, centre.Y + 1, centre.Z);
+        var near = core ?? DerelictArrivalHint(station) ?? new Vector3i(centre.X, centre.Y + 1, centre.Z); // #2632: a derelict's command room
         if (!TryFindStandableInStation(station, near, core, out var feet))
         {
             feet = new Vector3i(centre.X, centre.Y + 1, centre.Z);
@@ -989,7 +1000,7 @@ public sealed partial class GameServer
     /// no materialised player station or the grid already said so.</summary>
     private string? MirrorStationCell(Vector3i world, BlockId block, int tint = 0, int glow = 0, int shape = 0)
     {
-        if (!IsPlayerStationWorld(_world.LocationId))
+        if (!IsPlayerStationWorld(_world.LocationId) && !IsGeneratedDerelictWorld(_world.LocationId)) // #2634: a derelict's hull follows too
         {
             return null;
         }
@@ -1024,14 +1035,14 @@ public sealed partial class GameServer
             return;
         }
 
-        if (_stationHostBody.TryGetValue(stationId, out var hostLoc))
+        if (!PersistIfDerelict(s) && _stationHostBody.TryGetValue(stationId, out var hostLoc))
         {
             PersistStation(hostLoc, s);
         }
 
         // The instance is found by the structure it holds, not by key: a never-landed ship's instance is keyed by
-        // the planet-type placeholder (#1493).
-        if (_spaceInstances.Values.FirstOrDefault(i => i.Structures.ContainsKey(s.Id)) is { } instance)
+        // the planet-type placeholder (#1493). #2634: a derelict floats in every orbit of its system — all of them.
+        foreach (var instance in _spaceInstances.Values.Where(i => i.Structures.ContainsKey(s.Id)))
         {
             foreach (var pid in instance.Players)
             {

@@ -410,6 +410,17 @@ Guardian core has none. While a scene plays, `ClientAudio` ducks the **ambience 
 water/lava/fire/fence bed, ship hum, thunder) to 0.7 under a card and 0.4 under a staged scene, eased over about a second;
 cues, the voice and the music are never ducked. Details: [CUTSCENES.md](CUTSCENES.md#unity-cutscenedirector).
 
+## 21. The derelict guardian bay (#2635) — *ElevenLabs clip*
+
+A derelict's guardian bay ([DERELICT_STATIONS.md](DERELICT_STATIONS.md#guardians--the-guardian-bay-2635)) releasing a
+robot or a drone. The server sends it as a `SoundFx` (3D at the bay) together with a red spark `WorldFx` of the same kind;
+the machines themselves keep their planet banks (`enemy_growl` / `_attack` / `_hurt` / `_die`). Generated with
+`tools/ai-assets/gen_sound.py` (`--influence 0.4`), 2026-10-15.
+
+| Sound | Trigger | File | Prompt (duration) |
+|---|---|---|---|
+| bay opens | a guardian is released | `guardian_bay` | "an old sci-fi robot maintenance dock opening: a short pneumatic hiss, a heavy metal hatch clunk and a rising robotic servo whir powering up, slightly broken and crackly" (2 s) |
+
 ---
 
 ## Totals & rollout

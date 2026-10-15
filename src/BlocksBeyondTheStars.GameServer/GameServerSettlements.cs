@@ -1779,21 +1779,14 @@ public sealed partial class GameServer
     public static string VendorThemeForTest(string locationName, int vendorIndex, string baseTheme)
         => VendorThemeFor(locationName, vendorIndex, baseTheme);
 
-    /// <summary>The trade theme of the vendor the player is standing at (settlement or boarded station), or empty
-    /// when none is in reach (B55). Drives which themed market goods the server accepts — per actual vendor, not
-    /// one theme per location — so different vendors at one place trade different goods.</summary>
+    /// <summary>The trade theme of the nearest vendor in reach of the player (<see cref="MarketStock.VendorReach"/>), or
+    /// empty when none is (B55) — an inspection view. Themed goods are per actual vendor, not one theme per location, so
+    /// different vendors at one place trade different goods; the barter check itself accepts ANY vendor in reach that
+    /// sells a deal (#2626, <see cref="ThemedMarketRefusal"/>). The reach keeps a far vendor out: before it, the nearest
+    /// vendor ANYWHERE on the world decided the theme — a player at one stall could trade another village's goods while
+    /// its vendor slept at home.</summary>
     private string VendorThemeAt(Shared.State.PlayerState player)
-        => (NearSettlementVendor(player) || NearSpaceStationVendor(player) || NearLandedTraderPilot(player) || NearBaseVendor(player)
-            || NearBaseGuestMerchant(player)) // #2602: a travelling merchant visiting the base trades its own theme
-           && NearestNpc(player, "vendor") is { } v
-           && WrapDistSq(player.Position, v.Pos) <= VendorThemeReach * VendorThemeReach
-            ? v.Theme
-            : string.Empty;
-
-    /// <summary>How far the vendor NPC itself may stand from the player for its theme to count: the 4-block stall
-    /// reach plus room for the NPC's post leash. Without it the nearest vendor ANYWHERE on the world decided the
-    /// theme — a player at one stall could trade another village's goods while its vendor slept at home.</summary>
-    private const float VendorThemeReach = 6f;
+        => VendorsInReach(player).FirstOrDefault()?.Theme ?? string.Empty;
 
     /// <summary>True if the player is standing next to a settlement vendor (enables market barter there).</summary>
     public bool NearSettlementVendor(Shared.State.PlayerState player)

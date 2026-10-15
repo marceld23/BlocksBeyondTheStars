@@ -39,7 +39,9 @@ path and is cleanly isolated from any planet.
 - **Player-built stations** reuse the same machinery: `StampPlayerStation` stamps the player's own
   cells into the `orbital_station` void world, registers the build as a boardable `CelestialBody`, and
   persists it as a `space_structure`. Stations are peaceful — void worlds hard-skip enemy/creature/flora
-  ticks.
+  ticks. The one deliberate exception (#2635): a generated derelict's interior world runs its guardian bay
+  (`TickEnemies` → `TickDerelictGuardians`) — guardians only, from the bay only, inside the hull only, gated like the
+  planet machines; see [DERELICT_STATIONS.md](DERELICT_STATIONS.md#guardians--the-guardian-bay-2635).
 - **Arrival on a player station (#2606).** `PlacePlayerStationArrival` runs on **every** boarding (also
   when the stamp is already done for this run): from the `station_core`'s world cell (build cell 0,0,0)
   it takes the nearest standable cell (feet + two free cells above, same deck preferred), a **sealed air
@@ -138,6 +140,30 @@ tier) while its interior was a different voxel build. Now a station looks the sa
   into the mouth, fading only at the end; the autopilot and chart targets use that approach point.
 - Tests: `StationHullTests` (exterior detail, replay, shell, dock), `StationHullServerTests` (pin at first sight, flown
   hull, board range, EVA refusal, the exterior upgrade of an old kit station, orbit layout).
+
+## Derelict stations (#2632)
+
+The broken old stations of [DERELICT_STATIONS.md](DERELICT_STATIONS.md) are boarded through this same path but ride
+the PLAYER-station half of it: their build is an ownerless `SpaceStructure` in `_playerStationCells`, stamped by
+`StampPlayerStation` into `station:derelict:…`, with sealed-pocket air, the gravity volume and the drift rescue — and
+none of the NPC half (no crew, no markers, no mission board, no protection).
+
+Two EVA ↔ station rules are derelict-only (#2636, `GameServerDerelictSpacewalk.cs`):
+
+- **Leaving the hull is a spacewalk.** A generated derelict's boarder 2 blocks clear of the hull's cell box (the void
+  check, deferred to after the world loop) leaves through `LeaveStation(playerId, spacewalkFrom)`: the undock path with
+  the ship's float spot in `_dockedFromEva` (the spot remembered at a spacewalk boarding when it lies 12+ blocks clear
+  of the hull — it is the SUIT's spot, see `BoardStation` — else off the hull's face toward the launch point) and the
+  suit's own pose — `EnterSpace(…, evaStart)` seeds the suit's `PlayerPoses`
+  there and `SpaceState.HasEvaStart/EvaStart*` tells the flight view, which starts the EVA at that spot instead of
+  behind the ship. The mapping is the door rule inverted: interior position → build cell (`− Origin + StampMin`) →
+  flight (`position + cell − box centre`), held within 6 blocks of the box, raised to the suit's eye (+1.5). No flight
+  possible (free flight off, an unflyable ship) → the pull-back as before. The Long Quiet keeps the pull-back.
+- **Boarding through an opening.** On a spacewalk, `BoardStation` also searches from the suit through open build cells
+  (air, no doorway; at most 6 steps, the suit within 3 blocks of the box) for a deck under a roof inside the box — a
+  breach, the open hangar, a torn panel — and the nearer of that deck and a door in reach wins
+  (`EnterBoardedStation(…, throughBreach)` → `DerelictBreachArrival`, the standable cell nearest to it). Neither in
+  reach: the usual arrival in the sealed command room.
 
 ## Key files & classes
 

@@ -90,6 +90,10 @@ refreshed 2026-08-08.
 - [DEBRIS_FIELDS.md](DEBRIS_FIELDS.md) — debris fields (#2351): seed-pure placement after the generator, the field in
   flight (marker, fragments, capsules), the once-per-galaxy salvage ledger shared with the space wreck, the shield taps,
   combat debris, raiders with real hulls, and the `data/space_salvage.json` data file.
+- [DERELICT_STATIONS.md](DERELICT_STATIONS.md) — derelict stations (#2632–#2636): one broken old station guaranteed in
+  every start system, rarely 1–3 elsewhere; the decay pass (sealed and breached rooms, doors, broken trading posts),
+  vacuum, mining with the hull seen from space following, seed + deltas persistence, the old supply crates with their
+  seeded logs, the guardian bay, and falling out into a real spacewalk.
 - [NPC_TRADER_SHIPS.md](NPC_TRADER_SHIPS.md) — peaceful ambient NPC trader traffic.
 - [NPC_ROUTINES.md](NPC_ROUTINES.md) — living NPCs: base residents, the daily routine, pathfinding with doors,
   jobs with yield, and the station night.

@@ -479,4 +479,16 @@ public sealed class SpaceTargetingTests
         Near(0f, SpaceTargeting.UpSpriteRotation(90f));  // pointing up: no turn
         Near(-180f, SpaceTargeting.UpSpriteRotation(-90f)); // pointing down
     }
+
+    /// <summary>#2632: the client tells a derelict station from a trading one by the id prefix the server's placer uses.</summary>
+    [Fact]
+    public void DerelictIds_UseTheServersPrefix()
+    {
+        Assert.Equal(BlocksBeyondTheStars.WorldGeneration.DerelictPlacer.IdPrefix, SpaceTargeting.DerelictIdPrefix);
+        Assert.True(SpaceTargeting.IsDerelictId(BlocksBeyondTheStars.WorldGeneration.DerelictPlacer.BodyId("sys3", 1)));
+        Assert.True(SpaceTargeting.IsDerelictId("derelict:longquiet"));
+        Assert.False(SpaceTargeting.IsDerelictId("sys3-st"));
+        Assert.False(SpaceTargeting.IsDerelictId("pstation:Ann:0"));
+        Assert.False(SpaceTargeting.IsDerelictId(null));
+    }
 }

@@ -384,7 +384,8 @@ public sealed partial class GameServer
         // reachable station for missions/trade, while Desolate or Pirate Haven systems out there genuinely
         // have none. Pre-variance saves keep the old always-a-station behaviour.
         bool fallbackHere = !_meta.Description.SystemVariance || systemId == "sys0";
-        if (bodies.Count == 0 && fallbackHere && _meta.Description.SpaceStations != Frequency.Off)
+        // #2632: a derelict is no station to trade at — a system holding only derelicts still gets its fallback.
+        if (bodies.All(b => IsDerelictId(b.Id)) && fallbackHere && _meta.Description.SpaceStations != Frequency.Off)
         {
             bodies.Add(new CelestialBody
             {
@@ -398,15 +399,26 @@ public sealed partial class GameServer
         int i = 0;
         foreach (var body in bodies)
         {
-            yield return GetOrCreateStation(body.Id, body.Name, i++);
+            // A derelict is registered at start (RegisterDerelicts) and keeps its own spot — it takes no lane index.
+            yield return GetOrCreateStation(body.Id, body.Name, IsGeneratedDerelictId(body.Id) ? 0 : i++);
         }
     }
+
+    /// <summary>The stations of the current system a player can trade at, dock with for the lesson and count as "a
+    /// station in the system" (#2632): <see cref="StationContactsForCurrentSystem"/> without the derelicts.</summary>
+    private IEnumerable<BoardableStation> TradingStationsForCurrentSystem(string? anchorBodyId = null)
+        => StationContactsForCurrentSystem(anchorBodyId).Where(s => !IsDerelictId(s.Id));
 
     private BoardableStation GetOrCreateStation(string id, string name, int index)
     {
         if (_stationsById.TryGetValue(id, out var existing))
         {
             return existing;
+        }
+
+        if (IsGeneratedDerelictId(id) && EnsureDerelict(id) is { } derelict)
+        {
+            return derelict; // #2632: a derelict is built on first need, never as a procedural NPC station
         }
 
         long sSeed = _meta.Seed ^ WorldGenerator.StableHash("station:" + id);
@@ -508,19 +520,25 @@ public sealed partial class GameServer
         // to the float next to it, rather than re-launching. #2607: floating beside one of the station's doors, E boards
         // through that door — the server decides from the suit's position, so the board intent stays as it was.
         Vector3i? throughDoor = null;
+        Vector3i? throughBreach = null;
         if (session.State.InEva)
         {
             _dockedFromEva[playerId] = PilotPositionIn(instance, playerId); // #994: THIS pilot's float spot
             if (_playerStationCells.TryGetValue(stationId, out var build))
             {
                 throughDoor = StationDoorNearSuit(instance, playerId, build);
+                if (IsGeneratedDerelictId(stationId) && DerelictBreachNearSuit(instance, playerId, build, throughDoor) is { } breach)
+                {
+                    throughBreach = breach; // #2636: in through the hole it floats at — nearer than any door
+                    throughDoor = null;
+                }
             }
         }
 
         instance.Players.Remove(playerId);
         _playerInstance.Remove(playerId);
 
-        EnterBoardedStation(session, station, throughDoor: throughDoor);
+        EnterBoardedStation(session, station, throughDoor: throughDoor, throughBreach: throughBreach);
     }
 
     /// <summary>The world-transition half of boarding (shared by in-space docking and the travel-screen "board a
@@ -530,8 +548,10 @@ public sealed partial class GameServer
     /// <paramref name="at"/> wakes the player at that spot instead of the arrivals point (a rejoin, #1925).
     /// <paramref name="throughDoor"/> (#2607, a player station's door record the suit floated beside) puts the player on
     /// that door's sealed inside — judged after the stamp, with the doors hung — or, when it has none, at the arrival
-    /// next to the core (#2606).</summary>
-    private void EnterBoardedStation(PlayerSession session, BoardableStation station, Vector3f? at = null, Vector3i? throughDoor = null)
+    /// next to the core (#2606). <paramref name="throughBreach"/> (#2636, a generated derelict's deck cell behind the
+    /// opening the suit floated at) puts the player on that deck — else at the usual arrival.</summary>
+    private void EnterBoardedStation(PlayerSession session, BoardableStation station, Vector3f? at = null, Vector3i? throughDoor = null,
+        Vector3i? throughBreach = null)
     {
         string playerId = session.State.PlayerId;
 
@@ -552,7 +572,7 @@ public sealed partial class GameServer
             StampStation(station);                 // procedural station: stamps the structure once; computes Spawn
         }
         RegisterStationDoors(station.Markers);     // sliding doors fill the station's module doorways
-        if (_npcs.Count == 0)
+        if (_npcs.Count == 0 && !IsDerelictId(station.Id)) // #2632: nobody lives on a derelict — no crew, no visiting trader
         {
             SpawnStationNpcs(station);             // (re)populate the crew when the station world is fresh
         }
@@ -560,6 +580,11 @@ public sealed partial class GameServer
         if (at is null && throughDoor is { } door && playerCells is not null)
         {
             at = StationDoorArrival(station, playerCells, door); // #2607: in through the door it floated at
+        }
+
+        if (at is null && throughBreach is { } breach)
+        {
+            at = DerelictBreachArrival(station, breach); // #2636: in through the hole it floated at
         }
 
         _boardedStation[playerId] = station.Id;
@@ -598,6 +623,7 @@ public sealed partial class GameServer
         });
         SendStarMap(session); // refresh markers/owner/visited now that this station counts as visited
         SyncAppearance(session); // faces + body paintings both ways on the station world (#982)
+        OnDerelictBoarded(session, station); // #2632: VEGA's word on the first boarding (+ the crate/spawner hooks)
         RaiseGameEvent(session, GameEventKeys.StationBoarded, station.Id); // #2465 (a rejoin onto a station raises nothing)
         _log.Info($"Player '{session.State.Name}' boarded station '{station.Name}' (own world '{stationLoc}').");
         CheckpointSave($"docked at {station.Name}"); // auto-save when docking a station
@@ -761,7 +787,13 @@ public sealed partial class GameServer
     /// planet the station orbits — you return to your ship's view, not to the planet surface. The planet
     /// world is restored underneath (so a later landing drops you there), then the player relaunches into
     /// the system's space instance near where they docked.</summary>
-    public void LeaveStation(string playerId)
+    public void LeaveStation(string playerId) => LeaveStation(playerId, spacewalkFrom: null);
+
+    /// <param name="spacewalkFrom">#2636: set when a derelict's boarder fell out through its hull — the suit's pose in the
+    /// flight frame. The caller has put the ship's float spot into <see cref="_dockedFromEva"/>; the flight opens on an EVA
+    /// with the suit there (the flight view is told the spot), and the undock's own line and lesson event stay out of it —
+    /// this was no undock.</param>
+    private void LeaveStation(string playerId, SpacePlayerPose? spacewalkFrom)
     {
         var session = FindSessionByPlayerId(playerId);
         if (session is null || !_boardedStation.Remove(playerId, out var leftStationId))
@@ -804,13 +836,19 @@ public sealed partial class GameServer
         // return you to the float next to it (no take-off); otherwise relaunch the ship as before. #2118: the
         // flight view is told where that float is, so it doesn't draw the ship back at the launch point.
         bool fromEva = _dockedFromEva.Remove(playerId, out var floatShipPos);
-        EnterSpace(playerId, skipLaunch: fromEva, resume: fromEva ? new SpacePlayerPose(floatShipPos, 0f, false) : null);
+        EnterSpace(playerId, skipLaunch: fromEva, resume: fromEva ? new SpacePlayerPose(floatShipPos, 0f, false) : null,
+            evaStart: fromEva ? spacewalkFrom : null);
         if (fromEva && _playerInstance.TryGetValue(playerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst))
         {
             inst.ShipPosition = floatShipPos;
             inst.ShipLastPosition = floatShipPos;
             session.State.InEva = true; // back outside the ship, floating where you left it
             SendPlayerState(session);
+        }
+
+        if (spacewalkFrom is not null)
+        {
+            return; // #2636: fell out, not undocked — the caller says VEGA's line
         }
 
         Send(session, new ServerMessage { Text = fromEva ? "@srv.station.back_outside" : "@srv.station.undocked" });

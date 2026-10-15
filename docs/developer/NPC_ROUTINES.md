@@ -92,6 +92,13 @@ approach spot. Villagers and crew find a bed and a seat once within 8 blocks of 
 (`EnsureNpcFurniture`); guardians and visiting traders keep `RoutineEnabled = false`. A sleeper answers a talk with
 `npc.greet.sleepy`. While a player talks with an NPC (§16) its routine and job wait — at most 60 s per talk.
 
+**Keepers hold the counter (#2627).** A trading keeper (role `vendor` — the classic vendor, every trading profession,
+a visiting pilot, the travelling merchant — or the `quartermaster`) at work stops strolling while a player stands within
+`KeeperHoldRange` (4.5) of its spot: it walks back to the spot (`KeeperHoldSlack` 0.35) and stands there facing the
+customer (`KeeperCustomer` in `GameServerVendorTrade.cs`, used by `MoveNpcs`). "At work" = idle (no goal, standing) in
+the `Day` phase, or any time for an NPC without a routine (the visitors). The work leash (1.0) let a doctor drift ~1.4
+blocks from his post while the player was trading. Evening, night, a walk and every non-trader are unchanged.
+
 Wire (additive, contractless — no codec tag): `NetNpc.Pose`, `NetNpc.ActivityKey`, `NetNpc.Held`.
 
 ## 7. Jobs (`GameServerNpcJobs.cs`)
@@ -168,13 +175,34 @@ the furnished room (`RoomFurnisher.RoomRole` name).
   3, so a fresh city practically always has all six; residents come from the shared settlement path. A pinned city keeps
   its districts.
 - **Trade gates.** `NpcProfessions.IsTradeMarker` (settlement `NearTradeMarker`, `NearSpaceStationVendor`,
-  `NearBaseVendor`). The grocer's offers need `InSameClosedRoom(player, keeper)` (`srv.craft.shop_only`); a recipe with
-  `marketRotation` N is in stock on every N-th in-game day (`RecipeDefinition.OfferedOnDay(floor(SystemTimeDays))`, the
-  client filters the same way, `srv.craft.not_today`).
+  `NearBaseVendor`), plus — #2626 — any vendor within `MarketStock.VendorReach` (6) of the player (`NearVendorNpc`). A
+  themed deal needs a vendor within that reach that sells it (`ThemedMarketRefusal`, GameServerVendorTrade.cs) — ANY such
+  vendor, nearest first, not just the nearest one, so the vendor the client's trade screen is bound to counts even with
+  another one a step closer. The grocer's offers need `InSameClosedRoom(player, keeper)` (`srv.craft.shop_only`); a recipe
+  with `marketRotation` N is in stock on every N-th in-game day (`RecipeDefinition.OfferedOnDay(floor(SystemTimeDays))`,
+  `srv.craft.not_today`). The stock rule is `MarketStock` (Shared): the client's vendor screen lists
+  `MarketStock.ListFor(theme, day)` — the vendor's own goods first, then the themeless deals — and the server checks
+  `MarketStock.SellsKind`, so both read one rule.
+- **The client's reach (#2626, `VendorReach` in Client.Core).** The "Trade" prompt, E's trade-or-talk and the crafting
+  menu's market page pick the nearest vendor within `MarketStock.TradeReach` (4) — the server always accepts that. "Trade"
+  binds the screen to that vendor (its NPC id): title "Name · Role", a header line `ui.vendor.theme.<theme>` (#2629), and
+  the list stays while the vendor is within `MarketStock.VendorReach` (6) — exactly the server's vendor reach — else
+  "Step closer to … to trade" (`ui.vendor.step_closer`). The client knows no post positions, so it measures to the vendor
+  alone; where the server would also take a trade from a post (vendor 4–6 away, player at the post) the screen still
+  lists it.
+- **Visitors bring their own goods (#2630).** A docked trader draws its theme per visit from `VisitingTraderThemes`
+  (traders, miners, researchers, settlers, arms, medics, blocks — never the station shop's `traders`); a landed pilot the
+  same per landing (any of them, no shop beside a pad). The travelling merchant at a base has theme `mixed`
+  (`MarketStock.MixedTheme`): one offer from each of 4 trades, drawn per in-game day by a stable hash
+  (`MarketStock.MixedOffers`) — the same pick on both sides, no protocol change (`NetNpc.Theme` carries `mixed`).
 - **Dialogues.** `DialogDefinition.Job`: a job dialogue matches only that job; a profession NPC never takes a plain role
   dialogue. Consequences `photo` (the streamer poses — `npc.activity.posing` — and `NpcDialogState.Action = "photo"` makes
   the client take a HUD-free photo), `photo_never` (milestone `streamer:never`), `interview` (`Action = "interview"`, the
-  client's `InterviewUi`; `session.PendingInterviewNpcId`), `news` (the closing line lists the place's latest articles).
+  client's `InterviewUi`; `session.PendingInterviewNpcId`), `news` (the closing line lists the place's latest articles),
+  `treat` (#2628, the doctor's "Can you treat me?": full health, free, once per in-game day and player — milestone
+  `doctor:treated:<day>`, only the latest kept, so it survives a reconnect; a second ask that day hears
+  `dlg.doctor.r_treat_again`, a healthy patient `dlg.doctor.r_treat_healthy` and keeps the visit; `Action = "heal"` plays
+  the heal sound).
 - **Interviews.** `InterviewAnswerIntent` (tag 243) is accepted once, right after that reporter asked; free text ≤ 300,
   screened like chat (blocked → not stored, masked → stored masked); Safe chat mode takes only the four preset keys
   (`@news.preset.*`, localized per reader). Stored in `WorldMetadata.News[place]` (`s:<settlement>`, `b:<baseId>`,

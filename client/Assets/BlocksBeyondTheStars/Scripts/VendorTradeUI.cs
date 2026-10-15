@@ -16,6 +16,13 @@ namespace BlocksBeyondTheStars.Client
     /// get Y") as trade cards; ones the player can't afford are greyed out, and clicking a tradeable one sends
     /// the existing <see cref="NetworkClient.SendCraft"/> intent (the server validates the vendor proximity +
     /// materials). The economy is pure barter — there's no currency. Refreshes on every inventory update.
+    /// <para>#2626 / #2629: the screen is bound to the vendor the player chose (its NPC id): the title names that vendor,
+    /// a header line says what it deals in (<c>ui.vendor.theme.&lt;theme&gt;</c>), its own goods come first and the
+    /// themeless deals after them (<c>MarketStock.ListFor</c> — the server's own stock rule). While the vendor stands within
+    /// the server's vendor reach (<see cref="VendorReach.StillServes"/>) the list stays, however it steps about; beyond it
+    /// the list gives way to "Step closer to … to trade" and comes back when it returns. Before, every rebuild re-picked
+    /// "the nearest vendor within 3.6", so a doctor who strolled a step away left a screen titled with his name listing
+    /// only the iron ↔ titanium swaps.</para>
     /// </summary>
     public sealed class VendorTradeUI : MonoBehaviour
     {
@@ -26,19 +33,41 @@ namespace BlocksBeyondTheStars.Client
         private const float PanelW = 1000f, PanelH = 660f;
         private const float RowH = 84f, RowsTop = 156f;
 
+        /// <summary>Seconds between two looks at whether the bound vendor still serves the player.</summary>
+        private const float ReachCheckInterval = 0.25f;
+
         private Canvas _canvas;
         private Transform _root;
         private Transform _rows;   // recipe cards live here; cleared + rebuilt
         private Text _title;
+        private Text _subtitle;    // #2629: what the bound vendor deals in (the generic barter line at the ship's console)
         private bool _built, _open, _subscribed;
         private int _openedFrame;
 
+        private int _vendorId;                      // #2626: the vendor NPC this screen trades with (0 = the ship's console)
+        private string _vendorTitle = string.Empty; // "Name · Role" as last seen (kept while the vendor is out of sight)
+        private string _vendorName = string.Empty;  // the name the "step closer" line uses
+        private bool _shownInReach;                 // the reach state the rows were last built for
+        private long _shownDay;                     // the market day the rows were last built for (rotation, mixed stock)
+        private float _nextReachCheck;
+
         public bool IsOpen => _open;
 
-        public void Open()
+        /// <summary>Opens the screen bound to vendor NPC <paramref name="vendorId"/> (0 = the ship's trade console). Opened
+        /// without one off the ship, it binds the vendor in reach, if any.</summary>
+        public void Open(int vendorId = 0)
         {
             Build();
             Menu?.CloseFromUi();           // mutually exclusive with the crafting/Tab menu
+            _vendorId = vendorId;
+            if (_vendorId == 0 && Game != null && !Game.Aboard)
+            {
+                var nearest = Game.NearestTradingVendor();
+                _vendorId = nearest != null ? nearest.Id : 0;
+            }
+
+            _vendorTitle = string.Empty;
+            _vendorName = string.Empty;
             _open = true;
             _openedFrame = Time.frameCount; // so the same E press that opened it doesn't close it this frame
             _canvas.enabled = true;
@@ -78,6 +107,18 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game?.MarkMenuInputHandled(); // this Esc/Tab is consumed — no quit prompt / menu toggle on top (#413 N1)
                 Close();
+                return;
+            }
+
+            // #2626: the bound vendor stepped out of (or back into) the server's reach, or a new market day began — redo the
+            // list. Looked at a few times a second, rebuilt only on a change.
+            if (_open && Game != null && Time.unscaledTime >= _nextReachCheck)
+            {
+                _nextReachCheck = Time.unscaledTime + ReachCheckInterval;
+                if (BoundVendorServes(out _) != _shownInReach || Game.MarketDay != _shownDay)
+                {
+                    Rebuild();
+                }
             }
         }
 
@@ -92,6 +133,23 @@ namespace BlocksBeyondTheStars.Client
         private void OnWorldReset(WorldReset m) => Close(); // travelling away from the vendor closes the screen
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
+
+        /// <summary>The vendor this screen is bound to, if it is still around (null at the ship's console or once it left).</summary>
+        private NetNpc BoundVendor() => _vendorId != 0 ? VendorReach.ById(Game.Npcs, _vendorId) : null;
+
+        /// <summary>Whether the screen may list trades: at the ship's console always, else while the bound vendor stands
+        /// within the server's vendor reach.</summary>
+        private bool BoundVendorServes(out NetNpc vendor)
+        {
+            vendor = BoundVendor();
+            if (_vendorId == 0)
+            {
+                return true;
+            }
+
+            var p = Game.PlayerPosition;
+            return VendorReach.StillServes(vendor, p.x, p.y, p.z, Game.Circumference);
+        }
 
         /// <summary>Display name for a (possibly composite) item key: base name via the base key, plus
         /// dyed/glowing and shape suffixes — so a market recipe over a modified item never renders a
@@ -137,7 +195,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddPanel(_root, px, py, PanelW, PanelH, UiKit.Panel);
 
             _title = UiKit.AddText(_root, px + 40, py + 26, PanelW - 80, 40, string.Empty, 32, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddText(_root, px + 40, py + 78, PanelW - 80, 26, L("ui.vendor.subtitle"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            _subtitle = UiKit.AddText(_root, px + 40, py + 78, PanelW - 80, 26, L("ui.vendor.subtitle"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
             UiKit.AddText(_root, px + 40, py + 116, 380, 22, L("ui.vendor.give"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddText(_root, px + 470, py + 116, 320, 22, L("ui.vendor.get"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
 
@@ -172,7 +230,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Rebuild()
         {
-            if (!_built)
+            if (!_built || Game == null)
             {
                 return;
             }
@@ -182,30 +240,47 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(_rows.GetChild(i).gameObject);
             }
 
-            _title.text = NearestVendorName();
-
-            // A vendor only posts goods for its settlement's trade (mining/trading/research/settler); themeless
-            // recipes barter everywhere. Aboard the ship console (no vendor) only the themeless deals show.
-            int row = 0;
-            foreach (var r in Game.Content.Recipes.Values)
+            // #2626: everything comes from the bound vendor — the name, the header line and the goods.
+            bool inReach = BoundVendorServes(out var vendor);
+            if (vendor != null)
             {
-                if (r.Station != BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Market
-                    || r.Outputs.Count == 0 || r.Inputs.Count == 0)
-                {
-                    continue;
-                }
-
-                if (!Game.MarketOfferedHere(r))
-                {
-                    continue; // another kind of vendor's trade, or a rotating offer not in stock today
-                }
-
-                AddRow(row++, r);
+                string role = !string.IsNullOrEmpty(vendor.NameKey) ? L(vendor.NameKey) : string.Empty;
+                _vendorTitle = VendorReach.Label(vendor.Name, role);
+                _vendorName = !string.IsNullOrEmpty(vendor.Name) ? vendor.Name : role;
             }
 
-            if (row == 0)
+            _title.text = _vendorTitle.Length > 0 ? _vendorTitle : L("ui.vendor.title");
+            string headerKey = vendor != null ? VendorReach.ThemeHeaderKey(vendor.Theme) : string.Empty;
+            _subtitle.text = headerKey.Length > 0 && Game.Localizer != null && Game.Localizer.Has(headerKey)
+                ? L(headerKey)
+                : L("ui.vendor.subtitle");
+
+            long day = Game.MarketDay;
+            _shownInReach = inReach;
+            _shownDay = day;
+
+            int row = 0;
+            if (!inReach)
             {
-                UiKit.AddText(_rows, 20, 10, PanelW - 40, 30, L("ui.vendor.empty"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                // #2629: the chosen vendor walked off — say so instead of silently shrinking the list to the common deals.
+                string who = _vendorName.Length > 0 ? _vendorName : L("ui.vendor.title");
+                UiKit.AddText(_rows, 20, 10, PanelW - 40, 30, L("ui.vendor.step_closer").Replace("{0}", who), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            }
+            else
+            {
+                // The vendor's own goods first, then the themeless deals every vendor has (the ship's console: only those).
+                // MarketStock is the server's own stock rule — a rotating offer shows on its days, the travelling
+                // merchant's mixed stock is the same daily pick the server accepts (#2630).
+                string theme = vendor != null ? vendor.Theme : string.Empty;
+                foreach (var r in BlocksBeyondTheStars.Shared.Definitions.MarketStock.ListFor(Game.MarketRecipes(), theme, day))
+                {
+                    AddRow(row++, r);
+                }
+
+                if (row == 0)
+                {
+                    UiKit.AddText(_rows, 20, 10, PanelW - 40, 30, L("ui.vendor.empty"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                }
             }
 
             // Size the scroll content to the rows (floored at the viewport so short lists don't scroll) and
@@ -269,30 +344,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return n;
-        }
-
-        /// <summary>The name of the closest vendor NPC (for the screen title), or a generic "Trader" fallback.</summary>
-        private string NearestVendorName()
-        {
-            var p = Game.PlayerPosition;
-            string best = null;
-            float bestSq = float.MaxValue;
-            foreach (var n in Game.Npcs)
-            {
-                if (n.Role != "vendor")
-                {
-                    continue;
-                }
-
-                float sq = (Game.ScenePos(n.X, n.Y, n.Z) - p).sqrMagnitude;
-                if (sq < bestSq)
-                {
-                    bestSq = sq;
-                    best = string.IsNullOrEmpty(n.Name) ? null : n.Name;
-                }
-            }
-
-            return best ?? L("ui.vendor.title");
         }
 
         private void OnDestroy()

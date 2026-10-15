@@ -2411,7 +2411,9 @@ namespace BlocksBeyondTheStars.Client
                 case "market":
                     if (!_marketFromVendor || !OfferVendorChoice())
                     {
-                        Menu?.OpenMarket();
+                        // #2626: the screen is bound to the vendor in reach (0 = the ship's own trade console).
+                        var tradeWith = _marketFromVendor ? Game.NearestTradingVendor() : null;
+                        Menu?.OpenMarket(tradeWith != null ? tradeWith.Id : 0);
                         Game.Network?.SendNpcGreet("vendor"); // item 15: vendor greeting
                     }
 
@@ -2454,25 +2456,8 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            var npcs = Game.Npcs;
-            BlocksBeyondTheStars.Networking.Messages.NetNpc vendor = null;
-            float bestSq = 3.6f * 3.6f; // the same reach as Game.NearVendor
-            var here = Game.PlayerPosition;
-            foreach (var n in npcs)
-            {
-                if (n.Role != "vendor")
-                {
-                    continue;
-                }
-
-                float sq = (Game.ScenePos(n.X, n.Y, n.Z) - here).sqrMagnitude;
-                if (sq <= bestSq)
-                {
-                    bestSq = sq;
-                    vendor = n;
-                }
-            }
-
+            // #2626: the same picker as the "Trade" prompt (Game.NearVendor), and Trade binds the screen to THIS vendor.
+            var vendor = Game.NearestTradingVendor();
             if (vendor == null)
             {
                 return false;
@@ -2480,11 +2465,11 @@ namespace BlocksBeyondTheStars.Client
 
             int id = vendor.Id;
             string role = Game.Localizer != null && !string.IsNullOrEmpty(vendor.NameKey) ? Game.Localizer.Get(vendor.NameKey) : string.Empty;
-            string label = string.IsNullOrEmpty(vendor.Name) ? role : string.IsNullOrEmpty(role) ? vendor.Name : $"{vendor.Name} · {role}";
+            string label = VendorReach.Label(vendor.Name, role);
             return prompt.TryOffer(label,
                 () =>
                 {
-                    Menu?.OpenMarket();
+                    Menu?.OpenMarket(id);
                     Game.Network?.SendNpcGreet("vendor");
                 },
                 () => Game.Network?.SendTalkToNpc(id));

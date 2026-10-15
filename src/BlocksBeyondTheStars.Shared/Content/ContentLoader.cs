@@ -157,6 +157,12 @@ public static class ContentLoader
         // The villagers' personal wishes (#2601) are optional the same way: no wishes.json → nobody wishes anything.
         content.SetWishes(LoadArray<BlocksBeyondTheStars.Shared.Missions.WishTemplate>(Path.Combine(dataDir, "wishes.json")));
 
+        // The old logs in a derelict's supply crates (#2633) are optional the same way: no derelict_logs.json → no logs.
+        string derelictLogFile = Path.Combine(dataDir, "derelict_logs.json");
+        content.SetDerelictLogs(File.Exists(derelictLogFile)
+            ? JsonSerializer.Deserialize<DerelictLogDefinition>(File.ReadAllText(derelictLogFile), JsonOptions)
+            : null);
+
         content.Validate();
         return content;
     }

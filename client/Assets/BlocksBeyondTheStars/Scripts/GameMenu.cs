@@ -187,11 +187,12 @@ namespace BlocksBeyondTheStars.Client
         public void CloseBrowser() => _browser = BrowserScreen.None;
 
         /// <summary>Opens the dedicated vendor trade (barter) screen — a focused "give X → get Y" view, not the
-        /// full crafting menu (B22). The two are mutually exclusive (see <see cref="SetOpen"/>).</summary>
-        public void OpenMarket()
+        /// full crafting menu (B22). The two are mutually exclusive (see <see cref="SetOpen"/>). #2626: the screen is bound to
+        /// the vendor NPC <paramref name="vendorId"/> the player chose (0 = the ship's own trade console, no vendor).</summary>
+        public void OpenMarket(int vendorId = 0)
         {
             EnsureVendorUi();
-            _vendorUi.Open();
+            _vendorUi.Open(vendorId);
         }
 
         private VendorTradeUI _vendorUi;

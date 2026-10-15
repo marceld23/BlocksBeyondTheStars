@@ -691,6 +691,10 @@ public sealed partial class GameServer
                 _dialogAction = "interview";
                 break;
 
+            case TreatConsequence:
+                ApplyTreatConsequence(session); // #2628: the doctor heals you, once per in-game day
+                break;
+
             case "news":
                 _dialogExtraText = "\n\n" + NewsDigest(session, npc);
                 break;

@@ -175,7 +175,8 @@ An **access code** (`access_code`, localised "SPS-Code" — a recovered *Scout a
 code) is a rare currency-like item, obtained two ways, both rare:
 
 - **World find:** as a rare drop inside treasure chests (§4).
-- **Trader purchase:** a steep `"traders"`-theme market recipe (`market_buy_access_code`).
+- **Trader purchase:** a steep `"traders"`-theme market recipe (`market_buy_access_code`), in stock only every third
+  in-game day (`marketRotation: 3`, #2630) — and now and then in the travelling merchant's mixed stock.
 
 Spawned factories are protected (read-only) by `IsFactoryProtected` in the mine/place guards. A factory is
 **claimable**; standing at its terminal with a code and pressing E (`ClaimStructureIntent`, tag 173 →

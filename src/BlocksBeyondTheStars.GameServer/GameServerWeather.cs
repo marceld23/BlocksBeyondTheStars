@@ -274,7 +274,7 @@ public sealed partial class GameServer
         // #1473: a player-built station's deck is NOT free air — only its sealed pockets breathe (see
         // GameServerStationAir); the void world keeps "breathable" data for the authored NPC stations.
         _breathable = string.Equals(planet?.Atmosphere, "breathable", System.StringComparison.OrdinalIgnoreCase)
-            && !IsPlayerStationWorld(_worlds.Active.LocationId);
+            && !IsSealedAirStationWorld(_worlds.Active.LocationId); // #2632: a derelict's deck neither
         _spaceSky = planet?.SpaceSky ?? false;
         // Clouds + weather + fog require an actual atmosphere — gate on the atmosphere type, NOT just the space
         // sky. A body with atmosphere "none" (lava/crystal historically, asteroids) gets no clouds, no changing

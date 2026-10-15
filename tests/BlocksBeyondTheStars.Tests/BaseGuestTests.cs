@@ -11,6 +11,7 @@ using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Missions;
@@ -278,7 +279,7 @@ public sealed class BaseGuestTests
         StandBeside(w, merchant);
         Assert.True(w.Server.NearBaseGuestMerchantForTest(w.Player.State));
         Assert.True(w.Server.MarketAvailableForTest(w.Player.State));
-        Assert.Contains(w.Server.VendorThemeAtForTest(w.Player.State), new[] { "miners", "traders", "researchers", "settlers" });
+        Assert.Equal(MarketStock.MixedTheme, w.Server.VendorThemeAtForTest(w.Player.State)); // #2630: a bit of everything
 
         // Its stall stays open longer than an ordinary guest waits.
         w.Server.TickBaseGuestsForTest();
@@ -288,6 +289,48 @@ public sealed class BaseGuestTests
         Assert.Equal("Waiting", w.Server.BaseGuestsForTest.Single().Phase);
         StepSeconds(w, 40);
         Assert.Equal("Leaving", w.Server.BaseGuestsForTest.Single().Phase);
+    }
+
+    /// <summary>#2630: "A bit of everything!" for real — the merchant's goods are one offer from each of several trades,
+    /// new every day, and the server takes exactly the rows the client's vendor screen lists for it (both read
+    /// <see cref="MarketStock"/>; the merchant's theme travels on the wire as <see cref="MarketStock.MixedTheme"/>).</summary>
+    [Fact]
+    public void TheTravellingMerchant_SellsABitOfEverything_ExactlyWhatTheScreenLists()
+    {
+        using var w = World("guest_merchant_goods");
+        int merchant = Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "merchant"));
+        Assert.Equal(MarketStock.MixedTheme, w.Server.NpcJobsForTest.Single(n => n.Role == "vendor").Theme);
+        StandBeside(w, merchant);
+
+        string Craft(string recipe)
+        {
+            int mark = w.Transport.Sent.Count;
+            w.Server.Craft(w.Player.State.PlayerId, recipe);
+            var res = w.Transport.Sent.Skip(mark).Select(s => s.Msg).OfType<CraftResult>().LastOrDefault();
+            return res is null ? "(no result)" : res.Success ? "ok" : res.Reason ?? string.Empty;
+        }
+
+        var recipes = Content.Value.Recipes.Values;
+        long day = w.Server.MarketDayForTest;
+        var rows = MarketStock.ListFor(recipes, MarketStock.MixedTheme, day);
+        var goods = rows.Where(r => r.MarketTheme.Length > 0).ToList();
+        Assert.True(goods.Select(r => r.MarketTheme).Distinct().Count() >= 3, "offers from at least three trades");
+        foreach (var r in rows)
+        {
+            foreach (var input in r.Inputs)
+            {
+                w.Player.State.Inventory.Add(input.Item, input.Count, 999);
+            }
+
+            Assert.Equal("ok", Craft(r.Key)); // every listed row trades
+        }
+
+        var notToday = recipes.First(r => MarketStock.IsTrade(r) && r.MarketTheme.Length > 0 && r.OfferedOnDay(day) && !goods.Contains(r));
+        Assert.Equal("@srv.craft.wrong_vendor", Craft(notToday.Key)); // and nothing it does not list
+
+        // Tomorrow it has other goods.
+        var tomorrow = MarketStock.MixedOffers(recipes, day + 1);
+        Assert.NotEqual(goods.Select(r => r.Key).OrderBy(k => k, StringComparer.Ordinal), tomorrow.Select(r => r.Key).OrderBy(k => k, StringComparer.Ordinal));
     }
 
     [Fact]

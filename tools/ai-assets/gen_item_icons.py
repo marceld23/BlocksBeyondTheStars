@@ -70,6 +70,10 @@ ITEMS = [
     ("toxic_berries", "a small cluster of round berries with a leaf"),
     # Toxica-Maxima (#2066): the meat of a contaminated animal.
     ("toxic_meat", "a slab of raw red meat with a sickly glowing green sheen and dripping green veins"),
+    # #2633 derelict stations: what their old supply crates hold — spoiled food (tinted green at runtime like the toxic
+    # food) and the log entry someone left behind.
+    ("spoiled_food", "an old dented sci-fi food ration tin with the lid peeled half open, the food inside gone grey and fuzzy with mould, a faded peeling label"),
+    ("derelict_log", "a small worn sci-fi data log pad with a dim amber screen showing faint lines of handwriting, scuffed grey metal casing with a few scratches and a bent corner"),
     # Fruit trees (#2038): one icon per fruit shape and its toxic twin (the toxic ones stay uncoloured — the client tints them).
     ("fruit_round", "a single plump round red-orange apple-like fruit with a short stem and one small green leaf"),
     ("fruit_long", "a single long slender smooth green pod-like fruit with a short stem"),

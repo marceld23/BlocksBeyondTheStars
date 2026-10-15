@@ -111,6 +111,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 StartCoroutine(InterviewAfterLine(m.NpcId));
             }
+            else if (m.Action == "heal")
+            {
+                ClientAudio.Instance?.Cue("heal"); // #2628: the doctor treated you (the server already filled your health)
+            }
         }
 
         private System.Collections.IEnumerator PhotoAfterLine()

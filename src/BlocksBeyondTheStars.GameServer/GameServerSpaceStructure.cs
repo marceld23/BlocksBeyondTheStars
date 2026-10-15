@@ -790,7 +790,9 @@ public sealed partial class GameServer
         // Allies co-own each other's STATIONS (build/mine the floating structure), but never each other's ship —
         // the ship stays owner-only by design, so the alliance grant is scoped to station structures.
         bool isAlliedStation = !isOwn && s.Kind == "station" && AreAllied(s.OwnerId, p.PlayerId);
-        if (!isAsteroid && !isOwn && !isAlliedStation)
+        // #2634: a derelict station is nobody's — mined (like salvage, by tool and hardness) and patched by anyone.
+        bool isDerelict = s.Kind == "station" && IsGeneratedDerelictId(s.Id);
+        if (!isAsteroid && !isOwn && !isAlliedStation && !isDerelict)
         {
             Reject(session, "structure", "@srv.structure.own_only");
             return;
@@ -850,7 +852,8 @@ public sealed partial class GameServer
             // #685: asteroid ore obeys the same rules as planet mining — tool gating + hardness accumulated
             // over several hits (a single click used to pop ANY block bare-handed, titanium included). Own-ship
             // and station editing stays instant by design: that is construction UX, not resource gathering.
-            if (isAsteroid)
+            // #2634: a derelict's hull is salvage, not your construction — it is mined like the same block aboard.
+            if (isAsteroid || isDerelict)
             {
                 if (def is null || !def.Mineable)
                 {
@@ -928,10 +931,12 @@ public sealed partial class GameServer
                 // #2607: the interior loses the block now, and the persisted build too — a commissioned station's mined
                 // cell was saved only with the next build, so a restart in between brought the block back.
                 MirrorStationCellOutside(s, pos, BlockId.Air);
-                if (s.Boardable)
+                if (s.Boardable && !PersistIfDerelict(s)) // #2634: a derelict keeps its own row (it has no host body)
                 {
                     PersistStation(instance, s);
                 }
+
+                PublishDerelictHullToOtherOrbits(instance, s, pos, BlockId.AirValue);
             }
 
             // Bank the mined block's drops (ore from asteroids; rebuild materials from a ship hull) — the
@@ -1111,9 +1116,30 @@ public sealed partial class GameServer
             {
                 TryCommissionStation(instance, s, session);
             }
-            else
+            else if (!PersistIfDerelict(s)) // #2634: a derelict patched from outside keeps its own row
             {
                 PersistStation(instance, s);
+            }
+
+            PublishDerelictHullToOtherOrbits(instance, s, pos, blockDef.NumericId.Value);
+        }
+    }
+
+    /// <summary>#2634: a derelict floats in every orbit of its system, one shared hull — pilots in the OTHER orbit
+    /// instances see a spacewalk edit too (the editor's own instance already got its <see cref="StructureBlockChanged"/>).
+    /// No-op for every other structure.</summary>
+    private void PublishDerelictHullToOtherOrbits(SpaceInstance editedIn, SpaceStructure s, Vector3i cell, ushort block)
+    {
+        if (!IsGeneratedDerelictId(s.Id))
+        {
+            return;
+        }
+
+        foreach (var other in _spaceInstances.Values)
+        {
+            if (!ReferenceEquals(other, editedIn) && other.Structures.ContainsKey(s.Id))
+            {
+                BroadcastToInstance(other, new StructureBlockChanged { StructureId = s.Id, X = cell.X, Y = cell.Y, Z = cell.Z, Block = block });
             }
         }
     }

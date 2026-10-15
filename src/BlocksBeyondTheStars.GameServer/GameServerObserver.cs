@@ -317,6 +317,11 @@ public sealed partial class GameServer
 
         foreach (var st in _repo.ListSpaceStructures())
         {
+            if (IsDerelictId(st.Id))
+            {
+                continue; // #2634: a derelict's stored edits are nobody's build
+            }
+
             list.Add(new BuildEntry("station", st.Name, st.OwnerId, st.Location,
                 new Vector3i((int)st.PosX, (int)st.PosY, (int)st.PosZ)));
         }

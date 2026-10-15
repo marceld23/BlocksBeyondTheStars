@@ -756,6 +756,9 @@ public sealed class ServerConfig
                 case "debris-fields": // #2353: how many systems hold a debris field
                     if (Enum.TryParse<BlocksBeyondTheStars.Shared.World.Frequency>(value, ignoreCase: true, out var df)) { World.DebrisFields = df; applied.Add("debris-fields"); }
                     break;
+                case "derelicts": // #2632: how often a system holds broken old stations (Off removes them all)
+                    if (Enum.TryParse<BlocksBeyondTheStars.Shared.World.Frequency>(value, ignoreCase: true, out var dr)) { World.Derelicts = dr; applied.Add("derelicts"); }
+                    break;
                 case "exotic":
                     if (Enum.TryParse<BlocksBeyondTheStars.Shared.World.Frequency>(value, ignoreCase: true, out var ex)) { World.ExoticWorlds = ex; applied.Add("exotic"); }
                     break;

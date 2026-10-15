@@ -490,6 +490,11 @@ namespace BlocksBeyondTheStars.Client
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.debris_fields"), freqSteps,
                 () => opt.DebrisFields, v => opt.DebrisFields = v, rebuilders: null);
 
+            // Derelict stations (#2632): one near the start, otherwise rarely one to three in a system; Off removes them all.
+            y += 62f;
+            AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.derelicts"), freqSteps,
+                () => opt.Derelicts, v => opt.Derelicts = v, rebuilders: null);
+
             // Landscape-variety package (#1644): the terrain generation is pinned to the newest one this launcher
             // knows (WorldCreationOptions.TerrainGeneration) — shown read-only so the panel says which landform
             // set the new world rolls; the classic set (0) stays a server-CLI escape hatch, not a slider.

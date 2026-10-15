@@ -580,7 +580,8 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   hunger). At 0 → death (see below).
 - **Oxygen** (max 100 + tank bonuses): refills aboard ship / on breathable worlds; drains outside on
   toxic/airless worlds. An `oxygen_extractor` cuts the drain on extractable atmospheres.
-- **Hunger** (max 100): drains off-ship; below ~15 the suit auto-eats stored/loose rations.
+- **Hunger** (max 100): drains off-ship; below ~15 the suit auto-eats stored/loose rations. Food that hurts
+  (contaminated meat, spoiled food, toxic berries) never goes into the suit's ration dispenser — eat it by hand, if at all.
   Food sources: hunt creatures (meat), harvest berry flora (replantable via seeds), pick the **fruit** that hangs
   under tree crowns on newer worlds (it grows back; toxic exactly when its tree is — scan first), pick the berries under
   a **Fifi plant** (Sophie's tree-sized plant from the school club: green trunk, yellow leaves, glowing pink blossoms that
@@ -1508,6 +1509,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Your start system always has a station** (new and existing worlds): if the system rolled none, one hangs
   over your start planet. Other systems may have none — if the basic training's docking lesson finds no station in
   your system, VEGA has you trade with a settlement vendor instead of sending you to a star you cannot reach yet.
+  A **derelict station** (see *Mysteries* below) never counts as that station: nobody lives or trades there.
 - **Build your own**: deploy a **Station Core** on a spacewalk (press **B**), build a hull + an airlock door
   around it, and it commissions into a boardable station on the star map. An ally may help and even set the last
   block — the station, its default name, the "commissioned" message and the achievement stay the owner's (an owner who
@@ -1981,7 +1983,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   **SPS access code**.
 - **SPS access codes** (`access_code`) are the rare item used to claim a factory as your base. You get them
   two ways, both uncommon: as loot from a **treasure chest**, or by **buying** one from a trader's **Market**
-  (a steep barter recipe). Keep one if you find it — it's your key to turning a factory into a home.
+  (a steep barter recipe, in stock only every third day). Keep one if you find it — it's your key to turning a factory into a home.
 
 ### Monuments & runes
 - Somebody was here long before you. **Monuments** are the relics they left: a half-collapsed
@@ -2010,7 +2012,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   quiet keepers living around it), the **Sealed Observatory** (a glass dome of the old Service), and
   **The Long Quiet** — a named derelict drifting in one system's space, boardable like any station and
   full of salvage and its ship's manifest. Where they stand, only a **Friend**-tier NPC will tell you
-  (and mark your map); the derelict shows on the star map of its system.
+  (and mark your map); the derelict shows on the star map of its system. Step off its torn corner and your suit
+  floats; drift too far and you are brought back aboard.
 - Space holds two friendly surprises: a **life pod** sometimes drifts through a system — a small orange capsule
   with a blinking beacon and someone waving behind the porthole (orange on the radar). **Fly close** — within
   about 14 flight units; no tractor beam is needed — and the survivor comes aboard: you rescue them (a small
@@ -2049,10 +2052,41 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   field is carved out, VEGA says so. Loot floating free after a break shows as **Loot** on the lock. How many
   systems hold a field is a world option (**Debris fields**, advanced page: off · very rare · rare · normal
   (default) · frequent).
+- **Derelict stations** are old boxy stations nobody lives on any more — scorched, with torn panels and holes in the
+  hull. Every new world has **one in its start system**; elsewhere a system only rarely holds one to three. They float
+  above the flight plane behind the launch point, show amber on the radar and on the system chart as
+  *name · Derelict station* (**M**, click to set a waypoint), and VEGA mentions one the first time you come close.
+  **Dock** like at any station (fly up and press **E**, or from a spacewalk). Aboard there is **no crew, no trading
+  and no mission board** — the old trading posts are broken. Rooms whose hull is still closed (their doors work)
+  **hold air**; rooms with a hole in a wall, the floor or the roof are **open to space**: your suit tank drains there
+  and your health drops once it is empty, so keep an eye on the oxygen bar. Close all holes of a room with blocks and it
+  holds air again. Docking always sets you down in a room **with air**. If you **fall out through a hole**, you are on
+  a real **spacewalk** right outside that hole (VEGA tells you): your ship waits beside the derelict, and your suit
+  tank is your air. Float back in through a hole or a door and press **E** — you come aboard right there (by a door:
+  on its inside) — or fly back to your ship. A derelict is **nobody's**: you may mine it — inside, and from outside on a spacewalk (like salvage: with a
+  drill, block by block) — and patch it. What you mine stays mined (also after a restart), and the hull seen from space
+  shows every hole you made. Mining a broken trading post gives you a working **Trade Post** block. Old **supply
+  crates** stand against the walls: walk up and press **G** to take what the crew left behind — medpacks, rations, a
+  little scrap, sometimes a field medkit and sometimes **spoiled food** (you can eat it, but it gives you a small tummy
+  ache and hardly fills you up; the suit's ration dispenser won't take it). Every crate also holds one or two **old log
+  entries**: notes from the people who lived there — who they were, what happened to the station and how everyone got
+  out. Select one in your inventory to read it (**Read** opens it in the reader); the Codex keeps a copy under
+  **Discoveries → Station logs**, so you can read it again even after you dropped the note. Each crate fills only once,
+  for whoever opens it first. In one of the bigger rooms stands an old **Guardian Bay** — a broken maintenance dock
+  that still glows red. About a minute after you come aboard it wakes up and sends out a **Guardian robot** or a
+  **scan-drone**, then another one about **every 5 minutes** while you are aboard — never more than **three** of its
+  machines at a time (VEGA warns you when the first one shows up). They fight like the machines on planets: shoot or
+  hit them with any weapon, and each drops a little carbon. **Mine the bay** (any drill) and no more machines come —
+  for good, also after a restart — and you get circuit boards, copper wire and a power cell out of it. The guardians
+  never leave the station, and on **Peaceful** or **Creative** worlds (or with hostile machines switched off) the bay
+  stays quiet. You cannot make a
+  derelict your home spawn. How often systems hold one is a world option (**Derelict stations**, advanced page:
+  off · very rare · rare · normal (default) · frequent; off also removes the start system's one).
 - Every **asteroid** listed for a system stays a visible dot from anywhere in that system, and the green
   bearing blips on the radar's rim carry the body's name — the chart's waypoint is still the quickest way there.
-- Everything in this section is peaceful and appears under every preset — nothing here fights back; the debris
-  field's rubble only taps the shield.
+- Everything in this section appears under every preset and is peaceful — nothing here fights back, except a
+  derelict's guardian machines (above), which follow the hostile-machines setting like the machines on planets; the
+  debris field's rubble only taps the shield.
 
 ### Bandits (robbers, camps, pirate space)
 - Bandits are **people**, not machines: you can tell one by the cloth mask over the nose and mouth
@@ -2124,6 +2158,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   and build a **clinic post, shop counter, arms rack, sage's terminal, tamer's post, quarry post, streamer set or press desk**
   inside your base or on your own station — a resident takes the job (like the trading post).
 - **Doctor:** medpacks, field medkits and — expensive — a detoxifier; a bed and a stretcher only **every other day**.
+  Hurt? **Talk** to the doctor and ask *"Can you treat me?"* — they heal you to full health, **free, once per in-game
+  day** (ask again the same day and they tell you to come back tomorrow; if you are already healthy, the visit is not
+  used up).
 - **Shopkeeper:** food — but only while you stand **inside the shop** with them.
 - **Arms dealer:** cables, plates, energy cells, and finished laser pistols or plasma blasters for diamonds and gold.
 - **Sage:** data fragments and AI memory fragments at a very high price.
@@ -2146,6 +2183,12 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   they live).
 - **Talk to people.** Walk up to any NPC and press **E** (away from station blocks, which keep their own E). At a
   **vendor**, E asks *Trade or talk?* — **E** once more opens the Market, **Talk** the conversation.
+  The trade screen belongs to **the vendor you picked**: it shows their name, what they deal in (*Medicine and first
+  aid*, *Monorail parts*, …), **their own goods first** and the two ore swaps every trader has at the end. While a
+  customer stands near, a trader stays at the counter; if they still walk too far away the screen says *Step closer
+  to … to trade* until you do. Traders who **visit** bring goods of their own: a trader ship docked at a station or
+  landed on a pad sells something different each visit, and the **travelling merchant** at your base has a bit of
+  everything — a few offers from different trades, new every day.
   Settlers chat with anyone; vendors open up once they know you. Some conversations offer **choices**
   ([1]/[2]/[3] or click) — your pick is remembered and can deepen a friendship, hand you something, reveal a
   piece of the story, or make someone **call you on the radio later**. Talking itself counts toward your

@@ -24,6 +24,55 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Screelit's reports 2026-10-15 (v2026.10.16) — trade screens, the doctor, the rune stone, derelict stations — epic #2637, #2626–#2636, branch feat/screelit-2026-10-15 — ✅ done 2026-10-15 (⚠ playtest open)
+
+Screelit (Justus, singleplayer, his station „Blumenhall") reported that his doctor and a visiting trader sold "the standard
+trades like the shop", sent the idea of a broken old space station, and submitted a repainted rune stone. A fourth row
+("My DOOR?") was a late duplicate of #2587. Package label `package: screelit reports 2026-10-15`.
+
+- **#2626 trade screen bound to the vendor you chose:** the screen re-picked "the nearest vendor within 3.6" on every
+  rebuild while post keepers drift, so the doctor's screen could show only the two themeless deals; client and server
+  measured reach from different points. Now one shared stock/reach rule (`MarketStock` in Shared, `VendorReach` in
+  Client.Core): trade opens within 4 of a vendor, the screen stays bound to that vendor's id while it is within 6, the
+  server accepts a themed deal from any vendor within 6 that sells it. No protocol change.
+- **#2627** keepers (vendors, quartermasters, trading professions) stand at their counter facing a player within ~4.5.
+- **#2628 the doctor treats you:** "Can you treat me?" heals to full, free, once per in-game day (milestone
+  `doctor:treated:<day>`); reworded greeting.
+- **#2629** the trade screen names the trade under the vendor ("Medicine and first aid"), lists the vendor's own goods
+  first, and says "Step closer to … to trade" instead of silently shrinking.
+- **#2630 trader variety:** docked/landed trader pilots bring a per-visit theme (docked ones never `traders`, so the
+  station shop keeps its identity); the travelling merchant sells a real mix (`mixed`: one offer from each of 4 themes
+  per day); the access code is on offer every third day (`marketRotation: 3`).
+- **#2631 rune stone = Screelit's music notes**, refined at his request by `tools/ai-assets/refine_rune_stone.py`
+  (round heads, even strokes, smoother blue→green gradient, one added gold note); provenance `hand:Screelit`, NOTICES.
+- **#2632 derelict stations:** one guaranteed per world in the start system (`derelict:<sys>-0`), otherwise rarely 1–3
+  per system (world option `Derelicts`, default Normal; Off removes them); old saves gain them (last galaxy pass, no
+  generation bump). Boxy procedural stations (and classic templates) through a decay pass: breached rooms without air,
+  sealed rooms with air and working doors, scorch, scrap, dead lights; no crew, no trading. Gravity + catch for
+  boarders; The Long Quiet now catches a fall too. Map/radar/scanner/VEGA know them. Doc:
+  docs/developer/DERELICT_STATIONS.md.
+- **#2633 old supply crates + logs:** medpacks, rations, scrap, the new `spoiled_food` (hurts a little; the ration
+  dispenser refuses harmful food now) and 1–2 seeded logs per crate (`derelict_log#x<seed>`, text built from
+  `data/derelict_logs.json` fragments in the reader's language; one story per derelict, everybody got out). Logs are
+  readable in the inventory and land in the Codex (Discoveries → Station logs).
+- **#2634 minable derelicts:** mined inside or from a spacewalk; edits persist (a `derelict:` StoredSpaceStructure row
+  on first boarding/edit) and the hull seen from space follows; old trading posts are dead `station_vendor` blocks
+  that drop a working one.
+- **#2635 guardian bay (new block `guardian_spawner`, save version 3 → 4):** releases a robot or drone 60 s after
+  boarding, then every 5 min, at most 3; off in Peaceful/Creative or with hostile machines off; mining it stops it for
+  good. Texture + `guardian_bay` sound generated with the asset scripts.
+- **#2636 falling out = a real spacewalk:** 2 blocks outside a generated derelict's hull the player steps out into an
+  EVA at the matching flight position (new optional `SpaceState.EvaStart*` fields, no new message), the suit tank
+  drains, VEGA says how to get back; E at a breach (or a door) boards onto that deck. Fallback when flight can't open:
+  the old pull-back. The arrival room is never breached and sealed by construction (template derelicts used to set you
+  down in vacuum 68/68 times). The Long Quiet keeps the pull-back.
+- Placement hash: SplitMix64 instead of a plain XOR, so small typed world seeds roll extra derelicts too.
+- New texts in all 14 languages (12 machine-translated + hand QA).
+
+⚠ Open: playtest with Justus (doctor treatment, merchant mix, a derelict: vacuum, crates/logs, guardians, falling out);
+derelicts saved by earlier dev builds have no guardian bay; every derelict edit rewrites its whole row (like player
+stations); seeded `System.Random` parity between .NET and Unity Mono for the log texts is assumed, not tested on the client.
+
 ### 📬 Lyxette's reports 2026-10-15 (v2026.10.15) + village-life side findings — epic #2612, #2613–#2622, branch fix/lyxette-2026-10-15 — ✅ done 2026-10-15 (⚠ playtest open)
 
 Lyxette (singleplayer, new cave base on the ice moon Gheyee II-b, circumference 3232) reported crates and his base resident

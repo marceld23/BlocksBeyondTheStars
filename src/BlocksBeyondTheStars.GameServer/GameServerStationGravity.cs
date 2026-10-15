@@ -69,12 +69,44 @@ public sealed partial class GameServer
 
     /// <summary>The void-rescue branch for boarded players (#1485): a boarder more than
     /// <see cref="StationDriftRescueDistance"/> blocks beyond the gravity volume is set back on the pad. Returns
-    /// true when the player was moved.</summary>
+    /// true when the player was moved (or, for a derelict's spacewalk, queued to step out). #2632: the ONE place a boarder
+    /// who left a derelict's hull is caught. #2636: a generated derelict's boarder only
+    /// <see cref="DerelictSpacewalkMargin"/> blocks clear of its hull box steps out into a real spacewalk
+    /// (<see cref="QueueDerelictSpacewalk"/>); The Long Quiet keeps the pull-back rescue
+    /// (<see cref="DerelictDriftRescueDistance"/>, <see cref="ReturnDriftingDerelictBoarder"/>).</summary>
     private bool RescueDriftingBoarder(PlayerSession session)
     {
         var p = session.State;
-        if (!TryGetBoardedPlayerStation(p.PlayerId, out var station)
-            || !BeyondStationBox(station, p.Position, StationGravityMargin + StationDriftRescueDistance))
+        if (!TryGetBoardedPlayerStation(p.PlayerId, out var station))
+        {
+            return false;
+        }
+
+        if (IsGeneratedDerelictId(station.Id))
+        {
+            // Beyond the hull's own box (not the gravity margin): outside every cell of the hull by construction, so
+            // nothing aboard — a deck, a roof walk, a jump — ever triggers it.
+            if (!BeyondStationBox(station, p.Position, DerelictSpacewalkMargin))
+            {
+                return false;
+            }
+
+            QueueDerelictSpacewalk(session);
+            return true;
+        }
+
+        if (IsDerelictId(station.Id))
+        {
+            if (!BeyondStationBox(station, p.Position, StationGravityMargin + DerelictDriftRescueDistance))
+            {
+                return false;
+            }
+
+            ReturnDriftingDerelictBoarder(session, station);
+            return true;
+        }
+
+        if (!BeyondStationBox(station, p.Position, StationGravityMargin + StationDriftRescueDistance))
         {
             return false;
         }
@@ -89,11 +121,14 @@ public sealed partial class GameServer
         return true;
     }
 
+    /// <summary>The boarded station with a hull of its own — a player-built station or a derelict (#2632, The Long Quiet
+    /// included: walking off its open corner used to fall for ever) — once its interior is stamped. These keep the
+    /// gravity volume, the float outside it and the pull-back rescue; NPC stations are closed and need none.</summary>
     private bool TryGetBoardedPlayerStation(string playerId, out BoardableStation station)
     {
         station = null!;
         return _boardedStation.TryGetValue(playerId, out var stationId)
-            && IsPlayerStationId(stationId)
+            && (IsPlayerStationId(stationId) || IsDerelictId(stationId))
             && _stationsById.TryGetValue(stationId, out station!)
             && station.Stamped;
     }

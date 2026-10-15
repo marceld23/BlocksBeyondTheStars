@@ -38,6 +38,7 @@ namespace BlocksBeyondTheStars.Client
         public int Stations = 3;       // Normal (server default since #1114 — most systems get a station)
         public int Wormholes = 2;      // Rare — one pair in a standard universe (#2242)
         public int DebrisFields = 3;   // Normal — a field in roughly four of ten systems (#2353)
+        public int Derelicts = 3;      // Normal — one near the start, otherwise rarely 1–3 in a system (#2632); Off = none
         public int Exotic = 3;         // Normal
 
         // Galaxy & terrain layout (#1114, creation-only): all three shipped earlier behind creation-time
@@ -122,7 +123,7 @@ namespace BlocksBeyondTheStars.Client
             Creatures = other.Creatures; PlanetEnemies = other.PlanetEnemies; SpaceNpcs = other.SpaceNpcs; Ufos = other.Ufos;
             Bandits = other.Bandits;
             Flora = other.Flora; Ore = other.Ore; Settlements = other.Settlements; Wrecks = other.Wrecks; Wormholes = other.Wormholes;
-            DebrisFields = other.DebrisFields;
+            DebrisFields = other.DebrisFields; Derelicts = other.Derelicts;
             Vaults = other.Vaults; Stations = other.Stations; Exotic = other.Exotic; UniverseSize = other.UniverseSize;
             SystemVariance = other.SystemVariance; AsteroidBelts = other.AsteroidBelts; TerrainContinents = other.TerrainContinents;
             TerrainGeneration = other.TerrainGeneration;
@@ -166,6 +167,7 @@ namespace BlocksBeyondTheStars.Client
             if (Stations != 3) Arg("stations", Freq[Stations]);
             if (Wormholes != 2) Arg("wormholes", Freq[Wormholes]);
             if (DebrisFields != 3) Arg("debris-fields", Freq[DebrisFields]);
+            if (Derelicts != 3) Arg("derelicts", Freq[Derelicts]); // #2632
             if (Exotic != 3) Arg("exotic", Freq[Exotic]);
 
             if (!SystemVariance) Arg("variance", "false");

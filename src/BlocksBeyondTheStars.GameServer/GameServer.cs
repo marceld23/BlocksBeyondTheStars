@@ -350,6 +350,7 @@ public sealed partial class GameServer
             LoadPlayerStations(); // item 20 S4: restore persisted player stations onto the star map + registry
             RecomputeRelayLanes(); // #1125: jump lanes re-derive from the completed relays (never persisted)
             RegisterUniqueDerelict(); // #1129: "The Long Quiet" — the galaxy's one boardable derelict (derived)
+            RegisterDerelicts();      // #2632: the broken old stations (seeded builds + their persisted edits)
             LoadAllBases();       // restore player-founded planet bases (Grundstein) server-wide for the travel screen
             LoadPaintDesigns();   // restore the save-global paint-design registry (painted blocks reference it by id)
             LoadCustomShapes();   // …and the player-designed form registry (shaped blocks/items reference it by index)
@@ -664,6 +665,10 @@ public sealed partial class GameServer
         {
             _log.Info($"Start system '{homeSystem.Name}' rolled no station — added '{homeStation.Name}' ({homeStation.Id}).");
         }
+
+        // #2632: the derelict stations — the LAST pass, after the start station (which must never count a derelict as the
+        // system's station) and after the names (one drifts beside a body); old saves gain theirs like the debris fields.
+        PlaceDerelicts();
 
         // Finale (P6): the galaxy is regenerated from seed each start, so an already-revealed save needs its Guardian
         // system re-appended — but the story state is not loaded yet at this point (the "registries" boot stage
@@ -1973,6 +1978,7 @@ public sealed partial class GameServer
             }
         }
 
+        Guard("DerelictSpacewalks", TickDerelictSpacewalks); // #2636: boarders the void check found outside a derelict's hull step out (a world change, so after the loop)
         Guard("TickStoryOutsideWorlds", deltaSeconds, TickStoryOutsideWorlds); // #2477: the 1 Hz story pass for players no loaded world reaches
         Guard("TickCutscenes", TickCutscenes); // #2468: queued cutscenes for every joined player, wherever they are (space too)
         Guard("TickJournal", TickJournal); // #2471: the Journal's coalesced pushes (only players whose stories changed)
@@ -2498,10 +2504,13 @@ public sealed partial class GameServer
 
         // 1) The ration dispenser — eat the first stored food (any consumable that sates hunger). #2216: never a
         //    preparation (a bar that an older build let in): the suit would hand out its hunger and lose its effect.
+        //    #2633: never food that hurts (spoiled food, contaminated meat an older build let in) — the suit would feed it
+        //    without the harm.
         for (int i = 0; i < p.RationStore.SlotCount; i++)
         {
             if (p.RationStore.Slots[i] is { } stack && !stack.IsEmpty && !IsPreparation(stack.Item)
-                && _content.GetItem(stack.Item) is { Category: ItemCategory.Consumable } food && food.ConsumeHunger > 0f)
+                && _content.GetItem(stack.Item) is { Category: ItemCategory.Consumable } food && food.ConsumeHunger > 0f
+                && food.ConsumeHealth >= 0f)
             {
                 string fed = stack.Item;
                 p.RationStore.Remove(fed, 1);
@@ -2542,6 +2551,12 @@ public sealed partial class GameServer
         if (def is not { Category: ItemCategory.Consumable } || def.ConsumeHunger <= 0f || IsPreparation(itemKey))
         {
             Reject(session, "ration", "@srv.ration.food_only");
+            return;
+        }
+
+        if (def.ConsumeHealth < 0f)
+        {
+            Reject(session, "ration", "@srv.ration.harmful"); // #2633: spoiled or contaminated food is eaten by hand, if at all
             return;
         }
 
@@ -6233,22 +6248,13 @@ public sealed partial class GameServer
         // Market barter is themed per VENDOR (B55): each vendor posts the goods of its own profession, so different
         // vendors at one settlement/station offer different deals (and station vendors can post themed goods, not
         // just the themeless ones). Themeless market recipes trade anywhere (every vendor + the ship's own console).
-        if (recipe.Station == CraftingStation.Market && !string.IsNullOrEmpty(recipe.MarketTheme))
+        // #2626: any vendor in reach that sells it counts — the one the client's trade screen is bound to, even when
+        // another vendor stands a step closer (GameServerVendorTrade.cs; the grocer's shop rule lives there too).
+        if (recipe.Station == CraftingStation.Market && !string.IsNullOrEmpty(recipe.MarketTheme)
+            && ThemedMarketRefusal(session.State, recipe) is { Length: > 0 } refusal)
         {
-            string vendorTheme = VendorThemeAt(session.State);
-            if (!string.Equals(vendorTheme, recipe.MarketTheme, System.StringComparison.OrdinalIgnoreCase))
-            {
-                CraftFail(session, recipe.Key, "@srv.craft.wrong_vendor");
-                return;
-            }
-
-            // The grocer (2026-09) only sells inside the shop: the customer must stand in the keeper's closed room.
-            if (TradingVendorAt(session.State) is { } keeper && NpcProfessions.ByJob(keeper.Job) is { ShopOnly: true }
-                && !InSameClosedRoom(session.State.Position, keeper.Pos))
-            {
-                CraftFail(session, recipe.Key, "@srv.craft.shop_only");
-                return;
-            }
+            CraftFail(session, recipe.Key, refusal);
+            return;
         }
 
         // "Sometimes a bed and a stretcher" (2026-09): a rotating offer is only in stock on its days.
@@ -7522,7 +7528,8 @@ public sealed partial class GameServer
         => player.AboardShip || NearSettlementVendor(player) || NearSpaceStationVendor(player)
            || NearLandedTraderPilot(player) // P3: barter with a peaceful trader landed on a planet surface
            || NearBaseVendor(player) // #1865: the trading post at home, staffed by a resident
-           || NearBaseGuestMerchant(player); // #2602: a travelling merchant visiting the base
+           || NearBaseGuestMerchant(player) // #2602: a travelling merchant visiting the base
+           || NearVendorNpc(player); // #2626: beside any vendor — the reach the client keeps its trade screen bound to
 
     private void SaveAll()
     {

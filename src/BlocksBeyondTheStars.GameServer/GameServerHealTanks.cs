@@ -150,6 +150,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (_boardedStation.TryGetValue(p.PlayerId, out var aboard) && IsDerelictId(aboard))
+        {
+            Reject(session, "spawn_point", "@srv.derelict.no_home"); // #2632: a broken station is nobody's home
+            return;
+        }
+
         p.CustomSpawnBodyId = session.CurrentLocationId;
         p.CustomSpawnPoint = p.Position;
         p.CustomSpawnLabel = ResolveCustomSpawnLabel(session);
@@ -313,6 +319,10 @@ public sealed partial class GameServer
     private bool TryRespawnAtHomeStation(PlayerSession session, string stationId, string reason, bool salvaged)
     {
         var p = session.State;
+        if (IsDerelictId(stationId))
+        {
+            return false; // #2632: a derelict is never a home (no spawn can be set there) — the ship takes over
+        }
 
         // Died inside the home station itself → just snap back to the stored spot (world already loaded,
         // station membership intact).

@@ -826,7 +826,8 @@ public sealed partial class GameServer
             {
                 asteroidNear = true;
             }
-            else if (e.Kind == CombatEntityKind.SpaceStation && !stationNear && DistSq(pos, e.Position) <= 150.0 * 150.0)
+            else if (e.Kind == CombatEntityKind.SpaceStation && !stationNear && !IsDerelictId(e.Id) // #2632: a derelict has its own line
+                     && DistSq(pos, e.Position) <= 150.0 * 150.0)
             {
                 stationNear = true;
             }

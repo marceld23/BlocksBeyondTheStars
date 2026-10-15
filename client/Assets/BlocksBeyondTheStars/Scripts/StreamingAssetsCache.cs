@@ -42,6 +42,7 @@ namespace BlocksBeyondTheStars.Client
             "blocks.json",
             "blueprints.json",
             "creatures.json",
+            "derelict_logs.json",
             "dialogs.json",
             "items.json",
             "locale_coverage.json",

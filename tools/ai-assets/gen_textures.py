@@ -185,6 +185,9 @@ TEXTURES = [
     ("auto_drill_3", "a sci-fi auto-drill mk3 block, massive dark metal rig with a wide diamond-tipped drill head pointing down and three glowing violet crystal lights, front view"),
     # #2108 the drill laser (2026-09-27): a Crystal Net machine that cuts a shaft straight down.
     ("drill_laser", "a sci-fi drill laser machine block, dark armoured metal housing with a large downward-pointing cyan laser emitter lens in the centre, thin glowing cyan light strips, three small violet crystal studs, front view"),
+    # #2635 the derelict stations' guardian bay (2026-10-15): the broken maintenance dock the guardian robots come out of;
+    # its sides wear the shared rust casing (face_rust_*), the front is this picture.
+    ("guardian_spawner", "the front of an old broken sci-fi robot maintenance dock, a scratched dark grey steel frame around a recessed charging alcove that glows warm red, three small round red sensor lights in a row above it, a cracked hazard-striped hatch edge, loose sparking cables, rust spots, front view, flat lighting"),
     # #2113 the monorail (2026-09-27): the pylon, the stop and the rail dealer's post.
     ("rail_pylon", "a sci-fi monorail pylon block, a dark steel post with riveted bands and a glowing cyan energy emitter ring at the top, front view, flat lighting"),
     ("rail_stop", "a sci-fi monorail stop block, a dark steel signal post with a bright amber halt light and a small holographic timetable panel, front view, flat lighting"),

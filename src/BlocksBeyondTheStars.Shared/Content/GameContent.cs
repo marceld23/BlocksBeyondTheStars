@@ -532,6 +532,27 @@ public sealed class GameContent
         _wishes = list;
     }
 
+    /// <summary>The fragments of the old logs in a derelict station's supply crates (#2633) from
+    /// <c>data/derelict_logs.json</c> — empty when the file is absent (the crates then hold supplies only).</summary>
+    public DerelictLogDefinition DerelictLogs { get; private set; } = new();
+
+    /// <summary>Installs the derelict log fragments (called by the content loader); null keeps the empty default. Null lists
+    /// of a hand-edited file become empty ones, blank entries are dropped.</summary>
+    public void SetDerelictLogs(DerelictLogDefinition? logs)
+    {
+        var d = logs ?? new DerelictLogDefinition();
+        d.Jobs = (d.Jobs ?? new List<string>()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+        d.Escapes = (d.Escapes ?? new List<string>()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+        d.Closings = (d.Closings ?? new List<string>()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+        d.Incidents = (d.Incidents ?? new List<DerelictLogIncident>()).Where(i => i is not null && !string.IsNullOrWhiteSpace(i.Key)).ToList();
+        if (d.DayMax < d.DayMin)
+        {
+            d.DayMax = d.DayMin;
+        }
+
+        DerelictLogs = d;
+    }
+
     /// <summary>#2601: the wish templates — a unique key, a known kind, a real item (or a valid scan target), a sane count,
     /// known jobs and world condition, a tier in range and a present that names real items. Whether the
     /// <c>wish.&lt;key&gt;.ask|thanks</c> texts exist in English and German is checked by <c>WishContentTests</c> (the

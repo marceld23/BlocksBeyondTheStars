@@ -36,9 +36,9 @@ public sealed class WorldMetadata
     /// <c>flora_hybrid</c>) and the remap of a self-built ship's hull (#2221). 3 = the Crystal Net 2 blocks (#2251:
     /// the phase block, the trapdoor, the bridge motor and deck, the piston and its head, the lift, the display, the
     /// dice block, the signal sender / receiver, the environment and ship sensors, and the unlit / open twins of the
-    /// force field, the campfire and the forge).</para>
+    /// force field, the campfire and the forge). 4 = the derelict stations' guardian bay (#2635, <c>guardian_spawner</c>).</para>
     /// </summary>
-    public const int CurrentSaveVersion = 3;
+    public const int CurrentSaveVersion = 4;
 
     /// <summary>The save version of the build that last opened this world — see <see cref="CurrentSaveVersion"/>.
     /// Absent in the JSON ⇒ 1, the version every save carried before the check existed.</summary>

@@ -1885,7 +1885,7 @@ public sealed partial class GameServer
             double bestSq = double.MaxValue;
             foreach (var e in instance.Entities)
             {
-                if (e.Kind != CombatEntityKind.SpaceStation)
+                if (e.Kind != CombatEntityKind.SpaceStation || IsDerelictId(e.Id)) // #2632: the lesson docks at a living station
                 {
                     continue;
                 }
@@ -1910,7 +1910,7 @@ public sealed partial class GameServer
             return null;
         }
 
-        var station = StationContactsForCurrentSystem(s.CurrentLocationId).FirstOrDefault();
+        var station = TradingStationsForCurrentSystem(s.CurrentLocationId).FirstOrDefault();
         return station is null ? null : (station.Id, station.Name);
     }
 

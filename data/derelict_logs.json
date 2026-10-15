@@ -1,0 +1,29 @@
+// #2633: the fragments the old log entries in a derelict station's supply crates are written from. A log is a pure
+// function of its seed (the derelict_log#x<seed> item key): one derelict's logs share what happened and how everyone got
+// out (the high half of the seed), each writer has their own name, job and last words (the low half). Every fragment is a
+// locale key: derelict.log.job.<job>, derelict.log.incident.<key>.<1..variants>, derelict.log.escape.<key>,
+// derelict.log.close.<key> — English + German are mandatory, the community languages fall back to English.
+// Tone (docs/user/PARENTS.md): curious, a little sad, never frightening — nobody gets hurt on the page and everyone
+// always gets out. The job list should stay at least as long as the most logs one derelict can hold (6 crates x 2), so
+// no two writers of one station share a job.
+{
+  "dayMin": 14,
+  "dayMax": 380,
+  "jobs": [
+    "cook", "gardener", "engineer", "medic", "pilot", "radio", "cargo",
+    "teacher", "scientist", "cleaner", "astronomer", "robotics", "captain", "trader"
+  ],
+  "incidents": [
+    { "key": "meteor_storm", "variants": 2 },
+    { "key": "reactor",      "variants": 2 },
+    { "key": "power",        "variants": 2 },
+    { "key": "hull_breach",  "variants": 2 },
+    { "key": "supply_ship",  "variants": 2 },
+    { "key": "oxygen_tank",  "variants": 2 },
+    { "key": "solar_flare",  "variants": 2 },
+    { "key": "gravity",      "variants": 2 },
+    { "key": "water",        "variants": 2 }
+  ],
+  "escapes": [ "pods", "rescue_ship", "freighter", "shuttle", "neighbours" ],
+  "closings": [ "plant", "socks", "drawing", "supplies", "view", "return", "robot", "food", "stars", "game" ]
+}

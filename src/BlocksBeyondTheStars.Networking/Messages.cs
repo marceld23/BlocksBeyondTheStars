@@ -1946,6 +1946,16 @@ public sealed class SpaceState
     /// <summary>#2242: true when the player arrived in this flight through a wormhole — the client plays the rift
     /// transit instead of the hyperspace warp. Additive.</summary>
     public bool Wormhole { get; set; }
+
+    /// <summary>#2636: set when the flight opens on an EVA with the suit at a spot of its own — a derelict's boarder who
+    /// fell out through its hull floats next to the hole, not beside the ship (which waits at the resume pose). The suit's
+    /// eye position in this instance's flight coordinates and its heading (degrees); the view starts the spacewalk there
+    /// once the server reports the EVA. Additive; an older client starts the suit beside the ship.</summary>
+    public bool HasEvaStart { get; set; }
+    public float EvaStartX { get; set; }
+    public float EvaStartY { get; set; }
+    public float EvaStartZ { get; set; }
+    public float EvaStartYaw { get; set; }
 }
 
 /// <summary>The player's own ship as a voxel structure to render in the flight view (item 20, S1).

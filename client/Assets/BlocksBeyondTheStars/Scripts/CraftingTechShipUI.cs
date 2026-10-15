@@ -2991,7 +2991,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 bool here = b.Id == map.ActiveLocationId;
                 bool isStation = b.Kind == "SpaceStation";
-                string kindLabel = isStation ? L("ui.map.kind_station") : IdLabel("ui.map.kind_", b.Kind);
+                string kindLabel = isStation ? StationKindLabel(b.Id) : IdLabel("ui.map.kind_", b.Kind);
                 string status = here ? L("ui.map.here") : $"{kindLabel}  {IdLabel("ui.map.status_", b.Status)}";
 
                 // A space station shows whose it is: yours, another player's, or none (procedural/NPC).
@@ -6460,6 +6460,31 @@ namespace BlocksBeyondTheStars.Client
             return y + h + 8f;
         }
 
+        /// <summary>#2633: an old log from a derelict's supply crate reads right here — the text is written from the seed
+        /// its key carries (WorldGeneration.DerelictLogs, the same code the server uses), in the player's language — and
+        /// "Read" opens it in the story reader. Any other item: nothing. Returns the next y.</summary>
+        private float AddDerelictLogText(string item, float y)
+        {
+            if (!BlocksBeyondTheStars.WorldGeneration.DerelictLogs.IsLogItem(item))
+            {
+                return y;
+            }
+
+            var log = BlocksBeyondTheStars.WorldGeneration.DerelictLogs.Compose(
+                BlocksBeyondTheStars.WorldGeneration.DerelictLogs.SeedOfItem(item), Game.Content?.DerelictLogs);
+            if (log == null)
+            {
+                return AddDetailPara(y, L("ui.derelict_log.faded"), UiKit.CyanDim);
+            }
+
+            string text = log.Render(L);
+            y = AddDetailPara(y, text, UiKit.TextCol);
+            string title = ItemName(item);
+            // From the open menu, like the Story tab's Read buttons (Open would queue behind this very menu).
+            UiKit.AddButton(_detail, 8, y, 320, 46, L("ui.story.read"), () => StoryReaderUi.Instance?.OpenOverMenu(title, log.Writer, text));
+            return y + 54f;
+        }
+
         private float DetailInventory()
         {
             string item = _selected.Substring(4);
@@ -6474,6 +6499,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             y = AddBioItemInfo(item, y);
+            y = AddDerelictLogText(item, y);
 
             UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.craft.source")}: {Owned(item)}", 20, UiKit.Cyan, TextAnchor.UpperLeft);
             y += 40f;
@@ -6731,7 +6757,7 @@ namespace BlocksBeyondTheStars.Client
             bool isStation = body.Kind == "SpaceStation";
             UiKit.AddText(_detail, 8, y, 620, 40, body.Name, 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 48f;
-            UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.map.kind")}: {(isStation ? L("ui.map.kind_station") : IdLabel("ui.map.kind_", body.Kind))}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
+            UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.map.kind")}: {(isStation ? StationKindLabel(body.Id) : IdLabel("ui.map.kind_", body.Kind))}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
             y += 32f;
             if (!string.IsNullOrEmpty(body.PlanetType))
             {
@@ -6779,6 +6805,13 @@ namespace BlocksBeyondTheStars.Client
             // A space station: show its owner, board it (if visited), and rename it (if it's yours).
             if (isStation)
             {
+                // #2632: a derelict station — what it is and what waits aboard (no air where the hull is broken).
+                if (BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsDerelictId(body.Id))
+                {
+                    UiKit.AddText(_detail, 8, y, 600, 110, L("ui.map.derelict_detail"), 18, new Color(0.85f, 0.65f, 0.35f), TextAnchor.UpperLeft);
+                    y += 118f;
+                }
+
                 bool mine = !string.IsNullOrEmpty(body.OwnerName) && body.OwnerName == Game.LocalPlayerId;
                 if (!string.IsNullOrEmpty(body.OwnerName))
                 {
@@ -7858,6 +7891,10 @@ namespace BlocksBeyondTheStars.Client
             => string.IsNullOrEmpty(id) || Game?.Localizer?.Has(prefix + id.ToLowerInvariant()) != true
                 ? id
                 : L(prefix + id.ToLowerInvariant());
+
+        /// <summary>The kind word of a station body: "Space Station", or "Derelict station" for a broken old one (#2632).</summary>
+        private string StationKindLabel(string bodyId)
+            => L(BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsDerelictId(bodyId) ? "ui.map.kind_derelict" : "ui.map.kind_station");
 
         /// <summary>Human-readable objective target (#1205): items by name, blocks by name, the Build groups and
         /// the Scan grammar (<c>creature:any</c>, <c>block:&lt;key&gt;</c>, <c>asteroid</c>, …) through

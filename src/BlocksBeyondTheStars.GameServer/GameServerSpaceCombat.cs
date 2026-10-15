@@ -636,8 +636,11 @@ public sealed partial class GameServer
     /// <summary>Launches the player into a space instance around the ship's location. <paramref name="resume"/>
     /// (#2118) puts the ship back where it floated before the player left the flight view without landing (the
     /// ship interior, a station boarded from an EVA) — the flight view is told that pose, instead of drawing the
-    /// ship at the launch point and reporting THAT back over the remembered spot.</summary>
-    public void EnterSpace(string playerId, bool skipLaunch = false, bool hyperjump = false, SpacePlayerPose? resume = null, bool wormhole = false)
+    /// ship at the launch point and reporting THAT back over the remembered spot. <paramref name="evaStart"/> (#2636, with
+    /// a resume pose) opens the flight on an EVA with the suit at that pose instead of beside the ship — a derelict's
+    /// boarder who fell out through its hull; the flight view is told that spot too.</summary>
+    public void EnterSpace(string playerId, bool skipLaunch = false, bool hyperjump = false, SpacePlayerPose? resume = null, bool wormhole = false,
+        SpacePlayerPose? evaStart = null)
     {
         var session = FindSessionByPlayerId(playerId);
 
@@ -715,9 +718,14 @@ public sealed partial class GameServer
         }
 
         var launchPose = new SpacePlayerPose(instance.ShipPosition, resume?.Yaw ?? 0f, session?.State.InEva ?? false);
-        instance.PlayerPoses[playerId] = launchPose;
+        if (resume is null)
+        {
+            evaStart = null; // #2636: a suit spot only rides a resumed flight (the ship floats, it never launched)
+        }
+
+        instance.PlayerPoses[playerId] = evaStart is { } suit ? suit with { Eva = true } : launchPose; // #2636: the suit, not the ship
         instance.ShipPoses[playerId] = launchPose with { Eva = false };
-        instance.PilotSims[playerId] = new PilotSim { LastPosition = launchPose.Pos };
+        instance.PilotSims[playerId] = new PilotSim { LastPosition = instance.PlayerPoses[playerId].Pos };
 
         // Launch with the shields up (baseline + modules). The clamp in RecomputeShipCombatStats only ever lowers
         // the stored shield, so a fresh ship would otherwise start a flight at 0 shield and have to charge it.
@@ -733,7 +741,7 @@ public sealed partial class GameServer
             // late packet) had the view build the DEPARTURE system and offer its planets to land on.
             SendStarMap(session); // the space view needs the system's bodies to render + land on them
             SendSystemWeather(session); // #2173: …and their live weather, before the view builds its cloud shells
-            SendSpaceState(session, instance, skipLaunch, hyperjump, resume, wormhole);
+            SendSpaceState(session, instance, skipLaunch, hyperjump, resume, wormhole, evaStart);
             SendShipCombatStatus(session);
 
             // item 20 S1: carry the player's ship as a voxel structure in the instance + send it so the flight
@@ -875,6 +883,7 @@ public sealed partial class GameServer
         AddStationContacts(instance);
         AddPersistedStations(instance); // item 20 S4: re-create player-built stations floating in this instance
         AddDerelictToInstance(instance); // #1129: "The Long Quiet" drifts in exactly one body's space
+        AddDerelictHulls(instance, anchor); // #2632: the system's broken old stations (their contacts came with the stations)
         RestoreFloatingSalvage(instance); // #1475: salvage left floating when this space was last torn down
 
         // Hostile NPC drones only when space combat is enabled and NPC enemies are switched on. Once the
@@ -2554,7 +2563,7 @@ public sealed partial class GameServer
         => shipsAhead <= 0 ? 0f : (shipsAhead % 2 == 1 ? 1f : -1f) * 8f * ((shipsAhead + 1) / 2);
 
     private void SendSpaceState(PlayerSession session, SpaceInstance instance, bool skipLaunch = false, bool hyperjump = false,
-        SpacePlayerPose? resume = null, bool wormhole = false)
+        SpacePlayerPose? resume = null, bool wormhole = false, SpacePlayerPose? evaStart = null)
     {
         var (systemName, bodyName) = LocationNamesFor(session.CurrentLocationId); // #1565: the flight names where it is
 
@@ -2593,6 +2602,11 @@ public sealed partial class GameServer
             Players = AppendTraderPoses(OtherPlayersInSpace(session.State.PlayerId, instance), instance),
             ScannedIds = ScannedIdsIn(instance, session), // #2238: what this pilot's scanner has already read here
             Wormhole = wormhole,                         // #2242: arrived through a rift, not a warp
+            HasEvaStart = evaStart.HasValue,             // #2636: the suit starts there (fell out of a derelict), not beside the ship
+            EvaStartX = evaStart?.Pos.X ?? 0f,
+            EvaStartY = evaStart?.Pos.Y ?? 0f,
+            EvaStartZ = evaStart?.Pos.Z ?? 0f,
+            EvaStartYaw = evaStart?.Yaw ?? 0f,
         });
     }
 

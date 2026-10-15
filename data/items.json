@@ -349,6 +349,11 @@
   { "key": "tainted_titanium_ore", "nameKey": "item.tainted_titanium_ore.name", "category": "material",   "maxStack": 1024, "descriptionKey": "item.tainted_titanium_ore.desc", "labTraits": { "hard": 2, "heatProof": 2, "light": 2 } },
   { "key": "tainted_diamond_ore",  "nameKey": "item.tainted_diamond_ore.name",  "category": "material",   "maxStack": 1024, "descriptionKey": "item.tainted_diamond_ore.desc", "labTraits": { "hard": 3, "coldProof": 2, "light": 1 } },
   { "key": "toxic_meat",           "nameKey": "item.toxic_meat.name",           "category": "consumable", "maxStack": 20,   "descriptionKey": "item.toxic_meat.desc", "consumeHealth": -16, "consumeHunger": 10 },
+  // #2633: what a derelict station's old supply crates hold — food that went bad long ago (edible, it hurts a little and
+  // hardly fills you up, like a milder toxic meat) and the log entry someone left behind (the key carries its seed:
+  // derelict_log#x<seed>; the text is written from data/derelict_logs.json).
+  { "key": "spoiled_food",         "nameKey": "item.spoiled_food.name",         "category": "consumable", "maxStack": 20,   "descriptionKey": "item.spoiled_food.desc", "consumeHealth": -6, "consumeHunger": 6 },
+  { "key": "derelict_log",         "nameKey": "item.derelict_log.name",         "category": "component",  "maxStack": 1,    "descriptionKey": "item.derelict_log.desc" },
   // #2067: the decontaminator station block — placed at a base, the planetside counterpart of its ship module.
   { "key": "decontaminator", "craftTab": "machines", "nameKey": "item.decontaminator.name", "category": "block", "maxStack": 16, "placesBlock": "decontaminator", "descriptionKey": "item.decontaminator.desc" },
   { "key": "device_eye", "craftTab": "machines", "nameKey": "item.device_eye.name", "category": "block", "maxStack": 16, "placesBlock": "device_eye", "descriptionKey": "item.device_eye.desc" },

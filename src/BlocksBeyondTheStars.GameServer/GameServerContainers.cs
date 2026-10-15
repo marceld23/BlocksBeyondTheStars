@@ -93,6 +93,7 @@ public sealed partial class GameServer
 
         var inv = session.State.Inventory;
         var leftover = new List<ItemStack>();
+        var takenLogs = new List<string>(); // #2633: old derelict logs land in the Discoveries ledger
         bool took = false;
         foreach (var stack in container.Items)
         {
@@ -106,6 +107,10 @@ public sealed partial class GameServer
             if (notPlaced < stack.Count)
             {
                 took = true;
+                if (WorldGeneration.DerelictLogs.IsLogItem(stack.Item))
+                {
+                    takenLogs.Add(stack.Item);
+                }
             }
 
             if (notPlaced > 0)
@@ -140,6 +145,7 @@ public sealed partial class GameServer
         if (took)
         {
             SendInventory(session);
+            RecordFoundDerelictLogs(session, takenLogs);
 
             // Environmental lore (#1111): scavenging a lore-bearing site (wreck log, ruin note, vault plaque,
             // terminal record) may surface a readable text — once per player per text, knowledge-gated.

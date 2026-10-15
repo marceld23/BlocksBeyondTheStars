@@ -728,7 +728,43 @@ namespace BlocksBeyondTheStars.Client
                 sb.Append('\n');
             }
 
+            AppendFoundLogs(sb, log);
             return sb.ToString();
+        }
+
+        /// <summary>#2633: the old derelict logs this player took out of a crate — <c>log:&lt;seed&gt;</c> ledger entries, each
+        /// written out again from its seed (WorldGeneration.DerelictLogs, the same code the server and the inventory use),
+        /// so a log stays readable after the item itself is gone. Sorted by writer.</summary>
+        private void AppendFoundLogs(StringBuilder sb, Dictionary<string, string> ledger)
+        {
+            var logs = new List<(string Writer, string Where, string Text)>();
+            foreach (var pair in ledger)
+            {
+                uint seed = BlocksBeyondTheStars.WorldGeneration.DerelictLogs.SeedOfLedgerKey(pair.Key);
+                var entry = seed == 0 ? null : BlocksBeyondTheStars.WorldGeneration.DerelictLogs.Compose(seed, Game?.Content?.DerelictLogs);
+                if (entry != null)
+                {
+                    logs.Add((entry.Writer, WhereFound(pair.Key, "log"), entry.Render(L)));
+                }
+            }
+
+            if (logs.Count == 0)
+            {
+                return;
+            }
+
+            logs.Sort((a, b) => string.Compare(a.Writer, b.Writer, StringComparison.CurrentCultureIgnoreCase));
+            sb.Append("<b>").Append(L("ui.wiki.discoveries.log")).Append(" (").Append(logs.Count).Append(")</b>\n");
+            foreach (var (writer, where, text) in logs)
+            {
+                sb.Append("  • <b>").Append(writer).Append("</b>");
+                if (!string.IsNullOrEmpty(where))
+                {
+                    sb.Append("  —  <color=#9fb4c8>").Append(where).Append("</color>");
+                }
+
+                sb.Append('\n').Append(text).Append("\n\n");
+            }
         }
 
         /// <summary>The "found on Kepler, Sol" suffix for a discovery (#1843), or null when the server recorded no

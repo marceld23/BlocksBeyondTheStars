@@ -136,11 +136,6 @@ public sealed partial class GameServer
     /// the same system clock the client receives in <c>WorldEnvironment.SystemTimeDays</c>.</summary>
     private long MarketDay => (long)System.Math.Floor(_systemTimeDays);
 
-    /// <summary>The vendor NPC (classic or trading profession) the player trades with right now: the nearest one within
-    /// <see cref="VendorThemeReach"/>, or null.</summary>
-    private ServerNpc? TradingVendorAt(Shared.State.PlayerState player)
-        => NearestNpc(player, "vendor") is { } v && WrapDistSq(player.Position, v.Pos) <= VendorThemeReach * VendorThemeReach ? v : null;
-
     /// <summary>Whether two positions share one closed room: a flood from the first one's head cell that stays inside
     /// walls, floor, roof and doors (the base index's room rule) and reaches the second one's feet or head cell.</summary>
     private bool InSameClosedRoom(Vector3f a, Vector3f b)

@@ -75,9 +75,18 @@ public sealed partial class GameServer
     private static bool IsPlayerStationWorld(string locationId)
         => locationId.StartsWith("station:pstation:", System.StringComparison.Ordinal);
 
+    /// <summary>Whether a station breathes only inside its sealed pockets: a player-built one (#1473) and a generated
+    /// derelict (#2632 — a breached room is vacuum). NPC stations and The Long Quiet keep the blanket air.</summary>
+    private static bool UsesSealedPocketAir(string stationId) => IsPlayerStationId(stationId) || IsGeneratedDerelictId(stationId);
+
+    /// <summary>The interior world of a station whose air comes from sealed pockets only (<see cref="UsesSealedPocketAir"/>):
+    /// its deck is no free air — the world-level "breathable" flag is off there.</summary>
+    private static bool IsSealedAirStationWorld(string locationId)
+        => IsPlayerStationWorld(locationId) || IsGeneratedDerelictWorld(locationId);
+
     /// <summary>Whether the boarded station keeps this player breathing at <paramref name="cell"/>: always on an
-    /// NPC station, only inside a sealed pocket on a player-built one. Sends the one-shot hull-open warning on the
-    /// sealed → leaking transition.</summary>
+    /// NPC station, only inside a sealed pocket on a player-built one or a derelict (#2632). Sends the one-shot hull-open
+    /// warning on the sealed → leaking transition.</summary>
     private bool StationLifeSupport(PlayerState p, Vector3i cell)
     {
         if (!_boardedStation.TryGetValue(p.PlayerId, out var stationId))
@@ -85,7 +94,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (!IsPlayerStationId(stationId) || !_stationsById.TryGetValue(stationId, out var station) || !station.Stamped)
+        if (!UsesSealedPocketAir(stationId) || !_stationsById.TryGetValue(stationId, out var station) || !station.Stamped)
         {
             return true; // NPC / template stations are authored sealed
         }
@@ -122,7 +131,7 @@ public sealed partial class GameServer
             return true;
         }
 
-        if (IsPlayerStationWorld(_world.LocationId))
+        if (IsSealedAirStationWorld(_world.LocationId)) // #2632: a derelict's sealed rooms too
         {
             string stationId = _world.LocationId.Substring("station:".Length);
             return _stationsById.TryGetValue(stationId, out var station) && station.Stamped && InSealedStationPocket(station, cell);

@@ -87,8 +87,12 @@ public sealed partial class GameServer
 
             case CombatEntityKind.SpaceStation:
                 bool playerOwned = IsPlayerStationId(target.Id);
+                bool derelict = IsDerelictId(target.Id); // #2632: a broken old station — no trading stop
                 var station = _stationsById.TryGetValue(target.Id, out var st) ? st : null;
-                var traits = new List<string> { playerOwned ? "ui.scan.trait.station_player" : "ui.scan.trait.station_trade" };
+                var traits = new List<string>
+                {
+                    derelict ? "ui.scan.trait.derelict_breached" : playerOwned ? "ui.scan.trait.station_player" : "ui.scan.trait.station_trade",
+                };
                 if (station is not null && !string.IsNullOrEmpty(station.SizeTier))
                 {
                     traits.Add("ui.scan.trait.station_size_" + station.SizeTier);
@@ -97,13 +101,15 @@ public sealed partial class GameServer
                 readout = new ScanReadout
                 {
                     Kind = "station",
-                    SubjectKey = "space_station",
+                    SubjectKey = derelict ? "derelict_station" : "space_station",
                     Display = target.Name,
-                    InfoKey = "ui.scan.station",
+                    InfoKey = derelict ? "ui.scan.derelict" : "ui.scan.station",
                     TraitKeys = traits.ToArray(),
-                    LegacyInfo = "A space station — fly to its hangar to dock.",
+                    LegacyInfo = derelict
+                        ? "A derelict station — nobody lives there. Where its hull is broken there is no air."
+                        : "A space station — fly to its hangar to dock.",
                 };
-                ledger = "space:station";
+                ledger = derelict ? "space:derelict" : "space:station";
                 break;
 
             case CombatEntityKind.Drone or CombatEntityKind.Ufo or CombatEntityKind.Cruiser:

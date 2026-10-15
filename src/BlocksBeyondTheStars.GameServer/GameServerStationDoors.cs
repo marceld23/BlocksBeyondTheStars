@@ -64,7 +64,7 @@ public sealed partial class GameServer
             TryCommissionStation(instance, s, session); // a door record is an airlock too
         }
 
-        if (s.Boardable)
+        if (s.Boardable && !PersistIfDerelict(s)) // #2634: a derelict's whole build (its row + doors)
         {
             PersistStationDoors(s);
         }
@@ -87,7 +87,7 @@ public sealed partial class GameServer
         pool.Add(item, 1);
         SendInventory(session);
         ResendStationDesign(instance, s);
-        if (s.Boardable)
+        if (s.Boardable && !PersistIfDerelict(s)) // #2634: a derelict's whole build (its row + doors)
         {
             PersistStationDoors(s);
         }
@@ -359,7 +359,7 @@ public sealed partial class GameServer
     /// pilots outside see it at once. No-op outside materialised player-station worlds.</summary>
     private void SyncStationDoorRecordsFromWorld()
     {
-        if (!IsPlayerStationWorld(_world.LocationId))
+        if (!IsPlayerStationWorld(_world.LocationId) && !IsGeneratedDerelictWorld(_world.LocationId)) // #2634: a derelict's doors too
         {
             return;
         }
@@ -403,12 +403,12 @@ public sealed partial class GameServer
             return;
         }
 
-        if (s.Boardable)
+        if (s.Boardable && !PersistIfDerelict(s))
         {
             PersistStationDoors(s);
         }
 
-        if (_spaceInstances.Values.FirstOrDefault(i => i.Structures.ContainsKey(s.Id)) is { } instance)
+        foreach (var instance in _spaceInstances.Values.Where(i => i.Structures.ContainsKey(s.Id))) // #2634: every orbit a derelict floats in
         {
             ResendStationDesign(instance, s);
         }

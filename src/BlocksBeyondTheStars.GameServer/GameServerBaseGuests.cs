@@ -23,8 +23,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// is absent from the village (<see cref="ServerNpc.VisitingAway"/>: not sent to clients, not moved, no routine, no
 /// passing hello) and is back home the moment the guest leaves.</item>
 /// <item><b>A travelling merchant</b> (weight 30, none while a trader ship is parked on the body): a vendor-role NPC
-/// with a trade theme of its own — <see cref="MarketAvailable"/> and <see cref="VendorThemeAt"/> accept barter within
-/// <see cref="BaseGuestMerchantReach"/> blocks of it, and the client's "Trade or talk?" works as at any stall.</item>
+/// with a bit of everything (#2630: the <see cref="MarketStock.MixedTheme"/> stock, one offer from each of several trades,
+/// new every day) — <see cref="MarketAvailable"/> and <see cref="ThemedMarketRefusal"/> accept barter beside it, and the
+/// client's "Trade or talk?" works as at any stall.</item>
 /// <item><b>A lost traveller</b> (weight 20): asks the way to the nearest village, thanks the player with a small
 /// present and walks off in that direction.</item>
 /// </list>
@@ -412,8 +413,10 @@ public sealed partial class GameServer
                 npc.FaceSeed = source.FaceSeed != 0 ? source.FaceSeed : ClientFaceSeed(source.Id, source.Name);
                 break;
             case BaseGuestKind.Merchant:
-                string theme = SettlementTrades[(int)((uint)(b.Id + _guestVisits) % (uint)SettlementTrades.Length)];
-                npc = MakeNpc("vendor", theme, robotic: false, spawn, rng);
+                // #2630: "A bit of everything!" — the mixed stock: one offer from each of several trades, new every day
+                // (MarketStock.MixedOffers, the same pick on the client's vendor screen). Dressed like a trader.
+                npc = MakeNpc("vendor", "traders", robotic: false, spawn, rng);
+                npc.Theme = MarketStock.MixedTheme;
                 npc.NameKey = "npc.role.travelling_merchant";
                 npc.GuestKey = GuestKeyPrefix + npc.Name;
                 break;

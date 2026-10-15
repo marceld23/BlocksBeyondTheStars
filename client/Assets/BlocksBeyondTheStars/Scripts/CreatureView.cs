@@ -1197,6 +1197,10 @@ namespace BlocksBeyondTheStars.Client
                         Fx?.Sparks(at, new Color(1f, 0.85f, 0.25f), 12);
                         Fx?.Flash(at, new Color(1f, 0.9f, 0.4f, 0.7f), 0.7f);
                         break;
+                    case "guardian_bay": // #2635: a derelict's guardian bay released a robot or a drone (its sound comes as a SoundFx)
+                        Fx?.Sparks(at, new Color(1f, 0.35f, 0.2f), 10);
+                        Fx?.Flash(at, new Color(1f, 0.3f, 0.2f, 0.6f), 1.1f);
+                        break;
                 }
 
                 // Inside the blast: thrown clear — away from the spot and up. Only a giant's stomp and a worm's or a

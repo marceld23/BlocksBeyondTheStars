@@ -180,7 +180,8 @@
   { "key": "market_sell_silver", "station": "market", "marketTheme": "traders", "inputs": [ { "item": "silver_ingot", "count": 2 } ], "outputs": [ { "item": "titanium_ore", "count": 5 } ] },
   { "key": "market_sell_diamond", "station": "market", "marketTheme": "traders", "inputs": [ { "item": "diamond", "count": 1 } ], "outputs": [ { "item": "titanium_ore", "count": 8 } ] },
   // A rare SPS (Scout and Pioneer Service) access code, occasionally offered by travelling traders. Steep barter — claiming a structure is a major prize.
-  { "key": "market_buy_access_code",   "station": "market", "marketTheme": "traders", "inputs": [ { "item": "gold_ingot", "count": 4 }, { "item": "crystal", "count": 4 }, { "item": "circuit_board", "count": 2 } ], "outputs": [ { "item": "access_code", "count": 1 } ] },
+  // #2630: "occasionally" for real — in stock every third in-game day (marketRotation), not always.
+  { "key": "market_buy_access_code",   "station": "market", "marketTheme": "traders", "marketRotation": 3, "inputs": [ { "item": "gold_ingot", "count": 4 }, { "item": "crystal", "count": 4 }, { "item": "circuit_board", "count": 2 } ], "outputs": [ { "item": "access_code", "count": 1 } ] },
 
   { "key": "market_buy_iron",          "station": "market", "marketTheme": "miners", "inputs": [ { "item": "silicate", "count": 4 } ],      "outputs": [ { "item": "iron_ore", "count": 6 } ] },
   { "key": "market_buy_copper",        "station": "market", "marketTheme": "miners", "inputs": [ { "item": "silicate", "count": 3 } ],      "outputs": [ { "item": "copper_ore", "count": 4 } ] },

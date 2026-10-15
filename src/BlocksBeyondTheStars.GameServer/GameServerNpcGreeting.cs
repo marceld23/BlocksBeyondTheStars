@@ -193,7 +193,9 @@ public sealed partial class GameServer
 
         var pool = isRobot ? PersonaPoolRobot : PersonaPoolOrganic;
         string persona = pool[PersonaSlot(npcKey, pool.Length)];
-        return string.IsNullOrEmpty(theme) ? persona : $"{persona}; lives among {theme}";
+        return string.IsNullOrEmpty(theme) ? persona
+            : MarketStock.IsMixed(theme) ? $"{persona}; a travelling merchant with goods from everywhere" // #2630
+            : $"{persona}; lives among {theme}";
     }
 
     /// <summary>#2591: the persona of an NPC as a small number for AI-line cache keys (<c>p{index}</c>) — the same

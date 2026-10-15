@@ -541,7 +541,9 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var e in Game.Space.Entities)
                 {
-                    if (e.Kind != "Wreck")
+                    // #2632: a derelict station is drawn the same way — a fixed, named salvage spot, not a live station blip.
+                    bool derelict = e.Kind == "SpaceStation" && BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsDerelictId(e.Id);
+                    if (e.Kind != "Wreck" && !derelict)
                     {
                         continue;
                     }
@@ -549,7 +551,7 @@ namespace BlocksBeyondTheStars.Client
                     var p = Clamp(ToChart(new Vector3(e.X, e.Y, e.Z)));
                     Centered(_chart, p, new Vector2(20f, 20f), UiKit.DiscSprite, DiscCol);
                     Centered(_chart, p, new Vector2(12f, 12f), UiKit.DiscSprite, WreckCol);
-                    Label(_chart, p + new Vector2(0f, -18f), $"{e.Name} · {L("ui.map.kind_wreck")}");
+                    Label(_chart, p + new Vector2(0f, -18f), $"{e.Name} · {L(derelict ? "ui.map.kind_derelict" : "ui.map.kind_wreck")}");
                     _targets.Add((e.Id, p, e.Name));
                 }
             }
@@ -621,7 +623,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var e in Game.Space.Entities)
                 {
-                    bool station = e.Kind == "SpaceStation";
+                    // #2632: a derelict is a static marker drawn once in Build, like the wreck.
+                    bool station = e.Kind == "SpaceStation" && !BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsDerelictId(e.Id);
                     if (!station && !e.Hostile)
                     {
                         // Asteroids/drops would dust the chart — radar range covers those; the wreck is a

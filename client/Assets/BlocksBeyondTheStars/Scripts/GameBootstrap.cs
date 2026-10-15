@@ -898,6 +898,23 @@ namespace BlocksBeyondTheStars.Client
         public bool SpaceHasResume { get; private set; }     // #2118: this flight resumes where the ship floated (helm / airlock / undock to EVA)
         public Vector3 SpaceResumePos { get; private set; }  // …its position in the flight scene
         public float SpaceResumeYaw { get; private set; }    // …and its heading (degrees)
+
+        // #2636: the suit's own start spot for this flight's EVA (fell out of a derelict's hull) — latched on entry, taken
+        // once by the flight view when the spacewalk begins, so a later EVA in the same flight starts beside the ship again.
+        private bool _spaceHasEvaStart;
+        private Vector3 _spaceEvaStartPos;
+        private float _spaceEvaStartYaw;
+
+        /// <summary>#2636: hands out (and forgets) the suit's start spot the server sent with this flight, if any.</summary>
+        public bool TakeSpaceEvaStart(out Vector3 pos, out float yaw)
+        {
+            pos = _spaceEvaStartPos;
+            yaw = _spaceEvaStartYaw;
+            bool has = _spaceHasEvaStart;
+            _spaceHasEvaStart = false;
+            return has;
+        }
+
         public NetCombatEntity[] PlanetEnemies { get; private set; } = System.Array.Empty<NetCombatEntity>();
 
         // --- Crosshair enemy aiming (#693): published by PlayerController every frame ---
@@ -948,77 +965,48 @@ namespace BlocksBeyondTheStars.Client
         public NetNpc NearestTalkableNpc()
             => InteractReach.NearestTalkableNpc(Npcs, PlayerPosition.x, PlayerPosition.y, PlayerPosition.z, Circumference);
 
+        /// <summary>#2626: the vendor the player can start trading with right now — the nearest vendor within
+        /// <c>MarketStock.TradeReach</c>, measured the short way round both seams, or null. THE one picker: the "Trade"
+        /// prompt (<see cref="NearVendor"/>), E's trade-or-talk, the vendor screen's binding and the crafting menu's market
+        /// page all ask it, and <see cref="VendorReach"/> mirrors the server's barter reach.</summary>
+        public NetNpc NearestTradingVendor()
+            => VendorReach.NearestVendor(Npcs, PlayerPosition.x, PlayerPosition.y, PlayerPosition.z, Circumference);
+
         /// <summary>True when a settlement/station vendor stands within trading reach — enables market
         /// barter at their stall (the server also allows it aboard your ship).</summary>
-        public bool NearVendor
-        {
-            get
-            {
-                var p = PlayerPosition;
-                foreach (var n in Npcs)
-                {
-                    if (n.Role != "vendor")
-                    {
-                        continue;
-                    }
-
-                    var np = ScenePos(n.X, n.Y, n.Z);
-                    if ((np - p).sqrMagnitude <= 3.6f * 3.6f)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-        }
+        public bool NearVendor => NearestTradingVendor() != null;
 
         /// <summary>Whether the player can barter at a market right now (aboard ship or at a vendor).</summary>
         public bool MarketAvailable => Aboard || NearVendor;
 
         /// <summary>The trade theme of the closest vendor NPC within trading reach (miner, grocer, doctor, …), or empty
         /// when none stands by — aboard, the ship's own console has no theme.</summary>
-        public string NearestVendorTheme
-        {
-            get
-            {
-                var p = PlayerPosition;
-                string theme = string.Empty;
-                float bestSq = 3.6f * 3.6f; // same reach as NearVendor
-                foreach (var n in Npcs)
-                {
-                    if (n.Role != "vendor")
-                    {
-                        continue;
-                    }
+        public string NearestVendorTheme => NearestTradingVendor()?.Theme ?? string.Empty;
 
-                    float sq = (ScenePos(n.X, n.Y, n.Z) - p).sqrMagnitude;
-                    if (sq <= bestSq)
-                    {
-                        bestSq = sq;
-                        theme = n.Theme ?? string.Empty;
-                    }
-                }
-
-                return theme;
-            }
-        }
+        /// <summary>The in-game day the rotating market offers and the travelling merchant's mixed stock go by — the server's
+        /// <c>MarketDay</c> (the system clock of <c>WorldEnvironment.SystemTimeDays</c>).</summary>
+        public long MarketDay => Environment != null ? (long)System.Math.Floor(Environment.SystemTimeDays) : 0;
 
         /// <summary>Whether a market (barter) recipe is on offer right here, today — the server's rule: a themeless deal
         /// trades wherever the market is (any vendor, the ship's console), a themed one only beside a vendor of that
-        /// trade, a rotating one only on its day. The vendor screen and the crafting tab's "Markt" page both list by
-        /// this, so the ship no longer offers the grocer's food as if it could make it (#2137).</summary>
+        /// trade, a rotating one only on its day. The crafting tab's "Markt" page lists by this, so the ship no longer
+        /// offers the grocer's food as if it could make it (#2137); the vendor screen asks <see cref="MarketOfferedBy"/>
+        /// for the vendor it is bound to (#2626).</summary>
         public bool MarketOfferedHere(BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition recipe)
-        {
-            if (!string.IsNullOrEmpty(recipe.MarketTheme)
-                && !string.Equals(recipe.MarketTheme, NearestVendorTheme, System.StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
+            => MarketOfferedBy(recipe, NearestVendorTheme);
 
-            long day = Environment != null ? (long)System.Math.Floor(Environment.SystemTimeDays) : 0;
-            return recipe.OfferedOnDay(day);
-        }
+        /// <summary>Whether a vendor of <paramref name="vendorTheme"/> ("" = the ship's console) has the recipe in stock
+        /// today — <c>MarketStock.Offers</c>, the very rule the server's barter check uses (#2630: the travelling merchant's
+        /// mixed stock included).</summary>
+        public bool MarketOfferedBy(BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition recipe, string vendorTheme)
+            => BlocksBeyondTheStars.Shared.Definitions.MarketStock.Offers(MarketRecipes(), vendorTheme, recipe, MarketDay);
+
+        /// <summary>The recipe table the market rules read (empty before the content is loaded).</summary>
+        public System.Collections.Generic.IEnumerable<BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition> MarketRecipes()
+            => Content != null
+                ? Content.Recipes.Values
+                : (System.Collections.Generic.IEnumerable<BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition>)
+                    System.Array.Empty<BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition>();
 
         /// <summary>Lootable containers on the planet (salvage capsules / corpses).</summary>
         public NetContainer[] Containers { get; private set; } = System.Array.Empty<NetContainer>();
@@ -2990,6 +2978,9 @@ namespace BlocksBeyondTheStars.Client
                     SpaceHasResume = m.HasResumePose; // #2118: latched with it — the flight view places the ship there on Enter
                     SpaceResumePos = new Vector3(m.ResumeX, m.ResumeY, m.ResumeZ);
                     SpaceResumeYaw = m.ResumeYaw;
+                    _spaceHasEvaStart = m.HasEvaStart; // #2636: …and the suit's own spot, when it fell out of a derelict
+                    _spaceEvaStartPos = new Vector3(m.EvaStartX, m.EvaStartY, m.EvaStartZ);
+                    _spaceEvaStartYaw = m.EvaStartYaw;
                     if (m.Hyperjump)
                     {
                         HyperjumpStarted?.Invoke(); // warp VFX as we arrive in flight in a new system

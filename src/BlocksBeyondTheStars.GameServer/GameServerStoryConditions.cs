@@ -31,7 +31,7 @@ public sealed partial class GameServer
     private Dictionary<string, Func<PlayerSession, bool>> WorldPredicates => _worldPredicates ??= new(StringComparer.Ordinal)
     {
         // Place: the player's own body / system.
-        [StoryWorldPredicates.StationInSystem] = s => StationContactsForCurrentSystem(s.CurrentLocationId).Any(), // = the dock lesson's skip rule (#2460)
+        [StoryWorldPredicates.StationInSystem] = s => TradingStationsForCurrentSystem(s.CurrentLocationId).Any(), // = the dock lesson's skip rule (#2460); #2632: never a derelict
         [StoryWorldPredicates.SettlementReachable] = s => _worlds.Find(s.CurrentLocationId)?.Settlements.Count > 0,
         [StoryWorldPredicates.Airless] = s => !BodyBreathable(s.CurrentLocationId),
         [StoryWorldPredicates.FragmentOnWorld] = s => StoryActive && _worlds.Find(s.CurrentLocationId)?.NetFragments.Count > 0, // #2506: hidden while the story is off
@@ -194,7 +194,7 @@ public sealed partial class GameServer
         string? planetType = _worlds.Find(locationId)?.PlanetType ?? _galaxy?.FindBody(locationId)?.PlanetType;
         var planet = string.IsNullOrEmpty(planetType) ? null : _content.GetPlanet(planetType!);
         return string.Equals(planet?.Atmosphere, "breathable", StringComparison.OrdinalIgnoreCase)
-               && !IsPlayerStationWorld(locationId);
+               && !IsSealedAirStationWorld(locationId); // #2632: nor on a derelict's
     }
 
     /// <summary>Another visible, joined player stands within <see cref="PlayerNearRange"/> on the same body.</summary>

@@ -28,10 +28,14 @@ generated planets, mine resources, craft gear, build ships and bases, tame creat
   off) in the settings.
   Hand weapons are part of every world; what a world decides is how much hostility there is — planet robots,
   bandits, space enemies and UFOs can each be switched **off** in the world options, and wildlife can be turned
-  down to none.
+  down to none. The same robot switch covers the few guardian robots an old derelict station's maintenance bay sends
+  out (at most three at a time, and none once the bay is mined); every other station is enemy-free.
 - **Player death is gentle.** Running out of air or health means waking up again in your ship's med-bay.
   Items are not lost to other players.
-- **No horror.** Dark caves and a spooky ruin at most — the game's tone is curious, not frightening.
+- **No horror.** Dark caves and a spooky ruin at most — the game's tone is curious, not frightening. The broken old
+  "derelict stations" in space are empty and quiet (nobody lives there, nobody is hurt on the page — only their old
+  guardian robots still patrol, like the ones on planets, and only where robots are switched on); their breached
+  rooms simply have no air, so the suit's oxygen runs down until the player leaves or patches the hole.
 - **No purchases, no ads, no gambling.** The game is free and open source. There is nothing to buy
   in-game, no advertising, no loot boxes, and the arcade minigames award only in-game knowledge points.
 - **No personal data required.** Playing needs no e-mail address, no real name and no account beyond a

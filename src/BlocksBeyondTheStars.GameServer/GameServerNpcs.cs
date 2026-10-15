@@ -384,6 +384,20 @@ public sealed partial class GameServer
                 continue;
             }
 
+            // #2627: a trading keeper at work stays at the counter while a customer is near — back to its spot, then it
+            // stands there facing them instead of strolling off mid-trade (GameServerVendorTrade.cs).
+            bool backToCounter = false;
+            if (KeeperCustomer(npc, targets) is { } customer)
+            {
+                if (KeeperAtSpot(npc))
+                {
+                    FaceTowards(npc, customer);
+                    continue;
+                }
+
+                backToCounter = true;
+            }
+
             MoveMode intent;
             Vector3f? target;
             bool following = false;
@@ -405,7 +419,7 @@ public sealed partial class GameServer
                 // again (instead of forever tracing one closed drift loop). Stray past the leash → head straight home.
                 float hx = (float)WorldConstants.WrapDeltaX((double)npc.Pos.X - npc.Home.X, _world.Circumference), hz = npc.Pos.Z - npc.Home.Z;
                 float leash = npc.Role == "guardian" ? GuardianLeash : npc.Leash; // #1793: guardians patrol; #1865: residents stroll wider
-                bool beyondLeash = hx * hx + hz * hz > leash * leash;
+                bool beyondLeash = backToCounter || hx * hx + hz * hz > leash * leash;
                 intent = beyondLeash ? MoveMode.Seek : leash <= 0.05f ? MoveMode.Pause : MoveMode.Roam;
                 target = beyondLeash ? Unwrapped(npc.Pos, npc.Home) : (Vector3f?)null;
                 if (intent == MoveMode.Pause)

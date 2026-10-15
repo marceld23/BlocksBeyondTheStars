@@ -90,13 +90,20 @@ public sealed partial class GameServer
 
     private void TickEnemies(double dt)
     {
-        if (!PlanetEnemiesActive)
+        // Orbital stations (void worlds) are safe havens: only peaceful NPCs live there, never hostiles. The one
+        // deliberate exception (#2635): a generated derelict's guardian bay releases its own robots and drones inside
+        // its hull — gated like the planet machines (see GameServerDerelictGuardians).
+        if (_world.Planet.Void)
         {
+            if (IsGeneratedDerelictWorld(_world.LocationId))
+            {
+                TickDerelictGuardians(dt);
+            }
+
             return;
         }
 
-        // Orbital stations (void worlds) are safe havens: only peaceful NPCs live there, never hostiles.
-        if (_world.Planet.Void)
+        if (!PlanetEnemiesActive)
         {
             return;
         }
@@ -202,6 +209,17 @@ public sealed partial class GameServer
             BroadcastPlanetEnemies();
         }
 
+        RunMachinePass(targets, dt);
+    }
+
+    /// <summary>The machines' half of an enemy tick, shared by the planet machines and a derelict's guardians (#2635):
+    /// movement (hunt or roam), the damage aura, the stranded-robot cleanup and the throttled position stream. Ends early
+    /// when a death carried the victim to another world — the active world (and its machine list) changed under the
+    /// pass.</summary>
+    private void RunMachinePass(List<PlayerSession> targets, double dt)
+    {
+        var world = _worlds.Active;
+
         // A present tamed companion makes the Guardian machines read its owner as part of the protected
         // biosphere rather than as prey: while one wards a player the machines neither hunt nor bite them.
         // Computed once per tick (consulted by both the proximity-damage pass and MovePlanetEnemy's chase
@@ -269,6 +287,10 @@ public sealed partial class GameServer
                     if (p.Health <= 0f)
                     {
                         RespawnPlayer(session, "@srv.death.creature");
+                        if (!ReferenceEquals(_worlds.Active, world))
+                        {
+                            return; // #2635: the death took the victim to another world (a derelict → the ship) — this pass ends
+                        }
                     }
                 }
             }
@@ -413,7 +435,7 @@ public sealed partial class GameServer
         }
 
         bool drone = enemy.Kind == CombatEntityKind.ScanDrone;
-        int hover = drone ? ScanDroneHover : 0; // scan-drones float above the ground
+        int hover = drone ? DroneHoverHere : 0; // scan-drones float above the ground (low under a station's ceiling, #2635)
         // Ground from REAL blocks (like creatures, #650), not the pure noise surface, so machines honour
         // stamped structures and player edits instead of walking on air over them (#711). The reference Y
         // is the feet (a drone's hover offset removed); noise surface only when the chunk isn't loaded.
@@ -487,7 +509,8 @@ public sealed partial class GameServer
                 // drone circles + banks. Target a moving point on a ring around the player.
                 float bearing = (float)System.Math.Atan2(enemy.Position.Z - player.Z, enemy.Position.X - player.X);
                 bearing += DroneOrbitSpeed * (float)dt; // advance around the ring → it circles
-                float ring = DroneStandoff + DroneStrafe *
+                bool cramped = _world.Planet.Void; // #2635: a derelict's rooms are a few blocks wide — a tight ring
+                float ring = (cramped ? GuardianDroneStandoff : DroneStandoff) + (cramped ? GuardianDroneStrafe : DroneStrafe) *
                     (float)System.Math.Sin(_uptime * 0.7 + (StableStringHash(enemy.Id) % 628) / 100.0);
                 target = new Vector3f(player.X + (float)System.Math.Cos(bearing) * ring, player.Y,
                                       player.Z + (float)System.Math.Sin(bearing) * ring);
@@ -520,7 +543,7 @@ public sealed partial class GameServer
         // cells above the feet, so a walker's body never lands inside a wall; a drone keeps weaving through
         // tree crowns and trunks at hover height as it always has.)
         if (!MachineGroundAt(nextX, nextZ, refY, realWaterBed: !drone, out int groundY, overGas: drone)
-            || groundY - prevGround > (drone ? ScanDroneHover - 1 : MachineStepUp)
+            || groundY - prevGround > (drone ? hover - 1 : MachineStepUp)
             || prevGround - groundY > MachineStepDown)
         {
             enemy.Loco.ModeTimer = 0f; // wall/cliff/spike in the way — pick a new direction next tick
@@ -1127,22 +1150,29 @@ public sealed partial class GameServer
             return false;
         }
 
+        _planetEnemies.Add(NewPlanetMachine(new Vector3f(ex, ey, ez), asDrone, tougher, atWreck ? 1.5f : 1f)); // wreck machines are angrier
+        return true;
+    }
+
+    /// <summary>A planet machine's body and stats — a hovering scan-drone, a walking Guardian robot or (with
+    /// <paramref name="tougher"/>) the hunter — shared by the surface spawner and a derelict's guardian bay (#2635).</summary>
+    private CombatEntity NewPlanetMachine(Vector3f at, bool asDrone, bool tougher, float damageFactor = 1f)
+    {
         float hull = asDrone ? 25f : (tougher ? 60f : 30f);
-        _planetEnemies.Add(new CombatEntity
+        return new CombatEntity
         {
             Id = NextEntityId(),
             Kind = asDrone ? CombatEntityKind.ScanDrone : (tougher ? CombatEntityKind.AlienMonster : CombatEntityKind.Creature),
             Hostile = true,
             Hull = hull,
             HullMax = hull,
-            Position = new Vector3f(ex, ey, ez),
+            Position = at,
             // The drone's 3/s was written for an aura it could never enter; now that it really does hurt from
             // its firing range it is in reach for most of an encounter, so it drops to 2/s — roughly 50 s of
             // being ignored before it kills you, which is pressure without being a young player's ambush.
-            DamagePerSecond = (asDrone ? 2f : (tougher ? 6f : 4f)) * (atWreck ? 1.5f : 1f), // wreck machines are angrier
+            DamagePerSecond = (asDrone ? 2f : (tougher ? 6f : 4f)) * damageFactor,
             Loot = { new ItemAmount("carbon", 2) }, // all Guardian machines drop salvage carbon
-        });
-        return true;
+        };
     }
 
     private const float WreckCouplingRange = 64f; // bias spawns to a wreck within this of the player (P5)

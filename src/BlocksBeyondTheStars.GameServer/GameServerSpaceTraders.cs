@@ -191,7 +191,7 @@ public sealed partial class GameServer
         }
 
         var system = _galaxy.Systems.FirstOrDefault(s => s.Id == systemId);
-        bool hasStation = system?.Bodies.Any(b => b.Kind == CelestialKind.SpaceStation) ?? false;
+        bool hasStation = system?.Bodies.Any(b => b.Kind == CelestialKind.SpaceStation && !IsDerelictId(b.Id)) ?? false; // #2632: no freighter calls at a derelict
 
         uint h = (uint)(_meta.Seed ^ WorldGenerator.StableHash("traffic:" + systemId));
         int bucket = (int)(h % 100u);
@@ -337,7 +337,7 @@ public sealed partial class GameServer
 
         // Destination: dock at a station contact (about half the time, if one exists), else head into the inner
         // system to LAND on a planet/moon (if a pad is free on arrival) or simply pass through and warp out.
-        var stations = instance.Entities.Where(e => e.Kind == CombatEntityKind.SpaceStation).ToList();
+        var stations = instance.Entities.Where(e => e.Kind == CombatEntityKind.SpaceStation && !IsDerelictId(e.Id)).ToList(); // #2632
         if (stations.Count > 0 && _traderRng.NextDouble() < 0.5)
         {
             var target = stations[_traderRng.Next(stations.Count)];
@@ -556,14 +556,15 @@ public sealed partial class GameServer
             return;
         }
 
-        // A "traders"-themed merchant with a varied civilian look; deterministic body colours from its name.
+        // A merchant with a varied civilian look; deterministic body colours from its name. #2630: it brings goods of its
+        // own, drawn per visit — never the station shop's "traders", so the visitor sells what the shop does not.
         var look = new System.Random(unchecked((int)WorldGenerator.StableHash("trader-look:" + t.Name)));
         uint[] skins = { 0xF2C9A0, 0xD9A066, 0x8D5524, 0xC68642, 0xFFDBAC };
         uint[] outfits = { 0x2E5E8C, 0x6A4C93, 0xC9A227, 0x3A7D5A };
         _visitingTraders[stationId] = new VisitingTrader
         {
             Name = t.Name,
-            Theme = "traders",
+            Theme = VisitingTraderTheme("docked:" + stationId + ":" + t.Id + ":" + t.Name, StationShopTheme),
             SkinRgb = skins[look.Next(skins.Length)],
             OutfitRgb = outfits[look.Next(outfits.Length)],
             ExpiresAt = _uptime + TraderDwellMin + _traderRng.NextDouble() * (TraderDwellMax - TraderDwellMin),
@@ -585,8 +586,9 @@ public sealed partial class GameServer
             return;
         }
 
-        // Stand the visitor BESIDE a vendor marker so NearSpaceStationVendor + NearestNpc("vendor") resolve to
-        // it — the existing themed-market barter then accepts its trades. Fall back to the spawn point.
+        // Stand the visitor BESIDE a vendor marker so NearSpaceStationVendor finds the post — the themed-market barter
+        // then accepts its trades (#2626: any vendor in reach selling a deal counts, so its own goods trade even with the
+        // shop's keeper a step closer). Fall back to the spawn point.
         var marker = station.Markers.FirstOrDefault(m => m.Type == "vendor");
         var at = marker.Type == "vendor"
             ? new Vector3f(marker.Pos.X + 1.5f, (float)System.Math.Floor(marker.Pos.Y), marker.Pos.Z + 0.5f)
@@ -899,7 +901,7 @@ public sealed partial class GameServer
         // The pilot stands a couple of blocks in front of the ship (its window end), feet on the pad surface.
         lt.PilotPos = new Vector3f(pad.CenterX + 0.5f, y0 + 1f, pad.CenterZ + s.Length / 2f + 2.5f);
         var rng = new System.Random(unchecked((int)WorldGenerator.StableHash("landed-pilot:" + lt.Id)));
-        var npc = MakeNpc("vendor", "traders", robotic: false, lt.PilotPos, rng);
+        var npc = MakeNpc("vendor", LandedTraderTheme(lt), robotic: false, lt.PilotPos, rng); // #2630: its own goods per visit
         npc.Name = lt.Name;
         npc.SkinRgb = lt.SkinRgb;
         npc.OutfitRgb = lt.OutfitRgb;

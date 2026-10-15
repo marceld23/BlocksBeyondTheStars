@@ -2584,6 +2584,16 @@ namespace BlocksBeyondTheStars.Client
             // was tuned for the small cube model and left you spawning inside the big voxel hull → "no ship").
             float backZ = _shipCells != null && _shipCells.Count > 0 ? _shipCentre.z + 6f : 3.4f;
             _evaPos = _ship.transform.localPosition + rot * new Vector3(0f, -1f, -backZ);
+
+            // #2636: fell out of a derelict through its hull — the suit starts where it left the hull (the server sent the
+            // spot with this flight), looking the way the player looked aboard; the ship waits further off.
+            if (Game.TakeSpaceEvaStart(out var suitAt, out var suitYaw))
+            {
+                _evaPos = suitAt;
+                _evaYaw = suitYaw;
+                _evaPitch = 0f;
+            }
+
             if (_evaPos.magnitude > FlightClamp)
             {
                 _evaPos = _evaPos.normalized * FlightClamp;

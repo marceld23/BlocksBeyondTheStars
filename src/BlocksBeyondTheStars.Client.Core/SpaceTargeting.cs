@@ -97,6 +97,15 @@ public static class SpaceTargeting
     /// <summary>The id prefix of the NPC traders' synthetic poses in <c>SpaceState.Players</c>.</summary>
     public const string TraderIdPrefix = "npc:";
 
+    /// <summary>#2632: the id prefix of a derelict station — a broken old station nobody lives on (the server's
+    /// <c>DerelictPlacer.IdPrefix</c>; "The Long Quiet" carries it too). Its contact and its star-map body are a
+    /// <see cref="SpaceStation"/>, so the UI tells it apart by the id: labelled "Derelict station", drawn like the wreck,
+    /// never a trading stop.</summary>
+    public const string DerelictIdPrefix = "derelict:";
+
+    /// <summary>Whether a station contact / body id is a derelict station (#2632).</summary>
+    public static bool IsDerelictId(string? id) => id != null && id.StartsWith(DerelictIdPrefix, System.StringComparison.Ordinal);
+
     /// <summary>A hostile closer than this is attacking: the server's damage aura (<c>ShipEngageRange</c>) and the
     /// client's drawn enemy shots use the same range — one shared constant since #2284, so the two can never drift.</summary>
     public const float AttackRange = BlocksBeyondTheStars.Shared.Definitions.SpaceCombatRules.EngageRange;

@@ -229,8 +229,9 @@ namespace BlocksBeyondTheStars.Client
             int i = 0;
             foreach (var e in Game.Space.Entities)
             {
-                bool station = e.Kind == "SpaceStation";
-                bool wreck = e.Kind == "Wreck"; // #1664: the system's derelict — a fixed navigation point too
+                bool derelict = e.Kind == "SpaceStation" && SpaceTargeting.IsDerelictId(e.Id); // #2632: a broken old station reads like the wreck
+                bool station = e.Kind == "SpaceStation" && !derelict;
+                bool wreck = e.Kind == "Wreck" || derelict; // #1664: the system's derelict — a fixed navigation point too
                 bool encounter = e.Kind == "EscapePod" || e.Kind == "Anomaly" || e.Kind == "Wormhole" || e.Kind == "DebrisField"; // #2241/#2242/#2353
                 bool pinged = Game.SpaceSystemPingUntil > Time.time && e.Kind != "ResourceDrop"; // #2240: the system ping
                 var world = new Vector3(e.X, e.Y, e.Z);

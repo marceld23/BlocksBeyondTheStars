@@ -5,7 +5,8 @@ Epic #2351 (sub-issues #2352–#2359), branch `feat/debris-fields`, 2026-10-06. 
 salt, so existing galaxies keep every system, body, lane and wormhole. No protocol bump: the new entity kinds are
 strings on the wire and every new field is contractless-additive (`NetCombatEntity.Yaw`, `NetBody.Salvaged`,
 `SpaceWarpFx.Raider`). No save bump: the new `WorldMetadata.SpaceSalvage` dictionary is an additive field and the
-package adds no blocks.
+package adds no blocks. The derelict stations (#2632, [DERELICT_STATIONS.md](DERELICT_STATIONS.md)) follow the same
+placement pattern — a post-galaxy pass with its own salt and world option — as the very last pass of `BuildGalaxy`.
 
 ## 1. Goal
 

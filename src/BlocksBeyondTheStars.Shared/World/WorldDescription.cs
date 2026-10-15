@@ -134,6 +134,13 @@ public sealed class WorldDescription
     /// body moves and nothing about them is persisted except the salvage ledger.</summary>
     public Frequency DebrisFields { get; set; } = Frequency.Normal;
 
+    /// <summary>How often a system holds broken old stations (#2632) — besides the one every world guarantees in its start
+    /// system. The frequency scales the (rare) per-system odds of one to three derelicts; Off removes them all, the
+    /// guaranteed one included. Like <see cref="DebrisFields"/> a save from before the feature reads the default and gains
+    /// its derelicts: they are placed after the generator with their own salt, so no existing body moves. What players
+    /// change on a derelict is persisted (docs/developer/DERELICT_STATIONS.md).</summary>
+    public Frequency Derelicts { get; set; } = Frequency.Normal;
+
     /// <summary>Planet-type key → frequency. Empty means "use all known planet types at Normal".</summary>
     public Dictionary<string, Frequency> PlanetTypeFrequencies { get; set; } = new();
 
