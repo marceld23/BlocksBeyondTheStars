@@ -163,12 +163,15 @@ public sealed partial class GameServer
     /// player edit): the drops are composed exactly as for a player (a spore bloom's bonus included), the fruit's tint is
     /// read before the cell is cleared and rides into its regrow, the station grid and the support/fluid hooks see the
     /// change, and the player-only hooks (missions, VEGA, samples) stay out. The site is checked again here — the plant
-    /// may have been picked, or the cell edited, while the NPC walked over.</remarks>
-    private bool NpcHarvestFlora(ServerNpc npc, Vector3i cell, System.Action<string, int> bank)
+    /// may have been picked, or the cell edited, while the NPC walked over. <paramref name="trustedSite"/> marks a cell of
+    /// the NPC's own stamped plot (a lodge's crop bed): the repository keeps the last player as a cell's owner for good, so a
+    /// crop a visitor once picked would otherwise read as player-planted and the gatherer would never tend its own bed again.</remarks>
+    private bool NpcHarvestFlora(ServerNpc npc, Vector3i cell, System.Action<string, int> bank, bool trustedSite = false)
     {
         var c = WorldConstants.CanonicalBlock(cell, _world.Circumference);
         var id = _world.GetBlockIfLoaded(c);
-        if (id.IsAir || !IsGatherableFlora(id.Value) || _floraRegrow.ContainsKey(c) || GatherCellProtected(c) || NpcCellPlayerEdited(c))
+        if (id.IsAir || !IsGatherableFlora(id.Value) || _floraRegrow.ContainsKey(c) || GatherCellProtected(c)
+            || (!trustedSite && NpcCellPlayerEdited(c)))
         {
             return false;
         }
