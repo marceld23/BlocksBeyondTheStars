@@ -3,10 +3,11 @@
 
   // #2600 (C1): what two villagers standing (or sitting) together talk about while a player is near. "when": day |
   // evening | any (never at night). "needs": "" (always) or one of weather_wet, weather_storm, weather_snow,
-  // weather_clear, weather_fog, trader, camp_near, player_known, festival_pending, deed:<kind> (a deed of the last three
-  // hours of playtime; weight x5 while its hero listens). "lines": 2-4 locale keys, speaker A first, then alternating,
-  // each <= 56 characters in EN and DE. Placeholders: {a} {b} (the speakers), {place} (the village), {player} (deed
-  // hero / known player / festival hero), {trader} (a landed trader). "hint": a few English words for the AI re-wording.
+  // weather_clear, weather_fog, trader, camp_near, lodge_near, player_known, festival_pending, deed:<kind> (a deed of the
+  // last three hours of playtime; weight x5 while its hero listens). "lines": 2-4 locale keys, speaker A first, then
+  // alternating, each <= 56 characters in EN and DE. Placeholders: {a} {b} (the speakers), {place} (the village), {player}
+  // (deed hero / known player / festival hero), {trader} (a landed trader), {npc} (the resident of a lodge within 400 m,
+  // #2641). "hint": a few English words for the AI re-wording.
   "chatter": [
     { "key": "rain", "when": "any", "needs": "weather_wet", "weight": 3, "hint": "rain on the gardens",
       "lines": ["village.chat.rain.1", "village.chat.rain.2"] },
@@ -24,6 +25,8 @@
       "lines": ["village.chat.trader.1", "village.chat.trader.2"] },
     { "key": "camp_near", "when": "day", "needs": "camp_near", "weight": 3, "hint": "bandits camping in the hills nearby",
       "lines": ["village.chat.camp_near.1", "village.chat.camp_near.2"] },
+    { "key": "lodge_near", "when": "any", "needs": "lodge_near", "weight": 2, "hint": "the friendly neighbour who lives in a hut out in the wild",
+      "lines": ["village.chat.lodge_near.1", "village.chat.lodge_near.2", "village.chat.lodge_near.3"] },
     { "key": "deed_camp", "when": "any", "needs": "deed:camp_cleared", "weight": 4, "hint": "the player chased the bandits away",
       "lines": ["village.chat.deed_camp.1", "village.chat.deed_camp.2"] },
     { "key": "deed_helped", "when": "any", "needs": "deed:settlement_helped", "weight": 4, "hint": "the player helped the village",

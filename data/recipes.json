@@ -231,6 +231,16 @@
   { "key": "market_rails_sleeper", "station": "market", "marketTheme": "rails", "inputs": [ { "item": "titanium_plate", "count": 6 } ], "outputs": [ { "item": "wagon_sleeper", "count": 1 } ] },
   { "key": "market_rails_bar",    "station": "market", "marketTheme": "rails", "inputs": [ { "item": "titanium_plate", "count": 6 } ], "outputs": [ { "item": "wagon_bar", "count": 1 } ] },
   { "key": "market_blocks_basalt", "station": "market", "marketTheme": "blocks", "inputs": [ { "item": "copper_ore", "count": 1 } ], "outputs": [ { "item": "basalt", "count": 12 } ] },
+  // #2641: the wilderness folk trade what they gather, chop and hunt (the lodge's miner keeps the miners' goods).
+  { "key": "market_gatherers_berries", "station": "market", "marketTheme": "gatherers", "inputs": [ { "item": "iron_ore", "count": 2 } ], "outputs": [ { "item": "berries", "count": 4 }, { "item": "fruit_round", "count": 2 } ] },
+  { "key": "market_gatherers_grain", "station": "market", "marketTheme": "gatherers", "inputs": [ { "item": "copper_ore", "count": 2 } ], "outputs": [ { "item": "grain", "count": 6 } ] },
+  { "key": "market_gatherers_fibre", "station": "market", "marketTheme": "gatherers", "inputs": [ { "item": "silicate", "count": 2 } ], "outputs": [ { "item": "plant_fiber", "count": 8 } ] },
+  { "key": "market_gatherers_seeds", "station": "market", "marketTheme": "gatherers", "inputs": [ { "item": "iron_ore", "count": 3 } ], "outputs": [ { "item": "berry_seed", "count": 2 }, { "item": "grain_seed", "count": 2 } ] },
+  { "key": "market_woodcutters_logs", "station": "market", "marketTheme": "woodcutters", "inputs": [ { "item": "iron_ore", "count": 2 } ], "outputs": [ { "item": "wood_log", "count": 12 } ] },
+  { "key": "market_woodcutters_saplings", "station": "market", "marketTheme": "woodcutters", "inputs": [ { "item": "copper_ore", "count": 2 } ], "outputs": [ { "item": "sapling", "count": 3 } ] },
+  { "key": "market_hunters_cooked_meat", "station": "market", "marketTheme": "hunters", "inputs": [ { "item": "iron_ore", "count": 3 } ], "outputs": [ { "item": "cooked_meat", "count": 2 } ] },
+  { "key": "market_hunters_meat_bait", "station": "market", "marketTheme": "hunters", "inputs": [ { "item": "copper_ore", "count": 2 } ], "outputs": [ { "item": "meat_bait", "count": 2 } ] },
+  { "key": "market_hunters_forage_bait", "station": "market", "marketTheme": "hunters", "inputs": [ { "item": "silicate", "count": 2 } ], "outputs": [ { "item": "forage_bait", "count": 2 } ] },
 
   { "key": "ladder", "station": "hand", "inputs": [ { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "ladder", "count": 3 } ] },
   // #2536: a wooden ladder by hand, for the player who has wood but no carbon yet.

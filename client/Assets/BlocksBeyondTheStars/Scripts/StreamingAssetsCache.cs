@@ -60,6 +60,7 @@ namespace BlocksBeyondTheStars.Client
             "locales/tr.json",
             "locales/uk.json",
             "locales/zh.json",
+            "lodges.json",
             "minigames/catalog.json",
             "missions.json",
             "planets.json",

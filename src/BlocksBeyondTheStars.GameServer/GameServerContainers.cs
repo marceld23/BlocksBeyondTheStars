@@ -75,6 +75,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (LodgeStoreRefusal(container.Id) is { Length: > 0 } notYours)
+        {
+            Reject(session, "loot", notYours); // #2640: a lodge resident's store — look, don't take
+            return;
+        }
+
         var center = new Vector3f(container.Position.X + 0.5f, container.Position.Y + 0.5f, container.Position.Z + 0.5f);
         if (WrapDistSq(session.State.Position, center) > LootReach * LootReach)
         {
@@ -199,6 +205,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (LodgeStoreRefusal(container.Id) is { Length: > 0 } notYours)
+        {
+            Reject(session, "stash", notYours); // #2640: nothing goes into a lodge resident's store but their own work
+            return;
+        }
+
         var center = new Vector3f(container.Position.X + 0.5f, container.Position.Y + 0.5f, container.Position.Z + 0.5f);
         if (WrapDistSq(session.State.Position, center) > LootReach * LootReach)
         {
@@ -276,6 +288,12 @@ public sealed partial class GameServer
         if (container is null)
         {
             Reject(session, "stash", "@srv.loot.no_crate");
+            return;
+        }
+
+        if (LodgeStoreRefusal(container.Id) is { Length: > 0 } notYours)
+        {
+            Reject(session, "stash", notYours); // #2640: a lodge resident's store is sorted by its owner
             return;
         }
 
@@ -426,6 +444,12 @@ public sealed partial class GameServer
         if (container is null)
         {
             Reject(session, "stash", "@srv.loot.no_crate");
+            return false;
+        }
+
+        if (LodgeStoreRefusal(container.Id) is { Length: > 0 } notYours)
+        {
+            Reject(session, toContainer ? "stash" : "loot", notYours); // #2640: look, don't take (or put)
             return false;
         }
 

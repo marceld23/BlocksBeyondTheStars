@@ -43,6 +43,12 @@ public sealed partial class GameServer
             return HintLine(session, "npc.hint.wreck", wx, wz);
         }
 
+        // (a2) #2641: a lodge nearby — villagers know their neighbours out in the wild and tell anyone.
+        if (npcKey.StartsWith("settle_", System.StringComparison.Ordinal) && TryEmitLodgeHint(session) is { Length: > 0 } lodgeHint)
+        {
+            return lodgeHint;
+        }
+
         // (b) A hidden chest — a secret kept for players this NPC already knows (tier "known"+).
         int rel = RelationshipValue(session.State, npcKey); // #2598: a villager without an own entry reads the floor
         if (RelationshipTier(rel) is not ("known" or "trusted"))

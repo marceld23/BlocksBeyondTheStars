@@ -501,6 +501,57 @@ public sealed class GameContent
         _dialogs = list;
     }
 
+    private IReadOnlyList<LodgeProfessionDefinition> _lodges = new List<LodgeProfessionDefinition>();
+
+    /// <summary>The professions of the wilderness folk (#2640/#2641) in authored order — empty when
+    /// <c>data/lodges.json</c> is absent (worlds then grow no lodges).</summary>
+    public IReadOnlyList<LodgeProfessionDefinition> Lodges => _lodges;
+
+    /// <summary>The lodge profession with this job key, or null (also how "is this a lodge job?" is asked).</summary>
+    public LodgeProfessionDefinition? LodgeProfession(string? job)
+    {
+        if (string.IsNullOrEmpty(job))
+        {
+            return null;
+        }
+
+        foreach (var p in _lodges)
+        {
+            if (string.Equals(p.Key, job, StringComparison.Ordinal))
+            {
+                return p;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Installs the lodge professions (called by the content loader). Null rows are dropped and null weights of
+    /// a hand-edited file become empty ones; everything else is checked by <see cref="Validate"/>.</summary>
+    public void SetLodges(IEnumerable<LodgeProfessionDefinition>? lodges)
+    {
+        var list = new List<LodgeProfessionDefinition>();
+        foreach (var l in lodges ?? Enumerable.Empty<LodgeProfessionDefinition>())
+        {
+            if (l is null)
+            {
+                continue;
+            }
+
+            l.Key ??= string.Empty;
+            l.Held ??= string.Empty;
+            l.Theme ??= string.Empty;
+            l.Activity ??= string.Empty;
+            l.Work ??= string.Empty;
+            l.Yard ??= string.Empty;
+            l.Partner ??= string.Empty;
+            l.Weights ??= new Dictionary<string, double>();
+            list.Add(l);
+        }
+
+        _lodges = list;
+    }
+
     private IReadOnlyList<WishTemplate> _wishes = new List<WishTemplate>();
 
     /// <summary>The villagers' personal wish templates (#2601) in authored order — empty when <c>data/wishes.json</c> is
@@ -551,6 +602,90 @@ public sealed class GameContent
         }
 
         DerelictLogs = d;
+    }
+
+    /// <summary>#2640: the lodge professions — a unique key, a known work and yard kind, a held tool, an activity, a market
+    /// theme that has market deals, a partner that is another known profession needing no yard of its own (never a miner,
+    /// whose work is the lodge's own face), and weights over known traits that are not negative and not all zero. Whether
+    /// the <c>npc.role|greet|activity</c> and <c>ui.vendor.theme</c> texts exist in English and German is checked by
+    /// <c>LodgeContentTests</c> (the locale tables load lazily).</summary>
+    private void ValidateLodges(List<string> problems)
+    {
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var l in _lodges)
+        {
+            if (string.IsNullOrWhiteSpace(l.Key))
+            {
+                problems.Add("Lodge profession without a key.");
+                continue;
+            }
+
+            string ctx = $"Lodge profession '{l.Key}'";
+            if (!keys.Add(l.Key))
+            {
+                problems.Add($"{ctx} is defined twice.");
+            }
+
+            if (!LodgeRules.IsWorkKind(l.Work))
+            {
+                problems.Add($"{ctx} has an unknown work '{l.Work}' ({string.Join("|", LodgeRules.WorkKinds)}).");
+            }
+
+            if (!LodgeRules.IsYardKind(l.Yard))
+            {
+                problems.Add($"{ctx} has an unknown yard '{l.Yard}' ({string.Join("|", LodgeRules.YardKinds)}).");
+            }
+
+            if (string.IsNullOrWhiteSpace(l.Held) || string.IsNullOrWhiteSpace(l.Activity))
+            {
+                problems.Add($"{ctx} needs a held tool and an activity.");
+            }
+
+            if (string.IsNullOrWhiteSpace(l.Theme)
+                || !_recipes.Values.Any(r => r.Station == CraftingStation.Market && string.Equals(r.MarketTheme, l.Theme, StringComparison.OrdinalIgnoreCase)))
+            {
+                problems.Add($"{ctx} trades theme '{l.Theme}', which has no market deals.");
+            }
+
+            double total = 0.0;
+            foreach (var kv in l.Weights)
+            {
+                if (!LodgeRules.IsTrait(kv.Key))
+                {
+                    problems.Add($"{ctx} weighs an unknown trait '{kv.Key}' ({string.Join("|", LodgeRules.Traits)}).");
+                }
+
+                if (kv.Value < 0.0)
+                {
+                    problems.Add($"{ctx} has a negative weight for '{kv.Key}'.");
+                }
+
+                total += Math.Max(0.0, kv.Value);
+            }
+
+            if (total <= 0.0)
+            {
+                problems.Add($"{ctx} has no positive weight — no world would ever call for it.");
+            }
+        }
+
+        foreach (var l in _lodges)
+        {
+            if (string.IsNullOrEmpty(l.Partner))
+            {
+                continue;
+            }
+
+            var partner = LodgeProfession(l.Partner);
+            if (partner is null)
+            {
+                problems.Add($"Lodge profession '{l.Key}' has an unknown partner '{l.Partner}'.");
+            }
+            else if (partner.Work == LodgeRules.WorkMine)
+            {
+                problems.Add($"Lodge profession '{l.Key}' has the partner '{l.Partner}', who mines — only the lodge's own profession has a quarry face.");
+            }
+        }
     }
 
     /// <summary>#2601: the wish templates — a unique key, a known kind, a real item (or a valid scan target), a sane count,
@@ -1779,6 +1914,7 @@ public sealed class GameContent
         }
 
         ValidateWishes(problems, RequireItem);
+        ValidateLodges(problems);
 
         // #427: authored voxel ship layouts. The server used to turn an unknown cell id silently into hull
         // (`?? iron_wall`), so a data typo would ship invisibly — surface it at load like every other reference.

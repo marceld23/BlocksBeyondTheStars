@@ -138,6 +138,10 @@ public sealed partial class GameServer
         public bool VisitingAway;               // a villager away visiting a base: not sent, not moved, no routine
         public string GuestKey = string.Empty;  // a merchant/traveller guest's memory key ("guest:<name>", never saved); "" = none
         public int FaceSeed;                    // a fixed client face seed (a neighbour guest wears its villager's face); 0 = derived
+
+        // --- #2640/#2641: the wilderness folk (GameServerLodges*.cs, GameServerNpcWork.cs) ---
+        public string LodgeKey = string.Empty;  // the lodge this resident lives at ("x:z" of its origin); "" = none
+        public NpcWorkState? WorkState;         // the shared job state machine's state (lodge residents, wanderers); lazy
     }
 
     /// <summary>What an NPC does when it reaches its walk goal (#1867).</summary>
@@ -219,6 +223,9 @@ public sealed partial class GameServer
             "sage" => new uint[] { 0x5E3391, 0x2E5E8C, 0x8A63BF, 0xB5A36B },
             "tamer" => new uint[] { 0x8A6A45, 0x6E8F3A, 0xA37B4F, 0x5C7A4A },
             "blocks" => new uint[] { 0xD97B29, 0x8A8F96, 0x6B5C4A, 0xE0B23C },
+            "gatherers" => new uint[] { 0x6E8F3A, 0xA37B4F, 0xB3A05C, 0x5C7A4A }, // #2641: the wilderness folk
+            "woodcutters" => new uint[] { 0xA8432F, 0x6B5C4A, 0x3E6B3A, 0x8A6A45 },
+            "hunters" => new uint[] { 0x5C5346, 0x6E7B4A, 0x7A5C3A, 0x4E5A3E },
             _ => new uint[] { 0x5C9950, 0xA37B4F, 0x7C9950, 0xB3A05C, 0x6B8FA3, 0x9C6B3C }, // settlers (default)
         };
 

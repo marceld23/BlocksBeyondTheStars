@@ -168,6 +168,7 @@ public sealed partial class GameServer
 
         AppendIntercityReservations(reserved); // #2125: the intercity line's stations and route
         AppendRailRuinReservations(reserved); // #2166: the abandoned monorail station
+        AppendLodgeReservations(reserved); // #2640: the wilderness huts
 
         var placed = new List<(PlacedSettlement P, List<string> Roster)>();
         var usedNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);

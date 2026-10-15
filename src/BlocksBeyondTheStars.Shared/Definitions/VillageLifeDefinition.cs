@@ -87,6 +87,9 @@ public static class VillageChatterNeeds
     /// <summary>An uncleared bandit camp lies within 400 m (bandits active on the world).</summary>
     public const string CampNear = "camp_near";
 
+    /// <summary>#2641: a lodge lies within 400 m of the village (<c>{npc}</c> = the name of its first resident).</summary>
+    public const string LodgeNear = "lodge_near";
+
     /// <summary>A listening player is an acquaintance or friend of the first speaker (<c>{player}</c> = them).</summary>
     public const string PlayerKnown = "player_known";
 
@@ -101,7 +104,7 @@ public static class VillageChatterNeeds
     /// <summary>Every need that is not a deed.</summary>
     public static readonly IReadOnlyList<string> Plain = new[]
     {
-        WeatherWet, WeatherStorm, WeatherSnow, WeatherClear, WeatherFog, Trader, CampNear, PlayerKnown, FestivalPending,
+        WeatherWet, WeatherStorm, WeatherSnow, WeatherClear, WeatherFog, Trader, CampNear, PlayerKnown, FestivalPending, LodgeNear,
     };
 
     /// <summary>Placeholders every line may use: the two speakers and the village.</summary>
@@ -141,7 +144,8 @@ public static class VillageChatterNeeds
     }
 
     /// <summary>The placeholders a topic with this need may use in its lines: <see cref="CommonTokens"/>, plus
-    /// <c>{player}</c> for a deed, a known player or a pending festival, and <c>{trader}</c> for a landed trader.</summary>
+    /// <c>{player}</c> for a deed, a known player or a pending festival, <c>{trader}</c> for a landed trader and
+    /// <c>{npc}</c> for a lodge nearby (#2641).</summary>
     public static IReadOnlyList<string> TokensFor(string? needs)
     {
         var tokens = new List<string>(CommonTokens);
@@ -154,6 +158,11 @@ public static class VillageChatterNeeds
         if (needs == Trader)
         {
             tokens.Add("{trader}");
+        }
+
+        if (needs == LodgeNear)
+        {
+            tokens.Add("{npc}");
         }
 
         return tokens;

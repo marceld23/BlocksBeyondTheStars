@@ -138,7 +138,8 @@ public sealed partial class GameServer
         bool ownResident = IsOwnBaseResident(session, npc); // #2594: "welcome home" talk vs. a visitor's talk
         foreach (var d in AllDialogs())
         {
-            bool profession = guest || NpcProfessions.ByJob(npc.Job) != null; // #2602: a guest_* job talks like a profession
+            bool profession = guest || NpcProfessions.ByJob(npc.Job) != null // #2602: a guest_* job talks like a profession
+                || IsLodgeJob(npc.Job); // #2641: so do the wilderness folk (their own lodge_<job> talk, never the vendor's)
             bool matches = !string.IsNullOrEmpty(d.Character)
                 ? string.Equals(d.Character, npc.CharacterId, StringComparison.OrdinalIgnoreCase)
                 : !string.IsNullOrEmpty(d.Job)
@@ -697,6 +698,19 @@ public sealed partial class GameServer
 
             case "news":
                 _dialogExtraText = "\n\n" + NewsDigest(session, npc);
+                break;
+
+            // #2641: the wilderness folk.
+            case LodgeGiftConsequence:
+                ApplyLodgeGift(session, npc); // a friend's present from the store crate, once per in-game day
+                break;
+
+            case LodgeTipConsequence:
+                ApplyLodgeTip(session); // the nearest unrevealed find goes on the map, else the way to the village
+                break;
+
+            case LodgePoisonConsequence:
+                ApplyLodgePoison(session); // the gatherer names this world's poisonous plants
                 break;
         }
     }

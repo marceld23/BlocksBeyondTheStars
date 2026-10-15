@@ -713,6 +713,7 @@ public sealed partial class GameServer
         string trader = LandedTraderNear(mid);
         bool campNear = BanditCampNear(mid);
         string festivalHero = FestivalPendingHero(a.Settlement);
+        string lodgeResident = a.LodgeKey.Length == 0 ? LodgeResidentNear(mid) : string.Empty; // #2641: never about themselves
 
         // Someone the first speaker knows stands by — a friend of the village.
         string knownPlayer = string.Empty;
@@ -793,6 +794,15 @@ public sealed partial class GameServer
                     }
 
                     fact = "bandits have a camp in the hills near {place}";
+                    break;
+                case VillageChatterNeeds.LodgeNear:
+                    if (lodgeResident.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    values[AiLineTokens.Npc] = lodgeResident;
+                    fact = "{npc} lives in a little hut out in the wild near {place} and trades with the village";
                     break;
                 case VillageChatterNeeds.PlayerKnown:
                     if (knownPlayer.Length == 0)
