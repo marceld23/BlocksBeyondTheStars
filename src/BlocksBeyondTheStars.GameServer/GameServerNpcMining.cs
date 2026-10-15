@@ -296,7 +296,8 @@ public sealed partial class GameServer
             Tint = tint,
             Glow = glow,
             Shape = shape,
-            DueAt = _meta.CumulativePlaytimeSeconds + (long)System.Math.Ceiling(System.Math.Max(0.0, refillSeconds)),
+            DueAt = _meta.CumulativePlaytimeSeconds
+                    + (long)System.Math.Ceiling(double.IsNaN(refillSeconds) ? NpcMineRefillSeconds : System.Math.Clamp(refillSeconds, 0.0, 86400.0)),
         });
         _repo.SaveMetadata(_meta);
     }

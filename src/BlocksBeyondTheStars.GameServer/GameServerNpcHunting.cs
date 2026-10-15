@@ -97,7 +97,8 @@ public sealed partial class GameServer
 
     /// <summary>Shoots <paramref name="target"/> (range ≤ 14, line of sight): the arrow <c>WorldFx</c> + the bow sound, the
     /// animal leaves with the sparkle like a sentry kill, its loot is banked, its kin flee from the hunter. No player gets
-    /// any credit. False when the shot is not possible (out of range, no sight, no longer eligible).</summary>
+    /// any credit. False when the shot is not possible (out of range, no sight, no longer eligible). It removes the animal
+    /// from the creature list — never call it from inside a loop over that list.</summary>
     private bool NpcShootCreature(ServerNpc npc, CombatEntity target, System.Action<string, int> bank)
     {
         if (!_creatures.Contains(target) || !NpcMayHunt(target)
