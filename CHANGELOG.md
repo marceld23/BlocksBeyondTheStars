@@ -11,6 +11,340 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.15] — 2026-10-15
+
+The village release. **The world greets you back.** Justus told us the game sometimes feels lonely: plenty of people
+live in it, but nobody ever talks to you first. Now villagers **wave and say your name**, **talk to each other** about
+the weather, a trader ship or what you did, **ask you for small favours**, **visit your base**, and **throw a festival**
+once you have helped their village. NPCs speak with **wordless voices** like VEGA's, every villager can become **a
+friend with a name**, and VEGA welcomes you back and cheers your achievements (#2589). The rest comes from a big round
+of reports by **Justus**, **Bloody Mary** and **Lyxette**: bigger bases with air, life on the gas giant, wooden tools,
+a speeder that crosses water, doors that keep the sea out, and much more.
+
+ℹ️ **Compatibility:** the network protocol stays at **version 11**, the save version at **3** and the terrain
+generation at **24**, so your saves and worlds carry over. **Village friendship moves from "everyone in the village"
+to each person:** the villager named under **People you know** keeps the friendship you had, and everyone else in that
+village starts as an Acquaintance at most. Most of the new life runs on the server, so update both the game and the
+server. The desktop game updates itself on start, and the browser version is always current.
+
+### 👋 The world greets you back (#2593 #2594 #2595 #2605)
+
+- **Villagers wave and say hello when you walk past**, once a day each. Once they know you, they use your name; a
+  Friend is really glad to see you. Somebody in the middle of a chat, asleep or on their way somewhere doesn't
+  interrupt.
+- **Your own base residents welcome you home** and tell you about their work: the gardener about the berries, the
+  guard about the walls. Before, they greeted you like a passing pilot: "We don't get many visitors out here."
+- **Traders and quartermasters greet you by name** once you are an Acquaintance or a Friend.
+- **"You're back!"** A villager who knows you and hasn't seen you for 18 hours says so. **VEGA welcomes you back aboard** after you were
+  out for a while, and after a long break she says hello when you start the game.
+- **Speech bubbles wrap** long lines instead of running off the screen.
+
+### 🗣️ Voices for everyone (#2592)
+
+- **NPCs speak with wordless voices**, like VEGA: a short, friendly babble in no real language while their speech
+  bubble shows. There are human and robot voices, each female, male or neutral, and every NPC keeps the voice that
+  fits their look, with a pitch of their own.
+- Short sounds on top: a happy hum after a trade, a call when danger is near, and now and then a quiet murmur.
+- **Never a jumble:** only one NPC speaks at a time, the one you are talking to always goes first, a crowded station
+  deck stays calm, and nobody talks over VEGA.
+
+### 🤝 Friends with names (#2598)
+
+- **Every villager remembers you on their own.** Before, the whole village shared one friendship, so talking to five
+  people counted once. Now each person moves from stranger to **Acquaintance** to **Friend**, and you can see them all
+  under **People you know**.
+- Meeting someone new, chatting with them now and then or granting their wish helps quickly: a few visits make an
+  Acquaintance, and a Friend takes a few play sessions.
+- **Friends give you little presents** when you talk, such as berries, a fruit, a lantern or a flower pot, at most every
+  30 minutes of play.
+
+### 💬 The village talks (#2599 #2600)
+
+- **Villagers chat with each other** in pairs, by day at work and in the evening at the tavern: about the rain, the
+  stars, a trader ship that just landed, bandits in the hills and **what you did** ("Did you hear? Justus chased off
+  the bandits!"). They turn to each other while they talk.
+- **The village has news about you:** the Reporter's news and now also the **Innkeeper** ("What's the news?") tell of
+  bandit camps you cleared, giants you beat, villages you helped and festivals.
+
+### ⭐ Wishes (#2601)
+
+- **Villagers ask you for small favours:** "Could you bring me 5 berries? I want to bake a pie!", "Show me a crystal!"
+  or "Could you scan an animal so I know they're okay?". A gold **!** over a head means someone has a wish for you.
+- Say yes, and the wish appears in your missions. A gold **?** shows when you have everything: talk to them again to
+  hand it over, and you get a small gift and a friendlier villager.
+- **No hurry:** wishes never run out. "Maybe later" is fine, and every player gets their own wishes.
+
+### 🏡 Visitors and traders at your base (#2602 #2603)
+
+- **Friendly visitors come by** while you are at home in daytime: a **neighbour** from the nearest village (the real
+  villager, who is missing from the village meanwhile), a **Travelling merchant** with goods, or a lost **Traveller**
+  who asks the way. They walk up to you, wave, chat and bring a small present or a wish. The world option **Friendly
+  visitors** (on by default) switches them off.
+- **Trader ships land even when nobody is flying**, now and then, on the free landing pad **nearest your base**. You
+  hear "A trader ship is coming in to land — look up!" and see it set down. Before, traders only arrived while someone
+  was out in space.
+
+### 🎉 A festival for you (#2604)
+
+- **Finish a village's four-part request chain and the village throws a festival**: when evening comes and you are
+  there, the villagers gather in a circle on the square, cheer your name, a little tune plays, and the quartermaster
+  hands you a gift. It waits for you, as long as it takes. Each village celebrates once.
+
+### 📣 VEGA keeps you posted (#2596 #2597)
+
+- **News from your base reaches you without a radio**, through VEGA: a new resident moved in, a trader ship landed
+  nearby, your guard sends bandit scouts away. With a worn radio you still get the call. The "settler moved in" call no
+  longer repeats after every restart, and scouts are announced only once.
+- **"Achievement unlocked!"** shows as a golden banner at the top of the screen, and **VEGA praises you** ("Your builds
+  keep getting better."). Several at once get one line, and achievements you already earned stay quiet when you log in.
+
+### 🤖 On the official worlds: smarter NPC lines (#2590 #2591)
+
+- On the official multiplayer worlds an AI writes the NPCs' lines in each person's own voice. **Every new line works
+  with and without it**: the game always has its own written lines, which is what you get in singleplayer and in the
+  browser.
+- **Fixed: an NPC could greet you with another player's name** on the official worlds, and repeated the same sentence
+  on every visit. Names are now filled in for each player, and NPCs vary their lines.
+
+### 🌬️ Base air grows with your build (#2539–#2543)
+
+- **One sealed room now holds up to 64,000 air blocks** (for example 40×40×40), four times as much as before. A
+  bigger hall still gets no air, so split a huge cave into rooms with walls and Energy Doors. The chain of rooms has
+  no limit.
+- **The air reaches as far as you built or dug around the Base Core**: at least 48 blocks in every direction, up to
+  192. Before, it always stopped at 48 blocks.
+- **Allies share their air.** Your bases and your allies' bases on the same world count as one: a room linked to an
+  ally's base breathes for all of you.
+- **The game tells you why a room has no air**: too large, too far from the core, no longer airtight, or not
+  connected. Everyone at the base hears it when a room loses its air, and walking into such a room tells you once.
+  Before, the game only ever said "not sealed", even for Lyxette's perfectly closed cave hall. As the world's owner,
+  type **/basewalls** in the chat to see the air at your spot and the reason.
+- The air check also costs the server far less: a base nobody changes is not recalculated at all.
+
+### 🪐 Life on the gas giant stays out of the gas (#2581 #2582 #2583 #2586)
+
+- **Beetles, worms and spiders no longer crawl in mid-air** on top of a gas giant's gas sea. Crawling critters need
+  real ground now, which also keeps them off ponds, lava lakes and oil pools.
+- **The gas giant has its own small critters:** drifting gas-bags, wisps, spore-drifters after dark, and the frostmite
+  on decks and islands. Before, butterflies and bees flew there at −120 °C.
+- **Animals no longer burn up in the gas.** Their flying height was measured from the ground buried deep under the
+  gas, so almost every animal burned within a second of appearing, again and again. Now they appear and fly above the
+  gas, and walking animals never step into it.
+- **Machines, robbers and base scouts** got the same fix. Drones now fly across open gas instead of stopping at it as
+  if it were a wall. Walking machines only appear where an island or deck is nearby, so a gas giant has fewer of them,
+  mostly drones.
+
+### 🔩 Titanium plates aboard your ship (#2585)
+
+- **Aboard a ship, crafting stations are ship modules.** A Forge built into the ship is only decoration; aboard, the
+  ship's **Refinery** module makes Titanium Plates. Before, the crafting menu sent you to a Forge even aboard, so
+  Justus could not make a single plate.
+- Aboard, the crafting menu now **names the module** a recipe needs (modules are built in the **Ship** tab), and
+  when you build a station block such as a Forge into a ship, **VEGA tells you once** which module does its job.
+- **A refused craft says what is missing**: the module, the station, or the materials with what you have and need,
+  such as "Missing: Titanium Ore (0/2)." Before, it only said "That didn't work."
+
+### 🛰️ Your ship and station in space (#2587 #2588 #2606 #2607)
+
+- **The blue field of your rear hatch sits exactly on the hatch** in the flight view. Before, leaves or blocks built
+  around the stern stretched it past the hull.
+- **The anomaly is labelled "Anomaly"**, no longer "???" like an unknown wormhole. Fly close to it or press **E** next
+  to it, and a short line says that it is not a wormhole and how to scan it, or that you have read it already.
+- **Docking at your own station puts you beside its core**, in a sealed room with air when there is one. Before, you
+  arrived in the middle of the build's outline, even in empty space between two wings, and your ship's cockpit
+  hologram and terminals floated inside the station.
+- **Doors on your station are real doors.** A door you build on a spacewalk hangs in its doorway, opens and closes
+  aboard, and mining it gives it back. Doors built as blocks before stay blocks and still count as the airlock.
+- **The inside follows the outside:** every time you board, your station's inside matches what you built or removed on
+  a spacewalk. Before, a wall you closed from outside only reached the inside after the world was reloaded, so the
+  room had no air until then.
+- **In through the door:** on a spacewalk, float up to one of your station's doors and press **E** to come in right
+  behind it.
+- You now see the **door preview** in the ship cabin and on station spacewalks, and a closed **Energy Door** shows its
+  blue field out in space.
+- A block you mine from your station on a spacewalk is now saved, and renaming a station no longer moves its inside
+  after a restart.
+
+### 🪓 Made by hand (#2536 #2544)
+
+- **New wooden tools, made by hand anywhere:** the **Wooden Pickaxe** mines what the Basic Drill mines, only slower,
+  and needs no energy. The **Wooden Club** and the **Wooden Spear** hit a little softer than the Machete; the spear
+  reaches further. Without a drill, the mining hint now names the Wooden Pickaxe.
+- **The boat can be made by hand, too**, from 10 Wood Logs and 6 Plant Fibre, no workshop needed. The crafting list
+  calls it **Wooden boat**, next to the workshop's **Boat**; both make the same boat.
+- **Ladders can be made from wood**, not only from carbon.
+
+### 📋 Crafting and Blueprints lists (#2545 #2563 #2566)
+
+- **"Researchable now"** replaces the "Enough knowledge" filter on the **Blueprints** tab. It keeps only the blueprints
+  you can research right now: prerequisites done, enough knowledge and all research materials at hand. Before, the
+  filter checked knowledge only.
+- **The Crafting list is sorted A–Z in your game language** within each group (craftable first, then missing
+  materials, and so on). The Blueprints tab and the Sandbox's **All items** page sort the same way.
+- **Long descriptions no longer run into the list of materials** below them, in Crafting, Inventory, Blueprints and
+  the Ship tab.
+
+### 🏠 Back to my ship (#2558 #2559 #2560)
+
+- **"Back to my ship" works from the pause menu after a fight.** The 10 seconds after the last hit now run out while
+  the pause menu is open. Before, the paused singleplayer world also stopped that clock, so a menu opened right after
+  a hit refused every click.
+- **During a fight the button counts down** ("Back to my ship — fight, 7 s left"), and while a robber waits for your
+  answer it says so. The menu stays open when the trip is refused and shows the reason under the buttons.
+- **Hungry with food in your pocket?** VEGA now names the food you carry and how to eat it: select it in the hotbar and
+  press the right mouse button.
+
+### ⚔️ Fights (#2533 #2562 #2564 #2565)
+
+- **The hit marker points at the real attacker** and follows it as it moves, with a small arrow when it is above or
+  below you. The attacker blinks red for a moment. Before, the marker pointed at the nearest enemy, which was not
+  always the one biting you.
+- **A creature that bites from a few blocks away now lunges and makes its sound.** Before, bites from 3 to 5 blocks
+  away drained your health in silence.
+- **You shoot and hit through leaves, plants, torches and ladders**, even standing inside a tree. Walls and glass still
+  stop your shots. Enemies still can't see you through foliage, so a bush stays cover.
+- **No more endless camera wobble.** On slow computers (below about 15 frames per second) a weapon's kick could shake
+  the view up and down without stopping. It now settles as it does at full speed.
+
+### 💧 Doors, animals and robots at the water (#2552 #2553 #2554 #2561)
+
+- **Doors keep water out.** Water and lava never flow through a doorway, whether the door is shut or open, so a door at
+  the bottom of your base holds back the sea, a river or a bog. A stream that ran through a door before dries up by
+  itself; water already standing in a room stays until you fill it in.
+- **Snow from the weather no longer lands on water.**
+- **Flying animals keep their height above a pond's surface.** Before, some got stuck in the pond floor.
+- **Land animals no longer walk along lake beds** between kelp and seagrass, and none appear there. Fish now swim among
+  the water plants.
+- **Walking Guardian robots stay out of deep water.** They wade through water one block deep, but deeper water stops
+  them, so a moat two blocks deep keeps them out (hovering scan-drones fly over it). A robot that ends up in deep water
+  walks out, one stuck in a flooded pit with no way out is removed, and robots never appear standing in water.
+
+### 🧭 VEGA and the basic training (#2537 #2548 #2549 #2550 #2551 #2570)
+
+- **VEGA's first line points to the right place:** your current goal sits right below her text. Before, she spoke of a
+  bar at the top that does not exist.
+- **The walk-away step is clearer:** walk **40 m** from the ship (the compass's "Ship … m" counts along), VEGA tells you
+  when you are far enough, then find your way back.
+- **Advanced tips wait for the training.** What crystal is good for, and that ruins or wrecks are nearby, now come after
+  part 5 of the basic training, and rock too hard for your drill after part 3. Without the training, VEGA tells them
+  right away as before.
+- **VEGA's tips come at the right moment.** A tip about what you are doing right now waits at most about 30 seconds,
+  then waits for the next fitting moment. The training's next instruction goes ahead of waiting tips, and story lines
+  are never dropped. Before, a wall-climbing tip could show up minutes later inside the ship.
+- **VEGA's goal flag stays.** When she marks the goal of a task you are stuck on, it shows as a violet flag on the map
+  (**M**) and on the compass ("Goal 85 m") until the task is done or skipped. Before, she said "Follow the pulse!" and
+  the mark was gone after 30 seconds.
+- **The story counter** in the task line ("VEGA: Find the net fragment …") counts toward VEGA's next story beat (for
+  example 2/8) and disappears after the last one. Before, it showed numbers like 8/204.
+
+### 🦎 The Creature Translator (#2530)
+
+- **The taming panel can be used again.** On desktop the cursor never came free, so you could not answer. Now click a
+  button or press **1** to **4**, **Esc** stops, and gamepad and touch work. **Tab** still opens the menu, for example
+  to craft the bait.
+- **The panel names the bait** a creature wants and how to make it.
+- **Raw food works a little:** without crafted bait, raw creature meat, berries or fruit count as half a bait, so two
+  bites make one step. Crafted bait is used first.
+- A taming attempt always ends with a message when the creature dies, wanders off or is tamed by someone else, so you
+  are never left frozen.
+
+### 🛵 Speeder and boat (#2535 #2578)
+
+- **The Hover Speeder drives over water**, across lakes and seas. Lava, oil and a gas giant's gas sea still stop it.
+  Getting off over water drops you into the water, and on a deep sea a leviathan hears it like a boat. It still
+  unfolds only on dry ground.
+- **The key hint on the speeder and boat panel is easier to read** ("F: Exit"): bigger, bold and bright, with the key
+  in colour. Warnings such as an empty energy cell show in amber. Before, it was the smallest, dimmest text there.
+
+### 📻 Radio and voice chat (#2567 #2568 #2569 #2579)
+
+- **A radio works only while you wear it** in a module slot of your suit (**Inventory → Suit**). Holding it in your
+  hand does nothing, and the game now says so. Before, every text said you only needed to have one.
+- **The Radio page under Alliances** shows the radio you wear and how far it reaches, or a warning with a
+  **Wear …** button that puts a radio from your backpack into a free slot.
+- **Push-to-talk moved to Caps Lock.** It shared **V** with **Toggle camera**, so talking flipped the view. A saved V
+  moves to Caps Lock once, and the key picker offers only keys no other control uses.
+- **Voice chat is easier to find:** the radio page and the actions list show "Hold Caps Lock: talk". Without a worn
+  radio, holding the key shows "No radio worn — nobody can hear you". Before, it showed "Talking…" while nobody heard
+  a word.
+- **A damaged voice packet no longer trips up the game.** It is skipped and voice chat goes on.
+
+### 👀 What you see (#2531 #2534 #2556 #2571)
+
+- **Sleep "Zzz", health bars, nameplates and "press to use" hints no longer show through walls.** A hill, a cave wall
+  or a house wall hides them; glass, water and leaves don't. Beacons, thermal vision, ore-scan markers and player names
+  still show through, as meant.
+- **Everything you hold is a little model:** the speeder and the boat as small vehicles, plants and lamps as they stand
+  in the world, and every other item as its inventory picture made solid. Before, many items showed nothing in your
+  hand, and the boat looked like a tool.
+- **The frame around the block you aim at is a thin, softly shimmering blue line**, easy to see at night and on snow.
+  It still turns orange while you mine. **Reduce flashes** or **Reduced effects** keep it still. Before, it was nearly
+  black and vanished in the dark.
+- **Weather symbols** (☀ ☁ ☂ ⚡ ❄) show properly. Before, they appeared as empty boxes.
+
+### 🌱 Plants and lamps need ground (#2532)
+
+- **Dig away the block under a plant, a sapling, a torch or a lantern and it falls.** A wild plant is gone; fruit, a
+  sapling, a bred plant, a torch or a lantern drops for you to pick up. A torch or lantern with a wall beside it or a
+  block above it stays. Before, they floated in the air.
+- A picked plant whose ground you dig away no longer grows back in mid-air.
+
+### 🖌️ Textures and notes (#2575 #2576 #2577)
+
+- **Submitting a texture works.** In the texture editor's **Submit to the developers** dialog, the three consent boxes
+  showed no text, so no texture could ever be sent. Now each box shows its full sentence in every language.
+- **Submit explains itself:** pressed with a box still empty, it sends nothing, says "Tick all three boxes first – then
+  you can submit." and marks the empty boxes in amber.
+- **Notes get buttons for bold and colour** (**Tab → Journal → Notes**): **B** for bold, eight colours and **Plain**.
+  Select text to style it, or click without a selection to style what you type next. Before, you had to know the
+  § codes.
+
+### 🌍 Texts
+
+- The 304 new and 26 changed texts in this release are available in all 14 languages.
+- In English, the radio page under Alliances is now simply called **Radio** (it read "Radio (Funk)").
+
+### 🛠️ For tinkerers
+
+- **Village life** is documented in the new `docs/developer/VILLAGE_LIFE.md`; greetings, chatter, deed news and the
+  festival phase in `docs/developer/NPC_ROUTINES.md` §12–15, the NPC voices and their voice budget in
+  `docs/developer/SOUND_DESIGN.md` §9 (#2589).
+- New data files: `data/village_life.json` (chatter topics, friend gifts, festival) and `data/wishes.json` (wish
+  templates), both validated at load (#2600 #2601 #2604).
+- **AI backend 0.4.0:** a new `POST /npc-lines` endpoint for every new NPC and VEGA line, with placeholder tokens,
+  strict checks and a per-world budget (`aiLinesPerMinute` / `BBS_AI_LINES_PER_MINUTE`, default 4); `/npc-line` now
+  receives `{player}` instead of the name. Older backends keep working: the game uses its written lines (#2590 #2591).
+- `NpcGreeting` carries `GreetingId`, `Kind` and `Gesture`; `NpcStandingList` the wish markers; `ServerRules` the
+  `FriendlyVisitors` option — all additive, no protocol bump (#2593 #2601 #2602).
+- 18 new ElevenLabs sound clips `npc_voice_*` (prompts in `tools/ai-assets/gen_batch.py`, listed in `NOTICES.md`).
+- New doc `docs/developer/BASE_LIFE_SUPPORT.md` explains the base air: budget, reach, partner groups, the reasons and
+  the cost guards (#2539–#2543).
+- Data: a recipe may carry its own `nameKey` / `descriptionKey` (#2544), a vehicle a `hoverOverWater` flag (#2535), and
+  the tutorial pack has `gates.holdHints` and an optional step `midKey`, checked by `tools/validate_story_pack.py`
+  (#2549 #2550).
+- The F1 `/bump` snapshot lists nearby planet machines and bandits (what they do, whether they stand in water) and the
+  player's training progress (#2555).
+- Two new Always-Included shaders: `BlocksBeyondTheStars/WorldText` for world labels (#2531) and
+  `BlocksBeyondTheStars/FxOutline` for the selection frame (#2556).
+- A 4.8 KB subset of Noto Sans Symbols 2 (OFL, listed in `NOTICES.md`) joins the font fallbacks for the weather
+  symbols (#2571).
+- New fields on existing contractless MessagePack messages: the last hit and the fight countdown on
+  `PlayerStateUpdate`, `NetCreature.SpeciesSize`, the hatch cells and `OwnerId` on `SpaceShipDesign`, and story markers
+  on `NetMarker`. No protocol bump; older peers ignore them.
+- Station doors built on a spacewalk are stored in the existing structure-edit store under the station's id, so the
+  save version stays (#2607). ADR 0017 has an addendum: doors are walls to water and lava (#2561).
+
+### 🙏 Thank you
+
+- **Justus** told us the game sometimes feels lonely, and this release is the answer. He also sent nineteen reports in two days: from the gas giant, his half-flooded base, his ship and his station.
+  His wishes brought the wooden tools, a speeder that crosses water, shots through leaves and buttons for notes. Thank
+  you, Justus 🙏
+- **Bloody Mary** started a brand-new world and wrote down what a new player trips over: the training's order, VEGA's
+  goal, the attacker you can't find, the A–Z list, the blueprint filter, an animal stuck in a pond floor, the dark
+  selection frame and a voice crash. Thank you, Bloody Mary 🙏
+- **Lyxette** walled in a huge cave hall and asked why it had no air ("Yes, the cave IS airtight."). Now big bases
+  breathe. Thank you, Lyxette 🙏
+
 ## [2026.10.14] — 2026-10-13
 
 The water release. **Water now knows where it comes from.** The sea, rivers, waterfalls and every water block you
@@ -7670,7 +8004,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.14...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.15...HEAD
+[2026.10.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.14...v2026.10.15
 [2026.10.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.13...v2026.10.14
 [2026.10.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.12...v2026.10.13
 [2026.10.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.11...v2026.10.12
