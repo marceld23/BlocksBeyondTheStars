@@ -134,6 +134,9 @@ namespace BlocksBeyondTheStars.Client
 
         // #2647: where hunters' arrows are about to land — an animal shot by a hunter waits for its arrow before it breaks apart.
         private readonly ArrowLandings _arrowLandings = new ArrowLandings();
+
+        /// <summary>#2647: a hunter's arrow is drawn only when the shot starts within this distance (metres) of the player.</summary>
+        private const float ArrowViewRange = 80f;
         private bool _defeatSubscribed;
         private static CreatureView _instance;
 
@@ -1215,7 +1218,11 @@ namespace BlocksBeyondTheStars.Client
                         Fx?.Flash(at, new Color(1f, 0.3f, 0.2f, 0.6f), 1.1f);
                         break;
                     case "arrow": // #2647: a hunter's arrow (its twang comes as a SoundFx) — no damage, no shake
-                        ShootArrow(fx, at);
+                        if (dist <= ArrowViewRange)
+                        {
+                            ShootArrow(fx, at); // a shot far off is too small to see: no arrow is built for it
+                        }
+
                         break;
                 }
 
@@ -1243,7 +1250,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2647: a hunter's arrow — the hunter (<c>SourceId</c>) turns to the animal, draws and lets go, the arrow
         /// flies its short arc from the aimed bow to <c>ToX/ToY/ToZ</c> and is gone. The animal the server took away in the
         /// same tick waits for it (<see cref="ArrowLandings"/>), then breaks into sparkles like any defeated animal. A hunter
-        /// out of view (or not holding its bow) still gets its arrow, straight from the server's spot.</summary>
+        /// out of view (or not holding its bow) still gets its arrow, straight from the server's spot. Only shots within
+        /// <see cref="ArrowViewRange"/> of the player are drawn.</summary>
         private void ShootArrow(WorldFx fx, Vector3 from)
         {
             var to = Game.ScenePos(fx.ToX, fx.ToY, fx.ToZ);
