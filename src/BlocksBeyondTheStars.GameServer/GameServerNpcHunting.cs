@@ -108,9 +108,11 @@ public sealed partial class GameServer
             return false;
         }
 
-        // The arrow flies from the bow to the animal, the short way round the east–west seam.
+        // The arrow flies from the bow (chest height) to the animal — its own coordinates, as CreatureDefeated carries them:
+        // the client holds the animal's sparkle until the arrow lands and matches the animal within 3 m of ToX/ToY/ToZ. The
+        // arrow goes out in the same call as the kill, before the removal.
         var bow = NpcBowPoint(npc);
-        var aim = Unwrapped(bow, NpcHuntAimPoint(target));
+        var aim = NpcHuntAimPoint(target);
         FaceTowards(npc, target.Position);
         var arrow = new WorldFx { Kind = "arrow", X = bow.X, Y = bow.Y, Z = bow.Z, ToX = aim.X, ToY = aim.Y, ToZ = aim.Z, SourceId = npc.Id };
         var sound = new SoundFx { SoundId = NpcBowShotSound, X = bow.X, Y = bow.Y, Z = bow.Z };
@@ -289,6 +291,21 @@ public sealed partial class GameServer
         return rolled && BioRules.RarityOfPoints(BioContexts.ForCreature(sp, _world.Planet).RarityPoints) <= NpcHuntMaxRarity;
     }
 
+    /// <summary>Whether the active world's own roster holds a species a hunter may hunt at all — many worlds roll none (only
+    /// cave, water, air or hostile life), and a hunter there would never find anything (the lodge's job choice asks).</summary>
+    private bool WorldHasHuntableSpecies()
+    {
+        foreach (var sp in _speciesRoster)
+        {
+            if (NpcHuntableSpecies(sp))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>The hunter's sightline: from the bow to the animal's body.</summary>
     private bool NpcHuntSees(ServerNpc npc, CombatEntity target)
         => HasLineOfSight(npc.Pos, target.Position, NpcBowLift, NpcHuntAimLift, skipToCell: false);
@@ -363,6 +380,9 @@ public sealed partial class GameServer
     internal bool NpcShootCreatureForTest(int npcId, string creatureId, List<ItemAmount> banked)
         => _creatures.FirstOrDefault(c => c.Id == creatureId) is { } target
            && NpcShootCreature(_npcs.First(n => n.Id == npcId), target, (item, count) => banked.Add(new ItemAmount(item, count)));
+
+    /// <summary>Test seam (#2645): <see cref="WorldHasHuntableSpecies"/>.</summary>
+    internal bool WorldHasHuntableSpeciesForTest => WorldHasHuntableSpecies();
 
     /// <summary>Test seam (#2645): <see cref="ScareCreaturesFrom"/>.</summary>
     internal void ScareCreaturesFromForTest(Vector3f pos, float radius, double seconds) => ScareCreaturesFrom(pos, radius, seconds);

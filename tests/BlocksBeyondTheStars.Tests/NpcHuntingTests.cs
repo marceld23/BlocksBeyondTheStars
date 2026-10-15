@@ -154,6 +154,15 @@ public sealed class NpcHuntingTests
     }
 
     [Fact]
+    public void AWorldWithoutACalmLandSpecies_HasNothingToHunt()
+    {
+        using var w = new NpcLifeWorld(_content, "hunt_none");
+        Assert.False(w.Server.WorldHasHuntableSpeciesForTest); // rocky: an arachnid, cave dwellers, a school, a gas sac
+        Huntable(w);
+        Assert.True(w.Server.WorldHasHuntableSpeciesForTest);
+    }
+
+    [Fact]
     public void TheHunter_NeverTakesTheAnimalAPlayerIsTaming()
     {
         using var w = new NpcLifeWorld(_content, "hunt_taming");
