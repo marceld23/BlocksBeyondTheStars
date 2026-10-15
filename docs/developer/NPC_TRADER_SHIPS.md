@@ -39,7 +39,7 @@ boarding the station spawns it as a `"traders"`-theme vendor beside the trade po
 station-vendor barter works against it (lingers 420–720 s, `TraderDwellMin`/`TraderDwellMax`; the expiry is
 checked when the station's NPCs spawn).
 
-**Pilot → merchant (planet landing).** A trader heading inward **lands on a planet/moon if a pad is free**:
+**Pilot → merchant (planet landing).** A trader heading inward **lands on a planet/moon if a dry pad is free**:
 it **reserves the pad** (so players are never assigned it), plays `ShipTransitFx` descent, parks its real
 voxel ship on the pad via `LandedShipState`, and stands its pilot in front as a `"traders"` merchant
 (`MarketAvailable`/`VendorThemeAt` extended to the landed pilot, 4-block reach). A `_landedTraders` registry
@@ -88,8 +88,17 @@ stays on the ground never saw a trader arrive. `TickPlanetTraders` (Guard-regist
 The shared pieces were split out of the flight path without changing it: `CoinTrader(rng)` (ship type, pilot name,
 hull tint — the same draw order as before) and `RegisterLandedTrader` (look, pad, stay); a trader landing from the flight
 scene still sets down at once (`TouchdownAt` = now). The pilot does not walk to the base — the travelling-merchant
-visitor (#2602, [VILLAGE_LIFE.md](VILLAGE_LIFE.md)) covers that. A flight-scene landing still takes the lowest free pad
-index (`FirstFreePadIndex`), so its hail's "near your base" is only true for planet-side arrivals.
+visitor (#2602, [VILLAGE_LIFE.md](VILLAGE_LIFE.md)) covers that. A flight-scene landing (`TryLandTraderOnBody`) takes
+its pad by the same rule (`NearestFreeDryPad`, K12): nearest a present owner's base core, else — nobody watched it come
+in, its only "near" claim is the hail — nearest the base core of any joined owner (the hail reaches them up in space
+too), else nearest a player on the body, else the lowest free dry pad; no free dry pad → it does not land. The
+active world is irrelevant there (it runs while a space instance ticks): presence is `PlayersOnBodySurface(bodyId)`,
+distances wrap at that body's own circumference.
+
+**An approach is not a landing.** Until `TouchdownAt` the record only reserves the pad: `TouchedDownTraderHere()` is the
+one read for "a trader stands here" — the villagers' `trader` chatter topic (`LandedTraderNear`) and VEGA's
+`trader_near` tip (which also needs the pilot to stand, `PilotNpcId != 0`) ignore a trader still on its approach.
+(The base-guest roll keeps reading the raw registry: a trader on its way in already makes a merchant guest pointless.)
 
 **Warp FX for bystanders.** Hyperspace warp-in/out had no third-person VFX (`HyperspaceWarp` is a local
 full-screen overlay only). A new `SpaceWarpFx` message (tag 150) drives a localized cyan-white burst in the
@@ -118,7 +127,8 @@ flight view so other players **see** arrivals and departures.
   `WorldMap.PoiLook("trader_ship")` and the compass blip `HudUi.TryGetLandedTrader`.
 - Tests: `SpaceTraderTests`, `LandedTraderStayTests` (stay ranges, hold + grace, map marker + re-broadcast),
   `PlanetTraderArrivalTests` (#2603: gaps per traffic, the nearest free dry pad, the reserved approach, touchdown FX +
-  toast + hail, one per body, no players / rule off, the flight scene still lands at once, the AI hail).
+  toast + hail, one per body, no players / rule off, the flight scene still lands at once — on the pad nearest the base,
+  an approach is no chatter topic and no VEGA tip, the AI hail).
 
 ## Known remaining gaps / deferred
 

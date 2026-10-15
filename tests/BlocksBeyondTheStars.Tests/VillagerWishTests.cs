@@ -19,7 +19,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// <summary>
 /// #2601 personal wishes on a small arena village (<see cref="NpcLifeWorld"/> + a registered settlement and spawned
 /// villagers — fast, every step under the test's control): the "!" markers (at most one per lane, only on villagers
-/// who may wish), the offer in conversation with the exact fact line, accepting (log yes, board no, tab no), the
+/// who may wish), the offer in conversation with the exact fact line, accepting (log yes, board no, tab no; with
+/// everything already in the bag the answer says so and the next talk hands it over), the
 /// "no hurry" reminder, the hand-over by talking (used up, present, +5, the next wish moves on), "show me" keeps the
 /// items, "check on the animals" counts scans, "maybe later", a full bag, the tab turn-in next to the villager only,
 /// the 1 Hz "?" check, two players, feasibility per world and the tier of a first wish. The real settlements (seed loop)
@@ -186,6 +187,32 @@ public sealed class VillagerWishTests
         w.Server.AcceptMission(pid, other.MissionId);
         Assert.Equal("@srv.wish.talk", Last<MissionResult>(w, w.Player)!.Reason);
         Assert.DoesNotContain(other.MissionId, w.Server.HeldWishesForTest(pid));
+    }
+
+    [Fact]
+    public void AcceptingWithEverythingAlreadyInTheBag_TheAnswerSaysSo_TheQuestionMarkShows_AndTheNextTalkHandsItOver()
+    {
+        // A new player starts with berries: the yes must not end in silence.
+        using var w = World("wish_ready_on_accept");
+        Settlers(w);
+        w.Server.SetWishTemplateForTest("berries");
+        var pid = w.Player.State.PlayerId;
+        Give(w, w.Player, "berries", Offer(w, w.Player).Count);
+        var offer = Accept(w, w.Player);
+
+        var answer = Last<NpcDialogState>(w, w.Player)!;
+        Assert.True(answer.End);
+        Assert.Equal("Oh, you already have everything with you! Just talk to me again.", answer.Text);
+        Assert.Contains(offer.GiverId, Last<NpcStandingList>(w, w.Player)!.WishReadyNpcIds); // the "?" at once
+
+        // The answer said it — no "bring it over!" toast on top.
+        w.Server.TickWishesForTest(pid);
+        Assert.DoesNotContain(Sent(w, w.Player).OfType<ServerMessage>(), m => m.Text.StartsWith("@srv.wish.ready", StringComparison.Ordinal));
+
+        w.Server.TalkToNpcForTest(pid, offer.GiverId);
+        Assert.Empty(w.Server.HeldWishesForTest(pid));
+        Assert.Equal(0, w.Player.State.Inventory.CountOf("berries"));
+        Assert.StartsWith("Berries! They smell wonderful", Last<NpcDialogState>(w, w.Player)!.Text, StringComparison.Ordinal);
     }
 
     [Fact]

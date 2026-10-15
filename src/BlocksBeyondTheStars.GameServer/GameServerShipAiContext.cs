@@ -771,7 +771,8 @@ public sealed partial class GameServer
             }
         }
 
-        if (_landedTraders.TryGetValue(_world.LocationId, out var lt) && WrapDistSq(p.Position, lt.PilotPos) <= 60.0 * 60.0)
+        // Only a trader whose pilot stands here: one on its approach (#2603) or not yet stood down has no position.
+        if (TouchedDownTraderHere() is { PilotNpcId: not 0 } lt && WrapDistSq(p.Position, lt.PilotPos) <= 60.0 * 60.0)
         {
             add("trader_near", "", "trader:" + lt.Id);
         }

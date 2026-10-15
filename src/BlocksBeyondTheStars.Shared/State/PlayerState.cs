@@ -170,9 +170,10 @@ public sealed class PlayerState
     /// <c>ServerConfig.FleetAdminPlayers</c>.</para></summary>
     public PlayerRole Role { get; set; } = PlayerRole.Player;
 
-    /// <summary>ISO-8601 UTC timestamp of this player's last join or save, so the admin player list can show
-    /// "last seen" for players who are not online (issue #488). Empty for records written before this existed.
-    /// Persisted in the player blob, so no schema change was needed.</summary>
+    /// <summary>ISO-8601 UTC timestamp of when this player was last online — stamped on join, on disconnect and on every
+    /// world save while they play — so the admin player list can show "last seen" for players who are not online
+    /// (issue #488), and the next join can tell how long they were away (the welcome-back, #2595). Empty for records
+    /// written before this existed. Persisted in the player blob, so no schema change was needed.</summary>
     public string LastSeenUtc { get; set; } = string.Empty;
 
     /// <summary>Name verification: SHA-256 hex of the per-install secret the name's first join presented.

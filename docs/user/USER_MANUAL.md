@@ -2184,7 +2184,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   **"Maybe later."** is fine too — they just chat normally until your next visit. There is **no time limit**. Once
   you have everything, the "!" turns into a gold **"?"** and you hear *"You have everything Tomas wished for — bring it
   over!"* — walk up and press **E**: they take it (or just look at it), say thank you and give you a little
-  **present**, and they like you a lot more. With only part of it they tell you how far you are (*"You have 3 of 5
+  **present**, and they like you a lot more. If you already carry everything when you say yes, they tell you right
+  away (*"Oh, you already have everything with you! Just talk to me again."*) and the "?" shows at once — press **E**
+  once more to hand it over. With only part of it they tell you how far you are (*"You have 3 of 5
   Berries so far — no hurry!"*). With a full bag, make some room first. A small hamlet has **one** wish at a time,
   bigger villages **two**; after you fulfil one, the next wish comes from someone else. Wishes are asked **in
   person** — the Missions tab never offers one, and its hand-in button only works next to the villager. Nobody asks

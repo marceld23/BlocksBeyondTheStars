@@ -318,6 +318,27 @@ public sealed class BaseGuestTests
     }
 
     [Fact]
+    public void ANeighboursWish_AlreadyInTheBag_GetsTheBringItOverToast_ItIsHandedOverInTheVillage()
+    {
+        using var w = World("guest_wish_ready");
+        w.Server.SetWishTemplateForTest("show_crystal");
+        int villager = VillageWithVillager(w);
+        int guest = Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "neighbour"));
+        StandBeside(w, guest);
+        w.Server.TickBaseGuestsForTest();
+        Assert.Equal(0, w.Player.State.Inventory.Add("crystal", 1, w.Content.GetItem("crystal")!.MaxStack));
+
+        string pid = w.Player.State.PlayerId;
+        w.Server.TalkToNpcForTest(pid, guest);
+        w.Server.ChooseDialogForTest(pid, 1); // "Can I help you with anything?"
+        Assert.Single(w.Server.HeldWishesForTest(pid));
+        Assert.StartsWith(En("dlg.guest_neighbour.r_wish"), LastDialog(w).Text); // the neighbour's own answer stays
+
+        w.Server.TickWishesForTest(pid);
+        Assert.Contains("@srv.wish.ready:" + Npc(w, villager).Name, w.MessagesToPlayer());
+    }
+
+    [Fact]
     public void AVillagerCelebratingAtTheFestival_IsNotBorrowedForAVisit()
     {
         using var w = World("guest_festival");

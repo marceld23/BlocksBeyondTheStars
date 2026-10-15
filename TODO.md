@@ -24,6 +24,52 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏘️ The world greets back + the village lives ("the game feels lonely") — epic #2589, #2590–#2605, branch feat/village-life — ✅ done 2026-10-15 (⚠ playtest open)
+
+Justus said the game sometimes feels lonely: many inhabitants, but nobody reaches out. Package label
+`package: village life 2026-10`; one PR. Hard rule from Marcel: **every new line works without AI** (authored, localized —
+the default in singleplayer and the browser) **and with AI** on hosted worlds (personalised through one shared path).
+
+- **AI (#2590, #2591):** the `/npc-line` greeting cache leaked one player's name to the next player (key without player,
+  request with `PlayerName`) and repeated one sentence forever — now `{player}` token filled per receiver, up to 3
+  variants, bounded cache, kid-friendly prompt, no vendor template for other roles; VEGA banter had the same leak (fixed).
+  New shared `POST /npc-lines` (`GameServerAiLines.cs`): facts as placeholder tokens, strict validation, cache keys
+  without players, per-world budget `AiLinesPerMinute` (`BBS_AI_LINES_PER_MINUTE`, default 4), backend 0.4.0.
+- **NPC voices (#2592):** a wordless speech voice like VEGA's — 18 ElevenLabs clips `npc_voice_{human,robot}_{f,m,n}_{1..3}`
+  (Marcel approved all on the review page), voice chosen from the NPC's look (a bearded NPC never sounds female), reaction
+  sounds (`npc_human_*` / robots `npc_alien_*`) on top. **No sound jumble** (Marcel's rule): one central `NpcVoiceGate` —
+  one NPC speaks at a time with priorities, ≤ 12 m, crowd damping (> 6 NPCs within 15 m), never over VEGA; tested with
+  30 NPCs on a station deck for 60 s.
+- **Greetings (#2593, #2594):** NPCs wave and greet in passing (once per NPC per in-game day, 4 s / 8 s-in-a-crowd gap),
+  by friendship stage and with the player's name; own base residents get their own dialogs instead of "we don't get many
+  visitors"; `NpcGreeting` carries `GreetingId`/`Kind`/`Gesture` (additive, protocol stays 11); wave/nod/cheer + head
+  look-at on the avatar; speech bubbles wrap (#2605).
+- **Welcome back (#2595):** NPCs (after 18 h) and VEGA (back aboard after ≥ 10 min, login after ≥ 18 h);
+  `NpcRelationship.LastSeenUtc`/`LastGiftAt` (in `CloneNpcMemory`); `PlayerState.LastSeenUtc` now means "last online".
+- **Base news without a radio (#2596)** via VEGA (`RelayBaseNewsViaVega`); the settler call no longer repeats after a
+  reload; the guard's ☎ needs a radio, otherwise VEGA; scouts no longer announced twice.
+- **Achievement banner + VEGA praise (#2597).**
+- **Friends with names (#2598):** friendship per villager (`PersonKey` = bed/post cell in the layout) instead of per role,
+  old shared value as a floor (≤ 39), migration by the roster name, friend gifts every 30 min of playtime, names pinned by
+  a test.
+- **News (#2599):** deed log (`WorldMetadata.Deeds`), reporter digest + the innkeeper tells the news.
+- **Villagers talk to each other (#2600):** 26 topics in `data/village_life.json`, real facts (weather, traders, camps,
+  the player's deeds — the kid hears their own name), stations = one place, crowd cooldown.
+- **Wishes (#2601):** personal per-player wishes (`data/wishes.json`, bring/show/scan; Collect objective used for the
+  first time) with a gold "!"/"?" over the head, turned in by talking.
+- **Visitors (#2602):** neighbour (the real villager), travelling merchant, lost traveller; world option "Friendly
+  visitors" (default on). **Traders land without space flight (#2603)** on the pad nearest the player's base.
+- **Festival (#2604):** after the settlement chain, at late afternoon with the hero present, once per village.
+- Docs: new `docs/developer/VILLAGE_LIFE.md`; `NPC_ROUTINES.md` §12–15, `AI_MISSION_BACKEND.md` (/npc-lines),
+  `SOUND_DESIGN.md` §9, `NPC_TRADER_SHIPS.md`, `USER_MANUAL.md`, `SELF_HOSTING.md` (env vars).
+- ⚠ Open: playtest (Marcel + Justus); side findings not fixed here: E-talk compares canonical NPC coordinates with
+  scene coordinates (`PlayerController` ~2396, can fail near the world's wrap seam); NPC dialog sessions are never
+  cleared on walk-away (worked around in the passing greeting); the AI greeting cache is per standing while
+  `RecentEvents` describes the requesting player (mild, no names); WorldHost passes only `BBS_AI_LEVEL` +
+  `BBS_AI_BACKEND_URL` to worlds (fleet runs the default budget).
+
+---
+
 ### 📬 Player reports 2026-10-14 night (Screelit = Justus, v2026.10.14): critters in mid-air on the gas giant, no titanium plates aboard, hatch panel, anomaly, doors in space, station arrival — epic #2584, branch fix/screelit-gas-giant-fauna — ✅ done 2026-10-15 (⚠ playtest open)
 
 Package label `package: screelit reports 2026-10-14`. Eight reports: „Tiere auf Gassriesen?!", „Kleine Txtur Tiere

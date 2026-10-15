@@ -9,6 +9,7 @@ using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Missions;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -20,8 +21,9 @@ namespace BlocksBeyondTheStars.Tests;
 /// system's traffic (a present base owner draws them sooner; a system without traffic only sees one for a base), the free
 /// dry pad NEAREST the player's base (so the radio's "parked near your base" is true), a 20 s approach with the pad
 /// reserved and nothing standing on it yet, then the real descent FX, the hull, the pilot, the toast and the hail. One
-/// trader per body; nothing for a body without players or with the rule off; the flight scene's landing is unchanged
-/// (it sets down at once). With AI on, the hail is asked for at the decision and used at the touchdown.
+/// trader per body; nothing for a body without players or with the rule off; the flight scene's landing still sets down
+/// at once, but on the same pad rule (K12). A trader on its approach is no village talk and no VEGA "trader near" tip yet.
+/// With AI on, the hail is asked for at the decision and used at the touchdown.
 /// </summary>
 public sealed class PlanetTraderArrivalTests
 {
@@ -181,6 +183,69 @@ public sealed class PlanetTraderArrivalTests
         Assert.True(w.Server.LandedTraderTouchdownInForTest(body)!.Value <= 0.0);
         Assert.True(w.Server.MaterializeLandedTraderForTest());
         Assert.NotNull(w.Server.LandedTraderPilotPosForTest(body));
+    }
+
+    [Fact]
+    public void TheFlightScenesLanding_TakesTheFreeDryPadNearestTheBase_NotTheLowestFreeOne()
+    {
+        // K12: the hail says "we're parked near your base" — the flight scene's trader must take the same pad as a
+        // planet-side arrival, even with the owner up in space (nobody on the surface: the hailed owner's base anchors it).
+        using var w = World("ptrader_space_pad");
+        string body = w.Server.ActiveLocationId;
+        w.Player.AssignedPadIndex = 0; // the owner's ship holds pad 0 (the one beside the arena), so the nearest is far off
+        int mine = w.Server.AssignedPadForTest(w.Player.State.PlayerId);
+        int expected = ExpectedPad(w);
+        Assert.True(expected >= 0, "the arena has no free dry pad");
+        int lowestFree = Enumerable.Range(0, w.Server.LandingPadCount).First(i => i != mine);
+        Assert.NotEqual(lowestFree, expected); // otherwise the old lowest-free-pad rule would pass too
+
+        w.Player.State.AboardShip = true;
+        w.Server.EnterSpace(w.Player.State.PlayerId);
+        Assert.True(w.Server.InSpace(w.Player.State.PlayerId));
+        Assert.Equal(mine, w.Server.AssignedPadForTest(w.Player.State.PlayerId)); // still reserved while in space
+
+        Assert.True(w.Server.LandTraderFromFlightForTest(w.Player.State.PlayerId, body));
+        Assert.Equal(expected, w.Server.LandedTraderPadForTest(body));
+    }
+
+    [Fact]
+    public void ATraderOnItsApproach_IsNoVillageTalkYet_OnlyOnceItHasSetDown()
+    {
+        using var w = World("ptrader_chatter");
+        w.Server.RegisterTestSettlementForTest("Testville",
+            new Vector3i(NpcLifeWorld.Cx + 4, w.PadY, NpcLifeWorld.Cz - 10), new Vector3i(NpcLifeWorld.Cx + 20, w.PadY + 10, NpcLifeWorld.Cz + 10));
+        int a = w.Server.SpawnVillagerForTest("Testville", new Vector3f(NpcLifeWorld.Cx + 8.5f, w.Feet, NpcLifeWorld.Cz + 0.5f));
+        int b = w.Server.SpawnVillagerForTest("Testville", new Vector3f(NpcLifeWorld.Cx + 10.5f, w.Feet, NpcLifeWorld.Cz + 0.5f));
+        string me = w.Player.State.PlayerId;
+
+        Assert.True(w.Server.ForcePlanetTraderForTest());
+        Assert.DoesNotContain(w.Server.ChatterTopicsForTest(a, b, me), t => t.Topic == "trader"); // still on its 20 s approach
+
+        w.Server.AdvanceUptimeForTest(21.0);
+        Assert.Contains(w.Server.ChatterTopicsForTest(a, b, me), t => t.Topic == "trader");
+    }
+
+    [Fact]
+    public void ATraderOnItsApproach_IsNoTraderNearTipForVega_UntilItsPilotStandsThere()
+    {
+        using var w = World("ptrader_vega_tip");
+        string me = w.Player.State.PlayerId;
+        string body = w.Server.ActiveLocationId;
+        var home = w.Player.State.Position;
+
+        Assert.True(w.Server.ForcePlanetTraderForTest());
+
+        // On the approach nobody stands anywhere yet — the record's pilot position is still the default origin.
+        w.Player.State.Position = new Vector3f(0.5f, 0f, 0.5f);
+        Assert.DoesNotContain("trader_near", w.Server.VegaTipCandidatesForTest(me).Candidates);
+        w.Player.State.Position = home;
+
+        w.Server.AdvanceUptimeForTest(21.0);
+        w.Server.TickForTest(0.1);
+        var pilot = w.Server.LandedTraderPilotPosForTest(body);
+        Assert.NotNull(pilot);
+        w.Player.State.Position = pilot!.Value;
+        Assert.Contains("trader_near", w.Server.VegaTipCandidatesForTest(me).Candidates);
     }
 
     /// <summary>A scripted backend: answers the trader's hail, records every request.</summary>

@@ -80,6 +80,7 @@ public sealed class WishContentTests
             ("dlg.wish.c_yes", Array.Empty<string>()),
             ("dlg.wish.c_later", Array.Empty<string>()),
             ("dlg.wish.r_yes", Array.Empty<string>()),
+            ("dlg.wish.r_yes_ready", Array.Empty<string>()),
             ("dlg.wish.r_later", Array.Empty<string>()),
             ("dlg.wish.fact", new[] { "{count}", "{item}" }),
             ("dlg.wish.fact_show", new[] { "{count}", "{item}" }),

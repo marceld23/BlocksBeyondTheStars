@@ -572,13 +572,16 @@ public sealed partial class GameServer
 
         if (what == "accept")
         {
-            GrantWish(session, npc, npcKey);
+            GrantWish(session, npc, npcKey, answerWhenReady: true);
         }
     }
 
     /// <summary>Puts the villager's wish into the player's mission log — persisted (definition in the mission store,
-    /// progress with the player), the giver remembered in the lane, the acceptance recorded as an interaction.</summary>
-    private bool GrantWish(PlayerSession session, ServerNpc npc, string npcKey)
+    /// progress with the player), the giver remembered in the lane, the acceptance recorded as an interaction.
+    /// <paramref name="answerWhenReady"/>: accepted in the village with everything already in the bag (a new player starts
+    /// with berries), the villager's answer says so and the next talk hands it over. Otherwise (a neighbour's wish told at
+    /// the base) the 1 Hz check's "bring it over!" toast tells it — that wish is handed over in the village.</summary>
+    private bool GrantWish(PlayerSession session, ServerNpc npc, string npcKey, bool answerWhenReady = false)
     {
         var p = session.State;
         var plans = WishPlansAround(session, npc, playerThere: false, out var settlement);
@@ -609,10 +612,12 @@ public sealed partial class GameServer
         ledger.Lanes[plan.Lane].N = plan.N;
         ledger.Lanes[plan.Lane].Giver = npc.PersonKey;
 
-        // Accepted with everything already in the bag: no "you have everything" toast right after the yes.
-        if (WishReady(session, def, progress))
+        // Accepted with everything already in the bag: the answer says "you already have it all" (the "?" follows with the
+        // markers the dialogue sends), so the 1 Hz check's toast stays quiet right after the yes.
+        if (answerWhenReady && WishReady(session, def, progress))
         {
             session.WishReady.Add(def.Id);
+            _dialogResponseOverride = Localize(session.Locale, "dlg.wish.r_yes_ready");
         }
 
         RecordNpcInteraction(p, npcKey, npc.Name, npc.Role, NpcInteractionKind.MissionAccepted, settlement.Name);

@@ -644,9 +644,11 @@ public sealed partial class GameServer
         return (prefer ?? candidates[_traderRng.Next(candidates.Count)]).Id;
     }
 
-    /// <summary>The trader reached the inner system: try to land on its chosen body — but ONLY if a landing pad
-    /// is free there (player- or NPC-occupied pads don't count). On success it reserves the pad and registers a
-    /// landed trader (its parked ship + pilot materialize on that surface); on failure the caller departs.</summary>
+    /// <summary>The trader reached the inner system: try to land on its chosen body — but ONLY if a dry landing pad
+    /// is free there (player- or NPC-occupied pads don't count). It takes the same pad a planet-side arrival takes
+    /// (<see cref="NearestFreeDryPad"/>, K12) — the one nearest a base owner's core — so the hail's "parked near your
+    /// base" holds. On success it reserves the pad and registers a landed trader (its parked ship + pilot materialize on
+    /// that surface); on failure the caller departs.</summary>
     private bool TryLandTraderOnBody(SpaceInstance instance, NpcTrader t)
     {
         var body = _galaxy.FindBody(t.DestBodyId);
@@ -661,11 +663,10 @@ public sealed partial class GameServer
             return false;
         }
 
-        int total = PadCountFor(t.DestBodyId, planetKey, body.Kind);
-        int pad = FirstFreePadIndex(t.DestBodyId, total, string.Empty); // respects player + NPC pad use
+        int pad = NearestFreeDryPad(t.DestBodyId, PlayersOnBodySurface(t.DestBodyId), hailedOwnersFirst: true); // respects player + NPC pad use
         if (pad < 0)
         {
-            return false; // the body is FULL — no pad available, so the trader can't set down
+            return false; // no dry pad is free — the trader can't set down
         }
 
         var lt = RegisterLandedTrader(t, t.DestBodyId, pad, _uptime, _traderRng);
@@ -710,6 +711,11 @@ public sealed partial class GameServer
     /// <summary>The name shown for a trader-reserved pad in the landing chooser (or null if not reserved).</summary>
     private string? TraderPadOccupant(string locationId, int padIndex)
         => _landedTraders.TryGetValue(locationId, out var lt) && lt.PadIndex == padIndex ? lt.Name : null;
+
+    /// <summary>The trader that has really set down on the active world, or null. A planet-side arrival still on its
+    /// approach (#2603) has only reserved its pad — villagers' talk and VEGA's tips must not count it as landed yet.</summary>
+    private NpcLandedTrader? TouchedDownTraderHere()
+        => _world is not null && _landedTraders.TryGetValue(_world.LocationId, out var lt) && lt.TouchdownAt <= _uptime ? lt : null;
 
     /// <summary>Per-world tick (active = a body world): materializes a freshly-landed trader's parked ship +
     /// pilot, and lifts it off again once its dwell has expired AND nobody has been near it for the grace
@@ -1185,6 +1191,22 @@ public sealed partial class GameServer
         return list;
     }
 
+    /// <summary>The joined players standing on <paramref name="bodyId"/>'s surface, whichever world is active (the flight
+    /// scene's landing decision runs while a space instance ticks): not in space, not observing.</summary>
+    private List<PlayerSession> PlayersOnBodySurface(string bodyId)
+    {
+        var list = new List<PlayerSession>();
+        foreach (var s in _sessions.Values)
+        {
+            if (s.Joined && !s.Spectating && s.CurrentLocationId == bodyId && !InSpace(s.State.PlayerId))
+            {
+                list.Add(s);
+            }
+        }
+
+        return list;
+    }
+
     /// <summary>The seeded roll of a body's <paramref name="count"/>-th planet-side arrival.</summary>
     private System.Random PlanetTraderRng(string bodyId, int count)
         => new(unchecked((int)WorldGenerator.StableHash(
@@ -1214,18 +1236,20 @@ public sealed partial class GameServer
         return true;
     }
 
-    /// <summary>The free pad (#2603, K12) the arriving trader takes: not held by a player or another trader, not under
-    /// water, not in lava — the one nearest a present player's base core on this body, else nearest a player here, so
-    /// "we're parked near your base" is true. -1 when none is free.</summary>
-    private int NearestFreeDryPad(string bodyId, List<PlayerSession> present)
+    /// <summary>The free pad (#2603, K12) an arriving trader takes — planet-side and from the flight scene alike: not held
+    /// by a player or another trader, not under water, not in lava — the one nearest a present player's base core on this
+    /// body, else nearest a player here, so "we're parked near your base" is true. With nobody to be near, the lowest free
+    /// dry pad. -1 when none is free.</summary>
+    /// <param name="hailedOwnersFirst">The flight scene's landing: nobody here watched it come in, its only "near" claim is
+    /// the base owners' hail — so, without a present owner, the base of any joined owner (the hail reaches them wherever
+    /// they are, up in space too) anchors the pad before the players standing here.</param>
+    private int NearestFreeDryPad(string bodyId, List<PlayerSession> present, bool hailedOwnersFirst = false)
     {
         var anchors = new List<Vector3f>();
-        foreach (var b in _bases)
+        AddBaseAnchors(anchors, bodyId, ownerId => present.Any(s => s.State.PlayerId == ownerId));
+        if (anchors.Count == 0 && hailedOwnersFirst)
         {
-            if (b.Planet == bodyId && present.Any(s => s.State.PlayerId == b.OwnerId))
-            {
-                anchors.Add(new Vector3f(b.Cell.X + 0.5f, b.Cell.Y, b.Cell.Z + 0.5f));
-            }
+            AddBaseAnchors(anchors, bodyId, ownerId => FindSessionByPlayerId(ownerId) is { Joined: true, Spectating: false });
         }
 
         if (anchors.Count == 0)
@@ -1233,6 +1257,7 @@ public sealed partial class GameServer
             anchors.AddRange(present.Select(s => s.State.Position));
         }
 
+        int circumference = BodyCircumference(bodyId);
         int best = -1;
         double bestSq = double.MaxValue;
         foreach (var pad in PadsForBody(bodyId))
@@ -1242,10 +1267,16 @@ public sealed partial class GameServer
                 continue;
             }
 
+            if (anchors.Count == 0)
+            {
+                best = best < 0 ? pad.Index : System.Math.Min(best, pad.Index);
+                continue;
+            }
+
             var centre = new Vector3f(pad.CenterX + 0.5f, pad.CenterY, pad.CenterZ + 0.5f);
             foreach (var a in anchors)
             {
-                double d = WrapDistSq(a, centre);
+                double d = WorldConstants.WrapDistanceSquared(a, centre, circumference);
                 if (d < bestSq)
                 {
                     bestSq = d;
@@ -1255,6 +1286,31 @@ public sealed partial class GameServer
         }
 
         return best;
+    }
+
+    /// <summary>Adds the core cell of every base on <paramref name="bodyId"/> whose owner passes <paramref name="ownerMatches"/>.</summary>
+    private void AddBaseAnchors(List<Vector3f> anchors, string bodyId, System.Func<string, bool> ownerMatches)
+    {
+        foreach (var b in _bases)
+        {
+            if (b.Planet == bodyId && ownerMatches(b.OwnerId))
+            {
+                anchors.Add(new Vector3f(b.Cell.X + 0.5f, b.Cell.Y, b.Cell.Z + 0.5f));
+            }
+        }
+    }
+
+    /// <summary>A body's circumference: the active world's own, or the one its world would be generated with.</summary>
+    private int BodyCircumference(string bodyId)
+    {
+        if (_world is not null && string.Equals(_world.LocationId, bodyId, System.StringComparison.Ordinal))
+        {
+            return _world.Circumference;
+        }
+
+        return _galaxy?.FindBody(bodyId) is { } body
+            ? WorldConstants.CircumferenceFor(body.Id, WorldConstants.SizeClassFor(body.Kind, body.PlanetType ?? string.Empty), body.SizeBias)
+            : 0;
     }
 
     /// <summary>The touchdown of a planet-side arrival (#2603): a toast for everyone on the body, and the base owners'

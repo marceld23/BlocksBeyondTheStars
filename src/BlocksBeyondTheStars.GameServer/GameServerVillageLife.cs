@@ -677,9 +677,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>The name of a trader parked on this world within <see cref="DeedSettlementRange"/> (any parked trader while
-    /// its pilot is not on the ground yet), or "".</summary>
+    /// its pilot is not on the ground yet), or "". A trader still on its approach (#2603) has not landed — it is no talk yet.</summary>
     private string LandedTraderNear(Vector3f at)
-        => _landedTraders.TryGetValue(_world.LocationId, out var t)
+        => TouchedDownTraderHere() is { } t
            && (t.PilotNpcId == 0 || WrapDistSq(t.PilotPos, at) <= (double)DeedSettlementRange * DeedSettlementRange)
             ? t.Name
             : string.Empty;

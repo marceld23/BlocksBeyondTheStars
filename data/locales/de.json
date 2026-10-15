@@ -1388,6 +1388,7 @@
   "dlg.wish.c_yes": "Klar, ich helfe dir!",
   "dlg.wish.c_later": "Vielleicht später.",
   "dlg.wish.r_yes": "Danke! Ich warte hier auf dich.",
+  "dlg.wish.r_yes_ready": "Oh, du hast ja schon alles dabei! Sprich mich einfach noch mal an.",
   "dlg.wish.r_later": "Keine Eile — ich bin ja hier.",
   "dlg.wish.fact": "Du brauchst: {count}× {item}",
   "dlg.wish.fact_show": "Zeig mir: {count}× {item} — du darfst es behalten!",

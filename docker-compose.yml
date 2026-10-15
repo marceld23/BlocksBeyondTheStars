@@ -40,7 +40,8 @@ services:
       # --- Optional AI text backend (NPC greetings / mission flavour / VEGA banter) ---
       # It is baked into the image but only STARTS when an ai-backend/.env is mounted (see volumes below)
       # or BBTS_AI_BASE_URL is set here. Set BBS_AI_LEVEL so the game server actually uses it:
-      # BBS_AI_LEVEL: "Suggest"            # Off (default) | Suggest (AI missions as drafts) | Auto (published)
+      # BBS_AI_LEVEL: "Suggest"            # Off (default) | TextOnly (NPC/VEGA lines + board flavour only) | Suggest (+ AI missions as drafts) | Auto (+ published)
+      # BBS_AI_LINES_PER_MINUTE: "4"       # AI-reworded NPC/VEGA lines per minute (default 4, 0 = none; authored lines otherwise)
     volumes:
       - saves:/app/saves            # SQLite world + backups + logs + /bump bug reports (<world>/bumps)
       - config:/app/config          # server.json (created on first run)

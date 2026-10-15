@@ -615,9 +615,10 @@ configure it** — otherwise no Python process runs. It is enabled when either:
 
 Set `BBS_AI_BACKEND=1`/`0` to force it on/off explicitly. When it starts it listens on the in-container
 `127.0.0.1:8077`, which is the game server's default `aiBackendUrl` — so you only need to turn the
-server's usage on with **`BBS_AI_LEVEL=Suggest`** (AI missions as drafts) or **`Auto`** (published);
-any non-`Off` value also enables NPC greetings / board flavour / VEGA banter (see §8). With no `.env`
-and `BBS_AI_LEVEL=Off` (the defaults), the game is fully AI-free and no backend runs.
+server's usage on with **`BBS_AI_LEVEL=TextOnly`** (NPC/VEGA lines and board flavour only, no AI missions),
+**`Suggest`** (AI missions as drafts) or **`Auto`** (published); any non-`Off` value also enables NPC greetings /
+board flavour / VEGA banter (see §8), paced by `BBS_AI_LINES_PER_MINUTE` (default 4, `0` = authored lines only).
+With no `.env` and `BBS_AI_LEVEL=Off` (the defaults), the game is fully AI-free and no backend runs.
 
 ```yaml
 # docker-compose.yml — enable the bundled AI backend
