@@ -265,7 +265,8 @@ public sealed class NpcMiningTests : IDisposable
             cell = new Vector3i(cell.X, padY, cell.Z);
             Assert.True(first.Server.NpcMineCellForTest(first.Miner, cell, new List<ItemAmount>()));
             due = first.Server.NpcRefillsForTest.Single().DueAt;
-        } // a restart — no SaveAll: the registry was written when the cell was mined
+            first.Server.SaveAllForTest(); // the autosave (or the shutdown) carries the registry
+        } // a restart
 
         using var second = new MineWorld(_content, _root, padY);
         Assert.True(second.Server.World.GetBlock(cell).IsAir, "the mined cell is still air after the restart");
@@ -277,6 +278,36 @@ public sealed class NpcMiningTests : IDisposable
         second.Server.RunNpcRestoresForTest();
         Assert.Equal(Id("stone"), second.Server.World.GetBlock(cell).Value);
         Assert.Empty(second.Server.NpcRefillsForTest);
+    }
+
+    [Fact]
+    public void TheRegistry_IsWrittenCoalesced_AtMostOncePerMinute_AndWithEveryFullSave()
+    {
+        using var w = new MineWorld(_content, _root);
+        var a = new Vector3i(Cx + 2, w.PadY, Cz - 2);
+        var b = new Vector3i(Cx + 3, w.PadY, Cz - 2);
+        var c = new Vector3i(Cx + 4, w.PadY, Cz - 2);
+        bool Stored(Vector3i cell) => w.Repo.LoadMetadata()!.NpcRefills.TryGetValue(w.Loc, out var list)
+                                      && list.Any(r => r.X == cell.X && r.Y == cell.Y && r.Z == cell.Z);
+
+        // A mined cell only marks the registry dirty — the next refill step writes it (the first after a quiet spell).
+        Assert.True(w.Server.NpcMineCellForTest(w.Miner, a, new List<ItemAmount>()));
+        Assert.False(Stored(a), "the whole metadata was written for one mined cell");
+        w.Server.RunNpcRestoresForTest();
+        Assert.True(Stored(a));
+
+        // Within the minute: the next cell waits for the coalesced write ...
+        Assert.True(w.Server.NpcMineCellForTest(w.Miner, b, new List<ItemAmount>()));
+        w.Server.RunNpcRestoresForTest();
+        Assert.False(Stored(b));
+        w.Server.AdvanceUptimeForTest(61);
+        w.Server.RunNpcRestoresForTest();
+        Assert.True(Stored(b));
+
+        // ... and any full save (autosave, checkpoint, shutdown) carries it at once.
+        Assert.True(w.Server.NpcMineCellForTest(w.Miner, c, new List<ItemAmount>()));
+        w.Server.SaveAllForTest();
+        Assert.True(Stored(c));
     }
 
     [Fact]
@@ -340,6 +371,84 @@ public sealed class NpcMiningTests : IDisposable
         Assert.Equal(new[] { b, c }, w.Server.NpcRefillsForTest.Select(r => new Vector3i(r.X, r.Y, r.Z)).ToArray());
     }
 
+    [Fact]
+    public void AFullRegistry_DropsAnOldCellInAnUnloadedChunk_WithoutLoadingIt()
+    {
+        using var w = new MineWorld(_content, _root);
+        w.Server.NpcRefillCapForTest = 2;
+        w.PlayerAway();
+
+        // An outcrop a chunk east of the pad, mined while its chunk (and its neighbours') were loaded ...
+        var far = new Vector3i(Cx + 20, w.PadY, Cz);
+        w.Server.World.SetBlock(far, _content.GetBlock("stone")!.NumericId); // no owner: natural rock
+        for (int dy = -1; dy <= 1; dy++)
+        {
+            w.Server.World.GetBlock(new Vector3i(far.X, far.Y + dy, far.Z));
+        }
+
+        Assert.True(w.Server.NpcMineCellForTest(w.Miner, far, new List<ItemAmount>()));
+        // ... then nobody streams it any more.
+        w.Server.World.ForgetChunksIn(far, far);
+        var b = new Vector3i(Cx + 4, w.PadY, Cz + 5);
+        var c = new Vector3i(Cx + 3, w.PadY, Cz + 5);
+        Assert.True(w.Server.NpcMineCellForTest(w.Miner, b, new List<ItemAmount>()));
+        int loaded = w.Server.World.LoadedChunkCount;
+
+        Assert.True(w.Server.NpcMineCellForTest(w.Miner, c, new List<ItemAmount>())); // the full registry makes room
+
+        Assert.Equal(loaded, w.Server.World.LoadedChunkCount);
+        Assert.Equal(new[] { b, c }, w.Server.NpcRefillsForTest.Select(r => new Vector3i(r.X, r.Y, r.Z)).ToArray());
+        Assert.True(w.Server.World.GetBlock(far).IsAir, "the dropped entry's cell was filled through a chunk load");
+    }
+
+    [Fact]
+    public void ABodyJustAcrossTheLatitudeSeam_StandsInTheCell()
+    {
+        using var w = new MineWorld(_content, _root);
+        var cell = new Vector3i(Cx + 1, w.PadY, Cz + 2);
+        Assert.True(w.Server.NpcMineCellForTest(w.Miner, cell, new List<ItemAmount>()));
+        // The same cell one latitude period over — what a position just across the north–south seam reads as.
+        int period = BlocksBeyondTheStars.Shared.World.WorldConstants.LatitudePeriodFor(w.Server.World.Circumference);
+        int other = w.Server.AddNpcForTest(new Vector3f(cell.X + 0.5f, cell.Y, cell.Z + period + 0.5f));
+
+        w.PlayerAway();
+        w.Server.SetPlaytimeForTest(w.Server.NpcRefillsForTest.Single().DueAt);
+        w.Server.RunNpcRestoresForTest();
+        Assert.True(w.Server.World.GetBlock(cell).IsAir, "an NPC across the seam was buried in stone");
+
+        w.Server.RemoveNpcForTest(other);
+        w.Server.RunNpcRestoresForTest();
+        Assert.Equal(Id("stone"), w.Server.World.GetBlock(cell).Value);
+    }
+
+    [Fact]
+    public void TheMiner_NeverMinesUnderATorchOrAPlayersWork_NorAboveAHangingPlant()
+    {
+        using var w = new MineWorld(_content, _root);
+        var banked = new List<ItemAmount>();
+        string name = w.Player.State.Name;
+
+        var underTorch = new Vector3i(Cx - 3, w.PadY, Cz - 3);
+        w.Server.World.SetBlock(new Vector3i(underTorch.X, underTorch.Y + 1, underTorch.Z), _content.GetBlock("torch")!.NumericId);
+        var underLantern = new Vector3i(Cx - 3, w.PadY, Cz + 3);
+        w.Server.World.SetBlock(new Vector3i(underLantern.X, underLantern.Y + 1, underLantern.Z), _content.GetBlock("lantern")!.NumericId);
+        var underBuild = new Vector3i(Cx + 3, w.PadY, Cz - 3);
+        w.Server.World.SetBlock(new Vector3i(underBuild.X, underBuild.Y + 1, underBuild.Z), _content.GetBlock("stone")!.NumericId, 0, 0, 0, name);
+        string hanging = FloraCatalog.All.First(s => s.Hanging && !s.Fruit && !s.Authored && _content.GetBlock(s.Key) is not null).Key;
+        var overVine = new Vector3i(Cx + 3, w.PadY, Cz + 3);
+        w.Server.World.SetBlock(new Vector3i(overVine.X, overVine.Y - 1, overVine.Z), _content.GetBlock(hanging)!.NumericId);
+
+        foreach (var cell in new[] { underTorch, underLantern, underBuild, overVine })
+        {
+            Assert.False(w.Server.NpcMineCellForTest(w.Miner, cell, banked), $"{cell} was mined");
+        }
+
+        Assert.Empty(banked);
+        var outcrops = w.Server.FindNpcOutcropsForTest(new Vector3f(Cx + 0.5f, w.PadY + 1, Cz + 0.5f), PadHalf, 400);
+        Assert.Contains(new Vector3i(Cx, w.PadY, Cz), outcrops);
+        Assert.DoesNotContain(overVine, outcrops); // open to the sky, but a plant hangs from it
+    }
+
     // ---------------- the lodge face on load ----------------
 
     [Fact]
@@ -359,6 +468,7 @@ public sealed class NpcMiningTests : IDisposable
             Assert.True(first.Server.NpcMineCellForTest(first.Miner, face[1], new List<ItemAmount>()));
             // A player digs the third face cell out by hand — that hole is theirs.
             first.Server.World.SetBlock(face[2], BlockId.Air, 0, 0, 0, first.Player.State.Name);
+            first.Server.SaveAllForTest(); // the two pending refills are in the save
         }
 
         using var second = new MineWorld(_content, _root, padY);

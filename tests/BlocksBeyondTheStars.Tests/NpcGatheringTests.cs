@@ -153,6 +153,41 @@ public sealed class NpcGatheringTests
     }
 
     [Fact]
+    public void AWanderersSearch_KeepsOutOfRuinsAndSettlements_AResidentsSearchDoesNot()
+    {
+        using var w = Arena("gather_strict");
+        var inRuin = Plant(w, Cx + 3, Cz, "flora_cropberry", ground: "dirt");
+        w.Server.RegisterTestRuinForTest("Oldtown", new Vector3i(Cx + 1, w.Feet - 2, Cz - 2), new Vector3i(Cx + 5, w.Feet + 6, Cz + 2));
+        var inTown = Plant(w, Cx - 3, Cz, "flora_cropberry", ground: "dirt");
+        w.Server.RegisterTestSettlementForTest("Testville", new Vector3i(Cx - 5, w.Feet - 2, Cz - 2), new Vector3i(Cx - 1, w.Feet + 6, Cz + 2));
+        var open = Plant(w, Cx, Cz + 6, "flora_cropberry", ground: "dirt");
+
+        // A resident's search (the default) may work a ruin's garden — never an intact settlement's.
+        Assert.Equal(new[] { inRuin, open }, w.Server.FindNpcGatherSitesForTest(Center(w), 12, 8));
+        // A wanderer's search keeps out of both.
+        Assert.Equal(new[] { open }, w.Server.FindNpcGatherSitesForTest(Center(w), 12, 8, respectAllProtection: true));
+        Assert.DoesNotContain(inTown, w.Server.FindNpcGatherSitesForTest(Center(w), 12, 8));
+    }
+
+    [Fact]
+    public void TheAreaEditQuery_SeesAPlayersEditAcrossBothSeams()
+    {
+        using var w = Arena("gather_seams");
+        int circ = w.Server.World.Circumference;
+        int half = BlocksBeyondTheStars.Shared.World.WorldConstants.LatitudePeriodFor(circ) / 2;
+
+        // Just west of the longitude seam (canonical x = circ − 1), asked with a box from x = −2 to 1.
+        w.Set(circ - 1, w.Feet, Cz, "stone");
+        Assert.True(w.Server.NpcAreaHasPlayerEditsForTest(new Vector3i(-2, w.Feet, Cz - 1), new Vector3i(1, w.Feet, Cz + 1)));
+        Assert.False(w.Server.NpcAreaHasPlayerEditsForTest(new Vector3i(2, w.Feet, Cz - 1), new Vector3i(5, w.Feet, Cz + 1)));
+
+        // At the latitude seam's southern edge (canonical z = −P/2), asked with a box reaching over it from the north.
+        w.Set(Cx, w.Feet, -half, "stone");
+        Assert.True(w.Server.NpcAreaHasPlayerEditsForTest(new Vector3i(Cx - 1, w.Feet, half - 2), new Vector3i(Cx + 1, w.Feet, half + 1)));
+        Assert.False(w.Server.NpcAreaHasPlayerEditsForTest(new Vector3i(Cx - 1, w.Feet, half - 6), new Vector3i(Cx + 1, w.Feet, half - 3)));
+    }
+
+    [Fact]
     public void TheSearch_NeverLoadsAChunk()
     {
         using var w = Arena("gather_unloaded");

@@ -208,6 +208,108 @@ public sealed class NpcWoodcuttingTests
     }
 
     [Fact]
+    public void ATreeAPlayerBuiltOntoOrBeside_IsNeverFelled()
+    {
+        using var w = Arena("wood_built_onto");
+        // Plants pass the "wild box" rule — only the player edit beside the tree's own cells refuses these two.
+        var capTree = Tree(w, Cx + 4, Cz);
+        var onCap = new Vector3i(Cx + 4, capTree.Cells.Max(c => c.Y) + 1, Cz);
+        w.Set(onCap.X, onCap.Y, onCap.Z, "flora_flower");      // a player's flower on the crown's cap (it would pop)
+        var footTree = Tree(w, Cx - 6, Cz);
+        w.Set(Cx - 5, w.Feet, Cz, "flora_flower");             // a player's flower at the trunk's foot, under the crown
+        var fine = Tree(w, Cx + 4, Cz + 10);
+        int npc = w.Server.AddNpcForTest(Center(w, Cx + 2));
+
+        Assert.Equal(new[] { fine.Base }, w.Server.FindNpcTreesForTest(Center(w), 16, 8));
+        Assert.False(w.Server.NpcFellTreeForTest(npc, capTree.Base, new List<(string Item, int Count)>()));
+        Assert.False(w.Server.NpcFellTreeForTest(npc, footTree.Base, new List<(string Item, int Count)>()));
+        Assert.Equal(0, w.Server.NpcFellingCountForTest);
+    }
+
+    [Fact]
+    public void AHutOfLogsAndLeaves_OrARuinsFrame_IsNoTreeToFell()
+    {
+        using var w = Arena("wood_structures");
+        var natural = Tree(w, Cx + 4, Cz);
+
+        // Stamped like a structure (no owner): a log post under a leaf roof with a window pane beside it ...
+        var glassHut = Tree(w, Cx - 6, Cz, trunk: 3);
+        w.Server.World.SetBlock(new Vector3i(Cx - 5, w.Feet, Cz), w.Block("glass"));
+        // ... and one with a stone wall block standing in the box (terrain the generator never put there).
+        var stoneHut = Tree(w, Cx, Cz + 10, trunk: 4);
+        w.Server.World.SetBlock(new Vector3i(Cx + 1, w.Feet + 1, Cz + 10), w.Block("stone"));
+        // A whole tree standing in a ruined village: unprotected, but no woodcutter's.
+        var inRuin = Tree(w, Cx - 14, Cz - 12);
+        w.Server.RegisterTestRuinForTest("Oldtown", new Vector3i(Cx - 18, w.Feet - 2, Cz - 16), new Vector3i(Cx - 10, w.Feet + 12, Cz - 8));
+
+        var found = w.Server.FindNpcTreesForTest(Center(w), 24, 8);
+        Assert.Equal(new[] { natural.Base }, found);
+        int npc = w.Server.AddNpcForTest(Center(w, Cx + 2));
+        foreach (var b in new[] { glassHut.Base, stoneHut.Base, inRuin.Base })
+        {
+            Assert.False(w.Server.NpcFellTreeForTest(npc, b, new List<(string Item, int Count)>()), $"{b} was felled");
+        }
+    }
+
+    [Fact]
+    public void AtEveryTickBoundary_WhatStandsIsATreeToFell_OrASapling_NeverABareStump()
+    {
+        using var w = Arena("wood_no_stump");
+        var (b, cells) = Tree(w, Cx + 4, Cz);
+        var trunk = cells.Where(c => w.Server.World.GetBlock(c) == w.Block("wood_log")).ToList();
+        var leaves = cells.Except(trunk).ToList();
+        int npc = w.Server.AddNpcForTest(Center(w, Cx + 2));
+        Assert.True(w.Server.NpcFellTreeForTest(npc, b, new List<(string Item, int Count)>()));
+
+        // A crash (or a world unload) can strike between any two ticks: what it would leave must always heal.
+        int steps = 0;
+        while (w.Server.NpcFellingActiveForTest(npc) && steps++ < 400)
+        {
+            w.Server.RunNpcFellingForTest(0.05); // about one cell per step
+            if (w.Server.World.GetBlock(b) == w.Block("wood_log"))
+            {
+                int leafCount = leaves.Count(c => w.Server.World.GetBlock(c) == w.Block("tree_leaves"));
+                int logCount = trunk.Count(c => w.Server.World.GetBlock(c) == w.Block("wood_log"));
+                Assert.True(leafCount >= 4 && logCount >= 2, $"step {steps}: a stump of {logCount} logs with {leafCount} leaves");
+            }
+            else
+            {
+                Assert.Equal(w.Block("flora_sapling"), w.Server.World.GetBlock(b)); // the base log went: the sapling with it
+                Assert.All(cells.Where(c => !c.Equals(b)), c => Assert.True(w.Server.World.GetBlock(c).IsAir));
+            }
+        }
+
+        Assert.False(w.Server.NpcFellingActiveForTest(npc));
+        Assert.Equal(w.Block("flora_sapling"), w.Server.World.GetBlock(b));
+    }
+
+    [Fact]
+    public void AFellingOfAnUnloadedWorld_IsDropped_AndAFellingNeverLoadsAChunk()
+    {
+        using var w = Arena("wood_unloaded");
+        var (b, cells) = Tree(w, Cx + 4, Cz);
+        int npc = w.Server.AddNpcForTest(Center(w, Cx + 2));
+        Assert.True(w.Server.NpcFellTreeForTest(npc, b, new List<(string Item, int Count)>()));
+
+        // Its world went (the last player left): the felling is forgotten on the next step, the tree untouched.
+        w.Server.ParkNpcFellingsOnForTest("a-world-nobody-is-on");
+        w.Server.RunNpcFellingForTest(0.5);
+        Assert.Empty(w.Server.NpcFellingLocationsForTest);
+        Assert.All(cells, c => Assert.False(w.Server.World.GetBlock(c).IsAir));
+
+        // A felling whose tree lies in chunks nobody streams any more: its NPC is gone, so it ends at once — without
+        // loading a single chunk, leaving the unloaded cells as they are.
+        Assert.True(w.Server.NpcFellTreeForTest(npc, b, new List<(string Item, int Count)>()));
+        w.Server.RemoveNpcForTest(npc);
+        w.Server.World.ForgetChunksIn(new Vector3i(b.X - 4, b.Y - 2, b.Z - 4), new Vector3i(b.X + 4, b.Y + 16, b.Z + 4));
+        int loaded = w.Server.World.LoadedChunkCount;
+        w.Server.RunNpcFellingForTest(0.5);
+        Assert.Equal(0, w.Server.NpcFellingCountForTest);
+        Assert.Equal(loaded, w.Server.World.LoadedChunkCount);
+        Assert.All(cells, c => Assert.False(w.Server.World.GetBlock(c).IsAir)); // reloaded from the store: all still there
+    }
+
+    [Fact]
     public void AFellingWhoseNpcVanished_ComesDownAtOnce_AndStillLeavesItsSapling()
     {
         using var w = Arena("wood_orphan");

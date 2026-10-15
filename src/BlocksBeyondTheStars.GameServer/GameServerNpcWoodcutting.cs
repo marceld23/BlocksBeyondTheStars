@@ -20,9 +20,12 @@ namespace BlocksBeyondTheStars.GameServer;
 /// sapling can root in (so it can be replanted), with a crown of ordinary leaves (a log post, a fallen log or a dead
 /// snag is no tree to fell), loaded all around, every cell inside the work box (±<see cref="NpcFellHalfWidth"/> ×
 /// <see cref="NpcFellHeight"/> high from the trunk base, at most <see cref="NpcFellCellCap"/> cells — a giant or a jungle
-/// tree is too big), no cell protected (<see cref="GatherCellProtected"/> — the lodge box deliberately not), no cell a
-/// player ever edited (a player-built log tower, a player's grown sapling — its base cell carries the planter).
-/// Structure stamps write no owner, so a lodge's stamped grove counts as natural.</item>
+/// tree is too big), no cell protected (<see cref="GatherCellProtected"/> — the lodge box deliberately not, unless a
+/// wanderer asks with <c>respectAllProtection</c>) nor in a ruined settlement's box, and no player edit anywhere in the
+/// tree's box widened by one (a player-built log tower, a player's grown sapling — its base cell carries the planter — a
+/// torch on a leaf, a lamp under the crown). The box may hold nothing a builder places (<see cref="NpcTreeBoxIsWild"/>):
+/// a hut of logs and leaves is no tree. Structure stamps write no owner, so a lodge's stamped grove counts as
+/// natural.</item>
 /// <item><b>Whose leaves</b>: crowns of neighbouring trees touch. A leaf belongs to the tree whose trunk column is
 /// nearest (every log column within ±<see cref="NpcFellForeignReach"/> that is not this tree's own wood counts as
 /// another trunk), so felling one tree leaves the neighbour's crown standing. Fruit hanging under this tree's leaves
@@ -32,10 +35,14 @@ namespace BlocksBeyondTheStars.GameServer;
 /// support and fluid hooks like a player's break, one positional <c>tree_fall</c> sound for the players within
 /// <see cref="NpcFellSoundRange"/> when it starts. The logs (at most <see cref="NpcFellLogCap"/>) go to the bank as they
 /// come down — leaves and fruit give nothing. Last, a sapling is planted on the trunk's ground cell, on the same growth
-/// clock as a player's (persisted by the flora queue).</item>
-/// <item><b>Interrupted</b>: a felling whose NPC is gone (a world reload re-derives the residents, a wanderer moved on)
-/// comes down at once on the next tick, without banking, and still leaves its sapling. A cell that changed in the
-/// meantime (a player mined or built there) is left alone.</item>
+/// clock as a player's (persisted by the flora queue). The last stretch — from the cell after which what stands would no
+/// longer be a tree (<see cref="NpcTree.CollapseAt"/>) — comes down in one tick with the base log and the sapling, so a
+/// crash mid-felling leaves a smaller tree to fell again or a sapling, never a bare stump.</item>
+/// <item><b>Interrupted</b>: a felling whose NPC is gone (a wanderer moved on) comes down at once on the next tick,
+/// without banking, and still leaves its sapling. A felling whose world was unloaded is dropped (the residents of a
+/// reloaded world are new; what still stands is a tree to fell again). A cell that changed in the meantime (a player
+/// mined or built there) is left alone, and so is a cell whose chunk (or a neighbour's) is not loaded: a felling never
+/// loads a chunk.</item>
 /// </list>
 /// Per world: the running fellings are keyed by the world's location id (the tick runs once per occupied world, NPC
 /// ids repeat from world to world). RAM only — a felling lasts seconds.
@@ -82,6 +89,11 @@ public sealed partial class GameServer
         public List<(Vector3i Cell, ushort Block)> Cells = new();
         public HashSet<Vector3i> CellSet = new();
         public int Height;
+
+        /// <summary>The index in <see cref="Cells"/> from which on what still stands would no longer be a tree a woodcutter
+        /// fells (fewer than four leaves, or a trunk shorter than two): from there the rest comes down in ONE tick, the base
+        /// log and the sapling with it — so a crash or an unloaded world never leaves a bare stump behind (#2644).</summary>
+        public int CollapseAt;
     }
 
     /// <summary>A tree coming down (#2644).</summary>
@@ -90,6 +102,10 @@ public sealed partial class GameServer
         public required ServerNpc Npc { get; init; }
         public required NpcTree Tree { get; init; }
         public required System.Action<string, int> Bank { get; init; }
+
+        /// <summary>The world instance it started on: a world unloaded and loaded again is a new instance, and a felling of
+        /// the old one is dropped (its NPC is gone, its cells may be in chunks nobody streams).</summary>
+        public required ServerWorld World { get; init; }
         public int Next;
         public double Budget = 1.0; // the first cell comes down with the first tick
         public double CellsPerSecond;
@@ -110,8 +126,11 @@ public sealed partial class GameServer
     /// <remarks>Each column of the disc is walked down from a few blocks above the centre's feet to its first trunk base
     /// (a log on ground); the bases are then tried nearest first with <see cref="ScanNpcTree"/> — a second base of the
     /// same tree (a 2 × 2 trunk) and a tree already coming down are skipped, and at most a few more trees than asked for
-    /// are scanned, so a search stays bounded in a dense wood. Canonical cells.</remarks>
-    private List<Vector3i> FindNpcTrees(Vector3f center, int radius, int max)
+    /// are scanned, so a search stays bounded in a dense wood. Canonical cells.
+    /// <paramref name="respectAllProtection"/> is a wanderer's search (#2646): a tree with a cell
+    /// <see cref="IsSettlementBlock"/> protects (a lodge's grove included) is skipped too. A lodge resident keeps the
+    /// default: it fells its own grove.</remarks>
+    private List<Vector3i> FindNpcTrees(Vector3f center, int radius, int max, bool respectAllProtection = false)
     {
         var result = new List<Vector3i>();
         radius = System.Math.Clamp(radius, 0, NpcFellMaxRadius);
@@ -172,7 +191,7 @@ public sealed partial class GameServer
                 break;
             }
 
-            if (ScanNpcTree(cell) is not { } tree)
+            if (ScanNpcTree(cell, respectAllProtection) is not { } tree)
             {
                 continue;
             }
@@ -194,8 +213,9 @@ public sealed partial class GameServer
     /// <remarks><paramref name="bank"/> is called later, from <see cref="TickNpcFelling"/>, as each log comes down (at most
     /// <see cref="NpcFellLogCap"/> logs' drops) — not at once — and not at all for logs of a felling whose NPC is gone.
     /// Ask <see cref="NpcFellingActive"/> to know when the tree is down and the sapling stands. A tree another NPC is
-    /// felling is refused too.</remarks>
-    private bool NpcFellTree(ServerNpc npc, Vector3i trunkBase, System.Action<string, int> bank)
+    /// felling is refused too. <paramref name="respectAllProtection"/> is the wanderer's stricter rule (see
+    /// <see cref="FindNpcTrees"/>).</remarks>
+    private bool NpcFellTree(ServerNpc npc, Vector3i trunkBase, System.Action<string, int> bank, bool respectAllProtection = false)
     {
         var b = WorldConstants.CanonicalBlock(trunkBase, _world.Circumference);
         if (_npcFellings.TryGetValue(_world.LocationId, out var running)
@@ -204,7 +224,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (ScanNpcTree(b) is not { } tree)
+        if (ScanNpcTree(b, respectAllProtection) is not { } tree)
         {
             return false;
         }
@@ -220,6 +240,7 @@ public sealed partial class GameServer
             Npc = npc,
             Tree = tree,
             Bank = bank,
+            World = _world,
             CellsPerSecond = System.Math.Max(NpcFellMinCellsPerSecond, tree.Cells.Count / NpcFellSeconds),
         });
 
@@ -244,7 +265,13 @@ public sealed partial class GameServer
     /// <summary>Per-tick step of every running felling (registered in the tick loop after <c>TickFlora</c>).</summary>
     private void TickNpcFelling(double dt)
     {
-        if (_npcFellings.Count == 0 || !_npcFellings.TryGetValue(_world.LocationId, out var running))
+        if (_npcFellings.Count == 0)
+        {
+            return;
+        }
+
+        ForgetFellingsOfUnloadedWorlds();
+        if (!_npcFellings.TryGetValue(_world.LocationId, out var running))
         {
             return;
         }
@@ -252,7 +279,16 @@ public sealed partial class GameServer
         for (int i = running.Count - 1; i >= 0; i--)
         {
             var f = running[i];
-            bool orphaned = !_npcs.Contains(f.Npc); // a reload re-derived the residents, a wanderer moved on
+            if (!ReferenceEquals(f.World, _world))
+            {
+                // The world was unloaded and loaded again since: its residents were re-derived and nobody fells this tree
+                // any more. Nothing is touched — the cells taken so far are in the store, and what still stands is a whole
+                // tree a woodcutter can fell again (the last stretch, the base and the sapling go in one tick: CollapseAt).
+                running.RemoveAt(i);
+                continue;
+            }
+
+            bool orphaned = !_npcs.Contains(f.Npc); // a wanderer moved on, a resident was removed
             int left = f.Tree.Cells.Count - f.Next;
             int n;
             if (orphaned)
@@ -264,6 +300,10 @@ public sealed partial class GameServer
                 f.Budget += dt * f.CellsPerSecond;
                 n = System.Math.Min(System.Math.Min((int)f.Budget, NpcFellMaxCellsPerTick), left);
                 f.Budget -= n;
+                if (n > 0 && f.Next + n - 1 >= f.Tree.CollapseAt)
+                {
+                    n = left; // what would stand after this cell is no tree any more: the rest, base and sapling, in this tick
+                }
             }
 
             for (int k = 0; k < n; k++)
@@ -273,7 +313,7 @@ public sealed partial class GameServer
 
             if (f.Next >= f.Tree.Cells.Count)
             {
-                PlantFelledTreeSapling(f.Tree.Base);
+                PlantFelledTreeSapling(f.Tree.Base); // the moment the base log went — in the same tick
                 running.RemoveAt(i);
             }
         }
@@ -285,14 +325,57 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Takes the felling's next cell down — when it still holds what the tree had there and no player has edited
-    /// it since — and banks a log's drops while the cap allows.</summary>
+    /// <summary>Drops the fellings of every world that is no longer resident (the last player left it, #2644 review): they
+    /// would otherwise sit in RAM until that world is entered again — and then be dropped there anyway.</summary>
+    private void ForgetFellingsOfUnloadedWorlds()
+    {
+        List<string>? gone = null;
+        foreach (var loc in _npcFellings.Keys)
+        {
+            if (!_worlds.IsLoaded(loc))
+            {
+                (gone ??= new List<string>()).Add(loc);
+            }
+        }
+
+        if (gone is not null)
+        {
+            foreach (var loc in gone)
+            {
+                _npcFellings.Remove(loc);
+            }
+        }
+    }
+
+    /// <summary>Whether a cell and its six neighbours lie in resident chunks — the felling's write and the support and
+    /// fluid hooks it runs read nothing else, so no felling ever loads a chunk.</summary>
+    private bool NpcCellAndFacesLoaded(Vector3i cell)
+    {
+        if (!NpcCellLoaded(cell))
+        {
+            return false;
+        }
+
+        foreach (var d in NpcFellLogSteps)
+        {
+            if (!NpcCellLoaded(new Vector3i(cell.X + d.X, cell.Y + d.Y, cell.Z + d.Z)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Takes the felling's next cell down — when it and its neighbours are loaded (an unloaded cell is skipped:
+    /// a felling never loads a chunk), it still holds what the tree had there and no player has edited it since — and
+    /// banks a log's drops while the cap allows.</summary>
     private void FellNextCell(NpcFelling f, bool bank)
     {
         var (cell, block) = f.Tree.Cells[f.Next++];
-        if (_world.GetBlock(cell).Value != block || NpcCellPlayerEdited(cell))
+        if (!NpcCellAndFacesLoaded(cell) || _world.GetBlockIfLoaded(cell).Value != block || NpcCellPlayerEdited(cell))
         {
-            return; // mined, burnt or built over meanwhile — not the tree's any more
+            return; // out of every streaming area, or mined, burnt or built over meanwhile — not the tree's any more
         }
 
         _world.SetBlock(cell, BlockId.Air); // no owner: an NPC's work is no player edit
@@ -318,10 +401,12 @@ public sealed partial class GameServer
 
     /// <summary>The woodcutter's replanting: a sapling on the felled trunk's ground cell when it is free, a host a sapling
     /// roots in and nobody's edit — on the very growth clock a player's sapling gets (<see cref="ScheduleSaplingGrowth"/>,
-    /// persisted), and written without an owner, so the tree it grows into is a natural tree again.</summary>
+    /// persisted), and written without an owner, so the tree it grows into is a natural tree again. Only on loaded chunks
+    /// (the cell and the ground under it) — never loads one.</summary>
     private void PlantFelledTreeSapling(Vector3i cell)
     {
-        if (_saplingId == 0 || !_world.GetBlock(cell).IsAir || !IsValidFloraHost(_saplingId, cell) || InShipInterior(cell)
+        if (_saplingId == 0 || !NpcCellLoaded(cell) || !NpcCellLoaded(new Vector3i(cell.X, cell.Y - 1, cell.Z))
+            || !_world.GetBlockIfLoaded(cell).IsAir || !IsValidFloraHost(_saplingId, cell) || InShipInterior(cell)
             || !IsFloraEnclosedForVoidWorld(cell) || NpcCellPlayerEdited(cell))
         {
             return;
@@ -338,8 +423,10 @@ public sealed partial class GameServer
     /// The tree whose trunk base is <paramref name="b"/> (canonical), or null when there is none a woodcutter may fell —
     /// see the class summary for the rules. Reads loaded chunks only. The cells come back in the order they fall: fruit,
     /// then top down with the outer cells of a level before the inner ones and leaves before wood.
+    /// <paramref name="respectAllProtection"/>: a cell <see cref="IsSettlementBlock"/> protects refuses the tree too (a
+    /// wanderer's rule — a lodge's grove).
     /// </summary>
-    private NpcTree? ScanNpcTree(Vector3i b)
+    private NpcTree? ScanNpcTree(Vector3i b, bool respectAllProtection = false)
     {
         int circ = _world.Circumference;
         var logs = NpcTreeLogIds;
@@ -516,12 +603,12 @@ public sealed partial class GameServer
         tree.CellSet.UnionWith(crown);
         tree.CellSet.UnionWith(fruit);
 
-        // Nothing protected, nothing a player edited — one aggregate query over the tree's box first.
+        // Nothing protected — no protected area, no settlement box of any kind (a ruin's log frame is no tree either).
         var lo = new Vector3i(int.MaxValue, int.MaxValue, int.MaxValue);
         var hi = new Vector3i(int.MinValue, int.MinValue, int.MinValue);
         foreach (var c in tree.CellSet)
         {
-            if (GatherCellProtected(c))
+            if (GatherCellProtected(c) || InRuinedSettlementBox(c) || (respectAllProtection && IsSettlementBlock(c)))
             {
                 return null;
             }
@@ -531,8 +618,12 @@ public sealed partial class GameServer
             hi = new Vector3i(System.Math.Max(hi.X, dx), System.Math.Max(hi.Y, dy), System.Math.Max(hi.Z, dz));
         }
 
-        if (NpcAreaHasPlayerEdits(new Vector3i(b.X + lo.X, b.Y + lo.Y, b.Z + lo.Z), new Vector3i(b.X + hi.X, b.Y + hi.Y, b.Z + hi.Z))
-            && tree.CellSet.Any(NpcCellPlayerEdited))
+        // No player edit anywhere in the tree's box widened by one (#2644 review): not a cell of the tree, and nothing a
+        // player built onto it or beside it — a torch on a leaf, a lamp under the crown, a ladder against the trunk — so a
+        // felling never pops a player's thing through the support hook. One aggregate query (split only at a seam).
+        var wideMin = new Vector3i(b.X + lo.X - 1, b.Y + lo.Y - 1, b.Z + lo.Z - 1);
+        var wideMax = new Vector3i(b.X + hi.X + 1, b.Y + hi.Y + 1, b.Z + hi.Z + 1);
+        if (NpcAreaHasPlayerEdits(wideMin, wideMax) || !NpcTreeBoxIsWild(b, lo, hi))
         {
             return null;
         }
@@ -566,13 +657,112 @@ public sealed partial class GameServer
             return (bx * bx + bz * bz).CompareTo(ax * ax + az * az); // outer before inner
         });
 
+        // Top down, what still stands stays a tree a woodcutter fells (its lower crown round the shortened trunk) — until
+        // the cell after which fewer than four leaves or fewer than two trunk logs would be left. From that cell on the
+        // rest goes in one tick and the sapling with it: a crash or an unload mid-felling leaves a tree to fell again or
+        // a sapling, never a bare stump that no rule would ever clear (#2644 review). Nothing is persisted for it.
+        int leavesLeft = crown.Count, trunkLeft = height;
+        tree.CollapseAt = tree.Cells.Count - 1;
+        for (int i = 0; i < tree.Cells.Count; i++)
+        {
+            var c = tree.Cells[i].Cell;
+            if (crown.Contains(c))
+            {
+                leavesLeft--;
+            }
+            else if (wood.Contains(c) && Rel(c) is (0, var dy, 0) && dy < height)
+            {
+                trunkLeft--;
+            }
+
+            if (leavesLeft < 4 || trunkLeft < 2)
+            {
+                tree.CollapseAt = i;
+                break;
+            }
+        }
+
         return tree;
+    }
+
+    /// <summary>
+    /// Whether the tree's box — its cells' bounds widened by one sideways and upward, from the trunk's base level up —
+    /// holds only what grows round a wild tree (#2644 review): air, the trunks, crowns and fruit of this content's trees
+    /// (its neighbours' too), plants, fluids, loose snow or sand, and the generator's own ground (a slope, a boulder). A
+    /// lodge's hut, a ruined house or a camp's shack made of logs and leaves is no tree: any other block — planks, glass,
+    /// a door, a fence, a crate, a lamp, a slab — means somebody built here, and so does terrain or ore with a row in the
+    /// edit store (a stamped floor or wall, a refilled cell: the generator's ground has none; one aggregate query, asked
+    /// only when the box holds terrain above the ground at all). Reads loaded chunks only.
+    /// </summary>
+    private bool NpcTreeBoxIsWild(Vector3i b, Vector3i lo, Vector3i hi)
+    {
+        List<ushort>? ground = null;
+        for (int dx = lo.X - 1; dx <= hi.X + 1; dx++)
+            for (int dz = lo.Z - 1; dz <= hi.Z + 1; dz++)
+                for (int dy = 0; dy <= hi.Y + 1; dy++)
+                {
+                    ushort id = _world.GetBlockIfLoaded(new Vector3i(b.X + dx, b.Y + dy, b.Z + dz)).Value;
+                    if (id == 0 || NpcTreeLogIds.Contains(id) || NpcTreeLeafIds.Contains(id) || _fruitIds.Contains(id)
+                        || IsFlora(id) || IsSapling(id) || IsFluid(id))
+                    {
+                        continue;
+                    }
+
+                    if (_world.Definition(new BlockId(id)) is not { } def)
+                    {
+                        return false;
+                    }
+
+                    if (def.Granular || def.Category == "flora")
+                    {
+                        continue; // snow on a crown, a sand drift; a plant of any kind
+                    }
+
+                    if (def.Category is not ("terrain" or "ore"))
+                    {
+                        return false; // something a builder places
+                    }
+
+                    ground ??= new List<ushort>();
+                    if (!ground.Contains(id))
+                    {
+                        ground.Add(id);
+                    }
+                }
+
+        if (ground is null)
+        {
+            return true;
+        }
+
+        var min = new Vector3i(b.X + lo.X - 1, b.Y, b.Z + lo.Z - 1);
+        var max = new Vector3i(b.X + hi.X + 1, b.Y + hi.Y + 1, b.Z + hi.Z + 1);
+        return !AnyCanonicalBox(min, max, (l, h)
+            => _repo.ListBlockEditsMatching(_world.LocationId, l, h, ground, System.Array.Empty<int>(), 1).Count > 0);
     }
 
     // ---------------- test seams ----------------
 
     /// <summary>Test seam (#2644): <see cref="FindNpcTrees"/> on the active world.</summary>
-    public IReadOnlyList<Vector3i> FindNpcTreesForTest(Vector3f center, int radius, int max) => FindNpcTrees(center, radius, max);
+    public IReadOnlyList<Vector3i> FindNpcTreesForTest(Vector3f center, int radius, int max, bool respectAllProtection = false)
+        => FindNpcTrees(center, radius, max, respectAllProtection);
+
+    /// <summary>Test seam (#2644): one <see cref="TickNpcFelling"/> step of the active world, without the rest of the tick
+    /// (no chunk streaming around the player).</summary>
+    public void RunNpcFellingForTest(double dt) => TickNpcFelling(dt);
+
+    /// <summary>Test seam (#2644): files the active world's running fellings under another location id — as if their
+    /// world had been unloaded meanwhile.</summary>
+    public void ParkNpcFellingsOnForTest(string locationId)
+    {
+        if (_npcFellings.Remove(_world.LocationId, out var running))
+        {
+            _npcFellings[locationId] = running;
+        }
+    }
+
+    /// <summary>Test seam (#2644): the location ids that hold running fellings.</summary>
+    public IReadOnlyList<string> NpcFellingLocationsForTest => _npcFellings.Keys.ToList();
 
     /// <summary>Test seam (#2644): <see cref="NpcFellTree"/> by the NPC with this id; the banked drops are appended to
     /// <paramref name="banked"/> as the logs come down. False when there is no such NPC or no tree to fell.</summary>

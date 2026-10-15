@@ -5,6 +5,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Bio;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -12,7 +13,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// The hunter's work core (#2645, wilderness folk #2639), shared by the lodge residents (#2641) and the wanderers (#2646).
 /// Hunting is real but rare and kid-friendly: <see cref="FindNpcHuntTarget"/> only ever picks a wild, common, passive or
 /// skittish land animal — never a companion or a tamer's pet (<c>npc:&lt;id&gt;</c>), a giant or titan, a story creature
-/// (an authored species, the Sreekmakra), a clone, a begging or called animal, one a player stands next to or with a player
+/// (an authored species, the Sreekmakra), a clone, a begging or called animal, one in a player's base, a settlement (a
+/// ruin and a lodge included) or a pen (<see cref="NpcHuntGroundProtected"/>), one a player stands next to or with a player
 /// in the line of fire, nor one out of sight. <see cref="NpcShootCreature"/> sends the arrow (<see cref="WorldFx"/> kind
 /// <c>"arrow"</c>) and the bow's sound, and the animal leaves exactly like a sentry's kill — it breaks into sparkles on every
 /// client (<see cref="CreatureDefeated"/>) — but its yield goes to the caller's <c>bank(itemKey, count)</c> (the hunter's
@@ -62,9 +64,13 @@ public sealed partial class GameServer
     /// luck) is at most this — Common or Uncommon.</summary>
     private const int NpcHuntMaxRarity = 1;
 
+    /// <summary>An energy fence or gate this close to an animal (blocks, horizontally) marks it as standing in a pen.</summary>
+    private const int NpcHuntPenReach = 3;
+
     /// <summary>The nearest animal this hunter may hunt within <paramref name="range"/>: wild, common, passive or skittish,
     /// on land, in sight — never a companion or owned animal, a giant, a story creature or clone, a begging or called animal,
-    /// one a player stands next to or with a player in the line of fire. Null when there is none.</summary>
+    /// one standing in a player's base, a settlement (a ruin or a lodge too) or a pen, one a player stands next to or with a
+    /// player in the line of fire. Null when there is none.</summary>
     private CombatEntity? FindNpcHuntTarget(ServerNpc npc, float range)
     {
         double rangeSq = (double)range * range;
@@ -86,7 +92,7 @@ public sealed partial class GameServer
         candidates.Sort((a, b) => a.D.CompareTo(b.D));
         foreach (var (c, _) in candidates)
         {
-            if (NpcHuntSees(npc, c) && !NpcHuntEndangersPlayer(npc, c))
+            if (!NpcHuntGroundProtected(c) && NpcHuntSees(npc, c) && !NpcHuntEndangersPlayer(npc, c))
             {
                 return c;
             }
@@ -97,13 +103,14 @@ public sealed partial class GameServer
 
     /// <summary>Shoots <paramref name="target"/> (range ≤ 14, line of sight): the arrow <c>WorldFx</c> + the bow sound, the
     /// animal leaves with the sparkle like a sentry kill, its loot is banked, its kin flee from the hunter. No player gets
-    /// any credit. False when the shot is not possible (out of range, no sight, no longer eligible). It removes the animal
-    /// from the creature list — never call it from inside a loop over that list.</summary>
+    /// any credit. False when the shot is not possible (out of range, no sight, no longer eligible — it walked into a
+    /// base, a settlement or a pen meanwhile). It removes the animal from the creature list — never call it from inside a
+    /// loop over that list.</summary>
     private bool NpcShootCreature(ServerNpc npc, CombatEntity target, System.Action<string, int> bank)
     {
         if (!_creatures.Contains(target) || !NpcMayHunt(target)
             || WrapDistSq(npc.Pos, target.Position) > (double)NpcHuntShotRange * NpcHuntShotRange
-            || !NpcHuntSees(npc, target) || NpcHuntEndangersPlayer(npc, target))
+            || NpcHuntGroundProtected(target) || !NpcHuntSees(npc, target) || NpcHuntEndangersPlayer(npc, target))
         {
             return false;
         }
@@ -261,6 +268,43 @@ public sealed partial class GameServer
                 return true;
             }
         }
+
+        return false;
+    }
+
+    /// <summary>Whether the animal stands where no hunter shoots (#2645 review): in a player base's zone (its yard, its
+    /// paddock), in any settlement's box — an intact one, a ruin, the intercity line or a lodge (<see cref="IsSettlementBlock"/>
+    /// holds the lodges) — or in a pen (<see cref="NpcHuntInPen"/>). An animal there may be somebody's, and nobody wants an
+    /// arrow flying through their garden.</summary>
+    private bool NpcHuntGroundProtected(CombatEntity c)
+    {
+        var cell = WorldConstants.CanonicalBlock(new Vector3i(
+            (int)System.Math.Floor(c.Position.X), (int)System.Math.Floor(c.Position.Y), (int)System.Math.Floor(c.Position.Z)),
+            _world.Circumference);
+        return InAnyBaseZone(cell) || IsSettlementBlock(cell) || InRuinedSettlementBox(cell) || NpcHuntInPen(cell);
+    }
+
+    /// <summary>A pen: an energy fence or gate (the blocks fauna cannot cross) within <see cref="NpcHuntPenReach"/> blocks
+    /// around the animal, from the level below its feet to the one above. There is no cheap "inside the fence" test (a pen
+    /// is any closed ring a player builds), so a fence that near counts — an animal grazing outside the fence of a
+    /// paddock is spared too. Loaded chunks only.</summary>
+    private bool NpcHuntInPen(Vector3i feet)
+    {
+        if (_energyFenceId == 0 && _energyGateId == 0)
+        {
+            return false;
+        }
+
+        for (int dx = -NpcHuntPenReach; dx <= NpcHuntPenReach; dx++)
+            for (int dz = -NpcHuntPenReach; dz <= NpcHuntPenReach; dz++)
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    ushort id = _world.GetBlockIfLoaded(new Vector3i(feet.X + dx, feet.Y + dy, feet.Z + dz)).Value;
+                    if (id != 0 && (id == _energyFenceId || id == _energyGateId))
+                    {
+                        return true;
+                    }
+                }
 
         return false;
     }

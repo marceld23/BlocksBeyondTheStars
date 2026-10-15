@@ -154,6 +154,37 @@ public sealed class NpcHuntingTests
     }
 
     [Fact]
+    public void TheHunter_NeverShootsInABaseASettlementARuinOrAPen()
+    {
+        using var w = new NpcLifeWorld(_content, "hunt_places");
+        var sp = Huntable(w);
+        w.FoundBase(); // the core at the pad's centre: a zone of ±8 around it
+        PlayerAt(w, Cx - 18.5f, Cz + 18.5f);
+        int hunter = Hunter(w, Cx + 0.5f, Cz + 2.5f);
+
+        var inBase = Spawn(w, sp, Cx + 6.5f, Cz + 2.5f);
+        w.Server.RegisterTestSettlementForTest("Testville", new Vector3i(Cx - 14, w.Feet - 2, Cz), new Vector3i(Cx - 10, w.Feet + 6, Cz + 4));
+        var inTown = Spawn(w, sp, Cx - 11.5f, Cz + 2.5f);
+        w.Server.RegisterTestRuinForTest("Oldtown", new Vector3i(Cx - 2, w.Feet - 2, Cz + 12), new Vector3i(Cx + 2, w.Feet + 6, Cz + 16));
+        var inRuin = Spawn(w, sp, Cx + 0.5f, Cz + 13.5f);
+        var inPen = Spawn(w, sp, Cx + 0.5f, Cz - 10.5f);
+        w.Set(Cx + 2, w.Feet, Cz - 11, "energy_fence"); // the paddock's fence, beside the animal — not in the line of fire
+
+        var banked = new List<ItemAmount>();
+        Assert.Null(w.Server.FindNpcHuntTargetForTest(hunter, 20f));
+        foreach (var (what, c) in new[] { ("in a base", inBase), ("in a settlement", inTown), ("in a ruin", inRuin), ("in a pen", inPen) })
+        {
+            Assert.False(w.Server.NpcShootCreatureForTest(hunter, c.Id, banked), what);
+        }
+
+        Assert.Empty(banked);
+
+        // An animal out in the open is the one it takes — the others were skipped, not missed.
+        var open = Spawn(w, sp, Cx + 10.5f, Cz - 2.5f);
+        Assert.Equal(open.Id, w.Server.FindNpcHuntTargetForTest(hunter, 20f));
+    }
+
+    [Fact]
     public void AWorldWithoutACalmLandSpecies_HasNothingToHunt()
     {
         using var w = new NpcLifeWorld(_content, "hunt_none");

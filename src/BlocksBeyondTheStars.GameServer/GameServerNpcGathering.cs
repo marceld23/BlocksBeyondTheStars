@@ -60,7 +60,10 @@ public sealed partial class GameServer
     /// disc is walked down from a few blocks above the centre's feet: air, leaves, logs and plants are looked through
     /// (a fruit hangs under a crown), the first other block is the ground and ends the column — so a plant in a cave
     /// below is never offered, and one on a column whose ground is not loaded neither. Canonical cells.</summary>
-    private List<Vector3i> FindNpcGatherSites(Vector3f center, int radius, int max)
+    /// <param name="respectAllProtection">A wanderer's search (#2646): additionally skips every cell of
+    /// <see cref="IsSettlementBlock"/> — the lodges' boxes included — and of a ruined settlement's box
+    /// (<see cref="NpcCellStrictlyProtected"/>). A lodge resident keeps the default: it works its own plot.</param>
+    private List<Vector3i> FindNpcGatherSites(Vector3f center, int radius, int max, bool respectAllProtection = false)
     {
         var result = new List<Vector3i>();
         radius = System.Math.Clamp(radius, 0, NpcGatherMaxRadius);
@@ -142,7 +145,8 @@ public sealed partial class GameServer
             new Vector3i(cx + radius, cy + NpcGatherScanUp, cz + radius));
         foreach (var (cell, _) in candidates)
         {
-            if (_floraRegrow.ContainsKey(cell) || GatherCellProtected(cell) || (anyEdits && NpcCellPlayerEdited(cell)))
+            if (_floraRegrow.ContainsKey(cell) || GatherCellProtected(cell)
+                || (respectAllProtection && NpcCellStrictlyProtected(cell)) || (anyEdits && NpcCellPlayerEdited(cell)))
             {
                 continue;
             }
@@ -165,13 +169,15 @@ public sealed partial class GameServer
     /// change, and the player-only hooks (missions, VEGA, samples) stay out. The site is checked again here — the plant
     /// may have been picked, or the cell edited, while the NPC walked over. <paramref name="trustedSite"/> marks a cell of
     /// the NPC's own stamped plot (a lodge's crop bed): the repository keeps the last player as a cell's owner for good, so a
-    /// crop a visitor once picked would otherwise read as player-planted and the gatherer would never tend its own bed again.</remarks>
-    private bool NpcHarvestFlora(ServerNpc npc, Vector3i cell, System.Action<string, int> bank, bool trustedSite = false)
+    /// crop a visitor once picked would otherwise read as player-planted and the gatherer would never tend its own bed again.
+    /// <paramref name="respectAllProtection"/> is the wanderer's stricter rule (see <see cref="FindNpcGatherSites"/>).</remarks>
+    private bool NpcHarvestFlora(ServerNpc npc, Vector3i cell, System.Action<string, int> bank, bool trustedSite = false,
+        bool respectAllProtection = false)
     {
         var c = WorldConstants.CanonicalBlock(cell, _world.Circumference);
         var id = _world.GetBlockIfLoaded(c);
         if (id.IsAir || !IsGatherableFlora(id.Value) || _floraRegrow.ContainsKey(c) || GatherCellProtected(c)
-            || (!trustedSite && NpcCellPlayerEdited(c)))
+            || (respectAllProtection && NpcCellStrictlyProtected(c)) || (!trustedSite && NpcCellPlayerEdited(c)))
         {
             return false;
         }
@@ -244,26 +250,97 @@ public sealed partial class GameServer
         return _repo.HasPlayerBlockEdits(_world.LocationId, p, p);
     }
 
-    /// <summary>Whether any player edit lies in the box (inclusive). One aggregate query when the box's canonical corners
-    /// keep their order; across the longitude or latitude seam it answers true (callers then ask cell by cell), so it
-    /// never misses an edit.</summary>
-    private bool NpcAreaHasPlayerEdits(Vector3i min, Vector3i max)
+    /// <summary>The wanderers' stricter protection (#2646): every cell <see cref="IsSettlementBlock"/> protects — an intact
+    /// settlement, the intercity line and (since #2640) a lodge's box — and the box of a ruined settlement, which nobody
+    /// protects from players but no wanderer works in.</summary>
+    private bool NpcCellStrictlyProtected(Vector3i c) => IsSettlementBlock(c) || InRuinedSettlementBox(c);
+
+    /// <summary>True if the cell lies in a RUINED settlement's box (a ruin, a monument, a rail ruin — the instances
+    /// <see cref="IsSettlementBoxBlock"/> skips). Unprotected for players; the NPC work cores still keep out (no woodcutter
+    /// fells a ruined building's log frame, no hunter shoots inside its walls).</summary>
+    private bool InRuinedSettlementBox(Vector3i pos)
     {
         int circ = _world.Circumference;
-        var lo = WorldConstants.CanonicalBlock(min, circ);
-        var hi = WorldConstants.CanonicalBlock(max, circ);
-        if (lo.X > hi.X || lo.Z > hi.Z || hi.X - lo.X != max.X - min.X || hi.Z - lo.Z != max.Z - min.Z)
+        foreach (var s in _settlements)
         {
-            return true; // the box wraps: no single canonical range covers it
+            if (!s.Ruined)
+            {
+                continue;
+            }
+
+            int lx = WorldConstants.WrapDeltaX(pos.X - s.Min.X, circ);
+            int lz = WorldConstants.WrapDeltaZ(pos.Z - s.Min.Z, circ);
+            if (lx >= 0 && lx <= s.Max.X - s.Min.X && lz >= 0 && lz <= s.Max.Z - s.Min.Z && pos.Y >= s.Min.Y && pos.Y <= s.Max.Y)
+            {
+                return true;
+            }
         }
 
-        return _repo.HasPlayerBlockEdits(_world.LocationId, lo, hi);
+        return false;
+    }
+
+    /// <summary>Whether any player edit lies in the box (inclusive) — one aggregate query per canonical piece of the box
+    /// (<see cref="AnyCanonicalBox"/>: one, or up to four where it crosses the longitude or latitude seam), so it never
+    /// misses an edit and never asks cell by cell.</summary>
+    private bool NpcAreaHasPlayerEdits(Vector3i min, Vector3i max)
+        => AnyCanonicalBox(min, max, (lo, hi) => _repo.HasPlayerBlockEdits(_world.LocationId, lo, hi));
+
+    /// <summary>Splits the inclusive box <paramref name="min"/>–<paramref name="max"/> (any frame, max ≥ min) into the
+    /// canonical boxes the edit store indexes — X wraps at the circumference into [0, C), Z at the latitude period into
+    /// [−P/2, P/2) — and asks <paramref name="query"/> for each until one answers true. A box as wide as the world on an
+    /// axis covers that whole axis.</summary>
+    private bool AnyCanonicalBox(Vector3i min, Vector3i max, System.Func<Vector3i, Vector3i, bool> query)
+    {
+        int circ = _world.Circumference;
+        int period = WorldConstants.LatitudePeriodFor(circ);
+        Span<(int Lo, int Hi)> xs = stackalloc (int, int)[2];
+        Span<(int Lo, int Hi)> zs = stackalloc (int, int)[2];
+        int nx = SplitWrapped(min.X, max.X, WorldConstants.WrapX(min.X, circ), 0, circ, xs);
+        int nz = SplitWrapped(min.Z, max.Z, WorldConstants.WrapZ(min.Z, circ), -period / 2, period, zs);
+        for (int i = 0; i < nx; i++)
+            for (int k = 0; k < nz; k++)
+            {
+                if (query(new Vector3i(xs[i].Lo, min.Y, zs[k].Lo), new Vector3i(xs[i].Hi, max.Y, zs[k].Hi)))
+                {
+                    return true;
+                }
+            }
+
+        return false;
+
+        // One axis: the canonical start, the domain [origin, origin + period) — one range, two across the seam.
+        static int SplitWrapped(int from, int to, int start, int origin, int period, Span<(int Lo, int Hi)> into)
+        {
+            int length = to - from + 1;
+            if (period <= 0 || length >= period)
+            {
+                into[0] = (origin, origin + period - 1);
+                return 1;
+            }
+
+            int end = start + length - 1;
+            if (end < origin + period)
+            {
+                into[0] = (start, end);
+                return 1;
+            }
+
+            into[0] = (start, origin + period - 1);
+            into[1] = (origin, end - period);
+            return 2;
+        }
     }
 
     // ---------------- test seams ----------------
 
     /// <summary>Test seam (#2642): <see cref="FindNpcGatherSites"/> on the active world.</summary>
-    public IReadOnlyList<Vector3i> FindNpcGatherSitesForTest(Vector3f center, int radius, int max) => FindNpcGatherSites(center, radius, max);
+    public IReadOnlyList<Vector3i> FindNpcGatherSitesForTest(Vector3f center, int radius, int max, bool respectAllProtection = false)
+        => FindNpcGatherSites(center, radius, max, respectAllProtection);
+
+    /// <summary>Test seam (#2642/#2644/#2645 review): registers a RUINED settlement box on the active world (unprotected
+    /// for players; the NPC work cores keep out).</summary>
+    public void RegisterTestRuinForTest(string name, Vector3i min, Vector3i max)
+        => _settlements.Add(new SettlementInstance { Name = name, Min = min, Max = max, Tier = "village", GroundY = min.Y, Ruined = true });
 
     /// <summary>Test seam (#2642): <see cref="NpcHarvestFlora"/> by the NPC with this id; the banked drops are appended to
     /// <paramref name="banked"/>. False when there is no such NPC or nothing to harvest.</summary>
@@ -272,6 +349,9 @@ public sealed partial class GameServer
 
     /// <summary>Test seam (#2642): whether a player edited this cell (a block-edit row with an owner).</summary>
     public bool IsBlockPlayerEditedForTest(Vector3i cell) => NpcCellPlayerEdited(cell);
+
+    /// <summary>Test seam (#2644 review): <see cref="NpcAreaHasPlayerEdits"/> for a box in any frame.</summary>
+    public bool NpcAreaHasPlayerEditsForTest(Vector3i min, Vector3i max) => NpcAreaHasPlayerEdits(min, max);
 
     /// <summary>Test seam (#2642): the colour a regrowing cell comes back in (its persisted tint), or -1 when nothing
     /// regrows there.</summary>

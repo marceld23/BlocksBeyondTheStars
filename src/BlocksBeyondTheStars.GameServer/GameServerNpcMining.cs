@@ -36,6 +36,11 @@ public sealed partial class GameServer
     /// <summary>The refill registry is stepped once a second per world.</summary>
     private const double NpcRestoreStepSeconds = 1.0;
 
+    /// <summary>A changed refill registry is written at most this often (seconds of server time) — a mined cell or a
+    /// restore step marks it dirty instead of serialising the whole metadata at once; every full save (autosave,
+    /// checkpoint, shutdown) carries it anyway.</summary>
+    private const double NpcRefillSaveSeconds = 60.0;
+
     /// <summary>How far above and below the centre <see cref="FindNpcOutcrops"/> looks for a column's surface.</summary>
     private const int NpcOutcropBand = 12;
 
@@ -57,6 +62,11 @@ public sealed partial class GameServer
 
     /// <summary>The most pending refills per world (<see cref="NpcRefillRecord.MaxPerWorld"/>; a test lowers it).</summary>
     private int _npcRefillCap = NpcRefillRecord.MaxPerWorld;
+
+    // The registry changed since it was last written, and the uptime from which on the next coalesced write may run. The
+    // metadata is one object for every world, so one gate serves them all.
+    private bool _npcRefillsDirty;
+    private double _npcRefillsSaveAt;
 
     /// <summary>Breaks one cell as an NPC (<c>BreakBlockCore(session: null, ownerId: "")</c> — never a player edit), banks
     /// the drops and schedules the cell to fill up again after <paramref name="refillSeconds"/> of play (persisted). False
@@ -194,7 +204,7 @@ public sealed partial class GameServer
 
         if (registryChanged)
         {
-            SaveNpcRefills(pending!);
+            MarkNpcRefillsChanged(pending!);
         }
     }
 
@@ -203,9 +213,11 @@ public sealed partial class GameServer
     /// air gets its block back with a <see cref="BlockChanged"/> — when its chunk is loaded (an unloaded one waits for a
     /// player's streaming area; no chunk is loaded for it), no player stands within <see cref="NpcRefillPlayerClearance"/>
     /// and nobody stands in it (an NPC, an animal, a drop on the ground, a landed ship). A cell somebody built into, or a
-    /// player dug again, is left as it is and leaves the registry.</summary>
+    /// player dug again, is left as it is and leaves the registry. A changed registry is written coalesced
+    /// (<see cref="FlushNpcRefillsIfDue"/>).</summary>
     private void TickNpcRestores(double dt)
     {
+        FlushNpcRefillsIfDue();
         string world = _world.LocationId;
         if (!_meta.NpcRefills.TryGetValue(world, out var list) || list.Count == 0)
         {
@@ -259,13 +271,15 @@ public sealed partial class GameServer
 
         if (changed)
         {
-            SaveNpcRefills(list);
+            MarkNpcRefillsChanged(list);
         }
     }
 
-    /// <summary>Writes a mined cell into the world's refill registry (one entry per cell) and saves the metadata at once —
-    /// the air edit is already in the store, so the entry must be too, or a crash would leave the hole for good. A full
-    /// registry restores its oldest entry first (unless somebody stands in it).</summary>
+    /// <summary>Writes a mined cell into the world's refill registry (one entry per cell) and marks the registry dirty —
+    /// written within <see cref="NpcRefillSaveSeconds"/> (<see cref="FlushNpcRefillsIfDue"/>) and with every full save.
+    /// A crash before that write leaves the cell an ordinary mined hole; a lodge restores its quarry face on load
+    /// (<see cref="RestoreNpcCellsNow"/>). A full registry restores its oldest entry first (unless somebody stands in it,
+    /// or its chunk is not loaded — then the entry is just dropped: no chunk is loaded for it).</summary>
     private void ScheduleNpcRefill(Vector3i cell, string blockKey, int tint, int glow, int shape, double refillSeconds)
     {
         string world = _world.LocationId;
@@ -280,8 +294,9 @@ public sealed partial class GameServer
             var oldest = list[0];
             list.RemoveAt(0);
             var oldCell = new Vector3i(oldest.X, oldest.Y, oldest.Z);
-            if (_world.GetBlock(oldCell).IsAir && !NpcRefillCellOccupied(oldCell) && !NpcRefillPlayerInside(oldCell)
-                && !_repo.HasPlayerBlockEdits(world, oldCell, oldCell) && _content.GetBlock(oldest.Block) is { } oldDef)
+            if (NpcCellLoaded(oldCell) && _world.GetBlockIfLoaded(oldCell).IsAir && !NpcRefillCellOccupied(oldCell)
+                && !NpcRefillPlayerInside(oldCell) && !_repo.HasPlayerBlockEdits(world, oldCell, oldCell)
+                && _content.GetBlock(oldest.Block) is { } oldDef)
             {
                 PutNpcCellBack(oldCell, oldDef.NumericId, oldest.Tint, oldest.Glow, oldest.Shape);
             }
@@ -299,17 +314,32 @@ public sealed partial class GameServer
             DueAt = _meta.CumulativePlaytimeSeconds
                     + (long)System.Math.Ceiling(double.IsNaN(refillSeconds) ? NpcMineRefillSeconds : System.Math.Clamp(refillSeconds, 0.0, 86400.0)),
         });
-        _repo.SaveMetadata(_meta);
+        _npcRefillsDirty = true;
     }
 
-    /// <summary>Saves the registry after a change (an emptied world's entry goes).</summary>
-    private void SaveNpcRefills(List<NpcRefillRecord> list)
+    /// <summary>Notes a change of the active world's registry (an emptied world's entry goes); the write is coalesced.</summary>
+    private void MarkNpcRefillsChanged(List<NpcRefillRecord> list)
     {
         if (list.Count == 0)
         {
             _meta.NpcRefills.Remove(_world.LocationId);
         }
 
+        _npcRefillsDirty = true;
+    }
+
+    /// <summary>Writes the metadata when the refill registry changed and the last such write is at least
+    /// <see cref="NpcRefillSaveSeconds"/> ago (the first change after a quiet spell is written on the next step). Every
+    /// full save (<c>SaveAll</c>: the autosave, a checkpoint, the shutdown) writes the same metadata, the registry in it.</summary>
+    private void FlushNpcRefillsIfDue()
+    {
+        if (!_npcRefillsDirty || _uptime < _npcRefillsSaveAt)
+        {
+            return;
+        }
+
+        _npcRefillsDirty = false;
+        _npcRefillsSaveAt = _uptime + NpcRefillSaveSeconds;
         _repo.SaveMetadata(_meta);
     }
 
@@ -352,8 +382,10 @@ public sealed partial class GameServer
         => NpcMinerProtected(cell) || IsSettlementBlock(cell);
 
     /// <summary>True when breaking the cell would open a fluid (water or lava beside it — or a neighbour whose chunk is not
-    /// loaded, which cannot be checked) or bring down what rests on it: sand or snow that would slide in, a plant or a
-    /// sapling that would pop, a tree.</summary>
+    /// loaded, which cannot be checked) or bring down what rests on it or hangs from it: sand or snow that would slide in,
+    /// a plant or a sapling that would pop, a tree, a torch or a lantern standing on it (the props
+    /// <c>PopIfUnsupported</c> drops — a wall beside it is not trusted to hold it), a hanging plant under it — and when a
+    /// player edited the cell above (their build, their dig: an NPC never mines under a player's work).</summary>
     private bool NpcCellUnsafeToOpen(Vector3i cell)
     {
         foreach (var face in CrystalNetRules.Faces)
@@ -365,9 +397,17 @@ public sealed partial class GameServer
             }
         }
 
-        var above = _world.GetBlockIfLoaded(new Vector3i(cell.X, cell.Y + 1, cell.Z));
-        return !above.IsAir
-               && (IsGranular(above) || IsFlora(above.Value) || IsSapling(above.Value) || _treeSpeciesByBlock.ContainsKey(above.Value));
+        var aboveCell = WorldConstants.CanonicalBlock(new Vector3i(cell.X, cell.Y + 1, cell.Z), _world.Circumference);
+        var above = _world.GetBlockIfLoaded(aboveCell);
+        if (!above.IsAir
+            && (IsGranular(above) || IsFlora(above.Value) || IsSapling(above.Value) || _treeSpeciesByBlock.ContainsKey(above.Value)
+                || (_world.Definition(above) is { } aboveDef && IsStandingLightKey(aboveDef.Key))))
+        {
+            return true;
+        }
+
+        var below = _world.GetBlockIfLoaded(new Vector3i(cell.X, cell.Y - 1, cell.Z));
+        return _floraHangingIds.Contains(below.Value) || _repo.HasPlayerBlockEdits(_world.LocationId, aboveCell, aboveCell);
     }
 
     /// <summary>Whether the chunk holding the cell is resident (never loads one).</summary>
@@ -450,12 +490,14 @@ public sealed partial class GameServer
         return ShipInteriorContains(centre);
     }
 
-    /// <summary>Whether a standing body (feet at <paramref name="feet"/>, two blocks tall) fills the cell.</summary>
+    /// <summary>Whether a standing body (feet at <paramref name="feet"/>, two blocks tall) fills the cell — compared the
+    /// short way round both seams (a body just across the longitude or the latitude seam stands in the canonical cell).</summary>
     private bool NpcRefillBodyIn(Vector3f feet, Vector3i cell)
     {
         int x = (int)System.Math.Floor(feet.X), y = (int)System.Math.Floor(feet.Y), z = (int)System.Math.Floor(feet.Z);
-        return z == cell.Z && (y == cell.Y || y + 1 == cell.Y)
-               && WorldConstants.WrapDeltaX(x - cell.X, _world.Circumference) == 0;
+        int circ = _world.Circumference;
+        return (y == cell.Y || y + 1 == cell.Y)
+               && WorldConstants.WrapDeltaX(x - cell.X, circ) == 0 && WorldConstants.WrapDeltaZ(z - cell.Z, circ) == 0;
     }
 
     // ------------------------------------------------------------------------------------------------------
