@@ -31,7 +31,11 @@ public sealed class CrateStorageTests : IDisposable
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, "crate"));
         var st = new LoopbackServerTransport(new LoopbackLink());
-        var config = new ServerConfig { WorldName = "crate", Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var config = new ServerConfig
+        {
+            WorldName = "crate", Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false,
+            PlaceLodges = false, // #2640: a hut's store is a crate too — keep the test's own crate the only one
+        };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;

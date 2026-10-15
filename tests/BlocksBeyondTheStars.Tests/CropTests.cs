@@ -89,7 +89,9 @@ public sealed class CropTests : IDisposable
             Assert.True(seed != null, $"{key} needs a seed item that places it");
 
             // … a HAND recipe sows it (no station between the first harvest and your own bed) …
-            var recipe = _content.Recipes.Values.SingleOrDefault(r => r.Outputs.Any(o => o.Item == seed!.Key));
+            // (#2641: a gatherer may also sell seeds — the market deal is no sowing recipe)
+            var recipe = _content.Recipes.Values.SingleOrDefault(r => r.Station != CraftingStation.Market
+                                                                    && r.Outputs.Any(o => o.Item == seed!.Key));
             Assert.True(recipe != null, $"{seed!.Key} needs a recipe");
             Assert.Equal(CraftingStation.Hand, recipe!.Station);
 
