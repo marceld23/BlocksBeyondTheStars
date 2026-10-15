@@ -816,6 +816,10 @@ namespace BlocksBeyondTheStars.Client
                     net.SendAdminCommand("summon_biped");
                     return true;
 
+                case "/wanderer": // #2646: one of this world's wanderers comes by right now (testing)
+                    net.SendAdminCommand("summon_wanderer");
+                    return true;
+
                 case "/fly": net.SendAdminCommand("fly"); return true;
                 case "/god": net.SendAdminCommand("godmode"); return true;
                 case "/instant": net.SendAdminCommand("instant_build"); return true;
@@ -1026,6 +1030,7 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_mode"));
             LocalLine(L("ui.admin.help_gamemode"));
             LocalLine(L("ui.admin.help_teleport"));
+            LocalLine(L("ui.admin.help_wilderness")); // #2646: /wanderer and /tp lodge
             LocalLine(L("ui.admin.help_inspect"));
             LocalLine(L("ui.admin.help_fleet"));
             LocalLine(L("ui.admin.help_story"));

@@ -370,6 +370,14 @@ public sealed class ServerConfig
     public bool PlaceLodges { get; set; } = true;
 
     /// <summary>
+    /// Whether <b>wanderers</b> (#2646) may come by — named travellers who gather, prospect, chop or hunt in the open land
+    /// near a player on foot, trade and talk, and move on (RAM only, at most two per world at once). The same worlds as
+    /// <see cref="PlaceLodges"/>: terrain generation 25 or newer, never a void, airless, ruined-only, gas or city world, and
+    /// not with the world's "Settlements" option off. Each world's small cast is derived from the world seed.
+    /// </summary>
+    public bool PlaceWanderers { get; set; } = true;
+
+    /// <summary>
     /// Whether the server may stamp <b>monuments</b> on a body's surface — eroded relics of a vanished
     /// civilisation (arcade arches, a free-standing gate, a stone circle, an obelisk, a rune altar), carved
     /// with glowing runes that grant knowledge points when scanned. Like ruins the blocks are NOT protected,
