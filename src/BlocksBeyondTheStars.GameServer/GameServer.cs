@@ -5208,7 +5208,10 @@ public sealed partial class GameServer
         // A natural tree inside the box is not the settlement's either (#1659) — see IsSettlementProtected.
         if (!harvestingPlant && IsSettlementProtected(pos, current))
         {
-            Reject(session, "mine", "@srv.protect.settlement");
+            // #2640: a lodge says whose hut it is (the plants in its plot stay pickable — harvestingPlant above).
+            Reject(session, "mine", IsLodgeBlock(pos) && !IsSettlementBoxBlock(pos) && !IsIntercityRailBlock(pos)
+                ? "@srv.protect.lodge:" + (LodgeAt(pos)?.ResidentName ?? string.Empty)
+                : "@srv.protect.settlement");
             return;
         }
 

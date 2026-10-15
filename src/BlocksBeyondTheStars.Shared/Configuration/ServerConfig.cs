@@ -361,6 +361,15 @@ public sealed class ServerConfig
     public bool PlaceBanditCamps { get; set; } = true;
 
     /// <summary>
+    /// Whether the server may stamp <b>lodges</b> (#2640) — small inhabited huts out in the open land, each with one or
+    /// two residents who gather, mine, chop or hunt around it. Only on worlds of terrain generation 25 or newer
+    /// (<see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.WildernessFolkGeneration"/>), only while
+    /// <see cref="PlaceSettlements"/> is on too, and as many as the world's "Settlements" option allows. Protected like a
+    /// village; the voxels are stamped once, the residents re-derive on every load. Deterministic from the world seed.
+    /// </summary>
+    public bool PlaceLodges { get; set; } = true;
+
+    /// <summary>
     /// Whether the server may stamp <b>monuments</b> on a body's surface — eroded relics of a vanished
     /// civilisation (arcade arches, a free-standing gate, a stone circle, an obelisk, a rune altar), carved
     /// with glowing runes that grant knowledge points when scanned. Like ruins the blocks are NOT protected,

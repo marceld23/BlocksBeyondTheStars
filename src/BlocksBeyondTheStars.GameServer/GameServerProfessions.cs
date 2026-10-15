@@ -276,10 +276,11 @@ public sealed partial class GameServer
         BroadcastNpcs();
     }
 
-    /// <summary>The place a reporter's news (and a streamer's daily question) belongs to: the settlement, the base, else the
-    /// world (a station).</summary>
+    /// <summary>The place a reporter's news (and a streamer's daily question) belongs to: the settlement, the base, a lodge
+    /// (#2641: its residents chat as a place of their own), else the world (a station).</summary>
     private string NewsPlaceKey(ServerNpc npc)
-        => npc.Settlement.Length > 0 ? "s:" + npc.Settlement : npc.BaseId > 0 ? "b:" + npc.BaseId : "w:" + _world.LocationId;
+        => npc.Settlement.Length > 0 ? "s:" + npc.Settlement : npc.BaseId > 0 ? "b:" + npc.BaseId
+            : npc.LodgeKey.Length > 0 ? "l:" + npc.LodgeKey : "w:" + _world.LocationId;
 
     /// <summary>The latest news of the teller's place, newest first, for the "read the news" answer — the reporter's and
     /// (#2599, E13) the innkeeper's: the place's interviews and the deeds of this world that concern it

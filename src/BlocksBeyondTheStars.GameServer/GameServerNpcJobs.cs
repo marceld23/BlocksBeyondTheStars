@@ -74,6 +74,12 @@ public sealed partial class GameServer
     /// <summary>One NPC's job on duty (called from the routine pass for NPCs in reach).</summary>
     private void TickNpcJob(ServerNpc npc, double dt, List<PlayerSession> targets)
     {
+        if (npc.LodgeKey.Length > 0)
+        {
+            TickLodgeResidentJob(npc, targets); // #2641: the wilderness folk work round their hut (GameServerNpcWork.cs)
+            return;
+        }
+
         if (npc.BaseId == 0 || npc.Job.Length == 0 || npc.Phase != NpcPhase.Day || npc.Pose != 0)
         {
             return;

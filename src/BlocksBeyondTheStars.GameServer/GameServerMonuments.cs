@@ -114,6 +114,7 @@ public sealed partial class GameServer
 
         AppendIntercityReservations(reserved); // #2125: the intercity line's stations and route
         AppendRailRuinReservations(reserved); // #2166: the abandoned monorail station
+        AppendLodgeReservations(reserved); // #2640: the wilderness huts
 
         foreach (var camp in _banditCamps)
         {

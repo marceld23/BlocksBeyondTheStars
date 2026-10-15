@@ -43,6 +43,7 @@ public sealed class SettlementNpcTests : IDisposable
             PlaceStarterShip = false,
             PlaceSettlements = true,
             PlaceWrecks = false,
+            PlaceLodges = false, // #2640: a hut's residents are no villagers — LodgeResidentTests has them
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();

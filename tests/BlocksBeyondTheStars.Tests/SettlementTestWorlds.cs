@@ -12,9 +12,9 @@ namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
 /// Settlement-only test servers for the settlement suites (#2456). They start with settlements and nothing that is
-/// stamped after them: the intercity rail, ruins, bandit camps, monuments, factories, vaults, chests and wrecks only
-/// read the settlement list, so the settlements, their footprints and the landing pads come out exactly as on a full
-/// world, at a fraction of the boot (1–3.5 s less per server, and these suites start hundreds).
+/// stamped after them: the intercity rail, ruins, bandit camps, lodges, monuments, factories, vaults, chests and wrecks
+/// only read the settlement list, so the settlements, their footprints and the landing pads come out exactly as on a
+/// full world, at a fraction of the boot (1–3.5 s less per server, and these suites start hundreds).
 /// </summary>
 internal sealed class SettlementTestWorlds : IDisposable
 {
@@ -35,6 +35,7 @@ internal sealed class SettlementTestWorlds : IDisposable
             PlaceRuins = false,
             PlaceRailRuins = false,
             PlaceBanditCamps = false,
+            PlaceLodges = false, // #2640: the wilderness huts and their residents stay out of the settlement suites
             PlaceMonuments = false,
             PlaceFactories = false,
             PlaceVaults = false,

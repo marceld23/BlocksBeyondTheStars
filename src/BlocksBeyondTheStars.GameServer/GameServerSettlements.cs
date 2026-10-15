@@ -202,6 +202,7 @@ public sealed partial class GameServer
         }
 
         AppendIntercityPois(session, pois); // #2125: the two stations of the intercity line
+        AppendLodgePois(session, pois); // #2640: the huts a player found or was told about
         AppendUniqueSitePois(session, pois); // #1129: this world's one-of-a-kind place, once shared
         AppendLandedTraderPoi(session, pois); // #1904: a trader ship parked here right now (live, never persisted)
 
@@ -1556,7 +1557,8 @@ public sealed partial class GameServer
         }
 
         return OverlapsIntercityRail(x, z, halfExtent) // #2125: the stations and the route belong to the towns
-            || OverlapsRailRuin(x, z, halfExtent);     // #2166: the abandoned monorail station
+            || OverlapsRailRuin(x, z, halfExtent)      // #2166: the abandoned monorail station
+            || OverlapsLodge(x, z, halfExtent);        // #2640: the wilderness huts
     }
 
     // --- count + balance model ----------------------------------------------------------------------------
@@ -1926,7 +1928,8 @@ public sealed partial class GameServer
     /// building for good — the carve in <c>StampSettlementBlocks</c> removes such trees on load, this is the
     /// belt to that brace for anything it misses.</summary>
     private bool IsSettlementProtected(Vector3i pos, BlockId id)
-        => IsSettlementBlock(pos) && !(SettlementVegetationIds.Contains(id.Value) && !IsSettlementLayoutCell(pos));
+        => IsSettlementBlock(pos)
+           && !(SettlementVegetationIds.Contains(id.Value) && !IsSettlementLayoutCell(pos) && !IsLodgeLayoutCell(pos)); // #2640: a hut's log frame is the hut's
 
     /// <summary>Test seam for <see cref="IsSettlementProtected"/> against the block currently at the cell.</summary>
     public bool IsSettlementProtectedForTest(Vector3i pos) => IsSettlementProtected(pos, _world.GetBlock(pos));
@@ -1940,8 +1943,10 @@ public sealed partial class GameServer
 
     /// <summary>True if the block belongs to an intact (protected) settlement — ruins are scavengeable — or to the
     /// intercity line that connects two of them (#2125: its stations and generated pylons), so every protection check
-    /// (mining, blasts, the pump, the drills, fire) treats the line like the towns it serves.</summary>
-    public bool IsSettlementBlock(Vector3i pos) => IsSettlementBoxBlock(pos) || IsIntercityRailBlock(pos);
+    /// (mining, blasts, the pump, the drills, fire) treats the line like the towns it serves — and (#2640) to a lodge's
+    /// house and yard (<see cref="IsLodgeBlock"/>). The wilderness folk's own work cores ask the narrower
+    /// <c>IsSettlementBoxBlock || IsIntercityRailBlock</c>, so they may work inside their lodge.</summary>
+    public bool IsSettlementBlock(Vector3i pos) => IsSettlementBoxBlock(pos) || IsIntercityRailBlock(pos) || IsLodgeBlock(pos);
 
     /// <summary>True if the block lies in an intact settlement's protected box.</summary>
     private bool IsSettlementBoxBlock(Vector3i pos)

@@ -1,0 +1,6 @@
+[
+  { "key": "gatherer",   "held": "npc_basket",  "theme": "gatherers",   "activity": "gathering", "work": "gather", "yard": "plot",         "partner": "hunter",   "weights": { "flora": 1.0, "fauna": 0.15 } },
+  { "key": "miner",      "held": "npc_pickaxe", "theme": "miners",      "activity": "mining",    "work": "mine",   "yard": "quarry",       "partner": "woodcutter", "weights": { "ores": 0.8 } },
+  { "key": "woodcutter", "held": "npc_axe",     "theme": "woodcutters", "activity": "chopping",  "work": "chop",   "yard": "woodpile",     "partner": "gatherer", "weights": { "trees": 1.0 } },
+  { "key": "hunter",     "held": "npc_bow",     "theme": "hunters",     "activity": "hunting",   "work": "hunt",   "yard": "drying_frame", "partner": "gatherer", "weights": { "fauna": 1.0 } }
+]
