@@ -176,3 +176,4 @@ ones are marked, not deleted.
 - [0015 — Unity 6.6, the Supported-release cadence, and WebGPU first in the browser](adr/0015-unity-6-6-supported-releases-and-webgpu-first.md)
 - [0016 — Lava, crystals and the glowing flora light their surroundings (quietly)](adr/0016-natural-emitters-light-their-surroundings.md)
 - [0017 — Endless water by class, finite still water, and falls that keep their level](adr/0017-water-classes-finite-still-water-and-bounded-falls.md)
+- [0018 — Every closed room breathes: one air engine for bases and stations, doors are bulkheads](adr/0018-every-closed-room-breathes-one-air-engine.md)
