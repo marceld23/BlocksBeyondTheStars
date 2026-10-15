@@ -1144,6 +1144,7 @@
   "ui.map.belt": "Asteroidengürtel",
   "ui.map.kind_asteroidfield": "Asteroidenfeld",
   "ui.map.kind_wreck": "Wrack",
+  "ui.map.kind_lodge": "Hütte",
   "ui.map.wreck_hint": "hinfliegen und bergen",
   "ui.map.wreck_detail": "Ein Wrack, das in diesem System treibt — keine Schnellreise. Flieg mit dem Schiff hin: VEGA liest beim Anflug das Manifest, und ein Bergbaulaser (oder die Spitzhacke beim Außeneinsatz) holt Platten, Kabel und ab und zu ein Datenfragment aus der Hülle. Setz es auf der Flugkarte ({key:FlightMap}) als Wegpunkt.",
   "ui.map.status_notgenerated": "Unerforscht",

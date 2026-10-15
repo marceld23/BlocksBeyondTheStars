@@ -67,6 +67,38 @@ public sealed class AvatarGesturesTests
     }
 
     [Fact]
+    public void TheBowShot_DrawsToTheRelease_FollowsThrough_AndReturnsToRest()
+    {
+        // #2647: rest at both ends and outside the gesture.
+        Assert.Equal((0f, 0f), AvatarGestures.BowShot(0f));
+        Assert.Equal((0f, 0f), AvatarGestures.BowShot(1f));
+        Assert.Equal((0f, 0f), AvatarGestures.BowShot(-0.2f));
+        Assert.Equal((0f, 0f), AvatarGestures.BowShot(1.4f));
+
+        // At the release the bow is up and the string fully drawn.
+        var release = AvatarGestures.BowShot(AvatarGestures.BowReleaseFraction);
+        Assert.Equal(1f, release.Raise, 4);
+        Assert.Equal(1f, release.Draw, 4);
+
+        // The draw grows up to the release; afterwards the hand flies on past the anchor while the bow is held.
+        float last = 0f;
+        for (int i = 1; i <= 20; i++)
+        {
+            float draw = AvatarGestures.BowShot(AvatarGestures.BowReleaseFraction * i / 20f).Draw;
+            Assert.True(draw >= last - 1e-5f, $"the draw only grows before the release ({i})");
+            last = draw;
+        }
+
+        var held = AvatarGestures.BowShot(0.5f);
+        Assert.Equal(1f, held.Raise, 4);
+        Assert.Equal(1f + AvatarGestures.BowFollowThrough, held.Draw, 4);
+        Assert.True(AvatarGestures.BowShot(0.99f).Raise < 0.05f, "the bow is lowered by the end");
+
+        Assert.Equal(AvatarGestures.BowShotSeconds * AvatarGestures.BowReleaseFraction, AvatarGestures.BowReleaseSeconds, 5);
+        Assert.InRange(AvatarGestures.BowReleaseSeconds, 0.1f, 0.3f); // close to the server's twang, which plays on arrival
+    }
+
+    [Fact]
     public void AnNpc_LooksAtAPlayerInFront_AndToTheSide()
     {
         // NPC facing +Z (yaw 0); the player straight ahead, level.

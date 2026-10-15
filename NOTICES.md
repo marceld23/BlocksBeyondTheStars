@@ -65,7 +65,8 @@ clips `bio_lab_analyse`, `bio_lab_mix`, `bio_lab_fail`, `bio_effect_start`, `bio
 lock's four cues `target_lock`, `target_lock_hostile`, `target_cycle`, `target_lost` (#2283, same `gen_sound.py`,
 2026-10-04), and the glove weapons' five cues `glove_whoosh`, `glove_shock_blast`, `glove_energy_hit`, `glove_charge`,
 `glove_stagger` (#2278, same `gen_sound.py`, 2026-10-04), and the derelict guardian bay's release cue `guardian_bay`
-(#2635, same `gen_sound.py`, 2026-10-15))
+(#2635, same `gen_sound.py`, 2026-10-15), and the wilderness folk's three work cues `npc_bow_shot` (a hunter's bow),
+`npc_axe_chop` (a woodcutter's axe) and `tree_fall` (a felled tree coming down) (#2647, same `gen_sound.py`, 2026-10-15))
 are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/developer/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio
@@ -88,8 +89,8 @@ marker set `map_*` and the VEGA avatar `icon_vega`) are **AI-generated** with th
 **OpenAI** image API (`gpt-image-1-mini`, transparent cyan line icons — see
 `tools/ai-assets/gen_icons.py`; the world-map marker set `map_*` was regenerated as bold filled
 white-ink pictograms for tintability/legibility — see `tools/ai-assets/gen_map_icons.py`; the
-player-marker safe set `map_mark_flag/home/ore/danger/water/star/heart/question` (#1217) was
-generated the same way); they are
+player-marker safe set `map_mark_flag/home/ore/danger/water/star/heart/question` (#1217) and the wilderness hut
+marker `map_lodge` (#2647, `gen_map_icons.py --only map_lodge`, 2026-10-15) were generated the same way); they are
 AI-synthesised images, use governed by the OpenAI usage terms for the generating account.
 
 **Item / module icons:** `client/Assets/Resources/icons/item_*.png` (content-styled inventory icons for

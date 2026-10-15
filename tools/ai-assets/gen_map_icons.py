@@ -62,6 +62,8 @@ ICONS = [
     ("map_mark_star", "a five pointed star"),
     ("map_mark_heart", "a heart symbol"),
     ("map_mark_question", "a bold question mark in a circle"),
+    # Wilderness folk (#2647): a lodge — a small inhabited hut out in the open land, not a village.
+    ("map_lodge", "a small log cabin hut with a pitched roof and a tall pine tree beside it"),
 ]
 
 
@@ -88,11 +90,22 @@ def main() -> None:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--install", action="store_true", help="copy results into the client Resources")
     ap.add_argument("--dest", type=Path, default=DEFAULT_DEST)
+    ap.add_argument("--only", nargs="+", metavar="ID",
+                    help="generate/install only these icon ids - adding ONE new marker on a fresh checkout "
+                         "(out/ is empty there) must not re-roll the approved set")
     args = ap.parse_args()
 
-    print(f"[map-icons] {len(ICONS)} icons")
+    icons = ICONS
+    if args.only:
+        known = {sid for sid, _ in ICONS}
+        unknown = [sid for sid in args.only if sid not in known]
+        if unknown:
+            sys.exit(f"not in ICONS: {', '.join(unknown)} - add them to the manifest first")
+        icons = [(sid, desc) for sid, desc in ICONS if sid in args.only]
+
+    print(f"[map-icons] {len(icons)} icons")
     if args.dry_run:
-        for i, (sid, desc) in enumerate(ICONS, 1):
+        for i, (sid, desc) in enumerate(icons, 1):
             print(f"  {i:2d}. {sid:16s} {desc}")
         return
 
@@ -109,9 +122,9 @@ def main() -> None:
 
     done = skipped = failed = 0
     fails: list[str] = []
-    total = len(ICONS)
+    total = len(icons)
 
-    for i, (sid, desc) in enumerate(ICONS, 1):
+    for i, (sid, desc) in enumerate(icons, 1):
         out = OUT / f"{sid}.png"
         if out.exists() and out.stat().st_size > 0:
             skipped += 1
@@ -151,7 +164,7 @@ def main() -> None:
 
     if args.install and not fails:
         args.dest.mkdir(parents=True, exist_ok=True)
-        for sid, _ in ICONS:
+        for sid, _ in icons:
             src = OUT / f"{sid}.png"
             if src.exists():
                 shutil.copy2(src, args.dest / f"{sid}.png")

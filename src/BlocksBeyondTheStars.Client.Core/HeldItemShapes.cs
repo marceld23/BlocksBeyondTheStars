@@ -110,6 +110,61 @@ namespace BlocksBeyondTheStars.Client
             };
         }
 
+        /// <summary>The kind name (<c>HeldItem.Kind</c>) of the woodcutter's axe (#2647) — an NPC tool, not an item.</summary>
+        public const string AxeKind = "Axe";
+
+        /// <summary>The kind name (<c>HeldItem.Kind</c>) of the hunter's bow (#2647) — an NPC tool, not an item.</summary>
+        public const string BowKind = "Bow";
+
+        private static readonly Rgb ToolWood = new Rgb(0.45f, 0.30f, 0.16f);
+        private static readonly Rgb BowGrip = new Rgb(0.28f, 0.18f, 0.11f);
+        private static readonly Rgb BowString = new Rgb(0.92f, 0.88f, 0.78f);
+
+        /// <summary>
+        /// The parts of a wilderness NPC's axe or bow (#2647), or null for any other kind. Like every held model they point
+        /// along +Z from the hand; <paramref name="tint"/> is the iron of the axe head and the wood of the bow.
+        /// <list type="bullet">
+        /// <item><b>Axe</b> — a wooden handle a little longer than the craftsman's hammer with the iron head across its far
+        /// end: the blade on −Y, the side that leads in the avatar's overhead swing (the hoe's blade sits there for the same
+        /// reason), a short poll on +Y.</item>
+        /// <item><b>Bow</b> — a stave along Z centred on the leather grip in the hand, both limbs bending towards +Y and the
+        /// string across their tips on that side. With the arm raised to aim, the hand points forward, +Z up and +Y back to
+        /// the archer: the bow stands upright with its string towards the hunter.</item>
+        /// </list>
+        /// </summary>
+        public static List<Part>? NpcToolParts(string kind, Rgb tint)
+        {
+            if (kind == AxeKind)
+            {
+                var edge = new Rgb(Lighter(tint.R), Lighter(tint.G), Lighter(tint.B));
+                return new List<Part>
+                {
+                    P(0f, 0f, 0.16f, 0.05f, 0.05f, 0.50f, ToolWood),  // handle
+                    P(0f, -0.02f, 0.37f, 0.06f, 0.10f, 0.09f, tint),  // the eye around the handle's end
+                    P(0f, -0.11f, 0.37f, 0.035f, 0.10f, 0.15f, tint), // the blade, flaring out along the handle
+                    P(0f, -0.17f, 0.37f, 0.03f, 0.02f, 0.17f, edge),  // the bright cutting edge
+                    P(0f, 0.05f, 0.37f, 0.05f, 0.04f, 0.06f, tint),   // the poll
+                };
+            }
+
+            if (kind == BowKind)
+            {
+                return new List<Part>
+                {
+                    P(0f, 0f, 0.02f, 0.05f, 0.06f, 0.12f, BowGrip),      // the grip in the hand
+                    P(0f, 0.015f, 0.18f, 0.04f, 0.04f, 0.20f, tint),     // upper limb
+                    P(0f, 0.05f, 0.34f, 0.035f, 0.035f, 0.14f, tint),    // upper limb's tip, bent back
+                    P(0f, 0.015f, -0.14f, 0.04f, 0.04f, 0.20f, tint),    // lower limb
+                    P(0f, 0.05f, -0.30f, 0.035f, 0.035f, 0.14f, tint),   // lower limb's tip
+                    P(0f, 0.075f, 0.02f, 0.012f, 0.012f, 0.78f, BowString), // the string, tip to tip
+                };
+            }
+
+            return null;
+        }
+
+        private static float Lighter(float c) => c + ((1f - c) * 0.45f);
+
         /// <summary>Turns model data into parts, dropping what cannot be drawn and everything past
         /// <see cref="HeldModelPart.MaxParts"/> — a model from a content pack or another player is not trusted.</summary>
         public static List<Part> FromModel(IReadOnlyList<HeldModelPart>? model, Rgb tint)

@@ -901,7 +901,14 @@ namespace BlocksBeyondTheStars.Client
             bool alarm = m.SoundId.StartsWith("alarm_siren", System.StringComparison.Ordinal);
             if (!m.Loop)
             {
-                At(m.SoundId, pos, m.Pitch <= 0f ? 1f : m.Pitch, alarm ? 0.9f : 0.8f);
+                // #2647: the NPC work cues (a hunter's bow shot, a felled tree coming down) are quiet and short-range.
+                var cam = Camera.main;
+                if (cam != null && !NpcWorkTools.FxAudible(m.SoundId, Vector3.Distance(cam.transform.position, pos)))
+                {
+                    return;
+                }
+
+                At(m.SoundId, pos, m.Pitch <= 0f ? 1f : m.Pitch, NpcWorkTools.FxVolume(m.SoundId, alarm ? 0.9f : 0.8f));
                 return;
             }
 

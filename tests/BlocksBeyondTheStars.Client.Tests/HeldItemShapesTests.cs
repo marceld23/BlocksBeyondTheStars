@@ -168,6 +168,55 @@ public sealed class HeldItemShapesTests
     }
 
     [Fact]
+    public void TheWoodcuttersAxe_HasItsBladeOnTheLeadingSide_AtTheHandlesEnd()
+    {
+        // #2647: the overhead swing leads with −Y (where the hoe's blade sits), so the axe's edge must be there.
+        var axe = HeldItemShapes.NpcToolParts(HeldItemShapes.AxeKind, Tint)!;
+        Assert.NotNull(axe);
+        Assert.True(axe.Count <= HeldModelPart.MaxParts);
+        var handle = axe.OrderByDescending(p => p.Size.Z).First();
+        float handleEnd = handle.Position.Z + (handle.Size.Z / 2f);
+        var edge = axe.OrderBy(p => p.Position.Y).First();
+        Assert.True(edge.Position.Y < -0.1f, "the cutting edge hangs below the handle");
+        Assert.InRange(edge.Position.Z, handleEnd - 0.12f, handleEnd + 0.05f); // at the far end, not the grip
+        Assert.Contains(axe, p => p.Color.R == Tint.R && p.Color.G == Tint.G); // the head takes the iron tint
+    }
+
+    [Fact]
+    public void TheHuntersBow_IsCentredOnTheGrip_WithTheStringOnTheArchersSide()
+    {
+        // #2647: aimed, the hand points forward with +Z up and +Y back to the hunter: the bow stands upright, string inside.
+        var bow = HeldItemShapes.NpcToolParts(HeldItemShapes.BowKind, Tint)!;
+        Assert.NotNull(bow);
+        Assert.True(bow.Count <= HeldModelPart.MaxParts);
+        int stringAt = bow.FindIndex(p => p.Size.Z == bow.Max(q => q.Size.Z));
+        var str = bow[stringAt];
+        var stave = bow.Where((_, i) => i != stringAt).ToList();
+        Assert.True(str.Size.X < 0.02f && str.Size.Y < 0.02f, "the string is thin");
+        Assert.True(stave.All(p => p.Position.Y < str.Position.Y), "the string is on the +Y side");
+
+        // The stave is symmetric about the grip (z of the string's middle): every limb part has its twin.
+        float mid = str.Position.Z;
+        foreach (var part in stave)
+        {
+            float mirrorZ = mid - (part.Position.Z - mid);
+            Assert.Contains(stave, q => System.Math.Abs(q.Position.Z - mirrorZ) < 1e-4f && System.Math.Abs(q.Position.Y - part.Position.Y) < 1e-4f);
+        }
+
+        float top = stave.Max(p => p.Position.Z + (p.Size.Z / 2f));
+        Assert.InRange(System.Math.Abs((str.Position.Z + (str.Size.Z / 2f)) - top), 0f, 0.02f); // strung tip to tip
+    }
+
+    [Fact]
+    public void OnlyTheAxeAndTheBow_AreNpcToolModels()
+    {
+        Assert.Null(HeldItemShapes.NpcToolParts("Hoe", Tint));
+        Assert.Null(HeldItemShapes.NpcToolParts("Drill", Tint));
+        Assert.False(HeldItemShapes.IsShapedKind(HeldItemShapes.AxeKind)); // not offered by the tool-look editor
+        Assert.False(HeldItemShapes.IsShapedKind(HeldItemShapes.BowKind));
+    }
+
+    [Fact]
     public void ClimbGear_IsNothingWithoutGloves_PadsWithGloves_AndClawsOnTop()
     {
         Assert.Empty(HeldItemShapes.ClimbGear(gloves: false, claws: false));

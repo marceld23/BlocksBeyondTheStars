@@ -255,13 +255,15 @@ namespace BlocksBeyondTheStars.Client
                     ("map_pad", "ui.map.pad", new Color(0.5f, 0.9f, 0.6f)),
                     ("map_settlement", "ui.map.settlement", new Color(0.5f, 0.95f, 0.6f)),
                     ("map_ruin", "ui.map.ruin", new Color(0.65f, 0.6f, 0.55f)),
+                    ("map_lodge", "ui.map.kind_lodge", LodgeCol), // #2647: a wilderness hut
                     ("map_wreck", "ui.map.wreck", new Color(1f, 0.55f, 0.3f)),
                     ("map_station", "ui.map.other", new Color(0.8f, 0.8f, 0.9f)),
                     (null, "poi.fragment", new Color(0.45f, 0.95f, 1f)), // glyph-only legend row (⦿)
                     (null, "poi.guardian_core", GuardianCoreCol), // glyph-only legend row (◎), #1792
                 };
-                // Six slots per row (was five at 168 px): the twelfth entry would have started a third row under the
-                // buttons at y=880. 140 px still holds the longest label at 15 px ("Netzfragment-Signal" wraps nowhere).
+                // Six slots per row (was five at 168 px). 140 px still holds the longest label at 15 px ("Netzfragment-Signal"
+                // wraps nowhere). #2647: the thirteenth entry (the hut) starts a third row (y 863–893), so the buttons below
+                // moved down from y=880 to y=904 — still inside the panel (it ends at y=1000).
                 const int perRow = 6;
                 const float slotW = 140f, rowH = 34f;
                 for (int li = 0; li < entries.Length; li++)
@@ -281,10 +283,11 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            UiKit.AddButton(root, ix, 880, 120, 50, "−", () => { _radius = Mathf.Min(640, _radius + 90); Build(); });
-            UiKit.AddButton(root, ix + 140, 880, 120, 50, "+", () => { _radius = Mathf.Max(60, _radius - 90); Build(); });
-            UiKit.AddButton(root, ix + 300, 880, 240, 50, L("ui.map.clear_waypoint"), () => { Game.Waypoint = null; Refresh(); });
-            UiKit.AddButton(root, ix + 560, 880, 200, 50, L("ui.action.close"), Close);
+            const float buttonsY = 904f;
+            UiKit.AddButton(root, ix, buttonsY, 120, 50, "−", () => { _radius = Mathf.Min(640, _radius + 90); Build(); });
+            UiKit.AddButton(root, ix + 140, buttonsY, 120, 50, "+", () => { _radius = Mathf.Max(60, _radius - 90); Build(); });
+            UiKit.AddButton(root, ix + 300, buttonsY, 240, 50, L("ui.map.clear_waypoint"), () => { Game.Waypoint = null; Refresh(); });
+            UiKit.AddButton(root, ix + 560, buttonsY, 200, 50, L("ui.action.close"), Close);
 
             Refresh();
         }
@@ -779,8 +782,13 @@ namespace BlocksBeyondTheStars.Client
             "observatory" => ("◉", new Color(0.7f, 0.85f, 1f), null), // #1129 one-of-a-kind site; glyph fallback
             "guardian_core" => ("◎", GuardianCoreCol, null), // the finale's one aperture (#1792) — no icon art yet; glyph
             TraderShipPoi => ("⚖", TraderShipCol, "map_ship"), // a landed trader ship's pilot (#1904) — the ship icon in trade gold
+            "lodge" => ("⌂", LodgeCol, "map_lodge"), // #2647: a wilderness hut ("Tilda's hut") — a log cabin in warm wood brown
             _ => ("◆", new Color(0.8f, 0.8f, 0.9f), "map_station"),
         };
+
+        /// <summary>#2647: the colour of a lodge (a small inhabited hut out in the wilderness) — a warm wood brown, apart from
+        /// the ruin's grey-brown, the wreck's orange and the factory's pale amber.</summary>
+        public static readonly Color LodgeCol = new Color(0.80f, 0.55f, 0.30f);
 
         /// <summary>The Guardian core marker's colour (#1792) — shared with the HUD compass line so the two read as one
         /// thing. Hot rose: nothing else on the map or the dial uses it.</summary>

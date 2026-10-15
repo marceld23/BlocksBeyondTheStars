@@ -131,6 +131,12 @@ namespace BlocksBeyondTheStars.Client
         // #2154: creatures the server reported DEFEATED (not merely despawned), with when — the next list that drops them
         // breaks them apart instead of letting them vanish.
         private readonly Dictionary<string, float> _defeated = new Dictionary<string, float>();
+
+        // #2647: where hunters' arrows are about to land — an animal shot by a hunter waits for its arrow before it breaks apart.
+        private readonly ArrowLandings _arrowLandings = new ArrowLandings();
+
+        /// <summary>#2647: a hunter's arrow is drawn only when the shot starts within this distance (metres) of the player.</summary>
+        private const float ArrowViewRange = 80f;
         private bool _defeatSubscribed;
         private static CreatureView _instance;
 
@@ -568,6 +574,15 @@ namespace BlocksBeyondTheStars.Client
                     // just goes, silently — both used to share this path and the death call.
                     bool defeated = (_defeated.TryGetValue(id, out float at) && Time.time - at < 10f)
                                     || (e.HullMax > 0f && e.PrevHull <= 0f);
+                    if (defeated && e.Root != null && _arrowLandings.Count > 0)
+                    {
+                        var rp = e.Root.transform.position;
+                        if (_arrowLandings.Holds(new System.Numerics.Vector3(rp.x, rp.y, rp.z), Time.time))
+                        {
+                            continue; // #2647: a hunter's arrow is still on its way — the animal stands until it lands
+                        }
+                    }
+
                     _defeated.Remove(id);
                     if (defeated)
                     {
@@ -1071,6 +1086,7 @@ namespace BlocksBeyondTheStars.Client
         /// and — inside a stomp's or a strike's radius — a push that throws the local player clear.</summary>
         private void PlayWorldFx()
         {
+            _arrowLandings.Prune(Time.time);
             var list = Game.PendingWorldFx;
             if (list.Count == 0)
             {
@@ -1201,6 +1217,13 @@ namespace BlocksBeyondTheStars.Client
                         Fx?.Sparks(at, new Color(1f, 0.35f, 0.2f), 10);
                         Fx?.Flash(at, new Color(1f, 0.3f, 0.2f, 0.6f), 1.1f);
                         break;
+                    case "arrow": // #2647: a hunter's arrow (its twang comes as a SoundFx) — no damage, no shake
+                        if (dist <= ArrowViewRange)
+                        {
+                            ShootArrow(fx, at); // a shot far off is too small to see: no arrow is built for it
+                        }
+
+                        break;
                 }
 
                 // Inside the blast: thrown clear — away from the spot and up. Only a giant's stomp and a worm's or a
@@ -1222,6 +1245,25 @@ namespace BlocksBeyondTheStars.Client
             }
 
             list.Clear();
+        }
+
+        /// <summary>#2647: a hunter's arrow — the hunter (<c>SourceId</c>) turns to the animal, draws and lets go, the arrow
+        /// flies its short arc from the aimed bow to <c>ToX/ToY/ToZ</c> and is gone. The animal the server took away in the
+        /// same tick waits for it (<see cref="ArrowLandings"/>), then breaks into sparkles like any defeated animal. A hunter
+        /// out of view (or not holding its bow) still gets its arrow, straight from the server's spot. Only shots within
+        /// <see cref="ArrowViewRange"/> of the player are drawn.</summary>
+        private void ShootArrow(WorldFx fx, Vector3 from)
+        {
+            var to = Game.ScenePos(fx.ToX, fx.ToY, fx.ToZ);
+            float delay = 0f;
+            if (NpcView.Instance != null && NpcView.Instance.BowShot(fx.SourceId, to, out var nock))
+            {
+                from = nock;
+                delay = AvatarGestures.BowReleaseSeconds;
+            }
+
+            float flight = FxArrows.Fly(from, to, delay);
+            _arrowLandings.Add(new System.Numerics.Vector3(to.x, to.y, to.z), Time.time + delay + flight);
         }
 
         /// <summary>How long a full phrase takes — so an answering animal waits for the first to finish.</summary>
