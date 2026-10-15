@@ -824,6 +824,7 @@ public sealed partial class GameServer
                     if (!restricted)
                     {
                         BootDetail("bandit camps", StampBanditCamps); // small hostile outposts (unprotected; self-skips per config + Bandits rule)
+                        BootDetail("lodges", StampLodges); // #2640: wilderness huts and their residents (generation 25+; after the camps so it avoids them)
                     }
 
                     BootDetail("sps labs", StampSpsLabs); // 2026-09: abandoned SPS research stations — only on a type that allows them (Titas)
@@ -1936,11 +1937,15 @@ public sealed partial class GameServer
             Guard("TickFire", deltaSeconds, TickFire);
             Guard("TickWeather", deltaSeconds, TickWeather);
             Guard("TickFlora", deltaSeconds, TickFlora);
+            Guard("TickNpcFelling", deltaSeconds, TickNpcFelling); // #2644: a woodcutter's tree comes down from the top, a few cells a tick
+            Guard("TickNpcRestores", deltaSeconds, TickNpcRestores); // #2643: mined quarry cells fill up again (1 Hz)
             Guard("TickCreatures", deltaSeconds, TickCreatures);
             Guard("TickSreekmakra", deltaSeconds, TickSreekmakra); // 2026-09: Valuma's shapeshifter and mood (1 Hz)
             Guard("TickGiants", deltaSeconds, TickGiants); // #1998: the colossus, the sandworms and the thumpers
             Guard("TickTrains", deltaSeconds, TickTrains); // #2113: the monorail trains and their riders
             Guard("TickBaseGuests", deltaSeconds, TickBaseGuests); // #2602: friendly visitors walk up to a base whose owner is home (1 Hz)
+            Guard("TickLodges", deltaSeconds, TickLodges); // #2640/#2641: lodges found by passing players, the store crates (1 Hz)
+            Guard("TickWanderers", deltaSeconds, TickWanderers); // #2646: named travellers met in the open land (1 Hz)
             Guard("TickNpcRoutine", deltaSeconds, TickNpcRoutine); // #1867/#1868: work by day, sit in the evening, sleep at night; jobs
             Guard("TickNpcPaths", deltaSeconds, TickNpcPaths); // #1866: at most one NPC path search per tick
             Guard("TickNpcs", deltaSeconds, TickNpcs);

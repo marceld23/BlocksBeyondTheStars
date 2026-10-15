@@ -2398,7 +2398,8 @@ public sealed class NetCreature
 /// strike) it also knocks its own player away from the spot — movement is the client's, the damage the server's.</summary>
 public sealed class WorldFx
 {
-    /// <summary>"thump" | "stomp" | "breach" | "strike" | "dive" | "rumble" | "swallow" (#2076: a worm ate an animal at the spot).</summary>
+    /// <summary>"thump" | "stomp" | "breach" | "strike" | "dive" | "rumble" | "swallow" (#2076: a worm ate an animal at the spot)
+    /// | "arrow" (#2645: a hunter's arrow from X/Y/Z to <see cref="ToX"/>/<see cref="ToY"/>/<see cref="ToZ"/>).</summary>
     public string Kind { get; set; } = string.Empty;
     public float X { get; set; }
     public float Y { get; set; }
@@ -2409,6 +2410,21 @@ public sealed class WorldFx
 
     /// <summary>Knock-back radius (blocks); 0 = no push.</summary>
     public float Radius { get; set; }
+
+    /// <summary>The far end of a travelling effect (#2645, kind <c>"arrow"</c>: a hunter's arrow flies from X/Y/Z to here);
+    /// unused (0) by the spot effects. New fields on an existing contractless MessagePack message: an older client ignores
+    /// them, and it ignores the unknown kind as well.</summary>
+    public float ToX { get; set; }
+
+    /// <inheritdoc cref="ToX"/>
+    public float ToY { get; set; }
+
+    /// <inheritdoc cref="ToX"/>
+    public float ToZ { get; set; }
+
+    /// <summary>The NPC id that caused the effect (#2645: the hunter whose arrow it is, so the client plays its release
+    /// gesture); 0 = none.</summary>
+    public int SourceId { get; set; }
 }
 
 /// <summary>Snapshot of live creatures (fauna) near the player on the planet surface.</summary>

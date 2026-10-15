@@ -203,8 +203,15 @@ public sealed class WorldDescription
     /// #2080 the bipeds + favourite foods + Mini-Michi-Paul, #2085 the Fifi plant, #2073 Arena Nigra, #2104 Justus' package:
     /// oil pockets, the worm body plan, the gas giant, #2125 the intercity monorail, #2166 the abandoned monorail stations,
     /// #2331 the spectacle terrain package, #2370/#2371 the full-height oil pockets and the oil seeps, #2437 a gas giant in
-    /// almost every system, #2516 generated water sealed against caves and lower ground).</summary>
-    public const int CurrentTerrainGeneration = 24;
+    /// almost every system, #2516 generated water sealed against caves and lower ground, #2639 the wilderness folk).</summary>
+    public const int CurrentTerrainGeneration = 25;
+
+    /// <summary>The generation of the wilderness folk (#2639, 2026-10): <b>lodges</b> — a small hut in the open land with one or
+    /// two residents who gather, mine, chop or hunt around it (#2640-#2645) — and <b>wanderers</b>, named travellers met on the
+    /// way (#2646). Both are server-side (a stamp after the bandit camps with placement records, voxels once; transient NPCs);
+    /// nothing in the chunk pipeline changes, so every chunk of every generation is bit-identical — the gate only keeps a lodge
+    /// from ever growing into, and a wanderer from ever walking through, a world of an older generation.</summary>
+    public const int WildernessFolkGeneration = 25;
 
     /// <summary>The generation of sealed water (#2516, 2026-10): generated water is enclosed. Blob caves and worm tunnels keep
     /// one cell away from the water of the neighbouring columns (and a tunnel never opens the bed under a column's own water);
