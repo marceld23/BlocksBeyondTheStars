@@ -3694,6 +3694,7 @@
   "vega.hint.hunger": "Dein Magen reicht Beschwerden ein. Schlag grüne Flora für Beeren ab oder jage Kreaturen für Fleisch — oder leg Rationen in den Anzugspender, der füttert automatisch.",
   "vega.hint.hunger_food": "Dein Magen knurrt – und du hast {0} dabei! Wähl das in der Schnellleiste aus und drück {key:Place}, dann isst du. Ich warte.",
   "vega.hint.shipfood": "An Bord füllt die Lebenserhaltung deinen Hunger wieder auf — aber absichtlich nur langsam. Beeren oder Fleisch zu essen geht viel schneller; verlass dich also nicht allein aufs Schiff.",
+  "vega.hint.base_hunger": "Deine Basis gibt dir Luft, aber kein Essen. Ein Heiltank füttert dich zu Hause — seine Blaupause kommt nach dem Feld-Medkit. Bis dahin: Iss etwas!",
   "vega.hint.invfull": "Inventar voll. Lager Dinge im Frachtraum des Schiffs — oder gesteh dir ein, dass du keine neun Sorten Gestein brauchst.",
   "vega.hint.night": "Die Nacht bricht herein. Die hiesige Fauna wird im Dunkeln mutig. Deine Anzuglampe liegt auf {key:ToggleLamp}.",
   "vega.hint.poi": "Strukturechos in der Nähe — Ruinen oder Wrackteile. Ein Blick lohnt sich. Nimm den Scanner mit.",

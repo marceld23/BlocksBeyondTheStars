@@ -3694,6 +3694,7 @@
   "vega.hint.hunger": "Your stomach is filing complaints. Smash green flora for berries or hunt creatures for meat — or load rations into the suit dispenser, it feeds you automatically.",
   "vega.hint.hunger_food": "Your stomach is growling — and you have {0} with you! Select it in the hotbar and press {key:Place} to eat. I will wait.",
   "vega.hint.shipfood": "Aboard, life support refills your hunger — but slowly, on purpose. Eating berries or meat is far quicker, so don't rely on the ship alone to keep you fed.",
+  "vega.hint.base_hunger": "Your base gives you air, but no food. A Heal Tank feeds you at home — its blueprint comes after the Field Medkit. Until then: eat something!",
   "vega.hint.invfull": "Inventory full. Stow things in the ship's cargo hold — or admit you don't need nine kinds of rock.",
   "vega.hint.night": "Night falls. The local fauna gets bold in the dark. Your suit lamp is on {key:ToggleLamp}.",
   "vega.hint.poi": "Structural echoes nearby — ruins or wreckage. Worth a look. Bring the scanner.",

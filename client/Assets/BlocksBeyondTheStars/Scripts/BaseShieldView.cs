@@ -9,10 +9,13 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The base life-support shield (#795): a soft translucent dome drawn over every founded base's core so
     /// the air field (#782) reads at a glance. Render-only sugar in the <see cref="DoorView"/> pattern — the
-    /// server stays authoritative over who actually breathes (including the sealed rooms of #794, which the
-    /// dome deliberately does NOT try to outline; it marks the unconditional core zone). Drawn only on
-    /// worlds whose own air is NOT breathable — under a breathable sky the base adds nothing, so no bubble.
-    /// Reuses the energy-door field material (always-included Cloud shader) so nothing can strip to pink.
+    /// server stays authoritative over who actually breathes. The dome marks the unconditional core zone, the
+    /// start zone where a player breathes before building a room; it does not outline sealed rooms. Since every
+    /// enclosed room of a base breathes (#2651), the dome fades out once the base has a sealed room with air and
+    /// fades back in when it has none (#2659, <see cref="BaseDomeFade"/>) — otherwise it reads as a boundary that
+    /// does not exist. Drawn only on worlds whose own air is NOT breathable — under a breathable sky the base adds
+    /// nothing, so no bubble. Reuses the energy-door field material (always-included Cloud shader) so nothing can
+    /// strip to pink.
     /// </summary>
     public sealed class BaseShieldView : MonoBehaviour
     {
@@ -26,12 +29,27 @@ namespace BlocksBeyondTheStars.Client
         private const float RefreshInterval = 0.5f;
         private const float BaseAlpha = 0.10f;    // faint — a shimmer, not a wall (the player builds in here)
 
-        private readonly Dictionary<int, Transform> _domes = new Dictionary<int, Transform>();
-        private Material _mat;
+        private static readonly Color DomeTint = new Color(0.35f, 0.80f, 1f, 1f); // the energy-door blue
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+
+        /// <summary>One base's dome: its own material instance, so each fades on its own.</summary>
+        private sealed class Dome
+        {
+            public Transform Transform;
+            public Renderer Renderer;
+            public Material Material;
+            public float Alpha;
+            public float Target;
+        }
+
+        private readonly Dictionary<int, Dome> _domes = new Dictionary<int, Dome>();
+        private Material _template;
         private float _timer;
 
         private void Update()
         {
+            FadeDomes(Time.deltaTime);
+
             _timer -= Time.deltaTime;
             if (_timer > 0f)
             {
@@ -47,15 +65,18 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var b in Game.Bases)
                 {
                     wanted.Add(b.Id);
-                    if (!_domes.TryGetValue(b.Id, out var dome) || dome == null)
+                    if (!_domes.TryGetValue(b.Id, out var dome) || dome.Transform == null)
                     {
-                        _domes[b.Id] = dome = BuildDome();
+                        float start = BaseDomeFade.TargetAlpha(b.SealedRooms, BaseAlpha); // a new dome starts where it belongs
+                        _domes[b.Id] = dome = BuildDome(start);
                     }
+
+                    dome.Target = BaseDomeFade.TargetAlpha(b.SealedRooms, BaseAlpha);
 
                     // NetBase carries the core cell's centre; lift the dome onto it so it sits on the core. #2613: at the
                     // copy nearest the player (ScenePos) — the canonical spot drew the dome a whole circumference away
                     // once the player stood across the seam from the core (the home pad lies at X = 0).
-                    dome.position = Game.ScenePos(b.X, b.Y + 0.5f, b.Z);
+                    dome.Transform.position = Game.ScenePos(b.X, b.Y + 0.5f, b.Z);
                 }
             }
 
@@ -73,9 +94,15 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (int id in stale)
                 {
-                    if (_domes[id] != null)
+                    var dome = _domes[id];
+                    if (dome.Transform != null)
                     {
-                        Destroy(_domes[id].gameObject);
+                        Destroy(dome.Transform.gameObject);
+                    }
+
+                    if (dome.Material != null)
+                    {
+                        Destroy(dome.Material);
                     }
 
                     _domes.Remove(id);
@@ -83,9 +110,32 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Moves every dome's opacity towards its target (#2659) and hides the renderer once it is gone.</summary>
+        private void FadeDomes(float deltaSeconds)
+        {
+            foreach (var dome in _domes.Values)
+            {
+                if (dome.Transform == null || Mathf.Approximately(dome.Alpha, dome.Target))
+                {
+                    continue;
+                }
+
+                dome.Alpha = BaseDomeFade.Step(dome.Alpha, dome.Target, BaseAlpha, deltaSeconds);
+                ApplyAlpha(dome);
+            }
+        }
+
+        private static void ApplyAlpha(Dome dome)
+        {
+            var tint = DomeTint;
+            tint.a = dome.Alpha;
+            dome.Material.SetColor(ColorId, ShaderColor.Srgb(tint));
+            dome.Renderer.enabled = dome.Alpha > 0.001f;
+        }
+
         /// <summary>One dome: an inside-visible-too sphere in the energy-field look (no collider — it is
         /// pure light; the player walks and builds straight through it).</summary>
-        private Transform BuildDome()
+        private Dome BuildDome(float alpha)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = "BaseShield";
@@ -95,19 +145,42 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(col);
             }
 
-            if (_mat == null)
+            if (_template == null)
             {
                 var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
-                _mat = new Material(shader);
-                _mat.SetColor(Shader.PropertyToID("_Color"),
-                    ShaderColor.Srgb(new Color(0.35f, 0.80f, 1f, BaseAlpha))); // the energy-door blue
-                _mat.renderQueue = 2995; // transparent, just under the door fields
+                _template = new Material(shader);
+                _template.renderQueue = 2995; // transparent, just under the door fields
             }
 
-            go.GetComponent<Renderer>().sharedMaterial = _mat;
+            var dome = new Dome
+            {
+                Transform = go.transform,
+                Renderer = go.GetComponent<Renderer>(),
+                Material = new Material(_template),
+                Alpha = alpha,
+                Target = alpha,
+            };
+            dome.Renderer.sharedMaterial = dome.Material;
+            ApplyAlpha(dome);
             go.transform.localScale = Vector3.one * (DomeRadius * 2f);
             go.transform.SetParent(transform, false);
-            return go.transform;
+            return dome;
+        }
+
+        private void OnDestroy()
+        {
+            foreach (var dome in _domes.Values)
+            {
+                if (dome.Material != null)
+                {
+                    Destroy(dome.Material);
+                }
+            }
+
+            if (_template != null)
+            {
+                Destroy(_template);
+            }
         }
     }
 }

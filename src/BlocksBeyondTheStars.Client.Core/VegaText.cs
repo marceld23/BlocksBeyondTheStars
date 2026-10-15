@@ -20,7 +20,7 @@ namespace BlocksBeyondTheStars.Client
         /// tips (#1077) in the order they tend to matter: gear, materials, places, space.</summary>
         private static readonly string[] HintOrder =
         {
-            "o2", "breathe", "energy", "cold", "heat", "hunger", "shipfood", "invfull", "night", "poi",
+            "o2", "breathe", "energy", "cold", "heat", "hunger", "shipfood", "base_hunger", "invfull", "night", "poi",
             "medkit", "hull_low",
             "lamp_off", "lamp_missing", "torch_underground", "eat_now", "wrong_tool", "tier_gate", "scanner_idle", "scanner_unknown", "speeder_far", "ship_far",
             "rare_ore_near", "needed_ore_near", "data_cache_near", "craftable_now", "blueprint_affordable",

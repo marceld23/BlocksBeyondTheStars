@@ -526,6 +526,14 @@ public sealed partial class GameServer
                 ShipAiHintOnce(session, "shipfood");
             }
 
+            // #2658: at a base the life support gives air but no food — a player who expected it to feed them like the
+            // ship or a station learns that the heal tank does. Once, while breathing base air, hungry and not at a tank.
+            if (p.LifeSupportSource == 3 && !p.AboardShip && !InStation(p.PlayerId) && p.Hunger < 50f
+                && !session.NearHealTank && Rules.HungerEnabledFor(p.ModeOverride))
+            {
+                ShipAiHintOnce(session, "base_hunger");
+            }
+
             if (p.Inventory.FirstEmptySlot() < 0)
             {
                 RaiseGameEvent(session, GameEventKeys.InventoryFull); // #2469: the tutorial's cargo lesson — before the hint it absorbs
