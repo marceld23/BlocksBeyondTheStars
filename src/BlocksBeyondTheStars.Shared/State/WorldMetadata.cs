@@ -241,6 +241,41 @@ public sealed class WorldMetadata
     /// that was not ticking catch up for the gap (bounded by the <c>MachineCatchUpMinutes</c> rule). Additive: an older
     /// build drops it, a missing entry means "no credit".</summary>
     public System.Collections.Generic.Dictionary<string, double> CrystalLastTicked { get; set; } = new();
+
+    /// <summary>#2643: the cells NPC miners broke and that fill up again — per world (location id) → the pending refills,
+    /// oldest first, at most <see cref="NpcRefillRecord.MaxPerWorld"/>. Persisted so a restart never leaves a hole in a
+    /// quarry face. Additive: an older build drops it (the holes it leaves are ordinary mined cells), a missing entry means
+    /// "nothing to refill".</summary>
+    public System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<NpcRefillRecord>> NpcRefills { get; set; } = new();
+}
+
+/// <summary>#2643: one cell an NPC miner broke (<see cref="WorldMetadata.NpcRefills"/>): what stood there and from when on it
+/// may fill up again.</summary>
+public sealed class NpcRefillRecord
+{
+    /// <summary>The most pending refills one world keeps; mining one more restores the oldest at once.</summary>
+    public const int MaxPerWorld = 512;
+
+    public int X { get; set; }
+
+    public int Y { get; set; }
+
+    public int Z { get; set; }
+
+    /// <summary>The block KEY that stood there — not the numeric id, which follows the block list and shifts when a block
+    /// is added.</summary>
+    public string Block { get; set; } = string.Empty;
+
+    /// <summary>The cell's colour modifier and shape descriptor as they were (0 = none / a plain cube).</summary>
+    public int Tint { get; set; }
+
+    public int Glow { get; set; }
+
+    public int Shape { get; set; }
+
+    /// <summary>The world's playtime (<see cref="WorldMetadata.CumulativePlaytimeSeconds"/>) from which on the cell may fill
+    /// up again.</summary>
+    public long DueAt { get; set; }
 }
 
 /// <summary>One interview a player gave a reporter (2026-09).</summary>

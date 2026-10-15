@@ -1021,6 +1021,11 @@ public sealed partial class GameServer
                 creature.PanicTimer = System.Math.Max(0, creature.PanicTimer - dt); // startle (#653) wears off
             }
 
+            if (creature.ThreatTimer > 0)
+            {
+                creature.ThreatTimer = System.Math.Max(0, creature.ThreatTimer - dt); // #2645: a hunter it noticed fades from mind
+            }
+
             if (creature.AwakeOverrideTimer > 0)
             {
                 creature.AwakeOverrideTimer = System.Math.Max(0, creature.AwakeOverrideTimer - dt);
@@ -1213,6 +1218,13 @@ public sealed partial class GameServer
                     intent = MoveMode.Flee;
                     target = tp;
                 }
+            }
+
+            // #2645: a hunter it noticed (a non-player threat). Only while one is set — an animal no hunter came near
+            // decides exactly as before.
+            if (creature.ThreatTimer > 0 && !begging && intent != MoveMode.Seek)
+            {
+                ApplyThreatIntent(creature, temperament, ref intent, ref target);
             }
 
             // A skittish animal BOLTING (entering flee) startles its nearby kin (#653) — the whole herd
