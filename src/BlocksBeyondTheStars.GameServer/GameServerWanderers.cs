@@ -55,7 +55,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// the player yet and puts it on the map (<see cref="TryEmitLodgeHint"/>), else the lodge residents' tip (a wreck, a cache
 /// for a friend, a camp, else the way to the village).</item>
 /// <item><b>Playtest helpers</b> (admin, cheats on): <c>/wanderer</c> (<see cref="AdminSummonWanderer"/>) — an encounter
-/// right now, without the quiet spell, the roll and the daytime; and <c>/tp lodge [n]</c> (GameServerAdminTeleport.cs).</item>
+/// right now, without the quiet spell, the roll and the daytime (nor does the night send it off), someone of the free cast
+/// even with nothing to do round the spot; and <c>/tp lodge [n]</c> (GameServerAdminTeleport.cs).</item>
 /// </list>
 /// Everything here is RAM only and per world (the location id keys every table); a world nobody ticked for
 /// <see cref="WandererFrozenSeconds"/> sends its wanderers away when it ticks again.
@@ -101,14 +102,8 @@ public sealed partial class GameServer
     /// <summary>Encounters only in daylight at the player: local day fraction from …</summary>
     private const double WandererDayStart = 0.27;
 
-    /// <summary>… to (before the evening, so a wanderer is gone by dusk).</summary>
+    /// <summary>… to (the evening; a wanderer out there heads off at sunset, <c>IsNightAt</c>).</summary>
     private const double WandererDayEnd = 0.68;
-
-    /// <summary>From this local day fraction on a wanderer out there heads off (the evening) …</summary>
-    private const double WandererNightFrom = 0.72;
-
-    /// <summary>… until this one.</summary>
-    private const double WandererNightUntil = 0.22;
 
     /// <summary>The player stands at least this far (m) from every settlement, base, lodge and camp for an encounter.</summary>
     internal const float WandererPlaceClearance = 60f;
@@ -828,7 +823,7 @@ public sealed partial class GameServer
                 }
 
                 if (!hostHere || WrapDistSq(host!.State.Position, npc.Pos) > WandererHostLeaveRange * (double)WandererHostLeaveRange
-                    || (!w.Summoned && WandererNightAt(npc.Pos)))
+                    || (!w.Summoned && IsNightAt(npc.Pos))) // night falls: it goes on its way
                 {
                     BeginWandererLeaving(w, npc, host);
                     continue;
@@ -1045,13 +1040,6 @@ public sealed partial class GameServer
                 WandererWalkOn(w, npc);
                 break;
         }
-    }
-
-    /// <summary>Whether it is evening or night at a point (a wanderer heads off).</summary>
-    private bool WandererNightAt(Vector3f at)
-    {
-        double t = LocalDayFraction(at);
-        return t >= WandererNightFrom || t < WandererNightUntil;
     }
 
     /// <summary>Takes a wanderer out of the world; its player's quiet spell starts now.</summary>

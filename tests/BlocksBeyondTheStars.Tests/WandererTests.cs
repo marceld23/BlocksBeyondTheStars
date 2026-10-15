@@ -427,8 +427,8 @@ public sealed class WandererTests : IDisposable
         w.Server.SetWandererCooldownForTest(pid, 0);
         id = Assert.IsType<int>(w.Server.WandererEncounterForTest(pid, job: "miner", bearing: 0.0));
         w.TickAt(0.45, 3);
-        w.TickAt(0.75, 3, until: () => Out(w, id).Phase == "Leaving");
-        Assert.Equal("Leaving", Out(w, id).Phase); // the evening: off it goes
+        w.TickAt(0.8, 3, until: () => Out(w, id).Phase == "Leaving");
+        Assert.Equal("Leaving", Out(w, id).Phase); // night falls: off it goes
     }
 
     [Fact]
