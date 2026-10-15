@@ -176,6 +176,9 @@ public sealed class GameRules
     public SpaceCombatMode SpaceCombat { get; set; } = SpaceCombatMode.Off;
     public ShipWeaponMode ShipWeapons { get; set; } = ShipWeaponMode.Off;
     public AlienActivity SpaceNpcEnemies { get; set; } = AlienActivity.Off;
+    /// <summary>Peaceful NPC trader ships landing on planets (#2603 — the first reader of this long-defined switch): when
+    /// off, no trader ship sets down on an occupied body on its own (the planet-side scheduler). Traders flying through a
+    /// space instance keep their own rules. Config-only (no world-options row).</summary>
     public bool NeutralNpcShips { get; set; } = true;
     public AlienActivity AlienUfos { get; set; } = AlienActivity.Off;
     public AlienActivity PlanetEnemies { get; set; } = AlienActivity.Normal;
@@ -210,6 +213,14 @@ public sealed class GameRules
     /// after a minute; hit one and it fights like any robber. Needs <see cref="Bandits"/> on and Survival.
     /// No launch lift on purpose: off is the correct reading of an old save. Live-editable.</summary>
     public bool BaseVisitors { get; set; }
+
+    /// <summary>Friendly visitors (#2602, world option, default ON in every preset): about once per 1.5 in-game days a
+    /// guest walks up to a base whose owner is at home by day — a villager of the nearest settlement, a travelling
+    /// merchant or a lost traveller. They greet, wait a couple of minutes (talk, trade, a small present) and leave.
+    /// Never hostile, never a combat target, never touches a block. Independent of <see cref="BaseVisitors"/> (the
+    /// bandit scouts) and of every enemy setting. Live-editable by the world admin; old saves deserialize without the
+    /// field and keep the ON default — no start-up lift needed.</summary>
+    public bool FriendlyVisitors { get; set; } = true;
 
     /// <summary>The active story pack for a fresh save (P8 world option): a pack id (e.g. "vega_protocol"),
     /// "none" to play sandbox with no story, or empty to use the built-in default pack. Only consulted when a

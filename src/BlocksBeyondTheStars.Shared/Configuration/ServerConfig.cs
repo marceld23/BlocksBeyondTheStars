@@ -708,6 +708,10 @@ public sealed class ServerConfig
                     // #2286: the pause menu's "Back to my ship" rescue teleport (default on; off for hard worlds).
                     if (bool.TryParse(value, out var rts)) { Rules.ReturnToShip = rts; applied.Add("return-to-ship"); }
                     break;
+                case "friendly-visitors":
+                    // #2602: a neighbour, a travelling merchant or a lost traveller now and then visits a base (default on).
+                    if (bool.TryParse(value, out var fv)) { Rules.FriendlyVisitors = fv; applied.Add("friendly-visitors"); }
+                    break;
                 case "machine-catchup":
                     // #2269: minutes a world's running machines catch up when it runs again (0 = off).
                     if (int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var mcu) && mcu >= 0)

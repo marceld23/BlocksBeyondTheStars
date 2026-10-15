@@ -1,6 +1,67 @@
 {
   // "The village lives" (epic #2589). Every section is optional — a missing one simply turns that part off.
 
+  // #2600 (C1): what two villagers standing (or sitting) together talk about while a player is near. "when": day |
+  // evening | any (never at night). "needs": "" (always) or one of weather_wet, weather_storm, weather_snow,
+  // weather_clear, weather_fog, trader, camp_near, player_known, festival_pending, deed:<kind> (a deed of the last three
+  // hours of playtime; weight x5 while its hero listens). "lines": 2-4 locale keys, speaker A first, then alternating,
+  // each <= 56 characters in EN and DE. Placeholders: {a} {b} (the speakers), {place} (the village), {player} (deed
+  // hero / known player / festival hero), {trader} (a landed trader). "hint": a few English words for the AI re-wording.
+  "chatter": [
+    { "key": "rain", "when": "any", "needs": "weather_wet", "weight": 3, "hint": "rain on the gardens",
+      "lines": ["village.chat.rain.1", "village.chat.rain.2"] },
+    { "key": "storm", "when": "any", "needs": "weather_storm", "weight": 3, "hint": "a thunderstorm, staying inside",
+      "lines": ["village.chat.storm.1", "village.chat.storm.2"] },
+    { "key": "snow", "when": "any", "needs": "weather_snow", "weight": 3, "hint": "snow, building a snowman",
+      "lines": ["village.chat.snow.1", "village.chat.snow.2"] },
+    { "key": "sunny", "when": "day", "needs": "weather_clear", "weight": 2, "hint": "a sunny day",
+      "lines": ["village.chat.sunny.1", "village.chat.sunny.2"] },
+    { "key": "stars", "when": "evening", "needs": "weather_clear", "weight": 3, "hint": "the stars in the clear evening sky",
+      "lines": ["village.chat.stars.1", "village.chat.stars.2"] },
+    { "key": "fog", "when": "any", "needs": "weather_fog", "weight": 2, "hint": "thick fog",
+      "lines": ["village.chat.fog.1", "village.chat.fog.2"] },
+    { "key": "trader", "when": "any", "needs": "trader", "weight": 4, "hint": "a trader ship landed nearby",
+      "lines": ["village.chat.trader.1", "village.chat.trader.2"] },
+    { "key": "camp_near", "when": "day", "needs": "camp_near", "weight": 3, "hint": "bandits camping in the hills nearby",
+      "lines": ["village.chat.camp_near.1", "village.chat.camp_near.2"] },
+    { "key": "deed_camp", "when": "any", "needs": "deed:camp_cleared", "weight": 4, "hint": "the player chased the bandits away",
+      "lines": ["village.chat.deed_camp.1", "village.chat.deed_camp.2"] },
+    { "key": "deed_helped", "when": "any", "needs": "deed:settlement_helped", "weight": 4, "hint": "the player helped the village",
+      "lines": ["village.chat.deed_helped.1", "village.chat.deed_helped.2"] },
+    { "key": "deed_festival", "when": "any", "needs": "deed:festival", "weight": 4, "hint": "the festival for the player",
+      "lines": ["village.chat.deed_festival.1", "village.chat.deed_festival.2"] },
+    { "key": "deed_giant", "when": "any", "needs": "deed:giant", "weight": 4, "hint": "the player defeated a giant",
+      "lines": ["village.chat.deed_giant.1", "village.chat.deed_giant.2"] },
+    { "key": "deed_sreekmakra", "when": "any", "needs": "deed:sreekmakra", "weight": 4, "hint": "the player unmasked the shapeshifter",
+      "lines": ["village.chat.deed_sreekmakra.1", "village.chat.deed_sreekmakra.2"] },
+    { "key": "deed_landing", "when": "any", "needs": "deed:landing", "weight": 3, "hint": "a newcomer landed on this world",
+      "lines": ["village.chat.deed_landing.1", "village.chat.deed_landing.2"] },
+    { "key": "player_known", "when": "any", "needs": "player_known", "weight": 2, "hint": "a friend of the village walks by",
+      "lines": ["village.chat.player_known.1", "village.chat.player_known.2"] },
+    { "key": "festival_pending", "when": "any", "needs": "festival_pending", "weight": 5, "hint": "the village will celebrate the player",
+      "lines": ["village.chat.festival_pending.1", "village.chat.festival_pending.2"] },
+    { "key": "soup", "when": "evening", "needs": "", "weight": 2, "hint": "a long day and warm soup",
+      "lines": ["village.chat.soup.1", "village.chat.soup.2"] },
+    { "key": "tired", "when": "evening", "needs": "", "weight": 1, "hint": "tired feet after a long day",
+      "lines": ["village.chat.tired.1", "village.chat.tired.2"] },
+    { "key": "story", "when": "evening", "needs": "", "weight": 1, "hint": "a bedtime story about a little lost ship",
+      "lines": ["village.chat.story.1", "village.chat.story.2", "village.chat.story.3", "village.chat.story.4"] },
+    { "key": "crates", "when": "day", "needs": "", "weight": 2, "hint": "helping each other with heavy crates",
+      "lines": ["village.chat.crates.1", "village.chat.crates.2"] },
+    { "key": "bread", "when": "day", "needs": "", "weight": 1, "hint": "fresh bread from the oven",
+      "lines": ["village.chat.bread.1", "village.chat.bread.2"] },
+    { "key": "carrots", "when": "day", "needs": "", "weight": 1, "hint": "vegetables growing in the garden",
+      "lines": ["village.chat.carrots.1", "village.chat.carrots.2"] },
+    { "key": "tools", "when": "day", "needs": "", "weight": 1, "hint": "a broken hammer",
+      "lines": ["village.chat.tools.1", "village.chat.tools.2"] },
+    { "key": "song", "when": "day", "needs": "", "weight": 1, "hint": "birds singing in the morning",
+      "lines": ["village.chat.song.1", "village.chat.song.2", "village.chat.song.3"] },
+    { "key": "pet", "when": "any", "needs": "", "weight": 1, "hint": "a pet asleep on the roof",
+      "lines": ["village.chat.pet.1", "village.chat.pet.2"] },
+    { "key": "dream", "when": "any", "needs": "", "weight": 1, "hint": "a dream about flying like a bird",
+      "lines": ["village.chat.dream.1", "village.chat.dream.2", "village.chat.dream.3"] }
+  ],
+
   // #2598 (C3): what a villager FRIEND (own standing >= 40) hands over when you talk, at most every 30 min of world
   // playtime. One row is picked at random; small, kid-friendly presents only (never power creep).
   "friendGifts": [
@@ -9,5 +70,24 @@
     { "item": "lantern", "count": 1 },
     { "item": "flower_pot", "count": 1 },
     { "item": "emergency_ration", "count": 1 }
-  ]
+  ],
+
+  // #2604 (C6): the village festival for the player who finished the settlement's "settlement needs" chain. "gift": what
+  // the quartermaster hands over when the party starts (a full bag: at the next talk). "cheers": the lines villagers
+  // call out in the ring, one every 5 s (locale keys; {player} = the hero, no numbers).
+  "festival": {
+    "gift": [
+      { "item": "lantern", "count": 6 },
+      { "item": "flower_pot", "count": 2 },
+      { "item": "gold_ingot", "count": 1 }
+    ],
+    "cheers": [
+      "village.festival.cheer.1",
+      "village.festival.cheer.2",
+      "village.festival.cheer.3",
+      "village.festival.cheer.4",
+      "village.festival.cheer.5",
+      "village.festival.cheer.6"
+    ]
+  }
 }

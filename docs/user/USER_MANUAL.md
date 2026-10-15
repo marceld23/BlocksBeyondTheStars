@@ -1360,6 +1360,13 @@ players.
   or three times per save (and stops for good once you react to it). Mute via Character tab → **VEGA hints**.
   A hint VEGA keeps back while the hints are off is **not used up**: switch them on again and it still comes the
   next time the situation arises (before, a muted hint counted as told and never came back).
+- **VEGA notices you** (after the basic training; the **VEGA hints** switch mutes it): she says *"Welcome back
+  aboard"* when you board the ship after at least **ten minutes outside** (at most every half hour, never after
+  waking up in the ship after a fall), welcomes you back when you log in after **18 hours or more** away, and
+  **praises** an achievement you just earned — *"Your builds keep getting better!"*; several at once become one line
+  (*"3 achievements at once!"*), at most one praise every minute and a half. Achievements handed out when you log in
+  and the story's achievements stay quiet. She also passes on **news from your base** when your radio doesn't reach
+  (see *People you know & NPC radio calls*).
 - **AI-core modules:** `ai_core_mk2` adds +6 terrain-scanner radius, hostile-contact callouts in space and
   the **autopilot** (press **P** in flight); `ai_core_mk3` adds a 12 % evasive-manoeuvre damage negation.
 - **Memory fragments:** data terminals in wrecks and vaults drop `ai_memory_fragment`s — VEGA redeems them
@@ -1462,6 +1469,13 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   market* below). It stays **10–15 minutes**, and it **never lifts off while a player is near it**
   (within about 32 blocks of the pilot or ship) or trading: it leaves only after nobody has been close for
   about half a minute. One landed trader per body at a time; they re-appear when you return to that world.
+- **Traders also come to you on the ground.** You don't have to fly to meet one: while you are on a planet or moon,
+  a trader ship now and then comes in to land by itself — roughly every **15–25 minutes** in a busy system and
+  **30–45 minutes** in a quiet one (a bit sooner while you are home at your base), and even in a system without
+  any traffic about every **45–60 minutes** if you have a base there and are home. *"A trader ship is coming in to
+  land — look up!"* — about 20 seconds later it sets down on the free landing pad **nearest your base** (or nearest
+  you, away from home): *"Trader … has landed nearby — come and trade!"*, and the base owner gets the trader's radio
+  hail (or VEGA passes it on if you wear no radio).
 - While a trader is landed, the **planet map (M)** shows a **gold ship marker** with its name at the pilot (and
   lists it with its distance), your **compass** shows a matching gold blip, and its pad shows as taken — so a
   trader that set down far from your pad is easy to find. The marker disappears when it lifts off.
@@ -1590,6 +1604,20 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   **Bandits** slider and **Planet enemies** on, plus Survival — with hostiles off the sentry post is silent,
   so no scouts come either, and the switch is not even offered. An update never turns it on for you: on
   worlds from before the option existed it stays off until you flip it yourself.
+- **Friendly visitors** (Character tab → world rules: *Friendly visitors*, world admin, **on by default** in every
+  preset; or launch with `--friendly-visitors false`): about once every one and a half in-game days, while you are
+  **home at your base by day** (on foot, near the core, nothing hostile around), a guest walks up to you —
+  *"… is coming to visit you!"*:
+  - a **neighbour** from the nearest village — the very villager you know, with the same name, face and
+    friendship (while they visit you, they are not in the village). They bring a small **present** (berries; a
+    lantern for a friend) — or, ask them *"Can I help you with anything?"*, one of their **wishes**;
+  - a **travelling merchant** who opens a little market at your base for a few minutes (press **E** → *Trade*);
+  - a **lost traveller** who asks the way to the village and thanks you with a few torches.
+
+  They wave hello, wait a couple of minutes (longer while you stand with them), and then walk off and are gone. Each
+  guest gives its present once per player. If they cannot reach you — you are walled in or in a sealed room — they
+  wait at the edge of your base: *"… is waiting outside your door!"*. Going aboard or leaving the world sends a guest
+  home at once. Guests never fight, are never a target and never touch a block.
 - **Residents, posts and jobs**: beds bring people, and a trading post or mission board at home is staffed by
   one of them — see *People you know* and *Daily routines & jobs* below.
 - On **Tab → Map**, a world where you have a base (or a station orbiting it) is **marked** and its details note
@@ -2041,7 +2069,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   settlement board offers the four-part **"Settlement needs"** chain (iron → lights → a wildlife survey →
   clear a bandit camp, or scout a neighbouring body on peaceful worlds); the next part appears on the
   **same board** once you turn the previous one in, and the quartermaster gives you a **radio nudge** a
-  little later if you wandered off. After **three turn-ins at one board** a quartermaster who knows you
+  little later if you wandered off. Finish all four parts and the village throws a **festival** for you (see
+  *A festival for you* under *People you know*). After **three turn-ins at one board** a quartermaster who knows you
   posts a two-part **big order** — a doubled delivery with the pay to match, then a large build or survey.
   Later parts can't be taken early (the server checks), and they stay where you started them.
 - **VEGA's Crystal workshop:** six circuit jobs VEGA hands out herself (offered anywhere once you have researched the
@@ -2066,6 +2095,11 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   "never" and they stop asking.
 - **Reporter:** gives you an **interview** — write what you have been up to (at most 300 characters; in Safe chat mode
   you pick a ready answer). Everyone can read the place's latest stories by asking the reporter "What's in the news?".
+  The news also tells **what players did** around here: *"Justus chased the bandits out of their camp near
+  Riverford!"* — a bandit camp cleared, a giant or the Sreekmakra defeated, someone landing on the world for the first
+  time, a village helped with everything and the festival it threw. The newest four stories come first.
+- **Innkeeper:** every tavern's innkeeper knows the same news — ask *"What's the news?"*, even in a village without a
+  newsroom.
 
 ### People you know & NPC radio calls
 - **NPCs remember you.** Trading at a stall or taking a board job raises your standing with that vendor or
@@ -2086,6 +2120,46 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   stall and the board keep one standing for the place. From older saves, the person "People you know" named
   keeps the friendship, everyone else in that village starts as an *Acquaintance*, and the village itself is
   listed as "*Place* · Villagers".
+- **People greet you.** Walk past someone who is standing or sitting nearby (within a few steps, in sight) and they
+  **wave** and say hello — "Hello!" while you are strangers, **your name** once they know you, a big "great to see you"
+  from a friend. Everyone greets you at most **once per in-game day**, and only one person every few seconds (in a busy
+  tavern or on a station deck even fewer), so it never turns into a chorus. Sleepers, people walking somewhere, the
+  guard on patrol and the G.D.S. guardians don't greet. A friendly vendor or quartermaster also greets you by name
+  when you open their stall or board.
+- **Welcome back.** Someone who knows you — or one of your own residents — and hasn't seen you for **18 hours or
+  more** says so: *"You're back! It's been a while."*
+- **At home.** Your own residents greet you with *"Welcome home!"* and talk about home and their job (the gardener's
+  plants, the craftsman's workbench, the guard's watch) instead of treating you like a visitor; a gardener who is your
+  friend may even save you the first berries.
+- **Villagers talk to each other.** Stand near two people who are standing or sitting together (by day or in the
+  evening — never at night) and now and then they have a little chat, turned towards each other: the rain on the
+  gardens, the stars, a trader ship that just landed, bandits in the hills — and **what you did**: *"Did you hear?
+  Justus chased off the bandits!"* (you hear it most often when it is about you). Everyone reads it in their own
+  language. Only one conversation at a time per village or station, with quiet breaks in between — longer where many
+  people stand together. Talk to one of them and they turn to you instead. Clearing a bandit camp near a village also
+  makes the villagers there who already know you a little friendlier.
+- **A festival for you.** Finish a village's four-part **"Settlement needs"** chain and the quartermaster (and VEGA)
+  tell you: *"When evening comes, we'll throw a party for you!"* There is **no hurry** — the festival waits for you, as
+  long as it takes. It starts when you are **in the village in the late afternoon or evening**: up to two dozen
+  villagers gather in a **ring around the village square**, cheer for you one after another (arms up!), a little
+  **bell tune** plays, and the quartermaster hands you a **present** — 6 lanterns, 2 flower pots and a gold ingot
+  (with a full bag: talk to the quartermaster again once you have room). Everyone at the party likes you a bit more,
+  and the village talks about it for a while. The party lasts about three minutes; then everyone goes back to what
+  they were doing. Each village celebrates **once** — whoever finishes its chain later still gets the thanks and the
+  present.
+- **Wishes.** Villagers have **personal wishes** — for you alone (your brother or sister gets their own). A villager
+  with a wish shows a gold **"!"** over their head (readable from about 30 m). Press **E** and they tell you: *bring
+  me* something (5 berries, wood, stones, torches, glass …), *show me* something (a crystal, iron ore — **you keep
+  it**), or *check on the animals* (scan one with your scanner). Under their words it always says exactly what you
+  need: *"You need: 5× Berries"*. **"Sure, I'll help!"** puts the wish into **Tab → Missions** ("A wish from Tomas");
+  **"Maybe later."** is fine too — they just chat normally until your next visit. There is **no time limit**. Once
+  you have everything, the "!" turns into a gold **"?"** and you hear *"You have everything Tomas wished for — bring it
+  over!"* — walk up and press **E**: they take it (or just look at it), say thank you and give you a little
+  **present**, and they like you a lot more. With only part of it they tell you how far you are (*"You have 3 of 5
+  Berries so far — no hurry!"*). With a full bag, make some room first. A small hamlet has **one** wish at a time,
+  bigger villages **two**; after you fulfil one, the next wish comes from someone else. Wishes are asked **in
+  person** — the Missions tab never offers one, and its hand-in button only works next to the villager. Nobody asks
+  for a new wish while celebrating at a festival. A wish is a kindness, not story progress.
 - **Favours for friends.** A vendor who **knows** you will, in conversation, ask for a favour — the
   three-part *"A favour for a regular"* chain (crystals → a plant survey → titanium for a trusted friend).
   Saying yes puts the job straight into **Tab → Missions**; hand it in to the **same vendor, in person**.
@@ -2099,6 +2173,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   module slot of your suit (comm = same world, system = same system, galaxy = anywhere), come at most every few minutes, and never
   repeat themselves. The **Settings → Comfort → NPC radio calls** option switches them to *missions only*
   or *off*.
+- **News from home without a radio.** News from **your own base** never gets lost: when your radio doesn't reach (or
+  you wear none), **VEGA** passes it on — a new resident moved in (only the first time), a trader ship landed near your
+  base (while you are in the same star system), or your guard spotted bandit scouts. The *NPC radio calls* setting
+  applies here too (*off* silences it; *missions only* still lets the guard's warning through).
 - **Your base attracts life.** Trader ships prefer worlds with a founded base. Once your base holds a few
   machines (workbench, forge, …), a **settler moves in** — they know you from day one and count toward your
   people. **Every bed** you place inside your base brings **one more resident**, up to **five** people: a bed
@@ -2126,7 +2204,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
     them in at the board).
   - **Walls around the base** (or a sentry post): the **guard** walks the inside of the wall on the **night
     shift** and sleeps by day. Bandit scouts watching your base or a robber closing in get a warning to you
-    over the radio and are **sent on their way** — the guard never fights; a robber who already attacks is the
+    over the radio (through VEGA if you wear no radio that reaches) and are **sent on their way** — the guard never fights; a robber who already attacks is the
     sentry's business.
   - **Crops, hydroponic trays or saplings**: the **gardener** (with a hoe) walks from bed to bed, **harvests**
     ripe crops into a **crate** at the base (they regrow as if you had picked them) and helps saplings grow
@@ -2492,6 +2570,8 @@ called **stories**:
 - **Visitors at the base** (Character tab → world rules, world admin, off by default): bandit scouts look at a
   founded base from its edge while the owner is home — never inside, never destructive; see § Bases. Gated
   on the **Bandits** slider (no robbers, no scouts); the `dangerous` preset ships with it on.
+- **Friendly visitors** (Character tab → world rules, world admin, **on** by default in every preset): neighbours,
+  travelling merchants and lost travellers now and then visit your base while you are home; see § Bases.
 - **Growing galaxy** (world creation → Universe size → **"Growing"**): the galaxy starts at the normal 12
   systems — but every time someone hyperjumps into one of the current **outermost** systems, deep-space
   telescopes report a **brand-new system beyond it**. The galaxy literally grows at your frontier, up to a

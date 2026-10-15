@@ -84,6 +84,14 @@ public sealed class NpcDialogTests : IDisposable
         throw new Xunit.Sdk.XunitException("no qualifying settlement NPC found across 200 seeds");
     }
 
+    /// <summary>#2601: a plain settler without a personal wish for the test player ("Friend") — a wish opens before every
+    /// other dialogue, so the smalltalk tests talk to somebody who has none.</summary>
+    private static (int Id, string Name, string Role, string CharacterId)? SettlerWithoutWish(SvGameServer s)
+    {
+        var wishGivers = s.WishGiverIdsForTest("Friend");
+        return FirstNpc(s, n => n.Role == "settler" && n.CharacterId.Length == 0 && !wishGivers.Contains(n.Id));
+    }
+
     private static (int Id, string Name, string Role, string CharacterId)? FirstNpc(SvGameServer s, Func<(int Id, string Name, string Role, string CharacterId), bool> where)
         => s.NpcRosterForTest().Where(where).Cast<(int, string, string, string)?>().FirstOrDefault();
 
@@ -92,7 +100,7 @@ public sealed class NpcDialogTests : IDisposable
     [Fact]
     public void TalkingToASettler_WalksTheDialogue_AndPersistsTheChoice()
     {
-        var server = StartedAt(s => FirstNpc(s, n => n.Role == "settler" && n.CharacterId.Length == 0),
+        var server = StartedAt(SettlerWithoutWish,
             out var repo, out var player, out int npcId, out _);
         using (repo)
         {
@@ -216,7 +224,7 @@ public sealed class NpcDialogTests : IDisposable
     [Fact]
     public void RepeatableSmalltalk_PaysItsRelationshipReward_OncePerCooldown()
     {
-        var server = StartedAt(s => FirstNpc(s, n => n.Role == "settler" && n.CharacterId.Length == 0),
+        var server = StartedAt(SettlerWithoutWish,
             out var repo, out var player, out int npcId, out _);
         using (repo)
         {

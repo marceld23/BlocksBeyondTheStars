@@ -133,6 +133,7 @@ namespace BlocksBeyondTheStars.Client
             "wiki/locales/tr.json",
             "wiki/locales/uk.json",
             "wiki/locales/zh.json",
+            "wishes.json",
             "wormholes.json",
         };
 

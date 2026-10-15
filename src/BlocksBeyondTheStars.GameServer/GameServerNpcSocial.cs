@@ -44,10 +44,13 @@ public sealed partial class GameServer
     /// <summary>The stable memory key for a live NPC as seen by this player — the ONE derivation every reader uses
     /// (greetings, dialogues, standings, hints, radio, #2598): an authored character's global key, a base resident's
     /// slot key, a villager's own <see cref="ServerNpc.PersonKey"/>, else the shared role key of the NPC's settlement
-    /// or the receiver's boarded station.</summary>
+    /// or the receiver's boarded station. A travelling merchant or a lost traveller at the base (#2602) is
+    /// <c>guest:&lt;name&gt;</c> — a key that is never written to the save.</summary>
     private string NpcKeyForNpc(PlayerSession session, ServerNpc npc)
         => !string.IsNullOrEmpty(npc.CharacterId)
             ? "char:" + npc.CharacterId // an authored character (#1128) remembers the player GLOBALLY
+            : !string.IsNullOrEmpty(npc.GuestKey)
+                ? npc.GuestKey // #2602: a passing stranger, not a person to remember
             : npc.BaseId > 0
                 ? BaseResidentKey(npc.BaseId, npc.BaseSlot) // a base resident: keyed by base id + slot, rename-proof (#1262, #1865)
             : !string.IsNullOrEmpty(npc.PersonKey)
@@ -75,7 +78,18 @@ public sealed partial class GameServer
             }
         }
 
-        Send(session, new NpcStandingList { NpcIds = ids.ToArray(), StageKeys = stages.ToArray() });
+        // #2601: the villagers with a personal wish for this player ("!") and the ones whose wish is ready ("?").
+        var wishOffers = new List<int>();
+        var wishReady = new List<int>();
+        WishMarksFor(session, wishOffers, wishReady);
+
+        Send(session, new NpcStandingList
+        {
+            NpcIds = ids.ToArray(),
+            StageKeys = stages.ToArray(),
+            WishNpcIds = wishOffers.ToArray(),
+            WishReadyNpcIds = wishReady.ToArray(),
+        });
     }
 
     /// <summary>The "People you know" roster (#1118): everyone with a standing, friendliest first. A villager shows

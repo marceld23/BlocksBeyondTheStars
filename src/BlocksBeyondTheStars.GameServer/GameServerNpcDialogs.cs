@@ -83,21 +83,25 @@ public sealed partial class GameServer
         int rel = RelationshipValue(p, npcKey); // #2598: a villager without an own entry reads the floor
         int stage = StageRank(RelationshipTier(rel));
 
-        // #2598: a villager friend first hands over a little present (at most every half hour of playtime).
-        if (FriendGiftDue(session, npc, npcKey) && FriendGiftDialog() is { Nodes.Count: > 0 } friendGift)
+        // #2598: a villager friend first hands over a little present (at most every half hour of playtime) — not while
+        // visiting the player's base (#2602): the guest's own talk brings its present.
+        bool guest = IsGuestJob(npc.Job);
+        if (!guest && FriendGiftDue(session, npc, npcKey) && FriendGiftDialog() is { Nodes.Count: > 0 } friendGift)
         {
             return friendGift;
         }
 
+        bool ownResident = IsOwnBaseResident(session, npc); // #2594: "welcome home" talk vs. a visitor's talk
         foreach (var d in AllDialogs())
         {
-            bool profession = NpcProfessions.ByJob(npc.Job) != null;
+            bool profession = guest || NpcProfessions.ByJob(npc.Job) != null; // #2602: a guest_* job talks like a profession
             bool matches = !string.IsNullOrEmpty(d.Character)
                 ? string.Equals(d.Character, npc.CharacterId, StringComparison.OrdinalIgnoreCase)
                 : !string.IsNullOrEmpty(d.Job)
                     ? string.Equals(d.Job, npc.Job, StringComparison.OrdinalIgnoreCase) // 2026-09: a profession's own talk
                     : !profession && (string.IsNullOrEmpty(d.Role) || string.Equals(d.Role, npc.Role, StringComparison.OrdinalIgnoreCase));
             if (!matches
+                || !DialogHomeMatches(d.Home, ownResident)
                 || d.Nodes.Count == 0
                 || (d.PlanetTypes.Count > 0 && !d.PlanetTypes.Contains(_worlds.Active.PlanetType, StringComparer.OrdinalIgnoreCase)) // #1793
                 || StageRank(d.MinStage) > stage
@@ -119,6 +123,34 @@ public sealed partial class GameServer
         return null;
     }
 
+    /// <summary>#2594: whether the NPC is a resident of a base the talking player owns — "welcome home" rather than a
+    /// visitor's smalltalk. An ally's residents are someone else's home.</summary>
+    private bool IsOwnBaseResident(PlayerSession session, ServerNpc npc)
+    {
+        if (npc.BaseId <= 0)
+        {
+            return false;
+        }
+
+        foreach (var b in _bases)
+        {
+            if (b.Id == npc.BaseId)
+            {
+                return b.OwnerId == session.State.PlayerId;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>#2594: a dialogue's <see cref="DialogDefinition.Home"/> against where the NPC lives for this player.</summary>
+    private static bool DialogHomeMatches(string? home, bool ownResident) => home switch
+    {
+        DialogDefinition.HomeOwnBase => ownResident,
+        DialogDefinition.HomeAway => !ownResident,
+        _ => true,
+    };
+
     /// <summary>The player talks to an NPC (E in reach). A matching dialogue opens the panel; none →
     /// the ordinary greeting bubble, which makes settlers greet-able for the first time too.</summary>
     private void HandleTalkToNpc(PlayerSession session, TalkToNpcIntent intent)
@@ -138,13 +170,45 @@ public sealed partial class GameServer
         }
 
         RaiseGameEvent(session, GameEventKeys.NpcTalked, npc.Role); // #2482: the neighbours course
+        StopVillageChat(npc); // #2600: a villager chatting with a neighbour turns to the player who spoke to them
         string npcKey = DialogNpcKey(session, npc);
+        MarkPassingGreeted(npc, session.State.PlayerId); // #2593: a talk is today's hello — no passing "hi" right after it
+        if (TryGiveOwedFestivalGift(session, npc))
+        {
+            return; // #2604: the festival present that waited for room in the bag — this talk is its hand-over
+        }
+
+        // #2595: an acquaintance who has not seen the player for a long time says so — read BEFORE anything below
+        // stamps "seen" (the dialogue choice's interaction stamps too).
+        bool welcomeBack = NpcWelcomeBackDue(session.State, npcKey);
+
+        // #2601: a villager's personal wish comes before any other dialogue — the offer, the hand-over or the "no hurry"
+        // reminder (it sends the welcome bubble first itself); then "seen", as on every path below.
+        if (TryWishConversation(session, npc, npcKey, welcomeBack))
+        {
+            StampNpcSeen(session.State, npcKey);
+            return;
+        }
+
         var dialog = PickDialog(session, npc, npcKey);
         if (dialog is null)
         {
-            EmitGreeting(session, npc); // nothing to decide — the familiar over-head line
+            if (welcomeBack)
+            {
+                SendPassingGreeting(session, npc, npcKey, welcomeBack: true); // the welcome IS the greeting
+            }
+            else
+            {
+                EmitGreeting(session, npc); // nothing to decide — the familiar over-head line
+            }
+
             StampNpcSeen(session.State, npcKey); // #2595: AFTER the greeting — a welcome-back check reads the old stamp
             return;
+        }
+
+        if (welcomeBack)
+        {
+            SendPassingGreeting(session, npc, npcKey, welcomeBack: true); // #2595: the welcome bubble alongside the panel
         }
 
         _dialogSessions[session.State.PlayerId] = (npc.Id, dialog, 0);
@@ -153,11 +217,81 @@ public sealed partial class GameServer
         {
             NpcId = npc.Id,
             Name = npc.Name,
-            Text = Localize(session.Locale, node.PromptKey),
+            Text = DialogOpeningText(session, npc, npcKey, dialog, node),
             Choices = node.Choices.Select(c => Localize(session.Locale, c.TextKey)).ToArray(),
             End = node.Choices.Count == 0,
         });
         StampNpcSeen(session.State, npcKey); // #2595: an acquaintance saw the player now (existing entries only)
+    }
+
+    /// <summary>Most characters an AI re-wording of a dialogue opening may take (#2594) — the authored openings are
+    /// one or two sentences.</summary>
+    private const int DialogOpenMaxChars = 140;
+
+    /// <summary>
+    /// The opening prompt of a dialogue (node 0) for this player (#2594): the authored line — or, for a dialogue marked
+    /// <see cref="DialogDefinition.AiPrompt"/> with AI personalisation on, a re-wording in the NPC's voice when one is
+    /// ALREADY cached (purpose <c>dialog_open</c>, warmed while the player walked past — <see cref="WarmDialogOpening"/>).
+    /// A miss starts the request for next time; the panel is never swapped after it opened, and the choices,
+    /// responses and branches always stay authored.
+    /// </summary>
+    private string DialogOpeningText(PlayerSession session, ServerNpc npc, string npcKey, DialogDefinition dialog, DialogNode node)
+    {
+        string authored = Localize(session.Locale, node.PromptKey);
+        if (!dialog.AiPrompt || !AiLinesEnabled)
+        {
+            return authored;
+        }
+
+        var ai = DialogOpeningAiLines(session, npc, npcKey, dialog, authored);
+        return ai is { Length: > 0 } && FillAiLine(ai[0], session) is { Length: > 0 } text ? text : authored;
+    }
+
+    /// <summary>#2594: warms the <c>dialog_open</c> re-wording of the dialogue this NPC would open for the player now, so
+    /// the next E-talk can show it (called from the passing greeting; a no-op without AI or for an authored opening).</summary>
+    private void WarmDialogOpening(PlayerSession session, ServerNpc npc, string npcKey)
+    {
+        if (!AiLinesEnabled || PickDialog(session, npc, npcKey) is not { AiPrompt: true, Nodes.Count: > 0 } dialog)
+        {
+            return;
+        }
+
+        DialogOpeningAiLines(session, npc, npcKey, dialog, Localize(session.Locale, dialog.Nodes[0].PromptKey));
+    }
+
+    /// <summary>The cached <c>dialog_open</c> variant for this NPC's voice (null on a miss, which starts a request).
+    /// Keyed by dialogue, persona, language and stage — never by player. A guest at the base (#2602) asks for its offer
+    /// (<c>guest_offer</c>: a present, goods or the way) on the same path — warmed when it spawns.</summary>
+    private string[]? DialogOpeningAiLines(PlayerSession session, ServerNpc npc, string npcKey, DialogDefinition dialog, string authored)
+    {
+        string stage = RelationshipTier(RelationshipValue(session.State, npcKey));
+        bool guest = IsGuestJob(npc.Job);
+        string purpose = guest ? NpcLinePurposes.GuestOffer : NpcLinePurposes.DialogOpen;
+        string cacheKey = AiLineCacheKey(purpose, dialog.Key,
+            PersonaIndexFor(npcKey, npc.IsRobot, npc.Role), session.Locale, stage);
+        return AiLinesFor(cacheKey, AiLinePriority.Personal, () => new NpcLinesRequest
+        {
+            Purpose = purpose,
+            Language = session.Locale,
+            Theme = npc.Theme,
+            Stage = stage,
+            Situation = guest ? "visiting the player's own base, offering something"
+                : IsOwnBaseResident(session, npc) ? "the player's own base, where the speaker lives" : string.Empty,
+            Speakers =
+            {
+                new NpcLinesSpeaker
+                {
+                    Role = npc.Role,
+                    Job = npc.Job,
+                    IsRobot = npc.IsRobot,
+                    Persona = PersonaFor(npcKey, npc.Theme, npc.IsRobot, npc.Role),
+                },
+            },
+            Tokens = { AiLineTokens.Player },
+            Authored = { authored },
+            LineCount = 1,
+            MaxChars = DialogOpenMaxChars,
+        });
     }
 
     /// <summary>The player picks a reply. The server owns the walk: validate against ITS node, record the
@@ -189,7 +323,9 @@ public sealed partial class GameServer
         bool paysReward = active.Dialog.OncePerPlayer || DialogRewardOffCooldown(session, active.Dialog.Key, npcKey);
         if (paysReward)
         {
-            RecordNpcInteraction(p, npcKey, npc.Name, npc.Role, NpcInteractionKind.Dialog, NpcPlaceFor(p));
+            // #2602: a villager lives in their village even when the talk happens at the player's base (a neighbour's visit).
+            string place = npc.PersonKey.Length > 0 && npc.BaseId == 0 && npc.Settlement.Length > 0 ? npc.Settlement : NpcPlaceFor(p);
+            RecordNpcInteraction(p, npcKey, npc.Name, npc.Role, NpcInteractionKind.Dialog, place);
         }
 
         p.Milestones.Add(DialogFlagMilestonePrefix + active.Dialog.Key + ":" + active.Node + ":" + intent.ChoiceIndex);
@@ -282,6 +418,14 @@ public sealed partial class GameServer
 
             case FriendGiftConsequence:
                 GiveFriendGift(session, npcKey); // #2598: a friend's present (a full bag keeps it for next time)
+                break;
+
+            case WishConsequence when parts.Length >= 2:
+                ApplyWishConsequence(session, npc, npcKey, parts[1]); // #2601: "Sure, I'll help!" / "Maybe later."
+                break;
+
+            case GuestConsequence:
+                ApplyGuestConsequence(session, npc, parts); // #2602: a guest's present at the base (once per guest and player)
                 break;
 
             case "fragment" when parts.Length >= 2 && StoryActive && _story is not null:

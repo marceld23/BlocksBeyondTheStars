@@ -14,6 +14,15 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// </summary>
 public sealed class DialogDefinition
 {
+    /// <summary><see cref="Home"/>: offered to every NPC (the default).</summary>
+    public const string HomeAny = "";
+
+    /// <summary><see cref="Home"/>: only the residents of a base the talking player owns (#2594).</summary>
+    public const string HomeOwnBase = "own_base";
+
+    /// <summary><see cref="Home"/>: never the residents of a base the talking player owns — a visitor's talk (#2594).</summary>
+    public const string HomeAway = "away";
+
     public string Key { get; set; } = string.Empty;
 
     /// <summary>NPC role this dialogue attaches to ("vendor" / "quartermaster" / "settler"), or "" for any.
@@ -37,6 +46,20 @@ public sealed class DialogDefinition
     /// <summary>Planet-type keys this dialogue is offered on (#1793) — empty = every world. The G.D.S. lines
     /// belong to the lava-desert city and nowhere else; an unknown key simply never matches.</summary>
     public List<string> PlanetTypes { get; set; } = new();
+
+    /// <summary>Where the NPC must live relative to the talking player (#2594): <see cref="HomeAny"/> (""),
+    /// <see cref="HomeOwnBase"/> ("own_base" — a resident of the player's own base: "welcome home" talk) or
+    /// <see cref="HomeAway"/> ("away" — anyone else: "we don't get many visitors"). Authored order stays the priority.</summary>
+    public string Home { get; set; } = HomeAny;
+
+    /// <summary>True → with AI personalisation on, the OPENING prompt (node 0 only) may be re-worded in the NPC's voice
+    /// when a re-wording is already cached (#2594, purpose <c>dialog_open</c>). Choices, responses, branches and
+    /// consequences always stay authored.</summary>
+    public bool AiPrompt { get; set; }
+
+    /// <summary>Whether <paramref name="home"/> is one of the known <see cref="Home"/> values.</summary>
+    public static bool IsValidHome(string? home)
+        => string.IsNullOrEmpty(home) || home == HomeOwnBase || home == HomeAway;
 
     /// <summary>The nodes, entered at index 0. 2–3 nodes cover every authored dialogue.</summary>
     public List<DialogNode> Nodes { get; set; } = new();

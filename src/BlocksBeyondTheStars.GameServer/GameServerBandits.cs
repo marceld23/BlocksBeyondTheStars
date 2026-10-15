@@ -940,8 +940,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>A bandit died: close any pending hold-up by it, and for camp guards check whether the camp
-    /// is now cleared — cleared camps are persisted and their guards never come back.</summary>
-    private void OnBanditKilled(CombatEntity bandit)
+    /// is now cleared — cleared camps are persisted and their guards never come back. <paramref name="killer"/> is who
+    /// brought it down (#2599): the attacking player, a sentry's base owner, or null (fire) — the hero of a cleared
+    /// camp's deed (null → the nearest player within 64 m).</summary>
+    private void OnBanditKilled(CombatEntity bandit, PlayerSession? killer)
     {
         var mark = bandit.BanditTargetId.Length > 0 ? FindSessionByPlayerId(bandit.BanditTargetId) : null;
         if (mark is not null && mark.BanditDemandId != 0 && mark.BanditDemandBanditId == bandit.Id)
@@ -978,6 +980,7 @@ public sealed partial class GameServer
                 MarkFeatureStamped("banditcamp:" + camp.Key + ":cleared");
                 OnCampBountyCleared(camp);  // #730: every online bounty holder gets the objective completed
                 NpcRadioOnCampCleared(camp); // #1158: called-about camps pay a friendship bonus + thanks
+                OnCampClearedDeed(camp, bandit.Position, killer); // #2599: the deed log + the nearby villagers are glad
             }
         }
     }

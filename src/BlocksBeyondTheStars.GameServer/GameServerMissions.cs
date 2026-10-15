@@ -199,6 +199,12 @@ public sealed partial class GameServer
 
     private void HandleAcceptMission(PlayerSession session, string missionId)
     {
+        if (IsWishMission(missionId))
+        {
+            MissionFail(session, missionId, "@srv.wish.talk"); // #2601: a wish is asked in person — never from the tab
+            return;
+        }
+
         var def = GetMissionDef(missionId);
         if (def is null || !def.Active)
         {
@@ -282,38 +288,47 @@ public sealed partial class GameServer
     internal static bool MissionAcceptCountsAsTrade(MissionDefinition def)
         => IsBoardMissionId(def.Id) || IsChainMission(def) || IsStandAloneBoardJob(def);
 
-    private void HandleTurnInMission(PlayerSession session, string missionId)
+    /// <summary>Turns a mission in (the Missions tab's button, or #2601 a villager's wish handed over by talking). Returns
+    /// true when it was turned in; false after sending the refusal.</summary>
+    private bool HandleTurnInMission(PlayerSession session, string missionId)
     {
         var pr = session.State.Missions.FirstOrDefault(m => m.MissionId == missionId && m.Status != MissionStatus.TurnedIn);
         var def = GetMissionDef(missionId);
         if (pr is null || def is null)
         {
             MissionFail(session, missionId, "@srv.mission.not_active");
-            return;
+            return false;
         }
 
         if (IsSettlementMission(missionId) && !NearSettlementMissionBoard(session.State))
         {
             MissionFail(session, missionId, "@srv.mission.return_settlement");
-            return;
+            return false;
         }
 
         if (IsStationMission(missionId) && !NearSpaceStationMissionBoard(session.State))
         {
             MissionFail(session, missionId, "@srv.mission.return_station");
-            return;
+            return false;
         }
 
         if (IsBaseMission(missionId) && !NearBaseMissionBoard(session.State))
         {
             MissionFail(session, missionId, "@srv.mission.return_base"); // #1865
-            return;
+            return false;
         }
 
         if (IsChainMission(def) && !ChainTurnInAllowed(session.State, def, pr, out var chainWhy)) // #1212
         {
             MissionFail(session, missionId, chainWhy);
-            return;
+            return false;
+        }
+
+        // #2601: a villager's wish is handed over in person — at the tab only next to them (a talk is next to them).
+        if (IsWishMission(missionId) && !_wishTurnInByTalk && !WishGiverNear(session, missionId, out string wishGiver))
+        {
+            MissionFail(session, missionId, "@srv.wish.return_giver:" + wishGiver);
+            return false;
         }
 
         SyncCampBountyProgress(session); // a camp cleared while this player was away still counts (#730)
@@ -332,7 +347,7 @@ public sealed partial class GameServer
             if (have < obj.Required)
             {
                 MissionFail(session, missionId, "@srv.mission.incomplete");
-                return;
+                return false;
             }
         }
 
@@ -343,7 +358,7 @@ public sealed partial class GameServer
         if (def.Source != MissionSource.Player && !pool.CanFit(def.Rewards))
         {
             MissionFail(session, missionId, "@inventory_full");
-            return;
+            return false;
         }
 
         // Consume Deliver items.
@@ -378,6 +393,11 @@ public sealed partial class GameServer
             _missionDefs.Remove(missionId);
             _repo.DeleteMission(missionId);
         }
+        else if (IsWishMission(missionId))
+        {
+            session.State.Missions.Remove(pr); // #2601: fulfilled — the lane moves on (standing, next villager, markers)
+            OnWishTurnedIn(session, def);
+        }
         else if (def.Repeatable && !IsChainMission(def))
         {
             session.State.Missions.Remove(pr); // can be accepted again
@@ -411,6 +431,7 @@ public sealed partial class GameServer
         SendInventory(session);
         SendMissionList(session);
         _log.Info($"Player '{session.State.Name}' turned in mission '{missionId}'.");
+        return true;
     }
 
     /// <summary>P7 mission threading: if the completed mission matches one of the active story's threads, award
@@ -1030,7 +1051,7 @@ public sealed partial class GameServer
             var def = GetMissionDef(pr.MissionId);
             if (def is not null)
             {
-                active.Add(BuildNetMission(def, pr, pool, session.Locale));
+                active.Add(BuildNetMission(def, pr, pool, session.Locale, session));
             }
         }
 
@@ -1041,7 +1062,7 @@ public sealed partial class GameServer
         GreetBoardQuartermaster(session);
     }
 
-    private NetMission BuildNetMission(MissionDefinition def, MissionProgress? pr, MaterialPool pool, string locale)
+    private NetMission BuildNetMission(MissionDefinition def, MissionProgress? pr, MaterialPool pool, string locale, PlayerSession? session = null)
     {
         var objectives = new NetMissionObjective[def.Objectives.Count];
         for (int i = 0; i < def.Objectives.Count; i++)
@@ -1067,14 +1088,17 @@ public sealed partial class GameServer
         // L3: a generated flavour text (in the player's locale) overrides the static board keys.
         var llmText = IsBoardMissionId(def.Id) ? BoardMissionText(def.Id, locale) : null;
 
+        // #2601: a villager's wish reads "A wish from Tomas" and their own words (free text, never a board key).
+        bool wish = IsWishMission(def.Id) && session is not null;
+
         return new NetMission
         {
             Id = def.Id,
             Source = def.Source.ToString(),
             // System/admin missions carry localization keys; player missions and L3 texts carry free text.
-            Title = llmText?.Title ?? (isPlayer ? def.Title : def.NameKey),
-            Description = llmText?.Description ?? (isPlayer ? def.Description : def.DescriptionKey),
-            FreeText = isPlayer || llmText is not null,
+            Title = wish ? WishTitle(locale, def) : llmText?.Title ?? (isPlayer ? def.Title : def.NameKey),
+            Description = wish ? WishDescription(session!, def) : llmText?.Description ?? (isPlayer ? def.Description : def.DescriptionKey),
+            FreeText = isPlayer || llmText is not null || wish,
             Status = pr?.Status.ToString() ?? "Available",
             Objectives = objectives,
             Rewards = def.Rewards.Select(r => new NetReward { Item = r.Item, Count = r.Count }).ToArray(),
@@ -1111,13 +1135,14 @@ public sealed partial class GameServer
     {
         bool isPlayer = def.Source == MissionSource.Player;
         var llmText = IsBoardMissionId(def.Id) ? BoardMissionText(def.Id, session.Locale) : null;
+        bool wish = IsWishMission(def.Id); // #2601: "A wish from Tomas"
         return new MissionResult
         {
             Success = true,
             MissionId = def.Id,
             Outcome = outcome,
-            Title = llmText?.Title ?? (isPlayer ? def.Title : def.NameKey),
-            FreeText = isPlayer || llmText is not null,
+            Title = wish ? WishTitle(session.Locale, def) : llmText?.Title ?? (isPlayer ? def.Title : def.NameKey),
+            FreeText = isPlayer || llmText is not null || wish,
         };
     }
 

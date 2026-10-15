@@ -60,11 +60,17 @@ public sealed class VillagePersonMemoryTests : IDisposable
         return server;
     }
 
+    /// <summary>Plain settlers with a bed — and (#2601) without a personal wish for the test player "Friend": a wish opens
+    /// before every other dialogue, so the memory tests talk to villagers who have none.</summary>
     private static List<(int Id, string Settlement, string Name, string Role, string Job, string PersonKey)> PlainSettlers(SvGameServer s, string settlement)
-        => s.PersonKeysForTest.Where(n => n.Settlement == settlement && n.Role == "settler" && n.Job.Length == 0
+    {
+        var wishGivers = s.WishGiverIdsForTest("Friend");
+        return s.PersonKeysForTest.Where(n => n.Settlement == settlement && n.Role == "settler" && n.Job.Length == 0
                 && n.PersonKey.Contains("#bed@", StringComparison.Ordinal)
-                && s.NpcRosterForTest().First(r => r.Id == n.Id).CharacterId.Length == 0)
+                && s.NpcRosterForTest().First(r => r.Id == n.Id).CharacterId.Length == 0
+                && !wishGivers.Contains(n.Id))
             .ToList();
+    }
 
     private static bool Qualifies(SvGameServer s)
     {

@@ -22,6 +22,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// their bed and lie down (none → rest standing at the resting spot).</item>
 /// <item><b>The guard has the night shift</b> (Marcel 2026-09-13): patrols from the evening through the night and
 /// sleeps from morning to late afternoon.</item>
+/// <item><b>A village festival</b> (#2604, GameServerVillageFestival.cs) overrides all of it for its attendees: the
+/// <c>Festival</c> phase walks them into the ring; when the party ends, the next check returns them to their phase.</item>
 /// <item>Beds and seats: a base resident's come from the base index; a villager or a crew member looks around its
 /// marker once (<see cref="FurnitureSearchReach"/>), taking the nearest bed and seat nobody else claimed —
 /// furnished settlement houses (#1828) have a bed in every room.</item>
@@ -147,9 +149,15 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>The phase an NPC should be in right now (see the class summary; the guard works the night).</summary>
+    /// <summary>The phase an NPC should be in right now (see the class summary; the guard works the night). An attendee of
+    /// a running village festival is at the festival (#2604) — when it ends, the next check brings the normal phase back.</summary>
     private NpcPhase RoutinePhaseFor(ServerNpc npc)
     {
+        if (_festivalRuns.Count > 0 && FestivalPlaceOf(npc) is not null)
+        {
+            return NpcPhase.Festival;
+        }
+
         double t = LocalDayFraction(npc.Pos);
         bool night = t >= RoutineNightStart || t < RoutineNightEnd;
         bool evening = !night && t >= RoutineEveningStart;
@@ -185,6 +193,11 @@ public sealed partial class GameServer
             case NpcPhase.Evening:
                 npc.ActivityKey = "npc.activity.resting";
                 GoTo(npc, npc.Rest, NpcArrival.None, npc.BaseId > 0 ? ResidentLeash : NpcWanderLeash);
+                break;
+            case NpcPhase.Festival when FestivalPlaceOf(npc) is { } festival:
+                // #2604: into the festival ring (MoveNpcs turns the attendee to the square once it stands there).
+                npc.ActivityKey = FestivalActivityKey;
+                GoTo(npc, festival.Spot, NpcArrival.None, RestLeash);
                 break;
             default:
                 npc.ActivityKey = JobActivityKey(npc.Job);

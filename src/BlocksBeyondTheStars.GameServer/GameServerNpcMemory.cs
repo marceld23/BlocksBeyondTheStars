@@ -51,10 +51,11 @@ public sealed partial class GameServer
     }
 
     /// <summary>Records an interaction in an NPC's memory of this player (item 14): raises the relationship by a
-    /// per-kind weight and appends to the capped last-N log. Persists with the player.</summary>
+    /// per-kind weight and appends to the capped last-N log. Persists with the player. A passing guest at the base
+    /// (<c>guest:&lt;name&gt;</c>, #2602) is nobody to remember — the roster stays clean.</summary>
     private void RecordNpcInteraction(PlayerState player, string npcKey, string npcName, string npcRole, NpcInteractionKind kind, string place = "")
     {
-        if (string.IsNullOrEmpty(npcKey))
+        if (string.IsNullOrEmpty(npcKey) || npcKey.StartsWith(GuestKeyPrefix, System.StringComparison.Ordinal))
         {
             return;
         }

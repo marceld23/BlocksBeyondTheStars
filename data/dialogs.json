@@ -48,8 +48,109 @@
     ]
   },
   {
+    "key": "resident_gardener_gift",
+    "job": "gardener",
+    "home": "own_base",
+    "minStage": "trusted",
+    "oncePerPlayer": true,
+    "aiPrompt": true,
+    "nodes": [
+      {
+        "promptKey": "dlg.resident_gardener_gift.prompt",
+        "choices": [
+          { "textKey": "dlg.resident_gardener_gift.c_take", "responseKey": "dlg.resident_gardener_gift.r_take", "consequence": "gift:berries:5" },
+          { "textKey": "dlg.resident_gardener_gift.c_later", "responseKey": "dlg.resident_gardener_gift.r_later", "keepOpen": true }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "resident_gardener",
+    "job": "gardener",
+    "home": "own_base",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "aiPrompt": true,
+    "nodes": [
+      {
+        "promptKey": "dlg.resident_gardener.prompt",
+        "choices": [
+          { "textKey": "dlg.resident_gardener.c_ask", "responseKey": "dlg.resident_gardener.r_ask", "consequence": "standing:1" },
+          { "textKey": "dlg.resident_gardener.c_bye", "responseKey": "dlg.resident_gardener.r_bye" }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "resident_craftsman",
+    "job": "craftsman",
+    "home": "own_base",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "aiPrompt": true,
+    "nodes": [
+      {
+        "promptKey": "dlg.resident_craftsman.prompt",
+        "choices": [
+          { "textKey": "dlg.resident_craftsman.c_ask", "responseKey": "dlg.resident_craftsman.r_ask", "consequence": "standing:1" },
+          { "textKey": "dlg.resident_craftsman.c_bye", "responseKey": "dlg.resident_craftsman.r_bye" }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "resident_guard",
+    "job": "guard",
+    "home": "own_base",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "aiPrompt": true,
+    "nodes": [
+      {
+        "promptKey": "dlg.resident_guard.prompt",
+        "choices": [
+          { "textKey": "dlg.resident_guard.c_ask", "responseKey": "dlg.resident_guard.r_ask", "consequence": "standing:1" },
+          { "textKey": "dlg.resident_guard.c_bye", "responseKey": "dlg.resident_guard.r_bye" }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "resident_home",
+    "role": "settler",
+    "home": "own_base",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "aiPrompt": true,
+    "nodes": [
+      {
+        "promptKey": "dlg.resident_home.prompt",
+        "choices": [
+          { "textKey": "dlg.resident_home.c_how", "responseKey": "dlg.resident_home.r_how", "consequence": "standing:1" },
+          { "textKey": "dlg.resident_home.c_bye", "responseKey": "dlg.resident_home.r_bye" }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "innkeeper_news",
+    "job": "innkeeper",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "nodes": [
+      {
+        "promptKey": "dlg.innkeeper.prompt",
+        "choices": [
+          { "textKey": "dlg.innkeeper.c_news", "responseKey": "dlg.innkeeper.r_news", "consequence": "news" },
+          { "textKey": "dlg.innkeeper.c_bye", "responseKey": "dlg.innkeeper.r_bye" }
+        ]
+      }
+    ]
+  },
+  {
     "key": "settler_neighbours",
     "role": "settler",
+    "home": "away",
     "minStage": "",
     "oncePerPlayer": false,
     "nodes": [
@@ -131,5 +232,9 @@
   {"key": "profession_rail_dealer", "job": "rail_dealer", "minStage": "", "oncePerPlayer": false, "nodes": [{"promptKey": "dlg.rail_dealer.prompt", "choices": [{"textKey": "dlg.rail_dealer.c_how", "responseKey": "dlg.rail_dealer.r_how", "consequence": "standing:1"}, {"textKey": "dlg.rail_dealer.c_ride", "responseKey": "dlg.rail_dealer.r_ride"}, {"textKey": "dlg.rail_dealer.c_bye", "responseKey": "dlg.rail_dealer.r_bye"}]}]},
   {"key": "profession_streamer", "job": "streamer", "minStage": "", "oncePerPlayer": false, "nodes": [{"promptKey": "dlg.streamer.prompt", "choices": [{"textKey": "dlg.streamer.c_yes", "responseKey": "dlg.streamer.r_yes", "consequence": "photo"}, {"textKey": "dlg.streamer.c_no", "responseKey": "dlg.streamer.r_no"}, {"textKey": "dlg.streamer.c_never", "responseKey": "dlg.streamer.r_never", "consequence": "photo_never"}]}]},
   {"key": "profession_reporter", "job": "reporter", "minStage": "", "oncePerPlayer": false, "nodes": [{"promptKey": "dlg.reporter.prompt", "choices": [{"textKey": "dlg.reporter.c_interview", "responseKey": "dlg.reporter.r_interview", "consequence": "interview"}, {"textKey": "dlg.reporter.c_news", "responseKey": "dlg.reporter.r_news", "consequence": "news"}, {"textKey": "dlg.reporter.c_bye", "responseKey": "dlg.reporter.r_bye"}]}]},
-  {"key": "friend_gift", "role": "_friend", "minStage": "", "oncePerPlayer": false, "nodes": [{"promptKey": "dlg.friend_gift.prompt", "choices": [{"textKey": "dlg.friend_gift.c_take", "responseKey": "dlg.friend_gift.r_take", "consequence": "friendgift"}]}]}
+  {"key": "friend_gift", "role": "_friend", "minStage": "", "oncePerPlayer": false, "nodes": [{"promptKey": "dlg.friend_gift.prompt", "choices": [{"textKey": "dlg.friend_gift.c_take", "responseKey": "dlg.friend_gift.r_take", "consequence": "friendgift"}]}]},
+  {"key": "guest_neighbour_friend", "job": "guest_neighbour", "minStage": "trusted", "oncePerPlayer": false, "aiPrompt": true, "nodes": [{"promptKey": "dlg.guest_neighbour_friend.prompt", "choices": [{"textKey": "dlg.guest_neighbour_friend.c_thanks", "responseKey": "dlg.guest_neighbour_friend.r_thanks", "consequence": "guest:gift:lantern:1"}, {"textKey": "dlg.guest_neighbour.c_wish", "responseKey": "dlg.guest_neighbour.r_wish", "consequence": "guest:wish"}, {"textKey": "dlg.guest_neighbour.c_home", "responseKey": "dlg.guest_neighbour_friend.r_home"}]}]},
+  {"key": "guest_neighbour", "job": "guest_neighbour", "minStage": "", "oncePerPlayer": false, "aiPrompt": true, "nodes": [{"promptKey": "dlg.guest_neighbour.prompt", "choices": [{"textKey": "dlg.guest_neighbour.c_thanks", "responseKey": "dlg.guest_neighbour.r_thanks", "consequence": "guest:gift:berries:3"}, {"textKey": "dlg.guest_neighbour.c_wish", "responseKey": "dlg.guest_neighbour.r_wish", "consequence": "guest:wish"}, {"textKey": "dlg.guest_neighbour.c_bye", "responseKey": "dlg.guest_neighbour.r_bye"}]}]},
+  {"key": "guest_merchant", "job": "guest_merchant", "minStage": "", "oncePerPlayer": false, "aiPrompt": true, "nodes": [{"promptKey": "dlg.guest_merchant.prompt", "choices": [{"textKey": "dlg.guest_merchant.c_goods", "responseKey": "dlg.guest_merchant.r_goods"}, {"textKey": "dlg.guest_merchant.c_where", "responseKey": "dlg.guest_merchant.r_where"}, {"textKey": "dlg.guest_merchant.c_bye", "responseKey": "dlg.guest_merchant.r_bye"}]}]},
+  {"key": "guest_traveler", "job": "guest_traveler", "minStage": "", "oncePerPlayer": false, "aiPrompt": true, "nodes": [{"promptKey": "dlg.guest_traveler.prompt", "choices": [{"textKey": "dlg.guest_traveler.c_way", "responseKey": "dlg.guest_traveler.r_way", "consequence": "guest:gift:torch:4"}, {"textKey": "dlg.guest_traveler.c_dont", "responseKey": "dlg.guest_traveler.r_dont"}]}]}
 ]

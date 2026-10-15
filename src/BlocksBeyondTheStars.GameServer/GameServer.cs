@@ -1935,11 +1935,16 @@ public sealed partial class GameServer
             Guard("TickSreekmakra", deltaSeconds, TickSreekmakra); // 2026-09: Valuma's shapeshifter and mood (1 Hz)
             Guard("TickGiants", deltaSeconds, TickGiants); // #1998: the colossus, the sandworms and the thumpers
             Guard("TickTrains", deltaSeconds, TickTrains); // #2113: the monorail trains and their riders
+            Guard("TickBaseGuests", deltaSeconds, TickBaseGuests); // #2602: friendly visitors walk up to a base whose owner is home (1 Hz)
             Guard("TickNpcRoutine", deltaSeconds, TickNpcRoutine); // #1867/#1868: work by day, sit in the evening, sleep at night; jobs
             Guard("TickNpcPaths", deltaSeconds, TickNpcPaths); // #1866: at most one NPC path search per tick
             Guard("TickNpcs", deltaSeconds, TickNpcs);
+            Guard("TickPassingGreetings", deltaSeconds, TickPassingGreetings); // #2593: NPCs greet and wave as you walk by (1 Hz)
             Guard("TickProfessions", deltaSeconds, TickProfessions); // the streamer asks for photos, the tamer's pet follows (2026-09)
+            Guard("TickVillageLife", deltaSeconds, TickVillageLife); // #2600: villagers talk to each other (1 Hz, scan every 3 s)
+            Guard("TickVillageFestivals", deltaSeconds, TickVillageFestivals); // #2604: the village festival (1 Hz + the tune's notes)
             Guard("TickStationStaffing", deltaSeconds, TickStationStaffing); // #1487: crew only staffs posts in sealed rooms
+            Guard("TickPlanetTraders", deltaSeconds, TickPlanetTraders); // #2603: traders land on occupied bodies even when nobody flies (5 s)
             Guard("TickLandedTraders", deltaSeconds, TickLandedTraders); // P3: materialize/lift-off a peaceful trader parked on this surface
             Guard("TickDoors", deltaSeconds, TickDoors);
             Guard("TickCrystalNet", deltaSeconds, TickCrystalNet); // #2046: the Crystal Net's logic + sensor beats
@@ -2658,6 +2663,7 @@ public sealed partial class GameServer
     {
         var p = session.State;
         RaiseGameEvent(session, GameEventKeys.PlayerRespawned); // #2469: the tutorial's "you only fainted" reaction
+        ResetVegaAboardWelcome(session); // #2595: waking up in the ship after a death is no homecoming
         p.Health = 100f;
         p.Oxygen = MaxOxygen(p);
         p.SuitEnergy = MaxSuitEnergy(p); // #2297: full means the worn battery's full
@@ -2782,6 +2788,7 @@ public sealed partial class GameServer
         p.RespawnPoint = _shipPlaced ? _healTank : p.RespawnPoint;
         session.AwaitingSpawnAdopt = true; // #865: ignore death-spot reports until the client snaps
         p.AboardShip = true;
+        ResetVegaAboardWelcome(session); // #2595: put back aboard (a death, a lost ship) — no "welcome back aboard"
         session.SentChunks.Clear();
 
         var (systemName, planetName) = ActiveLocationNames();
@@ -7506,7 +7513,8 @@ public sealed partial class GameServer
     private bool MarketAvailable(PlayerState player)
         => player.AboardShip || NearSettlementVendor(player) || NearSpaceStationVendor(player)
            || NearLandedTraderPilot(player) // P3: barter with a peaceful trader landed on a planet surface
-           || NearBaseVendor(player); // #1865: the trading post at home, staffed by a resident
+           || NearBaseVendor(player) // #1865: the trading post at home, staffed by a resident
+           || NearBaseGuestMerchant(player); // #2602: a travelling merchant visiting the base
 
     private void SaveAll()
     {
@@ -8049,6 +8057,7 @@ public sealed partial class GameServer
             WorldTextures = r.WorldTextures ? "Admins" : "Off",
             FrontierDanger = r.FrontierDanger,
             BaseVisitors = r.BaseVisitors,
+            FriendlyVisitors = r.FriendlyVisitors ? "On" : "Off", // #2602 (empty = a server without the rule)
             TutorialPolicy = r.TutorialPolicy.ToString(), // #2466
             StoryDensity = r.StoryDensity.ToString(), // #2472 (empty = a server without the live edit)
             MainStory = session.State.IsAdmin ? _storyState.StoryId : string.Empty, // #2506: the admins' "Main story" row
@@ -8143,6 +8152,12 @@ public sealed partial class GameServer
             Rules.BaseVisitors = intent.BaseVisitors.Equals("On", System.StringComparison.OrdinalIgnoreCase);
         }
 
+        if (!string.IsNullOrEmpty(intent.FriendlyVisitors))
+        {
+            // #2602: off sends a guest already at a base home (its script sees the rule on the next step).
+            Rules.FriendlyVisitors = intent.FriendlyVisitors.Equals("On", System.StringComparison.OrdinalIgnoreCase);
+        }
+
         bool tutorialPolicyChanged = false;
         if (ServerConfig.TryParseTutorialPolicy(intent.TutorialPolicy, out var tutorialPolicy) && tutorialPolicy != Rules.TutorialPolicy)
         {
@@ -8192,7 +8207,7 @@ public sealed partial class GameServer
                   $"planet={Rules.PlanetEnemies}, space={Rules.SpaceNpcEnemies}, ufos={Rules.AlienUfos}, " +
                   $"bandits={Rules.Bandits}, instantTravel={Rules.InstantTravel}, hazards={Rules.EnvironmentalHazards}, " +
                   $"autoAim={Rules.AutoAim}, starterTeleporter={Rules.StarterTeleporter}, returnToShip={Rules.ReturnToShip}, " +
-                  $"tutorial={Rules.TutorialPolicy}, storyDensity={Rules.StoryDensity}.");
+                  $"friendlyVisitors={Rules.FriendlyVisitors}, tutorial={Rules.TutorialPolicy}, storyDensity={Rules.StoryDensity}.");
     }
 
     /// <summary>Rearranges the player's personal inventory by swapping two slots (B58 — customising the quick-bar,

@@ -154,6 +154,9 @@ public static class ContentLoader
             ? JsonSerializer.Deserialize<VillageLifeDefinition>(File.ReadAllText(villageFile), JsonOptions)
             : null);
 
+        // The villagers' personal wishes (#2601) are optional the same way: no wishes.json → nobody wishes anything.
+        content.SetWishes(LoadArray<BlocksBeyondTheStars.Shared.Missions.WishTemplate>(Path.Combine(dataDir, "wishes.json")));
+
         content.Validate();
         return content;
     }

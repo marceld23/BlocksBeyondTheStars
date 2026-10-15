@@ -143,7 +143,7 @@ public sealed partial class GameServer
             {
                 if (e.IsBandit)
                 {
-                    OnBanditKilled(e); // camp bookkeeping still has to clear — no story credit, nobody fired
+                    OnBanditKilled(e, killer: null); // camp bookkeeping still has to clear — no story credit, nobody fired (#2599: the nearest player is the hero)
                 }
 
                 BroadcastToWorld(new PlanetEnemyDefeated { Id = e.Id });

@@ -426,6 +426,11 @@ public sealed partial class GameServer
                 continue; // already accepted / turned in (non-repeatable) is hidden
             }
 
+            if (IsWishMission(def.Id))
+            {
+                continue; // #2601: a villager's wish is asked in person, never listed — and another player's is theirs
+            }
+
             if (IsBoardMissionId(def.Id) && !currentBoardIds.Contains(def.Id))
             {
                 continue; // a board mission belonging to a board the player isn't standing at
@@ -525,7 +530,8 @@ public sealed partial class GameServer
     /// ("I've got something more for you") — through the dialogue-promised-call queue, so it obeys the
     /// radio gates, the player's NpcCallsMode and the 90 s delay, and gives up if the player stays away.
     /// A chain VEGA hands out (#2481, B55: <see cref="MissionChains.GiverVega"/>, the Crystal workshop) gets VEGA's own line
-    /// instead (<see cref="VegaChainFollowUp"/>).</summary>
+    /// instead (<see cref="VegaChainFollowUp"/>). The end of a settlement's "settlement needs" chain plans its festival
+    /// (#2604, <see cref="OnSettlementChainDone"/>).</summary>
     private void OnChainStepTurnedIn(PlayerSession session, MissionDefinition def, MissionProgress pr)
     {
         // #1291: only a step that is FEASIBLE here counts as "next" — otherwise the giver promises a call
@@ -534,6 +540,7 @@ public sealed partial class GameServer
         if (next.Count == 0)
         {
             RestartChainIfRepeatable(session, def);
+            OnSettlementChainDone(session, def, pr); // #2604: the village helped with everything → a festival
             return;
         }
 

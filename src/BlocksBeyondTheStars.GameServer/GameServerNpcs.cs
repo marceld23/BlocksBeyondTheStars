@@ -120,13 +120,28 @@ public sealed partial class GameServer
         public List<Vector3f>? Patrol;
         public int PatrolIndex;
         public double NextSightAt;
+
+        // --- #2593: passing greetings ---
+        public Dictionary<string, long>? GreetedDay; // player id → the in-game day (MarketDay) of today's hello; lazy
+        public double AttendUntil;                    // uptime until which the NPC stands still and looks at AttendPos
+        public Vector3f AttendPos;                    // where the player it just greeted stood
+
+        // --- #2600: villagers talking to each other (GameServerVillageLife.cs) ---
+        public ServerNpc? TalkWith;  // the neighbour this NPC is chatting with (null = nobody); both stand still and face each other
+        public double TalkUntil;     // uptime the facing ends at the latest (the conversation ends it earlier)
+        public double ChatRestUntil; // uptime before which this NPC starts no new conversation
+
+        // --- #2602: friendly visitors at the base (GameServerBaseGuests.cs) ---
+        public bool VisitingAway;               // a villager away visiting a base: not sent, not moved, no routine
+        public string GuestKey = string.Empty;  // a merchant/traveller guest's memory key ("guest:<name>", never saved); "" = none
+        public int FaceSeed;                    // a fixed client face seed (a neighbour guest wears its villager's face); 0 = derived
     }
 
     /// <summary>What an NPC does when it reaches its walk goal (#1867).</summary>
     internal enum NpcArrival : byte { None, LieInBed, SitOnSeat }
 
-    /// <summary>The routine phase an NPC is in (#1867).</summary>
-    internal enum NpcPhase : byte { Unset, Day, Evening, Night }
+    /// <summary>The routine phase an NPC is in (#1867); <c>Festival</c> = in the ring of a village festival (#2604).</summary>
+    internal enum NpcPhase : byte { Unset, Day, Evening, Night, Festival }
 
     private List<ServerNpc> _npcs => _worlds.Active.Npcs;
     private double _npcBroadcastTimer { get => _worlds.Active.NpcBroadcastTimer; set => _worlds.Active.NpcBroadcastTimer = value; }
@@ -289,6 +304,11 @@ public sealed partial class GameServer
         var crewStation = ActivePlayerStation(); // #1775: on a player station the crew is kept to its sealed pocket
         foreach (var npc in _npcs)
         {
+            if (npc.VisitingAway)
+            {
+                continue; // #2602: away visiting a base — the guest walking there is this villager
+            }
+
             // #1775: the net — a crew member outside the pocket its post breathes in (a legacy spawn inside the hull,
             // a wall built around it, a door it slipped through) is set back home rather than left in the vacuum.
             if (crewStation != null && OutsideCrewPocket(crewStation, npc.Home, npc.Pos))
@@ -316,12 +336,39 @@ public sealed partial class GameServer
             // #1867: someone sitting on a chair or lying in bed stays put (a seated one still looks at a visitor).
             if (npc.Pose != 0)
             {
-                if (npc.Pose == 1 && NearestPlayerPosition(targets, npc.Pos) is { } visitor
+                if (npc.Pose == 1 && TalkPartner(npc) is { } tablemate)
+                {
+                    FaceTowards(npc, tablemate.Pos); // #2600: two villagers chatting at the tavern table look at each other
+                }
+                else if (npc.Pose == 1 && NearestPlayerPosition(targets, npc.Pos) is { } visitor
                     && WrapDistSq(visitor, npc.Pos) <= NpcFaceRange * NpcFaceRange)
                 {
                     npc.Facing = (float)System.Math.Atan2(visitor.X - npc.Pos.X, visitor.Z - npc.Pos.Z);
                 }
 
+                continue;
+            }
+
+            // #2604: at the village festival — stand at the ring spot and look at the middle of the square.
+            if (npc.Goal is null && npc.Phase == NpcPhase.Festival && FestivalPlaceOf(npc) is { } festival)
+            {
+                FaceTowards(npc, festival.Anchor);
+                continue;
+            }
+
+            // #2600: chatting with a neighbour — stand still and look at them (walking off, a dialogue or bedtime ends it).
+            if (npc.Goal is null && TalkPartner(npc) is { } partner)
+            {
+                FaceTowards(npc, partner.Pos);
+                continue;
+            }
+
+            // #2593: an NPC that just greeted a passer-by pauses for a moment and looks at them (never one on a route —
+            // walkers don't greet).
+            if (_uptime < npc.AttendUntil && npc.Goal is null)
+            {
+                npc.Facing = (float)System.Math.Atan2(
+                    WorldConstants.WrapDeltaX((double)npc.AttendPos.X - npc.Pos.X, _world.Circumference), npc.AttendPos.Z - npc.Pos.Z);
                 continue;
             }
 
@@ -736,7 +783,7 @@ public sealed partial class GameServer
         var list = new List<NetNpc>();
         foreach (var npc in _npcs)
         {
-            if (WrapDistSq(session.State.Position, npc.Pos) <= reachSq)
+            if (!npc.VisitingAway && WrapDistSq(session.State.Position, npc.Pos) <= reachSq) // #2602: away = not in the village
             {
                 list.Add(ToNetNpc(npc));
             }
@@ -764,7 +811,7 @@ public sealed partial class GameServer
         OutfitRgb = n.OutfitRgb,
         LegsRgb = n.LegsRgb,
         IsRobot = n.IsRobot,
-        FaceVariant = CharacterFaceVariant(n), // #1128: an authored character keeps one face everywhere
+        FaceVariant = n.FaceSeed != 0 ? n.FaceSeed : CharacterFaceVariant(n), // #1128: an authored character keeps one face everywhere; #2602: a neighbour guest its villager's
         Look = n.Look,
         Pose = n.Pose,               // #1867
         ActivityKey = n.ActivityKey, // #1867/#1868

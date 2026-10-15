@@ -1304,6 +1304,7 @@ public sealed partial class GameServer
             Advance(killer, "defeat:" + GiantName(g.Kind));
         }
 
+        OnBeastDefeatedDeed(Shared.State.DeedKinds.Giant, killer, dead.Position, GiantName(g.Kind)); // #2599: the villages hear of it
         _log.Info($"A {GiantName(g.Kind)} on '{_world.LocationId}' was defeated{(killer is null ? string.Empty : " by " + killer.State.Name)}.");
     }
 

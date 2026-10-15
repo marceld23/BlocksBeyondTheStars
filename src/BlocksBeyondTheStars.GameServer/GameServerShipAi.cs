@@ -551,6 +551,8 @@ public sealed partial class GameServer
             TickVegaMemory(session);
             TickVegaContextTips(session); // throttled situational tips (#1077): lamp, ore, places, space …
             TickVegaBanterFor(session); // LLM smalltalk once onboarding is done (silent without AI)
+            TickVegaChatterFor(session); // #2595/#2597: welcome back (aboard, after a long time away) and praise
+            TickWishesFor(session); // #2601: a held wish turned ready → "?" marker + one toast; new village → markers
         }
     }
 

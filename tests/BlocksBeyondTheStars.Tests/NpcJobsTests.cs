@@ -108,12 +108,44 @@ public sealed class NpcJobsTests
     [Fact]
     public void TheGuard_WalksTheWallAtNight_WarnsTheOwner_AndSendsTheScoutsAway()
     {
+        // #2596: without a radio the guard's report comes through VEGA — the ☎ used to go out with no radio at all.
         using var w = new NpcLifeWorld(_content, "jobs_guard", padHalf: 48, configure: c =>
         {
             c.Rules.BaseVisitors = true;
             c.Rules.Bandits = AlienActivity.Normal;
             c.Rules.PlanetEnemies = AlienActivity.Rare;
         });
+        GuardDrivesTheScoutsOff(w);
+
+        var report = w.Transport.Sent.Where(s => s.Conn == w.Player.ConnectionId && s.Msg is ShipAiLine { LineKey: "vega.news.guard" })
+            .Select(s => (ShipAiLine)s.Msg).ToList();
+        var line = Assert.Single(report);
+        Assert.Equal(new[] { w.Server.NpcRosterForTest().Single(n => n.Role == "settler").Name, w.Server.BaseSnapshots.Single().Name },
+            line.LineArg.Split('\u001f'));
+        Assert.DoesNotContain(w.Transport.Sent, s => s.Conn == w.Player.ConnectionId && s.Msg is ChatMessage { IsNpcCall: true });
+    }
+
+    [Fact]
+    public void TheGuard_WithARadioWorn_CallsAsBefore_AndVegaStaysQuiet()
+    {
+        using var w = new NpcLifeWorld(_content, "jobs_guard_radio", padHalf: 48, configure: c =>
+        {
+            c.Rules.BaseVisitors = true;
+            c.Rules.Bandits = AlienActivity.Normal;
+            c.Rules.PlanetEnemies = AlienActivity.Rare;
+        });
+        TestGear.Wear(w.Player.State, "comm_radio");
+        GuardDrivesTheScoutsOff(w);
+
+        string warning = _content.CreateLocalizer(BlocksBeyondTheStars.Shared.Localization.GameLocale.English)
+            .Get("npc.call.guard_scouts").Replace("{0}", w.Server.BaseSnapshots.Single().Name);
+        Assert.Contains(w.Transport.Sent, s => s.Conn == w.Player.ConnectionId && s.Msg is ChatMessage { IsNpcCall: true } m && m.Text == warning);
+        Assert.DoesNotContain(w.Transport.Sent, s => s.Conn == w.Player.ConnectionId && s.Msg is ShipAiLine { LineKey: "vega.news.guard" });
+    }
+
+    /// <summary>A walled base whose guard walks the night round, then bandit scouts it must send away.</summary>
+    private static void GuardDrivesTheScoutsOff(NpcLifeWorld w)
+    {
         int baseId = w.FoundBase();
         w.WallRing(9);
         w.Player.State.Position = new Vector3f(NpcLifeWorld.Cx - 1.5f, w.Feet, NpcLifeWorld.Cz + 1.5f);
@@ -138,7 +170,6 @@ public sealed class NpcJobsTests
             every: () => sentAway |= w.Server.Bandits.Any(b => b.ScoutBaseId == baseId && b.BanditPhase == BanditPhase.Leaving),
             until: () => sentAway);
 
-        Assert.Contains(w.Transport.Sent, s => s.Conn == w.Player.ConnectionId && s.Msg is ChatMessage { IsNpcCall: true });
         Assert.True(sentAway, "the guard never sent the scouts away");
     }
 }

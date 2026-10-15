@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Story;
 
@@ -261,6 +262,14 @@ public sealed partial class GameServer
         string? cachedLine = _config.AiLevel == AiLevel.Off ? null : _greetingCache.Pick(cacheKey);
         string immediate = cachedLine is null ? string.Empty : FillPlayerToken(cachedLine, session);
 
+        // #2594: nothing cached — a known/trusted classic vendor or quartermaster greets by name and stage, the player's
+        // own residents say "welcome home". Strangers and professions get "" here (the flavour line below, or the
+        // client's role line). With AI on this is the instant line; the AI line below still upgrades it (same id).
+        if (immediate.Length == 0)
+        {
+            immediate = StageGreetingText(session, npc, npcKey);
+        }
+
         // P7: with no LLM backend, let settlement/station NPCs occasionally speak a story flavour line — gated
         // by the world's knowledge level + tags + the NPC's role — so villages react to the unfolding story.
         if (immediate.Length == 0 && _config.AiLevel == AiLevel.Off)
@@ -295,6 +304,33 @@ public sealed partial class GameServer
         // #2593: the upgrade of the bubble sent above — same id, no gesture (it played with the first message).
         var upgrade = new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, GreetingId = greetingId, Gesture = NpcGestures.None };
         StartGreetingLine(cacheKey, req, AiLinePriority.PlayerInitiated, session.ConnectionId, upgrade);
+    }
+
+    /// <summary>
+    /// #2594: the authored E-greeting by friendship stage, used when no AI line is cached: a known/trusted classic vendor
+    /// (<c>npc.greet.vendor.known|trusted</c>) or quartermaster (<c>npc.greet.quartermaster.known|trusted</c>) with the
+    /// player's name; the player's own base residents a "welcome home" line (<c>npc.hello.resident.*</c>). "" for
+    /// strangers, professions and everyone else — they keep today's story flavour line or the client's role line.
+    /// </summary>
+    private string StageGreetingText(PlayerSession session, ServerNpc npc, string npcKey)
+    {
+        string name = session.State.Name ?? string.Empty;
+        if (IsOwnBaseResident(session, npc))
+        {
+            string key = ResidentHelloJobs.Contains(npc.Job) && _passingRng.Next(2) == 0
+                ? "npc.hello.resident." + npc.Job
+                : "npc.hello.resident." + (_passingRng.Next(3) + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return Localize(session.Locale, key).Replace("{0}", name);
+        }
+
+        string tier = RelationshipTier(RelationshipValue(session.State, npcKey));
+        if (tier is not ("known" or "trusted") || NpcProfessions.ByJob(npc.Job) is not null
+            || npc.Role is not ("vendor" or "quartermaster"))
+        {
+            return string.Empty;
+        }
+
+        return Localize(session.Locale, "npc.greet." + npc.Role + "." + tier).Replace("{0}", name);
     }
 
     /// <summary>#2590: generates one greeting variant off the game thread — deduped per cache key, on the world's AI

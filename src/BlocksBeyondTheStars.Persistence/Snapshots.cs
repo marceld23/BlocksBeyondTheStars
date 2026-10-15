@@ -81,6 +81,10 @@ public sealed class PlayerSnapshot
     public List<MissionProgress> Missions { get; set; } = new();
     public List<string> Milestones { get; set; } = new();
 
+    /// <summary>The villagers' wishes per place (#2601, <see cref="PlayerState.Wishes"/>). Absent in older saves ⇒ none;
+    /// null while empty. An older build drops it on re-save (the lanes start over; a held wish stays a mission).</summary>
+    public Dictionary<string, WishLedger>? Wishes { get; set; }
+
     /// <summary>Running story-pack step counters (#2466, <see cref="PlayerState.StepProgress"/>). Absent in older saves ⇒
     /// none; null while empty, so a save without running steps does not grow. An older build drops it on re-save.</summary>
     public Dictionary<string, int>? StepProgress { get; set; }
@@ -266,6 +270,7 @@ public static class StateMapper
         EquipmentInitialised = p.EquipmentInitialised,
         Missions = p.Missions.Select(CloneProgress).ToList(),
         Milestones = p.Milestones.ToList(),
+        Wishes = p.Wishes.Count > 0 ? CloneWishes(p.Wishes) : null, // #2601
         StepProgress = p.StepProgress.Count > 0 ? new Dictionary<string, int>(p.StepProgress, System.StringComparer.Ordinal) : null,
         TrackedStoryId = p.TrackedStoryId,
         CutsceneAnchors = p.CutsceneAnchors.Count > 0 ? CloneCutsceneAnchors(p.CutsceneAnchors) : null,
@@ -382,6 +387,39 @@ public static class StateMapper
         AcceptedBodyId = m.AcceptedBodyId,
         AcceptedSystemId = m.AcceptedSystemId, // #1291: the survey orders' "not where you took it" check
     };
+
+    /// <summary>A deep copy of the villagers' wish ledgers (#2601) — every field by hand; null entries/lanes of a
+    /// hand-edited save are dropped.</summary>
+    private static Dictionary<string, WishLedger> CloneWishes(Dictionary<string, WishLedger>? wishes)
+    {
+        var clone = new Dictionary<string, WishLedger>(System.StringComparer.Ordinal);
+        if (wishes is null)
+        {
+            return clone;
+        }
+
+        foreach (var (place, ledger) in wishes)
+        {
+            if (ledger is null || string.IsNullOrEmpty(place))
+            {
+                continue;
+            }
+
+            clone[place] = new WishLedger
+            {
+                Done = ledger.Done,
+                Lanes = (ledger.Lanes ?? new List<WishLane>()).Where(l => l is not null).Select(l => new WishLane
+                {
+                    N = l.N,
+                    Giver = l.Giver ?? string.Empty,
+                    LastGiver = l.LastGiver ?? string.Empty,
+                    LastTemplate = l.LastTemplate ?? string.Empty,
+                }).ToList(),
+            };
+        }
+
+        return clone;
+    }
 
     /// <summary>Deep-clones the per-NPC memory (item 14) so a snapshot doesn't alias the live state.</summary>
     /// <summary>Deep-copies the scan-site map (#1843) so a snapshot never aliases the live state's entries.</summary>
@@ -531,6 +569,7 @@ public static class StateMapper
         RationStore = RestoreInventory(BlocksBeyondTheStars.Shared.State.PlayerState.RationStoreSlots, s.RationStore ?? new List<InventorySlotDto>()),
         Missions = s.Missions.Select(CloneProgress).ToList(),
         Milestones = new HashSet<string>(s.Milestones ?? new List<string>()),
+        Wishes = CloneWishes(s.Wishes), // #2601
         StepProgress = s.StepProgress != null
             ? new Dictionary<string, int>(s.StepProgress, System.StringComparer.Ordinal)
             : new Dictionary<string, int>(System.StringComparer.Ordinal),

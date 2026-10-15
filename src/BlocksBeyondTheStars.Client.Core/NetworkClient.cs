@@ -571,9 +571,10 @@ namespace BlocksBeyondTheStars.Client
             string bandits = "", string instantTravel = "", string keepInventory = "", string keepShip = "", string hazards = "",
             string autoAim = "", string starterTeleporter = "", string frontierDanger = "", string baseVisitors = "",
             string worldTextures = "", int machineCatchUpMinutes = -1, string returnToShip = "",
-            string tutorialPolicy = "", string storyDensity = "")
+            string tutorialPolicy = "", string storyDensity = "", string friendlyVisitors = "")
             => Send(new SetWorldRulesIntent
             {
+                FriendlyVisitors = friendlyVisitors, // #2602: "On" | "Off", empty = unchanged
                 TutorialPolicy = tutorialPolicy, // #2466/#2472/#2498: "Auto" | "Courses" | "OptIn" | "Off", empty = unchanged
                 StoryDensity = storyDensity,     // #2472: "Sparse" | "Normal" | "Dense", empty = unchanged
                 MachineCatchUpMinutes = machineCatchUpMinutes, // #2269: -1 = unchanged

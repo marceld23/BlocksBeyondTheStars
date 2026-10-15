@@ -355,6 +355,7 @@ public sealed partial class GameServer
             Advance(killer, "defeat:sreekmakra");
         }
 
+        OnBeastDefeatedDeed(Shared.State.DeedKinds.Sreekmakra, killer, dead.Position, string.Empty); // #2599: the villages hear of it
         _log.Info($"The Sreekmakra on '{world}' was defeated{(killer is null ? string.Empty : " by " + killer.State.Name)}.");
     }
 

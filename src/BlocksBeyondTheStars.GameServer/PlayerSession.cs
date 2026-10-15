@@ -490,9 +490,59 @@ public sealed class PlayerSession
     /// <summary>Villager person keys whose passing hello already paid its +1 standing this session (#2598).</summary>
     public HashSet<string> HelloStandingPaid { get; } = new(StringComparer.Ordinal);
 
+    // --- #2601: personal wishes. RAM only. ---
+
+    /// <summary>Villagers (person keys) whose wish the player answered "maybe later" this session — the ordinary chat
+    /// until the next visit; the "!" stays.</summary>
+    public HashSet<string> DeclinedWishGivers { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>Held wish id → the progress the villager last reminded the player of ("3 of 5 — no hurry!"); the same
+    /// progress again means an ordinary chat.</summary>
+    public Dictionary<string, int> WishReminded { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>The held wishes that were ready to hand over at the last 1 Hz check (the "?" markers).</summary>
+    public HashSet<string> WishReady { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary>The settlement (location key) the player stood in at the last wish check — entering another refreshes
+    /// the markers and warms the offers' AI wording ("" = none).</summary>
+    public string WishPlaceKey { get; set; } = string.Empty;
+
+    /// <summary>Whether a festival was running in the settlement the player stood in at the last wish check — its start
+    /// and end re-send the markers (no new "!" while everybody celebrates).</summary>
+    public bool WishFestivalHere { get; set; }
+
     /// <summary>The player's <c>PlayerState.LastSeenUtc</c> as it was BEFORE this join overwrote it (#2595): when they
     /// were last online — what VEGA's "welcome back after a long time" reads. "" for a first join or an old save.</summary>
     public string PreviousSeenUtc { get; set; } = string.Empty;
+
+    // --- #2593/#2595/#2597: the world greets back (passing hellos, VEGA's welcome and praise). RAM only. ---
+
+    /// <summary>#2593: uptime before which no NPC greets this player in passing again (4 s, 8 s in a crowd).</summary>
+    public double PassingGreetReadyAt { get; set; }
+
+    /// <summary>#2595: VEGA's chatter state was seeded on the first 1 Hz pass after the join (aboard flag, login welcome).</summary>
+    public bool VegaChatterSeeded { get; set; }
+
+    /// <summary>#2595: whether the player was aboard the ship on the last 1 Hz pass — boarding is the edge false → true.</summary>
+    public bool VegaWasAboard { get; set; }
+
+    /// <summary>#2595: uptime the player last stepped off the ship (NaN = not outside since the join or the last respawn).</summary>
+    public double VegaLeftShipAt { get; set; } = double.NaN;
+
+    /// <summary>#2595: uptime before which VEGA does not say "welcome back aboard" again (30 min).</summary>
+    public double VegaWelcomeAboardReadyAt { get; set; }
+
+    /// <summary>#2595: uptime VEGA's "welcome back after a long time" is due (0 = none pending).</summary>
+    public double VegaWelcomeLoginDueAt { get; set; }
+
+    /// <summary>#2597: achievements unlocked within the coalescing window, waiting for VEGA's praise (keys).</summary>
+    public List<string> PraisePending { get; } = new();
+
+    /// <summary>#2597: uptime the pending praise is spoken (the first unlock + 2 s).</summary>
+    public double PraiseDueAt { get; set; }
+
+    /// <summary>#2597: uptime before which VEGA praises nothing again (90 s between praise lines).</summary>
+    public double VegaPraiseReadyAt { get; set; }
 
     /// <summary>The reporter who just asked this player for an interview (2026-09), 0 = none — an answer is accepted only
     /// for them, once.</summary>

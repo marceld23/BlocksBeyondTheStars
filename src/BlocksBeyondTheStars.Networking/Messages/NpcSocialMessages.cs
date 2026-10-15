@@ -11,6 +11,13 @@ public sealed class NpcStandingList
 {
     public int[] NpcIds { get; set; } = System.Array.Empty<int>();
     public string[] StageKeys { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>#2601: the live villagers with a personal wish for THIS player — a gold "!" over their head. Additive: an
+    /// older client ignores it (talking to them still opens the wish), an older server never sends it (empty).</summary>
+    public int[] WishNpcIds { get; set; } = System.Array.Empty<int>();
+
+    /// <summary>#2601: the live villagers whose wish the player holds and can hand over now — a gold "?". Additive.</summary>
+    public int[] WishReadyNpcIds { get; set; } = System.Array.Empty<int>();
 }
 
 /// <summary>Client → server (#1118): the Character tab's "People you know" list wants a fresh roster.</summary>

@@ -85,6 +85,7 @@ and night, asleep by day).
 | Day | `Work` (a post, bench, garden, patrol — or the spawn spot) | idle with the work leash |
 | Evening | the spot in front of `Seat` | `SitDown` → `Pose = 1` |
 | Night | the spot beside `Bed` | `LieDown` → `Pose = 2` (position mid-bed, facing foot → head) |
+| Festival (#2604, §15) | the attendee's ring spot around the village square | stand still, face the square |
 
 No seat / no bed → the resting spot, `ActivityKey = npc.activity.resting`. `StandUp` puts the NPC back on the
 approach spot. Villagers and crew find a bed and a seat once within 8 blocks of their marker
@@ -103,8 +104,9 @@ Wire (additive, contractless — no codec tag): `NetNpc.Pose`, `NetNpc.ActivityK
 - **Guard**: patrol = the standable yard cells within three wall cells of the outside (`ComputeGuardPatrol`, cached
   per index rebuild, ≤ 24 waypoints; a sentry post without walls gets a square round at radius 6). Every 2 s it
   looks for scouts of its base or a robber approaching within 40 of the core (24-block range, no line of sight —
-  they stand right outside the wall); one radio warning per 5 min per base (`npc.call.guard_scouts`, respects
-  "NPC calls off"); within 8 blocks it calls `BeginBanditLeave`. Fighting bandits are ignored.
+  they stand right outside the wall); one warning per 5 min per base, respects "NPC calls off" — a ☎ radio call
+  (`npc.call.guard_scouts`) when the owner's worn radio reaches the base, else through VEGA (`vega.news.guard`, §12);
+  within 8 blocks it calls `BeginBanditLeave`. Fighting bandits are ignored.
 
 ## 8. Client (`NpcView.cs`, `PlayerAvatar.cs`, `HeldItem.cs`, `Sky.cs`, `HudUi.cs`)
 
@@ -184,8 +186,176 @@ the furnished room (`RoomFurnisher.RoomRole` name).
 - **Client.** `HeldItem.ForNpc` re-tints existing models (`npc_medkit`, `npc_basket`, `npc_book`, `npc_leash`,
   `npc_pickaxe`, `npc_camera`, `npc_microphone`); `NpcView.FallbackGreeting` uses `npc.greet.<job>` from the NameKey.
 
+## 12. The world greets back (#2593–#2597)
+
+- **Passing greetings** (`GameServerNpcPassing.cs`, `TickPassingGreetings`, 1 Hz per world after `TickNpcs`). Per player on
+  foot (not aboard, not in flight, not observing, not in a dialogue): the nearest NPC within 6 m with a clear line of sight
+  that is awake, not walking (`Goal == null` — the patrolling guard never greets), not a guardian, not the streamer and not
+  chatting with a neighbour sends an `NpcGreeting` with `Kind = Passing` (`Welcome` for welcome back), `Gesture = Wave` and a
+  fresh `GreetingId`; it then stands still and faces the player for 2.5 s (`ServerNpc.AttendUntil/AttendPos`, a branch
+  in `MoveNpcs` after the pose block). Once per NPC and player per in-game day (`ServerNpc.GreetedDay`, keyed by
+  `MarketDay`; a talk via E counts, an E-greeting within 25 s only marks the day); per player at most one every 4 s,
+  8 s when more than 6 NPCs who could greet stand within 10 m (no chorus). Lines by stage, text server-localized:
+  `npc.hello.stranger|known|trusted.1-3`, own base residents `npc.hello.resident.1-3` or `.<job>` (gardener, craftsman,
+  guard, vendor, quartermaster). No hints or story threads are consumed (that is `EmitGreeting`'s), strangers gain
+  nothing; `TryHelloStanding` (+1 per session for a villager already met, below 39) and `StampNpcSeen` follow. AI
+  (known+ and residents only, never strangers): `passing_hello` / `resident_hello` / `welcome_back`, cache key
+  `purpose|job|p<persona>|locale|stage` (welcome back adds the away bucket 1 / 2-6 / 7+ days); a cached variant is used, a
+  miss shows the authored line and asks in the background — a passing bubble is never upgraded late. For an own resident the
+  greeting also warms the `dialog_open` re-wording of the dialogue they would open next.
+- **E-greeting by stage** (`EmitGreeting` → `StageGreetingText`): nothing cached → a known/trusted classic vendor or
+  quartermaster says `npc.greet.vendor|quartermaster.known|trusted` with the name, an own resident a resident line; the
+  story flavour line and the client's role line stay for everyone else. With AI on it is the instant line the AI line
+  upgrades (same id).
+- **Resident dialogues** (`DialogDefinition.Home`: `""` any, `own_base` = a resident of a base the talking player owns,
+  `away` = never those; filtered in `PickDialog`). `settler_neighbours` is `away`; `resident_gardener_gift` (trusted, once,
+  5 berries), `resident_gardener`, `resident_craftsman`, `resident_guard` (by job) and `resident_home` are `own_base`.
+  `DialogDefinition.AiPrompt`: the node-0 prompt may be re-worded (`dialog_open`) when already cached — choices, responses
+  and consequences stay authored, the panel is never swapped. `GameContent.Validate` rejects an unknown `home`.
+- **Welcome back** (NPC): `NpcWelcomeBackDue` (known/trusted on the NPC's own entry, or an own resident; ≥ 18 h since
+  `NpcRelationship.LastSeenUtc`; an empty stamp only stamps) is read BEFORE `StampNpcSeen` — in passing (kind `Welcome`,
+  `npc.welcome.known|trusted|resident.1-2`) and on E (the welcome bubble alongside the dialogue, or instead of the
+  E-greeting when no dialogue opens).
+- **VEGA** (`GameServerVegaChatter.cs`, `TickVegaChatterFor` from `TickShipAi`'s 1 Hz pass): seeded on the session's first
+  pass. *Welcome aboard* — the aboard flag going false → true after ≥ 600 s outside, at most every 1800 s, never after a
+  respawn (`ResetVegaAboardWelcome` in `CompleteRespawn`/`RecoverToShip`): `vega.welcome.aboard.1-4`, kind 5. *Login* —
+  `PlayerSession.PreviousSeenUtc` ≥ 18 h old → `vega.welcome.login.1-3` 15 s after the join, kind 1, once. *Praise* —
+  `TryAward(…, praise: true)` from `Advance` queues the key (`SettleAchievements` passes false: retro-awards stay silent;
+  the `story` category and the join placement are skipped); the first unlock opens a 2 s window, several keys → one
+  `vega.praise.many` ({0} = count), one → `vega.praise.<category>` or `vega.praise.any.1-2` ({0} = the achievement's
+  name); kind 5, ≥ 90 s between praise lines. All of them only while the tutorial pack's `banter` gate is not false,
+  and held back (no cooldown spent) on a channel the player muted. Each pushes the next context tip back by 30 s. AI:
+  `vega_welcome` (subject `aboard.day|night` / `login.<away bucket>`) and `vega_praise` (subject = category) — a cached
+  variant as `ShipAiLine.Text` with the same kind, else the authored key; VEGA lines are never sent late.
+- **Base news via VEGA** (`RelayBaseNewsViaVega` in `GameServerNpcRadio.cs` — the helper other systems call): when the
+  radio call does not go out (no worn radio in reach, its cadence) the owner hears the news from VEGA instead. Gates:
+  joined, not observing, "NPC calls" All (an `urgent` warning: anything but Off), a kind-1/5 line is held back while the
+  hints are muted, and a per-key cooldown shared with the radio's `NpcCallCooldownUntil`. *Settler moved in* — only for a
+  NEW resident (no memory entry yet; residents respawn on every world load and the call used to ring again): radio, else
+  `vega.news.settler` ({0} name, {1} base, kind 3). *Trader landed* — radio, else for an owner in the same star system
+  `vega.news.trader` ({0} body, kind 1). *Guard* — see §7 (`vega.news.guard`, kind 3, urgent). AI: `vega_news`, the
+  authored line's `{0}`/`{1}` are required tokens.
+
+## 13. Villagers talk to each other (`GameServerVillageLife.cs`, #2600)
+
+- **Tick** (`TickVillageLife`, per world after `TickProfessions`): running conversations say their next line when it is
+  due and are checked once a second; a scan for new ones runs every 3 s. A *place* is `NewsPlaceKey` — a settlement, a
+  base, or the whole world for crew without a settlement (a station is ONE place).
+- **Who.** Two people of one place, `RoutineEnabled`, awake (`Pose != 2`), not walking (`Goal == null`), not waiting
+  for a seat, not posing, not greeting a passer-by (`AttendUntil`), not in a player's dialogue, not a guardian, rested
+  (`ServerNpc.ChatRestUntil`, 90 s after their last talk), at most 3.5 m apart (|Δy| ≤ 2 — seated at one tavern table
+  counts), with a player on foot (not observing) within 16 m of BOTH. Never at night (`RoutineNightStart/End` at the
+  pair). One random fitting pair per place and scan, a coin flip for who starts.
+- **No sound jumble.** One conversation per place at a time (two in a settlement of 30+ people), never one in earshot of
+  another (48 m between them); after a talk the place rests 25–45 s, or 45–75 s when more than six people stand within
+  15 m of the listener (a crowd — a station deck, a busy square); the last four topics of a place are skipped. Lines
+  go out as `NpcGreeting` `Kind = Chatter`, no gesture — the client's voice budget ranks them below every greeting.
+- **The talk.** 2–4 lines (`data/village_life.json` `chatter`), speaker A first, alternating every 3.6 s, sent by
+  `BroadcastNpcLine` to every player on foot within 24 m of the speaker, each in their own language. While talking both
+  stand still and face each other (`ServerNpc.TalkWith/TalkUntil`, a branch in `MoveNpcs` right after the pose block;
+  a seated talker faces the other instead of a visitor). It ends early when one of them falls asleep, walks off (a routine
+  goal), is posing, is gone (a world reload) or a player talks to them (`HandleTalkToNpc` → `StopVillageChat`).
+- **Topics** (`VillageChatterTopic`: `key`, `when` day|evening|any, `needs`, `weight`, `hint`, `lines`; vocabulary in
+  `VillageChatterNeeds`, Shared). `needs`: `weather_wet|storm|snow|clear|fog` (`BiomeWeatherAt` at the pair — family +
+  precipitation; a station has no sky), `trader` (a trader parked on this world within 400 m, `{trader}`), `camp_near`
+  (an uncleared camp within 400 m, bandits active), `player_known` (a listener the first speaker knows, `{player}`),
+  `festival_pending` (`FestivalPendingHero` — the hero this settlement's planned festival waits for, §15), `deed:<kind>` (a
+  deed of the last 3 h of world playtime about this settlement or the whole world, not yet talked about here this
+  run; `{player}` = its hero; weight ×5 while the hero listens). Placeholders: `{a}` `{b}` (the speakers), `{place}`
+  (the village), plus what the need provides (`VillageChatterNeeds.TokensFor`). `GameContent.Validate` checks the
+  structure; `VillageLifeContentTests` checks that every line resolves in en+de raw, has ≤ 56 characters, uses only its
+  placeholders and names the fact (`{player}`/`{trader}`) it is about.
+- **AI** (`chatter` on `/npc-lines`): at the start, for every language in earshot, a cached variant for the key
+  `chatter|<topic>|p<voice A>|<locale>|p<voice B>` is used (filled with this conversation's names), a miss keeps the
+  authored lines and asks once in the background (priority Chatter): both speakers (`{a}`/`{b}` tokens, `PersonaFor`
+  of each one's memory key, role, job, robot), the topic hint, the situation (time of day, weather), the fact with tokens
+  ("{player} chased the bandits out of their camp near the village"), the authored lines, LineCount = the authored count,
+  MaxChars 56. Allowed tokens = the topic's, required = those of the authored lines. A language joining mid-talk gets a
+  cached variant or the authored lines (no request).
+- **`BroadcastNpcLine(npc, range, textFor, kind, gesture)`** — the shared "one bubble for everyone near" helper (also
+  the festival's cheers): every joined player on foot within `range` of the NPC gets an `NpcGreeting` with the text
+  `textFor(session)` returns for them (empty skips them), one fresh `GreetingId` shared by all receivers, the given kind
+  and gesture. Returns the id (0 = nobody heard it).
+
+## 14. Deed log and news (`GameServerVillageLife.cs`, #2599)
+
+- **The log.** `WorldMetadata.Deeds[locationId]` = `DeedRecord{Id, Kind, PlayerId, PlayerName, Settlement, Arg, At}`,
+  the latest 16 per world (additive JSON, no save bump; `At` = `CumulativePlaytimeSeconds`, at least 1; `Id` increases per
+  world). `RecordDeed(kind, hero, settlement, arg)` (or by player id + name) writes and saves; an observer leaves no deed.
+  Kinds (`DeedKinds`): `camp_cleared` — `OnBanditKilled(bandit, killer)`: the attacking player (`GameServerEnemies`), a
+  sentry's base owner (`GameServerSentries`), fire → the nearest player on foot within 64 m (`GameServerBurning`); the
+  deed's settlement is the nearest within 400 m of the camp, and every villager of the settlements within 400 m the hero
+  already has an entry with gains `CampClearedStandingBonus` (+2). `giant` (Arg = colossus|sandworm|leviathan|sky_giant)
+  and `sreekmakra` from their defeat hooks (the killer, else the nearest player within 64 m; the nearest settlement within
+  400 m, else the whole world). `landing` — `RecordPlaceDiscovery` on a first landing (never the spawn world) on a world
+  with an inhabited settlement, world-wide. `settlement_helped` (a "settlement needs" chain finished) and `festival`
+  (the party started) are recorded by the festival (§15).
+- **News.** `NewsDigest` (the reporter's `news` consequence, and since E13 the **innkeeper's**: dialogue
+  `innkeeper_news`, job `innkeeper`, ahead of `settler_neighbours`) = `LatestNews`: the place's interviews
+  (`WorldMetadata.News`, `NewsArticle.At` = playtime; articles from before have 0 and sort last) merged with the deeds of
+  this world that concern the place (its settlement's or world-wide; crew without a settlement hear all), newest four
+  first. A deed line is `news.deed.<kind>` ({0} hero, {1} the settlement or the world's name, {2} the thing —
+  `news.thing.<giant>`, German in the accusative). Nothing to tell: `dlg.reporter.no_news` / `dlg.innkeeper.no_news`.
+- **AI** (`news_deed`, priority News): the authored headline shows first; reading it asks for a re-wording in the
+  teller's voice — key `news_deed|<kind>#<world>#<id>|p<voice>|<locale>|`, one line ≤ 140 characters, the template's
+  `{0}/{1}/{2}` as `{player}/{place}/{thing}` (all required), the fact with tokens — and a later read uses it, filled in.
+
+## 15. The village festival (`GameServerVillageFestival.cs`, #2604)
+
+- **Planned.** `OnChainStepTurnedIn` → nothing feasible follows → `OnSettlementChainDone`: for the chain
+  `settlement_needs` (the step's `AcceptedFrom` names the settlement) a `settlement_helped` deed, then
+  `ScheduleFestival`: `WorldMetadata.Festivals["<locationId>|<settlement>"] = FestivalRecord{State pending|held, HeroId,
+  HeroName, ScheduledAt, HeldAt}` (additive JSON, no save bump) — **once per settlement, ever**. A later helper (another
+  player) finds the record and gets the thanks (`village.festival.thanks_again`) and the present at once, no second
+  festival. The quartermaster (`Job == "quartermaster"`) answers the turn-in in person when within 20 m —
+  `village.festival.planned`, `Kind = Addressed` (a direct reply), `Gesture = Cheer` — and VEGA says
+  `vega.festival.planned` ({0} = the settlement, kind 3). Already there in the window → the party starts right away and
+  the "planned" lines are skipped. While pending, `FestivalPendingHero(settlement)` names the hero (chatter, §13).
+- **Start** (`TickVillageFestivals`, Guard-registered after `TickVillageLife`: the tune's notes every tick, a pass once a
+  second per world). A pending festival starts when its hero is joined on this world, on foot, not observing, within
+  48 m of the **square** and the local day there is in [0.60, 0.95) — it waits forever otherwise (no FOMO). The square
+  (`FestivalAnchorFor`, computed once the hero is near, cached per run): the layout centre (`Min + Width/2, GroundY + 1,
+  Min + Length/2` — where `SettlementGenerator.StampCentralFeature` paves the 3×3 plaza; the box centre for a settlement
+  without a layout) when a ring fits there (≥ 4 of 8 standable spots at radius 3 with no wall between them and a point
+  2 m from the middle — a kit grid with a closed centre puts a house there); else the `npc` marker nearest the centre,
+  else the `mission_board` marker, else the centre anyway.
+- **The party** (180 s, runtime only — `Held` is saved at the start, so a restart mid-party simply ends it). Attendees:
+  the settlement's `RoutineEnabled` people (`BaseId == 0`, no guardian, not `VisitingAway`, no guest) within 64 m of the
+  square, nearest first, at most 24. `SeatFestivalRing` sorts them by their angle around the square and gives each a ring
+  spot — radius clamp(1.5 + 0.25·n, 3, 6), a little in/out/sideways when blocked, else where they stand.
+  `ApplyRoutinePhase(npc, NpcPhase.Festival)` sends them there (`npc.activity.celebrating`); `RoutinePhaseFor` keeps
+  answering `Festival` while the run lists them, and `MoveNpcs` (a branch before the chatter one) keeps an arrived
+  attendee standing, facing the square. Attendees neither chat (`CanStartChatter`) nor greet passers-by
+  (`MayGreetInPassing`). After the end the next routine check (≤ 2 s) returns everyone to their phase.
+- **Cheers** every 5 s, ONE per festival (NO SOUND JUMBLE): a random attendee (one already in the ring while two or
+  more are; never the same voice twice in a row) — `BroadcastNpcLine(…, 32 m, Kind = Cheer, Gesture = Cheer)`, the
+  lines of `village_life.json` `festival.cheers` in order, `{player}` = the hero, per receiver language.
+- **The tune** at the start and every 45 s: eight positional `SoundFx` notes `note_1_{0,2,4,7,4,2,4,7}` (the melody
+  block's bell, synthesized by the client's `ProceduralAudio`), 0.35 s apart, at the square + 1.5 m, to every player of
+  the world (not in space) within 64 m. No client change.
+- **At the start, once:** the quartermaster's present (`festival.gift`: lanterns ×6, flower pots ×2, a gold ingot) via
+  `GiveFestivalGift` — milestone `festival_gift:<key>`; a full bag sets `festival_gift_due:<key>` and says
+  `village.festival.bag_full`, and the next E-talk to that quartermaster with room hands it over
+  (`TryGiveOwedFestivalGift` at the top of `HandleTalkToNpc`, `village.festival.gift_later`, Kind Addressed). The
+  thanks (`village.festival.thanks` + the item list on its own line) is a bubble (`Kind = Welcome`) within 20 m, else a
+  chat message. Then `AddStanding(hero, NpcKeyForNpc(attendee), FestivalStandingBonus = 6)` per distinct attendee key,
+  a `festival` deed, and 6 s later VEGA's `vega.festival.started` (so the quartermaster is heard first). No block is
+  changed.
+- **AI** (hosted worlds): when the festival is planned, `PrewarmFestivalLines` asks in the HERO's language for the
+  cheers (`cheer`, key `cheer|<settle key>|p200|<locale>|`, LineCount = the authored count (6), ≤ 60 characters, one
+  "villagers" speaker) and the quartermaster's thanks (`festival_thanks`, key
+  `festival_thanks|<settle key>|p<qm voice>|<locale>|`, one line ≤ 110), priority Personal, `{player}` allowed and
+  required, facts = the chain steps the hero finished there ("{player} brought the village iron ore", "{player} built
+  new lights for the village" …, no numbers). At the start a cached variant is used (filled per receiver), else the
+  authored lines; other languages use a cached variant if one exists. VEGA's lines stay authored.
+- **Content.** `GameContent.Validate` checks the gift's items and counts and that the cheer keys are distinct and
+  non-empty; `VillageFestivalTests` checks that every line resolves in en+de, the cheers stay ≤ 60 characters with only
+  `{player}` and no digits.
+
 ## Tests
 
+`NpcPassingGreetingTests`, `NpcWelcomeBackTests`, `BaseNewsRelayTests`, `VegaChatterTests` (§12),
+`VillageChatterTests`, `VillageLifeContentTests`, `VillageLifeAiTests` (§13), `DeedNewsTests` (§14), `VillageFestivalTests` (§15),
 `NpcProfessionTests` (table, kits, settlement staffing, content, clinic/streamer/reporter/tamer at a base, Safe-mode
 interview, shop room), `NpcGridPathTests`, `BaseResidentsTests`, `NpcRoutineTests`, `NpcJobsTests`, the station-night case in
 `PlayerStationReportsTests`, the village-bed case in `SettlementNpcTests` (Slow). The shared arena is `NpcLifeWorld`.

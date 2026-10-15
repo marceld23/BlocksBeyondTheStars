@@ -238,6 +238,11 @@ public sealed class PlayerState
     /// <summary>Accepted missions and their progress.</summary>
     public List<MissionProgress> Missions { get; set; } = new();
 
+    /// <summary>The villagers' personal wishes per place (#2601): place location key (<c>settle_&lt;hash&gt;</c>) → the
+    /// lanes' counters and givers. A held wish is also an ordinary row in <see cref="Missions"/>. Persisted additively:
+    /// an older build drops it on re-save — the lanes then start over, a held wish stays in the mission list.</summary>
+    public Dictionary<string, WishLedger> Wishes { get; set; } = new(StringComparer.Ordinal);
+
     /// <summary>One-time progression milestones the ship AI (VEGA) has seen this player reach — the legacy onboarding
     /// stages ("vega:stage:N", since #2469 only double-written by the tutorial pack for older builds), advisor once-hints
     /// ("vega:hint:&lt;key&gt;") and restored memory fragments ("vega:mem:N"), and the story keys (<c>story:&lt;pack&gt;:…</c>,

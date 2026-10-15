@@ -932,6 +932,11 @@ namespace BlocksBeyondTheStars.Client
         public readonly System.Collections.Generic.Dictionary<int, string> NpcStandings
             = new System.Collections.Generic.Dictionary<int, string>();
 
+        /// <summary>#2601: villagers with a personal wish for this player, per live NPC id — 1 = an offer (a gold "!" over
+        /// the head), 2 = a held wish ready to hand over ("?"). Arrives with the standings; empty from an older server.</summary>
+        public readonly System.Collections.Generic.Dictionary<int, byte> NpcWishMarks
+            = new System.Collections.Generic.Dictionary<int, byte>();
+
         /// <summary>The "People you know" roster (#1118), friendliest first — filled on request
         /// (<c>SendRequestKnownNpcs</c>) for the Character tab.</summary>
         public NetKnownNpc[] KnownNpcs { get; private set; } = System.Array.Empty<NetKnownNpc>();
@@ -3089,6 +3094,18 @@ namespace BlocksBeyondTheStars.Client
                 {
                     NpcStandings[m.NpcIds[i]] = m.StageKeys[i];
                 }
+
+                // #2601: the wish markers ride on the same per-player message (null from an older server's payload).
+                NpcWishMarks.Clear();
+                foreach (int id in m.WishNpcIds ?? System.Array.Empty<int>())
+                {
+                    NpcWishMarks[id] = 1;
+                }
+
+                foreach (int id in m.WishReadyNpcIds ?? System.Array.Empty<int>())
+                {
+                    NpcWishMarks[id] = 2;
+                }
             };
             Network.KnownNpcsReceived += m => KnownNpcs = m.People ?? System.Array.Empty<NetKnownNpc>();
             Network.ContainersReceived += m => OnContainers(m);
@@ -3966,6 +3983,7 @@ namespace BlocksBeyondTheStars.Client
             Creatures = System.Array.Empty<NetCreature>();
             Npcs = System.Array.Empty<NetNpc>();
             NpcStandings.Clear(); // #1118: per-world NPC ids — the new world re-sends its own standings
+            NpcWishMarks.Clear(); // #2601: same ids, same reason
             Containers = System.Array.Empty<NetContainer>();
             Beacons = System.Array.Empty<NetBeacon>();
             Markers = System.Array.Empty<NetMarker>(); // per-world — the server re-sends the new body's set (#1217)

@@ -125,6 +125,13 @@ public sealed partial class GameServer
         public uint OutfitRgb;
         public int PadIndex;
         public double ExpiresAt;
+
+        /// <summary>Uptime the ship sets down (#2603): a trader the planet-side scheduler sent is on its 20 s approach
+        /// until then — the pad is reserved, nothing stands on it yet. 0 = landed on registration (the space path).</summary>
+        public double TouchdownAt;
+
+        /// <summary>The planet-side arrival (#2603): announce the touchdown (toast, radio / VEGA) once it happened.</summary>
+        public bool AnnounceOnTouchdown;
         public bool ArrivalFxPending;   // play the descent FX once, the moment it touches down with watchers present
         public int PilotNpcId;          // the pilot NPC's id in the body world (for removal on departure)
         public Vector3f PilotPos;       // where the pilot stands (for the "near a trader" barter check)
@@ -288,10 +295,12 @@ public sealed partial class GameServer
 
     // ------------------------------------------------------------------ spawn
 
-    private bool SpawnTrader(SpaceInstance instance)
+    /// <summary>Coins a trader (#2603, shared by the flight scene and the planet-side arrivals): a ship type — ANY defined
+    /// non-starter type, weighted toward roomy cargo hulls so traffic reads as traders (enumerating
+    /// <c>GameContent.Ships</c> means new ship types appear automatically) — a pilot's name and a hull tint, all drawn from
+    /// <paramref name="rng"/> in that order. Null when there is no ship content at all.</summary>
+    private NpcTrader? CoinTrader(System.Random rng)
     {
-        // Future-proof ship choice: ANY defined non-starter ship type, weighted toward roomy cargo hulls so
-        // traffic reads as traders. Enumerating GameContent.Ships means new ship types appear automatically.
         var pool = _content.Ships.Values.Where(s => s.Key != "starter").ToList();
         if (pool.Count == 0)
         {
@@ -300,17 +309,25 @@ public sealed partial class GameServer
 
         if (pool.Count == 0)
         {
-            return false; // no ship content at all → nothing to fly
+            return null; // no ship content at all → nothing to fly
         }
 
-        var def = WeightedShip(pool);
-        var trader = new NpcTrader
+        var def = WeightedShip(pool, rng);
+        return new NpcTrader
         {
             Id = "t" + _nextTraderId++,
             ShipType = def.Key,
-            Name = NameGenerator.Person(_traderRng),
-            HullRgb = TraderHulls[_traderRng.Next(TraderHulls.Length)],
+            Name = NameGenerator.Person(rng),
+            HullRgb = TraderHulls[rng.Next(TraderHulls.Length)],
         };
+    }
+
+    private bool SpawnTrader(SpaceInstance instance)
+    {
+        if (CoinTrader(_traderRng) is not { } trader)
+        {
+            return false;
+        }
 
         // Arrive on the system edge, anywhere around the orbital plane.
         double ang = _traderRng.NextDouble() * System.Math.PI * 2;
@@ -363,10 +380,10 @@ public sealed partial class GameServer
         return true;
     }
 
-    private ShipDefinition WeightedShip(List<ShipDefinition> pool)
+    private ShipDefinition WeightedShip(List<ShipDefinition> pool, System.Random rng)
     {
         int total = pool.Sum(s => System.Math.Max(1, _content.StartCargoSlots(s)));
-        int roll = _traderRng.Next(total);
+        int roll = rng.Next(total);
         foreach (var s in pool)
         {
             roll -= System.Math.Max(1, _content.StartCargoSlots(s));
@@ -651,27 +668,39 @@ public sealed partial class GameServer
             return false; // the body is FULL — no pad available, so the trader can't set down
         }
 
+        var lt = RegisterLandedTrader(t, t.DestBodyId, pad, _uptime, _traderRng);
+        lt.ArrivalFxPending = OccupiedLocations().Contains(t.DestBodyId); // descend with watchers present
+
+        BroadcastWarpFx(instance, t.Pos, arriving: false); // it drops out of the flight scene to descend
+        _log.Info($"NPC trader '{t.Name}' ({t.ShipType}) is setting down on {t.DestBodyId} (pad {pad}).");
+        NpcRadioOnTraderLanded(t.DestBodyId, t.Name); // #1120: base owners on that world get a hail
+        return true;
+    }
+
+    /// <summary>Registers a trader as landed on a body (#2603, shared by the flight scene and the planet-side arrivals):
+    /// reserves the pad, gives the pilot a look derived from its name, and rolls the stay — <see cref="TraderLandDwellMin"/>
+    /// to <see cref="TraderLandDwellMax"/> from <paramref name="touchdownAt"/> on (one draw of <paramref name="dwellRng"/>).
+    /// The ship stands on the pad from <paramref name="touchdownAt"/> (the space path: now).</summary>
+    private NpcLandedTrader RegisterLandedTrader(NpcTrader t, string bodyId, int pad, double touchdownAt, System.Random dwellRng)
+    {
         var look = new System.Random(unchecked((int)WorldGenerator.StableHash("trader-look:" + t.Name)));
         uint[] skins = { 0xF2C9A0, 0xD9A066, 0x8D5524, 0xC68642, 0xFFDBAC };
         uint[] outfits = { 0x2E5E8C, 0x6A4C93, 0xC9A227, 0x3A7D5A };
-        _landedTraders[t.DestBodyId] = new NpcLandedTrader
+        var lt = new NpcLandedTrader
         {
             Id = t.Id,
-            BodyId = t.DestBodyId,
+            BodyId = bodyId,
             ShipType = t.ShipType,
             Name = t.Name,
             HullRgb = t.HullRgb,
             SkinRgb = skins[look.Next(skins.Length)],
             OutfitRgb = outfits[look.Next(outfits.Length)],
             PadIndex = pad,
-            ExpiresAt = _uptime + TraderLandDwellMin + _traderRng.NextDouble() * (TraderLandDwellMax - TraderLandDwellMin),
-            ArrivalFxPending = OccupiedLocations().Contains(t.DestBodyId), // descend with watchers present
+            TouchdownAt = touchdownAt,
+            ExpiresAt = touchdownAt + TraderLandDwellMin + dwellRng.NextDouble() * (TraderLandDwellMax - TraderLandDwellMin),
         };
-
-        BroadcastWarpFx(instance, t.Pos, arriving: false); // it drops out of the flight scene to descend
-        _log.Info($"NPC trader '{t.Name}' ({t.ShipType}) is setting down on {t.DestBodyId} (pad {pad}).");
-        NpcRadioOnTraderLanded(t.DestBodyId, t.Name); // #1120: base owners on that world get a hail
-        return true;
+        _landedTraders[bodyId] = lt;
+        return lt;
     }
 
     /// <summary>A pad is reserved while a trader is landed on that body (so players never get assigned it).</summary>
@@ -722,6 +751,11 @@ public sealed partial class GameServer
         if (MaterializeLandedTraderHere(lt))
         {
             BroadcastLandedTraderMapChange();
+            if (lt.AnnounceOnTouchdown && lt.PilotNpcId != 0 && _landedTraders.ContainsKey(lt.BodyId))
+            {
+                lt.AnnounceOnTouchdown = false;
+                AnnouncePlanetTraderLanded(lt); // #2603: the ship the players watched come in has set down
+            }
         }
     }
 
@@ -800,6 +834,11 @@ public sealed partial class GameServer
     /// body's maps must show — the hull set down, or the pad was given back because another hull stands there.</summary>
     private bool MaterializeLandedTraderHere(NpcLandedTrader lt, bool ignoreOverlap = false)
     {
+        if (_uptime < lt.TouchdownAt)
+        {
+            return false; // #2603: still on its approach — the pad is reserved, the hull sets down at touchdown
+        }
+
         var world = _worlds.Active;
         if (world.LandedShips.TryGetValue(lt.OwnerId, out var existing) && existing.Placed)
         {
@@ -971,6 +1010,7 @@ public sealed partial class GameServer
     private bool NearLandedTraderPilot(Shared.State.PlayerState player)
         => _world is not null
            && _landedTraders.TryGetValue(_world.LocationId, out var lt)
+           && lt.PilotNpcId != 0 // #2603: a trader still on its approach has no pilot standing anywhere yet
            && WrapDistSq(player.Position, lt.PilotPos) <= 16f; // 4-block reach (squared)
 
     /// <summary>Drops expired landed-trader records for bodies nobody is on (frees the pad) — the per-world
@@ -1010,6 +1050,345 @@ public sealed partial class GameServer
             }
         }
     }
+
+    // ------------------------------------------------------------------ planet-side arrivals (#2603)
+
+    /// <summary>How often each occupied body asks whether a trader comes in.</summary>
+    private const double PlanetTraderCheckInterval = 5.0;
+
+    /// <summary>The approach: from the decision ("look up!") to the touchdown — the descent FX plays at its end.</summary>
+    internal const double PlanetTraderApproachSeconds = 20.0;
+
+    /// <summary>A body with a present base owner draws traders more often (Often/Rare gaps × this).</summary>
+    private const double PlanetTraderBaseFactor = 0.75;
+
+    /// <summary>Most characters an AI re-wording of the trader's radio hail may take.</summary>
+    private const int TraderHailMaxChars = 140;
+
+    /// <summary>The planet-side scheduler of one body (RAM only): when the next trader comes, when to look again, and
+    /// how many came (the seed of the next roll).</summary>
+    private sealed class PlanetTraderSchedule
+    {
+        public double NextAt = double.NaN;
+        public double CheckAt;
+        public int Count;
+    }
+
+    private readonly Dictionary<string, PlanetTraderSchedule> _planetTraderSchedules = new(System.StringComparer.Ordinal);
+
+    /// <summary>
+    /// The gap between two planet-side trader arrivals on a body (#2603, E11), from a roll in [0, 1]: a busy system
+    /// (Often) 15–25 minutes, a quiet one (Rare) 30–45 minutes — each × <see cref="PlanetTraderBaseFactor"/> while a base
+    /// owner is present (customers live there) — and a system without traffic 45–60 minutes, but only for a body with a
+    /// present player's base (that IS the base case); without one, never.
+    /// </summary>
+    internal static double PlanetTraderGap(TraderTraffic traffic, bool presentBase, double roll)
+    {
+        double r = System.Math.Clamp(roll, 0.0, 1.0);
+        return traffic switch
+        {
+            TraderTraffic.Often => (900.0 + r * 600.0) * (presentBase ? PlanetTraderBaseFactor : 1.0),
+            TraderTraffic.Rare => (1800.0 + r * 900.0) * (presentBase ? PlanetTraderBaseFactor : 1.0),
+            _ => presentBase ? 2700.0 + r * 900.0 : double.PositiveInfinity,
+        };
+    }
+
+    /// <summary>
+    /// Traders land on planets even when nobody flies (#2603, Guard-registered per world before
+    /// <see cref="TickLandedTraders"/>): every <see cref="PlanetTraderCheckInterval"/> s per occupied, loaded, non-void
+    /// planet or moon with a player on it (not in space, not observing) and no trader parked — gated on
+    /// <see cref="Shared.Configuration.GameRules.NeutralNpcShips"/>. A first sighting arms 0.3–0.6 of the gap; a due
+    /// window picks the free dry pad nearest a present player's base (else nearest a player there), reserves it and
+    /// brings the ship in over <see cref="PlanetTraderApproachSeconds"/> (toast "look up!"); at touchdown the existing
+    /// descent FX plays, the toast says who landed and the base owners hear the radio hail — or VEGA's relay without a
+    /// radio. The roll is seeded per world seed, body and arrival count.
+    /// </summary>
+    private void TickPlanetTraders(double dt)
+    {
+        _ = dt;
+        if (_world is null || !Rules.NeutralNpcShips)
+        {
+            return;
+        }
+
+        string bodyId = _world.LocationId;
+        if (!_planetTraderSchedules.TryGetValue(bodyId, out var schedule))
+        {
+            _planetTraderSchedules[bodyId] = schedule = new PlanetTraderSchedule();
+        }
+
+        if (_uptime < schedule.CheckAt)
+        {
+            return;
+        }
+
+        schedule.CheckAt = _uptime + PlanetTraderCheckInterval;
+        RunPlanetTraderSchedule(bodyId, schedule, force: false);
+    }
+
+    /// <summary>One look at a body's schedule; <paramref name="force"/> (tests) treats the window as due. Returns whether
+    /// a trader is on its way in.</summary>
+    private bool RunPlanetTraderSchedule(string bodyId, PlanetTraderSchedule schedule, bool force)
+    {
+        if (_world.Planet?.Void == true || _landedTraders.ContainsKey(bodyId)
+            || _galaxy?.FindBody(bodyId) is not { Kind: CelestialKind.Planet or CelestialKind.Moon } body)
+        {
+            return false;
+        }
+
+        var present = PlayersOnBodySurface();
+        if (present.Count == 0)
+        {
+            return false;
+        }
+
+        bool presentBase = _bases.Any(b => b.Planet == bodyId && present.Any(s => s.State.PlayerId == b.OwnerId));
+        var rng = PlanetTraderRng(bodyId, schedule.Count);
+        double gap = PlanetTraderGap(TrafficFor(body.SystemId), presentBase, rng.NextDouble());
+        if (double.IsPositiveInfinity(gap))
+        {
+            schedule.NextAt = double.NaN; // a quiet system and no base owner here: nobody comes (re-armed once one is)
+            return false;
+        }
+
+        if (double.IsNaN(schedule.NextAt))
+        {
+            schedule.NextAt = _uptime + gap * (0.3 + rng.NextDouble() * 0.3); // first sighting: not the moment one lands
+            if (!force)
+            {
+                return false;
+            }
+        }
+
+        if (!force && _uptime < schedule.NextAt)
+        {
+            return false;
+        }
+
+        schedule.Count++;
+        schedule.NextAt = _uptime + gap;
+        return BringPlanetTraderIn(bodyId, present, rng);
+    }
+
+    /// <summary>The joined players standing on the active world (on foot or aboard a landed ship; not in space, not observing).</summary>
+    private List<PlayerSession> PlayersOnBodySurface()
+    {
+        var list = new List<PlayerSession>();
+        foreach (var s in JoinedInActiveWorld())
+        {
+            if (!s.Spectating && !InSpace(s.State.PlayerId))
+            {
+                list.Add(s);
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>The seeded roll of a body's <paramref name="count"/>-th planet-side arrival.</summary>
+    private System.Random PlanetTraderRng(string bodyId, int count)
+        => new(unchecked((int)WorldGenerator.StableHash(
+            _meta.Seed.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":ptrader:" + bodyId + ":"
+            + count.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+
+    /// <summary>Decides an arrival: the pad, the trader, the reservation and the "look up!" toast. False when no dry pad is free.</summary>
+    private bool BringPlanetTraderIn(string bodyId, List<PlayerSession> present, System.Random rng)
+    {
+        int pad = NearestFreeDryPad(bodyId, present);
+        if (pad < 0 || CoinTrader(rng) is not { } t)
+        {
+            return false;
+        }
+
+        t.DestBodyId = bodyId;
+        var lt = RegisterLandedTrader(t, bodyId, pad, _uptime + PlanetTraderApproachSeconds, rng);
+        lt.ArrivalFxPending = true; // the descent plays at touchdown — the players are right here
+        lt.AnnounceOnTouchdown = true;
+        foreach (var s in present)
+        {
+            Send(s, new ServerMessage { Text = "@srv.trader.approaching" });
+        }
+
+        PrefetchTraderHail(bodyId, lt);
+        _log.Info($"NPC trader '{t.Name}' ({t.ShipType}) is coming in to land on {bodyId} (pad {pad}, {PlanetTraderApproachSeconds:0} s).");
+        return true;
+    }
+
+    /// <summary>The free pad (#2603, K12) the arriving trader takes: not held by a player or another trader, not under
+    /// water, not in lava — the one nearest a present player's base core on this body, else nearest a player here, so
+    /// "we're parked near your base" is true. -1 when none is free.</summary>
+    private int NearestFreeDryPad(string bodyId, List<PlayerSession> present)
+    {
+        var anchors = new List<Vector3f>();
+        foreach (var b in _bases)
+        {
+            if (b.Planet == bodyId && present.Any(s => s.State.PlayerId == b.OwnerId))
+            {
+                anchors.Add(new Vector3f(b.Cell.X + 0.5f, b.Cell.Y, b.Cell.Z + 0.5f));
+            }
+        }
+
+        if (anchors.Count == 0)
+        {
+            anchors.AddRange(present.Select(s => s.State.Position));
+        }
+
+        int best = -1;
+        double bestSq = double.MaxValue;
+        foreach (var pad in PadsForBody(bodyId))
+        {
+            if (pad.Wet || pad.Molten || PadOccupiedByOther(bodyId, pad.Index, string.Empty))
+            {
+                continue;
+            }
+
+            var centre = new Vector3f(pad.CenterX + 0.5f, pad.CenterY, pad.CenterZ + 0.5f);
+            foreach (var a in anchors)
+            {
+                double d = WrapDistSq(a, centre);
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    best = pad.Index;
+                }
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>The touchdown of a planet-side arrival (#2603): a toast for everyone on the body, and the base owners'
+    /// hail — the radio call (a cached AI re-wording on hosted worlds) or, without a radio, VEGA's relay.</summary>
+    private void AnnouncePlanetTraderLanded(NpcLandedTrader lt)
+    {
+        foreach (var s in PlayersOnBodySurface())
+        {
+            Send(s, new ServerMessage { Text = "@srv.trader.landed:" + lt.Name });
+        }
+
+        string bodyName = _galaxy?.FindBody(lt.BodyId)?.Name ?? lt.BodyId;
+        NpcRadioOnTraderLanded(lt.BodyId, lt.Name, owner => TraderHailText(owner, lt, bodyName));
+    }
+
+    /// <summary>The cache key of a trader's hail: by persona, language — never the player.</summary>
+    private static string TraderHailCacheKey(NpcLandedTrader lt, string locale)
+        => AiLineCacheKey(NpcLinePurposes.TraderHail, "landed", PersonaIndexFor("trader:" + lt.Name, false, "vendor"), locale, "stranger");
+
+    /// <summary>Asks for the hail's AI re-wording at the decision (hosted worlds): the 20 s approach covers the latency.
+    /// One request per language of the body's base owners.</summary>
+    private void PrefetchTraderHail(string bodyId, NpcLandedTrader lt)
+    {
+        if (!AiLinesEnabled)
+        {
+            return;
+        }
+
+        string bodyName = _galaxy?.FindBody(bodyId)?.Name ?? bodyId;
+        var asked = new HashSet<string>(System.StringComparer.Ordinal);
+        foreach (var b in _bases)
+        {
+            if (b.Planet != bodyId || FindSessionByPlayerId(b.OwnerId) is not { Joined: true } owner || !asked.Add(owner.Locale))
+            {
+                continue;
+            }
+
+            string locale = owner.Locale;
+            var anchors = new List<string> { Localize(locale, "npc.call.trader").Replace("{0}", AiLineTokens.Place) };
+            AiLinesFor(TraderHailCacheKey(lt, locale), AiLinePriority.Personal, () => new NpcLinesRequest
+            {
+                Purpose = NpcLinePurposes.TraderHail,
+                Language = locale,
+                Place = bodyName,
+                Theme = "traders",
+                Stage = "stranger",
+                Situation = "a trader ship just landed on the pad nearest the player's base and hails them over the radio",
+                Speakers =
+                {
+                    new NpcLinesSpeaker
+                    {
+                        Role = "vendor",
+                        Job = "trader",
+                        IsRobot = false,
+                        Persona = PersonaFor("trader:" + lt.Name, "traders", false, "vendor"),
+                    },
+                },
+                Tokens = { AiLineTokens.Place, AiLineTokens.Trader, AiLineTokens.Player },
+                Authored = anchors,
+                LineCount = 1,
+                MaxChars = TraderHailMaxChars,
+            }, requiredTokens: AiLineText.TokensIn(anchors));
+        }
+    }
+
+    /// <summary>The hail a base owner hears: the cached AI re-wording with the body, the trader and their own name filled
+    /// in — or null (the authored <c>npc.call.trader</c> line is used then).</summary>
+    private string? TraderHailText(PlayerSession owner, NpcLandedTrader lt, string bodyName)
+    {
+        if (CachedAiLines(TraderHailCacheKey(lt, owner.Locale)) is not { Length: > 0 } ai)
+        {
+            return null;
+        }
+
+        return FillAiLine(ai[0], owner, new Dictionary<string, string>(System.StringComparer.Ordinal)
+        {
+            [AiLineTokens.Place] = bodyName,
+            [AiLineTokens.Trader] = lt.Name,
+        });
+    }
+
+    /// <summary>Test seam (#2603): one planet-side scheduler look at the active body now, the window treated as due.
+    /// Returns whether a trader is on its way in.</summary>
+    public bool ForcePlanetTraderForTest()
+    {
+        if (_world is null || !Rules.NeutralNpcShips)
+        {
+            return false;
+        }
+
+        string bodyId = _world.LocationId;
+        if (!_planetTraderSchedules.TryGetValue(bodyId, out var schedule))
+        {
+            _planetTraderSchedules[bodyId] = schedule = new PlanetTraderSchedule();
+        }
+
+        return RunPlanetTraderSchedule(bodyId, schedule, force: true);
+    }
+
+    /// <summary>Test seam (#2603): one regular scheduler pass on the active body (the 5 s throttle skipped). Returns the
+    /// seconds until the next arrival, or null when none is armed.</summary>
+    public double? TickPlanetTradersForTest()
+    {
+        if (_world is null)
+        {
+            return null;
+        }
+
+        if (_planetTraderSchedules.TryGetValue(_world.LocationId, out var schedule))
+        {
+            schedule.CheckAt = 0;
+        }
+
+        TickPlanetTraders(0.0);
+        return _planetTraderSchedules.TryGetValue(_world.LocationId, out var s) && !double.IsNaN(s.NextAt) ? s.NextAt - _uptime : null;
+    }
+
+    /// <summary>Test seam (#2603): <see cref="PlanetTraderGap"/> for a traffic level name.</summary>
+    public static double PlanetTraderGapForTest(string traffic, bool presentBase, double roll)
+        => PlanetTraderGap(System.Enum.Parse<TraderTraffic>(traffic), presentBase, roll);
+
+    /// <summary>Test/inspection (#2603): the pad a body's landed (or approaching) trader holds, or -1.</summary>
+    public int LandedTraderPadForTest(string bodyId) => _landedTraders.TryGetValue(bodyId, out var lt) ? lt.PadIndex : -1;
+
+    /// <summary>Test/inspection (#2603): seconds until a body's trader touches down (≤ 0 = it stands there), or null.</summary>
+    public double? LandedTraderTouchdownInForTest(string bodyId)
+        => _landedTraders.TryGetValue(bodyId, out var lt) ? lt.TouchdownAt - _uptime : null;
+
+    /// <summary>Test/inspection (#2603): the name of a body's landed (or approaching) trader, or null.</summary>
+    public string? LandedTraderNameForTest(string bodyId) => _landedTraders.TryGetValue(bodyId, out var lt) ? lt.Name : null;
+
+    /// <summary>Test seam (#2603): the cache key of a body's trader hail in a language (for the AI tests).</summary>
+    public string? TraderHailCacheKeyForTest(string bodyId, string locale)
+        => _landedTraders.TryGetValue(bodyId, out var lt) ? TraderHailCacheKey(lt, locale) : null;
 
     /// <summary>Test/inspection: number of traders currently landed on planet/moon surfaces.</summary>
     public int LandedTraderCountForTest() => _landedTraders.Count;

@@ -459,6 +459,20 @@ public sealed class GameContent
         v.Festival ??= new VillageFestivalDefinition();
         v.Festival.Gift ??= new List<ItemAmount>();
         v.Festival.Cheers ??= new List<string>();
+        foreach (var topic in v.Chatter)
+        {
+            if (topic is null)
+            {
+                continue; // reported by Validate
+            }
+
+            topic.Key ??= string.Empty;
+            topic.When ??= "any";
+            topic.Needs ??= string.Empty;
+            topic.Hint ??= string.Empty;
+            topic.Lines ??= new List<string>();
+        }
+
         VillageLife = v;
     }
 
@@ -485,6 +499,120 @@ public sealed class GameContent
         }
 
         _dialogs = list;
+    }
+
+    private IReadOnlyList<WishTemplate> _wishes = new List<WishTemplate>();
+
+    /// <summary>The villagers' personal wish templates (#2601) in authored order — empty when <c>data/wishes.json</c> is
+    /// absent (villagers then simply have no wishes).</summary>
+    public IReadOnlyList<WishTemplate> Wishes => _wishes;
+
+    /// <summary>Installs the wish templates (called by the content loader). Null rows are dropped and null lists of a
+    /// hand-edited file become empty ones; everything else is checked by <see cref="Validate"/>.</summary>
+    public void SetWishes(IEnumerable<WishTemplate>? wishes)
+    {
+        var list = new List<WishTemplate>();
+        foreach (var w in wishes ?? Enumerable.Empty<WishTemplate>())
+        {
+            if (w is null)
+            {
+                continue;
+            }
+
+            w.Key ??= string.Empty;
+            w.Kind ??= WishTemplate.KindDeliver;
+            w.Item ??= string.Empty;
+            w.Jobs ??= new List<string>();
+            w.Requires ??= string.Empty;
+            w.Gift ??= new List<ItemAmount>();
+            w.Reason ??= string.Empty;
+            list.Add(w);
+        }
+
+        _wishes = list;
+    }
+
+    /// <summary>#2601: the wish templates — a unique key, a known kind, a real item (or a valid scan target), a sane count,
+    /// known jobs and world condition, a tier in range and a present that names real items. Whether the
+    /// <c>wish.&lt;key&gt;.ask|thanks</c> texts exist in English and German is checked by <c>WishContentTests</c> (the
+    /// locale tables load lazily, like the chatter lines').</summary>
+    private void ValidateWishes(List<string> problems, Action<string, string?> requireItem)
+    {
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var w in _wishes)
+        {
+            if (string.IsNullOrWhiteSpace(w.Key))
+            {
+                problems.Add("Wish template without a key.");
+                continue;
+            }
+
+            string ctx = $"Wish template '{w.Key}'";
+            if (!keys.Add(w.Key))
+            {
+                problems.Add($"{ctx} is defined twice.");
+            }
+
+            if (w.Kind == WishTemplate.KindScan)
+            {
+                if (!ScanTargets.IsValid(w.Item, k => _blocks.ContainsKey(k)))
+                {
+                    problems.Add($"{ctx} has an invalid scan target '{w.Item}'.");
+                }
+            }
+            else if (w.Kind is WishTemplate.KindDeliver or WishTemplate.KindShow)
+            {
+                if (string.IsNullOrEmpty(w.Item))
+                {
+                    problems.Add($"{ctx} names no item.");
+                }
+
+                requireItem(ctx, w.Item);
+            }
+            else
+            {
+                problems.Add($"{ctx} has an unknown kind '{w.Kind}' (deliver|show|scan).");
+            }
+
+            if (w.Count < 1 || w.Jitter < 0 || w.Count - w.Jitter < 1)
+            {
+                problems.Add($"{ctx} needs a count of at least 1 that its jitter can never take to 0 ({w.Count} ± {w.Jitter}).");
+            }
+
+            foreach (string job in w.Jobs)
+            {
+                if (Array.IndexOf(WishTemplate.EligibleJobs, job ?? string.Empty) < 0)
+                {
+                    problems.Add($"{ctx} names a job that has no wishes: '{job}'.");
+                }
+            }
+
+            if (Array.IndexOf(WishTemplate.KnownRequirements, w.Requires) < 0)
+            {
+                problems.Add($"{ctx} requires something unknown: '{w.Requires}'.");
+            }
+
+            if (w.Tier < 1 || w.Tier > WishTemplate.MaxTier)
+            {
+                problems.Add($"{ctx} has a tier outside 1..{WishTemplate.MaxTier} ({w.Tier}).");
+            }
+
+            if (w.Knowledge < 0 || (w.Gift.Count == 0 && w.Knowledge == 0))
+            {
+                problems.Add($"{ctx} says thank you with nothing (no gift, no knowledge).");
+            }
+
+            foreach (var gift in w.Gift)
+            {
+                if (gift is null || string.IsNullOrEmpty(gift.Item) || gift.Count < 1)
+                {
+                    problems.Add($"{ctx} has a gift without an item or with a count below 1.");
+                    continue;
+                }
+
+                requireItem(ctx + " gift", gift.Item);
+            }
+        }
     }
 
     private IReadOnlyList<AchievementDefinition> _achievements = new List<AchievementDefinition>();
@@ -1514,6 +1642,12 @@ public sealed class GameContent
         // NPC dialogues handing out missions (#1212): the `mission:<id>` consequence must name a known mission.
         foreach (var dialog in _dialogs)
         {
+            // #2594: a typo in "home" would silently hide the dialogue from everyone.
+            if (!DialogDefinition.IsValidHome(dialog.Home))
+            {
+                problems.Add($"Dialogue '{dialog.Key}' has an unknown home '{dialog.Home}' (own_base|away|\"\").");
+            }
+
             foreach (var node in dialog.Nodes)
             {
                 foreach (var choice in node.Choices)
@@ -1523,6 +1657,15 @@ public sealed class GameContent
                         && !_missions.ContainsKey(parts[1]))
                     {
                         problems.Add($"Dialogue '{dialog.Key}' hands out unknown mission '{parts[1]}'.");
+                    }
+
+                    // #2602: a guest's present — "guest:gift:<item>:<n>" must name a real item and a positive count.
+                    if (parts.Length >= 2 && parts[0] == "guest" && parts[1] == "gift"
+                        && (parts.Length < 4 || GetItem(parts[2]) is null
+                            || !int.TryParse(parts[3], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int giftCount)
+                            || giftCount <= 0))
+                    {
+                        problems.Add($"Dialogue '{dialog.Key}' has a bad guest present '{choice.Consequence}' (guest:gift:<item>:<n>).");
                     }
                 }
             }
@@ -1543,6 +1686,78 @@ public sealed class GameContent
                 problems.Add($"Village life friend gift '{gift.Item}' has a count below 1 ({gift.Count}).");
             }
         }
+
+        // #2600: villager chatter topics — a typo in "when" or "needs" would make a topic silently never come up. Whether
+        // the line keys resolve in English and German, stay within VillageChatterTopic.MaxLineChars and use only the
+        // placeholders their need provides is checked by VillageLifeContentTests: the locale tables load lazily and a
+        // too-long translation must never stop a server (or the client) from starting.
+        var chatterKeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var topic in VillageLife.Chatter)
+        {
+            if (topic is null || string.IsNullOrWhiteSpace(topic.Key))
+            {
+                problems.Add("Village life: a chatter topic without a key.");
+                continue;
+            }
+
+            if (!chatterKeys.Add(topic.Key))
+            {
+                problems.Add($"Village life chatter topic '{topic.Key}' is defined twice.");
+            }
+
+            if (topic.When is not ("day" or "evening" or "any"))
+            {
+                problems.Add($"Village life chatter topic '{topic.Key}' has an unknown when '{topic.When}' (day|evening|any).");
+            }
+
+            if (!VillageChatterNeeds.IsKnown(topic.Needs))
+            {
+                problems.Add($"Village life chatter topic '{topic.Key}' needs something unknown: '{topic.Needs}'.");
+            }
+
+            if (topic.Weight < 1)
+            {
+                problems.Add($"Village life chatter topic '{topic.Key}' has a weight below 1 ({topic.Weight}).");
+            }
+
+            if (topic.Lines.Count < VillageChatterTopic.MinLines || topic.Lines.Count > VillageChatterTopic.MaxLines
+                || topic.Lines.Any(string.IsNullOrWhiteSpace))
+            {
+                problems.Add($"Village life chatter topic '{topic.Key}' needs {VillageChatterTopic.MinLines}–{VillageChatterTopic.MaxLines} non-empty line keys.");
+            }
+        }
+
+        // #2604: the festival's present names real items in a sane amount, and its cheers are distinct line keys (whether
+        // they resolve in English and German is VillageFestivalTests' job, like the chatter lines above).
+        foreach (var gift in VillageLife.Festival.Gift)
+        {
+            if (gift is null || string.IsNullOrEmpty(gift.Item))
+            {
+                problems.Add("Village life: a festival gift without an item.");
+                continue;
+            }
+
+            RequireItem("Village life festival gift", gift.Item);
+            if (gift.Count < 1)
+            {
+                problems.Add($"Village life festival gift '{gift.Item}' has a count below 1 ({gift.Count}).");
+            }
+        }
+
+        var cheerKeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var cheer in VillageLife.Festival.Cheers)
+        {
+            if (string.IsNullOrWhiteSpace(cheer))
+            {
+                problems.Add("Village life: an empty festival cheer key.");
+            }
+            else if (!cheerKeys.Add(cheer))
+            {
+                problems.Add($"Village life festival cheer '{cheer}' is listed twice.");
+            }
+        }
+
+        ValidateWishes(problems, RequireItem);
 
         // #427: authored voxel ship layouts. The server used to turn an unknown cell id silently into hull
         // (`?? iron_wall`), so a data typo would ship invisibly — surface it at load like every other reference.

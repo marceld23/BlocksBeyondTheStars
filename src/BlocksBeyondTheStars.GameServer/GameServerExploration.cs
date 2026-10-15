@@ -99,6 +99,7 @@ public sealed partial class GameServer
         if (!spawnWorld)
         {
             SendInventory(session); // the knowledge total just changed
+            OnFirstLandingDeed(session, body); // #2599: an inhabited world hears that someone new arrived
         }
     }
 

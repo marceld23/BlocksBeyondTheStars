@@ -322,8 +322,22 @@ public sealed partial class GameServer
             && owner.State.NpcCallsMode != NpcCallsMode.Off)
         {
             _guardWarnedUntil[b.Id] = _uptime + GuardWarnCooldown;
-            string text = Localize(owner.Locale, "npc.call.guard_scouts").Replace("{0}", b.Name);
-            Send(owner, new ChatMessage { Sender = $"☎ {npc.Name} ({b.Name})", Text = text, IsNpcCall = true });
+            if (NpcRadioReaches(owner, b.Planet))
+            {
+                string text = Localize(owner.Locale, "npc.call.guard_scouts").Replace("{0}", b.Name);
+                Send(owner, new ChatMessage { Sender = $"☎ {npc.Name} ({b.Name})", Text = text, IsNpcCall = true });
+            }
+            else if (seen.ScoutBaseId != b.Id || !_scoutVisitToldByVega.Contains(b.Id))
+            {
+                // #2596: the ☎ used to go out with no radio at all — without one, VEGA passes the guard's report on (a
+                // warning about the player's home: the system channel, never muted; NPC calls "missions only" still hear it).
+                // #2602: one VEGA message per scout visit — not when she already explained these very scouts herself.
+                if (RelayBaseNewsViaVega(owner, "guard:" + b.Id, "vega.news.guard", new[] { npc.Name, b.Name },
+                        cooldownSeconds: GuardWarnCooldown, urgent: true) && seen.ScoutBaseId == b.Id)
+                {
+                    _scoutVisitToldByVega.Add(b.Id);
+                }
+            }
         }
 
         if (bestSq <= GuardDriveOffRange * GuardDriveOffRange)

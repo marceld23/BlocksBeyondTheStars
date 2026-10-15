@@ -16,7 +16,10 @@ also keeps the generator scripts from painting over it.
 
 *(none yet)*
 
-**Sound effects:** `client/Assets/Resources/audio/*.mp3` (318 files, incl. VEGA's three chapter stings `chapter_sting`,
+**Sound effects:** `client/Assets/Resources/audio/*.mp3` (336 files, incl. the NPCs' wordless speech voices
+`npc_voice_{human,robot}_{f,m,n}_{1..3}` (18 clips: human female/male/neutral and robot bright/deep/neutral, each a
+questioning, an exclaiming and an explaining take of language-neutral gibberish, #2592, `gen_sound.py`, 2026-10-14),
+VEGA's three chapter stings `chapter_sting`,
 `chapter_sting_memory`, `chapter_sting_reveal` (#2474, `gen_sound.py`, 2026-10-12), the debris fields' `debris_bump` /
 `salvage_capsule` and the raider's `raider_warp_in` (#2358, `gen_sound.py`, 2026-10-06), the energy rope gun's four cues
 `rope_fire`/`rope_anchor`/`rope_reel`/`rope_release` (#2322, `gen_sound.py`, 2026-10-05), the splash intro, the

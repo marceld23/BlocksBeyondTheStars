@@ -103,9 +103,10 @@ namespace BlocksBeyondTheStars.Client
         /// entirely beyond it — so names only read up close instead of across the whole world.
         /// #2531: with <paramref name="occludeIn"/> (the live world) the label hides while solid terrain stands between
         /// the camera and it — NPC plates, hints, health bars. Leave it null for things that are MEANT to show through
-        /// walls (beacons, beams, thermal contacts, ore markers, other players' names).</summary>
+        /// walls (beacons, beams, thermal contacts, ore markers, other players' names).
+        /// #2601: <paramref name="scale"/> enlarges a single glyph marker (a villager's wish "!"/"?") — 1 for every label.</summary>
         public void World(Camera cam, Vector3 world, string text, Color color, bool bold = false,
-                          float fadeStart = 0f, float fadeEnd = 0f, GameBootstrap occludeIn = null)
+                          float fadeStart = 0f, float fadeEnd = 0f, GameBootstrap occludeIn = null, float scale = 1f)
         {
             // Under a cutscene no nameplate is pushed (#2461), so the end-of-frame sweep hides every label at once — #2496: nor
             // while a scene hides the HUD (GameBootstrap.HudHidden).
@@ -157,6 +158,7 @@ namespace BlocksBeyondTheStars.Client
             shadow.a = 0.7f * alpha;
             e.Shadow.color = shadow;
             e.Main.fontStyle = e.Shadow.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
+            e.Rt.localScale = scale == 1f ? Vector3.one : new Vector3(scale, scale, 1f); // pooled: reset on every push
             e.Rt.gameObject.SetActive(true);
         }
 

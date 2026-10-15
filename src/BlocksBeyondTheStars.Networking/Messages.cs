@@ -1457,6 +1457,11 @@ public sealed class ServerRules
     /// founded base whose owner is home (zone edge only, never inside, never destructive). Opt-in.</summary>
     public bool BaseVisitors { get; set; }
 
+    /// <summary>"Friendly visitors" world option (#2602): "On" when a neighbour, a travelling merchant or a lost traveller
+    /// now and then visits a base whose owner is home, "Off" when the world switched them off. EMPTY from a server that
+    /// predates the rule — the client then hides the world-options row.</summary>
+    public string FriendlyVisitors { get; set; } = string.Empty;
+
     /// <summary>The world's tutorial rule (#2466): "Auto", "OptIn", "Off" or "Courses" (#2498, "Short courses only" — an older
     /// client does not know the word and hides the row). EMPTY from a server that predates it.</summary>
     public string TutorialPolicy { get; set; } = string.Empty;
@@ -1534,6 +1539,9 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>Visitors-at-the-base toggle (#1224): "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string BaseVisitors { get; set; } = string.Empty;
+
+    /// <summary>Friendly-visitors toggle (#2602): "On"/"Off" to set it, empty to leave unchanged.</summary>
+    public string FriendlyVisitors { get; set; } = string.Empty;
 
     /// <summary>The tutorial rule (#2466): "Auto"/"OptIn"/"Off"/"Courses" (#2498) to set it, empty to leave unchanged.</summary>
     public string TutorialPolicy { get; set; } = string.Empty;

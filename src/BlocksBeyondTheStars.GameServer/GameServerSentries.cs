@@ -339,7 +339,7 @@ public sealed partial class GameServer
         var owner = _sessions.Values.FirstOrDefault(s => s.Joined && s.State.PlayerId == home.OwnerId);
         if (target.IsBandit)
         {
-            OnBanditKilled(target); // camps still clear — no story credit, bandits are people
+            OnBanditKilled(target, owner); // camps still clear — no story credit, bandits are people (#2599: the owner's deed)
             if (owner is not null)
             {
                 OnMissionDefeat(owner, DefeatTargetBandit); // #730: the bounty counts the drive-off, whoever fired

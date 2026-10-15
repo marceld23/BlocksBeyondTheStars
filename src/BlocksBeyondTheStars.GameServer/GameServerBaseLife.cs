@@ -632,7 +632,8 @@ public sealed partial class GameServer
 
     /// <summary>A resident moves in — a deterministic look and name per (base, slot) (slot 0 keeps the founding
     /// settler's seed), KNOWN to the owner from day one (the plan's "counts as a known NPC"), announced over the
-    /// owner's radio.</summary>
+    /// owner's radio — or by VEGA when the radio does not reach (#2596). Only a NEW resident is announced: residents
+    /// are respawned after every world load, and the call used to ring again each time.</summary>
     private ServerNpc SpawnBaseResident(ServerBase b, int slot)
     {
         string seed = slot == 0 ? "base-settler:" + b.Id : $"base-settler:{b.Id}:{slot}";
@@ -652,7 +653,8 @@ public sealed partial class GameServer
         {
             // The plan says the settler "counts as a known NPC": seed the acquaintance so the nameplate
             // shows a stage and the roster lists them right away.
-            if (!owner.State.NpcMemory.ContainsKey(npcKey))
+            bool isNew = !owner.State.NpcMemory.ContainsKey(npcKey); // #2596: a respawn after a reload is no news
+            if (isNew)
             {
                 owner.State.NpcMemory[npcKey] = new NpcRelationship
                 {
@@ -664,8 +666,13 @@ public sealed partial class GameServer
             }
 
             SendNpcStandings(owner);
-            TryNpcRadioCall(owner, npcKey, npc.Name, b.Name, b.Planet,
-                slot == 0 ? "settler:" + b.Id : $"settler:{b.Id}:{slot}", "npc.call.settler", string.Empty, isMission: false);
+            string callKey = slot == 0 ? "settler:" + b.Id : $"settler:{b.Id}:{slot}";
+            if (isNew && !TryNpcRadioCall(owner, npcKey, npc.Name, b.Name, b.Planet, callKey, "npc.call.settler", string.Empty, isMission: false))
+            {
+                // #2596: no radio in reach (or its cadence) — VEGA passes the news on instead of losing it.
+                RelayBaseNewsViaVega(owner, callKey, "vega.news.settler", new[] { npc.Name, b.Name });
+            }
+
             _repo.SavePlayer(owner.State);
         }
 
@@ -673,10 +680,14 @@ public sealed partial class GameServer
     }
 
     /// <summary>Stage 1's hail (#1120): a trader just set down on a body — base owners there get a call
-    /// (no acquaintance required; the trader is advertising).</summary>
-    private void NpcRadioOnTraderLanded(string bodyId, string traderName)
+    /// (no acquaintance required; the trader is advertising). #2596: an owner the radio does not reach, but who is in
+    /// the same star system, hears it from VEGA instead (an advisor line — the hints switch mutes it). #2603:
+    /// <paramref name="hailFor"/> may supply a ready line for an owner (the cached AI hail of a planet-side arrival) — null
+    /// keeps the authored <c>npc.call.trader</c>.</summary>
+    private void NpcRadioOnTraderLanded(string bodyId, string traderName, System.Func<PlayerSession, string?>? hailFor = null)
     {
-        string bodyName = _galaxy?.FindBody(bodyId)?.Name ?? bodyId;
+        var body = _galaxy?.FindBody(bodyId);
+        string bodyName = body?.Name ?? bodyId;
         foreach (var b in _bases)
         {
             if (b.Planet != bodyId || FindSessionByPlayerId(b.OwnerId) is not { Joined: true } owner)
@@ -684,10 +695,21 @@ public sealed partial class GameServer
                 continue;
             }
 
-            TryNpcRadioCall(owner, npcKey: string.Empty, traderName, bodyName, bodyId,
-                "trader:" + bodyId, "npc.call.trader", bodyName, isMission: false, requireKnown: false);
+            string callKey = "trader:" + bodyId;
+            string? hail = hailFor?.Invoke(owner);
+            bool called = hail is { Length: > 0 }
+                ? TryNpcRadioCallText(owner, npcKey: string.Empty, traderName, bodyName, bodyId, callKey, hail, isMission: false, requireKnown: false)
+                : TryNpcRadioCall(owner, npcKey: string.Empty, traderName, bodyName, bodyId,
+                    callKey, "npc.call.trader", bodyName, isMission: false, requireKnown: false);
+            if (!called && body?.SystemId is { } system && _galaxy?.FindBody(owner.CurrentLocationId)?.SystemId == system)
+            {
+                RelayBaseNewsViaVega(owner, callKey, "vega.news.trader", new[] { bodyName }, kind: 1);
+            }
         }
     }
+
+    /// <summary>Test seam (#2596): a trader set down on <paramref name="bodyId"/> — the base owners' hail.</summary>
+    public void NpcRadioOnTraderLandedForTest(string bodyId, string traderName) => NpcRadioOnTraderLanded(bodyId, traderName);
 
     /// <summary>Test seam: run one base-life scan for every base on the active world right now.</summary>
     public void ScanBaseLifeForTest()

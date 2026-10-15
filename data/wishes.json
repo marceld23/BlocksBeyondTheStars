@@ -1,0 +1,35 @@
+// Personal wishes of villagers (#2601). Each row is a template the server coins a concrete wish from, per player and
+// place: "deliver" = bring me (the items are handed over), "show" = show me (the player keeps them), "scan" = check on
+// the animals (scanner). "requires" keeps a wish the world cannot grant from ever being asked (flora_drop | trees |
+// mycelium | creatures | ""); a template of tier T comes up once T-1 wishes of that lane were fulfilled. "jobs" limits
+// who may wish it ("" = a plain settler, gardener, craftsman, innkeeper; empty list = everyone). "reason" is an English
+// hint for the AI re-wording only. Texts: wish.<key>.ask / wish.<key>.thanks in data/locales (en + de mandatory).
+[
+  { "key": "berries",      "kind": "deliver", "item": "berries",      "count": 5,  "jitter": 1, "requires": "flora_drop", "tier": 1,
+    "gift": [ { "item": "berry_seed", "count": 3 } ], "reason": "their berry bushes did not grow this year and they want to bake a pie" },
+  { "key": "fibre_basket", "kind": "deliver", "item": "plant_fiber",  "count": 8,  "jitter": 2, "requires": "flora_drop", "tier": 1,
+    "jobs": [ "", "gardener", "craftsman" ],
+    "gift": [ { "item": "torch", "count": 4 } ], "reason": "wants to weave a basket" },
+  { "key": "firewood",     "kind": "deliver", "item": "wood_log",     "count": 6,  "jitter": 1, "requires": "trees", "tier": 1,
+    "gift": [ { "item": "cooked_meat", "count": 1 } ], "reason": "the stove is cold and they need firewood" },
+  { "key": "garden_wall",  "kind": "deliver", "item": "stone",        "count": 10, "jitter": 2, "requires": "", "tier": 1,
+    "jobs": [ "", "gardener", "craftsman" ],
+    "gift": [ { "item": "iron_plate", "count": 2 } ], "reason": "wants to build a little wall around the garden" },
+  { "key": "dark_path",    "kind": "deliver", "item": "torch",        "count": 4,  "jitter": 0, "requires": "trees", "tier": 1,
+    "gift": [ { "item": "glass", "count": 2 } ], "reason": "the path home is very dark at night" },
+  { "key": "window",       "kind": "deliver", "item": "glass",        "count": 3,  "jitter": 0, "requires": "", "tier": 2,
+    "jobs": [ "", "craftsman", "innkeeper" ],
+    "gift": [ { "item": "iron_plate", "count": 3 } ], "reason": "a window broke" },
+  { "key": "fruit",        "kind": "deliver", "item": "fruit_round",  "count": 3,  "jitter": 0, "requires": "flora_drop", "tier": 1,
+    "gift": [ { "item": "grain_seed", "count": 2 } ], "reason": "loves fresh fruit and has not had any for ages" },
+  { "key": "mushrooms",    "kind": "deliver", "item": "mushroom_cap", "count": 3,  "jitter": 0, "requires": "mycelium", "tier": 1,
+    "jobs": [ "", "gardener", "innkeeper" ],
+    "gift": [ { "item": "medpack", "count": 1 } ], "reason": "wants to cook a big pot of mushroom soup" },
+  { "key": "show_crystal", "kind": "show",    "item": "crystal",      "count": 1,  "jitter": 0, "requires": "", "tier": 1,
+    "gift": [], "knowledge": 2, "reason": "has never seen a real crystal up close" },
+  { "key": "show_ore",     "kind": "show",    "item": "iron_ore",     "count": 5,  "jitter": 0, "requires": "", "tier": 1,
+    "jobs": [ "", "craftsman" ],
+    "gift": [ { "item": "medpack", "count": 1 } ], "reason": "is curious what real iron ore looks like" },
+  { "key": "grazer",       "kind": "scan",    "item": "creature:any", "count": 1,  "jitter": 0, "requires": "creatures", "tier": 1,
+    "gift": [ { "item": "berries", "count": 4 } ], "reason": "their little grazer wandered off and they want to know the animals out there are well" }
+]

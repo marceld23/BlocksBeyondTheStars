@@ -1,6 +1,7 @@
 # Peaceful NPC trader ships — how it works
 
-Status: implemented (see [../../TODO.md](../../TODO.md) for live Done/Open status). Last updated 2026-09-15 (#1904).
+Status: implemented (see [../../TODO.md](../../TODO.md) for live Done/Open status). Last updated 2026-10-15 (#2603,
+planet-side arrivals).
 
 ## Overview
 
@@ -69,6 +70,27 @@ and lifting off (`DepartLandedTrader`) both call `BroadcastLandedTraderMapChange
 (before, the pad list stayed a stale world-entry snapshot — the #1020 class of bug). A world (re)load does not
 broadcast: the arriving player's world-entry snapshot already carries both lists.
 
+**Planet-side arrivals (#2603).** The flight-instance traffic above only exists while somebody flies, so a player who
+stays on the ground never saw a trader arrive. `TickPlanetTraders` (Guard-registered per world, before
+`TickLandedTraders`) looks every 5 s at each occupied, loaded, non-void **planet or moon** with a joined player on it
+(not in space, not observing) and no trader parked or approaching, gated on the long-defined
+`GameRules.NeutralNpcShips` (default on; this is its first reader — the space traffic does not consult it):
+
+| | |
+|---|---|
+| Gap (`PlanetTraderGap`) | **Often** 900–1500 s, **Rare** 1800–2700 s — each × 0.75 while a base owner is on the body; **None** 2700–3600 s, but only for a body with a present player's base (without one: never) |
+| Schedule | RAM only, per body: a first sighting arms 0.3–0.6 × the gap; every roll (gap, the coin, the dwell) is seeded `StableHash("<world seed>:ptrader:<body>:<arrival count>")` |
+| Pad | the free pad (not `PadOccupiedByOther`, not `Wet`, not `Molten`) **nearest a present player's base core**, else nearest a player there — so `npc.call.trader`'s "we're parked near your base" is true (K12). No free dry pad → no arrival this window |
+| Approach | `RegisterLandedTrader(t, body, pad, touchdownAt = now + 20 s, rng)` reserves the pad at once; toast `@srv.trader.approaching` to the players on the body; `MaterializeLandedTraderHere` (both overloads) returns early while `uptime < TouchdownAt` (no hull, no pilot, no barter, no map marker); `ArrivalFxPending` |
+| Touchdown | the existing `ShipTransitFx` descent + hull + pilot; toast `@srv.trader.landed:<name>`; `NpcRadioOnTraderLanded` — the base owners' radio hail, or VEGA's `vega.news.trader` relay without a radio (same system). The stay (600–900 s) counts from the touchdown |
+| AI | `trader_hail` is asked for at the decision (one request per language of the body's base owners; the 20 s approach covers the latency) and used for the radio call when cached (tokens `{place}` required, `{trader}`, `{player}`), else the authored `npc.call.trader` |
+
+The shared pieces were split out of the flight path without changing it: `CoinTrader(rng)` (ship type, pilot name,
+hull tint — the same draw order as before) and `RegisterLandedTrader` (look, pad, stay); a trader landing from the flight
+scene still sets down at once (`TouchdownAt` = now). The pilot does not walk to the base — the travelling-merchant
+visitor (#2602, [VILLAGE_LIFE.md](VILLAGE_LIFE.md)) covers that. A flight-scene landing still takes the lowest free pad
+index (`FirstFreePadIndex`), so its hail's "near your base" is only true for planet-side arrivals.
+
 **Warp FX for bystanders.** Hyperspace warp-in/out had no third-person VFX (`HyperspaceWarp` is a local
 full-screen overlay only). A new `SpaceWarpFx` message (tag 150) drives a localized cyan-white burst in the
 flight view so other players **see** arrivals and departures.
@@ -94,7 +116,9 @@ flight view so other players **see** arrivals and departures.
   `LandedShipState`, `ShipTransitFx`, `NpcList`, `LandingPadList` and `PlanetPoiList` (`trader_ship` POI).
 - Client: `SpaceView.SpawnWarpFlash` (warp flash); landing/launch reuses `ShipTransitView`; the map marker is
   `WorldMap.PoiLook("trader_ship")` and the compass blip `HudUi.TryGetLandedTrader`.
-- Tests: `SpaceTraderTests`, `LandedTraderStayTests` (stay ranges, hold + grace, map marker + re-broadcast).
+- Tests: `SpaceTraderTests`, `LandedTraderStayTests` (stay ranges, hold + grace, map marker + re-broadcast),
+  `PlanetTraderArrivalTests` (#2603: gaps per traffic, the nearest free dry pad, the reserved approach, touchdown FX +
+  toast + hail, one per body, no players / rule off, the flight scene still lands at once, the AI hail).
 
 ## Known remaining gaps / deferred
 

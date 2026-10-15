@@ -1090,8 +1090,19 @@ namespace BlocksBeyondTheStars.Client
 
                     labels.Bubble(cam, plateAnchor + Vector3.up * 0.3f, n.CachedGreetingQuoted, UiKit.TextCol, 18f, 28f, occludeIn: Game);
                 }
+                else if (n.Pose != 2 && Game != null && Game.NpcWishMarks.TryGetValue(pair.Key, out byte wish))
+                {
+                    // #2601: a villager with a personal wish for this player — a gold "!" (asks) / "?" (you have it all) over
+                    // the head, readable from further away than the name (30 m, gone at 45 m), not through walls. Hidden
+                    // while they speak (the bubble sits there) and while they sleep (they only mumble).
+                    labels.World(cam, plateAnchor + Vector3.up * 0.8f, wish == 2 ? "?" : "!", WishMarkGold, true, 30f, 45f,
+                        occludeIn: Game, scale: 1.8f);
+                }
             }
         }
+
+        /// <summary>#2601: the colour of a villager's wish marker.</summary>
+        private static readonly Color WishMarkGold = new Color(1.00f, 0.82f, 0.22f);
 
         private void OnDestroy()
         {

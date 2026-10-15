@@ -218,6 +218,18 @@ public sealed class WorldMetadata
     /// <see cref="NewsArticle.MaxPerPlace"/>. Written from player interviews, screened like chat.</summary>
     public System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<NewsArticle>> News { get; set; } = new();
 
+    /// <summary>#2599: the deed log — what players did that the world talks about (a bandit camp cleared, a giant beaten,
+    /// a first landing, a settlement helped, a festival; <see cref="DeedKinds"/>), per world (location id) → the latest
+    /// <see cref="DeedRecord.MaxPerWorld"/>, oldest first. The reporter's and the innkeeper's news and the villagers'
+    /// chatter read it. Additive: an older build drops it, a missing entry means "nothing happened there yet".</summary>
+    public System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<DeedRecord>> Deeds { get; set; } = new();
+
+    /// <summary>#2604: the village festivals — "&lt;locationId&gt;|&lt;settlement name&gt;" → the festival a settlement throws
+    /// for the player who finished its "settlement needs" chain, once per settlement ever (a later helper gets the thanks
+    /// and the present, no second festival). Pending until its hero is there in the late afternoon, then held. Additive:
+    /// an older build drops it, a missing entry means "no festival planned there".</summary>
+    public System.Collections.Generic.Dictionary<string, FestivalRecord> Festivals { get; set; } = new();
+
     /// <summary>When the next Sreekmakra may appear per world (2026-09, Valuma): location id → unix seconds. Set when one is
     /// defeated (a few in-game days) or fled (a day).</summary>
     public System.Collections.Generic.Dictionary<string, long> SreekmakraBackAt { get; set; } = new();
@@ -246,6 +258,96 @@ public sealed class NewsArticle
 
     /// <summary>The in-game day index it was written on.</summary>
     public long Day { get; set; }
+
+    /// <summary>#2599: the world's playtime (<see cref="WorldMetadata.CumulativePlaytimeSeconds"/>, at least 1) when it was
+    /// written — orders interviews and deeds in the news. 0 on articles from before the deed log: they sort last.</summary>
+    public long At { get; set; }
+}
+
+/// <summary>#2599: one deed in the world's deed log (<see cref="WorldMetadata.Deeds"/>): who did what, near which
+/// settlement, and when.</summary>
+public sealed class DeedRecord
+{
+    /// <summary>The most deeds one world keeps; older ones drop off.</summary>
+    public const int MaxPerWorld = 16;
+
+    /// <summary>Increasing per world (1, 2, …) — identifies the deed for "already talked about it" and for its cached AI
+    /// headline.</summary>
+    public long Id { get; set; }
+
+    /// <summary>What happened — one of <see cref="DeedKinds"/>.</summary>
+    public string Kind { get; set; } = string.Empty;
+
+    public string PlayerId { get; set; } = string.Empty;
+
+    /// <summary>The hero's name as it was then (the news prints it).</summary>
+    public string PlayerName { get; set; } = string.Empty;
+
+    /// <summary>The settlement it happened at or near, "" = the whole world talks about it.</summary>
+    public string Settlement { get; set; } = string.Empty;
+
+    /// <summary>The "thing" of the deed when it has one: the giant's kind ("colossus", "sandworm", "leviathan",
+    /// "sky_giant"), a cleared camp's key; "" otherwise.</summary>
+    public string Arg { get; set; } = string.Empty;
+
+    /// <summary>The world's playtime (<see cref="WorldMetadata.CumulativePlaytimeSeconds"/>, at least 1) when it happened.</summary>
+    public long At { get; set; }
+}
+
+/// <summary>#2599: the kinds of deed the world remembers (<see cref="DeedRecord.Kind"/>). The news line of a kind is
+/// <c>news.deed.&lt;kind&gt;</c>; a villager chatter topic about it needs <c>deed:&lt;kind&gt;</c>.</summary>
+public static class DeedKinds
+{
+    /// <summary>The last bandit of a camp went down (by weapon: the attacker; by a sentry: the base owner; by fire: the
+    /// nearest player within 64 m).</summary>
+    public const string CampCleared = "camp_cleared";
+
+    /// <summary>A settlement's "settlement needs" chain was finished (the festival package records it).</summary>
+    public const string SettlementHelped = "settlement_helped";
+
+    /// <summary>A village held its festival for the hero (the festival package records it).</summary>
+    public const string Festival = "festival";
+
+    /// <summary>A giant (colossus, sandworm, leviathan, sky giant) was defeated.</summary>
+    public const string Giant = "giant";
+
+    /// <summary>The Sreekmakra, Valuma's shapeshifter, was defeated.</summary>
+    public const string Sreekmakra = "sreekmakra";
+
+    /// <summary>A player's first landing on an inhabited world (never their spawn world).</summary>
+    public const string Landing = "landing";
+
+    /// <summary>Every kind, in authored order.</summary>
+    public static readonly System.Collections.Generic.IReadOnlyList<string> All = new[]
+    {
+        CampCleared, SettlementHelped, Festival, Giant, Sreekmakra, Landing,
+    };
+}
+
+/// <summary>#2604: one settlement's festival (<see cref="WorldMetadata.Festivals"/>): for whom, since when, and whether it
+/// was held yet.</summary>
+public sealed class FestivalRecord
+{
+    /// <summary><see cref="State"/>: planned, waiting (without a deadline) for its hero in the late afternoon.</summary>
+    public const string Pending = "pending";
+
+    /// <summary><see cref="State"/>: the festival took place (it happens once per settlement).</summary>
+    public const string Held = "held";
+
+    /// <summary><see cref="Pending"/> or <see cref="Held"/>.</summary>
+    public string State { get; set; } = Pending;
+
+    /// <summary>The hero — the player who finished the settlement's chain first.</summary>
+    public string HeroId { get; set; } = string.Empty;
+
+    /// <summary>The hero's name as it was then (the cheers name them).</summary>
+    public string HeroName { get; set; } = string.Empty;
+
+    /// <summary>The world's playtime (<see cref="WorldMetadata.CumulativePlaytimeSeconds"/>, at least 1) when it was planned.</summary>
+    public long ScheduledAt { get; set; }
+
+    /// <summary>The world's playtime when it began; 0 while pending.</summary>
+    public long HeldAt { get; set; }
 }
 
 /// <summary>Where one rolled structure instance landed (#586), pinned at first stamp so the placement search

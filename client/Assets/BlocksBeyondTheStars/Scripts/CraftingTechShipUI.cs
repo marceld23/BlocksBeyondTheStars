@@ -3577,6 +3577,23 @@ namespace BlocksBeyondTheStars.Client
                 y += 96f;
             }
 
+            // Friendly visitors (#2602, default on): now and then a neighbour from the village, a travelling merchant or a
+            // lost traveller walks up to a base whose owner is home. Not tied to any enemy setting, so the row is always
+            // there — only an older server sends no value, and then there is nothing to switch.
+            if (!string.IsNullOrEmpty(rules?.FriendlyVisitors))
+            {
+                bool friendly = string.Equals(rules.FriendlyVisitors, "On", System.StringComparison.Ordinal);
+                var friendlyBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
+                {
+                    Game?.Network?.SendSetWorldRules(friendlyVisitors: friendly ? "Off" : "On");
+                    Invoke(nameof(RebuildList), 0.35f);
+                });
+                UiKit.AddText(friendlyBtn.transform, 16, 0, 520, 78, L("ui.worldopt.friendly_visitors"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddText(friendlyBtn.transform, 560, 0, 200, 78, friendly ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
+                    friendly ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+                y += 96f;
+            }
+
             // Per-player mode overrides (#1121): one row per online player, cycling World / Survival /
             // Creative. The server fills the roster ONLY for world admins, so the section simply is not
             // there for everyone else — same admin gating as the rule rows above, but without the noise.

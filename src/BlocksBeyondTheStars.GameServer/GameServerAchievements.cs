@@ -46,7 +46,7 @@ public sealed partial class GameServer
             }
 
             anyChange = true;
-            TryAward(session, def);
+            TryAward(session, def, praise: true); // #2597: earned just now — VEGA may say "well done"
         }
 
         if (anyChange)
@@ -62,8 +62,10 @@ public sealed partial class GameServer
     /// then awarded on the next counter bump. Unlocking it and dropping the reward on the floor would repeat the
     /// exact bug this batch of feedback started with ("Items futsch"), and the reward is the whole point.
     /// </para>
+    /// <para>#2597: <paramref name="praise"/> lets VEGA praise the unlock (<see cref="QueueVegaPraise"/>) — true for an
+    /// achievement earned right now, false for the retro-awards settled at join (those stay silent).</para>
     /// </summary>
-    private void TryAward(PlayerSession session, AchievementDefinition def)
+    private void TryAward(PlayerSession session, AchievementDefinition def, bool praise)
     {
         var p = session.State;
         if (p.Achievements.Contains(def.Key) || CounterOf(p, def.Counter) < def.Target)
@@ -92,6 +94,10 @@ public sealed partial class GameServer
         p.Achievements.Add(def.Key);
         Send(session, new AchievementUnlocked { Key = def.Key });
         _log.Info($"'{p.Name}' earned achievement '{def.Key}'.");
+        if (praise)
+        {
+            QueueVegaPraise(session, def);
+        }
     }
 
     private static int CounterOf(Shared.State.PlayerState p, string counter)
@@ -117,7 +123,7 @@ public sealed partial class GameServer
     {
         foreach (var def in _content.Achievements)
         {
-            TryAward(session, def);
+            TryAward(session, def, praise: false); // #2597: retro-awards at join stay silent
         }
 
         SendAchievements(session);

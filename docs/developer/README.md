@@ -93,6 +93,8 @@ refreshed 2026-08-08.
 - [NPC_TRADER_SHIPS.md](NPC_TRADER_SHIPS.md) — peaceful ambient NPC trader traffic.
 - [NPC_ROUTINES.md](NPC_ROUTINES.md) — living NPCs: base residents, the daily routine, pathfinding with doors,
   jobs with yield, and the station night.
+- [VILLAGE_LIFE.md](VILLAGE_LIFE.md) — "the village lives" (epic #2589): the shared rules (data, AI two-mode lines,
+  no sound jumble, no FOMO), the village festival (#2604) and the villagers' personal wishes (#2601).
 - [MATTER_CONVERTER.md](MATTER_CONVERTER.md) — the Transmuter station: craft scarce ore from spare
   terrain (lossy `matter_dust` intermediate, no Tier-3 output).
 - [CRYSTAL_NET.md](CRYSTAL_NET.md) — the Crystal Net (#2045): crystal conduits carrying a visible ON/OFF

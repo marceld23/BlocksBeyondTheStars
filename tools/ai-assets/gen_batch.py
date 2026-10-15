@@ -155,6 +155,27 @@ def build_catalogue() -> list[tuple[str, str, float, bool]]:
             prompt = f"{ktx} {st_tx}, non-verbal vocalization only, grunt or chirp, absolutely no words or speech"
             s.append((sid, prompt, 1.0, False))
 
+    # --- NPC speech voices (#2592): wordless, language-neutral babble chained while a speech bubble shows (like VEGA's
+    # chatter). Human female/male/neutral and robot bright/deep/neutral, three intonations each; the client picks the
+    # voice from the NPC's look (a bearded NPC never gets a female voice) — see docs/developer/SOUND_DESIGN.md §9.
+    # Generated with --influence 0.6.
+    babble_human = ("speaking cheerful gibberish made of nonsense syllables, like Simlish, natural warm voice, no real words, "
+                    "no recognizable language, close dry recording, single speaker")
+    babble_robot = ("speaking garbled synthetic gibberish syllables through a vocoder, robotic electronic voice, no real words, "
+                    "no recognizable language, single speaker")
+    voices = [
+        ("human_f", "a friendly woman", babble_human),
+        ("human_m", "a friendly man", babble_human),
+        ("human_n", "a friendly young person with a soft androgynous mid-pitched voice", babble_human),
+        ("robot_f", "a friendly little robot with a bright high-pitched voice", babble_robot),
+        ("robot_m", "a friendly robot with a deep low-pitched voice", babble_robot),
+        ("robot_n", "a friendly robot with a neutral mid-pitched voice", babble_robot),
+    ]
+    tones = ["asking a curious question", "happily exclaiming", "calmly explaining"]
+    for vid, who, how in voices:
+        for i, tone in enumerate(tones, start=1):
+            s.append((f"npc_voice_{vid}_{i}", f"{who} {how}, {tone}", 1.6, False))
+
     # --- Weather & environment ambience (loops + thunder one-shots) ---
     s += [
         ("wind_light",  "gentle wind breeze ambience", 5.0, True),

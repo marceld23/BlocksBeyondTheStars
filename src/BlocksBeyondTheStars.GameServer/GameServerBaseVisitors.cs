@@ -58,6 +58,11 @@ public sealed partial class GameServer
     /// <summary>Uptime of the next possible visit per base id (RAM only: a visit is not a mark on the save).</summary>
     private readonly Dictionary<int, double> _nextScoutVisitAt = new();
 
+    /// <summary>Bases whose CURRENT scout visit VEGA already spoke about (#2602 side fix): one VEGA message per visit —
+    /// her own explanation (<c>vega.sys.base_scouts</c>) or the guard's report she passes on (<c>vega.news.guard</c>), never
+    /// both. Cleared when the next visit starts.</summary>
+    private readonly HashSet<int> _scoutVisitToldByVega = new();
+
     /// <summary>Whether a scout visit may happen on this world at all right now: the rule, robbers on, AND
     /// planet hostiles on (#1297) — with <c>PlanetEnemies Off</c> the sentry stays silent, so scouts would
     /// arrive at a base that cannot answer them. The client hides the world-options row on the same pair.</summary>
@@ -145,6 +150,16 @@ public sealed partial class GameServer
         return false;
     }
 
+    /// <summary>Whether the base's guard will report this visit itself (#2602 side fix): a resident guard on duty (awake,
+    /// on its shift — <see cref="TickNpcJob"/> only runs then) and an owner who takes NPC calls at all (the guard's ☎ and
+    /// its VEGA relay both need that). Then VEGA keeps her own explanation for a guardless visit.</summary>
+    private bool GuardReportsScouts(ServerBase b, PlayerSession owner)
+        => owner.State.NpcCallsMode != Shared.State.NpcCallsMode.Off
+           && ResidentNpcs(b).Any(n => n.Job == "guard" && n.Phase == NpcPhase.Day && n.Pose == 0);
+
+    /// <summary>Test seam (#2602): whether VEGA already spoke about the current scout visit at a base.</summary>
+    public bool ScoutVisitToldByVegaForTest(int baseId) => _scoutVisitToldByVega.Contains(baseId);
+
     /// <summary>The spawn distances tried in turn (#1855): the classic 40, then further out. A fortress wider
     /// than 40 blocks had scouts materialising INSIDE its walls — the bearing was blind and the distance fixed.</summary>
     private static readonly float[] ScoutSpawnRadii = { ScoutSpawnDistance, 48f, 56f, 64f };
@@ -185,10 +200,17 @@ public sealed partial class GameServer
 
         string baseName = string.IsNullOrEmpty(b.Name) ? owner.State.Name ?? "?" : b.Name;
         Send(owner, new ServerMessage { Text = "@srv.base.scouts:" + baseName });
-        if (!owner.ScoutsVegaSaid)
+        _scoutVisitToldByVega.Remove(b.Id); // a new visit: nothing said about it yet
+        if (GuardReportsScouts(b, owner))
+        {
+            // #2602: a guard on duty reports these scouts itself (radio, or VEGA passing it on) — VEGA's own explanation
+            // would be the second message about the same two figures. It stays unsaid for a guardless visit later.
+        }
+        else if (!owner.ScoutsVegaSaid)
         {
             owner.ScoutsVegaSaid = true; // VEGA explains it once per session; the toast repeats per visit
             SendVegaLine(owner, "vega.sys.base_scouts", 1);
+            _scoutVisitToldByVega.Add(b.Id); // a guard waking up during this visit then reports by radio only
         }
 
         _log.Info($"Base scouts: two bandits are looking at '{baseName}' (owner '{owner.State.Name}').");
