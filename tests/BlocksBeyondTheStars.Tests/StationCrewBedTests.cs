@@ -51,9 +51,10 @@ public sealed class StationCrewBedTests : IDisposable
     /// <summary>
     /// A long sealed hull around the core: cells x −2…2, y −2…1, z −2…<see cref="EndZ"/> (a 3 × 2 corridor inside), split
     /// by a wall at z = <see cref="WallZ"/> into room B (z −1…2, the core's) and room A (z 4…25, with the airlock in its
-    /// +X wall at z 10). The trading post stands on room A's floor at <paramref name="postZ"/>.
+    /// +X wall at z 10). The trading post stands on room A's floor at <paramref name="postZ"/>. With
+    /// <paramref name="leakInRoomB"/> room B's −X wall keeps a hole at (−2, −1, 0).
     /// </summary>
-    private static string BuildTwoRoomHull(SvGameServer server, PlayerSession pilot, int postZ)
+    private static string BuildTwoRoomHull(SvGameServer server, PlayerSession pilot, int postZ, bool leakInRoomB = false)
     {
         string playerId = pilot.State.PlayerId;
         server.EnterSpace(playerId);
@@ -68,7 +69,8 @@ public sealed class StationCrewBedTests : IDisposable
                     bool shell = Math.Abs(x) == 2 || y == -2 || y == 1 || z == -2 || z == EndZ;
                     bool wall = z == WallZ && Math.Abs(x) < 2 && y > -2 && y < 1;
                     bool doorway = x == 2 && y == -1 && z == 10;
-                    if ((shell || wall) && !doorway)
+                    bool hole = leakInRoomB && x == -2 && y == -1 && z == 0;
+                    if ((shell || wall) && !doorway && !hole)
                     {
                         Edit(server, playerId, id, x, y, z, "iron_wall");
                     }
@@ -170,6 +172,29 @@ public sealed class StationCrewBedTests : IDisposable
             var crew = server.NpcFurnitureForTest;
             Assert.Equal(sameRoom, crew.Single(n => n.Role == "vendor").Bed);
             Assert.Contains(crew, n => n.Bed == nextDoor); // the other bed still houses somebody
+        }
+    }
+
+    [Fact]
+    public void ABedInARoomThatIsSealedLater_IsTaken()
+    {
+        var server = NewServer("crewbeds_sealed", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildTwoRoomHull(server, pilot, postZ: 24, leakInRoomB: true);
+            Board(server, "Owner", id);
+
+            // The only bed stands in room B, open to space: nobody sleeps in the vacuum.
+            var bed = PutBed(server, -1, 1);
+            var inA = new Vector3f(World(0, -1, 20).X + 0.5f, World(0, -1, 20).Y + 0.03f, World(0, -1, 20).Z + 0.5f);
+            Tick(server, pilot, inA, 3);
+            Assert.DoesNotContain(server.NpcFurnitureForTest, n => n.Bed is not null);
+
+            // The owner patches the hull — a wall, no furniture: the crew still finds the bed within seconds.
+            server.World.SetBlock(World(-2, -1, 0), _content.GetBlock("iron_wall")!.NumericId, owner: "Owner");
+            Tick(server, pilot, inA, 10);
+            Assert.Equal(bed, server.NpcFurnitureForTest.Single(n => n.Role == "vendor").Bed);
         }
     }
 

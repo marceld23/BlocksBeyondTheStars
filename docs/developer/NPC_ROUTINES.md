@@ -139,7 +139,9 @@ One assignment for every NPC with a routine (Marcel 2026-10, epic #2649):
   (4) around their cabin spot. The crew of a generated or player-built station (#2657): **every bed head of the station**
   (`StationBedCandidates` — the stamped box, scanned once per `BedGeneration`, coordinates-sorted) that stands in a room
   with air (`StationCellHasAir`: blanket air on an NPC station, a sealed pocket on a player-built one); seats within 8 of
-  `Rest`, in air. Post keepers spawn before the civilians, so they choose first. No persistence: the crew respawns
+  `Rest`, in air. Post keepers spawn before the civilians, so they choose first. A free bed rejected only for want of
+  air sets `FurnitureRetryAt` (5 s): a patched hull is no furniture change, and right after boarding the time-sliced
+  air fill may not have committed yet. No persistence: the crew respawns
   deterministically on every boarding and every re-staffing (#1487) and finds the same beds. Base residents: §3.
 - Test seams: `NpcFurnitureForTest`, `SetAirRoomIdForTest` (a stand-in for the air engine's room ids),
   `SpawnVillagerForTest(…, looksForFurniture: true)`.

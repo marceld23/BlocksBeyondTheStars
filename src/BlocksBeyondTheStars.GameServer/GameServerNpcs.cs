@@ -110,6 +110,7 @@ public sealed partial class GameServer
         public long FurnitureGen;         // #2655: the world's furniture generation of this NPC's last look around (0 = never looked)
         public double BedlessSince;       // #2655: uptime since which it has had no bed — the fair queue: the longest-bedless picks first
         public bool CabinBed;             // #2655: a kit station resident — bed and chair are its own cabin's (CabinFurnitureReach of Rest)
+        public double FurnitureRetryAt;   // #2657: a free station bed stood in a room without air (yet) — look again then; 0 = no retry
         public byte Pose;                // 0 stand, 1 sit, 2 lie (NetNpc.Pose)
         public string ActivityKey = string.Empty;
         public string Held = string.Empty;

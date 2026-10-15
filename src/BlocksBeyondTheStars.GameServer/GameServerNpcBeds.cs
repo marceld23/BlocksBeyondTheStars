@@ -30,7 +30,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <see cref="FurnitureSearchReach"/> of their resting spot, never inside a base's reach (that furniture is the base's).
 /// A kit-station resident looks within <see cref="CabinFurnitureReach"/> of its cabin spot. The crew of a generated or
 /// player-built station takes any bed of the station that stands in a room with air (#2657,
-/// <see cref="StationBedCandidates"/>) — post keepers first, as they spawn first.</item>
+/// <see cref="StationBedCandidates"/>) — post keepers first, as they spawn first. A free bed whose room holds no air (yet)
+/// brings the crew member back for another look after <see cref="StationBedAirRetrySeconds"/>: a patched hull is no
+/// furniture change, and right after boarding the station's air may still be filling.</item>
 /// </list>
 /// </summary>
 public sealed partial class GameServer
@@ -58,6 +60,11 @@ public sealed partial class GameServer
     }
 
     private readonly Dictionary<string, FurnitureLedger> _furniture = new(System.StringComparer.Ordinal);
+
+    /// <summary>Seconds after which a crew member looks again when a free bed of its station stood in a room without air:
+    /// the room may be sealed later (a patched hull is no furniture change), and right after boarding the station's air may
+    /// not be computed yet.</summary>
+    private const double StationBedAirRetrySeconds = 5.0;
 
     /// <summary>The NPCs that look around this tick, longest-bedless first (reused per tick).</summary>
     private readonly List<ServerNpc> _furnitureQueue = new();
@@ -242,7 +249,8 @@ public sealed partial class GameServer
         _furnitureQueue.Clear();
         foreach (var npc in _npcs)
         {
-            if (!npc.RoutineEnabled || npc.BaseId > 0 || npc.FurnitureGen >= ledger.Generation
+            bool retryDue = npc.FurnitureRetryAt > 0 && _uptime >= npc.FurnitureRetryAt;
+            if (!npc.RoutineEnabled || npc.BaseId > 0 || (npc.FurnitureGen >= ledger.Generation && !retryDue)
                 || (npc.Bed is not null && npc.Seat is not null) || !InRoutineReach(npc, aoiSq))
             {
                 continue;
@@ -302,6 +310,7 @@ public sealed partial class GameServer
     private bool SearchNpcFurniture(ServerNpc npc)
     {
         npc.FurnitureGen = FurnitureOf(_world.LocationId).Generation;
+        npc.FurnitureRetryAt = 0;
         if (npc.BaseId > 0 || (npc.Bed is not null && npc.Seat is not null))
         {
             return false;
@@ -335,15 +344,31 @@ public sealed partial class GameServer
         Vector3i? bestBed = null, bestSeat = null;
         long bestSeatD = long.MaxValue;
 
+        bool airMissed = false;
         if (npc.Bed is null && stationCrewBeds)
         {
             foreach (var c in StationBedCandidates(station!))
             {
-                if (!takenBeds.Contains(WorldConstants.CanonicalBlock(c, circ)) && IsBedHeadAt(c) && StationCellHasAir(station!, Above(c))
-                    && (bestBed is not { } cur || BetterBed(c, cur, anchor, anchorRoom)))
+                if (takenBeds.Contains(WorldConstants.CanonicalBlock(c, circ)) || !IsBedHeadAt(c))
+                {
+                    continue;
+                }
+
+                if (!StationCellHasAir(station!, Above(c)))
+                {
+                    airMissed = true; // free, but its room holds no air (yet) — see StationBedAirRetrySeconds
+                    continue;
+                }
+
+                if (bestBed is not { } cur || BetterBed(c, cur, anchor, anchorRoom))
                 {
                     bestBed = c;
                 }
+            }
+
+            if (bestBed is null && airMissed)
+            {
+                npc.FurnitureRetryAt = _uptime + StationBedAirRetrySeconds;
             }
         }
 
