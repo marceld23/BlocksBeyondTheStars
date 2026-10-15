@@ -192,6 +192,11 @@ _ROLE_DESC = {
     "rail_dealer": "rail dealer who sells monorail parts at the depot",
     "streamer": "streamer who loves taking photos and sharing adventures",
     "reporter": "reporter who interviews people and writes the local news",
+    # #2639 the wilderness folk: people who live out in the open land — at a lodge or on the road.
+    "gatherer": "gatherer who lives out in the wilds and picks berries, fruit and herbs",
+    "miner": "miner who lives out in the wilds and chips ore from the rock",
+    "woodcutter": "woodcutter who lives out in the wilds, fells trees and always plants a new one",
+    "hunter": "hunter who lives out in the wilds, follows the herds and trades meat",
 }
 
 
