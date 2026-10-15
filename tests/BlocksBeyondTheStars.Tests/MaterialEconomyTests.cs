@@ -204,6 +204,8 @@ public sealed class MaterialEconomyTests
             "titan_helmet", "titan_chest", "titan_legs", "spring_boots", "glider", "suit_battery",
             // #2201/#2204/#2206: used up in the bio lab, which computes its results and has no recipes to list them in.
             "bio_sample", "mineral_sample", "prep_coating",
+            // #2633: an old station log is read (inventory, Codex), never used up.
+            "derelict_log",
         };
         var unconsumedComponents = _c.Items.Values
             .Where(i => i.Category == ItemCategory.Component && !uses.ContainsKey(i.Key))
