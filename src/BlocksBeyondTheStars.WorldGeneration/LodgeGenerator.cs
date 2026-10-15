@@ -73,9 +73,11 @@ public static class LodgeGenerator
     /// <summary>
     /// Builds one lodge. <paramref name="yard"/> is a <see cref="LodgeRules"/> yard kind, <paramref name="surface"/> the
     /// biome's surface block, <paramref name="ores"/> the planet's own tier-1 ore blocks (the quarry face uses only
-    /// these; none → a face of plain stone), <paramref name="alien"/> the alien trim.
+    /// these; none → a face of plain stone), <paramref name="alien"/> the alien trim. <paramref name="beds"/> 1 or 2
+    /// forces the bed count (tests); anything else lets the seed decide.
     /// </summary>
-    public static SettlementStructure Generate(long seed, string yard, string surface, IReadOnlyList<string> ores, bool alien, GameContent content)
+    public static SettlementStructure Generate(long seed, string yard, string surface, IReadOnlyList<string> ores, bool alien, GameContent content,
+        int beds = 0)
     {
         var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32))));
         int w = Size, h = Height, l = Size;
@@ -183,7 +185,8 @@ public static class LodgeGenerator
 
         // Inside: one or two two-cell beds along the back wall (head at the wall, foot toward the door), the store crate
         // between them, a torch; with one bed a small log table takes the second corner.
-        int beds = rng.NextDouble() < 0.55 ? 2 : 1;
+        bool twoBeds = rng.NextDouble() < 0.55; // drawn always, so a forced count never shifts the stream
+        beds = beds is 1 or 2 ? beds : twoBeds ? 2 : 1;
         int bedHead = ShapeCode.Pack(BlockShape.BedHead, ShapeCode.YawToward(0, 1));
         if (bed != 0)
         {

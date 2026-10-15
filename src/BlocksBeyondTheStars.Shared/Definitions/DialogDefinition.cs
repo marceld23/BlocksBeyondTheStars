@@ -23,6 +23,10 @@ public sealed class DialogDefinition
     /// <summary><see cref="Home"/>: never the residents of a base the talking player owns — a visitor's talk (#2594).</summary>
     public const string HomeAway = "away";
 
+    /// <summary><see cref="Home"/>: only the residents of a lodge, the wilderness folk's huts (#2641) — their talk is about
+    /// their work out in the wild, never offered to a villager or a wanderer of the same job.</summary>
+    public const string HomeLodge = "lodge";
+
     public string Key { get; set; } = string.Empty;
 
     /// <summary>NPC role this dialogue attaches to ("vendor" / "quartermaster" / "settler"), or "" for any.
@@ -49,7 +53,8 @@ public sealed class DialogDefinition
 
     /// <summary>Where the NPC must live relative to the talking player (#2594): <see cref="HomeAny"/> (""),
     /// <see cref="HomeOwnBase"/> ("own_base" — a resident of the player's own base: "welcome home" talk) or
-    /// <see cref="HomeAway"/> ("away" — anyone else: "we don't get many visitors"). Authored order stays the priority.</summary>
+    /// <see cref="HomeAway"/> ("away" — anyone else: "we don't get many visitors") or <see cref="HomeLodge"/> ("lodge" — a
+    /// lodge resident). Authored order stays the priority.</summary>
     public string Home { get; set; } = HomeAny;
 
     /// <summary>True → with AI personalisation on, the OPENING prompt (node 0 only) may be re-worded in the NPC's voice
@@ -59,7 +64,7 @@ public sealed class DialogDefinition
 
     /// <summary>Whether <paramref name="home"/> is one of the known <see cref="Home"/> values.</summary>
     public static bool IsValidHome(string? home)
-        => string.IsNullOrEmpty(home) || home == HomeOwnBase || home == HomeAway;
+        => string.IsNullOrEmpty(home) || home == HomeOwnBase || home == HomeAway || home == HomeLodge;
 
     /// <summary>The nodes, entered at index 0. 2–3 nodes cover every authored dialogue.</summary>
     public List<DialogNode> Nodes { get; set; } = new();

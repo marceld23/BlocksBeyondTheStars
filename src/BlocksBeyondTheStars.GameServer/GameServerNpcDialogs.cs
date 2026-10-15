@@ -146,7 +146,7 @@ public sealed partial class GameServer
                     ? string.Equals(d.Job, npc.Job, StringComparison.OrdinalIgnoreCase) // 2026-09: a profession's own talk
                     : !profession && (string.IsNullOrEmpty(d.Role) || string.Equals(d.Role, npc.Role, StringComparison.OrdinalIgnoreCase));
             if (!matches
-                || !DialogHomeMatches(d.Home, ownResident)
+                || !DialogHomeMatches(d.Home, ownResident, npc.LodgeKey.Length > 0)
                 || d.Nodes.Count == 0
                 || (d.PlanetTypes.Count > 0 && !d.PlanetTypes.Contains(_worlds.Active.PlanetType, StringComparer.OrdinalIgnoreCase)) // #1793
                 || StageRank(d.MinStage) > stage
@@ -188,11 +188,13 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>#2594: a dialogue's <see cref="DialogDefinition.Home"/> against where the NPC lives for this player.</summary>
-    private static bool DialogHomeMatches(string? home, bool ownResident) => home switch
+    /// <summary>#2594: a dialogue's <see cref="DialogDefinition.Home"/> against where the NPC lives for this player (#2641:
+    /// a lodge dialogue only for a lodge's resident).</summary>
+    private static bool DialogHomeMatches(string? home, bool ownResident, bool lodgeResident = false) => home switch
     {
         DialogDefinition.HomeOwnBase => ownResident,
         DialogDefinition.HomeAway => !ownResident,
+        DialogDefinition.HomeLodge => lodgeResident,
         _ => true,
     };
 

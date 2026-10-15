@@ -1801,7 +1801,7 @@ public sealed class GameContent
             // #2594: a typo in "home" would silently hide the dialogue from everyone.
             if (!DialogDefinition.IsValidHome(dialog.Home))
             {
-                problems.Add($"Dialogue '{dialog.Key}' has an unknown home '{dialog.Home}' (own_base|away|\"\").");
+                problems.Add($"Dialogue '{dialog.Key}' has an unknown home '{dialog.Home}' (own_base|away|lodge|\"\").");
             }
 
             foreach (var node in dialog.Nodes)

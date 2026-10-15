@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -43,7 +44,7 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     /// <summary>Expected lodges at hospitability 1, world size 1 and the Normal "Settlements" option.</summary>
-    private const double LodgeBaseDensity = 2.5;
+    private const double LodgeBaseDensity = 2.2;
 
     /// <summary>The ground kept free round every settlement and camp (a hut stands clearly outside them).</summary>
     internal const int LodgeReserveMargin = 40;
@@ -182,6 +183,10 @@ public sealed partial class GameServer
 
         AppendIntercityReservations(reserved); // #2125: the intercity line's stations and route
         AppendRailRuinReservations(reserved); // #2166: the abandoned monorail station
+        foreach (var (cx, cz, hw, hl) in _worlds.Active.RuinFootprints)
+        {
+            reserved.Add((cx, cz, hw + LodgeSpacing, hl + LodgeSpacing)); // nobody lives in the rubble of a fallen town
+        }
 
         bool blocksAlreadyStamped = FeatureStamped("lodges");
         var used = new List<string>();
@@ -282,37 +287,42 @@ public sealed partial class GameServer
         }
 
         // Instances, the store crates, the doors and the residents: re-derived on every load.
-        bool doors = false;
         foreach (var (p, profession, index) in placed)
         {
-            var lodge = BuildLodgeInstance(p, profession, index);
-            foreach (var m in p.Structure.Markers)
-            {
-                if (m.Type == LodgeGenerator.MarkerDoor)
-                {
-                    var pos = new Vector3f(p.Origin.X + m.LocalPos.X + 0.5f, p.GroundY + m.LocalPos.Y + 0.5f, p.Origin.Z + m.LocalPos.Z + 0.5f);
-                    _settlementMarkers.Add((m.Type, pos)); // the door registry hangs a hinge door in the doorway
-                    RecordAuthoredDoor(p, m);
-                    doors = true;
-                }
-            }
-
-            EnsureLodgeStore(lodge);
-            _lodges.Add(lodge);
-            SpawnLodgeResidents(lodge, profession, traits);
-            if (lodge.Face.Count > 0)
-            {
-                RestoreNpcCellsNow(lodge.Face); // #2643: a quarry face a restart caught half mined is whole again
-            }
+            MaterializeLodge(p, profession, index, traits);
         }
 
-        if (doors)
-        {
-            RegisterDoors();
-        }
-
+        RegisterDoors(); // the hinge doors of the huts (rebuilds the whole registry, settlements' and ships' included)
         BroadcastNpcs();
         _log.Info($"Lodges on '{_world.LocationId}': {_lodges.Count} ({string.Join(", ", _lodges.Select(l => l.Profession))}).");
+    }
+
+    /// <summary>Everything a stamped lodge is at runtime: the instance, the door marker (the registry hangs a hinge door in
+    /// the doorway), the store crate, the residents and — #2643 — its quarry face made whole again (a restart that caught
+    /// it half mined).</summary>
+    private LodgeInstance MaterializeLodge(PlacedSettlement p, LodgeProfessionDefinition profession, int index,
+        IReadOnlyDictionary<string, double> traits)
+    {
+        var lodge = BuildLodgeInstance(p, profession, index);
+        foreach (var m in p.Structure.Markers)
+        {
+            if (m.Type == LodgeGenerator.MarkerDoor)
+            {
+                var pos = new Vector3f(p.Origin.X + m.LocalPos.X + 0.5f, p.GroundY + m.LocalPos.Y + 0.5f, p.Origin.Z + m.LocalPos.Z + 0.5f);
+                _settlementMarkers.Add((m.Type, pos));
+                RecordAuthoredDoor(p, m);
+            }
+        }
+
+        EnsureLodgeStore(lodge);
+        _lodges.Add(lodge);
+        SpawnLodgeResidents(lodge, profession, traits);
+        if (lodge.Face.Count > 0)
+        {
+            RestoreNpcCellsNow(lodge.Face);
+        }
+
+        return lodge;
     }
 
     /// <summary>The lodge instance of a placed structure: markers in world space, the yard's cells, the protection.</summary>
@@ -667,6 +677,55 @@ public sealed partial class GameServer
     {
         _lodgeTickAt.Remove(_world.LocationId);
         TickLodges(0);
+    }
+
+    /// <summary>Test seam (#2640): builds a lodge of a profession with its local origin at the given cell — the blocks
+    /// written straight in (no terrain fitting), then the instance, door, store and residents exactly as a stamped one
+    /// gets them. <paramref name="beds"/> 0 = as the seed decides. Returns the lodge key.</summary>
+    public string SpawnLodgeForTest(int x, int groundY, int z, string profession, int beds = 0, long seed = 1, bool alien = false)
+    {
+        var prof = _content.LodgeProfession(profession) ?? throw new System.ArgumentException("unknown lodge profession " + profession, nameof(profession));
+        var planet = _world.Planet;
+        var ores = Tier1OresOf(planet);
+        string surface = planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock;
+        var s = LodgeGenerator.Generate(seed, prof.Yard, surface, ores, alien, _content, beds);
+        int circ = _world.Circumference;
+        for (int lx = 0; lx < s.Width; lx++)
+            for (int ly = 0; ly < s.Height; ly++)
+                for (int lz = 0; lz < s.Length; lz++)
+                {
+                    ushort b = s.Get(lx, ly, lz);
+                    if (b != 0)
+                    {
+                        _world.SetBlock(new Vector3i(WorldConstants.WrapX(x + lx, circ), groundY + ly, z + lz), new BlockId(b), 0, 0, s.GetShape(lx, ly, lz));
+                    }
+                }
+
+        var p = new PlacedSettlement
+        {
+            Structure = s,
+            Origin = new Vector3i(x, groundY, z),
+            GroundY = groundY,
+            Tier = "lodge",
+            Ruined = false,
+            OnIsland = false,
+            Name = "lodge_test",
+            Rng = new System.Random(7),
+            Seat = "flat",
+        };
+        var lodge = MaterializeLodge(p, prof, _lodges.Count, LodgeTraits(planet, ores));
+        RegisterDoors();
+        BroadcastNpcs();
+        return lodge.Key;
+    }
+
+    /// <summary>Test seam (#2640): the player opens a crate's screen (mirrors <c>OpenContainerIntent</c>).</summary>
+    public void OpenContainerForTest(string playerId, string containerId)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleOpenContainer(session, new OpenContainerIntent { ContainerId = containerId, Open = true });
+        }
     }
 
     /// <summary>Test seam (#2641): puts an item into a lodge's store as a resident's work would.</summary>

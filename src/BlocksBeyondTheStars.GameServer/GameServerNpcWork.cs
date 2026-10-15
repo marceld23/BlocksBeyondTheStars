@@ -90,6 +90,7 @@ public sealed partial class GameServer
         public int PatrolLeft;
         public List<Vector3f>? Patrol;
         public readonly List<Vector3i> Skip = new();
+        public double SkipResetAt;
         public long KillDay = -1;
         public int KillsToday;
         public double NextScareAt;
@@ -148,6 +149,9 @@ public sealed partial class GameServer
 
     /// <summary>Sites dropped as unreachable or refused are remembered up to this many (then the list starts over).</summary>
     private const int WorkSkipCap = 24;
+
+    /// <summary>How long a dropped site stays dropped (then every site gets another chance).</summary>
+    private const double SkipMemorySeconds = 300.0;
 
     /// <summary>The patrol points of a hunter's round.</summary>
     private const int HuntPatrolPoints = 6;
@@ -224,6 +228,12 @@ public sealed partial class GameServer
             return;
         }
 
+        if (_uptime >= ws.SkipResetAt)
+        {
+            ws.Skip.Clear(); // dropped sites get another chance now and then (a wall came down, a plant grew back)
+            ws.SkipResetAt = _uptime + SkipMemorySeconds;
+        }
+
         var sites = WorkSitesFor(npc, plan);
         foreach (var site in sites)
         {
@@ -244,8 +254,7 @@ public sealed partial class GameServer
             return;
         }
 
-        // Nothing (left) to do: forget the dropped sites and look again a little later.
-        ws.Skip.Clear();
+        // Nothing (left) to do: look again a little later.
         ws.NextYieldAt = _uptime + NothingFoundRetrySeconds;
         IdleNearCenter(npc, plan);
     }
@@ -667,10 +676,12 @@ public sealed partial class GameServer
 
     // ---------------- Test hooks ----------------
 
-    /// <summary>Test/inspection (#2641): an NPC's work stage, its site, its activity and yields / core calls so far.</summary>
-    public (string Stage, Vector3i Site, string Activity, int Yields, int CoreCalls)? NpcWorkForTest(int npcId)
+    /// <summary>Test/inspection (#2641): an NPC's work stage, its site, its activity, yields / core calls so far, whether it
+    /// walks a hunting round, how many sites it dropped, its walk goal and the seconds until its next work.</summary>
+    public (string Stage, Vector3i Site, string Activity, int Yields, int CoreCalls, bool Patrolling, int Skipped, Vector3f? Goal, double NextIn)?
+        NpcWorkForTest(int npcId)
         => _npcs.FirstOrDefault(n => n.Id == npcId) is { WorkState: { } ws } npc
-            ? (ws.Stage.ToString(), ws.Site, npc.ActivityKey, ws.Yields, ws.CoreCalls)
+            ? (ws.Stage.ToString(), ws.Site, npc.ActivityKey, ws.Yields, ws.CoreCalls, ws.Patrolling, ws.Skip.Count, npc.Goal, ws.NextYieldAt - _uptime)
             : null;
 
     /// <summary>Test seam (#2641): makes an NPC's next work due now.</summary>
