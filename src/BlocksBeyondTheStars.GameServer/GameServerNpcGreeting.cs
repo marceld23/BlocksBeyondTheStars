@@ -128,6 +128,7 @@ public sealed partial class GameServer
             IsRobot = npc.IsRobot,
             Settlement = !string.IsNullOrEmpty(npc.Settlement) ? npc.Settlement
                 : npc.LodgeKey.Length > 0 ? LodgeAiPlace // #2641: a lodge resident lives in no village
+                : IsWandererNpc(npc) ? WandererAiPlace // #2646: a wanderer is on the road
                 : _settlementName,
             // #2590: never the real name — the cache key has no player, so a line naming "Justus" would greet every
             // other player at this NPC/standing/language as Justus. The token is filled per receiver at send time.

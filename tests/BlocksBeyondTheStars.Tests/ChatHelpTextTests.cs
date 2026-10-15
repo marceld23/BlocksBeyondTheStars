@@ -22,6 +22,7 @@ public sealed class ChatHelpTextTests
         "ui.chat.report_usage",
         "ui.admin.help_cheats",
         "ui.admin.help_teleport",
+        "ui.admin.help_wilderness", // #2646
         "ui.admin.help_inspect",
         "ui.admin.help_fleet",
         "ui.admin.help_story",

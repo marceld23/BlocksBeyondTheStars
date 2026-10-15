@@ -41,8 +41,8 @@ public sealed partial class GameServer
     /// <summary>Target words in the order they are offered to the admin, worldgen first, player-built last.</summary>
     private static readonly string[] TeleportKinds =
     {
-        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "wreck", "factory", "camp", "monument", "treasure",
-        "base", "beacon", "beam", "station",
+        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "wreck", "factory", "camp", "lodge", "monument",
+        "treasure", "base", "beacon", "beam", "station",
     };
 
     /// <summary>Accepted spellings of a target word. Plurals and the map's own vocabulary are folded in so
@@ -61,6 +61,7 @@ public sealed partial class GameServer
         "wrecks" => "wreck",
         "factories" => "factory",
         "camps" or "bandit" or "bandits" or "banditcamp" => "camp",
+        "lodges" or "hut" or "huts" or "hütte" or "huette" or "hütten" or "huetten" => "lodge", // #2646: the wilderness huts
         "monuments" => "monument",
         "chest" or "chests" or "treasures" => "treasure",
         "bases" => "base",
@@ -139,6 +140,17 @@ public sealed partial class GameServer
         {
             var c = _banditCamps[i];
             list.Add(new TeleportTarget("camp", i + 1, $"camp{i + 1}", InteriorSpot(c.Markers, c.Min, c.Max)));
+        }
+
+        // #2646: the lodges (#2640), numbered NEAREST FIRST — "/tp lodge" is the closest hut, "/tp lodge 2" the next one (a
+        // playtest helper: the huts are few, and "the one nearest me" is what a tester asks for). The target is the yard's
+        // work anchor in front of the hut, a standing spot by construction.
+        var here = session.State.Position;
+        int lodgeNumber = 0;
+        foreach (var l in _lodges.OrderBy(l => WrapDistSq(here, l.Center)))
+        {
+            lodgeNumber++;
+            list.Add(new TeleportTarget("lodge", lodgeNumber, Named("lodge", lodgeNumber, l.ResidentName), l.YardSpot));
         }
 
         for (int i = 0; i < _monuments.Count; i++)

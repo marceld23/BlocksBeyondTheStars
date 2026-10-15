@@ -7170,6 +7170,10 @@ public sealed partial class GameServer
                 AdminSummonBiped(session); // #2081: /biped — a begging herd of bipeds, for testing
                 break;
 
+            case "summon_wanderer":
+                AdminSummonWanderer(session); // #2646: /wanderer — a wanderer comes by right now, for testing
+                break;
+
             case "instant_build":
                 p.InstantBuild = !p.InstantBuild;
                 Send(session, new ServerMessage { Text = p.InstantBuild ? "@srv.admin.build_on" : "@srv.admin.build_off" });

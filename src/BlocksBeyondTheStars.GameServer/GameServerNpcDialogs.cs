@@ -146,7 +146,7 @@ public sealed partial class GameServer
                     ? string.Equals(d.Job, npc.Job, StringComparison.OrdinalIgnoreCase) // 2026-09: a profession's own talk
                     : !profession && (string.IsNullOrEmpty(d.Role) || string.Equals(d.Role, npc.Role, StringComparison.OrdinalIgnoreCase));
             if (!matches
-                || !DialogHomeMatches(d.Home, ownResident, npc.LodgeKey.Length > 0)
+                || !DialogHomeMatches(d.Home, ownResident, npc.LodgeKey.Length > 0, IsWandererNpc(npc))
                 || d.Nodes.Count == 0
                 || (d.PlanetTypes.Count > 0 && !d.PlanetTypes.Contains(_worlds.Active.PlanetType, StringComparer.OrdinalIgnoreCase)) // #1793
                 || StageRank(d.MinStage) > stage
@@ -189,12 +189,13 @@ public sealed partial class GameServer
     }
 
     /// <summary>#2594: a dialogue's <see cref="DialogDefinition.Home"/> against where the NPC lives for this player (#2641:
-    /// a lodge dialogue only for a lodge's resident).</summary>
-    private static bool DialogHomeMatches(string? home, bool ownResident, bool lodgeResident = false) => home switch
+    /// a lodge dialogue only for a lodge's resident; #2646: a wanderer's only for a wanderer).</summary>
+    private static bool DialogHomeMatches(string? home, bool ownResident, bool lodgeResident = false, bool wanderer = false) => home switch
     {
         DialogDefinition.HomeOwnBase => ownResident,
         DialogDefinition.HomeAway => !ownResident,
         DialogDefinition.HomeLodge => lodgeResident,
+        DialogDefinition.HomeWander => wanderer,
         _ => true,
     };
 
@@ -481,6 +482,7 @@ public sealed partial class GameServer
             Situation = guest ? "visiting the player's own base, offering something"
                 : IsOwnBaseResident(session, npc) ? "the player's own base, where the speaker lives"
                 : npc.LodgeKey.Length > 0 ? "the speaker's own little hut out in the wild, where they live and work" // #2641
+                : IsWandererNpc(npc) ? WandererAiSituation // #2646
                 : string.Empty,
             Speakers =
             {
@@ -616,7 +618,7 @@ public sealed partial class GameServer
         // #2598: talking to a PERSON pays every 10 minutes (a child gets to "known" in one session); the shared role
         // keys of the stall and the board keep their hour.
         session.DialogRewardCooldownUntil[key] = _uptime
-            + (IsPersonKey(npcKey) || IsLodgePersonKey(npcKey) ? PersonDialogRewardCooldownSeconds : DialogRewardCooldownSeconds);
+            + (IsPersonKey(npcKey) || IsWildernessPersonKey(npcKey) ? PersonDialogRewardCooldownSeconds : DialogRewardCooldownSeconds);
         return true;
     }
 
@@ -715,6 +717,10 @@ public sealed partial class GameServer
 
             case LodgePoisonConsequence:
                 ApplyLodgePoison(session); // the gatherer names this world's poisonous plants
+                break;
+
+            case WandererTipConsequence:
+                ApplyWandererTip(session, npc); // #2646: a hut on the way, else a find or the way to the village
                 break;
         }
     }
