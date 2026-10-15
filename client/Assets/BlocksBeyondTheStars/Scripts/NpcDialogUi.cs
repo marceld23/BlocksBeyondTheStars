@@ -13,6 +13,9 @@ namespace BlocksBeyondTheStars.Client
     /// content); the client only renders and sends the picked index back — every branch and consequence is
     /// server-authoritative. Modeled on the bandit hold-up panel (reflow for long lines, UiNav for pads,
     /// SetMenuOwner cursor arbitration); no countdown — a conversation waits, Esc simply walks away.
+    /// <para>#2616: closing the panel while it still offers replies tells the server ("leave" — the NPC goes back to its
+    /// day); the server closes it the other way with <see cref="NpcDialogState.ActionClose"/> when the conversation ended
+    /// on its side (walked away, another world, the NPC gone) — that close sends nothing back.</para>
     /// </summary>
     public sealed class NpcDialogUi : MonoBehaviour
     {
@@ -66,7 +69,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (Input.GetKeyDown(KeyCode.Escape) || (_state.End && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.E))))
             {
-                Close(); // walking away is always allowed — the server just drops the abandoned walk
+                Close(); // walking away is always allowed — the server ends the conversation (#2616)
             }
         }
 
@@ -77,6 +80,18 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDialog(NpcDialogState m)
         {
+            // #2616: the server ended the conversation (walked away, another world, the NPC gone, a new talk) — the panel
+            // just goes, with no leave sent back. A close for another NPC's panel than the one shown changes nothing.
+            if (m.Action == NpcDialogState.ActionClose)
+            {
+                if (_state is not null && _state.NpcId == m.NpcId)
+                {
+                    Hide();
+                }
+
+                return;
+            }
+
             // #2592: the NPC speaks every line it says here in its own wordless voice — the conversation's first line as
             // its greeting, every later one (an answer) with a nod.
             bool opening = _state is null || _state.NpcId != m.NpcId;
@@ -120,10 +135,23 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Game.Network?.SendNpcDialogChoice(index);
+            Game.Network?.SendNpcDialogChoice(index, _state.NpcId);
         }
 
+        /// <summary>The player closes the panel (Esc, Leave, the photo/interview hand-off). #2616: while it still offered
+        /// replies the server holds the conversation (and the NPC stands still) — tell it the player left.</summary>
         private void Close()
+        {
+            if (_state is { End: false })
+            {
+                Game?.Network?.SendNpcDialogLeave(_state.NpcId);
+            }
+
+            Hide();
+        }
+
+        /// <summary>Takes the panel down without telling the server (its own close, #2616).</summary>
+        private void Hide()
         {
             _state = null;
             _panel?.SetActive(false);

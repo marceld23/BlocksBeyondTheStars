@@ -258,12 +258,13 @@ public sealed partial class GameServer
     /// <summary>On the surface of the active world: not aboard the parked ship, not in space.</summary>
     private bool OnFootHere(PlayerSession s) => (!_shipPlaced || !s.State.AboardShip) && !InSpace(s.State.PlayerId);
 
-    /// <summary>Whether a player is talking to this NPC (an open dialogue panel).</summary>
+    /// <summary>Whether a player is talking to this NPC (an open dialogue panel) — #2616: that very NPC object, in a
+    /// conversation the one validity rule still accepts (a stale talk from another world or a reused id never counts).</summary>
     private bool NpcInPlayerDialog(ServerNpc npc)
     {
         foreach (var s in JoinedInActiveWorld())
         {
-            if (_dialogSessions.TryGetValue(s.State.PlayerId, out var d) && d.NpcId == npc.Id)
+            if (s.Conversation is { } c && ReferenceEquals(c.Npc, npc) && NpcConversationValid(s, c))
             {
                 return true;
             }

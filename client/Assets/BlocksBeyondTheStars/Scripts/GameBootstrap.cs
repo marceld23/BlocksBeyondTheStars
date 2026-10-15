@@ -941,6 +941,13 @@ namespace BlocksBeyondTheStars.Client
         /// (<c>SendRequestKnownNpcs</c>) for the Character tab.</summary>
         public NetKnownNpc[] KnownNpcs { get; private set; } = System.Array.Empty<NetKnownNpc>();
 
+        /// <summary>#2613: the person E talks to right now — the nearest NPC within <see cref="InteractReach.TalkReach"/>,
+        /// measured the short way round both seams (NPCs arrive canonical, the player's position runs unbounded), or null.
+        /// THE one picker: PlayerController's E and the HUD's "Talk to … (E)" prompt both ask this, so the prompt never
+        /// names someone E would not reach — and a settler across X = 0 from where the game loaded is talkable at all.</summary>
+        public NetNpc NearestTalkableNpc()
+            => InteractReach.NearestTalkableNpc(Npcs, PlayerPosition.x, PlayerPosition.y, PlayerPosition.z, Circumference);
+
         /// <summary>True when a settlement/station vendor stands within trading reach — enables market
         /// barter at their stall (the server also allows it aboard your ship).</summary>
         public bool NearVendor
@@ -3465,6 +3472,8 @@ namespace BlocksBeyondTheStars.Client
                         // #2499: VEGA's panel draws a line's buttons (the first-start question, Start now / Later on a course
                         // offer) — every world rig has the panel, so this client always announces choices1.
                         Network.ShowsChoices = true;
+                        // #2616 (dialog agent): NpcDialogUi closes on the server's "close" and sends the leave — dialogclose1.
+                        Network.ClosesDialogs = true;
                         Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, Locale.Code(),
                             string.IsNullOrEmpty(Token) ? null : Token, ViewDistanceChunks,
                             string.IsNullOrEmpty(HostedToken) ? null : HostedToken,

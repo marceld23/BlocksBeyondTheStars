@@ -16,7 +16,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void LateUpdate()
         {
-            if (Game?.Beacons == null || Game.Beacons.Length == 0 || Game.SpaceViewActive || Game.MenuOpen)
+            if (Game?.Beacons == null || Game.Beacons.Length == 0 || Game.SpaceViewActive || Game.ScreenMenuOpen) // #2622: HUD-level owners (F1 shot, taming panel) keep the labels
             {
                 return;
             }

@@ -186,8 +186,9 @@ public sealed class WorldHostConfig
     public string LegalEmail { get; set; } = string.Empty;
 
     // --- Fleet AI texts (optional). When AiBackendUrl is set, every world instance receives it as
-    // BBS_AI_BACKEND_URL + BBS_AI_LEVEL, enabling LLM-authored NPC lines/mission flavour. The game
-    // degrades gracefully either way (instant static line, async LLM upgrade), so this is pure opt-in. ---
+    // BBS_AI_BACKEND_URL + BBS_AI_LEVEL (+ BBS_AI_LINES_PER_MINUTE when set), enabling LLM-authored NPC
+    // lines/mission flavour. The game degrades gracefully either way (instant static line, async LLM
+    // upgrade), so this is pure opt-in. ---
 
     /// <summary>AI-backend URL passed to world instances (BBS_WH_AI_BACKEND_URL) — on the fleet the
     /// internal-only sibling container, e.g. <c>http://ai:8077</c>. Empty (default) = AI off.</summary>
@@ -196,6 +197,13 @@ public sealed class WorldHostConfig
     /// <summary>AI level passed to world instances (BBS_WH_AI_LEVEL). TextOnly = NPC lines + board
     /// flavour text but no auto-published AI missions — the right fleet default.</summary>
     public string AiLevel { get; set; } = "TextOnly";
+
+    /// <summary>#2619: the per-world AI line budget passed to world instances as <c>BBS_AI_LINES_PER_MINUTE</c>
+    /// (BBS_WH_AI_LINES_PER_MINUTE) — the refill rate of each world's token bucket for AI NPC/VEGA lines. Null (default)
+    /// = not forwarded, so every world keeps the server default (4 per minute); 0 = authored lines only. Forwarded only
+    /// together with <see cref="AiBackendUrl"/>. Fleet worst case ≈ <see cref="MaxActiveInstances"/> × this rate lines
+    /// per minute (plus each world's bucket of 6 at wake).</summary>
+    public double? AiLinesPerMinute { get; set; }
 
     /// <summary>Shared secret for pushing maintenance announcements into running world instances
     /// (BBS_WH_ANNOUNCE_TOKEN). Forwarded to every world container as BBS_ANNOUNCE_TOKEN, presented back
@@ -351,6 +359,16 @@ public sealed class WorldHostConfig
         return (networks, proxies);
     }
 
+    /// <summary>#2619: parses BBS_WH_AI_LINES_PER_MINUTE — a finite number ≥ 0 written with the invariant culture
+    /// ("2.5", never "2,5"), the same rule the game server applies to BBS_AI_LINES_PER_MINUTE. Anything else (unset,
+    /// empty, "abc", "-1", "Infinity", "NaN") is null = not forwarded, so the worlds keep the server default.</summary>
+    public static double? ParseAiLinesPerMinute(string? value)
+        => !string.IsNullOrWhiteSpace(value)
+           && double.TryParse(value.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var rate)
+           && double.IsFinite(rate) && rate >= 0
+            ? rate
+            : null;
+
     /// <summary>Loads config from BBS_WH_* environment variables over the defaults.</summary>
     public static WorldHostConfig FromEnvironment()
     {
@@ -428,6 +446,7 @@ public sealed class WorldHostConfig
         if (Env("BBS_WH_CRASH_REPORT_ENDPOINT") is { } crashEndpoint) { c.CrashReportEndpoint = crashEndpoint; }
         if (Env("BBS_WH_AI_BACKEND_URL") is { } aiUrl) { c.AiBackendUrl = aiUrl; }
         if (Env("BBS_WH_AI_LEVEL") is { } aiLevel) { c.AiLevel = aiLevel; }
+        c.AiLinesPerMinute = ParseAiLinesPerMinute(Env("BBS_WH_AI_LINES_PER_MINUTE"));
         if (Env("BBS_WH_INSTANCE_MEMORY") is { } mem) { c.InstanceMemory = mem == "none" ? string.Empty : mem; }
         if (Env("BBS_WH_INSTANCE_CPUS") is { } cpus) { c.InstanceCpus = cpus == "none" ? string.Empty : cpus; }
         if (Env("BBS_WH_MAX_ACTIVE") is { } maStr && int.TryParse(maStr, out var ma)) { c.MaxActiveInstances = ma; }

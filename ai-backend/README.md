@@ -36,7 +36,7 @@ language. Request (PascalCase from the server; snake_case also accepted):
 {
   "NpcName": "Vega-7", "Role": "vendor", "Job": "vendor", "Theme": "miners", "IsRobot": false,
   "Settlement": "Karth Town", "PlayerName": "{player}",
-  "Relationship": 18, "PastInteractions": 3, "Language": "de"
+  "Relationship": 25, "PastInteractions": 3, "Language": "de"
 }
 ```
 
@@ -44,8 +44,11 @@ language. Request (PascalCase from the server; snake_case also accepted):
 
 **`PlayerName` is the placeholder `{player}`** (#2590): the server caches a line per NPC, standing and
 language — not per player — and fills in each receiving player's own name when it sends the line, so
-the model must copy the token literally. The request also carries **L2 memory/persona fields**
-(`Persona`, `RecentEvents`), the NPC's `Job` (`gardener`, `guard`, a profession such as `doctor` …, which
+the model must copy the token literally. For the same reason the request is a pure function of that
+cache key (#2618): `Relationship`/`PastInteractions` are the standing tier's representative numbers
+(hostile −30/0, stranger 0/0, known 25/3, trusted 60/10 — each inside its `_tier` bucket) and
+`RecentEvents` arrives empty, never one player's history. The request also carries **L2 memory/persona
+fields** (`Persona`, `RecentEvents`), the NPC's `Job` (`gardener`, `guard`, a profession such as `doctor` …, which
 describes a settler by what they do) and — for the ship AI VEGA — a `Situation` line. `Role` may be
 `"vendor"`, `"quartermaster"`, `"settler"`, `"guardian"` or `"ship_ai"` (VEGA banter). The prompt is
 kid-friendly (families and kids; bandits are chased off, never hurt; no fear, romance or violence). The

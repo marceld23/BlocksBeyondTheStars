@@ -347,6 +347,10 @@ public sealed class PlayerSession
     /// first-start question is never asked and a course offer is the plain line.</summary>
     public bool SupportsChoices => ClientFeatures.Contains(Networking.Messages.ClientFeatures.Choices1);
 
+    /// <summary>#2616: the client's dialogue panel takes the server's close and sends the leave (<c>dialogclose1</c>);
+    /// without it no close is sent (an older panel would pop open again to show it).</summary>
+    public bool SupportsDialogClose => ClientFeatures.Contains(Networking.Messages.ClientFeatures.DialogClose1);
+
     /// <summary>#2499: the tutorial pack just started by itself for a newcomer whose client draws buttons — the walk that
     /// follows asks "Want me to show you the basics?" before the first step's line (the pack id; empty = nothing to ask).
     /// Set and cleared inside one <c>AdvancePack</c>. RAM only.</summary>
@@ -489,6 +493,11 @@ public sealed class PlayerSession
 
     /// <summary>Villager person keys whose passing hello already paid its +1 standing this session (#2598).</summary>
     public HashSet<string> HelloStandingPaid { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>#2616: the NPC conversation this player is in — it exists only while the client shows reply choices, and
+    /// ends on a leave, an end node, a new talk, walking away, a world change, the NPC leaving the world or a disconnect
+    /// (the session goes with it). RAM only; see <c>GameServer.NpcConversationValid</c> for the one validity rule.</summary>
+    internal GameServer.NpcConversation? Conversation { get; set; }
 
     // --- #2601: personal wishes. RAM only. ---
 

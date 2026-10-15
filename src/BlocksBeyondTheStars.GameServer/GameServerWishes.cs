@@ -35,7 +35,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// timers: a wish never expires.</para>
 /// <para><b>Markers.</b> The per-player <see cref="NpcStandingList"/> carries the villagers with an offer ("!") and with a
 /// wish ready to hand over ("?"); a 1 Hz check (from the VEGA advisor tick) re-sends it when a held wish becomes ready
-/// and says so once. An older client ignores the fields — talking still works.</para>
+/// and says so once. An older client ignores the fields — talking still works. #2617: while a villager visits the
+/// player's base as a neighbour, its markers sit on the guest there, and that guest takes the held wish (the hand-over or
+/// the reminder) — a "?" always means "talk to me and it is handed over".</para>
 /// <para><b>AI (hosted worlds).</b> The request (<c>wish_ask</c>) and the thanks (<c>wish_thanks</c>) may be re-worded in
 /// the villager's own voice through the shared <c>/npc-lines</c> path — prefetched (the ask when the player stands in
 /// the village with an offer, the thanks when a wish turns ready), never swapped into an open panel; the facts travel as
@@ -447,18 +449,59 @@ public sealed partial class GameServer
 
     // ---------------- Talking ----------------
 
+    /// <summary>#2617: the villager a wish talk is about — a neighbour visiting the base (a guest with the villager's person
+    /// key) stands for its villager, who is hidden at home meanwhile; anyone else is themselves. Null for a guest without
+    /// a villager (the merchant, the traveller).</summary>
+    private ServerNpc? WishPersonOf(ServerNpc npc)
+    {
+        if (!IsGuestJob(npc.Job))
+        {
+            return npc;
+        }
+
+        var guest = _baseGuests.FirstOrDefault(g => g.NpcId == npc.Id);
+        return guest is { SourceNpcId: > 0 } ? _npcs.FirstOrDefault(n => n.Id == guest.SourceNpcId) : null;
+    }
+
+    /// <summary>#2617: the NPC the players SEE for a villager — the villager, or while it is away visiting a base the guest
+    /// walking around there in its place (null when neither is on the world). The wish markers sit on this one.</summary>
+    private ServerNpc? WishFaceOf(ServerNpc villager)
+    {
+        if (!villager.VisitingAway)
+        {
+            return villager;
+        }
+
+        var guest = _baseGuests.FirstOrDefault(g => g.SourceNpcId == villager.Id);
+        return guest is null ? null : _npcs.FirstOrDefault(n => n.Id == guest.NpcId);
+    }
+
+    /// <summary>#2617: the visible NPC with a person key — never a villager hidden at home while it visits a base (its guest
+    /// carries the same key and is the one standing there).</summary>
+    private ServerNpc? VisiblePersonByKey(string personKey)
+        => personKey.Length == 0 ? null : _npcs.FirstOrDefault(n => n.PersonKey == personKey && !n.VisitingAway);
+
     /// <summary>
     /// The wish part of an E-talk (#2601), asked by <c>HandleTalkToNpc</c> after the sleepy check and before any other
     /// dialogue: a held wish that is complete is handed over (thanks + present, +5 standing); an incomplete one gets a
     /// "you have 3 of 5 — no hurry!" (again only once the progress changed — a second press talks normally); an open
     /// offer opens the wish dialogue unless the player said "maybe later" this session. Returns true when the talk was
     /// handled here. The welcome-back bubble (#2595) goes out before the panel, as on the ordinary dialogue path.
+    /// <para>#2617: a neighbour visiting the base (<see cref="WishPersonOf"/>) handles its villager's HELD wish the same way
+    /// — the hand-over with present and standing, or the reminder — so the "?" over the guest means what it says; an open
+    /// offer there is the guest's own "Can I help you with anything?" (<c>guest:wish</c>).</para>
     /// </summary>
     private bool TryWishConversation(PlayerSession session, ServerNpc npc, string npcKey, bool welcomeBack)
     {
-        var plans = WishPlansAround(session, npc, playerThere: true, out _);
-        var plan = plans?.FirstOrDefault(pl => pl.GiverKey.Length > 0 && pl.GiverKey == npc.PersonKey);
-        if (plan?.Template is null)
+        bool guest = IsGuestJob(npc.Job);
+        if (WishPersonOf(npc) is not { } person)
+        {
+            return false;
+        }
+
+        var plans = WishPlansAround(session, person, playerThere: !guest, out _);
+        var plan = plans?.FirstOrDefault(pl => pl.GiverKey.Length > 0 && pl.GiverKey == person.PersonKey);
+        if (plan?.Template is null || (guest && plan.Held is null))
         {
             return false;
         }
@@ -512,13 +555,14 @@ public sealed partial class GameServer
             SendPassingGreeting(session, npc, npcKey, welcomeBack: true);
         }
 
-        _dialogSessions[session.State.PlayerId] = (npc.Id, WishDialog, 0);
         var node = WishDialog.Nodes[0];
+        string text = WishAskText(session, npc, plan, requestAi: true) + "\n\n" + WishFactLine(locale, plan.Template, plan.Count);
+        StartNpcConversation(session, npc, WishDialog); // #2616
         Send(session, new NpcDialogState
         {
             NpcId = npc.Id,
             Name = npc.Name,
-            Text = WishAskText(session, npc, plan, requestAi: true) + "\n\n" + WishFactLine(locale, plan.Template, plan.Count),
+            Text = text,
             Choices = node.Choices.Select(c => Localize(locale, c.TextKey)).ToArray(),
             End = false,
         });
@@ -578,9 +622,9 @@ public sealed partial class GameServer
 
     /// <summary>Puts the villager's wish into the player's mission log — persisted (definition in the mission store,
     /// progress with the player), the giver remembered in the lane, the acceptance recorded as an interaction.
-    /// <paramref name="answerWhenReady"/>: accepted in the village with everything already in the bag (a new player starts
-    /// with berries), the villager's answer says so and the next talk hands it over. Otherwise (a neighbour's wish told at
-    /// the base) the 1 Hz check's "bring it over!" toast tells it — that wish is handed over in the village.</summary>
+    /// <paramref name="answerWhenReady"/>: accepted with everything already in the bag (a new player starts with berries),
+    /// the villager's answer says so (<c>_dialogResponseOverride</c>) and the next talk hands it over — in the village, or
+    /// (#2617) to the neighbour still visiting the base. Without it the 1 Hz check's "bring it over!" toast tells it.</summary>
     private bool GrantWish(PlayerSession session, ServerNpc npc, string npcKey, bool answerWhenReady = false)
     {
         var p = session.State;
@@ -632,7 +676,8 @@ public sealed partial class GameServer
     /// After a wish was turned in (<c>HandleTurnInMission</c>, by talk or at the tab next to the villager): the lane moves
     /// on (counter +1, the next wish goes to somebody else and asks for something else), +<see cref="WishStandingBonus"/>
     /// standing with the villager, the definition leaves the store, the markers refresh. At the tab the villager also
-    /// says thank you in a bubble.
+    /// says thank you in a bubble — #2617: the one the player sees (a neighbour visiting the base, never the villager
+    /// hidden at home meanwhile).
     /// </summary>
     private void OnWishTurnedIn(PlayerSession session, MissionDefinition def)
     {
@@ -653,7 +698,7 @@ public sealed partial class GameServer
         if (giverKey.Length > 0)
         {
             AddStanding(p, giverKey, WishStandingBonus, "wish");
-            if (!_wishTurnInByTalk && _npcs.FirstOrDefault(n => n.PersonKey == giverKey) is { } giver
+            if (!_wishTurnInByTalk && VisiblePersonByKey(giverKey) is { } giver
                 && WishTemplateOf(def) is { } tpl)
             {
                 var plan = new WishLanePlan { MissionId = def.Id, GiverKey = giverKey, Giver = giver, Template = tpl, Count = def.Objectives.FirstOrDefault()?.Required ?? 0, Def = def };
@@ -677,7 +722,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>The tab's turn-in gate (#2601): a wish is handed over in person — the villager must be within greeting
-    /// reach. <paramref name="giverName"/> names them for the refusal.</summary>
+    /// reach (#2617: the one standing there — a neighbour visiting the base counts, the villager hidden at home meanwhile
+    /// does not). <paramref name="giverName"/> names them for the refusal.</summary>
     private bool WishGiverNear(PlayerSession session, string missionId, out string giverName)
     {
         giverName = GetMissionDef(missionId)?.GiverName ?? string.Empty;
@@ -689,14 +735,16 @@ public sealed partial class GameServer
         }
 
         string key = ledger.Lanes[lane].Giver;
-        return _npcs.Any(n => n.PersonKey == key && WrapDistSq(p.Position, n.Pos) <= NpcGreetRange * NpcGreetRange);
+        return _npcs.Any(n => n.PersonKey == key && !n.VisitingAway && WrapDistSq(p.Position, n.Pos) <= NpcGreetRange * NpcGreetRange);
     }
 
     // ---------------- Markers + the 1 Hz check ----------------
 
     /// <summary>The villagers of the active world with an offer ("!") and with a held wish the player can hand over now
     /// ("?") for this player — filled into every <see cref="NpcStandingList"/>. Also warms the AI re-wording of the
-    /// offers in the settlement the player stands in.</summary>
+    /// offers in the settlement the player stands in. #2617: a villager away visiting a base is marked on the guest the
+    /// players see there (<see cref="WishFaceOf"/>) — never on its hidden id; talking to that guest takes the "?" wish
+    /// and its "Can I help you with anything?" the "!" one.</summary>
     private void WishMarksFor(PlayerSession session, List<int> offers, List<int> ready)
     {
         if (_content.Wishes.Count == 0 || _settlements.Count == 0)
@@ -727,22 +775,27 @@ public sealed partial class GameServer
                     continue;
                 }
 
+                if (WishFaceOf(plan.Giver) is not { } face)
+                {
+                    continue; // nobody to see — no marker
+                }
+
                 if (plan.Held is null)
                 {
-                    if (WishOfferPaused(plan.Giver))
+                    if (plan.Giver.Phase == NpcPhase.Festival)
                     {
-                        continue; // celebrating / away visiting — no new "!" until they are back to their day
+                        continue; // celebrating — no new "!" until they are back to their day
                     }
 
-                    offers.Add(plan.Giver.Id);
-                    if (here)
+                    offers.Add(face.Id); // #2617: away visiting the base → on the guest, whose "Can I help?" takes it
+                    if (here && !plan.Giver.VisitingAway)
                     {
                         WishAskText(session, plan.Giver, plan, requestAi: true); // prefetch — the next talk may show it
                     }
                 }
                 else if (plan.Def is not null && WishReady(session, plan.Def, plan.Held, pool))
                 {
-                    ready.Add(plan.Giver.Id);
+                    ready.Add(face.Id);
                 }
             }
         }

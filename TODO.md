@@ -24,6 +24,34 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Lyxette's reports 2026-10-15 (v2026.10.15) + village-life side findings — epic #2612, #2613–#2622, branch fix/lyxette-2026-10-15 — ✅ done 2026-10-15 (⚠ playtest open)
+
+Lyxette (singleplayer, new cave base on the ice moon Gheyee II-b, circumference 3232) reported crates and his base resident
+not reacting to E, and a cave hall behind an Energy Door without air. Package label `package: lyxette reports 2026-10-15`.
+
+- **#2613 the world's wrap seam:** the home pad (pad 0) lies on X = 0 on every body, so a base next to it straddles the
+  seam; client checks compared the server's canonical coordinates with the unwrapped scene position (crate E, E-talk, the
+  talk and crate prompts, base core and beacon aim, base-zone hint, air dome, beam sort) and the server's talk reach didn't
+  wrap. Not a 10.15 regression (2026-06…09). Fixed with `WorldConstants.SameCell`, one shared talk picker, `ScenePos` and
+  `WrapDistSq`.
+- **#2614/#2615 base air explained:** a leaking room is told on walk-in when it is clearly a room, with the leak cell named
+  (sand never seals — by design); `/basewalls` no longer contradicts itself; snow + geyser vents in the leak text; the core
+  readout points to `/basewalls`.
+- **#2616 NPC conversations** live on the player session with one validity rule (world, NPC object, wrap-aware range); the
+  client sends a leave (`ChoiceIndex = -1`, no new intent); a stale id can no longer hit another NPC after a world switch.
+- **#2617** a ready wish is handed over to the villager visiting your base; **#2618** AI greeting requests are a pure
+  function of their cache key (tier-representative standing, no per-player history), VEGA banter keys on its facts
+  (phase, aboard, climate, memory), takes the AI budget and drops answers with a stray placeholder like greetings do;
+  **#2619** WorldHost forwards `BBS_WH_AI_LINES_PER_MINUTE` (⚠ needs the worldhost image roll; optional `.env` value on
+  the VPS); **#2620** locale name fixes (es/pl lantern, pl/ja grocer, ru/uk lamp, es helmet lamp); **#2621** G on an empty
+  crate says so; **#2622** F1 screenshots show the HUD, beacon/beam labels and light shafts (the dialog is a HUD-level
+  menu owner until the frame is copied).
+- **Open follow-ups (small):** the wall-mined warning `@srv.base.air_room_leak` could name the leak cell too (the group
+  fill records it already); stepping out of base air under a porch just outside tells the leak (by the issue's
+  "roof above you" rule, at most once per 5 min) — watch in the playtest.
+
+---
+
 ### 🏘️ The world greets back + the village lives ("the game feels lonely") — epic #2589, #2590–#2605, branch feat/village-life — ✅ done 2026-10-15 (⚠ playtest open)
 
 Justus said the game sometimes feels lonely: many inhabitants, but nobody reaches out. Package label
@@ -62,11 +90,8 @@ the default in singleplayer and the browser) **and with AI** on hosted worlds (p
 - **Festival (#2604):** after the settlement chain, at late afternoon with the hero present, once per village.
 - Docs: new `docs/developer/VILLAGE_LIFE.md`; `NPC_ROUTINES.md` §12–15, `AI_MISSION_BACKEND.md` (/npc-lines),
   `SOUND_DESIGN.md` §9, `NPC_TRADER_SHIPS.md`, `USER_MANUAL.md`, `SELF_HOSTING.md` (env vars).
-- ⚠ Open: playtest (Marcel + Justus); side findings not fixed here: E-talk compares canonical NPC coordinates with
-  scene coordinates (`PlayerController` ~2396, can fail near the world's wrap seam); NPC dialog sessions are never
-  cleared on walk-away (worked around in the passing greeting); the AI greeting cache is per standing while
-  `RecentEvents` describes the requesting player (mild, no names); WorldHost passes only `BBS_AI_LEVEL` +
-  `BBS_AI_BACKEND_URL` to worlds (fleet runs the default budget).
+- ⚠ Open: playtest (Marcel + Justus). The side findings of this package (E-talk at the wrap seam, NPC dialog sessions,
+  the AI greeting cache, the WorldHost AI budget, the ready wish at the base, es/pl/ja names) are fixed in epic #2612.
 
 ---
 

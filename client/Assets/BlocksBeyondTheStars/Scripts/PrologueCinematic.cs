@@ -121,9 +121,12 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Orbit centre: the ship if its placement already arrived, else the player/camera — on a
-            // fresh story world the player wakes at the helm, so all three coincide well enough.
-            _center = Game.ShipPosition
-                      ?? (Game.PlayerPosition != Vector3.zero ? Game.PlayerPosition : Camera.transform.position);
+            // fresh story world the player wakes at the helm, so all three coincide well enough. #2613: the ship's placement
+            // is canonical and the home pad lies on the seam (X = 0) — orbit the copy nearest the player, not one a whole
+            // circumference away when the helm and the player sit on opposite sides of X = 0.
+            _center = Game.ShipPosition is { } shipAt
+                ? Game.ScenePos(shipAt.x, shipAt.y, shipAt.z)
+                : (Game.PlayerPosition != Vector3.zero ? Game.PlayerPosition : Camera.transform.position);
             Debug.Log($"[Cinematic] Prologue staged around {(Game.ShipPosition.HasValue ? "ship" : "player")} at {_center} (aboard={Game.Aboard}).");
 
             // Terrain-aware staging (#777): scan the orbit ring against the voxel world and pick a clear

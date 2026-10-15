@@ -174,6 +174,17 @@ public static class WorldConstants
 
     public static double WrapDistanceSquared(Vector3f a, Vector3f b) => WrapDistanceSquared(a, b, Circumference);
 
+    /// <summary>Whether two block cells are the same cell on a world of the given circumference: Y equal, X and Z equal
+    /// the short way round both seams (#2613). Every match between a server cell (canonical: X in [0, circ)) and a cell
+    /// the client reads off its scene — the crate, base core or beacon in the crosshair — must go through this: the
+    /// player's transform runs unbounded past the seam, so a crate the server keeps at X = circ − 3 sits in scene cell
+    /// −3 on the far side of X = 0, and a plain <c>==</c> never matched it. The home landing pad lies at X = 0 on every
+    /// body, so a base beside the ship straddles the seam.</summary>
+    public static bool SameCell(int ax, int ay, int az, int bx, int by, int bz, int circumference)
+        => ay == by
+           && WrapDeltaX(ax - bx, circumference) == 0
+           && WrapDeltaZ(az - bz, circumference) == 0;
+
     /// <summary>Wraps a chunk-X index into [0, ChunksAround) for a world of the given circumference.</summary>
     public static int CanonicalChunkX(int chunkX, int circumference)
     {

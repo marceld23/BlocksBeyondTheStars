@@ -222,14 +222,17 @@ namespace BlocksBeyondTheStars.Client
             var game = Game;
             var terrain = path;
             CinematicStageScan.ClearSampler spot = (x, y, z) => terrain(x, y, z) && game.LandedShipBlockAt(x, y, z, out _, out _).IsAir;
-            var staged = CutsceneStaging.Stage(CutsceneCameras.Static, path, spot, _duel.AnchorX, _duel.AnchorY, _duel.AnchorZ, 1f,
+            // #2613: the core column arrives canonical — staged at its copy nearest the player, or a duel across the seam
+            // framed an empty spot a whole circumference away (the block samplers wrap on their own).
+            var core = Game.ScenePos(_duel.AnchorX, _duel.AnchorY, _duel.AnchorZ);
+            var staged = CutsceneStaging.Stage(CutsceneCameras.Static, path, spot, core.x, core.y, core.z, 1f,
                 Game.PlayerYaw, skyOpen: false, chartAvailable: false, closeUp: true, syntheticAllowed: false);
             if (!staged.CloseUp)
             {
                 return;
             }
 
-            _rig.Apply(staged, CutsceneStaging.ObjectLine(spot, _duel.AnchorX, _duel.AnchorY, _duel.AnchorZ), spot);
+            _rig.Apply(staged, CutsceneStaging.ObjectLine(spot, core.x, core.y, core.z), spot);
             _duelCamera = _rig.Holding;
         }
 

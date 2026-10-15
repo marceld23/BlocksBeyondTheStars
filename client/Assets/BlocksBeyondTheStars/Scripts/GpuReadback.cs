@@ -141,8 +141,11 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Captures the full composited frame — overlay HUD included — downscaled on the GPU so its longest
         /// side is at most <paramref name="maxDim"/> (0 = full size), then read into a <see cref="Texture2D"/>. Call
-        /// from a coroutine right after <c>WaitForEndOfFrame</c>, so the frame is complete when the copy is made.</summary>
-        public static IEnumerator CaptureScreen(int maxDim, TextureFormat format, Action<Texture2D> done)
+        /// from a coroutine right after <c>WaitForEndOfFrame</c>, so the frame is complete when the copy is made.
+        /// <paramref name="captured"/> (optional) runs the moment the frame is copied on the GPU — before the readback,
+        /// which takes a frame or two on WebGPU — so a caller can change what the screen shows from then on (#2622: the
+        /// F1 dialog takes the menu over only once its screenshot holds the HUD).</summary>
+        public static IEnumerator CaptureScreen(int maxDim, TextureFormat format, Action<Texture2D> done, Action captured = null)
         {
             int w = Mathf.Max(2, Screen.width), h = Mathf.Max(2, Screen.height);
             var full = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32);
@@ -151,6 +154,7 @@ namespace BlocksBeyondTheStars.Client
             try
             {
                 ScreenCapture.CaptureScreenshotIntoRenderTexture(full);
+                captured?.Invoke();
                 var source = full;
                 float scale = maxDim > 0 ? Mathf.Min(1f, (float)maxDim / Mathf.Max(w, h)) : 1f;
                 // #2430: on a top-left-origin API (Direct3D, Vulkan, Metal) the captured frame lies in the texture

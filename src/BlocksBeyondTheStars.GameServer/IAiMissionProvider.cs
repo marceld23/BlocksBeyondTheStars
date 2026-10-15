@@ -40,10 +40,13 @@ public sealed class NpcLineRequest
     /// carry a real name.</summary>
     public string PlayerName { get; set; } = string.Empty;
 
-    /// <summary>Relationship score with this player (−100..+100; 0 = first meeting).</summary>
+    /// <summary>Relationship score (−100..+100; 0 = first meeting). Since #2618 the server sends the representative score
+    /// of the player's standing TIER (hostile −30 / stranger 0 / known 25 / trusted 60, <c>GameServer.TierRepresentative</c>),
+    /// never the exact score — the line is cached per tier and shared by every player in it.</summary>
     public int Relationship { get; set; }
 
-    /// <summary>How many past interactions this player has had with the NPC (0 = stranger).</summary>
+    /// <summary>Past interactions with the NPC (0 = stranger). Since #2618 the tier's representative count (0 / 0 / 3 / 10),
+    /// never this player's own count.</summary>
     public int PastInteractions { get; set; }
 
     /// <summary>Language to write the greeting in: "en" or "de".</summary>
@@ -54,7 +57,9 @@ public sealed class NpcLineRequest
     public string Persona { get; set; } = string.Empty;
 
     /// <summary>L2: a compact log of what this NPC remembers of the player recently, oldest first
-    /// (e.g. "trade, trade, mission accepted"). Empty = nothing notable.</summary>
+    /// (e.g. "trade, trade, mission accepted"). Empty = nothing notable. Since #2618 the server always sends it empty:
+    /// a cached greeting is shared by every player of the standing tier, so it must not recall one player's deeds.
+    /// Kept in the contract for older/other callers.</summary>
     public string RecentEvents { get; set; } = string.Empty;
 
     /// <summary>Ship-AI banter: the current game situation in one compact line (world, time of day,

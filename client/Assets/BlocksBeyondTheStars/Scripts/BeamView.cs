@@ -259,7 +259,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var cam = Camera.main;
             var labels = ScreenLabelLayer.Instance;
-            if (cam == null || Game == null || labels == null || Game.SpaceViewActive || Game.MenuOpen || Game.Beams == null)
+            if (cam == null || Game == null || labels == null || Game.SpaceViewActive || Game.ScreenMenuOpen || Game.Beams == null) // #2622: HUD-level owners keep labels
             {
                 return;
             }

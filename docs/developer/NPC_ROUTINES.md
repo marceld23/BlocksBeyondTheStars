@@ -90,7 +90,7 @@ and night, asleep by day).
 No seat / no bed → the resting spot, `ActivityKey = npc.activity.resting`. `StandUp` puts the NPC back on the
 approach spot. Villagers and crew find a bed and a seat once within 8 blocks of their marker
 (`EnsureNpcFurniture`); guardians and visiting traders keep `RoutineEnabled = false`. A sleeper answers a talk with
-`npc.greet.sleepy`.
+`npc.greet.sleepy`. While a player talks with an NPC (§16) its routine and job wait — at most 60 s per talk.
 
 Wire (additive, contractless — no codec tag): `NetNpc.Pose`, `NetNpc.ActivityKey`, `NetNpc.Held`.
 
@@ -189,9 +189,10 @@ the furnished room (`RoomFurnisher.RoomRole` name).
 ## 12. The world greets back (#2593–#2597)
 
 - **Passing greetings** (`GameServerNpcPassing.cs`, `TickPassingGreetings`, 1 Hz per world after `TickNpcs`). Per player on
-  foot (not aboard, not in flight, not observing, not in a dialogue): the nearest NPC within 6 m with a clear line of sight
-  that is awake, not walking (`Goal == null` — the patrolling guard never greets), not a guardian, not the streamer and not
-  chatting with a neighbour sends an `NpcGreeting` with `Kind = Passing` (`Welcome` for welcome back), `Gesture = Wave` and a
+  foot (not aboard, not in flight, not observing, not in a live conversation — §16's rule): the nearest NPC within 6 m with a
+  clear line of sight that is awake, not walking (`Goal == null` — the patrolling guard never greets), not a guardian, not
+  the streamer, not chatting with a neighbour and not talking with another player sends an `NpcGreeting` with
+  `Kind = Passing` (`Welcome` for welcome back), `Gesture = Wave` and a
   fresh `GreetingId`; it then stands still and faces the player for 2.5 s (`ServerNpc.AttendUntil/AttendPos`, a branch
   in `MoveNpcs` after the pose block). Once per NPC and player per in-game day (`ServerNpc.GreetedDay`, keyed by
   `MarketDay`; a talk via E counts, an E-greeting within 25 s only marks the day); per player at most one every 4 s,
@@ -352,10 +353,41 @@ the furnished room (`RoomFurnisher.RoomRole` name).
   non-empty; `VillageFestivalTests` checks that every line resolves in en+de, the cheers stay ≤ 60 characters with only
   `{player}` and no digits.
 
+## 16. Talking with a player — the conversation's life (`GameServerNpcDialogs.cs`, #2616)
+
+- **Where it lives.** `PlayerSession.Conversation` (`NpcConversation`: the NPC **object**, the world's location id, the
+  dialogue, the node, start and last-active time). It exists only while the client shows reply choices:
+  `HandleTalkToNpc` and the wish offer open it (`StartNpcConversation`) for a step with choices; an end node, a node without
+  choices, the client's leave, a new E-talk (which closes the old panel), walking away, a world change, the NPC leaving the
+  world and a disconnect end it (`EndNpcConversation`). NPC ids restart at 1 on every world and every respawn — holding
+  the object instead of the id is what stops a stale talk from applying world A's consequence to world B's NPC.
+- **One validity rule** (`NpcConversationValid`), used by every reader — the choice, the sweep, the passing greeting's
+  "in a conversation", `NpcInPlayerDialog` (village chatter, the visiting-neighbour pick): the player is joined, not in
+  space, on the talk's world (the active one); the NPC is still in `_npcs` by reference and not `VisitingAway`; the
+  distance (`WrapDistSq`, both seams) is at most talk reach 5 + 2 m. The talk reach itself (`HandleTalkToNpc`, the
+  reporter's interview answer) wraps too (#2613: the home pad lies on X = 0).
+- **The sweep.** `TickNpcConversations` (1 Hz per world, right after `TickNpcs`): a dead conversation ends and the client
+  gets `NpcDialogState { End = true, Action = "close" }` (`NpcDialogState.ActionClose`) — only a client announcing
+  `ClientFeatures.DialogClose1` (`dialogclose1`, `NetworkClient.ClosesDialogs`, set by the Unity client; local players
+  have it): an older panel would pop open again to show it, so it keeps its old behaviour. A talk whose player left its world is ended by
+  whichever world ticks (its own may no longer tick); the full rule runs on the talk's own world.
+- **The leave.** `NpcDialogUi.Close()` sends `NpcDialogChoiceIntent { ChoiceIndex = -1 (Leave), NpcId }` while the panel
+  still offered replies — every released server already dropped the dialogue on a negative index, so there is **no new
+  intent and no codec tag**. `PausedMayHandle` lets only the leave through a singleplayer hold (Esc closes the panel as
+  the pause menu opens); a real reply still waits. A choice or leave naming another NPC than the conversation's is a
+  late one for an earlier panel and changes nothing (`NpcId` 0 = an older client: the current conversation). The
+  server's close only hides the panel — no leave goes back.
+- **The NPC while talking** (`HoldNpcForTalk`, renewed by the sweep in 2 s steps, so a talk that ends without a word lets
+  go on its own): it stands still and faces the player (`AttendUntil/AttendPos`; `ServerNpc.TalkHoldUntil`, a branch in
+  `MoveNpcs` before the festival one keeps a walk it was on waiting without counting as stuck), and `TickNpcRoutine` skips
+  its phase check and job — for at most `NpcTalkHoldSeconds` (60 s) after the talk began. Then the routine may walk it on,
+  and walking out of reach ends the talk. Chatter skips it (`AttendUntil`, `NpcInPlayerDialog`), it greets no passer-by.
+
 ## Tests
 
 `NpcPassingGreetingTests`, `NpcWelcomeBackTests`, `BaseNewsRelayTests`, `VegaChatterTests` (§12),
 `VillageChatterTests`, `VillageLifeContentTests`, `VillageLifeAiTests` (§13), `DeedNewsTests` (§14), `VillageFestivalTests` (§15),
+`NpcConversationLifecycleTests` and Client.Tests `NpcDialogLeaveTests` (§16),
 `NpcProfessionTests` (table, kits, settlement staffing, content, clinic/streamer/reporter/tamer at a base, Safe-mode
 interview, shop room), `NpcGridPathTests`, `BaseResidentsTests`, `NpcRoutineTests`, `NpcJobsTests`, the station-night case in
 `PlayerStationReportsTests`, the village-bed case in `SettlementNpcTests` (Slow). The shared arena is `NpcLifeWorld`.

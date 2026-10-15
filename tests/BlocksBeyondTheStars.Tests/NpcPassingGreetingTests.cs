@@ -204,11 +204,14 @@ public sealed class NpcPassingGreetingTests
             w.Server.TickPassingGreetingsForTest();
             Assert.DoesNotContain(GreetingsTo(w, w.Player), g => g.NpcId == other); // mid-conversation: quiet
 
-            // The player walks off without answering — the dialogue stays recorded, but the next villager may greet.
+            // The player walks off without answering — #2616: the talk is over by the one validity rule (even before the
+            // 1 Hz sweep ends it), so the next villager may greet.
             w.Player.State.Position = new Vector3f(spot.X - 3f, w.Feet, spot.Z + 9f);
             w.Server.ConfigureNpcForTest(other, new Vector3f(spot.X - 3f, w.Feet, spot.Z + 12f));
             w.Server.TickPassingGreetingsForTest();
             Assert.Contains(GreetingsTo(w, w.Player), g => g.NpcId == other);
+            w.Server.SweepNpcConversationsForTest();
+            Assert.Null(w.Server.ActiveDialogForTest(w.Player.State.PlayerId));
         }
     }
 

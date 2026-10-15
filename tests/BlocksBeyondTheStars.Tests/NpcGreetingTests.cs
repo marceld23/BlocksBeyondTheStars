@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using BlocksBeyondTheStars.GameServer;
@@ -16,6 +17,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Missions;
+using BlocksBeyondTheStars.Shared.State;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -309,6 +311,78 @@ public sealed class NpcGreetingTests : IDisposable
 
             Assert.Equal(0, provider.Calls);
             Assert.Equal(0, server.GreetingCacheCount);
+        }
+    }
+
+    // ---- #2618: the request is a pure function of its cache key ------------------------------------
+
+    [Fact]
+    public void GreetingRequest_IsAPureFunctionOfItsCacheKey()
+    {
+        // The line is cached per NPC, standing tier and language and shared by everyone there — so two "known" players
+        // with very different histories must send the very same request (else one player's past reaches the other).
+        var server = StartedWithVendor(AiLevel.TextOnly, new FakeNpcProvider("hi"), "en", out var repo, out var alice, out var home,
+            playerName: "Alice");
+        using (repo)
+        {
+            var bob = server.AddLocalPlayer("Bob", "en");
+            bob.State.Position = home;
+            int vendorId = server.NpcSnapshots.First(n => n.Role == "vendor").Id;
+            string npcKey = server.NpcKeyOfNpcForTest(alice.State.PlayerId, vendorId)!;
+
+            alice.State.NpcMemory[npcKey] = new NpcRelationship
+            {
+                Name = "Old Mira",
+                Role = "vendor",
+                Value = 12,
+                Log =
+                {
+                    new NpcInteraction { Kind = NpcInteractionKind.Trade },
+                    new NpcInteraction { Kind = NpcInteractionKind.Trade },
+                    new NpcInteraction { Kind = NpcInteractionKind.MissionAccepted },
+                },
+            };
+            bob.State.NpcMemory[npcKey] = new NpcRelationship { Name = "Old Mira", Role = "vendor", Value = 38 };
+            for (int i = 0; i < 9; i++)
+            {
+                bob.State.NpcMemory[npcKey].Log.Add(new NpcInteraction { Kind = NpcInteractionKind.Dialog });
+            }
+
+            var a = server.GreetingRequestForTest(alice.State.PlayerId, vendorId)!.Value;
+            var b = server.GreetingRequestForTest(bob.State.PlayerId, vendorId)!.Value;
+
+            Assert.Equal(a.CacheKey, b.CacheKey);
+            Assert.EndsWith("|known", a.CacheKey, StringComparison.Ordinal);
+            Assert.Equal(JsonSerializer.Serialize(a.Request), JsonSerializer.Serialize(b.Request)); // the wire body
+            Assert.Equal((25, 3), (a.Request.Relationship, a.Request.PastInteractions)); // the tier's numbers, nobody's own
+            Assert.Equal(string.Empty, a.Request.RecentEvents);
+            Assert.Equal(AiLineTokens.Player, a.Request.PlayerName);
+        }
+    }
+
+    [Fact]
+    public void FloorKnownVillager_AsksForAKnownLine()
+    {
+        // #2598: a villager without an entry of their own reads the old shared standing as a floor. Before #2618 the
+        // request carried 0 past interactions for them (no own log) — and the backend's tier reads 0 interactions as a
+        // stranger — so a stranger line was asked for and cached under "known".
+        var server = StartedWithVendor(AiLevel.TextOnly, new FakeNpcProvider("hi"), "en", out var repo, out var p, out _);
+        using (repo)
+        {
+            string id = p.State.PlayerId;
+            var villager = server.PersonKeysForTest.FirstOrDefault(n => n.Settlement == server.SettlementName
+                && n.PersonKey.Length > 0 && server.NpcKeyOfNpcForTest(id, n.Id) == n.PersonKey);
+            Assert.False(string.IsNullOrEmpty(villager.PersonKey), "the settlement has a villager with a person key");
+
+            string loc = server.SettlementLocationKeyForTest(server.SettlementName);
+            p.State.NpcMemory[loc + ":" + villager.Role] = new NpcRelationship { Name = "Old", Role = villager.Role, Value = 30 };
+            Assert.Equal(30, server.RelationshipValueForTest(id, villager.PersonKey)); // the floor …
+            Assert.False(p.State.NpcMemory.ContainsKey(villager.PersonKey));         // … without an own entry or log
+
+            var (request, cacheKey) = server.GreetingRequestForTest(id, villager.Id)!.Value;
+            Assert.EndsWith("|known", cacheKey, StringComparison.Ordinal);
+            Assert.Equal(25, request.Relationship);
+            Assert.True(request.PastInteractions > 0, "the backend's _tier reads 0 past interactions as a stranger");
         }
     }
 

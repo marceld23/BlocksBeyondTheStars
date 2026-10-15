@@ -186,6 +186,13 @@ public sealed class DockerCliLauncher : IInstanceLauncher
                 "-e", $"BBS_AI_BACKEND_URL={config.AiBackendUrl}",
                 "-e", $"BBS_AI_LEVEL={config.AiLevel}",
             });
+
+            // #2619: the operator's per-world AI line budget (unset = the server default of 4 per minute). Invariant
+            // culture on purpose: a German host would otherwise write "2,5", which the instance rejects.
+            if (config.AiLinesPerMinute is { } linesPerMinute)
+            {
+                args.AddRange(new[] { "-e", $"BBS_AI_LINES_PER_MINUTE={linesPerMinute.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}" });
+            }
         }
 
         args.AddRange(new[]

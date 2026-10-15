@@ -20,7 +20,7 @@ public enum AiLinePriority
     /// <summary>Lines for one player: hello, welcome back, friend gift, thanks. Reserve 1.</summary>
     Personal = 1,
 
-    /// <summary>VEGA's lines (welcome aboard, base news, praise). Reserve 1.</summary>
+    /// <summary>VEGA's lines (welcome aboard, base news, praise, and the /npc-line banter since #2618). Reserve 1.</summary>
     Vega = 2,
 
     /// <summary>News headlines (deeds). Reserve 2.</summary>
@@ -878,7 +878,7 @@ public sealed partial class GameServer
     /// a config whose <see cref="ServerConfig.AiLevel"/> is not Off.</summary>
     public void SetAiProviderForTest(IAiMissionProvider provider) => _ai = new ScreenedAiTextProvider(provider, ScreenAiText);
 
-    /// <summary>Test seam: run every AI request (greetings, banter-free /npc-lines) inline instead of on the thread pool,
+    /// <summary>Test seam: run every AI request (greetings, VEGA banter, /npc-lines) inline instead of on the thread pool,
     /// so a test sees the cached result right after the triggering call.</summary>
     public void RunAiLinesSynchronouslyForTest(bool inline = true) => _aiRunInlineForTest = inline;
 

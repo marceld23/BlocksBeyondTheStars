@@ -75,7 +75,7 @@ namespace BlocksBeyondTheStars.Client
             float t = Game.LocalTimeOfDay;
             float sunHeight = Mathf.Sin((t - 0.25f) * Mathf.PI * 2f);
             float shade = Probe != null ? 1f - Probe.CameraExposure : 0f;
-            bool show = air && sunHeight > 0.12f && shade > 0.4f && !Game.MenuOpen;
+            bool show = air && sunHeight > 0.12f && shade > 0.4f && !Game.ScreenMenuOpen; // #2622: a HUD-level owner (F1 shot) keeps the scene as seen
 
             _scanTimer -= Time.deltaTime;
             if (show && _scanTimer <= 0f)

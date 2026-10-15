@@ -309,9 +309,9 @@ public sealed partial class GameServer
 
         session.PendingInterviewNpcId = 0;
         var npc = _npcs.FirstOrDefault(n => n.Id == intent.NpcId && n.Job == "reporter");
-        if (npc is null || npc.Pos.DistanceSquared(session.State.Position) > NpcTalkRange * NpcTalkRange * 4)
+        if (npc is null || WrapDistSq(npc.Pos, session.State.Position) > NpcTalkRange * NpcTalkRange * 4)
         {
-            return;
+            return; // #2613: the short way round both seams, like every other reach
         }
 
         string raw = StripControlChars(intent.Text).Trim();

@@ -65,6 +65,11 @@ public static class ClientFeatures
     /// <summary>The client draws <see cref="ShipAiLine.Choices"/> as buttons in VEGA's panel (#2499) — the Unity client
     /// announces it; a headless client or an older build does not, and gets the plain lines it always got.</summary>
     public const string Choices1 = "choices1";
+
+    /// <summary>#2616: the client's NPC dialogue panel takes the server's close (<see cref="NpcDialogState.ActionClose"/>)
+    /// and sends the leave when the player closes it — the Unity client announces it. An older build gets no close: its
+    /// panel would pop open again to show a line the player already closed.</summary>
+    public const string DialogClose1 = "dialogclose1";
 }
 
 public sealed class MoveIntent

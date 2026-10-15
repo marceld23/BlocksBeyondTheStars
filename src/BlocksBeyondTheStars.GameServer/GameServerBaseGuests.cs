@@ -46,7 +46,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// going aboard sends the guest away at once.</para>
 /// <para><b>Talk:</b> guests are E-talkable; <see cref="PickDialog"/> treats their <c>guest_*</c> job like a profession, so
 /// only the <c>job: guest_neighbour|guest_merchant|guest_traveler</c> dialogues of <c>data/dialogs.json</c> match.
-/// Consequence <c>guest:gift:&lt;item&gt;:&lt;n&gt;</c> hands a present over once per guest and player. Memory: the
+/// Consequence <c>guest:gift:&lt;item&gt;:&lt;n&gt;</c> hands a present over once per guest and player. #2617: a neighbour
+/// stands for its villager in wish matters — the "?" and "!" markers sit on the guest, a held wish is handed over to it
+/// (or reminded) before its own dialogue, and <c>guest:wish</c> says "you already have everything" when the bag holds it
+/// (the next talk hands it over right there). Memory: the
 /// neighbour is its villager (person key); the merchant and the traveller are <c>guest:&lt;name&gt;</c> keys that are
 /// never written to the save (<see cref="RecordNpcInteraction"/> skips them — the roster stays clean).</para>
 /// <para><b>AI</b> (hosted worlds): the greeting (<c>guest_greet</c>) and the dialogue opening (<c>guest_offer</c>, the
@@ -454,6 +457,11 @@ public sealed partial class GameServer
         _baseGuests.Add(guest);
         SetGuestGoalNearOwner(guest, npc, owner, b);
         BroadcastNpcs();
+        if (source is not null)
+        {
+            SendStandingsToWorld(); // #2617: the villager's standing badge and wish marker move onto the guest
+        }
+
         Send(owner, new ServerMessage { Text = "@srv.guest.arriving:" + npc.Name });
         PrefetchGuestLines(guest, npc, owner);
         _log.Info($"Base guests: {GuestKindKey(kind)} '{npc.Name}' is walking to base #{b.Id} (owner '{owner.State.Name}').");
@@ -763,15 +771,34 @@ public sealed partial class GameServer
             _npcs.Remove(npc);
         }
 
+        bool villagerBack = false;
         if (g.SourceNpcId != 0 && _npcs.FirstOrDefault(n => n.Id == g.SourceNpcId) is { VisitingAway: true } source)
         {
             source.VisitingAway = false;
             source.RoutineEnabled = g.SourceRoutine;
             source.PhaseCheckedAt = double.NegativeInfinity; // back home: think about the time of day again
+            villagerBack = true;
         }
 
         _baseGuests.Remove(g);
         BroadcastNpcs();
+        if (villagerBack)
+        {
+            SendStandingsToWorld(); // #2617: the wish marker goes back home with the villager
+        }
+    }
+
+    /// <summary>#2617: re-sends the standings (with the wish markers) to every player on the active world — a neighbour's
+    /// visit starting or ending moves a villager's badge and marker between its two ids.</summary>
+    private void SendStandingsToWorld()
+    {
+        foreach (var s in JoinedInActiveWorld())
+        {
+            if (!s.Spectating)
+            {
+                SendNpcStandings(s);
+            }
+        }
     }
 
     /// <summary>The guest's greeting (#2602): kind <see cref="NpcGreetingKinds.Guest"/> with a wave, to every player within
@@ -1195,14 +1222,22 @@ public sealed partial class GameServer
         if (parts[1] == "wish")
         {
             // The neighbour brought a wish (#2601): asked "can I help?", the villager tells it and it goes into the
-            // player's mission log — handed over later in the village, as every wish. None open → a kind "no, thanks".
+            // player's mission log. None open → a kind "no, thanks". #2617: with everything already in the bag the
+            // neighbour says so ("just talk to me again") and stays — the next talk hands it over right here; otherwise
+            // it heads home soon and the wish is handed over in the village (or at its next visit).
             if (g.SourceNpcId != 0 && _npcs.FirstOrDefault(n => n.Id == g.SourceNpcId) is { } source
                 && GuestWishPlan(session, source) is { Template: { } template } plan
-                && GrantWish(session, source, NpcKeyForNpc(session, source)))
+                && GrantWish(session, source, NpcKeyForNpc(session, source), answerWhenReady: true))
             {
+                string readyLine = _dialogResponseOverride; // GrantWish's "you already have everything", "" when not
+                _dialogResponseOverride = string.Empty;
                 _dialogExtraText = "\n\n" + WishAskText(session, source, plan, requestAi: false)
-                    + "\n\n" + WishFactLine(session.Locale, template, plan.Count);
-                g.LeaveSoonAt = _uptime + BaseGuestAfterGiftSeconds;
+                    + "\n\n" + WishFactLine(session.Locale, template, plan.Count)
+                    + (readyLine.Length > 0 ? "\n\n" + readyLine : string.Empty);
+                if (readyLine.Length == 0)
+                {
+                    g.LeaveSoonAt = _uptime + BaseGuestAfterGiftSeconds;
+                }
             }
             else
             {

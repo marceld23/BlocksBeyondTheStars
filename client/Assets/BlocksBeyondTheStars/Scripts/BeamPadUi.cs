@@ -141,7 +141,11 @@ namespace BlocksBeyondTheStars.Client
             _rows.Add(go);
         }
 
-        private static float Dist(Vector3 me, NetBeam b) => (new Vector3(b.X, b.Y, b.Z) - me).sqrMagnitude;
+        /// <summary>Squared distance from the player to a pad — #2613: the short way round both seams (pads arrive canonical,
+        /// the player's position runs unbounded), so the nearest pad sorts first and the metres read true across X = 0.</summary>
+        private float Dist(Vector3 me, NetBeam b)
+            => (float)InteractReach.SeamDistanceSquared(me.x, me.y, me.z, b.X, b.Y, b.Z,
+                Game != null ? Game.Circumference : BlocksBeyondTheStars.Shared.World.WorldConstants.Circumference);
 
         private void EnsureBuilt()
         {

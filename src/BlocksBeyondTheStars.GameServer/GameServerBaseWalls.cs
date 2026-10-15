@@ -677,6 +677,8 @@ public sealed partial class GameServer
             .Replace("{budget}", level.Budget.ToString())
             .Replace("{verdict}", L(level.FailOpen ? "srv.basewalls.fail_open" : "srv.basewalls.complete")));
 
+        // The animal verdict (does anything spawn here?) — "walled in" is about the wall ring, not air, so the line says
+        // "for animals" (#2615): it used to stand right above "Air at your cell: none — leaky" and read as a contradiction.
         string state = InSealedBaseRoom(cell) ? L("srv.basewalls.here_sealed")
             : !level.FailOpen && !level.Contains(cell, _world.Circumference) ? L("srv.basewalls.here_enclosed")
             : L("srv.basewalls.here_open");
@@ -701,6 +703,9 @@ public sealed partial class GameServer
                 .Replace("{reach}", BaseWallReach(nearest).ToString(System.Globalization.CultureInfo.InvariantCulture)),
             BaseAirStatus.Disconnected => L("srv.basewalls.air_disconnected")
                 .Replace("{cells}", air.Cells.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+            // #2614: name where the air gets out — the block on the way to the sky, its cell and its height above you.
+            BaseAirStatus.Leak when air.LeakCell is not null => BaseAirLeakText(session.Locale,
+                "srv.basewalls.air_leak_at", "srv.basewalls.air_leak_open_at", air, p.Position.ToBlock()),
             _ => L("srv.basewalls.air_leak"),
         };
         lines.Add(L("srv.basewalls.air").Replace("{state}", airState));

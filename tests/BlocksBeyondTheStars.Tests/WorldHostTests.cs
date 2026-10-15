@@ -724,6 +724,92 @@ public sealed class WorldHostTests : IDisposable
         Assert.DoesNotContain("BBS_CHUNK_STREAM_BUDGET_MS", string.Join(" ", DockerCliLauncher.BuildRunArgs(off, world, "/tmp/saves")));
     }
 
+    // ---------------- #2619: the per-world AI line budget ----------------
+
+    [Fact]
+    public void BuildRunArgs_ForwardsAiLineBudget_WithTheInvariantCulture()
+    {
+        var world = new WorldRecord("abc123abc123", "acct", "My World", "secret", 32001, WorldStatus.Stopped, "", 0, 0);
+        var config = new WorldHostConfig { AiBackendUrl = "http://ai:8077", AiLinesPerMinute = 2.5 };
+
+        // A German host formats 2.5 as "2,5" — which the instance's invariant parser would reject.
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("de-DE");
+            var args = DockerCliLauncher.BuildRunArgs(config, world, "/tmp/saves");
+            Assert.Contains("BBS_AI_LINES_PER_MINUTE=2.5", args);
+            Assert.DoesNotContain(args, a => a.Contains("2,5", StringComparison.Ordinal));
+            Assert.Equal(config.ServerImage, args[^1]); // image stays the last argv entry
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+
+        // 0 is a real setting (authored lines only), not "unset".
+        var none = new WorldHostConfig { AiBackendUrl = "http://ai:8077", AiLinesPerMinute = 0 };
+        Assert.Contains("BBS_AI_LINES_PER_MINUTE=0", DockerCliLauncher.BuildRunArgs(none, world, "/tmp/saves"));
+    }
+
+    [Fact]
+    public void BuildRunArgs_OmitsAiLineBudget_WhenUnsetOrAiOff()
+    {
+        var world = new WorldRecord("abc123abc123", "acct", "My World", "secret", 32001, WorldStatus.Stopped, "", 0, 0);
+
+        // Unset: the worlds keep the server default (4 per minute).
+        var unset = new WorldHostConfig { AiBackendUrl = "http://ai:8077" };
+        string joined = string.Join(" ", DockerCliLauncher.BuildRunArgs(unset, world, "/tmp/saves"));
+        Assert.Contains("BBS_AI_BACKEND_URL=http://ai:8077", joined);
+        Assert.DoesNotContain("BBS_AI_LINES_PER_MINUTE", joined);
+
+        // AI off (no backend URL): nothing AI-related is forwarded, the budget included.
+        var aiOff = new WorldHostConfig { AiBackendUrl = "", AiLinesPerMinute = 6 };
+        joined = string.Join(" ", DockerCliLauncher.BuildRunArgs(aiOff, world, "/tmp/saves"));
+        Assert.DoesNotContain("BBS_AI_", joined);
+    }
+
+    [Theory]
+    [InlineData("6", 6.0)]
+    [InlineData("0", 0.0)]
+    [InlineData("2.5", 2.5)]
+    [InlineData(" 3 ", 3.0)]
+    public void ParseAiLinesPerMinute_AcceptsFiniteNonNegativeNumbers(string raw, double expected)
+        => Assert.Equal((double?)expected, WorldHostConfig.ParseAiLinesPerMinute(raw));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("abc")]
+    [InlineData("-1")]
+    [InlineData("2,5")]
+    [InlineData("Infinity")]
+    [InlineData("NaN")]
+    public void ParseAiLinesPerMinute_RejectsEverythingElse_AsUnset(string? raw)
+        => Assert.Null(WorldHostConfig.ParseAiLinesPerMinute(raw));
+
+    [Fact]
+    public void AiLinesPerMinute_LoadsFromEnvironment_AndStaysUnsetWithoutIt()
+    {
+        const string Name = "BBS_WH_AI_LINES_PER_MINUTE";
+        var previous = Environment.GetEnvironmentVariable(Name);
+        try
+        {
+            Environment.SetEnvironmentVariable(Name, "6");
+            Assert.Equal((double?)6.0, WorldHostConfig.FromEnvironment().AiLinesPerMinute);
+
+            Environment.SetEnvironmentVariable(Name, "-1");
+            Assert.Null(WorldHostConfig.FromEnvironment().AiLinesPerMinute);
+
+            Environment.SetEnvironmentVariable(Name, null);
+            Assert.Null(WorldHostConfig.FromEnvironment().AiLinesPerMinute);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(Name, previous);
+        }
+    }
+
     // ---------------- Fleet capacity gate ----------------
 
     [Fact]

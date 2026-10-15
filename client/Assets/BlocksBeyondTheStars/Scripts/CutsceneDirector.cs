@@ -1234,7 +1234,10 @@ namespace BlocksBeyondTheStars.Client
             s.InEva = Game.InEva;
             s.PilotingInSpace = Game.SpaceViewActive && !Game.SpaceAutomaticTransit;
             s.Warping = WormholeTransitFx.Busy || Game.SpaceAutomaticTransit;
-            bool nearShip = Game.ShipPosition is { } ship && (Game.PlayerPosition - ship).sqrMagnitude <= AtHomeShipRadius * AtHomeShipRadius;
+            // #2613: the ship's placement is canonical and the player's position unbounded — measured at the copy nearest the
+            // player, or a player beside a ship parked on the seam (the home pad lies at X = 0) never counted as home.
+            bool nearShip = Game.ShipPosition is { } ship
+                            && (Game.PlayerPosition - Game.ScenePos(ship.x, ship.y, ship.z)).sqrMagnitude <= AtHomeShipRadius * AtHomeShipRadius;
             s.AtHome = Game.Aboard || !string.IsNullOrEmpty(Game.StationName) || nearShip;
             s.HostileDistance = Game.NearestHostileSqr >= float.MaxValue ? float.MaxValue : Mathf.Sqrt(Game.NearestHostileSqr);
             s.SecondsSinceDamage = now - _lastDamageAt;
@@ -1243,7 +1246,9 @@ namespace BlocksBeyondTheStars.Client
             s.Oxygen = Mathf.Clamp01(Game.Oxygen / Mathf.Max(1f, Game.SuitOxygenMax));
         }
 
-        /// <summary>Where a shot's anchor is on this client (falls back to the player).</summary>
+        /// <summary>Where a shot's anchor is on this client (falls back to the player). #2613: the ship, the heal tank and
+        /// an authored anchor are canonical world positions; the camera frames them at the copy nearest the player
+        /// (<see cref="GameBootstrap.ScenePos"/>) — across the seam the raw spot lay a whole circumference away.</summary>
         private Vector3 AnchorPosition(string anchor)
         {
             Vector3 player = Game.PlayerPosition != Vector3.zero ? Game.PlayerPosition
@@ -1251,18 +1256,18 @@ namespace BlocksBeyondTheStars.Client
             switch (anchor)
             {
                 case CutsceneAnchors.Ship:
-                    return Game.ShipPosition ?? player;
+                    return Game.ShipPosition is { } ship ? Game.ScenePos(ship.x, ship.y, ship.z) : player;
                 case CutsceneAnchors.HealTank:
                     // #2474: the own ship's real heal tank on this world (its medbay cell), near enough to frame.
                     if (CutsceneRules.TryFindHealTank(Game.Stations, player.x, player.y, player.z, Game.Circumference, out float tx, out float ty, out float tz))
                     {
-                        return new Vector3(tx, ty, tz);
+                        return Game.ScenePos(tx, ty, tz);
                     }
 
-                    return Game.ShipPosition ?? player;
+                    return Game.ShipPosition is { } tankShip ? Game.ScenePos(tankShip.x, tankShip.y, tankShip.z) : player;
                 case CutsceneAnchors.Core:
                 case CutsceneAnchors.Custom:
-                    return _current != null && _current.HasAnchor ? new Vector3(_current.AnchorX, _current.AnchorY, _current.AnchorZ) : player;
+                    return _current != null && _current.HasAnchor ? Game.ScenePos(_current.AnchorX, _current.AnchorY, _current.AnchorZ) : player;
                 default:
                     return player; // player, planet, station, star_map
             }

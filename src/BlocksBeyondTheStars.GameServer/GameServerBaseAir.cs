@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -22,7 +23,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// "not sealed" alone sent a player looking for a hole in a closed hall that was merely too big: it grew past
 /// <see cref="WorldConstants.BaseSealedRoomMaxCells"/> (<see cref="BaseAirLeak.TooLarge"/>), an open cell lay
 /// outside every reach box (<see cref="BaseAirLeak.TooFar"/>), or it reached the open sky
-/// (<see cref="BaseAirLeak.Open"/>).</item>
+/// (<see cref="BaseAirLeak.Open"/>). For a leak the fill also keeps WHERE (#2614): the first block on the way up that
+/// does not seal (a sand roof under the open sky), or the last cell inside the reach box when that way is open air —
+/// "leaky" alone sent a player hunting a cave hall for a hole that was its sand ceiling.</item>
 /// <item>A sealed pocket is <b>supplied</b> when it touches the radius-8 cube of a <b>partner</b> core or connects
 /// through an energy door to another supplied pocket — so airlocked room chains extend the base outward, door by
 /// door.</item>
@@ -94,8 +97,12 @@ public sealed partial class GameServer
     }
 
     /// <summary>A diagnosis of the base air at one cell: its status, the cells of the pocket (or the group's supplied
-    /// cells), the group's supplied rooms and its widest reach.</summary>
-    internal readonly record struct BaseAirDiagnosis(BaseAirStatus Status, int Cells, int Rooms, int Reach);
+    /// cells), the group's supplied rooms and its widest reach. For a leak (#2614) also where the air gets out —
+    /// <paramref name="LeakCell"/> (canonical) holding <paramref name="LeakBlock"/>, air when the way up is open — and
+    /// whether the spot is clearly a room (<paramref name="LooksLikeRoom"/>: the pocket touches an energy door, or
+    /// something stands above the cell), which is when walking in says so.</summary>
+    internal readonly record struct BaseAirDiagnosis(BaseAirStatus Status, int Cells, int Rooms, int Reach,
+        Vector3i? LeakCell = null, BlockId LeakBlock = default, bool LooksLikeRoom = false);
 
     /// <summary>A partner group's cached supplied-air volume (empty = nothing sealed / leaked / over budget).</summary>
     private sealed class BaseAirVolume
@@ -125,8 +132,10 @@ public sealed partial class GameServer
     /// changes the pockets without any block being set.</summary>
     private int _baseAirDoorsVersion;
 
-    /// <summary>Player id → the cause last told about base air and when (#2542).</summary>
-    private readonly Dictionary<string, (BaseAirLeak Cause, double At)> _baseAirTold = new(System.StringComparer.Ordinal);
+    /// <summary>(Player id, cause) → when that cause was last told about base air (#2542). Per cause since #2614: with the
+    /// leak told too, a player popping out of a cave base through two doors — a too-large hall behind one, a leaking
+    /// passage behind the other — would otherwise hear both again on every alternation.</summary>
+    private readonly Dictionary<(string Player, BaseAirLeak Cause), double> _baseAirTold = new();
 
     /// <summary>Players who breathed base air on their last oxygen tick.</summary>
     private readonly HashSet<string> _baseAirHad = new(System.StringComparer.Ordinal);
@@ -532,13 +541,18 @@ public sealed partial class GameServer
 
     /// <summary>Floods the pocket around <paramref name="start"/> (a canonical, non-airtight, non-door cell) inside the
     /// partners' boxes and records whether — and why — it failed to seal. <paramref name="cellPocket"/> (optional)
-    /// receives the pocket index of every cell the fill adds.</summary>
+    /// receives the pocket index of every cell the fill adds. With <paramref name="locate"/> (the on-demand diagnosis,
+    /// #2614) EVERY dequeued cell probes the sky instead of every power-of-two-th one: the fill runs outward from the
+    /// player, so the first open column it meets is the leak nearest to them — the cell under the sand patch, the column
+    /// under the hole — and that column is what gets named. A per-column memo keeps it linear (see
+    /// <see cref="ProbeSkyOnce"/>); the group fills keep the sparse probe.</summary>
     private Pocket FillAirPocket(Vector3i start, List<ServerBase> partners, int[] reaches, Dictionary<Vector3i, int> doorCells,
-        Dictionary<Vector3i, int>? cellPocket, int index)
+        Dictionary<Vector3i, int>? cellPocket, int index, bool locate = false)
     {
         int circ = _world.Circumference;
         var pocket = new Pocket();
         var frontier = new Queue<Vector3i>();
+        var columns = locate ? new Dictionary<(int X, int Z), (int Lo, int Hi)>() : null;
         pocket.Cells.Add(start);
         if (cellPocket != null)
         {
@@ -548,7 +562,7 @@ public sealed partial class GameServer
         frontier.Enqueue(start);
 
         // A seed under the open sky (a core in the open, the outside of an entrance door) is decided at once.
-        var leak = AirOpenToSky(start, partners, reaches, doorCells) ? BaseAirLeak.Open : BaseAirLeak.None;
+        var leak = AirOpenToSky(start, partners, reaches, doorCells, pocket) ? BaseAirLeak.Open : BaseAirLeak.None;
         int dequeued = 0;
         while (leak == BaseAirLeak.None && frontier.Count > 0)
         {
@@ -560,7 +574,10 @@ public sealed partial class GameServer
 
             var cell = frontier.Dequeue();
             dequeued++;
-            if (((dequeued & (dequeued - 1)) == 0 || dequeued % AirSkyProbeEvery == 0) && AirOpenToSky(cell, partners, reaches, doorCells))
+            bool open = columns != null
+                ? ProbeSkyOnce(cell, partners, reaches, doorCells, pocket, columns)
+                : ((dequeued & (dequeued - 1)) == 0 || dequeued % AirSkyProbeEvery == 0) && AirOpenToSky(cell, partners, reaches, doorCells, pocket);
+            if (open)
             {
                 leak = BaseAirLeak.Open;
                 break;
@@ -594,7 +611,7 @@ public sealed partial class GameServer
                 {
                     // An open cell past every reach box: straight up through open cells is the sky, any other way
                     // out is a space that reaches farther than the base supports.
-                    leak = AirOpenToSky(cell, partners, reaches, doorCells) ? BaseAirLeak.Open : BaseAirLeak.TooFar;
+                    leak = AirOpenToSky(cell, partners, reaches, doorCells, pocket) ? BaseAirLeak.Open : BaseAirLeak.TooFar;
                     break;
                 }
 
@@ -620,28 +637,92 @@ public sealed partial class GameServer
 
     /// <summary>Whether nothing but open cells lie above <paramref name="c"/> up past the top of every reach box
     /// (#2543). Exactly the column the fill would climb to leave the box, so a pocket holding such a cell can never
-    /// seal — answering it now saves running the fill to the budget. Stops at the first airtight cube or door cell.</summary>
-    private bool AirOpenToSky(Vector3i c, List<ServerBase> partners, int[] reaches, Dictionary<Vector3i, int> doorCells)
+    /// seal — answering it now saves running the fill to the budget. Stops at the first airtight cube or door cell.
+    /// When open, <paramref name="pocket"/> records where the air gets out (#2614, see <see cref="ColumnOpenToSky"/>).</summary>
+    private bool AirOpenToSky(Vector3i c, List<ServerBase> partners, int[] reaches, Dictionary<Vector3i, int> doorCells, Pocket pocket)
+        => ColumnOpenToSky(new Vector3i(c.X, c.Y + 1, c.Z), partners, reaches, doorCells, pocket);
+
+    /// <summary><see cref="AirOpenToSky"/> for the locating fill (#2614), which probes every cell: <paramref name="columns"/>
+    /// remembers per column a stretch [Lo, Hi] whose cells below Hi do not seal and whose Hi does, so a probe starting
+    /// inside it is answered at once and one climbing into it stops there. Each column is scanned about once however
+    /// many of its cells the fill dequeues. Only a "closed" answer is memoised — an open one ends the fill, and its
+    /// column is scanned once more to name the leak.</summary>
+    private bool ProbeSkyOnce(Vector3i c, List<ServerBase> partners, int[] reaches, Dictionary<Vector3i, int> doorCells,
+        Pocket pocket, Dictionary<(int X, int Z), (int Lo, int Hi)> columns)
     {
-        for (int y = c.Y + 1; ; y++)
+        int from = c.Y + 1;
+        var key = (c.X, c.Z);
+        bool known = columns.TryGetValue(key, out var run);
+        if (known && from >= run.Lo && from <= run.Hi)
         {
+            return false;
+        }
+
+        for (int y = from; ; y++)
+        {
+            if (known && y == run.Lo)
+            {
+                columns[key] = (from, run.Hi); // climbed into a stretch already known to end at a seal
+                return false;
+            }
+
             var up = new Vector3i(c.X, y, c.Z);
             if (doorCells.ContainsKey(up) || IsAirtightCell(up))
+            {
+                columns[key] = (from, y);
+                return false;
+            }
+
+            if (!InAirBoxes(partners, reaches, up))
+            {
+                return AirOpenToSky(c, partners, reaches, doorCells, pocket); // open: scan once more, naming the leak
+            }
+        }
+    }
+
+    /// <summary>The column scan behind <see cref="AirOpenToSky"/>, from <paramref name="bottom"/> itself upward. When it
+    /// is open it writes the pocket's leak (#2614): the first cell on the way holding a block — one that does not seal,
+    /// or the scan would have stopped there — or, when the whole way is air, the last cell inside the reach box.</summary>
+    private bool ColumnOpenToSky(Vector3i bottom, List<ServerBase> partners, int[] reaches, Dictionary<Vector3i, int> doorCells,
+        Pocket pocket)
+    {
+        Vector3i? through = null;
+        var throughId = BlockId.Air;
+        for (int y = bottom.Y; ; y++)
+        {
+            var up = new Vector3i(bottom.X, y, bottom.Z);
+            if (doorCells.ContainsKey(up))
+            {
+                return false;
+            }
+
+            var id = _world.GetBlockIfLoaded(up);
+            if (IsAirtightCell(up, id))
             {
                 return false;
             }
 
             if (!InAirBoxes(partners, reaches, up))
             {
+                pocket.LeakCell = through ?? new Vector3i(bottom.X, y - 1, bottom.Z);
+                pocket.LeakBlock = throughId;
                 return true;
+            }
+
+            if (through is null && !id.IsAir)
+            {
+                through = up;
+                throughId = id;
             }
         }
     }
 
     /// <summary>An airtight full cube at a canonical cell (shaped cells leak; paint bits don't).</summary>
-    private bool IsAirtightCell(Vector3i c)
+    private bool IsAirtightCell(Vector3i c) => IsAirtightCell(c, _world.GetBlockIfLoaded(c));
+
+    /// <summary><see cref="IsAirtightCell(Vector3i)"/> with the cell's block already read.</summary>
+    private bool IsAirtightCell(Vector3i c, BlockId id)
     {
-        var id = _world.GetBlockIfLoaded(c);
         if (id.IsAir)
         {
             return false;
@@ -649,6 +730,25 @@ public sealed partial class GameServer
 
         var def = _content.BlockById(id);
         return def is { Airtight: true } && ShapeCode.IsCube(_world.GetShapeIfLoaded(c));
+    }
+
+    /// <summary>#2614: whether something a body would bump into stands above the canonical cell inside the boxes — a
+    /// ceiling, however leaky. Tree crowns do not count: standing under a tree outside is not standing in a room.</summary>
+    private bool RoofAbove(Vector3i canonical, List<ServerBase> partners, int[] reaches)
+    {
+        for (int y = canonical.Y + 1; ; y++)
+        {
+            var up = new Vector3i(canonical.X, y, canonical.Z);
+            if (!InAirBoxes(partners, reaches, up))
+            {
+                return false;
+            }
+
+            if (IsCollidingBlock(_world.GetBlockIfLoaded(up), fluidsPass: false, foliagePasses: true))
+            {
+                return true;
+            }
+        }
     }
 
     private static void AddAirNeighbours(Vector3i pos, List<Vector3i> into)
@@ -668,6 +768,8 @@ public sealed partial class GameServer
         public BaseAirLeak Leak;
         public bool TouchesCube;
         public bool Supplied;
+        public Vector3i? LeakCell;  // #2614: where an Open pocket's air gets out (canonical)
+        public BlockId LeakBlock;   // the block there — air when the way up is open
     }
 
     /// <summary>Cells covered by ENERGY doors in the active world (ship hatches + player-built energy
@@ -722,7 +824,7 @@ public sealed partial class GameServer
             if (InAirBoxes(group.Partners, group.Reaches, cell))
             {
                 Send(session, new Networking.Messages.ServerMessage { Text = text });
-                _baseAirTold[session.State.PlayerId] = (cause, _uptime);
+                _baseAirTold[(session.State.PlayerId, cause)] = _uptime;
             }
         }
     }
@@ -739,8 +841,11 @@ public sealed partial class GameServer
     /// <summary>
     /// Called on every oxygen tick with whether the player breathes base air (#2542). When they just walked out of it
     /// near a base on a world without breathable air — and nothing else keeps them breathing — the pocket at their feet
-    /// is diagnosed once and an informative cause is told: too large, too far, or sealed but not connected. A plain
-    /// leak stays silent (that is simply "outside"), the client's "life support lost" line already covers it.
+    /// is diagnosed once and an informative cause is told: too large, too far, or sealed but not connected. A leak is
+    /// told too when the spot is clearly a room (#2614: the pocket touches an energy door, or there is a roof above the
+    /// player) — with the block and cell the air gets out through. A leak under the open sky stays silent (that is
+    /// simply "outside"), the client's "life support lost" line already covers it. Each cause is told once per
+    /// <see cref="BaseAirRetellInterval"/>.
     /// </summary>
     private void TrackBaseAirPresence(PlayerSession session, Vector3i cell, bool atBase, bool otherLifeSupport)
     {
@@ -768,23 +873,74 @@ public sealed partial class GameServer
             BaseAirStatus.TooLarge => BaseAirLeak.TooLarge,
             BaseAirStatus.TooFar => BaseAirLeak.TooFar,
             BaseAirStatus.Disconnected => BaseAirLeak.Disconnected,
+            BaseAirStatus.Leak when diag.LooksLikeRoom && diag.LeakCell is not null => BaseAirLeak.Open, // #2614
             _ => BaseAirLeak.None,
         };
         if (cause == BaseAirLeak.None
-            || (_baseAirTold.TryGetValue(id, out var told) && told.Cause == cause && _uptime - told.At < BaseAirRetellInterval))
+            || (_baseAirTold.TryGetValue((id, cause), out double told) && _uptime - told < BaseAirRetellInterval))
         {
             return;
         }
 
-        _baseAirTold[id] = (cause, _uptime);
-        Send(session, new Networking.Messages.ServerMessage { Text = BaseAirWarning(cause, diag.Reach, total: false) });
+        _baseAirTold[(id, cause)] = _uptime;
+        string text = cause == BaseAirLeak.Open
+            ? BaseAirLeakText(session.Locale, "srv.base.air_leak_at", "srv.base.air_leak_open_at", diag, cell)
+            : BaseAirWarning(cause, diag.Reach, total: false);
+        Send(session, new Networking.Messages.ServerMessage { Text = text });
+    }
+
+    /// <summary>
+    /// #2614: where a leaking room's air gets out, resolved on the server in the player's language (the block name and
+    /// the height phrase are localized too, which one "@srv.*:arg" token cannot carry): <paramref name="blockKey"/> when
+    /// the air escapes through a block that does not seal ("through Sand at 30/130/0, 10 blocks above you"),
+    /// <paramref name="openKey"/> when the way up is open air. The cell is shown in the frame of
+    /// <paramref name="from"/> (the player's cell), so a leak across the wrap seam reads next to the player's own
+    /// coordinates; the height is measured from that cell too.
+    /// </summary>
+    private string BaseAirLeakText(string locale, string blockKey, string openKey, BaseAirDiagnosis diag, Vector3i from)
+    {
+        var leak = diag.LeakCell ?? from;
+        int circ = _world.Circumference;
+        int x = from.X + WorldConstants.WrapDeltaX(leak.X - from.X, circ);
+        int z = from.Z + WorldConstants.WrapDeltaZ(leak.Z - from.Z, circ);
+        int dy = leak.Y - from.Y;
+        string height = dy switch
+        {
+            0 => Localize(locale, "srv.base.air_leak_level"),
+            1 => Localize(locale, "srv.base.air_leak_above_one"),
+            -1 => Localize(locale, "srv.base.air_leak_below_one"),
+            > 1 => Localize(locale, "srv.base.air_leak_above"),
+            _ => Localize(locale, "srv.base.air_leak_below"),
+        };
+        height = height.Replace("{n}", System.Math.Abs(dy).ToString(CultureInfo.InvariantCulture));
+
+        string text = Localize(locale, diag.LeakBlock.IsAir ? openKey : blockKey);
+        if (!diag.LeakBlock.IsAir)
+        {
+            var def = _content.BlockById(diag.LeakBlock);
+            string name = LocalizedName(locale, def?.NameKey, def?.Key ?? "?");
+            if (def is { Airtight: true })
+            {
+                // A sealing material that leaks only for its shape (a slab, a stair, a wedge).
+                name = Localize(locale, "srv.base.air_leak_shaped").Replace("{block}", name);
+            }
+
+            text = text.Replace("{block}", name);
+        }
+
+        return text
+            .Replace("{x}", x.ToString(CultureInfo.InvariantCulture))
+            .Replace("{y}", leak.Y.ToString(CultureInfo.InvariantCulture))
+            .Replace("{z}", z.ToString(CultureInfo.InvariantCulture))
+            .Replace("{height}", height);
     }
 
     /// <summary>
     /// What the base air is at a cell (#2542): the core zone, supplied by a group (with that group's cells and rooms),
     /// or — for the first group whose boxes hold the cell — why the pocket around it has no air, by filling just that
     /// pocket. <see cref="BaseAirStatus.NoBase"/> when no base reaches the cell. On demand only (<c>/basewalls</c>, a
-    /// player walking out of base air), so the one fill of up to the budget is affordable.
+    /// player walking out of base air), so the one fill of up to the budget is affordable — and it locates a leak (#2614),
+    /// probing every cell's column on the way out from the player (memoised per column, so still one fill's work).
     /// </summary>
     private BaseAirDiagnosis DiagnoseBaseAir(Vector3i cell)
     {
@@ -830,7 +986,7 @@ public sealed partial class GameServer
             return new BaseAirDiagnosis(BaseAirStatus.Leak, 0, 0, widest); // inside a wall or a doorway: no pocket of its own
         }
 
-        var pocket = FillAirPocket(canonical, reaching.Partners, reaching.Reaches, doorCells, null, 0);
+        var pocket = FillAirPocket(canonical, reaching.Partners, reaching.Reaches, doorCells, null, 0, locate: true);
         var status = pocket.Leak switch
         {
             BaseAirLeak.TooLarge => BaseAirStatus.TooLarge,
@@ -838,7 +994,15 @@ public sealed partial class GameServer
             BaseAirLeak.Open => BaseAirStatus.Leak,
             _ => BaseAirStatus.Disconnected,
         };
-        return new BaseAirDiagnosis(status, pocket.Cells.Count, 0, widest);
+        if (status != BaseAirStatus.Leak)
+        {
+            return new BaseAirDiagnosis(status, pocket.Cells.Count, 0, widest);
+        }
+
+        // #2614: a leak keeps where the air gets out, and whether this is clearly a room — a pocket bordering an energy
+        // door, or a roof over the cell (sand counts: that is exactly the ceiling that leaks). One column, no extra fill.
+        bool room = pocket.Doors.Count > 0 || RoofAbove(canonical, reaching.Partners, reaching.Reaches);
+        return new BaseAirDiagnosis(status, pocket.Cells.Count, 0, widest, pocket.LeakCell, pocket.LeakBlock, room);
     }
 
     /// <summary>Test seam (#2542): the diagnosis at a cell of the active world.</summary>

@@ -799,7 +799,8 @@ public sealed partial class GameServer
 
     // --- LLM banter (the "L-stages" flavour path): rare, contextual smalltalk once onboarding is done.
     // Pure flavour on top of the scripted lines — generated off-thread through the same backend the NPC
-    // greetings use (role "ship_ai"), cached per situation bucket, and silently absent when AI is off.
+    // greetings use (role "ship_ai"), on the world's AI line budget, cached per set of banter facts, and silently
+    // absent when AI is off.
 
     private const double VegaBanterMinDelay = 420.0; // s between banter checks per player (~7 min)
     private const double VegaBanterMaxDelay = 720.0;
@@ -807,45 +808,56 @@ public sealed partial class GameServer
     /// <summary>Banter lines finished off-thread, waiting for the tick to send them.</summary>
     private readonly ConcurrentQueue<(int ConnectionId, ShipAiLine Line)> _vegaBanterOutbox = new();
 
-    /// <summary>One banter line per situation bucket + locale (cost control, like the greeting cache).</summary>
+    /// <summary>One banter line per set of banter facts + locale (cost control, like the greeting cache). Bounded by the
+    /// facts: one world per server × 3 day phases × aboard/on foot × 3 climates × 12 memory states × the locales.</summary>
     private readonly ConcurrentDictionary<string, string> _vegaBanterCache = new();
 
     private readonly ConcurrentDictionary<string, byte> _vegaBanterInFlight = new();
 
-    /// <summary>The compact situation line VEGA comments on (world, day phase, story progress).</summary>
-    private string VegaSituation(PlayerSession session)
+    /// <summary>
+    /// The facts one banter line is written for, as its cache key and the situation line VEGA comments on: the world,
+    /// the local day phase, aboard or on foot, whether the suit is fighting the climate (#671), and — only under the
+    /// VEGA story (#2470) — how much of VEGA's memory is back.
+    /// <para>#2618: the key IS these facts and the request is built from them alone (<see cref="VegaBanterRequest"/>),
+    /// so the request is a pure function of its key. Before, the key held only world + day/night while the request also
+    /// carried the asking pilot's twilight, aboard state, climate, memory progress and milestone count — and that one
+    /// cached line served every later pilot: a single freezing pilot's "the heater is fighting the cold" reached
+    /// everyone at night on that world. Each fact is a small closed set, so bounding them into the key costs only a few
+    /// more backend calls (each on the budget) and keeps the climate and memory talk true for the listener.</para>
+    /// </summary>
+    private (string CacheKey, string Situation) VegaBanterFacts(PlayerSession session)
     {
         var p = session.State;
         string world = _world.Planet?.Key ?? "space";
-        double localDay = LocalDayFraction(session.State.Position); // #1865: the local sun
+        double localDay = LocalDayFraction(p.Position); // #1865: the local sun
         string phase = localDay is < 0.15 or > 0.85 ? "night" : localDay is < 0.3 or > 0.7 ? "twilight" : "day";
-        // VEGA's memory is the VEGA story's subject (#2470): no memory talk in a world without it.
-        string memory = VegaStoryActive
-            ? $", {System.Math.Min(VegaMemoryBeats, RestoredVegaMemories(p))}/10 of VEGA's memory restored"
-            : string.Empty;
-        string aboard = p.AboardShip ? "aboard the ship" : "on foot";
+
         // Temperature awareness (#671): only mentioned while the suit is actually fighting the climate,
         // so VEGA's banter can react to a freezing night march or a scorching noon without noise otherwise.
-        string climate = p.SuitClimateActive
-            ? session.EffectiveTemperatureC < ComfortLowC
-                ? ", the suit's heater is fighting dangerous cold"
-                : ", the suit's cooler is fighting dangerous heat"
-            : string.Empty;
-        return $"on a {world} world, {phase}, pilot is {aboard}{climate}{memory}";
-    }
+        string climate = !p.SuitClimateActive ? "mild" : session.EffectiveTemperatureC < ComfortLowC ? "cold" : "heat";
+        string climateText = climate switch
+        {
+            "cold" => ", the suit's heater is fighting dangerous cold",
+            "heat" => ", the suit's cooler is fighting dangerous heat",
+            _ => string.Empty,
+        };
 
-    /// <summary>Situation bucket for the banter cache — coarse on purpose so lines get reused.</summary>
-    private string VegaBanterKey(PlayerSession session)
-    {
-        string world = _world.Planet?.Key ?? "space";
-        bool night = LocalDayFraction(session.State.Position) is < 0.15 or > 0.85; // #1865: the local sun
-        return $"banter|{world}|{(night ? "night" : "day")}|{session.Locale}";
+        // VEGA's memory is the VEGA story's subject (#2470): no memory talk in a world without it.
+        string memory = VegaStoryActive
+            ? System.Math.Min(VegaMemoryBeats, RestoredVegaMemories(p)).ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : string.Empty;
+        string memoryText = memory.Length > 0 ? $", {memory}/10 of VEGA's memory restored" : string.Empty;
+
+        string aboardText = p.AboardShip ? "aboard the ship" : "on foot";
+        string situation = $"on a {world} world, {phase}, pilot is {aboardText}{climateText}{memoryText}";
+        string cacheKey = $"banter|{world}|{phase}|{(p.AboardShip ? "aboard" : "on_foot")}|{climate}|m{memory}|{session.Locale}";
+        return (cacheKey, situation);
     }
 
     /// <summary>Rolls the per-player banter timer; when due (and AI is on, the basic training through), serves a
-    /// cached line or generates one off-thread. Called from <see cref="TickShipAi"/>'s 1 Hz path. "Training through" is
-    /// the tutorial pack's <c>banter</c> gate (#2469, synthesis §5.3: basic training done or skipped, or the tutorial
-    /// off or opted out); without a tutorial pack banter is open.</summary>
+    /// cached line or generates one off-thread (<see cref="StartVegaBanter"/>). Called from <see cref="TickShipAi"/>'s
+    /// 1 Hz path. "Training through" is the tutorial pack's <c>banter</c> gate (#2469, synthesis §5.3: basic training
+    /// done or skipped, or the tutorial off or opted out); without a tutorial pack banter is open.</summary>
     private void TickVegaBanterFor(PlayerSession session)
     {
         if (_config.AiLevel == AiLevel.Off || TutorialGate(session, StoryGateNames.Banter) == false)
@@ -868,8 +880,21 @@ public sealed partial class GameServer
         session.VegaBanterNextAt = _uptime + VegaBanterMinDelay
             + _vegaRng.NextDouble() * (VegaBanterMaxDelay - VegaBanterMinDelay);
         session.VegaTipReadyAt = _uptime + VegaTipGap;
+        StartVegaBanter(session);
+    }
 
-        string cacheKey = VegaBanterKey(session);
+    /// <summary>Serves this player VEGA's banter for their facts (<see cref="VegaBanterFacts"/>): the cached line at once,
+    /// else one backend request off the game thread — deduped per cache key and (#2618) on the world's AI line budget at
+    /// <see cref="AiLinePriority.Vega"/>, like every other AI line. A refused request is simply not made (banter is
+    /// flavour — the next banter tick tries again); the line is sent by <see cref="TickVegaBanter"/> when it arrives.</summary>
+    private void StartVegaBanter(PlayerSession session)
+    {
+        if (!AiLinesEnabled)
+        {
+            return;
+        }
+
+        var (cacheKey, situation) = VegaBanterFacts(session);
         if (_vegaBanterCache.TryGetValue(cacheKey, out var cached))
         {
             SendVegaText(session, cached);
@@ -881,17 +906,23 @@ public sealed partial class GameServer
             return;
         }
 
-        var req = VegaBanterRequest(session);
+        if (!TryTakeAiBudget(AiLinePriority.Vega))
+        {
+            _vegaBanterInFlight.TryRemove(cacheKey, out _);
+            return; // budget spent — silence until the next banter tick
+        }
+
+        var req = VegaBanterRequest(session.Locale, situation);
         int connId = session.ConnectionId;
-        _ = System.Threading.Tasks.Task.Run(() =>
+        RunAiOffThread(() =>
         {
             try
             {
-                var line = _ai.GenerateNpcLine(req);
-                if (!string.IsNullOrWhiteSpace(line))
+                // Same check as greetings (#2590): a stray placeholder other than {player} is dropped, never cached.
+                if (AcceptGreetingLine(_ai.GenerateNpcLine(req)) is { } line)
                 {
-                    _vegaBanterCache[cacheKey] = line!;
-                    _vegaBanterOutbox.Enqueue((connId, BuildVegaTextLine(line!)));
+                    _vegaBanterCache[cacheKey] = line;
+                    _vegaBanterOutbox.Enqueue((connId, BuildVegaTextLine(line)));
                 }
             }
             catch
@@ -901,28 +932,32 @@ public sealed partial class GameServer
             finally
             {
                 _vegaBanterInFlight.TryRemove(cacheKey, out _);
+                _aiLineBudget.Release();
             }
         });
     }
 
-    /// <summary>The ship-AI line request — same backend + contract as NPC greetings, role "ship_ai".</summary>
-    private NpcLineRequest VegaBanterRequest(PlayerSession session)
+    /// <summary>The ship-AI line request — same backend + contract as NPC greetings, role "ship_ai". #2618: built only
+    /// from the cache key's parts (the locale and the <see cref="VegaBanterFacts"/> situation), with the trusted standing
+    /// every pilot has with their own ship AI once banter runs (after the basic training) — never one pilot's milestone
+    /// count, which the shared line would otherwise carry to everyone.</summary>
+    private static NpcLineRequest VegaBanterRequest(string locale, string situation)
     {
-        var p = session.State;
+        var (relationship, pastInteractions) = TierRepresentative("trusted");
         return new NpcLineRequest
         {
             NpcName = "VEGA",
             Role = "ship_ai",
             IsRobot = true,
-            // #2590: the banter cache is per world/day-phase/locale, not per player — a real name here would reach
+            // #2590: the banter cache is per set of facts + locale, not per player — a real name here would reach
             // every other pilot on the world. The token is filled per receiver in SendVegaText.
             PlayerName = AiLineTokens.Player,
-            Relationship = System.Math.Min(100, p.Milestones.Count * 4), // standing grows with shared history
-            PastInteractions = p.Milestones.Count,
-            Language = session.Locale,
+            Relationship = relationship,
+            PastInteractions = pastInteractions,
+            Language = locale,
             Persona = "dry, laconic ship AI with deadpan humour; loyal; an old fleet navigation core",
             RecentEvents = string.Empty,
-            Situation = VegaSituation(session),
+            Situation = situation,
         };
     }
 
@@ -974,7 +1009,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>Test seam: synchronously resolves the banter line VEGA would say right now — the same
-    /// request/provider/cache path the off-thread flow uses. Null when AI is off or the provider declines.</summary>
+    /// request/provider/cache path the off-thread flow uses, on the AI line budget like the real path (#2618). Null
+    /// when AI is off, the budget refuses or the provider declines.</summary>
     public string? VegaBanterForTest(string playerId)
     {
         if (FindSessionByPlayerId(playerId) is not { } session || _config.AiLevel == AiLevel.Off)
@@ -982,20 +1018,59 @@ public sealed partial class GameServer
             return null;
         }
 
-        string cacheKey = VegaBanterKey(session);
+        var (cacheKey, situation) = VegaBanterFacts(session);
         if (_vegaBanterCache.TryGetValue(cacheKey, out var cached))
         {
             return cached;
         }
 
-        var line = _ai.GenerateNpcLine(VegaBanterRequest(session));
-        if (!string.IsNullOrWhiteSpace(line))
+        if (!TryTakeAiBudget(AiLinePriority.Vega))
         {
-            _vegaBanterCache[cacheKey] = line!;
-            return line;
+            return null;
+        }
+
+        try
+        {
+            if (AcceptGreetingLine(_ai.GenerateNpcLine(VegaBanterRequest(session.Locale, situation))) is { } line)
+            {
+                _vegaBanterCache[cacheKey] = line;
+                return line;
+            }
+        }
+        finally
+        {
+            _aiLineBudget.Release();
         }
 
         return null;
+    }
+
+    /// <summary>Test seam (#2618): the real banter path past the timer and the tutorial gate (<see cref="StartVegaBanter"/>)
+    /// for this player, then the outbox drain every tick does. Pair with <see cref="RunAiLinesSynchronouslyForTest"/> to
+    /// see the line in the same call. False when the player is unknown.</summary>
+    public bool StartVegaBanterForTest(string playerId)
+    {
+        if (FindSessionByPlayerId(playerId) is not { } session)
+        {
+            return false;
+        }
+
+        StartVegaBanter(session);
+        TickVegaBanter();
+        return true;
+    }
+
+    /// <summary>Test seam (#2618): the banter request and cache key VEGA would use for this player right now. Null when
+    /// the player is unknown.</summary>
+    public (NpcLineRequest Request, string CacheKey)? VegaBanterRequestForTest(string playerId)
+    {
+        if (FindSessionByPlayerId(playerId) is not { } session)
+        {
+            return null;
+        }
+
+        var (cacheKey, situation) = VegaBanterFacts(session);
+        return (VegaBanterRequest(session.Locale, situation), cacheKey);
     }
 
     /// <summary>Test seam: the player's milestone set (onboarding stages, hints, memory beats).</summary>

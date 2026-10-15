@@ -171,9 +171,9 @@ Last updated: 2026-10-04.
 | **R** | At your own **cockpit / ship console** — inside the parked ship, or at the helm after **F** stepped you into the floating ship — while the repair panel is up: repair the ship (see §5 → Repairing your own ship; pressed elsewhere while the panel is up, a hint says where to go); otherwise repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder, stairs or a block with a front** (machines, counters, devices) selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
 | **L** | Toggle the suit headlamp (requires a **worn** `suit_lamp` — a module slot on the Suit tab; without one a hint says so) |
 | **B** | Switch the **stealth suit's** cloak on / off (requires the stealth suit **worn** in the chest slot; drains suit energy) — rebindable |
-| **G** | Loot the nearest container |
+| **G** | Loot the nearest container — take everything out of the nearest storage crate; at an **empty** crate a short message says *The crate is empty.* |
 | **Q** | **Feed** — with food in your hand and a **begging herd** nearby, throw the animals one piece (see §5 → Creatures); does nothing otherwise, so it never wastes food — rebindable (Settings → Controls → *Feed a begging animal*) |
-| **H** | Store your loose materials and blocks in the nearest storage crate / wood box (the one-key sweep leaves tools, weapons, food and equipment with you — put those in by hand on the crate screen, **E**); **aboard your ship** with no crate in reach: **stow them all into the cargo hold** (the stack in your hand stays) |
+| **H** | Store your loose materials and blocks in the nearest storage crate / wood box (the one-key sweep leaves tools, weapons, food and equipment with you — put those in by hand on the crate screen, **E**; with nothing of that kind in your bag a message says so); **aboard your ship** with no crate in reach: **stow them all into the cargo hold** (the stack in your hand stays) |
 | **E** | Use a nearby ship/station tile (cockpit, workshop, **cargo — opens the cargo hold page**, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **open the crate screen** of a storage crate you're aiming at — its contents above, your backpack below, click to move (see §5 → Storage crates); **open or close a wooden or hinged door** — the one you're looking at, else the nearest (sliding and energy doors open by themselves; see §5 → Crafting → Doors) |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
 | **T** | Send a trade request to a nearby player |
@@ -1585,14 +1585,17 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   as a soft **blue shield dome** so you can see where the air ends.
 - **Sealed rooms extend the air**: rooms built at the base out of **airtight materials** — stone, metals,
   concrete, bricks, glass (natural rock counts too: dig a cave!) — get life support **beyond the zone cube**,
-  as long as they are **sealed** and **connected to the base**. Loose stuff (dirt, sand, snow, plants) and
-  shaped blocks (ramps, spheres) leak. Doorways need the **Energy Door** (workshop, blueprint-gated): its blue
+  as long as they are **sealed** and **connected to the base**. Loose stuff (dirt, sand, snow, plants), geyser
+  vents and shaped blocks (ramps, spheres) leak — ice seals. A cave ceiling of **sand** with the open sky above it
+  lets the air out: build a layer of stone, metal, ice or glass **under** the sand (don't mine the sand — it slides
+  down and opens a hole). Doorways need the **Energy Door** (workshop, blueprint-gated): its blue
   field is an **air curtain** — you walk right through, the air stays in. Ordinary doors (wood, hinged,
   sliding) do NOT hold air. Holding any door shows a **hologram of it in the target cell**, turned by the wall
   beside it, so you see which way it will face before you place it. Chain rooms door by door to grow a whole airtight outpost; if a wall is mined or
   burns away, everyone at the base gets a **"no longer airtight"** warning and the rooms fall back to suit
   oxygen until the hole is closed. **Check it:** aim at your own core — the prompt shows how many cells and
-  sealed rooms currently have air and whether the spot you stand on does (*here: air*). VEGA explains the
+  sealed rooms currently have air and whether the spot you stand on does (*here: air*; when other rooms breathe
+  but your spot does not, it adds *· /basewalls tells you why*). VEGA explains the
   three rules once when you found a core on a world without breathable air.
 - **How big, how far** (#2539–#2543): one sealed room holds up to **64,000 air blocks** (e.g. 40×40×40) — a bigger
   hall gets no air even when it is perfectly closed, so **split a huge cave with walls and energy doors** into
@@ -1602,8 +1605,12 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   bases of you and your allies on the same body count as one — a room touching an ally's core zone, or linked to
   it door by door, breathes for all of you. **Why no air?** The game says it: when a room loses its air, everyone
   at the base hears the reason (*too large*, *reaches too far from the core*, *no longer airtight*, *not connected*),
-  and walking from air into a room that is too large, too far out or not connected tells you once, too. Type
-  **`/basewalls`** in the chat (owners may) for the air at your spot and the reason, plus the air rules.
+  and walking from air into a room that is too large, too far out or not connected tells you once, too. Walking
+  into a room that **leaks** — behind an energy door, or under a roof — names **where the air gets out**: the
+  block, its coordinates and how far above you (e.g. *"the air escapes through Sand at 30/130/0, 10 blocks above
+  you"*; for an open hole, the column above it). Each reason is told at most once every five minutes. Type
+  **`/basewalls`** in the chat (owners may) for the air at your spot and the reason (for a leak with the same block
+  and coordinates), plus the air rules.
 - **Sentry post** (workshop, blueprint-gated after the Heal Tank): a small automatic turret you place inside
   your own base zone. It fires at hostile machines, at **hostile animals**, and at robbers who have
   **already started a fight** — never at players, never at tame animals, and never at somebody walking up to
@@ -1636,7 +1643,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   *"… is coming to visit you!"*:
   - a **neighbour** from the nearest village — the very villager you know, with the same name, face and
     friendship (while they visit you, they are not in the village). They bring a small **present** (berries; a
-    lantern for a friend) — or, ask them *"Can I help you with anything?"*, one of their **wishes**;
+    lantern for a friend) — or, ask them *"Can I help you with anything?"*, one of their **wishes**. Their **"!"**
+    and **"?"** come along: if you already carry what they wished for, press **E** at them and they take it right
+    there — no need to walk to the village;
   - a **travelling merchant** who opens a little market at your base for a few minutes (press **E** → *Trade*);
   - a **lost traveller** who asks the way to the village and thanks you with a few torches.
 
@@ -2141,7 +2150,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   ([1]/[2]/[3] or click) — your pick is remembered and can deepen a friendship, hand you something, reveal a
   piece of the story, or make someone **call you on the radio later**. Talking itself counts toward your
   standing. A few **recurring faces** exist out there — the same person at more than one place, and they
-  remember you everywhere.
+  remember you everywhere. While you talk, the person **stands still and looks at you** (for up to a minute — then
+  their day may call them away). **Esc** or *Leave* ends the conversation, and so does walking a few steps away:
+  the panel closes by itself and they go back to what they were doing.
 - **Friends with names.** Every villager is their own person: talking to someone counts for **them** (every
   ten minutes), the first meeting already helps a little, and a friendly hello in passing too (up to
   *Acquaintance*). Become a **Friend** of a villager and now and then — at most every half hour of play — they
@@ -2189,8 +2200,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   once more to hand it over. With only part of it they tell you how far you are (*"You have 3 of 5
   Berries so far — no hurry!"*). With a full bag, make some room first. A small hamlet has **one** wish at a time,
   bigger villages **two**; after you fulfil one, the next wish comes from someone else. Wishes are asked **in
-  person** — the Missions tab never offers one, and its hand-in button only works next to the villager. Nobody asks
-  for a new wish while celebrating at a festival. A wish is a kindness, not story progress.
+  person** — the Missions tab never offers one, and its hand-in button only works next to the villager. When that
+  villager **visits your base**, their "!" or "?" floats over them there, and you can hand the wish over at home.
+  Nobody asks for a new wish while celebrating at a festival. A wish is a kindness, not story progress.
 - **Favours for friends.** A vendor who **knows** you will, in conversation, ask for a favour — the
   three-part *"A favour for a regular"* chain (crystals → a plant survey → titanium for a trusted friend).
   Saying yes puts the job straight into **Tab → Missions**; hand it in to the **same vendor, in person**.
@@ -3399,8 +3411,9 @@ with none at all that you need one.
 
 ### Player feedback (**F1**; **F2** in the browser) — and the developers' answers
 - Press **F1** (F2 in browser builds) during play to send a bug report or a wish: a title, a description
-  and an optional e-mail. A screenshot and a small technical snapshot (player name, version, position,
-  stats) travel with it to the developers' inbox. No connection? The report is queued and sent on a
+  and an optional e-mail. A screenshot of the moment you pressed the key — HUD, crosshair and on-screen
+  hints included, without the form — and a small technical snapshot (player name,
+  version, position, stats) travel with it to the developers' inbox. No connection? The report is queued and sent on a
   later start.
 - **F1 works in the main menu too** — and on the world list, Settings, Credits and the Editors overview —
   so a problem you hit before a world is even loaded (say, while creating one) can be reported right
@@ -3529,7 +3542,7 @@ and that option is off by default on hosted worlds.
 | `/players` | Every player this world knows — role, body, position and when they were last seen. Offline players come from the save |
 | `/builds [Player]` | Named structures (bases, beacons, beam pads, stations) with owner, body and a ready-to-use `/goto` line; optionally for one player |
 | `/where Player` | One player's body, position and last-seen time — works while they are offline |
-| `/basewalls` | Why animals do (not) spawn in a yard: the nearest base core, the enclosure fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed / sealed / open, and the rules (2-high walls, hinge doors leak, unloaded chunks read as open; walking Guardian robots step up two blocks and are stopped by a wall of three or more and by water two or more blocks deep, hovering scan-drones by four or more; fliers are not). Since #2542 also the **air at your cell** and why there is none (too large — over 64,000 air blocks, too far from the core, leaky, or sealed but not connected) and the air rules with the base's current reach |
+| `/basewalls` | Why animals do (not) spawn in a yard: the nearest base core, the enclosure fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed / sealed / open **for animals**, and the rules (2-high walls, hinge doors leak, unloaded chunks read as open; walking Guardian robots step up two blocks and are stopped by a wall of three or more and by water two or more blocks deep, hovering scan-drones by four or more; fliers are not). Since #2542 also the **air at your cell** and why there is none (too large — over 64,000 air blocks, too far from the core, leaky, or sealed but not connected) and the air rules with the base's current reach; since #2614 a leak names where the air gets out (the block, its coordinates and its height above you) |
 | `/creatures` | Creature footing within 48 blocks: per animal its species and motion class, feet height, the real ground of its column, the delta between them, the generator's noise surface and a verdict (ok / floating / BURIED) — the readout for "animals standing in the ground" reports |
 | `/silence Player [Minutes]` | Pauses that player's chat for a while (10 minutes by default, a day at most). They are told how long, and can keep playing — see below |
 | `/unsilence Player` | Ends the pause right away |

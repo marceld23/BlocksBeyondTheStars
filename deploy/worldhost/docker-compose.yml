@@ -75,6 +75,8 @@ services:
       # Fleet AI texts (optional): world instances call the internal-only ai container by name.
       BBS_WH_AI_BACKEND_URL: ${BBS_WH_AI_BACKEND_URL:-}   # empty = AI off; fleet: http://ai:8077
       BBS_WH_AI_LEVEL: ${BBS_WH_AI_LEVEL:-TextOnly}
+      # Per-world AI line budget (#2619), forwarded as BBS_AI_LINES_PER_MINUTE; empty = server default (4), 0 = none.
+      BBS_WH_AI_LINES_PER_MINUTE: ${BBS_WH_AI_LINES_PER_MINUTE:-}
       # Per-world resource fences + the fleet-wide awake cap (see WorldHostConfig for semantics).
       BBS_WH_INSTANCE_MEMORY: ${BBS_WH_INSTANCE_MEMORY:-768m}
       BBS_WH_INSTANCE_CPUS: ${BBS_WH_INSTANCE_CPUS:-2}

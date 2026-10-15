@@ -33,9 +33,53 @@ public sealed partial class GameServer
     /// <summary>A repeatable dialogue pays its relationship reward at most this often per NPC (#1162).</summary>
     private const double DialogRewardCooldownSeconds = 3600.0;
 
-    /// <summary>The dialogue each player is currently in (npc, definition, node index). Runtime-only —
-    /// walking away simply abandons it; the once-flag is written when the dialogue ENDS.</summary>
-    private readonly Dictionary<string, (int NpcId, DialogDefinition Dialog, int Node)> _dialogSessions = new();
+    /// <summary>#2616: how far past <see cref="NpcTalkRange"/> a conversation survives (the player shuffling a step back).</summary>
+    private const float NpcTalkKeepMargin = 2f;
+
+    /// <summary>#2616: the longest one talk holds an NPC's day — then its routine may walk it on (and walking out of
+    /// reach ends the talk).</summary>
+    private const double NpcTalkHoldSeconds = 60.0;
+
+    /// <summary>#2616: how long one refresh keeps the talking NPC still and facing the player (the 1 Hz sweep renews it,
+    /// so a talk that ends without a word — a lost connection — lets go on its own).</summary>
+    private const double NpcTalkAttendSeconds = 2.0;
+
+    /// <summary>#2616: per-world 1 Hz throttle of <see cref="TickNpcConversations"/>.</summary>
+    private readonly Dictionary<string, double> _conversationTickAt = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// #2616: one player's conversation with an NPC, kept on <see cref="PlayerSession.Conversation"/>. It exists only while
+    /// the client shows reply choices: a leave, an end node, a new talk, walking away, a world change, the NPC leaving the
+    /// world or a disconnect end it. The NPC is held by REFERENCE — NPC ids restart at 1 on every world (and on every
+    /// respawn), so an id alone could name a different person after travel or a reload. Runtime-only; the once-flag is
+    /// written when the dialogue ENDS.
+    /// </summary>
+    internal sealed class NpcConversation
+    {
+        public NpcConversation(ServerNpc npc, string locationId, DialogDefinition dialog, double startedAt)
+        {
+            Npc = npc;
+            LocationId = locationId;
+            Dialog = dialog;
+            StartedAt = startedAt;
+            LastActiveAt = startedAt;
+        }
+
+        public ServerNpc Npc { get; }
+
+        /// <summary>The world the talk happens on (the NPC's).</summary>
+        public string LocationId { get; }
+
+        public DialogDefinition Dialog { get; }
+
+        /// <summary>The node whose choices the client shows.</summary>
+        public int Node { get; set; }
+
+        public double StartedAt { get; }
+
+        /// <summary>Uptime of the last step (the opening or a choice).</summary>
+        public double LastActiveAt { get; set; }
+    }
 
     /// <summary>"Later radio call" consequences waiting to fire (runtime-only — a restart drops the
     /// courtesy call, nothing of value is lost).</summary>
@@ -152,15 +196,18 @@ public sealed partial class GameServer
     };
 
     /// <summary>The player talks to an NPC (E in reach). A matching dialogue opens the panel; none →
-    /// the ordinary greeting bubble, which makes settlers greet-able for the first time too.</summary>
+    /// the ordinary greeting bubble, which makes settlers greet-able for the first time too. The reach is measured the
+    /// short way round both seams (#2613: the home pad lies on X = 0, so a resident often stands on the other side).
+    /// #2616: a new talk ends the conversation the player was in.</summary>
     private void HandleTalkToNpc(PlayerSession session, TalkToNpcIntent intent)
     {
         var npc = _npcs.FirstOrDefault(n => n.Id == intent.NpcId);
-        if (npc is null || npc.Pos.DistanceSquared(session.State.Position) > NpcTalkRange * NpcTalkRange)
+        if (npc is null || npc.VisitingAway || WrapDistSq(npc.Pos, session.State.Position) > NpcTalkRange * NpcTalkRange)
         {
-            return;
+            return; // nobody there (a villager away visiting a base is hidden at home — the guest is the one to talk to)
         }
 
+        EndNpcConversation(session, tellClient: true);
         if (npc.Pose == 2)
         {
             // #1867: someone asleep in bed mumbles and stays there — no dialogue, no job talk at midnight.
@@ -211,17 +258,170 @@ public sealed partial class GameServer
             SendPassingGreeting(session, npc, npcKey, welcomeBack: true); // #2595: the welcome bubble alongside the panel
         }
 
-        _dialogSessions[session.State.PlayerId] = (npc.Id, dialog, 0);
         var node = dialog.Nodes[0];
+        string text = DialogOpeningText(session, npc, npcKey, dialog, node);
+        if (node.Choices.Count > 0)
+        {
+            StartNpcConversation(session, npc, dialog);
+        }
+
         Send(session, new NpcDialogState
         {
             NpcId = npc.Id,
             Name = npc.Name,
-            Text = DialogOpeningText(session, npc, npcKey, dialog, node),
+            Text = text,
             Choices = node.Choices.Select(c => Localize(session.Locale, c.TextKey)).ToArray(),
             End = node.Choices.Count == 0,
         });
         StampNpcSeen(session.State, npcKey); // #2595: an acquaintance saw the player now (existing entries only)
+    }
+
+    // ---------------- #2616: the conversation's life ----------------
+
+    /// <summary>
+    /// #2616 — the ONE validity rule of a conversation, used by every reader (the choice, the 1 Hz sweep, the passing
+    /// greeting's "in a conversation", village chatter, the visiting-neighbour pick): the player is joined, not in space,
+    /// on the world the talk happens on (which is the active world), the NPC is still that very object on it (by
+    /// reference — ids are reused per world), not away visiting a base, and within <see cref="NpcTalkRange"/> +
+    /// <see cref="NpcTalkKeepMargin"/> measured the short way round both seams.
+    /// </summary>
+    private bool NpcConversationValid(PlayerSession session, NpcConversation c)
+    {
+        if (!session.Joined || session.CurrentLocationId != c.LocationId || _worlds.Active?.LocationId != c.LocationId
+            || InSpace(session.State.PlayerId) || c.Npc.VisitingAway || !_npcs.Contains(c.Npc))
+        {
+            return false;
+        }
+
+        float keep = NpcTalkRange + NpcTalkKeepMargin;
+        return WrapDistSq(session.State.Position, c.Npc.Pos) <= keep * keep;
+    }
+
+    /// <summary>#2616: the player is in a live conversation (an open panel with replies, the NPC still in reach).</summary>
+    private bool InLiveConversation(PlayerSession session)
+        => session.Conversation is { } c && NpcConversationValid(session, c);
+
+    /// <summary>#2616: opens a conversation (only for a step that offers replies) — a running one ends first — and holds
+    /// the NPC still, facing the player.</summary>
+    private void StartNpcConversation(PlayerSession session, ServerNpc npc, DialogDefinition dialog)
+    {
+        EndNpcConversation(session, tellClient: false);
+        var c = new NpcConversation(npc, _world.LocationId, dialog, _uptime);
+        session.Conversation = c;
+        HoldNpcForTalk(session, c);
+    }
+
+    /// <summary>#2616: the talking NPC stands still and looks at the player (the attend fields), and its walk and routine
+    /// wait — never longer than <see cref="NpcTalkHoldSeconds"/> after the talk began. Renewed by the 1 Hz sweep in short
+    /// steps, so a talk that ends without a word lets the NPC go on its own.</summary>
+    private void HoldNpcForTalk(PlayerSession session, NpcConversation c)
+    {
+        var npc = c.Npc;
+        double until = _uptime + NpcTalkAttendSeconds;
+        npc.AttendUntil = Math.Max(npc.AttendUntil, until);
+        npc.AttendPos = session.State.Position;
+        npc.TalkHoldUntil = Math.Max(npc.TalkHoldUntil, Math.Min(until, c.StartedAt + NpcTalkHoldSeconds));
+    }
+
+    /// <summary>#2616: ends the player's conversation, if any, and lets the NPC go (unless another player still talks with
+    /// it). <paramref name="tellClient"/>: the panel still shows replies — close it (<see cref="NpcDialogState.ActionClose"/>,
+    /// only to a client announcing <c>dialogclose1</c>: an older one had its panel closed already or keeps the dead replies
+    /// as before); false when the client closed it itself (the leave) or the step being sent closes it anyway.</summary>
+    private void EndNpcConversation(PlayerSession session, bool tellClient)
+    {
+        if (session.Conversation is not { } c)
+        {
+            return;
+        }
+
+        session.Conversation = null;
+        var npc = c.Npc;
+        bool stillTalking = false;
+        foreach (var other in _sessions.Values)
+        {
+            if (other.Conversation is { } oc && ReferenceEquals(oc.Npc, npc))
+            {
+                stillTalking = true;
+                break;
+            }
+        }
+
+        if (!stillTalking)
+        {
+            npc.TalkHoldUntil = 0;
+            npc.AttendUntil = Math.Min(npc.AttendUntil, _uptime + 1.0); // a last look, then back to its day
+        }
+
+        if (tellClient && session.SupportsDialogClose) // an older panel would pop open again for it (dialogclose1)
+        {
+            Send(session, new NpcDialogState
+            {
+                NpcId = npc.Id,
+                Name = npc.Name,
+                End = true,
+                Action = NpcDialogState.ActionClose,
+            });
+        }
+    }
+
+    /// <summary>#2616: the per-world 1 Hz conversation sweep (registered after <c>TickNpcs</c>).</summary>
+    private void TickNpcConversations(double dt)
+    {
+        _ = dt;
+        if (_worlds.Active is null)
+        {
+            return;
+        }
+
+        string world = _world.LocationId;
+        if (_conversationTickAt.TryGetValue(world, out double due) && _uptime < due)
+        {
+            return;
+        }
+
+        _conversationTickAt[world] = _uptime + 1.0;
+        SweepNpcConversations();
+    }
+
+    /// <summary>#2616: ends every dead conversation and tells the client; holds every live one's NPC a little longer. A
+    /// talk whose player left its world is dead whichever world ticks (the world it was on may no longer tick at all);
+    /// the full rule is checked on the talk's own world.</summary>
+    private void SweepNpcConversations()
+    {
+        string world = _world.LocationId;
+        List<PlayerSession>? dead = null;
+        foreach (var s in _sessions.Values)
+        {
+            if (s.Conversation is not { } c)
+            {
+                continue;
+            }
+
+            bool otherWorld = c.LocationId != world;
+            if (otherWorld && s.Joined && s.CurrentLocationId == c.LocationId)
+            {
+                continue; // the talk's own world checks it
+            }
+
+            if (otherWorld || !NpcConversationValid(s, c))
+            {
+                (dead ??= new List<PlayerSession>()).Add(s);
+            }
+            else
+            {
+                HoldNpcForTalk(s, c);
+            }
+        }
+
+        if (dead is null)
+        {
+            return;
+        }
+
+        foreach (var s in dead)
+        {
+            EndNpcConversation(s, tellClient: s.Joined);
+        }
     }
 
     /// <summary>Most characters an AI re-wording of a dialogue opening may take (#2594) — the authored openings are
@@ -296,23 +496,33 @@ public sealed partial class GameServer
 
     /// <summary>The player picks a reply. The server owns the walk: validate against ITS node, record the
     /// (finally producing) Dialog interaction, persist the decision, apply the consequence, then answer
-    /// with the response — plus the follow-up node's prompt when the dialogue continues.</summary>
+    /// with the response — plus the follow-up node's prompt when the dialogue continues.
+    /// <para>#2616: a negative index is the leave (the client closed the panel). A choice or leave naming another NPC than
+    /// the conversation's is a late one for an earlier panel and changes nothing. A choice in a conversation that is no
+    /// longer valid (walked away, another world, the NPC gone — <see cref="NpcConversationValid"/>) applies nothing: the
+    /// conversation ends and the client's panel closes.</para></summary>
     private void HandleNpcDialogChoice(PlayerSession session, NpcDialogChoiceIntent intent)
     {
-        string playerId = session.State.PlayerId;
-        if (!_dialogSessions.TryGetValue(playerId, out var active))
+        if (session.Conversation is not { } active || (intent.NpcId != 0 && intent.NpcId != active.Npc.Id))
         {
             return;
         }
 
-        var npc = _npcs.FirstOrDefault(n => n.Id == active.NpcId);
+        if (intent.ChoiceIndex < 0)
+        {
+            EndNpcConversation(session, tellClient: false); // the leave — the panel is already gone
+            return;
+        }
+
+        var npc = active.Npc;
         var node = active.Node >= 0 && active.Node < active.Dialog.Nodes.Count ? active.Dialog.Nodes[active.Node] : null;
-        if (npc is null || node is null || intent.ChoiceIndex < 0 || intent.ChoiceIndex >= node.Choices.Count)
+        if (!NpcConversationValid(session, active) || node is null || intent.ChoiceIndex >= node.Choices.Count)
         {
-            _dialogSessions.Remove(playerId);
+            EndNpcConversation(session, tellClient: true);
             return;
         }
 
+        active.LastActiveAt = _uptime;
         var choice = node.Choices[intent.ChoiceIndex];
         string npcKey = DialogNpcKey(session, npc);
         var p = session.State;
@@ -353,7 +563,7 @@ public sealed partial class GameServer
 
         if (end)
         {
-            _dialogSessions.Remove(playerId);
+            EndNpcConversation(session, tellClient: false); // the closing line below ends the panel
             Send(session, new NpcDialogState
             {
                 NpcId = npc.Id,
@@ -366,13 +576,23 @@ public sealed partial class GameServer
             return;
         }
 
-        _dialogSessions[playerId] = (active.NpcId, active.Dialog, choice.Next);
         var next = active.Dialog.Nodes[choice.Next];
+        string text = Localize(session.Locale, choice.ResponseKey) + "\n\n" + Localize(session.Locale, next.PromptKey);
+        if (next.Choices.Count > 0)
+        {
+            active.Node = choice.Next;
+            HoldNpcForTalk(session, active);
+        }
+        else
+        {
+            EndNpcConversation(session, tellClient: false); // a node without replies is a closing line
+        }
+
         Send(session, new NpcDialogState
         {
             NpcId = npc.Id,
             Name = npc.Name,
-            Text = Localize(session.Locale, choice.ResponseKey) + "\n\n" + Localize(session.Locale, next.PromptKey),
+            Text = text,
             Choices = next.Choices.Select(c => Localize(session.Locale, c.TextKey)).ToArray(),
             End = next.Choices.Count == 0,
         });
@@ -584,27 +804,45 @@ public sealed partial class GameServer
 
     // ---------------- Test hooks ----------------
 
-    /// <summary>Test seam: talks to the given NPC as the player (mirrors <see cref="TalkToNpcIntent"/>).</summary>
+    /// <summary>Test seam: talks to the given NPC as the player (mirrors <see cref="TalkToNpcIntent"/>), on the player's
+    /// own world as the dispatcher would.</summary>
     public void TalkToNpcForTest(string playerId, int npcId)
     {
         if (FindSessionByPlayerId(playerId) is { } s)
         {
+            Serve(s);
             HandleTalkToNpc(s, new TalkToNpcIntent { NpcId = npcId });
         }
     }
 
-    /// <summary>Test seam: picks a reply in the player's active dialogue.</summary>
-    public void ChooseDialogForTest(string playerId, int choiceIndex)
+    /// <summary>Test seam: picks a reply in the player's active dialogue (#2616: <paramref name="npcId"/> 0 = the
+    /// current conversation, like an older client).</summary>
+    public void ChooseDialogForTest(string playerId, int choiceIndex, int npcId = 0)
     {
         if (FindSessionByPlayerId(playerId) is { } s)
         {
-            HandleNpcDialogChoice(s, new NpcDialogChoiceIntent { ChoiceIndex = choiceIndex });
+            Serve(s);
+            HandleNpcDialogChoice(s, new NpcDialogChoiceIntent { ChoiceIndex = choiceIndex, NpcId = npcId });
         }
     }
 
+    /// <summary>Test seam (#2616): the player closes the panel of <paramref name="npcId"/> (the client's leave).</summary>
+    public void LeaveDialogForTest(string playerId, int npcId)
+        => ChooseDialogForTest(playerId, NpcDialogChoiceIntent.Leave, npcId);
+
     /// <summary>Test/inspection: the key + node of the player's active dialogue, or null.</summary>
     public (string Key, int Node)? ActiveDialogForTest(string playerId)
-        => _dialogSessions.TryGetValue(playerId, out var s) ? (s.Dialog.Key, s.Node) : null;
+        => FindSessionByPlayerId(playerId)?.Conversation is { } c ? (c.Dialog.Key, c.Node) : null;
+
+    /// <summary>Test/inspection (#2616): the NPC id the player is talking with, or null.</summary>
+    public int? ConversationNpcForTest(string playerId)
+        => FindSessionByPlayerId(playerId)?.Conversation?.Npc.Id;
+
+    /// <summary>Test seam (#2616): runs the active world's conversation sweep now (skips the 1 Hz throttle).</summary>
+    public void SweepNpcConversationsForTest() => SweepNpcConversations();
+
+    /// <summary>Test/inspection (#2616): whether a player's talk holds this NPC (standing still, the routine waiting).</summary>
+    public bool NpcTalkHeldForTest(int npcId) => _npcs.FirstOrDefault(n => n.Id == npcId) is { } npc && _uptime < npc.TalkHoldUntil;
 
     /// <summary>Test/inspection: NPC ids + names + roles + character ids on the active world.</summary>
     public IReadOnlyList<(int Id, string Name, string Role, string CharacterId)> NpcRosterForTest()

@@ -5,6 +5,7 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using BlocksBeyondTheStars.GameServer;
@@ -23,10 +24,11 @@ namespace BlocksBeyondTheStars.Tests;
 /// <summary>
 /// LLM stages L0/L2/L3 + VEGA banter. L0: the mission context handed to the provider carries the
 /// allowed content keys (so the backend LLM can't hallucinate items the validator rejects). L2: the
-/// greeting context carries a stable persona and the NPC's recent memory of the player. L3: board
-/// missions get provider flavour text (cached per mission+locale), with the static localized board
-/// text whenever AI is off or the provider declines. Banter: VEGA's smalltalk uses the same provider
-/// path (role "ship_ai") and is silent when AI is off.
+/// greeting context carries a stable persona — and, since the line is cached per tier and shared (#2618), no
+/// player's own history. L3: board missions get provider flavour text (cached per mission+locale), with the
+/// static localized board text whenever AI is off or the provider declines. Banter: VEGA's smalltalk uses the
+/// same provider path (role "ship_ai"), is silent when AI is off, sends a request that is a pure function of its
+/// cache key and takes the world's AI line budget (#2618).
 /// </summary>
 public sealed class LlmStagesTests : IDisposable
 {
@@ -50,12 +52,13 @@ public sealed class LlmStagesTests : IDisposable
         public NpcLineRequest? LastLine;
         public MissionTextRequest? LastText;
         public int TextCalls;
+        public int LineCalls;
 
         public string? Line { get; set; }
         public MissionTextResult? Text { get; set; }
 
         public MissionPlan? Generate(string context) { MissionContext = context; return null; }
-        public string? GenerateNpcLine(NpcLineRequest request) { LastLine = request; return Line; }
+        public string? GenerateNpcLine(NpcLineRequest request) { LastLine = request; LineCalls++; return Line; }
         public MissionTextResult? GenerateMissionText(MissionTextRequest request) { LastText = request; TextCalls++; return Text; }
         public string[]? GenerateNpcLines(NpcLinesRequest request) => null;
     }
@@ -63,7 +66,7 @@ public sealed class LlmStagesTests : IDisposable
     /// <summary>Starts a world with an inhabited settlement and a player at its vendor (the same seed
     /// search the greeting tests use), so boards, NPCs and relationships all exist.</summary>
     private SvGameServer StartedAtSettlement(AiLevel level, IAiMissionProvider provider, string locale,
-        out SqliteWorldRepository repo, out PlayerSession player)
+        out SqliteWorldRepository repo, out PlayerSession player, double aiLinesPerMinute = 4.0)
     {
         for (long seed = 1; seed <= 120; seed++)
         {
@@ -79,6 +82,7 @@ public sealed class LlmStagesTests : IDisposable
                 PlaceSettlements = true,
                 PlaceWrecks = false,
                 AiLevel = level,
+                AiLinesPerMinute = aiLinesPerMinute,
             };
             var server = new SvGameServer(config, _content, st, repo, logger: null, aiProvider: provider);
             server.Start();
@@ -121,27 +125,29 @@ public sealed class LlmStagesTests : IDisposable
         }
     }
 
-    // ---- L2: persona + recent memory reach the provider ---------------------------------------
+    // ---- L2: the persona reaches the provider — the player's own history does not (#2618) -------
 
     [Fact]
-    public void L2_GreetingContext_CarriesPersona_AndRecentEvents()
+    public void L2_GreetingContext_CarriesPersona_ButNoPlayerHistory()
     {
         var provider = new FakeProvider { Line = "hello" };
         var server = StartedAtSettlement(AiLevel.Suggest, provider, "en", out var repo, out var p);
         using (repo)
         {
-            // Seed the NPC's memory of this player: two trades + a taken mission (item 14's key format).
+            // Seed the NPC's memory of this player: trades, a taken mission and a chat (item 14's key format).
             string npcKey = $"settle_{(uint)WorldGenerator.StableHash(server.SettlementName) % 100000u}:vendor";
             p.State.NpcMemory[npcKey] = new NpcRelationship
             {
                 Name = "Old Mira",
                 Role = "vendor",
-                Value = 25,
+                Value = 33,
                 Log =
                 {
                     new NpcInteraction { Kind = NpcInteractionKind.Trade },
                     new NpcInteraction { Kind = NpcInteractionKind.Trade },
                     new NpcInteraction { Kind = NpcInteractionKind.MissionAccepted },
+                    new NpcInteraction { Kind = NpcInteractionKind.Dialog },
+                    new NpcInteraction { Kind = NpcInteractionKind.Trade },
                 },
             };
 
@@ -149,9 +155,13 @@ public sealed class LlmStagesTests : IDisposable
 
             Assert.NotNull(provider.LastLine);
             Assert.False(string.IsNullOrEmpty(provider.LastLine!.Persona)); // stable per-NPC voice
-            Assert.Contains("a trade", provider.LastLine.RecentEvents);
-            Assert.Contains("took a mission", provider.LastLine.RecentEvents);
+
+            // The line is cached per NPC, standing tier and language and shared by every player there — so the request
+            // carries the "known" tier's representative numbers, never this player's score (33) or log (5 entries) …
+            Assert.Equal(25, provider.LastLine.Relationship);
             Assert.Equal(3, provider.LastLine.PastInteractions);
+            // … and no memory of this player's own deeds ("after yesterday's trade" would reach players who never traded).
+            Assert.Equal(string.Empty, provider.LastLine.RecentEvents);
         }
     }
 
@@ -252,6 +262,20 @@ public sealed class LlmStagesTests : IDisposable
     }
 
     [Fact]
+    public void VegaBanter_StrayPlaceholder_IsDropped_NeverCached()
+    {
+        // Same answer check as greetings (#2590): only {player} may survive — {name} would show raw on screen.
+        var provider = new FakeProvider { Line = "Good morning, {name}. Systems nominal." };
+        var server = StartedAtSettlement(AiLevel.TextOnly, provider, "en", out var repo, out var p, aiLinesPerMinute: 60);
+        using (repo)
+        {
+            Assert.Null(server.VegaBanterForTest(p.State.PlayerId));
+            Assert.Null(server.VegaBanterForTest(p.State.PlayerId));
+            Assert.Equal(2, provider.LineCalls); // nothing cached, so the next tick asks again
+        }
+    }
+
+    [Fact]
     public void VegaBanter_AiOff_IsSilent()
     {
         var provider = new FakeProvider { Line = "should never appear" };
@@ -259,7 +283,78 @@ public sealed class LlmStagesTests : IDisposable
         using (repo)
         {
             Assert.Null(server.VegaBanterForTest(p.State.PlayerId));
+            Assert.True(server.StartVegaBanterForTest(p.State.PlayerId));
             Assert.Null(provider.LastLine);
+        }
+    }
+
+    [Fact]
+    public void VegaBanter_RequestIsAPureFunctionOfItsKey_AndTheFactsItTalksAboutAreInTheKey()
+    {
+        // #2618: one cached banter line serves every pilot whose request lands on the same key — so two pilots with the
+        // same facts but very different histories send the SAME request, and a fact the line talks about changes the key.
+        var server = StartedAtSettlement(AiLevel.TextOnly, new FakeProvider { Line = "x" }, "en", out var repo, out var p);
+        using (repo)
+        {
+            var veteran = server.AddLocalPlayer("Veteran", "en");
+            veteran.State.Position = p.State.Position;
+            veteran.State.AboardShip = p.State.AboardShip;
+            for (int i = 0; i < 40; i++)
+            {
+                veteran.State.Milestones.Add("test:milestone_" + i.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            var fresh = server.VegaBanterRequestForTest(p.State.PlayerId)!.Value;
+            var seasoned = server.VegaBanterRequestForTest(veteran.State.PlayerId)!.Value;
+            Assert.Equal(fresh.CacheKey, seasoned.CacheKey);
+            Assert.Equal(JsonSerializer.Serialize(fresh.Request), JsonSerializer.Serialize(seasoned.Request)); // the wire body
+            Assert.Equal(string.Empty, fresh.Request.RecentEvents);
+            Assert.Equal(AiLineTokens.Player, fresh.Request.PlayerName);
+
+            // Aboard vs on foot is in the situation — so it is in the key too.
+            veteran.State.AboardShip = !p.State.AboardShip;
+            var moved = server.VegaBanterRequestForTest(veteran.State.PlayerId)!.Value;
+            Assert.NotEqual(fresh.CacheKey, moved.CacheKey);
+            Assert.NotEqual(fresh.Request.Situation, moved.Request.Situation);
+        }
+    }
+
+    [Fact]
+    public void VegaBanter_TakesTheWorldsAiBudget_AndACacheHitIsFree()
+    {
+        var provider = new FakeProvider { Line = "Clear skies. Suspiciously clear." };
+        var server = StartedAtSettlement(AiLevel.TextOnly, provider, "en", out var repo, out var p);
+        using (repo)
+        {
+            server.RunAiLinesSynchronouslyForTest();
+            double before = server.AiLineTokensForTest;
+
+            // The real path past the timer: a miss takes one token at Vega priority, then asks the backend.
+            Assert.True(server.StartVegaBanterForTest(p.State.PlayerId));
+            Assert.Equal(1, provider.LineCalls);
+            Assert.Equal(before - 1.0, server.AiLineTokensForTest, 6);
+            Assert.Equal(0, server.AiLinesInFlightForTest); // the in-flight slot is freed once the line is back
+
+            // The same facts again: served from the cache — no backend call, no token.
+            Assert.True(server.StartVegaBanterForTest(p.State.PlayerId));
+            Assert.Equal(1, provider.LineCalls);
+            Assert.Equal(before - 1.0, server.AiLineTokensForTest, 6);
+        }
+    }
+
+    [Fact]
+    public void VegaBanter_ARefusedBudget_NeverCallsTheBackend()
+    {
+        // A world whose operator set the AI line budget to 0 (authored lines only): VEGA's banter stays silent too.
+        var provider = new FakeProvider { Line = "should never be asked for" };
+        var server = StartedAtSettlement(AiLevel.TextOnly, provider, "en", out var repo, out var p, aiLinesPerMinute: 0);
+        using (repo)
+        {
+            server.RunAiLinesSynchronouslyForTest();
+            Assert.True(server.StartVegaBanterForTest(p.State.PlayerId));
+            Assert.Null(server.VegaBanterForTest(p.State.PlayerId));
+            Assert.Equal(0, provider.LineCalls);
+            Assert.Equal(0, server.AiLinesInFlightForTest);
         }
     }
 

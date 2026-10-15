@@ -310,15 +310,51 @@ public sealed class BaseGuestTests
         Assert.StartsWith(En("dlg.guest_neighbour.r_wish"), LastDialog(w).Text);
         Assert.Contains(w.Server.WishLanesForTest(pid), l => l.Held && l.GiverId == villager);
 
-        // Asked again, the neighbour has nothing more to wish for right now.
+        // #2617: talked to again, the neighbour holds the wish like its villager would: how far along the player is first…
         w.Server.TalkToNpcForTest(pid, guest);
+        Assert.Equal(guest, LastDialog(w).NpcId);
+        Assert.StartsWith(RemindPrefix(0, 1), LastDialog(w).Text);
+        Assert.Null(w.Server.ActiveDialogForTest(pid));
+
+        // …and with nothing new since, its own talk — where it has nothing more to wish for right now.
+        w.Server.TalkToNpcForTest(pid, guest);
+        Assert.Equal(("guest_neighbour", 0), w.Server.ActiveDialogForTest(pid));
         w.Server.ChooseDialogForTest(pid, 1);
         Assert.Equal(En("dlg.guest_neighbour.r_nowish"), LastDialog(w).Text);
         Assert.Single(w.Server.HeldWishesForTest(pid));
     }
 
+    /// <summary>The start of the "you have {have} of {count} … — no hurry!" reminder, up to the item's name.</summary>
+    private static string RemindPrefix(int have, int count)
+        => En("dlg.wish.remind").Split("{item}")[0].Replace("{have}", have.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)
+            .Replace("{count}", count.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal);
+
+    /// <summary>The start of "{npc} gives you: {gift}", up to the gift.</summary>
+    private static string GiftPrefix(string npcName)
+        => En("dlg.wish.gift").Split("{gift}")[0].Replace("{npc}", npcName, StringComparison.Ordinal);
+
+    private static void GiveCrystal(NpcLifeWorld w)
+        => Assert.Equal(0, w.Player.State.Inventory.Add("crystal", 1, w.Content.GetItem("crystal")!.MaxStack));
+
+    /// <summary>In the village: talks to the villager and says "Sure, I'll help!", then walks back to the base.</summary>
+    private static string TakeWishInTheVillage(NpcLifeWorld w, int villager)
+    {
+        string pid = w.Player.State.PlayerId;
+        var home = w.Player.State.Position;
+        var at = PosOf(w, villager);
+        w.Player.State.Position = new Vector3f(at.X - 2f, at.Y, at.Z);
+        w.Server.TalkToNpcForTest(pid, villager);
+        Assert.Equal(("wish", 0), w.Server.ActiveDialogForTest(pid));
+        w.Server.ChooseDialogForTest(pid, 0);
+        w.Player.State.Position = home;
+        return Assert.Single(w.Server.HeldWishesForTest(pid));
+    }
+
+    private static NpcStandingList LastStandings(NpcLifeWorld w)
+        => w.Transport.Sent.Where(s => s.Conn == w.Player.ConnectionId).Select(s => s.Msg).OfType<NpcStandingList>().Last();
+
     [Fact]
-    public void ANeighboursWish_AlreadyInTheBag_GetsTheBringItOverToast_ItIsHandedOverInTheVillage()
+    public void ANeighboursWish_AlreadyInTheBag_IsSaidSo_AndHandedOverRightThere()
     {
         using var w = World("guest_wish_ready");
         w.Server.SetWishTemplateForTest("show_crystal");
@@ -326,16 +362,139 @@ public sealed class BaseGuestTests
         int guest = Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "neighbour"));
         StandBeside(w, guest);
         w.Server.TickBaseGuestsForTest();
-        Assert.Equal(0, w.Player.State.Inventory.Add("crystal", 1, w.Content.GetItem("crystal")!.MaxStack));
+        GiveCrystal(w);
 
         string pid = w.Player.State.PlayerId;
         w.Server.TalkToNpcForTest(pid, guest);
         w.Server.ChooseDialogForTest(pid, 1); // "Can I help you with anything?"
         Assert.Single(w.Server.HeldWishesForTest(pid));
-        Assert.StartsWith(En("dlg.guest_neighbour.r_wish"), LastDialog(w).Text); // the neighbour's own answer stays
+        string answer = LastDialog(w).Text;
+        Assert.StartsWith(En("dlg.guest_neighbour.r_wish"), answer); // the neighbour's own answer, then the wish…
+        Assert.EndsWith(En("dlg.wish.r_yes_ready"), answer);         // …and #2617: "you already have everything with you!"
 
+        // No "bring it over!" toast — it is right here; the "?" sits on the guest, never on the villager hidden at home.
         w.Server.TickWishesForTest(pid);
-        Assert.Contains("@srv.wish.ready:" + Npc(w, villager).Name, w.MessagesToPlayer());
+        Assert.DoesNotContain("@srv.wish.ready:" + Npc(w, villager).Name, w.MessagesToPlayer());
+        var (offers, ready) = w.Server.WishMarksForTest(pid);
+        Assert.Equal(new[] { guest }, ready);
+        Assert.DoesNotContain(villager, offers.Concat(ready));
+
+        // The neighbour waits for the hand-over instead of heading home half a minute later.
+        StepSeconds(w, 32);
+        Assert.Equal("Waiting", w.Server.BaseGuestsForTest.Single().Phase);
+
+        // Talking again hands it over: the thanks, the present, +5 with the villager.
+        string key = w.Server.NpcPersonKeyForTest(villager);
+        int before = w.Player.State.NpcMemory[key].Value;
+        w.Server.TalkToNpcForTest(pid, guest);
+        Assert.Empty(w.Server.HeldWishesForTest(pid));
+        var thanks = LastDialog(w);
+        Assert.Equal(guest, thanks.NpcId);
+        Assert.True(thanks.End);
+        Assert.Contains(GiftPrefix(Npc(w, villager).Name), thanks.Text);
+        Assert.True(w.Player.State.NpcMemory[key].Value >= before + 5, "the hand-over brought no standing");
+        Assert.Empty(w.Server.WishMarksForTest(pid).Ready);
+    }
+
+    [Fact]
+    public void AWishTakenInTheVillage_IsHandedOver_WhenThatVillagerVisitsTheBase()
+    {
+        using var w = World("guest_wish_village");
+        w.Server.SetWishTemplateForTest("show_crystal");
+        int villager = VillageWithVillager(w);
+        string pid = w.Player.State.PlayerId;
+        TakeWishInTheVillage(w, villager);
+
+        // Back home with the crystal — and the villager comes visiting.
+        GiveCrystal(w);
+        int guest = Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "neighbour"));
+        Assert.True(w.Server.NpcVisitingAwayForTest(villager));
+        StandBeside(w, guest);
+        w.Server.TickBaseGuestsForTest();
+
+        // The "?" moved onto the guest with the visit (the standings went out at the spawn).
+        var standings = LastStandings(w);
+        Assert.Contains(guest, standings.WishReadyNpcIds);
+        Assert.DoesNotContain(villager, standings.WishReadyNpcIds.Concat(standings.WishNpcIds));
+
+        string key = w.Server.NpcPersonKeyForTest(villager);
+        int before = w.Player.State.NpcMemory[key].Value;
+        w.Server.TalkToNpcForTest(pid, guest);
+        Assert.Empty(w.Server.HeldWishesForTest(pid));
+        Assert.Equal(guest, LastDialog(w).NpcId);
+        Assert.Contains(GiftPrefix(Npc(w, villager).Name), LastDialog(w).Text);
+        Assert.True(w.Player.State.NpcMemory[key].Value >= before + 5, "the hand-over brought no standing");
+    }
+
+    [Fact]
+    public void AnIncompleteWish_GetsTheReminder_FromTheVisitingNeighbour()
+    {
+        using var w = World("guest_wish_remind");
+        w.Server.SetWishTemplateForTest("show_crystal");
+        int villager = VillageWithVillager(w);
+        string pid = w.Player.State.PlayerId;
+        TakeWishInTheVillage(w, villager);
+
+        int guest = Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "neighbour"));
+        StandBeside(w, guest);
+        w.Server.TickBaseGuestsForTest();
+        Assert.Empty(w.Server.WishMarksForTest(pid).Ready); // nothing to hand over yet — no "?"
+
+        w.Server.TalkToNpcForTest(pid, guest);
+        Assert.Equal(guest, LastDialog(w).NpcId);
+        Assert.StartsWith(RemindPrefix(0, 1), LastDialog(w).Text);
+        Assert.Single(w.Server.HeldWishesForTest(pid));
+
+        // A second press with nothing new talks normally — the guest's own dialogue.
+        w.Server.TalkToNpcForTest(pid, guest);
+        Assert.Equal(("guest_neighbour", 0), w.Server.ActiveDialogForTest(pid));
+    }
+
+    [Fact]
+    public void WhileTheVillagerVisits_ItsMarkersSitOnTheGuest_AndGoHomeWithIt()
+    {
+        using var w = World("guest_wish_marks");
+        w.Server.SetWishTemplateForTest("show_crystal");
+        int villager = VillageWithVillager(w);
+        string pid = w.Player.State.PlayerId;
+        Assert.Contains(villager, w.Server.WishMarksForTest(pid).Offers); // an open offer: "!" over the villager
+
+        int guest = Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "neighbour"));
+        var (offers, ready) = w.Server.WishMarksForTest(pid);
+        Assert.Contains(guest, offers); // its "Can I help you with anything?" takes it
+        Assert.DoesNotContain(villager, offers.Concat(ready)); // never the hidden id
+        Assert.Contains(guest, LastStandings(w).WishNpcIds);
+
+        // The owner going aboard sends the guest home at once — the "!" goes back with the villager, and the
+        // standings say so.
+        w.Player.State.AboardShip = true;
+        w.Server.TickBaseGuestsForTest();
+        Assert.Empty(w.Server.BaseGuestsForTest);
+        Assert.Contains(villager, w.Server.WishMarksForTest(pid).Offers);
+        Assert.Contains(villager, LastStandings(w).WishNpcIds);
+        Assert.DoesNotContain(guest, LastStandings(w).WishNpcIds);
+    }
+
+    [Fact]
+    public void AtTheTab_AWishIsTurnedInNextToTheVisitingNeighbour_WhoSaysThankYou()
+    {
+        using var w = World("guest_wish_tab");
+        w.Server.SetWishTemplateForTest("show_crystal");
+        int villager = VillageWithVillager(w);
+        string pid = w.Player.State.PlayerId;
+        string wish = TakeWishInTheVillage(w, villager);
+        GiveCrystal(w);
+
+        int guest = Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "neighbour"));
+        StandBeside(w, guest);
+        w.Server.TickBaseGuestsForTest();
+        w.Server.TurnInMission(pid, wish); // the Missions tab, standing beside the guest
+
+        Assert.Empty(w.Server.HeldWishesForTest(pid));
+        var thanks = w.Transport.Sent.Where(s => s.Conn == w.Player.ConnectionId).Select(s => s.Msg).OfType<NpcGreeting>()
+            .Where(g => g.Kind == NpcGreetingKinds.Addressed).ToList();
+        Assert.Contains(thanks, g => g.NpcId == guest); // the thanks come from the one standing there
+        Assert.DoesNotContain(thanks, g => g.NpcId == villager);
     }
 
     [Fact]

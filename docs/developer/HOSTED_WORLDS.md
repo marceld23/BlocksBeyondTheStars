@@ -350,6 +350,16 @@ aligned (`BBTS_AI_TIMEOUT` 30 s < `BBS_AI_TIMEOUT_SECONDS` 35 s) so the backend'
 always beats the server's deadline. Official fleet model: Mistral Small on OVHcloud AI Endpoints
 (EU; ~0.5 s per line — Qwen3.5 was measured unusable there: forced reasoning, no think-off switch).
 
+**AI line budget (#2619).** Each world paces its AI NPC/VEGA lines with its own token bucket (6 tokens, at
+most 2 requests at once — see [AI_MISSION_BACKEND.md](AI_MISSION_BACKEND.md) "Budget per world"), refilled at
+`BBS_AI_LINES_PER_MINUTE`. Set `BBS_WH_AI_LINES_PER_MINUTE` on the WorldHost to tune it fleet-wide: it is
+forwarded into every world instance (only together with `BBS_WH_AI_BACKEND_URL`), written with the invariant
+culture (`2.5`, never `2,5`). Unset = not forwarded, so every world runs the server default of **4 per minute**;
+`0` = authored lines only; anything that isn't a finite number ≥ 0 is ignored (= unset). The fleet's worst case
+is **`BBS_WH_MAX_ACTIVE` × rate** lines per minute (plus each world's bucket of 6 at wake) — 10 × 4 = 40 lines
+per minute with the shipped defaults. Like the other forwarded settings, running worlds pick a change up on their
+next wake.
+
 ## Fleet crash reports (optional)
 
 When `BBS_WH_CRASH_REPORT_KEY` is set (the ReportHost deployment's write key), WorldHost forwards it

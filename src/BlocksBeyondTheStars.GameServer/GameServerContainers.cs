@@ -82,6 +82,15 @@ public sealed partial class GameServer
             return;
         }
 
+        // #2621: G on an empty storage crate said nothing at all, so a child could not tell "empty" from "broken" (Lyxette:
+        // "neither E nor G or H does anything"). Answered like the other loot refusals; nothing changes, nothing is saved.
+        // (A world container looted empty is removed below — an empty one never stands around to be asked.)
+        if (container.Kind == "crate" && container.Items.All(s => s.IsEmpty))
+        {
+            Reject(session, "loot", "@srv.loot.crate_empty");
+            return;
+        }
+
         var inv = session.State.Inventory;
         var leftover = new List<ItemStack>();
         bool took = false;

@@ -29,6 +29,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// furnished settlement houses (#1828) have a bed in every room.</item>
 /// <item>Checked every <see cref="RoutineCheckInterval"/> seconds per NPC inside a player's area of interest; the
 /// walking itself is the pathfinding's (#1866). Guardians and visiting traders keep to their posts.</item>
+/// <item><b>A talk waits for nobody long</b> (#2616): while a player talks with an NPC the routine and the job pause and
+/// the NPC stands still facing them — for at most <c>NpcTalkHoldSeconds</c> (60 s) per talk; then the phase change may
+/// walk it on, and walking out of reach ends the conversation.</item>
 /// </list>
 /// </summary>
 public sealed partial class GameServer
@@ -111,6 +114,11 @@ public sealed partial class GameServer
             if (!inReach)
             {
                 continue;
+            }
+
+            if (_uptime < npc.TalkHoldUntil)
+            {
+                continue; // #2616: talking with a player — the routine waits (at most a minute per talk), the job too
             }
 
             bool forced = double.IsNegativeInfinity(npc.PhaseCheckedAt);

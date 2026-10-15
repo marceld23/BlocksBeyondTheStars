@@ -462,6 +462,16 @@ namespace BlocksBeyondTheStars.Client
             set => SetFeature(ClientFeatures.Choices1, value);
         }
 
+        /// <summary>Whether this client announces <c>dialogclose1</c> (#2616): set by the Unity client, whose NPC dialogue
+        /// panel takes the server's close (<see cref="NpcDialogState.ActionClose"/>) and sends the leave when the player closes
+        /// it. Without it the server sends no close — an older panel would pop open again to show it. Toggles the word in
+        /// <see cref="Features"/>.</summary>
+        public bool ClosesDialogs
+        {
+            get => HasFeature(ClientFeatures.DialogClose1);
+            set => SetFeature(ClientFeatures.DialogClose1, value);
+        }
+
         private bool HasFeature(string word) => Array.IndexOf(Features ?? Array.Empty<string>(), word) >= 0;
 
         private void SetFeature(string word, bool on)
@@ -504,8 +514,15 @@ namespace BlocksBeyondTheStars.Client
         /// ordinary greeting bubble when none applies.</summary>
         public void SendTalkToNpc(int npcId) => Send(new TalkToNpcIntent { NpcId = npcId });
 
-        /// <summary>Picks a reply in the active NPC dialogue (#1127). The server owns the walk.</summary>
-        public void SendNpcDialogChoice(int choiceIndex) => Send(new NpcDialogChoiceIntent { ChoiceIndex = choiceIndex });
+        /// <summary>Picks a reply in the active NPC dialogue (#1127). The server owns the walk. #2616: <paramref name="npcId"/>
+        /// names the NPC whose panel shows the reply (0 = not said).</summary>
+        public void SendNpcDialogChoice(int choiceIndex, int npcId = 0)
+            => Send(new NpcDialogChoiceIntent { ChoiceIndex = choiceIndex, NpcId = npcId });
+
+        /// <summary>#2616: the player closed the dialogue panel of <paramref name="npcId"/> — the server ends that
+        /// conversation and the NPC goes back to its day. Rides the choice intent (<see cref="NpcDialogChoiceIntent.Leave"/>).</summary>
+        public void SendNpcDialogLeave(int npcId)
+            => Send(new NpcDialogChoiceIntent { ChoiceIndex = NpcDialogChoiceIntent.Leave, NpcId = npcId });
 
         /// <summary>Answers a reporter's interview (2026-09 professions) — the server screens and stores it as local news.</summary>
         public void SendInterviewAnswer(int npcId, string text) => Send(new InterviewAnswerIntent { NpcId = npcId, Text = text ?? string.Empty });

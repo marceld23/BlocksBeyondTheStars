@@ -16,7 +16,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// Item 15: contextual NPC greeting lines. When a player opens an interaction with a settlement/station NPC
 /// (a vendor's market stall, a quartermaster's mission board) the server sends a short greeting to show as a
 /// speech bubble. With an LLM backend enabled (<see cref="AiLevel"/> != Off) the line is generated off the game
-/// thread from live context (the NPC, the settlement, the player's relationship + language) and cached; when AI
+/// thread from live context (the NPC, the settlement, the player's standing tier + language — never the player's own
+/// history, #2618) and cached; when AI
 /// is off/unreachable — and always as the instant first response — the client renders a localized static
 /// fallback. The server stays authoritative and never blocks: the blocking HTTP call runs on a Task whose result
 /// is drained into the outbox each tick.
@@ -98,21 +99,25 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Builds the LLM context + cache key for greeting an NPC from live game state (the player's
-    /// relationship, language, the settlement/station). Pure read of game state — call on the game thread.</summary>
+    /// <summary>Builds the LLM context + cache key for greeting an NPC from live game state (the player's standing
+    /// tier, language, the settlement/station). Pure read of game state — call on the game thread.
+    /// <para>#2618: the request is a pure function of its cache key (<c>npcKey|locale|tier</c>). The cached line is
+    /// shared by every player at this NPC, standing tier and language, so the request carries the tier's
+    /// representative numbers (<see cref="TierRepresentative"/>) and no player history: before, the requesting
+    /// player's own memory ("a trade, took a mission") reached the backend and a line like "after yesterday's
+    /// trade" greeted players who never traded; and a villager known only through the #2598 floor (no own log, so 0
+    /// past interactions) asked the backend — whose tier reads 0 interactions as a stranger — for a stranger line that
+    /// was cached under "known".</para></summary>
     private (NpcLineRequest Req, string NpcKey, string CacheKey) NpcContext(PlayerSession session, ServerNpc npc)
     {
-        var player = session.State;
-
         // The stable NPC key — the ONE derivation (#2598): an authored character's global key (#1128), a base
         // resident's slot key, a villager's own person key, else the settlement/station role key. It also fixes station
         // crew away from the vendor, who used to fall back to the key of a settlement named "".
         string npcKey = NpcKeyForNpc(session, npc);
 
-        var rel = player.NpcMemory.TryGetValue(npcKey, out var r) ? r : null;
-        int relValue = RelationshipValue(player, npcKey); // #2598: a villager without an own entry reads the floor
-        int interactions = rel?.Log.Count ?? 0;
-        string cacheKey = $"{npcKey}|{session.Locale}|{RelationshipTier(relValue)}";
+        string tier = RelationshipTier(RelationshipValue(session.State, npcKey)); // #2598: a villager without an own entry reads the floor
+        var (relationship, pastInteractions) = TierRepresentative(tier);
+        string cacheKey = $"{npcKey}|{session.Locale}|{tier}";
 
         var req = new NpcLineRequest
         {
@@ -125,14 +130,29 @@ public sealed partial class GameServer
             // #2590: never the real name — the cache key has no player, so a line naming "Justus" would greet every
             // other player at this NPC/standing/language as Justus. The token is filled per receiver at send time.
             PlayerName = AiLineTokens.Player,
-            Relationship = relValue,
-            PastInteractions = interactions,
+            Relationship = relationship,       // #2618: the tier's number, not this player's exact score
+            PastInteractions = pastInteractions,
             Language = session.Locale,
             Persona = PersonaFor(npcKey, npc.Theme, npc.IsRobot, npc.Role), // L2: stable per-NPC voice
-            RecentEvents = RecentEventsLine(rel),                        // L2: what they remember
+            RecentEvents = string.Empty,        // #2618: no player's own memory in a line every player of the tier hears
         };
         return (req, npcKey, cacheKey);
     }
+
+    /// <summary>
+    /// #2618: the relationship score and past-interaction count a greeting request carries for a standing tier
+    /// (<see cref="RelationshipTier"/>) — hostile −30/0, stranger 0/0, known 25/3, trusted 60/10. Each pair sits inside
+    /// its tier on both sides: the server's <see cref="RelationshipTier"/> and the backend's <c>_tier</c>
+    /// (<c>ai-backend/app/llm.py</c>), which also reads 0 past interactions as a stranger — so a known line is asked for
+    /// with past interactions above 0. Every player of a tier sends the same numbers.
+    /// </summary>
+    internal static (int Relationship, int PastInteractions) TierRepresentative(string tier) => tier switch
+    {
+        "hostile" => (-30, 0),
+        "stranger" => (0, 0),
+        "known" => (25, 3),
+        _ => (60, 10), // trusted
+    };
 
     // L2: a small pool of persona voices, assigned deterministically per NPC (stable across visits)
     // and flavoured by kind — androids get precise/literal voices, organics the warmer ones.
@@ -195,29 +215,6 @@ public sealed partial class GameServer
     {
         ulong h = (ulong)BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash("persona:" + npcKey);
         return (int)(h % (ulong)poolSize);
-    }
-
-    /// <summary>L2: the NPC's recent memory of this player as a compact line ("trade, mission accepted").</summary>
-    private static string RecentEventsLine(BlocksBeyondTheStars.Shared.State.NpcRelationship? rel)
-    {
-        if (rel is null || rel.Log.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        var parts = new List<string>();
-        int from = System.Math.Max(0, rel.Log.Count - 5);
-        for (int i = from; i < rel.Log.Count; i++)
-        {
-            parts.Add(rel.Log[i].Kind switch
-            {
-                BlocksBeyondTheStars.Shared.State.NpcInteractionKind.Trade => "a trade",
-                BlocksBeyondTheStars.Shared.State.NpcInteractionKind.MissionAccepted => "took a mission",
-                _ => "a chat",
-            });
-        }
-
-        return string.Join(", ", parts);
     }
 
     /// <summary>Sends a greeting for an NPC to a player: a cached/static line immediately, plus (when AI is on and
@@ -592,6 +589,20 @@ public sealed partial class GameServer
 
     /// <summary>Test seam: how many greeting cache keys the cache holds at most (#2590).</summary>
     public int GreetingCacheCapacityForTest => _greetingCache.Capacity;
+
+    /// <summary>Test seam (#2618): the <c>/npc-line</c> request and cache key a greeting of NPC <paramref name="npcId"/>
+    /// would use for this player — exactly what <see cref="EmitGreeting"/> builds, without reach checks, cache or
+    /// budget. Null when the player or the NPC is unknown.</summary>
+    public (NpcLineRequest Request, string CacheKey)? GreetingRequestForTest(string playerId, int npcId)
+    {
+        if (FindSessionByPlayerId(playerId) is not { } session || _npcs.FirstOrDefault(n => n.Id == npcId) is not { } npc)
+        {
+            return null;
+        }
+
+        var (req, _, cacheKey) = NpcContext(session, npc);
+        return (req, cacheKey);
+    }
 
     private ServerNpc? GreetingNpcInReach(PlayerSession session, string role)
         => NearestNpc(session.State, role) is { } npc

@@ -392,15 +392,30 @@ namespace BlocksBeyondTheStars.Client
             // the dialog opened over (e.g. the landing-pad chooser) keeps its free cursor without us having to
             // save/restore the prior state by hand (#413).
             //
-            // The screenshot still shows the HUD: HudUi (and the flight overlay) only drop their canvases in
-            // THEIR Update, and this frame's HudUi.Update has already run — WorldRig adds HudUi to the rig
-            // before FeedbackUi, so it updates first — while the flight overlay's prompts are the only thing
-            // that can go missing from the shot when SpaceView.Update runs after us.
+            // #2622: but only as a HUD-level owner until the screenshot is taken. A screen-level owner hides the HUD —
+            // HudUi decides that in its LateUpdate, which runs after every Update of this very frame, so the old comment's
+            // "HudUi has already updated" never held: since #1858 every F1 shot came without crosshair, hotbar, vitals
+            // and prompts (only VEGA's chip, on its own canvas), and the menu blur came on with it. A HUD-level owner
+            // pauses control all the same but leaves ScreenMenuOpen — the HUD and the blur — alone; the dialog takes the
+            // screen over the moment the frame is copied (TakeOverScreen).
             //
             // The shell instance (#2523) has no world and no menu-owner arbiter: its modality is the dialog's own scrim,
             // ShellOwnsCancel for AppShell's cancel key and ShellModalOpen for the menu's pad focus.
-            Game?.SetMenuOwner(this, true);
+            Game?.SetHudMenuOwner(this, true);
             StartCoroutine(OpenRoutine());
+        }
+
+        /// <summary>#2622: the screenshot holds the frame the player saw — now the dialog becomes a screen-level menu owner
+        /// (the HUD steps aside, the blur comes on) instead of the HUD-level one <see cref="Open"/> registered.</summary>
+        private void TakeOverScreen()
+        {
+            if (!_open || Game == null)
+            {
+                return;
+            }
+
+            Game.SetHudMenuOwner(this, false); // leaves the HUD-level set (and the owner set) …
+            Game.SetMenuOwner(this, true);     // … and owns the screen: the same frame, nothing runs in between
         }
 
         private IEnumerator OpenRoutine()
@@ -417,9 +432,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Full frame with the HUD, downscaled on the GPU, read back through GpuReadback (#2390: WebGPU has no
-            // synchronous reads, so on the browser the dialog appears a frame or two after the hotkey).
+            // synchronous reads, so on the browser the dialog appears a frame or two after the hotkey). #2622: the dialog
+            // owns the screen from the moment the frame is copied, before the readback's extra frames.
             Texture2D shot = null;
-            yield return GpuReadback.CaptureScreen(1600, TextureFormat.RGB24, t => shot = t);
+            yield return GpuReadback.CaptureScreen(1600, TextureFormat.RGB24, t => shot = t, TakeOverScreen);
             if (!_open)
             {
                 if (shot != null) { Destroy(shot); }
@@ -454,7 +470,9 @@ namespace BlocksBeyondTheStars.Client
             if (_dialog != null) _dialog.SetActive(false);
 
             ReleaseWorld(WorldHoldArbiter.Feedback); // every close path ends here (Esc, Cancel, the auto-close after a send)
-            Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other owner is open (#413)
+            // Arbiter re-locks only once NO other owner is open (#413). #2622: through the HUD-level call, which leaves both
+            // sets — a dialog closed before its screenshot (hotkey and Esc together) is still a HUD-level owner.
+            Game?.SetHudMenuOwner(this, false);
             if (ShellMode)
             {
                 _shellCancelFrame = Time.frameCount;

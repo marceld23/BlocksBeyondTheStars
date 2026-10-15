@@ -110,7 +110,8 @@ public sealed partial class GameServer
                     crowd++;
                 }
 
-                if (d <= PassingGreetRange * PassingGreetRange && !GreetedInPassing(npc, p.PlayerId, day))
+                if (d <= PassingGreetRange * PassingGreetRange && !GreetedInPassing(npc, p.PlayerId, day)
+                    && !NpcInPlayerDialog(npc)) // #2616: busy talking with someone else — no hello across that talk
                 {
                     _passingCandidates.Add((npc, d));
                 }
@@ -168,26 +169,9 @@ public sealed partial class GameServer
            && (npc.TalkWith is null || _uptime >= npc.TalkUntil)
            && !npc.VisitingAway && !IsGuestJob(npc.Job) && npc.Phase != NpcPhase.Festival;
 
-    /// <summary>Whether the player is (still) in a conversation: a dialogue is open with an NPC within talk reach. A
-    /// dialogue the player simply walked away from stays recorded server-side, so the distance decides.</summary>
-    private bool InConversationNearby(PlayerSession session)
-    {
-        if (!_dialogSessions.TryGetValue(session.State.PlayerId, out var dialog))
-        {
-            return false;
-        }
-
-        foreach (var npc in _npcs)
-        {
-            if (npc.Id == dialog.NpcId)
-            {
-                float reach = NpcTalkRange + 1f;
-                return WrapDistSq(session.State.Position, npc.Pos) <= reach * reach;
-            }
-        }
-
-        return false;
-    }
+    /// <summary>Whether the player is in a conversation — #2616: the one validity rule (a talk the player walked away
+    /// from is over, even before the 1 Hz sweep ended it).</summary>
+    private bool InConversationNearby(PlayerSession session) => InLiveConversation(session);
 
     /// <summary>Whether this NPC already greeted the player on in-game day <paramref name="day"/>.</summary>
     private static bool GreetedInPassing(ServerNpc npc, string playerId, long day)

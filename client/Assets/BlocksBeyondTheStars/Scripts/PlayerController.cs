@@ -292,31 +292,17 @@ namespace BlocksBeyondTheStars.Client
             Game.ShowMessage(Game.Localizer.Get(key));
         }
 
+        /// <summary>The container G / H work on — the loot / deposit reach the server checks, seam-aware. The HUD's crate line
+        /// names the same one (#2613: <see cref="InteractReach.NearestContainer"/> is the one picker for both).</summary>
         private string NearestContainerId(bool crateOnly)
         {
-            if (Game?.Containers == null)
+            if (Game == null)
             {
                 return null;
             }
 
-            string nearest = null;
-            float bestSq = 6f * 6f; // loot / deposit reach — same radius the handlers use
-            foreach (var c in Game.Containers)
-            {
-                if (crateOnly && c.Kind != "crate")
-                {
-                    continue;
-                }
-
-                float d = (Game.ScenePos(c.X + 0.5f, c.Y + 0.5f, c.Z + 0.5f) - transform.position).sqrMagnitude; // seam-aware
-                if (d < bestSq)
-                {
-                    bestSq = d;
-                    nearest = c.Id;
-                }
-            }
-
-            return nearest;
+            var p = transform.position;
+            return InteractReach.NearestContainer(Game.Containers, p.x, p.y, p.z, Game.Circumference, crateOnly)?.Id;
         }
 
         private static readonly Vector3 FirstPersonEye = new Vector3(0f, 1.6f, 0f);
@@ -2233,18 +2219,14 @@ namespace BlocksBeyondTheStars.Client
 
             // A storage crate you're aiming at → the crate screen (#2436): its contents above, your backpack below, click
             // to move a stack; the filter picker (#1032) is a button on it. Matched by the container list, not the block
-            // alone, so a crate block that hasn't registered yet no-ops.
+            // alone, so a crate block that hasn't registered yet no-ops. #2613: the crosshair cell is a scene cell and the
+            // crate's a canonical one — matched the short way round the seam, or a crate across X = 0 never opened.
             if (AimBlock(out var crateHit, out _)
-                && Game.Content?.BlockById(Game.World.GetBlock(crateHit.x, crateHit.y, crateHit.z))?.Key is "crate" or "wood_crate")
+                && Game.Content?.BlockById(Game.World.GetBlock(crateHit.x, crateHit.y, crateHit.z))?.Key is "crate" or "wood_crate"
+                && InteractReach.CrateAtCell(Game.Containers, crateHit.x, crateHit.y, crateHit.z, Game.Circumference) is { } aimedCrate)
             {
-                foreach (var c in Game.Containers)
-                {
-                    if (c.Kind == "crate" && (int)c.X == crateHit.x && (int)c.Y == crateHit.y && (int)c.Z == crateHit.z)
-                    {
-                        CrateUi.Instance?.Open(c.Id, c.Filter);
-                        return;
-                    }
-                }
+                CrateUi.Instance?.Open(aimedCrate.Id, aimedCrate.Filter);
+                return;
             }
 
             // #2049: a Crystal Net device you're aiming at — a switch toggles, a button presses, everything with a menu
@@ -2390,23 +2372,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 // No station block in reach — an NPC nearby? E talks to them (#1127). Station blocks keep
                 // priority so E at a market still opens the market (vendors are usually right beside one).
-                var npcs = Game.Npcs;
-                int bestNpc = 0;
-                float bestSq = 4.5f * 4.5f;
-                for (int i = 0; i < npcs.Length; i++)
+                // #2613: the HUD's talk prompt asks the same picker, which measures the short way round the seam.
+                var talkTo = Game.NearestTalkableNpc();
+                if (talkTo != null)
                 {
-                    var d = new Vector3(npcs[i].X, npcs[i].Y, npcs[i].Z) - transform.position;
-                    float sq = d.sqrMagnitude;
-                    if (sq < bestSq)
-                    {
-                        bestSq = sq;
-                        bestNpc = npcs[i].Id;
-                    }
-                }
-
-                if (bestNpc != 0)
-                {
-                    Game.Network?.SendTalkToNpc(bestNpc);
+                    Game.Network?.SendTalkToNpc(talkTo.Id);
                 }
 
                 return;
@@ -2538,10 +2508,10 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var b in Game.Beacons)
             {
+                // #2613: a canonical beacon cell against the scene cell in the crosshair — the short way round the seam.
                 if (b.OwnerId == Game.LocalPlayerId
-                    && Mathf.FloorToInt(b.X) == hit.x
-                    && Mathf.FloorToInt(b.Y) == hit.y
-                    && Mathf.FloorToInt(b.Z) == hit.z)
+                    && WorldConstants.SameCell(Mathf.FloorToInt(b.X), Mathf.FloorToInt(b.Y), Mathf.FloorToInt(b.Z),
+                        hit.x, hit.y, hit.z, Game.Circumference))
                 {
                     beaconId = b.Id;
                     label = b.Label ?? string.Empty;
@@ -2577,10 +2547,10 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var b in Game.Bases)
             {
+                // #2613: NetBase carries the core cell's centre, canonical; the crosshair cell is a scene cell.
                 if (b.OwnerId == Game.LocalPlayerId
-                    && Mathf.FloorToInt(b.X) == hit.x
-                    && Mathf.FloorToInt(b.Y) == hit.y
-                    && Mathf.FloorToInt(b.Z) == hit.z)
+                    && WorldConstants.SameCell(Mathf.FloorToInt(b.X), Mathf.FloorToInt(b.Y), Mathf.FloorToInt(b.Z),
+                        hit.x, hit.y, hit.z, Game.Circumference))
                 {
                     return b;
                 }

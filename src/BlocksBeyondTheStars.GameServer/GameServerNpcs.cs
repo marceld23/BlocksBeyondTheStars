@@ -124,7 +124,10 @@ public sealed partial class GameServer
         // --- #2593: passing greetings ---
         public Dictionary<string, long>? GreetedDay; // player id → the in-game day (MarketDay) of today's hello; lazy
         public double AttendUntil;                    // uptime until which the NPC stands still and looks at AttendPos
-        public Vector3f AttendPos;                    // where the player it just greeted stood
+        public Vector3f AttendPos;                    // where the player it just greeted stood (#2616: or is talking with it)
+
+        // --- #2616: talking with a player (GameServerNpcDialogs.cs) ---
+        public double TalkHoldUntil; // uptime until which a player's conversation holds the NPC: no walk, no routine (≤ 60 s per talk)
 
         // --- #2600: villagers talking to each other (GameServerVillageLife.cs) ---
         public ServerNpc? TalkWith;  // the neighbour this NPC is chatting with (null = nobody); both stand still and face each other
@@ -346,6 +349,15 @@ public sealed partial class GameServer
                     npc.Facing = (float)System.Math.Atan2(visitor.X - npc.Pos.X, visitor.Z - npc.Pos.Z);
                 }
 
+                continue;
+            }
+
+            // #2616: talking with a player — stand still and look at them; a walk the NPC was on waits (its route is kept,
+            // and the pause is no "stuck"). The hold lapses after a minute per talk — then the routine may walk it on.
+            if (_uptime < npc.TalkHoldUntil)
+            {
+                FaceTowards(npc, npc.AttendPos);
+                npc.LastProgressAt = _uptime;
                 continue;
             }
 

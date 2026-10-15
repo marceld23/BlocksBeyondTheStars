@@ -1939,6 +1939,7 @@ public sealed partial class GameServer
             Guard("TickNpcRoutine", deltaSeconds, TickNpcRoutine); // #1867/#1868: work by day, sit in the evening, sleep at night; jobs
             Guard("TickNpcPaths", deltaSeconds, TickNpcPaths); // #1866: at most one NPC path search per tick
             Guard("TickNpcs", deltaSeconds, TickNpcs);
+            Guard("TickNpcConversations", deltaSeconds, TickNpcConversations); // #2616: end dead talks, hold the talking NPC (1 Hz)
             Guard("TickPassingGreetings", deltaSeconds, TickPassingGreetings); // #2593: NPCs greet and wave as you walk by (1 Hz)
             Guard("TickProfessions", deltaSeconds, TickProfessions); // the streamer asks for photos, the tamer's pet follows (2026-09)
             Guard("TickVillageLife", deltaSeconds, TickVillageLife); // #2600: villagers talk to each other (1 Hz, scan every 3 s)
@@ -3666,6 +3667,7 @@ public sealed partial class GameServer
             // into a space instance LeaveSpace had just cleared. The save keeps them aboard; the rejoin re-boards.
             ForgetStationBoarding(session);
             CancelTradesFor(session.State.PlayerId);
+            EndNpcConversation(session, tellClient: false); // #2616: the talking NPC goes back to its day at once
             SetCurrent(session);
             SaveFleet(session); // the whole fleet + the fleet index on the state, before it is written below
             session.State.LastSeenUtc = WallUtcNowIso(); // #2595: "last online" — the next join's welcome-back reads it
@@ -3918,6 +3920,9 @@ public sealed partial class GameServer
         // the camera) — the answer itself must get through. It moves the duel and, at the last node, the story (the win
         // pacifies the machines); nothing of the frozen simulation ticks with it.
         CoreDialogueChoiceIntent => true,
+        // #2616: closing an NPC's dialogue panel (the leave) — Esc closes it while the pause menu opens and holds the world.
+        // It only ends the sender's own conversation and lets the NPC go back to its day; a real reply still waits.
+        NpcDialogChoiceIntent d => d.ChoiceIndex < 0,
         _ => false,
     };
 
@@ -4748,6 +4753,7 @@ public sealed partial class GameServer
             InJoinPlacement = true, // #2465: like the network join, the placement raises no game events
         };
         session.ClientFeatures.Add(ClientFeatures.Packs1); // #2466: a local player runs in this build
+        session.ClientFeatures.Add(ClientFeatures.DialogClose1); // #2616: …and so does its dialogue panel
         session.Join = TakeJoinSnapshot(state); // #2460: the arrival state, like the network join path
         _sessions[connectionId] = session;
         session.AnnouncedWorldId = WorldIdOf(joinBody); // #2117: joined on this body, like a JoinAccepted would say

@@ -387,10 +387,9 @@ namespace BlocksBeyondTheStars.Client
             int pz = Mathf.FloorToInt(Game.PlayerPosition.z);
             foreach (var b in bases)
             {
-                // NetBase carries the core's block centre (X/Z at +0.5) — floor back to the cell.
-                if (Mathf.Abs(px - Mathf.FloorToInt(b.X)) <= WorldConstants.BaseZoneRadius
-                    && Mathf.Abs(py - Mathf.FloorToInt(b.Y)) <= WorldConstants.BaseZoneRadius
-                    && Mathf.Abs(pz - Mathf.FloorToInt(b.Z)) <= WorldConstants.BaseZoneRadius)
+                // NetBase carries the core's block centre (X/Z at +0.5), canonical — floored back to the cell and measured
+                // the short way round both seams (#2613: a base beside the home pad at X = 0 straddles the seam).
+                if (InteractReach.InBaseZone(px, py, pz, b.X, b.Y, b.Z, Game.Circumference))
                 {
                     return b;
                 }
@@ -1596,25 +1595,18 @@ namespace BlocksBeyondTheStars.Client
             RefreshSpeeder(loc);
         }
 
-        /// <summary>The name of the NPC E would talk to right now (#1869), or null — the reach PlayerController uses.</summary>
+        /// <summary>The name of the NPC E would talk to right now (#1869), or null. #2613: the very picker PlayerController's
+        /// E asks (<see cref="GameBootstrap.NearestTalkableNpc"/>, seam-aware) — the prompt used to measure on its own,
+        /// straight across the seam, and stayed blank beside a settler on the far side of X = 0.</summary>
         private string NearestTalkableNpc()
         {
-            var npcs = Game.Npcs;
-            var here = Game.PlayerPosition;
-            string best = null;
-            float bestSq = 4.5f * 4.5f;
-            for (int i = 0; i < npcs.Length; i++)
+            var npc = Game.NearestTalkableNpc();
+            if (npc == null)
             {
-                var d = new Vector3(npcs[i].X, npcs[i].Y, npcs[i].Z) - here;
-                float sq = d.sqrMagnitude;
-                if (sq < bestSq)
-                {
-                    bestSq = sq;
-                    best = string.IsNullOrEmpty(npcs[i].Name) ? Game.Localizer?.Get(npcs[i].NameKey) ?? string.Empty : npcs[i].Name;
-                }
+                return null;
             }
 
-            return best;
+            return string.IsNullOrEmpty(npc.Name) ? Game.Localizer?.Get(npc.NameKey) ?? string.Empty : npc.Name;
         }
 
         /// <summary>Own vehicles parked (not driven) on this world — the cockpit recall prompt's gate (#1661).</summary>
@@ -3973,6 +3965,12 @@ namespace BlocksBeyondTheStars.Client
                 ? loc.Get("ui.base.air_status").Replace("{cells}", b.AirCells.ToString()).Replace("{rooms}", b.SealedRooms.ToString())
                 : loc.Get("ui.base.air_none").Replace("{budget}", BlocksBeyondTheStars.Shared.World.WorldConstants.BaseSealedRoomMaxCells.ToString(System.Globalization.CultureInfo.InvariantCulture)); // #2542: the rules incl. the size limit
             string here = Game.LifeSupportSource == 3 ? loc.Get("ui.base.air_here_ok") : loc.Get("ui.base.air_here_no");
+            if (Game.LifeSupportSource != 3 && b.SealedRooms > 0)
+            {
+                // #2615: other rooms breathe, this spot does not — point at the command that names the reason (and the leak).
+                here += "  ·  " + loc.Get("ui.base.air_here_why");
+            }
+
             return $"{ExpandKeyTokens(loc, loc.Get("ui.base.rename_hint"))}  ·  {air}  ·  {here}"; // #2502: {key:Interact}
         }
 
@@ -3997,15 +3995,10 @@ namespace BlocksBeyondTheStars.Client
 
         private string LootText(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
         {
-            BlocksBeyondTheStars.Networking.Messages.NetContainer nearest = null;
-            float bestSq = 36f;
-            foreach (var c in Game.Containers)
-            {
-                float dx = c.X + 0.5f - Game.PlayerPosition.x, dy = c.Y + 0.5f - Game.PlayerPosition.y, dz = c.Z + 0.5f - Game.PlayerPosition.z;
-                float d = dx * dx + dy * dy + dz * dz;
-                if (d < bestSq) { bestSq = d; nearest = c; }
-            }
-
+            // #2613: the container G takes from — the same seam-aware picker PlayerController's loot key uses. The line used to
+            // measure straight across the seam and stayed blank beside a crate on the far side of X = 0.
+            var here = Game.PlayerPosition;
+            var nearest = InteractReach.NearestContainer(Game.Containers, here.x, here.y, here.z, Game.Circumference, crateOnly: false);
             if (nearest == null)
             {
                 return string.Empty;

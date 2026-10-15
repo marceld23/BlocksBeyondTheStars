@@ -52,8 +52,10 @@ namespace BlocksBeyondTheStars.Client
                         _domes[b.Id] = dome = BuildDome();
                     }
 
-                    // NetBase carries the core cell's centre; lift the dome onto it so it sits on the core.
-                    dome.position = new Vector3(b.X, b.Y + 0.5f, b.Z);
+                    // NetBase carries the core cell's centre; lift the dome onto it so it sits on the core. #2613: at the
+                    // copy nearest the player (ScenePos) — the canonical spot drew the dome a whole circumference away
+                    // once the player stood across the seam from the core (the home pad lies at X = 0).
+                    dome.position = Game.ScenePos(b.X, b.Y + 0.5f, b.Z);
                 }
             }
 
