@@ -265,6 +265,11 @@ namespace BlocksBeyondTheStars.Client
         // --- spawning ---------------------------------------------------------------------------------------
 
         private System.Predicate<int> _notKeptOnPlanet;
+        private int _signatureKind = -1; // #2582: this world's always-hosted species (MicroFauna.SignatureKind), -1 = none
+
+        /// <summary>Whether this planet hosts a species: its ~70 % roll in <see cref="RefreshPlanetSeed"/>, or it
+        /// is the world's signature species (#2582 — the gas giant always has its gas-bags).</summary>
+        private bool IsKeptOnPlanet(int kindIdx) => _planetKeep[kindIdx] || kindIdx == _signatureKind;
 
         private bool SpawnSurfaceOrWater(bool night)
         {
@@ -278,11 +283,14 @@ namespace BlocksBeyondTheStars.Client
             bool wet = env != null && (env.Precipitation == "rain" || env.Weather == "storm" || env.Weather == "rain");
             MicroFauna.SurfaceKinds(env?.Biome, night, wet, _surfaceKinds);
             // Per-planet roster subset: drop species this planet doesn't host (unless that empties the list).
+            // The signature exemption lives here, not in RefreshPlanetSeed, so the established per-world rolls
+            // and hue casts don't shift (#2582).
             if (_planetKeep != null && _surfaceKinds.Count > 0)
             {
+                _signatureKind = MicroFauna.SignatureKind(env?.Biome);
                 bool anyKept = false;
-                for (int i = 0; i < _surfaceKinds.Count && !anyKept; i++) anyKept = _planetKeep[_surfaceKinds[i]];
-                if (anyKept) _surfaceKinds.RemoveAll(_notKeptOnPlanet ??= i => !_planetKeep[i]); // #1554: one delegate, not one per spawn
+                for (int i = 0; i < _surfaceKinds.Count && !anyKept; i++) anyKept = IsKeptOnPlanet(_surfaceKinds[i]);
+                if (anyKept) _surfaceKinds.RemoveAll(_notKeptOnPlanet ??= i => !IsKeptOnPlanet(i)); // #1554: one delegate, not one per spawn
             }
 
             if (_surfaceKinds.Count == 0) return false;
@@ -290,11 +298,14 @@ namespace BlocksBeyondTheStars.Client
             var kind = MicroFauna.Kinds[kindIdx];
 
             if (!RingPosition(out float wx, out float wz)) return false;
-            int gy = GroundTopY(Mathf.FloorToInt(wx), Mathf.FloorToInt(wz));
+            bool airborne = kind.Motion is CritterMotion.Fly or CritterMotion.Drift;
+            // #2581: fliers and drifters take a pond's or the gas sea's surface as their reference; crawlers and
+            // hoppers need a real floor, so a ring spot over open water, lava, oil or gas spawns none of them.
+            int gy = airborne ? GroundTopY(Mathf.FloorToInt(wx), Mathf.FloorToInt(wz))
+                : FloorTopY(Mathf.FloorToInt(wx), Mathf.FloorToInt(wz));
             if (gy == int.MinValue) return false;
 
             float baseY = gy + 1f;
-            bool airborne = kind.Motion is CritterMotion.Fly or CritterMotion.Drift;
             if (kind.Motion == CritterMotion.Fly) baseY = gy + 1.5f + Random.Range(0.5f, 2.2f);
             else if (kind.Motion == CritterMotion.Drift) baseY = gy + 1.2f + Random.Range(0.4f, 1.8f);
 
@@ -306,8 +317,16 @@ namespace BlocksBeyondTheStars.Client
                 float y = baseY + (airborne ? Random.Range(-0.4f, 0.6f) : 0f);
                 if (!airborne)
                 {
-                    int g2 = GroundTopY(Mathf.FloorToInt(jx), Mathf.FloorToInt(jz));
-                    if (g2 != int.MinValue) y = g2 + CrawlSurfaceY;
+                    int g2 = FloorTopY(Mathf.FloorToInt(jx), Mathf.FloorToInt(jz));
+                    if (g2 == int.MinValue)
+                    {
+                        // #2581: this member's own column has no floor (the swarm reaches past a deck's edge
+                        // over the gas, or out onto a pond) — leave it out instead of parking it at the
+                        // leader's height in mid-air.
+                        continue;
+                    }
+
+                    y = g2 + CrawlSurfaceY;
                 }
 
                 if (IsBlockingAt(jx, y, jz))
@@ -379,7 +398,7 @@ namespace BlocksBeyondTheStars.Client
                 return true;
             }
 
-            int gy = GroundTopY(ix, iz);
+            int gy = FloorTopY(ix, iz); // #2581: the cave beetle needs a real floor, not an underground pool's surface
             if (gy == int.MinValue) return false;
             Spawn(kindIdx, new Vector3(wx, gy + CrawlSurfaceY, wz), -1, gy + 1f);
             return true;
@@ -510,6 +529,7 @@ namespace BlocksBeyondTheStars.Client
                 Vector3 vel = Heading(c) * (c.Speed * 2f);
                 float hx = c.WorldPos.x + vel.x * dt, hz = c.WorldPos.z + vel.z * dt;
                 float hy = c.WorldPos.y + c.VertVel * dt;
+                bool turned = false;
                 if (IsBlockingAt(hx, hy, hz))
                 {
                     // Hopped into a wall (#855): drop straight down here and turn around for the next hop.
@@ -518,6 +538,25 @@ namespace BlocksBeyondTheStars.Client
                     hz = c.WorldPos.z;
                     c.VertVel = Mathf.Min(c.VertVel, 0f);
                     hy = c.WorldPos.y;
+                    turned = true;
+                }
+
+                int gy = FloorTopY(Mathf.FloorToInt(hx), Mathf.FloorToInt(hz));
+                if (gy == int.MinValue && !turned)
+                {
+                    // Hopping off a ledge, or (#2581) out over water, lava, oil or gas, which is no floor: turn
+                    // round for the next hop and come down on the column it took off from instead of carrying
+                    // on — the arc used to land ON the liquid's surface, and a bare bounce-back would have it
+                    // sit in mid-air over the edge.
+                    c.Heading += Mathf.PI;
+                    hx = c.WorldPos.x;
+                    hz = c.WorldPos.z;
+                    gy = FloorTopY(Mathf.FloorToInt(hx), Mathf.FloorToInt(hz));
+                }
+
+                if (gy == int.MinValue)
+                {
+                    gy = Mathf.FloorToInt(hy); // no floor in reach here either (e.g. it left the scan window) — settle where it is
                 }
 
                 c.WorldPos.x = hx;
@@ -525,13 +564,6 @@ namespace BlocksBeyondTheStars.Client
                 c.WorldPos.y = hy;
                 c.VertVel -= g * dt;
                 c.LastVelX = vel.x;
-
-                int gy = GroundTopY(Mathf.FloorToInt(c.WorldPos.x), Mathf.FloorToInt(c.WorldPos.z));
-                if (gy == int.MinValue)
-                {
-                    c.Heading += Mathf.PI; // hopped off a ledge — bounce back next hop
-                    gy = Mathf.FloorToInt(c.WorldPos.y);
-                }
 
                 if (c.VertVel < 0f && c.WorldPos.y <= gy + CrawlSurfaceY)
                 {
@@ -595,13 +627,15 @@ namespace BlocksBeyondTheStars.Client
             Steer(c, dt, weave: 0.8f, cohesion: 0.25f);
             Vector3 vel = Heading(c) * c.Speed;
             float nx = c.WorldPos.x + vel.x * dt, nz = c.WorldPos.z + vel.z * dt;
-            int gy = GroundTopY(Mathf.FloorToInt(nx), Mathf.FloorToInt(nz));
+            // #2581: a real floor only — water, lava, oil and the gas sea are no ground, so a crawler turns
+            // round at a deck's or island's edge and at the shore instead of walking out across the surface.
+            int gy = FloorTopY(Mathf.FloorToInt(nx), Mathf.FloorToInt(nz));
             // The height delta alone let a crawler walk into anything a block tall (#855) — and inside a room
-            // GroundTopY reports the ROOF, not the floor. So the cell it would occupy has to be free as well.
+            // FloorTopY reports the ROOF, not the floor. So the cell it would occupy has to be free as well.
             if (gy == int.MinValue || Mathf.Abs((gy + CrawlSurfaceY) - c.WorldPos.y) > 1.6f
                 || IsBlockingAt(nx, c.WorldPos.y, nz) || IsBlockingAt(nx, c.WorldPos.y + 0.5f, nz))
             {
-                c.Heading += Mathf.PI * 0.6f; // a ledge / wall — turn away
+                c.Heading += Mathf.PI * 0.6f; // a ledge / wall / shore — turn away
                 c.LastVelX = 0f;
                 return;
             }
@@ -755,25 +789,57 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Where a crawling/hopping critter's belly sits relative to the ground cell <see cref="GroundTopY"/>
+        /// <summary>Where a crawling/hopping critter's belly sits relative to the ground cell <see cref="FloorTopY"/>
         /// reports (#855). That cell is the last SOLID one, spanning world Y <c>gy..gy+1</c> — so the walkable
         /// surface is <c>gy + 1</c> and the old bare <c>gy + 0.12</c> parked beetles, ants and hoppers almost a
         /// full block INSIDE the ground (the flyers' <c>gy + 2</c> cruise height always used the right frame).</summary>
         private const float CrawlSurfaceY = 1.12f;
 
-        /// <summary>Top solid surface Y near the player's vertical band at a column, or int.MinValue if none.</summary>
-        private int GroundTopY(int wx, int wz)
+        /// <summary>Top surface Y near the player's vertical band at a column, or int.MinValue if none — a liquid
+        /// surface (a pond, a lava lake, the gas giant's sea) included. The reference height for fliers and
+        /// drifters, which may cruise over it; crawlers and hoppers use <see cref="FloorTopY"/> (#2581).</summary>
+        private int GroundTopY(int wx, int wz) => ProbeColumn(wx, wz, liquidIsFloor: true);
+
+        /// <summary>Top surface Y a crawler or hopper can stand on at a column, or int.MinValue when the column's
+        /// surface is water, lava, oil or gas (#2581) — that is no floor, and the scan does not look below it.</summary>
+        private int FloorTopY(int wx, int wz) => ProbeColumn(wx, wz, liquidIsFloor: false);
+
+        private int ProbeColumn(int wx, int wz, bool liquidIsFloor)
         {
             int py = Mathf.FloorToInt(Game.PlayerPosition.y);
-            for (int y = py + 8; y >= py - 12; y--)
+            return MicroFauna.ColumnTopY(new WorldColumn(this, wx, wz), py + 8, py - 12, liquidIsFloor);
+        }
+
+        /// <summary>How the column probe (#2581) sees a world cell: air, a liquid surface (the same test as
+        /// <see cref="FloraGrowthFx"/> and <see cref="ChunkMesher"/> — water, lava, or a block the content marks
+        /// <c>Liquid</c>: oil, gas, gas_dense), or anything else as ground.</summary>
+        private FaunaCell ClassifyCell(int wx, int wy, int wz)
+        {
+            var id = Game.World.GetBlock(wx, wy, wz);
+            if (id.IsAir)
             {
-                if (!Game.World.GetBlock(wx, y, wz).IsAir && Game.World.GetBlock(wx, y + 1, wz).IsAir)
-                {
-                    return y;
-                }
+                return FaunaCell.Air;
             }
 
-            return int.MinValue;
+            var def = Game.Content.BlockById(id);
+            return def != null && (def.Key is "water" or "lava" || def.Liquid) ? FaunaCell.Liquid : FaunaCell.Ground;
+        }
+
+        /// <summary>One world column as <see cref="MicroFauna.ColumnTopY{TColumn}"/> reads it. A struct, so the
+        /// probes of up to <see cref="MaxAlive"/> critters every frame stay allocation-free (#1554).</summary>
+        private readonly struct WorldColumn : IFaunaColumn
+        {
+            private readonly MicroFaunaView _view;
+            private readonly int _wx, _wz;
+
+            public WorldColumn(MicroFaunaView view, int wx, int wz)
+            {
+                _view = view;
+                _wx = wx;
+                _wz = wz;
+            }
+
+            public FaunaCell CellAt(int y) => _view.ClassifyCell(_wx, y, _wz);
         }
 
         /// <summary>First solid ceiling Y above the player at a column (for hanging glow-worms), or int.MinValue.</summary>

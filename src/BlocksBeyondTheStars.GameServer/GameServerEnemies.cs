@@ -419,7 +419,7 @@ public sealed partial class GameServer
         // is the feet (a drone's hover offset removed); noise surface only when the chunk isn't loaded.
         int refY = (int)System.Math.Floor(enemy.Position.Y) - hover;
         int ownX = (int)System.Math.Floor(enemy.Position.X), ownZ = (int)System.Math.Floor(enemy.Position.Z);
-        int prevGround = drone ? GroundFeetYAt(ownX, ownZ, refY) : WalkerFeetAt(ownX, ownZ, refY);
+        int prevGround = drone ? DroneGroundAt(ownX, ownZ, refY) : WalkerFeetAt(ownX, ownZ, refY); // #2586: a drone over open gas rides its surface
 
         // #2554: a walking robot that stands in water deeper than it wades — a pond dug or flooded around it, a
         // push, an older spawn — neither hunts nor patrols down there: it walks out to the nearest dry ground first.
@@ -519,11 +519,19 @@ public sealed partial class GameServer
         // hover clears three; anything higher is an obstacle. (The standable probe already demands two free
         // cells above the feet, so a walker's body never lands inside a wall; a drone keeps weaving through
         // tree crowns and trunks at hover height as it always has.)
-        if (!MachineGroundAt(nextX, nextZ, refY, realWaterBed: !drone, out int groundY)
+        if (!MachineGroundAt(nextX, nextZ, refY, realWaterBed: !drone, out int groundY, overGas: drone)
             || groundY - prevGround > (drone ? ScanDroneHover - 1 : MachineStepUp)
             || prevGround - groundY > MachineStepDown)
         {
             enemy.Loco.ModeTimer = 0f; // wall/cliff/spike in the way — pick a new direction next tick
+            return false;
+        }
+
+        // #2586: a gas giant's gas sea carries no walking robot — off a deck or an island's rim it turns back, chasing or
+        // patrolling alike. (A drone crosses open gas at its hover over the surface.)
+        if (!drone && WalkerStepsIntoGasSea(ownX, ownZ, prevGround, nextX, nextZ, groundY))
+        {
+            enemy.Loco.ModeTimer = 0f;
             return false;
         }
 
@@ -615,20 +623,35 @@ public sealed partial class GameServer
     /// reference height, or the generator surface when the column's chunk is not loaded or the column is water /
     /// lava in the probe window (a lake is no wall to a drone — it crosses it the way it always did, on the noise
     /// surface). A loaded column with nothing standable and no fluid in the window is solid ground-to-sky as
-    /// far as the machine can see: a wall.</summary>
-    private bool MachineGroundAt(int x, int z, int refY, out int feetY)
-        => MachineGroundAt(x, z, refY, realWaterBed: false, out feetY);
-
-    /// <summary>As <see cref="MachineGroundAt(int, int, int, out int)"/>; with <paramref name="realWaterBed"/> (a
-    /// walking robot, #2554) a loaded WATER column answers the feet on its real bed — the lowest water (or plant in
-    /// water) cell of the body in the probe window — instead of the generator's surface, which knows nothing of a
-    /// pond the player dug and flooded. The walker's water gate measures the depth from there. Lava, and a water
-    /// column that hangs in the air (a waterfall), keep the generator surface as before.</summary>
-    private bool MachineGroundAt(int x, int z, int refY, bool realWaterBed, out int feetY)
+    /// far as the machine can see: a wall.
+    ///
+    /// <para>With <paramref name="realWaterBed"/> (a walking robot, #2554) a loaded WATER column answers the feet on its
+    /// real bed — the lowest water (or plant in water) cell of the body in the probe window — instead of the generator's
+    /// surface, which knows nothing of a pond the player dug and flooded. The walker's water gate measures the depth from
+    /// there. Lava, and a water column that hangs in the air (a waterfall), keep the generator surface as before. With
+    /// <paramref name="overGas"/> (a scan-drone, #2586) a gas giant's open gas answers its surface
+    /// (<see cref="GasSurfaceFloorFor"/>): the drone crosses it as it crosses a lake. Without it, a loaded open-gas column
+    /// stays a wall, as it always read.</para></summary>
+    private bool MachineGroundAt(int x, int z, int refY, bool realWaterBed, out int feetY, bool overGas = false)
     {
         if (TryGroundFeetYAt(x, z, refY, out feetY))
         {
+            if (overGas)
+            {
+                feetY = DroneFloorOverGas(x, z, feetY); // #2586: a block standing in the gas is no floor to hover over
+            }
+
             return true;
+        }
+
+        if (overGas)
+        {
+            int gasFloor = GasSurfaceFloorFor(x, z, ScanDroneHover);
+            if (gasFloor != int.MinValue)
+            {
+                feetY = gasFloor;
+                return true;
+            }
         }
 
         bool loaded = _world.IsChunkLoaded(WorldConstants.WorldToChunk(new Vector3i(x, refY, z)));
@@ -667,7 +690,7 @@ public sealed partial class GameServer
         return true;
     }
 
-    /// <summary>A walking robot's feet in its own column: <see cref="MachineGroundAt(int, int, int, bool, out int)"/>
+    /// <summary>A walking robot's feet in its own column: <see cref="MachineGroundAt(int, int, int, bool, out int, bool)"/>
     /// with the real water bed, or the creatures' probe (generator surface fallback) when the column reads as a wall.</summary>
     private int WalkerFeetAt(int x, int z, int refY)
         => MachineGroundAt(x, z, refY, realWaterBed: true, out int feet) ? feet : GroundFeetYAt(x, z, refY);
@@ -724,7 +747,7 @@ public sealed partial class GameServer
         return System.Math.Min(depth, Cap);
     }
 
-    /// <summary>Whether a cell is wet for <see cref="MachineGroundAt(int, int, int, bool, out int)"/>'s bed descent:
+    /// <summary>Whether a cell is wet for <see cref="MachineGroundAt(int, int, int, bool, out int, bool)"/>'s bed descent:
     /// water, or a plant / prop / form that water surrounds (<see cref="WetCell.IsWet"/>), or a plant with a wet cell
     /// straight above it (the foot of a kelp stalk in a kelp forest).</summary>
     private bool MachineCellWet(int x, int y, int z)
@@ -1015,7 +1038,8 @@ public sealed partial class GameServer
 
     /// <summary>Spawns one planet machine near <paramref name="player"/> (or at a wreck / SPS lab near them). A walking
     /// robot never appears with water on its feet (#2554): a wet spot is passed over for the next slot, and when every
-    /// try is wet nothing spawns (returns false). A hovering scan-drone takes the classic spot as before.</summary>
+    /// try is wet nothing spawns (returns false). A hovering scan-drone takes the classic spot as before. Neither ever
+    /// appears in a gas giant's gas sea (#2586): a robot needs an island or a deck under it, a drone hovers over the gas.</summary>
     private bool SpawnPlanetEnemyNear(Shared.State.PlayerState player, bool asDrone)
     {
         // Frontier danger (#1122, opt-in world rule): out in the full-frontier tier the machines hit like
@@ -1080,17 +1104,21 @@ public sealed partial class GameServer
                 ez = (int)System.Math.Round(player.Position.Z + System.Math.Sin(ang) * dist);
             }
 
-            // Stand on the ground, not in it — real blocks when the column is loaded, noise surface otherwise.
-            int refY = _generator.SurfaceHeight(_world.Planet, ex, ez) + 1;
+            // Stand on the ground, not in it — real blocks when the column is loaded, noise surface otherwise. #2586: on a gas
+            // giant that surface lies under the gas sea — the probe starts from the real top of the column above the gas, a
+            // drone hovers over the gas where nothing stands, and a walking robot with no island or deck under it is not
+            // placed: every machine used to appear in the gas and burn, one after another on the same spot.
+            int refY = GroundProbeRefY(ex, ez);
             if (asDrone)
             {
-                ey = GroundFeetYAt(ex, ez, refY) + ScanDroneHover; // the flying scan-drone hovers above the surface
-                placed = true;
+                ey = DroneGroundAt(ex, ez, refY) + ScanDroneHover; // the flying scan-drone hovers above the surface
+                placed = !FeetInGasSeaAt(ex, ey, ez);
             }
             else
             {
                 ey = WalkerFeetAt(ex, ez, refY);
-                placed = MachineWaterDepth(ex, ez, ey) == 0; // #2554: no water on a walking robot's feet
+                placed = MachineWaterDepth(ex, ez, ey) == 0 // #2554: no water on a walking robot's feet
+                    && !FeetInGasSeaAt(ex, ey, ez);
             }
         }
 

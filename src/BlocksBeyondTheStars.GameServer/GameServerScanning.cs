@@ -318,7 +318,7 @@ public sealed partial class GameServer
             {
                 Kind = "anomaly",
                 SubjectKey = "anomaly",
-                Display = target.Name,
+                Display = "anomaly", // #2588: the client localizes it via ui.scan.subject.anomaly (was the name "???")
                 InfoKey = "ui.scan.anomaly",
                 LegacyInfo = "Readings defy the catalogue — logged for the archive.",
             };

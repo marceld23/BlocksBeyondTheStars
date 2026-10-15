@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Client.Core;
 using BlocksBeyondTheStars.Networking.Messages;
 using UnityEngine;
 
@@ -10,12 +11,18 @@ namespace BlocksBeyondTheStars.Client
     /// The peaceful things out in space get their own look (#2241, #2242): the life pod is a little lifeboat with a
     /// blinking beacon and SOS rings, the anomaly a shimmering soap bubble, the wormhole a tear in space-time — none of
     /// them the red fallback cube any more. A rescued pod is pulled aboard on a tractor beam; a wormhole within reach
-    /// takes the Interact key ("fly through"), and the rift transit plays instead of the hyperspace warp.
+    /// takes the Interact key ("fly through"), and the rift transit plays instead of the hyperspace warp. Flying close to
+    /// an anomaly, or pressing the Interact key next to it, says what it is and how to read it (#2588).
     /// </summary>
     public sealed partial class SpaceView
     {
         private string _nearWormholeId;
         private float _wormholeSendCd;
+
+        // #2588: what flying close to an anomaly (or pressing E next to it) says — and the nearest one for that E press.
+        private readonly AnomalyHint _anomalyHint = new AnomalyHint();
+        private float _nearAnomalyDist = float.PositiveInfinity;
+        private bool _nearAnomalyScanned;
 
         // ---------------- Models ----------------
 
@@ -221,6 +228,63 @@ namespace BlocksBeyondTheStars.Client
         {
             _hyperjumping = true;
             WormholeTransitFx.PlayArrival();
+        }
+
+        // ---------------- Anomalies (#2588) ----------------
+
+        /// <summary>One cruise frame: an anomaly the ship has just flown up to gets a short line in the HUD toast — not
+        /// scanned yet "an anomaly, not a wormhole: pick the scanner and hold fire on it", read already "you have read it"
+        /// (a player took the bubble for a wormhole, and nothing said otherwise). Every approach, rate-limited
+        /// (<see cref="AnomalyHint"/>). Also keeps the nearest anomaly for <see cref="SayAnomalyHintOnInteract"/>.</summary>
+        private void UpdateNearAnomaly(Vector3 shipLocal)
+        {
+            _nearAnomalyDist = float.PositiveInfinity;
+            _nearAnomalyScanned = false;
+            var space = Game?.Space;
+            if (space == null)
+            {
+                return;
+            }
+
+            foreach (var e in space.Entities)
+            {
+                if (!AnomalyHint.IsAnomaly(e.Kind))
+                {
+                    continue;
+                }
+
+                float dist = (new Vector3(e.X, e.Y, e.Z) - shipLocal).magnitude;
+                bool scanned = AnomalyScanned(space, e.Id);
+                if (dist < _nearAnomalyDist)
+                {
+                    _nearAnomalyDist = dist;
+                    _nearAnomalyScanned = scanned;
+                }
+
+                ShowAnomalyLine(_anomalyHint.Approach(e.Id, dist, scanned, Time.time));
+            }
+        }
+
+        /// <summary>E pressed in flight with no station to dock, no body to land on and no wormhole to fly through: next
+        /// to an anomaly the same line comes again (a few seconds apart) instead of nothing at all.</summary>
+        private void SayAnomalyHintOnInteract()
+            => ShowAnomalyLine(_anomalyHint.Interact(_nearAnomalyDist, _nearAnomalyScanned, Time.time));
+
+        /// <summary>Whether this pilot has read the anomaly — the server's per-pilot list (an earlier visit: the bubble
+        /// is calm), or a scan this flight sent that the list has not caught up with yet (the VEGA tip's test).</summary>
+        private bool AnomalyScanned(SpaceState space, string id)
+            => _scannedThisFlight.Contains("e:" + id) || (space.ScannedIds != null && System.Array.IndexOf(space.ScannedIds, id) >= 0);
+
+        private void ShowAnomalyLine(string key)
+        {
+            if (key == null || Game == null)
+            {
+                return;
+            }
+
+            Game.ShowMessage(key == AnomalyHint.ScannedKey
+                ? Loc(key, "You have already read this anomaly.")
+                : Loc(key, "An anomaly — not a wormhole. Pick the scanner and hold fire on it."));
         }
     }
 }

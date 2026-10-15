@@ -49,6 +49,20 @@ components, a category sidebar and blueprint state.
   and **Craft one →** (jump to the recipe that produces the block). Closing the menu drops a through-wall
   marker on the located block (`OreScanView.ShowStationMarker`). Vocabulary rule (#1071): the UI names the
   **block** (Workbench, Forge, Cockpit …), never an abstract "workshop/lab/console".
+- **Aboard, the module comes first (#2585).** Aboard a ship the server counts only a fitted **module** for a station
+  (`StationAvailable`; a station block built into a ship is decoration, #2248). So aboard (`AboardShipNow`) the reason
+  line, the gate-row hint and the recipe page's "Station:" line name the module and the **Ship** tab
+  (`ui.craft.need_module_aboard`, `ui.craft.hint_need_module`, `ui.craft.station_module`, with the module's icon), a
+  station no module provides (campfire, algae tank) reads "only on a world" (`ui.craft.need_world_only` /
+  `hint_world_only`), "no station in reach" names the workshop module instead of a workbench
+  (`ui.craft.hint_hand_only_aboard`), and **Craft one →** is not offered aboard for either kind — that offer is how a
+  forge ended up beside the cabin's workbench. The factory keeps its own wording everywhere (a player-placed terminal
+  never produces, #1265). The text choice is `CraftStationText` (Client.Core, tested headless). The server's refusal
+  says the same: `@srv.craft.need_module:<module>` / `@srv.craft.world_only:<block>` aboard (off the ship, and for the
+  factory, `@need_station:<station>` as before), and a material refusal names the items with have/need
+  (`@srv.craft.missing_named:Titanium Ore (0/2)`);
+  `GameBootstrap.CraftFailMessage` resolves every `@srv.*` reason through `ResolveServerToken`. The long reason lines
+  wrap and push the rows below down (`AddWrappedDetailLine`).
 - **Blueprint state on the client.** The server's `PlayerState.UnlockedBlueprints` is synced to the
   client (on join, on unlock, on resync) so cards can show "craftable now", grey locked recipes, and
   blueprint status without round-tripping.
@@ -77,8 +91,9 @@ components, a category sidebar and blueprint state.
   `GameServerStationAffordances.cs` (`StationsInReach`, `LocateStationIntent`/`StationLocation`); the ship
   structure emits station markers (`medbay / cockpit / workshop / cargo / quarters / console` — see
   `GameServerSpaceStructure.cs`; the phantom `lab` marker was retired in #1074, research lives at the
-  cockpit). Client mapping station → block/module: `StationBlockKey` / `StationModuleKey` in
-  `CraftingTechShipUI.cs`; the world-side look-at prompt is `Game.AimedStationBlock` (#1073).
+  cockpit). Client mapping station → block: `StationBlockKey` in `CraftingTechShipUI.cs`; station → module:
+  `CraftStationText.ModuleKey` (Client.Core, mirrors the server's `StationModuleFor`); the world-side look-at prompt
+  is `Game.AimedStationBlock` (#1073).
 
 ## Design notes
 

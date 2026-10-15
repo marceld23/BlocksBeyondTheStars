@@ -246,6 +246,19 @@ lift platform is a meshed object (`LiftView`).
   - An engine FX light sits between the engines and follows the throttle.
   - Other players' ships get the same per-engine plumes in flight (from their design). So does their landing or launch seen from the surface (`ShipTransitView`). Hostile cruisers and bandit ships have plumes too.
   - A throttle surge punches the FOV.
+- **Rear hatch and doors in space** (#2587, #2607):
+  - The rear hatch is capped by an energy panel (cyan rim + translucent field, hidden on a spacewalk) and marked by
+    the glowing tail cube. `ShipHatch` (Client.Core, unit-tested) places both: on the server's hatch cells
+    (`SpaceShipDesign.HatchX/Y/Z` — the doorways of the design's own doors that look out into space, one panel per
+    doorway, turned for a side wall; with `HatchKnown` an empty list means no panel), else — an older server — by a
+    guess that only reads cells inside the design
+    box and only takes air ENCLOSED in the stern plane (a flood from the plane's edge), so leaves and blocks around the
+    hull can no longer grow the panel past it. The doors the owner built count as wall for the guess. The tail cube
+    sits on the chosen wall plane under the hatch.
+  - Doors built into a ship or a player station (`DoorX…`) are drawn closed: a closed **energy** door as its jamb
+    posts in the rim colour plus the field (`SpaceDoors.ShowsFieldInSpace`; on the ground the field shows only while
+    open), every other kind as its grey closed panels. The spacewalk's door preview shows the field for an energy door
+    too.
 - **Speed and lighting:** `FxSpaceDust` turns velocity into streaks. Flight motion blur finally follows speed (`UrpScenePost.SetMotion` had no caller). The hull is lit from the system's star (`Sky.SpaceSunDir`).
 - **Hyperjump** (`HyperspaceWarp`): an `FxTunnel` around the camera, the dust stretched into star lines, FOV punch at the flash; the 2D overlay remains as a faint wash.
 - **Traders** warp in and out as stretched light zips.

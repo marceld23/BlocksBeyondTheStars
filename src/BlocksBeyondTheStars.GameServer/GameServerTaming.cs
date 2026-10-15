@@ -724,7 +724,9 @@ public sealed partial class GameServer
 
     /// <summary>A free spot beside a player for a companion to (re-)appear on: bearings fanned out from a
     /// per-pet stable angle, first one whose body isn't inside a wall wins. Falls back to the owner's own
-    /// position (they are standing in open space by definition) when the pet is boxed in on every side.</summary>
+    /// position (they are standing in open space by definition) when the pet is boxed in on every side.
+    /// #2583: never a spot in a gas giant's gas sea — three blocks off a landing deck a walker's ground probe finds only
+    /// the heightfield buried under the gas, and a land clone released there (wild, so the gas burns it) would die at once.</summary>
     private Vector3f CompanionSpotNear(CreatureSpecies sp, string companionId, Vector3f near)
     {
         float baseAngle = (Hash(companionId, "spawn") % 360) * (float)(System.Math.PI / 180.0);
@@ -733,7 +735,7 @@ public sealed partial class GameServer
             float ang = baseAngle + i * 0.7853982f; // 45° apart
             var spot = AdjustHabitatHeight(sp, new Vector3f(
                 near.X + (float)System.Math.Cos(ang) * 3f, near.Y, near.Z + (float)System.Math.Sin(ang) * 3f));
-            if (!CreatureBodyBlocked(sp, spot) && !EntityBlockedByShip(spot))
+            if (!CreatureBodyBlocked(sp, spot) && !EntityBlockedByShip(spot) && !InGasSea(spot))
             {
                 return spot;
             }
@@ -937,7 +939,13 @@ public sealed partial class GameServer
             creature.Position.X + (float)(dx / len) * blocks,
             creature.Position.Y,
             creature.Position.Z + (float)(dz / len) * blocks);
-        creature.Position = _speciesById.TryGetValue(creature.SpeciesId, out var sp) ? AdjustHabitatHeight(sp, fled) : fled;
+        var placed = _speciesById.TryGetValue(creature.SpeciesId, out var sp) ? AdjustHabitatHeight(sp, fled) : fled;
+        if (InGasSea(placed))
+        {
+            return; // #2583: a spooked animal on a deck does not bolt off it into a gas giant's gas sea — it stays put
+        }
+
+        creature.Position = placed;
     }
 
     private string BodyDisplayName(string bodyId)

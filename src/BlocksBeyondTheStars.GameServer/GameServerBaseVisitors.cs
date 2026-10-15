@@ -239,10 +239,11 @@ public sealed partial class GameServer
                     int ez = (int)System.Math.Round(b.Cell.Z + System.Math.Sin(a) * radius);
                     // Real ground nearest the CORE's own level (a fortress on a raised plateau gets its
                     // scouts on the plateau, not on the noise surface under it); the generator's surface
-                    // only when the column offers nothing within the wide window.
+                    // only when the column offers nothing within the wide window — #2586: on a gas giant the real
+                    // top of the column over the gas, and the gas sea itself is a rejected column like a moat.
                     int ey = TryGroundFeetYAt(ex, ez, b.Cell.Y, CreatureBodyMinHeight, CreatureWideGroundScan, out int feet)
                         ? feet
-                        : GroundFeetYAt(ex, ez, _generator.SurfaceHeight(_world.Planet, ex, ez) + 1);
+                        : GroundFeetYAt(ex, ez, GroundProbeRefY(ex, ez));
                     ok = !BanditColumnRejected(ex, ey, ez);
                     spots[i] = new Vector3f(ex, ey, ez);
                 }

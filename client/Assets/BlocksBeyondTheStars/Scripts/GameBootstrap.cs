@@ -1951,8 +1951,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Turns a craft-failure reason into a player-facing line. Station-availability failures arrive
         /// as a machine-readable "@need_station:&lt;station&gt;" token so the client can localize them and name the
         /// exact station the recipe needs (Severin playtest #2); "@inventory_full" is the same idea for "the
-        /// result wouldn't fit". Anything else falls back to a generic localized line — the raw English server
-        /// text used to be shown to the player, which read as broken in a German session.</summary>
+        /// result wouldn't fit". #2585: every "@srv.*" reason reads its own sentence through
+        /// <see cref="ResolveServerToken"/> — the module aboard ("@srv.craft.need_module:Refinery"), the missing items with
+        /// counts ("@srv.craft.missing_named:Titanium Ore (0/2)"), a locked blueprint, the wrong vendor, not today …; the
+        /// generic line used to swallow them all. Anything else falls back to a generic localized line — the raw English
+        /// server text used to be shown to the player, which read as broken in a German session.</summary>
         private string CraftFailMessage(string reason)
         {
             const string stationPrefix = "@need_station:";
@@ -1968,6 +1971,14 @@ namespace BlocksBeyondTheStars.Client
             {
                 return Localizer?.Get("ui.craft.inventory_full")
                     ?? "No room for the result — make space in your inventory first.";
+            }
+
+            // The argument is everything after the FIRST ':' and goes in after the template's {key:…} tokens are expanded,
+            // so an item name with a ':' or a ',' in it reaches the sentence verbatim.
+            string named = ResolveServerToken(reason);
+            if (named != null)
+            {
+                return named;
             }
 
             Debug.Log($"Craft failed: {reason}"); // keep the exact server reason for diagnosis, not for the player

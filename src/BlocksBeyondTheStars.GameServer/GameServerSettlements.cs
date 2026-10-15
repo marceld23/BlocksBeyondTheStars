@@ -1458,8 +1458,17 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Whether a ground footprint stands in the generator's water or lava. #2586: on a gas giant every ground
+    /// footprint is — the gas floods the whole heightfield, and the legacy ground path (a camp on a world first visited
+    /// with robbers off, a structure too big for an island) could seat a build on the floor under the gas. The islands are
+    /// the only ground there; the guaranteed search knew it already (#2112).</summary>
     private bool FootprintWet(PlanetType planet, int ox, int oz, int w, int l)
     {
+        if (planet.IsGasWorld && _generator.SeaIsGas(planet))
+        {
+            return true;
+        }
+
         foreach (var (x, z) in FootprintSamples(ox, oz, w, l))
         {
             if (_generator.IsSurfaceWater(planet, x, z) || _generator.IsSurfaceLava(planet, x, z))

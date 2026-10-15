@@ -169,7 +169,11 @@ module fitted, Interact there asks *Workshop (E) / Bio lab* (`VendorChoicePrompt
 `BioLabUi.ShipLabAboard` mirrors the server rule. The lab keeps no per-block state, so nothing else changes: washing
 reads the ship's detoxifier module, heat- and cold-sensitive effects read the cabin air (`AmbientTemperature`). A
 `bio_lab` block built into a hull stays decoration; `NoteShipDecor` then says `vega.hint.ship_decor_bio_lab` (the
-same once-flag as every decoration notice), naming the module — and says nothing when the module is fitted.
+same once-flag as every decoration notice), naming the module — and says nothing when the module is fitted. The
+crafting stations follow the same rule (#2585): a forge, workbench, detoxifier, matter forge or decontaminator built
+into the own ship is decoration, and while the ship lacks the matching module `NoteShipStationBlock` sends
+`vega.hint.ship_station_module` with the module's name — once per block kind (`vega:hint:ship_station:<block>`), not
+under the shared decoration flag.
 
 Actions:
 

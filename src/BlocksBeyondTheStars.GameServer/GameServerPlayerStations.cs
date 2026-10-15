@@ -112,8 +112,15 @@ public sealed partial class GameServer
 
     private void HandleDeployStationCore(PlayerSession session) => DeployStationCore(session.State.PlayerId);
 
+    /// <summary>Whether a station build has its airlock: a door — a door record (#2607: a door built on a spacewalk is a
+    /// real door now) or a door BLOCK built before that, which stays a block.</summary>
     private bool StationHasAirlock(SpaceStructure s)
     {
+        if (s.PlacedDoorAxes.Count > 0)
+        {
+            return true;
+        }
+
         ushort slide = _content.GetBlock("door_slide")?.NumericId.Value ?? 0;
         ushort hinge = _content.GetBlock("door_hinge")?.NumericId.Value ?? 0;
         ushort energy = _content.GetBlock("door_energy")?.NumericId.Value ?? 0; // the airtight one (#793)
@@ -141,7 +148,9 @@ public sealed partial class GameServer
     /// it at their next join (<see cref="TellOwnerOfStationsCommissionedAway"/>).</summary>
     private void TryCommissionStation(SpaceInstance instance, SpaceStructure s, PlayerSession placer)
     {
-        if (s.Boardable || s.Cells.Count < MinStationBlocks || !StationHasAirlock(s))
+        // #2607: a door is a record now, no cell — it still counts as the one block its door block used to be, so a core,
+        // ten hull blocks and a door commission as before.
+        if (s.Boardable || s.Cells.Count + s.PlacedDoorAxes.Count < MinStationBlocks || !StationHasAirlock(s))
         {
             return;
         }
@@ -179,6 +188,7 @@ public sealed partial class GameServer
 
         AddStationBodyToGalaxy(s.Id, s.Name, StationHostKey(instance.Id));
         PersistStation(instance, s);
+        PersistStationDoors(s); // #2607: the doors hung before the commission are saved from now on
         BroadcastSpaceState(instance);
 
         if (owner is not null)
@@ -403,6 +413,7 @@ public sealed partial class GameServer
                 Position = new Vector3f(row.PosX, row.PosY, row.PosZ),
             };
             DeserializeCells(row.Blocks, s);
+            ApplyPersistedStationDoors(s); // #2607: the door records (a door block in the cells stays a block)
             _playerStationCells[row.Id] = s;
             _stationsById[row.Id] = new BoardableStation
             {
@@ -457,14 +468,21 @@ public sealed partial class GameServer
     }
 
     /// <summary>Stamps a player-built station's voxel cells into its void world for boarding — the void-world
-    /// analogue of the procedural <see cref="StampStation"/>, using the player's build as the interior.</summary>
+    /// analogue of the procedural <see cref="StampStation"/>, using the player's build as the interior. Runs on EVERY
+    /// boarding (#2607), and so does the arrival (#2606).
+    /// <para>#2607: the stamp used to run once per server run (it returned early once <c>Stamped</c>), so walls and doors
+    /// built from outside after the first boarding reached the inside only after a restart — Screelit's station still had
+    /// its old open hull inside and no air until he flew to his ship and came back. Now every boarding refreshes the
+    /// interior, in an order that loses nothing built inside: the doors first (<see cref="SyncStationDoors"/>: the records
+    /// hang in the world, the doors built aboard become records), then the world's blocks are folded into the build
+    /// (<see cref="AbsorbStampedWorldIntoCells"/> — interior edits are written back as they happen, so this only adds what
+    /// an older release left in the world alone), then the build tops the world up (cells the world lacks or holds
+    /// differently: the outside work since), then the bounds (the air search) and the arrival are judged on the result.
+    /// A spacewalk edit reaches a materialised interior at once anyway (<see cref="MirrorStationCellOutside"/>), so the
+    /// absorb pass never takes a block mined from outside back.</para></summary>
     private void StampPlayerStation(BoardableStation station, SpaceStructure src)
     {
-        if (station.Stamped)
-        {
-            return;
-        }
-
+        bool refresh = station.Stamped;
         var (min, max) = CellBox(src);
 
         // #1481: the stamp is anchored ONCE. The first stamp pins the build's cell minimum to the world origin
@@ -480,7 +498,8 @@ public sealed partial class GameServer
             station.Materialised = true;
         }
 
-        var anchor = station.StampMin;
+        SyncStationDoors(station, src); // #2607: before the absorb, so a doorway's stale block never enters the build
+
         if (!firstStamp && AbsorbStampedWorldIntoCells(station, src))
         {
             (min, max) = CellBox(src); // the interior grew / shrank with what the world really holds (#1559)
@@ -488,15 +507,10 @@ public sealed partial class GameServer
 
         RefreshStationBounds(station, min, max);
 
-        // Spawn at the build's centre with a guaranteed floor pad + headroom (never fall through into the void).
-        int cx = station.Origin.X + ((min.X + max.X) / 2 - anchor.X);
-        int cz = station.Origin.Z + ((min.Z + max.Z) / 2 - anchor.Z);
-        int fy = station.Origin.Y;
-        var hull = _content.GetBlock("iron_wall")?.NumericId ?? BlockId.Air;
-
         // Stamp the whole build in one transaction: a station can be hundreds of voxels and each SetBlock is
         // otherwise its own WAL commit — that loop stalls the tick thread for as long as it runs.
         ushort GetCell(Vector3i p) => src.Get(p).Value;
+        var toppedUp = new List<(Vector3i Cell, BlockId Block)>();
         _repo.RunInTransaction(() =>
         {
             foreach (var kv in src.Cells)
@@ -516,57 +530,29 @@ public sealed partial class GameServer
                 }
 
                 _world.SetBlock(w, kv.Value);
+                if (!firstStamp)
+                {
+                    toppedUp.Add((w, kv.Value));
+                }
             }
         });
 
-        // The spawn is judged AFTER the top-up, so a block of the build restored at the centre (the core, a wall
-        // built since) never sits in the spawn column. A materialised interior keeps its pad: the centre follows
-        // the cell box, so a wing built on one side can move it onto something the player built — the spawn then
-        // moves to the nearest standable spot INSIDE the build (#1493: the old re-cut carved two air cells + an
-        // iron floor into that wall on every start, and since the carve was never written back the grid restored
-        // the wall for the next start to carve again — a hole in a sealed room). Only a build with no standable
-        // cell at all gets a pad cut.
-        bool cutPad = firstStamp;
-        if (!firstStamp && !StandableAt(cx, fy + 1, cz))
+        // #2607: someone already aboard (the world stayed loaded) sees the top-up too — the boarder streams it anyway.
+        foreach (var (cell, block) in toppedUp)
         {
-            if (TryFindStandableInStation(station, new Vector3i(cx, fy + 1, cz), out var spot))
-            {
-                cx = spot.X;
-                fy = spot.Y - 1;
-                cz = spot.Z;
-            }
-            else
-            {
-                cutPad = true;
-            }
+            var c = WorldConstants.CanonicalBlock(cell, _world.Circumference);
+            BroadcastToWorld(new BlockChanged { X = c.X, Y = c.Y, Z = c.Z, Block = block.Value });
         }
 
-        if (cutPad)
-        {
-            _repo.RunInTransaction(() =>
-            {
-                if (!hull.IsAir)
-                {
-                    for (int dx = -1; dx <= 1; dx++)
-                        for (int dz = -1; dz <= 1; dz++)
-                        {
-                            _world.SetBlock(new Vector3i(cx + dx, fy, cz + dz), hull);
-                        }
-                }
-
-                _world.SetBlock(new Vector3i(cx, fy + 1, cz), BlockId.Air);
-                _world.SetBlock(new Vector3i(cx, fy + 2, cz), BlockId.Air);
-            });
-        }
+        // The arrival is judged AFTER the top-up, so a block of the build restored there (the core, a wall built
+        // since) never sits in the arrival column.
+        station.Markers.Clear();
+        PlacePlayerStationArrival(station, src);
 
         if (firstStamp && _stationHostBody.TryGetValue(station.Id, out var hostLoc))
         {
             PersistStation(hostLoc, src); // the anchor is part of the row from now on
         }
-
-        station.Spawn = new Vector3f(cx + 0.5f, fy + 1f, cz + 0.5f);
-        station.Markers.Clear();
-        station.Markers.Add(("spawn", station.Spawn));
 
         // Manual placeables (Feature 2): vendor / mission-board / container blocks the owner built into their
         // station become interaction points, reusing the SAME trade/mission/loot code paths procedural
@@ -575,7 +561,9 @@ public sealed partial class GameServer
 
         station.Structure = null; // player station: no procedural structure bounds
         station.Stamped = true;
-        _log.Info($"Player station '{station.Name}' stamped into its void world at ({station.Origin.X},{station.Origin.Y},{station.Origin.Z}).");
+        _log.Info(refresh
+            ? $"Player station '{station.Name}' refreshed in its void world for boarding."
+            : $"Player station '{station.Name}' stamped into its void world at ({station.Origin.X},{station.Origin.Y},{station.Origin.Z}).");
     }
 
     /// <summary>Extra blocks around the cell box the world scan covers per pass; anything found inside grows the
@@ -672,7 +660,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>Re-derives a player station's box after a door was built or torn down inside it (#1559): doors
-    /// are entities, not cells, so the cell grid alone never sees a doorway on the outer face of a room.</summary>
+    /// are entities, not cells, so the cell grid alone never sees a doorway on the outer face of a room. #2607: the
+    /// station's door records follow too, so the hull seen from a spacewalk shows the door (and loses it again).</summary>
     private void RefreshStationBoundsAfterDoorChange()
     {
         if (!IsPlayerStationWorld(_world.LocationId))
@@ -684,6 +673,7 @@ public sealed partial class GameServer
         if (_stationsById.TryGetValue(stationId, out var station) && station.Materialised
             && _playerStationCells.TryGetValue(stationId, out var s))
         {
+            SyncStationDoorRecordsFromWorld();
             var (min, max) = CellBox(s);
             RefreshStationBounds(station, min, max);
         }
@@ -708,20 +698,131 @@ public sealed partial class GameServer
         return (new Vector3i(minX, minY, minZ), new Vector3i(maxX, maxY, maxZ));
     }
 
+    /// <summary>Where a boarder of a player station arrives (#2606), judged on EVERY boarding against what the interior
+    /// world holds now: the standable cell (feet cell with two free cells above) nearest to the station core, a sealed
+    /// air pocket first (#1833). Before this the arrival was the bottom layer of the build's bounding-box centre, and
+    /// the first boarding cut a 3×3 iron pad there: on a non-convex station (two wings, a corridor between them) that
+    /// centre is empty space — Screelit docked at his "Blumenhall" and stood outside the hull, next to the previous
+    /// ship's hologram decor. The pad, a block edit, was then folded into the build (#1559) and stayed standable, so
+    /// every later boarding found him there again; the sealed-pocket-first search walks past it to the core room. A
+    /// station whose core was mined searches from that old centre instead. Only a build with no standable cell at all
+    /// gets the old pad cut — practically never, since the top face of any solid column stands; it stays the last
+    /// resort it already was for a materialised station (#1493: a pad re-cut on every start carved two air cells into
+    /// a wall, a hole the grid restored for the next start to carve again).</summary>
+    private void PlacePlayerStationArrival(BoardableStation station, SpaceStructure src)
+    {
+        LoadStationBoxChunks(station);
+        var (min, max) = CellBox(src);
+        var centre = StationCellToWorld(station, new Vector3i((min.X + max.X) / 2, min.Y, (min.Z + max.Z) / 2)); // the bottom layer
+        var core = StationCoreWorldCell(station, src);
+        var near = core ?? new Vector3i(centre.X, centre.Y + 1, centre.Z);
+        if (!TryFindStandableInStation(station, near, core, out var feet))
+        {
+            feet = new Vector3i(centre.X, centre.Y + 1, centre.Z);
+            CutStationArrivalPad(feet);
+        }
+
+        station.Spawn = new Vector3f(feet.X + 0.5f, feet.Y, feet.Z + 0.5f);
+        int marker = station.Markers.FindIndex(m => m.Type == "spawn");
+        if (marker >= 0)
+        {
+            station.Markers[marker] = ("spawn", station.Spawn);
+        }
+        else
+        {
+            station.Markers.Insert(0, ("spawn", station.Spawn));
+        }
+    }
+
+    /// <summary>The interior-world cell of the station core (#2606): build cell (0,0,0), where
+    /// <see cref="DeployStationCore"/> seeds it — or, should the owner have set a core elsewhere, the core cell
+    /// nearest to that origin. Null when the build holds no core any more.</summary>
+    private Vector3i? StationCoreWorldCell(BoardableStation station, SpaceStructure src)
+    {
+        var core = _content.GetBlock(StationCoreBlock)?.NumericId ?? BlockId.Air;
+        if (core.IsAir)
+        {
+            return null;
+        }
+
+        Vector3i? best = null;
+        long bestD = long.MaxValue;
+        foreach (var kv in src.Cells)
+        {
+            if (kv.Value.Value != core.Value)
+            {
+                continue;
+            }
+
+            var c = kv.Key;
+            long d = (long)c.X * c.X + (long)c.Y * c.Y + (long)c.Z * c.Z;
+            if (d < bestD || (d == bestD && best is { } b && (c.X, c.Y, c.Z).CompareTo((b.X, b.Y, b.Z)) < 0))
+            {
+                bestD = d;
+                best = c; // ties broken by coordinate: the same core whatever order the grid enumerates in
+            }
+        }
+
+        return best is { } cell ? StationCellToWorld(station, cell) : null;
+    }
+
+    /// <summary>Loads every chunk the arrival search reads (#2606): the station box with the support layer below and
+    /// the headroom above. The search and the sealed-pocket fill read without loading, and a re-boarding in the same
+    /// run finds the station world freshly reloaded (the last leaver unloaded it) — an unloaded box reads as empty
+    /// space, and the search would cut a pad into the build.</summary>
+    private void LoadStationBoxChunks(BoardableStation station)
+    {
+        var cMin = WorldConstants.WorldToChunk(new Vector3i(station.BoundsMin.X, station.BoundsMin.Y, station.BoundsMin.Z));
+        var cMax = WorldConstants.WorldToChunk(new Vector3i(station.BoundsMax.X, station.BoundsMax.Y + 3, station.BoundsMax.Z));
+        for (int cx = cMin.X; cx <= cMax.X; cx++)
+            for (int cy = cMin.Y; cy <= cMax.Y; cy++)
+                for (int cz = cMin.Z; cz <= cMax.Z; cz++)
+                {
+                    _world.GetOrLoadChunk(new ChunkCoord(cx, cy, cz));
+                }
+    }
+
+    /// <summary>The last-resort arrival (a build with no standable cell at all): a 3×3 iron floor under
+    /// <paramref name="feet"/> and two free cells above it, so the boarder never falls into the void.</summary>
+    private void CutStationArrivalPad(Vector3i feet)
+    {
+        var hull = _content.GetBlock("iron_wall")?.NumericId ?? BlockId.Air;
+        _repo.RunInTransaction(() =>
+        {
+            if (!hull.IsAir)
+            {
+                for (int dx = -1; dx <= 1; dx++)
+                    for (int dz = -1; dz <= 1; dz++)
+                    {
+                        _world.SetBlock(new Vector3i(feet.X + dx, feet.Y - 1, feet.Z + dz), hull);
+                    }
+            }
+
+            _world.SetBlock(feet, BlockId.Air);
+            _world.SetBlock(new Vector3i(feet.X, feet.Y + 1, feet.Z), BlockId.Air);
+        });
+    }
+
+    /// <summary>Weight that keeps the arrival off the top of the station core (#2606): standing on the core is the
+    /// nearest spot whenever the room's ceiling is high enough, but the boarder is meant to arrive BESIDE it — the
+    /// cell is taken only when nothing else of its pass stands.</summary>
+    private const long StandOnCorePenalty = 1L << 40;
+
     /// <summary>The standable cell (feet cell with two free cells above) inside a materialised station's box that
-    /// lies nearest to <paramref name="near"/> — the spawn spot when the box centre is built shut (#1493).</summary>
-    private bool TryFindStandableInStation(BoardableStation station, Vector3i near, out Vector3i spot)
+    /// lies nearest to <paramref name="near"/> — the boarder's arrival spot (#1493, #2606). A feet cell standing on
+    /// <paramref name="core"/> comes last.</summary>
+    private bool TryFindStandableInStation(BoardableStation station, Vector3i near, Vector3i? core, out Vector3i spot)
     {
         // #1833: two passes — a standable cell that HOLDS AIR first, any standable cell only when the build has no
         // sealed pocket at all. The roof's outer face is "standable" too (support below, two free cells of vacuum
         // above) and on a build whose centre column is walled in it was the NEAREST such cell: Lyxette docked and
         // was set down on top of her station, in the vacuum.
-        _stationAir.Remove(station.Id); // the stamp just rewrote the hull — judge the pockets on what the world holds now
-        return TryFindStandableInStation(station, near, sealedOnly: true, out spot)
-            || TryFindStandableInStation(station, near, sealedOnly: false, out spot);
+        _stationAir.Remove(station.Id); // the stamp or the owner's edits since rewrote the hull — judge the pockets on what the world holds now
+        return TryFindStandableInStation(station, near, core, sealedOnly: true, out spot)
+            || TryFindStandableInStation(station, near, core, sealedOnly: false, out spot);
     }
 
-    private bool TryFindStandableInStation(BoardableStation station, Vector3i near, bool sealedOnly, out Vector3i spot)
+    private bool TryFindStandableInStation(BoardableStation station, Vector3i near, Vector3i? core, bool sealedOnly, out Vector3i spot)
     {
         spot = default;
         long best = long.MaxValue;
@@ -729,13 +830,19 @@ public sealed partial class GameServer
             for (int z = station.BoundsMin.Z; z <= station.BoundsMax.Z; z++)
                 for (int y = station.BoundsMin.Y + 1; y <= station.BoundsMax.Y + 1; y++)
                 {
-                    if (!StandableAt(x, y, z) || (sealedOnly && !InSealedStationPocket(station, new Vector3i(x, y, z))))
+                    if (!StandableAt(x, y, z) || InDoorway(x, y, z) // #2607: never inside a door (a closed hinge door is solid)
+                        || (sealedOnly && !InSealedStationPocket(station, new Vector3i(x, y, z))))
                     {
                         continue;
                     }
 
                     long dx = x - near.X, dy = y - near.Y, dz = z - near.Z;
                     long d = dx * dx + dy * dy * 4 + dz * dz; // prefer the same deck over one above or below
+                    if (core is { } c && x == c.X && y - 1 == c.Y && z == c.Z)
+                    {
+                        d += StandOnCorePenalty;
+                    }
+
                     if (d < best)
                     {
                         best = d;
@@ -1062,18 +1169,10 @@ public sealed partial class GameServer
 
         if (_stationHostBody.TryGetValue(s.Id, out var loc))
         {
-            _repo.SaveSpaceStructure(new StoredSpaceStructure
-            {
-                Id = s.Id,
-                OwnerId = s.OwnerId,
-                Name = name,
-                Location = loc,
-                PosX = s.Position.X,
-                PosY = s.Position.Y,
-                PosZ = s.Position.Z,
-                Boardable = s.Boardable,
-                Blocks = SerializeCells(s.Cells),
-            });
+            // The full row, stamp anchor included (#1481): a row of its own here dropped the anchor, so after a restart
+            // the renamed station was stamped afresh at a new minimum — its interior edits and door records (#2607)
+            // then sat beside the build instead of in it.
+            PersistStation(loc, s);
         }
 
         BroadcastStarMap(); // the renamed station updates for everyone (the star map is shared)

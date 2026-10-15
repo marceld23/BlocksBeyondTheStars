@@ -200,10 +200,14 @@ public sealed partial class GameServer
             float nx = (float)WorldConstants.WrapX(cur.X + (dirX * len), _world.Circumference);
             float nz = (float)WorldConstants.WrapZ(cur.Z + (dirZ * len), _world.Circumference);
             int refY = (int)System.Math.Floor(cur.Y) - hover;
-            int prevGround = GroundFeetYAt((int)System.Math.Floor(cur.X), (int)System.Math.Floor(cur.Z), refY);
-            if (!MachineGroundAt((int)System.Math.Floor(nx), (int)System.Math.Floor(nz), refY, out int groundY)
+            int ownX = (int)System.Math.Floor(cur.X), ownZ = (int)System.Math.Floor(cur.Z);
+            int nextX = (int)System.Math.Floor(nx), nextZ = (int)System.Math.Floor(nz);
+            // #2586: a drone over a gas giant's open gas rides its surface; a walking robot is never pushed into the gas.
+            int prevGround = drone ? DroneGroundAt(ownX, ownZ, refY) : GroundFeetYAt(ownX, ownZ, refY);
+            if (!MachineGroundAt(nextX, nextZ, refY, realWaterBed: false, out int groundY, overGas: drone)
                 || groundY - prevGround > (drone ? ScanDroneHover - 1 : MachineStepUp)
-                || prevGround - groundY > 3)
+                || prevGround - groundY > 3
+                || (!drone && WalkerStepsIntoGasSea(ownX, ownZ, prevGround, nextX, nextZ, groundY)))
             {
                 break;
             }

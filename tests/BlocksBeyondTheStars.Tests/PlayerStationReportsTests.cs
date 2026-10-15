@@ -60,10 +60,10 @@ public sealed class PlayerStationReportsTests : IDisposable
         public void Dispose() { }
     }
 
-    private SvGameServer NewServer(string name, out SqliteWorldRepository repo, IServerTransport? transport = null)
+    private SvGameServer NewServer(string name, out SqliteWorldRepository repo, IServerTransport? transport = null, bool placeStarterShip = false)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
-        var config = new ServerConfig { WorldName = name, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var config = new ServerConfig { WorldName = name, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = placeStarterShip };
         config.Rules.FreeSpaceFlight = true;
         var server = new SvGameServer(config, _content, transport ?? new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();
@@ -745,7 +745,7 @@ public sealed class PlayerStationReportsTests : IDisposable
     [Fact]
     public void RestoredBuildAtTheSpawnColumn_MovesTheSpawn_InsteadOfCarvingTheBuild()
     {
-        var core = BoxWorld(0, 0, 0); // the core sits two above the floor — exactly the first stamp's head cell
+        var core = BoxWorld(0, 0, 0); // the core sits two above the floor — exactly the old first-boarding pad's head cell
         string id;
         ushort coreBlock;
         {
@@ -756,7 +756,12 @@ public sealed class PlayerStationReportsTests : IDisposable
                 id = BuildSealedBox(s1, pilot);
                 coreBlock = s1.StationCellsForTest(id)[new Vector3i(0, 0, 0)].Value;
                 BoardOwnStation(s1, "Owner", id);
-                Assert.True(s1.World.GetBlock(core).IsAir, "the first stamp cuts the pad through the centre column");
+                Assert.Equal(coreBlock, s1.World.GetBlock(core).Value); // #2606: the first boarding cuts no pad any more
+
+                // A save from before #2606: its first boarding cut the pad through the centre column — two air cells,
+                // a raw world write that was never written back into the build.
+                s1.World.SetBlock(core, BlockId.Air);
+                s1.World.SetBlock(BoxWorld(0, -1, 0), BlockId.Air);
                 repo1.Flush();
             }
         }
@@ -841,7 +846,12 @@ public sealed class PlayerStationReportsTests : IDisposable
             {
                 var pilot = s1.AddLocalPlayer("Owner");
                 id = BuildLongHallWithABlockedCentre(s1, pilot);
-                BoardOwnStation(s1, "Owner", id); // the first stamp cuts its pad through the packed centre column
+                BoardOwnStation(s1, "Owner", id);
+
+                // A save from before #2606: its first boarding cut the pad through the packed centre column (box centre
+                // x = 10) — a raw world write the next start's top-up restores.
+                s1.World.SetBlock(BoxWorld(10, -1, 0), BlockId.Air);
+                s1.World.SetBlock(BoxWorld(10, 0, 0), BlockId.Air);
                 repo1.Flush();
             }
         }
@@ -853,10 +863,10 @@ public sealed class PlayerStationReportsTests : IDisposable
         {
             var pilot = s2.AddLocalPlayer("Owner");
             pilot.State.AboardShip = true;
-            BoardOwnStation(s2, "Owner", id); // the top-up restores the packed centre → the spawn has to move
+            BoardOwnStation(s2, "Owner", id); // the top-up restores the packed centre; the core's own column is packed too
 
             var feet = new Vector3i((int)Math.Floor(pilot.State.Position.X), (int)Math.Floor(pilot.State.Position.Y), (int)Math.Floor(pilot.State.Position.Z));
-            Assert.Equal(BoxWorld(0, -1, 0).Y, feet.Y); // on the deck (world y 65) — not on the roof (y 69)
+            Assert.Equal(BoxWorld(0, -1, 0).Y, feet.Y); // on the deck (world y 65) — not on the roof (y 69) right above the core
             Assert.True(feet.X >= BoxWorld(20, 0, 0).X, $"the spawn moved to the free end of the hall, not up: {feet}");
             Assert.True(s2.StationPocketSizeForTest(id, feet) > 0, "…and it holds air");
         }
@@ -929,6 +939,243 @@ public sealed class PlayerStationReportsTests : IDisposable
 
             s.Tick(200.0); // > SaplingGrowSeconds — before #1835 the crown probe failed forever on a void world
             Assert.Equal(_content.GetBlock("wood_log")!.NumericId.Value, s.World.GetBlock(cell).Value);
+        }
+    }
+
+    // ---------------- #2606 (Screelit, 2026-10-14): arrive beside the core; no phantom ship decor ----------------
+
+    /// <summary>A non-convex station like Screelit's "Blumenhall": the sealed core room (<see cref="BuildSealedBox"/>,
+    /// cells −2…2), a second sealed room at cells x/z 18…22, and an open gangway between them that runs along x = 0,
+    /// then along z = 20 — an L, so the bounding-box centre's bottom layer (cells 10, −2, 10 → world 20, 64, 20) is the
+    /// empty space between the wings.</summary>
+    private static string BuildNonConvexStation(SvGameServer server, PlayerSession pilot)
+    {
+        string id = BuildSealedBox(server, pilot);
+        string playerId = pilot.State.PlayerId;
+        for (int x = 18; x <= 22; x++)
+            for (int y = -2; y <= 2; y++)
+                for (int z = 18; z <= 22; z++)
+                {
+                    if (x == 18 || x == 22 || Math.Abs(y) == 2 || z == 18 || z == 22)
+                    {
+                        Edit(server, playerId, id, x, y, z, "iron_wall");
+                    }
+                }
+
+        for (int z = 3; z <= 20; z++)
+        {
+            Edit(server, playerId, id, 0, -2, z, "iron_wall"); // the gangway out of the core room …
+        }
+
+        for (int x = 1; x <= 17; x++)
+        {
+            Edit(server, playerId, id, x, -2, 20, "iron_wall"); // … round the corner to the far room
+        }
+
+        return id;
+    }
+
+    /// <summary>The boarder stands on the deck of a <see cref="BuildSealedBox"/> core room, right beside the core, in
+    /// its sealed air.</summary>
+    private static void AssertArrivedBesideTheCore(SvGameServer server, string stationId, PlayerSession pilot)
+    {
+        var feet = Feet(pilot.State.Position);
+        var core = BoxWorld(0, 0, 0);
+        Assert.Equal(BoxWorld(0, -1, 0).Y, feet.Y); // the core room's deck
+        Assert.True(Math.Abs(feet.X - core.X) + Math.Abs(feet.Z - core.Z) == 1, $"expected the cell beside the core {core}, got {feet}");
+        Assert.True(server.StationPocketSizeForTest(stationId, feet) > 0, $"the arrival {feet} must hold air");
+    }
+
+    /// <summary>The old arrival spot stays empty space: no 3×3 pad at the box centre's bottom layer, in the world or
+    /// in the build.</summary>
+    private static void AssertNoPadAtTheBoxCentre(SvGameServer server, string stationId)
+    {
+        for (int dx = -1; dx <= 1; dx++)
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                var cell = new Vector3i(10 + dx, -2, 10 + dz);
+                Assert.True(server.World.GetBlock(BoxWorld(cell.X, cell.Y, cell.Z)).IsAir, $"no pad may be cut at cell {cell}");
+                Assert.False(server.StationCellsForTest(stationId).ContainsKey(cell));
+            }
+    }
+
+    [Fact]
+    public void NonConvexStation_ArrivesBesideTheCore_WithoutAPad_OnEveryBoarding_AndAfterARestart()
+    {
+        // Screelit (v2026.10.14): "wurde ich nicht beim Stationskern gespawnt, sondern irgendwo außerhalb der Station".
+        // The arrival was the bounding-box centre's bottom layer, with a 3×3 iron pad cut there on the first boarding —
+        // on a station of two wings and a gangway that is the vacuum between them (#2606).
+        string id;
+        {
+            var s1 = NewServer("nonconvex", out var repo1);
+            using (repo1)
+            {
+                var pilot = s1.AddLocalPlayer("Owner");
+                id = BuildNonConvexStation(s1, pilot);
+                BoardOwnStation(s1, "Owner", id);
+                AssertArrivedBesideTheCore(s1, id, pilot);
+                AssertNoPadAtTheBoxCentre(s1, id);
+
+                // The interior is refreshed and the arrival judged on every boarding (#2607): a second boarding (the station
+                // world was unloaded behind the leaver, so the search runs on freshly loaded chunks) lands on the same spot.
+                var first = Feet(pilot.State.Position);
+                s1.LeaveStation("Owner");
+                Assert.False(s1.InStation("Owner"));
+                BoardOwnStation(s1, "Owner", id);
+                Assert.Equal(first, Feet(pilot.State.Position));
+                AssertNoPadAtTheBoxCentre(s1, id);
+                repo1.Flush();
+            }
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        var s2 = NewServer("nonconvex", out var repo2);
+        using (repo2)
+        {
+            var pilot = s2.AddLocalPlayer("Owner");
+            pilot.State.AboardShip = true;
+            BoardOwnStation(s2, "Owner", id);
+            AssertArrivedBesideTheCore(s2, id, pilot);
+            AssertNoPadAtTheBoxCentre(s2, id);
+        }
+    }
+
+    [Fact]
+    public void ASaveWhoseOldPadWasFoldedIntoTheBuild_StillArrivesBesideTheCore()
+    {
+        // Screelit's own station: its first boarding cut the iron pad at the box centre (a raw world write), and the next
+        // server start folded those blocks into the build (#1559). The old rule then found the pad standable and kept
+        // him arriving on it — outside the hull — on every boarding after.
+        var iron = _content.GetBlock("iron_wall")!.NumericId;
+        string id;
+        {
+            var s1 = NewServer("oldpad", out var repo1);
+            using (repo1)
+            {
+                var pilot = s1.AddLocalPlayer("Owner");
+                id = BuildNonConvexStation(s1, pilot);
+                BoardOwnStation(s1, "Owner", id);
+                for (int dx = -1; dx <= 1; dx++)
+                    for (int dz = -1; dz <= 1; dz++)
+                    {
+                        s1.World.SetBlock(BoxWorld(10 + dx, -2, 10 + dz), iron); // the pre-#2606 first-boarding pad
+                    }
+
+                repo1.Flush();
+            }
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        var s2 = NewServer("oldpad", out var repo2);
+        using (repo2)
+        {
+            var pilot = s2.AddLocalPlayer("Owner");
+            pilot.State.AboardShip = true;
+            BoardOwnStation(s2, "Owner", id);
+            Assert.Equal(iron, s2.StationCellsForTest(id)[new Vector3i(10, -2, 10)]); // the pad is part of the build now …
+            AssertArrivedBesideTheCore(s2, id, pilot);                               // … and the boarder still arrives at the core
+        }
+    }
+
+    /// <summary>The sealed core room (<see cref="BuildSealedBox"/>) and a second, closed room beside it at cells x 8…12,
+    /// with five cells of vacuum between the two.</summary>
+    private static string BuildTwoRooms(SvGameServer server, PlayerSession pilot)
+    {
+        string id = BuildSealedBox(server, pilot);
+        for (int x = 8; x <= 12; x++)
+            for (int y = -2; y <= 2; y++)
+                for (int z = -2; z <= 2; z++)
+                {
+                    if (x == 8 || x == 12 || Math.Abs(y) == 2 || Math.Abs(z) == 2)
+                    {
+                        Edit(server, pilot.State.PlayerId, id, x, y, z, "iron_wall");
+                    }
+                }
+
+        return id;
+    }
+
+    [Fact]
+    public void ACoreRoomWithAHole_SendsTheBoarderToTheNearestSealedRoom_ElseOntoItsOwnDeck()
+    {
+        var server = NewServer("holedcore", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildTwoRooms(server, pilot);
+            BoardOwnStation(server, "Owner", id);
+            AssertArrivedBesideTheCore(server, id, pilot); // both rooms hold air: the core's own room wins
+
+            // A hole in the core room's roof, right above the core: the next boarding takes the other sealed room.
+            var roof = BoxWorld(0, 2, 0);
+            server.MineBlock("Owner", roof.X, roof.Y, roof.Z);
+            Assert.True(server.World.GetBlock(roof).IsAir);
+            server.LeaveStation("Owner");
+            BoardOwnStation(server, "Owner", id);
+            var feet = Feet(pilot.State.Position);
+            Assert.True(feet.Y == BoxWorld(0, -1, 0).Y && feet.X >= BoxWorld(9, 0, 0).X && feet.X <= BoxWorld(11, 0, 0).X,
+                $"expected the deck of the sealed second room, got {feet}");
+            Assert.True(server.StationPocketSizeForTest(id, feet) > 0, "… which holds air");
+
+            // That room leaks as well: no air anywhere → the standable cell nearest the core, the deck beside it — not the
+            // roof's outer face and not the top of the core under the hole, both standable too (#1833).
+            var roof2 = BoxWorld(10, 2, 0);
+            server.MineBlock("Owner", roof2.X, roof2.Y, roof2.Z);
+            Assert.True(server.World.GetBlock(roof2).IsAir);
+            server.LeaveStation("Owner");
+            BoardOwnStation(server, "Owner", id);
+            feet = Feet(pilot.State.Position);
+            var core = BoxWorld(0, 0, 0);
+            Assert.Equal(BoxWorld(0, -1, 0).Y, feet.Y);
+            Assert.True(Math.Abs(feet.X - core.X) + Math.Abs(feet.Z - core.Z) == 1, $"expected the deck beside the core {core}, got {feet}");
+        }
+    }
+
+    [Fact]
+    public void BoardingAStation_ClearsTheShipDecor_AndUndockingBringsItBack()
+    {
+        // Screelit: "wo Terminals – diese Hologramm-Dinger – aus dem Schiff waren". The client draws the ship's room decor
+        // from the last ship-stations list it got, and boarding a station sent none — the cockpit's hologram map and the
+        // terminals of the ship floated inside the station at the ship's coordinates (#2606).
+        var transport = new RecordingTransport();
+        var server = NewServer("decor", out var repo, transport, placeStarterShip: true);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildSealedBox(server, pilot);
+            int mark = transport.Sent.Count;
+            BoardOwnStation(server, "Owner", id);
+            var aboard = transport.Sent.Skip(mark).OfType<ShipStations>().ToList();
+            Assert.NotEmpty(aboard);
+            Assert.Empty(aboard[^1].Stations); // no ship in a station world: the decor and its prompts go
+
+            mark = transport.Sent.Count;
+            server.LeaveStation("Owner");
+            var undocked = transport.Sent.Skip(mark).OfType<ShipStations>().ToList();
+            Assert.NotEmpty(undocked);
+            Assert.Contains(undocked[^1].Stations, s => s.Type == "cockpit"); // the parked ship's own list is back
+        }
+    }
+
+    [Fact]
+    public void WithoutAParkedShip_TheShipDecorList_IsSentEmpty_InsteadOfNotAtAll()
+    {
+        // The other half of #2606: where no ship is parked the server used to send nothing at all, so whatever list the
+        // client held last (the previous world's ship) stayed — an empty list is the "no ship here" answer.
+        var transport = new RecordingTransport();
+        var server = NewServer("noshipdecor", out var repo, transport);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildSealedBox(server, pilot);
+            BoardOwnStation(server, "Owner", id);
+            int mark = transport.Sent.Count;
+            server.LeaveStation("Owner"); // back to a body without a parked ship (this server places none)
+            var sent = transport.Sent.Skip(mark).OfType<ShipStations>().ToList();
+            Assert.NotEmpty(sent);
+            Assert.All(sent, m => Assert.Empty(m.Stations));
         }
     }
 

@@ -657,7 +657,9 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   city holds a **pocket of breathable air** over its lanes (the HUD says so; an abandoned one has lost it). Everything else
   is **−120 °C and toxic**, and the storm never stops — the suit will not last long out there. Ships land on **metal decks**
   hanging over the gas (a rail and lights around the rim); nothing can be pumped out of the gas. Every animal here **flies**,
-  and so does the **sky giant** (see *Giants*). The lone giant of a star system is one of these; in galaxies created
+  and so does the **sky giant** (see *Giants*). The tiny ambient critters are the world's own too: drifting **gas-bags**
+  (always there), **wisps** and, after dark, **spore-drifters** over the gas, and the cold **frostmite** crawling only on
+  the decks and islands. The lone giant of a star system is one of these; in galaxies created
   since generation 23 **almost every system has one** on its outermost orbit (a big system often a second one on the orbit
   inside), only the start system and one-planet systems go without — older galaxies keep their rarer roll. Most wear
   rings. From space it shows its banded cloud tops, and on the **system chart** it is the big amber dot, visited or not.
@@ -882,7 +884,8 @@ players.
   budge for the starter drill — and since titanium ore is itself tier 2, your first titanium comes from a
   wreck, from loot or from **trade**, never from digging. The reliable road is open from the start: the **trade
   console** aboard your ship (or any vendor) swaps **5 iron ore for 1 titanium ore**, and a **forge** — a
-  workbench craft that needs no blueprint — smelts **2 titanium ore into a titanium plate**. Six plates (plus
+  workbench craft that needs no blueprint — smelts **2 titanium ore into a titanium plate** on a world (aboard, the
+  ship's **refinery module** does it; a forge built into the ship is only decoration). Six plates (plus
   cable, energy cells and steel) and the cheap **Titanium Drill** blueprint, researched at the cockpit, get you the
   drill that opens tier 2. VEGA's tip at the first tier gate names this route.
 - Some powered drills (titanium drill, mining beam) **draw suit energy with every swing**; with an empty
@@ -912,7 +915,11 @@ players.
   Step or hop up through the hatch to enter.
 - **Grow your ship**: on a spacewalk you can build onto its hull (and cut hull cells out of it); from inside you
   can keep building outward — up to **15 × 15 × 15 blocks** in all. A **door** you build into the ship is a real
-  door (you see it while placing, it opens and closes, it shows on the ship in flight, and mining it gives it back).
+  door (you see its frame and door while aiming — in the cabin and on a spacewalk alike —, it opens and closes, it
+  shows on the ship in flight, and mining it gives it back; on a spacewalk aim at the door itself). Out in space a
+  closed **energy door** shows its **blue field** (on the ground the field shows only while it is open); sliding,
+  hinge and wooden doors show their closed panels. The blue field of your **rear hatch** in the flight view sits
+  exactly on the hatch, whatever leaves or blocks you build around the stern.
   An extension counts as ship and has **air only when it is sealed** — airtight walls (glass counts) and a door in
   every opening; step into an open one and your helmet goes on. Walking through your hatch into a sealed extension
   keeps you inside the ship; a spacewalk starts only when you leave the ship's blocks.
@@ -1036,6 +1043,12 @@ players.
   **algae tank**, **campfire** — or the matching **ship module** while you're aboard. The menu names the block
   a recipe needs and where the nearest one is; aiming at a placed station block shows on the HUD which
   menu tab it powers. The Codex guide *Stations & menu tabs* has the full table.
+- **Aboard a ship, stations are ship modules** (#2585). In the ship only the module counts: a station block built
+  into a ship — say a forge right beside the cabin's workbench — is only decoration, and VEGA tells you once per
+  block kind which module does its job. Modules are built in the **Ship** tab (research the blueprint first if it
+  is still locked). Aboard, the crafting menu therefore names the module (*Refinery module*), and a station no module
+  provides (the campfire, the algae tank) works on a world only. A refused craft says what is missing — the module,
+  the station, or the materials with what you have and what you need (*Missing: Titanium Ore (0/2)*).
 - **Crafting by hand — no station needed.** The simple things are made anywhere, straight from the crafting menu,
   without a workbench or your ship: **torches**, the **bed**, the **campfire**, the **wood crate**, the **lantern**
   (it needs a piece of glass), the **wooden door**, **ladders** (from wood or carbon), the **wooden boat** (10 logs
@@ -1498,7 +1511,20 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Build your own**: deploy a **Station Core** on a spacewalk (press **B**), build a hull + an airlock door
   around it, and it commissions into a boardable station on the star map. An ally may help and even set the last
   block — the station, its default name, the "commissioned" message and the achievement stay the owner's (an owner who
-  was offline hears it, and gets the achievement, the next time they join).
+  was offline hears it, and gets the achievement, the next time they join). **Docking puts you beside the station
+  core** — in a sealed room with air when the station has one (the core's own room first), however far its wings
+  reach.
+- **Doors on your station are real doors** (2026-10): a door you build onto your station on a spacewalk hangs in
+  its doorway like on the ground — you see its frame and door while aiming, it is drawn as a door from outside (an
+  energy door with its blue field), it opens and closes aboard, and mining it on a spacewalk gives it back. It is the
+  airlock that commissions the station. Doors that were built as blocks before stay blocks (and still count). A door
+  you build **aboard** shows on the hull from outside too.
+- **The inside follows the outside**: every time you board, your station's inside is brought up to date with what
+  you built or took away on a spacewalk — a wall you closed from outside is there, and the room holds air, the next
+  time you dock (while a friend is aboard, they see your changes at once).
+- **In through the door**: on a spacewalk, float up to one of your station's doors and press **E** — you come in
+  right behind that door when a sealed room lies behind it (else beside the core). Docking with the ship still
+  puts you beside the core.
 - **Air only fills sealed rooms** in a station you built: walls, glass and doors are airtight, a hole in the
   hull means **helmet on** (the suit tank takes over, and you get a warning) until you patch it — a
   **force-field block** seals an opening you want to keep. **Crew** (two civilians) moves in once you build a
@@ -1522,7 +1548,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   now follow the beds that are there.
 - **Gravity ends at the hull**: inside your station's box (plus a few blocks around it) you walk; step or fall
   past that and the suit **floats** — jump rises, crouch sinks, so you drift back to the deck or build the
-  outer hull from outside. Drift very far away and you are set back on the pad. **U** always returns you to
+  outer hull from outside. Drift very far away and you are set back beside the station core. **U** always returns you to
   your ship.
 - **Name it**: rename a station you built from **Tab → Map** (select it → **Rename**), or by pressing **E**
   on the **station core** while standing inside your own station. Only the owner can rename it.
@@ -1980,9 +2006,12 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   with a blinking beacon and someone waving behind the porthole (orange on the radar). **Fly close** — within
   about 14 flight units; no tractor beam is needed — and the survivor comes aboard: you rescue them (a small
   thank-you, a new person in *People you know*, and a radio call later). And an **anomaly** no catalogue
-  explains — a shimmering bubble with glitching blocks around
-  it (violet on the radar): only the **ship scanner** reads it, for knowledge and a field record. Both sit
-  still where they were found, show on the system chart, and stay pinned at the radar's rim.
+  explains — a shimmering bubble with glitching blocks around it (a teal blip that shifts colour on the radar):
+  only the **ship scanner** reads it, for knowledge and a field record. It is **not a wormhole** — you cannot fly
+  through it. It is labelled **Anomaly** on the radar, the chart and the target lock, and when you fly close to it
+  (or press **E** next to it) a short line says so and how to scan it — once you have scanned it, that you have
+  read it already. Both sit still where they were found, show on the system chart, and stay pinned at the radar's
+  rim.
 - **Wormholes** are rare rifts in space-time — a glowing tear with a bent, shimmering edge (violet zigzag on
   the radar). Each one is one end of a pair linking **two star systems**, and it works **both ways**: fly up to
   it and press **E** — no jump generator needed. You come out next to the other end, which takes you straight back.

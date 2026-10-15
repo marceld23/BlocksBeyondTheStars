@@ -6747,8 +6747,8 @@ namespace BlocksBeyondTheStars.Client
         /// has a place cell, the exact form + pending orientation hovers there translucently. Runs only on
         /// the on-foot path — every other state (menus, space view, driving, seated) is caught by the
         /// frame-stamp check in <see cref="LateUpdate"/>, which hides the ghost after any frame that never
-        /// reached this method. Parked-ship cells get no ghost: placing there routes through a structure
-        /// edit whose own rules (hull protection) this preview cannot promise.</summary>
+        /// reached this method. Parked-ship cells get no block ghost: placing there routes through a structure
+        /// edit whose own rules (hull protection) this preview cannot promise. A held DOOR shows there too (#2607).</summary>
         private void UpdatePlacementGhost()
         {
             _ghostFrame = Time.frameCount;
@@ -6770,21 +6770,35 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // A held door (#1975): nothing to rotate, but the server hangs a real door — show it in the target cell,
-            // turned by the wall beside it (the shared placed-door rule), so its facing is no surprise. A parked
-            // ship's cells get no ghost, like every other placement there.
+            // turned by the wall beside it (the shared placed-door rule), so its facing is no surprise. #2607: aboard a
+            // parked ship too (its cabin, the walkable interior in space) — "preview everywhere": a door built there is a
+            // real door (#2119), and the ghost reads the jambs from the grid the place click will build into.
             if (!rotatable && HeldDoorKind(held) is { } doorKind)
             {
-                if (AimTarget(out _, out var doorCell, out var doorShip) && doorShip == null)
+                bool intoShip = false;
+                bool aimed = AimTarget(out _, out var doorCell, out var doorShip);
+                if (aimed && doorShip != null && DoorGoesIntoShip(doorShip, doorCell))
                 {
-                    bool axisX = DoorProbe.AxisForPlacedDoor(IsDoorJambCell, doorCell.x, doorCell.y, doorCell.z, transform.eulerAngles.y);
-                    _placementGhost ??= new PlacementGhost();
-                    _placementGhost.ShowDoor(doorCell, doorKind, axisX);
-                }
-                else
-                {
-                    _placementGhost?.Hide();
+                    intoShip = true;
                 }
 
+                // The server builds into a parked ship (or a construction site) for its owner only — on someone else's
+                // the place is refused, so nothing hovers there either.
+                if (!aimed || (intoShip && doorShip.OwnerId != Game.LocalPlayerId))
+                {
+                    _placementGhost?.Hide();
+                    return;
+                }
+
+                System.Func<int, int, int, bool> jamb = IsDoorJambCell;
+                if (intoShip)
+                {
+                    jamb = (x, y, z) => IsShipDoorJambCell(doorShip, x, y, z);
+                }
+
+                bool axisX = DoorProbe.AxisForPlacedDoor(jamb, doorCell.x, doorCell.y, doorCell.z, transform.eulerAngles.y);
+                _placementGhost ??= new PlacementGhost();
+                _placementGhost.ShowDoor(doorCell, doorKind, axisX);
                 return;
             }
 
@@ -6834,6 +6848,19 @@ namespace BlocksBeyondTheStars.Client
             var id = Game.World.GetBlock(x, y, z);
             return !id.IsAir && DoorProbe.IsJamb(Game.Content?.BlockById(id));
         }
+
+        /// <summary>#2607: a parked ship's grid as the door probe reads it for a door built into the ship — every block
+        /// of the ship is a jamb (the server's ship rule, <c>GameServer.ShipDoorAxis</c>).</summary>
+        private bool IsShipDoorJambCell(LandedShipModel ship, int x, int y, int z)
+            => !Game.LandedShipBlockAt(x, y, z, out var at, out _).IsAir && at == ship;
+
+        /// <summary>#2607: whether a door aimed at a parked ship's cell goes INTO the ship (a structure edit) rather than
+        /// into the world beside it — the place click's own routing: the target cell inside the ship's bounds, the ship
+        /// a construction site, or the own ship grown from inside it (#2120).</summary>
+        private bool DoorGoesIntoShip(LandedShipModel ship, Vector3Int placeCell)
+            => Game.LandedShipBoundsAt(placeCell.x, placeCell.y, placeCell.z, out _) == ship
+               || ship.StructureId.StartsWith("shipyard:", System.StringComparison.Ordinal)
+               || (ship.OwnerId == Game.LocalPlayerId && StandingInShip(ship));
 
         /// <summary>The up-face for an Auto placement: the shape's base rests on the surface it was built
         /// against — the floor first (→ +Y up, the common case of laying a slab on the ground), then the WALL
