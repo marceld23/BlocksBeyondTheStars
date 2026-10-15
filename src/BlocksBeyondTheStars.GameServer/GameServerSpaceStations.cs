@@ -1233,7 +1233,8 @@ public sealed partial class GameServer
                 ApplyAuthoredCharacter(npc, "station", station.Id); // #1128: a pack face may claim this slot
             }
 
-            npc.RoutineEnabled = true; // #1867: the crew keeps the station clock — a post by day, a bunk at night
+            npc.RoutineEnabled = true; // #1867: the crew keeps the station clock — a post by day, a bunk at night (any bed of
+                                       // the station in a room with air, its post's room first — #2657, GameServerNpcBeds.cs)
             _npcs.Add(npc);
             added++;
         }

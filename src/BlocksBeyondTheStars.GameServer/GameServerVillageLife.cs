@@ -1336,14 +1336,17 @@ public sealed partial class GameServer
         => _settlements.Add(new SettlementInstance { Name = name, Min = min, Max = max, Tier = "village", GroundY = min.Y });
 
     /// <summary>Test seam (#2600): spawns a villager of <paramref name="settlement"/> with a daily routine and a person key,
-    /// standing still at <paramref name="pos"/> (its home, work and rest spot). Returns its id.</summary>
-    public int SpawnVillagerForTest(string settlement, Vector3f pos, string role = "settler", string job = "", bool robot = false)
+    /// standing still at <paramref name="pos"/> (its home, work and rest spot). Returns its id. With
+    /// <paramref name="looksForFurniture"/> it looks for a bed and a seat around itself like a villager (#2655); without, it
+    /// never does and rests where it stands.</summary>
+    public int SpawnVillagerForTest(string settlement, Vector3f pos, string role = "settler", string job = "", bool robot = false,
+        bool looksForFurniture = false)
     {
         var npc = MakeNpc(role, "settlers", robot, pos, new System.Random(_nextNpcId * 7919));
         npc.Settlement = settlement;
         npc.Job = job;
         npc.RoutineEnabled = true;
-        npc.FurnitureScanned = true; // no bed, no seat: rests where it stands
+        npc.FurnitureGen = looksForFurniture ? 0 : long.MaxValue; // MaxValue: never older than the world's furniture — no look
         npc.Leash = 0f;
         npc.Work = pos;
         npc.HasWork = true;

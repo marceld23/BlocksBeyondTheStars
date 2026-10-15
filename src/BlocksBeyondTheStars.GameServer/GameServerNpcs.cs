@@ -107,8 +107,10 @@ public sealed partial class GameServer
         public Vector3i? Bed;             // head cell of the bed this NPC sleeps in
         public Vector3i? Seat;            // chair / bench cell for the evening
         public bool SeatWait;             // #2122: somebody sat on the seat — resting beside it, looking again each check
-        public bool FurnitureScanned;     // villagers / crew look for a bed and a seat once, lazily
-        public byte Pose;                 // 0 stand, 1 sit, 2 lie (NetNpc.Pose)
+        public long FurnitureGen;         // #2655: the world's furniture generation of this NPC's last look around (0 = never looked)
+        public double BedlessSince;       // #2655: uptime since which it has had no bed — the fair queue: the longest-bedless picks first
+        public bool CabinBed;             // #2655: a kit station resident — bed and chair are its own cabin's (CabinFurnitureReach of Rest)
+        public byte Pose;                // 0 stand, 1 sit, 2 lie (NetNpc.Pose)
         public string ActivityKey = string.Empty;
         public string Held = string.Empty;
 
@@ -267,6 +269,7 @@ public sealed partial class GameServer
             LegsRgb = legsTones[rng.Next(legsTones.Length)],
             IsRobot = robotic,
             WanderPhase = rng.NextDouble() * System.Math.PI * 2,
+            BedlessSince = _uptime, // #2655: everyone starts without a bed — in the queue from the moment they arrive
         };
     }
 

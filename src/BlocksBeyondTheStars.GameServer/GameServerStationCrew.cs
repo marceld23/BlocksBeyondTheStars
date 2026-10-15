@@ -105,12 +105,13 @@ public sealed partial class GameServer
             }
 
             _npcs.Add(npc);
-            EnsureNpcFurniture(npc, CabinFurnitureReach); // the own bed (and the cabin chair as the fallback seat)
+            npc.CabinBed = true; // #2655: the own bed (and the cabin chair as the fallback seat) — in the cabin, now and later
+            SearchNpcFurniture(npc);
             // The evening in the canteen / bar — a free seat only (#2122: the wrapping cursor seated two crew members
             // on one chair); once the lounges are full the cabin chair stays the seat.
             if (NextFreeSeat(seats, ref seatCursor, npc) is { } lounge)
             {
-                npc.Seat = lounge;
+                SetNpcSeat(npc, lounge);
             }
 
             added++;

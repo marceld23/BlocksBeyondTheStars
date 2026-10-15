@@ -29,16 +29,18 @@ internal sealed class NpcLifeWorld : IDisposable
     public const int Cx = 40, Cz = 40;
     public const string Owner = "Homesteader";
 
-    public readonly SvGameServer Server;
+    public SvGameServer Server { get; private set; }
     public readonly GameContent Content;
     public readonly RecordingTransport Transport;
-    public readonly PlayerSession Player;
+    public PlayerSession Player { get; private set; }
     public readonly int PadY;
     public int Feet => PadY + 1;
     public int BaseId { get; private set; }
 
     private readonly string _root;
-    private readonly SqliteWorldRepository _repo;
+    private readonly string _name;
+    private readonly Action<ServerConfig>? _configure;
+    private SqliteWorldRepository _repo;
 
     public sealed class RecordingTransport : IServerTransport
     {
@@ -76,22 +78,12 @@ internal sealed class NpcLifeWorld : IDisposable
     public NpcLifeWorld(GameContent content, string name, int padHalf = 24, Action<ServerConfig>? configure = null)
     {
         Content = content;
+        _name = name;
+        _configure = configure;
         _root = Path.Combine(Path.GetTempPath(), "bbts_npclife_" + Guid.NewGuid().ToString("N"));
         _repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         Transport = new RecordingTransport();
-        var config = new ServerConfig
-        {
-            WorldName = name,
-            Seed = 4242,
-            StartPlanet = "rocky",
-            AutoSaveIntervalMinutes = 9999,
-            PlaceStarterShip = false,
-            PlaceSettlements = false,
-            PlaceWrecks = false,
-            PlaceBanditCamps = false,
-        };
-        configure?.Invoke(config);
-        Server = new SvGameServer(config, content, Transport, _repo);
+        Server = new SvGameServer(Config(), content, Transport, _repo);
         Server.Start();
 
         var stone = Block("stone");
@@ -105,6 +97,39 @@ internal sealed class NpcLifeWorld : IDisposable
         Player = Server.AddLocalPlayer(Owner);
         Player.State.AboardShip = false;
         Player.State.Position = new Vector3f(Cx - 1.5f, Feet, Cz - 1.5f);
+    }
+
+    private ServerConfig Config()
+    {
+        var config = new ServerConfig
+        {
+            WorldName = _name,
+            Seed = 4242,
+            StartPlanet = "rocky",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = false,
+            PlaceWrecks = false,
+            PlaceBanditCamps = false,
+        };
+        _configure?.Invoke(config);
+        return config;
+    }
+
+    /// <summary>Stops the server (it saves everything) and starts a fresh one on the same save — a reload; the owner joins
+    /// again where they stood.</summary>
+    public void Restart()
+    {
+        var at = Player.State.Position;
+        Server.Stop();
+        _repo.Dispose();
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        _repo = new SqliteWorldRepository(new SaveGamePaths(_root, _name));
+        Server = new SvGameServer(Config(), Content, Transport, _repo);
+        Server.Start();
+        Player = Server.AddLocalPlayer(Owner);
+        Player.State.AboardShip = false;
+        Player.State.Position = at;
     }
 
     public BlocksBeyondTheStars.Shared.Primitives.BlockId Block(string key) => Content.GetBlock(key)!.NumericId;

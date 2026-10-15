@@ -24,9 +24,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// sleeps from morning to late afternoon.</item>
 /// <item><b>A village festival</b> (#2604, GameServerVillageFestival.cs) overrides all of it for its attendees: the
 /// <c>Festival</c> phase walks them into the ring; when the party ends, the next check returns them to their phase.</item>
-/// <item>Beds and seats: a base resident's come from the base index; a villager or a crew member looks around its
-/// marker once (<see cref="FurnitureSearchReach"/>), taking the nearest bed and seat nobody else claimed —
-/// furnished settlement houses (#1828) have a bed in every room.</item>
+/// <item>Beds and seats belong to someone (#2655, GameServerNpcBeds.cs): kept while the block stands, a broken one sends
+/// its owner looking, a new one is taken by whoever has been without one longest. A base resident's come from the base
+/// scan; a villager looks around its resting spot (<see cref="FurnitureSearchReach"/>), a station's crew over the whole
+/// station — furnished settlement houses (#1828) have a bed in every room.</item>
 /// <item>Checked every <see cref="RoutineCheckInterval"/> seconds per NPC inside a player's area of interest; the
 /// walking itself is the pathfinding's (#1866). Guardians and visiting traders keep to their posts.</item>
 /// <item><b>A talk waits for nobody long</b> (#2616): while a player talks with an NPC the routine and the job pause and
@@ -57,14 +58,16 @@ public sealed partial class GameServer
     /// <summary>How far someone resting (no bed) strays from its spot.</summary>
     private const float RestLeash = 0.6f;
 
-    /// <summary>Horizontal reach around a villager's or crew member's marker in which it finds its bed and seat.</summary>
+    /// <summary>Horizontal reach around a villager's resting spot in which it looks for a bed and a seat (−2…+3 up/down);
+    /// a generated station's crew looks over the whole station for its bed instead (#2657).</summary>
     private const int FurnitureSearchReach = 8;
 
     /// <summary>How close to its taken seat an NPC waiting for it (#2122) must still be to sit down once it is free —
     /// the approach spot is beside the seat, the rest leash lets it drift a little.</summary>
     private const float SeatWaitReach = 2.5f;
 
-    /// <summary>Villagers / crew members that may look for their bed and seat in one tick (each look reads ~1700 cells).</summary>
+    /// <summary>Villagers / crew members that may look for their bed and seat in one tick (each look reads ~1700 cells; a
+    /// station's bed list is read once per new bed).</summary>
     private const int FurnitureScansPerTick = 6;
 
     private readonly List<PlayerSession> _routineTargets = new();
@@ -93,25 +96,14 @@ public sealed partial class GameServer
 
         float aoi = MaxStreamRadiusBlocks(_routineTargets) + 2 * WorldConstants.ChunkSize;
         float aoiSq = aoi * aoi;
-        int furnitureScans = FurnitureScansPerTick; // a city full of people arriving at dusk looks around over several ticks
+
+        // #2655: the claims follow the NPCs, then whoever lacks a bed or a seat and has not seen the latest furniture looks
+        // around — longest-bedless first, a few per tick (a city full of people arriving at dusk spreads over several).
+        RefreshFurnitureClaims();
+        RunFurnitureSearches(aoiSq);
         foreach (var npc in _npcs)
         {
-            if (!npc.RoutineEnabled)
-            {
-                continue;
-            }
-
-            bool inReach = false;
-            foreach (var t in _routineTargets)
-            {
-                if (WrapDistSq(t.State.Position, npc.Pos) <= aoiSq)
-                {
-                    inReach = true;
-                    break;
-                }
-            }
-
-            if (!inReach)
+            if (!npc.RoutineEnabled || !InRoutineReach(npc, aoiSq))
             {
                 continue;
             }
@@ -124,16 +116,13 @@ public sealed partial class GameServer
             bool forced = double.IsNegativeInfinity(npc.PhaseCheckedAt);
             if (forced || _uptime >= npc.PhaseCheckedAt + RoutineCheckInterval)
             {
-                var phase = RoutinePhaseFor(npc);
-                bool needsFurniture = phase != NpcPhase.Day && npc.BaseId == 0 && !npc.FurnitureScanned;
-                if (!needsFurniture || furnitureScans > 0) // else: look around next tick
+                // Someone who has not looked around yet (generated station crew spawns empty-handed; a broken bed sends its
+                // sleeper looking) waits for that look — a later tick of RunFurnitureSearches — before it settles into a
+                // phase without its bed.
+                bool awaitsLook = npc.BaseId == 0 && npc.FurnitureGen == 0 && (npc.Bed is null || npc.Seat is null);
+                if (!awaitsLook)
                 {
-                    if (needsFurniture)
-                    {
-                        furnitureScans--;
-                        EnsureNpcFurniture(npc);
-                    }
-
+                    var phase = RoutinePhaseFor(npc);
                     npc.PhaseCheckedAt = _uptime;
                     if (forced || phase != npc.Phase)
                     {
@@ -151,7 +140,6 @@ public sealed partial class GameServer
                     }
                 }
             }
-
 
             TickNpcJob(npc, dt, _routineTargets); // #1868
         }
@@ -268,7 +256,8 @@ public sealed partial class GameServer
     {
         if (!BedStillThere(bed))
         {
-            npc.Bed = null;
+            SetNpcBed(npc, null); // #2655: gone — bedless from now, and it looks for another at the next pass
+            npc.FurnitureGen = 0;
             return;
         }
 
@@ -295,7 +284,8 @@ public sealed partial class GameServer
     {
         if (!SeatStillThere(seat))
         {
-            npc.Seat = null;
+            SetNpcSeat(npc, null); // #2655: gone — it looks for another at the next pass
+            npc.FurnitureGen = 0;
             npc.SeatWait = false;
             return;
         }
@@ -356,65 +346,6 @@ public sealed partial class GameServer
         }
 
         return SpotBeside(seat, new HashSet<Vector3i>()) ?? npc.Rest;
-    }
-
-    /// <summary>A villager or a crew member finds its bed and its seat once (#1867): the nearest ones around its marker
-    /// nobody else has claimed. Base residents get theirs from the base index instead.</summary>
-    private void EnsureNpcFurniture(ServerNpc npc, int reach = FurnitureSearchReach)
-    {
-        if (npc.BaseId > 0 || npc.FurnitureScanned)
-        {
-            return;
-        }
-
-        npc.FurnitureScanned = true;
-        var takenBeds = new HashSet<Vector3i>(_npcs.Where(n => n.Bed.HasValue).Select(n => n.Bed!.Value));
-        var takenSeats = new HashSet<Vector3i>(_npcs.Where(n => n.Seat.HasValue).Select(n => n.Seat!.Value));
-        var crewStation = ActivePlayerStation();
-        var home = npc.Rest.ToBlock();
-        ushort bedId = _content.GetBlock(BedBlock)?.NumericId.Value ?? 0;
-        double bestBed = double.MaxValue, bestSeat = double.MaxValue;
-        Vector3i? bed = null, seat = null;
-        for (int dx = -reach; dx <= reach; dx++)
-            for (int dz = -reach; dz <= reach; dz++)
-                for (int dy = -2; dy <= 3; dy++)
-                {
-                    var c = new Vector3i(home.X + dx, home.Y + dy, home.Z + dz);
-                    var id = _world.GetBlockIfLoaded(c);
-                    if (id.IsAir)
-                    {
-                        continue;
-                    }
-
-                    int form = ShapeCode.ShapeOf(_world.GetShape(c));
-                    bool isBed = bedId != 0 && id.Value == bedId && form != (int)BlockShape.BedFoot;
-                    bool isSeat = !isBed && FurnitureShapes.IsSeat(form);
-                    if (!isBed && !isSeat)
-                    {
-                        continue;
-                    }
-
-                    // On a player station the crew only uses what stands in the air (#1775).
-                    if (crewStation != null && !InSealedStationPocket(crewStation, new Vector3i(c.X, c.Y + 1, c.Z)))
-                    {
-                        continue;
-                    }
-
-                    double d = dx * dx + dz * dz + dy * dy * 4;
-                    if (isBed && d < bestBed && !takenBeds.Contains(c))
-                    {
-                        bestBed = d;
-                        bed = c;
-                    }
-                    else if (isSeat && d < bestSeat && !takenSeats.Contains(c))
-                    {
-                        bestSeat = d;
-                        seat = c;
-                    }
-                }
-
-        npc.Bed = bed;
-        npc.Seat = seat;
     }
 
     /// <summary>Test seam (#1867): an NPC's pose (0 stand, 1 sit, 2 lie), activity key and position.</summary>

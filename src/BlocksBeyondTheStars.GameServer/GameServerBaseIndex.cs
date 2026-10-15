@@ -22,6 +22,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>Only what is inside the base counts</b> (Marcel 2026-09-13: "core zone + room + yard"): the 17³ core
 /// zone, a sealed base room, the walled yard (#1315/#1862) or a closed room — walls, a roof and a door, see
 /// <see cref="InClosedRoom"/>. A bed in the open field brings nobody.</item>
+/// <item><b>A leak never evicts a resident</b> (#2653, the bulkhead rule): once a bed or a post has counted as inside, it
+/// keeps counting while its block stands at that cell within the base's reach (<c>BaseIndex.StickyInside</c>) — a hole in
+/// a bedroom wall takes the room's air, not its sleeper.</item>
 /// <item>Cached per base, marked dirty by any block set within the base's reach, rebuilt lazily by the base-life
 /// scan; RAM only, never persisted — the store is the truth.</item>
 /// </list>
@@ -63,6 +66,12 @@ public sealed partial class GameServer
         /// <summary>Profession post cells by job (2026-09), in index order.</summary>
         public readonly Dictionary<string, List<Vector3i>> ProfessionPosts = new(System.StringComparer.Ordinal);
         public readonly HashSet<string> MissionIds = new(); // the base board's coined missions (#1865)
+
+        /// <summary>#2653 (bulkhead rule): cell → block of everything that once counted as inside — it keeps counting while
+        /// that block stands there within the base's reach, so a hole in a bedroom wall takes the air, not the sleeper.
+        /// RAM only; the saved beds of the residents seed it on the first build of a run.</summary>
+        public Dictionary<Vector3i, ushort> StickyInside = new();
+        public bool StickySeeded;
         public bool BoardStocked;
         public bool Dirty = true;
         public double ComputedAt = double.NegativeInfinity;
@@ -160,6 +169,25 @@ public sealed partial class GameServer
         idx.SentryPosts.Clear();
         idx.ProfessionPosts.Clear();
 
+        // #2653: the residents' saved beds counted as inside when they were saved — a reload must not evict a sleeper whose
+        // bedroom sprang a leak while the server was down.
+        if (!idx.StickySeeded)
+        {
+            idx.StickySeeded = true;
+            if (_meta.BaseResidents.TryGetValue(BaseBoardKey(b), out var plan))
+            {
+                foreach (var r in plan)
+                {
+                    if (TryParseBedCell(r.Bed, out var bedCell))
+                    {
+                        idx.StickyInside[bedCell] = _ixBed;
+                    }
+                }
+            }
+        }
+
+        var stickyBefore = idx.StickyInside;
+        idx.StickyInside = new Dictionary<Vector3i, ushort>();
         int circ = _world.Circumference;
         int reach = System.Math.Min(BaseWallReach(b), BaseIndexHalfXZ);
         int latPeriod = WorldConstants.LatitudePeriodFor(circ);
@@ -180,7 +208,7 @@ public sealed partial class GameServer
                 budget -= rows.Count;
                 foreach (var e in rows)
                 {
-                    ClassifyBaseIndexCell(b, idx, e.WorldPosition, e.Block, e.Shape, roomCache);
+                    ClassifyBaseIndexCell(b, idx, e.WorldPosition, e.Block, e.Shape, roomCache, stickyBefore);
                 }
             }
         }
@@ -200,18 +228,23 @@ public sealed partial class GameServer
         return idx;
     }
 
-    private void ClassifyBaseIndexCell(ServerBase b, BaseIndex idx, Vector3i cell, ushort block, int shape, Dictionary<Vector3i, bool> roomCache)
+    private void ClassifyBaseIndexCell(ServerBase b, BaseIndex idx, Vector3i cell, ushort block, int shape, Dictionary<Vector3i, bool> roomCache,
+        Dictionary<Vector3i, ushort> stickyBefore)
     {
         int form = ShapeCode.ShapeOf(shape);
         bool crop = _ixCrops.Contains(block);
         bool sapling = block == _ixSapling;
 
         // A flora cell is itself the air an NPC would stand beside; everything else is judged by the cell above it.
+        // #2653: what counted as inside before keeps counting while the same block stands there (the bulkhead rule).
         var probe = crop || sapling ? cell : new Vector3i(cell.X, cell.Y + 1, cell.Z);
-        if (!BaseCellInside(b, cell, probe, roomCache))
+        bool sticky = stickyBefore.TryGetValue(cell, out var was) && was == block;
+        if (!sticky && !BaseCellInside(b, cell, probe, roomCache))
         {
             return;
         }
+
+        idx.StickyInside[cell] = block;
 
         if (block == _ixBed)
         {

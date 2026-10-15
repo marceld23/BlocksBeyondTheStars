@@ -767,6 +767,7 @@ public sealed partial class GameServer
         resident.BlockSet += cell => MarkBaseIndexDirty(resident, cell); // #1865: a bed, a post or a crop changed near a base
         var npcWorld = world;
         resident.BlockSet += cell => MarkNpcPathsDirty(npcWorld, cell); // #1866: a wall built across a walking NPC's route
+        resident.BlockSet += cell => OnFurnitureCellSet(npcWorld, cell); // #2655: a bed or seat went (its claim is released) or came
         var farWorld = world;
         resident.BlockSet += cell => MarkFarTileDirty(farWorld, cell); // #1821: a far view sees builds change
         resident.ShapedBlockReplaced += (cell, was, wasShape) => OnShapedBlockReplaced(resident, cell, was, wasShape); // #1961: a form over several blocks falls as one piece

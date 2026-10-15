@@ -64,9 +64,9 @@ public sealed partial class GameServer
             ApplyProfession(npc, profession);
             npc.Work = profession.WorksOutside ? OutsideSettlementWorkSpot(settlement, standing) : standing; // the blockfarmer's quarry
             npc.HasWork = true;
-            npc.Bed = TakeNearestBed(freeBeds, standing);
-            npc.FurnitureScanned = true;
-            npc.Seat = EveningSeatFor(settlement, seats, ref seatCursor, npc.Bed); // a free one only (#2122)
+            SetNpcBed(npc, TakeNearestBed(freeBeds, standing));
+            SetNpcSeat(npc, EveningSeatFor(settlement, seats, ref seatCursor, npc.Bed)); // a free one only (#2122)
+            MarkFurnitureLooked(npc); // #2655: kept while they stand; it looks again only when furniture comes or goes
             int noFallback = 0; // a profession always has its post marker — the fallback ordinal is never used
             npc.PersonKey = SettlementPersonKey(settlement, npc, pos, npc.Bed, ref noFallback); // #2598: <job>@<post cell>
 

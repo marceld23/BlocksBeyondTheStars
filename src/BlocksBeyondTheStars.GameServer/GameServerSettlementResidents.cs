@@ -110,9 +110,9 @@ public sealed partial class GameServer
             npc.Job = job is "vendor" or "quartermaster" or "craftsman" or "innkeeper" or "gardener" ? job : string.Empty;
             npc.Work = standing;
             npc.HasWork = true;
-            npc.Bed = bed;
-            npc.FurnitureScanned = true; // #1887: the bed is assigned; the seat below
-            npc.Seat = EveningSeatFor(settlement, seats, ref seatCursor, bed);
+            SetNpcBed(npc, bed); // #1887: the bed is assigned; the seat below
+            SetNpcSeat(npc, EveningSeatFor(settlement, seats, ref seatCursor, bed));
+            MarkFurnitureLooked(npc); // #2655: kept while they stand; it looks again only when furniture comes or goes
 
             if (role == "quartermaster")
             {

@@ -247,6 +247,27 @@ public sealed class WorldMetadata
     /// quarry face. Additive: an older build drops it (the holes it leaves are ordinary mined cells), a missing entry means
     /// "nothing to refill".</summary>
     public System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<NpcRefillRecord>> NpcRefills { get; set; } = new();
+
+    /// <summary>#2656: who lives at each founded base and where they sleep — the base key (its core cell,
+    /// <c>base:&lt;body&gt;:&lt;x&gt;:&lt;y&gt;:&lt;z&gt;</c>, never the load-order base id) → its residents by slot with their bed and
+    /// job. Read when the base's residents (re)appear, so a reload or a return to the planet brings back the same people in
+    /// the same beds at the same jobs; written whenever the assignment changes. Additive: an older build drops it, a missing
+    /// entry means "assign afresh".</summary>
+    public System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<BaseResidentRecord>> BaseResidents { get; set; } = new();
+}
+
+/// <summary>#2656: one resident of a base (<see cref="WorldMetadata.BaseResidents"/>): the slot (look, name and memory belong
+/// to it — slot 0 is the founding settler), the head cell of the bed, and the job.</summary>
+public sealed class BaseResidentRecord
+{
+    /// <summary>0 = the founding settler, 1..4 = the people the beds brought.</summary>
+    public int Slot { get; set; }
+
+    /// <summary>The bed's head cell as <c>"x,y,z"</c> (canonical world cell); empty = sleeps rough.</summary>
+    public string Bed { get; set; } = string.Empty;
+
+    /// <summary>The job ("vendor", "quartermaster", a profession, "guard", "gardener", "craftsman"); empty = none.</summary>
+    public string Job { get; set; } = string.Empty;
 }
 
 /// <summary>#2643: one cell an NPC miner broke (<see cref="WorldMetadata.NpcRefills"/>): what stood there and from when on it

@@ -26,6 +26,10 @@ forges, crops, hydro trays, saplings, sentry posts.
   (`InWalledBaseArea`); or, from the air above it, a sealed base room (`InSealedBaseRoom`) or a closed room
   (`InClosedRoom`: a 6-connected flood that stops at walls, the roof and every door, ≤ 4096 cells, ≤ 24 blocks).
 - A bed counts once: the head (or a legacy one-cell bed), never the foot.
+- **A leak never evicts a resident** (#2653, the bulkhead rule): whatever counted as inside once keeps counting while the
+  same block stands at that cell within the base's reach (`BaseIndex.StickyInside`, cell → block, carried from rebuild to
+  rebuild). A hole in a bedroom wall takes the room's air, not its sleeper. RAM only; the residents' saved beds (§3) seed
+  it on a base's first rebuild of a run, so a leak that happened while the server was down evicts nobody either.
 - Dirty on any `BlockSet` within the base's reach (`MarkBaseIndexDirty`), rebuilt lazily by the base-life scan,
   dropped with the base (`ForgetBaseIndex`). RAM only.
 
@@ -35,9 +39,27 @@ forges, crops, hydro trays, saplings, sentry posts.
   `min(5, 1 + beds)` once the first settler earned the base (≥ 3 machines); a founded base keeps its settler.
 - Slot 0 keeps the founding settler's seed and memory key (`base_<id>:settler`); slot *n* is `base_<id>#<n>:settler`
   (`BaseResidentKey`). The key is the **person**; the relationship's `Role` follows the job.
-- `AssignBaseResidents`: jobs in priority order (vendor, quartermaster, guard, gardener, craftsman), beds and seats in
-  the index's order, a resting spot beside the bed (`BedSideSpot`) or near the core (`ResidentHomeNear`), the work
-  spot (`ResidentWorkSpot`), and the post markers (`RefreshBaseMarkers`).
+- **Beds and jobs belong to someone (#2656).** Who lives at a base is its *plan*, `WorldMetadata.BaseResidents[key]` —
+  slot → bed head cell (`"x,y,z"`, empty = sleeps rough) and job — keyed by `BaseBoardKey` (the core cell, never the
+  load-order base id). `UpdateBaseResidents` reads it, brings it in step and writes it back (`_repo.SaveMetadata`) only
+  when it changed, so a reload or a return to the planet respawns the same people in the same beds at the same jobs.
+  Additive JSON, no save bump; a dissolved base's entry is pruned by `SweepDissolvedBaseResidents`. Per scan:
+  1. a resident whose bed is no longer in the index *lost it in this scan*;
+  2. count unchanged (`min(5, 1 + beds)` once founded — a plan with slot 0 is founded). The surplus moves out: first a
+     resident who lost the bed in this scan, else the bedless resident with the highest slot, never slot 0;
+  3. whoever is missing moves in at the **lowest free slot** (look, name and memory are the slot's — a rebuilt bed
+     brings back the same person);
+  4. `AssignBaseJobs`: a job stays with its resident while its post stands; a job nobody holds goes (priority order:
+     vendor, quartermaster, professions, guard, gardener, craftsman) to the jobless resident with the lowest slot —
+     a new post never takes anyone off their job;
+  5. `AssignBaseBeds`: beds stay with their sleeper; free beds go to the bedless — those who lost theirs in this scan
+     first (remove + place between two scans keeps the sleeper), then the longest-bedless (`BedlessSince`), then by
+     slot — each taking the best bed for its work spot (`BaseJobAnchor`, the ranking of §6a). A bed another NPC of the
+     world holds is not free.
+- `AssignBaseResidents` applies the plan in slot order: the job (`ApplyResidentJob`), the bed and a resting spot beside it
+  (`BedSideSpot`) or near the core (`ResidentHomeNear`), the evening seat — kept while it stands inside the base, else
+  the nearest free one within 10 of the resting spot — the work spot (`ResidentWorkSpot`) and the post markers
+  (`RefreshBaseMarkers`).
 
 ## 4. Posts at home (`GameServerBasePosts.cs`)
 
@@ -88,9 +110,39 @@ and night, asleep by day).
 | Festival (#2604, §15) | the attendee's ring spot around the village square | stand still, face the square |
 
 No seat / no bed → the resting spot, `ActivityKey = npc.activity.resting`. `StandUp` puts the NPC back on the
-approach spot. Villagers and crew find a bed and a seat once within 8 blocks of their marker
-(`EnsureNpcFurniture`); guardians and visiting traders keep `RoutineEnabled = false`. A sleeper answers a talk with
-`npc.greet.sleepy`. While a player talks with an NPC (§16) its routine and job wait — at most 60 s per talk.
+approach spot. Beds and seats come from the shared assignment (§6a); guardians and visiting traders keep
+`RoutineEnabled = false`. A sleeper answers a talk with `npc.greet.sleepy`. While a player talks with an NPC (§16) its
+routine and job wait — at most 60 s per talk.
+
+## 6a. Beds that belong to someone (`GameServerNpcBeds.cs`, #2655)
+
+One assignment for every NPC with a routine (Marcel 2026-10, epic #2649):
+
+- **Keep what you have.** `ServerNpc.Bed` / `Seat` are the claims; they stay while the block stands. A bed built
+  elsewhere never moves anybody. All writes go through `SetNpcBed` / `SetNpcSeat`.
+- **Event-driven.** `OnFurnitureCellSet` is a `ServerWorld.BlockSet` subscriber (registered beside the other per-world
+  caches in `LoadWorld`). Per world (`FurnitureLedger`, by location id) it keeps a claims map (canonical cell → NPC,
+  rebuilt from the NPCs every routine pass and kept current by the setters) and a furniture *generation*. A claimed bed or
+  seat that is gone is released at once (`ReleaseNpcBed`: bedless from now — `BedlessSince = uptime` — `FurnitureGen = 0`,
+  and the phase is re-thought, so a sleeper gets up out of a broken bed); a bed head or seat that appears bumps the
+  generation (a bed also `BedGeneration`).
+- **Looking again.** `ServerNpc.FurnitureGen` replaced the one-shot `FurnitureScanned`: an NPC without a bed or a seat
+  whose generation is older than the world's looks again (`RunFurnitureSearches`, from `TickNpcRoutine`): at most
+  `FurnitureScansPerTick` (6) per tick, **longest-bedless first** (`BedlessSince`, then the id — spawn order). An NPC
+  that never looked (`FurnitureGen == 0`, e.g. generated station crew) holds its phase check until it has. A villager,
+  a lodge resident or kit crew spawns with its furniture and `MarkFurnitureLooked` (the current generation).
+- **The best bed** (`BetterBed`): in the same room as the work spot (`AirRoomIdAt` of the air engine — the bed's room is
+  the air above it; null = no preference), then the nearest to the work spot (dx² + dz² + 4·dy², across the seam), then
+  the coordinates (Y, Z, X). The work spot is `Work` (or `Rest` without one; a kit resident's cabin `Rest`).
+- **Where each looks.** Villagers and lodge residents: ±`FurnitureSearchReach` (8) around `Rest`, −2…+3 up/down, never
+  inside a base's reach (that furniture is the base scan's). Kit station residents (`CabinBed`): ±`CabinFurnitureReach`
+  (4) around their cabin spot. The crew of a generated or player-built station (#2657): **every bed head of the station**
+  (`StationBedCandidates` — the stamped box, scanned once per `BedGeneration`, coordinates-sorted) that stands in a room
+  with air (`StationCellHasAir`: blanket air on an NPC station, a sealed pocket on a player-built one); seats within 8 of
+  `Rest`, in air. Post keepers spawn before the civilians, so they choose first. No persistence: the crew respawns
+  deterministically on every boarding and every re-staffing (#1487) and finds the same beds. Base residents: §3.
+- Test seams: `NpcFurnitureForTest`, `SetAirRoomIdForTest` (a stand-in for the air engine's room ids),
+  `SpawnVillagerForTest(…, looksForFurniture: true)`.
 
 **Keepers hold the counter (#2627).** A trading keeper (role `vendor` — the classic vendor, every trading profession,
 a visiting pilot, the travelling merchant — or the `quartermaster`) at work stops strolling while a player stands within
@@ -130,8 +182,8 @@ Wire (additive, contractless — no codec tag): `NetNpc.Pose`, `NetNpc.ActivityK
 A station composed from a kit (`BoardableStation.Kit != null`) spawns **one resident per `cabin` marker** instead of
 the post keepers + filler crew: the posts (vendor, mission board, greenhouse, hangar, medbay, canteen/bar `lounge`) are
 staffed by residents in marker order; the rest stroll the arrival hall by day. Each resident starts AT its post
-(`Home = Work`), rests at its cabin spot (`Rest`), finds its own bed within `CabinFurnitureReach` (4) via
-`EnsureNpcFurniture(npc, reach)` and takes an evening seat from the pool of chairs and benches around the `lounge`
+(`Home = Work`), rests at its cabin spot (`Rest`), finds its own bed within `CabinFurnitureReach` (4) of it
+(`CabinBed`, `SearchNpcFurniture`, §6a) and takes an evening seat from the pool of chairs and benches around the `lounge`
 markers (`LoungeSeats`, round-robin). The routine (§6) then walks them post → lounge → bed. Path searches on void worlds
 use `StationPathLimits (96, 16, 8000)` so a cabin two decks away is reachable. Test: `StationKitServerTests`.
 
@@ -141,7 +193,8 @@ use `StationPathLimits (96, 16, 8000)` so a cabin two decks away is reachable. T
 (`SettlementInstance.Layout`, local → world) are the residents, capped by `ResidentCap(tier)` (hamlet 6, village 10,
 town 20, city 32, metropolis 80). Posts come from markers in the order vendor → `mission_board` → `greenhouse` →
 `workshop` → `tavern`; resident *i* staffs post *i* (`Job` vendor / quartermaster / gardener / craftsman / innkeeper),
-spawns at it (`Work`) and takes the free bed nearest to it (`Bed`, `FurnitureScanned = true`). Residents without a post
+spawns at it (`Work`) and takes the free bed nearest to it (`Bed`, `MarkFurnitureLooked` — §6a: kept while it stands, a
+broken one sends its sleeper looking within 8 of `Rest`). Residents without a post
 take the remaining beds in scan order and spawn at the `npc` spot nearest to their bed. Evening seats: chairs within 8 of
 a `tavern` marker (round-robin, from the layout), else the nearest chair within 6 of the bed. The vendor and quartermaster
 are staffed even without a bed (`count = max(min(beds, cap), services)`); `guard_post` markers still spawn guardians
@@ -426,5 +479,6 @@ villager standing rules. A **wanderer** runs the same work cycle without a routi
 `VillageChatterTests`, `VillageLifeContentTests`, `VillageLifeAiTests` (§13), `DeedNewsTests` (§14), `VillageFestivalTests` (§15),
 `NpcConversationLifecycleTests` and Client.Tests `NpcDialogLeaveTests` (§16),
 `NpcProfessionTests` (table, kits, settlement staffing, content, clinic/streamer/reporter/tamer at a base, Safe-mode
-interview, shop room), `NpcGridPathTests`, `BaseResidentsTests`, `NpcRoutineTests`, `NpcJobsTests`, the station-night case in
+interview, shop room), `NpcGridPathTests`, `BaseResidentsTests`, `NpcBedAssignmentTests` and `StationCrewBedTests` (§6a,
+§3, the bulkhead rule), `NpcRoutineTests`, `NpcJobsTests`, the station-night case in
 `PlayerStationReportsTests`, the village-bed case in `SettlementNpcTests` (Slow). The shared arena is `NpcLifeWorld`.

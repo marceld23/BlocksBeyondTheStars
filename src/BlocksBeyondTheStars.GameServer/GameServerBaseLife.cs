@@ -18,10 +18,15 @@ namespace BlocksBeyondTheStars.GameServer;
 /// acquaintance, and appear in the "People you know" roster. No NPC ever damages a block.
 /// <para><b>Residents (#1865):</b> every bed inside the base (core zone, sealed room, walled yard or closed room —
 /// see <see cref="BaseIndex"/>) brings one more resident, up to <see cref="BaseResidentCap"/>: 1 + beds. Slot 0 is
-/// the founding settler (today's identity and memory key); slots 1..4 are the people the beds brought. Each
-/// resident takes a bed in slot order (the newest sleeps rough until one more bed stands), a chair or bench for
-/// the evening, and a job derived from what the base holds (#1868): the trading post and the mission board are
-/// staffed first, then a guard for a walled base, a gardener for crops, a craftsman for a workbench.</para>
+/// the founding settler (today's identity and memory key); slots 1..4 are the people the beds brought. A job comes from
+/// what the base holds (#1868): the trading post and the mission board first, then the professions, a guard for a walled
+/// base, a gardener for crops, a craftsman for a workbench.</para>
+/// <para><b>Beds and jobs belong to someone (#2656):</b> a resident keeps its bed while the bed stands and its job while
+/// the post stands; a new bed or post goes to someone without one — the newest resident sleeps rough until one more bed
+/// stands. When a bed goes, its own sleeper moves out (never the founder), and a rebuilt bed brings the same person back
+/// (the lowest free slot). The assignment is saved per base (<c>WorldMetadata.BaseResidents</c>) and survives a reload.
+/// A leak never evicts anyone: a bed or post that counted as inside keeps counting while it stands (#2653,
+/// <see cref="BaseIndex"/>).</para>
 /// </summary>
 public sealed partial class GameServer
 {
@@ -103,10 +108,41 @@ public sealed partial class GameServer
                 BroadcastNpcs();
             }
         }
+
+        // #2656: a dissolved base's saved residents go with it (every base of the save is in _bases, whatever its world).
+        if (_meta.BaseResidents.Count > 0)
+        {
+            var standing = new HashSet<string>(_bases.Select(BaseBoardKey), System.StringComparer.Ordinal);
+            var stale = _meta.BaseResidents.Keys.Where(k => !standing.Contains(k)).ToList();
+            if (stale.Count > 0)
+            {
+                foreach (var key in stale)
+                {
+                    _meta.BaseResidents.Remove(key);
+                }
+
+                _repo.SaveMetadata(_meta);
+            }
+        }
     }
 
-    /// <summary>Brings one base's residents in step with the base: spawns the missing slots, sends the surplus away,
-    /// and re-assigns beds, seats, jobs and posts.</summary>
+    /// <summary>
+    /// Brings one base's residents in step with the base (#1865, #2656). Who lives there is the base's saved plan
+    /// (<c>WorldMetadata.BaseResidents</c>, slot → bed and job), which this scan updates and saves when it changes — so a
+    /// reload or a return to the planet brings back the same people in the same beds at the same jobs.
+    /// <list type="number">
+    /// <item>A resident whose bed is gone (or no longer counts) lost it in this scan.</item>
+    /// <item>The count: 1 + one per bed, at most <see cref="BaseResidentCap"/>, once the base is founded. The surplus moves
+    /// out — first a resident who lost the bed in this scan, else the bedless resident with the highest slot, never the
+    /// founding settler (slot 0).</item>
+    /// <item>Whoever is missing moves in at the lowest free slot. Look, name and memory belong to the slot, so a rebuilt
+    /// bed brings back the person who left.</item>
+    /// <item>Jobs stay with their resident while the post stands; a job nobody holds goes, in priority order, to a resident
+    /// without one (<see cref="AssignBaseJobs"/>).</item>
+    /// <item>Beds stay with their sleeper; free beds go to the bedless (<see cref="AssignBaseBeds"/>) — whoever lost theirs
+    /// in this scan first (a bed moved is still that person's), then the longest-bedless.</item>
+    /// </list>
+    /// </summary>
     private void UpdateBaseResidents(ServerBase b)
     {
         var idx = RefreshBaseIndex(b);
@@ -118,72 +154,106 @@ public sealed partial class GameServer
         // A world switch cleared the NPC list: a stale mapping must not block the respawn (#1152).
         list.RemoveAll(r => r.WorldId == _world.LocationId && !_npcs.Any(n => n.Id == r.NpcId && n.BaseId == b.Id));
 
-        // The first settler needs the machines; once a base has one, beds alone bring the rest (and a machine
-        // mined for a moment never sends the founding settler away).
-        bool founded = list.Any(r => r.Slot == 0);
+        string key = BaseBoardKey(b);
+        var plan = _meta.BaseResidents.TryGetValue(key, out var saved) ? saved : new List<BaseResidentRecord>();
+        string savedSignature = BasePlanSignature(plan);
+        var live = new Dictionary<int, ServerNpc>();
+        foreach (var npc in ResidentNpcs(b))
+        {
+            live[npc.BaseSlot] = npc;
+            if (!plan.Any(r => r.Slot == npc.BaseSlot))
+            {
+                plan.Add(new BaseResidentRecord { Slot = npc.BaseSlot, Bed = BedCellKey(npc.Bed), Job = npc.Job }); // alive before the plan knew them
+            }
+        }
+
+        // 1. A bed that is gone — mined, moved, or no longer inside — was lost in this scan.
+        var beds = new HashSet<Vector3i>(idx.BedHeads);
+        var lostBed = new HashSet<int>();
+        var heldBeds = new HashSet<Vector3i>();
+        foreach (var r in plan.OrderBy(r => r.Slot))
+        {
+            if (!TryParseBedCell(r.Bed, out var cell))
+            {
+                r.Bed = string.Empty;
+            }
+            else if (!beds.Contains(cell))
+            {
+                r.Bed = string.Empty;
+                lostBed.Add(r.Slot);
+            }
+            else if (!heldBeds.Add(cell))
+            {
+                r.Bed = string.Empty; // two on one bed (a hand-edited save): the lower slot keeps it
+            }
+        }
+
+        // 2. How many live here. The first settler needs the machines; once a base has one, beds alone bring the rest
+        // (and a machine mined for a moment never sends the founding settler away).
+        bool founded = plan.Any(r => r.Slot == 0);
         int desired = founded || CountBaseMachines(b) >= BaseSettlerMachineCount
             ? System.Math.Min(BaseResidentCap, 1 + idx.BedHeads.Count)
             : 0;
 
         bool changed = false;
-        foreach (var r in list.Where(r => r.Slot >= desired).ToList())
+        while (plan.Count > desired)
         {
-            _npcs.RemoveAll(n => n.Id == r.NpcId && n.BaseId == b.Id); // a bed went — its sleeper moves on
-            list.Remove(r);
+            var leaving = plan.Where(r => r.Slot != 0 && lostBed.Contains(r.Slot)).OrderByDescending(r => r.Slot).FirstOrDefault()
+                ?? plan.Where(r => r.Slot != 0 && r.Bed.Length == 0).OrderByDescending(r => r.Slot).FirstOrDefault()
+                ?? plan.OrderByDescending(r => r.Slot).First();
+            plan.Remove(leaving);
+            if (live.TryGetValue(leaving.Slot, out var gone))
+            {
+                _npcs.RemoveAll(n => n.Id == gone.Id && n.BaseId == b.Id); // a bed went — its sleeper moves on
+                live.Remove(leaving.Slot);
+            }
+
+            list.RemoveAll(r => r.Slot == leaving.Slot && r.WorldId == _world.LocationId);
             changed = true;
         }
 
-        for (int slot = 0; slot < desired; slot++)
+        // 3. Moving in: the lowest free slot.
+        while (plan.Count < desired)
         {
-            if (!list.Any(r => r.Slot == slot))
+            int slot = 0;
+            while (plan.Any(r => r.Slot == slot))
             {
-                var npc = SpawnBaseResident(b, slot);
-                list.Add(new BaseResident { Slot = slot, WorldId = b.Planet, NpcId = npc.Id });
+                slot++;
+            }
+
+            plan.Add(new BaseResidentRecord { Slot = slot });
+        }
+
+        plan.Sort((p, q) => p.Slot.CompareTo(q.Slot));
+        var patrol = plan.Count > 0 ? GuardPatrolFor(b) : null;
+        AssignBaseJobs(plan, BaseJobs(idx, patrol));
+        AssignBaseBeds(b, idx, plan, live, lostBed, patrol);
+
+        // 4. The people: whoever has no NPC on this world yet — a newcomer, or a resident after a reload or a return.
+        foreach (var r in plan)
+        {
+            if (!live.ContainsKey(r.Slot))
+            {
+                var npc = SpawnBaseResident(b, r.Slot);
+                list.Add(new BaseResident { Slot = r.Slot, WorldId = b.Planet, NpcId = npc.Id });
+                live[r.Slot] = npc;
                 changed = true;
             }
         }
 
         list.Sort((p, q) => p.Slot.CompareTo(q.Slot));
-        changed |= AssignBaseResidents(b, idx, list);
+        changed |= AssignBaseResidents(b, idx, plan, live, patrol);
+        SaveBasePlan(key, plan, savedSignature);
         if (changed)
         {
             BroadcastNpcs();
         }
     }
 
-    /// <summary>The live NPCs of a base's residents on the active world, in slot order.</summary>
-    private List<ServerNpc> ResidentNpcs(ServerBase b)
+    /// <summary>The jobs a base offers, in priority order (#1868): trading post, mission board, the professions' posts,
+    /// guard (a walled base or a sentry post), gardener (crops, trays, saplings), craftsman (workbench, forge).</summary>
+    private static List<string> BaseJobs(BaseIndex idx, List<Vector3f>? patrol)
     {
-        var result = new List<ServerNpc>();
-        if (!_baseResidents.TryGetValue(b.Id, out var list))
-        {
-            return result;
-        }
-
-        foreach (var r in list)
-        {
-            if (r.WorldId == _world.LocationId && _npcs.FirstOrDefault(n => n.Id == r.NpcId && n.BaseId == b.Id) is { } npc)
-            {
-                result.Add(npc);
-            }
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Hands out beds, seats, jobs and posts to a base's residents (#1865/#1868). Deterministic: residents in slot
-    /// order take the beds and seats in the index's order and the jobs in priority order — trading post, mission
-    /// board, guard (a walled base or a sentry post), gardener (crops, trays, saplings), craftsman (workbench,
-    /// forge). Returns whether anything the client sees changed.
-    /// </summary>
-    private bool AssignBaseResidents(ServerBase b, BaseIndex idx, List<BaseResident> list)
-    {
-        var residents = ResidentNpcs(b);
-        bool changed = false;
-
-        // --- jobs, in priority order ---
-        var patrol = residents.Count > 0 ? GuardPatrolFor(b) : null;
         var jobs = new List<string>();
         if (idx.VendorPosts.Count > 0)
         {
@@ -219,50 +289,257 @@ public sealed partial class GameServer
             jobs.Add("craftsman");
         }
 
-        var takenHomes = new HashSet<Vector3i>();
+        return jobs;
+    }
+
+    /// <summary>#2656: a job stays with its resident while its post stands; a job nobody holds goes, in priority order, to
+    /// the resident without a job with the lowest slot. A new post never takes anybody off the job they have.</summary>
+    private static void AssignBaseJobs(List<BaseResidentRecord> plan, List<string> jobs)
+    {
+        var open = new HashSet<string>(jobs, System.StringComparer.Ordinal);
+        foreach (var r in plan)
+        {
+            if (r.Job.Length > 0 && !open.Remove(r.Job))
+            {
+                r.Job = string.Empty; // its post went
+            }
+        }
+
+        foreach (var job in jobs)
+        {
+            if (!open.Contains(job))
+            {
+                continue;
+            }
+
+            var jobless = plan.FirstOrDefault(r => r.Job.Length == 0);
+            if (jobless is null)
+            {
+                break;
+            }
+
+            jobless.Job = job;
+            open.Remove(job);
+        }
+    }
+
+    /// <summary>#2656: free beds of the base go to the bedless — first those who lost theirs in this scan (a moved bed stays
+    /// with its sleeper), then the longest-bedless (<c>ServerNpc.BedlessSince</c>; a newcomer queues from now), then by slot —
+    /// each taking the best free bed for its work spot (<see cref="BetterBed"/>). A bed another NPC of the world holds is not
+    /// free.</summary>
+    private void AssignBaseBeds(ServerBase b, BaseIndex idx, List<BaseResidentRecord> plan, Dictionary<int, ServerNpc> live,
+        HashSet<int> lostBed, List<Vector3f>? patrol)
+    {
+        int circ = _world.Circumference;
+        var held = new HashSet<Vector3i>();
+        foreach (var r in plan)
+        {
+            if (TryParseBedCell(r.Bed, out var c))
+            {
+                held.Add(c);
+            }
+        }
+
+        foreach (var n in _npcs)
+        {
+            if (n.BaseId != b.Id && n.Bed is { } other)
+            {
+                held.Add(WorldConstants.CanonicalBlock(other, circ));
+            }
+        }
+
+        var free = idx.BedHeads.Where(c => !held.Contains(c)).ToList();
+        if (free.Count == 0)
+        {
+            return;
+        }
+
+        var queue = plan.Where(r => r.Bed.Length == 0)
+            .OrderBy(r => lostBed.Contains(r.Slot) ? 0 : 1)
+            .ThenBy(r => live.TryGetValue(r.Slot, out var n) ? n.BedlessSince : _uptime)
+            .ThenBy(r => r.Slot)
+            .ToList();
+        foreach (var r in queue)
+        {
+            if (free.Count == 0)
+            {
+                break;
+            }
+
+            var anchor = BaseJobAnchor(b, idx, r.Job, patrol);
+            if (BestBedFor(anchor, Above(anchor), free) is { } best)
+            {
+                r.Bed = BedCellKey(best);
+                free.Remove(best);
+            }
+        }
+    }
+
+    /// <summary>Where a resident with <paramref name="job"/> works — its post block, workbench, first garden site, first
+    /// patrol stop or sentry post — or the core for a settler without one: the anchor its bed is chosen by.</summary>
+    private static Vector3i BaseJobAnchor(ServerBase b, BaseIndex idx, string job, List<Vector3f>? patrol)
+    {
+        Vector3i? anchor = job switch
+        {
+            "vendor" when idx.VendorPosts.Count > 0 => idx.VendorPosts[0],
+            "quartermaster" when idx.Boards.Count > 0 => idx.Boards[0],
+            "craftsman" when idx.Workbenches.Count > 0 => idx.Workbenches[0],
+            "craftsman" when idx.Forges.Count > 0 => idx.Forges[0],
+            "gardener" => GardenSites(idx).Select(s => (Vector3i?)s).FirstOrDefault(),
+            "guard" when patrol is { Count: > 0 } => patrol[0].ToBlock(),
+            "guard" when idx.SentryPosts.Count > 0 => idx.SentryPosts[0],
+            _ when idx.ProfessionPosts.TryGetValue(job, out var posts) && posts.Count > 0 => posts[0],
+            _ => null,
+        };
+
+        return anchor ?? b.Cell;
+    }
+
+    /// <summary>Writes a base's plan back to the metadata (and the save) when it changed; an empty plan leaves no entry.</summary>
+    private void SaveBasePlan(string key, List<BaseResidentRecord> plan, string savedSignature)
+    {
+        bool stored = _meta.BaseResidents.ContainsKey(key);
+        if (BasePlanSignature(plan) == savedSignature && stored == plan.Count > 0)
+        {
+            return;
+        }
+
+        if (plan.Count == 0)
+        {
+            _meta.BaseResidents.Remove(key);
+        }
+        else
+        {
+            _meta.BaseResidents[key] = plan;
+        }
+
+        _repo.SaveMetadata(_meta);
+    }
+
+    private static string BasePlanSignature(List<BaseResidentRecord> plan)
+        => string.Join(";", plan.OrderBy(r => r.Slot).Select(r => r.Slot.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + r.Bed + "|" + r.Job));
+
+    /// <summary>A bed cell as the plan stores it: <c>"x,y,z"</c>, or empty for none.</summary>
+    private static string BedCellKey(Vector3i? cell)
+        => cell is { } c ? string.Join(",", c.X.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            c.Y.ToString(System.Globalization.CultureInfo.InvariantCulture), c.Z.ToString(System.Globalization.CultureInfo.InvariantCulture)) : string.Empty;
+
+    private static bool TryParseBedCell(string text, out Vector3i cell)
+    {
+        cell = default;
+        var parts = text.Split(',');
+        if (parts.Length != 3
+            || !int.TryParse(parts[0], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int x)
+            || !int.TryParse(parts[1], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int y)
+            || !int.TryParse(parts[2], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int z))
+        {
+            return false;
+        }
+
+        cell = new Vector3i(x, y, z);
+        return true;
+    }
+
+    /// <summary>The live NPCs of a base's residents on the active world, in slot order.</summary>
+    private List<ServerNpc> ResidentNpcs(ServerBase b)
+    {
+        var result = new List<ServerNpc>();
+        if (!_baseResidents.TryGetValue(b.Id, out var list))
+        {
+            return result;
+        }
+
+        foreach (var r in list)
+        {
+            if (r.WorldId == _world.LocationId && _npcs.FirstOrDefault(n => n.Id == r.NpcId && n.BaseId == b.Id) is { } npc)
+            {
+                result.Add(npc);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Applies a base's plan to its residents' NPCs (#1865/#1868/#2656), in slot order: the job (role, nameplate, what
+    /// they carry), the bed the plan gives them and a resting spot beside it (or near the core), the evening seat — kept
+    /// while it stands inside the base, else the nearest free one within <see cref="ResidentSeatReach"/> of the resting
+    /// spot — the work spot and the post markers. Returns whether anything the client sees changed.
+    /// </summary>
+    private bool AssignBaseResidents(ServerBase b, BaseIndex idx, List<BaseResidentRecord> plan, Dictionary<int, ServerNpc> live,
+        List<Vector3f>? patrol)
+    {
+        var residents = plan.Select(r => live[r.Slot]).ToList();
+        bool changed = false;
+        int circ = _world.Circumference;
+
+        // Seats are kept like beds (#2655): a seat that still stands inside the base stays its sitter's; a seat another
+        // NPC of this world holds is not free.
+        var seats = new HashSet<Vector3i>(idx.Seats);
         var takenSeats = new HashSet<Vector3i>();
+        foreach (var n in _npcs)
+        {
+            if (n.BaseId != b.Id && n.Seat is { } other)
+            {
+                takenSeats.Add(WorldConstants.CanonicalBlock(other, circ));
+            }
+        }
+
+        foreach (var npc in residents)
+        {
+            if (npc.Seat is { } s && seats.Contains(WorldConstants.CanonicalBlock(s, circ)) && takenSeats.Add(WorldConstants.CanonicalBlock(s, circ)))
+            {
+                continue;
+            }
+
+            if (npc.Seat is not null)
+            {
+                SetNpcSeat(npc, null);
+                npc.PhaseCheckedAt = double.NegativeInfinity;
+            }
+        }
+
+        var takenHomes = new HashSet<Vector3i>();
         string boardKey = BaseBoardKey(b);
         for (int i = 0; i < residents.Count; i++)
         {
             var npc = residents[i];
-            string job = i < jobs.Count ? jobs[i] : string.Empty;
-            changed |= ApplyResidentJob(b, npc, job, boardKey);
+            changed |= ApplyResidentJob(b, npc, plan[i].Job, boardKey);
 
             // --- bed + resting spot ---
-            Vector3i? bed = i < idx.BedHeads.Count ? idx.BedHeads[i] : null;
-            Vector3f? rest = bed is { } head ? BedSideSpot(head, takenHomes) : null;
+            Vector3i? bed = TryParseBedCell(plan[i].Bed, out var head) ? head : null;
+            Vector3f? rest = bed is { } h ? BedSideSpot(h, takenHomes) : null;
             rest ??= ResidentHomeNear(b.Cell, takenHomes);
             takenHomes.Add(rest.Value.ToBlock());
             if (!System.Nullable.Equals(npc.Bed, bed))
             {
-                npc.Bed = bed;
+                SetNpcBed(npc, bed);
                 npc.PhaseCheckedAt = double.NegativeInfinity; // re-think where to sleep
             }
 
             npc.Rest = rest.Value;
 
-            // --- the evening seat: the nearest free one within reach of the resting spot ---
-            Vector3i? seat = null;
-            double bestSq = ResidentSeatReach * ResidentSeatReach;
-            foreach (var s in idx.Seats)
+            // --- the evening seat: kept, or the nearest free one within reach of the resting spot ---
+            if (npc.Seat is null)
             {
-                double d = WrapDistSq(npc.Rest, s);
-                if (d <= bestSq && !takenSeats.Contains(s))
+                Vector3i? seat = null;
+                double bestSq = ResidentSeatReach * ResidentSeatReach;
+                foreach (var s in idx.Seats)
                 {
-                    bestSq = d;
-                    seat = s;
+                    double d = WrapDistSq(npc.Rest, s);
+                    if (d <= bestSq && !takenSeats.Contains(s))
+                    {
+                        bestSq = d;
+                        seat = s;
+                    }
                 }
-            }
 
-            if (seat is { } taken)
-            {
-                takenSeats.Add(taken);
-            }
-
-            if (!System.Nullable.Equals(npc.Seat, seat))
-            {
-                npc.Seat = seat;
-                npc.PhaseCheckedAt = double.NegativeInfinity;
+                if (seat is { } taken)
+                {
+                    takenSeats.Add(taken);
+                    SetNpcSeat(npc, taken);
+                    npc.PhaseCheckedAt = double.NegativeInfinity;
+                }
             }
 
             // --- the work spot ---
@@ -733,5 +1010,12 @@ public sealed partial class GameServer
         return b is null
             ? new List<(int, int, string, string, Vector3i?, Vector3i?)>()
             : ResidentNpcs(b).Select(n => (n.BaseSlot, n.Id, n.Role, n.Job, n.Bed, n.Seat)).ToList();
+    }
+
+    /// <summary>Test seam (#2656): a base's residents on the active world by slot with their names (a slot is a person).</summary>
+    public IReadOnlyList<(int Slot, string Name)> BaseResidentNamesForTest(int baseId)
+    {
+        var b = _bases.FirstOrDefault(x => x.Id == baseId);
+        return b is null ? new List<(int, string)>() : ResidentNpcs(b).Select(n => (n.BaseSlot, n.Name)).ToList();
     }
 }

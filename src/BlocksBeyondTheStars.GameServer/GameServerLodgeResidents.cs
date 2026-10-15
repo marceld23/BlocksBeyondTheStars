@@ -102,9 +102,9 @@ public sealed partial class GameServer
             npc.PersonKey = LodgePersonKey(lodge, slot);
             npc.Work = lodge.YardSpot;
             npc.HasWork = true;
-            npc.Bed = slot < beds.Count ? beds[slot] : null;
-            npc.Seat = slot < seats.Count ? seats[slot] : null;
-            npc.FurnitureScanned = true;
+            SetNpcBed(npc, slot < beds.Count ? beds[slot] : null);
+            SetNpcSeat(npc, slot < seats.Count ? seats[slot] : null);
+            MarkFurnitureLooked(npc); // #2655: kept while they stand; a broken bed sends its sleeper looking round the hut
             npc.RoutineEnabled = true;
             npc.WorkState = new NpcWorkState { Plan = LodgeWorkPlan(lodge, job, ownYard: job.Key == profession.Key) };
             _npcs.Add(npc);
