@@ -39,8 +39,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// drags chunk generation. <b>Fail-open</b>: an unloaded column reads as air, the fill leaks in, the spawn is
 /// allowed — the same direction the air system fails; a fill that runs out of budget answers "open" for
 /// everything at that level as well (logged once when a level flips to that state).</item>
-/// <item><b>Closed doors count as walls</b> (a deliberate divergence from the air model, where mechanical
-/// doors leak): a shut wooden gate keeps animals out; an open one is a gap. Proximity-operated doors (slide,
+/// <item><b>Closed doors count as walls</b> (a deliberate divergence from the air model, where every door holds air
+/// open or shut, #2651): a shut wooden gate keeps animals out; an open one is a gap. Proximity-operated doors (slide,
 /// energy) count as walls whatever their state (#1358): they open only for a player and close by themselves,
 /// so an animal never passes one — and a player standing at their yard's sliding gate used to hold it open
 /// for the fill.</item>
@@ -575,8 +575,8 @@ public sealed partial class GameServer
 
     /// <summary>Cells covered by the doors that satisfy <paramref name="pick"/> in the active world: the door's
     /// width along its wall axis × the 3-tall doorway column, canonical. The wall fill takes every SHUT door
-    /// and every proximity-operated one (a gate keeps animals out — #1358); the air fill keeps its own
-    /// energy-door map (the curtain seals open or shut).</summary>
+    /// and every proximity-operated one (a gate keeps animals out — #1358); the air fill takes every door of every
+    /// kind, open or shut (<see cref="AllDoorCells"/>, #2651).</summary>
     private HashSet<Vector3i> DoorCellsWhere(System.Func<ServerDoor, bool> pick)
     {
         var cells = new HashSet<Vector3i>();
@@ -685,32 +685,23 @@ public sealed partial class GameServer
         lines.Add(L("srv.basewalls.here").Replace("{state}", state));
         lines.Add(L("srv.basewalls.rules"));
 
-        // #2542: the air at the caller's cell and why there is none — the four reasons a room stays without air
-        // (too large, too far, a leak, not connected) used to read the same, so a closed hall over the budget sent
-        // its builder looking for a hole. The feet cell, like the oxygen tick asks.
+        // #2542/#2654: the air at the caller's cell and why there is none — a leak (named at its opening) or a closed room no
+        // door joins to the base. No size or reach limit is left to report (#2649). The feet cell, like the oxygen tick asks.
         var air = DiagnoseBaseAir(cell);
-        string budget = WorldConstants.BaseSealedRoomMaxCells.ToString(System.Globalization.CultureInfo.InvariantCulture);
         string airState = air.Status switch
         {
             BaseAirStatus.Zone => L("srv.basewalls.air_zone"),
             BaseAirStatus.Supplied => L("srv.basewalls.air_supplied")
                 .Replace("{cells}", air.Cells.ToString(System.Globalization.CultureInfo.InvariantCulture))
                 .Replace("{rooms}", air.Rooms.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-            BaseAirStatus.TooLarge => L("srv.basewalls.air_too_large").Replace("{budget}", budget),
-            BaseAirStatus.TooFar => L("srv.basewalls.air_too_far")
-                .Replace("{reach}", air.Reach.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-            BaseAirStatus.NoBase => L("srv.basewalls.air_too_far") // past every partner box: beyond what the core reaches
-                .Replace("{reach}", BaseWallReach(nearest).ToString(System.Globalization.CultureInfo.InvariantCulture)),
-            BaseAirStatus.Disconnected => L("srv.basewalls.air_disconnected")
-                .Replace("{cells}", air.Cells.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-            // #2614: name where the air gets out — the block on the way to the sky, its cell and its height above you.
+            // #2614/#2654: name where the air gets out — the opening, its cell and its height from you.
             BaseAirStatus.Leak when air.LeakCell is not null => BaseAirLeakText(session.Locale,
                 "srv.basewalls.air_leak_at", "srv.basewalls.air_leak_open_at", air, p.Position.ToBlock()),
-            _ => L("srv.basewalls.air_leak"),
+            BaseAirStatus.Leak => L("srv.basewalls.air_leak"),
+            _ => L("srv.basewalls.air_unknown"), // closed, but no door leads into it from the base
         };
         lines.Add(L("srv.basewalls.air").Replace("{state}", airState));
         lines.Add(L("srv.basewalls.air_rules")
-            .Replace("{budget}", budget)
             .Replace("{reach}", BaseWallReach(nearest).ToString(System.Globalization.CultureInfo.InvariantCulture)));
         return lines;
     }

@@ -1932,13 +1932,6 @@ namespace BlocksBeyondTheStars.Client
                 return _stationAirWarning;
             }
 
-            // #1559: the pocket is closed but bigger than the life-support budget.
-            if (text == "@station_air_too_large")
-            {
-                return Localizer?.Get("ui.station.air_too_large")
-                    ?? "Warning: this hall is too large for the station's life support — helmet on.";
-            }
-
             // (#817/#821 block painting uses the generic "@srv.paint.*" tokens resolved above.)
             return text;
         }

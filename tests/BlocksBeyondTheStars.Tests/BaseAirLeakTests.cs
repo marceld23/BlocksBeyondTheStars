@@ -252,7 +252,7 @@ public sealed class BaseAirLeakTests : IDisposable
     }
 
     [Fact]
-    public void AHoleInAStoneRoof_IsNamedByItsColumn()
+    public void AHoleInAStoneRoof_IsNamedAtTheHole()
     {
         var t = new RecordingTransport();
         var (server, p, _) = Hall("hole", t, out var repo, "stone");
@@ -261,8 +261,25 @@ public sealed class BaseAirLeakTests : IDisposable
             server.World.SetBlock(new Vector3i(36, Roof, 6), BlockId.Air); // one roof block missing
             WalkIn(server, p, t, InHall);
             var told = Assert.Single(t.Leaks());
-            // The way up through the hole is open air: the column is named at the top of the base's 48-block reach box.
-            Assert.Contains($"escapes upwards at 36/{CoreY + 48}/6, 48 blocks above you", told, StringComparison.Ordinal);
+            // #2654: the opening itself — the hole in the roof, at the roof's height — not the top of the reach box 48 up.
+            Assert.Contains($"escapes at 36/{Roof}/6, 10 blocks above you", told, StringComparison.Ordinal);
+            var diag = server.DiagnoseBaseAirForTest(30, CoreY, 0);
+            Assert.Equal<Vector3i?>(new Vector3i(36, Roof, 6), diag.LeakCell);
+            Assert.True(diag.LeakBlock.IsAir);
+        }
+    }
+
+    [Fact]
+    public void AHoleInTheSideWall_IsNamedAtItsOwnHeight()
+    {
+        var t = new RecordingTransport();
+        var (server, p, _) = Hall("sidehole", t, out var repo, "stone");
+        using (repo)
+        {
+            server.World.SetBlock(new Vector3i(41, CoreY + 1, 0), BlockId.Air); // one block out of the far wall, one above the floor
+            WalkIn(server, p, t, InHall);
+            var told = Assert.Single(t.Leaks());
+            Assert.Contains($"escapes at 41/{CoreY + 1}/0, 1 block above you", told, StringComparison.Ordinal);
         }
     }
 

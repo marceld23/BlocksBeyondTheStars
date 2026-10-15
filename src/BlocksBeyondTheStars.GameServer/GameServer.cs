@@ -764,6 +764,7 @@ public sealed partial class GameServer
         resident.BlockSet += cell => MarkBaseWallsDirty(resident, cell); // #1367: a build inside a base's box refreshes its wall fill
         resident.BlockSet += cell => MarkBaseAirDirty(resident, cell); // #2543: ...and its sealed-room air
         resident.PlayerBlockSet += cell => GrowBaseWallReach(resident, cell); // #1862: what a player builds sizes the base's fill box
+        resident.PlayerBlockSet += cell => GrowBaseAirTop(resident, cell); // #2651: ...and lifts its sky line over the tallest build
         resident.BlockSet += cell => MarkBaseIndexDirty(resident, cell); // #1865: a bed, a post or a crop changed near a base
         var npcWorld = world;
         resident.BlockSet += cell => MarkNpcPathsDirty(npcWorld, cell); // #1866: a wall built across a walking NPC's route
@@ -1955,6 +1956,7 @@ public sealed partial class GameServer
             Guard("TickProfessions", deltaSeconds, TickProfessions); // the streamer asks for photos, the tamer's pet follows (2026-09)
             Guard("TickVillageLife", deltaSeconds, TickVillageLife); // #2600: villagers talk to each other (1 Hz, scan every 3 s)
             Guard("TickVillageFestivals", deltaSeconds, TickVillageFestivals); // #2604: the village festival (1 Hz + the tune's notes)
+            Guard("TickAirFills", deltaSeconds, TickAirFills); // #2650: time-sliced base/station air fills move on
             Guard("TickStationStaffing", deltaSeconds, TickStationStaffing); // #1487: crew only staffs posts in sealed rooms
             Guard("TickPlanetTraders", deltaSeconds, TickPlanetTraders); // #2603: traders land on occupied bodies even when nobody flies (5 s)
             Guard("TickLandedTraders", deltaSeconds, TickLandedTraders); // P3: materialize/lift-off a peaceful trader parked on this surface
@@ -2146,8 +2148,8 @@ public sealed partial class GameServer
             // A founded base's zone is a life-support field (issue #782): the Grundstein projects air over
             // its whole protection cube — the same hand-wave station interiors already use. Any base counts,
             // not just your own: visitors breathe too, the protection rules still keep them from editing.
-            // Beyond the cube, SEALED rooms connected to the core breathe too (issue #794): walls of
-            // airtight full-cube blocks, energy doors in the doorways (#793) — mechanical doors leak.
+            // Beyond the cube, every enclosed room of the base breathes too (#794, #2651): walls of airtight
+            // full-cube blocks, any door in the doorways — every door holds air and is a bulkhead (#2653).
             var playerCell = new Vector3i(
                 (int)System.Math.Floor(p.Position.X), (int)System.Math.Floor(p.Position.Y), (int)System.Math.Floor(p.Position.Z));
             bool atBase = !p.InEva && (InAnyBaseZone(playerCell) || InSealedBaseRoom(playerCell));
@@ -2169,7 +2171,7 @@ public sealed partial class GameServer
                 : atBase ? 3
                 : factoryAir ? 4
                 : cityAir ? 5 : 0);
-            // #2542: walking out of base air into a room that is too large, too far out or not connected says why.
+            // #2542/#2654: walking out of base air into a room that leaks names the opening.
             TrackBaseAirPresence(session, playerCell, atBase,
                 otherLifeSupport: p.AboardShip || insideShip || stationAir || factoryAir || cityAir);
             // Submerged underwater the suit runs on its own air, even on a breathable world — diving spends

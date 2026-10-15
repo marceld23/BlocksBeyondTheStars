@@ -18,8 +18,8 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         {
             Assert.That(HudToastPolicy.HoldSeconds("Mode: Survival · PvP: False"), Is.EqualTo(HudToastPolicy.HoldNormalSeconds));
             Assert.That(HudToastPolicy.HoldSeconds("Crafted: Iron plate"), Is.EqualTo(8f));
-            // The resolved warning lines of ui.base.air_lost / ui.station.air_lost / ui.station.air_too_large
-            // (EN + DE) and the base's ui.base.air_left.
+            // The resolved warning lines of ui.base.air_lost / ui.station.air_lost (EN + DE) and the base's
+            // ui.base.air_left.
             Assert.That(HudToastPolicy.HoldSeconds("Warning: the base is no longer airtight — air only reaches the core zone!"), Is.EqualTo(15f));
             Assert.That(HudToastPolicy.HoldSeconds("Warnung: Die Station ist nicht mehr luftdicht — Helm zu!"), Is.EqualTo(15f));
             Assert.That(HudToastPolicy.HoldSeconds("Life support lost — watch your oxygen!"), Is.EqualTo(15f));

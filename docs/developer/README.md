@@ -66,8 +66,9 @@ refreshed 2026-08-08.
 - [SPACE_COMBAT_CONCEPT.md](SPACE_COMBAT_CONCEPT.md) — space-combat MVP concept + what has since landed.
 - [CRAFTING_TECH_SHIP_UI.md](CRAFTING_TECH_SHIP_UI.md) — the crafting / tech / ship management screen.
 - [SHIP_REPAIR.md](SHIP_REPAIR.md) — own-ship repair (hull + EVA-carved cells).
-- [BASE_LIFE_SUPPORT.md](BASE_LIFE_SUPPORT.md) — base air: the core zone and sealed rooms (the pocket model, the
-  64 000-cell budget, reach that grows with the build, allies sharing air, why a room has no air, the cost guards).
+- [BASE_LIFE_SUPPORT.md](BASE_LIFE_SUPPORT.md) — base and station air: the core zone and the shared air engine (one rule
+  for bases and stations, every door a bulkhead, no size limit, vertical spans, time slicing, the emergency brake,
+  unknown is not a leak, the leak named at its opening).
 - [CREATOR_SUITE.md](CREATOR_SUITE.md) — what players make themselves: the texture editor and the three-layer
   texture source, world textures, animated tiles, the main-menu form editor and forms over several blocks,
   tool models as data and player tool looks, texture submissions (#1950).

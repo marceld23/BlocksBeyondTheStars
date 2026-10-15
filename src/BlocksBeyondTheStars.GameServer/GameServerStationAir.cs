@@ -13,19 +13,20 @@ namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
 /// Sealed-volume air for PLAYER-BUILT stations (#1473, decision Marcel 2026-09-03: option b — like planet
-/// bases). Until now a boarded station kept everyone breathing no matter how many holes the hull had: the
-/// station world was "breathable" and life support was simply "is boarded". Now a boarder on a
-/// <c>pstation:</c> station breathes only inside an air pocket that is completely enclosed by airtight full
-/// cubes (glass counts, so windows are fine), door blocks (an airlock is an airlock) and the station core —
-/// a pocket that reaches the void leaks, and the suit tank takes over until the hole is patched. The
-/// already-airtight <c>force_field</c> block is the intended plug for openings ("a field that holds the
-/// air", the reporter's own suggestion). NPC / template stations keep the blanket air: they are authored
-/// sealed and their crews have no oxygen model.
+/// bases) and generated derelicts (#2632). A boarder breathes only inside an air pocket that is completely enclosed by
+/// airtight full cubes (glass counts, so windows are fine), door blocks and doors built into a doorway (an airlock is an
+/// airlock, open or closed) and the station core — a pocket that reaches the void leaks, and the suit tank takes over
+/// until the hole is patched. The already-airtight <c>force_field</c> block is the intended plug for openings. NPC /
+/// template stations keep the blanket air: they are authored sealed and their crews have no oxygen model.
 /// <para>
-/// The fill mirrors <see cref="GameServerBaseAir"/>'s pocket model, bounded by the station's stamped cell
-/// box plus a margin (the void outside is pure air, so any pocket that escapes the box has leaked) and a
-/// cell budget. Results are cached per station for a short interval, separately for sealed and leaking
-/// cells, so several boarders in different rooms each get a correct answer without refilling every tick.
+/// Since #2652 the pockets come from the shared air engine (<see cref="AirFill"/>, #2650) — the same rule and the same
+/// engine as a base, with the void beyond the station's build box plus <see cref="StationAirMargin"/> as the outside.
+/// There is no cell budget: a sealed hall of any size breathes (only the engine's emergency brake stops a pathological
+/// fill, and it never takes air away). A room is filled the first time anyone asks about it — at once, so a boarder's
+/// arrival, a crew spot or a path step is answered correctly — and the rooms already known are refilled time-sliced
+/// when a block inside the station changed, a door changed or the backstop elapsed, while the last result keeps
+/// answering. Doors are bulkheads: a breach empties only its own room, so only the posts in that room lose their keeper
+/// (#1487) and the hull warning goes only to the players standing in it, naming the opening (#2654).
 /// </para>
 /// </summary>
 public sealed partial class GameServer
@@ -34,30 +35,22 @@ public sealed partial class GameServer
     /// hull work done while boarded without making leaky fills expensive.</summary>
     private const int StationAirMargin = 8;
 
-    /// <summary>Cell budget per fill; a pocket larger than this is treated as open. Was 12 000 — a "Superfabrik"
-    /// hall of a few hundred square blocks silently counted as breached (#1559); the fill is a plain BFS over
-    /// resident chunks, so a budget four times that of a base still costs milliseconds every 1.5 s.</summary>
-    private const int MaxSealedCellsPerStation = 64000;
-
-    /// <summary>Why a pocket is not sealed (#1559): the warning names the cause, because "a hole in the hull" was
-    /// wrong for a closed hall that was merely bigger than the budget.</summary>
-    private enum StationLeak
-    {
-        None,
-        Hull,       // the fill reached the void beyond the box + margin through an opening
-        TooLarge,   // the pocket exceeded the cell budget
-    }
-
-    /// <summary>Minimum seconds between recomputes for one station's air.</summary>
+    /// <summary>Minimum seconds between the starts of two refills of one station's air.</summary>
     private const double StationAirRecomputeInterval = 1.5;
 
+    /// <summary>A station's air: the known pockets (sealed and leaky) and a refill in progress.</summary>
     private sealed class StationAirVolume
     {
-        public string Body = string.Empty;                 // station world the fill was computed on
-        public HashSet<Vector3i> Sealed = new();           // cells known to sit in a sealed pocket
-        public HashSet<Vector3i> Leaking = new();          // cells known to sit in a pocket open to the void
-        public StationLeak LastLeak = StationLeak.None;    // why the most recent leaking fill failed (#1559)
-        public double ComputedAt = double.NegativeInfinity;
+        public string Body = string.Empty;                 // station world the pockets were filled on
+        public AirFill? Committed;                         // what every query answers from; grows with each room first asked about
+        public StationAirSpace? Space;                     // the reader Committed was filled with
+        public AirFill? Job;                               // a refill of the known sealed rooms in progress
+        public StationAirSpace? JobSpace;
+        public Vector3i BoundsMin, BoundsMax;              // the box the fills used — a grown box starts over
+        public bool Dirty;                                 // a block set inside the station since the last refill started
+        public int DoorsVersion;                           // _baseAirDoorsVersion at the last refill
+        public double StartedAt = double.NegativeInfinity; // when Committed (or the pending refill) started
+        public bool BrakeLogged;
     }
 
     private readonly Dictionary<string, StationAirVolume> _stationAir = new();
@@ -66,7 +59,8 @@ public sealed partial class GameServer
     /// pocket seals again, so a fresh breach warns again but a persistent one does not spam.</summary>
     private readonly Dictionary<string, string> _stationAirWarnedFor = new();
 
-    private HashSet<ushort>? _stationAirtightExtras;
+    private HashSet<ushort>? _stationAirDoorBlocks;
+    private ushort _stationCoreId;
 
     private static bool IsPlayerStationId(string stationId)
         => stationId.StartsWith("pstation:", System.StringComparison.Ordinal);
@@ -86,7 +80,7 @@ public sealed partial class GameServer
 
     /// <summary>Whether the boarded station keeps this player breathing at <paramref name="cell"/>: always on an
     /// NPC station, only inside a sealed pocket on a player-built one or a derelict (#2632). Sends the one-shot hull-open
-    /// warning on the sealed → leaking transition.</summary>
+    /// warning on the sealed → leaking transition — for the pocket the player stands in, naming its opening (#2654).</summary>
     private bool StationLifeSupport(PlayerState p, Vector3i cell)
     {
         if (!_boardedStation.TryGetValue(p.PlayerId, out var stationId))
@@ -99,7 +93,7 @@ public sealed partial class GameServer
             return true; // NPC / template stations are authored sealed
         }
 
-        bool sealedHere = InSealedStationPocket(station, cell);
+        bool sealedHere = StationPocketFor(station, cell, out var pocket);
         if (sealedHere)
         {
             _stationAirWarnedFor.Remove(p.PlayerId);
@@ -110,10 +104,13 @@ public sealed partial class GameServer
             _stationAirWarnedFor[p.PlayerId] = stationId;
             if (FindSessionByPlayerId(p.PlayerId) is { } session)
             {
-                // #1559: say WHY — the one-size warning blamed a hole in the hull for a closed hall that was only
-                // bigger than the budget, and the player went looking for a leak that was not there.
-                var leak = _stationAir.TryGetValue(stationId, out var vol) ? vol.LastLeak : StationLeak.Hull;
-                Send(session, new Networking.Messages.ServerMessage { Text = leak == StationLeak.TooLarge ? "@station_air_too_large" : "@station_air_lost" });
+                // #2654: name the hole — where this room meets the void, at the opening's height. Without a pocket (standing
+                // inside a wall cell) the general hull warning stands in.
+                string text = pocket is { Leaky: true, Opening: { } opening }
+                    ? BaseAirLeakText(session.Locale, "srv.base.air_leak_at", "srv.base.air_leak_open_at", opening,
+                        _world.GetBlockIfLoaded(opening), cell)
+                    : "@station_air_lost";
+                Send(session, new Networking.Messages.ServerMessage { Text = text });
             }
         }
 
@@ -140,11 +137,92 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>Test/inspection: whether the given cell of the active station world sits in a sealed pocket.</summary>
+    /// <summary>Test/inspection: whether the given cell of the active station world sits in a sealed pocket — a due
+    /// refill (a block set, a door changed) run to the end first.</summary>
     public bool StationCellSealedForTest(string stationId, Vector3i cell)
-        => _stationsById.TryGetValue(stationId, out var station) && InSealedStationPocket(station, cell);
+    {
+        if (!_stationsById.TryGetValue(stationId, out var station))
+        {
+            return false;
+        }
 
-    private bool InSealedStationPocket(BoardableStation station, Vector3i cell)
+        StationAirFor(station, complete: true);
+        return InSealedStationPocket(station, cell);
+    }
+
+    /// <summary>Whether the cell of the active station world sits in a sealed pocket of the station.</summary>
+    private bool InSealedStationPocket(BoardableStation station, Vector3i cell) => StationPocketFor(station, cell, out _);
+
+    /// <summary>
+    /// The pocket around <paramref name="cell"/> and whether it is sealed. #1836: a door cell (built or stamped) and a
+    /// fluid cell count as walls for the fill, but the player DOES stand in them — in the doorway between two rooms, in the
+    /// pond of the arboretum. Reading that as "inside a wall → hull open" fired the breach warning on every door transit,
+    /// so such a cell is judged by the air beside it: the head cell or a side, whichever holds a sealed pocket.
+    /// </summary>
+    private bool StationPocketFor(BoardableStation station, Vector3i cell, out AirPocket? pocket)
+    {
+        var vol = StationAirFor(station, complete: false);
+        var space = vol.Space!;
+        if (vol.Committed!.PocketAt(cell) is { Complete: true } known)
+        {
+            pocket = known; // a known room — also one carried over while its chunks are unloaded
+            return known.Sealed;
+        }
+
+        if (space.Classify(cell.X, cell.Y, cell.Z) == AirCell.Open)
+        {
+            pocket = StationPocketAt(vol, cell);
+            return pocket is { Sealed: true };
+        }
+
+        pocket = null;
+        if (!StartCellIsPassable(cell))
+        {
+            return false; // standing inside a wall cell: no pocket to breathe from
+        }
+
+        foreach (var alt in StartCellAlternatives(cell))
+        {
+            if (space.Classify(alt.X, alt.Y, alt.Z) != AirCell.Open)
+            {
+                continue;
+            }
+
+            var found = StationPocketAt(vol, alt);
+            if (found is { Sealed: true })
+            {
+                pocket = found;
+                return true;
+            }
+
+            pocket ??= found;
+        }
+
+        return false;
+    }
+
+    /// <summary>The known pocket holding an open cell, or — the first time anyone asks about that room — the pocket filled
+    /// from it right now (and queued for the pending refill too, so the next result knows it).</summary>
+    private static AirPocket? StationPocketAt(StationAirVolume vol, Vector3i cell)
+    {
+        var fill = vol.Committed!;
+        var known = fill.PocketAt(cell);
+        if (known is not null && known.Complete)
+        {
+            return known;
+        }
+
+        int before = fill.Pockets.Count;
+        fill.AddSeed(cell);
+        fill.Step(-1);
+        vol.Job?.AddSeed(cell);
+        return fill.PocketAt(cell) ?? (fill.Pockets.Count > before ? fill.Pockets[before] : null);
+    }
+
+    /// <summary>The station's air state on the active world: started over when the world or the box changed, a refill of
+    /// the known sealed rooms started when stale and worked on within this tick's air budget (to the end with
+    /// <paramref name="complete"/>, which also skips the minimum interval — the test seams).</summary>
+    private StationAirVolume StationAirFor(BoardableStation station, bool complete)
     {
         string body = _world.LocationId;
         if (!_stationAir.TryGetValue(station.Id, out var vol))
@@ -152,36 +230,106 @@ public sealed partial class GameServer
             _stationAir[station.Id] = vol = new StationAirVolume();
         }
 
-        if (vol.Body != body || _uptime - vol.ComputedAt >= StationAirRecomputeInterval)
+        if (vol.Committed is null || vol.Body != body || vol.BoundsMin != station.BoundsMin || vol.BoundsMax != station.BoundsMax)
         {
             vol.Body = body;
-            vol.ComputedAt = _uptime;
-            vol.Sealed.Clear();
-            vol.Leaking.Clear();
+            vol.BoundsMin = station.BoundsMin;
+            vol.BoundsMax = station.BoundsMax;
+            vol.Committed = NewStationFill(station, out var space);
+            vol.Space = space;
+            vol.Job = null;
+            vol.JobSpace = null;
+            vol.Dirty = false;
+            vol.DoorsVersion = _baseAirDoorsVersion;
+            vol.StartedAt = _uptime;
+            return vol;
         }
 
-        if (vol.Sealed.Contains(cell))
+        bool stale = vol.Dirty || vol.DoorsVersion != _baseAirDoorsVersion || _uptime - vol.StartedAt >= BaseAirBackstopInterval;
+        if (vol.Job is null && stale && (complete || _uptime - vol.StartedAt >= StationAirRecomputeInterval))
         {
-            return true;
+            var job = NewStationFill(station, out var jobSpace);
+            foreach (var seed in vol.Committed.SealedSpanBottoms())
+            {
+                job.AddSeed(seed); // every span of a known sealed room: a room a new wall split is found from both halves
+            }
+
+            vol.Job = job;
+            vol.JobSpace = jobSpace;
+            vol.Dirty = false;
+            vol.DoorsVersion = _baseAirDoorsVersion;
+            vol.StartedAt = _uptime;
         }
 
-        if (vol.Leaking.Contains(cell))
+        if (vol.Job is { } pending)
         {
-            return false;
+            StepAirFill(pending, guaranteeProgress: false, complete);
+            if (pending.Done)
+            {
+                CommitStationAir(vol);
+            }
         }
 
-        var pocket = FillStationPocket(station, cell, out bool sealedPocket, out var leak);
-        (sealedPocket ? vol.Sealed : vol.Leaking).UnionWith(pocket);
-        if (!sealedPocket)
+        return vol;
+    }
+
+    /// <summary>Swaps a finished refill in — unless it braked, which keeps the last result (#2650).</summary>
+    private void CommitStationAir(StationAirVolume vol)
+    {
+        var job = vol.Job!;
+        var space = vol.JobSpace!;
+        vol.Job = null;
+        vol.JobSpace = null;
+        if (job.Braked)
         {
-            vol.LastLeak = leak;
+            if (!vol.BrakeLogged)
+            {
+                vol.BrakeLogged = true;
+                _log.Warn($"Station air: the refill on {vol.Body} passed the emergency brake ({job.SpanCount} spans, " +
+                          $"{job.CellCount} cells) — the last result is kept.");
+            }
+
+            return;
         }
 
-        return sealedPocket;
+        if (vol.Committed is not null && job.SawUnknown)
+        {
+            job.AdoptSealedFrom(vol.Committed); // unknown is not a leak: rooms behind unloaded chunks keep their state
+        }
+
+        vol.Committed = job;
+        vol.Space = space;
+    }
+
+    /// <summary>A fresh fill over the station's interior as it stands now (no seeds yet).</summary>
+    private AirFill NewStationFill(BoardableStation station, out StationAirSpace space)
+    {
+        int circ = _world.Circumference;
+        var doorCells = new HashSet<Vector3i>();
+        foreach (var d in _doors)
+        {
+            if (!d.PlayerBuilt)
+            {
+                continue;
+            }
+
+            // The door entity's ~3-tall opening column, keyed like the reader's canonical cells (see PlayerDoorFillsCell).
+            int x = WorldConstants.WrapX((int)System.Math.Floor(d.Pos.X), circ);
+            int z = WorldConstants.WrapZ((int)System.Math.Floor(d.Pos.Z), circ);
+            int y0 = (int)System.Math.Floor(d.Pos.Y);
+            for (int dy = 0; dy <= 2; dy++)
+            {
+                doorCells.Add(new Vector3i(x, y0 + dy, z));
+            }
+        }
+
+        space = new StationAirSpace(_world, AirtightTable(), StationAirDoorBlocks(), _stationCoreId, doorCells,
+            station.BoundsMin, station.BoundsMax, StationAirMargin);
+        return new AirFill(space, _airLimits, chainDoors: false, station.BoundsMin);
     }
 
     /// <summary>Test seam (#1559): the sealed cells of the pocket around <paramref name="cell"/> in the active
-    /// station world (empty when it leaks), so a test can size a large hall's pocket.</summary>
+    /// station world (0 when it leaks), filled afresh, so a test can size a large hall's pocket.</summary>
     public int StationPocketSizeForTest(string stationId, Vector3i cell)
     {
         if (!_stationsById.TryGetValue(stationId, out var station))
@@ -189,101 +337,10 @@ public sealed partial class GameServer
             return 0;
         }
 
-        var pocket = FillStationPocket(station, cell, out bool sealedPocket, out _);
-        return sealedPocket ? pocket.Count : 0;
-    }
-
-    /// <summary>Flood-fills the air pocket containing <paramref name="start"/> inside the station's reach box.
-    /// Sealed = never stepped outside the box and stayed within the cell budget; <paramref name="leak"/> says
-    /// which of the three failed (#1559).</summary>
-    private HashSet<Vector3i> FillStationPocket(BoardableStation station, Vector3i start, out bool sealedPocket, out StationLeak leak)
-    {
-        var cells = new HashSet<Vector3i>();
-        sealedPocket = false;
-        leak = StationLeak.Hull;
-        if (IsStationAirtightCell(start))
-        {
-            // #1836: a door cell (built or stamped) and a fluid cell count as walls for the fill, but the player DOES
-            // stand in them — in the doorway between two rooms, in the pond of the arboretum. Reading that as "inside
-            // a wall → hull open" fired the breach warning on every door transit. Judge the pocket from the air the
-            // player is actually breathing: the head cell or a neighbour, whichever holds a sealed pocket.
-            if (StartCellIsPassable(start))
-            {
-                foreach (var alt in StartCellAlternatives(start))
-                {
-                    if (IsStationAirtightCell(alt))
-                    {
-                        continue;
-                    }
-
-                    var pocket = FillStationPocket(station, alt, out sealedPocket, out leak);
-                    if (sealedPocket)
-                    {
-                        pocket.Add(start);
-                        return pocket;
-                    }
-                }
-
-                sealedPocket = false;
-                leak = StationLeak.Hull;
-            }
-
-            cells.Add(start);
-            return cells; // standing inside a wall cell: no pocket to breathe from
-        }
-
-        int minX = station.BoundsMin.X - StationAirMargin, minY = station.BoundsMin.Y - StationAirMargin, minZ = station.BoundsMin.Z - StationAirMargin;
-        int maxX = station.BoundsMax.X + StationAirMargin, maxY = station.BoundsMax.Y + StationAirMargin, maxZ = station.BoundsMax.Z + StationAirMargin;
-
-        var frontier = new Queue<Vector3i>();
-        cells.Add(start);
-        frontier.Enqueue(start);
-        bool leaked = false;
-        var neighbours = new Vector3i[6];
-        while (frontier.Count > 0 && !leaked && cells.Count <= MaxSealedCellsPerStation)
-        {
-            var c = frontier.Dequeue();
-            neighbours[0] = new Vector3i(c.X + 1, c.Y, c.Z);
-            neighbours[1] = new Vector3i(c.X - 1, c.Y, c.Z);
-            neighbours[2] = new Vector3i(c.X, c.Y + 1, c.Z);
-            neighbours[3] = new Vector3i(c.X, c.Y - 1, c.Z);
-            neighbours[4] = new Vector3i(c.X, c.Y, c.Z + 1);
-            neighbours[5] = new Vector3i(c.X, c.Y, c.Z - 1);
-            for (int i = 0; i < 6; i++)
-            {
-                var n = neighbours[i];
-                if (cells.Contains(n))
-                {
-                    continue;
-                }
-
-                if (n.X < minX || n.X > maxX || n.Y < minY || n.Y > maxY || n.Z < minZ || n.Z > maxZ)
-                {
-                    leaked = true; // reached the void beyond the hull box → this pocket is open (a hole in the hull)
-                    break;
-                }
-
-                if (IsStationAirtightCell(n))
-                {
-                    continue;
-                }
-
-                cells.Add(n);
-                frontier.Enqueue(n);
-            }
-        }
-
-        sealedPocket = !leaked && cells.Count <= MaxSealedCellsPerStation;
-        if (sealedPocket)
-        {
-            leak = StationLeak.None;
-        }
-        else if (!leaked)
-        {
-            leak = StationLeak.TooLarge;
-        }
-
-        return cells;
+        _stationAir.Remove(stationId);
+        return StationPocketFor(station, cell, out var pocket) && pocket is not null
+            ? (int)System.Math.Min(int.MaxValue, pocket.Cells)
+            : 0;
     }
 
     /// <summary>A cell the fill treats as a wall although a player can occupy it: a door (built into an air cell or a
@@ -315,25 +372,26 @@ public sealed partial class GameServer
         yield return new Vector3i(c.X, c.Y, c.Z - 1);
     }
 
-    /// <summary>Airtight for station purposes: an airtight full cube (walls, glass, force field), any door block
-    /// (the airlock the commission rule already demands), a door BUILT inside (a door entity fills its air cells —
-    /// #1481, an airlock is an airlock whichever way it was placed) or the station core itself.</summary>
-    private bool IsStationAirtightCell(Vector3i c)
+    /// <summary>The door blocks that seal a station room (an airlock is an airlock); also reads the station core's id.</summary>
+    private HashSet<ushort> StationAirDoorBlocks()
     {
-        var id = _world.GetBlockIfLoaded(c);
-        if (id.IsAir)
+        if (_stationAirDoorBlocks is null)
         {
-            return PlayerDoorFillsCell(c);
+            var set = new HashSet<ushort>();
+            foreach (var key in new[] { "door_slide", "door_hinge", "door_energy" })
+            {
+                var id = _content.GetBlock(key)?.NumericId ?? BlockId.Air;
+                if (!id.IsAir)
+                {
+                    set.Add(id.Value);
+                }
+            }
+
+            _stationCoreId = _content.GetBlock("station_core")?.NumericId.Value ?? 0;
+            _stationAirDoorBlocks = set;
         }
 
-        _stationAirtightExtras ??= BuildStationAirtightExtras();
-        if (_stationAirtightExtras.Contains(id.Value))
-        {
-            return true;
-        }
-
-        var def = _content.BlockById(id);
-        return def is { Airtight: true } && ShapeCode.IsCube(_world.GetShape(c)); // shaped cells leak
+        return _stationAirDoorBlocks;
     }
 
     // ---------------- #1487: crew only staffs posts that hold air ----------------
@@ -544,20 +602,5 @@ public sealed partial class GameServer
         }
 
         return false;
-    }
-
-    private HashSet<ushort> BuildStationAirtightExtras()
-    {
-        var set = new HashSet<ushort>();
-        foreach (var key in new[] { "door_slide", "door_hinge", "door_energy", "station_core" })
-        {
-            var id = _content.GetBlock(key)?.NumericId ?? BlockId.Air;
-            if (!id.IsAir)
-            {
-                set.Add(id.Value);
-            }
-        }
-
-        return set;
     }
 }

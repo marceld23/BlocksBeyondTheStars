@@ -18,10 +18,10 @@ using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// Sealed-room base air (#794) + the energy door as the one airtight door (#793): rooms enclosed by
-/// airtight full-cube blocks and energy doors, connected to a founded base, breathe beyond the radius-8
-/// cube of #782 — and a mined wall both kills that air and warns everyone in reach (@base_air_lost).
-/// Rocky (toxic atmosphere) makes oxygen matter; all positions stay below rocky's atmosphere line.
+/// Sealed-room base air (#794): rooms enclosed by airtight full-cube blocks with a door in the doorway — the energy door
+/// of #793 and, since #2651, every other door kind too — breathe beyond the radius-8 cube of #782; a mined wall kills that
+/// air, and when it was the base's only room everyone in reach hears @base_air_lost. Rocky (toxic atmosphere) makes oxygen
+/// matter; all positions stay below rocky's atmosphere line.
 /// </summary>
 public sealed class BaseSealedRoomTests : IDisposable
 {
@@ -125,7 +125,7 @@ public sealed class BaseSealedRoomTests : IDisposable
             p.State.Inventory.Add(doorKey, 2, 16);
             p.State.Position = new Vector3f(ShellMinX - 1, CoreY, 0.5f);
             server.PlaceBlock("Builder", ShellMinX, CoreY, 0, doorKey);
-            Assert.Contains(server.DoorSnapshots, d => d.Kind == (doorKey == "door_energy" ? "energy" : "slide"));
+            Assert.Contains(server.DoorSnapshots, d => d.Kind == doorKey.Substring("door_".Length));
         }
 
         return p;
@@ -180,19 +180,34 @@ public sealed class BaseSealedRoomTests : IDisposable
         }
     }
 
-    [Fact]
-    public void MechanicalDoor_Leaks_OnlyTheEnergyDoorSeals()
+    [Theory]
+    [InlineData("door_slide")]
+    [InlineData("door_hinge")]
+    [InlineData("door_wood")]
+    public void EveryDoorKind_HoldsTheAir(string doorKey)
     {
-        var server = Start(out var repo, "sealedslide");
+        // #2651: the room behind a slide, hinge or wooden door breathes like the one behind an energy door — every door is
+        // a wall for air, open or closed (it used to read as a hole in the room, the 2026-10-15 report's upper floor).
+        var server = Start(out var repo, "sealed_" + doorKey);
         using (repo)
         {
-            // The identical stone room, but with a SLIDE door in the doorway: mechanical doors are no
-            // air boundary, so the room reads as open through its own doorway and never seals.
-            var p = BuildRoom(server, "stone", "door_slide");
+            var p = BuildRoom(server, "stone", doorKey);
+            float before = p.State.Oxygen = 50f;
+            TickAt(server, p, InsideBeyondCube, halfSeconds: 8);
+            Assert.True(p.State.Oxygen > before, $"A {doorKey} must seal the room — oxygen should refill (was {p.State.Oxygen}).");
+        }
+    }
+
+    [Fact]
+    public void WithoutItsDoor_TheRoomLeaks_ThroughTheDoorway()
+    {
+        var server = Start(out var repo, "sealednodoor");
+        using (repo)
+        {
+            var p = BuildRoom(server, "stone", doorKey: null); // the doorway left open
             float before = p.State.Oxygen = 80f;
             TickAt(server, p, InsideBeyondCube, halfSeconds: 8);
-            Assert.True(p.State.Oxygen < before,
-                $"A slide door must not seal the room — oxygen should drain (was {p.State.Oxygen}).");
+            Assert.True(p.State.Oxygen < before, $"An open doorway is a hole — oxygen should drain (was {p.State.Oxygen}).");
         }
     }
 

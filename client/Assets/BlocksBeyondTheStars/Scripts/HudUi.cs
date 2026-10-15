@@ -3963,7 +3963,7 @@ namespace BlocksBeyondTheStars.Client
         {
             string air = b.SealedRooms > 0
                 ? loc.Get("ui.base.air_status").Replace("{cells}", b.AirCells.ToString()).Replace("{rooms}", b.SealedRooms.ToString())
-                : loc.Get("ui.base.air_none").Replace("{budget}", BlocksBeyondTheStars.Shared.World.WorldConstants.BaseSealedRoomMaxCells.ToString(System.Globalization.CultureInfo.InvariantCulture)); // #2542: the rules incl. the size limit
+                : loc.Get("ui.base.air_none"); // #2649: the rules — any door, no size limit
             string here = Game.LifeSupportSource == 3 ? loc.Get("ui.base.air_here_ok") : loc.Get("ui.base.air_here_no");
             if (Game.LifeSupportSource != 3 && b.SealedRooms > 0)
             {
@@ -4115,7 +4115,7 @@ namespace BlocksBeyondTheStars.Client
         public const float FadeSeconds = 0.5f;
 
         /// <summary>Openings of the localized warning lines (EN + DE) — ui.base.air_lost, ui.station.air_lost,
-        /// ui.station.air_too_large, ui.base.air_left. Ordinal, case-sensitive: these are our own strings.</summary>
+        /// ui.base.air_left and the server's located leak lines. Ordinal, case-sensitive: these are our own strings.</summary>
         private static readonly string[] WarningPrefixes =
         {
             "Warning", "Warnung", "⚠", "Life support lost", "Lebenserhaltung verloren",

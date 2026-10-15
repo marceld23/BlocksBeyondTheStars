@@ -37,10 +37,16 @@ public static class WorldConstants
     /// hint and the server's authoritative checks can never disagree about the zone size.</summary>
     public const int BaseZoneRadius = 8;
 
-    /// <summary>Most air cells one sealed room of a base may hold (#2539; station parity with #1559). A bigger room counts
-    /// as not sealed — and is told so (#2542). Was 16 000, which a dug-out cave hall blew while perfectly closed. Shared
-    /// so the core's readout on the client quotes the server's number; <c>vega.hint.base_airless</c> spells it out.</summary>
-    public const int BaseSealedRoomMaxCells = 64000;
+    /// <summary>The emergency brake of one air fill (#2650), in air cells — NOT a room size limit: since #2649 every enclosed
+    /// room breathes however big. A base or station fill that visits more than this (with <see cref="AirFillBrakeSpans"/>)
+    /// stops, keeps its previous result, logs once and never takes air from a player. Far beyond anything built by hand
+    /// (a 100 × 100 × 100 hall is one million cells); it only stops a pathological fill on small hardware. Replaces the old
+    /// 64 000-cell room budget (<c>BaseSealedRoomMaxCells</c>, #2539/#1559).</summary>
+    public const int AirFillBrakeCells = 2_000_000;
+
+    /// <summary>The emergency brake of one air fill in vertical spans (the fill's unit, #2650): see
+    /// <see cref="AirFillBrakeCells"/>. About 5 MB of span records at the limit.</summary>
+    public const int AirFillBrakeSpans = 200_000;
 
     /// <summary>Half-extent (in blocks) around a base_core within which wild creature spawning is excluded.
     /// Shared so player-facing text and the server's authoritative spawn check use the same value.</summary>

@@ -93,6 +93,10 @@ public sealed class ServerWorld
     /// tests/diagnostics — e.g. asserting far-chunk eviction by <see cref="UnloadFarChunks"/>.</summary>
     public bool IsChunkLoaded(ChunkCoord coord) => _loaded.ContainsKey(WorldConstants.CanonicalChunk(coord, Circumference));
 
+    /// <summary>The resident chunk at an already canonical chunk coordinate, or null when it is not loaded. Never loads or
+    /// generates — the air fill (#2650) reads whole column runs out of one chunk and must not drag chunk generation.</summary>
+    public ChunkData? LoadedChunkOrNull(ChunkCoord canonical) => _loaded.TryGetValue(canonical, out var chunk) ? chunk : null;
+
     public ChunkData GetOrLoadChunk(ChunkCoord coord)
     {
         // Longitude wraps: a chunk a whole lap away is the same chunk. Canonicalize X so the cache and
