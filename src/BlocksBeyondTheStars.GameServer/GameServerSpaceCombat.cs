@@ -122,6 +122,14 @@ public sealed class CombatEntity
     /// ignore it (they charge instead). Server-only, never persisted.</summary>
     public double PanicTimer { get; set; }
 
+    /// <summary>#2645: where a non-player threat stands — a hunter (an NPC) this animal noticed, while
+    /// <see cref="ThreatTimer"/> &gt; 0. A skittish animal within its flee range of it runs from it, a startled one
+    /// (<see cref="PanicTimer"/>) runs from it rather than from the nearest player. Server-only, never persisted.</summary>
+    public Vector3f ThreatPos { get; set; }
+
+    /// <summary>#2645: seconds <see cref="ThreatPos"/> stays in mind; 0 = no threat — the classic, player-only behaviour.</summary>
+    public double ThreatTimer { get; set; }
+
     /// <summary>Server uptime at which this creature next re-validates that its body sits clear of every
     /// colliding block (#1357; sleepers check every tick regardless). Server-only, never persisted.</summary>
     public double NextBodyCheckAt { get; set; }
