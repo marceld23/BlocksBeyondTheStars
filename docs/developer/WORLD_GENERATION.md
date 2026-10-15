@@ -2556,7 +2556,7 @@ river cross-section flat at the centreline's height above a low bank, a pond on 
 those are thousands of cells near every spawn (on the tester's seed: 2 044 sea cells touching cave air and 1 613 pond cells
 with air beside them within 256 blocks), all dormant until a player touches them — then a pond drains or a cave fills.
 
-`WorldDescription.CurrentTerrainGeneration` is **24** (`WaterSealGeneration`). From this generation:
+`WaterSealGeneration` is **24** (the current generation is 25 since §42). From this generation:
 
 - **Caves keep clear of water.** The chunk fill reads the four neighbouring columns' fluid spans (`seabed + 1 .. water
   top`, memoised column profiles) and carves no blob-cave or worm-tunnel cell at those heights; a tunnel never opens the
@@ -2581,3 +2581,18 @@ with air beside them within 256 blocks), all dormant until a player touches them
 beside or below it — zero outside river columns and generated falls on generation 24, and the same scan finds the leaks on
 generation 23 — checks that every pond holds one level, and pins `WaterKindAt`. New goldens: `varied-gen24`,
 `meadowlands-gen24`, `river_lowlands-gen24`; every older group is unchanged.
+
+## 42. Generation 25 — the wilderness folk (#2639, 2026-10)
+
+`WorldDescription.CurrentTerrainGeneration` is **25** (`WildernessFolkGeneration`). Nothing in the chunk pipeline changed —
+every chunk of every generation is bit-identical. The generation only gates two server-side features to new saves:
+
+- **Lodges** — `StampLodges` runs in the boot stage "structures" right after the bandit camps: a small hut in the open land
+  (`LodgeGenerator`, WorldGeneration, 13 × 13 × 9) with one or two residents and a yard per profession (a crop plot, a
+  quarry face of the planet's own tier-1 ores, a woodpile with two grove trees, a drying frame). Placement records
+  `lodge/i`, the camp seat policy, voxels once (`FeatureStamped("lodges")`), at most 6 per body, kept 40 blocks clear of
+  settlements and camps; monuments and factories reserve them in turn. A protected box like a village (house + yard).
+- **Wanderers** — transient named travellers met in the open; no world data besides the players' memory of them.
+
+Mechanics, numbers and the NPC side: [WILDERNESS_FOLK.md](WILDERNESS_FOLK.md). New save data is additive only
+(`WorldMetadata.NpcRefills`, the miners' refill registry) — no save-version bump.

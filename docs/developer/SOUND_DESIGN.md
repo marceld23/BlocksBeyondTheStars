@@ -421,6 +421,20 @@ the machines themselves keep their planet banks (`enemy_growl` / `_attack` / `_h
 |---|---|---|---|
 | bay opens | a guardian is released | `guardian_bay` | "an old sci-fi robot maintenance dock opening: a short pneumatic hiss, a heavy metal hatch clunk and a rising robotic servo whir powering up, slightly broken and crackly" (2 s) |
 
+## 22. The wilderness folk at work (#2647) — *ElevenLabs clips*
+
+The lodge residents and wanderers ([WILDERNESS_FOLK.md](WILDERNESS_FOLK.md)). Quiet and short-range on purpose, so a busy
+hut never turns into a sound jumble: the bow shot and the falling tree arrive as positional `SoundFx` from the server
+(volume 0.45 / 0.55 instead of 0.8, skipped beyond 20 m); the axe chop is client-local, 0.28 s into the woodcutter's swing
+while it is felling, within 16 m, at most one every 0.5 s across all woodcutters and never while VEGA or a cutscene speaks
+(`NpcChopGate`). NPC voices are unchanged (`NpcVoiceGate`). Generated with `tools/ai-assets/gen_sound.py`, 2026-10-15.
+
+| Sound | Trigger | File | Prompt (duration, `--influence`) |
+|---|---|---|---|
+| bow shot | a hunter shoots (with the arrow `WorldFx`) | `npc_bow_shot` | "a single soft wooden bow shot: one gentle bowstring twang and a quick light arrow whoosh flying away, close and clean, short, no impact, no echo, no voice" (1.0 s, 0.4) |
+| axe chop | a woodcutter's swing while felling | `npc_axe_chop` | "woodcutter chopping a tree: one single axe strike into a tree trunk, a dry wooden thock, close and clear, single hit, no echo, no voice" (0.7 s, 0.5) |
+| tree falls | a felled tree starts to come down | `tree_fall` | "a small tree falling over in a forest: a slow creaking crack of wood, branches and leaves rustling and swishing down, then a soft muffled thump on grass, gentle and not scary, outdoors, no voice" (2.5 s, 0.4) |
+
 ---
 
 ## Totals & rollout

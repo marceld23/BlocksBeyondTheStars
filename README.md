@@ -70,6 +70,7 @@ Design your ship block by block, fly real system-scale routes, dock at space sta
 *   **The VEGA Protocol:** an optional story campaign narrated by your ship's AI companion — intro cinematic, lore fragments, Guardian machines, a two-route finale and an ending with credits.
 *   **NPCs who remember you:** trade and talk your way from *Stranger* to *Friend*, make choices in dialogues, get **radio calls** from people you know, watch settlers move into your base; missions, bounties and build jobs on the boards; bandits you can pay off or fight.
 *   **Towns that are lived in:** villages, towns and cities are built from furnished houses with a bed for everyone who lives there, and the people **work by day, sit together in the evening and sleep in their own bed at night**. Meet eight professions, from the doctor and the animal tamer to a streamer who wants a photo with you and a reporter who interviews you — and residents of your own base take on jobs that bring you something, like a gardener, a craftsman or a night guard.
+*   **People out in the wild:** away from the villages, gatherers, miners, woodcutters and hunters live in little **huts** — they pick plants that grow back, chip ore from a rock face that fills up again, fell a tree and plant a new one, or hunt with a bow — and named **wanderers** cross your path, work a while, trade and move on.
 *   **Learn as you go:** an in-game **Codex wiki**, DataQube arcade minigames, VEGA context tips and a built-in music library.
 
 **Together**

@@ -97,6 +97,9 @@ refreshed 2026-08-08.
 - [NPC_TRADER_SHIPS.md](NPC_TRADER_SHIPS.md) — peaceful ambient NPC trader traffic.
 - [NPC_ROUTINES.md](NPC_ROUTINES.md) — living NPCs: base residents, the daily routine, pathfinding with doors,
   jobs with yield, and the station night.
+- [WILDERNESS_FOLK.md](WILDERNESS_FOLK.md) — people outside the settlements (epic #2639, generation 25): lodges (a hut,
+  its residents, the store crate), the shared work cycle and its four cores (gathering, mining with the refill registry,
+  woodcutting with replanting, hunting — and animals that notice hunters), wanderers, and the client side.
 - [VILLAGE_LIFE.md](VILLAGE_LIFE.md) — "the village lives" (epic #2589): the shared rules (data, AI two-mode lines,
   no sound jumble, no FOMO), the village festival (#2604) and the villagers' personal wishes (#2601).
 - [MATTER_CONVERTER.md](MATTER_CONVERTER.md) — the Transmuter station: craft scarce ore from spare

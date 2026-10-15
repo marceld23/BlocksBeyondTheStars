@@ -411,6 +411,15 @@ the furnished room (`RoomFurnisher.RoomRole` name).
   its phase check and job — for at most `NpcTalkHoldSeconds` (60 s) after the talk began. Then the routine may walk it on,
   and walking out of reach ends the talk. Chatter skips it (`AttendUntil`, `NpcInPlayerDialog`), it greets no passer-by.
 
+## 17. Out in the wild — lodge residents and wanderers (#2639)
+
+People who live outside the settlements have their own page: [WILDERNESS_FOLK.md](WILDERNESS_FOLK.md). In terms of this
+page: a **lodge resident** is a profession NPC (Role `vendor`, `Job` gatherer / miner / woodcutter / hunter, its own `Theme`)
+with `RoutineEnabled` — day at the yard, evening on the bench by the campfire, night in its bed — whose job runs in
+`TickNpcJob` through the generic work cycle `TickNpcWork` (`GameServerNpcWork.cs`; `ServerNpc.LodgeKey`, `WorkState`);
+its `NewsPlaceKey` is `l:<lodge>`, its dialogues have home `lodge`, its person key `lodge:<world>:<x>:<z>#<slot>` follows the
+villager standing rules. A **wanderer** runs the same work cycle without a routine and leaves like a base guest.
+
 ## Tests
 
 `NpcPassingGreetingTests`, `NpcWelcomeBackTests`, `BaseNewsRelayTests`, `VegaChatterTests` (§12),

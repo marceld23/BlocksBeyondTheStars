@@ -2176,6 +2176,34 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Innkeeper:** every tavern's innkeeper knows the same news — ask *"What's the news?"*, even in a village without a
   newsroom.
 
+### People out in the wild: huts and wanderers
+*(new worlds only — created with version 2026.10.17 or later)*
+- **Huts.** Out in the open land, away from the villages, you may find a small **hut** with one or two people living there.
+  By day they work around it, in the evening they sit by their campfire, at night they sleep in their bed (visit at night
+  and you find them asleep). A hut shows up on your map (a brown log-cabin marker, *"Hut"* in the legend) once you come
+  within about 40 m — or when a villager tells you about it (*"Tilda the hunter lives in a hut out in the wild …"*).
+- **What they do:**
+  - **Gatherer** — picks wild berries, fruit and herbs and tends a little garden. The plants grow back.
+  - **Miner** — chips ore and stone from a rock face beside the hut. The rock fills up again after about 10 minutes of play
+    while nobody is close by.
+  - **Woodcutter** — fells a tree with an axe (you hear it come down) and always plants a sapling, which grows back into a
+    tree in about 2½ minutes.
+  - **Hunter** — carries a bow and hunts common, calm wild animals: a small arrow flies, the animal breaks apart into
+    sparkles like when you hunt, and its herd runs away from the hunter. Hunters **never** shoot pets, companions, the
+    animal you are taming, giants, animals in a base, a village, a pen or next to you.
+- **Their crate.** What they gather lands in the crate in their hut. You may **look** inside, but not take, put in or sort
+  anything — *"That's Tilda's — ask them!"*.
+- **Talk and trade.** Press **E**: they trade their own goods (gatherer: berries, fruit, grain, fibre, seeds; miner: the
+  miners' ore deals; woodcutter: logs and saplings; hunter: cooked meat and baits), tell you what they do, and share a tip —
+  a wreck or a bandit camp not on your map yet, the way to the next village, and, once they know you, a hidden cache. The
+  gatherer warns you about this world's poisonous plants. Once you are **friends**, they give you a small present from their
+  crate — once per in-game day, never anything poisonous.
+- **Protected.** You cannot dig up a hut, its yard or the miner's rock face. The trees around it and the hunting grounds are
+  free; you may still pick the plants in a garden.
+- **Wanderers.** Now and then by day, out in the open, you meet a **wanderer** — a gatherer, prospector, hunter or
+  woodcutter on the road. They work for a while near you, stop to talk and trade when you walk up, and then move on. Every
+  world has its own few wanderers, so you meet the same people again — and they remember you.
+
 ### People you know & NPC radio calls
 - **NPCs remember you.** Trading at a stall or taking a board job raises your standing with that vendor or
   quartermaster: **Stranger → Acquaintance → Friend**. The stage shows on their **nameplate** when you walk
