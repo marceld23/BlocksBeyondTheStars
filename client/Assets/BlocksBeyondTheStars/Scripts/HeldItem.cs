@@ -19,8 +19,9 @@ namespace BlocksBeyondTheStars.Client
         /// builds the right glove with <see cref="Build"/> and the left one with <c>left: true</c> (the mirror image), the
         /// avatar draws one on each hand. Every other kind stays one-handed. <see cref="Vehicle"/>, <see cref="Plant"/> and
         /// <see cref="Icon"/> (#2534) are the held miniatures of <see cref="HeldMiniatures"/>: the vehicle's hull, the plant's
-        /// in-world look, and the extruded icon of any other item without a model.</summary>
-        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget, Hand, Hoe, Hammer, Gloves, Vehicle, Plant, Icon }
+        /// in-world look, and the extruded icon of any other item without a model. <see cref="Axe"/> and <see cref="Bow"/>
+        /// (#2647) are the wilderness folk's NPC tools (<see cref="HeldItemShapes.NpcToolParts"/>).</summary>
+        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget, Hand, Hoe, Hammer, Gloves, Vehicle, Plant, Icon, Axe, Bow }
 
         /// <summary>What a working NPC carries (#1869), from the server's <c>NetNpc.Held</c> hint — not an item:
         /// the gardener's hoe, the craftsman's hammer, the guard's blade.</summary>
@@ -37,6 +38,9 @@ namespace BlocksBeyondTheStars.Client
             "npc_pickaxe" => (Kind.Hammer, new Color(0.55f, 0.57f, 0.60f)), // the blockfarmer's pick
             "npc_camera" => (Kind.Gadget, new Color(0.95f, 0.45f, 0.85f)),  // the streamer's camera
             "npc_microphone" => (Kind.Scanner, new Color(0.45f, 0.65f, 1f)), // the reporter's microphone
+            // #2647: the wilderness folk — the gatherer keeps the basket and the miner the pick; new models for these two.
+            "npc_axe" => (Kind.Axe, new Color(0.62f, 0.64f, 0.68f)),        // the woodcutter's axe (iron head)
+            "npc_bow" => (Kind.Bow, new Color(0.58f, 0.38f, 0.19f)),        // the hunter's wooden bow
             _ => (Kind.None, Color.white),
         };
 
@@ -211,7 +215,9 @@ namespace BlocksBeyondTheStars.Client
                 return holder;
             }
 
-            var shaped = HeldItemShapes.Parts(kind.ToString(), new HeldItemShapes.Rgb(tint.r, tint.g, tint.b), model);
+            // #2647: the NPC axe and bow are part models too (Client.Core pins them), never replaced by an item look.
+            var shaped = HeldItemShapes.Parts(kind.ToString(), new HeldItemShapes.Rgb(tint.r, tint.g, tint.b), model)
+                ?? HeldItemShapes.NpcToolParts(kind.ToString(), new HeldItemShapes.Rgb(tint.r, tint.g, tint.b));
             if (shaped != null)
             {
                 foreach (var part in shaped)
@@ -501,6 +507,11 @@ namespace BlocksBeyondTheStars.Client
         /// engine glows, #2534).</summary>
         internal static GameObject GlowPart(Transform parent, Vector3 localPos, Vector3 scale, Color color)
             => Cube(parent, localPos, scale, color, glow: true);
+
+        /// <summary>One plain lit cube part under <paramref name="parent"/> in the shared part material (a hunter's flying
+        /// arrow, #2647, is built like a held model).</summary>
+        internal static GameObject SolidPart(Transform parent, Vector3 localPos, Vector3 scale, Color color)
+            => Cube(parent, localPos, scale, color, glow: false);
 
         /// <summary>Drops the shared part materials and the held miniatures' meshes (session teardown).</summary>
         public static void ReleasePartMaterials()

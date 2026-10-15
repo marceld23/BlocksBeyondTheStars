@@ -178,6 +178,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _waveLeft;
         private float _nodTimer;
         private float _cheerTimer;
+        private float _bowTimer;   // #2647: a hunter's bow shot (AvatarGestures.BowShot)
         private float _lookYawTarget = float.NaN;
         private float _lookYaw;
         private float _lookYawBlend;
@@ -536,6 +537,7 @@ namespace BlocksBeyondTheStars.Client
                 headYaw = 0f;
                 _swingTimer = 0f;
                 _waveTimer = _cheerTimer = _nodTimer = 0f; // #2593: nobody waves in their sleep
+                _bowTimer = 0f;
             }
             else if (_climbing)
             {
@@ -615,6 +617,21 @@ namespace BlocksBeyondTheStars.Client
                 _punchTimer -= dt;
                 float c = 1f - Mathf.Clamp01(_punchTimer / _punchDuration);
                 PosePunch(c, ref armL, ref armR, ref elbowL, ref elbowR);
+            }
+
+            // #2647: a hunter's bow shot. The bow arm (the right one — it holds the bow, which then stands upright with its
+            // string towards the hunter) comes up straight at the target; the string hand comes across in front of the chest
+            // and draws back to the right shoulder, lets go at the release and flies on a little, then both arms sink back.
+            if (_bowTimer > 0f)
+            {
+                _bowTimer -= dt;
+                var (raise, draw) = AvatarGestures.BowShot(1f - Mathf.Clamp01(_bowTimer / AvatarGestures.BowShotSeconds));
+                armR = Mathf.Lerp(armR, -88f, raise);
+                elbowR = Mathf.Lerp(elbowR, 0f, raise);
+                armL = Mathf.Lerp(armL, -82f, raise);
+                elbowL = Mathf.Lerp(elbowL, 0f, raise);
+                yawL = 38f * raise;                            // the upper arm points across, towards the bow
+                elbowRollL = (20f * raise) + (45f * draw);     // the forearm folds in: the hand draws back to the shoulder
             }
 
             // #2593: the greeting gestures ride on top of whatever pose plays (standing, sitting): a wave of one arm, a cheer
@@ -769,8 +786,24 @@ namespace BlocksBeyondTheStars.Client
             _waveTimer = 0f;
         }
 
-        /// <summary>#2593: whether a wave or a cheer plays (the caller holds back its work swings meanwhile).</summary>
-        public bool Gesturing => _waveTimer > 0f || _cheerTimer > 0f;
+        /// <summary>#2647: a hunter's bow shot (~0.9 s, <see cref="AvatarGestures.BowShot"/>): the bow arm comes up at the
+        /// target, the string hand draws and lets go after <see cref="AvatarGestures.BowReleaseSeconds"/> — when the arrow
+        /// leaves — and both arms sink back. Ends a work swing or a greeting; ignored while lying.</summary>
+        public void BowShot()
+        {
+            if (_lying)
+            {
+                return;
+            }
+
+            _bowTimer = AvatarGestures.BowShotSeconds;
+            _swingTimer = 0f;
+            _waveTimer = _cheerTimer = 0f; // one arm gesture at a time
+        }
+
+        /// <summary>#2593: whether a wave, a cheer or (#2647) a bow shot plays (the caller holds back its work swings
+        /// meanwhile).</summary>
+        public bool Gesturing => _waveTimer > 0f || _cheerTimer > 0f || _bowTimer > 0f;
 
         /// <summary>Poses the avatar seated (#806) — thighs forward, knees bent. Driven from the presence
         /// broadcast for remotes; the caller also lowers the avatar so the pelvis meets the seat.</summary>

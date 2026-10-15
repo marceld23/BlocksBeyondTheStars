@@ -67,6 +67,10 @@ namespace BlocksBeyondTheStars.Client
             public float NextIdleAt;       // unscaled time of its next idle-murmur try
             public int IdleCount;
             public bool Looking;           // its head follows the player
+
+            // #2647: a hunter turns to face its shot for the length of the bow gesture (the server's facing may lag).
+            public float AimYaw;
+            public float AimUntil;         // Time.time until which AimYaw overrides the server's facing
         }
 
         // #2593: NPCs turn their head to a player this close; #2592: the idle murmur and a trade's thanks reach this far.
@@ -78,6 +82,7 @@ namespace BlocksBeyondTheStars.Client
         // babble fades while the next starts) plus one reaction channel. Unscaled time: sound runs in real time.
         private readonly NpcGreetingTracker _greetings = new NpcGreetingTracker();
         private readonly NpcVoiceGate _voiceGate = new NpcVoiceGate();
+        private readonly NpcChopGate _chopGate = new NpcChopGate(); // #2647: the woodcutters' chop sounds
         private readonly System.Random _voiceRng = new System.Random();
         private readonly List<PendingBabble> _pendingBabbles = new List<PendingBabble>();
         private readonly VoiceChannel[] _babbleChannels = new VoiceChannel[2];
@@ -222,7 +227,7 @@ namespace BlocksBeyondTheStars.Client
                 else
                 {
                     n.Go.transform.position = scene;
-                    n.Go.transform.rotation = Quaternion.Euler(0f, n.Yaw, 0f);
+                    n.Go.transform.rotation = Quaternion.Euler(0f, n.AimUntil > Time.time ? n.AimYaw : n.Yaw, 0f); // #2647
                 }
 
                 UpdateZzz(n);
@@ -230,8 +235,8 @@ namespace BlocksBeyondTheStars.Client
 
                 // Ambient work gestures: a periodic tool/arm swing so settlement NPCs look busy (miners chip
                 // away often, settlers/builders place now and then, vendors gesture occasionally). Nobody swings a
-                // hammer from a chair or in their sleep (#1869).
-                if (n.Pose != 0)
+                // hammer from a chair or in their sleep (#1869), and the hunter's bow only moves for a shot (#2647).
+                if (n.Pose != 0 || !NpcWorkTools.SwingsPeriodically(n.Held))
                 {
                     continue;
                 }
@@ -242,6 +247,10 @@ namespace BlocksBeyondTheStars.Client
                     if (n.Avatar != null && !n.Avatar.Gesturing) // #2593: no hammer blow in the middle of a wave
                     {
                         n.Avatar.Swing();
+                        if (n.Held == NpcWorkTools.Axe)
+                        {
+                            Chop(n); // #2647
+                        }
                     }
 
                     n.GestureTimer = Random.Range(n.GestureLo, n.GestureHi);
@@ -266,7 +275,7 @@ namespace BlocksBeyondTheStars.Client
                 var d = Game.PlayerPosition + Vector3.up * 1.5f - head;
                 if (d.sqrMagnitude <= LookRange * LookRange)
                 {
-                    look = AvatarGestures.HeadLook(n.Yaw, d.x, d.y, d.z, out yaw, out pitch);
+                    look = AvatarGestures.HeadLook(n.AimUntil > Time.time ? n.AimYaw : n.Yaw, d.x, d.y, d.z, out yaw, out pitch);
                 }
             }
 
@@ -829,6 +838,7 @@ namespace BlocksBeyondTheStars.Client
             _pendingBabbles.Clear();
             _greetings.Clear();
             _voiceGate.Reset();
+            _chopGate.Reset();
         }
 
         private readonly HashSet<int> _seenScratch = new HashSet<int>(); // #1555: one set, not one per list
@@ -983,36 +993,61 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>How often an NPC plays a work gesture (seconds, min/max), from its theme/role — miners
-        /// chip away often, settlers/builders place now and then, vendors/researchers gesture occasionally.</summary>
-        private static (float Lo, float Hi) WorkCadence(NetNpc nd)
+        /// <summary>How often an NPC plays a work gesture (seconds, min/max): its tool sets the pace, else its theme/role
+        /// (the table lives in Client.Core since #2647 — <see cref="NpcWorkTools.Cadence"/>).</summary>
+        private static (float Lo, float Hi) WorkCadence(NetNpc nd) => NpcWorkTools.Cadence(nd.Held, nd.Theme, nd.Role);
+
+        /// <summary>#2647: the woodcutter's swing lands with a quiet chop — only while it is felling, within
+        /// <see cref="NpcWorkTools.ChopRadius"/> of the listener, never two at once and never over VEGA
+        /// (<see cref="NpcChopGate"/>). Heard when the blow lands, <see cref="NpcWorkTools.ChopImpactSeconds"/> into the
+        /// swing, in front of the woodcutter where the trunk is.</summary>
+        private void Chop(Npc n)
         {
-            string theme = (nd.Theme ?? string.Empty).ToLowerInvariant();
-            string role = (nd.Role ?? string.Empty).ToLowerInvariant();
-
-            // #1869: a working resident's tool sets the pace — the craftsman hammers, the gardener hoes, the guard
-            // keeps the blade still.
-            switch (nd.Held)
+            float volume = _chopGate.Request(Time.unscaledTime, ListenerDistance(n), n.ActivityKey, NarratorBusy);
+            if (volume <= 0f || ClientAudio.Instance == null)
             {
-                case "npc_hammer": return (1.2f, 2.4f);
-                case "npc_hoe": return (2.0f, 3.5f);
-                case "blade": return (30f, 60f);
-                case "npc_pickaxe": return (1.0f, 2.0f);     // 2026-09: the blockfarmer quarries
-                case "npc_camera": return (3.0f, 5.5f);      // the streamer films
-                case "npc_microphone": return (4.0f, 7.0f);  // the reporter takes notes
+                return;
             }
 
-            if (theme.Contains("miner"))
+            var go = n.Go;
+            float pitch = Random.Range(0.92f, 1.08f);
+            FxKit.Delay(NpcWorkTools.ChopImpactSeconds, () =>
             {
-                return (1.2f, 2.4f);
+                if (go != null)
+                {
+                    float s = go.transform.localScale.y;
+                    var at = go.transform.position + (go.transform.forward * (0.8f * s)) + (Vector3.up * (1.1f * s));
+                    ClientAudio.Instance?.At(NpcWorkTools.ChopClip, at, pitch, volume);
+                }
+            }, go);
+        }
+
+        /// <summary>
+        /// #2647: hunter <paramref name="npcId"/> shoots at <paramref name="targetScene"/> (the server's arrow
+        /// <c>WorldFx</c>): it turns to the target, raises its bow and lets go after
+        /// <see cref="AvatarGestures.BowReleaseSeconds"/>. True when the hunter is shown standing with its bow —
+        /// <paramref name="nockScene"/> is then where the arrow leaves the aimed bow; false otherwise (the caller flies the
+        /// arrow from the server's spot at once).
+        /// </summary>
+        public bool BowShot(int npcId, Vector3 targetScene, out Vector3 nockScene)
+        {
+            nockScene = default;
+            if (!_npcs.TryGetValue(npcId, out var n) || n.Go == null || n.Avatar == null || n.Pose != 0 || n.Held != NpcWorkTools.Bow)
+            {
+                return false;
             }
 
-            if (role == "settler" || theme.Contains("settler") || theme.Contains("build"))
-            {
-                return (2.6f, 4.6f);
-            }
+            var flat = targetScene - n.Go.transform.position;
+            flat.y = 0f;
+            n.AimYaw = flat.sqrMagnitude > 0.01f ? Mathf.Atan2(flat.x, flat.z) * Mathf.Rad2Deg : n.Yaw;
+            n.AimUntil = Time.time + AvatarGestures.BowShotSeconds;
+            n.Avatar.BowShot();
+            n.GestureTimer = Mathf.Max(n.GestureTimer, AvatarGestures.BowShotSeconds);
 
-            return (4.5f, 8.5f); // vendors / quartermasters / traders / researchers
+            // The aimed bow: the right hand straight out at shoulder height, the arrow on the string just behind the grip.
+            float s = n.Go.transform.localScale.y;
+            nockScene = n.Go.transform.position + (Quaternion.Euler(0f, n.AimYaw, 0f) * new Vector3(0.32f, 1.52f, 0.92f) * s);
+            return true;
         }
 
         private string Label(NetNpc nd)

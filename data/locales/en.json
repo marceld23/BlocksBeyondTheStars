@@ -1144,6 +1144,7 @@
   "ui.map.belt": "Asteroid belt",
   "ui.map.kind_asteroidfield": "Asteroid field",
   "ui.map.kind_wreck": "Wreck",
+  "ui.map.kind_lodge": "Hut",
   "ui.map.wreck_hint": "fly there to salvage",
   "ui.map.wreck_detail": "A derelict adrift in this system — no quick travel. Fly up to it in your ship: VEGA reads its manifest on approach, and a mining laser (or an EVA pick) strips its plating for scrap, cabling and the odd data fragment. Set it as a waypoint on the flight chart ({key:FlightMap}).",
   "ui.map.status_notgenerated": "Uncharted",

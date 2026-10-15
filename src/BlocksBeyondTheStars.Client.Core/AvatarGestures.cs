@@ -7,7 +7,7 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// #2593: the curves of the avatar's greeting gestures — the wave, the nod, the cheer — and the NPC head turn towards a
-    /// nearby player. Unity-free; <c>PlayerAvatar</c> turns them into joint angles in its procedural pose. Every gesture
+    /// nearby player; #2647: a hunter's bow shot. Unity-free; <c>PlayerAvatar</c> turns them into joint angles in its procedural pose. Every gesture
     /// takes its progress <c>c</c> (0 at the start, 1 at the end) and returns to rest at both ends, so it blends over
     /// whatever pose plays underneath (idle, sitting) without a snap.
     /// </summary>
@@ -77,6 +77,41 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return (Envelope(c, 0.15f, 0.8f), (float)Math.Sin(2.0 * Math.PI * CheerBobPeriods * c));
+        }
+
+        /// <summary>A hunter's bow shot lasts this long (#2647): the draw, the release, a moment's follow-through, the bow
+        /// lowered again.</summary>
+        public const float BowShotSeconds = 0.9f;
+
+        /// <summary>The string is let go at this share of <see cref="BowShotSeconds"/> — the arrow leaves then. Short on
+        /// purpose: the server's shot (the arrow and the twang) has already happened when the client hears of it, so the
+        /// draw is a quick snap and the release lands close to the sound.</summary>
+        public const float BowReleaseFraction = 0.2f;
+
+        /// <summary>How far the string hand flies on past its anchor after the release (a share of the full draw).</summary>
+        public const float BowFollowThrough = 0.3f;
+
+        /// <summary>Seconds from the start of a bow shot to the release — the arrow's launch delay.</summary>
+        public static float BowReleaseSeconds => BowShotSeconds * BowReleaseFraction;
+
+        /// <summary>
+        /// The bow shot at progress <paramref name="c"/> (#2647): <c>Raise</c> lifts the bow arm to the target (up by the
+        /// release, held, lowered over the last 38 %) and <c>Draw</c> pulls the string hand back — 0 at the string, 1 at its
+        /// anchor at the release, then on to 1 + <see cref="BowFollowThrough"/> as the fingers let go. <c>Draw</c> is
+        /// scaled by <c>Raise</c>, so both are 0 at the ends and outside 0..1.
+        /// </summary>
+        public static (float Raise, float Draw) BowShot(float c)
+        {
+            if (!(c > 0f && c < 1f))
+            {
+                return (0f, 0f);
+            }
+
+            float raise = Envelope(c, BowReleaseFraction, 0.62f);
+            float pull = c < BowReleaseFraction
+                ? SmoothStep(c / BowReleaseFraction)
+                : 1f + (BowFollowThrough * SmoothStep((c - BowReleaseFraction) / 0.1f));
+            return (raise, pull * raise);
         }
 
         /// <summary>
