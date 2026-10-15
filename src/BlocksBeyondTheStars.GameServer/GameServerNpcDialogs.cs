@@ -479,7 +479,9 @@ public sealed partial class GameServer
             Theme = npc.Theme,
             Stage = stage,
             Situation = guest ? "visiting the player's own base, offering something"
-                : IsOwnBaseResident(session, npc) ? "the player's own base, where the speaker lives" : string.Empty,
+                : IsOwnBaseResident(session, npc) ? "the player's own base, where the speaker lives"
+                : npc.LodgeKey.Length > 0 ? "the speaker's own little hut out in the wild, where they live and work" // #2641
+                : string.Empty,
             Speakers =
             {
                 new NpcLinesSpeaker
@@ -614,7 +616,7 @@ public sealed partial class GameServer
         // #2598: talking to a PERSON pays every 10 minutes (a child gets to "known" in one session); the shared role
         // keys of the stall and the board keep their hour.
         session.DialogRewardCooldownUntil[key] = _uptime
-            + (IsPersonKey(npcKey) ? PersonDialogRewardCooldownSeconds : DialogRewardCooldownSeconds);
+            + (IsPersonKey(npcKey) || IsLodgePersonKey(npcKey) ? PersonDialogRewardCooldownSeconds : DialogRewardCooldownSeconds);
         return true;
     }
 

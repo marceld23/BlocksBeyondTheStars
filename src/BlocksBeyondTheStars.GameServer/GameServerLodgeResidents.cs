@@ -119,6 +119,12 @@ public sealed partial class GameServer
     private string LodgePersonKey(LodgeInstance lodge, int slot)
         => "lodge:" + _world.LocationId + ":" + lodge.Key + "#" + slot.ToString(CultureInfo.InvariantCulture);
 
+    /// <summary>Whether a memory key is a lodge resident's (#2641) — a person like a villager: the first meeting lifts the
+    /// standing, a talk pays every ten minutes, a passing hello helps up to "known". Never a legacy floor (no shared
+    /// role entry ever existed for them).</summary>
+    internal static bool IsLodgePersonKey(string key)
+        => !string.IsNullOrEmpty(key) && key.StartsWith("lodge:", System.StringComparison.Ordinal) && key.IndexOf('#') > 0;
+
     /// <summary>What a resident works at: the yard's own cells for the lodge's profession (the plot's crops, the quarry
     /// face), the wild land round the hut for everything else; the yield goes into the store crate.</summary>
     private NpcWorkPlan LodgeWorkPlan(LodgeInstance lodge, LodgeProfessionDefinition job, bool ownYard)
@@ -149,7 +155,7 @@ public sealed partial class GameServer
             LodgeRules.WorkHunt => new NpcWorkPlan
             {
                 Kind = NpcWorkKind.Hunt,
-                Center = lodge.Center,
+                Center = lodge.YardSpot, // the drying frame: a standable spot (the footprint middle is the house corner)
                 Radius = LodgeHuntRadius,
                 Bank = bank,
                 ActivityKey = job.ActivityKey,

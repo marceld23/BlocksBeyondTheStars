@@ -345,7 +345,11 @@ public sealed partial class GameServer
         }
 
         // No quarry in sight: walk the round of the hunting ground, a few points per search.
-        ws.Patrol ??= HuntPatrol(plan);
+        if (ws.Patrol is not { Count: > 0 })
+        {
+            ws.Patrol = HuntPatrol(plan); // again while the round is empty: its chunks may not have been loaded yet
+        }
+
         if (ws.Patrol.Count == 0)
         {
             ws.NextYieldAt = _uptime + NothingFoundRetrySeconds;

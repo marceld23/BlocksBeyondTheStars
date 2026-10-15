@@ -231,7 +231,7 @@ public sealed partial class GameServer
         }
 
         int seed = RelationshipValue(p, key);
-        if (IsPersonKey(key))
+        if (IsPersonKey(key) || IsLodgePersonKey(key)) // #2641: a lodge resident is a person to meet too
         {
             seed = Math.Max(seed, Math.Min(seed + FirstMeetBonus, FirstMeetBonus));
         }
@@ -247,7 +247,7 @@ public sealed partial class GameServer
     {
         foreach (var n in _npcs)
         {
-            if (IsPersonKey(key) ? n.PersonKey == key
+            if (IsPersonKey(key) || IsLodgePersonKey(key) ? n.PersonKey == key
                 : n.PersonKey.Length == 0 && n.BaseId == 0 && n.CharacterId.Length == 0 && n.Settlement.Length > 0
                   && NpcKey(SettlementLocationKey(n.Settlement), n.Role) == key)
             {
@@ -316,7 +316,7 @@ public sealed partial class GameServer
     /// </summary>
     internal bool TryHelloStanding(PlayerSession session, string personKey)
     {
-        if (!IsPersonKey(personKey))
+        if (!IsPersonKey(personKey) && !IsLodgePersonKey(personKey)) // #2641: lodge residents are people too
         {
             return false;
         }

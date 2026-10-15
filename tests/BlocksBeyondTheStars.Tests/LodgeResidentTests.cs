@@ -289,6 +289,8 @@ public sealed class LodgeResidentTests
         w.Server.TalkToNpcForTest(NpcLifeWorld.Owner, r.Id);
         w.Server.ChooseDialogForTest(NpcLifeWorld.Owner, 0); // "What do you do out here?" — and on to the plants
         Assert.Equal(1, w.Server.ActiveDialogForTest(NpcLifeWorld.Owner)?.Node);
+        // A person to meet, like a villager: the first meeting's bonus and the answer's +1, on the resident's own key.
+        Assert.True(w.Server.RelationshipValueForTest(NpcLifeWorld.Owner, r.PersonKey) >= 4);
         w.Server.ChooseDialogForTest(NpcLifeWorld.Owner, 0); // "Which plants should I stay away from?"
         string said = LastDialog(w).Text;
         string warning = En("dlg.lodge_gatherer.r_poison");
