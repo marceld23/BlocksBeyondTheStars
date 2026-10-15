@@ -5153,7 +5153,9 @@ public sealed partial class GameServer
         // It is protected like the wall it sits in — say so, rather than healing a "ghost block" at its air cell.
         if (StampedDoorAt(pos))
         {
-            Reject(session, "mine", IsStationBlock(pos) ? "@srv.protect.station" : "@srv.protect.settlement");
+            Reject(session, "mine", IsStationBlock(pos) ? "@srv.protect.station"
+                : IsLodgeBlock(pos) ? "@srv.protect.lodge:" + (LodgeAt(pos)?.ResidentName ?? string.Empty) // #2640: a hut's door
+                : "@srv.protect.settlement");
             return;
         }
 

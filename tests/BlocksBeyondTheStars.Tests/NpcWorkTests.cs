@@ -20,8 +20,6 @@ public sealed class NpcWorkTests
 {
     private static readonly GameContent Content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
 
-    private const string NeedsCores = "needs the wave-1 work cores (#2642-#2645)";
-
     private static string Lodge(NpcLifeWorld w, string profession)
         => w.Server.SpawnLodgeForTest(NpcLifeWorld.Cx + 4, w.PadY, NpcLifeWorld.Cz - 6, profession, beds: 1);
 
@@ -153,7 +151,7 @@ public sealed class NpcWorkTests
         return w.Server.Containers.Single(c => c.Id == id).Items.Select(s => (s.Item, s.Count)).ToArray();
     }
 
-    [Fact(Skip = NeedsCores)]
+    [Fact]
     public void TheGatherer_HarvestsIntoTheStore_ThePlantRegrows_AndTheNextYieldWaitsAMinute()
     {
         using var w = new NpcLifeWorld(Content, "work_gather_yield");
@@ -171,7 +169,7 @@ public sealed class NpcWorkTests
         Assert.Equal(1, Work(w, id).Yields); // at most one a minute
     }
 
-    [Fact(Skip = NeedsCores)]
+    [Fact]
     public void TheMiner_MinesAFaceCellIntoTheStore_AndTheCellFillsUpAgain()
     {
         using var w = new NpcLifeWorld(Content, "work_mine_yield");
@@ -191,7 +189,7 @@ public sealed class NpcWorkTests
         Assert.Equal(stamped, w.Server.World.GetBlock(site).Value);
     }
 
-    [Fact(Skip = NeedsCores)]
+    [Fact]
     public void TheWoodcutter_FellsAGroveTree_BanksTheLogs_AndPlantsASapling()
     {
         using var w = new NpcLifeWorld(Content, "work_chop_yield");
@@ -206,14 +204,22 @@ public sealed class NpcWorkTests
         Assert.True(work.NextIn >= 359.0, $"the next tree comes after {work.NextIn:0} s");
     }
 
-    [Fact(Skip = NeedsCores)]
+    [Fact]
     public void TheHunter_HuntsInItsGround_BanksTheLoot_AtMostThreeADay()
     {
         using var w = new NpcLifeWorld(Content, "work_hunt_yield", configure: c => c.StartPlanet = "meadowlands");
         string key = Lodge(w, "hunter");
         int id = Resident(w, key);
         var center = w.Server.LodgesForTest.Single(l => l.Key == key).Center;
-        var species = w.Server.SpeciesRoster.First(s => s.Habitat == CreatureHabitat.Land && s.Temperament == CreatureTemperament.Passive);
+        // A calm, common walker the hunter may take (#2645's rules) — the roster's first standard four-legger, made one.
+        var species = w.Server.SpeciesRoster.First(s => s.BodyPlan == CreatureBodyPlan.Standard && s.Legs is > 0 and < 6
+                                                      && !s.HasGasSac && !s.HasWings && !s.Id.StartsWith("au_", System.StringComparison.Ordinal));
+        species.Habitat = CreatureHabitat.Land;
+        species.Temperament = CreatureTemperament.Passive;
+        species.Activity = CreatureActivity.Cathemeral;
+        species.BegsForFood = false;
+        // The watching player stands on the far side of the hut: a hunter never shoots within 4 m of a player or past one.
+        w.Player.State.Position = new Vector3f(center.X + 18f, w.Feet, center.Z + 0.5f);
         for (int kill = 0; kill < 4; kill++)
         {
             w.Server.SpawnCreatureAtForTest(new Vector3f(center.X - 14f, w.Feet, center.Z + 0.5f), species.Id);

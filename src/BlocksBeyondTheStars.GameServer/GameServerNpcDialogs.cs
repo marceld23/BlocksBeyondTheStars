@@ -710,7 +710,7 @@ public sealed partial class GameServer
                 break;
 
             case LodgeTipConsequence:
-                ApplyLodgeTip(session); // the nearest unrevealed find goes on the map, else the way to the village
+                ApplyLodgeTip(session, npc); // the nearest unrevealed find goes on the map, else the way to the village
                 break;
 
             case LodgePoisonConsequence:

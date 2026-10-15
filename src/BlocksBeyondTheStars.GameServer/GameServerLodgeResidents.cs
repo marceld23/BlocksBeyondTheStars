@@ -248,17 +248,19 @@ public sealed partial class GameServer
 
     /// <summary>"Seen anything interesting around here?" — the existing hint path: the nearest wreck, hidden cache or
     /// bandit camp the map does not show yet is revealed and its way told; with none left, the way to the nearest
-    /// village (always on the map); with nothing at all, the authored "nothing new".</summary>
-    private void ApplyLodgeTip(PlayerSession session)
+    /// village (always on the map); with nothing at all, the authored "nothing new". A hidden cache is the villagers'
+    /// secret rule too (<see cref="TryEmitHint"/>): only told to a player this NPC already knows.</summary>
+    private void ApplyLodgeTip(PlayerSession session, ServerNpc npc)
     {
-        string tip = LodgeTipLine(session);
+        bool known = RelationshipTier(RelationshipValue(session.State, NpcKeyForNpc(session, npc))) is "known" or "trusted";
+        string tip = LodgeTipLine(session, shareCaches: known);
         if (tip.Length > 0)
         {
             _dialogResponseOverride = tip;
         }
     }
 
-    private string LodgeTipLine(PlayerSession session)
+    private string LodgeTipLine(PlayerSession session, bool shareCaches = true)
     {
         var at = session.State.Position;
         string? key = null;
@@ -286,7 +288,7 @@ public sealed partial class GameServer
             Consider(wreckKey, "npc.hint.wreck", wx, wz);
         }
 
-        foreach (var cont in _containers)
+        foreach (var cont in shareCaches ? _containers : new List<StoredContainer>())
         {
             if (cont.Id.StartsWith(ChestContainerIdPrefix, System.StringComparison.Ordinal) && !_meta.RevealedPois.Contains(ChestRevealKey(cont)))
             {

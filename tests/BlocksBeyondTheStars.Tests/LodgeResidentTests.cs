@@ -220,10 +220,18 @@ public sealed class LodgeResidentTests
         });
         Assert.DoesNotContain(w.Server.PlanetPoisForTest(w.Player.State.PlayerId), p => p.Type == "treasure");
 
+        // A stranger hears nothing of the cache — a hidden cache is a secret for people the NPC knows (the villagers' rule).
         StandBeside(w, r.Id);
         w.Server.TalkToNpcForTest(NpcLifeWorld.Owner, r.Id);
         Assert.Equal("lodge_hunter", w.Server.ActiveDialogForTest(NpcLifeWorld.Owner)?.Key);
         w.Server.ChooseDialogForTest(NpcLifeWorld.Owner, 1); // "Seen anything interesting around here?"
+        Assert.Equal(En("dlg.lodge.r_tip_none"), LastDialog(w).Text);
+        Assert.DoesNotContain(w.Server.PlanetPoisForTest(w.Player.State.PlayerId), p => p.Type == "treasure");
+
+        w.Server.SkipDialogRewardCooldownForTest(NpcLifeWorld.Owner);
+        w.Server.AddStandingForTest(NpcLifeWorld.Owner, r.PersonKey, 12); // now they know each other
+        w.Server.TalkToNpcForTest(NpcLifeWorld.Owner, r.Id);
+        w.Server.ChooseDialogForTest(NpcLifeWorld.Owner, 1);
         var said = LastDialog(w);
         Assert.True(said.End);
         Assert.StartsWith("Between us: there's a hidden cache about", said.Text, StringComparison.Ordinal);

@@ -70,6 +70,10 @@ public sealed partial class GameServer
 
         /// <summary>A hunter's kills per in-game day at most.</summary>
         public int DailyKillCap { get; init; } = 3;
+
+        /// <summary>A wanderer's plan (#2646): the searches and cores also keep out of every lodge, settlement and ruin
+        /// (<c>respectAllProtection</c>) — a lodge resident works its own plot and grove, a passer-by never does.</summary>
+        public bool RespectAllProtection { get; init; }
     }
 
     /// <summary>One NPC's place in the work cycle (<see cref="ServerNpc.WorkState"/>, runtime only).</summary>
@@ -277,7 +281,7 @@ public sealed partial class GameServer
                     }
                 }
 
-                sites.AddRange(FindNpcGatherSites(plan.Center, plan.Radius, 8));
+                sites.AddRange(FindNpcGatherSites(plan.Center, plan.Radius, 8, plan.RespectAllProtection));
                 break;
             case NpcWorkKind.Mine:
                 if (plan.FixedSites is { } face)
@@ -297,7 +301,7 @@ public sealed partial class GameServer
 
                 break;
             case NpcWorkKind.Chop:
-                sites.AddRange(FindNpcTrees(plan.Center, plan.Radius, 6));
+                sites.AddRange(FindNpcTrees(plan.Center, plan.Radius, 6, plan.RespectAllProtection));
                 break;
         }
 
@@ -521,9 +525,12 @@ public sealed partial class GameServer
         ws.CoreCalls++;
         bool done = plan.Kind switch
         {
-            NpcWorkKind.Gather => NpcHarvestFlora(npc, ws.Site, plan.Bank),
+            // A plot crop is the NPC's own: tended even after a visitor picked it (the owner sticks, #2642).
+            NpcWorkKind.Gather => NpcHarvestFlora(npc, ws.Site, plan.Bank,
+                trustedSite: !plan.RespectAllProtection && plan.FixedSites is { } own && own.Contains(ws.Site),
+                respectAllProtection: plan.RespectAllProtection),
             NpcWorkKind.Mine => NpcMineCell(npc, ws.Site, plan.Bank, NpcMineRefillSeconds),
-            NpcWorkKind.Chop => NpcFellTree(npc, ws.Site, plan.Bank),
+            NpcWorkKind.Chop => NpcFellTree(npc, ws.Site, plan.Bank, plan.RespectAllProtection),
             _ => false,
         };
 
