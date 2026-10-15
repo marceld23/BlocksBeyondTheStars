@@ -50,6 +50,8 @@ not reacting to E, and a cave hall behind an Energy Door without air. Package la
   fill records it already); stepping out of base air under a porch just outside tells the leak (by the issue's
   "roof above you" rule, at most once per 5 min) — watch in the playtest.
 
+**Released** in **v2026.10.16** "the leak-finder release" (2026-10-15).
+
 ---
 
 ### 🏘️ The world greets back + the village lives ("the game feels lonely") — epic #2589, #2590–#2605, branch feat/village-life — ✅ done 2026-10-15 (⚠ playtest open)
@@ -92,6 +94,8 @@ the default in singleplayer and the browser) **and with AI** on hosted worlds (p
   `SOUND_DESIGN.md` §9, `NPC_TRADER_SHIPS.md`, `USER_MANUAL.md`, `SELF_HOSTING.md` (env vars).
 - ⚠ Open: playtest (Marcel + Justus). The side findings of this package (E-talk at the wrap seam, NPC dialog sessions,
   the AI greeting cache, the WorldHost AI budget, the ready wish at the base, es/pl/ja names) are fixed in epic #2612.
+
+**Released** in **v2026.10.15** "the village release" (2026-10-15).
 
 ---
 

@@ -11,6 +11,88 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.16] — 2026-10-15
+
+The leak-finder release. A small, quick follow-up to the village release, driven by **Lyxette**, who moved into a new
+cave base on an ice moon the same morning and sent four reports: the **storage crates** and a **base resident** did not
+react to **E**, and a big cave hall behind an Energy Door stayed without air. Both are sorted out. **Crates and people
+at your base listen again**, and **a room that leaks now tells you where the air gets out** (#2612). On top come the
+loose ends of the village release: conversations that end when you walk away, wishes you can hand over when a
+neighbour visits, and F1 screenshots that show what you saw.
+
+ℹ️ **Compatibility:** the network protocol stays at **version 11**, the save version at **3** and the terrain
+generation at **24**, so your saves and worlds carry over. Game and server should both be on 2026.10.16. The desktop
+game updates itself on start, and the browser version is always current.
+
+### 📦 Crates and people at your base listen again (#2613 #2621)
+
+- **Storage crates, base residents and villagers react to E again** wherever your base stands. Every world wraps
+  around, and the line where it closes runs right through your home landing pad on every planet and moon, so a base
+  built beside your ship sits on both sides of it. On the far side, **E** at a crate or a person did nothing, the
+  "press E" hint didn't show, and aiming at your base core or a beacon could miss. All of that now works on both sides
+  of the line. (**G** and **H** at a crate already worked.)
+- **G at an empty crate says "The crate is empty."** Before, it did nothing, and you could not tell whether the crate
+  was broken.
+
+### 🔍 Air leaks with an address (#2614 #2615)
+
+- **Walk into a room that should hold air but leaks, and the game tells you where the air gets out:** the block, its
+  coordinates and how far above or below you, for example *"the air escapes through Sand at 30/130/0, 10 blocks above
+  you"*. For an open hole, it names the opening. It speaks up when the spot clearly looks like a room (behind an
+  Energy Door or under a roof), names the leak nearest to you, and repeats each reason at most once every five
+  minutes.
+- **Sand, snow, dirt and geyser vents never seal; ice does.** A cave ceiling of sand with the open sky above it lets
+  the air out. Build a layer of stone, metal, ice or glass **under** the sand, and don't mine the sand itself: it
+  slides down and opens a hole.
+- **`/basewalls` names the leak too**, with the same block and coordinates, and no longer contradicts itself: the line
+  that said "enclosed" while the air was leaking was about **animals**, and now says so.
+- **Aim at your base core:** when other rooms have air but your spot doesn't, the readout adds *"/basewalls tells you
+  why"*. VEGA's hint on airless worlds now lists ice as sealing and snow and geysers as leaking.
+
+### 🏘️ Village life, the loose ends (#2616 #2617 #2618 #2622)
+
+- **A conversation ends when you leave it.** Press **Esc** or *Leave*, or simply walk a few steps away: the panel
+  closes and the person goes back to their day. While you talk, they stand still and look at you. Before, a
+  conversation could stay open after you walked off, and after switching worlds a reply could even reach somebody
+  else.
+- **Hand over a wish at home:** when a villager with a wish **visits your base**, their **!** or **?** comes along. If
+  you already carry what they asked for, press **E** and they take it right there, no walk to the village needed.
+- **F1 screenshots show what you saw:** the HUD, the crosshair, on-screen hints, beacon and beam labels and light
+  shafts are now in the picture, and the report form is not.
+- On hosted worlds with AI texts, a villager's greeting no longer mentions what **another** player did (greetings are
+  shared by everyone at the same friendship level), a villager who knows you no longer greets you like a stranger,
+  and VEGA's chatter keeps to the world's AI line budget.
+
+### 🌍 Texts
+
+- The 12 new and 3 changed texts in this release are available in all 14 languages.
+- Better names in some languages: the lantern block and its item now match in Spanish and Polish, the grocer is a
+  grocer in Polish and Japanese, the lamps have their right names in Russian and Ukrainian, and the helmet lamp in
+  Spanish (#2620).
+
+### 🛠️ For tinkerers
+
+- New `WorldConstants.SameCell` and a shared `InteractReach` in `Client.Core` (talk picker, crate lookup, base zone):
+  every match between a server cell and a cell read off the client's scene goes through them. See
+  `docs/developer/WORLD_WRAP.md` (#2613).
+- NPC conversations live on the player session under one validity rule (same world, same NPC object, wrap-aware
+  reach). The client sends a leave as `ChoiceIndex = -1` with the NPC id on the existing `NpcDialogChoiceIntent`;
+  clients announcing the new `dialogclose1` feature get the server's close. No new message, no protocol bump (#2616).
+- AI greeting requests are a pure function of their cache key (tier-representative standing, no per-player history);
+  VEGA banter keys on its facts, takes the per-world AI line budget at VEGA priority, runs off the tick thread and
+  drops answers with a stray placeholder (#2618).
+- **For hosters:** the WorldHost forwards `BBS_WH_AI_LINES_PER_MINUTE` to every world as `BBS_AI_LINES_PER_MINUTE`
+  (unset = the server default 4, `0` = written lines only). See `deploy/worldhost/.env.example` and
+  `docs/developer/HOSTED_WORLDS.md` (#2619).
+- The base air docs (`docs/developer/BASE_LIFE_SUPPORT.md`) describe the leak diagnosis: the sky column over every
+  cell, searched outwards from the player, with a memo per column (#2614).
+
+### 🙏 Thank you
+
+- **Lyxette** moved into a new cave base on an ice moon and, within hours, reported the crates, the base resident and
+  the airless hall behind the Energy Door, with screenshots and the exact spot. That led us to a bug that had been
+  hiding at every home landing pad since the summer. Thank you, Lyxette 🙏
+
 ## [2026.10.15] — 2026-10-15
 
 The village release. **The world greets you back.** Justus told us the game sometimes feels lonely: plenty of people
@@ -8004,7 +8086,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.15...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.16...HEAD
+[2026.10.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.15...v2026.10.16
 [2026.10.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.14...v2026.10.15
 [2026.10.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.13...v2026.10.14
 [2026.10.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.12...v2026.10.13
