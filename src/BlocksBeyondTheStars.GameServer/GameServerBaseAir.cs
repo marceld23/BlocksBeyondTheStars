@@ -185,6 +185,14 @@ public sealed partial class GameServer
         return false;
     }
 
+    /// <summary>
+    /// The id of the sealed room (air pocket) holding <paramref name="cell"/> — a base room on a planet or a pocket of the
+    /// active player station — or null when the cell lies in no sealed room (#2649). Stable within one computed air result,
+    /// so two cells compare equal exactly when they share a room; the bed assignment uses it to prefer a bed in the same
+    /// room as an NPC's work post. Contract stub until the shared air engine (#2650) answers it.
+    /// </summary>
+    internal int? AirRoomIdAt(Vector3i cell) => null;
+
     /// <summary>The base's group supplied-air volume, recomputed when stale (see the class doc). With
     /// <paramref name="broadcastOnChange"/> a changed cell/room count re-sends the base list on this body, so the
     /// core's air readout on every client stays current (#1267) — the caller building that very list passes false.</summary>
