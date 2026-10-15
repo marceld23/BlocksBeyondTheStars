@@ -4537,7 +4537,7 @@
   "srv.admin.biped_summoned": "A herd of bipeds is on its way — hold some food.",
   "srv.admin.biped_no_room": "No room for bipeds here — try open ground.",
   "srv.admin.wanderer_coming": "{name} the {job} is wandering your way.",
-  "srv.admin.wanderer_none_here": "Nobody wanders this world (an older world, no air, a station, or wanderers are switched off).",
+  "srv.admin.wanderer_none_here": "No wanderers on this world — it is an older world, has no air or is a station, or wanderers are switched off here.",
   "srv.admin.wanderer_on_foot": "Get out of the ship first — you meet wanderers on foot.",
   "srv.admin.wanderer_too_close": "Too close to a village, a base, a hut or a camp — walk about 60 m out into the open.",
   "srv.admin.wanderer_hostile": "Something dangerous is close by — nobody wanders over right now.",
