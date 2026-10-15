@@ -145,7 +145,37 @@ settlement boxes.
 
 ## 6. Wanderers (`GameServerWanderers.cs`, #2646)
 
-*(filled in with the wanderer implementation)*
+- **Gate** — the lodges' body rules (generation 25+, not void, airless, ruined-only, a gas giant or the city world, not a
+  restricted extreme world, Settlements factor > 0) plus `ServerConfig.PlaceWanderers`. Nothing is saved: the cast, the
+  visits and the packs are RAM; only the players' memory of the people persists.
+- **The cast** — 4–6 named people per world (`WandererRosterMin/Max`): `"wanderers:" + loc` seeds the count and the
+  professions (the lodges' `LodgeTraits` + `PickLodgeProfession` — a hunter only where something is huntable),
+  `"wanderer:" + loc + ":" + slot` the name and look. Same job keys as the lodges (a prospector is a `miner`, its nameplate
+  `npc.role.prospector`), Role `vendor` with the profession's theme, `RoutineEnabled = false`. Person key
+  `wanderer:<world>:<slot>` (`IsWandererPersonKey`; `IsWildernessPersonKey` = lodge or wanderer) — the villager standing
+  rules, welcome back after a long absence.
+- **The check** — every 60 s per player on foot (not aboard, flying or observing): local day in [0.27, 0.68]; not
+  underground (no deeper than 6 below the surface); 60 m from any settlement or ruin box, bandit camp, lodge footprint or
+  base zone; no hostile within 24 m; the player's **quiet spell** over — 720 s × 0.8–1.2 of play on this world, armed on
+  first sight (a join, a server restart) and after every visit, paused while their own wanderer is out — then a 0.5 roll.
+  At most 2 wanderers per world (`WanderersPerWorld`), one per player, nobody of the cast twice; only a member with work at
+  the task centre comes (a hunter needs an eligible animal within 16 m of it and fewer than 3 kills that day).
+- **The visit** — spawn out of sight on the rings 40 / 47 / 55 m (12 bearings, ≤ 10 blocks above or below the player,
+  out-of-sight sides first); the task centre lies 15–25 m from the player towards the spawn. *Arriving*: walk there (75 s
+  or two failed routes → work where it stands). *Working*: `TickNpcWork` at 1 Hz with radius 16 and
+  `RespectAllProtection`; the prospector's fixed sites are `FindNpcOutcrops(centre, 12, 3)`; until 1–3 harvests, 1–2
+  cells, one tree or one animal, within 3–5 minutes of the spawn; the yield goes into a RAM pack (6 kinds × 20), no crate,
+  no gift. *Leaving*: walk the bearing away from the player and despawn when no player is within 32 m at the end of the
+  walk, or after 120 s with nobody within 24 m. A visit ends early at sunset, when the player is more than 80 m away or
+  leaves the world; a world not ticked for 20 s drops its wanderers. A player within 4.5 m stops any walk (the keeper
+  rule); a customer or a talk adds 15 s to the work window.
+- **Talk** — `wanderer_<job>` dialogues, home `wander` (`DialogDefinition.HomeWander`: never a lodge resident's, and a
+  lodge dialogue never matches a wanderer), with an `aiPrompt`; +1 standing on the first answer. The tip (`wandertip`)
+  names the nearest unrevealed lodge within 600 m and puts it on the map, else falls back to the lodge residents' tip.
+- **Playtest helpers (admin)** — `/wanderer` (`summon_wanderer`, a cheat like `/biped`) calls one now: no quiet spell,
+  roll, daytime or work requirement (anyone free comes); the world gate, on foot, the 60 m rule, the hostile check, the
+  cap and a spawn spot still apply, a refusal names the reason (`srv.admin.wanderer_*`). `/tp lodge [n]` jumps to the
+  n-th nearest lodge's yard (`hut`, `hütte` also work).
 
 ## 7. Client (#2647)
 

@@ -2200,7 +2200,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   crate — once per in-game day, never anything poisonous.
 - **Protected.** You cannot dig up a hut, its yard or the miner's rock face. The trees around it and the hunting grounds are
   free; you may still pick the plants in a garden.
-- **Wanderers.** Now and then by day, out in the open, you meet a **wanderer** — a gatherer, prospector, hunter or
+- **Wanderers.** Now and then by day, out in the open land — away from villages, bases and huts — you meet a **wanderer**: a gatherer, prospector, hunter or
   woodcutter on the road. They work for a while near you, stop to talk and trade when you walk up, and then move on. Every
   world has its own few wanderers, so you meet the same people again — and they remember you.
 
@@ -3562,6 +3562,7 @@ confirmation is the brief HUD toast.
 | `/giant colossus\|sandworm\|leviathan\|sky` | Summon this world's colossus, sandworm, leviathan or sky giant near you (a sandworm needs a sand sea, a leviathan a deep sea) — for testing |
 | `/arachnid` | Summon this world's arachnid near you (rolls one into the world's fauna first if it has none) — for testing |
 | `/biped` | Summon a begging herd of this world's bipeds near you (Mini-Michi-Paul on a tropical world; rolls a begging biped into the world's fauna first if it has none) — for testing |
+| `/wanderer` | Call one of this world's wanderers to you right now — at any hour, without waiting (new worlds only; you must be on foot in the open, 60 m from a village, base, hut or camp, with no hostile near) — for testing |
 | `/fly` | Toggle free flight for yourself (no gravity). In **Creative/Sandbox** worlds everybody can already fly — double-tap **Space**; this is the per-player admin cheat for the other modes |
 | `/god` | Toggle invulnerability |
 | `/instant` | Toggle instant building: blocks, ship and station parts are placed without materials. Crafting is only free in Sandbox |
@@ -3591,6 +3592,7 @@ and easy to mistype. The numbering is stable for a world: `village2` is the same
 | `wreck` | The crashed ship — even before an NPC has pointed you at it |
 | `factory` | A factory's production terminal |
 | `camp` | A bandit camp (`bandit` also works) |
+| `lodge` | A hut in the wild — `lodge 1` is the nearest, `lodge 2` the next (`hut`, `hütte` also work; new worlds only) |
 | `monument` | A rune monument |
 | `treasure` | A hidden loot chest |
 | `base` / `beacon` / `beam` / `station` | Something a player built here |

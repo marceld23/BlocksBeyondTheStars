@@ -24,6 +24,41 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛖 Wilderness folk — lodges, their residents, wanderers; gatherers, miners, woodcutters and hunters outside the settlements — epic #2639, #2640–#2647, branch feat/wilderness-folk, PR #2648 — ✅ done 2026-10-15 (⚠ playtest open; new saves only)
+
+Marcel wanted people you meet outside the settlements — NPCs who hunt, harvest or mine, and some with a small house they
+work around. Before, every NPC was bound to a settlement, base, station, pad or unique site, and only base residents
+really worked. Package label `package: wilderness folk 2026-10`; one PR; decisions: all four professions (with the
+woodcutter), real but rare and kid-safe hunting, quarry faces that refill, **new saves only** (terrain generation 25),
+frequency follows the Settlements option. Details: [docs/developer/WILDERNESS_FOLK.md](docs/developer/WILDERNESS_FOLK.md).
+
+- **Generation 25 (#2639):** `CurrentTerrainGeneration` 24 → 25 (`WildernessFolkGeneration`) — no chunk change, the
+  generation only gates the lodges and wanderers; no new block, no save bump, no new NetCodec message.
+- **Lodges (#2640):** `StampLodges` after the bandit camps — a 13 × 13 hut (`LodgeGenerator`) with a yard per profession
+  (crop plot, quarry face of the planet's tier-1 ores, woodpile + grove, drying frame), at most 6 per body, 40 blocks clear
+  of settlements and camps, placement records `lodge/i`; protected like a village (house + yard + face); the store crate
+  can be looked into but not emptied; map POI `lodge` after discovery (40 m) or a villager's hint.
+- **Residents (#2641):** one per bed (1–2), person keys, day at work / evening at the campfire / night in bed, the generic
+  work cycle `TickNpcWork` (shared with the wanderers), new market themes `gatherers` / `woodcutters` / `hunters`, job
+  dialogues with a tip, the gatherer's poison warning and a friend's present from the crate; villagers hint at huts and
+  chat about them (`lodge_near`); the AI backend describes the four jobs.
+- **Work cores (#2642–#2645):** gathering (wild edible flora + the plot, regrows), mining through `BreakBlockCore` with the
+  persisted refill registry `WorldMetadata.NpcRefills` (cells come back after ~10 min of play), woodcutting of natural
+  trees only with a replanted sapling, hunting of common calm land animals with a bow (sparkle like a player's kill, no
+  credit to anyone, never pets/companions/giants/penned animals or near a player) — and animals now flee a hunter
+  (`CombatEntity.ThreatPos/ThreatTimer`). A review round fixed nine findings (trees with player builds, wood structures,
+  hunting in bases/pens, chunk loads after a world unload, coalesced metadata writes, the stump window, the Z seam, mining
+  under a torch).
+- **Wanderers (#2646):** 4–6 named people per world, met by day in the open after a quiet spell, out of sight on a
+  40–55 m ring; they gather, prospect, chop or hunt near the player, trade and talk, then move on. Admin `/wanderer` and
+  `/tp lodge [n]` for playtests.
+- **Client (#2647):** lodge map marker (`map_lodge`, generated), procedural axe and bow, the bow gesture and the
+  `WorldFx` arrow, three quiet ElevenLabs clips (`npc_bow_shot`, `npc_axe_chop`, `tree_fall`).
+- **Texts:** all new keys in all 14 languages (machine pass + a review of every key).
+- ⚠ **Open:** Marcel's playtest on a NEW world (`/tp lodge`, `/wanderer`): hut look per biome, the bow/axe poses and the
+  arrow, the work cadence, the sounds' loudness; whether NPC hunting should pause on some worlds (no rule today switches
+  it off — players may hunt everywhere too).
+
 ### 📬 Screelit's reports 2026-10-15 (v2026.10.16) — trade screens, the doctor, the rune stone, derelict stations — epic #2637, #2626–#2636, branch feat/screelit-2026-10-15 — ✅ done 2026-10-15 (⚠ playtest open)
 
 Screelit (Justus, singleplayer, his station „Blumenhall") reported that his doctor and a visiting trader sold "the standard
