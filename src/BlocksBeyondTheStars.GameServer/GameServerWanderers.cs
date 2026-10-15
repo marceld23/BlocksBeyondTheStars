@@ -258,6 +258,10 @@ public sealed partial class GameServer
     /// <summary>Per player: the uptime their quiet spell was last counted down at.</summary>
     private readonly Dictionary<string, double> _wandererCountedAt = new(System.StringComparer.Ordinal);
 
+    /// <summary>The uptime of the next sweep of the per-player tables above: a player without a session leaves them (a
+    /// rejoin arms a fresh quiet spell anyway), so a long-running server does not keep every id it ever saw.</summary>
+    private double _wandererPruneAt;
+
     /// <summary>The players on the surface of the active world (reused per pass).</summary>
     private readonly List<PlayerSession> _wandererTargets = new();
 
@@ -402,6 +406,37 @@ public sealed partial class GameServer
         _wandererLastPassAt[world] = _uptime;
         StepWanderers(frozen);
         ScheduleWanderers();
+        PruneWandererPlayerTables();
+    }
+
+    /// <summary>Once a minute: drops the per-player entries of players who have no session any more.</summary>
+    private void PruneWandererPlayerTables()
+    {
+        if (_uptime < _wandererPruneAt)
+        {
+            return;
+        }
+
+        _wandererPruneAt = _uptime + 60.0;
+        var live = new HashSet<string>(_sessions.Values.Select(s => s.State.PlayerId), System.StringComparer.Ordinal);
+        foreach (var table in new[] { _wandererNextCheckAt, _wandererCooldownLeft, _wandererCountedAt })
+        {
+            foreach (string pid in table.Keys.Where(k => !live.Contains(k)).ToList())
+            {
+                table.Remove(pid);
+            }
+        }
+    }
+
+    /// <summary>Test seam: how many player ids the per-player wanderer tables hold (all three together).</summary>
+    public int WandererPlayerTableSizeForTest
+        => _wandererNextCheckAt.Count + _wandererCooldownLeft.Count + _wandererCountedAt.Count;
+
+    /// <summary>Test seam: runs the sweep of the per-player tables now.</summary>
+    public void PruneWandererPlayerTablesForTest()
+    {
+        _wandererPruneAt = 0;
+        PruneWandererPlayerTables();
     }
 
     /// <summary>Counts every player's quiet spell down and runs the due encounter checks.</summary>

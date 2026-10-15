@@ -50,7 +50,7 @@ records a skip (the unique-site rule), never a late stamp next to a player's bui
   `srv.protect.lodge` ("This hut is {name}'s home — it's protected.").
 - **Store crate** — a `wood_crate` container with id prefix `lodge:`. A player may open it to look; loot, deposit, filter
   and move are refused with `srv.lodge.store_owned` ("That's {name}'s — ask them!"). The residents' jobs deposit into it: at
-  most 6 different goods, 40 of each; a seventh good pushes out the oldest stack ("brought some to the village").
+  most 6 different goods, 40 of each; a seventh good pushes out the oldest stack ("brought some to the village"). No machine or base ever uses it: `ContainerAt` — what Crystal Net senders, receivers, fabricators, device prices, the drills and the base jobs see — skips every `lodge:` store, so a matter sender or a base built beside a hut neither drains nor fills it.
 - **Map** — POI type `lodge`, named `poi.lodge` ("{0}'s hut"), revealed (`RevealPoi`, key `<loc>|lodge:<key>`) in
   `TickLodges` when a player on foot comes within 40 m, or by a villager (§4).
 

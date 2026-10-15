@@ -197,9 +197,16 @@ public sealed partial class GameServer
                 continue;
             }
 
-            // The pending refill knows the cell's dye and form; the stamp's layout only knows the block.
-            bool sameBlock = record is not null && _content.GetBlock(record.Block)?.NumericId.Value == block;
-            PutNpcCellBack(cell, new BlockId(block), sameBlock ? record!.Tint : 0, sameBlock ? record!.Glow : 0, sameBlock ? record!.Shape : 0);
+            // The pending refill knows what was mined there — block, dye and form; the stamp's layout is re-derived from the
+            // content of today, so after an update that moved the planet's ore list it could name another ore. The record
+            // wins; the layout is only the fallback for a cell whose record was lost (a crash between two saves).
+            if (record is not null && _content.GetBlock(record.Block)?.NumericId is { } mined && mined.Value != 0)
+            {
+                PutNpcCellBack(cell, mined, record.Tint, record.Glow, record.Shape);
+                continue;
+            }
+
+            PutNpcCellBack(cell, new BlockId(block), 0, 0, 0);
         }
 
         if (registryChanged)

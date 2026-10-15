@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Transport;
@@ -454,6 +455,32 @@ public sealed class CrystalNet2Tests : IDisposable
             server.Containers.Single(c => c.Position == new Vector3i(1, 200, 1)).Items.Add(new ItemStack("iron_ore", 10));
             server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 1);
             Assert.Equal(10, server.Containers.Single(c => c.Position == new Vector3i(7, 200, 0)).Items.Single(s => s.Item == "iron_ore").Count);
+        }
+    }
+
+    [Fact]
+    public void AMatterSender_NeverDrainsAHutsStore()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            // #2640: a lodge resident's store crate is theirs alone — a sender placed beside it in their hut takes nothing.
+            var p = Player(server, "Builder", new Vector3f(3, 203, 0), "crate", "matter_sender", "matter_receiver");
+            server.PlaceBlock("Builder", 1, 200, 0, "matter_sender");
+            server.AddContainerForTest(new StoredContainer
+            {
+                Id = "lodge:test:0:0",
+                Planet = p.CurrentLocationId,
+                Kind = "crate",
+                Position = new Vector3i(0, 200, 0),
+                Items = new List<ItemStack> { new("iron_ore", 10) },
+            });
+            server.PlaceBlock("Builder", 6, 200, 0, "matter_receiver", "Lager");
+            server.PlaceBlock("Builder", 7, 200, 0, "crate");
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 2, config: "pair=6,200,0");
+            server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 1);
+            Assert.DoesNotContain(server.Containers.Single(c => c.Position == new Vector3i(7, 200, 0)).Items, s => s.Item == "iron_ore");
+            Assert.Equal(10, server.Containers.Single(c => c.Id == "lodge:test:0:0").Items.Single(s => s.Item == "iron_ore").Count);
         }
     }
 

@@ -136,7 +136,7 @@ public sealed class WandererTests : IDisposable
     // ---- when nobody comes -------------------------------------------------------------------------------------
 
     [Fact]
-    public void Nobody_OnAnOlderWorld_AtNight_DuringTheQuietSpell_OrNearAVillageABaseOrAHut()
+    public void Nobody_OnAnOlderWorld_OrWithWanderersSwitchedOff()
     {
         using (var old = Arena("wander_gen24", pad: 8, configure: c => c.World.TerrainGeneration = 24))
         {
@@ -149,7 +149,11 @@ public sealed class WandererTests : IDisposable
         {
             Assert.False(off.Server.WanderersBelongHereForTest);
         }
+    }
 
+    [Fact]
+    public void Nobody_DuringTheQuietSpell_AtNight_NearSomethingDangerous_OrUnderground()
+    {
         using var w = Arena("wander_rules", pad: 8);
         string pid = Pid(w);
         Assert.True(w.Server.WanderersBelongHereForTest);
@@ -194,10 +198,15 @@ public sealed class WandererTests : IDisposable
         Assert.Null(w.Server.WandererEncounterReasonForTest(pid, out r, anyWork: true));
         Assert.Equal("no_spot", r);
         w.Player.State.Position = standing;
+    }
 
+    [Fact]
+    public void Nobody_NearABaseAVillageOrAHut()
+    {
         // Too close to the places people live: a base, a village, a hut — 60 m clear of each.
+        using var w = Arena("wander_base", pad: 8);
         w.FoundBase();
-        Assert.Null(w.Server.WandererEncounterReasonForTest(pid, out r, anyWork: true));
+        Assert.Null(w.Server.WandererEncounterReasonForTest(Pid(w), out string r, anyWork: true));
         Assert.Equal("too_close", r);
 
         using var village = Arena("wander_village", pad: 8);
@@ -617,5 +626,17 @@ public sealed class WandererTests : IDisposable
         {
             throw new Xunit.Sdk.XunitException("test world precondition failed: " + what);
         }
+    }
+
+    [Fact]
+    public void APlayerWhoLeft_IsForgotten_ByTheWanderersTables()
+    {
+        // A long-running server must not keep every player id it ever saw (a rejoin arms a fresh quiet spell anyway).
+        using var w = Arena("wander_prune", pad: 8);
+        w.TickAt(0.45, 2.0);
+        Assert.True(w.Server.WandererPlayerTableSizeForTest > 0);
+        w.Server.DisconnectLocalPlayerForTest(Pid(w));
+        w.Server.PruneWandererPlayerTablesForTest();
+        Assert.Equal(0, w.Server.WandererPlayerTableSizeForTest);
     }
 }
