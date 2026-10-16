@@ -547,7 +547,11 @@ public sealed partial class GameServer
             switch (m.Type)
             {
                 case PioneerOutpostGenerator.MarkerDoor:
-                    _settlementMarkers.Add((m.Type, pos));
+                    // The door registry's frame, exactly as MaterializeLodge: RecordAuthoredDoor hangs the door at the
+                    // UNWRAPPED origin + marker, so the door marker must not be wrapped either — west of x = 0 a wrapped
+                    // marker sat a whole circumference away from its own door.
+                    _settlementMarkers.Add((m.Type, new Vector3f(p.Origin.X + m.LocalPos.X + 0.5f, p.GroundY + m.LocalPos.Y + 0.5f,
+                        p.Origin.Z + m.LocalPos.Z + 0.5f)));
                     RecordAuthoredDoor(p, m);
                     break;
                 case PioneerOutpostGenerator.MarkerStore:

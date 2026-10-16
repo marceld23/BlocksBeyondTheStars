@@ -468,7 +468,8 @@ public sealed class CityWorldTests : IDisposable
         {
             Assert.Null(server.CityFootprintForTest);
             Assert.DoesNotContain(CityGenerator.Tier, server.SettlementTiersForTest);
-            Assert.DoesNotContain(server.NpcLooksForTest, n => n.Role == "guardian" || n.Look.Length > 0);
+            // No G.D.S. guardian or its look here; other look keys are fine (a pioneer wears "pixel", #2682).
+            Assert.DoesNotContain(server.NpcLooksForTest, n => n.Role == "guardian" || n.Look == "gds_guard");
 
             var settler = server.NpcRosterForTest().FirstOrDefault(n => n.Role == "settler" && n.CharacterId.Length == 0);
             if (settler.Id != 0)
