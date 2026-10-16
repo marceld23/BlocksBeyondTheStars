@@ -6,6 +6,7 @@ using System.Linq;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -69,9 +70,15 @@ public sealed partial class GameServer
 
         /// <summary>#2653 (bulkhead rule): cell → block of everything that once counted as inside — it keeps counting while
         /// that block stands there within the base's reach, so a hole in a bedroom wall takes the air, not the sleeper.
-        /// RAM only; the saved beds of the residents seed it on the first build of a run.</summary>
+        /// RAM only; the residents' saved beds and posts seed it on the first build of a run (block
+        /// <see cref="StickyAnyBlock"/>: whatever indexed block stands there).</summary>
         public Dictionary<Vector3i, ushort> StickyInside = new();
         public bool StickySeeded;
+
+        /// <summary>Whether the base's area was loaded when the index was built (<see cref="BaseAreaLoaded"/>). The inside
+        /// tests read only loaded chunks — a room in an unloaded chunk reads as open — so an index built without them is
+        /// provisional: the scan keeps the residents' jobs, and the index is rebuilt as soon as the area is loaded.</summary>
+        public bool BuiltLoaded;
         public bool BoardStocked;
         public bool Dirty = true;
         public double ComputedAt = double.NegativeInfinity;
@@ -138,7 +145,12 @@ public sealed partial class GameServer
         _ixBlocks = all.ToArray();
     }
 
-    /// <summary>The base's index, rebuilt first when a block changed within its reach since the last build.</summary>
+    /// <summary>A seeded <c>StickyInside</c> entry: counts for whatever indexed block stands at the cell.</summary>
+    private const ushort StickyAnyBlock = 0;
+
+    /// <summary>The base's index, rebuilt first when a block changed within its reach since the last build — or when it was
+    /// built while the base's area was not loaded and the area is loaded now (chunk loads change no block, so nothing
+    /// else would mark it dirty).</summary>
     private BaseIndex RefreshBaseIndex(ServerBase b)
     {
         if (!_baseIndex.TryGetValue(b.Id, out var idx))
@@ -146,12 +158,22 @@ public sealed partial class GameServer
             _baseIndex[b.Id] = idx = new BaseIndex { BaseId = b.Id };
         }
 
-        if (!idx.Dirty && idx.WorldId == _world.LocationId)
+        _meta.BaseResidents.TryGetValue(BaseBoardKey(b), out var plan);
+        bool loaded = BaseAreaLoaded(b, plan);
+        if (!idx.Dirty && idx.WorldId == _world.LocationId && (idx.BuiltLoaded || !loaded))
         {
             return idx;
         }
 
+        if (!idx.Dirty && idx.WorldId == _world.LocationId)
+        {
+            // Built over unloaded chunks, loaded now: the walled-yard fill may hold a verdict read over the same unloaded
+            // ground (it recomputes on its own every few seconds) — judge the walls afresh with the index.
+            MarkBaseWallsDirty(_world, b.Cell);
+        }
+
         EnsureBaseIndexIds();
+        idx.BuiltLoaded = loaded;
         idx.WorldId = _world.LocationId;
         idx.Dirty = false;
         idx.ComputedAt = _uptime;
@@ -169,19 +191,22 @@ public sealed partial class GameServer
         idx.SentryPosts.Clear();
         idx.ProfessionPosts.Clear();
 
-        // #2653: the residents' saved beds counted as inside when they were saved — a reload must not evict a sleeper whose
-        // bedroom sprang a leak while the server was down.
+        // #2653/#2656: the residents' saved beds and posts counted as inside when they were saved — a reload must not evict a
+        // sleeper whose bedroom sprang a leak while the server was down, nor take a job because the post's room is not
+        // loaded yet (a dedicated server scans its bases before anybody walks there).
         if (!idx.StickySeeded)
         {
             idx.StickySeeded = true;
-            if (_meta.BaseResidents.TryGetValue(BaseBoardKey(b), out var plan))
+            foreach (var r in plan ?? new List<BaseResidentRecord>())
             {
-                foreach (var r in plan)
+                if (TryParseBedCell(r.Bed, out var bedCell))
                 {
-                    if (TryParseBedCell(r.Bed, out var bedCell))
-                    {
-                        idx.StickyInside[bedCell] = _ixBed;
-                    }
+                    idx.StickyInside[bedCell] = StickyAnyBlock;
+                }
+
+                if (TryParseBedCell(r.Post, out var postCell))
+                {
+                    idx.StickyInside[postCell] = StickyAnyBlock;
                 }
             }
         }
@@ -238,7 +263,7 @@ public sealed partial class GameServer
         // A flora cell is itself the air an NPC would stand beside; everything else is judged by the cell above it.
         // #2653: what counted as inside before keeps counting while the same block stands there (the bulkhead rule).
         var probe = crop || sapling ? cell : new Vector3i(cell.X, cell.Y + 1, cell.Z);
-        bool sticky = stickyBefore.TryGetValue(cell, out var was) && was == block;
+        bool sticky = stickyBefore.TryGetValue(cell, out var was) && (was == block || was == StickyAnyBlock);
         if (!sticky && !BaseCellInside(b, cell, probe, roomCache))
         {
             return;
@@ -444,6 +469,29 @@ public sealed partial class GameServer
                 idx.Dirty = true;
             }
         }
+    }
+
+    /// <summary>Whether a base's area is loaded enough to judge what stands inside it: the chunk of its core and the chunk of
+    /// every bed and post its residents hold (<paramref name="plan"/>). Right after a start nobody may have walked there yet
+    /// — a dedicated server scans its bases anyway — and the inside tests read unloaded chunks as open air.</summary>
+    private bool BaseAreaLoaded(ServerBase b, List<BaseResidentRecord>? plan)
+    {
+        int circ = _world.Circumference;
+        bool Loaded(Vector3i cell) => _world.IsChunkLoaded(WorldConstants.WorldToChunk(WorldConstants.CanonicalBlock(cell, circ)));
+        if (!Loaded(b.Cell))
+        {
+            return false;
+        }
+
+        foreach (var r in plan ?? new List<BaseResidentRecord>())
+        {
+            if ((TryParseBedCell(r.Bed, out var bed) && !Loaded(bed)) || (TryParseBedCell(r.Post, out var post) && !Loaded(post)))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>A dissolved base forgets its index.</summary>

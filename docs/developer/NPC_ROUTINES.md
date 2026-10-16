@@ -28,8 +28,14 @@ forges, crops, hydro trays, saplings, sentry posts.
 - A bed counts once: the head (or a legacy one-cell bed), never the foot.
 - **A leak never evicts a resident** (#2653, the bulkhead rule): whatever counted as inside once keeps counting while the
   same block stands at that cell within the base's reach (`BaseIndex.StickyInside`, cell → block, carried from rebuild to
-  rebuild). A hole in a bedroom wall takes the room's air, not its sleeper. RAM only; the residents' saved beds (§3) seed
-  it on a base's first rebuild of a run, so a leak that happened while the server was down evicts nobody either.
+  rebuild). A hole in a bedroom wall takes the room's air, not its sleeper. RAM only; the residents' saved beds and posts
+  (§3) seed it on a base's first rebuild of a run (`StickyAnyBlock`: whatever indexed block stands there), so a leak that
+  happened while the server was down evicts nobody either.
+- **Provisional while unloaded.** The walled-yard and closed-room tests read only loaded chunks — an unloaded room reads as
+  open. `BaseIndex.BuiltLoaded` records whether the core's chunk and the chunks of the residents' saved beds and posts were
+  loaded at the build (`BaseAreaLoaded`); a dedicated server scans its bases before anybody walked there. An index built
+  without them is provisional (§3 keeps the jobs it cannot judge) and is rebuilt as soon as the area is loaded — a chunk
+  load changes no block, so nothing else would mark it dirty — together with the walled-yard fill (`MarkBaseWallsDirty`).
 - Dirty on any `BlockSet` within the base's reach (`MarkBaseIndexDirty`), rebuilt lazily by the base-life scan,
   dropped with the base (`ForgetBaseIndex`). RAM only.
 
@@ -40,7 +46,9 @@ forges, crops, hydro trays, saplings, sentry posts.
 - Slot 0 keeps the founding settler's seed and memory key (`base_<id>:settler`); slot *n* is `base_<id>#<n>:settler`
   (`BaseResidentKey`). The key is the **person**; the relationship's `Role` follows the job.
 - **Beds and jobs belong to someone (#2656).** Who lives at a base is its *plan*, `WorldMetadata.BaseResidents[key]` —
-  slot → bed head cell (`"x,y,z"`, empty = sleeps rough) and job — keyed by `BaseBoardKey` (the core cell, never the
+  slot → bed head cell (`"x,y,z"`, empty = sleeps rough), job and the job's post cell (`Post`, `BaseJobPost`: the
+  trading post, board, workbench, profession post, first crop or sentry post; empty for a guard on a walled round) — keyed
+  by `BaseBoardKey` (the core cell, never the
   load-order base id). `UpdateBaseResidents` reads it, brings it in step and writes it back (`_repo.SaveMetadata`) only
   when it changed, so a reload or a return to the planet respawns the same people in the same beds at the same jobs.
   Additive JSON, no save bump; a dissolved base's entry is pruned by `SweepDissolvedBaseResidents`. Per scan:
@@ -51,7 +59,9 @@ forges, crops, hydro trays, saplings, sentry posts.
      brings back the same person);
   4. `AssignBaseJobs`: a job stays with its resident while its post stands; a job nobody holds goes (priority order:
      vendor, quartermaster, professions, guard, gardener, craftsman) to the jobless resident with the lowest slot —
-     a new post never takes anyone off their job;
+     a new post never takes anyone off their job. On a provisional index (§2) nobody gets a new job and a held job
+     without a post cell (the guard's round) stays; a job with a post cell is judged as always — the cell is sticky
+     while its block stands, so a missing post really went;
   5. `AssignBaseBeds`: beds stay with their sleeper; free beds go to the bedless — those who lost theirs in this scan
      first (remove + place between two scans keeps the sleeper), then the longest-bedless (`BedlessSince`), then by
      slot — each taking the best bed for its work spot (`BaseJobAnchor`, the ranking of §6a). A bed another NPC of the
@@ -133,18 +143,24 @@ One assignment for every NPC with a routine (Marcel 2026-10, epic #2649):
   a lodge resident or kit crew spawns with its furniture and `MarkFurnitureLooked` (the current generation).
 - **The best bed** (`BetterBed`): in the same room as the work spot (`AirRoomIdAt` of the air engine — the bed's room is
   the air above it; null = no preference), then the nearest to the work spot (dx² + dz² + 4·dy², across the seam), then
-  the coordinates (Y, Z, X). The work spot is `Work` (or `Rest` without one; a kit resident's cabin `Rest`).
+  the coordinates (Y, Z, X). The work spot is `Work` (or `Rest` without one; a kit resident's cabin `Rest`). The air
+  engine numbers its rooms afresh with every fill it commits, and asking it may commit one: `BedsInRoomOf` reads the
+  work spot's room before and after the candidates and reads the candidates again once when it changed in between, so
+  all ids of one choice come from one air result.
+- **Ledgers go with their world.** `PruneFurnitureLedgers` (every world's routine pass, every 5 s) drops the ledger of a
+  world that is no longer loaded — it refers to that world's NPCs, and a long session boards station after station.
 - **Where each looks.** Villagers and lodge residents: ±`FurnitureSearchReach` (8) around `Rest`, −2…+3 up/down, never
   inside a base's reach (that furniture is the base scan's). Kit station residents (`CabinBed`): ±`CabinFurnitureReach`
   (4) around their cabin spot. The crew of a generated or player-built station (#2657): **every bed head of the station**
-  (`StationBedCandidates` — the stamped box, scanned once per `BedGeneration`, coordinates-sorted) that stands in a room
+  (`StationBedCandidates` — one block-edit store query per `BedGeneration` over the station's box, like the base index,
+  unwrapped with `StationLocalWorld`, coordinates-sorted) that stands in a room
   with air (`StationCellHasAir`: blanket air on an NPC station, a sealed pocket on a player-built one); seats within 8 of
   `Rest`, in air. Post keepers spawn before the civilians, so they choose first. A free bed rejected only for want of
   air sets `FurnitureRetryAt` (5 s): a patched hull is no furniture change, and right after boarding the time-sliced
   air fill may not have committed yet. No persistence: the crew respawns
   deterministically on every boarding and every re-staffing (#1487) and finds the same beds. Base residents: §3.
 - Test seams: `NpcFurnitureForTest`, `SetAirRoomIdForTest` (a stand-in for the air engine's room ids),
-  `SpawnVillagerForTest(…, looksForFurniture: true)`.
+  `SpawnVillagerForTest(…, looksForFurniture: true)`, `StationBedQueriesForTest`, `FurnitureLedgerForTest`.
 
 **Keepers hold the counter (#2627).** A trading keeper (role `vendor` — the classic vendor, every trading profession,
 a visiting pilot, the travelling merchant — or the `quartermaster`) at work stops strolling while a player stands within

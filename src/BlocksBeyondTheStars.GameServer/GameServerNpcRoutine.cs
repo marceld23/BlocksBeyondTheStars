@@ -75,6 +75,7 @@ public sealed partial class GameServer
     /// <summary>The routine pass (Guard-registered, before the path search and the movement).</summary>
     private void TickNpcRoutine(double dt)
     {
+        PruneFurnitureLedgers(); // #2655: the ledgers of worlds that were unloaded go (every world ticks this, NPCs or not)
         if (_npcs.Count == 0)
         {
             return;

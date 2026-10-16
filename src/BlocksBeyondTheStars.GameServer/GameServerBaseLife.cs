@@ -226,8 +226,22 @@ public sealed partial class GameServer
 
         plan.Sort((p, q) => p.Slot.CompareTo(q.Slot));
         var patrol = plan.Count > 0 ? GuardPatrolFor(b) : null;
-        AssignBaseJobs(plan, BaseJobs(idx, patrol));
+
+        // An index built over unloaded chunks cannot tell a post that went from a room it cannot see (nor a walled round from
+        // open ground): it keeps the jobs the residents hold until the area is loaded and the index rebuilt.
+        AssignBaseJobs(plan, BaseJobs(idx, patrol), provisional: !idx.BuiltLoaded);
         AssignBaseBeds(b, idx, plan, live, lostBed, patrol);
+        foreach (var r in plan)
+        {
+            if (BaseJobPost(idx, r.Job) is { } post)
+            {
+                r.Post = BedCellKey(post);
+            }
+            else if (idx.BuiltLoaded || r.Job.Length == 0)
+            {
+                r.Post = string.Empty;
+            }
+        }
 
         // 4. The people: whoever has no NPC on this world yet — a newcomer, or a resident after a reload or a return.
         foreach (var r in plan)
@@ -293,16 +307,32 @@ public sealed partial class GameServer
     }
 
     /// <summary>#2656: a job stays with its resident while its post stands; a job nobody holds goes, in priority order, to
-    /// the resident without a job with the lowest slot. A new post never takes anybody off the job they have.</summary>
-    private static void AssignBaseJobs(List<BaseResidentRecord> plan, List<string> jobs)
+    /// the resident without a job with the lowest slot. A new post never takes anybody off the job they have. A
+    /// <paramref name="provisional"/> index (built over unloaded chunks, <c>BaseIndex.BuiltLoaded</c> false) hands out no new
+    /// job and keeps a held job it cannot judge: one without a saved post cell (a guard on a walled round, whose walls may
+    /// lie in unloaded chunks). A job with a post cell is judged as always — that cell counts as inside while its block
+    /// stands (<c>BaseIndex.StickyInside</c>), so a job whose post is missing really lost it.</summary>
+    private static void AssignBaseJobs(List<BaseResidentRecord> plan, List<string> jobs, bool provisional = false)
     {
         var open = new HashSet<string>(jobs, System.StringComparer.Ordinal);
+        var held = new HashSet<string>(System.StringComparer.Ordinal);
         foreach (var r in plan)
         {
-            if (r.Job.Length > 0 && !open.Remove(r.Job))
+            if (r.Job.Length == 0)
             {
-                r.Job = string.Empty; // its post went
+                continue;
             }
+
+            bool cannotJudge = provisional && r.Post.Length == 0;
+            if (!held.Add(r.Job) || (!open.Remove(r.Job) && !cannotJudge))
+            {
+                r.Job = string.Empty; // its post went (or a second holder in a hand-edited save)
+            }
+        }
+
+        if (provisional)
+        {
+            return;
         }
 
         foreach (var job in jobs)
@@ -381,19 +411,31 @@ public sealed partial class GameServer
     {
         Vector3i? anchor = job switch
         {
-            "vendor" when idx.VendorPosts.Count > 0 => idx.VendorPosts[0],
-            "quartermaster" when idx.Boards.Count > 0 => idx.Boards[0],
-            "craftsman" when idx.Workbenches.Count > 0 => idx.Workbenches[0],
-            "craftsman" when idx.Forges.Count > 0 => idx.Forges[0],
             "gardener" => GardenSites(idx).Select(s => (Vector3i?)s).FirstOrDefault(),
             "guard" when patrol is { Count: > 0 } => patrol[0].ToBlock(),
-            "guard" when idx.SentryPosts.Count > 0 => idx.SentryPosts[0],
-            _ when idx.ProfessionPosts.TryGetValue(job, out var posts) && posts.Count > 0 => posts[0],
-            _ => null,
+            _ => BaseJobPost(idx, job),
         };
 
         return anchor ?? b.Cell;
     }
+
+    /// <summary>The indexed block a job is tied to (<c>BaseResidentRecord.Post</c>): the trading post, the board, the
+    /// workbench or forge, the profession's post, the first crop / sapling / tray, the sentry post; null for a guard on a
+    /// walled round or no job.</summary>
+    private static Vector3i? BaseJobPost(BaseIndex idx, string job) => job switch
+    {
+        "vendor" when idx.VendorPosts.Count > 0 => idx.VendorPosts[0],
+        "quartermaster" when idx.Boards.Count > 0 => idx.Boards[0],
+        "craftsman" when idx.Workbenches.Count > 0 => idx.Workbenches[0],
+        "craftsman" when idx.Forges.Count > 0 => idx.Forges[0],
+        "gardener" when idx.Crops.Count > 0 => idx.Crops[0],
+        "gardener" when idx.Saplings.Count > 0 => idx.Saplings[0],
+        "gardener" when idx.Trays.Count > 0 => idx.Trays[0],
+        "guard" when idx.SentryPosts.Count > 0 => idx.SentryPosts[0],
+        "" => null,
+        _ when idx.ProfessionPosts.TryGetValue(job, out var posts) && posts.Count > 0 => posts[0],
+        _ => null,
+    };
 
     /// <summary>Writes a base's plan back to the metadata (and the save) when it changed; an empty plan leaves no entry.</summary>
     private void SaveBasePlan(string key, List<BaseResidentRecord> plan, string savedSignature)
@@ -417,7 +459,7 @@ public sealed partial class GameServer
     }
 
     private static string BasePlanSignature(List<BaseResidentRecord> plan)
-        => string.Join(";", plan.OrderBy(r => r.Slot).Select(r => r.Slot.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + r.Bed + "|" + r.Job));
+        => string.Join(";", plan.OrderBy(r => r.Slot).Select(r => r.Slot.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + r.Bed + "|" + r.Job + "|" + r.Post));
 
     /// <summary>A bed cell as the plan stores it: <c>"x,y,z"</c>, or empty for none.</summary>
     private static string BedCellKey(Vector3i? cell)

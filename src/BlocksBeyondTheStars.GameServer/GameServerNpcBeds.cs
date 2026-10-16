@@ -72,6 +72,11 @@ public sealed partial class GameServer
     /// <summary>Test seam: a stand-in for <see cref="AirRoomIdAt"/> (null = ask the air engine).</summary>
     private System.Func<Vector3i, int?>? _airRoomForTest;
 
+    /// <summary>Seconds between two looks for ledgers of worlds that were unloaded.</summary>
+    private const double FurnitureLedgerPruneSeconds = 5.0;
+
+    private double _nextLedgerPruneAt;
+
     private FurnitureLedger FurnitureOf(string locationId)
     {
         if (!_furniture.TryGetValue(locationId, out var ledger))
@@ -81,6 +86,35 @@ public sealed partial class GameServer
 
         return ledger;
     }
+
+    /// <summary>Drops the ledger of every world that is no longer loaded: a ledger holds references to its world's NPCs, and a
+    /// long session visits station after station. A world loaded again starts a fresh ledger — its NPCs respawn with their
+    /// furniture, and a crew looks around anew. Called from every world's routine pass, at most every few seconds.</summary>
+    private void PruneFurnitureLedgers()
+    {
+        if (_furniture.Count == 0 || _uptime < _nextLedgerPruneAt)
+        {
+            return;
+        }
+
+        _nextLedgerPruneAt = _uptime + FurnitureLedgerPruneSeconds;
+        List<string>? gone = null;
+        foreach (var locationId in _furniture.Keys)
+        {
+            if (_worlds.Find(locationId) is null)
+            {
+                (gone ??= new List<string>()).Add(locationId);
+            }
+        }
+
+        foreach (var locationId in gone ?? new List<string>())
+        {
+            _furniture.Remove(locationId);
+        }
+    }
+
+    /// <summary>Test seam (#2655): whether a world still has a furniture ledger.</summary>
+    public bool FurnitureLedgerForTest(string locationId) => _furniture.ContainsKey(locationId);
 
     /// <summary>The sealed room holding an air cell, or null — the air engine's answer (or the test's stand-in).</summary>
     private int? RoomIdAt(Vector3i cell) => _airRoomForTest is { } rooms ? rooms(cell) : AirRoomIdAt(cell);
@@ -340,13 +374,13 @@ public sealed partial class GameServer
         var station = ActiveStationInterior();
         bool stationCrewBeds = station is { Kit: null } && !npc.CabinBed; // #2657: the whole station, not the reach
         var anchor = (npc.CabinBed || !npc.HasWork ? npc.Rest : npc.Work).ToBlock();
-        int? anchorRoom = RoomIdAt(anchor);
-        Vector3i? bestBed = null, bestSeat = null;
+        var beds = new List<Vector3i>(); // the free beds it may take; the best is picked once all are known (one room snapshot)
+        Vector3i? bestSeat = null;
         long bestSeatD = long.MaxValue;
 
-        bool airMissed = false;
         if (npc.Bed is null && stationCrewBeds)
         {
+            bool airMissed = false;
             foreach (var c in StationBedCandidates(station!))
             {
                 if (takenBeds.Contains(WorldConstants.CanonicalBlock(c, circ)) || !IsBedHeadAt(c))
@@ -360,13 +394,10 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (bestBed is not { } cur || BetterBed(c, cur, anchor, anchorRoom))
-                {
-                    bestBed = c;
-                }
+                beds.Add(c);
             }
 
-            if (bestBed is null && airMissed)
+            if (beds.Count == 0 && airMissed)
             {
                 npc.FurnitureRetryAt = _uptime + StationBedAirRetrySeconds;
             }
@@ -415,10 +446,7 @@ public sealed partial class GameServer
 
                         if (isBed)
                         {
-                            if (bestBed is not { } cur || BetterBed(c, cur, anchor, anchorRoom))
-                            {
-                                bestBed = c;
-                            }
+                            beds.Add(c);
                         }
                         else
                         {
@@ -433,7 +461,7 @@ public sealed partial class GameServer
         }
 
         bool changed = false;
-        if (npc.Bed is null && bestBed is { } bed)
+        if (npc.Bed is null && BestBedFor(anchor, anchor, beds) is { } bed)
         {
             SetNpcBed(npc, bed);
             changed = true;
@@ -450,17 +478,16 @@ public sealed partial class GameServer
 
     /// <summary>
     /// The shared bed ranking (#2655): whether <paramref name="candidate"/> beats <paramref name="current"/> for someone
-    /// working at <paramref name="anchor"/> — first a bed in the same room as the work spot (when the air engine names
-    /// rooms, <paramref name="anchorRoom"/>; a bed's room is the air above it), then the nearest (dx² + dz² + 4·dy², across
-    /// the world's seam), then the coordinates (Y, Z, X).
+    /// working at <paramref name="anchor"/> — first a bed in the same room as the work spot (<paramref name="sameRoom"/>,
+    /// <see cref="BedsInRoomOf"/>), then the nearest (dx² + dz² + 4·dy², across the world's seam), then the coordinates
+    /// (Y, Z, X).
     /// </summary>
-    private bool BetterBed(Vector3i candidate, Vector3i current, Vector3i anchor, int? anchorRoom)
+    private bool BetterBed(Vector3i candidate, Vector3i current, Vector3i anchor, HashSet<Vector3i>? sameRoom)
     {
-        if (anchorRoom is { } room)
+        if (sameRoom is { Count: > 0 })
         {
-            bool candidateIn = RoomIdAt(Above(candidate)) == room;
-            bool currentIn = RoomIdAt(Above(current)) == room;
-            if (candidateIn != currentIn)
+            bool candidateIn = sameRoom.Contains(candidate);
+            if (candidateIn != sameRoom.Contains(current))
             {
                 return candidateIn;
             }
@@ -472,19 +499,58 @@ public sealed partial class GameServer
 
     /// <summary>The best bed of <paramref name="candidates"/> for a work spot at <paramref name="anchor"/>
     /// (<see cref="BetterBed"/>); null when there is none. <paramref name="anchorAir"/> is the air cell whose room counts.</summary>
-    private Vector3i? BestBedFor(Vector3i anchor, Vector3i anchorAir, IEnumerable<Vector3i> candidates)
+    private Vector3i? BestBedFor(Vector3i anchor, Vector3i anchorAir, IReadOnlyCollection<Vector3i> candidates)
     {
-        int? room = RoomIdAt(anchorAir);
+        var sameRoom = BedsInRoomOf(anchorAir, candidates);
         Vector3i? best = null;
         foreach (var c in candidates)
         {
-            if (best is not { } cur || BetterBed(c, cur, anchor, room))
+            if (best is not { } cur || BetterBed(c, cur, anchor, sameRoom))
             {
                 best = c;
             }
         }
 
         return best;
+    }
+
+    /// <summary>
+    /// The candidate beds in the same sealed room as <paramref name="anchorAir"/> (a bed's room is the air above it), all read
+    /// against ONE air result: the air engine numbers its rooms afresh with every fill it commits, and asking it may commit
+    /// one (#2650) — the work spot's id from before would then match no bed. The work spot is asked before and after the
+    /// beds; when its id changed in between, the beds are asked once more. Null when the work spot is in no room (or the
+    /// air kept changing) — the nearest bed wins then.
+    /// </summary>
+    private HashSet<Vector3i>? BedsInRoomOf(Vector3i anchorAir, IReadOnlyCollection<Vector3i> candidates)
+    {
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        for (int attempt = 0; attempt < 2; attempt++)
+        {
+            if (RoomIdAt(anchorAir) is not { } room)
+            {
+                return null;
+            }
+
+            var same = new HashSet<Vector3i>();
+            foreach (var c in candidates)
+            {
+                if (RoomIdAt(Above(c)) == room)
+                {
+                    same.Add(c);
+                }
+            }
+
+            if (RoomIdAt(anchorAir) == room)
+            {
+                return same;
+            }
+        }
+
+        return null;
     }
 
     private long BedDistance(Vector3i a, Vector3i b)
@@ -522,11 +588,17 @@ public sealed partial class GameServer
     private bool StationCellHasAir(BoardableStation station, Vector3i cell)
         => !UsesSealedPocketAir(station.Id) || InSealedStationPocket(station, cell);
 
+    /// <summary>Rows one station bed query may read (a station with more beds keeps the first ones).</summary>
+    private const int StationBedRowLimit = 1024;
+
     /// <summary>
-    /// Every bed head of a station (#2657, Marcel 2026-10: "a crew quarters wing at the other end of the station"): the
-    /// stamped box is scanned once per bed generation of the world and the cells kept sorted by coordinates; the air and the
-    /// claims are judged when someone picks. A player station's box follows its build (<c>BoundsMin</c>/<c>BoundsMax</c>),
-    /// a generated one's is its structure at its origin.
+    /// Every bed head of a station (#2657, Marcel 2026-10: "a crew quarters wing at the other end of the station"), kept
+    /// sorted by coordinates and re-read once per bed generation of the world; the air and the claims are judged when
+    /// someone picks. Read from the block-edit store like the base index: one bounded, filtered query
+    /// (<c>ListBlockEditsMatching</c>) instead of a voxel walk over a box that can hold a hundred thousand cells — the stamp
+    /// and every build write their cells there. The box is a player station's build (<c>BoundsMin</c>/<c>BoundsMax</c>) or a
+    /// generated station's structure at its origin; the store holds canonical cells, unwrapped back into the station's own
+    /// space (<see cref="StationLocalWorld"/>, #1773).
     /// </summary>
     private List<Vector3i> StationBedCandidates(BoardableStation station)
     {
@@ -539,6 +611,7 @@ public sealed partial class GameServer
         ledger.StationBedsGeneration = ledger.BedGeneration;
         ledger.StationBedsFor = station.Id;
         ledger.StationBeds.Clear();
+        StationBedQueriesForTest++;
         EnsureBaseIndexIds();
         if (_ixBed == 0)
         {
@@ -546,21 +619,38 @@ public sealed partial class GameServer
         }
 
         var (min, max) = StationBedBox(station);
-        for (int x = min.X; x <= max.X; x++)
-            for (int z = min.Z; z <= max.Z; z++)
-                for (int y = min.Y; y <= max.Y; y++)
+        int circ = _world.Circumference;
+        int latPeriod = WorldConstants.LatitudePeriodFor(circ);
+        var bedBlocks = new[] { _ixBed };
+        int budget = StationBedRowLimit;
+        foreach (var (xLo, xHi) in CanonicalRanges(min.X, max.X, 0, circ))
+        {
+            foreach (var (zLo, zHi) in CanonicalRanges(min.Z, max.Z, -latPeriod / 2, latPeriod))
+            {
+                if (budget <= 0)
                 {
-                    var c = new Vector3i(x, y, z);
-                    var id = _world.GetBlockIfLoaded(c);
-                    if (!id.IsAir && id.Value == _ixBed && ShapeCode.ShapeOf(_world.GetShapeIfLoaded(c)) != (int)BlockShape.BedFoot)
+                    break;
+                }
+
+                var rows = _repo.ListBlockEditsMatching(_world.LocationId, new Vector3i(xLo, min.Y, zLo), new Vector3i(xHi, max.Y, zHi),
+                    bedBlocks, System.Array.Empty<int>(), budget);
+                budget -= rows.Count;
+                foreach (var e in rows)
+                {
+                    if (ShapeCode.ShapeOf(e.Shape) != (int)BlockShape.BedFoot)
                     {
-                        ledger.StationBeds.Add(c);
+                        ledger.StationBeds.Add(StationLocalWorld(station, e.WorldPosition));
                     }
                 }
+            }
+        }
 
         ledger.StationBeds.Sort(CoordinateOrder);
         return ledger.StationBeds;
     }
+
+    /// <summary>Test seam (#2657): how many times a station's bed list was read from the store.</summary>
+    public int StationBedQueriesForTest { get; private set; }
 
     private static (Vector3i Min, Vector3i Max) StationBedBox(BoardableStation station)
     {

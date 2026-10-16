@@ -142,27 +142,43 @@ public sealed class StationCrewBedTests : IDisposable
             Assert.Equal(far, crew.Single(n => n.Role == "vendor").Bed); // the post keeper chooses first
             Assert.Single(crew, n => n.Bed is not null);
 
+            // The station's beds come from one store query per new bed — a chair does not ask again.
+            int queries = server.StationBedQueriesForTest;
+            server.World.SetBlock(World(1, -1, 18), _content.GetBlock("stone")!.NumericId, shape: ShapeCode.Pack((int)BlockShape.Chair, 0), owner: "Owner");
+            Tick(server, pilot, inA, 1);
+            Assert.Equal(queries, server.StationBedQueriesForTest);
+
             // A bed built while the crew is aboard: a civilian takes it.
             var later = PutBed(server, 0, 14);
             Tick(server, pilot, inA, 2);
             Assert.Contains(server.NpcFurnitureForTest, n => n.Role != "vendor" && n.Bed == later);
             Assert.Equal(far, server.NpcFurnitureForTest.Single(n => n.Role == "vendor").Bed); // and nobody moved
+            Assert.Equal(queries + 1, server.StationBedQueriesForTest);
         }
     }
 
-    [Fact]
-    public void TheCrew_PrefersABedInItsPostsRoom_OverANearerOneNextDoor()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TheCrew_PrefersABedInItsPostsRoom_OverANearerOneNextDoor(bool airCommitsMidway)
     {
-        var server = NewServer("crewbeds_room", out var repo);
+        var server = NewServer("crewbeds_room" + (airCommitsMidway ? "_commit" : string.Empty), out var repo);
         using (repo)
         {
             var pilot = server.AddLocalPlayer("Owner");
             string id = BuildTwoRoomHull(server, pilot, postZ: 5);
             Board(server, "Owner", id);
 
-            // The air engine's room ids (a stand-in): room B in front of the inner wall, room A behind it.
+            // The air engine's room ids (a stand-in): room B in front of the inner wall, room A behind it. The engine numbers
+            // its rooms afresh with every fill it commits — with airCommitsMidway one commits right after the first answer
+            // (the work spot's room): the preference must survive it.
             int wallWorldZ = World(0, 0, WallZ).Z;
-            server.SetAirRoomIdForTest(c => c.Z < wallWorldZ ? 1 : c.Z > wallWorldZ ? 2 : null);
+            int answers = 0;
+            server.SetAirRoomIdForTest(c =>
+            {
+                int fill = airCommitsMidway && ++answers > 1 ? 100 : 0;
+                return c.Z < wallWorldZ ? fill + 1 : c.Z > wallWorldZ ? fill + 2 : null;
+            });
 
             var nextDoor = PutBed(server, -1, 0);  // room B: about five blocks from the post, through the wall
             var sameRoom = PutBed(server, -1, 22); // room A: seventeen blocks down the corridor
@@ -195,6 +211,35 @@ public sealed class StationCrewBedTests : IDisposable
             server.World.SetBlock(World(-2, -1, 0), _content.GetBlock("iron_wall")!.NumericId, owner: "Owner");
             Tick(server, pilot, inA, 10);
             Assert.Equal(bed, server.NpcFurnitureForTest.Single(n => n.Role == "vendor").Bed);
+        }
+    }
+
+    [Fact]
+    public void LeavingAStation_DropsItsFurnitureLedger()
+    {
+        // A long session boards station after station: the bookkeeping of a world that was unloaded (and the NPCs it
+        // refers to) must go with it.
+        var server = NewServer("crewbeds_ledger", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildTwoRoomHull(server, pilot, postZ: 24);
+            Board(server, "Owner", id);
+            PutBed(server, -1, 0);
+            var inA = new Vector3f(World(0, -1, 20).X + 0.5f, World(0, -1, 20).Y + 0.03f, World(0, -1, 20).Z + 0.5f);
+            Tick(server, pilot, inA, 2);
+            Assert.True(server.FurnitureLedgerForTest("station:" + id));
+
+            server.LeaveStation("Owner"); // the last one aboard leaves: the station's world is unloaded
+            server.LeaveSpace("Owner");
+            for (int i = 0; i < 16; i++)
+            {
+                pilot.State.Oxygen = 100f;
+                pilot.State.Health = 100f;
+                server.TickForTest(0.5);
+            }
+
+            Assert.False(server.FurnitureLedgerForTest("station:" + id));
         }
     }
 

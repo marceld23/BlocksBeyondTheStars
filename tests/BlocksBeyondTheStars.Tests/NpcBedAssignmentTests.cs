@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Tests;
@@ -193,6 +194,42 @@ public sealed class NpcBedAssignmentTests
 
         w.Restart();
         int reloaded = w.Server.BaseSnapshots.Single().Id;
+        w.Server.ScanBaseLifeForTest();
+        Assert.Equal(before, Snapshot(w, reloaded));
+    }
+
+    [Fact]
+    public void JobsBeyondTheCoreZone_SurviveAReload_BeforeAnybodyWalksToTheBase()
+    {
+        // A dedicated server scans its bases right after the start, before anybody walked there: the walled yard reads as
+        // open ground over unloaded chunks — the craftsman's workbench in it must not lose its craftsman, nor the walls
+        // their guard, and nothing may change once the area loads.
+        using var w = new NpcLifeWorld(_content, "beds_reload_unloaded", padHalf: 24);
+        int baseId = w.FoundBase();
+        w.WallRing(14);
+        w.Set(NpcLifeWorld.Cx + 11, w.Feet, NpcLifeWorld.Cz - 2, "workbench"); // in the yard, outside the core zone
+        w.Bed(NpcLifeWorld.Cx + 11, NpcLifeWorld.Cz + 2);
+        w.Server.ScanBaseLifeForTest();
+        var jobs = Residents(w, baseId).Values.Select(r => r.Job).ToList();
+        Assert.Contains("guard", jobs);
+        Assert.Contains("craftsman", jobs);
+        var before = Snapshot(w, baseId);
+
+        w.Restart();
+        w.Server.World.UnloadFarChunks(new[] { new ChunkCoord(4000, 0, 4000) }, keepRadius: 1); // nothing of the base is loaded
+        int reloaded = w.Server.BaseSnapshots.Single().Id;
+        w.Server.ScanBaseLifeForTest();
+        Assert.Equal(before, Snapshot(w, reloaded));
+
+        // The owner walks over: the area loads, the index is rebuilt over real walls — and still nothing changes.
+        for (int dx = -24; dx <= 24; dx += 8)
+            for (int dz = -24; dz <= 24; dz += 8)
+                for (int dy = -16; dy <= 16; dy += 8)
+                {
+                    _ = w.Server.World.GetBlock(new Vector3i(NpcLifeWorld.Cx + dx, w.Feet + dy, NpcLifeWorld.Cz + dz));
+                }
+
+        w.Server.ScanBaseLifeForTest();
         w.Server.ScanBaseLifeForTest();
         Assert.Equal(before, Snapshot(w, reloaded));
     }

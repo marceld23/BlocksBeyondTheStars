@@ -257,7 +257,7 @@ public sealed class WorldMetadata
 }
 
 /// <summary>#2656: one resident of a base (<see cref="WorldMetadata.BaseResidents"/>): the slot (look, name and memory belong
-/// to it — slot 0 is the founding settler), the head cell of the bed, and the job.</summary>
+/// to it — slot 0 is the founding settler), the head cell of the bed, the job and the job's post.</summary>
 public sealed class BaseResidentRecord
 {
     /// <summary>0 = the founding settler, 1..4 = the people the beds brought.</summary>
@@ -268,6 +268,11 @@ public sealed class BaseResidentRecord
 
     /// <summary>The job ("vendor", "quartermaster", a profession, "guard", "gardener", "craftsman"); empty = none.</summary>
     public string Job { get; set; } = string.Empty;
+
+    /// <summary>The block cell the job is tied to — the trading post, the board, the workbench, the profession's post, the
+    /// first crop, the sentry post — as <c>"x,y,z"</c>; empty for a guard on a walled round or no job. After a reload it
+    /// counts as inside the base like the bed, so the job stays while the post's room is not loaded yet.</summary>
+    public string Post { get; set; } = string.Empty;
 }
 
 /// <summary>#2643: one cell an NPC miner broke (<see cref="WorldMetadata.NpcRefills"/>): what stood there and from when on it
