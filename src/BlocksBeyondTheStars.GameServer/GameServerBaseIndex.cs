@@ -26,6 +26,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>A leak never evicts a resident</b> (#2653, the bulkhead rule): once a bed or a post has counted as inside, it
 /// keeps counting while its block stands at that cell within the base's reach (<c>BaseIndex.StickyInside</c>) — a hole in
 /// a bedroom wall takes the room's air, not its sleeper.</item>
+/// <item>The same inside rule decides the founding (#2677): a bed inside, or three machines inside — counted on demand
+/// for a base nobody lives at yet (<see cref="BaseMachinesInside"/>), cached on the index.</item>
 /// <item>Cached per base, marked dirty by any block set within the base's reach, rebuilt lazily by the base-life
 /// scan; RAM only, never persisted — the store is the truth.</item>
 /// </list>
@@ -79,6 +81,10 @@ public sealed partial class GameServer
         /// tests read only loaded chunks — a room in an unloaded chunk reads as open — so an index built without them is
         /// provisional: the scan keeps the residents' jobs, and the index is rebuilt as soon as the area is loaded.</summary>
         public bool BuiltLoaded;
+
+        /// <summary>#2677: machines inside the base as the founding rule counts them (<see cref="BaseMachinesInside"/>), up
+        /// to the count the first settler needs; -1 until asked after a rebuild. A base that is founded never asks.</summary>
+        public int FoundingMachines = -1;
         public bool BoardStocked;
         public bool Dirty = true;
         public double ComputedAt = double.NegativeInfinity;
@@ -178,6 +184,7 @@ public sealed partial class GameServer
         idx.Dirty = false;
         idx.ComputedAt = _uptime;
         idx.Rebuilds++;
+        idx.FoundingMachines = -1;
         idx.BedHeads.Clear();
         idx.Seats.Clear();
         idx.VendorPosts.Clear();
@@ -213,29 +220,10 @@ public sealed partial class GameServer
 
         var stickyBefore = idx.StickyInside;
         idx.StickyInside = new Dictionary<Vector3i, ushort>();
-        int circ = _world.Circumference;
-        int reach = System.Math.Min(BaseWallReach(b), BaseIndexHalfXZ);
-        int latPeriod = WorldConstants.LatitudePeriodFor(circ);
         var roomCache = new Dictionary<Vector3i, bool>();
-        int budget = BaseIndexRowLimit;
-        foreach (var (xLo, xHi) in CanonicalRanges(b.Cell.X - reach, b.Cell.X + reach, 0, circ))
+        foreach (var e in BaseIndexEdits(b, _ixBlocks!, SeatShapeIndices, BaseIndexRowLimit))
         {
-            foreach (var (zLo, zHi) in CanonicalRanges(b.Cell.Z - reach, b.Cell.Z + reach, -latPeriod / 2, latPeriod))
-            {
-                if (budget <= 0)
-                {
-                    break;
-                }
-
-                var rows = _repo.ListBlockEditsMatching(b.Planet,
-                    new Vector3i(xLo, b.Cell.Y - BaseIndexHalfY, zLo), new Vector3i(xHi, b.Cell.Y + BaseIndexHalfY, zHi),
-                    _ixBlocks!, SeatShapeIndices, budget);
-                budget -= rows.Count;
-                foreach (var e in rows)
-                {
-                    ClassifyBaseIndexCell(b, idx, e.WorldPosition, e.Block, e.Shape, roomCache, stickyBefore);
-                }
-            }
+            ClassifyBaseIndexCell(b, idx, e.WorldPosition, e.Block, e.Shape, roomCache, stickyBefore);
         }
 
         // Deterministic order: residents take beds and seats in this order, the gardener walks its sites in it.
@@ -251,6 +239,102 @@ public sealed partial class GameServer
         }
 
         return idx;
+    }
+
+    /// <summary>The block edits of <paramref name="blocks"/> (or of the <paramref name="shapes"/> forms) in a base's index box —
+    /// its reach capped at ±<see cref="BaseIndexHalfXZ"/>, ±<see cref="BaseIndexHalfY"/> around the core — asked per canonical
+    /// piece of the box (the store holds canonical columns), at most <paramref name="limit"/> rows in all.</summary>
+    private List<BlocksBeyondTheStars.Persistence.BlockEdit> BaseIndexEdits(ServerBase b, IReadOnlyCollection<ushort> blocks,
+        IReadOnlyCollection<int> shapes, int limit)
+    {
+        var result = new List<BlocksBeyondTheStars.Persistence.BlockEdit>();
+        int circ = _world.Circumference;
+        int reach = System.Math.Min(BaseWallReach(b), BaseIndexHalfXZ);
+        int latPeriod = WorldConstants.LatitudePeriodFor(circ);
+        foreach (var (xLo, xHi) in CanonicalRanges(b.Cell.X - reach, b.Cell.X + reach, 0, circ))
+        {
+            foreach (var (zLo, zHi) in CanonicalRanges(b.Cell.Z - reach, b.Cell.Z + reach, -latPeriod / 2, latPeriod))
+            {
+                if (result.Count >= limit)
+                {
+                    return result;
+                }
+
+                result.AddRange(_repo.ListBlockEditsMatching(b.Planet,
+                    new Vector3i(xLo, b.Cell.Y - BaseIndexHalfY, zLo), new Vector3i(xHi, b.Cell.Y + BaseIndexHalfY, zHi),
+                    blocks, shapes, limit - result.Count));
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Rows one founding count may read from the store (#2677): it stops at the third machine inside anyway.</summary>
+    private const int FoundingMachineRowLimit = 256;
+
+    /// <summary>Every block of category <c>machine</c> but the base core (#2677: what the founding rule counts).</summary>
+    private ushort[]? _foundingMachineIds;
+
+    /// <summary>
+    /// #2677: the machines (block category <c>machine</c>, the base core excluded) inside base <paramref name="b"/>, counted
+    /// up to <see cref="BaseSettlerMachineCount"/> — enough to know whether the first settler comes. The 17³ core zone is
+    /// read from the voxels as it always was (a machine there counts wherever it came from); beyond it a machine counts in
+    /// any cell inside the base by the rule beds use (<see cref="BaseCellInside"/>: a sealed base room, the walled yard, a
+    /// closed room), read from the block-edit store. Cached on the index until its next rebuild.
+    /// </summary>
+    private int BaseMachinesInside(ServerBase b, BaseIndex idx)
+    {
+        if (idx.FoundingMachines >= 0)
+        {
+            return idx.FoundingMachines;
+        }
+
+        int count = CountBaseMachines(b);
+        if (count < BaseSettlerMachineCount)
+        {
+            _foundingMachineIds ??= _content.Blocks.Values.Where(d => d.Category == "machine" && d.Key != "base_core")
+                .Select(d => d.NumericId.Value).Where(id => id != 0).ToArray();
+            int circ = _world.Circumference;
+            var roomCache = new Dictionary<Vector3i, bool>();
+            foreach (var e in BaseIndexEdits(b, _foundingMachineIds, System.Array.Empty<int>(), FoundingMachineRowLimit))
+            {
+                var cell = e.WorldPosition;
+                bool inCoreZone = System.Math.Abs(WorldConstants.WrapDeltaX(cell.X - b.Cell.X, circ)) <= BaseProtectionRadius
+                    && System.Math.Abs(cell.Y - b.Cell.Y) <= BaseProtectionRadius
+                    && System.Math.Abs(WorldConstants.WrapDeltaZ(cell.Z - b.Cell.Z, circ)) <= BaseProtectionRadius;
+                if (!inCoreZone && _world.GetBlockIfLoaded(cell).Value == e.Block && MachineCellInside(b, cell, roomCache)
+                    && ++count >= BaseSettlerMachineCount)
+                {
+                    break; // the core zone was counted from the voxels above
+                }
+            }
+        }
+
+        idx.FoundingMachines = System.Math.Min(count, BaseSettlerMachineCount);
+        return idx.FoundingMachines;
+    }
+
+    /// <summary>Whether a machine at <paramref name="cell"/> stands inside the base (#2677). A bed or a post is judged by the
+    /// air above it; a machine is often stacked or set under a shelf, so the first free cell above it or beside it on its
+    /// level is the room it stands in. A machine walled in on every side belongs to no room.</summary>
+    private bool MachineCellInside(ServerBase b, Vector3i cell, Dictionary<Vector3i, bool> roomCache)
+    {
+        var above = new Vector3i(cell.X, cell.Y + 1, cell.Z);
+        if (!IsCollidingBlock(_world.GetBlockIfLoaded(above), fluidsPass: false, foliagePasses: false))
+        {
+            return BaseCellInside(b, cell, above, roomCache);
+        }
+
+        foreach (var (dx, dz) in WallFillDirs)
+        {
+            var side = new Vector3i(cell.X + dx, cell.Y, cell.Z + dz);
+            if (!IsCollidingBlock(_world.GetBlockIfLoaded(side), fluidsPass: false, foliagePasses: false))
+            {
+                return BaseCellInside(b, cell, side, roomCache);
+            }
+        }
+
+        return false;
     }
 
     private void ClassifyBaseIndexCell(ServerBase b, BaseIndex idx, Vector3i cell, ushort block, int shape, Dictionary<Vector3i, bool> roomCache,

@@ -1608,7 +1608,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   of it). The **Energy Door** (workshop, blueprint-gated) is the bulkhead you walk straight through: its blue field
   is an **air curtain**. **Check it:** aim at your own core — the prompt shows how many cells and closed rooms
   currently have air and whether the spot you stand on does (*here: air*; when other rooms breathe but your spot
-  does not, it adds *· /basewalls tells you why*). VEGA explains the rules once when you found a core on a world
+  does not, it adds *· /basewalls tells you why*), and how many residents live at the base (*Residents: 2/5*). VEGA explains the rules once when you found a core on a world
   without breathable air.
 - **Why no air?** Walking from air into a room that **leaks** names **where the air gets out**: the block or the
   opening, its coordinates and its height (e.g. *"the air escapes through Sand at 30/130/0, 10 blocks above you"*,
@@ -1950,8 +1950,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Plants and lamps need something to stand on.** Dig away the block under a plant, a sapling, a torch or a
   lantern — or the block a hanging plant or a fruit hangs from — and it falls: a wild plant is simply gone, while a
   fruit, a sapling, a bred plant (as its seedling), a torch or a lantern lies on the ground for you to pick up. A torch or
-  lantern with a wall beside it or a block above it stays where it is, and a picked plant whose ground you dig
-  away does not grow back.
+  lantern falls with the block it is fixed to: a torch on a wall when you dig away **that wall**, a standing one when
+  you dig away its floor, a lantern hanging from the ceiling when you dig away the ceiling. (Torches and lanterns placed
+  before they could hang on walls stay where they are as long as a wall beside them or a block above them could hold
+  them.) A picked plant whose ground you dig away does not grow back.
 - **Bred plants and seedlings.** A **bio lab** raises a **seedling** from any plant sample — also from a plant you
   crossed yourself. It grows on natural plant ground, on a hydroponic tray or in a flower pot, on any world whose
   air is not corrosive: see § The bio lab.
@@ -2054,15 +2056,23 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   field is carved out, VEGA says so. Loot floating free after a break shows as **Loot** on the lock. How many
   systems hold a field is a world option (**Debris fields**, advanced page: off · very rare · rare · normal
   (default) · frequent).
-- **Derelict stations** are old boxy stations nobody lives on any more — scorched, with torn panels and holes in the
-  hull. Every new world has **one in its start system**; elsewhere a system only rarely holds one to three. They float
-  above the flight plane behind the launch point, show amber on the radar and on the system chart as
-  *name · Derelict station* (**M**, click to set a waypoint), and VEGA mentions one the first time you come close.
-  **Dock** like at any station (fly up and press **E**, or from a spacewalk). Aboard there is **no crew, no trading
-  and no mission board** — the old trading posts are broken. Rooms whose hull is still closed (their doors work)
-  **hold air**; rooms with a hole in a wall, the floor or the roof are **open to space**: your suit tank drains there
-  and your health drops once it is empty, so keep an eye on the oxygen bar. Close all holes of a room with blocks and it
-  holds air again. Docking always sets you down in a room **with air**. If you **fall out through a hole**, you are on
+- **Derelict stations** are wrecks of the old stations from the early days of the game — the boxy kind: a cube hub
+  with a dark collar and a band of windows, four arms with a pod at each end, two big blue solar wings and a mast on
+  top. Every one of them is broken: one solar wing is half torn off, the mast is snapped (its dead beacon floats
+  beside it), the hull is scorched and rusty, with torn panels, holes and loose bits drifting around it — sparks fly
+  now and then, and the old beacon still flickers. They are real stations, not pictures: you can walk through the hub,
+  the tube arms and the pods (the hangar, an old trading corner, a medbay and quarters). Every new world has **one in
+  its start system**; elsewhere a system only rarely holds one to three. They float above the flight plane behind the
+  launch point, show amber on the radar and on the system chart as *name · Derelict station* (**M**, click to set a
+  waypoint), and VEGA mentions one the first time you come close. (A derelict you already boarded or mined before this
+  update keeps the shape it had.)
+  **Dock** like at any station (fly up and press **E**, or from a spacewalk) — you arrive on the command deck in the
+  hub. Aboard there is **no crew, no trading and no mission board** — nobody lives there, the old trading posts are
+  broken. The **life support is dead: there is no air anywhere aboard**, not even in a room whose hull is still closed
+  or one you close yourself. Your **suit tank is your air** in there — it drains the whole time, and your health drops
+  once it is empty — so keep an eye on the oxygen bar and fly back to your ship in time: aboard the ship it fills up
+  again. The first time you board a derelict VEGA reminds you, and a warning line says so each time you come aboard.
+  If you **fall out through a hole**, you are on
   a real **spacewalk** right outside that hole (VEGA tells you): your ship waits beside the derelict, and your suit
   tank is your air. Float back in through a hole or a door and press **E** — you come aboard right there (by a door:
   on its inside) — or fly back to your ship. A derelict is **nobody's**: you may mine it — inside, and from outside on a spacewalk (like salvage: with a
@@ -2206,6 +2216,25 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   woodcutter on the road. They work for a while near you, stop to talk and trade when you walk up, and then move on. Every
   world has its own few wanderers, so you meet the same people again — and they remember you.
 
+### Pioneer outposts
+*(worlds created with version 2026.10.17 or later, on a planet nobody has built on yet — and only where you can breathe)*
+- **What they are.** Some worlds have one or two **pioneer outposts**: a small closed base someone built all by themselves —
+  walls of stone, earth, iron or steel, a door, a bed, a table, a few crates and a glowing **base core** (only decoration: it
+  founds no base). When the outpost stands by the water, a little rowboat lies beside it. An outpost shows up on your map
+  (*"Mira's outpost"*, *"Outpost"* in the legend) once you come within about 40 m — or when a villager or a wanderer tells
+  you about it.
+- **The pioneer.** One **pioneer** lives there. They look like a player with a self-painted pixel skin, but their nameplate
+  says *"Pioneer"* — and they are always friendly. By day they hunt, mine or gather near the outpost, in the evening they sit
+  at their table and at night they sleep. On about one day in three they are **off exploring**: then the outpost stands empty
+  until the evening. If you watch, you see them walk off — and come back.
+- **Talk.** Press **E**: they tell you who they are and about their outpost, and share a tip like the hut people do. Once you
+  are **friends**, they give you a small present from their crates (once per in-game day) — and may let a secret slip.
+- **Look, don't take.** You may open their crates to look, but not take anything — *"That's Mira's — ask them!"*. You cannot
+  dig up an outpost, its cellar or its boat.
+- **The cellar.** Every outpost has a cellar with a small box, down a ladder. Sometimes the ladder is behind a little door in
+  a corner of the room; sometimes it is **hidden** — pick the plant in the corner planter and dig away the soil under it (that
+  soil is the one block of an outpost you may dig).
+
 ### People you know & NPC radio calls
 - **NPCs remember you.** Trading at a stall or taking a board job raises your standing with that vendor or
   quartermaster: **Stranger → Acquaintance → Friend**. The stage shows on their **nameplate** when you walk
@@ -2219,7 +2248,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   to … to trade* until you do. Traders who **visit** bring goods of their own: a trader ship docked at a station or
   landed on a pad sells something different each visit, and the **travelling merchant** at your base has a bit of
   everything — a few offers from different trades, new every day.
-  Settlers chat with anyone; vendors open up once they know you. Some conversations offer **choices**
+  Settlers chat with anyone. Vendors and quartermasters talk to newcomers too — *What do you sell?*, *Any news?* —
+  and open up with favours and smalltalk once they know you. **Talk always gets an answer**: someone with nothing to
+  discuss at least says hello, even right after you traded with them. Some conversations offer **choices**
   ([1]/[2]/[3] or click) — your pick is remembered and can deepen a friendship, hand you something, reveal a
   piece of the story, or make someone **call you on the radio later**. Talking itself counts toward your
   standing. A few **recurring faces** exist out there — the same person at more than one place, and they
@@ -2293,11 +2324,15 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   you wear none), **VEGA** passes it on — a new resident moved in (only the first time), a trader ship landed near your
   base (while you are in the same star system), or your guard spotted bandit scouts. The *NPC radio calls* setting
   applies here too (*off* silences it; *missions only* still lets the guard's warning through).
-- **Your base attracts life.** Trader ships prefer worlds with a founded base. Once your base holds a few
-  machines (workbench, forge, …), a **settler moves in** — they know you from day one and count toward your
-  people. **Every bed** you place inside your base brings **one more resident**, up to **five** people: a bed
-  counts in the core zone, in a sealed room, inside your walls, or in any **closed room** (walls, a roof and a
-  door) at the base — a bed out in the open field brings nobody. **Everyone keeps their own bed and job**: a new
+- **Your base attracts life.** Trader ships prefer worlds with a founded base. Once your base holds **a bed or
+  three machines** (workbench, forge, …) **anywhere inside it**, a **settler moves in** — they know you from day one
+  and count toward your people, and they stay for good. **Every bed** you place inside your base brings **one more
+  resident**, up to **five** people. "Inside" is the same for beds and machines, on every floor: the core zone, a
+  sealed room, inside your walls, or any **closed room** (walls, a roof and a door) at the base — a bed out in the
+  open field brings nobody. **Placing a bed tells you what it did**: *"This bed counts — residents 2/5"*, that it is
+  outside your base, or that your base is full; aiming at your own core shows *Residents: 2/5* too. Residents
+  **take stairs, not ladders** — build a staircase to the upper floors (one-block steps; the hole in the ceiling only
+  has to be open above the upper steps). **Everyone keeps their own bed and job**: a new
   bed never makes the others swap, and the newest resident waits for a free bed until the next one stands (whoever
   has waited longest gets it). Take a bed away and **exactly the one who slept in it** moves on — build a bed again
   and the same person comes back; moving a bed keeps its sleeper. A hole in a bedroom wall takes the air, not the
@@ -2315,10 +2350,12 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   bed) and for **station crew** — a station keeps its own clock, and its deck lights **dim at station night**
   (the HUD clock shows it). On a modular station every crew member has a **cabin of its own** and the evening is
   spent in the **canteen or bar**.
-- **They find their way.** People walk around walls, up single steps and **through doors**: sliding doors
-  open for them like for you, and they swing a wooden or hinged door open and it **closes behind them** (a door
-  you opened yourself is left as you left it). Only when there truly is no way — you walled someone in — and
-  **nobody is watching** do they turn up at the other side.
+- **They find their way.** People walk around walls, up single steps and stairs (your residents up to about
+  sixteen blocks above or below where they are — two or three storeys — but never up a ladder) and **through doors**:
+  sliding doors open for them like for you, and they swing a wooden or hinged door open and it **closes behind them**
+  (a door you opened yourself is left as you left it). Only when there truly is no way — you walled someone in — and
+  **nobody can see it** do they turn up at the other side: someone close by who could see them or the spot they are
+  going to makes them wait (glass hides nothing); a floor, a ceiling or a wall between you does not.
 - **Jobs come from what your base holds** — one job per resident, in this order:
   - **Trading post** (the *Trade Post* block): a resident becomes your **trader** — barter right at home.
   - **Mission board**: a resident becomes your **quartermaster** — board jobs at home (take them and hand
@@ -3173,6 +3210,12 @@ look up: what a mix does follows from what goes in, and the same things always g
 - **Stairs** you craft are a real staircase now instead of a full cube: they get step geometry you can walk
   up, and **R** turns them to face any direction (or tips them upside down for an inverted step). Stairs
   placed before this update stay cubes until you mine and place them again.
+- **Torches and lanterns hang where you put them.** Click the **side** of a block and a torch hangs on that wall —
+  leaning out from it on a little holder, flame in front — and a lantern hangs on a small iron bracket. Click the
+  **top** of a block and it stands, as always. Click the **underside** of a block and a lantern hangs from the
+  ceiling on a short chain; a torch can't hang there (the game tells you to try a lantern). There is nothing to
+  rotate — the face you click decides, and the see-through preview shows how it will hang before you click.
+  Torches and lanterns placed before this update, and those in villages and lodges, keep standing upright.
 
 ### Designing your own forms
 - Craft the **Shaping Tool** (`shape_tool`, workshop recipe + the cheap `shape_tool` blueprint) and
@@ -3241,6 +3284,7 @@ look up: what a mix does follows from what goes in, and the same things always g
 - Everything here appears on **your figure** and **on your avatar for every other player** — it is
   server-persistent, so your look follows you to any world. When you put a whole outfit on in the game your own
   figure changes at once; the other players' screens catch up over the next few seconds, one part at a time.
+  When you join a world, the others see your whole look straight away — colours, face and every painted part.
 
 ### Death & respawn
 - At 0 health you respawn at the ship's **Medbay heal-tank** (vitals restored); a salvage capsule may drop
@@ -3600,6 +3644,7 @@ and easy to mistype. The numbering is stable for a world: `village2` is the same
 | `factory` | A factory's production terminal |
 | `camp` | A bandit camp (`bandit` also works) |
 | `lodge` | A hut in the wild — `lodge 1` is the nearest, `lodge 2` the next (`hut`, `hütte` also work; new worlds only) |
+| `outpost` | A pioneer's outpost — `outpost 1` is the nearest (`pioneer`, `pionier`, `außenposten` also work; new worlds only) |
 | `monument` | A rune monument |
 | `treasure` | A hidden loot chest |
 | `base` / `beacon` / `beam` / `station` | Something a player built here |

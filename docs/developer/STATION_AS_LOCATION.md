@@ -145,8 +145,8 @@ tier) while its interior was a different voxel build. Now a station looks the sa
 
 The broken old stations of [DERELICT_STATIONS.md](DERELICT_STATIONS.md) are boarded through this same path but ride
 the PLAYER-station half of it: their build is an ownerless `SpaceStructure` in `_playerStationCells`, stamped by
-`StampPlayerStation` into `station:derelict:…`, with sealed-pocket air, the gravity volume and the drift rescue — and
-none of the NPC half (no crew, no markers, no mission board, no protection).
+`StampPlayerStation` into `station:derelict:…`, with no air at all (dead life support, #2675), the gravity volume and
+the spacewalk / drift rescue — and none of the NPC half (no crew, no markers, no mission board, no protection).
 
 Two EVA ↔ station rules are derelict-only (#2636, `GameServerDerelictSpacewalk.cs`):
 

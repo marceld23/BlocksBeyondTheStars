@@ -158,6 +158,23 @@ holds the data (every object block declares `tileKind`, a picture cube dresses i
 resolves, face tiles are bundled and opaque); `CubeFacingTests` holds the mapping, placement, drop and the
 watcher's eye.
 
+**Torches and lanterns on walls and ceilings (#2683).** A light stores where it is fixed the way the ladder stores its
+wall (#909): `PropOrientation.LightMount`, the form index `PropShapes.LightMountShape` (a `Post`, so any reader that does
+not know the light path sees a slim stick, never a building form) and the mount in the **up-face** field, pointing away
+from the block that holds it — 0 standing on the floor, 2..5 on the wall opposite that face, 1 hanging from the ceiling
+(the lantern only). The client sends the face the player clicked as the intent's up-face; `PropShapes.LightForm` — run
+by the server (`GameServer.LightFormAt`, the ship twin `StructureLightForm`) and by the placement ghost alike — turns it
+into the descriptor when the block there can hold a light (`PropShapes.HoldsLight`: solid, not a fluid, not a slim prop),
+refuses a torch under a real ceiling (`@srv.place.torch_ceiling`, before anything is consumed) and otherwise answers 0.
+**Descriptor 0 means "unstamped"**: lights from older saves, worldgen and intents without a face stand upright and keep
+the #2532 support reading (the floor, unless a wall beside or a block above could hold them); a stamped light falls
+exactly when its own block goes (`GameServerPropSupport.LightLostItsHold`). The light's mesher path draws the stamped
+wall and ceiling forms from `LightMountGeometry` (Client.Core) — cards on slices of the light's own tile, two-sided,
+rigid cutout, flame/dye mode kept — before the shaped-block path is ever reached; the ghost (`PlacementGhost.ShowLight`)
+draws the same cards. Nothing to rotate: a held light is not "rotatable" (no **R** cycle, no HUD hint). The mined drop
+strips the form (`PropShapes.IsStampedForm`) and the Crystal Net's lit/unlit swap keeps it. `LightMountTests`
+(server + shared), `LightMountGeometryTests` (Client.Core) and `ChunkMesherLightMountEditModeTests` pin it.
+
 ## Sharing (#846)
 
 Three routes, all riding on things that already existed:

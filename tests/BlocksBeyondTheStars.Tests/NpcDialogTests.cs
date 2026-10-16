@@ -4,10 +4,14 @@
 using System;
 using System.IO;
 using System.Linq;
+using BlocksBeyondTheStars.Networking;
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -133,14 +137,18 @@ public sealed class NpcDialogTests : IDisposable
         using (repo)
         {
             var p = player.State;
+            string key = server.NpcKeyForTest(p.PlayerId, "vendor")!;
 
-            // A stranger gets the ordinary greeting, no dialogue.
+            // #2673: a stranger gets the stage-free hello — before, Talk only showed the "want to trade?" bubble, and
+            // nothing at all inside its cooldown. "Any news?" pays a little standing: talking slowly builds the friendship.
             server.TalkToNpcForTest(p.PlayerId, npcId);
+            Assert.Equal(("vendor_hello", 0), server.ActiveDialogForTest(p.PlayerId));
+            server.ChooseDialogForTest(p.PlayerId, 1);
             Assert.Null(server.ActiveDialogForTest(p.PlayerId));
+            Assert.True(p.NpcMemory.TryGetValue(key, out var met) && met.Value > 0, "the hello's news answer pays no standing");
 
             // Known → the vendor first asks the regular's favour (#1212: the mission-offering dialogue wins while
-            // takeable); "not today" sets it aside for the session and the smalltalk opens.
-            string key = server.NpcKeyForTest(p.PlayerId, "vendor")!;
+            // takeable); "not today" sets it aside for the session and the smalltalk opens — the hello stays behind them.
             p.NpcMemory[key] = new NpcRelationship { Role = "vendor", Value = 20 };
             server.TalkToNpcForTest(p.PlayerId, npcId);
             Assert.Equal(("vendor_favour_1", 0), server.ActiveDialogForTest(p.PlayerId));
@@ -149,6 +157,54 @@ public sealed class NpcDialogTests : IDisposable
             Assert.Equal(("vendor_smalltalk", 0), server.ActiveDialogForTest(p.PlayerId));
             server.Stop();
         }
+    }
+
+    // ---------------- #2673: Talk is never silent ----------------
+
+    private static List<NpcGreeting> GreetingsFrom(NpcLifeWorld w, int npcId)
+        => w.Transport.Sent.Where(s => s.Conn == w.Player.ConnectionId).Select(s => s.Msg).OfType<NpcGreeting>()
+            .Where(g => g.NpcId == npcId).ToList();
+
+    [Fact]
+    public void TradeThenTalk_InsideTheGreetingCooldown_StillOpensTheHello()
+    {
+        // The report: a new LAN world (a stranger to every trader), "Trade", close the screen, "Talk" → nothing at all.
+        // "Trade" greets the vendor, which arms the 25 s greeting cooldown; the talk had nothing but that greeting.
+        using var w = new NpcLifeWorld(_content, "talk_after_trade");
+        var at = w.Player.State.Position;
+        int vendor = w.Server.AddNpcForTest(new Vector3f(at.X + 2f, w.Feet, at.Z), role: "vendor");
+        string pid = w.Player.State.PlayerId;
+
+        w.Server.HandlePayloadForTest(w.Player.ConnectionId, NetCodec.Encode(new NpcGreetIntent { Role = "vendor" }));
+        Assert.Single(GreetingsFrom(w, vendor));
+
+        w.Server.TalkToNpcForTest(pid, vendor);
+        Assert.Equal(("vendor_hello", 0), w.Server.ActiveDialogForTest(pid));
+        var panel = w.Transport.Sent.Where(s => s.Conn == w.Player.ConnectionId).Select(s => s.Msg).OfType<NpcDialogState>().Last();
+        Assert.Equal(vendor, panel.NpcId);
+        Assert.Equal(3, panel.Choices.Length);
+        Assert.False(panel.End);
+    }
+
+    [Fact]
+    public void ATalk_WithNoDialogue_IsNeverSilent_EvenInsideTheGreetingCooldown()
+    {
+        // A guardian off the G.D.S. world has no dialogue: every Talk answers with the greeting bubble, also the ones
+        // inside the cooldown (the "Trade" greeting or the previous Talk armed it).
+        using var w = new NpcLifeWorld(_content, "talk_never_silent");
+        var at = w.Player.State.Position;
+        int guard = w.Server.AddNpcForTest(new Vector3f(at.X + 2f, w.Feet, at.Z), role: "guardian");
+        string pid = w.Player.State.PlayerId;
+
+        for (int i = 1; i <= 3; i++)
+        {
+            w.Server.TalkToNpcForTest(pid, guard);
+            Assert.Null(w.Server.ActiveDialogForTest(pid));
+            Assert.Equal(i, GreetingsFrom(w, guard).Count);
+        }
+
+        // Each is a new bubble (its own id), so the client shows and voices every one.
+        Assert.Equal(3, GreetingsFrom(w, guard).Select(g => g.GreetingId).Distinct().Count());
     }
 
     // ---------------- Authored characters (#1128) ----------------
@@ -283,6 +339,42 @@ public sealed class NpcDialogTests : IDisposable
     }
 
     // ---------------- Content consistency ----------------
+
+    [Fact]
+    public void EveryNpcOfferedTradeOrTalk_HasADialogueAStrangerCanOpen()
+    {
+        // #2673: the client asks "Trade or talk?" at every NPC of the vendor role (VendorReach.VendorRole) — the classic
+        // trader at a stall or a station post, a visiting or landed trader, a base's own trader, the trading professions,
+        // the travelling merchant and the wilderness folk. Each needs a dialogue without a minimum stage, or "Talk" is
+        // only the greeting bubble for a newcomer. The quartermaster too: away from the board, E talks to them.
+        static bool ForStrangers(DialogDefinition d)
+            => d.MinStage.Length == 0 && d.Character.Length == 0 && d.PlanetTypes.Count == 0 && !d.OncePerPlayer
+               && d.Nodes.Count > 0 && d.Nodes[0].Choices.Count > 0;
+
+        // The classic posts take the plain role dialogue, wherever they stand (a settlement, a station, a base).
+        foreach (string role in new[] { "vendor", "quartermaster" })
+        {
+            Assert.True(_content.Dialogs.Any(d => ForStrangers(d) && d.Role == role && d.Job.Length == 0 && d.Home == DialogDefinition.HomeAny),
+                $"the role '{role}' has no dialogue a stranger can open");
+        }
+
+        // A profession, a guest and the wilderness folk only ever take their own job's dialogues (PickDialog).
+        var jobs = NpcProfessions.All.Where(p => p.Trades).Select(p => (Job: p.Job, Home: DialogDefinition.HomeAny))
+            .Append((Job: "guest_merchant", Home: DialogDefinition.HomeAny))
+            .Concat(_content.Lodges.SelectMany(l => new[] { (Job: l.Key, Home: DialogDefinition.HomeLodge), (Job: l.Key, Home: DialogDefinition.HomeWander) }))
+            .ToList();
+        Assert.Contains(jobs, j => j.Home == DialogDefinition.HomeLodge); // the lodge table loaded
+        foreach (var (job, home) in jobs)
+        {
+            Assert.True(_content.Dialogs.Any(d => ForStrangers(d) && d.Job == job && (d.Home == home || d.Home == DialogDefinition.HomeAny)),
+                $"the job '{job}' (home '{home}') has no dialogue a stranger can open");
+        }
+
+        // The hellos come after the regulars' talks, so a known face still gets the favours and the smalltalk first.
+        var keys = _content.Dialogs.Select(d => d.Key).ToList();
+        Assert.True(keys.IndexOf("vendor_hello") > keys.IndexOf("vendor_smalltalk"), "vendor_hello must follow vendor_smalltalk");
+        Assert.True(keys.IndexOf("vendor_hello") > keys.IndexOf("vendor_favour_3"), "vendor_hello must follow the favours");
+    }
 
     [Fact]
     public void EngineAndPackDialogues_Declare_AndEveryTextResolves()

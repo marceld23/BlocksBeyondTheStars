@@ -90,7 +90,8 @@ Flow (server side, `GameServerNpcGreeting.cs`):
    standing and language. That is exactly why the line may only hold the `{player}` token: the server fills in
    the **receiving** player's own (join-screened) name at both send sites — the instant cached line and the late
    off-thread upgrade drained by `TickGreetings`. A backend answer with any other placeholder or a stray brace is
-   dropped. A 25 s per-NPC cooldown stops re-open spam.
+   dropped. A 25 s per-NPC cooldown stops re-open spam (an explicit Talk inside it still gets the plain line — cached
+   or static, never a new request — #2673).
 4. **Variants (#2590):** each key holds up to **three** lines, one picked at random per greeting; while fewer than
    three exist, a cache hit asks for one more in the background 30 % of the time, so an NPC no longer says the
    same sentence forever. The cache is **bounded** (2048 keys, first-in-first-out). Misses and top-ups draw on the

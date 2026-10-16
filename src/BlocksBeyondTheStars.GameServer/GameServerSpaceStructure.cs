@@ -1300,6 +1300,13 @@ public sealed partial class GameServer
             return;
         }
 
+        // #2683: a torch can't hang from a cabin ceiling either (the lantern can) — refused before anything is consumed.
+        if (PropShapes.IsLightMountKey(blockDef.Key) && StructureLightForm(s, blockDef.Key, pos, intent.UpFace) == PropShapes.LightRefused)
+        {
+            Reject(session, "structure", "@srv.place.torch_ceiling");
+            return;
+        }
+
         // A self-built ship keeps exactly one helm (the unambiguous commissioning/cockpit anchor, #950) —
         // checked before any material is consumed.
         if (_ship.IsCustom && blockDef.Key == ShipHelmBlock
@@ -1405,12 +1412,19 @@ public sealed partial class GameServer
     /// the world's <c>StampPropShape</c>, reading its walls instead of the planet's. Ladders hug a hull wall,
     /// the staircase may tip onto one, other furniture only turns; an old client that sends no orientation
     /// (both fields 0) is treated as "decide here", exactly like the world path's −1.</summary>
-    private static int StampStructurePropShape(SpaceStructure s, StructureEditIntent intent, string blockKey, Vector3i pos, float playerYaw)
+    private int StampStructurePropShape(SpaceStructure s, StructureEditIntent intent, string blockKey, Vector3i pos, float playerYaw)
     {
         var cycle = PropShapes.OrientationOf(blockKey);
         if (cycle == PropOrientation.None)
         {
             return 0;
+        }
+
+        if (cycle == PropOrientation.LightMount)
+        {
+            // #2683: a torch or lantern takes the hull face it was put against, as on a planet. An old client's 0 reads
+            // as "standing", which draws exactly like the unstamped light — and a ship's furnishing never pops.
+            return System.Math.Max(0, StructureLightForm(s, blockKey, pos, intent.UpFace));
         }
 
         bool chosenYaw = intent.Yaw >= 0 && intent.Yaw <= 3;
@@ -1461,6 +1475,16 @@ public sealed partial class GameServer
 
         return ShapeCode.Pack(PropShapes.DefaultPlaceShape(blockKey), facing, ShapeCode.UpPlusY);
     }
+
+    /// <summary>#2683: <see cref="PropShapes.LightForm"/> over a ship's grid — the structure twin of the world's
+    /// <c>LightFormAt</c>: a hull block that can hold a light takes the mount the client clicked.</summary>
+    private int StructureLightForm(SpaceStructure s, string blockKey, Vector3i pos, int clickedFace)
+        => PropShapes.LightForm(blockKey, clickedFace, face =>
+        {
+            var dir = ShapeCode.FaceDirection(face); // the up-face points AWAY from the support
+            var id = s.Get(new Vector3i(pos.X - dir.X, pos.Y - dir.Y, pos.Z - dir.Z));
+            return !id.IsAir && PropShapes.HoldsLight(_content.BlockById(id));
+        });
 
     /// <summary>Test hook: run an EVA structure edit (item 20 S2).</summary>
     public void HandleStructureEditForTest(string playerId, StructureEditIntent intent)

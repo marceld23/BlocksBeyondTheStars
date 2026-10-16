@@ -137,6 +137,47 @@ public sealed class NpcGridPathTests
     }
 
     [Fact]
+    public void ThePlayersStaircase_WithTheHoleAboveTheUpperStepsOnly_IsClimbedAndDescended()
+    {
+        // #2678: a three-high room (ceiling at y = 3, the floor above), three one-block steps along +X at x = 1..3 and the
+        // ceiling opened only over the two upper steps (x = 2, 3) — the tight hole a player cuts. The step from x = 1 to
+        // x = 2 has the ceiling right above the lower step: the search used to ask for head room there and never found
+        // the stairs the player walks.
+        var g = new Grid();
+        for (int x = -6; x <= 8; x++)
+            for (int z = -4; z <= 4; z++)
+            {
+                g.Solid.Add(new Vector3i(x, 3, z));
+            }
+
+        for (int i = 0; i < 3; i++)
+            for (int h = 0; h <= i; h++)
+            {
+                g.Solid.Add(new Vector3i(1 + i, h, 0));
+            }
+
+        g.Solid.Remove(new Vector3i(2, 3, 0));
+        g.Solid.Remove(new Vector3i(3, 3, 0));
+
+        var below = new Vector3i(-3, 0, 0);
+        var above = new Vector3i(6, 4, 0);
+        var up = Find(g, below, above);
+        Assert.NotNull(up);
+        AssertWalkable(g, below, up!);
+        Assert.Contains(new Vector3i(1, 1, 0), up!); // the lowest step, under the closed ceiling
+        Assert.Contains(new Vector3i(2, 2, 0), up!);
+
+        var down = Find(g, above, below);
+        Assert.NotNull(down);
+        AssertWalkable(g, above, down!);
+        Assert.Contains(new Vector3i(1, 1, 0), down!);
+
+        // Close the hole: the steps lead into the ceiling, no way up.
+        g.Solid.Add(new Vector3i(2, 3, 0));
+        Assert.Null(Find(g, below, above));
+    }
+
+    [Fact]
     public void TheBudget_BoundsTheSearch()
     {
         var g = new Grid();

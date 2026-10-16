@@ -474,6 +474,13 @@ namespace BlocksBeyondTheStars.Client
                 return (traits.FlagsOf(b) & (TraitFloraPrefix | TraitSlimProp)) != 0 && !WetProp(px, py, pz);
             }
 
+            // A non-cube SHAPED neighbour doesn't fill its cell, so it cannot seal a face toward it. A torch or lantern
+            // carrying its wall/ceiling mount (#2683) is the exception: its descriptor is a mount, not a building form,
+            // and its cell is already handled by the slim-prop traits — a stamped light must cull its neighbours exactly
+            // as an unstamped one does (no water sheet between a wet lantern and the pond around it).
+            bool ShapedNeighbourOpens(int px, int py, int pz)
+                => worldShape != null && !ShapeCode.IsCube(worldShape(px, py, pz)) && !traits.Has(worldBlock(px, py, pz), TraitTorchProp);
+
             WaterSurfaceData WaterCellData(BlockId waterId, int cwx, int cwy, int cwz)
             {
                 var key = (cwx, cwy, cwz);
@@ -626,7 +633,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     var dir = Faces[f];
                     int nx = cwx + dir.X, ny = cwy + dir.Y, nz = cwz + dir.Z;
-                    bool draw = OpenForWater(nx, ny, nz) || (worldShape != null && !ShapeCode.IsCube(worldShape(nx, ny, nz)));
+                    bool draw = OpenForWater(nx, ny, nz) || ShapedNeighbourOpens(nx, ny, nz);
                     if (!draw || (dir.Y == 0 && submerged))
                     {
                         continue;
@@ -1030,6 +1037,23 @@ namespace BlocksBeyondTheStars.Client
                     // water) keeps swaying under cover as if in a current (LeafCodeAquatic).
                     float propMode = dyed ? 3f : emission > 0f ? 7f : 0f;
                     float plantCode = isTorchProp ? LeafCodeRigid : propWet ? LeafCodeAquatic : LeafCodePlant;
+
+                    // #2683: a torch or lantern placed against a WALL hangs on it, and a lantern placed under a ceiling
+                    // hangs from it — the mount is stamped in the cell's descriptor (PropShapes.LightMountOf). A standing
+                    // light and every light without a stamp (older saves, worldgen) keep the upright rosette below.
+                    if (isTorchProp)
+                    {
+                        bool lanternMount = (tf & TraitLantern) != 0;
+                        int lightMount = PropShapes.LightMountOf(chunk.GetShapeLocal(WorldConstants.LocalIndex(x, y, z)), lanternMount);
+                        if (lightMount >= 1)
+                        {
+                            AddLightCards(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                                new Vector3(x, y, z), plantCol, uv, plantSky, dyed ? dye : speciesTint, plantBl, plantBlDir,
+                                propMode + animCode, LightMountGeometry.Build(lanternMount, lightMount));
+                            continue;
+                        }
+                    }
+
                     AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         new Vector3(x, y, z), plantCol, uv, plantSky, isTorchProp && dyed ? dye : speciesTint,
                         plantBl, plantBlDir, plantLean,
@@ -1196,7 +1220,7 @@ namespace BlocksBeyondTheStars.Client
                         // chamfer while its neighbouring face is still inset → a BevelAmount-wide slit along the
                         // edge you can look through (#1459: torches, plants, ladders, leaves beside a wall).
                         if (traits.ExposesOpaqueFace(onb)
-                            || (worldShape != null && !ShapeCode.IsCube(worldShape(ox, oy, oz))))
+                            || ShapedNeighbourOpens(ox, oy, oz))
                         {
                             openMask |= 1 << bf;
                         }
@@ -1248,7 +1272,7 @@ namespace BlocksBeyondTheStars.Client
                     // A non-cube SHAPED neighbour doesn't fill its cell, so it can't seal this face — draw toward
                     // it (otherwise a cube beside a sphere/ramp would leave a hole). Only checked when the face
                     // would otherwise be culled, so chunks with no shapes pay nothing.
-                    if (!drawFace && worldShape != null && !ShapeCode.IsCube(worldShape(nx, ny, nz)))
+                    if (!drawFace && ShapedNeighbourOpens(nx, ny, nz))
                     {
                         drawFace = true;
                     }
@@ -1754,6 +1778,58 @@ namespace BlocksBeyondTheStars.Client
                         leafUv.Add(new Vector4(leafCode, tint.r, tint.g, tint.b)); // cutout code + per-species tint
                         blockLight.Add(bl); // coloured block-light reaching the plant
                         blockLightDir.Add(blDir); // matching block-light direction
+                    }
+
+                    tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 1);
+                    tris.Add(baseIdx); tris.Add(baseIdx + 3); tris.Add(baseIdx + 2);
+                }
+            }
+        }
+
+        /// <summary>#2683: a torch or lantern fixed to a wall, or a lantern hanging from a ceiling — the cards of
+        /// <see cref="LightMountGeometry"/> (the placement ghost draws the same list), each emitted with BOTH windings
+        /// exactly like a <see cref="AddCrossPlant"/> plane, on its slice of the light's own tile, with the light's flame /
+        /// dye mode (<paramref name="tintMode"/>) and the rigid cutout code, so it flickers, takes dye and stands still in
+        /// the wind like the standing light. Render-only — no collider, a light stays walk-through.</summary>
+        private static void AddLightCards(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
+            List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight, List<Vector3> blockLightDir,
+            Vector3 cell, Color col, Rect uv, float sky, Color tint, Vector3 bl, Vector3 blDir, float tintMode,
+            IReadOnlyList<LightMountGeometry.Card> cards)
+        {
+            foreach (var card in cards)
+            {
+                var a = cell + new Vector3(card.A.X, card.A.Y, card.A.Z);
+                var b = cell + new Vector3(card.B.X, card.B.Y, card.B.Z);
+                var c = cell + new Vector3(card.C.X, card.C.Y, card.C.Z);
+                var d = cell + new Vector3(card.D.X, card.D.Y, card.D.Z);
+                float u0 = uv.x + (uv.width * card.U0), u1 = uv.x + (uv.width * card.U1);
+                float v0 = uv.y + (uv.height * card.V0), v1 = uv.y + (uv.height * card.V1);
+                var tangent = (Vector4)(b - a).normalized;
+                tangent.w = -1f;
+
+                for (int winding = 0; winding < 2; winding++)
+                {
+                    int baseIdx = verts.Count;
+                    if (winding == 0)
+                    {
+                        verts.Add(a); verts.Add(b); verts.Add(c); verts.Add(d);
+                    }
+                    else
+                    {
+                        verts.Add(b); verts.Add(a); verts.Add(d); verts.Add(c);
+                    }
+
+                    // The same UV order on both windings (as the cross-billboard does), so the back reads unmirrored.
+                    uvs.Add(new Vector2(u0, v0)); uvs.Add(new Vector2(u1, v0));
+                    uvs.Add(new Vector2(u1, v1)); uvs.Add(new Vector2(u0, v1));
+                    for (int i = 0; i < 4; i++)
+                    {
+                        colors.Add(col);
+                        tangents.Add(tangent);
+                        skyUv.Add(new Vector2(sky, tintMode));
+                        leafUv.Add(new Vector4(LeafCodeRigid, tint.r, tint.g, tint.b));
+                        blockLight.Add(bl);
+                        blockLightDir.Add(blDir);
                     }
 
                     tris.Add(baseIdx); tris.Add(baseIdx + 2); tris.Add(baseIdx + 1);

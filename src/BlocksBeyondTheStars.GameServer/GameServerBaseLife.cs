@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using System.Linq;
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
@@ -14,8 +15,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <summary>
 /// The world notices your base (#1120, stages 1–2): trader ships prefer landing on worlds with a founded
 /// base (stage 1, see <c>PickLandableBody</c>) and hail the base owner over the radio when they set down;
-/// a settler NPC moves in once a base carries enough machines (stage 2) — they greet, count as a KNOWN
-/// acquaintance, and appear in the "People you know" roster. No NPC ever damages a block.
+/// a settler NPC moves in once a base holds a bed or a few machines anywhere inside it (stage 2, #2677) — they greet,
+/// count as a KNOWN acquaintance, and appear in the "People you know" roster. No NPC ever damages a block.
 /// <para><b>Residents (#1865):</b> every bed inside the base (core zone, sealed room, walled yard or closed room —
 /// see <see cref="BaseIndex"/>) brings one more resident, up to <see cref="BaseResidentCap"/>: 1 + beds. Slot 0 is
 /// the founding settler (today's identity and memory key); slots 1..4 are the people the beds brought. A job comes from
@@ -30,8 +31,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>Machines (block category "machine", the base core itself excluded) a base needs before a
-    /// settler moves in — a bare marker post is a claim, not a home.</summary>
+    /// <summary>Machines (block category "machine", the base core itself excluded) inside a base that bring its first
+    /// settler — a bare marker post is a claim, not a home. Since #2677 they count anywhere inside the base (the rule beds
+    /// use), and a single bed inside is enough on its own (<see cref="BaseEarnsFirstSettler"/>).</summary>
     private const int BaseSettlerMachineCount = 3;
 
     /// <summary>How often ONE base is (re)checked — round-robins over the bases on the active world.</summary>
@@ -157,6 +159,7 @@ public sealed partial class GameServer
         string key = BaseBoardKey(b);
         var plan = _meta.BaseResidents.TryGetValue(key, out var saved) ? saved : new List<BaseResidentRecord>();
         string savedSignature = BasePlanSignature(plan);
+        int residentsBefore = plan.Count; // the saved list is changed in place below
         var live = new Dictionary<int, ServerNpc>();
         foreach (var npc in ResidentNpcs(b))
         {
@@ -188,10 +191,11 @@ public sealed partial class GameServer
             }
         }
 
-        // 2. How many live here. The first settler needs the machines; once a base has one, beds alone bring the rest
-        // (and a machine mined for a moment never sends the founding settler away).
+        // 2. How many live here. The first settler comes for a bed or a few machines anywhere inside the base (#2677); once
+        // a base has one, beds alone bring the rest (and a machine mined for a moment never sends the founding settler away —
+        // slot 0 is saved with the plan).
         bool founded = plan.Any(r => r.Slot == 0);
-        int desired = founded || CountBaseMachines(b) >= BaseSettlerMachineCount
+        int desired = founded || BaseEarnsFirstSettler(b, idx)
             ? System.Math.Min(BaseResidentCap, 1 + idx.BedHeads.Count)
             : 0;
 
@@ -262,6 +266,65 @@ public sealed partial class GameServer
         {
             BroadcastNpcs();
         }
+
+        if (plan.Count != residentsBefore)
+        {
+            BroadcastBasesOn(b.Planet); // #2679: the core's readout shows "residents n/5"
+        }
+    }
+
+    /// <summary>#2677: whether a base without its founding settler earns one now — a bed inside the base, or
+    /// <see cref="BaseSettlerMachineCount"/> machines anywhere inside it (<see cref="BaseMachinesInside"/>).</summary>
+    private bool BaseEarnsFirstSettler(ServerBase b, BaseIndex idx)
+        => idx.BedHeads.Count > 0 || BaseMachinesInside(b, idx) >= BaseSettlerMachineCount;
+
+    /// <summary>How many residents a base's saved plan holds (the founding settler included) — any world.</summary>
+    private int BaseResidentCount(ServerBase b)
+        => _meta.BaseResidents.TryGetValue(BaseBoardKey(b), out var plan) ? plan.Count : 0;
+
+    /// <summary>
+    /// #2679: a bed was placed. When it stands in or near a base of the player's (owned or allied, within the base's reach)
+    /// the base is rescanned at once — the bed is counted, a resident may move in — and the player hears what it did:
+    /// it counts (residents n/5), it founded the base (the first settlers move in), the base is full, or it stands outside
+    /// the base (with what "inside" means, and that nobody lives there yet when that is so). A bed far from every base of
+    /// theirs, aboard a parked ship or on a station is a bed to sleep in — nothing is said.
+    /// </summary>
+    private void OnBaseBedPlaced(PlayerSession session, Vector3i head)
+    {
+        if (_world.Planet?.Void == true || IsPlayerStationWorld(_world.LocationId)
+            || ShipInteriorContains(new Vector3f(head.X + 0.5f, head.Y + 0.5f, head.Z + 0.5f)))
+        {
+            return;
+        }
+
+        string player = session.State.PlayerId;
+        var cell = WorldConstants.CanonicalBlock(head, _world.Circumference);
+        var b = _bases.FirstOrDefault(x => x.Planet == _world.LocationId && x.OwnerId == player && WithinBaseWallReach(x, cell))
+            ?? _bases.FirstOrDefault(x => x.Planet == _world.LocationId && AreAllied(x.OwnerId, player) && WithinBaseWallReach(x, cell));
+        if (b is null)
+        {
+            return;
+        }
+
+        bool wasFounded = BaseResidentCount(b) > 0;
+        if (_baseIndex.TryGetValue(b.Id, out var stale))
+        {
+            stale.Dirty = true;
+        }
+
+        UpdateBaseResidents(b);
+        var idx = RefreshBaseIndex(b);
+        int residents = BaseResidentCount(b);
+        string key = !idx.BedHeads.Contains(cell) ? residents > 0 ? "srv.base.bed_outside" : "srv.base.bed_outside_no_settler"
+            : !wasFounded ? "srv.base.bed_founds"
+            : 1 + idx.BedHeads.Count > BaseResidentCap ? "srv.base.bed_full"
+            : "srv.base.bed_counts";
+
+        // Resolved here in the player's language: the line carries two numbers, one "@srv.*:arg" token only one.
+        string text = Localize(session.Locale, key)
+            .Replace("{n}", residents.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            .Replace("{max}", BaseResidentCap.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Send(session, new ServerMessage { Text = text });
     }
 
     /// <summary>The jobs a base offers, in priority order (#1868): trading post, mission board, the professions' posts,
@@ -918,7 +981,8 @@ public sealed partial class GameServer
     /// <summary>Test entrypoint for the pre-#1262 memory migration.</summary>
     public void MigrateBaseSettlerMemoryForTest(PlayerSession session) => MigrateBaseSettlerMemory(session);
 
-    /// <summary>Machine-category blocks inside the base zone (base_core itself excluded).</summary>
+    /// <summary>Machine-category blocks inside the 17³ core zone, read from the voxels (base_core itself excluded) — the
+    /// core-zone part of <see cref="BaseMachinesInside"/>.</summary>
     private int CountBaseMachines(ServerBase b)
     {
         int count = 0;

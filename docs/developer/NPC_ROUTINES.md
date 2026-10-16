@@ -42,7 +42,23 @@ forges, crops, hydro trays, saplings, sentry posts.
 ## 3. Residents (`GameServerBaseLife.cs`)
 
 - `_baseResidents[baseId]` = slots with their NPC ids on the base's world. Desired count =
-  `min(5, 1 + beds)` once the first settler earned the base (≥ 3 machines); a founded base keeps its settler.
+  `min(5, 1 + beds)` once the first settler earned the base; a founded base keeps its settler (slot 0 is saved with
+  the plan, so a machine mined or a reload never sends it away).
+- **Founding (#2677, `BaseEarnsFirstSettler`):** one bed inside the base (the index's `BedHeads`), or
+  `BaseSettlerMachineCount` (3) machines inside it (`BaseMachinesInside`) — block category `machine`, the core excluded,
+  beds included. The 17³ core zone is counted from the voxels (`CountBaseMachines`, as before); beyond it one block-edit
+  store query over the index box (`BaseIndexEdits`, at most 256 rows, stopping at the third) finds the machines and
+  judges each by the beds' inside rule (`BaseCellInside`) from the first free cell above it or beside it on its level
+  (`MachineCellInside` — a machine is often stacked or under a shelf). Cached on the index (`FoundingMachines`) until its
+  next rebuild; a founded base never asks. Since one bed founds a base, that bed brings two people (the founder and its
+  own resident).
+- **What a placed bed did (#2679, `OnBaseBedPlaced`, from the placement path):** a bed within the reach of a base its
+  placer owns or is allied with — not aboard a parked ship, not on a station — rescans that base at once and tells the
+  placer, resolved on the server in their language (two numbers do not fit one `@srv.*:arg` token):
+  `srv.base.bed_counts` (residents n/5), `bed_founds` (the base had nobody; the first settlers move in),
+  `bed_full` (1 + beds > 5), `bed_outside` / `bed_outside_no_settler` (not in the index; the second while nobody lives
+  there). The core's readout shows the count too: `NetBase.Residents` / `ResidentCap` (the saved plan's size;
+  `BroadcastBasesOn` when it changes), drawn by `HudUi.BaseAirPrompt` (`ui.base.residents`) only when the cap is sent.
 - Slot 0 keeps the founding settler's seed and memory key (`base_<id>:settler`); slot *n* is `base_<id>#<n>:settler`
   (`BaseResidentKey`). The key is the **person**; the relationship's `Role` follows the job.
 - **Beds and jobs belong to someone (#2656).** Who lives at a base is its *plan*, `WorldMetadata.BaseResidents[key]` —
@@ -84,6 +100,15 @@ builder why a post is not staffed (`srv.base.post_*`).
 - `NpcGridPath.Find`: A* over feet cells (standable = floor + two free cells), four horizontal moves with dy ∈
   {0, +1, −1, −2}, doors a little dearer, goal reached beside it; box ±48 × ±8, 3000 expansions. Pure and
   unit-tested (`NpcGridPathTests`).
+  - **Steps (#2678):** a one-block step up or down needs only its landing to be standable — what the walk checks too
+    (`MoveNpcs` lifts the body the moment its centre crosses into the new column and sweeps only that column). The old
+    rule wanted a third free cell above the *lower* step's column, so the usual player staircase — one-block steps in a
+    three-high room, the ceiling hole open above the upper steps only — was a wall to every NPC. The capsule's edge
+    brushes the hole's rim while crossing; that brief overlap is accepted. A drop of two still needs the column it walks
+    out over to be open at its old height. Stairs and slabs are full blocks to stand on (`NpcFooting.Floor`).
+  - **Base residents** (`npc.BaseId > 0`) search `BasePathLimits` = the station's (96, 16, 8000): a base spans up to 96
+    blocks (the index box) and stacks storeys — a bed 12 above the core was out of ±8. Every other planet NPC keeps the
+    default. **Ladders are out of scope** — residents take stairs; the manual says so.
 - `SetNpcGoal` → `RequestNpcPath` queues the NPC; `TickNpcPaths` runs **one** search per tick on `GetBlockIfLoaded`
   reads. On a player station a node must be in a sealed pocket or a doorway (the crew never routes through vacuum).
 - `NpcGridPath.Smooth` (#2669) pulls every level stretch of the route straight: from each kept waypoint to the farthest
@@ -92,8 +117,17 @@ builder why a post is not staffed (`srv.base.post_*`).
   column. The first leg stays the move to the start cell's neighbour (the NPC stands anywhere in its own cell), and
   steps stay exactly the search's moves. A route that got stuck once is followed by a plain `Simplify` route (the safe fallback).
 - `MoveNpcs` → `GoalStep`: follows waypoints (`Seek`, arrival radius 0.45, goal 0.4), re-routes after 4 s without
-  progress, and after 3 failed routes calls `TeleportNpcToGoalIfUnseen` (no player within 24 blocks of the NPC or
-  the goal). Walkers skip NPC separation (no doorway shoving).
+  progress, and after 3 failed routes calls `TeleportNpcToGoalIfUnseen`. Walkers skip NPC separation (no doorway
+  shoving).
+- **The unseen fallback (#2680):** a player within 24 blocks of the NPC or the goal stops the move only while they
+  **could see** either (`PlayerSeesUnseenMove`): a voxel line from the eyes (feet + 1.5) to the chest (+0.9) or the head
+  (+1.6) of the NPC and of the goal, sampled every 0.2 blocks on no-load reads. Facing does not matter. Only an opaque
+  full block hides (`BlocksUnseenSight`); everything else is erred towards "seen" — air and unloaded chunks, the blocks
+  the client draws see-through (`UnseenMoveSeeThroughKeys`, a mirror of `ChunkMesher.IsTransparentSlow`: glass,
+  force fields, water, gas, fire, …), fluids, walk-through props and leaves, every shaped block (slab, stair, fence,
+  furniture) and doorways (a door is air in the block grid, open or shut). So the player on the floor above or behind
+  a wall no longer keeps a resident downstairs forever; the player in the same open room still does. Test seams:
+  `PlayerSeesUnseenMoveForTest`, `NpcUnseenMovesForTest`.
 - Doors: `TickDoors` adds walking NPCs to the slide/energy door targets; a walker blocked by a shut hinge/wood door
   calls `OpenDoorForNpc`, which sets `ServerDoor.NpcHeldUntil` — the door closes once that passed and nobody stands
   in the gap. A player's toggle clears the hold.
@@ -486,6 +520,15 @@ the furnished room (`RoomFurnisher.RoomRole` name).
   `MoveNpcs` before the festival one keeps a walk it was on waiting without counting as stuck), and `TickNpcRoutine` skips
   its phase check and job — for at most `NpcTalkHoldSeconds` (60 s) after the talk began. Then the routine may walk it on,
   and walking out of reach ends the talk. Chatter skips it (`AttendUntil`, `NpcInPlayerDialog`), it greets no passer-by.
+- **A talk always answers (#2673).** `PickDialog` takes the first match in `data/dialogs.json` order, so the stage-free
+  hellos (`vendor_hello`, `quartermaster_hello`: *What do you sell?* / *What kind of work?*, *Any news?* with
+  `standing:1`, *Bye*) sit **after** the favours and the smalltalk (`known`/`trusted`) — a regular still gets those first,
+  a stranger the hello. Every NPC the client asks "Trade or talk?" (role `vendor`: the classic post, station and visiting
+  traders, the trading professions, the travelling merchant, lodge folk and wanderers) has a dialogue a stranger can open
+  (`NpcDialogTests.EveryNpcOfferedTradeOrTalk_HasADialogueAStrangerCanOpen`). When none applies, `HandleTalkToNpc` greets
+  with `EmitGreeting(explicitTalk: true)`: inside the 25 s greeting cooldown — which "Trade" (`NpcGreetIntent`) or the
+  previous talk armed — it still sends the plain line (`SendPlainGreeting`: a cached AI line, the stage greeting or "" for
+  the client's role line) with a new bubble id, but no story thread, treasure hint or AI request and no re-armed cooldown.
 
 ## 17. Out in the wild — lodge residents and wanderers (#2639)
 

@@ -20,7 +20,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// VEGA says so once. No flight to open (free flight off, a ship that can't fly): the suit's pull-back as before.</item>
 /// <item><b>Coming back</b> — E on the spacewalk boards through the nearer of a door (#2607) and an opening the suit
 /// floats at (a breach, the open hangar, a torn panel — <see cref="DerelictBreachNearSuit"/>), onto the deck behind it;
-/// with neither in reach at the arrival in the sealed command room. Or fly back to the ship.</item>
+/// with neither in reach at the arrival on the command deck. Or fly back to the ship.</item>
 /// <item><b>The mapping</b> — a build cell floats at <c>position + cell − box centre</c> in flight (the flight view
 /// centres the design on its cell box; the derelict is never rotated), and sits at <c>cell + stamp origin − stamp min</c>
 /// in the interior world (<see cref="StationCellToWorld"/>). Both directions go through the build cell.</item>

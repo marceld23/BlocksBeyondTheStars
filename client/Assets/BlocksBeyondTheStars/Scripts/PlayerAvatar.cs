@@ -147,6 +147,15 @@ namespace BlocksBeyondTheStars.Client
             new List<Mesh>(), new List<Mesh>(), new List<Mesh>(), new List<Mesh>(),
         };
 
+        // #2682: which of the textures above a bake cache handed in (TextureCache) — the cache's, never destroyed here.
+        private bool _faceTexShared;
+        private readonly bool[] _paintTexShared = new bool[BodyPaint.PartCount];
+
+        /// <summary>#2682: a cache that may hand this figure ready-baked face and body-paint textures (the pioneers' pixel
+        /// skins — the same few per world, rebuilt every time an NPC comes back into reach). A texture it hands out stays
+        /// the cache's; null (players, previews) = every bake is the figure's own, as before.</summary>
+        public IAvatarTextureCache TextureCache { get; set; }
+
         // Original (pre-sRGB) part tints, for compositing a painting's transparent pixels (like _skinColor).
         private Color _torsoColor, _armsColor, _legsColor;
 
@@ -1556,12 +1565,14 @@ namespace BlocksBeyondTheStars.Client
             }
 
             EnsureFacePlate();
-            if (_faceTex != null)
+            if (_faceTex != null && !_faceTexShared)
             {
                 Destroy(_faceTex);
             }
 
-            _faceTex = FacePalette.BuildAvatarTexture(_faceString, _skinColor);
+            var sharedFace = TextureCache?.Face(_faceString, _skinColor); // #2682: a pioneer's skin, baked once per world
+            _faceTexShared = sharedFace != null;
+            _faceTex = sharedFace != null ? sharedFace : FacePalette.BuildAvatarTexture(_faceString, _skinColor);
             if (_faceMat != null)
             {
                 _faceMat.mainTexture = _faceTex;
@@ -1727,8 +1738,13 @@ namespace BlocksBeyondTheStars.Client
 
             if (_paintTexs[part] != null)
             {
-                Destroy(_paintTexs[part]);
+                if (!_paintTexShared[part])
+                {
+                    Destroy(_paintTexs[part]);
+                }
+
                 _paintTexs[part] = null;
+                _paintTexShared[part] = false;
             }
 
             string pixels = _bodyPaint[part];
@@ -1744,7 +1760,9 @@ namespace BlocksBeyondTheStars.Client
                 _ => _torsoColor, // torso AND helmet: the helmet shell is suit-coloured
             };
 
-            _paintTexs[part] = BodyPaintKit.BuildAtlas(part, pixels, baseColor);
+            var sharedAtlas = TextureCache?.PaintAtlas(part, pixels, baseColor); // #2682: a pioneer's skin, baked once per world
+            _paintTexShared[part] = sharedAtlas != null;
+            _paintTexs[part] = sharedAtlas != null ? sharedAtlas : BodyPaintKit.BuildAtlas(part, pixels, baseColor);
             _paintMats[part] = Lit(Color.white, _paintTexs[part]); // white tint → the painting's true colours
 
             for (int row = 0; row < BodyPaintKit.Rows(part); row++)
@@ -1911,7 +1929,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
-            if (_faceTex != null)
+            if (_faceTex != null && !_faceTexShared) // #2682: a cache's texture stays the cache's
             {
                 Destroy(_faceTex);
             }
@@ -1928,7 +1946,7 @@ namespace BlocksBeyondTheStars.Client
                     Destroy(_paintMats[part]);
                 }
 
-                if (_paintTexs[part] != null)
+                if (_paintTexs[part] != null && !_paintTexShared[part])
                 {
                     Destroy(_paintTexs[part]);
                 }

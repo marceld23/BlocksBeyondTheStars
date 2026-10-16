@@ -846,6 +846,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _npcs.Clear();
+            PixelSkinTextures.Shared.Clear(); // #2682: the old world's pioneers went with their figures
 
             // #2592: the new world's NPC ids restart at 1 — forget every bubble id and fall silent.
             EndBabble(Time.unscaledTime, fade: true);
@@ -896,8 +897,27 @@ namespace BlocksBeyondTheStars.Client
                     // #2123: no breather strip on NPCs — a civilian's own facial hair (about 65 % none since #2433) in its hair
                     // tone, an android's speaker grille. Same seed, so the face stays the same every visit.
                     var lowerFace = NpcLooks.LowerFaceFor(seed, nd.IsRobot);
-                    avatar.Build(skin, outfit, outfit * 0.9f, legs, spacesuit: false, variantSeed: nd.IsRobot ? 0 : seed, hair: hair,
-                        lowerFace: lowerFace);
+                    // #2682: a pioneer wears a pixel skin — picked from the pool and recoloured by its seed, nothing more on the
+                    // wire. Its base colours replace the server's palette; the face and paintings go on after the build.
+                    var pixelSkin = nd.Look == PixelSkins.LookKey && !nd.IsRobot ? PixelSkinTextures.Pool.SkinFor(seed) : null;
+                    if (pixelSkin != null)
+                    {
+                        avatar.Build(FacePalette.ColorOf(pixelSkin.Skin), FacePalette.ColorOf(pixelSkin.Torso), FacePalette.ColorOf(pixelSkin.Arms),
+                            FacePalette.ColorOf(pixelSkin.Legs), spacesuit: false, variantSeed: seed,
+                            hair: pixelSkin.Hair != 0 ? (Color)FacePalette.ColorOf(pixelSkin.Hair) : (Color?)null, lowerFace: LowerFace.Bare);
+                        avatar.TextureCache = PixelSkinTextures.Shared;
+                        avatar.SetFace(pixelSkin.FacePixels);
+                        for (int part = 0; part < BlocksBeyondTheStars.Shared.State.BodyPaint.PartCount; part++)
+                        {
+                            avatar.SetBodyPaint(part, pixelSkin.PartPixels(part));
+                        }
+                    }
+                    else
+                    {
+                        avatar.Build(skin, outfit, outfit * 0.9f, legs, spacesuit: false, variantSeed: nd.IsRobot ? 0 : seed, hair: hair,
+                            lowerFace: lowerFace);
+                    }
+
                     if (nd.Look == "gds_guard")
                     {
                         avatar.SetGuardianLook(); // #1793: the G.D.S. machines — red stripe band, glowing eyes

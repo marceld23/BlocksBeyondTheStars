@@ -114,6 +114,11 @@ public enum PropOrientation : byte
     /// meaningless (its plate is a square <see cref="BlockShape.Panel"/>) and the two vertical up-faces are
     /// the two a ladder has no use for.</summary>
     LadderMount = 3,
+
+    /// <summary>The torch and the lantern (#2683): the block face they were placed against is the whole choice — a
+    /// wall, the floor or (the lantern only) the ceiling, see <see cref="PropShapes.LightForm"/>. Nothing to cycle:
+    /// the rotate key offers no states, so a held light is not "rotatable".</summary>
+    LightMount = 4,
 }
 
 /// <summary>
@@ -179,6 +184,7 @@ public static class PropShapes
     {
         "ladder" => PropOrientation.LadderMount,
         "stairs" => PropOrientation.Full,
+        "torch" or "lantern" or "torch_off" or "lantern_off" => PropOrientation.LightMount, // #2683
         _ => DefaultPlaceShape(blockKey) != 0 ? PropOrientation.YawOnly : PropOrientation.None,
     };
 
@@ -191,7 +197,9 @@ public static class PropShapes
            && (shape == DefaultPlaceShape(blockKey)
                || (shape == LadderFreeStanding && blockKey == "ladder")
                // A bed's foot half and the legacy one-cell bed both drop as a plain "bed" (#1846).
-               || (blockKey == "bed" && (shape == (int)BlockShape.BedFoot || shape == BedSingleCell)));
+               || (blockKey == "bed" && (shape == (int)BlockShape.BedFoot || shape == BedSingleCell))
+               // A torch or lantern on a wall, standing or hanging drops as the plain light (#2683).
+               || (shape == LightMountShape && IsLightMountKey(blockKey)));
 
     /// <summary>The form + up-face a ladder is stamped with for a chosen mount face: an up-face pointing away
     /// from one of the four walls keeps the plate, anything else (no wall to hug) becomes the pole. Server and
@@ -232,6 +240,86 @@ public static class PropShapes
 
         return ShapeCode.UpPlusY;
     }
+
+    // --- Torches and lanterns on walls and ceilings (#2683) ---
+    // "When it is placed on a wall it should hang on the wall!" A light used to store no mount, so the mesher stood
+    // every torch upright in the middle of its cell — one placed against a cave wall at head height floated in the
+    // air. Like the ladder (#909), the face the player clicked is now stamped into the descriptor: the form index is
+    // LightMountShape and the up-face says where the light is fixed (it points AWAY from that block, the way a
+    // shape's up-face always does). A light without that form — placed before #2683, by worldgen, or by a client that
+    // sent no face — stays exactly what it was: upright, with the old support reading.
+
+    /// <summary>#2683: the form index a stamped torch or lantern carries. A slim <see cref="BlockShape.Post"/>, so a
+    /// reader that knows nothing of the light path (a building-shape mesher, a footing rule) sees a thin stick, never a
+    /// building form; the light's own mesher path draws it before any shaped-block code is reached.</summary>
+    public const int LightMountShape = (int)BlockShape.Post;
+
+    /// <summary>#2683: what <see cref="LightForm"/> answers for a light that cannot go where it was aimed — a torch
+    /// against a ceiling (a flame would scorch it; the lantern hangs there on its chain).</summary>
+    public const int LightRefused = -1;
+
+    /// <summary>The torch and the lantern, lit or switched off by the Crystal Net (#2520) — the lights that mount on a
+    /// face (#2683).</summary>
+    public static bool IsLightMountKey(string? blockKey) => blockKey is "torch" or "lantern" or "torch_off" or "lantern_off";
+
+    /// <summary>The lantern, lit or unlit — the one light that may hang from a ceiling (#2683).</summary>
+    public static bool IsLanternKey(string? blockKey) => blockKey is "lantern" or "lantern_off";
+
+    /// <summary>
+    /// #2683: the descriptor a torch or lantern is stamped with when it is placed against <paramref name="clickedFace"/>
+    /// — the up-face pointing from the block the player clicked into the placed cell, i.e. away from the support (the
+    /// same value <see cref="ShapeCode.FaceFromDirection"/> gives for the step from the aimed block to the filled
+    /// cell). <paramref name="holds"/> answers whether the block on the far side of an up-face can hold a light
+    /// (<see cref="HoldsLight"/>). Server and client run this one function, so the placement ghost cannot promise a
+    /// form the server then stamps differently.
+    /// <list type="bullet">
+    /// <item>a wall (2..5), the floor (0) or — the lantern only — the ceiling (1) that holds: that mount;</item>
+    /// <item>a torch against a ceiling that holds: <see cref="LightRefused"/>;</item>
+    /// <item>no face, or one whose block cannot hold a light (a plant, another torch, water): 0 — the unstamped light,
+    /// upright as it always was.</item>
+    /// </list>
+    /// </summary>
+    public static int LightForm(string blockKey, int clickedFace, System.Func<int, bool>? holds)
+    {
+        if (!IsLightMountKey(blockKey) || !ShapeCode.IsValidUpFace(clickedFace) || holds is null || !holds(clickedFace))
+        {
+            return 0;
+        }
+
+        if (clickedFace == 1 && !IsLanternKey(blockKey))
+        {
+            return LightRefused;
+        }
+
+        return ShapeCode.Pack(LightMountShape, 0, clickedFace);
+    }
+
+    /// <summary>#2683: the face a stamped torch or lantern is fixed to, as an up-face — 0 standing on the floor, 2..5 on
+    /// a wall (the wall lies at the opposite offset), 1 hanging from the ceiling (a lantern) — or -1 for a light with no
+    /// stamped form, which stands upright and keeps the old support reading. -1 for anything that is not a light.</summary>
+    public static int LightMountOf(string? blockKey, int descriptor)
+        => IsLightMountKey(blockKey) ? LightMountOf(descriptor, IsLanternKey(blockKey)) : -1;
+
+    /// <summary>#2683: <see cref="LightMountOf(string?, int)"/> for a cell already known to hold a light (the mesher
+    /// knows the block by its trait flags); <paramref name="lantern"/> says whether it may hang. A torch descriptor
+    /// claiming the ceiling (a forged blueprint) reads as unstamped.</summary>
+    public static int LightMountOf(int descriptor, bool lantern)
+    {
+        if (ShapeCode.ShapeOf(descriptor) != LightMountShape)
+        {
+            return -1;
+        }
+
+        int face = ShapeCode.UpFaceOf(descriptor);
+        return !ShapeCode.IsValidUpFace(face) || (face == 1 && !lantern) ? -1 : face;
+    }
+
+    /// <summary>#2683: whether a block can hold a torch or lantern fixed to it — something solid a body would bump
+    /// into: not air or a fluid, and not another slim prop (a plant, a torch, a ladder, a fire). The same reading the
+    /// server's support rule has used since #2532 for "a wall that could be holding this torch".</summary>
+    public static bool HoldsLight(Definitions.BlockDefinition? def)
+        => def is not null && def.Solid && !def.Liquid && def.Key is not ("water" or "lava")
+           && !Definitions.WalkThroughBlocks.IsProp(def.Key);
 }
 
 /// <summary>

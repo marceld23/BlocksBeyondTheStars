@@ -223,6 +223,38 @@
       }
     ]
   },
+  {
+    "key": "vendor_hello",
+    "role": "vendor",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "nodes": [
+      {
+        "promptKey": "dlg.vendor_hello.prompt",
+        "choices": [
+          { "textKey": "dlg.vendor_hello.c_sell", "responseKey": "dlg.vendor_hello.r_sell" },
+          { "textKey": "dlg.vendor_hello.c_news", "responseKey": "dlg.vendor_hello.r_news", "consequence": "standing:1" },
+          { "textKey": "dlg.vendor_hello.c_bye", "responseKey": "dlg.vendor_hello.r_bye" }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "quartermaster_hello",
+    "role": "quartermaster",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "nodes": [
+      {
+        "promptKey": "dlg.quartermaster_hello.prompt",
+        "choices": [
+          { "textKey": "dlg.quartermaster_hello.c_work", "responseKey": "dlg.quartermaster_hello.r_work" },
+          { "textKey": "dlg.quartermaster_hello.c_news", "responseKey": "dlg.quartermaster_hello.r_news", "consequence": "standing:1" },
+          { "textKey": "dlg.quartermaster_hello.c_bye", "responseKey": "dlg.quartermaster_hello.r_bye" }
+        ]
+      }
+    ]
+  },
   {"key": "profession_doctor", "job": "doctor", "minStage": "", "oncePerPlayer": false, "nodes": [{"promptKey": "dlg.doctor.prompt", "choices": [{"textKey": "dlg.doctor.c_treat", "responseKey": "dlg.doctor.r_treat", "consequence": "treat"}, {"textKey": "dlg.doctor.c_advice", "responseKey": "dlg.doctor.r_advice", "consequence": "standing:1"}, {"textKey": "dlg.doctor.c_trade_info", "responseKey": "dlg.doctor.r_trade_info"}, {"textKey": "dlg.doctor.c_bye", "responseKey": "dlg.doctor.r_bye"}]}]},
   {"key": "profession_grocer", "job": "grocer", "minStage": "", "oncePerPlayer": false, "nodes": [{"promptKey": "dlg.grocer.prompt", "choices": [{"textKey": "dlg.grocer.c_fresh", "responseKey": "dlg.grocer.r_fresh", "consequence": "standing:1"}, {"textKey": "dlg.grocer.c_shop", "responseKey": "dlg.grocer.r_shop"}, {"textKey": "dlg.grocer.c_bye", "responseKey": "dlg.grocer.r_bye"}]}]},
   {"key": "profession_arms_dealer", "job": "arms_dealer", "minStage": "", "oncePerPlayer": false, "nodes": [{"promptKey": "dlg.arms_dealer.prompt", "choices": [{"textKey": "dlg.arms_dealer.c_best", "responseKey": "dlg.arms_dealer.r_best"}, {"textKey": "dlg.arms_dealer.c_parts", "responseKey": "dlg.arms_dealer.r_parts", "consequence": "standing:1"}, {"textKey": "dlg.arms_dealer.c_bye", "responseKey": "dlg.arms_dealer.r_bye"}]}]},
@@ -240,6 +272,8 @@
   {"key": "lodge_woodcutter", "job": "woodcutter", "home": "lodge", "minStage": "", "oncePerPlayer": false, "aiPrompt": true, "nodes": [{"promptKey": "dlg.lodge_woodcutter.prompt", "choices": [{"textKey": "dlg.lodge.c_work", "responseKey": "dlg.lodge_woodcutter.r_work", "consequence": "standing:1"}, {"textKey": "dlg.lodge.c_tip", "responseKey": "dlg.lodge.r_tip_none", "consequence": "lodgetip"}, {"textKey": "dlg.lodge.c_bye", "responseKey": "dlg.lodge_woodcutter.r_bye"}]}]},
   {"key": "lodge_hunter_friend", "job": "hunter", "home": "lodge", "minStage": "trusted", "oncePerPlayer": false, "aiPrompt": true, "nodes": [{"promptKey": "dlg.lodge_hunter.prompt_friend", "choices": [{"textKey": "dlg.lodge.c_gift", "responseKey": "dlg.lodge_hunter.r_gift", "consequence": "lodgegift"}, {"textKey": "dlg.lodge.c_work", "responseKey": "dlg.lodge_hunter.r_work", "consequence": "standing:1"}, {"textKey": "dlg.lodge.c_tip", "responseKey": "dlg.lodge.r_tip_none", "consequence": "lodgetip"}]}]},
   {"key": "lodge_hunter", "job": "hunter", "home": "lodge", "minStage": "", "oncePerPlayer": false, "aiPrompt": true, "nodes": [{"promptKey": "dlg.lodge_hunter.prompt", "choices": [{"textKey": "dlg.lodge.c_work", "responseKey": "dlg.lodge_hunter.r_work", "consequence": "standing:1"}, {"textKey": "dlg.lodge.c_tip", "responseKey": "dlg.lodge.r_tip_none", "consequence": "lodgetip"}, {"textKey": "dlg.lodge.c_bye", "responseKey": "dlg.lodge_hunter.r_bye"}]}]},
+  {"key": "pioneer_friend", "job": "pioneer", "home": "lodge", "minStage": "trusted", "oncePerPlayer": false, "aiPrompt": true, "nodes": [{"promptKey": "dlg.pioneer.prompt_friend", "choices": [{"textKey": "dlg.lodge.c_gift", "responseKey": "dlg.pioneer.r_gift", "consequence": "lodgegift"}, {"textKey": "dlg.pioneer.c_secret", "responseKey": "dlg.pioneer.r_secret", "consequence": "standing:1"}, {"textKey": "dlg.lodge.c_tip", "responseKey": "dlg.lodge.r_tip_none", "consequence": "lodgetip"}]}]},
+  {"key": "pioneer", "job": "pioneer", "home": "lodge", "minStage": "", "oncePerPlayer": false, "aiPrompt": true, "nodes": [{"promptKey": "dlg.pioneer.prompt", "choices": [{"textKey": "dlg.pioneer.c_who", "responseKey": "dlg.pioneer.r_who", "consequence": "standing:1", "next": 1}, {"textKey": "dlg.pioneer.c_outpost", "responseKey": "dlg.pioneer.r_outpost", "next": 2}, {"textKey": "dlg.lodge.c_bye", "responseKey": "dlg.pioneer.r_bye"}]}, {"promptKey": "dlg.pioneer.prompt_more", "choices": [{"textKey": "dlg.pioneer.c_outpost", "responseKey": "dlg.pioneer.r_outpost"}, {"textKey": "dlg.lodge.c_tip", "responseKey": "dlg.lodge.r_tip_none", "consequence": "lodgetip"}, {"textKey": "dlg.lodge.c_bye", "responseKey": "dlg.pioneer.r_bye"}]}, {"promptKey": "dlg.pioneer.prompt_more", "choices": [{"textKey": "dlg.pioneer.c_who", "responseKey": "dlg.pioneer.r_who", "consequence": "standing:1"}, {"textKey": "dlg.lodge.c_tip", "responseKey": "dlg.lodge.r_tip_none", "consequence": "lodgetip"}, {"textKey": "dlg.lodge.c_bye", "responseKey": "dlg.pioneer.r_bye"}]}]},
   {"key": "wanderer_gatherer", "job": "gatherer", "home": "wander", "minStage": "", "oncePerPlayer": false, "aiPrompt": true, "nodes": [{"promptKey": "dlg.wanderer_gatherer.prompt", "choices": [{"textKey": "dlg.wanderer.c_what", "responseKey": "dlg.wanderer_gatherer.r_what", "consequence": "standing:1"}, {"textKey": "dlg.wanderer.c_tip", "responseKey": "dlg.wanderer.r_tip_none", "consequence": "wandertip"}, {"textKey": "dlg.wanderer.c_bye", "responseKey": "dlg.wanderer_gatherer.r_bye"}]}]},
   {"key": "wanderer_miner", "job": "miner", "home": "wander", "minStage": "", "oncePerPlayer": false, "aiPrompt": true, "nodes": [{"promptKey": "dlg.wanderer_miner.prompt", "choices": [{"textKey": "dlg.wanderer.c_what", "responseKey": "dlg.wanderer_miner.r_what", "consequence": "standing:1"}, {"textKey": "dlg.wanderer.c_tip", "responseKey": "dlg.wanderer.r_tip_none", "consequence": "wandertip"}, {"textKey": "dlg.wanderer.c_bye", "responseKey": "dlg.wanderer_miner.r_bye"}]}]},
   {"key": "wanderer_woodcutter", "job": "woodcutter", "home": "wander", "minStage": "", "oncePerPlayer": false, "aiPrompt": true, "nodes": [{"promptKey": "dlg.wanderer_woodcutter.prompt", "choices": [{"textKey": "dlg.wanderer.c_what", "responseKey": "dlg.wanderer_woodcutter.r_what", "consequence": "standing:1"}, {"textKey": "dlg.wanderer.c_tip", "responseKey": "dlg.wanderer.r_tip_none", "consequence": "wandertip"}, {"textKey": "dlg.wanderer.c_bye", "responseKey": "dlg.wanderer_woodcutter.r_bye"}]}]},

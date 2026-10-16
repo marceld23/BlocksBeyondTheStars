@@ -71,15 +71,17 @@ public sealed class DerelictCrateTests : IDisposable
         => items.Where(s => DerelictLogs.IsLogItem(s.Item)).Select(s => s.Item).ToList();
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void EveryCrateSpot_StandsOnTheDeck_NeverOnScrapAPostOrAnotherCrate(bool proceduralOnly)
+    [InlineData("beta")]
+    [InlineData("legacy-procedural")]
+    [InlineData("legacy")]
+    public void EveryCrateSpot_StandsOnTheDeck_NeverOnScrapAPostOrAnotherCrate(string kind)
     {
         var placed = new HashSet<ushort>(new[] { "scrap_pile", "scrap_metal", "station_vendor", SvGameServer.GuardianBayBlockKey }
             .Select(k => _content.GetBlock(k)!.NumericId.Value));
         for (long seed = 1; seed <= 12; seed++)
         {
-            var l = DerelictGenerator.Generate(seed * 7919, _content, proceduralOnly);
+            var l = kind == "beta" ? DerelictGenerator.Generate(seed * 7919, _content)
+                : DerelictGenerator.GenerateLegacy(seed * 7919, _content, proceduralOnly: kind == "legacy-procedural");
             Assert.InRange(l.CrateSpots.Count, 1, 6);
             foreach (var c in l.CrateSpots)
             {

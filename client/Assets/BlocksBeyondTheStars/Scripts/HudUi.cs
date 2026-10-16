@@ -3971,7 +3971,11 @@ namespace BlocksBeyondTheStars.Client
                 here += "  ·  " + loc.Get("ui.base.air_here_why");
             }
 
-            return $"{ExpandKeyTokens(loc, loc.Get("ui.base.rename_hint"))}  ·  {air}  ·  {here}"; // #2502: {key:Interact}
+            // #2679: how many people live here (a server that does not send it leaves the cap at 0 — nothing shown).
+            string residents = b.ResidentCap > 0
+                ? "  ·  " + loc.Get("ui.base.residents").Replace("{n}", b.Residents.ToString()).Replace("{max}", b.ResidentCap.ToString())
+                : string.Empty;
+            return $"{ExpandKeyTokens(loc, loc.Get("ui.base.rename_hint"))}  ·  {air}  ·  {here}{residents}"; // #2502: {key:Interact}
         }
 
         /// <summary>#2018: the Feed prompt while food is held and a begging animal is near — it shares the loot line, and a herd

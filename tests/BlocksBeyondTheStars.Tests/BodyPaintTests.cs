@@ -17,8 +17,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// <summary>
 /// Avatar body paint (#874): per-part pixel paintings (torso/arms/legs/helmet), the face's siblings.
 /// The server treats the payload as opaque but must bound it hard — it is persisted and rebroadcast —
-/// so validation accepts exactly the per-part expected length in hex, shares the face's 2 s appearance
-/// rate limit, and the strings must survive the player-snapshot round trip.
+/// so validation accepts exactly the per-part expected length in hex, shares the face's appearance
+/// token bucket (#2672), and the strings must survive the player-snapshot round trip.
 /// </summary>
 public sealed class BodyPaintTests : IDisposable
 {
@@ -117,23 +117,52 @@ public sealed class BodyPaintTests : IDisposable
     }
 
     [Fact]
-    public void AppearanceRateLimit_IsShared_AcrossParts()
+    public void AppearanceRateLimit_IsATokenBucket_SharedAcrossParts()
     {
+        // #2672: one bucket for the face and every part — capacity 6, one token back every 2 s. A burst up to the
+        // capacity passes (the join sends face + four parts in one frame), the next change is dropped whichever part
+        // or face it touches (no per-part loophole), and a token returns after 2 s.
         var server = NewServer(out var repo);
         using (repo)
         {
             var p = server.AddLocalPlayer("Painter");
+            string Other(int part) => new string('8', BodyPaint.ExpectedLength(part));
+            void Face(string pixels) => server.HandlePayloadForTest(p.ConnectionId, NetCodec.Encode(new SetFaceIntent { Pixels = pixels }));
 
-            server.SetBodyPaintForTest(p, BodyPaint.Torso, ValidPixels(BodyPaint.Torso));
-            Assert.Equal(ValidPixels(BodyPaint.Torso), p.State.TorsoPixels);
+            // Six accepted changes in the same instant: the face, the four parts, and the torso painted over.
+            Face(new string('a', 32 * 32));
+            for (int part = 0; part < BodyPaint.PartCount; part++)
+            {
+                server.SetBodyPaintForTest(p, part, ValidPixels(part));
+                Assert.Equal(ValidPixels(part), p.State.GetBodyPaint(part));
+            }
 
-            // Immediately painting ANOTHER part must hit the same 2 s window (no per-part loophole).
-            server.SetBodyPaintForTest(p, BodyPaint.Legs, ValidPixels(BodyPaint.Legs));
-            Assert.Equal(string.Empty, p.State.LegPixels);
+            server.SetBodyPaintForTest(p, BodyPaint.Torso, Other(BodyPaint.Torso));
+            Assert.Equal(Other(BodyPaint.Torso), p.State.TorsoPixels);
 
-            server.TickForTest(3.0);
-            server.SetBodyPaintForTest(p, BodyPaint.Legs, ValidPixels(BodyPaint.Legs));
+            // The seventh — on another part, or the face — finds the bucket empty.
+            server.SetBodyPaintForTest(p, BodyPaint.Legs, Other(BodyPaint.Legs));
             Assert.Equal(ValidPixels(BodyPaint.Legs), p.State.LegPixels);
+            Face(new string('b', 32 * 32));
+            Assert.Equal(new string('a', 32 * 32), p.State.FacePixels);
+
+            // Half a refill is not a token…
+            server.AdvanceUptimeForTest(1.0);
+            server.SetBodyPaintForTest(p, BodyPaint.Legs, Other(BodyPaint.Legs));
+            Assert.Equal(ValidPixels(BodyPaint.Legs), p.State.LegPixels);
+
+            // …2 s in, one change goes through — and only one.
+            server.AdvanceUptimeForTest(1.5);
+            server.SetBodyPaintForTest(p, BodyPaint.Legs, Other(BodyPaint.Legs));
+            Assert.Equal(Other(BodyPaint.Legs), p.State.LegPixels);
+            server.SetBodyPaintForTest(p, BodyPaint.Arms, Other(BodyPaint.Arms));
+            Assert.Equal(ValidPixels(BodyPaint.Arms), p.State.ArmPixels);
+
+            // An unchanged payload never takes a token (the redundant on-join re-send).
+            server.AdvanceUptimeForTest(2.5);
+            server.SetBodyPaintForTest(p, BodyPaint.Torso, Other(BodyPaint.Torso));
+            server.SetBodyPaintForTest(p, BodyPaint.Arms, Other(BodyPaint.Arms));
+            Assert.Equal(Other(BodyPaint.Arms), p.State.ArmPixels);
         }
     }
 

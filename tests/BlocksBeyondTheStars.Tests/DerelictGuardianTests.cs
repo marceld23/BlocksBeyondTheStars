@@ -97,15 +97,17 @@ public sealed class DerelictGuardianTests : IDisposable
     // ---------------- the layout ----------------
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void EveryGeneratedLayout_HoldsOneGuardianBay_OnItsSpawnerSpot_FacingTheWayIn(bool proceduralOnly)
+    [InlineData("beta")]
+    [InlineData("legacy-procedural")]
+    [InlineData("legacy")]
+    public void EveryGeneratedLayout_HoldsOneGuardianBay_OnItsSpawnerSpot_FacingTheWayIn(string kind)
     {
         ushort bay = _content.GetBlock(SvGameServer.GuardianBayBlockKey)!.NumericId.Value;
         var scrap = new[] { _content.GetBlock("scrap_pile")!.NumericId.Value, _content.GetBlock("scrap_metal")!.NumericId.Value };
         for (long seed = 1; seed <= 12; seed++)
         {
-            var l = DerelictGenerator.Generate(seed * 7919, _content, proceduralOnly);
+            var l = kind == "beta" ? DerelictGenerator.Generate(seed * 7919, _content)
+                : DerelictGenerator.GenerateLegacy(seed * 7919, _content, proceduralOnly: kind == "legacy-procedural");
             var spot = l.SpawnerSpot!.Value;
             Assert.Equal(bay, l.Get(spot.X, spot.Y, spot.Z));
             Assert.NotEqual(0, l.Get(spot.X, spot.Y - 1, spot.Z)); // it stands on a deck…

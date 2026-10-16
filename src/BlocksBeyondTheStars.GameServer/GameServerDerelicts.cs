@@ -23,8 +23,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item>interior edits are written back into the build and the build is mirrored to the hull seen from space
 /// (<see cref="MirrorStationCell"/> / <see cref="MirrorStationCellOutside"/>), so the more you mine, the more broken it
 /// looks from outside;</item>
-/// <item>it breathes like a player station — only its sealed pockets hold air (<see cref="UsesSealedPocketAir"/>) — and
-/// keeps a gravity volume with a pull-back rescue (<see cref="TryGetBoardedPlayerStation"/>);</item>
+/// <item>its life support is dead (#2675): no pocket aboard breathes, sealed or not — the suit tank is the air
+/// (<see cref="StationLifeSupport"/>) — and it keeps a gravity volume (<see cref="TryGetBoardedPlayerStation"/>);</item>
+/// <item>every new one is the wreck of a beta station (#2674, <see cref="DerelictGenerator.Generate"/>); one a save already
+/// stored keeps its old layout (<see cref="UsesLegacyDerelictShape"/>);</item>
 /// <item>nobody lives there: no crew, no working trading post, no mission board, no visiting traders, no home spawn, and every
 /// trading-station rule (the start station, trader traffic, the dock lesson, VEGA's station tip) skips it.</item>
 /// </list>
@@ -52,7 +54,8 @@ public sealed partial class GameServer
         public string SystemId { get; init; } = string.Empty;
         public int Index { get; init; }
 
-        /// <summary>The start system's guaranteed one: always a module station with a sealed room to arrive in.</summary>
+        /// <summary>The start system's guaranteed one. Only the legacy layout reads it (before #2674 it was always a medium
+        /// module station); a beta wreck is the same shape for every derelict.</summary>
         public bool Guaranteed { get; init; }
 
         /// <summary>Null until the derelict is first needed (its system's flight, a boarding, a menu travel).</summary>
@@ -142,12 +145,25 @@ public sealed partial class GameServer
         if (site.Layout is null)
         {
             long seed = _meta.Seed ^ WorldGenerator.StableHash("derelict:" + site.Id);
-            site.Layout = DerelictGenerator.Generate(seed, _content, proceduralOnly: site.Guaranteed);
+            site.Layout = UsesLegacyDerelictShape(site.Id)
+                ? DerelictGenerator.GenerateLegacy(seed, _content, proceduralOnly: site.Guaranteed)
+                : DerelictGenerator.Generate(seed, _content);
             RegisterDerelict(site.Body, site.Index, site.Layout);
         }
 
         return _stationsById.TryGetValue(id, out var station) ? station : null;
     }
+
+    /// <summary>The <see cref="Shared.State.WorldMetadata.GeneratedLoot"/> key that marks a derelict's stored build as a beta wreck
+    /// (#2674): <c>derelict-shape:beta:&lt;id&gt;</c>. Written before the first row of a beta derelict is.</summary>
+    private const string DerelictBetaShapeKey = "derelict-shape:beta:";
+
+    /// <summary>#2674: whether a derelict keeps the layout it had before the beta stations — its build is stored (it was
+    /// entered or edited) and no beta marker says that build is a beta wreck. Its row, its crates, its guardian bay and its
+    /// interior world were all made from the old layout, so it is rebuilt from that one. A derelict nobody stored (only seen
+    /// or scanned) is a beta wreck.</summary>
+    private bool UsesLegacyDerelictShape(string id)
+        => _storedDerelictRows.ContainsKey(id) && !_meta.GeneratedLoot.Contains(DerelictBetaShapeKey + id);
 
     private void RegisterDerelict(CelestialBody body, int index, DerelictLayout layout)
     {
@@ -267,6 +283,14 @@ public sealed partial class GameServer
     /// location is the derelict's system — it has no host body, and the player-station loader never reads it.</summary>
     private void PersistDerelict(SpaceStructure s)
     {
+        if (_derelicts.TryGetValue(s.Id, out var built) && built.Layout is { IsBeta: true }
+            && !_meta.GeneratedLoot.Contains(DerelictBetaShapeKey + s.Id))
+        {
+            // #2674: the marker goes first, so a row never exists without it — a beta wreck is never rebuilt as an old one.
+            _meta.GeneratedLoot.Add(DerelictBetaShapeKey + s.Id);
+            _repo.SaveMetadata(_meta);
+        }
+
         var stamped = _stationsById.TryGetValue(s.Id, out var boardable) && boardable.Materialised ? boardable : null;
         var row = new StoredSpaceStructure
         {
@@ -304,9 +328,16 @@ public sealed partial class GameServer
 
     // ---------------- boarding ----------------
 
+    /// <summary>VEGA's one-time hint id for the first boarding of any derelict (#2675): there is no air aboard
+    /// (<c>vega.hint.derelict_no_air</c>, milestone <c>vega:hint:derelict_no_air</c>).</summary>
+    internal const string DerelictNoAirHint = "derelict_no_air";
+
     /// <summary>The boarding half of a derelict (after the stamp): VEGA's line the first time this player steps aboard
     /// this one. The crates (#2633) and the guardian spawner (#2635) hook in here — their spots are on the layout
-    /// (<see cref="DerelictCrateSpotsWorld"/>, <see cref="DerelictSpawnerSpotWorld"/>).</summary>
+    /// (<see cref="DerelictCrateSpotsWorld"/>, <see cref="DerelictSpawnerSpotWorld"/>).
+    /// #2675: the very first boarding of any derelict gets VEGA's hint that there is no air aboard instead of the
+    /// plain line (never muted — exploring must stay fair), and every boarding re-arms the one-time "no air" warning
+    /// (<see cref="StationLifeSupport"/>).</summary>
     private void OnDerelictBoarded(PlayerSession session, BoardableStation station)
     {
         if (!IsGeneratedDerelictId(station.Id))
@@ -315,16 +346,26 @@ public sealed partial class GameServer
         }
 
         SpawnDerelictCrates(station); // #2633: the old supply crates, filled once ever (GameServerDerelictCrates.cs)
+        _stationAirWarnedFor.Remove(session.State.PlayerId); // #2675: told again on every boarding, once
 
-        if (session.State.Milestones.Add("derelict:boarded:" + station.Id))
+        bool firstHere = session.State.Milestones.Add("derelict:boarded:" + station.Id);
+        if (!session.State.Milestones.Contains("vega:hint:" + DerelictNoAirHint))
+        {
+            ShipAiHintOnce(session, DerelictNoAirHint, station.Name, kind: 2);
+        }
+        else if (firstHere)
         {
             SendVegaLine(session, "vega.derelict.boarded", 2, station.Name);
+        }
+
+        if (firstHere)
+        {
             _repo.SavePlayer(session.State);
         }
     }
 
-    /// <summary>The interior-world cell a generated derelict's boarder is set down near: the layout's arrival (the sealed
-    /// command room). Null for anything else.</summary>
+    /// <summary>The interior-world cell a generated derelict's boarder is set down near: the layout's arrival (the
+    /// command room's deck). Null for anything else.</summary>
     private Vector3i? DerelictArrivalHint(BoardableStation station)
         => _derelicts.TryGetValue(station.Id, out var site) && site.Layout is { } layout ? StationCellToWorld(station, layout.Arrival) : null;
 

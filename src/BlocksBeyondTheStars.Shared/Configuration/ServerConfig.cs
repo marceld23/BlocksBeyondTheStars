@@ -370,6 +370,14 @@ public sealed class ServerConfig
     public bool PlaceLodges { get; set; } = true;
 
     /// <summary>
+    /// Whether the server may stamp <b>pioneer outposts</b> (#2681) — the lodge variant a player-like NPC lives in: a small
+    /// closed base with a decorative base core, owned crates, a ladder shaft down to a cellar and, by the water, a boat. One
+    /// or two per world at most, only where lodges may stand (so <see cref="PlaceLodges"/> off switches them off too). Like
+    /// a lodge, the voxels are stamped once on a body nobody has visited yet and the resident re-derives on every load.
+    /// </summary>
+    public bool PlacePioneers { get; set; } = true;
+
+    /// <summary>
     /// Whether <b>wanderers</b> (#2646) may come by — named travellers who gather, prospect, chop or hunt in the open land
     /// near a player on foot, trade and talk, and move on (RAM only, at most two per world at once). The same worlds as
     /// <see cref="PlaceLodges"/>: terrain generation 25 or newer, never a void, airless, ruined-only, gas or city world, and

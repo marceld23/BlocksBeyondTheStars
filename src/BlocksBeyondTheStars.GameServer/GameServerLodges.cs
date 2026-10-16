@@ -115,6 +115,9 @@ public sealed partial class GameServer
 
         /// <summary>The work anchor in front of the yard (feet position).</summary>
         public Vector3f YardSpot;
+
+        /// <summary>#2681: what makes this lodge a pioneer outpost (GameServerPioneers.cs) — null for a hut.</summary>
+        public PioneerOutpost? Outpost;
     }
 
     private List<LodgeInstance> _lodges => _worlds.Active.Lodges;
@@ -473,6 +476,16 @@ public sealed partial class GameServer
         int circ = _world.Circumference;
         foreach (var l in _lodges)
         {
+            if (l.Outpost is { } outpost && OutpostCellFree(outpost, pos, out bool boat))
+            {
+                if (boat)
+                {
+                    return true; // #2681: the pioneer's boat on the water beside the outpost
+                }
+
+                continue; // #2681: the planter soil over a hidden shaft — the one cell a visitor may dig
+            }
+
             int lx = WorldConstants.WrapDeltaX(pos.X - l.Origin.X, circ);
             int lz = pos.Z - l.Origin.Z;
             int ly = pos.Y - l.GroundY;
@@ -513,12 +526,17 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>The lodge whose footprint holds this cell, or null.</summary>
+    /// <summary>The lodge whose footprint holds this cell (#2681: or whose boat), or null.</summary>
     private LodgeInstance? LodgeAt(Vector3i pos)
     {
         int circ = _world.Circumference;
         foreach (var l in _lodges)
         {
+            if (l.Outpost is { } outpost && OutpostCellFree(outpost, pos, out bool boat) && boat)
+            {
+                return l;
+            }
+
             int lx = WorldConstants.WrapDeltaX(pos.X - l.Origin.X, circ);
             int lz = pos.Z - l.Origin.Z;
             if (lx >= 0 && lz >= 0 && lx < l.Layout.Width && lz < l.Layout.Length)
@@ -590,14 +608,22 @@ public sealed partial class GameServer
     /// </summary>
     private string LodgeStoreRefusal(string containerId)
     {
-        if (!containerId.StartsWith(LodgeStoreIdPrefix, System.StringComparison.Ordinal))
+        if (!IsWildernessStoreId(containerId))
         {
             return string.Empty;
         }
 
-        string name = _lodges.FirstOrDefault(l => l.StoreId == containerId)?.ResidentName ?? string.Empty;
+        // #2681: an outpost has several crates and a box in the cellar — every one of them is the pioneer's.
+        string name = _lodges.FirstOrDefault(l => l.StoreId == containerId || (l.Outpost?.StoreIds.Contains(containerId) ?? false))
+            ?.ResidentName ?? string.Empty;
         return "@srv.lodge.store_owned:" + name;
     }
+
+    /// <summary>Whether a container is one of the wilderness folk's own (#2640 a hut's store crate, #2681 a pioneer's crates
+    /// and cellar box): no machine, base job or player takes from it.</summary>
+    internal static bool IsWildernessStoreId(string containerId)
+        => containerId.StartsWith(LodgeStoreIdPrefix, System.StringComparison.Ordinal)
+           || containerId.StartsWith(OutpostStoreIdPrefix, System.StringComparison.Ordinal);
 
     // ---------------- The map ----------------
 
@@ -608,10 +634,11 @@ public sealed partial class GameServer
         {
             if (_meta.RevealedPois.Contains(l.RevealKey))
             {
+                bool outpost = l.Outpost is not null; // #2681: "{name}'s outpost"
                 pois.Add(new NetPoi
                 {
-                    Type = "lodge",
-                    Name = Localize(session.Locale, "poi.lodge").Replace("{0}", l.ResidentName),
+                    Type = outpost ? OutpostPoiType : "lodge",
+                    Name = Localize(session.Locale, outpost ? "poi.outpost" : "poi.lodge").Replace("{0}", l.ResidentName),
                     X = l.Center.X,
                     Z = l.Center.Z,
                 });
@@ -653,13 +680,16 @@ public sealed partial class GameServer
                 }
             }
         }
+
+        StepPioneers(); // #2682: the pioneers' days away from their outposts
     }
 
     // ---------------- Test hooks ----------------
 
-    /// <summary>Test/inspection (#2640): the lodges of the active world.</summary>
+    /// <summary>Test/inspection (#2640): the lodges (huts) of the active world — the pioneer outposts are <c>OutpostsForTest</c>.</summary>
     public IReadOnlyList<(string Key, string Profession, Vector3i Origin, Vector3f Center, string StoreId, bool Revealed)> LodgesForTest
-        => _lodges.Select(l => (l.Key, l.Profession, l.Origin, l.Center, l.StoreId, _meta.RevealedPois.Contains(l.RevealKey))).ToList();
+        => _lodges.Where(l => l.Outpost is null)
+            .Select(l => (l.Key, l.Profession, l.Origin, l.Center, l.StoreId, _meta.RevealedPois.Contains(l.RevealKey))).ToList();
 
     /// <summary>Test/inspection (#2640): a lodge's markers in world space.</summary>
     public IReadOnlyList<(string Type, Vector3f Pos)> LodgeMarkersForTest(string key)

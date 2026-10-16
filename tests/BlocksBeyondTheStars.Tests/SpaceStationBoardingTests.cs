@@ -347,6 +347,34 @@ public sealed class SpaceStationBoardingTests : IDisposable
     }
 
     [Fact]
+    public void StationCrew_TalksToAStranger()
+    {
+        // #2673 (reported at Zoozre Station's trader): every trader dialogue needed "known", so a newcomer's "Talk" was only
+        // the greeting bubble — or nothing inside its cooldown. The station's trader and quartermaster open their hellos.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Newcomer");
+            BoardFirstStation(server, "Newcomer");
+            // The crew in spawn order: a plain trader (no story face, which talks its own lines first, and no profession,
+            // which has its own job talk) and the quartermaster.
+            var crew = server.NpcRosterForTest().Zip(server.NpcJobsForTest, (r, j) => (r.Id, r.Role, r.CharacterId, j.Job)).ToList();
+            int Pick(string role) => crew.First(n => n.Role == role && n.CharacterId.Length == 0
+                && BlocksBeyondTheStars.Shared.Definitions.NpcProfessions.ByJob(n.Job) is null).Id;
+
+            int vendor = Pick("vendor");
+            pilot.State.Position = server.NpcSnapshots.First(n => n.Id == vendor).Pos;
+            server.TalkToNpcForTest("Newcomer", vendor);
+            Assert.Equal(("vendor_hello", 0), server.ActiveDialogForTest("Newcomer"));
+
+            int quartermaster = Pick("quartermaster");
+            pilot.State.Position = server.NpcSnapshots.First(n => n.Id == quartermaster).Pos;
+            server.TalkToNpcForTest("Newcomer", quartermaster);
+            Assert.Equal(("quartermaster_hello", 0), server.ActiveDialogForTest("Newcomer"));
+        }
+    }
+
+    [Fact]
     public void StationMissions_AreBoardGated()
     {
         var server = Started(out var repo);

@@ -22,8 +22,9 @@ namespace BlocksBeyondTheStars.Tests;
 /// <summary>
 /// Derelict stations, phase 2 (#2636): falling out of a generated derelict through a hole is a real spacewalk — the
 /// flight opens on an EVA at the spot matching where the boarder left the hull, the suit tank drains, and E at an opening
-/// boards onto the deck behind it. Nothing aboard ever triggers it. And every derelict, module station or classic
-/// template, sets a boarder down in a sealed pocket with air (the follow-up fix).
+/// boards onto the deck behind it. Nothing aboard ever triggers it. Every derelict sets a boarder down on a deck under
+/// its roof — a new beta wreck (#2674) on its command deck, without air (#2675: no derelict breathes); a stored old one
+/// keeps its arrival in the closed command room or the patched hall it always had.
 /// </summary>
 public sealed class DerelictSpacewalkTests : IDisposable
 {
@@ -243,7 +244,7 @@ public sealed class DerelictSpacewalkTests : IDisposable
     }
 
     [Fact]
-    public void BackFromTheSpacewalk_AwayFromAnyOpening_ArrivesInTheSealedRoom()
+    public void BackFromTheSpacewalk_AwayFromAnyOpening_ArrivesOnTheCommandDeck()
     {
         var server = NewServer("eva_far_board", out var repo);
         using (repo)
@@ -254,27 +255,46 @@ public sealed class DerelictSpacewalkTests : IDisposable
             p.State.Position = new Vector3f(arrival.X, arrival.Y - 150f, arrival.Z);
             TickUntilInSpace(server, "Justus");
 
-            // E from twenty blocks off the hull: the usual arrival in the command room, with air.
+            // E from twenty blocks off the hull: the usual arrival on the command deck (no air there either — #2675).
             var contact = server.SpaceEntitiesFor("Justus").First(e => e.Id == id);
             var layout = server.DerelictLayoutForTest(id)!;
             server.ShipMove("Justus", contact.Position.X, contact.Position.Y, contact.Position.Z + layout.Length / 2f + 20f);
             server.BoardStation("Justus", id);
             Assert.True(server.InStation("Justus"));
-            Assert.True(server.StationCellSealedForTest(id, p.State.Position.ToBlock()), "the usual arrival holds air");
+            Assert.Equal(server.DerelictCellToWorldForTest(id, layout.Arrival), p.State.Position.ToBlock());
             server.Stop();
         }
     }
 
-    // ---------------- every arrival holds air ----------------
+    // ---------------- every arrival stands ----------------
 
+    /// <summary>#2674/#2675: every new derelict is a beta wreck whose arrival is a deck to stand on under the hub's roof, in
+    /// the closed command room (no air — it needs none).</summary>
     [Fact]
-    public void EveryDerelict_ModuleOrTemplate_HasASealedArrivalWithAir()
+    public void EveryNewDerelict_IsABetaWreck_WithAStandableArrivalUnderItsRoof()
+    {
+        for (long seed = 1; seed <= 60; seed++)
+        {
+            var l = DerelictGenerator.Generate(seed * 104729, _content);
+            Assert.True(l.IsBeta);
+            var a = l.Arrival;
+            Assert.True(l.Get(a.X, a.Y, a.Z) == 0 && l.Get(a.X, a.Y + 1, a.Z) == 0 && l.Get(a.X, a.Y - 1, a.Z) != 0,
+                $"seed {seed}: the arrival {a} is no deck to stand on");
+            Assert.Contains(Enumerable.Range(a.Y + 2, l.Height - a.Y - 2), y => l.Get(a.X, y, a.Z) != 0); // under the roof
+            Assert.True(l.ArrivalSealed && SealedByTheServersRule(l), $"seed {seed}: the command room is not closed");
+        }
+    }
+
+    /// <summary>The legacy layouts a stored derelict is rebuilt from keep what they always had (#2636): a standable arrival
+    /// in a pocket the server's air rule calls closed — a classic template's hall patched shut.</summary>
+    [Fact]
+    public void EveryLegacyDerelict_ModuleOrTemplate_KeepsItsClosedArrival()
     {
         int templates = 0, modules = 0;
         var seenTemplates = new HashSet<string>(StringComparer.Ordinal);
-        for (long seed = 1; seed <= 400; seed++)
+        for (long seed = 1; seed <= 200; seed++)
         {
-            var l = DerelictGenerator.Generate(seed * 104729, _content);
+            var l = DerelictGenerator.GenerateLegacy(seed * 104729, _content);
             bool template = l.Source.StartsWith("template:", StringComparison.Ordinal);
             if (template)
             {
@@ -297,39 +317,29 @@ public sealed class DerelictSpacewalkTests : IDisposable
         Assert.True(seenTemplates.Count >= 3, $"most classic templates sampled: {string.Join(", ", seenTemplates)}");
     }
 
-    /// <summary>A world seed whose galaxy (Frequent derelicts) holds classic-template derelicts — the pocket waystation
-    /// (the smallest) and the hub outpost; every template is covered at layout level above. Found by sampling; a change
-    /// to the placement or the source pick moves it — the test then says so.</summary>
+    /// <summary>#2675: a menu travel boards a derelict straight away — onto its command deck, where the suit tank drains
+    /// (no derelict breathes any more; before, the arrival was a sealed pocket with air).</summary>
     [Fact]
-    public void TemplateDerelicts_SetTheBoarderDownWithAir()
+    public void TravellingToADerelict_BoardsItOnTheCommandDeck_WhereTheTankDrains()
     {
-        const long seed = -4427142430354310808L;
-        var server = NewServer("eva_tpl_" + (seed & 0xFFFF), out var repo, seed: seed, derelicts: Frequency.Frequent);
+        var server = NewServer("eva_travel", out var repo);
         using (repo)
         {
-            var templates = server.DerelictIdsForTest
-                .Where(d => server.DerelictLayoutForTest(d)!.Source.StartsWith("template:", StringComparison.Ordinal)).ToList();
-            Assert.True(templates.Count > 0, $"seed {seed} no longer holds a template derelict — pick another (see the summary)");
-
             var p = server.AddLocalPlayer("Justus");
-            foreach (var id in templates)
+            string id = DerelictPlacer.BodyId(server.Galaxy.FindBody(server.Metadata.ActiveLocationId)!.SystemId, 0);
+            server.Travel("Justus", id); // boards straight from the travel screen
+            Assert.True(server.InStation("Justus"), "boarding the derelict from the travel screen");
+            var layout = server.DerelictLayoutForTest(id)!;
+            Assert.Equal(server.DerelictCellToWorldForTest(id, layout.Arrival), p.State.Position.ToBlock());
+
+            p.State.Oxygen = 40f;
+            for (int i = 0; i < 4; i++)
             {
-                server.LeaveStation("Justus");
-                server.Travel("Justus", id); // boards straight from the travel screen
-                Assert.True(server.InStation("Justus"), $"boarding the template derelict {id}");
-                string source = server.DerelictLayoutForTest(id)!.Source;
-                Assert.True(server.StationCellSealedForTest(id, p.State.Position.ToBlock()),
-                    $"the template derelict {id} ({source}) set the boarder down in vacuum");
-
-                p.State.Oxygen = 40f;
-                for (int i = 0; i < 4; i++)
-                {
-                    server.TickForTest(0.5);
-                }
-
-                Assert.True(p.State.Oxygen > 40f, $"{source}: the arrival refills the suit tank");
+                server.TickForTest(0.5);
             }
 
+            Assert.True(p.State.Oxygen < 40f, $"the suit tank drains aboard (O2 {p.State.Oxygen})");
+            Assert.True(p.State.Health > 0f);
             server.Stop();
         }
     }

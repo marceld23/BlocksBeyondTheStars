@@ -519,10 +519,10 @@ public sealed partial class GameServer
 
     /// <summary>The player crate at a cell — what a base job, a Crystal Net machine (sender, receiver, fabricator, a device's
     /// price), the drills and the base index work with. Never a lodge resident's store (#2640): it is theirs alone — a
-    /// matter sender or a base built beside a hut must not drain it or fill it.</summary>
+    /// matter sender or a base built beside a hut must not drain it or fill it (#2681: nor a pioneer's crates and box).</summary>
     private StoredContainer? ContainerAt(Vector3i cell)
         => _containers.FirstOrDefault(c => c.Kind == "crate"
-                                           && !c.Id.StartsWith(LodgeStoreIdPrefix, System.StringComparison.Ordinal)
+                                           && !IsWildernessStoreId(c.Id)
                                            && WorldConstants.CanonicalBlock(c.Position, _world.Circumference).Equals(WorldConstants.CanonicalBlock(cell, _world.Circumference)));
 
     /// <summary>The first base crate whose filter lets these items in.</summary>

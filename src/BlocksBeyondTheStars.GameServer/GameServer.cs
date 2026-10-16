@@ -827,6 +827,7 @@ public sealed partial class GameServer
                     {
                         BootDetail("bandit camps", StampBanditCamps); // small hostile outposts (unprotected; self-skips per config + Bandits rule)
                         BootDetail("lodges", StampLodges); // #2640: wilderness huts and their residents (generation 25+; after the camps so it avoids them)
+                        BootDetail("pioneer outposts", StampPioneerOutposts); // #2681: the lodge variant a pioneer lives in (after the huts so it avoids them)
                     }
 
                     BootDetail("sps labs", StampSpsLabs); // 2026-09: abandoned SPS research stations — only on a type that allows them (Titas)
@@ -3947,6 +3948,11 @@ public sealed partial class GameServer
         // #2616: closing an NPC's dialogue panel (the leave) — Esc closes it while the pause menu opens and holds the world.
         // It only ends the sender's own conversation and lets the NPC go back to its day; a real reply still waits.
         NpcDialogChoiceIntent d => d.ChoiceIndex < 0,
+        // #2672: the look — colours, face, body paint, tool looks. They only change the sender's own appearance (saved and
+        // relayed, rate-limited by the appearance bucket). A player joining while the host alone holds the world sends them
+        // in the same poll as the join, before the next tick lifts the hold — dropping them left the newcomer in the
+        // default colours with no face or paint for everyone.
+        SetAppearanceIntent or SetFaceIntent or SetBodyPaintIntent or SetToolLookIntent => true,
         _ => false,
     };
 
@@ -5158,7 +5164,7 @@ public sealed partial class GameServer
         if (StampedDoorAt(pos))
         {
             Reject(session, "mine", IsStationBlock(pos) ? "@srv.protect.station"
-                : IsLodgeBlock(pos) ? "@srv.protect.lodge:" + (LodgeAt(pos)?.ResidentName ?? string.Empty) // #2640: a hut's door
+                : IsLodgeBlock(pos) ? LodgeProtectRefusal(pos) // #2640: a hut's door (#2681: an outpost's)
                 : "@srv.protect.settlement");
             return;
         }
@@ -5216,7 +5222,7 @@ public sealed partial class GameServer
         {
             // #2640: a lodge says whose hut it is (the plants in its plot stay pickable — harvestingPlant above).
             Reject(session, "mine", IsLodgeBlock(pos) && !IsSettlementBoxBlock(pos) && !IsIntercityRailBlock(pos)
-                ? "@srv.protect.lodge:" + (LodgeAt(pos)?.ResidentName ?? string.Empty)
+                ? LodgeProtectRefusal(pos) // #2681: a pioneer's outpost says "outpost"
                 : "@srv.protect.settlement");
             return;
         }
@@ -5614,6 +5620,16 @@ public sealed partial class GameServer
             return 0;
         }
 
+        if (cycle == PropOrientation.LightMount)
+        {
+            // #2683: a torch or lantern takes the face the client says was clicked (the intent's up-face) — on a wall,
+            // standing on the floor, or a lantern hanging from the ceiling — when the block there can hold it. An intent
+            // without a face (an old client, a test, an internal placement) or one whose block is gone keeps the
+            // unstamped light: upright, exactly as before. A torch under a real ceiling never gets here — HandlePlace
+            // refused it before anything was consumed.
+            return System.Math.Max(0, LightFormAt(blockKey, pos, place.UpFace));
+        }
+
         int facing = place.Yaw >= 0 && place.Yaw <= 3
             ? place.Yaw
             : ((int)System.MathF.Round(session.State.Yaw / 90f)) & 3;
@@ -5936,6 +5952,13 @@ public sealed partial class GameServer
             }
         }
 
+        // #2683: a torch can't hang from the ceiling (the lantern can) — refused with a hint before anything is consumed.
+        if (PropShapes.IsLightMountKey(blockDef.Key) && LightFormAt(blockDef.Key, pos, place.UpFace) == PropShapes.LightRefused)
+        {
+            Reject(session, "place", "@srv.place.torch_ceiling");
+            return;
+        }
+
         // A bed is two cells long (#1846): the foot half lands on the cell the head's yaw points to. The foot
         // cell is put through the same checks the head cell just passed — free, in reach, not the player's own
         // head, no protected ground — BEFORE the item is consumed, so a bed jammed against a wall is refused
@@ -6139,6 +6162,10 @@ public sealed partial class GameServer
         else if (blockDef.Key is "station_vendor" or "mission_board" || NpcProfessions.ByPostBlock(blockDef.Key) != null)
         {
             OnBasePostChanged(session, pos, placed: true); // #1865: a post at home is staffed by a resident
+        }
+        else if (blockDef.Key == BedBlock)
+        {
+            OnBaseBedPlaced(session, pos); // #2679: a bed at the base says whether it counts (both halves stand by now)
         }
 
         if (place.DeviceDir is >= 0 and < CrystalNetRules.DirectionCount)

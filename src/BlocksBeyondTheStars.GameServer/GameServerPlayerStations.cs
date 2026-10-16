@@ -829,11 +829,20 @@ public sealed partial class GameServer
         // above) and on a build whose centre column is walled in it was the NEAREST such cell: Lyxette docked and
         // was set down on top of her station, in the vacuum.
         _stationAir.Remove(station.Id); // the stamp or the owner's edits since rewrote the hull — judge the pockets on what the world holds now
+        if (IsGeneratedDerelictId(station.Id))
+        {
+            // #2675: a derelict breathes nowhere, so its arrival needs no air — the deck nearest the layout's arrival under
+            // the hull's roof (never its top face), else any standable cell.
+            return TryFindStandableInStation(station, near, core, sealedOnly: false, out spot, roofedOnly: true)
+                || TryFindStandableInStation(station, near, core, sealedOnly: false, out spot);
+        }
+
         return TryFindStandableInStation(station, near, core, sealedOnly: true, out spot)
             || TryFindStandableInStation(station, near, core, sealedOnly: false, out spot);
     }
 
-    private bool TryFindStandableInStation(BoardableStation station, Vector3i near, Vector3i? core, bool sealedOnly, out Vector3i spot)
+    private bool TryFindStandableInStation(BoardableStation station, Vector3i near, Vector3i? core, bool sealedOnly, out Vector3i spot,
+        bool roofedOnly = false)
     {
         spot = default;
         long best = long.MaxValue;
@@ -842,7 +851,8 @@ public sealed partial class GameServer
                 for (int y = station.BoundsMin.Y + 1; y <= station.BoundsMax.Y + 1; y++)
                 {
                     if (!StandableAt(x, y, z) || InDoorway(x, y, z) // #2607: never inside a door (a closed hinge door is solid)
-                        || (sealedOnly && !InSealedStationPocket(station, new Vector3i(x, y, z))))
+                        || (sealedOnly && !InSealedStationPocket(station, new Vector3i(x, y, z)))
+                        || (roofedOnly && !RoofedInStation(station, x, y, z)))
                     {
                         continue;
                     }
@@ -862,6 +872,21 @@ public sealed partial class GameServer
                 }
 
         return best != long.MaxValue;
+    }
+
+    /// <summary>#2675: whether a feet cell has a block somewhere above its head inside the station's box — under the hull's
+    /// roof, not on top of it.</summary>
+    private bool RoofedInStation(BoardableStation station, int x, int y, int z)
+    {
+        for (int yy = y + 2; yy <= station.BoundsMax.Y; yy++)
+        {
+            if (!_world.GetBlockIfLoaded(new Vector3i(x, yy, z)).IsAir)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>The build's world-space box in its interior world: the sealed-air fill (#1473) treats anything

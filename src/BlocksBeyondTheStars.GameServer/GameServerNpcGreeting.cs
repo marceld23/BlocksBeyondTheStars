@@ -127,7 +127,7 @@ public sealed partial class GameServer
             Theme = npc.Theme,
             IsRobot = npc.IsRobot,
             Settlement = !string.IsNullOrEmpty(npc.Settlement) ? npc.Settlement
-                : npc.LodgeKey.Length > 0 ? LodgeAiPlace // #2641: a lodge resident lives in no village
+                : npc.LodgeKey.Length > 0 ? LodgeAiPlaceOf(npc) // #2641: a lodge resident lives in no village (#2682: a pioneer in an outpost)
                 : IsWandererNpc(npc) ? WandererAiPlace // #2646: a wanderer is on the road
                 : _settlementName,
             // #2590: never the real name — the cache key has no player, so a line naming "Justus" would greet every
@@ -223,14 +223,23 @@ public sealed partial class GameServer
     }
 
     /// <summary>Sends a greeting for an NPC to a player: a cached/static line immediately, plus (when AI is on and
-    /// nothing is cached yet) an LLM line generated off-thread that replaces it when ready.</summary>
-    private void EmitGreeting(PlayerSession session, ServerNpc npc)
+    /// nothing is cached yet) an LLM line generated off-thread that replaces it when ready.
+    /// <para>#2673: <paramref name="explicitTalk"/> — the player pressed Talk (E at an NPC, or "Talk" in the trade-or-talk
+    /// choice) and no dialogue applies. That is never silent: inside the cooldown (the "Trade" button had just greeted, or
+    /// the player clicks Talk again) the NPC repeats its plain line. Only the plain line — the cooldown still paces story
+    /// threads, treasure hints and new AI requests.</para></summary>
+    private void EmitGreeting(PlayerSession session, ServerNpc npc, bool explicitTalk = false)
     {
         var (req, npcKey, cacheKey) = NpcContext(session, npc);
 
         string coolKey = session.State.PlayerId + "|" + npcKey;
         if (_lastGreetAt.TryGetValue(coolKey, out var last) && _uptime - last < GreetCooldownSeconds)
         {
+            if (explicitTalk)
+            {
+                SendPlainGreeting(session, npc, npcKey, cacheKey);
+            }
+
             return; // greeted this NPC very recently — don't re-spam on a panel re-open
         }
 
@@ -306,6 +315,16 @@ public sealed partial class GameServer
         // #2593: the upgrade of the bubble sent above — same id, no gesture (it played with the first message).
         var upgrade = new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, GreetingId = greetingId, Gesture = NpcGestures.None };
         StartGreetingLine(cacheKey, req, AiLinePriority.PlayerInitiated, session.ConnectionId, upgrade);
+    }
+
+    /// <summary>#2673: the NPC's plain line again, for a Talk inside the greeting cooldown — a cached AI line (with this
+    /// player's name), else the stage greeting, else "" (the client's localized role line). No story thread, no treasure
+    /// hint, no AI request, and the cooldown is not re-armed: those stay paced by the first greeting.</summary>
+    private void SendPlainGreeting(PlayerSession session, ServerNpc npc, string npcKey, string cacheKey)
+    {
+        string? cachedLine = _config.AiLevel == AiLevel.Off ? null : _greetingCache.Pick(cacheKey);
+        string text = cachedLine is null ? StageGreetingText(session, npc, npcKey) : FillPlayerToken(cachedLine, session);
+        Send(session, new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, Text = text, GreetingId = NextGreetingId() });
     }
 
     /// <summary>

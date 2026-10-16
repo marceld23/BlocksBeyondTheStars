@@ -197,6 +197,9 @@ _ROLE_DESC = {
     "miner": "miner who lives out in the wilds and chips ore from the rock",
     "woodcutter": "woodcutter who lives out in the wilds, fells trees and always plants a new one",
     "hunter": "hunter who lives out in the wilds, follows the herds and trades meat",
+    # #2682: a pioneer — an explorer who built a small base of their own out in the wilds.
+    "pioneer": "pioneer and explorer who built a small outpost of their own out in the wilds, hunts and gathers "
+               "nearby and is sometimes away exploring for a day",
 }
 
 

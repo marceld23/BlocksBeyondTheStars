@@ -32,6 +32,12 @@ public sealed class NetBase
 
     /// <summary>The celestial body (planet/moon/asteroid) the base sits on.</summary>
     public string BodyId { get; set; } = string.Empty;
+
+    /// <summary>#2679: how many residents live at the base (the founding settler included) and how many it can hold —
+    /// "Residents: 2/5" in the readout when aiming at your own core. <see cref="ResidentCap"/> 0 = a server that does not
+    /// send them (the client then shows nothing). Additive, contractless: an older client ignores them.</summary>
+    public int Residents { get; set; }
+    public int ResidentCap { get; set; }
 }
 
 /// <summary>Full set of bases the client should show for its current world (server → client).</summary>

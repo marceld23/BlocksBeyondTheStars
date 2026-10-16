@@ -11,7 +11,7 @@ using BlocksBeyondTheStars.Shared.World;
 namespace BlocksBeyondTheStars.WorldGeneration;
 
 /// <summary>An intact door of a derelict (#2632): the base cell of its three-high opening and the axis its leaf runs
-/// along (true = along X). The server hangs it as a door record — airtight, so the room behind it keeps its air.</summary>
+/// along (true = along X). The server hangs it as a door record — airtight, so the room behind it stays closed.</summary>
 public readonly struct DerelictDoor
 {
     public readonly Vector3i Cell;
@@ -32,7 +32,7 @@ public readonly struct DerelictDoor
 /// <item><see cref="SpawnerSpot"/> — the cell in the middle of a room of decent size (on its deck) where the guardian
 /// bay (<c>guardian_spawner</c>, #2635) stands, its front toward the arrival.</item>
 /// <item><see cref="TraderPosts"/> — the broken, unstaffed trading posts: plain <c>station_vendor</c> blocks.</item>
-/// <item><see cref="Arrival"/> — where a boarder is set down: the deck of the sealed command room (procedural layouts).</item>
+/// <item><see cref="Arrival"/> — where a boarder is set down: the deck of the command room (a beta station's hub).</item>
 /// </list>
 /// </summary>
 public sealed class DerelictLayout
@@ -61,15 +61,19 @@ public sealed class DerelictLayout
     /// <summary>The station tier the layout was built at (small / medium / large, or a template's own tier).</summary>
     public string SizeTier { get; }
 
-    /// <summary>Where the layout came from: <c>procedural:&lt;tier&gt;</c> (the module generator) or <c>template:&lt;key&gt;</c>
-    /// (one of the classic hand-built stations).</summary>
+    /// <summary>Where the layout came from: <c>beta</c> (<see cref="DerelictGenerator.BetaSource"/> — every new derelict
+    /// since #2674, the wreck of a beta station), or for a derelict a save stored before that: <c>procedural:&lt;tier&gt;</c>
+    /// (the module generator) or <c>template:&lt;key&gt;</c> (one of the classic hand-built stations).</summary>
     public string Source { get; }
+
+    /// <summary>True for the wreck of a beta station (#2674).</summary>
+    public bool IsBeta => Source == DerelictGenerator.BetaSource;
 
     public IReadOnlyList<DerelictDoor> Doors { get; internal set; } = Array.Empty<DerelictDoor>();
     public Vector3i Arrival { get; internal set; }
 
-    /// <summary>True when the arrival sits in a pocket the hull closes completely, judged by the server's air rule
-    /// (airtight full cubes and doors). Always true since #2636: a classic template's hall is patched shut.</summary>
+    /// <summary>True when the arrival sits in a pocket the hull closes completely, judged by the station air rule
+    /// (airtight full cubes and doors) — geometry only: no derelict breathes since #2675 (dead life support).</summary>
     public bool ArrivalSealed { get; internal set; }
 
     public IReadOnlyList<Vector3i> CrateSpots { get; internal set; } = Array.Empty<Vector3i>();
@@ -94,34 +98,53 @@ public sealed class DerelictLayout
 }
 
 /// <summary>
-/// Builds a derelict station (#2632): one of the boxy old stations — the procedural iron/glass module generator
-/// (<see cref="StationGenerator.Generate"/>) or a classic hand-built template (<c>data/station_templates.json</c>, the
-/// complete, non-kit ones) — run through a decay pass. Deterministic from the seed. The pass:
+/// Builds a derelict station (#2632, #2674). Since #2674 every new derelict is the wreck of a <b>beta station</b> — the
+/// boxy shape every NPC station showed in flight until v2026.9.9 (<see cref="BetaStationGenerator"/>): <see cref="Generate"/>.
+/// A derelict a save already stored (entered or edited before #2674) keeps the layout it was built from — one of the
+/// procedural module stations (<see cref="StationGenerator.Generate"/>) or a classic hand-built template
+/// (<c>data/station_templates.json</c>, the complete, non-kit ones): <see cref="GenerateLegacy"/>, which must keep
+/// producing exactly what it always did. Both run the same decay pass, deterministic from the seed:
 /// <list type="number">
-/// <item>splits the interior into rooms (the module doorways are the cuts) and keeps the command room (the arrival)
-/// sealed; the hangar loses its force field and stands open; other rooms are breached by chance — a torn hole in an
-/// outer wall, floor or roof (falling out of it is the point, #2636: a real spacewalk) — never in a way that opens a
-/// sealed room. A classic template's one hall is the arrival: never breached, and its old gaps are patched shut at the
-/// end, so every derelict has a sealed arrival with air by the server's own rule (#2636);</item>
-/// <item>hangs an intact door into every doorway with a sealed room on one side (one column walled up — a station door
+/// <item>splits the interior into rooms (the doorways are the cuts) and keeps the command room (the arrival) closed;
+/// the hangar loses its force field and stands open; other rooms are breached by chance — a torn hole in an outer wall,
+/// floor or roof (falling out of it is the point, #2636: a real spacewalk) — never in a way that opens a closed room.
+/// No room breathes since #2675 — the life support is dead — but the closed rooms keep their doors and a warm emergency
+/// light. (The legacy path still patches a classic template's hall shut at the end, as it did when the arrival held
+/// air, so a stored derelict's layout stays the same.)</item>
+/// <item>hangs an intact door into every doorway with a closed room on one side (one column walled up — a station door
 /// is one block wide), and leaves the doorways between two breached rooms open;</item>
 /// <item>tears off random outer panels and greebles, scorches the plating (carbon) — heavily round the breaches —
-/// scatters scrap on the decks, turns the lights off in the breached rooms (warm emergency light in the sealed ones),
+/// scatters scrap on the decks, turns the lights off in the breached rooms (warm emergency light in the closed ones),
 /// and removes every plant, data cache and force field;</item>
 /// <item>turns each vendor stall into a broken trading post: a plain <c>station_vendor</c> block in scorch and scrap.
-/// No marker is produced — the server never staffs or trades at it.</item>
+/// No marker is produced — the server never staffs or trades at it;</item>
+/// <item>a beta wreck on top: one solar wing half torn off with a ragged, scorched edge and a few of its cells
+/// drifting, the mast snapped (its top with the dead beacon floating just beside the stump), rusted patches on the
+/// hull and a few loose debris blocks near it.</item>
 /// </list>
 /// </summary>
 public static class DerelictGenerator
 {
-    /// <summary>Share of derelicts built from a classic template instead of the module generator.</summary>
+    /// <summary>Share of derelicts built from a classic template instead of the module generator (legacy path).</summary>
     public const double TemplateShare = 0.2;
+
+    /// <summary>The <see cref="DerelictLayout.Source"/> of a beta-station derelict (#2674).</summary>
+    public const string BetaSource = "beta";
 
     private const int MinRoomCells = 8;
 
-    /// <summary>Generates a derelict layout. <paramref name="proceduralOnly"/> forces a medium module station — the
-    /// guaranteed derelict near the start, so the first one a player meets has a sealed room to arrive in.</summary>
-    public static DerelictLayout Generate(long seed, GameContent content, bool proceduralOnly = false)
+    /// <summary>Generates a new derelict (#2674): the wreck of a beta station.</summary>
+    public static DerelictLayout Generate(long seed, GameContent content)
+    {
+        var rng = new Random(unchecked((int)(seed ^ (seed >> 32)) ^ (int)WorldGenerator.StableHash("derelict-beta")));
+        var st = BetaStationGenerator.Generate(seed ^ WorldGenerator.StableHash("derelict-beta-station"), content);
+        return Decay(st, content, rng, BetaStationGenerator.SizeTier, BetaSource, hall: false, beta: true);
+    }
+
+    /// <summary>Generates a derelict the way it was done before #2674 — for a derelict whose build a save already stored,
+    /// so its layout (arrival, crate spots, guardian bay, flight position) matches that build. <paramref name="proceduralOnly"/>
+    /// forces a medium module station (it was the guaranteed derelict near the start). Never change what this produces.</summary>
+    public static DerelictLayout GenerateLegacy(long seed, GameContent content, bool proceduralOnly = false)
     {
         var rng = new Random(unchecked((int)(seed ^ (seed >> 32)) ^ (int)WorldGenerator.StableHash("derelict-layout")));
 
@@ -173,6 +196,16 @@ public static class DerelictGenerator
             source = "procedural:" + tier;
         }
 
+        return Decay(st, content, rng, tier, source, hall: useTemplate, beta: false);
+    }
+
+    /// <summary>The decay pass over a source station (see the class summary). <paramref name="hall"/>: the source is a
+    /// classic template's one hall; <paramref name="beta"/>: the source is a beta station — only then do the beta-only
+    /// steps run (the beta wreck damage, the doorway fronts kept clear, the guardian bay out of the open hangar), so the
+    /// legacy path draws exactly the random numbers it always drew.</summary>
+    private static DerelictLayout Decay(StationStructure st, GameContent content, Random rng, string tier, string source, bool hall, bool beta)
+    {
+        bool useTemplate = hall;
         var grid = new Grid(st);
         var ids = new Ids(content);
         grid.RemoveFlora(content); // nothing grows any more — and the rooms below are judged without the planters
@@ -182,7 +215,8 @@ public static class DerelictGenerator
 
         // ---- 3. Doorways (the module generator's cuts; a template's airlock is a door block in its wall) ----
         // A cut lies in a module wall plane: an X-facing wall sits at a module's first or last X column. Judged from the
-        // module grid, never from the cells around the cut — a planter or a crate beside a doorway fooled that.
+        // module grid, never from the cells around the cut — a planter or a crate beside a doorway fooled that. A beta
+        // station names the wall's axis on the marker itself ("x" / "z", #2674).
         var wallX = new HashSet<int>();
         foreach (var m in st.Modules)
         {
@@ -200,7 +234,7 @@ public static class DerelictGenerator
             }
 
             var dc = m.LocalPos;
-            bool xWall = wallX.Contains(dc.X);
+            bool xWall = m.Data == "x" || (m.Data != "z" && wallX.Contains(dc.X));
             var other = xWall ? new Vector3i(dc.X, dc.Y, dc.Z + 1) : new Vector3i(dc.X + 1, dc.Y, dc.Z);
             var d = new Doorway(dc, other, xWall);
             doorways.Add(d);
@@ -256,7 +290,7 @@ public static class DerelictGenerator
             arrivalRoom = largest;
         }
 
-        // ---- 5. Which rooms keep their air ----
+        // ---- 5. Which rooms stay closed (no derelict breathes since #2675, but a closed room keeps its door and light) ----
         var fieldRoom = new bool[roomCount];
         for (int r = 0; r < roomCount; r++)
         {
@@ -276,7 +310,7 @@ public static class DerelictGenerator
             double roll = rng.NextDouble();
             if (r == arrivalRoom)
             {
-                // The arrival room keeps its air, whatever the source (#2636: a child boarding never arrives in vacuum).
+                // The arrival room stays closed, whatever the source (#2636: a boarder never arrives at a hole).
                 // A classic template's hall that leaked from the start (leakyHall) is patched shut at the end
                 // (SealArrivalPocket) instead of torn open — its roll is still drawn, so the seeded sequence stays put.
                 breached[r] = false;
@@ -299,8 +333,8 @@ public static class DerelictGenerator
             }
         }
 
-        // A room with nothing to tear open (an inner room with no outer face) keeps its air after all; a room that keeps
-        // its air protects more walls, so settle that until nothing changes.
+        // A room with nothing to tear open (an inner room with no outer face) stays closed after all; a closed room
+        // protects more walls, so settle that until nothing changes.
         var candidates = new List<Vector3i>[roomCount];
         HashSet<Vector3i> protectedCells;
         bool changed;
@@ -394,9 +428,29 @@ public static class DerelictGenerator
         grid.TearPanels(exterior, protectedCells, rng);
         grid.Scorch(ids, exterior, breachCentres, rng);
 
+        // ---- 9b. The beta wreck (#2674): torn wing, snapped mast, dead beacon, rust, loose debris ----
+        if (beta)
+        {
+            grid.BetaDamage(ids, exterior, rng);
+        }
+
         // ---- 10. The broken trading posts ----
         var posts = new List<Vector3i>();
         var reserved = new HashSet<Vector3i>(doorwayCell) { arrival, new Vector3i(arrival.X, arrival.Y + 1, arrival.Z) };
+        if (beta)
+        {
+            // A beta station's arms are narrow tubes: nothing (scrap, a crate) may stand right in front of a doorway.
+            foreach (var d in doorways)
+            {
+                foreach (int sign in new[] { -1, 1 })
+                {
+                    var front = d.Side(sign);
+                    var frontOther = d.XWall ? new Vector3i(front.X, front.Y, front.Z + 1) : new Vector3i(front.X + 1, front.Y, front.Z);
+                    reserved.Add(front);
+                    reserved.Add(frontOther);
+                }
+            }
+        }
         foreach (var m in st.Markers)
         {
             if (m.Type != "vendor" || posts.Count >= 3 || ids.Vendor == 0)
@@ -511,7 +565,8 @@ public static class DerelictGenerator
         int spawnerRoom = -1;
         for (int r = 0; r < roomCount; r++)
         {
-            if (r != arrivalRoom && walkable[r] && (spawnerRoom < 0 || roomCells[r].Count > roomCells[spawnerRoom].Count))
+            bool openHangar = beta && fieldRoom[r]; // #2674: never in the hangar — its mouth stands open to space
+            if (r != arrivalRoom && walkable[r] && !openHangar && (spawnerRoom < 0 || roomCells[r].Count > roomCells[spawnerRoom].Count))
             {
                 spawnerRoom = r;
             }
@@ -556,10 +611,11 @@ public static class DerelictGenerator
             }
         }
 
-        // #2636: a child boarding never arrives in vacuum. A classic template's hall was never built airtight, so the
-        // arrival's pocket is patched shut here — after every block the decay writes, judged by the server's own air rule
-        // (airtight full cubes and doors). A module station's command room is sealed already and stays untouched.
-        if (!grid.PocketSealed(arrival, doorCells, ids))
+        // #2636: a classic template's hall was never built airtight, so the legacy path patches the arrival's pocket shut
+        // here — after every block the decay writes, judged by the server's own air rule (airtight full cubes and doors).
+        // Since #2675 no derelict breathes, so a beta station needs no patch (its hub is closed by construction); the legacy
+        // path keeps it, so a stored derelict's layout stays exactly what its build was made from.
+        if (!beta && !grid.PocketSealed(arrival, doorCells, ids))
         {
             grid.SealArrivalPocket(arrival, doorCells, ids);
         }
@@ -718,6 +774,9 @@ public static class DerelictGenerator
     private sealed class Ids
     {
         public readonly ushort Hull, Glass, Field, DataCache, Vendor, Scorch, ScrapMetal, ScrapPile, LightWarm, LightOff, HealTank, GuardianBay;
+
+        /// <summary>#2674: the beta wreck's rusted patches and its dead beacon.</summary>
+        public readonly ushort Rust, BeaconOff;
         public readonly HashSet<ushort> Plating = new();
 
         /// <summary>#2636: the blocks the server's station air fill stops at — airtight blocks (the content's flag) plus the
@@ -755,6 +814,8 @@ public static class DerelictGenerator
             LightOff = Id("strip_light_cyan_off");
             HealTank = Id("heal_tank");
             GuardianBay = Id("guardian_spawner"); // #2635
+            Rust = Id("rusted_panel"); // #2674
+            BeaconOff = Id("light_white_off");
             foreach (var key in new[] { "iron_wall", "steel_floor", "metal_panel", "cargo_floor", "lab_panel" })
             {
                 ushort id = Id(key);
@@ -1265,6 +1326,208 @@ public static class DerelictGenerator
                             Set(x, y, z, ids.Scorch);
                         }
                     }
+        }
+
+        /// <summary>
+        /// #2674: what makes a beta station a wreck from outside, on top of the shared decay — only ever run on a grid built
+        /// from <see cref="BetaStationGenerator"/> (its centre and parts are where that generator put them):
+        /// <list type="bullet">
+        /// <item>one solar wing half torn off — a ragged edge row by row, the cells along it scorched, and a few of its cells
+        /// drifting beyond it;</item>
+        /// <item>the mast snapped a few blocks above its foot, its top (with the dead beacon) floating just beside the stump;</item>
+        /// <item>rusted patches on the outer hull (a rusted panel is a full airtight cube like the iron it replaces);</item>
+        /// <item>a few loose debris blocks floating near the hull.</item>
+        /// </list>
+        /// Everything stays on the outside: no room is opened by it.
+        /// </summary>
+        public void BetaDamage(Ids ids, bool[] exterior, Random rng)
+        {
+            var c = BetaStationGenerator.Centre;
+            ushort dark = ids.Scorch != 0 ? ids.Scorch : ids.Hull;
+
+            // The torn wing.
+            int side = rng.Next(2) == 0 ? 1 : -1;
+            int mid = (BetaStationGenerator.WingInner + BetaStationGenerator.WingOuter) / 2;
+            int wingY = c.Y + BetaStationGenerator.WingLayer;
+            for (int dz = -BetaStationGenerator.WingHalfSpan; dz <= BetaStationGenerator.WingHalfSpan; dz++)
+            {
+                int edge = mid + rng.Next(-2, 3);
+                for (int a = edge + 1; a <= BetaStationGenerator.WingOuter; a++)
+                {
+                    Set(c.X + (side * a), wingY, c.Z + dz, 0);
+                }
+
+                for (int a = edge - 2; a <= edge; a++)
+                {
+                    double roll = rng.NextDouble();
+                    int x = c.X + (side * a), z = c.Z + dz;
+                    if (Solid(x, wingY, z) && roll < 0.6)
+                    {
+                        Set(x, wingY, z, dark); // scorched along the tear
+                    }
+                }
+            }
+
+            int fragments = 2 + rng.Next(3);
+            for (int tries = 0; tries < 40 && fragments > 0; tries++)
+            {
+                int a = mid + 2 + rng.Next(BetaStationGenerator.WingOuter - mid - 1);
+                int dz = rng.Next(-BetaStationGenerator.WingHalfSpan, BetaStationGenerator.WingHalfSpan + 1);
+                int dy = (rng.Next(2) == 0 ? 1 : -1) * (1 + rng.Next(2));
+                bool glass = rng.NextDouble() < 0.6 && ids.Glass != 0;
+                var cell = new Vector3i(c.X + (side * a), wingY + dy, c.Z + dz);
+                if (!Floating(cell))
+                {
+                    continue;
+                }
+
+                Set(cell.X, cell.Y, cell.Z, glass ? ids.Glass : dark);
+                if (glass)
+                {
+                    SetModifier(cell.X, cell.Y, cell.Z, (StationKitExterior.SolarTint, 0)); // a drifting solar cell
+                }
+
+                fragments--;
+            }
+
+            // The snapped mast: it stands to the stump; its top floats one block above the break, one to the side.
+            int stump = BetaStationGenerator.MastBottom + 2 + rng.Next(3);
+            for (int dy = stump + 1; dy <= BetaStationGenerator.BeaconLayer; dy++)
+            {
+                Set(c.X, c.Y + dy, c.Z, 0);
+            }
+
+            var (ox, oz) = BetaStationGenerator.Arms[rng.Next(BetaStationGenerator.Arms.Length)];
+            int top = stump + 2;
+            for (int dy = top; dy < top + 3; dy++)
+            {
+                Set(c.X + ox, c.Y + dy, c.Z + oz, dark);
+            }
+
+            if (ids.BeaconOff != 0)
+            {
+                Set(c.X + ox, c.Y + top + 3, c.Z + oz, ids.BeaconOff); // the beacon, dead
+                SetModifier(c.X + ox, c.Y + top + 3, c.Z + oz, (BetaStationGenerator.BeaconTint, 0));
+            }
+
+            // Rusted patches on the outer hull.
+            if (ids.Rust != 0 && ids.Hull != 0)
+            {
+                bool Outer(int x, int y, int z)
+                {
+                    foreach (var n in Neighbours6(new Vector3i(x, y, z)))
+                    {
+                        if (IsExterior(exterior, n.X, n.Y, n.Z))
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
+
+                var outer = new List<Vector3i>();
+                for (int x = 0; x < W; x++)
+                    for (int y = 0; y < H; y++)
+                        for (int z = 0; z < L; z++)
+                        {
+                            if (Get(x, y, z) == ids.Hull && Outer(x, y, z))
+                            {
+                                outer.Add(new Vector3i(x, y, z));
+                            }
+                        }
+
+                int patches = 4 + rng.Next(4);
+                for (int p = 0; p < patches && outer.Count > 0; p++)
+                {
+                    var centre = outer[rng.Next(outer.Count)];
+                    double radius = 1.2 + rng.NextDouble() * 1.3;
+                    for (int dx = -3; dx <= 3; dx++)
+                        for (int dy = -3; dy <= 3; dy++)
+                            for (int dz = -3; dz <= 3; dz++)
+                            {
+                                double roll = rng.NextDouble();
+                                int x = centre.X + dx, y = centre.Y + dy, z = centre.Z + dz;
+                                if ((dx * dx) + (dy * dy) + (dz * dz) <= radius * radius && roll < 0.8
+                                    && Get(x, y, z) == ids.Hull && Outer(x, y, z))
+                                {
+                                    Set(x, y, z, ids.Rust);
+                                }
+                            }
+                }
+            }
+
+            // Loose debris drifting near the hull.
+            int debris = 3 + rng.Next(3);
+            for (int tries = 0; tries < 300 && debris > 0; tries++)
+            {
+                var cell = new Vector3i(rng.Next(W), rng.Next(H), rng.Next(L));
+                double roll = rng.NextDouble();
+                if (!IsExterior(exterior, cell.X, cell.Y, cell.Z) || !Floating(cell) || !SolidWithin(cell, 4))
+                {
+                    continue;
+                }
+
+                ushort b = roll < 0.5 && ids.ScrapMetal != 0 ? ids.ScrapMetal : roll < 0.8 ? dark : ids.Hull;
+                Set(cell.X, cell.Y, cell.Z, b);
+                debris--;
+            }
+        }
+
+        /// <summary>An empty cell inside the grid with nothing in any of its 26 neighbours — a block set there floats free.</summary>
+        private bool Floating(Vector3i c)
+        {
+            if (!InBounds(c.X, c.Y, c.Z))
+            {
+                return false;
+            }
+
+            for (int dx = -1; dx <= 1; dx++)
+                for (int dy = -1; dy <= 1; dy++)
+                    for (int dz = -1; dz <= 1; dz++)
+                    {
+                        if (Solid(c.X + dx, c.Y + dy, c.Z + dz))
+                        {
+                            return false;
+                        }
+                    }
+
+            return true;
+        }
+
+        /// <summary>Whether any block lies within <paramref name="reach"/> cells of <paramref name="c"/> (a cube).</summary>
+        private bool SolidWithin(Vector3i c, int reach)
+        {
+            for (int dx = -reach; dx <= reach; dx++)
+                for (int dy = -reach; dy <= reach; dy++)
+                    for (int dz = -reach; dz <= reach; dz++)
+                    {
+                        if (Solid(c.X + dx, c.Y + dy, c.Z + dz))
+                        {
+                            return true;
+                        }
+                    }
+
+            return false;
+        }
+
+        /// <summary>Sets a cell's dye/glow (both 0 clears it) — e.g. the blue of a drifting solar cell (#2674).</summary>
+        public void SetModifier(int x, int y, int z, (int Tint, int Glow) mod)
+        {
+            if (!InBounds(x, y, z))
+            {
+                return;
+            }
+
+            int i = Idx(x, y, z);
+            if (mod.Tint == 0 && mod.Glow == 0)
+            {
+                _mods.Remove(i);
+            }
+            else
+            {
+                _mods[i] = mod;
+            }
         }
 
         public void ScorchAt(int x, int y, int z, Ids ids)

@@ -186,8 +186,9 @@ public sealed partial class GameServer
         TickNpcWork(npc, plan, targets);
     }
 
-    /// <summary>Whether a job is one of the wilderness folk's professions (a lodge resident's or a wanderer's).</summary>
-    private bool IsLodgeJob(string job) => _content.LodgeProfession(job) is not null;
+    /// <summary>Whether a job is one of the wilderness folk's professions (a lodge resident's or a wanderer's) — or a
+    /// pioneer's (#2682): each talks in its own dialogues, never the generic settler's.</summary>
+    private bool IsLodgeJob(string job) => _content.LodgeProfession(job) is not null || job == PioneerJob;
 
     /// <summary>The lodge a resident lives at, or null.</summary>
     private LodgeInstance? LodgeOf(ServerNpc npc)
@@ -209,8 +210,19 @@ public sealed partial class GameServer
             return;
         }
 
-        var crate = LodgeOf(npc) is { } lodge ? LodgeStore(lodge) : null;
-        var stack = crate?.Items.FirstOrDefault(s => !s.IsEmpty && LodgeGiftable(s.Item));
+        // #2681: a pioneer gives from any of the crates in the room (never the cellar's box), a hut's resident from its one.
+        StoredContainer? crate = null;
+        ItemStack? stack = null;
+        foreach (var c in LodgeOf(npc) is { } lodge ? LodgeGiftStores(lodge) : Enumerable.Empty<StoredContainer>())
+        {
+            stack = c.Items.FirstOrDefault(s => !s.IsEmpty && LodgeGiftable(s.Item));
+            if (stack is not null)
+            {
+                crate = c;
+                break;
+            }
+        }
+
         if (crate is null || stack is null)
         {
             _dialogResponseOverride = Localize(session.Locale, "dlg.lodge.r_gift_empty");
@@ -398,6 +410,11 @@ public sealed partial class GameServer
         }
 
         RevealPoi(best.RevealKey);
+        if (best.Outpost is not null)
+        {
+            return LodgeHintText(session, "npc.hint.outpost", best.Center.X, best.Center.Z, best.ResidentName); // #2681
+        }
+
         string job = _content.LodgeProfession(best.Profession) is { } p ? Localize(session.Locale, p.NameKey) : string.Empty;
         return LodgeHintText(session, "npc.hint.lodge", best.Center.X, best.Center.Z, best.ResidentName, job);
     }
@@ -408,7 +425,8 @@ public sealed partial class GameServer
     {
         foreach (var l in _lodges)
         {
-            if (l.ResidentName.Length > 0 && WrapDistSq(l.Center, at) <= (double)DeedSettlementRange * DeedSettlementRange)
+            if (l.Outpost is null // #2681: the topic talks of a hut — a pioneer's outpost is not one
+                && l.ResidentName.Length > 0 && WrapDistSq(l.Center, at) <= (double)DeedSettlementRange * DeedSettlementRange)
             {
                 return l.ResidentName;
             }

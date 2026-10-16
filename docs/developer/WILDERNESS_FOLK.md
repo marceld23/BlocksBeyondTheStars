@@ -1,9 +1,10 @@
-# Wilderness folk — lodges, their residents and wanderers
+# Wilderness folk — lodges, their residents, wanderers and pioneers
 
 Epic #2639 (issues #2640–#2647). Before it every NPC was bound to a settlement, a base, a station, a landing pad or one unique
 site, and only base residents really worked. The wilderness folk live and work **outside** the settlements: a **lodge** is a
 small hut in the open land with one or two residents who gather, mine, chop or hunt around it; a **wanderer** is a named
-traveller you meet on the way. This page is the map of that code. The NPC basics (routine, A*, doors, greetings, dialogues)
+traveller you meet on the way; a **pioneer outpost** (#2681/#2682, §8) is the lodge variant a player-like NPC lives in — a
+small closed base with a pixel-skinned resident. This page is the map of that code. The NPC basics (routine, A*, doors, greetings, dialogues)
 are in [NPC_ROUTINES.md](NPC_ROUTINES.md); the village rules the folk share (AI two-mode lines, no sound jumble) are in
 [VILLAGE_LIFE.md](VILLAGE_LIFE.md).
 
@@ -120,7 +121,8 @@ settlement boxes.
   leaves a tree or a sapling, never a stump. Fellings are RAM-only and dropped when their world unloads.
 - **Mining** (`GameServerNpcMining.cs`, #2643) — `NpcMineCell(npc, cell, bank, NpcMineRefillSeconds = 600)` through
   `BreakBlockCore(null, "")`: only solid mineable terrain/ore, no fluid beside or above, nothing loose, a plant, a torch or
-  lantern, a hanging plant or a player's edit on or above it, the six neighbouring chunks loaded. Every mined cell goes into
+  lantern, a hanging plant or a player's edit on or above it, no torch or lantern fixed to its side or hanging under it
+  (#2683), the six neighbouring chunks loaded. Every mined cell goes into
   the **refill registry** (`WorldMetadata.NpcRefills`, keyed by location: block by key, tint, glow, shape, due time in world
   playtime; additive JSON, no save bump; at most 512 per world, the oldest restored first, a full registry drops an old cell
   in an unloaded chunk without loading it). `TickNpcRestores` (1 Hz) puts a due cell back when it is still air, no player is
@@ -192,8 +194,117 @@ settlement boxes.
   once per 0.5 s across all woodcutters and never while VEGA or a cutscene speaks (`NpcChopGate`). See
   [SOUND_DESIGN.md](SOUND_DESIGN.md) §22.
 
+## 8. Pioneer outposts and pioneers (`GameServerPioneers.cs`, `PioneerOutpostGenerator`, #2681/#2682)
+
+"Player bases of NPCs" (Screelit): phase 1 — no ships, travel or combat. An outpost **is a lodge**: a `LodgeInstance` in
+`_lodges` with `LodgeInstance.Outpost` (`PioneerOutpost`) set, so everything generic above carries it — the protection
+(`IsLodgeBlock`), `LodgeAt`/`OverlapsLodge`/`AppendLodgeReservations` (later stampers keep clear), the reveal on foot
+(`TickLodges`), the owned-store refusal, the person rules of the resident, the routine and `TickLodgeResidentJob`. Its own
+parts:
+
+- **Gate** (`PioneersBelongHere`, boot stage "structures", right after the huts — `BootDetail("pioneer outposts")`): the lodge
+  gate (generation 25+, `PlaceLodges` and `PlaceSettlements`, not void, airless, ruined-only, gas, city or restricted, the
+  "Settlements" option not off) plus `ServerConfig.PlacePioneers` and a **breathable** atmosphere. λ = the lodges'
+  hospitability shape × world size × `PioneerBaseDensity` (1.4) × the Settlements factor, 12 Bernoulli slots, its own cap
+  `PioneerHardCap` = 2 (beside the huts' `LodgeRules.HardCap`). Tests that need a world without them switch `PlaceLodges` or
+  `PlacePioneers` off — the crate suites already switch the lodges off, so they never see a pioneer's crates either.
+- **Placement** — records `outpost/i` (the template pins the pioneer's work, the kit layout the boat as `x,y,z,x|z`), the lodges'
+  reservations plus every lodge (+ `LodgeSpacing`), the camp seat policy. `TryPlaceOutpost` runs the seat search on up to three
+  rng lanes and takes the first spot with water for a boat, else the first spot. The **`VirginAtLoad` rule**: a body with any
+  block edit gets a skip record, never a late outpost next to a player's build. Voxels once (`FeatureStamped("outposts")`):
+  `StampSettlementBlocks`, then the cellar (`StampOutpostBelow`, the cells below the floor row), then the boat. No terrain
+  generation bump — the chunk pipeline is untouched.
+- **Structure** (`PioneerOutpostGenerator.Generate(seed, surface, content, wallKind?, hidden?, chests)`, 15 × 15 × 6) — the room
+  at local x/z 1..9, closed all round: floor, walls with glass windows, a flat roof, all of one material per outpost
+  (`WallKinds`: `stone`, `earth` = `EarthBlockKey(surface)` — grass → dirt, sand → sandstone, snow → ice, ash → basalt, so a
+  wall never slumps — `iron` = `iron_wall`, `steel` = `steel_wall`; metal ones get a `steel_floor`), a two-wide hinge door at
+  +Z. Inside: a `base_core` in the middle (marker `core` — **decoration only**: no `ServerBase` is ever registered, so no zone,
+  no air machine, no residents, and `RemoveBaseAt` finds nothing; mining it is refused anyway), 2–4 `crate`s along the back
+  wall (markers `store`, the first takes the work's yield), the bed, a table and a chair (the evening seat), a torch. The work
+  anchor (`yard`) is in front of the door. **The tunnel**: a ladder shaft at local (8, 8) down to a cellar 5 rows below the floor
+  (x/z 4..9, stone walls, one `wood_crate` and a lantern; markers `cellar_store`, `cellar`) — either **visible** (a closet with a
+  one-wide hinge door, the ladder through the floor) or **hidden** (two planters of soil with a plant each; the corner one's
+  soil, marker `soil`, is the shaft's lid). **The boat** (`Boat(alongX)`): 6 × 3 logs on the water's top row — sides, a pointed
+  bow, a stern post, a deck of log slabs with a bench, a lantern; decoration, no vehicle. `FindOutpostBoatSpot` (pure generator
+  queries, no chunk loaded): open water within `OutpostBoatReach` (10) of the footprint's edge, parallel to it, every column
+  liquid (no ice), at least two deep, one level at most six below the floor.
+- **Protection** — `Protected` is the whole footprint (from 48 below, so the cellar is covered); `PioneerOutpost.Soil` (the hidden
+  shaft's lid) is the one free cell — pick the plant (the flora exemption), dig the soil, climb down; `PioneerOutpost.Boat`
+  protects the boat's cells outside the footprint. The refusal says whose it is: `srv.protect.outpost` ("This outpost belongs
+  to {name}"), through `LodgeProtectRefusal` (both mine paths and the door in `GameServer.cs`).
+- **Stores** — ids `outpost:<world>:<key>` (the first crate), `…#1`–`#3` and `…#cellar`, kind `crate`. `IsWildernessStoreId`
+  (`lodge:` or `outpost:`) is what the refusal and `ContainerAt` (machines, drills, base jobs) check. Each store is created once
+  with two or three goods (`OutpostGoods`; the cellar box `OutpostCellarGoods` — ingots, a crystal, a medkit) and then persisted
+  like any crate. A friend's present (`lodgegift`) comes from the room's crates (`LodgeGiftStores`), never the cellar's box.
+- **Map** — POI type `outpost`, `poi.outpost` ("{0}'s outpost"), reveal key `<world>|outpost:<key>`, found on foot within 40 m
+  like a hut, or told: a villager's `TryEmitLodgeHint` says `npc.hint.outpost`, a wanderer's tip goes the same way. The
+  `lodge_near` chatter topic skips outposts (it talks of a hut). `/tp outpost [n]` (`pioneer`, `pionier`, `außenposten`);
+  `/tp lodge` lists huts only, and `LodgesForTest` too (`OutpostsForTest` has the outposts).
+- **The pioneer** (`SpawnPioneer`, one per outpost, after the settlement NPCs) — `MakeNpc("settler", …)` (talk, no trade, never in
+  a settlement's lists), `Job` `pioneer` (`IsLodgeJob` knows it: only its own dialogues match), nameplate `npc.role.pioneer`,
+  `Look` `pixel` (`PixelLook`) with the skin seed as `FaceSeed` → `NetNpc.FaceVariant` (`StableHash("pioneer-skin:<world>:<key>") | 1`
+  — no pixels on the wire), a player's size, the work's tool held, `PersonKey` `lodge:<world>:<key>#0` (the wilderness person
+  rules: first-meeting lift, talk pays every ten minutes, the passing hello). An NPC has no attack at all — never hostile. The
+  work: `PickPioneerWork` among gatherer, miner and hunter by the planet's traits (the hunter × 1.5 where game lives; never the
+  woodcutter), `PioneerWorkPlan` on the lodge job loop round the work anchor — gathering 18 m, the outcrops 16 m, hunting 32 m,
+  never inside a hut or an outpost; the day as a hut's resident (work, the chair in the evening, the bed at night).
+- **Away** (`PioneerAwayAt(seed, day, localFraction)`) — about one in-game day in three (`PioneerAwayDay`: the outpost seed and
+  `MarketDay` through a 64-bit mix, `% 3 == 0` — an FNV string hash's low bits are too regular for that) and then only in the
+  working hours, local 0.30–0.66 at the outpost. `StepPioneers` (1 Hz, from `TickLodges`) walks the trip: *Home → Away* at once
+  when nobody is within 32 m, else *Leaving* — off along the bearing away from the nearest player (36…12 m) and gone at the end of
+  the walk unseen, or after 120 s with nobody within 24 m (the base guests' and wanderers' leave rule); *Away* =
+  `ServerNpc.VisitingAway` (not sent, not moved, no routine, no talk). *Away → Home*: with a player within 60 m of the outpost it
+  appears on the 40/47/55 m rings, out of sight where possible, and walks home (*Returning*, 90 s, then home unseen); else it is
+  simply home. A talk holds every step. RAM only: a load during an away window starts the pioneer away.
+- **Talk** (`data/dialogs.json`, home `lodge`, job `pioneer`, `aiPrompt`) — `pioneer_friend` (trusted: the present, a secret —
+  the cellar hint — and the tip) before `pioneer` (who they are, the outpost, the tip). The AI's place and situation come from
+  `LodgeAiPlaceOf` / `LodgeAiSituationOf`, the job description from the AI backend's `_ROLE_DESC["pioneer"]`.
+- **Client** — `NpcView`: a `pixel` look builds the avatar from `PixelSkinTextures.Pool.SkinFor(FaceVariant)` (Client.Core
+  `PixelSkinPool`): the skin's base colours (palette indices through `FacePalette.ColorOf`), its hair, a bare lower face, then
+  `SetFace` and `SetBodyPaint` per part. The bakes are cached (`PlayerAvatar.TextureCache` = `PixelSkinTextures.Shared`, keyed
+  by painting and tint, freed on a world change; a figure never destroys a shared texture), so a pioneer walking out of reach
+  and back is not baked again. No pool or no skin → the plain NPC look. The map: `WorldMap.PoiLook` `outpost` — the `map_base`
+  icon in `OutpostCol` (sand), legend row `ui.map.kind_outpost`.
+
+### 8.1 The pixel-skin pool — and painting your own
+
+- **The file** — `data/pioneer_skins.json` (it reaches the client like every data file: `scripts/sync-client-libs.*` copy it to
+  `StreamingAssets/data/`, the WebGL manifest lists it). One skin per entry: `key`, `author`, five palette indices — `skin` (the
+  bare skin under the face's transparent pixels), `hair` (0 = bald), `torso`, `arms`, `legs` (the tint under each part's
+  transparent pixels and on its unpainted faces) — and the paintings in the Appearance editor's own format (`BodyPaint`: one
+  base32 palette symbol per pixel, `0` = transparent, 32 × 32 chunks): `facePixels` (1024), `torsoPixels` (4096), `armPixels`
+  (8192), `legPixels` (8192), `helmetPixels` (5120 or "" — a pioneer wears no helmet, the NPC rule "bare face = NPC"). Client.Tests
+  `PixelSkinTests` validate it (`PixelSkinPool.Validate`: unique keys, palette indices, exact lengths, palette symbols).
+- **The recolour** (`PixelSkins.Recolour`, per pioneer seed, deterministic): the pick from the pool; the four garment hue
+  families — red (22, 8, 23), green (26, 11, 27), blue (28, 12, 29), purple (30, 13, 31), each dark, mid, light — permuted tone
+  for tone on every part; the skin tone moved along light 7 → tan 6 → deep 21 (→ 19 as the deep tone's shade); the hair families
+  brown (19, 5, 20), dark (16, 2, 17) and golden (24, 10, 25) rotated in the face and the hair only. Paint clothes in those
+  family colours and they change from pioneer to pioneer; every other colour stays as painted.
+- **The generated skins** — `uv run --no-project python tools/gen_pioneer_skins.py` rebuilds the eight explorers
+  (trailblazer, stargazer, tinkerer, trapper, sailor, botanist, scout, nomad) deterministically and keeps every hand-made skin
+  in the file; `--check` validates it.
+- **Painting one in the game (Justus)** — in the game open **Tab → Character → Appearance** (or the main menu's **Avatar
+  Designer**), paint the **Face**, **Torso**, **Arms** and **Legs** tabs and pick the base colours (keep the face's background
+  transparent: it becomes the skin), then **Apply** — or **Save outfit** under a name, so it is kept beside your own look. The
+  client stores both in `client_settings.json` in the game's data folder (`AppPaths.Root`: on Windows
+  `%USERPROFILE%\AppData\LocalLow\JuMaVe Games\Blocks Beyond the Stars\`, or the folder of a portable install) — the applied
+  look in `FacePixels`, `TorsoPixels`, `ArmPixels`, `LegPixels`, `HelmetPixels` and `SkinColor`/`TorsoColor`/`ArmColor`/`LegColor`,
+  each saved outfit in `Outfits`. Then:
+
+  ```bash
+  uv run --no-project python tools/gen_pioneer_skins.py \
+      --from-settings "%USERPROFILE%/AppData/LocalLow/JuMaVe Games/Blocks Beyond the Stars/client_settings.json" \
+      --key justus_knight --author Justus --outfit "Knight" --hair 19
+  ```
+
+  `--outfit` takes a saved outfit (without it, the look you wear), `--hair` the pioneer's hair as a palette index (0 = bald; a
+  player's look has no hair — the suit's helmet covers it). The colours are snapped to the nearest palette entry, an old 16 × 16
+  face is scaled up, the same key replaces the earlier version. Run the Client.Tests `PixelSkinTests`, commit
+  `data/pioneer_skins.json` — the next build's pioneers may wear it.
+
 ## Tests
 
 `LodgeTests`, `LodgeResidentTests`, `NpcWorkTests` (§2–§4), `NpcGatheringTests`, `NpcWoodcuttingTests`, `NpcMiningTests`,
 `NpcHuntingTests` (§5), `WandererTests` (§6); Client.Tests `NpcWorkToolsTests`, `ArrowFlightTests` and the extended
-`AvatarGesturesTests` / `HeldItemShapesTests` (§7). The shared arena is `NpcLifeWorld`.
+`AvatarGesturesTests` / `HeldItemShapesTests` (§7); `PioneerOutpostTests`, `PioneerTests` and Client.Tests `PixelSkinTests` (§8).
+The shared arena is `NpcLifeWorld`.

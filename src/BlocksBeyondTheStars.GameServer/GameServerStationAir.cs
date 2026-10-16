@@ -13,7 +13,8 @@ namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
 /// Sealed-volume air for PLAYER-BUILT stations (#1473, decision Marcel 2026-09-03: option b — like planet
-/// bases) and generated derelicts (#2632). A boarder breathes only inside an air pocket that is completely enclosed by
+/// bases); a generated derelict (#2632) has the pockets but no air at all since #2675 (its life support is dead). A
+/// boarder breathes only inside an air pocket that is completely enclosed by
 /// airtight full cubes (glass counts, so windows are fine), door blocks and doors built into a doorway (an airlock is an
 /// airlock, open or closed) and the station core — a pocket that reaches the void leaks, and the suit tank takes over
 /// until the hole is patched. The already-airtight <c>force_field</c> block is the intended plug for openings. NPC /
@@ -70,8 +71,10 @@ public sealed partial class GameServer
     private static bool IsPlayerStationWorld(string locationId)
         => locationId.StartsWith("station:pstation:", System.StringComparison.Ordinal);
 
-    /// <summary>Whether a station breathes only inside its sealed pockets: a player-built one (#1473) and a generated
-    /// derelict (#2632 — a breached room is vacuum). NPC stations and The Long Quiet keep the blanket air.</summary>
+    /// <summary>Whether a station has no blanket air — it breathes only inside its sealed pockets: a player-built one
+    /// (#1473); and a generated derelict (#2632), whose pockets since #2675 breathe not at all (dead life support,
+    /// <see cref="StationLifeSupport"/>) — the pockets still tell a closed room from a breached one (where a boarder
+    /// through a door arrives). NPC stations and The Long Quiet keep the blanket air.</summary>
     private static bool UsesSealedPocketAir(string stationId) => IsPlayerStationId(stationId) || IsGeneratedDerelictId(stationId);
 
     /// <summary>The interior world of a station whose air comes from sealed pockets only (<see cref="UsesSealedPocketAir"/>):
@@ -80,12 +83,29 @@ public sealed partial class GameServer
         => IsPlayerStationWorld(locationId) || IsGeneratedDerelictWorld(locationId);
 
     /// <summary>Whether the boarded station keeps this player breathing at <paramref name="cell"/>: always on an
-    /// NPC station, only inside a sealed pocket on a player-built one or a derelict (#2632). Sends the one-shot hull-open
-    /// warning on the sealed → leaking transition — for the pocket the player stands in, naming its opening (#2654).</summary>
+    /// NPC station, only inside a sealed pocket on a player-built one, never on a generated derelict (#2675: its life
+    /// support is dead — a pocket the player seals breathes no more than a breached one). Sends the one-shot hull-open
+    /// warning on the sealed → leaking transition — for the pocket the player stands in, naming its opening (#2654); on a
+    /// derelict the "no air aboard, your suit tank is your air" line once per boarding instead.</summary>
     private bool StationLifeSupport(PlayerState p, Vector3i cell)
     {
         if (!_boardedStation.TryGetValue(p.PlayerId, out var stationId))
         {
+            return false;
+        }
+
+        if (IsGeneratedDerelictId(stationId))
+        {
+            if (Rules.OxygenEnabledFor(p.ModeOverride)
+                && (!_stationAirWarnedFor.TryGetValue(p.PlayerId, out var told) || told != stationId))
+            {
+                _stationAirWarnedFor[p.PlayerId] = stationId; // re-armed on every boarding (OnDerelictBoarded)
+                if (FindSessionByPlayerId(p.PlayerId) is { } derelictSession)
+                {
+                    Send(derelictSession, new Networking.Messages.ServerMessage { Text = "@srv.derelict.no_air" });
+                }
+            }
+
             return false;
         }
 
@@ -129,10 +149,11 @@ public sealed partial class GameServer
             return true;
         }
 
-        if (IsSealedAirStationWorld(_world.LocationId)) // #2632: a derelict's sealed rooms too
+        if (IsSealedAirStationWorld(_world.LocationId)) // a player station's sealed rooms — never a derelict's (#2675)
         {
             string stationId = _world.LocationId.Substring("station:".Length);
-            return _stationsById.TryGetValue(stationId, out var station) && station.Stamped && InSealedStationPocket(station, cell);
+            return !IsGeneratedDerelictId(stationId)
+                && _stationsById.TryGetValue(stationId, out var station) && station.Stamped && InSealedStationPocket(station, cell);
         }
 
         return false;

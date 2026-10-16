@@ -12,7 +12,7 @@ namespace BlocksBeyondTheStars.Tests;
 /// <summary>
 /// Base residents (#1865, Marcel 2026-09-13): every bed inside a base brings one more resident — 1 + beds, at most
 /// five; a bed counts in the core zone, in a sealed room, inside the walled yard or in a closed room (walls, roof,
-/// door), never in the open field; the founding settler still needs the machines. A trading post and a mission board
+/// door), never in the open field; the founding settler comes for a bed or a few machines inside (#2677). A trading post and a mission board
 /// inside the base are staffed by a resident — barter and board jobs at home — and a post nobody can staff says why.
 /// Residents are distinct people on the roster, keyed by base and slot; the founding settler keeps its old key.
 /// </summary>
@@ -104,16 +104,25 @@ public sealed class BaseResidentsTests
     }
 
     [Fact]
-    public void BedsAlone_BringNobody_WithoutTheMachines()
+    public void OneBedInside_FoundsTheBase_WithoutAnyMachine_AndTheFounderStaysWhenItGoes()
     {
         using var w = new NpcLifeWorld(_content, "residents_nomachines");
         w.Player.State.Inventory.Add("base_core", 1, 16);
         w.Server.PlaceBlock(NpcLifeWorld.Owner, NpcLifeWorld.Cx, w.Feet, NpcLifeWorld.Cz, "base_core");
         int baseId = w.Server.BaseSnapshots.Single().Id;
-        w.Bed(NpcLifeWorld.Cx - 5, NpcLifeWorld.Cz + 1);
         w.Server.ScanBaseLifeForTest();
-        // A bed is a machine-category block, so one bed is not three machines: nobody moves in yet.
-        Assert.Empty(w.Server.BaseResidentsForTest(baseId));
+        Assert.Empty(w.Server.BaseResidentsForTest(baseId)); // a bare claim attracts nobody
+
+        // #2677: one bed inside the base is enough for the first settler — and, like every bed, it brings one more.
+        var bed = w.Bed(NpcLifeWorld.Cx - 5, NpcLifeWorld.Cz + 1);
+        w.Server.ScanBaseLifeForTest();
+        Assert.Equal(new[] { 0, 1 }, w.Server.BaseResidentsForTest(baseId).Select(r => r.Slot).OrderBy(s => s));
+
+        // A founded base stays founded: the bed goes, its sleeper moves on, the founding settler stays.
+        w.Server.RemoveBlockForTest(bed.X, bed.Y, bed.Z);
+        w.Server.RemoveBlockForTest(bed.X, bed.Y, bed.Z + 1);
+        w.Server.ScanBaseLifeForTest();
+        Assert.Equal(0, Assert.Single(w.Server.BaseResidentsForTest(baseId)).Slot);
     }
 
     [Fact]

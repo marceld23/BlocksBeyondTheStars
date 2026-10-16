@@ -6623,6 +6623,19 @@ namespace BlocksBeyondTheStars.Client
             shape = HeldPlaceShape(held, out var cycle);
             upFace = _placeUpFace;
             yaw = _placeYaw;
+            if (cycle == PropOrientation.LightMount)
+            {
+                // #2683: a torch or lantern takes the face it is placed against — the clicked face is the whole choice
+                // (no rotate state, no turn; a stale rotate-key state from another block must never ride along). It is
+                // sent as the up-face; the server re-checks the block there and stamps the form the ghost shows
+                // (PropShapes.LightForm on both sides), or refuses a torch under a ceiling with a hint.
+                shape = 0;
+                yaw = 0;
+                upFace = ShapeCode.FaceFromDirection(
+                    placeCell.x - hitCell.x, placeCell.y - hitCell.y, placeCell.z - hitCell.z);
+                return true;
+            }
+
             if (shape <= 0)
             {
                 // A cube with a front (#2124): the one thing to orient is which side the front looks at. The quarter turn
@@ -6717,7 +6730,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // #2147: a closed door under the crosshair takes the right-click (a how-to hint), so nothing hovers behind it.
-            if ((rotatable || HeldDoorKind(held) != null) && TryAimDoor(out int aimedDoor, out _)
+            if ((rotatable || HeldDoorKind(held) != null || HeldLightBlock(held) != null) && TryAimDoor(out int aimedDoor, out _)
                 && DoorView.Instance != null && !DoorView.Instance.IsDoorOpen(aimedDoor))
             {
                 _placementGhost?.Hide();
@@ -6757,6 +6770,30 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // #2683: a held torch or lantern previews the form the face under the crosshair gives it — on the wall,
+            // standing, or (a lantern) hanging from the ceiling. A torch aimed at a ceiling shows nothing: the server
+            // refuses it with a hint. A light is not "rotatable" (nothing to cycle), so this comes before that gate.
+            if (!rotatable && HeldLightBlock(held) is { } lightKey)
+            {
+                if (!AimTarget(out var lightHit, out var lightCell, out var lightShip, PlaceFluidAim()) || lightShip != null)
+                {
+                    _placementGhost?.Hide();
+                    return;
+                }
+
+                int lightForm = LightFormFor(lightKey, lightHit, lightCell);
+                if (lightForm == PropShapes.LightRefused)
+                {
+                    _placementGhost?.Hide();
+                    return;
+                }
+
+                bool lantern = PropShapes.IsLanternKey(lightKey);
+                _placementGhost ??= new PlacementGhost();
+                _placementGhost.ShowLight(lightCell, lantern, PropShapes.LightMountOf(lightForm, lantern));
+                return;
+            }
+
             // Same fluid-aware target as the place click (#1353): a held slab/stair gets its ghost over water
             // and lava, where the click sets the block into the fluid cell.
             if (!rotatable || !AimTarget(out var hitCell, out var placeCell, out var aimedShip, PlaceFluidAim()) || aimedShip != null
@@ -6782,6 +6819,32 @@ namespace BlocksBeyondTheStars.Client
             {
                 _placementGhost.Show(placeCell, shape, yaw, upFace);
             }
+        }
+
+        /// <summary>#2683: the torch or lantern block the held item places, or null when it places no light.</summary>
+        private string HeldLightBlock(string held)
+        {
+            if (string.IsNullOrEmpty(held) || Game?.Content == null)
+            {
+                return null;
+            }
+
+            string placed = Game.Content.GetItem(held)?.PlacesBlock;
+            return PropShapes.IsLightMountKey(placed) ? placed : null;
+        }
+
+        /// <summary>#2683: the descriptor a light placed into <paramref name="placeCell"/> by clicking
+        /// <paramref name="hitCell"/> will be stamped with — <see cref="PropShapes.LightForm"/> over the client's world, the
+        /// same function and the same "can this block hold a light" reading the server stamps with.</summary>
+        private int LightFormFor(string lightKey, Vector3Int hitCell, Vector3Int placeCell)
+        {
+            int clicked = ShapeCode.FaceFromDirection(placeCell.x - hitCell.x, placeCell.y - hitCell.y, placeCell.z - hitCell.z);
+            return PropShapes.LightForm(lightKey, clicked, face =>
+            {
+                var dir = ShapeCode.FaceDirection(face); // the up-face points AWAY from the block holding the light
+                var id = Game.World.GetBlock(placeCell.x - dir.X, placeCell.y - dir.Y, placeCell.z - dir.Z);
+                return !id.IsAir && PropShapes.HoldsLight(Game.Content.BlockById(id));
+            });
         }
 
         /// <summary>The door kind the held item places, or null when it places no door (#1975).</summary>

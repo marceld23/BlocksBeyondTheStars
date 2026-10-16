@@ -9,16 +9,19 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.State;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// #2425 (open): "online we couldn't see each other's skins after we had been in the ship or had died" — the other player
-/// showed the standard colours without the painted face. This pins what the server does today around those trips: the
-/// suit colours ride every presence the other player gets, and the painted face reaches them on join. If the players'
-/// trigger is ever found, the failing step goes here.
+/// #2425: "online we couldn't see each other's skins after we had been in the ship or had died" — the other player
+/// showed the standard colours without the painted face. This pins what the server does around those trips: the suit
+/// colours ride every presence the other player gets, and the painted face reaches them on join.
+/// <para>#2672 found the trigger: the client sends the face and all four body-paint parts in the same frame on joining,
+/// and the server accepted only one appearance change per 2 s — the face went through, the paint was dropped. The join
+/// burst test below pins the token bucket that replaced the window.</para>
 /// </summary>
 public sealed class AppearanceAfterTripsTests : IDisposable
 {
@@ -155,6 +158,39 @@ public sealed class AppearanceAfterTripsTests : IDisposable
         Assert.Equal(skin, seen!.Skin);
         Assert.Equal(legs, seen.Legs);
         Assert.Equal(face, alice.State.FacePixels); // the painted face is still the session's
+    }
+
+    [Fact]
+    public void TheJoinBurst_FaceAndAllFourBodyPaintParts_InOneTick_ReachTheOtherPlayer()
+    {
+        // #2672: exactly what GameBootstrap sends right after the JoinRequest, in the same frame — colours, the face and
+        // every painted body part — with no tick in between. Before the appearance bucket only the face got through.
+        string face = new string('a', 32 * 32);
+        var t = new RecordingTransport();
+        var server = NewServer("join_burst", t);
+        var alice = server.AddLocalPlayer("Alice");
+        var bob = server.AddLocalPlayer("Bob");
+        t.Sent.Clear();
+
+        server.HandlePayloadForTest(alice.ConnectionId, NetCodec.Encode(new SetAppearanceIntent { Skin = 0x112233, Torso = 0x445566, Arms = 0x778899, Legs = 0xAABBCC }));
+        server.HandlePayloadForTest(alice.ConnectionId, NetCodec.Encode(new SetFaceIntent { Pixels = face }));
+        for (int part = 0; part < BodyPaint.PartCount; part++)
+        {
+            string pixels = new string((char)('1' + part), BodyPaint.ExpectedLength(part)); // a different painting per part
+            server.HandlePayloadForTest(alice.ConnectionId, NetCodec.Encode(new SetBodyPaintIntent { Part = part, Pixels = pixels }));
+        }
+
+        Assert.Equal(face, alice.State.FacePixels);
+        Assert.Contains(To<PlayerFace>(t, bob), f => f.PlayerId == alice.State.PlayerId && f.Pixels == face);
+        var paints = To<PlayerBodyPaint>(t, bob).Where(p => p.PlayerId == alice.State.PlayerId).ToList();
+        for (int part = 0; part < BodyPaint.PartCount; part++)
+        {
+            string pixels = new string((char)('1' + part), BodyPaint.ExpectedLength(part));
+            Assert.Equal(pixels, alice.State.GetBodyPaint(part)); // stored (and saved) for the sender…
+            Assert.Contains(paints, p => p.Part == part && p.Pixels == pixels); // …and relayed to the other player
+        }
+
+        Assert.DoesNotContain(To<PlayerBodyPaint>(t, alice), p => p.PlayerId == alice.State.PlayerId); // never echoed back
     }
 
     public void Dispose()

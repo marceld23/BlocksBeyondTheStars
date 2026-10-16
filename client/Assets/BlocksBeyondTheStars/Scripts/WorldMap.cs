@@ -256,6 +256,7 @@ namespace BlocksBeyondTheStars.Client
                     ("map_settlement", "ui.map.settlement", new Color(0.5f, 0.95f, 0.6f)),
                     ("map_ruin", "ui.map.ruin", new Color(0.65f, 0.6f, 0.55f)),
                     ("map_lodge", "ui.map.kind_lodge", LodgeCol), // #2647: a wilderness hut
+                    ("map_base", "ui.map.kind_outpost", OutpostCol), // #2681: a pioneer's outpost (an NPC's base — the base icon in khaki gold)
                     ("map_wreck", "ui.map.wreck", new Color(1f, 0.55f, 0.3f)),
                     ("map_station", "ui.map.other", new Color(0.8f, 0.8f, 0.9f)),
                     (null, "poi.fragment", new Color(0.45f, 0.95f, 1f)), // glyph-only legend row (⦿)
@@ -263,7 +264,8 @@ namespace BlocksBeyondTheStars.Client
                 };
                 // Six slots per row (was five at 168 px). 140 px still holds the longest label at 15 px ("Netzfragment-Signal"
                 // wraps nowhere). #2647: the thirteenth entry (the hut) starts a third row (y 863–893), so the buttons below
-                // moved down from y=880 to y=904 — still inside the panel (it ends at y=1000).
+                // moved down from y=880 to y=904 — still inside the panel (it ends at y=1000). #2681: the outpost is the
+                // seventh entry now; the third row holds two, nothing moves.
                 const int perRow = 6;
                 const float slotW = 140f, rowH = 34f;
                 for (int li = 0; li < entries.Length; li++)
@@ -783,12 +785,17 @@ namespace BlocksBeyondTheStars.Client
             "guardian_core" => ("◎", GuardianCoreCol, null), // the finale's one aperture (#1792) — no icon art yet; glyph
             TraderShipPoi => ("⚖", TraderShipCol, "map_ship"), // a landed trader ship's pilot (#1904) — the ship icon in trade gold
             "lodge" => ("⌂", LodgeCol, "map_lodge"), // #2647: a wilderness hut ("Tilda's hut") — a log cabin in warm wood brown
+            "outpost" => ("⌂", OutpostCol, "map_base"), // #2681: a pioneer's outpost ("Mira's outpost") — an NPC's base, in sand
             _ => ("◆", new Color(0.8f, 0.8f, 0.9f), "map_station"),
         };
 
         /// <summary>#2647: the colour of a lodge (a small inhabited hut out in the wilderness) — a warm wood brown, apart from
         /// the ruin's grey-brown, the wreck's orange and the factory's pale amber.</summary>
         public static readonly Color LodgeCol = new Color(0.80f, 0.55f, 0.30f);
+
+        /// <summary>#2681: the colour of a pioneer outpost (a player-like NPC's small base) — a muted sand, apart from the
+        /// player bases' cyan (the same icon), the hut's wood brown and the trader ship's saturated gold.</summary>
+        public static readonly Color OutpostCol = new Color(0.84f, 0.76f, 0.56f);
 
         /// <summary>The Guardian core marker's colour (#1792) — shared with the HUD compass line so the two read as one
         /// thing. Hot rose: nothing else on the map or the dial uses it.</summary>

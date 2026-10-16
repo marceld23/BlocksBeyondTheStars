@@ -25,9 +25,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>wild flora just vanishes</b>; a <b>sapling</b> or a <b>bred plant</b> — the player's investment — drops
 /// its item on the ground (the seedling keeps its species), and a <b>fruit</b> under a mined leaf drops its harvest
 /// (a kid clearing a crown must not lose the fruit).</item>
-/// <item>a <b>torch or lantern</b> (lit or switched off by the Crystal Net) standing on the cell pops and drops its
-/// item — unless a wall beside it or a block above it can hold it: the light props store no mount direction, so a
-/// torch with a wall next to it is read as wall-mounted and stays.</item>
+/// <item>a <b>torch or lantern</b> (lit or switched off by the Crystal Net) fixed to the cell pops and drops its item.
+/// Since #2683 a placed light stores the face it was put against, so the rule is exact: a wall torch falls when ITS
+/// wall goes, a standing one when its floor goes, a hanging lantern when its ceiling goes. A light with no stored
+/// mount (placed before #2683, or by worldgen) keeps the old reading: it stands on the cell below, unless a wall
+/// beside it or a block above it could be holding it.</item>
 /// <item>a <b>pending regrow</b> of a harvested plant that rooted in the vacated cell is cancelled — the server would
 /// never regrow it into the air anyway, and the client's growing sprout goes with the ground.</item>
 /// </list>
@@ -36,9 +38,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>The torch and the lantern, lit or switched off by the Crystal Net (#2520) — the light props that stand on
-    /// a block.</summary>
-    private static bool IsStandingLightKey(string key) => key is "torch" or "lantern" or "torch_off" or "lantern_off";
+    /// <summary>The torch and the lantern, lit or switched off by the Crystal Net (#2520) — the light props fixed to a
+    /// block (#2683: on a wall, standing, or a lantern hanging).</summary>
+    private static bool IsStandingLightKey(string key) => PropShapes.IsLightMountKey(key);
 
     // While the Crystal Net ticks, its beats walk the net's cells (machines, actuators) and may remove blocks on the way —
     // an auto-drill's bite, a bridge deck pulled in, a piston retracting. A prop popped then could be a wired lamp, whose
@@ -73,7 +75,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>#2532: the props <paramref name="host"/> carried lose their hold when it is now air or a fluid — the
-    /// standing plant, torch or lantern above it and the hanging plant below it.</summary>
+    /// standing plant, torch or lantern above it, the hanging plant below it, and (#2683) a torch or lantern fixed to
+    /// one of its sides or hanging under it.</summary>
     private void OnPropSupportRemoved(Vector3i host)
     {
         if (_crystalFrame is not null)
@@ -95,11 +98,16 @@ public sealed partial class GameServer
 
         PopIfUnsupported(new Vector3i(host.X, host.Y + 1, host.Z), hostId, hanging: false);
         PopIfUnsupported(new Vector3i(host.X, host.Y - 1, host.Z), hostId, hanging: true);
+        foreach (int face in ShapeCode.WallFaces)
+        {
+            var (dx, _, dz) = ShapeCode.FaceDirection(face);
+            PopWallLight(WorldConstants.CanonicalBlock(new Vector3i(host.X + dx, host.Y, host.Z + dz), _world.Circumference), face);
+        }
     }
 
     /// <summary>Pops the prop in <paramref name="cell"/> when it rooted in the lost host — a standing one above the
-    /// host (<paramref name="hanging"/> false) or a hanging plant below it — or cancels the pending regrow of a plant
-    /// that did.</summary>
+    /// host (<paramref name="hanging"/> false) or a hanging plant / lantern below it — or cancels the pending regrow of
+    /// a plant that did.</summary>
     private void PopIfUnsupported(Vector3i cell, BlockId hostId, bool hanging)
     {
         if (!WithinBuildHeight(cell.Y) || InShipInterior(cell))
@@ -123,11 +131,74 @@ public sealed partial class GameServer
 
             PopProp(cell, id, PlantDrops(cell, id));
         }
-        else if (!hanging && _world.Definition(id) is { } def && IsStandingLightKey(def.Key) && !HeldBySide(cell))
+        else if (_world.Definition(id) is { } def && PropShapes.IsLightMountKey(def.Key)
+                 && LightLostItsHold(cell, def.Key, hanging ? 1 : ShapeCode.UpPlusY))
         {
             PopProp(cell, id, LightDrops(cell, def));
         }
     }
+
+    /// <summary>#2683: pops the torch or lantern in <paramref name="cell"/> when it was mounted on the lost block beside
+    /// it — the one on the far side of <paramref name="face"/>, the up-face pointing from that block into the cell.</summary>
+    private void PopWallLight(Vector3i cell, int face)
+    {
+        if (!WithinBuildHeight(cell.Y) || InShipInterior(cell))
+        {
+            return; // a parked ship's furnishing is never disturbed (the granular rule)
+        }
+
+        var id = _world.GetBlock(cell);
+        if (!id.IsAir && _world.Definition(id) is { } def && PropShapes.IsLightMountKey(def.Key) && LightLostItsHold(cell, def.Key, face))
+        {
+            PopProp(cell, id, LightDrops(cell, def));
+        }
+    }
+
+    /// <summary>#2683: true when a stamped torch or lantern is fixed to a side of <paramref name="cell"/> or hangs under
+    /// it — the lights removing the cell would pop besides one standing on it. Loaded chunks only (never loads one).</summary>
+    private bool HoldsMountedLight(Vector3i cell)
+    {
+        for (int face = 1; face <= 5; face++)
+        {
+            var (dx, dy, dz) = ShapeCode.FaceDirection(face);
+            var n = WorldConstants.CanonicalBlock(new Vector3i(cell.X + dx, cell.Y + dy, cell.Z + dz), _world.Circumference);
+            var id = _world.GetBlockIfLoaded(n);
+            if (!id.IsAir && _world.Definition(id) is { } def
+                && PropShapes.LightMountOf(def.Key, _world.GetShapeIfLoaded(n)) == face)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>#2683: true when the light in <paramref name="cell"/> was fixed to the lost block on the far side of
+    /// <paramref name="faceAwayFromHost"/> (the up-face pointing from that block into the light's cell). A stamped light
+    /// knows its block exactly — a wall torch ignores its floor, a standing one ignores the walls beside it. A light
+    /// with no stored mount keeps the #2532 reading: it stood on the block below, unless a wall beside it or a block
+    /// above it could be holding it.</summary>
+    private bool LightLostItsHold(Vector3i cell, string key, int faceAwayFromHost)
+    {
+        int mount = PropShapes.LightMountOf(key, _world.GetShape(cell));
+        return mount >= 0
+            ? mount == faceAwayFromHost
+            : faceAwayFromHost == ShapeCode.UpPlusY && !HeldBySide(cell);
+    }
+
+    /// <summary>#2683: the form a torch or lantern placed at <paramref name="pos"/> against <paramref name="clickedFace"/>
+    /// takes — <see cref="PropShapes.LightForm"/> over this world's blocks: the mount when the block there can hold a
+    /// light, 0 (the unstamped, upright light) when there is none or no face was sent, or
+    /// <see cref="PropShapes.LightRefused"/> for a torch under a ceiling. This is also the placement-time host check: a
+    /// mount is only ever stamped onto a block that holds it, so the support rule above always has a block to watch.</summary>
+    private int LightFormAt(string blockKey, Vector3i pos, int clickedFace)
+        => PropShapes.LightForm(blockKey, clickedFace, face =>
+        {
+            var dir = ShapeCode.FaceDirection(face); // the up-face points AWAY from the support
+            var support = WorldConstants.CanonicalBlock(new Vector3i(pos.X - dir.X, pos.Y - dir.Y, pos.Z - dir.Z), _world.Circumference);
+            var id = _world.GetBlock(support);
+            return !id.IsAir && PropShapes.HoldsLight(_world.Definition(id));
+        });
 
     /// <summary>True when a fluid host is the plant's own ground (a lily pad roots in water) — the one case where a
     /// fluid under a plant is no lost support.</summary>
@@ -179,8 +250,9 @@ public sealed partial class GameServer
         return drops;
     }
 
-    /// <summary>A light prop with a wall beside it or a block over it counts as mounted there — the cross-billboard
-    /// stores no mount direction, so the conservative reading keeps every torch a wall could be holding.</summary>
+    /// <summary>An UNSTAMPED light prop (#2683: placed before lights stored their mount, or by worldgen) with a wall
+    /// beside it or a block over it counts as mounted there — it stores no mount direction, so the conservative reading
+    /// keeps every torch a wall could be holding.</summary>
     private bool HeldBySide(Vector3i cell)
     {
         bool Holds(int dx, int dy, int dz)

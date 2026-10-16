@@ -391,7 +391,8 @@ public sealed partial class GameServer
     /// <summary>True when breaking the cell would open a fluid (water or lava beside it — or a neighbour whose chunk is not
     /// loaded, which cannot be checked) or bring down what rests on it or hangs from it: sand or snow that would slide in,
     /// a plant or a sapling that would pop, a tree, a torch or a lantern standing on it (the props
-    /// <c>PopIfUnsupported</c> drops — a wall beside it is not trusted to hold it), a hanging plant under it — and when a
+    /// <c>PopIfUnsupported</c> drops — a wall beside it is not trusted to hold it), a torch or lantern fixed to its side or
+    /// hanging under it (#2683), a hanging plant under it — and when a
     /// player edited the cell above (their build, their dig: an NPC never mines under a player's work).</summary>
     private bool NpcCellUnsafeToOpen(Vector3i cell)
     {
@@ -414,7 +415,8 @@ public sealed partial class GameServer
         }
 
         var below = _world.GetBlockIfLoaded(new Vector3i(cell.X, cell.Y - 1, cell.Z));
-        return _floraHangingIds.Contains(below.Value) || _repo.HasPlayerBlockEdits(_world.LocationId, aboveCell, aboveCell);
+        return _floraHangingIds.Contains(below.Value) || HoldsMountedLight(cell) // #2683: a wall torch, a hanging lantern
+            || _repo.HasPlayerBlockEdits(_world.LocationId, aboveCell, aboveCell);
     }
 
     /// <summary>Whether the chunk holding the cell is resident (never loads one).</summary>

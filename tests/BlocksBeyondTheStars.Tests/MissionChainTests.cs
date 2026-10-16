@@ -469,9 +469,9 @@ public sealed class MissionChainTests : IDisposable
                 var p = server.AddLocalPlayer("Regular");
                 p.State.Position = server.NpcSnapshots.First(n => n.Id == vendor.Id).Home;
 
-                // A stranger gets no dialogue at all.
+                // A stranger gets no favour — only the stage-free hello (#2673).
                 server.TalkToNpcForTest("Regular", vendor.Id);
-                Assert.Null(server.ActiveDialogForTest("Regular"));
+                Assert.Equal(("vendor_hello", 0), server.ActiveDialogForTest("Regular"));
 
                 // Known → the favour comes first; declining sets it aside and the smalltalk follows this session.
                 string key = server.NpcKeyForTest("Regular", "vendor")!;

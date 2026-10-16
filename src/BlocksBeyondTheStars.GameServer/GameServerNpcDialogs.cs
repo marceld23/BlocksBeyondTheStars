@@ -200,7 +200,8 @@ public sealed partial class GameServer
     };
 
     /// <summary>The player talks to an NPC (E in reach). A matching dialogue opens the panel; none →
-    /// the ordinary greeting bubble, which makes settlers greet-able for the first time too. The reach is measured the
+    /// the ordinary greeting bubble, which makes settlers greet-able for the first time too (#2673: always — even inside
+    /// the greeting cooldown, and every trader and quartermaster has a stage-free hello dialogue). The reach is measured the
     /// short way round both seams (#2613: the home pad lies on X = 0, so a resident often stands on the other side).
     /// #2616: a new talk ends the conversation the player was in.</summary>
     private void HandleTalkToNpc(PlayerSession session, TalkToNpcIntent intent)
@@ -250,7 +251,9 @@ public sealed partial class GameServer
             }
             else
             {
-                EmitGreeting(session, npc); // nothing to decide — the familiar over-head line
+                // Nothing to decide — the familiar over-head line. #2673: a Talk is never silent, not even inside the
+                // greeting cooldown that "Trade" (or the last Talk) just armed.
+                EmitGreeting(session, npc, explicitTalk: true);
             }
 
             StampNpcSeen(session.State, npcKey); // #2595: AFTER the greeting — a welcome-back check reads the old stamp
@@ -481,7 +484,7 @@ public sealed partial class GameServer
             Stage = stage,
             Situation = guest ? "visiting the player's own base, offering something"
                 : IsOwnBaseResident(session, npc) ? "the player's own base, where the speaker lives"
-                : npc.LodgeKey.Length > 0 ? "the speaker's own little hut out in the wild, where they live and work" // #2641
+                : npc.LodgeKey.Length > 0 ? LodgeAiSituationOf(npc) // #2641 a hut, #2682 a pioneer's outpost
                 : IsWandererNpc(npc) ? WandererAiSituation // #2646
                 : string.Empty,
             Speakers =

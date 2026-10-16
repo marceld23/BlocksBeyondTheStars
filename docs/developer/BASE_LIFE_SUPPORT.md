@@ -13,8 +13,10 @@ ways:
    before anything is built. It doubles as the build-protection zone (`InAnyBaseZone`).
 2. **Rooms** — every enclosed room the base owns (`InSealedBaseRoom`), however big and however many.
 
-A player-built station (`pstation:`) and a generated derelict (#2632) breathe only inside their sealed rooms
-(`StationLifeSupport` / `InSealedStationPocket`); NPC and template stations keep the blanket air. The server is the
+A player-built station (`pstation:`) breathes only inside its sealed rooms (`StationLifeSupport` /
+`InSealedStationPocket`); a generated derelict (#2632) not at all since #2675 — its life support is dead, so even a
+closed room stays airless ([DERELICT_STATIONS.md §5](DERELICT_STATIONS.md#5-air-gravity-falling-out)); NPC and template
+stations and The Long Quiet keep the blanket air. The server is the
 truth: the oxygen tick asks these predicates per player; the client only shows the result (`LifeSupportSource` 2/3) and
 the core's readout (`NetBase.AirCells` = supplied cells, `NetBase.SealedRooms` = supplied rooms).
 

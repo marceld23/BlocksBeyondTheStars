@@ -276,6 +276,10 @@ namespace BlocksBeyondTheStars.Client
             public HashSet<Vector3i> DoorCells = new();
             public string OwnerId = string.Empty;
 
+            // #2676: a derelict station's hull gets the broken-look extras (sparks, tumbling pieces, a flickering beacon).
+            public string Id = string.Empty;
+            public bool Derelict;
+
             public bool IsStation => Kind == "station";
         }
 
@@ -3247,6 +3251,8 @@ namespace BlocksBeyondTheStars.Client
                 Cells = cells, Centre = centre, Pos = new Vector3(m.PosX, m.PosY, m.PosZ), Root = null, MeshDirty = true, Kind = m.Kind,
                 Doors = SpaceDoors.DoorsOf(m), // #2607: a player station's doors are doors out here too
                 OwnerId = m.OwnerId ?? string.Empty,
+                Id = m.Id ?? string.Empty,
+                Derelict = m.Kind == "station" && BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsDerelictId(m.Id), // #2676
             };
             vs.DoorCells = SpaceDoors.DoorwayCells(vs.Doors);
 
@@ -3427,8 +3433,13 @@ namespace BlocksBeyondTheStars.Client
                     vs.Root.transform.localPosition = vs.Pos;
                 }
 
-                BuildVoxChunks(vs.Root.transform, vs.Cells, vs.Centre, null, vs.Mods, vs.Shapes);
+                BuildVoxChunks(vs.Root.transform, vs.Cells, vs.Centre, vs.Derelict ? DerelictGrime() : null, vs.Mods, vs.Shapes);
                 AddPlacedDoors(vs.Root.transform, vs.Doors, vs.Centre); // #2607 (the next rebuild clears them with the chunks)
+                if (vs.Derelict)
+                {
+                    AddDerelictDecor(vs); // #2676 (a child of the root — the next rebuild clears it with the chunks, then re-adds it)
+                }
+
                 vs.MeshDirty = false;
                 stationBuilt |= vs.IsStation;
             }
@@ -3948,6 +3959,11 @@ namespace BlocksBeyondTheStars.Client
             _dropIds.Clear();
             _beams.Clear(); // their GameObjects were children of _root (already destroyed)
             _asteroidMat = null; // material lived under the destroyed view; rebuild next launch
+            if (_derelictDebrisMat != null)
+            {
+                Destroy(_derelictDebrisMat); // #2676: the tumbling pieces' material (its pieces went with _root)
+                _derelictDebrisMat = null;
+            }
             ClearStructs();      // item 20 S3: asteroid bodies lived under _root (destroyed) — drop the refs
             _shipCells = null;   // ship voxel grid was under the destroyed _ship
             _shipVox = null;
@@ -6653,6 +6669,147 @@ namespace BlocksBeyondTheStars.Client
 
         private Material AsteroidMat()
             => _asteroidMat ??= Lit(new Color(0.62f, 0.60f, 0.57f), LoadTex("asteroid_rock") ?? LoadTex("stone"), new Vector2(1.5f, 1.5f));
+
+        // ---------------- #2676: a derelict looks broken from outside ----------------
+
+        private Material _derelictDebrisMat; // the tumbling pieces' plating (rebuilt per view, like the asteroid material)
+
+        /// <summary>#2676: a derelict hull's grime — its iron plating meshed a little darker and warmer through the mesher's
+        /// hull-paint stream (the ship-colour path, item 32): baked into the mesh's vertex data, so neither a material
+        /// instance nor a MaterialPropertyBlock touches the chunk renderers — the SRP batcher keeps batching them.</summary>
+        private System.Func<BlockId, Color> DerelictGrime()
+            => Game.Content != null ? ShipMeshBuilder.HullPaint(Game.Content, new Color(0.72f, 0.67f, 0.62f)) : null;
+
+        /// <summary>
+        /// #2676: adds the broken-look extras to a derelict's freshly built hull, planned once from its cells
+        /// (<see cref="BlocksBeyondTheStars.Client.Core.DerelictDecorPlan"/> — no protocol change) and then only animated
+        /// (<see cref="DerelictDecor"/>): three to six small pieces tumbling slowly beside the hull (no collider), a small
+        /// unlit cube on the dead beacon that flickers now and then (no real light) and a rare shower of sparks at a ragged
+        /// edge (the pooled FX). The voxel hull itself is never moved or rotated. The holder is a child of the hull root, so
+        /// the next hull rebuild (a mined block) clears it with the chunks and this adds it afresh.
+        /// </summary>
+        private void AddDerelictDecor(VoxStruct vs)
+        {
+            if (vs.Root == null || vs.Cells == null || vs.Cells.Count == 0)
+            {
+                return;
+            }
+
+            var content = Game.Content;
+            var plan = BlocksBeyondTheStars.Client.Core.DerelictDecorPlan.Build(vs.Cells, vs.Id,
+                id => content != null && content.BlockById(id)?.Key == "light_white_off"); // the beta wreck's dead beacon
+            var holder = new GameObject("DerelictDecor");
+            holder.transform.SetParent(vs.Root.transform, false);
+            Vector3 Local(Vector3i c) => new Vector3(c.X + 0.5f, c.Y + 0.5f, c.Z + 0.5f) - vs.Centre;
+
+            GameObject beacon = null;
+            if (plan.BeaconCell is { } lamp)
+            {
+                beacon = Cube("Beacon", holder.transform, Local(lamp) + new Vector3(0f, 0.75f, 0f), Vector3.one * 0.45f,
+                    FxKit.Unlit(new Color(1f, 0.82f, 0.35f))); // the old model's yellow, dying
+                beacon.SetActive(false);
+            }
+
+            var mat = _derelictDebrisMat != null ? _derelictDebrisMat : (_derelictDebrisMat = LitTex("iron_wall", new Color(0.5f, 0.47f, 0.44f), 1f));
+            var pieces = new Transform[plan.DebrisHomes.Count];
+            for (int i = 0; i < pieces.Length; i++)
+            {
+                float size = Random.Range(0.35f, 0.8f);
+                var piece = Cube("Debris", holder.transform, Local(plan.DebrisHomes[i]),
+                    new Vector3(size, size * Random.Range(0.35f, 1f), size * Random.Range(0.6f, 1.3f)), mat);
+                piece.transform.localRotation = Random.rotation;
+                pieces[i] = piece.transform;
+            }
+
+            var sparks = new Vector3[plan.SparkCells.Count];
+            for (int i = 0; i < sparks.Length; i++)
+            {
+                sparks[i] = Local(plan.SparkCells[i]);
+            }
+
+            holder.AddComponent<DerelictDecor>().Configure(beacon, pieces, sparks);
+        }
+
+        /// <summary>#2676: animates a derelict's broken-look extras (see <see cref="AddDerelictDecor"/>) — a handful of
+        /// transforms, one toggled cube and now and then a few pooled particles per frame; nothing is meshed or lit.</summary>
+        private sealed class DerelictDecor : MonoBehaviour
+        {
+            private GameObject _beacon;
+            private Transform[] _pieces = System.Array.Empty<Transform>();
+            private Vector3[] _home, _spinAxis, _drift, _sparks = System.Array.Empty<Vector3>();
+            private float[] _spinSpeed, _phase, _rate;
+            private float _nextSpark, _nextFlicker;
+            private int _flickers;
+
+            public void Configure(GameObject beacon, Transform[] pieces, Vector3[] sparks)
+            {
+                _beacon = beacon;
+                _pieces = pieces;
+                _sparks = sparks;
+                int n = pieces.Length;
+                _home = new Vector3[n];
+                _spinAxis = new Vector3[n];
+                _drift = new Vector3[n];
+                _spinSpeed = new float[n];
+                _phase = new float[n];
+                _rate = new float[n];
+                for (int i = 0; i < n; i++)
+                {
+                    _home[i] = pieces[i].localPosition;
+                    _spinAxis[i] = Random.onUnitSphere;
+                    _spinSpeed[i] = Random.Range(6f, 22f); // degrees per second: a slow tumble
+                    _drift[i] = Random.onUnitSphere * Random.Range(0.3f, 0.8f);
+                    _phase[i] = Random.Range(0f, Mathf.PI * 2f);
+                    _rate[i] = Random.Range(0.15f, 0.35f);
+                }
+
+                _nextSpark = Time.time + Random.Range(1f, 4f);
+                _nextFlicker = Time.time + Random.Range(0.5f, 2f);
+            }
+
+            private void Update()
+            {
+                float t = Time.time, dt = Time.deltaTime;
+                for (int i = 0; i < _pieces.Length; i++)
+                {
+                    var p = _pieces[i];
+                    if (p == null)
+                    {
+                        continue;
+                    }
+
+                    p.Rotate(_spinAxis[i], _spinSpeed[i] * dt, Space.Self);
+                    p.localPosition = _home[i] + _drift[i] * Mathf.Sin(t * _rate[i] + _phase[i]); // drifting to and fro
+                }
+
+                if (_beacon != null && t >= _nextFlicker)
+                {
+                    // A dying lamp: dark for a while, then a short stutter of blinks (an even count, so it ends dark).
+                    if (_flickers > 0)
+                    {
+                        _beacon.SetActive(!_beacon.activeSelf);
+                        _flickers--;
+                        _nextFlicker = t + Random.Range(0.04f, 0.18f);
+                    }
+                    else
+                    {
+                        _beacon.SetActive(false);
+                        _flickers = 2 * Random.Range(1, 4);
+                        _nextFlicker = t + Random.Range(1.2f, 4f);
+                    }
+                }
+
+                if (_sparks.Length > 0 && t >= _nextSpark)
+                {
+                    // A few weightless sparks and a pop of light at a ragged edge (pooled particles, no light).
+                    var at = transform.TransformPoint(_sparks[Random.Range(0, _sparks.Length)]);
+                    FxKit.Burst(FxKit.Kind.Motes, at, 6, Vector3.zero, 0f, 1.2f, 3.5f, 0.05f, 0.11f, 0.25f, 0.6f,
+                        new Color(1f, 0.78f, 0.35f), new Color(1f, 0.95f, 0.75f));
+                    FxKit.Flash(at, new Color(1f, 0.85f, 0.5f), 0.7f, 0.08f);
+                    _nextSpark = t + Random.Range(1.5f, 5f);
+                }
+            }
+        }
 
         /// <summary>Slowly tumbles an asteroid about a fixed random axis (purely cosmetic).</summary>
         private sealed class Spin : MonoBehaviour

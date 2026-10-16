@@ -194,9 +194,19 @@ public sealed class ToolLookTests : IDisposable
         using (repo)
         {
             var p = server.AddLocalPlayer("Smith");
-            server.SetToolLookForTest(p, "titanium_drill", Look());
 
-            server.SetToolLookForTest(p, "titanium_drill", string.Empty); // inside the 2 s window → ignored
+            // #2672: the body paint's token bucket (capacity 6, one back every 2 s) holds the looks too — use it up with
+            // paintings, and a look change inside the same instant is ignored.
+            for (int part = 0; part < BodyPaint.PartCount; part++)
+            {
+                server.SetBodyPaintForTest(p, part, new string('7', BodyPaint.ExpectedLength(part)));
+            }
+
+            server.SetToolLookForTest(p, "titanium_drill", Look());
+            Assert.Single(p.State.ToolLooks);
+            server.SetBodyPaintForTest(p, BodyPaint.Torso, new string('8', BodyPaint.ExpectedLength(BodyPaint.Torso)));
+
+            server.SetToolLookForTest(p, "titanium_drill", string.Empty); // the bucket is empty → ignored
             Assert.Single(p.State.ToolLooks);
 
             server.Tick(2.5);

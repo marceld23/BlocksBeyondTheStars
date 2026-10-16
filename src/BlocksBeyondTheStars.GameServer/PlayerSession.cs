@@ -121,8 +121,13 @@ public sealed class PlayerSession
     /// identity such a guest has, so a report is worth nothing to an operator without it.</summary>
     public string InstallId { get; set; } = string.Empty;
 
-    /// <summary>Server uptime (seconds) before which the next face change / voice frame is throttled.</summary>
-    public double NextFaceChangeAt { get; set; }
+    /// <summary>#2672: token bucket shared by every appearance edit that is saved and relayed (the face, each body-paint
+    /// part, a tool look), refilled on the server's uptime clock — starts full, so the join burst (face + four parts)
+    /// passes; <see cref="AppearanceRefilledAt"/> is the uptime of the last refill.</summary>
+    public double AppearanceBudget { get; set; } = GameServer.AppearanceBurst;
+    public double AppearanceRefilledAt { get; set; }
+
+    /// <summary>Server uptime (seconds) before which the next voice frame is throttled.</summary>
     public double NextVoiceFrameAt { get; set; }
 
     /// <summary>#2158: token bucket for relayed cosmetic action effects (<c>FxIntent</c>), refilled on the server's

@@ -56,7 +56,8 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
   forward, shadow and depth passes alike) reads how the vertex moves: **1** a tree-crown shell face sways as one rigid
   piece (the offset depends on the world position only, so a crown's leaf cubes never tear apart — they used to bend
   per cube from the tile's `v`, which opened slits between stacked crown cubes); **2** a rigid cutout prop — the torch
-  and lantern (lit or the Crystal Net's unlit twins) — never sways and skips the leaf back-light; **3** a cross-billboard
+  and lantern (lit or the Crystal Net's unlit twins; since #2683 also their wall and ceiling forms, drawn from
+  `LightMountGeometry` cards with brackets and chains) — never sways and skips the leaf back-light; **3** a cross-billboard
   plant bends from its root; **4** an aquatic plant — a cross plant the water surrounds (the mesher's `WetProp` rule,
   the one that draws its cell's water) — bends like 3. Plants and solid flora are scaled by
   `BbtsSwayShelter(skylight)` = `smoothstep(0.55, 0.9)`: the mesher's shade floor gives every cell up to six blocks

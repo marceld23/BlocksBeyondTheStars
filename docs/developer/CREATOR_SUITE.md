@@ -147,8 +147,17 @@ A **tool look** (`Shared/State/ToolLook.cs`) is an 8×8×16 voxel model from a *
 colours with a glow mask (`"t1:GGGG:"` + 1024 hex digits), merged per colour into ≤ 32 `HeldModelPart`s. It
 follows the body-paint pattern: bound to the **player** and a base item key (never the item instance — some
 twenty server rules compare exact item keys), `SetToolLookIntent` / `PlayerToolLook` (tags 260/261), shared
-2 s appearance throttle, ≤ 16 per player, persisted in the player snapshot, synced both ways on entering a
-world. Client: `ToolLookEditor` over `ToolLookCanvasModel` (tested); looks ride `GameMenu`'s paced appearance
+appearance throttle, ≤ 16 per player, persisted in the player snapshot, synced both ways on entering a
+world.
+
+**The appearance throttle (#2672)** is one token bucket per session (`GameServer.TakeAppearanceToken`) shared by
+the face, the four body-paint parts and the tool looks: capacity **6** (also the start fill), one token back every
+**2 s**. Only an accepted change takes a token — an unchanged or malformed payload returns before it. The join sends
+colours, face and every painted part in one frame (`GameBootstrap`), so the burst must pass; before #2672 a single
+2 s window let only the face through and the other players never saw the body paint (#2425). The long-run rate is
+still one saved-and-relayed change per 2 s. `SetAppearanceIntent`/`SetFaceIntent`/`SetBodyPaintIntent`/
+`SetToolLookIntent` are on the paused allow-list (`PausedMayHandle`): a player joining while the host alone holds
+the world sends them in the join's poll, before the next tick lifts the hold. Client: `ToolLookEditor` over `ToolLookCanvasModel` (tested); looks ride `GameMenu`'s paced appearance
 queue after the join; `RemotePlayers` validates arriving looks again.
 
 ## 7. Reports and submissions (#1964–#1966)

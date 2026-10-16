@@ -50,11 +50,12 @@ public sealed class NetNpc
 
     /// <summary>Fixed avatar face seed for an authored story character (#1128) — the same face at every
     /// place they occupy. Additive (contractless): 0 = unset, the client derives the face from id + name
-    /// as before.</summary>
+    /// as before. With <see cref="Look"/> "pixel" it is the pixel skin's seed (#2682).</summary>
     public int FaceVariant { get; set; }
 
     /// <summary>Client-side look key (#1793): "gds_guard" = a G.D.S. guardian machine (glowing red eyes, a red
-    /// stripe band). Additive (contractless): "" = unset, the plain avatar as before.</summary>
+    /// stripe band); "pixel" (#2682) = a pioneer in a pixel skin, built on the client from <see cref="FaceVariant"/> and its
+    /// skin pool (no pixels on the wire). Additive (contractless): "" = unset, the plain avatar as before.</summary>
     public string Look { get; set; } = string.Empty;
 
     /// <summary>Body pose (#1867): 0 = standing/walking, 1 = seated on a chair or bench, 2 = lying in bed asleep.

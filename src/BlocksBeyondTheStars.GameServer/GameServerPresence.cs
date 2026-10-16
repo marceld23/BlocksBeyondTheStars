@@ -24,6 +24,38 @@ public sealed partial class GameServer
     // Per-world (routes through the active world) — see LoadedWorld.SincePresence for why a shared field starves worlds.
     private double _sincePresence { get => _worlds.Active.SincePresence; set => _worlds.Active.SincePresence = value; }
 
+    /// <summary>#2672: burst of the per-player appearance token bucket (also its starting fill) — the join sends the face
+    /// and all four body-paint parts in one frame, plus one to spare ("wear a saved outfit" re-sends them together).</summary>
+    internal const double AppearanceBurst = 6.0;
+
+    /// <summary>#2672: one appearance token comes back every this many seconds — the long-run rate of the old 2 s window,
+    /// so alternating two valid paintings still costs at most one disk save + world-wide rebroadcast per 2 s.</summary>
+    private const double AppearanceRefillSeconds = 2.0;
+
+    /// <summary>
+    /// #2672: the per-player appearance bucket on the server's uptime clock, shared by the face, every body-paint part
+    /// and the tool look (so alternating edits can't dodge it). Before, one 2 s window was shared by all of them, and the
+    /// join's burst (face + four parts in one frame) let only the face through — the other players never saw the body
+    /// paint (#2425). Only an accepted change takes a token; an unchanged or malformed payload returns earlier.
+    /// </summary>
+    private bool TakeAppearanceToken(PlayerSession session)
+    {
+        double elapsed = _uptime - session.AppearanceRefilledAt;
+        session.AppearanceRefilledAt = _uptime;
+        if (elapsed > 0)
+        {
+            session.AppearanceBudget = System.Math.Min(AppearanceBurst, session.AppearanceBudget + (elapsed / AppearanceRefillSeconds));
+        }
+
+        if (session.AppearanceBudget < 1.0)
+        {
+            return false;
+        }
+
+        session.AppearanceBudget -= 1.0;
+        return true;
+    }
+
     private void HandleSetAppearance(PlayerSession session, SetAppearanceIntent intent)
     {
         session.SkinColor = intent.Skin;
@@ -89,14 +121,14 @@ public sealed partial class GameServer
             return; // unchanged (e.g. the redundant on-join send) — no save, no broadcast
         }
 
-        // Simple anti-spam: a face changes rarely, so one accepted change per 2 s per player is generous.
-        // Without it, alternating two valid faces would force repeated disk saves + world-wide rebroadcast.
-        if (_uptime < session.NextFaceChangeAt)
+        // Anti-spam: every accepted change is a disk save + a world-wide rebroadcast, so alternating two valid faces
+        // must not be free. The appearance token bucket (#2672) lets the join burst through and holds the long run
+        // at one change per 2 s.
+        if (!TakeAppearanceToken(session))
         {
             return;
         }
 
-        session.NextFaceChangeAt = _uptime + 2.0;
         session.State.FacePixels = pixels;
         _repo.SavePlayer(session.State);
         BroadcastFace(session);
@@ -104,8 +136,8 @@ public sealed partial class GameServer
 
     // Avatar body paint (#874): the face's siblings for torso/arms/legs/helmet. Same treatment — opaque
     // hex payload, but bounded to the part's EXACT expected length (concatenated 32×32 chunks; no legacy
-    // size exists for paints) and charset-checked before it is persisted or relayed. The 2 s face rate
-    // limit is shared across all appearance edits, so alternating face/torso spam can't dodge it.
+    // size exists for paints) and charset-checked before it is persisted or relayed. The appearance token
+    // bucket is shared across all appearance edits, so alternating face/torso spam can't dodge it.
     private static bool IsValidBodyPaint(int part, string pixels)
     {
         if (!BodyPaint.IsValidPart(part))
@@ -139,12 +171,11 @@ public sealed partial class GameServer
             return; // unchanged (e.g. the redundant on-join send) — no save, no broadcast
         }
 
-        if (_uptime < session.NextFaceChangeAt)
+        if (!TakeAppearanceToken(session))
         {
             return; // shared appearance anti-spam (see HandleSetFace)
         }
 
-        session.NextFaceChangeAt = _uptime + 2.0;
         session.State.SetBodyPaint(intent.Part, pixels);
         _repo.SavePlayer(session.State);
         BroadcastBodyPaint(session, intent.Part);
@@ -174,8 +205,8 @@ public sealed partial class GameServer
 
     // Player tool looks (#1963): the body paint's sibling for what is held. The look is bound to the PLAYER and a
     // base item key — not to the item instance: ~20 server rules compare exact item keys, so a look riding on the
-    // key would break them, and a look must not be handed over with a traded tool. Same shared 2 s appearance
-    // throttle, same "validate, store, relay" path. Purely cosmetic — nothing on the server reads the model.
+    // key would break them, and a look must not be handed over with a traded tool. Same shared appearance
+    // token bucket, same "validate, store, relay" path. Purely cosmetic — nothing on the server reads the model.
     private void HandleSetToolLook(PlayerSession session, SetToolLookIntent intent)
     {
         string itemKey = intent.ItemKey ?? string.Empty;
@@ -204,12 +235,11 @@ public sealed partial class GameServer
             return;
         }
 
-        if (_uptime < session.NextFaceChangeAt)
+        if (!TakeAppearanceToken(session))
         {
             return; // shared appearance anti-spam (see HandleSetFace)
         }
 
-        session.NextFaceChangeAt = _uptime + 2.0;
         if (model.Length == 0)
         {
             looks.Remove(itemKey);

@@ -76,6 +76,53 @@ namespace BlocksBeyondTheStars.Client
             _go.SetActive(true);
         }
 
+        /// <summary>#2683: shows a torch (<paramref name="lantern"/> false) or a lantern as it will be fixed in the cell —
+        /// on the wall, standing, or a lantern on its chain (<paramref name="mount"/>, the up-face
+        /// <see cref="PropShapes.LightMountOf(int, bool)"/> reads; -1 = standing). Built from the same
+        /// <see cref="LightMountGeometry"/> cards the mesher draws the placed light with, translucent and two-sided.</summary>
+        public void ShowLight(Vector3Int cell, bool lantern, int mount)
+        {
+            if (_go == null)
+            {
+                Create();
+            }
+
+            // Light keys sit above the facing-cube keys (0x10000 + face) and apart from the doors (< 0).
+            int key = 0x20000 + ((lantern ? 1 : 0) << 4) + (mount + 1);
+            if (key != _builtKey)
+            {
+                _builtKey = key;
+                var verts = new List<Vector3>();
+                var tris = new List<int>();
+                foreach (var card in LightMountGeometry.Build(lantern, mount))
+                {
+                    var a = new Vector3(card.A.X, card.A.Y, card.A.Z);
+                    var b = new Vector3(card.B.X, card.B.Y, card.B.Z);
+                    var c = new Vector3(card.C.X, card.C.Y, card.C.Z);
+                    var d = new Vector3(card.D.X, card.D.Y, card.D.Z);
+
+                    // Front and back as separate vertices, so each side keeps its own normal.
+                    int i = verts.Count;
+                    verts.Add(a); verts.Add(b); verts.Add(c); verts.Add(d);
+                    tris.Add(i); tris.Add(i + 2); tris.Add(i + 1);
+                    tris.Add(i); tris.Add(i + 3); tris.Add(i + 2);
+                    int j = verts.Count;
+                    verts.Add(a); verts.Add(b); verts.Add(c); verts.Add(d);
+                    tris.Add(j); tris.Add(j + 1); tris.Add(j + 2);
+                    tris.Add(j); tris.Add(j + 2); tris.Add(j + 3);
+                }
+
+                _mesh.Clear();
+                _mesh.SetVertices(verts);
+                _mesh.SetTriangles(tris, 0);
+                _mesh.RecalculateNormals();
+                _mesh.RecalculateBounds();
+            }
+
+            _go.transform.position = new Vector3(cell.x, cell.y, cell.z);
+            _go.SetActive(true);
+        }
+
         /// <summary>A flat pyramid on the middle of the front face, its tip pointing out — the "this side" marker. #2267: the
         /// top (0) and bottom (1) faces too, for a Crystal Net device pointed up or down.</summary>
         private static void FrontArrow(List<Vector3> verts, List<int> tris, int frontFace)

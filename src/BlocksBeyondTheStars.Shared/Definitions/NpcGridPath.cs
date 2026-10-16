@@ -12,9 +12,12 @@ namespace BlocksBeyondTheStars.Shared.Definitions;
 /// world is asked through two predicates — so the search is unit-tested without a server.
 /// <list type="bullet">
 /// <item>A <b>node</b> is a feet cell: <c>standable(cell)</c> means a floor under it and room for a body in it.</item>
-/// <item><b>Moves</b> go to the four horizontal neighbours, level, one step up (the head needs room above the
-/// current cell) or down one or two (the columns stepped over must be free). No diagonals: a corner is never cut,
-/// so a follower sweeping the straight segment between two waypoints never grazes a wall.</item>
+/// <item><b>Moves</b> go to the four horizontal neighbours, level, one step up or down one or two. A one-block step
+/// needs only the cell it lands on to be standable — the body stands in one column at a time, as the walk moves it —
+/// so the usual player staircase is walkable: one-block steps in a three-high room with the ceiling hole open above
+/// the upper steps only (#2678). Only a drop of two needs the column it walks out over to be open at its old height.
+/// No diagonals: a corner is never cut, so a follower sweeping the straight segment between two waypoints never
+/// grazes a wall.</item>
 /// <item>A <b>door</b> cell costs a little more — a detour through an open room beats swinging a door.</item>
 /// <item>The goal is reached on any node within one block horizontally and one vertically of it (a bed or a counter
 /// occupies the exact goal cell, the NPC stands beside it). Bounded by a box around the start and an expansion
@@ -129,14 +132,15 @@ public static class NpcGridPath
                         continue;
                     }
 
-                    if (dy > 0 && !Free(new Vector3i(cur.X, cur.Y + 2, cur.Z)))
+                    // #2678: a one-block step (up or down) needs nothing beyond the standable landing. The walk (MoveNpcs)
+                    // lifts or lowers the body the moment its centre crosses into the new column and checks only that
+                    // column, so the head room above the lower step's column — the ceiling edge of a staircase hole — is
+                    // never needed; the capsule's edge only brushes it while crossing. Asking for it (above the step a
+                    // walker came FROM) made the usual player staircase, whose hole is open above the upper steps only,
+                    // a wall to every resident although the player walks it.
+                    if (dy < -1 && (!Free(new Vector3i(nx, cur.Y, nz)) || !Free(new Vector3i(nx, cur.Y + 1, nz))))
                     {
-                        continue; // no head room to step up
-                    }
-
-                    if (dy < 0 && (!Free(new Vector3i(nx, cur.Y, nz)) || !Free(new Vector3i(nx, cur.Y + 1, nz))))
-                    {
-                        continue; // the column stepped over must be open down to the landing
+                        continue; // a drop of two walks out over the column at its old height: open down to the landing
                     }
 
                     float step = dy == 0 ? 1f : dy > 0 ? 1.4f : 1.2f;

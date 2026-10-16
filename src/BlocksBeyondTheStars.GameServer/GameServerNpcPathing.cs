@@ -18,9 +18,12 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>Doors:</b> slide and energy doors open for an NPC walking a route (<see cref="TickDoors"/>); a hinge or
 /// wooden door in its way is swung open by the NPC and closes behind it — a door a player opened is left alone.</item>
 /// <item><b>Stuck + fallback:</b> no progress for <see cref="NpcStuckSeconds"/> re-routes; after
-/// <see cref="NpcPathMaxFailures"/> failed routes the NPC is set down at its goal — but only while no player is
-/// within <see cref="NpcTeleportUnseenRange"/> blocks (Marcel 2026-09-13: pathfinding first, teleport as the
-/// emergency exit). A watched NPC waits and tries again.</item>
+/// <see cref="NpcPathMaxFailures"/> failed routes the NPC is set down at its goal — but never in front of anyone
+/// (Marcel 2026-09-13: pathfinding first, teleport as the emergency exit): a player within
+/// <see cref="NpcTeleportUnseenRange"/> blocks of the NPC or the goal who can see either of them stops it (#2680 — a
+/// player on another floor or behind walls no longer does). A watched NPC waits and tries again.</item>
+/// <item><b>Base residents</b> search a bigger box (<see cref="BasePathLimits"/>, ±16 up and down like a station's
+/// crew) — a bed two or three storeys above the core is a normal home (#2678). Residents take stairs, not ladders.</item>
 /// <item>Routes are dropped when a block changes next to them (<see cref="MarkNpcPathsDirty"/>).</item>
 /// </list>
 /// </summary>
@@ -51,8 +54,16 @@ public sealed partial class GameServer
     /// from its post — the search reaches twice as far (and two decks) there than on a planet's surface.</summary>
     private static readonly NpcGridPath.Limits StationPathLimits = new(96, 16, 8000);
 
+    /// <summary>#2678: a base resident's search box — a base reaches up to 96 blocks from its core (the index box) and
+    /// stacks storeys: a bed 12 blocks above the core was out of the planet default's ±8. The station's limits; only base
+    /// residents (at most five per base) pay for them, every other planet NPC keeps <see cref="NpcGridPath.Limits.Default"/>.</summary>
+    private static readonly NpcGridPath.Limits BasePathLimits = StationPathLimits;
+
     /// <summary>Search statistics for the tests.</summary>
     public int NpcPathSearchesForTest { get; private set; }
+
+    /// <summary>How often the unseen fallback set an NPC down at its goal (test seam: a walk that must be a walk).</summary>
+    public int NpcUnseenMovesForTest { get; private set; }
 
     /// <summary>Sends an NPC walking to <paramref name="goal"/>; <paramref name="arrival"/> says what it does there.</summary>
     private void SetNpcGoal(ServerNpc npc, Vector3f goal, NpcArrival arrival, float leashThere)
@@ -141,7 +152,7 @@ public sealed partial class GameServer
 
         bool Free(Vector3i c) => !NpcBodyBlocked(_world.GetBlockIfLoaded(c), c);
 
-        var limits = _world.Planet?.Void == true ? StationPathLimits : NpcGridPath.Limits.Default;
+        var limits = _world.Planet?.Void == true ? StationPathLimits : npc.BaseId > 0 ? BasePathLimits : NpcGridPath.Limits.Default;
         var cells = NpcGridPath.Find(start, goalCell, Standable, Free, Door, limits, out _);
         if (cells is null)
         {
@@ -234,13 +245,16 @@ public sealed partial class GameServer
     }
 
     /// <summary>The emergency exit (#1866): no route after several tries — put the NPC at its goal, but never in front
-    /// of anyone. A watched NPC tries again later.</summary>
+    /// of anyone. A player within <see cref="NpcTeleportUnseenRange"/> of the NPC or the goal stops it while they can
+    /// see either of them (#2680, <see cref="PlayerSeesUnseenMove"/>): standing in the same open room still does, standing
+    /// on the floor above or behind walls no longer keeps a resident downstairs forever. A watched NPC tries again later.</summary>
     private void TeleportNpcToGoalIfUnseen(ServerNpc npc, Vector3f goal, List<PlayerSession> targets)
     {
         foreach (var t in targets)
         {
-            if (WrapDistSq(t.State.Position, npc.Pos) <= NpcTeleportUnseenRange * NpcTeleportUnseenRange
-                || WrapDistSq(t.State.Position, goal) <= NpcTeleportUnseenRange * NpcTeleportUnseenRange)
+            if ((WrapDistSq(t.State.Position, npc.Pos) <= NpcTeleportUnseenRange * NpcTeleportUnseenRange
+                    || WrapDistSq(t.State.Position, goal) <= NpcTeleportUnseenRange * NpcTeleportUnseenRange)
+                && PlayerSeesUnseenMove(t.State.Position, npc.Pos, goal))
             {
                 npc.PathFailures = NpcPathMaxFailures - 1; // one more honest try before the next check
                 npc.PathRetryAt = _uptime + NpcPathRetrySeconds * 2;
@@ -250,9 +264,104 @@ public sealed partial class GameServer
 
         npc.Pos = goal;
         npc.Loco.ModeTimer = 0f;
+        NpcUnseenMovesForTest++;
         ArriveAtGoal(npc);
         BroadcastNpcs();
     }
+
+    /// <summary>Heights above the feet the fallback's sight test looks at on a body: the chest and the head.</summary>
+    private static readonly float[] UnseenMoveBodyHeights = { 0.9f, 1.6f };
+
+    /// <summary>
+    /// #2680: whether a player at <paramref name="player"/> (feet) could see the NPC at <paramref name="npc"/> vanish or
+    /// appear at <paramref name="goal"/> — a voxel line from the player's eyes (<see cref="SightEyeHeight"/>) to the chest
+    /// or the head of either body that no sight-blocking cell interrupts (<see cref="BlocksUnseenSight"/>). Which way the
+    /// player looks does not matter: "could see" is enough to wait.
+    /// </summary>
+    private bool PlayerSeesUnseenMove(Vector3f player, Vector3f npc, Vector3f goal)
+    {
+        var eye = new Vector3f(player.X, player.Y + SightEyeHeight, player.Z);
+        foreach (var body in new[] { npc, goal })
+        {
+            foreach (float h in UnseenMoveBodyHeights)
+            {
+                if (UnseenMoveSightClear(eye, new Vector3f(body.X, body.Y + h, body.Z)))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The sight line of <see cref="PlayerSeesUnseenMove"/>: sampled every 0.2 blocks between the two points
+    /// (the end points' own cells skipped — the bodies are no cover), in the eye's unwrapped frame, on no-load reads.</summary>
+    private bool UnseenMoveSightClear(Vector3f eye, Vector3f target)
+    {
+        var to = Unwrapped(eye, target);
+        float dx = to.X - eye.X, dy = to.Y - eye.Y, dz = to.Z - eye.Z;
+        float dist = (float)System.Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        int steps = System.Math.Max(1, (int)System.Math.Ceiling(dist / 0.2f));
+        var first = eye.ToBlock();
+        var last = to.ToBlock();
+        var prev = first;
+        for (int s = 1; s < steps; s++)
+        {
+            float f = s / (float)steps;
+            var c = new Vector3i((int)System.Math.Floor(eye.X + dx * f), (int)System.Math.Floor(eye.Y + dy * f), (int)System.Math.Floor(eye.Z + dz * f));
+            if (c.Equals(prev) || c.Equals(first) || c.Equals(last))
+            {
+                continue;
+            }
+
+            prev = c;
+            if (BlocksUnseenSight(c))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Blocks the client draws see-through (mirrors <c>ChunkMesher.IsTransparentSlow</c>): windows and energy
+    /// fields hide nothing from the unseen fallback (#2680).</summary>
+    private static readonly HashSet<string> UnseenMoveSeeThroughKeys = new(System.StringComparer.Ordinal)
+    {
+        "glass", "glass_clear", "force_field", "force_field_off", "water", "gas", "gas_dense", "fire", "energy_fence",
+        "energy_gate", "phase_block_open",
+    };
+
+    /// <summary>
+    /// #2680: whether a cell hides what lies behind it from the unseen fallback. Only an opaque full block does — a wall,
+    /// a floor, a ceiling, terrain. Erring towards "seen" keeps the rule's promise (never move someone in front of the
+    /// player's eyes), so everything a player might look through or past is no cover: air and unloaded chunks, glass and
+    /// energy fields (<see cref="UnseenMoveSeeThroughKeys"/>), fluids, what the player walks through (flora, leaves, a
+    /// torch, a ladder), every shaped block (a slab, a stair, a fence, a table leaves a gap) and a doorway — a door stands
+    /// in the block grid as air, open or shut.
+    /// </summary>
+    private bool BlocksUnseenSight(Vector3i cell)
+    {
+        var id = _world.GetBlockIfLoaded(cell);
+        if (id.IsAir || IsFluid(id.Value))
+        {
+            return false;
+        }
+
+        var def = _content.BlockById(id);
+        if (def is null || !def.Solid || def.Liquid || UnseenMoveSeeThroughKeys.Contains(def.Key)
+            || Shared.Definitions.WalkThroughBlocks.IsWalkThrough(def.Key))
+        {
+            return false;
+        }
+
+        return ShapeCode.IsCube(_world.GetShapeIfLoaded(cell));
+    }
+
+    /// <summary>Test seam (#2680): whether a player standing at <paramref name="player"/> would stop the unseen fallback
+    /// moving an NPC from <paramref name="npc"/> to <paramref name="goal"/> by sight (the range is not checked here).</summary>
+    public bool PlayerSeesUnseenMoveForTest(Vector3f player, Vector3f npc, Vector3f goal) => PlayerSeesUnseenMove(player, npc, goal);
 
     /// <summary>The NPC reached its goal: it idles there (or climbs into bed / sits down).</summary>
     private void ArriveAtGoal(ServerNpc npc)

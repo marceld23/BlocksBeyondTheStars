@@ -41,7 +41,7 @@ public sealed partial class GameServer
     /// <summary>Target words in the order they are offered to the admin, worldgen first, player-built last.</summary>
     private static readonly string[] TeleportKinds =
     {
-        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "wreck", "factory", "camp", "lodge", "monument",
+        "ship", "pad", "city", "village", "ruin", "railruin", "vault", "wreck", "factory", "camp", "lodge", "outpost", "monument",
         "treasure", "base", "beacon", "beam", "station",
     };
 
@@ -62,6 +62,7 @@ public sealed partial class GameServer
         "factories" => "factory",
         "camps" or "bandit" or "bandits" or "banditcamp" => "camp",
         "lodges" or "hut" or "huts" or "hütte" or "huette" or "hütten" or "huetten" => "lodge", // #2646: the wilderness huts
+        "outposts" or "pioneer" or "pioneers" or "pionier" or "pioniere" or "außenposten" or "aussenposten" => "outpost", // #2681
         "monuments" => "monument",
         "chest" or "chests" or "treasures" => "treasure",
         "bases" => "base",
@@ -147,10 +148,18 @@ public sealed partial class GameServer
         // work anchor in front of the hut, a standing spot by construction.
         var here = session.State.Position;
         int lodgeNumber = 0;
-        foreach (var l in _lodges.OrderBy(l => WrapDistSq(here, l.Center)))
+        foreach (var l in _lodges.Where(l => l.Outpost is null).OrderBy(l => WrapDistSq(here, l.Center)))
         {
             lodgeNumber++;
             list.Add(new TeleportTarget("lodge", lodgeNumber, Named("lodge", lodgeNumber, l.ResidentName), l.YardSpot));
+        }
+
+        // #2681: the pioneer outposts, nearest first like the huts — the target is the work anchor in front of the door.
+        int outpostNumber = 0;
+        foreach (var l in _lodges.Where(l => l.Outpost is not null).OrderBy(l => WrapDistSq(here, l.Center)))
+        {
+            outpostNumber++;
+            list.Add(new TeleportTarget("outpost", outpostNumber, Named("outpost", outpostNumber, l.ResidentName), l.YardSpot));
         }
 
         for (int i = 0; i < _monuments.Count; i++)

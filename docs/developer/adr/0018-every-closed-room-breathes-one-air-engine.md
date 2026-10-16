@@ -51,3 +51,6 @@ cells would be about half a second and 50–80 MB — impossible on the small ha
 - The bed assignment uses the engine's room identity (`AirRoomIdAt`) to prefer a bed in the same room as a work post
   (#2655–#2657), and a leak never evicts a resident (`BaseIndex.StickyInside`).
 - See [BASE_LIFE_SUPPORT.md](../BASE_LIFE_SUPPORT.md) for the engine in detail.
+- Amended 2026-10-16 (#2675): a generated derelict no longer breathes at all — its life support is dead, so even its
+  closed rooms give no air; the engine still finds its pockets (a closed room vs a breached one). See
+  [DERELICT_STATIONS.md §5](../DERELICT_STATIONS.md#5-air-gravity-falling-out).

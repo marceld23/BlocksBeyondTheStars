@@ -318,6 +318,8 @@ public sealed partial class GameServer
             BodyId = b.Planet,
             AirCells = air?.Cells.Count ?? 0,
             SealedRooms = air?.Rooms ?? 0,
+            Residents = BaseResidentCount(b), // #2679: the saved plan, so it is known on any world
+            ResidentCap = BaseResidentCap,
         };
     }
 

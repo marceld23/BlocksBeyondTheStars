@@ -285,6 +285,38 @@ public sealed class WorldPauseTests : IDisposable
     }
 
     [Fact]
+    public void WhileHeld_AJoiningPlayersLook_IsStillStoredAndRelayed()
+    {
+        // #2672: the client sends its colours, face and body paint in the same frame as the join — the same poll, before
+        // the next tick lifts the hold. While the host alone held the world those intents were dropped, so the newcomer
+        // stayed in the default colours with no face or paint for everyone. They only change the sender's own look.
+        var transport = new RecordingTransport();
+        var server = Started(out var repo, transport);
+        using (repo)
+        {
+            var host = server.AddLocalPlayer("Justus");
+            server.PauseForTest(host, true);
+            var guest = server.AddLocalPlayer("Severin");
+            Assert.True(server.IsPaused); // the join alone does not lift the hold — the next tick does
+
+            transport.Sent.Clear();
+            string face = new string('a', 32 * 32);
+            string legs = new string('7', BlocksBeyondTheStars.Shared.State.BodyPaint.ExpectedLength(BlocksBeyondTheStars.Shared.State.BodyPaint.Legs));
+            server.HandlePayloadForTest(guest.ConnectionId, NetCodec.Encode(new SetAppearanceIntent { Skin = 0x112233, Torso = 0x445566, Arms = 0x778899, Legs = 0xAABBCC }));
+            server.HandlePayloadForTest(guest.ConnectionId, NetCodec.Encode(new SetFaceIntent { Pixels = face }));
+            server.HandlePayloadForTest(guest.ConnectionId, NetCodec.Encode(new SetBodyPaintIntent { Part = BlocksBeyondTheStars.Shared.State.BodyPaint.Legs, Pixels = legs }));
+            Assert.True(server.IsPaused);
+
+            Assert.Equal(0x112233, guest.SkinColor);
+            Assert.Equal(face, guest.State.FacePixels);
+            Assert.Equal(legs, guest.State.LegPixels);
+            // The host is the only other player, so these went to them.
+            Assert.Contains(transport.Sent, m => m is PlayerFace f && f.PlayerId == guest.State.PlayerId && f.Pixels == face);
+            Assert.Contains(transport.Sent, m => m is PlayerBodyPaint b && b.PlayerId == guest.State.PlayerId && b.Pixels == legs);
+        }
+    }
+
+    [Fact]
     public void AHoldSurvives_WhenOneOfSeveralHoldersLeaves()
     {
         var server = Started(out var repo);
