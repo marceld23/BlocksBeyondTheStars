@@ -52,15 +52,10 @@ public sealed class WaterModelTests : IDisposable
         }
     }
 
-    private SvGameServer Started(out SqliteWorldRepository repo, string world = "water", int? terrainGeneration = null)
+    private SvGameServer Started(out SqliteWorldRepository repo, string world = "water")
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
         var config = new ServerConfig { WorldName = world, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
-        if (terrainGeneration is int generation)
-        {
-            config.World.TerrainGeneration = generation;
-        }
-
         var server = new SvGameServer(config, _content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();
         return server;
@@ -91,8 +86,11 @@ public sealed class WaterModelTests : IDisposable
     }
 
     /// <summary>A broad staircase going down along +x: two cells per step, one block per step, floor at
-    /// <c>topFloor - x/2</c>, with a flat landing behind x = 0. Optionally carved into the ground (air above each step).</summary>
-    private void Staircase(SvGameServer server, SqliteWorldRepository repo, int topFloor, bool carve)
+    /// <c>topFloor - x/2</c>, with a flat landing behind x = 0. Optionally carved into the ground (air above each step),
+    /// and optionally <paramref name="sealed"/>: a stone shell (side walls, end walls, a ceiling over the carved space and
+    /// a second floor under it) so no generated sea, lake or cave beside the carving can pour in once the flow wakes it —
+    /// a carving below the sea line otherwise opens onto endless sea water along its whole length.</summary>
+    private void Staircase(SvGameServer server, SqliteWorldRepository repo, int topFloor, bool carve, bool @sealed = false)
     {
         repo.RunInTransaction(() =>
         {
@@ -106,6 +104,25 @@ public sealed class WaterModelTests : IDisposable
                         for (int y = floor + 1; y <= floor + 4; y++)
                         {
                             server.World.SetBlock(new Vector3i(x, y, z), BlockId.Air);
+                        }
+                    }
+                }
+
+            if (!@sealed)
+            {
+                return;
+            }
+
+            for (int x = -11; x <= 41; x++)
+                for (int z = -11; z <= 11; z++)
+                {
+                    int floor = topFloor - Math.Max(0, Math.Min(40, x)) / 2;
+                    bool wall = x == -11 || x == 41 || z == -11 || z == 11;
+                    for (int y = floor - 1; y <= floor + 5; y++)
+                    {
+                        if (wall || y == floor - 1 || y == floor + 5)
+                        {
+                            server.World.SetBlock(new Vector3i(x, y, z), _stone);
                         }
                     }
                 }
@@ -158,15 +175,16 @@ public sealed class WaterModelTests : IDisposable
     {
         // The tester's flood: sea water beside a cave poured down every shaft and across every floor (15 000+ cells from
         // one touch). The sea stays endless (W7), but its spill is bounded like any flow.
-        // The carved staircase sits in seed 1's ground at a fixed spot, and how far the spill runs past its steps depends on
-        // the generated caves around it — which from generation 26 move with the world-seeded size (#2691). The flow rules
-        // under test do not depend on it, so the world keeps the generation the spot was chosen on.
-        var server = Started(out var repo, terrainGeneration: BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1);
+        // The staircase is sealed: carved below the sea line, it otherwise opens onto whatever sea, lake or cave the world
+        // generated beside it — every such sea cell is an endless source of its own and spills its own bounded run, so the
+        // farthest wet step measured the world around the carving (x = 14–26 on several seeds of generation 25 and 26),
+        // not the one touched cell. Sealed, every seed tried reaches x = 7.
+        var server = Started(out var repo);
         using (repo)
         {
             int sea = server.World.Generator.SeaLevel(server.World.Planet);
             int top = sea - 2; // the top step's floor; the water above it sits at or below the sea line
-            Staircase(server, repo, top, carve: true);
+            Staircase(server, repo, top, carve: true, @sealed: true);
             server.World.SetBlock(new Vector3i(0, top + 1, 0), new BlockId(_water)); // unmarked: endless by position only
             server.RemoveBlockForTest(1, top + 1, 0); // touch the cave beside it
 

@@ -29,6 +29,10 @@ internal sealed class SettlementInstance
     public SettlementStructure? Layout { get; set; }
     public List<(string Type, Vector3f Pos)> Markers { get; } = new();
     public HashSet<string> MissionIds { get; } = new();
+
+    /// <summary>#2693: the settlement's place key (<c>settle_&lt;n&gt;</c>, body + name + world seed), computed once on first
+    /// use by <c>GameServer.SettlementPlaceKey</c> — never set it elsewhere.</summary>
+    public string? PlaceKey { get; set; }
 }
 
 /// <summary>One stamped factory on a world: an industrial hall with a production terminal and one or more

@@ -13,6 +13,13 @@ namespace BlocksBeyondTheStars.Shared.World;
 /// bit-identical (existing worlds are derived from it); new choices go through this class instead, which runs the same
 /// FNV-1a through a SplitMix64 finaliser so every input bit reaches every output bit.
 /// </para>
+/// <para>
+/// <b>Bit-frozen once shipped, exactly like <c>StableHash</c>.</b> Saves derive from these outputs: a generation-26
+/// world's planet sizes (and with them its terrain, pads and stored edits), its colour families, and the settlement
+/// placement records that re-stamp with the mixed picks. Never change a constant, the bit selection of
+/// <see cref="Index(ulong, int)"/> / <see cref="Unit(ulong)"/> / <see cref="Seed32(ulong)"/>, or how a seed is folded in —
+/// a different mixing needs a new function and a new generation gate. <c>StableHashingTests</c> pins known answers.
+/// </para>
 /// Pure functions, netstandard2.1, no allocations — server, client and tools agree without any network traffic.
 /// </summary>
 public static class StableHashing

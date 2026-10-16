@@ -1760,7 +1760,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (missionId.StartsWith(SettlementBoardPrefix(s.Name), System.StringComparison.Ordinal)
+            if (missionId.StartsWith(SettlementPlaceKey(s) + "_", System.StringComparison.Ordinal)
                 || missionId.StartsWith(LegacySettlementBoardPrefix(s.Name), System.StringComparison.Ordinal))
             {
                 return s;

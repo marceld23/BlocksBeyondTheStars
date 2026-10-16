@@ -199,6 +199,114 @@ public sealed class HashVarietyWorldsTests : IDisposable
     }
 
     [Fact]
+    public void NewGeneration_SizesAndColours_AreBitFrozen()
+    {
+        // Known answers taken when generation 26 was introduced. A generation-26 save derives its terrain, pads and stored
+        // edits from these sizes and paints its sky, plants and water with these colours: once released they must never
+        // move — a different roll needs a new generation.
+        Assert.Equal(6944, WorldConstants.CircumferenceFor("sys0-p0", WorldConstants.WorldSizeClass.Planet, 0f, 42, Gen));
+        Assert.Equal(7536, WorldConstants.CircumferenceFor("sys0-p1", WorldConstants.WorldSizeClass.Planet, 0f, 42, Gen));
+        Assert.Equal(2528, WorldConstants.CircumferenceFor("sys0-p0-m0", WorldConstants.WorldSizeClass.Moon, 0f, 42, Gen));
+        Assert.Equal(880, WorldConstants.CircumferenceFor("sys0-a0", WorldConstants.WorldSizeClass.Asteroid, 0f, 42, Gen));
+        Assert.Equal(13840, WorldConstants.CircumferenceFor("sys3-p0", WorldConstants.WorldSizeClass.Planet, 0.8f, 42, Gen));
+        Assert.Equal(0.02605308f, WorldConstants.BiasToward("sys5-p1", WorldConstants.WorldSizeClass.Planet, 8000, 42, Gen));
+        Assert.Equal(10624, WorldConstants.StartPlanetCircumferenceFor("sys0-p1", 42));
+
+        var rocky = _content.GetPlanet("rocky")!;
+        var ocean = _content.GetPlanet("ocean")!;
+        int sky = AtmosphereTints.SkyRgb(42, "sys0-p1", rocky, Gen);
+        Assert.Equal(0xE3D0A0, sky);
+        Assert.Equal(0xF2EDEA, AtmosphereTints.CloudRgb(42, "sys0-p1", rocky, sky, Gen));
+        Assert.Equal(0x82823B, FloraTints.ForWorld(4242, "sys0-p1", Gen));
+        Assert.Equal((0x3A74D3, FluidTints.Mode.Tint), FluidTints.ForWorld(4242, "sys0-p1", ocean, Gen));
+        Assert.Equal((0x96C128, FluidTints.Mode.Tint), FluidTints.ForWorld(4242, "sys0-p1", ocean, Gen, toxicWater: true));
+
+        // Every body of a generation-26 galaxy with the archetypes on, folded like the generation-25 pins above.
+        var galaxy = new UniverseGenerator(42, new WorldDescription { StarSystemCount = 40, SystemVariance = true, TerrainGeneration = Gen }, _content).Generate();
+        ulong sizes = 1469598103934665603UL, colours = 1469598103934665603UL;
+        int bodies = 0;
+        foreach (var b in galaxy.AllBodies())
+        {
+            bodies++;
+            if (b.PlanetType is null || _content.GetPlanet(b.PlanetType) is not { } p)
+            {
+                continue;
+            }
+
+            int c = WorldConstants.CircumferenceFor(b.Id, WorldConstants.SizeClassFor(b.Kind, p.Key), b.SizeBias, 42, Gen);
+            sizes = unchecked((sizes ^ (uint)c) * 1099511628211UL);
+            int s = AtmosphereTints.SkyRgb(42, b.Id, p, Gen);
+            var w = FluidTints.ForWorld(42, b.Id, p, Gen);
+            foreach (int v in new[] { s, AtmosphereTints.CloudRgb(42, b.Id, p, s, Gen), FloraTints.ForWorld(42, b.Id, Gen), w.Rgb, (int)w.Mode })
+            {
+                colours = unchecked((colours ^ (uint)v) * 1099511628211UL);
+            }
+        }
+
+        Assert.Equal(402, bodies);
+        Assert.Equal(83273877244342603UL, sizes);
+        Assert.Equal(8319692684259117896UL, colours);
+    }
+
+    [Fact]
+    public void NewGeneration_StartPlanet_IsNeverSmall_AndStillVaries()
+    {
+        // Lead decision 2026-10-16: seeded sizes draw from the whole band, but the start world sets the density of the
+        // settlements, structures and fauna a new player meets first (and the tutorial needs a village) — so from
+        // generation 26 it has a floor. The server's own pick (first planet of the start type, else the first planet
+        // retyped) is replayed here on the creation-time description of a new world.
+        var seen = new HashSet<int>();
+        int natural = 0, lifted = 0;
+        for (long seed = 1; seed <= 150; seed++)
+        {
+            var desc = new ServerConfig().World;
+            Assert.Equal(WorldDescription.CurrentTerrainGeneration, desc.TerrainGeneration);
+            var galaxy = new UniverseGenerator(seed, desc, _content, "varied").Generate();
+            var planets = galaxy.AllBodies().Where(b => b.Kind == CelestialKind.Planet).ToList();
+            var start = planets.FirstOrDefault(b => b.PlanetType == "varied") ?? planets[0];
+            start.PlanetType = "varied";
+            var cls = WorldConstants.SizeClassFor(start.Kind, start.PlanetType);
+            int before = WorldConstants.CircumferenceFor(start.Id, cls, start.SizeBias, seed, desc.TerrainGeneration);
+            var system = galaxy.Systems.Single(s => s.Id == start.SystemId);
+            UniverseGenerator.EnsureStartPlanetSize(system, start, seed, desc);
+            int size = WorldConstants.CircumferenceFor(start.Id, cls, start.SizeBias, seed, desc.TerrainGeneration);
+
+            Assert.True(size >= WorldConstants.StartPlanetMinCircumference, $"seed {seed}: start world {start.Id} sized {size}");
+            Assert.Equal(0, size % WorldConstants.ChunkSize);
+            if (before >= WorldConstants.StartPlanetMinCircumference)
+            {
+                natural++;
+                Assert.Equal(before, size); // a roomy start world keeps its own size
+            }
+            else
+            {
+                lifted++;
+                Assert.Equal(WorldConstants.StartPlanetCircumferenceFor(start.Id, seed), size);
+            }
+
+            if (SystemArchetypes.For(seed, system.Id, desc) == SystemArchetype.TwinWorlds)
+            {
+                var twin = system.Bodies.First(b => b.Kind == CelestialKind.Planet && b != start);
+                int twinSize = WorldConstants.CircumferenceFor(twin.Id, WorldConstants.WorldSizeClass.Planet, twin.SizeBias, seed, desc.TerrainGeneration);
+                Assert.True(Math.Abs(size - twinSize) <= WorldConstants.ChunkSize, $"seed {seed}: twins {size} vs {twinSize}");
+            }
+
+            seen.Add(size);
+        }
+
+        Assert.True(natural > 0 && lifted > 0, $"natural {natural}, lifted {lifted}");
+        Assert.True(seen.Count >= 40, $"only {seen.Count} start sizes over 150 worlds");
+
+        // An older generation never gets the floor: its start world keeps the classic size.
+        var old = new WorldDescription { StarSystemCount = 6, SystemVariance = true, TerrainGeneration = OldGen };
+        var oldGalaxy = new UniverseGenerator(9, old, _content, "varied").Generate();
+        var oldStart = oldGalaxy.AllBodies().First(b => b.Kind == CelestialKind.Planet);
+        float bias = oldStart.SizeBias;
+        UniverseGenerator.EnsureStartPlanetSize(oldGalaxy.Systems[0], oldStart, 9, old);
+        Assert.Equal(bias, oldStart.SizeBias);
+    }
+
+    [Fact]
     public void Server_SizesItsWorldsByTheSavesGeneration()
     {
         // The server's loaded world and a travelled-to world read the one world-aware size of the save.
@@ -209,6 +317,16 @@ public sealed class HashVarietyWorldsTests : IDisposable
             {
                 var start = server.Galaxy.FindBody(server.ActiveLocationId)!;
                 Assert.Equal(Expected(start, 4242, generation), server.World.Circumference);
+                if (generation >= Gen)
+                {
+                    Assert.True(server.World.Circumference >= WorldConstants.StartPlanetMinCircumference, "the start world is never small");
+                }
+                else
+                {
+                    Assert.Equal(
+                        WorldConstants.CircumferenceFor(start.Id, WorldConstants.SizeClassFor(start.Kind, start.PlanetType!), start.SizeBias),
+                        server.World.Circumference);
+                }
 
                 var other = server.Galaxy.Systems.Single(s => s.Id == start.SystemId).Bodies
                     .First(b => b.Id != start.Id && b.Kind is CelestialKind.Planet or CelestialKind.Moon && b.PlanetType is not null);

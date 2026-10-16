@@ -621,6 +621,10 @@ public sealed partial class GameServer
             {
                 UniverseGenerator.EnsureStartPlanetProperName(startSystem, start);
             }
+
+            // #2691: from generation 26 the start planet is never a small world (a size floor, re-derived on every load like
+            // the ring). Before LoadWorld, so the world is built at that size.
+            UniverseGenerator.EnsureStartPlanetSize(startSystem, start, _meta.Seed, _meta.Description);
             if (start.Status != GenerationStatus.Visited)
             {
                 start.Status = GenerationStatus.Visited;

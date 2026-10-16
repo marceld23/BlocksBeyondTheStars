@@ -405,6 +405,7 @@ public sealed partial class GameServer
     private void MigrateSettlementMemory(PlayerSession session)
     {
         MigrateLegacySettlementKeys(session); // #2693: name-only settlement keys → this body's keys (memory, wishes, chain places)
+        RebuildHeldBoardJobs(session);        // #2688: held board jobs of this world count again wherever the player stands
         var p = session.State;
         if (p.NpcMemory.Count == 0)
         {

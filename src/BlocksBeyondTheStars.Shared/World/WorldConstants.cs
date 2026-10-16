@@ -313,6 +313,27 @@ public static class WorldConstants
     /// (body id, seed) pair.</summary>
     private const ulong SizeSalt = 0x5123_C1C3_2691_0001UL;
 
+    /// <summary>Salt of the start planet's size draw (#2691), apart from the ordinary size roll.</summary>
+    private const ulong StartSizeSalt = 0x5123_C1C3_2691_0002UL;
+
+    /// <summary>The smallest walkable circumference of a generation-26 START planet (#2691, lead decision 2026-10-16). The
+    /// classic sizes gave every planet of system 0 11 760 blocks; seeded sizes draw from the whole 5 000–12 000 band, and a
+    /// world's settlement, structure and fauna density scale with its size — a small start world would cost new players
+    /// the village the tutorial's mission-board lesson needs. The start planet keeps its natural size when it is at least
+    /// this big, else it takes <see cref="StartPlanetCircumferenceFor"/>: still varied, always roomy.</summary>
+    public const int StartPlanetMinCircumference = 9600;
+
+    /// <summary>The size a generation-26 start planet takes when its natural size is below
+    /// <see cref="StartPlanetMinCircumference"/>: a seeded draw from the upper part of the planet band
+    /// (<see cref="StartPlanetMinCircumference"/> … 12 000), in whole chunks.</summary>
+    public static int StartPlanetCircumferenceFor(string bodyKey, long worldSeed)
+    {
+        (_, int hi) = SizeBandFor(WorldSizeClass.Planet);
+        ulong mixed = StableHashing.Mix64(StableHashing.Mixed(bodyKey ?? string.Empty, worldSeed) ^ StartSizeSalt);
+        int raw = StartPlanetMinCircumference + StableHashing.Index(mixed, hi - StartPlanetMinCircumference);
+        return Biased(WorldSizeClass.Planet, raw, 0f);
+    }
+
     /// <summary>The unbiased, unrounded base size of a body: the classic id hash below
     /// <see cref="WorldDescription.HashVarietyGeneration"/>, the seeded mixed hash from it.</summary>
     private static int BaseSize(string bodyKey, WorldSizeClass cls, long worldSeed, int terrainGeneration)

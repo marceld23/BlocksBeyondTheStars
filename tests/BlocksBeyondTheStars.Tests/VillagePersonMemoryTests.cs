@@ -169,15 +169,17 @@ public sealed class VillagePersonMemoryTests : IDisposable
     /// <summary>E6 (Marcel 2026-10-14): today's villager names are kept — but they come from ONE world-wide random stream,
     /// so any change to an earlier settlement's draws renames everyone after it. This pin makes such a change deliberate:
     /// when it fails, decide whether renaming the villagers of existing worlds is acceptable, then update the list.
-    /// The pinned worlds are EXISTING ones — generation 25: from generation 26 the bodies are sized by the world seed
-    /// (#2691), which moves the settlements of a new world and with them the draws, and new worlds may name freely.</summary>
+    /// Pinned per generation: from generation 26 the bodies are sized by the world seed (#2691), which moves the
+    /// settlements of a new world and with them the draws — the generation-25 rows are the EXISTING worlds, the
+    /// generation-26 row the worlds created today; a rename of either must be deliberate.</summary>
     [Theory]
-    [InlineData(1L)]
-    [InlineData(2L)]
-    public void VillagerNames_ArePinnedPerSeed(long seed)
+    [InlineData(1L, 25)]
+    [InlineData(2L, 25)]
+    [InlineData(1L, 26)]
+    [InlineData(2L, 26)]
+    public void VillagerNames_ArePinnedPerSeed(long seed, int generation)
     {
-        var server = Start($"names_{seed}", seed, out var repo,
-            terrainGeneration: BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1);
+        var server = Start($"names_{seed}_{generation}", seed, out var repo, terrainGeneration: generation);
         using (repo)
         {
             // The residents whose names come from the world-wide stream (not the professions, who draw from a generator of
@@ -190,20 +192,28 @@ public sealed class VillagePersonMemoryTests : IDisposable
                 .Select(n => n.Name + "|" + n.Role + "|" + n.Job)
                 .ToList();
             var actual = stream.Take(6).Concat(stream.Skip(Math.Max(6, stream.Count - 4))).ToArray();
-            string[] expected = PinnedNames(seed);
+            string[] expected = PinnedNames(seed, generation);
             Assert.True(expected.SequenceEqual(actual),
-                $"Villager names of seed {seed} changed — expected [{string.Join(", ", expected)}], got [{string.Join(", ", actual)}]");
+                $"Villager names of seed {seed} (generation {generation}) changed — expected [{string.Join(", ", expected)}], got [{string.Join(", ", actual)}]");
             server.Stop();
         }
     }
 
-    private static string[] PinnedNames(long seed) => seed switch
+    private static string[] PinnedNames(long seed, int generation) => (seed, generation) switch
     {
-        1 => new[]
+        // Seed 1 happens to draw the same names on both generations (its start world's settlements come out alike on the
+        // seeded size, #2691); seed 2's later draws — the last four — differ.
+        (1, _) => new[]
         {
             "Moust Gheizrullsko|vendor|vendor", "Kron Zuavroo|quartermaster|quartermaster", "Kloch Laishqukro|settler|gardener",
             "Zych Toozress|settler|craftsman", "Vhoth Groossspuvheek|settler|innkeeper", "Gheich Yeqiol|settler|",
             "Telae Klaskgroum|settler|", "Shooth Thoosill|settler|", "Phoutrioch Kruqum|settler|", "Kethourk Maeghill|settler|",
+        },
+        (_, >= 26) => new[]
+        {
+            "Ghuast Dromeyok|vendor|vendor", "Klush Manaephki|vendor|vendor", "Leng Truagruvrio|quartermaster|quartermaster",
+            "Briork Xeetuash|vendor|vendor", "Rooth Plaedruaqouph|quartermaster|quartermaster", "Qeek Drairkleerkplir|settler|gardener",
+            "Yakqeirn Shouvheisk|settler|", "Jualquach Zaestly|settler|", "Souplo Qemiokdrou|settler|", "Kistthul Kreneimeich|settler|",
         },
         _ => new[]
         {

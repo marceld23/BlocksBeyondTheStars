@@ -2641,7 +2641,18 @@ chunk pipeline reads the generation for this: the chunk goldens pass their circu
   the landing-pad map) read it through `BodySize.CircumferenceOf` (Client.Core) and never recompute it; an older server
   sends 0 and the client falls back to the classic size that server uses. An older *client* on a generation-26 world
   sizes the orbit and sky views of other bodies with the classic numbers — cosmetic only: the walkable world always
-  takes its circumference from the server (`WorldEnvironment` / `FarTerrainWorldInfo`).
+  takes its circumference from the server (`WorldEnvironment` / `FarTerrainWorldInfo`). A view whose body is missing
+  from the star map and is the world the player is on (the home body of the flight view, the pad map of the current
+  world) takes the server's own value from the environment message instead of the classic formula.
+- **Start planet floor (#2691, lead decision 2026-10-16).** The classic hash gave every planet of system 0 11 760 blocks;
+  seeded sizes draw from the whole 5 000–12 000 band, and a world's settlement, structure and fauna density scale with
+  its size (`sizeFactor = circ / 8000`), so the start world would have lost about 28 % of that density on average
+  and about 57 % at the low end — and the tutorial's mission-board lesson needs a
+  village. `UniverseGenerator.EnsureStartPlanetSize` (the server calls it in `BuildGalaxy` right after it picks the start
+  body, next to the start ring and proper name, so every load re-derives it) leaves a start planet of at least
+  `WorldConstants.StartPlanetMinCircumference` (9 600) alone and otherwise sets its size bias so it lands on
+  `StartPlanetCircumferenceFor(id, seed)` — a seeded draw from 9 600–12 000 in whole chunks. Start worlds still differ;
+  a twin start planet takes its twin along. Generation 25 and older: a no-op.
 - **Colour families (#2692).** The per-world sky hue and cloud jitter (`AtmosphereTints`), the flora base hue
   (`FloraTints.ForWorld`) and the "auto" water colour (`FluidTints.ForWorld`) hashed `h·31+c` of the location id XOR the
   low seed word, so neighbouring bodies ("sys0-p1", "sys0-p2") picked the same palette family 83–85 % of the time
@@ -2652,9 +2663,15 @@ chunk pipeline reads the generation for this: the chunk goldens pass their circu
   join told it (`OrbitLook.For(…, Game.TerrainGeneration)`; the planet-map bake already passed it to `FluidTints`).
   Gravity and the per-species flora colours are not part of this wave.
 
+**Bit-frozen from the first release.** A generation-26 save derives its terrain from the seeded circumference and
+re-stamps its settlements with the mixed picks, so `StableHashing`'s outputs and every generation-26 roll built on them
+can never change again (like `StableHash`): `StableHashingTests.Outputs_AreBitFrozen` / `MixedCropPick_IsBitFrozen` pin
+known answers, `HashVarietyWorldsTests.NewGeneration_SizesAndColours_AreBitFrozen` pins single sizes and colours and a
+hash over a whole generation-26 galaxy. A different roll needs a new function and a new generation.
+
 `HashVarietyWorldsTests` pins the classic sizes and tints (single values and a hash over a whole generation-25
 galaxy with archetypes) and shows the new spread: under 5 % of the systems keep all planets within one chunk, the
-same system index differs between seeds, lone giants, swarms and twins keep their identity, neighbouring bodies share
-a colour family about as often as chance. `BodySizeClientTests` runs the real client against the real server (object
+same system index differs between seeds, lone giants, swarms and twins keep their identity, the start planet is never
+below the floor yet varies between seeds, neighbouring bodies share a colour family about as often as chance. `BodySizeClientTests` runs the real client against the real server (object
 and encoded wire): every star-map body carries the server's size, the world you land on has it, and the orbit look the
 client paints for a body is the sky the server ships there.

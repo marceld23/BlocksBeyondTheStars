@@ -118,6 +118,7 @@ public sealed class MissionBoardVarietyTests : IClassFixture<MissionBoardVariety
         }
 
         Assert.True(SvGameServer.IsLegacySettlementPlace(SvGameServer.LegacySettlementPlaceKeyForTest("Karth Village")));
+        Assert.Equal($"settle_{(uint)WorldGenerator.StableHash("Karth Village") % 100000u}", SvGameServer.LegacySettlementPlaceKeyForTest("Karth Village")); // the old formula, read for held jobs
         Assert.False(SvGameServer.IsLegacySettlementPlace("settle_123_bounty"));
         Assert.False(SvGameServer.IsLegacySettlementPlace("station_123"));
     }
@@ -190,6 +191,15 @@ public sealed class MissionBoardVarietyTests : IClassFixture<MissionBoardVariety
 
         p.State.NpcMemory[legacy + ":quartermaster"] = new NpcRelationship { Name = "Old Friend", Role = "quartermaster", Value = 40 };
         p.State.NpcMemory[legacy + person] = new NpcRelationship { Name = "Tomas", Role = "settler", Value = 20 };
+        // The old LocationKeyOfMission cut a camp bounty's id at its LAST underscore: a stray quartermaster entry.
+        string stray = legacy + "_bounty_camp:quartermaster";
+        p.State.NpcMemory[stray] = new NpcRelationship
+        {
+            Name = "Old Friend",
+            Role = "quartermaster",
+            Value = 6,
+            Log = { new NpcInteraction { Kind = NpcInteractionKind.MissionAccepted }, new NpcInteraction { Kind = NpcInteractionKind.MissionAccepted } },
+        };
         p.State.NpcMemory[stranger] = new NpcRelationship { Name = "Far Away", Role = "quartermaster", Value = 30 };
         p.State.Milestones.Add("npcmig:" + legacy);
         p.State.Wishes[legacy] = new WishLedger { Lanes = { new WishLane { N = 2, Giver = legacy + person, LastGiver = legacy + "#bed@4.5.6:settler" } } };
@@ -199,7 +209,9 @@ public sealed class MissionBoardVarietyTests : IClassFixture<MissionBoardVariety
 
         server.MigrateLegacySettlementKeysForTest("Returner");
 
-        Assert.Equal(40, server.RelationshipValueForTest("Returner", place + ":quartermaster"));
+        Assert.Equal(46, server.RelationshipValueForTest("Returner", place + ":quartermaster")); // 40 + the stray bounties' 6
+        Assert.Equal(2, p.State.NpcMemory[place + ":quartermaster"].Log.Count);
+        Assert.False(p.State.NpcMemory.ContainsKey(stray));
         Assert.Equal(20, server.RelationshipValueForTest("Returner", place + person));
         Assert.DoesNotContain(p.State.NpcMemory.Keys, k => k.StartsWith(legacy, StringComparison.Ordinal));
         Assert.True(p.State.NpcMemory.ContainsKey(stranger)); // a name that is not on this body waits for its own body
@@ -221,6 +233,143 @@ public sealed class MissionBoardVarietyTests : IClassFixture<MissionBoardVariety
         var before = p.State.NpcMemory.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList();
         server.MigrateLegacySettlementKeysForTest("Returner");
         Assert.Equal(before, p.State.NpcMemory.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList());
+    }
+
+    [Fact]
+    public void HeldOldSurvey_CountsAwayFromTheBoard_AlsoAfterARestart()
+    {
+        var server = _w.Server;
+        var p = server.AddLocalPlayer("Surveyor");
+        p.State.Position = new Shared.Geometry.Vector3f(_w.BoardPos.X + 1500f, _w.BoardPos.Y, _w.BoardPos.Z + 1500f); // far from any board
+        string survey = SvGameServer.LegacySettlementPlaceKeyForTest(_w.Name) + "_s0";
+        string newGather = server.SettlementLocationKeyForTest(_w.Name) + "_7"; // a held new job beyond the stocked window
+        p.State.Missions.Add(new MissionProgress { MissionId = survey, Status = MissionStatus.Active, ObjectiveProgress = { 0 } });
+        p.State.Missions.Add(new MissionProgress { MissionId = newGather, Status = MissionStatus.Active, ObjectiveProgress = { 0 } });
+
+        for (int restart = 0; restart < 2; restart++)
+        {
+            // A restart forgets every coined board job; the world entry gives the held ones back, wherever the player stands.
+            server.ForgetMissionDefForTest(survey);
+            server.ForgetMissionDefForTest(newGather);
+            server.MigrateNpcMemoryForTest("Surveyor");
+            var def = server.MissionDefForTest(survey);
+            Assert.NotNull(def);
+            Assert.NotNull(server.MissionDefForTest(newGather));
+
+            var obj = def!.Objectives[0];
+            string target = obj.Target;
+            int colon = target.IndexOf(':');
+            server.SimulateScanForTest(p, colon > 0 ? target[..colon] : target, "anything", hostile: target.EndsWith(":hostile", StringComparison.Ordinal), firstTime: true);
+            Assert.Equal(Math.Min(restart + 1, obj.Required), p.State.Missions.First(m => m.MissionId == survey).ObjectiveProgress[0]);
+        }
+    }
+
+    [Fact]
+    public void WishLedgers_Merge_WhenTheNewPlaceHasOneAlready()
+    {
+        var server = _w.Server;
+        var p = _w.PlayerAtBoard("Merger");
+        string legacy = SvGameServer.LegacySettlementPlaceKeyForTest(_w.Name);
+        string place = server.SettlementLocationKeyForTest(_w.Name);
+        string Wish(string key, int lane, int n) => "wish_" + key.Substring("settle_".Length) + "_0decade1_" + lane + "_" + n;
+
+        p.State.Wishes[place] = new WishLedger { Done = 1, Lanes = { new WishLane { N = 3, LastGiver = place + "#bed@9.9.9:settler" } } };
+        p.State.Wishes[legacy] = new WishLedger
+        {
+            Done = 2,
+            Lanes = { new WishLane { N = 1, Giver = legacy + "#bed@1.1.1:settler" }, new WishLane { N = 4, Giver = legacy + "#bed@2.2.2:settler" } },
+        };
+        foreach (string id in new[] { Wish(legacy, 0, 1), Wish(legacy, 1, 4) })
+        {
+            p.State.Missions.Add(new MissionProgress { MissionId = id, Status = MissionStatus.Active, ObjectiveProgress = { 0 } });
+            server.AddMissionDefForTest(new MissionDefinition { Id = id, Source = MissionSource.System, Active = true });
+        }
+
+        server.MigrateLegacySettlementKeysForTest("Merger");
+
+        Assert.False(p.State.Wishes.ContainsKey(legacy));
+        var ledger = p.State.Wishes[place];
+        Assert.Equal(3, ledger.Done);
+        Assert.Equal(2, ledger.Lanes.Count);
+        Assert.Equal(place + "#bed@1.1.1:settler", ledger.Lanes[0].Giver); // the held wish comes over …
+        Assert.Equal(3, ledger.Lanes[0].N);                                  // … on the higher counter (no id minted twice)
+        Assert.Equal(place + "#bed@2.2.2:settler", ledger.Lanes[1].Giver);
+        foreach (string id in new[] { Wish(place, 0, 3), Wish(place, 1, 4) })
+        {
+            Assert.Contains(p.State.Missions, m => m.MissionId == id);
+            Assert.Equal(id, server.MissionDefForTest(id)?.Id);
+        }
+
+        Assert.DoesNotContain(p.State.Missions, m => m.MissionId.StartsWith("wish_" + legacy.Substring("settle_".Length) + "_", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WishLedgers_Merge_KeepsTheNewHeldWish_WhenBothLanesHoldOne()
+    {
+        var server = _w.Server;
+        var p = _w.PlayerAtBoard("Dropper");
+        string legacy = SvGameServer.LegacySettlementPlaceKeyForTest(_w.Name);
+        string place = server.SettlementLocationKeyForTest(_w.Name);
+        string oldWish = "wish_" + legacy.Substring("settle_".Length) + "_0beefed2_0_1";
+        string newWish = "wish_" + place.Substring("settle_".Length) + "_0beefed2_0_5";
+
+        p.State.Wishes[place] = new WishLedger { Lanes = { new WishLane { N = 5, Giver = place + "#bed@3.3.3:settler" } } };
+        p.State.Wishes[legacy] = new WishLedger { Lanes = { new WishLane { N = 1, Giver = legacy + "#bed@1.1.1:settler" } } };
+        foreach (string id in new[] { oldWish, newWish })
+        {
+            p.State.Missions.Add(new MissionProgress { MissionId = id, Status = MissionStatus.Active, ObjectiveProgress = { 0 } });
+            server.AddMissionDefForTest(new MissionDefinition { Id = id, Source = MissionSource.System, Active = true });
+        }
+
+        server.MigrateLegacySettlementKeysForTest("Dropper");
+
+        Assert.False(p.State.Wishes.ContainsKey(legacy)); // no orphaned ledger keeps the migration busy forever
+        Assert.Equal(place + "#bed@3.3.3:settler", p.State.Wishes[place].Lanes[0].Giver);
+        Assert.Contains(p.State.Missions, m => m.MissionId == newWish);
+        Assert.DoesNotContain(p.State.Missions, m => m.MissionId == oldWish);
+        Assert.Null(server.MissionDefForTest(oldWish));
+    }
+
+    [Fact]
+    public void OldNews_MovesOntoThePlacesBodyAwareKey()
+    {
+        var server = _w.Server;
+        _w.PlayerAtBoard("Reader");
+        int reporter = server.SpawnVillagerForTest(_w.Name, _w.BoardPos, job: "reporter");
+        server.AddNewsArticleForTest("s:" + _w.Name, "Oldie", "A story from before the update.", at: 0);
+
+        Assert.Contains("• Oldie: A story from before the update.", server.NewsDigestForTest("Reader", reporter));
+        Assert.Contains(server.NewsForTest, a => a.Place == "s:" + server.SettlementLocationKeyForTest(_w.Name) && a.PlayerName == "Oldie");
+        Assert.DoesNotContain(server.NewsForTest, a => a.Place == "s:" + _w.Name);
+    }
+
+    [Fact]
+    public void ChainGiver_IsStillCoinedFromTheOldKey()
+    {
+        // A chain giver nobody named yet keeps the name the old name-only place key coined for them.
+        var server = _w.Server;
+        string legacy = SvGameServer.LegacySettlementPlaceKeyForTest(_w.Name);
+        string expected = NameGenerator.Person(new System.Random(unchecked((int)WorldGenerator.StableHash("giver:" + legacy))));
+        Assert.Equal(expected, server.ChainGiverFallbackNameForTest(server.SettlementLocationKeyForTest(_w.Name)));
+    }
+
+    /// <summary>
+    /// Known answers: the place key and the new board rolls are SAVE DATA (memory keys, mission ids, wish ledgers; a held
+    /// job is coined again from its id after every load). Any change here renames people and morphs held jobs in every
+    /// save — it must be a deliberate migration, never an accident.
+    /// </summary>
+    [Fact]
+    public void PlaceKeysAndBoardRolls_ArePinned()
+    {
+        Assert.Equal("settle_473276369", SvGameServer.SettlementLocationKeyFor("sys0-p1", "Karth Village", 4242));
+        Assert.Equal("settle_135404181", SvGameServer.SettlementLocationKeyFor("sys3-p2-m0", "Vega Town", -7));
+        Assert.Equal("settle_102956756", SvGameServer.SettlementLocationKeyFor("sys0-p0", "Mira Hamlet", 1));
+
+        string picks = string.Join(",", Enumerable.Range(0, 8).Select(slot =>
+            SvGameServer.BoardRng("settle_512345678", "mission", slot, legacy: false, 4242).Next(GatherTemplates)));
+        Assert.Equal("5,1,4,1,5,1,2,5", picks);
+        Assert.Equal(2045631227, SvGameServer.BoardRng("sys0-st", "scanmission", 3, legacy: false, 4242).Next());
+        Assert.Equal(1625932830, SvGameServer.BoardRng("settle_512345678", "bounty", "1:2", legacy: false, 4242).Next());
     }
 
     /// <summary>The pre-#2688 gather roll, restated from the old code: template = Next(7), required = max(3, target + Next(-2, 4)).</summary>

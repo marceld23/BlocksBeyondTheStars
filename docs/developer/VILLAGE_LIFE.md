@@ -22,7 +22,10 @@ the villagers' person keys `settle_<n>#bed@x.y.z:settler`), the wish ledger and 
 chain step was taken at (`MissionProgress.AcceptedFrom`). Since #2693 `<n>` is a nine-digit hash of **body and name salted
 with the world seed** (`SettlementLocationKeyFor`, `GameServerSettlementKeys.cs`) — names repeat (about 45 per tier, unique
 per body only), so the old name-only key (at most five digits) gave two "Karth Village" on two moons one board, one set of
-mission ids and one memory. Station keys (`station_<n>`, from the station id) were unique already and stay.
+mission ids and one memory. Station keys (`station_<n>`, from the station id) were unique already and stay. The key is
+save data — known-answer tests pin it (`MissionBoardVarietyTests`). A place's interview articles are filed under
+`s:<place key>` in `WorldMetadata.News` (one table for every body; a lodge's under `l:<body>|<lodge>`); the per-world
+`NewsPlaceKey` (`s:<name>`) only scopes the chatter state, and old articles under it move over on first use.
 
 **Board rolls** (#2688) seed `System.Random` from `StableHashing.Seed32(key, worldSeed)` (`BoardRng`) instead of the low
 bits of the plain FNV hash: consecutive slots used to draw almost the same first number (a board echoed itself after four
@@ -30,15 +33,22 @@ jobs in most cases) and a board was the same in every world. Board jobs are neve
 from its id after every load — so the new rolls run on **new ids**: a settlement board under its new place key, a station
 or base board on its own `m` stream (`station_<n>_m3`, `…_ms0`, `…_mc0`, `home_<n>_m0`). The old ids keep the old rolls
 (`legacy: true`): `EnsureLegacyBoardStreams` re-coins what a player still holds there and finishes a big order they
-started, but offers nothing new. Bounty rewards roll per world too (their definition is stored when taken).
+started, but offers nothing new. On world entry `RebuildHeldBoardJobs` coins every job the player holds on a settlement or
+base board of this world (old and new ids) wherever they stand, so a held survey or build job keeps counting after a
+restart (a base board waits for its quartermaster, whose name the jobs carry; `RefreshBaseMarkers` catches up). Bounty
+rewards roll per world too (their definition is stored when taken).
 
 **Migration** (`MigrateLegacySettlementKeys`, on world entry before the #2598 one): what the save files under an old key
-moves to the key of the settlement of that name on the body the player enters — memory entries (person keys included),
+moves to the key of the settlement of that name on the body the player enters — memory entries (person keys included;
+the stray `settle_<n>_bounty…:quartermaster` entries the old mission-id parsing wrote are added onto the quartermaster),
 the `npcmig:` marker, the wish ledger (its villagers' keys) with the held wish renamed onto the new place (its stored
-definition too), and `AcceptedFrom`. An old key cannot say which body it meant: the first namesake the player enters
-after the update inherits it (moved, not copied — a copy would list a person twice and cannot split one held wish or one
-running chain). A name that is not on this body waits for its own. Quartermaster names (`CoinGiverName`) and a
-settlement's trade (`SettlementTradeFor`) still come from the name alone — they name living NPCs players know.
+definition too), and `AcceptedFrom`. Should the new place already have a ledger, the two merge lane by lane (a held old
+wish comes over onto the higher counter; where both lanes hold one, the new one stays). An old key cannot say which body
+it meant: the first namesake the player enters after the update inherits it (moved, not copied — a copy would list a
+person twice and cannot split one held wish or one running chain). A name that is not on this body waits for its own.
+Quartermaster names (`CoinGiverName`), a chain giver nobody has named yet (coined from the old place key,
+`ChainGiverFallbackName`) and a settlement's trade (`SettlementTradeFor`) still come from the name — they name living NPCs
+players know.
 
 ## Festival (#2604)
 

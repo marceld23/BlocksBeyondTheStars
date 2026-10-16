@@ -75,6 +75,14 @@ public sealed partial class GameServer
             {
                 StockBoard(BaseBoardPrefix(b) + MixedRollsInfix, BaseBoardKey(b), idx.MissionIds, qm.Name, withBuild: true); // #2688
                 idx.BoardStocked = true;
+
+                // #2688: the quartermaster is here — the jobs the players on this world hold on this board count again
+                // (a world entry before they arrived could not coin them: the jobs carry their name).
+                var scratch = new HashSet<string>(System.StringComparer.Ordinal);
+                foreach (var session in JoinedInActiveWorld())
+                {
+                    RebuildHeldBaseJobs(session.State, b, idx, qm.Name, scratch);
+                }
             }
         }
 

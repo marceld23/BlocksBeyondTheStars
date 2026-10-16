@@ -43,8 +43,21 @@ Package label `package: hash variety 2026-10`.
 - **Settlements (#2689, #2690):** greenhouse crops (`CropIndex`) and the authored-module roll use the mixed hash; a
   placement record carries `HashRevision` (0 = legacy pick, 1 = mixed) because a settlement can be re-stamped (pre-#1990
   saves, a crash mid-stamp) — stamped settlements keep their crops; pinned compositions replay unchanged, pre-#1872
-  records keep the legacy roll. Single-crop settlements 54 % → 28 %, three crops now occur.
-- ⚠ Open: playtest; release notes (mission boards look different, big-order progress restarts).
+  records keep the legacy roll. Single-crop settlements in the test sample (200 town/city seeds) 54 % → 28 % (chance
+  ≈ 25 %; the analysis measured 62 % for settlements with two or more greenhouses), three crops now occur.
+- **Terrain generation 26 (#2691, #2692) — new saves only:** body sizes come from `StableHashing.Mixed(key, worldSeed)`
+  (before: all planets of a standard system within one chunk, `sys0` = 11760 in every world); the server sends the size
+  as `NetBody.Circumference` (0 = older server → classic formula, `Client.Core/Planets/BodySize`); sky/cloud, flora-base
+  and auto-water tint families use the mixed hash. Gen ≤ 25 keeps every size and tint bit-for-bit (pinned in
+  `HashVarietyWorldsTests`); the start planet keeps a floor (`StartPlanetMinCircumference` 9600, seeded draw up to
+  12000) so new players still start on a roomy world; gen-26 outputs and `StableHashing` are pinned as known answers
+  (bit-frozen once shipped). Tests standing on fixed coordinates of a default world are pinned to gen 25.
+- ⚠ Side finding (not done, ask Marcel): SPS labs on Titas often sit under the frozen sea, so their "open" ship pads count
+  as roofed (no air, −90 °C) — on gen 25 and 26 alike.
+- ⚠ Open: playtest (a NEW world: planet sizes in a system, sky colours; old world unchanged); release notes (mission
+  boards look different, big-order progress restarts; new worlds = gen 26); an older client on a gen-26 server draws
+  other bodies' orbit spheres with the classic sizes (cosmetic). Follow-ups not done: gravity per world (`GravityFor`,
+  h·31 ^ seed), per-species `FloraTints.For`/`ForWood`, quartermaster names / settlement trade still from the name alone.
 
 ---
 

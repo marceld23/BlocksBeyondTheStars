@@ -59,6 +59,10 @@ public sealed class GiantNaturalSpawnTests : IDisposable
             AutoSaveIntervalMinutes = 9999,
             PlaceStarterShip = false,
         };
+        // The spawn ring and the roam that follows are measured on the seeds' own ground (the sea's extent, the worm's path
+        // under it); from generation 26 the start world's size — and with it that ground — is seeded by the world (#2691).
+        // The spawn rules under test do not depend on it, so the worlds keep the generation the ranges were measured on.
+        config.World.TerrainGeneration = BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1;
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;

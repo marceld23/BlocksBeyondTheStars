@@ -208,7 +208,7 @@ public sealed partial class GameServer
                 }
 
                 if (TryNpcRadioCall(session, npcKey, CoinGiverName(s.Name), s.Name, bodyId,
-                        $"camp:{s.Name}:{camp.Key}", "npc.call.camp", string.Empty, isMission: true))
+                        $"camp:{SettlementLocationKey(s.Name)}:{camp.Key}", "npc.call.camp", string.Empty, isMission: true)) // #2693: per body (a runtime cooldown)
                 {
                     // Remember who called: clearing the camp now pays a friendship bonus (#1158).
                     session.CalledCamps[camp.Key] = (npcKey, CoinGiverName(s.Name), s.Name);

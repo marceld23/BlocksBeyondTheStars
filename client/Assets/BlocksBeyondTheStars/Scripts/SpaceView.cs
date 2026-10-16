@@ -2018,10 +2018,12 @@ namespace BlocksBeyondTheStars.Client
             string locName = !string.IsNullOrEmpty(body?.Name)
                 ? PlanetOrbitLook.LocationKeyFor(bodySystem, body.Name)
                 : Game?.LocationName ?? string.Empty;
-            // #2691: the server's size of the body (seeded by the world from terrain generation 26) — the classic size
-            // only when an older server sent none.
+            // #2691: the server's size of the body (seeded by the world from terrain generation 26). Missing from the star
+            // map: the world we are on takes the size the server sent for it; the classic size only for anything else.
+            bool padIsHere = string.IsNullOrEmpty(_choosePadBody) || _choosePadBody == Game?.StarMap?.ActiveLocationId;
             int circ = BodySize.CircumferenceOf(body,
-                !string.IsNullOrEmpty(_choosePadBody) ? _choosePadBody : Game?.LocationName ?? "home", body?.Kind, typeKey);
+                !string.IsNullOrEmpty(_choosePadBody) ? _choosePadBody : Game?.LocationName ?? "home", body?.Kind, typeKey,
+                padIsHere ? (Game?.Circumference ?? 0) : 0);
             int latP = WorldConstants.LatitudePeriodFor(circ);
 
             var mapGo = new GameObject("PadMap", typeof(RectTransform));
@@ -4175,7 +4177,9 @@ namespace BlocksBeyondTheStars.Client
             // Every body has its own size (the server's walkable circumference, #2691 — incl. the archetype bias), so
             // worlds + moons look big or small in orbit instead of all identical — an approximate reflection of how varied
             // they are.
-            int homeCirc = BodySize.CircumferenceOf(current, current?.Id ?? Game?.LocationName ?? "home", current?.Kind, current?.PlanetType);
+            // The home body IS the world we launched from: missing from the star map, it takes the size the server sent for it.
+            int homeCirc = BodySize.CircumferenceOf(current, current?.Id ?? Game?.LocationName ?? "home", current?.Kind, current?.PlanetType,
+                Game?.Circumference ?? 0);
             float homeDiameter = OrbitDiameterFor(homeCirc) * 3.2f;
             // Label the home body by what the star map calls it; LocationName only as a fallback — after an
             // in-flight hyperjump it still named the DEPARTURE planet, so the alien anchor world was drawn and

@@ -97,4 +97,42 @@ public sealed class StableHashingTests
         Assert.Equal(0, StableHashing.Index("anything", 1));
         Assert.Equal(0, StableHashing.Index("anything", 0));
     }
+
+    /// <summary>Known answers: the outputs are bit-frozen once shipped (generation-26 planet sizes, colour families and
+    /// re-stamped settlement picks derive from them). If one of these moves, every such save changes under its players —
+    /// a different mixing needs a new function and a new generation, never an edit here.</summary>
+    [Fact]
+    public void Outputs_AreBitFrozen()
+    {
+        Assert.Equal(0UL, StableHashing.Mix64(0UL));
+        Assert.Equal(0x5692161D100B05E5UL, StableHashing.Mix64(1UL)); // the published SplitMix64 finaliser of 1
+        Assert.Equal(0x4E062702EC929EEAUL, StableHashing.Mix64(0xDEADBEEFUL));
+        Assert.Equal(0x552D3FB62B3C344FUL, StableHashing.Mixed(string.Empty));
+        Assert.Equal(0x3B8D438D77067224UL, StableHashing.Mixed("sys0-p0"));
+        Assert.Equal(0x8D3779EB09668427UL, StableHashing.Mixed("sys0-p0", 42L));
+        Assert.Equal(0x6811050A326802CFUL, StableHashing.Mixed("sys0-p0", -7L));
+
+        Assert.Equal(99, StableHashing.Index(0xFEDCBA9876543210UL, 100)); // the high 32 bits, multiply-shift
+        Assert.Equal(5, StableHashing.Index(0x8000000000000000UL, 10));
+        Assert.Equal(2, StableHashing.Index("crop:12:34:7", 7));
+        Assert.Equal(431, StableHashing.Index("sys1-p3", 42L, 1000));
+
+        Assert.Equal(0.0, StableHashing.Unit(0UL));
+        Assert.Equal((double)((1UL << 53) - 1) / (1UL << 53), StableHashing.Unit(ulong.MaxValue)); // the top 53 bits
+        Assert.Equal(0.12283818626435739, StableHashing.Unit("fauna:3"));
+        Assert.Equal(0.643039836153508, StableHashing.Unit("fauna:3", 9L));
+
+        Assert.Equal(215891466, StableHashing.Seed32("Karth Village:mission:4"));
+        Assert.Equal(-1573868566, StableHashing.Seed32("Karth Village:mission:4", 9L));
+    }
+
+    [Fact]
+    public void MixedCropPick_IsBitFrozen()
+    {
+        // #2689: a placement record with HashRevision 1 re-stamps its greenhouses with this pick on every load.
+        Assert.Equal(1, SettlementGenerator.CropIndex("1", 42, 0, 5, legacy: false));
+        Assert.Equal(0, SettlementGenerator.CropIndex("1", 42, 1, 5, legacy: false));
+        Assert.Equal(6, SettlementGenerator.CropIndex("2", 4242, 3, 7, legacy: false));
+        Assert.Equal(3, SettlementGenerator.CropIndex("3", -9, 2, 4, legacy: false));
+    }
 }

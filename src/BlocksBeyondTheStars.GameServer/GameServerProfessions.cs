@@ -247,7 +247,7 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (!s.StreamerAskedToday.Add(day + "|" + NewsPlaceKey(npc)))
+                if (!s.StreamerAskedToday.Add(day + "|" + NewsKey(npc))) // #2693: a namesake on another body asks again
                 {
                     continue;
                 }
@@ -281,6 +281,43 @@ public sealed partial class GameServer
     private string NewsPlaceKey(ServerNpc npc)
         => npc.Settlement.Length > 0 ? "s:" + npc.Settlement : npc.BaseId > 0 ? "b:" + npc.BaseId
             : npc.LodgeKey.Length > 0 ? "l:" + npc.LodgeKey : "w:" + _world.LocationId;
+
+    /// <summary>
+    /// #2693: the key a place's interview articles are stored under in the save (<see cref="WorldMetadata.News"/>, one table
+    /// for every body). <see cref="NewsPlaceKey"/> is unique within a world only — a settlement's name and a lodge's cell
+    /// repeat on other bodies — so a settlement files under its body-aware place key and a lodge under its world.
+    /// </summary>
+    private string NewsKey(ServerNpc npc)
+        => npc.Settlement.Length > 0 ? "s:" + SettlementLocationKey(npc.Settlement)
+            : npc.BaseId == 0 && npc.LodgeKey.Length > 0 ? "l:" + _world.LocationId + "|" + npc.LodgeKey
+            : NewsPlaceKey(npc);
+
+    /// <summary>The interview articles of an NPC's place (<see cref="NewsKey"/>). Articles a save still files under the old
+    /// per-world key (<see cref="NewsPlaceKey"/>, before #2693) move over on first use — the first namesake asked inherits
+    /// them. Null when there are none and <paramref name="create"/> is false.</summary>
+    private List<NewsArticle>? NewsArticlesOf(ServerNpc npc, bool create)
+    {
+        string key = NewsKey(npc);
+        if (_meta.News.TryGetValue(key, out var list))
+        {
+            return list;
+        }
+
+        string legacy = NewsPlaceKey(npc);
+        if (legacy != key && _meta.News.Remove(legacy, out list))
+        {
+            _meta.News[key] = list;
+            return list;
+        }
+
+        if (!create)
+        {
+            return null;
+        }
+
+        _meta.News[key] = list = new List<NewsArticle>();
+        return list;
+    }
 
     /// <summary>The latest news of the teller's place, newest first, for the "read the news" answer — the reporter's and
     /// (#2599, E13) the innkeeper's: the place's interviews and the deeds of this world that concern it
@@ -331,12 +368,7 @@ public sealed partial class GameServer
             return;
         }
 
-        string key = NewsPlaceKey(npc);
-        if (!_meta.News.TryGetValue(key, out var list))
-        {
-            _meta.News[key] = list = new List<NewsArticle>();
-        }
-
+        var list = NewsArticlesOf(npc, create: true)!; // #2693: filed per body
         list.Add(new NewsArticle { PlayerName = session.State.Name, Text = text!, Day = MarketDay, At = System.Math.Max(1, _meta.CumulativePlaytimeSeconds) });
         while (list.Count > NewsArticle.MaxPerPlace)
         {

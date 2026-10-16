@@ -1219,7 +1219,7 @@ public sealed partial class GameServer
     private List<NewsStory> LatestNews(ServerNpc npc, int count)
     {
         var stories = new List<NewsStory>();
-        if (_meta.News.TryGetValue(NewsPlaceKey(npc), out var articles))
+        if (NewsArticlesOf(npc, create: false) is { } articles) // #2693: filed per body
         {
             for (int i = 0; i < articles.Count; i++)
             {

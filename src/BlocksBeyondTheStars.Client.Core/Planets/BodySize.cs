@@ -32,10 +32,22 @@ namespace BlocksBeyondTheStars.Client
         /// id) in the class of <paramref name="kind"/> / <paramref name="planetType"/> — the exact numbers every view
         /// computed before #2691, so an older server's worlds keep matching.</summary>
         public static int CircumferenceOf(NetBody? body, string fallbackId, string? kind, string? planetType)
+            => CircumferenceOf(body, fallbackId, kind, planetType, currentWorldCircumference: 0);
+
+        /// <summary>As <see cref="CircumferenceOf(NetBody?, string, string?, string?)"/> for a fallback that IS the world
+        /// the player is on: when the star map has no size for it, <paramref name="currentWorldCircumference"/> — the
+        /// server's own value for that world (the environment message) — beats the classic formula, which a generation-26
+        /// server no longer uses. 0 (unknown) falls through to the classic size.</summary>
+        public static int CircumferenceOf(NetBody? body, string fallbackId, string? kind, string? planetType, int currentWorldCircumference)
         {
             if (body != null && body.Circumference > 0)
             {
                 return body.Circumference;
+            }
+
+            if (currentWorldCircumference > 0)
+            {
+                return currentWorldCircumference;
             }
 
             string key = !string.IsNullOrEmpty(body?.Id) ? body!.Id : fallbackId ?? string.Empty;

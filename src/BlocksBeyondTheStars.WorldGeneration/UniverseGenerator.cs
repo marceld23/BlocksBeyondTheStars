@@ -853,6 +853,41 @@ public sealed class UniverseGenerator
     /// <summary>Seeded orbit direction: mostly prograde (+1), ~20% retrograde (-1), so a system mixes both.</summary>
     private float OrbitSign(long a, long b, long c) => Hash01(a, b, c) < 0.2f ? -1f : 1f;
 
+    /// <summary>Start-planet size floor (#2691, generation 26): a seeded size draws from the whole planet band, and a
+    /// small start world would thin out the settlements, structures and fauna a new player meets first. When the start
+    /// planet's natural size (archetype bias included) is below <see cref="WorldConstants.StartPlanetMinCircumference"/>,
+    /// its size bias is set so it lands on <see cref="WorldConstants.StartPlanetCircumferenceFor"/> — a seeded draw from
+    /// the upper part of the band, so start worlds still differ. A twin start planet takes its twin along (#549). Called by
+    /// the server right after it picks the start body, like <see cref="EnsureStartPlanetRings"/>; the bias is not
+    /// persisted, every load re-derives it. A no-op below generation 26, for anything that is not a planet-class body,
+    /// and for a start planet that is roomy already.</summary>
+    public static void EnsureStartPlanetSize(StarSystem? system, CelestialBody start, long seed, WorldDescription description)
+    {
+        int generation = description.TerrainGeneration;
+        var cls = WorldConstants.SizeClassFor(start.Kind, start.PlanetType ?? string.Empty);
+        if (start.Kind != CelestialKind.Planet || cls != WorldConstants.WorldSizeClass.Planet
+            || !WorldConstants.HasSeededSizes(generation)
+            || WorldConstants.CircumferenceFor(start.Id, cls, start.SizeBias, seed, generation) >= WorldConstants.StartPlanetMinCircumference)
+        {
+            return;
+        }
+
+        int target = WorldConstants.StartPlanetCircumferenceFor(start.Id, seed);
+        start.SizeBias = WorldConstants.BiasToward(start.Id, cls, target, seed, generation);
+        if (system is null || SystemArchetypes.For(seed, system.Id, description) != SystemArchetype.TwinWorlds)
+        {
+            return;
+        }
+
+        var twins = system.Bodies.Where(b => b.Kind == CelestialKind.Planet).ToList();
+        if (twins.Count == 2)
+        {
+            var other = ReferenceEquals(twins[0], start) ? twins[1] : twins[0];
+            int size = WorldConstants.CircumferenceFor(start.Id, cls, start.SizeBias, seed, generation);
+            other.SizeBias = WorldConstants.BiasToward(other.Id, WorldConstants.WorldSizeClass.Planet, size, seed, generation);
+        }
+    }
+
     /// <summary>Planet types that ring more often (#596) — icy/crystalline worlds, because real
     /// planetary rings are mostly water ice.</summary>
     private static bool IsRingProneType(string? planetType)

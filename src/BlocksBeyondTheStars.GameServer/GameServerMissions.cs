@@ -265,7 +265,7 @@ public sealed partial class GameServer
 
         if (IsChainMission(def))
         {
-            OnChainStepAccepted(session, def, ChainGiverKey(def, place), string.IsNullOrEmpty(def.GiverName) ? CoinGiverName(place) : def.GiverName); // #1212
+            OnChainStepAccepted(session, def, ChainGiverKey(def, place), string.IsNullOrEmpty(def.GiverName) ? ChainGiverFallbackName(place) : def.GiverName); // #1212
         }
 
         OnBountyAccepted(session, def); // #730/#731: persist the def + reveal a camp bounty's camp on the map
@@ -964,7 +964,7 @@ public sealed partial class GameServer
 
             // #2693: the board lives under the settlement's body-aware key, and its rolls are seeded per world (#2688);
             // what the player took under the old name-only key is still coined from the old rolls.
-            string key = SettlementLocationKey(s.Name);
+            string key = SettlementPlaceKey(s);
             string prefix = key + "_";
             string giver = CoinGiverName(s.Name);
             EnsureLegacyBoardStreams(player, LegacySettlementBoardPrefix(s.Name), s.Name, s.MissionIds, giver, currentBoardIds, station: false, withBuild: true);
