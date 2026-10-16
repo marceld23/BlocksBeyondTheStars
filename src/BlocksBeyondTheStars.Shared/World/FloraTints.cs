@@ -82,17 +82,28 @@ public static class FloraTints
     /// leafy green but some are strikingly alien. The server ships it in the environment message (the block
     /// shader's fallback for a flora face without a species tint; the micro-fauna borrow it), and it used to
     /// live there alone — #1716 moved the formula next to the per-species colours so the two flora colour
-    /// sources are one file with one seed convention. The hash is the server's historical one
-    /// (<c>h*31+c</c> over the location id, XOR the low seed word), so every existing world keeps its hue.</summary>
-    public static int ForWorld(long worldSeed, string? locationKey)
+    /// sources are one file with one seed convention. Below <see cref="WorldDescription.HashVarietyGeneration"/> the
+    /// hash is the server's historical one (<c>h*31+c</c> over the location id, XOR the low seed word), so every
+    /// existing world keeps its hue; from it (#2692) the mixed hash of (location, seed) picks the family, so
+    /// neighbouring bodies no longer share it five times in six. <paramref name="terrainGeneration"/> is the SAVE's.</summary>
+    public static int ForWorld(long worldSeed, string? locationKey, int terrainGeneration)
     {
-        int h = 17;
-        foreach (char c in locationKey ?? string.Empty)
+        uint mix;
+        if (AtmosphereTints.HasMixedTints(terrainGeneration))
         {
-            h = unchecked(h * 31 + c);
+            mix = AtmosphereTints.MixedWord(worldSeed, locationKey, WorldHueSalt);
+        }
+        else
+        {
+            int h = 17;
+            foreach (char c in locationKey ?? string.Empty)
+            {
+                h = unchecked(h * 31 + c);
+            }
+
+            mix = unchecked((uint)(h ^ (int)worldSeed ^ 0x2F0A17));
         }
 
-        uint mix = unchecked((uint)(h ^ (int)worldSeed ^ 0x2F0A17));
         int total = 0;
         foreach (var (_, w) in WorldPalette)
         {
@@ -120,6 +131,9 @@ public static class FloraTints
         int Jit(int shift) => (int)((mix >> shift) & 0x1F) - 16; // -16..+15
         return (Clamp8b(r + Jit(3)) << 16) | (Clamp8b(g + Jit(8)) << 8) | Clamp8b(b + Jit(13));
     }
+
+    /// <summary>Salt of the generation-26 world hue roll (#2692).</summary>
+    private const ulong WorldHueSalt = 0x2692_0000_F10A_0003UL;
 
     private static int Clamp8b(int v) => v < 0 ? 0 : (v > 255 ? 255 : v);
 

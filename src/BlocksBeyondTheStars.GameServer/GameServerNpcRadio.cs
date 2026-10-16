@@ -376,9 +376,10 @@ public sealed partial class GameServer
     private void NpcRadioOnBoardTurnIn(PlayerSession session, string missionId, string giverName)
     {
         string place = NpcPlaceFor(session.State);
-        TryNpcRadioCall(session, NpcKey(LocationKeyOfMission(missionId), "quartermaster"), giverName,
+        string location = MemoryLocationOfBoardMission(missionId); // #2693: a job held from before names its place's new key
+        TryNpcRadioCall(session, NpcKey(location, "quartermaster"), giverName,
             string.IsNullOrEmpty(place) ? giverName : place, _world.LocationId,
-            "board:" + LocationKeyOfMission(missionId), "npc.call.board", string.Empty, isMission: false);
+            "board:" + location, "npc.call.board", string.Empty, isMission: false);
     }
 
     /// <summary>Test seam: run one full radio trigger scan for a player right now (skips the scan timer).</summary>

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.Shared.Definitions;
 
@@ -262,7 +263,13 @@ public static class LocomotionController
     /// <summary>Builds a creature species' movement profile from its randomly-chosen <see cref="LocomotionStyle"/>,
     /// scaled by its <see cref="CreatureSpecies.Speed"/> and <see cref="CreatureSpecies.Size"/> (bigger animals
     /// turn + accelerate more sluggishly), with a small per-species jitter (hashed from the id) so two species of
-    /// the same style still differ. Deterministic — same species → same profile.</summary>
+    /// the same style still differ. Deterministic — same species → same profile.
+    /// <para>#2687: the jitter comes from the well-mixed <see cref="StableHashing"/> hash of the id. The old h·31 hash fed
+    /// its low 24 bits, which barely move between <c>sp0</c>…<c>sp29</c>, so the "jitter" was one constant (0.861 for
+    /// sp0–sp9, 0.894 for sp10–sp29) in every world. It is deliberately not salted with a world seed: the id is the
+    /// roster slot, the species behind a slot is rolled per world anyway (style, size, speed), the jitter only has to
+    /// tell species of one world apart, and the profile stays a pure function of the species (server-only — no client
+    /// computes it).</para></summary>
     public static LocomotionProfile ForSpecies(CreatureSpecies sp)
     {
         // base table per style: (cruiseFrac, burstFrac, turn, holdMin, holdMax, pauseChance, pauseMin, pauseMax, weaveAmp, weaveFreq, vertAmp, vertFreq)
@@ -279,8 +286,7 @@ public static class LocomotionController
             _ => (0.85f, 1.3f, 2.0f, 2.5f, 5.0f, 0.20f, 0.6f, 1.5f, 0.18f, 1.2f, 0f, 0f), // Strider
         };
 
-        uint h = (uint)StableHash(sp.Id);
-        float j = 0.85f + Unit(h) * 0.30f;          // ±15% per-species jitter on cadence/turn
+        float j = 0.85f + (float)StableHashing.Unit("loco:" + sp.Id) * 0.30f; // ±15% per-species jitter on cadence/turn
         float size = System.Math.Clamp(sp.Size, 0.6f, 6f); // titans (#638) reach 6 — was capped at 2.2
         float weight = 1f / (0.5f + size);          // bigger → slower accel + slower turns
 
@@ -349,14 +355,4 @@ public static class LocomotionController
     }
 
     private static float Unit(uint h) => (h & 0xFFFFFFu) / (float)0x1000000;
-
-    private static int StableHash(string s)
-    {
-        unchecked
-        {
-            int h = 17;
-            foreach (char c in s ?? string.Empty) h = h * 31 + c;
-            return h;
-        }
-    }
 }

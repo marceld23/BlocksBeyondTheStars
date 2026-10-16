@@ -92,18 +92,20 @@ public sealed class WeatherProjectionTests
         Assert.Equal("spores", WeatherProjection.Precipitation("spore_bloom", temperate, 15f, "none"));
     }
 
-    [Fact]
-    public void SkyRgb_UsesTheTypesAuthoredSky_ElseTheSeededHue()
+    [Theory]
+    [InlineData(0)]                                               // the classic hash (every save before #2692)
+    [InlineData(WorldDescription.HashVarietyGeneration)]          // the mixed hash (#2692)
+    public void SkyRgb_UsesTheTypesAuthoredSky_ElseTheSeededHue(int generation)
     {
         var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
         var toxica = content.GetPlanet("toxica_maxima")!;
-        Assert.Equal(toxica.SkyColor, AtmosphereTints.SkyRgb(42, "sys0-p1", toxica));
+        Assert.Equal(toxica.SkyColor, AtmosphereTints.SkyRgb(42, "sys0-p1", toxica, generation));
         var rocky = content.GetPlanet("rocky")!;
-        Assert.Equal(AtmosphereTints.SkyRgb(42, "sys0-p1", rocky), AtmosphereTints.SkyRgb(42, "sys0-p1", rocky)); // deterministic
+        Assert.Equal(AtmosphereTints.SkyRgb(42, "sys0-p1", rocky, generation), AtmosphereTints.SkyRgb(42, "sys0-p1", rocky, generation)); // deterministic
         var hues = new HashSet<int>();
         for (int i = 1; i <= 6; i++)
         {
-            hues.Add(AtmosphereTints.SkyRgb(42, "sys0-p" + i, rocky));
+            hues.Add(AtmosphereTints.SkyRgb(42, "sys0-p" + i, rocky, generation));
         }
 
         Assert.True(hues.Count > 1, "two same-type worlds must be able to differ in sky colour");

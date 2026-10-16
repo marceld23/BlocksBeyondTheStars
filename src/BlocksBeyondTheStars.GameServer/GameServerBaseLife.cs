@@ -944,7 +944,7 @@ public sealed partial class GameServer
             }
 
             string key = BaseSettlerKey(b.Id);
-            string legacy = NpcKey(SettlementLocationKey(b.Name), "settler");
+            string legacy = NpcKey(LegacySettlementLocationKey(b.Name), "settler"); // the pre-#1262 key hashed the base name alone
             if (!mem.ContainsKey(key) && mem.TryGetValue(legacy, out var rel))
             {
                 mem.Remove(legacy);

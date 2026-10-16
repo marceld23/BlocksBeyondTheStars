@@ -277,7 +277,9 @@ public static class WorldConstants
 
     /// <summary>A deterministic walkable circumference for a body: very small for asteroids, small for moons,
     /// large for planets, varied within each class from the body key, and rounded to a whole number of chunks
-    /// (so chunks tile cleanly across the seam). Same body → same size, on server and client.</summary>
+    /// (so chunks tile cleanly across the seam). Same body → same size, on server and client.
+    /// The CLASSIC size (every world below <see cref="WorldDescription.HashVarietyGeneration"/>): a world's own
+    /// sizes come from <see cref="CircumferenceFor(string, WorldSizeClass, float, long, int)"/>.</summary>
     public static int CircumferenceFor(string bodyKey, WorldSizeClass cls) => CircumferenceFor(bodyKey, cls, 0f);
 
     /// <summary>Size-biased variant (#549): <paramref name="sizeBias"/> in [-1, 1] pulls the hashed base
@@ -285,13 +287,60 @@ public static class WorldConstants
     /// (planets: 4000) — so system archetypes can express giants and dwarfs. A bias of exactly 0 MUST
     /// reproduce the unbiased value bit-for-bit: existing saves re-derive their terrain from this number,
     /// and pre-variance bodies all carry bias 0. Callers pass <c>CelestialBody.SizeBias</c> (server) /
-    /// <c>NetBody.SizeBias</c> (client) so both ends keep agreeing on every body's size.</summary>
+    /// <c>NetBody.SizeBias</c> (client) so both ends keep agreeing on every body's size.
+    /// The CLASSIC size of every world below <see cref="WorldDescription.HashVarietyGeneration"/> — the base hashes the
+    /// body key alone with <c>h·31+c</c>, so consecutive ids ("sys0-p0", "sys0-p1" …) land on the same size and every
+    /// world shares the sizes of its system indices (#2691). Bit-identical forever; new code passes the world's seed and
+    /// generation to <see cref="CircumferenceFor(string, WorldSizeClass, float, long, int)"/>.</summary>
     public static int CircumferenceFor(string bodyKey, WorldSizeClass cls, float sizeBias)
+        => Biased(cls, ClassicBaseSize(bodyKey, cls), sizeBias);
+
+    /// <summary>A body's walkable circumference in a world of <paramref name="terrainGeneration"/> created with
+    /// <paramref name="worldSeed"/> — THE size every server path uses (#2691). From
+    /// <see cref="WorldDescription.HashVarietyGeneration"/> the base size comes from the mixed hash of the body key salted
+    /// with the world seed (<see cref="StableHashing"/>), so the planets of a system differ in size and two worlds differ
+    /// at the same system index; below it this is exactly <see cref="CircumferenceFor(string, WorldSizeClass, float)"/>.
+    /// The size bias (#549) applies on top in both cases. The client never recomputes this: the server sends every
+    /// body's value (<c>NetBody.Circumference</c>) and the client falls back to the classic size only when an older
+    /// server sent none.</summary>
+    public static int CircumferenceFor(string bodyKey, WorldSizeClass cls, float sizeBias, long worldSeed, int terrainGeneration)
+        => Biased(cls, BaseSize(bodyKey, cls, worldSeed, terrainGeneration), sizeBias);
+
+    /// <summary>True when a world of <paramref name="terrainGeneration"/> sizes its bodies from the world seed (#2691).</summary>
+    public static bool HasSeededSizes(int terrainGeneration) => terrainGeneration >= WorldDescription.HashVarietyGeneration;
+
+    /// <summary>Salt of the seeded size roll (#2691), so it never correlates with another choice keyed by the same
+    /// (body id, seed) pair.</summary>
+    private const ulong SizeSalt = 0x5123_C1C3_2691_0001UL;
+
+    /// <summary>The unbiased, unrounded base size of a body: the classic id hash below
+    /// <see cref="WorldDescription.HashVarietyGeneration"/>, the seeded mixed hash from it.</summary>
+    private static int BaseSize(string bodyKey, WorldSizeClass cls, long worldSeed, int terrainGeneration)
+    {
+        if (!HasSeededSizes(terrainGeneration))
+        {
+            return ClassicBaseSize(bodyKey, cls);
+        }
+
+        (int lo, int hi) = SizeBandFor(cls);
+        ulong mixed = StableHashing.Mix64(StableHashing.Mixed(bodyKey ?? string.Empty, worldSeed) ^ SizeSalt);
+        return lo + StableHashing.Index(mixed, hi - lo);
+    }
+
+    /// <summary>The classic base size: <c>h·31+c</c> of the body key alone, modulo the class band (bit-identical to every
+    /// release before #2691).</summary>
+    private static int ClassicBaseSize(string bodyKey, WorldSizeClass cls)
     {
         (int lo, int hi) = SizeBandFor(cls);
         uint h = (uint)StableHash(bodyKey);
         int span = hi - lo;
-        int raw = lo + (int)(h % (uint)span);
+        return lo + (int)(h % (uint)span);
+    }
+
+    /// <summary>Applies the archetype size bias (#549) to a base size and rounds it to whole chunks.</summary>
+    private static int Biased(WorldSizeClass cls, int raw, float sizeBias)
+    {
+        (int lo, int hi) = SizeBandFor(cls);
         if (sizeBias > 0f)
         {
             int hiExt = hi * 4 / 3;
@@ -309,12 +358,21 @@ public static class WorldConstants
 
     /// <summary>The bias that makes <paramref name="bodyKey"/>'s circumference land (as close as the
     /// extended band allows) on <paramref name="targetCircumference"/> — used by the Twin Worlds
-    /// archetype to size the second twin like the first. Inverse of the bias mapping above.</summary>
+    /// archetype to size the second twin like the first. Inverse of the bias mapping above.
+    /// The CLASSIC sizes (below <see cref="WorldDescription.HashVarietyGeneration"/>).</summary>
     public static float BiasToward(string bodyKey, WorldSizeClass cls, int targetCircumference)
+        => BiasFrom(cls, ClassicBaseSize(bodyKey, cls), targetCircumference);
+
+    /// <summary><see cref="BiasToward(string, WorldSizeClass, int)"/> for the sizes of a world of
+    /// <paramref name="terrainGeneration"/> created with <paramref name="worldSeed"/> (#2691) — the inverse of
+    /// <see cref="CircumferenceFor(string, WorldSizeClass, float, long, int)"/>, so twin worlds stay twins from
+    /// <see cref="WorldDescription.HashVarietyGeneration"/> on.</summary>
+    public static float BiasToward(string bodyKey, WorldSizeClass cls, int targetCircumference, long worldSeed, int terrainGeneration)
+        => BiasFrom(cls, BaseSize(bodyKey, cls, worldSeed, terrainGeneration), targetCircumference);
+
+    private static float BiasFrom(WorldSizeClass cls, int raw, int targetCircumference)
     {
         (int lo, int hi) = SizeBandFor(cls);
-        uint h = (uint)StableHash(bodyKey);
-        int raw = lo + (int)(h % (uint)(hi - lo));
         if (targetCircumference >= raw)
         {
             int hiExt = hi * 4 / 3;

@@ -8,6 +8,7 @@ using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -395,7 +396,9 @@ public sealed partial class GameServer
             return null;
         }
 
-        var rng = new Random(unchecked((int)WorldGenerator.StableHash($"guest:{_meta.Seed}:{b.Id}:{_guestVisits++}")));
+        // #2688: a well-mixed seed — consecutive visits (the counter) seeded neighbouring Randoms whose first draws marched in step.
+        var rng = new Random(StableHashing.Seed32("guest:" + b.Id.ToString(CultureInfo.InvariantCulture) + ":"
+            + (_guestVisits++).ToString(CultureInfo.InvariantCulture), _meta.Seed));
         ServerNpc npc;
         switch (kind)
         {

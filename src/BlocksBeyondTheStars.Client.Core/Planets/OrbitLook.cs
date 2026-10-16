@@ -47,8 +47,10 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class OrbitLook
     {
-        /// <summary>The atmosphere of a body (by its location id, the key every per-world look is seeded with).</summary>
-        public static OrbitAtmosphere For(PlanetType? planet, long worldSeed, string? bodyId)
+        /// <summary>The atmosphere of a body (by its location id, the key every per-world look is seeded with).
+        /// <paramref name="terrainGeneration"/> is the save's (the join tells the client): from generation 26 the sky and
+        /// cloud families come from the mixed hash (#2692), exactly as the server picks them.</summary>
+        public static OrbitAtmosphere For(PlanetType? planet, long worldSeed, string? bodyId, int terrainGeneration)
         {
             if (planet is null || planet.Void)
             {
@@ -56,8 +58,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool airless = planet.IsAirless || planet.SpaceSky;
-            int sky = AtmosphereTints.SkyRgb(worldSeed, bodyId, planet);
-            int cloud = AtmosphereTints.CloudRgb(worldSeed, bodyId, planet, sky);
+            int sky = AtmosphereTints.SkyRgb(worldSeed, bodyId, planet, terrainGeneration);
+            int cloud = AtmosphereTints.CloudRgb(worldSeed, bodyId, planet, sky, terrainGeneration);
             float density = airless ? 0f : (float)Math.Clamp(planet.CloudDensity, 0.0, 1.0);
             bool breathable = string.Equals(planet.Atmosphere, "breathable", StringComparison.OrdinalIgnoreCase);
             return new OrbitAtmosphere(!airless, density, cloud, sky, breathable);

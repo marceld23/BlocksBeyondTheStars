@@ -1128,8 +1128,7 @@ public sealed partial class GameServer
         // per-player window then slides it (item 13). Mirrors the procedural-station stamp.
         if (hasBoard)
         {
-            string prefix = $"station_{(uint)BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash(station.Id) % 100000u}_";
-            StockBoard(prefix, station.Id, _stationMissionIds, CoinGiverName(station.Id));
+            StockBoard(StationBoardPrefix(station.Id) + MixedRollsInfix, station.Id, _stationMissionIds, CoinGiverName(station.Id)); // #2688
         }
     }
 

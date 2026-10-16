@@ -68,9 +68,12 @@ The data shapes are in [`Galaxy.cs`](../../src/BlocksBeyondTheStars.Shared/World
   unchanged) and to **true** on `ServerConfig`'s creation-time description (new worlds get it).
 - **Per-body size bias (#549):** archetypes set `CelestialBody.SizeBias` ∈ [-1, 1], which
   `WorldConstants.CircumferenceFor(key, class, bias)` maps onto an extended band (planets
-  4000–16000 instead of 5000–12000). Bias 0 is bit-identical to the classic hash — that invariant
-  protects every existing save's terrain. The client receives the bias via `NetBody.SizeBias` and
-  must pass it to every `CircumferenceFor` call (orbit spheres, sky bodies, pad-map bakes).
+  4000–16000 instead of 5000–12000). Bias 0 is bit-identical to the unbiased size — that invariant
+  protects every existing save's terrain. The bias applies on top of the generation's base size (the
+  classic id hash, or from generation 26 the seeded one — §43; `BiasToward` inverts either, so twins stay
+  twins). The client never recomputes a size: the server sends each body's circumference
+  (`NetBody.Circumference`, #2691) and the orbit spheres, sky bodies and pad-map bakes read it through
+  `BodySize.CircumferenceOf`; `NetBody.SizeBias` only feeds the classic fallback for an older server.
 - **Asteroid belts (#683, worlds created with `WorldDescription.AsteroidBelts`):** the system's
   landable asteroids share 1–2 **orbit annuli** instead of scattering across the whole disc (which
   regularly parked them inside a planet's orbit lane). The outer belt always sits one orbit step
@@ -150,7 +153,7 @@ frequency (Off → 0, Normal → ×1, Frequent → ×2.5).
 
 Size is a `WorldSizeClass` derived from Kind + type
 ([`WorldConstants.cs`](../../src/BlocksBeyondTheStars.Shared/World/WorldConstants.cs)), which sets a
-**circumference** band (stable-hashed from the body id, rounded to 16-block chunks):
+**circumference** band (hashed from the body id, rounded to 16-block chunks):
 
 | Class | Circumference (blocks) |
 |---|---|
@@ -158,12 +161,21 @@ Size is a `WorldSizeClass` derived from Kind + type
 | Moon | 2500–4000 |
 | Planet | 5000–12000 |
 
+Where in the band a body lands depends on the save's terrain generation (§43): from generation 26 the
+mixed hash of the body id **salted with the world seed** picks it (`CircumferenceFor(key, class, bias,
+seed, generation)`), so the planets of a system differ and two worlds differ; an older save keeps the
+classic `h·31+c` of the id alone, which gave every planet of a standard system the same size. The server
+sizes every body through `GameServer.WorldCircumferenceOf` and sends the value with the star map
+(`NetBody.Circumference`); the client's views read it through `BodySize.CircumferenceOf` instead of
+recomputing it.
+
 Circumference controls the east-west wrap distance, chunk count, the day/night terminator, gravity
 band, and the live-creature cap (bigger world → more fauna). Worlds are a **torus** (both X and Z
 wrap) so circumnavigation is seamless in every direction — see [WORLD_WRAP.md](WORLD_WRAP.md).
 
 Gravity, sky hue, cloud tint and flora hue are each seeded **per world** (from `LocationId ^ Seed`
-with per-feature salts) so two same-type worlds still look distinct — see
+with per-feature salts — from generation 26 the sky, cloud, flora-base and "auto" water families from the
+mixed hash, §43) so two same-type worlds still look distinct — see
 [`GameServerWeather.cs`](../../src/BlocksBeyondTheStars.GameServer/GameServerWeather.cs).
 
 ---
@@ -1267,9 +1279,9 @@ generation-4 world equals generation 3 — what changes is the flora roster's ac
 classic goldens do not move (they pin blocks, and a generation-0/1/3 roster is unchanged).
 
 **One flora colour file (#1716).** The world's base hue — the block shader's fallback for a flora face
-without a species tint, and the micro-fauna's tint — is `FloraTints.ForWorld(seed, locationId)` next to the
+without a species tint, and the micro-fauna's tint — is `FloraTints.ForWorld(seed, locationId, generation)` next to the
 per-species `FloraTints.For`; the server fills the environment message from it (same value as before, the
-hash is the historical one). The client mesher no longer puts a **farmed crop** into tint mode 1
+hash is the historical one; from generation 26 the mixed one, §43). The client mesher no longer puts a **farmed crop** into tint mode 1
 (`TraitCultivated`): a crop carries no species tint, and the black tint fell through to the world hue —
 violet berries on a violet world, the opposite of what the crop exclusion promised.
 
@@ -1315,7 +1327,7 @@ deck in the above-water pass; `IslandTop`/`IslandBottom` see the band like a sky
 pass and the hanging kelp (#1759, now allowed to root into WATER below the keel) work unchanged. Generation
 5 only: a generation-4 save of a buoyant type is byte-identical to before.
 
-**Water colour (#1758).** `FluidTints.ForWorld(seed, locationId, planet)` → (rgb, mode) is the water
+**Water colour (#1758).** `FluidTints.ForWorld(seed, locationId, planet, generation)` → (rgb, mode) is the water
 counterpart of `FloraTints.ForWorld`: empty `waterTint` = the classic blue (mode 0, every existing world),
 `"auto"` = a seeded blue-dominant palette pick (mode 1), `"rainbow"` = static bands by position (mode 2),
 `"#rrggbb"` = fixed. The server ships `EnvironmentState.WaterTint/WaterTintMode`, `Sky.cs` sets
@@ -1553,7 +1565,8 @@ plots and districts (settlements, cities); the contract, the composer and the pi
   `Modules = 2`. A replay never consults the kit or the pool order again; a pinned module that vanished falls back to
   a procedural building with a warning (never remove a shipped module — the #1115 rule).
 - **Legacy.** Records with `Modules ≤ 1` and pre-record worlds replay exactly as before; a record with `Modules = 1`
-  and no composition freezes its current picks on the first load after #1872.
+  and no composition freezes its current picks on the first load after #1872 — with the historical module roll its
+  blocks were stamped with (`legacyModuleRoll`, #2690), while a fresh composition records the mixed roll.
 - **Far tiles (#1871).** `LoadEditColumnTops` pins the SQLite join order (`CROSS JOIN`) and tile builds are paced by
   `ServeFarTiles` (4 ms per tick) — a built-up world no longer stalls the tick after a join.
 
@@ -1733,6 +1746,15 @@ first stamp and the instance's origin column is recorded in `WorldMetadata.Stamp
 them. The mark is set **after** the transaction commits, so a crash mid-stamp re-stamps rather than half-marking.
 A save that has the structure but not the mark — every world made before this — stamps once more and is marked
 from then on, so nothing needs migrating.
+
+That one extra stamp is why a hash pick the generator changes must stay pinned for structures that already stand.
+The greenhouse crop (#2689) is the example: the historical pick (`crop:{tier}:{seed}:{plot}` through the raw
+`StableHash`, modulo the crop count) gave 62 % of the multi-greenhouse settlements a single crop and never three, so a
+settlement composed now plants with the mixed `StableHashing.Index` pick and its placement record says so
+(`StructurePlacementRecord.HashRevision = 1`). Every record from before the field — and the legacy re-derive of a
+pre-record world — is revision 0 and keeps the historical pick (`GameServer.UsesLegacyCrops` → the generator's
+`legacyCrops`), so a re-stamp writes back the crops the players saw and the layout re-derived for markers and residents
+matches the ground. A never-visited body of an old save has no record yet and gets the mixed pick.
 
 Marcel's decision (2026-09-24), asked because it changes the game and not just the clock: **no self-repair, for
 all structures.** What the players do to a building stays done.
@@ -2557,7 +2579,7 @@ river cross-section flat at the centreline's height above a low bank, a pond on 
 those are thousands of cells near every spawn (on the tester's seed: 2 044 sea cells touching cave air and 1 613 pond cells
 with air beside them within 256 blocks), all dormant until a player touches them — then a pond drains or a cave fills.
 
-`WaterSealGeneration` is **24** (the current generation is 25 since §42). From this generation:
+`WaterSealGeneration` is **24** (the current generation is 26 since §43). From this generation:
 
 - **Caves keep clear of water.** The chunk fill reads the four neighbouring columns' fluid spans (`seabed + 1 .. water
   top`, memoised column profiles) and carves no blob-cave or worm-tunnel cell at those heights; a tunnel never opens the
@@ -2585,7 +2607,7 @@ generation 23 — checks that every pond holds one level, and pins `WaterKindAt`
 
 ## 42. Generation 25 — the wilderness folk (#2639, 2026-10)
 
-`WorldDescription.CurrentTerrainGeneration` is **25** (`WildernessFolkGeneration`). Nothing in the chunk pipeline changed —
+`WildernessFolkGeneration` is **25** (the current generation is 26 since §43). Nothing in the chunk pipeline changed —
 every chunk of every generation is bit-identical. The generation only gates two server-side features to new saves:
 
 - **Lodges** — `StampLodges` runs in the boot stage "structures" right after the bandit camps: a small hut in the open land
@@ -2597,3 +2619,42 @@ every chunk of every generation is bit-identical. The generation only gates two 
 
 Mechanics, numbers and the NPC side: [WILDERNESS_FOLK.md](WILDERNESS_FOLK.md). New save data is additive only
 (`WorldMetadata.NpcRefills`, the miners' refill registry) — no save-version bump.
+
+## 43. Generation 26 — the hash-variety package (#2694, 2026-10)
+
+`WorldDescription.CurrentTerrainGeneration` is **26** (`HashVarietyGeneration`). Choices that read a poorly mixed hash
+read `StableHashing` (#2686: FNV-1a through a SplitMix64 finaliser) instead — for new saves only: a world of generation 25
+or older keeps every value bit for bit, because its terrain, pads and stored edits are derived from them. Nothing in the
+chunk pipeline reads the generation for this: the chunk goldens pass their circumference explicitly and do not move.
+
+- **Body sizes (#2691).** `WorldConstants.CircumferenceFor(key, class, bias)` hashed the body id alone with `h·31+c`.
+  Consecutive ids differ only in the last character, so `sys0-p0` … `sys0-p3` all came out 11 760 blocks — every
+  planet of a standard system within one chunk of the others (100 % of the systems) — and every world had the same
+  sizes per system index. `CircumferenceFor(key, class, bias, seed, generation)` is the world's size: from generation
+  26 the base size is `StableHashing.Index` of the id mixed with the seed (its own salt) over the class band, the
+  archetype bias (#549) applies on top exactly as before, and the result is rounded to whole chunks; below 26 it is
+  the classic function. `BiasToward(…, seed, generation)` is its inverse, so `UniverseGenerator` still sizes the second
+  twin like the first. On the server every path goes through `GameServer.WorldCircumferenceOf` (`GameServerBodySize.cs`):
+  `LoadWorld`, the pad chooser and its weather, the ambient weather of unloaded bodies, a station's stored edits, the
+  trader landings — and `ToNetBody`, which sends the value as **`NetBody.Circumference`** (an additive contractless field,
+  no protocol bump). The client's views (orbit spheres and their map bakes, sky discs, the world map's weather layer,
+  the landing-pad map) read it through `BodySize.CircumferenceOf` (Client.Core) and never recompute it; an older server
+  sends 0 and the client falls back to the classic size that server uses. An older *client* on a generation-26 world
+  sizes the orbit and sky views of other bodies with the classic numbers — cosmetic only: the walkable world always
+  takes its circumference from the server (`WorldEnvironment` / `FarTerrainWorldInfo`).
+- **Colour families (#2692).** The per-world sky hue and cloud jitter (`AtmosphereTints`), the flora base hue
+  (`FloraTints.ForWorld`) and the "auto" water colour (`FluidTints.ForWorld`) hashed `h·31+c` of the location id XOR the
+  low seed word, so neighbouring bodies ("sys0-p1", "sys0-p2") picked the same palette family 83–85 % of the time
+  (two independent draws: sky ≈ 18 %, flora ≈ 18 %, water ≈ 35 % — half the water palette is the classic blue). From
+  generation 26 each pick reads a 32-bit word of the mixed hash of (location, seed) with its own salt
+  (`AtmosphereTints.MixedWord`); palettes, weights, jitter and the cloud's contrast push are unchanged. The generation
+  is a required argument of all four functions: the server passes the save's (`InitWeather`), the client the one the
+  join told it (`OrbitLook.For(…, Game.TerrainGeneration)`; the planet-map bake already passed it to `FluidTints`).
+  Gravity and the per-species flora colours are not part of this wave.
+
+`HashVarietyWorldsTests` pins the classic sizes and tints (single values and a hash over a whole generation-25
+galaxy with archetypes) and shows the new spread: under 5 % of the systems keep all planets within one chunk, the
+same system index differs between seeds, lone giants, swarms and twins keep their identity, neighbouring bodies share
+a colour family about as often as chance. `BodySizeClientTests` runs the real client against the real server (object
+and encoded wire): every star-map body carries the server's size, the world you land on has it, and the orbit look the
+client paints for a body is the sky the server ships there.

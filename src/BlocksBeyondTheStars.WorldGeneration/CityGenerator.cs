@@ -150,11 +150,14 @@ public static class CityGenerator
     /// <summary>Composes the city. <paramref name="modules"/> (#1827) are the authored district modules the
     /// world allows (tier <see cref="StructureRoles.MetropolisTier"/>, role <c>city_*</c>); with
     /// <paramref name="moduleChance"/> per district, a hash of seed + grid cell decides whether a district is
-    /// stamped from a module of its role instead of the procedural one. Plaza and open districts never are.</summary>
+    /// stamped from a module of its role instead of the procedural one. Plaza and open districts never are.
+    /// <paramref name="legacyModuleRoll"/> (#2690) brings back the historical roll, under which a whole district column
+    /// decided alike — for a record from before #1872 that freezes the picks it was stamped with.</summary>
     public static SettlementStructure Generate(long seed, GameContent content, IReadOnlyList<OpenZone> openZones,
         IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0,
         IList<string>? composition = null, System.Action<string>? warn = null,
-        CityLayoutSpec? layout = null, StructureKit? kit = null, IReadOnlyList<StructureTemplate>? kitModules = null)
+        CityLayoutSpec? layout = null, StructureKit? kit = null, IReadOnlyList<StructureTemplate>? kitModules = null,
+        bool legacyModuleRoll = false)
     {
         // #1876: a kit city takes its grid from the layout spec (districts per side, district size, street width, height, map).
         var spec = layout ?? CityLayoutSpec.Default;
@@ -332,7 +335,7 @@ public static class CityGenerator
                         ? SettlementGenerator.ModuleByKey(pool, district < composition!.Count ? composition[district] : string.Empty, moduleRole, StyleOk, size, h - 1, size, warn)
                         : assigned != null
                             ? SettlementGenerator.ModuleByKey(pool, assigned[district], moduleRole, StyleOk, size, h - 1, size, warn)
-                            : SettlementGenerator.PickModule(modules, moduleChance, $"citymodule:{seed}:{gx}:{gz}", moduleRole, StyleOk, size, h - 1, size);
+                            : SettlementGenerator.PickModule(modules, moduleChance, $"citymodule:{seed}:{gx}:{gz}", moduleRole, StyleOk, size, h - 1, size, legacyModuleRoll);
                 }
 
                 if (record)

@@ -15,7 +15,6 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.State;
-using BlocksBeyondTheStars.WorldGeneration;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -135,7 +134,7 @@ public sealed class LlmStagesTests : IDisposable
         using (repo)
         {
             // Seed the NPC's memory of this player: trades, a taken mission and a chat (item 14's key format).
-            string npcKey = $"settle_{(uint)WorldGenerator.StableHash(server.SettlementName) % 100000u}:vendor";
+            string npcKey = server.SettlementLocationKeyForTest(server.SettlementName) + ":vendor"; // #2693: body + name
             p.State.NpcMemory[npcKey] = new NpcRelationship
             {
                 Name = "Old Mira",

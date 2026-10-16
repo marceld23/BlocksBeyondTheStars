@@ -2740,6 +2740,9 @@ called **stories**:
 - **The world wraps east–west** — the X axis is a longitude, so walking continuously east (or west) brings
   you back to where you started, as if the planet were round. The seam is invisible (terrain, biomes, caves
   and structures line up exactly). North/south (latitude) does not wrap.
+- **Every body has its own size** — asteroids are a quick stroll around, moons small, planets large. In worlds created
+  since generation 26 the planets of one system really differ in size (and two worlds differ too), and neighbouring
+  planets wear more different sky, plant and water colours; older worlds keep the sizes and colours they always had.
 - **Day/night is by location** — because X is a longitude, a planet has a real day/night terminator: one
   player can be in daylight while another, far away, is in night, and one lap around the world is one day.
   The clock still advances. Animals and people keep the hours of the sun above **them**: on the far side of the

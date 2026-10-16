@@ -28,7 +28,7 @@ public sealed class DropPacketTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    private SvGameServer Started(out SqliteWorldRepository repo, string world = "drops")
+    private SvGameServer Started(out SqliteWorldRepository repo, string world = "drops", int? terrainGeneration = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
         var st = new LoopbackServerTransport(new LoopbackLink());
@@ -40,6 +40,11 @@ public sealed class DropPacketTests : IDisposable
             AutoSaveIntervalMinutes = 9999,
             PlaceStarterShip = false,
         };
+        if (terrainGeneration is int generation)
+        {
+            config.World.TerrainGeneration = generation;
+        }
+
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;
@@ -80,7 +85,10 @@ public sealed class DropPacketTests : IDisposable
     [Fact]
     public void MiningOn_WithAFullPack_KeepsBreakingBlocks()
     {
-        var server = Started(out var repo);
+        // The four spills land on seed 31's ground around a fixed spot; whether they come to rest close enough to share a
+        // packet depends on the relief there, which from generation 26 moves with the world-seeded size (#2691). The
+        // packet rules under test do not depend on it, so the world keeps the generation the spot was chosen on.
+        var server = Started(out var repo, terrainGeneration: BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1);
         using (repo)
         {
             var start = new Vector3i(20, 60, 20);

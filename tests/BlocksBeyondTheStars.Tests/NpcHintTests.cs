@@ -44,6 +44,10 @@ public sealed class NpcHintTests : IDisposable
         PlaceRailRuins = false, // #2166
         PlaceVaults = false,
         PlaceDataCubes = false,
+        // The seed search below settles on the first world with a vendor village; which seed that is, and what else
+        // stands near the village (a pioneer outpost is a local hint of its own), moves with the start world's size —
+        // seeded by the world from terrain generation 26 (#2691). The hints under test do not depend on it.
+        World = { TerrainGeneration = BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1 },
     };
 
     private SvGameServer Started(string saveName, long seed, bool wrecks, bool chests, out SqliteWorldRepository repo)

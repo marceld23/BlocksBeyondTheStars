@@ -48,6 +48,10 @@ public sealed class EnergyFenceTests : IDisposable
             // assertions depend on (same idea as PlaceStarterShip=false above).
             PlaceBanditCamps = false,
         };
+        // The fence lines stand on fixed coordinates of seed 4242's start world, and the machine's escape route depends on
+        // the relief around them. From generation 26 (#2691) that world's size — and with it its relief — is seeded by the
+        // world, so the fixture keeps the generation the geometry was chosen on; the fence rules do not depend on it.
+        config.World.TerrainGeneration = BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1;
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;

@@ -75,18 +75,20 @@ public sealed class FloraTintTests
         }
     }
 
-    [Fact]
-    public void WorldHue_IsDeterministic_VariesPerBody_AndStaysOnThePalette()
+    [Theory]
+    [InlineData(0)]                                               // the classic hash (every save before #2692)
+    [InlineData(WorldDescription.HashVarietyGeneration)]          // the mixed hash (#2692)
+    public void WorldHue_IsDeterministic_VariesPerBody_AndStaysOnThePalette(int generation)
     {
         // #1716: the world's base hue (the shader fallback + the micro-fauna's tint) lives here now, next to
         // the per-species colours — the server ships exactly this value.
-        Assert.Equal(FloraTints.ForWorld(4242, "sys0-p1"), FloraTints.ForWorld(4242, "sys0-p1"));
-        Assert.Equal(FloraTints.ForWorld(4242, null), FloraTints.ForWorld(4242, string.Empty));
+        Assert.Equal(FloraTints.ForWorld(4242, "sys0-p1", generation), FloraTints.ForWorld(4242, "sys0-p1", generation));
+        Assert.Equal(FloraTints.ForWorld(4242, null, generation), FloraTints.ForWorld(4242, string.Empty, generation));
 
         var seen = new HashSet<int>();
         for (int i = 0; i < 64; i++)
         {
-            int rgb = FloraTints.ForWorld(4242, "sys0-p" + i);
+            int rgb = FloraTints.ForWorld(4242, "sys0-p" + i, generation);
             seen.Add(rgb);
             // A palette anchor ± the 16-step jitter: never black, never white, never grey.
             int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;

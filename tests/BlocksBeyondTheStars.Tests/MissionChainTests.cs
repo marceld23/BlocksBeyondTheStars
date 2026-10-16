@@ -612,8 +612,10 @@ public sealed class MissionChainTests : IDisposable
             Assert.Equal(prefix + "0", stepB.Prerequisites.Single());
             Assert.Equal(prefix + "1", stepA.NextMissionId);
             Assert.Equal(MissionObjectiveType.Deliver, stepA.Objectives[0].Type);
-            Assert.True(stepA.Objectives[0].Required >= 10, "a big order asks for a lot");
-            Assert.True(stepA.Rewards[0].Count >= 3, "…and pays accordingly");
+            // #2688: bounds that hold for every template, not for the one roll this seed used to draw — twice the smallest
+            // delivery (3) and 2.5× the smallest reward (1, rounded to even: 2).
+            Assert.True(stepA.Objectives[0].Required >= 6, "a big order asks for a lot");
+            Assert.True(stepA.Rewards[0].Count >= 2, "…and pays accordingly");
 
             server.AcceptMission("Hauler", prefix + "0");
             Assert.Equal(MissionStatus.Active, Progress(p, prefix + "0").Status);

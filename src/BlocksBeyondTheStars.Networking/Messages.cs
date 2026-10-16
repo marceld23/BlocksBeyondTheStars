@@ -1683,9 +1683,9 @@ public sealed class NetBody
     public int PadsTotal { get; set; }
     public int PadsFree { get; set; }
 
-    /// <summary>Size bias in [-1, 1] (#549) — the archetype's size identity for this body. The client MUST
-    /// feed it into every <c>WorldConstants.CircumferenceFor</c> call for this body (orbit sphere, sky
-    /// bodies, pad map bake) or its rendered size disagrees with the walkable world the server builds.
+    /// <summary>Size bias in [-1, 1] (#549) — the archetype's size identity for this body. Already applied in
+    /// <see cref="Circumference"/>; the client reads it only to size a body for an older server that sent no
+    /// circumference (the classic <c>WorldConstants.CircumferenceFor(id, class, bias)</c>).
     /// 0 for every pre-variance body, so old saves and old clients keep the classic hashed size.</summary>
     public float SizeBias { get; set; }
 
@@ -1697,6 +1697,14 @@ public sealed class NetBody
     /// <summary>#2354: a space wreck salvaged down to nothing — the chart and the travel screen say "salvaged" instead
     /// of "fly there to salvage", and the flight holds no hull at its position any more. Additive.</summary>
     public bool Salvaged { get; set; }
+
+    /// <summary>#2691: this body's walkable circumference in blocks, exactly as the server sizes its world (its size
+    /// class, archetype bias and — from terrain generation 26 — the world seed). Every client view that sizes a body
+    /// (orbit sphere, sky disc, map bake, landing-pad map) reads THIS value instead of recomputing it, so the views can
+    /// never disagree with the world you land on. 0 = an older server that does not send it: the client falls back to
+    /// the classic <c>WorldConstants.CircumferenceFor(id, class, <see cref="SizeBias"/>)</c>, which is what such a
+    /// server uses. Additive contractless field (no protocol bump): an older client ignores it.</summary>
+    public int Circumference { get; set; }
 }
 
 public sealed class NetStarSystem

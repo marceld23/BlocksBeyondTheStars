@@ -9,6 +9,7 @@ using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 using Xunit;
@@ -681,6 +682,23 @@ public sealed class SettlementModuleTests : IDisposable
         return shot;
     }
 
+    /// <summary>#2690: the composition a record from before #1872 freezes — the HISTORICAL module roll over the instance
+    /// exactly as the server derives it in <c>StampSettlement</c> (per-body seed #478, instance lane, tier and ruin flag of
+    /// the stamped settlement, the planet's surface and module pool, the world's template-use chance).</summary>
+    private static List<string> LegacyComposition(SvGameServer server, GameContent content, long worldSeed, StructurePlacementRecord rec)
+    {
+        var boxes = server.SettlementsForTest;
+        int k = Enumerable.Range(0, boxes.Count).First(i => boxes[i].MinX == rec.X && boxes[i].MinZ == rec.Z);
+        long sSeed = worldSeed ^ WorldGenerator.StableHash("settlement:" + server.World.LocationId);
+        long instSeed = sSeed ^ unchecked((long)(rec.Index + 1) * (long)0x9E3779B97F4A7C15);
+        var planet = server.World.Planet;
+        string surface = planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock;
+        var list = new List<string>();
+        SettlementGenerator.Generate(server.SettlementTiersForTest[k], boxes[k].Ruined, instSeed, surface, content,
+            content.SettlementModulesFor(null, planet.Key), Frequency.Frequent.Probability(), list, legacyModuleRoll: true);
+        return list;
+    }
+
     [Fact]
     public void Composition_IsPinnedPerPlot_AndSurvivesAPoolChange()
     {
@@ -759,6 +777,9 @@ public sealed class SettlementModuleTests : IDisposable
 
             // A save from before the list existed (Modules = 1, no composition) freezes its CURRENT picks on the next
             // load with the pool it was stamped with — and from then on the changed pool cannot touch it either.
+            // #2690: "current" is the HISTORICAL roll such a save was stamped with, not the mixed roll this test world
+            // was composed with — so the frozen list is checked against the generator's legacy roll (LegacyComposition),
+            // and the blocks stay what the first stamp laid down (#1990).
             {
                 var repo3 = new SqliteWorldRepository(new SaveGamePaths(_root, world));
                 repo3.Initialize();
@@ -773,13 +794,17 @@ public sealed class SettlementModuleTests : IDisposable
                 Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
             }
 
+            var frozen = new List<(int Index, List<string> Composition)>();
             var server3 = Started(content, world, seed, out var repo4);
             using (repo4)
             {
                 Assert.Equal(first, Snapshot(server3));
                 foreach (var (index, list) in pinned)
                 {
-                    Assert.Equal(list, server3.PlacementRecordsForTest.First(r => r.Kind == "settlement" && r.Index == index).Composition);
+                    var rec = server3.PlacementRecordsForTest.First(r => r.Kind == "settlement" && r.Index == index);
+                    Assert.NotNull(rec.Composition);
+                    Assert.Equal(LegacyComposition(server3, content, seed, rec), rec.Composition);
+                    frozen.Add((index, new List<string>(rec.Composition!)));
                 }
 
                 server3.Stop();
@@ -790,6 +815,11 @@ public sealed class SettlementModuleTests : IDisposable
             using (repo5)
             {
                 Assert.Equal(first, Snapshot(server4));
+                foreach (var (index, list) in frozen)
+                {
+                    Assert.Equal(list, server4.PlacementRecordsForTest.First(r => r.Kind == "settlement" && r.Index == index).Composition);
+                }
+
                 server4.Stop();
             }
 

@@ -318,9 +318,6 @@ namespace BlocksBeyondTheStars.Client
             {
                 float Prominence(NetBody b)
                 {
-                    var c = WorldConstants.IsAsteroidType(b.PlanetType)
-                        ? WorldConstants.WorldSizeClass.Asteroid
-                        : b.Kind == "Moon" ? WorldConstants.WorldSizeClass.Moon : WorldConstants.WorldSizeClass.Planet;
                     float d = 600f;
                     if (current != null)
                     {
@@ -328,7 +325,7 @@ namespace BlocksBeyondTheStars.Client
                         d = Mathf.Sqrt(dx * dx + dy * dy + dz * dz);
                     }
 
-                    return WorldConstants.CircumferenceFor(b.Id, c, b.SizeBias) / Mathf.Max(d, 40f);
+                    return BodySize.CircumferenceOf(b) / Mathf.Max(d, 40f); // #2691: the server's size of the body
                 }
 
                 candidates.Sort((a, b) => Prominence(b).CompareTo(Prominence(a)));
@@ -342,12 +339,10 @@ namespace BlocksBeyondTheStars.Client
                 // keys on its host, so its windows show the host's sky (#1856).
                 int h = Hash(anchorId + "|" + body.Id);
 
-                var cls = WorldConstants.IsAsteroidType(body.PlanetType)
-                    ? WorldConstants.WorldSizeClass.Asteroid
-                    : body.Kind == "Moon" ? WorldConstants.WorldSizeClass.Moon : WorldConstants.WorldSizeClass.Planet;
                 // The body's REAL walkable circumference (incl. its archetype size bias, #549) — sizes the
-                // sky disc below, so a 12000 giant genuinely looms larger than a 5000 dwarf.
-                int bodyCirc = WorldConstants.CircumferenceFor(body.Id, cls, body.SizeBias);
+                // sky disc below, so a 12000 giant genuinely looms larger than a 5000 dwarf. The server's value
+                // (#2691: seeded by the world from terrain generation 26), never recomputed here.
+                int bodyCirc = BodySize.CircumferenceOf(body);
 
                 var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 go.name = "SkyBody_" + body.Id;

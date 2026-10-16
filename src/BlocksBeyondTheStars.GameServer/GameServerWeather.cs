@@ -327,7 +327,7 @@ public sealed partial class GameServer
         // LocationId ^ Seed like sky/cloud/gravity (#478) — it was the last per-TYPE hue, contradicting
         // WORLD_GENERATION.md §3. Airless/floraless worlds still carry a value; it just goes unused. The
         // formula lives with the per-species colours (#1716) — one file for every flora colour.
-        _floraTint = Shared.World.FloraTints.ForWorld(_meta.Seed, _world.LocationId);
+        _floraTint = Shared.World.FloraTints.ForWorld(_meta.Seed, _world.LocationId, _meta.Description.TerrainGeneration); // #2692: mixed from gen 26
         // #1758: the water colour, the same way — classic blue unless the type opts in (the rainbow planet, the
         // "auto" palette of the water types) AND the save is generation 5: older saves keep their blue.
         // #2027: a toxic world whose water rolled toxic shows it — its "auto" water picks from the poison palette.
@@ -338,8 +338,8 @@ public sealed partial class GameServer
         // One seeded daytime sky hue per WORLD (blue → green → yellow → red, blue-dominant), and one seeded cloud
         // tint kept distinct from it — moved to Shared (#2170) so the orbit view paints every body's rim and
         // cloud shell in exactly these colours. A type may name its sky (#2063, Toxica-Maxima's light green).
-        _skyColor = AtmosphereTints.SkyRgb(_meta.Seed, _world.LocationId, planet);
-        _cloudColor = AtmosphereTints.CloudRgb(_meta.Seed, _world.LocationId, planet, _skyColor);
+        _skyColor = AtmosphereTints.SkyRgb(_meta.Seed, _world.LocationId, planet, _meta.Description.TerrainGeneration); // #2692
+        _cloudColor = AtmosphereTints.CloudRgb(_meta.Seed, _world.LocationId, planet, _skyColor, _meta.Description.TerrainGeneration);
         // One seeded gravity multiplier per WORLD: the body's size class sets the band (asteroids feather-light,
         // moons low, planets full + occasionally heavy) and the seed picks within it, so two same-size worlds
         // still differ. The client scales jump/walk/jetpack/fall from it (a ≥1-block jump is always preserved).

@@ -672,6 +672,8 @@ public sealed partial class GameServer
     // A giver offers an endless, deterministic sequence of procedural missions (slot 0,1,2,…). A player is
     // always shown the lowest BoardWindow slots they haven't taken yet, so the board never empties; the slots
     // are coined deterministically from (boardKey, slot) so they survive a reload without being persisted.
+    // #2688/#2693: the rolls seed from the mixed hash with the world seed (BoardRng); ids a player took before that
+    // keep the old rolls on their old ids (see GameServerSettlementKeys.cs).
 
     private const int BoardWindow = 3;
 
@@ -742,9 +744,9 @@ public sealed partial class GameServer
     /// <summary>Deterministically coins one SCAN board mission for a slot (#1205) — same stability contract as
     /// <see cref="BuildBoardMission"/>: rng stream "scanmission", the world-eligible templates only, settlement
     /// boards draw from the planet pool, station boards from the space pool.</summary>
-    private MissionDefinition BuildBoardScanMission(string id, string boardKey, int slot, string giverName, bool station)
+    private MissionDefinition BuildBoardScanMission(string id, string boardKey, int slot, string giverName, bool station, bool legacy = false)
     {
-        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash($"{boardKey}:scanmission:{slot}")));
+        var rng = BoardRng(boardKey, "scanmission", slot, legacy);
         var pool = station ? StationScanMissionTemplates : ScanMissionTemplates;
         var eligible = new List<(string Target, int Count, bool FirstOnly, string Reward, int RewardN, int Knowledge, string Key)>();
         foreach (var t in pool)
@@ -783,9 +785,9 @@ public sealed partial class GameServer
 
     /// <summary>Deterministically coins one BUILD board mission for a slot (#1116) — same stability contract
     /// as <see cref="BuildBoardMission"/>, separate rng stream ("buildmission") and template pool.</summary>
-    private MissionDefinition BuildBoardBuildMission(string id, string boardKey, int slot, string giverName)
+    private MissionDefinition BuildBoardBuildMission(string id, string boardKey, int slot, string giverName, bool legacy = false)
     {
-        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash($"{boardKey}:buildmission:{slot}")));
+        var rng = BoardRng(boardKey, "buildmission", slot, legacy);
         var tpl = BuildMissionTemplates[rng.Next(BuildMissionTemplates.Length)];
         if (_content.GetItem(tpl.Reward) is null)
         {
@@ -849,10 +851,11 @@ public sealed partial class GameServer
     private static string CoinGiverName(string boardKey)
         => BlocksBeyondTheStars.WorldGeneration.NameGenerator.Person(new System.Random(unchecked((int)WorldGenerator.StableHash("giver:" + boardKey))));
 
-    /// <summary>Deterministically coins one board mission for a slot (stable across reloads, no persistence).</summary>
-    private MissionDefinition BuildBoardMission(string id, string boardKey, int slot, string giverName)
+    /// <summary>Deterministically coins one board mission for a slot (stable across reloads, no persistence).
+    /// <paramref name="legacy"/>: the pre-#2688 roll, for an id a player took before the update.</summary>
+    private MissionDefinition BuildBoardMission(string id, string boardKey, int slot, string giverName, bool legacy = false)
     {
-        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash($"{boardKey}:mission:{slot}")));
+        var rng = BoardRng(boardKey, "mission", slot, legacy);
         var tpl = GiverMissionTemplates[rng.Next(GiverMissionTemplates.Length)];
         // Fall back to the first template if a content item is missing — and say so (#427): the templates are
         // code, not validated content, so a renamed item would otherwise silently collapse every board onto
@@ -882,23 +885,25 @@ public sealed partial class GameServer
         };
     }
 
-    /// <summary>Tops a giver board up so the player always sees BoardWindow available missions: regenerates the
-    /// defs for any board mission they currently hold (so it survives reload) and the next un-taken slots.
-    /// Collects the ids this board currently offers into <paramref name="currentBoardIds"/>.</summary>
     /// <summary>Which procedural pool a board slot stream draws from: the gather deliveries, the build job
     /// (#1116) or the scan survey (#1205, settlement or station flavour).</summary>
     private enum BoardSlotKind { Gather, Build, Scan, StationScan }
 
-    private void EnsureBoardWindow(PlayerState player, string idPrefix, string boardKey, HashSet<string> idSet, string giverName, HashSet<string> currentBoardIds, BoardSlotKind kind = BoardSlotKind.Gather, int window = BoardWindow)
+    /// <summary>Tops a giver board up so the player always sees BoardWindow available missions: regenerates the
+    /// defs for any board mission they currently hold (so it survives reload) and the next un-taken slots.
+    /// Collects the ids this board currently offers into <paramref name="currentBoardIds"/>. A <paramref name="legacy"/>
+    /// stream (#2688/#2693: ids from before the new rolls, <c>window: 0</c>) only re-coins what the player holds.</summary>
+    private void EnsureBoardWindow(PlayerState player, string idPrefix, string boardKey, HashSet<string> idSet, string giverName, HashSet<string> currentBoardIds, BoardSlotKind kind = BoardSlotKind.Gather, int window = BoardWindow, bool legacy = false)
     {
         // NOTE (#1116/#1205): the gather parse below also sees build/scan ids ("…b3"/"…s0" fail int.TryParse and
-        // are skipped), and vice versa — the sequences share a board but never each other's slots.
+        // are skipped), and vice versa — the sequences share a board but never each other's slots. The same holds for a
+        // station/base board's new stream ("…m3", #2688) seen from its old one.
         MissionDefinition Coin(string id, int slot) => kind switch
         {
-            BoardSlotKind.Build => BuildBoardBuildMission(id, boardKey, slot, giverName),
-            BoardSlotKind.Scan => BuildBoardScanMission(id, boardKey, slot, giverName, station: false),
-            BoardSlotKind.StationScan => BuildBoardScanMission(id, boardKey, slot, giverName, station: true),
-            _ => BuildBoardMission(id, boardKey, slot, giverName),
+            BoardSlotKind.Build => BuildBoardBuildMission(id, boardKey, slot, giverName, legacy),
+            BoardSlotKind.Scan => BuildBoardScanMission(id, boardKey, slot, giverName, station: false, legacy),
+            BoardSlotKind.StationScan => BuildBoardScanMission(id, boardKey, slot, giverName, station: true, legacy),
+            _ => BuildBoardMission(id, boardKey, slot, giverName, legacy),
         };
 
         var taken = new HashSet<int>();
@@ -957,13 +962,17 @@ public sealed partial class GameServer
                 continue;
             }
 
-            string prefix = $"settle_{(uint)WorldGenerator.StableHash(s.Name) % 100000u}_";
+            // #2693: the board lives under the settlement's body-aware key, and its rolls are seeded per world (#2688);
+            // what the player took under the old name-only key is still coined from the old rolls.
+            string key = SettlementLocationKey(s.Name);
+            string prefix = key + "_";
             string giver = CoinGiverName(s.Name);
-            EnsureBoardWindow(player, prefix, s.Name, s.MissionIds, giver, currentBoardIds);
-            EnsureBoardWindow(player, prefix + "b", s.Name, s.MissionIds, giver, currentBoardIds, BoardSlotKind.Build, window: 1); // #1116: one build job beside the deliveries
-            EnsureBoardWindow(player, prefix + "s", s.Name, s.MissionIds, giver, currentBoardIds, BoardSlotKind.Scan, window: 1);  // #1205: one survey job
-            EnsureBigOrders(player, prefix, s.Name, s.MissionIds, giver, currentBoardIds, station: false); // #1212: every 3 turn-ins a 2-step big order
-            EnsureCampBounties(prefix, s, currentBoardIds); // #730: an uncleared camp puts a bounty on the board
+            EnsureLegacyBoardStreams(player, LegacySettlementBoardPrefix(s.Name), s.Name, s.MissionIds, giver, currentBoardIds, station: false, withBuild: true);
+            EnsureBoardWindow(player, prefix, key, s.MissionIds, giver, currentBoardIds);
+            EnsureBoardWindow(player, prefix + "b", key, s.MissionIds, giver, currentBoardIds, BoardSlotKind.Build, window: 1); // #1116: one build job beside the deliveries
+            EnsureBoardWindow(player, prefix + "s", key, s.MissionIds, giver, currentBoardIds, BoardSlotKind.Scan, window: 1);  // #1205: one survey job
+            EnsureBigOrders(player, prefix, key, s.MissionIds, giver, currentBoardIds, station: false); // #1212: every 3 turn-ins a 2-step big order
+            EnsureCampBounties(player, prefix, key, s, currentBoardIds); // #730: an uncleared camp puts a bounty on the board
         }
     }
 
@@ -975,11 +984,16 @@ public sealed partial class GameServer
             return;
         }
 
-        string prefix = $"station_{(uint)WorldGenerator.StableHash(stationId) % 100000u}_";
-        EnsureBoardWindow(player, prefix, stationId, _stationMissionIds, CoinGiverName(stationId), currentBoardIds);
-        EnsureBoardWindow(player, prefix + "s", stationId, _stationMissionIds, CoinGiverName(stationId), currentBoardIds, BoardSlotKind.StationScan, window: 1); // #1205: asteroid survey
-        EnsureBigOrders(player, prefix, stationId, _stationMissionIds, CoinGiverName(stationId), currentBoardIds, station: true); // #1212
-        EnsureStationBounty(prefix, stationId, currentBoardIds); // #731: pirate space puts a raider bounty on the board
+        // The station keeps its place key (a station id is unique already, #2693); its new jobs run on their own id stream
+        // with world-seeded rolls (#2688), next to the old stream whose held jobs keep the old rolls.
+        string prefix = StationBoardPrefix(stationId);
+        string giver = CoinGiverName(stationId);
+        EnsureLegacyBoardStreams(player, prefix, stationId, _stationMissionIds, giver, currentBoardIds, station: true, withBuild: false);
+        string rolls = prefix + MixedRollsInfix;
+        EnsureBoardWindow(player, rolls, stationId, _stationMissionIds, giver, currentBoardIds);
+        EnsureBoardWindow(player, rolls + "s", stationId, _stationMissionIds, giver, currentBoardIds, BoardSlotKind.StationScan, window: 1); // #1205: asteroid survey
+        EnsureBigOrders(player, rolls, stationId, _stationMissionIds, giver, currentBoardIds, station: true); // #1212
+        EnsureStationBounty(prefix, stationId, currentBoardIds); // #731: pirate space puts a raider bounty on the board (one id per station)
     }
 
     /// <summary>A board (giver) mission id — settlement or station — vs. a system/player mission.</summary>

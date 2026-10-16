@@ -316,10 +316,25 @@ public sealed partial class GameServer
     /// <summary>Rolls the next post-cap refill interval (#740): 20–45 s, jittered deterministically from the
     /// world id + a per-world spawn ordinal so the cadence varies without wall-clock randomness.</summary>
     private double RollEnemyRefillInterval()
-    {
-        uint h = (uint)StableStringHash(_worlds.Active.LocationId + ":" + _worlds.Active.EnemySpawnOrdinal++);
-        return EnemyRefillMinInterval + (h % 1000) / 999.0 * (EnemyRefillMaxInterval - EnemyRefillMinInterval);
-    }
+        => EnemyRefillInterval(_worlds.Active.LocationId, _worlds.Active.EnemySpawnOrdinal++, _meta.Seed);
+
+    /// <summary>The refill interval for one spawn ordinal of a world. #2687: well-mixed (<see cref="StableHashing"/>) and
+    /// salted with the save's seed — the h·31 hash of <c>{location}:{ordinal}</c> moved by a few units per ordinal, so
+    /// <c>% 1000</c> stepped the 20–45 s window by fractions of a second and the cadence was effectively constant.</summary>
+    private static double EnemyRefillInterval(string locationId, int ordinal, long seed)
+        => EnemyRefillMinInterval + StableHashing.Unit($"enemy-refill:{locationId}:{ordinal}", seed) * (EnemyRefillMaxInterval - EnemyRefillMinInterval);
+
+    /// <summary>Test seam (#2687): the post-cap refill interval of one spawn ordinal of a world.</summary>
+    internal static double EnemyRefillIntervalForTest(string locationId, int ordinal, long seed)
+        => EnemyRefillInterval(locationId, ordinal, seed);
+
+    /// <summary>A scan drone's own phase (0..2π) of its in/out strafe around the player, stable per individual. #2687: from
+    /// the well-mixed hash of the id — <c>h·31 % 628</c> of <c>e{n}</c> put drones spawned together 0.01 rad apart, so a
+    /// pair strafed in lock-step. The id alone (no salt string) keeps this per-tick call allocation-free.</summary>
+    private static double DroneBobPhase(string id) => StableHashing.Unit(id) * 2.0 * System.Math.PI;
+
+    /// <summary>Test seam (#2687): a scan drone's strafe phase in radians.</summary>
+    internal static double DroneBobPhaseForTest(string id) => DroneBobPhase(id);
 
     private const float EnemyHuntRange = 28f;   // detection radius — inside it the fiend stalks the player
     private const float EnemyStopRange = 1.6f;  // close enough — the proximity aura does the biting
@@ -513,7 +528,7 @@ public sealed partial class GameServer
                 bearing += DroneOrbitSpeed * (float)dt; // advance around the ring → it circles
                 bool cramped = _world.Planet.Void; // #2635: a derelict's rooms are a few blocks wide — a tight ring
                 float ring = (cramped ? GuardianDroneStandoff : DroneStandoff) + (cramped ? GuardianDroneStrafe : DroneStrafe) *
-                    (float)System.Math.Sin(_uptime * 0.7 + (StableStringHash(enemy.Id) % 628) / 100.0);
+                    (float)System.Math.Sin(_uptime * 0.7 + DroneBobPhase(enemy.Id));
                 target = new Vector3f(player.X + (float)System.Math.Cos(bearing) * ring, player.Y,
                                       player.Z + (float)System.Math.Sin(bearing) * ring);
             }

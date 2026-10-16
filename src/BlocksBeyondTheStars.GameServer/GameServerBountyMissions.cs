@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Missions;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -58,10 +59,11 @@ public sealed partial class GameServer
         => IsShipBountyMissionId(missionId) || TryCampBountyKey(missionId, out _);
 
     /// <summary>Coins the camp bounty a settlement board offers for one uncleared camp. Deterministic per
-    /// (board, camp) like every board mission; rewards clearly beat the gather jobs — camps bite back.</summary>
+    /// (board, camp) like every board mission; rewards clearly beat the gather jobs — camps bite back. Rolled per world
+    /// (#2688): a bounty's definition is stored the moment it is taken, so a held one never re-rolls.</summary>
     private MissionDefinition BuildCampBountyMission(string id, string boardKey, string campKey, string giverName)
     {
-        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash($"{boardKey}:bounty:{campKey}")));
+        var rng = BoardRng(boardKey, "bounty", campKey, legacy: false, _meta.Seed);
         return new MissionDefinition
         {
             Id = id,
@@ -80,10 +82,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>Coins the raider bounty a station board offers in pirate space. Repeatable — raiders keep
-    /// coming as long as the system stays pirate country.</summary>
+    /// coming as long as the system stays pirate country. Rolled per world (#2688; stored once taken, like the camp bounty).</summary>
     private MissionDefinition BuildShipBountyMission(string id, string boardKey, string giverName)
     {
-        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash($"{boardKey}:bounty:ship")));
+        var rng = BoardRng(boardKey, "bounty", "ship", legacy: false, _meta.Seed);
         return new MissionDefinition
         {
             Id = id,
@@ -103,14 +105,16 @@ public sealed partial class GameServer
     }
 
     /// <summary>Adds one camp bounty per uncleared camp on this world to a settlement board's offers.
-    /// Cleared camps stop being offered on their own (and a held bounty completes via the clear).</summary>
-    private void EnsureCampBounties(string idPrefix, SettlementInstance s, HashSet<string> currentBoardIds)
+    /// Cleared camps stop being offered on their own (and a held bounty completes via the clear). A bounty for a camp
+    /// the player already holds under the settlement's old board id (#2693) is not offered a second time.</summary>
+    private void EnsureCampBounties(PlayerState player, string idPrefix, string boardKey, SettlementInstance s, HashSet<string> currentBoardIds)
     {
         if (!BanditsActive)
         {
             return;
         }
 
+        string legacyPrefix = LegacySettlementBoardPrefix(s.Name);
         foreach (var camp in _banditCamps)
         {
             if (camp.Cleared)
@@ -118,10 +122,16 @@ public sealed partial class GameServer
                 continue;
             }
 
+            string legacyId = legacyPrefix + "bounty_" + camp.Key;
+            if (player.Missions.Any(m => m.MissionId == legacyId && m.Status != MissionStatus.TurnedIn))
+            {
+                continue;
+            }
+
             string id = idPrefix + "bounty_" + camp.Key;
             if (!_missionDefs.ContainsKey(id))
             {
-                _missionDefs[id] = BuildCampBountyMission(id, s.Name, camp.Key, CoinGiverName(s.Name));
+                _missionDefs[id] = BuildCampBountyMission(id, boardKey, camp.Key, CoinGiverName(s.Name));
             }
 
             s.MissionIds.Add(id);

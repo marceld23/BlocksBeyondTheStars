@@ -12,6 +12,12 @@ namespace BlocksBeyondTheStars.Shared.World;
 /// type). The server ships the results of the active world in the environment message; the client calls the same
 /// functions for every other body. The bit patterns are the historical server formulas — changing them would
 /// recolour every existing world.
+/// <para>
+/// From <see cref="WorldDescription.HashVarietyGeneration"/> (#2692) the colour family is picked from the mixed hash of
+/// (location, seed) (<see cref="StableHashing"/>): the classic <c>h·31+c ^ seed</c> left neighbouring bodies ("sys0-p1",
+/// "sys0-p2") on the same family five times in six. Older worlds keep the classic formula, so the generation is a
+/// required argument — the server passes the save's, the client the one the join told it.
+/// </para>
 /// </summary>
 public static class AtmosphereTints
 {
@@ -45,21 +51,41 @@ public static class AtmosphereTints
         return h;
     }
 
+    /// <summary>True when a world of <paramref name="terrainGeneration"/> picks its colour families from the mixed hash
+    /// (#2692) — the sky, the clouds, the flora base hue and the "auto" water.</summary>
+    public static bool HasMixedTints(int terrainGeneration) => terrainGeneration >= WorldDescription.HashVarietyGeneration;
+
+    /// <summary>A well-mixed 32-bit word of (location, seed) for one colour choice, kept apart from the other choices by
+    /// <paramref name="salt"/> (#2692). Every 32 bits are independent of each other, so a palette roll
+    /// (<c>word % total</c>) and the jitter read from the same word's low bits stay unbiased.</summary>
+    internal static uint MixedWord(long worldSeed, string? locationId, ulong salt)
+        => (uint)(StableHashing.Mix64(StableHashing.Mixed(locationId ?? string.Empty, worldSeed) ^ salt) >> 32);
+
+    private const ulong SkySalt = 0x2692_0000_5C1E_0001UL;
+    private const ulong CloudSalt = 0x2692_0000_C10D_0002UL;
+
     /// <summary>The daytime sky hue (0xRRGGBB) of one world: the type's authored sky (#2063) when it names one,
-    /// else a seeded pick from the blue-dominant palette. Only worlds with an atmosphere show it.</summary>
-    public static int SkyRgb(long worldSeed, string? locationId, PlanetType? planet)
+    /// else a seeded pick from the blue-dominant palette. Only worlds with an atmosphere show it.
+    /// <paramref name="terrainGeneration"/> is the SAVE's generation (#2692): below
+    /// <see cref="WorldDescription.HashVarietyGeneration"/> the classic location hash, from it the mixed one.</summary>
+    public static int SkyRgb(long worldSeed, string? locationId, PlanetType? planet, int terrainGeneration)
         => planet is { SkyColor: > 0 }
             ? planet.SkyColor
-            : SkyHue(unchecked((uint)(StableHash(locationId) ^ (int)worldSeed)));
+            : SkyHue(HasMixedTints(terrainGeneration)
+                ? MixedWord(worldSeed, locationId, SkySalt)
+                : unchecked((uint)(StableHash(locationId) ^ (int)worldSeed)));
 
     /// <summary>The cloud tint (0xRRGGBB) of one world: the type's base cloud colour with a small per-world jitter,
     /// pushed apart in brightness when it drifted too close to <paramref name="skyRgb"/> (that world's
-    /// <see cref="SkyRgb"/>), so clouds always read against their sky.</summary>
-    public static int CloudRgb(long worldSeed, string? locationId, PlanetType? planet, int skyRgb)
+    /// <see cref="SkyRgb"/>), so clouds always read against their sky. <paramref name="terrainGeneration"/> as in
+    /// <see cref="SkyRgb"/>.</summary>
+    public static int CloudRgb(long worldSeed, string? locationId, PlanetType? planet, int skyRgb, int terrainGeneration)
         => CloudTint(
             planet?.CloudColor ?? DefaultCloudRgb,
             skyRgb,
-            unchecked((uint)((StableHash(locationId) ^ (int)worldSeed) ^ 0x5F356495)));
+            HasMixedTints(terrainGeneration)
+                ? MixedWord(worldSeed, locationId, CloudSalt)
+                : unchecked((uint)((StableHash(locationId) ^ (int)worldSeed) ^ 0x5F356495)));
 
     /// <summary>A deterministic sky hue from a hash: a weighted palette pick plus a small per-channel jitter.</summary>
     public static int SkyHue(uint h)

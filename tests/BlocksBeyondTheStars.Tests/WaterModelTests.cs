@@ -52,10 +52,15 @@ public sealed class WaterModelTests : IDisposable
         }
     }
 
-    private SvGameServer Started(out SqliteWorldRepository repo, string world = "water")
+    private SvGameServer Started(out SqliteWorldRepository repo, string world = "water", int? terrainGeneration = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
         var config = new ServerConfig { WorldName = world, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        if (terrainGeneration is int generation)
+        {
+            config.World.TerrainGeneration = generation;
+        }
+
         var server = new SvGameServer(config, _content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();
         return server;
@@ -153,7 +158,10 @@ public sealed class WaterModelTests : IDisposable
     {
         // The tester's flood: sea water beside a cave poured down every shaft and across every floor (15 000+ cells from
         // one touch). The sea stays endless (W7), but its spill is bounded like any flow.
-        var server = Started(out var repo);
+        // The carved staircase sits in seed 1's ground at a fixed spot, and how far the spill runs past its steps depends on
+        // the generated caves around it — which from generation 26 move with the world-seeded size (#2691). The flow rules
+        // under test do not depend on it, so the world keeps the generation the spot was chosen on.
+        var server = Started(out var repo, terrainGeneration: BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1);
         using (repo)
         {
             int sea = server.World.Generator.SeaLevel(server.World.Planet);

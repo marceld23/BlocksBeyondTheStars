@@ -1099,8 +1099,8 @@ public sealed partial class GameServer
         // per-player mission-giver window (item 13) slides it so it never runs dry.
         if (station.Markers.Any(m => m.Type == "mission_board"))
         {
-            string prefix = $"station_{(uint)WorldGenerator.StableHash(station.Id) % 100000u}_";
-            StockBoard(prefix, station.Id, _stationMissionIds, CoinGiverName(station.Id));
+            // #2688: the new jobs' own id stream, rolled per world (EnsureStationWindow keeps it topped up).
+            StockBoard(StationBoardPrefix(station.Id) + MixedRollsInfix, station.Id, _stationMissionIds, CoinGiverName(station.Id));
         }
 
         // NPCs are runtime (cleared when the station world reloads), so the caller (BoardStation) spawns

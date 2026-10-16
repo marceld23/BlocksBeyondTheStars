@@ -24,6 +24,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🎲 Hash variety — well-mixed deterministic picks, more varied worlds without changing existing ones — epic #2694, #2686–#2693, branch feat/hash-variety-2026-10 — ✅ done 2026-10-16 (⚠ playtest open; terrain generation 26)
+
+A side finding of #2682: `WorldGenerator.StableHash` (FNV-1a without a finaliser — its prime acts like "× 435" on the low
+bits) and a few `h * 31 + c` helpers barely mix the last characters of a key, so keys with a trailing counter gave skewed or
+periodic picks (600 keys `crop:…:{i}` → `% 3` = 500/10/90). All decisions by Marcel (everything per recommendation, one PR).
+Package label `package: hash variety 2026-10`.
+
+- **The base (#2686):** `Shared/World/StableHashing` — `Fnv64` (bit-identical to `StableHash`, which never changes),
+  SplitMix64 `Mix64`, `Mixed(key[, worldSeed])`, `Index`, `Unit`, `Seed32`.
+- **Runtime (#2687):** animal sizes (a herd is no longer cloned, runts and giants occur), pack flank angles, per-species
+  gait jitter, taming needs/bait/shyness (no "120120120"), enemy refill interval and drone bob, bandit speech lines.
+- **Mission boards + place keys (#2688, #2693):** boards roll per slot AND per world (`Seed32(key, seed)`; slot k vs k+4
+  matched 87 % before, now 15 %); settlement keys include the body (`settle_` + 9 digits), so same-name settlements on
+  different bodies stop sharing boards, mission ids and NPC memory. Held jobs keep their old ids and definitions (legacy
+  pass), old memory moves to the new key on world entry (`MigrateLegacySettlementKeys`); new station/base jobs use an `m`
+  stream; big-order progress restarts on the new ids. Also seeded per world: base guest visits, planet traders, giants.
+- **Settlements (#2689, #2690):** greenhouse crops (`CropIndex`) and the authored-module roll use the mixed hash; a
+  placement record carries `HashRevision` (0 = legacy pick, 1 = mixed) because a settlement can be re-stamped (pre-#1990
+  saves, a crash mid-stamp) — stamped settlements keep their crops; pinned compositions replay unchanged, pre-#1872
+  records keep the legacy roll. Single-crop settlements 54 % → 28 %, three crops now occur.
+- ⚠ Open: playtest; release notes (mission boards look different, big-order progress restarts).
+
+---
+
 ### 📬 Justus' reports 2026-10-16 (Layex + Screelit, one by Lorenzo) — body paint in multiplayer, talking to traders, beta derelicts, residents upstairs, pioneer outposts, wall torches — epic #2684, #2672–#2683 (+ #2425), branch feat/justus-reports-2026-10-16 — ✅ done 2026-10-16 (⚠ playtest open)
 
 Justus played a LAN world as Layex (host, v2026.10.17) and Screelit (two reports written with v2026.10.16); one Screelit

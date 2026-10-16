@@ -49,11 +49,17 @@ public sealed class CrystalNet2Tests : IDisposable
         }
     }
 
-    private SvGameServer NewServer(out SqliteWorldRepository repo, string world = "crystal2", int catchUpMinutes = CrystalNetRules.CatchUpDefaultMinutes)
+    private SvGameServer NewServer(out SqliteWorldRepository repo, string world = "crystal2", int catchUpMinutes = CrystalNetRules.CatchUpDefaultMinutes,
+        int? terrainGeneration = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
         var config = new ServerConfig { WorldName = world, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
         config.Rules.MachineCatchUpMinutes = catchUpMinutes;
+        if (terrainGeneration is int generation)
+        {
+            config.World.TerrainGeneration = generation;
+        }
+
         var server = new SvGameServer(config, _content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();
         return server;
@@ -651,7 +657,11 @@ public sealed class CrystalNet2Tests : IDisposable
     [InlineData(true, 0, false)]   // the world rule is off: nothing
     public void ARunningDrill_CatchesUpAfterAGap_ButNotWhenItWasOff_OrTheRuleIsOff(bool running, int minutes, bool expectCredit)
     {
-        var server = NewServer(out var repo, catchUpMinutes: minutes);
+        // The drill bores into the ground at the start world's column (0, 0): seed 1's ground there is diggable on the
+        // generation the test was written on; from generation 26 the world's size — and with it the ground at a fixed
+        // column — is seeded by the world (#2691). The catch-up rules under test do not depend on it.
+        var server = NewServer(out var repo, catchUpMinutes: minutes,
+            terrainGeneration: BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1);
         using (repo)
         {
             var (crate, sw, p) = DrillOnTheGround(server);

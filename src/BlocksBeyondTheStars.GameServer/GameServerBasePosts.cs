@@ -73,7 +73,7 @@ public sealed partial class GameServer
 
             if (!idx.BoardStocked)
             {
-                StockBoard(BaseBoardPrefix(b), BaseBoardKey(b), idx.MissionIds, qm.Name, withBuild: true);
+                StockBoard(BaseBoardPrefix(b) + MixedRollsInfix, BaseBoardKey(b), idx.MissionIds, qm.Name, withBuild: true); // #2688
                 idx.BoardStocked = true;
             }
         }
@@ -143,9 +143,12 @@ public sealed partial class GameServer
         string prefix = BaseBoardPrefix(b);
         string key = BaseBoardKey(b);
         string giver = ResidentNpcs(b).FirstOrDefault(n => n.Job == "quartermaster")?.Name ?? CoinGiverName(key);
-        EnsureBoardWindow(player, prefix, key, idx.MissionIds, giver, currentBoardIds);
-        EnsureBoardWindow(player, prefix + "b", key, idx.MissionIds, giver, currentBoardIds, BoardSlotKind.Build, window: 1);
-        EnsureBoardWindow(player, prefix + "s", key, idx.MissionIds, giver, currentBoardIds, BoardSlotKind.Scan, window: 1);
+        // #2688: new jobs on their own id stream with world-seeded rolls; jobs held from the old stream keep the old rolls.
+        EnsureLegacyBoardStreams(player, prefix, key, idx.MissionIds, giver, currentBoardIds, station: false, withBuild: true);
+        string rolls = prefix + MixedRollsInfix;
+        EnsureBoardWindow(player, rolls, key, idx.MissionIds, giver, currentBoardIds);
+        EnsureBoardWindow(player, rolls + "b", key, idx.MissionIds, giver, currentBoardIds, BoardSlotKind.Build, window: 1);
+        EnsureBoardWindow(player, rolls + "s", key, idx.MissionIds, giver, currentBoardIds, BoardSlotKind.Scan, window: 1);
     }
 
     /// <summary>The resident of the player's base holding a job, for the memory of a trade or an accepted mission.</summary>

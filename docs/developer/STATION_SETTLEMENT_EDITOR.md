@@ -279,6 +279,13 @@ A settlement template has two uses, selected by `StructureTemplate.Role` (`role`
   without modules (`SettlementModuleTests.Plots_ThatStayProcedural_AreByteIdentical…`). The module is stamped
   centred in its plot (`StampModule`); a missing role marker is added in the first free cell over the centre
   column (`FreeCellAbove`), doors come only from the module's door markers.
+- The chance roll is the **mixed** hash `StableHashing.Unit(key)` (#2690; the city's key is
+  `citymodule:{seed}:{gx}:{gz}`). The historical roll — the low 24 bits of the raw `WorldGenerator.StableHash` — let
+  neighbouring plots decide alike (83–92 % of the settlements took a module on every plot or on none, a city's
+  district column always decided the same), because the plot index or the district's row ends the key. It survives
+  only behind `legacyModuleRoll`, for a record from before #1872 (`Modules ≥ 1`, no `Composition`) that freezes the
+  picks its blocks were stamped with (`GameServer.UsesLegacyModuleRoll`). A pinned composition replays without
+  rolling. The weighted pick among the candidates (`…:pick`) is unchanged.
 - The per-plot chance is `WorldDescription.SettlementTemplateUse.Probability()` (Rare 15 % by default; Off
   disables whole templates and modules). `StructurePlacementRecord.Modules` gates it per instance: a fresh stamp
   writes 1, records from older saves and legacy re-derives stay 0 — an existing world's layout never changes.

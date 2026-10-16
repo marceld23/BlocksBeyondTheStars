@@ -2018,9 +2018,10 @@ namespace BlocksBeyondTheStars.Client
             string locName = !string.IsNullOrEmpty(body?.Name)
                 ? PlanetOrbitLook.LocationKeyFor(bodySystem, body.Name)
                 : Game?.LocationName ?? string.Empty;
-            int circ = WorldConstants.CircumferenceFor(
-                !string.IsNullOrEmpty(_choosePadBody) ? _choosePadBody : Game?.LocationName ?? "home",
-                ClassOf(body?.Kind, typeKey), body?.SizeBias ?? 0f);
+            // #2691: the server's size of the body (seeded by the world from terrain generation 26) — the classic size
+            // only when an older server sent none.
+            int circ = BodySize.CircumferenceOf(body,
+                !string.IsNullOrEmpty(_choosePadBody) ? _choosePadBody : Game?.LocationName ?? "home", body?.Kind, typeKey);
             int latP = WorldConstants.LatitudePeriodFor(circ);
 
             var mapGo = new GameObject("PadMap", typeof(RectTransform));
@@ -2049,7 +2050,7 @@ namespace BlocksBeyondTheStars.Client
                 Planet = padPlanet,
                 MapW = mapW,
                 MapH = mapH,
-                Atmosphere = OrbitLook.For(padPlanet, Game?.WorldSeed ?? 0L, padBodyId),
+                Atmosphere = OrbitLook.For(padPlanet, Game?.WorldSeed ?? 0L, padBodyId, Game?.TerrainGeneration ?? 0),
                 Seed = CloudShellSeed(padBodyId),
             };
             _landWeather = lw;
@@ -4171,10 +4172,11 @@ namespace BlocksBeyondTheStars.Client
             // planet to fly back to — never a decorative filler.
             string homeType = !string.IsNullOrEmpty(current?.PlanetType) ? current.PlanetType : Game?.Environment?.Biome;
             var homePos = new Vector3(0f, -150f, -20f);
-            // Every body has its own size (deterministic from its id + archetype bias), so worlds + moons look
-            // big or small in orbit instead of all identical — an approximate reflection of how varied they are.
-            float homeBias = current?.SizeBias ?? 0f;
-            float homeDiameter = OrbitDiameterFor(current?.Id ?? Game?.LocationName ?? "home", current?.Kind, current?.PlanetType, homeBias) * 3.2f;
+            // Every body has its own size (the server's walkable circumference, #2691 — incl. the archetype bias), so
+            // worlds + moons look big or small in orbit instead of all identical — an approximate reflection of how varied
+            // they are.
+            int homeCirc = BodySize.CircumferenceOf(current, current?.Id ?? Game?.LocationName ?? "home", current?.Kind, current?.PlanetType);
+            float homeDiameter = OrbitDiameterFor(homeCirc) * 3.2f;
             // Label the home body by what the star map calls it; LocationName only as a fallback — after an
             // in-flight hyperjump it still named the DEPARTURE planet, so the alien anchor world was drawn and
             // land-prompted as "Crossway Reach · Seana" (#1565).
@@ -4182,7 +4184,7 @@ namespace BlocksBeyondTheStars.Client
             // #2170: the flora key is "System · Body" like every other body — the bare name rolled a different
             // vegetation hue than the plants on the ground you just left.
             string homeFloraKey = current != null ? PlanetOrbitLook.LocationKeyFor(system?.Name, homeName) : homeName;
-            SpawnBody("HomePlanet", current?.Id, current?.Kind, homeFloraKey, homePos, homeDiameter, homeType, homeBias, current?.RingSeed ?? 0);
+            SpawnBody("HomePlanet", current?.Id, current?.Kind, homeFloraKey, homePos, homeDiameter, homeType, homeCirc, current?.RingSeed ?? 0);
             _landables.Add((string.Empty, homeName, homePos, homeDiameter * 0.5f));
             _keepOut.Add((homePos, homeDiameter * 0.5f + KeepOutMargin));
             float maxDist = homePos.magnitude;
@@ -4201,14 +4203,14 @@ namespace BlocksBeyondTheStars.Client
                 var radii = new List<float>();
                 var bodyTypes = new List<string>();
                 var kinds = new List<string>(); // star-map Kind — keys each body's true circumference
-                var biases = new List<float>(); // per-body archetype size bias (#549) — keys the circumference too
+                var circs = new List<int>(); // per-body walkable circumference (#2691: the server's value) — keys the map bake
                 var rings = new List<int>(); // per-planet ring style seed (#596), 0 = no rings
                 var homeMoons = new List<int>(); // planned in home's plane → must also clear home itself
 
-                void Plan(string id, string name, string kind, Vector3 pos, float diameter, string type, float sizeBias, int ringSeed = 0)
+                void Plan(string id, string name, string kind, Vector3 pos, float diameter, string type, int circumference, int ringSeed = 0)
                 {
                     ids.Add(id); names.Add(name); kinds.Add(kind); positions.Add(pos); radii.Add(diameter * 0.5f); bodyTypes.Add(type);
-                    biases.Add(sizeBias);
+                    circs.Add(circumference);
                     rings.Add(ringSeed);
                     locKeys.Add(PlanetOrbitLook.LocationKeyFor(system?.Name, name));
                 }
@@ -4231,8 +4233,9 @@ namespace BlocksBeyondTheStars.Client
 
                     string type = string.IsNullOrEmpty(b.PlanetType) ? homeType : b.PlanetType;
                     var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
-                    float diameter = OrbitDiameterFor(b.Id, b.Kind, b.PlanetType, b.SizeBias);
-                    Plan(b.Id, b.Name, b.Kind, pos, diameter, type, b.SizeBias, b.RingSeed);
+                    int circ = BodySize.CircumferenceOf(b); // #2691: the server's size of the body
+                    float diameter = OrbitDiameterFor(circ);
+                    Plan(b.Id, b.Name, b.Kind, pos, diameter, type, circ, b.RingSeed);
                     planetIndexById[b.Id] = planets.Count;
                     planets.Add((b.SystemX, b.SystemZ, pos, diameter * 0.5f));
                 }
@@ -4269,7 +4272,8 @@ namespace BlocksBeyondTheStars.Client
                     var parent = planets[parentIndex];
 
                     var rel = new Vector3((b.SystemX - parent.Sx) * SystemViewScale, 0f, (b.SystemZ - parent.Sz) * SystemViewScale);
-                    float moonDia = OrbitDiameterFor(b.Id, b.Kind, b.PlanetType, b.SizeBias);
+                    int moonCirc = BodySize.CircumferenceOf(b);
+                    float moonDia = OrbitDiameterFor(moonCirc);
                     // Outside the planet's surface, with room to spare — and above this parent's previous
                     // moon's ring, so siblings stack outward instead of sharing one radius (#548).
                     float minClear = SystemBodyLayout.MinOrbitFor(parent.Radius, moonDia * 0.5f);
@@ -4287,7 +4291,7 @@ namespace BlocksBeyondTheStars.Client
 
                     moonLadder[parentIndex] = (rel.magnitude, moonDia * 0.5f);
 
-                    Plan(b.Id, b.Name, b.Kind, parent.Render + rel, moonDia, type, b.SizeBias);
+                    Plan(b.Id, b.Name, b.Kind, parent.Render + rel, moonDia, type, moonCirc);
                     if (parentIndex == 0)
                     {
                         // A moon of the body you launched from: planned in HOME'S plane (far below the flight
@@ -4308,8 +4312,9 @@ namespace BlocksBeyondTheStars.Client
 
                     string type = string.IsNullOrEmpty(b.PlanetType) ? "asteroid" : b.PlanetType;
                     var pos = new Vector3((b.SystemX - current.SystemX) * SystemViewScale, 0f, (b.SystemZ - current.SystemZ) * SystemViewScale);
-                    float diameter = OrbitDiameterFor(b.Id, b.Kind, type, b.SizeBias);
-                    Plan(b.Id, b.Name, b.Kind, pos, diameter, type, b.SizeBias);
+                    int circ = BodySize.CircumferenceOf(b, b.Id, b.Kind, type);
+                    float diameter = OrbitDiameterFor(circ);
+                    Plan(b.Id, b.Name, b.Kind, pos, diameter, type, circ);
                 }
 
                 // Separation pass: nudge any overlapping pair apart in the x-z plane until every body has
@@ -4336,7 +4341,7 @@ namespace BlocksBeyondTheStars.Client
                 // Spawn the separated bodies + register them as landable / keep-out.
                 for (int k = 0; k < positions.Count; k++)
                 {
-                    var bodyGo = SpawnBody("SystemBody_" + ids[k], ids[k], kinds[k], locKeys[k], positions[k], radii[k] * 2f, bodyTypes[k], biases[k], rings[k]);
+                    var bodyGo = SpawnBody("SystemBody_" + ids[k], ids[k], kinds[k], locKeys[k], positions[k], radii[k] * 2f, bodyTypes[k], circs[k], rings[k]);
                     if (kinds[k] == "AsteroidField")
                     {
                         _asteroidBodies.Add((bodyGo.transform, radii[k] * 2f)); // #1663: held findable from afar
@@ -4388,29 +4393,21 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The orbit-view diameter for a body, derived from its real walkable circumference — so a
         /// tiny asteroid reads small, a moon medium and a big planet large, matching how long it'd take to walk
-        /// around. Same body → same size, on the surface (server) and in orbit (here). <paramref name="sizeBias"/>
-        /// is the body's archetype size identity (#549) and must always come from its NetBody.</summary>
-        private static float OrbitDiameterFor(string id, string kind, string planetType, float sizeBias)
-        {
-            int circ = WorldConstants.CircumferenceFor(id, ClassOf(kind, planetType), sizeBias);
-            return 8f + circ / 220f; // ~13 (asteroid) .. ~23 (moon) .. ~46-62 (planet; a lone giant reaches ~81)
-        }
-
-        /// <summary>Maps a NetBody's string kind + planet type to a size class (matches the server's
-        /// <see cref="WorldConstants.SizeClassFor"/>).</summary>
-        private static WorldConstants.WorldSizeClass ClassOf(string kind, string planetType)
-            => WorldConstants.IsAsteroidType(planetType) ? WorldConstants.WorldSizeClass.Asteroid
-             : kind == "Moon" ? WorldConstants.WorldSizeClass.Moon
-             : WorldConstants.WorldSizeClass.Planet;
+        /// around. Same body → same size, on the surface (server) and in orbit (here). <paramref name="circumference"/>
+        /// is the body's walkable circumference as the server sized it (<see cref="BodySize"/>,
+        /// #2691 — incl. its archetype size identity, #549).</summary>
+        private static float OrbitDiameterFor(int circumference)
+            => 8f + circumference / 220f; // ~13 (asteroid) .. ~23 (moon) .. ~46-62 (planet; a lone giant reaches ~81)
 
         /// <summary>Spawns one real celestial body: a sphere textured with its REAL generated world map (seas, the
         /// biomes' ground, snow and ice, this world's water and vegetation colours — what you see from orbit IS the world
         /// you land on), plus a cloud shell and an atmosphere haze rim from the planet's DATA (#2170). The map is baked
         /// off the main thread (#2172): the sphere starts in the flat data-driven colour and swaps the map in when it is
         /// ready. The cloud shell follows the body's live weather (#2175) and the sphere turns to its time of day (#2177)
-        /// — both in <see cref="UpdateOrbitBodies"/>. <paramref name="bodyId"/> keys the body's true circumference;
+        /// — both in <see cref="UpdateOrbitBodies"/>. <paramref name="circumference"/> is the body's true walkable
+        /// circumference as the server sized it (#2691) — the map bake covers exactly that world;
         /// <paramref name="locationName"/> ("System · Body") seeds the per-world flora hue.</summary>
-        private GameObject SpawnBody(string name, string bodyId, string kind, string locationName, Vector3 pos, float diameter, string planetType, float sizeBias = 0f, int ringSeed = 0)
+        private GameObject SpawnBody(string name, string bodyId, string kind, string locationName, Vector3 pos, float diameter, string planetType, int circumference, int ringSeed = 0)
         {
             // B37 rest: planets + cloud shells in the orbit view are lit by THIS system's star, so under a
             // red sun the whole system reads warm (a light wash — the biome tint stays recognisable).
@@ -4460,10 +4457,9 @@ namespace BlocksBeyondTheStars.Client
             }
             if (planet != null && Game != null)
             {
-                int circ = WorldConstants.CircumferenceFor(key, ClassOf(kind, planetType), sizeBias);
                 // Airless moons carry craters, as the server generates them (#2170).
                 bool cratered = kind == "Moon" && planet.IsAirless;
-                var request = WorldMinimap.MakeRequest(Game.Content, Game.Atlas, Game.WorldSeed, locationName, planetType, circ, 96, 48,
+                var request = WorldMinimap.MakeRequest(Game.Content, Game.Atlas, Game.WorldSeed, locationName, planetType, circumference, 96, 48,
                     key, Game.TerrainContinents, Game.TerrainGeneration, cratered, Game.TerrainLavaCoreVolcanoes);
                 Color washTint = Color.Lerp(Color.white, sunHue, 0.35f);
                 WorldMinimap.Request(request, (tex, data) =>
@@ -4483,7 +4479,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Atmosphere from DATA (#2170): no clouds on airless bodies, the type's cloud cover otherwise, the world's
             // own cloud and sky tints — the hard-coded table left 33 of 51 types cloudless from orbit.
-            ob.Atmosphere = OrbitLook.For(planet, Game?.WorldSeed ?? 0L, key);
+            ob.Atmosphere = OrbitLook.For(planet, Game?.WorldSeed ?? 0L, key, Game?.TerrainGeneration ?? 0); // #2692: the save's generation
             if (ob.Atmosphere.HasClouds)
             {
                 AddCloudShell(ob, sunHue, sunDir, CloudShellSeed(key));

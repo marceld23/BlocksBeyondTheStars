@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.Story;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -439,9 +440,15 @@ public sealed partial class GameServer
             t += 2; // taming a titan (#638) is a late-game feat, not a stroll
         }
 
-        t += (int)(Hash(creatureId, "shy") % 3) - 1; // -1 / 0 / +1
+        t += Shyness(creatureId);
         return System.Math.Clamp(t, 2, 7);
     }
+
+    /// <summary>This individual's shyness: -1 / 0 / +1 on the trust it needs.</summary>
+    private static int Shyness(string creatureId) => StableHashing.Index(Hash(creatureId, "shy"), 3) - 1;
+
+    /// <summary>This individual's extra forgiveness on top of its temperament's patience: 0 or 1.</summary>
+    private static int ExtraPatience(string creatureId) => StableHashing.Index(Hash(creatureId, "pat"), 2);
 
     /// <summary>Wrong responses tolerated before the creature gives up/bolts. Skittish species bolt at the
     /// first mistake; others forgive 0–4 depending on temperament + a small per-individual variance.</summary>
@@ -460,14 +467,15 @@ public sealed partial class GameServer
             CreatureTemperament.PackHunter => 0,
             _ => 2,
         };
-        return basePatience + (int)(Hash(creatureId, "pat") % 2);
+        return basePatience + ExtraPatience(creatureId);
     }
 
-    /// <summary>This individual's preferred bait item (randomised per animal so same-species creatures differ).</summary>
+    /// <summary>This individual's preferred bait item (randomised per animal so same-species creatures differ). Also the
+    /// clone price of a species in a crystal tank, keyed by the species id there.</summary>
     private static string PreferredBait(string creatureId)
     {
         string[] baits = { "forage_bait", "meat_bait", "nectar_lure" };
-        return baits[Hash(creatureId, "bait") % (uint)baits.Length];
+        return baits[StableHashing.Index(Hash(creatureId, "bait"), baits.Length)];
     }
 
     /// <summary>The first raw food in the player's inventory a creature craving <paramref name="bait"/> would take (#2530),
@@ -489,13 +497,13 @@ public sealed partial class GameServer
     /// temperament: grazers want feeding/approach, shy ones want space, hostile ones want calming.</summary>
     private static string NeedForStep(CreatureSpecies sp, string creatureId, int step)
     {
-        uint h = Hash(creatureId, "need:" + step);
+        bool rare = StableHashing.Index(Hash(creatureId, "need:" + step), 3) == 1; // the less usual need, one step in three
         return sp.Temperament switch
         {
-            CreatureTemperament.Skittish => (h % 3) == 1 ? "feed" : "space",
+            CreatureTemperament.Skittish => rare ? "feed" : "space",
             CreatureTemperament.Territorial or CreatureTemperament.Aggressive or CreatureTemperament.PackHunter
-                => (h % 3) == 1 ? "feed" : "calm",
-            _ => (h % 3) == 1 ? "approach" : "feed",
+                => rare ? "feed" : "calm",
+            _ => rare ? "approach" : "feed",
         };
     }
 
@@ -542,8 +550,19 @@ public sealed partial class GameServer
         return k;
     }
 
-    private static uint Hash(string id, string salt)
-        => (uint)StableStringHash(id + ":" + salt);
+    /// <summary>The per-individual taming hash of an entity id and a salt. #2687: well-mixed (<see cref="StableHashing"/>) —
+    /// the old h·31 string hash of <c>e{n}:salt</c> moved in lock-step with the spawn counter, so <c>% 3</c> cycled with
+    /// period three over consecutive animals (shyness, the need sequence) and the craved bait rotated with the spawn
+    /// order instead of being a surprise per animal.</summary>
+    private static ulong Hash(string id, string salt) => StableHashing.Mixed(id + ":" + salt);
+
+    /// <summary>Test seam (#2687): an individual's per-animal taming rolls — shyness (-1/0/+1), extra patience (0/1) and
+    /// the crafted bait it craves.</summary>
+    internal static (int Shyness, int ExtraPatience, string Bait) TamingRollsForTest(string creatureId)
+        => (Shyness(creatureId), ExtraPatience(creatureId), PreferredBait(creatureId));
+
+    /// <summary>Test seam (#2687): what an individual wants on a given taming step.</summary>
+    internal static string NeedForStepForTest(CreatureSpecies sp, string creatureId, int step) => NeedForStep(sp, creatureId, step);
 
     // ---------------------------------------------------------------------------------------------
     // Companion entities (live followers) + reconciliation with player presence.
@@ -729,7 +748,7 @@ public sealed partial class GameServer
     /// the heightfield buried under the gas, and a land clone released there (wild, so the gas burns it) would die at once.</summary>
     private Vector3f CompanionSpotNear(CreatureSpecies sp, string companionId, Vector3f near)
     {
-        float baseAngle = (Hash(companionId, "spawn") % 360) * (float)(System.Math.PI / 180.0);
+        float baseAngle = StableHashing.Index(Hash(companionId, "spawn"), 360) * (float)(System.Math.PI / 180.0);
         for (int i = 0; i < 8; i++)
         {
             float ang = baseAngle + i * 0.7853982f; // 45° apart
@@ -763,7 +782,7 @@ public sealed partial class GameServer
 
             var petProfile = ProfileFor(c.SpeciesId);
             var petStep = LocomotionController.FollowStep(
-                c.Loco, petProfile, c.Position, tamer.Pos, CompanionFollowDistance, moveDt, Hash(c.Id, "wander"));
+                c.Loco, petProfile, c.Position, tamer.Pos, CompanionFollowDistance, moveDt, unchecked((uint)StableHashing.Seed32(Hash(c.Id, "wander"))));
             c.Loco = petStep.State;
             ApplyCreatureStep(c, sp, EffectiveMotion(c, sp), petStep.Position, petStep.VertWave, petProfile, moveDt,
                 petStep.State.Mode == MoveMode.Seek ? MoveMode.Seek : MoveMode.Roam, petStep.Moving, terrainGates: false);
@@ -787,7 +806,7 @@ public sealed partial class GameServer
 
         var profile = ProfileFor(c.SpeciesId);
         var res = LocomotionController.FollowStep(
-            c.Loco, profile, c.Position, owner.State.Position, CompanionFollowDistance, moveDt, Hash(c.Id, "wander"));
+            c.Loco, profile, c.Position, owner.State.Position, CompanionFollowDistance, moveDt, unchecked((uint)StableHashing.Seed32(Hash(c.Id, "wander"))));
         c.Loco = res.State;
 
         // Companions respect energy fences like wild fauna do — a penned companion stays penned even

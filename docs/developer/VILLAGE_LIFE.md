@@ -14,6 +14,32 @@ did, ask small favours, visit, and celebrate the player who helped them. Everyth
 
 The routine-level details (phases, chatter, the deed log and news) are in [NPC_ROUTINES.md](NPC_ROUTINES.md) §12–§15.
 
+## Place keys and board rolls (#2688, #2693)
+
+A settlement's **place key** `settle_<n>` names everything that belongs to it: its board's mission ids
+(`settle_<n>_3`, `…_b0`, `…_s0`, `…_c0`, `…_bounty_<camp>`), the memory keys of its people (`settle_<n>:quartermaster`,
+the villagers' person keys `settle_<n>#bed@x.y.z:settler`), the wish ledger and wish ids (`wish_<n>_…`) and the place a
+chain step was taken at (`MissionProgress.AcceptedFrom`). Since #2693 `<n>` is a nine-digit hash of **body and name salted
+with the world seed** (`SettlementLocationKeyFor`, `GameServerSettlementKeys.cs`) — names repeat (about 45 per tier, unique
+per body only), so the old name-only key (at most five digits) gave two "Karth Village" on two moons one board, one set of
+mission ids and one memory. Station keys (`station_<n>`, from the station id) were unique already and stay.
+
+**Board rolls** (#2688) seed `System.Random` from `StableHashing.Seed32(key, worldSeed)` (`BoardRng`) instead of the low
+bits of the plain FNV hash: consecutive slots used to draw almost the same first number (a board echoed itself after four
+jobs in most cases) and a board was the same in every world. Board jobs are never stored — a held job is coined again
+from its id after every load — so the new rolls run on **new ids**: a settlement board under its new place key, a station
+or base board on its own `m` stream (`station_<n>_m3`, `…_ms0`, `…_mc0`, `home_<n>_m0`). The old ids keep the old rolls
+(`legacy: true`): `EnsureLegacyBoardStreams` re-coins what a player still holds there and finishes a big order they
+started, but offers nothing new. Bounty rewards roll per world too (their definition is stored when taken).
+
+**Migration** (`MigrateLegacySettlementKeys`, on world entry before the #2598 one): what the save files under an old key
+moves to the key of the settlement of that name on the body the player enters — memory entries (person keys included),
+the `npcmig:` marker, the wish ledger (its villagers' keys) with the held wish renamed onto the new place (its stored
+definition too), and `AcceptedFrom`. An old key cannot say which body it meant: the first namesake the player enters
+after the update inherits it (moved, not copied — a copy would list a person twice and cannot split one held wish or one
+running chain). A name that is not on this body waits for its own. Quartermaster names (`CoinGiverName`) and a
+settlement's trade (`SettlementTradeFor`) still come from the name alone — they name living NPCs players know.
+
 ## Festival (#2604)
 
 Finishing a settlement's four-step **"settlement needs"** chain (`data/missions.json`) plans a festival for the player

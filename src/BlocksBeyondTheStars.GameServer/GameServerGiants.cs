@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -709,7 +711,9 @@ public sealed partial class GameServer
     private bool TrySpawnSandworm(CreatureSpecies sp, int slot, List<PlayerSession> onFoot)
     {
         string name = GiantName(sp.BodyPlan);
-        var rng = new System.Random(unchecked((int)(_meta.Seed ^ WorldGenerator.StableHash(name + "-spawn:" + _world.LocationId + slot) ^ (long)_uptime)));
+        // #2688: a well-mixed seed over body, slot and moment (runtime only — a spawn is never re-derived).
+        var rng = new System.Random(StableHashing.Seed32(name + "-spawn:" + _world.LocationId + ":" + slot.ToString(CultureInfo.InvariantCulture)
+            + ":" + ((long)_uptime).ToString(CultureInfo.InvariantCulture), _meta.Seed));
         var near = onFoot[rng.Next(onFoot.Count)].State.Position;
         for (int attempt = 0; attempt < 16; attempt++)
         {

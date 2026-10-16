@@ -175,9 +175,11 @@ public sealed partial class GameServer
 
     /// <summary>The walkable circumference of a station's void world — <see cref="LoadWorld"/>'s rule for a location
     /// the galaxy does not carry (a planet-class size band, no bias). Needed to key a stored edit of a world that is not
-    /// loaded: every block write keys X canonically (#1773).</summary>
-    private static int StationWorldCircumference(string loc)
-        => WorldConstants.CircumferenceFor(loc, WorldConstants.SizeClassFor(CelestialKind.Planet, StationPlanetType), 0f);
+    /// loaded: every block write keys X canonically (#1773). Through <see cref="WorldCircumferenceOf(string,
+    /// WorldConstants.WorldSizeClass, float)"/> like <see cref="LoadWorld"/>, so a generation-26 save keys it with the
+    /// seeded size its loaded world gets (#2691).</summary>
+    private int StationWorldCircumference(string loc)
+        => WorldCircumferenceOf(loc, WorldConstants.SizeClassFor(CelestialKind.Planet, StationPlanetType), 0f);
 
     /// <summary>Runs <paramref name="live"/> with the station's interior world as the active world when it is loaded (a
     /// boarder is inside — they see the change at once), else <paramref name="stored"/> with the world's canonical

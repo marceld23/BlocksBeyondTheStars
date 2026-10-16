@@ -41,7 +41,7 @@ public sealed class VillagePersonMemoryTests : IDisposable
         try { Directory.Delete(_root, recursive: true); } catch { /* best-effort temp cleanup */ }
     }
 
-    private SvGameServer Start(string world, long seed, out SqliteWorldRepository repo, bool settlements = true)
+    private SvGameServer Start(string world, long seed, out SqliteWorldRepository repo, bool settlements = true, int? terrainGeneration = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
         var config = new ServerConfig
@@ -55,6 +55,11 @@ public sealed class VillagePersonMemoryTests : IDisposable
             PlaceWrecks = false,
             AiLevel = AiLevel.Off,
         };
+        if (terrainGeneration is int generation)
+        {
+            config.World.TerrainGeneration = generation;
+        }
+
         var server = new SvGameServer(config, Content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();
         return server;
@@ -163,13 +168,16 @@ public sealed class VillagePersonMemoryTests : IDisposable
 
     /// <summary>E6 (Marcel 2026-10-14): today's villager names are kept — but they come from ONE world-wide random stream,
     /// so any change to an earlier settlement's draws renames everyone after it. This pin makes such a change deliberate:
-    /// when it fails, decide whether renaming the villagers of existing worlds is acceptable, then update the list.</summary>
+    /// when it fails, decide whether renaming the villagers of existing worlds is acceptable, then update the list.
+    /// The pinned worlds are EXISTING ones — generation 25: from generation 26 the bodies are sized by the world seed
+    /// (#2691), which moves the settlements of a new world and with them the draws, and new worlds may name freely.</summary>
     [Theory]
     [InlineData(1L)]
     [InlineData(2L)]
     public void VillagerNames_ArePinnedPerSeed(long seed)
     {
-        var server = Start($"names_{seed}", seed, out var repo);
+        var server = Start($"names_{seed}", seed, out var repo,
+            terrainGeneration: BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1);
         using (repo)
         {
             // The residents whose names come from the world-wide stream (not the professions, who draw from a generator of

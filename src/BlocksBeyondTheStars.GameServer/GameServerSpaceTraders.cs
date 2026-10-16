@@ -1209,11 +1209,10 @@ public sealed partial class GameServer
         return list;
     }
 
-    /// <summary>The seeded roll of a body's <paramref name="count"/>-th planet-side arrival.</summary>
+    /// <summary>The seeded roll of a body's <paramref name="count"/>-th planet-side arrival — a well-mixed seed (#2688), so
+    /// consecutive arrivals do not draw in step. Runtime only: an arrival is rolled when it happens, never re-derived.</summary>
     private System.Random PlanetTraderRng(string bodyId, int count)
-        => new(unchecked((int)WorldGenerator.StableHash(
-            _meta.Seed.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":ptrader:" + bodyId + ":"
-            + count.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+        => new(StableHashing.Seed32("ptrader:" + bodyId + ":" + count.ToString(System.Globalization.CultureInfo.InvariantCulture), _meta.Seed));
 
     /// <summary>Decides an arrival: the pad, the trader, the reservation and the "look up!" toast. False when no dry pad is free.</summary>
     private bool BringPlanetTraderIn(string bodyId, List<PlayerSession> present, System.Random rng)
@@ -1311,7 +1310,7 @@ public sealed partial class GameServer
         }
 
         return _galaxy?.FindBody(bodyId) is { } body
-            ? WorldConstants.CircumferenceFor(body.Id, WorldConstants.SizeClassFor(body.Kind, body.PlanetType ?? string.Empty), body.SizeBias)
+            ? WorldCircumferenceOf(body)
             : 0;
     }
 

@@ -716,7 +716,8 @@ public sealed partial class GameServer
         var sizeClass = WorldConstants.SizeClassFor(worldBody?.Kind ?? CelestialKind.Planet, planet.Key);
         // #549: the archetype's size bias stretches the band (lone giant up to 16000, swarm dwarf down to
         // 4000); bodies outside the galaxy (station interiors, ship worlds) carry no bias.
-        int circumference = WorldConstants.CircumferenceFor(locationId, sizeClass, worldBody?.SizeBias ?? 0f);
+        // #2691: from terrain generation 26 the size is seeded by the world as well (older saves keep their classic sizes).
+        int circumference = WorldCircumferenceOf(locationId, sizeClass, worldBody?.SizeBias ?? 0f);
 
         var world = _worlds.GetOrCreate(planet, locationId, circumference, out bool isNew);
         world.SizeClass = sizeClass; // remembered for the per-world gravity band seeded in InitWeather
@@ -8069,7 +8070,8 @@ public sealed partial class GameServer
             SystemZ = b.SystemZ,
             OrbitPeriodDays = b.OrbitPeriodDays,
             ParentId = b.ParentId,
-            SizeBias = b.SizeBias, // #549: the client sizes this body with the same bias the server does
+            SizeBias = b.SizeBias, // #549: the archetype size bias (already part of Circumference; an older client reads it)
+            Circumference = WorldCircumferenceOf(b), // #2691: the client sizes every view of this body from THIS value
             RingSeed = b.RingSeed, // #596: 0 = no rings; the client renders the ring system from this
             PadsTotal = total,
             PadsFree = total > 0 ? FreePadCount(b.Id, total, receiver.State.PlayerId) : 0,

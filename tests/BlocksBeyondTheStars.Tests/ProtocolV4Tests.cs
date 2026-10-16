@@ -147,6 +147,10 @@ public sealed class ProtocolV4Tests : IDisposable
         var repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
         var transport = new ModeRecordingTransport();
         var config = new ServerConfig { WorldName = world, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        // The presence test stands a second player on a fixed spot of seed 1's start world, near enough to the first one's
+        // spawn to be streamed to them; from generation 26 the world's size — and with it the spawn — is seeded by the
+        // world (#2691). The wire modes under test do not depend on it, so the world keeps the generation it was set on.
+        config.World.TerrainGeneration = BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1;
         var server = new SvGameServer(config, _content, transport, repo);
         server.Start();
         return (server, transport, repo);

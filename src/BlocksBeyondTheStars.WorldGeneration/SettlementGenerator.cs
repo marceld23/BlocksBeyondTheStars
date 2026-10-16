@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.WorldGeneration;
 
@@ -296,11 +297,16 @@ public static class SettlementGenerator
     /// HASH of tier + seed + plot decides whether a plot is built from a module of its role instead of the
     /// procedural building — never an rng draw, so every plot that stays procedural is byte-identical whether
     /// or not modules exist. Rooms are furnished (#1828) on the way.
+    /// <para><paramref name="legacyCrops"/> (#2689) and <paramref name="legacyModuleRoll"/> (#2690) bring back the
+    /// historical, poorly mixed hash picks for a settlement whose blocks or records were decided with them: the
+    /// crop per greenhouse for a placement record from before #2689, the module roll for a record from before #1872
+    /// (modules on, no composition yet) that freezes its picks now. Everything else takes the mixed picks.</para>
     /// </summary>
     public static SettlementStructure Generate(string tier, bool ruined, long seed, string biomeSurfaceBlock, GameContent content,
         IReadOnlyList<StructureTemplate>? modules = null, double moduleChance = 0.0,
         IList<string>? composition = null, System.Action<string>? warn = null,
-        SettlementLayoutSpec? layout = null, StructureKit? kit = null, IReadOnlyList<StructureTemplate>? kitModules = null)
+        SettlementLayoutSpec? layout = null, StructureKit? kit = null, IReadOnlyList<StructureTemplate>? kitModules = null,
+        bool legacyCrops = false, bool legacyModuleRoll = false)
     {
         bool town = IsTownStyle(tier);
         var (baseCols, baseRows, baseFloors) = Layout(tier);
@@ -363,6 +369,10 @@ public static class SettlementGenerator
         // Each greenhouse grows ONE of the cultivated crops (#1204), picked per plot from a hash — never from
         // `rng`: the draws below are read unconditionally so the stream must not shift, or every existing
         // seed would re-roll its layout. A city with two or three houses gets a mixed harvest that way.
+        // #2689: the historical pick ran the raw StableHash with the plot at the END of the key, so neighbouring
+        // plots landed on almost the same low bits — 62 % of the multi-greenhouse settlements grew a single crop
+        // and three different crops never occurred. The mixed hash decides each plot independently; the old pick
+        // stays for a settlement whose record says its greenhouses were planted with it (its blocks are stamped).
         var cropSet = new List<ushort>();
         foreach (var key in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.CultivatedKeys())
         {
@@ -376,7 +386,7 @@ public static class SettlementGenerator
         ushort fallbackCrop = B("flora_bush", flora);
         ushort CropFor(int plot) => cropSet.Count == 0
             ? fallbackCrop
-            : cropSet[(int)((WorldGenerator.StableHash($"crop:{tier}:{seed}:{plot}") & 0x7fffffff) % cropSet.Count)];
+            : cropSet[CropIndex(tier, seed, plot, cropSet.Count, legacyCrops)];
 
         int w = cols * plot + 1;
         int l = rows * plot + 1;
@@ -484,7 +494,7 @@ public static class SettlementGenerator
                     ? ModuleByKey(pool, plotIndex < composition!.Count ? composition[plotIndex] : string.Empty, plotRole, StyleOk, building, h - 1, building, warn)
                     : assigned != null
                         ? ModuleByKey(pool, assigned[plotIndex], plotRole, StyleOk, building, h - 1, building, warn)
-                        : PickModule(modules, moduleChance, $"module:{tier}:{seed}:{plotIndex}", plotRole, StyleOk, building, h - 1, building);
+                        : PickModule(modules, moduleChance, $"module:{tier}:{seed}:{plotIndex}", plotRole, StyleOk, building, h - 1, building, legacyModuleRoll);
                 if (record)
                 {
                     composition!.Add(module?.Key ?? string.Empty); // #1872: pinned for every later load
@@ -683,21 +693,37 @@ public static class SettlementGenerator
     // --- authored building modules (#1827) ------------------------------------------------------------------
 
     /// <summary>
+    /// The crop index of one greenhouse plot (#2689): the mixed hash of tier + plot salted with the settlement seed,
+    /// or — <paramref name="legacy"/> — the historical raw <c>StableHash</c> of <c>crop:{tier}:{seed}:{plot}</c> modulo
+    /// the crop count, which a greenhouse planted before #2689 still grows.
+    /// </summary>
+    internal static int CropIndex(string tier, long seed, int plot, int cropCount, bool legacy)
+        => legacy
+            ? (int)((WorldGenerator.StableHash($"crop:{tier}:{seed}:{plot}") & 0x7fffffff) % cropCount)
+            : StableHashing.Index($"crop:{tier}:{plot}", seed, cropCount);
+
+    /// <summary>
     /// Picks the module for one slot, or null. The decision is a HASH of <paramref name="hashKey"/> (never an
     /// rng draw): under <paramref name="chance"/> the slot takes a module, and among the candidates — the
     /// <paramref name="role"/> the slot needs, <paramref name="styleOk"/>, and fitting the envelope — a second
     /// hash picks one weighted by <see cref="StructureTemplate.Weight"/>. Pool order matters for the pick,
     /// so callers pass the content's list unsorted.
+    /// <para>#2690: the roll is the mixed hash. The historical roll — the low 24 bits of the raw <c>StableHash</c>,
+    /// whose keys end in the plot index or the district's row, so neighbouring slots rolled alike (83–92 % of the
+    /// settlements all modules or none, a city's district column always the same) — is kept for
+    /// <paramref name="legacyRoll"/>: a record from before #1872 freezes the picks it was stamped with.</para>
     /// </summary>
     internal static StructureTemplate? PickModule(IReadOnlyList<StructureTemplate>? modules, double chance, string hashKey,
-        string role, System.Func<StructureTemplate, bool> styleOk, int maxW, int maxH, int maxL)
+        string role, System.Func<StructureTemplate, bool> styleOk, int maxW, int maxH, int maxL, bool legacyRoll = false)
     {
         if (modules == null || modules.Count == 0 || chance <= 0)
         {
             return null;
         }
 
-        double roll = (WorldGenerator.StableHash(hashKey) & 0xFFFFFF) / (double)0x1000000;
+        double roll = legacyRoll
+            ? (WorldGenerator.StableHash(hashKey) & 0xFFFFFF) / (double)0x1000000
+            : StableHashing.Unit(hashKey);
         if (roll >= chance)
         {
             return null;

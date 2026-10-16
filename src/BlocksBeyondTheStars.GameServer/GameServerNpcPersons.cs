@@ -399,10 +399,12 @@ public sealed partial class GameServer
     /// settler entry is named after (the one "People you know" showed) inherits its full value and log; the old entry
     /// itself becomes "&lt;place&gt; · Villagers", capped at <see cref="LegacyStandingFloorCap"/> — it lives on as the
     /// floor for everyone else. A trading profession named in the old vendor entry inherits that one the same way (the
-    /// vendor entry stays the classic vendor's and gets their name back). Cheap when there is nothing to do.
+    /// vendor entry stays the classic vendor's and gets their name back). Cheap when there is nothing to do. Runs after
+    /// the #2693 move of the old name-only keys onto this body's keys, so it always works on the current keys.
     /// </summary>
     private void MigrateSettlementMemory(PlayerSession session)
     {
+        MigrateLegacySettlementKeys(session); // #2693: name-only settlement keys → this body's keys (memory, wishes, chain places)
         var p = session.State;
         if (p.NpcMemory.Count == 0)
         {

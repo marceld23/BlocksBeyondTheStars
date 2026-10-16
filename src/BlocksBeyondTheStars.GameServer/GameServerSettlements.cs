@@ -316,6 +316,9 @@ public sealed partial class GameServer
             // #1827: modules only where the record allows them — a fresh world records 1 (2 for a kit); records from
             // before modules existed and legacy re-derives stay 0, so their layout never changes under the blocks.
             bool modulesOn = pinRec is null ? _worlds.Active.VirginAtLoad : pinRec.Modules >= 1;
+            // #2689 / #2690: the historical hash picks wherever the settlement was decided with them — see the helpers.
+            bool legacyCrops = UsesLegacyCrops(pinRec, _worlds.Active.VirginAtLoad);
+            bool legacyModuleRoll = UsesLegacyModuleRoll(pinRec);
             double useP = _meta.Description.SettlementTemplateUse.Probability();
             var packs = _meta.Description.EnabledStructurePacks;
             // The legacy roll is drawn for every instance, and its pick when it hits (stream contract).
@@ -382,7 +385,8 @@ public sealed partial class GameServer
                 ruined = ir.NextDouble() < RuinChance(h) || planet.RuinedSettlementsOnly;
                 bool kitPath = kit != null || pinnedKit;
                 structure = SettlementGenerator.Generate(tier, ruined, instSeed, surface, _content,
-                    modulesOn ? modules : null, moduleChance, composition, _log.Warn, layout, kit, kitPath ? kitPool : null);
+                    modulesOn ? modules : null, moduleChance, composition, _log.Warn, layout, kit, kitPath ? kitPool : null,
+                    legacyCrops, legacyModuleRoll);
                 if (pinRec is { Placed: true } && pinRec.Composition is null && composition is { Count: > 0 })
                 {
                     pinRec.Composition = composition; // freeze the current picks of a pre-#1872 record once
@@ -447,7 +451,8 @@ public sealed partial class GameServer
                 name = UniqueName(SettlementDisplayName(tier, ruined, RngFor(instSeed, "name")), usedNames);
                 RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty,
                     modules: kit != null ? 2 : 1, composition: composition, kit: kit?.Key ?? string.Empty,
-                    kitLayout: kit != null && layout is { } spec ? spec.Serialize() : string.Empty);
+                    kitLayout: kit != null && layout is { } spec ? spec.Serialize() : string.Empty,
+                    hashRevision: StructurePlacementRecord.MixedHashRevision); // #2689: planted with the mixed crop pick
             }
 
             placed.Add(new PlacedSettlement
@@ -553,8 +558,8 @@ public sealed partial class GameServer
             // first window now; the per-player mission-giver window then slides it so it never runs dry.
             if (!p.Ruined && inst.Markers.Any(m => m.Type == "mission_board"))
             {
-                string prefix = $"settle_{(uint)WorldGenerator.StableHash(p.Name) % 100000u}_";
-                StockBoard(prefix, p.Name, inst.MissionIds, CoinGiverName(p.Name), withBuild: true); // #1116
+                string key = SettlementLocationKey(p.Name); // #2693: body + name; rolls per world (#2688)
+                StockBoard(key + "_", key, inst.MissionIds, CoinGiverName(p.Name), withBuild: true); // #1116
             }
 
             _settlements.Add(inst);
@@ -634,7 +639,8 @@ public sealed partial class GameServer
             name = CityDisplayName(RngFor(sSeed, "cityname"));
             modulesOn = true;
             RecordPlacement("settlement", 0, origin, groundY, false, "shelf", name, "city:" + planet.CityWorld,
-                modules: kitCity ? 2 : 1, kit: cityKit?.Key ?? string.Empty, kitLayout: kitCity ? cityLayout.Serialize() : string.Empty);
+                modules: kitCity ? 2 : 1, kit: cityKit?.Key ?? string.Empty, kitLayout: kitCity ? cityLayout.Serialize() : string.Empty,
+                hashRevision: StructurePlacementRecord.MixedHashRevision);
         }
 
         // Open zones in structure-local coordinates: the pad ring (the plaza keeps it clear for the ship) and
@@ -652,8 +658,9 @@ public sealed partial class GameServer
         List<string>? composition = modulesOn
             ? (rec?.Composition is { } pinned ? new List<string>(pinned) : new List<string>())
             : null;
+        // #2690: `rec` is the record as loaded (null for a city composed right now) — a pre-#1872 one freezes the legacy roll.
         var structure = CityGenerator.Generate(sSeed, _content, zones, modulesOn ? modules : null, moduleChance, composition, _log.Warn,
-            kitCity ? cityLayout : null, cityKit, kitCity ? kitPool : null);
+            kitCity ? cityLayout : null, cityKit, kitCity ? kitPool : null, UsesLegacyModuleRoll(rec));
         if (composition is { Count: > 0 } && (rec ?? FindPlacementRecord("settlement", 0)) is { } cityRec && cityRec.Composition is null)
         {
             cityRec.Composition = composition;
@@ -1026,16 +1033,42 @@ public sealed partial class GameServer
 
     private bool _placementRecordsDirty;
 
+    /// <summary>
+    /// #2689: whether a settlement's greenhouses grow the historical crop pick. A settlement composed right now (no
+    /// record yet, on a world that was untouched at load — also a never-visited body of an old save) takes the mixed
+    /// pick and records it; a pre-record world's legacy re-derive and every record from before the
+    /// <see cref="StructurePlacementRecord.HashRevision"/> field keep the crops their stamped blocks carry.
+    /// </summary>
+    internal static bool UsesLegacyCrops(StructurePlacementRecord? rec, bool virginAtLoad)
+        => rec is null ? !virginAtLoad : rec.HashRevision < StructurePlacementRecord.MixedHashRevision;
+
+    /// <summary>
+    /// #2690: whether a settlement or the city rolls its plot / district modules with the historical hash. Only a
+    /// record from before #1872 — modules on, no composition yet — rolls at all on a later load (it freezes its picks
+    /// into the record once), and it must freeze the picks its blocks were stamped with. A pinned composition replays
+    /// without rolling; a fresh instance records the mixed roll.
+    /// </summary>
+    internal static bool UsesLegacyModuleRoll(StructurePlacementRecord? rec)
+        => rec is { Placed: true, Modules: >= 1, Composition: null };
+
     /// <summary>Pins where a structure instance landed (#586). Batched — call
-    /// <see cref="SavePlacementRecords"/> once per stamper after its loop.</summary>
+    /// <see cref="SavePlacementRecords"/> once per stamper after its loop. <paramref name="modules"/> and
+    /// <paramref name="hashRevision"/> (#2689) are written only when the record is created.</summary>
     private void RecordPlacement(string kind, int index, Vector3i origin, int groundY, bool onIsland,
         string seat, string name, string template = "", int modules = 0, List<string>? composition = null, string kit = "",
-        string kitLayout = "")
+        string kitLayout = "", int hashRevision = 0)
     {
         var rec = FindPlacementRecord(kind, index);
         if (rec is null)
         {
-            rec = new StructurePlacementRecord { LocationId = _world.LocationId, Kind = kind, Index = index, Modules = modules };
+            rec = new StructurePlacementRecord
+            {
+                LocationId = _world.LocationId,
+                Kind = kind,
+                Index = index,
+                Modules = modules,
+                HashRevision = hashRevision,
+            };
             _meta.Placements.Add(rec);
         }
 
@@ -1716,7 +1749,8 @@ public sealed partial class GameServer
         _ => n.ToString(),
     };
 
-    /// <summary>The settlement a board mission id belongs to (its <c>settle_&lt;hash&gt;_</c> prefix), or null.</summary>
+    /// <summary>The settlement a board mission id belongs to (its <c>settle_&lt;hash&gt;_</c> prefix — the body-aware one,
+    /// or the old name-only one of a job held from before #2693), or null.</summary>
     private SettlementInstance? SettlementForBoardMission(string missionId)
     {
         foreach (var s in _settlements)
@@ -1726,7 +1760,8 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (missionId.StartsWith($"settle_{(uint)WorldGenerator.StableHash(s.Name) % 100000u}_", System.StringComparison.Ordinal))
+            if (missionId.StartsWith(SettlementBoardPrefix(s.Name), System.StringComparison.Ordinal)
+                || missionId.StartsWith(LegacySettlementBoardPrefix(s.Name), System.StringComparison.Ordinal))
             {
                 return s;
             }

@@ -52,6 +52,10 @@ public sealed class EnemySpawnPacingTests : IDisposable
             ViewDistanceChunks = 1,
         };
         configure(config.Rules);
+        // The machine counts below depend on how many dry spawn spots seed 9's start world offers near the player. From
+        // generation 26 (#2691) that world's size — and with it its relief — is seeded by the world, so the fixture keeps
+        // the generation the counts were measured on; the pacing rules under test do not depend on it.
+        config.World.TerrainGeneration = BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1;
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;

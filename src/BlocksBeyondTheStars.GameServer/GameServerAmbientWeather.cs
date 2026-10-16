@@ -163,7 +163,7 @@ public sealed partial class GameServer
             BodyId = body.Id,
             SystemId = body.SystemId,
             Planet = planet,
-            Circumference = WorldConstants.CircumferenceFor(body.Id, WorldConstants.SizeClassFor(body.Kind, planet.Key), body.SizeBias),
+            Circumference = WorldCircumferenceOf(body.Id, WorldConstants.SizeClassFor(body.Kind, planet.Key), body.SizeBias),
             AtmosphereDensity = AtmosphereDensityFor(planet, airless, body.Id),
             Airless = airless,
             Toxic = !airless && !string.Equals(planet.Atmosphere, "breathable", StringComparison.OrdinalIgnoreCase),

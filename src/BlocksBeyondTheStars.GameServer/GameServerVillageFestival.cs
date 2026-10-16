@@ -857,11 +857,11 @@ public sealed partial class GameServer
     // =====================================================================================================
 
     /// <summary><c>cheer|&lt;settle key&gt;|p200|&lt;locale&gt;|</c> — the village's cheers in one language (no player in it).</summary>
-    private static string FestivalCheerCacheKey(string settlement, string locale)
+    private string FestivalCheerCacheKey(string settlement, string locale)
         => AiLineCacheKey(NpcLinePurposes.Cheer, SettlementLocationKey(settlement), FestivalCrowdPersonaIndex, locale, string.Empty);
 
     /// <summary><c>festival_thanks|&lt;settle key&gt;|p&lt;voice&gt;|&lt;locale&gt;|</c> — the quartermaster's thanks.</summary>
-    private static string FestivalThanksCacheKey(string settlement, string quartermasterKey, bool robot, string locale)
+    private string FestivalThanksCacheKey(string settlement, string quartermasterKey, bool robot, string locale)
         => AiLineCacheKey(NpcLinePurposes.FestivalThanks, SettlementLocationKey(settlement),
             PersonaIndexFor(quartermasterKey, robot, "quartermaster"), locale, string.Empty);
 

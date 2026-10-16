@@ -895,20 +895,20 @@ public sealed partial class GameServer
     /// <summary>A per-individual COSMETIC size factor (a "bell" centred on 1.0, ±30% — the average of two
     /// pseudo-randoms is triangular, so most animals are about normal and runts/giants are rare). Derived
     /// from the entity id so it stays stable for that individual. Does not change health/damage/loot.</summary>
+    /// <remarks>#2687: the two uniforms are the two 32-bit halves of the well-mixed <see cref="StableHashing"/> hash.
+    /// The old h·31 string hash moved by only a few units per trailing digit of <c>e{n}</c>, so a herd of six
+    /// consecutive spawns came out the same size and the top of the bell (the giants) never occurred.</remarks>
     private static float FaunaSizeScale(string id)
     {
-        int h = 0;
-        foreach (char c in id)
-        {
-            h = unchecked(h * 31 + c);
-        }
-
-        uint u = (uint)h;
-        float a = (u & 0xFFFF) / 65535f;
-        float b = ((u >> 16) & 0xFFFF) / 65535f;
-        float t = (a + b) * 0.5f;
-        return 1f + (t - 0.5f) * 2f * 0.30f;
+        ulong m = StableHashing.Mixed("fauna-size:" + id);
+        double a = (uint)m / 4294967296.0;
+        double b = (uint)(m >> 32) / 4294967296.0;
+        double t = (a + b) * 0.5;
+        return (float)(1.0 + (t - 0.5) * 2.0 * 0.30);
     }
+
+    /// <summary>Test seam (#2687): the cosmetic size factor an individual with this entity id is spawned with.</summary>
+    internal static float FaunaSizeScaleForTest(string id) => FaunaSizeScale(id);
 
     /// <summary>
     /// Immediately seeds fauna around a spot so a world feels alive the moment a player enters or
@@ -2727,11 +2727,19 @@ public sealed partial class GameServer
     private Vector3f FlankPoint(CombatEntity c, Vector3f player, float dx, float dz)
     {
         float bearing = (float)System.Math.Atan2(-dz, -dx); // player → creature
-        float spread = ((StableStringHash(c.Id) % 1000) / 1000f - 0.5f) * 1.4f; // ±0.7 rad, stable per individual
-        float a = bearing + spread;
+        float a = bearing + FlankSpread(c.Id);
         const float ring = 2.0f;
         return new Vector3f(player.X + (float)System.Math.Cos(a) * ring, player.Y, player.Z + (float)System.Math.Sin(a) * ring);
     }
+
+    /// <summary>A pack hunter's own flank offset (±0.7 rad), stable per individual. #2687: drawn from the well-mixed
+    /// <see cref="StableHashing"/> hash — <c>h·31 % 1000</c> of <c>e{n}</c> put consecutive hunters 0.0014 rad apart, so a
+    /// pack spawned together all took the same line and never encircled. No salt string: this runs every tick per hunter,
+    /// and the id alone allocates nothing.</summary>
+    private static float FlankSpread(string id) => (float)((StableHashing.Unit(id) - 0.5) * 1.4);
+
+    /// <summary>Test seam (#2687): a pack hunter's flank offset in radians.</summary>
+    internal static float FlankSpreadForTest(string id) => FlankSpread(id);
 
     private const float CreatureFlyAltitude = 5f; // how high above the ground fliers hover
 

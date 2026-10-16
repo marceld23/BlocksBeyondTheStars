@@ -27,9 +27,7 @@ public sealed partial class GameServer
     /// is recognised across reloads even though the runtime <c>ServerNpc.Id</c> is not stable.</summary>
     private static string NpcKey(string locationKey, string role) => locationKey + ":" + role;
 
-    /// <summary>A settlement board's stable location id (matches the settle_&lt;hash&gt; mission prefix), keyed by
-    /// the settlement's name so each settlement on a world keeps its own NPC memory.</summary>
-    private static string SettlementLocationKey(string settlementName) => $"settle_{(uint)WorldGenerator.StableHash(settlementName) % 100000u}";
+    // A settlement's location id is SettlementLocationKey (GameServerSettlementKeys.cs, #2693): body + name, not the name alone.
 
     private static string StationLocationKey(string stationId) => $"station_{(uint)WorldGenerator.StableHash(stationId) % 100000u}";
 
@@ -43,9 +41,18 @@ public sealed partial class GameServer
     private static string BaseResidentKey(int baseId, int slot)
         => slot == 0 ? BaseSettlerKey(baseId) : NpcKey($"base_{baseId}#{slot}", "settler");
 
-    /// <summary>The board location id from a board mission id (strips the trailing _&lt;slot&gt;).</summary>
+    /// <summary>The board location id from a board mission id: the kind and the number (<c>settle_123_4</c>,
+    /// <c>settle_123_bounty_camp_2</c>, <c>station_9_m3</c> → <c>settle_123</c> / <c>station_9</c>). Cut at the SECOND
+    /// underscore — the last one left a camp bounty's quartermaster filed under <c>settle_123_bounty</c> (#2693).</summary>
     private static string LocationKeyOfMission(string missionId)
     {
+        int kind = missionId.IndexOf('_');
+        int number = kind > 0 ? missionId.IndexOf('_', kind + 1) : -1;
+        if (number > 0)
+        {
+            return missionId[..number];
+        }
+
         int i = missionId.LastIndexOf('_');
         return i > 0 ? missionId[..i] : missionId;
     }
@@ -97,7 +104,7 @@ public sealed partial class GameServer
             return;
         }
 
-        RecordNpcInteraction(player, NpcKey(LocationKeyOfMission(missionId), "quartermaster"), giverName, "quartermaster", NpcInteractionKind.MissionAccepted, NpcPlaceFor(player));
+        RecordNpcInteraction(player, NpcKey(MemoryLocationOfBoardMission(missionId), "quartermaster"), giverName, "quartermaster", NpcInteractionKind.MissionAccepted, NpcPlaceFor(player));
     }
 
     /// <summary>Records a barter the player just made at a settlement/station vendor (item 14); no-op aboard ship.</summary>

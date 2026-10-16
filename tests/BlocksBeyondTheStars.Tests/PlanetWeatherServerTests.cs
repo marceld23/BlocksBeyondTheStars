@@ -234,9 +234,10 @@ public sealed class PlanetWeatherServerTests : IDisposable
             }
 
             var planet = _content.GetPlanet(body.PlanetType!);
-            int sky = AtmosphereTints.SkyRgb(1, body.Id, planet);
+            int generation = server.Metadata.Description.TerrainGeneration; // #2692: the save's own generation
+            int sky = AtmosphereTints.SkyRgb(1, body.Id, planet, generation);
             Assert.Equal(sky, server.SkyColor);
-            Assert.Equal(AtmosphereTints.CloudRgb(1, body.Id, planet, sky), server.CloudColorForTest);
+            Assert.Equal(AtmosphereTints.CloudRgb(1, body.Id, planet, sky, generation), server.CloudColorForTest);
         }
     }
 

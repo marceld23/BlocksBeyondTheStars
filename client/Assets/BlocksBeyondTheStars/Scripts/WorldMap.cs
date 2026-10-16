@@ -630,9 +630,7 @@ namespace BlocksBeyondTheStars.Client
                         return; // a station deck or ship cabin has no weather to map
                     }
 
-                    var cls = WorldConstants.IsAsteroidType(body.PlanetType) ? WorldConstants.WorldSizeClass.Asteroid
-                        : body.Kind == "Moon" ? WorldConstants.WorldSizeClass.Moon : WorldConstants.WorldSizeClass.Planet;
-                    int circ = WorldConstants.CircumferenceFor(body.Id, cls, body.SizeBias);
+                    int circ = BodySize.CircumferenceOf(body); // #2691: the server's size of the body
                     var request = WorldMinimap.MakeRequest(Game.Content, Game.Atlas, Game.WorldSeed,
                         PlanetOrbitLook.LocationKeyFor(sys.Name, body.Name), body.PlanetType, circ, 256, 128, body.Id,
                         Game.TerrainContinents, Game.TerrainGeneration, body.Kind == "Moon" && planet.IsAirless,
@@ -694,7 +692,7 @@ namespace BlocksBeyondTheStars.Client
             double days = Game.SystemWeather.SystemTimeDays(now);
             double cloudLine = BlocksBeyondTheStars.Shared.Weather.WeatherProjection.CloudLineY(planet);
             bool ladder = BlocksBeyondTheStars.Shared.Weather.WeatherCatalog.Find(episode.State)?.IsLadder ?? true;
-            var atm = OrbitLook.For(planet, Game.WorldSeed, _bodyId);
+            var atm = OrbitLook.For(planet, Game.WorldSeed, _bodyId, Game.TerrainGeneration); // #2692: the save's generation
             var noise = PlanetWeatherVisuals.Noise(_bodyId.GetHashCode());
 
             const int n = WeatherCells;

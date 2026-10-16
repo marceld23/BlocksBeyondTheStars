@@ -814,7 +814,7 @@ public sealed partial class GameServer
 
         bandit.BanditPhase = BanditPhase.Demanding;
         StartBanditDemand(mark, bandit.Id, demand, fromShip: false, banditName: bandit.Name,
-            lineKey: "bandit.line.holdup" + (System.Math.Abs(StableStringHash(bandit.Id)) % 3 + 1));
+            lineKey: "bandit.line.holdup" + (StableHashing.Index(bandit.Id, 3) + 1)); // #2687: well-mixed, no 1-2-3 cycle over spawns
     }
 
     /// <summary>Arms the per-player demand state and sends the hold-up to the client. Shared by ground

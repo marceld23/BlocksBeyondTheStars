@@ -151,7 +151,10 @@ public sealed class TitasSurvivalTests : IDisposable
     [Fact]
     public void Titas_KeepsOnlyItsSpsLabs_AirlessColdModules_AndManyMachines()
     {
-        var server = NewServer("labs");
+        // The probe beside the first lab (its open ship pad) must not fall into a neighbouring lab — which lab stands where
+        // on seed 77's Titas moves with the world-seeded size from generation 26 (#2691); the lab rules under test do not,
+        // so the world keeps the generation the layout was checked on.
+        var server = NewServer("labs", c => c.World.TerrainGeneration = BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1);
         var labs = server.SpsLabsForTest();
         Assert.InRange(labs.Count, 1, 6);
         Assert.Empty(server.SettlementsForTest);

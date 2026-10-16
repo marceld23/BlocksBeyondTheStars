@@ -58,10 +58,11 @@ public sealed class CelestialBody
     public string ParentId { get; set; } = string.Empty;
 
     /// <summary>Size bias in [-1, 1] fed into <see cref="WorldConstants.CircumferenceFor(string,
-    /// WorldConstants.WorldSizeClass, float)"/> — set by the system archetype (#549: a lone giant is
+    /// WorldConstants.WorldSizeClass, float, long, int)"/> — set by the system archetype (#549: a lone giant is
     /// genuinely huge, swarm worlds small, twins matched). 0 (the default, and the value for every body
-    /// of a pre-variance save) keeps the classic hashed size exactly. Not persisted: like the rest of
-    /// the galaxy it re-derives deterministically from the seed.</summary>
+    /// of a pre-variance save) keeps the unbiased size exactly (the classic hashed one below terrain generation 26,
+    /// the world-seeded one from it — #2691). Not persisted: like the rest of the galaxy it re-derives
+    /// deterministically from the seed.</summary>
     public float SizeBias { get; set; }
 
     /// <summary>Planetary-ring style seed (#596): 0 = no rings (the default), non-zero = this planet

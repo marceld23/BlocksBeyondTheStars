@@ -320,7 +320,7 @@ public sealed partial class GameServer
         raider.BanditPhase = BanditPhase.Demanding;
         raider.BanditTargetId = mark.State.PlayerId;
         StartBanditDemand(mark, raider.Id, demand, fromShip: true, banditName: raider.Name,
-            lineKey: "bandit.line.hail" + (System.Math.Abs(StableStringHash(raider.Id)) % 3 + 1));
+            lineKey: "bandit.line.hail" + (StableHashing.Index(raider.Id, 3) + 1)); // #2687: well-mixed, no 1-2-3 cycle over spawns
         SendVegaLine(mark, "vega.sys.bandit_hail", 3);
     }
 

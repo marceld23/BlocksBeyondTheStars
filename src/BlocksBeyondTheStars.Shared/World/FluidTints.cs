@@ -52,7 +52,8 @@ public static class FluidTints
     };
 
     /// <summary>The water colour and mode of one world. Deterministic from the seed and the body, like every
-    /// other per-world look; the same historical location hash as <see cref="FloraTints.ForWorld"/>.
+    /// other per-world look; the same location hash as <see cref="FloraTints.ForWorld"/> (the classic one below
+    /// <see cref="WorldDescription.HashVarietyGeneration"/>, the mixed one from it — #2692).
     /// <paramref name="terrainGeneration"/> is the SAVE's generation: the colour is computed at runtime, not baked
     /// into the world, so without this gate an old save would change colour the day its type opted in. Below
     /// <see cref="WorldDescription.AuthoredContentGeneration"/> every world keeps the classic blue. <paramref name="toxicWater"/>
@@ -76,14 +77,24 @@ public static class FluidTints
         }
 
         // "auto" (and any unknown word): the seeded palette pick — from the poison palette when the water is toxic (#2027).
+        // From generation 26 (#2692) the mixed hash of (location, seed) rolls it; older saves keep the classic hash.
         var palette = toxicWater ? PoisonPalette : AutoPalette;
-        int h = 17;
-        foreach (char c in locationKey ?? string.Empty)
+        uint mix;
+        if (AtmosphereTints.HasMixedTints(terrainGeneration))
         {
-            h = unchecked(h * 31 + c);
+            mix = AtmosphereTints.MixedWord(worldSeed, locationKey, AutoWaterSalt);
+        }
+        else
+        {
+            int h = 17;
+            foreach (char c in locationKey ?? string.Empty)
+            {
+                h = unchecked(h * 31 + c);
+            }
+
+            mix = unchecked((uint)(h ^ (int)worldSeed ^ 0x7A7E12));
         }
 
-        uint mix = unchecked((uint)(h ^ (int)worldSeed ^ 0x7A7E12));
         int total = 0;
         foreach (var (_, w) in palette)
         {
@@ -112,6 +123,9 @@ public static class FluidTints
         int rgb = (Clamp8(r + Jit(3)) << 16) | (Clamp8(g + Jit(8)) << 8) | Clamp8(b + Jit(13));
         return (rgb, Mode.Tint);
     }
+
+    /// <summary>Salt of the generation-26 "auto" water roll (#2692).</summary>
+    private const ulong AutoWaterSalt = 0x2692_0000_A7E1_0004UL;
 
     private static int Clamp8(int v) => v < 0 ? 0 : (v > 255 ? 255 : v);
 }

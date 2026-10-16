@@ -460,6 +460,20 @@ public sealed class StructurePlacementRecord
     /// growing factory recipe set never re-rolls what an existing (possibly claimed) factory makes. Null on
     /// records from before roster pinning — the loader freezes the current roll into it once.</summary>
     public System.Collections.Generic.List<string>? Roster { get; set; }
+
+    /// <summary>The <see cref="HashRevision"/> a fresh record is written with: the well-mixed
+    /// <c>StableHashing</c> picks (#2686).</summary>
+    public const int MixedHashRevision = 1;
+
+    /// <summary>
+    /// Settlement records (#2689): which hash decided the instance's per-plot details that no other field pins — the
+    /// crop of each procedural greenhouse. 0 = the historical raw <c>WorldGenerator.StableHash</c> pick (every record
+    /// from before this field, and the legacy re-derive of a pre-record world), <see cref="MixedHashRevision"/> = the
+    /// mixed pick. Written once with the record and never bumped: the blocks are stamped only once (#1990), but a save
+    /// without the stamp mark stamps once more, and the in-memory layout is re-derived on every load — both must show
+    /// the crops the players saw. Additive JSON field.
+    /// </summary>
+    public int HashRevision { get; set; }
 }
 
 /// <summary>A kit station's pinned composition (#1874) — see <see cref="WorldMetadata.StationKits"/>.</summary>

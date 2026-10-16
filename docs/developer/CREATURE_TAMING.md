@@ -30,8 +30,10 @@ the device central rather than a re-skinned capture ball.
 
 **Difficulty + randomization.** Required trust and patience scale with **temperament** (Passive → Skittish →
 Territorial → Aggressive → PackHunter), exotic habitat (Cave/Lava/Air), glow and size. A per-individual seed
-(the entity-id hash already used for size/colour) randomises preferred bait *within* the category plus shyness,
-so two same-species animals tame differently.
+(the well-mixed `StableHashing` hash of the entity id plus a salt, like the cosmetic size) randomises preferred
+bait *within* the category, shyness, patience and the need of each step, so two same-species animals tame
+differently. #2687: the old h·31 string hash moved in lock-step with the `e{n}` spawn counter, so these rolls
+cycled with period three over consecutive animals and the craved bait rotated with the spawn order.
 
 **Companions are new player-state, not saved wild creatures.** Wild fauna is transient (regenerated per visit,
 seeded per world) and a species' roster slot (`sp0`) differs per world. So a companion stores a full

@@ -59,6 +59,10 @@ public sealed class EnemyMovementTests : IDisposable
         // shifted which id the first fiend got and flipped the hunt assertion below (#1325 did exactly that).
         config.Rules.CreatureAbundance = AlienActivity.Off;
         config.Rules.PlanetDrones = drones; // the wall tests (#1482) want walking robots only
+        // These tests stand machines, walls and steps on fixed coordinates of seed 9's start world. From generation 26
+        // (#2691) its size — and with it its relief and its dry spawn spots — is seeded by the world, so the fixture keeps
+        // the generation the coordinates were chosen on; the movement rules under test do not depend on it.
+        config.World.TerrainGeneration = BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1;
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;

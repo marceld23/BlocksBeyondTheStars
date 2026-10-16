@@ -22,13 +22,15 @@ public sealed class PlanetWeatherClientTests
 {
     private static readonly GameContent Content = ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
 
-    [Fact]
-    public void OrbitLook_EveryTypeWithAirAndClouds_GetsAShell_AirlessNone()
+    [Theory]
+    [InlineData(0)]                                               // the classic tints (every save before #2692)
+    [InlineData(WorldDescription.HashVarietyGeneration)]          // the mixed tints (#2692)
+    public void OrbitLook_EveryTypeWithAirAndClouds_GetsAShell_AirlessNone(int generation)
     {
         int shells = 0;
         foreach (var planet in Content.Planets.Values)
         {
-            var atm = OrbitLook.For(planet, 7, "sys0-p1");
+            var atm = OrbitLook.For(planet, 7, "sys0-p1", generation);
             bool air = !planet.IsAirless && !planet.SpaceSky && !planet.Void;
             Assert.Equal(air && planet.CloudDensity > 0.001, atm.HasClouds);
             Assert.Equal(air, atm.HasAir);
@@ -36,13 +38,15 @@ public sealed class PlanetWeatherClientTests
             {
                 shells++;
                 Assert.Equal((float)Math.Clamp(planet.CloudDensity, 0.0, 1.0), atm.CloudDensity);
-                Assert.Equal(AtmosphereTints.CloudRgb(7, "sys0-p1", planet, AtmosphereTints.SkyRgb(7, "sys0-p1", planet)), atm.CloudRgb);
+                int sky = AtmosphereTints.SkyRgb(7, "sys0-p1", planet, generation);
+                Assert.Equal(sky, atm.SkyRgb);
+                Assert.Equal(AtmosphereTints.CloudRgb(7, "sys0-p1", planet, sky, generation), atm.CloudRgb);
             }
         }
 
         Assert.True(shells > 30, $"the data gives most types clouds (#2170 — the old table knew 15 keys), got {shells}");
-        Assert.False(OrbitLook.For(Content.GetPlanet("crystal"), 7, "x").HasClouds); // airless — the old table gave it clouds
-        Assert.True(OrbitLook.For(Content.GetPlanet("ocean"), 7, "x").HasClouds);    // the old table gave it none
+        Assert.False(OrbitLook.For(Content.GetPlanet("crystal"), 7, "x", generation).HasClouds); // airless — the old table gave it clouds
+        Assert.True(OrbitLook.For(Content.GetPlanet("ocean"), 7, "x", generation).HasClouds);    // the old table gave it none
     }
 
     [Fact]
@@ -272,7 +276,7 @@ public sealed class PlanetWeatherClientTests
         server.WeatherSimForTest.Fronts.Clear();
         var body = server.Galaxy.FindBody(server.ActiveLocationId)!;
         var planet = Content.GetPlanet(body.PlanetType!)!;
-        int circ = WorldConstants.CircumferenceFor(body.Id, WorldConstants.SizeClassFor(body.Kind, planet.Key), body.SizeBias);
+        int circ = server.World.Circumference; // #2691: the size the server built the world with
         server.AddWeatherFrontForTest(circ / 3, 400, 1);
 
         snapshot = null;

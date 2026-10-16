@@ -203,8 +203,19 @@ public sealed class WorldDescription
     /// #2080 the bipeds + favourite foods + Mini-Michi-Paul, #2085 the Fifi plant, #2073 Arena Nigra, #2104 Justus' package:
     /// oil pockets, the worm body plan, the gas giant, #2125 the intercity monorail, #2166 the abandoned monorail stations,
     /// #2331 the spectacle terrain package, #2370/#2371 the full-height oil pockets and the oil seeps, #2437 a gas giant in
-    /// almost every system, #2516 generated water sealed against caves and lower ground, #2639 the wilderness folk).</summary>
-    public const int CurrentTerrainGeneration = 25;
+    /// almost every system, #2516 generated water sealed against caves and lower ground, #2639 the wilderness folk,
+    /// #2694 the hash-variety package: world-seeded body sizes and mixed sky/flora/water colour families).</summary>
+    public const int CurrentTerrainGeneration = 26;
+
+    /// <summary>The generation of the hash-variety package (#2694, 2026-10): choices that used to read a poorly mixed
+    /// hash read <see cref="StableHashing"/> instead. A body's walkable circumference (#2691) comes from the mixed hash of
+    /// its id salted with the world seed (<see cref="WorldConstants.CircumferenceFor(string, WorldConstants.WorldSizeClass,
+    /// float, long, int)"/>) — before, the classic <c>h·31+c</c> of the id alone gave every planet of a standard system
+    /// the same size and every world the same sizes per system index; and the per-world sky/cloud, flora-base and "auto"
+    /// water colour families (#2692) pick from the mixed hash of (location, seed) instead of <c>h·31+c ^ seed</c>, which
+    /// gave neighbouring bodies the same family five times in six. A world's terrain is derived from its circumference,
+    /// so the gate is what keeps every world of an older generation at its size and colours bit for bit.</summary>
+    public const int HashVarietyGeneration = 26;
 
     /// <summary>The generation of the wilderness folk (#2639, 2026-10): <b>lodges</b> — a small hut in the open land with one or
     /// two residents who gather, mine, chop or hunt around it (#2640-#2645) — and <b>wanderers</b>, named travellers met on the

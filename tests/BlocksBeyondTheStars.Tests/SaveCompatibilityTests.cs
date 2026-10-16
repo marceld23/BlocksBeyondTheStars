@@ -681,7 +681,10 @@ public sealed class SaveCompatibilityTests : IDisposable
         {
             connection.Open();
             using var cmd = connection.CreateCommand();
-            cmd.CommandText = "SELECT (SELECT COUNT(*) FROM world_meta), (SELECT COUNT(*) FROM block_edit WHERE x = 9), (SELECT COUNT(*) FROM block_edit WHERE x = 8);";
+            // Only the test's own location ("rocky" is no body id): the start world's structures write edits of their own,
+            // and which columns they cover moves with the world (from terrain generation 26 its size is seeded, #2691).
+            cmd.CommandText = "SELECT (SELECT COUNT(*) FROM world_meta), (SELECT COUNT(*) FROM block_edit WHERE planet = 'rocky' AND x = 9), "
+                + "(SELECT COUNT(*) FROM block_edit WHERE planet = 'rocky' AND x = 8);";
             using var reader = cmd.ExecuteReader();
             Assert.True(reader.Read());
             Assert.Equal(1L, reader.GetInt64(0)); // the world's metadata

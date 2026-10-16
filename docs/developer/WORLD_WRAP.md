@@ -13,7 +13,8 @@ project doc policy.
 > **Progress / what actually shipped:**
 > - ✅ **W0** — `WorldConstants.Circumference` (helpers `WrapX`/`WrapDeltaX`/`CanonicalChunk`/
 >   `CanonicalBlock`). NOTE: circumference is **no longer a single global 6000** — it is **per body**:
->   `WorldConstants.CircumferenceFor(bodyKey, sizeClass)` sizes asteroids (800–1600), moons (2500–4000)
+>   `WorldConstants.CircumferenceFor(bodyKey, sizeClass, bias, seed, generation)` (#2691: seeded by the world from
+>   terrain generation 26; the server sends each body's value as `NetBody.Circumference`) sizes asteroids (800–1600), moons (2500–4000)
 >   and planets (5000–12000), all chunk-aligned. The `Circumference = 6000` constant is now just the
 >   default for tests/legacy callers. Every wrap/canonicalize helper takes an explicit circumference
 >   (there is deliberately NO default overload for `CanonicalChunk`/`CanonicalBlock` — using 6000 on a

@@ -46,6 +46,10 @@ public sealed class GameServerCouplingTests : IDisposable
                 PlaceWrecks = true,
             };
             config.Rules.MachineWreckCoupling = coupling;
+            // The machines spawn on dry ground around the wreck (#2554 skips a wet spot), so how many fit in the window
+            // depends on the relief there — which from generation 26 moves with the world-seeded size (#2691). The
+            // coupling rule under test does not depend on it, so the worlds keep the generation the counts were measured on.
+            config.World.TerrainGeneration = BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1;
             var server = new SvGameServer(config, _content, st, repo);
             server.Start();
             if (server.HasWreck)

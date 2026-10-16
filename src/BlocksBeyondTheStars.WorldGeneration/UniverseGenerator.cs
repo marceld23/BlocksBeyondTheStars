@@ -689,14 +689,17 @@ public sealed class UniverseGenerator
             }
 
             // Twin Worlds (#549): size the second twin like the first — BiasToward inverts the size mapping,
-            // so both land on (almost) the same circumference despite their independent id hashes.
+            // so both land on (almost) the same circumference despite their independent id hashes. Sized in THIS world's
+            // sizes (#2691: from generation 26 they are seeded by the world; older generations keep the classic ones).
             if (archetype == SystemArchetype.TwinWorlds)
             {
                 var twins = system.Bodies.Where(b => b.Kind == CelestialKind.Planet).ToList();
                 if (twins.Count == 2)
                 {
-                    int target = WorldConstants.CircumferenceFor(twins[0].Id, WorldConstants.WorldSizeClass.Planet);
-                    twins[1].SizeBias = WorldConstants.BiasToward(twins[1].Id, WorldConstants.WorldSizeClass.Planet, target);
+                    int target = WorldConstants.CircumferenceFor(
+                        twins[0].Id, WorldConstants.WorldSizeClass.Planet, 0f, _seed, _desc.TerrainGeneration);
+                    twins[1].SizeBias = WorldConstants.BiasToward(
+                        twins[1].Id, WorldConstants.WorldSizeClass.Planet, target, _seed, _desc.TerrainGeneration);
                 }
             }
 

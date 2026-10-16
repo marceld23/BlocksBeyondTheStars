@@ -1286,7 +1286,7 @@ public sealed partial class GameServer
         var padPlanet = _content.GetPlanet(body.PlanetType ?? string.Empty);
         if (padPlanet is not null)
         {
-            int padCirc = WorldConstants.CircumferenceFor(body.Id, WorldConstants.SizeClassFor(body.Kind, body.PlanetType ?? string.Empty), body.SizeBias);
+            int padCirc = WorldCircumferenceOf(body);
             FillPadWeather(body, padPlanet, padCirc, computed, pads);
         }
 
@@ -1305,7 +1305,7 @@ public sealed partial class GameServer
             return new List<LandingPad>();
         }
 
-        int circ = WorldConstants.CircumferenceFor(body.Id, WorldConstants.SizeClassFor(body.Kind, body.PlanetType ?? string.Empty), body.SizeBias);
+        int circ = WorldCircumferenceOf(body);
         return ComputeLandingPads(planet, body.Kind, body.Id, circ);
     }
 

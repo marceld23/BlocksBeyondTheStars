@@ -24,7 +24,8 @@ pad weather in LandingPadList                                  cloud shells · l
 ## 1. The planet map (what a body looks like)
 
 `PlanetMapBakeJob` (Client.Core) runs the real `WorldGenerator` with the inputs that make the server's terrain:
-- seed, body id (salts the terrain, #478), planet type, circumference;
+- seed, body id (salts the terrain, #478), planet type, circumference — the server's value off the star map
+  (`NetBody.Circumference` through `BodySize.CircumferenceOf`, #2691), never recomputed on the client;
 - the save's continents, terrain generation and lava-core volcanoes (all from `JoinAccepted`);
 - the airless-moon crater flag.
 
@@ -56,7 +57,8 @@ synchronously:
 `OrbitLook.For` applies the server's own rules:
 - no clouds on airless and space-sky bodies;
 - otherwise the type's `cloudDensity`;
-- the per-world sky and cloud tints from `Shared.World.AtmosphereTints`. These moved from `GameServerWeather` and
+- the per-world sky and cloud tints from `Shared.World.AtmosphereTints`, with the save's terrain generation from
+  `JoinAccepted` (from generation 26 the families come from the mixed hash, #2692). These moved from `GameServerWeather` and
   are bit-identical; a server test pins it.
 
 The flight view used a hard-coded table of 15 type keys before #2170, so 33 of 51 types flew past without clouds.
