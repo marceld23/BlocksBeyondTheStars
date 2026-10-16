@@ -59,6 +59,9 @@ quarters?). Package label `package: life support & beds 2026-10`. All decisions 
 - **Docs:** `BASE_LIFE_SUPPORT.md` rewritten (bases + stations), ADR 0018, `NPC_ROUTINES.md` (§6a), USER_MANUAL (base and
   station air, doors, beds, hunger, dome). Texts in all 14 languages. No block change (save version stays 4), no protocol
   change.
+- **Follow-up PR #2662:** a fixed minimum of fill work (8 192 spans for a first fill, 1 024 per tick for each pending
+  fill) on top of the time budget, so an ordinary room is answered after the same ticks on any machine — the clock alone
+  made `ARoomOverTheOld16kBudget_Breathes` fail on a loaded CI runner.
 - **Playtest:** Justus' upper floor behind an ordinary door; a room with a hole behind a door (only it loses air); moving a
   bed; a station crew quarters wing far from the posts; the dome fading.
 
