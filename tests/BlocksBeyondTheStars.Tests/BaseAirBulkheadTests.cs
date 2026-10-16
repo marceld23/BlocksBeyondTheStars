@@ -279,6 +279,7 @@ public sealed class BaseAirBulkheadTests : IDisposable
 
             // From now on only the tick driver's minimum moves a fill: 64 spans a tick — the refill takes dozens of ticks.
             server.AirTickBudgetMsForTest = 0;
+            server.AirMinSpansPerTickForTest = 64;
             server.World.SetBlock(new Vector3i(60, CoreY + 15, 20), BlockId.Air); // a hole in the roof
             int pendingTicks = 0;
             for (int i = 0; i < 400; i++)
@@ -467,6 +468,8 @@ public sealed class BaseAirBulkheadTests : IDisposable
             var p = OnFoot(server, "Builder");
             server.AirFirstFillBudgetMsForTest = 0; // the first step does a token amount of work …
             server.AirTickBudgetMsForTest = 0;      // … and only the tick driver's minimum moves it on
+            server.AirFirstFillMinSpansForTest = 0;  // (no guaranteed first chunk of work)
+            server.AirMinSpansPerTickForTest = 64;   // a small minimum per tick, so the 3 600 spans take many ticks
             Shell(server, 6, 65, CoreY, CoreY + 14, -30, 29); // 3 600 spans
             Door(server, p, 5, 0, "door_slide", new Vector3f(4.5f, CoreY, 0.5f));
             int baseId = FoundCore(server, p);
