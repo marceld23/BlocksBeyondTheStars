@@ -3684,7 +3684,7 @@
   "vega.obj.trade": "Negocie ou aceite uma missão",
   "vega.obj.land": "Pouse num mundo",
   "vega.hint.base_walls": "Nenhum animal terrestre nasce a menos de 24 blocos do seu núcleo. Um anel fechado de paredes com 2 de altura afasta até 48 — uma brecha ou porta de madeira aberta deixa animais entrarem. Voadores e máquinas ignoram paredes; um posto de sentinela ligado os detém.",
-  "vega.hint.base_airless": "Mundo sem ar? Seu núcleo enche o cubo de 17 blocos com ar, e todas as salas fechadas da sua base, por maiores que sejam: paredes e teto de pedra, metal, gelo ou vidro, qualquer porta na entrada — toda porta segura o ar, aberta ou fechada. Um vazamento esvazia só sua própria sala. Terra, areia, neve e bocas de gêiser vazam. /basewalls explica por quê.",
+  "vega.hint.base_airless": "Mundo sem ar? Seu núcleo enche seu cubo de 17 blocos com ar — e toda sala fechada da sua base, não importa o tamanho. Toda porta segura o ar. Terra, areia, neve e gêiseres vazam. /basewalls explica por quê.",
   "vega.hint.breathe": "O ar aqui é respirável — vê sua barra de oxigênio cheia? Aproveite. No espaço, debaixo d'água ou num mundo tóxico o tanque da roupa esvazia, e a nave ou uma estação é o que o reabre.",
   "vega.hint.o2": "Oxigênio abaixo de 25%. A nave e as estações reabastecem — a sufocação, não.",
   "vega.hint.energy": "Energia do traje baixa. Recarrega a bordo — o jetpack e os aparelhos é que gastam.",

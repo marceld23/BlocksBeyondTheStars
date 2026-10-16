@@ -3684,7 +3684,7 @@
   "vega.obj.trade": "Handluj lub weź misję",
   "vega.obj.land": "Wyląduj na planecie",
   "vega.hint.base_walls": "Żadne zwierzę naziemne nie pojawia się w promieniu 24 bloków od rdzenia. Zamknięty pierścień murów wysokości 2 bloków chroni do 48 — jedna luka lub otwarte drewniane drzwi wpuszczą zwierzęta. Latające i maszyny ignorują mury; zatrzyma je zasilana strażnica.",
-  "vega.hint.base_airless": "Świat bez powietrza? Twój rdzeń wypełnia powietrzem sześcian 17 bloków i każde zamknięte pomieszczenie bazy, bez względu na rozmiar: ściany i dach z kamienia, metalu, lodu lub szkła, dowolne drzwi w otworze — każde drzwi trzymają powietrze, otwarte lub zamknięte. Nieszczelność opróżnia tylko własne pomieszczenie. Ziemia, piasek, śnieg i wyloty gejzerów przeciekają. /basewalls wyjaśnia dlaczego.",
+  "vega.hint.base_airless": "Świat bez powietrza? Twój rdzeń wypełnia powietrzem swój sześcian 17 bloków — i każde zamknięte pomieszczenie twojej bazy, bez względu na rozmiar. Wszystkie drzwi trzymają powietrze. Ziemia, piasek, śnieg i gejzery przeciekają. /basewalls wyjaśnia dlaczego.",
   "vega.hint.breathe": "Powietrze tu można oddychać — widzisz pasek tlenu pełny? Korzystaj. W kosmosie, pod wodą lub na toksycznej planecie zbiornik skafandra się opróżnia, a napełnia go statek lub stacja.",
   "vega.hint.o2": "Tlen poniżej 25%. Statek i stacje go uzupełniają. Uduszenie — nie.",
   "vega.hint.energy": "Energia skafandra niska. Ładuje się na statku — to plecak odrzutowy i gadżety ją wyczerpują.",

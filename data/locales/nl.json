@@ -3684,7 +3684,7 @@
   "vega.obj.trade": "Handel of neem een missie",
   "vega.obj.land": "Land op een wereld",
   "vega.hint.base_walls": "Binnen 24 blokken van je kern verschijnen geen gronddieren. Een gesloten ring van muren, 2 hoog, houdt ze tot 48 blokken weg — één opening of een open houten deur laat dieren binnen. Vliegers en machines negeren muren; een wachtpost met stroom houdt ze tegen.",
-  "vega.hint.base_airless": "Luchtloze wereld? Je kern vult de 17-blok kubus met lucht, en elke gesloten kamer van je basis, hoe groot ook: muren en dak van steen, metaal, ijs of glas, elke deur in de deuropening — elke deur houdt lucht, open of dicht. Een lek maakt alleen zijn eigen kamer leeg. Grond, zand, sneeuw en geisers lekken. /basewalls legt het uit.",
+  "vega.hint.base_airless": "Een wereld zonder lucht? Je kern vult zijn 17-blokken kubus met lucht — en elke gesloten kamer van je basis, hoe groot ook. Elke deur houdt lucht vast. Grond, zand, sneeuw en geisers lekken. /basewalls legt uit waarom.",
   "vega.hint.breathe": "De lucht hier is adembaar — zie je je zuurstofbalk vol? Geniet ervan. In de ruimte, onder water of op een giftige wereld raakt de tank van je pak leeg, en het schip of een station vult hem weer bij.",
   "vega.hint.o2": "Zuurstof onder 25%. Het schip en stations vullen het bij. Verstikking doet dat niet.",
   "vega.hint.energy": "Energie van het pak laag. Aan boord laadt het op — de jetpack en gadgets slurpen het weg.",

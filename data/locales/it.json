@@ -3684,7 +3684,7 @@
   "vega.obj.trade": "Scambia o prendi una missione",
   "vega.obj.land": "Atterra su un mondo",
   "vega.hint.base_walls": "Nessun animale di terra compare entro 24 blocchi dal tuo nucleo. Un anello chiuso di muri, alto 2, li tiene fuori fino a 48 — una sola apertura o una porta di legno aperta li fa entrare. Volatori e macchine ignorano i muri; un posto di guardia alimentato li ferma.",
-  "vega.hint.base_airless": "Mondo senza aria? Il tuo nucleo riempie di aria il cubo di 17 blocchi, e ogni stanza chiusa della tua base, per quanto grande: pareti e tetto di pietra, metallo, ghiaccio o vetro, qualsiasi porta nel vano — ogni porta trattiene l’aria, aperta o chiusa. Una perdita svuota solo la sua stanza. Terra, sabbia, neve e bocche di geyser perdono. /basewalls spiega il perché.",
+  "vega.hint.base_airless": "Pianeta senza aria? Il tuo nucleo riempie con aria il suo cubo di 17 blocchi — e ogni stanza chiusa della tua base, indipendentemente dalla grandezza. Ogni porta trattiene l'aria. Terra, sabbia, neve e geyser perdono. /basewalls spiega il motivo.",
   "vega.hint.breathe": "L'aria qui è respirabile — vedi la barra ossigeno piena? Goditela. Nello spazio, sott'acqua o su un mondo tossico il serbatoio della tuta si svuota, e la nave o una stazione lo ricaricano.",
   "vega.hint.o2": "Ossigeno sotto il 25%. La nave e le stazioni lo ricaricano. La soffocazione, nota, non lo fa.",
   "vega.hint.energy": "Energia della tuta bassa. Si ricarica a bordo della nave — il jetpack e i gadget sono quelli che la consumano.",

@@ -62,7 +62,7 @@ public sealed class SeamWiringTests
     public void TheBaseZone_TheAirDome_AndTheBeamList_MeasureTheShortWay()
     {
         Assert.Contains("InteractReach.InBaseZone(", Body(Script("HudUi.cs"), "private NetBase FindBaseZone()"));
-        Assert.Contains("dome.position = Game.ScenePos(b.X, b.Y + 0.5f, b.Z);", Script("BaseShieldView.cs"));
+        Assert.Contains("dome.Transform.position = Game.ScenePos(b.X, b.Y + 0.5f, b.Z);", Script("BaseShieldView.cs"));
         Assert.Contains("InteractReach.SeamDistanceSquared(", Script("BeamPadUi.cs"));
     }
 

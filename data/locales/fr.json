@@ -3684,7 +3684,7 @@
   "vega.obj.trade": "Échanger ou accepter une mission",
   "vega.obj.land": "Atterrir sur un monde",
   "vega.hint.base_walls": "Aucun animal terrestre n'apparaît à moins de 24 blocs de ton noyau. Une enceinte fermée, haute de 2, protège jusqu'à 48 — un trou ou une porte en bois ouverte laisse entrer les animaux. Volants et machines ignorent les murs ; un poste de guet alimenté les arrête.",
-  "vega.hint.base_airless": "Monde sans air ? Ton noyau remplit de l'air le cube de 17 blocs, et chaque pièce fermée de ta base, quelle que soit sa taille : murs et toit en pierre, métal, glace ou verre, une porte dans l'embrasure — chaque porte retient l'air, ouverte ou fermée. Une fuite vide seulement sa propre pièce. La terre, le sable, la neige et les évents de geyser fuient. /basewalls explique pourquoi.",
+  "vega.hint.base_airless": "Monde sans air ? Ton noyau remplit son cube de 17 blocs d'air — et chaque pièce fermée de ta base, quelle que soit sa taille. Chaque porte retient l'air. Terre, sable, neige et geysers fuient. /basewalls explique pourquoi.",
   "vega.hint.breathe": "L'air ici est respirable — tu vois ta jauge d'oxygène pleine ? Profite. Dans l'espace, sous l'eau, ou sur un monde toxique, le réservoir de ta combinaison se vide, et seul le vaisseau ou une station peut le remplir.",
   "vega.hint.o2": "Oxygène < 25 %. Le vaisseau et les stations le remplissent. L'étouffement, lui, ne le remplira pas.",
   "vega.hint.energy": "Énergie de la combinaison faible. Elle se recharge à bord du vaisseau — c'est le jetpack et les gadgets qui la vident.",

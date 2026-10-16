@@ -3684,7 +3684,7 @@
   "vega.obj.trade": "Takas yap veya görev al",
   "vega.obj.land": "Bir dünyaya iniş yap",
   "vega.hint.base_walls": "Çekirdeğinin 24 blok yakınında kara hayvanı doğmaz. 2 blok yüksek, kapalı bir duvar halkası bunu 48 bloğa çıkarır — tek boşluk ya da açık bir ahşap kapı hayvanları içeri alır. Uçanlar ve makineler duvara aldırmaz; enerjili bir nöbet kulesi onları durdurur.",
-  "vega.hint.base_airless": "Havasız bir dünya mu? Çekirdeğin 17-blok küpü hava ile doldurur ve üssündeki her kapalı odayı, ne kadar büyük olursa olsun: taş, metal, buz veya cam duvarlar ve çatı, kapı açıklığında herhangi bir kapı — her kapı hava tutar, açık ya da kapalı. Bir sızıntı yalnızca kendi odasını boşaltır. Toprak, kum, kar ve gayzerler sızdırır. /basewalls nedenini söyler.",
+  "vega.hint.base_airless": "Havasız bir dünya mı? Çekirdeğin 17 blokluk küpünü havayla doldurur — ve üssündeki her kapalı odayı da, ne kadar büyük olursa olsun. Her kapı hava tutar. Toprak, kum, kar ve gayzerler sızdırır. /basewalls nedenini söyler.",
   "vega.hint.breathe": "Buradaki hava solunabilir — oksijen barın dolu mu görüyorsun? Keyfini çıkar. Uzayda, su altında veya toksik bir dünyada zırh tankın boşalır, dolduracak olan gemi veya istasyondur.",
   "vega.hint.o2": "Oksijen %25'in altında. Gemi ve istasyonlar dolduruyor. Boğulma maalesef doldurmuyor.",
   "vega.hint.energy": "Üst ekipman enerji düşük. Gemiye binerken şarj olur — jetpack ve aletler tüketiyor.",

@@ -3684,7 +3684,7 @@
   "vega.obj.trade": "Handeln oder eine Mission annehmen",
   "vega.obj.land": "Auf einer Welt landen",
   "vega.hint.base_walls": "Bis 24 Blöcke um deinen Grundstein spawnt kein Bodentier. Ein geschlossener Mauerring, 2 hoch, hält bis 48 Blöcke frei — eine Lücke oder offene Holztür, und Tiere kommen rein. Flieger und Maschinen ignorieren Mauern; ein Wachposten mit Strom stoppt sie.",
-  "vega.hint.base_airless": "Auf einer luftleeren Welt füllt dein Grundstein den 17-Block-Würfel mit Luft — und jeden geschlossenen Raum deiner Basis, egal wie groß: Wände und Dach aus Stein, Metall, Eis oder Glas, irgendeine Tür im Durchgang — jede Tür hält die Luft, offen oder zu. Ein Leck leert nur seinen eigenen Raum. Erde, Sand, Schnee und Geysire sind undicht. /basewalls sagt, warum.",
+  "vega.hint.base_airless": "Luftleere Welt? Dein Grundstein füllt seinen 17-Block-Würfel mit Luft — und jeden geschlossenen Raum deiner Basis, egal wie groß. Jede Tür hält die Luft. Erde, Sand, Schnee und Geysire sind undicht. /basewalls sagt, warum.",
   "vega.hint.breathe": "Die Luft hier ist atembar — siehst du den vollen Sauerstoffbalken? Genieß es. Im All, unter Wasser oder auf einer giftigen Welt leert sich dein Anzugtank, und Schiff oder Station füllen ihn wieder auf.",
   "vega.hint.o2": "Sauerstoff unter 25 %. Schiff und Stationen füllen ihn auf. Ersticken bekanntermaßen nicht.",
   "vega.hint.energy": "Anzugenergie niedrig. An Bord lädt sie wieder — Jetpack und Gadgets sind es, die sie leeren.",

@@ -3684,7 +3684,7 @@
   "vega.obj.trade": "Trade or take a mission",
   "vega.obj.land": "Land on a world",
   "vega.hint.base_walls": "No ground animal spawns within 24 blocks of your core. A closed ring of walls, 2 high, clears up to 48 — one gap or open wooden door lets animals in. Fliers and machines ignore walls; a powered sentry post stops them.",
-  "vega.hint.base_airless": "Airless world? Your core fills the 17-block cube with air, and every closed room of your base, however big: walls and roof of stone, metal, ice or glass, any door in the doorway — every door holds air, open or shut. A leak only empties its own room. Dirt, sand, snow and geysers leak. /basewalls says why.",
+  "vega.hint.base_airless": "Airless world? Your core fills its 17-block cube with air — and every closed room of your base, however big. Every door holds air. Dirt, sand, snow and geysers leak. /basewalls says why.",
   "vega.hint.breathe": "The air here is breathable — see your oxygen bar sitting full? Enjoy it. In space, underwater, or on a toxic world your suit tank drains, and the ship or a station is what refills it.",
   "vega.hint.o2": "Oxygen below 25%. The ship and stations refill it. Suffocation, notably, does not.",
   "vega.hint.energy": "Suit energy low. It recharges aboard the ship — the jetpack and gadgets are what's draining it.",

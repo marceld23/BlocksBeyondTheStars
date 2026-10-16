@@ -3684,7 +3684,7 @@
   "vega.obj.trade": "Comercia o acepta una misión",
   "vega.obj.land": "Aterriza en un mundo",
   "vega.hint.base_walls": "Ningún animal terrestre aparece a menos de 24 bloques de tu núcleo. Un anillo cerrado de muros de 2 de alto lo amplía a 48 — un hueco o una puerta de madera abierta deja pasar animales. Voladores y máquinas ignoran muros; un puesto centinela activo los frena.",
-  "vega.hint.base_airless": "¿Mundo sin aire? Tu núcleo llena el cubo de 17 bloques con aire, y todas las salas cerradas de tu base, por grandes que sean: paredes y techo de piedra, metal, hielo o vidrio, cualquier puerta en el hueco de la puerta — toda puerta mantiene el aire, abierta o cerrada. Una fuga solo vacía su propia sala. Tierra, arena, nieve y respiraderos de géiser no sellan. /basewalls lo explica.",
+  "vega.hint.base_airless": "¿Mundo sin aire? Tu núcleo llena su cubo de 17 bloques con aire — y cada sala cerrada de tu base, sin importar el tamaño. Toda puerta retiene el aire. Tierra, arena, nieve y géiseres dejan escapar el aire. /basewalls explica por qué.",
   "vega.hint.breathe": "El aire aquí es respirable — ¿ves tu barra de oxígeno llena? Disfrútalo. En el espacio, bajo agua o en un mundo tóxico el tanque del traje se vacía, y la nave o una estación son lo que lo recargan.",
   "vega.hint.o2": "Oxígeno por debajo del 25%. La nave y las estaciones lo recargan. El ahogo, curiosamente, no.",
   "vega.hint.energy": "Energía del traje baja. Se recarga a bordo de la nave — el propulsor y los gadgets son los que la drenan.",
