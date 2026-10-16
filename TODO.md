@@ -50,6 +50,8 @@ bandits included). Package label `package: smooth motion 2026-10`. How it works:
 - Tests: `MotionInterpolatorTests`, `ServerClockSyncTests`, `CreatureMotionStreamTests` (real client vs server, encoded
   wire), new `LocomotionControllerTests`, `CreatureMotionArenaTests` (running jump, detour turn rate), `NpcGridPathTests`
   (string-pulling).
+- **MessagePack 2.5.302 → 2.5.303** (same PR): advisory GHSA-qhrr-8q5h-9q3h ("nested arrays can blow past buffer length
+  limits", published 2026-10-15) made NuGet's NU1902 audit warning an error under `-warnaserror`, so every PR's build failed.
 - ⚠ Open: Marcel's playtest (herds, darters, hunters along walls, villages, robots/bandits; WebGL).
 
 ---
