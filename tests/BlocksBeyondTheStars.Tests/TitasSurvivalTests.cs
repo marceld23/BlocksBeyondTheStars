@@ -151,12 +151,11 @@ public sealed class TitasSurvivalTests : IDisposable
     [Fact]
     public void Titas_KeepsOnlyItsSpsLabs_AirlessColdModules_AndManyMachines()
     {
-        // The probe on the first lab's open ship pad reads "outside" only while nothing roofs that pad. Labs never overlap
-        // (checked on 31 seeds of both generations), but on many Titas worlds of EITHER generation a lab sits below the
-        // frozen sea, and the water or ice over its pad counts as a roof. Seed 77's lab 0 stands in the open on generation
-        // 25; from generation 26 the world-seeded size (#2691) moves which lab is first, so the world keeps the generation
-        // the layout was checked on.
-        var server = NewServer("labs", c => c.World.TerrainGeneration = BlocksBeyondTheStars.Shared.World.WorldDescription.HashVarietyGeneration - 1);
+        // The probe on the first lab's open ship pad reads "outside" only while nothing roofs that pad. Until #2696 many
+        // Titas labs sat below the frozen sea, the water or ice over the pad counting as a roof, so this test was pinned to
+        // a generation whose first lab happened to stand in the open; new placements now keep every pad under the open sky
+        // (SpsLabPlacementTests), and the test runs on the current generation.
+        var server = NewServer("labs");
         var labs = server.SpsLabsForTest();
         Assert.InRange(labs.Count, 1, 6);
         Assert.Empty(server.SettlementsForTest);

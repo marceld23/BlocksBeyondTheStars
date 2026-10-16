@@ -343,7 +343,8 @@ public sealed partial class GameServer
         // One seeded gravity multiplier per WORLD: the body's size class sets the band (asteroids feather-light,
         // moons low, planets full + occasionally heavy) and the seed picks within it, so two same-size worlds
         // still differ. The client scales jump/walk/jetpack/fall from it (a ≥1-block jump is always preserved).
-        _gravityFactor = GravityFor(_worlds.Active.SizeClass, unchecked((uint)(StableStringHash(_world.LocationId) ^ (int)_meta.Seed)));
+        // #2697: mixed per body and world from generation 26 (older saves keep their gravity bit for bit).
+        _gravityFactor = WorldGravityOf(_world.LocationId, _worlds.Active.SizeClass);
 
         if (adopted)
         {
@@ -507,22 +508,6 @@ public sealed partial class GameServer
             Biome = _biome,
             GravityFactor = _gravityFactor,
         };
-    }
-
-    /// <summary>One seeded per-world gravity multiplier (1.0 = baseline). A body's size class sets the band —
-    /// asteroids feather-light, moons low, planets full and sometimes heavy — and the seed picks within it, so
-    /// two same-size worlds still differ. Range spans ~0.35..1.6 across all classes.</summary>
-    private static float GravityFor(WorldConstants.WorldSizeClass cls, uint h)
-    {
-        (float lo, float hi) = cls switch
-        {
-            WorldConstants.WorldSizeClass.Asteroid => (0.35f, 0.55f),
-            WorldConstants.WorldSizeClass.Moon => (0.55f, 0.85f),
-            _ => (0.80f, 1.60f),
-        };
-        // Salt the hash (so gravity isn't correlated with the sky/flora hues seeded from the same id ^ seed).
-        float t = ((h ^ 0x9E3779B9u) & 0xFFFFu) / 65535f;
-        return lo + t * (hi - lo);
     }
 
     /// <summary>Sentinel for "no meaningful air temperature" — kept for client compatibility (older FX guard

@@ -880,7 +880,7 @@ public sealed partial class GameServer
 
         string locale = hero.Locale;
         var facts = FestivalFacts(hero.State, placeKey);
-        string theme = quartermaster?.Theme ?? SettlementTradeFor(settlement.Name);
+        string theme = quartermaster?.Theme ?? SettlementTrade(settlement);
         var cheerKeys = _content.VillageLife.Festival.Cheers;
         if (cheerKeys.Count > 0)
         {

@@ -559,7 +559,7 @@ public sealed partial class GameServer
             if (!p.Ruined && inst.Markers.Any(m => m.Type == "mission_board"))
             {
                 string key = SettlementLocationKey(p.Name); // #2693: body + name; rolls per world (#2688)
-                StockBoard(key + "_", key, inst.MissionIds, CoinGiverName(p.Name), withBuild: true); // #1116
+                StockBoard(key + "_", key, inst.MissionIds, SettlementGiverName(inst), withBuild: true); // #1116; #2698: per place from gen 26
             }
 
             _settlements.Add(inst);
@@ -697,6 +697,27 @@ public sealed partial class GameServer
         return "G.D.S. " + roots[rng.Next(roots.Length)];
     }
 
+    /// <summary>How many rows the stamper's terrain carve spans from the floor up: rows <c>gy + 1 … gy + result − 1</c>
+    /// above a seat at <paramref name="gy"/> end up air. Only as high as the terrain actually rises above the foundation —
+    /// the classic gates guarantee a low spread, so clearing the structure's FULL height (up to 128 for a hand-authored
+    /// tower) would be millions of pointless air writes; a SHELF seat sits in genuinely rugged relief, so its cut may run
+    /// higher than the buildings to open the mountainside above them. The footprint is sampled coarsely (every 8 cells)
+    /// to find the intrusion height; for a structure at least three rows tall the result is at least 3, so the two rows
+    /// over the floor are always cut. Shared by
+    /// the stamper and the SPS labs' open-sky test (#2696), so both agree on what the carve leaves.</summary>
+    private int SettlementClearHeight(SettlementStructure s, Vector3i origin, int gy, bool shelf)
+    {
+        var planet = _world.Planet;
+        int maxSurf = gy;
+        for (int x = 0; x < s.Width; x += 8)
+            for (int z = 0; z < s.Length; z += 8)
+            {
+                maxSurf = System.Math.Max(maxSurf, _generator.SurfaceHeight(planet, origin.X + x, origin.Z + z));
+            }
+
+        return System.Math.Clamp(maxSurf - gy + 3, 2, shelf ? System.Math.Max(s.Height, 96) : s.Height);
+    }
+
     /// <summary>Carves the footprint clear of terrain, lays a flat foundation, then stamps the structure's blocks.
     /// The seat style (#586) picks how the foundation couples to the terrain: legacy/flat/slope keep the classic
     /// foundation + stepped skirt, shelf cuts into rugged relief and fills with stone, stilts raise a platform
@@ -725,20 +746,8 @@ public sealed partial class GameServer
             : (_content.GetBlock("wood_log") ?? _content.GetBlock("stone"))?.NumericId ?? foundationId;
         var floorId = lavaSeat ? basaltId : stilts && !p.Ruined ? pileId : foundationId;
 
-        // Carve only as high as terrain actually rises above the foundation. The classic gates guarantee a
-        // low spread, so clearing the structure's FULL height (up to 128 for a hand-authored tower) would be
-        // millions of pointless air writes; a SHELF seat sits in genuinely rugged relief, so its cut may run
-        // higher than the buildings to open the mountainside above them. Sample the footprint coarsely to
-        // find the intrusion height. (On a sky island the ground is far below, so maxSurf - gy goes negative
-        // and the carve collapses to the minimum.)
-        int maxSurf = gy;
-        for (int x = 0; x < s.Width; x += 8)
-            for (int z = 0; z < s.Length; z += 8)
-            {
-                maxSurf = System.Math.Max(maxSurf, _generator.SurfaceHeight(planet, origin.X + x, origin.Z + z));
-            }
-
-        int clearH = System.Math.Clamp(maxSurf - gy + 3, 2, shelf ? System.Math.Max(s.Height, 96) : s.Height);
+        // Carve only as high as terrain actually rises above the foundation (see SettlementClearHeight).
+        int clearH = SettlementClearHeight(s, origin, gy, shelf);
 
         // 1) Clear any terrain occupying the build volume above the foundation, so a hill never buries the
         //    buildings (the structure's own air cells are otherwise left as whatever was there).
@@ -1149,11 +1158,15 @@ public sealed partial class GameServer
     /// longitude sweep. The chosen spot is classified into a seat style; the stamper adapts the terrain to
     /// it. Returns false only when policy forbids every reachable column (in practice: an all-lava ring for
     /// a kind that may not stand in lava) — the one documented carve-out from the guarantee. Player-edit
-    /// avoidance and pad/settlement reservations are never relaxed beyond margin 2.</summary>
+    /// avoidance and pad/settlement reservations are never relaxed beyond margin 2.
+    /// <para><paramref name="seatOk"/> (#2696) is a caller's last word on a classified seat — the footprint origin at its
+    /// ground level and the seat style: a candidate it refuses is never chosen and the search walks on, so a kind whose
+    /// test no reachable spot passes gets no spot (false) rather than a bad one. The SPS labs use it to keep their pads
+    /// under the open sky. Without it the search is unchanged.</para></summary>
     private bool TryPlaceStructureGuaranteed(SettlementStructure s, System.Random rng,
         List<(int Cx, int Cz, int Hw, int Hl)> reserved, bool wantIsland, SeatPolicy policy,
         bool avoidPlayerEdits, out Vector3i origin, out int groundY, out bool onIsland, out string seat,
-        int nearDistance = 0)
+        int nearDistance = 0, System.Func<Vector3i, string, bool>? seatOk = null)
     {
         origin = default;
         groundY = 0;
@@ -1176,7 +1189,8 @@ public sealed partial class GameServer
         {
             // #2112: on a gas giant the islands are the only ground — a build too big for one has no spot, and nothing
             // ever seats on the gas. The first-fit island search is the whole search here.
-            if (!canIsland || !TryPlaceSettlement(s, rng, reserved, wantIsland: true, out origin, out groundY, out onIsland))
+            if (!canIsland || !TryPlaceSettlement(s, rng, reserved, wantIsland: true, out origin, out groundY, out onIsland)
+                || (seatOk is not null && !seatOk(origin, "island")))
             {
                 return false;
             }
@@ -1210,7 +1224,8 @@ public sealed partial class GameServer
             int ox = cx - w / 2, oz = cz - l / 2;
             if (canIsland)
             {
-                if (TryIslandFootprint(planet, ox, oz, w, l, out int itop) && !EditGate(ox, oz, itop))
+                if (TryIslandFootprint(planet, ox, oz, w, l, out int itop) && !EditGate(ox, oz, itop)
+                    && (seatOk is null || seatOk(new Vector3i(ox, itop, oz), "island")))
                 {
                     origin = new Vector3i(ox, itop, oz);
                     groundY = itop;
@@ -1234,9 +1249,15 @@ public sealed partial class GameServer
                 continue;
             }
 
+            string ring1Seat = FootprintSpread(planet, ox, oz, w, l) <= 4 ? "flat" : "slope";
+            if (seatOk is not null && !seatOk(new Vector3i(ox, gy, oz), ring1Seat))
+            {
+                continue; // #2696: the caller refuses this seat (e.g. a lab's pad under a frozen sea)
+            }
+
             origin = new Vector3i(ox, gy, oz);
             groundY = gy;
-            seat = FootprintSpread(planet, ox, oz, w, l) <= 4 ? "flat" : "slope";
+            seat = ring1Seat;
             return true;
         }
 
@@ -1274,10 +1295,46 @@ public sealed partial class GameServer
 
             if (tier < bestTier || (tier == bestTier && score < bestScore))
             {
+                if (seatOk is not null)
+                {
+                    // #2696: asked only of a would-be winner, so the caller's (column-reading) test stays cheap.
+                    var (cy, cseat) = Classify(c);
+                    if (!seatOk(new Vector3i(c.Cx - w / 2, cy, c.Cz - l / 2), cseat))
+                    {
+                        return;
+                    }
+                }
+
                 best = c;
                 bestTier = tier;
                 bestScore = score;
             }
+        }
+
+        // The seat style + ground level of a ranked footprint.
+        (int GroundY, string Seat) Classify(SeatCandidate c)
+        {
+            if (c.LavaSamples > 0)
+            {
+                return (c.MaxY + 2, "lava"); // the basalt plinth clears the lava sheet
+            }
+
+            if (c.WetSamples > 0)
+            {
+                return (c.WaterTop + 1, "stilts"); // platform just above the water line
+            }
+
+            if (c.Spread <= 4)
+            {
+                return (_generator.SurfaceHeight(planet, c.Cx, c.Cz), "flat");
+            }
+
+            if (c.Spread <= maxSpread)
+            {
+                return (_generator.SurfaceHeight(planet, c.Cx, c.Cz), "slope");
+            }
+
+            return (c.MedianY, "shelf"); // cut & fill around the median so the shelf splits the relief evenly
         }
 
         foreach (var (scale, margin, tries) in new[] { (1.0, 6, attempts), (1.5, 6, attempts), (2.0, 6, attempts), (2.0, 2, attempts * 2) })
@@ -1345,34 +1402,8 @@ public sealed partial class GameServer
 
         // Classify the winning footprint into a seat style + its ground level.
         var bc = best;
-        int bx = bc.Cx - w / 2, bz = bc.Cz - l / 2;
-        if (bc.LavaSamples > 0)
-        {
-            seat = "lava";
-            groundY = bc.MaxY + 2; // the basalt plinth clears the lava sheet
-        }
-        else if (bc.WetSamples > 0)
-        {
-            seat = "stilts";
-            groundY = bc.WaterTop + 1; // platform just above the water line
-        }
-        else if (bc.Spread <= 4)
-        {
-            seat = "flat";
-            groundY = _generator.SurfaceHeight(planet, bc.Cx, bc.Cz);
-        }
-        else if (bc.Spread <= maxSpread)
-        {
-            seat = "slope";
-            groundY = _generator.SurfaceHeight(planet, bc.Cx, bc.Cz);
-        }
-        else
-        {
-            seat = "shelf";
-            groundY = bc.MedianY; // cut & fill around the median so the shelf splits the relief evenly
-        }
-
-        origin = new Vector3i(bx, groundY, bz);
+        (groundY, seat) = Classify(bc);
+        origin = new Vector3i(bc.Cx - w / 2, groundY, bc.Cz - l / 2);
         return true;
     }
 
@@ -1793,20 +1824,55 @@ public sealed partial class GameServer
     private const float SettlementBoardReach = 4f;
 
     /// <summary>The four settlement trade professions. A settlement's profession (derived deterministically from
-    /// its name) themes its NPCs and decides which market goods its vendor posts.</summary>
+    /// its place, <see cref="SettlementTrade(SettlementInstance)"/>) themes its NPCs and decides which market goods its
+    /// vendor posts.</summary>
     private static readonly string[] SettlementTrades = { "miners", "traders", "researchers", "settlers" };
 
-    /// <summary>Deterministic trade profession for a settlement (stable from its name), so a mining village and a
-    /// trade city always offer their own distinct barter — and both the NPC theme and the market filter agree.</summary>
-    private static string SettlementTradeFor(string name)
-        => string.IsNullOrEmpty(name)
+    /// <summary>The CLASSIC trade profession of a key — <c>StableHash(key) % 4</c>, bit-identical to every release before
+    /// #2698: a settlement's NAME in a world below <see cref="WorldDescription.HashVarietyGeneration"/> (so "Karth Village"
+    /// traded the same goods in every world and on every body), and a base board's key (body + cell, already per place).</summary>
+    private static string ClassicTradeFor(string key)
+        => string.IsNullOrEmpty(key)
             ? "settlers"
-            : SettlementTrades[(uint)WorldGenerator.StableHash(name) % (uint)SettlementTrades.Length];
+            : SettlementTrades[(uint)WorldGenerator.StableHash(key) % (uint)SettlementTrades.Length];
+
+    /// <summary>#2698: the trade profession of the settlement <paramref name="settlementName"/> with the place key
+    /// <paramref name="placeKey"/> (<see cref="SettlementLocationKeyFor"/>) in a world of
+    /// <paramref name="terrainGeneration"/> — so a mining village and a trade city offer their own distinct barter, and the
+    /// NPC theme and the market filter agree. From <see cref="WorldDescription.HashVarietyGeneration"/> it is the mixed hash
+    /// of the place key (body, name and world seed), so two namesakes on two bodies, or in two worlds, trade their own
+    /// goods; an older world keeps the classic pick from the name, so no vendor a player knows switches its wares.</summary>
+    internal static string SettlementTradeFor(string settlementName, string placeKey, int terrainGeneration)
+        => string.IsNullOrEmpty(settlementName)
+            ? "settlers"
+            : HasPlaceAwareSettlementNames(terrainGeneration)
+                ? SettlementTrades[StableHashing.Index(SettlementTradeSalt + placeKey, SettlementTrades.Length)]
+                : ClassicTradeFor(settlementName);
+
+    /// <summary>#2698: the trade of one vendor among several at a settlement — <see cref="VendorThemeFor"/> with the
+    /// settlement's own trade as the first vendor's; from <see cref="WorldDescription.HashVarietyGeneration"/> every
+    /// further vendor rolls from the place key too, so one settlement never mixes a per-place theme with name-only ones.</summary>
+    internal static string SettlementVendorThemeFor(string settlementName, string placeKey, int vendorIndex, string baseTheme, int terrainGeneration)
+        => vendorIndex <= 0 || !HasPlaceAwareSettlementNames(terrainGeneration)
+            ? VendorThemeFor(settlementName, vendorIndex, baseTheme)
+            : SettlementTrades[StableHashing.Index(SettlementTradeSalt + placeKey + ":vendor:" + vendorIndex.ToString(System.Globalization.CultureInfo.InvariantCulture), SettlementTrades.Length)];
+
+    /// <summary>The prefix that keeps the trade roll apart from every other roll keyed by a place key (#2698).</summary>
+    private const string SettlementTradeSalt = "trade:";
+
+    /// <summary>The trade profession of a settlement of the ACTIVE world (#2698: its place from generation 26).</summary>
+    private string SettlementTrade(SettlementInstance s)
+        => SettlementTradeFor(s.Name, SettlementPlaceKey(s), _meta.Description.TerrainGeneration);
+
+    /// <summary>The trade profession of the settlement of this name on the ACTIVE world (#2698).</summary>
+    private string SettlementTradeOf(string settlementName)
+        => SettlementTradeFor(settlementName, SettlementLocationKey(settlementName), _meta.Description.TerrainGeneration);
 
     /// <summary>The trade profession for one vendor among several at a location (B55): the first vendor keeps the
     /// location's own theme (so the place keeps its identity), and each additional vendor gets its own
     /// deterministic profession — so a station/settlement with multiple vendors offers several distinct barters
-    /// (and visibly distinct crew) instead of every vendor selling the same goods.</summary>
+    /// (and visibly distinct crew) instead of every vendor selling the same goods. The classic roll from the location's
+    /// name or id — a settlement of a generation-26 world goes through <see cref="SettlementVendorThemeFor"/>.</summary>
     private static string VendorThemeFor(string locationName, int vendorIndex, string baseTheme)
         => vendorIndex <= 0
             ? baseTheme

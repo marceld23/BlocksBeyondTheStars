@@ -80,9 +80,10 @@ public sealed partial class GameServer
             }
             else if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
                          wantIsland: false, SeatPolicy.Camp, avoidPlayerEdits: !_worlds.Active.VirginAtLoad,
-                         out origin, out groundY, out onIsland, out seat))
+                         out origin, out groundY, out onIsland, out seat,
+                         seatOk: (o, style) => SpsLabSeatOpen(structure, o, style)))
             {
-                RecordPlacementSkip("spslab", i);
+                RecordPlacementSkip("spslab", i); // #2696: no dry site under the open sky — the world has one lab fewer
                 continue;
             }
             else
@@ -146,6 +147,61 @@ public sealed partial class GameServer
         }
 
         _log.Info($"SPS labs on '{_world.LocationId}': {placed.Count} placed.");
+    }
+
+    /// <summary>
+    /// #2696: whether a classified seat keeps the lab's open ground under the open sky. A frozen sea's thick ice reads as
+    /// land to the classic wet gate (it carries a landing ship), so the search used to seat labs on the seabed under
+    /// Titas' ice: the ship pad then lay under ice and water, counted as roofed (<see cref="InSpsLab"/>: no air, −90 °C),
+    /// and the compound was hard to reach. A seat passes only when
+    /// <list type="bullet">
+    /// <item>it is a ground seat (flat, slope or shelf — never stilts, lava or an island) whose floor stands at or above
+    /// the sea's surface (the ice top on a frozen sea), so no sea water is left over it;</item>
+    /// <item>no standard footprint sample and no open column (<see cref="SpsLabGenerator.OpenColumns"/>: both pads, the
+    /// doorways) holds water, ice or lava;</item>
+    /// <item>no band (an arch, a crown) hangs over an open column, and the natural ground of every open column lies within
+    /// the rows the stamper carves (<see cref="SettlementClearHeight"/>), so no terrain is left over a pad.</item>
+    /// </list>
+    /// Only the search asks it: a pinned placement record keeps its lab wherever it stands.
+    /// </summary>
+    private bool SpsLabSeatOpen(SettlementStructure s, Vector3i origin, string seat)
+    {
+        if (seat is not ("flat" or "slope" or "shelf"))
+        {
+            return false;
+        }
+
+        var planet = _world.Planet;
+        int gy = origin.Y;
+        if (gy < _generator.SeaLevel(planet)) // int.MinValue on a dry world
+        {
+            return false;
+        }
+
+        int carveTop = gy + SettlementClearHeight(s, origin, gy, seat == "shelf") - 1;
+        foreach (var (lx, lz) in SpsLabGenerator.OpenColumns)
+        {
+            int x = origin.X + lx, z = origin.Z + lz;
+            if (!DryColumn(x, z) || _generator.SurfaceHeight(planet, x, z) > carveTop || _generator.ColumnHasBandAbove(planet, x, z))
+            {
+                return false;
+            }
+        }
+
+        foreach (var (x, z) in FootprintSamples(origin.X, origin.Z, s.Width, s.Length))
+        {
+            if (!DryColumn(x, z))
+            {
+                return false;
+            }
+        }
+
+        return true;
+
+        // No water body (liquid or frozen, sea, pond or river) and no lava on this column.
+        bool DryColumn(int x, int z)
+            => !_generator.IsSurfaceLava(planet, x, z) && _generator.SurfaceIceThickness(planet, x, z) == 0
+               && !_generator.TryGetWaterSurface(planet, x, z, out _, out _);
     }
 
     /// <summary>True inside a lab's footprint under a roof — no air, −90 °C.</summary>

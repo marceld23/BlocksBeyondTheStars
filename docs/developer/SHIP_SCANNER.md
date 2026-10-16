@@ -42,7 +42,7 @@ the new `quantum_scanner` tier 3. Each tier scans faster, reaches further and re
 | File | What |
 |---|---|
 | `Shared/Definitions/ShipScannerRules.cs` | `ShipScannerSpec` (tier, range, scan time, module key) and `For(...)`; `Cockpit` is the fallback (1 / 150 / 1.2 s) |
-| `GameServer/GameServerShipScanner.cs` | `ShipScanner(ship)`, `TakeShipScanTurn` (per player+target, 0.3 s), `IsScannableSpaceObject`, `ScanNewSpaceObject` (pod / station / machine / bandit readouts), `ScannedIdsIn`, `BuildBodyOverview(body, planet, tier)` |
+| `GameServer/GameServerShipScanner.cs` | `ShipScanner(ship)`, `TakeShipScanTurn` (per player+target, 0.3 s), `IsScannableSpaceObject`, `ScanNewSpaceObject` (pod / station / machine / bandit readouts), `ScannedIdsIn`, `BuildBodyOverview(body, planet, tier)` — its gravity row reads `WorldGravityOf` (`GameServerBodySize.cs`, #2697), the value the loaded world uses |
 | `GameServer/GameServerScanning.cs` `ScanSpaceEntity` | kind check → range (`ui.scan.out_of_range`) → cooldown (`ui.scan.recharging`) → wreck / wormhole / anomaly / other |
 | `GameServer/GameServerPlanetScan.cs` | no module requirement any more; rows + danger for every tier, ores from tier 2, rare ores and data caches from tier 3; bodies of the current system only |
 

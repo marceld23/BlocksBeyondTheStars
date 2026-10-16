@@ -201,8 +201,15 @@ public sealed class VillagePersonMemoryTests : IDisposable
 
     private static string[] PinnedNames(long seed, int generation) => (seed, generation) switch
     {
-        // Seed 1 happens to draw the same names on both generations (its start world's settlements come out alike on the
-        // seeded size, #2691); seed 2's later draws — the last four — differ.
+        // Generation 26 coins the quartermasters from their settlement's place (#2698) and themes the settlement from it, so
+        // the quartermasters' names differ — and a different trade changes which residents roll the android coin, so the
+        // later draws of the world-wide stream differ too.
+        (1, >= 26) => new[]
+        {
+            "Moust Gheizrullsko|vendor|vendor", "Stoth Shiotiokklaeth|quartermaster|quartermaster", "Kloch Laishqukro|settler|gardener",
+            "Zych Toozress|settler|craftsman", "Vhoth Groossspuvheek|settler|innkeeper", "Gheich Yeqiol|settler|",
+            "Druax Traiphuaz|settler|", "Me Speekivo|settler|", "Sheedrech Mexaen|settler|", "Kuam Zreeljedrei|settler|",
+        },
         (1, _) => new[]
         {
             "Moust Gheizrullsko|vendor|vendor", "Kron Zuavroo|quartermaster|quartermaster", "Kloch Laishqukro|settler|gardener",
@@ -211,9 +218,9 @@ public sealed class VillagePersonMemoryTests : IDisposable
         },
         (_, >= 26) => new[]
         {
-            "Ghuast Dromeyok|vendor|vendor", "Klush Manaephki|vendor|vendor", "Leng Truagruvrio|quartermaster|quartermaster",
-            "Briork Xeetuash|vendor|vendor", "Rooth Plaedruaqouph|quartermaster|quartermaster", "Qeek Drairkleerkplir|settler|gardener",
-            "Yakqeirn Shouvheisk|settler|", "Jualquach Zaestly|settler|", "Souplo Qemiokdrou|settler|", "Kistthul Kreneimeich|settler|",
+            "Ghuast Dromeyok|vendor|vendor", "Speishreex Naephkispeiz|vendor|vendor", "Troophstai Skivheingyyz|quartermaster|quartermaster",
+            "Tuarkvuash Plioghorn|vendor|vendor", "Grillkum Klovreerk|quartermaster|quartermaster", "Laph Roobreesk|settler|gardener",
+            "Souplo Qemiokdrou|settler|", "Kistthul Kreneimeich|settler|", "Lyzroox Rerusk|settler|", "Vrooch Ghekoorkkreem|settler|",
         },
         _ => new[]
         {

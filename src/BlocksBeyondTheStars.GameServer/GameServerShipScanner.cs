@@ -221,9 +221,9 @@ public sealed partial class GameServer
 
         rows.Add(temperature);
 
-        // Gravity — the same seeded band the world uses once it is loaded.
+        // Gravity — the value the world uses once it is loaded (one helper with the save's generation, #2697).
         var sizeClass = WorldConstants.SizeClassFor(body.Kind, planet.Key);
-        float gravity = GravityFor(sizeClass, unchecked((uint)(StableStringHash(body.Id) ^ (int)_meta.Seed)));
+        float gravity = WorldGravityOf(body.Id, sizeClass);
         var gravityRow = gravity < 0.7f ? Row("gravity", "ui.overview.gravity.light", 0)
             : gravity <= 1.2f ? Row("gravity", "ui.overview.gravity.normal", 0)
             : Row("gravity", "ui.overview.gravity.heavy", 1);

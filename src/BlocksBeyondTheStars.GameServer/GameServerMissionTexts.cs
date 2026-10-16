@@ -44,7 +44,7 @@ public sealed partial class GameServer
         {
             GiverName = def.GiverName,
             Place = baseBoard ? "a homestead" : settlementBoard && !string.IsNullOrEmpty(settlementName) ? settlementName : "an orbital station",
-            Theme = baseBoard ? "settlers" : settlementBoard ? SettlementTradeFor(settlementName) : "traders",
+            Theme = baseBoard ? "settlers" : settlementBoard ? SettlementTradeOf(settlementName) : "traders",
             NeedItem = objective?.Target ?? string.Empty,
             Required = objective?.Required ?? 0,
             RewardItem = reward?.Item ?? string.Empty,

@@ -207,11 +207,11 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (TryNpcRadioCall(session, npcKey, CoinGiverName(s.Name), s.Name, bodyId,
+                if (TryNpcRadioCall(session, npcKey, SettlementGiverName(s), s.Name, bodyId,
                         $"camp:{SettlementLocationKey(s.Name)}:{camp.Key}", "npc.call.camp", string.Empty, isMission: true)) // #2693: per body (a runtime cooldown)
                 {
                     // Remember who called: clearing the camp now pays a friendship bonus (#1158).
-                    session.CalledCamps[camp.Key] = (npcKey, CoinGiverName(s.Name), s.Name);
+                    session.CalledCamps[camp.Key] = (npcKey, SettlementGiverName(s), s.Name);
                     return;
                 }
             }
@@ -292,7 +292,7 @@ public sealed partial class GameServer
                 }
 
                 string npcKey = NpcKey(SettlementLocationKey(s.Name), "quartermaster");
-                if (TryNpcRadioCall(session, npcKey, CoinGiverName(s.Name), s.Name, _world.LocationId,
+                if (TryNpcRadioCall(session, npcKey, SettlementGiverName(s), s.Name, _world.LocationId,
                         "raider:" + mySystem, "npc.call.raider", raidedName, isMission: false))
                 {
                     return;
@@ -323,7 +323,7 @@ public sealed partial class GameServer
                 bool foodDelivery = mission.Objectives.Any(o =>
                     o.Type == MissionObjectiveType.Deliver && (_content.GetItem(o.Target)?.ConsumeHunger ?? 0f) > 0f);
                 if (foodDelivery
-                    && TryNpcRadioCall(session, npcKey, CoinGiverName(s.Name), s.Name, _world.LocationId,
+                    && TryNpcRadioCall(session, npcKey, SettlementGiverName(s), s.Name, _world.LocationId,
                         "food:" + missionId, "npc.call.food", string.Empty, isMission: true))
                 {
                     return;
@@ -359,7 +359,7 @@ public sealed partial class GameServer
                         continue;
                     }
 
-                    string name = string.IsNullOrEmpty(rel.Name) ? CoinGiverName(s.Name) : rel.Name;
+                    string name = string.IsNullOrEmpty(rel.Name) ? SettlementGiverName(s) : rel.Name;
                     if (TryNpcRadioCallText(session, npcKey, name, s.Name, _world.LocationId,
                             "thread:" + thread.Key, Localize(session.Locale, thread.TextKey), isMission: false))
                     {

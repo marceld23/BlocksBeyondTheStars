@@ -36,6 +36,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// body it meant: when two bodies carry the same name, the first of them the player enters after the update inherits it.
 /// Moved, not copied — a copy would list the same person twice under "People you know" and cannot split one held wish or
 /// one running chain between two villages.</para>
+/// <para><b>Names and trade (#2698).</b> A settlement's trade (<see cref="SettlementTradeFor"/>) and its quest giver's name
+/// (<see cref="SettlementGiverNameFor"/>) came from the name alone, so every "Karth Village" sold the same goods and had the
+/// same quartermaster in every world. From terrain generation 26 both come from the place key (body, name and world seed);
+/// an older world keeps them exactly, because they name living NPCs players know and the goods of vendors they trade with.
+/// Every caller goes through the per-settlement helpers, so one settlement never mixes an old and a new value.</para>
 /// </summary>
 public sealed partial class GameServer
 {
@@ -91,6 +96,31 @@ public sealed partial class GameServer
 
         return SettlementLocationKeyFor(_world.LocationId, settlementName ?? string.Empty, _meta.Seed);
     }
+
+    /// <summary>#2698: whether a world of <paramref name="terrainGeneration"/> derives a settlement's trade and its quest
+    /// giver's name from the settlement's place (body, name and world seed) instead of its name alone — from
+    /// <see cref="WorldDescription.HashVarietyGeneration"/>, new saves only: an older world keeps every vendor's goods and
+    /// every coined name players know.</summary>
+    internal static bool HasPlaceAwareSettlementNames(int terrainGeneration) => terrainGeneration >= WorldDescription.HashVarietyGeneration;
+
+    /// <summary>#2698: the coined name of the quest giver (the board's quartermaster) of the settlement
+    /// <paramref name="settlementName"/> with the place key <paramref name="placeKey"/> in a world of
+    /// <paramref name="terrainGeneration"/>. Below <see cref="WorldDescription.HashVarietyGeneration"/> it is coined from the
+    /// name alone (<see cref="CoinGiverName"/>, the same person in every "Karth Village" of every world — kept, so nobody a
+    /// player knows is renamed); from it the name generator is seeded from the mixed hash of the place key, so two namesakes
+    /// on two bodies, or in two worlds, have their own quartermaster. The board's jobs, the quartermaster NPC, the radio
+    /// calls and the camp bounties all read it here, so the person and their jobs always carry one name.</summary>
+    internal static string SettlementGiverNameFor(string settlementName, string placeKey, int terrainGeneration)
+        => HasPlaceAwareSettlementNames(terrainGeneration)
+            ? NameGenerator.Person(new System.Random(StableHashing.Seed32(SettlementGiverSalt + placeKey)))
+            : CoinGiverName(settlementName);
+
+    /// <summary>The prefix that keeps the giver-name roll apart from every other roll keyed by a place key (#2698).</summary>
+    private const string SettlementGiverSalt = "giver:";
+
+    /// <summary>The quest giver's name of a settlement of the ACTIVE world (#2698: its place from generation 26).</summary>
+    private string SettlementGiverName(SettlementInstance s)
+        => SettlementGiverNameFor(s.Name, SettlementPlaceKey(s), _meta.Description.TerrainGeneration);
 
     /// <summary>The pre-#2693 mission-id prefix of a settlement board — the ids players took before the update.</summary>
     private static string LegacySettlementBoardPrefix(string settlementName) => LegacySettlementLocationKey(settlementName) + "_";
@@ -193,7 +223,7 @@ public sealed partial class GameServer
             }
 
             string key = SettlementPlaceKey(s);
-            string giver = CoinGiverName(s.Name);
+            string giver = SettlementGiverName(s);
             EnsureLegacyBoardStreams(p, LegacySettlementBoardPrefix(s.Name), s.Name, s.MissionIds, giver, scratch, station: false, withBuild: true);
             EnsureHeldBoardStreams(p, key + "_", key, s.MissionIds, giver, scratch, station: false, withBuild: true, legacy: false);
         }
@@ -238,16 +268,22 @@ public sealed partial class GameServer
         return loc;
     }
 
-    /// <summary>The name a chain step's giver is coined with when neither the step nor the player's memory names them: from
-    /// a settlement's OLD key, as it always was — a chain taken before #2693 keeps its giver's name, and so does every new
-    /// one at the same village. Any other place (a station, an unmigrated old key) coins from the key itself.</summary>
+    /// <summary>The name a chain step's giver is coined with when neither the step nor the player's memory names them (a
+    /// held chain's giver is in the memory: accepting a step records them by name, so they keep it). In a world below
+    /// <see cref="WorldDescription.HashVarietyGeneration"/>: from a settlement's OLD key, as it always was — a chain taken
+    /// before #2693 keeps its giver's name, and so does every new one at the same village. From it (#2698): the settlement's
+    /// own quest giver (<see cref="SettlementGiverName"/>) — a chain's default giver is the quartermaster, whose memory entry
+    /// the board's jobs share, so the person never carries two names. Any other place (a station, an unmigrated old key)
+    /// coins from the key itself.</summary>
     private string ChainGiverFallbackName(string placeKey)
     {
         foreach (var s in _settlements)
         {
             if (!string.IsNullOrEmpty(s.Name) && SettlementPlaceKey(s) == placeKey)
             {
-                return CoinGiverName(LegacySettlementLocationKey(s.Name));
+                return HasPlaceAwareSettlementNames(_meta.Description.TerrainGeneration)
+                    ? SettlementGiverName(s)
+                    : CoinGiverName(LegacySettlementLocationKey(s.Name));
             }
         }
 
@@ -583,4 +619,20 @@ public sealed partial class GameServer
 
     /// <summary>Test seam (#2693): the name a chain step's giver is coined with at a place when nothing else names them.</summary>
     public string ChainGiverFallbackNameForTest(string placeKey) => ChainGiverFallbackName(placeKey);
+
+    /// <summary>Test seam (#2698): the trade and the quest giver's name of the settlement of this name on the active world.</summary>
+    public (string Trade, string Giver) SettlementTradeAndGiverForTest(string settlementName)
+    {
+        var s = _settlements.First(x => string.Equals(x.Name, settlementName, StringComparison.Ordinal));
+        return (SettlementTrade(s), SettlementGiverName(s));
+    }
+
+    /// <summary>Test/inspection (#2698): the residents of the active world's settlements — settlement, role, job, name, theme.</summary>
+    public IReadOnlyList<(string Settlement, string Role, string Job, string Name, string Theme)> SettlementResidentNamesForTest()
+        => _npcs.Where(n => !string.IsNullOrEmpty(n.Settlement)).Select(n => (n.Settlement, n.Role, n.Job, n.Name, n.Theme)).ToList();
+
+    /// <summary>Test/inspection (#2698): the names on the dialog-promised calls still waiting for a player (a chain's
+    /// "I've got something more for you" names its giver).</summary>
+    public IReadOnlyList<string> DialogRadioPendingNamesForTest(string playerId)
+        => _dialogRadioPending.Where(c => c.PlayerId == playerId).Select(c => c.NpcName).ToList();
 }

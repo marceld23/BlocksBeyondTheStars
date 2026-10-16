@@ -344,13 +344,16 @@ public sealed class MissionBoardVarietyTests : IClassFixture<MissionBoardVariety
     }
 
     [Fact]
-    public void ChainGiver_IsStillCoinedFromTheOldKey()
+    public void ChainGiver_IsTheSettlementsQuestGiver_InANewWorld()
     {
-        // A chain giver nobody named yet keeps the name the old name-only place key coined for them.
+        // #2698: in a world of generation 26 (this fixture) a chain giver nobody named yet is the settlement's own quest
+        // giver, coined from its place — the board's quartermaster, whose memory entry the chain shares. A world of
+        // generation 25 or older keeps the name the old name-only key coined (SettlementTradeAndGiverTests).
         var server = _w.Server;
-        string legacy = SvGameServer.LegacySettlementPlaceKeyForTest(_w.Name);
-        string expected = NameGenerator.Person(new System.Random(unchecked((int)WorldGenerator.StableHash("giver:" + legacy))));
-        Assert.Equal(expected, server.ChainGiverFallbackNameForTest(server.SettlementLocationKeyForTest(_w.Name)));
+        string place = server.SettlementLocationKeyForTest(_w.Name);
+        string giver = SvGameServer.SettlementGiverNameFor(_w.Name, place, BlocksBeyondTheStars.Shared.World.WorldDescription.CurrentTerrainGeneration);
+        Assert.Equal(giver, server.SettlementTradeAndGiverForTest(_w.Name).Giver);
+        Assert.Equal(giver, server.ChainGiverFallbackNameForTest(place));
     }
 
     /// <summary>

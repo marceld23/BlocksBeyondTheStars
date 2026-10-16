@@ -204,7 +204,8 @@ public sealed class WorldDescription
     /// oil pockets, the worm body plan, the gas giant, #2125 the intercity monorail, #2166 the abandoned monorail stations,
     /// #2331 the spectacle terrain package, #2370/#2371 the full-height oil pockets and the oil seeps, #2437 a gas giant in
     /// almost every system, #2516 generated water sealed against caves and lower ground, #2639 the wilderness folk,
-    /// #2694 the hash-variety package: world-seeded body sizes and mixed sky/flora/water colour families).</summary>
+    /// #2694 the hash-variety package: world-seeded body sizes and mixed sky/flora/water colour families, gravity, settlement
+    /// trades and quest-giver names).</summary>
     public const int CurrentTerrainGeneration = 26;
 
     /// <summary>The generation of the hash-variety package (#2694, 2026-10): choices that used to read a poorly mixed
@@ -213,8 +214,11 @@ public sealed class WorldDescription
     /// float, long, int)"/>) — before, the classic <c>h·31+c</c> of the id alone gave every planet of a standard system
     /// the same size and every world the same sizes per system index; and the per-world sky/cloud, flora-base and "auto"
     /// water colour families (#2692) pick from the mixed hash of (location, seed) instead of <c>h·31+c ^ seed</c>, which
-    /// gave neighbouring bodies the same family five times in six. A world's terrain is derived from its circumference,
-    /// so the gate is what keeps every world of an older generation at its size and colours bit for bit.</summary>
+    /// gave neighbouring bodies the same family five times in six. A body's gravity (#2697, <see cref="BodyGravity"/>)
+    /// rolls from the mixed hash of (id, seed) too — the classic roll gave the planets of a system the same gravity — and a
+    /// settlement's trade and quest-giver name (#2698) come from its body-aware place key instead of its name alone. A
+    /// world's terrain is derived from its circumference, so the gate is what keeps every world of an older generation at
+    /// its size, colours, gravity, vendors and NPC names bit for bit.</summary>
     public const int HashVarietyGeneration = 26;
 
     /// <summary>The generation of the wilderness folk (#2639, 2026-10): <b>lodges</b> — a small hut in the open land with one or

@@ -25,6 +25,20 @@ public static class SpsLabGenerator
     /// <summary>The structure tier the stamper and the server see.</summary>
     public const string Tier = "sps_lab";
 
+    /// <summary>
+    /// The local columns (x, z) of the compound that must stay under the open sky (#2696): the ship pad (corners, edge
+    /// mid-points, centre), the helicopter pad (corners, centre) and the cell in front of each doorway (lab, store room,
+    /// generator shed). Every layout leaves them roofless — only the ground or pad row at y 0 — so the server's
+    /// placement can refuse a site where water, ice or terrain would cover them. Mirrors the layout in
+    /// <see cref="Generate"/>; a test guards that every layout keeps them open.
+    /// </summary>
+    public static readonly IReadOnlyList<(int X, int Z)> OpenColumns = new[]
+    {
+        (2, 17), (8, 17), (14, 17), (2, 24), (8, 24), (14, 24), (2, 30), (8, 30), (14, 30), // the ship pad
+        (21, 22), (29, 22), (25, 26), (21, 30), (29, 30),                                   // the helicopter pad
+        (8, 11), (22, 11), (19, 16),                                                         // before the doorways
+    };
+
     public static SettlementStructure Generate(long seed, string groundBlock, GameContent content)
     {
         var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32))));

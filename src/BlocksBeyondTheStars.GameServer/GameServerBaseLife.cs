@@ -697,7 +697,8 @@ public sealed partial class GameServer
             "craftsman" => "npc.role.craftsman",
             _ => profession?.NameKey ?? "npc.theme.settlers",
         };
-        npc.Theme = job == "vendor" ? SettlementTradeFor(boardKey) : profession is { Trades: true } ? profession.Theme : "settlers";
+        // A base vendor's trade comes from the board key (body + cell), which is per place already — no change in #2698.
+        npc.Theme = job == "vendor" ? ClassicTradeFor(boardKey) : profession is { Trades: true } ? profession.Theme : "settlers";
         npc.Held = job switch
         {
             "gardener" => "npc_hoe",

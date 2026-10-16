@@ -131,7 +131,7 @@ public sealed partial class GameServer
             string id = idPrefix + "bounty_" + camp.Key;
             if (!_missionDefs.ContainsKey(id))
             {
-                _missionDefs[id] = BuildCampBountyMission(id, boardKey, camp.Key, CoinGiverName(s.Name));
+                _missionDefs[id] = BuildCampBountyMission(id, boardKey, camp.Key, SettlementGiverName(s));
             }
 
             s.MissionIds.Add(id);

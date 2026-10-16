@@ -48,7 +48,7 @@ public sealed partial class GameServer
     /// </summary>
     private void SpawnProfessionResidents(SettlementInstance settlement, List<Vector3i> freeBeds, List<Vector3i> seats, ref int seatCursor)
     {
-        string settlementTheme = SettlementTradeFor(settlement.Name);
+        string settlementTheme = SettlementTrade(settlement);
         int index = 0;
         foreach (var (type, pos) in settlement.Markers)
         {

@@ -20,12 +20,15 @@ internal sealed class SettlementTestWorlds : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "bbts_settle_" + Guid.NewGuid().ToString("N"));
 
-    public SvGameServer Start(GameContent content, string planet, long seed, out SqliteWorldRepository repo)
+    /// <summary>Starts a settlement-only world; <paramref name="terrainGeneration"/> pins an older generation (default: the
+    /// current one, like every new save).</summary>
+    public SvGameServer Start(GameContent content, string planet, long seed, out SqliteWorldRepository repo, int? terrainGeneration = null)
     {
-        repo = new SqliteWorldRepository(new SaveGamePaths(_root, planet + seed));
+        string name = planet + seed + (terrainGeneration is { } g ? "_g" + g : string.Empty);
+        repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var config = new ServerConfig
         {
-            WorldName = planet + seed,
+            WorldName = name,
             Seed = seed,
             StartPlanet = planet,
             AutoSaveIntervalMinutes = 9999,
@@ -43,6 +46,11 @@ internal sealed class SettlementTestWorlds : IDisposable
             PlaceChests = false,
             PlaceWrecks = false,
         };
+        if (terrainGeneration is { } generation)
+        {
+            config.World.TerrainGeneration = generation;
+        }
+
         var server = new SvGameServer(config, content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();
         return server;

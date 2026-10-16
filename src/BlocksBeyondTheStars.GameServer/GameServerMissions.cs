@@ -847,7 +847,9 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>A mission-giver's coined name, deterministic per board so it matches the quartermaster NPC.</summary>
+    /// <summary>A mission-giver's coined name, deterministic per board so it matches the quartermaster NPC. The classic
+    /// coinage (bit-identical forever: it names people players know) — a settlement's giver goes through
+    /// <see cref="SettlementGiverNameFor"/>, which keeps it below generation 26 and coins per place from it (#2698).</summary>
     private static string CoinGiverName(string boardKey)
         => BlocksBeyondTheStars.WorldGeneration.NameGenerator.Person(new System.Random(unchecked((int)WorldGenerator.StableHash("giver:" + boardKey))));
 
@@ -966,7 +968,7 @@ public sealed partial class GameServer
             // what the player took under the old name-only key is still coined from the old rolls.
             string key = SettlementPlaceKey(s);
             string prefix = key + "_";
-            string giver = CoinGiverName(s.Name);
+            string giver = SettlementGiverName(s);
             EnsureLegacyBoardStreams(player, LegacySettlementBoardPrefix(s.Name), s.Name, s.MissionIds, giver, currentBoardIds, station: false, withBuild: true);
             EnsureBoardWindow(player, prefix, key, s.MissionIds, giver, currentBoardIds);
             EnsureBoardWindow(player, prefix + "b", key, s.MissionIds, giver, currentBoardIds, BoardSlotKind.Build, window: 1); // #1116: one build job beside the deliveries

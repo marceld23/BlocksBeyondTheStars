@@ -46,9 +46,29 @@ definition too), and `AcceptedFrom`. Should the new place already have a ledger,
 wish comes over onto the higher counter; where both lanes hold one, the new one stays). An old key cannot say which body
 it meant: the first namesake the player enters after the update inherits it (moved, not copied — a copy would list a
 person twice and cannot split one held wish or one running chain). A name that is not on this body waits for its own.
-Quartermaster names (`CoinGiverName`), a chain giver nobody has named yet (coined from the old place key,
-`ChainGiverFallbackName`) and a settlement's trade (`SettlementTradeFor`) still come from the name — they name living NPCs
-players know.
+
+**Trade and quest-giver names** (#2698, `GameServerSettlementKeys.cs` / `GameServerSettlements.cs`). A settlement's trade
+(`SettlementTradeFor`: miners, traders, researchers or settlers — the theme of its NPCs and the goods its vendor posts) and
+the coined name of its board's quest giver (`SettlementGiverNameFor`) depend on the world's terrain generation:
+
+| | generation ≤ 25 (kept exactly) | generation 26+ (new saves) |
+|---|---|---|
+| Trade | `StableHash(name) % 4` | `StableHashing.Index("trade:" + place key, 4)` |
+| Further vendors (B55) | `StableHash(name + ":vendor:" + i) % 4` | `StableHashing.Index("trade:" + place key + ":vendor:" + i, 4)` |
+| Quest giver | `CoinGiverName(name)` | name generator seeded `StableHashing.Seed32("giver:" + place key)` |
+| Chain giver nobody named yet (`ChainGiverFallbackName`) | coined from the old name-only key | the quest giver above |
+
+The place key carries body, name and world seed, so from generation 26 two namesakes on two bodies or in two worlds trade
+their own goods and have their own quartermaster. An older world keeps both — they name living NPCs players know and the
+goods of vendors they trade with. Every caller goes through the per-settlement helpers (`SettlementTrade(s)`,
+`SettlementTradeOf(name)`, `SettlementGiverName(s)`): the quartermaster NPC, the board's jobs (new and held), the camp
+bounties, the radio calls, the residents' and professions' themes, the mission flavour texts and the festival lines, so one
+settlement never mixes old and new values. In a generation-26 world the chain giver is the quartermaster on purpose: a
+chain's default giver role is the quartermaster, whose memory entry (`<place>:quartermaster`) the board's jobs share — the
+old fallback coined a second name for the same person, and the remembered name flipped between the two. A held chain keeps
+its giver's name anyway: accepting a step records the giver in the player's memory, and the follow-up call reads it from
+there. A player base's vendor keeps its trade from the base's board key (body + cell, per place already); stations keep
+their classic names and trades. Tests: `SettlementTradeAndGiverTests`.
 
 ## Festival (#2604)
 

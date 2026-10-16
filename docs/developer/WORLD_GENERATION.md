@@ -174,9 +174,10 @@ band, and the live-creature cap (bigger world → more fauna). Worlds are a **to
 wrap) so circumnavigation is seamless in every direction — see [WORLD_WRAP.md](WORLD_WRAP.md).
 
 Gravity, sky hue, cloud tint and flora hue are each seeded **per world** (from `LocationId ^ Seed`
-with per-feature salts — from generation 26 the sky, cloud, flora-base and "auto" water families from the
-mixed hash, §43) so two same-type worlds still look distinct — see
-[`GameServerWeather.cs`](../../src/BlocksBeyondTheStars.GameServer/GameServerWeather.cs).
+with per-feature salts — from generation 26 the sky, cloud, flora-base and "auto" water families and the gravity
+from the mixed hash, §43) so two same-type worlds still look distinct — see
+[`GameServerWeather.cs`](../../src/BlocksBeyondTheStars.GameServer/GameServerWeather.cs) and, for gravity,
+[`BodyGravity.cs`](../../src/BlocksBeyondTheStars.Shared/World/BodyGravity.cs).
 
 ---
 
@@ -1662,6 +1663,17 @@ machines. The type (`titas`, `minTerrainGeneration` 8, exotic, spawn weight 1) i
   holes, a concrete ship pad with red corner lamps and a helicopter pad with its "H". `sps_cache` loot: circuit boards,
   energy cells, cables, rusted panels, data fragments, rarely an access code. Inside a roofed module (`InSpsLab`): no air
   and −90 °C. A machine spawning for a player within 96 blocks of a lab appears 20–32 blocks around it.
+  **Dry land under the open sky (#2696).** The frozen sea's ice sheet (≥ 3 thick) reads as land to the classic wet gate
+  (`IsSurfaceWater` — a ship may land on it), so the search used to seat many labs on the seabed under the ice: the pad
+  lay under ice and water, `RoofedAt` saw a roof (no air, −90 °C on the open pad) and the compound was hard to reach.
+  The lab search now passes `TryPlaceStructureGuaranteed` a `seatOk` test (`SpsLabSeatOpen`), asked of ring 1's
+  first-fit hit and of every would-be winner of the ranked rings: a ground seat only (flat / slope / shelf — never
+  stilts, lava or island), the floor at or above the sea level (the ice top), no water, ice or lava on any footprint
+  sample or open column (`SpsLabGenerator.OpenColumns`: both pads and the cell before each doorway), no band over an
+  open column, and every open column's natural ground within the stamper's carve (`SettlementClearHeight`, shared with
+  `StampSettlementBlocks`). A body with too few such sites gets fewer labs (the instance records a skip and the stamp
+  report warns) instead of a sunken one; across Titas seeds 70–100 every rolled lab still found a site (134 of 134).
+  Only new placements ask: a pinned `spslab` record keeps its lab where it stands, so old saves don't move.
 - **Machines (`EnemyDensity` 2.5).** `PlanetEnemyCap` × 2.5 (Normal: 5 per player).
 - **Survival (server).** `ExposureMinutesCold` 40 / `ExposureMinutesHot` 30 replace the suit-energy drain with an
   exposure meter (`PlayerState.Exposure`, `PlayerStateUpdate.Exposure/ExposureActive/ExposureHot`, HUD row "Cold / Heat
@@ -1674,7 +1686,8 @@ machines. The type (`titas`, `minTerrainGeneration` 8, exotic, spawn weight 1) i
 - New block `sulfur_stone` (drops stone + a 1-in-5 sulfur ore, texture via the OpenAI script).
 - Tests: `TitasWorldTests` (data, once per galaxy + name, snow blanket, ice sheet, hot zones + lava ponds, dead trees +
   water-life cap, generation gate), `TitasSurvivalTests` (meter pace, liners/tier, full-meter damage, toxic water, labs +
-  machine cap), golden `titas-gen8`.
+  machine cap), `SpsLabPlacementTests` (open columns roofless in every layout, every lab of four formerly sunken worlds
+  on dry ground with nothing over its open columns, a pinned record under the ice keeps its lab), golden `titas-gen8`.
 
 ## 21. Generation 8 — Valuma and the Sreekmakra (2026-09, Justus' player report)
 
@@ -2661,13 +2674,35 @@ chunk pipeline reads the generation for this: the chunk goldens pass their circu
   (`AtmosphereTints.MixedWord`); palettes, weights, jitter and the cloud's contrast push are unchanged. The generation
   is a required argument of all four functions: the server passes the save's (`InitWeather`), the client the one the
   join told it (`OrbitLook.For(…, Game.TerrainGeneration)`; the planet-map bake already passed it to `FluidTints`).
-  Gravity and the per-species flora colours are not part of this wave.
+  The per-species flora colours are not part of this wave.
+- **Gravity (#2697).** A body's gravity multiplier (planets 0.8–1.6 g, moons 0.55–0.85 g, asteroids 0.35–0.55 g; it
+  drives jump height, walk speed, the jetpack, fall damage and the colossus gate) read the low 16 bits of `h·31+c` of the
+  body id XOR the low seed word. Consecutive ids move those bits by one, so every planet of a system had practically the
+  same gravity (differences below 0.001 g). `BodyGravity.FactorFor(id, class, seed, generation)` is now the one formula:
+  from generation 26 the mixed hash of the id salted with the world seed (its own salt) picks within the same class band,
+  so the planets of a system spread over the band and differ between worlds; below 26 it is the classic roll, bit for
+  bit. The server derives it in one place (`GameServer.WorldGravityOf`, `GameServerBodySize.cs`) for the loaded world's
+  environment and the ship scanner's overview card, which therefore shows the gravity you land in; the client takes it
+  from `WorldEnvironment.GravityFactor` and never recomputes it (no client change).
+- **Settlement trade and quest givers (#2698).** A settlement's trade (`SettlementTradeFor`: what its vendors sell) and
+  its board's quest giver (the quartermaster's coined name) came from the settlement NAME alone — about 45 names per tier,
+  so "Karth Village" sold the same goods and had the same quartermaster in every world and on every body. From generation
+  26 both come from the settlement's body-aware place key (body, name and world seed, [VILLAGE_LIFE.md](VILLAGE_LIFE.md)
+  "Place keys and board rolls"), and so do the further vendors' trades; below 26 every value is the classic one. Details
+  in VILLAGE_LIFE.md.
 
 **Bit-frozen from the first release.** A generation-26 save derives its terrain from the seeded circumference and
 re-stamps its settlements with the mixed picks, so `StableHashing`'s outputs and every generation-26 roll built on them
 can never change again (like `StableHash`): `StableHashingTests.Outputs_AreBitFrozen` / `MixedCropPick_IsBitFrozen` pin
 known answers, `HashVarietyWorldsTests.NewGeneration_SizesAndColours_AreBitFrozen` pins single sizes and colours and a
-hash over a whole generation-26 galaxy. A different roll needs a new function and a new generation.
+hash over a whole generation-26 galaxy, `BodyGravityTests.NewGeneration_Gravity_IsBitFrozen` single gravities and
+`SettlementTradeAndGiverTests.NewGeneration_TradeAndGiver_AreBitFrozen` trades and quest-giver names. A different roll
+needs a new function and a new generation. The classic values are pinned the same way (`BodyGravityTests` checks every
+generation below 26 against the pre-change formula; `SettlementTradeAndGiverTests` does so for trades, vendor themes and
+names) — and the same two suites show the spread: no two planets of a system share their gravity and every quarter of
+the planet band is used; two namesakes on two bodies or in two worlds differ in trade about three times in four and
+practically always in their quest giver; one settlement's quartermaster, board jobs, vendors and chain giver agree in
+both generations, and a held chain keeps its giver's name.
 
 `HashVarietyWorldsTests` pins the classic sizes and tints (single values and a hash over a whole generation-25
 galaxy with archetypes) and shows the new spread: under 5 % of the systems keep all planets within one chunk, the

@@ -51,7 +51,7 @@ public sealed partial class GameServer
     /// <summary>Spawns the residents and guardians of one inhabited settlement.</summary>
     private void SpawnSettlementResidents(SettlementInstance settlement, System.Random rng)
     {
-        string settlementTheme = SettlementTradeFor(settlement.Name);
+        string settlementTheme = SettlementTrade(settlement);
         int vendorIndex = 0;
         BeginAuthoredCasting(settlement.Name); // #1150: at most one authored face per place
 
@@ -100,7 +100,9 @@ public sealed partial class GameServer
                 home = spots.Count > 0 ? spots.OrderBy(s => WrapDistSq(s, anchor)).First() : posts.Count > 0 ? posts[0].Pos : anchor;
             }
 
-            string npcTheme = role == "vendor" ? VendorThemeFor(settlement.Name, vendorIndex++, settlementTheme) : settlementTheme;
+            string npcTheme = role == "vendor"
+                ? SettlementVendorThemeFor(settlement.Name, SettlementPlaceKey(settlement), vendorIndex++, settlementTheme, _meta.Description.TerrainGeneration) // #2698
+                : settlementTheme;
             bool robotic = npcTheme == "researchers" && rng.Next(100) < 60; // most research staff are service androids — but not all (#711)
 
             // Feet on top of the floor block (markers sit centred in the air cell above it), never below the settlement.
@@ -116,7 +118,7 @@ public sealed partial class GameServer
 
             if (role == "quartermaster")
             {
-                npc.Name = CoinGiverName(settlement.Name); // the mission-giver's name matches its missions (item 13)
+                npc.Name = SettlementGiverName(settlement); // the mission-giver's name matches its missions (item 13)
             }
 
             // #2598: the villager's own memory key, from their place in the layout (post cell, else bed cell).
