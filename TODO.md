@@ -32,8 +32,8 @@ feed him. The same pass reworks how NPCs get their beds (Marcel's question: how 
 quarters?). Package label `package: life support & beds 2026-10`. All decisions by Marcel, 2026-10-15.
 
 - **Shared air engine (#2650):** `AirFill` walks vertical spans (per-column span lists) instead of remembering every cell;
-  fills are time-sliced to 2 ms per tick with the previous result answering meanwhile; an emergency brake (2 M cells /
-  200 k spans) keeps air and logs once; unloaded cells are unknown, with the unbuilt sky over roof holes and carry-over of
+  fills are time-sliced to 2 ms per tick with the previous result answering meanwhile; an emergency brake (per room 2 M cells /
+  400 k spans, per run 4 M / 600 k) keeps air and logs once; unloaded cells are unknown, with the unbuilt sky over roof holes and carry-over of
   rooms hidden by unloaded chunks. A 1 M-cell hall is 10 000 spans, 29 × 2 ms steps, ~1.7 MB. `AirRoomIdAt` gives the room
   identity.
 - **Base air (#2651):** every door holds air (any kind, open or shut); no size, reach or "connected" limit; rooms seeded

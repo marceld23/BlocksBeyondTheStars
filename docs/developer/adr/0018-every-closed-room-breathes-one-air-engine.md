@@ -38,7 +38,8 @@ cells would be about half a second and 50–80 MB — impossible on the small ha
    - Fills are time-sliced to 2 ms per tick; until a fill is done, the previous result answers, so nobody loses air
      mid-fill.
    - Unloaded cells are unknown, not a leak. Rooms the fill could not reach because of them keep their last state.
-   - An emergency brake (2 M cells / 200 k spans) keeps the previous result, logs once and never takes air away.
+   - An emergency brake (per room 2 M cells / 400 k spans, per run 4 M cells / 600 k spans) keeps the previous result,
+     logs once and never takes air away.
 6. **Warnings name the opening** of a leak at its height, and only to the players in or at the damaged room. *Too
    large*, *too far* and *not connected* are gone.
 
