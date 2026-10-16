@@ -42,6 +42,8 @@ Side findings of #2694, all decisions by Marcel (per recommendation, one PR). Pa
   other structure types may also seat under thick sea ice on non-Titas frozen worlds (`FootprintWet` treats the ice as
   land); station giver names/vendor themes still from the station id alone.
 
+**Released** in **v2026.10.18** "the pioneer release" (2026-10-17).
+
 ---
 
 ### 🎲 Hash variety — well-mixed deterministic picks, more varied worlds without changing existing ones — epic #2694, #2686–#2693, branch feat/hash-variety-2026-10 — ✅ done 2026-10-16 (⚠ playtest open; terrain generation 26)
@@ -78,6 +80,8 @@ Package label `package: hash variety 2026-10`.
 - ⚠ Open: playtest (a NEW world: planet sizes in a system, sky colours; old world unchanged); release notes (mission
   boards look different, big-order progress restarts; new worlds = gen 26); an older client on a gen-26 server draws
   other bodies' orbit spheres with the classic sizes (cosmetic).
+
+**Released** in **v2026.10.18** "the pioneer release" (2026-10-17).
 
 ---
 
@@ -121,6 +125,8 @@ label `package: justus reports 2026-10-16`.
 - ⚠ Side finding (not done): `WorldGenerator.StableHash(...) % n` is biased for sequential keys (`"…:0"`–`"…:599"` all gave
   0 for `% 3`); the pioneer schedule uses a 64-bit mix instead, other callers (e.g. `CropFor`) may be skewed.
 
+**Released** in **v2026.10.18** "the pioneer release" (2026-10-17).
+
 ---
 
 ### 🐾 Smooth motion for animals, NPCs, machines and bandits — #2664–#2670, branch feat/smooth-entity-motion — ✅ done 2026-10-16 (⚠ playtest open)
@@ -152,6 +158,8 @@ bandits included). Package label `package: smooth motion 2026-10`. How it works:
 - **MessagePack 2.5.302 → 2.5.303** (same PR): advisory GHSA-qhrr-8q5h-9q3h ("nested arrays can blow past buffer length
   limits", published 2026-10-15) made NuGet's NU1902 audit warning an error under `-warnaserror`, so every PR's build failed.
 - ⚠ Open: Marcel's playtest (herds, darters, hunters along walls, villages, robots/bandits; WebGL).
+
+**Released** in **v2026.10.18** "the pioneer release" (2026-10-17).
 
 ---
 

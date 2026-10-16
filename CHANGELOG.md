@@ -11,6 +11,123 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.18] — 2026-10-17
+
+The pioneer release. **Player-like pioneers** now live in closed outposts out in the wild, with a pixel skin, a hidden
+cellar and sometimes a rowboat at the shore. **Broken old stations** look like the classic stations from the beta again,
+only wrecked, and there is no air aboard any more. **Animals, villagers, machines and bandits move smoothly**, your
+**painted look** finally reaches the other players in multiplayer, **residents climb the stairs** to your upper floors,
+and **torches hang on the wall**. And **new worlds are more varied**: planets of a system differ in size, sky colour and
+gravity, and every world has its own mission boards. Behind most of it are **Justus** and **Lorenzo**: Justus reported
+the missing body paint, the silent traders, the wrong station model and the residents who never came upstairs, and sent
+the idea for the NPC bases; Lorenzo wanted torches on the wall. Thank you both! 🙏
+
+ℹ️ **Compatibility:** the **save version stays at 4**. The **terrain generation rises to 26**: varied planet sizes,
+colours and gravity only come to **new worlds**, your existing worlds keep every planet exactly as it was. Pioneer
+outposts appear in new worlds and on planets you have never visited. Everything else also comes to your existing worlds.
+The network protocol stays at **version 11**. Game and server should both be on 2026.10.18. The desktop game updates
+itself on start, and the browser version is always current.
+
+### 🧑‍🚀 Pioneer outposts (#2681, #2682)
+
+- **Player-like NPCs with their own bases**, in new worlds and on planets you haven't visited yet, at most two per
+  world: a closed house of stone, earth, iron or steel with a (decorative) base core, crates, a bed and a door.
+- **A cellar:** a ladder leads down to a small cellar with a crate. Sometimes the shaft is in a closet, sometimes it is
+  hidden under a planter. By the water, a **rowboat** lies at the shore.
+- **The pioneer** looks like a player with a **pixel skin**, never attacks you, hunts, mines or gathers near the outpost
+  and is off exploring about one day in three. Talk to them to learn who they are; once you are friends they give you a
+  present from their crates. You may look into their crates, but not take from them, and the outpost is protected.
+- The outpost shows on your **map** once you come close or a villager tells you about it. Admins: `/tp outpost`.
+
+### 🛰️ Derelict stations in the beta shape (#2674–#2676)
+
+- **New wrecks look like the classic stations from the beta:** a boxy hub, four arms with pods, two big blue solar wings
+  and a mast. Only wrecked: one wing half torn off, the mast snapped, the beacon dead, holes, rust and loose debris.
+- **No air aboard and nobody lives there.** Your suit tank is your air, VEGA warns you on your first visit, and your
+  ship fills the tank up again. A wreck you have already boarded keeps its old shape. The story site *The Long Quiet* is
+  unchanged.
+- From outside, wrecks now **spark, shed tumbling debris and flicker** their dead beacon.
+
+### 🐾 Smooth motion (#2664–#2670)
+
+- **Animals, villagers, machines and bandits move smoothly** instead of in little jerks: the game now plays their
+  movement back with a short delay and follows the server's speed, and animals far away get a gentle buffer.
+- **Smoother turns:** animals turn round instead of snapping, take one-block ledges in a running jump and slow down when
+  boxed in; villagers walk straight lines instead of zig-zags and turn their body toward what they look at.
+
+### 🏠 Residents on every floor (#2677–#2680)
+
+- **Founding a base:** one bed or three machines anywhere inside your base now bring the first settler (before, the
+  machines had to stand right next to the base core).
+- **Residents climb your stairs** — also a staircase with a tight hole in the ceiling — and reach beds up to 16 blocks
+  above the core. They take stairs, not ladders.
+- **The game tells you about beds:** placing one says whether it counts ("residents 3/5"), founds the base, is outside
+  your base or whether the base is full. The base core readout shows your residents.
+- A resident who gets stuck is moved to their goal when nobody can **see** them, even if you are close by on another
+  floor.
+
+### 🎭 Multiplayer and talking
+
+- **Your painted look reaches the others (#2672):** in a LAN or hosted world the other players now see your whole body
+  paint, not only your face. Your look also arrives while the host has paused the game.
+- **Traders talk to newcomers (#2673):** traders and quartermasters greet you with a short conversation even before
+  they know you, and *Talk* always gets an answer, also right after trading.
+
+### 🔥 Torches and lanterns on the wall (#2683)
+
+- Place a **torch** on a wall and it hangs on the wall, slightly tilted, on a small holder. A **lantern** hangs on a
+  wall bracket or from the ceiling on a chain. A torch can't hang from the ceiling (the game suggests a lantern).
+- If the wall or ceiling holding it is mined, the light falls. Torches and lanterns already in your world stay as they
+  are.
+
+### 🎲 More variety (#2686–#2698)
+
+- **New worlds (terrain generation 26):** the planets of a system now differ in **size**, **sky and water colour** and
+  **gravity**, and each world has its own sizes — before, all planets of a system were the same size and every world
+  matched. Your starting planet always stays roomy.
+- **Mission boards** no longer repeat in a four-step pattern and differ from world to world. Two villages with the same
+  name on different planets now have their own board, missions, news and people who remember you. Jobs you already
+  hold stay exactly as they are; big-order progress starts afresh on the new boards.
+- **Greenhouses** grow a real mix of crops, and **authored village buildings** are no longer "all or nothing". Villages
+  you have already visited stay as they are.
+- **Animals:** a herd is no longer a set of clones — sizes vary, with the occasional runt or giant; pack hunters spread
+  out around their prey; taming wishes, gait and machine timing are no longer predictable patterns.
+- In new worlds, a village's **trade and quest giver** also depend on its planet and the world.
+- On **Titas**, new research stations are no longer placed under the frozen sea, so their landing pads are open to the
+  sky (#2696).
+
+### 🌍 Texts
+
+- All new and changed texts are available in all 14 languages.
+- The "What's new?" notes of 2026.10.17 are now available in the twelve community languages too (#2663).
+
+### 🛠️ For tinkerers
+
+- **`StableHashing`** (Shared): a well-mixed deterministic hash (FNV-1a + SplitMix64 finaliser). `WorldGenerator.StableHash`
+  stays bit-identical forever; `StableHashing` outputs are pinned as known answers. See `docs/developer/WORLD_GENERATION.md`
+  §43.
+- **Terrain generation 26** (`HashVarietyGeneration`): world-seeded body sizes (`WorldConstants.CircumferenceFor(…, seed,
+  generation)`), sent as the additive field `NetBody.Circumference` (0 = older server → classic formula, `BodySize` in
+  Client.Core); start planet floor 9600; mixed tint families and gravity. Generation ≤ 25 is pinned bit-for-bit.
+- **Settlement place keys** include the body (`settle_` + 9 digits); old name-only keys, memory, wishes and news move on
+  world entry, and held board jobs keep their old ids and definitions. Placement records carry `HashRevision`.
+- **Smooth motion:** buffered interpolation (`MotionInterpolator`, `ServerClockSync`), a creature motion stream
+  (`CreatureMotionFrame`, tag 301) and smoothed NPC routes. See `docs/developer/ENTITY_MOTION.md`.
+- **Derelicts:** `BetaStationGenerator`, `DerelictDecorPlan` (Client.Core); stored derelicts keep their legacy layout.
+- **Pioneer outposts** are a lodge variant (`GameServerPioneers.cs`, `PioneerOutpostGenerator`); the pixel-skin pool is
+  `data/pioneer_skins.json`, generated by `tools/gen_pioneer_skins.py` (which also imports a skin painted in the game).
+- **Wall lights:** `PropOrientation.LightMount`, geometry shared by mesher and ghost (`LightMountGeometry`).
+- MessagePack 2.5.302 → 2.5.303 (advisory GHSA-qhrr-8q5h-9q3h).
+- **For hosters:** the AI backend now knows the pioneer role; update the AI service with this release.
+
+### 🙏 Thank you
+
+- **Justus** (as Layex and Screelit) reported the body paint that never reached the other player, the traders who
+  wouldn't talk, the wrong model of the old stations and the residents who never came up to his upper floor, and sent
+  the idea for player-like NPCs with their own bases. Thank you, Justus 🙏
+- **Lorenzo** sent his very first F1 report from a cave: torches should hang on the wall. Now they do — and he is in the
+  game's credits. Thank you, Lorenzo 🙏
+
 ## [2026.10.17] — 2026-10-16
 
 The wilderness release. **People now live out in the open land**: huts with gatherers, miners, woodcutters and hunters,
@@ -8213,7 +8330,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.17...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.18...HEAD
+[2026.10.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.17...v2026.10.18
 [2026.10.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.16...v2026.10.17
 [2026.10.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.15...v2026.10.16
 [2026.10.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.14...v2026.10.15
