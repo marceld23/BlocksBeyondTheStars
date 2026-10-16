@@ -11,6 +11,133 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.17] — 2026-10-16
+
+The wilderness release. **People now live out in the open land**: huts with gatherers, miners, woodcutters and hunters,
+and wanderers you meet along the way. **Broken old space stations** drift through the systems, with dark rooms
+without air, crates full of salvage and old log entries, and guardian robots that wake up. And **every closed room of
+your base now has air**, however many rooms you build and however big they are. Behind most of it is **Justus**: he
+reported a doctor who sold the wrong goods, an upper floor without air and a base that didn't feed him, sent us the
+idea for the broken stations and painted the new look of the rune stone. Thank you, Justus! 🙏
+
+ℹ️ **Compatibility:** the **save version rises to 4** (a new block, the Guardian Bay). Your saves are converted
+automatically the first time you open them with the new version. The **terrain generation rises
+to 25**: huts and wanderers only appear in **new worlds**. The broken stations and everything else also come to your
+existing worlds. The network protocol stays at **version 11**. Game and server should both be on 2026.10.17. The
+desktop game updates itself on start, and the browser version is always current.
+
+### 🛖 People in the wilderness (#2639–#2647)
+
+- **Huts in the open land**, in new worlds: a small hut, well away from villages and camps, at most six per world (the
+  *Settlements* world option sets how many). One or two people live there. By day they work, in the evening they sit
+  by their campfire, at night they sleep in their bed.
+- **Four trades:** the **Gatherer** picks wild plants and tends a fenced plot (the plants grow back), the **Miner**
+  chips ore from a rock face that fills up again, the **Woodcutter** fells trees and plants a sapling, and the
+  **Hunter** hunts with a bow.
+- **What they offer:** they trade their own goods, give you tips (the nearest wreck, a bandit camp, the way to the
+  village, a hidden cache once they know you), the gatherer warns you about this world's poisonous plants, and once you
+  are friends they give you a present from their crate once a day. You may look into their crate, but not take from it.
+- **Wanderers:** named travellers you meet in the open by day. They gather, prospect, hunt or chop wood near you, trade
+  and talk, and move on. Each world has its own small group of them, so you meet the same people again.
+- **Hunting is real, but rare and gentle:** only common, calm wild animals, never pets, companions, giants or animals
+  in a base, a village or a pen, and never next to you. The animal sparkles away like when you defeat one, and the herd
+  runs from the hunter.
+- **Nothing digs endless holes:** a mined rock face fills up again after about ten minutes, felled trees grow back from
+  a sapling, and nobody ever touches your blocks or plants.
+- A hut shows on your **map** once you come close or a villager tells you about it. The hut, its yard and its rock face
+  are protected like a village.
+
+### 🛰️ Broken old space stations (#2632–#2636)
+
+- **Derelict stations** drift through space: one is guaranteed in your starting system, and now and then there are one
+  to three more in a system (world option *Derelicts*: off, rare, normal, frequent). They appear in existing worlds too.
+- **Boxy old stations or classic ones, worn down:** breached rooms without air, sealed rooms with air and working doors,
+  scorch marks, scrap and dead lights. Nobody lives or trades there; the old trading posts are broken.
+- **Watch your air:** a room with a hole is open to space, and your suit tank drains there. Docking always sets you down
+  in a room with air. If you fall out through a hole, you're on a real spacewalk right outside it, and **E** at a hole or
+  a door takes you back aboard.
+- **Crates** hold medpacks, rations, scrap and **Spoiled Food**, plus **Old Log Entries**: short notes from the people
+  who once lived there (everyone got out in time). You can read them in your inventory and find them collected in the
+  Codex.
+- **Guardian Bay:** a new block that wakes a guardian robot or drone a minute after you board, then every five minutes,
+  three at most. Mine the bay and it stops for good. Not in Peaceful or Creative, and not when machines are switched off.
+- You can **mine** a derelict, from inside and from a spacewalk, and your changes stay. A broken trading post drops a
+  working one.
+
+### 🫧 Every closed room has air (#2649–#2654)
+
+- **However many rooms, however big:** at your base, every closed room of airtight blocks has air, and the old limits
+  of 64,000 air blocks per room and of how far from the core you may build are gone. The same holds for the stations
+  you build.
+- **Every door holds air:** wooden, hinged, sliding and energy doors, open or closed. So a room behind any door
+  breathes, and so does an upper floor up the stairs.
+- **Doors are bulkheads:** if a wall gets a hole, only that one room loses its air. The rooms behind its doors keep
+  theirs, and nobody who lives in that room moves out because of it.
+- **The base core stays your air machine:** a room belongs to your base when you can reach it from the core or through
+  a door at your base, even a long chain of rooms far out. A closed hut far away from every base core has no air.
+- **The game shows you the hole:** walk into a room that leaks and it names the opening, at its own height, for example
+  a hole in a wall right where you stand. Only the players in that room get the warning.
+- **The blue dome** over your base core now marks the start zone where you breathe before you have built a room. As
+  soon as one closed room of your base has air, the dome fades away.
+- Even a huge hall costs the server very little: the air is worked out in small steps, so nothing stutters.
+
+### 🛏️ Beds that belong to someone (#2655–#2657)
+
+- **Everyone keeps their own bed:** a new bed never makes the others swap. Whoever has waited longest gets the next
+  free bed, and people take a bed you build within seconds, preferably in the room where they work.
+- **At your base:** take a bed away and exactly the one who slept in it moves on. Build a bed again and the same person
+  comes back, and moving a bed keeps its sleeper. Your residents also keep their jobs. Who sleeps where, and who does
+  which job, stays the same after loading.
+- **On your station:** the crew finds a bed anywhere aboard, first in the room of its post, and takes a bed you build
+  later.
+
+### 🩺 Trading and the doctor (#2626–#2630)
+
+- **The trade screen stays with the trader you chose.** Before, the doctor's screen could show only a few general
+  deals. Now it shows what that trader really sells, and the game and the server measure the distance the same way.
+- Traders stand at their counter and face you when you come close. Each trade screen says what kind of shop it is, and
+  lists the shop's own goods first.
+- **The doctor treats you:** ask *"Can you treat me?"* and they heal you to full health, for free, once per in-game day.
+- **More variety:** trader pilots who dock or land bring their own kind of goods, the travelling merchant sells a real
+  mix, and an access code is on offer every third day.
+
+### 🫃 A hint about food at your base (#2658)
+
+- Your base gives you air, but no food. When you get hungry there, VEGA tells you once that a **Heal Tank** feeds you
+  at home, and that you can eat something until then.
+
+### 🎨 The rune stone
+
+- The **Rune Stone** has a new look painted by Justus: blue-green music notes on the stone (#2631).
+
+### 🌍 Texts
+
+- All new and changed texts are available in all 14 languages.
+- The "What's new?" notes of 2026.10.16 are now available in the twelve community languages too (#2625).
+
+### 🛠️ For tinkerers
+
+- **One air engine for bases and stations** (`AirEngine.cs`, `GameServerAirSpace.cs`). It fills vertical spans instead of
+  single cells, time-slices fills to 2 ms per tick with the old result answering meanwhile, and has an emergency brake
+  that never takes air away. A 100³ hall is 10,000 spans and about 1.7 MB. See `docs/developer/BASE_LIFE_SUPPORT.md` and
+  **ADR 0018**.
+- **Shared NPC bed assignment** (`GameServerNpcBeds.cs`): claims released on `BlockSet`, a furniture generation instead of
+  a one-shot scan, a fair queue, and the base residents' plan saved in `WorldMetadata.BaseResidents`. See
+  `docs/developer/NPC_ROUTINES.md`.
+- **Wilderness folk:** a shared NPC work cycle (`TickNpcWork`) with four work cores, a refill registry
+  (`WorldMetadata.NpcRefills`), the creature intent learned a non-player threat, `WorldFx` gained arrow fields, and new
+  admin helpers `/tp lodge [n]` and `/wanderer`. See `docs/developer/WILDERNESS_FOLK.md`.
+- **Derelicts:** new world option `Derelicts` (CLI `--derelicts`), the sealed-pocket air and gravity of player stations
+  extended to derelicts, new block `guardian_spawner` (save version 4). See `docs/developer/DERELICT_STATIONS.md`.
+- Trading: one shared stock and reach rule (`MarketStock` in Shared, `VendorReach` in Client.Core). No protocol change.
+- **For hosters:** the AI backend now describes the four new jobs; update the AI service with this release.
+
+### 🙏 Thank you
+
+- **Justus** reported the doctor who sold the standard goods and the trader screens, the upper floor without air and
+  the base that didn't feed him, sent the idea for the broken old stations with their holes, crates and robots, and
+  painted the new rune stone. A big part of this release is his. Thank you, Justus 🙏
+
 ## [2026.10.16] — 2026-10-15
 
 The leak-finder release. A small, quick follow-up to the village release, driven by **Lyxette**, who moved into a new
@@ -8086,7 +8213,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.16...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.17...HEAD
+[2026.10.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.16...v2026.10.17
 [2026.10.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.15...v2026.10.16
 [2026.10.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.14...v2026.10.15
 [2026.10.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.13...v2026.10.14

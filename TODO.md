@@ -62,6 +62,8 @@ quarters?). Package label `package: life support & beds 2026-10`. All decisions 
 - **Playtest:** Justus' upper floor behind an ordinary door; a room with a hole behind a door (only it loses air); moving a
   bed; a station crew quarters wing far from the posts; the dome fading.
 
+**Released** in **v2026.10.17** "the wilderness release" (2026-10-16).
+
 ### 🛖 Wilderness folk — lodges, their residents, wanderers; gatherers, miners, woodcutters and hunters outside the settlements — epic #2639, #2640–#2647, branch feat/wilderness-folk, PR #2648 — ✅ done 2026-10-15 (⚠ playtest open; new saves only)
 
 Marcel wanted people you meet outside the settlements — NPCs who hunt, harvest or mine, and some with a small house they
@@ -96,6 +98,8 @@ frequency follows the Settlements option. Details: [docs/developer/WILDERNESS_FO
 - ⚠ **Open:** Marcel's playtest on a NEW world (`/tp lodge`, `/wanderer`): hut look per biome, the bow/axe poses and the
   arrow, the work cadence, the sounds' loudness; whether NPC hunting should pause on some worlds (no rule today switches
   it off — players may hunt everywhere too).
+
+**Released** in **v2026.10.17** "the wilderness release" (2026-10-16).
 
 ### 📬 Screelit's reports 2026-10-15 (v2026.10.16) — trade screens, the doctor, the rune stone, derelict stations — epic #2637, #2626–#2636, branch feat/screelit-2026-10-15 — ✅ done 2026-10-15 (⚠ playtest open)
 
@@ -145,6 +149,8 @@ trades like the shop", sent the idea of a broken old space station, and submitte
 ⚠ Open: playtest with Justus (doctor treatment, merchant mix, a derelict: vacuum, crates/logs, guardians, falling out);
 derelicts saved by earlier dev builds have no guardian bay; every derelict edit rewrites its whole row (like player
 stations); seeded `System.Random` parity between .NET and Unity Mono for the log texts is assumed, not tested on the client.
+
+**Released** in **v2026.10.17** "the wilderness release" (2026-10-16).
 
 ### 📬 Lyxette's reports 2026-10-15 (v2026.10.15) + village-life side findings — epic #2612, #2613–#2622, branch fix/lyxette-2026-10-15 — ✅ done 2026-10-15 (⚠ playtest open)
 
