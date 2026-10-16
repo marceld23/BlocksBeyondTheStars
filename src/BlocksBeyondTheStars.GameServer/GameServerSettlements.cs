@@ -1129,7 +1129,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>Per-kind requested/placed telemetry: a drop is a WARN — with the guaranteed search it should
-    /// only ever fire on legacy worlds and the documented all-lava carve-out.</summary>
+    /// only ever fire on legacy worlds, the documented all-lava carve-out, and a caller's <c>seatOk</c> refusing
+    /// every seat (#2696: a Titas with too few dry sites under the open sky places fewer SPS labs).</summary>
     private void ReportStamp(string kind, int requested, int placedCount)
     {
         _worlds.Active.StampReport.Add((kind, requested, placedCount));
@@ -1157,7 +1158,8 @@ public sealed partial class GameServer
     /// kinds), then a terminal pass with the collision margin relaxed 6 → 2, and finally a deterministic
     /// longitude sweep. The chosen spot is classified into a seat style; the stamper adapts the terrain to
     /// it. Returns false only when policy forbids every reachable column (in practice: an all-lava ring for
-    /// a kind that may not stand in lava) — the one documented carve-out from the guarantee. Player-edit
+    /// a kind that may not stand in lava) or the caller's <paramref name="seatOk"/> refuses every seat — the
+    /// documented carve-outs from the guarantee. Player-edit
     /// avoidance and pad/settlement reservations are never relaxed beyond margin 2.
     /// <para><paramref name="seatOk"/> (#2696) is a caller's last word on a classified seat — the footprint origin at its
     /// ground level and the seat style: a candidate it refuses is never chosen and the search walks on, so a kind whose
@@ -1369,7 +1371,8 @@ public sealed partial class GameServer
         }
 
         // Terminal sweep — deterministic longitude walk on three latitude lines. Only reachable when even
-        // the widened rings found nothing rankable (tiny bodies saturated with reservations).
+        // the widened rings found nothing rankable (tiny bodies saturated with reservations) or the caller's
+        // seatOk refused every ranked seat (#2696). Bounded: one candidate per 16 blocks of longitude per line.
         if (best is null)
         {
             foreach (int cz in new[] { 0, latBand / 2, -latBand / 2 })

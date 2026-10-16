@@ -72,12 +72,12 @@ Package label `package: hash variety 2026-10`.
   `HashVarietyWorldsTests`); the start planet keeps a floor (`StartPlanetMinCircumference` 9600, seeded draw up to
   12000) so new players still start on a roomy world; gen-26 outputs and `StableHashing` are pinned as known answers
   (bit-frozen once shipped). Tests standing on fixed coordinates of a default world are pinned to gen 25.
-- ⚠ Side finding (not done, ask Marcel): SPS labs on Titas often sit under the frozen sea, so their "open" ship pads count
-  as roofed (no air, −90 °C) — on gen 25 and 26 alike.
+- ✅ Side findings done in the follow-ups section above: SPS labs on Titas under the frozen sea (#2696), gravity per world
+  (#2697), village trade and quest-giver names from the name alone (#2698); per-species `FloraTints.For`/`ForWood`
+  measured and fine (no change).
 - ⚠ Open: playtest (a NEW world: planet sizes in a system, sky colours; old world unchanged); release notes (mission
   boards look different, big-order progress restarts; new worlds = gen 26); an older client on a gen-26 server draws
-  other bodies' orbit spheres with the classic sizes (cosmetic). Follow-ups not done: gravity per world (`GravityFor`,
-  h·31 ^ seed), per-species `FloraTints.For`/`ForWood`, quartermaster names / settlement trade still from the name alone.
+  other bodies' orbit spheres with the classic sizes (cosmetic).
 
 ---
 

@@ -178,19 +178,21 @@ public sealed partial class GameServer
             return false;
         }
 
-        int carveTop = gy + SettlementClearHeight(s, origin, gy, seat == "shelf") - 1;
-        foreach (var (lx, lz) in SpsLabGenerator.OpenColumns)
+        // The cheap water test over the footprint first: on a mostly frozen Titas most candidates are sea, and they fall
+        // out here before the carve height is worked out (the result is the same in any order).
+        foreach (var (x, z) in FootprintSamples(origin.X, origin.Z, s.Width, s.Length))
         {
-            int x = origin.X + lx, z = origin.Z + lz;
-            if (!DryColumn(x, z) || _generator.SurfaceHeight(planet, x, z) > carveTop || _generator.ColumnHasBandAbove(planet, x, z))
+            if (!DryColumn(x, z))
             {
                 return false;
             }
         }
 
-        foreach (var (x, z) in FootprintSamples(origin.X, origin.Z, s.Width, s.Length))
+        int carveTop = gy + SettlementClearHeight(s, origin, gy, seat == "shelf") - 1;
+        foreach (var (lx, lz) in SpsLabGenerator.OpenColumns)
         {
-            if (!DryColumn(x, z))
+            int x = origin.X + lx, z = origin.Z + lz;
+            if (!DryColumn(x, z) || _generator.SurfaceHeight(planet, x, z) > carveTop || _generator.ColumnHasBandAbove(planet, x, z))
             {
                 return false;
             }

@@ -64,7 +64,9 @@ public sealed class SpsLabPlacementTests : IDisposable
         }
     }
 
-    // Titas worlds on which, before #2696, one to three labs stood below the frozen sea with their pad roofed.
+    // Titas worlds on which, before #2696, one to three labs stood below the frozen sea with their pad roofed. Four seeds
+    // keep the CI budget; the full sweep over seeds 70–100 (134 of 134 labs placed, 25 roofed pads → 0) was run once by
+    // hand when the fix landed (see docs/developer/WORLD_GENERATION.md, SPS labs).
     [Theory]
     [InlineData(82L)]
     [InlineData(85L)]

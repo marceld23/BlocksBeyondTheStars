@@ -273,21 +273,26 @@ public sealed partial class GameServer
     /// <see cref="WorldDescription.HashVarietyGeneration"/>: from a settlement's OLD key, as it always was — a chain taken
     /// before #2693 keeps its giver's name, and so does every new one at the same village. From it (#2698): the settlement's
     /// own quest giver (<see cref="SettlementGiverName"/>) — a chain's default giver is the quartermaster, whose memory entry
-    /// the board's jobs share, so the person never carries two names. Any other place (a station, an unmigrated old key)
-    /// coins from the key itself.</summary>
+    /// the board's jobs share, so the person never carries two names. A new settlement key of a village on another body
+    /// still gets that village's quest giver (the gen-26 name depends on the place key alone); any other place (a station,
+    /// an unmigrated old key) coins from the key itself.</summary>
     private string ChainGiverFallbackName(string placeKey)
     {
+        int generation = _meta.Description.TerrainGeneration;
         foreach (var s in _settlements)
         {
             if (!string.IsNullOrEmpty(s.Name) && SettlementPlaceKey(s) == placeKey)
             {
-                return HasPlaceAwareSettlementNames(_meta.Description.TerrainGeneration)
+                return HasPlaceAwareSettlementNames(generation)
                     ? SettlementGiverName(s)
                     : CoinGiverName(LegacySettlementLocationKey(s.Name));
             }
         }
 
-        return CoinGiverName(placeKey);
+        return HasPlaceAwareSettlementNames(generation)
+               && placeKey.StartsWith(SettlementKeyPrefix, StringComparison.Ordinal) && !IsLegacySettlementPlace(placeKey)
+            ? SettlementGiverNameFor(string.Empty, placeKey, generation)
+            : CoinGiverName(placeKey);
     }
 
     // ---------------- Migration (#2693) ----------------
