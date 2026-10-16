@@ -30,9 +30,13 @@ namespace BlocksBeyondTheStars.Client
         {
             public GameObject Go;
             public PlayerAvatar Avatar;
-            public Vector3 Target;        // canonical world space
-            public Vector3 SettledWorld;   // smoothed world position (mapped to scene for display)
-            public float Yaw;
+            public Vector3 Target;        // canonical world space (the newest snapshot)
+            public Vector3 SettledWorld;   // interpolated world position (mapped to scene for display)
+            public float Yaw;              // the drawn yaw, degrees
+            public float TargetYaw;        // the newest snapshot's yaw, degrees (the fallback before any snapshot is drawn)
+
+            // #2666: buffered snapshots on the server clock, drawn ~0.3 s behind the newest along the curve through them.
+            public MotionInterpolator Interp = new MotionInterpolator(initialInterval: 0.2, minDelay: 0.15, maxDelay: 0.8);
             public string Label;
             public float GestureTimer;     // counts down to the next work gesture (mine/place/talk swing)
             public float GestureLo, GestureHi; // cadence range from the NPC's theme/role
@@ -201,13 +205,24 @@ namespace BlocksBeyondTheStars.Client
 
             TickVoices();
 
+            int circ = Game != null ? Game.Circumference : BlocksBeyondTheStars.Shared.World.WorldConstants.Circumference;
             foreach (var n in _npcs.Values)
             {
-                // Track the latest target without fully catching up before the next snapshot arrives, so the
-                // NPC keeps gliding (and its walk cycle keeps running) instead of stop-start jerking.
-                n.SettledWorld = n.Pose != 0
-                    ? n.Target // #1869: sitting down / lying down is a snap onto the furniture, not a glide
-                    : Vector3.Lerp(n.SettledWorld, n.Target, WorldDelta * 5f);
+                if (n.Pose != 0)
+                {
+                    n.SettledWorld = n.Target; // #1869: sitting down / lying down is a snap onto the furniture, not a glide
+                    // #2666: a seated NPC still turns to a visitor or a tablemate — along the interpolated yaw (the buffer
+                    // was reset when it sat down), not in one step per list.
+                    n.Yaw = n.Interp.Sample(WorldNow, circ, out var seated) ? seated.Yaw * Mathf.Rad2Deg : n.TargetYaw;
+                }
+                else if (n.Interp.Sample(WorldNow, circ, out var drawn))
+                {
+                    // #2666: drawn a short delay behind the newest snapshot, along the curve through them. The old lerp
+                    // toward the newest one made a stroll pulse 0.6x-1.6x five times a second, and the yaw turned in steps.
+                    n.SettledWorld = new Vector3(drawn.Position.X, drawn.Position.Y, drawn.Position.Z);
+                    n.Yaw = drawn.Yaw * Mathf.Rad2Deg;
+                }
+
                 var scene = Game != null ? Game.ScenePos(n.SettledWorld.x, n.SettledWorld.y, n.SettledWorld.z) : n.SettledWorld;
                 if (n.Pose == 1)
                 {
@@ -847,6 +862,10 @@ namespace BlocksBeyondTheStars.Client
         {
             var seen = _seenScratch;
             seen.Clear();
+            // #2666: one stamp for the whole list — the server tick its positions belong to (an older server: arrival).
+            bool stamped = m.ServerTime > 0;
+            double at = Game != null ? Game.EntityClock.ToLocal(m.ServerTime, WorldNow) : WorldNow;
+            int circ = Game != null ? Game.Circumference : BlocksBeyondTheStars.Shared.World.WorldConstants.Circumference;
             foreach (var nd in m.Npcs)
             {
                 seen.Add(nd.Id);
@@ -884,6 +903,7 @@ namespace BlocksBeyondTheStars.Client
                         avatar.SetGuardianLook(); // #1793: the G.D.S. machines — red stripe band, glowing eyes
                     }
                     avatar.SetVisible(true);
+                    avatar.NeverAirborne = true; // #2667: NPCs never jump — a smoothed step up is not a leap
 
                     if (nd.Size > 0f && !Mathf.Approximately(nd.Size, 1f))
                     {
@@ -915,7 +935,10 @@ namespace BlocksBeyondTheStars.Client
                 n.Role = nd.Role ?? string.Empty;
 
                 n.Target = new Vector3(nd.X, nd.Y, nd.Z);
-                n.Yaw = nd.Facing * Mathf.Rad2Deg;
+                n.TargetYaw = nd.Facing * Mathf.Rad2Deg;
+                var snapPos = new BlocksBeyondTheStars.Shared.Geometry.Vector3f(nd.X, nd.Y, nd.Z);
+                var snapVel = new BlocksBeyondTheStars.Shared.Geometry.Vector3f(nd.VelX, 0f, nd.VelZ); // vertical 0: a step up eases
+                n.Interp.Push(at, snapPos, snapVel, stamped, nd.Facing, 0, circ);
                 n.Label = Label(nd);
 
                 // #1869: pose, tool and activity — applied only when they change (a held mesh is rebuilt on change).
@@ -924,9 +947,12 @@ namespace BlocksBeyondTheStars.Client
                     n.Pose = nd.Pose;
                     n.Avatar.SetSeated(nd.Pose == 1);
                     n.Avatar.SetLying(nd.Pose == 2);
+                    // #2666: a pose change is a snap — the interpolation starts afresh where the NPC now is.
+                    n.Interp.Reset(at, snapPos, snapVel, stamped, nd.Facing, 0);
                     if (nd.Pose == 0)
                     {
                         n.SettledWorld = n.Target; // standing up starts from where it got up, not from the mattress
+                        n.Yaw = n.TargetYaw;
                     }
                 }
 

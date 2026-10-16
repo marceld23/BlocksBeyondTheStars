@@ -929,4 +929,95 @@ public sealed class CreatureMotionArenaTests : IDisposable
             Assert.Equal(caveFloor, server.RestSurfaceYForTest(x, z, caveFloor + 6));
         }
     }
+
+    /// <summary>#2668: a walker used to halt at every one-block ledge, hop on the spot and only then walk on — on voxel
+    /// terrain a hiccup every few steps. It now takes off a moment before the lip and keeps walking while it rises, and its
+    /// body still never enters the ledge's column below the top.</summary>
+    [Fact]
+    public void Walker_TakesALedgeInARunningJump_WithoutStoppingDead_OrClippingTheLedge()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            Force(server, CreatureHabitat.Land, legs: 4, LocomotionStyle.Strider, CreatureTemperament.Aggressive);
+            const int cx = 60, cz = 60;
+            var p = server.AddLocalPlayer("Bait");
+            p.State.AboardShip = false;
+            int padY = MaxTopY(server, cx, cz, 10) + 8;
+            BuildPad(server, cx, cz, 8, padY);
+            BuildLedge(server, cx, cz, 8, padY, fromDx: 1, height: 1);
+            p.State.Position = new Vector3f(cx + 5.5f, padY + 2, cz + 0.5f);
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx - 2.0f, padY + 1, cz + 0.5f));
+
+            bool crossed = false;
+            int stalls = 0;
+            float prevX = server.Creatures.First(x => x.Id == id).Position.X;
+            for (int i = 0; i < 120 && !crossed; i++)
+            {
+                server.TickForTest(0.1);
+                var c = server.Creatures.First(x => x.Id == id);
+                float x = c.Position.X;
+                if ((int)Math.Floor(x) >= cx + 1)
+                {
+                    Assert.True(c.Position.Y >= padY + 2 - 0.06f,
+                        $"tick {i}: the body is inside the ledge column at y {c.Position.Y:0.00}, below its top {padY + 2}");
+                    crossed = true;
+                }
+                else if (prevX >= cx && x - prevX < 0.02f)
+                {
+                    stalls++; // within the last block before the lip, it did not move on
+                }
+
+                prevX = x;
+            }
+
+            Assert.True(crossed, "the walker never took the one-block ledge");
+            Assert.True(stalls == 0, $"it stood still {stalls} tick(s) at the lip — a hop on the spot, not a running jump");
+        }
+    }
+
+    /// <summary>#2668: a blocked hunter probes ±35/70/110° for a way round — and used to write the found heading straight
+    /// into its locomotion state, a kink of up to 110° in one tick. The heading now turns there at the profile's rate.</summary>
+    [Fact]
+    public void Hunter_SteeringRoundAWall_TurnsItsHeadingAtTheTurnRate_NeverSnaps()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var sp = Force(server, CreatureHabitat.Land, legs: 4, LocomotionStyle.Strider, CreatureTemperament.Aggressive);
+            const int cx = -60, cz = 60;
+            var p = server.AddLocalPlayer("Bait");
+            p.State.AboardShip = false;
+            int padY = MaxTopY(server, cx, cz, 10) + 8;
+            BuildPad(server, cx, cz, 8, padY);
+            var stone = _content.GetBlock("stone")!.NumericId;
+            for (int dz = -2; dz <= 2; dz++)
+            {
+                for (int dy = 1; dy <= 2; dy++)
+                {
+                    server.World.SetBlock(new Vector3i(cx + 2, padY + dy, cz + dz), stone); // two high: a wall, not a step
+                }
+            }
+
+            p.State.Position = new Vector3f(cx + 5.5f, padY + 1, cz + 0.5f);
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx - 1.5f, padY + 1, cz + 0.5f));
+            var prof = server.ProfileForTest(sp.Id);
+            const double dt = 0.05;
+            float limit = (3f * prof.TurnRate * (float)dt) + 0.01f; // the controller's own turn + the detour's (2×) turn
+            bool steered = false;
+            server.TickForTest(dt); // the first step picks the animal's starting heading — not a turn
+            float prev = server.Creatures.First(x => x.Id == id).Loco.Heading;
+            for (int i = 0; i < 160; i++)
+            {
+                server.TickForTest(dt);
+                var c = server.Creatures.First(x => x.Id == id);
+                float delta = (float)Math.Abs(Math.IEEERemainder(c.Loco.Heading - prev, 2 * Math.PI));
+                Assert.True(delta <= limit, $"tick {i}: heading jumped {delta:0.000} rad (limit {limit:0.000})");
+                steered |= c.SteerUntil > 0;
+                prev = c.Loco.Heading;
+            }
+
+            Assert.True(steered, "the hunter never had to steer round the wall — the setup did not test anything");
+        }
+    }
 }

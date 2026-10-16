@@ -151,7 +151,10 @@ public sealed partial class GameServer
             return;
         }
 
-        npc.Path = NpcGridPath.Simplify(cells, start).Select(c => new Vector3f(c.X + 0.5f, c.Y, c.Z + 0.5f)).ToList();
+        // #2669: straight lines across open ground instead of a staircase of corners. After a route got stuck, the next one
+        // keeps the plain grid route — the safe fallback should a smoothed line ever disagree with the step checks.
+        var waypoints = npc.PathFailures == 0 ? NpcGridPath.Smooth(cells, start, Standable, Door) : NpcGridPath.Simplify(cells, start);
+        npc.Path = waypoints.Select(c => new Vector3f(c.X + 0.5f, c.Y, c.Z + 0.5f)).ToList();
         npc.PathIndex = 0;
         npc.LastProgressPos = npc.Pos;
         npc.LastProgressAt = _uptime;

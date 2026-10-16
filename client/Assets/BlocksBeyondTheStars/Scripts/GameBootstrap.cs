@@ -917,6 +917,17 @@ namespace BlocksBeyondTheStars.Client
 
         public NetCombatEntity[] PlanetEnemies { get; private set; } = System.Array.Empty<NetCombatEntity>();
 
+        /// <summary>#2670: the server clock of the tick <see cref="PlanetEnemies"/> belongs to (0 = an older server).</summary>
+        public double PlanetEnemiesServerTime { get; private set; }
+
+        /// <summary>#2670: that list's stamp on the render clock — taken ONCE when the list arrived (the clock sync learns from
+        /// every call, so stamping per enemy would drag its offset).</summary>
+        public double PlanetEnemiesLocalTime { get; private set; }
+
+        /// <summary>#2664–#2670: maps the server's snapshot clock onto <see cref="WorldTime"/> for every planet-entity
+        /// interpolator (animals, NPCs, machines, bandits) — one offset per connection, re-synced on a world reset.</summary>
+        public ServerClockSync EntityClock { get; } = new ServerClockSync();
+
         // --- Crosshair enemy aiming (#693): published by PlayerController every frame ---
 
         /// <summary>Id of the enemy/creature currently under the crosshair (null = none) — drives the
@@ -937,6 +948,13 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Live procedural creatures near the player (fauna), with their species descriptor.</summary>
         public NetCreature[] Creatures { get; private set; } = System.Array.Empty<NetCreature>();
+
+        /// <summary>#2665: the server clock of the tick <see cref="Creatures"/> belongs to (0 = an older server).</summary>
+        public double CreaturesServerTime { get; private set; }
+
+        /// <summary>#2665: that list's stamp on the render clock — taken ONCE when the list arrived (see
+        /// <see cref="PlanetEnemiesLocalTime"/>).</summary>
+        public double CreaturesLocalTime { get; private set; }
 
         /// <summary>#1998: world effects (thumps, stomps, breaches) waiting for the creature view to play them.</summary>
         public readonly System.Collections.Generic.List<WorldFx> PendingWorldFx = new System.Collections.Generic.List<WorldFx>();
@@ -3079,8 +3097,18 @@ namespace BlocksBeyondTheStars.Client
             };
             Network.SpaceClosed += m => { InSpace = false; Space = null; LastMessage = ServerMessageText(m.Reason); };
             Network.StationBoardedReceived += m => { LastMessage = $"Boarded {m.Name}."; CurrentStationId = m.StationId ?? string.Empty; };
-            Network.PlanetEnemiesReceived += m => PlanetEnemies = m.Enemies;
-            Network.CreaturesReceived += m => Creatures = m.Creatures;
+            Network.PlanetEnemiesReceived += m =>
+            {
+                PlanetEnemies = m.Enemies;
+                PlanetEnemiesServerTime = m.ServerTime;
+                PlanetEnemiesLocalTime = EntityClock.ToLocal(m.ServerTime, WorldTime); // #2670: one stamp per list
+            };
+            Network.CreaturesReceived += m =>
+            {
+                Creatures = m.Creatures;
+                CreaturesServerTime = m.ServerTime;
+                CreaturesLocalTime = EntityClock.ToLocal(m.ServerTime, WorldTime); // #2665: one stamp per list
+            };
             Network.WorldFxReceived += m =>
             {
                 if (PendingWorldFx.Count < 64)
@@ -3971,6 +3999,7 @@ namespace BlocksBeyondTheStars.Client
         private void OnWorldReset(BlocksBeyondTheStars.Networking.Messages.WorldReset m)
         {
             LocationName = string.IsNullOrEmpty(m.SystemName) ? m.PlanetName : $"{m.SystemName} · {m.PlanetName}";
+            EntityClock.Reset(); // #2665: a world change may mean another server clock (a hosted world, a reconnect)
             RebuildFloraTints(); // a new world ⇒ its own per-species flora colours
             SessionExploredCells.Clear(); // #1113: live-explored cells are per body
 

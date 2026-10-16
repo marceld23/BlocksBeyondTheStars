@@ -54,6 +54,19 @@ public struct LocomotionState
     public float VertPhase;  // vertical-life accumulator
     public uint Seq;         // deterministic roll counter (seed source for the next segment)
     public bool Initialized;
+
+    /// <summary>#2668: a new roam heading being turned toward (radians) while <see cref="Turning"/>. A finished roam segment
+    /// used to write its new heading straight into <see cref="Heading"/> — the actor changed direction by up to 180° in one
+    /// tick, the turn rate never saw it. Now the segment starts with a turn at the profile's turn rate.</summary>
+    public float TurnTo;
+
+    /// <summary>#2668: the actor is turning toward <see cref="TurnTo"/>; the in-segment weave resumes once it arrives.</summary>
+    public bool Turning;
+
+    /// <summary>#2668: seconds this turn has run. A segment that runs out mid-turn is extended while the turn is younger than
+    /// a half-turn at the profile's rate plus <see cref="LocomotionController.TurnGraceSeconds"/>; past that the turn is given
+    /// up (a schooler whose alignment keeps pulling it back may never arrive) and the segment re-rolls as usual.</summary>
+    public float TurnAge;
 }
 
 /// <summary>The result of one movement step.</summary>
@@ -112,6 +125,8 @@ public static class LocomotionController
             // Pursue / evade: head toward (or directly away from) the target, with a slight weave so it isn't a
             // laser-straight beeline. Sprint at the burst speed.
             s.Mode = intent;
+            s.Turning = false; // a roam turn in progress is moot — the chase decides the heading now
+            s.TurnAge = 0f;
             float dx = tp.X - cur.X, dz = tp.Z - cur.Z;
             if (dx * dx + dz * dz > 1e-6f)
             {
@@ -143,20 +158,49 @@ public static class LocomotionController
             s.ModeTimer -= ft;
             if (s.ModeTimer <= 0f)
             {
-                if (s.Mode == MoveMode.Roam && Unit(Mix(seed, s.Seq++)) < p.PauseChance)
+                if (s.Mode == MoveMode.Roam && s.Turning && s.TurnAge < MaxTurnSeconds(p))
                 {
-                    s.Mode = MoveMode.Pause;
-                    s.ModeTimer = Lerp(p.PauseMin, p.PauseMax, Unit(Mix(seed, s.Seq++)));
+                    // #2668: a re-roll asked for in the middle of a turn (a caller blocked again while the actor turns away
+                    // from a wall) finishes that turn first — re-rolling every blocked tick would leave it pivoting on the
+                    // spot toward a new random heading each tick, never getting anywhere. Bounded in time: a turn that has
+                    // not arrived after a half-turn's worth plus a grace (a schooler's alignment keeps pulling it back) is
+                    // given up below, so nothing can stay turning forever.
+                    s.ModeTimer = TurnRecheckSeconds;
                 }
                 else
                 {
-                    s.Mode = MoveMode.Roam;
-                    s.Heading = Unit(Mix(seed, s.Seq++)) * Tau;
-                    s.ModeTimer = Lerp(p.HoldMin, p.HoldMax, Unit(Mix(seed, s.Seq++)));
+                    s.Turning = false;
+                    s.TurnAge = 0f;
+                    if (s.Mode == MoveMode.Roam && Unit(Mix(seed, s.Seq++)) < p.PauseChance)
+                    {
+                        s.Mode = MoveMode.Pause;
+                        s.ModeTimer = Lerp(p.PauseMin, p.PauseMax, Unit(Mix(seed, s.Seq++)));
+                    }
+                    else
+                    {
+                        s.Mode = MoveMode.Roam;
+                        s.TurnTo = Unit(Mix(seed, s.Seq++)) * Tau; // #2668: turned toward at the turn rate, no longer snapped
+                        s.Turning = true;
+                        s.TurnAge = 0f;
+                        s.ModeTimer = Lerp(p.HoldMin, p.HoldMax, Unit(Mix(seed, s.Seq++)));
+                    }
                 }
             }
 
-            if (s.Mode == MoveMode.Roam)
+            if (s.Mode == MoveMode.Roam && s.Turning)
+            {
+                // The new segment's first moments: curve round into it (walking on, as an animal does), no weave yet.
+                desired = s.TurnTo;
+                targetSpeed = p.CruiseSpeed;
+                s.TurnAge += ft;
+                float rate = p.TurnRate > 0f ? p.TurnRate : 999f;
+                if (System.Math.Abs(WrapAngle(s.TurnTo - s.Heading)) <= rate * ft)
+                {
+                    s.Turning = false;
+                    s.TurnAge = 0f;
+                }
+            }
+            else if (s.Mode == MoveMode.Roam)
             {
                 s.WeavePhase += ft * p.WeaveFreq;
                 desired = s.Heading + (float)System.Math.Sin(s.WeavePhase) * p.WeaveAmp;
@@ -258,6 +302,16 @@ public static class LocomotionController
             VertFreq = b.Item12,
         };
     }
+
+    /// <summary>#2668: seconds a roam turn may run beyond a half-turn at the profile's rate before it is given up.</summary>
+    public const float TurnGraceSeconds = 0.5f;
+
+    /// <summary>#2668: how soon a segment that ran out mid-turn looks again (seconds).</summary>
+    private const float TurnRecheckSeconds = 0.25f;
+
+    /// <summary>#2668: the longest a roam turn may run — a half-turn at the profile's rate plus the grace.</summary>
+    public static float MaxTurnSeconds(in LocomotionProfile p)
+        => (p.TurnRate > 0f ? (float)System.Math.PI / p.TurnRate : 0f) + TurnGraceSeconds;
 
     // --- small deterministic helpers ---
 

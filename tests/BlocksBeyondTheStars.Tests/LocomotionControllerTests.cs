@@ -266,6 +266,91 @@ public sealed class LocomotionControllerTests
             $"strides should pulse with the pop (min {minStep:F4} vs max {maxStep:F4})");
     }
 
+    [Fact]
+    public void RoamSegmentChange_TurnsAtTheTurnRate_NeverSnaps()
+    {
+        // #2668: a finished roam segment used to write its new heading straight into Heading — up to a half-turn in one
+        // tick. Short segments, no pauses, no weave: every heading change must stay within the turn clamp.
+        const float turn = 2f;
+        const double dt = 0.05;
+        var p = Roamer(turn: turn);
+        p.HoldMin = 0.4f;
+        p.HoldMax = 0.6f;
+
+        var s = default(LocomotionState);
+        var pos = new Vector3f(0, 0, 0);
+        var first = LocomotionController.Step(s, p, pos, MoveMode.Roam, null, dt, 21u);
+        s = first.State;
+        pos = first.Position;
+        float prev = s.Heading;
+        int turns = 0;
+        for (int i = 0; i < 400; i++)
+        {
+            var r = LocomotionController.Step(s, p, pos, MoveMode.Roam, null, dt, 21u);
+            float delta = System.Math.Abs(WrapPi(r.Facing - prev));
+            Assert.True(delta <= (turn * (float)dt) + 1e-4f, $"step {i}: heading jumped {delta:0.000} rad");
+            if (r.State.Turning && !s.Turning)
+            {
+                turns++;
+            }
+
+            prev = r.Facing;
+            s = r.State;
+            pos = r.Position;
+        }
+
+        Assert.True(turns > 5, "the roamer should have started several new segments");
+    }
+
+    [Fact]
+    public void ReRollAskedMidTurn_FinishesTheTurn_InsteadOfPivotingForever()
+    {
+        // #2668: a blocked caller zeroes ModeTimer every tick. A re-roll per tick would hand the actor a new random target
+        // each tick while it turns — it must keep the turn it is in until it arrives.
+        var p = Roamer(turn: 1f);
+        var s = new LocomotionState { Initialized = true, Mode = MoveMode.Roam, ModeTimer = 0f, Heading = 0f, Seq = 5 };
+        var pos = new Vector3f(0, 0, 0);
+        var r = LocomotionController.Step(s, p, pos, MoveMode.Roam, null, 0.05, 3u);
+        Assert.True(r.State.Turning);
+        float target = r.State.TurnTo;
+        s = r.State;
+        for (int i = 0; i < 10 && s.Turning; i++)
+        {
+            s.ModeTimer = 0f; // blocked again this tick
+            r = LocomotionController.Step(s, p, pos, MoveMode.Roam, null, 0.05, 3u);
+            if (r.State.Turning)
+            {
+                Assert.Equal(target, r.State.TurnTo);
+            }
+
+            s = r.State;
+        }
+    }
+
+    [Fact]
+    public void ATurnThatCanNeverArrive_IsGivenUp_NothingStaysTurningForever()
+    {
+        // #2668: a schooler's alignment pulls its heading back toward the school every tick, so a roam turn far off the
+        // school's course never arrives. The turn is bounded in time; afterwards the segment re-rolls as usual.
+        var p = Roamer(turn: 2f);
+        p.HoldMin = 0.4f;
+        p.HoldMax = 0.6f;
+        var s = new LocomotionState { Initialized = true, Mode = MoveMode.Roam, ModeTimer = 0.5f, Heading = 0f, Seq = 7, TurnTo = 3f, Turning = true };
+        var pos = new Vector3f(0, 0, 0);
+        float target = s.TurnTo;
+        bool gaveUp = false;
+        double limit = LocomotionController.MaxTurnSeconds(p) + p.HoldMax + 0.5;
+        for (double t = 0; t < limit && !gaveUp; t += 0.05)
+        {
+            var r = LocomotionController.Step(s, p, pos, MoveMode.Roam, null, 0.05, 11u);
+            s = r.State;
+            gaveUp = !s.Turning || s.TurnTo != target;
+            s.Heading = 0f; // the school pulls it straight back
+        }
+
+        Assert.True(gaveUp, "the roamer is still turning toward an unreachable heading");
+    }
+
     private static float WrapPi(float a)
     {
         while (a > System.Math.PI) a -= 6.2831853f;

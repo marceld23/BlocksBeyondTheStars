@@ -22,6 +22,9 @@ public sealed partial class GameServer
             return;
         }
 
+        // #2665: the velocities the lists and the motion stream carry are this tick's — sample before anything is sent.
+        SampleEntityVelocities();
+
         if (w.EnemyListDirty)
         {
             w.EnemyListDirty = false;
@@ -39,6 +42,8 @@ public sealed partial class GameServer
             w.NpcListDirty = false;
             SendNpcList();
         }
+
+        SendCreatureMotionFrames(); // #2665: the 7.5 Hz positions of the animals near each player
 
         foreach (var session in JoinedInActiveWorld())
         {

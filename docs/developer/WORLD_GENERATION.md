@@ -440,7 +440,8 @@ Y is resolved each tick (`GameServer.ResolveVertical`, state in `CombatEntity.Ve
 - **Swimmers** porpoise their local water column as before.
 
 The wire carries the class and vertical state as additive `NetCreature` fields (`Motion`,
-`Airborne`, `Perched`, `VertVel`); the client integrates jump arcs locally between the 2 Hz updates
+`Airborne`, `Perched`, `VertVel`); since #2664/#2665 the client draws the arcs from interpolated snapshots
+(7.5 Hz near the player, with the server's velocity as the curve tangent — [ENTITY_MOTION.md](ENTITY_MOTION.md))
 and animates per class (wings beat only in the air, perched wings fold, legs tuck mid-jump, a
 landing squash, crawler undulation). The scan readout lists the class as a species trait.
 

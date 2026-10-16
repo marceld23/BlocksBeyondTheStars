@@ -64,6 +64,10 @@ namespace BlocksBeyondTheStars.Client
         public event Action<SentryShot>? SentryShotReceived; // #1214: cosmetic base-turret tracer
         public event Action<CreatureList>? CreaturesReceived;
 
+        /// <summary>#2665: the 7.5 Hz motion of the animals near this player (positions, velocities, headings) — fed into the
+        /// creature interpolators between the 2 Hz <see cref="CreaturesReceived"/> lists.</summary>
+        public event Action<CreatureMotionFrame>? CreatureMotionReceived;
+
         /// <summary>#1998: a thump, stomp, breach or strike at a spot — dust, a camera shake, maybe a push.</summary>
         public event Action<WorldFx>? WorldFxReceived;
 
@@ -1320,6 +1324,7 @@ namespace BlocksBeyondTheStars.Client
                 case PlanetEnemyDefeated m: PlanetEnemyDefeated?.Invoke(m); break;
                 case SentryShot m: SentryShotReceived?.Invoke(m); break;
                 case CreatureList m: CreaturesReceived?.Invoke(m); break;
+                case CreatureMotionFrame m: CreatureMotionReceived?.Invoke(m); break;
                 case WorldFx m: WorldFxReceived?.Invoke(m); break;
                 case ActionFx m: ActionFxReceived?.Invoke(m); break;                     // #2158
                 case CreatureDefeated m: CreatureDefeatedReceived?.Invoke(m); break;     // #2154

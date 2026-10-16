@@ -251,10 +251,12 @@ leg backwards from it.
 - Body height, pitch and roll come from the plane through the planted feet, and `CreatureView` stops
   applying its own velocity-derived slope pitch while that is active (`FootPitchActive`) so the body
   is not tilted twice.
-- **Network jitter is the real hazard here.** Positions arrive at ~2 Hz and are lerped and
-  dead-reckoned, so a foot planted in world space would drag or pop on every correction. Targets are
-  re-planted once they slip past a threshold, a slip of more than three strides snaps rather than
-  drags, and a teleport-sized root jump (spawn shove, eviction, a longitude wrap) resets every foot.
+- **Network jitter is the real hazard here.** Positions arrive as server snapshots (7.5 Hz near the player,
+  2 Hz farther out) and are drawn by buffered Hermite interpolation ([ENTITY_MOTION.md](ENTITY_MOTION.md)), so a
+  foot planted in world space could still drag or pop on a correction. Targets are re-planted once they slip past
+  a threshold, a slip of more than three strides snaps rather than drags, and a teleport-sized root jump (spawn
+  shove, eviction, a longitude wrap) resets every foot. The animator low-passes the root speed and velocity it
+  reads (80 ms) before they drive the cadence, the gait choice and the foot targets (#2667).
 - Near LOD only, and only for grounded walkers and crawlers that are neither airborne nor lying down.
 
 ## Level of detail

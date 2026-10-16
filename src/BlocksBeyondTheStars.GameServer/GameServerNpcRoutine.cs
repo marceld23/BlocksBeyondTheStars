@@ -273,6 +273,7 @@ public sealed partial class GameServer
             npc.Pos = new Vector3f(bed.X + 0.5f, bed.Y, bed.Z + 0.5f); // a legacy one-cell bed
         }
 
+        npc.FaceGoal = null; // #2666: lying down is a snap onto the bed, not a turn
         npc.Pose = 2;
         npc.ActivityKey = "npc.activity.sleeping";
         npc.Path = null;
@@ -303,6 +304,7 @@ public sealed partial class GameServer
         var (bx, bz) = ShapeCode.YawDirection(ShapeCode.OrientationOf(_world.GetShape(seat)));
         npc.Pos = new Vector3f(seat.X + 0.5f, seat.Y, seat.Z + 0.5f);
         npc.Facing = (float)System.Math.Atan2(-bx, -bz);
+        npc.FaceGoal = null; // #2666: sitting down is a snap onto the seat, not a turn
         npc.Pose = 1;
         npc.ActivityKey = "npc.activity.resting";
         npc.Path = null;

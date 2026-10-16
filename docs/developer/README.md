@@ -79,6 +79,9 @@ refreshed 2026-08-08.
   pure `ClimbProbe` / `ClimbGrip` rules, block `climb` data and climbing gear, the pull-up, and the pose on the wire.
 - [CREATURE_RIG.md](CREATURE_RIG.md) — how a blocky animal is built and animated: the gait, jointed
   limbs, fins, foot planting on real blocks, and the distance LOD tiers.
+- [ENTITY_MOTION.md](ENTITY_MOTION.md) — how animals, NPCs, machines and bandits move smoothly on screen (#2664–#2670):
+  the per-tick server velocity, the 7.5 Hz creature motion stream, the server-clock sync, buffered Hermite
+  interpolation, the animators' speed filter and the server rules that keep paths free of kinks.
 - [CREATURE_TAMING.md](CREATURE_TAMING.md) — taming wild creatures into companions.
 - [BIO_LAB.md](BIO_LAB.md) — the bio lab (#2212): species seeds and samples, derived substance and material
   profiles, the lab (analyse, mix, change tools and gear), status effects, cloning from samples, crosses and bred

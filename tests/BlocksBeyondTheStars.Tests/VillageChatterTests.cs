@@ -107,8 +107,9 @@ public sealed class VillageChatterTests
         w.Server.TickVillageLifeForTest();
         Assert.Single(w.Server.VillageChatsForTest);
 
-        // A few movement ticks: they would stroll or turn to the player; talking, they look at each other instead.
-        for (int i = 0; i < 4; i++)
+        // A few movement ticks: they would stroll or turn to the player; talking, they look at each other instead. Since
+        // #2666 they turn there at a person's pace (a half-turn takes ~0.5 s), not in one tick.
+        for (int i = 0; i < 8; i++)
         {
             w.Server.SetLocalDayFractionForTest(Day, NpcLifeWorld.Cx);
             w.Server.TickForTest(0.1);

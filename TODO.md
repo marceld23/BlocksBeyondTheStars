@@ -24,6 +24,36 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🐾 Smooth motion for animals, NPCs, machines and bandits — #2664–#2670, branch feat/smooth-entity-motion — ✅ done 2026-10-16 (⚠ playtest open)
+
+Marcel (2026-10-16): animal and NPC movement still looked choppy, animals the most. The analysis showed the cause was the
+network → display pipeline, not the AI: the creature dead reckoning drew a steady walk at 0.17×–2× its real speed twice a
+second and a stopped animal up to 0.8 blocks past its spot; NPCs pulsed 0.6×–1.6× at 5 Hz and turned in steps. All
+decisions by Marcel (everything in one go, 7.5 Hz within 48 blocks, the display delay, the behaviour changes, machines and
+bandits included). Package label `package: smooth motion 2026-10`. How it works: docs/developer/ENTITY_MOTION.md.
+
+- **Buffered interpolation (#2664, #2666, #2670):** `MotionInterpolator` + `ServerClockSync` (Client.Core) — server-clock
+  stamps, adaptive delay (~0.2 s animals/machines, ~0.3 s NPCs, ~0.7 s far animals), cubic Hermite through the server's
+  velocities with a monotone tangent limit, braking starvation with a fading correction, teleport reset, wrap-aware.
+  Used by `CreatureView`, `NpcView` (incl. yaw) and `WorldEntities`.
+- **Creature motion stream (#2665):** `CreatureMotionFrame` (tag 301, packed fixed-point ints) every second tick to each
+  player for the animals within 48 blocks; `TickVelocity` sampled per world tick for every surface entity; additive
+  `ServerTime` on the creature/NPC/enemy lists, velocities on `NetCreature`/`NetNpc`/`NetCombatEntity`, `Facing` for every
+  creature. Machines and bandits sync at 7.5 Hz. No protocol bump (unknown tags are dropped).
+- **Animators (#2667):** 80 ms speed low-pass in `CreatureAnimator` and `PlayerAvatar`; stride-true NPC leg swing;
+  `PlayerAvatar.NeverAirborne` for NPCs (no jump pose on a step up).
+- **Server kinks (#2668):** roam segments turn at the turn rate instead of snapping their heading (`LocomotionState.TurnTo`);
+  steer-around detours turn (2× rate) and a hunter/fleer keeps a detour 0.5 s; boxed-in animals slow down; walkers take
+  one-block ledges in a running jump (early take-off, forward inside their own column, never clipping the ledge).
+- **NPC routes + facing (#2669, #2666):** `NpcGridPath.Smooth` string-pulls A* routes into straight lines (body-width swath,
+  corners, doors along their row, steps kept); NPC body turns at 6 rad/s toward every look-at (`FaceGoal`).
+- Tests: `MotionInterpolatorTests`, `ServerClockSyncTests`, `CreatureMotionStreamTests` (real client vs server, encoded
+  wire), new `LocomotionControllerTests`, `CreatureMotionArenaTests` (running jump, detour turn rate), `NpcGridPathTests`
+  (string-pulling).
+- ⚠ Open: Marcel's playtest (herds, darters, hunters along walls, villages, robots/bandits; WebGL).
+
+---
+
 ### 🫧 Life support without limits + NPC beds that belong to someone — epic #2649, #2650–#2659, branch feat/air-and-beds-2026-10 — ✅ done 2026-10-16 (⚠ playtest open)
 
 Screelit (Justus) reported on 2026-10-15 (v2026.10.16, his gas-giant base): a room one floor up, reached by stairs through

@@ -149,6 +149,12 @@ namespace BlocksBeyondTheStars.Client
         private float _phase;     // per-creature offset so they don't move in lockstep
         private Vector3 _lastPos;
         private bool _hasPrev;
+        private float _speedSmooth;   // #2667: the measured root speed through a short low-pass
+        private Vector3 _velSmooth;   // #2667: and the root velocity the foot planner leads with
+
+        /// <summary>#2667: time constant of the speed low-pass (seconds). Raw per-frame root deltas carry frame jitter and
+        /// any ripple in the drawn motion straight into the cadence (speed ÷ stride), the gait choice and the foot targets.</summary>
+        private const float SpeedSmoothTau = 0.08f;
 
         // Per-temperament idle head gestures.
         private bool _hostile;
@@ -347,17 +353,30 @@ namespace BlocksBeyondTheStars.Client
 
             var pos = transform.position;
             float speed = 0f;
-            _rootVel = Vector3.zero;
+            var rawVel = Vector3.zero;
             if (_hasPrev)
             {
                 var d = pos - _lastPos;
-                _rootVel = d / dt;
+                rawVel = d / dt;
                 d.y = 0f;
                 speed = d.magnitude / dt;
+            }
+            else
+            {
+                _speedSmooth = 0f; // re-enabled (LOD) or first frame: start the filter from rest, not from a stale value
+                _velSmooth = Vector3.zero;
             }
 
             _lastPos = pos;
             _hasPrev = true;
+
+            // #2667: low-pass what the rig reads. A jump of the root (a teleport, a floating-origin shift) is one absurd
+            // frame, so the raw values are capped before they go in.
+            float lowPass = 1f - Mathf.Exp(-dt / SpeedSmoothTau);
+            _speedSmooth += (Mathf.Min(speed, 40f) - _speedSmooth) * lowPass;
+            _velSmooth += (Vector3.ClampMagnitude(rawVel, 40f) - _velSmooth) * lowPass;
+            speed = _speedSmooth;
+            _rootVel = _velSmooth;
 
             bool crawler = _motionClass == MotionClass.Crawler;
             bool flier = _motionClass == MotionClass.Flier;

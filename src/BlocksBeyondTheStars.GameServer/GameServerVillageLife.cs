@@ -286,8 +286,8 @@ public sealed partial class GameServer
         => npc.TalkWith is { } partner && _uptime < npc.TalkUntil ? partner : null;
 
     /// <summary>Turns an NPC toward a position (the short way round the east–west seam).</summary>
-    private void FaceTowards(ServerNpc npc, Vector3f at)
-        => npc.Facing = (float)System.Math.Atan2(WorldConstants.WrapDeltaX((double)at.X - npc.Pos.X, _world.Circumference), at.Z - npc.Pos.Z);
+    private void FaceTowards(ServerNpc npc, Vector3f at) // #2666: sets where the NPC turns to; MoveNpcs turns it there
+        => npc.FaceGoal = (float)System.Math.Atan2(WorldConstants.WrapDeltaX((double)at.X - npc.Pos.X, _world.Circumference), at.Z - npc.Pos.Z);
 
     private bool AnyListenerWithin(List<PlayerSession> listeners, Vector3f at, float range)
     {

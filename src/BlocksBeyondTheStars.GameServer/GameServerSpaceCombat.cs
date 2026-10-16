@@ -158,6 +158,17 @@ public sealed class CombatEntity
     /// perch phase, an amphibian's water hysteresis. Server-only; a default value is "grounded".</summary>
     public VerticalState Vert;
 
+    /// <summary>#2665: the real velocity over the last server tick, sampled at the end of every world tick and sent as the
+    /// client's interpolation tangent. Server-only runtime state (a field, so the sampler mutates it in place).</summary>
+    public TickVelocity TickVel;
+
+    /// <summary>#2668: a detour heading (radians) a blocked hunter/fleer keeps steering along until
+    /// <see cref="SteerUntil"/> (creature clock) instead of re-deciding against the wall every tick. Server-only.</summary>
+    public float SteerHeading;
+
+    /// <summary>#2668: the creature clock until which <see cref="SteerHeading"/> holds; 0 = no detour.</summary>
+    public double SteerUntil;
+
     /// <summary>True once this hostile has noticed the ship (entered aggro range) and the "spotted" warning has
     /// been raised. Cleared again when it loses the ship, so re-engaging warns afresh. Server-only.</summary>
     public bool Spotted { get; set; }
@@ -2562,6 +2573,9 @@ public sealed partial class GameServer
         Scale = e.Scale,
         Staggered = IsStaggered(e), // #2278: a pushed machine or bandit is dazed for a moment
         Yaw = e.Yaw,                // #2357: the raider's heading for its voxel hull
+        VelX = e.TickVel.Velocity.X, // #2670: a planet machine's or bandit's interpolation tangent (0 in space)
+        VelY = e.TickVel.Velocity.Y,
+        VelZ = e.TickVel.Velocity.Z,
     };
 
     /// <summary>#2440: how far to the side the n-th ship launches into an orbit that already holds <paramref name="shipsAhead"/>

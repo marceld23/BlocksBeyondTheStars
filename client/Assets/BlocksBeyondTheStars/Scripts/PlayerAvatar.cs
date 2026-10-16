@@ -170,6 +170,19 @@ namespace BlocksBeyondTheStars.Client
         private float _prevY;
         private bool _hasPrev;
         private float _walkPhase;
+        private float _speedSmooth; // #2667: the measured speed through a short low-pass — raw frame deltas pulse
+        private float _vySmooth;    // #2667: the same for the vertical speed the jump pose keys off
+
+        /// <summary>#2667: this body never jumps (an NPC): the leap pose is never taken, however fast the root rises — a step
+        /// up eased over a fraction of a second used to read as a jump for a moment on every doorstep.</summary>
+        public bool NeverAirborne { get; set; }
+
+        /// <summary>#2667: the hip height at scale 1 (the leg pivots sit there) — the stride-true leg swing measures by it.</summary>
+        private const float HipHeight = 0.92f;
+
+        /// <summary>#2667: time constant of the speed low-pass (seconds) — long enough to iron out frame jitter and a server
+        /// beat, short enough that a start or a stop still reads at once.</summary>
+        private const float SpeedSmoothTau = 0.08f;
         private float _swingTimer;
 
         // #2593: greeting gestures (AvatarGestures curves) and the head turning towards someone. Timers count down; the look
@@ -509,12 +522,27 @@ namespace BlocksBeyondTheStars.Client
             _prevY = pos.y;
             _hasPrev = true;
 
+            // #2667: low-pass the measured motion. A teleport or a floating-origin shift reads as one absurd frame, so the
+            // raw value is capped before it goes in.
+            float lowPass = 1f - Mathf.Exp(-dt / SpeedSmoothTau);
+            _speedSmooth += (Mathf.Min(speed, 14f) - _speedSmooth) * lowPass;
+            _vySmooth += (Mathf.Clamp(vy, -30f, 30f) - _vySmooth) * lowPass;
+            speed = _speedSmooth;
+            vy = _vySmooth;
+
             float moving = Mathf.Clamp01(speed / 3.2f); // legs reach a full stride a bit sooner (slow NPC strolls read as walking)
             float run = Mathf.Clamp01((speed - 4.5f) / 4f); // extra emphasis once sprinting
-            _walkPhase += dt * (4f + speed * 1.4f);
+            float cycleRate = 4f + speed * 1.4f; // rad/s
+            _walkPhase += dt * cycleRate;
             float t = Time.time + _phase;
 
-            float swing = Mathf.Sin(_walkPhase) * Mathf.Lerp(2f, 40f, moving);
+            // #2667: the leg swings as far as the stride the body actually covers — a foot planted at a stroll stays put
+            // instead of shuffling (the old curve gave a 0.7 blocks/s stroll ~10° where the stride asks for ~14°). Never
+            // less than the old curve, and capped at its 40° full stride.
+            float legLength = HipHeight * Mathf.Max(0.2f, transform.lossyScale.y);
+            float strideHalf = speed * (2f * Mathf.PI) / cycleRate / 4f; // the foot's reach either side of the hip
+            float strideDeg = Mathf.Asin(Mathf.Clamp01(strideHalf / legLength)) * Mathf.Rad2Deg;
+            float swing = Mathf.Sin(_walkPhase) * Mathf.Min(40f, Mathf.Max(Mathf.Lerp(2f, 40f, moving), strideDeg));
             float armL = -swing, armR = swing, legL = swing, legR = -swing;
             float kneeL = 0f, kneeR = 0f, elbowL = 12f + run * 25f, elbowR = 12f + run * 25f;
             float headYaw = 0f;
@@ -522,7 +550,7 @@ namespace BlocksBeyondTheStars.Client
             // so the joint writes below stay what they always were.
             float rollL = 0f, rollR = 0f, yawL = 0f, yawR = 0f, elbowRollL = 0f, elbowRollR = 0f;
 
-            bool airborne = Mathf.Abs(vy) > 2.6f;
+            bool airborne = !NeverAirborne && Mathf.Abs(vy) > 2.6f;
             bool idle = moving < 0.03f && !airborne;
 
             if (_lying)

@@ -28,6 +28,7 @@ public sealed partial class GameServer
     private const float EnemyFarDespawnRange = 150f;
     private const float EnemyProximityRange = 4f;
     private const float EnemyAttackReach = 6f;
+    private const double EnemyMotionSyncInterval = 0.125; // #2670: moving machines/bandits sync every second 15 Hz tick
 
     /// <summary>
     /// How far a RANGED machine can hurt the player. The scan-drone shoots; it does not bite, and its own
@@ -302,9 +303,10 @@ public sealed partial class GameServer
             BroadcastPlanetEnemies();
         }
 
-        // Stream the new positions, throttled so a wandering pack doesn't flood the channel.
+        // Stream the new positions, throttled so a wandering pack doesn't flood the channel. #2670: every second tick
+        // (7.5 Hz at 15 Hz), so the client's interpolation delay stays ~0.2 s like the animals'.
         _enemySyncTimer += dt;
-        if (moved && _enemySyncTimer >= 0.2)
+        if (moved && _enemySyncTimer >= EnemyMotionSyncInterval)
         {
             _enemySyncTimer = 0;
             BroadcastPlanetEnemies();
@@ -865,6 +867,7 @@ public sealed partial class GameServer
         }
 
         enemy.Loco.Heading = (float)System.Math.Atan2(dz, dx);
+        enemy.Loco.Turning = false; // #2668: the wade-out sets its own course — no roam turn may pull it back
         enemy.Loco.Speed = MachineWadeOutSpeed;
         enemy.Loco.ModeTimer = 0f; // once out, it picks a fresh patrol heading
         enemy.Position = candidate;
@@ -1510,7 +1513,7 @@ public sealed partial class GameServer
     private void BroadcastPlanetEnemies() => _worlds.Active.EnemyListDirty = true; // #1530: flushed once per tick
 
     private void SendPlanetEnemyList()
-        => BroadcastToWorld(new PlanetEnemyList { Enemies = _planetEnemies.Concat(_bandits).Select(ToNet).ToArray() });
+        => BroadcastToWorld(new PlanetEnemyList { Enemies = _planetEnemies.Concat(_bandits).Select(ToNet).ToArray(), ServerTime = SnapshotTime });
 
     private void HandleAttackEntity(PlayerSession session, AttackEntityIntent intent)
         => AttackEntity(session.State.PlayerId, intent.EntityId, intent.DirX, intent.DirY, intent.DirZ);

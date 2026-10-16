@@ -1858,6 +1858,7 @@ public sealed partial class GameServer
 
     public void Tick(double deltaSeconds)
     {
+        _tickSeconds = deltaSeconds; // #2665: entity snapshots of this tick are stamped at its end (SnapshotTime)
         BeginTickTiming(); // #1504: no-op unless ServerConfig.TickTimingLogSeconds > 0
         _transport.Poll();
 

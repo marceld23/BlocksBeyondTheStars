@@ -133,9 +133,10 @@ The Unity client lives in `client/Assets/BlocksBeyondTheStars/`. Key wiring (all
   ship is a client-side voxel grid you can pilot, EVA, walk and rebuild; parked ships render via
   `LandedShipView` (not part of the world block grid). See
   [STATION_AS_LOCATION.md](STATION_AS_LOCATION.md).
-- **Presence & A/V** — `RemotePlayers.cs`, `NpcView.cs`, `CreatureView.cs` interpolate other
-  actors toward the latest authoritative position; `ClientAudio.cs`/`ClientMusic.cs` route SFX +
-  context music.
+- **Presence & A/V** — `RemotePlayers.cs` interpolates other players (`RemoteEntityInterpolator`);
+  `CreatureView.cs`, `NpcView.cs` and `WorldEntities.cs` draw animals, NPCs, machines and bandits from buffered
+  server-clock snapshots along Hermite curves (`MotionInterpolator`, see [ENTITY_MOTION.md](ENTITY_MOTION.md));
+  `ClientAudio.cs`/`ClientMusic.cs` route SFX + context music.
 - **Rendering** — **URP with custom unlit shaders** in `Shaders/` (`BlockAtlas[.Transparent]`,
   `Starfield`, `Nebula`, `Atmosphere`, `SkyBodyPhase`, `HeatHaze`, `Visor`, post-process
   passes). The block shaders bypass the standard light loop; the URP asset has the opaque +

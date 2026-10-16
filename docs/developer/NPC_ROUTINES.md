@@ -86,6 +86,11 @@ builder why a post is not staffed (`srv.base.post_*`).
   unit-tested (`NpcGridPathTests`).
 - `SetNpcGoal` → `RequestNpcPath` queues the NPC; `TickNpcPaths` runs **one** search per tick on `GetBlockIfLoaded`
   reads. On a player station a node must be in a sealed pocket or a doorway (the crew never routes through vacuum).
+- `NpcGridPath.Smooth` (#2669) pulls every level stretch of the route straight: from each kept waypoint to the farthest
+  later cell of the same level a strip `SmoothHalfWidth` (0.45, the arrival radius) to each side reaches in a straight
+  line — every cell it touches standable, both cells beside a grid corner, doors only passed along their own row or
+  column. The first leg stays the move to the start cell's neighbour (the NPC stands anywhere in its own cell), and
+  steps stay exactly the search's moves. A route that got stuck once is followed by a plain `Simplify` route (the safe fallback).
 - `MoveNpcs` → `GoalStep`: follows waypoints (`Seek`, arrival radius 0.45, goal 0.4), re-routes after 4 s without
   progress, and after 3 failed routes calls `TeleportNpcToGoalIfUnseen` (no player within 24 blocks of the NPC or
   the goal). Walkers skip NPC separation (no doorway shoving).

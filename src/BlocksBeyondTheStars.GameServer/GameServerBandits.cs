@@ -176,7 +176,7 @@ public sealed partial class GameServer
         }
 
         _banditSyncTimer += dt;
-        if (changed || (moved && _banditSyncTimer >= 0.2))
+        if (changed || (moved && _banditSyncTimer >= EnemyMotionSyncInterval)) // #2670: 7.5 Hz like the machines
         {
             _banditSyncTimer = 0;
             BroadcastPlanetEnemies();

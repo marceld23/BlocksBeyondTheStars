@@ -24,8 +24,11 @@ namespace BlocksBeyondTheStars.Client
         {
             public GameObject Root;
             public Transform ArmL, ArmR, LegL, LegR, Head, Body;
-            public Vector3 Target;        // canonical world space
-            public Vector3 Settled;       // smoothed world position
+            public Vector3 Settled;       // interpolated world position
+            public Vector3 Vel;           // the drawn curve's velocity (blocks/s)
+            public float SpeedSmooth;     // #2670: the walk cycle reads this low-passed speed
+            public MotionInterpolator Interp = new MotionInterpolator(initialInterval: 0.15, minDelay: 0.12, maxDelay: 0.8); // #2670
+            public BlocksBeyondTheStars.Networking.Messages.NetCombatEntity LastPushed; // the list entry last fed to Interp (a new list brings new objects)
             public float WalkPhase;
             public float Seed;            // per-enemy phase/variation offset
             public float PrevHull = -1f;
@@ -79,6 +82,7 @@ namespace BlocksBeyondTheStars.Client
             seen.Clear();
             var cam = Camera.main; // for the floating health bars (#692)
             Game.NearestHostileSqr = float.MaxValue; // recomputed below; the music director ducks when one is close (#1174)
+            int circ = Game.Circumference;
             foreach (var e in Game.PlanetEnemies)
             {
                 seen.Add(e.Id);
@@ -92,16 +96,30 @@ namespace BlocksBeyondTheStars.Client
                     en = e.Kind == "ScanDrone" ? BuildDrone(e.Id)
                         : e.Kind == "Bandit" || e.Kind == "BanditGunner" ? BuildBandit(e.Id, e.Kind == "BanditGunner")
                         : Build(e.Id);
-                    en.Target = en.Settled = new Vector3(e.X, e.Y, e.Z);
+                    en.Settled = new Vector3(e.X, e.Y, e.Z);
                     _enemies[e.Id] = en;
                 }
 
-                en.Target = new Vector3(e.X, e.Y, e.Z);
-                en.Settled = Vector3.Lerp(en.Settled, en.Target, Game.WorldDeltaTime * 8f);
+                // #2670: buffered snapshot interpolation on the server clock, like the animals — the old lerp toward the
+                // newest 5 Hz snapshot made a patrol pulse five times a second, and the walk cycle with it.
+                if (!ReferenceEquals(e, en.LastPushed))
+                {
+                    en.LastPushed = e;
+                    bool stamped = Game.PlanetEnemiesServerTime > 0;
+                    double at = Game.PlanetEnemiesLocalTime; // stamped once, when the list arrived
+                    en.Interp.Push(at, new BlocksBeyondTheStars.Shared.Geometry.Vector3f(e.X, e.Y, e.Z),
+                        new BlocksBeyondTheStars.Shared.Geometry.Vector3f(e.VelX, e.VelY, e.VelZ), stamped, 0f, 0, circ);
+                }
+
+                if (en.Interp.Sample(Game.WorldTime, circ, out var drawn))
+                {
+                    en.Settled = new Vector3(drawn.Position.X, drawn.Position.Y, drawn.Position.Z);
+                    en.Vel = new Vector3(drawn.Velocity.X, drawn.Velocity.Y, drawn.Velocity.Z);
+                }
 
                 // Face the walk direction (or the player when hostile and close — it stalks you).
                 Vector3 scenePos = Game.ScenePos(en.Settled.x, en.Settled.y, en.Settled.z);
-                Vector3 vel = en.Target - en.Settled;
+                Vector3 vel = en.Vel;
                 vel.y = 0f;
                 Vector3 toPlayer = Game.PlayerPosition - scenePos;
                 toPlayer.y = 0f;
@@ -127,7 +145,10 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 en.Root.transform.position = scenePos;
-                Animate(en, vel.magnitude / Mathf.Max(Game.WorldDeltaTime, 1e-4f), e.Hostile);
+                // #2670: the drawn speed through a short low-pass (it used to be the distance left to the newest snapshot
+                // divided by the frame time — a number that pulsed with every packet).
+                en.SpeedSmooth += (vel.magnitude - en.SpeedSmooth) * (1f - Mathf.Exp(-Game.WorldDeltaTime / 0.08f));
+                Animate(en, en.SpeedSmooth, e.Hostile);
 
                 // #2564: the machine or bandit the server just named as the player's attacker blinks red, so the eye finds
                 // what the HUD's damage marker points at (about once a second while its aura keeps hurting).

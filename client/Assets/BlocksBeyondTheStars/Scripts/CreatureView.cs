@@ -38,7 +38,6 @@ namespace BlocksBeyondTheStars.Client
         private sealed class Entry
         {
             public GameObject Root;
-            public Vector3 Target;
             public float NextBlink; // #2564: Time.time from which the attacker's red blink may play again
             public string Bank;   // creature_{size}_{disposition} voice bank (hurt/alert/attack/die)
             public CreatureVoice Voice; // this species' generated voice — call, phrase, cadence, timbre (#902)
@@ -57,11 +56,15 @@ namespace BlocksBeyondTheStars.Client
             public float PrevHull;   // to detect a hull drop (hurt)
             public int Tint;         // body colour (0xRRGGBB) — the sparkles of the defeat break-apart (#2154)
             public float HullMax;    // > 0 = a creature that CAN be beaten (a last hull of 0 then means defeated)
-            public Vector3 Settled;  // smoothed position (the lunge is added on top for display)
-            public Vector3 PrevSettled; // last frame's smoothed position → velocity for facing
+            public Vector3 Settled;  // interpolated world position (the lunge is added on top for display)
             public Vector3 FaceDir;     // smoothed heading the body turns to face (so it doesn't moonwalk)
-            public Vector3 TargetVel;     // velocity estimated from consecutive server updates (#654)
-            public float LastTargetChange; // world time of the last authoritative position change (#654)
+            public MotionInterpolator Interp; // #2664: buffered snapshots of the list + the 7.5 Hz motion stream (#2665)
+            public NetCreature LastPushed;    // the list entry last fed to Interp (a new list brings new objects)
+            public Vector3 Vel;               // the drawn curve's velocity this frame (blocks/s)
+            public byte Flags;                // the motion flags of the snapshot being drawn (airborne, perched)
+            public float ServerYaw;           // that snapshot's server heading (radians, dirX = cos, dirZ = sin)
+            public bool HasServerYaw;         // false on an older server (it sends no heading for ordinary animals)
+            public double LastServerTime;     // the newest server tick fed to Interp — the list and the stream share ticks
             public float PitchDeg;         // smoothed slope pitch (#652) — nose up/down along real motion
             public float RollDeg;          // smoothed banking roll (#652) — fliers lean into turns
             public Vector3 PrevFaceDir;    // last frame's facing → heading rate for the banking roll
@@ -172,6 +175,82 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Drawn horizontal speed (blocks/s, squared) above which a body faces its motion; below it stands.</summary>
+        private const float MovingSpeedSq = 0.15f * 0.15f;
+
+        /// <summary>A snapshot this far (seconds) behind the newest server tick an animal got is a restarted server clock.</summary>
+        private const double ServerClockRestartSeconds = 5.0;
+
+        /// <summary>#2664: one creature list entry as an interpolation snapshot, stamped on the server clock (an older server
+        /// sends no clock and no velocity: it is stamped on arrival and the curve takes its tangents from the positions).</summary>
+        private void PushListSnapshot(Entry e, NetCreature c, int circ)
+        {
+            bool stamped = Game.CreaturesServerTime > 0;
+            if (Game.CreaturesServerTime < e.LastServerTime - ServerClockRestartSeconds)
+            {
+                e.LastServerTime = 0; // the server clock started over (a restarted host) — not an old packet
+            }
+
+            if (stamped && Game.CreaturesServerTime <= e.LastServerTime)
+            {
+                return; // the motion stream already brought this server tick (or a newer one)
+            }
+
+            double at = Game.CreaturesLocalTime; // stamped once, when the list arrived
+            int flags = (c.Airborne ? CreatureMotionFrame.FlagAirborne : 0) | (c.Perched ? CreatureMotionFrame.FlagPerched : 0);
+            e.Interp.Push(at, ToV(c.X, c.Y, c.Z), ToV(c.VelX, c.VelY, c.VelZ), stamped, c.Facing, (byte)flags, circ);
+            e.HasServerYaw |= stamped;
+            if (stamped)
+            {
+                e.LastServerTime = Game.CreaturesServerTime;
+            }
+        }
+
+        /// <summary>#2665: the 7.5 Hz motion of the animals near this player, between the 2 Hz lists. Ids the view does not
+        /// draw yet (the list that introduces them is still on its way) are skipped.</summary>
+        private void OnCreatureMotion(CreatureMotionFrame m)
+        {
+            if (Game == null || m?.Ids == null || m.Data == null)
+            {
+                return;
+            }
+
+            int circ = Game.Circumference;
+            double at = Game.EntityClock.ToLocal(m.ServerTime, Game.WorldTime);
+            int n = Mathf.Min(m.Ids.Length, m.Data.Length / CreatureMotionFrame.Stride);
+            for (int i = 0; i < n; i++)
+            {
+                if (!_creatures.TryGetValue(m.Ids[i], out var e) || e.Interp == null)
+                {
+                    continue; // not drawn yet — the list that introduces it is still on its way
+                }
+
+                if (m.ServerTime < e.LastServerTime - ServerClockRestartSeconds)
+                {
+                    e.LastServerTime = 0; // the server clock started over (a restarted host) — not an old packet
+                }
+
+                if (m.ServerTime <= e.LastServerTime)
+                {
+                    continue; // this server tick already came with the list
+                }
+
+                e.LastServerTime = m.ServerTime;
+
+                int k = i * CreatureMotionFrame.Stride;
+                var d = m.Data;
+                const float P = CreatureMotionFrame.PositionScale, V = CreatureMotionFrame.VelocityScale;
+                e.Interp.Push(at,
+                    ToV(CreatureMotionFrame.FromFixed(d[k], P), CreatureMotionFrame.FromFixed(d[k + 1], P), CreatureMotionFrame.FromFixed(d[k + 2], P)),
+                    ToV(CreatureMotionFrame.FromFixed(d[k + 3], V), CreatureMotionFrame.FromFixed(d[k + 4], V), CreatureMotionFrame.FromFixed(d[k + 5], V)),
+                    true, CreatureMotionFrame.FromFixed(d[k + 6], CreatureMotionFrame.FacingScale), (byte)(d[k + 7] & 0xFF), circ);
+                e.HasServerYaw = true;
+            }
+        }
+
+        private static BlocksBeyondTheStars.Shared.Geometry.Vector3f ToV(float x, float y, float z)
+            => new BlocksBeyondTheStars.Shared.Geometry.Vector3f(x, y, z);
+
         private void Update()
         {
             if (Game == null)
@@ -183,6 +262,7 @@ namespace BlocksBeyondTheStars.Client
             if (!_defeatSubscribed && Game.Network != null)
             {
                 Game.Network.CreatureDefeatedReceived += OnCreatureDefeated;
+                Game.Network.CreatureMotionReceived += OnCreatureMotion; // #2665: the 7.5 Hz stream of the animals near us
                 _defeatSubscribed = true;
             }
 
@@ -203,6 +283,7 @@ namespace BlocksBeyondTheStars.Client
             var cam = Camera.main; // for the floating health bars (#692)
             PlayWorldFx(); // #1998: thumps, stomps, breaches
             float begFastSq = BegFastThresholdSq(); // #2018: which beggars get the excited call cadence this frame
+            int circ = Game.Circumference;
             foreach (var c in Game.Creatures)
             {
                 seen.Add(c.Id);
@@ -226,17 +307,15 @@ namespace BlocksBeyondTheStars.Client
                     entry = new Entry
                     {
                         Root = root,
-                        Target = pos,
                         Bank = bank,
                         Voice = voice,
                         Echo = echo,
                         Pitch = Mathf.Clamp(sizePitch * speciesOffset, 0.6f, 1.85f),
                         NextCall = now + Random.Range(2f, 6f),
                         Settled = pos,
-                        PrevSettled = pos,
                         FaceDir = Vector3.forward,
                         PrevFaceDir = Vector3.forward,
-                        LastTargetChange = now,
+                        Interp = new MotionInterpolator(initialInterval: 0.15, minDelay: 0.12, maxDelay: 0.8),
                         PrevHostile = c.Hostile,
                         PrevSpecies = c.SpeciesId,
                         PrevAlerting = c.Alerting,
@@ -256,37 +335,26 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                // Dead reckoning (#654): positions arrive at ~2 Hz, so chasing the newest (stale) target
-                // rounds every dart into the same soft curve. Estimate the velocity from consecutive
-                // updates and extrapolate the target briefly (clamped) — motion reads crisp between
-                // packets and degrades to plain smoothing when updates stall. Teleport-sized jumps
-                // (spawn shove, eviction) reset the estimate instead of predicting through them.
-                if ((pos - entry.Target).sqrMagnitude > 1e-6f)
+                // #2664/#2665: buffered snapshot interpolation. Every creature list and every 7.5 Hz motion frame is a
+                // snapshot on the server clock; the body is drawn a short adaptive delay behind the newest one, along a
+                // Hermite curve through the server's own velocities. The old dead reckoning (#654) pulsed a steady walk
+                // between 0.17x and 2x its real speed twice a second and drew a stopped animal up to 0.8 blocks past the
+                // spot it stood on (it slid back, and briefly turned round, when it walked off again).
+                if (!ReferenceEquals(c, entry.LastPushed))
                 {
-                    float gap = Mathf.Max(0.05f, now - entry.LastTargetChange);
-                    var estimated = (pos - entry.Target) / gap;
-                    entry.TargetVel = estimated.sqrMagnitude > 64f ? Vector3.zero : estimated;
-                    entry.LastTargetChange = now;
+                    entry.LastPushed = c;
+                    PushListSnapshot(entry, c, circ);
                 }
 
-                entry.Target = pos;
-                float since = now - entry.LastTargetChange;
-                var predicted = entry.Target + entry.TargetVel * Mathf.Min(since, 0.3f);
-                if (c.Airborne && (c.Motion == "walker" || c.Motion == "crawler"))
+                if (entry.Interp.Sample(now, circ, out var drawn))
                 {
-                    // A jump arc lasts ~0.7 s — barely one position update — so linear extrapolation would
-                    // smear every hop into a bump. Integrate the server's launch velocity under the world's
-                    // gravity instead (#1333; the micro-fauna hop already does this locally): a ground bird
-                    // glides under reduced gravity like the server's model — by the server's own predicate on
-                    // the wire (#1368), so a winged giant (which never glides there) is not floated here.
-                    float g = 20f * Mathf.Max(0.3f, Game.Environment != null ? Game.Environment.GravityFactor : 1f);
-                    if (c.Glides) g *= VerticalMotion.GlideGravityScale;
-                    float t = Mathf.Min(since, 0.6f);
-                    predicted.y = entry.Target.y + c.VertVel * t - 0.5f * g * t * t;
+                    entry.Settled = new Vector3(drawn.Position.X, drawn.Position.Y, drawn.Position.Z);
+                    entry.Vel = new Vector3(drawn.Velocity.X, drawn.Velocity.Y, drawn.Velocity.Z);
+                    entry.Flags = drawn.Flags;
+                    entry.ServerYaw = drawn.Yaw;
                 }
-                // Smoothly chase the (extrapolated) authoritative position; a visible lunge toward the
-                // player is added on top during an attack so attacks read clearly.
-                entry.Settled = Vector3.Lerp(entry.Settled, predicted, dt * 8f);
+
+                // A visible lunge toward the player is added on top during an attack so attacks read clearly.
                 Vector3 lunge = Vector3.zero;
                 if (now < entry.AttackUntil)
                 {
@@ -304,17 +372,27 @@ namespace BlocksBeyondTheStars.Client
                 // Smoothing is in world space; map to the scene at the copy nearest the player (longitude wraps).
                 entry.Root.transform.position = Game.ScenePos(entry.Settled.x, entry.Settled.y, entry.Settled.z) + lunge;
 
-                // Turn the body to face the way it's actually moving (it used to slide/moonwalk — the server never
-                // sent a facing). Derived from the smoothed velocity; held when standing still. Direction is the
-                // same in world + scene space (the scene only offsets for longitude wrap, it doesn't rotate).
-                // On top of the yaw (#652): bodies pitch along their real vertical motion (a titan descending a
-                // slope noses down instead of levitating level), and fliers bank into turns. Medusae are a bell —
-                // no nose to pitch, no wings to bank.
-                Vector3 vel3 = entry.Settled - entry.PrevSettled;
-                entry.PrevSettled = entry.Settled;
+                // Turn the body to face the way it's actually moving (it used to slide/moonwalk). Derived from the
+                // drawn curve's velocity; a body standing still turns slowly to the server's heading (#2665), or holds
+                // on an older server. Direction is the same in world + scene space (the scene only offsets for
+                // longitude wrap, it doesn't rotate). On top of the yaw (#652): bodies pitch along their real vertical
+                // motion (a titan descending a slope noses down instead of levitating level), and fliers bank into
+                // turns. Medusae are a bell — no nose to pitch, no wings to bank.
+                Vector3 vel3 = entry.Vel;
                 Vector3 vel = vel3;
                 vel.y = 0f;
-                if (vel.sqrMagnitude > 1e-5f)
+                bool holdsStill = (entry.Flags & CreatureMotionFrame.FlagPerched) != 0 || c.Asleep || c.Lurking;
+                if (vel.sqrMagnitude <= MovingSpeedSq && entry.HasServerYaw && !holdsStill && c.GiantHeight <= 0f && dt > 0f)
+                {
+                    var want = new Vector3(Mathf.Cos(entry.ServerYaw), 0f, Mathf.Sin(entry.ServerYaw));
+                    entry.FaceDir = Vector3.Slerp(entry.FaceDir.sqrMagnitude > 1e-4f ? entry.FaceDir : want, want, 1f - Mathf.Exp(-3f * dt));
+                    entry.PrevFaceDir = entry.FaceDir;
+                    entry.PitchDeg = Mathf.Lerp(entry.PitchDeg, 0f, 1f - Mathf.Exp(-6f * dt));
+                    entry.RollDeg = Mathf.Lerp(entry.RollDeg, 0f, 1f - Mathf.Exp(-6f * dt));
+                    entry.Root.transform.rotation = Quaternion.LookRotation(entry.FaceDir, Vector3.up)
+                        * Quaternion.Euler(-entry.PitchDeg, 0f, entry.RollDeg);
+                }
+                else if (vel.sqrMagnitude > MovingSpeedSq)
                 {
                     entry.FaceDir = Vector3.Slerp(entry.FaceDir, vel.normalized, 1f - Mathf.Exp(-8f * dt));
                     // #1778/#1779: a sky ray or an air fish is a hoverer with a nose — it pitches into its swoops and
@@ -379,11 +457,14 @@ namespace BlocksBeyondTheStars.Client
                     // A perched flier whose perch was dug away is falling (#1368): a current server already reports
                     // it airborne; an older one still says "perched" but sends the fall velocity — either way the
                     // wings unfold for the drop instead of a folded bird sliding down.
-                    bool airborne = c.Airborne || (c.Perched && c.VertVel < -0.01f);
+                    // #2665: the flags and the vertical velocity of the snapshot being DRAWN, so the pose changes with
+                    // the body it belongs to (the list's flags are up to a list beat ahead of the interpolated body).
+                    bool flagPerched = (entry.Flags & CreatureMotionFrame.FlagPerched) != 0;
+                    bool airborne = (entry.Flags & CreatureMotionFrame.FlagAirborne) != 0 || (flagPerched && entry.Vel.y < -0.01f);
                     // A ground bird mid-bound (#1334) holds its wings spread rather than beating them — the
                     // server's own predicate, plus "not still climbing", so the spread starts at the apex.
-                    bool gliding = c.Glides && airborne && c.VertVel <= 0.05f;
-                    entry.Animator.SetMotion(c.Motion, airborne, c.Perched && !airborne, c.Asleep, gliding);
+                    bool gliding = c.Glides && airborne && entry.Vel.y <= 0.05f;
+                    entry.Animator.SetMotion(c.Motion, airborne, flagPerched && !airborne, c.Asleep, gliding);
                     entry.Animator.SetLurking(c.Lurking); // #2009: an ambusher holds its crouch
                     entry.Animator.SetBegging(c.Begging); // #2018: a beggar holds its head up and bounces
 

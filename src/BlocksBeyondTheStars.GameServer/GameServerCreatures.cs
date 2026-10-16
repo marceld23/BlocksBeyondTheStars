@@ -1236,6 +1236,17 @@ public sealed partial class GameServer
                 StartleKin(creature);
             }
 
+            // #2668: a hunter or fleer that just found its way round an obstacle keeps to that detour for a moment — aiming
+            // the controller along it (it still turns there at its own rate) instead of back into the wall every tick.
+            if ((intent == MoveMode.Seek || intent == MoveMode.Flee) && target is not null && creature.SteerUntil > _creatureClock)
+            {
+                float sx = (float)System.Math.Cos(creature.SteerHeading) * 4f, sz = (float)System.Math.Sin(creature.SteerHeading) * 4f;
+                var at = creature.Position;
+                target = intent == MoveMode.Seek
+                    ? new Vector3f(at.X + sx, at.Y, at.Z + sz)
+                    : new Vector3f(at.X - sx, at.Y, at.Z - sz); // a fleer runs AWAY from its target
+            }
+
             uint seed = (uint)StableStringHash(creature.Id);
             var res = LocomotionController.Step(creature.Loco, profile, creature.Position, intent, target, moveDt, seed);
             creature.Loco = res.State;
@@ -1318,13 +1329,30 @@ public sealed partial class GameServer
                 c.Vert.ClimbTargetY = 0f; // whatever it was hauling toward is off the table
                 if (TrySteerAround(c, sp, motion, stepped, terrainGates, out var detour, out float detourHeading))
                 {
-                    c.Loco.Heading = detourHeading;
+                    // #2668: the body takes the free detour step, but the heading TURNS toward it (twice the turn rate)
+                    // instead of snapping 35-110° in one tick. A roamer makes the detour its new roam heading; a hunter or
+                    // fleer keeps to it for a moment (MoveCreatures) instead of turning back into the wall every tick.
+                    float rate = prof.TurnRate > 0f ? prof.TurnRate : 6f;
+                    c.Loco.Heading = TurnAngleToward(c.Loco.Heading, detourHeading, 2f * rate * (float)dt);
+                    if (intent == MoveMode.Roam)
+                    {
+                        c.Loco.TurnTo = detourHeading;
+                        c.Loco.Turning = true;
+                        c.Loco.TurnAge = 0f;
+                    }
+                    else if (intent is MoveMode.Seek or MoveMode.Flee)
+                    {
+                        c.SteerHeading = detourHeading;
+                        c.SteerUntil = _creatureClock + CreatureDetourHoldSeconds;
+                    }
                     targetX = detour.X;
                     targetZ = detour.Z;
                 }
                 else
                 {
                     c.Loco.ModeTimer = 0f; // boxed in — re-roll a fresh heading next tick
+                    // #2668: and it slows down, so the way out starts with an ease-in instead of at full cruise.
+                    c.Loco.Speed = System.Math.Max(0f, c.Loco.Speed - (2f * prof.Accel * (float)dt));
                 }
             }
             else if (needsRise)
@@ -1342,6 +1370,19 @@ public sealed partial class GameServer
                         VerticalMotion.BeginClimb(ref c.Vert, riseFeet);
                     }
                 }
+
+                // #2668: a jumper keeps moving forward INSIDE its own column while its feet come up — a running jump,
+                // not a hop on the spot. The body never enters the ledge's column before the feet are above the lip
+                // (that still happens on a later tick, exactly as before); crawlers and giants keep hauling in place.
+                if (CreatureMotion.CanJump(sp))
+                {
+                    var inside = InsideOwnColumn(cur, stepped);
+                    if (!StepBlocked(c, sp, motion, cur, inside, needsRise: false, terrainGates))
+                    {
+                        targetX = inside.X;
+                        targetZ = inside.Z;
+                    }
+                }
             }
             else
             {
@@ -1349,6 +1390,10 @@ public sealed partial class GameServer
                 targetX = cand.X;
                 targetZ = cand.Z;
                 groundHint = nextFeet; // the step is taken as previewed — the probe need not run a third time
+                if (moving && !c.Vert.Airborne && CreatureMotion.CanJump(sp))
+                {
+                    TryRunningJump(c, sp, motion, cur, cand, (float)dt, terrainGates); // #2668
+                }
             }
         }
 
@@ -1456,6 +1501,65 @@ public sealed partial class GameServer
         var c = _creatures.First(x => x.Id == creatureId);
         var sp = _speciesById[c.SpeciesId];
         return StepBlocked(c, sp, EffectiveMotion(c, sp), c.Position, next, needsRise: false, terrainGates);
+    }
+
+    /// <summary>#2668: how long a hunter or fleer keeps to a detour it found round an obstacle (creature-clock seconds).</summary>
+    private const double CreatureDetourHoldSeconds = 0.5;
+
+    /// <summary>#2668: a walker takes off this long before it reaches a one-block rise ahead, so its feet are up as it
+    /// arrives at the lip (a one-block jump is above the lip from ~0.2 s to ~0.5 s after take-off at normal gravity).</summary>
+    private const float RunningJumpLeadSeconds = 0.3f;
+
+    /// <summary>#2668: the running jump's take-off. A walker on the ground that will reach a jumpable one-block rise within
+    /// <see cref="RunningJumpLeadSeconds"/> launches now — under exactly the checks the jump at the lip would pass (step-up
+    /// limit, head room where it takes off, every barrier of the step onto the ledge) — and keeps walking while it rises.</summary>
+    private void TryRunningJump(CombatEntity c, CreatureSpecies sp, MotionClass motion, Vector3f cur, Vector3f next, float dt,
+        bool terrainGates)
+    {
+        float dx = next.X - cur.X, dz = next.Z - cur.Z;
+        float len = (float)System.Math.Sqrt((dx * dx) + (dz * dz));
+        if (len < 1e-4f || dt <= 0f)
+        {
+            return;
+        }
+
+        float lead = System.Math.Min(0.9f, len / dt * RunningJumpLeadSeconds);
+        var ahead = new Vector3f(next.X + (dx / len * lead), next.Y, next.Z + (dz / len * lead));
+        if ((int)System.Math.Floor(ahead.X) == (int)System.Math.Floor(next.X) && (int)System.Math.Floor(ahead.Z) == (int)System.Math.Floor(next.Z))
+        {
+            return; // nothing new within reach of the lead
+        }
+
+        var aheadCand = PreviewStep(sp, motion, next, ahead, out bool needsRise, out int riseFeet, out int? aheadFeet);
+        if (!needsRise
+            || riseFeet - (int)System.Math.Floor(next.Y) > CreatureMotion.StepUpLimit(motion)
+            || CreatureBodyBlocked(sp, new Vector3f(next.X, riseFeet, next.Z))
+            || StepBlocked(c, sp, motion, next, aheadCand, needsRise: true, terrainGates, aheadFeet))
+        {
+            return;
+        }
+
+        VerticalMotion.Launch(ref c.Vert, LedgeJumpImpulse(sp));
+    }
+
+    /// <summary>#2668: <paramref name="stepped"/> held inside the column <paramref name="cur"/> stands in (a hair from its
+    /// edges) — how far a jumper may move on while its feet are still below the ledge ahead.</summary>
+    private static Vector3f InsideOwnColumn(Vector3f cur, Vector3f stepped)
+    {
+        const float Margin = 0.02f;
+        float x0 = (float)System.Math.Floor(cur.X), z0 = (float)System.Math.Floor(cur.Z);
+        return new Vector3f(
+            System.Math.Clamp(stepped.X, x0 + Margin, x0 + 1f - Margin),
+            cur.Y,
+            System.Math.Clamp(stepped.Z, z0 + Margin, z0 + 1f - Margin));
+    }
+
+    /// <summary>Turns angle <paramref name="cur"/> toward <paramref name="target"/> by at most <paramref name="maxDelta"/>
+    /// radians along the short way.</summary>
+    private static float TurnAngleToward(float cur, float target, float maxDelta)
+    {
+        float diff = (float)System.Math.IEEERemainder(target - cur, 2 * System.Math.PI);
+        return System.Math.Abs(diff) <= maxDelta ? cur + diff : cur + (System.Math.Sign(diff) * maxDelta);
     }
 
     /// <summary>The jump that clears a one-block ledge on this world (Q9: lighter worlds jump higher, exactly
@@ -2614,6 +2718,9 @@ public sealed partial class GameServer
     private LocomotionProfile ProfileFor(string speciesId)
         => _locoProfiles.TryGetValue(speciesId, out var p) ? p : default;
 
+    /// <summary>Test seam (#2668): the movement profile a species moves with.</summary>
+    internal LocomotionProfile ProfileForTest(string speciesId) => ProfileFor(speciesId);
+
     /// <summary>A flanking target for a pack-hunter: a point on a small ring around the player, offset by a
     /// per-individual angle, so kin converge from spread directions and encircle instead of all stacking on one
     /// approach line. <paramref name="dx"/>/<paramref name="dz"/> are (player - creature).</summary>
@@ -3215,10 +3322,11 @@ public sealed partial class GameServer
 
     private void BroadcastCreatures() => _worlds.Active.CreatureListDirty = true; // #1530: flushed once per tick
 
-    private void SendCreatureList() => BroadcastToWorld(new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray() });
+    private void SendCreatureList()
+        => BroadcastToWorld(new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray(), ServerTime = SnapshotTime });
 
     private void SendCreatures(PlayerSession session)
-        => Send(session, new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray() });
+        => Send(session, new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray(), ServerTime = SnapshotTime });
 
     private NetCreature ToNetCreature(CombatEntity e) => WithGiantWire(ToNetCreatureCore(e), e); // #1998
 
@@ -3230,25 +3338,24 @@ public sealed partial class GameServer
         // Motion class + vertical state on the wire (#1333, additive): a walker is airborne mid-jump/fall (with
         // its velocity so the client can integrate the arc between updates), a flier is airborne unless perched,
         // a hoverer always is; swimmers never.
-        var motion = sp is null ? MotionClass.Walker : CreatureMotion.EffectiveClass(sp, e.Vert.InWater);
+        var motion = MotionClassOf(e, sp);
         // A perched flier whose perch was dug away is falling under plain gravity (#1367): its phase is still
         // Perched, but the wire reports the ACTUAL vertical state — airborne with its fall velocity — so the
         // client unfolds the wings and integrates the drop instead of drawing a folded bird sliding down (#1368).
         bool perchedFalling = motion == MotionClass.Flier && e.Vert.Flight == FlightPhase.Perched && e.Vert.Airborne;
-        bool airborne = motion switch
-        {
-            MotionClass.Flier => e.Vert.Flight != FlightPhase.Perched || perchedFalling,
-            MotionClass.Hoverer => true,
-            MotionClass.Swimmer => false,
-            _ => e.Vert.Airborne,
-        };
+        var (airborne, perched) = CreatureAirState(e, motion);
+        var vel = e.TickVel.Velocity; // #2665: the client's interpolation tangent
         return new NetCreature
         {
             Motion = CreatureMotion.Key(motion),
             Airborne = airborne,
-            Perched = motion == MotionClass.Flier && e.Vert.Flight == FlightPhase.Perched && !perchedFalling,
+            Perched = perched,
             VertVel = (CreatureMotion.IsGroundBound(motion) || perchedFalling) && e.Vert.Airborne ? e.Vert.VertVel : 0f,
             Glides = sp is not null && CreatureMotion.Glides(sp), // the client's glide factor follows the server's rule (#1368)
+            VelX = vel.X,
+            VelY = vel.Y,
+            VelZ = vel.Z,
+            Facing = CreatureFacing(e), // #2665: every creature's heading (a giant's is set again by WithGiantWire)
 
             Id = e.Id,
             SpeciesId = e.SpeciesId,

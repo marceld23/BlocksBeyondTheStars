@@ -29,6 +29,7 @@ public sealed partial class GameServer
     internal const string GuardianLook = "gds_guard";
     private const int NpcStepUp = 1;                  // blocks a stroller steps up in one tick (#1775: a parapet is not a step)
     private const float NpcFaceRange = 6f;            // turn to face a player within this range
+    private const float NpcFaceTurnRate = 6f;         // #2666: rad/s an NPC turns its body at (a half-turn in ~0.5 s, never a snap)
     private const double NpcMoveDtCap = 0.25;         // cap per-step movement so big ticks can't jump
 
     /// <summary>One uniform inhabitant gait for ALL settlement NPCs (no per-NPC variation): a slow stroll with
@@ -78,6 +79,8 @@ public sealed partial class GameServer
         public string Look = string.Empty; // #1793: additive client look key ("" = the plain avatar)
         public double WanderPhase;
         public LocomotionState Loco; // stop-and-go loiter/stroll state
+        public TickVelocity TickVel; // #2666: the real velocity over the last tick — the client's interpolation tangent
+        public float? FaceGoal;      // #2666: the yaw the NPC is turning toward (radians); null = hold its facing
 
         // --- #1865: base residents ---
         public int BaseSlot; // 0 = the base's founding settler; 1..4 = the residents its beds brought
@@ -347,6 +350,9 @@ public sealed partial class GameServer
                 continue;
             }
 
+            // #2666: every look-at below only sets where the NPC turns to; the body turns there at a person's pace.
+            TurnNpcToFaceGoal(npc, moveDt);
+
             // #1867: someone sitting on a chair or lying in bed stays put (a seated one still looks at a visitor).
             if (npc.Pose != 0)
             {
@@ -357,7 +363,7 @@ public sealed partial class GameServer
                 else if (npc.Pose == 1 && NearestPlayerPosition(targets, npc.Pos) is { } visitor
                     && WrapDistSq(visitor, npc.Pos) <= NpcFaceRange * NpcFaceRange)
                 {
-                    npc.Facing = (float)System.Math.Atan2(visitor.X - npc.Pos.X, visitor.Z - npc.Pos.Z);
+                    npc.FaceGoal = (float)System.Math.Atan2(visitor.X - npc.Pos.X, visitor.Z - npc.Pos.Z);
                 }
 
                 continue;
@@ -390,7 +396,7 @@ public sealed partial class GameServer
             // walkers don't greet).
             if (_uptime < npc.AttendUntil && npc.Goal is null)
             {
-                npc.Facing = (float)System.Math.Atan2(
+                npc.FaceGoal = (float)System.Math.Atan2(
                     WorldConstants.WrapDeltaX((double)npc.AttendPos.X - npc.Pos.X, _world.Circumference), npc.AttendPos.Z - npc.Pos.Z);
                 continue;
             }
@@ -492,14 +498,28 @@ public sealed partial class GameServer
             var nearest = following ? null : NearestPlayerPosition(targets, npc.Pos);
             if (nearest is { } np && WrapDistSq(np, npc.Pos) <= NpcFaceRange * NpcFaceRange)
             {
-                npc.Facing = (float)System.Math.Atan2(np.X - npc.Pos.X, np.Z - npc.Pos.Z);
+                npc.FaceGoal = (float)System.Math.Atan2(np.X - npc.Pos.X, np.Z - npc.Pos.Z);
             }
             else if (res.Moving)
             {
                 // controller heading is math-convention (dirX=cos, dirZ=sin); NPC facing yaw is atan2(dirX, dirZ).
-                npc.Facing = (float)System.Math.Atan2(System.Math.Cos(res.Facing), System.Math.Sin(res.Facing));
+                npc.FaceGoal = (float)System.Math.Atan2(System.Math.Cos(res.Facing), System.Math.Sin(res.Facing));
             }
         }
+    }
+
+    /// <summary>#2666: turns an NPC's body toward its <see cref="ServerNpc.FaceGoal"/> at <see cref="NpcFaceTurnRate"/> — a look at a
+    /// visitor, a neighbour or the way it walks used to snap the body round in one tick.</summary>
+    private static void TurnNpcToFaceGoal(ServerNpc npc, double dt)
+    {
+        if (npc.FaceGoal is not { } goal)
+        {
+            return;
+        }
+
+        float diff = (float)System.Math.IEEERemainder(goal - npc.Facing, 2 * System.Math.PI);
+        float step = NpcFaceTurnRate * (float)dt;
+        npc.Facing = System.Math.Abs(diff) <= step ? goal : npc.Facing + (System.Math.Sign(diff) * step);
     }
 
     /// <summary>Personal space between two people, as a fraction of their combined size (a 0.92–1.08 settler
@@ -801,13 +821,13 @@ public sealed partial class GameServer
     {
         foreach (var session in JoinedInActiveWorld())
         {
-            Send(session, new NpcList { Npcs = NpcsInReachOf(session) });
+            Send(session, new NpcList { Npcs = NpcsInReachOf(session), ServerTime = SnapshotTime });
         }
     }
 
     private void SendNpcs(PlayerSession session)
     {
-        Send(session, new NpcList { Npcs = NpcsInReachOf(session) });
+        Send(session, new NpcList { Npcs = NpcsInReachOf(session), ServerTime = SnapshotTime });
         MigrateSettlementMemory(session); // #2598: old shared villager entries become people (once per settlement)
         SendNpcStandings(session); // #1118: the receiver's relationship stages for these NPCs
     }
@@ -843,6 +863,8 @@ public sealed partial class GameServer
         Y = n.Pos.Y,
         Z = n.Pos.Z,
         Facing = n.Facing,
+        VelX = n.TickVel.Velocity.X, // #2666: the client's interpolation tangent (horizontal only)
+        VelZ = n.TickVel.Velocity.Z,
         Size = n.Size,
         SkinRgb = n.SkinRgb,
         OutfitRgb = n.OutfitRgb,

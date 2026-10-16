@@ -228,6 +228,9 @@ internal sealed class LoadedWorld
     public bool CreatureListDirty { get; set; }
     public bool NpcListDirty { get; set; }
 
+    /// <summary>#2665: server uptime of this world's last creature motion frame (the 7.5 Hz stream).</summary>
+    public double CreatureMotionSentAt { get; set; } = double.NegativeInfinity;
+
     /// <summary>#1532: the encoded ChunkDataMessage per chunk, valid for one chunk version and codec format —
     /// co-located players and a re-stream after a sweep reuse the bytes instead of re-encoding.</summary>
     public Dictionary<ChunkCoord, (long Version, bool Json, byte[] Payload)> ChunkPayloads { get; } = new();

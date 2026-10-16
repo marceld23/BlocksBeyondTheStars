@@ -1875,6 +1875,17 @@ public sealed class NetCombatEntity
     /// <summary>#2357: the heading (degrees about Y, the client's Euler Y) of an entity that flies a real hull — the
     /// raider turns its voxel ship toward its course. 0 for everything else. Contractless-additive like <see cref="Scale"/>.</summary>
     public float Yaw { get; set; }
+
+    /// <summary>#2670: a planet machine's or bandit's real velocity over the last server tick (blocks/s) — the tangent of the
+    /// client's interpolation curve. 0 in space and for anything that did not move. Contractless-additive like
+    /// <see cref="Scale"/>.</summary>
+    public float VelX { get; set; }
+
+    /// <inheritdoc cref="VelX"/>
+    public float VelY { get; set; }
+
+    /// <inheritdoc cref="VelX"/>
+    public float VelZ { get; set; }
 }
 
 /// <summary>Authoritative ship hull/shield, sent on join and whenever they change.</summary>
@@ -2207,6 +2218,10 @@ public sealed class WreckRepairStatus
 public sealed class PlanetEnemyList
 {
     public NetCombatEntity[] Enemies { get; set; } = System.Array.Empty<NetCombatEntity>();
+
+    /// <summary>#2670: the server clock of the tick these positions belong to (see <see cref="CreatureList.ServerTime"/>).
+    /// Additive: an older server sends 0 and the client stamps on arrival.</summary>
+    public double ServerTime { get; set; }
 }
 
 /// <summary>A planet enemy was defeated.</summary>
@@ -2359,8 +2374,21 @@ public sealed class NetCreature
     public float WormGirth { get; set; }
 
     /// <summary>The server's heading (radians, dirX = cos, dirZ = sin) — a giant turns in arcs, so the client does
-    /// not guess it from the ~2 Hz positions.</summary>
+    /// not guess it from the ~2 Hz positions. Since #2665 filled for every creature (its locomotion heading), which the
+    /// client turns a standing body toward.</summary>
     public float Facing { get; set; }
+
+    /// <summary>#2665: the creature's real velocity over the last server tick (blocks/s), whatever moved it — the client's
+    /// interpolator uses it as the curve's tangent. 0 after a teleport-sized move. Additive: an older server leaves all
+    /// three at 0 (and sends no <see cref="CreatureList.ServerTime"/>, which tells the client to take tangents from the
+    /// positions instead).</summary>
+    public float VelX { get; set; }
+
+    /// <inheritdoc cref="VelX"/>
+    public float VelY { get; set; }
+
+    /// <inheritdoc cref="VelX"/>
+    public float VelZ { get; set; }
 
     /// <summary>What the giant is doing: "walk", "stand", "stomp" (colossus); "hidden", "approach", "breach", "rear"
     /// (sandworm). Empty for every other creature.</summary>
@@ -2431,6 +2459,58 @@ public sealed class WorldFx
 public sealed class CreatureList
 {
     public NetCreature[] Creatures { get; set; } = System.Array.Empty<NetCreature>();
+
+    /// <summary>#2665: the server clock (uptime, seconds) of the tick these positions belong to — the client stamps its
+    /// interpolation snapshots with it, so arrival jitter does not bend the motion. Additive: an older server sends 0 and
+    /// the client stamps on arrival; an older client ignores it.</summary>
+    public double ServerTime { get; set; }
+}
+
+/// <summary>
+/// #2665: the compact, frequent creature position stream — every second server tick (7.5 Hz at 15 Hz), per player, for the
+/// animals within <c>CreatureMotionRange</c> of that player. The heavy <see cref="CreatureList"/> (appearance, traits,
+/// names) keeps its 2 Hz beat; this carries only what the client's interpolator needs, packed as fixed-point integers
+/// (<see cref="Stride"/> per creature, in <see cref="Ids"/> order) so both the MessagePack and the browser JSON form stay
+/// small. New message class: an older client drops the unknown tag and keeps interpolating the 2 Hz list.
+/// </summary>
+public sealed class CreatureMotionFrame
+{
+    /// <summary>Integers per creature in <see cref="Data"/>: X, Y, Z, VelX, VelY, VelZ, Facing, Flags.</summary>
+    public const int Stride = 8;
+
+    /// <summary>Positions travel in hundredths of a block.</summary>
+    public const float PositionScale = 100f;
+
+    /// <summary>Velocities travel in hundredths of a block per second.</summary>
+    public const float VelocityScale = 100f;
+
+    /// <summary>The heading travels in thousandths of a radian (dirX = cos, dirZ = sin, as <see cref="NetCreature.Facing"/>).</summary>
+    public const float FacingScale = 1000f;
+
+    /// <summary>Flag bit: in the air (a walker mid-jump/fall, a flier off its perch, a hoverer) — <see cref="NetCreature.Airborne"/>.</summary>
+    public const int FlagAirborne = 1;
+
+    /// <summary>Flag bit: a flier sitting on its perch — <see cref="NetCreature.Perched"/>.</summary>
+    public const int FlagPerched = 2;
+
+    /// <summary>The server clock of the tick (see <see cref="CreatureList.ServerTime"/>).</summary>
+    public double ServerTime { get; set; }
+
+    /// <summary>The creature ids, one per <see cref="Stride"/> integers of <see cref="Data"/>.</summary>
+    public string[] Ids { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>The packed motion, <see cref="Stride"/> integers per id.</summary>
+    public int[] Data { get; set; } = System.Array.Empty<int>();
+
+    /// <summary>A float as a fixed-point integer (rounded, clamped to the integer range).</summary>
+    public static int ToFixed(float value, float scale)
+    {
+        double v = System.Math.Round((double)value * scale);
+        return v >= int.MaxValue ? int.MaxValue : v <= int.MinValue ? int.MinValue : (int)v;
+    }
+
+    /// <summary>The float a fixed-point integer stands for.</summary>
+    public static float FromFixed(int value, float scale) => value / scale;
 }
 
 // --- Creature taming + companions (design: docs/developer/CREATURE_TAMING.md) ---

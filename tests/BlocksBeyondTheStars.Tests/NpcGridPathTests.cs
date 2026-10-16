@@ -157,4 +157,133 @@ public sealed class NpcGridPathTests
         var simple = NpcGridPath.Simplify(straight, new Vector3i(0, 0, 0));
         Assert.Equal(new[] { new Vector3i(3, 0, 0), new Vector3i(3, 0, 2) }, simple);
     }
+
+    // ---------------- #2669: string-pulling ----------------
+
+    private static List<Vector3i> Smooth(Grid g, Vector3i start, List<Vector3i> cells)
+        => NpcGridPath.Smooth(cells, start, g.Standable, g.Doors.Contains);
+
+    /// <summary>Every straight segment of a smoothed route clears a body of the smoothing width: sampled finely along the
+    /// centre line and both swath edges, every touched cell is standable at the segment's level.</summary>
+    private static void AssertSegmentsWalkable(Grid g, Vector3i start, List<Vector3i> waypoints)
+    {
+        var prev = start;
+        foreach (var w in waypoints)
+        {
+            if (w.Y == prev.Y)
+            {
+                double dx = w.X - prev.X, dz = w.Z - prev.Z, len = System.Math.Sqrt((dx * dx) + (dz * dz));
+                double nx = len > 0 ? -dz / len * NpcGridPath.SmoothHalfWidth : 0, nz = len > 0 ? dx / len * NpcGridPath.SmoothHalfWidth : 0;
+                for (int s = 0; s <= 200; s++)
+                {
+                    double f = s / 200.0;
+                    foreach (int side in new[] { -1, 0, 1 })
+                    {
+                        double x = prev.X + 0.5 + (dx * f) + (side * nx * 0.99), z = prev.Z + 0.5 + (dz * f) + (side * nz * 0.99);
+                        var c = new Vector3i((int)System.Math.Floor(x), prev.Y, (int)System.Math.Floor(z));
+                        Assert.True(g.Standable(c), $"segment {prev}→{w} crosses {c}");
+                    }
+                }
+            }
+            else
+            {
+                Assert.Equal(1, System.Math.Abs(w.X - prev.X) + System.Math.Abs(w.Z - prev.Z)); // a step stays the search's move
+            }
+
+            prev = w;
+        }
+    }
+
+    [Fact]
+    public void OpenSquare_TheDiagonalWalkIsOneStraightLine_NotAStaircase()
+    {
+        var g = new Grid();
+        var start = new Vector3i(0, 0, 0);
+        var cells = Find(g, start, new Vector3i(9, 0, 7))!;
+        Assert.True(NpcGridPath.Simplify(cells, start).Count > 2, "the grid route itself is a staircase");
+
+        var smooth = Smooth(g, start, cells);
+        Assert.Equal(2, smooth.Count); // the first cell (the walker may stand anywhere in its own), then straight on
+        Assert.Equal(cells[0], smooth[0]);
+        Assert.Equal(cells[^1], smooth[1]);
+        AssertSegmentsWalkable(g, start, smooth);
+    }
+
+    [Fact]
+    public void AroundAWall_TheSmoothedRouteStillNeverCrossesIt()
+    {
+        var g = new Grid();
+        for (int z = -4; z <= 4; z++)
+        {
+            g.Wall(4, z);
+        }
+
+        var start = new Vector3i(0, 0, 0);
+        var cells = Find(g, start, new Vector3i(8, 0, 1))!;
+        var smooth = Smooth(g, start, cells);
+        Assert.True(smooth.Count < NpcGridPath.Simplify(cells, start).Count, "smoothing should drop some corners");
+        AssertSegmentsWalkable(g, start, smooth);
+    }
+
+    [Fact]
+    public void AWallCorner_IsNotGrazed_TheLineKeepsTheBodyWidthAway()
+    {
+        // A short wall: the straight line from start to goal would scrape its end block.
+        var g = new Grid();
+        g.Wall(3, 3);
+        g.Wall(3, 4);
+        g.Wall(3, 5);
+        var start = new Vector3i(0, 0, 0);
+        var cells = Find(g, start, new Vector3i(6, 0, 6))!;
+        AssertSegmentsWalkable(g, start, Smooth(g, start, cells));
+    }
+
+    [Fact]
+    public void ADoorway_IsPassedStraightThrough_NeverDiagonally()
+    {
+        var g = new Grid();
+        for (int z = -6; z <= 6; z++)
+        {
+            g.Wall(3, z);
+        }
+
+        g.Solid.Remove(new Vector3i(3, 0, 0));
+        g.Solid.Remove(new Vector3i(3, 1, 0));
+        g.Doors.Add(new Vector3i(3, 0, 0));
+        var start = new Vector3i(0, 0, -3);
+        var cells = Find(g, start, new Vector3i(7, 0, 3))!;
+        var smooth = Smooth(g, start, cells);
+        AssertSegmentsWalkable(g, start, smooth);
+
+        // A segment that reaches into or across the door column does so along the door's own row.
+        var prev = start;
+        foreach (var w in smooth)
+        {
+            if (prev.X != w.X && System.Math.Min(prev.X, w.X) <= 3 && System.Math.Max(prev.X, w.X) >= 3)
+            {
+                Assert.True(prev.Z == 0 && w.Z == 0, $"segment {prev}→{w} takes the doorway at an angle");
+            }
+
+            prev = w;
+        }
+    }
+
+    [Fact]
+    public void Steps_StayWaypoints_TheLevelStretchesAroundThemArePulledStraight()
+    {
+        var g = new Grid();
+        // A platform one block up for x ≥ 5: the step stays an orthogonal move from the cell beside it.
+        for (int x = 5; x <= 12; x++)
+            for (int z = -8; z <= 8; z++)
+            {
+                g.Solid.Add(new Vector3i(x, 0, z));
+            }
+
+        var start = new Vector3i(0, 0, -4);
+        var cells = Find(g, start, new Vector3i(10, 1, 4))!;
+        var smooth = Smooth(g, start, cells);
+        AssertSegmentsWalkable(g, start, smooth);
+        Assert.Contains(smooth, w => w.Y == 1);
+        Assert.Equal(cells[^1], smooth[^1]);
+    }
 }

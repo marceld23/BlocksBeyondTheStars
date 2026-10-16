@@ -616,6 +616,10 @@ public static class NetCodec
         // ShipAiLine and the tutorial button).
         Register(299, typeof(ObjectiveList));                // Server -> Client
         Register(300, typeof(StoryPackStates));              // Server -> Client
+
+        // #2665 the creature motion stream: compact 7.5 Hz positions + velocities of the animals near a player. No protocol
+        // bump — an older client drops the unknown tag and keeps interpolating the 2 Hz CreatureList.
+        Register(301, typeof(CreatureMotionFrame));          // Server -> Client
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

@@ -30,6 +30,15 @@ public sealed class NetNpc
     /// <summary>Facing yaw in radians — the avatar turns toward a nearby player, else its stroll heading.</summary>
     public float Facing { get; set; }
 
+    /// <summary>#2666: the NPC's horizontal velocity over the last server tick (blocks/s) — the tangent of the client's
+    /// interpolation curve (the vertical one stays zero, so a step up eases instead of overshooting). Additive
+    /// (contractless): an older server leaves both at 0 and sends no <see cref="NpcList.ServerTime"/>, which tells the
+    /// client to take tangents from the positions.</summary>
+    public float VelX { get; set; }
+
+    /// <inheritdoc cref="VelX"/>
+    public float VelZ { get; set; }
+
     /// <summary>Avatar build hints: humanoid scale, skin/outfit/legs tint, and organic-vs-android body.
     /// <c>LegsRgb</c> is additive (contractless MessagePack): 0 = unset, the client derives legs from the
     /// outfit colour as before.</summary>
@@ -65,4 +74,8 @@ public sealed class NetNpc
 public sealed class NpcList
 {
     public NetNpc[] Npcs { get; set; } = System.Array.Empty<NetNpc>();
+
+    /// <summary>#2666: the server clock of the tick these positions belong to (see <c>CreatureList.ServerTime</c>).
+    /// Additive: an older server sends 0 and the client stamps on arrival.</summary>
+    public double ServerTime { get; set; }
 }

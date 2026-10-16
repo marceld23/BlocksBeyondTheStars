@@ -192,6 +192,158 @@ public static class NpcGridPath
         return result;
     }
 
+    /// <summary>Half the width of the strip a smoothed segment must clear (blocks). A person is ~0.6 wide, but the follower
+    /// also leaves a waypoint up to its arrival radius (0.45) early, so the strip covers that drift, not just the body.</summary>
+    public const float SmoothHalfWidth = 0.45f;
+
+    /// <summary>
+    /// String-pulling (#2669): the waypoints of <paramref name="cells"/> (a <see cref="Find"/> result) with every stretch on
+    /// one level pulled straight. The search moves in four directions only, so a walk across an open square came out as a
+    /// staircase of 90° corners; here each kept waypoint reaches ahead to the farthest later cell of the same level that a
+    /// strip <see cref="SmoothHalfWidth"/> to each side can walk to in a straight line (the first leg stays the move to the
+    /// neighbour of the start cell) — every cell the body's swath touches must be
+    /// <paramref name="standable"/>, a line through a grid corner checks both cells beside it, and a
+    /// <paramref name="door"/> is only passed straight through its own row or column. Height changes stay exactly as the
+    /// search found them (the cell before the step and the step itself), so the route never clips a wall or a ledge the
+    /// grid route avoided.
+    /// </summary>
+    public static List<Vector3i> Smooth(List<Vector3i> cells, Vector3i start, Func<Vector3i, bool> standable, Func<Vector3i, bool>? door)
+    {
+        var result = new List<Vector3i>();
+        var standCache = new Dictionary<Vector3i, bool>();
+        bool Stand(Vector3i c)
+        {
+            if (!standCache.TryGetValue(c, out bool v))
+            {
+                standCache[c] = v = standable(c);
+            }
+
+            return v;
+        }
+
+        if (cells.Count == 0)
+        {
+            return result;
+        }
+
+        // The walker stands anywhere in its start cell, not at its centre: its first leg stays the search's own move to the
+        // neighbour (the 2×1 box of the two cells holds that line from any point of the start cell); pulling starts there.
+        result.Add(cells[0]);
+        var anchor = cells[0];
+        int i = 1;
+        while (i < cells.Count)
+        {
+            if (cells[i].Y != anchor.Y)
+            {
+                result.Add(cells[i]); // the step itself, from the cell beside it — exactly the search's move
+                anchor = cells[i];
+                i++;
+                continue;
+            }
+
+            int k = i;
+            while (k + 1 < cells.Count && cells[k + 1].Y == anchor.Y)
+            {
+                k++;
+            }
+
+            int j = i;
+            for (int t = i + 1; t <= k; t++)
+            {
+                if (!StraightClear(anchor, cells[t], Stand, door))
+                {
+                    break;
+                }
+
+                j = t;
+            }
+
+            result.Add(cells[j]);
+            anchor = cells[j];
+            i = j + 1;
+        }
+
+        return result;
+    }
+
+    /// <summary>Whether a body walks in a straight line from the centre of <paramref name="a"/> to the centre of
+    /// <paramref name="b"/> (same level): its centre line and both edges of its swath cross standable cells only.</summary>
+    private static bool StraightClear(Vector3i a, Vector3i b, Func<Vector3i, bool> stand, Func<Vector3i, bool>? door)
+    {
+        int ddx = b.X - a.X, ddz = b.Z - a.Z;
+        if (Math.Abs(ddx) + Math.Abs(ddz) <= 1)
+        {
+            return true; // a neighbour — the search's own move
+        }
+
+        bool axis = ddx == 0 || ddz == 0;
+        double len = Math.Sqrt((ddx * ddx) + (ddz * ddz));
+        double nx = -ddz / len * SmoothHalfWidth, nz = ddx / len * SmoothHalfWidth;
+        double ax = a.X + 0.5, az = a.Z + 0.5, bx = b.X + 0.5, bz = b.Z + 0.5;
+        bool Cell(int x, int z)
+        {
+            var c = new Vector3i(x, a.Y, z);
+            return stand(c) && (axis || door == null || !door(c));
+        }
+
+        return Traverse(ax, az, bx, bz, Cell)
+            && Traverse(ax + nx, az + nz, bx + nx, bz + nz, Cell)
+            && Traverse(ax - nx, az - nz, bx - nx, bz - nz, Cell);
+    }
+
+    /// <summary>Visits every grid cell the segment crosses (Amanatides–Woo), both side cells where it passes exactly
+    /// through a corner; false as soon as one is not <paramref name="ok"/>.</summary>
+    private static bool Traverse(double x0, double z0, double x1, double z1, Func<int, int, bool> ok)
+    {
+        int cx = (int)Math.Floor(x0), cz = (int)Math.Floor(z0);
+        int ex = (int)Math.Floor(x1), ez = (int)Math.Floor(z1);
+        if (!ok(cx, cz))
+        {
+            return false;
+        }
+
+        double dx = x1 - x0, dz = z1 - z0;
+        int sx = Math.Sign(dx), sz = Math.Sign(dz);
+        double tDeltaX = sx != 0 ? Math.Abs(1.0 / dx) : double.PositiveInfinity;
+        double tDeltaZ = sz != 0 ? Math.Abs(1.0 / dz) : double.PositiveInfinity;
+        double tMaxX = sx > 0 ? (cx + 1 - x0) / dx : sx < 0 ? (x0 - cx) / -dx : double.PositiveInfinity;
+        double tMaxZ = sz > 0 ? (cz + 1 - z0) / dz : sz < 0 ? (z0 - cz) / -dz : double.PositiveInfinity;
+        // Step while the next cell border is still on the segment (t ≤ 1) — robust against rounding, unlike walking
+        // until the end cell is hit; the end cell is checked explicitly below.
+        for (int guard = 0; Math.Min(tMaxX, tMaxZ) <= 1.0 - 1e-9 && guard < 4096; guard++)
+        {
+            if (Math.Abs(tMaxX - tMaxZ) < 1e-9)
+            {
+                if (!ok(cx + sx, cz) || !ok(cx, cz + sz))
+                {
+                    return false; // squeezing through a corner touches both cells beside it
+                }
+
+                cx += sx;
+                cz += sz;
+                tMaxX += tDeltaX;
+                tMaxZ += tDeltaZ;
+            }
+            else if (tMaxX < tMaxZ)
+            {
+                cx += sx;
+                tMaxX += tDeltaX;
+            }
+            else
+            {
+                cz += sz;
+                tMaxZ += tDeltaZ;
+            }
+
+            if (!ok(cx, cz))
+            {
+                return false;
+            }
+        }
+
+        return ok(ex, ez);
+    }
+
     private static bool Reached(Vector3i cell, Vector3i goal)
         => Math.Abs(cell.X - goal.X) <= 1 && Math.Abs(cell.Z - goal.Z) <= 1 && Math.Abs(cell.Y - goal.Y) <= 1
            && (cell.X == goal.X || cell.Z == goal.Z); // beside, not diagonally across a corner
