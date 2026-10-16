@@ -32,8 +32,15 @@ public sealed partial class GameServer
     private const double AirTickBudgetMs = 2.0;
 
     /// <summary>Span expansions each pending fill gets per tick from the tick driver even with the budget spent, so a fill
-    /// always finishes.</summary>
-    private const int AirMinSpansPerTick = 64;
+    /// always finishes — and finishes after the same number of ticks on a fast and on a loaded machine for an ordinary
+    /// room: the time budget alone made the outcome depend on the clock (a cold JIT or a busy CI runner spent it before the
+    /// first span). About a millisecond of work for ordinary rooms.</summary>
+    private const int AirMinSpansPerTick = 1024;
+
+    /// <summary>Span expansions a group's FIRST fill always gets at once, whatever the clock says (see
+    /// <see cref="AirMinSpansPerTick"/>): an ordinary base — a few thousand columns — is answered right away and
+    /// deterministically; only a huge one goes on sliced.</summary>
+    private const int AirFirstFillMinSpans = 8192;
 
     /// <summary>The emergency brake of an on-demand diagnosis fill (a player walking out of base air, <c>/basewalls</c>,
     /// a leak warning): it runs at once, so it is held to a few milliseconds. Past it the room reads unknown.</summary>
@@ -51,6 +58,8 @@ public sealed partial class GameServer
 
     private double _airTickBudgetMs = AirTickBudgetMs;
     private double _airFirstFillBudgetMs = AirFirstFillBudgetMs;
+    private int _airMinSpansPerTick = AirMinSpansPerTick;
+    private int _airFirstFillMinSpans = AirFirstFillMinSpans;
     private AirFillLimits _airLimits = AirDefaultLimits;
     private double _airBudgetStamp = double.NaN;
     private long _airBudgetLeft;
@@ -79,6 +88,20 @@ public sealed partial class GameServer
     {
         get => _airFirstFillBudgetMs;
         set => _airFirstFillBudgetMs = value;
+    }
+
+    /// <summary>Test seam: the span expansions the tick driver guarantees each pending fill per tick.</summary>
+    internal int AirMinSpansPerTickForTest
+    {
+        get => _airMinSpansPerTick;
+        set => _airMinSpansPerTick = value;
+    }
+
+    /// <summary>Test seam: the span expansions a group's first fill always gets at once.</summary>
+    internal int AirFirstFillMinSpansForTest
+    {
+        get => _airFirstFillMinSpans;
+        set => _airFirstFillMinSpans = value;
     }
 
     /// <summary>Test seam (#2650): the per-room emergency brake of the group and station fills (the run's brake keeps its
@@ -116,7 +139,7 @@ public sealed partial class GameServer
         }
 
         long t0 = Stopwatch.GetTimestamp();
-        fill.Step(complete ? -1 : System.Math.Max(0, left), guaranteeProgress ? AirMinSpansPerTick : 0);
+        fill.Step(complete ? -1 : System.Math.Max(0, left), guaranteeProgress ? _airMinSpansPerTick : 0);
         _airBudgetLeft -= Stopwatch.GetTimestamp() - t0;
     }
 
@@ -126,7 +149,7 @@ public sealed partial class GameServer
     {
         long t0 = Stopwatch.GetTimestamp();
         AirBudgetLeft();
-        fill.Step((long)(_airFirstFillBudgetMs * Stopwatch.Frequency / 1000.0));
+        fill.Step((long)(_airFirstFillBudgetMs * Stopwatch.Frequency / 1000.0), _airFirstFillMinSpans);
         _airBudgetLeft -= Stopwatch.GetTimestamp() - t0;
     }
 
