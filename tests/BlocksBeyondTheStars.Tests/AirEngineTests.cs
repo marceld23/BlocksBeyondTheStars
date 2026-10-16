@@ -343,6 +343,82 @@ public sealed class AirEngineTests
     }
 
     [Fact]
+    public void ThePerRoomBrake_StopsOnlyTheHugeRoom_TheOthersAreJudgedAsUsual()
+    {
+        // A small room and a huge hall, each seeded: the hall passes the per-room brake and is unknown, the small room still
+        // seals — the run goes on (#2649 review: a braked first fill used to leave a base without any room).
+        var space = new GridSpace(80, 30, 80);
+        space.Shell(1, 8, 1, 6, 1, 8);    // small room, 6 × 4 × 6
+        space.Shell(10, 78, 1, 25, 1, 78); // hall, ~105 000 cells
+        var fill = new AirFill(space, new AirFillLimits(10_000, 1_000_000, 10_000_000, 10_000_000), chainDoors: false,
+            new Vector3i(0, 0, 0));
+        fill.AddSeed(new Vector3i(40, 10, 40));
+        fill.AddSeed(new Vector3i(4, 3, 4));
+        fill.AddSeed(new Vector3i(70, 20, 70)); // a second seed in the braked hall: joins it, stays unknown
+        fill.Step(-1);
+
+        Assert.False(fill.Braked);
+        Assert.True(fill.PocketAt(40, 10, 40)!.Braked);
+        Assert.True(fill.PocketAt(4, 3, 4)!.Sealed);
+        Assert.False(fill.PocketAt(70, 20, 70) is { Sealed: true }, "a seed meeting the braked hall never reads as a sealed room");
+        Assert.True(fill.SawUnknown);
+    }
+
+    [Fact]
+    public void ABreachedRoom_IsNeverCarriedOver_EvenWhileSomethingElseIsUnknown()
+    {
+        // #2649 review: a sealed 30 × 30 × 4 hall loses one wall block next to its seed; its leaky fill stops after a few
+        // spans. Another room borders unloaded cells, so the fill "saw unknown" — the hall must still lose ALL its air.
+        var space = new GridSpace(60, 40, 40);
+        space.Shell(1, 32, 1, 6, 1, 32);  // the hall: interior x 2..31, y 2..5, z 2..31
+        space.Shell(40, 46, 1, 6, 1, 8);  // a small room …
+        for (int y = 0; y < 40; y++)
+            for (int z = 0; z < 40; z++)
+            {
+                space.SetUnknown(46, y, z); // … whose east wall lies in an unloaded chunk
+            }
+
+        Vector3i hallSeed = new(3, 3, 3), roomSeed = new(42, 3, 4);
+        var before = new AirFill(space, Generous, chainDoors: false, new Vector3i(0, 0, 0));
+        before.AddSeed(hallSeed);
+        before.AddSeed(roomSeed);
+        before.Step(-1);
+        Assert.True(before.PocketAt(30, 3, 30)!.Sealed);
+
+        space.SetOpen(1, 3, 3); // one wall block beside the seed
+        var after = new AirFill(space, Generous, chainDoors: false, new Vector3i(0, 0, 0));
+        after.AddSeed(hallSeed);
+        after.AddSeed(roomSeed);
+        after.Step(-1);
+        Assert.True(after.SawUnknown);
+        Assert.True(after.PocketAt(hallSeed)!.Leaky);
+        after.AdoptSealedFrom(before);
+        Assert.False(after.PocketAt(30, 3, 30) is { Sealed: true }, "the far end of the breached hall keeps no air");
+        Assert.True(after.PocketAt(roomSeed)!.Sealed);
+    }
+
+    [Fact]
+    public void ARoomWhoseDoorWasRemoved_IsNotCarriedOver()
+    {
+        var (space, _) = TwoRooms();
+        var before = FillFrom(space, new Vector3i(4, 6, 4), chain: true);
+        Assert.True(before.PocketAt(11, 6, 4)!.Sealed);
+
+        // The door goes (walled up): room B is no base room any more. Something elsewhere is unknown (a seed in an unloaded
+        // cell), which must not keep B's air.
+        space.SetWall(8, 6, 5);
+        space.SetWall(8, 7, 5);
+        space.SetUnknown(15, 6, 4);
+        var after = new AirFill(space, Generous, chainDoors: true, new Vector3i(0, 0, 0));
+        after.AddSeed(new Vector3i(4, 6, 4));
+        after.AddSeed(new Vector3i(15, 6, 4));
+        after.Step(-1);
+        Assert.True(after.SawUnknown);
+        after.AdoptSealedFrom(before);
+        Assert.Null(after.PocketAt(11, 6, 4));
+    }
+
+    [Fact]
     public void RoomsTheNewFillCannotReach_AreCarriedOver_WhenUnloadedCellsHidThem()
     {
         var (space, _) = TwoRooms();

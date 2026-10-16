@@ -60,12 +60,13 @@ public sealed class PlayerStationReportsTests : IDisposable
         public void Dispose() { }
     }
 
-    private SvGameServer NewServer(string name, out SqliteWorldRepository repo, IServerTransport? transport = null, bool placeStarterShip = false)
+    private SvGameServer NewServer(string name, out SqliteWorldRepository repo, IServerTransport? transport = null, bool placeStarterShip = false,
+        IGameLogger? logger = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var config = new ServerConfig { WorldName = name, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = placeStarterShip };
         config.Rules.FreeSpaceFlight = true;
-        var server = new SvGameServer(config, _content, transport ?? new LoopbackServerTransport(new LoopbackLink()), repo);
+        var server = new SvGameServer(config, _content, transport ?? new LoopbackServerTransport(new LoopbackLink()), repo, logger);
         server.Start();
         return server;
     }
@@ -524,6 +525,43 @@ public sealed class PlayerStationReportsTests : IDisposable
             Assert.False(server.StationCellSealedForTest(id, inHall), "a hole to the void still leaks");
             var warning = Assert.Single(HullWarnings(transport));
             Assert.Contains("at 30/106/30, 40 blocks above you", warning, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>Keeps the server's warnings, so a test can count how often the air brake was logged.</summary>
+    private sealed class RecordingLog : IGameLogger
+    {
+        public readonly System.Collections.Concurrent.ConcurrentQueue<string> Warnings = new();
+
+        public void Info(string message) { }
+        public void Warn(string message) => Warnings.Enqueue(message);
+        public void Error(string message) { }
+    }
+
+    [Fact]
+    public void AStationRoomPastTheBrake_KeepsItsLastAir_AndTheBrakeIsLoggedOnce()
+    {
+        // #2649 review: a station room the brake stopped read as "no air", nothing was logged, and the stall came back with
+        // every backstop. Now the room keeps its last known air, the brake is logged once, and a backstop refill does not
+        // fill it again.
+        var log = new RecordingLog();
+        var server = NewServer("stationbrake", out var repo, logger: log);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildSealedBox(server, pilot);
+            BoardOwnStation(server, "Owner", id);
+            var inside = BoxWorld(1, -1, 0);
+            Assert.True(server.StationCellSealedForTest(id, inside));
+
+            server.SetAirBrakeForTest(maxCells: 10, maxSpans: 1_000); // the 26-cell room is past this brake now
+            server.World.SetBlock(BoxWorld(-1, 1, -1), _content.GetBlock("iron_wall")!.NumericId); // a block set: a refill
+            Assert.True(server.StationCellSealedForTest(id, inside), "the braked room keeps its last known air");
+            Assert.True(server.StationAirBrakedForTest(id));
+
+            server.AdvanceUptimeForTest(10); // the backstop: another refill
+            Assert.True(server.StationCellSealedForTest(id, inside));
+            Assert.Single(log.Warnings, w => w.StartsWith("Station air", StringComparison.Ordinal));
         }
     }
 

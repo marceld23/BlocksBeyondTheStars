@@ -39,11 +39,19 @@ public sealed partial class GameServer
     /// a leak warning): it runs at once, so it is held to a few milliseconds. Past it the room reads unknown.</summary>
     private static readonly AirFillLimits AirLocateLimits = new(400_000, 40_000);
 
-    /// <summary>Blocks above a base's highest build where its sky line starts at the least (#2651).</summary>
+    /// <summary>Blocks above a base's highest build where its sky line starts at the least (#2651) — per chunk column too.</summary>
     private const int BaseAirSkyMargin = 4;
 
+    /// <summary>Milliseconds a group's FIRST fill may work at once (#2649 review): it has no previous result to answer with,
+    /// so a typical base gets its answer right away, while a huge one goes on sliced instead of stalling the tick.</summary>
+    private const double AirFirstFillBudgetMs = 20.0;
+
+    private static readonly AirFillLimits AirDefaultLimits = new(WorldConstants.AirFillBrakeCells, WorldConstants.AirFillBrakeSpans,
+        WorldConstants.AirFillRunBrakeCells, WorldConstants.AirFillRunBrakeSpans);
+
     private double _airTickBudgetMs = AirTickBudgetMs;
-    private AirFillLimits _airLimits = new(WorldConstants.AirFillBrakeCells, WorldConstants.AirFillBrakeSpans);
+    private double _airFirstFillBudgetMs = AirFirstFillBudgetMs;
+    private AirFillLimits _airLimits = AirDefaultLimits;
     private double _airBudgetStamp = double.NaN;
     private long _airBudgetLeft;
     private bool[]? _airtightById;
@@ -66,8 +74,18 @@ public sealed partial class GameServer
         set => _airTickBudgetMs = value;
     }
 
-    /// <summary>Test seam (#2650): the emergency brake of the group and station fills.</summary>
-    internal void SetAirBrakeForTest(long maxCells, int maxSpans) => _airLimits = new AirFillLimits(maxCells, maxSpans);
+    /// <summary>Test seam (#2649 review): how long a group's first fill may work at once, in milliseconds.</summary>
+    internal double AirFirstFillBudgetMsForTest
+    {
+        get => _airFirstFillBudgetMs;
+        set => _airFirstFillBudgetMs = value;
+    }
+
+    /// <summary>Test seam (#2650): the per-room emergency brake of the group and station fills (the run's brake keeps its
+    /// default unless given).</summary>
+    internal void SetAirBrakeForTest(long maxCells, int maxSpans, long maxRunCells = 0, int maxRunSpans = 0)
+        => _airLimits = new AirFillLimits(maxCells, maxSpans,
+            maxRunCells > 0 ? maxRunCells : AirDefaultLimits.MaxRunCells, maxRunSpans > 0 ? maxRunSpans : AirDefaultLimits.MaxRunSpans);
 
     /// <summary>What is left of this tick's air budget, in Stopwatch ticks (renewed when the uptime moves on).</summary>
     private long AirBudgetLeft()
@@ -102,12 +120,33 @@ public sealed partial class GameServer
         _airBudgetLeft -= Stopwatch.GetTimestamp() - t0;
     }
 
+    /// <summary>The first step of a group's first fill (#2649 review): up to <see cref="AirFirstFillBudgetMs"/> at once,
+    /// whatever is left of the tick's budget — then the fill goes on sliced like any other.</summary>
+    private void StepFirstAirFill(AirFill fill)
+    {
+        long t0 = Stopwatch.GetTimestamp();
+        AirBudgetLeft();
+        fill.Step((long)(_airFirstFillBudgetMs * Stopwatch.Frequency / 1000.0));
+        _airBudgetLeft -= Stopwatch.GetTimestamp() - t0;
+    }
+
     /// <summary>Per-tick driver (#2650): moves every pending air fill of the active world — the base groups standing on it,
     /// the boarded station — and sends the base list where a finished fill changed a core's readout.</summary>
     private void TickAirFills(double dt)
     {
         _ = dt;
         string body = _world.LocationId;
+
+        // A group on a world that ticks is in use, asked or not (a player standing in the core zone never asks about rooms):
+        // only a body nobody occupies any more lets its groups go (#2649 review). Marked before the idle sweep runs.
+        foreach (var group in _baseAirGroups.Values)
+        {
+            if (group.Body == body)
+            {
+                group.LastUsed = _uptime;
+            }
+        }
+
         DropIdleBaseAir();
 
         // A snapshot: a commit or a broadcast below may resolve a base to a new group.
@@ -257,17 +296,21 @@ public sealed partial class GameServer
         private readonly List<List<Vector3i>> _doorLists;
         private readonly HashSet<ChunkCoord> _doorChunks = new();
         private readonly int _skyY;
+        private readonly int _skyMargin;
         private readonly int _floorY;
         private readonly System.Func<int, int, int> _columnTop;
         private int _colX = int.MinValue, _colZ = int.MinValue, _canonX, _canonZ;
+        private int _colSky;
+        private bool _colSkyValid;
         private ChunkCoord _chunkCoord;
         private ChunkData? _chunk;
         private bool _chunkValid, _chunkHasDoors;
 
         public PlanetAirSpace(ServerWorld world, bool[] airtight, bool[] doorBlock,
             (Dictionary<Vector3i, int> Cells, List<List<Vector3i>> PerDoor) doors, int skyY, int floorY,
-            System.Func<int, int, int> columnTop)
+            System.Func<int, int, int> columnTop, int skyMargin)
         {
+            _skyMargin = skyMargin;
             _world = world;
             _circ = world.Circumference;
             _airtight = airtight;
@@ -284,8 +327,28 @@ public sealed partial class GameServer
             _columnTop = columnTop;
         }
 
-        /// <summary>The sky line: an open cell at or above it is the outside.</summary>
+        /// <summary>The group's sky line: an open cell at or above it — and at or above its own column's line — is the outside.</summary>
         public int SkyY => _skyY;
+
+        /// <summary>Whether an open cell at height <paramref name="y"/> of the selected column is the outside: at or above
+        /// the group's sky line AND its chunk column's own line, the highest player edit there plus the margin (#2649
+        /// review) — a door-chained room past the reach cap or above the group's line is no sky to itself.</summary>
+        private bool AboveSkyLine(int y)
+        {
+            if (y < _skyY)
+            {
+                return false;
+            }
+
+            if (!_colSkyValid)
+            {
+                int top = _columnTop(_canonX >> 4, _canonZ >> 4);
+                _colSky = top == int.MinValue ? _skyY : System.Math.Max(_skyY, top + _skyMargin);
+                _colSkyValid = true;
+            }
+
+            return y >= _colSky;
+        }
 
         public AirCell Classify(int x, int y, int z)
         {
@@ -298,7 +361,7 @@ public sealed partial class GameServer
             var chunk = ChunkAt(y);
             if (chunk is null)
             {
-                return y >= _skyY ? AirCell.Sky : AirCell.Unknown;
+                return AboveSkyLine(y) ? AirCell.Sky : AirCell.Unknown;
             }
 
             int lx = _canonX & 15, ly = y & 15, lz = _canonZ & 15;
@@ -321,7 +384,7 @@ public sealed partial class GameServer
                 }
             }
 
-            return y >= _skyY ? AirCell.Sky : AirCell.Open;
+            return AboveSkyLine(y) ? AirCell.Sky : AirCell.Open;
         }
 
         public long ColumnKey(int x, int z)
@@ -379,8 +442,14 @@ public sealed partial class GameServer
             {
                 _colX = x;
                 _colZ = z;
-                _canonX = WorldConstants.WrapX(x, _circ);
-                _canonZ = WorldConstants.WrapZ(z, _circ);
+                int cx = WorldConstants.WrapX(x, _circ), cz = WorldConstants.WrapZ(z, _circ);
+                if ((cx >> 4) != (_canonX >> 4) || (cz >> 4) != (_canonZ >> 4))
+                {
+                    _colSkyValid = false; // a new chunk column: its own sky line is read again
+                }
+
+                _canonX = cx;
+                _canonZ = cz;
             }
         }
 

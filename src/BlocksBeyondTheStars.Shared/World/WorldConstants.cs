@@ -37,16 +37,25 @@ public static class WorldConstants
     /// hint and the server's authoritative checks can never disagree about the zone size.</summary>
     public const int BaseZoneRadius = 8;
 
-    /// <summary>The emergency brake of one air fill (#2650), in air cells — NOT a room size limit: since #2649 every enclosed
-    /// room breathes however big. A base or station fill that visits more than this (with <see cref="AirFillBrakeSpans"/>)
-    /// stops, keeps its previous result, logs once and never takes air from a player. Far beyond anything built by hand
-    /// (a 100 × 100 × 100 hall is one million cells); it only stops a pathological fill on small hardware. Replaces the old
-    /// 64 000-cell room budget (<c>BaseSealedRoomMaxCells</c>, #2539/#1559).</summary>
+    /// <summary>The emergency brake of the air fill per ROOM (#2650), in air cells — NOT a room size limit: since #2649 every
+    /// enclosed room breathes however big. A room whose fill passes this (or <see cref="AirFillBrakeSpans"/>) is stopped as
+    /// unknown: the base or station keeps what it knew about that room, logs once and never takes air from a player, while
+    /// the other rooms are filled as usual. Far beyond anything built by hand (a 100 × 100 × 100 hall is one million cells);
+    /// it only stops a pathological fill on small hardware. Replaces the old 64 000-cell room budget
+    /// (<c>BaseSealedRoomMaxCells</c>, #2539/#1559).</summary>
     public const int AirFillBrakeCells = 2_000_000;
 
-    /// <summary>The emergency brake of one air fill in vertical spans (the fill's unit, #2650): see
-    /// <see cref="AirFillBrakeCells"/>. About 5 MB of span records at the limit.</summary>
-    public const int AirFillBrakeSpans = 200_000;
+    /// <summary>The per-room emergency brake in vertical spans (the fill's unit, #2650): see <see cref="AirFillBrakeCells"/>.
+    /// A one-million-cell hall of 3-high decks is ~333 000 spans and still fits.</summary>
+    public const int AirFillBrakeSpans = 400_000;
+
+    /// <summary>The emergency brake of one whole fill run over all its rooms, in cells (#2650): past it the run stops and
+    /// the previous result is kept.</summary>
+    public const int AirFillRunBrakeCells = 4_000_000;
+
+    /// <summary>The emergency brake of one whole fill run in spans — the memory bound: about 48 bytes per span (the span
+    /// record plus its column's dictionary entry), so roughly 29 MB at the limit.</summary>
+    public const int AirFillRunBrakeSpans = 600_000;
 
     /// <summary>Half-extent (in blocks) around a base_core within which wild creature spawning is excluded.
     /// Shared so player-facing text and the server's authoritative spawn check use the same value.</summary>

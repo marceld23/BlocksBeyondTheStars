@@ -50,6 +50,12 @@ public sealed partial class GameServer
     /// chunks loading or unloading and alliances forming or breaking. A braked group waits for a real change instead.</summary>
     private const double BaseAirBackstopInterval = 8.0;
 
+    /// <summary>The longest the backstop grows to for a group whose expensive fills keep changing nothing (#2649 review).</summary>
+    private const double BaseAirBackstopMax = 32.0;
+
+    /// <summary>A fill holding at least this many cells counts as expensive for the backstop's backoff.</summary>
+    private const long BaseAirExpensiveFillCells = 100_000;
+
     /// <summary>Minimum seconds between two on-the-spot diagnoses for one player leaving base air (#2542).</summary>
     private const double BaseAirDiagnoseInterval = 3.0;
 
@@ -114,6 +120,7 @@ public sealed partial class GameServer
         public long Signature = long.MinValue;        // the partners' reaches + build tops at the last fill
         public bool Braked;                           // the last fill hit the emergency brake (#2650)
         public bool BrakeLogged;
+        public double Backstop = BaseAirBackstopInterval; // grows while expensive fills change nothing (#2649 review)
         public bool BroadcastPending;                 // the readout changed in a fill no query was waiting for
         public double LastUsed;
         public List<ServerBase> Partners = new();     // the bases whose cores supply, ordered by id
@@ -190,7 +197,10 @@ public sealed partial class GameServer
     {
         if (!_baseAirOf.TryGetValue(b.Id, out var known) || known.Body != b.Planet || known.Partners.Count == 0)
         {
-            return true;
+            // Not resolved yet (or dropped with a body left behind): only a question from inside its reach box resolves it —
+            // a creature check across the planet must not run a base's first fill (#2649 review). Arriving players resolve
+            // every base on the body anyway, through the base list.
+            return WithinBaseWallReach(b, canonical);
         }
 
         return known.Job is not null || known.Dirty || known.DoorsVersion != _baseAirDoorsVersion
@@ -285,11 +295,22 @@ public sealed partial class GameServer
             StartBaseAir(group, partners);
         }
 
-        if (group.Job is not null)
+        if (group.Job is { } job)
         {
-            // The very first fill of a group has no previous result to keep answering with: it runs to the end at once (a
-            // player arriving at their base must not stand in a room without air while it is sliced over ticks).
-            ContinueBaseAir(group, broadcastOnChange, complete || !group.Computed);
+            if (!complete && !group.Computed)
+            {
+                // The very first fill has no previous result to answer with: it works up to AirFirstFillBudgetMs at once,
+                // so a typical base answers right away; a huge one goes on sliced instead of stalling the tick.
+                StepFirstAirFill(job);
+                if (job.Done)
+                {
+                    CommitBaseAir(group, broadcastOnChange);
+                }
+            }
+            else
+            {
+                ContinueBaseAir(group, broadcastOnChange, complete);
+            }
         }
 
         return group;
@@ -310,7 +331,7 @@ public sealed partial class GameServer
     /// moved, or the backstop elapsed (#2543) — the backstop not for a braked group, which waits for a real change.</summary>
     private bool NeedsAirRefresh(BaseAirVolume vol)
         => vol.Dirty || vol.DoorsVersion != _baseAirDoorsVersion
-           || (!vol.Braked && _uptime - vol.ComputedAt >= BaseAirBackstopInterval)
+           || (!vol.Braked && _uptime - vol.ComputedAt >= vol.Backstop)
            || AirSignature(vol.Partners) != vol.Signature;
 
     /// <summary>The partners' reaches and build tops folded into one number — a change moves the seeds' boxes or the sky.</summary>
@@ -421,7 +442,7 @@ public sealed partial class GameServer
     {
         string body = _world.LocationId;
         return new PlanetAirSpace(_world, AirtightTable(), AirDoorBlockTable(), AllDoorCells(), skyY, MinBuildY,
-            (cx, cz) => AirColumnTop(body, cx, cz));
+            (cx, cz) => AirColumnTop(body, cx, cz), BaseAirSkyMargin);
     }
 
     /// <summary>Starts a group fill (#2651): seeds at every partner core's neighbours and on both sides of every door within
@@ -450,6 +471,7 @@ public sealed partial class GameServer
         }
 
         var doorSeeds = new List<Vector3i>();
+        var seededDoors = new HashSet<int>();
         for (int door = 0; door < _doors.Count; door++)
         {
             foreach (var c in space.DoorCells(door))
@@ -457,8 +479,20 @@ public sealed partial class GameServer
                 if (InAirBoxes(partners, reaches, c))
                 {
                     space.AddDoorSeeds(door, doorSeeds); // both sides: every door in reach is its own seed (#2653)
+                    seededDoors.Add(door);
                     break;
                 }
+            }
+        }
+
+        // The chain never breaks (#2653, review): every door that bordered a supplied room of the last result is a seed too,
+        // however far out — so in core → A → door beyond the reach box → B, a leak in A leaves B its air.
+        foreach (var c in group.DoorCells)
+        {
+            int door = space.DoorAt(c.X, c.Y, c.Z);
+            if (door >= 0 && seededDoors.Add(door))
+            {
+                space.AddDoorSeeds(door, doorSeeds);
             }
         }
 
@@ -504,15 +538,25 @@ public sealed partial class GameServer
             return;
         }
 
-        group.Braked = false;
+        // The per-room brake (#2650, review): a room past the brake is unknown — it keeps what the last result knew of it
+        // (carried below) while every other room is judged as usual; told once in the log, and the group then waits for a real
+        // change instead of filling that room again on every backstop.
+        group.Braked = job.BrakedPockets > 0;
+        if (group.Braked && !group.BrakeLogged)
+        {
+            group.BrakeLogged = true;
+            _log.Warn($"Base air: a room of bases {string.Join(",", group.Partners.Select(p => "#" + p.Id))} on {group.Body} " +
+                      $"passed the per-room emergency brake ({job.BrakedPockets} room(s)) — it keeps its last known air.");
+        }
+
         var old = group.Committed;
         var oldDoorCells = group.DoorCells;
         int oldRooms = group.Rooms;
         long oldCells = group.CellCount;
 
-        // Unknown is not a leak (#2650): where unloaded chunks kept this fill from rooms it found last time (a player far
-        // along a door chain, the core's chunks unloaded), those rooms keep their last known state.
-        if (old is not null && job.SawUnknown)
+        // Unknown is not a leak (#2650): rooms this fill could not look at because unloaded chunks or a braked room stood in
+        // the way keep their last known state — room by room, and never a room this fill found again (review).
+        if (old is not null)
         {
             job.AdoptSealedFrom(old);
         }
@@ -561,6 +605,14 @@ public sealed partial class GameServer
         group.Rooms = rooms;
         BaseAirCellsVisitedForTest = (int)System.Math.Min(int.MaxValue, job.CellCount);
         BaseAirSpansVisitedForTest = job.SpanCount;
+
+        // An expensive fill that changed nothing (a door into a huge natural cave whose far parts are unloaded) backs the
+        // backstop off, up to BaseAirBackstopMax; a change or a cheap fill resets it (#2649 review). Block sets, doors and
+        // reach changes still refill at once.
+        bool unchanged = group.CellCount == oldCells && rooms == oldRooms;
+        group.Backstop = unchanged && job.CellCount >= BaseAirExpensiveFillCells
+            ? System.Math.Min(group.Backstop * 2, BaseAirBackstopMax)
+            : BaseAirBackstopInterval;
 
         // Air just went away somewhere (a wall mined, a door pulled …): tell the players in the damaged rooms where it
         // gets out — but only where it matters, i.e. when the world's own air is NOT breathable and oxygen is on.
@@ -644,6 +696,9 @@ public sealed partial class GameServer
     /// committed answer as it stands.</summary>
     internal bool BaseAirSuppliesNowForTest(int baseId, Vector3i cell)
         => _baseAirOf.TryGetValue(baseId, out var g) && g.Supplies(WorldConstants.CanonicalBlock(cell, _world.Circumference));
+
+    /// <summary>Test seam (#2649 review): whether a base is resolved to a group right now (not dropped).</summary>
+    internal bool BaseAirGroupKnownForTest(int baseId) => _baseAirOf.ContainsKey(baseId);
 
     /// <summary>Test seam (#2650): whether a base's group stopped at the emergency brake.</summary>
     internal bool BaseAirBrakedForTest(int baseId) => _baseAirOf.TryGetValue(baseId, out var g) && g.Braked;
@@ -806,6 +861,13 @@ public sealed partial class GameServer
     /// ceiling, however leaky. Tree crowns do not count: standing under a tree outside is not standing in a room.</summary>
     private bool RoofAbove(Vector3i canonical, int skyY)
     {
+        // The column's own sky line (review): over a room above the group's line, look up to its own highest build too.
+        int top = AirColumnTop(_world.LocationId, canonical.X >> 4, canonical.Z >> 4);
+        if (top != int.MinValue)
+        {
+            skyY = System.Math.Max(skyY, top + BaseAirSkyMargin);
+        }
+
         for (int y = canonical.Y + 1; y < skyY; y++)
         {
             if (IsCollidingBlock(_world.GetBlockIfLoaded(new Vector3i(canonical.X, y, canonical.Z)), fluidsPass: false, foliagePasses: true))

@@ -50,6 +50,7 @@ public sealed partial class GameServer
         public bool Dirty;                                 // a block set inside the station since the last refill started
         public int DoorsVersion;                           // _baseAirDoorsVersion at the last refill
         public double StartedAt = double.NegativeInfinity; // when Committed (or the pending refill) started
+        public bool JobForChange;                          // the pending refill answers a block set or a door change
         public bool BrakeLogged;
     }
 
@@ -163,9 +164,11 @@ public sealed partial class GameServer
     {
         var vol = StationAirFor(station, complete: false);
         var space = vol.Space!;
-        if (vol.Committed!.PocketAt(cell) is { Complete: true } known)
+        if (vol.Committed!.PocketAt(cell) is { } known && (known.Complete || known.Braked))
         {
-            pocket = known; // a known room — also one carried over while its chunks are unloaded
+            // A known room — also one carried over while its chunks are unloaded, or one the brake stopped (unknown: no air
+            // to give that was never known, and no second fill of it on every question).
+            pocket = known;
             return known.Sealed;
         }
 
@@ -202,22 +205,45 @@ public sealed partial class GameServer
     }
 
     /// <summary>The known pocket holding an open cell, or — the first time anyone asks about that room — the pocket filled
-    /// from it right now (and queued for the pending refill too, so the next result knows it).</summary>
-    private static AirPocket? StationPocketAt(StationAirVolume vol, Vector3i cell)
+    /// from it right now (and queued for the pending refill too, so the next result knows it). A room the per-room brake
+    /// stops is logged once and stays known as unknown (#2649 review).</summary>
+    private AirPocket? StationPocketAt(StationAirVolume vol, Vector3i cell)
     {
         var fill = vol.Committed!;
         var known = fill.PocketAt(cell);
-        if (known is not null && known.Complete)
+        if (known is not null && (known.Complete || known.Braked))
         {
             return known;
         }
 
         int before = fill.Pockets.Count;
+        int brakedBefore = fill.BrakedPockets;
         fill.AddSeed(cell);
         fill.Step(-1);
         vol.Job?.AddSeed(cell);
+        if (fill.BrakedPockets > brakedBefore || fill.Braked)
+        {
+            LogStationAirBrake(vol, fill);
+        }
+
         return fill.PocketAt(cell) ?? (fill.Pockets.Count > before ? fill.Pockets[before] : null);
     }
+
+    /// <summary>Tells the log once per station that a room passed the emergency brake (#2650).</summary>
+    private void LogStationAirBrake(StationAirVolume vol, AirFill fill)
+    {
+        if (vol.BrakeLogged)
+        {
+            return;
+        }
+
+        vol.BrakeLogged = true;
+        _log.Warn($"Station air: a room on {vol.Body} passed the emergency brake ({fill.SpanCount} spans, {fill.CellCount} cells) " +
+                  "— it keeps its last known air (none, if it was never known).");
+    }
+
+    /// <summary>Test seam (#2649 review): whether a station's air has met the emergency brake (logged).</summary>
+    internal bool StationAirBrakedForTest(string stationId) => _stationAir.TryGetValue(stationId, out var vol) && vol.BrakeLogged;
 
     /// <summary>The station's air state on the active world: started over when the world or the box changed, a refill of
     /// the known sealed rooms started when stale and worked on within this tick's air budget (to the end with
@@ -245,7 +271,8 @@ public sealed partial class GameServer
             return vol;
         }
 
-        bool stale = vol.Dirty || vol.DoorsVersion != _baseAirDoorsVersion || _uptime - vol.StartedAt >= BaseAirBackstopInterval;
+        bool changed = vol.Dirty || vol.DoorsVersion != _baseAirDoorsVersion;
+        bool stale = changed || _uptime - vol.StartedAt >= BaseAirBackstopInterval;
         if (vol.Job is null && stale && (complete || _uptime - vol.StartedAt >= StationAirRecomputeInterval))
         {
             var job = NewStationFill(station, out var jobSpace);
@@ -256,6 +283,7 @@ public sealed partial class GameServer
 
             vol.Job = job;
             vol.JobSpace = jobSpace;
+            vol.JobForChange = changed;
             vol.Dirty = false;
             vol.DoorsVersion = _baseAirDoorsVersion;
             vol.StartedAt = _uptime;
@@ -273,28 +301,28 @@ public sealed partial class GameServer
         return vol;
     }
 
-    /// <summary>Swaps a finished refill in — unless it braked, which keeps the last result (#2650).</summary>
+    /// <summary>Swaps a finished refill in — unless the whole run braked, which keeps the last result (#2650). Rooms the
+    /// refill could not look at keep their last state (room by room, #2649 review): a room behind unloaded chunks, a room
+    /// the per-room brake stopped (its last sealed state is kept and logged once) — and, on a refill no change asked for,
+    /// a room already known as braked, so the backstop does not fill a pathological room again every few seconds.</summary>
     private void CommitStationAir(StationAirVolume vol)
     {
         var job = vol.Job!;
         var space = vol.JobSpace!;
         vol.Job = null;
         vol.JobSpace = null;
-        if (job.Braked)
+        if (job.Braked || job.BrakedPockets > 0)
         {
-            if (!vol.BrakeLogged)
+            LogStationAirBrake(vol, job);
+            if (job.Braked)
             {
-                vol.BrakeLogged = true;
-                _log.Warn($"Station air: the refill on {vol.Body} passed the emergency brake ({job.SpanCount} spans, " +
-                          $"{job.CellCount} cells) — the last result is kept.");
+                return;
             }
-
-            return;
         }
 
-        if (vol.Committed is not null && job.SawUnknown)
+        if (vol.Committed is not null)
         {
-            job.AdoptSealedFrom(vol.Committed); // unknown is not a leak: rooms behind unloaded chunks keep their state
+            job.AdoptSealedFrom(vol.Committed, carryBraked: !vol.JobForChange);
         }
 
         vol.Committed = job;

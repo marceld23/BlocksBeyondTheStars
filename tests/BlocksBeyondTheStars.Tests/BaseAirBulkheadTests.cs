@@ -64,7 +64,17 @@ public sealed class BaseAirBulkheadTests : IDisposable
             => Sent.Where(x => x.Conn == p.ConnectionId && x.Msg is ServerMessage).Select(x => ((ServerMessage)x.Msg).Text).ToList();
     }
 
-    private SvGameServer Start(string name, RecordingTransport transport, out SqliteWorldRepository repo)
+    /// <summary>Keeps the server's warnings, so a test can count how often the brake was logged.</summary>
+    private sealed class RecordingLog : IGameLogger
+    {
+        public readonly System.Collections.Concurrent.ConcurrentQueue<string> Warnings = new();
+
+        public void Info(string message) { }
+        public void Warn(string message) => Warnings.Enqueue(message);
+        public void Error(string message) { }
+    }
+
+    private SvGameServer Start(string name, RecordingTransport transport, out SqliteWorldRepository repo, IGameLogger? log = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var server = new SvGameServer(new ServerConfig
@@ -76,9 +86,18 @@ public sealed class BaseAirBulkheadTests : IDisposable
             PlaceStarterShip = false,
             PlaceSettlements = false,
             PlaceWrecks = false,
-        }, _content, transport, repo);
+        }, _content, transport, repo, log);
         server.Start();
         return server;
+    }
+
+    /// <summary>Places the core for the player, standing beside it.</summary>
+    private static int FoundCore(SvGameServer server, PlayerSession p)
+    {
+        p.State.Position = new Vector3f(CoreX - 1, CoreY, CoreZ);
+        p.State.Inventory.Add("base_core", 2, 16);
+        server.PlaceBlock(p.State.PlayerId, CoreX, CoreY, CoreZ, "base_core");
+        return server.BaseSnapshots.Last().Id;
     }
 
     private static PlayerSession OnFoot(SvGameServer server, string name)
@@ -119,9 +138,9 @@ public sealed class BaseAirBulkheadTests : IDisposable
     /// <paramref name="innerDoor"/> in the shared wall x 15 — both doors in the base's reach, so both rooms are seeds.
     /// </summary>
     private (SvGameServer Server, PlayerSession Player, int BaseId) Base(string name, RecordingTransport t,
-        out SqliteWorldRepository repo, string innerDoor = "door_hinge")
+        out SqliteWorldRepository repo, string innerDoor = "door_hinge", IGameLogger? log = null)
     {
-        var server = Start(name, t, out repo);
+        var server = Start(name, t, out repo, log);
         var p = OnFoot(server, "Builder");
         p.State.Position = new Vector3f(CoreX - 1, CoreY, CoreZ);
         p.State.Inventory.Add("base_core", 2, 16);
@@ -282,7 +301,7 @@ public sealed class BaseAirBulkheadTests : IDisposable
     }
 
     [Fact]
-    public void AnUnloadedWing_KeepsItsAir()
+    public void AnUnloadedWing_NeverMakesTheRoomLeak()
     {
         var t = new RecordingTransport();
         var server = Start("unloaded", t, out var repo);
@@ -300,27 +319,32 @@ public sealed class BaseAirBulkheadTests : IDisposable
             Assert.Equal(1, server.BaseAirForTest(baseId).Rooms);
             Assert.True(server.BaseAirSuppliesNowForTest(baseId, wing));
 
-            // The far wing's chunks unload; a block set near the door makes the base refill.
+            // The far wing's chunks unload; a block set near the door makes the base refill. The unloaded cells bound the
+            // gallery like walls: the part anyone can stand in keeps breathing, nobody is warned. (The unloaded cells
+            // themselves are simply unknown now — nobody can stand there; the room found again is never carried, #2649 review.)
             var anchor = WorldConstants.WorldToChunk(new Vector3i(10, CoreY, 0));
             server.World.UnloadFarChunks(new[] { anchor }, 3);
             Assert.False(server.World.IsChunkLoaded(WorldConstants.WorldToChunk(wing)));
+            t.Sent.Clear();
             server.World.SetBlock(new Vector3i(8, CoreY + 2, 0), _content.GetBlock("stone")!.NumericId);
             server.AdvanceUptimeForTest(2);
-            server.BaseAirForTest(baseId);
+            Assert.Equal(1, server.BaseAirForTest(baseId).Rooms);
 
             Assert.True(server.BaseAirSuppliesNowForTest(baseId, near), "the loaded part of the gallery breathes");
-            Assert.True(server.BaseAirSuppliesNowForTest(baseId, wing), "the unloaded wing keeps its air: unknown is not a leak");
+            Assert.Equal(SvGameServer.BaseAirStatus.Supplied, server.DiagnoseBaseAirForTest(near.X, near.Y, near.Z).Status);
+            Assert.DoesNotContain(t.Sent, x => x.Msg is ServerMessage m && (m.Text == "@base_air_lost" || m.Text.Contains("leak", StringComparison.Ordinal)));
         }
     }
 
     [Fact]
-    public void TheEmergencyBrake_NeverTakesAirAway()
+    public void TheEmergencyBrake_NeverTakesAirAway_AndIsLoggedOnce()
     {
         var t = new RecordingTransport();
-        var (server, p, baseId) = Base("brake", t, out var repo);
+        var log = new RecordingLog();
+        var (server, p, baseId) = Base("brake", t, out var repo, log: log);
         using (repo)
         {
-            // Room B gets a long annex behind its far wall; a brake of 100 spans fits both rooms, not the annex too.
+            // Room B gets a long annex behind its far wall; a per-room brake of 100 spans fits each room, not B with the annex.
             Shell(server, 26, 50, CoreY, CoreY + 2, -2, 2);
             server.SetAirBrakeForTest(maxCells: 10_000_000, maxSpans: 100);
             TickAt(server, p, InRoomB, 6);
@@ -335,9 +359,127 @@ public sealed class BaseAirBulkheadTests : IDisposable
 
             float before = p.State.Oxygen = 50f;
             TickAt(server, p, InRoomB, 8);
-            Assert.True(server.BaseAirBrakedForTest(baseId), "the bigger fill hits the brake");
-            Assert.True(p.State.Oxygen > before, $"… and the last result keeps room B breathing (oxygen {p.State.Oxygen})");
+            Assert.True(server.BaseAirBrakedForTest(baseId), "the bigger room hits the brake");
+            Assert.True(p.State.Oxygen > before, $"… and its last known air keeps room B breathing (oxygen {p.State.Oxygen})");
             Assert.Equal(2, server.BaseAirForTest(baseId).Rooms);
+
+            server.World.SetBlock(new Vector3i(10, CoreY + 2, 2), _content.GetBlock("stone")!.NumericId); // another refill
+            server.AdvanceUptimeForTest(2);
+            Assert.Equal(2, server.BaseAirForTest(baseId).Rooms);
+            Assert.Single(log.Warnings, w => w.StartsWith("Base air:", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void ARoomPastTheBrakeOnTheFirstFill_LeavesTheOtherRoomsTheirAir()
+    {
+        // #2649 review: the brake used to count all rooms of a fill together, so a base whose first fill met one huge room
+        // had no room at all. Now only that room is unknown; A and B breathe.
+        var t = new RecordingTransport();
+        var log = new RecordingLog();
+        var server = Start("firstbrake", t, out var repo, log);
+        using (repo)
+        {
+            var p = OnFoot(server, "Builder");
+            server.SetAirBrakeForTest(maxCells: 10_000_000, maxSpans: 100);
+            Shell(server, 6, 14, CoreY, CoreY + 2, -2, 2);   // A: 45 spans
+            Shell(server, 16, 24, CoreY, CoreY + 2, -2, 2);  // B: 45 spans
+            Shell(server, 26, 50, CoreY, CoreY + 2, -2, 2);  // C: 125 spans — past the brake
+            Door(server, p, 5, 0, "door_energy", new Vector3f(4.5f, CoreY, 0.5f));
+            Door(server, p, 15, 0, "door_hinge", new Vector3f(13.5f, CoreY, 0.5f));
+            Door(server, p, 25, 0, "door_hinge", new Vector3f(23.5f, CoreY, 0.5f));
+            int baseId = FoundCore(server, p);
+
+            Assert.Equal(2, server.BaseAirForTest(baseId).Rooms);
+            Assert.True(server.BaseAirSuppliesNowForTest(baseId, Cell(InRoomA)));
+            Assert.True(server.BaseAirSuppliesNowForTest(baseId, Cell(InRoomB)));
+            Assert.False(server.BaseAirSuppliesNowForTest(baseId, new Vector3i(40, CoreY, 0)), "the braked room is unknown — no air never known");
+            Assert.True(server.BaseAirBrakedForTest(baseId));
+            Assert.Single(log.Warnings, w => w.StartsWith("Base air:", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void ARoomChainedPastTheReachCap_KeepsItsAir_WhenTheRoomBeforeItLeaks()
+    {
+        // #2653 / review: core → corridor A (its door in reach) → door D2 past the 192-block reach cap → room B. B is found
+        // only through A's door at first; once B breathed, D2 is a seed of its own, so a leak in A leaves B its air.
+        var t = new RecordingTransport();
+        var server = Start("chaincap", t, out var repo);
+        using (repo)
+        {
+            var p = OnFoot(server, "Builder");
+            int baseId = FoundCore(server, p);
+            var stone = _content.GetBlock("stone")!.NumericId;
+            Shell(server, 6, 199, CoreY, CoreY + 2, 0, 0); // corridor A, its end wall at x 200
+            for (int x = 200; x <= 210; x++)
+                for (int y = CoreY - 1; y <= CoreY + 3; y++)
+                    for (int z = -3; z <= 3; z++)
+                    {
+                        bool shell = x == 200 || x == 210 || y == CoreY - 1 || y == CoreY + 3 || Math.Abs(z) == 3;
+                        server.World.SetBlock(new Vector3i(x, y, z), shell ? stone : BlockId.Air); // room B
+                    }
+
+            Door(server, p, 5, 0, "door_slide", new Vector3f(4.5f, CoreY, 0.5f));
+            Door(server, p, 200, 0, "door_hinge", new Vector3f(199.5f, CoreY, 0.5f));
+            var inB = new Vector3i(205, CoreY, 0);
+            Assert.Equal(2, server.BaseAirForTest(baseId).Rooms);
+            Assert.True(server.BaseAirSuppliesNowForTest(baseId, inB));
+
+            server.World.SetBlock(new Vector3i(100, CoreY + 3, 0), BlockId.Air); // a hole in A's roof
+            server.AdvanceUptimeForTest(2);
+            Assert.Equal(1, server.BaseAirForTest(baseId).Rooms);
+            Assert.False(server.BaseAirSuppliesNowForTest(baseId, new Vector3i(50, CoreY, 0)), "A leaks");
+            Assert.True(server.BaseAirSuppliesNowForTest(baseId, inB), "B behind the bulkhead keeps its air");
+
+            server.AdvanceUptimeForTest(9); // the backstop: B stays a seed of its own
+            server.World.SetBlock(new Vector3i(207, CoreY + 2, 2), stone);
+            server.AdvanceUptimeForTest(2);
+            Assert.Equal(1, server.BaseAirForTest(baseId).Rooms);
+            Assert.True(server.BaseAirSuppliesNowForTest(baseId, inB));
+        }
+    }
+
+    [Fact]
+    public void AGroupOnTheWorldBeingPlayed_IsKept_WhileThePlayerIdlesInTheCoreZone()
+    {
+        // #2649 review: a group nobody asked about for 120 s was dropped — and a player standing in the core zone never asks —
+        // so the next question re-ran its first fill to the end every two minutes.
+        var t = new RecordingTransport();
+        var (server, p, baseId) = Base("idlekeep", t, out var repo);
+        using (repo)
+        {
+            TickAt(server, p, InTheCoreZone, 4);
+            Assert.True(server.BaseAirGroupKnownForTest(baseId));
+            server.AdvanceUptimeForTest(130);
+            TickAt(server, p, InTheCoreZone, 1);
+            Assert.True(server.BaseAirGroupKnownForTest(baseId), "a group on the world being played is kept, asked or not");
+        }
+    }
+
+    [Fact]
+    public void AHugeBasesFirstFill_GoesOnSliced_InsteadOfStallingTheTick()
+    {
+        var t = new RecordingTransport();
+        var server = Start("firstslice", t, out var repo);
+        using (repo)
+        {
+            var p = OnFoot(server, "Builder");
+            server.AirFirstFillBudgetMsForTest = 0; // the first step does a token amount of work …
+            server.AirTickBudgetMsForTest = 0;      // … and only the tick driver's minimum moves it on
+            Shell(server, 6, 65, CoreY, CoreY + 14, -30, 29); // 3 600 spans
+            Door(server, p, 5, 0, "door_slide", new Vector3f(4.5f, CoreY, 0.5f));
+            int baseId = FoundCore(server, p);
+            Assert.True(server.BaseAirFillPendingForTest(baseId), "the first fill of a huge base is not run to the end at once");
+
+            var inHall = new Vector3f(20.5f, CoreY, -20.5f);
+            for (int i = 0; i < 400 && server.BaseAirFillPendingForTest(baseId); i++)
+            {
+                TickAt(server, p, inHall, 1);
+            }
+
+            Assert.False(server.BaseAirFillPendingForTest(baseId));
+            Assert.True(server.BaseAirSuppliesNowForTest(baseId, new Vector3i(60, CoreY, 20)));
         }
     }
 

@@ -68,19 +68,40 @@ internal interface IAirSpace
     int WrapDz(int dz);
 }
 
-/// <summary>The emergency brake of one fill run (#2650): a run that visits more cells or spans than this stops, keeps the
-/// previous result and never takes air away. Not a room size limit — far beyond anything a player builds.</summary>
+/// <summary>
+/// The emergency brake of a fill (#2650) — not a room size limit, far beyond anything a player builds. Per <b>room</b>: a
+/// pocket that grows past <see cref="MaxCells"/> or <see cref="MaxSpans"/> stops as <see cref="AirPocket.Braked"/> (its
+/// state is unknown — the owner keeps what it knew) while the fill goes on with the other rooms. Per <b>run</b>: a run whose
+/// rooms together pass <see cref="MaxRunCells"/> or <see cref="MaxRunSpans"/> stops as a whole (<see cref="AirFill.Braked"/>)
+/// — the bound on memory, about 48 bytes per span (the span record plus its column's dictionary entry).
+/// </summary>
 internal readonly struct AirFillLimits
 {
+    /// <summary>The same limit for one room and for the whole run.</summary>
     public AirFillLimits(long maxCells, int maxSpans)
+        : this(maxCells, maxSpans, maxCells, maxSpans)
+    {
+    }
+
+    public AirFillLimits(long maxCells, int maxSpans, long maxRunCells, int maxRunSpans)
     {
         MaxCells = maxCells;
         MaxSpans = maxSpans;
+        MaxRunCells = maxRunCells;
+        MaxRunSpans = maxRunSpans;
     }
 
+    /// <summary>Most cells one room may hold before it is braked.</summary>
     public long MaxCells { get; }
 
+    /// <summary>Most spans one room may hold before it is braked.</summary>
     public int MaxSpans { get; }
+
+    /// <summary>Most cells one run may visit over all its rooms.</summary>
+    public long MaxRunCells { get; }
+
+    /// <summary>Most spans one run may hold over all its rooms.</summary>
+    public int MaxRunSpans { get; }
 }
 
 /// <summary>One pocket of a fill (#2650): a maximal region of open cells bounded by walls, doors and unknown cells. Sealed
@@ -101,13 +122,27 @@ internal sealed class AirPocket
         Id = id;
     }
 
-    /// <summary>A sealed pocket of an earlier fill carried into a new one (see <see cref="AirFill.AdoptSealedFrom"/>),
-    /// keeping its id — the room is the same room.</summary>
-    internal static AirPocket CarriedFrom(AirPocket old, int index)
-        => new(index, old.Seed, old.Id) { Complete = true, Leaky = false, Carried = true, Cells = 0 };
+    /// <summary>A pocket of an earlier fill carried into a new one (see <see cref="AirFill.AdoptSealedFrom"/>), keeping its
+    /// id and its state (sealed, or braked) — the room is the same room.</summary>
+    internal static AirPocket CarriedFrom(AirPocket old, int index, int chainedFrom)
+        => new(index, old.Seed, old.Id)
+        {
+            Complete = old.Complete,
+            Leaky = false,
+            Braked = old.Braked,
+            Carried = true,
+            ChainedFrom = chainedFrom,
+        };
 
-    /// <summary>Carried over from an earlier fill because unloaded cells kept the new fill from reaching it (#2650).</summary>
+    /// <summary>Carried over from an earlier fill because unloaded cells (or a braked room) kept the new fill from looking
+    /// at it (#2650).</summary>
     public bool Carried { get; private init; }
+
+    /// <summary>The emergency brake stopped this room (#2650): incomplete, neither sealed nor leaky — its state is unknown.</summary>
+    public bool Braked { get; internal set; }
+
+    /// <summary>The pocket whose door chained this one (its index in the same fill), or −1 for a seed from outside.</summary>
+    public int ChainedFrom { get; internal set; } = -1;
 
     /// <summary>Unique across every fill of the process — the room id the bed assignment compares (#2649).</summary>
     public int Id { get; }
@@ -181,7 +216,7 @@ internal sealed class AirFill
     private int _spanCount;
     private readonly Dictionary<long, int> _heads = new();
     private readonly List<AirPocket> _pockets = new();
-    private readonly Queue<Vector3i> _seeds = new();
+    private readonly Queue<(Vector3i Cell, int Parent)> _seeds = new();
     private readonly Queue<int> _frontier = new();
     private readonly HashSet<int> _doorsChained = new();
     private readonly List<Vector3i> _scratch = new();
@@ -207,8 +242,12 @@ internal sealed class AirFill
     /// <summary>The fill has nothing left to do (finished or braked) until a new seed arrives.</summary>
     public bool Done { get; private set; } = true;
 
-    /// <summary>The last run hit the emergency brake: its pockets are incomplete and must not replace a previous result.</summary>
+    /// <summary>The last run hit the emergency brake as a whole (<see cref="AirFillLimits.MaxRunSpans"/>): its pockets are
+    /// incomplete and must not replace a previous result.</summary>
     public bool Braked { get; private set; }
+
+    /// <summary>Rooms the per-room brake stopped (<see cref="AirPocket.Braked"/>) over every run.</summary>
+    public int BrakedPockets { get; private set; }
 
     /// <summary>Spans held over every run.</summary>
     public int SpanCount => _spanCount;
@@ -225,13 +264,13 @@ internal sealed class AirFill
     /// <summary>Seeds that fell on unloaded cells — rooms behind them could not be looked at.</summary>
     public int UnknownSeeds { get; private set; }
 
-    /// <summary>Whether unloaded cells may have hidden rooms from this fill: a seed fell on one, or a sealed pocket borders
-    /// one (a door chain could have gone on there). Leaky pockets do not count — they never continue a chain.</summary>
+    /// <summary>Whether unloaded cells may have hidden rooms from this fill: a seed fell on one, a sealed pocket borders one
+    /// (a door chain could have gone on there), or a room was braked. Leaky pockets do not count — they never chain.</summary>
     public bool SawUnknown
     {
         get
         {
-            if (UnknownSeeds > 0)
+            if (UnknownSeeds > 0 || BrakedPockets > 0)
             {
                 return true;
             }
@@ -249,45 +288,73 @@ internal sealed class AirFill
     }
 
     /// <summary>
-    /// "Unknown is not a leak" across fills (#2650): carries every sealed room of <paramref name="old"/> that this fill
-    /// did not reach into this fill, unchanged — its spans that no span of this fill overlaps, under its old room id. Called
-    /// for a fill that <see cref="SawUnknown"/>: a player walked so far along a door chain that the core's chunks unloaded,
-    /// and the rooms the new fill could not reach keep their last known state instead of losing their air.
+    /// "Unknown is not a leak" across fills (#2650): carries the rooms of <paramref name="old"/> this fill could not look at
+    /// into this fill, whole and unchanged, under their old room ids. Room by room, never span by span (#2649 review): an old
+    /// room that ANY span of a finished room of this fill overlaps was looked at again and is never carried — a breached
+    /// hall whose leaky fill stopped at its first sky contact must lose all its air, not keep the part the fill did not
+    /// walk. An old sealed room this fill did not touch at all is carried only when something unknown stood in the way:
+    /// its seed now lies in an unloaded chunk, it borders a room the brake stopped, or the room whose door chained it is
+    /// carried too (a player far along a door chain whose core's chunks unloaded). Its seed loaded and nothing hidden — its
+    /// door was removed, its chain cut — means it is gone. With <paramref name="carryBraked"/> old braked rooms nothing
+    /// looked at again are carried as braked too, so a backstop refill does not fill a pathological room again.
     /// </summary>
-    public void AdoptSealedFrom(AirFill old)
+    public void AdoptSealedFrom(AirFill old, bool carryBraked = false)
     {
-        var carried = new Dictionary<int, AirPocket>();
+        int count = old._pockets.Count;
+        var lookedAt = new bool[count];   // a span overlaps a finished room of this fill
+        var nearBraked = new bool[count]; // a span overlaps a room this fill braked
         for (int i = 0; i < old._spanCount; i++)
         {
             var s = old._spans[i];
-            var was = old._pockets[s.Pocket];
-            if (!was.Sealed)
+            Overlap(_space.ColumnKey(s.X, s.Z), s.Lo, s.Hi, out bool finished, out bool braked);
+            lookedAt[s.Pocket] |= finished;
+            nearBraked[s.Pocket] |= braked;
+        }
+
+        var carried = new AirPocket?[count];
+        for (int i = 0; i < count; i++)
+        {
+            var was = old._pockets[i];
+            if (lookedAt[i] || !(was.Sealed || (carryBraked && was.Braked)))
             {
                 continue;
             }
 
-            long key = _space.ColumnKey(s.X, s.Z);
-            if (Overlaps(key, s.Lo, s.Hi))
+            // A braked room is carried only where no room of this fill covers it at all (a new braked room re-states it —
+            // carrying both would add a copy every round).
+            bool hidden = was.Braked
+                ? !nearBraked[i]
+                : nearBraked[i]
+                  || Classify(was.Seed.X, was.Seed.Y, was.Seed.Z) == AirCell.Unknown
+                  || (was.ChainedFrom >= 0 && was.ChainedFrom < i && carried[was.ChainedFrom] is not null);
+            if (!hidden)
             {
-                continue; // this fill looked at these cells itself
+                continue;
             }
 
-            if (!carried.TryGetValue(s.Pocket, out var pocket))
-            {
-                pocket = AirPocket.CarriedFrom(was, _pockets.Count);
-                _pockets.Add(pocket);
-                carried[s.Pocket] = pocket;
-            }
+            int parent = was.ChainedFrom >= 0 && was.ChainedFrom < i && carried[was.ChainedFrom] is { } p ? p.Index : -1;
+            var pocket = AirPocket.CarriedFrom(was, _pockets.Count, parent);
+            _pockets.Add(pocket);
+            carried[i] = pocket;
+        }
 
-            Append(key, s.X, s.Z, s.Lo, s.Hi, pocket);
+        for (int i = 0; i < old._spanCount; i++)
+        {
+            var s = old._spans[i];
+            if (carried[s.Pocket] is { } pocket)
+            {
+                Append(_space.ColumnKey(s.X, s.Z), s.X, s.Z, s.Lo, s.Hi, pocket); // at the column head: it shadows a braked span
+            }
         }
     }
 
-    private bool Overlaps(long key, int lo, int hi)
+    /// <summary>Whether this fill holds a span overlapping [lo, hi] in a column — of a finished room, of a braked room.</summary>
+    private void Overlap(long key, int lo, int hi, out bool finished, out bool braked)
     {
+        finished = braked = false;
         if (!_heads.TryGetValue(key, out int index))
         {
-            return false;
+            return;
         }
 
         while (index >= 0)
@@ -295,13 +362,13 @@ internal sealed class AirFill
             ref var s = ref _spans[index];
             if (s.Lo <= hi && s.Hi >= lo)
             {
-                return true;
+                var p = _pockets[s.Pocket];
+                finished |= p.Complete;
+                braked |= p.Braked;
             }
 
             index = s.Next;
         }
-
-        return false;
     }
 
     /// <summary>Queues a seed cell. A seed in a wall, a door or a cell some pocket already holds starts nothing.</summary>
@@ -315,7 +382,7 @@ internal sealed class AirFill
             _runCells = 0;
         }
 
-        _seeds.Enqueue(cell);
+        _seeds.Enqueue((cell, -1));
     }
 
     /// <summary>
@@ -347,7 +414,8 @@ internal sealed class AirFill
             }
             else if (_seeds.Count > 0)
             {
-                Start(_seeds.Dequeue());
+                var (cell, parent) = _seeds.Dequeue();
+                Start(cell, parent);
             }
             else
             {
@@ -355,9 +423,19 @@ internal sealed class AirFill
                 return true;
             }
 
-            if (_runSpans > _limits.MaxSpans || _runCells > _limits.MaxCells)
+            if (_current is { } room && (room.Cells > _limits.MaxCells || room.Spans > _limits.MaxSpans))
             {
-                // The emergency brake (#2650): stop here; the owner keeps its previous result.
+                // The per-room emergency brake (#2650): this room's state is unknown — the owner keeps what it knew about
+                // it — and the fill goes on with the other rooms.
+                room.Braked = true;
+                BrakedPockets++;
+                _current = null;
+                _frontier.Clear();
+            }
+
+            if (_runSpans > _limits.MaxRunSpans || _runCells > _limits.MaxRunCells)
+            {
+                // The run's emergency brake (#2650): stop here; the owner keeps its previous result.
                 Braked = true;
                 Done = true;
                 _current = null;
@@ -413,7 +491,7 @@ internal sealed class AirFill
         }
     }
 
-    private void Start(Vector3i seed)
+    private void Start(Vector3i seed, int parent)
     {
         var kind = Classify(seed.X, seed.Y, seed.Z);
         if (kind == AirCell.Unknown)
@@ -426,7 +504,7 @@ internal sealed class AirFill
             return;
         }
 
-        var pocket = new AirPocket(_pockets.Count, _space.Canonical(seed.X, seed.Y, seed.Z));
+        var pocket = new AirPocket(_pockets.Count, _space.Canonical(seed.X, seed.Y, seed.Z)) { ChainedFrom = parent };
         _pockets.Add(pocket);
         _current = pocket;
         var outcome = BuildSpan(seed.X, seed.Z, seed.Y, out int lo, out int hi, full: true);
@@ -461,6 +539,16 @@ internal sealed class AirFill
                             // Joined to a pocket already known to leak: this one leaks through the same opening.
                             pocket.Opening = other.Opening;
                             FinishPocket(leaky: true);
+                            return;
+                        }
+
+                        if (other != pocket && other.Braked)
+                        {
+                            // Joined to a room the brake stopped: this is the same room, and its state is just as unknown.
+                            pocket.Braked = true;
+                            BrakedPockets++;
+                            _current = null;
+                            _frontier.Clear();
                             return;
                         }
 
@@ -667,7 +755,7 @@ internal sealed class AirFill
             _space.AddDoorSeeds(door, _scratch);
             foreach (var seed in _scratch)
             {
-                _seeds.Enqueue(seed);
+                _seeds.Enqueue((seed, pocket.Index));
             }
         }
     }

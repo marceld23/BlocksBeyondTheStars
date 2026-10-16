@@ -337,6 +337,40 @@ public sealed class BaseAirReachTests : IDisposable
     }
 
     [Fact]
+    public void ADoorChainedRoomPastTheReachCap_RisingAboveTheBasesSkyLine_Breathes()
+    {
+        // #2649 review: the sky line was one line for the whole base — core + reach (here 168) and the highest build within
+        // the reach cap. A tall hall at the end of a door chain, past the cap, rose above it, so its own upper cells read as
+        // the open sky. Each chunk column now has its own line over its highest build.
+        var server = Start(out var repo, "airchaintower");
+        using (repo)
+        {
+            var p = OnFoot(server, "Builder");
+            int baseId = Found(server, p, CoreX, CoreY, CoreZ);
+            BuildBox(server, p, 6, 204, CoreY, CoreY + 2, 0, 0, doorKey: "door_slide"); // corridor A, its end wall at x 205
+            var stone = _content.GetBlock("stone")!.NumericId;
+            string owner = p.State.PlayerId;
+            int top = CoreY + 100;
+            for (int x = 205; x <= 215; x++)
+                for (int y = CoreY - 1; y <= top + 1; y++)
+                    for (int z = -3; z <= 3; z++)
+                    {
+                        bool shell = x == 205 || x == 215 || y == CoreY - 1 || y == top + 1 || Math.Abs(z) == 3;
+                        server.World.SetBlock(new Vector3i(x, y, z), shell ? stone : BlockId.Air, owner: owner); // the tall hall
+                    }
+
+            for (int y = CoreY; y <= CoreY + 2; y++)
+            {
+                server.World.SetBlock(new Vector3i(205, y, 0), BlockId.Air);
+            }
+
+            PlaceDoor(server, p, 205, 0, "door_hinge");
+            Assert.Equal(2, server.BaseAirForTest(baseId).Rooms);
+            Assert.Equal(SvGameServer.BaseAirStatus.Supplied, server.DiagnoseBaseAirForTest(210, CoreY + 90, 0).Status);
+        }
+    }
+
+    [Fact]
     public void ADoorChainFartherThan192Blocks_Breathes()
     {
         // A corridor from the core out to x 240, split into rooms by hinge doors at x 60, 120 and 180: only the entrance
