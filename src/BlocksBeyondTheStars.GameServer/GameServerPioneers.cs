@@ -993,6 +993,14 @@ public sealed partial class GameServer
     /// <summary>Back to the lodge resident's day: the routine takes over at its next check.</summary>
     private void ArrivePioneerHome(PioneerOutpost o, ServerNpc npc)
     {
+        if (npc.Goal is { } yard)
+        {
+            // As ArriveAtGoal would: the yard it walked back to becomes home, so until the routine picks the next goal
+            // the leash holds it there instead of pulling it back out to the return ring it appeared on.
+            npc.Home = yard;
+            npc.Leash = npc.GoalLeash;
+        }
+
         npc.Goal = null;
         npc.Path = null;
         npc.ActivityKey = string.Empty;

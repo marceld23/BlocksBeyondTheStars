@@ -3252,7 +3252,7 @@ namespace BlocksBeyondTheStars.Client
                 Doors = SpaceDoors.DoorsOf(m), // #2607: a player station's doors are doors out here too
                 OwnerId = m.OwnerId ?? string.Empty,
                 Id = m.Id ?? string.Empty,
-                Derelict = m.Kind == "station" && BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsDerelictId(m.Id), // #2676
+                Derelict = m.Kind == "station" && BlocksBeyondTheStars.Client.Core.SpaceTargeting.IsGeneratedDerelictId(m.Id), // #2676 (not The Long Quiet)
             };
             vs.DoorCells = SpaceDoors.DoorwayCells(vs.Doors);
 

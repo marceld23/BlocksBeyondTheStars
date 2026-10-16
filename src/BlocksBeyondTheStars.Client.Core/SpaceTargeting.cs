@@ -106,6 +106,14 @@ public static class SpaceTargeting
     /// <summary>Whether a station contact / body id is a derelict station (#2632).</summary>
     public static bool IsDerelictId(string? id) => id != null && id.StartsWith(DerelictIdPrefix, System.StringComparison.Ordinal);
 
+    /// <summary>The story's own derelict "The Long Quiet" (the server's <c>GameServerUniqueSites.DerelictStationId</c>) —
+    /// a quiet story site, not a generated wreck.</summary>
+    public const string StoryDerelictId = "derelict:longquiet";
+
+    /// <summary>Whether the id is a GENERATED derelict (#2676): every derelict but the story site, which keeps its own look —
+    /// no sparks, debris or flickering beacon in the flight view.</summary>
+    public static bool IsGeneratedDerelictId(string? id) => IsDerelictId(id) && id != StoryDerelictId;
+
     /// <summary>A hostile closer than this is attacking: the server's damage aura (<c>ShipEngageRange</c>) and the
     /// client's drawn enemy shots use the same range — one shared constant since #2284, so the two can never drift.</summary>
     public const float AttackRange = BlocksBeyondTheStars.Shared.Definitions.SpaceCombatRules.EngageRange;

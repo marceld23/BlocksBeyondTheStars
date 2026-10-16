@@ -6702,7 +6702,7 @@
   "ui.scan.trait.derelict_breached": "Hull breached",
   "vega.derelict.approach": "That's {0}, an old station — nobody has lived there for a long time. We can dock and have a look around. There's no air aboard any more, so keep an eye on your oxygen.",
   "vega.derelict.boarded": "We're aboard {0}. It's very quiet here. Remember: there's no air aboard — your suit tank is your air, and our ship fills it up again.",
-  "vega.hint.derelict_no_air": "We're aboard {0} — but careful: its life support stopped working long ago, so there's no air anywhere aboard. Your suit tank is your air in here. Watch the oxygen bar and fly back to our ship in time to fill it up.",
+  "vega.hint.derelict_no_air": "We're aboard {0} — careful: its life support died long ago, so there's no air anywhere aboard. Your suit tank is your air in here. Watch the oxygen bar and get back to our ship in time to refill it.",
   "srv.derelict.no_air": "No air aboard this old station — its life support is dead. Your suit tank is giving you air now; our ship fills it up again.",
   "vega.derelict.spacewalk": "Whoops — you floated out of {0}! You're on a spacewalk now, and your suit tank is your air, so don't dawdle. Float back in through a hole or a door and press {key:Interact}, or fly back to our ship.",
   "srv.derelict.drifted_back": "You drifted out of the old station — your suit's thrusters brought you back aboard.",

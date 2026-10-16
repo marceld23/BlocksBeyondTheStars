@@ -63,6 +63,7 @@ namespace BlocksBeyondTheStars.Client
             "lodges.json",
             "minigames/catalog.json",
             "missions.json",
+            "pioneer_skins.json",
             "planets.json",
             "recipes.json",
             "relay.json",

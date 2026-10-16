@@ -6702,7 +6702,7 @@
   "ui.scan.trait.derelict_breached": "Hülle beschädigt",
   "vega.derelict.approach": "Das ist {0}, eine alte Station — dort lebt schon lange niemand mehr. Wir können andocken und uns umsehen. An Bord gibt es keine Luft mehr, also behalte deinen Sauerstoff im Blick.",
   "vega.derelict.boarded": "Wir sind an Bord von {0}. Hier ist es ganz still. Denk dran: An Bord gibt es keine Luft — dein Anzugtank ist deine Luft, und unser Schiff füllt ihn wieder auf.",
-  "vega.hint.derelict_no_air": "Wir sind an Bord von {0} — aber Vorsicht: Die Lebenserhaltung ist schon lange ausgefallen, nirgends an Bord gibt es Luft. Hier drin ist dein Anzugtank deine Luft. Behalte die Sauerstoffanzeige im Blick und flieg rechtzeitig zu unserem Schiff zurück, um ihn aufzufüllen.",
+  "vega.hint.derelict_no_air": "Wir sind an Bord von {0} — Vorsicht: Die Lebenserhaltung ist längst ausgefallen, nirgends gibt es Luft. Hier drin ist dein Anzugtank deine Luft. Behalte den Sauerstoff im Blick und kehr rechtzeitig zum Schiff zurück, um ihn aufzufüllen.",
   "srv.derelict.no_air": "Keine Luft an Bord dieser alten Station — ihre Lebenserhaltung ist ausgefallen. Jetzt gibt dir dein Anzugtank Luft; unser Schiff füllt ihn wieder auf.",
   "vega.derelict.spacewalk": "Hoppla — du bist aus {0} hinausgeschwebt! Jetzt bist du auf einem Weltraumspaziergang, und dein Anzugtank ist deine Luft, also trödel nicht. Schweb durch ein Loch oder eine Tür zurück hinein und drück {key:Interact}, oder flieg zurück zu unserem Schiff.",
   "srv.derelict.drifted_back": "Du bist aus der alten Station hinausgetrieben — die Düsen deines Anzugs haben dich zurück an Bord gebracht.",

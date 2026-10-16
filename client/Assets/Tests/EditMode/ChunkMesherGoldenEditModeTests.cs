@@ -38,10 +38,13 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // or removed, that is the cause, and re-pinning is the fix. Verified stable across two runs on 10-04 and 10-05.
         // Re-pinned 2026-10-13 (#2519): TEXCOORD2.x became a cutout code (1 crown, 2 rigid torch/lantern, 3 cross plant,
         // 4 plant under water); only the surface chunk carries those blocks, so only its checksum moved.
+        // Re-pinned 2026-10-16 (#2683): stale since the guardian bay block (#2635, 2026-10-15) shifted the ids again —
+        // that is why the deep chunk moved too — and this world stamps random shapes onto torch/lantern cells, which
+        // since #2683 cull their neighbours like an unshaped light (a light's descriptor is its mount, not a form).
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0xbb39ed6835e938bdUL,
-            ["surface (5,2,7)"] = 0xf8a5b4863db28021UL,
+            ["deep (5,1,7)"] = 0xd063884f558ab6c1UL,
+            ["surface (5,2,7)"] = 0xa4daa53503f7b541UL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 

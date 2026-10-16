@@ -38,6 +38,16 @@ public sealed class DerelictDecorPlanTests
         return cells;
     }
 
+    [Fact]
+    public void OnlyGeneratedDerelicts_GetTheBrokenLook_NotTheStorySite()
+    {
+        Assert.True(SpaceTargeting.IsGeneratedDerelictId("derelict:sys1-0"));
+        Assert.False(SpaceTargeting.IsGeneratedDerelictId(SpaceTargeting.StoryDerelictId)); // The Long Quiet keeps its look
+        Assert.True(SpaceTargeting.IsDerelictId(SpaceTargeting.StoryDerelictId));
+        Assert.False(SpaceTargeting.IsGeneratedDerelictId("sys1-st"));
+        Assert.False(SpaceTargeting.IsGeneratedDerelictId(null));
+    }
+
     [Theory]
     [InlineData(11)]
     [InlineData(4242)]

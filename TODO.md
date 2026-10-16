@@ -24,6 +24,48 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Justus' reports 2026-10-16 (Layex + Screelit, one by Lorenzo) — body paint in multiplayer, talking to traders, beta derelicts, residents upstairs, pioneer outposts, wall torches — epic #2684, #2672–#2683 (+ #2425), branch feat/justus-reports-2026-10-16 — ✅ done 2026-10-16 (⚠ playtest open)
+
+Justus played a LAN world as Layex (host, v2026.10.17) and Screelit (two reports written with v2026.10.16); one Screelit
+report was written by Lorenzo. All decisions by Marcel (everything per recommendation, one PR; "beta shape" = the simple
+boxy station shape of the old flight model; derelicts have no air and no residents; pioneers = phase 1 only). Package
+label `package: justus reports 2026-10-16`.
+
+- **Body paint in multiplayer (#2672, closes #2425):** the join burst (face + four body-paint parts in one frame) hit the
+  shared 2 s appearance limit, so only the face reached the other player. Now a token bucket per session (6, one back
+  every 2 s) shared by face, body paint and tool look; the appearance intents pass `PausedMayHandle`.
+- **Talking to traders (#2673):** `vendor_hello` / `quartermaster_hello` without a minimum stage (after the favours and the
+  smalltalk); "Any news?" raises standing; an explicit Talk is never silent (it bypasses the greeting cooldown).
+- **Beta derelicts (#2674–#2676):** `BetaStationGenerator` builds the old flight model (hub, collar, four tube arms, four
+  pods, two blue solar wings, mast + beacon) as a walkable voxel wreck; every new derelict uses it, beta damage on top of
+  the decay pass (torn wing, snapped mast, rust, debris). Stored old derelicts keep their layout (`derelict-shape:beta:<id>`
+  marker in `GeneratedLoot`; legacy layouts pinned by fingerprints). No air aboard any generated derelict (The Long Quiet
+  keeps its air), boarding sets the player on the deck near the arrival, a VEGA hint on the first boarding, no residents.
+  Client: sparks, tumbling debris, a flickering beacon, a darker hull (`DerelictDecorPlan` in Client.Core).
+- **Base residents upstairs (#2677–#2680):** one bed or three machines anywhere inside the base found it; the NPC path
+  search takes a one-block step with a standable landing (no head room above the lower step) and base residents search
+  ±16 blocks vertically; bed placement tells the player whether the bed counts (residents n/5, founds, full, outside); the
+  core readout shows the residents; the fallback move also happens when no player can SEE the NPC or its goal.
+- **Pioneer outposts (#2681, #2682):** a lodge variant (`PioneerOutpost`): a closed room of stone/earth/iron/steel, a
+  decorative base core, owned crates, a ladder shaft to a cellar (visible or hidden under a planter), a log rowboat by the
+  water; breathable worlds, at most 2 per world, never-visited bodies only. One pioneer per outpost with a pixel skin
+  (`Look = "pixel"`, seed in `FaceVariant`, pool `data/pioneer_skins.json` from `tools/gen_pioneer_skins.py` — Justus can
+  add his own painted skins, see docs/developer/WILDERNESS_FOLK.md §8.1), away about one day in three, dialogues with a
+  gift at "trusted"; `/tp outpost`.
+- **Wall torches and lanterns (#2683):** `PropOrientation.LightMount` — a torch hangs on the wall it was placed on (never on
+  a ceiling: hint), a lantern on a wall bracket or from the ceiling; the ghost shows the form; old lights stay upright; the
+  support rule is exact for mounted lights (`LightMountGeometry` in Client.Core).
+- **Credits:** Lorenzo in the in-game credits (14 languages) and the README.
+- ⚠ Open: playtest — body paint in a fresh LAN world, the hello dialogue, a beta derelict (look from outside, is the suit
+  tank long enough for a kid on the bigger wreck?), residents on an upper floor, a pioneer outpost (`/tp outpost`), wall
+  torches and hanging lanterns (also behind glass).
+- ⚠ Release notes: derelicts already boarded in 2026.10.17 keep their shape but lose their air too (a room sealed there
+  for air stops breathing) — say so in the devblog / What's new.
+- ⚠ Side finding (not done): `WorldGenerator.StableHash(...) % n` is biased for sequential keys (`"…:0"`–`"…:599"` all gave
+  0 for `% 3`); the pioneer schedule uses a 64-bit mix instead, other callers (e.g. `CropFor`) may be skewed.
+
+---
+
 ### 🐾 Smooth motion for animals, NPCs, machines and bandits — #2664–#2670, branch feat/smooth-entity-motion — ✅ done 2026-10-16 (⚠ playtest open)
 
 Marcel (2026-10-16): animal and NPC movement still looked choppy, animals the most. The analysis showed the cause was the

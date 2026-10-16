@@ -267,8 +267,9 @@ travel screen labels the body `ui.map.kind_derelict` with `ui.map.derelict_detai
 named amber marker (`name · Derelict station`, a waypoint target) instead of a live station blip; the radar treats it
 like the wreck. The hull renders through the existing `station` design path.
 
-**Looking broken from outside (#2676).** For a `station` design whose id is a derelict's (`VoxStruct.Derelict`) the
-flight view adds, each time it (re)builds the hull mesh (`ReconcileStructs` → `AddDerelictDecor`):
+**Looking broken from outside (#2676).** For a `station` design whose id is a GENERATED derelict's (`VoxStruct.Derelict`,
+`SpaceTargeting.IsGeneratedDerelictId` — The Long Quiet keeps its own quiet look) the flight view adds, each time it
+(re)builds the hull mesh (`ReconcileStructs` → `AddDerelictDecor`):
 
 - **Grime** — the hull's iron plating meshed a little darker and warmer through the mesher's hull-paint stream
   (`ShipMeshBuilder.HullPaint`, the ship-colour path): baked into the vertex data, so there is no material instance and
