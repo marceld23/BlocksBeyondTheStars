@@ -373,7 +373,7 @@ public sealed partial class GameServer
             foreach (var session in targets)
             {
                 var p = session.State;
-                if (p.IgnoredByHostiles) // cloaked, god-mode and creative-override (#1121) players aren't detected
+                if (HostilesIgnore(p)) // cloaked, god-mode, creative-override (#1121) and Sandbox (#2712) players aren't detected
                 {
                     continue;
                 }
@@ -390,7 +390,7 @@ public sealed partial class GameServer
                         bite *= 1f - SpeederCreatureDamageShare;
                     }
 
-                    p.Health = System.Math.Max(0f, p.Health - Mitigate(p, bite));
+                    DamagePlayer(p, bite, mitigated: true);
                     NoteCombat(session); // #2286
                     NoteHitFrom(session, creature, creature.Position); // #2564: the HUD marker points at this animal
                     MarkPlayerStateDirty(session); // #1530
@@ -1034,6 +1034,9 @@ public sealed partial class GameServer
             // A provoked territorial creature hunts like an aggressor until it calms down.
             var temperament = CreatureBehaviour.EffectiveTemperament(sp.Temperament, creature.ProvokeTimer > 0);
             Vector3f? nearest = NearestPlayerPosition(targets, creature.Position);
+            // #2712: what an aggressor hunts — the nearest player hostiles do NOT ignore. A cloaked, god-mode or Sandbox
+            // player still wakes a sleeper and sends a skittish one running, but is nobody's prey.
+            Vector3f? prey = NearestPlayerPosition(targets, creature.Position, preyOnly: true);
             if (sp.BodyPlan == CreatureBodyPlan.Arachnid && !creature.IsCompanion)
             {
                 AnnounceArachnid(creature, targets); // #2009: VEGA points out the first one a player gets near
@@ -1056,7 +1059,7 @@ public sealed partial class GameServer
             {
                 creature.GiveUpTimer = System.Math.Max(0, creature.GiveUpTimer - dt);
             }
-            else if (aggressor && nearest is { } np && WrapDistSq(creature.Position, np) <= aggro * aggro)
+            else if (aggressor && prey is { } np && WrapDistSq(creature.Position, np) <= aggro * aggro)
             {
                 // While it can see the prey the chase clock ticks normally; once the player breaks line-of-sight
                 // (behind cover, into a cave) the creature tires of the hunt faster, so hiding actually shakes it
@@ -1158,7 +1161,7 @@ public sealed partial class GameServer
             if (!creature.IsCompanion && creature.ProvokeTimer <= 0 && creature.GiveUpTimer <= 0 && creature.PanicTimer <= 0
                 && ArachnidRules.Lurks(sp))
             {
-                if (nearest is { } lurkPrey && WrapDistSq(creature.Position, lurkPrey) <= ArachnidRules.LurkRange * ArachnidRules.LurkRange)
+                if (prey is { } lurkPrey && WrapDistSq(creature.Position, lurkPrey) <= ArachnidRules.LurkRange * ArachnidRules.LurkRange)
                 {
                     creature.ProvokeTimer = CreatureProvokeSeconds;
                     temperament = CreatureBehaviour.EffectiveTemperament(sp.Temperament, provoked: true);
@@ -1185,7 +1188,7 @@ public sealed partial class GameServer
             // do is lost; frozen, sleeping and panicked animals never reach this line with a live phase (TryBegIntent drops it).
             bool begging = !hunting && (TryBegIntent(creature, sp, nearest, ref profile, ref intent, ref target)
                 || TryCallerIntent(creature, sp, nearest, ref profile, ref intent, ref target)); // #2057: a caller block calls the peaceful ones
-            Vector3f? stepTarget = begging || (aggressor && creature.GiveUpTimer > 0) ? null : nearest;
+            Vector3f? stepTarget = begging || (aggressor && creature.GiveUpTimer > 0) ? null : aggressor ? prey : nearest;
             if (stepTarget is { } tp)
             {
                 float dx = tp.X - creature.Position.X, dz = tp.Z - creature.Position.Z;
@@ -3311,12 +3314,19 @@ public sealed partial class GameServer
         return (chunks + 1) * WorldConstants.ChunkSize;
     }
 
-    private Vector3f? NearestPlayerPosition(List<PlayerSession> targets, Vector3f from)
+    /// <summary>The nearest on-foot player's position, or null. <paramref name="preyOnly"/> skips players hostiles ignore
+    /// (<see cref="HostilesIgnore"/>, #2712) — what an aggressor may hunt.</summary>
+    private Vector3f? NearestPlayerPosition(List<PlayerSession> targets, Vector3f from, bool preyOnly = false)
     {
         Vector3f? best = null;
         float bestSq = float.MaxValue;
         foreach (var s in targets)
         {
+            if (preyOnly && HostilesIgnore(s.State))
+            {
+                continue;
+            }
+
             float d = (float)WrapDistSq(s.State.Position, from);
             if (d < bestSq)
             {
@@ -3452,9 +3462,13 @@ public sealed partial class GameServer
         }
 
         p.Inventory.Remove(itemKey, 1);
-        if (item.ConsumeHealth != 0f)
+        if (item.ConsumeHealth > 0f)
         {
-            p.Health = System.Math.Min(100f, System.Math.Max(0f, p.Health + item.ConsumeHealth));
+            p.Health = System.Math.Min(100f, p.Health + item.ConsumeHealth);
+        }
+        else if (item.ConsumeHealth < 0f)
+        {
+            DamagePlayer(p, -item.ConsumeHealth); // bad food — harmless in Sandbox (#2712)
         }
 
         if (item.ConsumeHunger != 0f)

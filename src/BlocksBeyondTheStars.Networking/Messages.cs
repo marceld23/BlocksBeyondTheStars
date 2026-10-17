@@ -1616,6 +1616,15 @@ public sealed class NetMission
     /// <summary>True when <see cref="Title"/>/<see cref="Description"/> are display TEXT (player missions,
     /// L3 LLM board texts) rather than locale keys — the client renders them verbatim then.</summary>
     public bool FreeText { get; set; }
+
+    /// <summary>#2714: where a villager's wish is handed over — the giver's village (display text, never a key); empty for
+    /// every other mission and for a wish whose village the server has not seen yet. Additive (contractless).</summary>
+    public string PlaceName { get; set; } = string.Empty;
+
+    /// <summary>#2714: the id of the <see cref="NetMarker"/> (<see cref="NetMarker.Wish"/>) that marks <see cref="PlaceName"/>
+    /// on the map. The player's marker list holds it only while they are on the village's body — the client takes the
+    /// distance and "Navigate" from it then. Additive.</summary>
+    public string PlaceMarkerId { get; set; } = string.Empty;
 }
 
 public sealed class MissionList
@@ -2181,6 +2190,23 @@ public sealed class NetSpacePlayer
     /// engines off. It used to vanish for everyone the moment the pilot left the helm. Additive; an older client
     /// ignores it and draws the ship as flying.</summary>
     public bool Parked { get; set; }
+
+    /// <summary>#2709: on a spacewalk (<see cref="Eva"/>) the X/Y/Z/Yaw above are the suit — this pose is the pilot's
+    /// ship floating where they stepped out, so the others keep seeing it (it used to vanish while its pilot was
+    /// outside). Only meaningful with <see cref="HasShipPose"/>. Additive; an older client ignores it.</summary>
+    public bool HasShipPose { get; set; }
+
+    public float ShipX { get; set; }
+    public float ShipY { get; set; }
+    public float ShipZ { get; set; }
+    public float ShipYaw { get; set; }
+
+    /// <summary>#2709: the pilot's suit colours (packed 0xRRGGBB, as in <see cref="PlayerPresence"/>), so a spacewalking
+    /// partner is drawn in their own spacesuit look. 0 = unset (an NPC trader's pose) → the client's default suit.</summary>
+    public int Skin { get; set; }
+    public int Torso { get; set; }
+    public int Arms { get; set; }
+    public int Legs { get; set; }
 }
 
 /// <summary>A space entity was destroyed (asteroid mined or enemy defeated).</summary>

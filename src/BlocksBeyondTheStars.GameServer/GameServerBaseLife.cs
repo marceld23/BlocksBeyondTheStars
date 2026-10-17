@@ -57,28 +57,39 @@ public sealed partial class GameServer
 
     private readonly Dictionary<int, List<BaseResident>> _baseResidents = new();
 
-    private double _nextBaseLifeAt;
-    private int _baseLifeCursor;
+    /// <summary>#2718: per world (location id) — when its next base scan is due and its round-robin cursor.</summary>
+    private readonly Dictionary<string, double> _nextBaseLifeAt = new(System.StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _baseLifeCursor = new(System.StringComparer.Ordinal);
 
-    /// <summary>Round-robin base scan (Guard-registered): keeps each base's residents in step with its beds, posts
-    /// and workshops, and removes them again when their base was dissolved.</summary>
+    /// <summary>#2718: the uptime of the tick that ran the last base scan — at most one base is scanned per server tick,
+    /// whatever the number of occupied worlds (a second world due in the same tick goes next tick).</summary>
+    private double _baseLifeScannedAt = double.NegativeInfinity;
+
+    /// <summary>Round-robin base scan of the active world (Guard-registered in the per-world tick loop): keeps each base's
+    /// residents in step with its beds, posts and workshops, and removes them again when their base was dissolved. #2718:
+    /// every occupied world keeps its own timer and cursor — the scan used to run once per tick after the world loop, so
+    /// only the last-ticked world's bases ever got residents.</summary>
     private void TickBaseLife()
     {
-        if (_uptime < _nextBaseLifeAt)
+        string loc = _world.LocationId;
+        if ((_nextBaseLifeAt.TryGetValue(loc, out double due) && _uptime < due) || _uptime <= _baseLifeScannedAt)
         {
             return;
         }
 
-        _nextBaseLifeAt = _uptime + BaseLifeScanInterval;
+        _baseLifeScannedAt = _uptime;
+        _nextBaseLifeAt[loc] = _uptime + BaseLifeScanInterval;
         SweepDissolvedBaseResidents();
 
-        var here = _bases.Where(b => b.Planet == _world.LocationId).ToList();
+        var here = _bases.Where(b => b.Planet == loc).ToList();
         if (here.Count == 0)
         {
             return;
         }
 
-        UpdateBaseResidents(here[_baseLifeCursor++ % here.Count]);
+        int cursor = _baseLifeCursor.TryGetValue(loc, out int c) ? c : 0;
+        _baseLifeCursor[loc] = cursor + 1;
+        UpdateBaseResidents(here[cursor % here.Count]);
     }
 
     /// <summary>A dissolved base takes its residents with it — but only ever on their own world: NPC ids restart at 1
@@ -120,6 +131,11 @@ public sealed partial class GameServer
             {
                 foreach (var key in stale)
                 {
+                    foreach (var r in _meta.BaseResidents[key])
+                    {
+                        RetireResident(key, r); // #2716: a later base with the same id never gets these people
+                    }
+
                     _meta.BaseResidents.Remove(key);
                 }
 
@@ -136,9 +152,10 @@ public sealed partial class GameServer
     /// <item>A resident whose bed is gone (or no longer counts) lost it in this scan.</item>
     /// <item>The count: 1 + one per bed, at most <see cref="BaseResidentCap"/>, once the base is founded. The surplus moves
     /// out — first a resident who lost the bed in this scan, else the bedless resident with the highest slot, never the
-    /// founding settler (slot 0).</item>
-    /// <item>Whoever is missing moves in at the lowest free slot. Look, name and memory belong to the slot, so a rebuilt
-    /// bed brings back the person who left.</item>
+    /// founding settler (slot 0) — and the owner hears who left (#2715).</item>
+    /// <item>Whoever is missing moves in at the lowest free slot. Look, name and memory follow from the slot, so a rebuilt
+    /// bed brings back the person who left; a resident's identity is pinned in the plan once it moves in (#2716,
+    /// <see cref="PinResidentIdentity"/>), so the base id shifting after a restart never makes them someone else.</item>
     /// <item>Jobs stay with their resident while the post stands; a job nobody holds goes, in priority order, to a resident
     /// without one (<see cref="AssignBaseJobs"/>).</item>
     /// <item>Beds stay with their sleeper; free beds go to the bedless (<see cref="AssignBaseBeds"/>) — whoever lost theirs
@@ -206,14 +223,18 @@ public sealed partial class GameServer
                 ?? plan.Where(r => r.Slot != 0 && r.Bed.Length == 0).OrderByDescending(r => r.Slot).FirstOrDefault()
                 ?? plan.OrderByDescending(r => r.Slot).First();
             plan.Remove(leaving);
+            string leaverName = string.Empty;
             if (live.TryGetValue(leaving.Slot, out var gone))
             {
+                leaverName = gone.Name;
                 _npcs.RemoveAll(n => n.Id == gone.Id && n.BaseId == b.Id); // a bed went — its sleeper moves on
                 live.Remove(leaving.Slot);
             }
 
             list.RemoveAll(r => r.Slot == leaving.Slot && r.WorldId == _world.LocationId);
             changed = true;
+            TellResidentMovedOut(b, leaving, leaverName);
+            RetireResident(key, leaving); // #2716: a rebuilt bed brings this person back, nobody else gets their key
         }
 
         // 3. Moving in: the lowest free slot.
@@ -226,6 +247,20 @@ public sealed partial class GameServer
             }
 
             plan.Add(new BaseResidentRecord { Slot = slot });
+        }
+
+        // #2716: whoever has no pinned identity yet — a newcomer, or a resident alive before the plan knew them — gets one now.
+        // A brand-new plan goes into the metadata at once: every key reader in this scan (the spawn's standings, a job's
+        // role on the owner's memory) looks the pins up there — before, they fell back to the id-minted key, which may be
+        // another base's resident's. SaveBasePlan below still writes the save only when the plan changed.
+        foreach (var r in plan)
+        {
+            PinResidentIdentity(b, r);
+        }
+
+        if (plan.Count > 0)
+        {
+            _meta.BaseResidents[key] = plan;
         }
 
         plan.Sort((p, q) => p.Slot.CompareTo(q.Slot));
@@ -252,7 +287,7 @@ public sealed partial class GameServer
         {
             if (!live.ContainsKey(r.Slot))
             {
-                var npc = SpawnBaseResident(b, r.Slot);
+                var npc = SpawnBaseResident(b, r);
                 list.Add(new BaseResident { Slot = r.Slot, WorldId = b.Planet, NpcId = npc.Id });
                 live[r.Slot] = npc;
                 changed = true;
@@ -522,7 +557,8 @@ public sealed partial class GameServer
     }
 
     private static string BasePlanSignature(List<BaseResidentRecord> plan)
-        => string.Join(";", plan.OrderBy(r => r.Slot).Select(r => r.Slot.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + r.Bed + "|" + r.Job + "|" + r.Post));
+        => string.Join(";", plan.OrderBy(r => r.Slot).Select(r => r.Slot.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + r.Bed + "|" + r.Job + "|" + r.Post
+            + "|" + r.Seed + "|" + r.Key + "|" + r.Face.ToString(System.Globalization.CultureInfo.InvariantCulture)));
 
     /// <summary>A bed cell as the plan stores it: <c>"x,y,z"</c>, or empty for none.</summary>
     private static string BedCellKey(Vector3i? cell)
@@ -688,15 +724,7 @@ public sealed partial class GameServer
         npc.Job = job;
         var profession = NpcProfessions.ByJob(job);
         string role = job is "vendor" or "quartermaster" ? job : profession?.Role ?? "settler";
-        npc.NameKey = job switch
-        {
-            "vendor" => "npc.role.vendor",
-            "quartermaster" => "npc.role.quartermaster",
-            "guard" => "npc.role.guard",
-            "gardener" => "npc.role.gardener",
-            "craftsman" => "npc.role.craftsman",
-            _ => profession?.NameKey ?? "npc.theme.settlers",
-        };
+        npc.NameKey = ResidentNameKey(job);
         // A base vendor's trade comes from the board key (body + cell), which is per place already — no change in #2698.
         npc.Theme = job == "vendor" ? ClassicTradeFor(boardKey) : profession is { Trades: true } ? profession.Theme : "settlers";
         npc.Held = job switch
@@ -716,7 +744,7 @@ public sealed partial class GameServer
 
             // The resident stays the same person (the memory key is the slot), only what they do changed.
             if (FindSessionByPlayerId(b.OwnerId) is { } owner
-                && owner.State.NpcMemory.TryGetValue(BaseResidentKey(b.Id, npc.BaseSlot), out var rel))
+                && owner.State.NpcMemory.TryGetValue(BaseResidentKey(b, npc.BaseSlot), out var rel))
             {
                 rel.Role = role;
                 SendNpcStandings(owner);
@@ -725,6 +753,17 @@ public sealed partial class GameServer
 
         return true;
     }
+
+    /// <summary>The nameplate's role key of a resident with <paramref name="job"/> (also the resident list's, #2717).</summary>
+    private static string ResidentNameKey(string job) => job switch
+    {
+        "vendor" => "npc.role.vendor",
+        "quartermaster" => "npc.role.quartermaster",
+        "guard" => "npc.role.guard",
+        "gardener" => "npc.role.gardener",
+        "craftsman" => "npc.role.craftsman",
+        _ => NpcProfessions.ByJob(job)?.NameKey ?? "npc.theme.settlers",
+    };
 
     /// <summary>Where a resident works by day (#1868): beside its post, its workbench or its first garden site, on
     /// its patrol; null for a settler without a job (it idles at its resting spot).</summary>
@@ -920,9 +959,13 @@ public sealed partial class GameServer
 
         if (FindSessionByPlayerId(b.OwnerId) is { } owner)
         {
-            for (int slot = 0; slot < BaseResidentCap; slot++)
+            // #2716: the plan's people by their pinned keys (a base without a plan yet: the keys its id mints).
+            var keys = _meta.BaseResidents.TryGetValue(BaseBoardKey(b), out var plan)
+                ? plan.Select(r => BaseResidentKey(b, r))
+                : Enumerable.Range(0, BaseResidentCap).Select(slot => BaseResidentKey(b, slot));
+            foreach (string key in keys)
             {
-                if (owner.State.NpcMemory.TryGetValue(BaseResidentKey(b.Id, slot), out var rel))
+                if (owner.State.NpcMemory.TryGetValue(key, out var rel))
                 {
                     rel.Place = newName;
                 }
@@ -944,7 +987,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            string key = BaseSettlerKey(b.Id);
+            string key = BaseResidentKey(b, 0); // #2716: the founding settler's pinned key
             string legacy = NpcKey(LegacySettlementLocationKey(b.Name), "settler"); // the pre-#1262 key hashed the base name alone
             if (!mem.ContainsKey(key) && mem.TryGetValue(legacy, out var rel))
             {
@@ -1014,25 +1057,36 @@ public sealed partial class GameServer
         return count;
     }
 
-    /// <summary>A resident moves in — a deterministic look and name per (base, slot) (slot 0 keeps the founding
-    /// settler's seed), KNOWN to the owner from day one (the plan's "counts as a known NPC"), announced over the
-    /// owner's radio — or by VEGA when the radio does not reach (#2596). Only a NEW resident is announced: residents
-    /// are respawned after every world load, and the call used to ring again each time.</summary>
-    private ServerNpc SpawnBaseResident(ServerBase b, int slot)
+    /// <summary>A resident moves in — the look, name and face of the person pinned in the plan record (#2716; minted from
+    /// the base and the slot when they first moved in), KNOWN to the owner from day one (the plan's "counts as a known
+    /// NPC"), announced over the owner's radio — or by VEGA when the radio does not reach (#2596). Only a NEW resident is
+    /// announced: residents are respawned after every world load, and the call used to ring again each time. The founding
+    /// settler's news says that every bed inside the base brings one more resident (#2715) — without beds only they live
+    /// there, and nothing told the player so.</summary>
+    private ServerNpc SpawnBaseResident(ServerBase b, BaseResidentRecord r)
     {
-        string seed = slot == 0 ? "base-settler:" + b.Id : $"base-settler:{b.Id}:{slot}";
-        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash(seed)));
+        PinResidentIdentity(b, r); // normally done by the scan already
+        int slot = r.Slot;
+        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash(r.Seed)));
         var home = ResidentHomeNear(b.Cell, new HashSet<Vector3i>(ResidentNpcs(b).Select(n => n.Home.ToBlock())));
         var npc = MakeNpc("settler", "settlers", robotic: false, home, rng);
-        npc.Settlement = b.Name; // display name for greetings/dialogs — the memory key is the base ID (#1262)
+        npc.Settlement = b.Name; // display name for greetings/dialogs — the memory key is pinned in the plan (#1262, #2716)
         npc.BaseId = b.Id;
         npc.BaseSlot = slot;
         npc.Rest = home;
         npc.RoutineEnabled = true; // #1867
         npc.Leash = ResidentLeash;
+
+        // #2716: the face the client draws came from the runtime NPC id, which follows the spawn order — pin the first one.
+        if (r.Face == 0)
+        {
+            r.Face = ClientFaceSeed(npc.Id, npc.Name);
+        }
+
+        npc.FaceSeed = r.Face;
         _npcs.Add(npc);
 
-        string npcKey = BaseResidentKey(b.Id, slot);
+        string npcKey = r.Key;
         if (FindSessionByPlayerId(b.OwnerId) is { Joined: true } owner)
         {
             // The plan says the settler "counts as a known NPC": seed the acquaintance so the nameplate
@@ -1050,11 +1104,18 @@ public sealed partial class GameServer
             }
 
             SendNpcStandings(owner);
-            string callKey = slot == 0 ? "settler:" + b.Id : $"settler:{b.Id}:{slot}";
-            if (isNew && !TryNpcRadioCall(owner, npcKey, npc.Name, b.Name, b.Planet, callKey, "npc.call.settler", string.Empty, isMission: false))
+            string callKey = "settler:" + npcKey;
+            if (isNew && !CallSettlerMovedIn(owner, b, npc, npcKey, callKey))
             {
                 // #2596: no radio in reach (or its cadence) — VEGA passes the news on instead of losing it.
-                RelayBaseNewsViaVega(owner, callKey, "vega.news.settler", new[] { npc.Name, b.Name });
+                if (slot == 0)
+                {
+                    RelayBaseNewsViaVega(owner, callKey, "vega.news.settler_first", new[] { npc.Name, b.Name, InvariantText(BaseResidentCap) });
+                }
+                else
+                {
+                    RelayBaseNewsViaVega(owner, callKey, "vega.news.settler", new[] { npc.Name, b.Name });
+                }
             }
 
             _repo.SavePlayer(owner.State);
@@ -1062,6 +1123,183 @@ public sealed partial class GameServer
 
         return npc;
     }
+
+    /// <summary>The move-in radio call; the founding settler adds that every bed inside the base brings one more (#2715).</summary>
+    private bool CallSettlerMovedIn(PlayerSession owner, ServerBase b, ServerNpc npc, string npcKey, string callKey)
+    {
+        if (npc.BaseSlot != 0)
+        {
+            return TryNpcRadioCall(owner, npcKey, npc.Name, b.Name, b.Planet, callKey, "npc.call.settler", string.Empty, isMission: false);
+        }
+
+        string text = Localize(owner.Locale, "npc.call.settler") + " "
+            + Localize(owner.Locale, "npc.call.settler_beds").Replace("{max}", InvariantText(BaseResidentCap));
+        return TryNpcRadioCallText(owner, npcKey, npc.Name, b.Name, b.Planet, callKey, text, isMission: false);
+    }
+
+    /// <summary>#2715: a resident moved out because their bed no longer counts — the owner hears who left (the founding
+    /// settler never leaves). The name is the live NPC's, else the one the owner remembers.</summary>
+    private void TellResidentMovedOut(ServerBase b, BaseResidentRecord leaving, string name)
+    {
+        if (leaving.Slot == 0 || FindSessionByPlayerId(b.OwnerId) is not { Joined: true } owner)
+        {
+            return;
+        }
+
+        if (name.Length == 0 && owner.State.NpcMemory.TryGetValue(BaseResidentKey(b, leaving), out var rel))
+        {
+            name = rel.Name;
+        }
+
+        if (name.Length > 0)
+        {
+            Send(owner, new ServerMessage { Text = "@srv.base.resident_left:" + name });
+        }
+    }
+
+    // ---------------- #2716: pinned identities ----------------
+
+    private static string InvariantText(int value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>The seed of a resident's look and name as minted from a base id part and the slot — the founding settler's
+    /// is <c>base-settler:&lt;id&gt;</c>, the others' <c>base-settler:&lt;id&gt;:&lt;slot&gt;</c> (what they always were).</summary>
+    private static string BaseResidentSeed(string idPart, int slot)
+        => slot == 0 ? "base-settler:" + idPart : "base-settler:" + idPart + ":" + InvariantText(slot);
+
+    /// <summary>
+    /// #2716: pins a resident's identity — the seed of their look and name, their memory key and their face — unless it is
+    /// pinned already. Base ids are load-order numbers that shift after a restart once an older core went, so a pinned
+    /// resident never reads the id again: they keep name, face and every player's memory of them.
+    /// <list type="bullet">
+    /// <item>Someone who left this base from this slot (<see cref="WorldMetadata.RetiredBaseResidents"/>: a bed that went, or
+    /// the core put back on its cell) comes back as themselves.</item>
+    /// <item>Else the identity is minted from today's base id. A key that a resident of a standing base holds, or that a
+    /// resident who left any base had (a later base may get the same id), is not minted again: the id part becomes
+    /// <c>&lt;id&gt;~&lt;n&gt;</c>. Within the <see cref="RetiredBaseResident.MaxKept"/> departed residents a save remembers,
+    /// two people never share a memory; a base dissolved before this pin existed left nothing to remember.</item>
+    /// </list>
+    /// Returns whether anything was pinned.
+    /// </summary>
+    private bool PinResidentIdentity(ServerBase b, BaseResidentRecord r)
+    {
+        if (r.Key.Length > 0 && r.Seed.Length > 0)
+        {
+            return false;
+        }
+
+        string home = BaseBoardKey(b);
+        int back = r.Key.Length == 0 && r.Seed.Length == 0
+            ? _meta.RetiredBaseResidents.FindLastIndex(x => x.Base == home && x.Slot == r.Slot && x.Key.Length > 0)
+            : -1;
+        if (back >= 0)
+        {
+            var returning = _meta.RetiredBaseResidents[back];
+            _meta.RetiredBaseResidents.RemoveAt(back);
+            if (!ResidentKeyTaken(returning.Key))
+            {
+                r.Key = returning.Key;
+                r.Seed = returning.Seed;
+                r.Face = returning.Face;
+                return true;
+            }
+        }
+
+        string idPart = InvariantText(b.Id);
+        if (r.Key.Length == 0)
+        {
+            for (int n = 2; ResidentKeyTaken(BaseResidentIdKey(idPart, r.Slot)); n++)
+            {
+                idPart = InvariantText(b.Id) + "~" + InvariantText(n);
+            }
+
+            r.Key = BaseResidentIdKey(idPart, r.Slot);
+        }
+
+        if (r.Seed.Length == 0)
+        {
+            r.Seed = BaseResidentSeed(idPart, r.Slot);
+        }
+
+        return true;
+    }
+
+    /// <summary>Whether <paramref name="key"/> is somebody's: pinned by a resident of a standing base's plan, or the key of a
+    /// resident who left (<see cref="WorldMetadata.RetiredBaseResidents"/>).</summary>
+    private bool ResidentKeyTaken(string key)
+    {
+        foreach (var plan in _meta.BaseResidents.Values)
+        {
+            if (plan.Any(x => x.Key == key))
+            {
+                return true;
+            }
+        }
+
+        return _meta.RetiredBaseResidents.Any(x => x.Key == key);
+    }
+
+    /// <summary>#2716: remembers a resident who left <paramref name="baseKey"/> — a bed that went, or a dissolved base — so
+    /// their key is never minted for anybody else and the same slot of the same base brings them back. Keeps the newest
+    /// <see cref="RetiredBaseResident.MaxKept"/>; an unpinned record (nothing to remember) is skipped.</summary>
+    private void RetireResident(string baseKey, BaseResidentRecord r)
+    {
+        if (r.Key.Length == 0)
+        {
+            return;
+        }
+
+        var retired = _meta.RetiredBaseResidents;
+        retired.RemoveAll(x => x.Key == r.Key);
+        retired.Add(new RetiredBaseResident { Base = baseKey, Slot = r.Slot, Seed = r.Seed, Key = r.Key, Face = r.Face });
+        if (retired.Count > RetiredBaseResident.MaxKept)
+        {
+            retired.RemoveRange(0, retired.Count - RetiredBaseResident.MaxKept);
+        }
+    }
+
+    /// <summary>#2716: run once at load, right after the bases got their load-order ids — every saved resident without a
+    /// pinned identity (a save from before the pin) is pinned from this load's ids, which are the ids they were made with,
+    /// so they keep their faces, names and memories even when an older core goes later. Bases on worlds nobody visits are
+    /// pinned too: their ids could shift before their first scan.</summary>
+    private void PinBaseResidentIdentities()
+    {
+        bool changed = false;
+        foreach (var b in _bases)
+        {
+            if (_meta.BaseResidents.TryGetValue(BaseBoardKey(b), out var plan))
+            {
+                foreach (var r in plan.OrderBy(x => x.Slot))
+                {
+                    changed |= PinResidentIdentity(b, r);
+                }
+            }
+        }
+
+        if (changed)
+        {
+            _repo.SaveMetadata(_meta);
+        }
+    }
+
+    /// <summary>The plan record of a base's resident in a slot, or null (no plan yet, or nobody in that slot).</summary>
+    private BaseResidentRecord? ResidentRecord(ServerBase b, int slot)
+        => _meta.BaseResidents.TryGetValue(BaseBoardKey(b), out var plan) ? plan.FirstOrDefault(r => r.Slot == slot) : null;
+
+    /// <summary>The memory key a base's resident in a slot is filed under (#2716): pinned in the plan, else minted from
+    /// today's base id (a base whose plan was not written yet).</summary>
+    private string BaseResidentKey(ServerBase b, int slot)
+        => ResidentRecord(b, slot) is { } r ? BaseResidentKey(b, r) : BaseResidentIdKey(InvariantText(b.Id), slot);
+
+    /// <summary>The memory key of a plan record: its pinned key, else minted from today's base id.</summary>
+    private static string BaseResidentKey(ServerBase b, BaseResidentRecord r)
+        => r.Key.Length > 0 ? r.Key : BaseResidentIdKey(InvariantText(b.Id), r.Slot);
+
+    /// <summary>The memory key of a live base resident — what <see cref="NpcKeyForNpc"/>, the trades and the board missions
+    /// file it under.</summary>
+    private string BaseResidentKeyOf(ServerNpc npc)
+        => _bases.FirstOrDefault(x => x.Id == npc.BaseId) is { } b
+            ? BaseResidentKey(b, npc.BaseSlot)
+            : BaseResidentIdKey(InvariantText(npc.BaseId), npc.BaseSlot);
 
     /// <summary>Stage 1's hail (#1120): a trader just set down on a body — base owners there get a call
     /// (no acquaintance required; the trader is advertising). #2596: an owner the radio does not reach, but who is in
@@ -1098,12 +1336,15 @@ public sealed partial class GameServer
     /// <summary>Test seam: run one base-life scan for every base on the active world right now.</summary>
     public void ScanBaseLifeForTest()
     {
-        _nextBaseLifeAt = 0;
         for (int i = 0; i < System.Math.Max(1, _bases.Count); i++)
         {
+            _nextBaseLifeAt.Remove(_world.LocationId);
+            _baseLifeScannedAt = double.NegativeInfinity;
             TickBaseLife();
-            _nextBaseLifeAt = 0;
         }
+
+        _nextBaseLifeAt.Remove(_world.LocationId); // as before: the next tick may scan again at once
+        _baseLifeScannedAt = double.NegativeInfinity;
     }
 
     /// <summary>Test seam: the founding settler's NPC id for a base, or null when none moved in yet.</summary>
@@ -1124,5 +1365,14 @@ public sealed partial class GameServer
     {
         var b = _bases.FirstOrDefault(x => x.Id == baseId);
         return b is null ? new List<(int, string)>() : ResidentNpcs(b).Select(n => (n.BaseSlot, n.Name)).ToList();
+    }
+
+    /// <summary>Test seam (#2716): a base's residents on the active world by slot with the face seed the client draws.</summary>
+    public IReadOnlyList<(int Slot, int Face)> BaseResidentFacesForTest(int baseId)
+    {
+        var b = _bases.FirstOrDefault(x => x.Id == baseId);
+        return b is null
+            ? new List<(int, int)>()
+            : ResidentNpcs(b).Select(n => (n.BaseSlot, n.FaceSeed != 0 ? n.FaceSeed : ClientFaceSeed(n.Id, n.Name))).ToList();
     }
 }

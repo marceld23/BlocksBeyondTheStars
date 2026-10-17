@@ -155,10 +155,20 @@ public sealed partial class GameServer
         EstablishDock(fromId, toId);
     }
 
-    /// <summary>Both players joined, on the SAME world, and within <see cref="DockRange"/> (#426 S17) —
-    /// mirrors <c>CanTradeTogether</c>, plus the explicit world check: positions are world-local, so two
-    /// players on different planets could otherwise "overlap" numerically and dock across worlds.</summary>
-    private bool CanDockTogether(string a, string b)
+    /// <summary>Both players together within <see cref="DockRange"/> (#426 S17, #2711) — see <see cref="PlayersTogether"/>.</summary>
+    private bool CanDockTogether(string a, string b) => PlayersTogether(a, b, DockRange);
+
+    /// <summary>The one "are these two players together?" check behind docking and trading (#2720): both joined and
+    /// within <paramref name="range"/> of each other in the SAME place.
+    /// <list type="bullet">
+    /// <item>On foot: the same world and their positions there — positions are world-local, so two players on different
+    /// planets could otherwise "overlap" numerically and dock or trade across worlds (#426 S17).</item>
+    /// <item>In flight: the same space instance and their poses there — the ship, or the suit on a spacewalk (#2711).
+    /// <c>State.Position</c> keeps the stale surface spot where the player last stood, so two ships side by side were
+    /// refused and two far apart were "together".</item>
+    /// <item>One flying and one on foot are never together.</item>
+    /// </list></summary>
+    private bool PlayersTogether(string a, string b, float range)
     {
         var sa = FindSessionByPlayerId(a);
         var sb = FindSessionByPlayerId(b);
@@ -167,8 +177,20 @@ public sealed partial class GameServer
             return false;
         }
 
+        bool aFlying = _playerInstance.TryGetValue(a, out var instanceA);
+        bool bFlying = _playerInstance.TryGetValue(b, out var instanceB);
+        if (aFlying || bFlying)
+        {
+            return instanceA is not null
+                && instanceA == instanceB
+                && _spaceInstances.TryGetValue(instanceA, out var instance)
+                && instance.PlayerPoses.TryGetValue(a, out var poseA)
+                && instance.PlayerPoses.TryGetValue(b, out var poseB)
+                && poseA.Pos.DistanceSquared(poseB.Pos) <= range * range;
+        }
+
         return sa.CurrentLocationId == sb.CurrentLocationId
-            && WrapDistSq(sa.State.Position, sb.State.Position) <= DockRange * DockRange;
+            && WrapDistSq(sa.State.Position, sb.State.Position) <= range * range;
     }
 
     /// <summary>Dissolves the player's active docking, if any, and notifies both sides.</summary>

@@ -482,6 +482,17 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
+                    if (WishPlaceText.IsWish(m))
+                    {
+                        // #2714: the village of a held wish — where it is handed over: a heart in the gold of the wish marks,
+                        // "Wish · Testville", listed with its distance until the wish is handed over.
+                        string wishPlace = WishPlaceText.MapLabel(m, L);
+                        Marker(m.X, m.Z, 34f, WishVillageCol, "♥", "map_mark_heart");
+                        MarkerLabel(m.X, m.Z, wishPlace, WishVillageCol);
+                        poiLines.Append($"\n♥ {wishPlace}  —  {Mathf.RoundToInt(GroundDistance(m.X, m.Z))} m");
+                        continue;
+                    }
+
                     if (m.Ping)
                     {
                         // A ping pulses: it must jump out for its 30 seconds, then it is gone.
@@ -803,6 +814,9 @@ namespace BlocksBeyondTheStars.Client
         /// shared with its compass blip and caption.</summary>
         public static readonly Color StoryTargetCol = new Color(0.78f, 0.6f, 1f);
 
+        /// <summary>#2714: the colour of a held wish's village — the gold of the "!"/"?" over a villager with a wish.</summary>
+        public static readonly Color WishVillageCol = new Color(1.00f, 0.82f, 0.22f);
+
         /// <summary>#2570: the label of VEGA's story help marker — the step's objective, resolved like the objective chip's (a
         /// key of a story this client lacks reads as the neutral note), else the localized "Goal".</summary>
         private string StoryMarkerLabel(BlocksBeyondTheStars.Networking.Messages.NetMarker m)
@@ -1044,15 +1058,20 @@ namespace BlocksBeyondTheStars.Client
                     continue; // pings live on the map itself; overflow rows are simply not listed
                 }
 
-                var mc = BlocksBeyondTheStars.Client.PlanetMarkerPalette.Colors[Mathf.Clamp(m.Color, 0, BlocksBeyondTheStars.Client.PlanetMarkerPalette.Colors.Length - 1)];
-                var sprite = UiKit.Icon(MarkerIcons[Mathf.Clamp(m.Icon, 0, MarkerIcons.Length - 1)]);
+                // #2714: a held wish's village is listed for its "Navigate" — never "Delete" (it goes with the wish).
+                bool wishPlace = WishPlaceText.IsWish(m);
+                var mc = wishPlace
+                    ? WishVillageCol
+                    : BlocksBeyondTheStars.Client.PlanetMarkerPalette.Colors[Mathf.Clamp(m.Color, 0, BlocksBeyondTheStars.Client.PlanetMarkerPalette.Colors.Length - 1)];
+                var sprite = UiKit.Icon(wishPlace ? "map_mark_heart" : MarkerIcons[Mathf.Clamp(m.Icon, 0, MarkerIcons.Length - 1)]);
                 if (sprite != null)
                 {
                     UiKit.AddImage(_markerPanel, 0, y + 8, 24, 24, sprite, mc);
                 }
 
                 bool mine = m.OwnerId == me;
-                string label = string.IsNullOrEmpty(m.Label) ? L("ui.marker.default") : m.Label;
+                string label = wishPlace ? WishPlaceText.MapLabel(m, L)
+                    : string.IsNullOrEmpty(m.Label) ? L("ui.marker.default") : m.Label;
                 if (!mine)
                 {
                     label += "  ·  " + L("ui.marker.by").Replace("{name}", m.OwnerId);
@@ -1063,7 +1082,7 @@ namespace BlocksBeyondTheStars.Client
                 var mx = m.X;
                 var mz = m.Z;
                 UiKit.AddButton(_markerPanel, 566, y + 2, 140, 36, L("ui.marker.nav"), () => { Game.Waypoint = new Vector3(mx, 0f, mz); Refresh(); });
-                if (mine)
+                if (mine && !wishPlace)
                 {
                     string mid = m.Id;
                     var del = UiKit.AddButton(_markerPanel, 714, y + 2, 120, 36, L("ui.marker.delete"), () => Game.Network?.SendMarkerRemove(mid));

@@ -110,6 +110,23 @@ before it drives cadence, gait choice, swing and the foot planner. `PlayerAvatar
 body actually covers (`asin(stride / 4 / leg length)`, never below the old curve, capped at 40°), and
 `PlayerAvatar.NeverAirborne` keeps NPCs out of the jump pose on an eased step up.
 
+### Space: no wrap, and the stale-view scan
+
+The flight view (`SpaceView`) smooths remote pilots, NPC traders and every moving space entity with
+`RemoteEntityInterpolator`. A space instance never wraps, so it samples with `RemoteEntityInterpolator.NoWrap` (any
+circumference ≤ 0): a plain straight-line lerp. Never pass a "very large" circumference instead — `WrapX` moves every
+negative X up by the circumference, and the old `int.MaxValue` drew everything west of the origin ~2.1 billion units
+away (#2707; it also fed the lock-distance overflow of #2428/#2450).
+
+A space entity that leaves (a collected drop, a rescued life pod, a salvage capsule, a destroyed hostile) has no
+message of its own — it is simply missing from the next `SpaceState`. `SpaceEntitySync.CollectStale` (Client.Core)
+finds the models whose id is not in the snapshot; it runs every frame and must not be skipped by comparing counts,
+because asteroids, debris and hull-backed stations/wrecks sit in the snapshot without a model (#2708).
+
+A pilot on a spacewalk arrives as the suit pose plus `NetSpacePlayer.HasShipPose`/`ShipX…ShipYaw` (the ship floating
+where they stepped out) and their suit colours; the view draws a `PlayerAvatar` at the suit and keeps the ship at
+that pose, and clears the pilot's interpolation buffer when the pose switches between ship and suit (#2709).
+
 ## Tests
 
 - `MotionInterpolatorTests`, `ServerClockSyncTests` (Client.Tests): even drawn speed on the stream and on the 2 Hz
@@ -121,6 +138,10 @@ body actually covers (`asin(stride / 4 / leg length)`, never below the old curve
 - `CreatureMotionArenaTests`: the running jump never stalls at the lip and never clips the ledge; a hunter steering
   round a wall never turns faster than the clamp.
 - `NpcGridPathTests`: string-pulling (open square, walls, corners, doorways, steps).
+- `RemoteEntityInterpolatorTests`, `SpaceEntitySyncTests` (Client.Tests): the no-wrap lerp at negative X and across 0,
+  the stale-view scan with view-less rocks around. `SpaceFlightClientTests` (Client.Tests, real client and server): a
+  partner west of the origin sampled where the server says, a collected drop leaving the snapshot while rocks stay,
+  a spacewalking partner arriving with the suit and the floating ship.
 
 ## Tuning knobs
 

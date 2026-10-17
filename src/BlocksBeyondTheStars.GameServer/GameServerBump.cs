@@ -200,6 +200,29 @@ public sealed partial class GameServer
                 ? pp
                 : new SpacePlayerPose(instance.ShipPosition, p.Yaw, p.InEva);
             var sp = pose.Pos;
+            // #2710: the other pilots of the instance live in the pose table, not in Entities — two friends who could not
+            // find each other left a report that never said where the partner was. A spacewalker's ship floats on its own
+            // (parkedShip), and a pilot walking inside the parked ship is listed at the hull (parked).
+            var pilots = OtherPlayersInSpace(p.PlayerId, instance)
+                .Select(o => new
+                {
+                    id = o.PlayerId,
+                    name = o.Name,
+                    x = o.X,
+                    y = o.Y,
+                    z = o.Z,
+                    dist = (float)Math.Sqrt(new Vector3f(o.X, o.Y, o.Z).DistanceSquared(sp)),
+                    eva = o.Eva,
+                    parked = o.Parked,
+                    parkedShip = o.HasShipPose ? new { x = o.ShipX, y = o.ShipY, z = o.ShipZ, yaw = o.ShipYaw }
+                        : o.Parked ? new { x = o.X, y = o.Y, z = o.Z, yaw = o.Yaw }
+                        : null,
+                })
+                .OrderBy(o => o.dist)
+                .ToList();
+            var ownShip = pose.Eva && instance.ShipPoses.TryGetValue(p.PlayerId, out var own)
+                ? new { x = own.Pos.X, y = own.Pos.Y, z = own.Pos.Z, yaw = own.Yaw }
+                : null;
             space = new
             {
                 instanceId = instance.Id,
@@ -209,6 +232,8 @@ public sealed partial class GameServer
                 shipZ = sp.Z,
                 yaw = pose.Yaw,
                 eva = pose.Eva,
+                floatingShip = ownShip, // #2710: on a spacewalk the pose above is the suit — this is where the own ship floats
+                pilots,
                 entities = instance.Entities
                     .OrderBy(e => e.Position.DistanceSquared(sp))
                     .Take(40)

@@ -119,4 +119,14 @@ public sealed class SpaceRadarMathTests
         Assert.InRange(x, 0.6f - Eps, 0.6f + Eps);
         Assert.InRange(z, 0.8f - Eps, 0.8f + Eps);
     }
+
+    [Theory]
+    [InlineData("Alice", "Bob", true)]             // a co-op partner — flying, on a spacewalk or parked
+    [InlineData("npc:trader-7", "Bob", false)]     // an NPC trader rides the same pose list
+    [InlineData("Bob", "Bob", false)]              // never the own pose
+    [InlineData("", "Bob", false)]
+    [InlineData(null, "Bob", false)]
+    [InlineData("Alice", null, true)]              // before the own id is known, a partner still shows
+    public void IsRadarPilot_ShowsEveryOtherPilot_NeverTraders(string? poseId, string? localId, bool expected)
+        => Assert.Equal(expected, SpaceRadarMath.IsRadarPilot(poseId, localId)); // #2710
 }

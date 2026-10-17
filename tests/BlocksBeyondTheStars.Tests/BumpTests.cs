@@ -120,6 +120,46 @@ public sealed class BumpTests : IDisposable
     }
 
     [Fact]
+    public void BumpSnapshot_InSpace_ListsThePartnerPilot_WithTheFloatingShip()
+    {
+        // #2710: two friends flew around one orbit without finding each other, and the reports could not say where the
+        // partner was — pilots live in the pose table, and the space block listed only the instance's entities.
+        var (server, _, paths) = StartWorld(c =>
+        {
+            c.PlaceStarterShip = false;
+            c.Rules.FreeSpaceFlight = true;
+        });
+        var (connectionId, reporter) = server.Sessions.First(kv => kv.Value.Joined);
+        string reporterId = reporter.State.PlayerId;
+        reporter.State.AboardShip = true; // launching needs the pilot aboard
+        server.EnterSpace(reporterId);
+        Assert.True(server.InSpace(reporterId));
+        server.ShipMove(reporterId, 10f, 0f, 0f);
+
+        var partner = server.AddLocalPlayer("Partner");
+        server.EnterSpace(partner.State.PlayerId);
+        server.ShipMove(partner.State.PlayerId, -40f, 0f, 10f, 15f); // the partner's ship
+        partner.State.InEva = true;                                     // ...and out on a spacewalk beside it
+        server.ShipMove(partner.State.PlayerId, -44f, 1f, 12f);
+
+        server.HandlePayloadForTest(connectionId, NetCodec.Encode(new ChatIntent { Text = "/bump where is my friend" }));
+
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Assert.Single(MyBumpFiles(paths, "*.json"))));
+        var space = doc.RootElement.GetProperty("space");
+        var pilot = Assert.Single(space.GetProperty("pilots").EnumerateArray().ToList());
+        Assert.Equal(partner.State.PlayerId, pilot.GetProperty("id").GetString());
+        Assert.Equal("Partner", pilot.GetProperty("name").GetString());
+        Assert.True(pilot.GetProperty("eva").GetBoolean());
+        Assert.Equal(-44f, pilot.GetProperty("x").GetSingle(), 2);
+        Assert.Equal(12f, pilot.GetProperty("z").GetSingle(), 2);
+        Assert.Equal(MathF.Sqrt((54f * 54f) + 1f + (12f * 12f)), pilot.GetProperty("dist").GetSingle(), 2);
+        var ship = pilot.GetProperty("parkedShip");
+        Assert.Equal(-40f, ship.GetProperty("x").GetSingle(), 2);
+        Assert.Equal(10f, ship.GetProperty("z").GetSingle(), 2);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, space.GetProperty("floatingShip").ValueKind); // the reporter flies
+    }
+
+    [Fact]
     public void BumpReport_WithScreenshot_WritesJpgAlongsideSnapshot()
     {
         var (server, client, paths) = StartWorld();
@@ -279,7 +319,7 @@ public sealed class BumpTests : IDisposable
         }
     }
 
-    private (SvGameServer server, LoopbackClientTransport client, SaveGamePaths paths) StartWorld()
+    private (SvGameServer server, LoopbackClientTransport client, SaveGamePaths paths) StartWorld(Action<ServerConfig>? configure = null)
     {
         var paths = new SaveGamePaths(_root, _world);
         _repo = new SqliteWorldRepository(paths);
@@ -287,6 +327,7 @@ public sealed class BumpTests : IDisposable
         _st = new LoopbackServerTransport(link);
         _client = new LoopbackClientTransport(link);
         var config = new ServerConfig { WorldName = _world, Seed = 1, AutoSaveIntervalMinutes = 9999 };
+        configure?.Invoke(config);
 
         var server = new SvGameServer(config, _content, _st, _repo);
         server.Start();

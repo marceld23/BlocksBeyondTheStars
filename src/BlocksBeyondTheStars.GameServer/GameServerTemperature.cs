@@ -131,7 +131,7 @@ public sealed partial class GameServer
         else
         {
             float dps = System.Math.Min(MaxTemperatureDamagePerSecond, severity * TemperatureDamagePerDegree);
-            p.Health = System.Math.Max(0f, p.Health - (float)(dt * dps * scale));
+            DamagePlayer(p, (float)(dt * dps * scale));
         }
     }
 
@@ -313,7 +313,7 @@ public sealed partial class GameServer
         {
             session.ExposureFullSeconds += dt;
             float dps = System.Math.Min(MaxTemperatureDamagePerSecond, ExposureDamageStart + ExposureDamageRise * (float)session.ExposureFullSeconds);
-            p.Health = System.Math.Max(0f, p.Health - (float)(dt * dps));
+            DamagePlayer(p, (float)(dt * dps));
             session.HazardDeathReason = session.ExposureHot ? "@srv.death.burned" : "@srv.death.froze";
         }
         else

@@ -249,20 +249,102 @@ public sealed class BaseGuestTests
         Assert.False(insideEver, "the guest got inside the walls");
     }
 
+    /// <summary>"{name} is walking home to {village}." in English.</summary>
+    private static string WalkingHome(string name)
+        => En("srv.guest.walking_home").Replace("{name}", name, StringComparison.Ordinal).Replace("{village}", Village, StringComparison.Ordinal);
+
+    /// <summary>"I'm heading home to {village} soon — come and see me there!" in English.</summary>
+    private static string GoingHome => En("dlg.guest.going_home").Replace("{village}", Village, StringComparison.Ordinal);
+
+    /// <summary>#2713 (Lyxette 2026-10-17: "where did they go?"): the owner going aboard used to remove the guest at once, in
+    /// plain view of the ship's windows. Now it walks home — the owner reads where to — and vanishes only once nobody is
+    /// near (or after the usual timeout); the villager is home again then.</summary>
     [Fact]
-    public void TheOwnerGoingAboard_SendsTheGuestAwayAtOnce_AndTheVillagerIsHomeAgain()
+    public void TheOwnerGoingAboard_SendsTheGuestWalkingHome_AndItVanishesOnlyOutOfSight()
     {
         using var w = World("guest_owner_leaves");
         int villager = VillageWithVillager(w);
         int guest = Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "neighbour"));
-        Assert.True(w.Server.NpcVisitingAwayForTest(villager));
+        string name = Npc(w, guest).Name;
+        w.TickAt(0.4, 150, until: () => w.Server.BaseGuestsForTest.Single().Greeted); // it walked up to the owner
+        Assert.True(w.Server.BaseGuestsForTest.Single().Greeted, "the neighbour never reached the owner");
 
         w.Player.State.AboardShip = true;
+        w.Server.TickBaseGuestsForTest();
+
+        Assert.Equal("Leaving", Assert.Single(w.Server.BaseGuestsForTest).Phase);
+        Assert.Contains(w.Server.NpcRosterForTest(), n => n.Id == guest); // not popped out of the yard
+        Assert.True(w.Server.NpcVisitingAwayForTest(villager));
+        Assert.Single(w.MessagesToPlayer(), m => m == WalkingHome(name));
+        Assert.True(w.Server.KeepsNpcsMovingForTest(w.Player.State.PlayerId), "the owner aboard does not see the guest walk");
+
+        // Watched from right there, it is still around a moment later — the walk is its way out.
+        StepSeconds(w, 3);
+        Assert.Contains(w.Server.NpcRosterForTest(), n => n.Id == guest);
+
+        // Out of sight (the owner far off), it is gone at the end of its walk — and the villager is back in the village.
+        w.Player.State.Position = new Vector3f(NpcLifeWorld.Cx - 40f, w.Feet, NpcLifeWorld.Cz - 40f);
+        w.TickAt(0.4, 200, until: () => w.Server.BaseGuestsForTest.Count == 0);
+        Assert.Empty(w.Server.BaseGuestsForTest);
+        Assert.DoesNotContain(w.Server.NpcRosterForTest(), n => n.Id == guest);
+        Assert.False(w.Server.NpcVisitingAwayForTest(villager));
+        Assert.False(w.Server.KeepsNpcsMovingForTest(w.Player.State.PlayerId)); // aboard and nobody to watch: the NPCs rest again
+        Assert.Single(w.MessagesToPlayer(), m => m == WalkingHome(name)); // said once
+    }
+
+    /// <summary>#2713: freeze-safe — a world nobody ticked for a while still ends the visit at once (no guest walks home in a
+    /// world without players).</summary>
+    [Fact]
+    public void AWorldNotTickedForAWhile_StillEndsTheVisitAtOnce()
+    {
+        using var w = World("guest_frozen");
+        int villager = VillageWithVillager(w);
+        int guest = Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "neighbour"));
+        w.Server.AdvanceUptimeForTest(30.0); // longer than the 20 s a guest's world may pause
         w.Server.TickBaseGuestsForTest();
 
         Assert.Empty(w.Server.BaseGuestsForTest);
         Assert.DoesNotContain(w.Server.NpcRosterForTest(), n => n.Id == guest);
         Assert.False(w.Server.NpcVisitingAwayForTest(villager));
+    }
+
+    /// <summary>#2713: a neighbour's present comes with where it is off to, and so does its leaving.</summary>
+    [Fact]
+    public void ANeighboursPresent_SaysWhereItIsGoing_AndItsLeaving_IsToldToTheOwner()
+    {
+        using var w = World("guest_neighbour_gift");
+        VillageWithVillager(w);
+        int guest = Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "neighbour"));
+        string name = Npc(w, guest).Name;
+        StandBeside(w, guest);
+        w.Server.TickBaseGuestsForTest();
+
+        string pid = w.Player.State.PlayerId;
+        w.Server.TalkToNpcForTest(pid, guest);
+        Assert.Equal(("guest_neighbour", 0), w.Server.ActiveDialogForTest(pid));
+        w.Server.ChooseDialogForTest(pid, 0); // "Oh, thank you!" → the present
+        string answer = LastDialog(w).Text;
+        Assert.StartsWith(En("dlg.guest_neighbour.r_thanks"), answer);
+        Assert.EndsWith(GoingHome, answer);
+        Assert.Contains(Village, answer);
+
+        Assert.DoesNotContain(WalkingHome(name), w.MessagesToPlayer()); // still here
+        StepSeconds(w, 32); // half a minute after its present it heads home
+        Assert.Equal("Leaving", w.Server.BaseGuestsForTest.Single().Phase);
+        Assert.Single(w.MessagesToPlayer(), m => m == WalkingHome(name));
+    }
+
+    /// <summary>#2713: the traveller and the merchant are nobody's neighbours — no "walking home" toast for them.</summary>
+    [Fact]
+    public void OnlyANeighbour_IsSaidToWalkHome()
+    {
+        using var w = World("guest_traveller_leaves");
+        VillageWithVillager(w);
+        Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "traveler"));
+        w.Player.State.AboardShip = true;
+        w.Server.TickBaseGuestsForTest();
+        Assert.Equal("Leaving", w.Server.BaseGuestsForTest.Single().Phase);
+        Assert.DoesNotContain(w.MessagesToPlayer(), m => m.Contains(Village, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -365,6 +447,73 @@ public sealed class BaseGuestTests
         w.Server.ChooseDialogForTest(pid, 1);
         Assert.Equal(En("dlg.guest_neighbour.r_nowish"), LastDialog(w).Text);
         Assert.Single(w.Server.HeldWishesForTest(pid));
+    }
+
+    private static MissionList LastMissions(NpcLifeWorld w)
+        => w.Transport.Sent.Where(s => s.Conn == w.Player.ConnectionId).Select(s => s.Msg).OfType<MissionList>().Last();
+
+    private static MarkerList LastMarkers(NpcLifeWorld w)
+        => w.Transport.Sent.Where(s => s.Conn == w.Player.ConnectionId).Select(s => s.Msg).OfType<MarkerList>().Last();
+
+    /// <summary>#2713/#2714 (Lyxette 2026-10-17: "I accept a few small tasks … after that the settlers have vanished"): the wish
+    /// a neighbour brings along says where to take it — the neighbour's answer, the Missions tab, the ready toast and the
+    /// tab's refusal name the village, and the village is marked on the player's map until the wish is handed over.</summary>
+    [Fact]
+    public void ANeighboursWish_NamesTheVillage_InTheTalk_TheMissionTheToastsAndOnTheMap()
+    {
+        using var w = World("guest_wish_where");
+        w.Server.SetWishTemplateForTest("show_crystal");
+        int villager = VillageWithVillager(w);
+        string giver = Npc(w, villager).Name;
+        int guest = Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "neighbour"));
+        StandBeside(w, guest);
+        w.Server.TickBaseGuestsForTest();
+
+        string pid = w.Player.State.PlayerId;
+        w.Server.TalkToNpcForTest(pid, guest);
+        w.Server.ChooseDialogForTest(pid, 1); // "Can I help you with anything?"
+        Assert.EndsWith(GoingHome, LastDialog(w).Text); // "I'm heading home to Testville soon — come and see me there!"
+
+        // The Missions tab: the request, the fact line and where the villager lives — plus the place and its marker.
+        string wish = Assert.Single(w.Server.HeldWishesForTest(pid));
+        var mission = LastMissions(w).Active.Single(m => m.Id == wish);
+        Assert.EndsWith(En("wish.where").Replace("{npc}", giver, StringComparison.Ordinal).Replace("{village}", Village, StringComparison.Ordinal),
+            mission.Description);
+        Assert.Equal(Village, mission.PlaceName);
+        Assert.Equal("wish:" + w.Server.SettlementLocationKeyForTest(Village), mission.PlaceMarkerId);
+
+        // The map: one marker at the village, the player's own, sent with the acceptance.
+        var marker = Assert.Single(w.Server.WishMarkersForTest(pid));
+        Assert.Equal(mission.PlaceMarkerId, marker.Id);
+        Assert.Equal(Village, marker.Label);
+        Assert.Equal(pid, marker.OwnerId);
+        Assert.False(marker.Ping);
+        var centre = w.Server.SettlementCenterForTest(Village);
+        Assert.Equal((centre.X, centre.Z), (marker.X, marker.Z));
+        Assert.Contains(LastMarkers(w).Markers, m => m.Wish && m.Id == marker.Id);
+
+        // Ready: the toast says where to bring it.
+        GiveCrystal(w);
+        w.Server.TickWishesForTest(pid);
+        Assert.Contains(En("srv.wish.ready_village").Replace("{name}", giver, StringComparison.Ordinal).Replace("{village}", Village, StringComparison.Ordinal),
+            w.MessagesToPlayer());
+
+        // The tab, away from the villager: the refusal names the village too.
+        var beside = w.Player.State.Position;
+        w.Player.State.Position = new Vector3f(NpcLifeWorld.Cx - 30f, w.Feet, NpcLifeWorld.Cz - 30f);
+        w.Server.TurnInMission(pid, wish);
+        var refusal = w.Transport.Sent.Where(s => s.Conn == w.Player.ConnectionId).Select(s => s.Msg).OfType<MissionResult>().Last();
+        Assert.False(refusal.Success);
+        Assert.Equal(En("srv.wish.return_village").Replace("{name}", giver, StringComparison.Ordinal).Replace("{village}", Village, StringComparison.Ordinal),
+            refusal.Reason);
+
+        // Handed over to the neighbour still visiting: the marker and the stored village are gone with the wish.
+        w.Player.State.Position = beside;
+        w.Server.TalkToNpcForTest(pid, guest);
+        Assert.Empty(w.Server.HeldWishesForTest(pid));
+        Assert.Empty(w.Server.WishMarkersForTest(pid));
+        Assert.DoesNotContain(LastMarkers(w).Markers, m => m.Wish);
+        Assert.All(w.Player.State.Wishes.Values.SelectMany(l => l.Lanes), l => Assert.Equal(string.Empty, l.Village));
     }
 
     /// <summary>The start of the "you have {have} of {count} … — no hurry!" reminder, up to the item's name.</summary>
@@ -508,10 +657,14 @@ public sealed class BaseGuestTests
         Assert.DoesNotContain(villager, offers.Concat(ready)); // never the hidden id
         Assert.Contains(guest, LastStandings(w).WishNpcIds);
 
-        // The owner going aboard sends the guest home at once — the "!" goes back with the villager, and the
-        // standings say so.
+        // The owner going aboard sends the guest home (#2713: it walks, the "!" stays on it on its way) — once it is gone
+        // the "!" goes back with the villager, and the standings say so.
         w.Player.State.AboardShip = true;
         w.Server.TickBaseGuestsForTest();
+        Assert.Equal("Leaving", w.Server.BaseGuestsForTest.Single().Phase);
+        Assert.Contains(guest, w.Server.WishMarksForTest(pid).Offers);
+        w.Player.State.Position = new Vector3f(NpcLifeWorld.Cx - 40f, w.Feet, NpcLifeWorld.Cz - 40f); // nobody watches it go
+        StepSeconds(w, 125); // at the latest the usual timeout ends the walk
         Assert.Empty(w.Server.BaseGuestsForTest);
         Assert.Contains(villager, w.Server.WishMarksForTest(pid).Offers);
         Assert.Contains(villager, LastStandings(w).WishNpcIds);

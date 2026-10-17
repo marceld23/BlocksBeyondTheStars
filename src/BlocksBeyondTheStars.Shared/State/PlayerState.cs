@@ -229,8 +229,8 @@ public sealed class PlayerState
     public Configuration.PlayerModeOverride ModeOverride { get; set; } = Configuration.PlayerModeOverride.None;
 
     /// <summary>Hostiles (machines, bandits, aggressive fauna) treat this player as not there: god mode,
-    /// cloak — or a per-player Creative override (#1121), mirroring a creative world, where they never
-    /// spawn at all.</summary>
+    /// cloak — or a per-player Creative override (#1121). A Sandbox world (the Creative game mode) is the
+    /// world's rule, not the player's: the server's <c>HostilesIgnore</c> adds it (#2712).</summary>
     public bool IgnoredByHostiles => GodMode || Stealthed || ModeOverride == Configuration.PlayerModeOverride.Creative
         || Bio.PlayerEffects.Of(Effects, Bio.BioEffect.Stealth) > 0f; // #2202: a stealth preparation, for as long as it lasts
 

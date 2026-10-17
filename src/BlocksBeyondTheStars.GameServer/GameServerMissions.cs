@@ -327,7 +327,7 @@ public sealed partial class GameServer
         // #2601: a villager's wish is handed over in person — at the tab only next to them (a talk is next to them).
         if (IsWishMission(missionId) && !_wishTurnInByTalk && !WishGiverNear(session, missionId, out string wishGiver))
         {
-            MissionFail(session, missionId, "@srv.wish.return_giver:" + wishGiver);
+            MissionFail(session, missionId, WishReturnReason(session, missionId, wishGiver)); // #2713: names the village
             return false;
         }
 
@@ -1106,6 +1106,7 @@ public sealed partial class GameServer
 
         // #2601: a villager's wish reads "A wish from Tomas" and their own words (free text, never a board key).
         bool wish = IsWishMission(def.Id) && session is not null;
+        var (placeName, placeMarker) = wish ? WishPlaceOf(session!.State, def.Id) : (string.Empty, string.Empty); // #2714
 
         return new NetMission
         {
@@ -1122,6 +1123,8 @@ public sealed partial class GameServer
             ChainStep = def.Step,
             ChainLength = IsChainMission(def) ? ChainLength(def.ChainId) : 0, // #1212: "Part 2 of 4"
             GiverName = def.GiverName,
+            PlaceName = placeName,          // #2714: the giver's village …
+            PlaceMarkerId = placeMarker,    // … and its map marker (distance + "Navigate" on its body)
         };
     }
 

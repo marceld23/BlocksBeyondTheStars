@@ -132,6 +132,51 @@ public sealed class PilotVisibilityTests : IDisposable
         Assert.False(flying.Parked);
     }
 
+    [Fact]
+    public void ASpacewalkingPartner_IsSentWithTheSuitPose_AndTheFloatingShipPose()
+    {
+        // #2709: a partner on a spacewalk used to reach the others as a suit pose only — their ship vanished while they
+        // were outside, and the suit was a bare cube. The space state now carries the floating ship and the suit look.
+        var t = new RecordingTransport();
+        var server = NewServer("evapartner", t);
+        var alice = server.AddLocalPlayer("Alice");
+        var bob = server.AddLocalPlayer("Bob");
+        server.EnterSpace("Alice");
+        server.EnterSpace("Bob");
+        server.ShipMove("Alice", -120f, 2f, 4f, 30f); // the ship, west of the origin like in the report
+
+        server.HandlePayloadForTest(alice.ConnectionId, NetCodec.Encode(new SetEvaIntent { Active = true }));
+        Assert.True(alice.State.InEva);
+        server.ShipMove("Alice", -124f, 3f, 6f, 90f); // the suit floats beside the ship
+
+        t.Sent.Clear();
+        server.Tick(0.3); // the pilot beat re-broadcasts the poses to everyone in the instance
+        var state = To<SpaceState>(t, bob).Last();
+        var partner = Assert.Single(state.Players, p => p.PlayerId == "Alice");
+        Assert.True(partner.Eva);
+        Assert.Equal(-124f, partner.X, 2);
+        Assert.Equal(6f, partner.Z, 2);
+        Assert.Equal(90f, partner.Yaw, 2);
+        Assert.True(partner.HasShipPose, "the floating ship must reach the partner while its pilot is outside");
+        Assert.Equal(-120f, partner.ShipX, 2);
+        Assert.Equal(2f, partner.ShipY, 2);
+        Assert.Equal(4f, partner.ShipZ, 2);
+        Assert.Equal(30f, partner.ShipYaw, 2);
+        Assert.Equal(alice.SkinColor, partner.Skin);
+        Assert.Equal(alice.TorsoColor, partner.Torso);
+        Assert.Equal(alice.ArmColor, partner.Arms);
+        Assert.Equal(alice.LegColor, partner.Legs);
+        Assert.Equal("Alice", partner.Name);
+
+        // Back aboard, the pose is the ship again — no second ship pose.
+        server.HandlePayloadForTest(alice.ConnectionId, NetCodec.Encode(new SetEvaIntent { Active = false }));
+        server.ShipMove("Alice", -120f, 2f, 4f, 30f);
+        var aboard = Assert.Single(server.OtherSpacePlayers("Bob"), p => p.PlayerId == "Alice");
+        Assert.False(aboard.Eva);
+        Assert.False(aboard.HasShipPose);
+        Assert.Equal(-120f, aboard.X, 2);
+    }
+
     [Theory]
     [InlineData(0, 0f)]
     [InlineData(1, 8f)]

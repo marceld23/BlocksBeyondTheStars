@@ -31,15 +31,14 @@ public sealed partial class GameServer
 
     private static string StationLocationKey(string stationId) => $"station_{(uint)WorldGenerator.StableHash(stationId) % 100000u}";
 
-    /// <summary>A founded base's settler, keyed by the base's stable id — a base NAME can change, and keying
-    /// by its hash minted a new settler (NPC + roster entry) on every rename (#1262).</summary>
-    private static string BaseSettlerKey(int baseId) => NpcKey("base_" + baseId, "settler");
-
-    /// <summary>A base resident's memory key (#1865): the PERSON in a slot, whatever job they hold — slot 0 is the
-    /// founding settler's pre-existing key, the residents the beds brought are <c>base_&lt;id&gt;#&lt;slot&gt;:settler</c>.
-    /// A resident who takes over the trading post stays the same acquaintance (the relationship's role follows).</summary>
-    private static string BaseResidentKey(int baseId, int slot)
-        => slot == 0 ? BaseSettlerKey(baseId) : NpcKey($"base_{baseId}#{slot}", "settler");
+    /// <summary>A base resident's memory key as minted from a base id (#1262, #1865): the PERSON in a slot, whatever job they
+    /// hold — the founding settler is <c>base_&lt;id&gt;:settler</c>, the residents the beds brought are
+    /// <c>base_&lt;id&gt;#&lt;slot&gt;:settler</c> (a base NAME can change — keying by its hash minted a new settler on every
+    /// rename). A resident who takes over the trading post stays the same acquaintance. The id is a load-order number that
+    /// shifts when an older core goes (#2716), so this only mints the key a resident is pinned with
+    /// (<c>BaseResidentRecord.Key</c>); readers go through <see cref="BaseResidentKey(ServerBase, int)"/>.</summary>
+    private static string BaseResidentIdKey(string idPart, int slot)
+        => slot == 0 ? NpcKey("base_" + idPart, "settler") : NpcKey($"base_{idPart}#{slot}", "settler");
 
     /// <summary>The board location id from a board mission id: the kind and the number (<c>settle_123_4</c>,
     /// <c>settle_123_bounty_camp_2</c>, <c>station_9_m3</c> → <c>settle_123</c> / <c>station_9</c>). Cut at the SECOND
@@ -100,7 +99,7 @@ public sealed partial class GameServer
         // #1865: a base board's quartermaster is one of the base's residents — the job goes on that person's memory.
         if (IsBaseMission(missionId) && BaseResidentWithJob(player, "quartermaster") is { } qm)
         {
-            RecordNpcInteraction(player, BaseResidentKey(qm.BaseId, qm.BaseSlot), qm.Name, "quartermaster", NpcInteractionKind.MissionAccepted, qm.Settlement);
+            RecordNpcInteraction(player, BaseResidentKeyOf(qm), qm.Name, "quartermaster", NpcInteractionKind.MissionAccepted, qm.Settlement);
             return;
         }
 
@@ -115,7 +114,7 @@ public sealed partial class GameServer
         if (NearBaseVendor(player) && BaseResidentWithJob(player, "vendor") is { } resident)
         {
             // #1865: the trader at home is a resident — the barter goes on that person's memory.
-            RecordNpcInteraction(player, BaseResidentKey(resident.BaseId, resident.BaseSlot), resident.Name, "vendor", NpcInteractionKind.Trade, resident.Settlement);
+            RecordNpcInteraction(player, BaseResidentKeyOf(resident), resident.Name, "vendor", NpcInteractionKind.Trade, resident.Settlement);
             return;
         }
 

@@ -51,6 +51,13 @@ public static class SpaceRadarMath
         z = viewZ / len;
     }
 
+    /// <summary>#2710: whether a pose of <c>SpaceState.Players</c> is a co-op pilot the radar shows — every other player
+    /// in the instance, flying, on a spacewalk or walking inside their parked ship; never an NPC trader (their poses ride
+    /// the same list with an <c>npc:</c> id) and never the own pose. Such a blip stays on the rim when it is out of range,
+    /// like a station, so a friend can always be found.</summary>
+    public static bool IsRadarPilot(string? poseId, string? localPlayerId)
+        => !string.IsNullOrEmpty(poseId) && poseId != localPlayerId && !SpaceTargeting.IsTraderId(poseId);
+
     /// <summary>+1 when the target is above the pilot, −1 below, 0 roughly level.</summary>
     public static int VerticalState(float dy) => dy > VerticalCueUnits ? 1 : dy < -VerticalCueUnits ? -1 : 0;
 

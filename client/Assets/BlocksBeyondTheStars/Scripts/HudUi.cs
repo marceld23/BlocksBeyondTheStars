@@ -3975,7 +3975,9 @@ namespace BlocksBeyondTheStars.Client
             string residents = b.ResidentCap > 0
                 ? "  ·  " + loc.Get("ui.base.residents").Replace("{n}", b.Residents.ToString()).Replace("{max}", b.ResidentCap.ToString())
                 : string.Empty;
-            return $"{ExpandKeyTokens(loc, loc.Get("ui.base.rename_hint"))}  ·  {air}  ·  {here}{residents}"; // #2502: {key:Interact}
+            // #2717: E at the core also lists who lives here — said where the server knows residents at all.
+            string key = b.ResidentCap > 0 ? "ui.base.core_hint" : "ui.base.rename_hint";
+            return $"{ExpandKeyTokens(loc, loc.Get(key))}  ·  {air}  ·  {here}{residents}"; // #2502: {key:Interact}
         }
 
         /// <summary>#2018: the Feed prompt while food is held and a begging animal is near — it shares the loot line, and a herd

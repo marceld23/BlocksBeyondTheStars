@@ -49,6 +49,13 @@ public sealed class NetMarker
     /// <summary>#2570: the story (pack) a <see cref="Story"/> marker belongs to — the client's text for a key of a story it
     /// lacks reads as the neutral "needs a newer version" note.</summary>
     public string PackId { get; set; } = string.Empty;
+
+    /// <summary>#2714: the village of a villager's wish this player holds — the place it is handed over. <see cref="Label"/>
+    /// is the village's name; one marker per village (id <c>wish:&lt;place key&gt;</c>), the player's own only, shown while
+    /// a wish from there is open and the player is on its body. Built from the held wish, never one of the player's own
+    /// <c>PlayerMarker</c>s (a remove of its id does nothing). Additive: an older client draws it as an ordinary named
+    /// marker (home icon, yellow).</summary>
+    public bool Wish { get; set; }
 }
 
 /// <summary>The full set of markers this player should see on their CURRENT world (server → client): their

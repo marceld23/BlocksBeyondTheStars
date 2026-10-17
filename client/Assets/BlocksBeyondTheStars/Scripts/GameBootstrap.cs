@@ -3379,7 +3379,8 @@ namespace BlocksBeyondTheStars.Client
             Network.DockStatusChanged += m =>
             {
                 Dock = m;
-                LastMessage = m.Docked ? $"Docked with {m.Partner}" : ServerMessageText(m.Reason);
+                // #2720: the same "Docked with" prefix the docked hint uses (PlayerInteractions), localized — it was English.
+                LastMessage = m.Docked ? $"{Localizer?.Get("ui.dock.docked") ?? "Docked with"} {m.Partner}" : ServerMessageText(m.Reason);
             };
             // #1071: rejections arrive as @srv.mission.* tokens — localize them instead of pushing the raw token at the player.
             // #2462 (B24): localized, named after the mission, and "complete" only on a real turn-in.

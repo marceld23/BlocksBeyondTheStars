@@ -254,10 +254,37 @@ public sealed class WorldMetadata
     /// the same beds at the same jobs; written whenever the assignment changes. Additive: an older build drops it, a missing
     /// entry means "assign afresh".</summary>
     public System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<BaseResidentRecord>> BaseResidents { get; set; } = new();
+
+    /// <summary>#2716: the residents who left — moved out for want of a bed, or went with their dissolved base — with the base
+    /// (core-cell key) and slot they had, oldest first, at most <see cref="RetiredBaseResident.MaxKept"/>. Their memory keys
+    /// are never minted for a resident of another base (a later base may get the same load-order id), and the same base
+    /// filling the same slot again — a rebuilt bed, a core put back on its cell — brings the same person back. Additive: an
+    /// older build drops it, a missing list means "nobody left".</summary>
+    public System.Collections.Generic.List<RetiredBaseResident> RetiredBaseResidents { get; set; } = new();
 }
 
-/// <summary>#2656: one resident of a base (<see cref="WorldMetadata.BaseResidents"/>): the slot (look, name and memory belong
-/// to it — slot 0 is the founding settler), the head cell of the bed, the job and the job's post.</summary>
+/// <summary>#2716: a base resident who left (<see cref="WorldMetadata.RetiredBaseResidents"/>): where they lived and who they
+/// were — the pinned identity of their <see cref="BaseResidentRecord"/>.</summary>
+public sealed class RetiredBaseResident
+{
+    /// <summary>The most departed residents a save remembers; the oldest drops off.</summary>
+    public const int MaxKept = 256;
+
+    /// <summary>The base they lived at, as its core-cell key (<c>base:&lt;body&gt;:&lt;x&gt;:&lt;y&gt;:&lt;z&gt;</c>).</summary>
+    public string Base { get; set; } = string.Empty;
+
+    public int Slot { get; set; }
+
+    public string Seed { get; set; } = string.Empty;
+
+    public string Key { get; set; } = string.Empty;
+
+    public int Face { get; set; }
+}
+
+/// <summary>#2656: one resident of a base (<see cref="WorldMetadata.BaseResidents"/>): the slot (slot 0 is the founding
+/// settler), the head cell of the bed, the job and the job's post — and (#2716) the person's pinned identity: the seed of
+/// their look and name, their memory key and their face.</summary>
 public sealed class BaseResidentRecord
 {
     /// <summary>0 = the founding settler, 1..4 = the people the beds brought.</summary>
@@ -273,6 +300,21 @@ public sealed class BaseResidentRecord
     /// first crop, the sentry post — as <c>"x,y,z"</c>; empty for a guard on a walled round or no job. After a reload it
     /// counts as inside the base like the bed, so the job stays while the post's room is not loaded yet.</summary>
     public string Post { get; set; } = string.Empty;
+
+    /// <summary>#2716: the seed the resident's look and name come from (<c>base-settler:…</c>), pinned when they moved in —
+    /// or, for a resident from before the pin, at the first load after it, from the base id of that load. Base ids are
+    /// load-order numbers that shift when an older core goes, so a pinned resident never reads the id again. Empty = not
+    /// pinned yet. Additive: an older build drops it.</summary>
+    public string Seed { get; set; } = string.Empty;
+
+    /// <summary>#2716: the resident's NPC-memory key (<c>base_&lt;id&gt;:settler</c>, <c>base_&lt;id&gt;#&lt;slot&gt;:settler</c>
+    /// with the id of the moment it was pinned) — the key every player's memory of this person is filed under. Empty = not
+    /// pinned yet. Additive.</summary>
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>#2716: the face seed the resident showed when it was pinned (the client's <c>NetNpc.FaceVariant</c>); 0 = not
+    /// pinned yet (the client derives one from the runtime NPC id, which follows the spawn order). Additive.</summary>
+    public int Face { get; set; }
 }
 
 /// <summary>#2643: one cell an NPC miner broke (<see cref="WorldMetadata.NpcRefills"/>): what stood there and from when on it

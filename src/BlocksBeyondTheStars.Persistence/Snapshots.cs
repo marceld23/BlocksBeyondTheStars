@@ -414,6 +414,11 @@ public static class StateMapper
                     Giver = l.Giver ?? string.Empty,
                     LastGiver = l.LastGiver ?? string.Empty,
                     LastTemplate = l.LastTemplate ?? string.Empty,
+                    Village = l.Village ?? string.Empty,                     // #2714: where the held wish is handed over
+                    VillageLocationId = l.VillageLocationId ?? string.Empty,
+                    VillageX = l.VillageX,
+                    VillageY = l.VillageY,
+                    VillageZ = l.VillageZ,
                 }).ToList(),
             };
         }

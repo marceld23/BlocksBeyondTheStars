@@ -171,6 +171,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<BuildPasteResult>? BuildPasteResultReceived;             // blueprint paste result (#1117)
         public event Action<NpcStandingList>? NpcStandingsReceived;                  // NPC relationship stages (#1118)
         public event Action<KnownNpcList>? KnownNpcsReceived;                        // "People you know" roster (#1118)
+        public event Action<BaseResidentList>? BaseResidentsReceived;                // who lives at the base, E at the core (#2717)
         public event Action<GuardianSystemRevealed>? GuardianSystemRevealedReceived; // finale system placed on the map
         public event Action<CoreHackProgress>? CoreHackProgressReceived;             // core-hack channel progress
         public event Action<CoreDialogueMessage>? CoreDialogueReceived;              // argument-duel node / win
@@ -878,6 +879,10 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendRequestKnownNpcs() => Send(new RequestKnownNpcsIntent());
 
+        /// <summary>#2717: asks who lives at the player's base on a body (E at the core); the answer arrives as
+        /// <see cref="BaseResidentsReceived"/>.</summary>
+        public void SendRequestBaseResidents(string bodyId) => Send(new RequestBaseResidentsIntent { BodyId = bodyId ?? string.Empty });
+
         /// <summary>The preferences the server must know because it initiates what they silence: the NPC radio calls
         /// (#1119) and — since #2462 (B31) — VEGA's hints mute, so a muted hint is held back instead of burned unseen.
         /// Both on every call: send it at join and whenever either setting changes.</summary>
@@ -1424,6 +1429,7 @@ namespace BlocksBeyondTheStars.Client
                 case BuildPasteResult m: BuildPasteResultReceived?.Invoke(m); break;
                 case NpcStandingList m: NpcStandingsReceived?.Invoke(m); break;
                 case KnownNpcList m: KnownNpcsReceived?.Invoke(m); break;
+                case BaseResidentList m: BaseResidentsReceived?.Invoke(m); break;
                 case GuardianSystemRevealed m: GuardianSystemRevealedReceived?.Invoke(m); break;
                 case CoreHackProgress m: CoreHackProgressReceived?.Invoke(m); break;
                 case CoreDialogueMessage m: CoreDialogueReceived?.Invoke(m); break;

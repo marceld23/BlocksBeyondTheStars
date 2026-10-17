@@ -233,6 +233,47 @@ public sealed class BaseLifeTests : IDisposable
         }
     }
 
+    [Fact]
+    public void TwoOccupiedWorlds_BothFoundersMoveIn_WithinTheScanInterval()
+    {
+        // #2718: the base scan ran once per tick after the per-world loop, so it only ever saw the last-ticked world —
+        // on a server with two occupied worlds the other world's bases never got a settler.
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var home = server.AddLocalPlayer("Homesteader");
+            var away = server.AddLocalPlayer("Neighbour");
+            int homeBase = FoundBareHome(server, home);
+
+            server.SetInstantTravelForTest(true);
+            Assert.True(server.QuickTravelForTest("Neighbour", OtherPlanet(server).Id));
+            Assert.True(server.ActivateWorldForTest(away.CurrentLocationId));
+            int awayBase = FoundBareHome(server, away);
+            Assert.NotEqual(home.CurrentLocationId, away.CurrentLocationId);
+
+            for (int i = 0; i < 24 && (server.BaseSettlerForTest(homeBase) is null || server.BaseSettlerForTest(awayBase) is null); i++)
+            {
+                server.TickForTest(0.5); // 12 s at most — one scan interval (10 s) and a little
+            }
+
+            Assert.NotNull(server.BaseSettlerForTest(homeBase));
+            Assert.NotNull(server.BaseSettlerForTest(awayBase));
+        }
+    }
+
+    /// <summary>Places a base with three machines beside the player — enough for a settler — WITHOUT scanning it.</summary>
+    private int FoundBareHome(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession owner)
+    {
+        var feet = owner.State.Position;
+        var core = new Vector3i((int)Math.Floor(feet.X) + 3, (int)Math.Floor(feet.Y) + 4, (int)Math.Floor(feet.Z));
+        server.PlaceBaseForTest(owner, core);
+        var workbench = _content.GetBlock("workbench")!.NumericId;
+        server.World.SetBlock(new Vector3i(core.X + 1, core.Y, core.Z), workbench, 0, 0, 0, owner.State.Name);
+        server.World.SetBlock(new Vector3i(core.X + 2, core.Y, core.Z), workbench, 0, 0, 0, owner.State.Name);
+        server.World.SetBlock(new Vector3i(core.X + 1, core.Y, core.Z + 1), workbench, 0, 0, 0, owner.State.Name);
+        return server.BaseSnapshots.Single(b => b.OwnerId == owner.State.PlayerId).Id;
+    }
+
     // ---------------- #1248: the settler never stands inside a wall ----------------
 
     /// <summary>Feet cell has air at feet + head and a floor below — the settler can actually stand there.</summary>

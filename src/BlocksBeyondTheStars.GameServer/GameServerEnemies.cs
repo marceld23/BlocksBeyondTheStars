@@ -255,7 +255,7 @@ public sealed partial class GameServer
             foreach (var session in targets)
             {
                 var p = session.State;
-                if (p.IgnoredByHostiles) // cloaked, god-mode and creative-override (#1121) players aren't detected
+                if (HostilesIgnore(p)) // cloaked, god-mode, creative-override (#1121) and Sandbox (#2712) players aren't detected
                 {
                     continue;
                 }
@@ -281,7 +281,7 @@ public sealed partial class GameServer
                 if (WrapDistSq(p.Position, enemy.Position) <= reach * reach
                     && HasLineOfSight(enemy.Position, p.Position)) // can't bite a target it can't see — duck behind cover/into a cave to break it
                 {
-                    p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(enemy.DamagePerSecond * dt)));
+                    DamagePlayer(p, (float)(enemy.DamagePerSecond * dt), mitigated: true);
                     NoteCombat(session); // #2286
                     NoteHitFrom(session, enemy, enemy.Position); // #2564: the HUD marker points at this machine
                     MarkPlayerStateDirty(session); // #1530: one state per tick, not one per biting machine
@@ -475,7 +475,7 @@ public sealed partial class GameServer
         double bestSq = (double)EnemyHuntRange * EnemyHuntRange;
         foreach (var s in targets)
         {
-            if (s.State.IgnoredByHostiles || warded.Contains(s.State.PlayerId))
+            if (HostilesIgnore(s.State) || warded.Contains(s.State.PlayerId))
             {
                 continue;
             }

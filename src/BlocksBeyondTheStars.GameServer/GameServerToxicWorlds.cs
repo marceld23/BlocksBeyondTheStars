@@ -36,7 +36,7 @@ public sealed partial class GameServer
         }
 
         float loss = (float)(dt * dps) * Rules.HazardSeverityFactor * (1f - CorrosionResistance(p));
-        p.Health = System.Math.Max(0f, p.Health - loss);
+        DamagePlayer(p, loss);
         session.HazardDeathReason = "@srv.death.corrosive_air";
     }
 

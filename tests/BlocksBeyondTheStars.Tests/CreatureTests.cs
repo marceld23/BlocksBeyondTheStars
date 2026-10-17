@@ -1189,7 +1189,8 @@ public sealed class CreatureTests : IDisposable
         {
             var p = server.AddLocalPlayer("Prey");
             p.State.AboardShip = false;
-            p.State.GodMode = true; // stay alive + in place so we observe the chase, not a death
+            // Not god mode: since #2712 hostiles ignore a god-mode player (nothing hunts them). The loop below keeps the
+            // prey alive instead, so we observe the chase, not a death.
             p.State.Position = new Vector3f(0, 64, 0);
 
             server.Tick(6.0); // seed fauna
@@ -1207,11 +1208,13 @@ public sealed class CreatureTests : IDisposable
             creature.Position = new Vector3f(duelPos.X + 2, duelPos.Y, duelPos.Z); // right next to the player
             creature.ChaseTimer = 0;
             creature.GiveUpTimer = 0;
+            creature.DamagePerSecond = 0f; // a toothless hunter: the chase is what counts here
 
             // Hold the prey still and let the aggressor chase past the give-up cap (~7s).
             for (int i = 0; i < 100 && creature.GiveUpTimer <= 0; i++)
             {
                 p.State.Position = duelPos;
+                p.State.Health = 100f; // whatever else roams here, the prey stays alive and in place
                 server.Tick(0.2);
             }
 

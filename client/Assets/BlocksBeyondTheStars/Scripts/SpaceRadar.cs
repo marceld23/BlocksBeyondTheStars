@@ -10,7 +10,8 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// Space radar (M27 polish): a HUD minimap of nearby space entities while flying — colour-coded
-    /// (white = neutral asteroids/NPCs, red = hostile drones/UFOs), placed by bearing relative to the
+    /// (white = neutral asteroids/NPCs, red = hostile drones/UFOs, pink = the other pilots with their names, #2710),
+    /// placed by bearing relative to the
     /// pilot's heading (forward = up) on a top-down disc; height shows as ▲/▼ on stations and wrecks and in
     /// the readouts (#1880). Shown only in space; reads the authoritative <c>SpaceState</c>.
     /// Modern uGUI build (round face + pooled blips on a DPI-scaled overlay canvas).
@@ -60,6 +61,7 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Color WormholeCol = new Color(0.72f, 0.45f, 1f); // #2242: the rift's violet
         private static readonly Color DebrisCol = new Color(0.85f, 0.55f, 0.3f);  // #2353: dusty copper — wreckage to salvage
         private static readonly Color CapsuleCol = new Color(0.4f, 0.95f, 0.85f); // #2353: a sealed salvage capsule
+        private static readonly Color PilotCol = new Color(1f, 0.5f, 0.88f);      // #2710: a co-op pilot — a pink no entity uses
 
         /// <summary>#2241: the anomaly's blip shimmers through teal and its neighbours, like the bubble itself.</summary>
         private static Color AnomalyCol(float t) => Color.HSVToRGB(0.42f + Mathf.Sin(t * 1.5f) * 0.08f, 0.55f, 1f);
@@ -284,6 +286,41 @@ namespace BlocksBeyondTheStars.Client
                 blip.gameObject.SetActive(true);
                 SetRimLabel(slot, pinned ? EncounterLabel(e) : null, blip.color, v);
                 SetVertMark(slot, station || wreck || encounter ? SpaceRadarMath.VerticalState(dir.y) : 0, blip.color, v, pinned);
+            }
+
+            // #2710: the other pilots of the instance — flying, on a spacewalk or walking inside their parked ship — each
+            // with their name (in range too: there are only a few, and a friend behind you is not on screen), pinned to the
+            // rim when out of range like a station, so two friends can always fly to each other. The NPC traders riding
+            // the same pose list stay off (SpaceRadarMath.IsRadarPilot).
+            var pilots = Game.Space.Players;
+            if (pilots != null)
+            {
+                string me = Game.LocalPlayerId;
+                foreach (var rp in pilots)
+                {
+                    if (!SpaceRadarMath.IsRadarPilot(rp.PlayerId, me))
+                    {
+                        continue;
+                    }
+
+                    var dir = new Vector3(rp.X, rp.Y, rp.Z) - pilot;
+                    var flat = SpaceRadarMath.Project(dir.x, dir.z, _headingX, _headingZ);
+                    var v = new Vector2(flat.Right, flat.Ahead) * scale;
+                    bool pinned = v.magnitude > Radius;
+                    if (pinned)
+                    {
+                        v = v.normalized * Radius;
+                    }
+
+                    int slot = i;
+                    var blip = Blip(i++);
+                    blip.rectTransform.anchoredPosition = v;
+                    blip.rectTransform.sizeDelta = new Vector2(9f, 9f);
+                    blip.color = PilotCol;
+                    blip.gameObject.SetActive(true);
+                    SetRimLabel(slot, string.IsNullOrEmpty(rp.Name) ? null : rp.Name, PilotCol, v);
+                    SetVertMark(slot, SpaceRadarMath.VerticalState(dir.y), PilotCol, v, pinned);
+                }
             }
 
             // Landable planets/moons: a green bearing marker each, clamped to the rim so a far body reads as

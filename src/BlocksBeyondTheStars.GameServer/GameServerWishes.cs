@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.Story;
@@ -38,6 +39,12 @@ namespace BlocksBeyondTheStars.GameServer;
 /// and says so once. An older client ignores the fields — talking still works. #2617: while a villager visits the
 /// player's base as a neighbour, its markers sit on the guest there, and that guest takes the held wish (the hand-over or
 /// the reminder) — a "?" always means "talk to me and it is handed over".</para>
+/// <para><b>Where (#2714).</b> A held wish remembers the giver's village (<see cref="WishLane.Village"/>, its body and centre,
+/// persisted with the lane): the Missions tab says "Tomas lives in Testville" and carries the place
+/// (<see cref="NetMission.PlaceName"/>), the ready toast and the tab's refusal name it, and the player's marker view holds a
+/// village marker (<see cref="NetMarker.Wish"/>, one per village) while a wish from there is open and they are on its body —
+/// the planet map and the HUD compass point the way. A wish held from before #2714 learns its village the next time the
+/// player is on that body (the 1 Hz check).</para>
 /// <para><b>AI (hosted worlds).</b> The request (<c>wish_ask</c>) and the thanks (<c>wish_thanks</c>) may be re-worded in
 /// the villager's own voice through the shared <c>/npc-lines</c> path — prefetched (the ask when the player stands in
 /// the village with an offer, the thanks when a wish turns ready), never swapped into an open panel; the facts travel as
@@ -57,6 +64,14 @@ public sealed partial class GameServer
 
     /// <summary>The dialogue consequence family of a wish offer: <c>wish:accept</c> / <c>wish:later</c>.</summary>
     internal const string WishConsequence = "wish";
+
+    /// <summary>#2714: the id prefix of a wish village's map marker (<c>wish:&lt;place key&gt;</c>).</summary>
+    internal const string WishMarkerIdPrefix = "wish:";
+
+    /// <summary>#2714: the wish village marker's icon (home) and palette colour (yellow, the gold of the "!"/"?") — what an
+    /// older client draws for it.</summary>
+    private const int WishMarkerIcon = 1;
+    private const int WishMarkerColor = 2;
 
     /// <summary>Most characters an AI re-wording of a villager's request may take.</summary>
     private const int WishAskMaxChars = 160;
@@ -655,6 +670,7 @@ public sealed partial class GameServer
 
         ledger.Lanes[plan.Lane].N = plan.N;
         ledger.Lanes[plan.Lane].Giver = npc.PersonKey;
+        SetWishVillage(ledger.Lanes[plan.Lane], settlement); // #2714: where it is handed over — the tab, the toasts, the map
 
         // Accepted with everything already in the bag: the answer says "you already have it all" (the "?" follows with the
         // markers the dialogue sends), so the 1 Hz check's toast stays quiet right after the yes.
@@ -667,6 +683,7 @@ public sealed partial class GameServer
         RecordNpcInteraction(p, npcKey, npc.Name, npc.Role, NpcInteractionKind.MissionAccepted, settlement.Name);
         Send(session, MissionSucceeded(session, def, MissionOutcomes.Accepted));
         SendMissionList(session);
+        SendMarkers(session); // #2714: the village goes on the map
         RaiseGameEvent(session, GameEventKeys.MissionAccepted, def.Id);
         _log.Info($"Player '{p.Name}' took a wish ('{plan.Template?.Key}') from {npc.Name} in {settlement.Name}.");
         return true;
@@ -690,6 +707,7 @@ public sealed partial class GameServer
             giverKey = ln.Giver;
             ln.LastGiver = ln.Giver;
             ln.Giver = string.Empty;
+            ClearWishVillage(ln); // #2714: the village marker goes with the wish
             ln.LastTemplate = WishTemplateOf(def)?.Key ?? string.Empty;
             ln.N++;
             ledger.Done++;
@@ -719,6 +737,7 @@ public sealed partial class GameServer
         session.WishReady.Remove(def.Id);
         session.WishReminded.Remove(def.Id);
         SendNpcStandings(session);
+        SendMarkers(session); // #2714: the village marker is gone (another wish from there keeps it)
     }
 
     /// <summary>The tab's turn-in gate (#2601): a wish is handed over in person — the villager must be within greeting
@@ -861,7 +880,7 @@ public sealed partial class GameServer
             readyNow.Add(pr.MissionId);
             if (!session.WishReady.Contains(pr.MissionId))
             {
-                Send(session, new ServerMessage { Text = "@srv.wish.ready:" + def.GiverName });
+                Send(session, new ServerMessage { Text = WishReadyText(session, def) });
                 WarmWishThanks(session, def);
             }
         }
@@ -876,7 +895,134 @@ public sealed partial class GameServer
         {
             SendNpcStandings(session);
         }
+
+        if (LearnWishVillages(session))
+        {
+            SendMissionList(session); // #2714: a wish held from before learnt its village — the tab and the map say it now
+            SendMarkers(session);
+        }
     }
+
+    // ---------------- Where (#2714) ----------------
+
+    /// <summary>#2714: the lane of a wish the player holds (by the wish id), or null.</summary>
+    private static WishLane? HeldWishLane(PlayerState p, string missionId)
+        => TryParseWishId(missionId, out string place, out int lane) && p.Wishes.TryGetValue(place, out var ledger)
+           && lane < ledger.Lanes.Count && ledger.Lanes[lane].Giver.Length > 0
+            ? ledger.Lanes[lane]
+            : null;
+
+    /// <summary>#2714: the village a held wish is handed over in ("" = not known yet).</summary>
+    private static string WishVillageOf(PlayerState p, string missionId) => HeldWishLane(p, missionId)?.Village ?? string.Empty;
+
+    /// <summary>#2714: the map marker id of a wish's village (one marker per village).</summary>
+    private static string WishMarkerId(string placeKey) => WishMarkerIdPrefix + placeKey;
+
+    /// <summary>#2714: the Missions tab's place of a held wish — the village's name and its marker's id, both "" while the
+    /// village is not known.</summary>
+    private static (string Name, string MarkerId) WishPlaceOf(PlayerState p, string missionId)
+        => TryParseWishId(missionId, out string place, out _) && WishVillageOf(p, missionId) is { Length: > 0 } village
+            ? (village, WishMarkerId(place))
+            : (string.Empty, string.Empty);
+
+    /// <summary>#2714: remembers the giver's village of a held wish — on the active world, where it was granted.</summary>
+    private void SetWishVillage(WishLane lane, SettlementInstance village)
+    {
+        var at = SettlementCenter(village);
+        lane.Village = village.Name;
+        lane.VillageLocationId = _world.LocationId;
+        lane.VillageX = at.X;
+        lane.VillageY = at.Y;
+        lane.VillageZ = at.Z;
+    }
+
+    /// <summary>#2714: forgets the village of a lane whose wish was handed over.</summary>
+    private static void ClearWishVillage(WishLane lane)
+    {
+        lane.Village = string.Empty;
+        lane.VillageLocationId = string.Empty;
+        lane.VillageX = 0f;
+        lane.VillageY = 0f;
+        lane.VillageZ = 0f;
+    }
+
+    /// <summary>#2714: a wish held from before #2714 has no village yet — fill it in from the settlement of its place on the
+    /// active world (the player's: run by the 1 Hz check). True when anything was learnt. Cheap: nothing to do once every
+    /// held wish knows its village; a held wish from another body only compares the cached place keys.</summary>
+    private bool LearnWishVillages(PlayerSession session)
+    {
+        bool learnt = false;
+        foreach (var (place, ledger) in session.State.Wishes)
+        {
+            foreach (var lane in ledger.Lanes)
+            {
+                if (lane.Giver.Length == 0 || lane.Village.Length > 0)
+                {
+                    continue;
+                }
+
+                if (_settlements.FirstOrDefault(s => !string.IsNullOrEmpty(s.Name) && SettlementPlaceKey(s) == place) is { } village)
+                {
+                    SetWishVillage(lane, village);
+                    learnt = true;
+                }
+            }
+        }
+
+        return learnt;
+    }
+
+    /// <summary>#2714: the village markers of the viewer's held wishes on <paramref name="loc"/> (their own only, one per
+    /// village) — added to their marker view by <see cref="MarkersFor"/>. Flagged <see cref="NetMarker.Wish"/>; an older
+    /// client draws an ordinary named marker (home icon, yellow) labelled with the village.</summary>
+    private void AddWishMarkers(PlayerSession viewer, string loc, List<NetMarker> into)
+    {
+        var p = viewer.State;
+        if (p.Wishes.Count == 0)
+        {
+            return;
+        }
+
+        HashSet<string>? placed = null;
+        foreach (var pr in p.Missions)
+        {
+            if (!IsWishMission(pr.MissionId) || pr.Status == MissionStatus.TurnedIn
+                || !TryParseWishId(pr.MissionId, out string place, out _)
+                || HeldWishLane(p, pr.MissionId) is not { Village.Length: > 0 } lane
+                || !string.Equals(lane.VillageLocationId, loc, StringComparison.Ordinal)
+                || !(placed ??= new HashSet<string>(StringComparer.Ordinal)).Add(place))
+            {
+                continue;
+            }
+
+            into.Add(new NetMarker
+            {
+                Id = WishMarkerId(place),
+                OwnerId = p.PlayerId,
+                X = lane.VillageX,
+                Y = lane.VillageY,
+                Z = lane.VillageZ,
+                Label = lane.Village,
+                Icon = WishMarkerIcon,
+                Color = WishMarkerColor,
+                Wish = true,
+            });
+        }
+    }
+
+    /// <summary>#2713: the toast when a held wish turns ready — "… bring it to Testville!" when its village is known, else the
+    /// plain "bring it over!" token.</summary>
+    private string WishReadyText(PlayerSession session, MissionDefinition def)
+        => WishVillageOf(session.State, def.Id) is { Length: > 0 } village
+            ? Localize(session.Locale, "srv.wish.ready_village").Replace("{name}", def.GiverName).Replace("{village}", village)
+            : "@srv.wish.ready:" + def.GiverName;
+
+    /// <summary>#2713: the Missions tab's refusal away from the giver — "Take it to Tomas in person — in Testville!" when the
+    /// village is known, else the plain token.</summary>
+    private string WishReturnReason(PlayerSession session, string missionId, string giverName)
+        => WishVillageOf(session.State, missionId) is { Length: > 0 } village
+            ? Localize(session.Locale, "srv.wish.return_village").Replace("{name}", giverName).Replace("{village}", village)
+            : "@srv.wish.return_giver:" + giverName;
 
     /// <summary>Starts the AI thanks of a wish that just turned ready, so the hand-over can show it (a no-op without AI or
     /// when the villager is not on this world).</summary>
@@ -964,7 +1110,12 @@ public sealed partial class GameServer
 
         var giver = giverKey.Length > 0 ? _npcs.FirstOrDefault(n => n.PersonKey == giverKey) : null;
         var plan = new WishLanePlan { MissionId = def.Id, GiverKey = giverKey, Giver = giver, Template = tpl, Count = count, Def = def };
-        return WishAskText(session, giver, plan, requestAi: false) + "\n\n" + WishFactLine(session.Locale, tpl, count);
+        string text = WishAskText(session, giver, plan, requestAi: false) + "\n\n" + WishFactLine(session.Locale, tpl, count);
+
+        // #2713: and where to find the villager — "Tomas lives in Testville — visit them there when you're ready!"
+        return WishVillageOf(session.State, def.Id) is { Length: > 0 } village
+            ? text + "\n\n" + Localize(session.Locale, "wish.where").Replace("{npc}", def.GiverName).Replace("{village}", village)
+            : text;
     }
 
     /// <summary>The villager's request: an AI re-wording in their voice when one is cached (purpose <c>wish_ask</c>,
@@ -1160,4 +1311,29 @@ public sealed partial class GameServer
 
     /// <summary>Test seam (#2601): whether a mission id is a wish.</summary>
     public static bool IsWishMissionForTest(string missionId) => IsWishMission(missionId);
+
+    /// <summary>Test seam (#2714): where a held wish is handed over, as stored with it ("" = none / not known).</summary>
+    public (string Village, string LocationId, Vector3f At) WishVillageForTest(string playerId, string missionId)
+        => FindSessionByPlayerId(playerId)?.State is { } p && HeldWishLane(p, missionId) is { } lane
+            ? (lane.Village, lane.VillageLocationId, new Vector3f(lane.VillageX, lane.VillageY, lane.VillageZ))
+            : (string.Empty, string.Empty, default);
+
+    /// <summary>Test seam (#2714): the wish village markers the player sees now.</summary>
+    internal IReadOnlyList<NetMarker> WishMarkersForTest(string playerId)
+        => FindSessionByPlayerId(playerId) is { } s
+            ? MarkersFor(s).Markers.Where(m => m.Wish).ToList()
+            : new List<NetMarker>();
+
+    /// <summary>Test seam (#2714): forgets the village of every held wish, as a save from before #2714 has it.</summary>
+    public void ForgetWishVillagesForTest(string playerId)
+    {
+        foreach (var lane in FindSessionByPlayerId(playerId)?.State.Wishes.Values.SelectMany(l => l.Lanes) ?? Enumerable.Empty<WishLane>())
+        {
+            ClearWishVillage(lane);
+        }
+    }
+
+    /// <summary>Test seam (#2714): a settlement's centre — where its wish marker sits.</summary>
+    public Vector3f SettlementCenterForTest(string settlementName)
+        => _settlements.FirstOrDefault(s => s.Name == settlementName) is { } s ? SettlementCenter(s) : default;
 }

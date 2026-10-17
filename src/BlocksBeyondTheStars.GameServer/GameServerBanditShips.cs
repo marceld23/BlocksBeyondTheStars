@@ -228,11 +228,13 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>The pilot a raider hails: the first one present it may threaten — never a Sandbox (or god-mode) pilot
+    /// (<see cref="SpaceQuarry"/>, #2712), whom "comply" would rob as surely as a refusal is harmless.</summary>
     private PlayerSession? FirstPilotIn(SpaceInstance instance)
     {
         foreach (var playerId in instance.Players)
         {
-            if (FindSessionByPlayerId(playerId) is { } s && s.Joined)
+            if (FindSessionByPlayerId(playerId) is { } s && s.Joined && SpaceQuarry(playerId))
             {
                 return s;
             }

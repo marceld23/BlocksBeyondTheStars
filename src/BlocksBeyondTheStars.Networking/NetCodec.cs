@@ -620,6 +620,11 @@ public static class NetCodec
         // #2665 the creature motion stream: compact 7.5 Hz positions + velocities of the animals near a player. No protocol
         // bump — an older client drops the unknown tag and keeps interpolating the 2 Hz CreatureList.
         Register(301, typeof(CreatureMotionFrame));          // Server -> Client
+
+        // #2717 the base core's resident list: the owner asks who lives at the base, the server answers. No protocol bump —
+        // an older server drops the request (the core screen shows the rename field alone), an older client never sends it.
+        Register(302, typeof(RequestBaseResidentsIntent));   // Client -> Server
+        Register(303, typeof(BaseResidentList));             // Server -> Client
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

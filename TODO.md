@@ -24,6 +24,48 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-17 (Layex + Screelit = Lorenzo, Lyxette) — friends visible in space, no ghost drops, a damage-free Sandbox, neighbours who say where they live, a resident list — epic #2719, #2707–#2718 + #2720, branch fix/reports-2026-10-17 — ✅ done 2026-10-17 (⚠ playtest open)
+
+Three kids reported from a LAN world (v2026.10.18): they couldn't see each other in space, not even next to the same
+anomaly or on a spacewalk; a collected drop stayed floating; and in Sandbox you could still suffocate and get hurt.
+Lyxette couldn't find her settlers after accepting "small tasks" from them. All decisions by Marcel (everything in one
+PR; radar, bump pilots and the visible floating ship included; visitors walk off instead of vanishing; the wish village
+marker and the resident list now; the docking fix too). Package label `package: reports 2026-10-17`.
+
+- **Ships at negative X (#2707):** `SpaceView` passed `int.MaxValue` as the "no wrap" circumference, and
+  `WorldConstants.WrapX` moved every negative X by +2 147 483 647 — remote ships, NPC traders and every moving space
+  entity at X < 0 were drawn ~2.1e9 units away (since #756, v2026.8.5). `RemoteEntityInterpolator.NoWrap` (circumference
+  ≤ 0 = straight lerp). Very likely also the cause of the lock-marker crashes #2428 / #2450 (the lock read the wrapped
+  model position).
+- **Ghost drops (#2708):** the stale-view scan only ran while `_entities.Count > seen.Count`, but asteroids, debris and
+  hull-backed stations are in the snapshot without a view — collected drops, rescued pods and salvage capsules stayed.
+  Always scanned now (`SpaceEntitySync.CollectStale` in Client.Core); the pickup beam, pod and capsule effects play again.
+- **A friend on a spacewalk (#2709):** the partner is a suited `PlayerAvatar` with nameplate (no more 0.55 cube) and
+  their floating ship stays visible at its pose (`NetSpacePlayer` gains the ship pose and suit colours, additive).
+- **Finding each other (#2710):** other pilots are pink blips with names on the space radar (rim markers when out of
+  range); the F1 /bump space block lists `pilots` (+ the reporter's `floatingShip`).
+- **Docking and trading in space (#2711, #2720):** one `PlayersTogether` check — same space instance and space poses in
+  flight, same location and surface positions on foot, never flight + foot. Trading had no same-world check at all.
+  The dock toast is localized. ⚠ Docking itself does nothing yet (no shared interior, cargo or coupled flight — see Open).
+- **Sandbox is damage-free (#2712):** the oxygen term was inside `!p.InEva && (...)`, so a spacewalk drained even in
+  Sandbox. New `GameRules.PlayerTakesDamageFor` + a central `DamagePlayer` gate (suffocation, lava, gas, fire, hunger,
+  toxic water, falls, bandits, creatures, machines, giants, speeder jolts, temperature, corrosive air, weather); space
+  hostiles don't hunt or hit a Sandbox ship; speeders and boats take no hull damage. Explorer and Creative keep the rules.
+  `/god` now also blocks fall damage and bad food.
+- **Visiting neighbours (#2713, #2714):** they say where they live and where to hand in the wish; a toast when they
+  walk home; when the owner boards they walk off instead of vanishing in view. Held wishes carry the giver's village
+  (saved, learned for older wishes) — a gold heart on the map/compass, "Village: X · 120 m" + Navigate in the mission.
+- **Base residents (#2715–#2718):** the founder's news says every bed brings one more resident; a move-out message when
+  a bed stops counting; name/face/memory pinned per resident (`BaseResidentRecord.Seed/Key/Face`) so shifting base ids
+  no longer swap people; E at the base core lists who lives here (role, activity, direction/distance, bed) via
+  `RequestBaseResidentsIntent`/`BaseResidentList` (NetCodec 302/303); base life scans every occupied world.
+- ⚠ Open: playtest — two pilots at negative X, a spacewalk next to a friend, the radar, collecting a drop, a Sandbox
+  spacewalk, a neighbour's wish (the map heart), the resident list at the core.
+- ⚠ Open (design, Marcel): make docking mean something (enter the partner's ship, shared cargo, or coupled flight) and
+  give it a key in the flight view; target-locking a far-away friend (pilots lock only within radar range).
+
+---
+
 ### 🛞 E at the cockpit of the floating ship takes the helm — #2705, branch fix/interior-helm-key, PR #2706 — ✅ done 2026-10-17 (⚠ playtest open)
 
 Marcel's playtest right after #2704: inside the ship in space the cockpit prompt read "Press E: Take the helm (fly)", but E

@@ -26,7 +26,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// never persisted. Labels go through the same sanitize + content screen as beacon labels.</para>
 ///
 /// <para>A player's view also carries VEGA's story help markers (#2570, <c>GameServerStoryMarkers.cs</c>): their own only,
-/// RAM only, alive until the story step behind them is done or skipped.</para>
+/// RAM only, alive until the story step behind them is done or skipped — and the villages of their held wishes (#2714,
+/// <c>GameServerWishes.cs</c>), built from the wish, gone when it is handed over.</para>
 /// </summary>
 public sealed partial class GameServer
 {
@@ -412,6 +413,7 @@ public sealed partial class GameServer
         }
 
         AddStoryMarkers(viewer, loc, result); // #2570: VEGA's help markers of the viewer's open story steps
+        AddWishMarkers(viewer, loc, result); // #2714: the villages of the viewer's held wishes
         return new MarkerList { Markers = result.ToArray() };
     }
 

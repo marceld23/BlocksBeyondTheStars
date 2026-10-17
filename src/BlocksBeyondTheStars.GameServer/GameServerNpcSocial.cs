@@ -52,7 +52,7 @@ public sealed partial class GameServer
             : !string.IsNullOrEmpty(npc.GuestKey)
                 ? npc.GuestKey // #2602: a passing stranger, not a person to remember
             : npc.BaseId > 0
-                ? BaseResidentKey(npc.BaseId, npc.BaseSlot) // a base resident: keyed by base id + slot, rename-proof (#1262, #1865)
+                ? BaseResidentKeyOf(npc) // a base resident: the key pinned in its base's plan, rename- and id-proof (#1262, #1865, #2716)
             : !string.IsNullOrEmpty(npc.PersonKey)
                 ? npc.PersonKey // #2598: a villager is a PERSON — friendship per bed/post, not per role
             : !string.IsNullOrEmpty(npc.Settlement)

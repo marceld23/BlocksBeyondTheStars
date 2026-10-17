@@ -61,3 +61,60 @@ public sealed class SetStationNameIntent
     public string StationId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
 }
+
+/// <summary>Client → server (#2717): the owner pressed E at their base core (Grundstein) — who lives here? The server answers
+/// with a <see cref="BaseResidentList"/>. No protocol bump: an older server drops the unknown tag (the screen then shows
+/// the rename field alone).</summary>
+public sealed class RequestBaseResidentsIntent
+{
+    /// <summary>The body the base stands on — the player's base there (one per body).</summary>
+    public string BodyId { get; set; } = string.Empty;
+}
+
+/// <summary>One resident in a <see cref="BaseResidentList"/> (#2717): everything is a locale key or a plain value, so the
+/// client words it in its own language.</summary>
+public sealed class NetBaseResident
+{
+    /// <summary>The resident's coined name.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>What they do at the base, as the nameplate's role key (<c>npc.role.craftsman</c>, <c>npc.theme.settlers</c>,
+    /// a profession's name key …).</summary>
+    public string RoleKey { get; set; } = string.Empty;
+
+    /// <summary>What they are doing right now, as a locale key (<c>npc.activity.sleeping</c>, <c>npc.activity.working</c>,
+    /// <c>ui.base.res_strolling</c> …); empty when they are not here.</summary>
+    public string ActivityKey { get; set; } = string.Empty;
+
+    /// <summary>Whether they are on the base's world right now — false: "not here right now" (the world reloads them on
+    /// the next scan, or they have not moved in on this world yet).</summary>
+    public bool Here { get; set; }
+
+    /// <summary>The compass direction from the core as a locale key (<c>dir.ne</c>); empty = right by the core.</summary>
+    public string DirectionKey { get; set; } = string.Empty;
+
+    /// <summary>How far from the core they are, in whole metres (horizontal).</summary>
+    public int Distance { get; set; }
+
+    /// <summary>Whether they have a bed of their own (else they sleep rough until one more bed stands).</summary>
+    public bool HasBed { get; set; }
+
+    /// <summary>The founding settler — the one who never moves out.</summary>
+    public bool Founder { get; set; }
+}
+
+/// <summary>Server → client (#2717): who lives at the player's base, founding settler first. <see cref="Cap"/> 0 = there is
+/// no base of theirs on that body. No protocol bump: an older client drops the unknown tag.</summary>
+public sealed class BaseResidentList
+{
+    public string BodyId { get; set; } = string.Empty;
+
+    /// <summary>The base's name.</summary>
+    public string BaseName { get; set; } = string.Empty;
+
+    /// <summary>How many beds count inside the base, and the most residents it can hold (1 + one per bed, up to the cap).</summary>
+    public int Beds { get; set; }
+    public int Cap { get; set; }
+
+    public NetBaseResident[] People { get; set; } = System.Array.Empty<NetBaseResident>();
+}

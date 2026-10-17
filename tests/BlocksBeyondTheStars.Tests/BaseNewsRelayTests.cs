@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.State;
 using Xunit;
 
@@ -28,6 +29,10 @@ public sealed class BaseNewsRelayTests
     private static int Calls(NpcLifeWorld w)
         => w.Transport.Sent.Count(s => s.Conn == w.Player.ConnectionId && s.Msg is ChatMessage { IsNpcCall: true });
 
+    /// <summary>Every "a settler moved in" line VEGA said — the founding settler's (#2715: with the bed rule) or a later one's.</summary>
+    private static List<ShipAiLine> SettlerNews(NpcLifeWorld w)
+        => Vega(w, "vega.news.settler_first").Concat(Vega(w, "vega.news.settler")).ToList();
+
     [Fact]
     public void ANewSettler_WithoutARadio_ComesThroughVega_ExactlyOnce()
     {
@@ -35,11 +40,14 @@ public sealed class BaseNewsRelayTests
         int baseId = w.FoundBase();
         w.Server.ScanBaseLifeForTest();
 
-        var news = Assert.Single(Vega(w, "vega.news.settler"));
+        // #2715: the founding settler's news says that every bed brings one more resident — up to five.
+        var news = Assert.Single(SettlerNews(w));
+        Assert.Equal("vega.news.settler_first", news.LineKey);
         Assert.Equal(3, news.Kind); // the system channel: base news is never muted by the hints switch
         string[] args = news.LineArg.Split('\u001f');
-        Assert.Equal(2, args.Length);
+        Assert.Equal(3, args.Length);
         Assert.Equal(w.Player.State.NpcMemory[$"base_{baseId}:settler"].Name, args[0]);
+        Assert.Equal("5", args[2]);
         Assert.Equal(0, Calls(w));
 
         // A world reload respawns the resident — the same person, no news.
@@ -48,8 +56,14 @@ public sealed class BaseNewsRelayTests
         w.Server.AdvanceUptimeForTest(4000); // past every cooldown
         w.Server.ScanBaseLifeForTest();
         Assert.NotEqual(first, w.Server.BaseSettlerForTest(baseId));
-        Assert.Single(Vega(w, "vega.news.settler"));
+        Assert.Single(SettlerNews(w));
         Assert.Equal(0, Calls(w));
+
+        // A bed brings the next resident: their news is the plain one (the rule was told already).
+        w.Server.AdvanceUptimeForTest(4000);
+        w.Bed(NpcLifeWorld.Cx - 5, NpcLifeWorld.Cz + 1);
+        w.Server.ScanBaseLifeForTest();
+        Assert.Single(Vega(w, "vega.news.settler"));
     }
 
     [Fact]
@@ -61,7 +75,13 @@ public sealed class BaseNewsRelayTests
         w.Server.ScanBaseLifeForTest();
 
         Assert.Equal(1, Calls(w));
-        Assert.Empty(Vega(w, "vega.news.settler"));
+        Assert.Empty(SettlerNews(w));
+
+        // #2715: the founding settler's call says that every bed inside the base brings one more resident.
+        var loc = Content.CreateLocalizer(GameLocale.English);
+        var call = w.Transport.Sent.Where(s => s.Conn == w.Player.ConnectionId).Select(s => s.Msg).OfType<ChatMessage>().Single(c => c.IsNpcCall);
+        Assert.StartsWith(loc.Get("npc.call.settler"), call.Text, System.StringComparison.Ordinal);
+        Assert.EndsWith(loc.Get("npc.call.settler_beds").Replace("{max}", "5"), call.Text, System.StringComparison.Ordinal);
     }
 
     [Fact]
@@ -73,7 +93,7 @@ public sealed class BaseNewsRelayTests
         w.Server.ScanBaseLifeForTest();
 
         Assert.Equal(0, Calls(w));
-        Assert.Empty(Vega(w, "vega.news.settler"));
+        Assert.Empty(SettlerNews(w));
     }
 
     [Fact]
@@ -84,7 +104,7 @@ public sealed class BaseNewsRelayTests
         w.FoundBase();
         w.Server.ScanBaseLifeForTest();
 
-        Assert.Empty(Vega(w, "vega.news.settler"));
+        Assert.Empty(SettlerNews(w));
     }
 
     [Fact]

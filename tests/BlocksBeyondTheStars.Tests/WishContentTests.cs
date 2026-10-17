@@ -93,6 +93,11 @@ public sealed class WishContentTests
             ("srv.wish.ready", new[] { "{name}" }),
             ("srv.wish.talk", Array.Empty<string>()),
             ("srv.wish.return_giver", new[] { "{name}" }),
+            ("wish.where", new[] { "{npc}", "{village}" }),                   // #2713: where the giver lives
+            ("srv.wish.ready_village", new[] { "{name}", "{village}" }),
+            ("srv.wish.return_village", new[] { "{name}", "{village}" }),
+            ("dlg.guest.going_home", new[] { "{village}" }),
+            ("srv.guest.walking_home", new[] { "{name}", "{village}" }),
         };
         foreach (var w in Content.Value.Wishes)
         {

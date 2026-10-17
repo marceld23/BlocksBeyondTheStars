@@ -335,6 +335,14 @@ public sealed class GameRules
     /// <summary>Per-player twin of <see cref="SuitEnergyDrains"/>.</summary>
     public bool SuitEnergyDrainsFor(PlayerModeOverride over) => ModeFor(over) != GameMode.Creative;
 
+    /// <summary>Whether anything may hurt the player at all (#2712): false in Creative — the Sandbox of the new-world
+    /// screen — where no air runs out (not even on a spacewalk), nothing burns, no fall hurts and no hostile attacks.
+    /// Explorer and the Creative world mode (survival + free flight) keep every damage rule.</summary>
+    public bool PlayerTakesDamage => PlayerTakesDamageFor(PlayerModeOverride.None);
+
+    /// <summary>Per-player twin of <see cref="PlayerTakesDamage"/> (#1121).</summary>
+    public bool PlayerTakesDamageFor(PlayerModeOverride over) => ModeFor(over) != GameMode.Creative;
+
     /// <summary>Whether the player's hunger drains given the mode and setting.</summary>
     public bool HungerEnabled => HungerEnabledFor(PlayerModeOverride.None);
 

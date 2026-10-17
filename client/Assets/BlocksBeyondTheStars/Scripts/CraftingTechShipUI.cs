@@ -7036,6 +7036,28 @@ namespace BlocksBeyondTheStars.Client
                 y += 28f;
             }
 
+            // #2714: a villager's wish — the village it is handed over in; on that body with the distance and "Navigate" (the
+            // village's map marker is in the marker list then).
+            if (!string.IsNullOrEmpty(m2.PlaceName))
+            {
+                var place = WishPlaceText.MarkerFor(m2, Game.Markers);
+                int metres = -1;
+                if (place != null)
+                {
+                    float dx = Game.SceneX(place.X) - Game.PlayerPosition.x, dz = Game.SceneZ(place.Z) - Game.PlayerPosition.z;
+                    metres = Mathf.RoundToInt(Mathf.Sqrt(dx * dx + dz * dz));
+                }
+
+                UiKit.AddText(_detail, 8, y, place != null ? 460 : 620, 24, WishPlaceText.MissionLine(m2, metres, L), 16, UiKit.Cyan, TextAnchor.UpperLeft);
+                if (place != null)
+                {
+                    float px = place.X, pz = place.Z;
+                    UiKit.AddButton(_detail, 476, y - 4, 140, 32, L("ui.marker.nav"), () => Game.Waypoint = new Vector3(px, 0f, pz));
+                }
+
+                y += 34f;
+            }
+
             // Mission chains (#1212): which part of the chain this is.
             if (m2.ChainStep > 0)
             {

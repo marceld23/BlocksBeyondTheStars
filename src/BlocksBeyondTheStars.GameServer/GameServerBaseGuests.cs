@@ -44,8 +44,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// side and the owner reads "{name} is waiting outside your door!" → <i>greeting</i> within four blocks with a line of
 /// sight (<see cref="NpcGreetingKinds.Guest"/>, a wave) → <i>waiting</i> 2 minutes (the merchant 3), held while a player
 /// is within six blocks, cut short after its present → <i>leaving</i> back out and despawned where nobody sees it (no
-/// player within 32 blocks at the end of its walk, or none within 24 after two minutes). The owner leaving the world or
-/// going aboard sends the guest away at once.</para>
+/// player within 32 blocks at the end of its walk, or none within 24 after two minutes). #2713: the owner going aboard or
+/// leaving the world starts the walk home too (the NPCs keep moving for an owner watching from the ship,
+/// <see cref="WatchesGuestLeave"/>); only a world that was not ticked for <see cref="BaseGuestFrozenSeconds"/> ends a visit
+/// at once. A leaving neighbour tells its owner "{name} is walking home to {village}.", and its present or a wish it
+/// brought along comes with "I'm heading home to {village} soon — come and see me there!".</para>
 /// <para><b>Talk:</b> guests are E-talkable; <see cref="PickDialog"/> treats their <c>guest_*</c> job like a profession, so
 /// only the <c>job: guest_neighbour|guest_merchant|guest_traveler</c> dialogues of <c>data/dialogs.json</c> match.
 /// Consequence <c>guest:gift:&lt;item&gt;:&lt;n&gt;</c> hands a present over once per guest and player. #2617: a neighbour
@@ -616,33 +619,64 @@ public sealed partial class GameServer
 
             bool frozen = _uptime - g.LastStepAt > BaseGuestFrozenSeconds; // nobody was here — the visit is over
             g.LastStepAt = _uptime;
-            var owner = FindSessionByPlayerId(g.OwnerId);
-            if (frozen || !GuestOwnerOnFoot(owner))
+            if (frozen)
             {
-                EndBaseGuest(g, npc); // the owner left the world or went aboard: the guest goes at once
+                EndBaseGuest(g, npc);
+                continue;
+            }
+
+            if (g.Phase == BaseGuestPhase.Leaving)
+            {
+                StepGuestLeaving(g, npc); // on its way home, whatever the owner does now
+                continue;
+            }
+
+            var owner = FindSessionByPlayerId(g.OwnerId);
+            if (!GuestOwnerOnFoot(owner))
+            {
+                // #2713: the owner went aboard or left the world — the guest walks home and vanishes only out of sight (or
+                // after the usual timeout), instead of popping out of the yard in front of the ship's windows.
+                BeginGuestLeaving(g, npc);
                 continue;
             }
 
             var b = _bases.FirstOrDefault(x => x.Id == g.BaseId && x.Planet == _world.LocationId);
-            if ((b is null || !Rules.FriendlyVisitors) && g.Phase != BaseGuestPhase.Leaving)
+            if (b is null || !Rules.FriendlyVisitors)
             {
                 BeginGuestLeaving(g, npc); // the base was dissolved or the world switched visitors off
                 continue;
             }
 
-            switch (g.Phase)
+            if (g.Phase == BaseGuestPhase.Arriving)
             {
-                case BaseGuestPhase.Arriving:
-                    StepGuestArriving(g, npc, owner!, b!);
-                    break;
-                case BaseGuestPhase.Waiting:
-                    StepGuestWaiting(g, npc, owner!);
-                    break;
-                default:
-                    StepGuestLeaving(g, npc);
-                    break;
+                StepGuestArriving(g, npc, owner!, b);
+            }
+            else
+            {
+                StepGuestWaiting(g, npc, owner!);
             }
         }
+    }
+
+    /// <summary>#2713: whether a player aboard their ship still keeps the NPCs moving — while a guest of theirs walks home,
+    /// so they see it go from the ship (the NPC tick otherwise freezes while nobody is out on the surface).</summary>
+    private bool WatchesGuestLeave(PlayerSession s)
+    {
+        if (_baseGuests.Count == 0)
+        {
+            return false;
+        }
+
+        string me = s.State.PlayerId;
+        foreach (var g in _baseGuests)
+        {
+            if (g.Phase == BaseGuestPhase.Leaving && g.OwnerId == me)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void StepGuestArriving(BaseGuest g, ServerNpc npc, PlayerSession owner, ServerBase b)
@@ -753,7 +787,9 @@ public sealed partial class GameServer
         g.WaitHardEnd = _uptime + (2 * wait);
     }
 
-    /// <summary>Time to go: back out on the guest's bearing (its village, its destination or where it came from).</summary>
+    /// <summary>Time to go: back out on the guest's bearing (its village, its destination or where it came from). #2713: a
+    /// neighbour's owner — on this world, on foot or aboard — reads "{name} is walking home to {village}.", so a wish
+    /// taken from them has a place to go to.</summary>
     private void BeginGuestLeaving(BaseGuest g, ServerNpc npc)
     {
         g.Phase = BaseGuestPhase.Leaving;
@@ -767,7 +803,24 @@ public sealed partial class GameServer
         {
             StopGuestWalking(npc);
         }
+
+        if (g.Kind == BaseGuestKind.Neighbour && g.Place.Length > 0
+            && FindSessionByPlayerId(g.OwnerId) is { Joined: true, Spectating: false } owner
+            && owner.CurrentLocationId == _world.LocationId)
+        {
+            Send(owner, new ServerMessage
+            {
+                Text = Localize(owner.Locale, "srv.guest.walking_home").Replace("{name}", npc.Name).Replace("{village}", g.Place),
+            });
+        }
     }
+
+    /// <summary>#2713: a neighbour's "I'm heading home to {village} soon — come and see me there!" after its present or a
+    /// wish it brought along (the line starts with a blank line); "" for any other guest or without a village.</summary>
+    private string GuestGoingHomeLine(BaseGuest g, string locale)
+        => g.Kind == BaseGuestKind.Neighbour && g.Place.Length > 0
+            ? "\n\n" + Localize(locale, "dlg.guest.going_home").Replace("{village}", g.Place)
+            : string.Empty;
 
     /// <summary>Takes a guest out of the world and gives a borrowed villager back to its village.</summary>
     private void EndBaseGuest(BaseGuest g, ServerNpc? npc)
@@ -1221,7 +1274,8 @@ public sealed partial class GameServer
             g.Gifted.Add(pid);
             g.LeaveSoonAt = _uptime + BaseGuestAfterGiftSeconds;
             _dialogExtraText = "\n\n+" + count.ToString(CultureInfo.InvariantCulture) + " "
-                + LocalizedName(session.Locale, item.NameKey, item.Key);
+                + LocalizedName(session.Locale, item.NameKey, item.Key)
+                + GuestGoingHomeLine(g, session.Locale); // #2713: where a neighbour is off to
             return;
         }
 
@@ -1230,7 +1284,8 @@ public sealed partial class GameServer
             // The neighbour brought a wish (#2601): asked "can I help?", the villager tells it and it goes into the
             // player's mission log. None open → a kind "no, thanks". #2617: with everything already in the bag the
             // neighbour says so ("just talk to me again") and stays — the next talk hands it over right here; otherwise
-            // it heads home soon and the wish is handed over in the village (or at its next visit).
+            // it heads home soon and the wish is handed over in the village (or at its next visit) — #2713: and says so,
+            // "I'm heading home to Testville soon — come and see me there!".
             if (g.SourceNpcId != 0 && _npcs.FirstOrDefault(n => n.Id == g.SourceNpcId) is { } source
                 && GuestWishPlan(session, source) is { Template: { } template } plan
                 && GrantWish(session, source, NpcKeyForNpc(session, source), answerWhenReady: true))
@@ -1239,7 +1294,7 @@ public sealed partial class GameServer
                 _dialogResponseOverride = string.Empty;
                 _dialogExtraText = "\n\n" + WishAskText(session, source, plan, requestAi: false)
                     + "\n\n" + WishFactLine(session.Locale, template, plan.Count)
-                    + (readyLine.Length > 0 ? "\n\n" + readyLine : string.Empty);
+                    + (readyLine.Length > 0 ? "\n\n" + readyLine : GuestGoingHomeLine(g, session.Locale));
                 if (readyLine.Length == 0)
                 {
                     g.LeaveSoonAt = _uptime + BaseGuestAfterGiftSeconds;
@@ -1307,6 +1362,9 @@ public sealed partial class GameServer
 
     /// <summary>Test seam (#2602): steps the guests' script now (skips the 1 Hz throttle).</summary>
     public void TickBaseGuestsForTest() => StepBaseGuests();
+
+    /// <summary>Test seam (#2713): whether this player keeps the NPCs moving even while aboard (a guest of theirs walks home).</summary>
+    public bool KeepsNpcsMovingForTest(string playerId) => FindSessionByPlayerId(playerId) is { } s && WatchesGuestLeave(s);
 
     /// <summary>Test seam (#2602): the guests on the active world.</summary>
     public IReadOnlyList<(int NpcId, string Kind, string Phase, int SourceNpcId, bool Greeted, bool Outside)> BaseGuestsForTest

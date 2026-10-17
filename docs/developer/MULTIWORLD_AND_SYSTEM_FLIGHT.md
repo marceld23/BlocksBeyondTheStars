@@ -41,7 +41,11 @@ them**; between systems you hyperjump. This combines two originally separate ide
   placed into their current world as a structure OBJECT at their own landing pad; each `LoadedWorld`
   keeps a `Dictionary<string, LandedShip> LandedShips` keyed by player id (there is no
   `WorldManager.ShipStamps` / ship cursor). Two players on one planet each get a separate ship at
-  distinct start positions. Docking grants guests cross-ship cargo/module access.
+  distinct start positions. Docking is meant to grant guests cross-ship access (`HasGuestAccess`), but nothing
+  consumes that grant yet — a dock is a handshake flag the HUD and the Crystal Net ship sensor read. Docking and trading share
+  one range check (`PlayersTogether`, each with its own range): on foot the same world and the positions there,
+  in flight the two players' poses in ONE flight space (ship, or suit on a spacewalk) — `State.Position` keeps
+  the stale surface spot while flying — and one flying, one on foot never counts as together (#2711, #2720).
 - **Per-launch-body flight space.** The space instance is keyed by the **launch body's location id**
   (`"space:" + locationId`), not by system id. Players who launch from the same body share that flight
   space and see each other; the flight view still receives the whole system's bodies (`SendStarMap`) so

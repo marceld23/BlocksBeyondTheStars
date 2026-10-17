@@ -131,4 +131,21 @@ public sealed class WishLane
 
     /// <summary>The template of the lane's last fulfilled wish — the next one asks for something else.</summary>
     public string LastTemplate { get; set; } = string.Empty;
+
+    /// <summary>#2714: the name of the village the held wish is handed over in (the giver's home) — the Missions tab, the
+    /// toasts and the map marker name it. "" = no wish held, or one held before #2714 that the server has not seen its
+    /// village again for yet (it fills this in the next time the player is on that body).</summary>
+    public string Village { get; set; } = string.Empty;
+
+    /// <summary>#2714: the body (location id) <see cref="Village"/> lies on — the map marker shows only there.</summary>
+    public string VillageLocationId { get; set; } = string.Empty;
+
+    /// <summary>#2714: the centre of <see cref="Village"/> in world blocks, where its map marker sits.</summary>
+    public float VillageX { get; set; }
+
+    /// <summary>#2714: see <see cref="VillageX"/>.</summary>
+    public float VillageY { get; set; }
+
+    /// <summary>#2714: see <see cref="VillageX"/>.</summary>
+    public float VillageZ { get; set; }
 }

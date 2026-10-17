@@ -347,6 +347,8 @@ public sealed class NetCodecTests
         [299] = typeof(ObjectiveList),           // #2471
         [300] = typeof(StoryPackStates),         // #2471
         [301] = typeof(CreatureMotionFrame),     // #2665
+        [302] = typeof(RequestBaseResidentsIntent), // #2717
+        [303] = typeof(BaseResidentList),        // #2717
 
     };
 

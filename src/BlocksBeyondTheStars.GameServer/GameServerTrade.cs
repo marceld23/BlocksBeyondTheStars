@@ -46,18 +46,11 @@ public sealed partial class GameServer
     /// <summary>The open trade a player is in, if any (test/inspection).</summary>
     public TradeSession? ActiveTrade(string playerId) => _trades.FirstOrDefault(t => t.Involves(playerId));
 
-    /// <summary>Both players are joined and close enough to see each other (same world, within range).</summary>
-    private bool CanTradeTogether(string a, string b)
-    {
-        var sa = FindSessionByPlayerId(a);
-        var sb = FindSessionByPlayerId(b);
-        if (sa is null || sb is null || !sa.Joined || !sb.Joined)
-        {
-            return false;
-        }
-
-        return WrapDistSq(sa.State.Position, sb.State.Position) <= TradeRange * TradeRange;
-    }
+    /// <summary>Both players are joined and close enough to see each other: the same world (or flight space) and within
+    /// <see cref="TradeRange"/> — the check docking uses too (<see cref="PlayersTogether"/>, #2720). It used to compare
+    /// positions alone, so players on two planets with overlapping coordinates, or in flight by their stale surface
+    /// spots, could trade.</summary>
+    private bool CanTradeTogether(string a, string b) => PlayersTogether(a, b, TradeRange);
 
     public void RequestTrade(string fromPlayer, string toPlayer)
     {

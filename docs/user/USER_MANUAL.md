@@ -577,7 +577,11 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
 ### Survival
 - **Health** (max 100): regenerates aboard ship / in breathable air; drained by suffocation (−5/s at 0
   oxygen), lava (−15/s, reduced by armor), fire (−10/s, reduced by armor), and starvation (−3/s at 0
-  hunger). At 0 → death (see below).
+  hunger). At 0 → death (see below). **In Sandbox nothing hurts** (a Sandbox world, or a player an admin gave
+  `/mode Player creative`): no oxygen runs out (not even on a spacewalk), and lava, fire, the gas sea, toxic water,
+  falls, crashes, bad food and hostiles leave your health alone — angry animals, machines and bandits ignore you, space
+  hostiles neither hunt you nor shoot your ship and raiders never hail you — and a speeder or boat you own or drive takes
+  no damage either (so it is never wrecked and lost).
 - **Oxygen** (max 100 + tank bonuses): refills aboard ship / on breathable worlds; drains outside on
   toxic/airless worlds. An `oxygen_extractor` cuts the drain on extractable atmospheres.
 - **Hunger** (max 100): drains off-ship — at your base too: the base gives you air, not food (a **Heal Tank**
@@ -1415,6 +1419,11 @@ players.
   turns **red** while the locked enemy is in your sights. Details in §3 → *Target lock*.
 - **Flying together:** every hostile hunts **one** pilot — the nearest — and sticks with them for a while; it only
   switches to another pilot who comes clearly closer. VEGA warns the pilot it has spotted.
+- **Finding each other:** the space radar shows every other pilot in your orbit as a **pink** blip with their name —
+  flying, on a spacewalk or walking inside their parked ship. A friend beyond radar range stays on the radar's rim in
+  their direction, like a station, so you can always fly over (NPC traders are not on it).
+- **A friend on a spacewalk** floats in their own spacesuit, with their name above them, and their ship stays where
+  they left it — engines off — until they climb back in. So you can build a station side by side.
 
 ### Aiming & enemy health bars
 - Damaged enemies (and the one under your crosshair) show a small **health bar** that ramps
@@ -1608,7 +1617,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   of it). The **Energy Door** (workshop, blueprint-gated) is the bulkhead you walk straight through: its blue field
   is an **air curtain**. **Check it:** aim at your own core — the prompt shows how many cells and closed rooms
   currently have air and whether the spot you stand on does (*here: air*; when other rooms breathe but your spot
-  does not, it adds *· /basewalls tells you why*), and how many residents live at the base (*Residents: 2/5*). VEGA explains the rules once when you found a core on a world
+  does not, it adds *· /basewalls tells you why*), and how many residents live at the base (*Residents: 2/5*; press
+  **E** there to see who they are and where). VEGA explains the rules once when you found a core on a world
   without breathable air.
 - **Why no air?** Walking from air into a room that **leaks** names **where the air gets out**: the block or the
   opening, its coordinates and its height (e.g. *"the air escapes through Sand at 30/130/0, 10 blocks above you"*,
@@ -1654,9 +1664,12 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   - a **lost traveller** who asks the way to the village and thanks you with a few torches.
 
   They wave hello, wait a couple of minutes (longer while you stand with them), and then walk off and are gone. Each
-  guest gives its present once per player. If they cannot reach you — you are walled in or in a sealed room — they
-  wait at the edge of your base: *"… is waiting outside your door!"*. Going aboard or leaving the world sends a guest
-  home at once. Guests never fight, are never a target and never touch a block.
+  guest gives its present once per player. A neighbour tells you where they are going — after their present or a wish
+  they brought along: *"I'm heading home to Testville soon — come and see me there!"*, and when they leave: *"Tomas is
+  walking home to Testville."* That is where you find them again (and hand over their wish). If they cannot reach
+  you — you are walled in or in a sealed room — they wait at the edge of your base: *"… is waiting outside your
+  door!"*. Going aboard or leaving the world sends a guest home too: they walk off (you can watch them go from the
+  ship) and disappear only once nobody is near. Guests never fight, are never a target and never touch a block.
 - **Residents, posts and jobs**: beds bring people, and a trading post or mission board at home is staffed by
   one of them — see *People you know* and *Daily routines & jobs* below.
 - On **Tab → Map**, a world where you have a base (or a station orbiting it) is **marked** and its details note
@@ -2297,9 +2310,12 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   me* something (5 berries, wood, stones, torches, glass …), *show me* something (a crystal, iron ore — **you keep
   it**), or *check on the animals* (scan one with your scanner). Under their words it always says exactly what you
   need: *"You need: 5× Berries"*. **"Sure, I'll help!"** puts the wish into **Tab → Missions** ("A wish from Tomas");
-  **"Maybe later."** is fine too — they just chat normally until your next visit. There is **no time limit**. Once
+  **"Maybe later."** is fine too — they just chat normally until your next visit. There is **no time limit**. The
+  mission says where the villager lives (*"Tomas lives in Testville"*, with **Village: Testville · 120 m** and a
+  **Navigate** button while you are on that planet), and their village is marked on the **planet map (M)** with a gold
+  heart (*"Wish · Testville"*, also in the marker list) and on the **compass** — until you hand the wish over. Once
   you have everything, the "!" turns into a gold **"?"** and you hear *"You have everything Tomas wished for — bring it
-  over!"* — walk up and press **E**: they take it (or just look at it), say thank you and give you a little
+  to Testville!"* — walk up and press **E**: they take it (or just look at it), say thank you and give you a little
   **present**, and they like you a lot more. If you already carry everything when you say yes, they tell you right
   away (*"Oh, you already have everything with you! Just talk to me again."*) and the "?" shows at once — press **E**
   once more to hand it over. With only part of it they tell you how far you are (*"You have 3 of 5
@@ -2327,17 +2343,25 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   applies here too (*off* silences it; *missions only* still lets the guard's warning through).
 - **Your base attracts life.** Trader ships prefer worlds with a founded base. Once your base holds **a bed or
   three machines** (workbench, forge, …) **anywhere inside it**, a **settler moves in** — they know you from day one
-  and count toward your people, and they stay for good. **Every bed** you place inside your base brings **one more
-  resident**, up to **five** people. "Inside" is the same for beds and machines, on every floor: the core zone, a
+  and count toward your people, and they stay for good. **Without beds only that one settler lives there** — **every
+  bed** you place inside your base brings **one more resident**, up to **five** people (the first settler's news says
+  so too). "Inside" is the same for beds and machines, on every floor: the core zone, a
   sealed room, inside your walls, or any **closed room** (walls, a roof and a door) at the base — a bed out in the
   open field brings nobody. **Placing a bed tells you what it did**: *"This bed counts — residents 2/5"*, that it is
   outside your base, or that your base is full; aiming at your own core shows *Residents: 2/5* too. Residents
   **take stairs, not ladders** — build a staircase to the upper floors (one-block steps; the hole in the ceiling only
   has to be open above the upper steps). **Everyone keeps their own bed and job**: a new
   bed never makes the others swap, and the newest resident waits for a free bed until the next one stands (whoever
-  has waited longest gets it). Take a bed away and **exactly the one who slept in it** moves on — build a bed again
-  and the same person comes back; moving a bed keeps its sleeper. A hole in a bedroom wall takes the air, not the
-  sleeper. Who sleeps where survives a reload. No visitor ever damages a block.
+  has waited longest gets it). Take a bed away and **exactly the one who slept in it** moves on — you get a message
+  (*"Mila moved out — there was no bed left for them"*); build a bed again and the same person comes back; moving a
+  bed keeps its sleeper. A hole in a bedroom wall takes the air, not the sleeper. Who sleeps where survives a reload,
+  and your residents stay the same people (name, face, what they remember about you) even when you take away the core
+  of another base. Mine your core and put it back on the same spot, and the same people come back. No visitor ever
+  damages a block.
+- **Who lives here?** Press **E** at your own base core: under the rename field a list shows **everyone who lives at
+  the base** — name and job, what they are doing right now (working, resting, asleep …), **where they are** from the
+  core (*"12 m to the northeast"*, or *"not here right now"*) and whether they **have a bed**. While there is room it
+  also reminds you that every bed brings one more resident.
 - **E to talk.** Standing next to someone shows *"Talk to … (E)"*.
 
 ### Daily routines & jobs
@@ -3099,7 +3123,8 @@ look up: what a mix does follows from what goes in, and the same things always g
   steer (arcade hover handling), the camera follows in a chase view, **R** refuels it from an `energy_cell_1`,
   and **F** dismounts. Press **X** near a parked speeder you own to **pack it back up** into the item.
 - The speeder has its **own energy tank** (driving drains it) and a **voxel hull** that takes collision damage —
-  hard impacts dent it and enough damage destroys it. It persists with you across reloads (like a companion).
+  hard impacts dent it and enough damage destroys it (not in Sandbox: there a speeder or boat takes no damage). It
+  persists with you across reloads (like a companion).
 - It **hovers over water** too: drive off the shore and it keeps its hover height above the surface, across lakes and
   seas (out on a deep sea it is as loud as a boat to a **leviathan** — see Giants). It still **unfolds only on dry
   ground** (deploying towards water is refused). **Lava, oil and a gas giant's gas sea** are a stop: any of them ahead
@@ -3698,7 +3723,8 @@ must not mean two different things depending on who types it.
 A shared world normally has ONE mode. As **world admin** you can give a single player their own: with
 `/mode Player creative` (or the **Player modes** rows on the Character tab, listed there only for admins)
 that player plays **Creative** — free crafting and research, creative flight (double-tap **Space**), no
-oxygen/hunger/temperature, and machines, bandits and aggressive creatures ignore them — while everyone
+oxygen/hunger/temperature, no damage of any kind, and machines, bandits, aggressive creatures and space hostiles
+ignore them — while everyone
 else keeps playing the world as it is. The classic family setup: the kid builds carefree in the shared
 survival world, the parent keeps the survival challenge. It also works the other way round
 (`/mode Player survival` in a creative world), `/mode Player world` puts them back on the world's mode,
@@ -3712,7 +3738,9 @@ options like PvP or structure damage are never per-player.
 The three modes of the new-world screen can be switched later: **`/gamemode sandbox`** (also `/mode sandbox`,
 `/modus`, and the German words `entdecker`, `kreativ`, `sandkasten`). **Explorer** is the normal survival game;
 **Creative** keeps survival but everybody flies and gets every blueprint, every ship and the creative kit;
-**Sandbox** adds free crafting, no oxygen or hunger and no planet enemies — and the inventory's **All items** page.
+**Sandbox** adds free crafting, no oxygen or hunger (not even on a spacewalk), no planet machines or bandits and **no
+damage at all** — no lava or fall hurts you, aggressive animals and space hostiles leave you and your ship alone — and the
+inventory's **All items** page.
 The change is saved with the world and reaches everyone online at once. Going back to Explorer takes nothing away:
 unlocked blueprints, ships and kit items stay. World admins only; it works with cheats off.
 

@@ -798,11 +798,11 @@ public sealed partial class GameServer
 
         DamageSpeeder(s, damage, "collision");
 
-        // The driver gets rattled too (but never killed by a fender-bender — God-mode + armor still apply).
-        if (!p.GodMode)
+        // The driver gets rattled too (but never killed by a fender-bender — God-mode + armor still apply; Sandbox
+        // drivers ride it out unhurt, #2712).
+        if (PlayerTakesDamage(p))
         {
-            float jolt = Mitigate(p, damage * SpeederDriverJoltShare);
-            p.Health = Math.Max(0f, p.Health - jolt);
+            DamagePlayer(p, damage * SpeederDriverJoltShare, mitigated: true);
             if (p.Health <= 0f)
             {
                 RespawnPlayer(session, "@srv.death.crash");
@@ -814,10 +814,11 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Applies hull damage to a speeder from any source (collision, wildlife, hazards). Destroys it at 0.</summary>
+    /// <summary>Applies hull damage to a speeder from any source (collision, wildlife, hazards). Destroys it at 0.
+    /// A Sandbox vehicle takes none (<see cref="VehicleTakesDamage"/>, #2712).</summary>
     private void DamageSpeeder(ServerSpeeder s, float amount, string reason)
     {
-        if (amount <= 0f || s.Rec.Hull <= 0f)
+        if (amount <= 0f || s.Rec.Hull <= 0f || !VehicleTakesDamage(s))
         {
             return;
         }
@@ -847,11 +848,7 @@ public sealed partial class GameServer
         if (driver != null)
         {
             driver.State.InSpeeder = string.Empty;
-            if (!driver.State.GodMode)
-            {
-                driver.State.Health = Math.Max(0f, driver.State.Health - Mitigate(driver.State, SpeederDestroyDriverDamage));
-            }
-
+            DamagePlayer(driver.State, SpeederDestroyDriverDamage, mitigated: true); // god mode and Sandbox: unhurt (#2712)
             if (driver.State.Health <= 0f)
             {
                 RespawnPlayer(driver, IsBoat(s.Rec) ? "@srv.death.boat" : "@srv.death.speeder");

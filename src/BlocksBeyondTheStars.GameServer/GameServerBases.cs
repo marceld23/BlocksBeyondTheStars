@@ -163,7 +163,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>Loads every founded base from persistence at server start (the base_core blocks themselves return via
-    /// the block-edit store). Idempotent — clears first.</summary>
+    /// the block-edit store). Idempotent — clears first. The ids are load-order numbers (they shift when an older core is
+    /// gone): nothing that must survive a restart may be keyed by them — the residents' identities are pinned in their
+    /// saved plan (#2716), the plan itself is keyed by the core cell.</summary>
     private void LoadAllBases()
     {
         _bases.Clear();
@@ -188,6 +190,8 @@ public sealed partial class GameServer
         {
             _log.Info($"Loaded {_bases.Count} player base(s).");
         }
+
+        PinBaseResidentIdentities(); // #2716: the ids above are load-order numbers — the residents keep who they are
     }
 
     /// <summary>A player placed a base_core block on a body: found a named base. The placement pre-check

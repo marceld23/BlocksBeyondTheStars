@@ -606,7 +606,7 @@ public sealed partial class GameServer
         foreach (var s in JoinedInActiveWorld())
         {
             var p = s.State;
-            if (p.AboardShip || InSpace(p.PlayerId) || p.IgnoredByHostiles)
+            if (p.AboardShip || InSpace(p.PlayerId) || HostilesIgnore(p))
             {
                 continue;
             }
@@ -643,9 +643,9 @@ public sealed partial class GameServer
     private void HurtPlayer(PlayerSession s, CombatEntity giant, Vector3f from, float amount, string deathReason)
     {
         var p = s.State;
-        if (p.GodMode)
+        if (!PlayerTakesDamage(p))
         {
-            return;
+            return; // god mode and Sandbox (#2712): the blow passes them by
         }
 
         if (TryGetDrivenSpeeder(p, out var speeder))
@@ -654,7 +654,7 @@ public sealed partial class GameServer
             amount *= 1f - SpeederCreatureDamageShare;
         }
 
-        p.Health = System.Math.Max(0f, p.Health - Mitigate(p, amount));
+        DamagePlayer(p, amount, mitigated: true);
         NoteCombat(s); // #2286
         NoteHitFrom(s, giant, from); // #2564
         MarkPlayerStateDirty(s);
@@ -670,7 +670,7 @@ public sealed partial class GameServer
         double bestSq = range * range;
         foreach (var s in onFoot)
         {
-            if (s.State.IgnoredByHostiles)
+            if (HostilesIgnore(s.State))
             {
                 continue;
             }
@@ -1039,7 +1039,7 @@ public sealed partial class GameServer
             foreach (var s in onFoot)
             {
                 var p = s.State;
-                if (p.IgnoredByHostiles || !PlanetEnemiesActive)
+                if (HostilesIgnore(p) || !PlanetEnemiesActive)
                 {
                     continue;
                 }
@@ -1061,7 +1061,7 @@ public sealed partial class GameServer
             foreach (var s in onFoot)
             {
                 var p = s.State;
-                if (p.IgnoredByHostiles || g.HitThisMove.Contains(p.PlayerId))
+                if (HostilesIgnore(p) || g.HitThisMove.Contains(p.PlayerId))
                 {
                     continue;
                 }

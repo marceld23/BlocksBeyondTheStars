@@ -134,7 +134,7 @@ public sealed partial class GameServer
         }
         else
         {
-            p.Health = Math.Max(0f, p.Health - (float)(dt * WeatherDamagePerSecond * scale));
+            DamagePlayer(p, (float)(dt * WeatherDamagePerSecond * scale));
         }
     }
 

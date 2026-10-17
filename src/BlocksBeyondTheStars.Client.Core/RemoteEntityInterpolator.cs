@@ -18,10 +18,17 @@ namespace BlocksBeyondTheStars.Client
     /// Pure (no UnityEngine) so it lives in Client.Core and is unit-tested headless; the Unity layer just feeds it
     /// samples (stamped with the client clock) and reads the sampled pose each frame. Positions are CANONICAL
     /// world coordinates on a wrapping (toroidal) world, so interpolation follows the shortest path across the
-    /// X/Z seams — a player crossing a seam must not sweep back across the whole map.
+    /// X/Z seams — a player crossing a seam must not sweep back across the whole map. A space instance never wraps:
+    /// it samples with <see cref="NoWrap"/> and gets a plain straight-line interpolation (#2707).
     /// </summary>
     public sealed class RemoteEntityInterpolator
     {
+        /// <summary>The circumference for a world that never wraps (a space instance, #2707): <see cref="Sample"/>
+        /// interpolates in a straight line and leaves every coordinate as it came. Any value ≤ 0 means the same. A
+        /// "very large" circumference is NOT a substitute — <c>WrapX</c> moves every negative X up by that much, which
+        /// drew every remote ship and moving entity west of the origin ~2.1 billion units away.</summary>
+        public const int NoWrap = 0;
+
         private readonly struct Snapshot
         {
             public readonly double Time;
@@ -98,8 +105,14 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Forgets every buffered sample — the next <see cref="Push"/> starts a fresh track. For a pose that
+        /// changes what it describes (a pilot stepping out of the ship onto a spacewalk, #2709), so the view never
+        /// glides from the old body's position to the new one.</summary>
+        public void Clear() => _buffer.Clear();
+
         /// <summary>Samples the interpolated pose for the render clock <paramref name="now"/> (the same clock used
-        /// for <see cref="Push"/>). Returns false only when no samples have arrived yet.</summary>
+        /// for <see cref="Push"/>). Returns false only when no samples have arrived yet. <paramref name="circumference"/>
+        /// is the world's wrap period, or <see cref="NoWrap"/> (any value ≤ 0) for a space instance.</summary>
         public bool Sample(double now, int circumference, out Vector3f pos, out float yaw)
         {
             int count = _buffer.Count;
@@ -168,13 +181,21 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Lerp between two canonical world positions along the SHORTEST path across the torus seams,
-        /// then re-canonicalize the result.</summary>
+        /// then re-canonicalize the result. Without a wrap period (<see cref="NoWrap"/>) it is a plain straight-line
+        /// lerp — the seam helpers would divide by a zero latitude period there.</summary>
         private static Vector3f LerpWrapped(Vector3f a, Vector3f b, float t, int circumference)
         {
+            if (circumference <= 0)
+            {
+                return new Vector3f(a.X + (b.X - a.X) * t, a.Y + (b.Y - a.Y) * t, a.Z + (b.Z - a.Z) * t);
+            }
+
             double dx = WorldConstants.WrapDeltaX(b.X - a.X, circumference);
-            double dz = WorldConstants.WrapDeltaZ(b.Z - a.Z, circumference);
             double x = WorldConstants.WrapX(a.X + dx * t, circumference);
-            double z = WorldConstants.WrapZ(a.Z + dz * t, circumference);
+            // A tiny circumference has a zero latitude period — no north–south seam to cross, so Z lerps straight.
+            double z = WorldConstants.LatitudePeriodFor(circumference) > 0
+                ? WorldConstants.WrapZ(a.Z + WorldConstants.WrapDeltaZ(b.Z - a.Z, circumference) * t, circumference)
+                : a.Z + (b.Z - a.Z) * t;
             float y = a.Y + (b.Y - a.Y) * t;
             return new Vector3f((float)x, y, (float)z);
         }

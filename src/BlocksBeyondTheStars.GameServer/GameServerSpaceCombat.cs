@@ -2026,7 +2026,10 @@ public sealed partial class GameServer
                 }
 
                 TickDebrisBump(pilot, sim, pose, speed, inDebrisField, dt);
-                if (hitAsteroid && speed > ShipCollisionMinSpeed)
+                // #2712: a Sandbox (or god-mode) pilot's ship takes no rams and no fire — nothing out here may
+                // disable or wreck it and send its pilot home.
+                bool shipHurtable = PlayerTakesDamage(pilot.State);
+                if (hitAsteroid && speed > ShipCollisionMinSpeed && shipHurtable)
                 {
                     if (sim.CollisionCooldown <= 0.0)
                     {
@@ -2049,7 +2052,7 @@ public sealed partial class GameServer
                 }
 
                 // Hostile fire on THIS pilot: only hostiles within engagement range of their own pose.
-                float incoming = (float)incomingSum;
+                float incoming = shipHurtable ? (float)incomingSum : 0f;
                 if (incoming > 0f)
                 {
                     bool evaded = ApplyShipDamage((float)(incoming * dt));
@@ -2179,9 +2182,9 @@ public sealed partial class GameServer
 
         foreach (var playerId in instance.Players)
         {
-            if (!spottedShared && !_spottedPilotScratch.Contains(playerId))
+            if ((!spottedShared && !_spottedPilotScratch.Contains(playerId)) || !SpaceQuarry(playerId))
             {
-                continue;
+                continue; // #2712: nothing hunts a Sandbox pilot, so nothing is announced to them either
             }
 
             if (instance.SpottedReadyAt.TryGetValue(playerId, out var readyAt) && _uptime < readyAt)
@@ -2209,13 +2212,16 @@ public sealed partial class GameServer
     /// <summary>#2285: picks (and keeps) the pilot a space hostile hunts — the nearest pilot in the instance, sticky for
     /// <see cref="ChaseStickSeconds"/> and then switched only to one clearly nearer (<see cref="ChaseSwitchRatio"/>).
     /// Returns that pilot's own position. With a single pilot this is simply that pilot's ship, exactly the position the
-    /// shared <see cref="SpaceInstance.ShipPosition"/> held; before any pilot has a pose it falls back to that field.</summary>
-    private Vector3f PickChaseTarget(SpaceInstance instance, CombatEntity e)
+    /// shared <see cref="SpaceInstance.ShipPosition"/> held; before any pilot has a pose it falls back to that field.
+    /// #2712: a pilot nothing may hurt (Sandbox, god mode — <see cref="SpaceQuarry"/>) is never hunted; with only such
+    /// pilots about it returns null and the hostile keeps to its patrol.</summary>
+    private Vector3f? PickChaseTarget(SpaceInstance instance, CombatEntity e)
     {
         SpacePlayerPose current = default;
         bool hasCurrent = e.ChaseTargetId.Length > 0
             && instance.Players.Contains(e.ChaseTargetId)
-            && instance.PlayerPoses.TryGetValue(e.ChaseTargetId, out current);
+            && instance.PlayerPoses.TryGetValue(e.ChaseTargetId, out current)
+            && SpaceQuarry(e.ChaseTargetId);
         if (hasCurrent && _uptime < e.ChaseRetargetAt)
         {
             return current.Pos;
@@ -2224,11 +2230,18 @@ public sealed partial class GameServer
         string nearestId = string.Empty;
         float nearestSq = float.MaxValue;
         Vector3f nearestPos = default;
+        bool spared = false;
         foreach (var pilotId in instance.Players)
         {
             if (!instance.PlayerPoses.TryGetValue(pilotId, out var pose))
             {
                 continue; // no pose yet — the client reports one within its first ~0.1 s in space
+            }
+
+            if (!SpaceQuarry(pilotId))
+            {
+                spared = true; // #2712: a Sandbox pilot is nobody's quarry
+                continue;
             }
 
             float dsq = pose.Pos.DistanceSquared(e.Position);
@@ -2243,7 +2256,8 @@ public sealed partial class GameServer
         if (nearestId.Length == 0)
         {
             e.ChaseTargetId = string.Empty;
-            return instance.ShipPosition; // nobody has a pose yet — hunt the shared position, as before
+            // Nobody has a pose yet — hunt the shared position, as before. Only spared pilots here: patrol (#2712).
+            return spared ? null : instance.ShipPosition;
         }
 
         e.ChaseRetargetAt = _uptime + ChaseStickSeconds;
@@ -2311,12 +2325,13 @@ public sealed partial class GameServer
                 e.PatrolInitialized = true;
             }
 
-            // #2285: chase its OWN target pilot, not the shared last-writer-wins position.
-            var quarry = PickChaseTarget(instance, e);
+            // #2285: chase its OWN target pilot, not the shared last-writer-wins position. #2712: nobody to hunt → patrol.
+            var target = PickChaseTarget(instance, e);
+            var quarry = target ?? e.Position;
             float dx = quarry.X - e.Position.X;
             float dy = quarry.Y - e.Position.Y;
             float dz = quarry.Z - e.Position.Z;
-            float distSq = dx * dx + dy * dy + dz * dz;
+            float distSq = target.HasValue ? dx * dx + dy * dy + dz * dz : float.MaxValue;
 
             float tx, ty, tz;
             float moveSpeed;
@@ -2652,6 +2667,10 @@ public sealed partial class GameServer
 
             var pose = kv.Value;
             var owner = FindSessionByPlayerId(kv.Key);
+            // #2709: on a spacewalk the pose is the suit — the ship floats where its pilot stepped out (#2118's ship pose),
+            // and the others keep seeing it there. It used to vanish for everyone until its pilot was back aboard.
+            var ship = default(SpacePlayerPose);
+            bool shipOut = pose.Eva && instance.ShipPoses.TryGetValue(kv.Key, out ship);
             (others ??= new List<NetSpacePlayer>()).Add(new NetSpacePlayer
             {
                 PlayerId = kv.Key,
@@ -2662,6 +2681,16 @@ public sealed partial class GameServer
                 Yaw = pose.Yaw,
                 Eva = pose.Eva,
                 Hull = owner?.HullColor ?? 0xD1D6E0, // item 32 — other players see this ship in its hull colour
+                HasShipPose = shipOut,
+                ShipX = shipOut ? ship.Pos.X : 0f,
+                ShipY = shipOut ? ship.Pos.Y : 0f,
+                ShipZ = shipOut ? ship.Pos.Z : 0f,
+                ShipYaw = shipOut ? ship.Yaw : 0f,
+                // #2709: the suit colours, so a spacewalking partner is drawn in their own spacesuit look.
+                Skin = owner?.SkinColor ?? 0,
+                Torso = owner?.TorsoColor ?? 0,
+                Arms = owner?.ArmColor ?? 0,
+                Legs = owner?.LegColor ?? 0,
             });
         }
 

@@ -299,8 +299,14 @@ namespace BlocksBeyondTheStars.Client
         private readonly HashSet<string> _entitySeen = new HashSet<string>();
         private readonly List<string> _entityRemove = new List<string>();
 
-        // Other players sharing this space instance, drawn as a ship or a floating EVA suit (R2 visibility).
-        private sealed class RemoteAvatar { public GameObject Root; public GameObject Ship; public GameObject Suit; public Material HullMat; public bool Voxel; public int HullRgb = -1; public string Name = string.Empty; public double LastSeen; public ParticleSystem Plume; public bool Parked; public bool PlumesOff; }
+        // Other players sharing this space instance, drawn as a ship or a floating EVA suit (R2 visibility). #2709: the suit
+        // is the pilot's own suited figure (Body, built on the first spacewalk), and the ship stays where it floats meanwhile.
+        private sealed class RemoteAvatar
+        {
+            public GameObject Root; public GameObject Ship; public GameObject Suit; public Material HullMat; public bool Voxel; public int HullRgb = -1;
+            public string Name = string.Empty; public double LastSeen; public ParticleSystem Plume; public bool Parked; public bool PlumesOff;
+            public PlayerAvatar Body; public bool Eva; public int SuitSkin = -1, SuitTorso = -1, SuitArms = -1, SuitLegs = -1;
+        }
         private Vector3 _launchOffset; // #2440: where this launch rises (beside the ships already out here)
         private readonly Dictionary<string, RemoteAvatar> _remotePlayers = new Dictionary<string, RemoteAvatar>();
         private readonly HashSet<string> _remoteSeen = new HashSet<string>();
@@ -309,12 +315,13 @@ namespace BlocksBeyondTheStars.Client
         // Buffered snapshot interpolation for everything the server moves in space (#756): SpaceState
         // arrives at ~5 Hz and used to be applied as a raw per-frame snap — the only entity family in the
         // game without smoothing, right next to the buttery locally-simulated own ship. Same interpolator
-        // the surface RemotePlayers pass uses. Space instances don't wrap, so the seam-aware lerp runs
-        // with an effectively infinite circumference.
+        // the surface RemotePlayers pass uses. Space instances don't wrap, so it samples in its no-wrap mode — a
+        // straight-line lerp. #2707: this used to pass int.MaxValue as "effectively infinite", and WrapX moved every
+        // negative X up by that much: ships, drones and drops west of the origin were drawn ~2.1 billion units away.
         private readonly Dictionary<string, RemoteEntityInterpolator> _entityLerp = new Dictionary<string, RemoteEntityInterpolator>();
         private readonly Dictionary<string, RemoteEntityInterpolator> _remoteLerp = new Dictionary<string, RemoteEntityInterpolator>();
         private object _lastEntitySnapshot, _lastPlayersSnapshot;
-        private const int SpaceNoWrap = int.MaxValue;
+        private const int SpaceNoWrap = RemoteEntityInterpolator.NoWrap;
         // #2175: the bodies of the flight scene with their live look — the planet map baked off the main thread, the
         // weather-driven cloud shell, the haze rim in the world's own sky colour and the spin to its time of day.
         private sealed class OrbitBody
@@ -5207,6 +5214,14 @@ namespace BlocksBeyondTheStars.Client
                             _remoteLerp[rp.PlayerId] = push = new RemoteEntityInterpolator(0.3);
                         }
 
+                        // #2709: stepping out (or back in) swaps the body the pose describes — the suit starts at the
+                        // hatch instead of gliding out of the ship's centre, and the ship never glides after the suit.
+                        if (rp.Eva != av.Eva)
+                        {
+                            av.Eva = rp.Eva;
+                            push.Clear();
+                        }
+
                         push.Push(now, new Vector3f(rp.X, rp.Y, rp.Z), rp.Yaw);
                     }
 
@@ -5251,8 +5266,13 @@ namespace BlocksBeyondTheStars.Client
                         }
                     }
 
-                    av.Ship.SetActive(!rp.Eva);
-                    av.Suit.SetActive(rp.Eva);
+                    // #2709: on a spacewalk the pose is the suit — drawn as the partner's own suited figure — and their
+                    // ship stays where it floats (the server sends that pose too). It used to vanish, and the suit was
+                    // a bare cube, so two friends building together could not see each other or the other's ship.
+                    bool shipOut = rp.Eva && rp.HasShipPose;
+                    PlaceRemoteShip(av, rp, shipOut);
+                    av.Ship.SetActive(!rp.Eva || shipOut);
+                    SyncRemoteSuit(av, rp);
                     if (av.HullMat != null)
                     {
                         av.HullMat.color = ShaderColor.Srgb(Rgb(hullRgb)); // their chosen hull colour (item 32)
@@ -5262,7 +5282,7 @@ namespace BlocksBeyondTheStars.Client
                     // and the nameplate says so. Re-applied when the hull was just swapped for the voxel design, whose
                     // plumes are new particle systems.
                     av.Parked = rp.Parked;
-                    bool plumesOff = rp.Parked && !rp.Eva;
+                    bool plumesOff = (rp.Parked && !rp.Eva) || shipOut; // #2709: nobody at the helm of a ship left for a spacewalk
                     if (plumesOff != av.PlumesOff)
                     {
                         av.PlumesOff = plumesOff;
@@ -5291,14 +5311,101 @@ namespace BlocksBeyondTheStars.Client
 
                 foreach (var id in _remoteRemove)
                 {
-                    if (_remotePlayers[id].Root != null)
+                    var gone = _remotePlayers[id];
+                    if (gone.Ship != null && gone.Root != null && gone.Ship.transform.parent != gone.Root.transform)
                     {
-                        Destroy(_remotePlayers[id].Root);
+                        Destroy(gone.Ship); // #2709: a ship left floating during a spacewalk hangs off the scene root
+                    }
+
+                    if (gone.Root != null)
+                    {
+                        Destroy(gone.Root);
                     }
 
                     _remotePlayers.Remove(id);
                     _remoteLerp.Remove(id);
                 }
+            }
+        }
+
+        /// <summary>#2709: the suit pose sits at the eyes (the spacewalker's camera) — the figure hangs below it.</summary>
+        private const float RemoteSuitEyeHeight = 1.85f;
+
+        /// <summary>#2709: where another pilot's ship is drawn. Flying (or parked with its pilot inside) it rides the pilot's
+        /// interpolated pose under the avatar root, at the compact flight scale. While its pilot is on a spacewalk it hangs
+        /// off the scene root at the floating ship pose the server sends, at the full 1:1 scale the spacewalker builds on —
+        /// the same switch the own ship makes on an EVA. The pose is static while nobody is at the helm, so it is set as is.</summary>
+        private void PlaceRemoteShip(RemoteAvatar av, BlocksBeyondTheStars.Networking.Messages.NetSpacePlayer rp, bool shipOut)
+        {
+            var ship = av.Ship.transform;
+            var parent = shipOut ? _root.transform : av.Root.transform;
+            if (ship.parent != parent)
+            {
+                ship.SetParent(parent, false);
+                ship.localPosition = Vector3.zero;
+                ship.localRotation = Quaternion.identity;
+            }
+
+            if (shipOut)
+            {
+                ship.localPosition = new Vector3(rp.ShipX, rp.ShipY, rp.ShipZ);
+                ship.localRotation = Quaternion.Euler(0f, rp.ShipYaw, 0f);
+            }
+
+            if (av.Voxel)
+            {
+                float scale = shipOut ? 1f : FlightShipScale;
+                if (ship.localScale.x != scale)
+                {
+                    ship.localScale = Vector3.one * scale;
+                }
+            }
+        }
+
+        /// <summary>#2709: shows another pilot's spacewalk as their own suited figure (the avatar the planet view draws for
+        /// them, in their suit colours) instead of a bare cube. Built on the first spacewalk only — NPC traders never get
+        /// one — then kept and just hidden while the pilot is aboard; the colours are re-applied only when they change.</summary>
+        private void SyncRemoteSuit(RemoteAvatar av, BlocksBeyondTheStars.Networking.Messages.NetSpacePlayer rp)
+        {
+            if (!rp.Eva)
+            {
+                if (av.Suit != null && av.Suit.activeSelf)
+                {
+                    av.Suit.SetActive(false);
+                }
+
+                return;
+            }
+
+            // An unset look (0 everywhere) is the default suit the server gives every new player.
+            bool unset = (rp.Skin | rp.Torso | rp.Arms | rp.Legs) == 0;
+            int skin = unset ? 0xD9AE8C : rp.Skin;
+            int torso = unset ? 0x3372CC : rp.Torso;
+            int arms = unset ? 0x3372CC : rp.Arms;
+            int legs = unset ? 0x40404F : rp.Legs;
+            if (av.Body == null)
+            {
+                var go = new GameObject("Suit");
+                go.transform.SetParent(av.Root.transform, false);
+                go.transform.localPosition = new Vector3(0f, -RemoteSuitEyeHeight, 0f);
+                av.Body = go.AddComponent<PlayerAvatar>();
+                av.Body.NeverAirborne = true; // floating — never the leap pose
+                av.Body.Build(Rgb(skin), Rgb(torso), Rgb(arms), Rgb(legs), spacesuit: true);
+                av.Body.SetVisible(true);
+                av.Suit = go;
+            }
+            else if (skin != av.SuitSkin || torso != av.SuitTorso || arms != av.SuitArms || legs != av.SuitLegs)
+            {
+                av.Body.ApplyColors(Rgb(skin), Rgb(torso), Rgb(arms), Rgb(legs));
+            }
+
+            av.SuitSkin = skin;
+            av.SuitTorso = torso;
+            av.SuitArms = arms;
+            av.SuitLegs = legs;
+            if (!av.Suit.activeSelf)
+            {
+                av.Suit.SetActive(true);
             }
         }
 
@@ -5315,11 +5422,10 @@ namespace BlocksBeyondTheStars.Client
             Cube("Body", ship.transform, Vector3.zero, new Vector3(1.6f, 0.9f, 3.4f), hullMat);
             Cube("Cockpit", ship.transform, new Vector3(0f, 0.45f, 1.1f), new Vector3(0.85f, 0.55f, 0.95f), LitTex("glass", new Color(0.7f, 0.9f, 1f)));
 
-            var suit = Cube("Suit", root.transform, Vector3.zero, new Vector3(0.55f, 0.9f, 0.55f), Unlit(new Color(1f, 0.8f, 0.45f)));
-            suit.SetActive(false);
-            // #2157: other ships have engines too (they used to glide without any exhaust).
+            // #2157: other ships have engines too (they used to glide without any exhaust). The spacewalk figure is built on
+            // the first spacewalk (SyncRemoteSuit, #2709).
             var plume = SpaceFx.EnginePlume(ship.transform, new Vector3(0f, 0f, -1.9f), 0.8f, new Color(0.6f, 0.82f, 1f));
-            return new RemoteAvatar { Root = root, Ship = ship, Suit = suit, HullMat = hullMat, Plume = plume };
+            return new RemoteAvatar { Root = root, Ship = ship, HullMat = hullMat, Plume = plume };
         }
 
         private void SyncEntities()
@@ -5461,22 +5567,17 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (_entities.Count > seen.Count)
+            // #2708: ALWAYS look for views whose entity left the snapshot. This used to run only while there were more
+            // views than snapshot ids — but asteroids, debris and hull-backed stations/wrecks are in the snapshot without
+            // a view, so with any of them around (almost always) a collected drop, a rescued pod or a destroyed hostile
+            // stayed on screen as a ghost. A drop has no "destroyed" message: missing from the snapshot is its only exit.
+            var stale = _entityRemove;
+            if (BlocksBeyondTheStars.Client.Core.SpaceEntitySync.CollectStale(_entities, seen, stale) > 0)
             {
-                var stale = _entityRemove;
-                stale.Clear();
-                foreach (var id in _entities.Keys)
-                {
-                    if (!seen.Contains(id))
-                    {
-                        stale.Add(id);
-                    }
-                }
-
                 foreach (var id in stale)
                 {
                     // A resource drop that vanished close to the ship was tractored in → beam it.
-                    if (_dropIds.Remove(id) && _ship != null)
+                    if (_dropIds.Remove(id) && _ship != null && _entities[id] != null)
                     {
                         var dropPos = _entities[id].transform.localPosition;
                         if ((dropPos - _ship.transform.localPosition).sqrMagnitude < 14f * 14f)
@@ -5518,6 +5619,14 @@ namespace BlocksBeyondTheStars.Client
             var space = Game.Space;
             if (space == null || _ship == null)
             {
+                return;
+            }
+
+            // #2712: in Sandbox no hostile fires on this ship (the server deals no damage and its hostiles hunt someone
+            // else), so no bolts either. The rules carry the mode this player plays — a per-player override included.
+            if (Game.Rules != null && Game.Rules.GameMode == "Creative")
+            {
+                _hostileFireCd.Clear();
                 return;
             }
 

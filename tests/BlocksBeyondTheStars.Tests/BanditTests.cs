@@ -299,6 +299,27 @@ public sealed class BanditTests : IDisposable
     }
 
     [Fact]
+    public void BanditShip_NeverHailsASandboxPilot()
+    {
+        // #2712: a survival world, but the admin gave the kid /mode Kid creative — Sandbox for them. The raider used to
+        // hail whoever flew there first, and "comply" handed over the cargo all the same.
+        var server = SpaceServer("hail_sandbox");
+        var kid = AboardRobbable(server, "Kid");
+        kid.State.ModeOverride = PlayerModeOverride.Creative;
+        int ore = kid.State.Inventory.CountOf("iron_ore");
+        server.EnterSpace("Kid");
+        server.SpawnBanditShipForTest("Kid");
+        Assert.NotNull(server.BanditShipForTest("Kid"));
+
+        FlyIntoHailRange(server, "Kid");
+
+        Assert.Equal(0, server.PendingBanditDemandIdForTest("Kid")); // no hold-up
+        var raider = server.BanditShipForTest("Kid");
+        Assert.True(raider is null || raider.BanditPhase == BanditPhase.Leaving, "nobody to rob: the raider turns away");
+        Assert.Equal(ore, kid.State.Inventory.CountOf("iron_ore"));
+    }
+
+    [Fact]
     public void BanditShip_HailsBeforeItFights()
     {
         var server = SpaceServer("hail");

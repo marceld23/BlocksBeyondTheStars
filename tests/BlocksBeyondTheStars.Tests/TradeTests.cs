@@ -316,6 +316,102 @@ public sealed class TradeTests : IDisposable
         }
     }
 
+    // ---------------- #2720: the same "together" check as docking ----------------
+
+    [Fact]
+    public void Trade_RefusedAcrossWorlds_EvenAtMatchingCoordinates()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var (a, b) = TwoTradersTogether(server);
+            b.Position = a.Position; // numerically the same spot…
+            server.Sessions.Values.First(s => s.State.PlayerId == "Bob").CurrentLocationId = "some-other-planet"; // …on another world
+
+            OpenTrade(server);
+
+            Assert.Null(server.ActiveTrade("Alice"));
+        }
+    }
+
+    /// <summary>Two players launched into one flight instance (no hostiles), their surface spots far apart.</summary>
+    private SvGameServer TwoTradersInSpace(string world, out SqliteWorldRepository repo)
+    {
+        repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
+        var config = new ServerConfig
+        {
+            WorldName = world,
+            Seed = 9,
+            StartPlanet = "rocky",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = false,
+            PlaceWrecks = false,
+            ViewDistanceChunks = 1,
+        };
+        config.Rules.FreeSpaceFlight = true;
+        config.Rules.SpaceNpcEnemies = AlienActivity.Off;
+        config.Rules.CreatureAbundance = AlienActivity.Off;
+        var server = new SvGameServer(config, _content, new LoopbackServerTransport(new LoopbackLink()), repo);
+        server.Start();
+        var a = server.AddLocalPlayer("Alice").State;
+        var b = server.AddLocalPlayer("Bob").State;
+        server.EnterSpace("Alice");
+        server.EnterSpace("Bob");
+        Assert.NotNull(server.SpaceInstanceIdForTest("Alice"));
+        Assert.Equal(server.SpaceInstanceIdForTest("Alice"), server.SpaceInstanceIdForTest("Bob"));
+        b.Position = new Vector3f(a.Position.X, a.Position.Y + 200f, a.Position.Z); // the stale surface spots, far apart
+        return server;
+    }
+
+    [Fact]
+    public void Trade_InSpace_SideBySide_ThoughTheirLastSurfaceSpotsAreFarApart()
+    {
+        var server = TwoTradersInSpace("trade_space_near", out var repo);
+        using (repo)
+        {
+            server.ShipMove("Alice", 0f, 0f, 0f);
+            server.ShipMove("Bob", 5f, 0f, 0f); // within the trade range
+
+            OpenTrade(server);
+
+            Assert.NotNull(server.ActiveTrade("Alice"));
+        }
+    }
+
+    [Fact]
+    public void Trade_InSpace_RefusedFarApart_ThoughTheirLastSurfaceSpotsMatch()
+    {
+        var server = TwoTradersInSpace("trade_space_far", out var repo);
+        using (repo)
+        {
+            var bob = server.Sessions.Values.First(s => s.State.PlayerId == "Bob").State;
+            bob.Position = server.Sessions.Values.First(s => s.State.PlayerId == "Alice").State.Position;
+            server.ShipMove("Alice", 0f, 0f, 0f);
+            server.ShipMove("Bob", 300f, 0f, 0f);
+
+            OpenTrade(server);
+
+            Assert.Null(server.ActiveTrade("Alice"));
+        }
+    }
+
+    [Fact]
+    public void Trade_RefusedBetweenFlightAndSurface()
+    {
+        var server = TwoTradersInSpace("trade_space_surface", out var repo);
+        using (repo)
+        {
+            server.LeaveSpace("Bob"); // back on the planet
+            var bob = server.Sessions.Values.First(s => s.State.PlayerId == "Bob").State;
+            bob.Position = server.Sessions.Values.First(s => s.State.PlayerId == "Alice").State.Position; // same spot, same body
+
+            OpenTrade(server);
+
+            Assert.Null(server.ActiveTrade("Alice"));
+        }
+    }
+
     public void Dispose()
     {
         try

@@ -77,7 +77,6 @@ public sealed partial class GameServer
     private string _dialogResponseOverride = string.Empty;
 
     private static readonly char[] SlotJobEnd = { '@', '#' };
-    private static readonly char[] BaseIdEnd = { '#', ':' };
 
     // ---------------- Wall clock (#2595) ----------------
 
@@ -378,7 +377,9 @@ public sealed partial class GameServer
             ? Math.Max(0, (int)(WallUtcNow - last).TotalDays)
             : 0;
 
-    /// <summary>Whether a memory key is one of the player's own base residents (<c>base_&lt;id&gt;…</c> of a base they own).</summary>
+    /// <summary>Whether a memory key is one of the player's own base residents — the key a resident of a base they own is
+    /// filed under. #2716: looked up in the bases' plans, never parsed: the id in a pinned key is the base id of the day the
+    /// resident moved in, not today's.</summary>
     private bool IsOwnBaseResidentKey(PlayerState p, string key)
     {
         if (!key.StartsWith("base_", StringComparison.Ordinal))
@@ -386,10 +387,16 @@ public sealed partial class GameServer
             return false;
         }
 
-        int end = key.IndexOfAny(BaseIdEnd, 5);
-        string digits = end > 5 ? key.Substring(5, end - 5) : key.Substring(5);
-        return int.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out int baseId)
-            && _bases.Any(b => b.Id == baseId && b.OwnerId == p.PlayerId);
+        foreach (var b in _bases)
+        {
+            if (b.OwnerId == p.PlayerId && _meta.BaseResidents.TryGetValue(BaseBoardKey(b), out var plan)
+                && plan.Any(r => BaseResidentKey(b, r) == key))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ---------------- Migration (#2598, E7) ----------------

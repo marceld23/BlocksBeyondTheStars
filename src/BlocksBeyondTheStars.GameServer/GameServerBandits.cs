@@ -148,7 +148,7 @@ public sealed partial class GameServer
             foreach (var session in targets)
             {
                 var p = session.State;
-                if (p.IgnoredByHostiles)
+                if (HostilesIgnore(p))
                 {
                     continue;
                 }
@@ -156,7 +156,7 @@ public sealed partial class GameServer
                 if (WrapDistSq(p.Position, bandit.Position) <= range * range
                     && HasLineOfSight(bandit.Position, p.Position))
                 {
-                    p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dps * dt)));
+                    DamagePlayer(p, (float)(dps * dt), mitigated: true);
                     NoteCombat(session); // #2286
                     NoteHitFrom(session, bandit, bandit.Position); // #2564: the HUD marker points at this robber
                     MarkPlayerStateDirty(session); // #1530
@@ -217,7 +217,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (_uptime < session.NextBanditAmbushAt || p.IgnoredByHostiles || BanditWardedByCompanion(p))
+            if (_uptime < session.NextBanditAmbushAt || HostilesIgnore(p) || BanditWardedByCompanion(p))
             {
                 continue; // #1210: a bonded companion within ward range keeps robbers from picking this mark
             }
@@ -676,7 +676,7 @@ public sealed partial class GameServer
         double bestSq = (double)EnemyHuntRange * EnemyHuntRange;
         foreach (var s in targets)
         {
-            if (s.State.IgnoredByHostiles)
+            if (HostilesIgnore(s.State))
             {
                 continue;
             }
@@ -719,7 +719,7 @@ public sealed partial class GameServer
            && mark.CurrentLocationId == _world.LocationId
            && !mark.State.AboardShip
            && !InSpace(mark.State.PlayerId)
-           && !mark.State.IgnoredByHostiles
+           && !HostilesIgnore(mark.State)
            && !mark.Spectating;
 
     private PlayerSession? NearestBanditPrey(CombatEntity bandit, List<PlayerSession> targets)
@@ -728,7 +728,7 @@ public sealed partial class GameServer
         double bestSq = (double)EnemyHuntRange * EnemyHuntRange;
         foreach (var s in targets)
         {
-            if (s.State.IgnoredByHostiles)
+            if (HostilesIgnore(s.State))
             {
                 continue;
             }

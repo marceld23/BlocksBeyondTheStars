@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -191,6 +192,140 @@ public sealed class DockingTests : IDisposable
             server.RespondDock("Bob", "Alice", accept: true);
 
             Assert.False(server.AreDocked("Alice", "Bob")); // #426 S17: re-checked at accept time
+        }
+    }
+
+    // ---------------- #2711: in flight, the space poses decide ----------------
+
+    /// <summary>Two players with docking modules, both launched into the same flight instance — no hostiles, no starter
+    /// ship on the pads (the free-flight launch needs none).</summary>
+    private SvGameServer TwoPilotsInSpace(string world, DockingMode mode, out SqliteWorldRepository repo)
+    {
+        repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
+        var config = new ServerConfig
+        {
+            WorldName = world,
+            Seed = 9,
+            StartPlanet = "rocky",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = false,
+            PlaceWrecks = false,
+            ViewDistanceChunks = 1,
+        };
+        config.Rules.ShipDocking = mode;
+        config.Rules.FreeSpaceFlight = true;
+        config.Rules.SpaceNpcEnemies = AlienActivity.Off;
+        config.Rules.CreatureAbundance = AlienActivity.Off;
+        var server = new SvGameServer(config, _content, new LoopbackServerTransport(new LoopbackLink()), repo);
+        server.Start();
+        server.AddLocalPlayer("Alice");
+        server.AddLocalPlayer("Bob");
+        foreach (var s in server.Sessions.Values)
+        {
+            s.Ships[s.ActiveShipId].Modules.Add("docking_module");
+        }
+
+        server.EnterSpace("Alice");
+        server.EnterSpace("Bob");
+        Assert.NotNull(server.SpaceInstanceIdForTest("Alice"));
+        Assert.Equal(server.SpaceInstanceIdForTest("Alice"), server.SpaceInstanceIdForTest("Bob"));
+        return server;
+    }
+
+    [Fact]
+    public void InSpace_ShipsSideBySide_Dock_ThoughTheirLastSurfaceSpotsAreFarApart()
+    {
+        var server = TwoPilotsInSpace("dock_space_near", DockingMode.Free, out var repo);
+        using (repo)
+        {
+            // In flight State.Position is where each last stood on the planet — here far apart.
+            Colocate(server);
+            MoveVertically(server, "Bob", 200f);
+
+            server.ShipMove("Alice", 0f, 0f, 0f);
+            server.ShipMove("Bob", 12f, 0f, 0f); // the ships float side by side
+
+            server.RequestDock("Alice", "Bob");
+            Assert.True(server.AreDocked("Alice", "Bob"));
+        }
+    }
+
+    [Fact]
+    public void InSpace_ShipsFarApart_DoNotDock_ThoughTheirLastSurfaceSpotsMatch()
+    {
+        var server = TwoPilotsInSpace("dock_space_far", DockingMode.Free, out var repo);
+        using (repo)
+        {
+            Colocate(server); // the stale surface spots coincide
+
+            server.ShipMove("Alice", 0f, 0f, 0f);
+            server.ShipMove("Bob", 300f, 0f, 0f); // the ships are far apart
+
+            server.RequestDock("Alice", "Bob");
+            Assert.False(server.AreDocked("Alice", "Bob"));
+        }
+    }
+
+    [Fact]
+    public void InSpace_TheAcceptRechecksTheSpacePoses()
+    {
+        var server = TwoPilotsInSpace("dock_space_accept", DockingMode.RequestRequired, out var repo);
+        using (repo)
+        {
+            Colocate(server);
+            server.ShipMove("Alice", 0f, 0f, 0f);
+            server.ShipMove("Bob", 12f, 0f, 0f);
+            server.RequestDock("Alice", "Bob"); // close together — the request goes through
+
+            server.ShipMove("Alice", -300f, 0f, 0f); // the requester flies off before Bob accepts
+            server.RespondDock("Bob", "Alice", accept: true);
+
+            Assert.False(server.AreDocked("Alice", "Bob"));
+        }
+    }
+
+    [Fact]
+    public void InDifferentSpaceInstances_PilotsDoNotDock_EvenAtOverlappingPoses()
+    {
+        var server = TwoPilotsInSpace("dock_space_apart", DockingMode.Free, out var repo);
+        using (repo)
+        {
+            // Bob goes back down and launches again from another body of the system: another flight instance.
+            var alice = server.Sessions.Values.First(x => x.State.PlayerId == "Alice");
+            var bob = server.Sessions.Values.First(x => x.State.PlayerId == "Bob");
+            var here = server.Galaxy.FindBody(alice.CurrentLocationId)!;
+            var other = server.Galaxy.AllBodies().First(b => b.SystemId == here.SystemId && b.Id != here.Id
+                && !string.IsNullOrEmpty(b.PlanetType) && b.Kind is CelestialKind.Planet or CelestialKind.Moon);
+            server.LeaveSpace("Bob");
+            bob.CurrentLocationId = other.Id;
+            bob.State.AboardShip = true;
+            server.EnterSpace("Bob");
+            Assert.NotNull(server.SpaceInstanceIdForTest("Bob"));
+            Assert.NotEqual(server.SpaceInstanceIdForTest("Alice"), server.SpaceInstanceIdForTest("Bob"));
+
+            // Poses are instance-local: numerically the same spot, but in two different skies.
+            server.ShipMove("Alice", 0f, 0f, 0f);
+            server.ShipMove("Bob", 0f, 0f, 0f);
+            Colocate(server);
+
+            server.RequestDock("Alice", "Bob");
+            Assert.False(server.AreDocked("Alice", "Bob"));
+        }
+    }
+
+    [Fact]
+    public void OneInFlight_OneOnTheSurface_DoNotDock()
+    {
+        var server = TwoPilotsInSpace("dock_space_surface", DockingMode.Free, out var repo);
+        using (repo)
+        {
+            server.LeaveSpace("Bob"); // Bob is back on the planet
+            Assert.Null(server.SpaceInstanceIdForTest("Bob"));
+            Colocate(server); // even where the surface spots coincide
+
+            server.RequestDock("Alice", "Bob");
+            Assert.False(server.AreDocked("Alice", "Bob"));
         }
     }
 

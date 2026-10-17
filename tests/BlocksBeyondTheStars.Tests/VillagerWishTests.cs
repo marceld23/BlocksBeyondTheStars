@@ -9,6 +9,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.State;
 using Xunit;
@@ -81,6 +82,21 @@ public sealed class VillagerWishTests
         => Assert.Equal(0, player.State.Inventory.Add(item, count, w.Content.GetItem(item)!.MaxStack));
 
     private static string NameOf(NpcLifeWorld w, int npcId) => w.Server.NpcRosterForTest().Single(n => n.Id == npcId).Name;
+
+    private static string En(string key) => Content.Value.CreateLocalizer(GameLocale.English).Get(key);
+
+    /// <summary>#2713: the toast when a held wish turns ready — it names the village ("… bring it to Wishville!").</summary>
+    private static string ReadyToast(string giver)
+        => En("srv.wish.ready_village").Replace("{name}", giver, StringComparison.Ordinal).Replace("{village}", Village, StringComparison.Ordinal);
+
+    /// <summary>Whether a server message is a "you have everything" toast — the named one or the plain token.</summary>
+    private static bool IsReadyToast(string text)
+        => text.StartsWith("@srv.wish.ready", StringComparison.Ordinal)
+           || text.StartsWith(En("srv.wish.ready_village").Split("{name}")[0], StringComparison.Ordinal);
+
+    /// <summary>#2713: the tab's refusal away from the giver — it names the village.</summary>
+    private static string ReturnRefusal(string giver)
+        => En("srv.wish.return_village").Replace("{name}", giver, StringComparison.Ordinal).Replace("{village}", Village, StringComparison.Ordinal);
 
     /// <summary>Talks to the lane's villager and says "Sure, I'll help!".</summary>
     internal static (string Settlement, int Lane, string MissionId, int GiverId, string GiverKey, string Template, int Count, bool Held) Accept(
@@ -207,7 +223,7 @@ public sealed class VillagerWishTests
 
         // The answer said it — no "bring it over!" toast on top.
         w.Server.TickWishesForTest(pid);
-        Assert.DoesNotContain(Sent(w, w.Player).OfType<ServerMessage>(), m => m.Text.StartsWith("@srv.wish.ready", StringComparison.Ordinal));
+        Assert.DoesNotContain(Sent(w, w.Player).OfType<ServerMessage>(), m => IsReadyToast(m.Text));
 
         w.Server.TalkToNpcForTest(pid, offer.GiverId);
         Assert.Empty(w.Server.HeldWishesForTest(pid));
@@ -420,7 +436,7 @@ public sealed class VillagerWishTests
 
         w.Player.State.Position = new Vector3f(NpcLifeWorld.Cx + 15f, w.Feet, NpcLifeWorld.Cz + 15f);
         w.Server.TurnInMission(pid, offer.MissionId);
-        Assert.Equal("@srv.wish.return_giver:" + giver, Last<MissionResult>(w, w.Player)!.Reason);
+        Assert.Equal(ReturnRefusal(giver), Last<MissionResult>(w, w.Player)!.Reason); // #2713: names the village
         Assert.Contains(offer.MissionId, w.Server.HeldWishesForTest(pid));
         Assert.Equal(offer.Count, w.Player.State.Inventory.CountOf("berries"));
 
@@ -445,16 +461,16 @@ public sealed class VillagerWishTests
         string giver = NameOf(w, offer.GiverId);
 
         w.Server.TickWishesForTest(pid);
-        Assert.DoesNotContain(Sent(w, w.Player).OfType<ServerMessage>(), m => m.Text.StartsWith("@srv.wish.ready", StringComparison.Ordinal));
+        Assert.DoesNotContain(Sent(w, w.Player).OfType<ServerMessage>(), m => IsReadyToast(m.Text));
 
         Give(w, w.Player, "berries", offer.Count);
         w.Server.TickWishesForTest(pid);
-        Assert.Single(Sent(w, w.Player).OfType<ServerMessage>(), m => m.Text == "@srv.wish.ready:" + giver);
+        Assert.Single(Sent(w, w.Player).OfType<ServerMessage>(), m => m.Text == ReadyToast(giver));
         Assert.Contains(offer.GiverId, Last<NpcStandingList>(w, w.Player)!.WishReadyNpcIds);
         Assert.Contains(offer.GiverId, w.Server.WishMarksForTest(pid).Ready);
 
         w.Server.TickWishesForTest(pid);
-        Assert.Single(Sent(w, w.Player).OfType<ServerMessage>(), m => m.Text == "@srv.wish.ready:" + giver);
+        Assert.Single(Sent(w, w.Player).OfType<ServerMessage>(), m => m.Text == ReadyToast(giver));
 
         // Dropping the berries takes the "?" away again (re-sent once).
         w.Player.State.Inventory.Remove("berries", 1);
@@ -531,5 +547,112 @@ public sealed class VillagerWishTests
         {
             Assert.All(w.Server.WishLanesForTest("kid" + i), lane => Assert.Contains(lane.Template, bare));
         }
+    }
+
+    /// <summary>#2714: a granted wish carries the giver's village — its name, its body and its centre — and so the Missions
+    /// tab names it and the player's map marks it (one marker per village, the player's own only, on that body only); handing
+    /// the wish over clears it and takes the marker away.</summary>
+    [Fact]
+    public void AGrantedWish_CarriesTheGiversVillage_MarkedOnTheMap_UntilItIsHandedOver()
+    {
+        using var w = World("wish_village");
+        Settlers(w);
+        w.Server.SetWishTemplateForTest("berries");
+        var sibling = w.Server.AddLocalPlayer("Sibling");
+        sibling.State.AboardShip = false;
+        sibling.State.Position = w.Player.State.Position;
+        var pid = w.Player.State.PlayerId;
+        Assert.Empty(w.Server.WishMarkersForTest(pid)); // an offer is no wish yet
+
+        var offer = Accept(w, w.Player);
+        string giver = NameOf(w, offer.GiverId);
+        var (village, body, at) = w.Server.WishVillageForTest(pid, offer.MissionId);
+        Assert.Equal(Village, village);
+        Assert.Equal(w.Player.CurrentLocationId, body);
+        Assert.Equal(w.Server.SettlementCenterForTest(Village), at);
+
+        // The Missions tab says where — and points at the marker.
+        var active = Last<MissionList>(w, w.Player)!.Active.Single(m => m.Id == offer.MissionId);
+        Assert.Equal(Village, active.PlaceName);
+        Assert.Equal("wish:" + w.Server.SettlementLocationKeyForTest(Village), active.PlaceMarkerId);
+        Assert.Contains(En("wish.where").Replace("{npc}", giver, StringComparison.Ordinal).Replace("{village}", Village, StringComparison.Ordinal),
+            active.Description, StringComparison.Ordinal);
+
+        // The map: the marker went out with the acceptance — for this player, not for the sibling standing beside them.
+        var marker = Assert.Single(Last<MarkerList>(w, w.Player)!.Markers, m => m.Wish);
+        Assert.Equal(active.PlaceMarkerId, marker.Id);
+        Assert.Equal((Village, at.X, at.Y, at.Z), (marker.Label, marker.X, marker.Y, marker.Z));
+        Assert.Empty(w.Server.WishMarkersForTest(sibling.State.PlayerId));
+
+        // A second wish from the same village keeps ONE marker.
+        Accept(w, w.Player, lane: 1);
+        Assert.Single(w.Server.WishMarkersForTest(pid));
+
+        // On another body the marker is not shown (the tab still names the village).
+        var lane0 = w.Player.State.Wishes.Values.Single().Lanes[0];
+        var lane1 = w.Player.State.Wishes.Values.Single().Lanes[1];
+        lane0.VillageLocationId = lane1.VillageLocationId = "some_other_moon";
+        Assert.Empty(w.Server.WishMarkersForTest(pid));
+        lane0.VillageLocationId = lane1.VillageLocationId = body;
+
+        // Handed over: the village is forgotten with the wish; the other wish keeps the marker until it goes too.
+        Give(w, w.Player, "berries", offer.Count);
+        w.Server.TalkToNpcForTest(pid, offer.GiverId);
+        Assert.DoesNotContain(offer.MissionId, w.Server.HeldWishesForTest(pid));
+        Assert.Equal(string.Empty, lane0.Village);
+        Assert.Equal(string.Empty, lane0.VillageLocationId);
+        Assert.Single(w.Server.WishMarkersForTest(pid));
+
+        var other = Offer(w, w.Player, lane: 1);
+        Give(w, w.Player, "berries", other.Count);
+        w.Server.TalkToNpcForTest(pid, other.GiverId);
+        Assert.Empty(w.Server.HeldWishesForTest(pid));
+        Assert.Empty(w.Server.WishMarkersForTest(pid));
+        Assert.DoesNotContain(Last<MarkerList>(w, w.Player)!.Markers, m => m.Wish);
+    }
+
+    /// <summary>#2714: the village is saved with the wish — after a restart the tab and the map still know it.</summary>
+    [Fact]
+    public void TheWishsVillage_SurvivesARestart()
+    {
+        using var w = World("wish_village_restart");
+        Settlers(w);
+        w.Server.SetWishTemplateForTest("berries");
+        var offer = Accept(w, w.Player);
+        var before = w.Server.WishVillageForTest(w.Player.State.PlayerId, offer.MissionId);
+
+        w.Restart();
+        Assert.Contains(offer.MissionId, w.Server.HeldWishesForTest(w.Player.State.PlayerId));
+        Assert.Equal(before, w.Server.WishVillageForTest(w.Player.State.PlayerId, offer.MissionId));
+        Assert.Equal(Village, Assert.Single(w.Server.WishMarkersForTest(w.Player.State.PlayerId)).Label);
+    }
+
+    /// <summary>#2714: a wish held from before the village was stored with it (Lyxette's) learns its village the next time the
+    /// player is on that body — the 1 Hz check fills it in and re-sends the tab and the map.</summary>
+    [Fact]
+    public void AWishHeldFromBefore_LearnsItsVillage_OnTheNextCheck()
+    {
+        using var w = World("wish_village_learn");
+        Settlers(w);
+        w.Server.SetWishTemplateForTest("berries");
+        var pid = w.Player.State.PlayerId;
+        var offer = Accept(w, w.Player);
+        string giver = NameOf(w, offer.GiverId);
+        w.Server.ForgetWishVillagesForTest(pid);
+        Assert.Equal(string.Empty, w.Server.WishVillageForTest(pid, offer.MissionId).Village);
+        Assert.Empty(w.Server.WishMarkersForTest(pid));
+
+        // Without a village the texts fall back to the plain ones.
+        Give(w, w.Player, "berries", offer.Count);
+        w.Player.State.Position = new Vector3f(NpcLifeWorld.Cx + 60f, w.Feet, NpcLifeWorld.Cz + 60f);
+        w.Server.TurnInMission(pid, offer.MissionId);
+        Assert.Equal("@srv.wish.return_giver:" + giver, Last<MissionResult>(w, w.Player)!.Reason);
+
+        int mark = w.Transport.Sent.Count;
+        w.Server.TickWishesForTest(pid);
+        Assert.Equal(Village, w.Server.WishVillageForTest(pid, offer.MissionId).Village);
+        var later = w.Transport.Sent.Skip(mark).Where(s => s.Conn == w.Player.ConnectionId).Select(s => s.Msg).ToList();
+        Assert.Contains(later.OfType<MarkerList>(), l => l.Markers.Any(m => m.Wish && m.Label == Village));
+        Assert.Contains(later.OfType<MissionList>(), l => l.Active.Any(m => m.Id == offer.MissionId && m.PlaceName == Village));
     }
 }

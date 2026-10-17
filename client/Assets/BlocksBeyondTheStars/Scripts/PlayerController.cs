@@ -2194,12 +2194,13 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // A planet base you own (Grundstein) that you're aiming at → rename it.
+            // A planet base you own (Grundstein) that you're aiming at → rename it, and see who lives there (#2717).
             if (TryAimOwnedBase(out string baseBodyId, out string baseName))
             {
-                BeaconLabelUi.Instance?.Open(
+                BeaconLabelUi.Instance?.OpenBase(
                     Game.Localizer?.Get("ui.base.rename_prompt") ?? "Rename base",
                     baseName,
+                    baseBodyId,
                     name => Game.Network?.SendSetBaseName(baseBodyId, name));
                 return;
             }

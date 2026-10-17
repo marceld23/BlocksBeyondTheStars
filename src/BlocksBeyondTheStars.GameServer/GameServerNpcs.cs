@@ -59,7 +59,7 @@ public sealed partial class GameServer
         public string Role = string.Empty;
         public string Theme = string.Empty;
         public string Settlement = string.Empty; // name of the settlement this NPC belongs to (memory/greeting key)
-        public int BaseId; // the founded base this settler belongs to (#1262) — its rename-proof memory key; 0 = none
+        public int BaseId; // the founded base this settler belongs to (#1262) — a load-order id: the memory key is pinned in the plan (#2716); 0 = none
         public string CharacterId = string.Empty; // authored story character occupying this slot (#1128), "" = none
 
         /// <summary>#2598: this villager's own memory key, <c>settle_&lt;hash&gt;#&lt;slot&gt;:&lt;role&gt;</c> (the slot is
@@ -288,7 +288,8 @@ public sealed partial class GameServer
         _npcTargets.Clear();
         foreach (var s in JoinedInActiveWorld())
         {
-            if ((!_shipPlaced || !s.State.AboardShip) && !InSpace(s.State.PlayerId))
+            // #2713: an owner aboard still watches a guest of theirs walk home — the NPCs keep moving meanwhile.
+            if ((!_shipPlaced || !s.State.AboardShip || WatchesGuestLeave(s)) && !InSpace(s.State.PlayerId))
             {
                 _npcTargets.Add(s);
             }

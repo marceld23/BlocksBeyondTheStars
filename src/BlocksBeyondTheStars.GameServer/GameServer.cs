@@ -1953,6 +1953,7 @@ public sealed partial class GameServer
             Guard("TickGiants", deltaSeconds, TickGiants); // #1998: the colossus, the sandworms and the thumpers
             Guard("TickTrains", deltaSeconds, TickTrains); // #2113: the monorail trains and their riders
             Guard("TickBaseGuests", deltaSeconds, TickBaseGuests); // #2602: friendly visitors walk up to a base whose owner is home (1 Hz)
+            Guard("TickBaseLife", TickBaseLife); // #1120/#2718: settlers move in — per world, one base per 10 s, one scan per tick at most
             Guard("TickLodges", deltaSeconds, TickLodges); // #2640/#2641: lodges found by passing players, the store crates (1 Hz)
             Guard("TickWanderers", deltaSeconds, TickWanderers); // #2646: named travellers met in the open land (1 Hz)
             Guard("TickNpcRoutine", deltaSeconds, TickNpcRoutine); // #1867/#1868: work by day, sit in the evening, sleep at night; jobs
@@ -2004,7 +2005,6 @@ public sealed partial class GameServer
         Guard("TickGreetings", TickGreetings); // push any LLM NPC greetings finished off-thread (item 15)
         Guard("TickDialogRadio", TickDialogRadio); // due "they said they'd call" dialogue consequences (#1127)
         Guard("TickNpcRadio", TickNpcRadio);   // NPC radio calls (#1119): per-player 30 s trigger scans
-        Guard("TickBaseLife", TickBaseLife);   // the world notices your base (#1120): settlers move in
         Guard("TickMissionTexts", TickMissionTexts); // push mission-list refreshes when L3 board texts arrive
         Guard("TickAiMissions", TickAiMissions); // publish /ai_mission generations finished off-thread
         Guard("TickVegaBanter", TickVegaBanter); // push VEGA's LLM banter lines finished off-thread
@@ -2167,12 +2167,15 @@ public sealed partial class GameServer
             // world (Toxica-Maxima's plants are the shelters its corrosive air and acid storms leave you).
             bool factoryAir = !p.InEva && InFactoryAir(p.Position);
             bool cityAir = !p.InEva && InSkyCityAir(p.Position); // #2112: a sky city's breathable pocket
-            bool lifeSupport = !p.InEva && (p.AboardShip || insideShip || atBase || stationAir || factoryAir || cityAir
-                || !Rules.OxygenEnabledFor(p.ModeOverride));
+            // Oxygen switched off by the mode (Sandbox, #2712) holds everywhere — on a spacewalk too: it used to sit inside
+            // the EVA guard, so a Sandbox spacewalk drained the tank and suffocated the player.
+            bool lifeSupport = (!p.InEva && (p.AboardShip || insideShip || atBase || stationAir || factoryAir || cityAir))
+                || !Rules.OxygenEnabledFor(p.ModeOverride);
             // Which source keeps this player breathing — sent to the client so the HUD can name it
             // (0 none, 1 ship cabin/aboard, 2 station, 3 base zone or sealed room, 4 factory hall, 5 sky city). Base ranks
             // after the ship and the station so the label only claims the base when nothing closer already covers you.
-            p.LifeSupportSource = (byte)(!lifeSupport ? 0
+            // A spacewalk names none: the suit keeps the bond to the ship (AboardShip), not its cabin air.
+            p.LifeSupportSource = (byte)(!lifeSupport || p.InEva ? 0
                 : p.AboardShip || insideShip ? 1
                 : stationAir ? 2
                 : atBase ? 3
@@ -2238,16 +2241,16 @@ public sealed partial class GameServer
                 p.Oxygen = System.Math.Max(0f, p.Oxygen - drain);
                 if (p.Oxygen <= 0f)
                 {
-                    p.Health = System.Math.Max(0f, p.Health - (float)(dt * 5));
+                    DamagePlayer(p, (float)(dt * 5));
                 }
             }
 
             session.HazardDeathReason = null; // set below by a hazard with its own death line (2026-09)
 
-            // Lava burns (reduced by armor).
+            // Lava burns (reduced by armor). Every hit below goes through DamagePlayer — nothing hurts in Sandbox (#2712).
             if (InLava(p.Position))
             {
-                p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dt * 15)));
+                DamagePlayer(p, (float)(dt * 15), mitigated: true);
             }
 
             // The gas sea (#2112, the gas giant): there is no bottom and nothing to breathe — armour is no help. Faster than
@@ -2255,14 +2258,14 @@ public sealed partial class GameServer
             float gasDps = GasContactDpsAt(p.Position);
             if (gasDps > 0f)
             {
-                p.Health = System.Math.Max(0f, p.Health - (float)(dt * gasDps));
+                DamagePlayer(p, (float)(dt * gasDps));
                 session.HazardDeathReason = "@srv.death.gas";
             }
 
             // Standing in fire burns too (item 30) — a little less than lava.
             if (InFire(p.Position))
             {
-                p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dt * 10)));
+                DamagePlayer(p, (float)(dt * 10), mitigated: true);
             }
 
             // Corrosive air (#2026, the toxic worlds that rolled it): outdoors the air itself slowly burns. Before the
@@ -2292,7 +2295,7 @@ public sealed partial class GameServer
 
                 if (p.Hunger <= 0f)
                 {
-                    p.Health = System.Math.Max(0f, p.Health - (float)(dt * 3));
+                    DamagePlayer(p, (float)(dt * 3));
                 }
             }
 
@@ -2486,7 +2489,7 @@ public sealed partial class GameServer
         ShipAiHintOnce(session, "toxic_water");
         if (session.ToxicWaterSeconds > ToxicWaterGraceSeconds)
         {
-            p.Health = System.Math.Max(0f, p.Health - (float)(dt * dps));
+            DamagePlayer(p, (float)(dt * dps));
             session.HazardDeathReason = "@srv.death.toxic_water";
         }
     }
@@ -3924,7 +3927,8 @@ public sealed partial class GameServer
         // cooldown) is still checked in ReturnToShipRefusal; the snap itself moves nothing but the player.
         ReturnToShipIntent => true,
         RequestStarMap or RequestMissions or RequestCompanionsIntent
-            or RequestAllianceListIntent or RequestLandingPadsIntent or FarTerrainTileRequest => true, // reads (#1821: the far view keeps filling in)
+            or RequestAllianceListIntent or RequestLandingPadsIntent or FarTerrainTileRequest
+            or RequestBaseResidentsIntent => true, // reads (#1821: the far view keeps filling in; #2717: the core's resident list)
         // The crew/marker envelopes (#1216/#1217) carry reads AND writes — only the read passes a pause.
         CrewActionIntent c => c.Kind == "list",
         MarkerActionIntent m => m.Kind == "list",
@@ -4112,6 +4116,7 @@ public sealed partial class GameServer
             case CopyBuildIntent cb: HandleCopyBuild(session, cb); break;    // #1117: region → share code
             case PasteBuildIntent pb: HandlePasteBuild(session, pb); break;  // #1117: share code → blocks
             case RequestKnownNpcsIntent: HandleRequestKnownNpcs(session); break;  // #1118: "People you know"
+            case RequestBaseResidentsIntent rbr: HandleRequestBaseResidents(session, rbr); break; // #2717: who lives at the base
             case SetNpcCallsIntent nc: HandleSetNpcCalls(session, nc); break;     // #1119: call preference
             case SetSeatedIntent seat: HandleSetSeated(session, seat); break;
             case SetEvaIntent eva: HandleSetEva(session, eva); break;
@@ -5120,13 +5125,11 @@ public sealed partial class GameServer
         }
 
         EmitVibration(p.Position, VibrationSource.HardLanding, p.PlayerId); // #2001: a hard landing shakes the sand
-        float damage = Mitigate(p, System.Math.Min(120f, over * FallDamagePerSpeed));
-        if (damage <= 0f)
+        if (DamagePlayer(p, System.Math.Min(120f, over * FallDamagePerSpeed), mitigated: true) <= 0f)
         {
-            return;
+            return; // armour and shield took it all — or nothing hurts here (Sandbox, god mode; #2712)
         }
 
-        p.Health = System.Math.Max(0f, p.Health - damage);
         if (p.Health <= 0f)
         {
             RespawnPlayer(session, "@srv.death.fall");

@@ -128,7 +128,7 @@ public sealed partial class GameServer
     {
         foreach (var s in targets)
         {
-            if (s.State.PlayerId == b.OwnerId && !s.State.IgnoredByHostiles)
+            if (s.State.PlayerId == b.OwnerId && !HostilesIgnore(s.State))
             {
                 return s;
             }

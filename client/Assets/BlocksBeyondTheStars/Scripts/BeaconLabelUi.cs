@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Networking.Messages;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,6 +12,8 @@ namespace BlocksBeyondTheStars.Client
     /// or presses E on one they own ("rename it"). Type a label, Enter confirms, Esc cancels. Like the other modal
     /// panels (trade/dock), it frees the cursor and pauses on-foot control via <c>GameBootstrap.MenuOpen</c>, so
     /// typing never leaks into movement/placement. The label is free-form; the server trims + clamps it.
+    /// <para>#2717: at your own base core (<see cref="OpenBase"/>) a panel under the card lists who lives at the base —
+    /// asked from the server when the screen opens and filled in when the answer arrives (<see cref="BaseResidentText"/>).</para>
     /// </summary>
     public sealed class BeaconLabelUi : MonoBehaviour
     {
@@ -24,6 +27,12 @@ namespace BlocksBeyondTheStars.Client
         private bool _open, _built;
         private int _openFrame = -1;
 
+        // #2717: the resident list under the card (base core only).
+        private GameObject _infoPanel;
+        private Text _info;
+        private NetworkClient _residentsSource; // the client whose BaseResidentsReceived this listens to
+        private string _residentsBody = string.Empty;
+
         private void Awake() => Instance = this;
 
         private void OnDestroy()
@@ -31,6 +40,12 @@ namespace BlocksBeyondTheStars.Client
             if (Instance == this)
             {
                 Instance = null;
+            }
+
+            if (_residentsSource != null)
+            {
+                _residentsSource.BaseResidentsReceived -= OnBaseResidents;
+                _residentsSource = null;
             }
 
             if (_canvas != null)
@@ -47,6 +62,8 @@ namespace BlocksBeyondTheStars.Client
         public void Open(string title, string current, System.Action<string> onConfirm)
         {
             EnsureBuilt();
+            _residentsBody = string.Empty; // a beacon or a station has no resident list
+            SetInfo(null);
             _onConfirm = onConfirm;
             _title.text = title;
             _input.text = current ?? string.Empty;
@@ -63,6 +80,56 @@ namespace BlocksBeyondTheStars.Client
                 _input.ActivateInputField();
                 _input.Select();
             }
+        }
+
+        /// <summary>#2717: the base core screen — the rename field, and under it who lives at the base on
+        /// <paramref name="bodyId"/>. The list is asked from the server now and shows when the answer arrives (an older
+        /// server never answers: the screen stays the rename field alone).</summary>
+        public void OpenBase(string title, string current, string bodyId, System.Action<string> onConfirm)
+        {
+            Open(title, current, onConfirm);
+            var net = Game != null ? Game.Network : null;
+            if (net == null)
+            {
+                return;
+            }
+
+            if (!ReferenceEquals(_residentsSource, net))
+            {
+                if (_residentsSource != null)
+                {
+                    _residentsSource.BaseResidentsReceived -= OnBaseResidents;
+                }
+
+                _residentsSource = net;
+                net.BaseResidentsReceived += OnBaseResidents;
+            }
+
+            _residentsBody = bodyId ?? string.Empty;
+            net.SendRequestBaseResidents(_residentsBody);
+        }
+
+        private void OnBaseResidents(BaseResidentList list)
+        {
+            if (!_open || list == null || _residentsBody.Length == 0 || list.BodyId != _residentsBody)
+            {
+                return; // closed, or the answer for another screen
+            }
+
+            SetInfo(BaseResidentText.Format(list, L));
+        }
+
+        /// <summary>Shows <paramref name="text"/> in the panel under the card; null or empty hides the panel.</summary>
+        private void SetInfo(string text)
+        {
+            if (!_built)
+            {
+                return;
+            }
+
+            bool show = !string.IsNullOrEmpty(text);
+            _info.text = show ? text : string.Empty;
+            _infoPanel.SetActive(show);
         }
 
         private void Update()
@@ -103,6 +170,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _open = false;
             _onConfirm = null;
+            _residentsBody = string.Empty;
             if (_canvas != null)
             {
                 _canvas.gameObject.SetActive(false);
@@ -152,6 +220,14 @@ namespace BlocksBeyondTheStars.Client
                 Game?.MarkMenuInputHandled();
                 Close();
             });
+
+            // #2717: the resident list, a wider panel right under the card (text only; up to five people and two header lines).
+            const float infoW = 760f, infoH = 300f;
+            var infoPanel = UiKit.AddPanel(root, (1920f - infoW) * 0.5f, y + h + 12f, infoW, infoH, UiKit.Panel);
+            _infoPanel = infoPanel.gameObject;
+            _info = UiKit.AddText(infoPanel.transform, 20f, 16f, infoW - 40f, infoH - 32f, string.Empty, 18, UiKit.TextCol, TextAnchor.UpperLeft);
+            _info.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _infoPanel.SetActive(false);
 
             _canvas.gameObject.SetActive(false);
             _built = true;
