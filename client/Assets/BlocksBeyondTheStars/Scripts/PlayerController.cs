@@ -2386,9 +2386,18 @@ namespace BlocksBeyondTheStars.Client
             switch (Game.NearbyStation)
             {
                 case "cockpit":
+                    // Aboard the floating interior the cockpit is the helm — the prompt says "Take the helm (fly)", so E takes
+                    // it (#2705): the server returns to the flight view (or says why the ship can't fly). E used to open the
+                    // map here like on a landed ship, and only its top button flew on.
+                    if (Game.LoadingPlanetType == "ship_interior")
+                    {
+                        Game.Network?.SendUseStation("cockpit");
+                        break;
+                    }
+
                     // On a landed ship E asks "launch into space?" first (#1455): the launch button lived only
                     // at the top of the Map tab, and a first-time player at the cockpit never found it. Declining
-                    // opens the map as before; aboard the floating interior the cockpit is the helm (server-side).
+                    // opens the map as before.
                     if (LaunchPrompt.Instance == null || !LaunchPrompt.Instance.TryOffer(() => Menu?.OpenMap()))
                     {
                         Menu?.OpenMap();

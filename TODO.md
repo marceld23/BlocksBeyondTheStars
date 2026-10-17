@@ -24,6 +24,16 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛞 E at the cockpit of the floating ship takes the helm — #2705, branch fix/interior-helm-key, PR #2706 — ✅ done 2026-10-17 (⚠ playtest open)
+
+Marcel's playtest right after #2704: inside the ship in space the cockpit prompt read "Press E: Take the helm (fly)", but E
+opened the menu on the Map tab, and only its top button flew on. The client's cockpit case never sent the station use
+in the interior (it predates #1455); the server's `UseStation("cockpit")` helm branch was there all along
+(`ShipInteriorTests.UsingTheCockpitInsideTheShip_TakesTheHelm`). In the ship interior E at the cockpit now sends it; a
+landed ship keeps the launch question, then the map. USER_MANUAL F row says so. Package label `package: eva boarding 2026-10`.
+
+---
+
 ### 🧑‍🚀 Spacewalk beside a station — E takes you home, undocking leaves the ship where it floated — #2702, #2703, branch fix/eva-station-boarding, PR #2704 — ✅ done 2026-10-17 (⚠ playtest open)
 
 Marcel's playtest on v2026.10.18: out through the airlock next to the start system's derelict, E at his own hatch docked
