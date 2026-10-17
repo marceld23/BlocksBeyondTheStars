@@ -709,7 +709,7 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   only holds a few kinds of item (8 stacks) — the workshop's iron crate stores everything.
 - **Storage crates — the crate screen:** aim at a placed crate or wood box and press **E**. The screen shows
   **what is in the crate at the top and your backpack (quick-bar included) at the bottom** — click a stack to
-  move it across, hold **Shift** while clicking to move every stack of that kind. **Anything** goes in by hand:
+  move exactly that stack across, hold **Shift** while clicking to move every stack of that kind. **Anything** goes in by hand:
   blocks, ores, food, medpacks, tools and weapons alike. The buttons on the screen do the bulk moves — *Store all
   materials* (the same sweep as **H**: loose materials, components and blocks, never your tools or food) and *Take
   everything out* (**G**) — and *What belongs in here?* opens the filter picker.
@@ -904,7 +904,10 @@ players.
   break there and the block stays where it is.
 - Ship hull, station, settlement and other players' protected landing zones cannot be mined — **except
   plants**: you may always pick flora, wherever it grows (that is what makes a settlement greenhouse worth
-  visiting), you just cannot take the building apart.
+  visiting), you just cannot take the building apart. **What you build in a village stays yours:** a floor you lay
+  in a lane or a wall you put up in front of a hut can be mined again like any block of yours. The village's own
+  houses, fences and the ground it stands on stay protected — you may paint them, but painting never makes them yours
+  to mine.
 - **Landing pads are on dry land whenever the world offers any** — the pad search looks in every direction,
   and on ocean worlds further. A pad that still sits in open sea rises on a small island (beach, grass, a few
   plants); only in shallow water does the ship park in a dry shaft on the seabed. The approach map draws such
@@ -935,6 +938,10 @@ players.
   **quick-bar** row of nine, the on-screen hotbar, under a line, and 27 backpack slots above it). It travels
   with you everywhere. Older saves are simply widened. On the **Backpack** tab, click a slot to pick its item
   up and a second slot to put it down or swap — the same by touch and with a gamepad (A picks and places).
+  **How much one slot holds:** building blocks, ores and materials **1024**; **food, baits and data fragments 99**
+  (20 before 2026-10 — an old stack of 20 fills up as you pick more up); medpacks 20; VEGA's memory fragments and
+  SPS access codes 10 (they are meant to be rare); tools, weapons and suit gear one each. Machines, energy cells and a
+  few other parts have smaller stacks of their own.
 - **Suit gear works only while you WEAR it** (2026-09; before, a piece worked anywhere in the pack). The
   Inventory's **Suit** tab shows the worn slots as a **figure** (2026-10): **head** (helmet or titanium helmet),
   **chest** (chest armour, titanium chest plate *or* the stealth suit), **legs**, **feet** (boots or **spring
@@ -985,10 +992,15 @@ players.
   what you pick up lands there first. A line says what happened: how many stacks went in, "the hold is full"
   (the rest stays in your backpack) or "nothing to stow".
 - **Moving things by hand:** open the **Tab menu → Inventory**. It opens on your **backpack** grid, which has a
-  **"Stow all materials in cargo"** button, and selecting any item offers **"Move to cargo hold"**. The
-  **Cargo Hold** page shows the hold's **used/total** capacity, **"Stow all materials in cargo"** and **"Take all
-  out"** side by side, and per-item **"Move to inventory"**. These only work while you're aboard (in flight or
-  standing in the landed cabin); on foot the cargo page says so.
+  **"Stow all materials in cargo"** button. The **Cargo Hold** page shows the hold's **used/total** capacity,
+  **"Stow all materials in cargo"** and **"Take all out"** side by side, and lists the hold stack by stack — each
+  with a **"Take"** button that moves **exactly that stack** into your backpack (hold **Shift** while clicking it
+  to take every stack of that kind). Select an item — a backpack slot, or a stack's card in the hold — and the
+  detail pane offers the finer moves, in the direction of the page you're on (backpack → hold, hold → backpack):
+  **"This stack"**, **"All of this kind"** (when there is more than one stack) and **"How many?"** with **1**,
+  **5** and **half** — so with 20 portions of food in the hold you can take 5 along and leave the rest. All of it
+  works with mouse, gamepad and touch alike. Only what fits moves; a full hold or backpack says so. These only
+  work while you're aboard (in flight or standing in the landed cabin); on foot the cargo page says so.
 - **Auto-stow (optional):** turn on *Settings → Comfort → "Auto-stow into cargo on boarding"* to have loose
   materials moved into the hold automatically each time you board (it says what it stowed, and nothing when
   there was nothing to stow). Off by default.
@@ -1983,6 +1995,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   half-standing tower, and rubble overgrown by flora. Unlike bases and stations they are **not protected**:
   every block is **freely mineable**, and what you clear stays cleared. VEGA may hint at *"structural
   echoes nearby — ruins or wreckage"*; bring a scanner, there's often something worth digging out.
+  Only ruins hide **scavenge caches** — a village where people live has none. On an older world you may still find
+  such a cache inside a lived-in village: it belongs to the villagers, so the screen says *"That belongs to the
+  people of …"* instead of offering **G**, and nothing can be taken out of it.
 - **Abandoned stations.** On some newer worlds you may come across the ruin of an old **monorail station** out in
   the open: the roof has partly caved in, the lamps are dark, plants push through the cracked platforms, and on the
   track bed sits an **old wagon** that sank down when the power died — broken windows, a bush growing on its roof, its
@@ -2347,7 +2362,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   bed** you place inside your base brings **one more resident**, up to **five** people (the first settler's news says
   so too). "Inside" is the same for beds and machines, on every floor: the core zone, a
   sealed room, inside your walls, or any **closed room** (walls, a roof and a door) at the base — a bed out in the
-  open field brings nobody. **Placing a bed tells you what it did**: *"This bed counts — residents 2/5"*, that it is
+  open field brings nobody. A **village's own** beds, shops and machines never count for your base, even when your
+  walls take the village in — the villagers keep their homes; what you build there yourself counts as usual.
+  **Placing a bed tells you what it did**: *"This bed counts — residents 2/5"*, that it is
   outside your base, or that your base is full; aiming at your own core shows *Residents: 2/5* too. Residents
   **take stairs, not ladders** — build a staircase to the upper floors (one-block steps; the hole in the ceiling only
   has to be open above the upper steps). **Everyone keeps their own bed and job**: a new

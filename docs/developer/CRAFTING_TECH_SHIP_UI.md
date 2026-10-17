@@ -110,6 +110,16 @@ components, a category sidebar and blueprint state.
   cargo tab shows a "step aboard" hint instead of dead controls. Capacity comes from
   `InventoryUpdate.CargoSlotCount`. The optional *auto-stow on boarding* comfort toggle is purely
   client-side: `GameBootstrap` watches the not-aboard→aboard edge and fires the same bulk intent.
+  **Single stacks and amounts (#2729):** the intent carries the contractless-additive `FromSlot` (a slot of the
+  source side; -1 = none) and `Count` (0 = whole stack / every stack). The server moves exactly that stack
+  (`MoveSlot`, optionally a part of it) or `Count` items across the item's stacks (`MoveCount`, last source stack
+  first; the destination tops up its stacks before opening new ones, `maxStack` respected), and rejects with
+  `@srv.cargo.full` / `@srv.cargo.backpack_full` when nothing fit. An older client sends neither field (every stack,
+  as before); an older server ignores them. On the *Cargo Hold* tab each card has a **"Take"** button (that stack;
+  Shift = every stack of the kind); the detail pane offers **This stack / All of this kind / How many? (1, 5, half)**
+  in the page's direction, the slot remembered in `_stackSlot` and resolved by `Client.Core`'s
+  `CargoStackPicker` (which also computes the amounts). The crate screen's `MoveContainerItemIntent` gained the same
+  `FromSlot`, so a click stores the clicked backpack stack rather than the first one of that item.
 - **Tech-tree layout** is a simple per-category column/tier layout (no physics) — deliberately chosen
   to stay legible as blueprint count grows.
 

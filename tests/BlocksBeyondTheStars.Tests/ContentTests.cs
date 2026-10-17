@@ -151,6 +151,36 @@ public class ContentTests
     }
 
     [Fact]
+    public void DataFragmentsFoodAndBaits_StackTo99_TheScarceGoodsKeepTheirCaps()
+    {
+        // #2730 (a player, 2026-10-17): farming thousands of stone and sand left 10+ stacks of 20 data fragments in the bag,
+        // and every food and bait stacked to 20 as well. They take 99 per slot now.
+        var content = Load();
+        Assert.Equal(99, content.MaxStackOf("data_fragment"));
+        foreach (string bait in new[] { "forage_bait", "meat_bait", "nectar_lure" })
+        {
+            Assert.Equal(99, content.MaxStackOf(bait));
+        }
+
+        // All food: a consumable that fills the stomach — the toxic and spoiled twins too, so a washed or a spoiled lot
+        // stacks like the good one. A bio-lab preparation carries its effect in its key and is no food (the ration
+        // dispenser refuses it too), so it keeps its stack.
+        var foods = content.Items.Values
+            .Where(i => i.Category == ItemCategory.Consumable && i.ConsumeHunger > 0f && Shared.Bio.BioItems.FormOf(i.Key) is null)
+            .Select(i => i.Key)
+            .ToList();
+        Assert.Contains("berries", foods);
+        Assert.Contains("hearty_stew", foods);
+        Assert.Contains("spoiled_food", foods);
+        Assert.All(foods, key => Assert.Equal(99, content.MaxStackOf(key)));
+
+        // Unchanged: the medpack, and the deliberately scarce memory fragments and access codes.
+        Assert.Equal(20, content.MaxStackOf("medpack"));
+        Assert.Equal(10, content.MaxStackOf("ai_memory_fragment"));
+        Assert.Equal(10, content.MaxStackOf("access_code"));
+    }
+
+    [Fact]
     public void BlockById_RoundTrips()
     {
         var content = Load();

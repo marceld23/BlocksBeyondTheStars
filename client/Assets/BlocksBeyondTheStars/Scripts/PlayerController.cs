@@ -116,8 +116,12 @@ namespace BlocksBeyondTheStars.Client
             Game?.Content?.GetItem(Game.ItemInSlot(Game.SelectedHotbarSlot))?.Tool?.Kind
                 == BlocksBeyondTheStars.Shared.Definitions.ToolKind.Weapon;
 
-        /// <summary>A lootable container is within loot reach (LootContainer applies).</summary>
-        public bool NearContainer => NearestContainerId(crateOnly: false) != null;
+        /// <summary>A lootable container is within loot reach (LootContainer applies) — #2726: not a cache that belongs to a
+        /// village's people (the HUD says whose it is, the server refuses the take), so the Actions list does not offer it.</summary>
+        public bool NearContainer => Game != null
+            && InteractReach.NearestContainer(Game.Containers, transform.position.x, transform.position.y, transform.position.z,
+                Game.Circumference, crateOnly: false) is { } nearest
+            && string.IsNullOrEmpty(nearest.OwnedBy);
 
         /// <summary>#2018: the selected hotbar item is food an animal would eat AND a begging animal is within
         /// <c>HerdRules.FeedProbeRange</c> (FeedCreature applies). The creature list arrives at 2 Hz, so the scan over it

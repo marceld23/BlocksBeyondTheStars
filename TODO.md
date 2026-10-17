@@ -24,6 +24,34 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🏘️ Lyxette's reports 2026-10-17 (evening) — villagers keep their supplies, own blocks in villages, a base around a village, single stacks into the cargo hold, bigger stacks — epic #2732, #2726–#2730, branch fix/lyxette-village-stacks — ✅ done 2026-10-17 (⚠ playtest open)
+
+Lyxette found a jungle village while building a very big base around it and asked whether looting there is intended,
+wanted to pick single stacks when storing, and asked for bigger stacks. All decisions by Marcel ("everything per
+recommendation"). Package label `package: lyxette reports 2026-10-17`.
+
+- **Village supplies (#2726):** inhabited templates (`river_hamlet_home`, `stone_roundhouse_home`, `stilt_hamlet_home`,
+  `walled_market_home`) carried a ruins-only `"loot"` marker — the cache now spawns only in ruins. Caches already saved in
+  intact villages belong to the villagers (`OwnedContainerRefusal`, "That belongs to the people of {name}."), and the
+  additive `NetContainer.OwnedBy` stops the HUD from offering "G: loot".
+- **Own blocks in a village (#2727):** a block the player placed (not a layout cell, above the village floor, with a
+  player edit row) can be mined again; houses, the floor and the plinth stay protected even when painted.
+- **A base around a village (#2728):** the base index and the founding-machine count skip settlement-protected cells —
+  the villagers' beds and machines never count for the player's base (a bed the player places in a hut still does).
+- **Single stacks (#2729):** a "Take" button per hold card moves exactly that stack (Shift = every stack of that kind);
+  the detail pane has "This stack", "All of this kind" and "How many?" (1 / 5 / half). Additive `FromSlot`/`Count` on
+  `MoveCargoItemIntent`, `FromSlot` on `MoveContainerItemIntent` (the crate screen moves the clicked stack);
+  "backpack full" is now said instead of silence.
+- **Bigger stacks (#2730):** `data_fragment`, all food and baits 20 → 99 (24 keys); medpack 20, AI memory fragment and
+  access code 10 stay scarce. No save migration (loading only clamps down).
+- ⚠ Open: playtest — a living village has no "G: loot", a base around a village, the cargo "Take"/"How many?".
+- ⚠ Release notes: a base that counted village beds loses those extra residents on its first scan (normal "moved
+  out" news); blocks a player placed in a village outside any base can now be mined by anyone, like everywhere else.
+- ⚠ Open (small, not done): the crate screen has no "all of this kind" button for pad/touch; quick-bar assignment in
+  the detail pane still uses the first stack of an item.
+
+---
+
 ### 📬 Player reports 2026-10-17 (Layex + Screelit = Lorenzo, Lyxette) — friends visible in space, no ghost drops, a damage-free Sandbox, neighbours who say where they live, a resident list — epic #2719, #2707–#2718 + #2720, branch fix/reports-2026-10-17 — ✅ done 2026-10-17 (⚠ playtest open)
 
 Three kids reported from a LAN world (v2026.10.18): they couldn't see each other in space, not even next to the same

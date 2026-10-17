@@ -75,9 +75,9 @@ public sealed partial class GameServer
             return;
         }
 
-        if (LodgeStoreRefusal(container.Id) is { Length: > 0 } notYours)
+        if (OwnedContainerRefusal(container) is { Length: > 0 } notYours)
         {
-            Reject(session, "loot", notYours); // #2640: a lodge resident's store — look, don't take
+            Reject(session, "loot", notYours); // #2640: a lodge resident's store — look, don't take (#2726: nor a village's cache)
             return;
         }
 
@@ -205,7 +205,7 @@ public sealed partial class GameServer
             return;
         }
 
-        if (LodgeStoreRefusal(container.Id) is { Length: > 0 } notYours)
+        if (OwnedContainerRefusal(container) is { Length: > 0 } notYours)
         {
             Reject(session, "stash", notYours); // #2640: nothing goes into a lodge resident's store but their own work
             return;
@@ -291,7 +291,7 @@ public sealed partial class GameServer
             return;
         }
 
-        if (LodgeStoreRefusal(container.Id) is { Length: > 0 } notYours)
+        if (OwnedContainerRefusal(container) is { Length: > 0 } notYours)
         {
             Reject(session, "stash", notYours); // #2640: a lodge resident's store is sorted by its owner
             return;
@@ -370,7 +370,7 @@ public sealed partial class GameServer
         BroadcastContainers();
     }
 
-    private static NetContainer ToNetContainer(StoredContainer c) => new()
+    private NetContainer ToNetContainer(StoredContainer c) => new()
     {
         Id = c.Id,
         Kind = c.Kind,
@@ -379,6 +379,7 @@ public sealed partial class GameServer
         Z = c.Position.Z,
         ItemCount = c.Items.Count,
         Filter = c.Filter.ToArray(),
+        OwnedBy = VillageOwningCache(c)?.Name ?? string.Empty, // #2726: the HUD names the village instead of offering G
     };
 
     /// <summary>The containers a client renders + loots. Ground drop packets share this store (and its free
@@ -425,14 +426,15 @@ public sealed partial class GameServer
     }
 
     private void HandleMoveContainerItem(PlayerSession session, MoveContainerItemIntent intent)
-        => MoveContainerItem(session.State.PlayerId, intent.ContainerId, intent.Item, intent.ToContainer, intent.All);
+        => MoveContainerItem(session.State.PlayerId, intent.ContainerId, intent.Item, intent.ToContainer, intent.All, intent.FromSlot);
 
     /// <summary>Moves one kind of item between the player's backpack and a crate (#2436) — a click on the crate screen.
     /// Into the crate: one stack (or every stack with <paramref name="all"/>) of <paramref name="item"/>, any category,
-    /// subject to the crate's filter and a wood box's capacity. Out of the crate: up to one full stack (or everything of
-    /// that item with <paramref name="all"/>), as far as the backpack has room. Persisted; the contents go out to every
-    /// open crate screen and the count to the world. Returns true if anything moved.</summary>
-    public bool MoveContainerItem(string playerId, string containerId, string item, bool toContainer, bool all)
+    /// subject to the crate's filter and a wood box's capacity — #2729: the stack in <paramref name="fromSlot"/>, the one
+    /// the player clicked, else the first one. Out of the crate: up to one full stack (or everything of that item with
+    /// <paramref name="all"/>), as far as the backpack has room. Persisted; the contents go out to every open crate screen
+    /// and the count to the world. Returns true if anything moved.</summary>
+    public bool MoveContainerItem(string playerId, string containerId, string item, bool toContainer, bool all, int fromSlot = -1)
     {
         var session = FindSessionByPlayerId(playerId);
         if (session is null || string.IsNullOrEmpty(item))
@@ -447,7 +449,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (LodgeStoreRefusal(container.Id) is { Length: > 0 } notYours)
+        if (OwnedContainerRefusal(container) is { Length: > 0 } notYours)
         {
             Reject(session, toContainer ? "stash" : "loot", notYours); // #2640: look, don't take (or put)
             return false;
@@ -482,24 +484,34 @@ public sealed partial class GameServer
             }
 
             int count = 0;
-            for (int i = 0; i < inv.SlotCount; i++)
+            if (!all && fromSlot >= 0 && fromSlot < inv.SlotCount && inv.Slots[fromSlot] is { IsEmpty: false } clicked && clicked.Item == item)
             {
-                if (inv.Slots[i] is { IsEmpty: false } s && s.Item == item)
+                // #2729: exactly the stack that was clicked — Remove() below would take from the first stacks instead.
+                count = clicked.Count;
+                inv.SetSlot(fromSlot, null);
+            }
+            else
+            {
+                for (int i = 0; i < inv.SlotCount; i++)
                 {
-                    count += s.Count;
-                    if (!all)
+                    if (inv.Slots[i] is { IsEmpty: false } s && s.Item == item)
                     {
-                        break; // one stack: the first one found
+                        count += s.Count;
+                        if (!all)
+                        {
+                            break; // one stack: the first one found (an older client, or the clicked slot changed meanwhile)
+                        }
                     }
                 }
+
+                if (count == 0)
+                {
+                    return false;
+                }
+
+                inv.Remove(item, count);
             }
 
-            if (count == 0)
-            {
-                return false;
-            }
-
-            inv.Remove(item, count);
             merged[item] = (merged.TryGetValue(item, out var have) ? have : 0) + count;
         }
         else
