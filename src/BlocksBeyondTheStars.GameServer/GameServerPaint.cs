@@ -110,7 +110,8 @@ public sealed partial class GameServer
         }
 
         // Painting is cosmetic, but graffiti on someone's base or factory is still griefing — the same
-        // protection that guards mining/placing guards the paintbrush.
+        // protection that guards mining/placing guards the paintbrush. A village's blocks do take paint — decoration is
+        // never forbidden; see the editor recorded below (#2727).
         if (IsFactoryProtected(pos, session.State.PlayerId, session.State.IsAdmin)
             || IsBaseProtected(pos, session.State.PlayerId, session.State.IsAdmin))
         {
@@ -142,10 +143,21 @@ public sealed partial class GameServer
 
         session.NextPaintAt = _uptime + 2.0;
         var (tint, glow) = _world.GetModifier(pos);
-        _world.SetBlock(pos, current, tint, glow, newShape, session.State.PlayerId);
+
+        // #2727: a stroke on a settlement's own block (a village's, a lodge's, the intercity line's) is written without the
+        // painter as its editor. A player's edit row is what makes a block in a village box count as theirs and minable
+        // (IsPlayerBuiltInSettlement), so a signed stroke would turn the sand in a lane or the rock of a lodge's yard into
+        // "player-built". Ownerless, the store keeps whatever attribution the cell had (none, for the village's own) — the
+        // design itself is stored and broadcast all the same, and a paint report names the design's owner from the design
+        // registry, not from the cell. A block the player built there carries their name as before.
+        string editor = IsSettlementProtected(pos, current) ? string.Empty : session.State.PlayerId;
+        _world.SetBlock(pos, current, tint, glow, newShape, editor);
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = current.Value, Tint = tint, Glow = glow, Shape = newShape });
         RaiseGameEvent(session, GameEventKeys.PaintBlock, _world.Definition(current)?.Key ?? string.Empty); // #2482: the creative tools course
     }
+
+    /// <summary>Test seam (#2727): runs the paint-block intent for a player, skipping the network.</summary>
+    public void PaintBlockForTest(PlayerSession session, PaintBlockIntent intent) => HandlePaintBlock(session, intent);
 
     /// <summary>True when a design id is registered AND not a moderation tombstone — the liveness test the
     /// item paths (paint craft, place stamp, mine recovery) gate on, so a wiped design never rides an item.</summary>

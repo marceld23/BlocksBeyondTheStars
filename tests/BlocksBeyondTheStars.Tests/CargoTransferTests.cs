@@ -275,6 +275,189 @@ public sealed class CargoTransferTests : IDisposable
         }
     }
 
+    [Fact]
+    public void OneStack_MovesExactlyTheClickedStack()
+    {
+        // #2729 (Lyxette: "20 stacks of food — take 5 along, the other 15 into the cargo hold"): a click moves that
+        // stack, not every stack of the item.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = AboardPilot(server);
+            ClearPack(p);
+            ClearHold(server);
+            p.State.Inventory.SetSlot(10, new ItemStack("medpack", 20));
+            p.State.Inventory.SetSlot(11, new ItemStack("medpack", 12));
+            p.State.Inventory.SetSlot(12, new ItemStack("medpack", 7));
+
+            Assert.True(server.MoveCargoForTest("Pilot", toCargo: true, item: "medpack", fromSlot: 11));
+
+            Assert.Null(p.State.Inventory.Slots[11]);
+            Assert.Equal(20, p.State.Inventory.Slots[10]!.Count);
+            Assert.Equal(7, p.State.Inventory.Slots[12]!.Count);
+            Assert.Equal(12, server.Ship.Cargo.CountOf("medpack"));
+
+            // ...and back out by the hold's own slot: it tops up the pack's stacks (20 is full, 7 + 12 = 19).
+            int holdSlot = Enumerable.Range(0, server.Ship.Cargo.SlotCount).First(i => server.Ship.Cargo.Slots[i]?.Item == "medpack");
+            Assert.True(server.MoveCargoForTest("Pilot", toCargo: false, item: "medpack", fromSlot: holdSlot));
+            Assert.Equal(0, server.Ship.Cargo.CountOf("medpack"));
+            Assert.Equal(20, p.State.Inventory.Slots[10]!.Count);
+            Assert.Equal(19, p.State.Inventory.Slots[12]!.Count);
+            Assert.Null(p.State.Inventory.Slots[11]);
+        }
+    }
+
+    [Fact]
+    public void OneStack_AStaleSlot_FallsBackToOneStack_NeverToAll()
+    {
+        // The pack changed between the click and its arrival: the slot no longer holds the item. One stack still moves
+        // (the first of that item) — the old all-stacks sweep would be the opposite of what the player asked for.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = AboardPilot(server);
+            ClearPack(p);
+            ClearHold(server);
+            p.State.Inventory.SetSlot(10, new ItemStack("berries", 20));
+            p.State.Inventory.SetSlot(11, new ItemStack("stone", 5));
+            p.State.Inventory.SetSlot(12, new ItemStack("berries", 7));
+
+            Assert.True(server.MoveCargoForTest("Pilot", toCargo: true, item: "berries", fromSlot: 11));
+
+            Assert.Equal(5, p.State.Inventory.CountOf("stone"));     // the slot's new content stays
+            Assert.Equal(20, server.Ship.Cargo.CountOf("berries"));  // one stack of berries went
+            Assert.Equal(7, p.State.Inventory.CountOf("berries"));
+        }
+    }
+
+    [Fact]
+    public void ACount_SplitsAStack_AndMergesIntoTheOtherSide()
+    {
+        // #2729: "take 5 along" — five of the item, split off the hold's stacks and laid onto the pack's own stack.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = AboardPilot(server);
+            ClearPack(p);
+            ClearHold(server);
+            server.Ship.Cargo.SetSlot(0, new ItemStack("berries", 18));
+            server.Ship.Cargo.SetSlot(1, new ItemStack("berries", 20));
+            p.State.Inventory.SetSlot(10, new ItemStack("berries", 3));
+
+            Assert.True(server.MoveCargoForTest("Pilot", toCargo: false, item: "berries", count: 5));
+            Assert.Equal(8, p.State.Inventory.Slots[10]!.Count);   // merged into the stack that was there
+            Assert.Equal(1, StacksOf(p.State.Inventory, "berries")); // no second stack opened
+            Assert.Equal(18, server.Ship.Cargo.Slots[0]!.Count);  // the last stack gives first
+            Assert.Equal(15, server.Ship.Cargo.Slots[1]!.Count);
+
+            // A count from one chosen stack splits just that one.
+            Assert.True(server.MoveCargoForTest("Pilot", toCargo: false, item: "berries", fromSlot: 0, count: 4));
+            Assert.Equal(14, server.Ship.Cargo.Slots[0]!.Count);
+            Assert.Equal(15, server.Ship.Cargo.Slots[1]!.Count);
+            Assert.Equal(12, p.State.Inventory.Slots[10]!.Count);
+
+            // Asking for more than there is moves what there is.
+            Assert.True(server.MoveCargoForTest("Pilot", toCargo: false, item: "berries", count: 500));
+            Assert.Equal(0, server.Ship.Cargo.CountOf("berries"));
+            Assert.Equal(41, p.State.Inventory.CountOf("berries"));
+        }
+    }
+
+    [Fact]
+    public void ACount_RespectsTheStackSize_AndOnlyWhatFitsLeaves()
+    {
+        var transport = new RecordingTransport();
+        var server = Started(out var repo, transport);
+        using (repo)
+        {
+            var p = AboardPilot(server);
+            ClearPack(p);
+            ClearHold(server);
+            int max = _content.GetItem("medpack")!.MaxStack;
+            Assert.Equal(20, max); // medpacks stay scarce at 20 (#2730 raised food to 99)
+            p.State.Inventory.SetSlot(10, new ItemStack("medpack", 20));
+            p.State.Inventory.SetSlot(11, new ItemStack("medpack", 10));
+            server.Ship.Cargo.SetSlot(0, new ItemStack("medpack", 17));
+
+            // Seven go over: three top the hold's stack up to 20, four open a new one — never a stack of 24.
+            Assert.True(server.MoveCargoForTest("Pilot", toCargo: true, item: "medpack", count: 7));
+            Assert.Equal(20, server.Ship.Cargo.Slots[0]!.Count);
+            Assert.Equal(4, server.Ship.Cargo.Slots[1]!.Count);
+            Assert.Equal(20, p.State.Inventory.Slots[10]!.Count); // the pack's last stack gave them
+            Assert.Equal(3, p.State.Inventory.Slots[11]!.Count);
+
+            // A hold with room for only two more: two move, the rest stays where it was.
+            server.Ship.Cargo.SetSlot(1, new ItemStack("medpack", 18));
+            for (int i = 2; i < server.Ship.Cargo.SlotCount; i++)
+            {
+                server.Ship.Cargo.SetSlot(i, new ItemStack("scrap_metal", 64));
+            }
+
+            Assert.True(server.MoveCargoForTest("Pilot", toCargo: true, item: "medpack", count: 5));
+            Assert.Equal(20, server.Ship.Cargo.Slots[1]!.Count);
+            Assert.Equal(21, p.State.Inventory.CountOf("medpack"));
+
+            // Full: the count and the single stack are both refused cleanly, nothing lost.
+            Assert.False(server.MoveCargoForTest("Pilot", toCargo: true, item: "medpack", count: 5));
+            Assert.Equal("@srv.cargo.full", CargoLines(transport).Last());
+            Assert.False(server.MoveCargoForTest("Pilot", toCargo: true, item: "medpack", fromSlot: 10));
+            Assert.Equal("@srv.cargo.full", CargoLines(transport).Last());
+            Assert.Equal(21, p.State.Inventory.CountOf("medpack"));
+            Assert.Equal(40, server.Ship.Cargo.CountOf("medpack"));
+
+            // The other way round: a full backpack says so too.
+            for (int i = 0; i < p.State.Inventory.SlotCount; i++)
+            {
+                p.State.Inventory.SetSlot(i, new ItemStack("scrap_metal", 64));
+            }
+
+            Assert.False(server.MoveCargoForTest("Pilot", toCargo: false, item: "medpack", count: 1));
+            Assert.Equal("@srv.cargo.backpack_full", CargoLines(transport).Last());
+            Assert.Equal(40, server.Ship.Cargo.CountOf("medpack"));
+        }
+    }
+
+    [Fact]
+    public void AnOlderClient_WithoutSlotOrCount_StillMovesEveryStack()
+    {
+        // FromSlot and Count are contractless-additive: an older client's payload carries neither and decodes to -1 / 0,
+        // which keeps its meaning — every stack of the item.
+        var oldBody = MessagePack.MessagePackSerializer.Serialize(
+            new Dictionary<string, object> { ["ToCargo"] = true, ["Item"] = "berries", ["BulkAll"] = false, ["Quiet"] = false },
+            MessagePack.MessagePackSerializerOptions.Standard.WithResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance));
+        var intent = Assert.IsType<MoveCargoItemIntent>(NetCodec.Decode(new byte[] { 170 }.Concat(oldBody).ToArray()));
+        Assert.Equal(-1, intent.FromSlot);
+        Assert.Equal(0, intent.Count);
+        Assert.Equal(-1, new MoveContainerItemIntent().FromSlot);
+
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = AboardPilot(server);
+            ClearPack(p);
+            ClearHold(server);
+            p.State.Inventory.SetSlot(10, new ItemStack("berries", 20));
+            p.State.Inventory.SetSlot(11, new ItemStack("berries", 20));
+            p.State.Inventory.SetSlot(12, new ItemStack("berries", 6));
+
+            Assert.True(server.MoveCargoForTest("Pilot", intent.ToCargo, intent.Item, intent.BulkAll, intent.Quiet, intent.FromSlot, intent.Count));
+
+            Assert.Equal(0, p.State.Inventory.CountOf("berries"));
+            Assert.Equal(46, server.Ship.Cargo.CountOf("berries"));
+        }
+    }
+
+    /// <summary>Empties the ship's hold, so a test controls exactly which stacks lie in it.</summary>
+    private static void ClearHold(SvGameServer server)
+    {
+        for (int i = 0; i < server.Ship.Cargo.SlotCount; i++)
+        {
+            server.Ship.Cargo.SetSlot(i, null);
+        }
+    }
+
+    private static int StacksOf(Inventory inv, string item) => inv.Slots.Count(s => s is { IsEmpty: false } && s.Item == item);
+
     /// <summary>Empties the pack except the tools, so a test controls exactly which loose stacks exist.</summary>
     private void ClearPack(BlocksBeyondTheStars.GameServer.PlayerSession p)
     {

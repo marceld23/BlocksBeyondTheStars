@@ -971,14 +971,26 @@ namespace BlocksBeyondTheStars.Client
             => Send(new OpenContainerIntent { ContainerId = containerId, Open = open });
 
         /// <summary>#2436: move one kind of item between the backpack and a crate (one stack, or every stack with
-        /// <paramref name="all"/>).</summary>
-        public void SendMoveContainerItem(string containerId, string item, bool toContainer, bool all = false)
-            => Send(new MoveContainerItemIntent { ContainerId = containerId, Item = item ?? string.Empty, ToContainer = toContainer, All = all });
+        /// <paramref name="all"/>). #2729: <paramref name="fromSlot"/> is the clicked backpack slot, so that very stack goes
+        /// in rather than the first one of the same item (-1 = the first, as before).</summary>
+        public void SendMoveContainerItem(string containerId, string item, bool toContainer, bool all = false, int fromSlot = -1)
+            => Send(new MoveContainerItemIntent { ContainerId = containerId, Item = item ?? string.Empty, ToContainer = toContainer, All = all, FromSlot = fromSlot });
 
         /// <summary>Move items between the personal inventory and the ship's cargo hold. <paramref name="item"/> = ""
-        /// with <paramref name="bulkAll"/> = true is "stow all" / "take all"; otherwise it moves all of one item.</summary>
-        public void SendMoveCargoItem(bool toCargo, string item = "", bool bulkAll = false, bool quiet = false)
-            => Send(new MoveCargoItemIntent { ToCargo = toCargo, Item = item ?? string.Empty, BulkAll = bulkAll, Quiet = quiet });
+        /// with <paramref name="bulkAll"/> = true is "stow all" / "take all"; otherwise it moves all of one item.
+        /// #2729: <paramref name="fromSlot"/> (a slot of the source side) moves exactly that stack, and
+        /// <paramref name="count"/> &gt; 0 only that many items of it — or, without a slot, that many of
+        /// <paramref name="item"/> across its stacks.</summary>
+        public void SendMoveCargoItem(bool toCargo, string item = "", bool bulkAll = false, bool quiet = false, int fromSlot = -1, int count = 0)
+            => Send(new MoveCargoItemIntent
+            {
+                ToCargo = toCargo,
+                Item = item ?? string.Empty,
+                BulkAll = bulkAll,
+                Quiet = quiet,
+                FromSlot = fromSlot,
+                Count = count,
+            });
 
         // --- Crashed-ship wreck repair / claim ---
         public void SendRepairWreck(int x, int y, int z, string itemKey)

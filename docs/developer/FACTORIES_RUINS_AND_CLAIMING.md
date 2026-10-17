@@ -142,6 +142,16 @@ Differences from every other surface feature:
 Ruined settlements additionally get a **broken** central feature (`StampBrokenFeature`, #525): snapped
 column stumps, an arch springer jutting into nothing, toppled rune stones.
 
+**Settlement caches are ruins-only (#2726).** `CommitSettlements` turns a settlement's `loot` marker into a scavenge
+cache (`SpawnStructureLoot("settlement", "loot", …)`, id `loot_settlement_loot_<x>_<y>_<z>`) only when the settlement
+is **ruined**. The hand-made inhabited templates (`river_hamlet_home`, `stone_roundhouse_home`, `stilt_hamlet_home`,
+`walled_market_home`) carry such a marker too and used to spawn a free-for-all cache in a lived-in village. The roll
+draws from the instance's own rng, which nothing reads afterwards, so skipping it moves no other generation. A cache an
+older world already holds inside an intact settlement's box stays (no migration) but is the villagers'
+(`VillageOwningCache`): `OwnedContainerRefusal` — next to the lodge stores' `LodgeStoreRefusal` — refuses loot, stash,
+filter and move with `@srv.loot.village_owned:<village>`, and `NetContainer.OwnedBy` (additive) carries the village's
+name so the HUD says whose it is instead of offering **G** (older clients just meet the refusal).
+
 ---
 
 ## 4. Treasure chests

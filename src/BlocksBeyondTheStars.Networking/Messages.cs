@@ -464,6 +464,12 @@ public sealed class MoveContainerItemIntent
     public string Item { get; set; } = string.Empty;
     public bool ToContainer { get; set; }
     public bool All { get; set; }
+
+    /// <summary>#2729: the backpack slot that was clicked, so exactly that stack goes in (not the first stack of the same
+    /// item). Only read when <see cref="ToContainer"/> is set and <see cref="All"/> is not; a slot that no longer holds
+    /// <see cref="Item"/> falls back to the first stack. Contractless-additive: older clients send none (-1 = the first
+    /// stack, as before), an older server ignores it.</summary>
+    public int FromSlot { get; set; } = -1;
 }
 
 /// <summary>#2436: server → client, the stacks inside one storage crate — sent on <see cref="OpenContainerIntent"/> and
@@ -498,11 +504,15 @@ public sealed class DiscardItemIntent
 /// <summary>
 /// Client moves items between the personal inventory and the ship's cargo hold. Only valid while aboard the
 /// ship (in flight or standing in the landed cabin — see <c>UpdateAboard</c>); the server rejects it otherwise.
-/// Three modes:
+/// Modes:
 /// <list type="bullet">
 /// <item><see cref="BulkAll"/> = true: move ALL eligible — when <see cref="ToCargo"/> only loose materials/
 /// components (tools/weapons/equipment stay), like a storage crate; when taking out, everything.</item>
-/// <item><see cref="Item"/> set (and not bulk): move every stack of that one item in the chosen direction.</item>
+/// <item><see cref="FromSlot"/> set (#2729): move exactly that stack of the source side — or only
+/// <see cref="Count"/> items of it.</item>
+/// <item><see cref="Item"/> set with a <see cref="Count"/> (#2729): move that many of the item, split off its stacks
+/// on the source side and merged into the destination's.</item>
+/// <item><see cref="Item"/> set alone: move every stack of that one item in the chosen direction.</item>
 /// </list>
 /// </summary>
 public sealed class MoveCargoItemIntent
@@ -510,8 +520,19 @@ public sealed class MoveCargoItemIntent
     /// <summary>true = personal inventory → cargo hold; false = cargo hold → personal inventory.</summary>
     public bool ToCargo { get; set; }
 
-    /// <summary>Move every stack of this item key (ignored when <see cref="BulkAll"/> is set; "" = none).</summary>
+    /// <summary>Move every stack of this item key (ignored when <see cref="BulkAll"/> is set; "" = none). With
+    /// <see cref="FromSlot"/> it names what the clicked slot should hold.</summary>
     public string Item { get; set; } = string.Empty;
+
+    /// <summary>#2729: the slot of the source side (the backpack when <see cref="ToCargo"/>, else the hold) whose stack
+    /// moves — the one the player clicked, not every stack of that item. -1 = none. Contractless-additive: older clients
+    /// send none and keep the all-stacks behaviour; an older server ignores it and moves every stack, as before.</summary>
+    public int FromSlot { get; set; } = -1;
+
+    /// <summary>#2729: how many items move ("take 5 along"); 0 = the whole stack (with <see cref="FromSlot"/>) or every
+    /// stack (with <see cref="Item"/> alone). Ignored by <see cref="BulkAll"/>. Contractless-additive like
+    /// <see cref="FromSlot"/>.</summary>
+    public int Count { get; set; }
 
     /// <summary>Move all eligible items at once ("stow all" / "take all"); overrides <see cref="Item"/>.</summary>
     public bool BulkAll { get; set; }
@@ -2681,6 +2702,12 @@ public sealed class NetContainer
     /// count-only on purpose — the filter is small and changes rarely, an item list would ride every
     /// stash/loot broadcast.</summary>
     public string[] Filter { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>#2726: who this container belongs to when it is not the players' to take — the name of the intact village a
+    /// scavenge cache stands in (an older world spawned those in lived-in villages). Empty = anybody may loot it. The HUD
+    /// says whose it is instead of offering the loot key; the server refuses the take either way. Contractless-additive:
+    /// an older client never reads it and only meets the refusal.</summary>
+    public string OwnedBy { get; set; } = string.Empty;
 }
 
 /// <summary>Lootable containers on the current planet (salvage capsules / corpses), sent on join + on change.
