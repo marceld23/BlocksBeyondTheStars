@@ -1026,7 +1026,7 @@ public sealed partial class GameServer
     public void MigrateBaseSettlerMemoryForTest(PlayerSession session) => MigrateBaseSettlerMemory(session);
 
     /// <summary>Machine-category blocks inside the 17³ core zone, read from the voxels (base_core itself excluded) — the
-    /// core-zone part of <see cref="BaseMachinesInside"/>.</summary>
+    /// core-zone part of <see cref="BaseMachinesInside"/>. A village's own machine never counts (#2728).</summary>
     private int CountBaseMachines(ServerBase b)
     {
         int count = 0;
@@ -1041,14 +1041,15 @@ public sealed partial class GameServer
                         continue;
                     }
 
-                    var block = _world.GetBlock(WorldConstants.CanonicalBlock(pos, _world.Circumference));
+                    var cell = WorldConstants.CanonicalBlock(pos, _world.Circumference);
+                    var block = _world.GetBlock(cell);
                     if (block.IsAir)
                     {
                         continue;
                     }
 
                     var def = _content.BlockById(block);
-                    if (def is { Category: "machine" } && def.Key != "base_core")
+                    if (def is { Category: "machine" } && def.Key != "base_core" && !IsSettlementProtected(cell, block))
                     {
                         count++;
                     }

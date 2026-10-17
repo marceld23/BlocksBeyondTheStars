@@ -25,6 +25,14 @@ forges, crops, hydro trays, saplings, sentry posts.
 - **Inside only** (`BaseCellInside`): the 17³ core zone; or, beside the thing on its floor level, the walled yard
   (`InWalledBaseArea`); or, from the air above it, a sealed base room (`InSealedBaseRoom`) or a closed room
   (`InClosedRoom`: a 6-connected flood that stops at walls, the roof and every door, ≤ 4096 cells, ≤ 24 blocks).
+- **Never a village's own** (#2728): the store also holds the settlement stamps' cells (written without an owner), so a
+  base whose zone took a village in used to count the huts' beds (residents for beds the villagers sleep in, an early
+  "base full"), their posts as jobs and their machines toward the founding. `ClassifyBaseIndexCell`, `BaseMachinesInside`
+  and `CountBaseMachines` skip every cell `IsSettlementProtected` guards — an intact settlement's box, a lodge, the
+  intercity line — except what a player built there (#2727, `IsPlayerBuiltInSettlement`: not a layout cell, above the
+  foundation row, a player's edit row — the store cannot tell a placement from a paint stroke, so `HandlePaintBlock` writes
+  a stroke on a settlement-protected block without the painter as editor). Asked before the bulkhead rule, so a village bed
+  that counted before stops counting.
 - A bed counts once: the head (or a legacy one-cell bed), never the foot.
 - **A leak never evicts a resident** (#2653, the bulkhead rule): whatever counted as inside once keeps counting while the
   same block stands at that cell within the base's reach (`BaseIndex.StickyInside`, cell → block, carried from rebuild to

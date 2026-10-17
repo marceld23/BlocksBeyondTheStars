@@ -4012,6 +4012,13 @@ namespace BlocksBeyondTheStars.Client
                 return string.Empty;
             }
 
+            // #2726: a cache that belongs to a village's people is not offered — the line says whose it is (the server's own
+            // refusal sentence) instead of "G: loot".
+            if (!string.IsNullOrEmpty(nearest.OwnedBy))
+            {
+                return loc.Get("srv.loot.village_owned").Replace("{name}", nearest.OwnedBy);
+            }
+
             // A storage crate (Task 5 Stage 3b) shows the take/store keys; salvage capsules just say "loot".
             // A dedicated crate (#1032) announces its filter, so "H did nothing" reads as "wrong crate".
             if (nearest.Kind == "crate")

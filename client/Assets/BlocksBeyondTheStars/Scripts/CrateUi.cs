@@ -269,7 +269,7 @@ namespace BlocksBeyondTheStars.Client
                 float x = X0 + (i % CrateCols) * Pitch;
                 float yy = y + (i / CrateCols) * Pitch;
                 string item = Game.ItemInSlot(index);
-                AddItemSlot(panel, x, yy, item, Game.CountInSlot(index), () => Move(item, toContainer: true));
+                AddItemSlot(panel, x, yy, item, Game.CountInSlot(index), () => Move(item, toContainer: true, fromSlot: index));
             }
 
             y += packRows * Pitch + 6f;
@@ -284,7 +284,7 @@ namespace BlocksBeyondTheStars.Client
                 int index = k;
                 float x = X0 + k * Pitch;
                 string item = Game.ItemInSlot(index);
-                var b = AddItemSlot(panel, x, y, item, Game.CountInSlot(index), () => Move(item, toContainer: true));
+                var b = AddItemSlot(panel, x, y, item, Game.CountInSlot(index), () => Move(item, toContainer: true, fromSlot: index));
                 var num = UiKit.AddText(b.transform, 5f, 3f, 24f, 18f, (k + 1).ToString(), 12, UiKit.CyanDim, TextAnchor.UpperLeft, FontStyle.Bold);
                 UiKit.AddOutline(num);
             }
@@ -298,7 +298,9 @@ namespace BlocksBeyondTheStars.Client
             return overlay;
         }
 
-        private void Move(string item, bool toContainer)
+        /// <param name="fromSlot">#2729: the backpack slot that was clicked — exactly that stack goes in, not the first one of
+        /// the same item. -1 for the crate's own stacks (one entry per kind).</param>
+        private void Move(string item, bool toContainer, int fromSlot = -1)
         {
             if (string.IsNullOrEmpty(item) || _containerId.Length == 0)
             {
@@ -306,7 +308,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool all = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-            Game.Network?.SendMoveContainerItem(_containerId, item, toContainer, all);
+            Game.Network?.SendMoveContainerItem(_containerId, item, toContainer, all, fromSlot);
             ClientAudio.Instance?.Cue("loot", 0.35f);
         }
 

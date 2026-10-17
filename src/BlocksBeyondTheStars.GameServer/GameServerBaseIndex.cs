@@ -23,6 +23,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <item><b>Only what is inside the base counts</b> (Marcel 2026-09-13: "core zone + room + yard"): the 17³ core
 /// zone, a sealed base room, the walled yard (#1315/#1862) or a closed room — walls, a roof and a door, see
 /// <see cref="InClosedRoom"/>. A bed in the open field brings nobody.</item>
+/// <item><b>Never a village's own</b> (#2728): the store holds the settlement stamps' cells too, so a bed, post or machine
+/// the village protects (<see cref="IsSettlementProtected"/>) is skipped — a base that takes a village in counts only what
+/// its players built there.</item>
 /// <item><b>A leak never evicts a resident</b> (#2653, the bulkhead rule): once a bed or a post has counted as inside, it
 /// keeps counting while its block stands at that cell within the base's reach (<c>BaseIndex.StickyInside</c>) — a hole in
 /// a bedroom wall takes the room's air, not its sleeper.</item>
@@ -302,8 +305,9 @@ public sealed partial class GameServer
                 bool inCoreZone = System.Math.Abs(WorldConstants.WrapDeltaX(cell.X - b.Cell.X, circ)) <= BaseProtectionRadius
                     && System.Math.Abs(cell.Y - b.Cell.Y) <= BaseProtectionRadius
                     && System.Math.Abs(WorldConstants.WrapDeltaZ(cell.Z - b.Cell.Z, circ)) <= BaseProtectionRadius;
-                if (!inCoreZone && _world.GetBlockIfLoaded(cell).Value == e.Block && MachineCellInside(b, cell, roomCache)
-                    && ++count >= BaseSettlerMachineCount)
+                // #2728: a village's own machines (its lights and terminals) never found a base around it.
+                if (!inCoreZone && _world.GetBlockIfLoaded(cell).Value == e.Block && !IsSettlementProtected(cell, new BlockId(e.Block))
+                    && MachineCellInside(b, cell, roomCache) && ++count >= BaseSettlerMachineCount)
                 {
                     break; // the core zone was counted from the voxels above
                 }
@@ -340,6 +344,16 @@ public sealed partial class GameServer
     private void ClassifyBaseIndexCell(ServerBase b, BaseIndex idx, Vector3i cell, ushort block, int shape, Dictionary<Vector3i, bool> roomCache,
         Dictionary<Vector3i, ushort> stickyBefore)
     {
+        // #2728: a village's own beds, posts and machines are the villagers'. The store holds the settlement stamp's cells too
+        // (written without an owner), so a base whose walls took a village in counted its huts' beds and posts as its own —
+        // residents for beds the villagers sleep in, a wrong "base full". What a player built inside the village box still
+        // counts (IsSettlementProtected exempts it, #2727). Asked before the bulkhead rule: a village bed that counted before
+        // this fix stops counting too.
+        if (IsSettlementProtected(cell, new BlockId(block)))
+        {
+            return;
+        }
+
         int form = ShapeCode.ShapeOf(shape);
         bool crop = _ixCrops.Contains(block);
         bool sapling = block == _ixSapling;

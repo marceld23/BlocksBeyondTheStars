@@ -542,7 +542,12 @@ public sealed partial class GameServer
                     RecordAuthoredDoor(p, m);
                 }
 
-                if (m.Type == "loot")
+                // Ruins only (#2726): the hand-made inhabited templates carry a "loot" marker too, and the cache it spawned
+                // stood in a lived-in village for anyone to empty. The roll draws from the instance's own rng, which
+                // nothing reads after this loop (a city shares the stamp's rng, but no city layout has a loot marker), so
+                // skipping it in an intact settlement moves no other roll. A cache an older world already holds there is
+                // the villagers' (VillageOwningCache).
+                if (m.Type == "loot" && p.Ruined)
                 {
                     SpawnStructureLoot("settlement", m.Type, pos, p.Rng); // ruins: scavengeable loot caches
                 }
@@ -2030,16 +2035,84 @@ public sealed partial class GameServer
     /// natural tree the layout never placed there (#1659). Protection exists so nobody tears the houses down;
     /// a tree that grew in a lane is not a house, and until this rule a tree in front of a door locked the
     /// building for good — the carve in <c>StampSettlementBlocks</c> removes such trees on load, this is the
-    /// belt to that brace for anything it misses.</summary>
+    /// belt to that brace for anything it misses. Nor is a block a player placed there (#2727,
+    /// <see cref="IsPlayerBuiltInSettlement"/>).</summary>
     private bool IsSettlementProtected(Vector3i pos, BlockId id)
         => IsSettlementBlock(pos)
-           && !(SettlementVegetationIds.Contains(id.Value) && !IsSettlementLayoutCell(pos) && !IsLodgeLayoutCell(pos)); // #2640: a hut's log frame is the hut's
+           && !(SettlementVegetationIds.Contains(id.Value) && !IsSettlementLayoutCell(pos) && !IsLodgeLayoutCell(pos)) // #2640: a hut's log frame is the hut's
+           && !IsPlayerBuiltInSettlement(pos, id);
+
+    /// <summary>
+    /// #2727: a block a player placed inside an intact village's (or a lodge's) box — a concrete floor in a lane, a wall in
+    /// front of a hut — is theirs to take away again. Placing there was always allowed, but the protection runs before the
+    /// base-owner check, so a builder who took a village into her base could not remove a single block of her own. It counts
+    /// only when all of these hold: the cell holds a block; it is none of the layout's own cells (a house, a fence, a hut's
+    /// log frame) and not the intercity line; it stands above the foundation row (<see cref="AboveSettlementFloor"/> — the
+    /// floor, the plinth and the ground beneath stay the village's whatever their edit rows say, a paint stroke from before
+    /// this rule included); and a player edited the cell (<see cref="NpcCellPlayerEdited"/> — stamps, regrowth and NPC work
+    /// write no owner). The store cannot tell a placement from a paint stroke, so a stroke on a protected block is written
+    /// without the painter as editor (<c>HandlePaintBlock</c>): sand that fell into a lane or the rock of a lodge's yard
+    /// takes the paint but never turns "player-built" by a brush. The store is asked last, after the cheap tests.
+    /// </summary>
+    private bool IsPlayerBuiltInSettlement(Vector3i pos, BlockId id)
+        => !id.IsAir
+           && !IsIntercityRailBlock(pos)
+           && !IsSettlementLayoutCell(pos)
+           && !IsLodgeLayoutCell(pos)
+           && AboveSettlementFloor(pos)
+           && NpcCellPlayerEdited(pos);
+
+    /// <summary>#2727: whether the cell stands above the foundation row of the intact settlement and of the lodge whose box
+    /// holds it — and is not a pioneer's boat (#2681), which is the outpost's however it was edited.</summary>
+    private bool AboveSettlementFloor(Vector3i pos)
+    {
+        if (IntactSettlementAt(pos) is { } s && pos.Y <= s.GroundY)
+        {
+            return false;
+        }
+
+        if (LodgeAt(pos) is not { } l)
+        {
+            return true;
+        }
+
+        return pos.Y > l.GroundY && !(l.Outpost is { } outpost && OutpostCellFree(outpost, pos, out bool boat) && boat);
+    }
 
     /// <summary>Test seam for <see cref="IsSettlementProtected"/> against the block currently at the cell.</summary>
     public bool IsSettlementProtectedForTest(Vector3i pos) => IsSettlementProtected(pos, _world.GetBlock(pos));
 
     /// <summary>Test seam for <see cref="IsSettlementLayoutCell"/>.</summary>
     public bool IsSettlementLayoutCellForTest(Vector3i pos) => IsSettlementLayoutCell(pos);
+
+    /// <summary>Test seam (#2727): whether the cell carries a player's edit row (<see cref="NpcCellPlayerEdited"/>).</summary>
+    public bool CellPlayerEditedForTest(Vector3i pos) => NpcCellPlayerEdited(pos);
+
+    /// <summary>Test seam (#2726/#2727): stamps one settlement from the data template <paramref name="templateKey"/> with its
+    /// structure-local (0,0,0) at (<paramref name="x"/>, <paramref name="groundY"/>, <paramref name="z"/>) through the real
+    /// commit path — voxels, instance, markers, loot, residents, doors — replacing this world's settlement list (a fixture
+    /// without generated settlements). <paramref name="ruined"/> stamps it as a ruin.</summary>
+    public void StampSettlementForTest(string templateKey, int x, int groundY, int z, bool ruined = false, string name = "Testvale")
+    {
+        var template = _content.SettlementTemplateByKey(templateKey)
+            ?? throw new System.ArgumentException("unknown settlement template " + templateKey, nameof(templateKey));
+        var planet = _world.Planet;
+        string surface = planet.Biomes.Count > 0 ? planet.Biomes[0].SurfaceBlock : planet.SurfaceBlock;
+        var structure = SettlementGenerator.FromTemplate(template, _content, ModuleMaterials.ForSettlement(template.Tier, surface, alien: false, _content));
+        var placed = new PlacedSettlement
+        {
+            Structure = structure,
+            Origin = new Vector3i(x, groundY, z),
+            GroundY = groundY,
+            Tier = template.Tier,
+            Ruined = ruined,
+            OnIsland = false,
+            Name = name,
+            Rng = new System.Random(7),
+            Seat = "flat",
+        };
+        CommitSettlements(new List<PlacedSettlement> { placed }, surface, new System.Random(11));
+    }
 
     /// <summary>Per-settlement full 3-D box + foundation row — test seam for the vegetation carve (#1659).</summary>
     public IReadOnlyList<(Vector3i Min, Vector3i Max, int GroundY, bool Ruined)> SettlementBoxesForTest
@@ -2053,7 +2126,10 @@ public sealed partial class GameServer
     public bool IsSettlementBlock(Vector3i pos) => IsSettlementBoxBlock(pos) || IsIntercityRailBlock(pos) || IsLodgeBlock(pos);
 
     /// <summary>True if the block lies in an intact settlement's protected box.</summary>
-    private bool IsSettlementBoxBlock(Vector3i pos)
+    private bool IsSettlementBoxBlock(Vector3i pos) => IntactSettlementAt(pos) is not null;
+
+    /// <summary>The intact settlement whose protected box holds the cell, or null.</summary>
+    private SettlementInstance? IntactSettlementAt(Vector3i pos)
     {
         int circ = _world.Circumference;
         foreach (var s in _settlements)
@@ -2074,10 +2150,10 @@ public sealed partial class GameServer
             // leaving it mineable let a "protected" village be undermined from underneath.
             if (pos.Y >= s.Min.Y - 48 && pos.Y <= s.Max.Y && pos.Z >= s.Min.Z && pos.Z <= s.Max.Z)
             {
-                return true;
+                return s;
             }
         }
 
-        return false;
+        return null;
     }
 }

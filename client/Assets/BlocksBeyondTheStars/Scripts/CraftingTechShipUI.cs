@@ -66,6 +66,11 @@ namespace BlocksBeyondTheStars.Client
         private string _pickKind = string.Empty;
         private int _pickIndex = -1;
 
+        // #2729: the stack the detail pane's "This stack" moves — the backpack slot last picked on the backpack page, the
+        // hold slot last clicked on the cargo page. Resolved against the live snapshot (CargoStackPicker.ResolveSlot), so
+        // a stale slot falls back to the first stack of the selected item.
+        private int _stackSlot = -1;
+
         private Canvas _canvas;
         private RectTransform _sidebar, _listContent, _detail, _header;
         private Text _footer, _hint, _feedback;
@@ -2133,13 +2138,82 @@ namespace BlocksBeyondTheStars.Client
                 return y + 40f;
             }
 
+            // #2729: aboard, every stack in the hold gets its own "Take" button — exactly that stack into the backpack
+            // (Shift: every stack of that kind), like a click on the crate screen (#2436). The card itself opens the detail
+            // pane: this stack, all of this kind, or how many — the same choices for pad and touch, which have no Shift.
+            bool perStack = AboardShipNow() && _category == "cargo";
+            if (perStack)
+            {
+                var hint = UiKit.AddText(_listContent, 8, y, 752, 44, L("ui.cargo.stack_hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+                hint.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += 50f;
+            }
+
+            string selectedItem = _selected.StartsWith("inv:", System.StringComparison.Ordinal) ? _selected.Substring(4) : string.Empty;
+            int litSlot = perStack ? CargoStackPicker.ResolveSlot(items, selectedItem, _stackSlot) : -1;
             foreach (var s in items)
             {
-                AddCard(y, ItemName(s.Item), IconFor(s.Item), "×" + s.Count, UiKit.CyanDim, "inv:" + s.Item, () => { _selected = "inv:" + s.Item; RebuildDetail(); }, contentKey: s.Item);
+                var stack = s;
+                // Only the chosen stack lights up, not every stack of the same item (the key only drives the highlight).
+                string key = !perStack || stack.Slot == litSlot ? "inv:" + stack.Item : "inv:" + stack.Item + "@" + stack.Slot;
+                AddCard(y, ItemName(stack.Item), IconFor(stack.Item), "×" + stack.Count, UiKit.CyanDim, key, () =>
+                {
+                    _selected = "inv:" + stack.Item;
+                    _stackSlot = stack.Slot;
+                    RebuildList();
+                    RebuildDetail();
+                }, contentKey: stack.Item, trimRight: perStack ? TakeButtonW + 8f : 0f);
+                if (perStack)
+                {
+                    UiKit.AddButton(_listContent, 780f - TakeButtonW, y, TakeButtonW, 78f, L("ui.cargo.take_stack"),
+                        () => MoveCargoStack(false, stack.Slot, stack.Item, ShiftHeld()));
+                }
+
                 y += 88f;
             }
 
             return y;
+        }
+
+        // #2729: the width of a hold card's "Take" button.
+        private const float TakeButtonW = 132f;
+
+        private static bool ShiftHeld() => Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+        /// <summary>#2729: moves exactly one stack between the backpack and the hold — the one in <paramref name="slot"/> of
+        /// the source side — or, with <paramref name="allOfKind"/> (Shift, or the "All of this kind" button), every stack of
+        /// <paramref name="item"/>; with <paramref name="count"/> &gt; 0 that many of the item instead ("take 5 along").
+        /// The server checks what fits and answers with the new inventory.</summary>
+        private void MoveCargoStack(bool toCargo, int slot, string item, bool allOfKind, int count = 0)
+        {
+            if (string.IsNullOrEmpty(item))
+            {
+                return;
+            }
+
+            if (allOfKind)
+            {
+                Game.Network?.SendMoveCargoItem(toCargo: toCargo, item: item);
+            }
+            else if (count > 0)
+            {
+                Game.Network?.SendMoveCargoItem(toCargo: toCargo, item: item, count: count);
+            }
+            else if (slot >= 0)
+            {
+                Game.Network?.SendMoveCargoItem(toCargo: toCargo, item: item, fromSlot: slot);
+            }
+            else
+            {
+                return; // no stack of it on this side any more
+            }
+
+            if (toCargo && _pickKind == "inv")
+            {
+                ClearPick(); // the picked backpack stack is on its way into the hold
+            }
+
+            ClientAudio.Instance?.Cue("loot", 0.35f);
         }
 
         /// <summary>#2201: the sample case as cards — what was taken from plants, animals and deposits, one stack per
@@ -2355,6 +2429,7 @@ namespace BlocksBeyondTheStars.Client
 
             _pickKind = "inv";
             _pickIndex = index;
+            _stackSlot = index; // #2729: the detail pane's "This stack" means this one
             _selected = "inv:" + item;
             ClientAudio.Instance?.Cue("ui_click");
             RebuildList();
@@ -5653,15 +5728,18 @@ namespace BlocksBeyondTheStars.Client
             return y + 34f;
         }
 
-        private void AddCard(float y, string title, string icon, string status, Color statusCol, string key, System.Action onClick, float indent = 0f, string contentKey = null)
+        /// <param name="trimRight">#2729: room kept free at the card's right end for a button beside it (a hold stack's
+        /// "Take").</param>
+        private void AddCard(float y, string title, string icon, string status, Color statusCol, string key, System.Action onClick, float indent = 0f, string contentKey = null,
+            float trimRight = 0f)
         {
-            var card = UiKit.AddButton(_listContent, indent, y, 780 - indent, 78, string.Empty, onClick);
+            float cw = 780f - indent - trimRight;
+            var card = UiKit.AddButton(_listContent, indent, y, cw, 78, string.Empty, onClick);
             if (_selected == key)
             {
                 card.GetComponent<Image>().color = UiKit.Cyan;
             }
 
-            float cw = 780f - indent;
             float tx = 16f;
             // Prefer the real content-styled icon (item/material/module art); fall back to the category icon.
             var sprite = string.IsNullOrEmpty(contentKey) ? null : IconResolver.Resolve(contentKey, Game);
@@ -6551,14 +6629,45 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Cargo transfer: move this one item between the personal inventory and the ship's hold (aboard only).
+            // Cargo transfer: move this item between the personal inventory and the ship's hold (aboard only).
             // Direction follows the tab you're viewing it from — cargo view pulls it out, personal view stows it.
+            // #2729 (Lyxette: "take 5 along, the other 15 into the hold"): "This stack" moves the one picked (the backpack
+            // slot, the hold card), "All of this kind" every stack of it, "How many?" a part of it — buttons all, so pad
+            // and touch get every choice the mouse gets with Shift.
             if (AboardShipNow())
             {
                 bool fromCargo = _category == "cargo";
-                UiKit.AddButton(_detail, 8, y, 320, 46, L(fromCargo ? "ui.cargo.to_inventory" : "ui.cargo.to_cargo"),
-                    () => Game.Network?.SendMoveCargoItem(toCargo: !fromCargo, item: item, bulkAll: false));
-                y += 54f;
+                var side = fromCargo ? Game.Cargo : Game.Personal;
+                int stackSlot = CargoStackPicker.ResolveSlot(side, item, _stackSlot);
+                int inStack = CargoStackPicker.CountInSlot(side, stackSlot);
+                int total = CargoStackPicker.Total(side, item);
+                if (stackSlot >= 0)
+                {
+                    UiKit.AddText(_detail, 8, y, 620, 26, L(fromCargo ? "ui.cargo.to_inventory" : "ui.cargo.to_cargo"), 18, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+                    y += 30f;
+                    UiKit.AddButton(_detail, 8, y, 300, 46, L("ui.cargo.this_stack").Replace("{n}", inStack.ToString()),
+                        () => MoveCargoStack(!fromCargo, stackSlot, item, ShiftHeld()));
+                    if (total > inStack)
+                    {
+                        UiKit.AddButton(_detail, 320, y, 300, 46, L("ui.cargo.all_of_kind").Replace("{n}", total.ToString()),
+                            () => MoveCargoStack(!fromCargo, stackSlot, item, true));
+                    }
+
+                    y += 54f;
+                    var amounts = CargoStackPicker.Amounts(total);
+                    if (amounts.Count > 0)
+                    {
+                        UiKit.AddText(_detail, 8, y, 140, 46, L("ui.cargo.how_many"), 18, UiKit.TextCol, TextAnchor.MiddleLeft);
+                        for (int i = 0; i < amounts.Count; i++)
+                        {
+                            int n = amounts[i].Amount;
+                            string label = amounts[i].Half ? L("ui.cargo.half").Replace("{n}", n.ToString()) : n.ToString();
+                            UiKit.AddButton(_detail, 156 + i * 158, y, 150, 46, label, () => MoveCargoStack(!fromCargo, stackSlot, item, false, n));
+                        }
+
+                        y += 54f;
+                    }
+                }
             }
 
             // Discard (#599): the only action that actually destroys an item — every other one just moves it

@@ -208,6 +208,42 @@ public sealed class CrateScreenTests : IDisposable
         }
     }
 
+    [Fact]
+    public void TheClickedStack_IsTheOneThatGoesIn()
+    {
+        // #2729: the crate screen names the backpack slot that was clicked — that stack goes in, not the first stack of
+        // the same item (the server used to take from the first stacks whichever one was clicked).
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = Builder(server);
+            var inv = p.State.Inventory;
+            for (int i = 0; i < inv.SlotCount; i++)
+            {
+                if (inv.Slots[i]?.Item == "stone")
+                {
+                    inv.SetSlot(i, null);
+                }
+            }
+
+            inv.SetSlot(10, new BlocksBeyondTheStars.Shared.State.ItemStack("stone", 40));
+            inv.SetSlot(14, new BlocksBeyondTheStars.Shared.State.ItemStack("stone", 9));
+            var crate = server.Containers.First(c => c.Kind == "crate");
+
+            Assert.True(server.MoveContainerItem("Builder", crate.Id, "stone", toContainer: true, all: false, fromSlot: 14));
+            Assert.Null(inv.Slots[14]);
+            Assert.Equal(40, inv.Slots[10]!.Count); // the first stack stayed where it was
+            Assert.Equal(9, server.Containers.First(c => c.Id == crate.Id).Items.First(s => s.Item == "stone").Count);
+
+            // A slot that no longer holds the item (and an older client, which sends none) takes the first stack.
+            inv.SetSlot(14, new BlocksBeyondTheStars.Shared.State.ItemStack("dirt", 3));
+            Assert.True(server.MoveContainerItem("Builder", crate.Id, "stone", toContainer: true, all: false, fromSlot: 14));
+            Assert.Null(inv.Slots[10]);
+            Assert.Equal(3, inv.Slots[14]!.Count);
+            Assert.Equal(49, server.Containers.First(c => c.Id == crate.Id).Items.First(s => s.Item == "stone").Count);
+        }
+    }
+
     public void Dispose()
     {
         try

@@ -56,6 +56,38 @@ public sealed partial class GameServer
         });
     }
 
+    /// <summary>Id prefix of the caches a settlement's "loot" markers spawn (<see cref="SpawnStructureLoot"/>: <c>loot_</c> +
+    /// the key <c>settlement:loot:x:y:z</c> with every ':' made '_').</summary>
+    private const string SettlementLootIdPrefix = "loot_settlement_";
+
+    /// <summary>
+    /// #2726: the intact settlement a scavenge cache belongs to, or null when it is anybody's. Until this fix the hand-made
+    /// inhabited templates spawned a cache at their "loot" marker as if they were ruins (a player: "I can loot in the
+    /// village? I don't want to anger my friendly neighbours"). New stamps no longer do; a cache an existing world already
+    /// holds stays where it is (no save migration), but it is the villagers' now: look, don't take
+    /// (<see cref="OwnedContainerRefusal"/>), and the HUD names them instead of offering the loot key
+    /// (<c>NetContainer.OwnedBy</c>). Only settlement caches — a death capsule dropped in a village stays anybody's to loot,
+    /// and a ruin's cache (a ruin is never an intact settlement) stays free.
+    /// </summary>
+    private SettlementInstance? VillageOwningCache(StoredContainer container)
+        => container.Id.StartsWith(SettlementLootIdPrefix, System.StringComparison.Ordinal) ? IntactSettlementAt(container.Position) : null;
+
+    /// <summary>
+    /// Why a player may not take from, put into, sort or rearrange this container, or "" when they may: a lodge's store
+    /// (#2640, <see cref="LodgeStoreRefusal"/> — "That's Mira's — ask them!") or a cache that stands in an intact village
+    /// (#2726, <see cref="VillageOwningCache"/> — "That belongs to the people of Karth Village.").
+    /// </summary>
+    private string OwnedContainerRefusal(StoredContainer container)
+    {
+        string lodge = LodgeStoreRefusal(container.Id);
+        if (lodge.Length > 0)
+        {
+            return lodge;
+        }
+
+        return VillageOwningCache(container) is { } village ? "@srv.loot.village_owned:" + village.Name : string.Empty;
+    }
+
     /// <summary>Rolls the loot for a marker — general salvage, a recoverable module, or a data cache.</summary>
     private List<ItemStack> BuildStructureLoot(string markerType, System.Random rng)
     {
