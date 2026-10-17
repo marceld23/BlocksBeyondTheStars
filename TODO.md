@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧑‍🚀 Spacewalk beside a station — E takes you home, undocking leaves the ship where it floated — #2702, #2703, branch fix/eva-station-boarding — ✅ done 2026-10-17 (⚠ playtest open)
+### 🧑‍🚀 Spacewalk beside a station — E takes you home, undocking leaves the ship where it floated — #2702, #2703, branch fix/eva-station-boarding, PR #2704 — ✅ done 2026-10-17 (⚠ playtest open)
 
 Marcel's playtest on v2026.10.18: out through the airlock next to the start system's derelict, E at his own hatch docked
 the derelict instead, and leaving it parked the ship against the hull, so every E boarded the derelict again (`/tp ship`
