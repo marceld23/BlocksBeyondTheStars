@@ -440,6 +440,9 @@ public sealed partial class GameServer
     /// <summary>Test hook: the id of the flight instance the player is in (null on a surface).</summary>
     public string? SpaceInstanceIdForTest(string playerId) => _playerInstance.TryGetValue(playerId, out var id) ? id : null;
 
+    /// <summary>Test hook (#2722): whether a flight instance is still loaded (a parked ship keeps an empty one, #2431).</summary>
+    public bool SpaceInstanceLoadedForTest(string instanceId) => _spaceInstances.ContainsKey(instanceId);
+
     /// <summary>The acting pilot's OWN position in the instance (#994). Instances are shared per body and
     /// <see cref="SpaceInstance.ShipPosition"/> is last-writer-wins across all pilots, so range checks and
     /// aim for player-triggered actions must read the pilot's pose instead. Falls back to the shared field
@@ -657,9 +660,11 @@ public sealed partial class GameServer
     /// ship interior, a station boarded from an EVA) — the flight view is told that pose, instead of drawing the
     /// ship at the launch point and reporting THAT back over the remembered spot. <paramref name="evaStart"/> (#2636, with
     /// a resume pose) opens the flight on an EVA with the suit at that pose instead of beside the ship — a derelict's
-    /// boarder who fell out through its hull; the flight view is told that spot too.</summary>
+    /// boarder who fell out through its hull; the flight view is told that spot too. <paramref name="airlock"/> (#2723): the
+    /// pilot only steps out through the airlock of the floating ship onto a spacewalk — the ship stays parked where it is,
+    /// so a docked friend visiting it may stay aboard (every other entry flies the ship and sends that visitor home).</summary>
     public void EnterSpace(string playerId, bool skipLaunch = false, bool hyperjump = false, SpacePlayerPose? resume = null, bool wormhole = false,
-        SpacePlayerPose? evaStart = null)
+        SpacePlayerPose? evaStart = null, bool airlock = false)
     {
         var session = FindSessionByPlayerId(playerId);
 
@@ -684,6 +689,11 @@ public sealed partial class GameServer
         {
             RejectSpace(session, problem);
             return;
+        }
+
+        if (session is not null && !airlock)
+        {
+            SendShipGuestHome(session, "@srv.visit.host_moving"); // #2723: the ship flies — a docked visitor goes home first
         }
 
         // #1584: the flight instance is keyed by the body the PILOT launches from, not by the body the ship
@@ -834,6 +844,13 @@ public sealed partial class GameServer
         if (!_playerInstance.TryGetValue(playerId, out var instanceId))
         {
             return;
+        }
+
+        if (FindSessionByPlayerId(playerId) is { } leavingHost)
+        {
+            // #2723: a host on a spacewalk leaves the flight (a landing on a rock, a station, a respawn) — the ship goes
+            // with its owner's plans, so a docked visitor goes home first.
+            SendShipGuestHome(leavingHost, "@srv.visit.host_left");
         }
 
         _playerInstance.Remove(playerId);

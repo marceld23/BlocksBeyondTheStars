@@ -133,7 +133,7 @@ public sealed partial class GameServer
             var requester = FindSessionByPlayerId(fromId);
             if (requester is not null)
             {
-                Send(requester, new DockStatus { Partner = toId, Docked = false, Reason = "@srv.dock.declined" });
+                Send(requester, new DockStatus { Partner = toId, Docked = false, Reason = "@srv.dock.declined", CanVisit = true });
             }
 
             return;
@@ -146,7 +146,7 @@ public sealed partial class GameServer
             var requester = FindSessionByPlayerId(fromId);
             if (requester is not null)
             {
-                Send(requester, new DockStatus { Partner = toId, Docked = false, Reason = "@srv.dock.apart" });
+                Send(requester, new DockStatus { Partner = toId, Docked = false, Reason = "@srv.dock.apart", CanVisit = true });
             }
 
             return;
@@ -155,8 +155,30 @@ public sealed partial class GameServer
         EstablishDock(fromId, toId);
     }
 
-    /// <summary>Both players together within <see cref="DockRange"/> (#426 S17, #2711) — see <see cref="PlayersTogether"/>.</summary>
-    private bool CanDockTogether(string a, string b) => PlayersTogether(a, b, DockRange);
+    /// <summary>Both players together within <see cref="DockRange"/> (#426 S17, #2711) — see <see cref="PlayersTogether"/>.
+    /// <para>#2723: for docking, a player who walks inside their own ship while it floats parked counts as out in that
+    /// flight instance, at the parked ship's pose — "step inside, I'm coming over" is exactly when a friend docks to
+    /// visit. So a pilot docks with a friend walking their parked ship, and two friends each walking their own floating
+    /// ship dock too; one in space (flying, on a spacewalk or walking a parked ship) and one on a surface never do. The
+    /// accept re-checks the same way. Trading keeps the plain rule: it needs both on foot in one world.</para></summary>
+    private bool CanDockTogether(string a, string b)
+    {
+        var sa = FindSessionByPlayerId(a);
+        var sb = FindSessionByPlayerId(b);
+        if (sa is null || sb is null)
+        {
+            return false;
+        }
+
+        bool aInSpace = SpacePositionOf(sa, out string instanceA, out var posA);
+        bool bInSpace = SpacePositionOf(sb, out string instanceB, out var posB);
+        if (aInSpace || bInSpace)
+        {
+            return aInSpace && bInSpace && instanceA == instanceB && posA.DistanceSquared(posB) <= DockRange * DockRange;
+        }
+
+        return PlayersTogether(a, b, DockRange);
+    }
 
     /// <summary>The one "are these two players together?" check behind docking and trading (#2720): both joined and
     /// within <paramref name="range"/> of each other in the SAME place.
@@ -201,6 +223,7 @@ public sealed partial class GameServer
             return;
         }
 
+        EndShipVisitsOnUndock(id, partner); // #2723: a visit ends with its docking — the guest goes home first
         _docked.Remove(id);
         _docked.Remove(partner);
 
@@ -235,7 +258,8 @@ public sealed partial class GameServer
         var session = FindSessionByPlayerId(playerId);
         if (session is not null)
         {
-            Send(session, new DockStatus { Partner = partnerId, Docked = docked, Reason = reason });
+            // #2723: CanVisit tells the client this server lets a docked guest walk over into the host's ship.
+            Send(session, new DockStatus { Partner = partnerId, Docked = docked, Reason = reason, CanVisit = true });
         }
     }
 

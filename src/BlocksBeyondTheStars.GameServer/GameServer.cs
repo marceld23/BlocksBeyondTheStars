@@ -1995,6 +1995,7 @@ public sealed partial class GameServer
         }
 
         Guard("DerelictSpacewalks", TickDerelictSpacewalks); // #2636: boarders the void check found outside a derelict's hull step out (a world change, so after the loop)
+        Guard("ShipVisits", deltaSeconds, TickShipVisits); // #2723: guests who walked out go home; the 1 Hz check of every docking visit
         Guard("TickStoryOutsideWorlds", deltaSeconds, TickStoryOutsideWorlds); // #2477: the 1 Hz story pass for players no loaded world reaches
         Guard("TickCutscenes", TickCutscenes); // #2468: queued cutscenes for every joined player, wherever they are (space too)
         Guard("TickJournal", TickJournal); // #2471: the Journal's coalesced pushes (only players whose stories changed)
@@ -2106,9 +2107,19 @@ public sealed partial class GameServer
 
             var p = session.State;
 
+            // #2723: a guest who walks out of the docked friend's hull goes home to their own ship (after this loop — a
+            // world change). The guest's own walkabout record belongs to their OWN parked ship, not to this hull.
+            if (IsVisitingShip(p.PlayerId))
+            {
+                if (GuestSteppedOutOfHostHull(p.PlayerId, p.Position))
+                {
+                    QueueVisitWalkOut(p.PlayerId);
+                    continue;
+                }
+            }
             // Walk out of the ship's hatch while it floats in space → step straight onto an EVA spacewalk
             // (rather than falling into the void around the interior). The door you already have IS the airlock.
-            if (InShipInterior(p.PlayerId) && SteppedOutOfShipHull(p.Position))
+            else if (InShipInterior(p.PlayerId) && SteppedOutOfShipHull(p.Position))
             {
                 StartEvaFromShip(p.PlayerId);
                 continue; // transitioned out of this world — skip the rest of the on-foot tick for this player
@@ -2614,6 +2625,9 @@ public sealed partial class GameServer
         // _healTank) would resolve to THAT player's ship, respawning the victim inside someone else's hull
         // (#1020, same class as #997). Pin the cursor to the dying player before any of it is read.
         SetCurrent(session);
+        // #2723: a death ends a docking visit on both sides — a dying guest's visit is forgotten (the respawn moves them),
+        // a dying host's guest goes home before the respawn takes the ship away.
+        EndShipVisitsOf(session);
 
         var p = session.State;
         bool dropSalvage = !Rules.KeepInventoryOnDeath &&
@@ -3694,11 +3708,13 @@ public sealed partial class GameServer
         _joinGates.Remove(connectionId); // transport connection ids may be reused — a new connection starts fresh
         if (_sessions.TryGetValue(connectionId, out var session) && session.Joined)
         {
+            EndShipVisitsOf(session); // #2723: a quitting guest's visit ends here; a quitting host's guest goes home first
             ClearDocking(session.State.PlayerId);
             LeaveSpace(session.State.PlayerId);
             // #1925: NOT LeaveStation — that undocks to the planet (which then got saved) and relaunches the leaver
             // into a space instance LeaveSpace had just cleared. The save keeps them aboard; the rejoin re-boards.
             ForgetStationBoarding(session);
+            ForgetShipInterior(session.State.PlayerId); // #2722: …and the walk inside the floating ship ends with the session
             CancelTradesFor(session.State.PlayerId);
             EndNpcConversation(session, tellClient: false); // #2616: the talking NPC goes back to its day at once
             SetCurrent(session);
@@ -3985,6 +4001,14 @@ public sealed partial class GameServer
             return;
         }
 
+        // #2723: a guest in a docked friend's ship looks only — building, mining and painting there (the void around the
+        // hull included) is refused with a line that says so; travel and teleports wait until the guest is home, and the
+        // pause menu's "Back to my ship" takes them home.
+        if (RefusedForGuest(session, message))
+        {
+            return;
+        }
+
         switch (message)
         {
             case MoveIntent move: HandleMove(session, move); break;
@@ -4031,6 +4055,7 @@ public sealed partial class GameServer
             case DockRequestIntent dock: HandleDockRequest(session, dock); break;
             case DockResponseIntent response: HandleDockResponse(session, response); break;
             case UndockIntent: HandleUndock(session); break;
+            case VisitShipIntent visit: HandleVisitShip(session, visit); break; // #2723: walk over into the docked friend's ship
             case BuildShipModuleIntent build: HandleBuildModule(session, build); break;
             case UninstallShipModuleIntent uninstall: HandleUninstallModule(session, uninstall); break;
             case EnterSpaceIntent: HandleEnterSpace(session); break;
@@ -4360,6 +4385,8 @@ public sealed partial class GameServer
             // in log files (CodeQL cs/cleartext-storage); the name identifies the event well enough.
             _log.Info($"Player '{name}' recognised as the world owner — granted WorldAdmin.");
         }
+
+        ForgetWalkaboutOnJoin(state.PlayerId); // #2722: the join puts the player on a body — no walk inside a floating ship survives it
 
         // Return the player to the body they were last on (persisted per-player), not always the home world.
         // Ensure that body's world is resident + the active cursor before placing them + sending world data.
@@ -4776,6 +4803,8 @@ public sealed partial class GameServer
 
         int connectionId = _nextLocalConnectionId--;
 
+        ForgetWalkaboutOnJoin(state.PlayerId); // #2722: like the network join
+
         // Return the player to the body they were last on (persisted); home/default for a fresh player.
         string savedLocation = state.CurrentLocationId;
         var savedPosition = state.Position;
@@ -4988,6 +5017,14 @@ public sealed partial class GameServer
             return; // lying dead awaiting the respawn choice — the corpse doesn't walk
         }
 
+        // #2723: a pose stamped with a world the server has already moved this player out of — the client had not read the
+        // WorldReset yet. Every ship interior shares the same coordinates, so the spawn gate's distance cannot tell such a
+        // pose from a real step (coming home from a friend's ship it read as a walk out of the hatch). 0 = an older client.
+        if (move.WorldId != 0 && move.WorldId != session.AnnouncedWorldId)
+        {
+            return;
+        }
+
         if (HandleFramedMove(session, move))
         {
             return; // #2113: aboard a train the pose is wagon-local; the world position is derived from the train
@@ -5013,6 +5050,13 @@ public sealed partial class GameServer
             }
 
             var reported = new Vector3f(x, move.Y, z);
+
+            // #2723: the older client's half of the stale-pose guard above — just after a switch into a ship interior the
+            // client stands at the heal tank, so a report from outside the hull is a pose from the interior it left.
+            if (StaleShipInteriorPose(session, reported))
+            {
+                return;
+            }
 
             // Spawn-adoption gate (#865): right after the server places this player (join, travel landing,
             // respawn), the client may still be streaming a stale pose from before it processed the snap —

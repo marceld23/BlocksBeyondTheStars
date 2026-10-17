@@ -417,7 +417,8 @@ namespace BlocksBeyondTheStars.Client
         public bool ReturnToShipOffered
             => Rules != null && string.Equals(Rules.ReturnToShip, "On", System.StringComparison.Ordinal)
                && !Aboard && !SpaceViewActive && !InEva && string.IsNullOrEmpty(InSpeeder) && string.IsNullOrEmpty(InTrain)
-               && !Spectating;
+               && !Spectating
+               && !Visiting; // #2725: a guest in a friend's ship goes home with "back to my ship" (U), not this landed-ship trip
 
         /// <summary>World position of the player's ship (for the HUD minimap / compass), once known.</summary>
         public Vector3? ShipPosition { get; private set; }
@@ -1262,6 +1263,25 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Latest authoritative docking state (partner + docked flag), or null.</summary>
         public DockStatus Dock { get; private set; }
+
+        /// <summary>True while docked with another player (<see cref="Dock"/>).</summary>
+        public bool Docked => Dock != null && Dock.Docked;
+
+        /// <summary>#2724: the server can do docking visits (<c>DockStatus.CanVisit</c>) — an older server never says so, and
+        /// then no visit prompt shows (docking itself still works).</summary>
+        public bool VisitsSupported => Dock != null && Dock.Docked && Dock.CanVisit;
+
+        /// <summary>#2725: the player whose ship interior we walk in as a guest (<c>WorldReset.ShipOwnerId</c>); empty in our
+        /// own interior and on every other world. Set on every world reset.</summary>
+        public string VisitingHost { get; private set; } = string.Empty;
+
+        /// <summary>#2725: true while we are a guest in a docked friend's ship — the host's stations are room decor for us,
+        /// and "back to my ship" (an <c>EnterShipIntent</c>) takes us home.</summary>
+        public bool Visiting => VisitingHost.Length > 0;
+
+        /// <summary>#2724: bumped on every refused ship visit (<c>ActionRejected</c> with action "visit"), so the flight view
+        /// lifts the veil it raised for the visit at once.</summary>
+        public int VisitRefusals { get; private set; }
 
         /// <summary>Type of the nearest station within <paramref name="range"/> blocks, or empty.</summary>
         public string NearestStationType(Vector3 pos, float range)
@@ -3411,6 +3431,10 @@ namespace BlocksBeyondTheStars.Client
                 {
                     GliderRejections++; // #2296: no glider worn as the server sees it — PlayerController folds the wing
                 }
+                else if (m.Action == "visit")
+                {
+                    VisitRefusals++; // #2724: the flight view drops the veil it raised for the visit
+                }
                 else if (m.Action == "return_ship")
                 {
                     // #2559: the open pause menu shows why instead of closing — and a fight refusal carries the seconds
@@ -4000,6 +4024,8 @@ namespace BlocksBeyondTheStars.Client
         private void OnWorldReset(BlocksBeyondTheStars.Networking.Messages.WorldReset m)
         {
             LocationName = string.IsNullOrEmpty(m.SystemName) ? m.PlanetName : $"{m.SystemName} · {m.PlanetName}";
+            // #2725: a docked friend's ship interior names its owner — we walk in it as a guest; every other world clears it.
+            VisitingHost = m.ShipOwnerId ?? string.Empty;
             EntityClock.Reset(); // #2665: a world change may mean another server clock (a hosted world, a reconnect)
             RebuildFloraTints(); // a new world ⇒ its own per-species flora colours
             SessionExploredCells.Clear(); // #1113: live-explored cells are per body
@@ -4142,6 +4168,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Pre-raises the loading overlay for an immediate (descent-less) world transition — see
         /// <see cref="WorldTransitionStarted"/>.</summary>
         public void BeginWorldTransition() => WorldTransitionStarted?.Invoke();
+
+        /// <summary>#2724: raised when the server refused a descent-less transition the client already veiled for (a ship
+        /// visit) — the loading overlay drops its pre-raised veil at once instead of waiting out its confirm timeout.</summary>
+        public event System.Action WorldTransitionCancelled;
+
+        /// <summary>Drops a pre-raised, still unconfirmed transition veil — see <see cref="WorldTransitionCancelled"/>.</summary>
+        public void CancelWorldTransition() => WorldTransitionCancelled?.Invoke();
 
         private static readonly (int X, int Y, int Z)[] _faceDirs =
         {

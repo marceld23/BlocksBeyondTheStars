@@ -3754,7 +3754,9 @@ namespace BlocksBeyondTheStars.Client
         private void RefreshShipRepair(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
         {
             var sr = Game.ShipRepair;
-            bool show = sr != null && sr.NeedsRepair;
+            // #2725: not while visiting a docked friend's ship — the panel is about OUR ship, and its "at the helm: R" would
+            // point at the host's helm, which a guest cannot use. It returns with us.
+            bool show = sr != null && sr.NeedsRepair && !Game.Visiting;
             if (_shipRepairPanel.activeSelf != show)
             {
                 _shipRepairPanel.SetActive(show);

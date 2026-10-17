@@ -37,32 +37,37 @@ namespace BlocksBeyondTheStars.Client
 
         private Canvas _canvas;
         private int _openedFrame = -1;
-        private readonly List<InputAction> _scratch = new List<InputAction>(16);
+        private readonly List<int> _scratch = new List<int>(16); // indices into Table, one per action
 
-        /// <summary>One candidate verb: the action, and whether it applies in the current situation.</summary>
+        /// <summary>One candidate verb: the action, whether it applies in the current situation, and the label when the
+        /// action means something more specific here than its key label (#2724/#2725: "go over", "back to my ship").</summary>
         private readonly struct Entry
         {
             public readonly InputAction Action;
             public readonly Func<ContextActionsUi, bool> Applies;
+            public readonly string LabelKey; // null = the action's own label (InputMap.LabelKey)
 
-            public Entry(InputAction action, Func<ContextActionsUi, bool> applies)
+            public Entry(InputAction action, Func<ContextActionsUi, bool> applies, string labelKey = null)
             {
                 Action = action;
                 Applies = applies;
+                LabelKey = labelKey;
             }
         }
 
         // The verb table, in display order. Predicates mirror the precondition each handler checks (see the
         // PlayerController / PlayerInteractions probes) so an offered verb always does something. Verbs the
-        // player already has a direct touch button for (jump/mine/place/use/…) are not listed.
+        // player already has a direct touch button for (jump/mine/place/use/…) are not listed. When two entries
+        // of one action apply, the first one is shown (a specific label before the general one).
         private static readonly Entry[] Table =
         {
             new Entry(InputAction.VegaContinue, u => u.Vega != null && u.Vega.LineShowing),
 
             // On foot.
             new Entry(InputAction.RotateShape, u => u.OnFoot && u.Player != null && u.Player.HeldRotatable),
-            new Entry(InputAction.RequestTrade, u => u.OnFoot && u.Interactions != null && u.Interactions.CanRequestTradeOrDock),
-            new Entry(InputAction.RequestDock, u => u.OnFoot && u.Interactions != null && u.Interactions.CanRequestTradeOrDock),
+            new Entry(InputAction.RequestTrade, u => u.OnFoot && u.Interactions != null && u.Interactions.CanRequestTrade), // #2725: docked too
+            new Entry(InputAction.RequestDock, u => u.OnFoot && u.Interactions != null && u.Interactions.CanRequestDock),
+            new Entry(InputAction.Disembark, u => u.OnFoot && u.Interactions != null && u.Game.Visiting, "ui.visit.back"), // #2725: a guest's U goes home
             new Entry(InputAction.Disembark, u => u.OnFoot && u.Interactions != null && u.Interactions.CanDisembark),
             new Entry(InputAction.ToggleStationZeroG, u => u.OnFoot && u.Interactions != null && u.Interactions.CanToggleStationZeroG), // #1842
             new Entry(InputAction.LootContainer, u => u.OnFoot && u.Player != null && u.Player.NearContainer),
@@ -89,6 +94,12 @@ namespace BlocksBeyondTheStars.Client
             new Entry(InputAction.FlightTargetNext, u => u.Piloting),
             new Entry(InputAction.FlightTargetAhead, u => u.Piloting),   // #2326: no free pad button at the helm (RB fires) — the list is the stock route to a rock
             new Entry(InputAction.ToggleThirdPerson, u => u.Piloting),
+
+            // Docking at the helm and on a spacewalk (#2724): K and U have no pad button there and a tablet has no letters;
+            // "go over" is the E that takes us into the docked friend's ship (named, because E means many things in flight).
+            new Entry(InputAction.Interact, u => (u.Piloting || u.Eva) && u.Interactions != null && u.Interactions.CanGoOverInFlight, "ui.visit.go_over"),
+            new Entry(InputAction.RequestDock, u => (u.Piloting || u.Eva) && u.Interactions != null && u.Interactions.CanDockInFlight),
+            new Entry(InputAction.Disembark, u => (u.Piloting || u.Eva) && u.Interactions != null && u.Interactions.CanUndockInFlight),
 
             // EVA.
             new Entry(InputAction.EvaDeployStation, u => u.Eva),
@@ -208,9 +219,9 @@ namespace BlocksBeyondTheStars.Client
             _scratch.Clear();
             for (int i = 0; i < Table.Length; i++)
             {
-                if (Table[i].Applies(this) && !_scratch.Contains(Table[i].Action))
+                if (Table[i].Applies(this) && !Listed(Table[i].Action))
                 {
-                    _scratch.Add(Table[i].Action);
+                    _scratch.Add(i);
                 }
             }
 
@@ -236,8 +247,9 @@ namespace BlocksBeyondTheStars.Client
 
             for (int i = 0; i < _scratch.Count; i++)
             {
-                var action = _scratch[i];
-                UiKit.AddButton(t, cx - w * 0.5f, y, w, h, L(InputMap.LabelKey(action)), () => Pick(action));
+                var entry = Table[_scratch[i]];
+                var action = entry.Action;
+                UiKit.AddButton(t, cx - w * 0.5f, y, w, h, L(entry.LabelKey ?? InputMap.LabelKey(action)), () => Pick(action));
                 y += h + gap;
             }
 
@@ -249,6 +261,20 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UiKit.AddButton(t, cx - w * 0.5f, y, w, h, L("ui.action.close"), Close);
+        }
+
+        /// <summary>Whether an entry for <paramref name="action"/> is already in the list being built.</summary>
+        private bool Listed(InputAction action)
+        {
+            for (int i = 0; i < _scratch.Count; i++)
+            {
+                if (Table[_scratch[i]].Action == action)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>Fires the picked verb on the next frame (once control is back with gameplay) and closes.</summary>

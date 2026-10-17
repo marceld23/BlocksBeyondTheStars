@@ -92,6 +92,11 @@ public sealed class MoveIntent
     /// <summary>#2435: the player crouches — other clients pose the avatar squatting. Pure pose state like
     /// <see cref="Climbing"/>; additive, an older client never sends it.</summary>
     public bool Crouching { get; set; }
+
+    /// <summary>#2723: the world the client stood in when it sent this pose — the WorldId of its last JoinAccepted /
+    /// WorldReset. The server drops a pose from a world it has already moved the player out of (the reset was still on
+    /// its way); 0 = unknown (an older client), which is always taken.</summary>
+    public int WorldId { get; set; }
 }
 
 public sealed class MineBlockIntent
@@ -280,6 +285,16 @@ public sealed class DockResponseIntent
 /// <summary>Client asks to undock from its current docking partner.</summary>
 public sealed class UndockIntent
 {
+}
+
+/// <summary>#2723: a docked player asks to walk over into the partner's ship while both float in space. The server checks
+/// the docking, the flight instance, the range and that the host's ship floats parked (the host walks inside it or is on
+/// a spacewalk), then loads the guest into the host's ship interior. An <see cref="EnterShipIntent"/> sent while visiting
+/// takes the guest back to their own ship.</summary>
+public sealed class VisitShipIntent
+{
+    /// <summary>The player id of the docking partner whose ship the sender wants to visit.</summary>
+    public string HostId { get; set; } = string.Empty;
 }
 
 // --- Ship building & space flight / combat (anf_space_flight.md §6-12) ---
@@ -1829,6 +1844,10 @@ public sealed class WorldReset
 
     /// <summary>The server's id of the world whose stream follows (#1534, v5) — see <see cref="ChunkDataMessage.WorldId"/>.</summary>
     public int WorldId { get; set; }
+
+    /// <summary>#2723: the player id of the host when the receiver is loaded into a FOREIGN ship interior as a docking
+    /// guest; empty in the own ship interior and on every other world. Additive — an older server never sets it.</summary>
+    public string ShipOwnerId { get; set; } = string.Empty;
 }
 
 /// <summary>The player's current vitals are respawning at the ship heal-tank (Medbay).</summary>
@@ -1863,6 +1882,10 @@ public sealed class DockStatus
     public bool Docked { get; set; }
 
     public string Reason { get; set; } = string.Empty;
+
+    /// <summary>#2723: the server supports docking visits (<see cref="VisitShipIntent"/>). Additive — an older server
+    /// leaves it false, and the client then offers no visit.</summary>
+    public bool CanVisit { get; set; }
 }
 
 // --- Space flight / combat & planet enemies (anf_space_flight.md §6-12) ---

@@ -644,8 +644,20 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Hyperjump into a (possibly unvisited) star system, arriving in flight mode there.</summary>
         public void SendHyperjumpSystem(string systemId) => Send(new HyperjumpSystemIntent { SystemId = systemId });
 
+        /// <summary>The own pose, stamped with the world it was taken in (#2723) — a pose sent before a WorldReset arrived is
+        /// recognised as one from the world just left.</summary>
         public void SendMove(Vector3f pos, float yaw, float pitch, bool climbing = false, bool crouching = false)
-            => Send(new MoveIntent { X = pos.X, Y = pos.Y, Z = pos.Z, Yaw = yaw, Pitch = pitch, Climbing = climbing, Crouching = crouching }, DeliveryMode.Unreliable);
+            => Send(new MoveIntent
+            {
+                X = pos.X,
+                Y = pos.Y,
+                Z = pos.Z,
+                Yaw = yaw,
+                Pitch = pitch,
+                Climbing = climbing,
+                Crouching = crouching,
+                WorldId = CurrentWorldId,
+            }, DeliveryMode.Unreliable);
 
         public void SendMine(int x, int y, int z) => Send(new MineBlockIntent { X = x, Y = y, Z = z });
 
@@ -819,6 +831,10 @@ namespace BlocksBeyondTheStars.Client
             => Send(new DockResponseIntent { Requester = requester, Accept = accept });
 
         public void SendUndock() => Send(new UndockIntent());
+
+        /// <summary>#2723: walk over into the docked partner's ship while both float in space. The server checks everything
+        /// again; "back to my ship" while visiting is <see cref="SendEnterShip"/>.</summary>
+        public void SendVisitShip(string hostId) => Send(new VisitShipIntent { HostId = hostId ?? string.Empty });
 
         // --- Free space flight & combat (M19) ---
         public void SendBuildModule(string moduleKey) => Send(new BuildShipModuleIntent { ModuleKey = moduleKey });
@@ -1212,7 +1228,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A rider's pose aboard a train: the wagon-local offset in the frame (#2113).</summary>
         public void SendFramedMove(string frameId, Vector3f local, float yaw, float pitch)
-            => Send(new MoveIntent { FrameId = frameId ?? string.Empty, X = local.X, Y = local.Y, Z = local.Z, Yaw = yaw, Pitch = pitch }, DeliveryMode.Unreliable);
+            => Send(new MoveIntent { FrameId = frameId ?? string.Empty, X = local.X, Y = local.Y, Z = local.Z, Yaw = yaw, Pitch = pitch, WorldId = CurrentWorldId }, DeliveryMode.Unreliable);
 
         /// <summary>Pack a deployed speeder back into the item.</summary>
         public void SendStowSpeeder(string speederId) => Send(new StowSpeederIntent { SpeederId = speederId ?? string.Empty });

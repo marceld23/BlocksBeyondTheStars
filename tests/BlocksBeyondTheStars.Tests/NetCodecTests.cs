@@ -349,6 +349,7 @@ public sealed class NetCodecTests
         [301] = typeof(CreatureMotionFrame),     // #2665
         [302] = typeof(RequestBaseResidentsIntent), // #2717
         [303] = typeof(BaseResidentList),        // #2717
+        [304] = typeof(VisitShipIntent),         // #2723
 
     };
 
@@ -449,6 +450,36 @@ public sealed class NetCodecTests
             var back = Assert.IsType<CreatureDefeated>(NetCodec.Decode(payload));
             Assert.Equal(("c42", 10f, 64f, -7.5f), (back.Id, back.X, back.Y, back.Z));
         }
+    }
+
+    [Fact]
+    public void DockingVisit_RoundTripsOnBothPaths_AndItsAdditiveFieldsDefaultToOff()
+    {
+        // #2723: the visit request rides extended id 304; the host id, the guest's world owner and the server's "can visit"
+        // flag survive both paths, and a message without them (an older peer) reads as "no visit".
+        var visit = new VisitShipIntent { HostId = "Lena" };
+        var native = WithMessagePack(() => NetCodec.Encode(visit));
+        Assert.Equal(NetCodec.ExtendedTag, native[0]);
+        Assert.Equal(304, native[1] | (native[2] << 8));
+        foreach (var payload in new[] { native, NetCodec.EncodeJson(visit) })
+        {
+            Assert.Equal("Lena", Assert.IsType<VisitShipIntent>(NetCodec.Decode(payload)).HostId);
+        }
+
+        var reset = new WorldReset { PlanetType = "ship_interior", ShipOwnerId = "Lena" };
+        var status = new DockStatus { Partner = "Lena", Docked = true, CanVisit = true };
+        foreach (var payload in new[] { WithMessagePack(() => NetCodec.Encode(reset)), NetCodec.EncodeJson(reset) })
+        {
+            Assert.Equal("Lena", Assert.IsType<WorldReset>(NetCodec.Decode(payload)).ShipOwnerId);
+        }
+
+        foreach (var payload in new[] { WithMessagePack(() => NetCodec.Encode(status)), NetCodec.EncodeJson(status) })
+        {
+            Assert.True(Assert.IsType<DockStatus>(NetCodec.Decode(payload)).CanVisit);
+        }
+
+        Assert.Equal(string.Empty, new WorldReset().ShipOwnerId);
+        Assert.False(new DockStatus().CanVisit);
     }
 
     [Theory]

@@ -15,11 +15,17 @@ namespace BlocksBeyondTheStars.Client
     /// request and the open trade — are modal: they free the cursor (via <c>GameBootstrap.MenuOpen</c>,
     /// which pauses the player controller) and are driven with the mouse. Every action sends an
     /// existing intent; the server validates range, ownership and the atomic swap.
+    /// #2724: in the flight view and on a spacewalk <b>K</b> docks with the nearest other pilot and <b>U</b> undocks
+    /// (T is the target key there). #2725: as a guest in a docked friend's ship <b>U</b> goes back to the own ship, the
+    /// host's <b>U</b> sends the guest home (it undocks), and <b>T</b> trades while docked.
     /// </summary>
     public sealed class PlayerInteractions : MonoBehaviour
     {
         public GameBootstrap Game;
         public RemotePlayers Remotes;
+
+        /// <summary>#2724: the flight view — K's nearest pilot and the docking-visit picture come from it.</summary>
+        public SpaceView Space;
 
         /// <summary>How close another player must be before T/K are offered. Matches the server's trade range
         /// (8 m): a shorter client range swallowed the keypress silently just outside it — no window, no
@@ -45,10 +51,31 @@ namespace BlocksBeyondTheStars.Client
 
             // The text-entry gate is already inside InputMap.Down (#1858); named here too so a "U" typed into
             // any field stays a letter even if a future verb here reads a raw key.
-            if (modal || Game.MenuOpen || Game.SpaceViewActive || Game.ChatTyping || InputMap.TextEntryActive
-                || GameBootstrap.CutsceneActive)
+            if (modal || Game.MenuOpen || Game.ChatTyping || InputMap.TextEntryActive || GameBootstrap.CutsceneActive)
             {
-                return; // don't start new interactions while a panel/space view/chat/text field/cutscene (#2461) is up
+                return; // don't start new interactions while a panel/chat/text field/cutscene (#2461) is up
+            }
+
+            // #2724: in flight and on a spacewalk K docks with the nearest other pilot and U undocks — both keys are free
+            // there (T is the flight target key, so trading stays an on-foot verb). E (go over) belongs to the flight view.
+            if (Game.SpaceViewActive)
+            {
+                if (FlightDockLive)
+                {
+                    if (Game.Docked)
+                    {
+                        if (InputMap.Down(InputAction.Disembark))
+                        {
+                            Game.Network.SendUndock();
+                        }
+                    }
+                    else if (Space.DockPilot != null && InputMap.Down(InputAction.RequestDock))
+                    {
+                        Game.Network.SendDockRequest(Space.DockPilot.PlayerId);
+                    }
+                }
+
+                return;
             }
 
             // Leave a boarded space station (returns you to your ship). Boarding it is otherwise a one-way trip.
@@ -68,18 +95,21 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Undock (when currently docked).
-            if (Game.Dock != null && Game.Dock.Docked)
+            // #2725: a guest in a docked friend's ship — U takes us back to our own ship (the server ends the visit).
+            if (Game.Visiting)
             {
                 if (InputMap.Down(InputAction.Disembark))
                 {
-                    Game.Network.SendUndock();
+                    GoHome();
                 }
-
-                return;
+            }
+            else if (Game.Docked && InputMap.Down(InputAction.Disembark))
+            {
+                Game.Network.SendUndock(); // undock — on the host's side this also sends a visiting friend home
             }
 
-            // Otherwise, target a nearby player for a trade (T) or dock (K) request.
+            // Target a nearby player for a trade (T) — #2725: also while docked, the friend stands beside us in the ship —
+            // or a dock (K) request, which only means something while not docked yet.
             string target = NearbyPlayer();
             if (string.IsNullOrEmpty(target))
             {
@@ -90,11 +120,28 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.SendTradeRequest(target);
             }
-            else if (InputMap.Down(InputAction.RequestDock))
+            else if (!Game.Docked && InputMap.Down(InputAction.RequestDock))
             {
                 Game.Network.SendDockRequest(target);
             }
         }
+
+        /// <summary>#2725: "back to my ship" for a guest — the existing step into the own ship's interior (an
+        /// <c>EnterShipIntent</c>), veiled at once like every descent-less world change (B34). A refusal lets the veil drop
+        /// itself (<see cref="WorldLoadingOverlay"/>'s confirm timeout).</summary>
+        public void GoHome()
+        {
+            if (Game?.Network == null || !Game.Visiting)
+            {
+                return;
+            }
+
+            Game.BeginWorldTransition();
+            Game.Network.SendEnterShip();
+        }
+
+        /// <summary>#2724: the flight view takes the docking verbs right now (cruising or on a spacewalk, nothing else under way).</summary>
+        private bool FlightDockLive => Game != null && Game.SpaceViewActive && Space != null && Space.DockVerbsLive;
 
         private string NearbyPlayer()
         {
@@ -106,15 +153,31 @@ namespace BlocksBeyondTheStars.Client
             return Remotes.FirstPlayerWithin(Game.PlayerPosition, InteractRange);
         }
 
-        /// <summary>True while a trade / dock request could be sent right now: a player in reach, and we are
-        /// neither docked nor aboard a station. Gates the context-actions entries (#1042/#1043).</summary>
-        public bool CanRequestTradeOrDock =>
-            Game != null && string.IsNullOrEmpty(Game.StationName) && !(Game.Dock != null && Game.Dock.Docked)
-            && !string.IsNullOrEmpty(NearbyPlayer());
+        /// <summary>True while a trade request could be sent right now: a player in reach and we are not aboard a station —
+        /// #2725: docked too (the friend stands beside us in the ship). Gates the context-actions entry (#1042/#1043).</summary>
+        public bool CanRequestTrade =>
+            Game != null && string.IsNullOrEmpty(Game.StationName) && !string.IsNullOrEmpty(NearbyPlayer());
 
-        /// <summary>True while <see cref="InputAction.Disembark"/> would do something (docked, or aboard a station).</summary>
+        /// <summary>True while a dock request could be sent right now: a player in reach, and we are neither docked nor
+        /// aboard a station. Gates the context-actions entry (#1042/#1043).</summary>
+        public bool CanRequestDock =>
+            Game != null && string.IsNullOrEmpty(Game.StationName) && !Game.Docked && !string.IsNullOrEmpty(NearbyPlayer());
+
+        /// <summary>True while <see cref="InputAction.Disembark"/> would do something on foot (docked, visiting a friend's
+        /// ship, or aboard a station).</summary>
         public bool CanDisembark =>
-            Game != null && (!string.IsNullOrEmpty(Game.StationName) || (Game.Dock != null && Game.Dock.Docked));
+            Game != null && (!string.IsNullOrEmpty(Game.StationName) || Game.Docked || Game.Visiting);
+
+        /// <summary>#2724: K would dock in flight or on a spacewalk right now (another pilot within the docking range, not
+        /// docked yet) — gates the Actions-list entry for pads and tablets.</summary>
+        public bool CanDockInFlight => FlightDockLive && !Game.Docked && Space.DockPilot != null;
+
+        /// <summary>#2724: U would undock in flight or on a spacewalk right now — gates the Actions-list entry.</summary>
+        public bool CanUndockInFlight => FlightDockLive && Game.Docked;
+
+        /// <summary>#2724: E would go over to the docked friend's ship right now (the flight view's pick) — gates the
+        /// Actions-list entry "go over".</summary>
+        public bool CanGoOverInFlight => FlightDockLive && Space.InteractGoesOver;
 
         /// <summary>True while <see cref="InputAction.ToggleStationZeroG"/> would do something (#1842): boarded on a
         /// PLAYER-built station — NPC / template stations keep their decks' gravity, and the server ignores the
@@ -232,37 +295,124 @@ namespace BlocksBeyondTheStars.Client
                 _renderedTrade = null; // next open re-renders from scratch
             }
 
-            // Non-modal centre hint (no cursor): undock, or trade/dock a nearby player.
+            // Non-modal centre hint (no cursor): undock, go home from a visit, or trade/dock a nearby player — and in flight
+            // (#2724) the docked line or whom K docks with. Formatted only when what it says changes.
             string hint = null;
-            if (!dock && !trade && !tradeAsk && !Game.MenuOpen && !Game.SpaceViewActive && !GameBootstrap.CutsceneActive)
+            if (!dock && !trade && !tradeAsk && !Game.MenuOpen && !GameBootstrap.CutsceneActive)
             {
-                // The keyboard hints name the bound keys ({key:Disembark} / {key:RequestTrade} / {key:RequestDock} tokens
-                // since #2502, U / T / K by default); on pad and touch those verbs live in the context-actions list, so
-                // the hint points there instead (#1042/#1043).
-                bool keys = InputMap.ActiveDevice == InputDeviceKind.KeyboardMouse;
-                if (!string.IsNullOrEmpty(Game.StationName))
-                {
-                    hint = HudUi.ExpandKeyTokens(loc, loc.Get(keys ? "ui.station.leave_hint" : "ui.station.leave_hint_actions"));
-                }
-                else if (Game.Dock != null && Game.Dock.Docked)
-                {
-                    hint = $"{loc.Get("ui.dock.docked")} {Game.Dock.Partner} · {HudUi.ExpandKeyTokens(loc, loc.Get(keys ? "ui.dock.undock_hint" : "ui.dock.undock_hint_actions"))}";
-                }
-                else
-                {
-                    string near = NearbyPlayer();
-                    if (!string.IsNullOrEmpty(near))
-                    {
-                        hint = $"{HudUi.ExpandKeyTokens(loc, loc.Get(keys ? "ui.interact.trade_dock" : "ui.interact.trade_dock_actions"))} {near}";
-                    }
-                }
+                hint = CurrentHint(loc);
             }
 
             _hint.gameObject.SetActive(hint != null);
-            if (hint != null)
+            if (hint != null && !ReferenceEquals(hint, _hint.text))
             {
                 _hint.text = hint;
             }
+        }
+
+        // The hint's last inputs and text — rebuilt only when one of them changes (it runs every frame).
+        private enum HintKind { None, Station, Guest, Host, Docked, Near, FlightDocked, FlightDock }
+        private HintKind _hintKind;
+        private string _hintName;
+        private bool _hintKeys, _hintTrade;
+        private object _hintLoc;
+        private (ClientSettings, int, PadGlyphSet, bool) _hintStamp;
+        private string _hintText;
+
+        /// <summary>
+        /// What the centre hint says right now, or null. The keyboard hints name the bound keys ({key:Disembark} /
+        /// {key:RequestTrade} / {key:RequestDock} tokens since #2502, U / T / K by default); on pad and touch those verbs live
+        /// in the context-actions list, so the hint points there instead (#1042/#1043).
+        /// </summary>
+        private string CurrentHint(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            bool keys = InputMap.ActiveDevice == InputDeviceKind.KeyboardMouse;
+            HintKind kind = HintKind.None;
+            string name = null;
+            bool tradeToo = false;
+            if (Game.SpaceViewActive)
+            {
+                // #2724: docked — the line names the partner and the undock key; not docked — whom K would dock with.
+                if (FlightDockLive)
+                {
+                    if (Game.Docked)
+                    {
+                        kind = HintKind.FlightDocked;
+                        name = !string.IsNullOrEmpty(Space.Visit.PartnerName) ? Space.Visit.PartnerName : Game.Dock.Partner;
+                    }
+                    else if (Space.DockPilot != null)
+                    {
+                        kind = HintKind.FlightDock;
+                        name = BlocksBeyondTheStars.Client.Core.ShipVisitRules.DisplayName(Space.DockPilot, Space.DockPilot.PlayerId);
+                    }
+                }
+            }
+            else if (!string.IsNullOrEmpty(Game.StationName))
+            {
+                kind = HintKind.Station;
+            }
+            else
+            {
+                string near = NearbyPlayer();
+                if (Game.Visiting)
+                {
+                    kind = HintKind.Guest; // #2725: "Visiting Lena's ship · U: back to my ship"
+                    name = Game.VisitingHost;
+                    tradeToo = !string.IsNullOrEmpty(near);
+                }
+                else if (Game.Docked)
+                {
+                    // #2725: the host whose docked friend walks in the own ship reads "Tom is visiting · U: send home".
+                    kind = Remotes != null && Remotes.IsPresent(Game.Dock.Partner) && Game.LoadingPlanetType == "ship_interior"
+                        ? HintKind.Host
+                        : HintKind.Docked;
+                    name = Game.Dock.Partner;
+                    tradeToo = !string.IsNullOrEmpty(near);
+                }
+                else if (!string.IsNullOrEmpty(near))
+                {
+                    kind = HintKind.Near;
+                    name = near;
+                }
+            }
+
+            if (kind == HintKind.None)
+            {
+                return null;
+            }
+
+            tradeToo &= keys; // pad and touch: trading is in the Actions list already
+            var stamp = HudUi.GlyphStamp;
+            if (_hintText != null && kind == _hintKind && keys == _hintKeys && tradeToo == _hintTrade && ReferenceEquals(loc, _hintLoc)
+                && string.Equals(name, _hintName, System.StringComparison.Ordinal) && stamp.Equals(_hintStamp))
+            {
+                return _hintText;
+            }
+
+            _hintKind = kind;
+            _hintName = name;
+            _hintKeys = keys;
+            _hintTrade = tradeToo;
+            _hintLoc = loc;
+            _hintStamp = stamp;
+            string Expand(string key) => HudUi.ExpandKeyTokens(loc, loc.Get(key));
+            string text = kind switch
+            {
+                HintKind.Station => Expand(keys ? "ui.station.leave_hint" : "ui.station.leave_hint_actions"),
+                HintKind.Guest => Expand(keys ? "ui.visit.guest_hint" : "ui.visit.guest_hint_actions").Replace("{name}", name),
+                HintKind.Host => Expand(keys ? "ui.visit.host_hint" : "ui.visit.host_hint_actions").Replace("{name}", name),
+                HintKind.Docked or HintKind.FlightDocked =>
+                    $"{loc.Get("ui.dock.docked")} {name} · {Expand(keys ? "ui.dock.undock_hint" : "ui.dock.undock_hint_actions")}",
+                HintKind.FlightDock => $"{Expand(keys ? "ui.dock.dock_hint" : "ui.dock.dock_hint_actions")} {name}",
+                _ => $"{Expand(keys ? "ui.interact.trade_dock" : "ui.interact.trade_dock_actions")} {name}",
+            };
+            if (tradeToo)
+            {
+                text += " · " + Expand("ui.dock.trade_hint");
+            }
+
+            _hintText = text;
+            return text;
         }
 
         /// <summary>Toggles an overlay and plays the shared fade/rise-in on the frame it opens.</summary>

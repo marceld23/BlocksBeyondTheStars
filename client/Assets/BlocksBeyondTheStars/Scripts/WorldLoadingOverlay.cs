@@ -60,6 +60,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.WorldLoadStarted += OnWorldLoadStarted;
                 Game.WorldTransitionStarted += OnTransitionStarted;
+                Game.WorldTransitionCancelled += OnTransitionCancelled;
             }
         }
 
@@ -69,6 +70,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.WorldLoadStarted -= OnWorldLoadStarted;
                 Game.WorldTransitionStarted -= OnTransitionStarted;
+                Game.WorldTransitionCancelled -= OnTransitionCancelled;
             }
 
             if (_canvas != null)
@@ -108,6 +110,17 @@ namespace BlocksBeyondTheStars.Client
             _awaitingConfirm = true;
             _confirmTimer = 0f;
             Raise();
+        }
+
+        /// <summary>#2724: the server refused the transition (a ship visit) — drop the pre-raised veil now instead of waiting
+        /// out <see cref="ConfirmTimeout"/>. A veil a world load already confirmed is left alone.</summary>
+        private void OnTransitionCancelled()
+        {
+            if (_active && _awaitingConfirm)
+            {
+                _awaitingConfirm = false;
+                _fadingOut = true;
+            }
         }
 
         /// <summary>Brings the veil on screen opaque immediately (or restarts its on-screen timer if already up).

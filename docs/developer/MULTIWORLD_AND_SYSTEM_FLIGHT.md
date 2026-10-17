@@ -41,11 +41,48 @@ them**; between systems you hyperjump. This combines two originally separate ide
   placed into their current world as a structure OBJECT at their own landing pad; each `LoadedWorld`
   keeps a `Dictionary<string, LandedShip> LandedShips` keyed by player id (there is no
   `WorldManager.ShipStamps` / ship cursor). Two players on one planet each get a separate ship at
-  distinct start positions. Docking is meant to grant guests cross-ship access (`HasGuestAccess`), but nothing
-  consumes that grant yet — a dock is a handshake flag the HUD and the Crystal Net ship sensor read. Docking and trading share
-  one range check (`PlayersTogether`, each with its own range): on foot the same world and the positions there,
-  in flight the two players' poses in ONE flight space (ship, or suit on a spacewalk) — `State.Position` keeps
-  the stale surface spot while flying — and one flying, one on foot never counts as together (#2711, #2720).
+  distinct start positions. Docking and trading share one range check (`PlayersTogether`, each with its own
+  range): on foot the same world and the positions there, in flight the two players' poses in ONE flight space
+  (ship, or suit on a spacewalk) — `State.Position` keeps the stale surface spot while flying — and one flying,
+  one on foot never counts as together (#2711, #2720). Docking alone (`CanDockTogether`, request and accept alike)
+  also counts a player who walks inside their own ship while it floats parked as out in that flight space, at the
+  parked ship's pose (#2723) — so a pilot docks with a friend who already stepped inside, and two friends each
+  walking their own floating ship dock too. Trading keeps the plain rule.
+- **Walking inside the ship in space.** `EnterShipInterior` loads the pilot's own void world `shipint:<id>` with
+  the ship structure placed in it and records the way back in `_inShipInterior` (the instance, the ship's parked pose,
+  the body under the flight). While that record exists the hull floats **parked** for the other pilots and keeps the
+  flight instance loaded (#2431). The record is session state: a disconnect forgets it (`ForgetShipInterior`, #2722 —
+  it used to survive a rejoin, so walking out of the landed ship on the planet started a spacewalk and the planet air
+  did not count), and a join drops anything a previous session left behind.
+- **The docking visit (#2723, `GameServerShipVisits`).** Docking means a visit and nothing else (no shared cargo, no
+  coupled flight). Ship interiors are per-owner worlds, but presence, doors and block broadcasts are per world, so a
+  guest can share the host's `shipint:<host>`. `VisitShipIntent { HostId }` (NetCodec 304) is allowed while docked, in
+  one flight instance, within `DockRange`, with the host's ship floating parked (host inside it or on a spacewalk —
+  a host at the helm is refused and told a friend wants to come over). The visit parks the guest's ship exactly like
+  stepping inside it (`ParkShipForWalkabout` — the guest keeps their OWN `_inShipInterior` record), places the host's
+  hull in the host's world when the host is out on a spacewalk, and loads the guest at the host's heal tank with
+  `WorldReset.ShipOwnerId = <host>` (empty in the own interior and everywhere else). Visits live in memory only
+  (`_shipVisits`, guest → host; docking is 1:1, so one guest per host) — no save change, no protocol bump
+  (`DockStatus.CanVisit` tells a client the server can do visits).
+  - *Home:* `EnterShipIntent` (or the pause menu's `ReturnToShipIntent`) and walking out of the host's hull load the
+    guest's own interior from that kept record; `ExitShipIntent` or a launch goes straight to the guest's own helm.
+  - *Sent home before the host's ship moves:* the host takes the helm or launches (`ReturnToFlight`, `EnterSpace`),
+    switches ships, leaves the flight (also by boarding a station or a derelict from a spacewalk), dies or quits, either
+    side undocks (the host's U is "send home"), plus a 1 Hz check (host joined, still docked, ship parked in the guest's
+    instance, same active ship). Stepping out through the airlock is no move — `EnterSpace(airlock: true)` keeps the
+    guest aboard. A dying or quitting guest's visit is just forgotten — the respawn or the quit moves them. The host's
+    "a friend wants to come over" line is throttled per guest.
+  - *One hull per interior:* a `shipint:` world only ever holds its owner's ship, so the landing-pad occupancy check
+    ignores everyone there (`PadOccupiedByOther`) — a guest holding the same pad index used to push the host's hull to
+    another pad when the host came back in.
+  - *Shared coordinates:* every ship interior uses the same coordinates, so a pose the client sent from the interior it
+    just left passes the spawn gate. `MoveIntent.WorldId` (stamped by `NetworkClient` with the last JoinAccepted /
+    WorldReset) lets the server drop poses from a world it already moved the player out of; for an older client a pose
+    from outside the hull is ignored for a moment after any switch into a ship interior (`StaleShipInteriorPose`).
+  - *Look only:* the dispatch refuses world edits from a guest (`@srv.visit.look_only` — the void around the hull
+    included), ship stations refuse a guest, and `ShipLabAboard` ignores a guest's own lab module; travel and teleports
+    ask the guest to go home first. The guest's air follows "inside a parked hull" like any visitor on a planet
+    (`UpdateAboard` measures the host's hull), so an unsealed extension holds none.
 - **Per-launch-body flight space.** The space instance is keyed by the **launch body's location id**
   (`"space:" + locationId`), not by system id. Players who launch from the same body share that flight
   space and see each other; the flight view still receives the whole system's bodies (`SendStarMap`) so
@@ -80,6 +117,8 @@ them**; between systems you hyperjump. This combines two originally separate ide
 - The per-world subsystems: `GameServerCreatures / Enemies / Flora / Fluids / Containers /
   Settlements / Weather / Wrecks / ShipStructure` — each reads `_worlds.Active.*`.
 - `GameServerSpaceCombat` / `SpaceView` (client) — the per-launch-body flight space.
+- `GameServerShipInterior` (walking inside the floating ship, `shipint:<id>`) and `GameServerShipVisits` (the docking
+  visit, #2723) with `GameServerDocking` (`CanDockTogether`).
 - `Galaxy.cs` (`CelestialBody.SystemX/Y/Z`) + universe generation — seeded per-body system coordinates.
 - Networking: `NetBody` (system coords), addressed `WorldReset`, presence scoping by `CurrentLocationId`
   (server-side filter), destination body id on `LeaveSpaceIntent`, `HyperjumpSystemIntent` (NetCodec 117).

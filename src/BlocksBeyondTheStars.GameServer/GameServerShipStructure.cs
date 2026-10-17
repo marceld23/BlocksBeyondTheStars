@@ -392,6 +392,14 @@ public sealed partial class GameServer
 
         var p = session.State;
 
+        // #2723: a guest in a docked friend's ship looks only — the helm, the workshop, the hold, the bed and the medbay
+        // there are the host's. Said plainly, instead of the "no such station here" the guest's own (absent) ship gives.
+        if (IsVisitingShip(playerId))
+        {
+            Reject(session, "station", "@srv.visit.look_only");
+            return;
+        }
+
         // The construction site's helm: commission the self-built ship (#950). Runs before the aboard
         // check — an un-commissioned frame is intentionally never "aboard" (no free life support).
         if (station == "shipyard")
@@ -760,7 +768,10 @@ public sealed partial class GameServer
     /// <summary>Derives the player's aboard state from their position; resends inventory/state on change.</summary>
     private void UpdateAboard(PlayerSession session)
     {
-        if (!_shipPlaced)
+        // #2723: a guest in a docked friend's ship has no ship of their own in this world — the friend's hull decides,
+        // exactly as for a visitor in a parked ship on a planet ("inside a parked hull").
+        var visited = VisitedShipOf(session.State.PlayerId);
+        if (!_shipPlaced && visited is null)
         {
             return; // no physical ship → keep the default aboard semantics (e.g. tests, ship disabled)
         }
@@ -773,7 +784,7 @@ public sealed partial class GameServer
             SendPlayerState(session);
 
             // #2120: stepping into an extension of your own ship that is not sealed — say why the air is gone.
-            if (!aboard && InShipInterior(session.State.PlayerId) && WithinShipExtents(CurLanded, session.State.Position, 0f))
+            if (!aboard && InShipInterior(session.State.PlayerId) && WithinShipExtents(visited ?? CurLanded, session.State.Position, 0f))
             {
                 Send(session, new ServerMessage { Text = "@srv.ship.extension_unsealed" });
             }

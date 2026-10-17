@@ -176,9 +176,9 @@ Last updated: 2026-10-04.
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (the one-key sweep leaves tools, weapons, food and equipment with you — put those in by hand on the crate screen, **E**; with nothing of that kind in your bag a message says so); **aboard your ship** with no crate in reach: **stow them all into the cargo hold** (the stack in your hand stays) |
 | **E** | Use a nearby ship/station tile (cockpit, workshop, **cargo — opens the cargo hold page**, medbay, …); **at a vendor: trade or talk** (a small question — **E** again trades, *Talk* opens the conversation); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **open the crate screen** of a storage crate you're aiming at — its contents above, your backpack below, click to move (see §5 → Storage crates); **open or close a wooden or hinged door** — the one you're looking at, else the nearest (sliding and energy doors open by themselves; see §5 → Crafting → Doors) |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
-| **T** | Send a trade request to a nearby player |
-| **K** | Send a dock request to a nearby player |
-| **U** | Undock from a player / leave a boarded space station |
+| **T** | Send a trade request to a nearby player — also while your ships are docked (a visiting friend stands right beside you) |
+| **K** | Send a dock request to a nearby player (at the helm and on a spacewalk too — see §3) |
+| **U** | Undock from a player / leave a boarded space station. As a **guest** in a docked friend's ship: **back to my ship** (the hint reads "Visiting Lena's ship · U: back to my ship"). As the **host** while a friend visits: **send the guest home** (it undocks; the hint reads "Tom is visiting · U: send home") |
 | **O** | Aboard your own (or any player-built) station: toggle **zero-g construction mode** for yourself — the suit floats over the decks (Jump rises, Crouch sinks) so you can extend the hull without walking; press again to walk. Not saved; off whenever you board |
 | **V** | Toggle first / third-person camera |
 | **I** | Toggle **thermal vision** while looking through the thermal binoculars (see §5 → Binoculars) |
@@ -212,7 +212,7 @@ buttons — retuning is tracked in issue #195):
 | **(X)** | Use / board / interact |
 | **(Y)** | Toggle first / third-person camera (only that — it no longer jumps as well) |
 | **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
-| **L3** (click the left stick) | **Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair, lamp and stealth (only while worn), thermal vision, feed a begging herd, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
+| **L3** (click the left stick) | **Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, back to my ship from a friend's ship, dock / undock / go over to the docked ship at the helm and on a spacewalk, loot / stash, repair, lamp and stealth (only while worn), thermal vision, feed a begging herd, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
 | **View** (the two-rectangles button left of the Xbox logo; "Back" on a 360 pad, Share on PlayStation, − on Nintendo) | **VEGA: continue** — advance or dismiss the ship AI's line (the same as **N** on the keyboard); also opens the folded VEGA tab |
 | **Menu** (☰ — the three-lines button right of the Xbox logo; Unity and 360-era pads call it Start. The Xbox-logo button itself belongs to Windows' Game Bar and never reaches the game) | Open / close the gameplay menu — its top strip has the **Pause menu** button (Resume / Settings / Quit, the same dialog **Esc** opens on the keyboard); **(B)** resumes |
 
@@ -297,7 +297,7 @@ cutscene they step aside — tap its **Skip** button to leave it, or the **Conti
 | **Drag** anywhere on the right | Look / steer the ship |
 | **◄ ►** | Cycle hotbar slot (ship-systems bar — laser ↔ tractor beam — at the helm) |
 | **…** (beside ►) | **Hotbar slot actions** on the selected slot (see §5); shown only when the menu can open |
-| **ACT** (beside ◄) | **Actions** — a list of everything you can do right now: rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair a wreck, lamp, thermal vision, deploy a station in EVA, leave / refuel the speeder, … Tap an entry to do it. Shown only when something applies. A hint on screen that reads "ACT: undock" or "Store all materials (ACT)" means: find it in this list |
+| **ACT** (beside ◄) | **Actions** — a list of everything you can do right now: rotate the held block, trade / dock with the player beside you, undock, back to my ship from a friend's ship, dock / undock / go over to the docked ship at the helm and on a spacewalk, loot / stash, repair a wreck, lamp, thermal vision, deploy a station in EVA, leave / refuel the speeder, … Tap an entry to do it. Shown only when something applies. A hint on screen that reads "ACT: undock" or "Store all materials (ACT)" means: find it in this list |
 | **NEXT ▶** (top-centre) | **VEGA: continue** — advance or dismiss the ship AI's line; also opens the folded VEGA tab; shown only while a line is up |
 | **≡** (top-right) | Open / close the gameplay menu |
 | *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT · VIEW · MAP** | Jump (at a wall, with the stick pushed towards it: hold JUMP to hold on and climb, let go of it to slide down) · mine · place · use/board · descend (on a wall: drop off) · open chat · camera · planet map |
@@ -331,12 +331,13 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 | **Caps Lock** (hold) | Push-to-talk voice, as on foot (needs a **worn** radio; see §7 → Voice chat) |
 | **W/A/S/D** | Fly through the **system** — every planet/moon is out there at its real position |
 | **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens the **landing map**: the planet's real terrain, the day/night band and — switchable with **☁ Weather: on/off** (remembered) — its **live weather**, with drifting fronts marked "◀ front ▶". Every pad says the weather waiting there (e.g. "⚡ Storm", "☀ Clear"), so you can pick a sunny pad. Click a free pad (or its number key) to land; **Esc** cancels |
-| **E** | Board a nearby space station (within range of its hull; the ship flies round to the station's hangar mouth and docks there before you board) — or, next to a **wormhole**, fly through it (see *Wormholes* below) |
+| **E** | Board a nearby space station (within range of its hull; the ship flies round to the station's hangar mouth and docks there before you board) — or, next to a **wormhole**, fly through it (see *Wormholes* below). **Docked with a friend** whose ship floats parked within 48 m (they walk inside it, or are out on a spacewalk): **go over** into their ship as a guest — "E: go over to Lena's ship" (whichever is nearest — the friend's ship, a station or a planet — takes **E**). While the friend sits at the helm the line reads "Lena is flying"; **E** then asks them to step inside, and they get a message saying so |
+| **K** / **U** | **Dock** with the nearest other pilot within 48 m (never an NPC trader; they answer the usual docking request) / **undock**. Docked, the line under the crosshair reads "Docked with Lena · U: undock". Pad and touch: both are in the **Actions** list (L3 / ACT), together with *Go over to the docked ship* |
 | **Last hotbar slot → hold fire** | The **ship scanner** (every ship has one): point the nose at a planet, moon, asteroid, station, wreck, life pod, anomaly, wormhole or machine and **hold fire** until the ring fills. See *Ship scanner* in §5 |
 | **T** | **Target lock — next target** (pad **LB**, touch **TARGET**): attacking enemies first, then other enemies, then stations / wrecks / debris fields / life pods / anomalies / wormholes, then other pilots and traders. With a **mining laser** selected and nobody attacking, the three nearest asteroids or wreckage fragments in its reach come right after the enemies. **Hold T** (~½ s) to let the lock go. See *Target lock* below |
 | **R** | **Nearest enemy** (pad **R3**, touch: in the **ACT** list) — press again for the next nearest |
 | **Right mouse button** | **Target ahead** (pad: **L3 → Target ahead**, touch: **ACT → Target ahead**): lock what is under the crosshair — also asteroids, salvage and planets, which the cycle otherwise skips. Pointing at empty space lets the lock go |
-| **F** | **Step inside your ship** while it floats: walk its cabin, build, sleep. The **helm** (**E** at the cockpit; the menu is on **Tab** as always) takes you back to the flight, and walking out through the **hatch** starts a spacewalk — either way the ship is exactly where you left it, pointing the same way, and a landing afterwards comes down on the world as usual. Other pilots keep seeing your ship meanwhile — engines off, its nameplate says *parked*. On the spacewalk, float up to your ship (a few metres from its hull) and press **E** to climb back in — that works next to a station too: a station only takes **E** when you look at it, or when your ship is out of reach (the prompt at the bottom always says which one **E** boards). Docking a station from a spacewalk and leaving it again puts you back beside your ship, where it floated |
+| **F** | **Step inside your ship** while it floats: walk its cabin, build, sleep. The **helm** (**E** at the cockpit; the menu is on **Tab** as always) takes you back to the flight, and walking out through the **hatch** starts a spacewalk — either way the ship is exactly where you left it, pointing the same way, and a landing afterwards comes down on the world as usual. Other pilots keep seeing your ship meanwhile — engines off, its nameplate says *parked*. On the spacewalk, float up to your ship (a few metres from its hull) and press **E** to climb back in — that works next to a station too: a station only takes **E** when you look at it, or when your ship is out of reach (the prompt at the bottom always says which one **E** boards). Docked with a friend, their parked ship is the third choice: out of reach of your own hull, "E: board Lena's ship" takes you over as a guest (a station whose hull is nearer still wins). **K** and **U** dock and undock on a spacewalk as at the helm. Docking a station from a spacewalk and leaving it again puts you back beside your ship, where it floated |
 | **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to your nav waypoint if one is set, else the nearest station / landable body; any manual input takes the helm back |
 | **M** | **System chart**: a top-down map of the current system — every planet shows its current weather as a small glyph (☁ ☂ ⚡ ❄ …). Click a body/station to target it or empty space for a free **nav waypoint** — it shows on the radar with a distance readout, and the autopilot flies to it. The ship holds position while the chart is open. Space distances (radar, chart) read in **km**; only on a spacewalk is the way back to your ship given in metres. The chart's **Hyperspace** tab (LB/RB on a pad) shows the whole galaxy as stars in their real colours: the ringed star is where you are, named stars are systems you have visited, a **?** is one you have never entered, lines are relay jump lanes. Click a star to read about it and — with a jump generator aboard or a lane — **hyperjump to it straight from the chart** |
 | **Tab → Map** | Hyperspace **jump to another system** (needs a `jump_generator` module) — flying is within one system |
@@ -1583,7 +1584,32 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   there. Steps the world cannot offer are simply skipped — no unlinked systems left, no relay left to build,
   or machines switched off in the world rules.
 - **Player docking**: press **K** near another player to request docking; **U** to undock. Docking is
-  modal and gated by server rules + a `docking_module`.
+  modal and gated by server rules + a `docking_module`. **K** and **U** work at the helm and on a spacewalk
+  too: **K** asks the nearest other pilot within 48 m (never an NPC trader), and while docked the flight view
+  reads "Docked with Lena · U: undock". **Trading (T)** works while docked as well.
+- **Visiting a friend's ship**: docked in space, you can **go over** into your friend's ship while it floats
+  parked — your friend walks inside it or is out on a spacewalk — within 48 m: **E** at the helm ("E: go over
+  to Lena's ship"), or **E** on a spacewalk ("E: board Lena's ship"). While your friend sits at the helm the
+  line reads "Lena is flying", and **E** asks them to step inside (they get a message). Aboard you are a
+  **guest**: the hint reads "Visiting Lena's ship · U: back to my ship"; the host's cockpit, console, cargo
+  hold and medbay are just furniture for you (no prompts — they belong to your friend's ship), your own repair
+  panel waits until you are back, and the Map tab's top button reads **Back to my ship** instead of taking the
+  helm. **U** (or that button) takes you back into your own ship. The host sees "Tom is visiting · U: send
+  home" — **U** undocks, which sends the guest home. Pad and touch players find all of it in the **Actions**
+  list. The server checks everything again (docking, range, that the host left the helm) and says why when
+  it refuses.
+  - **A guest looks around, but does not build**: walking, doors, sitting, chat and trading with the host
+    work; building, mining, painting and crates in the friend's ship — and in the space around it — do not
+    ("You are a guest here"), nor the ship's stations or a bio lab. To travel or teleport, go back to your
+    own ship first. The friend's cabin gives you air like your own; an open, unsealed room they built onto
+    the hull does not.
+  - **Back home on your own**: walking out of the friend's hatch also brings you back into your own ship,
+    and your own helm (or a launch) takes you straight to your own flight — your ship floated where you left
+    it the whole time (other pilots see it *parked*). You are sent home, with a message, **before the
+    friend's ship moves**: when they take the helm, switch ships, leave, die or quit, or when either of you
+    undocks. If your friend only steps out through the hatch for a spacewalk, you stay aboard and wait for them.
+    Docking also works with a friend who is already walking inside their parked ship ("step inside, I'm coming
+    over").
 
 ### Bases (Grundstein): your own home on a world
 - Craft a **Base Core** at a workshop (`stone` ×6 + `iron_plate` ×2 — available from the start) and **place**

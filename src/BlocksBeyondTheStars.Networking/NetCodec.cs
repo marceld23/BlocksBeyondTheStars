@@ -625,6 +625,10 @@ public static class NetCodec
         // an older server drops the request (the core screen shows the rename field alone), an older client never sends it.
         Register(302, typeof(RequestBaseResidentsIntent));   // Client -> Server
         Register(303, typeof(BaseResidentList));             // Server -> Client
+
+        // #2723 the docking visit: a docked guest walks over into the host's ship in space. No protocol bump — an older
+        // server drops the request (its DockStatus never says CanVisit, so a current client does not offer the visit).
+        Register(304, typeof(VisitShipIntent));              // Client -> Server
     }
 
     /// <summary>True for an id a message may be registered under: a one-byte tag below the two framing bytes,

@@ -441,6 +441,7 @@ namespace BlocksBeyondTheStars.Client
             var space = root.AddComponent<SpaceView>();
             space.Game = boot;
             space.Camera = cam;
+            interactions.Space = space; // #2724: K/U in flight and on a spacewalk read the flight view's docking picture
 
             // Space radar HUD (M27 polish).
             var radar = root.AddComponent<SpaceRadar>();

@@ -540,6 +540,9 @@ public sealed partial class GameServer
             }
         }
 
+        // #2723: a host on a spacewalk boards a station or a derelict — they leave their floating ship (and the flight), so
+        // a docked friend visiting it goes home first, like on any other way out of the flight (LeaveSpace).
+        SendShipGuestHome(session, "@srv.visit.host_left");
         instance.Players.Remove(playerId);
         _playerInstance.Remove(playerId);
 

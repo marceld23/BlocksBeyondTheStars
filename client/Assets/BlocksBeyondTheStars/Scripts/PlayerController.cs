@@ -170,9 +170,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>H stows into the ship's cargo hold (#2138): aboard — in the landed
         /// cabin or the floating interior — with no storage crate in reach, the same server "stow all" as the
-        /// Inventory tab's button. A crate in reach keeps H for itself.</summary>
+        /// Inventory tab's button. A crate in reach keeps H for itself. #2725: never as a guest in a docked friend's ship —
+        /// its hold is the host's, and ours floats elsewhere.</summary>
         public bool CanStowToCargo
-            => Game != null && (Game.Aboard || Game.LoadingPlanetType == "ship_interior") && !NearCrate;
+            => Game != null && (Game.Aboard || Game.LoadingPlanetType == "ship_interior") && !NearCrate && !Game.Visiting;
 
         /// <summary>A parked speeder of ours is within stow range (StowVehicle applies).</summary>
         public bool NearOwnParkedSpeeder
@@ -2128,8 +2129,10 @@ namespace BlocksBeyondTheStars.Client
         {
             // Prefer the station you're looking at; fall back to the nearest one you're standing by. (Pure
             // proximity made a cramped ship always read as the central station, "whatever you looked at".)
-            Game.NearbyStation = Game.LookedStationType(Camera, Reach);
-            if (string.IsNullOrEmpty(Game.NearbyStation))
+            // #2725: a guest in a docked friend's ship gets none — the host's cockpit, console, cargo and medbay are room
+            // decor for us (no prompt, no E: the cockpit would fly THEIR ship, the console repair it). U takes us home.
+            Game.NearbyStation = Game.Visiting ? null : Game.LookedStationType(Camera, Reach);
+            if (string.IsNullOrEmpty(Game.NearbyStation) && !Game.Visiting)
             {
                 Game.NearbyStation = Game.NearestStationType(transform.position, 3f);
             }

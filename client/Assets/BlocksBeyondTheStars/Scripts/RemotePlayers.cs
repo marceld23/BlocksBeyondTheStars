@@ -88,6 +88,12 @@ namespace BlocksBeyondTheStars.Client
             return false;
         }
 
+        /// <summary>#2725: whether another player is here with us right now — their presence still streams in (not timed out)
+        /// and they are not hidden (up in space, or behind a stealth field). The host of a docking visit reads "Tom is
+        /// visiting" from it while the guest walks in the host's ship.</summary>
+        public bool IsPresent(string playerId)
+            => !string.IsNullOrEmpty(playerId) && _remotes.TryGetValue(playerId, out var r) && !r.TimedOut && !r.Hidden;
+
         /// <summary>Custom pixel faces by player id. Kept separately so a face that arrives before the player's
         /// first presence (or after their avatar is rebuilt) is still applied.</summary>
         private readonly Dictionary<string, string> _faces = new Dictionary<string, string>();

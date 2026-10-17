@@ -412,6 +412,14 @@ namespace BlocksBeyondTheStars.Client
         private bool _enteringInterior;   // stepping into the ship interior — tear the flight view down at once
                                           // (no landing descent) when the server closes space
 
+        // #2724: the docking visit — what K, U, E and the prompt line see this frame (ShipVisitRules), and a visit on its way.
+        private BlocksBeyondTheStars.Client.Core.ShipVisitView _visit;
+        private BlocksBeyondTheStars.Networking.Messages.NetSpacePlayer _dockPilot; // K's target: the nearest other pilot in docking range
+        private bool _interactGoesOver;   // E goes over to the docked partner's ship this frame (the prompt and the Actions list ask)
+        private bool _interactAsksPartner; // E asks the docked partner at the helm to let us over (the server tells them)
+        private float _visitWait = -1f;   // seconds since a visit was sent behind the veil; -1 = none on its way
+        private int _visitRefusalsSeen;   // GameBootstrap.VisitRefusals when the visit was sent
+
         private float _moveSendTimer;     // throttles authoritative position reports
         private float _hitFlash;          // red damage flash on a collision/hit
         private float _shake;             // camera shake on a hit
@@ -510,6 +518,20 @@ namespace BlocksBeyondTheStars.Client
         private bool FlightInputAllowed // a cutscene holds the ship still like a menu (#2461: the ending can be replayed in flight)
             => InputGate.FlightControlAllowed(Game.MenuOpen || GameBootstrap.CutsceneActive, Game.AwaitingRespawnConfirm, Game.ChatTyping, InputMap.TextEntryActive);
 
+        /// <summary>#2724: true while the flight verbs of docking may act — cruising at the helm or floating on a spacewalk,
+        /// not launching, landing, boarding, behind the pad chooser or with a visit on its way. <see cref="PlayerInteractions"/>
+        /// reads K and U in flight only then, and the Actions list offers them only then.</summary>
+        public bool DockVerbsLive => _active && _phase == Phase.Cruise && _ship != null && !_confirmLand && _visitWait < 0f;
+
+        /// <summary>#2724: the docking-visit picture of this frame (docked? the partner flying, or parked within reach?).</summary>
+        public BlocksBeyondTheStars.Client.Core.ShipVisitView Visit => _visit;
+
+        /// <summary>#2724: K's target this frame — the nearest other pilot within the docking range (never an NPC trader), or null.</summary>
+        public BlocksBeyondTheStars.Networking.Messages.NetSpacePlayer DockPilot => _dockPilot;
+
+        /// <summary>#2724: E goes over to the docked partner's ship this frame — the Actions list offers "go over" then.</summary>
+        public bool InteractGoesOver => DockVerbsLive && _interactGoesOver;
+
         private void Update()
         {
             if (Game == null || Camera == null)
@@ -541,6 +563,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UpdateOrbitBodies(); // #2175/#2177: weather-driven cloud shells, spin to the time of day, lightning
+            UpdatePendingVisit(); // #2724: a refused (or unanswered) visit lifts the veil and hands the controls back
 
             // #1677: a hyperjump made IN FLIGHT never turns the flag off for a frame we get to see — the server
             // sends SpaceClosed, SpaceState and the new star map in one tick, and the client pump applies all
@@ -1600,6 +1623,12 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network?.SendShipMove(_ship.transform.localPosition, _yaw);
             }
 
+            // #2724: whom K docks with and what the visit prompt says — kept current behind a menu too, so the docked line
+            // and the Actions list never read a stale frame. E's share of it is decided below, beside the station and body.
+            UpdateVisit(_ship.transform.localPosition);
+            _interactGoesOver = false;
+            _interactAsksPartner = false;
+
             // #2277: the target lock follows the instance every cruise frame (destroyed, gone, out of range, a new
             // attacker); its keys are read only while the helm takes input — not behind a menu, the chat or the pad map.
             UpdateTargetLock(Time.deltaTime, FlightInputAllowed && !_confirmLand);
@@ -1607,8 +1636,9 @@ namespace BlocksBeyondTheStars.Client
             // Hold position while a menu is open (e.g. the Tab star map, used to hyperspace-jump to another
             // system), while the ship-destruction "Weiter" prompt is up, or while the player is typing (the
             // chat box, any focused field — #1858: "E" typed into the chat used to dock the ship), so flight
-            // input doesn't fight the UI / swing the camera behind the modal.
-            if (!FlightInputAllowed)
+            // input doesn't fight the UI / swing the camera behind the modal. #2724: and while a visit to the docked
+            // friend's ship is on its way behind the veil.
+            if (!FlightInputAllowed || _visitWait >= 0f)
             {
                 return;
             }
@@ -1842,6 +1872,20 @@ namespace BlocksBeyondTheStars.Client
             // #2242: a wormhole within reach takes E before anything else (rifts open far from planets and stations).
             UpdateNearWormhole(pos);
             UpdateNearAnomaly(pos); // #2588: flying up to an anomaly says what it is (it is not a wormhole)
+
+            // #2724: docked with a friend whose ship floats parked within reach, E goes over to it — unless a station or a
+            // body is closer (the same "whichever you're closest to" rule). A friend at the helm can only be asked: E then
+            // tells them (the server's toast) while nothing else wants the key.
+            if (_nearWormholeId == null)
+            {
+                float visitSq = _visit.Distance * _visit.Distance;
+                bool visitCloser = (_nearStationId == null || visitSq <= _nearStationSq) && (_landTargetId == null || visitSq <= _landTargetSq);
+                _interactGoesOver = _visit.Prompt == BlocksBeyondTheStars.Client.Core.ShipVisitPrompt.GoOver && visitCloser;
+                _interactAsksPartner = _visit.Prompt == BlocksBeyondTheStars.Client.Core.ShipVisitPrompt.PartnerFlying
+                    && _visit.Distance <= BlocksBeyondTheStars.Client.Core.ShipVisitRules.VisitRange
+                    && _nearStationId == null && _landTargetId == null;
+            }
+
             if (_nearWormholeId != null && InputMap.Down(InputAction.Interact))
             {
                 BeginWormholeTransit();
@@ -1854,7 +1898,18 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Whichever you're closest to wins: dock the station or land on the body.
                 bool stationCloser = _nearStationId != null && (_landTargetId == null || _nearStationSq <= _landTargetSq);
-                if (stationCloser)
+                if (_interactGoesOver)
+                {
+                    BeginVisit(); // #2724: over to the docked friend's ship
+                }
+                else if (_interactAsksPartner)
+                {
+                    // #2724: the friend is flying — ask anyway; the server says "step inside your ship" to them and why to us.
+                    // Behind the veil like any visit: if they stepped inside since the last flight snapshot the server takes
+                    // us over at once (no landing descent); its "is flying" refusal lifts the veil again straight away.
+                    BeginVisit();
+                }
+                else if (stationCloser)
                 {
                     _phase = Phase.Boarding; // dock-approach animation (into the hangar, #1917); board intent sent on completion
                     _seq = 0f;
@@ -2640,8 +2695,14 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network?.SendShipMove(_evaPos, _evaYaw);
             }
 
-            // Menu, destruction prompt, chat box or any focused text field: hold still (#1858).
-            if (!FlightInputAllowed)
+            // #2724: whom K docks with and whether the docked friend's ship floats within reach — measured from the suit.
+            UpdateVisit(_evaPos);
+            _interactGoesOver = false;
+            _interactAsksPartner = false;
+
+            // Menu, destruction prompt, chat box or any focused text field: hold still (#1858). #2724: so does a visit on
+            // its way to the friend's ship behind the veil.
+            if (!FlightInputAllowed || _visitWait >= 0f)
             {
                 return;
             }
@@ -2733,9 +2794,11 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            var evaChoice = EvaBoardChoice();
+            _interactGoesOver = evaChoice == EvaBoardTarget.PartnerShip; // #2724: the Actions list offers "go over" then
             if (InputMap.Down(InputAction.Interact))
             {
-                switch (EvaBoardChoice())
+                switch (evaChoice)
                 {
                     case EvaBoardTarget.Station:
                         DockStationFromEva();
@@ -2743,11 +2806,14 @@ namespace BlocksBeyondTheStars.Client
                     case EvaBoardTarget.Ship:
                         BoardShipFromEva();
                         break;
+                    case EvaBoardTarget.PartnerShip:
+                        BeginVisit(); // #2724: into the docked friend's ship
+                        break;
                 }
             }
         }
 
-        private enum EvaBoardTarget { None, Ship, Station }
+        private enum EvaBoardTarget { None, Ship, Station, PartnerShip }
 
         /// <summary>
         /// What E boards on a spacewalk — the key and the HUD prompt both ask here, so they never disagree (#2703). The
@@ -2756,6 +2822,8 @@ namespace BlocksBeyondTheStars.Client
         /// own hull it boards the ship. Otherwise the own ship wins whenever it is in reach, a station only when it is not.
         /// A station used to win whenever its hull box was nearer than the ship's CENTRE, so at the own hatch beside a
         /// station (a derelict's box is large) E docked the station instead of taking the player home.
+        /// #2724: docked with a friend whose ship floats parked within reach, that ship is the third target — after the own
+        /// ship, and before a station unless the station's hull is nearer.
         /// </summary>
         private EvaBoardTarget EvaBoardChoice()
         {
@@ -2775,6 +2843,12 @@ namespace BlocksBeyondTheStars.Client
             if (_evaNearShip)
             {
                 return EvaBoardTarget.Ship;
+            }
+
+            if (_visit.Prompt == BlocksBeyondTheStars.Client.Core.ShipVisitPrompt.GoOver
+                && (_nearStationId == null || _visit.Distance * _visit.Distance <= _nearStationSq))
+            {
+                return EvaBoardTarget.PartnerShip;
             }
 
             return _nearStationId != null ? EvaBoardTarget.Station : EvaBoardTarget.None;
@@ -3540,6 +3614,71 @@ namespace BlocksBeyondTheStars.Client
             _boardStartPos = _ship.transform.localPosition;
         }
 
+        // ---------------- #2724: the docking visit (dock, undock, go over to the friend's ship) ----------------
+
+        /// <summary>Reads this frame's docking picture from <paramref name="from"/> (the ship at the helm, the suit on a
+        /// spacewalk): K's nearest pilot and the visit prompt (<see cref="BlocksBeyondTheStars.Client.Core.ShipVisitRules"/>).
+        /// Allocation-free — it runs every cruise and EVA frame.</summary>
+        private void UpdateVisit(Vector3 from)
+        {
+            var players = Game.Space?.Players;
+            var dock = Game.Dock;
+            _dockPilot = Game.Docked ? null
+                : BlocksBeyondTheStars.Client.Core.ShipVisitRules.NearestDockPilot(players, from.x, from.y, from.z);
+            _visit = BlocksBeyondTheStars.Client.Core.ShipVisitRules.Evaluate(Game.VisitsSupported, dock != null && dock.Docked,
+                dock?.Partner, players, from.x, from.y, from.z);
+        }
+
+        /// <summary>Goes over to the docked partner's ship (#2724): the same descent-less step as walking into the own ship
+        /// (veil at once, B34), but the server places us in the partner's interior as a guest. A refusal lifts the veil again
+        /// (<see cref="UpdatePendingVisit"/>). The suit stays a suit until the server says otherwise, so a refused visit from a
+        /// spacewalk floats on where it was.</summary>
+        private void BeginVisit()
+        {
+            if (Game.Network == null || string.IsNullOrEmpty(_visit.PartnerId))
+            {
+                return;
+            }
+
+            _enteringInterior = true;     // the server closes this flight: tear the view down at once (no landing descent)
+            _visitWait = 0f;
+            _visitRefusalsSeen = Game.VisitRefusals;
+            Game.BeginWorldTransition();  // veil immediately — the flight view must not flash before the friend's ship (B34)
+            Game.Network.SendVisitShip(_visit.PartnerId);
+            ClientAudio.Instance?.Cue("scan_ping");
+        }
+
+        /// <summary>Follows a visit on its way (#2724): the server's refusal (or no answer within the overlay's confirm time)
+        /// hands the controls back and lifts the veil; an accepted visit closes the flight, and the teardown takes over.</summary>
+        private void UpdatePendingVisit()
+        {
+            if (_visitWait < 0f || !Game.InSpace)
+            {
+                return;
+            }
+
+            _visitWait += Time.deltaTime;
+            bool refused = Game.VisitRefusals != _visitRefusalsSeen;
+            if (refused || _visitWait > 2.5f)
+            {
+                _visitWait = -1f;
+                _enteringInterior = false; // a later landing plays its descent again
+                if (refused)
+                {
+                    Game.CancelWorldTransition(); // the reason is on the toast — show it at once, not after the timeout
+                }
+            }
+        }
+
+        private void ResetVisit()
+        {
+            _visit = default;
+            _dockPilot = null;
+            _interactGoesOver = false;
+            _interactAsksPartner = false;
+            _visitWait = -1f;
+        }
+
         /// <summary>
         /// #1917: plans the dock approach into a station's hangar — out to the point in front of the mouth, then in. When
         /// the hull's box stands between the ship and that point, the path climbs over it (or dives under it, when the ship
@@ -3850,6 +3989,7 @@ namespace BlocksBeyondTheStars.Client
             _shipDestroyed = false;
             _eva = false;
             _enteringInterior = false;
+            ResetVisit(); // #2724
             _landTargetId = null;
             _landTargetName = null;
             Game.SpaceViewActive = true;
@@ -4041,6 +4181,7 @@ namespace BlocksBeyondTheStars.Client
             _active = false;
             _eva = false;
             _enteringInterior = false;
+            ResetVisit(); // #2724
             _shipDestroyed = false;
             _remotePlayers.Clear(); // their GameObjects are children of _root, destroyed with the scene
             _remoteLerp.Clear();
@@ -6230,6 +6371,10 @@ namespace BlocksBeyondTheStars.Client
                         ? string.Format(loc.Get("ui.space.eva_board_ship_fmt"), useGlyph)
                         : $"Press {useGlyph} to board your ship";
                 }
+                else if (boardChoice == EvaBoardTarget.PartnerShip)
+                {
+                    _board.text = VisitPromptText(loc, "ui.visit.eva_board_fmt", "Press {key} to board {name}'s ship", useGlyph); // #2724
+                }
                 else
                 {
                     // Always guide the player home: show how far the parked ship's hull is so they fly back and board it.
@@ -6312,6 +6457,19 @@ namespace BlocksBeyondTheStars.Client
                     _board.text = $"{land} {_landTargetName}";
                 }
 
+                // #2724: the docked friend's ship — "go over" when it is the nearest target (UpdateCruise's pick, the same one E
+                // makes), else that the friend is flying (and, within reach, that E asks them to let us over).
+                bool flying = _visit.Prompt == BlocksBeyondTheStars.Client.Core.ShipVisitPrompt.PartnerFlying && !showStation && !showBody;
+                bool showVisit = _interactGoesOver || flying;
+                if (showVisit)
+                {
+                    _board.text = _interactGoesOver
+                        ? VisitPromptText(loc, "ui.visit.go_over_fmt", "Press {key} to go over to {name}'s ship", useGlyph)
+                        : _interactAsksPartner
+                            ? VisitPromptText(loc, "ui.visit.flying_ask", "{name} is flying · {key}: ask to come over", useGlyph)
+                            : VisitPromptText(loc, "ui.visit.flying", "{name} is flying", useGlyph);
+                }
+
                 bool showWormhole = _nearWormholeId != null; // #2242: the rift wins — the same E flies through it
                 if (showWormhole)
                 {
@@ -6319,7 +6477,7 @@ namespace BlocksBeyondTheStars.Client
                     _board.text = through;
                 }
 
-                _board.gameObject.SetActive(showStation || showBody || showWormhole);
+                _board.gameObject.SetActive(showStation || showBody || showWormhole || showVisit);
 
                 string cargoLabel = loc != null ? loc.Get("ui.space.cargo") : "Cargo";
                 int cargoCount = Game.Cargo.Length;
@@ -6707,6 +6865,30 @@ namespace BlocksBeyondTheStars.Client
         private int _cargoTextCount = -1;
         private string _cargoTextLabel;
         private int _instLastSpd10 = -1, _instLastThr = -1, _instLastHdg = -1, _instLastAltKm = int.MinValue;
+
+        // #2724: the visit prompt ("go over to Lena's ship", "Lena is flying"), formatted only when it changes.
+        private string _visitPrompt, _visitPromptKey, _visitPromptName, _visitPromptGlyph;
+        private object _visitPromptLoc;
+
+        /// <summary>#2724: the visit prompt <paramref name="key"/> with the use glyph (<c>{key}</c>) and the docked partner's
+        /// name (<c>{name}</c>) filled in — re-formatted only when the line, the partner, the glyph or the language changes.</summary>
+        private string VisitPromptText(BlocksBeyondTheStars.Shared.Localization.Localizer loc, string key, string fallback, string glyph)
+        {
+            string name = _visit.PartnerName;
+            if (_visitPrompt == null || !ReferenceEquals(key, _visitPromptKey) || !ReferenceEquals(loc, _visitPromptLoc)
+                || !string.Equals(name, _visitPromptName, System.StringComparison.Ordinal)
+                || !string.Equals(glyph, _visitPromptGlyph, System.StringComparison.Ordinal))
+            {
+                _visitPromptKey = key;
+                _visitPromptLoc = loc;
+                _visitPromptName = name;
+                _visitPromptGlyph = glyph;
+                string template = loc != null ? loc.Get(key) : fallback;
+                _visitPrompt = template.Replace("{key}", glyph ?? string.Empty).Replace("{name}", name);
+            }
+
+            return _visitPrompt;
+        }
 
         private bool _hullWarn, _shieldWarn;
         private float _hullBeepTimer;

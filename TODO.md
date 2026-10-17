@@ -24,6 +24,36 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🤝 Docking means walking over into your friend's ship — epic #2731, #2722–#2725, branch feat/dock-visit — ✅ done 2026-10-17 (⚠ playtest open)
+
+Docking used to do nothing (request + accept, then only a "Docked with X" line). Marcel decided after the 2026-10-17
+co-op reports (Justus and Lorenzo wanted to be together in space): docking means a visit — nothing else (no shared
+cargo, no coupled flight). On planets any parked hull was already walkable; this brings the visit to space. Package
+label `package: dock visit 2026-10`. Analysis: decisions all per recommendation.
+
+- **Stale in-ship record (#2722):** quitting while walking inside the floating ship left `_inShipInterior` behind — a
+  rejoin turned walking out of the landed ship on the planet into a spacewalk, and other pilots saw a ghost parked ship
+  that kept an empty orbit loaded. `ForgetShipInterior` on disconnect and on join (reproduced by test first).
+- **The visit (#2723, `GameServerShipVisits.cs`):** `VisitShipIntent` (NetCodec 304) when docked, in the same instance,
+  within 48 and the host's ship floats parked (host inside it or on a spacewalk; a host at the helm is told "{name}
+  wants to come over — step inside your ship"). The guest's ship parks like stepping inside it, the guest arrives at the
+  host's heal tank in `shipint:<host>` (`WorldReset.ShipOwnerId`), appearance syncs both ways. Home: U / pause menu /
+  walking out of the hull → own interior; helm/launch → own helm at the parked pose. Sent home BEFORE the host's ship
+  moves (helm, launch, ship switch, leaving the flight, death, disconnect, undock either side, 1 Hz check). Look-only:
+  every world edit refused (`srv.visit.look_only`), ship stations and the bio lab refuse a guest; travel, jumps, station
+  boarding and teleports need "go home first". Docking now also works with a friend walking inside their parked ship
+  (measured at the ship's pose). Memory-only, no save change, no protocol bump (`DockStatus.CanVisit`).
+- **Client (#2724, #2725):** K dock / U undock in flight and on a spacewalk (`ShipVisitRules` in Client.Core), "Docked
+  with X" on the flight prompt line, E "go over to X's ship" (spacewalk: "board X's ship"), "X is flying · ask to come
+  over"; pad/touch Actions entries. As a guest: U = back to my ship, station prompts/cockpit/repair off, Map-tab button
+  "Back to my ship"; the host sees "X is visiting · U: send home"; T (trade) works while docked. Wiki "alliances" text,
+  manual and MULTIWORLD_AND_SYSTEM_FLIGHT.md updated; all texts in 14 languages.
+- ⚠ Open: playtest (two pilots: dock in flight, go over, host takes the helm → guest home; spacewalk boarding).
+- ⚠ Open (phase 2, later — no issue yet): a real spacewalk out of the friend's airlock, medbay healing for guests,
+  arriving at the hatch, the host's spacewalk hull edits shown live in an occupied interior.
+
+---
+
 ### 📬 Player reports 2026-10-17 (Layex + Screelit = Lorenzo, Lyxette) — friends visible in space, no ghost drops, a damage-free Sandbox, neighbours who say where they live, a resident list — epic #2719, #2707–#2718 + #2720, branch fix/reports-2026-10-17 — ✅ done 2026-10-17 (⚠ playtest open)
 
 Three kids reported from a LAN world (v2026.10.18): they couldn't see each other in space, not even next to the same
@@ -46,7 +76,7 @@ marker and the resident list now; the docking fix too). Package label `package: 
   range); the F1 /bump space block lists `pilots` (+ the reporter's `floatingShip`).
 - **Docking and trading in space (#2711, #2720):** one `PlayersTogether` check — same space instance and space poses in
   flight, same location and surface positions on foot, never flight + foot. Trading had no same-world check at all.
-  The dock toast is localized. ⚠ Docking itself does nothing yet (no shared interior, cargo or coupled flight — see Open).
+  The dock toast is localized. Docking now means a visit to the friend's ship — see the dock-visit entry (#2731).
 - **Sandbox is damage-free (#2712):** the oxygen term was inside `!p.InEva && (...)`, so a spacewalk drained even in
   Sandbox. New `GameRules.PlayerTakesDamageFor` + a central `DamagePlayer` gate (suffocation, lava, gas, fire, hunger,
   toxic water, falls, bandits, creatures, machines, giants, speeder jolts, temperature, corrosive air, weather); space
@@ -61,8 +91,8 @@ marker and the resident list now; the docking fix too). Package label `package: 
   `RequestBaseResidentsIntent`/`BaseResidentList` (NetCodec 302/303); base life scans every occupied world.
 - ⚠ Open: playtest — two pilots at negative X, a spacewalk next to a friend, the radar, collecting a drop, a Sandbox
   spacewalk, a neighbour's wish (the map heart), the resident list at the core.
-- ⚠ Open (design, Marcel): make docking mean something (enter the partner's ship, shared cargo, or coupled flight) and
-  give it a key in the flight view; target-locking a far-away friend (pilots lock only within radar range).
+- ✅ Decided 2026-10-17 (Marcel): docking = walking over into the friend's ship (option A only) → #2731.
+- ⚠ Open (design, Marcel): target-locking a far-away friend (pilots lock only within radar range).
 
 ---
 

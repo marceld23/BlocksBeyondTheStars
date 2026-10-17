@@ -133,6 +133,11 @@ public sealed partial class GameServer
             return false; // still a construction site — commission it at its helm first (#950)
         }
 
+        if (_current is { } switchingHost && shipId != _activeShipId)
+        {
+            SendShipGuestHome(switchingHost, "@srv.visit.host_moving"); // #2723: another hull replaces this one — a docked visitor goes home first
+        }
+
         _activeShipId = shipId;
         RecomputeShipCombatStats(); // _ship now resolves to the newly active ship
         SyncSwitchedShipLocation(ship);

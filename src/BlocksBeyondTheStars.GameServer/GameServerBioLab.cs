@@ -69,11 +69,12 @@ public sealed partial class GameServer
     }
 
     /// <summary>#2248: the player walks their own ship — parked cabin or the interior in space — and it carries the bio
-    /// lab module.</summary>
+    /// lab module. #2723: a guest in a docked friend's ship walks no interior of their own (their ship floats parked
+    /// outside, its walkabout record only remembers where), so their own lab module does not reach them there.</summary>
     private bool ShipLabAboard(PlayerSession session)
     {
         var p = session.State;
-        if (p.InEva || InSpace(p.PlayerId) || !ShipOf(session).HasModule(BioItems.LabModule))
+        if (p.InEva || InSpace(p.PlayerId) || IsVisitingShip(p.PlayerId) || !ShipOf(session).HasModule(BioItems.LabModule))
         {
             return false;
         }

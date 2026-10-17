@@ -324,6 +324,7 @@ namespace BlocksBeyondTheStars.Client
                     // Aboard / ship-interior state drives the Map tab dimming + travel-button gating, so a change
                     // (board/leave the ship with the menu open) must rebuild the header + map buttons.
                     + (Game.Aboard ? 8887 : 0) + (Game.LoadingPlanetType?.GetHashCode() ?? 0)
+                    + (Game.Visiting ? 9901 : 0) // #2725: a guest's Map tab offers "back to my ship" instead of the helm
                     // Alliances tab: roster + pending changes refresh the lists; the online-player count drives the
                     // "find players" picker. The radio (Funk) feed is deliberately NOT hashed — its log refreshes in
                     // place each frame so an incoming message never rebuilds the pane and steals the input's focus.
@@ -3832,6 +3833,18 @@ namespace BlocksBeyondTheStars.Client
             {
                 label = L("ui.space.leave");
                 act = () => Game.Network?.SendLeaveSpace();
+            }
+            else if (Game.Visiting)
+            {
+                // #2725: a guest in a docked friend's ship never takes THEIR helm — the button takes us back to our own
+                // ship instead (the same EnterShipIntent as U), veiled at once like every descent-less step (B34).
+                label = L("ui.visit.back");
+                act = () =>
+                {
+                    Menu?.CloseFromUi();
+                    Game.BeginWorldTransition();
+                    Game.Network?.SendEnterShip();
+                };
             }
             else if (Game.LoadingPlanetType == "ship_interior")
             {

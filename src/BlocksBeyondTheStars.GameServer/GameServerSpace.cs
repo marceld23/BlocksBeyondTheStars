@@ -829,6 +829,14 @@ public sealed partial class GameServer
     /// one origin when the holder came back. The exception is the player being served.</summary>
     private bool PadOccupiedByOther(string locationId, int padIndex, string exceptPlayerId)
     {
+        // #2723: a ship interior (shipint:<owner>) holds exactly one hull, its owner's — a docked friend visiting it stands
+        // in that world but parks nothing there. Counting the guest's pad index moved the host's hull to another pad when
+        // the host came back in from a spacewalk, out from under the guest (and overwrote the host's saved pad).
+        if (locationId.StartsWith("shipint:", System.StringComparison.Ordinal))
+        {
+            return false;
+        }
+
         if (PadReservedByTrader(locationId, padIndex))
         {
             return true; // a landed NPC trader holds this pad (P3) — never assign it to a player

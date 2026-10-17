@@ -25,6 +25,12 @@ public sealed class PlayerSession
     /// Cleared by the first report that lands near the authoritative position.</summary>
     public bool AwaitingSpawnAdopt { get; set; }
 
+    /// <summary>#2723: the uptime until which this player has just been put into a ship interior (their own, or a docked
+    /// friend's). Every ship interior shares the same coordinates, so a pose the client sends from the interior it is
+    /// leaving lies right beside the new heal tank and passes the spawn gate above; until this time a report from
+    /// outside the hull is taken as such a stale pose and dropped (the client stands at the heal tank).</summary>
+    public double ShipInteriorSettleUntil { get; set; }
+
     /// <summary>#2001: the uptime of the last accepted move and the ground covered since the last step pulse — a
     /// walking (not sneaking) player shakes the sand every few blocks.</summary>
     public double StepClockAt { get; set; }

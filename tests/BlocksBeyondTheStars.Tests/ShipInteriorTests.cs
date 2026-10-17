@@ -240,6 +240,61 @@ public sealed class ShipInteriorTests : IDisposable
     }
 
     [Fact]
+    public void QuitInsideTheShipInSpace_ThenRejoin_WalkingOutOnThePlanetIsNoSpacewalk()
+    {
+        // #2722: the in-ship return record outlived the disconnect. The rejoin puts the pilot on the planet with the ship,
+        // but the server still thought they walked the floating interior — walking out of the landed ship took the hatch
+        // route into a spacewalk, and the planet air did not count.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            server.EnterShipInterior("Pilot");
+            Assert.True(server.InShipInterior("Pilot"));
+
+            server.DisconnectLocalPlayerForTest("Pilot");
+            var session = server.AddLocalPlayer("Pilot"); // back while the same server still runs
+            var p = session.State;
+            Assert.DoesNotContain("shipint:", session.CurrentLocationId);
+
+            // Walk out of the landed ship onto the planet.
+            p.Position = new BlocksBeyondTheStars.Shared.Geometry.Vector3f(p.Position.X, p.Position.Y, p.Position.Z - 40f);
+            server.Tick(0.1);
+
+            Assert.False(server.InSpace("Pilot")); // no hatch-to-spacewalk on a planet
+            Assert.False(p.InEva);
+            Assert.False(server.InShipInterior("Pilot")); // the quit forgot the walkabout
+        }
+    }
+
+    [Fact]
+    public void QuitInsideTheShipInSpace_LeavesNoParkedShip_AndTheEmptyOrbitCloses()
+    {
+        // #2722: the forgotten record also kept the quitter's ship "parked" (#2431) — after the rejoin the other pilot saw
+        // a ghost hull in orbit while its owner stood on the planet, and that ghost kept the empty instance loaded.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Ann");
+            server.AddLocalPlayer("Bob");
+            server.EnterSpace("Ann");
+            server.EnterSpace("Bob");
+            string? instance = server.SpaceInstanceIdForTest("Ann");
+            Assert.NotNull(instance);
+            server.EnterShipInterior("Bob");
+            Assert.Contains(server.OtherSpacePlayers("Ann"), s => s.PlayerId == "Bob" && s.Parked);
+
+            server.DisconnectLocalPlayerForTest("Bob");
+            server.AddLocalPlayer("Bob");
+
+            Assert.DoesNotContain(server.OtherSpacePlayers("Ann"), s => s.PlayerId == "Bob");
+            server.LeaveSpace("Ann");
+            Assert.False(server.SpaceInstanceLoadedForTest(instance!)); // nothing parked out there any more
+        }
+    }
+
+    [Fact]
     public void EnterShipInterior_OnlyWorksFromSpace()
     {
         var server = Started(out var repo);
