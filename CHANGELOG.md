@@ -11,6 +11,126 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.19] — 2026-10-18
+
+The visiting release. **Docking now means a visit:** dock with a friend in space and walk over into their ship.
+**Friends finally see each other in space** — next to the same anomaly, on a spacewalk and on the radar — and a drop you
+collected no longer keeps floating as a ghost. **Sandbox is really damage-free** now, also on a spacewalk. **Neighbours
+who visit your base say where they live**, the base core lists who lives with you, and the **cargo hold** lets you take
+a single stack. In villages the **villagers keep their supplies**, and **blocks you placed yourself** can be mined again.
+Behind almost all of it are **Justus**, **Lorenzo** and **Lyxette**: Justus and Lorenzo played together and couldn't
+find each other in space, and Lyxette built a huge base around a jungle village. Thank you! 🙏
+
+ℹ️ **Compatibility:** the **save version stays at 4**, the **terrain generation stays at 26** and the network protocol
+stays at **version 11**. Everything comes to your existing worlds. Game and server should both be on 2026.10.19; to
+visit a friend's ship, both players need 2026.10.19. Two things change in existing worlds: a base built around a village
+that counted the villagers' beds loses those extra residents on its first check (with the normal "moved out" news), and
+supply caches in intact villages now belong to the villagers.
+
+### 🤝 Visiting a friend's ship (#2722–#2725)
+
+- **Docking means walking over.** In flight or on a spacewalk, **K** asks your friend to dock and **U** undocks. Once you
+  are docked and your friend's ship floats parked (they stepped inside or are on a spacewalk), **E** takes you over into
+  their ship. If your friend is at the helm, the game says so and E asks them to let you come over.
+- **As a guest** you can look around, chat and trade (**T**), but not build, mine or use their ship's stations. **U**,
+  the pause menu or walking out of the hull takes you back to your own ship, which waits parked where it floated. The
+  host sees who is visiting and can send a guest home with **U**.
+- **Guests go home first:** before the host's ship moves (the helm, a launch, a ship switch, an undock), every guest is
+  brought back to their own ship.
+- Docking now also works with a friend who walks around inside their parked ship.
+- **Fixed:** after quitting while walking inside your floating ship, stepping out of the landed ship on the planet
+  turned into a spacewalk, and other pilots saw a ghost ship (#2722).
+
+### 👀 Together in space (#2707–#2711, #2720)
+
+- **Ships on one side of the system were drawn very far away.** Every ship, trader, drone, raider and drop at a negative
+  X position appeared billions of blocks off — that is why the kids couldn't see each other even next to the same
+  anomaly. Fixed; this was very likely also behind the rare crashes when locking a target (#2428, #2450).
+- **No more ghost drops (#2708):** collected drops, rescued pods and salvage capsules now disappear, and the pickup
+  beam and the capsule effects play again.
+- **A friend on a spacewalk (#2709)** shows as a figure in a space suit with their name, and their floating ship stays
+  visible.
+- **The radar shows other pilots (#2710)** as named blips, and at the rim when they are far away.
+- **Docking and trading** only work when you are really together: both in flight in the same place, or both on foot in
+  the same place (#2711, #2720). Before, trading didn't even check that you were on the same world.
+
+### 🧸 Sandbox is damage-free (#2712)
+
+- **No damage of any kind in Sandbox:** no suffocating (also on a spacewalk), no lava, fire, fall, hunger or weather
+  damage. Animals, bandits, machines and giants leave you alone, enemies in space don't hunt your ship, and speeders and
+  boats take no hull damage.
+- Explorer and Creative keep all their rules. `/god` now also blocks fall damage and bad food.
+
+### 🏡 Neighbours and residents (#2713–#2718)
+
+- **Visiting neighbours say where they live** and where to hand in their wish, tell you when they walk home and, when you
+  board your ship, walk off instead of vanishing in front of you.
+- **A wish knows its village:** a gold heart on the map and compass points to the giver's village, and the mission shows
+  "Village: X · 120 m" with a Navigate button. This also works for wishes you already hold.
+- **Beds and residents:** the first settler's news says that every bed brings one more resident, and you get a message
+  when a resident moves out because no bed is free.
+- **Residents stay who they are:** name, face and memory belong to each resident, so rebuilding a bed or moving the base
+  core no longer swaps people. A resident who moved out comes back when their bed does.
+- **Who lives here:** **E** at the base core lists your residents — role, what they are doing, where they are and their
+  bed.
+- In multiplayer, base life now runs on every world with players, not just one.
+
+### 🏘️ Villages and big bases (#2726–#2728)
+
+- **Villagers keep their supplies:** living villages no longer offer "G: loot". Supply caches only appear in ruins, and a
+  cache already saved in an intact village belongs to the villagers ("That belongs to the people of X.").
+- **Blocks you placed in a village can be mined again.** The houses, the village floor and the plinth stay protected,
+  and painting them doesn't change that.
+- **A base around a village:** the villagers' beds and machines no longer count for your base, so your residents get
+  your beds. A bed you place in a hut yourself still counts.
+
+### 📦 Cargo hold and bigger stacks (#2729, #2730)
+
+- **Take a single stack:** every card in the cargo hold has a **Take** button that moves exactly that stack into your
+  backpack; with Shift it moves every stack of that kind. The detail pane offers "This stack", "All of this kind" and
+  "How many?" (1, 5 or half). The crate screen moves the stack you clicked, and the game now tells you when your backpack is full.
+- **Bigger stacks:** data fragments, food and baits now stack to **99** instead of 20. Medpacks stay at 20, AI memory
+  fragments and access codes at 10.
+
+### 🧑‍🚀 Spacewalks and the helm (#2702, #2703, #2705)
+
+- **On a spacewalk beside a station, E at your own hatch takes you home.** A station or derelict only docks when you look
+  at it or when your ship is out of reach. "Fly to your ship — N m" now measures to the hull.
+- **Undocking** from a station you boarded on a spacewalk leaves your ship where it floated, instead of parking it against
+  the station's hull.
+- **Inside your floating ship, E at the cockpit takes the helm** instead of opening the map.
+
+### 🌍 Texts
+
+- All new and changed texts are available in all 14 languages, and the wiki article on alliances is reworded for visits.
+- The "What's new?" notes of 2026.10.18 are now available in the twelve community languages too (#2701).
+
+### 🛠️ For tinkerers
+
+- **Ship visits** (`GameServerShipVisits.cs`): `VisitShipIntent` (NetCodec 304), `WorldReset.ShipOwnerId`,
+  `DockStatus.CanVisit`, `MoveIntent.WorldId`; rules in `ShipVisitRules` (Client.Core). Visits are memory-only. See
+  `docs/developer/MULTIWORLD_AND_SYSTEM_FLIGHT.md`.
+- **Space sync:** `RemoteEntityInterpolator.NoWrap` (circumference ≤ 0 = straight lerp), `SpaceEntitySync.CollectStale`,
+  `SpaceRadarMath`; `NetSpacePlayer` gains the ship pose and suit colours; one `PlayersTogether` check for docking and
+  trade.
+- **Damage gate:** `GameRules.PlayerTakesDamageFor`, a central `DamagePlayer` and `HostilesIgnore`.
+- **Residents:** `BaseResidentRecord.Seed/Key/Face`, remembered departed residents, `RequestBaseResidentsIntent` /
+  `BaseResidentList` (NetCodec 302/303).
+- **Villages and cargo:** `NetContainer.OwnedBy`, `OwnedContainerRefusal`; `FromSlot`/`Count` on
+  `MoveCargoItemIntent`, `FromSlot` on `MoveContainerItemIntent` (`CargoStackPicker` in Client.Core).
+- All wire and save fields are additive: no protocol or save-version bump.
+- **For hosters:** the WorldHost image was rebuilt with this release; the AI backend is unchanged.
+
+### 🙏 Thank you
+
+- **Justus** (as Layex) and **Lorenzo** (as Screelit) played together in a LAN world and reported that they couldn't
+  see each other in space, not even next to the same anomaly or on a spacewalk, that a collected drop kept floating and
+  that Sandbox still hurt. They wanted to be together in space — now they can even visit each other's ship. Thank you,
+  Justus and Lorenzo 🙏
+- **Lyxette** reported settlers who seemed to vanish after their small tasks, and then built a huge base around a jungle
+  village: she asked whether looting there was intended, how to make the village part of her base, how to take a single
+  stack from the hold, and for bigger stacks. Thank you, Lyxette 🙏
+
 ## [2026.10.18] — 2026-10-17
 
 The pioneer release. **Player-like pioneers** now live in closed outposts out in the wild, with a pixel skin, a hidden
@@ -8330,7 +8450,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.18...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.19...HEAD
+[2026.10.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.18...v2026.10.19
 [2026.10.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.17...v2026.10.18
 [2026.10.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.16...v2026.10.17
 [2026.10.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.15...v2026.10.16

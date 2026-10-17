@@ -55,6 +55,8 @@ label `package: dock visit 2026-10`. Analysis: decisions all per recommendation.
 - ⚠ Open (phase 2, later — no issue yet): a real spacewalk out of the friend's airlock, medbay healing for guests,
   arriving at the hatch, the host's spacewalk hull edits shown live in an occupied interior.
 
+**Released** in **v2026.10.19** "the visiting release" (2026-10-18).
+
 ---
 
 ### 🏘️ Lyxette's reports 2026-10-17 (evening) — villagers keep their supplies, own blocks in villages, a base around a village, single stacks into the cargo hold, bigger stacks — epic #2732, #2726–#2730, branch fix/lyxette-village-stacks — ✅ done 2026-10-17 (⚠ playtest open)
@@ -82,6 +84,8 @@ recommendation"). Package label `package: lyxette reports 2026-10-17`.
   out" news); blocks a player placed in a village outside any base can now be mined by anyone, like everywhere else.
 - ⚠ Open (small, not done): the crate screen has no "all of this kind" button for pad/touch; quick-bar assignment in
   the detail pane still uses the first stack of an item.
+
+**Released** in **v2026.10.19** "the visiting release" (2026-10-18).
 
 ---
 
@@ -125,6 +129,8 @@ marker and the resident list now; the docking fix too). Package label `package: 
 - ✅ Decided 2026-10-17 (Marcel): docking = walking over into the friend's ship (option A only) → #2731.
 - ⚠ Open (design, Marcel): target-locking a far-away friend (pilots lock only within radar range).
 
+**Released** in **v2026.10.19** "the visiting release" (2026-10-18).
+
 ---
 
 ### 🛞 E at the cockpit of the floating ship takes the helm — #2705, branch fix/interior-helm-key, PR #2706 — ✅ done 2026-10-17 (⚠ playtest open)
@@ -134,6 +140,8 @@ opened the menu on the Map tab, and only its top button flew on. The client's co
 in the interior (it predates #1455); the server's `UseStation("cockpit")` helm branch was there all along
 (`ShipInteriorTests.UsingTheCockpitInsideTheShip_TakesTheHelm`). In the ship interior E at the cockpit now sends it; a
 landed ship keeps the launch question, then the map. USER_MANUAL F row says so. Package label `package: eva boarding 2026-10`.
+
+**Released** in **v2026.10.19** "the visiting release" (2026-10-18).
 
 ---
 
@@ -156,6 +164,8 @@ is refused in space by design). Package label `package: eva boarding 2026-10`.
 - ⚠ Open: playtest (spacewalk beside a derelict: E at the hatch → own ship; look at the derelict → it docks; undock →
   beside the ship where it floated). Not done (Marcel's call, 2026-10-17): a way out of a spacewalk without oxygen
   running down (`/tp ship` in space or a pause-menu entry).
+
+**Released** in **v2026.10.19** "the visiting release" (2026-10-18).
 
 ---
 
