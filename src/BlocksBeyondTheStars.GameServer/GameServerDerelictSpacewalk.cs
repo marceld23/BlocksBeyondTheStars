@@ -99,11 +99,11 @@ public sealed partial class GameServer
         }
 
         var suit = DerelictSuitStart(station, build, p.Position);
-        // The float spot remembered at a spacewalk boarding is where the SUIT was (at a door, inside a breach) — a ship put
-        // there would stick in the hull, so it only counts when it lies clear of the hull box.
-        var ship = _dockedFromEva.TryGetValue(playerId, out var floated) && ClearOfHull(build, floated, DerelictShipClearance)
+        // A spacewalk boarding remembers where the ship floated (#2702). It still only counts when it lies clear of the hull
+        // box — a ship parked against the derelict would stick in the hull it is about to be drawn next to.
+        var ship = _dockedFromEva.TryGetValue(playerId, out var floated) && ClearOfHull(build, floated.Pos, DerelictShipClearance)
             ? floated
-            : DerelictShipWaitPoint(build);
+            : new SpacePlayerPose(DerelictShipWaitPoint(build), 0f, false);
         _dockedFromEva[playerId] = ship; // the undock resumes the ship there and opens the flight on an EVA
         LeaveStation(playerId, new SpacePlayerPose(suit, p.Yaw, true));
         if (!InSpace(playerId))

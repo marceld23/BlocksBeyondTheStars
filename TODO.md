@@ -24,6 +24,28 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧑‍🚀 Spacewalk beside a station — E takes you home, undocking leaves the ship where it floated — #2702, #2703, branch fix/eva-station-boarding — ✅ done 2026-10-17 (⚠ playtest open)
+
+Marcel's playtest on v2026.10.18: out through the airlock next to the start system's derelict, E at his own hatch docked
+the derelict instead, and leaving it parked the ship against the hull, so every E boarded the derelict again (`/tp ship`
+is refused in space by design). Package label `package: eva boarding 2026-10`.
+
+- **Undock puts the ship back (#2702, server):** a station boarded from an EVA remembered the pilot's pose — on a
+  spacewalk that is the suit's — and the undock resumed the ship there, heading 0. `BoardStation` now keeps the ship's
+  own pose (`ShipPoses`, the #2118 fix `EnterShipInterior` already had); the derelict fall-out path (#2636) keeps its
+  hull-clearance guard on that pose. Test `ShipInteriorReturnTests.UndockingAStationBoardedFromASpacewalk_…`.
+- **E picks the own ship (#2703, client):** the ship was measured to its centre (11), a station to its hull box (66), and
+  the station won whenever its box was nearer. The suit is now measured to the ship's hull box (reach 5; out of the
+  airlock it starts 4 behind the stern face on every design, inside that reach); `SpaceView.EvaBoardChoice` serves the key and the prompt: the
+  crosshair on the near station's cells docks it, on the own hull boards the ship; otherwise the own ship wins whenever
+  in reach, a station only when the ship is out of reach. "Fly to your ship — N m" reads the hull distance.
+  USER_MANUAL (F row, station doors, derelict holes) updated.
+- ⚠ Open: playtest (spacewalk beside a derelict: E at the hatch → own ship; look at the derelict → it docks; undock →
+  beside the ship where it floated). Not done (Marcel's call, 2026-10-17): a way out of a spacewalk without oxygen
+  running down (`/tp ship` in space or a pause-menu entry).
+
+---
+
 ### 🎲 Hash variety follow-ups — Titas labs on dry land, gravity and village trade per world — #2696, #2697, #2698, branch fix/hash-variety-follow-ups — ✅ done 2026-10-17 (⚠ playtest open)
 
 Side findings of #2694, all decisions by Marcel (per recommendation, one PR). Package label

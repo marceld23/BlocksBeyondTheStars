@@ -30,9 +30,10 @@ public sealed partial class GameServer
     private readonly Dictionary<string, string> _boardedStation = new();
     // Where to send a player back when they leave a station: (planet location id, planet type key).
     private readonly Dictionary<string, (string Loc, string Type)> _boardedReturn = new();
-    // Players who docked a station while on an EVA: their ship stayed floating at this position, so undocking
-    // returns them to the float (not a re-launch). Keyed by player id → the ship's parked space position.
-    private readonly Dictionary<string, Vector3f> _dockedFromEva = new();
+    // Players who docked a station while on an EVA: their ship stayed floating at this pose, so undocking
+    // returns them to the float (not a re-launch). Keyed by player id → the ship's parked space pose (position +
+    // heading) — the SHIP's, not the suit's (#2702).
+    private readonly Dictionary<string, SpacePlayerPose> _dockedFromEva = new();
     private readonly HashSet<string> _stationMissionIds = new();
 
     private sealed class BoardableStation
@@ -523,7 +524,11 @@ public sealed partial class GameServer
         Vector3i? throughBreach = null;
         if (session.State.InEva)
         {
-            _dockedFromEva[playerId] = PilotPositionIn(instance, playerId); // #994: THIS pilot's float spot
+            // #994: THIS pilot's ship. #2702: its own pose — on an EVA the pilot's pose is the suit's (beside the station's
+            // door), and an undock that resumed the ship there parked it against the hull, where E boarded the station again.
+            _dockedFromEva[playerId] = instance.ShipPoses.TryGetValue(playerId, out var shipPose)
+                ? shipPose
+                : new SpacePlayerPose(PilotPositionIn(instance, playerId), 0f, false);
             if (_playerStationCells.TryGetValue(stationId, out var build))
             {
                 throughDoor = StationDoorNearSuit(instance, playerId, build);
@@ -835,13 +840,13 @@ public sealed partial class GameServer
         // Undock into space flight. If you docked while on an EVA, your ship stayed floating where it was —
         // return you to the float next to it (no take-off); otherwise relaunch the ship as before. #2118: the
         // flight view is told where that float is, so it doesn't draw the ship back at the launch point.
-        bool fromEva = _dockedFromEva.Remove(playerId, out var floatShipPos);
-        EnterSpace(playerId, skipLaunch: fromEva, resume: fromEva ? new SpacePlayerPose(floatShipPos, 0f, false) : null,
+        bool fromEva = _dockedFromEva.Remove(playerId, out var floatShip);
+        EnterSpace(playerId, skipLaunch: fromEva, resume: fromEva ? floatShip with { Eva = false } : null,
             evaStart: fromEva ? spacewalkFrom : null);
         if (fromEva && _playerInstance.TryGetValue(playerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst))
         {
-            inst.ShipPosition = floatShipPos;
-            inst.ShipLastPosition = floatShipPos;
+            inst.ShipPosition = floatShip.Pos;
+            inst.ShipLastPosition = floatShip.Pos;
             session.State.InEva = true; // back outside the ship, floating where you left it
             SendPlayerState(session);
         }

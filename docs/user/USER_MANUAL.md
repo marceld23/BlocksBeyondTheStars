@@ -336,7 +336,7 @@ cockpit asks "Launch into space?"** — confirm with the button, **E** or **Ente
 | **T** | **Target lock — next target** (pad **LB**, touch **TARGET**): attacking enemies first, then other enemies, then stations / wrecks / debris fields / life pods / anomalies / wormholes, then other pilots and traders. With a **mining laser** selected and nobody attacking, the three nearest asteroids or wreckage fragments in its reach come right after the enemies. **Hold T** (~½ s) to let the lock go. See *Target lock* below |
 | **R** | **Nearest enemy** (pad **R3**, touch: in the **ACT** list) — press again for the next nearest |
 | **Right mouse button** | **Target ahead** (pad: **L3 → Target ahead**, touch: **ACT → Target ahead**): lock what is under the crosshair — also asteroids, salvage and planets, which the cycle otherwise skips. Pointing at empty space lets the lock go |
-| **F** | **Step inside your ship** while it floats: walk its cabin, build, sleep. The **helm** takes you back to the flight, and walking out through the **hatch** starts a spacewalk — either way the ship is exactly where you left it, pointing the same way, and a landing afterwards comes down on the world as usual. Other pilots keep seeing your ship meanwhile — engines off, its nameplate says *parked* |
+| **F** | **Step inside your ship** while it floats: walk its cabin, build, sleep. The **helm** takes you back to the flight, and walking out through the **hatch** starts a spacewalk — either way the ship is exactly where you left it, pointing the same way, and a landing afterwards comes down on the world as usual. Other pilots keep seeing your ship meanwhile — engines off, its nameplate says *parked*. On the spacewalk, float up to your ship (a few metres from its hull) and press **E** to climb back in — that works next to a station too: a station only takes **E** when you look at it, or when your ship is out of reach (the prompt at the bottom always says which one **E** boards). Docking a station from a spacewalk and leaving it again puts you back beside your ship, where it floated |
 | **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to your nav waypoint if one is set, else the nearest station / landable body; any manual input takes the helm back |
 | **M** | **System chart**: a top-down map of the current system — every planet shows its current weather as a small glyph (☁ ☂ ⚡ ❄ …). Click a body/station to target it or empty space for a free **nav waypoint** — it shows on the radar with a distance readout, and the autopilot flies to it. The ship holds position while the chart is open. Space distances (radar, chart) read in **km**; only on a spacewalk is the way back to your ship given in metres. The chart's **Hyperspace** tab (LB/RB on a pad) shows the whole galaxy as stars in their real colours: the ringed star is where you are, named stars are systems you have visited, a **?** is one you have never entered, lines are relay jump lanes. Click a star to read about it and — with a jump generator aboard or a lane — **hyperjump to it straight from the chart** |
 | **Tab → Map** | Hyperspace **jump to another system** (needs a `jump_generator` module) — flying is within one system |
@@ -1526,7 +1526,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **The inside follows the outside**: every time you board, your station's inside is brought up to date with what
   you built or took away on a spacewalk — a wall you closed from outside is there, and the room holds air, the next
   time you dock (while a friend is aboard, they see your changes at once).
-- **In through the door**: on a spacewalk, float up to one of your station's doors and press **E** — you come in
+- **In through the door**: on a spacewalk, float up to one of your station's doors, look at it and press **E** — you come in
   right behind that door when a sealed room lies behind it (else beside the core). Docking with the ship still
   puts you beside the core.
 - **Air fills every closed room** in a station you built, however big and however many: walls, glass and doors
@@ -2073,8 +2073,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   once it is empty — so keep an eye on the oxygen bar and fly back to your ship in time: aboard the ship it fills up
   again. The first time you board a derelict VEGA reminds you, and a warning line says so each time you come aboard.
   If you **fall out through a hole**, you are on
-  a real **spacewalk** right outside that hole (VEGA tells you): your ship waits beside the derelict, and your suit
-  tank is your air. Float back in through a hole or a door and press **E** — you come aboard right there (by a door:
+  a real **spacewalk** right outside that hole (VEGA tells you): your ship waits beside the derelict (or where you left
+  it floating, if you came over on a spacewalk), and your suit
+  tank is your air. Float back in through a hole or a door, look at it and press **E** — you come aboard right there (by a door:
   on its inside) — or fly back to your ship. A derelict is **nobody's**: you may mine it — inside, and from outside on a spacewalk (like salvage: with a
   drill, block by block) — and patch it. What you mine stays mined (also after a restart), and the hull seen from space
   shows every hole you made. Mining a broken trading post gives you a working **Trade Post** block. Old **supply

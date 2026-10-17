@@ -229,7 +229,7 @@ public sealed class DerelictSpacewalkTests : IDisposable
                 $"expected the boarder on the deck behind the hole ({deck}), at {at}");
             Assert.False(server.StationCellSealedForTest(id, at.ToBlock()), "the deck behind a breach holds no air");
 
-            // Out again: the boarding remembered the suit's spot inside the hull — the ship never waits there.
+            // Out again: the boarding remembered where the ship floated (#2702), never the suit's spot inside the hull.
             p.State.Position = new Vector3f(at.X, at.Y - 150f, at.Z);
             TickUntilInSpace(server, "Justus");
             Assert.True(p.State.InEva);

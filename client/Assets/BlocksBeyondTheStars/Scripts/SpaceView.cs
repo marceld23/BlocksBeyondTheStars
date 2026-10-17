@@ -205,7 +205,7 @@ namespace BlocksBeyondTheStars.Client
         private const float LookSpeed = 2.2f;
         private const float Bounds = 130f;
         private const float EvaSpeed = 6.5f;       // suit thrust speed on a spacewalk (slower than the ship)
-        private const float EvaBoardRange = 11f;   // how close the suit must get to the hull to board the ship
+        private const float EvaShipBoardReach = 5f; // how close the suit must get to the ship's hull (its box) to board it — #2703
         private const float ShipKeepOut = 3.5f;    // suit can't fly into its own ship — bounce off the hull shell
 
         // Transit (#1614): an automatic transit has just warped into the destination's system — hands-off until it lands.
@@ -221,6 +221,7 @@ namespace BlocksBeyondTheStars.Client
         private Dictionary<Vector3i, (int Tint, int Glow)> _shipMods = new();
         private Dictionary<Vector3i, int> _shipShapes = new();
         private Vector3 _shipCentre;        // design → ship-local offset used when meshing
+        private Vector3 _shipHalf;          // #2703: half the hull's box (design frame) — the spacewalk's board reach is measured to it
         private string _shipStructureId;    // structure id these cells belong to (matches server edits)
         private Transform _shipVox;         // container holding the voxel chunk meshes (child of _ship)
         private bool _structSubscribed;     // subscribed to structure block-change events
@@ -400,7 +401,7 @@ namespace BlocksBeyondTheStars.Client
         private Vector3 _evaPos;          // suit position (space-local), independent of the parked ship
         private float _evaYaw, _evaPitch; // suit free-look
         private bool _evaNearShip;        // within boarding range of the parked ship this frame
-        private float _evaShipSq;         // squared distance from the suit to the ship (for ship-vs-station priority)
+        private float _evaShipDist;       // distance from the suit to the ship's hull box (the board reach + "fly to your ship")
         private bool _enteringInterior;   // stepping into the ship interior — tear the flight view down at once
                                           // (no landing descent) when the server closes space
 
@@ -2589,7 +2590,9 @@ namespace BlocksBeyondTheStars.Client
             // Start the suit clearly OUTSIDE + behind the hull, facing it, so you actually see your ship. The
             // voxel ship is full-size (1:1) on an EVA, so the offset scales with its length (the old fixed -3.4
             // was tuned for the small cube model and left you spawning inside the big voxel hull → "no ship").
-            float backZ = _shipCells != null && _shipCells.Count > 0 ? _shipCentre.z + 6f : 3.4f;
+            // #2703: measured from the hull box's stern face, so the suit starts inside the board reach on every
+            // design (the centre-based 6 left the starter ship's suit 6 behind its stern, past the 5 of reach).
+            float backZ = _shipCells != null && _shipCells.Count > 0 ? _shipHalf.z + 4f : 3.4f;
             _evaPos = _ship.transform.localPosition + rot * new Vector3(0f, -1f, -backZ);
 
             // #2636: fell out of a derelict through its hull — the suit starts where it left the hull (the server sent the
@@ -2694,9 +2697,9 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network?.SendDeployStationCore();
             }
 
-            // Board targets: the parked ship, or the nearest station in range (whichever is closer wins on E).
-            _evaShipSq = (_ship.transform.localPosition - _evaPos).sqrMagnitude;
-            _evaNearShip = _evaShipSq <= EvaBoardRange * EvaBoardRange;
+            // Board targets: the parked ship, or the nearest station in range — EvaBoardChoice picks which one E boards.
+            _evaShipDist = EvaShipHullDistance(_evaPos);
+            _evaNearShip = _evaShipDist <= EvaShipBoardReach;
 
             _nearStationId = null;
             _nearStationSq = float.MaxValue;
@@ -2725,25 +2728,67 @@ namespace BlocksBeyondTheStars.Client
 
             if (InputMap.Down(InputAction.Interact))
             {
-                // #2607: aimed at one of the station's doors, E goes in there even with the ship nearer — the server
-                // sees the suit beside the door and lets the player in on its inside.
-                bool stationCloser = _nearStationId != null
-                    && (!_evaNearShip || _nearStationSq <= _evaShipSq || AimingAtStationDoor(_nearStationId));
-                if (stationCloser)
+                switch (EvaBoardChoice())
                 {
-                    DockStationFromEva();
-                }
-                else if (_evaNearShip)
-                {
-                    BoardShipFromEva();
+                    case EvaBoardTarget.Station:
+                        DockStationFromEva();
+                        break;
+                    case EvaBoardTarget.Ship:
+                        BoardShipFromEva();
+                        break;
                 }
             }
         }
 
-        /// <summary>#2607: whether the suit's aim rests on a door of that station (the cells its doorways fill).</summary>
-        private bool AimingAtStationDoor(string stationId)
-            => _evaHasAim && stationId != null && _evaAimStructId == stationId
-               && _structs.TryGetValue(stationId, out var vs) && vs.DoorCells.Contains(new Vector3i(_evaAimHit.x, _evaAimHit.y, _evaAimHit.z));
+        private enum EvaBoardTarget { None, Ship, Station }
+
+        /// <summary>
+        /// What E boards on a spacewalk — the key and the HUD prompt both ask here, so they never disagree (#2703). The
+        /// crosshair decides first: on the near station's cells (a door #2607, a wall, the deck behind a breach #2636) E
+        /// docks that station, and the server sees the suit beside the door and lets the player in on its inside; on the
+        /// own hull it boards the ship. Otherwise the own ship wins whenever it is in reach, a station only when it is not.
+        /// A station used to win whenever its hull box was nearer than the ship's CENTRE, so at the own hatch beside a
+        /// station (a derelict's box is large) E docked the station instead of taking the player home.
+        /// </summary>
+        private EvaBoardTarget EvaBoardChoice()
+        {
+            if (_evaHasAim && _evaAimStructId != null)
+            {
+                if (_nearStationId != null && _evaAimStructId == _nearStationId)
+                {
+                    return EvaBoardTarget.Station;
+                }
+
+                if (_evaAimStructId == _shipStructureId)
+                {
+                    return EvaBoardTarget.Ship; // the aim reaches a little past the board reach — looking at the hull is enough
+                }
+            }
+
+            if (_evaNearShip)
+            {
+                return EvaBoardTarget.Ship;
+            }
+
+            return _nearStationId != null ? EvaBoardTarget.Station : EvaBoardTarget.None;
+        }
+
+        /// <summary>#2703: the suit's distance to the own ship's hull — to its voxel box in the ship's design frame (so the
+        /// ship's heading counts), the way a station is measured to its box (#1917). The cube fallback ship has no cells: it
+        /// is measured to its keep-out shell.</summary>
+        private float EvaShipHullDistance(Vector3 suit)
+        {
+            if (_shipCells == null || _shipCells.Count == 0)
+            {
+                return Mathf.Max(0f, (_ship.transform.localPosition - suit).magnitude - ShipKeepOut);
+            }
+
+            Vector3 d = ToDesign(_ship.transform, _shipCentre, suit) - _shipCentre;
+            return new Vector3(
+                Mathf.Max(0f, Mathf.Abs(d.x) - _shipHalf.x),
+                Mathf.Max(0f, Mathf.Abs(d.y) - _shipHalf.y),
+                Mathf.Max(0f, Mathf.Abs(d.z) - _shipHalf.z)).magnitude;
+        }
 
         // ---------------- item 20 S2/S3: free-space build/mine + voxel collision (ship + asteroids) ----------------
 
@@ -4615,6 +4660,7 @@ namespace BlocksBeyondTheStars.Client
             // Centre the design on the ship pivot (so it rotates about its middle, like the old model). Front = +Z.
             _shipCells = cells;
             _shipCentre = new Vector3((minX + maxX + 1) * 0.5f, (minY + maxY + 1) * 0.5f, (minZ + maxZ + 1) * 0.5f);
+            _shipHalf = new Vector3((maxX - minX + 1) * 0.5f, (maxY - minY + 1) * 0.5f, (maxZ - minZ + 1) * 0.5f);
             _shipStructureId = d.Id;
 
             // A child container holds the voxel chunk meshes so an EVA block edit (S2) can rebuild just the voxels.
@@ -6063,13 +6109,13 @@ namespace BlocksBeyondTheStars.Client
 
                 // The live binding (key or pad button) — and on a tablet the USE button, not the key letter (#2502).
                 string useGlyph = HudUi.KeyTokenGlyph(loc, nameof(InputAction.Interact), prompt: true);
-                bool stationCloser = _nearStationId != null && (!_evaNearShip || _nearStationSq <= _evaShipSq);
-                if (stationCloser)
+                var boardChoice = EvaBoardChoice(); // the same pick E makes (#2703)
+                if (boardChoice == EvaBoardTarget.Station)
                 {
                     string board = loc != null ? string.Format(loc.Get("ui.space.board_fmt"), useGlyph) : $"Press {useGlyph} to board";
                     _board.text = $"{board} {_nearStationName}";
                 }
-                else if (_evaNearShip)
+                else if (boardChoice == EvaBoardTarget.Ship)
                 {
                     _board.text = loc != null
                         ? string.Format(loc.Get("ui.space.eva_board_ship_fmt"), useGlyph)
@@ -6077,8 +6123,8 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else
                 {
-                    // Always guide the player home: show how far the parked ship is so they fly back and board it.
-                    int dist = Mathf.RoundToInt(Mathf.Sqrt(_evaShipSq));
+                    // Always guide the player home: show how far the parked ship's hull is so they fly back and board it.
+                    int dist = Mathf.RoundToInt(_evaShipDist);
                     string toShip = loc != null ? loc.Get("ui.space.eva_to_ship") : "Fly to your ship";
                     _board.text = $"{toShip} — {dist} m";
                 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Linq;
+using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
@@ -17,7 +18,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// Leaving the ship interior in space without landing (the helm, the airlock). Two player reports:
 /// "DAS NICHTS! (schon wieder)" (#2117) — after a walkabout inside, a landing on the same body showed no world,
 /// because the client was never told the body was current again and dropped its chunks as "the world we just
-/// left"; and "WO?" (#2118) — the ship came back at the launch point instead of where it floated.
+/// left"; and "WO?" (#2118) — the ship came back at the launch point instead of where it floated. Also the station
+/// boarded from a spacewalk (#2702): leaving it parked the ship at the suit's spot beside the station.
 /// </summary>
 public sealed class ShipInteriorReturnTests : IDisposable
 {
@@ -168,6 +170,48 @@ public sealed class ShipInteriorReturnTests : IDisposable
             Assert.Equal(120f, state.ResumeX, 3);
             Assert.Equal(40f, state.ResumeZ, 3);
             Assert.Equal(180f, state.ResumeYaw, 3);
+        }
+    }
+
+    /// <summary>#2702 (playtest 2026-10-17): out through the airlock, over to a station, E, and out again. The undock put the
+    /// ship where the SUIT had been when E was pressed — against the station's hull, heading lost — so the suit started next
+    /// to the station again and every E boarded it once more. The ship belongs back where it floated.</summary>
+    [Fact]
+    public void UndockingAStationBoardedFromASpacewalk_PutsTheShipBackWhereItFloated()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("intret_evadock", transport, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            var station = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.SpaceStation);
+            float shipX = station.Position.X + 40f, shipY = station.Position.Y, shipZ = station.Position.Z - 150f;
+            server.ShipMove("Pilot", shipX, shipY, shipZ, 90f); // the ship parks well off the station, turned east
+
+            server.EnterShipInterior("Pilot");
+            server.StartEvaFromShip("Pilot");                  // out through the airlock …
+            Assert.True(pilot.State.InEva);
+            server.ShipMove("Pilot", station.Position.X, station.Position.Y, station.Position.Z, 15f); // … and over to the station
+
+            server.BoardStation("Pilot", station.Id);
+            Assert.True(server.InStation("Pilot"), "the station boards from the spacewalk");
+
+            transport.Sent.Clear();
+            server.LeaveStation("Pilot");
+
+            Assert.True(server.InSpace("Pilot"));
+            Assert.True(pilot.State.InEva, "back outside on the spacewalk, next to the ship");
+            var state = transport.Sent.OfType<SpaceState>().Last();
+            Assert.True(state.SkipLaunch);
+            Assert.True(state.HasResumePose);
+            Assert.Equal(shipX, state.ResumeX, 3);
+            Assert.Equal(shipY, state.ResumeY, 3);
+            Assert.Equal(shipZ, state.ResumeZ, 3);
+            Assert.Equal(90f, state.ResumeYaw, 3);
+            var floats = server.ShipFloatForTest("Pilot")!.Value;
+            Assert.Equal(shipX, floats.X, 3);
+            Assert.Equal(shipZ, floats.Z, 3);
         }
     }
 
