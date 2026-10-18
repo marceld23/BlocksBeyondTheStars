@@ -652,8 +652,13 @@ mechanisms keep that safe; a change to the block set has to feed them:
    written by a build without the hull remap, so its `block_palette` (read read-only,
    `SqliteWorldRepository.ReadPreRemapBackups`) is exactly that palette — matched against the frozen sets, only the
    built-in release then varies. No such copy, a palette that matches no set, or copies that disagree fall back to
-   the search over every pair (always so in the browser save, which keeps no copies). That table is frozen — never
-   add a release to it.
+   the search over every pair (always so in the browser save, which keeps no copies). Guards against a hull that is
+   only being rebuilt (mining any cell but the last is allowed): a world of terrain generation 21+ (created after
+   v2026.10.4) skips the pass; a reading counts only with exactly one `ship_core` at keel level (the founding puts it
+   at `0:0:0` and nothing is ever built below keel level — the x/z origin is re-normalised, so only the row is
+   guaranteed); and weak evidence — a construction site, or a commissioned hull whose current reading already has its
+   core at keel level and at most one helm — is repaired only with the pinned palette, never by the open search.
+   That table is frozen — never add a release to it.
 2. **The save version.** `WorldMetadata.CurrentSaveVersion` says which build wrote a save; an older build refuses a
    newer save instead of mapping unknown blocks to air. `SaveCompatibilityTests.ChangedBlockSet_NeedsANewSaveVersion`
    pins the block-set fingerprint per save version and fails when the block set changes: raise

@@ -487,7 +487,9 @@ individual's size factor) from every other one, of any species. Awake animals ar
 the barrier checks (standing ones too, and an awake animal next to a sleeper takes the whole push; a roamer
 whose step the nudge cancels re-rolls its heading); overlapping sleepers shuffle apart at 0.4 blocks/s without
 waking — only the later one in the list yields; the spawner refuses a spot inside another animal's footprint
-(full radii). Herd and begging-ring separation use the same footprint (never below 1.5 blocks).
+(full radii), and a herd's member rings (golden-angle bearings at 4/6.5/9/11.5 blocks from the leader) grow with
+a big body until the innermost ring in use clears that spacing (`HerdRingScale`), so a titan herd still spawns whole.
+Herd and begging-ring separation use the same footprint (never below 1.5 blocks).
 Hurting a creature (or a skittish bolt) **startles** same-species kin within 12 blocks for 4 s (#653): non-retaliators flee the nearest player, retaliators charge, and fleeing prey jinks off
 the straight escape ray.
 

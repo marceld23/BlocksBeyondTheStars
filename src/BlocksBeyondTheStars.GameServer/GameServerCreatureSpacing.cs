@@ -236,6 +236,33 @@ public sealed partial class GameServer
         return false;
     }
 
+    /// <summary>The largest individual size factor the spawner rolls (<see cref="FaunaSizeScale"/>: 1 ± 0.30).</summary>
+    private const float MaxFaunaSizeScale = 1.3f;
+
+    /// <summary>A little air between two fresh herd members on top of the spawn spacing, so rounding a member's spot to its
+    /// block centre never lands it just inside the check.</summary>
+    private const float HerdSpawnGap = 1f;
+
+    /// <summary>How much a herd's member rings grow for a big body (#2753): <see cref="SpawnGroupAround"/> places members on
+    /// golden-angle bearings at 4 / 6.5 / 9 / 11.5 blocks from the leader — ample for a sheep, but inside a titan's footprint,
+    /// so <see cref="CrowdedByCreatures"/> refused every member and a "herd of three titans" spawned as one. The pattern is
+    /// scaled until its innermost ring in use clears the spawn spacing against the biggest leader the size roll can give
+    /// (6.5 blocks while a herd has at most four animals — the 4-block ring is first used by the fifth). The scaled
+    /// pattern keeps its members apart from each other too: the used slots of the classic pattern lie at least that
+    /// innermost ring apart (members nine to eleven of a big herd may still fall back to their retry). 1 for every body
+    /// that fits the classic rings and for fliers and swimmers, so they spawn exactly as before.</summary>
+    private static float HerdRingScale(CreatureSpecies sp, int group)
+    {
+        if (group < 2 || !KeepsGroundSpacing(sp, CreatureMotion.ClassOf(sp)))
+        {
+            return 1f;
+        }
+
+        float need = CreatureFootprint.Radius(sp, 1f) + CreatureFootprint.Radius(sp, MaxFaunaSizeScale) + HerdSpawnGap;
+        float innermost = group > 4 ? 4f : 6.5f;
+        return System.Math.Max(1f, need / innermost);
+    }
+
     /// <summary>Test seam (#2753): the footprint radius of a live animal.</summary>
     public float CreatureFootprintRadiusForTest(string id) => CreatureFootprintRadius(_creatures.Find(c => c.Id == id)!);
 }

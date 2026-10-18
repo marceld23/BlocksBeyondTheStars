@@ -13,6 +13,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -398,6 +399,71 @@ public sealed class BaseVisitorsTests : IDisposable
             server.TickBanditsForTest(0.1);
             Assert.True(ChebyshevXZ(core, scout.Position) >= 20, $"the scout walked through the shut gate at t={i / 10.0:0.0}s: {scout.Position}");
         }
+    }
+
+    // ---------------- #2752 follow-up: the X seam ----------------
+
+    /// <summary>The home pad lies at x = 0, so a base beside it straddles the seam. A scout just WEST of a core at x = 3 is
+    /// stored at x = circumference − n; its edge point was measured without wrapping and landed on the EAST side of the
+    /// zone, so it sought straight through the zone, had every step refused and stood pressed against the fence. It now
+    /// walks to the west edge, two blocks outside the zone. (Once there it may stroll along the zone's faces as before —
+    /// the walk is checked at its arrival.)</summary>
+    [Fact]
+    public void AScout_JustAcrossTheSeam_WalksToTheWestEdge()
+    {
+        var server = NewServer("visitors_seam", new RecordingTransport(), visitors: true);
+        var owner = Owner(server);
+        int circ = server.World.Circumference;
+        int cz = (int)Math.Floor(owner.State.Position.Z);
+
+        // A flat stone floor across the seam (x = −48 … +48, the base's whole reach box like the fortress fixture), above every
+        // natural feature, so only the zone is in the way and the scouts find open ground on it.
+        const int reach = 48;
+        var stone = _content.GetBlock("stone")!.NumericId;
+        int maxTop = int.MinValue;
+        for (int dx = -reach; dx <= reach; dx++)
+            for (int dz = -reach; dz <= reach; dz++)
+            {
+                maxTop = Math.Max(maxTop, SurfaceTopY(server, dx, cz + dz));
+            }
+
+        int feet = maxTop + 9;
+        for (int dx = -reach; dx <= reach; dx++)
+            for (int dz = -reach; dz <= reach; dz++)
+            {
+                server.World.SetBlock(new Vector3i(dx, feet - 1, cz + dz), stone);
+            }
+
+        owner.State.Position = new Vector3f(5.5f, feet, cz + 0.5f);
+        var core = new Vector3i(3, feet, cz);
+        server.PlaceBaseForTest(owner, core);
+        int baseId = server.BaseSnapshots.Single(b => b.OwnerId == owner.State.PlayerId).Id;
+        Assert.True(server.SpawnScoutsForTest(baseId));
+
+        // 14 blocks west of the core's centre, across the seam: the spot to walk to is the WEST edge, 10.5 blocks out.
+        var start = new Vector3f(circ - 10.5f, feet, cz + 0.5f);
+        var edge = server.ScoutEdgePointForTest(baseId, start)!.Value;
+        Assert.InRange(edge.X, 0f, circ); // canonical
+        Assert.InRange(WorldConstants.WrapDeltaX(edge.X - (core.X + 0.5), circ), -10.6, -10.4);
+
+        var scout = Scouts(server)[0];
+        scout.Position = start;
+        double westAtArrival = 0;
+        for (int i = 0; i < 150; i++)
+        {
+            server.TickBanditsForTest(0.1);
+            int zx = WorldConstants.WrapDeltaX((int)Math.Floor(scout.Position.X) - core.X, circ);
+            Assert.False(Math.Abs(zx) <= 8 && Math.Abs((int)Math.Floor(scout.Position.Z) - core.Z) <= 8,
+                $"the scout stepped into the zone at t={i / 10.0:0.0}s: {scout.Position}");
+            if (i == 29)
+            {
+                westAtArrival = WorldConstants.WrapDeltaX(scout.Position.X - (core.X + 0.5), circ);
+            }
+        }
+
+        Assert.Equal(BanditPhase.Scouting, scout.BanditPhase);
+        // After 3 s it stands at the west edge (−10.5) — not pressed against the fence (−9.5 … −8.5) on its way east.
+        Assert.InRange(westAtArrival, -12.0, -9.75);
     }
 
     public void Dispose()

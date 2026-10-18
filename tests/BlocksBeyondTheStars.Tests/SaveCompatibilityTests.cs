@@ -344,8 +344,8 @@ public sealed class SaveCompatibilityTests : IDisposable
         var built = sets.First(s => s.Release == "v2026.8.12");
         var readAs = sets.First(s => s.Release == "v2026.9.17");
         var keys = plainWalls
-            ? new List<string> { "ship_helm", "ship_engine", "door_slide" }
-            : new List<string> { "ship_helm", "ship_engine", "door_slide", "glass", "steel_floor", "cargo_floor", "torch" };
+            ? new List<string> { "ship_core", "ship_helm", "ship_engine", "door_slide" }
+            : new List<string> { "ship_core", "ship_helm", "ship_engine", "door_slide", "glass", "steel_floor", "cargo_floor", "torch" };
         keys.AddRange(Enumerable.Repeat("steel_wall", 25 - keys.Count));
         string cells = string.Join(";", keys.Select((key, i) => $"{i % 5}:{i / 5}:-1:{(writtenIn?.Invoke(key, i) ?? built.IdOf[key].ToString())}"));
         var palette = new Dictionary<ushort, string>();
@@ -372,7 +372,7 @@ public sealed class SaveCompatibilityTests : IDisposable
         string repaired;
         using (var repo = new SqliteWorldRepository(Paths("hullfix")))
         {
-            var server = NewServer("hullfix", repo);
+            var server = NewServer("hullfix", repo, FromBeforeTerrainGenerations);
             server.Start();
             var ship = repo.LoadShip("ship_Pilot#built")!;
             Assert.Equal(keys, HullKeys(ship)); // every cell names the block it was built as again
@@ -390,7 +390,7 @@ public sealed class SaveCompatibilityTests : IDisposable
         _log.Lines.Clear();
         using (var repo = new SqliteWorldRepository(Paths("hullfix")))
         {
-            var server = NewServer("hullfix", repo);
+            var server = NewServer("hullfix", repo, FromBeforeTerrainGenerations);
             server.Start();
             Assert.Equal(repaired, repo.LoadShip("ship_Pilot#built")!.BuiltCells);
             server.Stop();
@@ -416,7 +416,7 @@ public sealed class SaveCompatibilityTests : IDisposable
 
         using (var repo = new SqliteWorldRepository(Paths("hullsound")))
         {
-            var server = NewServer("hullsound", repo);
+            var server = NewServer("hullsound", repo, CreatedBeforeTheHullRemap);
             server.Start();
             Assert.Equal(cells, repo.LoadShip("ship_Pilot#sound")!.BuiltCells);
             server.Stop();
@@ -444,7 +444,7 @@ public sealed class SaveCompatibilityTests : IDisposable
 
         using (var repo = new SqliteWorldRepository(Paths("hullmixed")))
         {
-            var server = NewServer("hullmixed", repo);
+            var server = NewServer("hullmixed", repo, CreatedBeforeTheHullRemap);
             server.Start();
             var after = repo.LoadShip("ship_Pilot#mixed")!;
             Assert.Equal(PaletteRemapped(before), after.BuiltCells); // the palette remap only — no repair on top
@@ -473,7 +473,7 @@ public sealed class SaveCompatibilityTests : IDisposable
 
         using (var repo = new SqliteWorldRepository(Paths("hullfix_nocopy")))
         {
-            var server = NewServer("hullfix_nocopy", repo);
+            var server = NewServer("hullfix_nocopy", repo, CreatedBeforeTheHullRemap);
             server.Start();
             Assert.Equal(keys, HullKeys(repo.LoadShip("ship_Pilot#built")!));
             server.Stop();
@@ -500,7 +500,7 @@ public sealed class SaveCompatibilityTests : IDisposable
         RemapWithoutACopy("hullambiguous");
         using (var repo = new SqliteWorldRepository(Paths("hullambiguous")))
         {
-            var server = NewServer("hullambiguous", repo);
+            var server = NewServer("hullambiguous", repo, CreatedBeforeTheHullRemap);
             server.Start();
             Assert.Equal(PaletteRemapped(before), repo.LoadShip("ship_Pilot#twofold")!.BuiltCells);
             server.Stop();
@@ -527,7 +527,7 @@ public sealed class SaveCompatibilityTests : IDisposable
 
         using (var repo = new SqliteWorldRepository(Paths("hullpinned")))
         {
-            var server = NewServer("hullpinned", repo);
+            var server = NewServer("hullpinned", repo, CreatedBeforeTheHullRemap);
             server.Start();
             Assert.Equal(keys, HullKeys(repo.LoadShip("ship_Pilot#twofold")!));
             server.Stop();
@@ -554,15 +554,15 @@ public sealed class SaveCompatibilityTests : IDisposable
         // version that misread the hull — even when its palette happens to be one of the old sets. The open search runs.
         using (var repo = new SqliteWorldRepository(Paths("hullstamped")))
         {
-            var first = NewServer("hullstamped", repo);
+            var first = NewServer("hullstamped", repo, CreatedBeforeTheHullRemap);
             first.Start(); // a world this build created and stamped …
             first.Stop();
         }
 
         var readAs = HistoricalSets.First(s => s.Release == "v2026.9.17");
         var built = HistoricalSets[0];
-        var keys = new List<string> { "ship_helm", "ship_engine", "door_slide" };
-        keys.AddRange(Enumerable.Repeat("steel_wall", 22));
+        var keys = new List<string> { "ship_core", "ship_helm", "ship_engine", "door_slide" };
+        keys.AddRange(Enumerable.Repeat("steel_wall", 21));
         using (var repo = OpenRepo("hullstamped"))
         {
             var meta = repo.LoadMetadata()!;
@@ -587,7 +587,7 @@ public sealed class SaveCompatibilityTests : IDisposable
 
         using (var repo = new SqliteWorldRepository(Paths("hullstamped")))
         {
-            var server = NewServer("hullstamped", repo);
+            var server = NewServer("hullstamped", repo, CreatedBeforeTheHullRemap);
             server.Start(); // the remap takes a pre-remap copy — stamped with save version 2+
             server.Stop();
         }
@@ -597,6 +597,95 @@ public sealed class SaveCompatibilityTests : IDisposable
         Assert.DoesNotContain(_log.Lines, l => l.Contains("block ids — the block set on record"));
         Assert.Contains(_log.Lines, l => l.StartsWith("WARN ", StringComparison.Ordinal) && l.Contains("'twofold'")
                                          && l.Contains("more than one way"));
+    }
+
+    /// <summary>A world created before the hull remap: terrain generation 20, what v2026.10.4 still created.</summary>
+    private static void CreatedBeforeTheHullRemap(ServerConfig c) => c.World.TerrainGeneration = 20;
+
+    /// <summary>A world from before the terrain-generation field (generation 0) — the oldest saves.</summary>
+    private static void FromBeforeTerrainGenerations(ServerConfig c) => c.World.TerrainGeneration = 0;
+
+    /// <summary>A self-built ship in THIS build's ids (nothing misread), the save's palette current.</summary>
+    private string SeedACurrentHull(string world, string shipId, IReadOnlyList<string> keys, bool commissioned)
+    {
+        string cells = string.Join(";", keys.Select((key, i) => $"{i % 5}:{i / 5}:0:{_content.GetBlock(key)!.NumericId.Value}"));
+        using var repo = OpenRepo(world);
+        repo.SavePlayer(new PlayerState { PlayerId = "Pilot", Name = "Pilot", FleetShipIds = { shipId } });
+        repo.SaveShip("ship_Pilot#" + shipId, new ShipState { ShipType = ShipState.CustomShipType, BuiltCells = cells, Commissioned = commissioned });
+        repo.EnsureBlockPalette(_content.BlockPalette());
+        return cells;
+    }
+
+    [Fact]
+    public void ARedesignedHull_WithItsHelmMinedOut_IsNotTouched()
+    {
+        // The review's case: a commissioned ship being rebuilt — read correctly, its helm mined out. The open search finds
+        // exactly one "reading" for it (v2026.9.4 → 9.5 turns the core into an engine and the engine into a helm), which
+        // would have handed out a second helm and eaten the core. Its core still sits at keel level and it only misses what
+        // mining takes out: weak evidence, and without a copy from before the remap no repair.
+        var keys = new List<string> { "ship_core", "ship_engine", "door_slide", "metal_panel", "iron_wall", "glass", "light_white", "crate" };
+        keys.AddRange(Enumerable.Repeat("metal_panel", 14));
+        string cells = SeedACurrentHull("hullredesign", "rebuild", keys, commissioned: true);
+
+        using (var repo = new SqliteWorldRepository(Paths("hullredesign")))
+        {
+            var server = NewServer("hullredesign", repo, CreatedBeforeTheHullRemap);
+            server.Start();
+            Assert.Equal(cells, repo.LoadShip("ship_Pilot#rebuild")!.BuiltCells);
+            Assert.Equal("@srv.ship.need_helm", server.CustomShipLaunchProblemForTest(repo.LoadShip("ship_Pilot#rebuild")!));
+            server.Stop();
+        }
+
+        Assert.Empty(Backups("hullredesign", BackupRotation.PreHullRepairPrefix));
+        Assert.Contains(_log.Lines, l => l.StartsWith("INFO ", StringComparison.Ordinal) && l.Contains("'rebuild'") && l.Contains("being rebuilt"));
+        Assert.DoesNotContain(_log.Lines, l => l.Contains("'rebuild'") && l.Contains("repaired"));
+    }
+
+    [Fact]
+    public void AConstructionSiteWhoseCoreWasMined_IsNotTouched()
+    {
+        // A construction site with its core mined out and no helm yet fails the site's only invariant (a core or a helm).
+        // The open search reads the sentry post at keel level as a core and the engine as a helm — one reading, and wrong:
+        // a construction site's invariant is too weak to tell that from a misread hull, so it needs the pinned palette.
+        var keys = new List<string> { "sentry_post", "ship_engine", "steel_floor", "steel_floor", "steel_floor" };
+        string cells = SeedACurrentHull("hullsite", "site", keys, commissioned: false);
+
+        using (var repo = new SqliteWorldRepository(Paths("hullsite")))
+        {
+            var server = NewServer("hullsite", repo, CreatedBeforeTheHullRemap);
+            server.Start();
+            Assert.Equal(cells, repo.LoadShip("ship_Pilot#site")!.BuiltCells);
+            server.Stop();
+        }
+
+        Assert.Empty(Backups("hullsite", BackupRotation.PreHullRepairPrefix));
+        Assert.Contains(_log.Lines, l => l.StartsWith("INFO ", StringComparison.Ordinal) && l.Contains("'site'") && l.Contains("construction site"));
+    }
+
+    [Fact]
+    public void AWorldCreatedAfterTheHullRemap_NeverRunsThePass()
+    {
+        // Terrain generation 21 first shipped after v2026.10.4: such a world never held a hull in old ids, so even a hull
+        // that looks exactly like a misread one is left alone — and the pass is marked done without looking.
+        SeedABrokenHull("hullnew", "built");
+        string before;
+        using (var repo = OpenRepo("hullnew"))
+        {
+            before = repo.LoadShip("ship_Pilot#built")!.BuiltCells;
+        }
+
+        using (var repo = new SqliteWorldRepository(Paths("hullnew")))
+        {
+            var server = NewServer("hullnew", repo, c => c.World.TerrainGeneration = SvGameServer.FirstTerrainGenerationAfterHullRemap);
+            server.Start();
+            Assert.Equal(PaletteRemapped(before), repo.LoadShip("ship_Pilot#built")!.BuiltCells); // the palette remap only
+            Assert.Contains(SvGameServer.HullRepairMarker, server.Metadata.StampedFeatures);
+            server.Stop();
+        }
+
+        Assert.Empty(Backups("hullnew", BackupRotation.PreHullRepairPrefix));
+        Assert.DoesNotContain(_log.Lines, l => l.Contains("'built'"));
+        Assert.DoesNotContain(_log.Lines, l => l.Contains("block ids — the block set on record")); // no copy was even read
     }
 
     /// <summary>A hull string as the palette remap (9.17 → this build) rewrites it.</summary>

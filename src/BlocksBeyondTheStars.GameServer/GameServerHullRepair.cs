@@ -38,6 +38,21 @@ namespace BlocksBeyondTheStars.GameServer;
 /// varies, which settles most hulls the open search finds two readings for. A palette that is none of the frozen sets,
 /// copies that disagree, or no such copy (the browser save keeps none, rotation may have pruned it) fall back to the open
 /// search. The copy is only ever read.</para>
+/// <para>Guards against a hull that is not misread at all but in the middle of a redesign (mining any cell but the last is
+/// allowed — a commissioned ship whose helm came out fails the invariants exactly like a misread one):
+/// <list type="bullet">
+/// <item>A world created by a build that remaps hulls cannot hold a misread hull: terrain generation
+/// <see cref="FirstTerrainGenerationAfterHullRemap"/> or later (fixed at creation) skips the pass for good.</item>
+/// <item>A reading counts only with exactly one <c>ship_core</c>, at keel level (the lowest row of the hull). That is what
+/// the code guarantees for every self-built ship since v2026.8.12: the keel is founded as the core at <c>0:0:0</c>, and no
+/// cell is ever placed below keel level (the construction site refuses <c>y &lt; 0</c>, a commissioned ship only builds
+/// inside its bounds). The origin itself is NOT fixed — the blob is re-normalised when the hull grows towards −x/−z —
+/// and the core may be mined out or a second one built in, so a hull like that is never repaired (left alone, logged).</item>
+/// <item>Weak evidence needs the pinned <c>s</c>: a commissioned hull whose CURRENT reading already has exactly one core at
+/// keel level and at most one helm only misses what a redesign removes (a helm, an engine, a door), and a construction
+/// site's invariant (a core or a helm) is too weak to tell a misread hull from a mined core. Such hulls are repaired only
+/// through <see cref="PinnedReadAsPalette"/>, never through the open search over every pair.</item>
+/// </list></para>
 /// </summary>
 public sealed partial class GameServer
 {
@@ -47,6 +62,12 @@ public sealed partial class GameServer
     /// <summary>The save version that came with the hull remap (#2221), the <c>pre-remap_…</c> copies and the save-version
     /// stamp itself (all v2026.10.4): a save carrying a lower one was last written by a build that left hulls alone.</summary>
     private const int HullRemapSaveVersion = 2;
+
+    /// <summary>The first terrain generation no build without the hull remap ever created a world with: v2026.10.4 (the hull
+    /// remap) still created generation 20, generation 21 first shipped with v2026.10.8. A world's generation is fixed at its
+    /// creation (<see cref="WorldDescription.TerrainGeneration"/>), so a world at 21 or later never held a hull
+    /// in old ids; older worlds (generation 0 = from before the field) are looked at.</summary>
+    internal const int FirstTerrainGenerationAfterHullRemap = 21;
 
     /// <summary>One hull the pass will rewrite.</summary>
     private sealed record HullRepair(string SaveKey, string Owner, string ShipId, ShipState Ship, string Cells, int Changed,
@@ -59,6 +80,12 @@ public sealed partial class GameServer
     {
         if (_meta.StampedFeatures.Contains(HullRepairMarker))
         {
+            return;
+        }
+
+        if (_meta.Description.TerrainGeneration >= FirstTerrainGenerationAfterHullRemap)
+        {
+            _meta.StampedFeatures.Add(HullRepairMarker); // created by a build that remaps hulls: nothing to repair, ever
             return;
         }
 
@@ -76,6 +103,15 @@ public sealed partial class GameServer
             placeable ??= new HashSet<string>(
                 _content.Items.Values.Select(i => i.PlacesBlock).OfType<string>().Where(k => k.Length > 0), StringComparer.Ordinal);
             pinned ??= PinnedReadAsPalette(); // read once, and only when a hull needs it
+            bool weakEvidence = !ship.Commissioned || MayBeMidRedesign(cells);
+            if (weakEvidence && pinned.Value < 0)
+            {
+                _log.Info($"Self-built ship '{shipId}' of '{owner}' cannot fly, but its hull may simply be being rebuilt " +
+                          $"({(ship.Commissioned ? "its core is in place" : "a construction site")}) and no copy from before the block-id " +
+                          "remap tells which older version read it — it was left as it is.");
+                continue;
+            }
+
             var (remap, builtIn, readAs, problem) = ReadHullThroughHistory(cells, ship.Commissioned, placeable, pinned.Value);
             if (remap is null)
             {
@@ -194,6 +230,37 @@ public sealed partial class GameServer
         return commissioned ? helms == 1 && engine && door : core || helms > 0;
     }
 
+    /// <summary>Whether a hull (read through <paramref name="remap"/>, current id → read id, or as it is) holds exactly one
+    /// <c>ship_core</c> and that core sits at keel level — the lowest row of the hull (air entries are holes and do not
+    /// count). See the type summary for why this, and not the origin, is what the code guarantees.</summary>
+    private bool OneCoreAtKeelLevel(Dictionary<Vector3i, BlockId> cells, Dictionary<ushort, ushort>? remap = null)
+    {
+        int keel = int.MaxValue, coreY = int.MinValue, cores = 0;
+        foreach (var (pos, block) in cells)
+        {
+            if (block.IsAir)
+            {
+                continue;
+            }
+
+            keel = Math.Min(keel, pos.Y);
+            var read = remap is null ? block : new BlockId(remap[block.Value]);
+            if (_content.BlockById(read) is { Key: ShipCoreBlock })
+            {
+                cores++;
+                coreY = pos.Y;
+            }
+        }
+
+        return cores == 1 && coreY == keel;
+    }
+
+    /// <summary>A commissioned hull that may just be in the middle of a redesign: its core is where the keel put it and it
+    /// has at most one helm (a second one cannot be built in) — whatever else fails is only what mining takes out (a helm, an
+    /// engine, a door). Weak evidence of a misread: repaired only with the pinned palette.</summary>
+    private bool MayBeMidRedesign(Dictionary<Vector3i, BlockId> cells)
+        => OneCoreAtKeelLevel(cells) && cells.Values.Count(b => !b.IsAir && _content.BlockById(b) is { Key: ShipHelmBlock }) <= 1;
+
     /// <summary>Tries every (built-in, last-opened) pair of historical palettes on a hull (see the type summary) — with
     /// <paramref name="pinnedReadAs"/> (an index into <see cref="HistoricalBlockSets.All"/>, or -1) only the pairs with that
     /// last-opened palette. Returns the current-id → repaired-id map when every accepted pair agrees, else null with the
@@ -213,7 +280,8 @@ public sealed partial class GameServer
             for (int k = 0; k < s; k++)
             {
                 if (DecodeThrough(ids, palettes[k], palettes[s], placeable) is not { } remap
-                    || !HullInvariantsHold(cells.Values.Select(b => b.IsAir ? b : new BlockId(remap[b.Value])), commissioned))
+                    || !HullInvariantsHold(cells.Values.Select(b => b.IsAir ? b : new BlockId(remap[b.Value])), commissioned)
+                    || !OneCoreAtKeelLevel(cells, remap))
                 {
                     continue;
                 }

@@ -213,9 +213,49 @@ public sealed class CreatureSpacingTests : IDisposable
         }
     }
 
+    /// <summary>The review find on #2753: the footprint check refused every member of a titan herd placed on the classic
+    /// 6.5–11.5-block rings, so "megafauna in a small herd" (#638/#639) spawned as one animal. The rings now grow with the
+    /// body: on the flat salt pans a titan herd (and a big grazer herd) spawns whole, every member clear of the ones before it.</summary>
+    [Theory]
+    [InlineData(CreatureBodyPlan.Titan, 4.75f, 2, 1, 3, 3)]
+    [InlineData(CreatureBodyPlan.Titan, 4.75f, 2, 1, 4, 4)]
+    [InlineData(CreatureBodyPlan.Titan, 6f, 3, 3, 4, 4)]
+    [InlineData(CreatureBodyPlan.Standard, 2.2f, 4, 0, 9, 9)]
+    public void ABigBodiedHerd_SpawnsWhole_EveryMemberClearOfTheOnesBeforeIt(CreatureBodyPlan plan, float size, int segments,
+        int neck, int group, int expected)
+    {
+        var server = Started(out var repo, "salt_flats");
+        using (repo)
+        {
+            var sp = ForceBig(server, 0, plan, size, segments);
+            sp.NeckLength = neck;
+            sp.SocialGroupSize = group;
+            var (gx, gz) = DryGround.Find(server, 40);
+
+            int ground = server.SurfaceHeightForTest(gx, gz) + 1;
+            server.SpawnCreatureAtForTest(new Vector3f(gx + 0.5f, ground, gz + 0.5f), sp.Id);
+            server.SpawnGroupAroundForTest(sp.Id, gx, gz);
+            var herd = server.Creatures.Where(c => c.SpeciesId == sp.Id).ToList();
+            Assert.True(herd.Count >= expected, $"a herd of {group} must spawn {expected}, spawned {herd.Count}");
+
+            // In spawn order: every member stands clear of each animal placed before it — its own body at the species size
+            // plus that animal's real one (the spawner's check).
+            float newcomer = CreatureFootprint.Radius(sp, 1f);
+            for (int i = 0; i < herd.Count; i++)
+            {
+                for (int j = i + 1; j < herd.Count; j++)
+                {
+                    float sep = newcomer + server.CreatureFootprintRadiusForTest(herd[i].Id);
+                    float d = Dist(herd[i].Position, herd[j].Position);
+                    Assert.True(d >= sep - 0.01f, $"{herd[j].Id} spawned {d:0.00} from {herd[i].Id}, inside {sep:0.00}");
+                }
+            }
+        }
+    }
+
     // --- Helpers ----------------------------------------------------------------------------------------------------------
 
-    private SvGameServer Started(out SqliteWorldRepository repo)
+    private SvGameServer Started(out SqliteWorldRepository repo, string planet = "jungle")
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, "spacing"));
         var st = new LoopbackServerTransport(new LoopbackLink());
@@ -223,7 +263,7 @@ public sealed class CreatureSpacingTests : IDisposable
         {
             WorldName = "spacing",
             Seed = 4242,
-            StartPlanet = "jungle",
+            StartPlanet = planet,
             AutoSaveIntervalMinutes = 9999,
             PlaceStarterShip = false,
         };

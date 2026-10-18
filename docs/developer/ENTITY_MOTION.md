@@ -145,7 +145,8 @@ that pose, and clears the pilot's interpolation buffer when the pose switches be
   round a wall never turns faster than the clamp.
 - `CreatureSpacingTests`: two big animals of different species planted inside each other step apart; an awake animal
   yields to a sleeper and overlapping sleepers come apart with only the later one moving; a spawn spot inside a big
-  animal is refused; a big herd spawns with room between every pair; the footprint grows with size and segments.
+  animal is refused; a big herd spawns with room between every pair, and titan herds of 3–4 (and a big grazer herd)
+  spawn whole on flat ground; the footprint grows with size and segments.
 - `NpcGridPathTests`: string-pulling (open square, walls, corners, doorways, steps).
 - `RemoteEntityInterpolatorTests`, `SpaceEntitySyncTests` (Client.Tests): the no-wrap lerp at negative X and across 0,
   the stale-view scan with view-less rocks around. `SpaceFlightClientTests` (Client.Tests, real client and server): a

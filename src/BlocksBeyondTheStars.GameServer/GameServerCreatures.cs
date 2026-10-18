@@ -800,23 +800,26 @@ public sealed partial class GameServer
     }
 
     /// <summary>Places the rest of a social species' group (#639) around a just-spawned member: up to
-    /// <see cref="CreatureSpecies.SocialGroupSize"/> − 1 more individuals, 4–8 blocks out on spread
-    /// golden-angle bearings, each habitat-gated and each counting against the cap — unsuitable spots
+    /// <see cref="CreatureSpecies.SocialGroupSize"/> − 1 more individuals, 4–11.5 blocks out on spread
+    /// golden-angle bearings (further for a big body, <see cref="HerdRingScale"/>), each habitat-gated and each
+    /// counting against the cap — unsuitable spots
     /// are simply skipped, so a group spawns partially rather than forcing bad placements.</summary>
     private void SpawnGroupAround(CreatureSpecies sp, int x, int z, int cap)
     {
         int group = System.Math.Clamp(sp.SocialGroupSize, 1, HerdRules.MaxGroupSize); // #2018: was 5 before the big herds
         int share = SpeciesShare(cap);
+        float scale = HerdRingScale(sp, group); // #2753: 1 for every body that fits the classic rings
         for (int k = 1; k < group && WildCreatureCount < cap && RawWildCount < CreatureHardCap && WeightedWildCountOf(sp) < share; k++)
         {
             // Golden-angle bearings with alternating radii — spread out, not a neat ring. #2018: four radii out to 11.5
             // blocks so a herd of twelve has room, and a member whose spot is taken by a wall or a pond tries once more a
-            // little further round — rough ground otherwise left a "herd of twelve" at seven.
+            // little further round — rough ground otherwise left a "herd of twelve" at seven. #2753: the whole pattern
+            // grows with a big body, so a titan herd keeps its members instead of losing them to the footprint check.
             double a = k * 2.399963;
-            float dist = 4f + (k % 4) * 2.5f;
+            float dist = (4f + (k % 4) * 2.5f) * scale;
             if (!TryPlaceGroupMember(sp, x, z, a, dist))
             {
-                TryPlaceGroupMember(sp, x, z, a + 1.2, dist + 1.5f);
+                TryPlaceGroupMember(sp, x, z, a + 1.2, dist + 1.5f * scale);
             }
         }
     }

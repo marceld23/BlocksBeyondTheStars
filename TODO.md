@@ -43,8 +43,9 @@ fire-rate question was already answered by `cooldownSeconds` on every weapon.
   `CreatureBuilder` per body plan × the individual's size factor). Awake animals are nudged before the wall/ship/fence
   checks (one walking into a sleeper turns away), overlapping sleepers shuffle apart without waking (the later one
   moves), and the spawner refuses spots inside another animal. Herd and begging-ring spacing use the footprint (never
-  < 1.5); big herds now spawn and roam more spread out. The /bump snapshot lists size, footprint and sleep state.
-  `GameServerCreatureSpacing.cs`; tests `CreatureSpacingTests` (5).
+  < 1.5); big herds now spawn and roam more spread out — the member rings around the leader grow with the body
+  (`HerdRingScale`), so titan herds of 2–4 still spawn whole (review fix). The /bump snapshot lists size, footprint and
+  sleep state. `GameServerCreatureSpacing.cs`; tests `CreatureSpacingTests` (9).
 - **Lock a friend anywhere in the system (#2737):** friends are target-lockable at any distance as a navigation
   target (edge arrow with direction and distance, no weapon effect; NPC traders stay radar-limited). Friends who took
   off from another body reach the pilot through the additive `SpaceState.SystemPilots` (+ `NetSpacePlayer.AnchorBodyId`),
@@ -91,7 +92,8 @@ fire-rate question was already answered by `cooldownSeconds` on every weapon.
   teardown, death and quit. XInput on Windows (also under Proton); WebGL/native Linux say "not available on this
   platform". `Client.Core/RumbleMixer`, Unity `PadRumble`; `RumbleMixerTests`, `PadRumbleEditModeTests`.
 - **Fire and bases at the seam (#2747, #2752):** fire is keyed by the canonical cell (old rows migrate at load), and a
-  base core near x = 0 protects and breathes across the seam. Tests in `FireTests`, `BaseOxygenTests`.
+  base core near x = 0 protects and breathes across the seam; base scouts measure their zone-edge point across the seam
+  too (review fix). Tests in `FireTests`, `BaseOxygenTests`, `BaseVisitorsTests`.
 - **Salvage survives a restart (#2748):** floating space salvage is saved in the named blob `space:floating_salvage`
   with each save and teardown and restored with fresh ids; every teardown goes through `TearDownSpaceInstance`; max 48
   drops per instance (older ones merge). 5 tests in `DropLootTests`.
@@ -103,7 +105,10 @@ fire-rate question was already answered by `cooldownSeconds` on every weapon.
 - **Old self-built hulls repaired (#2751):** a hull left in old block ids by a block-adding update before v2026.10.4 is
   repaired once when the save opens — read through a frozen table of every release's block set (`HistoricalBlockSets`),
   pinned by the `pre-remap_…` backup where one exists, rewritten only when every reading agrees, after a
-  `pre-hull-repair_…` backup; otherwise a WARN. Marker `save|hull_repair_2751`. 8 tests in `SaveCompatibilityTests`.
+  `pre-hull-repair_…` backup; otherwise a WARN. Marker `save|hull_repair_2751`. Review guards: worlds created after
+  v2026.10.4 (terrain generation ≥ 21) skip the pass, a reading needs exactly one ship core on the hull's lowest row, and
+  construction sites or core-intact hulls that merely miss a helm/engine/door (a ship being rebuilt) are repaired only
+  when a pre-remap backup pins the palette. 11 tests in `SaveCompatibilityTests`.
 - **Texts:** 2 new keys + 1 changed hint in all 14 languages (machine pass + hand QA).
 - ⚠ Open: playtest — two big herds side by side and a sleeper; locking a friend far away and one flying from another
   body; a gen-27 frozen world (structures and the wreck on the ice); a station quartermaster in two new worlds; the
