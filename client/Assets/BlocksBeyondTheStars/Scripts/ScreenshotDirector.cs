@@ -41,6 +41,7 @@ namespace BlocksBeyondTheStars.Client
         private const float PoseSettle = 2.5f;         // after a pose change, before the shot
         private const float FlightHeading = 0f; // flight heading that frames the asteroids/planet behind the ship
         private const float CaptureReadyTimeout = 14f; // give the player this long to settle on solid, dry ground
+        private const float SurfaceTimeOfDay = 0.33f;  // planet_surface: morning light — a low sun models the terrain (#2765)
 
         private string _lang = "en";
         private long _seed = DefaultSeed;
@@ -142,6 +143,9 @@ namespace BlocksBeyondTheStars.Client
             // Force the capture language before anything localized is built (menu + HUD both follow this).
             shell.Settings.Language = _lang;
             shell.LoadLocalizer();
+            // The release notes open once by themselves after an update (#543) — over the start_screen shot of the first run
+            // on a new build. Stamp this version as seen, exactly what opening them would do.
+            shell.Settings.LastSeenVersion = AppShell.Version;
 
             string dir = ResolveOutDir();
             Directory.CreateDirectory(dir);
@@ -197,7 +201,7 @@ namespace BlocksBeyondTheStars.Client
             // Survival), so no "Taking damage!" warning or attack fx can land in a frame — the HUD itself
             // (bars, minimap, hotbar) looks the same as in Survival.
             shell.StartSingleplayerWorld(WorldName, _seed, creativeUnlockAll: true, creativeAllShips: true, creativeKit: true,
-                sandbox: true);
+                sandbox: true, worldOptions: StoryFree(new WorldCreationOptions()));
 
             yield return WaitForPhase(shell, ShellPhase.InGame, WorldLoadTimeout);
             var boot = shell.CurrentBoot;
@@ -260,23 +264,36 @@ namespace BlocksBeyondTheStars.Client
             yield return WaitUntil(() => boot.WorldReady, WorldLoadTimeout);
             yield return new WaitForSecondsRealtime(ChunkSettle);
 
-            // Terrain-aware placement (a good distance back from the ship, on solid/open/dry ground) and shoot only
-            // once the player has actually settled on the surface — so the landed ship reads as a background element
-            // instead of the hull/door filling the frame. Falls back to a blind offset if no near chunk collider is
-            // ready in time, so we still write a frame. See PlayerController.PlaceForCaptureNear.
+            // Terrain-aware placement — the best view around the ship (the vista pose, which keeps the ship out of the frame)
+            // or the first open spot of the ring — and shoot only once the player has actually settled on the surface.
+            // Falls back to a blind offset if nothing is ready in time, so we still write a frame.
+            // #2765: morning light (a low sun models the terrain; noon flattens it) on the server clock too, so the animals
+            // that are about are awake; the sun's direction steers the vista pick; the selection frame stays out of the shot.
+            boot.Network.SendAdminCommand("set_time", stringArg: SurfaceTimeOfDay.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture));
+            boot.SetCaptureEnvironment(SurfaceTimeOfDay);
+            boot.CaptureCleanView = true;
+            yield return new WaitForSecondsRealtime(1f);
+
             var pc = FindAnyObjectByType<PlayerController>();
             if (pc != null)
             {
+                pc.CaptureSunDirection = ClipDirector.SunDirection();
                 var p = boot.PlayerPosition;
                 var anchor = new Vector3(p.x, p.y, p.z);
                 bool placed = false;
-                float t = 0f;
+                float t = 0f, sincePlace = 0f;
                 while (t < CaptureReadyTimeout)
                 {
-                    if (!placed)
+                    // The vista spot is chosen from the block data and may sit on a chunk whose collider is still cooking —
+                    // the player then drops through it — so re-snap every ¾ s until grounded (the pose caches its pick).
+                    if (!placed || (sincePlace > 0.75f && !pc.IsCaptureGrounded))
                     {
-                        placed = pc.PlaceForCaptureNear(anchor, pitch: 4f);
+                        // The best view around (#2765), else the first open spot of the ring.
+                        placed = pc.PlaceForCapturePose("vista", anchor, pitch: 7f) || pc.PlaceForCaptureNear(anchor, pitch: 4f);
+                        sincePlace = 0f;
                     }
+
+                    sincePlace += Time.unscaledDeltaTime;
 
                     bool alive = !boot.AwaitingRespawnConfirm && boot.Health > 0f;
                     if (placed && pc.IsCaptureGrounded && !pc.IsHeadUnderwater() && alive)
@@ -297,9 +314,8 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Pin clear-weather noon so the on-foot shot is bright regardless of the home world's time/weather. The
-            // player is already placed, so its longitude offset is final.
-            boot.SetCaptureEnvironment(0.5f);
+            // Pin clear weather at the shot's time again, now from the placed player's longitude (final).
+            boot.SetCaptureEnvironment(SurfaceTimeOfDay);
 
             yield return new WaitForSecondsRealtime(PoseSettle);
             yield return Capture(Path.Combine(dir, "planet_surface.png"));
@@ -318,7 +334,7 @@ namespace BlocksBeyondTheStars.Client
         {
             // A distinct world name per planet so each run is its own fresh save (no leftover state between types).
             string worldName = WorldName + "_" + _planet;
-            var opts = new WorldCreationOptions { StartPlanetType = _planet };
+            var opts = StoryFree(new WorldCreationOptions { StartPlanetType = _planet });
             shell.StartSingleplayerWorld(worldName, _seed, creativeUnlockAll: true, creativeAllShips: true,
                 creativeKit: true, sandbox: true, worldOptions: opts);
 
@@ -417,6 +433,16 @@ namespace BlocksBeyondTheStars.Client
             yield return Capture(Path.Combine(dir, "surface_" + _planet + ".png"));
         }
 
+        /// <summary>A capture world without a main story and without the tutorial (#2765): since the story packs the server
+        /// starts the prologue cutscene a few seconds into a fresh world, and its camera (and the tutorial's panels) would
+        /// land in the cockpit and surface shots.</summary>
+        private static WorldCreationOptions StoryFree(WorldCreationOptions opts)
+        {
+            opts.Stories.StoryId = BlocksBeyondTheStars.Shared.Story.StoryRegistry.NoneStoryId;
+            opts.Stories.Tutorial = Array.IndexOf(WorldStoryOptions.TutorialCliWords, "off");
+            return opts;
+        }
+
         /// <summary>Output folder: an explicit -shotOut, else <c>&lt;repo&gt;/docs/screenshots/&lt;lang&gt;</c> in the
         /// editor, else <c>persistentDataPath/docs/screenshots/&lt;lang&gt;</c> in a player build (the ps1 passes -shotOut).</summary>
         private string ResolveOutDir()
@@ -436,6 +462,15 @@ namespace BlocksBeyondTheStars.Client
 
         private IEnumerator Capture(string path)
         {
+            // Settle every smoothed look first (#2765): the eye adaptation in particular still carries the bright loading
+            // veil a few seconds into the world — the cockpit came out over-exposed. (No-op on the menu.)
+            var snapBoot = FindAnyObjectByType<GameBootstrap>();
+            if (snapBoot != null)
+            {
+                snapBoot.RequestCaptureSnap();
+                yield return null;
+            }
+
             // Never catch the VEGA onboarding/greeting dialog in a frame — a fresh world queues her intro
             // lines right at spawn. (No-op on the menu, where no panel exists yet.)
             FindAnyObjectByType<VegaPanel>()?.DismissSpeechForCapture();

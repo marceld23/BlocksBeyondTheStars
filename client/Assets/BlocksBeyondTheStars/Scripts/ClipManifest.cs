@@ -31,6 +31,7 @@ namespace BlocksBeyondTheStars.Client
         //   orbit     — orbit the capture camera around the live view, sweeping yawStart..yawEnd degrees
         //   dolly     — push the capture camera along the view direction by dollyDistance metres
         //   pan       — rotate the capture camera in place, sweeping yaw (yawStart..End) + pitch (pitchStart..End)
+        //   rig, subject — still-shot cameras (#2765), see below
         public string camera = "static";
         public float yawStart;                 // yaw_sweep ship heading / orbit angle / pan yaw — first frame
         public float yawEnd;                   // ... last frame
@@ -56,11 +57,36 @@ namespace BlocksBeyondTheStars.Client
         //               precipitation form (snow, sleet, hail, sandstorm, dust, ash, …); "" = the world's own weather
         //   pose      — where the on-foot player stands (surface scenes): spawn (default, open ground near the ship),
         //               cave (a covered room underground), underwater (three blocks of water overhead), forest (dense
-        //               flora), shore (dry ground beside water), ridge (the highest open spot around). When no such spot
-        //               is streamed in near the spawn the clip logs it and falls back to the spawn pose.
+        //               flora), shore (dry ground beside water), ridge (the highest open spot around), vista (#2765: a
+        //               raised open spot whose view scores best — depth, relief, variety, no wall or ship in front, the
+        //               sun beside or behind), here (#2765: stay where a `poi` jump put the player and only turn to the
+        //               best view — a raised rig camera then looks over the site). When no such spot is streamed in near
+        //               the spawn the clip logs it and falls back to the spawn pose.
+        // The time and the weather are also sent to the server as /settime and /setweather (#2765), so the animals that
+        // are awake and the server's weather match the pinned sky.
         public float timeOfDay = -1f;
         public string weather = "";
         public string pose = "";
+
+        // Still shots (#2765): a still is a one-frame clip (lengthSeconds × fps = 1); capture-stills.ps1 copies its
+        // frames/frame_00001.png out. HUD-free clips (hud = false) also hide the first-person hand and the block
+        // selection frame. Two more recording-camera moves for stills:
+        //   rig     — the camera sits camHeight metres above the player's eye, camBack behind it and camSide to its right,
+        //             looking along the player's heading, camPitch degrees below the horizon (negative = up)
+        //   subject — the camera frames the creature that `subject` picks: on a third line, facing into the frame,
+        //             subjectFill of the frame height, open land behind it
+        public float camHeight;
+        public float camBack;
+        public float camSide;
+        public float camPitch;
+        public float fov;                      // the recording camera's vertical field of view in degrees; 0 = the view's
+        public bool astronaut;                 // third person: the player's avatar stands in the world (seen by a rig)
+        public string subject = "";            // creature | giant — what the "subject" camera frames
+        public float subjectFill = 0.38f;
+        public int creatures = -1;             // world rule at creation: 0 Off, 1 Rare, 2 Normal, 3 Frequent, 4 Extreme; -1 = capture default
+        public string poi = "";                // a "/tp <kind>" target (village, city, lodge, monument, factory, …) reached before the pose
+        public string[] adminCommands;         // admin intents sent once the pose is reached: "<command> [argument]", e.g. "summon_giant sandworm"
+        public float settleSeconds;            // extra wait before rolling (creature spawns, a summoned giant walking up)
 
         // Story-pack cutscene (#2468) — "<pack>/<id>" (e.g. "vega_protocol/prologue", "vega_protocol/__recap"): the clip
         // plays that scene through the cutscene director the moment recording starts, so a scene can be checked by eye on

@@ -167,6 +167,27 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
+        /// <summary>The flat direction a drawn creature's body faces (a capture still puts its face toward the camera,
+        /// #2765); false if it is not drawn.</summary>
+        public static bool TryFacing(string id, out Vector3 forward)
+        {
+            forward = default;
+            if (_instance == null || id == null || !_instance._creatures.TryGetValue(id, out var e) || e.Root == null)
+            {
+                return false;
+            }
+
+            var f = e.Root.transform.forward;
+            f.y = 0f;
+            if (f.sqrMagnitude < 1e-4f)
+            {
+                return false;
+            }
+
+            forward = f.normalized;
+            return true;
+        }
+
         private void OnCreatureDefeated(BlocksBeyondTheStars.Networking.Messages.CreatureDefeated m)
         {
             if (m != null && !string.IsNullOrEmpty(m.Id))

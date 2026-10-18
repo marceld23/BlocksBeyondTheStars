@@ -900,6 +900,48 @@ namespace BlocksBeyondTheStars.Client
 
             return false;
         }
+
+        /// <summary>True when the cell lies inside a parked ship's bounding box. A parked ship is drawn as its own model,
+        /// not as world voxels, so a capture's sight lines test it here (#2765).</summary>
+        public bool LandedShipBodyAt(int x, int y, int z)
+        {
+            foreach (var s in LandedShips.Values)
+            {
+                int dx = WorldConstants.WrapDeltaX(x - s.Origin.X, Circumference);
+                if (dx >= 0 && dx < s.Width && z >= s.Origin.Z && z < s.Origin.Z + s.Length
+                    && y >= s.Origin.Y && y < s.Origin.Y + s.Height)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>True when a parked ship's centre lies within <paramref name="halfAngle"/> degrees of the heading
+        /// <paramref name="yawDeg"/> as seen from <paramref name="from"/>, and nearer than <paramref name="range"/> metres —
+        /// it would stand in a capture still's frame (#2765).</summary>
+        public bool LandedShipInView(Vector3 from, float yawDeg, float halfAngle, float range)
+        {
+            foreach (var s in LandedShips.Values)
+            {
+                float dx = WorldConstants.WrapDeltaX((int)(s.Origin.X + s.Width / 2f - from.x), Circumference);
+                float dz = s.Origin.Z + s.Length / 2f - from.z;
+                if (dx * dx + dz * dz > range * range)
+                {
+                    continue;
+                }
+
+                float bearing = Mathf.Atan2(dx, dz) * Mathf.Rad2Deg;
+                if (Mathf.Abs(Mathf.DeltaAngle(yawDeg, bearing)) <= halfAngle)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public bool InSpace { get; private set; }
         public bool SpaceSkipLaunch { get; private set; }    // entered space already airborne (helm) → no take-off anim
         public bool SpaceAutomaticTransit { get; private set; } // #1614: this flight is an automatic landed-ship transit (take-off → [warp] → landing, hands-off)
@@ -1050,6 +1092,12 @@ namespace BlocksBeyondTheStars.Client
         /// screenshots aren't gloomy regardless of the world's spawn time-of-day or weather roll — and a look check
         /// can ask for dawn, rain or fog on purpose (#2405). No effect on normal play (the directors never set it).</summary>
         public bool CaptureEnvActive { get; private set; }
+
+        /// <summary>Capture-only (#2765): while true the first-person hand (<see cref="Viewmodel"/>) and the block selection
+        /// frame (<see cref="MiningFx"/>) are hidden, so a capture shows the world and nothing in front of it. Set by the
+        /// capture directors; never true in normal play.</summary>
+        public bool CaptureCleanView { get; set; }
+
         private float? _captureLocalTime = 0.5f;
         private string _captureWeather = "clear";
 

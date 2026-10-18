@@ -127,20 +127,49 @@ More on our YouTube channel:
   </tr>
 </table>
 
-**Many different worlds** — every planet type has its own terrain, flora and sky:
+**Many different worlds** — every planet type has its own terrain, flora and sky (16 of 48 types):
 
 <table>
   <tr>
-    <td width="25%"><img src="docs/screenshots/en/surface_jungle.png" width="100%" alt="Jungle world"><br><sub>Jungle</sub></td>
-    <td width="25%"><img src="docs/screenshots/en/surface_lava.png" width="100%" alt="Lava world"><br><sub>Lava</sub></td>
-    <td width="25%"><img src="docs/screenshots/en/surface_ice.png" width="100%" alt="Ice world"><br><sub>Ice</sub></td>
-    <td width="25%"><img src="docs/screenshots/en/surface_crystal.png" width="100%" alt="Crystal world"><br><sub>Crystal</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_jungle.jpg" width="100%" alt="Jungle"><br><sub>Jungle</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_lava.jpg" width="100%" alt="Lava"><br><sub>Lava</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_icecap.jpg" width="100%" alt="Ice cap"><br><sub>Ice cap</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_crystal.jpg" width="100%" alt="Crystal"><br><sub>Crystal</sub></td>
   </tr>
   <tr>
-    <td width="25%"><img src="docs/screenshots/en/surface_fungal.png" width="100%" alt="Fungal world"><br><sub>Fungal</sub></td>
-    <td width="25%"><img src="docs/screenshots/en/surface_skylands.png" width="100%" alt="Skylands world"><br><sub>Skylands</sub></td>
-    <td width="25%"><img src="docs/screenshots/en/surface_ocean.png" width="100%" alt="Ocean world"><br><sub>Ocean</sub></td>
-    <td width="25%"><img src="docs/screenshots/en/surface_desert.png" width="100%" alt="Desert world"><br><sub>Desert</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_fungal.jpg" width="100%" alt="Fungal"><br><sub>Fungal</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_skylands.jpg" width="100%" alt="Skylands"><br><sub>Skylands</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_ocean.jpg" width="100%" alt="Ocean"><br><sub>Ocean</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_desert.jpg" width="100%" alt="Desert"><br><sub>Desert</sub></td>
+  </tr>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/world/world_flower_fields.jpg" width="100%" alt="Flower fields"><br><sub>Flower fields</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_rainbow_sea.jpg" width="100%" alt="Rainbow planet"><br><sub>Rainbow planet</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_savanna.jpg" width="100%" alt="Savanna"><br><sub>Savanna</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_highland.jpg" width="100%" alt="Highland"><br><sub>Highland</sub></td>
+  </tr>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/world/world_arch_lands.jpg" width="100%" alt="Arch lands"><br><sub>Arch lands</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_pillar_world.jpg" width="100%" alt="Pillar world"><br><sub>Pillar world</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_toxica_maxima.jpg" width="100%" alt="Toxica-Maxima"><br><sub>Toxica-Maxima</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/world_boreal.jpg" width="100%" alt="Boreal"><br><sub>Boreal</sub></td>
+  </tr>
+</table>
+
+**Creatures, giants and life** — every world has its own animals, and villages, towns and ruins to find:
+
+<table>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/world/creature_boreal.jpg" width="100%" alt="Wildlife on a boreal world"><br><sub>Wildlife on a boreal world</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/creature_meadow.jpg" width="100%" alt="Something flying over the meadows"><br><sub>Something flying over the meadows</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/creature_fungal.jpg" width="100%" alt="A herd on the fungal world"><br><sub>A herd on the fungal world</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/giant_colossus.jpg" width="100%" alt="A colossus, 50 blocks tall"><br><sub>A colossus, 50 blocks tall</sub></td>
+  </tr>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/world/life_town.jpg" width="100%" alt="A town"><br><sub>A town</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/life_monument.jpg" width="100%" alt="An ancient gate"><br><sub>An ancient gate</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/life_astronaut.jpg" width="100%" alt="Your astronaut at a lookout"><br><sub>Your astronaut at a lookout</sub></td>
+    <td width="25%"><img src="docs/screenshots/world/life_village_night.jpg" width="100%" alt="A village at night"><br><sub>A village at night</sub></td>
   </tr>
 </table>
 

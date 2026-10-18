@@ -168,7 +168,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void UpdateOutline()
         {
-            if (_outline == null || Camera == null || Game == null || Game.MenuOpen || Game.SpaceViewActive)
+            if (_outline == null || Camera == null || Game == null || Game.MenuOpen || Game.SpaceViewActive || Game.CaptureCleanView)
             {
                 if (_outline != null)
                 {

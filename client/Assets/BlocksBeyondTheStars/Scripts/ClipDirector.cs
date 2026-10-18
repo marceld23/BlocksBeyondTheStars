@@ -50,6 +50,10 @@ namespace BlocksBeyondTheStars.Client
         private bool[] _atmoSwitchesBefore;
         private bool _atmoApplied;
         private bool _readbackCheck;             // -clipReadbackCheck: one extra frame through GpuReadback's async path
+        private GameBootstrap _boot;             // the run's world (the still cameras read the player and the creatures)
+        private PlayerController _pc;
+        private Vector3? _sunDir;                // toward the sun once the time is pinned (vista pose + subject framing)
+        private string _subjectId;               // the creature a "subject" still frames (#2765)
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoInstall()
@@ -275,6 +279,9 @@ namespace BlocksBeyondTheStars.Client
 
             yield return WaitUntil(() => boot.WorldReady, WorldLoadTimeout);
             yield return new WaitForSecondsRealtime(ChunkSettle);
+            _boot = boot;
+            // A HUD-free clip films the world: no first-person hand, no block selection frame in front of it (#2765).
+            boot.CaptureCleanView = !clip.hud;
 
             // A fresh world queues VEGA's prologue at the join, and its staged cinematic (#760) takes the camera over
             // the moment the veil drops — every "surface" clip then films the orbit around the ship instead of the
@@ -295,6 +302,7 @@ namespace BlocksBeyondTheStars.Client
                     break;
 
                 case "surface":
+                    yield return PrepareSurface(boot, clip);
                     bool ready = false;
                     yield return PlaceOnSurface(boot, clip, r => ready = r);
                     if (!ready)
@@ -310,6 +318,11 @@ namespace BlocksBeyondTheStars.Client
                     {
                         var pcState = FindAnyObjectByType<PlayerController>()?.CaptureDebugState();
                         Debug.LogWarning($"[Clip] {clip.name}: still flagged aboard after the pose — the frame will miss the outdoor haze and weather. {pcState}");
+                    }
+
+                    if (clip.astronaut)
+                    {
+                        FindAnyObjectByType<PlayerController>()?.SetCaptureThirdPerson(true); // the avatar in the frame, for scale
                     }
 
                     break;
@@ -341,6 +354,20 @@ namespace BlocksBeyondTheStars.Client
                 yield return new WaitForSecondsRealtime(1f);
             }
 
+            // Still extras (#2765): admin intents (a summoned giant, a begging herd …), a wait for the spawn ring to fill,
+            // and — for a creature still — the pick of the creature to frame.
+            yield return SendAdminCommands(boot, clip);
+            if (clip.settleSeconds > 0f)
+            {
+                yield return new WaitForSecondsRealtime(clip.settleSeconds);
+            }
+
+            if (string.Equals(clip.camera, "subject", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return WaitForSubject(clip);
+            }
+
+            boot.ShowMessage(string.Empty); // the admin answers ("time set", "teleported") would linger in a HUD clip's toast
             DismissVegaForCapture();
             boot.RequestCaptureSnap();
             yield return null;
@@ -468,6 +495,7 @@ namespace BlocksBeyondTheStars.Client
             Directory.CreateDirectory(framesDir);
 
             var pc = FindAnyObjectByType<PlayerController>();
+            _pc = pc;
             Camera viewCam = pc != null ? pc.Camera : Camera.main;
             Camera hudFreeSource = (clip.hud || viewCam == null) ? null : viewCam;
             if (hudFreeSource == null && !clip.hud)
@@ -489,6 +517,7 @@ namespace BlocksBeyondTheStars.Client
             using (var writer = new ClipFrameWriter(framesDir, ClipWidth, ClipHeight, hudFreeSource))
             {
                 writer.RendererIndex = FindAnyObjectByType<AppShell>()?.Settings?.RendererIndex ?? -1; // the preset's SSAO tier
+                writer.FieldOfView = clip.fov; // a still's own lens (#2765); 0 = the view camera's
                 Time.captureFramerate = fps;
                 writer.StartAudio();
 
@@ -678,9 +707,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Compute the recording camera's pose for a cinematic move (orbit / dolly / pan) relative to the
-        /// live view camera at frame fraction <paramref name="u"/>. Returns false for static / yaw_sweep (the clone
-        /// just mirrors the live view).</summary>
-        private static bool ComputeCameraPose(string cam, ClipSpec clip, Camera viewCam, float u,
+        /// live view camera at frame fraction <paramref name="u"/>, or for a still camera (rig / subject, #2765). Returns
+        /// false for static / yaw_sweep (the clone just mirrors the live view) and when a subject cannot be framed.</summary>
+        private bool ComputeCameraPose(string cam, ClipSpec clip, Camera viewCam, float u,
             out Vector3 pos, out Quaternion rot)
         {
             pos = default;
@@ -721,6 +750,12 @@ namespace BlocksBeyondTheStars.Client
                     return true;
                 }
 
+                case "rig":
+                    return ComputeRigPose(clip, out pos, out rot);
+
+                case "subject":
+                    return TryFrameSubject(clip, out pos, out rot);
+
                 default:
                     return false; // static / yaw_sweep
             }
@@ -738,7 +773,376 @@ namespace BlocksBeyondTheStars.Client
                 opts.StartPlanetType = clip.planet;
             }
 
+            if (clip != null && clip.creatures >= 0)
+            {
+                opts.Creatures = Mathf.Clamp(clip.creatures, 0, 4); // a creature still asks for Extreme (#2765)
+            }
+
+            // No main story and no tutorial (#2765): since the story packs (#2468) the server starts the prologue cutscene a
+            // few seconds into a fresh world — after VEGA was dismissed — and its camera takes over the live view, so every
+            // "static" clip filmed the flight around the ship. A cutscene clip keeps the story (it plays its scene locally).
+            if (clip != null && string.IsNullOrEmpty(clip.cutscene))
+            {
+                opts.Stories.StoryId = BlocksBeyondTheStars.Shared.Story.StoryRegistry.NoneStoryId;
+                opts.Stories.Tutorial = Array.IndexOf(WorldStoryOptions.TutorialCliWords, "off");
+            }
+
             return opts;
+        }
+
+        /// <summary>Before the pose (#2765): send the player to the clip's site (<c>/tp &lt;kind&gt;</c>), pin the clock on the
+        /// server and the sky on the client — so the day-active animals are awake and the sun already stands where the frame
+        /// will see it — and hand the sun's direction to the vista pose. The sky is pinned again after the pose, from the
+        /// final longitude, as before.</summary>
+        private IEnumerator PrepareSurface(GameBootstrap boot, ClipSpec clip)
+        {
+            var pc = FindAnyObjectByType<PlayerController>();
+            if (!string.IsNullOrEmpty(clip.poi))
+            {
+                Vector3 before = boot.PlayerPosition;
+                boot.Network.SendAdminCommand("teleport_to_named", stringArg: clip.poi.Trim());
+                yield return WaitUntil(() => (boot.PlayerPosition - before).sqrMagnitude > 64f, 10f);
+                if ((boot.PlayerPosition - before).sqrMagnitude > 64f)
+                {
+                    Debug.Log($"[Clip] {clip.name}: /tp {clip.poi} → ({boot.PlayerPosition.x:F0}, {boot.PlayerPosition.y:F0}, {boot.PlayerPosition.z:F0})");
+                    if (pc != null)
+                    {
+                        pc.CaptureVistaFavorsBuilt = true;
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning($"[Clip] {clip.name}: /tp {clip.poi} did not move the player — no such site on this world; shooting near the spawn.");
+                    if (string.Equals(clip.pose, "here", StringComparison.OrdinalIgnoreCase))
+                    {
+                        clip.pose = "vista"; // "here" would keep the player in the hull
+                    }
+                }
+            }
+
+            if (clip.timeOfDay >= 0f)
+            {
+                boot.Network.SendAdminCommand("set_time",
+                    stringArg: clip.timeOfDay.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            if (!string.IsNullOrEmpty(clip.weather))
+            {
+                boot.Network.SendAdminCommand("set_weather", stringArg: clip.weather); // a precipitation form is refused there — harmless
+            }
+
+            if (clip.timeOfDay >= 0f || !string.IsNullOrEmpty(clip.weather))
+            {
+                boot.SetCaptureEnvironment(clip.timeOfDay >= 0f ? clip.timeOfDay : (float?)null, clip.weather ?? string.Empty);
+                yield return new WaitForSecondsRealtime(1f);
+            }
+
+            _sunDir = SunDirection();
+            if (pc != null)
+            {
+                pc.CaptureSunDirection = _sunDir;
+            }
+        }
+
+        /// <summary>The direction toward the brightest lit directional light — the sun by day — or null when none is lit.</summary>
+        internal static Vector3? SunDirection()
+        {
+            Light best = null;
+            foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None))
+            {
+                if (l.type == LightType.Directional && l.isActiveAndEnabled && (best == null || l.intensity > best.intensity))
+                {
+                    best = l;
+                }
+            }
+
+            return best != null && best.intensity > 0.05f ? -best.transform.forward : (Vector3?)null;
+        }
+
+        /// <summary>Sends the clip's admin intents (#2765), each <c>"&lt;command&gt; [argument]"</c> as the chat would send it
+        /// (e.g. <c>summon_giant sandworm</c>, <c>summon_biped</c>). The singleplayer host is the world's admin.</summary>
+        private static IEnumerator SendAdminCommands(GameBootstrap boot, ClipSpec clip)
+        {
+            if (clip.adminCommands == null)
+            {
+                yield break;
+            }
+
+            foreach (string line in clip.adminCommands)
+            {
+                string text = (line ?? string.Empty).Trim();
+                if (text.Length == 0)
+                {
+                    continue;
+                }
+
+                int space = text.IndexOf(' ');
+                string command = space > 0 ? text.Substring(0, space) : text;
+                string arg = space > 0 ? text.Substring(space + 1).Trim() : null;
+                boot.Network.SendAdminCommand(command, stringArg: arg);
+                Debug.Log($"[Clip] {clip.name}: admin {command} {arg}");
+                yield return new WaitForSecondsRealtime(0.5f);
+            }
+        }
+
+        /// <summary>The "rig" still camera (#2765): camHeight above the player's eye, camBack behind and camSide to the right
+        /// of it, looking along the player's heading and camPitch below the horizon. A spot inside a block is pulled back
+        /// toward the eye until it is open.</summary>
+        private bool ComputeRigPose(ClipSpec clip, out Vector3 pos, out Quaternion rot)
+        {
+            pos = default;
+            rot = Quaternion.identity;
+            if (_pc == null)
+            {
+                return false;
+            }
+
+            Vector3 eye = _pc.CaptureEyePosition;
+            float yaw = _pc.transform.eulerAngles.y;
+            var heading = Quaternion.Euler(0f, yaw, 0f);
+            Vector3 target = eye + Vector3.up * clip.camHeight - heading * Vector3.forward * clip.camBack + heading * Vector3.right * clip.camSide;
+            pos = target;
+            for (float t = 1f; t > 0f && !_pc.IsCaptureCellOpen(pos); t -= 0.1f)
+            {
+                pos = Vector3.Lerp(eye, target, t - 0.1f);
+            }
+
+            rot = Quaternion.Euler(clip.camPitch, yaw, 0f);
+            return true;
+        }
+
+        /// <summary>Yaw and pitch offsets (degrees) toward the four edges of a subject still's frame — what must be clear in
+        /// front of the lens.</summary>
+        private static readonly (float Yaw, float Pitch)[] LensEdges = { (-28f, 0f), (28f, 0f), (0f, -14f), (0f, 14f) };
+
+        /// <summary>Waits (up to 45 s) until <see cref="TryFrameSubject"/> finds a creature to frame — the server fills the
+        /// spawn ring around the player over the first seconds — and remembers it, so the recorded frame frames that one.</summary>
+        private IEnumerator WaitForSubject(ClipSpec clip)
+        {
+            _pc = FindAnyObjectByType<PlayerController>();
+            for (float t = 0f; t < 45f; t += 0.5f)
+            {
+                _subjectId = null;
+                if (TryFrameSubject(clip, out _, out _))
+                {
+                    Debug.Log($"[Clip] {clip.name}: subject {_subjectId} after {t:F1} s ({_boot?.Creatures.Length ?? 0} creatures around)");
+                    yield break;
+                }
+
+                yield return new WaitForSecondsRealtime(0.5f);
+            }
+
+            Debug.LogWarning($"[Clip] {clip.name}: no {clip.subject} to frame within 45 s — recording the view. {SubjectCensus(clip)}");
+        }
+
+        /// <summary>Why no creature could be framed (#2765): how many were around and what ruled each out, for the log.</summary>
+        private string SubjectCensus(ClipSpec clip)
+        {
+            if (_boot == null || _pc == null)
+            {
+                return "(no world)";
+            }
+
+            bool wantGiant = string.Equals(clip.subject, "giant", StringComparison.OrdinalIgnoreCase);
+            bool underwater = _pc.IsHeadUnderwater();
+            Vector3 eye = _pc.CaptureEyePosition;
+            int total = 0, asleep = 0, owned = 0, kind = 0, habitat = 0, undrawn = 0, far = 0, near = 0;
+            foreach (var c in _boot.Creatures)
+            {
+                if (c == null)
+                {
+                    continue;
+                }
+
+                total++;
+                bool giant = c.GiantHeight > 0f;
+                if (c.Asleep || c.Frozen)
+                {
+                    asleep++;
+                }
+                else if (!string.IsNullOrEmpty(c.OwnerId))
+                {
+                    owned++;
+                }
+                else if (giant != wantGiant)
+                {
+                    kind++;
+                }
+                else if (c.Habitat == "Cave" || ((c.Habitat == "Water") != underwater && c.Habitat != "Amphibian"))
+                {
+                    habitat++;
+                }
+                else if (!CreatureView.TryBounds(c.Id, out var b))
+                {
+                    undrawn++;
+                }
+                else if (Vector3.Distance(eye, b.center) > (giant ? 260f : 55f))
+                {
+                    far++;
+                }
+                else
+                {
+                    near++; // a candidate — every camera spot around it failed (blocked, closed in, no clear lens)
+                }
+            }
+
+            return $"creatures={total} asleep={asleep} owned={owned} otherKind={kind} habitat={habitat} undrawn={undrawn} far={far} candidates={near}";
+        }
+
+        /// <summary>The "subject" still camera (#2765): frames a creature (or, for subject "giant", a giant). Candidates are
+        /// awake, wild, drawn and near the player — the one picked by <see cref="WaitForSubject"/> when it still qualifies.
+        /// Sixteen camera spots around each, at the distance that makes it fill subjectFill of the frame height, are tried:
+        /// the spot must be open with ground below, see the creature, and have land behind it. Scored by a long background,
+        /// size, the creature's face toward the camera and the sun behind the camera. The camera then turns so the creature
+        /// sits on a third line and looks into the frame.</summary>
+        private bool TryFrameSubject(ClipSpec clip, out Vector3 pos, out Quaternion rot)
+        {
+            pos = default;
+            rot = Quaternion.identity;
+            if (_boot == null || _pc == null)
+            {
+                return false;
+            }
+
+            bool wantGiant = string.Equals(clip.subject, "giant", StringComparison.OrdinalIgnoreCase);
+            float vFov = clip.fov > 0f ? clip.fov : (_pc.Camera != null ? _pc.Camera.fieldOfView : 70f);
+            float tanHalf = Mathf.Tan(vFov * 0.5f * Mathf.Deg2Rad);
+            float thirdYaw = Mathf.Atan(tanHalf * ((float)ClipWidth / ClipHeight) / 3f) * Mathf.Rad2Deg;
+            Vector3 eye = _pc.CaptureEyePosition;
+            bool underwater = _pc.IsHeadUnderwater();
+            float bestScore = float.NegativeInfinity;
+            string bestId = null;
+            Vector3 bestPos = default, bestLook = Vector3.forward, bestFacing = Vector3.zero;
+
+            // A second pass only when the first one looked for the picked creature alone.
+            bool picked = _subjectId != null;
+            for (int pass = 0; pass < (picked ? 2 : 1) && bestId == null; pass++)
+            {
+                foreach (var c in _boot.Creatures)
+                {
+                    // First pass: the creature already picked, while it still qualifies; then anyone.
+                    if (c == null || (pass == 0 && _subjectId != null && c.Id != _subjectId))
+                    {
+                        continue;
+                    }
+
+                    bool giant = c.GiantHeight > 0f;
+                    if (c.Asleep || c.Frozen || !string.IsNullOrEmpty(c.OwnerId) || giant != wantGiant
+                        || c.Habitat == "Cave" || ((c.Habitat == "Water") != underwater && c.Habitat != "Amphibian")
+                        || !CreatureView.TryBounds(c.Id, out var b))
+                    {
+                        continue;
+                    }
+
+                    float fromPlayer = Vector3.Distance(eye, b.center);
+                    if (fromPlayer > (giant ? 260f : 55f))
+                    {
+                        continue;
+                    }
+
+                    float h = Mathf.Max(b.size.y, 0.3f), w = Mathf.Max(b.size.x, b.size.z);
+                    float extent = Mathf.Max(h, w * 0.55f);
+                    float dist = Mathf.Clamp(extent / Mathf.Clamp(clip.subjectFill, 0.1f, 0.9f) / (2f * tanHalf), 1.8f, giant ? 140f : 30f);
+                    bool faces = CreatureView.TryFacing(c.Id, out var facing);
+                    // Camera spots: sixteen around the creature at the framing distance — or, for a giant, which walks out
+                    // where no chunks are streamed (130–210 m away), nine beside the player looking out at it; its size in the
+                    // frame then comes from the still's lens (a long one, a small fov).
+                    int spots = giant ? 9 : 16;
+                    for (int i = 0; i < spots; i++)
+                    {
+                        Vector3 cam;
+                        if (giant)
+                        {
+                            float ga = i * 45f * Mathf.Deg2Rad;
+                            cam = eye + Vector3.up * 2.5f + (i == 0 ? Vector3.zero : new Vector3(Mathf.Sin(ga), 0f, Mathf.Cos(ga)) * 5f);
+                        }
+                        else
+                        {
+                            float ang = i * 22.5f * Mathf.Deg2Rad;
+                            // About the creature's own height: the horizon runs behind it and the land beyond shows.
+                            cam = b.center + new Vector3(Mathf.Sin(ang), 0f, Mathf.Cos(ang)) * dist + Vector3.up * (h * 0.05f + 0.15f);
+                        }
+
+                        if (!_pc.IsCaptureCellOpen(cam, underwater))
+                        {
+                            continue;
+                        }
+
+                        Vector3 to = b.center - cam;
+                        float len = to.magnitude;
+                        Vector3 look = to / len;
+                        // The body is no voxel, so a clear view stops just short of it.
+                        if (_pc.CaptureSightDistance(cam, look, len, underwater) < len - (w * 0.5f + 0.2f))
+                        {
+                            continue;
+                        }
+
+                        // Nothing right in front of the lens at the frame's edges either (a trunk, a rock, a cave wall).
+                        int blockedEdges = 0;
+                        foreach (var (ey, ep) in LensEdges)
+                        {
+                            var edge = Quaternion.AngleAxis(ey, Vector3.up) * Quaternion.AngleAxis(ep, Vector3.Cross(Vector3.up, look)) * look;
+                            if (_pc.CaptureSightDistance(cam, edge, 4f, underwater) < 3.5f)
+                            {
+                                blockedEdges++;
+                            }
+                        }
+
+                        if (blockedEdges >= 2)
+                        {
+                            continue;
+                        }
+
+                        var flat = new Vector3(look.x, 0f, look.z).normalized;
+                        float behind = _pc.CaptureSightDistance(b.center + look * (w * 0.6f + 0.3f), look, 80f, underwater);
+                        float ground = _pc.CaptureSightDistance(cam, Vector3.down, 12f, underwater);
+                        float score = Mathf.Log(1f + behind) * 3f + Mathf.Min(extent, 6f) * 1.5f - Mathf.Abs(fromPlayer - 18f) * 0.03f
+                                      - (ground >= 12f && !underwater ? 6f : 0f) - blockedEdges * 4f;
+                        if (faces)
+                        {
+                            score += Vector3.Dot(facing, -flat) * 6f; // its face, not its back
+                        }
+
+                        if (_sunDir is Vector3 sun)
+                        {
+                            var s = new Vector3(sun.x, 0f, sun.z);
+                            if (s.sqrMagnitude > 1e-4f)
+                            {
+                                float into = Vector3.Dot(flat, s.normalized);
+                                score += into > 0.6f ? -8f : into < 0f ? 3f : 0f;
+                            }
+                        }
+
+                        if (score > bestScore)
+                        {
+                            bestScore = score;
+                            bestId = c.Id;
+                            bestPos = cam;
+                            bestLook = look;
+                            bestFacing = faces ? facing : Vector3.zero;
+                        }
+                    }
+                }
+
+                if (bestId == null)
+                {
+                    _subjectId = null; // the picked one walked off or behind a tree — the second pass takes anyone
+                }
+            }
+
+            if (bestId == null)
+            {
+                return false;
+            }
+
+            _subjectId = bestId;
+            var view = Quaternion.LookRotation(bestLook, Vector3.up);
+            // Rule of thirds: turning the camera right moves the creature to the left third — do that when it faces right,
+            // so it looks into the frame.
+            float side = Vector3.Dot(bestFacing, view * Vector3.right) < 0f ? -1f : 1f;
+            rot = Quaternion.AngleAxis(side * thirdYaw, Vector3.up) * view;
+            pos = bestPos;
+            return true;
         }
 
         /// <summary>Records the boot chain itself: from the first frame through the studio splash → title splash →

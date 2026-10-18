@@ -211,7 +211,8 @@ namespace BlocksBeyondTheStars.Client
 
         public GameBootstrap Game; // to hide the hand viewmodel while the space view owns the camera
         private bool _hiddenForSpace;
-        private bool _eva;             // on an EVA the suit's hands DO show (the tool you build/mine with)
+        private bool _hiddenForCapture; // GameBootstrap.CaptureCleanView: a capture run hides the hand (#2765)
+        private bool _eva;            // on an EVA the suit's hands DO show (the tool you build/mine with)
         private string _evaKey = "\0"; // last held item shown on EVA (self-refreshed from the hotbar)
 
         public void SetVisible(bool visible)
@@ -256,6 +257,13 @@ namespace BlocksBeyondTheStars.Client
             if (Game == null)
             {
                 return;
+            }
+
+            // A capture run films the world, not the hand (#2765).
+            if (Game.CaptureCleanView != _hiddenForCapture)
+            {
+                _hiddenForCapture = Game.CaptureCleanView;
+                ApplyVisible();
             }
 
             _eva = Game.SpaceViewActive && Game.InEva;
@@ -304,7 +312,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void ApplyVisible()
         {
-            bool shown = (_visible || _eva) && !_hiddenForSpace;
+            bool shown = (_visible || _eva) && !_hiddenForSpace && !_hiddenForCapture;
             bool climbShown = _climbBlend > 0f;
             if (_holder != null)
             {
@@ -408,7 +416,7 @@ namespace BlocksBeyondTheStars.Client
             _hasPrev = true;
 
             // #2287: the item sinks away, then the hands come up (and the other way round when the climb ends).
-            bool wantClimb = _climbing && _visible && !_eva && !_hiddenForSpace;
+            bool wantClimb = _climbing && _visible && !_eva && !_hiddenForSpace && !_hiddenForCapture;
             bool wasUp = HandsUp, wasShown = _climbBlend > 0f;
             _climbBlend = Mathf.MoveTowards(_climbBlend, wantClimb ? 1f : 0f, dt / (2f * ClimbSwapSeconds));
             bool rebuilt = _climbBlend > 0f && EnsureClimbHands();

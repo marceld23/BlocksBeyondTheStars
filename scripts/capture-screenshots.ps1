@@ -5,25 +5,26 @@
 .DESCRIPTION
   Runs the built Windows player with the -captureShots flag, which makes the in-game
   ScreenshotDirector self-install, drive the client through a fixed sequence (start screen →
-  planet surface → cockpit HUD → three space-flight vantage points) and write a 1920x1080 PNG of
-  each, then quit. The HUD language is fixed at world start, so a full DE+EN set is two runs.
+  cockpit HUD → Tab menu → space flight → planet surface) and write a 1920x1080 PNG of each, then
+  quit. These are the "how it plays" shots WITH the HUD; the HUD language is fixed at world start,
+  so a full DE+EN set is two runs.
+
+  The HUD-free world gallery (planet types, creatures, villages, giants) comes from
+  scripts/capture-stills.ps1 instead (#2765) — one language-neutral set in docs/screenshots/world.
 
   Requires a current player build (scripts/build-client.ps1) — the build bundles the local server,
   which singleplayer needs. Pass -Build to (re)build first.
 
   Output: <repo>/docs/screenshots/<lang>/*.png
 
-  In addition to the main sequence, this captures one surface shot per planet TYPE (surface_<key>.png) to
-  showcase the world variety — the -Planets list drives which types (each is a short, separate player run that
-  spawns a fresh world pinned to that planet type via -planet). Use -SkipMain to capture only the planet
-  surfaces, or -Planets @() to capture only the main sequence.
+  -Planets still takes the old per-planet HUD surface shots (surface_<key>.png, one run per type via
+  -planet) when a list is given; by default none are taken.
 
 .EXAMPLE
-  ./scripts/capture-screenshots.ps1                # main sequence + curated planet surfaces, both languages
+  ./scripts/capture-screenshots.ps1                # the main sequence, both languages
   ./scripts/capture-screenshots.ps1 -Lang de       # German only
   ./scripts/capture-screenshots.ps1 -Build         # build the client first, then capture
-  ./scripts/capture-screenshots.ps1 -SkipMain -Lang en   # only the planet surfaces, English
-  ./scripts/capture-screenshots.ps1 -Planets lava,ocean  # only these two surface types
+  ./scripts/capture-screenshots.ps1 -SkipMain -Planets lava,ocean -Lang en  # only two HUD surface shots
 #>
 param(
     [ValidateSet("both", "de", "en")]
@@ -31,7 +32,7 @@ param(
     [string] $Exe,
     [string] $OutRoot,
     [long]   $Seed = 424242,
-    [string[]] $Planets = @("jungle", "lava", "ocean", "ice", "desert", "fungal", "skylands", "crystal"),
+    [string[]] $Planets = @(),
     [switch] $SkipMain,
     [switch] $Build
 )

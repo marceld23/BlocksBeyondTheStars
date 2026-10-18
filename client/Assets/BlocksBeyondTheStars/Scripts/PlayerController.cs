@@ -3069,6 +3069,16 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
+            if (kind == "vista")
+            {
+                return PlaceForCaptureVista(anchor, pitch);
+            }
+
+            if (kind == "here")
+            {
+                return PlaceForCaptureHere(anchor, pitch);
+            }
+
             RefreshLiquidKeys();
             const int Radius = 60;
             int ax = Mathf.FloorToInt(anchor.x), ay = Mathf.FloorToInt(anchor.y), az = Mathf.FloorToInt(anchor.z);
@@ -3400,6 +3410,389 @@ namespace BlocksBeyondTheStars.Client
         {
             float dx = x - ax, dz = z - az;
             return Mathf.Abs(dx) + Mathf.Abs(dz) > 0.01f ? Mathf.Atan2(dx, dz) * Mathf.Rad2Deg : 0f;
+        }
+
+        /// <summary>Capture hook (#2765): the third-person camera — the player's avatar in the world, for scale in a still —
+        /// or back to first person, exactly as the view key switches it.</summary>
+        public void SetCaptureThirdPerson(bool on)
+        {
+            if (ThirdPerson == on)
+            {
+                return;
+            }
+
+            ThirdPerson = on;
+            ApplyCameraMode();
+        }
+
+        /// <summary>Capture hook (#2765): the first-person eye in world space, whichever camera mode is on — a still's
+        /// recording camera is placed relative to it.</summary>
+        public Vector3 CaptureEyePosition => transform.TransformPoint(FirstPersonEye);
+
+        /// <summary>Capture hook (#2765): the direction toward the sun that the "vista" pose keeps beside or behind the camera
+        /// (null = no preference). The capture director sets it once the time of day is pinned.</summary>
+        public Vector3? CaptureSunDirection { get; set; }
+
+        /// <summary>Capture hook (#2765): the "vista" pose also counts built blocks in view (houses, lamps, machines) — for a
+        /// still of a village or another site the player was sent to.</summary>
+        public bool CaptureVistaFavorsBuilt { get; set; }
+
+        private bool _vistaCached;
+        private Vector3 _vistaAnchor, _vistaStand;
+        private float _vistaYaw;
+
+        /// <summary>The "vista" pose (#2765): a raised, open, dry spot near the anchor with the best view. Every column of the
+        /// streamed radius gives its standable top; the highest and most prominent tops are kept, and from each of them
+        /// sixteen view directions are scored through the voxels (<see cref="CaptureViewScore"/>). The pick is cached for the
+        /// anchor, so the settle loop's re-snaps keep the same spot and view instead of jumping as more chunks arrive.</summary>
+        private bool PlaceForCaptureVista(Vector3 anchor, float pitch)
+        {
+            if (_vistaCached && (anchor - _vistaAnchor).sqrMagnitude < 1f)
+            {
+                SetCapturePose(_vistaStand, _vistaYaw, pitch);
+                return true;
+            }
+
+            RefreshLiquidKeys();
+            const int Radius = 56;
+            int ax = Mathf.FloorToInt(anchor.x), ay = Mathf.FloorToInt(anchor.y), az = Mathf.FloorToInt(anchor.z);
+            var heights = new System.Collections.Generic.Dictionary<long, int>();
+            var tops = new System.Collections.Generic.List<Vector3Int>();
+            for (int dx = -Radius; dx <= Radius; dx += 2)
+            {
+                for (int dz = -Radius; dz <= Radius; dz += 2)
+                {
+                    float horiz = Mathf.Sqrt(dx * dx + dz * dz);
+                    if (horiz > Radius)
+                    {
+                        continue;
+                    }
+
+                    int x = ax + dx, z = az + dz;
+                    int top = CaptureColumnTop(x, z, ay - 32, ay + 48, out bool dry);
+                    if (top == int.MinValue)
+                    {
+                        continue;
+                    }
+
+                    heights[CaptureColumnKey(x, z)] = top;
+                    // Clear of the ship's footprint (its hull is stamped into the voxels) and out under the sky.
+                    if (dry && horiz >= 9f && !Game.LandedShipCovers(x, top, z) && CaptureOpenSky(x, top + 2, z))
+                    {
+                        tops.Add(new Vector3Int(x, top, z));
+                    }
+                }
+            }
+
+            if (tops.Count == 0)
+            {
+                Debug.LogWarning($"[Capture] PlaceForCaptureVista: no open, dry top streamed in near the spawn ({heights.Count} columns).");
+                return false;
+            }
+
+            // Prominence: how far a top stands above the ground around it (a knoll, a ridge, a mesa edge) — the view from a
+            // hill beats the view from a hollow at the same height.
+            var ranked = new System.Collections.Generic.List<(Vector3Int Top, float Prominence, float Rank)>(tops.Count);
+            foreach (var t in tops)
+            {
+                float sum = 0f;
+                int n = 0;
+                foreach (var (ox, oz) in ProminenceRing)
+                {
+                    if (heights.TryGetValue(CaptureColumnKey(t.x + ox, t.z + oz), out int h))
+                    {
+                        sum += h;
+                        n++;
+                    }
+                }
+
+                float prominence = n > 0 ? t.y - sum / n : 0f;
+                float horiz = Mathf.Sqrt((t.x - ax) * (t.x - ax) + (t.z - az) * (t.z - az));
+                ranked.Add((t, prominence, t.y + prominence * 1.5f - horiz * 0.04f));
+            }
+
+            ranked.Sort((a, b) => b.Rank.CompareTo(a.Rank));
+            float half = _controller.height * 0.5f + _controller.skinWidth;
+            float bestScore = float.NegativeInfinity, bestYaw = 0f;
+            Vector3Int best = default;
+            int evaluated = Mathf.Min(24, ranked.Count);
+            for (int i = 0; i < evaluated; i++)
+            {
+                var (t, prominence, _) = ranked[i];
+                // Score from about where a still's raised camera will be: a few metres above the eye.
+                var eye = new Vector3(t.x + 0.5f, t.y + 1.6f + 2.5f, t.z + 0.5f);
+                for (int a = 0; a < 16; a++)
+                {
+                    float yaw = a * 22.5f;
+                    float score = CaptureViewScore(eye, yaw) + Mathf.Clamp(prominence, -4f, 12f) + (t.y - ay) * 0.15f;
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        bestYaw = yaw;
+                        best = t;
+                    }
+                }
+            }
+
+            _vistaStand = new Vector3(best.x + 0.5f, best.y + half + 0.05f, best.z + 0.5f);
+            _vistaYaw = bestYaw;
+            _vistaAnchor = anchor;
+            _vistaCached = true;
+            SetCapturePose(_vistaStand, _vistaYaw, pitch);
+            Debug.Log($"[Capture] PlaceForCaptureVista: ({best.x},{best.y},{best.z}) yaw={bestYaw:F0}° score={bestScore:F1} "
+                      + $"of {evaluated} tops ({tops.Count} open, {heights.Count} columns)");
+            return true;
+        }
+
+        /// <summary>The "here" pose (#2765): the player stays where they are — the spot a <c>/tp village</c> put them, in the
+        /// middle of the site — and only turns to the heading whose view from a few metres up scores best (built blocks
+        /// count when <see cref="CaptureVistaFavorsBuilt"/>). A raised "rig" still camera behind the player then looks
+        /// over the site.</summary>
+        private bool PlaceForCaptureHere(Vector3 anchor, float pitch)
+        {
+            RefreshLiquidKeys();
+            var eye = new Vector3(anchor.x, anchor.y + 1.6f + 8f, anchor.z);
+            float bestScore = float.NegativeInfinity, bestYaw = 0f;
+            for (int a = 0; a < 16; a++)
+            {
+                float score = CaptureViewScore(eye, a * 22.5f, back: 0f);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestYaw = a * 22.5f;
+                }
+            }
+
+            SetLookAngles(bestYaw, pitch);
+            Debug.Log($"[Capture] PlaceForCaptureHere: ({anchor.x:F0},{anchor.y:F0},{anchor.z:F0}) yaw={bestYaw:F0}° score={bestScore:F1}");
+            return true;
+        }
+
+        /// <summary>Column offsets (even, like the scan grid) that sample the ground around a top for its prominence.</summary>
+        private static readonly (int X, int Z)[] ProminenceRing =
+        {
+            (6, 0), (-6, 0), (0, 6), (0, -6), (4, 4), (-4, 4), (4, -4), (-4, -4),
+            (12, 0), (-12, 0), (0, 12), (0, -12), (8, 8), (-8, 8), (8, -8), (-8, -8),
+        };
+
+        private static long CaptureColumnKey(int x, int z) => ((long)x << 32) ^ (uint)z;
+
+        /// <summary>The feet cell on top of a column (the first cell above its highest colliding block), scanning down from
+        /// <paramref name="yHi"/>; <paramref name="dry"/> says a player can stand there (two free cells, no liquid on top).
+        /// A sea, a lava lake or a tree crown still reports its top — a height for the relief — but not as dry.
+        /// <see cref="int.MinValue"/> when nothing of the column is streamed in.</summary>
+        private int CaptureColumnTop(int x, int z, int yLo, int yHi, out bool dry)
+        {
+            dry = false;
+            for (int y = yHi; y >= yLo; y--)
+            {
+                if (!CaptureKeyAt(x, y, z, out string k) || k == "air")
+                {
+                    continue;
+                }
+
+                // A sea, a lava lake or a tree crown: a height for the relief, not a place to stand (leaves are walked
+                // through, so the scan would otherwise land on the trunk inside the crown).
+                if (k == "water" || k == "lava" || LiquidKeys.Contains(k) || TreeFoliage.IsKey(k))
+                {
+                    return y + 1;
+                }
+
+                if (IsCollidingKey(k))
+                {
+                    dry = CaptureKeyAt(x, y + 1, z, out string feet) && CaptureFree(feet)
+                          && CaptureKeyAt(x, y + 2, z, out string head) && CaptureFree(head);
+                    return y + 1;
+                }
+            }
+
+            return int.MinValue;
+        }
+
+        /// <summary>How good the view along <paramref name="yaw"/> is (#2765), seen from <paramref name="back"/> metres behind
+        /// <paramref name="eye"/> — where a still's rig camera sits. A ±45° fan (the width of a 65° still) at 3°, 9° and 18°
+        /// below the horizon marches through the streamed voxels. Rewarded: depth (how far the rays get), relief (how much the
+        /// heights they land on differ) and variety (different ground, water, lava, flora; built blocks when
+        /// <see cref="CaptureVistaFavorsBuilt"/>), and the sun beside or behind the camera. Punished: a wall, a pillar or a
+        /// tree crown in the first metres (two more fans, level and a little up, look for those), the landed ship in view,
+        /// and looking into the sun.</summary>
+        private float CaptureViewScore(Vector3 eye, float yaw, float back = 2f)
+        {
+            float depth = 0f, sumY = 0f, sumY2 = 0f;
+            int hits = 0, near = 0, water = 0, lava = 0, flora = 0, built = 0, ship = 0;
+            var kinds = new System.Collections.Generic.HashSet<string>();
+            eye -= new Vector3(Mathf.Sin(yaw * Mathf.Deg2Rad), 0f, Mathf.Cos(yaw * Mathf.Deg2Rad)) * back;
+            for (int yi = -3; yi <= 3; yi++)
+            {
+                float ryaw = (yaw + yi * 15f) * Mathf.Deg2Rad;
+                // Something tall beside or in front of the lens (a trunk, a pillar, a wall) that the downward fan passes under.
+                for (int ui = 0; ui < 2; ui++)
+                {
+                    float up = (ui == 0 ? 0f : 6f) * Mathf.Deg2Rad;
+                    var ray = new Vector3(Mathf.Sin(ryaw) * Mathf.Cos(up), Mathf.Sin(up), Mathf.Cos(ryaw) * Mathf.Cos(up));
+                    if (CaptureMarch(eye, ray, 9f, out _, out _, out _) < (Mathf.Abs(yi) <= 1 ? 9f : 6f))
+                    {
+                        near++;
+                    }
+                }
+
+                for (int pi = 0; pi < 3; pi++)
+                {
+                    float rpitch = (pi == 0 ? 3f : pi == 1 ? 9f : 18f) * Mathf.Deg2Rad;
+                    var dir = new Vector3(Mathf.Sin(ryaw) * Mathf.Cos(rpitch), -Mathf.Sin(rpitch), Mathf.Cos(ryaw) * Mathf.Cos(rpitch));
+                    float d = CaptureMarch(eye, dir, 120f, out var def, out Vector3Int cell, out bool shipHit);
+                    depth += Mathf.Log(1f + d);
+                    if (shipHit)
+                    {
+                        ship++; // the landed ship in view (its own model, not voxels)
+                        continue;
+                    }
+
+                    if (def == null)
+                    {
+                        continue; // ran out of the streamed world: open view to the horizon
+                    }
+
+                    hits++;
+                    sumY += cell.y;
+                    sumY2 += cell.y * cell.y;
+                    kinds.Add(def.Key);
+                    if (pi < 2 && d < (Mathf.Abs(yi) <= 1 ? 10f : 7f))
+                    {
+                        near++; // something big right in front of the lens
+                    }
+
+                    if (def.Key == "water" || def.Liquid)
+                    {
+                        water++;
+                    }
+                    else if (def.Key == "lava")
+                    {
+                        lava++;
+                    }
+                    else if (def.Category == "flora" || TreeFoliage.IsKey(def.Key) || def.Key.EndsWith("_log", System.StringComparison.Ordinal))
+                    {
+                        flora++; // a trunk is a tree, not a house (logs carry the "building" category)
+                    }
+                    else if (def.Category is "building" or "machine" or "door" or "light")
+                    {
+                        built++;
+                    }
+                }
+            }
+
+            float relief = 0f;
+            if (hits > 1)
+            {
+                float mean = sumY / hits;
+                relief = Mathf.Sqrt(Mathf.Max(0f, sumY2 / hits - mean * mean));
+            }
+
+            float score = depth
+                          + Mathf.Min(relief, 10f) * 2f
+                          + Mathf.Min(kinds.Count, 6) * 2f
+                          + Mathf.Min(water, 4) * 2.5f
+                          + Mathf.Min(lava, 3) * 3f
+                          + Mathf.Min(flora, 6)
+                          + (CaptureVistaFavorsBuilt ? Mathf.Min(built, 8) * 3f : 0f)
+                          - near * 8f
+                          - ship * 12f;
+
+            // The landed ship anywhere in the frame (a still is about ±50° wide) and near enough to read: the few rays that
+            // hit it are not penalty enough, it would still become the subject of the picture.
+            if (Game.LandedShipInView(eye, yaw, 50f, 90f))
+            {
+                score -= 60f;
+            }
+
+            if (CaptureSunDirection is Vector3 sun)
+            {
+                var view = new Vector2(Mathf.Sin(yaw * Mathf.Deg2Rad), Mathf.Cos(yaw * Mathf.Deg2Rad));
+                var toSun = new Vector2(sun.x, sun.z);
+                if (toSun.sqrMagnitude > 1e-4f)
+                {
+                    float c = Vector2.Dot(view, toSun.normalized);
+                    score += c > 0.6f ? -15f : c < 0.2f ? 4f : 0f; // into the sun washes the frame out; side or back light models it
+                }
+            }
+
+            return score;
+        }
+
+        /// <summary>March a view ray through the streamed voxels: metres to the first block that hides what lies behind it
+        /// (a colliding block, a liquid or a tree crown — the crown is walk-through but not see-through), with that block and
+        /// its cell. Returns <paramref name="max"/> and a null block when the ray gets through or leaves the streamed world.
+        /// <paramref name="throughWater"/>: water is the medium, not a wall (a camera under the sea).</summary>
+        private float CaptureMarch(Vector3 from, Vector3 dir, float max, out BlockDefinition hit, out Vector3Int cell,
+            out bool ship, bool throughWater = false)
+        {
+            hit = null;
+            cell = default;
+            ship = false;
+            for (float d = 0.5f; d <= max; d += d < 12f ? 0.5f : 1f)
+            {
+                var p = from + dir * d;
+                int x = Mathf.FloorToInt(p.x), y = Mathf.FloorToInt(p.y), z = Mathf.FloorToInt(p.z);
+                if (Game.LandedShipBodyAt(x, y, z))
+                {
+                    ship = true; // a parked ship is its own model, not voxels — it hides what lies behind it all the same
+                    cell = new Vector3Int(x, y, z);
+                    return d;
+                }
+
+                if (!Game.World.TryGetBlock(x, y, z, out var id))
+                {
+                    if (d > 24f)
+                    {
+                        return max; // past the streamed ring
+                    }
+
+                    continue;
+                }
+
+                if (id.IsAir)
+                {
+                    continue;
+                }
+
+                var def = Game.Content.BlockById(id);
+                if (def == null || (throughWater && def.Key == "water"))
+                {
+                    continue;
+                }
+
+                if (def.Liquid || def.Key == "water" || def.Key == "lava" || TreeFoliage.IsKey(def.Key) || IsCollidingKey(def.Key))
+                {
+                    hit = def;
+                    cell = new Vector3Int(x, y, z);
+                    return d;
+                }
+            }
+
+            return max;
+        }
+
+        /// <summary>Capture hook (#2765): the cell at <paramref name="p"/> is streamed in and a camera may sit in it — air or a
+        /// walk-through prop, no liquid, no solid block and no tree crown. <paramref name="inWater"/>: water counts as open (a
+        /// camera under the sea).</summary>
+        public bool IsCaptureCellOpen(Vector3 p, bool inWater = false)
+            => Game?.World != null && Game.Content != null
+               && CaptureKeyAt(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z), out string k)
+               && ((inWater && k == "water") || (CaptureFree(k) && !TreeFoliage.IsKey(k)))
+               && !Game.LandedShipBodyAt(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z));
+
+        /// <summary>Capture hook (#2765): metres from <paramref name="from"/> along <paramref name="dir"/> to the first block
+        /// that hides the view (solid, liquid or a tree crown), up to <paramref name="max"/> — also returned when the ray gets
+        /// through or leaves the streamed world. <paramref name="throughWater"/>: water does not block (under the sea).</summary>
+        public float CaptureSightDistance(Vector3 from, Vector3 dir, float max, bool throughWater = false)
+        {
+            if (Game?.World == null || Game.Content == null || dir.sqrMagnitude < 1e-6f)
+            {
+                return max;
+            }
+
+            RefreshLiquidKeys();
+            return CaptureMarch(from, dir.normalized, max, out _, out _, out _, throughWater);
         }
 
         /// <summary>Capture hook: the on-foot player is standing on solid ground this frame.</summary>

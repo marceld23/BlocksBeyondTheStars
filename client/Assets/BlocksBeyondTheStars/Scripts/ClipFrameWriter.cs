@@ -96,6 +96,10 @@ namespace BlocksBeyondTheStars.Client
         /// the SSAO tier of the preset); −1 keeps the clone's default.</summary>
         public int RendererIndex { get; set; } = -1;
 
+        /// <summary>The clone camera's vertical field of view in degrees for the HUD-free path (a still's own lens, #2765);
+        /// 0 keeps the live view camera's.</summary>
+        public float FieldOfView { get; set; }
+
         /// <summary><c>Camera.CopyFrom</c> copies the Camera only — the URP data beside it (post-processing, the
         /// depth + opaque copies, the renderer) stays at the clone's defaults, so every clip rendered without the
         /// post stack and with the heat-haze quad re-drawing the frame from an opaque texture that did not exist (a
@@ -152,6 +156,11 @@ namespace BlocksBeyondTheStars.Client
                     _cam.enabled = false;
                     _cam.targetTexture = _rt;
                     SyncUrpCamera(_hudFreeSource, _cam, RendererIndex);
+                    if (FieldOfView > 0f)
+                    {
+                        _cam.fieldOfView = FieldOfView;
+                    }
+
                     if (overridePose)
                     {
                         _cam.transform.SetPositionAndRotation(overridePos, overrideRot);

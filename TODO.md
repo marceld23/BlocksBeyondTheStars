@@ -24,6 +24,38 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📸 Screenshots that show the worlds — HUD-free stills, a vista pose, creature framing, a new README gallery — #2765, #2766, branch feat/marketing-screenshots-world — ✅ done 2026-10-18
+
+The README/store screenshots dated from 2026-08-09 (before the atmosphere package, terrain generations 21–27,
+villages, lodges and giants) and covered 8 of the 48 surface planet types. Each one was the first *safe* spot near
+the ship, at eye height and noon, with the HUD, the first-person hand and often the block selection frame in it.
+
+- **Capture (#2765):**
+  - HUD-free clips also hide the hand and the selection frame (`GameBootstrap.CaptureCleanView`).
+  - A **`vista` pose**: the raised, open spot whose view scores best through the voxels (depth, relief, variety; no
+    wall, ship or sun in front).
+  - Two still cameras: **`rig`** above and behind the eye, an elevated view without flight; **`subject`** frames an
+    awake creature or a giant on a third line with land behind it.
+  - New manifest fields: `astronaut` (third person), `creatures` (world abundance), `poi` (`/tp village` …),
+    `adminCommands` (`summon_giant …`), `settleSeconds`, `fov`.
+  - Pinned time and weather now also go to the server (`/settime`, `/setweather`), so the awake animals match the sky.
+  - Capture worlds have no main story and no tutorial. Since the story packs (#2468), the server starts the prologue
+    cutscene a few seconds into a fresh world, after VEGA was dismissed, and its camera took over every `static` clip
+    (the look-check clips of #2405 included).
+  - Sight lines treat a parked ship as a wall (`GameBootstrap.LandedShipBodyAt`): it is its own model, not voxels.
+  - `scripts/capture-stills.ps1` + `scripts/shot-manifests/marketing.json` + `tools/screenshots/stills.py`: several
+    seeds per motif, a contact sheet per motif, the picks published as JPEGs to `docs/screenshots/world/`.
+  - The HUD `planet_surface` shot uses the vista pose and morning light too.
+- **Gallery (#2766):** a new "how it plays" HUD set (DE + EN) and a language-neutral world set in the README.
+  - 16 planet types in a 4×4 grid, plus a row of creatures and a giant, and a row of life: a town, an ancient gate,
+    the astronaut at a lookout, a village at night.
+  - 26 JPEGs in `docs/screenshots/world/` (10.9 MB); the README shows 24 of them. Every pick is recorded in the
+    manifest (`pick`).
+  - Pipeline in `docs/screenshots/README.md`.
+  - The old `de|en/surface_*.png` stay as reference images for other material.
+  - The space-HUD overlap seen in the August set ("Cargo" over the hull bar, two hint lines) is gone in the current
+    HUD, so no issue was needed.
+
 ### 🧪 Two CI flakes from the v2026.10.20 release — SQLite pools (#2768), the sealed-room tutorial step (#2769), branch fix/test-flakes-2026-10-18 — ✅ done 2026-10-18
 
 The release gate of v2026.10.20 went red on one test (re-run green), the main CI of the same commit on another; both
