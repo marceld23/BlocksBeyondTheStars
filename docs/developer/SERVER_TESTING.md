@@ -128,6 +128,23 @@ first-PR traps:
   `WorldDataCache<T>` (the lock only guards the bookkeeping; a missing entry is built outside it, once
   per key) plus an instance `WorldSlot<T>` for the lock-free hit
   ([WorldGenerator.SharedCaches.cs](../../src/BlocksBeyondTheStars.WorldGeneration/WorldGenerator.SharedCaches.cs)).
+- **Open every SQLite connection with `Pooling=False`, and never call `SqliteConnection.ClearAllPools()` in
+  production code.** `ClearAllPools()` clears the pools of the *whole process*: a pooled connection that
+  another test class is just opening can lose its native handle to it — an `ObjectDisposedException:
+  'SQLitePCL.sqlite3'` on the first statement after `Open()` (#2768; 126 failures in 43 342 pooled opens
+  beside a clearing thread, none unpooled). Our connections live long anyway (the world repository, the
+  WorldHost registry and the report store keep one open) or are one-shot reads, so a pool gains nothing,
+  and disposing an unpooled connection releases its file by itself.
+  [`SqlitePoolingGuardTests`](../../tests/BlocksBeyondTheStars.Tests/SqlitePoolingGuardTests.cs) enforces both
+  rules for `src/` and this test project. The older `ClearAllPools()` calls in test cleanups have nothing
+  left to clear and no longer need copying.
+- **A test that skips ticks must not depend on a wall-clock budget.** `AdvanceUptimeForTest` moves the clock
+  without running the ticks in between — and those ticks are what guarantees time-sliced work (an air fill,
+  for example) its progress. A result asked for right after it is only as far as the budget of *one* call
+  got on this runner. On a busy CI runner that was not far enough: the tutorial's sealed-room step failed
+  at random (#2769, the same class as #2662). Either drive the real ticks, use a seam that runs the work to
+  the end (`BaseAirForTest`), or give the server a budget that never binds (`AirTickBudgetMsForTest`) when
+  the code under test must start the work itself.
 
 ## Joins built by hand need the content fingerprint (#2222)
 

@@ -124,7 +124,9 @@ public sealed class ReportStore : IDisposable
         _attachmentsDir = Path.Combine(dir ?? ".", "attachments");
         Directory.CreateDirectory(_attachmentsDir);
 
-        _db = new SqliteConnection($"Data Source={path}");
+        // Unpooled (#2768): one connection for the store's whole life — a pool gains nothing, and no pool clearing
+        // anywhere in the process can reach an unpooled handle.
+        _db = new SqliteConnection($"Data Source={path};Pooling=False");
         _db.Open();
         Exec("PRAGMA journal_mode=WAL;");
         Exec("""

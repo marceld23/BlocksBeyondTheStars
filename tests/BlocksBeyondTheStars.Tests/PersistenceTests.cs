@@ -276,7 +276,7 @@ public sealed class PersistenceTests : IDisposable
 
         var databaseFile = Path.Combine(_root, "world_001", "world.db");
 
-        using (var connection = new SqliteConnection($"Data Source={databaseFile}"))
+        using (var connection = new SqliteConnection($"Data Source={databaseFile};Pooling=False"))
         {
             connection.Open();
             using var cmd = connection.CreateCommand();
@@ -291,7 +291,7 @@ public sealed class PersistenceTests : IDisposable
             Assert.Throws<InvalidDataException>(() => reopened.LoadPlayer("p1"));
         }
 
-        using (var connection = new SqliteConnection($"Data Source={databaseFile}"))
+        using (var connection = new SqliteConnection($"Data Source={databaseFile};Pooling=False"))
         {
             connection.Open();
             using var cmd = connection.CreateCommand();
@@ -440,7 +440,7 @@ public sealed class PersistenceTests : IDisposable
 
         // 2. Simulate hand-edited SQLite: inject duplicate key (steel_wall at 5 and 7) and unknown key at 6
         var databaseFile = Path.Combine(_root, "world_001", "world.db");
-        using (var connection = new SqliteConnection($"Data Source={databaseFile}"))
+        using (var connection = new SqliteConnection($"Data Source={databaseFile};Pooling=False"))
         {
             connection.Open();
             using var cmd = connection.CreateCommand();

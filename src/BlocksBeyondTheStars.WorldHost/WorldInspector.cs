@@ -89,6 +89,7 @@ public static class WorldInspector
                 DataSource = path,
                 Mode = SqliteOpenMode.ReadOnly,
                 Cache = SqliteCacheMode.Private,
+                Pooling = false, // #2768: a one-shot read; no pool for a process-wide clear to reach
             };
 
             using var con = new SqliteConnection(builder.ToString());

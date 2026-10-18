@@ -149,7 +149,7 @@ public sealed class WorldInspectorTests : IDisposable
 
     private void Execute(string sql)
     {
-        using var con = new SqliteConnection("Data Source=" + SavePaths.WorldDbPath(_config, WorldId));
+        using var con = new SqliteConnection("Data Source=" + SavePaths.WorldDbPath(_config, WorldId) + ";Pooling=False");
         con.Open();
         using var cmd = con.CreateCommand();
         cmd.CommandText = sql;

@@ -106,7 +106,9 @@ public static class SavePaths
                 }
             }
 
-            using var db = new SqliteConnection($"Data Source={path};Mode=ReadOnly");
+            // Unpooled (#2768): leaving this scope closes the read-only handle, so the caller can move or delete the temp
+            // file — without clearing every SQLite pool of the process, which could dispose a connection being opened elsewhere.
+            using var db = new SqliteConnection($"Data Source={path};Mode=ReadOnly;Pooling=False");
             db.Open();
 
             using (var check = db.CreateCommand())
@@ -153,10 +155,6 @@ public static class SavePaths
         catch (Exception)
         {
             return (false, "The save file could not be read.");
-        }
-        finally
-        {
-            SqliteConnection.ClearAllPools(); // release the read-only handle so the temp file can be moved/deleted
         }
     }
 

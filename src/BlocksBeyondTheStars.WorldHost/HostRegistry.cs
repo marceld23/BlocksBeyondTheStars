@@ -179,7 +179,9 @@ public sealed class HostRegistry : IDisposable
             Directory.CreateDirectory(dir);
         }
 
-        _db = new SqliteConnection($"Data Source={path}");
+        // Unpooled (#2768): one connection for the registry's whole life — a pool gains nothing, and no pool clearing
+        // anywhere in the process can reach an unpooled handle.
+        _db = new SqliteConnection($"Data Source={path};Pooling=False");
         _db.Open();
         Exec("PRAGMA journal_mode=WAL;");
         Exec("""

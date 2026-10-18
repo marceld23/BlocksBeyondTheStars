@@ -98,11 +98,16 @@ public sealed class SqliteWorldRepository : IWorldRepository
 
             _paths.EnsureDirectories();
 
+            // Unpooled (#2768): the repository keeps this one connection open for its whole life, so a pool gains nothing —
+            // and a pooled handle could be disposed under it by a SqliteConnection.ClearAllPools() anywhere in the process
+            // (a test class cleaning up, another component), right after Open. Disposing closes the native handle and
+            // releases the file by itself.
             var connectionString = new SqliteConnectionStringBuilder
             {
                 DataSource = _paths.DatabaseFile,
                 Mode = SqliteOpenMode.ReadWriteCreate,
                 Cache = SqliteCacheMode.Private,
+                Pooling = false,
             }.ToString();
 
             _connection = new SqliteConnection(connectionString);
@@ -2452,12 +2457,11 @@ public sealed class SqliteWorldRepository : IWorldRepository
                     // best-effort checkpoint on close
                 }
 
+                // Unpooled (#2768): this closes the native handle and releases the file. No pool clearing here — that is
+                // process-wide and used to dispose connections other components were just opening.
                 _connection.Dispose();
                 _connection = null;
             }
-
-            // Release the pooled native connection handles so the file can be deleted (tests).
-            SqliteConnection.ClearAllPools();
         }
     }
 }

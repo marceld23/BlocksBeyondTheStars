@@ -152,7 +152,7 @@ public sealed class WorldVisibilityTests : IDisposable
     {
         // A pre-feature registry: the world table has no is_public column (but does have password_hash).
         string dbPath = NewDbPath();
-        using (var connection = new SqliteConnection($"Data Source={dbPath}"))
+        using (var connection = new SqliteConnection($"Data Source={dbPath};Pooling=False"))
         {
             connection.Open();
             using var cmd = connection.CreateCommand();

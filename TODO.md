@@ -24,6 +24,29 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧪 Two CI flakes from the v2026.10.20 release — SQLite pools (#2768), the sealed-room tutorial step (#2769), branch fix/test-flakes-2026-10-18 — ✅ done 2026-10-18
+
+The release gate of v2026.10.20 went red on one test (re-run green), the main CI of the same commit on another; both
+were load-dependent races in tests, not in the release.
+
+- **SQLite pools (#2768):** `CustomShapeRegistryTests` failed with `ObjectDisposedException: 'SQLitePCL.sqlite3'` on the
+  repository's first statement after `Open()`. `SqliteConnection.ClearAllPools()` is process-wide and ran in
+  `SqliteWorldRepository.Dispose`, in WorldHost `SavePaths` and in ~370 test cleanups, while every connection was pooled.
+  Repro with Microsoft.Data.Sqlite 10.0.9: 126 failures in 43 342 pooled opens beside a clearing thread, 0 in 11 291
+  unpooled ones. Now every connection opens with `Pooling=False` (the repository, WorldHost `HostRegistry`, `SavePaths`,
+  `WorldInspector`, ReportHost `ReportStore`, the seven pooled raw test connections), and production code never clears
+  pools; disposing releases the file by itself. `SqlitePoolingGuardTests` pins both rules for `src/` and the server test
+  project (checked: it fails on a pooled connection and on a reintroduced `ClearAllPools()`). The test cleanups' own
+  `ClearAllPools()` calls stay — nothing pooled is left for them to clear.
+- **Sealed-room tutorial step (#2769):** `TheWallRingLesson_NeedsOpenSky_…` failed at `Done(p, "c7.5")`. The 1 Hz check
+  refreshes the base air on demand within the tick's wall-clock budget only; the tests skip the ticks that guarantee a fill
+  its progress (`AdvanceUptimeForTest`). With a zero budget both c7.5 tests fail every time; `TutorialBuildingCoursesTests`
+  now gives its servers a budget that never binds, so the check still starts and runs the refill itself. No production change.
+- **Docs:** SERVER_TESTING.md "CI rules that will bite you" — the SQLite pooling rule and "a test that skips ticks must
+  not depend on a wall-clock budget".
+
+---
+
 ### 🗺️ The landing map shows the terrain again — #2758–#2762, branch fix/landing-map-pond-bake — ✅ done 2026-10-18 (⚠ playtest open)
 
 Marcel's playtest 2026-10-18 (release 2026.10.19, a generation-26 world): the landing-pad chooser showed the pads on a

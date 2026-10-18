@@ -119,6 +119,13 @@ public sealed class TutorialBuildingCoursesTests : IDisposable
         config.Rules.StoryId = StoryRegistry.NoneStoryId;
         configure?.Invoke(config);
         var server = new SvGameServer(config, _content, transport, Repo(world));
+
+        // #2769: the 1 Hz tutorial check refreshes a base's air on demand, within what is left of the tick's wall-clock
+        // budget; the ticks that would finish the refill in the game (the tick driver guarantees every fill progress) are
+        // the ones these tests skip with AdvanceUptimeForTest. A budget that never binds lets the check finish a small
+        // room's refill itself on any runner — the check still starts and runs it, only the clock cannot cut it short.
+        // Air slicing itself is pinned by the air tests (BaseAirBulkheadTests).
+        server.AirTickBudgetMsForTest = 60_000;
         server.Start();
         return (server, transport);
     }

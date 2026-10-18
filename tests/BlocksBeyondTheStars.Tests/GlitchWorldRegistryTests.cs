@@ -90,7 +90,7 @@ public sealed class GlitchWorldRegistryTests : IDisposable
     {
         // A pre-arcade registry: the world table has no channel column yet.
         string dbPath = NewDbPath();
-        using (var connection = new SqliteConnection($"Data Source={dbPath}"))
+        using (var connection = new SqliteConnection($"Data Source={dbPath};Pooling=False"))
         {
             connection.Open();
             using var cmd = connection.CreateCommand();

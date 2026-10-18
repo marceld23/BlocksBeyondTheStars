@@ -223,7 +223,7 @@ public sealed class WorldPasswordTests : IDisposable
     {
         // A pre-#250 registry: the world table has no password_hash column.
         string dbPath = NewDbPath();
-        using (var connection = new SqliteConnection($"Data Source={dbPath}"))
+        using (var connection = new SqliteConnection($"Data Source={dbPath};Pooling=False"))
         {
             connection.Open();
             using var cmd = connection.CreateCommand();
