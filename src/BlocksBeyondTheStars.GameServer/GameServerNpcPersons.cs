@@ -169,7 +169,7 @@ public sealed partial class GameServer
 
         string job = string.IsNullOrEmpty(npc.Job) ? "settler" : npc.Job;
         string slot = post is { } p
-            ? job + "@" + LayoutCellText(settlement, new Vector3i((int)Math.Floor(p.X), (int)Math.Floor(p.Y), (int)Math.Floor(p.Z)))
+            ? job + "@" + LayoutCellText(settlement, p.ToBlock())
             : bed is { } b
                 ? "bed@" + LayoutCellText(settlement, b)
                 : job + "#" + (++fallbackOrdinal).ToString(CultureInfo.InvariantCulture);

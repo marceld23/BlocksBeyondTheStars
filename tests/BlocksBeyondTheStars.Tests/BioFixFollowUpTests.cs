@@ -114,13 +114,13 @@ public sealed class BioFixFollowUpTests : IDisposable
         }
     }
 
-    private static IEnumerable<T> SentTo<T>(NpcLifeWorld.RecordingTransport transport, SvSession who)
+    private static IEnumerable<T> SentTo<T>(RecordingTransport transport, SvSession who)
         => transport.Sent.Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<T>();
 
-    private static List<string> Rejections(NpcLifeWorld.RecordingTransport transport, SvSession who)
+    private static List<string> Rejections(RecordingTransport transport, SvSession who)
         => SentTo<ActionRejected>(transport, who).Select(r => r.Reason).ToList();
 
-    private static List<string> PlantHints(NpcLifeWorld.RecordingTransport transport, SvSession who)
+    private static List<string> PlantHints(RecordingTransport transport, SvSession who)
         => SentTo<ShipAiLine>(transport, who).Select(l => l.LineKey).Where(k => k == PlantHintLine).ToList();
 
     private static string Prep(BioEffect effect, int level, int seconds = 120, BioForm form = BioForm.Injector)
@@ -144,7 +144,7 @@ public sealed class BioFixFollowUpTests : IDisposable
     [Fact]
     public void VegasPlantingHint_IsNotSpentOnASeedlingThatIsNoPlant()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("hint_blank", transport: t);
         var p = Player(server, "Gardener", HighUp);
         server.World.SetBlock(new Vector3i(1, 199, 2), Block("dirt")); // clean soil under breathable air: the place is fine
@@ -178,7 +178,7 @@ public sealed class BioFixFollowUpTests : IDisposable
     [InlineData("crystal", "dirt", "@srv.bio.plant_air")]        // soil, on an airless world
     public void ASeedlingThatFindsNoPlace_GetsVegasHint_Once(string planet, string ground, string refusal)
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("hint_" + planet, planet, transport: t);
         var p = Player(server, "Gardener", HighUp);
         uint fern = server.GiveFloraSampleForTest(p, "flora_fern", 1);
@@ -198,7 +198,7 @@ public sealed class BioFixFollowUpTests : IDisposable
     [Fact]
     public void ASeedlingRefusedByTheWorldsCap_GetsVegasHint()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("hint_cap", transport: t);
         var p = Player(server, "Gardener", HighUp);
         uint fern = server.GiveFloraSampleForTest(p, "flora_fern", 1);
@@ -228,7 +228,7 @@ public sealed class BioFixFollowUpTests : IDisposable
     [Fact]
     public void TheRationDispenser_TakesNoPreparation_ARealBarOrABlankOne()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("ration_load", transport: t);
         string bar = Prep(BioEffect.Jump, 5, form: BioForm.Bar);
         var p = Player(server, "Spacer", HighUp, bar, "prep_bar", "berries");
@@ -292,7 +292,7 @@ public sealed class BioFixFollowUpTests : IDisposable
         return s;
     }
 
-    private static List<(int Conn, object Msg)> Run(SvGameServer server, NpcLifeWorld.RecordingTransport t, SvSession who,
+    private static List<(int Conn, object Msg)> Run(SvGameServer server, RecordingTransport t, SvSession who,
         string command, string? arg, int count = 0, string? target = null)
     {
         int before = t.Sent.Count;
@@ -309,7 +309,7 @@ public sealed class BioFixFollowUpTests : IDisposable
     [Fact]
     public void Give_HandsOutNoBlankLabItem_ToTheAdminOrToAnyoneElse()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("give_blank", "rocky", WithCheats, t);
         var admin = Admin(server);
         var guest = Player(server, "Guest", new Vector3f(300f, 120f, 0f));
@@ -341,7 +341,7 @@ public sealed class BioFixFollowUpTests : IDisposable
     [Fact]
     public void Give_AnItemThatCarriesItsContent_IsGivenAsBefore()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("give_real", "jungle", WithCheats, t);
         var admin = Admin(server);
         admin.State.Position = HighUp;
@@ -507,7 +507,7 @@ public sealed class BioFixFollowUpTests : IDisposable
     [Fact]
     public void TheSizeOfASelfBuiltHull_IsThatOfItsBlocks_AndTheHolesStayInTheSave()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("hull_size", transport: t);
         var pilot = Player(server, "Pilot", HighUp);
         pilot.State.InstantBuild = true; // the build needs no materials
@@ -565,7 +565,7 @@ public sealed class BioFixFollowUpTests : IDisposable
     [Fact]
     public void SetWeather_TellsThePlayersOfThatWorld_NotThoseOnAnotherBody()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("setweather_worlds", "rocky", WithCheats, t);
         var admin = Admin(server);
         var guest = Player(server, "Guest", new Vector3f(300f, 120f, 0f));
@@ -598,7 +598,7 @@ public sealed class BioFixFollowUpTests : IDisposable
     [Fact]
     public void TheLab_IsNotUsedFromInsideTheShip_AndFromOutsideItsWashReadsTheDetoxifierBesideIt()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("lab_hull", tune: c => c.PlaceStarterShip = true, transport: t);
         var p = server.AddLocalPlayer("Pilot");
         Assert.True(server.HasShip);
@@ -658,7 +658,7 @@ public sealed class BioFixFollowUpTests : IDisposable
     [Fact]
     public void InAWorldWithoutAPlacedShip_TheLabAnswers_WhateverTheAboardFlagSays()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("lab_shipless", transport: t);
         Assert.False(server.HasShip);
         var p = server.AddLocalPlayer("Walker");
@@ -682,7 +682,7 @@ public sealed class BioFixFollowUpTests : IDisposable
     [Fact]
     public void TheLab_IsNotUsedFromSpace_AlsoNotOnASpacewalk()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("lab_orbit", tune: c =>
         {
             c.PlaceStarterShip = true;
@@ -727,7 +727,7 @@ public sealed class BioFixFollowUpTests : IDisposable
     [Fact]
     public void AVoidWorld_ReadsTheTemperatureTheEffectsFeelInACabin()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("deck_air", tune: c =>
         {
             c.PlaceSettlements = false;

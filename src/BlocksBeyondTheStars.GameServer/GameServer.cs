@@ -688,12 +688,6 @@ public sealed partial class GameServer
     private SystemArchetype SystemArchetypeOf(string? systemId)
         => SystemArchetypes.For(_meta.Seed, systemId, _meta.Description);
 
-    /// <summary>
-    /// Makes <paramref name="locationId"/> (a celestial body of type <paramref name="planetTypeKey"/>)
-    /// the active world: rebuilds <see cref="_world"/> (its edits load from that body's persistence key),
-    /// resets + re-initialises all per-world runtime state (weather, fauna, flora, fluids, landing zones,
-    /// containers) and re-stamps the ship/settlement/wreck. Used at startup and on travel.
-    /// </summary>
     /// <summary>Sets the world-wide default/active body (used by new joins + the star map) and ensures its
     /// world is resident. Called once at startup.</summary>
     private void SwitchActiveWorld(string planetTypeKey, string locationId)
@@ -927,11 +921,6 @@ public sealed partial class GameServer
         _worlds.Active.LandedShips.Clear(); // parked-ship objects are per-world; a fresh world starts empty
     }
 
-    /// <summary>
-    /// Travels to (and lands on) another celestial body picked from the star map: switches the active
-    /// world to the destination, then relocates every player to its landing zone/ship and tells the
-    /// client to reload the world. Each body keeps its own edits (persistence is keyed by body id).
-    /// </summary>
     /// <summary>Travels the given player to a celestial body by id (also the test/util entrypoint). This is
     /// the unconditional "go there" path — it bypasses the Instant Travel quick-travel gate (it stands in for
     /// flying there + landing), so it always lands the player and marks the body visited.</summary>
@@ -3369,12 +3358,6 @@ public sealed partial class GameServer
     public int ChunkPayloadCacheHits { get; private set; }
     private const int ChunkPayloadCacheCap = 1024; // ~2–20 KB each
 
-    /// <summary>#1532: the encoded ChunkDataMessage of a chunk, cached per (chunk version, codec format) on the
-    /// world. Two players streaming the same chunk used to encode it twice, and a player returning after a
-    /// sweep re-encoded it again. The RLE runs straight from the chunk's backing array (no 4096-cell clone);
-    /// the client accepts both representations (ChunkDataMessage.DecodeBlocks), dense only for a degenerate
-    /// chunk. Decisive on the browser JSON path — ~15-25 KB of JSON numbers per chunk shrink to usually a few
-    /// hundred bytes — and it trims native payloads and VPS egress too.</summary>
     /// <summary>The chunk as a wire message: RLE when it runs (nearly always), dense otherwise, plus the sparse
     /// modifier / shape arrays. Fresh per chunk version; both caches below hold the result read-only.</summary>
     private ChunkDataMessage BuildChunkMessage(ChunkData chunk, ChunkCoord coord)
@@ -3422,6 +3405,12 @@ public sealed partial class GameServer
         return msg;
     }
 
+    /// <summary>#1532: the encoded ChunkDataMessage of a chunk, cached per (chunk version, codec format) on the
+    /// world. Two players streaming the same chunk used to encode it twice, and a player returning after a
+    /// sweep re-encoded it again. The RLE runs straight from the chunk's backing array (no 4096-cell clone);
+    /// the client accepts both representations (ChunkDataMessage.DecodeBlocks), dense only for a degenerate
+    /// chunk. Decisive on the browser JSON path — ~15-25 KB of JSON numbers per chunk shrink to usually a few
+    /// hundred bytes — and it trims native payloads and VPS egress too.</summary>
     private byte[] ChunkPayloadFor(ChunkData chunk, ChunkCoord coord)
     {
         var cache = _worlds.Active.ChunkPayloads;
@@ -5401,6 +5390,11 @@ public sealed partial class GameServer
         SpillPoolOverflow(session, pool, pos);
     }
 
+    /// <summary>The poisonous twin of a toxic species' drop (#2038): <c>toxic_&lt;item&gt;</c> when such an item exists
+    /// (berries → toxic_berries, every fruit → its toxic counterpart), else the drop itself (fibre is fibre).</summary>
+    private string ToxicCounterpart(string item)
+        => _content.GetItem("toxic_" + item) != null ? "toxic_" + item : item;
+
     /// <summary>Breaks one block: clears it, banks its drops in the pool, broadcasts the change,
     /// schedules flora regrowth and advances mining missions. Clears any accumulated mining progress.
     /// <para>
@@ -5409,11 +5403,6 @@ public sealed partial class GameServer
     /// ground as a drop packet (#853). Mining used to be refused outright in that situation — correct while
     /// there was no world container to spill into (#600/#607), and pure frustration once there is one.
     /// </para></summary>
-    /// <summary>The poisonous twin of a toxic species' drop (#2038): <c>toxic_&lt;item&gt;</c> when such an item exists
-    /// (berries → toxic_berries, every fruit → its toxic counterpart), else the drop itself (fibre is fibre).</summary>
-    private string ToxicCounterpart(string item)
-        => _content.GetItem("toxic_" + item) != null ? "toxic_" + item : item;
-
     private void BreakBlockAt(PlayerSession session, Vector3i pos, BlockDefinition def, MaterialPool pool)
         => BreakBlockCore(session, session.State.PlayerId, pos, def, pool, null);
 
@@ -5497,7 +5486,7 @@ public sealed partial class GameServer
         {
             RemoveBeaconAt(pos); // mining a beacon forgets its label/marker (item 37)
         }
-        else if (def.Key == "base_core")
+        else if (def.Key == BaseCoreBlock)
         {
             RemoveBaseAt(pos); // mining a base core removes the founded base (Grundstein)
         }
@@ -5756,11 +5745,6 @@ public sealed partial class GameServer
         return ShapeCode.Pack(PropShapes.DefaultPlaceShape(blockKey), facing, ShapeCode.UpPlusY);
     }
 
-    /// <summary>Which wall a ladder hugs when the client sent no choice — an old client, a test, or one of the
-    /// server's own internal placements. Mirrors the mesher heuristic #803 shipped with (first solid horizontal
-    /// neighbour, in <see cref="ShapeCode.WallFaces"/> order), so those placements keep landing where they
-    /// always did. The client normally decides this itself and sends the answer, because it can also honour
-    /// the wall the player actually aimed at.</summary>
     /// <summary>
     /// The cell a bed's foot half takes for a head placed at <paramref name="head"/> with the stamped
     /// <paramref name="headDescriptor"/> (#1846), when it can take it: free (air, or a fluid the bed displaces
@@ -5819,6 +5803,11 @@ public sealed partial class GameServer
         OnSupportRemoved(partner);
     }
 
+    /// <summary>Which wall a ladder hugs when the client sent no choice — an old client, a test, or one of the
+    /// server's own internal placements. Mirrors the mesher heuristic #803 shipped with (first solid horizontal
+    /// neighbour, in <see cref="ShapeCode.WallFaces"/> order), so those placements keep landing where they
+    /// always did. The client normally decides this itself and sends the answer, because it can also honour
+    /// the wall the player actually aimed at.</summary>
     private int DeriveLadderMount(Vector3i pos) => PropShapes.DeriveLadderMount(
         face =>
         {
@@ -6022,7 +6011,7 @@ public sealed partial class GameServer
 
         // A base core founds a player base (Grundstein) — only on a real surface, and only one per body per player.
         // Checked before any material is consumed so a refused founding costs nothing.
-        if (blockDef.Key == "base_core")
+        if (blockDef.Key == BaseCoreBlock)
         {
             var hereBody = _galaxy?.FindBody(_world.LocationId);
             if (hereBody is null
@@ -6234,7 +6223,7 @@ public sealed partial class GameServer
         {
             PlaceBeacon(session, pos, place.Label); // a placed beacon becomes a labelled map/compass waypoint (item 37)
         }
-        else if (blockDef.Key == "base_core")
+        else if (blockDef.Key == BaseCoreBlock)
         {
             PlaceBase(session, pos); // a placed base core founds a named planet base (Grundstein)
         }
@@ -7382,20 +7371,7 @@ public sealed partial class GameServer
     private PlayerSession? FindSessionByName(string? name)
     {
         string wanted = (name ?? string.Empty).Trim().Trim('"').Trim();
-        if (wanted.Length == 0)
-        {
-            return null;
-        }
-
-        foreach (var s in _sessions.Values)
-        {
-            if (s.Joined && string.Equals(s.State.Name, wanted, StringComparison.OrdinalIgnoreCase))
-            {
-                return s;
-            }
-        }
-
-        return null;
+        return wanted.Length == 0 ? null : FindJoinedSessionByName(wanted);
     }
 
     private void CheatLog(PlayerState admin, string message)

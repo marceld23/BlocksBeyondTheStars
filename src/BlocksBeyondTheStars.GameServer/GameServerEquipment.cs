@@ -71,8 +71,8 @@ public sealed partial class GameServer
             + Shared.Bio.GearMods.Bonus(WornKeys(p), Shared.Bio.ModStat.Corrosion)
             + Shared.Bio.PlayerEffects.Of(p.Effects, Shared.Bio.BioEffect.ToxinWard));
 
-    /// <summary>Best scanner knowledge multiplier from carried scanners (1 = no bonus).</summary>
-    /// <summary>The scanner bonus comes from a TOOL in the pack (the advanced scanner is held, not worn) — or from worn gear.</summary>
+    /// <summary>Best scanner knowledge multiplier (1 = no bonus). The bonus comes from a TOOL in the pack (the advanced
+    /// scanner is held, not worn) — or from worn gear.</summary>
     private float ScanMultiplier(PlayerState p)
         => SuitEquipment.ScanMultiplier(_content.Items.Values, key => p.Inventory.Has(key, 1) || Wears(p, key));
 

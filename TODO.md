@@ -24,7 +24,24 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧹 Code health 2026-10-18, PR 1 of 2 — the fixes — epic #2793, #2783–#2789, branch fix/code-health-bugs-2026-10-18 — ✅ done 2026-10-19
+### 🧹 Code health 2026-10-18, PR 2 of 2 — the cleanup — epic #2793, #2790–#2792, branch chore/code-health-cleanup-2026-10-18 — ✅ done 2026-10-19
+
+Behaviour-preserving cleanup from the same sweep as PR 1 (the fixes).
+
+- **A file git called binary (#2790):** `GameServerAlliances.cs` held raw NUL characters in char literals, so every diff to
+  it read "Binary file changed". Now `'\0'`; diffs to it are text again.
+- **GameServer cleanup (#2791):** eight dead private members gone (`SettlerHomeNear`, `HealTankNear`, `IsSolidCell`,
+  `_settlementStamped`, `_settlementRuined`, `LargeAsteroidTier`, `CompanionOwnersHere`, `IntensityOf`; the AI-line helpers
+  of #2609 stay on purpose); 16 doubled or orphaned `<summary>` blocks re-attached or merged; 17 hand-written
+  `new Vector3i(Floor(v.X), …)` now `v.ToBlock()`; nine block-key literals use their constants; the redundant `Joined`
+  checks after `FindSessionByPlayerId` (which only returns joined sessions — now documented) are gone, and
+  `FindSessionByName` reuses `FindJoinedSessionByName`.
+- **One shared `RecordingTransport` (#2792):** the server tests' transport fake lives in
+  `tests/BlocksBeyondTheStars.Tests/RecordingTransport.cs`; `NpcLifeWorld`'s public copy and 36 identical private copies
+  are gone (~800 lines). `RecordingTransportGuardTests` is a ratchet: a new private copy fails, the 42 drifted copies
+  are listed and the list may only shrink. SERVER_TESTING.md names the helper.
+
+### 🧹 Code health 2026-10-18, PR 1 of 2 — the fixes — epic #2793, #2783–#2789, branch fix/code-health-bugs-2026-10-18 — ✅ done 2026-10-19 (PR #2794, 324a0a8e)
 
 A code-smell sweep (for a contributor's "anything to refactor?") turned up real bugs where duplicated code had drifted.
 

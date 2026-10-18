@@ -1538,7 +1538,7 @@ public sealed partial class GameServer
 
             _creatures.RemoveAt(i);
             Giants.CreatureSteps.Remove(c.Id);
-            var cell = new Vector3i((int)System.Math.Floor(c.Position.X), (int)System.Math.Floor(c.Position.Y), (int)System.Math.Floor(c.Position.Z));
+            var cell = c.Position.ToBlock();
             SpillToGround(cell, new[] { new ItemAmount("creature_meat", GiantRules.SwallowMeat(c.Id)) }, creatureLoot: true);
             BroadcastToWorld(new WorldFx { Kind = "swallow", X = c.Position.X, Y = c.Position.Y, Z = c.Position.Z, Strength = 1f });
             eaten++;

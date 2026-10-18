@@ -219,7 +219,7 @@ public sealed partial class GameServer
         ScheduleFloraRegrow(canonical, id.Value); // regrows like a player's harvest
         int stored = state.Item2 + drops.Sum(d => d.Count);
         double nextToast = state.Item3;
-        if (_uptime >= nextToast && FindSessionByPlayerId(b.OwnerId) is { Joined: true } owner && owner.CurrentLocationId == b.Planet)
+        if (_uptime >= nextToast && FindSessionByPlayerId(b.OwnerId) is { } owner && owner.CurrentLocationId == b.Planet)
         {
             Send(owner, new ServerMessage { Text = "@srv.base.harvest:" + stored });
             stored = 0;
@@ -324,7 +324,7 @@ public sealed partial class GameServer
         }
 
         if ((!_guardWarnedUntil.TryGetValue(b.Id, out double until) || _uptime >= until)
-            && FindSessionByPlayerId(b.OwnerId) is { Joined: true } owner
+            && FindSessionByPlayerId(b.OwnerId) is { } owner
             && owner.State.NpcCallsMode != NpcCallsMode.Off)
         {
             _guardWarnedUntil[b.Id] = _uptime + GuardWarnCooldown;

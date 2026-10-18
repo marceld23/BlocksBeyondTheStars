@@ -419,7 +419,7 @@ public sealed partial class GameServer
     {
         foreach (var id in playerIds.Distinct())
         {
-            if (FindSessionByPlayerId(id) is { } s && s.Joined)
+            if (FindSessionByPlayerId(id) is { } s)
             {
                 SendMarkers(s);
             }

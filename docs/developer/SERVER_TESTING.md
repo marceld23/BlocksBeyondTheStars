@@ -53,6 +53,11 @@ start there**. These three show the ladder, simplest first:
   (a missing key renders as literal `[some.key]` in game instead of failing loudly).
 - **Temp state**: `Path.Combine(Path.GetTempPath(), "bbts_<topic>_" + Guid.NewGuid().ToString("N"))`
   plus `IDisposable` cleanup — never share paths between tests; the suite runs 4-way parallel.
+- **`RecordingTransport`** ([RecordingTransport.cs](../../tests/BlocksBeyondTheStars.Tests/RecordingTransport.cs))
+  is the server-side transport fake: hand it to a `GameServer` and read `Sent` — every message the server
+  sent, decoded, with its connection (`int.MinValue` for a broadcast). Do not copy it into a test class;
+  if a test needs more, extend the shared one. `RecordingTransportGuardTests` fails on a new private copy
+  (#2792).
 - **`SettlementTestWorlds`** ([SettlementTestWorlds.cs](../../tests/BlocksBeyondTheStars.Tests/SettlementTestWorlds.cs))
   boots settlement-only servers: settlements and landing pads exactly as on a full world, without the
   structures stamped after them (rail, ruins, camps, factories …), which only read the settlement list.

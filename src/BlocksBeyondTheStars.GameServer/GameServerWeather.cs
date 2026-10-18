@@ -463,14 +463,6 @@ public sealed partial class GameServer
         TickWeatherEffects(dt);
     }
 
-    /// <summary>Fallback strength for a state whose episode peak isn't this world's own (a wetter biome
-    /// inside a lighter world episode). Ladder states keep their historic ordering.</summary>
-    private static float IntensityOf(string weather)
-    {
-        var def = WeatherCatalog.Find(weather);
-        return def is null ? 0f : WeatherCatalog.MidPeak(def);
-    }
-
     /// <summary>Builds the environment for a position — weather is per BIOME (a stormy biome can rain while
     /// a neighbouring clear biome stays sunny), shifted around the world's current weather; the rest
     /// (time, sun, clouds, atmosphere) is world-level. Empty position uses the world's base weather.</summary>

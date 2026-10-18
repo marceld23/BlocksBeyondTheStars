@@ -1494,7 +1494,6 @@ public sealed partial class GameServer
         return true;
     }
 
-    private const int LargeAsteroidTier = 2;
     private const int AsteroidSplitCount = 2;
 
     /// <summary>Hull of an asteroid by size tier (large is tougher; small breaks fast into resources).</summary>
@@ -1972,7 +1971,7 @@ public sealed partial class GameServer
             _spacePlayerScratch.AddRange(instance.Players);
             foreach (var collectorId in _spacePlayerScratch)
             {
-                if (FindSessionByPlayerId(collectorId) is { Joined: true } collector)
+                if (FindSessionByPlayerId(collectorId) is { } collector)
                 {
                     SetCurrent(collector); // module check + cargo below resolve to this pilot's ship
                     CollectSalvage(instance, TractorRange, collectorId);
@@ -2036,7 +2035,7 @@ public sealed partial class GameServer
             _spacePlayerScratch.AddRange(instance.Players);
             foreach (var pilotId in _spacePlayerScratch)
             {
-                if (FindSessionByPlayerId(pilotId) is not { Joined: true } pilot
+                if (FindSessionByPlayerId(pilotId) is not { } pilot
                     || !instance.PlayerPoses.TryGetValue(pilotId, out var pose))
                 {
                     continue; // no pose yet — the client reports one within its first ~0.1 s in space
@@ -2837,7 +2836,7 @@ public sealed partial class GameServer
     {
         foreach (var kv in _inShipInterior)
         {
-            if (kv.Value.InstanceId == instance.Id && !kv.Value.Ship.Eva && FindSessionByPlayerId(kv.Key) is { Joined: true })
+            if (kv.Value.InstanceId == instance.Id && !kv.Value.Ship.Eva && FindSessionByPlayerId(kv.Key) is not null)
             {
                 return true;
             }
@@ -2894,7 +2893,6 @@ public sealed partial class GameServer
         EnterSpace(session.State.PlayerId);
     }
 
-    /// <summary>Test hook: run the EnterSpaceIntent handler (covers the ship-interior skip path, B40).</summary>
     /// <summary>Removes a fitted module from the active ship (#1269 — Marcel's call: uninstall with salvage,
     /// no transfer between ships yet). Same gates as building (aboard, workshop); the hull essentials, the walk-up
     /// stations and the basic hold stay (<see cref="ShipModuleDefinition.Removable"/>); a cargo expansion only
@@ -3025,6 +3023,7 @@ public sealed partial class GameServer
         return _ship.HasModule(moduleKey);
     }
 
+    /// <summary>Test hook: run the EnterSpaceIntent handler (covers the ship-interior skip path, B40).</summary>
     public void HandleEnterSpaceForTest(string playerId)
     {
         if (FindSessionByPlayerId(playerId) is { } s)
@@ -3195,9 +3194,6 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Leaves space onto a chosen body: the current world (default) or another body in the same
-    /// system the player flew to (system-scale flight). Same-system landing is free; a body in another
-    /// system would need a hyperspace jump (offered via the star map, not from flight).</summary>
     /// <summary>On an EVA spacewalk you may only set down on a small <b>asteroid</b>; planets and moons need
     /// the ship (board it first). Defends the rule on the server regardless of what the client offers.</summary>
     public bool EvaLandingAllowed(string bodyId)
@@ -3207,6 +3203,9 @@ public sealed partial class GameServer
                == WorldConstants.WorldSizeClass.Asteroid;
     }
 
+    /// <summary>Leaves space onto a chosen body: the current world (default) or another body in the same
+    /// system the player flew to (system-scale flight). Same-system landing is free; a body in another
+    /// system would need a hyperspace jump (offered via the star map, not from flight).</summary>
     private void HandleLeaveSpace(PlayerSession session, LeaveSpaceIntent intent)
     {
         string dest = intent.DestinationBodyId ?? string.Empty;

@@ -44,7 +44,7 @@ public sealed class CrystalShipNetTests : IDisposable
         }
     }
 
-    private SvGameServer NewServer(string name, NpcLifeWorld.RecordingTransport transport, out SqliteWorldRepository repo)
+    private SvGameServer NewServer(string name, RecordingTransport transport, out SqliteWorldRepository repo)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var config = new ServerConfig
@@ -74,7 +74,7 @@ public sealed class CrystalShipNetTests : IDisposable
         return (pilot, hatch);
     }
 
-    private static void Build(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who, Vector3i cell, string item, int deviceDir = -1)
+    private static void Build(SvGameServer server, RecordingTransport t, PlayerSession who, Vector3i cell, string item, int deviceDir = -1)
     {
         int before = t.Sent.Count;
         server.HandleStructureEditForTest(who.State.PlayerId, new StructureEditIntent
@@ -101,7 +101,7 @@ public sealed class CrystalShipNetTests : IDisposable
     [Fact]
     public void ASwitchAboard_LightsTheCabinLamp_AndTheParkedHullShowsIt()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipnet_lamp", t, out var repo);
         using (repo)
         {
@@ -133,7 +133,7 @@ public sealed class CrystalShipNetTests : IDisposable
     [Fact]
     public void InFlight_TheNetRests_AndStepsBackInWithTheShip()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipnet_flight", t, out var repo);
         using (repo)
         {
@@ -157,7 +157,7 @@ public sealed class CrystalShipNetTests : IDisposable
     [Fact]
     public void AStranger_CannotFlipTheOwnersSwitchAboard()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipnet_stranger", t, out var repo);
         using (repo)
         {
@@ -179,7 +179,7 @@ public sealed class CrystalShipNetTests : IDisposable
     [Fact]
     public void TheShipSensor_ReadsItsShip()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipnet_sensor", t, out var repo);
         using (repo)
         {
@@ -205,7 +205,7 @@ public sealed class CrystalShipNetTests : IDisposable
     [Fact]
     public void TheShipsOwnHatch_FollowsTheShipsWiring()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipnet_hatch", t, out var repo);
         using (repo)
         {
@@ -233,7 +233,7 @@ public sealed class CrystalShipNetTests : IDisposable
     [Fact]
     public void AMinedDeviceAboard_LeavesTheShipsNet_AndItsRowIsGone()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipnet_mine", t, out var repo);
         using (repo)
         {

@@ -98,7 +98,7 @@ public sealed partial class GameServer
         // modified client — which used to pump oil out of a far pocket or blast another player's ground. Same bound and
         // slack as mining (WithinReach). The rope gun and the remote control check their own ranges.
         if (ActsAtTarget(intent.GadgetKey)
-            && !WithinReach(p, new Vector3i((int)System.Math.Floor(target.X), (int)System.Math.Floor(target.Y), (int)System.Math.Floor(target.Z))))
+            && !WithinReach(p, target.ToBlock()))
         {
             Reject(session, "gadget", "@out_of_reach");
             return;
@@ -318,7 +318,7 @@ public sealed partial class GameServer
                     {
                         RemoveBeaconAt(p); // don't orphan a blasted beacon's label/marker (item 37)
                     }
-                    if (d.Key == "base_core")
+                    if (d.Key == BaseCoreBlock)
                     {
                         RemoveBaseAt(p); // don't orphan a blasted base's claim/marker (Grundstein)
                     }

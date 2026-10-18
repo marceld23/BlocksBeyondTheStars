@@ -49,7 +49,7 @@ public sealed class ShipStationCraftingTests : IDisposable
         }
     }
 
-    private SvGameServer NewServer(string name, NpcLifeWorld.RecordingTransport transport, out SqliteWorldRepository repo, bool starterShip)
+    private SvGameServer NewServer(string name, RecordingTransport transport, out SqliteWorldRepository repo, bool starterShip)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var config = new ServerConfig
@@ -84,7 +84,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     private static Shared.State.ShipState ActiveShip(PlayerSession p) => p.Ships[p.ActiveShipId];
 
     /// <summary>One craft order, and the refusal that came back — null when it was crafted.</summary>
-    private static string? Craft(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who, string recipe)
+    private static string? Craft(SvGameServer server, RecordingTransport t, PlayerSession who, string recipe)
     {
         int before = t.Sent.Count;
         server.Craft(who.State.PlayerId, recipe);
@@ -93,7 +93,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     }
 
     /// <summary>One build into the own ship; the refusal that came back, or null.</summary>
-    private static string? Build(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who, Vector3i cell, string item)
+    private static string? Build(SvGameServer server, RecordingTransport t, PlayerSession who, Vector3i cell, string item)
     {
         int before = t.Sent.Count;
         server.HandleStructureEditForTest(who.State.PlayerId,
@@ -102,7 +102,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     }
 
     /// <summary>The station notices VEGA has sent this player — each a system line (kind 3), which muted hints do not hide.</summary>
-    private static ShipAiLine[] StationNotices(NpcLifeWorld.RecordingTransport t, PlayerSession who)
+    private static ShipAiLine[] StationNotices(RecordingTransport t, PlayerSession who)
     {
         var lines = t.Sent.Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<ShipAiLine>()
             .Where(line => line.LineKey == StationNotice).ToArray();
@@ -150,7 +150,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     [InlineData(true, "de", "Raffinerie")]
     public void Aboard_WithoutTheRefineryModule_TheRefusalNamesTheModule_EvenWithAForgeBesideYou(bool inSpace, string locale, string module)
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipstation_aboard_" + inSpace + locale, t, out var repo, starterShip: true);
         using (repo)
         {
@@ -172,7 +172,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     [Fact]
     public void Aboard_AStationNoModuleProvides_SaysItWorksOnAWorldOnly()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipstation_campfire", t, out var repo, starterShip: true);
         using (repo)
         {
@@ -191,7 +191,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     [InlineData(false)]
     public void AFactoryRecipe_KeepsTheStationToken_AboardAndOffTheShip(bool aboard)
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipstation_factory_" + aboard, t, out var repo, starterShip: aboard);
         using (repo)
         {
@@ -207,7 +207,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     [Fact]
     public void Aboard_WithTheRefineryModule_ThePlateIsMade_FromTheHoldToo()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipstation_module", t, out var repo, starterShip: true);
         using (repo)
         {
@@ -226,7 +226,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     [Fact]
     public void OffTheShip_WithoutAForge_TheRefusalIsTheStationTokenAsBefore()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipstation_ground", t, out var repo, starterShip: false);
         using (repo)
         {
@@ -242,7 +242,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     [Fact]
     public void OffTheShip_WithAForgeInReach_ThePlateIsMade()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipstation_forge", t, out var repo, starterShip: false);
         using (repo)
         {
@@ -266,7 +266,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     [InlineData("de", 3, 2, "Titanerz (3/4)")]
     public void MissingOre_TheRefusalNamesIt_WithHaveAndNeed(string locale, int have, int batch, string expected)
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipstation_missing_" + locale + have, t, out var repo, starterShip: false);
         using (repo)
         {
@@ -294,7 +294,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     [Fact]
     public void MissingMaterials_OnlyTheShortOnesAreNamed()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipstation_missing_two", t, out var repo, starterShip: false);
         using (repo)
         {
@@ -327,7 +327,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     [InlineData(true)]
     public void AStationBlockInTheOwnShip_WithoutItsModule_GetsOneNoticePerBlockKind(bool inSpace)
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipstation_notice_" + inSpace, t, out var repo, starterShip: true);
         using (repo)
         {
@@ -369,7 +369,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     [Fact]
     public void AForgeInTheOwnShip_WithTheRefineryModule_SaysNothing()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipstation_notice_module", t, out var repo, starterShip: true);
         using (repo)
         {
@@ -389,7 +389,7 @@ public sealed class ShipStationCraftingTests : IDisposable
     [Fact]
     public void AForgeOnTheGround_SaysNothing()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipstation_notice_ground", t, out var repo, starterShip: false);
         using (repo)
         {

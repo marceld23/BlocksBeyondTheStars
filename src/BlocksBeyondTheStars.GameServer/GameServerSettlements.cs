@@ -75,12 +75,6 @@ public sealed partial class GameServer
     /// <summary>Back-compat shim for single-settlement callers (the first settlement's name).</summary>
     private string _settlementName => SettlementName;
 
-    /// <summary>Whether any settlement is stamped — back-compat shim.</summary>
-    private bool _settlementStamped => _settlements.Count > 0;
-
-    /// <summary>Whether the first settlement is a ruin — back-compat shim.</summary>
-    private bool _settlementRuined => SettlementRuined;
-
     /// <summary>Sends the planet's points of interest (settlements + ruins) for the world map.</summary>
     private void SendPlanetPois(PlayerSession session)
         => Send(session, new PlanetPoiList { Pois = BuildPlanetPois(session).ToArray() });
@@ -1732,8 +1726,6 @@ public sealed partial class GameServer
     private static double RuinChance(double hospitability)
         => System.Math.Clamp(0.15 + (1.0 - hospitability) * 0.7, 0.05, 0.9);
 
-    /// <summary>Picks a settlement size tier weighted by hospitability: liveable worlds skew toward towns/cities,
-    /// harsh worlds toward hamlets/villages.</summary>
     /// <summary>
     /// #1888: a fresh structure's pick — a complete template when <paramref name="wantTemplate"/> (the option's share) and
     /// the tier has one, else a kit; a tier without kits always takes a template, one without templates a kit. Weighted
@@ -1775,6 +1767,8 @@ public sealed partial class GameServer
         return (t?.Key ?? string.Empty, k?.Key ?? string.Empty);
     }
 
+    /// <summary>Picks a settlement size tier weighted by hospitability (<paramref name="h"/>): liveable worlds skew
+    /// toward towns/cities, harsh worlds toward hamlets/villages.</summary>
     private static string RollTier(System.Random rng, double h)
     {
         double city = 0.10 + h * 0.20;     // 0.10 .. 0.30

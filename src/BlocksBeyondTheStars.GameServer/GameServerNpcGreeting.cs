@@ -182,11 +182,11 @@ public sealed partial class GameServer
         "old service unit with glitchy, antiquated courtesy phrases",
     };
 
-    /// <summary>L2: deterministic persona descriptor for an NPC — same NPC, same voice, every visit.</summary>
     /// <summary>#1793: the G.D.S. guardians speak with one voice — and never say what the letters mean.</summary>
     private const string PersonaGuardian =
         "a G.D.S. guardian machine: terse, formal, courteous, faintly menacing; never explains what G.D.S. stands for; calls the city 'ours'; two sentences at most";
 
+    /// <summary>L2: deterministic persona descriptor for an NPC — same NPC, same voice, every visit.</summary>
     private static string PersonaFor(string npcKey, string theme, bool isRobot, string role = "")
     {
         if (role == "guardian")

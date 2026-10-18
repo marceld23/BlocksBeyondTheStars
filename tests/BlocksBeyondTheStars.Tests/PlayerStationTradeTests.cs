@@ -45,13 +45,13 @@ public sealed class PlayerStationTradeTests : IDisposable
     /// <summary>The feet height on the hall's floor.</summary>
     private const float FeetY = 65.03f;
 
-    private sealed record Station(SvGameServer Server, NpcLifeWorld.RecordingTransport Transport, PlayerSession Player, string Id);
+    private sealed record Station(SvGameServer Server, RecordingTransport Transport, PlayerSession Player, string Id);
 
     private Station BoardedStation(string name, params (int X, int Z, string Item)[] posts)
     {
         var repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         _repos.Add(repo);
-        var transport = new NpcLifeWorld.RecordingTransport();
+        var transport = new RecordingTransport();
         var config = new ServerConfig { WorldName = name, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
         config.Rules.FreeSpaceFlight = true;
         var server = new SvGameServer(config, Content, transport, repo);

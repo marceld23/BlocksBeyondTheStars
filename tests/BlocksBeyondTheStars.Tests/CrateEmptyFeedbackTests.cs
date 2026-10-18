@@ -28,7 +28,7 @@ public sealed class CrateEmptyFeedbackTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    private SvGameServer Started(NpcLifeWorld.RecordingTransport transport, out SqliteWorldRepository repo)
+    private SvGameServer Started(RecordingTransport transport, out SqliteWorldRepository repo)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, "crate_empty"));
         var config = new ServerConfig
@@ -62,14 +62,14 @@ public sealed class CrateEmptyFeedbackTests : IDisposable
         return (p, crate.Id);
     }
 
-    private static string[] RejectionsTo(NpcLifeWorld.RecordingTransport t, BlocksBeyondTheStars.GameServer.PlayerSession who, string action)
+    private static string[] RejectionsTo(RecordingTransport t, BlocksBeyondTheStars.GameServer.PlayerSession who, string action)
         => t.Sent.Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<ActionRejected>()
             .Where(m => m.Action == action).Select(m => m.Reason).ToArray();
 
     [Fact]
     public void TakingFromAnEmptyCrate_SaysTheCrateIsEmpty()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = Started(t, out var repo);
         using (repo)
         {
@@ -85,7 +85,7 @@ public sealed class CrateEmptyFeedbackTests : IDisposable
     [Fact]
     public void TakingFromAFullCrate_StillTakesEverything_WithoutARefusal()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = Started(t, out var repo);
         using (repo)
         {
@@ -106,7 +106,7 @@ public sealed class CrateEmptyFeedbackTests : IDisposable
     [Fact]
     public void StoringWithNothingStashable_SaysSo()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = Started(t, out var repo);
         using (repo)
         {

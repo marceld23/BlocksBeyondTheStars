@@ -80,29 +80,6 @@ public sealed class BoatTests : IDisposable
     /// <summary>A two-deep pool right in front of the pilot: water at y=78..79 → waterline at y=80.</summary>
     private void Pool(SvGameServer server) => Fill(server, "water", 8, 12, 78, 79, 12, 15);
 
-    /// <summary>Records every decoded outbound message so tests can assert on reject reasons.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-
-        public void Start(int port) { }
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((connectionId, m));
-        }
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((int.MinValue, m));
-        }
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-    }
-
     private static IEnumerable<string> RejectionsTo(RecordingTransport t, BlocksBeyondTheStars.GameServer.PlayerSession who)
         => t.Sent.Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<ActionRejected>().Select(m => m.Reason);
 

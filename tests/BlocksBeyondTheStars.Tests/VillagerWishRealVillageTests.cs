@@ -36,10 +36,10 @@ public sealed class VillagerWishRealVillageTests : IDisposable
         try { Directory.Delete(_root, recursive: true); } catch { /* best-effort temp cleanup */ }
     }
 
-    private SvGameServer Start(long seed, out SqliteWorldRepository repo, out NpcLifeWorld.RecordingTransport transport)
+    private SvGameServer Start(long seed, out SqliteWorldRepository repo, out RecordingTransport transport)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, "wishes_" + seed));
-        transport = new NpcLifeWorld.RecordingTransport();
+        transport = new RecordingTransport();
         var config = new ServerConfig
         {
             WorldName = "wishes_" + seed,

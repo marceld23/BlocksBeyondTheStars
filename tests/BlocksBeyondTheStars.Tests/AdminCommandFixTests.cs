@@ -48,7 +48,7 @@ public sealed class AdminCommandFixTests : IDisposable
         }
     }
 
-    private SvGameServer NewServer(string name, NpcLifeWorld.RecordingTransport transport, out SqliteWorldRepository repo,
+    private SvGameServer NewServer(string name, RecordingTransport transport, out SqliteWorldRepository repo,
         Action<ServerConfig>? configure = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
@@ -84,7 +84,7 @@ public sealed class AdminCommandFixTests : IDisposable
     }
 
     /// <summary>Runs one admin command and returns what the server sent because of it.</summary>
-    private static List<(int Conn, object Msg)> Run(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who,
+    private static List<(int Conn, object Msg)> Run(SvGameServer server, RecordingTransport t, PlayerSession who,
         string command, string? arg, int count = 0, string? target = null)
     {
         int before = t.Sent.Count;
@@ -136,7 +136,7 @@ public sealed class AdminCommandFixTests : IDisposable
     [InlineData("24:00", 0.0, "00:00")]
     public void SetTime_SetsTheLocalClockWhereTheAdminStands_AndNamesIt(string typed, double expected, string named)
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("settime_ok", t, out var repo);
         using (repo)
         {
@@ -182,7 +182,7 @@ public sealed class AdminCommandFixTests : IDisposable
     [Fact]
     public void SetTime_NightIsNight_DayIsDay_AndTheClockRunsOnFromThere()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("settime_run", t, out var repo);
         using (repo)
         {
@@ -210,7 +210,7 @@ public sealed class AdminCommandFixTests : IDisposable
     [Fact]
     public void SetTime_ReachesEveryPlayerInTheWorldAtOnce()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("settime_env", t, out var repo);
         using (repo)
         {
@@ -233,7 +233,7 @@ public sealed class AdminCommandFixTests : IDisposable
     [Fact]
     public void SetTime_TellsThePlayersOfThatWorld_NotThoseOnAnotherBody()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("settime_worlds", t, out var repo);
         using (repo)
         {
@@ -256,7 +256,7 @@ public sealed class AdminCommandFixTests : IDisposable
     [Fact]
     public void SetTime_OutInSpace_IsRefused_AndLeavesTheClockAlone()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("settime_space", t, out var repo, c => c.Rules.FreeSpaceFlight = true);
         using (repo)
         {
@@ -294,7 +294,7 @@ public sealed class AdminCommandFixTests : IDisposable
     [InlineData("18:3o")]
     public void SetTime_RefusesWhatIsNoTime_AndLeavesTheClockAlone(string? typed)
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("settime_bad", t, out var repo);
         using (repo)
         {
@@ -332,7 +332,7 @@ public sealed class AdminCommandFixTests : IDisposable
     [InlineData("acid_rain", "acid_rain")]
     public void SetWeather_TakesTheWordAsItIsTyped(string typed, string key)
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("setweather_word", t, out var repo);
         using (repo)
         {
@@ -351,7 +351,7 @@ public sealed class AdminCommandFixTests : IDisposable
     [Fact]
     public void SetWeather_TakesEveryKeyOfTheCatalogue_AndRefusesAnythingElse()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("setweather_all", t, out var repo);
         using (repo)
         {
@@ -453,7 +453,7 @@ public sealed class AdminCommandFixTests : IDisposable
     [Fact]
     public void Give_SaysWhatWasGiven()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("give_ok", t, out var repo);
         using (repo)
         {
@@ -472,7 +472,7 @@ public sealed class AdminCommandFixTests : IDisposable
     [Fact]
     public void Give_ToAnotherPlayer_NamesThem_AndTellsTheAdmin()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("give_other", t, out var repo);
         using (repo)
         {
@@ -492,7 +492,7 @@ public sealed class AdminCommandFixTests : IDisposable
     [Fact]
     public void Give_SaysWhenOnlyPartFits()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("give_part", t, out var repo);
         using (repo)
         {
@@ -518,7 +518,7 @@ public sealed class AdminCommandFixTests : IDisposable
     [Fact]
     public void Give_SaysWhenNothingFits()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("give_full", t, out var repo);
         using (repo)
         {
@@ -540,7 +540,7 @@ public sealed class AdminCommandFixTests : IDisposable
     [Fact]
     public void Give_AnUnknownItem_IsRefused_AndGivesNoLine()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("give_unknown", t, out var repo);
         using (repo)
         {

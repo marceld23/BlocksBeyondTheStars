@@ -610,7 +610,6 @@ public sealed partial class GameServer
         return h[2];
     }
 
-    /// <summary>Height spread over the landing footprint — small = flat enough to set a ship down on.</summary>
     /// <summary>The nine columns a pad's flatness is measured over — a static set, because the ring search
     /// asks for tens of thousands of candidates and allocating this array per call was pure garbage (#1989).</summary>
     private static readonly (int Dx, int Dz)[] PadSpreadSamples =
@@ -618,6 +617,7 @@ public sealed partial class GameServer
         (0, 0), (-4, -4), (4, -4), (-4, 4), (4, 4), (-4, 0), (4, 0), (0, -4), (0, 4),
     };
 
+    /// <summary>Height spread over the landing footprint — small = flat enough to set a ship down on.</summary>
     private int PadFootprintSpread(PlanetType planet, int cx, int cz, int cutoff = int.MaxValue)
     {
         int min = int.MaxValue, max = int.MinValue;

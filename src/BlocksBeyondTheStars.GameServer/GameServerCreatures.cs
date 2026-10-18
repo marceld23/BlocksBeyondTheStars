@@ -619,7 +619,7 @@ public sealed partial class GameServer
     /// footprint (<see cref="CrowdedByCreatures"/>).</summary>
     private bool SpawnSpotClear(CreatureSpecies sp, Vector3f pos, int px, int pz, int surface)
     {
-        var cell = new Vector3i((int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Y), (int)System.Math.Floor(pos.Z));
+        var cell = pos.ToBlock();
 
         if (sp.Habitat != CreatureHabitat.Air && IsNearBaseCore(cell))
         {
@@ -953,7 +953,7 @@ public sealed partial class GameServer
             case CreatureHabitat.Cave:
                 // a standable air pocket on solid ground (the spawn probe places it in a real cave); #1719: no-load
                 // reads — an unloaded column has no solid floor, so it is not a cave
-                return _world.GetBlockIfLoaded(new Vector3i((int)System.Math.Floor(at.X), (int)System.Math.Floor(at.Y), (int)System.Math.Floor(at.Z))).IsAir
+                return _world.GetBlockIfLoaded(at.ToBlock()).IsAir
                     && !_world.GetBlockIfLoaded(new Vector3i((int)System.Math.Floor(at.X), (int)System.Math.Floor(at.Y) - 1, (int)System.Math.Floor(at.Z))).IsAir;
             case CreatureHabitat.Amphibian:
                 return BlockValueAt(at) == _creatureWaterId || WaterWithin(at, 2); // in or beside water
@@ -969,7 +969,7 @@ public sealed partial class GameServer
     }
 
     private ushort BlockValueAt(Vector3f at)
-        => _world.GetBlock(new Vector3i((int)System.Math.Floor(at.X), (int)System.Math.Floor(at.Y), (int)System.Math.Floor(at.Z))).Value;
+        => _world.GetBlock(at.ToBlock()).Value;
 
     private readonly List<CombatEntity> _creatureEvictions = new(); // boxed-in sleepers removed after the move loop (#1320)
 

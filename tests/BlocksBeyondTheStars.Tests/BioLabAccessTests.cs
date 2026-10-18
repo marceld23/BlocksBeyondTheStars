@@ -64,10 +64,10 @@ public sealed class BioLabAccessTests : IDisposable
         }
     }
 
-    private static IEnumerable<T> SentTo<T>(NpcLifeWorld.RecordingTransport transport, SvSession who)
+    private static IEnumerable<T> SentTo<T>(RecordingTransport transport, SvSession who)
         => transport.Sent.Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<T>();
 
-    private static int VegaLines(NpcLifeWorld.RecordingTransport transport, SvSession who, string key)
+    private static int VegaLines(RecordingTransport transport, SvSession who, string key)
         => SentTo<ShipAiLine>(transport, who).Count(l => l.LineKey == key);
 
     private static CreatureSpecies Critter() => new()
@@ -80,7 +80,7 @@ public sealed class BioLabAccessTests : IDisposable
     };
 
     /// <summary>Analyses one sample and returns the lab's answer.</summary>
-    private static BioLabResult Analyse(SvGameServer server, NpcLifeWorld.RecordingTransport t, SvSession p, uint seed)
+    private static BioLabResult Analyse(SvGameServer server, RecordingTransport t, SvSession p, uint seed)
     {
         server.BioLabForTest(p, new BioLabIntent { Action = BioLabIntent.Analyse, Sample = seed });
         return SentTo<BioLabResult>(t, p).Last();
@@ -129,7 +129,7 @@ public sealed class BioLabAccessTests : IDisposable
     [Fact]
     public void InTheParkedCabin_TheModuleIsTheLab_WithoutItTheCabinHasNone()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("lab_module_cabin", c => c.PlaceStarterShip = true, t);
         var p = server.AddLocalPlayer("Pilot");
         Assert.True(server.HasShip);
@@ -149,7 +149,7 @@ public sealed class BioLabAccessTests : IDisposable
     [Fact]
     public void InSpace_TheModuleAnswersInTheInterior_NeverFromThePilotSeatOrASpacewalk()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("lab_module_space", c =>
         {
             c.PlaceStarterShip = true;
@@ -177,7 +177,7 @@ public sealed class BioLabAccessTests : IDisposable
     [Fact]
     public void AVisitor_GetsNothingFromSomeoneElsesModule()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("lab_module_visitor", c => c.PlaceStarterShip = true, t);
         var owner = server.AddLocalPlayer("Owner");
         server.Ship.Modules.Add(BioItems.LabModule);
@@ -196,7 +196,7 @@ public sealed class BioLabAccessTests : IDisposable
     [Fact]
     public void ResearchingTheLabAndLabTuning_VegaSaysOnceWhatTheyOpen()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("lab_hints_research", transport: t);
         var p = server.AddLocalPlayer("Researcher");
         p.State.KnowledgePoints = 200;
@@ -219,7 +219,7 @@ public sealed class BioLabAccessTests : IDisposable
     [Fact]
     public void AMaterialThatChangesNothing_IsRefused_AndVegaSaysOnceWhatWorks()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("lab_hints_nochange", transport: t);
         var p = server.AddLocalPlayer("Smith");
         p.State.AboardShip = false;
@@ -243,7 +243,7 @@ public sealed class BioLabAccessTests : IDisposable
     [Fact]
     public void AMissingMaterial_IsNamedAsTheMaterial_NotAsASample()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("lab_hints_material", transport: t);
         var p = server.AddLocalPlayer("Smith");
         p.State.AboardShip = false;

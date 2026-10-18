@@ -881,9 +881,6 @@ public sealed partial class GameServer
         return legacy;
     }
 
-    /// <summary>Where the base settler lives when nothing else is known (kept for the trader/visitor helpers).</summary>
-    private Vector3f SettlerHomeNear(Vector3i core) => ResidentHomeNear(core, new HashSet<Vector3i>());
-
     /// <summary>The feet position for a cell a human-sized NPC can stand in: a blocking floor under two
     /// free cells, outside every parked ship's hull (nobody moves into the owner's cockpit); null otherwise.
     /// "Free" is judged the way the NPC WALKS (<see cref="NpcBodyBlockedAt"/>, fluids are a wall) and not only
@@ -1055,7 +1052,7 @@ public sealed partial class GameServer
                     }
 
                     var def = _content.BlockById(block);
-                    if (def is { Category: "machine" } && def.Key != "base_core" && !IsSettlementProtected(cell, block))
+                    if (def is { Category: "machine" } && def.Key != BaseCoreBlock && !IsSettlementProtected(cell, block))
                     {
                         count++;
                     }
@@ -1094,7 +1091,7 @@ public sealed partial class GameServer
         _npcs.Add(npc);
 
         string npcKey = r.Key;
-        if (FindSessionByPlayerId(b.OwnerId) is { Joined: true } owner)
+        if (FindSessionByPlayerId(b.OwnerId) is { } owner)
         {
             // The plan says the settler "counts as a known NPC": seed the acquaintance so the nameplate
             // shows a stage and the roster lists them right away.
@@ -1148,7 +1145,7 @@ public sealed partial class GameServer
     /// settler never leaves). The name is the live NPC's, else the one the owner remembers.</summary>
     private void TellResidentMovedOut(ServerBase b, BaseResidentRecord leaving, string name)
     {
-        if (leaving.Slot == 0 || FindSessionByPlayerId(b.OwnerId) is not { Joined: true } owner)
+        if (leaving.Slot == 0 || FindSessionByPlayerId(b.OwnerId) is not { } owner)
         {
             return;
         }
@@ -1319,7 +1316,7 @@ public sealed partial class GameServer
         string bodyName = body?.Name ?? bodyId;
         foreach (var b in _bases)
         {
-            if (b.Planet != bodyId || FindSessionByPlayerId(b.OwnerId) is not { Joined: true } owner)
+            if (b.Planet != bodyId || FindSessionByPlayerId(b.OwnerId) is not { } owner)
             {
                 continue;
             }

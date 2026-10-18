@@ -424,7 +424,7 @@ public sealed partial class GameServer
         if (run.VegaDueAt > 0 && _uptime >= run.VegaDueAt)
         {
             run.VegaDueAt = 0;
-            if (FindSessionByPlayerId(run.HeroId) is { Joined: true, Spectating: false } hero
+            if (FindSessionByPlayerId(run.HeroId) is { Spectating: false } hero
                 && string.Equals(hero.CurrentLocationId, run.LocationId, StringComparison.Ordinal))
             {
                 SpeakVegaChatter(hero, "vega.festival.started", FestivalVegaKind, new[] { run.Settlement }, ask: null);

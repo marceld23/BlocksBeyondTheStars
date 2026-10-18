@@ -127,7 +127,7 @@ public sealed partial class GameServer
                     continue; // still a miner in its eyes
                 }
 
-                var feet = new Vector3i((int)System.Math.Floor(c.Position.X), (int)System.Math.Floor(c.Position.Y), (int)System.Math.Floor(c.Position.Z));
+                var feet = c.Position.ToBlock();
                 SpillToGround(feet, new[] { PickGift(c) });
                 c.GiftReadyAt = _uptime + GiftCooldownSeconds;
                 Send(s, new ServerMessage { Text = Localize(s.Locale, "srv.flowerling.gift") });

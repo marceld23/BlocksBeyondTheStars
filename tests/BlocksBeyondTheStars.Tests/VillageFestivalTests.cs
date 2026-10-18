@@ -154,7 +154,7 @@ public sealed class VillageFestivalTests
             string heroId;
             using (var repo = new SqliteWorldRepository(new SaveGamePaths(root, "fest_restart")))
             {
-                var server = new SvGameServer(config, Content.Value, new NpcLifeWorld.RecordingTransport(), repo);
+                var server = new SvGameServer(config, Content.Value, new RecordingTransport(), repo);
                 server.Start();
                 var hero = server.AddLocalPlayer("Hero");
                 hero.State.AboardShip = false;
@@ -170,7 +170,7 @@ public sealed class VillageFestivalTests
             Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
             using (var repo = new SqliteWorldRepository(new SaveGamePaths(root, "fest_restart")))
             {
-                var reloaded = new SvGameServer(config, Content.Value, new NpcLifeWorld.RecordingTransport(), repo);
+                var reloaded = new SvGameServer(config, Content.Value, new RecordingTransport(), repo);
                 reloaded.Start();
                 Assert.Equal(("pending", heroId, "Hero", false), reloaded.FestivalForTest(Village));
                 reloaded.Stop();

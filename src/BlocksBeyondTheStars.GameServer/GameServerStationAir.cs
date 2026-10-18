@@ -436,7 +436,7 @@ public sealed partial class GameServer
                 }
             }
 
-            _stationCoreId = _content.GetBlock("station_core")?.NumericId.Value ?? 0;
+            _stationCoreId = _content.GetBlock(StationCoreBlock)?.NumericId.Value ?? 0;
             _stationAirDoorBlocks = set;
         }
 
@@ -614,13 +614,13 @@ public sealed partial class GameServer
     /// takes the crew away shortly anyway).</summary>
     private bool OutsideCrewPocket(BoardableStation station, Vector3f home, Vector3f pos)
     {
-        var homeCell = new Vector3i((int)System.Math.Floor(home.X), (int)System.Math.Floor(home.Y), (int)System.Math.Floor(home.Z));
+        var homeCell = home.ToBlock();
         if (!InSealedStationPocket(station, homeCell))
         {
             return false;
         }
 
-        var cell = new Vector3i((int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Y), (int)System.Math.Floor(pos.Z));
+        var cell = pos.ToBlock();
         return !InSealedStationPocket(station, cell);
     }
 

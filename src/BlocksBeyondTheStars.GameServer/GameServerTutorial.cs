@@ -305,7 +305,7 @@ public sealed partial class GameServer
         }
 
         var pos = who.State.Position;
-        var origin = WorldConstants.CanonicalBlock(new Vector3i((int)Math.Floor(pos.X), (int)Math.Floor(pos.Y), (int)Math.Floor(pos.Z)), world.Circumference);
+        var origin = WorldConstants.CanonicalBlock(pos.ToBlock(), world.Circumference);
         int r = TutorialFloraProbeRadius;
         int h = TutorialFloraProbeHeight;
         int bestDist = int.MaxValue;

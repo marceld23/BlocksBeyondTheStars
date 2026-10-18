@@ -42,7 +42,7 @@ public sealed class DoorwayTests : IDisposable
         }
     }
 
-    private SvGameServer NewServer(string name, NpcLifeWorld.RecordingTransport transport, out SqliteWorldRepository repo,
+    private SvGameServer NewServer(string name, RecordingTransport transport, out SqliteWorldRepository repo,
         bool starterShip = false)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
@@ -72,13 +72,13 @@ public sealed class DoorwayTests : IDisposable
         return p;
     }
 
-    private static string? LastRejection(NpcLifeWorld.RecordingTransport t, PlayerSession who)
+    private static string? LastRejection(RecordingTransport t, PlayerSession who)
         => t.Sent.Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<ActionRejected>().LastOrDefault()?.Reason;
 
     [Fact]
     public void ABlock_IsRefusedAnywhereInADoorway_AndCostsNothing()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("doorway_block", t, out var repo);
         using (repo)
         {
@@ -107,7 +107,7 @@ public sealed class DoorwayTests : IDisposable
     [Fact]
     public void ASecondDoor_IsRefusedInTheSameDoorway()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("doorway_stack", t, out var repo);
         using (repo)
         {
@@ -126,7 +126,7 @@ public sealed class DoorwayTests : IDisposable
     [Fact]
     public void AFlowerInFrontOfTheDoorway_IsNoJamb()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("doorway_flower", t, out var repo);
         using (repo)
         {
@@ -175,7 +175,7 @@ public sealed class DoorwayTests : IDisposable
     [InlineData(true)]
     public void TheStarterShipsHatch_CannotBeWalledUp(bool inSpace)
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer(inSpace ? "doorway_hatch_space" : "doorway_hatch", t, out var repo, starterShip: true);
         using (repo)
         {

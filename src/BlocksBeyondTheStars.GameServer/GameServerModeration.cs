@@ -180,17 +180,6 @@ public sealed partial class GameServer
     // control-char-stripped and length-clamped, and the AI backend's greetings and mission flavour went out
     // with nothing but a prompt guard behind them. Same words, same server, same children reading them.
 
-    /// <summary>Screens a player-typed NAME. Returns the name to store, or null when it was refused — in
-    /// which case the player has already been told through <paramref name="surface"/>.
-    ///
-    /// Screened with the CHAT lists, not the join-name list, on purpose: a name screen substring-matches
-    /// (right for a 24-character handle, wrong for "Dickichtlager"), while the chat screen matches whole
-    /// tokens — and a base name is a short phrase, not a handle.
-    ///
-    /// A masked verdict is treated as a refusal too, unlike in chat. A chat line is gone in a minute; a
-    /// name is persistent and shown to everyone who walks past it, so "Basis f***" is a worse answer than
-    /// "pick another name" — and Mask is also the verdict that carries personal data, which must not be
-    /// stored at all.</summary>
     /// <summary>Unambiguous sexual stems a player-given name may not contain even inside a compound (2026-09). Kept to stems
     /// practically never occur innocently in a station or base name (an "Essex" base is the accepted cost).</summary>
     private static readonly string[] PlaceNameBlockedStems = { "sex", "porn", "penis", "vagina", "dildo", "blowjob", "titten", "pimmel" };
@@ -209,6 +198,17 @@ public sealed partial class GameServer
         return true;
     }
 
+    /// <summary>Screens a player-typed NAME. Returns the name to store, or null when it was refused — in
+    /// which case the player has already been told through <paramref name="surface"/>.
+    ///
+    /// Screened with the CHAT lists, not the join-name list, on purpose: a name screen substring-matches
+    /// (right for a 24-character handle, wrong for "Dickichtlager"), while the chat screen matches whole
+    /// tokens — and a base name is a short phrase, not a handle.
+    ///
+    /// A masked verdict is treated as a refusal too, unlike in chat. A chat line is gone in a minute; a
+    /// name is persistent and shown to everyone who walks past it, so "Basis f***" is a worse answer than
+    /// "pick another name" — and Mask is also the verdict that carries personal data, which must not be
+    /// stored at all.</summary>
     private string? ScreenPlayerName(PlayerSession session, string clean, string surface, string reason = "@srv.name.blocked")
     {
         var mode = EffectiveChatMode;

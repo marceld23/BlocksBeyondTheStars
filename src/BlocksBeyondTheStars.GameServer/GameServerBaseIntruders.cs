@@ -130,7 +130,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        var cell = new Vector3i((int)System.Math.Floor(c.Position.X), (int)System.Math.Floor(c.Position.Y), (int)System.Math.Floor(c.Position.Z));
+        var cell = c.Position.ToBlock();
         return OnPlayerBuiltFloor(c.Position) || InSealedBaseRoom(cell) || InWalledBaseArea(cell);
     }
 
@@ -163,7 +163,7 @@ public sealed partial class GameServer
     /// pit's floor stays wild ground.</para></summary>
     private bool OnPlayerBuiltFloor(Vector3f feet)
     {
-        var cell = new Vector3i((int)System.Math.Floor(feet.X), (int)System.Math.Floor(feet.Y), (int)System.Math.Floor(feet.Z));
+        var cell = feet.ToBlock();
         var at = _world.GetBlockIfLoaded(cell);
         if (IsFluid(at.Value))
         {

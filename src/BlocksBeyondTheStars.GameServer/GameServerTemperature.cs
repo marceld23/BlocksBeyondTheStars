@@ -288,7 +288,7 @@ public sealed partial class GameServer
         {
             session.TemperatureScanIn = TemperatureScanInterval;
             session.TemperatureSeverity = ComputeTemperatureSeverity(session); // keeps the HUD/VEGA reading current
-            var cell = new Vector3i((int)System.Math.Floor(p.Position.X), (int)System.Math.Floor(p.Position.Y), (int)System.Math.Floor(p.Position.Z));
+            var cell = p.Position.ToBlock();
             session.ExposureHot = _generator.IsHotZoneAt(planet, cell.X, cell.Z) && session.EffectiveTemperatureC > ComfortHighC;
             session.ExposureRoofed = RoofedAt(p.Position);
             session.ExposureSheltered = InAnyBaseZone(cell) || InSealedBaseRoom(cell) || session.TemperatureSeverity <= 0f;

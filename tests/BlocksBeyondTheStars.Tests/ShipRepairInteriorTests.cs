@@ -27,7 +27,7 @@ public sealed class ShipRepairInteriorTests : IDisposable
     [Fact]
     public void EnteringTheFloatingInterior_PushesACurrentRepairReadout()
     {
-        var transport = new NpcLifeWorld.RecordingTransport();
+        var transport = new RecordingTransport();
         var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "shiprepair_int"));
         using (repo)
         {
@@ -62,7 +62,7 @@ public sealed class ShipRepairInteriorTests : IDisposable
         }
     }
 
-    private static IEnumerable<T> SentTo<T>(NpcLifeWorld.RecordingTransport transport, SvSession who)
+    private static IEnumerable<T> SentTo<T>(RecordingTransport transport, SvSession who)
         => transport.Sent.Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<T>();
 
     public void Dispose()

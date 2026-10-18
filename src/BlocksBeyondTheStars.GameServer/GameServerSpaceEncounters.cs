@@ -99,7 +99,7 @@ public sealed partial class GameServer
 
         foreach (var pid in instance.Players)
         {
-            if (FindSessionByPlayerId(pid) is { Joined: true } s)
+            if (FindSessionByPlayerId(pid) is { } s)
             {
                 Send(s, new ServerMessage { Text = pod ? "@srv.encounter.pod" : "@srv.encounter.anomaly" });
             }
@@ -123,7 +123,7 @@ public sealed partial class GameServer
         {
             var pilotPos = PilotPositionIn(instance, pid);
             if (pod.Position.DistanceSquared(pilotPos) > PodRescueRange * PodRescueRange
-                || FindSessionByPlayerId(pid) is not { Joined: true } session)
+                || FindSessionByPlayerId(pid) is not { } session)
             {
                 continue;
             }

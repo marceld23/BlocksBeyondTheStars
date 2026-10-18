@@ -56,32 +56,6 @@ public sealed class StoryServerFixesTests : IDisposable
         try { Directory.Delete(_root, recursive: true); } catch { /* best-effort temp cleanup */ }
     }
 
-    /// <summary>Records every server send so a test can assert who was told what.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((connectionId, m));
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((int.MinValue, m));
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-    }
-
     private ServerConfig Config(string world, Action<ServerConfig>? configure = null)
     {
         var config = new ServerConfig

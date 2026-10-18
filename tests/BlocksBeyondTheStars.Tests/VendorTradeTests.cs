@@ -149,7 +149,7 @@ public sealed class VendorTradeTests : IDisposable
     [Fact]
     public void ALandedTrader_SellsTheGoodsItBrought_AndNoOtherTradesThemedGoods()
     {
-        var transport = new NpcLifeWorld.RecordingTransport();
+        var transport = new RecordingTransport();
         var server = NewServer("landed_goods", transport);
         var pilot = server.AddLocalPlayer("Pilot");
         pilot.State.AboardShip = false;
@@ -240,19 +240,19 @@ public sealed class VendorTradeTests : IDisposable
 
     // ---- helpers ---------------------------------------------------------------------------------------------
 
-    private SvGameServer NewServer(string name, NpcLifeWorld.RecordingTransport? transport = null)
+    private SvGameServer NewServer(string name, RecordingTransport? transport = null)
     {
         var repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         _repos.Add(repo);
         var config = new ServerConfig { WorldName = name, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
         config.Rules.FreeSpaceFlight = true;
         config.Rules.SpaceCombat = SpaceCombatMode.Off;
-        var server = new SvGameServer(config, Content, transport ?? new NpcLifeWorld.RecordingTransport(), repo);
+        var server = new SvGameServer(config, Content, transport ?? new RecordingTransport(), repo);
         server.Start();
         return server;
     }
 
-    private static string Craft(SvGameServer server, NpcLifeWorld.RecordingTransport transport, string playerId, string recipe)
+    private static string Craft(SvGameServer server, RecordingTransport transport, string playerId, string recipe)
     {
         int mark = transport.Sent.Count;
         server.Craft(playerId, recipe);

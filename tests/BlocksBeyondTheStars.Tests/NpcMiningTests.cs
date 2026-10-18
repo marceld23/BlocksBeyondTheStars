@@ -51,7 +51,7 @@ public sealed class NpcMiningTests : IDisposable
     {
         public readonly SvGameServer Server;
         public readonly SqliteWorldRepository Repo;
-        public readonly NpcLifeWorld.RecordingTransport Transport = new();
+        public readonly RecordingTransport Transport = new();
         public readonly PlayerSession Player;
         public readonly int PadY;
         public readonly int Miner;

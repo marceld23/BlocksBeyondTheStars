@@ -271,6 +271,8 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>The session of a player id — JOINED sessions only (a connection still in its handshake is never
+    /// returned), so callers need no <c>Joined</c> check of their own. Null for an empty id or nobody online.</summary>
     private PlayerSession? FindSessionByPlayerId(string playerId)
     {
         if (string.IsNullOrEmpty(playerId))

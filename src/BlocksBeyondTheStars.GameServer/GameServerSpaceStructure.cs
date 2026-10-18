@@ -1547,10 +1547,9 @@ public sealed partial class GameServer
         return new SpaceStructure();
     }
 
-    /// <summary>Sends a structure's voxel grid + size to a client as a <see cref="SpaceShipDesign"/> (item 20, S1).</summary>
-    /// <summary><paramref name="kindOverride"/> = "ship_remote" sends ANOTHER player's ship design (the
-    /// client caches it per pilot for the flight view + the landing/launch FX instead of treating it
-    /// as the own ship).</summary>
+    /// <summary>Sends a structure's voxel grid + size to a client as a <see cref="SpaceShipDesign"/> (item 20, S1).
+    /// <paramref name="kindOverride"/> = "ship_remote" sends ANOTHER player's ship design (the client caches it per
+    /// pilot for the flight view + the landing/launch FX instead of treating it as the own ship).</summary>
     private void SendShipDesign(PlayerSession session, SpaceStructure s, string? kindOverride = null)
     {
         int n = s.Cells.Count;

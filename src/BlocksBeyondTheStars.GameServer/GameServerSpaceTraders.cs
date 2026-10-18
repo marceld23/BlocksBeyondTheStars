@@ -1250,7 +1250,7 @@ public sealed partial class GameServer
         AddBaseAnchors(anchors, bodyId, ownerId => present.Any(s => s.State.PlayerId == ownerId));
         if (anchors.Count == 0 && hailedOwnersFirst)
         {
-            AddBaseAnchors(anchors, bodyId, ownerId => FindSessionByPlayerId(ownerId) is { Joined: true, Spectating: false });
+            AddBaseAnchors(anchors, bodyId, ownerId => FindSessionByPlayerId(ownerId) is { Spectating: false });
         }
 
         if (anchors.Count == 0)
@@ -1344,7 +1344,7 @@ public sealed partial class GameServer
         var asked = new HashSet<string>(System.StringComparer.Ordinal);
         foreach (var b in _bases)
         {
-            if (b.Planet != bodyId || FindSessionByPlayerId(b.OwnerId) is not { Joined: true } owner || !asked.Add(owner.Locale))
+            if (b.Planet != bodyId || FindSessionByPlayerId(b.OwnerId) is not { } owner || !asked.Add(owner.Locale))
             {
                 continue;
             }

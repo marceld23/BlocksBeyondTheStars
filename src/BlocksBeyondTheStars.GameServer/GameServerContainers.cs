@@ -339,7 +339,6 @@ public sealed partial class GameServer
             Items = new List<ItemStack>(),
         });
 
-    /// <summary>Mining a storage crate returns its stored contents to the miner and removes the container.</summary>
     /// <summary>The stacks a crate at <paramref name="pos"/> would hand back if it were mined. Used to check
     /// there is room for them BEFORE the crate is broken — mining a full crate into a full inventory used to
     /// destroy its contents.</summary>
@@ -353,6 +352,7 @@ public sealed partial class GameServer
         return container.Items.Where(s => !s.IsEmpty).Select(s => new ItemAmount(s.Item, s.Count)).ToList();
     }
 
+    /// <summary>Mining a storage crate returns its stored contents to the miner and removes the container.</summary>
     private void RemoveCrateContainer(Vector3i pos, MaterialPool pool)
     {
         if (_containers.FirstOrDefault(c => c.Kind == "crate" && c.Position.Equals(pos)) is not { } container)

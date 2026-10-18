@@ -61,7 +61,7 @@ public sealed partial class GameServer
     /// <summary>The owner session of a companion entity when the owner is joined, on this world, on foot or
     /// not — null when the owner is elsewhere (a pet alone on its home world does nothing for anyone).</summary>
     private PlayerSession? CompanionOwnerHere(CombatEntity c)
-        => c.IsCompanion && FindSessionByPlayerId(c.OwnerId) is { Joined: true } owner
+        => c.IsCompanion && FindSessionByPlayerId(c.OwnerId) is { } owner
            && owner.CurrentLocationId == _world.LocationId && !InSpace(c.OwnerId)
             ? owner
             : null;
@@ -243,7 +243,7 @@ public sealed partial class GameServer
             return;
         }
 
-        var feet = new Vector3i((int)System.Math.Floor(c.Position.X), (int)System.Math.Floor(c.Position.Y), (int)System.Math.Floor(c.Position.Z));
+        var feet = c.Position.ToBlock();
         SpillToGround(feet, sp.DropItem, 1);
         BioOnCompanionGift(owner, sp); // #2201: the gift comes with a sample of its species
         _ = owner; // the packet reaches the owner through the ordinary sweep (fetch synergy) — no toast spam

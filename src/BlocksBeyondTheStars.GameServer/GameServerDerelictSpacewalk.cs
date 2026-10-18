@@ -74,7 +74,7 @@ public sealed partial class GameServer
         _derelictSpacewalks.Clear();
         foreach (var playerId in queued)
         {
-            if (FindSessionByPlayerId(playerId) is { Joined: true } session
+            if (FindSessionByPlayerId(playerId) is { } session
                 && TryGetBoardedPlayerStation(playerId, out var station) && IsGeneratedDerelictId(station.Id)
                 && BeyondStationBox(station, session.State.Position, DerelictSpacewalkMargin))
             {

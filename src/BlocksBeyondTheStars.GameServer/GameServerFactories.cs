@@ -43,7 +43,7 @@ public sealed partial class GameServer
     /// terminal's reach, the roster and the claim, nothing else). Returns its id.</summary>
     internal int AddFactoryForTest(Vector3f terminal, params string[] roster)
     {
-        var cell = new Vector3i((int)System.Math.Floor(terminal.X), (int)System.Math.Floor(terminal.Y), (int)System.Math.Floor(terminal.Z));
+        var cell = terminal.ToBlock();
         var inst = new FactoryInstance
         {
             Id = _worlds.Active.NextFactoryId++,

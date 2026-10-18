@@ -42,39 +42,6 @@ internal sealed class NpcLifeWorld : IDisposable
     private readonly Action<ServerConfig>? _configure;
     private SqliteWorldRepository _repo;
 
-    public sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m)
-            {
-                Sent.Add((connectionId, m));
-            }
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m)
-            {
-                Sent.Add((int.MinValue, m));
-            }
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-
-        public void Stop() { }
-
-        public void Dispose() { }
-    }
-
     public NpcLifeWorld(GameContent content, string name, int padHalf = 24, Action<ServerConfig>? configure = null)
     {
         Content = content;

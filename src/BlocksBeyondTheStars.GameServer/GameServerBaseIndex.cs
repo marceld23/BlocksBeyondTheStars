@@ -111,7 +111,7 @@ public sealed partial class GameServer
         }
 
         ushort Id(string key) => _content.GetBlock(key)?.NumericId.Value ?? 0;
-        _ixBed = Id("bed");
+        _ixBed = Id(BedBlock);
         _ixVendor = Id("station_vendor");
         _ixBoard = Id("mission_board");
         _ixWorkbench = Id("workbench");
@@ -295,7 +295,7 @@ public sealed partial class GameServer
         int count = CountBaseMachines(b);
         if (count < BaseSettlerMachineCount)
         {
-            _foundingMachineIds ??= _content.Blocks.Values.Where(d => d.Category == "machine" && d.Key != "base_core")
+            _foundingMachineIds ??= _content.Blocks.Values.Where(d => d.Category == "machine" && d.Key != BaseCoreBlock)
                 .Select(d => d.NumericId.Value).Where(id => id != 0).ToArray();
             int circ = _world.Circumference;
             var roomCache = new Dictionary<Vector3i, bool>();

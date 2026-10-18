@@ -568,12 +568,6 @@ public sealed partial class GameServer
     // Companion entities (live followers) + reconciliation with player presence.
     // ---------------------------------------------------------------------------------------------
 
-    /// <summary>Players currently on this world (on foot or aboard their parked ship — but not in space),
-    /// i.e. those whose companions should be materialised here. Observers are excluded (issue #487): a pet
-    /// trotting around with no visible owner would give the invisible admin away.</summary>
-    private IEnumerable<PlayerSession> CompanionOwnersHere()
-        => JoinedInActiveWorld().Where(s => !s.Spectating && !InSpace(s.State.PlayerId));
-
     private int CompanionCountFor(string ownerId)
     {
         int n = 0;
@@ -609,6 +603,8 @@ public sealed partial class GameServer
     private bool ReconcileCompanions()
     {
         // #1530: runs every creature tick — scratch collections + plain loops (same order, same outcome).
+        // Present = on this world, on foot or aboard their parked ship, not in space. Observers are excluded (#487):
+        // a pet trotting around with no visible owner would give the invisible admin away.
         var present = _companionOwnersScratch;
         present.Clear();
         foreach (var s in JoinedInActiveWorld())

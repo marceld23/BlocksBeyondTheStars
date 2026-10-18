@@ -141,7 +141,7 @@ public sealed partial class GameServer
     private bool InSameClosedRoom(Vector3f a, Vector3f b)
     {
         var start = new Vector3i((int)System.Math.Floor(a.X), (int)System.Math.Floor(a.Y) + 1, (int)System.Math.Floor(a.Z));
-        var goalFeet = new Vector3i((int)System.Math.Floor(b.X), (int)System.Math.Floor(b.Y), (int)System.Math.Floor(b.Z));
+        var goalFeet = b.ToBlock();
         var goalHead = new Vector3i(goalFeet.X, goalFeet.Y + 1, goalFeet.Z);
         var doors = DoorCellsWhere(_ => true);
         int circ = _world.Circumference;

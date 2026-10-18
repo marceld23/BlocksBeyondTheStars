@@ -383,16 +383,11 @@ public sealed partial class GameServer
         return true;
     }
 
-    /// <summary>True if a placed heal tank stands within the regen-field box around <paramref name="pos"/>.
-    /// The per-tick regen scan passes <paramref name="loadedOnly"/> so it never forces chunk loads (a
-    /// placed tank always sits in a chunk its nearby player keeps resident anyway); the home-spawn
-    /// validation at respawn time reads THROUGH the cache — the home chunks are usually not resident when
-    /// the player died elsewhere, and loading the few cells there is exactly what the check is for.</summary>
-    private bool HealTankNear(Vector3f pos, bool loadedOnly)
-        => AnchorNear(pos, loadedOnly, _healTankBlockId);
-
     /// <summary>True if a home-spawn ANCHOR — a heal tank or a bed (#804) — stands near <paramref name="pos"/>.
-    /// The respawn flow validates against this: a razed home (tank mined AND bed gone) falls back to the ship.</summary>
+    /// The respawn flow validates against this: a razed home (tank mined AND bed gone) falls back to the ship.
+    /// The validation at respawn time reads THROUGH the cache (<paramref name="loadedOnly"/> false) — the home chunks
+    /// are usually not resident when the player died elsewhere, and loading the few cells there is exactly what the
+    /// check is for.</summary>
     private bool HomeAnchorNear(Vector3f pos, bool loadedOnly)
         => AnchorNear(pos, loadedOnly, _healTankBlockId, _bedBlockId, _crewBunkBlockId);
 

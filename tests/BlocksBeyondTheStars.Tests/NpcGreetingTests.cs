@@ -209,14 +209,14 @@ public sealed class NpcGreetingTests : IDisposable
         public string[]? GenerateNpcLines(NpcLinesRequest request) => null;
     }
 
-    private static List<string> GreetingsTo(NpcLifeWorld.RecordingTransport transport, int connectionId)
+    private static List<string> GreetingsTo(RecordingTransport transport, int connectionId)
         => transport.Sent.Where(s => s.Conn == connectionId && s.Msg is NpcGreeting)
             .Select(s => ((NpcGreeting)s.Msg).Text).ToList();
 
     [Fact]
     public void AiGreeting_SecondPlayer_NeverHearsTheFirstPlayersName()
     {
-        var transport = new NpcLifeWorld.RecordingTransport();
+        var transport = new RecordingTransport();
         var provider = new EchoNameProvider();
         var server = StartedWithVendor(AiLevel.TextOnly, provider, "en", out var repo, out var alice, out var home, transport, "Alice");
         using (repo)
@@ -392,7 +392,7 @@ public sealed class NpcGreetingTests : IDisposable
     public void AGreeting_CarriesAnId_ItsAiUpgradeReusesIt_AndTheNextGreetingCountsOn()
     {
         // The client plays the voice and the gesture once per id and only swaps the text of an upgrade with the same id.
-        var transport = new NpcLifeWorld.RecordingTransport();
+        var transport = new RecordingTransport();
         var server = StartedWithVendor(AiLevel.TextOnly, new CountingProvider(), "en", out var repo, out var p, out _, transport);
         using (repo)
         {

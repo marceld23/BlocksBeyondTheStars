@@ -359,7 +359,7 @@ public sealed partial class GameServer
     {
         foreach (var playerId in instance.Players)
         {
-            if (FindSessionByPlayerId(playerId) is not { } s || !s.Joined)
+            if (FindSessionByPlayerId(playerId) is not { } s)
             {
                 continue;
             }

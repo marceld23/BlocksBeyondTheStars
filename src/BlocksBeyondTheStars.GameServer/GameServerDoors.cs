@@ -444,8 +444,6 @@ public sealed partial class GameServer
     /// cell stays shut while E toggles the first one.</summary>
     private bool DoorFillsCell(Vector3i pos) => PlayerDoorFillsCell(pos) || StampedDoorAt(pos);
 
-    /// <summary>If a player-built door fills the mined cell's column (its ~3-tall opening), remove it, return the
-    /// door item to the miner and forget it. Returns true if it handled the mine (a player door was there).</summary>
     /// <summary>#1746: a stamped (station / settlement) door occupies the cell. Since the client aims at doors,
     /// a mine intent can land on one of these too — it is protected like the walls around it and must be
     /// answered as such, not with the "ghost block" heal an air cell would get.</summary>
@@ -478,6 +476,8 @@ public sealed partial class GameServer
         return false;
     }
 
+    /// <summary>If a player-built door fills the mined cell's column (its ~3-tall opening), remove it, return the
+    /// door item to the miner and forget it. Returns true if it handled the mine (a player door was there).</summary>
     private bool RemovePlayerDoorAt(PlayerSession session, Vector3i pos)
     {
         var door = _doors.FirstOrDefault(d => d.PlayerBuilt

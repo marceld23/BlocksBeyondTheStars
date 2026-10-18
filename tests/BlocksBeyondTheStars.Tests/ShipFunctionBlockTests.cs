@@ -104,7 +104,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
         }
     }
 
-    private SvGameServer NewServer(string name, NpcLifeWorld.RecordingTransport transport, out SqliteWorldRepository repo,
+    private SvGameServer NewServer(string name, RecordingTransport transport, out SqliteWorldRepository repo,
         bool starterShip = false, Action<ServerConfig>? configure = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
@@ -140,16 +140,16 @@ public sealed class ShipFunctionBlockTests : IDisposable
         => Assert.Equal(0, p.State.Inventory.Add(item, 1, 1));
 
     /// <summary>One build into a structure, and what came back to the builder: the refusal, or nothing.</summary>
-    private static string? Build(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who, string structureId,
+    private static string? Build(SvGameServer server, RecordingTransport t, PlayerSession who, string structureId,
         Vector3i cell, string item)
         => Edit(server, t, who, new StructureEditIntent { StructureId = structureId, X = cell.X, Y = cell.Y, Z = cell.Z, ItemKey = item });
 
     /// <summary>Takes the block at a cell out of a structure again; what came back is the refusal, or nothing.</summary>
-    private static string? TakeOut(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who, string structureId,
+    private static string? TakeOut(SvGameServer server, RecordingTransport t, PlayerSession who, string structureId,
         Vector3i cell)
         => Edit(server, t, who, new StructureEditIntent { StructureId = structureId, X = cell.X, Y = cell.Y, Z = cell.Z, Mine = true });
 
-    private static string? Edit(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who, StructureEditIntent intent)
+    private static string? Edit(SvGameServer server, RecordingTransport t, PlayerSession who, StructureEditIntent intent)
     {
         int before = t.Sent.Count;
         server.HandleStructureEditForTest(who.State.PlayerId, intent);
@@ -161,7 +161,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
     /// system line (<see cref="ShipAiLine.Kind"/> 3). An advisor hint (kind 1) is muted for a player who switched VEGA's
     /// hints off, and the notice's once-flag would be used up without the player ever reading it. #2248: a bio lab
     /// gets its own wording of the same once-notice (it names the ship's bio lab module).</summary>
-    private static int DecorNotices(NpcLifeWorld.RecordingTransport t, PlayerSession who)
+    private static int DecorNotices(RecordingTransport t, PlayerSession who)
     {
         var notices = t.Sent.Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<ShipAiLine>()
             .Where(line => line.LineKey == DecorNotice || line.LineKey == DecorNotice + "_bio_lab").ToList();
@@ -171,7 +171,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
 
     /// <summary>An ordinary block at one cell of a ship, for a player who has not heard the notice yet: it is built and
     /// paid for, and VEGA has nothing to say about it. It is taken out again, so the cell is free afterwards.</summary>
-    private void AssertAnOrdinaryBlockIsBuiltWithoutANotice(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who,
+    private void AssertAnOrdinaryBlockIsBuiltWithoutANotice(SvGameServer server, RecordingTransport t, PlayerSession who,
         string structureId, Vector3i cell, Func<Vector3i, BlockId> blockAt)
     {
         who.State.InstantBuild = false; // survival rules: an accepted block is taken out of the pack
@@ -192,7 +192,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
     /// item: each is accepted, stands in the cell and is used up — and comes out again like any block the owner built.
     /// VEGA's notice is there once after the first of them (or was there before, from another ship path), and no later
     /// block of any kind adds a second one.</summary>
-    private void AssertAllBuiltAsDecor(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who,
+    private void AssertAllBuiltAsDecor(SvGameServer server, RecordingTransport t, PlayerSession who,
         string structureId, Vector3i cell, Func<Vector3i, BlockId> blockAt)
     {
         who.State.InstantBuild = false; // survival rules: an accepted block is taken out of the pack
@@ -220,7 +220,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
         return entry is null ? BlockId.Air : new BlockId(ushort.Parse(entry[prefix.Length..], CultureInfo.InvariantCulture));
     }
 
-    private static void AssertRefusedAndKept(SvGameServer server, NpcLifeWorld.RecordingTransport t, PlayerSession who,
+    private static void AssertRefusedAndKept(SvGameServer server, RecordingTransport t, PlayerSession who,
         string structureId, Vector3i cell, string[] items, string refusal)
     {
         who.State.InstantBuild = false; // survival rules: an accepted block would be taken out of the pack
@@ -274,7 +274,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
     [InlineData(true)]
     public void InTheCabin_ALabOrACrystalDevice_IsBuiltAndPaidFor_AndVegaSaysOnceItIsDecoration(bool inSpace)
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer(inSpace ? "shipfn_cabin_space" : "shipfn_cabin", t, out var repo, starterShip: true);
         using (repo)
         {
@@ -296,7 +296,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
     [InlineData("light_white")]
     public void InTheCabin_AConduitAndALamp_AreBuilt_WithoutANotice(string item)
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipfn_furnish_" + item, t, out var repo, starterShip: true);
         using (repo)
         {
@@ -317,7 +317,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
     [Fact]
     public void InTheCabin_TheDevicesThatWorkAboard_AreBuilt_WithoutANotice_AndJoinTheShipsNet()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipfn_aboard", t, out var repo, starterShip: true);
         using (repo)
         {
@@ -344,7 +344,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
     [Fact]
     public void OnASpacewalk_TheOwnShipsHull_TakesThemToo()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipfn_eva", t, out var repo, starterShip: true);
         using (repo)
         {
@@ -369,7 +369,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
     [Fact]
     public void TheNotice_IsToldToEachPlayerOnce()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipfn_two_pilots", t, out var repo, starterShip: true);
         using (repo)
         {
@@ -405,7 +405,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
     [Fact]
     public void ASelfBuiltShip_TakesThem_OnTheSiteAndOnceCommissioned_AndTheNoticeIsNotRepeated()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         // The keel goes down at a fixed column, which the newer relief may flood or bury — the classic generation
         // keeps it dry, like the other self-built-ship tests.
         var server = NewServer("shipfn_keel", t, out var repo, configure: c => c.World.TerrainGeneration = 0);
@@ -507,7 +507,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
     [InlineData(true)]
     public void OnTheGround_AndInTheOwnBase_TheyAreBuilt_AndWork(bool inBase)
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer(inBase ? "shipfn_base" : "shipfn_ground", t, out var repo);
         using (repo)
         {
@@ -549,7 +549,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
 
     /// <summary>The owner on a spacewalk at their own commissioned station: a core, a small hull along +X and an
     /// airlock door.</summary>
-    private static (PlayerSession Owner, string StationId) OnASpacewalkAtTheOwnStation(SvGameServer server, NpcLifeWorld.RecordingTransport t)
+    private static (PlayerSession Owner, string StationId) OnASpacewalkAtTheOwnStation(SvGameServer server, RecordingTransport t)
     {
         var owner = server.AddLocalPlayer("Owner");
         EmptyPack(owner);
@@ -583,7 +583,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
     [Fact]
     public void OnTheOwnStation_ALabBuiltOnASpacewalk_Works_AndTheDeckTakesThem()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipfn_station", t, out var repo);
         using (repo)
         {
@@ -616,7 +616,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
     [Fact]
     public void OnASpacewalk_TheOwnStation_RefusesWhatOnlyTheDeckCanRegister_AndKeepsTheItem()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipfn_station_eva", t, out var repo);
         using (repo)
         {
@@ -640,7 +640,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
     [Fact]
     public void OnASpacewalk_TheOwnStation_StillTakesTheBlocksTheGridIsReadFor_AndTheDeckWiresThem()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipfn_station_parts", t, out var repo);
         using (repo)
         {
@@ -678,7 +678,7 @@ public sealed class ShipFunctionBlockTests : IDisposable
     [Fact]
     public void OnASpacewalk_TheOwnStation_IsNoShip_AndGetsNoDecorationNotice()
     {
-        var t = new NpcLifeWorld.RecordingTransport();
+        var t = new RecordingTransport();
         var server = NewServer("shipfn_station_notice", t, out var repo);
         using (repo)
         {

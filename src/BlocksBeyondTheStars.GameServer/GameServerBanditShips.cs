@@ -234,7 +234,7 @@ public sealed partial class GameServer
     {
         foreach (var playerId in instance.Players)
         {
-            if (FindSessionByPlayerId(playerId) is { } s && s.Joined && SpaceQuarry(playerId))
+            if (FindSessionByPlayerId(playerId) is { } s && SpaceQuarry(playerId))
             {
                 return s;
             }

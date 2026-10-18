@@ -646,7 +646,7 @@ public sealed partial class GameServer
     /// the Y axis included — so a player who drops into a cave or puts a wall/ridge between themselves and a
     /// hunter genuinely breaks the sightline. Used to gate aggression/damage on line-of-sight: an enemy can't
     /// bite (or keep chasing) a target it can't see. Sampled in the target's unwrapped frame so it stays correct
-    /// across the longitude seam; <see cref="IsSolidCell"/> canonicalises each cell, so raw coords are fine.</summary>
+    /// across the longitude seam; the world's block lookup canonicalises each cell, so raw coords are fine.</summary>
     private bool HasLineOfSight(Vector3f from, Vector3f to)
         => HasLineOfSight(from, to, SightEyeHeight, SightEyeHeight, skipToCell: false);
 
@@ -748,11 +748,9 @@ public sealed partial class GameServer
             || NpcBodyBlockedAt(x, y + 1, z);  // head
     }
 
-    /// <summary>Whether a cell is a movement-blocking solid block. Keyed on the block's <c>Solid</c> flag, not
-    /// just "non-air", so the two are kept distinct: <b>glass</b> is solid-but-transparent (blocks NPCs, you see
-    /// through it), while a non-solid transparent block like <b>water</b> is passable. Air is never solid.</summary>
-    private bool IsSolidCell(int x, int y, int z) => IsSolidBlock(_world.GetBlock(new Vector3i(x, y, z)));
-
+    /// <summary>Whether a block is a solid block. Keyed on the block's <c>Solid</c> flag, not just "non-air", so the
+    /// two are kept distinct: <b>glass</b> is solid-but-transparent (blocks sight, you see through it), while a
+    /// non-solid transparent block like <b>water</b> is passable. Air is never solid.</summary>
     private bool IsSolidBlock(BlockId id)
     {
         if (id.IsAir)
@@ -771,7 +769,7 @@ public sealed partial class GameServer
     private bool IsCollidingCellIfLoaded(int x, int y, int z, bool foliagePasses)
         => IsCollidingBlock(_world.GetBlockIfLoaded(new Vector3i(x, y, z)), fluidsPass: true, foliagePasses);
 
-    /// <summary>Whether a block actually <b>collides</b> with a walking body. <see cref="IsSolidCell"/> keys on
+    /// <summary>Whether a block actually <b>collides</b> with a walking body. <see cref="IsSolidBlock"/> keys on
     /// the <c>Solid</c> flag alone, which defaults to <c>true</c> — so every cross-billboard prop (small flora,
     /// the torch/lantern, the walk-through ladder) counts as solid there even though the mesher gives it no
     /// collider and the player strolls straight through it. Movement must use this predicate instead, or a

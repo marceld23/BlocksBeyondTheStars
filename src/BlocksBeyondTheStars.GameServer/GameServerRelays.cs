@@ -325,8 +325,6 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Whether a jump lane links these two systems — the jump-generator exemption used by both
-    /// travel paths. Null/empty on either side (deep space, unknown origin) never matches.</summary>
     /// <summary>Whether any boardable station still has an unfinished relay — i.e. whether a Contribute
     /// objective (#1213) could be satisfied anywhere at all. No stations = nothing to contribute to.</summary>
     private bool AnyRelayOpen()
@@ -401,6 +399,8 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Whether a jump lane links these two systems — the jump-generator exemption used by both
+    /// travel paths. Null/empty on either side (deep space, unknown origin) never matches.</summary>
     private bool HasJumpLane(string? systemA, string? systemB)
     {
         if (string.IsNullOrEmpty(systemA) || string.IsNullOrEmpty(systemB))

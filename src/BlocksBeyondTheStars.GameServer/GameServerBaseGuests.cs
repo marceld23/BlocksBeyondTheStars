@@ -805,7 +805,7 @@ public sealed partial class GameServer
         }
 
         if (g.Kind == BaseGuestKind.Neighbour && g.Place.Length > 0
-            && FindSessionByPlayerId(g.OwnerId) is { Joined: true, Spectating: false } owner
+            && FindSessionByPlayerId(g.OwnerId) is { Spectating: false } owner
             && owner.CurrentLocationId == _world.LocationId)
         {
             Send(owner, new ServerMessage

@@ -219,7 +219,7 @@ public sealed partial class GameServer
         const float radiusSq = FxSpaceAudienceRadius * FxSpaceAudienceRadius;
         foreach (var otherId in instance.Players)
         {
-            if (otherId == playerId || FindSessionByPlayerId(otherId) is not { Joined: true } other)
+            if (otherId == playerId || FindSessionByPlayerId(otherId) is not { } other)
             {
                 continue;
             }

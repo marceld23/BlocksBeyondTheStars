@@ -592,7 +592,7 @@ public sealed partial class GameServer
     {
         var rails = Rails;
         string who = session.State.PlayerId;
-        var cell = new Vector3i((int)Math.Floor(target.X), (int)Math.Floor(target.Y), (int)Math.Floor(target.Z));
+        var cell = target.ToBlock();
         cell = WorldConstants.CanonicalBlock(cell, _world.Circumference);
         if (!rails.Nodes.ContainsKey(cell))
         {

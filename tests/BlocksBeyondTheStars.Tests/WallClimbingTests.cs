@@ -215,45 +215,6 @@ public sealed class WallClimbingTests : IDisposable
         PlaceStarterShip = false,
     };
 
-    /// <summary>A transport that records every server send so a test can assert who received what.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m)
-            {
-                Sent.Add((connectionId, m));
-            }
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m)
-            {
-                Sent.Add((int.MinValue, m));
-            }
-        }
-
-        public void Poll()
-        {
-            _ = ClientConnected;
-            _ = ClientDisconnected;
-            _ = PayloadReceived;
-        }
-
-        public void Stop() { }
-
-        public void Dispose() { }
-    }
-
     public void Dispose()
     {
         foreach (var repo in _repos)
