@@ -341,13 +341,9 @@ public sealed partial class WorldGenerator
     private bool TryGetSurfacePond(PlanetType planet, int worldX, int worldZ, out int top, out int bed)
     {
         top = bed = 0;
-        var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
-        var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
-        double pondAbundance = planet.WaterAbundance
-            ?? (string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase) ? 0.0 : 0.55);
-        if (!(pondAbundance > 0.15) || seaFluid != waterId || waterId.IsAir)
+        if (!HasUplandPonds(planet, out int seaLevel, out double pondThreshold))
         {
-            return false; // ponds only on watery worlds (matches Generate)
+            return false;
         }
 
         int surfaceY = SurfaceHeight(planet, worldX, worldZ);
@@ -356,10 +352,44 @@ public sealed partial class WorldGenerator
             return false; // below the global sea — the sea fills this column, not a pond
         }
 
-        double pondThreshold = 0.70 - pondAbundance * 0.12;
         long seed = PlanetSeed(planet);
         return TryGetPondWater(planet, seed, worldX, worldZ, surfaceY, seaLevel, pondThreshold,
             PondMaskAt(planet, seed, worldX, worldZ), out top, out bed);
+    }
+
+    /// <summary>The world-level pond gate (matches Generate): ponds only on watery worlds whose sea is water. Gives the sea
+    /// level and the pond mask threshold the column gates need.</summary>
+    private bool HasUplandPonds(PlanetType planet, out int seaLevel, out double pondThreshold)
+    {
+        pondThreshold = 0.0;
+        var (level, seaFluid) = ResolveSeaFluid(planet);
+        seaLevel = level;
+        var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
+        double pondAbundance = planet.WaterAbundance
+            ?? (string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase) ? 0.0 : 0.55);
+        if (!(pondAbundance > 0.15) || seaFluid != waterId || waterId.IsAir)
+        {
+            return false;
+        }
+
+        pondThreshold = 0.70 - pondAbundance * 0.12;
+        return true;
+    }
+
+    /// <summary>The planet-map preview's pond answer (#2758): every pond gate of <see cref="SurfacePondDepth"/> short of the
+    /// sealed level of generation 24 — the mask, the flat-ground and neighbour gates, no volcano, above the sea. That level
+    /// needs a search over the whole pond (<see cref="PondLevelAt"/>), and map pixels lie dozens of blocks apart, so they
+    /// never share one: every pixel paid a full search (a 256×128 landing map took seconds). A superset of the real ponds —
+    /// a pond the sealed level leaves dry still shows as water at map scale; below generation 24 it is the exact answer.</summary>
+    private bool MapPondAt(PlanetType planet, int worldX, int worldZ, int surfaceY)
+    {
+        if (!HasUplandPonds(planet, out int seaLevel, out double pondThreshold) || surfaceY <= seaLevel)
+        {
+            return false;
+        }
+
+        long seed = PlanetSeed(planet);
+        return PondDepthFromMask(planet, seed, worldX, worldZ, pondThreshold, PondMaskAt(planet, seed, worldX, worldZ)) > 0;
     }
 
     /// <summary>River water depth (0 = none) at a surface column — resolved from the routed

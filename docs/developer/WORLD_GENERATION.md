@@ -731,7 +731,11 @@ offset delegate, optional paint delegate)`. `WonderFor` resolves the active rows
 `WonderProfile.ActiveLandmarks` / `ActivePaints`; `SurfaceHeightUncached` loops the offsets (table
 order = precedence, first non-zero overlay wins — exactly the former if-chain) and `ComputeColumn` runs
 the paints after the classic ones. Adding a family = one row + its `Has*` / `*Offset` methods in a
-partial file; the height and column code never change.
+partial file; the height and column code never change. A row that needs the raw relief of its own column calls
+`RawSurfaceHeight(planet, w, x, z)` as usual. While `SurfaceHeightUncached` resolves a column, that column's raw
+height sits in a thread-static slot (`t_rawColumn`, #2759), so the rows — the ria and the coast families above all —
+do not evaluate the relief a second time. That second evaluation was about 40 % of a column's height on a ria world.
+The slot is bit-identical because the raw relief is a pure function of the world mode, the profile and the column.
 
 **The prop table — `PropKinds`.** The set-dressing stamp is table-driven the same way: `(name, salt,
 hash row, chance, material, shape)`, tried in table order per column, first hit wins (monolith >
@@ -2607,6 +2611,14 @@ with air beside them within 256 blocks), all dormant until a player touches them
   `SurfacePondDepth`, `TryGetWaterSurface` and the hot-pond lava query
   answer from the same rule (`TryGetSurfacePond`). One sample (meadowlands, seed 7, 257 × 257 columns): 2 408 → 595 pond
   water cells — ponds are flatter and smaller.
+- **The level costs a search.** A query inside the pond mask walks the whole component, up to the cap; each column it
+  examines cost about 19 µs before #2759. Only neighbouring columns share the memo. Chunks and pad footprints are dense
+  queries and cheap; scattered queries are not. The planet-map bake asked once per map pixel, and a generation-26
+  landing map took 2–14 s (#2758). Previews therefore read `SurfaceSummary.Pond` (`MapPondAt`) and never
+  `SurfacePondDepth`. That flag applies every pond gate short of the level: a superset of the real ponds, and the exact
+  answer below generation 24. `PlanetMapPondTests` holds a bake to zero searches. Server queries stay exact; the
+  raw-height slot (see "The landmark table" above) and one surface lookup per examined column make them about 1.5×
+  faster.
 - **No spike ponds.** The pond gate also requires every direct neighbour within two blocks of the column's ground
   (`PondFitsItsNeighbours`) — the ±2 slope sample could not see a one-block spike.
 - **Rivers no higher than their banks.** A flowing reach's water drops to the lower of its two bank columns

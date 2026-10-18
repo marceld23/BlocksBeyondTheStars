@@ -116,6 +116,12 @@ public sealed partial class WorldGenerator
 
     private int RawSurfaceHeight(PlanetType planet, WonderProfile w, int worldX, int worldZ)
     {
+        var slot = t_rawColumn; // #2759: the column SurfaceHeightUncached is resolving — computed once
+        if (slot.Holds(this, planet, w, worldX, worldZ))
+        {
+            return slot.Raw;
+        }
+
         long seed = w.Seed;
         double n = FbmT(seed, worldX, worldZ, w.Scale, octaves: 4);
         double h = (n - 0.5) * 2.0; // [-1, 1] base rolling terrain

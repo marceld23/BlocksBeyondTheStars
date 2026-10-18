@@ -1239,6 +1239,22 @@ public sealed partial class WorldGenerator
     {
         var w = WonderFor(planet); // #712: every gate is a cached boolean; #1644: the active rows are cached too
         int h = RawSurfaceHeight(planet, w, worldX, worldZ);
+        var outer = t_rawColumn; // #2759: a landmark row may resolve another column's height in between — put it back after
+        t_rawColumn = new RawColumnSlot(this, planet, w, worldX, worldZ, h);
+        try
+        {
+            return LandmarkedHeight(planet, w, worldX, worldZ, h);
+        }
+        finally
+        {
+            t_rawColumn = outer;
+        }
+    }
+
+    /// <summary>The raw height <paramref name="h"/> of a column plus its one landmark overlay and the sand-sea raise,
+    /// clamped — the rest of <see cref="SurfaceHeightUncached"/>, run while the raw-height slot holds the column.</summary>
+    private int LandmarkedHeight(PlanetType planet, WonderProfile w, int worldX, int worldZ, int h)
+    {
         double overlay = 0.0;
         var landmarks = w.ActiveLandmarks;
         for (int i = 0; i < landmarks.Length && overlay == 0.0; i++)
@@ -1270,6 +1286,40 @@ public sealed partial class WorldGenerator
         }
 
         return h > MaxNaturalSurfaceY ? MaxNaturalSurfaceY : h;
+    }
+
+    /// <summary>The raw relief of the column <see cref="SurfaceHeightUncached"/> is resolving on this thread (#2759). The
+    /// sea-relative rows (the ria, the coast families) and a few others read the raw height of that same column again —
+    /// on a ria world a second full relief evaluation per column, about 40 % of the height, which every chunk, pad search
+    /// and pond-level search paid. <see cref="RawSurfaceHeight(PlanetType, WonderProfile, int, int)"/> is a pure function
+    /// of the generator's world mode, the profile and the column, so a row takes the value the height already computed:
+    /// bit-identical by construction. Thread-static because one generator serves the server's chunk workers at once. It
+    /// holds a column only while that column's height is being resolved (restored in a finally), so a world-mode change
+    /// between two calls can never meet a value from before it.</summary>
+    [System.ThreadStatic]
+    private static RawColumnSlot t_rawColumn;
+
+    private readonly struct RawColumnSlot
+    {
+        public RawColumnSlot(WorldGenerator owner, PlanetType planet, WonderProfile profile, int x, int z, int raw)
+        {
+            Owner = owner;
+            Planet = planet;
+            Profile = profile;
+            X = x;
+            Z = z;
+            Raw = raw;
+        }
+
+        public readonly WorldGenerator? Owner;
+        public readonly PlanetType? Planet;
+        public readonly WonderProfile? Profile;
+        public readonly int X;
+        public readonly int Z;
+        public readonly int Raw;
+
+        public bool Holds(WorldGenerator owner, PlanetType planet, WonderProfile profile, int x, int z)
+            => X == x && Z == z && ReferenceEquals(Owner, owner) && ReferenceEquals(Planet, planet) && ReferenceEquals(Profile, profile);
     }
 
     private BlockId ResolveBlock(string key)

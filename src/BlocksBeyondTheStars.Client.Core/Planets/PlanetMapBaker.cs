@@ -269,8 +269,10 @@ namespace BlocksBeyondTheStars.Client
                         (r, g, b) = Lerp(_ice, (r, g, b), 0.25f);
                     }
                 }
-                else if (!_lavaSea && gen.SurfacePondDepth(planet, wx, wz) > 0)
+                else if (!_lavaSea && col.Pond)
                 {
+                    // #2758: the summary's map-scale pond, never SurfacePondDepth — from generation 24 that resolves the
+                    // pond's sealed level by a search over the whole pond, and pixels this far apart never share one.
                     _data.Flags[i] |= PlanetMapData.FlagFluid;
                     (r, g, b) = SeaShallow(x, y); // an upland pond/lake flush with the terrain
                 }

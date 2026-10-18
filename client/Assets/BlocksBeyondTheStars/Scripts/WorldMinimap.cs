@@ -40,9 +40,6 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Dictionary<string, Entry> _cache = new Dictionary<string, Entry>();
         private static readonly List<Entry> _pending = new List<Entry>();
 
-        /// <summary>Worker bakes running at once on desktop.</summary>
-        private const int MaxConcurrentBakes = 2;
-
         /// <summary>Main-thread budget per frame for time-sliced bakes (browser).</summary>
         private const double SliceBudgetMs = 4.0;
 
@@ -105,7 +102,8 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Asks for a map: <paramref name="onReady"/> runs on the main thread once it exists (at once when it
         /// is cached). <paramref name="priority"/> orders the queue (higher first — the planet below you, the landing
-        /// map). A failed bake never calls back; the caller keeps its flat look.</summary>
+        /// map); from <see cref="PlanetMapSchedule.InteractivePriority"/> a request also gets a worker slot of its own
+        /// (#2761). A failed bake never calls back; the caller keeps its flat look.</summary>
         public static void Request(PlanetMapRequest request, Action<Texture2D, PlanetMapData> onReady, int priority = 0)
         {
             if (request == null)
@@ -152,7 +150,7 @@ namespace BlocksBeyondTheStars.Client
             _pending.Sort((a, b) => b.Priority.CompareTo(a.Priority));
             if (Threaded)
             {
-                int running = 0;
+                int running = 0, runningInteractive = 0;
                 for (int i = _pending.Count - 1; i >= 0; i--)
                 {
                     var e = _pending[i];
@@ -164,6 +162,11 @@ namespace BlocksBeyondTheStars.Client
                     if (!e.Task.IsCompleted)
                     {
                         running++;
+                        if (e.Priority >= PlanetMapSchedule.InteractivePriority)
+                        {
+                            runningInteractive++;
+                        }
+
                         continue;
                     }
 
@@ -178,14 +181,20 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                for (int i = 0; i < _pending.Count && running < MaxConcurrentBakes; i++)
+                // #2761: the regular slots in priority order, plus a slot of its own for an interactive map (the landing
+                // map) — it no longer waits behind the orbit bakes already running.
+                for (int i = 0; i < _pending.Count; i++)
                 {
                     var e = _pending[i];
-                    if (e.Task == null)
+                    if (e.Task == null && PlanetMapSchedule.MayStart(e.Priority, running, runningInteractive))
                     {
                         var job = e.Job;
                         e.Task = System.Threading.Tasks.Task.Run(() => job.Run());
                         running++;
+                        if (e.Priority >= PlanetMapSchedule.InteractivePriority)
+                        {
+                            runningInteractive++;
+                        }
                     }
                 }
 

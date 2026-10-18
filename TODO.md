@@ -24,6 +24,45 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🗺️ The landing map shows the terrain again — #2758–#2762, branch fix/landing-map-pond-bake — ✅ done 2026-10-18 (⚠ playtest open)
+
+Marcel's playtest 2026-10-18 (release 2026.10.19, a generation-26 world): the landing-pad chooser showed the pads on a
+plain dark panel. The terrain arrived only after a long wait, or not at all if a pad was picked first. Package label
+`package: landing map 2026-10`.
+
+- **Cause + fix (#2758):** the map bake asked `SurfacePondDepth` per pixel. Since generation 24 (#2516) that searches
+  the whole pond for its single level, and map pixels lie dozens of blocks apart, so every water candidate paid a full
+  search. Before the fix, measured on .NET 10 with the shipped DLLs and the save's real system:
+  - landing map 256×128: 13.7 s on the karst planet;
+  - orbit spheres 96×48: 2.5–3.8 s each;
+  - the browser (4 ms slices) never finished.
+
+  The bake now reads `SurfaceSummary.Pond` (`MapPondAt`): every pond gate short of the level, a superset of the real
+  ponds, exact below generation 24. Afterwards:
+  - landing maps ~0.1 s;
+  - orbit spheres 5–60 ms of pixels.
+
+  `PlanetMapPondTests` checks zero searches per bake and that every real pond shows; a client test checks the fluid
+  pixels of the bake.
+- **Server queries cheaper, bit-identical (#2759):** while `SurfaceHeightUncached` resolves a column, its raw relief
+  sits in a thread-static slot (`t_rawColumn`), so the ria and coast rows no longer compute it twice (about 40 % of a
+  height on a ria world). The pond search reads each examined column's height once.
+  - Scattered water queries (pond, river, water) over 8 planets: 15.7 s → 10.4–11.2 s. Dense windows: about 1.5×
+    faster too.
+  - Every answer is identical to the release, and the goldens are unchanged.
+  - The pad planner (17 s at world creation) and lodges (8 s on boot) profit.
+- **No blank panel (#2760):** the landing map shows the body's coarse 96×48 map at once (the orbit sphere's, usually
+  baked already) with a small "Mapping the surface…" note in the corner, then swaps in the sharp map. The weather
+  layer is rebuilt at the new size.
+- **Own slot in the queue (#2761):** `PlanetMapSchedule` in Client.Core gives requests at priority ≥ 20 a worker
+  slot on top of the two regular ones. Replay of the playtest: L 3 s after entering space → map at 3.3 s (before:
+  9.3 s on .NET).
+- **Docs (#2762):** PLANET_VIEW_AND_WEATHER.md (fresh costs, the pond rule, the placeholder and the slot) and
+  WORLD_GENERATION.md (the raw-height slot; the cost of scattered pond queries).
+- ⚠ Open: playtest — land on a generation-24+ world. The map must show at once, sharp within a moment.
+
+---
+
 ### 🤝 Docking means walking over into your friend's ship — epic #2731, #2722–#2725, branch feat/dock-visit — ✅ done 2026-10-17 (⚠ playtest open)
 
 Docking used to do nothing (request + accept, then only a "Docked with X" line). Marcel decided after the 2026-10-17

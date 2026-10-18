@@ -36,20 +36,38 @@ biome, the ground block (the biome's own surface; snow or ice above the snow lin
 biome's flora and tree multipliers, faded by the cold). Seas show depth, ice on cold seas and the world's own water
 colour (`FluidTints`); vegetation shows in the world's own flora hue (`FloraTints`).
 
+Upland ponds come from the summary's own `Pond` flag (#2758), never from `SurfacePondDepth`. From terrain
+generation 24 a pond fills to one level, which `SurfacePondDepth` finds by searching the whole pond. Map pixels lie
+dozens of blocks apart and never share a pond, so every water candidate paid a full search: a landing map took
+2–14 s and the browser never finished one. The flag stops at the pond gates (mask, flat ground, neighbours, no
+volcano, above the sea). It is a superset of the real ponds at map scale and the exact answer below generation 24.
+`PlanetMapPondTests` holds a bake to zero pond-level searches.
+
 The job keeps per-pixel height, biome index and temperature next to the colours; the weather projection needs
 them.
 
-**Cost and threading.** One body costs ~90 ms of calibration (once per session; the generator caches it statically)
-plus ~40 ms for 96×48 or ~100 ms for 256×128 on .NET 10. Unity's runtimes are slower, so `WorldMinimap` never bakes
-synchronously:
-- **Desktop:** up to two bakes run on worker threads (`Task.Run`). Every bake owns its `WorldGenerator`; the
-  generator's shared caches are already lock-protected for the server's chunk pool.
+**Cost and threading.** Measured 2026-10-18 on .NET 10 on a generation-26 system (#2758):
+- calibration: 15–200 ms per body (once per session; the generator caches it statically);
+- 96×48: 5–60 ms;
+- 256×128: ~100 ms.
+
+Before the pond flag, a large planet took 2.5–3.8 s for 96×48 and up to 13.7 s for 256×128. Unity's runtimes are
+slower, so `WorldMinimap` never bakes synchronously:
+- **Desktop:** two bakes run on worker threads (`Task.Run`), plus one slot reserved for interactive requests
+  (`PlanetMapSchedule`, #2761). Every bake owns its `WorldGenerator`; the generator's shared caches are already
+  lock-protected for the server's chunk pool.
 - **WebGL:** managed threads do not run there, so bakes are time-sliced into rows under a 4 ms budget per frame.
 - **The atlas:** ground colours are read from the block atlas on the main thread before a job starts. The job
   touches no Unity API.
 - **Progressive display:** callers show the flat data-driven colour (`PlanetOrbitLook.GroundColor`) until their
-  callback swaps the map in.
-- **Priority:** the planet below you and the landing map go first.
+  callback swaps the map in. The landing map never shows a blank panel (#2760). It shows the body's coarse 96×48
+  map at once, stretched; that is the orbit sphere's map, usually baked already. A small "Mapping the surface…" note
+  stays in the corner until the sharp 256×128 map replaces it, and the weather layer is rebuilt at the new size.
+- **Priority:** the planet below you and the landing map go first. Priority orders which bake starts next; it
+  never stops a running bake. A request at `PlanetMapSchedule.InteractivePriority` (20) or higher therefore gets a
+  slot of its own. The landing map's coarse map (21) and sharp map (20) start even while two orbit bakes run.
+  Entering space queues every body of the system, and before #2761 the landing map waited behind them. The browser
+  serves the highest priority first every frame and needs no slot.
 - **Lifetime:** textures are cached per request key and destroyed on world exit (#966).
 
 ## 2. The atmosphere from data

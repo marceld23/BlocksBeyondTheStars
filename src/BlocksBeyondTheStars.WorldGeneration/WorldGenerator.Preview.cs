@@ -9,7 +9,7 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// <summary>What one column of a world shows from far above — the input of the planet map previews (#2172).</summary>
 public readonly struct SurfaceSummary
 {
-    public SurfaceSummary(int height, int biome, BlockId surface, double vegetation, bool hot, bool sandSea)
+    public SurfaceSummary(int height, int biome, BlockId surface, double vegetation, bool hot, bool sandSea, bool pond = false)
     {
         Height = height;
         Biome = biome;
@@ -17,6 +17,7 @@ public readonly struct SurfaceSummary
         Vegetation = vegetation;
         Hot = hot;
         SandSea = sandSea;
+        Pond = pond;
     }
 
     /// <summary>The generated surface Y.</summary>
@@ -37,6 +38,10 @@ public readonly struct SurfaceSummary
 
     /// <summary>A sand-sea column (generation 9).</summary>
     public bool SandSea { get; }
+
+    /// <summary>An upland pond at map scale (#2758): the pond gates without generation 24's sealed level, so a map never
+    /// pays the per-pond search. Never set on a column at or below the sea.</summary>
+    public bool Pond { get; }
 }
 
 /// <summary>Read-only column summaries for the planet map previews (#2172) — the orbit spheres, the bodies in the
@@ -46,7 +51,7 @@ public readonly struct SurfaceSummary
 public sealed partial class WorldGenerator
 {
     /// <summary>Summarises one column for a map pixel: height, biome, the ground block a viewer from orbit would
-    /// see and the plant cover.</summary>
+    /// see, the plant cover and whether an upland pond lies there.</summary>
     public SurfaceSummary SummarizeSurface(PlanetType planet, int worldX, int worldZ)
     {
         int h = SurfaceHeight(planet, worldX, worldZ);
@@ -75,7 +80,7 @@ public sealed partial class WorldGenerator
 
         double vegetation = planet.FloraDensity * b.FloraMul * 0.9 + (planet.TreeDensity ?? 0.0) * b.TreeMul * 6.0;
         vegetation = System.Math.Clamp(vegetation, 0.0, 0.6) * ColdFloraFactor(calib, h);
-        return new SurfaceSummary(h, idx, surface, vegetation, b.Hot, b.SandSea);
+        return new SurfaceSummary(h, idx, surface, vegetation, b.Hot, b.SandSea, MapPondAt(planet, worldX, worldZ, h));
     }
 
     /// <summary>True when this world's sea carries ice at its surface (#494): a cold enough waterline, or a type's

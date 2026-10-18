@@ -2119,26 +2119,61 @@ namespace BlocksBeyondTheStars.Client
                 Seed = CloudShellSeed(padBodyId),
             };
             _landWeather = lw;
+            bool cratered = body?.Kind == "Moon" && padPlanet is { IsAirless: true };
             var mapRequest = WorldMinimap.MakeRequest(Game.Content, Game.Atlas, Game.WorldSeed, locName, typeKey, circ, 256, 128,
-                padBodyId, Game.TerrainContinents, Game.TerrainGeneration, body?.Kind == "Moon" && padPlanet is { IsAirless: true },
-                Game.TerrainLavaCoreVolcanoes);
-            WorldMinimap.Request(mapRequest, (tex, data) =>
+                padBodyId, Game.TerrainContinents, Game.TerrainGeneration, cratered, Game.TerrainLavaCoreVolcanoes);
+            bool sharpShown = false;
+            void ShowMap(Texture2D tex, PlanetMapData data, bool sharp)
             {
-                if (raw == null)
+                if (raw == null || sharpShown)
                 {
-                    return; // the chooser closed while the map baked
+                    return; // the chooser closed while the map baked, or the sharp map is already in
                 }
 
                 raw.texture = tex;
                 raw.color = Color.white;
-                if (mapLoading != null)
+                if (lw.Tex != null && (lw.Tex.width != data.Width || lw.Tex.height != data.Height))
                 {
-                    Destroy(mapLoading.gameObject);
+                    lw.Raw.texture = null; // hidden until the next refresh rebuilds the layer at the new map's size
+                    lw.Raw.enabled = false;
+                    Destroy(lw.Tex);
+                    lw.Tex = null;
+                    lw.Buffer = null;
                 }
 
                 lw.Map = data;
                 lw.SeenVersion = -1;
-            }, priority: 20);
+                if (mapLoading == null)
+                {
+                    return;
+                }
+
+                if (sharp)
+                {
+                    sharpShown = true;
+                    Destroy(mapLoading.gameObject);
+                }
+                else
+                {
+                    // #2760: the coarse map is up — the note moves to a corner while the detail is still coming.
+                    mapLoading.fontSize = 12;
+                    mapLoading.alignment = TextAnchor.LowerRight;
+                    mapLoading.color = new Color(1f, 1f, 1f, 0.85f);
+                }
+            }
+
+            // #2760: never a blank panel — the coarse map of the body (the orbit sphere's, usually baked already) shows at
+            // once, stretched; the sharp map replaces it when ready. A coarse map not baked yet comes first: it is cheap.
+            if (!WorldMinimap.TryGet(mapRequest, out _, out _))
+            {
+                var coarseRequest = WorldMinimap.MakeRequest(Game.Content, Game.Atlas, Game.WorldSeed, locName, typeKey, circ, 96, 48,
+                    padBodyId, Game.TerrainContinents, Game.TerrainGeneration, cratered, Game.TerrainLavaCoreVolcanoes);
+                WorldMinimap.Request(coarseRequest, (tex, data) => ShowMap(tex, data, sharp: false),
+                    priority: PlanetMapSchedule.InteractivePriority + 1);
+            }
+
+            WorldMinimap.Request(mapRequest, (tex, data) => ShowMap(tex, data, sharp: true),
+                priority: PlanetMapSchedule.InteractivePriority);
 
             // Weather layer toggle (remembered — the same switch as the M map's layer).
             Button weatherBtn = null;

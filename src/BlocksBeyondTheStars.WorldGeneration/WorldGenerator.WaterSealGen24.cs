@@ -95,8 +95,8 @@ public sealed partial class WorldGenerator
         return true;
     }
 
-    private bool IsPondColumn(PlanetType planet, long seed, int worldX, int worldZ, double threshold, int fluidLevel)
-        => SurfaceHeight(planet, worldX, worldZ) > fluidLevel
+    private bool IsPondColumn(PlanetType planet, long seed, int worldX, int worldZ, int surfaceY, double threshold, int fluidLevel)
+        => surfaceY > fluidLevel
            && PondDepthFromMask(planet, seed, worldX, worldZ, threshold, PondMaskAt(planet, seed, worldX, worldZ)) > 0;
 
     /// <summary>The level of the pond this column belongs to: the lowest ground among the columns that touch the pond
@@ -135,7 +135,8 @@ public sealed partial class WorldGenerator
                 }
 
                 System.Threading.Interlocked.Increment(ref _pondLevelVisits);
-                if (IsPondColumn(planet, seed, nx, nz, threshold, fluidLevel))
+                int nh = SurfaceHeight(planet, nx, nz); // once per visit: the pond gate and the rim both read it (#2759)
+                if (IsPondColumn(planet, seed, nx, nz, nh, threshold, fluidLevel))
                 {
                     // A pond column is only ever reached through its own component, so a memoised one carries this
                     // component's verdict — above all "too big", which a search from the far side of a huge component
@@ -159,7 +160,7 @@ public sealed partial class WorldGenerator
                 }
                 else
                 {
-                    rimMin = System.Math.Min(rimMin, SurfaceHeight(planet, nx, nz));
+                    rimMin = System.Math.Min(rimMin, nh);
                 }
             }
         }
