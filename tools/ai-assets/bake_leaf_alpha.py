@@ -5,9 +5,19 @@
 
 The block atlas is already RGBA32 and preserves a tile's alpha, but the foliage tiles ship fully
 opaque, so tree crowns + leafy plants render as solid cubes. This punches real, leaf-shaped holes by
-deriving an alpha mask from each tile's OWN art: the darkest ~third of pixels (the shadowed gaps
-between leaves/petals) become transparent, the lit leaf/flower body stays opaque. RGB is left
-untouched so the Sobel normal atlas (derived from RGB luminance) stays clean — only alpha changes.
+deriving an alpha mask from each tile's OWN art. Three kinds of tile, three cuts:
+
+- dense foliage (leaves edge to edge): the darkest ~third of coarse cells (the shadowed gaps between
+  leaves/petals) become transparent, the lit leaf/flower body stays opaque;
+- one object on a pure black ground (DARK_GROUND — fruit, berries and the side-view flora billboards):
+  every (nearly) black pixel is cut;
+- one object on a flat, lighter ground (GROUND_KEY): every pixel close to that ground colour is cut.
+  The darkness cut is exactly wrong here — the plant is the darkest thing in the tile, so it cut the
+  plant and kept the ground card (#2772).
+
+RGB is left untouched so the Sobel normal atlas (derived from RGB luminance) stays clean — only alpha
+changes. The one exception is ROOTED: a billboard that stands on the ground is moved down onto the
+tile's bottom edge, because the billboard roots at the tile's bottom row (#2773).
 
 The tiles live as raw 64x64 RGBA32 bytes (bottom-up flipped) at
 client/Assets/Resources/textures/<key>.bytes; we read, set alpha, write back in place (surgical — no
@@ -21,16 +31,19 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import math
+from collections import deque
 from pathlib import Path
 
-from PIL import Image
-
 import texture_provenance
+from PIL import Image
 
 TILE = 64
 REPO = Path(__file__).resolve().parents[2]
 RES = REPO / "client" / "Assets" / "Resources" / "textures"
-OUT = Path("out/textures")
+# The viewable PNG of each baked tile. NOT out/textures: that is where gen_textures.py leaves the generated images that
+# bundle_textures.py --from-out reads, and a bake run used to overwrite them with previews of the OLD bundled tiles.
+OUT = Path("out/baked")
 
 # Foliage = tree crowns + leafy plants. MUST match ChunkMesher.IsFoliageBlock: tree_leaves + every
 # flora_* EXCEPT the structural/solid + glowing-cap ones (those read better as solid cubes).
@@ -50,11 +63,46 @@ FOLIAGE = [
 ]
 
 
-# Tiles painted as ONE pale object on a pure black ground (the fruit of #2038): a fixed fraction would either leave
+# Tiles painted as ONE object on a pure black ground (the fruit of #2038): a fixed fraction would either leave
 # black around the object or eat its edge, so these cut every pixel that is (nearly) black instead — per pixel, not per
-# coarse cell, because a fruit needs a clean outline, not chunky leaf gaps.
-DARK_GROUND = {"flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana", "flora_fifi_berries"}
+# coarse cell, because a fruit needs a clean outline, not chunky leaf gaps. #2773: the flora billboards that used to be
+# top-down "fields of plants on a ground" are one side-view plant on black now (gen_textures.py ON_BLACK).
+DARK_GROUND = {
+    "flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana", "flora_fifi_berries",
+    "flora_coral", "flora_lily", "flora_orchid", "flora_palm", "flora_rockflower", "flora_saltgrass", "flora_seagrass",
+    "flora_snowbush",
+}
 DARK_GROUND_CUTOFF = 0.12  # brightness at or below this = the black ground (a dark stem sits well above it)
+
+# #2772: tiles painted as ONE object on a flat, LIGHTER ground. The darkness cut kept the ground and cut the plant (the
+# plant is the darkest thing in the tile — the dry shrub stood in the world as a sand card with its own silhouette
+# punched out). These cut every pixel within the tolerance of the ground colour instead, per pixel, like the lantern's
+# key in bake_prop_alpha.py. The colours are fixed (sampled from the tiles' borders) so a second run keys the same.
+GROUND_KEY = {
+    "flora_dryshrub": ((226, 179, 104), 45.0),  # a brown shrub on tan sand
+    "flora_bush": ((152, 124, 85), 45.0),  # a round berry bush on brown soil
+}
+
+# Tiles baked with their own --hole/--grid (#2013: the cave flora on black — moss in 32x32 cells, threads per pixel, each
+# at its black background's share). A run with the defaults re-punched them with the dense-leaf cut; these are the
+# values that reproduce the bundled masks exactly.
+BAKE_ARGS = {
+    "flora_glowmoss": (0.78, 32),
+    "flora_glowthread": (0.9, 64),
+}
+
+# An opaque island smaller than this (8-connected pixels) is a fleck of ground texture the key or the black cut left
+# standing beside the plant, not part of it: it would float in the air next to the billboard. Rooted tiles only.
+SPECK_PIXELS = 4
+
+# #2773: billboards that stand on the ground. A cross billboard roots at its tile's bottom row (ChunkMesher.AddCrossPlant),
+# and the generated art leaves a margin under the plant — the plant floated above the ground by that margin. These are
+# moved down until the plant touches the bottom edge (the freed rows on top take the ground colour, so they stay cut).
+# Hanging tiles (the fruit, the berries) root at the TOP edge and are not listed.
+ROOTED = {
+    "flora_bush", "flora_coral", "flora_dryshrub", "flora_lily", "flora_orchid", "flora_palm", "flora_rockflower",
+    "flora_saltgrass", "flora_seagrass", "flora_snowbush",
+}
 
 
 def leafiness(r: int, g: int, b: int) -> float:
@@ -74,13 +122,47 @@ def bake(key: str, hole: float, grid: int) -> str:
     if len(data) != TILE * TILE * 4:
         return f"!!! {key}: unexpected size {len(data)} (want {TILE*TILE*4}), skipped"
 
-    img = Image.frombytes("RGBA", (TILE, TILE), data)  # raw layout preserved (we don't re-flip)
+    img = Image.frombytes("RGBA", (TILE, TILE), data)  # raw layout preserved (we don't re-flip): row 0 is the BOTTOM row
     px = img.load()
 
+    if key in GROUND_KEY:
+        ground, tolerance = GROUND_KEY[key]
+        clear = [[key_distance(px[x, y], ground) < tolerance for x in range(TILE)] for y in range(TILE)]
+        mode = f"ground key {ground}"
+    else:
+        clear = darkness_mask(px, key in DARK_GROUND, hole, grid)
+        ground = (0, 0, 0)
+        mode = "black ground" if key in DARK_GROUND else f"{grid}x{grid} cells"
+
+    lowered = 0
+    if key in ROOTED:
+        drop_specks(clear)
+        lowered = root_on_bottom(px, clear, ground)
+
+    transparent = 0
+    for y in range(TILE):
+        for x in range(TILE):
+            r, g, b, _ = px[x, y]
+            a = 0 if clear[y][x] else 255  # binary → crisp cutout edges
+            px[x, y] = (r, g, b, a)  # RGB untouched → normal atlas stays clean
+            if a == 0:
+                transparent += 1
+
+    path.write_bytes(img.tobytes())
+
+    OUT.mkdir(parents=True, exist_ok=True)  # also drop a viewable PNG for the record (un-flip for normal viewing)
+    img.transpose(Image.FLIP_TOP_BOTTOM).save(OUT / f"{key}.png")
+
+    moved = f", lowered {lowered} rows onto the bottom edge" if lowered else ""
+    return f"ok  {key}: {transparent}/{TILE*TILE} px transparent ({100*transparent//(TILE*TILE)}% holes, {mode}{moved})"
+
+
+def darkness_mask(px, dark_ground: bool, hole: float, grid: int) -> list[list[bool]]:
+    """True = transparent. Dense foliage: the darkest `hole` fraction of coarse cells. A black ground: every pixel at or
+    below DARK_GROUND_CUTOFF brightness."""
     # Compute the mask on a COARSE grid so holes are chunky, connected gaps (visible at a distance + after
     # mip-mapping) instead of scattered single pixels that just average back to opaque. Each coarse cell's
     # leafiness is the mean over its block; the darkest `hole` fraction of cells become fully transparent.
-    dark_ground = key in DARK_GROUND
     if dark_ground:
         grid = TILE  # per pixel
 
@@ -99,22 +181,58 @@ def bake(key: str, hole: float, grid: int) -> str:
 
     cutoff = DARK_GROUND_CUTOFF if dark_ground else sorted(s for _, _, s in cells)[min(len(cells) - 1, int(len(cells) * hole))]
 
-    transparent = 0
+    clear = [[False] * TILE for _ in range(TILE)]
     for cx, cy, s in cells:
-        a = 0 if s <= cutoff else 255  # binary per coarse cell → crisp chunky leaf gaps
-        for y in range(cy, min(cy + cell, TILE)):
-            for x in range(cx, min(cx + cell, TILE)):
-                r, g, b, _ = px[x, y]
-                px[x, y] = (r, g, b, a)  # RGB untouched → normal atlas stays clean
-                if a == 0:
-                    transparent += 1
+        if s <= cutoff:  # binary per coarse cell → crisp chunky leaf gaps
+            for y in range(cy, min(cy + cell, TILE)):
+                for x in range(cx, min(cx + cell, TILE)):
+                    clear[y][x] = True
+    return clear
 
-    path.write_bytes(img.tobytes())
 
-    OUT.mkdir(parents=True, exist_ok=True)  # also drop a viewable PNG for the record (un-flip for normal viewing)
-    img.transpose(Image.FLIP_TOP_BOTTOM).save(OUT / f"{key}.png")
+def key_distance(p: tuple[int, ...], key: tuple[int, int, int]) -> float:
+    return math.sqrt(sum((p[i] - key[i]) ** 2 for i in range(3)))
 
-    return f"ok  {key}: {transparent}/{TILE*TILE} px transparent ({100*transparent//(TILE*TILE)}% holes, {grid}x{grid} cells)"
+
+def drop_specks(clear: list[list[bool]]) -> None:
+    """Cuts every opaque island smaller than SPECK_PIXELS (8-connected) — flecks of ground beside the plant."""
+    seen = [[False] * TILE for _ in range(TILE)]
+    for sy in range(TILE):
+        for sx in range(TILE):
+            if clear[sy][sx] or seen[sy][sx]:
+                continue
+            island, todo = [], deque([(sx, sy)])
+            seen[sy][sx] = True
+            while todo:
+                x, y = todo.popleft()
+                island.append((x, y))
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < TILE and 0 <= ny < TILE and not clear[ny][nx] and not seen[ny][nx]:
+                            seen[ny][nx] = True
+                            todo.append((nx, ny))
+            if len(island) < SPECK_PIXELS:
+                for x, y in island:
+                    clear[y][x] = True
+
+
+def root_on_bottom(px, clear: list[list[bool]], ground: tuple[int, int, int]) -> int:
+    """Moves the art down until its lowest opaque row is the tile's bottom row (raw row 0) and returns the rows moved.
+    The freed rows at the top are filled with the ground colour and cut, so a second run finds nothing to move."""
+    lowest = next((y for y in range(TILE) if not all(clear[y])), 0)
+    if lowest == 0:
+        return 0
+    for y in range(TILE):
+        for x in range(TILE):
+            src = y + lowest
+            if src < TILE:
+                px[x, y] = px[x, src]
+                clear[y][x] = clear[src][x]
+            else:
+                px[x, y] = (*ground, 0)
+                clear[y][x] = True
+    return lowest
 
 
 def main() -> None:
@@ -131,7 +249,8 @@ def main() -> None:
     keys = args.key if args.key else FOLIAGE
     for k in keys:
         if texture_provenance.guard(k, args.force, provenance):
-            print(bake(k, args.hole, args.grid))
+            hole, grid = BAKE_ARGS.get(k, (args.hole, args.grid))
+            print(bake(k, hole, grid))
 
 
 if __name__ == "__main__":

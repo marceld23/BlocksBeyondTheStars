@@ -50,8 +50,9 @@ forges, crops, hydro trays, saplings, sentry posts.
 ## 3. Residents (`GameServerBaseLife.cs`)
 
 - `_baseResidents[baseId]` = slots with their NPC ids on the base's world. Desired count =
-  `min(5, 1 + beds)` once the first settler earned the base; a founded base keeps its settler (slot 0 is saved with
-  the plan, so a machine mined or a reload never sends it away).
+  `min(32, 1 + beds)` once the first settler earned the base (`BaseResidentCap`: five until #2775 raised it to the city
+  tier of `GameServerSettlementResidents.ResidentCap` — a player with 24 beds wanted as many residents as beds); a
+  founded base keeps its settler (slot 0 is saved with the plan, so a machine mined or a reload never sends it away).
 - **The scan (#2718):** `TickBaseLife` runs inside the per-world tick loop (one `Guard` per occupied world), with a
   per-world timer and round-robin cursor (`_nextBaseLifeAt` / `_baseLifeCursor`, keyed by location id): one base of a
   world every `BaseLifeScanInterval` (10 s), and at most one scan per server tick across all worlds
@@ -69,8 +70,8 @@ forges, crops, hydro trays, saplings, sentry posts.
 - **What a placed bed did (#2679, `OnBaseBedPlaced`, from the placement path):** a bed within the reach of a base its
   placer owns or is allied with — not aboard a parked ship, not on a station — rescans that base at once and tells the
   placer, resolved on the server in their language (two numbers do not fit one `@srv.*:arg` token):
-  `srv.base.bed_counts` (residents n/5), `bed_founds` (the base had nobody; the first settlers move in),
-  `bed_full` (1 + beds > 5), `bed_outside` / `bed_outside_no_settler` (not in the index; the second while nobody lives
+  `srv.base.bed_counts` (residents n/32), `bed_founds` (the base had nobody; the first settlers move in),
+  `bed_full` (1 + beds > 32), `bed_outside` / `bed_outside_no_settler` (not in the index; the second while nobody lives
   there). The core's readout shows the count too: `NetBase.Residents` / `ResidentCap` (the saved plan's size;
   `BroadcastBasesOn` when it changes), drawn by `HudUi.BaseAirPrompt` (`ui.base.residents`) only when the cap is sent.
 - The founding settler's news (#2715) adds the bed rule: the radio call appends `npc.call.settler_beds`, the VEGA relay
@@ -97,7 +98,8 @@ forges, crops, hydro trays, saplings, sentry posts.
   role key (`ResidentNameKey`), activity (`ResidentListActivityKey`: asleep in bed, the nameplate activity, else the
   routine phase), `Here`, compass direction (`DirectionKey`) and horizontal distance from the core, `HasBed`, `Founder`;
   plus the beds and the cap. `BaseResidentText` (Client.Core) words it; `BeaconLabelUi.OpenBase` shows it under the
-  rename field. No protocol bump: an older peer drops the unknown tags.
+  rename field, in a scroll list since #2775 (up to 32 people no longer fit the panel). No protocol bump: an older peer
+  drops the unknown tags.
 - **Beds and jobs belong to someone (#2656).** Who lives at a base is its *plan*, `WorldMetadata.BaseResidents[key]` —
   slot → bed head cell (`"x,y,z"`, empty = sleeps rough), job and the job's post cell (`Post`, `BaseJobPost`: the
   trading post, board, workbench, profession post, first crop or sentry post; empty for a guard on a walled round) — keyed
@@ -106,7 +108,7 @@ forges, crops, hydro trays, saplings, sentry posts.
   when it changed, so a reload or a return to the planet respawns the same people in the same beds at the same jobs.
   Additive JSON, no save bump; a dissolved base's entry is pruned by `SweepDissolvedBaseResidents`. Per scan:
   1. a resident whose bed is no longer in the index *lost it in this scan*;
-  2. count unchanged (`min(5, 1 + beds)` once founded — a plan with slot 0 is founded). The surplus moves out: first a
+  2. count unchanged (`min(32, 1 + beds)` once founded — a plan with slot 0 is founded). The surplus moves out: first a
      resident who lost the bed in this scan, else the bedless resident with the highest slot, never slot 0;
   3. whoever is missing moves in at the **lowest free slot** (look, name and memory follow from the slot — a rebuilt
      bed brings back the same person — and are pinned in the record from then on);

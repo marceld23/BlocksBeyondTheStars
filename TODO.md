@@ -24,6 +24,30 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-18 (Marcel, Screelit = Justus) — inverted flora textures, residents as many as beds — #2772–#2775, branch fix/flora-alpha-ground-key — ✅ done 2026-10-18 (⚠ playtest open)
+
+Marcel: *"invertierte Texturen???"* — dry shrubs on a beach stood as sand cards with the shrub punched out. Justus: *"Keine
+Bewohner mehr!"* — 24 beds in his base, five residents.
+
+- **Inverted flora masks (#2772):** `bake_leaf_alpha.py` cut the darkest third of every flora tile — right for dense
+  leaves, exactly wrong for a plant on a lighter ground (the plant is the darkest thing there). A `GROUND_KEY` mode cuts
+  the ground colour instead; `flora_dryshrub` and `flora_bush` are re-baked from their existing art.
+- **Eight tiles re-generated (#2773):** saltgrass, snowbush, coral, palm, orchid, lily, seagrass and rockflower were
+  top-down fields of plants on a ground, cut more or less at random. Now one side-view plant on black each
+  (`gen_textures.py` `ON_BLACK`, baked with the per-pixel `DARK_GROUND` cut). `ROOTED` lowers all ten onto the tile's
+  bottom edge — a cross billboard roots at the bottom row, and the plants floated by the margin under them. The bake's
+  previews moved to `out/baked/` (they used to overwrite the generated images in `out/textures/`). The refactor leaves
+  the other 36 foliage tiles byte-identical.
+- **Guard (#2774):** `BlockTileAlphaTests` reads the bake script's sets: an object-on-ground tile must have its side
+  columns cut, a real share transparent and a body that survives the clip; a rooted tile must touch its bottom row.
+  Both tests fail on the old inverted dry shrub.
+- **Residents up to 32 (#2775):** `BaseResidentCap` 5 → 32, the city tier — still `1 + beds`; every text already read
+  the constant. The resident list at the core scrolls now (`BeaconLabelUi`).
+- Side finding, fixed: a full `bake_leaf_alpha.py` run re-punched `flora_glowmoss` and `flora_glowthread` with the
+  dense-leaf defaults — they were baked with their own `--hole`/`--grid` in #2013. `BAKE_ARGS` records the values that
+  reproduce their masks exactly, so a full run now changes no tile.
+- Open: playtest (the ten plants in game, a base with 24+ beds and its resident list).
+
 ### 📸 Screenshots that show the worlds — HUD-free stills, a vista pose, creature framing, a new README gallery — #2765, #2766, branch feat/marketing-screenshots-world — ✅ done 2026-10-18
 
 The README/store screenshots dated from 2026-08-09 (before the atmosphere package, terrain generations 21–27,

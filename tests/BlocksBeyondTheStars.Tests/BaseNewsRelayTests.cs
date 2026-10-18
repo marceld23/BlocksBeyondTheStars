@@ -40,14 +40,14 @@ public sealed class BaseNewsRelayTests
         int baseId = w.FoundBase();
         w.Server.ScanBaseLifeForTest();
 
-        // #2715: the founding settler's news says that every bed brings one more resident — up to five.
+        // #2715: the founding settler's news says that every bed brings one more resident — up to the cap (#2775: 32).
         var news = Assert.Single(SettlerNews(w));
         Assert.Equal("vega.news.settler_first", news.LineKey);
         Assert.Equal(3, news.Kind); // the system channel: base news is never muted by the hints switch
         string[] args = news.LineArg.Split('\u001f');
         Assert.Equal(3, args.Length);
         Assert.Equal(w.Player.State.NpcMemory[$"base_{baseId}:settler"].Name, args[0]);
-        Assert.Equal("5", args[2]);
+        Assert.Equal("32", args[2]);
         Assert.Equal(0, Calls(w));
 
         // A world reload respawns the resident — the same person, no news.
@@ -81,7 +81,7 @@ public sealed class BaseNewsRelayTests
         var loc = Content.CreateLocalizer(GameLocale.English);
         var call = w.Transport.Sent.Where(s => s.Conn == w.Player.ConnectionId).Select(s => s.Msg).OfType<ChatMessage>().Single(c => c.IsNpcCall);
         Assert.StartsWith(loc.Get("npc.call.settler"), call.Text, System.StringComparison.Ordinal);
-        Assert.EndsWith(loc.Get("npc.call.settler_beds").Replace("{max}", "5"), call.Text, System.StringComparison.Ordinal);
+        Assert.EndsWith(loc.Get("npc.call.settler_beds").Replace("{max}", "32"), call.Text, System.StringComparison.Ordinal);
     }
 
     [Fact]

@@ -19,9 +19,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// count as a KNOWN acquaintance, and appear in the "People you know" roster. No NPC ever damages a block.
 /// <para><b>Residents (#1865):</b> every bed inside the base (core zone, sealed room, walled yard or closed room —
 /// see <see cref="BaseIndex"/>) brings one more resident, up to <see cref="BaseResidentCap"/>: 1 + beds. Slot 0 is
-/// the founding settler (today's identity and memory key); slots 1..4 are the people the beds brought. A job comes from
-/// what the base holds (#1868): the trading post and the mission board first, then the professions, a guard for a walled
-/// base, a gardener for crops, a craftsman for a workbench.</para>
+/// the founding settler (today's identity and memory key); the higher slots are the people the beds brought. A job
+/// comes from what the base holds (#1868): the trading post and the mission board first, then the professions, a guard
+/// for a walled base, a gardener for crops, a craftsman for a workbench.</para>
 /// <para><b>Beds and jobs belong to someone (#2656):</b> a resident keeps its bed while the bed stands and its job while
 /// the post stands; a new bed or post goes to someone without one — the newest resident sleeps rough until one more bed
 /// stands. When a bed goes, its own sleeper moves out (never the founder), and a rebuilt bed brings the same person back
@@ -39,8 +39,14 @@ public sealed partial class GameServer
     /// <summary>How often ONE base is (re)checked — round-robins over the bases on the active world.</summary>
     private const double BaseLifeScanInterval = 10.0;
 
-    /// <summary>Most residents a base holds (Marcel 2026-09-13: 1 + one per bed, max five).</summary>
-    private const int BaseResidentCap = 5;
+    /// <summary>Most residents a base holds: 1 + one per bed. Five since 2026-09-13; #2775 raised it to the city tier
+    /// (<see cref="ResidentCap(string)"/>) — a player with 24 beds wanted as many residents as beds, and settlements
+    /// already carry that many NPCs in one place. A cap stays: every resident is a server NPC with a routine and an
+    /// avatar on each client, and small hardware is a hard constraint.</summary>
+    private const int BaseResidentCap = 32;
+
+    /// <summary>The base resident cap, for the tests (their expected "n/max" texts).</summary>
+    public static int BaseResidentCapForTest => BaseResidentCap;
 
     /// <summary>How far from its resting spot a resident looks for a chair or bench.</summary>
     private const int ResidentSeatReach = 10;
@@ -304,7 +310,7 @@ public sealed partial class GameServer
 
         if (plan.Count != residentsBefore)
         {
-            BroadcastBasesOn(b.Planet); // #2679: the core's readout shows "residents n/5"
+            BroadcastBasesOn(b.Planet); // #2679: the core's readout shows "residents n/max"
         }
     }
 
@@ -320,7 +326,7 @@ public sealed partial class GameServer
     /// <summary>
     /// #2679: a bed was placed. When it stands in or near a base of the player's (owned or allied, within the base's reach)
     /// the base is rescanned at once — the bed is counted, a resident may move in — and the player hears what it did:
-    /// it counts (residents n/5), it founded the base (the first settlers move in), the base is full, or it stands outside
+    /// it counts (residents n/max), it founded the base (the first settlers move in), the base is full, or it stands outside
     /// the base (with what "inside" means, and that nobody lives there yet when that is so). A bed far from every base of
     /// theirs, aboard a parked ship or on a station is a bed to sleep in — nothing is said.
     /// </summary>

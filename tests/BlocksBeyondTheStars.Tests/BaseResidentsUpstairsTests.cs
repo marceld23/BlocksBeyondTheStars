@@ -10,6 +10,7 @@ using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.World;
 using Xunit;
+using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
 namespace BlocksBeyondTheStars.Tests;
 
@@ -77,7 +78,7 @@ public sealed class BaseResidentsUpstairsTests
     private string Text(string key, int n = 0)
         => _content.CreateLocalizer(GameLocale.English).Get(key)
             .Replace("{n}", n.ToString(CultureInfo.InvariantCulture))
-            .Replace("{max}", "5");
+            .Replace("{max}", SvGameServer.BaseResidentCapForTest.ToString(CultureInfo.InvariantCulture));
 
     // ---------------------------------------------------------------- #2677: the founding counts the whole base
 
@@ -169,7 +170,7 @@ public sealed class BaseResidentsUpstairsTests
         Assert.Equal(2, w.Server.BaseResidentsForTest(baseId).Count);
         var core = w.Transport.Sent.Where(s => s.Conn == w.Player.ConnectionId).Select(s => s.Msg).OfType<BaseList>().Last()
             .Bases.Single(b => b.Id == baseId);
-        Assert.Equal((2, 5), (core.Residents, core.ResidentCap)); // the core's readout: "Residents: 2/5"
+        Assert.Equal((2, 32), (core.Residents, core.ResidentCap)); // the core's readout: "Residents: 2/32" (#2775)
 
         PlaceBed(Cx - 3, Cz + 2);
         Assert.Contains(Text("srv.base.bed_counts", 3), w.MessagesToPlayer());
@@ -183,10 +184,24 @@ public sealed class BaseResidentsUpstairsTests
         PlaceBed(Cx + 6, Cz + 2);
         Assert.Contains(Text("srv.base.bed_counts", 5), w.MessagesToPlayer());
 
-        // A fifth bed inside: five live here already.
-        PlaceBed(Cx - 6, Cz - 4);
+        Assert.DoesNotContain(Text("srv.base.bed_full"), w.MessagesToPlayer()); // #2775: five is no longer full
+
+        // Beds up to one short of the cap (two more rows inside the core zone), then the placed bed that fills the base:
+        // the cap's number of people live here already.
+        int cap = SvGameServer.BaseResidentCapForTest, beds = 4;
+        foreach (int z in new[] { Cz + 5, Cz - 2 })
+        {
+            for (int x = Cx - 8; x <= Cx + 8 && beds < cap - 1; x++)
+            {
+                w.Bed(x, z);
+                beds++;
+            }
+        }
+
+        PlaceBed(Cx - 6, Cz - 5);
         Assert.Contains(Text("srv.base.bed_full"), w.MessagesToPlayer());
-        Assert.Equal(5, w.Server.BaseResidentsForTest(baseId).Count);
+        Assert.Equal(cap, w.Server.BaseFurnitureForTest(baseId).Beds);
+        Assert.Equal(cap, w.Server.BaseResidentsForTest(baseId).Count);
     }
 
     // ---------------------------------------------------------------- #2680: the unseen fallback

@@ -29,6 +29,11 @@ from dotenv import load_dotenv
 OUT = Path("out/textures")
 STYLE = "seamless tileable pixel-art texture, top-down flat, retro 16-bit voxel game block tile, no text, no words"
 
+# #2773: the ground of a flora billboard tile drawn as ONE plant in side view. Every non-solid flora_* block renders as
+# a cutout cross billboard, so its tile must be the plant alone: the black is cut away per pixel by bake_leaf_alpha.py
+# (DARK_GROUND). A top-down "field of plants on a ground" tile lost its plants to the darkness cut instead.
+ON_BLACK = "the entire rest of the image solid pitch-black #000000 with no gradient, no vignette and no ground"
+
 TEXTURES = [
     ("stone", "rough grey stone rock surface with subtle cracks"),
     ("dirt", "brown soil dirt earth with small pebbles"),
@@ -88,17 +93,17 @@ TEXTURES = [
     ("flora_emberbloom", "charred dark plant with glowing orange ember blossoms, top-down"),
     # Aquatic flora (the planet flora tint re-colours these on the client; the tile gives the pattern).
     ("flora_kelp", "tall ribbon-like green seaweed kelp blades swaying underwater, top-down"),
-    ("flora_lily", "round flat green lily pads floating on water with a small white blossom, top-down"),
+    ("flora_lily", f"side view of one water lily plant, several round flat green lily pads on short stems spreading sideways along the bottom of the image and one white lily blossom with a yellow centre rising in the middle, {ON_BLACK}"),
     # Task 6 — more flora variety.
-    ("flora_palm", "small tropical palm plant with broad green fan fronds, top-down"),
+    ("flora_palm", f"side view of one small tropical palm plant, broad bright green fan fronds arching outwards from a short stem, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
     ("flora_moss", "soft green moss patch carpeting rock with tiny fronds, top-down"),
-    ("flora_orchid", "exotic purple and pink orchid blossoms on slender green stems, top-down"),
+    ("flora_orchid", f"side view of one exotic orchid plant, purple and pink blossoms on slender arching green stems above a few broad green leaves, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
     ("flora_succulent", "fleshy green rosette succulent plant like aloe and agave, top-down"),
     ("flora_pitcher", "carnivorous pitcher plant with red-veined tubular traps, top-down"),
     ("flora_puffball", "cluster of round pale puffball mushrooms on a swamp floor, top-down"),
     ("flora_lichen", "crusty pale grey-green lichen growth spreading on frosty rock, top-down"),
-    ("flora_coral", "branching pink and orange coral reef growth, top-down"),
-    ("flora_seagrass", "tufts of bright green underwater seagrass blades on the seabed, top-down"),
+    ("flora_coral", f"side view of one branching pink and orange coral growth with many rounded branch tips, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
+    ("flora_seagrass", f"side view of one tuft of long bright green seagrass blades swaying upwards, rooted at the bottom edge of the image and reaching almost to its top, {ON_BLACK}"),
     ("flora_sporepod", "bulbous alien spore pods with a faint glowing teal sheen, top-down"),
     ("flora_thornbush", "spiky tangled thorn bush with dark twigs and small leaves, top-down"),
     ("flora_bellflower", "drooping clusters of blue and violet bell-shaped flowers, top-down"),
@@ -106,10 +111,10 @@ TEXTURES = [
     ("flora_glowvine", "bioluminescent glowing green-cyan vine with luminous leaves in the dark, top-down"),
     # Flora variety V2 — fill the thin biomes (rock / ice / snow / salt / ash) + signature tall grass.
     ("flora_grasstuft", "tall waving lush green grass blades in a tuft, top-down"),
-    ("flora_rockflower", "hardy small flower with pink and white blossoms growing from grey rock, top-down"),
-    ("flora_snowbush", "low hardy shrub with dark green leaves dusted in white snow and frost, top-down"),
+    ("flora_rockflower", f"side view of one small hardy flowering plant, pink and white blossoms on short green stems growing out of a small grey rock that sits on the bottom edge of the image, {ON_BLACK}"),
+    ("flora_snowbush", f"side view of one low round hardy shrub with green leaves dusted in white snow and frost, rooted at the bottom edge of the image, filling its lower two thirds and most of its width, {ON_BLACK}"),
     ("flora_icereed", "tall brittle pale blue frozen ice reeds and crystalline stalks, top-down"),
-    ("flora_saltgrass", "wiry sparse pale grey-green salt grass tufts on a white salt crust, top-down"),
+    ("flora_saltgrass", f"side view of one wiry tuft of tall thin pale grey-green salt grass blades with a few straw-coloured tips, rooted at the bottom edge of the image and reaching almost to its top, {ON_BLACK}"),
     ("flora_cinderbush", "charred dark volcanic bush with smouldering glowing orange embers, top-down"),
     # Greenhouse farming (#627): the cultivated crop + its hydroponic tray. The crop is the ONE plant that
     # never takes a world's flora hue, so this tile is what the player sees on every world — it has to read

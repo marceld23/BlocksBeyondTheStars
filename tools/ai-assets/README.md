@@ -136,3 +136,11 @@ track's prompt and its pool).
 - Outputs default under `out/` (git-ignored). Move chosen assets into the game (`data/…` or the
   Unity client) deliberately, and log each in `NOTICES.md` with its source + licence/terms.
 - The tools never run on import and make **no** network calls unless you invoke them with a prompt.
+- **Flora billboard tiles** (#2772/#2773): every non-solid `flora_*` block renders as a cutout cross billboard that roots
+  at the tile's bottom row, so a new plant tile is **one plant in side view on pure black** (`ON_BLACK` in
+  `gen_textures.py`), not a top-down field of plants on a ground. Pipeline: `uv run gen_textures.py --only <key>` →
+  `uv run bundle_textures.py --from-out --only <key>` → add the key to `DARK_GROUND` and `ROOTED` in
+  `bake_leaf_alpha.py` → `uv run --no-project --with pillow python bake_leaf_alpha.py --key <key>`. The bake cuts the
+  black, drops specks and lowers the plant onto the bottom edge; `BlockTileAlphaTests` checks the result. A tile that
+  shows one object on a flat *lighter* ground goes into `GROUND_KEY` instead (the darkness cut would invert it). The
+  bake's previews land in `out/baked/`, never over the generated images in `out/textures/`.

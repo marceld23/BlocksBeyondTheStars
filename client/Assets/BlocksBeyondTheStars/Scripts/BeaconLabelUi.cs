@@ -27,8 +27,11 @@ namespace BlocksBeyondTheStars.Client
         private bool _open, _built;
         private int _openFrame = -1;
 
-        // #2717: the resident list under the card (base core only).
+        // #2717: the resident list under the card (base core only). #2775: it scrolls — a base holds up to 32 people.
+        private const float InfoTextW = 708f; // the scroll list's row width (736 viewport − 16 padding) minus the text's margins
         private GameObject _infoPanel;
+        private ScrollRect _infoScroll;
+        private LayoutElement _infoRow;
         private Text _info;
         private NetworkClient _residentsSource; // the client whose BaseResidentsReceived this listens to
         private string _residentsBody = string.Empty;
@@ -130,6 +133,17 @@ namespace BlocksBeyondTheStars.Client
             bool show = !string.IsNullOrEmpty(text);
             _info.text = show ? text : string.Empty;
             _infoPanel.SetActive(show);
+            if (show)
+            {
+                // The text's width is fixed, so its preferred height is the wrapped text; the row takes that height and
+                // the scroll list grows with it (a long list scrolls, a short one fits as before).
+                float textH = _info.preferredHeight;
+                _info.rectTransform.sizeDelta = new Vector2(InfoTextW, textH + 4f);
+                float rowH = textH + 12f;
+                ((RectTransform)_infoRow.transform).sizeDelta = new Vector2(0f, rowH);
+                _infoRow.minHeight = _infoRow.preferredHeight = rowH;
+                _infoScroll.verticalNormalizedPosition = 1f; // the title first
+            }
         }
 
         private void Update()
@@ -221,12 +235,20 @@ namespace BlocksBeyondTheStars.Client
                 Close();
             });
 
-            // #2717: the resident list, a wider panel right under the card (text only; up to five people and two header lines).
+            // #2717: the resident list, a wider panel right under the card (two header lines, then one line per person).
+            // #2775: a base holds up to 32 people now, more than the panel shows at once — the text sits in a scroll list
+            // (mouse wheel, and a scrollbar that appears only when the list is longer than the panel).
             const float infoW = 760f, infoH = 300f;
             var infoPanel = UiKit.AddPanel(root, (1920f - infoW) * 0.5f, y + h + 12f, infoW, infoH, UiKit.Panel);
             _infoPanel = infoPanel.gameObject;
-            _info = UiKit.AddText(infoPanel.transform, 20f, 16f, infoW - 40f, infoH - 32f, string.Empty, 18, UiKit.TextCol, TextAnchor.UpperLeft);
+            var list = UiKit.ScrollList(infoPanel.transform, 12f, 12f, infoW - 24f, infoH - 24f, 0f);
+            _infoScroll = list.parent.GetComponent<ScrollRect>();
+            var row = new GameObject("ResidentText", typeof(RectTransform));
+            row.transform.SetParent(list, false);
+            _infoRow = row.AddComponent<LayoutElement>();
+            _info = UiKit.AddText(row.transform, 8f, 4f, InfoTextW, 40f, string.Empty, 18, UiKit.TextCol, TextAnchor.UpperLeft);
             _info.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _info.verticalOverflow = VerticalWrapMode.Overflow;
             _infoPanel.SetActive(false);
 
             _canvas.gameObject.SetActive(false);

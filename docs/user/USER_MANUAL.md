@@ -1674,7 +1674,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   of it). The **Energy Door** (workshop, blueprint-gated) is the bulkhead you walk straight through: its blue field
   is an **air curtain**. **Check it:** aim at your own core — the prompt shows how many cells and closed rooms
   currently have air and whether the spot you stand on does (*here: air*; when other rooms breathe but your spot
-  does not, it adds *· /basewalls tells you why*), and how many residents live at the base (*Residents: 2/5*; press
+  does not, it adds *· /basewalls tells you why*), and how many residents live at the base (*Residents: 2/32*; press
   **E** there to see who they are and where). VEGA explains the rules once when you found a core on a world
   without breathable air.
 - **Why no air?** Walking from air into a room that **leaks** names **where the air gets out**: the block or the
@@ -2408,13 +2408,13 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Your base attracts life.** Trader ships prefer worlds with a founded base. Once your base holds **a bed or
   three machines** (workbench, forge, …) **anywhere inside it**, a **settler moves in** — they know you from day one
   and count toward your people, and they stay for good. **Without beds only that one settler lives there** — **every
-  bed** you place inside your base brings **one more resident**, up to **five** people (the first settler's news says
-  so too). "Inside" is the same for beds and machines, on every floor: the core zone, a
+  bed** you place inside your base brings **one more resident**, up to **32** people — as many as a city (the first
+  settler's news says so too). "Inside" is the same for beds and machines, on every floor: the core zone, a
   sealed room, inside your walls, or any **closed room** (walls, a roof and a door) at the base — a bed out in the
   open field brings nobody. A **village's own** beds, shops and machines never count for your base, even when your
   walls take the village in — the villagers keep their homes; what you build there yourself counts as usual.
-  **Placing a bed tells you what it did**: *"This bed counts — residents 2/5"*, that it is
-  outside your base, or that your base is full; aiming at your own core shows *Residents: 2/5* too. Residents
+  **Placing a bed tells you what it did**: *"This bed counts — residents 2/32"*, that it is
+  outside your base, or that your base is full; aiming at your own core shows *Residents: 2/32* too. Residents
   **take stairs, not ladders** — build a staircase to the upper floors (one-block steps; the hole in the ceiling only
   has to be open above the upper steps). **Everyone keeps their own bed and job**: a new
   bed never makes the others swap, and the newest resident waits for a free bed until the next one stands (whoever
@@ -2427,7 +2427,7 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Who lives here?** Press **E** at your own base core: under the rename field a list shows **everyone who lives at
   the base** — name and job, what they are doing right now (working, resting, asleep …), **where they are** from the
   core (*"12 m to the northeast"*, or *"not here right now"*) and whether they **have a bed**. While there is room it
-  also reminds you that every bed brings one more resident.
+  also reminds you that every bed brings one more resident. A long list scrolls (mouse wheel or the scrollbar).
 - **E to talk.** Standing next to someone shows *"Talk to … (E)"*.
 
 ### Daily routines & jobs

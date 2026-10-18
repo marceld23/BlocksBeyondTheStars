@@ -12,6 +12,7 @@ using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using Xunit;
+using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
 namespace BlocksBeyondTheStars.Tests;
 
@@ -43,7 +44,7 @@ public sealed class VillageBelongingsTests
     private static string Text(string key, int n = 0)
         => Content.CreateLocalizer(GameLocale.English).Get(key)
             .Replace("{n}", n.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
-            .Replace("{max}", "5", StringComparison.Ordinal);
+            .Replace("{max}", SvGameServer.BaseResidentCapForTest.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
 
     /// <summary>A block of the village's own — written like the settlement stamp writes it, without an owner.</summary>
     private static void Village(NpcLifeWorld w, int x, int y, int z, string key, int shape = 0)
@@ -369,7 +370,7 @@ public sealed class VillageBelongingsTests
         Assert.Contains(Text("srv.base.bed_founds", 2), w.MessagesToPlayer());
         Assert.Equal(1, w.Server.BaseFurnitureForTest(baseId).Beds);
 
-        // Three more of the player's beds fill the base to five — never "full" early for the villagers' beds.
+        // Three more of the player's beds bring it to five residents — each counted, none "full" early for the villagers' beds.
         PlaceBed(Cx - 6, Cz + 2, new Vector3f(Cx - 7.5f, w.Feet, Cz + 2.5f));
         Assert.Contains(Text("srv.base.bed_counts", 3), w.MessagesToPlayer());
         PlaceBed(Cx - 3, Cz + 2, new Vector3f(Cx - 4.5f, w.Feet, Cz + 2.5f));
@@ -381,7 +382,7 @@ public sealed class VillageBelongingsTests
 
         var core = w.Transport.Sent.Where(s => s.Conn == w.Player.ConnectionId).Select(s => s.Msg).OfType<BaseList>().Last()
             .Bases.Single(b => b.Id == baseId);
-        Assert.Equal((5, 5), (core.Residents, core.ResidentCap));
+        Assert.Equal((5, SvGameServer.BaseResidentCapForTest), (core.Residents, core.ResidentCap));
         Assert.Equal(4, w.Server.BaseFurnitureForTest(baseId).Beds);
     }
 }

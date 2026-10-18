@@ -9,13 +9,14 @@ using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using Xunit;
+using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
 /// Base residents (#1865, Marcel 2026-09-13): every bed inside a base brings one more resident — 1 + beds, at most
-/// five; a bed counts in the core zone, in a sealed room, inside the walled yard or in a closed room (walls, roof,
-/// door), never in the open field; the founding settler comes for a bed or a few machines inside (#2677). A trading post and a mission board
+/// the cap (five at first, the city tier's 32 since #2775); a bed counts in the core zone, in a sealed room, inside
+/// the walled yard or in a closed room (walls, roof, door), never in the open field; the founding settler comes for a bed or a few machines inside (#2677). A trading post and a mission board
 /// inside the base are staffed by a resident — barter and board jobs at home — and a post nobody can staff says why.
 /// Residents are distinct people on the roster, keyed by base and slot; the founding settler keeps its old key.
 /// </summary>
@@ -24,7 +25,7 @@ public sealed class BaseResidentsTests
     private readonly GameContent _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
 
     [Fact]
-    public void NoBed_OneSettler_EveryBedOneMore_UpToFive()
+    public void NoBed_OneSettler_EveryBedOneMore_UpToTheCap()
     {
         using var w = new NpcLifeWorld(_content, "residents_count");
         int baseId = w.FoundBase();
@@ -38,22 +39,35 @@ public sealed class BaseResidentsTests
         Assert.Equal(3, three.Count);
         Assert.Equal(2, w.Server.BaseFurnitureForTest(baseId).Beds); // a two-cell bed is ONE bed, its foot never counts
 
-        // Six beds: still five people.
-        for (int i = 0; i < 4; i++)
+        // #2775: up to the cap (the city tier, 32 — it was five) and not one more: two rows of beds across the core zone,
+        // one bed more than the cap — still the cap's number of people.
+        int cap = SvGameServer.BaseResidentCapForTest;
+        Assert.Equal(32, cap);
+        int beds = 2;
+        foreach (int z in new[] { NpcLifeWorld.Cz + 1, NpcLifeWorld.Cz + 4 })
         {
-            w.Bed(NpcLifeWorld.Cx + 2 + 2 * i, NpcLifeWorld.Cz + 1);
+            for (int x = NpcLifeWorld.Cx - 8; x <= NpcLifeWorld.Cx + 8 && beds < cap + 1; x++)
+            {
+                if (z == NpcLifeWorld.Cz + 1 && (x == NpcLifeWorld.Cx - 5 || x == NpcLifeWorld.Cx - 3))
+                {
+                    continue; // the two beds above
+                }
+
+                w.Bed(x, z);
+                beds++;
+            }
         }
 
         w.Server.ScanBaseLifeForTest();
-        Assert.Equal(6, w.Server.BaseFurnitureForTest(baseId).Beds);
-        Assert.Equal(5, w.Server.BaseResidentsForTest(baseId).Count);
-        Assert.Equal(new[] { 0, 1, 2, 3, 4 }, w.Server.BaseResidentsForTest(baseId).Select(r => r.Slot).OrderBy(s => s));
+        Assert.Equal(cap + 1, w.Server.BaseFurnitureForTest(baseId).Beds);
+        Assert.Equal(cap, w.Server.BaseResidentsForTest(baseId).Count);
+        Assert.Equal(Enumerable.Range(0, cap), w.Server.BaseResidentsForTest(baseId).Select(r => r.Slot).OrderBy(s => s));
 
-        // Each resident is a different person (name seeded per slot), each on the owner's roster under its own key;
-        // the founding settler keeps the key it always had.
+        // Each resident is a different person (seeded per slot), each on the owner's roster under its own key; the
+        // founding settler keeps the key it always had.
         var roster = w.Player.State.NpcMemory.Where(kv => kv.Key.StartsWith($"base_{baseId}", StringComparison.Ordinal)).ToList();
-        Assert.Equal(5, roster.Count);
-        Assert.Equal(5, roster.Select(kv => kv.Value.Name).Distinct().Count());
+        Assert.Equal(cap, roster.Count);
+        Assert.Equal(5, roster.Take(5).Select(kv => kv.Value.Name).Distinct().Count());
         Assert.Contains($"base_{baseId}:settler", w.Player.State.NpcMemory.Keys);
         Assert.Contains($"base_{baseId}#1:settler", w.Player.State.NpcMemory.Keys);
     }
@@ -84,7 +98,7 @@ public sealed class BaseResidentsTests
     {
         using var w = new NpcLifeWorld(_content, "residents_list");
         int baseId = w.FoundBase();
-        Assert.Equal(5, w.Server.BaseResidentListForTest(NpcLifeWorld.Owner).Cap);
+        Assert.Equal(SvGameServer.BaseResidentCapForTest, w.Server.BaseResidentListForTest(NpcLifeWorld.Owner).Cap);
 
         var bed = w.Bed(NpcLifeWorld.Cx - 5, NpcLifeWorld.Cz + 1);
         w.Set(NpcLifeWorld.Cx + 4, w.Feet, NpcLifeWorld.Cz + 4, "workbench");
