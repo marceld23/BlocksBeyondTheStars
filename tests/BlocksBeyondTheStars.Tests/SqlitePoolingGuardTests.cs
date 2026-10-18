@@ -22,7 +22,7 @@ public sealed class SqlitePoolingGuardTests
 
     private static readonly Regex NewConnection = new(@"new\s+SqliteConnection\s*\(", RegexOptions.None, TimeSpan.FromSeconds(5));
     private static readonly Regex PoolingOff = new(@"Pooling\s*=\s*false", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(5));
-    private static readonly Regex ClearAll = new(@"SqliteConnection\s*\.\s*ClearAllPools\s*\(\s*\)\s*;", RegexOptions.None, TimeSpan.FromSeconds(5));
+    private static readonly Regex ClearAll = new(@"(?:Sqlite|Npgsql)Connection\s*\.\s*ClearAllPools\s*\(\s*\)\s*;", RegexOptions.None, TimeSpan.FromSeconds(5));
 
     [Fact]
     public void EverySqliteConnection_InTheServerAndItsTests_IsOpenedUnpooled()
@@ -61,7 +61,7 @@ public sealed class SqlitePoolingGuardTests
     }
 
     [Fact]
-    public void ProductionCode_NeverClearsEverySqlitePool()
+    public void ProductionCode_NeverClearsEveryConnectionPool()
     {
         var offenders = SourceFiles("src")
             .Where(file => ClearAll.IsMatch(File.ReadAllText(file)))
@@ -69,8 +69,8 @@ public sealed class SqlitePoolingGuardTests
             .ToList();
 
         Assert.True(offenders.Count == 0,
-            "SqliteConnection.ClearAllPools() is process-wide (#2768); dispose your own unpooled connection instead:\n" +
-            string.Join('\n', offenders));
+            "ClearAllPools() is process-wide (SQLite #2768, PostgreSQL #2786) — it reaches every other repository's " +
+            "connections; dispose your own connection instead:\n" + string.Join('\n', offenders));
     }
 
     private static IEnumerable<string> SourceFiles(string relativeDir)

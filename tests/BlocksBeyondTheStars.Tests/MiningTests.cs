@@ -9,6 +9,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -51,6 +52,26 @@ public sealed class MiningTests : IDisposable
             server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z);
 
             Assert.True(server.World.GetBlock(pos).IsAir, "Mud should break in a single basic-drill hit.");
+        }
+    }
+
+    [Fact]
+    public void ABlockJustAcrossTheLatitudeSeam_IsWithinReach()
+    {
+        // #2785: the world wraps north–south; the first cell south of the seam is right next to a player standing at
+        // the northern edge — the reach check used to measure the plain Z difference, almost a whole period.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            int period = WorldConstants.LatitudePeriodFor(server.World.Circumference);
+            var p = server.AddLocalPlayer("Miner");
+            p.State.Position = new Vector3f(0.5f, 66f, period / 2f - 0.5f);
+            var pos = new Vector3i(0, 64, -(period / 2));
+            server.World.SetBlock(pos, _content.GetBlock("mud")!.NumericId);
+
+            server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z);
+
+            Assert.True(server.World.GetBlock(pos).IsAir, "a block one step across the seam must be in reach");
         }
     }
 

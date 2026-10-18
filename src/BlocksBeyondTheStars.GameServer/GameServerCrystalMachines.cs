@@ -512,13 +512,12 @@ public sealed partial class GameServer
         SetCrystalBlocked(laser, true);
     }
 
-    /// <summary>The cells a drill may never touch: ships, settlements, stations, the Guardian core, factories, other
-    /// players' bases, and anything a player placed (the owner's own floor included — a drill under a base must
+    /// <summary>The cells a drill may never touch: every protected block of <see cref="IsBreakProtected"/> (ships,
+    /// settlements, stations, the Guardian core, the intercity rail, factories, other players' bases — one list with the
+    /// area burst since #2784), and anything a player placed (the owner's own floor included — a drill under a base must
     /// not eat the base).</summary>
     private bool DrillCellProtected(Vector3i p, BlockId id, string ownerId)
-        => IsShipBlock(p) || IsSettlementProtected(p, id) || IsStationBlock(p) || IsGuardianCoreProtected(p)
-           || IsFactoryProtected(p, ownerId, false) || IsBaseProtected(p, ownerId, false)
-           || _repo.HasPlayerBlockEdits(_world.LocationId, p, p);
+        => IsBreakProtected(p, id, ownerId, false) || _repo.HasPlayerBlockEdits(_world.LocationId, p, p);
 
     /// <summary>#2269: a drill's read of a cell — a live drill reads the loaded rows only, a catch-up loads what it digs.</summary>
     private BlockId CrystalReadCell(bool load, Vector3i cell) => load ? _world.GetBlock(cell) : _world.GetBlockIfLoaded(cell);

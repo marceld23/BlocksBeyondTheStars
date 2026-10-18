@@ -890,7 +890,8 @@ players.
 - Tools have a **kind** (drill/scanner/…) and **tier** (1–5). A block has a **hardness** and may require a
   minimum tool tier; mining accumulates the tool's power until it exceeds the hardness, then the block
   breaks and yields its **drops**. Powerful drills can clear a small radius — the sweep only takes blocks
-  the drill could mine directly (same tier rules).
+  the drill could mine directly (same tier rules) and leaves every protected block standing, just as a single
+  swing would (towns and the rail line, stations, factories, other players' bases).
 - **The game tells you which tool a block wants.** Scanning a block lists a `Needs:` line naming the cheapest
   tool that opens it, and a swing the held tool cannot land is refused by name rather than a bare "wrong tool".
   A drill that is too weak gets "not strong enough … Needs: Titanium Drill". With the wrong thing in hand — a

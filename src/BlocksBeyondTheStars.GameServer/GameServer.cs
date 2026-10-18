@@ -5610,9 +5610,7 @@ public sealed partial class GameServer
     private void BreakAreaCell(PlayerSession session, Vector3i p, ToolProperties tool, MaterialPool pool)
     {
         var b = _world.GetBlock(p);
-        if (b.IsAir || IsShipBlock(p) || IsSettlementProtected(p, b) || IsStationBlock(p)
-            || IsGuardianCoreProtected(p) // #1830
-            || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
+        if (b.IsAir || IsBreakProtected(p, b, session.State.PlayerId, session.State.IsAdmin))
         {
             return;
         }
@@ -5627,6 +5625,23 @@ public sealed partial class GameServer
         // are spilled ONCE by the caller, so a burst leaves one ground packet, not one per cell.
         BreakBlockAt(session, p, d, pool);
     }
+
+    /// <summary>#2784: the one protection list for the breaks that cannot answer with a reason — the cells around an
+    /// area burst and the crystal drill/laser. It holds the same kinds <see cref="HandleMine"/> refuses one by one (ship
+    /// pad, settlement, station, Guardian core, intercity rail, factory, base); each path used to keep its own copy, and
+    /// they had drifted: an area burst swept the blocks of a factory next to the aimed one. The settlement rule covers
+    /// the intercity line already (<see cref="IsSettlementBlock"/> holds it) but lets a player-built block on it go;
+    /// <see cref="HandleMine"/> refuses that one too, and so does this list.</summary>
+    private bool IsBreakProtected(Vector3i p, BlockId id, string actorId, bool actorIsAdmin)
+        => IsShipBlock(p) || IsSettlementProtected(p, id) || IsStationBlock(p)
+           || IsGuardianCoreProtected(p) // #1830
+           || (IsIntercityRailBlock(p) && !IsSettlementBoxBlock(p))
+           || IsFactoryProtected(p, actorId, actorIsAdmin)
+           || IsBaseProtected(p, actorId, actorIsAdmin);
+
+    /// <summary>Test seam for <see cref="IsBreakProtected"/> against the block currently in the cell.</summary>
+    public bool BreakProtectedForTest(Vector3i p, string actorId, bool isAdmin = false)
+        => IsBreakProtected(p, _world.GetBlock(p), actorId, isAdmin);
 
     /// <summary>
     /// Banks loot from an event that cannot be refused after the fact — a creature is already dead, a wreck
@@ -7047,7 +7062,7 @@ public sealed partial class GameServer
             // Paint moderation (#821) — like kick/announce, moderation is not a cheat: the role is the gate.
             case "shapewipe":
                 AdminCustomShapeWipe(session, cmd.StringArg);
-                break;
+                return; // #2783: a `break` fell through into the cheat gate and answered a done wipe with a refusal
 
             case "paintwipe":
                 AdminPaintWipe(session, cmd.StringArg);
@@ -7452,8 +7467,8 @@ public sealed partial class GameServer
         // BODY position to the block CENTRE off a move stream that only updates at 10 Hz (unreliable) — three
         // stacked discrepancies (eye offset ~0.8, centre-vs-face up to ~0.87, movement lag ~1) that made
         // legitimate mines bounce with "Out of reach" (2026-06-10 bug). Measure to the nearest point of the
-        // block instead — vertically against the player's body segment (anchor-agnostic), X the short way
-        // round the longitude seam — with a small slack for the move-stream lag. HandleMove fully trusts the
+        // block instead — vertically against the player's body segment (anchor-agnostic), X and Z the short way
+        // round both seams — with a small slack for the move-stream lag. HandleMove fully trusts the
         // reported position anyway, so this stays a sanity bound, not an anti-cheat wall.
         double dx = System.Math.Abs(WorldConstants.WrapDeltaX((block.X + 0.5) - player.Position.X, _world.Circumference));
         dx = System.Math.Max(0.0, dx - 0.5); // to the near face, not the centre
@@ -7463,7 +7478,9 @@ public sealed partial class GameServer
         double dy = by < lo ? lo - by : by > hi ? by - hi : 0.0;
         dy = System.Math.Max(0.0, dy - 0.5);
 
-        double dz = System.Math.Abs((block.Z + 0.5) - player.Position.Z);
+        // #2785: the world wraps north–south too, and the client's own reach check (InteractReach) measures Z the short
+        // way round; a plain difference refused a block just across the latitude seam.
+        double dz = System.Math.Abs(WorldConstants.WrapDeltaZ((block.Z + 0.5) - player.Position.Z, _world.Circumference));
         dz = System.Math.Max(0.0, dz - 0.5);
 
         const double slack = 1.0; // covers the 10 Hz move-stream trailing the true position while walking

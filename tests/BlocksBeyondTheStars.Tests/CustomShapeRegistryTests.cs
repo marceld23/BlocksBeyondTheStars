@@ -56,13 +56,13 @@ public sealed class CustomShapeRegistryTests : IDisposable
         return new string(chars);
     }
 
-    private (SvGameServer Server, LoopbackClientTransport Client, SqliteWorldRepository Repo) Start(string world)
+    private (SvGameServer Server, LoopbackClientTransport Client, SqliteWorldRepository Repo) Start(string world, GameRules? rules = null)
     {
         var repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
         var link = new LoopbackLink();
         var st = new LoopbackServerTransport(link);
         var client = new LoopbackClientTransport(link);
-        var config = new ServerConfig { WorldName = world, Seed = 1, AutoSaveIntervalMinutes = 9999, Rules = new GameRules() };
+        var config = new ServerConfig { WorldName = world, Seed = 1, AutoSaveIntervalMinutes = 9999, Rules = rules ?? new GameRules() };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         client.Connect("loopback", 0);
@@ -312,6 +312,31 @@ public sealed class CustomShapeRegistryTests : IDisposable
         var reused = Assert.Single(repo.ListCustomShapes());
         Assert.Equal(first, reused.Id);
         Assert.Equal("Neu", reused.Name);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Wipe_IsNotAnsweredWithARefusal_OnAnyWorld(bool cheatsAllowed)
+    {
+        // #2783: the wipe case fell through into the cheat gate — a done wipe then also said "cheats are off"
+        // (or "unknown command" on a cheat world).
+        var (server, client, repo) = Start(cheatsAllowed ? "form10c" : "form10n",
+            new GameRules { AdminCheats = cheatsAllowed, AllowCheatsInSurvival = cheatsAllowed });
+        Equip(server, stone: 16);
+        server.Sessions[1].State.Role = PlayerRole.Admin;
+        Craft(client, server, Voxels(2), "Bogen");
+        int first = CraftedShapeOf(server);
+        client.Poll();
+
+        var rejected = new List<ActionRejected>();
+        client.PayloadReceived += pl => { if (NetCodec.Decode(pl) is ActionRejected r) rejected.Add(r); };
+        server.HandleForTest(server.Sessions[1], new AdminCommandIntent { Command = "shapewipe", StringArg = "#" + first });
+        server.Tick(0.1);
+        client.Poll();
+
+        Assert.Empty(repo.ListCustomShapes());
+        Assert.Empty(rejected);
     }
 
     [Fact]

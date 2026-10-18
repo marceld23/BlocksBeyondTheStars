@@ -1817,7 +1817,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
 
     public void SaveAlliance(StoredAlliance alliance)
     {
-        var (a, b) = NormalizePair(alliance.PlayerA, alliance.PlayerB);
+        var (a, b) = StoredAlliance.NormalizePair(alliance.PlayerA, alliance.PlayerB);
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
@@ -1854,7 +1854,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
 
     public void DeleteAlliance(string playerA, string playerB)
     {
-        var (a, b) = NormalizePair(playerA, playerB);
+        var (a, b) = StoredAlliance.NormalizePair(playerA, playerB);
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
@@ -1864,10 +1864,6 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             cmd.ExecuteNonQuery();
         }
     }
-
-    /// <summary>Orders a player-id pair so each alliance is stored under exactly one (a, b) key.</summary>
-    private static (string A, string B) NormalizePair(string x, string y)
-        => string.CompareOrdinal(x, y) <= 0 ? (x, y) : (y, x);
 
     // --- Crews (#1216, server-wide like the alliance graph) ---
 
@@ -2314,8 +2310,9 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
                 _connection = null;
             }
 
-            // Release the pooled native connection handles so tests and short-lived tools do not keep sockets open.
-            NpgsqlConnection.ClearAllPools();
+            // #2786: no NpgsqlConnection.ClearAllPools() here — it clears the pools of the WHOLE process, i.e. every other
+            // repository's connections too (the SQLite twin lost the same call in #2768). The pool closes our idle
+            // connection after its idle lifetime, and a short-lived tool's exit closes it at once.
         }
     }
 }

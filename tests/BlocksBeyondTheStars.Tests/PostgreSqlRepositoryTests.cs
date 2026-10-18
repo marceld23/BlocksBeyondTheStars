@@ -268,6 +268,7 @@ public sealed class PostgreSqlRepositoryTests
             repo.SetBlock("ice", new Vector3i(1, 2, 3), 42, tint: 7, glow: 3, shape: 5, owner: "pilot");
             repo.SaveFloraRegrow("ice", new Vector3i(4, 5, 6), 9, 12.5);
             repo.SaveFluidCell("ice", new Vector3i(7, 8, 9), 3, falling: true);
+            repo.SaveFluidSource("ice", new Vector3i(7, 9, 9)); // #2515's table — this opt-in test had not met it yet
             repo.SaveCrystalCell(new StoredCrystalCell { Planet = "ice", X = 1, Y = 1, Z = 1, Kind = "Conduit", OwnerId = "pilot" });
             repo.SaveNamedBlob("bio/register", "{\"species\":[]}");
             repo.EnsureBlockPalette(new Dictionary<ushort, string> { [0] = "air", [42] = "steel_wall" });

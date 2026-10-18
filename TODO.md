@@ -24,6 +24,28 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧹 Code health 2026-10-18, PR 1 of 2 — the fixes — epic #2793, #2783–#2789, branch fix/code-health-bugs-2026-10-18 — ✅ done 2026-10-19
+
+A code-smell sweep (for a contributor's "anything to refactor?") turned up real bugs where duplicated code had drifted.
+
+- **`/shapewipe` (#2783):** the case ended in `break` and fell into the cheat gate — a done wipe also said "cheats
+  are off" (or "unknown command"). Now `return` like every other moderation case.
+- **Area tools and factories (#2784):** an area burst swept a factory's blocks next to the aimed one. The burst and the
+  crystal drill/laser now share one `IsBreakProtected` list with the kinds `HandleMine` refuses one by one. (The
+  intercity rail was never a gap — `IsSettlementBlock` holds it.)
+- **Reach across the latitude seam (#2785):** `WithinReach` measured Z plainly; now `WrapDeltaZ` like X (the client's
+  `InteractReach` already did).
+- **PostgreSQL pools (#2786):** `Dispose` no longer calls the process-wide `NpgsqlConnection.ClearAllPools()`; the pooling
+  guard test covers Npgsql now. The opt-in PostgreSQL tests ran green against a local Postgres; the backup test got the
+  `fluid_source` row it had been missing since #2515.
+- **Browser save (#2787–#2789):** the snapshot keeps flowing-water cells, fire cells and a block edit's owner + time
+  (additive, no save-version bump — after a reload a crystal drill dug through player builds); an import over a used
+  repository clears crystal, fluid and fire cells too; alliance pairs are stored sorted (`StoredAlliance.NormalizePair`,
+  shared by all three repositories; an older blob folds to one row).
+- **Tests:** `BreakProtectionTests`, `BrowserSaveGapsTests`, `MiningTests.ABlockJustAcrossTheLatitudeSeam_IsWithinReach`,
+  `CustomShapeRegistryTests.Wipe_IsNotAnsweredWithARefusal_OnAnyWorld`; each new test fails against the old code.
+- **Contributor issues from the same sweep:** #2781 (`DrivenTransport`), #2782 (palette-remap SQL builder).
+
 ### ✋ The item in your hand — its own look, a suit hand for everything, holster and draw — #2776, #2777, #2778, branch feat/held-item-hands-draw — ✅ done 2026-10-18 (⚠ playtest open)
 
 Marcel: a dyed or shaped block should look dyed or shaped in the hand; every item should look held in the hand; taking

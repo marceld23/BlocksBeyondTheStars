@@ -21,6 +21,35 @@ public sealed class BlockEditRow
     public int Tint { get; set; }
     public int Glow { get; set; }
     public int Shape { get; set; }
+
+    /// <summary>Who placed the block (#2787) — empty for a server-internal write. Additive: an older snapshot reads back
+    /// as unattributed, as before.</summary>
+    public string Owner { get; set; } = string.Empty;
+
+    /// <summary>When <see cref="Owner"/> placed it (#2787); null with no owner.</summary>
+    public DateTime? EditedUtc { get; set; }
+}
+
+/// <summary>One flowing-water cell (#657) as a snapshot row (#2787).</summary>
+public sealed class FluidCellRow
+{
+    public string Planet { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public byte Level { get; set; }
+    public bool Falling { get; set; }
+}
+
+/// <summary>One burning cell (#784) as a snapshot row (#2787).</summary>
+public sealed class FireCellRow
+{
+    public string Planet { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public double Remaining { get; set; }
+    public int Generation { get; set; }
 }
 
 /// <summary>One scheduled flora regrowth as a snapshot row.</summary>
@@ -109,6 +138,12 @@ public sealed class MemoryWorldSnapshot
 
     /// <summary>Player-placed water sources (#2515). Additive: a snapshot written before them reads back as an empty list.</summary>
     public List<FluidSourceRow> FluidSources { get; set; } = new();
+
+    /// <summary>Flowing-water cells (#2787) — without them a reload froze running water into still blocks. Additive.</summary>
+    public List<FluidCellRow> FluidCells { get; set; } = new();
+
+    /// <summary>Burning cells (#2787) — without them a fire burning at save time never burned out. Additive.</summary>
+    public List<FireCellRow> FireCells { get; set; } = new();
 }
 
 /// <summary>
@@ -251,6 +286,24 @@ public sealed class MemoryWorldRepository : IWorldRepository
             LocationStatuses = new Dictionary<string, string>(_locationStatuses),
             Missions = _missions.Values.Select(json => JsonSerializer.Deserialize<MissionDefinition>(json, JsonOptions)!).ToList(),
             FluidSources = _fluidSources.Select(k => new FluidSourceRow { Planet = k.Planet, X = k.X, Y = k.Y, Z = k.Z }).ToList(),
+            FluidCells = _fluidCells.Select(kv => new FluidCellRow
+            {
+                Planet = kv.Key.Planet,
+                X = kv.Key.X,
+                Y = kv.Key.Y,
+                Z = kv.Key.Z,
+                Level = kv.Value.Level,
+                Falling = kv.Value.Falling,
+            }).ToList(),
+            FireCells = _fireCells.Select(kv => new FireCellRow
+            {
+                Planet = kv.Key.Planet,
+                X = kv.Key.X,
+                Y = kv.Key.Y,
+                Z = kv.Key.Z,
+                Remaining = kv.Value.Remaining,
+                Generation = kv.Value.Generation,
+            }).ToList(),
         };
 
         foreach (var kv in _blockEdits)
@@ -265,6 +318,8 @@ public sealed class MemoryWorldRepository : IWorldRepository
                 Tint = kv.Value.Tint,
                 Glow = kv.Value.Glow,
                 Shape = kv.Value.Shape,
+                Owner = kv.Value.Owner,
+                EditedUtc = kv.Value.EditedUtc,
             });
         }
 
@@ -339,6 +394,11 @@ public sealed class MemoryWorldRepository : IWorldRepository
         _locationStatuses.Clear();
         _missions.Clear();
         _fluidSources.Clear();
+        // #2788: these three were missing — an import over a used repository kept the old world's crystal-net cells,
+        // flowing water and fires.
+        _crystalCells.Clear();
+        _fluidCells.Clear();
+        _fireCells.Clear();
 
         foreach (var kv in snapshot.BlockPalette)
         {
@@ -349,6 +409,13 @@ public sealed class MemoryWorldRepository : IWorldRepository
         foreach (var row in snapshot.BlockEdits)
         {
             SetBlockLocked(row.Planet, new Vector3i(row.X, row.Y, row.Z), row.Block, row.Tint, row.Glow, row.Shape);
+            if (!string.IsNullOrEmpty(row.Owner))
+            {
+                // #2787: the attribution as saved — SetBlockLocked would stamp "now" on an owned write.
+                var key = (row.Planet, row.X, row.Y, row.Z);
+                var edit = _blockEdits[key];
+                _blockEdits[key] = (edit.Block, edit.Tint, edit.Glow, edit.Shape, row.Owner, row.EditedUtc);
+            }
         }
 
         foreach (var row in snapshot.FloraRegrow)
@@ -423,12 +490,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
 
         foreach (var alliance in snapshot.Alliances)
         {
-            _alliances[(alliance.PlayerA, alliance.PlayerB)] = new StoredAlliance
-            {
-                PlayerA = alliance.PlayerA,
-                PlayerB = alliance.PlayerB,
-                FormedUtc = alliance.FormedUtc,
-            };
+            PutAllianceLocked(alliance); // an older blob may hold a pair unsorted, or twice — this folds it to one row
         }
 
         foreach (var crew in snapshot.Crews)
@@ -474,6 +536,16 @@ public sealed class MemoryWorldRepository : IWorldRepository
         foreach (var row in snapshot.FluidSources ?? new List<FluidSourceRow>())
         {
             _fluidSources.Add((row.Planet, row.X, row.Y, row.Z));
+        }
+
+        foreach (var row in snapshot.FluidCells ?? new List<FluidCellRow>())
+        {
+            _fluidCells[(row.Planet, row.X, row.Y, row.Z)] = (row.Level, row.Falling);
+        }
+
+        foreach (var row in snapshot.FireCells ?? new List<FireCellRow>())
+        {
+            _fireCells[(row.Planet, row.X, row.Y, row.Z)] = (row.Remaining, row.Generation);
         }
     }
 
@@ -1391,13 +1463,15 @@ public sealed class MemoryWorldRepository : IWorldRepository
         lock (_gate)
         {
             _dirty = true;
-            _alliances[(alliance.PlayerA, alliance.PlayerB)] = new StoredAlliance
-            {
-                PlayerA = alliance.PlayerA,
-                PlayerB = alliance.PlayerB,
-                FormedUtc = alliance.FormedUtc,
-            };
+            PutAllianceLocked(alliance);
         }
+    }
+
+    /// <summary>#2789: stores the pair sorted like the SQL repositories — one row per pair, whichever player asked.</summary>
+    private void PutAllianceLocked(StoredAlliance alliance)
+    {
+        var (a, b) = StoredAlliance.NormalizePair(alliance.PlayerA, alliance.PlayerB);
+        _alliances[(a, b)] = new StoredAlliance { PlayerA = a, PlayerB = b, FormedUtc = alliance.FormedUtc };
     }
 
     public IReadOnlyList<StoredAlliance> ListAlliances()
@@ -1415,9 +1489,8 @@ public sealed class MemoryWorldRepository : IWorldRepository
         lock (_gate)
         {
             _dirty = true;
-            // Order-independent, mirroring the SQLite DELETE (the store key is already normalized).
-            _alliances.Remove((playerA, playerB));
-            _alliances.Remove((playerB, playerA));
+            // Order-independent, mirroring the SQL DELETE: every key is sorted (on save and on import).
+            _alliances.Remove(StoredAlliance.NormalizePair(playerA, playerB));
         }
     }
 

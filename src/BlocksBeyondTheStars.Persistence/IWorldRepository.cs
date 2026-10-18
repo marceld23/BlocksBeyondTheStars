@@ -149,6 +149,11 @@ public sealed class StoredAlliance
     public string PlayerA { get; set; } = string.Empty;
     public string PlayerB { get; set; } = string.Empty;
     public string FormedUtc { get; set; } = string.Empty;
+
+    /// <summary>Orders a player-id pair so each alliance is stored under exactly one (a, b) key — the one rule all
+    /// repositories share (#2789: the in-memory one kept no copy of it and stored pairs as passed).</summary>
+    internal static (string A, string B) NormalizePair(string x, string y)
+        => string.CompareOrdinal(x, y) <= 0 ? (x, y) : (y, x);
 }
 
 /// <summary>A persisted crew (#1216): a named group of up to 8 players (server-wide, like the alliance

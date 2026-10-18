@@ -2017,7 +2017,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
 
     public void SaveAlliance(StoredAlliance alliance)
     {
-        var (a, b) = NormalizePair(alliance.PlayerA, alliance.PlayerB);
+        var (a, b) = StoredAlliance.NormalizePair(alliance.PlayerA, alliance.PlayerB);
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
@@ -2054,7 +2054,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
 
     public void DeleteAlliance(string playerA, string playerB)
     {
-        var (a, b) = NormalizePair(playerA, playerB);
+        var (a, b) = StoredAlliance.NormalizePair(playerA, playerB);
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
@@ -2064,10 +2064,6 @@ public sealed class SqliteWorldRepository : IWorldRepository
             cmd.ExecuteNonQuery();
         }
     }
-
-    /// <summary>Orders a player-id pair so each alliance is stored under exactly one (a, b) key.</summary>
-    private static (string A, string B) NormalizePair(string x, string y)
-        => string.CompareOrdinal(x, y) <= 0 ? (x, y) : (y, x);
 
     // --- Crews (#1216, server-wide like the alliance graph) ---
 
