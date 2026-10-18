@@ -11,6 +11,104 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.20] — 2026-10-18
+
+The tidy-up release. We went through every old bug and open question left on our list and tied them off in one go.
+**Big animals no longer stand inside each other**, **a friend can be locked as a target anywhere in the star system**,
+and on new frozen worlds **nothing sits on the seabed under the sea ice** any more. **The landing map shows the terrain
+right away** instead of a dark panel, the **travel screen draws the real star system**, and **your gamepad rumbles**
+(on Windows). On top: monorail rides without the jump, footsteps on your ship, blocks that show their real faces in your
+hand, body paint that reads the way you painted it, and drops in space that survive a server restart.
+
+ℹ️ **Compatibility:** the **save version stays at 4** and the network protocol stays at **version 11**. The **terrain
+generation rises to 27**: frozen seas and station traders change only in **new** worlds; existing worlds keep their
+landscape. Game and server should both be on 2026.10.20 — a far friend shows on your radar only when both are. Three
+things change in existing worlds: torso and helmet paintings switch sides (they now appear the way you painted them on
+the canvas), six old factory recipes are rebalanced, and an old self-built ship hull that a block-adding update before
+v2026.10.4 left broken is repaired once when the world opens, with a backup first.
+
+### 🐘 Animals keep their distance (#2753)
+
+- **No more animals inside each other:** every wild animal on the ground keeps a body-sized distance from every other
+  animal, of any kind. Awake animals step aside, sleeping ones shuffle apart without waking up, and new animals never
+  appear inside another one.
+- Big herds now spawn and roam a little more spread out, and herds of giant animals still arrive complete.
+
+### 🗺️ The landing map shows the terrain again (#2758–#2762)
+
+- **No more dark panel:** on worlds made since 2026.10.14 the landing-pad chooser showed only the pads at first and the
+  terrain came late — or never, if you picked a pad quickly. The map now appears **at once** (first a coarse version with
+  a small "Mapping the surface…" note, then the sharp one a moment later), and in the browser it finishes too.
+- The landing map no longer waits behind the planet globes that are drawn when you fly into space.
+- New worlds are also created a bit faster: the server's water checks take about a third less time, with exactly the
+  same results.
+
+### 🚀 Space and travel (#2737, #2745, #2748)
+
+- **Lock a friend anywhere in the star system (#2737):** a friend can be locked as a navigation target at any distance —
+  an arrow at the edge shows the direction and the distance. A friend who took off from another planet shows as "Flying
+  near …" with a dimmer pink blip on the radar.
+- **The travel screen draws the real system (#2745):** the small system chart shows every planet, moon, belt and station
+  where it really is, instead of made-up orbits.
+- **Drops in space survive a restart (#2748):** floating salvage is saved with the world and is still there after the
+  server restarts.
+
+### ❄️ Frozen worlds and stations — new worlds (#2738, #2739, #2756)
+
+- **Nothing under the sea ice (#2738):** villages, camps, factories, ruins and other structures no longer sit on the
+  seabed below the ice — they stand on dry land or on stilts above the ice. The starter wreck too (#2756).
+- **Every station is its own (#2739):** a station's quartermaster and its extra traders now differ from world to world,
+  and a station's mission chain has just one giver.
+
+### 🎮 Controls, sounds and looks (#2741–#2744, #2746, #2750, #2755)
+
+- **Gamepad rumble (#2746):** with **Vibration** switched on in the settings, hits, your own shots and swings,
+  explosions, hits on your ship, hyperspace jumps, hard landings and broken blocks rumble the controller. This works on
+  Windows; in the browser and on Linux the setting says it is not available.
+- **Monorail without the jump (#2741):** when a train turns round at the end of the line, the wagons keep their places
+  and riders simply ride on.
+- **Footsteps on your ship (#2743):** walking, sneaking and ladders now work properly on a parked ship's roof and decks,
+  and monorail wagons sound like metal.
+- **Blocks show their real faces (#2744):** the block in your hand is no longer upside down, dropped blocks and the ship,
+  station and settlement editors show each face, and machines, crates and logs get a proper cube icon in the hotbar,
+  inventory and crafting.
+- **Body paint reads as painted (#2750, #2755):** torso, arms, legs and helmet were drawn as a mirror image; now they look
+  exactly like on the canvas, and your first-person hand wears your painted arm. ⚠ Paintings you already made on the torso
+  or helmet switch sides.
+- **Story hints stay (#2742):** a chapter's lead marker stays on the map until you follow it, and the berry step of the
+  tutorial gets its marker.
+
+### ⚙️ Balance and fixes (#2016, #2740, #2747, #2749, #2751, #2752)
+
+- **Factory balance (#2016):** six old recipes that were far cheaper or dearer than the rest now match their refinery
+  chain — iron plates, metal panels, steel, cables, energy cells and circuit boards.
+- The **world map** keeps its landing-pad markers after a death, a heal tank or a return from a station (#2740).
+- **Fire and bases** near the world's seam behave like everywhere else (#2747, #2752).
+- **Old self-built hulls repaired (#2751):** a ship that an update before v2026.10.4 had scrambled is repaired once
+  when the world opens — only when the old block set can be read without doubt, and always after a backup.
+
+### 🌍 Texts
+
+- All new and changed texts are available in all 14 languages.
+- The "What's new?" notes of 2026.10.19 are now available in the twelve community languages too (#2736).
+
+### 🛠️ For tinkerers
+
+- **Animal spacing:** `Shared/Definitions/CreatureFootprint.Radius` mirrors `CreatureBuilder`; `GameServerCreatureSpacing.cs`,
+  `HerdRingScale`; `/bump` lists size, footprint and sleep state.
+- **Landing map:** the bake reads `SurfaceSummary.Pond` (`MapPondAt`, a superset of the real ponds) instead of
+  `SurfacePondDepth`; `SurfaceHeightUncached` keeps the column's raw relief in a thread-static slot; `PlanetMapSchedule`
+  (Client.Core) gives priority ≥ 20 a worker slot of its own. All world-generation goldens unchanged.
+- **Wire and save:** additive `SpaceState.SystemPilots`, `NetSpacePlayer.AnchorBodyId`, `NetTrain.Facing`,
+  `NetMarker.LabelArg`; the named blob `space:floating_salvage`; the one-time marker `save|hull_repair_2751` with a
+  `pre-hull-repair_…` backup. No protocol or save-version bump.
+- **Generation 27:** `WorldDescription.SeaIceWetGeneration`, `WorldGenerator.TryGetIceSurface`; station quartermasters
+  and extra vendors world-seeded; generation ≤ 26 bit-identical.
+- **Client:** `Client.Core/RumbleMixer` + Unity `PadRumble` (XInput), `FootstepSurface`, `LandingPadLists`,
+  `SystemOrreryLayout`, `BlockCubeFaces`/`BlockCubeIcon`; `RailRules.Advance/CabRange/LeadArc`.
+- The server logs one `Connection N closed.` line per closed connection (#2749).
+- **For hosters:** the WorldHost image was rebuilt with this release; the AI backend and the report host are unchanged.
+
 ## [2026.10.19] — 2026-10-18
 
 The visiting release. **Docking now means a visit:** dock with a friend in space and walk over into their ship.
@@ -8450,7 +8548,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.19...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.20...HEAD
+[2026.10.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.19...v2026.10.20
 [2026.10.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.18...v2026.10.19
 [2026.10.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.17...v2026.10.18
 [2026.10.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.16...v2026.10.17

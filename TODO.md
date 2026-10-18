@@ -61,6 +61,8 @@ plain dark panel. The terrain arrived only after a long wait, or not at all if a
   WORLD_GENERATION.md (the raw-height slot; the cost of scattered pond queries).
 - ⚠ Open: playtest — land on a generation-24+ world. The map must show at once, sharp within a moment.
 
+**Released** in **v2026.10.20** "the tidy-up release" (2026-10-18).
+
 ---
 
 ### 🧹 TODO leftovers 2026-10-18 — old bugs, four decisions, one report ("tiere stecken ineinander") — epic #2754, #2737–#2753, #2755, #2756, #2016, branch fix/todo-leftovers-2026-10-18 — ✅ done 2026-10-18 (⚠ playtest open; terrain generation 27)
@@ -153,6 +155,8 @@ fire-rate question was already answered by `cooldownSeconds` on every weapon.
   body; a gen-27 frozen world (structures and the wreck on the ice); a station quartermaster in two new worlds; the
   monorail turning at a line end (seated and standing); footsteps and sneaking on the ship roof; a picture block in
   the hand, a drop cube, an editor; the travel-screen chart; a pad rumbling (Windows); a painted shirt with text.
+
+**Released** in **v2026.10.20** "the tidy-up release" (2026-10-18).
 
 ---
 
