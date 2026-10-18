@@ -11,6 +11,72 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.21] — 2026-10-19
+
+The in-hand release. Whatever you hold now looks like itself: **a dyed, glowing, shaped or painted block looks exactly
+like that in your hand**, **every item sits in a proper suit hand**, and **taking an item out or putting it away is
+animated**. On top: plants on beaches and in the sea no longer stand as cut-out cards, **a base now houses up to 32
+residents**, area tools leave factories alone, and the browser game keeps flowing water, fires and who built what
+across a reload.
+
+ℹ️ **Compatibility:** the **save version stays at 4**, the network protocol stays at **version 11** and the **terrain
+generation stays at 27** — existing worlds keep their landscape. Game and server should both be on 2026.10.21. Browser
+worlds keep flowing water, fires and block ownership from their next save on; older browser saves load as before.
+
+### ✋ The item in your hand (#2776–#2778)
+
+- **The block's own look (#2776):** a block in your hand shows its dye, glow, form and paint design — the same as it
+  will look once placed. Forms that span several blocks and beds show every cell; beds, campfires, rugs, flower pots,
+  ladders, staircases, stretchers and trapdoors appear in their placed form.
+- **A suit hand for every item (#2777):** tools and weapons sit in a fist, blocks and vehicles on the open palm, small
+  things between two fingers and plants by the stem — in your painted suit arm. In third person, players carry what
+  they hold.
+- **Holster and draw (#2778):** switching items lowers the old one and raises the new one, with a quiet gear sound. Fast
+  scrolling only draws the last item, using an item cuts the move short, and with **Reduced effects** the switch is
+  instant.
+
+### 🌿 Plants and bases (#2772–#2775)
+
+- **Plants the right way round (#2772):** the **Dry Shrub** and the **Berry Bush** on a light ground stood as
+  ground-coloured cards with the plant punched out. Now the plant is the part you see.
+- **Eight plants redrawn (#2773):** **Salt Grass**, **Snow Bush**, **Coral**, **Palm Plant**, **Orchid**, **Water Lily**,
+  **Seagrass** and **Rock Flower** are one clear plant each now, standing on the ground instead of floating a little
+  above it.
+- **Up to 32 residents (#2775):** a base houses one resident more than it has beds — now up to 32 (it stopped at 5). The
+  resident list at the **Base Core** scrolls. Thanks to Justus for the report!
+
+### 🛡️ Fixes (#2783–#2789)
+
+- **Area tools respect factories (#2784):** a powerful drill that clears a small radius no longer breaks the blocks of
+  a factory next to the block you aim at.
+- **Reach across the north–south seam (#2785):** a block just across the seam where the world wraps from north to south
+  can be mined and built on like any other block next to you.
+- **Browser game keeps more (#2787–#2789):** flowing water, fires and who placed which block are saved in the browser
+  too. After a reload water keeps flowing, fires burn out, and crystal drills recognise your buildings again. Importing
+  a save into a used browser world leaves nothing of the old world behind, and an alliance is stored only once.
+- Removing a player form with `/shapewipe` no longer also answers "cheats are off" (#2783).
+
+### 🌍 Texts
+
+- The "What's new?" notes of 2026.10.20 are now available in the twelve community languages too (#2767).
+
+### 🛠️ For tinkerers
+
+- **Held items:** `Client.Core/HeldBlockLook`, `HeldHands` (grips `fist`/`palm`/`pinch`/`stem`, overridable per item
+  with `heldGrip`), `HeldSwap`; `HeldItem.AttachHand`/`AttachBlock`. New doc `docs/developer/HELD_ITEMS.md`.
+- **Flora bake:** `bake_leaf_alpha.py` gains `GROUND_KEY`, `DARK_GROUND`, `ROOTED` and `BAKE_ARGS` (a full run now changes no
+  tile); `gen_textures.py` `ON_BLACK`; guard `BlockTileAlphaTests`. `BaseResidentCap` 5 → 32.
+- **Server:** one `IsBreakProtected` list for area bursts and the crystal drill/laser; `WithinReach` measures Z with
+  `WrapDeltaZ`; `PostgreSqlWorldRepository.Dispose` no longer clears every pool in the process; the browser snapshot
+  gains `FluidCells`, `FireCells` and `BlockEditRow.Owner`/`EditedUtc` (additive, no save-version bump);
+  `StoredAlliance.NormalizePair` is shared by all three repositories.
+- **Code health (#2790–#2792):** `GameServerAlliances.cs` is diffable again (no raw NUL characters); dead members and
+  orphaned doc comments removed; one shared test `RecordingTransport` with a ratchet guard.
+- **Tests and tooling:** every SQLite connection opens unpooled (+ guard), the tutorial tests' air budget (#2768,
+  #2769); HUD-free world screenshots and a new README gallery (#2765, #2766); refreshed CI shard weights.
+- **For hosters:** the WorldHost image was rebuilt with this release; the report host only got unpooled SQLite
+  connections (#2770); the AI backend is unchanged.
+
 ## [2026.10.20] — 2026-10-18
 
 The tidy-up release. We went through every old bug and open question left on our list and tied them off in one go.
@@ -8549,6 +8615,7 @@ A graphics-quality pass and a licensing/foundation cleanup.
 - Initial public release.
 
 [Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.20...HEAD
+[2026.10.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.20...v2026.10.21
 [2026.10.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.19...v2026.10.20
 [2026.10.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.18...v2026.10.19
 [2026.10.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.17...v2026.10.18

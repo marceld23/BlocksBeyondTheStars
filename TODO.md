@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧹 Code health 2026-10-18, PR 2 of 2 — the cleanup — epic #2793, #2790–#2792, branch chore/code-health-cleanup-2026-10-18 — ✅ done 2026-10-19
+### 🧹 Code health 2026-10-18, PR 2 of 2 — the cleanup — epic #2793, #2790–#2792, branch chore/code-health-cleanup-2026-10-18 — ✅ done 2026-10-19 (PR #2795, 74f30a5b)
 
 Behaviour-preserving cleanup from the same sweep as PR 1 (the fixes).
 
@@ -40,6 +40,8 @@ Behaviour-preserving cleanup from the same sweep as PR 1 (the fixes).
   `tests/BlocksBeyondTheStars.Tests/RecordingTransport.cs`; `NpcLifeWorld`'s public copy and 36 identical private copies
   are gone (~800 lines). `RecordingTransportGuardTests` is a ratchet: a new private copy fails, the 42 drifted copies
   are listed and the list may only shrink. SERVER_TESTING.md names the helper.
+
+**Released** in **v2026.10.21** "the in-hand release" (2026-10-19).
 
 ### 🧹 Code health 2026-10-18, PR 1 of 2 — the fixes — epic #2793, #2783–#2789, branch fix/code-health-bugs-2026-10-18 — ✅ done 2026-10-19 (PR #2794, 324a0a8e)
 
@@ -62,6 +64,8 @@ A code-smell sweep (for a contributor's "anything to refactor?") turned up real 
 - **Tests:** `BreakProtectionTests`, `BrowserSaveGapsTests`, `MiningTests.ABlockJustAcrossTheLatitudeSeam_IsWithinReach`,
   `CustomShapeRegistryTests.Wipe_IsNotAnsweredWithARefusal_OnAnyWorld`; each new test fails against the old code.
 - **Contributor issues from the same sweep:** #2781 (`DrivenTransport`), #2782 (palette-remap SQL builder).
+
+**Released** in **v2026.10.21** "the in-hand release" (2026-10-19).
 
 ### ✋ The item in your hand — its own look, a suit hand for everything, holster and draw — #2776, #2777, #2778, branch feat/held-item-hands-draw — ✅ done 2026-10-18 (⚠ playtest open)
 
@@ -91,6 +95,8 @@ existing `gear_equip` sound, the form shown as a preview (not the pending **R** 
 - ⚠ **Playtest:** the grips and swings in the real game light (FOV 50–100), the painted arm on every item, a remote
   player's holster, a painted block in hand after joining a world.
 
+**Released** in **v2026.10.21** "the in-hand release" (2026-10-19).
+
 ### 📬 Player reports 2026-10-18 (Marcel, Screelit = Justus) — inverted flora textures, residents as many as beds — #2772–#2775, branch fix/flora-alpha-ground-key — ✅ done 2026-10-18 (⚠ playtest open)
 
 Marcel: *"invertierte Texturen???"* — dry shrubs on a beach stood as sand cards with the shrub punched out. Justus: *"Keine
@@ -114,6 +120,8 @@ Bewohner mehr!"* — 24 beds in his base, five residents.
   dense-leaf defaults — they were baked with their own `--hole`/`--grid` in #2013. `BAKE_ARGS` records the values that
   reproduce their masks exactly, so a full run now changes no tile.
 - Open: playtest (the ten plants in game, a base with 24+ beds and its resident list).
+
+**Released** in **v2026.10.21** "the in-hand release" (2026-10-19).
 
 ### 📸 Screenshots that show the worlds — HUD-free stills, a vista pose, creature framing, a new README gallery — #2765, #2766, branch feat/marketing-screenshots-world — ✅ done 2026-10-18
 
@@ -147,6 +155,8 @@ the ship, at eye height and noon, with the HUD, the first-person hand and often 
   - The space-HUD overlap seen in the August set ("Cargo" over the hull bar, two hint lines) is gone in the current
     HUD, so no issue was needed.
 
+**Released** in **v2026.10.21** "the in-hand release" (2026-10-19).
+
 ### 🧪 Two CI flakes from the v2026.10.20 release — SQLite pools (#2768), the sealed-room tutorial step (#2769), branch fix/test-flakes-2026-10-18 — ✅ done 2026-10-18
 
 The release gate of v2026.10.20 went red on one test (re-run green), the main CI of the same commit on another; both
@@ -167,6 +177,8 @@ were load-dependent races in tests, not in the release.
   now gives its servers a budget that never binds, so the check still starts and runs the refill itself. No production change.
 - **Docs:** SERVER_TESTING.md "CI rules that will bite you" — the SQLite pooling rule and "a test that skips ticks must
   not depend on a wall-clock budget".
+
+**Released** in **v2026.10.21** "the in-hand release" (2026-10-19).
 
 ---
 
