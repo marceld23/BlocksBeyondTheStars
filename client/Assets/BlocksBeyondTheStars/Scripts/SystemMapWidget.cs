@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Client.Core;
 using BlocksBeyondTheStars.Networking.Messages;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,30 +10,36 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// A small animated orrery for the travel screen's detail pane: the selected system's star plus its
-    /// bodies as slowly-orbiting coloured dots over a faint projection disc. Drawn entirely with uGUI (no
-    /// camera / RenderTexture), so it is cheap and self-contained. Rebuilt when the shown system changes;
-    /// it animates continuously while visible.
+    /// The small system chart in the travel screen's detail pane (#2745): the selected system's star and its bodies as
+    /// coloured dots over a faint projection disc — a static snapshot of the REAL system, laid out like the flight system
+    /// chart (<see cref="SpaceMap"/>): every body at its real position, the chart centred on the star, an orbit ring
+    /// through every planet and asteroid that circles the star, a belt as one band, the same orientation. Moons (and a
+    /// station hanging over a planet) sit just outside their planet's dot in the direction they really lie
+    /// (<see cref="SystemOrreryLayout"/>). It used to invent its orbits from the list index and keep the dots circling at
+    /// made-up speeds. Drawn entirely with uGUI (no camera / RenderTexture); rebuilt when the shown system changes.
     /// </summary>
     public sealed class SystemMapWidget : MonoBehaviour
     {
         private static Sprite _disc; // shared soft-edged disc used for the star + every body dot
 
-        private readonly List<RectTransform> _orbiters = new();
-        private readonly List<float> _radius = new();
-        private readonly List<float> _phase = new();
-        private readonly List<float> _speed = new();
-        private RectTransform _rt;
-        private float _t;
+        private const float RimMargin = 10f;      // the projection disc's soft rim stays clear of the dots
+        private const float HaloPad = 7f;         // a marked body's halo reaches this far beyond its dot
+        private const float OrbitAlpha = 0.34f;   // the flight chart's orbit-path alpha
+        private const float OrbitThickness = 1.5f;
+        private const float BeltPad = 4f;         // chart units a belt band extends past its outermost member
+        private static readonly Color BeltCol = new Color(0.78f, 0.72f, 0.6f, 0.12f);
 
-        /// <summary>Creates the widget under <paramref name="parent"/> at the given rect (top-left coords).</summary>
+        private RectTransform _rt;
+
+        /// <summary>Creates the widget under <paramref name="parent"/> at the given rect (top-left coords). The chart is
+        /// round: a square rect shows the whole projection disc.</summary>
         public static SystemMapWidget Create(Transform parent, float x, float y, float w, float h)
         {
             var go = new GameObject("SystemMap", typeof(RectTransform));
             go.transform.SetParent(parent, false);
             UiKit.Place(go, x, y, w, h);
 
-            // Faint projection disc behind the orrery.
+            // Faint projection disc behind the chart.
             var bg = go.AddComponent<Image>();
             bg.sprite = Disc();
             bg.color = new Color(0.10f, 0.20f, 0.34f, 0.30f);
@@ -42,7 +49,7 @@ namespace BlocksBeyondTheStars.Client
             return widget;
         }
 
-        /// <summary>(Re)builds the orrery for a system's bodies; <paramref name="activeBodyId"/> is highlighted
+        /// <summary>(Re)builds the chart for a system's bodies; <paramref name="activeBodyId"/> is highlighted
         /// (the body the player is on) and <paramref name="selectedBodyId"/> is ringed (the menu selection).
         /// <para>
         /// <paramref name="markerColorOf"/> supplies the player's own coloured mark for a body id (-1 for
@@ -57,80 +64,94 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(transform.GetChild(i).gameObject);
             }
 
-            _orbiters.Clear();
-            _radius.Clear();
-            _phase.Clear();
-            _speed.Clear();
-
             var size = _rt.rect.size;
             var centre = new Vector2(size.x * 0.5f, -size.y * 0.5f); // top-left-anchored content → its centre
-            float maxR = Mathf.Min(size.x, size.y) * 0.42f;
+            float chartHalf = Mathf.Max(20f, Mathf.Min(size.x, size.y) * 0.5f - RimMargin);
+            var layout = SystemOrreryLayout.Layout(bodies, chartHalf, HaloPad,
+                b => DotSize(b, activeBodyId, selectedBodyId) * 0.5f);
 
-            AddDot(centre, 30f, new Color(1f, 0.86f, 0.5f)); // the system's star
+            // The star at the true centre with a soft corona — drawn first, so the orbit rings read on top of its glow.
+            AddDot(centre, 34f, new Color(1f, 0.86f, 0.5f, 0.18f));
+            AddDot(centre, 18f, new Color(1f, 0.9f, 0.62f));
 
-            int n = Mathf.Max(1, bodies.Count);
-            for (int i = 0; i < bodies.Count; i++)
+            // Belts (#683): one translucent band each instead of a stack of rings. UiOrbitRing is centre-anchored, so
+            // Vector2.zero is the chart's centre — the same point as `centre` for the top-left-anchored dots.
+            foreach (var belt in layout.Belts)
             {
-                float r = maxR * (0.32f + 0.68f * (i + 1) / n);
-                bool active = bodies[i].Id == activeBodyId;
-                bool selected = bodies[i].Id == selectedBodyId;
-                float dotSize = (active ? 18f : selected ? 16f : 12f) * DotScale(bodies[i].PlanetType); // #2437: a giant reads big
-                var col = PlanetColor(bodies[i].PlanetType, bodies[i].Kind);
-                if (active)
-                {
-                    col = Color.Lerp(col, Color.white, 0.4f); // the body you're on glows brighter
-                }
+                float outer = belt.Outer + BeltPad;
+                UiOrbitRing.Create(transform, Vector2.zero, new Vector2(outer * 2f, outer * 2f), BeltCol,
+                    belt.Outer - belt.Inner + (BeltPad * 2f));
+            }
 
-                // A marked body gets a halo in the player's chosen colour, added FIRST so it sits behind the dot
-                // and reads as a ring around it. It rides the same orbit, so it tracks the planet as it moves.
-                int marker = markerColorOf?.Invoke(bodies[i].Id) ?? -1;
-                if (marker >= 0 && marker < PlanetMarkerPalette.Count)
+            // Orbit paths: one ring per body circling the star, through its dot.
+            foreach (var m in layout.Markers)
+            {
+                if (m.RingRadius > 0f)
                 {
-                    var halo = PlanetMarkerPalette.Colors[marker];
-                    halo.a = 0.75f;
-                    var ring = AddDot(centre, dotSize + 12f, halo);
-                    _orbiters.Add(ring);
-                    _radius.Add(r);
-                    _phase.Add(((bodies[i].Id?.GetHashCode() ?? i) & 0x3FF) * 0.00614f);
-                    _speed.Add(7f + (i % 3) * 5f); // identical orbit params → stays centred on its planet
+                    var b = bodies[m.Index];
+                    var ringCol = PlanetColor(b.PlanetType, b.Kind);
+                    ringCol.a = OrbitAlpha;
+                    UiOrbitRing.Create(transform, Vector2.zero, new Vector2(m.RingRadius * 2f, m.RingRadius * 2f), ringCol, OrbitThickness);
                 }
+            }
 
-                var dot = AddDot(centre, dotSize, col);
-                // #2178: the body's live weather rides beside its dot (only for the system you are in).
-                string glyph = weatherGlyphOf?.Invoke(bodies[i].Id) ?? string.Empty;
-                if (glyph.Length > 0)
+            // The bodies: the ones at their own position first, then the moons and stations beside them on top.
+            for (int pass = 0; pass < 2; pass++)
+            {
+                foreach (var m in layout.Markers)
                 {
-                    var t = UiKit.AddText(dot, dotSize + 2f, dotSize * 0.5f - 9f, 30f, 18f, glyph, 13, Color.white, TextAnchor.MiddleLeft);
-                    t.raycastTarget = false;
-                    t.supportRichText = true;
-                }
+                    if (m.IsSatellite == (pass == 0))
+                    {
+                        continue;
+                    }
 
-                _orbiters.Add(dot);
-                _radius.Add(r);
-                _phase.Add(((bodies[i].Id?.GetHashCode() ?? i) & 0x3FF) * 0.00614f); // a stable starting angle per body
-                _speed.Add(7f + (i % 3) * 5f); // deg/s, varied per ring so they don't move in lockstep
+                    DrawBody(bodies[m.Index], centre + new Vector2(m.X, m.Y), m.DotRadius * 2f, activeBodyId, selectedBodyId,
+                        markerColorOf, weatherGlyphOf);
+                }
             }
         }
 
-        private void Update()
+        /// <summary>The dot diameter of a body: the body you are on largest, the selected one a little larger, a gas giant
+        /// half again as big (#2437).</summary>
+        private static float DotSize(NetBody body, string activeBodyId, string selectedBodyId)
+            => (body.Id == activeBodyId ? 18f : body.Id == selectedBodyId ? 16f : 12f) * DotScale(body.PlanetType);
+
+        private void DrawBody(NetBody body, Vector2 pos, float dotSize, string activeBodyId, string selectedBodyId,
+            System.Func<string, int> markerColorOf, System.Func<string, string> weatherGlyphOf)
         {
-            if (_rt == null)
+            bool active = body.Id == activeBodyId;
+            var col = PlanetColor(body.PlanetType, body.Kind);
+            if (active)
             {
-                return;
+                col = Color.Lerp(col, Color.white, 0.4f); // the body you're on glows brighter
             }
 
-            _t += Time.unscaledDeltaTime;
-            var size = _rt.rect.size;
-            var centre = new Vector2(size.x * 0.5f, -size.y * 0.5f);
-            for (int i = 0; i < _orbiters.Count; i++)
+            // A marked body gets a halo in the player's chosen colour, added FIRST so it sits behind the dot and reads as a
+            // ring around it.
+            int marker = markerColorOf?.Invoke(body.Id) ?? -1;
+            if (marker >= 0 && marker < PlanetMarkerPalette.Count)
             {
-                if (_orbiters[i] == null)
-                {
-                    continue;
-                }
+                var halo = PlanetMarkerPalette.Colors[marker];
+                halo.a = 0.75f;
+                AddDot(pos, dotSize + 12f, halo);
+            }
 
-                float ang = _phase[i] + _t * _speed[i] * Mathf.Deg2Rad;
-                _orbiters[i].anchoredPosition = centre + new Vector2(Mathf.Cos(ang) * _radius[i], Mathf.Sin(ang) * _radius[i]);
+            var dot = AddDot(pos, dotSize, col);
+
+            // The menu selection wears a thin white ring (centre-anchored like the orbit rings: offset from the centre).
+            if (!string.IsNullOrEmpty(selectedBodyId) && body.Id == selectedBodyId)
+            {
+                var centre = new Vector2(_rt.rect.size.x * 0.5f, -_rt.rect.size.y * 0.5f);
+                UiOrbitRing.Create(transform, pos - centre, new Vector2(dotSize + 7f, dotSize + 7f), new Color(1f, 1f, 1f, 0.85f), 1.5f);
+            }
+
+            // #2178: the body's live weather rides beside its dot (only for the system you are in).
+            string glyph = weatherGlyphOf?.Invoke(body.Id) ?? string.Empty;
+            if (glyph.Length > 0)
+            {
+                var t = UiKit.AddText(dot, dotSize + 2f, dotSize * 0.5f - 9f, 30f, 18f, glyph, 13, Color.white, TextAnchor.MiddleLeft);
+                t.raycastTarget = false;
+                t.supportRichText = true;
             }
         }
 
@@ -150,8 +171,6 @@ namespace BlocksBeyondTheStars.Client
             return rt;
         }
 
-        /// <summary>A planet-type → dot colour mapping (a few known biomes, else a stable hash hue); stations
-        /// and asteroid fields get neutral greys. Shared with the flight system chart (#597).</summary>
         /// <summary>#2437: the gas giant's chart colour — the amber of its banded clouds, unlike any landable world's dot, so
         /// Justus's "no gas planet anywhere" is answered by a glance at the system chart, visited or not.</summary>
         internal static readonly Color GasGiantColor = new Color(0.96f, 0.72f, 0.42f);
@@ -159,6 +178,8 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2437: a gas giant draws half again as big as the other dots — it IS the biggest thing in its system.</summary>
         internal static float DotScale(string type) => type == "gas_giant" ? 1.5f : 1f;
 
+        /// <summary>A planet-type → dot colour mapping (a few known biomes, else a stable hash hue); stations
+        /// and asteroid fields get neutral greys. Shared with the flight system chart (#597).</summary>
         internal static Color PlanetColor(string type, string kind)
         {
             if (string.IsNullOrEmpty(type))

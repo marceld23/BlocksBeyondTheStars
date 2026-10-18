@@ -36,7 +36,10 @@ project doc policy.
 >   on, the crate in the crosshair, the base zone) live in Client.Core's `InteractReach`, and the key handler and
 >   its HUD prompt call the same pick. The home landing pad lies at X = 0 on every body, so a base built beside
 >   the ship straddles the seam: a raw `==` or `-` there broke crates, NPC talk, the base-core and beacon aim,
->   the base-zone hint and the air dome for a whole session (Lyxette's ice moon, 2026-10-15).
+>   the base-zone hint and the air dome for a whole session (Lyxette's ice moon, 2026-10-15). The server's own
+>   zone and cell rules follow it: the base protection / life-support cube (`WithinBaseZone`) measures the short way
+>   round both seams (#2752), and the fire automaton keys every burning cell canonically (`FireCell`, #2747), like
+>   the fluids (`FluidCell`, #2447).
 > - ❌ **W5 — poles: DROPPED 2026-06-11.** The ice-wall/pole barrier was never built; instead latitude (Z)
 >   now wraps (torus), so "north" loops straight back to "south" — no pole at all. See the torus DONE block
 >   in TODO.md.

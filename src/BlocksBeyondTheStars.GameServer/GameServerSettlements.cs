@@ -738,6 +738,7 @@ public sealed partial class GameServer
         bool shelf = p.Seat == "shelf";
         bool stilts = p.Seat == "stilts";
         bool lavaSeat = p.Seat == "lava";
+        bool seaIceIsWet = SeaIceIsWet; // #2738
         var foundationId = _content.GetBlock(surface)?.NumericId ?? BlockId.Air;
 
         // Seat materials. The shelf fills with the biome's sub-surface block so the cut reads as bedrock, a
@@ -825,15 +826,31 @@ public sealed partial class GameServer
                         continue;
                     }
 
+                    bool pile = (x % 3 == 0 && z % 3 == 0)
+                        || ((x == 0 || x == s.Width - 1 || z == 0 || z == s.Length - 1) && (x + z) % 3 == 0);
                     if (stilts && _generator.TryGetWaterSurface(planet, wx, wz, out _, out int seabedY))
                     {
                         // Wet column: no solid fill — a pile column every few cells plus the footprint rim
                         // carries the platform down to the seabed; the water flows on beneath the deck.
-                        bool pile = (x % 3 == 0 && z % 3 == 0)
-                            || ((x == 0 || x == s.Width - 1 || z == 0 || z == s.Length - 1) && (x + z) % 3 == 0);
                         if (pile)
                         {
                             int pileFloor = System.Math.Max(seabedY + 1, gy - maxSkirt);
+                            for (int y = gy - 1; y >= pileFloor; y--)
+                            {
+                                _world.SetBlock(new Vector3i(wx, y, wz), pileId);
+                            }
+                        }
+
+                        continue;
+                    }
+
+                    if (stilts && seaIceIsWet && _generator.TryGetIceSurface(planet, wx, wz, out int iceTopY))
+                    {
+                        // #2738: a body frozen through carries the deck itself — the piles only bridge the gap above
+                        // the ice (none where the deck rests on it), and the sheet is never dug out for a foundation.
+                        if (pile)
+                        {
+                            int pileFloor = System.Math.Max(iceTopY + 1, gy - maxSkirt);
                             for (int y = gy - 1; y >= pileFloor; y--)
                             {
                                 _world.SetBlock(new Vector3i(wx, y, wz), pileId);
@@ -1416,17 +1433,26 @@ public sealed partial class GameServer
     }
 
     /// <summary>Gathers footprint statistics (spread/median over ground heights, wet/lava sample counts,
-    /// highest water surface) for the seat classification — one pass over the standard sample columns.</summary>
+    /// highest water surface) for the seat classification — one pass over the standard sample columns.
+    /// #2738: from <see cref="WorldDescription.SeaIceWetGeneration"/> an iced column is a wet sample whose surface is the
+    /// ice TOP — before, the liquid surface under the sheet put a stilts deck inside the ice, and a body frozen through
+    /// read as dry seabed.</summary>
     private SeatCandidate EvaluateFootprint(PlanetType planet, int ox, int oz, int w, int l)
     {
         var c = new SeatCandidate();
         var heights = new List<int>();
+        bool seaIceIsWet = SeaIceIsWet;
         foreach (var (x, z) in FootprintSamples(ox, oz, w, l))
         {
             c.Samples++;
             if (_generator.IsSurfaceLava(planet, x, z))
             {
                 c.LavaSamples++;
+            }
+            else if (seaIceIsWet && _generator.TryGetIceSurface(planet, x, z, out int iceTop))
+            {
+                c.WetSamples++;
+                c.WaterTop = System.Math.Max(c.WaterTop, iceTop);
             }
             else if (_generator.TryGetWaterSurface(planet, x, z, out int waterTop, out _))
             {
@@ -1457,6 +1483,7 @@ public sealed partial class GameServer
         var planet = _world.Planet;
         var s = p.Structure;
         int gy = p.GroundY;
+        bool seaIceIsWet = SeaIceIsWet; // #2738: a frozen sea is wet ground too — no terrace dug into its ice
         for (int ring = 1; ring <= 2; ring++)
         {
             int stepY = gy - ring;
@@ -1471,7 +1498,8 @@ public sealed partial class GameServer
                     }
 
                     int colSurf = _generator.SurfaceHeight(planet, x, z);
-                    if (colSurf >= stepY || _generator.IsSurfaceWater(planet, x, z) || _generator.IsSurfaceLava(planet, x, z))
+                    if (colSurf >= stepY || _generator.IsSurfaceWater(planet, x, z) || _generator.IsSurfaceLava(planet, x, z)
+                        || (seaIceIsWet && _generator.SurfaceIceThickness(planet, x, z) > 0))
                     {
                         continue; // uphill side / wet ground — no terrace needed or wanted
                     }
@@ -1534,7 +1562,9 @@ public sealed partial class GameServer
     /// <summary>Whether a ground footprint stands in the generator's water or lava. #2586: on a gas giant every ground
     /// footprint is — the gas floods the whole heightfield, and the legacy ground path (a camp on a world first visited
     /// with robbers off, a structure too big for an island) could seat a build on the floor under the gas. The islands are
-    /// the only ground there; the guaranteed search knew it already (#2112).</summary>
+    /// the only ground there; the guaranteed search knew it already (#2112). #2738: from
+    /// <see cref="WorldDescription.SeaIceWetGeneration"/> a frozen sea is wet as well — the surface-water query reads thick
+    /// ice as land (ships may land on it), and a first-fit seat there sat at the seabed height, under the ice.</summary>
     private bool FootprintWet(PlanetType planet, int ox, int oz, int w, int l)
     {
         if (planet.IsGasWorld && _generator.SeaIsGas(planet))
@@ -1542,9 +1572,11 @@ public sealed partial class GameServer
             return true;
         }
 
+        bool seaIceIsWet = SeaIceIsWet;
         foreach (var (x, z) in FootprintSamples(ox, oz, w, l))
         {
-            if (_generator.IsSurfaceWater(planet, x, z) || _generator.IsSurfaceLava(planet, x, z))
+            if (_generator.IsSurfaceWater(planet, x, z) || _generator.IsSurfaceLava(planet, x, z)
+                || (seaIceIsWet && _generator.SurfaceIceThickness(planet, x, z) > 0))
             {
                 return true;
             }
@@ -1552,6 +1584,11 @@ public sealed partial class GameServer
 
         return false;
     }
+
+    /// <summary>#2738: whether this world's structure searches count sea ice as water — from
+    /// <see cref="WorldDescription.SeaIceWetGeneration"/>, new saves only (an older world keeps every placement bit for
+    /// bit). Landing pads never ask: landing on a frozen sea is by design, and the pads anchor every structure search.</summary>
+    private bool SeaIceIsWet => _generator.TerrainGeneration >= WorldDescription.SeaIceWetGeneration;
 
     private int FootprintSpread(PlanetType planet, int ox, int oz, int w, int l)
     {
@@ -1889,6 +1926,25 @@ public sealed partial class GameServer
     /// <summary>Test seam for the per-vendor theme derivation (B55).</summary>
     public static string VendorThemeForTest(string locationName, int vendorIndex, string baseTheme)
         => VendorThemeFor(locationName, vendorIndex, baseTheme);
+
+    /// <summary>#2739: the trade of one vendor among several on a space station — the first vendor keeps the station's
+    /// "traders" identity; every further one rolls from the station id alone below
+    /// <see cref="WorldDescription.WorldSeededStationsGeneration"/> (<see cref="VendorThemeFor"/>, the same vendors at "the
+    /// same" station in every world) and from the mixed hash of the id salted with the world seed from it.</summary>
+    internal static string StationVendorThemeFor(string stationId, int vendorIndex, long worldSeed, int terrainGeneration)
+        => vendorIndex <= 0 || !HasWorldSeededStations(terrainGeneration)
+            ? VendorThemeFor(stationId, vendorIndex, StationBaseTheme)
+            : SettlementTrades[StableHashing.Index(StationTradeSalt + stationId + ":vendor:" + vendorIndex.ToString(System.Globalization.CultureInfo.InvariantCulture), worldSeed, SettlementTrades.Length)];
+
+    /// <summary>A station's own trade — what its first vendor sells and every other crew member wears (B55).</summary>
+    private const string StationBaseTheme = "traders";
+
+    /// <summary>The prefix that keeps the station vendor roll apart from every other roll keyed by a station id (#2739).</summary>
+    private const string StationTradeSalt = "trade:station:";
+
+    /// <summary>The trade of a station's <paramref name="vendorIndex"/>-th vendor in this save (#2739).</summary>
+    private string StationVendorTheme(string stationId, int vendorIndex)
+        => StationVendorThemeFor(stationId, vendorIndex, _meta.Seed, _meta.Description.TerrainGeneration);
 
     /// <summary>The trade theme of the nearest vendor in reach of the player (<see cref="MarketStock.VendorReach"/>), or
     /// empty when none is (B55) — an inspection view. Themed goods are per actual vendor, not one theme per location, so

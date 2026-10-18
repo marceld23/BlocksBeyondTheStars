@@ -103,6 +103,37 @@ internal sealed class StoryLeadCache
     /// <summary>The lead the last marker went up for (<see cref="ResolvedStoryLead.Identity"/>).</summary>
     public string MarkedFor { get; set; } = string.Empty;
 
+    /// <summary>#2742: the body the lead's ground marker stands on — empty while there is none. The marker is a persistent
+    /// private story marker (no 30-second ping any more): it stays until the lead is followed or the current lead changes.</summary>
+    public string MarkerLocationId { get; set; } = string.Empty;
+
+    /// <summary>#2742: where the lead's marker stands.</summary>
+    public Vector3f MarkerAt { get; set; }
+
+    /// <summary>#2742: the marker's label — the lead's objective key …</summary>
+    public string MarkerKey { get; set; } = string.Empty;
+
+    /// <summary>#2742: … and the value of its <c>{0}</c> (the chip's argument).</summary>
+    public string MarkerArg { get; set; } = string.Empty;
+
+    /// <summary>#2742: the <see cref="MarkedFor"/> identity the marker belongs to (a stale one is never shown).</summary>
+    public string MarkerFor { get; set; } = string.Empty;
+
+    /// <summary>#2742: drops the lead's marker. Returns whether there was one.</summary>
+    public bool ClearMarker()
+    {
+        if (MarkerLocationId.Length == 0)
+        {
+            return false;
+        }
+
+        MarkerLocationId = string.Empty;
+        MarkerKey = string.Empty;
+        MarkerArg = string.Empty;
+        MarkerFor = string.Empty;
+        return true;
+    }
+
     /// <summary>#2476: the lead a story mission's lead bridge on the chip resolves to (its placed text, its marker, the heal tank's
     /// spot) — resolved again only when the step or <see cref="MissionSignature"/> changed.</summary>
     public ResolvedStoryLead? MissionLead { get; set; }
@@ -330,6 +361,11 @@ public sealed partial class GameServer
 
         lead.Done = true;
         s.StoryLeads.Epoch++; // the chip moves on to the next lead
+        if (s.StoryLeads.MarkerFor == lead.Identity && s.StoryLeads.ClearMarker())
+        {
+            SendMarkers(s); // #2742: the followed lead's marker goes at once (the next 1 Hz pass marks the next lead)
+        }
+
         _repo.SavePlayer(s.State);
         _log.Info($"Story lead {lead.ChapterId}:{lead.Number} ({lead.Lead.Type}) followed by '{s.State.Name}'.");
         TryAlternativeMemory(s, StoryMemoryTriggers.Lead);
@@ -764,9 +800,11 @@ public sealed partial class GameServer
            && _worlds.Find(s.CurrentLocationId ?? string.Empty) is { } world
            && WorldConstants.WrapDistanceSquared(tank, s.State.Position, world.World.Circumference) <= HealTankLeadReach * HealTankLeadReach;
 
-    /// <summary>The marker of a new current lead, once per lead and place: a ping on the player's world that only they see, or
-    /// their space waypoint for a body of their system. Not while the VEGA hints are muted (the story's chip follows that
-    /// switch), not for an older client (its chip shows no lead); a fragment keeps its shared map signal
+    /// <summary>The marker of a new current lead, once per lead and place: a story marker on the player's world that only they
+    /// see (#2742: it stays until the lead is followed or the current lead changes — it used to be a 30-second ping raised
+    /// once, gone before VEGA's line was read), or their space waypoint for a body of their system. Hidden while the VEGA
+    /// hints are muted (the story's chip follows that switch — <see cref="LiveLeadMarker"/>, so un-muting brings it back),
+    /// never for an older client (its chip shows no lead); a fragment keeps its shared map signal
     /// (<see cref="RevealFragmentSignals"/>).</summary>
     private void MarkCurrentLead(PlayerSession s, StoryLeadCache cache)
     {
@@ -786,18 +824,31 @@ public sealed partial class GameServer
         }
 
         cache.MarkedFor = identity;
-        if (lead is null || s.VegaHintsMuted || !s.SupportsPacks)
+        bool hadMarker = cache.ClearMarker(); // a new lead (or none): the old marker goes
+        if (lead is not null && s.SupportsPacks) // an older client shows no lead on its chip — a marker without one would puzzle
         {
-            return; // an older client shows no lead on its chip — a marker without one would puzzle
+            if (lead.GroundTarget is { } at && !InSpace(s.State.PlayerId))
+            {
+                if (s.CurrentLocationId is { Length: > 0 } loc)
+                {
+                    cache.MarkerLocationId = loc;
+                    cache.MarkerAt = at;
+                    cache.MarkerKey = lead.ObjKey;
+                    cache.MarkerArg = lead.ChipArg;
+                    cache.MarkerFor = identity;
+                    SendMarkers(s);
+                    return;
+                }
+            }
+            else if (lead.WaypointId.Length > 0 && !s.VegaHintsMuted)
+            {
+                SendVegaWithObjective(s, new ShipAiLine { Kind = 0, SpaceWaypointId = lead.WaypointId }); // a chip update with the target
+            }
         }
 
-        if (lead.GroundTarget is { } at && !InSpace(s.State.PlayerId))
+        if (hadMarker)
         {
-            RaisePrivatePing(s, at);
-        }
-        else if (lead.WaypointId.Length > 0)
-        {
-            SendVegaWithObjective(s, new ShipAiLine { Kind = 0, SpaceWaypointId = lead.WaypointId }); // a chip update with the target
+            SendMarkers(s);
         }
     }
 

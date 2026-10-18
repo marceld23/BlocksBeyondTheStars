@@ -308,16 +308,26 @@ the old behaviour and are mirrored in `StoryRegistry.BuildVegaProtocol` (no-drif
 | Word | Feasible | Followed by | Marker |
 |---|---|---|---|
 | `fragment` | an unfound net fragment on the player's current world | a NEW fragment find (`story:fragment`) | the fragment's shared map signal, as before (`RevealFragmentSignals`) |
-| `unique_site:observatory\|shrine\|derelict` | the site exists in this save (a surface site's world pinned it, or was never edited — a world stamped before #1129 recorded a skip and never gets it) and the player can reach it (same system, a jump generator, landed there before, instant travel) | landing there / boarding the derelict (`visit:body`, `station:boarded`), or evidence: landed there before | a ping on the site's world, else the space waypoint for a body of the player's system |
-| `monument` | a monument on the player's world whose runes they have not read (scan ledger) | a first reading of a monument (`scan:any` = monument) | a ping at the monument |
-| `settlement_help` | a settlement on the player's world | a board or chain job turned in that counts for the story (`mission:turned_in`) | a ping at the nearest settlement |
+| `unique_site:observatory\|shrine\|derelict` | the site exists in this save (a surface site's world pinned it, or was never edited — a world stamped before #1129 recorded a skip and never gets it) and the player can reach it (same system, a jump generator, landed there before, instant travel) | landing there / boarding the derelict (`visit:body`, `station:boarded`), or evidence: landed there before | a lead marker on the site's world, else the space waypoint for a body of the player's system |
+| `monument` | a monument on the player's world whose runes they have not read (scan ledger) | a first reading of a monument (`scan:any` = monument) | a lead marker at the monument |
+| `settlement_help` | a settlement on the player's world | a board or chain job turned in that counts for the story (`mission:turned_in`) | a lead marker at the nearest settlement |
 | `machines` | the world's rules field machines | a machine destroyed (`defeat:any` machine / space machine) | — |
-| `heal_tank` | the player's ship is landed on their world | standing within 3.5 m of its heal tank (1 Hz check) | a ping at the tank |
+| `heal_tank` | the player's ship is landed on their world | standing within 3.5 m of its heal tank (1 Hz check) | a lead marker at the tank |
 | `research:<bp>` | the blueprint exists | `research:any`, or evidence: already researched | — |
 | `module:<key>` | the module exists | `module:built`, or evidence: already fitted | — |
 | `finale` / `finale_jump` | the finale is open | (the win changes the chapter) | — (the Guardian system is on the star map) |
 | `relay` | the finale is won | `relay:commissioned` / `lane:linked` | — |
 | `explore` | always | never | — |
+
+**The lead marker** (#2742, `MarkCurrentLead`): when the current lead (or a story mission's lead bridge on the chip) has a
+spot on the player's world, it gets a persistent private **story marker** — the same `NetMarker` (`Story = true`,
+`Ping = true` for older clients) as a step's help marker, id `story:lead:<lead identity>`, `LabelKey` = the lead's
+objective key with `LabelArg` filling its `{0}` (the body of a unique site), `PackId` = the world story. It lives on the
+lead cache (`StoryLeadCache.MarkerLocationId` / `MarkerAt` / `MarkerKey` / `MarkerArg` / `MarkerFor`, RAM only), is part
+of `StoryMarkerSignature` (so `SyncStoryMarkers` pushes every change), shows only to its player while they are on its
+body, is hidden while the VEGA hints are muted (un-muting brings it back), and goes when the lead is followed
+(`CompleteLead`) or the current lead changes. Until #2742 it was a 30-second private ping raised once per lead, usually gone
+before VEGA's line was read and never back; the private-ping path is removed.
 
 **Resolution** (`LeadsFor(s)`): only for a player whose story track started; the current chapter's effective leads
 (`StoryLeads.EffectiveLeads`: the chapter's own list, then the stand-ins `fragment`, `settlement_help` it does not list —
@@ -414,7 +424,7 @@ no missions — like the cutscenes, their texts live in the pack, which is what 
 events via `LeadFulfilledBy`, the lead's evidence — blueprint researched, module fitted, site landed on before — and the heal
 tank's spot), shown with the lead's own placed text on the chip where it can be followed from here (`Visit the Sealed
 Observatory on Kepler-3 b`, `Find the net fragment on …` — the fragment's map signal comes with it), else with the step's own
-chip text, and marked like the lead (a private ping / the space waypoint). A step's `onStart.reveal` may also name
+chip text, and marked like the lead (a lead marker / the space waypoint). A step's `onStart.reveal` may also name
 `unique_site:<site>` (the site's spot while the player is on its world).
 
 **Handing out** (`AdvanceStoryMissions`, from the 1 Hz `TickStoryMissions` and after every mission event): for a `packs1`
@@ -478,7 +488,7 @@ map and compass). Queued cutscenes are not part of it — `TickCutscenes` flushe
 Two callers, one per player and second:
 
 - `TickShipAi`, inside the per-world loop, for the players of each loaded world — the active cursor is their world, which a
-  ground marker (`RevealTarget`, a story help marker or a lead's private ping) needs.
+  ground marker (`RevealTarget`, a story help marker or a lead marker) needs.
 - `TickStoryOutsideWorlds` (#2477), after the per-world loop like `TickCutscenes`, for everyone the loop did not reach: a
   pilot cruising after an in-flight hyperjump occupies a body whose world was never loaded, and until #2477 their evidence,
   markers and mission hand-outs waited for the landing (events still booked leads and steps). `GameServer.Tick` records the
@@ -811,7 +821,9 @@ action (`HandleStoryPackIntent`) and otherwise by the 1 Hz story pass (`SyncStor
 last sent). The old `vega.step.marked` ("Follow the pulse!") stays in the locales only for older servers. **During the
 basic training only the step on the objective chip gets a marker** (`MarkerFitsTheChip`: `LiveVegaChip`'s pack and step) —
 no marker for an open extra (a deferred CORE step) or another story's step while the training holds the chip; a refusal
-is not spent. Nothing found → no marker
+is not spent. A CORE "where" step of a non-optional chapter therefore sets its own `markerAfter` below its `hintAfter`
+(b2.3, the berries: 120 s against 180 s — #2742; pinned by
+`TutorialPackTests.EveryCoreWhereStepOfTheBasicTraining_ReachesItsMarkerBeforeItLeavesTheChip`). Nothing found → no marker
 and the marker is **not spent** (#2490: `StepEscalationState.MarkerSent` is set only when a marker went up; a miss records
 `MarkerMissAt` — the player's place as `ground|space|station` + body — and `MarkerMissTime`, and the probe runs again at
 once on a new place or after `MarkerRetrySeconds` = 30 s of play on the same one — at most one probe per 30 s per chip

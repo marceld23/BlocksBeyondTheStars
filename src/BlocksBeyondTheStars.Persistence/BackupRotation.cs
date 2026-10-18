@@ -23,6 +23,10 @@ public static class BackupRotation
     /// on the build that wrote it refuses to open it, so this copy is the way back after a rollback.</summary>
     public const string PreUpgradePrefix = "pre-upgrade_";
 
+    /// <summary>The copy taken before the one-time repair rewrites the hulls of self-built ships an earlier update left
+    /// in old block ids (#2751).</summary>
+    public const string PreHullRepairPrefix = "pre-hull-repair_";
+
     /// <summary>A backup is written under this suffix and renamed when complete, so a copy that was cut short
     /// never looks like a backup.</summary>
     public const string TempSuffix = ".tmp";
@@ -36,7 +40,8 @@ public static class BackupRotation
     public static bool IsRotationLabel(string label)
         => label.StartsWith(AutoPrefix, StringComparison.Ordinal)
            || label.StartsWith(PreRemapPrefix, StringComparison.Ordinal)
-           || label.StartsWith(PreUpgradePrefix, StringComparison.Ordinal);
+           || label.StartsWith(PreUpgradePrefix, StringComparison.Ordinal)
+           || label.StartsWith(PreHullRepairPrefix, StringComparison.Ordinal);
 
     /// <summary>
     /// Deletes the oldest backups of one kind until at most <paramref name="keep"/> remain, and any unfinished

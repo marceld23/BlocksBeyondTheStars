@@ -181,7 +181,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Builds a sprite from the block atlas tile for a material/block key (resolving an
-        /// item's PlacesBlock so e.g. a seed shows its plant tile); null when the key isn't a block.</summary>
+        /// item's PlacesBlock so e.g. a seed shows its plant tile) — or its cube icon when its faces differ
+        /// (<see cref="BlockCubeIcon"/>); null when the key isn't a block.</summary>
         private static Sprite BlockTileSprite(string key, GameBootstrap game)
         {
             if (game == null || game.Atlas == null || game.Content == null)
@@ -206,6 +207,13 @@ namespace BlocksBeyondTheStars.Client
             if (tex == null)
             {
                 return null;
+            }
+
+            // #2744: a block whose faces differ (a machine's front and casing, a log's end grain) is drawn as a cube.
+            var cube = BlockCubeIcon.SpriteFor(game.Atlas, block.NumericId.Value);
+            if (cube != null)
+            {
+                return cube;
             }
 
             var uv = game.Atlas.TileUv(block.NumericId.Value);

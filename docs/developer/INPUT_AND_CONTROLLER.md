@@ -188,14 +188,41 @@ The mapping targets **Xbox / XInput on Windows**. Two places hold every tunable:
    whole fix, and the trigger option can simply stay off until someone confirms its number on that platform.
 
 Since #1219 the dead zone and the pad look speeds are **player settings**, not constants — `Settings →
-Controller` writes `PadDeadzone`, `PadLookX/Y`, `PadInvertY`, `PadGlyphs`, `PadVibration` (stored, no-op:
-the legacy Input Manager has no rumble API) and `PadTriggersMinePlace`. Their defaults are exactly the
+Controller` writes `PadDeadzone`, `PadLookX/Y`, `PadInvertY`, `PadGlyphs`, `PadVibration` (see *Rumble* below)
+and `PadTriggersMinePlace`. Their defaults are exactly the
 values the code used before they were settings, so an existing `client_settings.json` feels unchanged.
 
 CI never compiles or runs the Unity client (`.github/workflows/ci.yml` is .NET-only), and it cannot drive a
 controller, so the pad path is validated by a **local Unity build + manual on-device test**. The
 Unity-free parts (inert-without-pad guarantee, mapping tables, key resolution, glyphs) have EditMode tests
 in `client/Assets/Tests/EditMode/InputAbstractionEditModeTests.cs`.
+
+### Rumble (#2746)
+
+The legacy Input Manager has no motor API, and the Input System package is deliberately **not** added for it. The
+rumble is three pieces:
+
+- **`Client.Core/RumbleMixer`** (pure, headless-tested in `RumbleMixerTests`): every effect adds a pulse — a strength
+  per motor (low = the heavy left motor, high = the light right one, 0..1) that fades linearly over its time; the
+  motors run at the strongest pulse still going (max, never a sum); a frame in which rumble is not allowed returns zero
+  and drops every pulse; trauma under `MinTrauma` (0.05 — the hot hull's per-frame shimmer) never rumbles.
+- **`PadRumble`** (a component on the world root, built by `WorldRig`): steps the mixer once a frame on
+  `Time.unscaledDeltaTime` and sends the levels when they change (1/64 steps). It rumbles only while `PadVibration` is
+  on, `InputMap.ActiveDevice` is the pad, a pad is connected, the window has the focus, no menu holds the game
+  (`MenuOpen`) and the player is not dead (`AwaitingRespawnConfirm`, health 0). The motors stop at once on focus loss,
+  application pause, world teardown (`FxCamera.Reset` → `StopAll`, and the component's own destruction) and quit.
+  Triggers, all the local player's own: the damage pulse (`HudUi`, next to `FxCamera.AddDamageTrauma`), the own shot
+  or swing (`FxCamera.Kick`), camera trauma (`FxCamera.AddTrauma` — explosions, ship hits, hyperspace, a giant's stomp;
+  the ordinary landing kick passes `rumble: false`), a landing at 60 % of the safe fall speed or more (a heavy thump
+  when it hurts), and the own block breaking (`MiningFx`). It is its own setting, independent of the camera-motion
+  comfort switch.
+- **The backend**: XInput's `XInputSetState` via P/Invoke (`xinput1_4.dll`, falling back to `xinput9_1_0.dll`; every
+  pad slot; a missing library is remembered and every error swallowed), compiled only under
+  `(UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN) && !UNITY_WEBGL`. That covers Windows and the Windows build under
+  Proton — Xbox pads and anything presenting itself as one (Steam Input, DS4Windows); a pad Windows only sees through
+  DirectInput does not rumble. WebGL and the native Linux build have no backend: `PadRumble.Supported` is false and the
+  settings row shows `ui.settings.pad_vibration_unsupported` instead of the hint. EditMode tests
+  (`PadRumbleEditModeTests`) drive the component through `BackendOverrideForTest` and the focus / pad / setting seams.
 
 ## Menu navigation
 

@@ -29,13 +29,20 @@ namespace BlocksBeyondTheStars.Client
         public static bool IsStory(NetMarker? marker) => marker is { Story: true };
 
         /// <summary>The story marker's label: the step's objective text — <paramref name="storyText"/> resolves a story key of
-        /// a pack (key, pack id), the way the objective chip does — else the localized "Goal".</summary>
+        /// a pack (key, pack id), the way the objective chip does — with its <c>{0}</c> filled from
+        /// <see cref="NetMarker.LabelArg"/> (#2742: a chapter lead names its body), else the localized "Goal".</summary>
         public static string Label(NetMarker marker, Func<string, string, string> storyText, Func<string, string> localize)
         {
             string text = string.IsNullOrEmpty(marker.LabelKey)
                 ? string.Empty
                 : storyText(marker.LabelKey, marker.PackId ?? string.Empty) ?? string.Empty;
-            return text.Trim().Length > 0 ? text : localize(GoalKey);
+            if (text.Trim().Length == 0)
+            {
+                return localize(GoalKey);
+            }
+
+            string arg = marker.LabelArg ?? string.Empty;
+            return arg.Length > 0 && text.Contains("{0}") ? text.Replace("{0}", arg) : text;
         }
 
         /// <summary>The compass caption: "Goal 120 m".</summary>

@@ -1112,6 +1112,7 @@ public sealed partial class GameServer
             LineId = line.Id,
             Speed = RailRules.PublicTrainSpeed,
             Direction = -1,
+            Facing = -1, // #2741: the cab points down the line, its passenger wagon behind it toward the hall's exit
             Autopilot = true,
         };
         train.Wagons.AddRange(RailRules.PublicTrainWagons);
@@ -1123,6 +1124,13 @@ public sealed partial class GameServer
             train.HaltUntil = _uptime + RailRules.PublicStopHaltSeconds;
             train.HaltStop = cell;
             train.LastStop = cell;
+
+            // Like a train that halts there (#2741): a station near the line's end turns it round while it stands.
+            var (lo, _) = RailRules.CabRange(line.Spline.TotalArc, RailRules.TrainSpan(train.Wagons.Count), train.Facing);
+            if (!line.Closed && train.Arc - lo < RailRules.WagonLength)
+            {
+                train.Direction = 1;
+            }
         }
         else
         {

@@ -214,17 +214,28 @@ public sealed class IntercityRailTests : IDisposable
             Assert.Contains("Stranger", Assert.Single(server.TrainsForTest()).Riders);
             var boarded = stranger.State.Position;
 
-            // Ride: the train runs from station to station and halts at each one for the public halt time.
+            // Ride: the train runs from station to station and halts at each one for the public halt time — at 1/15 s steps
+            // while it runs, so a jump of the rider (#2741: the reversal used to swap the wagons round) shows.
             var stops = ic.Stations.Select(s => s.Stop).ToHashSet();
             var halts = new List<(Vector3i Stop, double Start, double End)>();
-            bool halted = false;
+            bool halted = server.TrainHaltForTest(train.Id).Halted;
             double now = 0, start = 0;
-            Vector3i? at = null;
-            float farthest = 0f;
-            for (int step = 0; step < 1200 && halts.Count < 3; step++)
+            Vector3i? at = server.TrainHaltForTest(train.Id).Stop;
+            float farthest = 0f, worstStep = 0f;
+            float maxStep = 1.5f * RailRules.SpeedTable[RailRules.PublicTrainSpeed - 1] / 15f + 0.05f;
+            for (int step = 0; step < 20000 && halts.Count < 3 && now < 600; step++)
             {
-                server.TickForTest(0.5);
-                now += 0.5;
+                double dt = halted ? 0.5 : 1.0 / 15.0;
+                var was = stranger.State.Position;
+                server.TickForTest(dt);
+                now += dt;
+                if (!halted)
+                {
+                    float sx = (float)WorldConstants.WrapDeltaX((double)(stranger.State.Position.X - was.X), server.World.Circumference);
+                    float sy = stranger.State.Position.Y - was.Y, sz = stranger.State.Position.Z - was.Z;
+                    worstStep = Math.Max(worstStep, (float)Math.Sqrt(sx * sx + sy * sy + sz * sz));
+                }
+
                 var h = server.TrainHaltForTest(train.Id);
                 if (h.Halted && !halted)
                 {
@@ -232,8 +243,12 @@ public sealed class IntercityRailTests : IDisposable
                     start = now;
                     at = h.Stop;
                     var cab = server.WagonPoseForTest(train.Id, 0)!.Value.Pos;
+                    var tailWagon = server.WagonPoseForTest(train.Id, train.Wagons.Count - 1)!.Value.Pos;
                     Assert.True(h.Stop.HasValue && stops.Contains(h.Stop.Value), "the train halts at a station's stop");
-                    Assert.True(Distance(cab, h.Stop!.Value) < 5f, "the cab stands at the stop");
+                    // #2741: the wagon that led the train in stands at the stop — the cab one way, the passenger wagon the
+                    // other — and the whole train stands in the hall.
+                    Assert.True(Math.Min(Distance(cab, h.Stop!.Value), Distance(tailWagon, h.Stop.Value)) < 5f, "the leading wagon stands at the stop");
+                    Assert.True(Math.Max(Distance(cab, h.Stop.Value), Distance(tailWagon, h.Stop.Value)) < RailStationGenerator.Length - 4, "the train stands in the hall");
                 }
                 else if (!h.Halted && halted)
                 {
@@ -244,6 +259,8 @@ public sealed class IntercityRailTests : IDisposable
                 float dx = (float)WorldConstants.WrapDeltaX((double)(stranger.State.Position.X - boarded.X), server.World.Circumference), dz = stranger.State.Position.Z - boarded.Z;
                 farthest = Math.Max(farthest, (float)Math.Sqrt(dx * dx + dz * dz));
             }
+
+            Assert.True(worstStep <= maxStep, $"the rider jumped {worstStep:0.00} blocks in one tick (at most {maxStep:0.00})");
 
             Assert.True(halts.Count >= 3, $"three halts in ten minutes (saw {halts.Count})");
             Assert.InRange(halts[0].End - halts[0].Start, 0.0, RailRules.PublicStopHaltSeconds + 0.6); // the first halt began at load
@@ -295,6 +312,7 @@ public sealed class IntercityRailTests : IDisposable
             Assert.True(RailRules.IsPublic(train.OwnerId));
             Assert.Equal(RailRules.PublicTrainWagons, train.Wagons);
             Assert.Equal(line.Id, train.LineId);
+            Assert.Equal(-1, reloaded.TrainFacingForTest(train.Id)); // #2741: the saved facing, not the direction it ran
             foreach (var st in back.Value.Stations)
             {
                 Assert.NotNull(reloaded.CrystalDeviceOutput(st.Stop));

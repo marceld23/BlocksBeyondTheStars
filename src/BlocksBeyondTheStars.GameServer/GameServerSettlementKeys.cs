@@ -55,6 +55,9 @@ public sealed partial class GameServer
 
     private const string SettlementKeyPrefix = "settle_";
 
+    /// <summary>The prefix of a station's place key (<see cref="StationLocationKey"/>, <c>station_&lt;n&gt;</c>).</summary>
+    private const string StationKeyPrefix = "station_";
+
     /// <summary>The tail of a memory entry the old <c>LocationKeyOfMission</c> filed a camp bounty's quartermaster under
     /// (<c>settle_123_bounty_camp:quartermaster</c>) — re-filed onto the real quartermaster by the migration.</summary>
     private const string LegacyBountyInfix = "_bounty";
@@ -121,6 +124,64 @@ public sealed partial class GameServer
     /// <summary>The quest giver's name of a settlement of the ACTIVE world (#2698: its place from generation 26).</summary>
     private string SettlementGiverName(SettlementInstance s)
         => SettlementGiverNameFor(s.Name, SettlementPlaceKey(s), _meta.Description.TerrainGeneration);
+
+    /// <summary>#2739: whether a world of <paramref name="terrainGeneration"/> seeds a space station's quartermaster and its
+    /// extra vendors' themes with the world — from <see cref="WorldDescription.WorldSeededStationsGeneration"/>, new saves
+    /// only: an older world keeps every station's people and goods bit for bit.</summary>
+    internal static bool HasWorldSeededStations(int terrainGeneration) => terrainGeneration >= WorldDescription.WorldSeededStationsGeneration;
+
+    /// <summary>#2739: the coined name of a space station's quest giver (its board's quartermaster) in a world of
+    /// <paramref name="worldSeed"/> and <paramref name="terrainGeneration"/>. Below
+    /// <see cref="WorldDescription.WorldSeededStationsGeneration"/> it is coined from the station id alone
+    /// (<see cref="CoinGiverName"/> — and station ids repeat in every world, so every world met the same quartermaster at
+    /// "the same" station); from it the name generator is seeded from the mixed hash of the id salted with the world seed.
+    /// The quartermaster NPC, the board's jobs, the raider bounty and a chain step's default giver
+    /// (<see cref="ChainGiverFallbackName"/>) all read it here, so the person and their jobs carry one name.</summary>
+    internal static string StationGiverNameFor(string stationId, long worldSeed, int terrainGeneration)
+        => HasWorldSeededStations(terrainGeneration)
+            ? NameGenerator.Person(new System.Random(StableHashing.Seed32(StationGiverSalt + stationId, worldSeed)))
+            : CoinGiverName(stationId);
+
+    /// <summary>The prefix that keeps the station giver-name roll apart from every other roll keyed by a station id (#2739).</summary>
+    private const string StationGiverSalt = "giver:station:";
+
+    /// <summary>The quest giver's name of a space station in this save (#2739: world-seeded from generation 27).</summary>
+    private string StationGiverName(string stationId)
+        => StationGiverNameFor(stationId, _meta.Seed, _meta.Description.TerrainGeneration);
+
+    /// <summary>#2739: the station whose place key (<see cref="StationLocationKey"/>) this is, or null — a known station
+    /// (player-built and derelict ones are registered at load, procedural ones on first need) first, then every station
+    /// body of the galaxy and each system's synthesised <c>-st-local</c> fallback, so a chain step taken at a station still
+    /// finds its quartermaster after a restart, wherever the player is.</summary>
+    private string? StationIdOfPlaceKey(string placeKey)
+    {
+        foreach (var id in _stationsById.Keys)
+        {
+            if (StationLocationKey(id) == placeKey)
+            {
+                return id;
+            }
+        }
+
+        foreach (var system in _galaxy.Systems)
+        {
+            foreach (var body in system.Bodies)
+            {
+                if (body.Kind == CelestialKind.SpaceStation && StationLocationKey(body.Id) == placeKey)
+                {
+                    return body.Id;
+                }
+            }
+
+            string local = system.Id + "-st-local";
+            if (StationLocationKey(local) == placeKey)
+            {
+                return local;
+            }
+        }
+
+        return null;
+    }
 
     /// <summary>The pre-#2693 mission-id prefix of a settlement board — the ids players took before the update.</summary>
     private static string LegacySettlementBoardPrefix(string settlementName) => LegacySettlementLocationKey(settlementName) + "_";
@@ -274,8 +335,11 @@ public sealed partial class GameServer
     /// before #2693 keeps its giver's name, and so does every new one at the same village. From it (#2698): the settlement's
     /// own quest giver (<see cref="SettlementGiverName"/>) — a chain's default giver is the quartermaster, whose memory entry
     /// the board's jobs share, so the person never carries two names. A new settlement key of a village on another body
-    /// still gets that village's quest giver (the gen-26 name depends on the place key alone); any other place (a station,
-    /// an unmigrated old key) coins from the key itself.</summary>
+    /// still gets that village's quest giver (the gen-26 name depends on the place key alone); any other place (an
+    /// unmigrated old key, a station below generation 27) coins from the key itself. #2739: from
+    /// <see cref="WorldDescription.WorldSeededStationsGeneration"/> a station's key (<c>station_&lt;n&gt;</c>, unchanged) names
+    /// the station's own quartermaster (<see cref="StationGiverName"/>) — before, the key's coinage was a second name for
+    /// the person the quartermaster's id coinage already named.</summary>
     private string ChainGiverFallbackName(string placeKey)
     {
         int generation = _meta.Description.TerrainGeneration;
@@ -287,6 +351,12 @@ public sealed partial class GameServer
                     ? SettlementGiverName(s)
                     : CoinGiverName(LegacySettlementLocationKey(s.Name));
             }
+        }
+
+        if (HasWorldSeededStations(generation) && placeKey.StartsWith(StationKeyPrefix, StringComparison.Ordinal)
+            && StationIdOfPlaceKey(placeKey) is { } stationId)
+        {
+            return StationGiverName(stationId);
         }
 
         return HasPlaceAwareSettlementNames(generation)
@@ -640,4 +710,9 @@ public sealed partial class GameServer
     /// "I've got something more for you" names its giver).</summary>
     public IReadOnlyList<string> DialogRadioPendingNamesForTest(string playerId)
         => _dialogRadioPending.Where(c => c.PlayerId == playerId).Select(c => c.NpcName).ToList();
+
+    /// <summary>Test/inspection (#2739): every NPC of the active world in spawn order — role, job, name, theme (a boarded
+    /// station's crew, whose NPCs carry no settlement).</summary>
+    public IReadOnlyList<(string Role, string Job, string Name, string Theme)> NpcCrewForTest()
+        => _npcs.Select(n => (n.Role, n.Job, n.Name, n.Theme)).ToList();
 }

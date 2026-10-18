@@ -128,8 +128,8 @@ namespace BlocksBeyondTheStars.Client
         // each lip continues its own strip past the strip's front edge, so a painted helmet frames the face in
         // the painting. LipBand is how much of the chunk the lip re-samples beyond that edge.
         private const int LipNone = 0;
-        private const int LipOuterRight = 1;   // the lip's outer corner meets the chunk's u = 1 edge (the left bar)
-        private const int LipOuterLeft = 2;    // … the chunk's u = 0 edge (the right bar)
+        private const int LipOuterRight = 1;   // the lip's outer corner meets the chunk's u = 1 edge (the right bar, #2750)
+        private const int LipOuterLeft = 2;    // … the chunk's u = 0 edge (the left bar, #2750)
         private const int LipOuterTop = 3;     // … the chunk's v = 1 edge (the chin)
         private const int LipOuterBottom = 4;  // … the chunk's v = 0 edge (the top)
         private const float LipBand = 0.125f;
@@ -404,17 +404,18 @@ namespace BlocksBeyondTheStars.Client
         private void BuildSuit()
         {
             // Helmet shell in the torso material: tints with the player's suit colour. The five shell cubes
-            // are the paintable "helmet" part (#874): right/back/left/chin/top strips. The front stays open (the
+            // are the paintable "helmet" part (#874): left/back/right/chin/top strips. The front stays open (the
             // face must show), but the four bars' front LIPS — the frame around the face — continue their strips
-            // (#1776; chunk order right 0 | back 1 | left 2 | chin 3 | top 4). The visor band stays procedural.
+            // (#1776; chunk order left 0 | back 1 | right 2 | chin 3 | top 4 — the walk round the head as you see it,
+            // #2750). The visor band stays procedural.
             RegisterPaintLip(BodyPaint.Helmet, 0,
                 AddCube("SuitHelmetTop", _head, new Vector3(0f, 0.56f, 0f), new Vector3(1.16f, 0.16f, 1.16f), _torso), 4, LipOuterBottom);
             RegisterPaint(BodyPaint.Helmet, 0,
                 AddCube("SuitHelmetBack", _head, new Vector3(0f, 0.04f, -0.55f), new Vector3(1.16f, 1.2f, 0.14f), _torso));
             RegisterPaintLip(BodyPaint.Helmet, 0,
-                AddCube("SuitHelmetL", _head, new Vector3(-0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso), 2, LipOuterRight);
+                AddCube("SuitHelmetL", _head, new Vector3(-0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso), 0, LipOuterLeft);
             RegisterPaintLip(BodyPaint.Helmet, 0,
-                AddCube("SuitHelmetR", _head, new Vector3(0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso), 0, LipOuterLeft);
+                AddCube("SuitHelmetR", _head, new Vector3(0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso), 2, LipOuterRight);
             RegisterPaintLip(BodyPaint.Helmet, 0,
                 AddCube("SuitHelmetChin", _head, new Vector3(0f, -0.56f, 0.03f), new Vector3(1.16f, 0.14f, 1.1f), _torso), 3, LipOuterTop);
 
@@ -441,6 +442,12 @@ namespace BlocksBeyondTheStars.Client
             _suitPack.Add(AddCube("SuitTankR", transform, new Vector3(0.09f, 1.42f, -0.33f), new Vector3(0.10f, 0.34f, 0.06f), tankMat));
         }
 
+        // The arm's three paintable segments in the shoulder frame at rest (arm hanging along −y, its front +z): the
+        // centres and sizes the painting is projected over (#874) — and what the first-person hand samples (#2755).
+        private static readonly Vector3 ArmUpperCenter = new Vector3(0f, -0.21f, 0f), ArmUpperSize = new Vector3(0.16f, 0.42f, 0.16f);
+        private static readonly Vector3 ArmLowerCenter = new Vector3(0f, -0.63f, 0f), ArmLowerSize = new Vector3(0.15f, 0.42f, 0.15f);
+        private static readonly Vector3 ArmHandCenter = new Vector3(0f, -0.92f, 0f), ArmHandSize = new Vector3(0.2f, 0.16f, 0.2f);
+
         private Transform AddArm(string name, float x, out Transform elbow, out Transform hand)
         {
             // Paint frame = the shoulder pivot at rest; registered centres are the segment centres in that
@@ -448,18 +455,36 @@ namespace BlocksBeyondTheStars.Client
             int row = x < 0f ? 0 : 1; // editor rows: top = left limb, bottom = right limb
             var shoulder = NewPivot(name, transform, new Vector3(x, 1.5f, 0f));
             RegisterPaint(BodyPaint.Arms, row,
-                AddCube(name + "Upper", shoulder, new Vector3(0f, -0.21f, 0f), new Vector3(0.16f, 0.42f, 0.16f), _arms),
-                new Vector3(0f, -0.21f, 0f));
+                AddCube(name + "Upper", shoulder, new Vector3(0f, -0.21f, 0f), ArmUpperSize, _arms),
+                ArmUpperCenter);
             elbow = NewPivot(name + "Elbow", shoulder, new Vector3(0f, -0.42f, 0f));
             RegisterPaint(BodyPaint.Arms, row,
-                AddCube(name + "Lower", elbow, new Vector3(0f, -0.21f, 0f), new Vector3(0.15f, 0.42f, 0.15f), _arms),
-                new Vector3(0f, -0.63f, 0f));
+                AddCube(name + "Lower", elbow, new Vector3(0f, -0.21f, 0f), ArmLowerSize, _arms),
+                ArmLowerCenter);
             hand = NewPivot(name + "Hand", elbow, new Vector3(0f, -0.44f, 0f));
             // Suited players wear gloves (arm colour); NPCs keep bare hands.
             RegisterPaint(BodyPaint.Arms, row,
-                AddCube(name + "HandMesh", hand, new Vector3(0f, -0.06f, 0f), new Vector3(0.2f, 0.16f, 0.2f), _suit ? _arms : _skin),
-                new Vector3(0f, -0.92f, 0f));
+                AddCube(name + "HandMesh", hand, new Vector3(0f, -0.06f, 0f), ArmHandSize, _suit ? _arms : _skin),
+                ArmHandCenter);
             return shoulder;
+        }
+
+        /// <summary>
+        /// #2755: the painted mesh of the arm's lower segment (or, with <paramref name="hand"/>, its hand box) exactly as
+        /// the avatar draws it — a unit cube in the shoulder frame (arm down −y, front +z), each side face its own arm
+        /// chunk, unmirrored, projected over the whole arm's rest-pose box. Row 0 = the left arm, 1 = the right. The
+        /// first-person hand turns it onto its forearm and fist, so it shows the very painting of the third-person arm.
+        /// The caller owns the mesh.
+        /// </summary>
+        public static Mesh PaintedArmMesh(int row, bool hand)
+        {
+            var min = Vector3.Min(Vector3.Min(ArmUpperCenter - ArmUpperSize * 0.5f, ArmLowerCenter - ArmLowerSize * 0.5f),
+                ArmHandCenter - ArmHandSize * 0.5f);
+            var max = Vector3.Max(Vector3.Max(ArmUpperCenter + ArmUpperSize * 0.5f, ArmLowerCenter + ArmLowerSize * 0.5f),
+                ArmHandCenter + ArmHandSize * 0.5f);
+            return hand
+                ? BuildPaintedMesh(ArmHandCenter, ArmHandSize, min, max, BodyPaint.Arms, row)
+                : BuildPaintedMesh(ArmLowerCenter, ArmLowerSize, min, max, BodyPaint.Arms, row);
         }
 
         private Transform AddLeg(string name, float x, out Transform knee)
@@ -1796,34 +1821,45 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Which atlas chunk each cube-face direction samples (index: +x, −x, +y, −y, +z, −z;
-        /// −1 = no chunk → the solid-tint pad). Chunk indices are canvas-global (right limb = row 1 → +4).</summary>
+        /// −1 = no chunk → the solid-tint pad). Chunk indices are canvas-global (right limb = row 1 → +4).
+        /// The figure faces +z, so its own left is −x.</summary>
         private static int[] FaceChunks(int part, int row)
         {
             if (part == BodyPaint.Helmet)
             {
-                // Strip: right | back | left | chin | top. No front — the helmet is open there.
-                return new[] { 0, 2, 4, 3, -1, 1 };
+                // Strip: left | back | right | chin | top — walking round the head as you see it (#2750). No front —
+                // the helmet is open there.
+                return new[] { 2, 0, 4, 3, -1, 1 };
             }
 
             int b = row * 4; // arms/legs: right limb chunks live in canvas row 1
-            if (part == BodyPaint.Torso || row == 1)
+            if (part == BodyPaint.Torso || row == 0)
             {
-                // Front | Right(+x) | Back | Left(−x) — a counterclockwise walk around the box, so the
-                // strip regions stay edge-continuous. The right limb's "outer" side is +x, matching.
-                return new[] { b + 1, b + 3, -1, -1, b + 0, b + 2 };
+                // Front | Left(−x) | Back | Right(+x): standing in front of the figure, the strip's right edge runs on
+                // round its left side, then the back, then its right side (#2750) — edge-continuous as you look at it.
+                // The left limb's "outer" side is −x, matching.
+                return new[] { b + 3, b + 1, -1, -1, b + 0, b + 2 };
             }
 
-            // Left limb: outer is −x, inner +x — same labels, mirrored sides.
-            return new[] { b + 3, b + 1, -1, -1, b + 0, b + 2 };
+            // Right limb: outer is +x, inner −x — the same labels on the mirrored sides.
+            return new[] { b + 1, b + 3, -1, -1, b + 0, b + 2 };
         }
 
         // Per cube face (order +x, −x, +y, −y, +z, −z): outward normal, the direction canvas-u grows in
-        // (r), and the direction canvas-v grows in (w). r×w = normal; the (r, w) choices make every face
-        // appear as an outside viewer sees it (u to the viewer's right), matching the editor labels.
-        // The triangle winding for these corners is set in BuildPaintedMesh — see the note there.
+        // (r), and the direction canvas-v grows in (w). Every face reads as someone outside sees it (#2750): u to the
+        // observer's RIGHT, v up — the top as seen from in front of the figure (its far edge up), the bottom from
+        // below with the front up. In Unity's left-handed frame that is r × w = −normal (right × up = the view
+        // direction). The painting used to use r × w = +normal, the mirror view: canvas-left landed on the observer's
+        // right and text read backwards. The winding below is the natural BL → TL → TR one for these corners.
         private static readonly Vector3[] FaceN = { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
-        private static readonly Vector3[] FaceR = { Vector3.back, Vector3.forward, Vector3.right, Vector3.right, Vector3.right, Vector3.left };
+        private static readonly Vector3[] FaceR = { Vector3.forward, Vector3.back, Vector3.left, Vector3.left, Vector3.left, Vector3.right };
         private static readonly Vector3[] FaceW = { Vector3.up, Vector3.up, Vector3.back, Vector3.forward, Vector3.up, Vector3.up };
+
+        /// <summary>The painted unit-cube mesh of one body-paint segment (<see cref="BuildPaintedMesh"/>, no helmet lip):
+        /// public so the EditMode tests can pin that every painted face reads unmirrored (#2750). The caller owns the
+        /// mesh.</summary>
+        public static Mesh PaintedSegmentMesh(int part, int row, Vector3 center, Vector3 size, Vector3 bbMin, Vector3 bbMax)
+            => BuildPaintedMesh(center, size, bbMin, bbMax, part, row);
 
         /// <summary>Builds a unit-cube mesh for one segment whose UVs project the part's atlas planar per
         /// axis: painted faces map the corner's position within the row's bounding box into their chunk's
@@ -1887,35 +1923,35 @@ namespace BlocksBeyondTheStars.Client
                         float yf = size.y > 0f ? (p.y - (center.y - size.y * 0.5f)) / size.y : 0.5f; // 0 = bottom
                         switch (lip)
                         {
-                            case LipOuterRight: u = 1f - xf * LipBand; vv = YFrac(p, bbMin, ext); break;          // left bar: outer = −x
-                            case LipOuterLeft: u = (1f - xf) * LipBand; vv = YFrac(p, bbMin, ext); break;         // right bar: outer = +x
-                            case LipOuterTop: u = XFrac(p, bbMin, ext); vv = 1f - yf * LipBand; break;            // chin: outer = bottom
-                            default: u = XFrac(p, bbMin, ext); vv = (1f - yf) * LipBand; break;                   // top: outer = top
+                            case LipOuterRight: u = 1f - (1f - xf) * LipBand; vv = YFrac(p, bbMin, ext); break;   // right bar: outer = +x
+                            case LipOuterLeft: u = xf * LipBand; vv = YFrac(p, bbMin, ext); break;                // left bar: outer = −x
+                            case LipOuterTop: u = 1f - XFrac(p, bbMin, ext); vv = 1f - yf * LipBand; break;       // chin: outer = bottom
+                            default: u = 1f - XFrac(p, bbMin, ext); vv = (1f - yf) * LipBand; break;              // top: outer = top
                         }
 
                         uvs[v] = new Vector2(rect.xMin + Mathf.Clamp01(u) * rect.width, rect.yMin + Mathf.Clamp01(vv) * rect.height);
                         continue;
                     }
 
+                    // u runs along FaceR (to the observer's right), v along FaceW (#2750).
                     switch (f)
                     {
-                        case 0: u = Mathf.InverseLerp(bbMax.z, bbMin.z, p.z); vv = YFrac(p, bbMin, ext); break; // +x
-                        case 1: u = Mathf.InverseLerp(bbMin.z, bbMax.z, p.z); vv = YFrac(p, bbMin, ext); break; // −x
-                        case 2: u = XFrac(p, bbMin, ext); vv = Mathf.InverseLerp(bbMax.z, bbMin.z, p.z); break;  // +y
-                        case 3: u = XFrac(p, bbMin, ext); vv = Mathf.InverseLerp(bbMin.z, bbMax.z, p.z); break;  // −y
-                        case 4: u = XFrac(p, bbMin, ext); vv = YFrac(p, bbMin, ext); break;                      // +z
-                        default: u = Mathf.InverseLerp(bbMax.x, bbMin.x, p.x); vv = YFrac(p, bbMin, ext); break; // −z
+                        case 0: u = Mathf.InverseLerp(bbMin.z, bbMax.z, p.z); vv = YFrac(p, bbMin, ext); break;      // +x: u → +z
+                        case 1: u = Mathf.InverseLerp(bbMax.z, bbMin.z, p.z); vv = YFrac(p, bbMin, ext); break;      // −x: u → −z
+                        case 2: u = 1f - XFrac(p, bbMin, ext); vv = Mathf.InverseLerp(bbMax.z, bbMin.z, p.z); break; // +y: u → −x
+                        case 3: u = 1f - XFrac(p, bbMin, ext); vv = Mathf.InverseLerp(bbMin.z, bbMax.z, p.z); break; // −y: u → −x
+                        case 4: u = 1f - XFrac(p, bbMin, ext); vv = YFrac(p, bbMin, ext); break;                     // +z: u → −x
+                        default: u = XFrac(p, bbMin, ext); vv = YFrac(p, bbMin, ext); break;                         // −z: u → +x
                     }
 
                     uvs[v] = new Vector2(rect.xMin + Mathf.Clamp01(u) * rect.width, rect.yMin + Mathf.Clamp01(vv) * rect.height);
                 }
 
-                // Winding: BL→TR→TL / BL→BR→TR. The intuitive BL→TL→TR order renders BACK-facing in
-                // Unity here (playtest 2026-08-09: every painted part showed as a hollow shell with the
-                // near face culled) — with these corners the front face needs the reversed order.
+                // Winding: BL→TL→TR / BL→TR→BR — clockwise as the observer sees the face, Unity's front face. (The
+                // mirrored basis before #2750 needed the reversed order, which was the tell that it was mirrored.)
                 int t = f * 6, b0 = f * 4;
-                tris[t] = b0; tris[t + 1] = b0 + 2; tris[t + 2] = b0 + 1;
-                tris[t + 3] = b0; tris[t + 4] = b0 + 3; tris[t + 5] = b0 + 2;
+                tris[t] = b0; tris[t + 1] = b0 + 1; tris[t + 2] = b0 + 2;
+                tris[t + 3] = b0; tris[t + 4] = b0 + 2; tris[t + 5] = b0 + 3;
             }
 
             var mesh = new Mesh { vertices = verts, normals = normals, uv = uvs, triangles = tris };

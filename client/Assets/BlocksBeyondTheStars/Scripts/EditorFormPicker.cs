@@ -104,8 +104,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Draws a form's icon into <paramref name="raw"/>: the form on the block's tile (the in-game
-        /// <see cref="ShapeIconFactory"/>), the plain tile for the cube and for Automatic. Without an atlas the
-        /// image stays empty and the caption carries the meaning.</summary>
+        /// <see cref="ShapeIconFactory"/>), the plain tile for the cube and for Automatic — or, for a block whose faces
+        /// differ, its drawn cube (#2744, <see cref="BlockCubeIcon"/>). Without an atlas the image stays empty and the
+        /// caption carries the meaning.</summary>
         public static void PaintIcon(RawImage raw, BlockTextureAtlas atlas, ushort tileId, int shape)
         {
             if (raw == null)
@@ -123,8 +124,7 @@ namespace BlocksBeyondTheStars.Client
             else if (atlas != null && atlas.Texture != null)
             {
                 raw.enabled = true;
-                raw.texture = atlas.Texture;
-                raw.uvRect = atlas.TileUv(tileId);
+                BlockCubeIcon.Apply(raw, atlas, tileId);
             }
             else
             {

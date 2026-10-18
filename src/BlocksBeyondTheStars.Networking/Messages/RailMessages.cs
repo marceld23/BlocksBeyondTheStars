@@ -38,8 +38,13 @@ public sealed class NetTrain
     /// <summary>The speed setting 1..3 (see <c>RailRules.SpeedTable</c>).</summary>
     public int Speed { get; set; } = 1;
 
-    /// <summary>+1 along increasing arc, −1 against it.</summary>
+    /// <summary>The way the train runs: +1 along increasing arc, −1 against it.</summary>
     public int Direction { get; set; } = 1;
+
+    /// <summary>The way the cab points (#2741), fixed for the train's life: the wagons hang behind the cab and face this
+    /// way, whichever way the train runs (<c>RailRules.WagonArc</c>). Contractless-additive: 0 from an older server, whose
+    /// wagons followed <see cref="Direction"/> — <c>RailRules.PoseFacing</c> reads it as the direction then.</summary>
+    public int Facing { get; set; }
 
     public bool Autopilot { get; set; }
 

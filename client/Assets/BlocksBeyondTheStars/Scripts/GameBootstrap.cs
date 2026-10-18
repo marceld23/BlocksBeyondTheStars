@@ -634,14 +634,22 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Player-founded planet bases (Grundstein) on the current world, for the planet map markers.</summary>
         public NetBase[] Bases { get; private set; } = System.Array.Empty<NetBase>();
 
-        /// <summary>Fixed landing pads + occupancy for the most-recently-known body (item 38): the active body
-        /// (world map markers) or the body the pad chooser asked about. Keyed by <see cref="LandingPadsBody"/>.</summary>
+        /// <summary>Fixed landing pads + occupancy of the most recent <see cref="LandingPadList"/> (item 38) — the pad
+        /// chooser's slot: it gates on <see cref="LandingPadsBody"/> matching the body it asked about. The world map reads
+        /// <see cref="LandingPadsFor"/> instead (#2740), since any list — a padless body the chooser looked at — lands here.</summary>
         public NetLandingPad[] LandingPads { get; private set; } = System.Array.Empty<NetLandingPad>();
         public string LandingPadsBody { get; private set; } = string.Empty;
 
         /// <summary>The day fraction (0..1) the player arrives at when landing on <see cref="LandingPadsBody"/> —
         /// drives the day/night terminator on the pad chooser map (local time at a pad = this + padX/circ).</summary>
         public float LandingPadsTimeOfDay { get; private set; } = 0.35f;
+
+        /// <summary>#2740: every body's last pad list, keyed by body id — a list for one body never overwrites another's.</summary>
+        public LandingPadLists LandingPadBook { get; } = new LandingPadLists();
+
+        /// <summary>#2740: the pads of <paramref name="bodyId"/> (the world map passes the active body), or null when no
+        /// list for it has arrived yet.</summary>
+        public NetLandingPad[] LandingPadsFor(string bodyId) => LandingPadBook.PadsFor(bodyId);
         public string NearbyStation;
 
         /// <summary>The placed crafting-station block the player is aiming at (workbench, forge, …) or null —
@@ -2919,7 +2927,13 @@ namespace BlocksBeyondTheStars.Client
             Network.BeamTeleportedReceived += m => RespawnTarget = new Vector3(m.X, m.Y, m.Z); // snap the body onto the destination pad
             Network.BasesReceived += m => Bases = m.Bases ?? System.Array.Empty<NetBase>();
             Network.FactoriesReceived += m => Factories = m.Factories ?? System.Array.Empty<NetFactory>();
-            Network.LandingPadsReceived += m => { LandingPads = m.Pads ?? System.Array.Empty<NetLandingPad>(); LandingPadsBody = m.BodyId ?? string.Empty; LandingPadsTimeOfDay = m.TimeOfDay; };
+            Network.LandingPadsReceived += m =>
+            {
+                LandingPads = m.Pads ?? System.Array.Empty<NetLandingPad>();
+                LandingPadsBody = m.BodyId ?? string.Empty;
+                LandingPadsTimeOfDay = m.TimeOfDay;
+                LandingPadBook.Apply(m); // #2740: per body — the world map reads the active body's list from here
+            };
             Network.SystemWeatherReceived += m => SystemWeather.Apply(m, Time.realtimeSinceStartupAsDouble); // #2173
             Network.StarMapReceived += m => { StarMap = m; RebuildWikiState(); };
             Network.ExploredMapReceived += m => { if (!string.IsNullOrEmpty(m.BodyId)) ExploredMaps[m.BodyId] = m; };
@@ -4924,6 +4938,7 @@ namespace BlocksBeyondTheStars.Client
             CreatureVoiceBank.Clear();
             WorldMinimap.ClearCache(); // baked body previews — same static-cache trap (#966)
             SystemWeather.Clear();     // #2173: the old system's weather must not paint the next world's planets
+            LandingPadBook.Clear();    // #2740: nor its pad lists the next world's map
 
             if (ChunkMaterial != null)
             {

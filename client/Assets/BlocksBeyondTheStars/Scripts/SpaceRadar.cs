@@ -62,6 +62,7 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Color DebrisCol = new Color(0.85f, 0.55f, 0.3f);  // #2353: dusty copper — wreckage to salvage
         private static readonly Color CapsuleCol = new Color(0.4f, 0.95f, 0.85f); // #2353: a sealed salvage capsule
         private static readonly Color PilotCol = new Color(1f, 0.5f, 0.88f);      // #2710: a co-op pilot — a pink no entity uses
+        private static readonly Color SystemPilotCol = new Color(1f, 0.5f, 0.88f, 0.55f); // #2737: a friend in another flight of the system
 
         /// <summary>#2241: the anomaly's blip shimmers through teal and its neighbours, like the bubble itself.</summary>
         private static Color AnomalyCol(float t) => Color.HSVToRGB(0.42f + Mathf.Sin(t * 1.5f) * 0.08f, 0.55f, 1f);
@@ -320,6 +321,39 @@ namespace BlocksBeyondTheStars.Client
                     blip.gameObject.SetActive(true);
                     SetRimLabel(slot, string.IsNullOrEmpty(rp.Name) ? null : rp.Name, PilotCol, v);
                     SetVertMark(slot, SpaceRadarMath.VerticalState(dir.y), PilotCol, v, pinned);
+                }
+            }
+
+            // #2737: friends flying near the system's OTHER bodies (another flight instance, already in this frame) — a
+            // smaller, dimmer pink blip with their name, pinned to the rim like a far pilot: "your friend is that way".
+            var systemPilots = Game.Space.SystemPilots;
+            if (systemPilots != null)
+            {
+                string me = Game.LocalPlayerId;
+                foreach (var sp in systemPilots)
+                {
+                    if (!SpaceRadarMath.IsRadarPilot(sp.PlayerId, me))
+                    {
+                        continue;
+                    }
+
+                    var dir = new Vector3(sp.X, sp.Y, sp.Z) - pilot;
+                    var flat = SpaceRadarMath.Project(dir.x, dir.z, _headingX, _headingZ);
+                    var v = new Vector2(flat.Right, flat.Ahead) * scale;
+                    bool pinned = v.magnitude > Radius;
+                    if (pinned)
+                    {
+                        v = v.normalized * Radius;
+                    }
+
+                    int slot = i;
+                    var blip = Blip(i++);
+                    blip.rectTransform.anchoredPosition = v;
+                    blip.rectTransform.sizeDelta = new Vector2(7f, 7f);
+                    blip.color = SystemPilotCol;
+                    blip.gameObject.SetActive(true);
+                    SetRimLabel(slot, string.IsNullOrEmpty(sp.Name) ? null : sp.Name, SystemPilotCol, v);
+                    SetVertMark(slot, SpaceRadarMath.VerticalState(dir.y), SystemPilotCol, v, pinned);
                 }
             }
 

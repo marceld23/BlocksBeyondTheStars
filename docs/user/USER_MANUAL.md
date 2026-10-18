@@ -117,7 +117,10 @@ Last updated: 2026-10-04.
   `singleplayer-saves/<world>/backups/`: one after every 60 minutes of play (the newest five are kept) and one
   right before a game update changes the world's block set or first opens a world saved by an older version
   (`pre-upgrade_…` — after that, the older version no longer opens it). To go back, close the game and copy a
-  backup over `world.db`. A world that was last saved by a **newer** version of the game is not opened by an
+  backup over `world.db`. A self-built ship that an older update left unable to launch ("needs a helm / an engine
+  / a door" although they are all there) is repaired once when the world is opened, after a copy
+  (`pre-hull-repair_…`); if the game cannot tell for sure how the hull looked, it leaves the ship as it is. A world
+  that was last saved by a **newer** version of the game is not opened by an
   older one — the game says so and leaves the world untouched. On the **Official Worlds** the same holds: a
   save from a newer game version than the server's is refused at upload, and a world the server cannot open
   yet says so when you join it (the worlds page on the portal and the in-game *Official Worlds* list mark it
@@ -161,7 +164,7 @@ Last updated: 2026-10-04.
 | **Mouse** | Look |
 | **Space** | Jump — **hold in the air to fire the jetpack** (if you **wear** one — the back slot on the Inventory's **Suit** tab); with a **glider** on your back instead, **hold it while falling to glide** (needs air — not on airless worlds or in space); **in water: swim up / surface**; **jump at a wall while pushing towards it and hold Space to hold on and climb** — on the wall you hold on as long as you hold Space; let go and you slide down (see §5 → Climbing walls) |
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
-| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included); climb **down** ladders; **drop off a wall you are climbing**; descend in zero-g. Other players see you **squat** (and their heads follow where they look) — your own avatar squats in the third-person view too |
+| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included — on a parked ship's decks and roof and in a monorail wagon too); climb **down** ladders; **drop off a wall you are climbing**; descend in zero-g. Other players see you **squat** (and their heads follow where they look) — your own avatar squats in the third-person view too |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected; **shoot** the energy rope with the rope gun selected, see §5) |
 | **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner; with the **suit teleporter** selected it opens the destination picker — back to ship / to an ally, see §5; with the **energy rope gun** selected, **hold** it to reel yourself in along the rope) |
 | **Mouse wheel** | Cycle hotbar slot |
@@ -266,8 +269,12 @@ if a worn stick drifts on its own), separate **look speeds left/right and up/dow
 normal sensitivity, **invert up/down for the pad only**, **mine and place on the triggers** (extra to
 LB/RB — switch it off again if your controller mines by itself, which some pads do because they report
 their triggers differently), the **button names** shown in hints (Xbox, PlayStation or Nintendo — the
-buttons themselves do not change, only what we call them), and a **vibration** switch whose setting is
-remembered but which nothing acts on yet. The controls lines at the bottom of the HUD — on foot, in flight and
+buttons themselves do not change, only what we call them), and a **vibration** switch: with it on, the controller
+rumbles when you are hit, fire your own weapon or swing, something explodes nearby, your ship is hit or jumps through
+hyperspace, you land hard, and a block you mine breaks. It only rumbles while you are playing on the controller and the
+game window has the focus, never in a menu, and it stops at once when you die or leave the world. It is separate from the
+camera-motion comfort switch. Vibration works on Windows (also in the Windows build on Linux via Proton) with Xbox-style
+controllers; in the browser and in the native Linux build it is not available, and the row says so. The controls lines at the bottom of the HUD — on foot, in flight and
 on a spacewalk — follow these settings: they use the chosen button names (a PlayStation pad reads "R1 fire ·
 (Square) land/dock"), show your rebound buttons, and add the triggers to mine, place and fire once you switch
 them on. A control you leave without a pad button simply drops out of the flight and spacewalk lines. Walking
@@ -362,10 +369,15 @@ way, with the distance next to it; it pulses gently while that enemy is shooting
 *Reduce flashes*). Other enemies attacking you get a small **red tick** on the same ring (up to four), and
 your **nav waypoint** from the chart (**M**) gets an **amber arrow** with its distance too.
 
-- **What you can lock:** enemies, pilots and traders within your **radar** range (1 300 km, 3 000 km with a
-  radar array) — what the radar shows, you can lock — stations, wrecks, life pods, anomalies and wormholes anywhere in the system, and everything
-  while the Quantum scanner's system sweep lasts. A lock that drifts out of range shows **Target lost** and
-  lets go after a moment. **Asteroids** are locked with *Target ahead* — and, with the asteroid breaker or the
+- **What you can lock:** enemies and traders within your **radar** range (1 300 km, 3 000 km with a
+  radar array) — what the radar shows, you can lock — stations, wrecks, life pods, anomalies, wormholes and
+  **your friends** anywhere in the system, and everything while the Quantum scanner's system sweep lasts. A lock
+  that drifts out of range shows **Target lost** and lets go after a moment.
+- **Finding a friend:** another player is always lockable while you both fly in the same star system — the arrow
+  points the way and shows the distance (a friend is only a navigation target; your weapons ignore the lock). A
+  friend who took off from **another planet or moon** of the system appears as a **dimmer pink dot** on the radar,
+  and their lock reads **Flying near …** with that body's name: land there and take off again to fly together.
+- **Asteroids** are locked with *Target ahead* — and, with the asteroid breaker or the
   starter laser selected while nobody is attacking, the three nearest within that laser's reach are in the **T**
   cycle too.
 - **By itself:** with nothing locked, the ship locks onto an enemy the moment it starts attacking — VEGA
@@ -985,7 +997,8 @@ players.
   once it's full (and only while you're aboard). Salvage you scoop up while flying in space goes straight
   into the cargo hold. While you're aboard the ship, crafting draws from **both** at once. Asteroid ore that
   finds no room **floats at the rock** instead of vanishing; a tractor beam pulls it in from 16 m, without one
-  you fly through it. Floating salvage survives a landing — it is still there when you launch again.
+  you fly through it. Floating salvage survives a landing and a server restart — it is still there when you
+  launch again.
 - **Stow everything in one go:** aboard, press **H** (anywhere in the ship with no storage crate in reach) — or
   **E** at the cargo station, which opens the **Cargo Hold** page. "Stow all" moves your loose **materials,
   components and blocks** into the hold; your tools, weapons and suit gear stay with you (a spare helmet too), and
@@ -1262,7 +1275,7 @@ players.
     skipped; without hunger there is no eating lesson; in **Creative** crafting is free and the research lesson is
     skipped; a lesson like the berries or the campfire is skipped where no bush or tree grows nearby.
   - **Help when stuck:** after about three minutes on one task VEGA gives a more concrete hint; for "where?" tasks
-    (iron ore, for example) she later marks the nearest spot — only for you — with a **violet goal flag** on your planet map
+    (iron ore, for example) she later marks the nearest spot (for the berries already after two minutes) — only for you — with a **violet goal flag** on your planet map
     (**M**), labelled with the task, and on your **compass** ("Goal 85 m"). The flag stays until you have done or
     skipped the task (on another world it waits for your return); during the basic training she marks only the task
     shown on the objective bar. For docking she sets the nearest
@@ -1434,7 +1447,10 @@ players.
   switches to another pilot who comes clearly closer. VEGA warns the pilot it has spotted.
 - **Finding each other:** the space radar shows every other pilot in your orbit as a **pink** blip with their name —
   flying, on a spacewalk or walking inside their parked ship. A friend beyond radar range stays on the radar's rim in
-  their direction, like a station, so you can always fly over (NPC traders are not on it).
+  their direction, like a station, so you can always fly over (NPC traders are not on it). You can **lock** a friend
+  from anywhere in the star system (**T**) — the arrow shows the way and the distance. A friend who took off from
+  another planet or moon of the system is a **dimmer pink** dot, and the lock says **Flying near …** that body: land
+  there and take off again to fly in the same orbit.
 - **A friend on a spacewalk** floats in their own spacesuit, with their name above them, and their ship stays where
   they left it — engines off — until they climb back in. So you can build a station side by side.
 
@@ -1534,6 +1550,9 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
   over your start planet. Other systems may have none — if the basic training's docking lesson finds no station in
   your system, VEGA has you trade with a settlement vendor instead of sending you to a star you cannot reach yet.
   A **derelict station** (see *Mysteries* below) never counts as that station: nobody lives or trades there.
+- **Every world has its own station people** (worlds created since generation 27): a station's quartermaster and
+  what its extra traders sell are rolled per world, so your start station in a new world greets you with a new face.
+  The first trader always sells the station's usual goods. Older worlds keep the crews you know.
 - **Build your own**: deploy a **Station Core** on a spacewalk (press **B**), build a hull + an airlock door
   around it, and it commissions into a boardable station on the star map. An ally may help and even set the last
   block — the station, its default name, the "commissioned" message and the achievement stay the owner's (an owner who
@@ -2039,6 +2058,10 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Treasure chests** are standalone lootable caches scattered away from settlements. Each is looted
   **once** and holds richer salvage than ordinary drops — and they are the main world source of a rare
   **SPS access code**.
+- **Nothing hides under a frozen sea** (worlds created since generation 27): villages, camps, ruins, chests and the
+  other buildings stand on dry land — and where one has to go onto a frozen sea, it stands on stilts **above** the ice,
+  never on the seabed under it. A **crashed wreck** near your landing spot lies on dry land too, or on top of the ice
+  (or floating at the water line) when there is no dry ground close by. Your ship may still land on thick sea ice.
 - **SPS access codes** (`access_code`) are the rare item used to claim a factory as your base. You get them
   two ways, both uncommon: as loot from a **treasure chest**, or by **buying** one from a trader's **Market**
   (a steep barter recipe, in stock only every third day). Keep one if you find it — it's your key to turning a factory into a home.
@@ -2546,8 +2569,9 @@ called **stories**:
   "VEGA: Visit the Sealed Observatory on …", "VEGA: Read the runes of a monument on this world", "VEGA: Help a
   settlement: do a job from its board", "VEGA: Go to the heal tank aboard your ship", "VEGA: Research the blueprint:
   Radar Array", … Each chapter has one or two; the chip shows the first one you can follow from where you are, and
-  when it has a place, a marker only you see points at it (a ping on this world, or your flight target for a body in
-  this star system; a fragment keeps its signal on the map). Follow it and the chip moves on to the next — the Journal
+  when it has a place, a marker only you see points at it (a **violet goal flag** on this world's map and your compass,
+  labelled with the lead and there until you follow it, or your flight target for a body in this star system; a fragment
+  keeps its signal on the map). Follow it and the chip moves on to the next — the Journal
   lists the chapter's leads with **✔** for done. When nothing here fits, the chip suggests a fragment or a settlement job
   on this world, else **"Explore …"**. Leads never hold the story back: the story moments still come with the world's
   progress, whatever you do.
@@ -2755,7 +2779,10 @@ called **stories**:
 ### Travel & the star map
 - Open **Tab → Map**. The system list is grouped: **Current system** at the top (its reachable worlds, plus
   the **Launch into space / Leave space** button), then **Hyperspace** for the other systems. Selecting a
-  system you've visited shows its worlds and an animated mini star map on the right.
+  system you've visited shows its worlds and a small chart of the system on the right — the real layout, like the
+  flight chart (**M** in space): the star in the middle, every planet and asteroid on its orbit ring where it really
+  is, moons and stations right beside their planet, a belt as one faint band. The world you are on is the bright,
+  larger dot; the one you picked has a white ring.
 - **Quick-travel** ("Travel" / "Hyperjump" on a world) is gated by the **Instant Travel** world option
   (Character tab, world admin):
   - **Off (default):** you can only quick-travel to worlds you've already **landed on manually**. To reach a
@@ -3222,7 +3249,9 @@ look up: what a mix does follows from what goes in, and the same things always g
   inside, **you walk around while it moves** — the wagon is your ground, wagon to wagon through the open ends — or sit
   down on a seat (E beside it; jump or move to stand up). **E in the cab** opens the panel: **speed 1–3**, **halt / go**,
   **autopilot** (the train runs by itself, halts at every stop, and turns round at the ends of an open line — on a
-  loop it just keeps going). **F** or walking out of the open side leaves the train; you are set down beside it.
+  loop it just keeps going). When it turns round, the wagons stay exactly where they are and simply run the other way,
+  so nobody aboard is thrown about — on the way back the cab pushes the train from behind, and at a stop the wagon in
+  front halts at the stop. **F** or walking out of the open side leaves the train; you are set down beside it.
   Allies may ride your train. The owner **packs it up** from the cab panel or with the stow key beside it: the cab
   and every wagon come back as items. A fall taken aboard is never a fall.
 - Other riders on the same train are placed inside the wagons exactly as your game draws them, so nobody slides
@@ -3342,10 +3371,12 @@ look up: what a mix does follows from what goes in, and the same things always g
   snaps to the closest palette entry. Faces drawn at the old 16×16 size still work — they are scaled up
   automatically the first time you open them.
 - **The body parts** are painted **one face at a time at full size**. The part's faces are stacked as small
-  labelled **live tiles** beside the canvas (Front / Right / Back / Left; arms and legs get one tile column per
-  limb, headed Left/Right) — click a tile to paint that face, and the tiles update while you draw so you always
-  see the whole part. **Clear** wipes only the face you are on, and a fill never runs over onto another face.
-  The helmet's front stays open, so your face always shows.
+  labelled **live tiles** beside the canvas (Front / Left / Back / Right — your figure's own left and right, in the
+  order you walk round it; arms and legs get one tile column per limb, headed Left/Right) — click a tile to paint
+  that face, and the tiles update while you draw so you always see the whole part. **Clear** wipes only the face
+  you are on, and a fill never runs over onto another face. Every face shows on your figure exactly as you paint
+  it — the left of the canvas on the left as you look at that face, so writing reads the right way round. The
+  helmet's front stays open, so your face always shows.
 - **Outfits** — the column on the right keeps up to **eight named looks** (the four body colours, your pixel
   face and all four paintings). Type a name and press **Save outfit** to store what you are wearing (a new
   outfit, or an update of the one that already has that name); **click a row to put that outfit on** — every

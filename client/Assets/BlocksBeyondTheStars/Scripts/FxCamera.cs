@@ -32,12 +32,19 @@ namespace BlocksBeyondTheStars.Client
         private static float _trauma;
         private static float _fovPunch;  // degrees, eases back
 
-        /// <summary>Adds shake trauma (0..1). A light hit ≈ 0.15, an explosion nearby ≈ 0.6.</summary>
-        public static void AddTrauma(float amount)
+        /// <summary>Adds shake trauma (0..1). A light hit ≈ 0.15, an explosion nearby ≈ 0.6. #2746: it also rumbles the
+        /// gamepad (explosions, ship hits, hyperspace, a giant's stomp) unless <paramref name="rumble"/> is false — trauma
+        /// under <see cref="RumbleMixer.MinTrauma"/> (a hot hull's shimmer) never does. The rumble is its own setting,
+        /// independent of the camera-motion comfort switch.</summary>
+        public static void AddTrauma(float amount, bool rumble = true)
         {
             if (Finite(amount))
             {
                 _trauma = Mathf.Clamp01(_trauma + Mathf.Max(0f, amount));
+                if (rumble)
+                {
+                    PadRumble.Trauma(amount);
+                }
             }
         }
 
@@ -52,8 +59,13 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>A recoil kick of <paramref name="degrees"/> upward pitch that springs back (weapons).</summary>
-        public static void Kick(float degrees) => KickSpring.Kick(degrees);
+        /// <summary>A recoil kick of <paramref name="degrees"/> upward pitch that springs back (weapons — only the local
+        /// player's own shots and swings kick). #2746: the shot also rumbles the gamepad.</summary>
+        public static void Kick(float degrees)
+        {
+            KickSpring.Kick(degrees);
+            PadRumble.WeaponKick(degrees);
+        }
 
         /// <summary>A brief FOV widening (boost, hyperjump arrival, a heavy shot).</summary>
         public static void FovPunch(float degrees)
@@ -91,12 +103,13 @@ namespace BlocksBeyondTheStars.Client
             fov = _fovPunch * scale;
         }
 
-        /// <summary>Clears all camera feel (world teardown, cinematics).</summary>
+        /// <summary>Clears all camera feel (world teardown, cinematics) — and stops the gamepad's motors (#2746).</summary>
         public static void Reset()
         {
             _trauma = 0f;
             KickSpring.Reset();
             _fovPunch = 0f;
+            PadRumble.StopAll();
         }
 
         private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);

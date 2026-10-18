@@ -107,10 +107,18 @@ public sealed partial class GameServer
            || IsFactoryProtected(pos, string.Empty, false)
            || IsBaseProtected(pos, string.Empty, false);
 
+    /// <summary>#2747: the one spelling of a cell that every fire structure (timer, hop count, woken set, saved row)
+    /// is keyed by — the twin of <see cref="FluidCell"/> (#2447). The world wraps X (and Z) on each read and write,
+    /// but the automaton reaches neighbours as <c>pos ± 1</c>: a flame crossing the seam was keyed at x = −1 or
+    /// x = circumference, while stamping it out (a canonical mine position) missed that key — and a cell re-lit
+    /// under the canonical spelling burned under two keys at once.</summary>
+    private Vector3i FireCell(Vector3i p) => WorldConstants.CanonicalBlock(p, _world.Circumference);
+
     /// <summary>Sets a flammable cell alight: it becomes a fire block that will spread + burn down to ash.
     /// <paramref name="generation"/> is how many hops the flame has travelled from the cell that started it.</summary>
     private void Ignite(Vector3i pos, int generation = 0)
     {
+        pos = FireCell(pos);
         if (_fireId == 0 || _fireTimer.ContainsKey(pos) || !IsFlammable(_world.GetBlock(pos).Value))
         {
             return;
@@ -142,6 +150,7 @@ public sealed partial class GameServer
     /// within what the automaton has to tolerate anyway (a world nobody is on doesn't tick at all).</para></summary>
     private void TrackFire(Vector3i pos, float remaining, int generation, bool persist = true)
     {
+        pos = FireCell(pos);
         _fireTimer[pos] = remaining;
         _fireGeneration[pos] = generation;
         if (persist)
@@ -154,6 +163,7 @@ public sealed partial class GameServer
     /// replaced. Safe to call for cells that were never burning.</summary>
     private void UntrackFire(Vector3i pos)
     {
+        pos = FireCell(pos);
         _fireGeneration.Remove(pos);
         if (_fireTimer.Remove(pos))
         {
@@ -164,14 +174,48 @@ public sealed partial class GameServer
     /// <summary>Restores this world's persisted burning cells and wakes them, so a fire keeps burning down
     /// across a restart instead of fossilising (#784). Like the fluid loader this deliberately doesn't read
     /// blocks here (that would force chunk generation at load) — the tick's own stale-cell check drops any row
-    /// whose block is no longer fire.</summary>
+    /// whose block is no longer fire.
+    /// <para>A row written before the keys were canonical (#2747) is moved to the canonical cell, in one
+    /// transaction. A cell that ended up with a row under each spelling keeps the shorter remaining burn and the
+    /// higher hop count — the flame that is further gone, so the merge never makes a fire burn longer or reach
+    /// further than either row would have.</para></summary>
     private void LoadFireState()
     {
-        foreach (var cell in _repo.ListFireCells(_world.LocationId))
+        var rows = new Dictionary<Vector3i, (float Remaining, int Generation)>();
+        List<(Vector3i Stored, Vector3i Cell)>? moved = null;
+        foreach (var row in _repo.ListFireCells(_world.LocationId))
         {
-            _fireTimer[cell.WorldPosition] = Math.Clamp((float)cell.Remaining, 0.1f, FireBurnTime);
-            _fireGeneration[cell.WorldPosition] = Math.Max(0, cell.Generation);
-            _activeFire.Add(cell.WorldPosition);
+            var cell = FireCell(row.WorldPosition);
+            float remaining = Math.Clamp((float)row.Remaining, 0.1f, FireBurnTime);
+            int generation = Math.Max(0, row.Generation);
+            if (!cell.Equals(row.WorldPosition))
+            {
+                (moved ??= new List<(Vector3i, Vector3i)>()).Add((row.WorldPosition, cell));
+            }
+
+            rows[cell] = rows.TryGetValue(cell, out var have)
+                ? (Math.Min(have.Remaining, remaining), Math.Max(have.Generation, generation))
+                : (remaining, generation);
+        }
+
+        foreach (var (cell, state) in rows)
+        {
+            _fireTimer[cell] = state.Remaining;
+            _fireGeneration[cell] = state.Generation;
+            _activeFire.Add(cell);
+        }
+
+        if (moved != null)
+        {
+            _repo.RunInTransaction(() =>
+            {
+                foreach (var (stored, cell) in moved)
+                {
+                    _repo.DeleteFireCell(_world.LocationId, stored);
+                    var state = rows[cell];
+                    _repo.SaveFireCell(_world.LocationId, cell, state.Remaining, state.Generation);
+                }
+            });
         }
     }
 
@@ -250,8 +294,9 @@ public sealed partial class GameServer
         _activeFire.Clear();
         int budget = FireUpdatesPerTick;
 
-        foreach (var pos in todo)
+        foreach (var woken in todo)
         {
+            var pos = FireCell(woken); // already canonical (Ignite + the loader key it) — kept as the one rule
             if (budget-- <= 0)
             {
                 _activeFire.Add(pos); // defer leftover work to the next step

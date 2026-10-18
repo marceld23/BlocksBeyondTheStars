@@ -65,7 +65,7 @@ namespace BlocksBeyondTheStars.Client
                     Kind = "block",
                     Group = string.IsNullOrEmpty(def.Category) ? "building" : def.Category,
                     Color = TileAverage(atlas, def.NumericId.Value, def.Key),
-                    Icon = TileSprite(atlas, def.NumericId.Value),
+                    Icon = BlockSprite(atlas, def.NumericId.Value),
                 });
             }
 
@@ -98,6 +98,11 @@ namespace BlocksBeyondTheStars.Client
                 : "ui.cat." + group;
             return shell?.Localizer != null && shell.Localizer.Has(key) ? shell.L(key) : group;
         }
+
+        /// <summary>The palette icon of a block to build with: its drawn cube when its faces differ (a machine's front
+        /// and casing, #2744 — <see cref="BlockCubeIcon"/>), else its tile; null without an atlas.</summary>
+        internal static Sprite BlockSprite(BlockTextureAtlas atlas, ushort id)
+            => BlockCubeIcon.SpriteFor(atlas, id) ?? TileSprite(atlas, id);
 
         /// <summary>Cuts the block's tile out of the editor-local atlas as a UI sprite; null without an atlas.</summary>
         internal static Sprite TileSprite(BlockTextureAtlas atlas, ushort id)

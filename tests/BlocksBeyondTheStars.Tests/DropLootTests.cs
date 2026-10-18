@@ -428,6 +428,151 @@ public sealed class DropLootTests : IDisposable
         }
     }
 
+    // ---------------- #2748: …and across a server restart ----------------
+
+    /// <summary>Far from the launch point, so no hull flies through it and no tractor reaches it.</summary>
+    private static readonly Vector3f FarAway = new(240f, 60f, -240f);
+
+    [Fact]
+    public void FloatingSalvage_SurvivesAServerRestart_AfterLeavingSpace()
+    {
+        const string world = "float-restart";
+        string instanceId;
+        var server = SpaceServer(world, new RecordingTransport(), out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            instanceId = server.SpaceInstanceIdForTest("Pilot")!;
+            server.AddFloatingSalvageForTest("Pilot", FarAway, "iron_ore", 5);
+            server.LeaveSpace("Pilot"); // the teardown stashes AND writes it
+            Assert.Equal(1, server.FloatingSalvageParkedForTest(instanceId));
+            repo.Flush();
+        }
+
+        var restarted = SpaceServer(world, new RecordingTransport(), out var repo2);
+        using (repo2)
+        {
+            Assert.Equal(1, restarted.FloatingSalvageParkedForTest(instanceId)); // read back at boot
+            restarted.AddLocalPlayer("Pilot");
+            restarted.EnterSpace("Pilot");
+            Assert.Equal(instanceId, restarted.SpaceInstanceIdForTest("Pilot"));
+            var back = Assert.Single(restarted.SpaceEntitiesFor("Pilot"), e => e.Kind == CombatEntityKind.ResourceDrop);
+            var loot = Assert.Single(back.Loot);
+            Assert.Equal("iron_ore", loot.Item);
+            Assert.Equal(5, loot.Count);
+            Assert.Equal(FarAway, back.Position);
+        }
+    }
+
+    [Fact]
+    public void FloatingSalvage_OfAPilotStillInFlight_SurvivesTheShutdown()
+    {
+        const string world = "float-inflight";
+        var server = SpaceServer(world, new RecordingTransport(), out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            server.AddFloatingSalvageForTest("Pilot", FarAway, "copper_ore", 3);
+            server.Stop(); // the shutdown save captures the live instance's drops
+        }
+
+        var restarted = SpaceServer(world, new RecordingTransport(), out var repo2);
+        using (repo2)
+        {
+            restarted.AddLocalPlayer("Pilot");
+            restarted.EnterSpace("Pilot");
+            var back = Assert.Single(restarted.SpaceEntitiesFor("Pilot"), e => e.Kind == CombatEntityKind.ResourceDrop);
+            Assert.Equal("copper_ore", Assert.Single(back.Loot).Item);
+        }
+    }
+
+    [Fact]
+    public void RestoredSalvage_GetsFreshIds_ThatCollideWithNothing()
+    {
+        // Entity ids restart at e1 on every boot: a persisted id would sooner or later name a second entity.
+        const string world = "float-ids";
+        var server = SpaceServer(world, new RecordingTransport(), out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            for (int i = 0; i < 4; i++)
+            {
+                server.AddFloatingSalvageForTest("Pilot", new Vector3f(FarAway.X + i * 3f, FarAway.Y, FarAway.Z), "iron_ore", 1 + i);
+            }
+
+            server.SaveAllForTest();
+        }
+
+        var restarted = SpaceServer(world, new RecordingTransport(), out var repo2);
+        using (repo2)
+        {
+            restarted.AddLocalPlayer("Pilot");
+            restarted.EnterSpace("Pilot");
+            var entities = restarted.SpaceEntitiesFor("Pilot");
+            Assert.Equal(4, entities.Count(e => e.Kind == CombatEntityKind.ResourceDrop));
+            Assert.Equal(entities.Count, entities.Select(e => e.Id).Distinct().Count());
+            Assert.Equal(10, entities.Where(e => e.Kind == CombatEntityKind.ResourceDrop).Sum(e => e.Loot.Sum(l => l.Count)));
+        }
+    }
+
+    [Fact]
+    public void TheWalkaboutTeardown_StashesItsSalvage()
+    {
+        // A pilot who steps inside the floating ship and then quits closes the flight instance through the walkabout
+        // path — its salvage must be stashed (and written) like on a landing.
+        const string world = "float-walkabout";
+        string instanceId;
+        var server = SpaceServer(world, new RecordingTransport(), out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            instanceId = server.SpaceInstanceIdForTest("Pilot")!;
+            server.AddFloatingSalvageForTest("Pilot", FarAway, "iron_ore", 2);
+            server.EnterShipInterior("Pilot");
+            Assert.True(server.SpaceInstanceLoadedForTest(instanceId), "the parked ship keeps the instance");
+
+            server.DisconnectLocalPlayerForTest("Pilot");
+            Assert.False(server.SpaceInstanceLoadedForTest(instanceId));
+            Assert.Equal(1, server.FloatingSalvageParkedForTest(instanceId));
+            repo.Flush();
+        }
+
+        var restarted = SpaceServer(world, new RecordingTransport(), out var repo2);
+        using (repo2)
+        {
+            Assert.Equal(1, restarted.FloatingSalvageParkedForTest(instanceId));
+        }
+    }
+
+    [Fact]
+    public void FloatingSalvage_IsCappedPerInstance_WithoutLosingLoot()
+    {
+        var server = SpaceServer("float-cap", new RecordingTransport(), out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            string instanceId = server.SpaceInstanceIdForTest("Pilot")!;
+            int drops = SvGameServer.MaxFloatingSalvagePerInstance + 5;
+            for (int i = 0; i < drops; i++)
+            {
+                server.AddFloatingSalvageForTest("Pilot", new Vector3f(FarAway.X, FarAway.Y + i, FarAway.Z), "iron_ore", 2);
+            }
+
+            server.LeaveSpace("Pilot");
+            Assert.Equal(SvGameServer.MaxFloatingSalvagePerInstance, server.FloatingSalvageParkedForTest(instanceId));
+
+            server.EnterSpace("Pilot");
+            var back = server.SpaceEntitiesFor("Pilot").Where(e => e.Kind == CombatEntityKind.ResourceDrop).ToList();
+            Assert.Equal(SvGameServer.MaxFloatingSalvagePerInstance, back.Count);
+            Assert.Equal(drops * 2, back.Sum(e => e.Loot.Where(l => l.Item == "iron_ore").Sum(l => l.Count)));
+        }
+    }
+
     // ---------------- #1367: the colliding rule + the shutdown checkpoint ----------------
 
     [Fact]

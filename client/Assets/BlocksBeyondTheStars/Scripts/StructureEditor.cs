@@ -114,7 +114,7 @@ namespace BlocksBeyondTheStars.Client
             EditorSceneKit.Frame(_cam.transform, ref _pitch, _yaw, _design.Keys, MaxW, MaxL); // opening view (#1390)
 
             _view = new EditorVoxelChunkView(transform);
-            _view.SetAtlas(_atlas?.Texture); // real block tiles on placed cells (#1400)
+            _view.SetAtlas(_atlas); // real block tiles on placed cells (#1400), each face its own (#2744)
             _ghost = new EditorPlacementGhost(transform);
             _overlay = new EditorPropOverlay(transform); // placed doors + marker silhouettes (#1975)
             _ghostMeshes = new EditorGhostMeshes();
@@ -640,10 +640,12 @@ namespace BlocksBeyondTheStars.Client
             // as small inset cubes.
             bool textured = false;
             Rect tile = default;
+            ushort blockId = 0;
             if (_atlas != null && pal.Kind != "marker" && Shell?.Content?.GetBlock(pal.Id) is { } def)
             {
                 textured = true;
                 tile = _atlas.TileUv(def.NumericId.Value);
+                blockId = def.NumericId.Value; // #2744: each face its own tile, a front facing the open side
             }
 
             Color baseCol = data.Tint != 0
@@ -667,6 +669,7 @@ namespace BlocksBeyondTheStars.Client
                 Overlay = door || silhouette != null, // the overlay draws it (#1975): the real door / the silhouette
                 Textured = textured,
                 Uv = tile,
+                BlockId = blockId,
             });
 
             if (door)

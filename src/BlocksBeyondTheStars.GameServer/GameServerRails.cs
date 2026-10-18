@@ -92,9 +92,16 @@ public sealed partial class GameServer
         public string Id = string.Empty;
         public string OwnerId = string.Empty;
         public int LineId;
+        /// <summary>The cab's arc position on the line.</summary>
         public float Arc;
         public int Speed = 1;
+
+        /// <summary>The way the train runs along the line: +1 toward increasing arc, −1 against it. Only moves the arc.</summary>
         public int Direction = 1;
+
+        /// <summary>The way the cab points (#2741), fixed when the train is placed: the wagons hang behind it and every
+        /// wagon's heading follows it, so a reversal at a line end (only <see cref="Direction"/> flips) moves nobody.</summary>
+        public int Facing = 1;
         public bool Autopilot = true;
         public bool Halted;
         public double HaltUntil;
@@ -558,7 +565,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            t.Arc = line.Spline.NormalizeArc(t.Arc);
+            ClampTrainArc(t, line);
         }
 
         rails.LinesDirty = false;
@@ -707,6 +714,7 @@ public sealed partial class GameServer
             Arc = bestArc,
             Speed = 1,
             Direction = 1,
+            Facing = 1, // the cab points along the line; the wagons couple toward its start
             Autopilot = true,
         };
         train.Wagons.Add(RailRules.CabItemKey);
@@ -767,6 +775,11 @@ public sealed partial class GameServer
         }
 
         best.Wagons.Add(wagonItem);
+        if (rails.Lines.TryGetValue(best.LineId, out var coupledLine))
+        {
+            ClampTrainArc(best, coupledLine); // #2741: a cab at its range bound moves up so the new wagon is on the line
+        }
+
         SaveRails();
         SendInventory(session);
         BroadcastTrains(force: true);
@@ -860,13 +873,30 @@ public sealed partial class GameServer
     // Poses
     // =====================================================================================================
 
-    /// <summary>Wagon <paramref name="index"/>'s pose (0 = the cab): its centre on the line and its heading in the train's
-    /// direction of travel.</summary>
+    /// <summary>Wagon <paramref name="index"/>'s pose (0 = the cab): its centre on the line and its heading the way the
+    /// train faces (#2741) — not its direction of travel, so a reversal neither moves nor turns a wagon.</summary>
     private (Vector3f Pos, float Yaw) WagonPose(ServerTrain t, RailLine line, int index)
     {
-        float arc = RailRules.WagonArc(t.Arc, index, t.Direction);
-        var (pos, yaw) = line.Spline.PoseAt(line.Spline.NormalizeArc(arc), t.Direction);
+        float arc = RailRules.WagonArc(t.Arc, index, t.Facing);
+        var (pos, yaw) = line.Spline.PoseAt(line.Spline.NormalizeArc(arc), t.Facing);
         return (pos, yaw);
+    }
+
+    /// <summary>The span from the cab to the last wagon (arc length).</summary>
+    private static float TrainSpan(ServerTrain t) => RailRules.TrainSpan(t.Wagons.Count);
+
+    /// <summary>Brings an open line's train arc back into its cab range (#2741: after a coupling, a shortened line), so
+    /// every wagon stands on the line. A loop only wraps.</summary>
+    private static void ClampTrainArc(ServerTrain t, RailLine line)
+    {
+        if (line.Closed)
+        {
+            t.Arc = line.Spline.NormalizeArc(t.Arc);
+            return;
+        }
+
+        var (lo, hi) = RailRules.CabRange(line.Spline.TotalArc, TrainSpan(t), t.Facing);
+        t.Arc = Math.Clamp(t.Arc, lo, hi);
     }
 
     /// <summary>A rider's world position from their wagon and local offset.</summary>
@@ -1161,7 +1191,6 @@ public sealed partial class GameServer
                 continue;
             }
 
-            float before = t.Arc;
             if (t.Halted)
             {
                 if (t.HaltUntil > 0 && _uptime >= t.HaltUntil)
@@ -1179,58 +1208,37 @@ public sealed partial class GameServer
                 if (runs)
                 {
                     float speed = RailRules.SpeedTable[Math.Clamp(t.Speed, 1, 3) - 1];
-                    float next = t.Arc + t.Direction * speed * (float)dt;
-                    if (!line.Closed)
+                    float span = TrainSpan(t);
+                    int dir = t.Direction;
+                    float leadFrom = LeadArc(t, line, t.Arc, dir);
+
+                    // #2741: the arc runs, and on an open line it bounces off the ends of the train's range — only the
+                    // direction flips. The wagons keep their places and headings (they follow the train's facing), so the
+                    // riders, re-derived from their wagons below, ride through the reversal without a jump.
+                    var (arcNow, dirNow) = RailRules.Advance(t.Arc, dir, t.Facing, speed * (float)dt, line.Spline.TotalArc, span, line.Closed);
+                    t.Arc = arcNow;
+                    t.Direction = dirNow;
+
+                    // Autopilot: a stop the leading wagon passed this tick halts the train with that wagon at the stop (once
+                    // per stop, the next stop resets). A reversal splits the tick into the run to the end and the run back.
+                    if (t.Autopilot && line.Stops.Count > 0)
                     {
-                        // Reverse at the ends: the cab's arc runs between the train's own length and the line's end.
-                        float minArc = Math.Max(0f, (t.Wagons.Count - 1) * (RailRules.WagonLength + RailRules.WagonGap));
-                        float total = line.Spline.TotalArc;
-                        if (t.Direction > 0 && next >= total)
+                        if (dirNow != dir && !line.Closed)
                         {
-                            next = total;
-                            t.Direction = -1;
-                            t.Arc = next;
-                            // The train's arc is the CAB's: reversing swaps which end the cab leads from — shift the arc so the
-                            // wagons stay where they are (the cab is now at the other end of the same span).
-                            t.Arc = total - minArc;
-                        }
-                        else if (t.Direction < 0 && next <= 0f)
-                        {
-                            t.Direction = 1;
-                            t.Arc = minArc;
+                            var (lo, hi) = RailRules.CabRange(line.Spline.TotalArc, span, t.Facing);
+                            float bound = dir > 0 ? hi : lo;
+                            if (!HaltAtCrossedStop(t, line, leadFrom, LeadArc(t, line, bound, dir), dir))
+                            {
+                                HaltAtCrossedStop(t, line, LeadArc(t, line, bound, dirNow), LeadArc(t, line, arcNow, dirNow), dirNow);
+                            }
                         }
                         else
                         {
-                            t.Arc = next;
-                        }
-                    }
-                    else
-                    {
-                        t.Arc = line.Spline.NormalizeArc(next);
-                    }
-
-                    // Autopilot: a stop the cab passed this tick halts the train (once per stop, the next stop resets).
-                    if (t.Autopilot && line.Stops.Count > 0)
-                    {
-                        foreach (var (arc, cell) in line.Stops)
-                        {
-                            if (t.LastStop == cell)
-                            {
-                                continue;
-                            }
-
-                            if (Crossed(before, t.Arc, arc, line))
-                            {
-                                t.Halted = true;
-                                t.HaltStop = cell;
-                                t.LastStop = cell;
-                                t.HaltUntil = _uptime + (RailRules.IsPublic(t.OwnerId) ? RailRules.PublicStopHaltSeconds : RailRules.StopHaltSeconds);
-                                t.Arc = arc;
-                                break;
-                            }
+                            HaltAtCrossedStop(t, line, leadFrom, LeadArc(t, line, arcNow, dir), dir);
                         }
 
-                        if (t.LastStop is { } last && !line.Stops.Any(s => s.Cell == last && Math.Abs(NormDelta(t.Arc, s.Arc, line)) < RailRules.WagonLength))
+                        float leadAt = LeadArc(t, line, t.Arc, t.Direction);
+                        if (t.LastStop is { } last && !line.Stops.Any(s => s.Cell == last && Math.Abs(NormDelta(leadAt, s.Arc, line)) < RailRules.WagonLength))
                         {
                             t.LastStop = null; // clear of the last stop: it may catch the train again next lap
                         }
@@ -1256,6 +1264,50 @@ public sealed partial class GameServer
         }
 
         BroadcastTrains();
+    }
+
+    /// <summary>The arc of the train's leading wagon for a train arc and a direction of travel (#2741; a loop's wraps).</summary>
+    private static float LeadArc(ServerTrain t, RailLine line, float arc, int direction)
+    {
+        float lead = RailRules.LeadArc(arc, direction, t.Facing, TrainSpan(t));
+        return line.Closed ? line.Spline.NormalizeArc(lead) : lead;
+    }
+
+    /// <summary>The autopilot's stop check for one straight run of the leading wagon from <paramref name="leadFrom"/> to
+    /// <paramref name="leadTo"/>, travelling <paramref name="travel"/> (#2741): a stop it crossed (not the one it just
+    /// left) halts the train with that wagon at the stop. A stop within a wagon's length of the dead end ahead turns the
+    /// train round while it stands, rather than letting it creep to the end and back after the halt. Returns whether it
+    /// halted.</summary>
+    private bool HaltAtCrossedStop(ServerTrain t, RailLine line, float leadFrom, float leadTo, int travel)
+    {
+        foreach (var (arc, cell) in line.Stops)
+        {
+            if (t.LastStop == cell || !Crossed(leadFrom, leadTo, arc, line))
+            {
+                continue;
+            }
+
+            float span = TrainSpan(t);
+            t.Halted = true;
+            t.HaltStop = cell;
+            t.LastStop = cell;
+            t.HaltUntil = _uptime + (RailRules.IsPublic(t.OwnerId) ? RailRules.PublicStopHaltSeconds : RailRules.StopHaltSeconds);
+            t.Arc = RailRules.ArcForLeadAt(arc, travel, t.Facing, span);
+            t.Direction = travel;
+            ClampTrainArc(t, line);
+            if (!line.Closed)
+            {
+                var (lo, hi) = RailRules.CabRange(line.Spline.TotalArc, span, t.Facing);
+                if ((travel > 0 ? hi - t.Arc : t.Arc - lo) < RailRules.WagonLength)
+                {
+                    t.Direction = -travel;
+                }
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private static float NormDelta(float a, float b, RailLine line)
@@ -1317,6 +1369,7 @@ public sealed partial class GameServer
             Arc = t.Arc,
             Speed = t.Speed,
             Direction = t.Direction,
+            Facing = t.Facing,
             Autopilot = t.Autopilot,
             Halted = t.Halted,
             HaltRemaining = t.Halted && t.HaltUntil > 0 ? (float)Math.Max(0.0, t.HaltUntil - _uptime) : 0f,
@@ -1372,7 +1425,8 @@ public sealed partial class GameServer
 
             tb.Append(t.Id).Append(',').Append(t.OwnerId).Append(',').Append(t.LineId).Append(',')
               .Append(t.Arc.ToString("0.###", CultureInfo.InvariantCulture)).Append(',').Append(t.Speed).Append(',').Append(t.Direction).Append(',')
-              .Append(t.Autopilot ? 1 : 0).Append(',').Append(string.Join("+", t.Wagons));
+              .Append(t.Autopilot ? 1 : 0).Append(',').Append(string.Join("+", t.Wagons))
+              .Append(',').Append(t.Facing); // #2741: appended, so an older server still reads the record
         }
 
         _meta.Trains[_world.LocationId] = tb.ToString();
@@ -1447,6 +1501,9 @@ public sealed partial class GameServer
                     Direction = int.TryParse(f[5], out int dir) && dir < 0 ? -1 : 1,
                     Autopilot = f[6] == "1",
                 };
+
+                // #2741: the facing; a record from before it existed faces its direction (the pose it was saved in).
+                t.Facing = f.Length > 8 && int.TryParse(f[8], out int facing) && facing != 0 ? (facing < 0 ? -1 : 1) : t.Direction;
                 foreach (string w in f[7].Split('+', StringSplitOptions.RemoveEmptyEntries))
                 {
                     t.Wagons.Add(w);
@@ -1500,6 +1557,12 @@ public sealed partial class GameServer
     /// <summary>Test seam (#2113): a wagon's pose.</summary>
     public (Vector3f Pos, float Yaw)? WagonPoseForTest(string trainId, int wagon)
         => Rails.Trains.FirstOrDefault(t => t.Id == trainId) is { } t && Rails.Lines.TryGetValue(t.LineId, out var line) ? WagonPose(t, line, wagon) : null;
+
+    /// <summary>Test seam (#2741): a train's fixed facing (0 when there is no such train).</summary>
+    public int TrainFacingForTest(string trainId) => Rails.Trains.FirstOrDefault(t => t.Id == trainId)?.Facing ?? 0;
+
+    /// <summary>Test seam (#2741): what the clients receive about the trains (the wire message as the server builds it).</summary>
+    public IReadOnlyList<NetTrain> NetTrainsForTest() => TrainListMessage().Trains;
 
     public void EnterTrainForTest(string playerId, string trainId, int wagon, int seat = -1)
     {

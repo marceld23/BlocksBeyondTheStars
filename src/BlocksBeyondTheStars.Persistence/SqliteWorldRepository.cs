@@ -305,6 +305,76 @@ public sealed class SqliteWorldRepository : IWorldRepository
         }
     }
 
+    /// <summary>#2751: what a copy taken before a block-id remap had on record — its file, its block palette and the save
+    /// version of the build that wrote it last (1 when it carries none).</summary>
+    public sealed record PreRemapBackup(string File, IReadOnlyDictionary<ushort, string> Palette, int SaveVersion);
+
+    /// <summary>
+    /// #2751: the finished copies taken before a block-id remap (<see cref="BackupRotation.PreRemapPrefix"/>) in this save's
+    /// backups folder, oldest first, each with the palette and save version it had on record — what the save looked like
+    /// right before that remap. Every copy is opened read-only on a connection of its own and never written; one that
+    /// cannot be read (no palette table, locked, damaged) is skipped. SQLite only: the browser save keeps no such copies.
+    /// </summary>
+    public IReadOnlyList<PreRemapBackup> ReadPreRemapBackups()
+    {
+        var result = new List<PreRemapBackup>();
+        string[] files;
+        try
+        {
+            files = Directory.Exists(_paths.BackupsDirectory)
+                ? Directory.GetFiles(_paths.BackupsDirectory, BackupRotation.PreRemapPrefix + "*")
+                : Array.Empty<string>();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return result;
+        }
+
+        foreach (string file in files.Where(f => f.EndsWith(".db", StringComparison.OrdinalIgnoreCase)).OrderBy(f => f, StringComparer.Ordinal))
+        {
+            try
+            {
+                var connectionString = new SqliteConnectionStringBuilder
+                {
+                    DataSource = file,
+                    Mode = SqliteOpenMode.ReadOnly,
+                    Pooling = false,
+                }.ToString();
+                using var connection = new SqliteConnection(connectionString);
+                connection.Open();
+
+                var palette = new Dictionary<ushort, string>();
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT numeric_id, key FROM block_palette;";
+                    using var reader = cmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        palette[(ushort)reader.GetInt32(0)] = reader.GetString(1);
+                    }
+                }
+
+                int saveVersion = 1;
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT json FROM world_meta WHERE id = 0;";
+                    if (cmd.ExecuteScalar() is string json && JsonSerializer.Deserialize<WorldMetadata>(json, JsonOptions) is { } meta)
+                    {
+                        saveVersion = meta.SaveVersion;
+                    }
+                }
+
+                result.Add(new PreRemapBackup(file, palette, saveVersion));
+            }
+            catch (Exception ex) when (ex is SqliteException or IOException or UnauthorizedAccessException or JsonException)
+            {
+                // not readable as a save copy — skipped
+            }
+        }
+
+        return result;
+    }
+
     private Dictionary<ushort, string> ReadBlockPalette()
     {
         var result = new Dictionary<ushort, string>();

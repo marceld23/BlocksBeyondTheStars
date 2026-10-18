@@ -70,7 +70,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            bool isCore = b.Cell.X == pos.X && b.Cell.Y == pos.Y && b.Cell.Z == pos.Z;
+            bool isCore = WithinBaseZone(b.Cell, pos, 0); // the same cell under either spelling of the seams
             if (!isCore && !WithinBaseZone(b.Cell, pos))
             {
                 continue;
@@ -95,17 +95,22 @@ public sealed partial class GameServer
 
     /// <summary>
     /// Chebyshev (cube) test: is <paramref name="pos"/> within the specified
-    /// half-extent of the base-core?
+    /// half-extent of the base-core? Measured the short way round both seams of the current world (#2752): a
+    /// core a few blocks east of x = 0 protects the cells just west of the seam (x = circumference − n) too,
+    /// whichever spelling either cell arrives in. A radius of 0 asks "the same cell".
     /// </summary>
-    private static bool WithinBaseZone(Vector3i core, Vector3i pos, int radius)
-        => System.Math.Abs(pos.X - core.X) <= radius
-           && System.Math.Abs(pos.Y - core.Y) <= radius
-           && System.Math.Abs(pos.Z - core.Z) <= radius;
+    private bool WithinBaseZone(Vector3i core, Vector3i pos, int radius)
+    {
+        int circ = _world.Circumference;
+        return System.Math.Abs(WorldConstants.WrapDeltaX(pos.X - core.X, circ)) <= radius
+            && System.Math.Abs(pos.Y - core.Y) <= radius
+            && System.Math.Abs(WorldConstants.WrapDeltaZ(pos.Z - core.Z, circ)) <= radius;
+    }
 
     /// <summary>
     /// Chebyshev (cube) test using the base's configured protection radius.
     /// </summary>
-    private static bool WithinBaseZone(Vector3i core, Vector3i pos)
+    private bool WithinBaseZone(Vector3i core, Vector3i pos)
         => WithinBaseZone(core, pos, BaseProtectionRadius);
 
     /// <summary>
@@ -231,7 +236,7 @@ public sealed partial class GameServer
     private void RemoveBaseAt(Vector3i pos)
     {
         string body = _world.LocationId;
-        var basePoint = _bases.FirstOrDefault(b => b.Planet == body && b.Cell.X == pos.X && b.Cell.Y == pos.Y && b.Cell.Z == pos.Z);
+        var basePoint = _bases.FirstOrDefault(b => b.Planet == body && WithinBaseZone(b.Cell, pos, 0));
         if (basePoint is null)
         {
             return;
@@ -283,6 +288,9 @@ public sealed partial class GameServer
         Serve(session);
         PlaceBase(session, pos);
     }
+
+    /// <summary>Whether a cell is base-protected against the given actor on the active world (test seam, #2752).</summary>
+    public bool BaseProtectedForTest(Vector3i pos, string actorId, bool isAdmin = false) => IsBaseProtected(pos, actorId, isAdmin);
 
     /// <summary>Test/util entrypoint: rename a base as a given player (mirrors the rename intent).</summary>
     public void SetBaseNameForTest(PlayerSession session, string bodyId, string name)

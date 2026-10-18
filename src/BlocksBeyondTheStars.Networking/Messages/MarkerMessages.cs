@@ -39,12 +39,18 @@ public sealed class NetMarker
 
     /// <summary>#2570: VEGA's help marker of an open story step — the spot it marked after the player was stuck. It stays
     /// until the step is done or skipped (RAM only, for this one player, shown while they are on its body) and is labelled
-    /// with <see cref="LabelKey"/>. Additive: an older server never sets it.</summary>
+    /// with <see cref="LabelKey"/>. Since #2742 also the marker of the player's current chapter lead (a monument, a
+    /// settlement, the heal tank, a unique site on this world), which stays until the lead is followed or changes.
+    /// Additive: an older server never sets it.</summary>
     public bool Story { get; set; }
 
     /// <summary>#2570: for a <see cref="Story"/> marker, the locale key of the step's objective (the chip text of the story
     /// <see cref="PackId"/>); empty reads as a localized "Goal".</summary>
     public string LabelKey { get; set; } = string.Empty;
+
+    /// <summary>#2742: the value for the <c>{0}</c> of <see cref="LabelKey"/>'s text (a chapter lead's "Visit the Singing
+    /// Shrine on {0}" names the body), or empty. Additive: an older server never sets it.</summary>
+    public string LabelArg { get; set; } = string.Empty;
 
     /// <summary>#2570: the story (pack) a <see cref="Story"/> marker belongs to — the client's text for a key of a story it
     /// lacks reads as the neutral "needs a newer version" note.</summary>

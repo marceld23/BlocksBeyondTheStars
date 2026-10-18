@@ -354,6 +354,20 @@ public sealed class SpaceInstance
     /// never broadcast, so other players' ships only refreshed when a hostile or trader happened to move.</summary>
     public double PilotSyncTimer { get; set; }
 
+    /// <summary>#2737: the body this flight is anchored on — the launch body, or the save's active location for a
+    /// placeholder key (resolved once at creation, like the instance's content); null without a galaxy. The pilots of
+    /// the system's OTHER flights are placed in this frame by the star-map offset of the two anchors.</summary>
+    public CelestialBody? Anchor { get; set; }
+
+    /// <summary>#2737: throttle for a SOLO pilot's refresh of the pilots flying in the system's other flights (with
+    /// company, the pose broadcast above carries them already).</summary>
+    public double SystemPilotSyncTimer { get; set; }
+
+    /// <summary>#2737: whether the last <c>SpaceState</c> sent to this instance carried any
+    /// <see cref="SpaceState.SystemPilots"/> — one more refresh goes out after the last of them landed, so the
+    /// solo pilot's lock on them is released.</summary>
+    public bool SystemPilotsSent { get; set; }
+
     // ---- Peaceful encounters (#1129): at most one life pod / anomaly per instance ----
 
     /// <summary>True once this instance rolled its encounter dice (rolled exactly once per instance).</summary>
@@ -865,9 +879,7 @@ public sealed partial class GameServer
             instance.ShipPoses.Remove(playerId);
             if (instance.Players.Count == 0 && !AnyParkedShipIn(instance)) // #2431: a parked ship keeps the instance
             {
-                StashFloatingSalvage(instance); // #1475: uncollected ore outlives the flight
-                PersistSpaceSalvageLedger();    // #2354: a half-carved wreck keeps its state across the teardown
-                _spaceInstances.Remove(instanceId);
+                TearDownSpaceInstance(instance); // #1475/#2354/#2748: salvage + carve ledger outlive the flight
             }
         }
 
@@ -878,6 +890,16 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>The body id a flight instance key names (<c>space:</c> + the launch body, #1584).</summary>
+    private static string SpaceInstanceAnchorId(string instanceId)
+        => instanceId.StartsWith("space:", StringComparison.Ordinal) ? instanceId.Substring("space:".Length) : instanceId;
+
+    /// <summary>The body a flight instance is anchored on. A never-launched ship still carries its creation placeholder
+    /// (the default planet TYPE, not a body id) as its location, so the true start body resolves through the save's
+    /// active location when the instance key doesn't name a real body. Null without a galaxy.</summary>
+    private CelestialBody? ResolveSpaceInstanceAnchor(string instanceId)
+        => _galaxy?.FindBody(SpaceInstanceAnchorId(instanceId)) ?? _galaxy?.FindBody(_meta.ActiveLocationId);
+
     /// <param name="instanceId">The flight instance key, <c>space:</c> + the body the pilot launches from (#1584).</param>
     /// <param name="hostilityAnchorId">The body id that shades the ambient hostiles — the launch body, or a
     /// never-flown ship's type placeholder (which resolves to no system and so to the Standard shading).</param>
@@ -885,11 +907,9 @@ public sealed partial class GameServer
     {
         var instance = new SpaceInstance { Id = instanceId, Kind = "orbit" };
 
-        string anchorId = instanceId.StartsWith("space:") ? instanceId.Substring("space:".Length) : instanceId;
-        // A never-launched ship still carries its creation placeholder (the default planet TYPE, not a
-        // body id) as its location, so resolve the true start body through the save's active location
-        // when the instance key doesn't name a real body.
-        var anchor = _galaxy?.FindBody(anchorId) ?? _galaxy?.FindBody(_meta.ActiveLocationId);
+        string anchorId = SpaceInstanceAnchorId(instanceId);
+        var anchor = ResolveSpaceInstanceAnchor(instanceId);
+        instance.Anchor = anchor; // #2737: the frame the system's other flights' pilots are converted into
 
         // Asteroids are always present as scenery + mining targets; breaking them is gated at fire
         // time. Launching from an asteroid body means the ship starts INSIDE the belt, so the local
@@ -1993,6 +2013,19 @@ public sealed partial class GameServer
                 BroadcastSpaceState(instance);
             }
 
+            // #2737: a SOLO pilot still hears about the friends flying near the system's other bodies, about once a
+            // second (a navigation target for the lock) — and once more after the last of them is gone, so the lock is
+            // released. With company the pose broadcast above carries the list already.
+            instance.SystemPilotSyncTimer += dt;
+            if (instance.Players.Count == 1 && instance.SystemPilotSyncTimer >= SystemPilotSyncSeconds)
+            {
+                instance.SystemPilotSyncTimer = 0;
+                if (instance.SystemPilotsSent || HasSystemPilotsElsewhere(instance))
+                {
+                    BroadcastSpaceState(instance);
+                }
+            }
+
             // Collision + hostile fire, per PILOT (#955): position, speed baseline and cooldown used to
             // live in one shared field per instance, so with two pilots they overwrote each other and the
             // damage could land on the other player's hull (the ship cursor was wherever the last message
@@ -2503,8 +2536,7 @@ public sealed partial class GameServer
         }
 
         instance.Players.Clear();
-        StashFloatingSalvage(instance); // #1475
-        _spaceInstances.Remove(instance.Id);
+        TearDownSpaceInstance(instance); // #1475/#2748
     }
 
     /// <summary>Carves a scattered ~40% of the owner ship's non-critical hull cells away as durable edits, so a
@@ -2561,35 +2593,8 @@ public sealed partial class GameServer
 
     private string NextEntityId() => "e" + _nextEntityId++;
 
-    /// <summary>#1475: salvage drops still floating when a space instance is torn down (last pilot landed, ship
-    /// disabled), keyed by instance id, and re-added the next time that space is created — so uncollected ore
-    /// survives a landing instead of dying with the instance. In-memory only: a server restart still loses
-    /// it, which the issue accepts (no save-shape change).</summary>
-    private readonly Dictionary<string, List<CombatEntity>> _floatingSalvage = new();
-
-    private void StashFloatingSalvage(SpaceInstance instance)
-    {
-        var drops = instance.Entities.Where(e => e.Kind == CombatEntityKind.ResourceDrop && e.Loot.Count > 0).ToList();
-        if (drops.Count == 0)
-        {
-            _floatingSalvage.Remove(instance.Id);
-            return;
-        }
-
-        _floatingSalvage[instance.Id] = drops;
-    }
-
-    private void RestoreFloatingSalvage(SpaceInstance instance)
-    {
-        if (_floatingSalvage.Remove(instance.Id, out var drops))
-        {
-            instance.Entities.AddRange(drops);
-        }
-    }
-
-    /// <summary>Test/inspection: salvage drops parked for a torn-down instance (#1475).</summary>
-    public int FloatingSalvageParkedForTest(string instanceId)
-        => _floatingSalvage.TryGetValue(instanceId, out var drops) ? drops.Count : 0;
+    // #1475/#2748: the floating salvage a torn-down instance leaves behind (stash, restore, persistence) lives in
+    // GameServerFloatingSalvage.cs.
 
     private NetCombatEntity ToNet(CombatEntity e) => new()
     {
@@ -2633,6 +2638,8 @@ public sealed partial class GameServer
             launchBeside = launchX != 0f;
         }
 
+        var systemPilots = SystemPilotsElsewhere(session.State.PlayerId, instance);
+        instance.SystemPilotsSent = systemPilots.Length > 0; // the same list for every pilot of the instance
         Send(session, new SpaceState
         {
             InstanceId = instance.Id,
@@ -2654,6 +2661,7 @@ public sealed partial class GameServer
             // Other real pilots PLUS the peaceful NPC traders out here — both ride the flight view's
             // remote-ship render path (their voxel hull arrives via a "ship_remote" SpaceShipDesign).
             Players = AppendTraderPoses(OtherPlayersInSpace(session.State.PlayerId, instance), instance),
+            SystemPilots = systemPilots,                  // #2737: friends in the system's other flights (navigation only)
             ScannedIds = ScannedIdsIn(instance, session), // #2238: what this pilot's scanner has already read here
             Wormhole = wormhole,                         // #2242: arrived through a rift, not a warp
             HasEvaStart = evaStart.HasValue,             // #2636: the suit starts there (fell out of a derelict), not beside the ship
@@ -2742,6 +2750,85 @@ public sealed partial class GameServer
         }
 
         return others is null ? System.Array.Empty<NetSpacePlayer>() : others.ToArray();
+    }
+
+    /// <summary>#2737: how often (seconds) a solo pilot's flight is refreshed with the pilots of the system's other flights.</summary>
+    private const double SystemPilotSyncSeconds = 1.0;
+
+    /// <summary>Test/inspection (#2737): the pilots of the OTHER flights in this player's star system, as the player's
+    /// next <see cref="SpaceState.SystemPilots"/> carries them (empty when not in space).</summary>
+    public NetSpacePlayer[] SystemSpacePilots(string playerId)
+        => _playerInstance.TryGetValue(playerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst)
+            ? SystemPilotsElsewhere(playerId, inst)
+            : System.Array.Empty<NetSpacePlayer>();
+
+    /// <summary>
+    /// #2737: the pilots flying in the OTHER flight instances of <paramref name="instance"/>'s star system (friends who
+    /// launched from another body), with their poses converted into this instance's flight frame — the same transform
+    /// as the belt rocks and wrecks: the star-map offset of the two anchor bodies × <see cref="SystemBodyLayout.FlightViewScale"/>
+    /// on x/z, y unchanged. Includes their EVA suits and parked ships like <see cref="OtherPlayersInSpace"/>; never
+    /// traders. Each entry names its anchor body. Empty when the instance has no anchor (no galaxy).
+    /// </summary>
+    private NetSpacePlayer[] SystemPilotsElsewhere(string recipientId, SpaceInstance instance)
+    {
+        if (instance.Anchor is not { } mine)
+        {
+            return System.Array.Empty<NetSpacePlayer>();
+        }
+
+        List<NetSpacePlayer>? found = null;
+        foreach (var other in _spaceInstances.Values)
+        {
+            if (ReferenceEquals(other, instance) || other.Anchor is not { } anchor || anchor.SystemId != mine.SystemId)
+            {
+                continue;
+            }
+
+            var pilots = OtherPlayersInSpace(recipientId, other);
+            if (pilots.Length == 0)
+            {
+                continue;
+            }
+
+            float dx = (anchor.SystemX - mine.SystemX) * SystemBodyLayout.FlightViewScale;
+            float dz = (anchor.SystemZ - mine.SystemZ) * SystemBodyLayout.FlightViewScale;
+            foreach (var p in pilots)
+            {
+                p.X += dx;
+                p.Z += dz;
+                if (p.HasShipPose)
+                {
+                    p.ShipX += dx;
+                    p.ShipZ += dz;
+                }
+
+                p.AnchorBodyId = anchor.Id;
+                (found ??= new List<NetSpacePlayer>()).Add(p);
+            }
+        }
+
+        return found is null ? System.Array.Empty<NetSpacePlayer>() : found.ToArray();
+    }
+
+    /// <summary>#2737: whether any OTHER flight instance of <paramref name="instance"/>'s star system holds a pilot or a
+    /// parked ship — the cheap check behind the solo pilot's refresh (no list is built).</summary>
+    private bool HasSystemPilotsElsewhere(SpaceInstance instance)
+    {
+        if (instance.Anchor is not { } mine)
+        {
+            return false;
+        }
+
+        foreach (var other in _spaceInstances.Values)
+        {
+            if (!ReferenceEquals(other, instance) && other.Anchor is { } anchor && anchor.SystemId == mine.SystemId
+                && (other.Players.Count > 0 || AnyParkedShipIn(other)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>#2431: whether any joined pilot's ship floats parked in <paramref name="instance"/> — such an instance is

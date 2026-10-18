@@ -97,8 +97,18 @@ star map refreshed), and the VEGA tip `debris_signal` retires. The ship scanner 
   `SaveMetadata`, `BroadcastStarMap`) and `PayEntityLoot` (the loot path factored out of `FireWeapon`: tractor →
   floating drop, else backpack + hold + leftovers as a drop + the `+n → where` toasts).
 - `debris:<bodyId>` → a bitmask of collected capsules (`OnSalvageCapsuleCollected` when `StowDrop` empties one).
-- Written at instance teardown (`PersistSpaceSalvageLedger` in `LeaveSpace`) and on every completion; the autosave
-  writes the metadata anyway. The galaxy itself stays seed-pure (world = seed + parameters + deltas).
+- Written at instance teardown (`PersistSpaceSalvageLedger` in `TearDownSpaceInstance`) and on every completion; the
+  autosave writes the metadata anyway. The galaxy itself stays seed-pure (world = seed + parameters + deltas).
+- **Floating salvage** (the `ResourceDrop`s a tractor kill or a full hold leaves, #1475) is not part of the ledger
+  but outlives the instance the same way (`GameServerFloatingSalvage`, #2748): every teardown — last pilot landed,
+  ship disabled, a walkabout or a quit with no parked ship left — runs `TearDownSpaceInstance` (stash + ledger +
+  remove), and the stash is re-added when that space is created again. Space drops never expire, so they are
+  persisted too: the named blob `space:floating_salvage` (instance id → `[{X,Y,Z,Loot:[{Item,Count}]}]`) is written
+  inside `SaveAll`'s transaction (the stash plus every live instance's drops, atomic with the players' cargo) and a
+  teardown refreshes its own instance's entry at once; an unchanged blob is not rewritten. The boot's registries
+  pass reads it back with **fresh** entity ids (the id counter restarts at `e1` every boot) and skips items the
+  content no longer has. At most 48 drops per instance survive a teardown or a restart — the oldest merge into the
+  next, so no loot is lost. Additive blob, no save-version bump.
 - `NetBody.Salvaged` tells the chart and the travel screen ("salvaged" instead of "fly there to salvage").
 
 Before this, the wreck was rebuilt with full salvage on every flight, once per launch body of its system —
@@ -172,4 +182,7 @@ the T key) and PARENTS updated; the life-pod sentence corrected (no tractor beam
 `DebrisFieldTests` (placer ×3, galaxy untouched, field in flight, recorder, fragment mining, capsule once + restart,
 shield taps, combat debris, raider hull + livery + heading + wreckage), `SpaceWreckTests` (carved state across
 re-entry + restart, gone once salvaged, payout once), `ContentTests.SpaceSalvageData_*`, `SpaceTargetingTests`
-kind lists. Test seams: `SpaceSalvageLedgerForTest`, `DebrisFragmentCountForTest`, `StructureDyedCellCountForTest`.
+kind lists, `DropLootTests` (#1475/#2748: floating salvage across re-entry, a restart, a shutdown in flight, the
+walkabout teardown, fresh ids, the per-instance cap). Test seams: `SpaceSalvageLedgerForTest`,
+`DebrisFragmentCountForTest`, `StructureDyedCellCountForTest`, `FloatingSalvageParkedForTest`,
+`AddFloatingSalvageForTest`.

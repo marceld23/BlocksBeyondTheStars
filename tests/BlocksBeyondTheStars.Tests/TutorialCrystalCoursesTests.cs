@@ -664,11 +664,11 @@ public sealed class TutorialCrystalCoursesTests : IDisposable
         Assert.Equal("c14.1", server.ChipStepForTest(p, T));
         Assert.True(server.HintHeldByTutorialForTest(p, "factory_near")); // the course explains the factory: the tip waits
 
-        // Bulk crafting at the terminal — the real roster check: raw ore in, a plate out.
+        // Bulk crafting at the terminal — the real roster check: raw ore in, plates out (6 ore → 2, #2016).
         int plates = p.State.Inventory.CountOf("iron_plate");
         Give(p, "iron_ore", 6);
         server.Craft(id, "factory_iron_plate");
-        Assert.Equal(plates + 1, p.State.Inventory.CountOf("iron_plate"));
+        Assert.Equal(plates + 2, p.State.Inventory.CountOf("iron_plate"));
         Assert.True(Done(p, "c14.1"));
 
         // The SPS code explained (never asked for); the machine lesson waits for its prerequisites and says why.

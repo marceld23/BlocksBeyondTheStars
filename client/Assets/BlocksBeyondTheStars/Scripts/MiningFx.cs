@@ -424,6 +424,7 @@ namespace BlocksBeyondTheStars.Client
                 _lastBrokenOwn = cell;
                 var pos = new Vector3(cell.x + 0.5f, cell.y + 0.5f, cell.z + 0.5f);
                 PickupGem(pos, _crackBlock); // the mined resource flies to the player, then into the hotbar
+                PadRumble.BlockBroken(); // #2746: the own block breaking, felt in the pad
                 _crackBlock = default;
                 _crackShown = 0f;
             }

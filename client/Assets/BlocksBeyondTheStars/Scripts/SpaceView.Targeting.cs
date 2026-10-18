@@ -25,6 +25,12 @@ namespace BlocksBeyondTheStars.Client
     /// (attackers first, as before), the label reads "In range" / "Too far" for a rock, and the cycle key lets the three
     /// nearest rocks in weapon range in — unless a hostile is attacking.
     ///
+    /// <b>Friends (#2737).</b> Another pilot is a navigation target from anywhere in the system — never range-released, and
+    /// with no weapon effect (the assists only take entities). A friend who launched from another body flies in another
+    /// flight instance; the server lists them in <c>SpaceState.SystemPilots</c> (already in this frame), and the lock offers
+    /// them too, labelled with the body they fly near. They never become a ship in the scene. NPC traders stay
+    /// radar-limited.
+    ///
     /// <b>Client presentation only.</b> The lock never reaches the server: it only chooses which target id the client
     /// writes into the intents it already sends — the weapon prefers the lock inside ±40° with AutoAim on (the server's
     /// arc is ±60°), the tractor pulls a locked drop, the scanner reads a locked object in range when nothing is on its
@@ -64,6 +70,7 @@ namespace BlocksBeyondTheStars.Client
         private float _lockRadius = PilotLockRadius;
         private Vector3 _lockLocal;          // last known raw instance-frame position
         private string _lockScanKey;         // the scanner's key for the same object ("e:<id>" / "b:<id>"), or null
+        private string _lockAnchorBody;      // #2737: a locked pilot of another flight — the body they fly near, else null
         private float _lockSince;            // Time.time of the lock (the brackets snap in)
         private string _implausibleLockLogged; // #2450: source + id of the last implausible lock logged, and when
         private float _implausibleLockLoggedAt = float.NegativeInfinity;
@@ -98,6 +105,7 @@ namespace BlocksBeyondTheStars.Client
         private object _lockLabelLoc;
         private int _lockSubState = -1;
         private object _lockSubLoc;
+        private string _lockSubBody;
         private string _lockSubText = string.Empty;
         private Color _lockSubCol = Color.white;
         private int _lockArrowUnits = -1;
@@ -166,14 +174,22 @@ namespace BlocksBeyondTheStars.Client
                 _tgtCandidates.Add(TargetCandidate.FromEntity(e));
             }
 
-            if (space.Players != null)
+            AddPilotCandidates(space.Players);
+            AddPilotCandidates(space.SystemPilots); // #2737: friends near the system's other bodies — navigation only
+        }
+
+        private void AddPilotCandidates(NetSpacePlayer[] pilots)
+        {
+            if (pilots == null)
             {
-                foreach (var p in space.Players)
+                return;
+            }
+
+            foreach (var p in pilots)
+            {
+                if (!string.IsNullOrEmpty(p.PlayerId))
                 {
-                    if (!string.IsNullOrEmpty(p.PlayerId))
-                    {
-                        _tgtCandidates.Add(TargetCandidate.FromPilot(p));
-                    }
+                    _tgtCandidates.Add(TargetCandidate.FromPilot(p));
                 }
             }
         }
@@ -292,22 +308,31 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (space.Players != null)
+            // The other pilots of this flight and (#2737) those near the system's other bodies; a trader keeps its radar
+            // range (FromPilot gives it the trader kind).
+            for (int list = 0; list < 2; list++)
             {
-                foreach (var p in space.Players)
+                var pilots = list == 0 ? space.Players : space.SystemPilots;
+                if (pilots == null)
+                {
+                    continue;
+                }
+
+                foreach (var p in pilots)
                 {
                     if (string.IsNullOrEmpty(p.PlayerId))
                     {
                         continue;
                     }
 
+                    var candidate = TargetCandidate.FromPilot(p);
                     Vector3 to = new Vector3(p.X, p.Y, p.Z) - ship;
-                    if (SpaceTargeting.InLockRange(SpaceTargeting.PilotKind, to.magnitude, lockRange, ping)
+                    if (SpaceTargeting.InLockRange(candidate.Kind, to.magnitude, lockRange, ping)
                         && SpaceTargeting.AheadScore(to.x, to.y, to.z, fwd.x, fwd.y, fwd.z, PilotLockRadius, cone, out float score)
                         && score < bestScore)
                     {
                         bestScore = score;
-                        best = TargetCandidate.FromPilot(p);
+                        best = candidate;
                         found = true;
                     }
                 }
@@ -364,14 +389,20 @@ namespace BlocksBeyondTheStars.Client
             _lockScanKey = source == LockSource.Entity ? "e:" + c.Id : null;
             _lockName = c.Id;
             _lockRadius = PilotLockRadius;
+            _lockAnchorBody = null;
             if (source == LockSource.Entity && TryLockedEntity(out var e))
             {
                 _lockName = TargetName(e);
                 _lockRadius = TargetRadius(e);
             }
-            else if (source == LockSource.Pilot && TryLockedPilot(out var p) && !string.IsNullOrEmpty(p.Name))
+            else if (source == LockSource.Pilot && TryLockedPilot(out var p))
             {
-                _lockName = p.Name;
+                if (!string.IsNullOrEmpty(p.Name))
+                {
+                    _lockName = p.Name;
+                }
+
+                _lockAnchorBody = string.IsNullOrEmpty(p.AnchorBodyId) ? null : p.AnchorBodyId;
             }
 
             BeginLock(had);
@@ -459,6 +490,7 @@ namespace BlocksBeyondTheStars.Client
             _lockKind = null;
             _lockHostile = false;
             _lockScanKey = null;
+            _lockAnchorBody = null;
             _lockLostAt = -1f;
             _lockDestroyedId = null;
             _lockFrame?.Hide();
@@ -544,6 +576,7 @@ namespace BlocksBeyondTheStars.Client
                     if (TryLockedPilot(out var p))
                     {
                         _lockLocal = new Vector3(p.X, p.Y, p.Z);
+                        _lockAnchorBody = string.IsNullOrEmpty(p.AnchorBodyId) ? null : p.AnchorBodyId;
                         var c = TargetCandidate.FromPilot(p);
                         UpdateLockRange(SpaceTargeting.StillValid(c, ship.x, ship.y, ship.z, TargetLockRange(), TargetPingActive()));
                     }
@@ -616,18 +649,31 @@ namespace BlocksBeyondTheStars.Client
             return false;
         }
 
+        /// <summary>The locked pilot's newest pose: one of this flight (<c>Players</c>) or, #2737, one flying near another
+        /// body of the system (<c>SystemPilots</c>, with its <see cref="NetSpacePlayer.AnchorBodyId"/>).</summary>
         private bool TryLockedPilot(out NetSpacePlayer pilot)
         {
             pilot = null;
-            var players = Game.Space?.Players;
-            if (_lockSource != LockSource.Pilot || players == null)
+            var space = Game.Space;
+            if (_lockSource != LockSource.Pilot || space == null)
             {
                 return false;
             }
 
-            foreach (var p in players)
+            return TryFindPilot(space.Players, _lockId, out pilot) || TryFindPilot(space.SystemPilots, _lockId, out pilot);
+        }
+
+        private static bool TryFindPilot(NetSpacePlayer[] pilots, string id, out NetSpacePlayer pilot)
+        {
+            pilot = null;
+            if (pilots == null)
             {
-                if (p.PlayerId == _lockId)
+                return false;
+            }
+
+            foreach (var p in pilots)
+            {
+                if (p.PlayerId == id)
                 {
                     pilot = p;
                     return true;
@@ -1029,8 +1075,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Name, disposition and distance (with the ▲/▼ height cue) under the frame; for an enemy "In range" or
-        /// "Too far — fly closer" for the selected weapon (for a rock: for the selected mining laser, #2327); "Target lost"
-        /// while it is out of range.</summary>
+        /// "Too far — fly closer" for the selected weapon (for a rock: for the selected mining laser, #2327); "Flying near …"
+        /// for a friend in another flight of the system (#2737); "Target lost" while it is out of range.</summary>
         private void UpdateLockLabel(TargetDisposition disposition, Color col, float dist, float dy, bool lost)
         {
             // Whole flight units (= 10 km steps), like the radar's readouts: the same object reads the same number on
@@ -1068,13 +1114,24 @@ namespace BlocksBeyondTheStars.Client
                 float range = MiningCycleRange();
                 sub = range <= 0f ? 0 : dist <= range ? 1 : 2;
             }
+            else if (_lockSource == LockSource.Pilot && _lockAnchorBody != null)
+            {
+                sub = 4; // #2737: a friend in another flight of the system — you meet them by landing there and launching again
+            }
 
-            if (sub != _lockSubState || !ReferenceEquals(loc, _lockSubLoc))
+            if (sub != _lockSubState || !ReferenceEquals(loc, _lockSubLoc) || (sub == 4 && _lockSubBody != _lockAnchorBody))
             {
                 _lockSubState = sub;
                 _lockSubLoc = loc;
+                _lockSubBody = _lockAnchorBody;
                 switch (sub)
                 {
+                    case 4:
+                        string bodyName = FindStarMapBody(_lockAnchorBody, out _)?.Name;
+                        _lockSubText = string.Format(Loc("ui.space.target.other_flight", "Flying near {0}"),
+                            string.IsNullOrEmpty(bodyName) ? "?" : bodyName);
+                        _lockSubCol = UiKit.TextCol;
+                        break;
                     case 1:
                         _lockSubText = Loc("ui.space.target.in_range", "In range");
                         _lockSubCol = TargetInRangeCol;

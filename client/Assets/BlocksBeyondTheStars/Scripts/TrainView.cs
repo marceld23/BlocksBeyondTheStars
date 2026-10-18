@@ -16,10 +16,11 @@ namespace BlocksBeyondTheStars.Client
     /// once by <see cref="ChunkMesher"/> — a floor, low side walls with wide door openings, a roof on posts, the cab's
     /// windscreen and the seats of a seat wagon — with a <see cref="MeshCollider"/> that is always solid: riders stand on
     /// the floor and walk between the walls. Each frame every wagon is posed on the shared <see cref="RailSpline"/> at its
-    /// arc (the cab's arc from the server, extrapolated by speed and direction between updates and eased to each new one,
-    /// the wagons behind it by the train's spacing); a wagon's transform IS the rider's frame: local X across, Y up from
-    /// the floor, Z toward the cab — the player controller parents itself to it while aboard and the remote avatars are
-    /// placed with <see cref="Transform.TransformPoint"/>. It runs early in the frame (#2129) so the wagons are posed before
+    /// arc (the cab's arc from the server, extrapolated by speed and direction between updates — bouncing off a line's
+    /// ends like the server — and eased to each new one, see <see cref="TrainDrawArc"/>; the wagons hang behind it by the
+    /// train's spacing and its fixed facing, #2741, so a reversal moves no wagon); a wagon's transform IS the rider's
+    /// frame: local X across, Y up from the floor, Z toward the cab — the player controller parents itself to it while
+    /// aboard and the remote avatars are placed with <see cref="Transform.TransformPoint"/>. It runs early in the frame (#2129) so the wagons are posed before
     /// the player controller syncs physics and moves a rider standing in one.
     /// </summary>
     [DefaultExecutionOrder(-40)]
@@ -39,6 +40,7 @@ namespace BlocksBeyondTheStars.Client
             public GameObject Root;
             public readonly List<Wagon> Wagons = new List<Wagon>();
             public float DrawArc;
+            public int DrawDirection = 1; // the drawing's own direction of travel (#2741: it bounces like the server's)
             public bool HasArc;
             public string Key = string.Empty; // the wagon list, to notice a coupling
         }
@@ -260,29 +262,18 @@ namespace BlocksBeyondTheStars.Client
                 view.Root.SetActive(true);
                 float speed = t.Halted ? 0f : RailRules.SpeedTable[Mathf.Clamp(t.Speed, 1, 3) - 1];
                 float age = (float)System.Math.Max(0.0, now - Game.TrainsReceivedAt);
-                float target = spline.NormalizeArc(t.Arc + t.Direction * speed * Mathf.Min(age, 1.0f));
-                if (!view.HasArc)
-                {
-                    view.DrawArc = target;
-                    view.HasArc = true;
-                }
-                else
-                {
-                    // Run on at the train's own speed, eased toward the server's clock (a loop wraps: take the short way).
-                    float run = view.DrawArc + t.Direction * speed * Time.deltaTime;
-                    float delta = target - run;
-                    if (spline.Closed && spline.TotalArc > 0f)
-                    {
-                        float total = spline.TotalArc;
-                        delta = ((delta % total) + total) % total;
-                        if (delta > total * 0.5f)
-                        {
-                            delta -= total;
-                        }
-                    }
 
-                    view.DrawArc = spline.NormalizeArc(run + delta * Mathf.Clamp01(Time.deltaTime * 4f));
-                }
+                // #2741: the wagons are posed by the train's fixed facing (an older server sends none: its direction), so a
+                // reversal at a line end only turns the direction round — the drawing bounces there like the server does.
+                int facing = RailRules.PoseFacing(t.Facing, t.Direction);
+                float span = RailRules.TrainSpan(t.Wagons?.Length ?? 0);
+                var (drawArc, drawDirection) = TrainDrawArc.Step(
+                    view.HasArc, view.DrawArc, view.DrawDirection,
+                    t.Arc, t.Direction, facing, speed, age,
+                    Time.deltaTime, spline.TotalArc, span, spline.Closed);
+                view.DrawArc = drawArc;
+                view.DrawDirection = drawDirection;
+                view.HasArc = true;
 
                 for (int i = 0; i < view.Wagons.Count; i++)
                 {
@@ -292,8 +283,8 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
-                    float arc = spline.NormalizeArc(RailRules.WagonArc(view.DrawArc, i, t.Direction));
-                    var (pos, yaw) = spline.PoseAt(arc, t.Direction);
+                    float arc = spline.NormalizeArc(RailRules.WagonArc(view.DrawArc, i, facing));
+                    var (pos, yaw) = spline.PoseAt(arc, facing);
                     root.transform.position = Game.ScenePos(pos.X, pos.Y, pos.Z);
                     root.transform.rotation = Quaternion.LookRotation(new Vector3(Mathf.Cos(yaw), 0f, Mathf.Sin(yaw)), Vector3.up);
                 }

@@ -205,8 +205,26 @@ public sealed class WorldDescription
     /// #2331 the spectacle terrain package, #2370/#2371 the full-height oil pockets and the oil seeps, #2437 a gas giant in
     /// almost every system, #2516 generated water sealed against caves and lower ground, #2639 the wilderness folk,
     /// #2694 the hash-variety package: world-seeded body sizes and mixed sky/flora/water colour families, gravity, settlement
-    /// trades and quest-giver names).</summary>
-    public const int CurrentTerrainGeneration = 26;
+    /// trades and quest-giver names, #2738 sea ice counts as wet for structure placement, #2739 world-seeded station
+    /// quartermasters and vendor themes).</summary>
+    public const int CurrentTerrainGeneration = 27;
+
+    /// <summary>The generation from which sea ice counts as WET for structure placement (#2738, 2026-10). The surface-water
+    /// query deliberately reads a thick sheet (or a body frozen through) as land, because a ship may land on a frozen sea —
+    /// and the structure searches used that same query: a settlement, camp, factory, lodge, outpost, monument or ruin could
+    /// seat on a frozen sea at the SEABED height, under the ice, or on stilts inside the sheet. From this generation the
+    /// placement gates treat any iced column as water: dry land wins, and a stilts seat stands on piles above the ice top.
+    /// Unique sites and loot chests skip iced columns too. Landing pads keep reading ice as land (they anchor every structure
+    /// search). Nothing in the chunk pipeline changes; the gate keeps every placement of an older world bit for bit.</summary>
+    public const int SeaIceWetGeneration = 27;
+
+    /// <summary>The generation from which a space station's quartermaster (its quest-giver) and its extra vendors' themes
+    /// are seeded by the world (#2739, 2026-10) — the station twin of the settlement change in
+    /// <see cref="HashVarietyGeneration"/> (#2698). Station ids repeat in every world (<c>&lt;system&gt;-st</c>,
+    /// <c>pstation:&lt;owner&gt;:&lt;n&gt;</c>), so the classic names and themes, derived from the id alone, met every world with
+    /// the same quartermaster and the same vendors. The first vendor stays the station's "traders"; save keys (mission ids,
+    /// <c>station_&lt;n&gt;</c> chain places) never change — only names and themes. Older worlds keep theirs bit for bit.</summary>
+    public const int WorldSeededStationsGeneration = 27;
 
     /// <summary>The generation of the hash-variety package (#2694, 2026-10): choices that used to read a poorly mixed
     /// hash read <see cref="StableHashing"/> instead. A body's walkable circumference (#2691) comes from the mixed hash of

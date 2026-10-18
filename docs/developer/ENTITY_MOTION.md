@@ -57,6 +57,12 @@ Interpolation can only draw what the server simulates. These rules removed kinks
   the detour its new roam heading; a hunter or fleer keeps to it for `CreatureDetourHoldSeconds` (aiming the
   controller along it) instead of turning back into the wall every tick.
 - **Boxed in, an animal slows down**, so the way out starts with an ease-in.
+- **Personal space between animals** (#2753, `GameServerCreatureSpacing`): a ground-bound wild animal is nudged out
+  of the footprint (`CreatureFootprint.Radius`, the drawn body's reach) of the neighbour it stands deepest inside —
+  any species — before its step runs through the ship/fence/terrain/body barriers, so a nudge into a wall is refused
+  like any step. The nudge may undo the whole step plus a cruise step outward, so a sprinting animal cannot push
+  through another body; a roamer whose step it cancels re-rolls its heading instead of pressing on. Sleepers do not
+  push awake animals; overlapping sleepers shuffle apart slowly (`SleeperShuffleSpeed`), only the later one moving.
 - **Running jump**: a walker that will reach a jumpable one-block rise within `RunningJumpLeadSeconds` takes off
   early (under the same checks as a jump at the lip) and keeps moving forward **inside its own column** while its
   feet come up; it crosses into the ledge column only once the feet are above the lip, so the body never clips the
@@ -137,6 +143,9 @@ that pose, and clears the pilot's interpolation buffer when the pose switches be
 - `LocomotionControllerTests`: roam segment changes stay within the turn clamp; a re-roll mid-turn finishes the turn.
 - `CreatureMotionArenaTests`: the running jump never stalls at the lip and never clips the ledge; a hunter steering
   round a wall never turns faster than the clamp.
+- `CreatureSpacingTests`: two big animals of different species planted inside each other step apart; an awake animal
+  yields to a sleeper and overlapping sleepers come apart with only the later one moving; a spawn spot inside a big
+  animal is refused; a big herd spawns with room between every pair; the footprint grows with size and segments.
 - `NpcGridPathTests`: string-pulling (open square, walls, corners, doorways, steps).
 - `RemoteEntityInterpolatorTests`, `SpaceEntitySyncTests` (Client.Tests): the no-wrap lerp at negative X and across 0,
   the stale-view scan with view-less rocks around. `SpaceFlightClientTests` (Client.Tests, real client and server): a
@@ -154,4 +163,6 @@ that pose, and clears the pilot's interpolation buffer when the pose switches be
 | NPC body turn rate | `GameServer.NpcFaceTurnRate` | 6 rad/s |
 | Running-jump lead | `GameServer.RunningJumpLeadSeconds` | 0.3 s |
 | Detour hold | `GameServer.CreatureDetourHoldSeconds` | 0.5 s |
+| Animal personal space | `CreatureFootprint.SeparationFactor` × (rA + rB) | 0.8 |
+| Sleeper shuffle | `GameServer.SleeperShuffleSpeed` | 0.4 blocks/s |
 | Animator speed low-pass | `SpeedSmoothTau` (CreatureAnimator, PlayerAvatar) | 0.08 s |

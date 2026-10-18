@@ -9,6 +9,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -17,7 +18,8 @@ namespace BlocksBeyondTheStars.Tests;
 /// <summary>
 /// The two-pilot findings of 2026-10-09: a parked ship stays visible while its pilot walks inside (#2431), an absurd ship
 /// pose never reaches the other pilots (#2428), two ships launching into one orbit start beside each other (#2440), and a
-/// crouching, downward-looking player shows exactly that in the presence the others get (#2435, #2434).
+/// crouching, downward-looking player shows exactly that in the presence the others get (#2435, #2434). Also #2737: the
+/// pilots of the system's OTHER flights reach a pilot as <see cref="SpaceState.SystemPilots"/>, converted into its frame.
 /// </summary>
 public sealed class PilotVisibilityTests : IDisposable
 {
@@ -54,7 +56,7 @@ public sealed class PilotVisibilityTests : IDisposable
         public void Dispose() { }
     }
 
-    private SvGameServer NewServer(string name, RecordingTransport transport)
+    private SvGameServer NewServer(string name, RecordingTransport transport, bool placeShip = false)
     {
         var repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var config = new ServerConfig
@@ -63,7 +65,7 @@ public sealed class PilotVisibilityTests : IDisposable
             Seed = 11,
             StartPlanet = "rocky",
             AutoSaveIntervalMinutes = 9999,
-            PlaceStarterShip = false,
+            PlaceStarterShip = placeShip,
         };
         config.Rules.FreeSpaceFlight = true;
         var server = new SvGameServer(config, _content, transport, repo);
@@ -230,6 +232,86 @@ public sealed class PilotVisibilityTests : IDisposable
         presence = To<PlayerPresence>(t, bob).Last(p => p.PlayerId == alice.State.PlayerId);
         Assert.False(presence.Crouching);
         Assert.Equal(20f, presence.Pitch, 2);
+    }
+
+    /// <summary>#2737: puts the player on <paramref name="body"/> by a real (quick) travel — with a jump generator fitted,
+    /// since the fresh start world may still run under its legacy planet-type key — and launches from it.</summary>
+    private static void LaunchFrom(SvGameServer server, PlayerSession session, CelestialBody body)
+    {
+        if (session.CurrentLocationId != body.Id)
+        {
+            server.RequestLandingPadsForTest(session, session.CurrentLocationId); // serves the player → server.Ship is theirs
+            server.Ship.Modules.Add("jump_generator");
+            Assert.True(server.QuickTravelForTest(session.State.PlayerId, body.Id), $"{session.State.PlayerId} must reach {body.Id}");
+        }
+
+        server.EnterSpace(session.State.PlayerId);
+        Assert.True(server.InSpace(session.State.PlayerId));
+    }
+
+    [Fact]
+    public void PilotsOfTheSystemsOtherFlights_AreSystemPilots_InTheReceiversFrame()
+    {
+        var t = new RecordingTransport();
+        var server = NewServer("system_pilots", t, placeShip: true);
+        var alice = server.AddLocalPlayer("Alice");
+        var bob = server.AddLocalPlayer("Bob");
+        var carol = server.AddLocalPlayer("Carol");
+        server.SetInstantTravelForTest(true);
+
+        var landable = server.Galaxy.AllBodies()
+            .Where(b => b.Kind == CelestialKind.Planet && !string.IsNullOrEmpty(b.PlanetType)
+                && _content.GetPlanet(b.PlanetType!) is not null && b.SystemId != SvGameServer.GuardianFinaleSystemId)
+            .ToList();
+        var system = landable.GroupBy(b => b.SystemId).First(g => g.Count() >= 2).ToArray();
+        var (aliceBody, bobBody) = (system[0], system[1]);
+        var carolBody = landable.First(b => b.SystemId != aliceBody.SystemId);
+
+        LaunchFrom(server, alice, aliceBody);
+        LaunchFrom(server, bob, bobBody);
+        LaunchFrom(server, carol, carolBody);
+        Assert.NotEqual(server.SpaceInstanceIdForTest("Alice"), server.SpaceInstanceIdForTest("Bob"));
+
+        server.ShipMove("Alice", 10f, 0f, 0f);
+        server.ShipMove("Bob", 5f, 3f, -7f, 30f);
+        server.ShipMove("Carol", 1f, 1f, 1f);
+
+        // Another flight: not a ship in Alice's scene …
+        Assert.DoesNotContain(server.OtherSpacePlayers("Alice"), p => p.PlayerId == "Bob");
+        // … but a navigation target at the converted position, labelled with the body Bob flies near.
+        var seen = Assert.Single(server.SystemSpacePilots("Alice"));
+        Assert.Equal("Bob", seen.PlayerId);
+        Assert.Equal(bobBody.Id, seen.AnchorBodyId);
+        Assert.Equal(5f + (bobBody.SystemX - aliceBody.SystemX) * SystemBodyLayout.FlightViewScale, seen.X, 2);
+        Assert.Equal(3f, seen.Y, 2);
+        Assert.Equal(-7f + (bobBody.SystemZ - aliceBody.SystemZ) * SystemBodyLayout.FlightViewScale, seen.Z, 2);
+        Assert.Equal(aliceBody.Id, Assert.Single(server.SystemSpacePilots("Bob")).AnchorBodyId);
+        Assert.Empty(server.SystemSpacePilots("Carol")); // another star system: nobody
+
+        // Alice flies alone, yet hears about Bob about once a second …
+        t.Sent.Clear();
+        for (int i = 0; i < 6; i++)
+        {
+            server.Tick(0.25);
+        }
+
+        var state = To<SpaceState>(t, alice).LastOrDefault();
+        Assert.NotNull(state);
+        Assert.Contains(state!.SystemPilots, p => p.PlayerId == "Bob" && p.AnchorBodyId == bobBody.Id);
+        Assert.DoesNotContain(state.SystemPilots, p => p.PlayerId == "Carol");
+        Assert.DoesNotContain(state.Players, p => p.PlayerId == "Bob"); // never a ghost ship in her scene
+
+        // … and once more after Bob has landed, so her lock on him is released.
+        server.LeaveSpace("Bob");
+        t.Sent.Clear();
+        for (int i = 0; i < 6; i++)
+        {
+            server.Tick(0.25);
+        }
+
+        state = To<SpaceState>(t, alice).LastOrDefault();
+        Assert.NotNull(state);
+        Assert.Empty(state!.SystemPilots);
     }
 
     public void Dispose()

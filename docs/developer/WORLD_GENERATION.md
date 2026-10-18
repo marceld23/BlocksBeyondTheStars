@@ -87,7 +87,8 @@ The data shapes are in [`Galaxy.cs`](../../src/BlocksBeyondTheStars.Shared/World
   position (server: `AddBeltRockClusters`, shared transform `SystemBodyLayout.FlightViewScale`),
   and launching *from* an asteroid spawns a dense 9-rock local field instead of the classic trio.
   The flight chart draws grouped members as one translucent belt band (`ui.map.belt`) instead of
-  stacked per-body orbit rings.
+  stacked per-body orbit rings — and so does the travel screen's small system chart (#2745,
+  `Client.Core/SystemOrreryLayout`, the same grouping on the star map's bodies).
 
 - **Wormholes (#2242):** after the galaxy is built, [`WormholePlacer.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/WormholePlacer.cs)
   links a few procedural systems in two-way pairs (world option `Wormholes`, default *Rare* = one pair per 12
@@ -478,9 +479,16 @@ the bodies embedded until dawn): an embedded sleeper is roused and stepped aside
 spot within 6 blocks (same level first), or despawns when boxed in on every side. A blocked step first
 **probes alternative headings** (±35°/±70°/±110°, #651; a detour never starts a climb) and only
 re-rolls when boxed in — contour/wall following with the never-stuck property intact. Social species
-run the full boids trio (#639/#651): cohesion, size-scaled separation, and heading alignment for
-schoolers. Hurting a creature (or a skittish bolt) **startles** same-species kin within 12 blocks for
-4 s (#653): non-retaliators flee the nearest player, retaliators charge, and fleeing prey jinks off
+run the full boids trio (#639/#651): cohesion, separation, and heading alignment for schoolers.
+**Personal space between all animals** (#2753): every ground-bound wild animal (walkers, crawlers, land
+hoverers — not fliers, air hoverers, swimmers, companions or giants) keeps 0.8 × the two bodies' footprint
+radii (`CreatureFootprint.Radius`, measured from what `CreatureBuilder` draws per body plan, times the
+individual's size factor) from every other one, of any species. Awake animals are nudged on their step before
+the barrier checks (standing ones too, and an awake animal next to a sleeper takes the whole push; a roamer
+whose step the nudge cancels re-rolls its heading); overlapping sleepers shuffle apart at 0.4 blocks/s without
+waking — only the later one in the list yields; the spawner refuses a spot inside another animal's footprint
+(full radii). Herd and begging-ring separation use the same footprint (never below 1.5 blocks).
+Hurting a creature (or a skittish bolt) **startles** same-species kin within 12 blocks for 4 s (#653): non-retaliators flee the nearest player, retaliators charge, and fleeing prey jinks off
 the straight escape ray.
 
 ---
@@ -521,6 +529,10 @@ a resting pond makes it grow. Every fluid structure — levels, falling flags, t
 persisted rows — is keyed by the **canonical** cell (`FluidCell`, #2447): the automaton walks neighbours as
 `pos ± 1`, and without that, one cell at the X seam had two spellings, a flowing cell read under the wrong one
 passed for a source, and water placed on both sides of x = 0 (where every first spawn lies) flooded without end.
+Fire (`GameServerFire.cs`) keys its burn timers, hop counts, woken set and `fire_cell` rows the same way (`FireCell`,
+#2747) — a flame spreading across the seam no longer outlives a stamp-out under the canonical spelling, nor burns under
+two keys once re-lit; a row saved under a raw spelling moves to the canonical cell at load, in one transaction (a cell
+with a row under each spelling keeps the shorter burn and the higher hop count).
 
 **The water model (#2515, [ADR 0017](adr/0017-water-classes-finite-still-water-and-bounded-falls.md)).** Two rules bound
 every flow and give water a sea level:
@@ -1673,7 +1685,9 @@ machines. The type (`titas`, `minTerrainGeneration` 8, exotic, spawn weight 1) i
   open column, and every open column's natural ground within the stamper's carve (`SettlementClearHeight`, shared with
   `StampSettlementBlocks`). A body with too few such sites gets fewer labs (the instance records a skip and the stamp
   report warns) instead of a sunken one; across Titas seeds 70–100 every rolled lab still found a site (134 of 134).
-  Only new placements ask: a pinned `spslab` record keeps its lab where it stands, so old saves don't move.
+  Only new placements ask: a pinned `spslab` record keeps its lab where it stands, so old saves don't move. From terrain
+  generation 27 every structure search counts sea ice as wet (#2738, §44), so the same failure is gone for the other
+  kinds too; the lab keeps its own, stricter test (open columns, no stilts) on top.
 - **Machines (`EnemyDensity` 2.5).** `PlanetEnemyCap` × 2.5 (Normal: 5 per player).
 - **Survival (server).** `ExposureMinutesCold` 40 / `ExposureMinutesHot` 30 replace the suit-energy drain with an
   exposure meter (`PlayerState.Exposure`, `PlayerStateUpdate.Exposure/ExposureActive/ExposureHot`, HUD row "Cold / Heat
@@ -2592,7 +2606,7 @@ river cross-section flat at the centreline's height above a low bank, a pond on 
 those are thousands of cells near every spawn (on the tester's seed: 2 044 sea cells touching cave air and 1 613 pond cells
 with air beside them within 256 blocks), all dormant until a player touches them — then a pond drains or a cave fills.
 
-`WaterSealGeneration` is **24** (the current generation is 26 since §43). From this generation:
+`WaterSealGeneration` is **24** (the current generation is 27 since §44). From this generation:
 
 - **Caves keep clear of water.** The chunk fill reads the four neighbouring columns' fluid spans (`seabed + 1 .. water
   top`, memoised column profiles) and carves no blob-cave or worm-tunnel cell at those heights; a tunnel never opens the
@@ -2620,7 +2634,7 @@ generation 23 — checks that every pond holds one level, and pins `WaterKindAt`
 
 ## 42. Generation 25 — the wilderness folk (#2639, 2026-10)
 
-`WildernessFolkGeneration` is **25** (the current generation is 26 since §43). Nothing in the chunk pipeline changed —
+`WildernessFolkGeneration` is **25** (the current generation is 27 since §44). Nothing in the chunk pipeline changed —
 every chunk of every generation is bit-identical. The generation only gates two server-side features to new saves:
 
 - **Lodges** — `StampLodges` runs in the boot stage "structures" right after the bandit camps: a small hut in the open land
@@ -2635,7 +2649,7 @@ Mechanics, numbers and the NPC side: [WILDERNESS_FOLK.md](WILDERNESS_FOLK.md). N
 
 ## 43. Generation 26 — the hash-variety package (#2694, 2026-10)
 
-`WorldDescription.CurrentTerrainGeneration` is **26** (`HashVarietyGeneration`). Choices that read a poorly mixed hash
+`HashVarietyGeneration` is **26** (the current generation is 27 since §44). Choices that read a poorly mixed hash
 read `StableHashing` (#2686: FNV-1a through a SplitMix64 finaliser) instead — for new saves only: a world of generation 25
 or older keeps every value bit for bit, because its terrain, pads and stored edits are derived from them. Nothing in the
 chunk pipeline reads the generation for this: the chunk goldens pass their circumference explicitly and do not move.
@@ -2710,3 +2724,62 @@ same system index differs between seeds, lone giants, swarms and twins keep thei
 below the floor yet varies between seeds, neighbouring bodies share a colour family about as often as chance. `BodySizeClientTests` runs the real client against the real server (object
 and encoded wire): every star-map body carries the server's size, the world you land on has it, and the orbit look the
 client paints for a body is the sky the server ships there.
+
+## 44. Generation 27 — sea ice is wet, world-seeded stations (#2738, #2739, #2756, 2026-10)
+
+`WorldDescription.CurrentTerrainGeneration` is **27** (`SeaIceWetGeneration`, `WorldSeededStationsGeneration`). Nothing in
+the chunk pipeline changed — every chunk of every generation is bit-identical; the generation gates two server-side changes
+to new saves.
+
+- **Sea ice counts as wet for structure placement (#2738).** `WorldGenerator.IsSurfaceWater` deliberately reads a thick
+  sheet (≥ `LandableIceSheet`, 3 blocks) or a body frozen through as land — a ship may land on a frozen sea, and the
+  landing pads, which anchor every structure search, keep that rule. The structure searches used the same query: ring 1's
+  first-fit gate (`FootprintWet`) let a frozen sea pass and seated the build at `SurfaceHeight` — the seabed, under the
+  ice — and the ranked rings (`EvaluateFootprint`) read the liquid surface under a sheet (a stilts deck inside the ice)
+  and a body frozen through as dry seabed. A sweep over six seeds each of ice, tundra, glacier, frozen_ocean, icecap and
+  boreal found structures seated below the ice on 26 of the 36 generation-26 worlds (settlements, bandit camps, lodges,
+  pioneer outposts, factories, rail ruins, a unique site). From generation 27 (`GameServer.SeaIceIsWet`) both read any
+  iced column as water: `FootprintWet` rejects it and `EvaluateFootprint` counts it as a wet sample whose surface is the
+  ice top (`WorldGenerator.TryGetIceSurface`, a pure read next to `SurfaceIceThickness`). Dry land therefore wins, and a
+  footprint that has to go onto the ice is a stilts seat with its deck one above the highest ice top: over liquid water the
+  piles run through the sheet to the seabed, over a body frozen through they only bridge the gap above the ice (the sheet
+  carries the deck and is never dug out for a foundation). The slope/shelf apron leaves iced columns alone, the unique
+  sites (their centre column) and the loot chests skip them, and a chest's terminal fallback rests on the ice. This covers
+  every kind seated by `TryPlaceSettlement` / `TryPlaceStructureGuaranteed` — settlements, bandit camps, factories,
+  lodges, pioneer outposts, monuments, ruins, rail ruins and the SPS labs (which keep their stricter `seatOk` test of §20);
+  an intercity station over a frozen sea is now classified as stilts. The candidates are drawn before the gates, so a
+  world whose candidate footprints touch no ice places exactly as before — note that even a warm world can freeze a pond
+  high in its mountains (on ocean/71 a shelf seat over one became a stilts seat above its ice); a generation-26 world keeps
+  every placement bit for bit (and a pinned placement record never moves anyway). The buried vaults stay underground by
+  design.
+- **The starter wreck leaves the water and the ice (#2756, same gate).** The crash site sits at a fixed offset from pad 0
+  (`WreckAnchorFor`) at `SurfaceHeight` — under a sea the seabed, so on a frozen world the first goal of a new game could
+  lie under the ice (frozen_ocean/4, glacier/6). From generation 27, when the anchor's footprint is wet (`FootprintWet`:
+  water, sea ice or lava), `DryWreckSite` walks a grid around it (8-block steps, up to 96 blocks, nearest first by
+  squared distance — integers only, so every platform picks the same spot) and takes the first dry footprint clear of the
+  pads and every structure stamped before the wreck (`WreckSiteReservations` + `OverlapsAnySettlement`: those all
+  reserved the anchor, not the new spot). Without one the wreck stays at the anchor and rests on the surface — the ice
+  top, or the water line on open water (a swamp's wreck in reach of no dry land floats there) — in the usual half-buried
+  pose; lava or a gas sea keep the classic seat. The pinned `wreck` record carries that height: from generation 27 a
+  reload takes its `GroundY` instead of re-reading the seabed. Generation 26 and older, and every pinned record from
+  them, stay bit for bit.
+- **World-seeded station quartermasters and vendors (#2739).** The station twin of §43's settlement change: a station's
+  quartermaster (`StationGiverNameFor`) and its extra vendors' trades (`StationVendorThemeFor`) came from the station id
+  alone, and station ids repeat in every world (`sys0-st`, `sys0-st-local`, `pstation:<owner>:<n>`) — every world met the
+  same quartermaster with the same vendors at "the same" station. From generation 27 both come from `StableHashing` of the
+  id salted with the world seed (their own salts); the first vendor stays "traders", the station's identity. A chain
+  step's default giver at a station (`ChainGiverFallbackName`) was coined from the place key `station_<n>` — a second name
+  for the quartermaster; from 27 it is the quartermaster. Save keys never change. Details in
+  [VILLAGE_LIFE.md](VILLAGE_LIFE.md) "Stations".
+
+**Bit-frozen.** `StationTradeAndGiverTests.NewGeneration_QuartermasterAndVendors_AreBitFrozen` pins generation-27 names and
+trades (they name people players know), `OldGeneration_QuartermasterAndVendors_ComeFromTheIdAlone_BitForBit` every
+generation below against the pre-change coinage, and `FrozenSeaPlacementTests.Generation26_KeepsItsPlacements_BitForBit`
+four sunken generation-26 seats and `Generation26_KeepsItsWreck_BitForBit` a sunken generation-26 wreck.
+`FrozenSeaPlacementTests` also shows four formerly sunken frozen worlds seating nothing below the sea level or the ice at
+generation 27 (every rolled structure placed, dry seats on ice-free columns, stilts decks above the ice and the water, the
+starter wreck on dry land or on the ice — `FreshFrozenWorld_TheStarterWreckLiesOnDryLandOrOnTheIce` too) and two warm
+worlds (coral_sea/1, swamp/67) placing everything but the wreck identically at 26 and 27; `StationTradeAndGiverTests` the spread
+(the same station in two worlds practically always has its own quartermaster, extra vendors use every trade evenly) and,
+on a boarded station at 26 and 27, one quartermaster name on the NPC and every board job — and from 27 on the chain
+fallback too.

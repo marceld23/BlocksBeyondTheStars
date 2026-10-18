@@ -302,6 +302,315 @@ public sealed class SaveCompatibilityTests : IDisposable
         Assert.Single(Backups("oldsave", BackupRotation.PreRemapPrefix));
     }
 
+    // ---------------- #2751: hulls an earlier update left in old block ids ----------------
+
+    private static IReadOnlyList<BlocksBeyondTheStars.GameServer.HistoricalBlockSets.Palette> HistoricalSets
+        => BlocksBeyondTheStars.GameServer.HistoricalBlockSets.All;
+
+    [Fact]
+    public void TheHistoricalBlockSets_AreFrozen_AndEveryKeyIsStillInTheGame()
+    {
+        // Reconstructed from `git show <tag>:data/blocks.json` (v2026.8.12 … v2026.10.4) when the table was written; these
+        // sizes pin it. No block was removed since self-built ships exist, so every set holds the one before it.
+        var sets = HistoricalSets;
+        Assert.Equal("v2026.8.12", sets[0].Release);
+        Assert.Equal(160, sets[0].Count);
+        Assert.Equal(new[] { 160, 163, 164, 169, 171, 173, 190, 200, 201, 202, 206, 210, 240, 261, 262, 264 }, sets.Select(s => s.Count));
+        Assert.Equal("v2026.10.4", sets[^1].Release);
+        for (int i = 0; i < sets.Count; i++)
+        {
+            var keys = sets[i].Keys.Skip(1).ToList();
+            Assert.All(keys, k => Assert.True(_content.Blocks.ContainsKey(k), $"{k} of {sets[i].Release} is no longer in the game"));
+            if (i > 0)
+            {
+                Assert.Superset(new HashSet<string>(sets[i - 1].Keys.Skip(1)), new HashSet<string>(keys));
+            }
+
+            // The ids follow the game's rule: the palette a build with exactly these keys assigns.
+            var expected = PaletteWithout(_content.Blocks.Keys.Except(keys).ToArray());
+            Assert.Equal(expected.Count, sets[i].Count);
+            Assert.All(expected, kv => Assert.Equal(kv.Value, sets[i].Keys[kv.Key]));
+        }
+    }
+
+    /// <summary>A save whose self-built ship was built in v2026.8.12, last opened before v2026.10.4 with v2026.9.17 (the hull
+    /// still in 8.12 ids, the palette on record 9.17's), then updated: the remap reads the hull as 9.17 ids, so helm, engine
+    /// and door turn into other blocks (a horn, a heal tank, concrete …). Returns the hull keys in cell order. The mix of
+    /// blocks matters: with helm, engine, door and walls alone, the pair (v2026.9.4, v2026.9.20) reads the same ids as a
+    /// hull with a hinged door — two readings, and such a hull is left alone.</summary>
+    private string[] SeedABrokenHull(string world, string shipId, Func<string, int, string>? writtenIn = null, bool plainWalls = false)
+    {
+        var sets = HistoricalSets;
+        var built = sets.First(s => s.Release == "v2026.8.12");
+        var readAs = sets.First(s => s.Release == "v2026.9.17");
+        var keys = plainWalls
+            ? new List<string> { "ship_helm", "ship_engine", "door_slide" }
+            : new List<string> { "ship_helm", "ship_engine", "door_slide", "glass", "steel_floor", "cargo_floor", "torch" };
+        keys.AddRange(Enumerable.Repeat("steel_wall", 25 - keys.Count));
+        string cells = string.Join(";", keys.Select((key, i) => $"{i % 5}:{i / 5}:-1:{(writtenIn?.Invoke(key, i) ?? built.IdOf[key].ToString())}"));
+        var palette = new Dictionary<ushort, string>();
+        for (ushort id = 1; id < readAs.Keys.Length; id++)
+        {
+            palette[id] = readAs.Keys[id];
+        }
+
+        using var repo = OpenRepo(world);
+        repo.SavePlayer(new PlayerState { PlayerId = "Pilot", Name = "Pilot", FleetShipIds = { shipId } });
+        repo.SaveShip("ship_Pilot#" + shipId, new ShipState { ShipType = ShipState.CustomShipType, BuiltCells = cells, Commissioned = true });
+        repo.EnsureBlockPalette(palette);
+        return keys.ToArray();
+    }
+
+    private string[] HullKeys(ShipState ship)
+        => ship.BuiltCells.Split(';').Select(c => _content.BlockById(new BlockId(ushort.Parse(c.Split(':')[3])))?.Key ?? "?").ToArray();
+
+    [Fact]
+    public void AHullLeftInOldIds_IsRepairedOnce_AndCanLaunchAgain()
+    {
+        string[] keys = SeedABrokenHull("hullfix", "built");
+
+        string repaired;
+        using (var repo = new SqliteWorldRepository(Paths("hullfix")))
+        {
+            var server = NewServer("hullfix", repo);
+            server.Start();
+            var ship = repo.LoadShip("ship_Pilot#built")!;
+            Assert.Equal(keys, HullKeys(ship)); // every cell names the block it was built as again
+            string? problem = server.CustomShipLaunchProblemForTest(ship);
+            Assert.False(problem is "@srv.ship.need_helm" or "@srv.ship.need_engine" or "@srv.ship.need_door", problem);
+            repaired = ship.BuiltCells;
+            server.Stop();
+        }
+
+        string backup = Assert.Single(Backups("hullfix", BackupRotation.PreHullRepairPrefix));
+        Assert.Contains(_log.Lines, l => l.StartsWith("INFO ", StringComparison.Ordinal) && l.Contains("'built'") && l.Contains("v2026.8.12")
+                                         && l.Contains("repaired") && l.Contains(backup));
+
+        // The next start finds the save marked: nothing changes, no second copy.
+        _log.Lines.Clear();
+        using (var repo = new SqliteWorldRepository(Paths("hullfix")))
+        {
+            var server = NewServer("hullfix", repo);
+            server.Start();
+            Assert.Equal(repaired, repo.LoadShip("ship_Pilot#built")!.BuiltCells);
+            server.Stop();
+        }
+
+        Assert.Single(Backups("hullfix", BackupRotation.PreHullRepairPrefix));
+        Assert.DoesNotContain(_log.Lines, l => l.Contains("'built'"));
+    }
+
+    [Fact]
+    public void ASoundHull_IsNeverTouched()
+    {
+        // A self-built ship in this build's ids with its helm, engine and door: nothing to repair, no copy taken.
+        var keys = new List<string> { "ship_helm", "ship_engine", "door_slide" };
+        keys.AddRange(Enumerable.Repeat("steel_wall", 22));
+        string cells = string.Join(";", keys.Select((key, i) => $"{i % 5}:{i / 5}:-1:{_content.GetBlock(key)!.NumericId.Value}"));
+        using (var repo = OpenRepo("hullsound"))
+        {
+            repo.SavePlayer(new PlayerState { PlayerId = "Pilot", Name = "Pilot", FleetShipIds = { "sound" } });
+            repo.SaveShip("ship_Pilot#sound", new ShipState { ShipType = ShipState.CustomShipType, BuiltCells = cells, Commissioned = true });
+            repo.EnsureBlockPalette(_content.BlockPalette());
+        }
+
+        using (var repo = new SqliteWorldRepository(Paths("hullsound")))
+        {
+            var server = NewServer("hullsound", repo);
+            server.Start();
+            Assert.Equal(cells, repo.LoadShip("ship_Pilot#sound")!.BuiltCells);
+            server.Stop();
+        }
+
+        Assert.Empty(Backups("hullsound", BackupRotation.PreHullRepairPrefix));
+        Assert.DoesNotContain(_log.Lines, l => l.Contains("'sound'"));
+    }
+
+    [Fact]
+    public void AMixedHull_IsLeftAlone_AndNamedInTheLog()
+    {
+        // The helm was put in again after the update (this build's ids), the rest still sits in the old ones: no single
+        // older version reads the whole hull, so it is not guessed at — it stays as it is, and the log says where the copy is.
+        var readAs = HistoricalSets.First(s => s.Release == "v2026.9.17");
+        SeedABrokenHull("hullmixed", "mixed", (key, _) => key == "ship_helm"
+            ? readAs.IdOf[key].ToString() // the remap turns it into this build's helm
+            : HistoricalSets[0].IdOf[key].ToString());
+
+        string before;
+        using (var repo = OpenRepo("hullmixed"))
+        {
+            before = repo.LoadShip("ship_Pilot#mixed")!.BuiltCells;
+        }
+
+        using (var repo = new SqliteWorldRepository(Paths("hullmixed")))
+        {
+            var server = NewServer("hullmixed", repo);
+            server.Start();
+            var after = repo.LoadShip("ship_Pilot#mixed")!;
+            Assert.Equal(PaletteRemapped(before), after.BuiltCells); // the palette remap only — no repair on top
+            server.Stop();
+        }
+
+        Assert.Empty(Backups("hullmixed", BackupRotation.PreHullRepairPrefix));
+        Assert.Contains(_log.Lines, l => l.StartsWith("WARN ", StringComparison.Ordinal) && l.Contains("'mixed'") && l.Contains("'Pilot'")
+                                         && l.Contains("pre-remap"));
+    }
+
+    /// <summary>The update that remapped the save ran before, and its copy is gone (pruned, or the remap ran without the
+    /// server): the palette is current, no <c>pre-remap_…</c> copy names the version that misread the hull.</summary>
+    private void RemapWithoutACopy(string world)
+    {
+        using var repo = OpenRepo(world);
+        repo.EnsureBlockPalette(_content.BlockPalette());
+    }
+
+    [Fact]
+    public void AHullLeftInOldIds_IsRepaired_AlsoWithoutTheCopyFromBeforeTheRemap()
+    {
+        // No copy to pin the version that misread it: the open search over every pair still finds one reading only.
+        string[] keys = SeedABrokenHull("hullfix_nocopy", "built");
+        RemapWithoutACopy("hullfix_nocopy");
+
+        using (var repo = new SqliteWorldRepository(Paths("hullfix_nocopy")))
+        {
+            var server = NewServer("hullfix_nocopy", repo);
+            server.Start();
+            Assert.Equal(keys, HullKeys(repo.LoadShip("ship_Pilot#built")!));
+            server.Stop();
+        }
+
+        Assert.Empty(Backups("hullfix_nocopy", BackupRotation.PreRemapPrefix));
+        Assert.Single(Backups("hullfix_nocopy", BackupRotation.PreHullRepairPrefix));
+        Assert.DoesNotContain(_log.Lines, l => l.Contains("block ids — the block set on record"));
+    }
+
+    [Fact]
+    public void AnAmbiguousHull_IsLeftAlone_AndNamedInTheLog()
+    {
+        // Helm, engine, a sliding door and plain walls: read as built in v2026.8.12 and opened with v2026.9.17 it is the
+        // ship it was — but read as v2026.9.4 / v2026.9.20 it is the same ship with a hinged door. Two readings, and no copy
+        // from before the remap to tell which version read it: no guess.
+        SeedABrokenHull("hullambiguous", "twofold", plainWalls: true);
+        string before;
+        using (var repo = OpenRepo("hullambiguous"))
+        {
+            before = repo.LoadShip("ship_Pilot#twofold")!.BuiltCells;
+        }
+
+        RemapWithoutACopy("hullambiguous");
+        using (var repo = new SqliteWorldRepository(Paths("hullambiguous")))
+        {
+            var server = NewServer("hullambiguous", repo);
+            server.Start();
+            Assert.Equal(PaletteRemapped(before), repo.LoadShip("ship_Pilot#twofold")!.BuiltCells);
+            server.Stop();
+        }
+
+        Assert.Empty(Backups("hullambiguous", BackupRotation.PreRemapPrefix));
+        Assert.Empty(Backups("hullambiguous", BackupRotation.PreHullRepairPrefix));
+        Assert.Contains(_log.Lines, l => l.StartsWith("WARN ", StringComparison.Ordinal) && l.Contains("'twofold'")
+                                         && l.Contains("more than one way"));
+    }
+
+    [Fact]
+    public void AnAmbiguousHull_IsRepaired_WhenTheCopyFromBeforeTheRemapNamesTheVersionThatReadIt()
+    {
+        // The same two-way hull, but this time the update's remap runs now and takes its pre-remap copy: that copy has the
+        // v2026.9.17 palette on record and was written by a build without the hull remap — so the hull was read as 9.17
+        // ids, the (9.4, 9.20) reading is out, and one reading is left.
+        string[] keys = SeedABrokenHull("hullpinned", "twofold", plainWalls: true);
+        string oldHull;
+        using (var repo = OpenRepo("hullpinned"))
+        {
+            oldHull = repo.LoadShip("ship_Pilot#twofold")!.BuiltCells;
+        }
+
+        using (var repo = new SqliteWorldRepository(Paths("hullpinned")))
+        {
+            var server = NewServer("hullpinned", repo);
+            server.Start();
+            Assert.Equal(keys, HullKeys(repo.LoadShip("ship_Pilot#twofold")!));
+            server.Stop();
+        }
+
+        Assert.Single(Backups("hullpinned", BackupRotation.PreHullRepairPrefix));
+        Assert.Contains(_log.Lines, l => l.StartsWith("INFO ", StringComparison.Ordinal) && l.Contains("read as v2026.9.17 block ids"));
+        Assert.Contains(_log.Lines, l => l.StartsWith("INFO ", StringComparison.Ordinal) && l.Contains("'twofold'") && l.Contains("repaired"));
+
+        // The copy was only read: it still holds the save as it was before the remap.
+        string copy = Path.Combine(Paths("hullpinned").BackupsDirectory, Assert.Single(Backups("hullpinned", BackupRotation.PreRemapPrefix)));
+        Assert.Contains(oldHull, ShipJson(copy, "ship_Pilot#twofold"));
+        using var connection = new SqliteConnection($"Data Source={copy};Mode=ReadOnly;Pooling=False");
+        connection.Open();
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM block_palette;";
+        Assert.Equal((long)HistoricalSets.First(s => s.Release == "v2026.9.17").Count, (long)cmd.ExecuteScalar()!);
+    }
+
+    [Fact]
+    public void ACopyAHullRemappingVersionWrote_PinsNothing()
+    {
+        // A pre-remap copy of a save that a v2026.10.4+ build last wrote (save version 2 or higher) says nothing about the
+        // version that misread the hull — even when its palette happens to be one of the old sets. The open search runs.
+        using (var repo = new SqliteWorldRepository(Paths("hullstamped")))
+        {
+            var first = NewServer("hullstamped", repo);
+            first.Start(); // a world this build created and stamped …
+            first.Stop();
+        }
+
+        var readAs = HistoricalSets.First(s => s.Release == "v2026.9.17");
+        var built = HistoricalSets[0];
+        var keys = new List<string> { "ship_helm", "ship_engine", "door_slide" };
+        keys.AddRange(Enumerable.Repeat("steel_wall", 22));
+        using (var repo = OpenRepo("hullstamped"))
+        {
+            var meta = repo.LoadMetadata()!;
+            Assert.True(meta.SaveVersion >= 2);
+            meta.StampedFeatures.Remove(SvGameServer.HullRepairMarker); // … whose repair has not run yet
+            repo.SaveMetadata(meta);
+            var palette = new Dictionary<ushort, string>();
+            for (ushort id = 1; id < readAs.Keys.Length; id++)
+            {
+                palette[id] = readAs.Keys[id];
+            }
+
+            repo.EnsureBlockPalette(palette); // … and whose palette on record is the 9.17 set
+            repo.SavePlayer(new PlayerState { PlayerId = "Pilot", Name = "Pilot", FleetShipIds = { "twofold" } });
+            repo.SaveShip("ship_Pilot#twofold", new ShipState
+            {
+                ShipType = ShipState.CustomShipType,
+                BuiltCells = string.Join(";", keys.Select((key, i) => $"{i % 5}:{i / 5}:-1:{built.IdOf[key]}")),
+                Commissioned = true,
+            });
+        }
+
+        using (var repo = new SqliteWorldRepository(Paths("hullstamped")))
+        {
+            var server = NewServer("hullstamped", repo);
+            server.Start(); // the remap takes a pre-remap copy — stamped with save version 2+
+            server.Stop();
+        }
+
+        Assert.Single(Backups("hullstamped", BackupRotation.PreRemapPrefix));
+        Assert.Empty(Backups("hullstamped", BackupRotation.PreHullRepairPrefix));
+        Assert.DoesNotContain(_log.Lines, l => l.Contains("block ids — the block set on record"));
+        Assert.Contains(_log.Lines, l => l.StartsWith("WARN ", StringComparison.Ordinal) && l.Contains("'twofold'")
+                                         && l.Contains("more than one way"));
+    }
+
+    /// <summary>A hull string as the palette remap (9.17 → this build) rewrites it.</summary>
+    private string PaletteRemapped(string cells)
+    {
+        var readAs = HistoricalSets.First(s => s.Release == "v2026.9.17");
+        return string.Join(";", cells.Split(';').Select(c =>
+        {
+            int colon = c.LastIndexOf(':');
+            ushort id = ushort.Parse(c.Substring(colon + 1));
+            return c.Substring(0, colon + 1) + _content.GetBlock(readAs.Keys[id])!.NumericId.Value;
+        }));
+    }
+
     [Fact]
     public void RemovedBlocks_AreNamedInTheLog_BeforeTheyBecomeAir()
     {
