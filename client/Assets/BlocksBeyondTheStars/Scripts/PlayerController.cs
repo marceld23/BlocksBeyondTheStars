@@ -544,8 +544,10 @@ namespace BlocksBeyondTheStars.Client
         {
             string key = Game?.ItemInSlot(Game.SelectedHotbarSlot) ?? string.Empty;
             bool dirty = Game != null && Game.HeldItemDirty; // appearance edit: same key, new arm paint (#1464)
+            int slot = Game != null ? Game.SelectedHotbarSlot : -1;
             if (key == _heldKey && !dirty)
             {
+                _heldSlot = slot; // the same item in another slot: that slot is the one that may run empty next (#2778)
                 return;
             }
 
@@ -556,6 +558,12 @@ namespace BlocksBeyondTheStars.Client
 
             bool firstRefresh = _heldKey == "\0";
             bool sameItem = key == _heldKey;
+            // #2778: a switch puts the old item away and draws the new one; when the selected slot just ran empty (the last
+            // block placed, the item dropped or moved away) there is nothing to put away — the empty hand only comes up.
+            var swap = firstRefresh || sameItem ? Viewmodel.Swap.Instant
+                : string.IsNullOrEmpty(key) && slot == _heldSlot ? Viewmodel.Swap.DrawOnly
+                : Viewmodel.Swap.Holster;
+            _heldSlot = slot;
             _heldKey = key;
             _optic?.SetHeldItem(key); // swapping away from the binoculars can never strand a zoomed view
             var (kind, tint, blockKey) = HeldItem.For(Game?.Content, key);
@@ -565,11 +573,23 @@ namespace BlocksBeyondTheStars.Client
             {
                 ClientAudio.Instance?.Cue("glove_charge", 0.5f); // #2278: the gloves hum awake as they are pulled on
             }
+            else if (swap == Viewmodel.Swap.Holster && Time.time - _lastDrawCue > DrawCueGap)
+            {
+                ClientAudio.Instance?.Cue("gear_equip", DrawCueVolume); // #2778: the draw, quietly (not once per scrolled slot)
+                _lastDrawCue = Time.time;
+            }
 
             var look = Game?.LocalToolLook(key); // the player's own look for this tool (#1963), null = standard
-            Avatar?.SetHeldItem(kind, tint, blockKey, key, look);
-            _viewmodel?.SetHeldItem(kind, tint, blockKey, key, look);
+            Avatar?.SetHeldItem(kind, tint, blockKey, key, look, animate: swap != Viewmodel.Swap.Instant,
+                holster: swap == Viewmodel.Swap.Holster);
+            _viewmodel?.SetHeldItem(kind, tint, blockKey, key, look, swap);
         }
+
+        // #2778: the held item's last slot (a slot that ran empty draws without a holster) and the draw cue's rate limit.
+        private int _heldSlot = -1;
+        private float _lastDrawCue = -10f;
+        private const float DrawCueGap = 0.18f;
+        private const float DrawCueVolume = 0.35f;
 
         private void Update()
         {

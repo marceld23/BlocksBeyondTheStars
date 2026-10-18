@@ -24,6 +24,34 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ✋ The item in your hand — its own look, a suit hand for everything, holster and draw — #2776, #2777, #2778, branch feat/held-item-hands-draw — ✅ done 2026-10-18 (⚠ playtest open)
+
+Marcel: a dyed or shaped block should look dyed or shaped in the hand; every item should look held in the hand; taking
+an item out and putting it away should be animated. Decisions: third person too, one animation for every item, the
+existing `gear_equip` sound, the form shown as a preview (not the pending **R** rotation), props in their placed form.
+
+- **The block's own look (#2776):** `Client.Core/HeldBlockLook` reads the dye, glow, form and paint design from the item
+  key (and the form the server stamps on bed, campfire, rug, flower pot, ladder, staircase, stretcher, trapdoor);
+  `HeldMiniatures.AttachBlock` meshes those cells with the world's mesher (dye shader mode, glow emission, the paint
+  submesh via the new `HeldItem.PaintKitResolver`). Forms rise to the eye's right like the hotbar icon; player forms over
+  several blocks and the bed show every cell. Plain blocks keep the #2744 cube. A reused form id drops the cached
+  meshes (leases now hold the cache entry, so an orphaned mesh is freed by its last holder).
+- **A suit hand for every item (#2777):** `Client.Core/HeldHands` — grips `fist` (tools, weapons; on a pistol grip or
+  the model's origin), `palm` (blocks, vehicles), `pinch` (icons), `stem` (plants), chosen per kind and overridable by
+  the existing `heldGrip` field (`HeldGrips.Fist/Palm/Pinch/Stem`). `HeldItem.AttachHand` builds the painted arm under
+  the item. Item forearms are 0.60 m and swings turn 15 cm down the forearm (`HeldHands.SwingPivot`), so the arm's
+  end never shows; held items sit 2 cm higher. Hand parts share one material per colour/painting (the bare hand
+  leaked four per switch). Third person: players carry what they hold (arm forward, item kept level).
+- **Holster and draw (#2778):** `Client.Core/HeldSwap` (0.12 s down, 0.2 s up, a 0.14 s settle) drives `Viewmodel` and
+  `PlayerAvatar` (the hand reaches to the hip; remote players too). Fast scrolling only draws the last item, a slot that
+  ran empty only draws, using the item cuts it short, *Reduced effects*, climbing and a hidden hand switch at once;
+  `gear_equip` plays quietly on a switch.
+- **Docs:** new `docs/developer/HELD_ITEMS.md`; USER_MANUAL (held items), CUSTOM_SHAPES (held block).
+- **Tests:** `HeldBlockLookTests`, `HeldHandsTests`, `HeldSwapTests` (Client.Core). Poses checked by rendering every
+  kind at rest, mid-swing and through a switch (first person and avatar) from an EditMode batch script.
+- ⚠ **Playtest:** the grips and swings in the real game light (FOV 50–100), the painted arm on every item, a remote
+  player's holster, a painted block in hand after joining a world.
+
 ### 📬 Player reports 2026-10-18 (Marcel, Screelit = Justus) — inverted flora textures, residents as many as beds — #2772–#2775, branch fix/flora-alpha-ground-key — ✅ done 2026-10-18 (⚠ playtest open)
 
 Marcel: *"invertierte Texturen???"* — dry shrubs on a beach stood as sand cards with the shrub punched out. Justus: *"Keine

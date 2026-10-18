@@ -52,6 +52,14 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Vector3 IconAnchor = new Vector3(0f, 0.04f, 0.15f);
         private static readonly Quaternion IconTurn = Quaternion.Euler(0f, -20f, 0f);
 
+        // #2776: a held block meshed as the world draws it sits where the plain held cube sits (HeldItem.Build: 0.22 m at
+        // z 0.16) at a block's scale; a form turns a little, so its profile (which rises to the right, see
+        // HeldBlockLook.DisplayYaw) shows depth and its top. A form longer than FormMaxBlocks is shrunk to that length.
+        private const float BlockSize = 0.22f;
+        private const float FormMaxBlocks = 1.6f;
+        private static readonly Vector3 BlockAnchor = new Vector3(0f, 0f, 0.16f);
+        private static readonly Quaternion FormTurn = Quaternion.Euler(-14f, -28f, 0f);
+
         /// <summary>Engine-glow colour of the held speeder (the parked one's cyan).</summary>
         private static readonly Color EngineGlow = new Color(0.35f, 0.85f, 1f);
 
@@ -61,10 +69,12 @@ namespace BlocksBeyondTheStars.Client
             public bool Pending;   // the icon's pixels are still on their way back from the GPU
             public int Refs;
             public int LastUse;
+            public bool Orphan;    // dropped from the cache while still in a hand (#2776, ForgetBlocks)
             public List<(MeshFilter Filter, System.Action<Transform, Mesh> Place)> Waiters;
         }
 
         private static readonly Dictionary<string, Entry> Cache = new Dictionary<string, Entry>();
+        private static readonly List<Entry> Orphans = new List<Entry>();
         private static readonly List<string> EvictScratch = new List<string>();
         private static int _clock;
         private static int _generation;
@@ -154,6 +164,112 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
+        /// <summary>
+        /// #2776: puts the held block <paramref name="blockKey"/> under <paramref name="holder"/> as the world draws it once
+        /// placed — the dye, glow, form and painted design its item key <paramref name="itemKey"/> carries, or the form a
+        /// prop is stamped with (<see cref="HeldBlockLook"/>). False for a plain cube, or without the world's atlas: the
+        /// caller keeps its cube then. A cube look sits exactly where the plain cube sits; a form is scaled like a block
+        /// (a slab is as wide as a block, a two-block form is shrunk to fit) and turned a little to show its profile.
+        /// </summary>
+        public static bool AttachBlock(Transform holder, string blockKey, string itemKey)
+        {
+            var kit = HeldItem.MeshKitResolver?.Invoke();
+            if (kit == null || blockKey == null)
+            {
+                return false;
+            }
+
+            var (content, atlas, opaque, transparent) = kit.Value;
+            var def = content?.GetBlock(blockKey);
+            if (def == null || atlas == null || opaque == null || def.NumericId.Value == 0)
+            {
+                return false;
+            }
+
+            var paintKit = HeldItem.PaintKitResolver?.Invoke();
+            var paintAtlas = paintKit?.Atlas;
+            var look = HeldBlockLook.For(itemKey, def, id => paintAtlas != null && paintAtlas.TryGetUv(id, out _),
+                index => BlockShapeGeometry.TryGetCustomVoxels(index, out string voxels) ? voxels : null);
+            if (look == null)
+            {
+                return false;
+            }
+
+            var mesh = GetOrBuild(look.CacheKey, () =>
+            {
+                var cells = new Dictionary<Vector3i, BlockId>();
+                var stamps = new Dictionary<Vector3i, int>();
+                foreach (var cell in look.Cells)
+                {
+                    cells[cell.Offset] = def.NumericId;
+                    stamps[cell.Offset] = cell.Descriptor;
+                }
+
+                System.Func<int, Rect?> designUv = null;
+                if (paintAtlas != null)
+                {
+                    designUv = paintAtlas.Snapshot();
+                }
+
+                return MeshCells(cells, content, atlas, null, still: true, stamps, look.Tint, look.Glow, designUv);
+            });
+            if (mesh == null)
+            {
+                return false;
+            }
+
+            var paint = paintKit?.Material;
+            var node = NewNode(holder, paint != null
+                ? new[] { opaque, transparent != null ? transparent : opaque, paint }
+                : transparent != null ? new[] { opaque, transparent } : new[] { opaque });
+            Lease(node, look.CacheKey);
+            node.GetComponent<MeshFilter>().sharedMesh = mesh;
+            if (look.IsForm)
+            {
+                var b = mesh.bounds;
+                float extent = Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
+                float scale = extent > FormMaxBlocks ? BlockSize * FormMaxBlocks / extent : BlockSize; // in block units
+                PlaceScaled(node.transform, mesh, scale, BlockAnchor, FormTurn);
+            }
+            else
+            {
+                PlaceScaled(node.transform, mesh, BlockSize, BlockAnchor, Quaternion.identity);
+            }
+
+            return true;
+        }
+
+        /// <summary>Drops the cached held blocks (#2776) — a player form re-registered under a reused id changes its
+        /// geometry, and the cache key only names the id.</summary>
+        public static void ForgetBlocks()
+        {
+            EvictScratch.Clear();
+            foreach (var kv in Cache)
+            {
+                if (kv.Key.StartsWith("b:", System.StringComparison.Ordinal))
+                {
+                    EvictScratch.Add(kv.Key);
+                }
+            }
+
+            foreach (string key in EvictScratch)
+            {
+                var entry = Cache[key];
+                Cache.Remove(key);
+                if (entry.Refs > 0)
+                {
+                    entry.Orphan = true; // still in a hand: freed when its last holder goes (or at teardown)
+                    Orphans.Add(entry);
+                }
+                else if (entry.Mesh != null)
+                {
+                    Object.Destroy(entry.Mesh);
+                }
+            }
+
+            EvictScratch.Clear();
+        }
+
         /// <summary>Puts the extruded icon of <paramref name="itemKey"/> under <paramref name="holder"/>; false when the
         /// item has no icon (the caller shows the bare hand). Where the GPU answers later (WebGPU), the node fills in when
         /// the pixels arrive.</summary>
@@ -204,6 +320,15 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Cache.Clear();
+            foreach (var orphan in Orphans)
+            {
+                if (orphan.Mesh != null)
+                {
+                    Object.Destroy(orphan.Mesh);
+                }
+            }
+
+            Orphans.Clear();
             _generation++;
             if (_iconMaterial != null)
             {
@@ -212,12 +337,22 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>A holder that showed the mesh of <paramref name="key"/> is gone.</summary>
-        internal static void Release(string key, int generation)
+        /// <summary>A holder that showed the mesh of the cache entry <paramref name="token"/> is gone.</summary>
+        internal static void Release(object token, int generation)
         {
-            if (generation == _generation && key != null && Cache.TryGetValue(key, out var entry) && entry.Refs > 0)
+            if (generation != _generation || !(token is Entry entry) || entry.Refs <= 0)
             {
-                entry.Refs--;
+                return;
+            }
+
+            entry.Refs--;
+            if (entry.Orphan && entry.Refs == 0)
+            {
+                Orphans.Remove(entry);
+                if (entry.Mesh != null)
+                {
+                    Object.Destroy(entry.Mesh);
+                }
             }
         }
 
@@ -250,7 +385,7 @@ namespace BlocksBeyondTheStars.Client
             entry.Refs++;
             entry.LastUse = ++_clock;
             var lease = node.AddComponent<HeldMiniatureLease>();
-            lease.Key = key;
+            lease.Entry = entry;
             lease.Generation = _generation;
         }
 
@@ -310,6 +445,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     filter.sharedMesh = mesh;
                     place(filter.transform, mesh);
+                    HeldItem.RefreshHand(filter.transform.parent); // #2777: the first-person hand grips the real card now
                 }
             }
 
@@ -338,11 +474,21 @@ namespace BlocksBeyondTheStars.Client
             node.localPosition = anchor - (turn * (pivot * s));
         }
 
+        /// <summary>Scales <paramref name="node"/> by <paramref name="scale"/>, turns it and puts its centre on
+        /// <paramref name="anchor"/> (#2776: a held block keeps the scale of a block, whatever its form).</summary>
+        private static void PlaceScaled(Transform node, Mesh mesh, float scale, Vector3 anchor, Quaternion turn)
+        {
+            node.localScale = Vector3.one * scale;
+            node.localRotation = turn;
+            node.localPosition = anchor - (turn * (mesh.bounds.center * scale));
+        }
+
         /// <summary>Meshes a few cells the way the world meshes them (one chunk, nothing around). <paramref name="still"/>
         /// takes the wind out of plants: every swaying cut-out code becomes the rigid prop's (still clipped), which the
         /// shader never moves.</summary>
         private static Mesh MeshCells(Dictionary<Vector3i, BlockId> cells,
-            BlocksBeyondTheStars.Shared.Content.GameContent content, BlockTextureAtlas atlas, System.Func<BlockId, Color> paint, bool still)
+            BlocksBeyondTheStars.Shared.Content.GameContent content, BlockTextureAtlas atlas, System.Func<BlockId, Color> paint, bool still,
+            Dictionary<Vector3i, int> shapes = null, int tint = 0, int glow = 0, System.Func<int, Rect?> designUv = null)
         {
             if (cells == null || cells.Count == 0)
             {
@@ -353,12 +499,26 @@ namespace BlocksBeyondTheStars.Client
             foreach (var kv in cells)
             {
                 chunk.Set(kv.Key.X, kv.Key.Y, kv.Key.Z, kv.Value);
+                // #2776: the per-cell form + design and the dye / glow a held block carries, stored like a placed block's.
+                if (shapes != null && shapes.TryGetValue(kv.Key, out int descriptor) && descriptor != 0)
+                {
+                    chunk.SetShape(kv.Key.X, kv.Key.Y, kv.Key.Z, descriptor);
+                }
+
+                if (tint != 0 || glow != 0)
+                {
+                    chunk.SetModifier(kv.Key.X, kv.Key.Y, kv.Key.Z, tint, glow);
+                }
             }
 
             BlockId CellAt(int x, int y, int z)
                 => cells.TryGetValue(new Vector3i(x, y, z), out var id) ? id : BlockId.Air;
 
-            var data = ChunkMesher.BuildGeometry(chunk, content, CellAt, atlas, paintTint: paint);
+            int ShapeAt(int x, int y, int z)
+                => shapes != null && shapes.TryGetValue(new Vector3i(x, y, z), out int s) ? s : 0;
+
+            var data = ChunkMesher.BuildGeometry(chunk, content, CellAt, atlas, paintTint: paint,
+                worldShape: shapes != null ? ShapeAt : null, designUv: designUv);
             try
             {
                 if (data.Verts.Count == 0)
@@ -514,9 +674,9 @@ namespace BlocksBeyondTheStars.Client
     /// cache knows the mesh is free to drop. Never destroys the mesh itself — other hands may share it.</summary>
     public sealed class HeldMiniatureLease : MonoBehaviour
     {
-        internal string Key;
+        internal object Entry; // the cache entry itself, so a lease never counts against a newer entry under the same key
         internal int Generation;
 
-        private void OnDestroy() => HeldMiniatures.Release(Key, Generation);
+        private void OnDestroy() => HeldMiniatures.Release(Entry, Generation);
     }
 }

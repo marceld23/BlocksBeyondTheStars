@@ -490,9 +490,10 @@ namespace BlocksBeyondTheStars.Client
             // Held tool/weapon/block shown in the remote avatar's hand.
             if (m.Held != r.Held)
             {
+                bool first = r.Held == "\0"; // the first sighting just shows it; every switch after it is drawn (#2778)
                 r.Held = m.Held;
                 var (kind, tint, blockKey) = HeldItem.For(Game?.Content, m.Held);
-                r.Avatar.SetHeldItem(kind, tint, blockKey, m.Held, ToolLookOf(m.PlayerId, m.Held));
+                r.Avatar.SetHeldItem(kind, tint, blockKey, m.Held, ToolLookOf(m.PlayerId, m.Held), animate: !first);
             }
         }
 

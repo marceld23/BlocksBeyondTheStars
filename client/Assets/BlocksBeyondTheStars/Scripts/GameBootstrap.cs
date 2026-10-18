@@ -2725,6 +2725,8 @@ namespace BlocksBeyondTheStars.Client
 
             // #2534: the held vehicle / plant miniatures mesh with the world's own atlas + chunk materials.
             HeldItem.MeshKitResolver = () => (Content, Atlas, ChunkMaterial, ChunkMaterialTransparent);
+            // #2776: and a held painted block shows its design from the paint atlas.
+            HeldItem.PaintKitResolver = () => (PaintAtlas, ChunkMaterialPaint);
 
             // The empty-slot hand (#1033) wears a glove in the player's suit arm colour — and the player's
             // own arm painting from the appearance editor, so first person matches third person (#1427).
@@ -2839,6 +2841,11 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 ShapeIconFactory.ClearCache(); // icons are keyed by (tile, form) — a reused id must not serve stale art
+                HeldMiniatures.ForgetBlocks(); // #2776: so are the held blocks' meshes
+                if (BlocksBeyondTheStars.Shared.State.ItemKey.Shape(ItemInSlot(SelectedHotbarSlot) ?? string.Empty) == m.Id)
+                {
+                    HeldItemDirty = true; // … and the block in hand is this very form
+                }
             };
             Network.PaintDesignReceived += m =>
             {
@@ -2854,6 +2861,14 @@ namespace BlocksBeyondTheStars.Client
                     {
                         _dirty.Add(c); // wiped design: rebuild loaded chunks so its faces fall back to the block texture
                     }
+
+                }
+
+                // #2776: the painted block in hand may have been waiting for this design (anyone's other design leaves the
+                // hand alone — a rebuild would cut a swing or a draw short).
+                if (BlocksBeyondTheStars.Shared.State.ItemKey.Design(ItemInSlot(SelectedHotbarSlot) ?? string.Empty) == m.Id)
+                {
+                    HeldItemDirty = true;
                 }
             };
             Network.BlockChanged += OnBlockChanged;
@@ -4973,6 +4988,7 @@ namespace BlocksBeyondTheStars.Client
             HeldItem.BlockTileResolver = null;
             HeldItem.ModelResolver = null;
             HeldItem.MeshKitResolver = null; // #2534 (captures this object graph, like the resolvers above)
+            HeldItem.PaintKitResolver = null; // #2776
             HeldItem.ReleasePartMaterials(); // also frees the held miniatures' meshes
             PropTextures.Release(); // the doors and machines that used them are going away with the world
             HeldItem.HandTintResolver = null;  // both closures capture Settings (and this object graph) — #1464

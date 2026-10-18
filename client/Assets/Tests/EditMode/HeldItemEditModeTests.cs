@@ -59,5 +59,44 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             HeldItem.HandPaintResolver = () => new string('1', 8 * 32 * 32);
             Assert.That(HeldItem.For(null, "").tint, Is.EqualTo(arm));
         }
+
+        /// <summary>#2777: a held tool comes with the suit hand (forearm, cuff, fist, thumb) in the shared hand materials;
+        /// the bare hand and the gloves bring their own and get none. The muzzle stays the tool's tip, not the hand's.</summary>
+        [Test]
+        public void AHeldTool_IsHeldByTheSuitHand_AndKeepsItsMuzzle()
+        {
+            UnityEngine.TestTools.LogAssert.ignoreFailingMessages = true; // Object.Destroy logs outside play mode
+            var root = new GameObject("HeldHandTestRoot");
+            try
+            {
+                var drill = HeldItem.Build(root.transform, HeldItem.Kind.Drill, Color.gray);
+                Assert.That(HeldItem.MuzzleOf(drill, out var before), Is.True);
+                HeldItem.AttachHand(drill, HeldItem.Kind.Drill, null, null);
+                var hand = drill.transform.Find("Hand");
+                Assert.That(hand, Is.Not.Null, "The drill is held by a hand.");
+                Assert.That(hand.childCount, Is.EqualTo(4), "Forearm, cuff, fist and thumb.");
+                var a = hand.GetChild(0).GetComponent<Renderer>().sharedMaterial;
+                var b = HeldItem.Build(root.transform, HeldItem.Kind.Gun, Color.gray);
+                HeldItem.AttachHand(b, HeldItem.Kind.Gun, null, null);
+                Assert.That(b.transform.Find("Hand").GetChild(0).GetComponent<Renderer>().sharedMaterial, Is.SameAs(a),
+                    "Every hand shares its materials — no new ones per quick-bar switch.");
+
+                Assert.That(HeldItem.MuzzleOf(drill, out var after), Is.True);
+                Assert.That(Vector3.Distance(before, after), Is.LessThan(1e-4f), "The hand is no part of the tool's tip.");
+
+                var bare = HeldItem.Build(root.transform, HeldItem.Kind.Hand, Color.blue);
+                HeldItem.AttachHand(bare, HeldItem.Kind.Hand, null, null);
+                Assert.That(bare.transform.Find("Hand"), Is.Null, "The bare hand is its own hand.");
+                Assert.That(HeldItem.MuzzleOf(bare, out var fist), Is.True, "A punch still starts at the fist.");
+                Assert.That(bare.transform.InverseTransformPoint(fist).z, Is.GreaterThan(0.13f), "… at its front.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                HeldItem.ReleasePartMaterials();
+                HeldItem.ReleaseHandAtlas();
+                UnityEngine.TestTools.LogAssert.ignoreFailingMessages = false;
+            }
+        }
     }
 }

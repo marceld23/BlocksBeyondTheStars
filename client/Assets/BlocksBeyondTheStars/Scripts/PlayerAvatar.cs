@@ -40,6 +40,21 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<GameObject> _climbPads = new List<GameObject>(); // #2192 climbing-glove cuffs/pads/claws
         private bool _visible = true;
 
+        // #2777: a held item is carried in front — the right arm's carry pose, blended in and out.
+        private const float CarryUpperArm = -12f;  // the upper arm a little forward …
+        private const float CarryElbow = -48f;     // … the forearm out in front, 30° under the horizontal
+        private const float CarrySwing = 0.3f;     // what is left of the walk swing while carrying
+        private const float CarryBlendRate = 5f;   // per second
+        private float _carry;
+
+        // #2778: the holster / draw of a hotbar switch — the right hand reaches down and back to the hip.
+        private const float HolsterUpperArm = 24f;
+        private const float HolsterElbow = -6f;
+        private readonly HeldSwap _swap = new HeldSwap();
+        private bool _pendingBuild;
+        private (HeldItem.Kind Kind, Color Tint, string BlockKey, string ItemKey,
+            IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> Look) _pending;
+
         // #2278/#2279: a glove blow — the energy gloves' alternating jab or the shock gloves' two-handed push.
         private const float JabDuration = 0.30f;
         private const float PushDuration = 0.47f;
@@ -533,9 +548,11 @@ namespace BlocksBeyondTheStars.Client
             return go;
         }
 
-        private void Update()
+        private void Update() => Animate(Time.deltaTime);
+
+        /// <summary>One frame of the procedural pose — <see cref="Update"/>'s body.</summary>
+        private void Animate(float dt)
         {
-            float dt = Time.deltaTime;
             if (dt <= 0f || _armR == null)
             {
                 return;
@@ -664,6 +681,44 @@ namespace BlocksBeyondTheStars.Client
                 elbowR += Mathf.Max(0f, Mathf.Sin(_walkPhase)) * 22f * moving;
             }
 
+            // #2778: the holster / draw of a hotbar switch — the waiting item is swapped in at the bottom. A pose that owns
+            // the arms (asleep, climbing, seated, gliding) switches at once instead of reaching for the hip.
+            if (_lying || _climbing || _seated || _gliding)
+            {
+                if (_swap.Active || _pendingBuild)
+                {
+                    FinishSwap();
+                }
+            }
+            else if (_swap.Step(dt) && _pendingBuild)
+            {
+                _pendingBuild = false;
+                BuildHeld(_pending.Kind, _pending.Tint, _pending.BlockKey, _pending.ItemKey, _pending.Look);
+            }
+
+            // #2777: a player carries what they hold — the upper arm a little forward, the forearm out in front, a smaller
+            // walk swing — instead of dangling it by the leg; the item is kept pointing ahead (below). NPCs keep their
+            // tools at their side, and every pose with its own arms (asleep, climbing, seated, gliding) drops the carry.
+            float carryTarget = _held != null && !_fightGloves && _suit && !_lying && !_climbing && !_seated && !_gliding ? 1f : 0f;
+            _carry = Mathf.MoveTowards(_carry, carryTarget, dt * CarryBlendRate);
+            if (_carry > 0f)
+            {
+                armR = Mathf.Lerp(armR, (armR * CarrySwing) + CarryUpperArm, _carry);
+                elbowR = Mathf.Lerp(elbowR, CarryElbow, _carry);
+            }
+
+            // #2778: the right hand reaches down and back to the hip to put the item away, and brings the next one up.
+            float drop = _swap.Drop;
+            if (drop > 0f)
+            {
+                armR = Mathf.Lerp(armR, HolsterUpperArm, drop);
+                elbowR = Mathf.Lerp(elbowR, HolsterElbow, drop);
+            }
+
+            // How level the carried item is held: fully while carried, not while it is put away or a swing, a blow, a
+            // gesture or the rope moves the arm — then it follows the hand as before.
+            float level = _carry * (1f - drop);
+
             // Tool/weapon chop overrides the right arm: raise, then drive down (with an elbow snap).
             if (_swingTimer > 0f)
             {
@@ -756,6 +811,17 @@ namespace BlocksBeyondTheStars.Client
                 armR = Mathf.Clamp(-90f - elevation, -175f, -20f);
                 elbowR = 0f;
                 rollR = yawR = elbowRollR = 0f; // the rope arm stays straight at its anchor, whatever else plays
+            }
+
+            if (_swingTimer > 0f || _punchTimer > 0f || _bowTimer > 0f || _waveTimer > 0f || _cheerTimer > 0f || _roped)
+            {
+                level = 0f;
+            }
+
+            if (_held != null && !_fightGloves) // the gloves are turned onto the hands once (BuildAvatarGlove)
+            {
+                // #2777: undo the arm's pitch on the held item, so a carried tool points ahead, not at the sky.
+                _held.transform.localRotation = Quaternion.Euler(-(armR + elbowR) * level, 0f, 0f);
             }
 
             _armL.localRotation = Quaternion.Euler(armL, yawL, rollL);
@@ -958,7 +1024,19 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_swingTimer <= 0f)
             {
+                FinishSwap(); // #2778: the swing is made with the new item — a holster / draw in progress just completes
                 _swingTimer = SwingDuration;
+            }
+        }
+
+        /// <summary>#2778: ends a holster / draw at once, building the item still waiting (if any).</summary>
+        private void FinishSwap()
+        {
+            _swap.Finish();
+            if (_pendingBuild)
+            {
+                _pendingBuild = false;
+                BuildHeld(_pending.Kind, _pending.Tint, _pending.BlockKey, _pending.ItemKey, _pending.Look);
             }
         }
 
@@ -972,6 +1050,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            FinishSwap(); // #2778: the blow is thrown with the gloves just drawn
             _punchPush = push;
             _punchLeft = !push && !_punchLeft;
             _punchDuration = push ? PushDuration : JabDuration;
@@ -1032,14 +1111,46 @@ namespace BlocksBeyondTheStars.Client
             elbowR = Mathf.Lerp(elbowR, e, k);
         }
 
-        /// <summary>Shows the held tool/weapon/block in the right hand (call only when it changes).</summary>
+        /// <summary>Shows the held tool/weapon/block in the right hand (call only when it changes). #2778: with
+        /// <paramref name="animate"/> the hand puts the old item away at the hip and brings the new one up
+        /// (<paramref name="holster"/> false: the old one is gone, the new one just comes up); a switch while the old item
+        /// is still going down only replaces the one waiting. Without it — or out of sight, or with reduced effects — the
+        /// item changes at once.</summary>
         public void SetHeldItem(HeldItem.Kind kind, Color tint, string blockKey = null, string itemKey = null,
-            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look = null)
+            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look = null,
+            bool animate = false, bool holster = true)
         {
             if (_handR == null)
             {
                 return;
             }
+
+            if (!animate || !_visible || UiKit.ReducedMotion)
+            {
+                _swap.Finish();
+                _pendingBuild = false;
+                BuildHeld(kind, tint, blockKey, itemKey, look);
+                return;
+            }
+
+            if (holster && (_held != null || _pendingBuild))
+            {
+                _pending = (kind, tint, blockKey, itemKey, look);
+                _pendingBuild = true;
+                _swap.Begin(holster: true);
+                return;
+            }
+
+            _swap.Finish();
+            _pendingBuild = false;
+            BuildHeld(kind, tint, blockKey, itemKey, look);
+            _swap.Begin(holster: false);
+        }
+
+        /// <summary>Builds the held model in the right hand (and the left glove of a pair) in place of the current one.</summary>
+        private void BuildHeld(HeldItem.Kind kind, Color tint, string blockKey, string itemKey,
+            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look)
+        {
 
             if (_held != null)
             {

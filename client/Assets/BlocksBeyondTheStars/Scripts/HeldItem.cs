@@ -58,6 +58,10 @@ namespace BlocksBeyondTheStars.Client
         /// block cube.</summary>
         public static System.Func<(GameContent Content, BlockTextureAtlas Atlas, Material Opaque, Material Transparent)> MeshKitResolver;
 
+        /// <summary>The paint-design atlas and its chunk material, so a held painted block shows its design (#2776). Wired by
+        /// GameBootstrap; null (or a null atlas) shows the block unpainted.</summary>
+        public static System.Func<(PaintDesignAtlas Atlas, Material Material)> PaintKitResolver;
+
         /// <summary>Resolves the local player's suit arm colour so the empty-slot hand matches the
         /// avatar's glove. Wired by GameBootstrap; null falls back to the default suit blue.</summary>
         public static System.Func<Color?> HandTintResolver;
@@ -205,6 +209,15 @@ namespace BlocksBeyondTheStars.Client
                 case Kind.Icon:
                     HeldMiniatures.AttachIcon(holder.transform, itemKey);
                     return holder;
+                case Kind.Block:
+                    // #2776: a dyed, glowing, shaped or painted block — or a prop with its stamped form — as the world
+                    // draws it; a plain block keeps the cube below.
+                    if (HeldMiniatures.AttachBlock(holder.transform, blockKey, itemKey))
+                    {
+                        return holder;
+                    }
+
+                    break;
             }
 
             // #1931: every drill, gun, blade and scanner has its own parts (the base item keeps the model its kind had).
@@ -356,17 +369,151 @@ namespace BlocksBeyondTheStars.Client
         /// darker shade for definition. <paramref name="left"/> mirrors it (thumb on +x) and paints it from the left arm.</summary>
         private static void HandCubes(Transform holder, Color tint, bool left)
         {
-            float mx = left ? -1f : 1f;
-            var cuff = new Color(tint.r * 0.7f, tint.g * 0.7f, tint.b * 0.7f);
-            var forearm = Cube(holder, new Vector3(0.02f * mx, -0.06f, -0.16f), new Vector3(0.11f, 0.11f, 0.30f), tint);
-            var cuffGo = Cube(holder, new Vector3(0f, -0.02f, -0.02f), new Vector3(0.12f, 0.12f, 0.07f), cuff);
-            var fist = Cube(holder, new Vector3(0f, 0f, 0.07f), new Vector3(0.13f, 0.12f, 0.14f), tint);
-            var thumb = Cube(holder, new Vector3(-0.075f * mx, 0.01f, 0.05f), new Vector3(0.05f, 0.06f, 0.08f), tint);
-            PaintHand(tint, left, forearm, fist, thumb); // the player's own arm painting (#1427)
-            // The hand is suit-coloured like the avatar, so it shares the avatar's failure mode:
-            // LitColor's fixed key light + Linear colour space sink dark tints to a black silhouette
-            // without the ambient lift PlayerAvatar.Lit applies (#1427). Cuff included.
-            LiftAmbient(forearm, cuffGo, fist, thumb);
+            // The bare fist is HeldHands.Fist (#2777) at z 0.07 — the hand every held item now comes with.
+            foreach (var box in HeldHands.Fist(new System.Numerics.Vector3(0f, 0f, 0.07f)))
+            {
+                HandBox(holder, box, tint, left);
+            }
+        }
+
+        /// <summary>
+        /// #2777: the first-person suit hand holding <paramref name="held"/> — the holder <see cref="Build"/> returned — in the
+        /// grip its item takes (<see cref="HeldHands.GripFor"/>): the painted forearm and hand of the bare fist, built under
+        /// the item where the grip closes. Nothing for the items that bring their own hands (the bare hand, the gloves).
+        /// An icon whose pixels are still on their way (WebGPU) is held at its nominal card size and re-gripped when its
+        /// mesh arrives (<see cref="RefreshHand"/>). Only the first-person view calls this: an avatar has its own hand.
+        /// </summary>
+        public static void AttachHand(GameObject held, Kind kind, string itemKey, GameContent content)
+        {
+            if (held == null)
+            {
+                return;
+            }
+
+            var def = string.IsNullOrEmpty(itemKey) || content == null ? null : content.GetItem(itemKey);
+            string grip = HeldHands.GripFor(def, kind.ToString());
+            if (grip == null)
+            {
+                return;
+            }
+
+            // TryGetComponent, not GetComponent ?? Add: in the Editor a missing component comes back as a fake-null object
+            // that ?? takes for a real one, and the hand would never be built there.
+            if (!held.TryGetComponent(out HeldHandGrip tag))
+            {
+                tag = held.AddComponent<HeldHandGrip>();
+            }
+
+            tag.Grip = grip;
+            RefreshHand(held.transform);
+        }
+
+        /// <summary>(Re)builds the hand of a held holder that has one (<see cref="AttachHand"/>) around what it holds now.</summary>
+        internal static void RefreshHand(Transform held)
+        {
+            if (held == null || !held.TryGetComponent(out HeldHandGrip tag))
+            {
+                return;
+            }
+
+            if (tag.Hand != null)
+            {
+                Object.Destroy(tag.Hand);
+            }
+
+            var parts = new System.Collections.Generic.List<HeldItemShapes.Part>();
+            if (!HeldBounds(held, parts, out var min, out var max))
+            {
+                // Nothing measurable yet (an icon still being read back): its nominal card.
+                min = new Vector3(-0.15f, -0.11f, 0.15f);
+                max = new Vector3(0.15f, 0.19f, 0.15f);
+            }
+
+            var hand = new GameObject("Hand");
+            hand.transform.SetParent(held, false);
+            var tint = HandTintResolver?.Invoke() ?? DefaultGlove;
+            var boxes = HeldHands.For(tag.Grip, parts, new System.Numerics.Vector3(min.x, min.y, min.z),
+                new System.Numerics.Vector3(max.x, max.y, max.z));
+            foreach (var box in boxes)
+            {
+                HandBox(hand.transform, box, tint, left: false);
+            }
+
+            var pivot = HeldHands.SwingPivot(boxes);
+            tag.Pivot = new Vector3(pivot.X, pivot.Y, pivot.Z);
+            tag.Hand = hand;
+        }
+
+        /// <summary>The bounds of what <paramref name="held"/> holds, in its own frame — its model's cubes (collected into
+        /// <paramref name="parts"/> for the fist's handle) and its miniature's mesh — without its hand. False when there is
+        /// nothing to measure.</summary>
+        private static bool HeldBounds(Transform held, System.Collections.Generic.List<HeldItemShapes.Part> parts, out Vector3 min, out Vector3 max)
+        {
+            min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+            max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+            bool any = false;
+            for (int i = 0; i < held.childCount; i++)
+            {
+                var c = held.GetChild(i);
+                if (c.name == "Part")
+                {
+                    var p = c.localPosition;
+                    var s = c.localScale;
+                    parts.Add(new HeldItemShapes.Part(new System.Numerics.Vector3(p.x, p.y, p.z), new System.Numerics.Vector3(s.x, s.y, s.z),
+                        new HeldItemShapes.Rgb(1f, 1f, 1f)));
+                    min = Vector3.Min(min, p - (s * 0.5f));
+                    max = Vector3.Max(max, p + (s * 0.5f));
+                    any = true;
+                }
+                else if (c.name == HeldMiniatures.NodeName && c.GetComponent<MeshFilter>() is { } f && f.sharedMesh != null)
+                {
+                    var b = f.sharedMesh.bounds;
+                    for (int k = 0; k < 8; k++)
+                    {
+                        var corner = new Vector3((k & 1) == 0 ? b.min.x : b.max.x, (k & 2) == 0 ? b.min.y : b.max.y, (k & 4) == 0 ? b.min.z : b.max.z);
+                        var local = c.localPosition + (c.localRotation * Vector3.Scale(c.localScale, corner));
+                        min = Vector3.Min(min, local);
+                        max = Vector3.Max(max, local);
+                    }
+
+                    any = true;
+                }
+            }
+
+            return any;
+        }
+
+        /// <summary>One box of a suit hand (#2777): the forearm and the hand wear the player's arm painting when there is one
+        /// (#1427, #2755), the cuff a darker shade of the suit; all of them in the shared, lifted hand materials.</summary>
+        private static void HandBox(Transform parent, HeldHands.Box box, Color tint, bool left)
+        {
+            float mx = left ? -1f : 1f; // a left hand is the mirror image: its thumb on +X
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "HandPart";
+            if (go.GetComponent<Collider>() is { } col)
+            {
+                Object.Destroy(col);
+            }
+
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = new Vector3(box.Position.X * mx, box.Position.Y, box.Position.Z);
+            go.transform.localScale = new Vector3(box.Size.X, box.Size.Y, box.Size.Z);
+            var renderer = go.GetComponent<Renderer>();
+            if (box.Piece == HeldHands.Piece.Cuff)
+            {
+                renderer.sharedMaterial = HandMaterial(new Color(tint.r * 0.7f, tint.g * 0.7f, tint.b * 0.7f), null);
+                return;
+            }
+
+            var atlas = HandPaintAtlas(tint);
+            if (atlas == null)
+            {
+                renderer.sharedMaterial = HandMaterial(tint, null);
+                return;
+            }
+
+            renderer.sharedMaterial = HandMaterial(Color.white, atlas); // the painting's true colours
+            go.GetComponent<MeshFilter>().sharedMesh = HandMesh(left, hand: box.Piece == HeldHands.Piece.Hand);
         }
 
         /// <summary>#2278: one glove of a held pair on an avatar's hand (third person and other players). The glove model
@@ -393,10 +540,8 @@ namespace BlocksBeyondTheStars.Client
         {
             if (forearm)
             {
-                float mx = left ? -1f : 1f;
-                var arm = Cube(holder, new Vector3(0.02f * mx, -0.06f, -0.17f), new Vector3(0.11f, 0.11f, 0.28f), suit);
-                PaintHand(suit, left, arm);
-                LiftAmbient(arm);
+                HandBox(holder, new HeldHands.Box(HeldHands.Piece.Forearm, new System.Numerics.Vector3(0.02f, -0.06f, -0.17f),
+                    new System.Numerics.Vector3(0.11f, 0.11f, 0.28f)), suit, left);
             }
 
             var parts = HeldItemShapes.Glove(model, new HeldItemShapes.Rgb(0.45f, 0.85f, 0.95f));
@@ -451,9 +596,9 @@ namespace BlocksBeyondTheStars.Client
             for (int i = 0; i < root.childCount; i++)
             {
                 var c = root.GetChild(i);
-                if (c.name == HeldMiniatures.NodeName)
+                if (c.name == HeldMiniatures.NodeName || c.name == "Hand")
                 {
-                    continue; // a scaled miniature (#2534) is not a unit cube part — and has no muzzle
+                    continue; // a scaled miniature (#2534) is not a unit cube part — and has no muzzle; nor has the hand under an item (#2777)
                 }
 
                 float front = c.localPosition.z + c.localScale.z * 0.5f;
@@ -486,6 +631,7 @@ namespace BlocksBeyondTheStars.Client
         /// Texture2D / Mesh is never swept by <c>Resources.UnloadUnusedAssets</c> while this class still references it.</summary>
         public static void ReleaseHandAtlas()
         {
+            ReleaseHandMaterials(paintedOnly: false); // #2777: the shared hand materials too
             BlockCubeFaces.DestroyAsset(_handAtlas);
             _handAtlas = null;
             _handAtlasKey = null;
@@ -497,8 +643,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>
-        /// Applies the player's arm painting to the hand parts (white tint + the atlas the avatar also bakes). Without a
-        /// valid painting the parts keep their flat suit tint, matching the pre-#1427 look.
+        /// The player's arm painting baked for a suit colour (the atlas the avatar also bakes), or null without a valid
+        /// painting — the hand parts keep their flat suit tint then, matching the pre-#1427 look.
         /// <para>
         /// #2755: the parts wear the avatar's own painted arm (<see cref="PlayerAvatar.PaintedArmMesh"/>) instead of one
         /// chunk stretched over every face of a Unity primitive, whose faces lay their UVs out turned or mirrored: the
@@ -509,38 +655,83 @@ namespace BlocksBeyondTheStars.Client
         /// outward, its inner side down; the painting's top runs back toward the shoulder, as on the avatar.
         /// </para>
         /// </summary>
-        private static void PaintHand(Color baseColor, bool left, GameObject forearm, params GameObject[] handParts)
+        private static Texture2D HandPaintAtlas(Color baseColor)
         {
             string pixels = HandPaintResolver?.Invoke();
             if (string.IsNullOrEmpty(pixels) || pixels.Length != BodyPaint.ExpectedLength(BodyPaint.Arms))
             {
-                return;
+                return null;
             }
 
             string key = pixels + "#" + ColorUtility.ToHtmlStringRGB(baseColor);
             if (_handAtlasKey != key || _handAtlas == null)
             {
+                ReleaseHandMaterials(paintedOnly: true); // they sample the atlas that goes now
                 BlockCubeFaces.DestroyAsset(_handAtlas);
                 _handAtlas = BodyPaintKit.BuildAtlas(BodyPaint.Arms, pixels, baseColor);
                 _handAtlasKey = key;
             }
 
-            Dress(forearm, HandMesh(left, hand: false));
-            foreach (var go in handParts)
+            return _handAtlas;
+        }
+
+        // #2777: one lifted material per (colour, painting) for every suit hand. The hand now comes with every held item and
+        // is rebuilt on every hotbar switch; a material per part per rebuild (as the bare hand had) would pile up.
+        private static readonly System.Collections.Generic.Dictionary<(int Rgb, bool Painted), Material> HandMaterials =
+            new System.Collections.Generic.Dictionary<(int Rgb, bool Painted), Material>();
+
+        /// <summary>The shared hand material in <paramref name="color"/>, or over the painting <paramref name="painting"/>
+        /// (white: its true colours — the mesh's UVs already sit in the atlas). Lifted to the avatar's ambient floor + fill
+        /// (see <c>PlayerAvatar.Lit</c>): the hand is suit-coloured like the avatar, and LitColor's fixed key light plus
+        /// Linear colour space would sink a dark tint to a black silhouette without it (#1427).</summary>
+        private static Material HandMaterial(Color color, Texture2D painting)
+        {
+            var c32 = (Color32)color;
+            var key = (((c32.r << 16) | (c32.g << 8) | c32.b), painting != null);
+            if (HandMaterials.TryGetValue(key, out var cached) && cached != null
+                && (painting == null || cached.mainTexture == painting))
             {
-                Dress(go, HandMesh(left, hand: true));
+                return cached;
             }
 
-            static void Dress(GameObject go, Mesh mesh)
+            if (cached != null)
             {
-                var m = go.GetComponent<Renderer>().sharedMaterial;
-                m.color = Color.white; // the painting's true colours, like the avatar's painted parts
-                m.mainTexture = _handAtlas; // the mesh's UVs already sit in the atlas — no tile transform
-                go.GetComponent<MeshFilter>().sharedMesh = mesh;
+                BlockCubeFaces.DestroyAsset(cached);
+            }
+
+            var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
+            var material = painting != null
+                ? new Material(shader) { color = Color.white, mainTexture = painting }
+                : new Material(shader) { color = ShaderColor.Srgb(color) };
+            if (material.HasProperty("_Floor")) // no-op on the Unlit/Color fallback
+            {
+                material.SetFloat("_Floor", 0.62f);
+                material.SetFloat("_Fill", 0.3f);
+            }
+
+            HandMaterials[key] = material;
+            return material;
+        }
+
+        private static void ReleaseHandMaterials(bool paintedOnly)
+        {
+            var drop = new System.Collections.Generic.List<(int Rgb, bool Painted)>();
+            foreach (var kv in HandMaterials)
+            {
+                if (!paintedOnly || kv.Key.Painted)
+                {
+                    BlockCubeFaces.DestroyAsset(kv.Value);
+                    drop.Add(kv.Key);
+                }
+            }
+
+            foreach (var key in drop)
+            {
+                HandMaterials.Remove(key);
             }
         }
 
-        /// <summary>The avatar's painted arm segment turned into the first-person hand's frame (see <see cref="PaintHand"/>):
+        /// <summary>The avatar's painted arm segment turned into the first-person hand's frame (see <see cref="HandPaintAtlas"/>):
         /// arm-down → forward (+z), the arm's outer side → up (+y), so the right arm maps (x, y, z) → (−z, x, −y) and the left
         /// arm, whose outer side is −x, (x, y, z) → (z, −x, −y). Both are rotations, so every face still reads as painted
         /// and faces outward.</summary>
@@ -571,21 +762,6 @@ namespace BlocksBeyondTheStars.Client
 
         private static Vector3 ToHandFrame(Vector3 v, bool left)
             => left ? new Vector3(v.z, -v.x, -v.y) : new Vector3(-v.z, v.x, -v.y);
-
-        /// <summary>Raises LitColor's ambient floor + fill to the avatar's values (see
-        /// <c>PlayerAvatar.Lit</c>) so suit-coloured hand parts never sink to black (#1427).</summary>
-        private static void LiftAmbient(params GameObject[] parts)
-        {
-            foreach (var go in parts)
-            {
-                var m = go.GetComponent<Renderer>().sharedMaterial;
-                if (m.HasProperty("_Floor")) // no-op on the Unlit/Color fallback
-                {
-                    m.SetFloat("_Floor", 0.62f);
-                    m.SetFloat("_Fill", 0.3f);
-                }
-            }
-        }
 
         // One material per (colour, glow) for ALL held parts (#1962). A held model is rebuilt whenever the hotbar
         // slot changes, for every player in sight; a material per part per rebuild was never destroyed with its
@@ -674,5 +850,15 @@ namespace BlocksBeyondTheStars.Client
             go.GetComponent<Renderer>().sharedMaterial = new Material(shader) { color = ShaderColor.Srgb(color) };
             return go;
         }
+    }
+
+    /// <summary>#2777: marks a first-person held holder as held by the suit hand — its grip, the hand built for it (rebuilt
+    /// when an icon's mesh arrives late, <see cref="HeldItem.RefreshHand"/>) and the point on its forearm the viewmodel
+    /// swings it round (<see cref="HeldHands.SwingPivot"/>).</summary>
+    public sealed class HeldHandGrip : MonoBehaviour
+    {
+        internal string Grip;
+        internal GameObject Hand;
+        internal Vector3 Pivot;
     }
 }

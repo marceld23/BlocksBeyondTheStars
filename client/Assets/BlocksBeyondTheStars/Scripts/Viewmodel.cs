@@ -17,6 +17,9 @@ namespace BlocksBeyondTheStars.Client
     /// pose (#2193): the rhythm follows the climb speed, a tired grip reaches shorter and trembles, a spent grip drags
     /// both hands down, a pull-up presses them on the ledge; worn climbing gloves show their orange pads. Leaving the wall
     /// lowers the hands and brings the item back. No cost when unused: the left holder and the climb hands stay inactive.</para>
+    /// <para><b>The hand and the switch</b> — every item is held by the painted suit hand (#2777, <see cref="HeldItem.AttachHand"/>),
+    /// and its swings turn round a point on the forearm so the arm stays out of view; a quick-bar switch puts the old item
+    /// away and draws the new one (#2778, <see cref="HeldSwap"/>). See docs/developer/HELD_ITEMS.md.</para>
     /// </summary>
     public sealed class Viewmodel : MonoBehaviour
     {
@@ -139,11 +142,87 @@ namespace BlocksBeyondTheStars.Client
         /// lands on the same screen position when x/y grow by the same factor as tan(fov/2).</summary>
         private Vector3 Compensated(Vector3 local) => new Vector3(local.x * _fovScale, local.y * _fovScale, local.z);
 
-        /// <summary>Sets the held item (rebuilds only when it changes — call from the controller).</summary>
+        /// <summary>#2778: how a new held item comes into the hand.</summary>
+        public enum Swap
+        {
+            /// <summary>At once — the first item of a session, the same item rebuilt (a new arm painting), a hidden hand.</summary>
+            Instant,
+
+            /// <summary>The old item goes down and the new one comes up (a hotbar switch).</summary>
+            Holster,
+
+            /// <summary>Only the new item comes up: the old one is gone (the last block of the stack was just placed).</summary>
+            DrawOnly,
+        }
+
+        /// <summary>#2778: the holster + draw of a hotbar switch (one animation for every item, <see cref="HeldSwap"/>).</summary>
+        private readonly HeldSwap _swap = new HeldSwap();
+
+        // The item waiting at the bottom of a holster.
+        private bool _pendingBuild;
+        private (HeldItem.Kind Kind, Color Tint, string BlockKey, string ItemKey,
+            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> Look) _pending;
+
+        /// <summary>#2777: the suit hand holding the current item (its elbow is the swing's pivot), null without one.</summary>
+        private HeldHandGrip _grip;
+
+        /// <summary>How far down a holstered item sinks (camera space, like <see cref="SinkDepth"/>), and how far it tips.</summary>
+        private const float SwapDepth = 0.42f;
+        private const float SwapTilt = 30f;
+
+        /// <summary>#2777: how much higher an item held by the suit hand sits than the rest pose, so the hand shows.</summary>
+        private const float GripLift = 0.02f;
+
+        /// <summary>Whether a swap can be seen at all: the hand is on screen, not climbing, and effects are not reduced.</summary>
+        private bool SwapShown => _holder != null && _holder.gameObject.activeInHierarchy && _climbBlend <= 0f && !UiKit.ReducedMotion;
+
+        /// <summary>Sets the held item (rebuilds only when it changes — call from the controller). <paramref name="swap"/>
+        /// says whether it is drawn (#2778); an item drawn while the old one is still going down just waits at the bottom.</summary>
         public void SetHeldItem(HeldItem.Kind kind, Color tint, string blockKey = null, string itemKey = null,
-            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look = null)
+            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look = null,
+            Swap swap = Swap.Instant)
         {
             EnsureHolder();
+            if (!SwapShown)
+            {
+                _swap.Finish(); // nothing to watch: whatever was waiting is superseded by this item
+                _pendingBuild = false;
+                BuildHeld(kind, tint, blockKey, itemKey, look);
+                return;
+            }
+
+            if (_pendingBuild && swap != Swap.DrawOnly)
+            {
+                _pending = (kind, tint, blockKey, itemKey, look); // fast scrolling: only the last item picked is drawn
+                _swap.Begin(holster: true);
+                return;
+            }
+
+            if (swap == Swap.Holster && _mesh != null)
+            {
+                _pending = (kind, tint, blockKey, itemKey, look);
+                _pendingBuild = true;
+                _swap.Begin(holster: true);
+                return;
+            }
+
+            if (swap != Swap.Instant)
+            {
+                _swap.Finish();
+                _pendingBuild = false;
+            }
+
+            BuildHeld(kind, tint, blockKey, itemKey, look);
+            if (swap != Swap.Instant)
+            {
+                _swap.Begin(holster: false); // nothing (left) to put away: the new item just comes up
+            }
+        }
+
+        /// <summary>Builds the held model (and, #2777, the suit hand holding it) in place of the current one.</summary>
+        private void BuildHeld(HeldItem.Kind kind, Color tint, string blockKey, string itemKey,
+            System.Collections.Generic.IReadOnlyList<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart> look)
+        {
             _kind = kind;
 
             if (_mesh != null)
@@ -162,9 +241,11 @@ namespace BlocksBeyondTheStars.Client
             if (mesh != null)
             {
                 mesh.transform.localScale = Vector3.one * ItemScale;
+                HeldItem.AttachHand(mesh, kind, itemKey, Game != null ? Game.Content : null); // #2777: held by the suit hand
             }
 
             _mesh = mesh;
+            _grip = mesh != null && mesh.TryGetComponent(out HeldHandGrip grip) ? grip : null;
 
             _shockGloves = false;
             if (kind == HeldItem.Kind.Gloves)
@@ -289,9 +370,11 @@ namespace BlocksBeyondTheStars.Client
                 string key = Game.ItemInSlot(Game.SelectedHotbarSlot) ?? string.Empty;
                 if (key != _evaKey)
                 {
+                    bool first = _evaKey == "\0";
                     _evaKey = key;
                     var (k, t, bk) = HeldItem.For(Game.Content, key);
-                    SetHeldItem(k, t, bk, key); // builds the holder if needed + rebuilds the mesh
+                    // Builds the holder if needed + rebuilds the mesh; a switch out there is drawn like on foot (#2778).
+                    SetHeldItem(k, t, bk, key, swap: first ? Swap.Instant : Swap.Holster);
                 }
 
                 ApplyVisible();
@@ -345,6 +428,8 @@ namespace BlocksBeyondTheStars.Client
                 return; // a swing in progress plays out; on the wall both hands are busy (#2287)
             }
 
+            FinishSwap(); // #2778: using the item cuts its draw short — an action never waits for the animation
+
             if (_kind == HeldItem.Kind.Gloves)
             {
                 // #2278: the energy gloves alternate left and right; the shock gloves always push with both palms.
@@ -357,6 +442,23 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _swingTimer = _swingDuration;
+        }
+
+        /// <summary>#2778: ends a holster / draw at once — the waiting item (if any) is built and everything is back in the
+        /// hand.</summary>
+        private void FinishSwap()
+        {
+            if (!_swap.Active && !_pendingBuild)
+            {
+                return;
+            }
+
+            _swap.Finish();
+            if (_pendingBuild)
+            {
+                _pendingBuild = false;
+                BuildHeld(_pending.Kind, _pending.Tint, _pending.BlockKey, _pending.ItemKey, _pending.Look);
+            }
         }
 
         /// <summary>(Re)builds the two climbing hands when the suit colour, the painting or the climbing gear changed.
@@ -388,15 +490,12 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
-        private void LateUpdate()
-        {
-            if (_holder == null)
-            {
-                return;
-            }
+        private void LateUpdate() => Tick(Time.deltaTime);
 
-            float dt = Time.deltaTime;
-            if (dt <= 0f)
+        /// <summary>One frame of the pose (bob, swings, the switch, the climb) — <see cref="LateUpdate"/>'s body.</summary>
+        private void Tick(float dt)
+        {
+            if (_holder == null || dt <= 0f)
             {
                 return;
             }
@@ -417,6 +516,11 @@ namespace BlocksBeyondTheStars.Client
 
             // #2287: the item sinks away, then the hands come up (and the other way round when the climb ends).
             bool wantClimb = _climbing && _visible && !_eva && !_hiddenForSpace && !_hiddenForCapture;
+            if (wantClimb)
+            {
+                FinishSwap(); // #2778: the climb takes the hands — a switch in progress just completes
+            }
+
             bool wasUp = HandsUp, wasShown = _climbBlend > 0f;
             _climbBlend = Mathf.MoveTowards(_climbBlend, wantClimb ? 1f : 0f, dt / (2f * ClimbSwapSeconds));
             bool rebuilt = _climbBlend > 0f && EnsureClimbHands();
@@ -427,7 +531,15 @@ namespace BlocksBeyondTheStars.Client
 
             if (!_holder.gameObject.activeSelf)
             {
+                FinishSwap(); // hidden (third person, the ship's view): a switch cannot be watched, so it is just done
                 return;
+            }
+
+            // #2778: the holster and draw; the waiting item is swapped in at the bottom.
+            if (_swap.Step(dt) && _pendingBuild)
+            {
+                _pendingBuild = false;
+                BuildHeld(_pending.Kind, _pending.Tint, _pending.BlockKey, _pending.ItemKey, _pending.Look);
             }
 
             if (HandsUp)
@@ -456,7 +568,18 @@ namespace BlocksBeyondTheStars.Client
             var rotL = MirroredEuler(RestEuler);
             var posL = Mirrored(RestPos) + new Vector3(-bob.x, bob.y, 0f); // one shared bob, mirrored across
 
+            // #2777: an item in the suit hand sits a little higher, so the hand holding it shows.
+            if (_grip != null)
+            {
+                posOff.y += GripLift;
+            }
+
             // Attack pose — shaped by the held item (B14): blades slash in an arc, guns kick back, the rest jab.
+            // #2777: an item held by the suit hand swings round a point on the forearm (HeldHands.SwingPivot) instead of
+            // round its own origin, so the forearm's open end never swings up into view (the #1428 problem) — with a little
+            // less pitch, because the item now travels on a longer radius.
+            var rotNoSwing = rot;
+            bool aroundForearm = false;
             if (_swingTimer > 0f)
             {
                 _swingTimer -= dt;
@@ -470,8 +593,11 @@ namespace BlocksBeyondTheStars.Client
                 else if (_kind == HeldItem.Kind.Blade)
                 {
                     // A diagonal slash: the blade arcs down + sweeps across (yaw) with a wrist roll.
+                    aroundForearm = _grip != null;
                     posOff += new Vector3(0.11f - 0.22f * t, -0.10f * jab, 0.08f * jab);
-                    rot += new Vector3(62f * jab, Mathf.Lerp(34f, -34f, t), -42f * jab);
+                    rot += aroundForearm
+                        ? new Vector3(40f * jab, Mathf.Lerp(28f, -28f, t), -38f * jab)
+                        : new Vector3(62f * jab, Mathf.Lerp(34f, -34f, t), -42f * jab);
                 }
                 else if (_kind == HeldItem.Kind.Gun)
                 {
@@ -492,9 +618,18 @@ namespace BlocksBeyondTheStars.Client
                 else
                 {
                     // Tools / drill / block: a forward-down jab.
+                    aroundForearm = _grip != null;
                     posOff += new Vector3(-0.05f, -0.06f, 0.12f) * jab;
-                    rot += new Vector3(55f * jab, -8f * jab, 0f);
+                    rot += new Vector3((aroundForearm ? 34f : 55f) * jab, -8f * jab, 0f);
                 }
+            }
+
+            // The pivot on the forearm stays where the rest pose has it while the swing turns the hand and the item round it.
+            var pivotShift = Vector3.zero;
+            if (aroundForearm)
+            {
+                var pivot = _grip.Pivot * ItemScale; // the hand sits under the item, which carries the item scale
+                pivotShift = _fovScale * ((Quaternion.Euler(rotNoSwing) * pivot) - (Quaternion.Euler(rot) * pivot));
             }
 
             if (_roped && _kind == HeldItem.Kind.Gun)
@@ -517,6 +652,17 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // #2778: a hotbar switch — the old item sinks out of view tipping forward and rolling out, the new one rises back
+            // and settles with a small lift (both gloves alike, mirrored).
+            float drop = _swap.Drop, settle = _swap.Settle;
+            if (drop > 0f || settle > 0f)
+            {
+                posOff += new Vector3(0.05f * drop, (-SwapDepth * drop) + (0.012f * settle), 0f);
+                rot += new Vector3((SwapTilt * drop) - (5f * settle), 0f, -12f * drop);
+                posL += new Vector3(-0.05f * drop, (-SwapDepth * drop) + (0.012f * settle), 0f);
+                rotL += new Vector3((SwapTilt * drop) - (5f * settle), 0f, 12f * drop);
+            }
+
             // #2287: the first half of the swap sinks the item (and the left glove) out of view, tipping it forward.
             float sink = Mathf.SmoothStep(0f, 1f, _climbBlend * 2f);
             posOff.y -= SinkDepth * sink;
@@ -524,7 +670,7 @@ namespace BlocksBeyondTheStars.Client
             posL.y -= SinkDepth * sink;
             rotL.x += 35f * sink;
 
-            _holder.localPosition = Compensated(posOff);
+            _holder.localPosition = Compensated(posOff) + pivotShift;
             _holder.localEulerAngles = rot;
             if (_holderL != null && _kind == HeldItem.Kind.Gloves)
             {

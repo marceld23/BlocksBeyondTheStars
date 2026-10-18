@@ -75,6 +75,9 @@ refreshed 2026-08-08.
 - [CUSTOM_SHAPES.md](CUSTOM_SHAPES.md) — player-designed block forms: the micro-voxel format, the per-save
   form registry, the box budget, and how forms are shared; also the texture slots of built-in forms (#1900) and of
   plain cubes — face tiles in the atlas's extras band and the stored front of a block that faces you (#2124).
+- [HELD_ITEMS.md](HELD_ITEMS.md) — the item in your hand: what each kind is built from, a block's own look (dye,
+  form, design, #2776), the first-person suit hand and its grips (#2777), carrying in third person, and the holster /
+  draw of a quick-bar switch (#2778).
 - [CLIMBING.md](CLIMBING.md) — wall climbing (#2195): where the client-side climb sits in the movement chain, the
   pure `ClimbProbe` / `ClimbGrip` rules, block `climb` data and climbing gear, the pull-up, and the pose on the wire.
 - [CREATURE_RIG.md](CREATURE_RIG.md) — how a blocky animal is built and animated: the gait, jointed

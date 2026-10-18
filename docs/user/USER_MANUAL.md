@@ -1032,6 +1032,18 @@ players.
   seeds, saplings, leaves, torches and lanterns show the plant or lamp as it stands in the world, and every other
   item — ores, materials, components, food, bait — is held as its inventory picture made solid, pixel by pixel. Other
   players see the same in your hand. Only an item without any picture leaves you with the bare hand.
+- **A block looks in your hand the way it will look once placed:** a dyed block shows its colour, a glowing block its
+  light colour, a block with a form (slab, stairs, sphere, your own forms …) shows that form from the side, and a
+  painted block wears its picture. Beds, campfires, rugs, flower pots, ladders, staircases, stretchers and trapdoors are
+  held in their placed form too. Turning with **R** still shows only in the placement preview, not in your hand.
+- **Your suit hand holds everything:** in first person the hand and forearm of your suit (with your own arm painting)
+  hold every item — a tool or weapon in the fist round its handle, a block or vehicle on the open hand, a material or
+  some food at its lower edge, a plant by its stem. In third person your figure carries what it holds in front of it
+  instead of letting it dangle; other players see that too.
+- **Switching takes a moment to look at, never to use:** when you pick another quick-bar slot, the old item goes down
+  and the new one comes up into your hand (a quiet sound plays). Scrolling quickly through the slots only takes out the
+  last one. Using the item while it is coming up skips the rest of the animation — nothing ever waits for it. With
+  *Reduced effects* (Settings → Comfort) the item changes at once.
 - **Throwing things away:** select an item in the **Inventory** or **Cargo Hold** tab and press **"Throw
   away"** — it asks once ("Really throw away?"), and the second click destroys *every* stack of that item.
   This cannot be undone and gives nothing back. Your starting equipment (drill, scanner, suit lamp, machete,

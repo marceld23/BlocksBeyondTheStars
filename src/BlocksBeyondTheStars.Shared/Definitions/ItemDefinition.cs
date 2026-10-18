@@ -200,19 +200,36 @@ public sealed class ItemDefinition
     public List<HeldModelPart>? HeldModel { get; set; }
 
     /// <summary>How the item is held (#2278): <see cref="HeldGrips.Gloves"/> = worn on BOTH hands — the first-person view
-    /// shows two hands, <see cref="HeldModel"/> describes the RIGHT glove and the left one is its mirror image. Null = held
-    /// in the right hand like every other item. Cosmetic only; the server never reads it.</summary>
+    /// shows two hands, <see cref="HeldModel"/> describes the RIGHT glove and the left one is its mirror image. #2777: one
+    /// of the one-handed grips (<see cref="HeldGrips.Fist"/>, <see cref="HeldGrips.Palm"/>, <see cref="HeldGrips.Pinch"/>,
+    /// <see cref="HeldGrips.Stem"/>) picks how the first-person suit hand holds it. Null = the grip of the item's kind (a tool
+    /// in the fist, a block on the palm …). Cosmetic only; the server never reads it.</summary>
     public string? HeldGrip { get; set; }
 }
 
-/// <summary>The values <see cref="ItemDefinition.HeldGrip"/> may take (#2278).</summary>
+/// <summary>The values <see cref="ItemDefinition.HeldGrip"/> may take (#2278, #2777).</summary>
 public static class HeldGrips
 {
     /// <summary>A pair of gloves worn on both hands (the shock and energy gloves).</summary>
     public const string Gloves = "gloves";
 
+    /// <summary>#2777: the fist closes round the model's handle (tools, weapons, the scanner, gadgets).</summary>
+    public const string Fist = "fist";
+
+    /// <summary>#2777: the item rests on the open hand, the thumb at its side (blocks, vehicles).</summary>
+    public const string Palm = "palm";
+
+    /// <summary>#2777: the hand holds the item by its lower edge (an item's extruded icon: materials, food …).</summary>
+    public const string Pinch = "pinch";
+
+    /// <summary>#2777: the fist closes round the foot of a plant, a sapling or a torch.</summary>
+    public const string Stem = "stem";
+
     /// <summary>True when <paramref name="def"/> is held on both hands.</summary>
     public static bool IsGloves(ItemDefinition? def) => def?.HeldGrip == Gloves;
+
+    /// <summary>True for a value the client knows (null — "the kind's grip" — included).</summary>
+    public static bool IsKnown(string? grip) => grip is null or Gloves or Fist or Palm or Pinch or Stem;
 }
 
 /// <summary>One box of a held model, in the holder's frame (metres, the tool points along +Z).</summary>

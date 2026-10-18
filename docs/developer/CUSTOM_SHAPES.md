@@ -167,7 +167,9 @@ cap tiles to the mesher's output face by face. The users:
 
 - **The held block** (`HeldItem`, first person, the avatar's hand, other players): the cube with its front on −Z —
   the face the eye sees, since held models point along +Z — upright (the Unity primitive it used to be maps its −Z face
-  turned by 180°, so a picture block stood on its head), in one shared LitColor material over the atlas.
+  turned by 180°, so a picture block stood on its head), in one shared LitColor material over the atlas. A block whose
+  item key carries a dye, a glow, a form or a design — or a prop with a stamped form — is not this cube but the world's
+  own mesh of it (#2776, see [HELD_ITEMS.md](HELD_ITEMS.md)).
 - **Drop packets** (`DropPacketView`): the cube in the chunk material, front +Z, one mesh per block.
 - **The ship and station/settlement editors** (`EditorVoxelChunkView`): a cell carries its block id; each exposed face
   takes its own tile, a front cube its stored front (`CubeFacing.Pack`, placed by the structure editor — such a cell
