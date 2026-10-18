@@ -143,20 +143,31 @@ public sealed class SpaceTargetingTests
     }
 
     [Fact]
-    public void Order_KeepsHostilesAndPilots_InsideTheRadar_ButNavigationSystemWide()
+    public void Order_KeepsHostilesAndTraders_InsideTheRadar_ButNavigationAndPilotsSystemWide()
     {
         var all = new[]
         {
             Entity("drone", "Drone", 200f, hostile: true),
             Entity("wreck", "Wreck", 1500f),
             Pilot("papa", 400f),
+            Pilot("npc:trader", 400f),
         };
 
-        Assert.Equal(new[] { "wreck" }, Ids(SpaceTargeting.Order(all, 0f, 0f, 0f, Radar, pingActive: false)));
+        // #2737: a friend is a navigation target from anywhere in the system; the NPC trader stays radar-limited.
+        Assert.Equal(new[] { "wreck", "papa" }, Ids(SpaceTargeting.Order(all, 0f, 0f, 0f, Radar, pingActive: false)));
 
         // The radar array (300) reaches the drone; the Quantum scanner's system ping reaches everything.
-        Assert.Equal(new[] { "drone", "wreck" }, Ids(SpaceTargeting.Order(all, 0f, 0f, 0f, 300f, pingActive: false)));
-        Assert.Equal(new[] { "drone", "wreck", "papa" }, Ids(SpaceTargeting.Order(all, 0f, 0f, 0f, Radar, pingActive: true)));
+        Assert.Equal(new[] { "drone", "wreck", "papa" }, Ids(SpaceTargeting.Order(all, 0f, 0f, 0f, 300f, pingActive: false)));
+        Assert.Equal(new[] { "drone", "wreck", "npc:trader", "papa" }, Ids(SpaceTargeting.Order(all, 0f, 0f, 0f, Radar, pingActive: true)));
+    }
+
+    [Fact]
+    public void IsSystemWide_CoversPilots_ButNotTraders()
+    {
+        Assert.True(SpaceTargeting.IsSystemWide(SpaceTargeting.PilotKind));
+        Assert.False(SpaceTargeting.IsSystemWide(SpaceTargeting.TraderKind));
+        Assert.Equal(SpaceTargeting.PilotKind, Pilot("papa", 0f).Kind);
+        Assert.Equal(SpaceTargeting.TraderKind, Pilot("npc:trader", 0f).Kind);
     }
 
     [Fact]
@@ -313,6 +324,11 @@ public sealed class SpaceTargetingTests
         Assert.True(SpaceTargeting.StillValid(Entity("d", "Drone", Radar * 3f, true), 0f, 0f, 0f, Radar, pingActive: true));
         Assert.True(SpaceTargeting.StillValid(Entity("s", "SpaceStation", 5000f), 0f, 0f, 0f, Radar, false));
         Assert.True(SpaceTargeting.InLockRange("Body", 9000f, Radar, false));
+
+        // #2737: a locked friend is never range-released; a trader still is.
+        Assert.True(SpaceTargeting.StillValid(Pilot("papa", 5000f), 0f, 0f, 0f, Radar, false));
+        Assert.True(SpaceTargeting.StillValid(Pilot("npc:trader", Radar * 1.05f), 0f, 0f, 0f, Radar, false));
+        Assert.False(SpaceTargeting.StillValid(Pilot("npc:trader", Radar * 1.11f), 0f, 0f, 0f, Radar, false));
     }
 
     // ---- Auto-lock + threat ticks ----------------------------------------------------------------------

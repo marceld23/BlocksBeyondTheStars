@@ -2377,8 +2377,7 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (blockDef != null && Game.Atlas != null)
             {
-                raw.texture = Game.Atlas.Texture;
-                raw.uvRect = Game.Atlas.TileUv(blockDef.NumericId.Value);
+                BlockCubeIcon.Apply(raw, Game.Atlas, blockDef.NumericId.Value); // a block whose faces differ is a cube (#2744)
             }
             else
             {
@@ -6837,7 +6836,7 @@ namespace BlocksBeyondTheStars.Client
             return (null, 1);
         }
 
-        private SystemMapWidget _systemMap; // the rotating mini-orrery; rebuilt each time the detail pane is
+        private SystemMapWidget _systemMap; // the small system chart; rebuilt each time the detail pane is
 
         private float DetailMap()
         {
@@ -6845,14 +6844,14 @@ namespace BlocksBeyondTheStars.Client
             var sys = SelectedSystem();
             float y = 0f;
 
-            // The selected system's animated mini star map (only once you've been to the system — an unexplored
-            // one shows nothing but its single "hyperjump here" entry in the list).
+            // The selected system's chart — its real layout, like the flight chart (#2745) — only once you've been to the
+            // system (an unexplored one shows nothing but its single "hyperjump here" entry in the list).
             bool known = sys != null && (sys.Id == CurrentSystemId() || Game.KnowsSystem(sys.Id));
             if (known)
             {
                 UiKit.AddText(_detail, 8, y, 600, 30, "★ " + sys.Name, 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
                 y += 36f;
-                _systemMap = SystemMapWidget.Create(_detail, 40, y, 500, 380);
+                _systemMap = SystemMapWidget.Create(_detail, 100, y, 380, 380); // round chart, centred where the old one was
                 string sel = !string.IsNullOrEmpty(_selected) && _selected.StartsWith("body:", System.StringComparison.Ordinal)
                     ? _selected.Substring(5) : string.Empty;
                 // #2178: live weather glyphs only for the system you are in (no other system has live data).

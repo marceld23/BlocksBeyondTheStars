@@ -122,6 +122,40 @@ public sealed class BaseOxygenTests : IDisposable
         }
     }
 
+    /// <summary>#2752: the world wraps at x = 0 ≡ circumference, and first spawns sit right there — a base core a
+    /// few blocks east of the seam guards and breathes for the cells just west of it as well (whichever spelling a
+    /// cell arrives in), and the zone still ends 8 blocks out: 9 blocks across the seam is outside.</summary>
+    [Fact]
+    public void ABaseCoreNearTheSeam_ProtectsAndBreathesAcrossIt()
+    {
+        var server = Start(out var repo, "baseoxyseam");
+        using (repo)
+        {
+            int circ = server.World.Circumference;
+            var owner = OnFoot(server, "Builder");
+            var core = new Vector3i(2, CoreY, CoreZ);
+            server.PlaceBaseForTest(owner, core);
+            Assert.Single(server.BaseSnapshots);
+
+            var across = new Vector3i(circ - 3, CoreY, CoreZ);   // 5 blocks west of the core, across the seam
+            var rawAcross = new Vector3i(-3, CoreY, CoreZ);      // the same cell, unwrapped
+            var beyond = new Vector3i(circ - 7, CoreY, CoreZ);   // 9 blocks west: past the radius-8 cube
+            Assert.True(server.BaseProtectedForTest(across, "Stranger"), "the zone reaches across the seam");
+            Assert.True(server.BaseProtectedForTest(rawAcross, "Stranger"), "…under either spelling of the cell");
+            Assert.False(server.BaseProtectedForTest(beyond, "Stranger"), "9 blocks across the seam is outside the zone");
+            Assert.False(server.BaseProtectedForTest(across, owner.State.PlayerId), "the owner builds freely there");
+
+            var guest = OnFoot(server, "Visitor");
+            float before = guest.State.Oxygen = 50f;
+            TickAt(server, guest, new Vector3f(circ - 2.5f, CoreY + 1f, CoreZ + 0.5f));
+            Assert.True(guest.State.Oxygen > before, $"The base field should breathe across the seam (was {guest.State.Oxygen}).");
+
+            float outside = guest.State.Oxygen = 80f;
+            TickAt(server, guest, new Vector3f(circ - 6.5f, CoreY, CoreZ + 0.5f));
+            Assert.True(guest.State.Oxygen < outside, $"9 blocks across the seam the toxic air wins (was {guest.State.Oxygen}).");
+        }
+    }
+
     [Fact]
     public void MiningTheBaseCore_RemovesTheAirField()
     {

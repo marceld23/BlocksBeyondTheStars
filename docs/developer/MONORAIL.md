@@ -10,7 +10,12 @@ Unity-free in `Shared`.
 - `Shared/Definitions/RailRules.cs` — the constants (auto-link range 32 / 30°, linker range 48, two links per pylon, 64
   pylons per line, hover height 0.5, the wagon box 6 × 3 × 3.2, the speed table 4 / 8 / 12 blocks/s, the stop halt 8 s,
   boarding reach 4, stow reach 5), `AutoLinkFits`, the seat offsets per wagon kind, `ClampLocal` / `OutsideWagon`
-  (the rider's box), `WagonArc`, `LocalToWorld` / `WorldToLocal` (the frame: local X across, Y up from the floor, Z toward
+  (the rider's box), `WagonArc` (the wagons hang behind the cab by the train's fixed **facing**, #2741), the train's
+  motion — `TrainSpan`, `CabRange` (where the cab's arc may run so every wagon stays on an open line), `Advance` (runs
+  the arc; a loop wraps, an open line bounces off the range's ends — only the direction flips, the rest of the step runs
+  back, the arc never jumps), `LeadArc` / `ArcForLeadAt` (the leading wagon: the cab when the train runs the way it
+  faces, the last wagon when it runs backwards) and `PoseFacing` (an older server's facing is its direction) —
+  `LocalToWorld` / `WorldToLocal` (the frame: local X across, Y up from the floor, Z toward
   the cab; heading = radians about +Y, forward (cos, 0, sin), right (sin, 0, −cos)) and `FrameId` (`train:wagon`).
 - `Shared/Definitions/RailSpline.cs` — a Catmull-Rom spline through the pylon tops with an arc-length table, the
   `SandwormPath` idea in 3D: unwrapped along X relative to the first point so a line over the world seam is one curve,
@@ -21,7 +26,7 @@ Unity-free in `Shared`.
 ## Wire (`Networking/Messages/RailMessages.cs`, ids 270–275)
 
 `RailList` (every line: id, points, closed, stop arcs) on join and on every change; `TrainList` (id, owner, line, arc,
-speed, direction, autopilot, halted + remaining, wagons, riders) at 5 Hz while a train moves and at once on every
+speed, direction, facing — #2741, additive, 0 from an older server —, autopilot, halted + remaining, wagons, riders) at 5 Hz while a train moves and at once on every
 change; `EnterTrainIntent` (train, wagon, seat −1 = standing), `ExitTrainIntent`, `SetTrainIntent` (speed / halt /
 autopilot, −1 = unchanged), `StowTrainIntent`. Additive fields: `MoveIntent.FrameId` (set → X/Y/Z are the wagon-local
 offset), `PlayerPresence.FrameId/LocalX/Y/Z`, `PlayerStateUpdate.InTrain/TrainSeat`, `PlayerState.InTrain/TrainSeat/
@@ -42,9 +47,18 @@ TrainLocalX/Y/Z` (never a persisted bond: a join clears it).
 - **Trains.** `UseRailCab` puts a train on the line nearest the aim (refused where another train stands within its
   length); `UseRailWagon` couples behind the tail; `HandleStowTrain` returns the items (owner, nobody else aboard, in
   reach); a train whose line vanished comes back to its owner (`ReturnTrain`). `TickTrains` (guarded in the main tick
-  after the giants): autopilot or a rider in the cab runs it by the speed table; an open line reverses the direction
-  at both ends and re-seats the arc so the wagons stay put; a loop wraps; the autopilot halts at a stop the cab crossed
-  this tick (`Crossed`, wrap-aware) for `StopHaltSeconds`, once per stop until it is clear of it;
+  after the giants): autopilot or a rider in the cab runs it by the speed table through `RailRules.Advance`. A train has
+  a fixed `Facing` (set when it is placed: +1 for a player's cab, −1 for the public train) and a `Direction` that only
+  moves the arc: an open line flips the direction at the ends of the cab's range and nothing else, so every wagon keeps
+  its place and heading and the riders (re-derived from their wagons every tick) ride through the reversal without a
+  jump (#2741 — the old reversal re-seated the arc by the train's length, swapped the wagons round and turned each by
+  180°, so a rider on the rear bench jumped ~11 m). On one leg the cab therefore pushes from the back (there is no
+  jump-free reversal that keeps the cab in front on a line without a loop). A loop wraps. The autopilot halts at a stop
+  the **leading wagon** crossed this tick (`Crossed`, wrap-aware; a reversal splits the tick into the run to the end
+  and the run back) with that wagon at the stop, for `StopHaltSeconds`, once per stop until it is clear of it; a stop
+  within a wagon's length of the dead end ahead turns the train round while it stands. A coupled wagon or a shortened
+  line brings the arc back into the cab's range (`ClampTrainArc`). The save record appends the facing (an older record
+  faces its direction);
   `DepartTrainsAtStop` (the Crystal-Net rising edge on the `RailStop` device, or the owner's press on the stop — the
   machines' manual start) ends the halt early.
 - **The moving frame.** `HandleEnterTrain` (owner or ally, within reach of the wagon) records the rider (`RailRider`:
@@ -74,7 +88,9 @@ TrainLocalX/Y/Z` (never a persisted bond: a join clears it).
   opening in the middle of each side, a roof, the cab's windscreen and console, the seat wagon's benches, the sleeper's
   bunks, the bar's counter) meshed by `ChunkMesher` like the speeder hull, with a `MeshCollider` that is always solid.
   Every frame each wagon is posed on the spline: the server's arc run on by speed and direction since the last update
-  and eased toward each new one (`DrawArc`), the wagons behind the cab by `WagonArc`. **The wagon transform is the
+  and eased toward each new one (`DrawArc`, stepped by the Unity-free `Client.Core/TrainDrawArc` through
+  `RailRules.Advance`, so the drawing bounces off a line's end like the server), the wagons behind the cab by `WagonArc`
+  and posed by the train's facing (`RailRules.PoseFacing`). **The wagon transform is the
   frame**: local X/Y/Z are exactly the rules' local offsets (`Quaternion.LookRotation((cos, 0, sin))` puts local +Z on
   the heading and local +X on its right). `TrainView` runs early in the frame (`DefaultExecutionOrder(-40)`), so the
   wagons are posed before the player controller moves a rider; `WagonAt` answers which wagon's box holds a point.
@@ -140,7 +156,9 @@ abandoned stations followed a generation later as ruins — see the next section
   `RailStop` device and writes the generated nodes and links when missing; after `RebuildRailLines`,
   `EnsureIntercityTrain` puts the **public train** on the line when it has none: `OwnerId` empty
   (`RailRules.PublicOwnerId` — no player id is ever empty, so no wire or save change), the cab and a `wagon_seats`,
-  speed 2 (8 blocks/s), autopilot, halted at the lower-arc station. It shuttles (the open line reverses at both ends) and
+  speed 2 (8 blocks/s), autopilot, facing −1 (its passenger wagon toward the hall's exit), halted at the lower-arc
+  station. It shuttles (the open line reverses at both ends — at each station it turns round while it stands, the stop
+  being four blocks from the line's end; the cab leads into one station, the passenger wagon into the other) and
   halts at each stop for `RailRules.PublicStopHaltSeconds` (30 s; players' trains keep `StopHaltSeconds`). Anyone may
   board it; `SetTrainIntent`, `StowTrainIntent`, coupling a wagon, placing a cab on the line and the linker on a
   generated pylon are refused with `@srv.rail.public_line`; a signal or a press on its stop does not depart it; a stop a
@@ -208,5 +226,7 @@ passengers on the speeder (the frame infrastructure is there: the speeder would 
 
 Tests: `RailTests` (auto-link, the bend and the obstacle, the linker's loop and uncouple, the two-link cap, the spline
 across the seam and the frame's round trip, the cab and the wagons, running and reversing, speed and halt, stow, the
-stop and the signal, two riders — one walking, one seated — riding along, walking out, leaving; the dealer, the kit and
-the locales).
+stop and the signal, two riders — one walking, one seated — riding along, walking out, leaving; a reversing train
+carrying a rider on the rear bench and a walker in the cab without a jump, coupling at the line's start; the dealer,
+the kit and the locales), `RailRulesTrainMotionTests` (`Advance` / `CabRange` / `LeadArc`, pure) and
+`TrainDrawArcTests` (Client.Tests: the drawn arc bounces with the server, never jumps).

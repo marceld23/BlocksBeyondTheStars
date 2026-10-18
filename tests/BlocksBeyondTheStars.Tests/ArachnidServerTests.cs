@@ -249,7 +249,9 @@ public sealed class ArachnidServerTests : IDisposable
             float d = Dist(live.Position, p.State.Position);
             Assert.InRange(d, 10f, 24f);
 
-            // A second summon reuses the roster's species instead of adding another.
+            // A second summon reuses the roster's species instead of adding another. A tick first: the summon's spots are seeded
+            // by the uptime, and in the same instant it would try the first one's spot again — inside its body (#2753).
+            server.TickForTest(0.1);
             server.SummonArachnidForTest("Admin");
             Assert.Equal(before + 1, server.SpeciesRoster.Count);
             Assert.Equal(2, server.Creatures.Count(c => c.SpeciesId == species.Id));

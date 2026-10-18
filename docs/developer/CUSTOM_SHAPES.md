@@ -158,6 +158,27 @@ holds the data (every object block declares `tileKind`, a picture cube dresses i
 resolves, face tiles are bundled and opaque); `CubeFacingTests` holds the mapping, placement, drop and the
 watcher's eye.
 
+**Outside the world (#2744).** Every other place that draws a block as a cube wears the same faces, through
+`BlockCubeFaces` (client): the mesher's per-face lookup restated for one cube — own tile, cap tile, the
+`ShapeFaceTextures.CubeTilesFor` slots, the `CubeFacing` front and top turn, the mesher's corner order and UV quarter
+turns — plus a 24-vertex unit cube built from it (`BuildMesh`, optionally with the chunk shader's channels).
+`ChunkMesher` itself is untouched (golden hashes); `BlockCubeFacesEditModeTests` holds every block with per-side or
+cap tiles to the mesher's output face by face. The users:
+
+- **The held block** (`HeldItem`, first person, the avatar's hand, other players): the cube with its front on −Z —
+  the face the eye sees, since held models point along +Z — upright (the Unity primitive it used to be maps its −Z face
+  turned by 180°, so a picture block stood on its head), in one shared LitColor material over the atlas.
+- **Drop packets** (`DropPacketView`): the cube in the chunk material, front +Z, one mesh per block.
+- **The ship and station/settlement editors** (`EditorVoxelChunkView`): a cell carries its block id; each exposed face
+  takes its own tile, a front cube its stored front (`CubeFacing.Pack`, placed by the structure editor — such a cell
+  is a cube now; it used to fall into the form path and draw nothing) or the open side away from its wall
+  (`BlockCubeFaces.EditorFront`, the world's `DeriveFront`).
+- **Icons** (`BlockCubeIcon`): a block whose faces differ (a cap or per-side tile) gets a small three-quarter cube —
+  top, −Z front, +X side, shaded — painted on the CPU from the readable colour atlas, 64 px with 2×2 samples per
+  pixel, cached per block for the life of its atlas and repainted in place when the atlas repaints (#1952). Every
+  other block keeps its flat tile. The hotbar, inventory, crafting, crate and filter grids, the pickup feed, the
+  editors' palettes and the form picker take it (`BlockCubeIcon.Apply` / `SpriteFor`).
+
 **Torches and lanterns on walls and ceilings (#2683).** A light stores where it is fixed the way the ladder stores its
 wall (#909): `PropOrientation.LightMount`, the form index `PropShapes.LightMountShape` (a `Post`, so any reader that does
 not know the light path sees a slim stick, never a building form) and the mount in the **up-face** field, pointing away

@@ -234,6 +234,20 @@ public sealed partial class GameServer
                 eva = pose.Eva,
                 floatingShip = ownShip, // #2710: on a spacewalk the pose above is the suit — this is where the own ship floats
                 pilots,
+                // #2737: friends flying near the system's OTHER bodies (other flight instances), converted into this frame
+                systemPilots = SystemPilotsElsewhere(p.PlayerId, instance)
+                    .Select(o => new
+                    {
+                        id = o.PlayerId,
+                        name = o.Name,
+                        near = o.AnchorBodyId,
+                        x = o.X,
+                        y = o.Y,
+                        z = o.Z,
+                        dist = (float)Math.Sqrt(new Vector3f(o.X, o.Y, o.Z).DistanceSquared(sp)),
+                    })
+                    .OrderBy(o => o.dist)
+                    .ToList(),
                 entities = instance.Entities
                     .OrderBy(e => e.Position.DistanceSquared(sp))
                     .Take(40)
@@ -291,8 +305,22 @@ public sealed partial class GameServer
             census = tally.OrderByDescending(kv => kv.Value)
                 .Select(kv => (object)new { block = kv.Key, count = kv.Value }).ToList();
 
+            // #2753: with the drawn size, the footprint radius the spacing keeps and the sleep state — "animals inside each
+            // other" can be checked from the snapshot (who overlaps by how much, and whether a sleeper is involved).
             creatures = _creatures.Where(c => WrapDistSq(p.Position, c.Position) < r2)
-                .Select(c => new { c.Id, kind = c.Kind.ToString(), species = c.SpeciesId, c.Hostile, x = c.Position.X, y = c.Position.Y, z = c.Position.Z }).ToList();
+                .Select(c => new
+                {
+                    c.Id,
+                    kind = c.Kind.ToString(),
+                    species = c.SpeciesId,
+                    c.Hostile,
+                    x = c.Position.X,
+                    y = c.Position.Y,
+                    z = c.Position.Z,
+                    size = _speciesById.TryGetValue(c.SpeciesId, out var csp) ? csp.Size * c.SizeScale : 0f,
+                    footprint = CreatureFootprintRadius(c),
+                    asleep = csp is not null && CreatureAsleep(c, csp),
+                }).ToList();
             npcs = _npcs.Where(npc => WrapDistSq(p.Position, npc.Pos) < r2)
                 .Select(npc => new { npc.Id, npc.Role, npc.Theme, x = npc.Pos.X, y = npc.Pos.Y, z = npc.Pos.Z }).ToList();
             others = _sessions.Values.Where(o => o.Joined && o.ConnectionId != session.ConnectionId && WrapDistSq(p.Position, o.State.Position) < r2)

@@ -128,6 +128,23 @@ hostile is attacking (`Order` drops them again). `IsCycleKind` still excludes as
 `AsteroidDestruction` rule still decides whether a shot breaks the rock; the client never reads it and only learns a
 refusal from the reply, exactly as before.
 
+**Friends anywhere in the system (#2737).** Another pilot is a navigation target only — none of the three intents
+above ever takes a pilot (`TryLockAssist`, `BestFireTarget` and `LockedEnemyInSights` read entities). So
+`SpaceTargeting.IsSystemWide` covers the pilot kind: a friend joins the cycle at any distance, is never range-released
+and "target ahead" finds them; NPC traders (the trader kind) stay radar-limited. Flight instances are keyed by the
+launch body (`"space:" + body`), so a friend who launched from another body flies in another instance. For them the
+server fills the one exception to "no snapshot field": the additive `SpaceState.SystemPilots`
+(`GameServer.SystemPilotsElsewhere`) — every pose (incl. EVA suits and parked ships) of the system's other instances,
+converted into the receiver's frame with the transform of the belt rocks and wrecks (`(other anchor − own anchor) ×
+SystemBodyLayout.FlightViewScale` on x/z, y unchanged; each instance caches its anchor body as `SpaceInstance.Anchor`)
+and tagged with `NetSpacePlayer.AnchorBodyId`. It rides every `SpaceState`; a solo pilot, who gets no 5 Hz pose
+broadcast, gets a refresh about once a second while such pilots exist (`SpaceInstance.SystemPilotSyncTimer`) and one
+more after the last is gone (`SystemPilotsSent`), so the lock is released. The client adds them to the lock candidates
+and the radar (a smaller, dimmer pink blip) and labels the lock "Flying near {body}" (`ui.space.target.other_flight`);
+`SyncRemotePlayers` and the docking rules keep reading `Players` only, so they never become a ship in the scene.
+`/bump` lists them as `space.systemPilots`. Tests: `SpaceTargetingTests`, `PilotVisibilityTests`
+(`PilotsOfTheSystemsOtherFlights_…`), `SpaceFlightClientTests` (`AMateFlyingNearAnotherBody_…`).
+
 A tampered client could always send any id; the server validates range, arc, rules, energy and cooldown exactly as
 before, so the lock adds no attack surface. The pure rules (disposition, cycle order, lock range with 10 %
 hysteresis, the attack newcomer watch behind the auto-lock, the edge-arrow placement incl. behind the camera) live in

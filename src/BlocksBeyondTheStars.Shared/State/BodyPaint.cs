@@ -29,9 +29,10 @@ public static class BodyPaint
     /// <summary>Pixels per face chunk (32×32, the same resolution as the pixel face).</summary>
     public const int ChunkPixels = 32 * 32;
 
-    /// <summary>Face chunks per part: torso front/right/back/left; arms + legs are per-limb
-    /// (left row then right row) × front/outer/back/inner; helmet right/back/left/chin/top
-    /// (no front — the helmet is open so the face stays visible).</summary>
+    /// <summary>Face chunks per part: torso front/left/back/right; arms + legs are per-limb
+    /// (left row then right row) × front/outer/back/inner; helmet left/back/right/chin/top
+    /// (no front — the helmet is open so the face stays visible). Left and right are the figure's own;
+    /// the strips run round the figure as you look at it (#2750).</summary>
     public static int ChunksOf(int part) => part switch
     {
         Torso => 4,

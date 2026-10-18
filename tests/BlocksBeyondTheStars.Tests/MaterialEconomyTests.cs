@@ -265,7 +265,14 @@ public sealed class MaterialEconomyTests
     {
         var referenceChains = new Dictionary<string, string[]>
         {
+            // #2016: the six pre-#1200 outliers, each at 1.5× the refinery chain (metal panel 1.75×).
+            ["factory_iron_plate"] = new[] { "iron_plate", "refine_iron" },
+            ["factory_metal_panel"] = new[] { "metal_panel", "iron_plate", "refine_iron" },
+            ["factory_steel"] = new[] { "refine_steel", "refine_iron", "nickel_ingot" },
+            ["factory_cable"] = new[] { "cable", "refine_copper" },
             ["factory_carbon_composite"] = new[] { "carbon_composite" },
+            ["factory_energy_cell"] = new[] { "energy_cell_1", "cable", "refine_copper", "carbon_composite" },
+            ["factory_circuit_board"] = new[] { "circuit_board", "refine_gold", "refine_silver" },
             ["factory_polymer"] = new[] { "polymer", "carbon_composite", "sulfur" },
             ["factory_titanium_plate"] = new[] { "titanium_plate" },
             ["factory_light_alloy"] = new[] { "refine_light_alloy", "aluminium_ingot" },
@@ -284,18 +291,13 @@ public sealed class MaterialEconomyTests
         // Diamond compression adds carbon as a catalyst; its diamond-ore cost is still directly comparable.
         var extraCatalysts = new Dictionary<string, string[]> { ["factory_diamond"] = new[] { "carbon" } };
 
-        // These recipes predate #1200 and keep their historical premiums until each gets its own review.
-        var oldOutliers = new[]
-        {
-            "factory_iron_plate", "factory_metal_panel", "factory_steel", "factory_cable",
-            "factory_energy_cell", "factory_circuit_board",
-        };
         // These shortcuts use different raw-material families, so a like-for-like ratio does not exist.
+        // (The pre-#1200 outliers that used to be exempt here were brought into the 2× bound by #2016.)
         var noComparableChain = new[] { "factory_glass", "factory_power_cell" };
 
         var factoryKeys = _c.Recipes.Values.Where(recipe => recipe.Station == CraftingStation.Factory)
             .Select(recipe => recipe.Key).OrderBy(key => key);
-        var coveredKeys = referenceChains.Keys.Concat(oldOutliers).Concat(noComparableChain).OrderBy(key => key);
+        var coveredKeys = referenceChains.Keys.Concat(noComparableChain).OrderBy(key => key);
         Assert.Equal(factoryKeys, coveredKeys);
 
         foreach (var (factoryKey, recipeKeys) in referenceChains)

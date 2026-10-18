@@ -15,9 +15,11 @@ namespace BlocksBeyondTheStars.Client
     ///
     /// <list type="bullet">
     /// <item>the <b>editor canvas</b> — the part unfolded into a strip of side faces with separator lines
-    /// ("walk once around the box": Front | Right | Back | Left). Arms/legs are NOT mirrored: the canvas
-    /// holds two labelled rows, top = left limb, bottom = right limb. There are no top faces or soles
-    /// (dropped by design), so every layout is a flat strip — no dead cross-corner cells;</item>
+    /// ("walk once around the box" as you look at it: Front | Left | Back | Right, the figure's own left and right —
+    /// standing in front of it, the front's right edge runs on round its left side, #2750). Every face reads on the
+    /// avatar exactly as it is painted: canvas-left on the observer's left. Arms/legs are NOT mirrored: the canvas
+    /// holds two labelled rows, top = left limb, bottom = right limb, each Front | Outer | Back | Inner. There are no
+    /// top faces or soles (dropped by design), so every layout is a flat strip — no dead cross-corner cells;</item>
     /// <item>the <b>atlas texture</b> the avatar renders — the canvas plus a small solid column that
     /// unpainted cube faces (tops, soles, the helmet's open front) point their UVs at, with transparent
     /// pixels composited onto the part's tint colour (same trick as the face on the skin), so the colour
@@ -54,11 +56,12 @@ namespace BlocksBeyondTheStars.Client
             _ => "ui.paint.body.helmet",
         };
 
-        /// <summary>Locale keys of the face labels in canvas order, one per chunk column.</summary>
+        /// <summary>Locale keys of the face labels in canvas order, one per chunk column. Left and right are the
+        /// figure's own (#2750: the torso's column 1 and the helmet's column 0 are its left side, −x).</summary>
         public static string[] ColumnKeys(int part) => part switch
         {
-            BodyPaint.Torso => new[] { "ui.paint.body.front", "ui.paint.body.right", "ui.paint.body.back", "ui.paint.body.left" },
-            BodyPaint.Helmet => new[] { "ui.paint.body.right", "ui.paint.body.back", "ui.paint.body.left", "ui.paint.body.chin", "ui.paint.body.top" },
+            BodyPaint.Torso => new[] { "ui.paint.body.front", "ui.paint.body.left", "ui.paint.body.back", "ui.paint.body.right" },
+            BodyPaint.Helmet => new[] { "ui.paint.body.left", "ui.paint.body.back", "ui.paint.body.right", "ui.paint.body.chin", "ui.paint.body.top" },
             _ => new[] { "ui.paint.body.front", "ui.paint.body.outer", "ui.paint.body.back", "ui.paint.body.inner" },
         };
 

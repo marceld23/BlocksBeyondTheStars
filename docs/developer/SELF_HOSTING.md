@@ -278,6 +278,14 @@ See §9 for distributing the client this way.
   block set changed) the server writes `backups/pre-remap_<UTC time>` first. If the update would *remove*
   block types from the world and that copy cannot be written, the server refuses to start and leaves the
   world unchanged; an update that only moves ids starts with a warning.
+- **Before the one-time repair of self-built ship hulls** (#2751: a hull an update before v2026.10.4 left in old
+  block ids, so the ship "needs a helm / engine / door") the server writes `backups/pre-hull-repair_<UTC time>`;
+  each repaired ship is named in an INFO line. The `pre-remap_…` copy that update took is read (never changed) to
+  learn which older version misread the hull — keep it until the repair has run, it settles most doubtful hulls. A
+  hull that still cannot be read back with certainty is left as it is and named in a WARN line — that copy still
+  holds it as it was; a ship that may just be being rebuilt (its core in place, only a helm, engine or door
+  missing, or a construction site) is touched only with that copy, otherwise named in an INFO line. The pass runs
+  once per world, and never in a world created after v2026.10.4 (terrain generation 21 or later).
 - **Before a newer server stamps an older save with its save version** (#2464) it writes
   `backups/pre-upgrade_<UTC time>` — after the stamp the older version refuses to open the world, so this
   copy is the way back if you roll the server back. One copy per upgrade (the `pre-remap_…` copy stands in

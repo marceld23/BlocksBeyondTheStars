@@ -1108,7 +1108,7 @@ public sealed partial class GameServer
         if (station.Markers.Any(m => m.Type == "mission_board"))
         {
             // #2688: the new jobs' own id stream, rolled per world (EnsureStationWindow keeps it topped up).
-            StockBoard(StationBoardPrefix(station.Id) + MixedRollsInfix, station.Id, _stationMissionIds, CoinGiverName(station.Id));
+            StockBoard(StationBoardPrefix(station.Id) + MixedRollsInfix, station.Id, _stationMissionIds, StationGiverName(station.Id));
         }
 
         // NPCs are runtime (cleared when the station world reloads), so the caller (BoardStation) spawns
@@ -1216,7 +1216,7 @@ public sealed partial class GameServer
             // goods; other crew stay "traders"-themed. The first vendor keeps the station's "traders" identity.
             // A profession keeps its own theme and never shifts the classic vendors' themes (no vendorIndex step).
             string npcTheme = profession is { Trades: true } ? profession.Theme
-                : role == "vendor" ? VendorThemeFor(station.Id, vendorIndex++, "traders") : "traders";
+                : role == "vendor" ? StationVendorTheme(station.Id, vendorIndex++) : "traders";
             bool robotic = npcTheme == "researchers"; // research staff are service androids
 
             // Markers sit centred in the air cell above the floor (+0.5); drop the NPC's feet onto the
@@ -1227,7 +1227,7 @@ public sealed partial class GameServer
             var npc = MakeNpc(role, npcTheme, robotic, standing, rng);
             if (role == "quartermaster")
             {
-                npc.Name = CoinGiverName(station.Id); // the mission-giver's name matches its missions (item 13)
+                npc.Name = StationGiverName(station.Id); // the mission-giver's name matches its missions (item 13)
             }
 
             if (profession != null)

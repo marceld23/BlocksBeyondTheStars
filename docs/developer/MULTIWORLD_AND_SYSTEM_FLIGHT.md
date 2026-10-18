@@ -87,6 +87,10 @@ them**; between systems you hyperjump. This combines two originally separate ide
   (`"space:" + locationId`), not by system id. Players who launch from the same body share that flight
   space and see each other; the flight view still receives the whole system's bodies (`SendStarMap`) so
   you can fly toward and land on any of them. (A system-wide shared flight space is not yet the model.)
+  Pilots of the system's OTHER instances reach a pilot only as a navigation target (#2737):
+  `SpaceState.SystemPilots`, their poses converted into the receiver's frame with the star-map offset of the
+  two anchor bodies × `SystemBodyLayout.FlightViewScale` — lockable and on the radar, never a ship in the
+  scene (see SPACE_COMBAT_CONCEPT.md → *Target lock*).
 - **Land anywhere in the system.** Bodies carry seeded positions (added to `CelestialBody` /
   `NetBody`). In flight the ship detects a body's approach zone, offers "Land on <body>", and leaving
   space with a destination body id moves just that player to that body — no global reset. Leaving

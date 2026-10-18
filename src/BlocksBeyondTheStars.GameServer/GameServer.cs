@@ -326,6 +326,7 @@ public sealed partial class GameServer
             _log.Info("Safe chat mode enabled for this world by server launch rules.");
         }
 
+        RepairLegacyShipHulls(); // #2751: once per save — self-built hulls an earlier update left in old block ids (marker saved below)
         _repo.SaveMetadata(_meta);
 
         _generatorTemplate = new WorldGenerator(_meta.Seed, _content);
@@ -359,6 +360,7 @@ public sealed partial class GameServer
             LoadAllCrews();       // restore the crews (#1216) — membership implies alliance while it lasts
             LoadStoryState();     // restore the per-save story progress + active story pack (server-wide, P0)
             LoadBioRegister();    // #2201: the species the save has sampled — what cloning and crossing read
+            LoadFloatingSalvage(); // #2748: salvage left floating in space before the restart (fresh entity ids)
 
             // Ships are per-player now: each player loads/creates their own on join (no global ship at start).
             BuildMissions();
@@ -2867,7 +2869,10 @@ public sealed partial class GameServer
     /// placement: teleporter pads, beacons, bases, markers, factories, data cubes, net fragments, speeders.
     /// Travel/landing and join always sent them; the death-recovery, custom-respawn and station-return resets
     /// re-sent only the doors (#1429), so a pad you walked back to after leaving your station kept its glow
-    /// but stopped answering E until the next landing or relog (#1560).</summary>
+    /// but stopped answering E until the next landing or relog (#1560). Since #2740 also the arrival body's landing-pad
+    /// list and the star map (whose active body the world map reads the pads of) — like the travel path: a recovery
+    /// after the flight pad chooser had looked at a padless body left the world map without pads, and one onto another
+    /// body drew the previous body's.</summary>
     private void SendWorldScopedLists(PlayerSession session)
     {
         SendDataCubes(session);
@@ -2880,6 +2885,8 @@ public sealed partial class GameServer
         SendRails(session);      // #2113: the rail lines and trains of this world
         SendBases(session);
         SendSpeeders(session);
+        BroadcastLandingPads(session); // #2740: the arrival body's pads — and a ship re-parked on one shows for the others
+        SendStarMap(session);          // #2740: "you are here" — the world map reads the pads of the star map's active body
     }
 
     /// <summary>Upper bound on a client-requested render distance (matches the in-game slider's max), so a
@@ -3605,9 +3612,16 @@ public sealed partial class GameServer
 
     // ---------------- Connection handling ----------------
 
+    /// <summary>Transport connections that are open as far as the server knows (#2749): added when the transport
+    /// reports a connection, removed by the first <see cref="OnClientDisconnected"/> for it. A server-initiated
+    /// hang-up (heartbeat kick, rejoin eviction) tears the session down at once and the transport then echoes the
+    /// close on its next poll — that echo finds the id gone and stays silent instead of logging a second close.</summary>
+    private readonly HashSet<int> _openConnections = new();
+
     private void OnClientConnected(int connectionId)
     {
         // Session is created on a successful JoinRequest; just note the pending connection.
+        _openConnections.Add(connectionId);
         _log.Info($"Connection {connectionId} opened; awaiting join.");
     }
 
@@ -3706,6 +3720,9 @@ public sealed partial class GameServer
     private void OnClientDisconnected(int connectionId)
     {
         _joinGates.Remove(connectionId); // transport connection ids may be reused — a new connection starts fresh
+        // #2749: only a connection the server still knew logs its close. The transport's echo of a hang-up the
+        // server already handled (DropSilentSessions, the rejoin eviction) finds neither entry and stays quiet.
+        bool known = _openConnections.Remove(connectionId) | _sessions.ContainsKey(connectionId);
         if (_sessions.TryGetValue(connectionId, out var session) && session.Joined)
         {
             EndShipVisitsOf(session); // #2723: a quitting guest's visit ends here; a quitting host's guest goes home first
@@ -3755,7 +3772,10 @@ public sealed partial class GameServer
             _sessions.Remove(connectionId);
         }
 
-        _log.Info($"Connection {connectionId} closed.");
+        if (known)
+        {
+            _log.Info($"Connection {connectionId} closed.");
+        }
     }
 
     private void OnPayload(int connectionId, byte[] payload)
@@ -7648,6 +7668,7 @@ public sealed partial class GameServer
 
             CheckpointLootPackets(); // #1367: expiring drop packets carry their exact age across a shutdown
             FlushBioRegister(force: true); // #2201: the species register rides with every save
+            FlushFloatingSalvage();        // #2748: floating space salvage, atomic with the cargo saved above
             _repo.SaveMetadata(_meta);
         });
     }

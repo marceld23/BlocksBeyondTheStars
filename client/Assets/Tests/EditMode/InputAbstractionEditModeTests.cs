@@ -338,7 +338,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.AreEqual(1f, settings.PadLookY, 0.0001f);
             Assert.IsFalse(settings.PadInvertY);
             Assert.AreEqual(PadGlyphSet.Xbox, settings.PadGlyphs);
-            Assert.IsTrue(settings.PadVibration, "stored only — nothing reads it yet");
+            Assert.IsTrue(settings.PadVibration, "on, as it was stored before rumble existed (#2746 — PadRumble reads it)");
 
             // Triggers stay OFF: the axis number is the one reading that differs between XInput, Proton and
             // the browser, and a pad that idles at full deflection would otherwise mine on its own.

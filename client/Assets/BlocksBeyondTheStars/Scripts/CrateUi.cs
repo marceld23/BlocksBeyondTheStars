@@ -384,8 +384,7 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (blockDef != null && Game.Atlas != null)
             {
-                raw.texture = Game.Atlas.Texture;
-                raw.uvRect = Game.Atlas.TileUv(blockDef.NumericId.Value);
+                BlockCubeIcon.Apply(raw, Game.Atlas, blockDef.NumericId.Value); // a block whose faces differ is a cube (#2744)
             }
             else
             {

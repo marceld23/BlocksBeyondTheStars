@@ -127,7 +127,7 @@ namespace BlocksBeyondTheStars.Client
             _yaw = 0f;
 
             _view = new EditorVoxelChunkView(transform);
-            _view.SetAtlas(_atlas?.Texture); // real block tiles on placed cells (#1400)
+            _view.SetAtlas(_atlas); // real block tiles on placed cells (#1400), each face its own (#2744)
             _ghost = new EditorPlacementGhost(transform);
             _overlay = new EditorPropOverlay(transform); // placed doors, the hatch frame, station decor (#1975)
             _ghostMeshes = new EditorGhostMeshes();
@@ -575,7 +575,7 @@ namespace BlocksBeyondTheStars.Client
             // Real blocks (and the elements that are blocks, e.g. glass / nav lights) show their atlas tile
             // (#1400); dye/glow tint the texture like in-game. Stations and non-block elements keep the
             // palette swatch. The chunked view bakes the directional shading + face culling.
-            var tile = TileOf(pal, out bool textured);
+            var tile = TileOf(pal, out bool textured, out ushort blockId);
             Color baseCol = data.Tint != 0
                 ? EditorVoxelPreview.RgbToColor(data.Tint)
                 : (data.Glow != 0 ? EditorVoxelPreview.RgbToColor(data.Glow) : (textured ? Color.white : pal.Color));
@@ -592,6 +592,7 @@ namespace BlocksBeyondTheStars.Client
                 Overlay = door || (silhouette != null && !silhouette.Value.KeepsCube), // the overlay draws it (#1975)
                 Textured = textured,
                 Uv = tile,
+                BlockId = blockId, // #2744: each face its own tile, a front facing the open side
             });
 
             if (door)
@@ -703,16 +704,19 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The atlas tile of a palette entry that is a real content block (stations never are;
-        /// elements only when their id is a block key); <paramref name="textured"/> = false otherwise.</summary>
-        private Rect TileOf(EditorPaletteKit.Entry pal, out bool textured)
+        /// elements only when their id is a block key), and the block's id for its per-face tiles (#2744);
+        /// <paramref name="textured"/> = false and id 0 otherwise.</summary>
+        private Rect TileOf(EditorPaletteKit.Entry pal, out bool textured, out ushort blockId)
         {
             textured = false;
+            blockId = 0;
             if (_atlas == null || pal.Kind == "station" || Shell?.Content?.GetBlock(pal.Id) is not { } def)
             {
                 return default;
             }
 
             textured = true;
+            blockId = def.NumericId.Value;
             return _atlas.TileUv(def.NumericId.Value);
         }
 

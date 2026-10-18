@@ -291,7 +291,7 @@ public sealed partial class GameServer
     /// player is the centre already). O(kin) against the ≤ 64-entity list, only while the animal begs.</summary>
     private Vector3f BegSeparation(CombatEntity self, CreatureSpecies sp, Vector3f stepped, double dt, in LocomotionProfile prof)
     {
-        float nearestSq = float.MaxValue, nearX = 0f, nearZ = 0f;
+        float nearestSq = float.MaxValue, nearX = 0f, nearZ = 0f, nearScale = 1f;
         foreach (var other in _creatures)
         {
             if (ReferenceEquals(other, self) || other.IsCompanion || other.SpeciesId != self.SpeciesId)
@@ -306,10 +306,11 @@ public sealed partial class GameServer
                 nearestSq = distSq;
                 nearX = other.Position.X;
                 nearZ = other.Position.Z;
+                nearScale = other.SizeScale;
             }
         }
 
-        float sepDist = System.Math.Max(1.5f, sp.Size * 0.6f);
+        float sepDist = HerdSeparation(sp, self.SizeScale, nearScale); // #2753: sized by the drawn bodies
         float nd = (float)System.Math.Sqrt(nearestSq);
         if (nd > 1e-4f && nd < sepDist)
         {

@@ -179,8 +179,10 @@ public static class SpaceTargeting
     /// never the whole field (nine at a dense launch) and never the belt.</summary>
     public const int MaxRocksInCycle = 3;
 
-    /// <summary>The kinds that can be locked at any distance: the navigation points and the bodies of the system.</summary>
-    public static bool IsSystemWide(string? kind) => IsNavigationKind(kind) || kind == BodyKind;
+    /// <summary>The kinds that can be locked at any distance: the navigation points, the bodies of the system and — #2737,
+    /// a navigation target only — the other pilots (a friend kilometres away gets a direction-and-distance readout).
+    /// NPC traders stay radar-limited.</summary>
+    public static bool IsSystemWide(string? kind) => IsNavigationKind(kind) || kind == BodyKind || kind == PilotKind;
 
     /// <summary>Whether a ship weapon of <paramref name="weaponClass"/> (the module stat <c>weapon_class</c>: 0 mining
     /// tool, 1 combat weapon, 2 both) is built for a target kind. The lock assist only pushes a weapon onto a target it
@@ -238,9 +240,9 @@ public static class SpaceTargeting
 
     // ---- Range -----------------------------------------------------------------------------------------
 
-    /// <summary>Whether a target at <paramref name="distance"/> can be locked: navigation points and bodies from anywhere
-    /// in the system, everything else within the radar's range — or anything while the Quantum scanner's system ping
-    /// lasts. <paramref name="slack"/> widens the range (the release hysteresis).</summary>
+    /// <summary>Whether a target at <paramref name="distance"/> can be locked: navigation points, bodies and other pilots
+    /// (#2737) from anywhere in the system, everything else within the radar's range — or anything while the Quantum
+    /// scanner's system ping lasts. <paramref name="slack"/> widens the range (the release hysteresis).</summary>
     public static bool InLockRange(string? kind, float distance, float lockRange, bool pingActive, float slack = 1f)
         => pingActive || IsSystemWide(kind) || distance <= lockRange * slack;
 
@@ -263,7 +265,8 @@ public static class SpaceTargeting
     /// <summary>The cycle tier of a candidate at its distance, or −1 when the cycle skips it: 0 hostiles attacking right
     /// now, 1 every other hostile and a raider demanding cargo, 2 the rocks of a mining context (#2328: with
     /// <paramref name="miningRange"/> &gt; 0 — the selected laser can mine — an asteroid within that range; what you are
-    /// about to shoot is more immediate than a system-wide station), 3 the navigation points, 4 other pilots and traders.
+    /// about to shoot is more immediate than a system-wide station), 3 the navigation points, 4 other pilots (at any
+    /// distance, #2737) and the traders in radar range.
     /// <see cref="Order"/> adds the two rules a single candidate cannot know: only the <see cref="MaxRocksInCycle"/>
     /// nearest rocks, and none while a hostile is attacking.</summary>
     public static int Tier(in TargetCandidate c, float lockRange, bool pingActive, float miningRange = 0f)

@@ -849,7 +849,9 @@ public sealed partial class GameServer
 
     /// <summary>A mission-giver's coined name, deterministic per board so it matches the quartermaster NPC. The classic
     /// coinage (bit-identical forever: it names people players know) — a settlement's giver goes through
-    /// <see cref="SettlementGiverNameFor"/>, which keeps it below generation 26 and coins per place from it (#2698).</summary>
+    /// <see cref="SettlementGiverNameFor"/>, which keeps it below generation 26 and coins per place from it (#2698), and a
+    /// station's through <see cref="StationGiverNameFor"/>, which keeps it below generation 27 and seeds it with the world
+    /// from it (#2739).</summary>
     private static string CoinGiverName(string boardKey)
         => BlocksBeyondTheStars.WorldGeneration.NameGenerator.Person(new System.Random(unchecked((int)WorldGenerator.StableHash("giver:" + boardKey))));
 
@@ -989,7 +991,7 @@ public sealed partial class GameServer
         // The station keeps its place key (a station id is unique already, #2693); its new jobs run on their own id stream
         // with world-seeded rolls (#2688), next to the old stream whose held jobs keep the old rolls.
         string prefix = StationBoardPrefix(stationId);
-        string giver = CoinGiverName(stationId);
+        string giver = StationGiverName(stationId); // #2739: world-seeded from generation 27
         EnsureLegacyBoardStreams(player, prefix, stationId, _stationMissionIds, giver, currentBoardIds, station: true, withBuild: false);
         string rolls = prefix + MixedRollsInfix;
         EnsureBoardWindow(player, rolls, stationId, _stationMissionIds, giver, currentBoardIds);

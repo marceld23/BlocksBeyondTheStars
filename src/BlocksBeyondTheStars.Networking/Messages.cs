@@ -2010,6 +2010,13 @@ public sealed class SpaceState
     /// EVA suit, so everyone can see each other out here.</summary>
     public NetSpacePlayer[] Players { get; set; } = System.Array.Empty<NetSpacePlayer>();
 
+    /// <summary>#2737: the players flying in the OTHER flight instances of this star system (they launched from another
+    /// body), already converted into this instance's flight frame (the star-map offset of the two anchor bodies ×
+    /// <c>SystemBodyLayout.FlightViewScale</c>, like the belt rocks and wrecks). Each carries
+    /// <see cref="NetSpacePlayer.AnchorBodyId"/>. A navigation target only: the client offers them in the target lock and
+    /// on the radar, never as a ship in the scene (no docking, no collision). Additive; an older client ignores it.</summary>
+    public NetSpacePlayer[] SystemPilots { get; set; } = System.Array.Empty<NetSpacePlayer>();
+
     /// <summary>#2238: the entities of this instance the RECIPIENT has already read with the ship scanner (anomalies,
     /// wrecks, wormholes — the kinds the server remembers per object). The lock-on label shows "✓ scanned" and an
     /// anomaly stays calm across visits. Additive; an older client ignores it.</summary>
@@ -2251,6 +2258,11 @@ public sealed class NetSpacePlayer
     public int Torso { get; set; }
     public int Arms { get; set; }
     public int Legs { get; set; }
+
+    /// <summary>#2737: on a <see cref="SpaceState.SystemPilots"/> entry, the body whose flight this pilot is in (the body
+    /// they launched from) — the lock label reads "Flying near …", since you meet them by landing there and launching
+    /// again. Empty on a <see cref="SpaceState.Players"/> entry. Additive; an older client ignores it.</summary>
+    public string AnchorBodyId { get; set; } = string.Empty;
 }
 
 /// <summary>A space entity was destroyed (asteroid mined or enemy defeated).</summary>

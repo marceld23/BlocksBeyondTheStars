@@ -22,6 +22,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// (<see cref="NetMarker.Story"/>). The marker view is pushed when it changes: at once when the marker goes up and after a
 /// Journal action, otherwise by the 1 Hz story pass (<see cref="SyncStoryMarkers"/>). During the basic training only the
 /// step on the objective chip gets a marker (<see cref="MarkerFitsTheChip"/>).
+/// <para>#2742: the world story's chapter lead marks its ground target the same way (<see cref="MarkCurrentLead"/>): a story
+/// marker of this player only, kept on the lead cache (<see cref="StoryLeadCache.MarkerLocationId"/>), labelled with the
+/// lead's objective (<see cref="NetMarker.LabelArg"/> fills its <c>{0}</c>), part of the same signature — and so there until
+/// the lead is followed or the current lead changes, hidden while the VEGA hints are muted.</para>
 /// </summary>
 public sealed partial class GameServer
 {
@@ -111,16 +115,55 @@ public sealed partial class GameServer
                 PackId = step.Pack.Id,
             });
         }
+
+        if (LiveLeadMarker(viewer, loc))
+        {
+            var lead = viewer.StoryLeads;
+            into.Add(new NetMarker
+            {
+                Id = StoryLeadMarkerIdPrefix + lead.MarkerFor,
+                OwnerId = viewer.State.PlayerId,
+                X = lead.MarkerAt.X,
+                Y = lead.MarkerAt.Y,
+                Z = lead.MarkerAt.Z,
+                Ping = true,
+                Story = true,
+                LabelKey = lead.MarkerKey,
+                LabelArg = lead.MarkerArg,
+                PackId = _story?.Id ?? string.Empty,
+            });
+        }
     }
 
-    /// <summary>#2570: the story markers the player sees now as one comparable string (their progress keys); empty — and no
-    /// allocation — without any.</summary>
+    /// <summary>#2742: the id prefix of a chapter lead's marker on the wire (then the lead's identity).</summary>
+    internal const string StoryLeadMarkerIdPrefix = StoryMarkerIdPrefix + "lead:";
+
+    /// <summary>#2742: whether the player's chapter-lead marker shows on <paramref name="loc"/> now: it was raised there for the
+    /// lead that is still the marked one, the VEGA hints are not muted, and the world story with its leads still runs for the
+    /// player. Followed or replaced, the marker was cleared already (<see cref="MarkCurrentLead"/>, <see cref="CompleteLead"/>).</summary>
+    private bool LiveLeadMarker(PlayerSession s, string loc)
+    {
+        var lead = s.StoryLeads;
+        return lead.MarkerLocationId.Length > 0
+               && string.Equals(lead.MarkerLocationId, loc, StringComparison.Ordinal)
+               && string.Equals(lead.MarkerFor, lead.MarkedFor, StringComparison.Ordinal)
+               && !s.VegaHintsMuted && LeadsActive && StoryTrackStarted(s);
+    }
+
+    /// <summary>#2570: the story markers the player sees now as one comparable string (their progress keys, #2742: and their
+    /// chapter lead's); empty — and no allocation — without any.</summary>
     private string StoryMarkerSignature(PlayerSession s)
     {
         string loc = s.CurrentLocationId;
-        if (string.IsNullOrEmpty(loc) || s.StepEscalation.Count == 0)
+        if (string.IsNullOrEmpty(loc))
         {
             return string.Empty;
+        }
+
+        bool lead = LiveLeadMarker(s, loc);
+        if (s.StepEscalation.Count == 0)
+        {
+            return lead ? StoryLeadMarkerIdPrefix + s.StoryLeads.MarkerFor : string.Empty;
         }
 
         StringBuilder? sb = null;
@@ -130,6 +173,11 @@ public sealed partial class GameServer
             {
                 (sb ??= new StringBuilder()).Append(kv.Key).Append('|');
             }
+        }
+
+        if (lead)
+        {
+            (sb ??= new StringBuilder()).Append(StoryLeadMarkerIdPrefix).Append(s.StoryLeads.MarkerFor);
         }
 
         return sb?.ToString() ?? string.Empty;

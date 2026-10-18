@@ -220,7 +220,7 @@ def draw_face(spec: dict) -> str:
 
 # ---------------------------------------------------------------- the body
 
-FRONT, RIGHT, BACK, LEFT = 0, 1, 2, 3
+FRONT, LEFT, BACK, RIGHT = 0, 1, 2, 3  # the torso strip as the game lays it out (#2750: the figure's own left first)
 
 
 def emblem(g: Grid, kind: str, x: int, y: int) -> None:
@@ -460,7 +460,7 @@ def leg_chunk(face: int, o: dict) -> Grid:
 
 
 def body(o: dict) -> tuple[str, str, str]:
-    torso = strip([torso_chunk(side, o) for side in (FRONT, RIGHT, BACK, LEFT)])
+    torso = strip([torso_chunk(side, o) for side in (FRONT, LEFT, BACK, RIGHT)])
     arms = strip([arm_chunk(face, o) for _limb in range(2) for face in range(4)])
     legs = strip([leg_chunk(face, o) for _limb in range(2) for face in range(4)])
     return torso, arms, legs

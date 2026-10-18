@@ -541,9 +541,11 @@ public sealed class CreatureBuildRespectTests : IDisposable
             p.State.Position = new Vector3f(origin.X + size.X + 14f, origin.Y, origin.Z + size.Z / 2f);
 
             // One block outside the -X face, halfway along the hull.
+            // The small one first (#2753): it lies inside the titan's footprint, and a LATER sleeper there shuffles aside —
+            // the spacing's business, not the hull guard's this test pins.
             var beside = new Vector3f(origin.X - 1f, origin.Y, origin.Z + size.Z / 2f + 0.5f);
-            string big = server.SpawnCreatureAtForTest(beside, titan.Id);
             string tiny = server.SpawnCreatureAtForTest(new Vector3f(beside.X, beside.Y, beside.Z + 3f), small.Id);
+            string big = server.SpawnCreatureAtForTest(beside, titan.Id);
 
             Ticks(server, 5);
 

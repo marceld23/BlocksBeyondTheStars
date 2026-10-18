@@ -119,8 +119,12 @@ public sealed partial class GameServer
         int pad0Z = _landingPads.Count > 0 ? _landingPads[0].CenterZ : 0;
         int half = footprint / 2 + 2;
 
+        // #2738: from SeaIceWetGeneration a frozen sea is no site either — a body frozen through read as dry seabed and the
+        // site was stamped at the seabed height, under the ice (the centre column is the one this search reads).
+        bool seaIceIsWet = SeaIceIsWet;
         bool Fits(int x, int z) => !OverlapsAnySettlement(x, z, half + 4) && !_generator.IsSurfaceLava(planet, x, z)
-            && !_generator.TryGetWaterSurface(planet, x, z, out _, out _);
+            && !_generator.TryGetWaterSurface(planet, x, z, out _, out _)
+            && !(seaIceIsWet && _generator.SurfaceIceThickness(planet, x, z) > 0);
 
         int cx = 0, cz = 0;
         bool found = false;

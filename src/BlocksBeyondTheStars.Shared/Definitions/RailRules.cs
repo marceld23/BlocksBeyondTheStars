@@ -142,12 +142,113 @@ public static class RailRules
     public static bool OutsideWagon(Vector3f local)
         => Math.Abs(local.X) > RiderHalfWidth + LeaveMargin || Math.Abs(local.Z) > RiderHalfLength + LeaveMargin || local.Y < -1.5f || local.Y > RiderMaxHeight + 1.5f;
 
-    /// <summary>The arc position of wagon <paramref name="index"/> (0 = the cab) behind the train's own arc.</summary>
-    public static float WagonArc(float trainArc, int index, int direction)
-        => trainArc - direction * index * (WagonLength + WagonGap);
+    /// <summary>The arc position of wagon <paramref name="index"/> (0 = the cab) behind the train's own arc (the cab's).
+    /// "Behind" is the train's <b>facing</b> (#2741) — the way the cab points, fixed when the train is placed — not its
+    /// direction of travel: a train that reverses at a line end keeps every wagon where it is and pushes from the back.</summary>
+    public static float WagonArc(float trainArc, int index, int facing)
+        => trainArc - Sign(facing) * index * (WagonLength + WagonGap);
+
+    /// <summary>The arc distance from the cab's centre to the last wagon's centre (0 for a lone cab).</summary>
+    public static float TrainSpan(int wagonCount) => Math.Max(0, wagonCount - 1) * (WagonLength + WagonGap);
+
+    /// <summary>The range the train's own arc (the cab's) may take on an open line of length <paramref name="total"/> so
+    /// every wagon stays on the line (#2741): a train facing +1 hangs its wagons toward arc 0, so the cab runs between
+    /// the train's span and the end; one facing −1 the other way round. A train longer than its line pins the cab at
+    /// the far end (the wagons behind are clamped onto the line's start).</summary>
+    public static (float Lo, float Hi) CabRange(float total, float span, int facing)
+    {
+        total = Math.Max(0f, total);
+        span = Math.Max(0f, span);
+        float lo = facing >= 0 ? span : 0f;
+        float hi = facing >= 0 ? total : total - span;
+        if (hi < lo)
+        {
+            float pin = facing >= 0 ? total : 0f;
+            return (pin, pin);
+        }
+
+        return (lo, hi);
+    }
+
+    /// <summary>The arc of the wagon at the head of the train in its direction of travel (#2741): the cab when it runs the
+    /// way it faces, the last wagon (<paramref name="span"/> behind the cab) when it runs backwards. The autopilot halts
+    /// this wagon at a stop.</summary>
+    public static float LeadArc(float arc, int direction, int facing, float span)
+        => Sign(direction) == Sign(facing) ? arc : arc - Sign(facing) * span;
+
+    /// <summary>The train's arc a halt at a stop puts it on (#2741): the leading wagon (see <see cref="LeadArc"/>)
+    /// stands at <paramref name="stopArc"/>.</summary>
+    public static float ArcForLeadAt(float stopArc, int direction, int facing, float span)
+        => Sign(direction) == Sign(facing) ? stopArc : stopArc + Sign(facing) * span;
+
+    /// <summary>Runs a train's arc <paramref name="distance"/> along its <paramref name="direction"/> (#2741). A loop
+    /// wraps. On an open line the arc stays inside <see cref="CabRange"/>: reaching a bound flips the direction and the
+    /// rest of the step runs back the other way — the arc never jumps and the wagons never change places or turn, so
+    /// riders ride through the reversal without a jump. An arc found outside the range (a coupled wagon, a shortened
+    /// line) is first brought back into it. Returns the new arc and direction; non-finite or negative distances move
+    /// nothing.</summary>
+    public static (float Arc, int Direction) Advance(float arc, int direction, int facing, float distance, float total, float span, bool closed)
+    {
+        int dir = direction < 0 ? -1 : 1;
+        if (float.IsNaN(arc) || float.IsInfinity(arc))
+        {
+            arc = 0f;
+        }
+
+        if (float.IsNaN(distance) || float.IsInfinity(distance) || distance < 0f)
+        {
+            distance = 0f;
+        }
+
+        if (total <= 0f)
+        {
+            return (0f, dir);
+        }
+
+        if (closed)
+        {
+            float s = (arc + dir * distance) % total;
+            return (s < 0f ? s + total : s, dir);
+        }
+
+        var (lo, hi) = CabRange(total, span, facing);
+        arc = Math.Clamp(arc, lo, hi);
+        float len = hi - lo;
+        if (len <= 0f)
+        {
+            return (lo, dir); // no room to run: the train stands at its one spot
+        }
+
+        // Fold whole round trips away, then bounce at most twice.
+        distance %= 2f * len;
+        for (int bounce = 0; bounce < 3 && distance > 0f; bounce++)
+        {
+            float room = dir > 0 ? hi - arc : arc - lo;
+            if (distance < room)
+            {
+                arc += dir * distance;
+                distance = 0f;
+            }
+            else
+            {
+                distance -= room;
+                arc = dir > 0 ? hi : lo;
+                dir = -dir;
+            }
+        }
+
+        return (Math.Clamp(arc, lo, hi), dir);
+    }
+
+    /// <summary>The facing a client poses a train's wagons by (#2741): the server's facing, or — 0 from an older server
+    /// that sent none, whose wagons followed the direction of travel — the direction.</summary>
+    public static int PoseFacing(int facing, int direction) => facing != 0 ? Sign(facing) : Sign(direction);
+
+    private static int Sign(int value) => value < 0 ? -1 : 1;
 
     /// <summary>A world point from a wagon pose (its centre on the line, its heading in radians about +Y) and a local offset:
-    /// local X across (right of travel), Y up, Z along (toward the cab / the direction of travel).</summary>
+    /// local X across (right of the way the wagon faces), Y up, Z along (toward the cab — the train's facing, which is the
+    /// direction of travel unless the train is running backwards after a reversal).</summary>
     public static Vector3f LocalToWorld(Vector3f wagonPos, float yaw, Vector3f local)
     {
         float c = (float)Math.Cos(yaw), s = (float)Math.Sin(yaw);

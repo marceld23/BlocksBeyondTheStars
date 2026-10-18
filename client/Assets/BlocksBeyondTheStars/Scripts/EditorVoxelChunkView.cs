@@ -33,6 +33,7 @@ namespace BlocksBeyondTheStars.Client
             public bool Textured; // sample the atlas tile at Uv (#1400); false = plain vertex colour
             public Rect Uv;       // the block's atlas tile (BlockTextureAtlas.TileUv)
             public bool Overlay;  // drawn by EditorPropOverlay (#1975: a door, a silhouette) — counts as occupied, emits no faces
+            public ushort BlockId; // the content block (#2744): a cube's faces resolve side by side like the world's; 0 = Uv on all
         }
 
         private const int ChunkSize = 16;
@@ -51,6 +52,11 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<Vector3i, Slot> _slots = new();  // chunk coord -> slot
         private readonly HashSet<Vector3i> _dirty = new();
 
+        // #2744: the atlas the cells' tiles come from and each block's resolved faces per front (a cell stores only its
+        // block id — a 128³ structure holds far too many cells for six rects apiece).
+        private BlockTextureAtlas _atlas;
+        private readonly Dictionary<int, (Rect[] Uv, int[] Turns)> _faces = new();
+
         public EditorVoxelChunkView(Transform parent)
         {
             _parent = parent;
@@ -67,12 +73,15 @@ namespace BlocksBeyondTheStars.Client
         public bool Contains(Vector3i cell) => _all.ContainsKey(cell);
 
         /// <summary>Hands the block atlas to the chunk material so textured cells show their real tile
-        /// (#1400). Without an atlas every cell falls back to its flat colour.</summary>
-        public void SetAtlas(Texture2D atlas)
+        /// (#1400) — and, for a cell with a <see cref="Cell.BlockId"/>, each face its own tile (#2744). Without an atlas
+        /// every cell falls back to its flat colour.</summary>
+        public void SetAtlas(BlockTextureAtlas atlas)
         {
+            _atlas = atlas;
+            _faces.Clear();
             if (_material != null)
             {
-                _material.mainTexture = atlas;
+                _material.mainTexture = atlas != null ? atlas.Texture : null;
             }
         }
 
@@ -211,11 +220,38 @@ namespace BlocksBeyondTheStars.Client
         private static readonly List<int> _tris = new();
 
         private static readonly Vector2 Flat = Vector2.zero, Textured = new(1f, 0f);
+        private static readonly bool[] _openScratch = new bool[6]; // which faces of the cube being meshed are exposed
+
+        /// <summary>The per-face tiles and quarter turns of a textured cube cell (#2744), or default (no arrays) when the
+        /// cell names no block or there is no atlas — the cell's one tile then covers every face as before. A block with
+        /// a front takes the one stored in the cell or looks away from its wall (<see cref="BlockCubeFaces.EditorFront"/>,
+        /// <paramref name="open"/> = which faces are exposed, in face order). Cached per block and front.</summary>
+        private (Rect[] Uv, int[] Turns) FacesOf(Cell data, bool[] open)
+        {
+            var content = _atlas?.Content;
+            if (data.BlockId == 0 || content == null)
+            {
+                return default;
+            }
+
+            var id = new BlocksBeyondTheStars.Shared.Primitives.BlockId(data.BlockId);
+            int front = BlockCubeFaces.EditorFront(content, id, data.Shape, open[2], open[3], open[4], open[5]);
+            int key = (data.BlockId << 3) | (front + 1); // front -1..5 → 0..6
+            if (!_faces.TryGetValue(key, out var faces))
+            {
+                faces = (new Rect[BlockCubeFaces.FaceCount], new int[BlockCubeFaces.FaceCount]);
+                BlockCubeFaces.Resolve(content, _atlas, id, front, faces.Uv, faces.Turns);
+                _faces[key] = faces;
+            }
+
+            return faces;
+        }
 
         /// <summary>True if the cell at <paramref name="p"/> is a solid cube that should hide the face turned
-        /// toward it. Shaped + marker cells never occlude (they don't fill the cell).</summary>
+        /// toward it. Shaped + marker cells never occlude (they don't fill the cell). A cube that stores its front in
+        /// the descriptor (<see cref="CubeFacing.Pack"/>, #2260) is still a cube.</summary>
         private bool Occludes(Vector3i p)
-            => _all.TryGetValue(p, out var c) && c.Shape == 0 && !c.Marker && !c.Overlay;
+            => _all.TryGetValue(p, out var c) && ShapeCode.IsCube(c.Shape) && !c.Marker && !c.Overlay;
 
         private void RebuildSlot(Slot slot)
         {
@@ -244,19 +280,32 @@ namespace BlocksBeyondTheStars.Client
                         AddFace(origin, f, 0.25f, 0.75f, data.Color, data.Glow, default, false);
                     }
                 }
-                else if (data.Shape != 0)
+                else if (!ShapeCode.IsCube(data.Shape))
                 {
                     AddShape(origin, data);
                 }
                 else
                 {
-                    // Plain cube: emit only the faces exposed to a non-occluding neighbour.
-                    if (!Occludes(new Vector3i(cell.X, cell.Y + 1, cell.Z))) AddFace(origin, 0, 0f, 1f, data.Color, data.Glow, data.Uv, data.Textured);
-                    if (!Occludes(new Vector3i(cell.X, cell.Y - 1, cell.Z))) AddFace(origin, 1, 0f, 1f, data.Color, data.Glow, data.Uv, data.Textured);
-                    if (!Occludes(new Vector3i(cell.X + 1, cell.Y, cell.Z))) AddFace(origin, 2, 0f, 1f, data.Color, data.Glow, data.Uv, data.Textured);
-                    if (!Occludes(new Vector3i(cell.X - 1, cell.Y, cell.Z))) AddFace(origin, 3, 0f, 1f, data.Color, data.Glow, data.Uv, data.Textured);
-                    if (!Occludes(new Vector3i(cell.X, cell.Y, cell.Z + 1))) AddFace(origin, 4, 0f, 1f, data.Color, data.Glow, data.Uv, data.Textured);
-                    if (!Occludes(new Vector3i(cell.X, cell.Y, cell.Z - 1))) AddFace(origin, 5, 0f, 1f, data.Color, data.Glow, data.Uv, data.Textured);
+                    // Plain cube: emit only the faces exposed to a non-occluding neighbour. A cube that stores only its
+                    // front (#2260) is a cube too — it used to land in AddShape, which has no geometry for it.
+                    var open = _openScratch;
+                    open[0] = !Occludes(new Vector3i(cell.X, cell.Y + 1, cell.Z));
+                    open[1] = !Occludes(new Vector3i(cell.X, cell.Y - 1, cell.Z));
+                    open[2] = !Occludes(new Vector3i(cell.X + 1, cell.Y, cell.Z));
+                    open[3] = !Occludes(new Vector3i(cell.X - 1, cell.Y, cell.Z));
+                    open[4] = !Occludes(new Vector3i(cell.X, cell.Y, cell.Z + 1));
+                    open[5] = !Occludes(new Vector3i(cell.X, cell.Y, cell.Z - 1));
+
+                    // #2744: each face its own tile — the block's top, sides, bottom and front, by the world's rules.
+                    var faces = data.Textured ? FacesOf(data, open) : default;
+                    for (int f = 0; f < 6; f++)
+                    {
+                        if (open[f])
+                        {
+                            AddFace(origin, f, 0f, 1f, data.Color, data.Glow, faces.Uv != null ? faces.Uv[f] : data.Uv, data.Textured,
+                                faces.Turns != null ? faces.Turns[f] : 0);
+                        }
+                    }
                 }
             }
 
@@ -329,8 +378,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Appends one box face (winding + corner order match <c>ChunkMesher.FaceQuad</c> so the
         /// outward side is the front face), shaded by face direction and baked into the vertex colour. A
-        /// textured face carries the block's atlas tile in TEXCOORD0 (#1400); a flat one samples nothing.</summary>
-        private void AddFace(Vector3 p, int face, float lo, float hi, Color color, bool glow, Rect tile, bool textured)
+        /// textured face carries the block's atlas tile in TEXCOORD0 (#1400), turned by <paramref name="turns"/>
+        /// quarter turns like the mesher's (#2744: a top picture stands upright for someone in front); a flat one
+        /// samples nothing.</summary>
+        private void AddFace(Vector3 p, int face, float lo, float hi, Color color, bool glow, Rect tile, bool textured, int turns = 0)
         {
             Vector3[] q = FaceQuad(p, face, lo, hi);
             Color col = Tint(color, FaceShade(face), glow);
@@ -339,10 +390,10 @@ namespace BlocksBeyondTheStars.Client
             int b0 = _verts.Count;
             _verts.Add(q[0]); _verts.Add(q[1]); _verts.Add(q[2]); _verts.Add(q[3]);
             _colors.Add(col); _colors.Add(col); _colors.Add(col); _colors.Add(col);
-            _uvs.Add(new Vector2(tile.xMin, tile.yMin));
-            _uvs.Add(new Vector2(tile.xMin, tile.yMax));
-            _uvs.Add(new Vector2(tile.xMax, tile.yMax));
-            _uvs.Add(new Vector2(tile.xMax, tile.yMin));
+            _uvs.Add(BlockCubeFaces.CornerUv(tile, turns, 0));
+            _uvs.Add(BlockCubeFaces.CornerUv(tile, turns, 1));
+            _uvs.Add(BlockCubeFaces.CornerUv(tile, turns, 2));
+            _uvs.Add(BlockCubeFaces.CornerUv(tile, turns, 3));
             _flags.Add(flag); _flags.Add(flag); _flags.Add(flag); _flags.Add(flag);
             _tris.Add(b0); _tris.Add(b0 + 1); _tris.Add(b0 + 2);
             _tris.Add(b0); _tris.Add(b0 + 2); _tris.Add(b0 + 3);

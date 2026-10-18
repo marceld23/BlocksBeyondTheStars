@@ -337,11 +337,15 @@ public sealed partial class GameServer
 
     /// <summary>A point two blocks outside the zone cube, on the bearing from the core to <paramref name="from"/>.
     /// Chebyshev, like the zone test itself, so the result is always just past the face the scout is nearest;
-    /// two blocks (not one) so the locomotion's arrival overshoot has room before the fence rule bites.</summary>
-    private static Vector3f ScoutEdgePoint(Vector3i core, Vector3f from)
+    /// two blocks (not one) so the locomotion's arrival overshoot has room before the fence rule bites. The bearing is
+    /// measured the short way round both seams like the zone itself (#2752 follow-up): a scout just west of a core near
+    /// x = 0 (stored at x = circumference − n) used to get an edge point on the EAST side, sought straight through the
+    /// zone, had every step refused and stood pressed against the fence. The point comes back canonical.</summary>
+    private Vector3f ScoutEdgePoint(Vector3i core, Vector3f from)
     {
-        float dx = from.X - core.X;
-        float dz = from.Z - core.Z;
+        int circ = _world.Circumference;
+        float dx = (float)WorldConstants.WrapDeltaX((double)from.X - core.X, circ);
+        float dz = (float)WorldConstants.WrapDeltaZ((double)from.Z - core.Z, circ);
         float r = BaseProtectionRadius + 2.5f;
         float m = System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dz));
         if (m < 0.01f)
@@ -351,7 +355,8 @@ public sealed partial class GameServer
         }
 
         float k = r / m;
-        return new Vector3f(core.X + 0.5f + dx * k, from.Y, core.Z + 0.5f + dz * k);
+        float x = core.X + 0.5f + dx * k, z = core.Z + 0.5f + dz * k;
+        return new Vector3f((float)WorldConstants.WrapX(x, circ), from.Y, (float)WorldConstants.WrapZ(z, circ));
     }
 
     /// <summary>A scout of <paramref name="baseId"/> was beaten: the homestead bounty and the
@@ -365,6 +370,21 @@ public sealed partial class GameServer
 
         OnMissionDefeat(session, DefeatTargetScout);
         Advance(session, AchievementCounters.BaseDefended);
+    }
+
+    /// <summary>Test seam (#2752 follow-up): the spot a scout at <paramref name="from"/> walks to at the edge of base
+    /// <paramref name="baseId"/>'s zone, or null for an unknown base.</summary>
+    public Vector3f? ScoutEdgePointForTest(int baseId, Vector3f from)
+    {
+        foreach (var b in _bases)
+        {
+            if (b.Id == baseId)
+            {
+                return ScoutEdgePoint(b.Cell, from);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Test seam: spawns a scout visit at a base right now, skipping the cooldown roll (#1224).</summary>

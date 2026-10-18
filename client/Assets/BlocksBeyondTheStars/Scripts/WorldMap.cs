@@ -543,10 +543,13 @@ namespace BlocksBeyondTheStars.Client
             // Fixed landing pads (item 38): ALWAYS shown — at true position when in view, else pinned to the map
             // edge pointing the way (pads are spread round the body, so most sit outside this local window). Green
             // = free, red = another player is on it, cyan = your own pad (#977). Also listed below with distance
-            // so every pad is findable.
-            if (Game.LandingPads != null)
+            // so every pad is findable. #2740: the pads of the body you are on — never the last list the flight pad
+            // chooser happened to ask about (a padless body, or the body you left). Before the first star map arrives
+            // there is only the world-entry list to go by.
+            var bodyPads = Game.StarMap != null ? Game.LandingPadsFor(Game.StarMap.ActiveLocationId) : Game.LandingPads;
+            if (bodyPads != null)
             {
-                foreach (var pad in Game.LandingPads)
+                foreach (var pad in bodyPads)
                 {
                     var col = pad.Mine ? new Color(0.45f, 0.85f, 1f)
                         : pad.Occupied ? new Color(1f, 0.45f, 0.4f)

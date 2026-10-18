@@ -705,8 +705,7 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (blockDef != null && Game.Atlas != null)
             {
-                raw.texture = Game.Atlas.Texture;
-                raw.uvRect = Game.Atlas.TileUv(blockDef.NumericId.Value);
+                BlockCubeIcon.Apply(raw, Game.Atlas, blockDef.NumericId.Value); // a block whose faces differ is a cube (#2744)
             }
             else
             {
@@ -734,8 +733,9 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (Game.Atlas != null && Game.Atlas.Texture != null)
             {
-                raw.texture = Game.Atlas.Texture; // the cube (or an unbuildable silhouette) shows the plain tile
-                raw.uvRect = Game.Atlas.TileUv(tileId);
+                // The cube (or an unbuildable silhouette) shows the plain tile — or the drawn cube of a block whose
+                // faces differ (#2744).
+                BlockCubeIcon.Apply(raw, Game.Atlas, tileId);
             }
             else
             {

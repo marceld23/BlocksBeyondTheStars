@@ -263,7 +263,7 @@ Tier · kind: **M** = must, **C** = core · **do** / **read** / **react**. Event
 | **B2 Staying alive** | | | | | |
 | b2.1 | three bars; air refills aboard (absorbs `breathe`) | `ui:vega_continue` | M · read | no oxygen / no hunger / both → whole-line variants | — |
 | b2.2 | eat food `{key:Place}` | `eat:any` | M · do | `feasibleIf hunger` | eat |
-| b2.3 | bushes drop berries; marker `nearest_food_plant` | `item:gained` `berries` × 3 | C · do | `feasibleIf hunger, food_plants_near` | — |
+| b2.3 | bushes drop berries; marker `nearest_food_plant` (after 120 s, before the hint — #2742) | `item:gained` `berries` × 3 | C · do | `feasibleIf hunger, food_plants_near` | — |
 | b2.4 | the suit's ration dispenser | `suit:auto_feed` | C · react | `requires hunger` | — |
 | b2.5 | the compass's ship blip (top right): walk 40 m away, then find the way back (absorbs `ship_far`). #2550: `walk` measures like the compass's "Ship N m" — flat and seam-aware, to the landed ship's anchor (`ShipPlacement`), with the compass's rounding (`Mathf.RoundToInt`, a .5 to the even metre): the compass reading 40 on foot (≥ 39.5 m), then aboard or reading 10 (≤ 10.5 m); only while the player's **own** step waits (the event bus is shared), and the step's activation starts the walk afresh; VEGA's half-way line (`midKey` "Far enough — now find your way back") once when the 40 m are reached; the hints remind of the 40 m | `ship:returned` (`menu`/`teleport`/`walk`) | M · do | hint variants: starter teleporter, no "Back to my ship" | — |
 | b2.6 | the lamp `{key:ToggleLamp}` (absorbs `night`, `lamp_off`) | `lamp:toggled` | C · do | — | — |
@@ -763,8 +763,9 @@ the objective tracker"):
   muted.
 - **Stuck on b6.4 (dock):** after `markerAfter` the step's `onStart.reveal: nearest_station` sets the nearest station as the
   player's space waypoint (`vega.step.marked_station`) — in flight or still landed.
-- **Stuck on a "where" step on the ground** (iron b3.2; the berries b2.3 are a CORE step, which leaves the chip at its
-  hint time — 180 s, before the marker's 360 s — so they get the hint but no marker): after `markerAfter` VEGA marks the provider's
+- **Stuck on a "where" step on the ground** (iron b3.2, the berries b2.3 — a CORE step, which leaves the chip at its hint
+  time (180 s), so since #2742 its own `escalate: { markerAfter: 120 }` puts the marker up first; `TutorialPackTests` pins
+  that for every such step): after `markerAfter` VEGA marks the provider's
   target — a violet goal flag on the planet map labelled with the step's chip text and a flag blip on the compass with
   "Goal 120 m" — and says so (`vega.step.marked_spot`: "I've marked your goal — you can see it on your compass and on the
   map"). Since #2570 the marker stays until the step is done or skipped (it used to be a 30-second ping that was usually

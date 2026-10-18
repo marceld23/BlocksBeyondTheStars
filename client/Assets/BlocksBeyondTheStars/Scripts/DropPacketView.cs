@@ -35,11 +35,11 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<string, Packet> _packets = new Dictionary<string, Packet>();
         private bool _subscribed;
 
-        // Shared per-tile cube meshes and per-item tint materials (#1564). Each packet used to instantiate its
+        // Shared per-block cube meshes and per-item tint materials (#1564). Each packet used to instantiate its
         // own remapped Mesh (and every non-block item its own Material) while removal only destroyed the
         // GameObject — so mining with a full backpack leaked a mesh per collected packet for the whole
-        // session. Now a tile / item key is built once, every packet shares it, and OnDestroy releases them.
-        private readonly Dictionary<Rect, Mesh> _tileMeshes = new Dictionary<Rect, Mesh>();
+        // session. Now a block / item key is built once, every packet shares it, and OnDestroy releases them.
+        private readonly Dictionary<ushort, Mesh> _blockMeshes = new Dictionary<ushort, Mesh>();
         private readonly Dictionary<string, Material> _tintMaterials = new Dictionary<string, Material>();
         private readonly Dictionary<string, Material> _iconMaterials = new Dictionary<string, Material>();
 
@@ -149,8 +149,9 @@ namespace BlocksBeyondTheStars.Client
             };
         }
 
-        /// <summary>One mini-cube wearing the packet's material: the block's atlas tile where the item places
-        /// a block, otherwise a flat colour derived from the item key (a tool or component without an icon).</summary>
+        /// <summary>One mini-cube wearing the packet's material: the block's own faces where the item places a block
+        /// (#2744: its top, sides, bottom and front as the world draws them), otherwise a flat colour derived from the
+        /// item key (a tool or component without an icon).</summary>
         private void MakeCube(Transform parent, Vector3 offset, float size, string item, BlocksBeyondTheStars.Shared.Definitions.BlockDefinition def)
         {
             var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -170,8 +171,7 @@ namespace BlocksBeyondTheStars.Client
                 var filter = cube.GetComponent<MeshFilter>();
                 if (filter != null)
                 {
-                    filter.sharedMesh = TileMesh(filter.sharedMesh, Game.Atlas.TileUv(def.NumericId.Value),
-                        ChunkMesher.MaterialFor(Game.Content, def.NumericId), ChunkMesher.EmissionFor(Game.Content, def.NumericId));
+                    filter.sharedMesh = BlockMesh(def.NumericId);
                 }
             }
             else
@@ -197,17 +197,23 @@ namespace BlocksBeyondTheStars.Client
             quad.GetComponent<Renderer>().sharedMaterial = IconMaterial(item, icon);
         }
 
-        /// <summary>The cube mesh remapped onto one atlas tile — built once per tile rect and shared by every
-        /// packet showing that block (#1564).</summary>
-        private Mesh TileMesh(Mesh source, Rect uv, Vector2 material, float emission)
+        /// <summary>The block's cube in the chunk shader's channels (<see cref="BlockCubeFaces.BuildMesh"/>, front toward
+        /// +Z — the packet tumbles anyway) — built once per block and shared by every packet showing it (#1564).
+        /// <para>
+        /// The chunk shader reads the packed vertex channels a Unity primitive does not carry (#972): skylight and tint
+        /// mode in TEXCOORD1, foliage/tint in TEXCOORD2, block light in TEXCOORD3/4 and gloss / metal / AO / emission in
+        /// the vertex colour. Left unset, the skylight reads 0 and the colour white — a half-dark, fully metallic, glowing
+        /// cube ("one half is purple", #2105) — so the mesh fills every channel the way the mesher fills a sunlit face.
+        /// </para></summary>
+        private Mesh BlockMesh(BlocksBeyondTheStars.Shared.Primitives.BlockId id)
         {
-            if (_tileMeshes.TryGetValue(uv, out var cached) && cached != null)
+            if (_blockMeshes.TryGetValue(id.Value, out var cached) && cached != null)
             {
                 return cached;
             }
 
-            var mesh = RemapToTile(source, uv, material, emission);
-            _tileMeshes[uv] = mesh;
+            var mesh = BlockCubeFaces.BuildMesh(Game.Content, Game.Atlas, id, BlockCubeFaces.FacePlusZ, chunkChannels: true);
+            _blockMeshes[id.Value] = mesh;
             return mesh;
         }
 
@@ -268,46 +274,6 @@ namespace BlocksBeyondTheStars.Client
             return def;
         }
 
-        /// <summary>Copies the primitive cube mesh with its 0..1 UVs rewritten onto one atlas tile — the same
-        /// trick the chunk mesher does per face, minus the per-face variation a 0.4 m bundle would never show.
-        /// The copy is owned by the caller's cache (<see cref="TileMesh"/>); the shared primitive is never edited.
-        /// <para>
-        /// The chunk shader reads the packed vertex channels a Unity primitive does not carry (#972): skylight and
-        /// tint mode in TEXCOORD1, foliage/tint in TEXCOORD2, block light in TEXCOORD3/4 and gloss / metal / AO /
-        /// emission in the vertex colour. Left unset, the skylight reads 0 and the colour white — a half-dark,
-        /// fully metallic, glowing cube ("one half is purple", #2105). So every channel is filled the way the
-        /// mesher fills a sunlit face of that block.
-        /// </para></summary>
-        private static Mesh RemapToTile(Mesh source, Rect uv, Vector2 material, float emission)
-        {
-            var mesh = Instantiate(source);
-            var uvs = mesh.uv;
-            int n = uvs.Length;
-            for (int i = 0; i < n; i++)
-            {
-                uvs[i] = new Vector2(uv.x + uvs[i].x * uv.width, uv.y + uvs[i].y * uv.height);
-            }
-
-            mesh.uv = uvs;
-
-            var sky = new Vector2[n];
-            var zero4 = new Vector4[n];
-            var colors = new Color[n];
-            var col = new Color(material.x, material.y, 1f, emission); // gloss, metal, no AO shade, emission
-            for (int i = 0; i < n; i++)
-            {
-                sky[i] = new Vector2(1f, 0f); // full skylight, plain tint mode
-                colors[i] = col;
-            }
-
-            mesh.SetUVs(1, sky);
-            mesh.SetUVs(2, zero4);
-            mesh.SetUVs(3, zero4);
-            mesh.SetUVs(4, zero4);
-            mesh.colors = colors;
-            return mesh;
-        }
-
         private static Shader _litShader;
         private static Shader _iconShader;
 
@@ -328,7 +294,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Release the shared meshes/materials — the packet GameObjects go down with this view's own
             // hierarchy, but Mesh/Material assets are only freed by an explicit Destroy (#1564).
-            foreach (var mesh in _tileMeshes.Values)
+            foreach (var mesh in _blockMeshes.Values)
             {
                 if (mesh != null) Destroy(mesh);
             }
@@ -343,7 +309,7 @@ namespace BlocksBeyondTheStars.Client
                 if (mat != null) Destroy(mat);
             }
 
-            _tileMeshes.Clear();
+            _blockMeshes.Clear();
             _tintMaterials.Clear();
             _iconMaterials.Clear();
         }

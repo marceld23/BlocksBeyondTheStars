@@ -38,6 +38,7 @@ public sealed partial class GameServer
         int circ = _world.Circumference;
         int pad0X = _landingPads.Count > 0 ? _landingPads[0].CenterX : 0;
         int pad0Z = _landingPads.Count > 0 ? _landingPads[0].CenterZ : 0;
+        bool seaIceIsWet = SeaIceIsWet; // #2738: from generation 27 a frozen sea is no dry land for a chest either
 
         int placed = 0;
         for (int i = 0; i < count; i++)
@@ -54,7 +55,8 @@ public sealed partial class GameServer
 
                 if (OverlapsAnySettlement(x, z, 2)
                     || _generator.IsSurfaceWater(planet, x, z)
-                    || _generator.IsSurfaceLava(planet, x, z))
+                    || _generator.IsSurfaceLava(planet, x, z)
+                    || (seaIceIsWet && _generator.SurfaceIceThickness(planet, x, z) > 0)) // not buried under sea ice
                 {
                     continue;
                 }
@@ -86,8 +88,9 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                int y = _generator.TryGetWaterSurface(planet, x, z, out int waterTop, out _)
-                    ? waterTop + 1
+                // #2738: on a frozen sea the capsule rests on the ice, not in it.
+                int y = seaIceIsWet && _generator.TryGetIceSurface(planet, x, z, out int iceTop) ? iceTop + 1
+                    : _generator.TryGetWaterSurface(planet, x, z, out int waterTop, out _) ? waterTop + 1
                     : _generator.SurfaceHeight(planet, x, z) + 1;
                 SpawnStructureLoot("chest", "chest", new Vector3f(x, y, z), rng);
                 placed++;

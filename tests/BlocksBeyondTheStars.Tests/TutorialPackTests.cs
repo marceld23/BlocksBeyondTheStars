@@ -216,6 +216,29 @@ public sealed class TutorialPackTests : IDisposable
         Assert.Equal(new[] { "c3", "c4", "c1" }, pack.Graduation.Suggest); // #2479: the flight courses; #2480: the workshop course
     }
 
+    /// <summary>#2742: during the basic training only the step on the chip gets a help marker, and an open CORE step of a
+    /// non-optional chapter leaves the chip at its hint time. So every such step with a "where" reveal must reach its marker
+    /// time first — b2.3 (berries) used to wait for the pack's 360 s behind its 180 s hint and never got one.</summary>
+    [Fact]
+    public void EveryCoreWhereStepOfTheBasicTraining_ReachesItsMarkerBeforeItLeavesTheChip()
+    {
+        var pack = Pack;
+        var pinned = new List<string>();
+        foreach (var chapter in pack.Chapters.Where(c => !c.Optional))
+        {
+            foreach (var step in chapter.Steps.Where(s => s.Tier == StoryStepTiers.Core && s.OnStart.Reveal.Length > 0))
+            {
+                int hintAfter = step.Escalate?.HintAfter ?? pack.Escalate.HintAfter ?? StoryEscalation.DefaultHintAfter;
+                int markerAfter = step.Escalate?.MarkerAfter ?? pack.Escalate.MarkerAfter ?? StoryEscalation.DefaultMarkerAfter;
+                Assert.True(markerAfter > 0 && (hintAfter <= 0 || markerAfter < hintAfter),
+                    $"step {step.Id}: its marker ({markerAfter} s) comes after its hint ({hintAfter} s), when the chip has moved on");
+                pinned.Add(step.Id);
+            }
+        }
+
+        Assert.Contains("b2.3", pinned);
+    }
+
     [Fact]
     public void EveryStep_ListensToAnEventTheServerRaises_OrAFlagTheClientReports()
     {

@@ -498,6 +498,99 @@ public sealed class FireTests : IDisposable
         }
     }
 
+    // ---------------- The X seam (#2747) ----------------
+
+    /// <summary>Walls a cell in with stone on all six sides: nothing to spread to, no water beside it and a roof
+    /// against the weather, so the only things that happen to a flame there are the ones a test does.</summary>
+    private void Pocket(SvGameServer server, Vector3i cell)
+    {
+        var stone = _content.GetBlock("stone")!.NumericId;
+        server.World.SetBlock(new Vector3i(cell.X + 1, cell.Y, cell.Z), stone);
+        server.World.SetBlock(new Vector3i(cell.X - 1, cell.Y, cell.Z), stone);
+        server.World.SetBlock(new Vector3i(cell.X, cell.Y + 1, cell.Z), stone);
+        server.World.SetBlock(new Vector3i(cell.X, cell.Y - 1, cell.Z), stone);
+        server.World.SetBlock(new Vector3i(cell.X, cell.Y, cell.Z + 1), stone);
+        server.World.SetBlock(new Vector3i(cell.X, cell.Y, cell.Z - 1), stone);
+    }
+
+    /// <summary>#2747: a flame lit under the raw spelling of a seam cell (x = −1, how a spreading flame reaches
+    /// across the seam) is the same cell as its canonical spelling (x = circumference − 1, how a mine arrives):
+    /// stamping it out under the canonical spelling clears it completely, and re-lighting the cell burns it once.
+    /// Before, the raw key's timer and row outlived the stamp, and the re-lit cell burned under two keys.</summary>
+    [Fact]
+    public void AFlameAtTheSeam_IsOneCell_UnderEitherSpelling()
+    {
+        var server = Started(out var repo, "fire_seam");
+        using (repo)
+        {
+            int circ = server.World.Circumference;
+            var raw = new Vector3i(-1, 80, 40);
+            var canonical = new Vector3i(circ - 1, 80, 40);
+            Pocket(server, canonical);
+            server.World.SetBlock(canonical, _content.GetBlock("flora_fern")!.NumericId);
+
+            server.IgniteForTest(raw.X, raw.Y, raw.Z);
+            Assert.Equal(Id("fire"), server.World.GetBlock(canonical).Value);
+            Assert.Equal(1, server.BurningCellCount);
+            Assert.Equal(canonical, Assert.Single(repo.ListFireCells(server.World.LocationId)).WorldPosition);
+
+            var p = server.AddLocalPlayer("Justus");
+            p.State.Position = new Vector3f(1, 80, 40); // two blocks east, across the seam
+            server.MineBlockOnce("Justus", raw.X, raw.Y, raw.Z); // the mine path canonicalises its cell
+
+            Assert.True(server.World.GetBlock(canonical).IsAir, "hitting the flame should put it out");
+            Assert.Equal(0, server.BurningCellCount);
+            Assert.Empty(repo.ListFireCells(server.World.LocationId));
+
+            server.World.SetBlock(canonical, _content.GetBlock("flora_fern")!.NumericId);
+            server.IgniteForTest(canonical.X, canonical.Y, canonical.Z);
+            server.IgniteForTest(raw.X, raw.Y, raw.Z); // the same cell again — already burning
+            Assert.Equal(1, server.BurningCellCount);
+            Assert.Single(repo.ListFireCells(server.World.LocationId));
+        }
+    }
+
+    /// <summary>#2747: burn rows written before the keys were canonical carry the raw coordinate. On load they move
+    /// to the one spelling (one row per cell — the shorter burn and the higher hop count win when a cell had a row
+    /// under each spelling), and the flame burns down to ash like any other.</summary>
+    [Fact]
+    public void ABurnRowSavedUnderTheOldSpelling_LoadsUnderTheCanonicalCell()
+    {
+        var paths = new SaveGamePaths(_root, "fire_seam_row");
+        string location;
+        Vector3i canonical;
+
+        using (var repo = new SqliteWorldRepository(paths))
+        {
+            var server = Started(repo, "fire_seam_row");
+            location = server.World.LocationId;
+            int circ = server.World.Circumference;
+            canonical = new Vector3i(circ - 1, 80, 40);
+            Pocket(server, canonical);
+            server.World.SetBlock(canonical, _content.GetBlock("fire")!.NumericId);
+            server.SaveAllForTest();
+            repo.SaveFireCell(location, new Vector3i(-1, 80, 40), 3.0, 2); // the old, raw spelling
+            repo.SaveFireCell(location, canonical, 1.5, 0);                // and a row under the new one
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        using (var repo = new SqliteWorldRepository(paths))
+        {
+            var server = Started(repo, "fire_seam_row");
+            var row = Assert.Single(repo.ListFireCells(location));
+            Assert.Equal(canonical, row.WorldPosition);
+            Assert.Equal(1.5, row.Remaining, 3);
+            Assert.Equal(2, row.Generation);
+            Assert.Equal(1, server.BurningCellCount);
+
+            Tick(server, 20);
+            Assert.Equal(Id("ash"), server.World.GetBlock(canonical).Value);
+            Assert.Equal(0, server.BurningCellCount);
+            Assert.Empty(repo.ListFireCells(location));
+        }
+    }
+
     public void Dispose()
     {
         try

@@ -82,6 +82,11 @@ click-on-press + hover-on-enter).
 | hover speeder: engine loop ✓ + startup / shutdown / impact ✓ (`vehicle_*`) | 4 | EL ✓ |
 | boat (#1215): outboard putter loop ✓ (`boat_engine_loop`, seamless) + launch / board / dismount splash ✓ (`boat_splash`) | 2 | EL ✓ |
 
+The footstep surface is picked by `Client.Core/FootstepSurface` (a key heuristic: iron/metal/steel → metal, sand, grass,
+snow/ice, else rock) from the cell under the feet — a parked ship's cell first (ship-as-object: the ship interior in
+space and a docked friend's ship too), then the world's (#2743; the world alone read air on a ship's deck, so every step
+there sounded like rock). A monorail wagon's floor is metal. The sneak edge-stop and the ladder check read the same way.
+
 ## 5. Vitals & alerts — *procedural*
 
 low-oxygen warning (loop), low-health heartbeat, hunger pang, take-damage, death, respawn, heal-tank

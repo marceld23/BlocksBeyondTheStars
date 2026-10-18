@@ -287,9 +287,11 @@ namespace BlocksBeyondTheStars.Client
             Cycle(ref y, L("ui.settings.pad_glyphs"), L("ui.settings.pad_glyphs." + S.PadGlyphs.ToString().ToLowerInvariant()),
                 () => { S.PadGlyphs = (PadGlyphSet)(((int)S.PadGlyphs + 1) % 3); Rebuild(); });
             Toggle(ref y, L("ui.settings.pad_vibration"), S.PadVibration, () => { S.PadVibration = !S.PadVibration; Rebuild(); });
-            // An honest label beats a toggle that quietly does nothing: the choice is remembered, and the
-            // row says why nothing shakes yet.
-            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.pad_vibration_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            // #2746: the hint says what rumbles — or, where no backend exists (WebGL, the native Linux build), that
+            // vibration is not available here (the choice is still remembered).
+            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24,
+                L(PadRumble.Supported ? "ui.settings.pad_vibration_hint" : "ui.settings.pad_vibration_unsupported"),
+                14, UiKit.CyanDim, TextAnchor.MiddleLeft);
             y += 28f;
 
             Head(ref y, L("ui.settings.comfort"));

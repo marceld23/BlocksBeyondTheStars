@@ -370,6 +370,132 @@ public sealed class RailTests : IDisposable
     }
 
     [Fact]
+    public void AReversingTrain_CarriesItsRidersWithoutAJump()
+    {
+        // #2741: reversing at a line end used to swap the wagons round (the arc re-seated by the train's length) and turn
+        // each by 180° — a seated rider jumped about 4 m, one on the rear bench about 11 m. Now only the direction flips.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var b = Builder(server);
+            Pylon(server, b, 0, 0);
+            Pylon(server, b, 30, 0);
+            Pylon(server, b, 60, 0);
+            Pylon(server, b, 90, 0);
+            var line = Assert.Single(server.RailLinesForTest());
+            Use(server, b, "rail_cab", new Vector3f(80.5f, Y + 1.5f, 0.5f)); // near the far end: it reverses soon
+            var t = Assert.Single(server.TrainsForTest());
+            server.TickForTest(0.5); // past the gadget cooldown
+            Use(server, b, "wagon_seats", server.WagonPoseForTest(t.Id, 1)!.Value.Pos);
+            t = Assert.Single(server.TrainsForTest());
+            Assert.Equal(2, t.Wagons.Count);
+            Assert.Equal(1, server.TrainFacingForTest(t.Id));
+            Assert.Equal(1, Assert.Single(server.NetTrainsForTest()).Facing); // the clients pose by it
+
+            var w = server.AddLocalPlayer("Walker");
+            w.State.AboardShip = false;
+            w.State.Fly = true;
+            server.RequestAllianceForTest(b.State.PlayerId, w.State.PlayerId);
+            server.RespondAllianceForTest(w.State.PlayerId, b.State.PlayerId, accept: true);
+
+            // The owner sits on the rear bench of the seat wagon; the walker stands at the front of the cab.
+            var rearSeats = RailRules.SeatOffsets("wagon_seats");
+            int rear = Enumerable.Range(0, rearSeats.Count).OrderBy(i => rearSeats[i].Z).First();
+            b.State.Position = server.WagonPoseForTest(t.Id, 1)!.Value.Pos;
+            server.EnterTrainForTest(b.State.PlayerId, t.Id, 1, seat: rear);
+            Assert.True(b.State.Seated);
+            w.State.Position = server.WagonPoseForTest(t.Id, 0)!.Value.Pos;
+            server.EnterTrainForTest(w.State.PlayerId, t.Id, 0);
+            server.FramedMoveForTest(w.State.PlayerId, w.State.InTrain, new Vector3f(0.5f, 0f, 2f));
+            Assert.Equal(2, server.TrainsForTest().Single().Riders.Count);
+
+            const float dt = 1f / 15f;
+            float speed = RailRules.SpeedTable[server.TrainsForTest().Single().Speed - 1];
+            float maxStep = 1.5f * speed * dt + 0.05f;
+            float worstB = 0f, worstW = 0f;
+            int dir0 = server.TrainsForTest().Single().Direction;
+            float cabYaw0 = server.WagonPoseForTest(t.Id, 0)!.Value.Yaw, seatYaw0 = server.WagonPoseForTest(t.Id, 1)!.Value.Yaw;
+            double flippedAt = -1, now = 0;
+            while (now < 30 && (flippedAt < 0 || now < flippedAt + 1.0))
+            {
+                var bWas = b.State.Position;
+                var wWas = w.State.Position;
+                server.TickForTest(dt);
+                now += dt;
+                worstB = Math.Max(worstB, Dist(bWas, b.State.Position));
+                worstW = Math.Max(worstW, Dist(wWas, w.State.Position));
+                if (flippedAt < 0 && server.TrainsForTest().Single().Direction != dir0)
+                {
+                    flippedAt = now;
+                }
+            }
+
+            Assert.True(flippedAt > 0, "the train never reached the end of the line");
+            var after = server.TrainsForTest().Single();
+            Assert.Equal(2, after.Riders.Count);
+            Assert.True(after.Arc <= line.TotalArc + 0.01f && after.Arc >= RailRules.TrainSpan(2) - 0.01f, $"the cab stays in its range (arc {after.Arc})");
+            Assert.True(worstB <= maxStep, $"the seated rider on the rear bench jumped {worstB:0.00} blocks in one tick (at most {maxStep:0.00})");
+            Assert.True(worstW <= maxStep, $"the walker in the cab jumped {worstW:0.00} blocks in one tick (at most {maxStep:0.00})");
+
+            // The wagons did not turn round: the cab still points the way it did, and so does the seat wagon.
+            Assert.True(YawDelta(cabYaw0, server.WagonPoseForTest(t.Id, 0)!.Value.Yaw) < 0.3f, "the cab turned round");
+            Assert.True(YawDelta(seatYaw0, server.WagonPoseForTest(t.Id, 1)!.Value.Yaw) < 0.3f, "the seat wagon turned round");
+
+            // Both still ride where they were: the seated one on the rear bench, the walker at the front of the cab.
+            var seatWagon = server.WagonPoseForTest(t.Id, 1)!.Value;
+            var seat = RailRules.LocalToWorld(seatWagon.Pos, seatWagon.Yaw, rearSeats[rear]);
+            Assert.Equal(seat.X, b.State.Position.X, 1);
+            Assert.Equal(seat.Z, b.State.Position.Z, 1);
+            var cab = server.WagonPoseForTest(t.Id, 0)!.Value;
+            var front = RailRules.LocalToWorld(cab.Pos, cab.Yaw, new Vector3f(0.5f, 0f, 2f));
+            Assert.Equal(front.X, w.State.Position.X, 1);
+            Assert.Equal(front.Z, w.State.Position.Z, 1);
+        }
+    }
+
+    [Fact]
+    public void CouplingAtTheLinesStart_KeepsEveryWagonOnTheLine()
+    {
+        // #2741: the cab stands at its range bound (at the line's start, its wagons hang toward it): a new wagon must not
+        // hang off the line — the cab moves up by the wagon's length instead.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var b = Builder(server);
+            Pylon(server, b, 0, 0);
+            Pylon(server, b, 30, 0);
+            Pylon(server, b, 60, 0);
+            Use(server, b, "rail_cab", new Vector3f(0.5f, Y + 1.5f, 0.5f));
+            var t = Assert.Single(server.TrainsForTest());
+            Assert.True(t.Arc < 1f, $"the cab stands at the start (arc {t.Arc})");
+            server.SetTrainForTest(b.State.PlayerId, t.Id, halt: 1);
+            server.TickForTest(0.5); // past the gadget cooldown, standing
+            Assert.True(Assert.Single(server.TrainsForTest()).Arc < 1f);
+            Use(server, b, "wagon_seats", server.WagonPoseForTest(t.Id, 1)!.Value.Pos);
+            t = Assert.Single(server.TrainsForTest());
+            Assert.Equal(2, t.Wagons.Count);
+            Assert.True(t.Arc >= RailRules.TrainSpan(2) - 0.01f, $"the cab moved up so the wagon is on the line (arc {t.Arc})");
+            var cab = server.WagonPoseForTest(t.Id, 0)!.Value.Pos;
+            var seats = server.WagonPoseForTest(t.Id, 1)!.Value.Pos;
+            Assert.InRange(Dist(cab, seats), RailRules.WagonLength, RailRules.WagonLength + RailRules.WagonGap + 0.2f);
+        }
+    }
+
+    private static float Dist(Vector3f a, Vector3f b)
+    {
+        float dx = (float)WorldConstants.WrapDeltaX((double)(a.X - b.X), WorldConstants.Circumference), dy = a.Y - b.Y, dz = a.Z - b.Z;
+        return (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    private static float YawDelta(float a, float b)
+    {
+        float d = (b - a) % (2f * MathF.PI);
+        if (d > MathF.PI) d -= 2f * MathF.PI;
+        if (d < -MathF.PI) d += 2f * MathF.PI;
+        return Math.Abs(d);
+    }
+
+    [Fact]
     public void TheDealer_TheKit_AndTheLocales_AreInPlace()
     {
         var dealer = NpcProfessions.All.Single(p => p.Job == "rail_dealer");

@@ -157,7 +157,7 @@ public sealed partial class GameServer
         string id = idPrefix + "bounty";
         if (!_missionDefs.ContainsKey(id))
         {
-            _missionDefs[id] = BuildShipBountyMission(id, stationId, CoinGiverName(stationId));
+            _missionDefs[id] = BuildShipBountyMission(id, stationId, StationGiverName(stationId));
         }
 
         _stationMissionIds.Add(id);
@@ -388,7 +388,7 @@ public sealed partial class GameServer
         string id = $"station_{(uint)WorldGenerator.StableHash(stationKey) % 100000u}_bounty";
         if (!_missionDefs.ContainsKey(id))
         {
-            _missionDefs[id] = BuildShipBountyMission(id, stationKey, CoinGiverName(stationKey));
+            _missionDefs[id] = BuildShipBountyMission(id, stationKey, StationGiverName(stationKey));
         }
 
         if (FindSessionByPlayerId(playerId) is { } session

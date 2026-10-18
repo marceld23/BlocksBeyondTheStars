@@ -5028,7 +5028,14 @@ namespace BlocksBeyondTheStars.Client
             {
                 ClientAudio.Instance?.Cue("land", 0.6f);
                 Weapons?.Dust(transform.position);
-                FxCamera.AddTrauma(Mathf.Clamp01(-prevVy / 12f) * 0.55f); // impact kick
+                // Impact kick. #2746: the pad does not buzz on every jump's landing — only a hard one rumbles (below).
+                FxCamera.AddTrauma(Mathf.Clamp01(-prevVy / 12f) * 0.55f, rumble: false);
+                bool realFall = !FeetInWater() && !_flying && _trainFrame == null;
+                if (realFall && -prevVy > _effSafeFallSpeed * 0.6f)
+                {
+                    PadRumble.Landing(hard: -prevVy > _effSafeFallSpeed);
+                }
+
                 if (_jumpBoost > 0f && prevVy < -3f)
                 {
                     Avatar?.SpringCompress(); // #2295: the coils take the landing (a step down is no landing)
@@ -5042,7 +5049,7 @@ namespace BlocksBeyondTheStars.Client
                 // A glide (#2296) needs no exception: it lands at its 2.5 m/s sink, far under any safe speed. The spring
                 // boots (#2295) need none either — their higher jump lands at most ~11 m/s (on the heaviest, 1.6 g worlds),
                 // under the server's safe 14 m/s, and the server takes their fall protection off any real fall.
-                if (-prevVy > _effSafeFallSpeed && !FeetInWater() && !_flying && _trainFrame == null) // #2113: the frame's motion is never a fall
+                if (-prevVy > _effSafeFallSpeed && realFall) // #2113: the frame's motion is never a fall
                 {
                     Game?.Network?.SendFallDamage(-prevVy);
                 }
@@ -5099,10 +5106,10 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>True when the player overlaps a ladder block (sampled at shin + chest height), the cue to
-        /// switch to climbing instead of falling/walking. (#126)</summary>
+        /// switch to climbing instead of falling/walking. (#126) A ladder furnishing a parked ship counts too (#2743).</summary>
         private bool OnLadder() =>
-            BlockKeyAt(transform.position + Vector3.up * 0.3f) == "ladder"
-            || BlockKeyAt(transform.position + Vector3.up * 1.1f) == "ladder";
+            ShipOrWorldKeyAt(transform.position + Vector3.up * 0.3f) == "ladder"
+            || ShipOrWorldKeyAt(transform.position + Vector3.up * 1.1f) == "ladder";
 
         // ---------------------------------------------------------------------------------------------------------
         // #2188–#2193: wall climbing on planets, moons and asteroids
@@ -5733,8 +5740,17 @@ namespace BlocksBeyondTheStars.Client
             // long frame cannot carry the centre past the edge unseen.
             float reach = horizontalDir.magnitude * Time.deltaTime - SneakEdgeOverhang;
             Vector3 ahead = transform.position + horizontalDir.normalized * reach;
-            return IsSolidKey(BlockKeyAt(ahead - Vector3.up * 0.5f))
-                || IsSolidKey(BlockKeyAt(ahead - Vector3.up * 1.2f));
+
+            // #2743: a monorail wagon's floor holds wherever its box is (wagon to wagon across the gap); its door openings
+            // and the train's open ends fall through to the probe below, which finds air there.
+            if (_trainFrame != null && _trainView != null && _trainView.WagonAt(ahead, out _, RailRules.WagonGap) != null)
+            {
+                return true;
+            }
+
+            // #2743: a parked ship's deck or roof is ground too (it is its own object, not the world's grid).
+            return IsSolidKey(ShipOrWorldKeyAt(ahead - Vector3.up * 0.5f))
+                || IsSolidKey(ShipOrWorldKeyAt(ahead - Vector3.up * 1.2f));
         }
 
         /// <summary>
@@ -5912,31 +5928,59 @@ namespace BlocksBeyondTheStars.Client
             Camera.transform.localEulerAngles = new Vector3(_pitch + feel.x * damp, feel.y * damp, feel.z * damp);
         }
 
-        /// <summary>Picks the footstep clip from the block under the player's feet (key heuristic).</summary>
+        /// <summary>Picks the footstep clip from the block under the player's feet (key heuristic) — a parked ship's deck
+        /// first, then the world (#2743: the ship is its own object, so the world alone read air there and every step on a
+        /// ship sounded like rock). A monorail wagon's floor is steel.</summary>
         private string SurfaceStep()
         {
+            if (_trainFrame != null)
+            {
+                return FootstepSurface.MetalCue;
+            }
+
             if (Game?.World == null || Game.Content == null)
             {
-                return "step_rock";
+                return FootstepSurface.DefaultCue;
             }
 
             var p = transform.position;
-            var def = Game.Content.BlockById(Game.World.GetBlock(
-                Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y - 0.5f), Mathf.FloorToInt(p.z)));
-            return StepCueFor(def?.Key);
+            return FootstepSurface.CueFor(ShipOrWorldKeyAt(new Vector3(p.x, p.y - 0.5f, p.z)));
         }
 
         /// <summary>The footstep clip for a block key (key heuristic) — the floor underfoot, or the wall a climber's
         /// hands and boots touch (#2188).</summary>
-        private static string StepCueFor(string key)
+        private static string StepCueFor(string key) => FootstepSurface.CueFor(key);
+
+        private System.Func<int, int, int, string> _shipKeyAtFn, _worldKeyAtFn;
+
+        /// <summary>#2743: the content key of the block at a world position — a parked ship's cell (ship-as-object, see
+        /// <see cref="GameBootstrap.LandedShipBlockAt"/>; also the ship interior in space and a docked friend's ship) first,
+        /// then the world's. For what the player stands on or holds on to (footsteps, the sneak edge-stop, ladders); the
+        /// fluid probes keep <see cref="BlockKeyAt"/>, the world alone.</summary>
+        private string ShipOrWorldKeyAt(Vector3 world)
         {
-            string k = key ?? string.Empty;
-            if (k.Contains("iron") || k.Contains("metal") || k.Contains("steel")) return "step_metal";
-            if (k.Contains("sand")) return "step_sand";
-            if (k.Contains("grass")) return "step_grass";
-            if (k.Contains("snow") || k.Contains("ice")) return "step_snow";
-            return "step_rock";
+            if (_shipKeyAtFn == null)
+            {
+                _shipKeyAtFn = ShipKeyAt;
+                _worldKeyAtFn = WorldKeyAt;
+            }
+
+            return FootstepSurface.KeyAtPoint(_shipKeyAtFn, _worldKeyAtFn, world.x, world.y, world.z);
         }
+
+        private string ShipKeyAt(int x, int y, int z)
+        {
+            if (Game == null || Game.Content == null || Game.LandedShips.Count == 0)
+            {
+                return null;
+            }
+
+            var id = Game.LandedShipBlockAt(x, y, z, out _, out _);
+            return id.IsAir ? null : Game.Content.BlockById(id)?.Key;
+        }
+
+        private string WorldKeyAt(int x, int y, int z)
+            => Game?.World == null || Game.Content == null ? null : Game.Content.BlockById(Game.World.GetBlock(x, y, z))?.Key;
 
         /// <summary>Plays the firing/swing sound for the currently held weapon (if any).</summary>
         private void PlayWeaponSound()

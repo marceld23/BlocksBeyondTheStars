@@ -57,8 +57,9 @@ richer one makes several — never the whole factory-recipe set. The machine cou
 
 Factory recipes live in `data/recipes.json` with `"station": "factory"`. The twist: a factory recipe
 turns **cheaper, less-rare raw materials into the same output as a base recipe, but consumes more of
-them** in a single step (e.g. `factory_steel`: `6 iron_ore + 3 nickel_ore + 2 carbon → 1 steel`, versus
-the base chain that refines ingots first). They are deliberately **excluded from disassembly**
+them** in a single step (e.g. `factory_steel`: `6 iron_ore + 6 nickel_ore + 3 carbon → 4 steel`, versus
+the base chain that refines ingots first). Every factory recipe stays within **2×** the raw material of
+its refinery chain per output unit (`MaterialEconomyTests`; the six oldest were brought to 1.5× in #2016). They are deliberately **excluded from disassembly**
 (`GameServer.Disassemble`) so a cheap-bulk craft can't be reversed for a surplus.
 
 ### 2.2 Operating a terminal

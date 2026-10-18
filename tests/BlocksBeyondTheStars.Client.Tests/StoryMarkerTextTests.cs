@@ -40,6 +40,17 @@ public sealed class StoryMarkerTextTests
     }
 
     [Fact]
+    public void AChapterLeadsLabel_FillsItsArgument_IntoTheObjective()
+    {
+        // #2742: "Visit the Singing Shrine on {0}" names the body; a text without the slot is left alone.
+        var lead = new NetMarker { Story = true, LabelKey = "story.vega.obj.site.shrine", LabelArg = "Kepler-3 b", PackId = "vega_protocol" };
+        Assert.Equal("Visit the Singing Shrine on Kepler-3 b", StoryMarkerText.Label(lead, (_, _) => "Visit the Singing Shrine on {0}", L));
+        Assert.Equal("Read the runes", StoryMarkerText.Label(lead, (_, _) => "Read the runes", L));
+        var noArg = new NetMarker { Story = true, LabelKey = "k", PackId = "p" };
+        Assert.Equal("Go to {0}", StoryMarkerText.Label(noArg, (_, _) => "Go to {0}", L)); // an older server sends no argument
+    }
+
+    [Fact]
     public void WithoutAnObjective_TheLabelReadsGoal()
     {
         Assert.Equal("Ziel", StoryMarkerText.Label(new NetMarker { Story = true }, StoryText, L));

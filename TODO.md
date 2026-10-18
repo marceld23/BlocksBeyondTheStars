@@ -63,6 +63,99 @@ plain dark panel. The terrain arrived only after a long wait, or not at all if a
 
 ---
 
+### 🧹 TODO leftovers 2026-10-18 — old bugs, four decisions, one report ("tiere stecken ineinander") — epic #2754, #2737–#2753, #2755, #2756, #2016, branch fix/todo-leftovers-2026-10-18 — ✅ done 2026-10-18 (⚠ playtest open; terrain generation 27)
+
+A review of everything still open in this file (apart from playtests) turned up old bugs and open design questions;
+Marcel decided them on 2026-10-18 and had the lot worked off in one branch, together with his own in-game report
+(big animals standing inside each other). Bugs whose cause was never found stay out (texture-editor icons, the join
+rescue underground, the ship stamp one block off, "only sky after landing" #1713, #2426, #2427).
+
+**Decisions (Marcel, 2026-10-18):** a far friend becomes lockable (#2737); sea ice counts as wet and stations are
+world-seeded (#2738, #2739, both terrain generation 27); the six old factory outliers are balanced (#2016). Kept as
+they are, recorded at their old entries: no spacewalk rescue without oxygen loss, NPC hunting on every world, "stow"
+moves only the held slot and the ship's Market shows only what trades here, inventory/crafting/maps don't pause, the
+transmuter never makes endgame ores, kit settlements of v2026.9.9 keep any second furniture set. The per-weapon
+fire-rate question was already answered by `cooldownSeconds` on every weapon.
+
+- **Animals keep their distance (#2753, Marcel's report):** every ground-bound wild animal keeps 0.8 × the two drawn
+  bodies' radii apart from any other animal of any species (`Shared/Definitions/CreatureFootprint.Radius` mirrors
+  `CreatureBuilder` per body plan × the individual's size factor). Awake animals are nudged before the wall/ship/fence
+  checks (one walking into a sleeper turns away), overlapping sleepers shuffle apart without waking (the later one
+  moves), and the spawner refuses spots inside another animal. Herd and begging-ring spacing use the footprint (never
+  < 1.5); big herds now spawn and roam more spread out — the member rings around the leader grow with the body
+  (`HerdRingScale`), so titan herds of 2–4 still spawn whole (review fix). The /bump snapshot lists size, footprint and
+  sleep state. `GameServerCreatureSpacing.cs`; tests `CreatureSpacingTests` (9).
+- **Lock a friend anywhere in the system (#2737):** friends are target-lockable at any distance as a navigation
+  target (edge arrow with direction and distance, no weapon effect; NPC traders stay radar-limited). Friends who took
+  off from another body reach the pilot through the additive `SpaceState.SystemPilots` (+ `NetSpacePlayer.AnchorBodyId`),
+  converted into the pilot's frame; a solo pilot gets a ~1 Hz refresh. Dimmer pink radar blips, lock label "Flying near
+  {body}" (`ui.space.target.other_flight`); never a ship in the scene. Tests: `SpaceTargetingTests`,
+  `PilotVisibilityTests`, `SpaceFlightClientTests`.
+- **Sea ice is wet from generation 27 (#2738):** every structure search (settlements, camps, factories, lodges,
+  outposts, monuments, ruins, rail ruins) treats an iced column as wet — dry land wins, else stilts above the ice top;
+  unique sites and chests skip iced columns; landing pads unchanged. Sweep: at gen 26, 26 of 36 cold worlds had a
+  structure below the ice, at gen 27 none. `WorldDescription.SeaIceWetGeneration`, `WorldGenerator.TryGetIceSurface`;
+  tests `FrozenSeaPlacementTests`. **The starter wreck too (#2756):** from gen 27 a wet or iced crash site moves to the
+  nearest dry spot within 96 blocks (clear of pads and earlier structures), else rests on the ice top or floats at the
+  water line (a swamp world without dry land nearby); gen ≤ 26 and pinned records unchanged (`GameServerWrecks.cs`).
+- **Stations world-seeded from generation 27 (#2739):** a station's quartermaster name and its extra vendors' goods are
+  seeded by the world (the first vendor stays "traders"), and a station chain step's default giver is the quartermaster
+  (no second name); keys and mission ids unchanged, gen ≤ 26 bit-identical. Tests `StationTradeAndGiverTests`.
+- **Factory balance (#2016):** the six pre-#1200 outliers at 1.5× their refinery chain (iron plate 6 ore → 2, metal
+  panel 7 → 4, steel 6 iron + 6 nickel + 3 carbon → 4, cable 2 copper + 3 silicate → 2, energy cell 2 + 3 + 6 carbon → 2,
+  circuit board 3 gold + 3 silver + 6 silicate → 2); `MaterialEconomyTests`' exempt list is gone.
+- **World map pad markers (#2740):** one pad list per body (`Client.Core/LandingPadLists`); the map reads the star
+  map's active body. Death recovery, heal-tank respawn and station/interior return re-send the arrival body's pads
+  (broadcast) and the star map. Tests: `LanPlaytestRegressionTests`, `LandingPadListsTests`.
+- **Monorail without the jump (#2741):** a train keeps a fixed facing; only its direction flips at a line end, so
+  wagons keep their places and headings and riders ride through. On one leg the cab pushes from behind; at a stop the
+  leading wagon halts at the plate; a stop near the dead end turns the train round while it stands.
+  `RailRules.Advance/CabRange/LeadArc`, additive `NetTrain.Facing`, save field appended; client `TrainDrawArc`. Tests:
+  `RailTests` (+2), `RailRulesTrainMotionTests`, `IntercityRailTests` (no-jump at 1/15 s), `TrainDrawArcTests`.
+- **Chapter-lead markers stay (#2742):** a lead is a private story marker (violet flag with its text; `{0}` via the
+  additive `NetMarker.LabelArg`) until it is followed or changes, hidden while VEGA hints are muted; the private-ping path
+  is gone. Tutorial b2.3 (berries) marks after 120 s, before its hint moves the chip on (a pack test pins this).
+- **Footsteps on ships (#2743):** `Client.Core/FootstepSurface` reads a parked ship's cell first (also the in-space
+  interior and a docked friend's ship); footsteps, the sneak edge-stop and ladders use it; monorail wagons sound metal and
+  sneaking in a wagon no longer freezes you. Tests `FootstepSurfaceTests`.
+- **Block faces outside the world (#2744):** the held block shows its front upright toward the eye (it was upside
+  down); drop packets and the ship/station/settlement editors show per-face tiles; machines, crates and logs get a
+  three-quarter cube icon (hotbar, inventory, crafting, crates, filters, pickup feed, palettes). `BlockCubeFaces`,
+  `BlockCubeIcon`; `ChunkMesher` unchanged; facing blocks with a stored front no longer vanish in the structure editor.
+  EditMode `BlockCubeFacesEditModeTests` (6).
+- **Real system chart on the travel screen (#2745):** `SystemMapWidget` draws the real system (positions × flight
+  scale, star-centred, real rings, belts as one band, moons/close stations beside their planet) as a static snapshot
+  (`Client.Core/SystemOrreryLayout`, `SystemOrreryLayoutTests`).
+- **Gamepad rumble (#2746):** hits, own shots/swings, explosions, ship hits, hyperspace, hard landings and broken blocks
+  rumble the pad — only with the switch on, on a pad, focused, no menu, alive; motors stop on focus loss, pause,
+  teardown, death and quit. XInput on Windows (also under Proton); WebGL/native Linux say "not available on this
+  platform". `Client.Core/RumbleMixer`, Unity `PadRumble`; `RumbleMixerTests`, `PadRumbleEditModeTests`.
+- **Fire and bases at the seam (#2747, #2752):** fire is keyed by the canonical cell (old rows migrate at load), and a
+  base core near x = 0 protects and breathes across the seam; base scouts measure their zone-edge point across the seam
+  too (review fix). Tests in `FireTests`, `BaseOxygenTests`, `BaseVisitorsTests`.
+- **Salvage survives a restart (#2748):** floating space salvage is saved in the named blob `space:floating_salvage`
+  with each save and teardown and restored with fresh ids; every teardown goes through `TearDownSpaceInstance`; max 48
+  drops per instance (older ones merge). 5 tests in `DropLootTests`.
+- **One "closed" line (#2749):** a heartbeat kick or rejoin eviction logs `Connection N closed.` once (4 tests).
+- **Body paint reads as painted (#2750, #2755):** torso, arms, legs and helmet were drawn as their mirror image; every
+  painted face now reads as painted, torso strip Front/Left/Back/Right, helmet Left/Back/Right/Chin/Top. ⚠ Existing
+  torso/helmet paintings switch sides (they now appear as painted on the canvas). The pixel face was already right
+  (pinned). The first-person hand wears the avatar's own painted arm mesh. EditMode `AvatarPaintOrientationEditModeTests` (8).
+- **Old self-built hulls repaired (#2751):** a hull left in old block ids by a block-adding update before v2026.10.4 is
+  repaired once when the save opens — read through a frozen table of every release's block set (`HistoricalBlockSets`),
+  pinned by the `pre-remap_…` backup where one exists, rewritten only when every reading agrees, after a
+  `pre-hull-repair_…` backup; otherwise a WARN. Marker `save|hull_repair_2751`. Review guards: worlds created after
+  v2026.10.4 (terrain generation ≥ 21) skip the pass, a reading needs exactly one ship core on the hull's lowest row, and
+  construction sites or core-intact hulls that merely miss a helm/engine/door (a ship being rebuilt) are repaired only
+  when a pre-remap backup pins the palette. 11 tests in `SaveCompatibilityTests`.
+- **Texts:** 2 new keys + 1 changed hint in all 14 languages (machine pass + hand QA).
+- ⚠ Open: playtest — two big herds side by side and a sleeper; locking a friend far away and one flying from another
+  body; a gen-27 frozen world (structures and the wreck on the ice); a station quartermaster in two new worlds; the
+  monorail turning at a line end (seated and standing); footsteps and sneaking on the ship roof; a picture block in
+  the hand, a drop cube, an editor; the travel-screen chart; a pad rumbling (Windows); a painted shirt with text.
+
+---
+
 ### 🤝 Docking means walking over into your friend's ship — epic #2731, #2722–#2725, branch feat/dock-visit — ✅ done 2026-10-17 (⚠ playtest open)
 
 Docking used to do nothing (request + accept, then only a "Docked with X" line). Marcel decided after the 2026-10-17
@@ -166,7 +259,8 @@ marker and the resident list now; the docking fix too). Package label `package: 
 - ⚠ Open: playtest — two pilots at negative X, a spacewalk next to a friend, the radar, collecting a drop, a Sandbox
   spacewalk, a neighbour's wish (the map heart), the resident list at the core.
 - ✅ Decided 2026-10-17 (Marcel): docking = walking over into the friend's ship (option A only) → #2731.
-- ⚠ Open (design, Marcel): target-locking a far-away friend (pilots lock only within radar range).
+- ✅ Decided 2026-10-18 (Marcel): friends anywhere in the same star system are lockable as a navigation target →
+  #2737 (TODO-leftovers package, see the top).
 
 **Released** in **v2026.10.19** "the visiting release" (2026-10-18).
 
@@ -201,8 +295,8 @@ is refused in space by design). Package label `package: eva boarding 2026-10`.
   in reach, a station only when the ship is out of reach. "Fly to your ship — N m" reads the hull distance.
   USER_MANUAL (F row, station doors, derelict holes) updated.
 - ⚠ Open: playtest (spacewalk beside a derelict: E at the hatch → own ship; look at the derelict → it docks; undock →
-  beside the ship where it floated). Not done (Marcel's call, 2026-10-17): a way out of a spacewalk without oxygen
-  running down (`/tp ship` in space or a pause-menu entry).
+  beside the ship where it floated). Not done (Marcel's call, 2026-10-17, confirmed 2026-10-18 — stays as it is): a way out of a spacewalk without
+  oxygen running down (`/tp ship` in space or a pause-menu entry).
 
 **Released** in **v2026.10.19** "the visiting release" (2026-10-18).
 
@@ -222,9 +316,9 @@ Side findings of #2694, all decisions by Marcel (per recommendation, one PR). Pa
 - **Village trade + quest giver (#2698):** gen 26 derives a settlement's trade, extra-vendor themes and quest-giver name from
   its body-aware place key; gen ≤ 25 unchanged. In gen 26 the chain giver fallback is the settlement's quest giver (the
   quartermaster) — no more second name for the same person. Stations still derive theirs from the station id.
-- ⚠ Open: playtest (Titas new world: labs reachable; gravity per planet; two same-name villages). Not done (ask Marcel):
-  other structure types may also seat under thick sea ice on non-Titas frozen worlds (`FootprintWet` treats the ice as
-  land); station giver names/vendor themes still from the station id alone.
+- ⚠ Open: playtest (Titas new world: labs reachable; gravity per planet; two same-name villages). ✅ Decided 2026-10-18
+  (Marcel: "beides angleichen"): sea ice counts as wet for every structure from terrain generation 27 (#2738), and
+  station giver names/vendor themes are world-seeded from generation 27 (#2739) — TODO-leftovers package, see the top.
 
 **Released** in **v2026.10.18** "the pioneer release" (2026-10-17).
 
@@ -422,8 +516,8 @@ frequency follows the Settlements option. Details: [docs/developer/WILDERNESS_FO
   `WorldFx` arrow, three quiet ElevenLabs clips (`npc_bow_shot`, `npc_axe_chop`, `tree_fall`).
 - **Texts:** all new keys in all 14 languages (machine pass + a review of every key).
 - ⚠ **Open:** Marcel's playtest on a NEW world (`/tp lodge`, `/wanderer`): hut look per biome, the bow/axe poses and the
-  arrow, the work cadence, the sounds' loudness; whether NPC hunting should pause on some worlds (no rule today switches
-  it off — players may hunt everywhere too).
+  arrow, the work cadence, the sounds' loudness; NPC hunting stays on every world (decided 2026-10-18,
+  Marcel: "so lassen" — players may hunt everywhere too).
 
 **Released** in **v2026.10.17** "the wilderness release" (2026-10-16).
 
@@ -707,7 +801,7 @@ Eight F1 reports (all with their `/bump` twin) plus side findings — one PR:
   clients accepted as for every package).
 - Open: playtest (Justus: a pistol + a storm on the old laptop, the flooded base after the update; Verena: marker and
   attacker arrow); the world story's chapter-lead marker is still a 30 s ping, the berries step (b2.3) never reaches
-  its marker time (core steps leave the chip at the hint time).
+  its marker time (core steps leave the chip at the hint time). ✅ Fixed 2026-10-18 → #2742.
 
 ### 📬 Player reports 2026-10-14 (Bloody Mary, v2026.10.14) — epic #2557, branch fix/bloody-mary-reports-2026-10-14 — ✅ done 2026-10-14 (⚠ playtest open)
 
@@ -1633,7 +1727,7 @@ two real bugs made it worse.
   Docs: WORLD_GENERATION §live flow, USER_MANUAL (water/lava pace).
 - Open: the culprit behind the absurd lock positions (wait for a report with the new log line). Other per-cell sets
   are keyed raw too: the granular woken set is harmless (no per-cell state, a cell processed twice re-reads the
-  world), the fire set + burn timers (`GameServerFire.cs`) could hold one cell twice at the seam — not verified.
+  world), the fire set + burn timers (`GameServerFire.cs`) could hold one cell twice at the seam — not verified. ✅ Fixed 2026-10-18 → #2747 (canonical fire keys).
 
 ### ⚙️ CI: test matrix 6 → 10 shards (2026-10-09) — ✅ done (released in v2026.10.11)
 
@@ -2610,7 +2704,7 @@ read by a second agent, and corrected.
 - **✅ Self-built ships across block-set changes (#2221):** the first-open remap of a save now covers the hull of
   self-built ships; a hull cell of a removed block no longer counts in the ship's statistics. A sweep over every
   persisted record found no other numeric block id outside the remap. ⚠ Not repaired: a save with a self-built ship
-  that already went through an earlier block-adding update (or was opened with main at 9da3b28b).
+  that already went through an earlier block-adding update (or was opened with main at 9da3b28b). ✅ Fixed 2026-10-18 → #2751 (one-time hull repair).
 - **✅ Content fingerprint, protocol 9 (#2222):** the join carries a fingerprint of the block set; server and client
   refuse each other when it is missing or different ("This server runs a different version of the game"). Protocol
   **9**, so clients released before the fingerprint are kept off newer servers by the check they already have.
@@ -3248,8 +3342,8 @@ Three F1 reports and one client crash from Bloody Mary on v2026.9.19 and Marcel'
    mode. `PlanetScanIntent`/`PlanetScanResult` (tags 276/277). Icon `item_planet_scanner` (OpenAI, NOTICES.md).
 
 Open: playtests — Verena's world (`new_world`): form editor preview; H in the cabin; E at the cargo station; the ship's
-Market page; build + use the planet scanner on Kleejaje and a moon. Decisions still to confirm: the whole quick-bar vs.
-only the held slot (built: held slot), and the Market page as "only what trades here" (built) vs. a greyed catalog.
+Market page; build + use the planet scanner on Kleejaje and a moon. Decisions confirmed 2026-10-18 (Marcel: "beides ok"):
+stow moves only the held slot, and the Market page shows only what trades here — both as built.
 All new texts in all 14 languages (#2143). **Released** in **v2026.9.20** "the prospector release" (2026-09-30).
 
 ### 🚉 Screelit's reports 2026-09-27 — the ship in space, doors and extensions, seats, beards, block faces, the intercity monorail (#2127: #2117–#2126, 2026-09-28, branch fix/screelit-reports-0928, terrain generation 19)
@@ -3298,7 +3392,7 @@ Eight F1 reports from Screelit (Justus) on v2026.9.17 and Marcel's decisions, al
    cab + seat wagon, 8 blocks/s) shuttles and waits 30 s at each station — anyone rides, nobody steers, stows or
    couples it. Both stations on the world map. `CurrentTerrainGeneration` 18 → 19, no chunk changes. Tests:
    `IntercityRailTests`. Docs: MONORAIL.md, WORLD_GENERATION §35. Open: playtest on a gen-19 world with a line; the
-   pre-existing rider jump when a train reverses at a line end.
+   pre-existing rider jump when a train reverses at a line end. ✅ Fixed 2026-10-18 → #2741.
 10. ✅ **#2124 object blocks get their own sides, tops and fronts** — 73 object blocks declare `tileKind`; 62 picture
     cubes keep their picture on the front (or on top) and wear casings, lids or sides. 33 new AI face tiles (`face_*`:
     14 shared casings + 19 bespoke) dealt into the atlas extras band (`FaceTileBand`, loud on overflow). 34 blocks with
@@ -3307,7 +3401,7 @@ Eight F1 reports from Screelit (Justus) on v2026.9.17 and Marcel's decisions, al
     look away); the rotate key and a ghost arrow show the front; drops strip it. The stretcher shows its picture on steel
     legs. Tests: `BlockFaceTextureTests`, `CubeFacingTests`, `AtlasSlotAllocatorTests`. Doc: CUSTOM_SHAPES.md "Cube
     faces, face tiles and fronts". Not yet: the held block, drop cubes, inventory icons and the editors' voxel views
-    still show one tile on all faces.
+    still show one tile on all faces. ✅ Fixed 2026-10-18 → #2744.
 
 **Found on the way:** the Unity EditMode suite has two failures that are already red on main (`ae8c8f34`):
 `ChunkMesherGoldenEditModeTests` (stale pins — the actual hashes 0xb2fba41e63f8dc45 / 0x3c749dd2a6cc18d1 are identical with
@@ -3912,7 +4006,7 @@ factory recipes with their workshop / refinery chains; `factory_polymer` was the
   unit; `factory_diamond`'s carbon counts as a catalyst), the rest are exempt by name, and a factory recipe that is
   neither fails the test. Exempt: the six pre-#1200 outliers `factory_iron_plate`, `factory_metal_panel`,
   `factory_steel`, `factory_cable`, `factory_energy_cell`, `factory_circuit_board` (each waits for its own review —
-  the list only gets shorter), and `factory_glass` / `factory_power_cell` (no comparable chain).
+  the list only gets shorter; ✅ Fixed 2026-10-18 → #2016, all six at 1.5×, the list is empty), and `factory_glass` / `factory_power_cell` (no comparable chain).
 - **✅ Copper reference chain (#2016):** bronze and brass now use `refine_copper` in the guard, and their factory
   recipes use 1 copper ore (was 2) per 3 alloy: 1.5× copper while tin / zinc stay at 1×.
 - **Credits:** @Jay-Hu911 in the README contributors list and the in-game Credits (`ui.credits.body`, 14 languages).
@@ -4396,8 +4490,8 @@ on the planet map.
   removes stale generated furniture where the current bake leaves air, once (never beds, lights, walls, doors,
   ladders, player-attributed cells or crates holding a container). Tests: `DoorLaneTests` (14), the migration in
   `StationKitServerTests`. Docs: [docs/developer/STATION_SETTLEMENT_EDITOR.md](docs/developer/STATION_SETTLEMENT_EDITOR.md).
-  ⚠ Open (decision): existing kit SETTLEMENTS re-stamp upstairs rooms with interior doors with new furniture positions
-  and are not cleaned — a v2026.9.9 world may show a second set there (town house/market variant 1, G.D.S. hall
+  ✅ Decided 2026-10-18 (Marcel: option A, leave it): existing kit SETTLEMENTS re-stamp upstairs rooms with interior
+  doors with new furniture positions and are not cleaned — a v2026.9.9 world may show a second set there (town house/market variant 1, G.D.S. hall
   bedrooms, city tall house).
 - **#1904 Trader ships.** A landed trader stays 600–900 s (was 180–360), a docked one 420–720 s (was 150–300). When its
   time is up a landed trader waits while any player is within 32 blocks of its pilot or hull and leaves 30 s after the
@@ -6433,7 +6527,7 @@ planet's colour. **Cargo tiers (#1471):** tier I says "+24", the Modules tab and
 "Ausbauen", which reads as *expand* — the literal source of "kein sauberer Status zum Tier1 Ausbau").
 **Space salvage (#1475):** overflow without a tractor floats as a `ResourceDrop` at the rock instead of being
 discarded, floating drops are parked per instance id and restored when that space is recreated (in-memory; a
-restart still loses them), and a beam-less ship collects by flying through a drop (3 m). **Codex (#1476):**
+restart still loses them — ✅ Fixed 2026-10-18 → #2748, persisted since), and a beam-less ship collects by flying through a drop (3 m). **Codex (#1476):**
 planet types list every ore with its start depth and say plainly when a type has no rare metals ("wie tief
 lohnt es sich?" — on `varied`, lithium at 12 is the last new ore). **Data (#1477, #1478):** `tractor_range`
 is read from the module stat (16) instead of being dead, and the station deploy counter is seeded from
@@ -7418,7 +7512,8 @@ menu" until everyone agrees), and `BumpReport` — the `/bump` snapshot the send
 allow-list (#995). The cadence moved out of `AppShell` into a pure `Client.Core` `WorldHoldIntent`
 (`Hold`/`Release`/`Tick`/`Forget`) shared by both menus; `AppShell` forgets its hold silently when the world is
 left, so a stale keep-alive can never put the NEXT world to sleep. Six headless tests (`WorldHoldIntentTests`).
-Deliberately NOT done: holding behind every other panel (inventory, crafting, maps …) — a separate design question.
+Deliberately NOT done: holding behind every other panel (inventory, crafting, maps …) — decided 2026-10-18 (Marcel:
+"so lassen"): those panels do not pause the world.
 Docs: `docs/developer/PLAYER_FEEDBACK.md`, CHANGELOG.
 
 ### ★ Guardian machines: grey circuit plating instead of flat black (#1337 + #1338, 2026-08-29, branch feat/guardian-plating-1337)
@@ -7551,7 +7646,7 @@ lead_ore; reactor fuel as an OUTPUT is fine, #1106 only forbids it as an input),
 irradiated cell; `market_sell_silver` / `market_sell_diamond` give silver and diamond their second station.
 ⚠ **NOT done, deliberately:** the issue's transmuter resynth of tungsten/platinum/neodymium ore collides with the
 transmuter's I1 invariant (`MatterConverterTests.Transmuter_NeverOutputs_Tier3Materials`: endgame ores stay
-mining-exclusive, "breaks the mining economy"). The invariant wins until the maintainer says otherwise; the ores
+mining-exclusive, "breaks the mining economy"). The invariant wins (confirmed by Marcel 2026-10-18: the transmuter never makes endgame ores); the ores
 get their second consumer from the factory tier instead, so nothing else depended on the resynth recipes.
 **Test (`MaterialEconomyTests`, generalised, hard-fail):** every ore drop ≥ 2 consumers / ≥ 2 stations; every
 smeltable (output of a non-market/factory recipe whose inputs are all ore drops) ≥ 3 / ≥ 2; every station except
@@ -7801,7 +7896,7 @@ player's back. `UiNavFocus` may now fall back to a text field, since landing on 
 **#1219 — the controller page.** Dead zone, pad look speed X/Y, invert pad Y, mine/place on the triggers,
 button-name layout (Xbox / PlayStation / Nintendo, matched by physical position — the PlayStation shapes
 are spelled out because the bundled Rajdhani font is Latin-only) and a vibration switch that is **stored
-and does nothing**, with a dim line under it that says so rather than a toggle that quietly lies. Look
+and does nothing** (✅ Fixed 2026-10-18 → #2746: it rumbles now), with a dim line under it that says so rather than a toggle that quietly lies. Look
 sensitivity is a *multiplier* on the master sensitivity, not an absolute rate: the merged look value is
 scaled by `MouseSensitivity` on foot and by `LookSpeed` in flight, so an absolute pad rate would have to be
 divided back out at one of them. Every default is the constant the code used before, so an existing
@@ -8993,7 +9088,7 @@ ship-destruction prompt (`UpdateCruise` early-outs before the 12 Hz `SendShipMov
 menu open. Only the Esc pause menu had a keep-alive (#973). The position streams now keep flowing
 (position simply frozen) in all those states — sent before the early-outs — so the sweep only catches
 actually-dead clients. No protocol change; the server side is untouched. Cosmetic side-finding logged in
-#1008: a heartbeat kick logs `Connection N closed.` twice.
+#1008: a heartbeat kick logs `Connection N closed.` twice. ✅ Fixed 2026-10-18 → #2749.
 
 ### ★ Scanner: aim-gated targeting + feedback for empty/rejected scans (#1005, 2026-08-14, branch fix/scanner-stuck-1005)
 Playtest report: the scanner sometimes "sticks" — it keeps showing the last scanned subject until the
@@ -12461,7 +12556,9 @@ full server code analysis. All server/shared-side; the only client-facing change
 - **Anti-cheat caps:** player name ≤24 chars on join; player-created missions capped (≤10/creator, ≤8 objectives+
   rewards, title/description truncated); `/bump` debug command now rate-limited like chat.
 - **Deferred:** per-weapon fire-rate cooldown (M1) — backed out because it conflicts with the rapid-fire
-  asteroid-mining test contract and is a gameplay-balance decision (what cadence? mining feel?). Needs a design call.
+  asteroid-mining test contract and is a gameplay-balance decision (what cadence? mining feel?). ✅ Superseded
+  (checked 2026-10-18): every weapon carries its own `cooldownSeconds` in `data/items.json` (machete 1.5 s), enforced
+  server-side.
 
 ### ★ Ship-loss rule (KeepShipOnDeath) + space combat fightability — ✅ server + tests + client wiring + locale (2026-06-18, NEEDS Unity client build)
 Analysis+plan: `[memory] ship-loss-setting-and-enemy-kill-analysis`. Two asks: a host/SP setting for what happens
@@ -12602,7 +12699,8 @@ preview hash) was already correct; only the geometry was wrong. `PlayerAvatar.cs
 - **Visor/Eyes/Pupils/Brow/Mouth shifted forward +0.255** (z 0.235–0.275 → 0.49–0.53), preserving the relief
   (pupils ahead of the whites). Affects every avatar + NPC, not just the opt-in custom face.
 - *Pupils now sit ~2 cm proud — nudge their z down a touch if it reads as bug-eyed in a real build. A possible
-  separate follow-up: the face texture may be horizontally mirrored (orientation, not visibility).*
+  separate follow-up: the face texture may be horizontally mirrored (orientation, not visibility).* ✅ Checked 2026-10-18: the face
+  is not mirrored (pinned by a test); the body paint was, fixed in #2750.
 
 ### ★ Loading-splash launcher — instant splash over the black startup gap — ✅ launcher built + verified (2026-06-16)
 The built client shows nothing for ~12–14 s on first launch (Windows Defender scanning the 162 Mono DLLs),
@@ -13300,7 +13398,7 @@ but interior furnishing allowed + persisted; other players' parked ships as pain
 **Known limits (playtest checks):** entering the ship is now a 1-block step up (the object sits ON
 the pad; jump in — the old stamp was flush); ship cells mine instantly (EVA parity, no hold
 progress); the aim marker/scanner don't highlight ship cells; footstep sounds inside the ship read
-the world grid (air).
+the world grid (air). ✅ Fixed 2026-10-18 → #2743.
 
 **Original analysis (2026-06-12):**
 
@@ -13351,7 +13449,7 @@ the same structure anchored at a world position; nothing is written into the wor
 8. Composite "what's above/below me" queries: weather drops would fall through the object hull and the
    lens-wash/`ComputeExposedToSky` would say "exposed" inside the ship. Simplest: treat the
    server-authoritative `Aboard` flag as covered + let the per-column rain scan also test the landed
-   structure's bounds. Footstep-material queries inside the ship read terrain → minor, fix or accept.
+   structure's bounds. Footstep-material queries inside the ship read terrain → minor, fix or accept. ✅ Fixed 2026-10-18 → #2743.
 9. Interior light: the structure mesher already darkens interiors via its own grid (proven by the space
    cabin + `_Sc_Indoor`); the URP `BlockAtlas` ShadowCaster gives the object a real ground shadow.
 **Payoffs:** hull paint applies when landed (incl. OTHER players' parked ships in their colours — today
@@ -17746,7 +17844,7 @@ message, no protocol bump — effective via the host's bundled server even for o
 
 Three new `LanPlaytestRegressionTests`; `KillPlayerForTest` mirrors the unpinned AI-tick call. Follow-up
 noted in #1020: the client keeps one global pad-list slot and the world map doesn't gate on its body id,
-so a chooser reply for a padless body wipes the map's markers until re-entry.
+so a chooser reply for a padless body wipes the map's markers until re-entry. ✅ Fixed 2026-10-18 → #2740.
 
 ---
 
@@ -19094,7 +19192,7 @@ regeneration.
 - Deliberately **out**: moon rings, direction arrowheads / retrograde marking (the flight scene is a t=0
   snapshot — the bodies never move, so an arrow would imply motion the game doesn't deliver), zoom/pan.
   `SystemMapWidget` (the Tab travel-screen orrery) stays a decorative fake with invented orbits and now
-  visibly disagrees with the honest flight chart — worth a separate follow-up.
+  visibly disagrees with the honest flight chart — worth a separate follow-up. ✅ Fixed 2026-10-18 → #2745.
 
 ---
 

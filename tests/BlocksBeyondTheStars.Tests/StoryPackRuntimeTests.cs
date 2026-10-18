@@ -613,6 +613,37 @@ public sealed class StoryPackRuntimeTests : IDisposable
         Assert.DoesNotContain(SvGameServer.StepMarkedLine, transport.LineKeys(p));
     }
 
+    /// <summary>#2742 (the berries step b2.3): a CORE step whose marker time comes before its hint time gets its help marker
+    /// while it still owns the chip — and keeps it as an open extra once the hint moved the chip on.</summary>
+    [Fact]
+    public void ACoreStep_WhoseMarkerComesBeforeItsHint_GetsItsMarker_WhileItOwnsTheChip()
+    {
+        var tutorial = StoryPackFixtures.Load(T);
+        var core = tutorial.Chapters[0].Steps.Single(st => st.Id == "t1.2");
+        core.Tier = StoryStepTiers.Core;
+        core.OnStart.Reveal = "nearest_ore:stone";
+        core.Escalate = new StoryEscalation { HintAfter = 10, MarkerAfter = 5 };
+        var content = StoryPackFixtures.ContentWith();
+        content.SetStories(content.Stories.Values.Concat(new[] { tutorial }).ToList());
+        _lastContent = content;
+        var transport = new RecordingTransport();
+        var server = Boot("story_marker_core_first", transport, content, c => c.Rules.StoryId = StoryRegistry.NoneStoryId);
+        var p = Join(server, 1, "Kid");
+        PlaceStoneNear(server, p);
+        Event(server, p, GameEventKeys.MineAny, amount: 2); // t1.1 done: the CORE step t1.2 owns the chip
+        Assert.Equal("t1.2", server.ChipStepForTest(p, T));
+
+        transport.Sent.Clear();
+        server.TickStoryPacksForTest(p, 5); // marker time, the hint still ahead: the step owns the chip
+        Assert.Equal("t1.2", server.ChipStepForTest(p, T));
+        Assert.Single(server.StoryMarkersForTest("Kid"));
+        Assert.Single(transport.LineKeys(p), k => k == SvGameServer.StepMarkedLine);
+
+        server.TickStoryPacksForTest(p, 5); // hint time: deferred, the chip moves on — the marker stays with the open step
+        Assert.Equal("t1.3", server.ChipStepForTest(p, T));
+        Assert.Single(server.StoryMarkersForTest("Kid"));
+    }
+
     /// <summary>#2570: while the basic training holds the chip, another story's step gets no help marker either (VEGA would point
     /// at something the chip does not show) — it comes once the training is through.</summary>
     [Fact]

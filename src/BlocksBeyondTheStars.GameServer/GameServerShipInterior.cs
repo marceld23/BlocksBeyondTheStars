@@ -92,7 +92,9 @@ public sealed partial class GameServer
         // without pilots, and the last pilot's leave tears it down once no parked ship is left (LeaveSpace).
         if (instance.Players.Count == 0 && !AnyParkedShipIn(instance))
         {
-            _spaceInstances.Remove(instanceId); // ShipPosition is saved above; restored on return
+            // ShipPosition is saved above; restored on return. #2748: the floating salvage is stashed like on every
+            // other teardown (this one used to drop it).
+            TearDownSpaceInstance(instance);
         }
     }
 
@@ -110,9 +112,7 @@ public sealed partial class GameServer
 
         if (_spaceInstances.TryGetValue(walkabout.InstanceId, out var instance) && instance.Players.Count == 0 && !AnyParkedShipIn(instance))
         {
-            StashFloatingSalvage(instance); // #1475: uncollected ore outlives the flight
-            PersistSpaceSalvageLedger();    // #2354: a half-carved wreck keeps its state across the teardown
-            _spaceInstances.Remove(walkabout.InstanceId);
+            TearDownSpaceInstance(instance); // #1475/#2354/#2748: salvage + carve ledger outlive the flight
         }
     }
 

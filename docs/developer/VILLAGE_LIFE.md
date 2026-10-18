@@ -67,8 +67,25 @@ settlement never mixes old and new values. In a generation-26 world the chain gi
 chain's default giver role is the quartermaster, whose memory entry (`<place>:quartermaster`) the board's jobs share — the
 old fallback coined a second name for the same person, and the remembered name flipped between the two. A held chain keeps
 its giver's name anyway: accepting a step records the giver in the player's memory, and the follow-up call reads it from
-there. A player base's vendor keeps its trade from the base's board key (body + cell, per place already); stations keep
-their classic names and trades. Tests: `SettlementTradeAndGiverTests`.
+there. A player base's vendor keeps its trade from the base's board key (body + cell, per place already). Tests:
+`SettlementTradeAndGiverTests`.
+
+**Stations** (#2739). A space station's quartermaster and its extra vendors came from the station id alone — and station
+ids repeat in every world (`sys0-st`, `sys0-st-local`, `pstation:<owner>:<n>`), so every world met the same quartermaster
+with the same vendors at "the same" station. From terrain generation 27 (`WorldSeededStationsGeneration`) both are seeded
+by the world (`StationGiverNameFor` / `StationVendorThemeFor`):
+
+| | generation ≤ 26 (kept exactly) | generation 27+ (new saves) |
+|---|---|---|
+| First vendor | `traders` (the station's identity) | `traders` |
+| Further vendors (B55) | `StableHash(id + ":vendor:" + i) % 4` | `StableHashing.Index("trade:station:" + id + ":vendor:" + i, world seed, 4)` |
+| Quartermaster (quest giver) | `CoinGiverName(id)` | name generator seeded `StableHashing.Seed32("giver:station:" + id, world seed)` |
+| Chain giver nobody named yet (`ChainGiverFallbackName`) | coined from the place key `station_<n>` (a second name) | the quartermaster above |
+
+Every reader goes through the per-save helpers (`StationGiverName(id)`, `StationVendorTheme(id, i)`): the procedural and
+kit station crews, the board window and its first stock, the raider bounty and the player-station board. The station's
+save keys (`station_<n>`, its mission ids and memory keys) never change — only names and themes; a held bounty or chain
+keeps the giver name it was taken with. Tests: `StationTradeAndGiverTests`.
 
 ## Festival (#2604)
 

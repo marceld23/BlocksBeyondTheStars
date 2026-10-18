@@ -615,7 +615,8 @@ public sealed partial class GameServer
     /// habitat, the parked-ship volume (body-aware for large species, #1320), the body cells (#855), titan
     /// flatness (#638), the large-body volume (#750) and — new — a founded base's SEALED rooms (#1314): the
     /// spawner never consulted the base systems, so a room the player had made airtight still filled with
-    /// wildlife. <see cref="InSealedBaseRoom"/> is a cached set lookup, effectively free.</summary>
+    /// wildlife. <see cref="InSealedBaseRoom"/> is a cached set lookup, effectively free. Last, #2753: another animal's
+    /// footprint (<see cref="CrowdedByCreatures"/>).</summary>
     private bool SpawnSpotClear(CreatureSpecies sp, Vector3f pos, int px, int pz, int surface)
     {
         var cell = new Vector3i((int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Y), (int)System.Math.Floor(pos.Z));
@@ -696,7 +697,13 @@ public sealed partial class GameServer
 
         // #1315: nor inside a WALLED area of a base — an open-topped yard the outside-in fill cannot reach.
         // Ground-bound life only: a flier spawns above the wall, a cave dweller below it.
-        return sp.Habitat is CreatureHabitat.Air or CreatureHabitat.Cave || !InWalledBaseArea(cell);
+        if (sp.Habitat is not (CreatureHabitat.Air or CreatureHabitat.Cave) && InWalledBaseArea(cell))
+        {
+            return false;
+        }
+
+        // #2753: nor inside another animal's body — a herd member two blocks from the leader, a neighbouring herd, a summon.
+        return !CrowdedByCreatures(sp, pos);
     }
 
     /// <summary>#1763: whether the ground under a spawn cell is one of the species' <see cref="CreatureSpecies.BiomeSurfaces"/>.
@@ -793,23 +800,26 @@ public sealed partial class GameServer
     }
 
     /// <summary>Places the rest of a social species' group (#639) around a just-spawned member: up to
-    /// <see cref="CreatureSpecies.SocialGroupSize"/> − 1 more individuals, 4–8 blocks out on spread
-    /// golden-angle bearings, each habitat-gated and each counting against the cap — unsuitable spots
+    /// <see cref="CreatureSpecies.SocialGroupSize"/> − 1 more individuals, 4–11.5 blocks out on spread
+    /// golden-angle bearings (further for a big body, <see cref="HerdRingScale"/>), each habitat-gated and each
+    /// counting against the cap — unsuitable spots
     /// are simply skipped, so a group spawns partially rather than forcing bad placements.</summary>
     private void SpawnGroupAround(CreatureSpecies sp, int x, int z, int cap)
     {
         int group = System.Math.Clamp(sp.SocialGroupSize, 1, HerdRules.MaxGroupSize); // #2018: was 5 before the big herds
         int share = SpeciesShare(cap);
+        float scale = HerdRingScale(sp, group); // #2753: 1 for every body that fits the classic rings
         for (int k = 1; k < group && WildCreatureCount < cap && RawWildCount < CreatureHardCap && WeightedWildCountOf(sp) < share; k++)
         {
             // Golden-angle bearings with alternating radii — spread out, not a neat ring. #2018: four radii out to 11.5
             // blocks so a herd of twelve has room, and a member whose spot is taken by a wall or a pond tries once more a
-            // little further round — rough ground otherwise left a "herd of twelve" at seven.
+            // little further round — rough ground otherwise left a "herd of twelve" at seven. #2753: the whole pattern
+            // grows with a big body, so a titan herd keeps its members instead of losing them to the footprint check.
             double a = k * 2.399963;
-            float dist = 4f + (k % 4) * 2.5f;
+            float dist = (4f + (k % 4) * 2.5f) * scale;
             if (!TryPlaceGroupMember(sp, x, z, a, dist))
             {
-                TryPlaceGroupMember(sp, x, z, a + 1.2, dist + 1.5f);
+                TryPlaceGroupMember(sp, x, z, a + 1.2, dist + 1.5f * scale);
             }
         }
     }
@@ -1144,11 +1154,13 @@ public sealed partial class GameServer
                 continue;
             }
 
-            // Sleepers rest in place during their off-phase — only their vertical state runs (#1331/#1332).
+            // Sleepers rest in place during their off-phase — only their vertical state runs (#1331/#1332). #2753: a sleeper
+            // lying inside an earlier sleeper's body shuffles aside slowly, without waking.
             if (asleep)
             {
-                creature.Position = ResolveVertical(creature, sp, motion, creature.Position, 0f, profile, moveDt,
-                    asleep: true, MoveMode.Roam, moving: false);
+                var rest = ShuffleSleeper(creature, sp, motion, moveDt, out int? restGround);
+                creature.Position = ResolveVertical(creature, sp, motion, rest, 0f, profile, moveDt,
+                    asleep: true, MoveMode.Roam, moving: false, restGround);
                 LiftEmbeddedHoverer(creature, sp, motion); // #1854: a sleeping gas sac does not sink either
                 continue;
             }
@@ -1201,6 +1213,16 @@ public sealed partial class GameServer
                     // well past the ring, so combat is unaffected; only the overlap goes away.
                     if (dist <= System.Math.Max(CreatureStopRange, sp.Size * 0.9f))
                     {
+                        // #2753: a pack holding its ring still keeps its personal space — through the usual step barriers.
+                        var held = SeparateFromCreatures(creature, sp, motion, creature.Position,
+                            SpacingStep(creature.Position, creature.Position, profile, moveDt), asleep: false);
+                        if (held.X != creature.Position.X || held.Z != creature.Position.Z)
+                        {
+                            ApplyCreatureStep(creature, sp, motion, held, 0f, profile, moveDt, MoveMode.Seek, moving: false,
+                                terrainGates: true);
+                            continue;
+                        }
+
                         creature.Position = ResolveVertical(creature, sp, motion, creature.Position, 0f, profile, moveDt,
                             asleep: false, MoveMode.Seek, moving: false);
                         LiftEmbeddedHoverer(creature, sp, motion); // #1854
@@ -1266,6 +1288,10 @@ public sealed partial class GameServer
             {
                 stepped = BegSeparation(creature, sp, stepped, moveDt, profile); // #2018: twelve animals on one ring keep their spacing
             }
+
+            // #2753: personal space from every animal around, of any species, sized by the drawn bodies — standing animals
+            // too, so an existing pile-up drifts apart; the nudged step still goes through every barrier below.
+            stepped = SpaceAwakeStep(creature, sp, motion, stepped, profile, moveDt, roaming: intent == MoveMode.Roam && res.Moving);
 
             // Apply the horizontal step through every barrier (ship, fence, terrain gate, body sweep) and then
             // the class's vertical mechanics (#1331): walkers jump ledges and fall, crawlers haul over, fliers
@@ -2552,7 +2578,7 @@ public sealed partial class GameServer
     {
         float cx = 0f, cz = 0f;
         int kin = 0;
-        float nearestSq = float.MaxValue, nearX = 0f, nearZ = 0f;
+        float nearestSq = float.MaxValue, nearX = 0f, nearZ = 0f, nearScale = 1f;
         float headSin = 0f, headCos = 0f;
         foreach (var other in _creatures)
         {
@@ -2578,6 +2604,7 @@ public sealed partial class GameServer
                 nearestSq = distSq;
                 nearX = other.Position.X;
                 nearZ = other.Position.Z;
+                nearScale = other.SizeScale;
             }
         }
 
@@ -2597,8 +2624,9 @@ public sealed partial class GameServer
             pos = new Vector3f(pos.X + tx * pull, pos.Y, pos.Z + tz * pull);
         }
 
-        // Separation (#651): personal space scaled by species size, so herd members never overlap bodies.
-        float sepDist = System.Math.Max(1.5f, sp.Size * 0.6f);
+        // Separation (#651): personal space sized by the two drawn bodies (#2753, CreatureFootprint), so herd members never
+        // overlap — it was Size × 0.6, which ignored the segments and the size factor and gave nearly every body 1.5 blocks.
+        float sepDist = HerdSeparation(sp, self.SizeScale, nearScale);
         float nd = (float)System.Math.Sqrt(nearestSq);
         if (nd > 1e-4f && nd < sepDist)
         {

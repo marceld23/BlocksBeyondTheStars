@@ -419,6 +419,7 @@ namespace BlocksBeyondTheStars.Client
                 UrpScenePost.Instance?.PulseVignette(pulse.Vignette); // the red edge — all a chip of damage gets
                 VisorHud.Kick(pulse.VisorGlitch); // the hologram glitches with the hit
                 FxCamera.AddDamageTrauma(pulse.Trauma); // #2152: the hit rattles the view (capped, #2518)
+                PadRumble.Damage(pulse.Trauma); // #2746: …and the pad, when vibration is on
                 if (DamageSource(out var threat, out string attackerId))
                 {
                     _dmgDirFrom = threat;
@@ -735,8 +736,7 @@ namespace BlocksBeyondTheStars.Client
             var iconGo = new GameObject("fly_icon");
             iconGo.transform.SetParent(_flyCanvas.transform, false);
             var raw = iconGo.AddComponent<RawImage>();
-            raw.texture = Game.Atlas.Texture;
-            raw.uvRect = Game.Atlas.TileUv(def.NumericId.Value);
+            BlockCubeIcon.Apply(raw, Game.Atlas, def.NumericId.Value); // the tile, or the cube of a block whose faces differ (#2744)
             raw.raycastTarget = false;
             var rt = raw.rectTransform;
             rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
@@ -2141,8 +2141,7 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else if (blockDef != null && Game.Atlas != null)
                 {
-                    s.Icon.texture = Game.Atlas.Texture;
-                    s.Icon.uvRect = Game.Atlas.TileUv(blockDef.NumericId.Value);
+                    BlockCubeIcon.Apply(s.Icon, Game.Atlas, blockDef.NumericId.Value); // a block whose faces differ is a cube (#2744)
                 }
                 else if ((itemTex = IconResolver.ItemTexture(item)) != null)
                 {
@@ -2769,8 +2768,7 @@ namespace BlocksBeyondTheStars.Client
             Texture2D itemTex;
             if (blockDef != null && Game.Atlas != null)
             {
-                img.texture = Game.Atlas.Texture;
-                img.uvRect = Game.Atlas.TileUv(blockDef.NumericId.Value);
+                BlockCubeIcon.Apply(img, Game.Atlas, blockDef.NumericId.Value); // a block whose faces differ is a cube (#2744)
             }
             else if ((itemTex = IconResolver.ItemTexture(item)) != null)
             {

@@ -581,6 +581,52 @@ public sealed class VegaChapterLeadsTests : IDisposable
         Assert.NotEqual(StoryLeadTypes.Monument, server.CurrentLeadForTest(a)?.Kind);
     }
 
+    /// <summary>#2742: the lead's marker used to be a 30-second ping raised once per lead — gone before VEGA's line was read,
+    /// and never back. It is a story marker now: labelled with the lead's objective, for its player only, there long past
+    /// the ping lifetime, hidden while the VEGA hints are muted, and gone once the lead is followed.</summary>
+    [Fact]
+    public void TheLeadsMarker_StaysPastThePingLifetime_UntilTheLeadIsFollowed()
+    {
+        var (server, transport) = World("lead_marker_stays", TutorialOff);
+        var a = Join(server, 1, "Ann");
+        Join(server, 2, "Ben");
+        var at = a.State.Position;
+        server.SpawnMonumentForTest(new Vector3f(at.X + 12, at.Y, at.Z + 12), "obelisk");
+        AdvanceTo(server, 5); // chapter 3, "The Guardian": the monument lead
+
+        var lead = server.CurrentLeadForTest(a)!;
+        Assert.Equal(StoryLeadTypes.Monument, lead.Kind);
+        transport.Sent.Clear();
+        server.TickStoryLeadsForTest(a);
+        var marker = Assert.Single(server.StoryMarkersForTest("Ann"));
+        Assert.StartsWith(SvGameServer.StoryLeadMarkerIdPrefix, marker.Id);
+        Assert.Equal(lead.ObjKey, marker.LabelKey); // the chip's objective names it on the map
+        Assert.Equal(V, marker.PackId);
+        Assert.True(marker.Ping); // an older client draws it as a ping
+        Assert.Equal(lead.GroundTarget!.Value.X, marker.X);
+        Assert.Contains(transport.To<MarkerList>(a).Last().Markers, m => m.Id == marker.Id); // pushed at once
+        Assert.DoesNotContain(server.VisibleMarkersForTest("Ben"), m => m.OwnerId == "Ann"); // Ann's own marker only
+
+        server.AdvanceUptimeForTest(120); // a ping would have expired four times over
+        server.TickMarkerPingsForTest();
+        server.TickStoryLeadsForTest(a);
+        server.SyncStoryMarkersForTest(a);
+        Assert.Equal(marker.Id, Assert.Single(server.StoryMarkersForTest("Ann")).Id);
+
+        a.VegaHintsMuted = true; // the hints off: the marker hides with the chip …
+        server.SyncStoryMarkersForTest(a);
+        Assert.Empty(server.StoryMarkersForTest("Ann"));
+        Assert.DoesNotContain(transport.To<MarkerList>(a).Last().Markers, m => m.Story);
+        a.VegaHintsMuted = false; // … and comes back with it
+        server.SyncStoryMarkersForTest(a);
+        Assert.Contains(transport.To<MarkerList>(a).Last().Markers, m => m.Id == marker.Id);
+
+        server.RaiseGameEventForTest(a, GameEventKeys.ScanAny, "monument"); // the lead is followed
+        Assert.True(Has(a, LeadKey("guardian", 1)));
+        Assert.DoesNotContain(server.StoryMarkersForTest("Ann"), m => m.Id == marker.Id);
+        Assert.DoesNotContain(transport.To<MarkerList>(a).Last().Markers, m => m.Id == marker.Id);
+    }
+
     [Fact]
     public void ASettlementLead_IsFollowedByAJobThatCountsForTheStory_NotByATeachingOne()
     {

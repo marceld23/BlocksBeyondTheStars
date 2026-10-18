@@ -59,7 +59,63 @@ public sealed class ReconnectAndGhostTests : IDisposable
         public void Dispose() { }
     }
 
-    private SvGameServer NewServer(string name, RecordingTransport transport)
+    /// <summary>A transport that behaves like the real ones on a hang-up (#2749): a server-initiated
+    /// <see cref="DisconnectClient"/> is echoed back as <see cref="ClientDisconnected"/> on the next poll
+    /// (LiteNetLib, loopback and WebSocket all do that).</summary>
+    private sealed class EchoingTransport : IServerTransport
+    {
+        public event Action<int>? ClientConnected;
+        public event Action<int>? ClientDisconnected;
+        public event Action<int, byte[]>? PayloadReceived;
+
+        private readonly Queue<int> _echoes = new();
+        public readonly List<int> Disconnected = new();
+
+        /// <summary>A client connects (the transport reports it before any payload).</summary>
+        public void Open(int connectionId) => ClientConnected?.Invoke(connectionId);
+
+        /// <summary>The client hangs up on its own.</summary>
+        public void Close(int connectionId) => ClientDisconnected?.Invoke(connectionId);
+
+        public void Start(int port) { }
+        public void Send(int connectionId, byte[] payload, DeliveryMode mode) { }
+        public void Broadcast(byte[] payload, DeliveryMode mode) { }
+        public void DisconnectClient(int connectionId)
+        {
+            Disconnected.Add(connectionId);
+            _echoes.Enqueue(connectionId);
+        }
+
+        public void Poll()
+        {
+            _ = PayloadReceived;
+            while (_echoes.Count > 0)
+            {
+                ClientDisconnected?.Invoke(_echoes.Dequeue());
+            }
+        }
+
+        public void Stop() { }
+        public void Dispose() { }
+    }
+
+    /// <summary>Captures the server log so a test can count lines.</summary>
+    private sealed class CapturingLogger : BlocksBeyondTheStars.GameServer.IGameLogger
+    {
+        public List<string> Lines { get; } = new();
+
+        public void Info(string message) => Lines.Add("INFO " + message);
+
+        public void Warn(string message) => Lines.Add("WARN " + message);
+
+        public void Error(string message) => Lines.Add("ERROR " + message);
+
+        public int Count(string line) => Lines.Count(l => l == line);
+    }
+
+    private SvGameServer NewServer(string name, RecordingTransport transport) => NewServer(name, (IServerTransport)transport);
+
+    private SvGameServer NewServer(string name, IServerTransport transport, BlocksBeyondTheStars.GameServer.IGameLogger? log = null)
     {
         var repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var config = new ServerConfig
@@ -70,7 +126,7 @@ public sealed class ReconnectAndGhostTests : IDisposable
             AutoSaveIntervalMinutes = 9999,
             PlaceStarterShip = false,
         };
-        var server = new SvGameServer(config, _content, transport, repo);
+        var server = new SvGameServer(config, _content, transport, repo, log);
         server.Start();
         _repos.Add(repo);
         return server;
@@ -151,6 +207,81 @@ public sealed class ReconnectAndGhostTests : IDisposable
 
         Assert.Equal(1, server.JoinedPlayerCountForTest);
         Assert.DoesNotContain(1, transport.Disconnected);
+    }
+
+    // ---------------- #2749: one close, one log line ----------------
+
+    [Fact]
+    public void AHeartbeatKick_LogsTheCloseOnce()
+    {
+        // The server hangs up AND tears the session down itself; the transport's echo on the next poll used to
+        // log "closed" a second time for the session that was already gone.
+        var transport = new EchoingTransport();
+        var log = new CapturingLogger();
+        var server = NewServer("close_once_heartbeat", transport, log);
+
+        transport.Open(1);
+        Join(server, 1, "Pilot", "token-a");
+        server.HandlePayloadForTest(1, NetCodec.Encode(new MoveIntent())); // stamps the heartbeat
+        server.Tick(30.0);
+        server.Tick(70.0); // past the heartbeat budget: dropped
+        server.Tick(0.1);  // the transport echoes the hang-up
+        server.Tick(0.1);
+
+        Assert.Contains(1, transport.Disconnected);
+        Assert.Equal(0, server.JoinedPlayerCountForTest);
+        Assert.Equal(1, log.Count("INFO Connection 1 closed."));
+    }
+
+    [Fact]
+    public void TheRejoinEviction_LogsTheStaleCloseOnce()
+    {
+        var transport = new EchoingTransport();
+        var log = new CapturingLogger();
+        var server = NewServer("close_once_rejoin", transport, log);
+
+        transport.Open(1);
+        Join(server, 1, "Pilot", "token-a");
+        transport.Open(2);
+        Join(server, 2, "Pilot", "token-a"); // the same player back on a fresh connection evicts the old one
+        server.Tick(0.1); // echo of the eviction's hang-up
+        server.Tick(0.1);
+
+        Assert.Contains(1, transport.Disconnected);
+        Assert.Equal(1, server.JoinedPlayerCountForTest);
+        Assert.Equal(1, log.Count("INFO Connection 1 closed."));
+        Assert.Equal(0, log.Count("INFO Connection 2 closed."));
+    }
+
+    [Fact]
+    public void APlainClientClose_LogsOnce()
+    {
+        var transport = new EchoingTransport();
+        var log = new CapturingLogger();
+        var server = NewServer("close_once_plain", transport, log);
+
+        transport.Open(1);
+        Join(server, 1, "Pilot", "token-a");
+        transport.Close(1);
+        server.Tick(0.1);
+
+        Assert.Equal(0, server.JoinedPlayerCountForTest);
+        Assert.Equal(1, log.Count("INFO Connection 1 closed."));
+    }
+
+    [Fact]
+    public void AConnectionThatNeverJoined_LogsItsCloseOnce()
+    {
+        var transport = new EchoingTransport();
+        var log = new CapturingLogger();
+        var server = NewServer("close_once_nojoin", transport, log);
+
+        transport.Open(1);
+        transport.Close(1);
+        server.Tick(0.1);
+
+        Assert.Equal(1, log.Count("INFO Connection 1 opened; awaiting join."));
+        Assert.Equal(1, log.Count("INFO Connection 1 closed."));
     }
 
     // ---------------- #965: the ghost-block amplifier ----------------

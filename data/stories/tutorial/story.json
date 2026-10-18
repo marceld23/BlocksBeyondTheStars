@@ -128,7 +128,9 @@
           "id": "b2.3", "kind": "do", "tier": "core",
           "objective": { "event": "item:gained", "arg": "berries", "required": 3 },
           "feasibleIf": [ "world:hunger", "world:food_plants_near" ],
-          "onStart": { "reveal": "nearest_food_plant" },
+          // #2742: the marker before the hint — at the hint this CORE step is deferred and the chip moves on, and only the
+          // step on the chip gets a marker during the basic training (the pack's 360 s would never come).
+          "onStart": { "reveal": "nearest_food_plant" }, "escalate": { "markerAfter": 120 },
           "explain": { "startKey": "story.tutorial.b2.berries.start", "chipKey": "story.tutorial.b2.berries.chip", "hintKey": "story.tutorial.b2.berries.hint" }
         },
         {

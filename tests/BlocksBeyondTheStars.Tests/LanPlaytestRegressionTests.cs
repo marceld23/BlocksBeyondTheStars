@@ -605,6 +605,36 @@ public sealed class LanPlaytestRegressionTests : IDisposable
         Assert.True(maryList!.Pads.Single(p => p.Index == 3).Mine);
     }
 
+    // ---------------- #2740: the world map lost its pads after the chooser looked at a padless body ----------------
+
+    [Fact]
+    public void ARecoveryFromSpace_ResendsTheArrivalBodysPads_AndWhereYouAre()
+    {
+        // The flight pad chooser asked about a body without pads, then the pilot died in space and was recovered to a
+        // planet. The recovery's per-world re-send had no pad list, so the newest list the client held was the padless
+        // one — the world map showed no pads until the next proper world entry.
+        var transport = new RecordingTransport();
+        var server = NewServer("pads_recovery", transport);
+        var pilot = server.AddLocalPlayer("Pilot");
+        server.EnterSpace("Pilot");
+        server.RequestLandingPadsForTest(pilot, "no-such-body");
+        Assert.Empty(transport.Sent.Where(x => x.Conn == pilot.ConnectionId).Select(x => x.Msg).OfType<LandingPadList>().Last().Pads);
+
+        transport.Sent.Clear();
+        server.KillPlayerForTest(pilot, "@srv.death.wildlife");
+        Assert.False(server.InSpace("Pilot"));
+
+        var mine = transport.Sent.Where(x => x.Conn == pilot.ConnectionId).Select(x => x.Msg).ToList();
+        var pads = mine.OfType<LandingPadList>().LastOrDefault();
+        Assert.NotNull(pads);
+        Assert.Equal(pilot.CurrentLocationId, pads!.BodyId);
+        Assert.NotEmpty(pads.Pads);
+        // The world map reads the pads of the star map's active body — that must be the arrival body, too.
+        var map = mine.OfType<StarMapData>().LastOrDefault();
+        Assert.NotNull(map);
+        Assert.Equal(pilot.CurrentLocationId, map!.ActiveLocationId);
+    }
+
     public void Dispose()
     {
         foreach (var repo in _repos)

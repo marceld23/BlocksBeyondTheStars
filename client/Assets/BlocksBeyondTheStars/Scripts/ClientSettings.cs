@@ -370,9 +370,10 @@ namespace BlocksBeyondTheStars.Client
         /// who want a flight-style stick without inverting the mouse as well.</summary>
         public bool PadInvertY = false;
 
-        /// <summary>Controller vibration. STORED ONLY — the game runs on the legacy Input Manager, which has
-        /// no rumble API, so nothing reads this yet. It is kept (and labelled as not-yet-working in the
-        /// settings screen) so a player's choice survives until the day rumble can be wired up.</summary>
+        /// <summary>Controller vibration (#2746): hits, the own shots, explosions, hard landings and broken blocks rumble
+        /// the pad (<see cref="PadRumble"/>). The legacy Input Manager has no motor API, so the motors are driven through
+        /// XInput on Windows (and a Windows build under Proton); WebGL and the native Linux build cannot rumble — the
+        /// choice is still remembered there and the settings row says so. On by default, as it was stored before.</summary>
         public bool PadVibration = true;
 
         /// <summary>Which pad layout the button NAMES in hints and settings rows follow.</summary>

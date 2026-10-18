@@ -1128,7 +1128,7 @@ public sealed partial class GameServer
         // per-player window then slides it (item 13). Mirrors the procedural-station stamp.
         if (hasBoard)
         {
-            StockBoard(StationBoardPrefix(station.Id) + MixedRollsInfix, station.Id, _stationMissionIds, CoinGiverName(station.Id)); // #2688
+            StockBoard(StationBoardPrefix(station.Id) + MixedRollsInfix, station.Id, _stationMissionIds, StationGiverName(station.Id)); // #2688
         }
     }
 

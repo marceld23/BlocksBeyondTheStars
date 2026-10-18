@@ -643,7 +643,22 @@ mechanisms keep that safe; a change to the block set has to feed them:
 1. **Saves** are remapped on their first open (`EnsureBlockPalette` in every repository): block edits, structure
    edits, flora regrowth, weather deposits, space structures and the hull of self-built ships. A backup
    (`backups/pre-remap_…`) is written first. Anything new that persists a *numeric* block id must join that remap —
-   prefer block keys in new persisted data.
+   prefer block keys in new persisted data. Before v2026.10.4 (#2221) the hull was left out, so a hull built before a
+   block-adding update kept the ids of its release and was later read with the wrong palette; a one-time pass
+   (`GameServerHullRepair`, #2751, marker `save|hull_repair_2751` in `StampedFeatures`) decodes such hulls through the
+   frozen per-release block sets in `HistoricalBlockSets` and rewrites one only when every reading agrees (backup
+   `backups/pre-hull-repair_…` first; an ambiguous hull is left alone and named in the log). On SQLite the
+   palette that misread the hull is pinned when possible: a `pre-remap_…` copy whose save version is below 2 was last
+   written by a build without the hull remap, so its `block_palette` (read read-only,
+   `SqliteWorldRepository.ReadPreRemapBackups`) is exactly that palette — matched against the frozen sets, only the
+   built-in release then varies. No such copy, a palette that matches no set, or copies that disagree fall back to
+   the search over every pair (always so in the browser save, which keeps no copies). Guards against a hull that is
+   only being rebuilt (mining any cell but the last is allowed): a world of terrain generation 21+ (created after
+   v2026.10.4) skips the pass; a reading counts only with exactly one `ship_core` at keel level (the founding puts it
+   at `0:0:0` and nothing is ever built below keel level — the x/z origin is re-normalised, so only the row is
+   guaranteed); and weak evidence — a construction site, or a commissioned hull whose current reading already has its
+   core at keel level and at most one helm — is repaired only with the pinned palette, never by the open search.
+   That table is frozen — never add a release to it.
 2. **The save version.** `WorldMetadata.CurrentSaveVersion` says which build wrote a save; an older build refuses a
    newer save instead of mapping unknown blocks to air. `SaveCompatibilityTests.ChangedBlockSet_NeedsANewSaveVersion`
    pins the block-set fingerprint per save version and fails when the block set changes: raise

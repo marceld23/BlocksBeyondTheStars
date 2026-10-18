@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Client.Tests;
@@ -37,7 +38,7 @@ public sealed class SpaceFlightClientTests
         var flight = new Flight();
         h.Client.SpaceStateReceived += s =>
         {
-            if (flight.Id.Length > 0 && s.Players.All(p => p.PlayerId != flight.Id))
+            if (flight.Id.Length > 0 && s.Players.All(p => p.PlayerId != flight.Id) && s.SystemPilots.All(p => p.PlayerId != flight.Id))
             {
                 flight.Last = s;
             }
@@ -169,5 +170,36 @@ public sealed class SpaceFlightClientTests
         Assert.Equal(8f, partner.ShipZ, 3);
         Assert.Equal(180f, partner.ShipYaw, 3);
         Assert.NotEqual(0, partner.Skin | partner.Torso | partner.Arms | partner.Legs);
+    }
+
+    [Fact]
+    public void AMateFlyingNearAnotherBody_ArrivesAsASystemPilot_AndIsLockable()
+    {
+        // #2737: a friend who launched from another body of the system flies in another flight instance — the solo pilot
+        // still receives them (converted into its own frame) as a navigation target, never as a ship in the scene.
+        using var h = new ClientServerHarness(LoadContent(), c => c.Rules.FreeSpaceFlight = true);
+        var flight = Launch(h);
+        var here = h.Server.Galaxy.FindBody(h.Server.Sessions.Values.First(s => s.State.PlayerId == flight.Id).CurrentLocationId);
+        Assert.NotNull(here);
+        var there = h.Server.Galaxy.AllBodies().First(b => b.SystemId == here!.SystemId && b.Id != here.Id
+            && b.Kind == CelestialKind.Planet && !string.IsNullOrEmpty(b.PlanetType));
+
+        h.Server.AddLocalPlayer("Mate");
+        h.Server.SetInstantTravelForTest(true);
+        Assert.True(h.Server.QuickTravelForTest("Mate", there.Id));
+        h.Server.EnterSpace("Mate");
+        h.Server.ShipMove("Mate", 4f, 2f, -6f);
+
+        Assert.True(h.PumpUntil(() => flight.Last!.SystemPilots.Any(p => p.PlayerId == "Mate"), 30),
+            "the solo pilot should hear about the mate within about a second");
+        var mate = flight.Last!.SystemPilots.Single(p => p.PlayerId == "Mate");
+        Assert.Equal(there.Id, mate.AnchorBodyId);
+        Assert.Equal(4f + (there.SystemX - here!.SystemX) * SystemBodyLayout.FlightViewScale, mate.X, 2);
+        Assert.DoesNotContain(flight.Last.Players, p => p.PlayerId == "Mate"); // no ghost ship, no docking
+
+        // The lock offers the mate at any distance — a navigation target, friendly.
+        var candidate = TargetCandidate.FromPilot(mate);
+        Assert.Equal(TargetDisposition.Friendly, candidate.Disposition);
+        Assert.Contains(SpaceTargeting.Order(new[] { candidate }, 0f, 0f, 0f, 130f, pingActive: false), c => c.Id == "Mate");
     }
 }

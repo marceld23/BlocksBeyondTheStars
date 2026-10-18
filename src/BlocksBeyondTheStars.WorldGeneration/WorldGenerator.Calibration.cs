@@ -455,4 +455,27 @@ public sealed partial class WorldGenerator
             ? IceSheetThickness(calib, PlanetSeed(planet), worldX, worldZ, waterTopY, waterTopY - seabedY)
             : 0;
     }
+
+    /// <summary>The top of the generated ice at a surface (x,z) (#2738): true when the water column there carries any
+    /// ice — a thin crust, a thick sheet or a body frozen through — returning the Y of the topmost ice cell (the
+    /// column's water level before the freeze pass). False (with 0) for a dry, lava or ice-free column. A pure read
+    /// like <see cref="SurfaceIceThickness"/>; structure placement uses it to treat a frozen sea as wet.</summary>
+    public bool TryGetIceSurface(PlanetType planet, int worldX, int worldZ, out int iceTopY)
+    {
+        iceTopY = 0;
+        var calib = CalibFor(planet);
+        if (!CanFreezeWater(planet, calib)) // cheap whole-world gate first — warm worlds pay nothing
+        {
+            return false;
+        }
+
+        if (!TryGetRawWaterColumn(planet, worldX, worldZ, out int waterTopY, out int seabedY)
+            || IceSheetThickness(calib, PlanetSeed(planet), worldX, worldZ, waterTopY, waterTopY - seabedY) <= 0)
+        {
+            return false;
+        }
+
+        iceTopY = waterTopY;
+        return true;
+    }
 }

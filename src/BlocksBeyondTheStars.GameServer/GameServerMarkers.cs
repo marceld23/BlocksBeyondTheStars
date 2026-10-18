@@ -26,7 +26,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// never persisted. Labels go through the same sanitize + content screen as beacon labels.</para>
 ///
 /// <para>A player's view also carries VEGA's story help markers (#2570, <c>GameServerStoryMarkers.cs</c>): their own only,
-/// RAM only, alive until the story step behind them is done or skipped — and the villages of their held wishes (#2714,
+/// RAM only, alive until the story step behind them is done or skipped (since #2742 also the chapter lead's marker, alive
+/// until the lead is followed or changes) — and the villages of their held wishes (#2714,
 /// <c>GameServerWishes.cs</c>), built from the wish, gone when it is handed over.</para>
 /// </summary>
 public sealed partial class GameServer
@@ -46,10 +47,6 @@ public sealed partial class GameServer
         public float Y;
         public float Z;
         public double ExpiresAt;
-
-        /// <summary>#2466: the one connection this ping is for (the story-pack help marker: one player, one session),
-        /// or null for an ordinary ping that the owner's circle sees.</summary>
-        public int? SessionId;
     }
 
     private readonly List<ServerPing> _pings = new();
@@ -206,31 +203,8 @@ public sealed partial class GameServer
         BroadcastMarkersOn(loc);
     }
 
-    /// <summary>#2466: a ping at <paramref name="at"/> that only THIS session sees (synthesis §5.3) — today the marker of the
-    /// world story's lead (#2475; a story STEP's help marker stays until the step closes since #2570,
-    /// <see cref="RaiseStoryMarker"/>): RAM only, <see cref="PingTtlSeconds"/> seconds, never persisted, never broadcast to the
-    /// circle and never <c>RevealPoi</c> (which writes the world's shared data and tells everyone). Only the receiver's marker
-    /// view is re-sent.</summary>
-    private void RaisePrivatePing(PlayerSession session, Vector3f at)
-    {
-        string loc = session.CurrentLocationId;
-        if (string.IsNullOrEmpty(loc))
-        {
-            return;
-        }
-
-        _pings.Add(new ServerPing
-        {
-            OwnerId = session.State.PlayerId,
-            LocationId = loc,
-            X = at.X,
-            Y = at.Y,
-            Z = at.Z,
-            ExpiresAt = _uptime + PingTtlSeconds,
-            SessionId = session.ConnectionId,
-        });
-        SendMarkers(session);
-    }
+    // The private one-session ping (#2466) is gone: a story step's help marker (#2570, RaiseStoryMarker) and the chapter
+    // lead's marker (#2742, MarkCurrentLead) are persistent story markers now, so every ping is an ordinary circle ping.
 
     /// <summary>Expires pings (registered in the environment tick). Cheap: no work while nothing is live.</summary>
     private void TickMarkerPings(double dt)
@@ -251,16 +225,7 @@ public sealed partial class GameServer
             _pings.Remove(p);
         }
 
-        // A private ping (#2466) changed one view only — re-send just that session's.
-        foreach (var p in expired.Where(p => p.SessionId is not null))
-        {
-            if (_sessions.TryGetValue(p.SessionId!.Value, out var only) && only.Joined)
-            {
-                SendMarkers(only);
-            }
-        }
-
-        foreach (var loc in expired.Where(p => p.SessionId is null).Select(p => p.LocationId).Distinct())
+        foreach (var loc in expired.Select(p => p.LocationId).Distinct())
         {
             BroadcastMarkersOn(loc);
         }
@@ -395,9 +360,7 @@ public sealed partial class GameServer
 
         foreach (var ping in _pings)
         {
-            bool audience = ping.SessionId is { } only
-                ? only == viewer.ConnectionId // #2466: a private help marker reaches its one session only
-                : ping.OwnerId == me || AreAllied(me, ping.OwnerId);
+            bool audience = ping.OwnerId == me || AreAllied(me, ping.OwnerId);
             if (ping.LocationId == loc && ping.ExpiresAt > _uptime && audience)
             {
                 result.Add(new NetMarker

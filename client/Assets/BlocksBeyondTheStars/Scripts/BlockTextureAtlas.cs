@@ -97,6 +97,11 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly GameContent _content;
 
+        /// <summary>The content snapshot this atlas was painted from. Its face tiles (#2124) were dealt from exactly this
+        /// content, so a caller that only holds the atlas (an icon, an editor view) resolves a block's faces against it and
+        /// can never pair the slots with a different block table (#2744).</summary>
+        public GameContent Content => _content;
+
         /// <summary>Raised after tiles were repaired in place (a texture layer changed). The normal atlas is a
         /// NEW texture object afterwards, so every owner must re-bind <see cref="NormalTexture"/> on its
         /// materials and drop what it derived from tile colours (far terrain, minimap, icons).</summary>

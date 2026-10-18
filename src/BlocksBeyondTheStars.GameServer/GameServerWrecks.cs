@@ -97,11 +97,17 @@ public sealed partial class GameServer
         // the blocks lying in the world, and every repair on a visible wreck cell would answer "not part of
         // the repair mask".
         var pinned = FindPlacementRecord("wreck", 0);
+        bool seaIceIsWet = SeaIceIsWet; // #2756: from generation 27 the crash site is never under water or sea ice
         int ax, az;
+        int? restY = null;
         if (pinned is { Placed: true })
         {
             ax = pinned.X;
             az = pinned.Z;
+            if (seaIceIsWet)
+            {
+                restY = pinned.GroundY; // a generation-27 wreck may rest on the ice: its pinned height, not the seabed
+            }
         }
         else
         {
@@ -113,9 +119,14 @@ public sealed partial class GameServer
                 ax = WorldConstants.WrapX(ax - 24, _world.Circumference);
                 az += 16;
             }
+
+            if (seaIceIsWet && FootprintWet(planet, ax, az, structure.Width, structure.Length))
+            {
+                (ax, az, restY) = DryWreckSite(planet, ax, az, structure.Width, structure.Length);
+            }
         }
 
-        int groundY = _generator.SurfaceHeight(planet, ax, az);
+        int groundY = restY ?? _generator.SurfaceHeight(planet, ax, az);
         int baseY = groundY - 1; // half-buried crash pose: sink the hull one block into the ground
         _wreckOrigin = new Vector3i(ax, baseY, az);
 
@@ -188,6 +199,89 @@ public sealed partial class GameServer
 
     /// <summary>How far from pad 0 the wreck crash site sits, on both axes.</summary>
     private const int WreckAnchorOffset = 56;
+
+    /// <summary>#2756: how far (Chebyshev, blocks) and on what grid the crash site may move off a wet anchor.</summary>
+    private const int WreckDrySearchReach = 96, WreckDrySearchStep = 8;
+
+    /// <summary>#2756 (generation 27+): the crash site for a wreck whose pad-relative spot stands in water, lava or sea ice
+    /// (<see cref="FootprintWet"/>). The pad-relative spot sat at <c>SurfaceHeight</c> — under a sea the seabed — so on a
+    /// frozen world the first goal of a new game could lie under the ice, out of sight and reach. Walks a grid around the
+    /// anchor nearest first (squared distance, then a fixed order — integers only, so every platform picks the same spot)
+    /// and takes the first footprint that is dry and clear of the pads and of every structure stamped before the wreck.
+    /// Without one, the wreck stays at the anchor and rests on the surface: the ice top, or the water line on open water
+    /// (<c>restY</c>, the height the stamp sinks the hull one block into); lava or a gas sea keep the classic seat.</summary>
+    private (int X, int Z, int? RestY) DryWreckSite(Shared.Definitions.PlanetType planet, int ax, int az, int w, int l)
+    {
+        var reserved = WreckSiteReservations();
+        int hw = w / 2 + 1, hl = l / 2 + 1;
+        var offsets = new List<(int Dx, int Dz)>();
+        for (int dx = -WreckDrySearchReach; dx <= WreckDrySearchReach; dx += WreckDrySearchStep)
+        {
+            for (int dz = -WreckDrySearchReach; dz <= WreckDrySearchReach; dz += WreckDrySearchStep)
+            {
+                if (dx != 0 || dz != 0)
+                {
+                    offsets.Add((dx, dz));
+                }
+            }
+        }
+
+        offsets.Sort((a, b) =>
+        {
+            int c = (a.Dx * a.Dx + a.Dz * a.Dz).CompareTo(b.Dx * b.Dx + b.Dz * b.Dz);
+            return c != 0 ? c : a.Dx != b.Dx ? a.Dx.CompareTo(b.Dx) : a.Dz.CompareTo(b.Dz);
+        });
+
+        foreach (var (dx, dz) in offsets)
+        {
+            int x = WorldConstants.WrapX(ax + dx, _world.Circumference), z = az + dz;
+            if (!OverlapsFootprint(x + w / 2, z + l / 2, hw, hl, reserved, SettlementCollisionMargin)
+                && !OverlapsAnySettlement(x + w / 2, z + l / 2, System.Math.Max(w, l) / 2)
+                && !FootprintWet(planet, x, z, w, l))
+            {
+                return (x, z, null);
+            }
+        }
+
+        // No dry ground in reach (a frozen ocean world): rest on whatever covers the anchor's footprint.
+        int rest = int.MinValue;
+        foreach (var (x, z) in FootprintSamples(ax, az, w, l))
+        {
+            if (_generator.TryGetIceSurface(planet, x, z, out int iceTop))
+            {
+                rest = System.Math.Max(rest, iceTop);
+            }
+            else if (_generator.TryGetWaterSurface(planet, x, z, out int waterTop, out _))
+            {
+                rest = System.Math.Max(rest, waterTop);
+            }
+        }
+
+        return (ax, az, rest == int.MinValue ? null : System.Math.Max(rest, _generator.SurfaceHeight(planet, ax, az)));
+    }
+
+    /// <summary>#2756: the footprints a moved crash site keeps clear of — the pads and every structure stamped before the wreck
+    /// (ruins, camps, monuments, factories, SPS labs; settlements, the intercity line, rail ruins and lodges are asked through
+    /// <see cref="OverlapsAnySettlement"/>). They all reserved the pad-relative anchor, not the spot the wreck moves to.</summary>
+    private List<(int Cx, int Cz, int Hw, int Hl)> WreckSiteReservations()
+    {
+        var reserved = new List<(int Cx, int Cz, int Hw, int Hl)>();
+        foreach (var pad in _landingPads)
+        {
+            reserved.Add((pad.CenterX, pad.CenterZ, LandingPadRadius + 2, LandingPadRadius + 2));
+        }
+
+        reserved.AddRange(_worlds.Active.RuinFootprints);
+        foreach (var (min, max) in _banditCamps.Select(c => (c.Min, c.Max))
+                     .Concat(_monuments.Select(m => (m.Min, m.Max)))
+                     .Concat(_factories.Select(f => (f.Min, f.Max)))
+                     .Concat(_spsLabs.Select(s => (s.Min, s.Max))))
+        {
+            reserved.Add(((min.X + max.X) / 2, (min.Z + max.Z) / 2, (max.X - min.X) / 2 + 1, (max.Z - min.Z) / 2 + 1));
+        }
+
+        return reserved;
+    }
 
     /// <summary>Half-extent of the zone settlements keep clear for the wreck.</summary>
     internal const int WreckReservedHalfExtent = 14;

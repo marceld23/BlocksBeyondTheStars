@@ -35,6 +35,11 @@ namespace BlocksBeyondTheStars.Client
             var linkGo = new GameObject("Server Link");
             linkGo.transform.SetParent(root.transform);
             var boot = linkGo.AddComponent<GameBootstrap>();
+
+            // #2746: the gamepad's rumble lives on the world root — destroyed with it, which stops the motors.
+            var rumble = root.AddComponent<PadRumble>();
+            rumble.Game = boot;
+
             // In-process singleplayer: hand the running loopback wire over — GameBootstrap then talks
             // to the in-browser server directly instead of opening any socket.
             boot.Loopback = shell.BrowserServer != null && shell.BrowserServer.Running ? shell.BrowserServer.Link : null;

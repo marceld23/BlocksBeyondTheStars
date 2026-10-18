@@ -236,7 +236,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 case Kind.Block:
                     var blockGo = Cube(holder.transform, new Vector3(0f, 0f, 0.16f), new Vector3(0.22f, 0.22f, 0.22f), tint);
-                    if (blockKey != null && BlockTileResolver?.Invoke(blockKey) is { } tile)
+                    if (blockKey != null && !DressBlock(blockGo, blockKey) && BlockTileResolver?.Invoke(blockKey) is { } tile)
                     {
                         // The block's real atlas tile: LitColor samples _MainTex with its ST transform in both
                         // pipelines, so scale/offset map the cube's 0..1 face UVs onto the tile.
@@ -283,6 +283,75 @@ namespace BlocksBeyondTheStars.Client
             return holder;
         }
 
+        // #2744: the held block wears the faces the world gives it — its own top, sides, bottom and picture front, the
+        // front toward the eye. One cube mesh per block (shared by every hand that holds it) and one material per atlas.
+        private static readonly System.Collections.Generic.Dictionary<ushort, Mesh> BlockMeshes = new System.Collections.Generic.Dictionary<ushort, Mesh>();
+        private static readonly System.Collections.Generic.Dictionary<Texture2D, Material> BlockMaterials = new System.Collections.Generic.Dictionary<Texture2D, Material>();
+        private static BlockTextureAtlas _blockMeshAtlas;
+
+        /// <summary>
+        /// Puts the block's own cube (<see cref="BlockCubeFaces"/>) on the held cube <paramref name="blockGo"/>; false when
+        /// the world's content or atlas is not available (the caller falls back to the one-tile cube). The holder points
+        /// along +Z, so the eye — first person and the third-person camera behind the avatar — sees the cube's −Z face:
+        /// a block with a front shows it there, upright. (The Unity primitive's −Z face maps its texture turned by 180°,
+        /// which is why a picture block used to stand on its head in the hand.) Lit like before: the LitColor material,
+        /// white, over the atlas.
+        /// </summary>
+        private static bool DressBlock(GameObject blockGo, string blockKey)
+        {
+            var kit = MeshKitResolver?.Invoke();
+            if (kit == null)
+            {
+                return false;
+            }
+
+            var (content, atlas, _, _) = kit.Value;
+            var def = content?.GetBlock(blockKey);
+            if (def == null || def.NumericId.Value == 0 || atlas == null || atlas.Texture == null)
+            {
+                return false;
+            }
+
+            if (!ReferenceEquals(atlas, _blockMeshAtlas))
+            {
+                ReleaseBlockMeshes(); // meshes of another atlas (another content snapshot)
+                _blockMeshAtlas = atlas;
+            }
+
+            ushort id = def.NumericId.Value;
+            if (!BlockMeshes.TryGetValue(id, out var mesh) || mesh == null)
+            {
+                mesh = BlockCubeFaces.BuildMesh(content, atlas, def.NumericId, BlockCubeFaces.FaceMinusZ, chunkChannels: false);
+                mesh.name = "HeldBlock";
+                BlockMeshes[id] = mesh;
+            }
+
+            if (!BlockMaterials.TryGetValue(atlas.Texture, out var material) || material == null)
+            {
+                var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
+                material = new Material(shader) { color = Color.white, mainTexture = atlas.Texture };
+                BlockMaterials[atlas.Texture] = material;
+            }
+
+            var renderer = blockGo.GetComponent<Renderer>();
+            BlockCubeFaces.DestroyAsset(renderer.sharedMaterial); // the cube's own tinted material — the shared one replaces it
+            renderer.sharedMaterial = material;
+            blockGo.GetComponent<MeshFilter>().sharedMesh = mesh;
+            return true;
+        }
+
+        /// <summary>Frees the held blocks' cube meshes (#2744).</summary>
+        private static void ReleaseBlockMeshes()
+        {
+            foreach (var mesh in BlockMeshes.Values)
+            {
+                BlockCubeFaces.DestroyAsset(mesh);
+            }
+
+            BlockMeshes.Clear();
+            _blockMeshAtlas = null;
+        }
+
         /// <summary>The bare suit hand (#1033): a gloved fist on the suit-coloured forearm — thumb on the inner side, cuff a
         /// darker shade for definition. <paramref name="left"/> mirrors it (thumb on +x) and paints it from the left arm.</summary>
         private static void HandCubes(Transform holder, Color tint, bool left)
@@ -293,7 +362,7 @@ namespace BlocksBeyondTheStars.Client
             var cuffGo = Cube(holder, new Vector3(0f, -0.02f, -0.02f), new Vector3(0.12f, 0.12f, 0.07f), cuff);
             var fist = Cube(holder, new Vector3(0f, 0f, 0.07f), new Vector3(0.13f, 0.12f, 0.14f), tint);
             var thumb = Cube(holder, new Vector3(-0.075f * mx, 0.01f, 0.05f), new Vector3(0.05f, 0.06f, 0.08f), tint);
-            PaintHand(tint, left ? LeftOuterChunk : RightOuterChunk, forearm, fist, thumb); // the player's own arm painting (#1427)
+            PaintHand(tint, left, forearm, fist, thumb); // the player's own arm painting (#1427)
             // The hand is suit-coloured like the avatar, so it shares the avatar's failure mode:
             // LitColor's fixed key light + Linear colour space sink dark tints to a black silhouette
             // without the ambient lift PlayerAvatar.Lit applies (#1427). Cuff included.
@@ -326,7 +395,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 float mx = left ? -1f : 1f;
                 var arm = Cube(holder, new Vector3(0.02f * mx, -0.06f, -0.17f), new Vector3(0.11f, 0.11f, 0.28f), suit);
-                PaintHand(suit, left ? LeftOuterChunk : RightOuterChunk, arm);
+                PaintHand(suit, left, arm);
                 LiftAmbient(arm);
             }
 
@@ -409,28 +478,38 @@ namespace BlocksBeyondTheStars.Client
         private static Texture2D _handAtlas;
         private static string _handAtlasKey;
 
-        /// <summary>Frees the cached hand-paint atlas (world teardown, #1464) — a static Texture2D is never
-        /// swept by <c>Resources.UnloadUnusedAssets</c> while this class still references it.</summary>
+        // #2755: the painted forearm / fist meshes, one per arm (row 0 = left, 1 = right) and segment (lower arm, hand).
+        // They depend on the arm's geometry only — the painting itself is the atlas texture — so they are built once.
+        private static readonly Mesh[] HandMeshes = new Mesh[4];
+
+        /// <summary>Frees the cached hand-paint atlas and the painted hand meshes (world teardown, #1464) — a static
+        /// Texture2D / Mesh is never swept by <c>Resources.UnloadUnusedAssets</c> while this class still references it.</summary>
         public static void ReleaseHandAtlas()
         {
-            if (_handAtlas != null)
-            {
-                Object.Destroy(_handAtlas);
-            }
-
+            BlockCubeFaces.DestroyAsset(_handAtlas);
             _handAtlas = null;
             _handAtlasKey = null;
+            for (int i = 0; i < HandMeshes.Length; i++)
+            {
+                BlockCubeFaces.DestroyAsset(HandMeshes[i]);
+                HandMeshes[i] = null;
+            }
         }
 
-        /// <summary>Right limb = canvas row 1 → chunks 4..7 (front|outer|back|inner); the outer one is chunk 5. The left
-        /// limb is row 0 → chunks 0..3, its outer face chunk 1 (#2278/#2287: the left first-person hand).</summary>
-        private const int RightOuterChunk = 5;
-        private const int LeftOuterChunk = 1;
-
-        /// <summary>Applies the player's arm painting to the hand parts (white tint + the atlas the avatar
-        /// also bakes, mapped to the arm's OUTER chunk — the hero face of the paint editor). Without
-        /// a valid painting the parts keep their flat suit tint, matching the pre-#1427 look.</summary>
-        private static void PaintHand(Color baseColor, int chunk, params GameObject[] parts)
+        /// <summary>
+        /// Applies the player's arm painting to the hand parts (white tint + the atlas the avatar also bakes). Without a
+        /// valid painting the parts keep their flat suit tint, matching the pre-#1427 look.
+        /// <para>
+        /// #2755: the parts wear the avatar's own painted arm (<see cref="PlayerAvatar.PaintedArmMesh"/>) instead of one
+        /// chunk stretched over every face of a Unity primitive, whose faces lay their UVs out turned or mirrored: the
+        /// forearm the lower arm, the fist and thumb the hand, each side face its own arm chunk, read as painted. The
+        /// first-person arm is the avatar's arm raised forward with the back of the hand up, so the mesh is turned from
+        /// the shoulder frame (arm down −y, front +z) into the hand's (+z forward): the arm's outer side faces up — the
+        /// outer chunk, the paint editor's hero face, stays on top as before — its front turns toward the body, its back
+        /// outward, its inner side down; the painting's top runs back toward the shoulder, as on the avatar.
+        /// </para>
+        /// </summary>
+        private static void PaintHand(Color baseColor, bool left, GameObject forearm, params GameObject[] handParts)
         {
             string pixels = HandPaintResolver?.Invoke();
             if (string.IsNullOrEmpty(pixels) || pixels.Length != BodyPaint.ExpectedLength(BodyPaint.Arms))
@@ -441,27 +520,57 @@ namespace BlocksBeyondTheStars.Client
             string key = pixels + "#" + ColorUtility.ToHtmlStringRGB(baseColor);
             if (_handAtlasKey != key || _handAtlas == null)
             {
-                if (_handAtlas != null)
-                {
-                    Object.Destroy(_handAtlas);
-                }
-
+                BlockCubeFaces.DestroyAsset(_handAtlas);
                 _handAtlas = BodyPaintKit.BuildAtlas(BodyPaint.Arms, pixels, baseColor);
                 _handAtlasKey = key;
             }
 
-            // Cube face UVs are 0..1, so the material ST maps every face onto that chunk (same trick as the
-            // held block's atlas tile above). Transparent pixels are pre-composited onto the base colour.
-            var uv = BodyPaintKit.ChunkRect(BodyPaint.Arms, chunk);
-            foreach (var go in parts)
+            Dress(forearm, HandMesh(left, hand: false));
+            foreach (var go in handParts)
+            {
+                Dress(go, HandMesh(left, hand: true));
+            }
+
+            static void Dress(GameObject go, Mesh mesh)
             {
                 var m = go.GetComponent<Renderer>().sharedMaterial;
                 m.color = Color.white; // the painting's true colours, like the avatar's painted parts
-                m.mainTexture = _handAtlas;
-                m.mainTextureScale = new Vector2(uv.width, uv.height);
-                m.mainTextureOffset = new Vector2(uv.x, uv.y);
+                m.mainTexture = _handAtlas; // the mesh's UVs already sit in the atlas — no tile transform
+                go.GetComponent<MeshFilter>().sharedMesh = mesh;
             }
         }
+
+        /// <summary>The avatar's painted arm segment turned into the first-person hand's frame (see <see cref="PaintHand"/>):
+        /// arm-down → forward (+z), the arm's outer side → up (+y), so the right arm maps (x, y, z) → (−z, x, −y) and the left
+        /// arm, whose outer side is −x, (x, y, z) → (z, −x, −y). Both are rotations, so every face still reads as painted
+        /// and faces outward.</summary>
+        private static Mesh HandMesh(bool left, bool hand)
+        {
+            int slot = (left ? 0 : 2) + (hand ? 1 : 0);
+            if (HandMeshes[slot] != null)
+            {
+                return HandMeshes[slot];
+            }
+
+            var mesh = PlayerAvatar.PaintedArmMesh(left ? 0 : 1, hand);
+            var verts = mesh.vertices;
+            var normals = mesh.normals;
+            for (int i = 0; i < verts.Length; i++)
+            {
+                verts[i] = ToHandFrame(verts[i], left);
+                normals[i] = ToHandFrame(normals[i], left);
+            }
+
+            mesh.vertices = verts;
+            mesh.normals = normals;
+            mesh.RecalculateBounds();
+            mesh.name = left ? "HandPaintLeft" : "HandPaintRight";
+            HandMeshes[slot] = mesh;
+            return mesh;
+        }
+
+        private static Vector3 ToHandFrame(Vector3 v, bool left)
+            => left ? new Vector3(v.z, -v.x, -v.y) : new Vector3(-v.z, v.x, -v.y);
 
         /// <summary>Raises LitColor's ambient floor + fill to the avatar's values (see
         /// <c>PlayerAvatar.Lit</c>) so suit-coloured hand parts never sink to black (#1427).</summary>
@@ -513,7 +622,8 @@ namespace BlocksBeyondTheStars.Client
         internal static GameObject SolidPart(Transform parent, Vector3 localPos, Vector3 scale, Color color)
             => Cube(parent, localPos, scale, color, glow: false);
 
-        /// <summary>Drops the shared part materials and the held miniatures' meshes (session teardown).</summary>
+        /// <summary>Drops the shared part materials, the held miniatures' meshes and the held blocks' cubes (session
+        /// teardown).</summary>
         public static void ReleasePartMaterials()
         {
             HeldMiniatures.ReleaseAll();
@@ -526,6 +636,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             PartMaterials.Clear();
+            ReleaseBlockMeshes();
+            foreach (var material in BlockMaterials.Values)
+            {
+                BlockCubeFaces.DestroyAsset(material);
+            }
+
+            BlockMaterials.Clear();
         }
 
         private static GameObject Cube(Transform parent, Vector3 localPos, Vector3 scale, Color color, bool glow)

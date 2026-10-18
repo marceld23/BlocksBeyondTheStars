@@ -71,7 +71,7 @@ public sealed partial class GameServer
             string role = hasPost ? posts[i].Role : "settler";
             var profession = hasPost ? posts[i].Profession : null;
             string theme = profession is { Trades: true } ? profession.Theme
-                : role == "vendor" ? VendorThemeFor(station.Id, vendorIndex++, "traders") : "traders";
+                : role == "vendor" ? StationVendorTheme(station.Id, vendorIndex++) : "traders";
             bool robotic = theme == "researchers" || (role == "settler" && rng.NextDouble() < 0.3);
 
             // The cabin spot is where the resident rests at night (#1775: a standable cell that holds air); the crew
@@ -87,7 +87,7 @@ public sealed partial class GameServer
             npc.RoutineEnabled = true;
             if (role == "quartermaster")
             {
-                npc.Name = CoinGiverName(station.Id); // the mission-giver's name matches its missions (item 13)
+                npc.Name = StationGiverName(station.Id); // the mission-giver's name matches its missions (item 13)
             }
 
             if (profession != null)
