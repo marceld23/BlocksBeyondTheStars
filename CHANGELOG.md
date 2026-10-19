@@ -11,6 +11,87 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.23] — 2026-10-20
+
+The variety release. Plants and animals no longer look alike from planet to planet: **every planet grows its own
+shapes** of leaves, bushes, grass, ferns and flowers, **twelve new bushes and plants grow side by side** on new worlds,
+**blossoms and berries show colours of their own**, and **every planet's animals wear their own hides and coat
+patterns**. In your hand, **tools are made of wood, metal, rubber or glass**, **every gadget has its own shape**, and
+ore is a lump of stone instead of an empty fist.
+
+ℹ️ **Compatibility:** the **save version rises to 5** (twelve new plant blocks), the **terrain generation to 28** and
+the network protocol stays at **version 11**. Existing saves are converted when they are first opened and keep their
+landscape; the new plants and the mixed meadows grow on worlds created with 2026.10.23. The new looks, colours, animal
+coats and tools appear in every world, old saves included. Game and server must both be on 2026.10.23 — a server with
+another plant set turns an older game away at the door. An older game cannot open a save once 2026.10.23 has opened it.
+
+### 🌿 Every planet grows its own plants (#2832, #2834, #2835)
+
+- **Plants in many shapes (#2832):** the leaves of the trees, the conifers' needles, palm fronds, giant leaves, bushes,
+  plants, tall grass, ferns and flowers each come in several looks — 59 new ones: heart-shaped, feathery, lobed or
+  willow-like leaves, round or spiky bushes, daisies, tulips, bells, poppies … Each planet grows one look of each kind,
+  in its own colour, so the forest on the next planet really looks different.
+- **Colourful blossoms and berries (#2834):** flowers, berry bushes, orchids, lilies, mushrooms and the other flowering
+  plants show their blossoms, berries and caps in a colour of their own instead of the colour of their leaves — and the
+  plants of one kind mix two or three colours across a meadow.
+- **Grass that fits the planet (#2835):** the small grass tufts on the ground take the planet's grass colour instead of
+  always being Earth green.
+
+### 🌼 Twelve new plants, side by side (#2833)
+
+- **New on worlds created from now on:** the **Redberry Bush**, **Blossom Bush**, **Feather Bush**, **Weeping Shrub**,
+  **Needle Bush**, **Frostberry**, **Clover**, **Daisy**, **Thistle**, **Wild Herb**, **Foxtail Grass** and **Lupine**.
+  The Redberry Bush and the Frostberry give berries (toxic on a world whose species is toxic — scan before you eat), the
+  others plant fiber.
+- **Mixed meadows:** a meadow is no longer one kind of plant in big patches — several species grow next to each other,
+  while a glade still has a plant that sets its tone.
+
+### 🐾 Every planet's animals look like their own species (#2829–#2831)
+
+- **A planet's animals no longer repeat (#2829):** an animal's hide and build came from its place in the list, which is
+  the same on every planet — the third animal of every world wore scales. Now every planet's animals get their own hides
+  and builds, and four hides that never appeared show up too. An animal keeps its hide when it gets angry or tame.
+- **Coat patterns (#2830):** stripes, tiger stripes, spots, rosettes, patches, speckles, marbling, scale bands, a saddle,
+  a back stripe, an eye mask, tail rings, socks and more — 16 patterns in a second colour of the animal's own.
+- **24 new hides (#2831):** wool, down, fine feathers, leather, armour plates, snake and lizard skin, fish scales, bark
+  with moss, honeycomb, lichen and more — 49 in all. Head, legs and body may wear different hides, the skin no longer
+  stretches over big animals, and every animal of a herd is a touch lighter or darker than the next.
+
+### 🧰 The things in your hand (#2836–#2838)
+
+- **Tools with materials (#2836):** every part of a tool, weapon or gadget is made of something — wood grain, brushed
+  metal, a rubber grip, glass, glowing energy, crystal, leather, stone, bone or carbon — tinted in the part's colour. Your
+  own tool designs get them too.
+- **Every gadget has its own shape (#2837):** the binoculars have two tubes, the camera a lens, the field medkit is a
+  case with a cross, the fluid pump has a hose, the paint tool is a brush, the weather scanner has an antenna … The 21
+  gadgets used to look the same; the **Remote Control** finally shows the model it always had.
+- **Ore in your hand (#2838):** iron, copper and the other ores and minerals lie as a small lump of their stone in your
+  palm instead of an empty fist.
+
+### 🌍 Texts
+
+- The "What's new?" notes of 2026.10.22 are now available in the twelve community languages too (#2839).
+- The new plant names and the texture editor's material names are translated into all 14 languages.
+
+### 🛠️ For tinkerers
+
+- **Flora looks:** `data/blocks.json` `"looks"` (`<block>_look<n>` texture keys); `FloraLooks.IndexFor(seed, location,
+  block, n)`; `BlockTextureAtlas.SetLooks` repaints the block's own slot (variants follow, no re-mesh). A texture pack or
+  world texture of the block wins; looks are publishable world textures and listed under their block in the texture
+  editor. Art rules: `docs/developer/ART_BIBLE.md` §4.
+- **Accents:** `"accent": true` → `FloraAccent.hlsl` (both pipelines); the plant's pick rides as 0.1/0.2/0.3 on its
+  cutout code in TEXCOORD2.x (`ChunkMesher.AccentCodeAt`).
+- **Generation 28:** `FloraCatalog` wave with `MinGeneration: 28`; `WorldGenerator.Flora` mixes 40 % of the columns
+  (`MixedFloraShare`); `FloraForm` packs 7-bit catalog indices (bits 18/19, older forms decode unchanged); save version 5.
+- **Creatures:** `Client.Core/Creatures` — `CreatureHides` (one table, temperament pools, per-part pick), `CreatureCoat`
+  (seed from `VoiceSeed`, patterns, jitter), `CoatMasks`, `CoatBake`, `TiledCube`. `docs/developer/CREATURE_RIG.md`.
+- **Held items:** `heldModel` parts take `"m"` (12 `held_*` tiles, publishable world textures); `HeldMaterialRules`
+  (colour rule, metre UVs); Gadget is a shaped kind; ore lumps from the block tile. `docs/developer/HELD_ITEMS.md`.
+- **Assets:** 108 new OpenAI tiles via `gen_textures.py` / `gen_creatures.py`; `bake_leaf_alpha.py` reads the look keys
+  from `blocks.json`.
+- **For hosters:** the WorldHost image was rebuilt with this release (Shared changed); the report host and the AI
+  backend are unchanged.
+
 ## [2026.10.22] — 2026-10-19
 
 The cosy release. The game got warmer and calmer: **your ship feels like home** — warm lamps, a warm evening light and
@@ -8716,7 +8797,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.22...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.23...HEAD
+[2026.10.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.22...v2026.10.23
 [2026.10.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.21...v2026.10.22
 [2026.10.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.20...v2026.10.21
 [2026.10.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.19...v2026.10.20

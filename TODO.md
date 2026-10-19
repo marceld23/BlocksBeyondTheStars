@@ -65,6 +65,8 @@ berries multi-coloured, tools get shapes AND textures, everything in one PR, the
 shown to Marcel as a gallery before bundling; 37 new locale keys in all 14 languages. Docs: ART_BIBLE §4, CREATURE_RIG,
 HELD_ITEMS, WORLD_GENERATION §45, BIO_LAB, USER_MANUAL.
 
+**Released** in **v2026.10.23** "the variety release" (2026-10-20).
+
 ---
 
 ### 🛋️ Cozy package 2026-10 — softer contrast, warm light islands, the ship as home, rain on the hull, a cosiness slider — epic #2802 (#2803–#2826), branch feat/cozy-look — ✅ done 2026-10-19 (⚠ playtest open)
