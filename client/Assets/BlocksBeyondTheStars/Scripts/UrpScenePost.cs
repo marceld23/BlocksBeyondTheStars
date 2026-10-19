@@ -43,7 +43,27 @@ namespace BlocksBeyondTheStars.Client
         /// brightens/darkens uniformly. Wired from WorldRig; the settings slider pushes it live via <see cref="SetBrightness"/>.</summary>
         public float Brightness = 1.15f;
 
+        /// <summary>The Cosiness slider (#2820), 0..1 (default 0.5): softer contrast, lifted shadows, warmth and a little
+        /// more glow — scaled by the place (<see cref="SetCozyContext"/>), so the home stands out and the biomes keep
+        /// their identity. Colour work only: URP bakes all of it into its grading LUT. Wired from WorldRig; the settings
+        /// stepper pushes it live via <see cref="SetCosiness"/>.</summary>
+        public float Cosiness = 0.5f;
+
         private ColorAdjustments _grade;
+        private Bloom _bloom;
+        private WhiteBalance _whiteBalance;
+        private LiftGammaGain _liftGammaGain;
+        private ShadowsMidtonesHighlights _smh;
+        private float _menuBlurLevel; // #2810: eased 0..1 so the menu blur fades in instead of snapping
+
+        // Cozy package (#2813/#2815/#2820/#2823): the place factor, the home blend and the evening share Sky feeds each
+        // frame, and the rest level the bed drives — all 0..1 and already eased by their owners.
+        private float _cozyPlace, _home, _evening, _rest;
+
+        private static readonly Vector4 CoolShadows = new Vector4(0.92f, 0.97f, 1.06f, 0f);
+        private static readonly Vector4 HomeShadows = new Vector4(1.03f, 1.0f, 0.95f, 0f);
+        private static readonly Vector4 NeutralTone = new Vector4(1f, 1f, 1f, 0f);
+        private static readonly int CozyLightId = Shader.PropertyToID("_Sc_CozyLight");
         private ColorLookup _lut;
         private DepthOfField _menuBlur;
         private Vignette _vignette;
@@ -90,6 +110,7 @@ namespace BlocksBeyondTheStars.Client
             SetTonemapForHdr(rp == null || rp.supportsHDR);
 
             var bloom = profile.Add<Bloom>(true);
+            _bloom = bloom;
             if (ShellMode)
             {
                 // Tighter bloom for the attract scene: higher threshold + lower intensity/scatter so only the
@@ -100,8 +121,8 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                bloom.threshold.Override(0.9f);
-                bloom.intensity.Override(0.5f);
+                bloom.threshold.Override(PlayBloomThreshold);
+                bloom.intensity.Override(PlayBloomIntensity);
                 bloom.scatter.Override(0.6f);
             }
 
@@ -117,17 +138,27 @@ namespace BlocksBeyondTheStars.Client
 
             _grade = profile.Add<ColorAdjustments>(true);
             _grade.postExposure.Override(ExposureFor(Brightness));
-            _grade.contrast.Override(3f); // was 6 — the extra contrast pushed the shadow half of every daylight frame down (#1457)
+            _grade.contrast.Override(ContrastOffset); // was 6 — the extra contrast pushed the shadow half of every daylight frame down (#1457)
             _grade.saturation.Override(6f);
             _grade.colorFilter.Override(Color.white);
 
             // Cinematic teal-orange baseline: cool the shadows, warm the highlights a touch. Subtle and global —
             // the per-biome ApplyGrade colour filter still rides on top. This is the single biggest "looks like
             // a finished game" win per line; it shapes the whole frame's mood without touching gameplay clarity.
+            // The cozy grade (#2820) eases the cool shadows toward neutral, and at home toward a warm lean.
             var smh = profile.Add<ShadowsMidtonesHighlights>(true);
-            smh.shadows.Override(new Vector4(0.92f, 0.97f, 1.06f, 0f));    // shadows lean cool/blue
-            smh.midtones.Override(new Vector4(1f, 1f, 1f, 0f));
+            smh.shadows.Override(CoolShadows);                             // shadows lean cool/blue
+            smh.midtones.Override(NeutralTone);
             smh.highlights.Override(new Vector4(1.05f, 1.0f, 0.93f, 0f));  // highlights lean warm
+            _smh = smh;
+
+            // Cozy grade (#2820/#2813): warmth and a shadow lift, both at zero until the slider and the place ask for
+            // them. Baked into URP's grading LUT with the rest, so they cost nothing per pixel — on WebGL/Potato too.
+            _whiteBalance = profile.Add<WhiteBalance>(true);
+            _whiteBalance.temperature.Override(0f);
+            _whiteBalance.tint.Override(0f);
+            _liftGammaGain = profile.Add<LiftGammaGain>(true);
+            _liftGammaGain.lift.Override(NeutralTone);
 
             // Per-biome cinematic mood LUT (WS4): inactive until Sky picks a biome via SetMoodLut. The menu/attract
             // scene never calls it, so its backdrop stays ungraded by the LUT.
@@ -170,9 +201,20 @@ namespace BlocksBeyondTheStars.Client
             if (_menuBlur != null && Game != null)
             {
                 bool open = Game.ScreenMenuOpen; // #2530: not under the taming panel — the creature must stay sharp
-                if (_menuBlur.active != open)
+                // #2810: fade over ~0.25 s instead of snapping. The gaussian radius cannot go to zero, so the blur's
+                // near edge walks in from far away: at 0 nothing on screen is blurred, at 1 everything past arm's length.
+                _menuBlurLevel = Mathf.MoveTowards(_menuBlurLevel, open ? 1f : 0f, Time.unscaledDeltaTime * 4f);
+                bool on = _menuBlurLevel > 0.001f;
+                if (_menuBlur.active != on)
                 {
-                    _menuBlur.active = open;
+                    _menuBlur.active = on;
+                }
+
+                if (on)
+                {
+                    float t = _menuBlurLevel * _menuBlurLevel * (3f - 2f * _menuBlurLevel);
+                    _menuBlur.gaussianStart.Override(Mathf.Lerp(60f, 0.4f, t));
+                    _menuBlur.gaussianEnd.Override(Mathf.Lerp(120f, 6f, t));
                 }
             }
 
@@ -221,7 +263,8 @@ namespace BlocksBeyondTheStars.Client
                     ? (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * (3f + alarm * 4f))) * 0.12f * alarm
                     : 0f;
                 float dmg = ReducedEffects ? 0f : _damagePulse * 0.16f;
-                _vignette.intensity.Override(BaseVignette + pulse + dmg);
+                // #2823: resting in bed — the frame closes in a little, like heavy eyelids.
+                _vignette.intensity.Override(BaseVignette + pulse + dmg + _rest * 0.14f);
 
                 Color c = Color.black;
                 if (dmg > 0.001f)
@@ -301,6 +344,24 @@ namespace BlocksBeyondTheStars.Client
             ApplyGradeNow();
         }
 
+        /// <summary>The neutral world's ColorAdjustments contrast. #2803: the per-frame grade used to add +6 on top of the
+        /// biome contrast, so the 6 → 3 softening of #1457 only ever reached the menu (in the world: 9 … 20).</summary>
+        private const float ContrastOffset = 3f;
+
+        private const float PlayBloomThreshold = 0.9f, PlayBloomIntensity = 0.5f;
+
+        private static float Smooth01(float x)
+        {
+            x = Mathf.Clamp01(x);
+            return x * x * (3f - 2f * x);
+        }
+
+        /// <summary>The slider at the current place (0..1): what the outdoor-facing cozy terms scale with.</summary>
+        private float CozyAmount => ShellMode ? 0f : Mathf.Clamp01(Cosiness * _cozyPlace);
+
+        /// <summary>The home grade's weight (0..1): the home blend, full from half the slider up, nothing at 0 % (#2813).</summary>
+        private float HomeAmount => ShellMode ? 0f : _home * Mathf.Clamp01(Cosiness * 2f);
+
         private void ApplyGradeNow()
         {
             if (_grade == null)
@@ -308,16 +369,105 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            float sat = Mathf.Lerp(_baseSaturation, 0.25f, _flashback);
-            Color tint = Color.Lerp(_baseTint, new Color(0.78f, 0.86f, 0.98f), _flashback * 0.6f);
+            float k = CozyAmount;
+            float h = HomeAmount;
+            float soft = Smooth01(k / 0.6f);              // 0–60 %: softer contrast, lifted shadows
+            float warm = Smooth01((k - 0.15f) / 0.6f);    // from 15 %: warmth
+            float glow = Smooth01((k - 0.5f) / 0.5f);     // from 50 %: a little more glow
+            float evening = _evening * h;
+
+            // At home the planet's own grade fades out — the cabin does not take the lava world's tint or the ice
+            // world's chill; the biome comes back as the hatch opens.
+            float baseSat = Mathf.Lerp(_baseSaturation, 1f, h);
+            float baseContrast = Mathf.Lerp(_baseContrast, 1f, h);
+            Color baseTint = Color.Lerp(_baseTint, Color.white, h * 0.8f);
+
+            float sat = Mathf.Lerp(baseSat, 0.25f, _flashback);
+            Color tint = Color.Lerp(baseTint, new Color(0.78f, 0.86f, 0.98f), _flashback * 0.6f);
             _grade.colorFilter.Override(Color.Lerp(Color.white, tint, 0.7f));
-            _grade.saturation.Override(Mathf.Clamp((sat - 1f) * 100f + 6f, -100f, 100f));
-            _grade.contrast.Override(Mathf.Clamp((_baseContrast - 1f) * 100f + 6f, -100f, 100f));
+            // A little extra saturation at home keeps the cabin's colours rich under the warmer white balance (without
+            // it, a blue hatch washed to grey in the first capture).
+            _grade.saturation.Override(Mathf.Clamp((sat - 1f) * 100f + 6f + 8f * h - 10f * _rest, -100f, 100f));
+            _grade.contrast.Override(Mathf.Clamp((baseContrast - 1f) * 100f + ContrastOffset - 6f * soft - 3f * h, -100f, 100f));
+
+            if (_whiteBalance != null)
+            {
+                _whiteBalance.temperature.Override(Mathf.Clamp(10f * warm + 5f * h + 12f * evening + 14f * _rest, -100f, 100f));
+                _whiteBalance.tint.Override(0f);
+            }
+
+            if (_liftGammaGain != null)
+            {
+                // A small lift only: more turned the dark colours grey instead of soft.
+                _liftGammaGain.lift.Override(new Vector4(1f, 1f, 1f, 0.02f * soft + 0.01f * h));
+            }
+
+            if (_smh != null)
+            {
+                Vector4 shadows = Vector4.Lerp(CoolShadows, NeutralTone, Mathf.Max(Smooth01((k - 0.2f) / 0.5f), h));
+                _smh.shadows.Override(Vector4.Lerp(shadows, HomeShadows, h * 0.6f));
+            }
+
+            if (_bloom != null && !ShellMode)
+            {
+                _bloom.threshold.Override(Mathf.Lerp(PlayBloomThreshold, 0.8f, glow));
+                _bloom.intensity.Override(Mathf.Lerp(PlayBloomIntensity, 0.62f, glow));
+                _bloom.tint.Override(Color.Lerp(Color.white, new Color(1f, 0.93f, 0.82f), glow));
+            }
+
+            if (_lut != null && _lut.active)
+            {
+                _lut.contribution.Override(MoodContribution * (1f - 0.75f * h)); // the cool shadow split stays outside
+            }
+
+            // Lamps a touch stronger at the warm end of the slider (BlockAtlas multiplies the baked block light by it).
+            Shader.SetGlobalFloat(CozyLightId, ShellMode ? 1f : 1f + 0.2f * glow + 0.1f * h);
+            ApplyExposure();
+        }
+
+        /// <summary>The cosiness slider, live from the settings (#2820).</summary>
+        public void SetCosiness(float cosiness01)
+        {
+            Cosiness = Mathf.Clamp01(cosiness01);
+            ApplyGradeNow();
+        }
+
+        /// <summary>Per-frame cozy context from <see cref="Sky"/>: how cosy this place may get (0 = a guardian site … 1 =
+        /// home), the eased home blend (#2813) and the evening share of the cabin light (#2815). Applied with the next
+        /// <see cref="ApplyGrade"/>, which Sky calls right after.</summary>
+        public void SetCozyContext(float place01, float home01, float evening01)
+        {
+            _cozyPlace = Mathf.Clamp01(place01);
+            _home = Mathf.Clamp01(home01);
+            _evening = Mathf.Clamp01(evening01);
+        }
+
+        /// <summary>Resting in a bed (#2823): 0 = awake … 1 = eyes closing — warmer, a little dimmer, a softer frame.
+        /// The bed eases it; the grade applies it at once.</summary>
+        public void SetRest(float level01)
+        {
+            level01 = Mathf.Clamp01(level01);
+            if (Mathf.Approximately(level01, _rest))
+            {
+                return;
+            }
+
+            _rest = level01;
+            ApplyGradeNow();
         }
 
         /// <summary>Maps the 1.0-neutral brightness setting to a post-exposure stop offset. 1.0 keeps the tuned
         /// neutral (+0.08 EV); above/below lifts/drops the whole graded frame uniformly.</summary>
         private static float ExposureFor(float brightness) => 0.08f + (brightness - 1f) * 1.2f;
+
+        /// <summary>The cozy grade never darkens the frame (#2820): a warmer white balance takes some blue — and with it
+        /// some luminance — so the exposure gives that back; the rest look (#2823) is the one deliberate dimming.</summary>
+        private float CozyExposure()
+        {
+            float k = CozyAmount;
+            float warm = Smooth01((k - 0.15f) / 0.6f);
+            return 0.05f * warm + 0.04f * HomeAmount - 0.6f * _rest;
+        }
 
         private float _adaptationEv; // #2395: the eye adaptation's offset (AtmosphereProbe), on top of the slider
 
@@ -345,7 +495,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_grade != null)
             {
-                _grade.postExposure.Override(ExposureFor(Brightness) + _adaptationEv);
+                _grade.postExposure.Override(ExposureFor(Brightness) + _adaptationEv + CozyExposure());
             }
         }
 
@@ -380,7 +530,7 @@ namespace BlocksBeyondTheStars.Client
                 _lut.texture.Override(tex);
             }
 
-            _lut.contribution.Override(MoodContribution);
+            _lut.contribution.Override(MoodContribution * (1f - 0.75f * HomeAmount)); // #2813: the cool split stays outside
             if (!_lut.active) { _lut.active = true; }
         }
 

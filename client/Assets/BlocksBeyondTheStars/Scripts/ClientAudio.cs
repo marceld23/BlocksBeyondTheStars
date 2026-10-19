@@ -15,7 +15,8 @@ namespace BlocksBeyondTheStars.Client
     /// them on gameplay events; falls back to a few code-synth tones where no recording exists
     /// (craft / reject / scan). Other components reach it through the static <see cref="Instance"/>
     /// — <see cref="Cue"/> for 2D one-shots, <see cref="At"/> for 3D positional sounds (creatures),
-    /// <see cref="SetAmbience"/> for the looping weather bed. Respects master/SFX volumes from
+    /// <see cref="SetAmbience"/> for the looping weather bed (heard through a roof, #2805), with a night layer over it
+    /// after dusk (#2825, <see cref="NightAmbience"/>). Respects master/SFX volumes from
     /// <see cref="ClientSettings"/>. Recorded SFX are ElevenLabs-generated (see NOTICES / SOUND_DESIGN).
     /// </summary>
     public sealed class ClientAudio : MonoBehaviour
@@ -28,7 +29,8 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly Dictionary<string, AudioClip> _clips = new Dictionary<string, AudioClip>();
         private AudioSource _src;       // 2D one-shots
-        private AudioSource _ambience;  // looping weather bed
+        private MuffledBed _bed;        // looping weather/biome/cave bed — heard through a roof since #2805
+        private MuffledBed _night;      // the night layer on top of it (#2825)
         private AudioSource _hum;       // looping ship interior hum (procedural)
         private AudioSource _fluid;     // looping lava/water bed when near a fluid
         private AudioSource _drill;     // looping drill while mining
@@ -56,6 +58,7 @@ namespace BlocksBeyondTheStars.Client
         private string _ambienceId = string.Empty;
         private string _envBedId = "wind_light"; // last weather/biome bed; cave bed overrides it underground
         private string _fluidId = string.Empty;
+        private float _fluidGain = FluidBedLevel; // the fluid bed's share of the SFX level (a campfire is quieter, #2806)
         private float _fluidScanTimer;
         private float _caveScanTimer;
         private float _drillRefresh = -10f;
@@ -79,6 +82,30 @@ namespace BlocksBeyondTheStars.Client
         private const float DuckFadeSeconds = 1f;
         private float _duck = 1f;
         private float _duckTarget = 1f;
+
+        // #2805: thunder heard through a roof rolls in muffled at this share of its open-air level.
+        private const float ThunderRoofLevel = 0.5f;
+
+        // The fluid bed's level (water/lava/fire/fence), and a lit campfire's — a little quieter than a spreading fire (#2806).
+        private const float FluidBedLevel = 0.4f;
+        private const float CampfireLevel = 0.28f;
+
+        private const string CaveBed = "amb_cave";
+
+        // #2825: the night layer — see NightAmbience for what plays where. It sits under the day bed (which eases to
+        // NightDayBedLevel while a night loop plays), re-reads the surroundings every HabitatScanSeconds at night only, and
+        // changes its loop only after NightPickConfirmScans scans in a row agree.
+        private const float NightLayerLevel = 0.2f;
+        private const float NightDayBedLevel = 0.7f;
+        private const float NightFadePerSecond = 0.1f;
+        private const float HabitatScanSeconds = 2f;
+        private const int HabitatReach = 12;
+        private const int NightPickConfirmScans = 3;
+        private string _nightPick = NightAmbience.None;
+        private string _nightBiome;
+        private string _nightCandidate;
+        private int _nightPending;
+        private float _habitatScanTimer;
 
         private void Awake()
         {
@@ -107,11 +134,10 @@ namespace BlocksBeyondTheStars.Client
             _src.playOnAwake = false;
             _src.spatialBlend = 0f;
 
-            _ambience = gameObject.AddComponent<AudioSource>();
-            _ambience.playOnAwake = false;
-            _ambience.loop = true;
-            _ambience.spatialBlend = 0f;
-            _ambience.volume = 0f;
+            // The bed and the night layer live on their own child objects, each with its own low-pass (#2805/#2825): a filter
+            // here would muffle every source on this object.
+            _bed = new MuffledBed(transform, "ambience_bed");
+            _night = new MuffledBed(transform, "night_bed");
 
             _hum = gameObject.AddComponent<AudioSource>();
             _hum.playOnAwake = true;
@@ -240,28 +266,39 @@ namespace BlocksBeyondTheStars.Client
                 _hum.volume = Mathf.MoveTowards(_hum.volume, target, Time.deltaTime * 0.6f);
             }
 
-            // Weather bed fades to a level scaled by weather intensity; rain/storm beds are fully
-            // silenced when the player is under a roof or in a cave (no weather effects underground).
-            if (_ambience != null && _ambience.clip != null)
+            // Where the planet's weather and nights can be heard: on its surface (not in space, the flight view or on a
+            // station), through a roof when the sky is covered (#2805: the ship, a house, a cave).
+            bool onPlanet = OnPlanet();
+            bool roofed = onPlanet && !Game.ExposedToSky;
+            float night = onPlanet ? NightAmbience.NightLevel(Game.LocalTimeOfDay) : 0f;
+            bool weatherBed = IsWeatherBed(_ambienceId);
+
+            // Weather bed fades to a level scaled by weather intensity. #2805: under any roof a weather bed keeps playing at
+            // about a third, muffled — rain on the hull instead of the silence it used to fall to. Away from the planet's sky
+            // altogether it still falls silent. The biome and cave beds are left as they are; a biome bed eases down a little
+            // while a night loop plays over it (#2825).
+            if (_bed != null && _bed.Clip != null)
             {
                 // The smoothed intensity (#900), so a bed swells and fades with the episode instead of
                 // jumping at every 5 s broadcast.
                 float intensity = Game != null ? Game.WeatherIntensity : (Game?.Environment?.Intensity ?? 0.4f);
                 float target = bed * Mathf.Clamp(0.2f + 0.45f * intensity, 0.18f, 0.6f);
-                bool weatherBed = _ambienceId is "rain_loop" or "storm_loop" or "sandstorm_loop" or "ash_loop"
-                    or "wind_strong" or "gale_loop" or "blizzard_loop" or "drizzle_loop" or "acid_hiss"
-                    or "ion_crackle" or "spore_amb" or "meteor_streak" or "toxic_storm_loop";
-                if (weatherBed && Game != null && !Game.ExposedToSky)
+                if (weatherBed && Game != null && !Game.ExposedToSky && !onPlanet)
                 {
                     target = 0f;
                 }
+                else if (!weatherBed && _ambienceId != CaveBed && _nightPick.Length > 0)
+                {
+                    target *= Mathf.Lerp(1f, NightDayBedLevel, night);
+                }
 
-                _ambience.volume = Mathf.MoveTowards(_ambience.volume, target, Time.deltaTime * 0.8f);
+                _bed.Tick(target, 0.8f, weatherBed && roofed, _submerged, Time.deltaTime);
             }
 
-            // Occasional thunder during a rain thunderstorm (only with open sky overhead) — and in an acid one (#2063/#2064).
-            if (Game?.Environment != null && Game.Environment.Weather is "storm" or "toxic_storm"
-                && Game.Environment.Precipitation is "rain" or "drizzle" or "acid" && Game.ExposedToSky)
+            // Occasional thunder during a rain thunderstorm — and in an acid one (#2063/#2064). #2805: under a roof it rolls
+            // in muffled and softer instead of not at all.
+            if (onPlanet && Game.Environment.Weather is "storm" or "toxic_storm"
+                && Game.Environment.Precipitation is "rain" or "drizzle" or "acid")
             {
                 _thunderTimer -= Time.deltaTime;
                 if (_thunderTimer <= 0f)
@@ -273,6 +310,7 @@ namespace BlocksBeyondTheStars.Client
                     float distance = (float)_rng.NextDouble();
                     _thunderDelay = 0.1f + distance * 5.8f;
                     _pendingThunder = distance < 0.25f ? "thunder_2" : distance < 0.7f ? "thunder_1" : "thunder_3";
+                    Preload(_pendingThunder); // the muffled take is baked from the samples, which must be loaded by then
                 }
             }
 
@@ -281,7 +319,16 @@ namespace BlocksBeyondTheStars.Client
                 _thunderDelay -= Time.deltaTime;
                 if (_thunderDelay <= 0f)
                 {
-                    Cue(_pendingThunder, _duck); // weather: ducked with the beds (#2495)
+                    // weather: ducked with the beds (#2495); through a roof muffled and softer (#2805)
+                    if (roofed)
+                    {
+                        CueThroughRoof(_pendingThunder, _duck * ThunderRoofLevel);
+                    }
+                    else
+                    {
+                        Cue(_pendingThunder, _duck);
+                    }
+
                     _pendingThunder = null;
                 }
             }
@@ -362,8 +409,145 @@ namespace BlocksBeyondTheStars.Client
 
             if (_fluid != null && _fluid.clip != null)
             {
-                _fluid.volume = Mathf.MoveTowards(_fluid.volume, _fluidId.Length == 0 ? 0f : bed * 0.4f, Time.deltaTime * 0.8f);
+                _fluid.volume = Mathf.MoveTowards(_fluid.volume, _fluidId.Length == 0 ? 0f : bed * _fluidGain, Time.deltaTime * 0.8f);
             }
+
+            // #2825: the night layer — crickets, frogs, a night wind, a hum or chimes, picked from what this world and spot
+            // have (NightAmbience). In at dusk, out at dawn; only while no weather bed plays (rain and storms take over);
+            // through a roof like the weather bed. A loop change fades the old one out before the new one fades in.
+            _habitatScanTimer -= Time.deltaTime;
+            if (_habitatScanTimer <= 0f)
+            {
+                _habitatScanTimer = HabitatScanSeconds;
+                if (night > 0f)
+                {
+                    UpdateNightPick();
+                }
+            }
+
+            if (_night != null)
+            {
+                var want = _nightPick.Length > 0 && _clips.TryGetValue(_nightPick, out var nightClip) ? nightClip : null;
+                if (_night.Clip != want && _night.Level <= 0f)
+                {
+                    _night.SetClip(want);
+                }
+
+                bool sounding = want != null && _night.Clip == want && onPlanet && !weatherBed;
+                _night.Tick(sounding ? bed * NightLayerLevel * night : 0f, NightFadePerSecond, roofed, _submerged, Time.deltaTime);
+            }
+        }
+
+        /// <summary>#2805/#2825: the player is on a planet's surface world, where its weather and its nights are heard — not
+        /// in space, in the flight view, on a spacewalk, above the atmosphere line or aboard a station.</summary>
+        private bool OnPlanet()
+            => Game != null && Game.Environment != null && !Game.InSpace && !Game.SpaceViewActive && !Game.InEva
+               && !Game.OnFootInSpace && string.IsNullOrEmpty(Game.StationName);
+
+        /// <summary>The beds that ARE the weather (not the planet's own biome bed): rain, storm, wind, sand, ash, the events.</summary>
+        private static bool IsWeatherBed(string id)
+            => id is "rain_loop" or "storm_loop" or "sandstorm_loop" or "ash_loop"
+                or "wind_strong" or "gale_loop" or "blizzard_loop" or "drizzle_loop" or "acid_hiss"
+                or "ion_crackle" or "spore_amb" or "meteor_streak" or "toxic_storm_loop";
+
+        /// <summary>#2825: re-reads the night loop from the world's data and a sparse scan of the surroundings. While a loop is
+        /// audible a change waits for <see cref="NightPickConfirmScans"/> scans in a row (~6 s) — walking along a forest edge
+        /// or past a pond must not flip the layer back and forth; the first pick of a night is taken at once.</summary>
+        private void UpdateNightPick()
+        {
+            string pick = NightAmbience.None;
+            if (OnPlanet() && Game.World != null && Game.Content != null)
+            {
+                var planet = Game.Content.GetPlanet(Game.Environment.Biome ?? string.Empty);
+                pick = NightAmbience.Pick(planet, Game.Environment, ScanSurroundings());
+            }
+
+            if (pick == _nightPick)
+            {
+                _nightCandidate = null;
+                _nightPending = 0;
+                return;
+            }
+
+            if (_night != null && _night.Level > 0f)
+            {
+                if (pick != _nightCandidate)
+                {
+                    _nightCandidate = pick;
+                    _nightPending = 1;
+                    return;
+                }
+
+                if (++_nightPending < NightPickConfirmScans)
+                {
+                    return;
+                }
+            }
+
+            _nightPick = pick;
+            _nightCandidate = null;
+            _nightPending = 0;
+        }
+
+        /// <summary>#2825: what grows and flows around the player — every second cell of a 25 × 9 × 25 block box (845 reads,
+        /// every <see cref="HabitatScanSeconds"/> and only at night).</summary>
+        private NightAmbience.Surroundings ScanSurroundings()
+        {
+            var p = Game.PlayerPosition;
+            int px = Mathf.FloorToInt(p.x), py = Mathf.FloorToInt(p.y), pz = Mathf.FloorToInt(p.z);
+            int vegetation = 0;
+            bool water = false, lava = false;
+            for (int dx = -HabitatReach; dx <= HabitatReach; dx += 2)
+            {
+                for (int dy = -4; dy <= 4; dy += 2)
+                {
+                    for (int dz = -HabitatReach; dz <= HabitatReach; dz += 2)
+                    {
+                        var def = Game.Content.BlockById(Game.World.GetBlock(px + dx, py + dy, pz + dz));
+                        if (def == null)
+                        {
+                            continue;
+                        }
+
+                        if (NightAmbience.IsVegetation(def.Key, def.Category))
+                        {
+                            vegetation++;
+                        }
+                        else if (NightAmbience.IsWater(def.Key))
+                        {
+                            water = true;
+                        }
+                        else if (NightAmbience.IsLava(def.Key))
+                        {
+                            lava = true;
+                        }
+                    }
+                }
+            }
+
+            return new NightAmbience.Surroundings(vegetation, water, lava);
+        }
+
+        /// <summary>Asks a clip's samples to load ahead of a cue that needs them (a browser fetches audio on demand).</summary>
+        private void Preload(string id)
+        {
+            if (_clips.TryGetValue(id, out var clip) && clip != null && clip.loadState == AudioDataLoadState.Unloaded)
+            {
+                clip.LoadAudioData();
+            }
+        }
+
+        /// <summary>#2805: a 2D one-shot heard through a roof — the underwater bake (<see cref="SampleKit.Muffle"/>) when the
+        /// clip's samples can be read, else the dry clip; the caller lowers the level either way.</summary>
+        private void CueThroughRoof(string id, float vol)
+        {
+            if (!_clips.TryGetValue(id, out var clip) || clip == null)
+            {
+                return;
+            }
+
+            bool readable = clip.loadType == AudioClipLoadType.DecompressOnLoad && clip.loadState == AudioDataLoadState.Loaded;
+            Play2D(readable ? SampleKit.Muffle(clip) : clip, vol);
         }
 
         /// <summary>Called by the player controller each frame it is actively drilling; keeps the drill loop alive.</summary>
@@ -462,6 +646,7 @@ namespace BlocksBeyondTheStars.Client
             int px = Mathf.FloorToInt(p.x), py = Mathf.FloorToInt(p.y), pz = Mathf.FloorToInt(p.z);
             string found = string.Empty;   // fire / lava take precedence and short-circuit the scan
             string waterBed = string.Empty; // best water bed seen so far (a waterfall outranks calm water)
+            bool campfire = false;          // a lit campfire nearby (#2806) — outranks water, not a spreading fire or lava
             bool fence = false;             // energy fence/gate nearby — soft hum bed when no fluid plays
             bool stop = false;
             for (int dx = -3; dx <= 3 && !stop; dx++)
@@ -473,15 +658,26 @@ namespace BlocksBeyondTheStars.Client
                         string k = Game.Content.BlockById(Game.World.GetBlock(px + dx, py + dy, pz + dz))?.Key ?? string.Empty;
                         if (k == "fire") { found = "fire_crackle"; stop = true; } // a fire nearby crackles (item 30)
                         else if (k.Contains("lava")) { found = LavaBedFor(px + dx, py + dy, pz + dz); stop = true; }
+                        else if (k == "campfire") { campfire = true; } // lit only — the cold one is "campfire_off"
                         else if (k.Contains("water"))
                         {
-                            string bed = WaterBedFor(px + dx, py + dy, pz + dz);
-                            if (WaterRank(bed) > WaterRank(waterBed)) waterBed = bed;
-                            if (bed == "water_fall") stop = true; // loudest water — no need to scan further
+                            // The loudest water (a waterfall) needs no further classifying; the scan goes on for a
+                            // campfire, which outranks it (#2806) — no early stop, so the result never hangs on the
+                            // order the cells are read in.
+                            if (waterBed != "water_fall")
+                            {
+                                string bed = WaterBedFor(px + dx, py + dy, pz + dz);
+                                if (WaterRank(bed) > WaterRank(waterBed)) waterBed = bed;
+                            }
                         }
                         else if (k == "energy_fence" || k == "energy_gate") { fence = true; }
                     }
                 }
+            }
+
+            if (found.Length == 0 && campfire)
+            {
+                found = "fire_crackle"; // a campfire you sit at crackles over the brook beside it, a little softer (#2806)
             }
 
             if (found.Length == 0 && waterBed.Length == 0 && fence)
@@ -489,6 +685,7 @@ namespace BlocksBeyondTheStars.Client
                 found = "energy_fence_hum"; // quietest bed — any fluid in range outranks it
             }
 
+            _fluidGain = found == "fire_crackle" && campfire && !stop ? CampfireLevel : FluidBedLevel;
             SetFluid(found.Length == 0 ? waterBed : found);
         }
 
@@ -712,15 +909,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Switches the looping weather/ambience bed (crossfades via the volume in Update).</summary>
         public void SetAmbience(string id)
         {
-            if (_ambience == null || id == _ambienceId || !_clips.TryGetValue(id, out var clip))
+            if (_bed == null || id == _ambienceId || !_clips.TryGetValue(id, out var clip))
             {
                 return;
             }
 
             _ambienceId = id;
-            _ambience.clip = clip;
-            _ambience.volume = 0f;
-            _ambience.Play();
+            _bed.SetClip(clip); // starts silent; Update fades it up (and plays it)
         }
 
         private void OnEnvironment(WorldEnvironment e)
@@ -752,15 +947,26 @@ namespace BlocksBeyondTheStars.Client
                 },
             };
             RefreshAmbience();
+
+            // #2825: another world — its night is its own; the old loop fades out and the next scan picks afresh.
+            if (e.Biome != _nightBiome)
+            {
+                _nightBiome = e.Biome;
+                _nightPick = NightAmbience.None;
+                _nightCandidate = null;
+                _nightPending = 0;
+                _habitatScanTimer = 0f;
+            }
         }
 
         /// <summary>Chooses the active ambience bed: the cave bed when the player is underground/enclosed on a
-        /// planet (item 21 — cave echo), otherwise the weather/biome bed from the last environment update.</summary>
+        /// planet (item 21 — cave echo), otherwise the weather/biome bed from the last environment update. Bad weather
+        /// outside wins over the cave bed (#2805): the storm is heard through the rock or the roof, muffled.</summary>
         private void RefreshAmbience()
         {
             bool underground = Game != null && Game.Environment != null && !Game.ExposedToSky
                 && !Game.Aboard && !Game.InSpace;
-            SetAmbience(underground ? "amb_cave" : _envBedId);
+            SetAmbience(underground && !IsWeatherBed(_envBedId) ? CaveBed : _envBedId);
         }
 
         // The planet's profession key (PlanetType.Key) doubles as the ambience key. New world types (item 21)
@@ -998,6 +1204,9 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.PlayerStateUpdated -= OnPlayerHealth;
                 Game.Network.WorldEnvironmentReceived -= OnEnvironment;
             }
+
+            _bed?.Dispose(); // the browser's baked muffled copies (#2805) — code-created clips are never collected
+            _night?.Dispose();
         }
 
         /// <summary>Generates a short decaying sine tone as a fallback <see cref="AudioClip"/>.</summary>

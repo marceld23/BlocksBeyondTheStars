@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using Unity.Collections;
 using UnityEngine;
-using UnityEngine.Rendering.Universal;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -100,36 +99,6 @@ namespace BlocksBeyondTheStars.Client
         /// 0 keeps the live view camera's.</summary>
         public float FieldOfView { get; set; }
 
-        /// <summary><c>Camera.CopyFrom</c> copies the Camera only — the URP data beside it (post-processing, the
-        /// depth + opaque copies, the renderer) stays at the clone's defaults, so every clip rendered without the
-        /// post stack and with the heat-haze quad re-drawing the frame from an opaque texture that did not exist (a
-        /// black panel over every hot world, #2405). Mirror the live camera's data and force the two copies on:
-        /// the clone holds no request of its own.</summary>
-        private static void SyncUrpCamera(Camera source, Camera clone, int rendererIndex)
-        {
-            var src = source.GetUniversalAdditionalCameraData();
-            var dst = clone.GetUniversalAdditionalCameraData();
-            if (src == null || dst == null)
-            {
-                return;
-            }
-
-            dst.renderPostProcessing = src.renderPostProcessing;
-            dst.antialiasing = src.antialiasing;
-            dst.antialiasingQuality = src.antialiasingQuality;
-            dst.renderShadows = src.renderShadows;
-            dst.dithering = src.dithering;
-            dst.stopNaN = src.stopNaN;
-            dst.volumeLayerMask = src.volumeLayerMask;
-            dst.volumeTrigger = src.volumeTrigger;
-            dst.requiresColorOption = CameraOverrideOption.On;
-            dst.requiresDepthOption = CameraOverrideOption.On;
-            if (rendererIndex >= 0)
-            {
-                dst.SetRenderer(rendererIndex);
-            }
-        }
-
         /// <summary>Write one video frame (PNG) and pull one frame of audio. Call once per rendered frame,
         /// after <c>yield return new WaitForEndOfFrame()</c> so the pipeline has finished the frame.</summary>
         public void CaptureFrame() => CaptureFrame(false, default, default);
@@ -155,7 +124,7 @@ namespace BlocksBeyondTheStars.Client
                     _cam.CopyFrom(_hudFreeSource); // FOV, clip planes, HUD-excluded culling mask
                     _cam.enabled = false;
                     _cam.targetTexture = _rt;
-                    SyncUrpCamera(_hudFreeSource, _cam, RendererIndex);
+                    UrpCameraClone.Sync(_hudFreeSource, _cam, RendererIndex); // CopyFrom skips the URP data (#2405)
                     if (FieldOfView > 0f)
                     {
                         _cam.fieldOfView = FieldOfView;

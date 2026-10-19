@@ -565,7 +565,12 @@ public sealed partial class GameServer
     /// light), which is why the Hammerhead's bridge was lit and its rear compartments were not (#776).
     /// Station cells are the ship's room anchors (the accent pass above keys off the same list), so this
     /// covers every authored layout, the code-box starter hull and any ship a player builds in the editor,
-    /// without touching the hand-tuned layout JSON. Only ever fills AIR: hull, cargo and stations stay put.</summary>
+    /// without touching the hand-tuned layout JSON. Only ever fills AIR: hull, cargo and stations stay put.
+    /// #2816: in the living rooms (<see cref="IsWarmRoom"/>) the same lamp is dyed <see cref="WarmLampTint"/> — a dye on a
+    /// light source recolours both its face and its light (#1126) — so it reads as a warm-white lamp; the working rooms
+    /// keep the cool white. (A hanging strip-light cube read as a brown block from below.) The pass is part of the
+    /// rebuilt baseline, so an existing ship picks the warm lamps up on its next build too — and a lamp the owner mined
+    /// or replaced stays as they left it (their edit is re-applied).</summary>
     private void PlaceInteriorLights(SpaceStructure s)
     {
         if (_content.GetBlock("light_white") is not { } lamp)
@@ -575,7 +580,7 @@ public sealed partial class GameServer
 
         const int MaxRoomHeight = 8; // bounds the ceiling scan on an open-topped or malformed hull
 
-        foreach (var (_, cell) in s.StationCells)
+        foreach (var (type, cell) in s.StationCells)
         {
             // Scan up to this room's ceiling and hang the lamp in the air cell right below it. Scanning beats
             // using the structure height: it stays correct under a low wing, a raised canopy or a second deck.
@@ -593,9 +598,16 @@ public sealed partial class GameServer
                 continue;
             }
 
-            s.Set(lampCell, lamp.NumericId);
+            s.Set(lampCell, lamp.NumericId, IsWarmRoom(type) ? WarmLampTint : 0, 0, 0);
         }
     }
+
+    /// <summary>#2816: the rooms a crew lives in — quarters, medbay, workshop, cargo — are lit warm; the cockpit and the
+    /// console stay in the cool tech light of a working room (room identity, docs/developer/ART_BIBLE.md).</summary>
+    internal static bool IsWarmRoom(string station) => station is "quarters" or "medbay" or "workshop" or "cargo";
+
+    /// <summary>#2816: the warm-white dye of a living room's ceiling lamp — the palette's warm white swatch (#2826).</summary>
+    internal const int WarmLampTint = 0xFFD8A8;
 
     /// <summary>Re-applies the player's persisted hull edits (item 20 S4 durable save) on top of the
     /// freshly rebuilt ship voxel baseline, so mined-out / built-on cells survive a server restart and

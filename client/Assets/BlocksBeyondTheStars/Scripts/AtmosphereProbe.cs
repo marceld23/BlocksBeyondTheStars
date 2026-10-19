@@ -59,6 +59,11 @@ namespace BlocksBeyondTheStars.Client
         private float _fogFloorTarget;
         private bool _fogFloorValid;
         private float _lampLight;            // 0..1 share of light from fixtures near the player
+
+        /// <summary>0..1: how much fixture light (lamps, torches, campfires) is around the player — the cozy grade's
+        /// "a lit camp or village" cue (#2820).</summary>
+        public float LampLight => _lampLight;
+
         private readonly List<float> _heights = new List<float>(64);
         private float _adaptTarget;
         private readonly System.Random _bubbleRng = new System.Random(2401);

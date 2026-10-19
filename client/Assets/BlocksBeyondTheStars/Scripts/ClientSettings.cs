@@ -249,6 +249,10 @@ namespace BlocksBeyondTheStars.Client
         /// world uniformly (and is tunable per display). 1.0 = neutral; the default sits a touch above neutral so the
         /// ACES-tonemapped scene isn't too dark. Driven into <see cref="UrpScenePost"/>.</summary>
         public float Brightness = 1.15f;
+        /// <summary>Cosiness (#2820), 0..1: warmer colours, softer shadows and contrast, a little more glow — strongest at
+        /// home, gentle outside, nothing where danger is. Colour work only (no gameplay, no cost). 0.5 = the default look;
+        /// 0 = the plain grade. Driven into <see cref="UrpScenePost"/>.</summary>
+        public float Cosiness = 0.5f;
         /// <summary>Screen-space lens flare on the sun + bright emitters (cheap, very sci-fi).</summary>
         public bool LensFlare = true;
         /// <summary>Subtle camera motion blur while flying the ship / driving the speeder (High+ only).</summary>

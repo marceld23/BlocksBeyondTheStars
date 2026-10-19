@@ -227,8 +227,12 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // spots the foliage alpha-clip punches through a canopy (dappled light), instead of the skylight
                 // zeroing them before the shadow map ever gets a say.
                 float sunOpen = saturate(sky * 2.0);
-                float3 col = albedo * (light * (amb + 0.5 * ndl * sunOpen * shadow) + 0.05) * faceAo;
-                col += albedo * (_Sc_Indoor * 0.5 * (1.0 - sky)) * faceAo;
+                // #2814: indoors the fill — and the small flat floor with it — takes the home's colour (warm white by
+                // day, amber in the evening; white on a station and wherever nothing set it).
+                float3 indoorCol = BbtsIndoorColor();
+                float indoorShare = _Sc_Indoor * (1.0 - sky);
+                float3 col = albedo * (light * (amb + 0.5 * ndl * sunOpen * shadow) + 0.05 * lerp(float3(1, 1, 1), indoorCol, saturate(indoorShare))) * faceAo;
+                col += albedo * indoorCol * (indoorShare * 0.5) * faceAo;
 
                 // Night/atmosphere ambient floor: a faint cool fill on open-sky faces, strongest when the sun
                 // light is weak (night/storm) and fading out toward day, so worlds read as dim atmospheric blue
@@ -311,6 +315,12 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                     float veins = smoothstep(0.5, 1.0, 0.5 + 0.5 * sin((lw.x + lw.y) * 0.55 + lt * 1.1) + slab * 0.3);
                     lavaGlow = clamp(1.0 + 0.7 * slab + 0.9 * veins, 0.2, 2.2);
                 }
+                else if (i.mat.a > 0.01 && ((i.skyl.y > 0.5 && i.skyl.y < 1.5) || (i.leaf.x > 2.5 && i.leaf.x < 4.5)))
+                {
+                    // #2822: a glowing plant or mushroom (flora tint, or a cross plant) breathes slowly. Crystals, ores,
+                    // machines and dyed glow blocks are not flora and stay steady.
+                    lavaGlow = BbtsGlowBreath(i.wp);
+                }
                 col += albedo * i.mat.a * (3.0 * lavaGlow); // HDR overdrive: push emitters past white so ACES + bloom give a real glow
 
                 // Placed coloured lights (flood-filled per-vertex, TEXCOORD3): illuminate this surface in
@@ -318,7 +328,8 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // dominant direction (TEXCOORD4) lets us shade them like the sun — N·L diffuse shaping + a
                 // GGX glint + normal-map relief — so lamps sculpt the surface instead of flat-washing
                 // it. A fill floor keeps faces the light wrapped around lit; bright enough to feed the bloom.
-                float3 bl = BbtsBlockLightFlicker(i.bl, i.wp); // #2396: warm fixtures breathe, cold ones stay steady
+                // #2820: the cosiness slider lifts the light islands a little at its warm end.
+                float3 bl = BbtsBlockLightFlicker(i.bl, i.wp) * BbtsCozyLightGain(); // #2396: warm fixtures breathe, cold ones stay steady
                 float blLen = length(i.blDir);
                 if (blLen > 0.01)
                 {
@@ -505,6 +516,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             float4 _Sc_LampDir;   // headlamp: xyz forward dir, w cone cos
             fixed4 _Sc_LampColor; // headlamp: rgb colour*intensity, a = enabled
             float _Sc_Indoor;     // ship-interior fill (0..1): lights skylight-occluded cabin faces
+            fixed4 _Sc_IndoorColor; // #2814: the fill's colour (a > 0.5 = set)
             fixed4 _Sc_FloraTint; // planet flora base hue (rgb); flora faces are desaturated + re-tinted to it
             float _LeafCutoff;    // alpha-test threshold for cutout foliage (leaf tiles carry a baked alpha mask)
 
@@ -658,7 +670,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
                 // Ship interior fill: a neutral, day/night-independent fill on skylight-occluded faces only
                 // (so the cabin is lit but the sunlit outdoors seen through windows is untouched).
-                col += albedo * (_Sc_Indoor * 0.5 * (1.0 - sky)) * faceAo;
+                col += albedo * (_Sc_IndoorColor.a > 0.5 ? _Sc_IndoorColor.rgb : fixed3(1, 1, 1)) * (_Sc_Indoor * 0.5 * (1.0 - sky)) * faceAo;
 
                 // Night/atmosphere ambient floor (mirrors the URP path): a faint cool fill on open-sky faces,
                 // strongest when the sun light is weak (night/storm) and fading out toward day, so worlds read as

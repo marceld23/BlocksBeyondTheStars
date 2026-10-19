@@ -31,13 +31,9 @@ namespace BlocksBeyondTheStars.Client
         public static HotbarActionUi Instance { get; private set; }
         public GameBootstrap Game;
 
-        // Mirrors the crafting menu's Dye/Glow swatch palette so both surfaces offer the same colours.
-        private static readonly int[] ColorPalette =
-        {
-            0xE03A3A, 0xE07A2A, 0xE0C020, 0x8FD030, 0x35C04A, 0x2FB0A0,
-            0x2F8FE0, 0x2F4FE0, 0x6A3FE0, 0xB23FE0, 0xE03FA0, 0xE83060,
-            0xFFFFFF, 0xC8D0D8, 0x8A94A0, 0x4A5260, 0x2A3038, 0x12161A,
-        };
+        // The crafting menu's Dye/Glow swatch palette, so both surfaces offer the same colours (#2826: one list instead of
+        // two copies that could drift apart).
+        private static int[] ColorPalette => CraftingTechShipUI.ColorPalette;
 
         // The pickable forms are the shared BuiltInForms.Options (#1975) — the same list the crafting menu and
         // the build editors offer; index 0 = back to a plain cube.
@@ -441,7 +437,8 @@ namespace BlocksBeyondTheStars.Client
                 string.Format(L("ui.hotbar_action.glow_cost"), stack, crystals), () => { _glowMode = true; Rebuild(BuildColour); });
             Highlight(_glowMode ? glowBtn : dyeBtn);
 
-            const int cols = 6;
+            // #2826: seven columns end at x 788, flush with the row of design tiles below, and keep the palette at three rows.
+            const int cols = CraftingTechShipUI.SwatchColumns;
             const float sw = 96f, gap = 14f, x0 = 32f, y0 = 160f;
             for (int i = 0; i < ColorPalette.Length; i++)
             {
@@ -467,7 +464,8 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            float yDesigns = y0 + 3f * (sw + gap) + 10f;
+            int swatchRows = (ColorPalette.Length + cols - 1) / cols;
+            float yDesigns = y0 + swatchRows * (sw + gap) + 10f;
             UiKit.AddText(panel, 32f, yDesigns, 640f, 28f, L("ui.hotbar_action.own_designs"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             yDesigns += 34f;
 

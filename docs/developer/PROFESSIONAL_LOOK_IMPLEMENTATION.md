@@ -57,7 +57,8 @@ in GraphicsSettings Always-Included; every new block was added to the atlas and 
 - **Thruster/transit FX** (WP-13): throttle-scaled exhaust particle stream, pad-dust bursts on other
   players' touchdown/lift-off, and an `engine_nozzle` idle glow so landed ships never look dead.
 - **Ship damage** (WP-14): combat hull-hit sparks; aboard, interior spark bursts below 50% hull and a
-  pulsing red emergency light + `hull_alarm` below 25% (hysteresis at 30%).
+  pulsing red emergency light + `hull_alarm` below 25% (hysteresis at 30%). Since #2807 the light glows steadily
+  under *Reduce flashes* and *Mute alarms* silences the beep.
 - **Build preview + materialize** (WP-15): a validity-tinted (green/red, pulsing) ship-editor placement
   ghost, plus a client-side restamp materialize sweep (rising holo ring + shimmer, keyed off
   `ShipStations` changes) instead of the hull popping in. An empty list ("no ship in this world", e.g.

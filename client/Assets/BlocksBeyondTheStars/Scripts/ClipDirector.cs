@@ -49,6 +49,9 @@ namespace BlocksBeyondTheStars.Client
         private AtmosphereMode _atmoBefore;      // … restored before quitting, switches included
         private bool[] _atmoSwitchesBefore;
         private bool _atmoApplied;
+        private float _cosiness = -1f;           // -cosiness 0..1: capture at that cosiness (#2820); -1 = the player's own
+        private float _cosinessBefore;           // … restored before quitting
+        private bool _cosinessApplied;
         private bool _readbackCheck;             // -clipReadbackCheck: one extra frame through GpuReadback's async path
         private GameBootstrap _boot;             // the run's world (the still cameras read the player and the creatures)
         private PlayerController _pc;
@@ -74,6 +77,7 @@ namespace BlocksBeyondTheStars.Client
             d._clipName = cfg.clipName;
             d._preset = cfg.preset;
             d._atmosphere = cfg.atmosphere;
+            d._cosiness = cfg.cosiness;
             d._readbackCheck = cfg.readbackCheck;
         }
 
@@ -87,12 +91,13 @@ namespace BlocksBeyondTheStars.Client
             public string clipName;
             public string preset;
             public string atmosphere;
+            public float cosiness;
             public bool readbackCheck;
         }
 
         private static bool ClipRequested(out Config cfg)
         {
-            cfg = new Config { lang = "en", seed = DefaultSeed };
+            cfg = new Config { lang = "en", seed = DefaultSeed, cosiness = -1f };
 
             var args = Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length; i++)
@@ -125,6 +130,11 @@ namespace BlocksBeyondTheStars.Client
                 else if (string.Equals(a, "-atmosphere", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
                 {
                     cfg.atmosphere = args[i + 1];
+                }
+                else if (string.Equals(a, "-cosiness", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length
+                         && float.TryParse(args[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cozy))
+                {
+                    cfg.cosiness = Mathf.Clamp01(cozy); // #2820: 0 against 0.5/1 on the same build is the cozy before/after pair
                 }
                 else if (string.Equals(a, "-atmoDebug", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length
                          && float.TryParse(args[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dbg))
@@ -232,6 +242,15 @@ namespace BlocksBeyondTheStars.Client
                 shell.Settings.ApplyAtmosphereMode(atmo);
                 shell.Settings.Apply();
                 Debug.Log($"[Clip] atmosphere={atmo} (restored on exit)");
+            }
+
+            // Capture at a cosiness (#2820) — WorldRig hands it to the post volume when the world builds.
+            if (_cosiness >= 0f)
+            {
+                _cosinessBefore = shell.Settings.Cosiness;
+                _cosinessApplied = true;
+                shell.Settings.Cosiness = _cosiness;
+                Debug.Log($"[Clip] cosiness={_cosiness:F2} (restored on exit)");
             }
 
             ClipSpec clip = ResolveClip();
@@ -1295,7 +1314,7 @@ namespace BlocksBeyondTheStars.Client
         {
             Time.captureFramerate = 0;
             var shell = FindAnyObjectByType<AppShell>();
-            if ((_presetApplied || _atmoApplied) && shell != null && shell.Settings != null)
+            if ((_presetApplied || _atmoApplied || _cosinessApplied) && shell != null && shell.Settings != null)
             {
                 if (_presetApplied)
                 {
@@ -1308,10 +1327,16 @@ namespace BlocksBeyondTheStars.Client
                     shell.Settings.Atmosphere = _atmoBefore;
                     RestoreAtmosphereSwitches(shell.Settings, _atmoSwitchesBefore);
                 }
+
+                if (_cosinessApplied)
+                {
+                    shell.Settings.Cosiness = _cosinessBefore;
+                }
             }
 
             _presetApplied = false;
             _atmoApplied = false;
+            _cosinessApplied = false;
 
             // #2417: the capture world is a throwaway. Stop the bundled server first (its graceful stop waits for the
             // save to finish, so the folder is free), then delete it — the singleplayer list never fills with

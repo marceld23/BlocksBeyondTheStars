@@ -66,7 +66,9 @@ lock's four cues `target_lock`, `target_lock_hostile`, `target_cycle`, `target_l
 2026-10-04), and the glove weapons' five cues `glove_whoosh`, `glove_shock_blast`, `glove_energy_hit`, `glove_charge`,
 `glove_stagger` (#2278, same `gen_sound.py`, 2026-10-04), and the derelict guardian bay's release cue `guardian_bay`
 (#2635, same `gen_sound.py`, 2026-10-15), and the wilderness folk's three work cues `npc_bow_shot` (a hunter's bow),
-`npc_axe_chop` (a woodcutter's axe) and `tree_fall` (a felled tree coming down) (#2647, same `gen_sound.py`, 2026-10-15))
+`npc_axe_chop` (a woodcutter's axe) and `tree_fall` (a felled tree coming down) (#2647, same `gen_sound.py`, 2026-10-15),
+and the night layer's five loops `night_crickets`, `night_frogs`, `night_wind`, `night_hum`, `night_chimes` (#2825, same
+`gen_sound.py`, 2026-10-19))
 are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/developer/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio

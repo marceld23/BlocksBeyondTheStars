@@ -24,6 +24,94 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🛋️ Cozy package 2026-10 — softer contrast, warm light islands, the ship as home, rain on the hull, a cosiness slider — epic #2802 (#2803–#2826), branch feat/cozy-look — ✅ done 2026-10-19 (⚠ playtest open)
+
+Marcel: "how could the game feel more cozy?" — analysis of an outside proposal ("Gemütlichkeit 0–100 %"), then his
+decisions: cosy strong at home and gentle outside through ONE slider (default 50 %), fixes first, everything in one PR,
+no pet aboard. Cosy comes from safety and softness — take the harshness out, put the warmth where the player lives,
+let the outside sound like outside. Rules: [docs/developer/ART_BIBLE.md](docs/developer/ART_BIBLE.md) §6a.
+
+**Fixes first**
+- ✅ #2803 In-world contrast 9–20 instead of 3: `UrpScenePost.ApplyGradeNow` added +6 on top of the biome contrast every
+  frame, so #1457's 6 → 3 only ever reached the menu. Now +3 (`ContrastOffset`).
+- ✅ #2804 Block-light colours skipped sRGB → linear (torch `#FFB847` lit like `#FFDB91`, the cyan strip near white).
+  `ChunkMesher.DisplayLight` converts at the per-vertex bake — hue linearised through a 256-entry table, scaled back to
+  the old luminance (≤ 1.5×) — so the flood's per-channel reach, which the lamps were tuned with, is untouched.
+- ✅ #2810 The menu blur fades in/out over ~0.25 s (the gaussian start/end walk in from 60/120 m; its radius cannot reach 0).
+- ✅ #2811 Reduced effects reaches the post volume live from the pause menu.
+- ✅ #2812 ART_BIBLE: night floor 0.35 (not 0.20), bloom runs on every preset (LDR only catches near-white), §6a cosiness.
+
+**The ship is home**
+- ✅ #2813 `GameBootstrap.AtHome` (aboard your own hull — not on a spacewalk, not as a guest in a friend's ship — or under
+  a roof inside your own base's air, ≤ 96 blocks from its core measured across both world seams) → `Sky._homeBlend`
+  (~1.5 s) → `UrpScenePost.SetCozyContext`: the biome tint/saturation/contrast fade
+  out, `WhiteBalance` warms, `LiftGammaGain` lifts the shadows, the cool SMH lean turns warm, the mood LUT drops to ¼.
+- ✅ #2814 `_Sc_IndoorColor`: the cabin fill (and its flat floor term) warm white by day; stations stay neutral. The
+  transparent shader keeps neutral light on purpose — it has no skylight channel, so a fill there would warm the lake
+  outside the window too.
+- ✅ #2815 Evening light: amber fill + warmer home grade, by the planet's sun when landed and the real clock (18–20 h in,
+  6–8 h out) in the space ship-interior world; the evening fill is a fifth brighter so the cabin never sinks with the night.
+- ✅ #2816 `PlaceInteriorLights`: the ceiling `light_white` over quarters, medbay, workshop and cargo (`IsWarmRoom`) is dyed
+  warm white (`WarmLampTint` `FFD8A8` — a dye on a light source recolours its face and its light, #1126); cockpit and
+  console keep the plain cool white. (The first try hung `strip_light_warm` cubes, which read as brown blocks from below
+  in the capture.) Only flame-coloured light breathes now (`BbtsBlockLightFlicker`: blue ≤ ~10 % of red), so the
+  warm-white electric lamps glow steadily. Part of the rebuilt baseline, so existing ships get the warm lamps on their
+  next build; an owner's edit of the lamp cell is re-applied on top as always. No new block → no id shift, no save bump.
+  Tests: `ShipInteriorLightingTests`.
+- ✅ #2819 Sheltered plants get a ~1 cm indoor draught (`BbtsDraught`) instead of standing frozen.
+
+**Cosiness slider**
+- ✅ #2820 `ClientSettings.Cosiness` (0–100 %, default 50 %, Settings → Graphics under Brightness): softens contrast and
+  lifts shadows from 0 %, warms from 15 %, more glow + lamp gain (`_Sc_CozyLight`) from 50 % — multiplied by
+  `Sky.CozyPlaceTarget` (home 1, lit camp/village 0.8, gentle worlds 0.6, harsh 0.3–0.4, storms ½, a hostile within
+  24 m or Valuma's unease 0). Exposure-compensated, grading only (free on WebGL/Potato). `-cosiness <0..1>` for the clip
+  recorder; `scripts/clip-manifests/cozy-check.json` holds the cabin day/night/storm and outdoor before/after scenes.
+- ✅ #2822 Glowing plants and mushrooms breathe (`BbtsGlowBreath`, ~6 s, a smooth spatial phase); off with Reduce flashes.
+
+**Sound**
+- ✅ #2805 Rain on the hull: under any roof (ship, house, cave) the weather bed plays at a third, muffled — the bed lives on
+  its own child object (`MuffledBed`): a low-pass sweep to 1 kHz on desktop; on WebGL a baked mono, half-rate muffled copy
+  (the 10 weather-bed clips got a WebGL-only *Decompress On Load* importer override so their samples are readable —
+  if a clip still cannot be read it plays dry at 0.2). Bad weather beats the cave bed; thunder plays muffled indoors.
+- ✅ #2806 A lit campfire crackles (0.28 of SFX); fire and lava always beat water in the scan now (the waterfall early-stop
+  made the result order-dependent).
+- ✅ #2825 Night ambience: `NightAmbience.Pick` (Client.Core) chooses by the world's data and a scan around the player, never
+  by name — silence without air/on poisoned or scorched worlds, chimes (crystal flora), hum (fungal/alien flora), wind
+  (frozen/barren/unbreathable), frogs (water + ≥ 12 °C + humid), else crickets; 5 new ElevenLabs loops
+  (`night_{crickets,frogs,wind,hum,chimes}`, prompts in SOUND_DESIGN §23); fades with the sun, only in calm weather,
+  muffled under a roof. Tests: `NightAmbienceTests`.
+- ✅ #2817 Your own ship's hatch hisses shut (the procedural `station_board` airlock, 0.7 s after the slide) when it leads
+  outside (`ShipHatch.OpensToOutside`). Tests: `ShipHatchOutsideTests`.
+
+**Calmer and more alive**
+- ✅ #2807 Reduce flashes softens lightning (overlay 0.6 → 0.15, `LightningFlash` published ×0.25 so the terrain flare
+  follows) and holds flickering FX lights steady (the hull emergency lamp, engine and wormhole light); Mute alarms
+  (now "Mute alarm sirens") also silences the hull alarm.
+- ✅ #2808 `AmbientParticles` rewritten on `AmbientMotes` (Client.Core): outdoor motes only in the open air (a canopy is not
+  a roof), the rate follows `FxKit.Density` live, two colours/drift/size/life per style — fungal spores, ash, frost,
+  petals, seeds, sand, salt … by planet type, falling back to the flora theme. Tests: `AmbientMotesTests`.
+- ✅ #2818 At home, tiny amber-cream motes drift near the lamps (`NearbyLights`: the world light index plus a parked ship's
+  lamps, rebuilt on hull changes); off under Reduced effects.
+- ✅ #2821 `CampfireFx`: sparks (FxKit `Motes`) and a thin smoke column (`Smoke`) over lit campfires within 24 m (6/3/2 by
+  preset), stopped by a block on top, wind-leaning only under open sky.
+- ✅ #2809 Photos carry the post stack: `UrpCameraClone.Sync` (shared with `ClipFrameWriter`) mirrors the URP camera data.
+
+**Rest and home**
+- ✅ #2823 Rest in a bed: E on a bed, a crew bunk or the ship's quarters still sets the home spawn and now lays you down —
+  client-only, the body stays, the camera glides to the pillow and looks up/out (cuts with Camera motion off or Reduced
+  effects), `UrpScenePost.SetRest` + `ClientMusic.BedRestQuiet` ease over 1.5 s, VEGA says one of four good-night lines
+  (VEGA hints setting, kept out of the tips log); move/jump/E gets up; death, teleport, travel, vehicles and cutscenes
+  cancel it. No time skip, no bonus. The bunk prompt now has its own key (`ui.station.block.crew_bunk`).
+- ✅ #2824 At home, a vital that drops below its line beeps once (re-armed when it recovers or you leave); the row blinks.
+- ✅ #2826 The Dye/Glow palette has 20 swatches: amber `FFB050` and warm white `FFD8A8` (7 columns, still 3 rows);
+  `HotbarActionUi` reads `CraftingTechShipUI.ColorPalette` instead of its own copy.
+
+**Open after the merge:** playtest of the whole package (home grade strength, evening amber, lamp colours on every ship,
+mote amounts, rest camera height on a bunk, all the audio levels); the WebGL weather-bed override and muffled bake have
+not run in a browser; the old `night_amb.mp3` is bundled but unused (cut it from the browser download?).
+
+---
+
 ### 📬 Player report 2026-10-19 (Marcel, v2026.10.21) — the hand scanner flickers in the hand — #2798, #2799, #2800, branch fix/held-hand-planes — ✅ done 2026-10-19 (⚠ playtest open)
 
 "The hand scanner's texture flickers in the hand — the skin colour replaces the scanner's blue, depending on the

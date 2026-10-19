@@ -1379,13 +1379,18 @@ namespace BlocksBeyondTheStars.Client
         }
 
         // Colour palette for the always-available Dye/Glow action (swatch grid; 0xRRGGBB): a spread of
-        // vivid hues plus a greyscale row, matching the user's "palette + fine picker" choice.
-        private static readonly int[] ColorPalette =
+        // vivid hues plus a greyscale row, matching the user's "palette + fine picker" choice. The hotbar's colour
+        // menu (HotbarActionUi) offers this same list. #2826: an amber after the orange and a warm white closing the
+        // hues — lamplight colours for a cosy room; seven columns keep the grid at three rows on both surfaces.
+        internal static readonly int[] ColorPalette =
         {
-            0xE03A3A, 0xE07A2A, 0xE0C020, 0x8FD030, 0x35C04A, 0x2FB0A0,
-            0x2F8FE0, 0x2F4FE0, 0x6A3FE0, 0xB23FE0, 0xE03FA0, 0xE83060,
+            0xE03A3A, 0xE07A2A, 0xFFB050, 0xE0C020, 0x8FD030, 0x35C04A, 0x2FB0A0,
+            0x2F8FE0, 0x2F4FE0, 0x6A3FE0, 0xB23FE0, 0xE03FA0, 0xE83060, 0xFFD8A8,
             0xFFFFFF, 0xC8D0D8, 0x8A94A0, 0x4A5260, 0x2A3038, 0x12161A,
         };
+
+        /// <summary>Swatches per row of <see cref="ColorPalette"/> (#2826: 7 × 64 px + gaps = 516 px in the 636 px pane).</summary>
+        internal const int SwatchColumns = 7;
 
         private static Color RgbToColor(int rgb)
             => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
@@ -1556,7 +1561,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A grid of colour swatch buttons; clicking one sends the Dye (or Glow) craft for the source.</summary>
         private float AddSwatchGrid(float y, string src, bool glow)
         {
-            const int cols = 6;
+            const int cols = SwatchColumns;
             const float sw = 64f, gap = 10f;
             bool blocked = glow && Owned("crystal") < 1;
             for (int i = 0; i < ColorPalette.Length; i++)

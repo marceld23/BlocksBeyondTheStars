@@ -1,0 +1,15 @@
+{
+  "clips": [
+    { "name": "cabin_day",        "scene": "cockpit", "lengthSeconds": 2, "fps": 2, "hud": false, "camera": "pan", "yawStart": 150, "yawEnd": 210, "pitchStart": 8, "pitchEnd": 8, "timeOfDay": 0.5,  "weather": "clear" },
+    { "name": "cabin_night",      "scene": "cockpit", "lengthSeconds": 2, "fps": 2, "hud": false, "camera": "pan", "yawStart": 150, "yawEnd": 210, "pitchStart": 8, "pitchEnd": 8, "timeOfDay": 0.0,  "weather": "clear" },
+    { "name": "cabin_storm",      "scene": "cockpit", "lengthSeconds": 2, "fps": 2, "hud": false, "camera": "pan", "yawStart": -20, "yawEnd": 20, "timeOfDay": 0.85, "weather": "storm" },
+    { "name": "plains_noon",      "scene": "surface", "planet": "",        "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "clear" },
+    { "name": "plains_dusk",      "scene": "surface", "planet": "",        "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.75, "weather": "clear" },
+    { "name": "jungle_forest",    "scene": "surface", "planet": "jungle",  "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.45, "weather": "clear", "pose": "forest" },
+    { "name": "desert_noon",      "scene": "surface", "planet": "desert",  "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "clear" },
+    { "name": "ice_snow",         "scene": "surface", "planet": "ice",     "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.5,  "weather": "snow" },
+    { "name": "lava_glow",        "scene": "surface", "planet": "lava",    "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -30, "yawEnd": 30, "timeOfDay": 0.0,  "weather": "clear", "pose": "lava" },
+    { "name": "fungal_night",     "scene": "surface", "planet": "fungal",  "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -35, "yawEnd": 35, "timeOfDay": 0.0,  "weather": "clear" },
+    { "name": "crystal_cave",     "scene": "surface", "planet": "crystal", "lengthSeconds": 3, "fps": 2, "hud": false, "camera": "pan", "yawStart": -40, "yawEnd": 40, "timeOfDay": 0.0,  "weather": "clear", "pose": "cave" }
+  ]
+}

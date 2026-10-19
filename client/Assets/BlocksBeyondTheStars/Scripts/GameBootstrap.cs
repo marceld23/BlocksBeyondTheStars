@@ -3553,6 +3553,64 @@ namespace BlocksBeyondTheStars.Client
         public bool ExposedToSky { get; private set; } = true;
         private float _skyScanTimer;
 
+        /// <summary>Cozy package (#2813): the player is at home — aboard their ship, or under a roof inside the air of a
+        /// base they own (a sealed room of it, or the core's cube with a ceiling overhead). Drives the warm home grade,
+        /// the evening cabin light, the lamplight motes and the once-only warning tones. Refreshed with <see cref="ExposedToSky"/>.</summary>
+        public bool AtHome { get; private set; }
+
+        /// <summary>How far a sealed room may reach from its base core and still count as that base (blocks).</summary>
+        private const float HomeBaseReach = 96f;
+
+        private bool ComputeAtHome()
+        {
+            if (InEva || SpaceViewActive)
+            {
+                return false; // a spacewalk keeps the bond to the ship (Aboard) but is anything but home; the flight view is the void
+            }
+
+            if (Aboard)
+            {
+                // Aboard also counts a friend's parked or docked hull (#2723) — a guest is welcome, but not at home.
+                if (Visiting)
+                {
+                    return false;
+                }
+
+                if (LoadingPlanetType == "ship_interior")
+                {
+                    return true; // our own interior out in space
+                }
+
+                var ship = LandedShipBoundsAt(Mathf.FloorToInt(PlayerPosition.x), Mathf.FloorToInt(PlayerPosition.y), Mathf.FloorToInt(PlayerPosition.z), out _);
+                return ship == null || ship.OwnerId == LocalPlayerId; // no hull model around us = our own sealed extension
+            }
+
+            if (LifeSupportSource != 3 || ExposedToSky || string.IsNullOrEmpty(LocalPlayerId) || Bases == null)
+            {
+                return false;
+            }
+
+            foreach (var b in Bases)
+            {
+                if (b == null || b.OwnerId != LocalPlayerId)
+                {
+                    continue;
+                }
+
+                // The scene position runs on past the world seam (SceneX), the base's position is canonical — compare
+                // across the wrap, like the base-zone reach test does.
+                float dx = (float)WorldConstants.WrapDeltaX((double)(b.X - PlayerPosition.x), Circumference);
+                float dz = (float)WorldConstants.WrapDeltaZ((double)(b.Z - PlayerPosition.z), Circumference);
+                float dy = b.Y - PlayerPosition.y;
+                if (dx * dx + dy * dy + dz * dz <= HomeBaseReach * HomeBaseReach)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private void Update()
         {
             Network?.Poll();
@@ -3568,6 +3626,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _skyScanTimer = 0.2f;
                 ExposedToSky = ComputeExposedToSky();
+                AtHome = ComputeAtHome();
             }
 
             if (Network != null && !_joinSent)

@@ -496,8 +496,11 @@ separate unlock; admins can still disable it through server world rules.
   - **Settings → Comfort → Screen shake** (0–100 %) sets how hard hits, weapon kicks and explosions rattle the view.
     **Settings → Comfort → Camera motion** off still stops all of it.
   - **Settings → Comfort → Reduce flashes** turns big full-screen flashes into a soft wash, for light-sensitive eyes.
-  - **Settings → Comfort → Reduced effects** draws fewer particles and calmer screen effects; some of it applies from
-    the next world start.
+    That includes lightning in a storm (the screen and the landscape only brighten softly), and flickering lamps —
+    the red emergency light of a badly damaged ship, engine and wormhole light — glow steadily instead.
+  - **Settings → Comfort → Reduced effects** draws fewer particles and calmer screen effects; it applies at once,
+    also from the pause menu.
+  - **Mute alarm sirens** (Settings → Audio) silences the Crystal Net sirens and your ship's hull alarm.
   - **Settings → Comfort → Story text: wait for me** (on by default): the texts of story scenes wait until you turn the
     page — **N** (pad **Back**), the **Continue** button, or a tap on the text box. Off, they turn the page by themselves
     after a reading time — and **N** (or a tap on the text) still skips ahead to the next page. Either way, once you have
@@ -516,8 +519,11 @@ The air and the weather leave their mark on the world (atmosphere package, Octob
   dazzles for a moment. Nothing flashes — it is a slow ramp.
 - **Flickering torchlight**: the light of torches, campfires and lanterns breathes; lamps and crystals stay steady.
 - **Wind in leaves and grass**: crowns, plants and grass tufts sway — gently on a calm day, hard in a storm. Plants
-  out of the wind stand still: in caves, indoors and under a roof or a thick canopy. Kelp, seagrass and other plants
-  under water keep swaying with the current. Torches and lanterns never sway.
+  out of the wind — in caves, indoors and under a roof or a thick canopy — only stir in a faint draught. Kelp,
+  seagrass and other plants under water keep swaying with the current. Torches and lanterns never sway.
+- **Glowing plants breathe**: glowing mushrooms and plants slowly brighten and dim, one breath every few seconds, so a
+  glowing forest moves like a slow wave at night. Crystals, ores and machines stay steady; **Reduce flashes** holds
+  the plants steady too.
 - **Wet ground and snow caps**: rain darkens and glosses the open ground and dries again over minutes; snowfall caps
   the upward faces (roofs too) and the snow melts when it warms up.
 - **Rain splashes** where drops meet the ground near you; rain, snow, hail and ash are soft drops and flakes.
@@ -535,6 +541,19 @@ preset also gets), **All** — or **Custom**, which opens one switch per effect.
 light shafts, the emitter light, soft particles, caustics) need the **Medium** preset or better regardless of the
 switch. **Reduce flashes** keeps the torchlight steady; **Reduced effects** makes the eye adaptation gentler. From
 orbit, planets with air show a lit atmosphere rim with a warm terminator and a dark night side.
+
+### Cosiness and home (Settings → Graphics → Cosiness)
+
+Your ship is your home, and it looks like one: when you step aboard — or under a roof inside your own base — the
+picture turns warm over a second or two. The planet's own colours stay outside, shadows soften, and the cabin lights
+glow warm white by day and amber in the evening (on a planet the evening follows the planet's sun, out in space your
+own clock). The living rooms — quarters, medbay, workshop, cargo bay — have warm ceiling lamps; the cockpit keeps its
+cool light. Torches, lanterns and campfires now light in their real amber instead of a pale yellow.
+
+The **Cosiness** slider (0–100 %, default 50 %) sets how strong this is: warmer colours, softer shadows and contrast,
+and towards 100 % a little more glow around lamps. It is strongest at home, gentle outside, and switched off wherever
+danger is close. At 0 % you see the plain picture. It changes only how the game looks, never how it plays, and it
+costs no frame rate.
 
 ### Arcade (minigames)
 - The **DataQubes Arcade** holds 20 built-in minigames. Locked cabinets unlock through data cubes you find
@@ -704,6 +723,15 @@ orbit, planets with air show a lit atmosphere rim with a warm terminator and a d
   where a bed does not fit — a narrow cabin, a corridor niche. It counts as a bed: **E** makes it your home
   spawn and resting nearby mends your health. Your **starter ship's cabin** has one; roomier ships (hammerhead,
   corvette, courier, hauler, thunderbolt, deathblock) carry a real two-cell bed instead.
+- **Resting in a bed.** Press **E** on a bed or a crew bunk, or at your ship's quarters, to lie down — it still
+  becomes your home spawn, as before. Your view settles onto the pillow and looks up and out over the foot of the bed,
+  the screen dims to a warm glow, the music turns quiet and VEGA wishes you a good rest. Resting is just for the
+  cosy moment: time does not pass faster and there is no bonus (a bed still heals you slowly while you are near it).
+  To get up, move, jump or press **E** again (on a gamepad: the left stick, Jump or Use; crouch works too). Dying, a
+  teleport, travelling, or the bed being removed gets you up automatically. With *Camera motion* off or *Reduced
+  effects* on, the view cuts to the pillow instead of gliding there.
+- **Warning tones at home.** Aboard your ship or under the roof of your own base, a vital that runs low beeps
+  once instead of every few seconds; its bar keeps blinking.
 - **Campfire** (hand-crafted from logs + stone): a contained flame that never spreads. It lights the camp
   (like the lantern, it throws real light onto the ground and walls around it — a forge's hearth glows dimly too),
   counters the cold while you stand near it, and is a **cooking station** — with creature meat in your
@@ -1062,8 +1090,8 @@ players.
   **Close** at the bottom; quarters that don't apply to the held item stay visible but dimmed:
   - **Swap** — a grid of all 36 backpack slots; pick one and it exchanges with the hotbar slot (an empty slot
     simply receives the item). *Remove from quick-bar* stows the slot into the first free backpack slot.
-  - **Colour** — only for a dyeable building material: the familiar swatch palette recolours the **whole
-    stack** in place. **Dye** is free; **Glow** turns the stack into coloured light sources and costs **one
+  - **Colour** — only for a dyeable building material: the familiar swatch palette (20 colours, among them a warm
+    white and an amber for cosy room lights) recolours the **whole stack** in place. **Dye** is free; **Glow** turns the stack into coloured light sources and costs **one
     crystal per block** (the button shows the cost, and the panel refuses if you're short). A glowing block
     **shines in its light colour itself** — it blooms like a lamp and stays visible at night and from afar — and
     lights everything around it in that colour (glowing glass takes the colour but stays a frosted pane). **Glass and the
@@ -2861,8 +2889,13 @@ called **stories**:
   build through the afternoon, mist gathers around dawn, and a slow wet/dry season rides on top.
 - **Weather is per position** — a stormy biome can rain while a neighbouring clear one stays sunny,
   mountain tops sit in cloud and snow while the valley below is clear, and **fronts drift across the
-  world**, so you can watch a storm arrive and move on. Weather is hidden + silent in caves/underground.
-  Admins can override time/weather (see §7).
+  world**, so you can watch a storm arrive and move on. Weather is hidden in caves/underground — but not silent:
+  under any roof (aboard your ship, in a house, in a cave) you still hear the rain, the wind and the thunder,
+  muffled and quieter. Admins can override time/weather (see §7).
+- **Nights have their own sound** — after dusk a quiet layer that fits the world: crickets where it is green and
+  mild, frogs by the water on warm humid nights, a soft wind on cold or barren worlds, a low hum among fungus, soft
+  chimes among crystal; lava, ash, poisoned and airless worlds stay silent, and rain or storms take over. A lit
+  campfire crackles, and your ship's hatch closes behind you with a soft pressure hiss.
 - **Beyond rain and snow** — drizzle, sleet, hail, ground fog and whiteout fog, gales, blizzards,
   heatwaves, and the genuinely alien: **acid rain** on toxic worlds, **ember fall** on volcanic ones,
   **spore blooms** in jungles and swamps, and **ion storms** and **meteor showers** that even airless

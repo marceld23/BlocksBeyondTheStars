@@ -124,6 +124,8 @@ namespace BlocksBeyondTheStars.Client
         private const float VitalBarW = 178f;
         private VitalRow[] _vitals;
         private float _lowVitalBeepTimer; // shared low-vitals alarm cadence (#753)
+        private int _homeBeeped;          // #2824: the vitals (one bit per row) that already beeped their one beep at home
+        private bool _vitalsWarnedAtHome; // #2824: whether the last warning pass ran at home (to spot coming home)
 
         // Running effects of the bio lab's preparations (#2202): one small row per effect inside the vitals panel,
         // under its last bar — a dot in the effect's colour, "Speed III", the time left as m:ss, and the catch in
@@ -1493,6 +1495,12 @@ namespace BlocksBeyondTheStars.Client
                     // a fully drawn ship that ignores WASD.
                     prompt = loc.Get("ui.hud.settling");
                 }
+                else if (RestingInBed())
+                {
+                    // #2823: lying in a bed — how to get up, in the glyphs of the device in hand (the stations and the
+                    // aimed blocks around the bed are not what the keys do now).
+                    prompt = ExpandKeyTokens(loc, loc.Get("ui.rest.get_up"));
+                }
                 else if (!string.IsNullOrEmpty(Game.NearbyStation))
                 {
                     // Inside the ship while it floats in space, the cockpit reads as the helm (take it to fly again).
@@ -1541,7 +1549,7 @@ namespace BlocksBeyondTheStars.Client
                     // #2203: the bio lab has a panel of its own, so its prompt names the Interact glyph instead.
                     prompt = Game.AimedStationBlock == BlocksBeyondTheStars.Shared.Bio.BioItems.Lab
                         ? string.Format(loc.Get("ui.bio.prompt"), InteractGlyph(loc))
-                        : ExpandKeyTokens(loc, loc.Get("ui.station.block." + Game.AimedStationBlock));
+                        : ExpandKeyTokens(loc, loc.Get(StationBlockPromptKey(Game.AimedStationBlock)));
                 }
                 else if (Game.AimedCrystalDevice is { } crystalDev)
                 {
@@ -1594,6 +1602,27 @@ namespace BlocksBeyondTheStars.Client
             RefreshTaming(loc);
             RefreshSpeeder(loc);
         }
+
+        /// <summary>#2823: the player lies in a bed (the rig's <see cref="PlayerController.Resting"/>).</summary>
+        private bool RestingInBed()
+        {
+            if (_playerRig == null)
+            {
+                _playerRig = FindAnyObjectByType<PlayerController>(); // the rig WorldRig creates; null in the menu
+            }
+
+            return _playerRig != null && _playerRig.Resting;
+        }
+
+        /// <summary>The prompt key for an aimed station block (#1073). #2823: a bed or a crew bunk lays you down now — their
+        /// prompts say so under keys of their own, so the translation pass picks the new wording up (the crew bunk had no
+        /// prompt key at all and read as the raw key).</summary>
+        private static string StationBlockPromptKey(string block) => block switch
+        {
+            "bed" => "ui.station.block.bed_rest",
+            "crew_bunk" => "ui.station.block.crew_bunk",
+            _ => "ui.station.block." + block,
+        };
 
         /// <summary>The name of the NPC E would talk to right now (#1869), or null. #2613: the very picker PlayerController's
         /// E asks (<see cref="GameBootstrap.NearestTalkableNpc"/>, seam-aware) — the prompt used to measure on its own,
@@ -2019,32 +2048,60 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Blinks any vital row below its warning threshold toward red and drives the shared
         /// low-vitals beep (#753). Runs per frame — the 10 Hz Refresh would step the blink. Oxygen keeps
-        /// its own dedicated 25 % alarm (vignette + beeps), so its row blinks but doesn't double-beep.</summary>
+        /// its own dedicated 25 % alarm (vignette + beeps), so its row blinks but doesn't double-beep.
+        /// At home (#2824: aboard your ship, or under your own base's roof) a vital that drops below its line beeps
+        /// ONCE — home is where you go to recover, not to be nagged every 2.5 s; the row still blinks. It re-arms
+        /// when that vital recovers above its line or when you leave home.</summary>
         private void UpdateLowVitalWarnings(float dt)
         {
-            bool beepWorthy = false;
+            int warnMask = 0; // the beep-worthy vitals below their line, one bit per row
             for (int i = 0; i < _vitals.Length; i++)
             {
                 var v = _vitals[i];
                 if (v.Fill == null || !v.Warn || !v.Go.activeSelf) continue;
                 float k = UiKit.ReducedMotion ? 1f : Mathf.PingPong(Time.time * 2.4f, 1f);
                 v.Fill.color = Color.Lerp(v.BaseColor, VitalWarnRed, 0.35f + 0.65f * k);
-                if (i != 1) beepWorthy = true; // 1 = oxygen — covered by UpdateOxygenAlarm
+                if (i != 1) warnMask |= 1 << i; // 1 = oxygen — covered by UpdateOxygenAlarm
             }
 
-            if (!beepWorthy)
+            bool atHome = Game != null && Game.AtHome;
+            if (atHome && !_vitalsWarnedAtHome)
+            {
+                // Just came home: what was already low has been beeping outside — it does not announce itself again.
+                _homeBeeped = warnMask;
+            }
+
+            _vitalsWarnedAtHome = atHome;
+            _homeBeeped = atHome ? _homeBeeped & warnMask : 0; // a vital back above its line re-arms; leaving home re-arms all
+            if (warnMask == 0)
             {
                 _lowVitalBeepTimer = 0f; // first beep fires immediately when a bar next runs low
                 return;
             }
 
             _lowVitalBeepTimer -= dt;
+            if (atHome)
+            {
+                // The outside cadence keeps counting down meanwhile, so a step out of the door with a bar still low beeps
+                // no sooner than it would have — and then every 2.5 s as ever.
+                if ((warnMask & ~_homeBeeped) != 0)
+                {
+                    _homeBeeped |= warnMask;
+                    _lowVitalBeepTimer = LowVitalBeepSeconds;
+                    ClientAudio.Instance?.Cue("vitals_warning", 0.5f);
+                }
+
+                return;
+            }
+
             if (_lowVitalBeepTimer <= 0f)
             {
-                _lowVitalBeepTimer = 2.5f;
+                _lowVitalBeepTimer = LowVitalBeepSeconds;
                 ClientAudio.Instance?.Cue("vitals_warning", 0.5f);
             }
         }
+
+        private const float LowVitalBeepSeconds = 2.5f; // the low-vitals beep's cadence outside (#753)
 
         // --- hotbar ---
 

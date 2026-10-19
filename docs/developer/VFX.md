@@ -288,6 +288,35 @@ the shader side):
 - **Soft particles** (#2403): `Particle` / `ParticleAlpha` fade within 0.5 m of the depth behind them on Medium+
   (`_Sc_ScreenFx` × `_Sc_SoftParticles`).
 
+### Ambient motes and campfires (cozy package: #2808, #2818, #2821)
+
+- **Ambient motes** (`AmbientParticles`, one additive `ParticleSystem` that follows the camera's position). The rules
+  live in `AmbientMotes` (Client.Core, unit-tested): `ModeFor` picks the mode, `StyleFor` the look.
+  - *Outdoor*: the planet's own motes, only in the open air — never in space, a station, an airless sky, aboard, in a
+    cave or under a roof. The roof test is `GameBootstrap.ExposedToSky`, except that a column holding only flora
+    (leaves, giant mushroom caps) counts as open air, so pollen still drifts under a forest canopy.
+  - *Look per planet type*, else per flora theme: embers (lava, rising), frost (ice and tundra worlds, settling), ash
+    (ashen), toxic green (toxic worlds), pollen (tropical), golden meadow pollen (temperate), gold-and-pink petals
+    (flower fields), seeds (savanna), sand / rust dust / salt / black sand (the deserts), crystal glints, marsh motes
+    (swamp), slow rising soft-violet **spores** (fungal), eerie teal-violet (corrupted). Plain dust only on rocky
+    and highland worlds. Each style has two colours (each mote a random mix), a rate, a steady rise or fall
+    (`velocityOverLifetime`), a size and a lifetime.
+  - *Lamplight* (#2818): at home (`GameBootstrap.AtHome`: aboard, or under a roof in the own base's air) a few very
+    slow, tiny amber-cream motes drift near the fixtures within 9 blocks (full-reach lights only, not the faint
+    natural emitters), born in free air mostly below the lamp. Stepping home fades the outdoor motes out within a
+    second. Off under Reduced effects.
+  - Rates follow `FxKit.Density` live (outdoor 15/s, lamplight 2.5/s at density 1): the preset and Reduced effects
+    apply without a restart.
+- **Campfires** (`CampfireFx`, #2821): every lit `campfire` (never `campfire_off`) within 24 blocks sends up slow
+  ember sparks (`FxKit` `Motes`, ~2.4/s) and a thin, soft smoke column (`Smoke`, ~1.6/s, alpha ≈ 0.2). Density-scaled,
+  thinned with distance, at most 6 fires (Low 3, Potato 2). Sparks and smoke die before the ceiling: their lifetime
+  follows the free headroom over the fire (a block right on top stops both). The smoke leans with the wind under open
+  sky and darkens at night. No particle system or material of its own.
+- **Finding lamps and fires** (`NearbyLights`): no grid walk. The world's light-source index
+  (`ClientWorld.LightSourcesNear`, only the chunk buckets in reach) plus the lamps of the parked ships, which are
+  objects outside the world grid (`LandedShipView`) — a ship's lamp list (`ShipMeshBuilder.LightSources`) is built once
+  per hull change. A lit campfire is a light, a cold one is not, so the index finds exactly the burning ones.
+
 ### Multiplayer (#2158)
 
 The client mirrors its own tool actions as a cosmetic **`FxIntent`** (tag 278):
@@ -325,12 +354,20 @@ Successful gadget uses broadcast `ActionFx` with `Outcome = true` to everyone in
 *Reduced effects* halves the density and drops the optional layers (`FxKit.Rich`).
 
 Emitter caps per kind are in `FxKit.BaseBudget`. Full breaks are limited to 6 per frame. The space dust is 900 quads at High, scaled down with density.
+The ambient motes (15/s outdoors, 2.5/s lamplight, 160 at most) and the campfires (6 fires; Low 3, Potato 2) scale
+with the same density.
 
 ## Accessibility
 
 - **Screen shake** (0–100 %, default 70 %) scales all trauma and kicks. *Camera motion* off silences them. Both sit
   in the Comfort section since #2518 (they were under Controls; the settings keys did not change).
 - **Reduce flashes** follows XAG 118 / WCAG 2.3.1. It clamps the full-screen flashes: damage, death, ship destroyed, the hyperjump flash, the photo shutter, the flight hit flash and the big explosion and blast flashes.
+  Since #2807 also the storm lightning: the screen wash peaks at 0.15 instead of 0.6, the bolt streak at half
+  brightness, and `WeatherFx.LightningFlash` is published already damped (× 0.25), so the Sky's terrain flare follows
+  without a switch of its own. The hull emergency light (`ShipDamageView`, below 25 % hull) glows steadily instead of
+  pulsing, and every flickering FX light (`FxLights` `flicker`: the emergency lamp, the engine light, the wormhole) holds
+  steady. Nothing in the effects pulses faster than 3 Hz anyway (the emergency pulse is 0.8 Hz).
+- **Mute alarms** (#2052) silences the Crystal Net sirens and, since #2807, the ship's `hull_alarm` beep.
 - **Reduced effects** is now exposed in the settings (Comfort section).
 - Colour is never the only signal. Shield vs hull also differs in shape: hex ripple vs sparks.
 
@@ -347,3 +384,8 @@ Emitter caps per kind are in `FxKit.BaseBudget`. Full breaks are limited to 6 pe
   - On a world, effect positions are scene positions; network positions go through `GameBootstrap.ScenePos`.
   - In the flight view, entity positions are local to the `SpaceScene` root; convert with `_root.transform.TransformPoint`.
 - **No real lights** for effects. Use `FxLights` or `FxLightBridge`.
+- **Cloning the view camera** (photos, clips): `Camera.CopyFrom` copies the Camera only, not URP's
+  `UniversalAdditionalCameraData` — the clone renders without the post stack and without the opaque texture the
+  heat-haze quad reads. Call `UrpCameraClone.Sync(source, clone, settings.RendererIndex)` after `CopyFrom` (the photo
+  camera `CameraTool`, #2809, and the clip recorder's `ClipFrameWriter`, #2405) and add the clone to
+  `Sky.WorldCameras` so it gets the haze.

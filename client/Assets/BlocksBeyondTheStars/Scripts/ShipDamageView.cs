@@ -10,7 +10,8 @@ namespace BlocksBeyondTheStars.Client
     /// bursts (rate grows with damage), below 25% a red emergency light pulses near the player and
     /// a hull alarm beeps periodically. Pure client-side dressing over the authoritative
     /// <c>ShipCombatStatus</c> hull state; the emergency threshold has hysteresis so the light
-    /// doesn't flicker at the boundary.
+    /// doesn't flicker at the boundary. Comfort switches (#2807): under Reduce flashes the light glows
+    /// steadily (no pulse, no flicker), and "Mute alarms" silences the beep.
     /// </summary>
     public sealed class ShipDamageView : MonoBehaviour
     {
@@ -61,12 +62,17 @@ namespace BlocksBeyondTheStars.Client
                 _emergency.transform.position = Camera != null
                     ? Camera.transform.position + Vector3.up * 1.2f
                     : transform.position;
-                _emergency.intensity = 1.2f + 0.9f * Mathf.Sin(Time.time * 5f); // pulsing red wash
+                // A slow pulsing red wash (0.8 Hz); a steady glow under Reduce flashes (#2807).
+                _emergency.intensity = FxKit.ReduceFlashes ? 1.2f : 1.2f + (0.9f * Mathf.Sin(Time.time * 5f));
 
                 if (Time.time >= _nextAlarm)
                 {
                     _nextAlarm = Time.time + 3f;
-                    ClientAudio.Instance?.Cue("hull_alarm", 0.6f);
+                    var audio = ClientAudio.Instance;
+                    if (audio != null && !(audio.Settings?.MuteAlarms ?? false)) // #2807: "Mute alarms" silences the hull alarm too
+                    {
+                        audio.Cue("hull_alarm", 0.6f);
+                    }
                 }
             }
             else if (_emergency != null && _emergency.enabled)

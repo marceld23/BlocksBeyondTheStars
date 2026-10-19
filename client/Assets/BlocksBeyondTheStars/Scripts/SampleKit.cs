@@ -80,6 +80,76 @@ namespace BlocksBeyondTheStars.Client
         public static AudioClip Muffle(AudioClip src) => Variant(src, null, VoiceOp.Dull, 2, tail: 0);
 
         /// <summary>
+        /// #2805: a muffled copy of a LOOPING ambience bed — the weather heard through a roof — for Unity Web, which has no
+        /// filter components (the desktop sweeps an AudioLowPassFilter instead). Mono, two one-pole low-passes at
+        /// <paramref name="cutoff"/> (12 dB per octave, like the desktop filter), at half the source rate (nothing above the
+        /// cutoff is left to keep). Both filter stages are warmed on the clip's tail first, so the copy loops as seamlessly
+        /// as its source. NOT cached here: the caller owns the clip and destroys it. Null when the samples cannot be read —
+        /// only a LOADED Decompress-On-Load clip can be; check that before calling, GetData logs an error otherwise.
+        /// </summary>
+        public static AudioClip MuffledLoop(AudioClip src, float cutoff)
+        {
+            if (src == null || src.samples <= 0 || src.frequency <= 0)
+            {
+                return null;
+            }
+
+            int ch = Mathf.Max(1, src.channels);
+            int n = src.samples;
+            var raw = new float[n * ch];
+            if (!src.GetData(raw, 0))
+            {
+                return null;
+            }
+
+            int rate = src.frequency;
+            int step = rate >= 32000 ? 2 : 1;
+            float a = 1f - Mathf.Exp(-2f * Mathf.PI * cutoff / rate);
+            float s1 = 0f, s2 = 0f;
+            for (int i = Mathf.Max(0, n - rate / 4); i < n; i++)
+            {
+                float x = MonoAt(raw, i, ch);
+                s1 += a * (x - s1);
+                s2 += a * (s1 - s2);
+            }
+
+            int outN = Mathf.Max(1, n / step);
+            var data = new float[outN];
+            for (int i = 0; i < n; i++)
+            {
+                float x = MonoAt(raw, i, ch);
+                s1 += a * (x - s1);
+                s2 += a * (s1 - s2);
+                int o = i / step;
+                if (i % step == 0 && o < outN)
+                {
+                    data[o] = s2;
+                }
+            }
+
+            var clip = AudioClip.Create(src.name + "_muffled", outN, 1, rate / step, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        /// <summary>The mono sample at frame <paramref name="i"/> of interleaved PCM with <paramref name="ch"/> channels.</summary>
+        private static float MonoAt(float[] raw, int i, int ch)
+        {
+            if (ch == 1)
+            {
+                return raw[i];
+            }
+
+            float sum = 0f;
+            for (int c = 0; c < ch; c++)
+            {
+                sum += raw[i * ch + c];
+            }
+
+            return sum / ch;
+        }
+
+        /// <summary>
         /// Renders one species voice variant: optional layer mix → timbre op → reverb tail, composed in a
         /// SINGLE pass under ONE cache key. Chaining cached bakes instead would double the entry count for
         /// no audible gain.

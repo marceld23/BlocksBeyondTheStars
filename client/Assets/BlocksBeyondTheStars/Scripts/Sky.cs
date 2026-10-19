@@ -94,6 +94,23 @@ namespace BlocksBeyondTheStars.Client
         private float _indoor; // smoothed ship-interior fill (0 outside → 1 aboard)
         private float _stationDim = 1f; // #1869: smoothed station deck light (1 by day → StationNightFloor at night)
 
+        // Cozy package (#2802): the home blend (#2813, eased over ~1.5 s so stepping in is felt), the place factor the
+        // cosiness slider is scaled by (#2820) and the cabin's evening share (#2815).
+        private static readonly int IndoorColorId = Shader.PropertyToID("_Sc_IndoorColor");
+        private static readonly int GlowPulseId = Shader.PropertyToID("_Sc_GlowPulse");
+        private float _homeBlend;
+        private float _cozyPlace = 0.5f;
+        private float _evening;
+        private string _placeBiome;
+        private float _placeCosiness = 0.5f;
+
+        /// <summary>Glowing plants and mushrooms breathe slowly (#2822); off with Reduce flashes. Wired from WorldRig.</summary>
+        public bool GlowPulseEnabled = true;
+
+        /// <summary>The cabin fill by day (warm white) and in the evening (amber, ~2700 K) — sRGB, converted on upload.</summary>
+        private static readonly Color HomeFillDay = new Color(1f, 0.96f, 0.9f);
+        private static readonly Color HomeFillEvening = new Color(1f, 0.76f, 0.5f);
+
         /// <summary>How far a station's deck light drops at station night (#1869) — dim, never dark: the corridors
         /// stay walkable, the strip lights still glow.</summary>
         private const float StationNightFloor = 0.45f;
@@ -292,10 +309,13 @@ namespace BlocksBeyondTheStars.Client
                     Shader.SetGlobalVector(SunDirId, SpaceSunDir.normalized);
                 }
 
+                _homeBlend = 0f; // the flight view is the void outside, never the cabin (#2813)
+                UrpScenePost.Instance?.SetCozyContext(0.4f, 0f, 0f);
                 UrpScenePost.Instance?.ApplyGrade(Color.white, 1f, 1f);        // colour grade off on the URP volume
                 UrpScenePost.Instance?.SetMoodLut(null);                       // …and drop the biome mood LUT in space
                 Shader.SetGlobalColor(LampColorId, new Color(0f, 0f, 0f, 0f));
                 Shader.SetGlobalFloat(IndoorId, 0f);
+                Shader.SetGlobalColor(IndoorColorId, Color.white);
                 Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // no planet flora tint in space
                 SetFog(FogOff); // distance haze off in space
                 SetCloudShadow(Vector4.zero);
@@ -461,9 +481,27 @@ namespace BlocksBeyondTheStars.Client
             // sunlit outdoors seen through the windows. Smoothed so boarding/leaving fades.
             // Interior fill light: aboard your ship, or boarded on a station (its life-support lighting).
             bool litInterior = Game != null && (Game.Aboard || !string.IsNullOrEmpty(Game.StationName));
-            float indoorTarget = litInterior ? stationDim : 0f; // #1869: a station's fill follows its night
+
+            // Cozy package (#2802): at home (aboard, or under a roof in your own base) the grade turns warm over ~1.5 s
+            // (#2813), the cabin fill takes a warm white by day and amber in the evening (#2814/#2815), and the
+            // cosiness slider is scaled by how cosy this place may get (#2820).
+            bool home = Game != null && Game.AtHome;
+            _homeBlend = Mathf.MoveTowards(_homeBlend, home ? 1f : 0f, Time.deltaTime / 1.5f);
+            float eveningTarget = CabinEvening(sunHeight);
+            _evening = Mathf.MoveTowards(_evening, eveningTarget, Time.deltaTime * 0.25f);
+            _cozyPlace = Mathf.MoveTowards(_cozyPlace, CozyPlaceTarget(weatherIntensity), Time.deltaTime * 0.5f);
+            UrpScenePost.Instance?.SetCozyContext(_cozyPlace, _homeBlend, _evening);
+
+            // The evening amber is a little brighter than the day fill, so the cabin does not sink with the outdoor night.
+            float indoorTarget = litInterior ? stationDim * (constantLight ? 1f : 1f + 0.2f * _evening) : 0f; // #1869: a station's fill follows its night
             _indoor = Mathf.MoveTowards(_indoor, indoorTarget, Time.deltaTime * 3f);
             Shader.SetGlobalFloat(IndoorId, _indoor);
+            // A station keeps its clean neutral deck light; the ship and the home base get the warm fill.
+            float warmFill = constantLight ? 0f : _homeBlend;
+            Color fill = Color.Lerp(Color.white, Color.Lerp(HomeFillDay, HomeFillEvening, _evening), warmFill);
+            fill.a = 1f;
+            Shader.SetGlobalColor(IndoorColorId, ShaderColor.Srgb(fill));
+            Shader.SetGlobalFloat(GlowPulseId, GlowPulseEnabled ? 1f : 0f);
 
             // Sky colour: drives both the camera background and the global the lit shader samples
             // for grazing-angle environment reflections (glossy/metallic blocks).
@@ -571,6 +609,95 @@ namespace BlocksBeyondTheStars.Client
             // ApplyGrade keeps the sRGB value: URP's ColorAdjustments colorFilter converts internally.
             UrpScenePost.Instance?.ApplyGrade(blended, sat, contrast); // URP colour grade (ColorAdjustments)
             UrpScenePost.Instance?.SetMoodLut(biome); // WS4: layer the per-biome cinematic mood LUT on top
+        }
+
+        private static float Smooth01(float x)
+        {
+            x = Mathf.Clamp01(x);
+            return x * x * (3f - 2f * x);
+        }
+
+        /// <summary>#2815: how far into the evening the cabin light is (0 day … 1 night). Landed, the planet's own sun
+        /// decides, so the cabin matches the view through the window; in the ship-interior world out in space there is no
+        /// sun to go by, so the player's real clock does (warming 18–20 h, cooling back 6–8 h).</summary>
+        private float CabinEvening(float sunHeight)
+        {
+            if (Game != null && Game.LoadingPlanetType == "ship_interior")
+            {
+                var now = System.DateTime.Now;
+                float hour = now.Hour + now.Minute / 60f;
+                return hour >= 12f ? Smooth01((hour - 18f) / 2f) : 1f - Smooth01((hour - 6f) / 2f);
+            }
+
+            return 1f - Smooth01((sunHeight + 0.05f) / 0.35f);
+        }
+
+        /// <summary>#2820: how cosy the current place may get, 0..1 — the cosiness slider is multiplied by it, so the home
+        /// stands out against the outside and each world keeps its own colour: home 1, a lit camp or village 0.8, gentle
+        /// worlds 0.6, a station 0.5, harsh worlds less, a storm halves it, and danger (a hostile close by, Valuma's
+        /// watching) takes it away.</summary>
+        private float CozyPlaceTarget(float weatherIntensity)
+        {
+            if (Game == null)
+            {
+                return 0.5f;
+            }
+
+            if (Game.AtHome)
+            {
+                return 1f;
+            }
+
+            if (Game.Uneasy || Game.NearestHostileSqr < 24f * 24f)
+            {
+                return 0f;
+            }
+
+            if (!string.IsNullOrEmpty(Game.StationName))
+            {
+                return 0.5f;
+            }
+
+            // Cached per biome like the grade (#1516): the lookup lower-cases the key, which allocates.
+            string biome = Game.Environment?.Biome;
+            if (!ReferenceEquals(biome, _placeBiome) && biome != _placeBiome)
+            {
+                _placeBiome = biome;
+                _placeCosiness = PlaceCosinessFor(biome);
+            }
+
+            float place = _placeCosiness;
+            if (Probe != null && Probe.LampLight > 0.3f)
+            {
+                place = Mathf.Max(place, 0.8f); // a campfire, a lantern-lit hut, a village street
+            }
+
+            string weather = Game.Environment?.Weather ?? string.Empty;
+            bool rough = weather is "storm" or "gale" or "blizzard" or "ion_storm" or "toxic_storm" or "acid_rain" or "meteor_shower";
+            return rough ? place * Mathf.Lerp(1f, 0.5f, Mathf.Clamp01(weatherIntensity)) : place;
+        }
+
+        /// <summary>#2820: a world's own cosiness — gentle green and blue worlds take the slider well, the cold, hot and
+        /// toxic ones keep most of their bite.</summary>
+        private static float PlaceCosinessFor(string biome)
+        {
+            switch ((biome ?? string.Empty).ToLowerInvariant())
+            {
+                case "jungle": case "forest": case "meadowlands": case "flower_fields": case "boreal": case "savanna":
+                case "ocean": case "coral_sea": case "rainbow_sea": case "river_lowlands": case "archipelago": case "karst":
+                case "highland": case "skylands": case "gamer_hills": case "varied":
+                    return 0.6f;
+                case "ice": case "frozen": case "tundra": case "glacier": case "icecap": case "frozen_ocean": case "titas":
+                case "asteroid": case "asteroid_metallic": case "asteroid_icy": case "asteroid_carbon": case "asteroid_crystal":
+                    return 0.4f;
+                case "lava": case "volcanic": case "arena_nigra": case "ashen": case "ashen_ocean": case "toxic_world":
+                case "toxica_maxima": case "corrupted": case "scrapyard": case "bone_desert": case "valuma":
+                    return 0.3f;
+                case "gas_giant":
+                    return 0.25f;
+                default:
+                    return 0.5f; // deserts, swamps, fungal and crystal worlds, the odd shapes
+            }
         }
 
         /// <summary>Per-biome colour-grade mood: (tint multiply, saturation, contrast).</summary>

@@ -117,6 +117,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _frost = Mathf.MoveTowards(_frost, 0f, Time.deltaTime * 0.4f);
                 _wet = Mathf.MoveTowards(_wet, 0f, Time.deltaTime * 0.7f);
+                LightningFlash = 0f; // no world, no strike: the Sky must not hold a flare from the last one
                 return;
             }
 
@@ -149,11 +150,21 @@ namespace BlocksBeyondTheStars.Client
 
             // Publish the strike so the sky lights the TERRAIN with it (#900). Before this, lightning was a
             // screen wash only, which is exactly why it never felt like it was happening in the world.
-            LightningFlash = _flash;
+            // Reduce flashes (#2807) damps it at the source, so the Sky's terrain flare follows the same switch.
+            LightningFlash = _flash * (FxKit.ReduceFlashes ? ReducedTerrainFlare : 1f);
         }
 
-        /// <summary>Current lightning-strike brightness, 0..1. Read by <see cref="Sky"/>, which briefly
-        /// boosts the world light so the whole landscape jumps out of the dark with each strike.</summary>
+        /// <summary>Peak alpha of the full-screen lightning wash; Reduce flashes (#2807, XAG 118 / WCAG 2.3.1) keeps it a
+        /// soft glow instead of a white-out.</summary>
+        private const float FlashAlpha = 0.6f;
+        private const float ReducedFlashAlpha = 0.15f;
+
+        /// <summary>The share of a strike's terrain flare that Reduce flashes keeps (#2807).</summary>
+        private const float ReducedTerrainFlare = 0.25f;
+
+        /// <summary>Current lightning-strike brightness, 0..1 — already damped under Reduce flashes (#2807). Read by
+        /// <see cref="Sky"/>, which briefly boosts the world light so the whole landscape jumps out of the dark with
+        /// each strike.</summary>
         public static float LightningFlash { get; private set; }
 
         /// <summary>
@@ -594,7 +605,8 @@ namespace BlocksBeyondTheStars.Client
 
             if (_flash > 0.01f)
             {
-                GUI.color = new Color(0.85f, 0.92f, 1f, _flash * 0.6f); // brighter sky-lighting flash
+                // The sky-lighting flash; a soft glow under Reduce flashes (#2807).
+                GUI.color = new Color(0.85f, 0.92f, 1f, _flash * (FxKit.ReduceFlashes ? ReducedFlashAlpha : FlashAlpha));
                 GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
             }
 
@@ -610,7 +622,7 @@ namespace BlocksBeyondTheStars.Client
         private void DrawBolt()
         {
             float w = Screen.width, h = Screen.height;
-            float alpha = Mathf.Clamp01(_boltTimer / 0.18f);
+            float alpha = Mathf.Clamp01(_boltTimer / 0.18f) * (FxKit.ReduceFlashes ? 0.5f : 1f); // #2807: a dimmer streak
             int segs = _boltJitter.Length;
             float segH = (h * 0.6f) / segs;
             float x = _boltBaseX * w;

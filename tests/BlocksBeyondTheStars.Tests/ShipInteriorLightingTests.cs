@@ -71,10 +71,13 @@ public sealed class ShipInteriorLightingTests : IDisposable
             Assert.NotEmpty(s.StationCells);
             foreach (var (type, cell) in s.StationCells)
             {
-                // Somewhere above this room's station anchor, clear of the walkway, hangs a lamp.
+                // Somewhere above this room's station anchor, clear of the walkway, hangs a lamp — dyed warm white in
+                // the rooms a crew lives in (#2816), plain cool white over the cockpit and the console.
+                bool warm = SvGameServer.IsWarmRoom(type);
                 var lit = Enumerable.Range(cell.Y + 2, 8)
-                    .Any(y => s.Get(new Vector3i(cell.X, y, cell.Z)).Equals(lamp));
-                Assert.True(lit, $"{layoutKey ?? "box"}: no ceiling lamp above the {type} at {cell}");
+                    .Select(y => new Vector3i(cell.X, y, cell.Z))
+                    .Any(p => s.Get(p).Equals(lamp) && TintAt(s, p) == (warm ? SvGameServer.WarmLampTint : 0));
+                Assert.True(lit, $"{layoutKey ?? "box"}: no {(warm ? "warm" : "cool")} ceiling lamp above the {type} at {cell}");
             }
         }
     }
@@ -190,6 +193,50 @@ public sealed class ShipInteriorLightingTests : IDisposable
             }
         }
     }
+
+    [Fact]
+    public void TheStarterCabin_LivesInWarmLight_AndFliesInCoolLight()
+    {
+        // #2816: the code-box starter is the ship most players spend their first hours in — its bunk, medbay,
+        // workbench and crate corners are lit warm, the cockpit and the console keep the cool working light.
+        var server = Started(null, out var repo, out var content);
+        using (repo)
+        {
+            var s = server.BuildShipStructureForTest("Host");
+            var lamp = content.GetBlock("light_white")!.NumericId;
+
+            int warmLamps = 0, coolLamps = 0;
+            foreach (var (type, cell) in s.StationCells)
+            {
+                for (int y = cell.Y + 2; y < cell.Y + 10; y++)
+                {
+                    var p = new Vector3i(cell.X, y, cell.Z);
+                    if (!s.Get(p).Equals(lamp))
+                    {
+                        continue;
+                    }
+
+                    if (TintAt(s, p) == SvGameServer.WarmLampTint)
+                    {
+                        Assert.True(SvGameServer.IsWarmRoom(type), $"warm lamp over the {type}");
+                        warmLamps++;
+                    }
+                    else
+                    {
+                        Assert.False(SvGameServer.IsWarmRoom(type), $"cool lamp over the {type}");
+                        coolLamps++;
+                    }
+                }
+            }
+
+            Assert.True(warmLamps >= 3, $"only {warmLamps} warm lamps in the starter cabin");
+            Assert.True(coolLamps >= 1, "the cockpit/console should keep a cool lamp");
+        }
+    }
+
+    /// <summary>The dye a structure cell carries (0 = none).</summary>
+    private static int TintAt(BlocksBeyondTheStars.GameServer.SpaceStructure s, Vector3i p)
+        => s.Mods.TryGetValue(p, out var mod) ? mod.Tint : 0;
 
     private static void CopyDir(string src, string dst)
     {

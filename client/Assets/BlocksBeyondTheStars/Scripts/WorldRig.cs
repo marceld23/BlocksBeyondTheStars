@@ -479,6 +479,7 @@ namespace BlocksBeyondTheStars.Client
             sky.HeightFogEnabled = shell.Settings.AtmosphereEffect(shell.Settings.HeightFog, cheap: true);
             sky.CloudShadowsEnabled = shell.Settings.AtmosphereEffect(shell.Settings.CloudShadows, cheap: false);
             sky.FlickerScale = !shell.Settings.ReduceFlashes && shell.Settings.AtmosphereEffect(shell.Settings.TorchFlicker, cheap: true) ? 1f : 0f;
+            sky.GlowPulseEnabled = !shell.Settings.ReduceFlashes; // #2822: glowing plants breathe unless flashes are reduced
             sky.WindSwayEnabled = shell.Settings.AtmosphereEffect(shell.Settings.WindSway, cheap: true);
             sky.WetSurfacesEnabled = shell.Settings.AtmosphereEffect(shell.Settings.WetSurfaces, cheap: true);
             sky.UnderwaterEnabled = shell.Settings.AtmosphereEffect(shell.Settings.Underwater, cheap: true);
@@ -509,11 +510,11 @@ namespace BlocksBeyondTheStars.Client
             atmosphere.Game = boot;
             atmosphere.Camera = cam;
 
-            // Slow ambient air motes (dust/pollen/embers) on the surface — the air feels alive.
+            // Slow ambient air motes (dust/pollen/embers) in the open air, warm lamplight motes at home (#2808, #2818).
+            // Density and Reduced effects are read live from FxKit.
             var ambientDust = root.AddComponent<AmbientParticles>();
             ambientDust.Game = boot;
             ambientDust.Camera = cam;
-            ambientDust.ReducedEffects = shell.Settings.ReducedEffects;
 
             // Tiny cosmetic micro-fauna ("Kleinstlebewesen") — fluttering / crawling / swimming critters + cave
             // glow-worms that make planets feel alive. Client-only, biome + day/night gated, never attack.
@@ -575,6 +576,10 @@ namespace BlocksBeyondTheStars.Client
             var lavafalls = root.AddComponent<LavaFallView>();
             lavafalls.Game = boot;
 
+            // Campfire sparks + a thin smoke column over every lit campfire within 24 blocks (#2821).
+            var campfires = root.AddComponent<CampfireFx>();
+            campfires.Game = boot;
+
             // Ship-station decor (cockpit console + holo map, medbay tank, terminals, workshop sparks).
             var stationDecor = root.AddComponent<StationDecorView>();
             stationDecor.Game = boot;
@@ -597,6 +602,7 @@ namespace BlocksBeyondTheStars.Client
             urpPost.LensFlareEnabled = shell.Settings.LensFlare;
             urpPost.MotionBlurEnabled = shell.Settings.MotionBlur;
             urpPost.Brightness = shell.Settings.Brightness; // global scene brightness (post-exposure)
+            urpPost.Cosiness = shell.Settings.Cosiness;     // #2820: the cosiness slider (warmth, softness, glow)
 
             // Terrain-scanner overlay (Feature 40): through-wall ore glow markers after a scan pulse.
             var oreScan = root.AddComponent<OreScanView>();

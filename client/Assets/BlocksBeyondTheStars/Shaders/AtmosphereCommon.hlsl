@@ -23,6 +23,10 @@
 //   _Sc_CloudShadow x = cover 0..1, y,z = scroll offset (world blocks, follows the wind), w = strength 0..1 (0 = off)
 //   _Sc_CloudNoise  a small tiling noise texture (Sky.cs bakes it once)
 //   _Sc_FlickerScale 0 = steady light (Reduce flashes / switched off) … 1 = full breathing
+// Cozy package (#2802):
+//   _Sc_IndoorColor rgb = the colour of the interior fill (warm white at home, amber in the evening), a > 0.5 = set
+//   _Sc_CozyLight    the block-light gain of the cosiness slider (1 … 1.3; 0 = unset, read as 1)
+//   _Sc_GlowPulse    1 = glowing plants breathe, 0 = steady (Reduce flashes)
 #ifndef BBTS_ATMOSPHERE_COMMON_INCLUDED
 #define BBTS_ATMOSPHERE_COMMON_INCLUDED
 
@@ -39,7 +43,39 @@ float4 _Sc_Underwater; // x = camera under water (0/1), y = the water surface's 
 float  _Sc_Caustics;   // the player's switch × preset (0/1)
 float  _Sc_SeaLevel;   // the sea surface's world Y (#2414): faces below it lie under the sea; -1e9 when the world has none
 float  _Sc_AtmoDebug;  // capture diagnostics (-atmoDebug N): 1 = show _Sc_Surface, 2 = skylight / up / cloud shade, 3 = haze amount
+float4 _Sc_IndoorColor; // #2814: the interior fill's colour (a > 0.5 = set)
+float  _Sc_CozyLight;   // #2820: block-light gain of the cosiness slider (0 = unset)
+float  _Sc_GlowPulse;   // #2822: glowing plants breathe (1) or stay steady (0)
 TEXTURE2D(_Sc_CloudNoise); SAMPLER(sampler_Sc_CloudNoise);
+
+// #2814: the colour the interior fill lights the cabin in — white where nothing set it (a station, the menu, a preview).
+float3 BbtsIndoorColor()
+{
+    return _Sc_IndoorColor.a > 0.5 ? _Sc_IndoorColor.rgb : float3(1.0, 1.0, 1.0);
+}
+
+// #2820: placed lights a touch stronger at the warm end of the cosiness slider; never below the plain light.
+float BbtsCozyLightGain()
+{
+    return max(_Sc_CozyLight, 1.0);
+}
+
+// #2822: glowing plants and mushrooms breathe — one slow breath every ~6 s (≈ 0.17 Hz, far below the 3-per-second flash
+// limit) with a second, slower sine so it never reads mechanical. The phase runs smoothly through space, so a glowing
+// forest breathes as a slow wave instead of in unison, and a swaying plant never crosses a phase seam. Averages 1.0, so
+// the bloom stays balanced; Reduce flashes holds it at 1.
+float BbtsGlowBreath(float3 wp)
+{
+    if (_Sc_GlowPulse < 0.5)
+    {
+        return 1.0;
+    }
+
+    float phase = dot(wp, float3(0.21, 0.13, 0.17));
+    float t = _Time.y;
+    float s = 0.7 * sin(t * 1.047 + phase) + 0.3 * sin(t * 0.739 + phase * 1.7);
+    return 1.0 + 0.28 * s;
+}
 
 
 // Caustics (#2401): while the camera is under water, sunlight dances on every lit, upward face below the surface — two
@@ -130,6 +166,22 @@ float BbtsSwayShelter(float skylight)
     return smoothstep(0.55, 0.9, skylight);
 }
 
+// #2819: where the wind does not reach (a cabin, a hut, a cave), a plant still is not frozen: a faint draught moves its tip
+// about a centimetre, slow and independent of the weather outside, so a potted plant aboard breathes instead of standing
+// like a prop. Off with the wind-sway switch (and in airless skies, which switch the sway off as a whole).
+float3 BbtsDraught(float3 wp, float tip)
+{
+    if (_Sc_Wind.w < 0.5)
+    {
+        return float3(0.0, 0.0, 0.0);
+    }
+
+    float t = _Sc_Wind.y;
+    float phase = wp.x * 0.35 + wp.z * 0.27 + wp.y * 0.15;
+    float wave = sin(t * 0.9 + phase) * 0.6 + sin(t * 2.1 + phase * 1.7) * 0.4;
+    return float3(0.7, 0.0, 0.7) * (wave * 0.012 * saturate(tip));
+}
+
 // #2519: the wind sway of one block-atlas vertex — the forward, shadow and depth passes all call this, so the shadow
 // follows the leaf. `leafCode` is TEXCOORD2.x, the cutout code the chunk mesher writes:
 //   1 = a tree-crown shell face: sways as ONE rigid piece (constant reach). Every crown face at a shared corner gets the
@@ -160,7 +212,13 @@ float3 BbtsBlockSway(float3 wp, float leafCode, float tintMode, float skylight, 
     }
 
     float3 offset = BbtsWindSway(wp, true, !crown, tip);
-    return (crown || aquatic) ? offset : offset * BbtsSwayShelter(skylight);
+    if (crown || aquatic)
+    {
+        return offset;
+    }
+
+    // #2819: sheltered plants fade from the wind into the indoor draught (one skylight per plant, so it cannot split).
+    return lerp(BbtsDraught(wp, tip), offset, BbtsSwayShelter(skylight));
 }
 
 // Mist density at height y: 1 at and below the floor, falling off exponentially above it.
@@ -253,7 +311,11 @@ float BbtsCloudShade(float3 wp)
 // and crystals (blue share ≥ red) stay steady; Reduce flashes zeroes the scale.
 float3 BbtsBlockLightFlicker(float3 bl, float3 wp)
 {
-    float warmth = saturate((bl.r - bl.b) * 2.5) * saturate(dot(bl, float3(1.0, 1.0, 1.0)) * 2.0);
+    // #2816: only FLAME-coloured light breathes. Since the light colours went linear (#2804) a torch, lantern or campfire
+    // keeps a blue share of ≤ ~10 % of its red, while a warm-white electric lamp (the ship's living-room lamps, the
+    // palette's warm white) keeps ~40 % — it must glow steadily, not flicker like fire.
+    float flame = saturate((0.25 - bl.b / max(bl.r, 1e-4)) / 0.15);
+    float warmth = flame * saturate((bl.r - bl.b) * 2.5) * saturate(dot(bl, float3(1.0, 1.0, 1.0)) * 2.0);
     if (warmth <= 0.001 || _Sc_FlickerScale <= 0.001)
     {
         return bl;

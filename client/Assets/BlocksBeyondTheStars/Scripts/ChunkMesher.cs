@@ -103,9 +103,52 @@ namespace BlocksBeyondTheStars.Client
             public Vector3 At(int wx, int wy, int wz)
             {
                 int i = IndexOf(wx, wy, wz);
-                return i >= 0 ? Cells[i] * (1f / LightRadius) : Vector3.zero;
+                return i >= 0 ? DisplayLight(Cells[i] * (1f / LightRadius)) : Vector3.zero;
             }
         }
+
+        /// <summary>sRGB → linear for the 256 byte levels, so <see cref="DisplayLight"/> costs table reads, not three
+        /// Math.Pow calls per lit vertex.</summary>
+        private static readonly float[] SrgbToLinearTable = BuildSrgbToLinearTable();
+
+        private static float[] BuildSrgbToLinearTable()
+        {
+            var t = new float[256];
+            for (int i = 0; i < t.Length; i++)
+            {
+                t[i] = SrgbToLinear(i / 255f);
+            }
+
+            return t;
+        }
+
+        private static float SrgbToLinearFast(float c) => SrgbToLinearTable[Mathf.Clamp((int)(c * 255f + 0.5f), 0, 255)];
+
+        /// <summary>#2804: the flood runs on the authored 0xRRGGBB values — their per-channel reach is what the lamps were
+        /// tuned with — but those values are sRGB, and the block shader adds the light in linear space, so every lamp
+        /// lit paler than its colour (a torch pale yellow instead of amber, the cyan strip almost white). Here a lit
+        /// cell is split into its hue (the channels over the brightest one) and its level (the brightest channel): the
+        /// hue goes to linear like every other authored colour, then is scaled back to the luminance the shader got
+        /// before (at most 1.5×), so a lamp keeps its brightness and gains its colour. White light is unchanged; Gamma
+        /// space keeps the raw value.</summary>
+        internal static Vector3 DisplayLight(Vector3 v)
+        {
+            float level = Mathf.Max(v.x, Mathf.Max(v.y, v.z));
+            if (!LinearColorSpace || level <= 1e-5f)
+            {
+                return v;
+            }
+
+            float inv = 1f / level;
+            float r = v.x * inv, g = v.y * inv, b = v.z * inv;
+            float lr = SrgbToLinearFast(r), lg = SrgbToLinearFast(g), lb = SrgbToLinearFast(b);
+            float lumaBefore = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+            float lumaLinear = 0.2126f * lr + 0.7152f * lg + 0.0722f * lb;
+            float k = lumaLinear > 1e-5f ? Mathf.Clamp(lumaBefore / lumaLinear, 1f, 1.5f) : 1f;
+            k *= level;
+            return new Vector3(lr * k, lg * k, lb * k);
+        }
+
         [System.ThreadStatic] private static List<(int X, int Y, int Z, Vector3 Col, int Radius)> _lightSourcesScratch;
 
         // Per-face quad/UV scratch (one 4-element array per CALL SITE, so two live quads never alias): the

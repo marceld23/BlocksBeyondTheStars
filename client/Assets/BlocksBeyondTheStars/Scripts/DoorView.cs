@@ -52,6 +52,12 @@ namespace BlocksBeyondTheStars.Client
         private int _eTarget;          // #2147: the hand door E works this frame, as the player controller chose it
         private int _eTargetFrame = -1;
 
+        // #2817: the hatch of the player's own ship closing behind them — the airlock's pressure hiss follows the slide.
+        private const float HatchHissDelay = 0.7f;   // the slide (1.3 s) has nearly settled
+        private const float HatchHissVolume = 0.7f;
+        private float _hatchHissAt = -1f;
+        private Vector3 _hatchHissPos;
+
         private void Awake() => Instance = this;
 
         private void Update()
@@ -61,6 +67,16 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.DoorsReceived += OnDoors;
                 Game.Network.WorldResetReceived += OnWorldReset;
                 _subscribed = true;
+            }
+
+            if (_hatchHissAt >= 0f && Time.time >= _hatchHissAt)
+            {
+                _hatchHissAt = -1f;
+                var audio = ClientAudio.Instance;
+                if (audio != null)
+                {
+                    audio.At("station_board", _hatchHissPos, 1f, HatchHissVolume); // the synthetic airlock (ProceduralAudio)
+                }
             }
 
             foreach (var d in _doors.Values)
@@ -133,6 +149,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _doors.Clear();
+            _hatchHissAt = -1f; // the hatch it was for is gone with the world
         }
 
         /// <summary>True when the incoming record still describes the door object we hold for its id —
@@ -166,6 +183,11 @@ namespace BlocksBeyondTheStars.Client
                 {
                     d.Open = nd.Open;
                     PlayDoorSfx(d);
+                    if (!d.Open && SealsOwnShip(d))
+                    {
+                        _hatchHissAt = Time.time + HatchHissDelay;
+                        _hatchHissPos = d.Go.transform.position + Vector3.up * 1f;
+                    }
                 }
             }
 
@@ -532,6 +554,42 @@ namespace BlocksBeyondTheStars.Client
             var at = d.Go.transform.position + Vector3.up * 1f;
             string id = IsHinged(d.Kind) ? "door_hinge" : (d.Open ? "door_slide_open" : "door_slide_close");
             audio.At(id, at, 1f, 0.85f);
+        }
+
+        /// <summary>#2817: the door that just closed is a sliding doorway of the player's OWN parked ship that leads outside
+        /// (the hatch, or a side door built into the outer wall — <see cref="ShipHatch.OpensToOutside"/>), and the player is
+        /// aboard: the outside stays outside. A door between two of the ship's rooms, a hand door and a friend's ship never
+        /// hiss.</summary>
+        private bool SealsOwnShip(Door d)
+        {
+            if (Game == null || !Game.Aboard || Game.InEva || IsHinged(d.Kind) || string.IsNullOrEmpty(Game.LocalPlayerId))
+            {
+                return false;
+            }
+
+            int x = Mathf.FloorToInt(d.World.x), y = Mathf.FloorToInt(d.World.y), z = Mathf.FloorToInt(d.World.z);
+            foreach (var ship in Game.LandedShips.Values)
+            {
+                if (ship == null || ship.OwnerId != Game.LocalPlayerId)
+                {
+                    continue;
+                }
+
+                int lx = WorldConstants.WrapDeltaX(x - ship.Origin.X, Game.Circumference);
+                int ly = y - ship.Origin.Y, lz = z - ship.Origin.Z;
+                if (lx < -1 || lz < -1 || lx > ship.Width || lz > ship.Length || ly < -1 || ly > ship.Height)
+                {
+                    continue; // not a doorway of this hull
+                }
+
+                var hull = ship;
+                // At the doorway's middle height (the door's floor cell is the bottom of a three-tall opening).
+                return ShipHatch.OpensToOutside(
+                    (cx, cy, cz) => !hull.Get(new BlocksBeyondTheStars.Shared.Geometry.Vector3i(cx, cy, cz)).IsAir,
+                    lx, ly + 1, lz, d.AxisX, ship.Width, ship.Length);
+            }
+
+            return false;
         }
 
         /// <summary>The nearest hinge door within reach of a point (for the player's E-toggle), or 0 if none.</summary>

@@ -151,7 +151,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 float fade = e.Life > 0f ? (1f - e.Age / e.Life) : 1f;
-                float flicker = e.Flicker ? 0.8f + 0.2f * Mathf.PerlinNoise(Time.time * 9f, e.Id * 0.37f) : 1f;
+                float flicker = e.Flicker && !FxKit.ReduceFlashes ? 0.8f + 0.2f * Mathf.PerlinNoise(Time.time * 9f, e.Id * 0.37f) : 1f; // #2807: steady under Reduce flashes
                 float strength = e.Intensity * fade * fade * flicker;
                 if (strength <= 0.001f)
                 {
@@ -186,7 +186,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     var e = Ranked[i].e;
                     float fade = e.Life > 0f ? (1f - e.Age / e.Life) : 1f;
-                    float flicker = e.Flicker ? 0.8f + 0.2f * Mathf.PerlinNoise(Time.time * 9f, e.Id * 0.37f) : 1f;
+                    float flicker = e.Flicker && !FxKit.ReduceFlashes ? 0.8f + 0.2f * Mathf.PerlinNoise(Time.time * 9f, e.Id * 0.37f) : 1f; // #2807: steady under Reduce flashes
                     var lin = ShaderColor.Srgb(e.Color) * (e.Intensity * fade * fade * flicker);
                     Pos[i] = new Vector4(e.Position.x, e.Position.y, e.Position.z, e.Radius);
                     Col[i] = new Vector4(lin.r, lin.g, lin.b, 0f);

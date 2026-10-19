@@ -72,6 +72,30 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
   (pinned by `ChunkMesherCutoutCodeEditModeTests`). The torch
   and lantern tiles got their alpha mask the same day (`tools/ai-assets/bake_prop_alpha.py`; `BlockTileAlphaTests`
   holds every billboard tile to a real share of transparent pixels).
+- **Cozy package** (2026-10, epic #2802; rules in [ART_BIBLE.md](ART_BIBLE.md) §6a):
+  - *Fixes first:* the world's ColorAdjustments contrast sits at +3 over the biome contrast (#2803; a leftover +6 had
+    kept it at 9–20, so #1457's softening only reached the menu). Placed-light colours go sRGB → linear at the
+    per-vertex bake: `ChunkMesher.DisplayLight` splits a lit cell into hue and level, linearises the hue through a
+    256-entry table and scales it back to the luminance the shader got before (≤ 1.5×), so the flood's per-channel
+    reach — what the lamps were tuned with — is untouched and a torch lights amber instead of pale yellow (#2804).
+  - *Home grade:* `GameBootstrap.AtHome` (aboard and not on a spacewalk, or under a roof inside your own base's air)
+    drives `Sky._homeBlend` (~1.5 s), which `UrpScenePost.SetCozyContext` folds into the one global volume: the
+    biome tint/saturation/contrast fade out, `WhiteBalance` warms, `LiftGammaGain` lifts the shadows, the
+    `ShadowsMidtonesHighlights` cool lean turns warm, the mood LUT drops to a quarter (#2813). The cabin fill gets a
+    colour, `_Sc_IndoorColor` — warm white by day, amber in the evening (`Sky.CabinEvening`: the planet's sun when
+    landed, the real clock in the space ship-interior world), and the evening fill is a fifth brighter so the cabin
+    does not sink with the outdoor night (#2814/#2815). The transparent shader keeps its neutral light: it has no
+    skylight channel, so a cabin fill there would also warm the lake outside the window.
+  - *Cosiness slider* (`ClientSettings.Cosiness`, default 0.5, #2820): multiplied by `Sky.CozyPlaceTarget` (home 1,
+    lit camp 0.8, gentle worlds 0.6, harsh 0.3–0.4, storms half, a hostile within 24 m or Valuma's unease 0); softens
+    contrast and lifts shadows from 0 %, warms from 15 %, and from 50 % lowers the bloom threshold a little and lifts the
+    block light (`_Sc_CozyLight`, ≤ 1.3). Exposure-compensated — never darker. All of it is grading baked into URP's
+    LUT, so it costs nothing on WebGL/Potato.
+  - *Motion:* glowing flora breathes (`BbtsGlowBreath`, ~6 s, a smooth spatial phase so a forest breathes as a slow
+    wave; off with Reduce flashes, #2822); sheltered plants get a ~1 cm indoor draught instead of standing frozen
+    (`BbtsDraught`, #2819).
+  - *Rest in bed* (#2823): `UrpScenePost.SetRest` warms, dims (−0.6 EV) and closes the vignette in a little.
+  - *Menu blur* fades over ~0.25 s by walking the gaussian start/end in from far away (the radius cannot reach 0, #2810).
 
 ## Design rationale worth keeping
 

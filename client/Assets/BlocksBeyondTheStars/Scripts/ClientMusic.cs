@@ -31,7 +31,8 @@ namespace BlocksBeyondTheStars.Client
     /// its identity), and remembers recent picks across contexts. After a track ends in a long-stay context
     /// the music may take a <b>rest</b> (<see cref="MusicRestPolicy"/>) — ambience only for a minute or
     /// three — before the next piece fades in. The time of day tints the filler set (sunrise at dawn, the
-    /// nocturnal track at night); a storm or a hostile creature nearby ducks the music; a long dive switches
+    /// nocturnal track at night); a storm or a hostile creature nearby ducks the music, and so does lying in a bed
+    /// (<see cref="BedRestQuiet"/>, #2823); a long dive switches
     /// to the deep-water bed; the open star chart and the crafting / tech tabs bring their own beds; the
     /// first landing on a planet in a session opens with the sunrise track.
     ///
@@ -75,6 +76,12 @@ namespace BlocksBeyondTheStars.Client
         /// but the ending's resolution track; a track that is still downloading leaves the current music playing until it
         /// arrives (a scene is never delayed for music), and a missing file falls back to the normal context.</summary>
         public static string CutsceneTrack { get; set; }
+
+        /// <summary>How far resting in a bed (#2823) has turned the music down: 0 = awake … 1 = lying in bed, where the bus
+        /// plays at <see cref="BedRestVolume"/> of its volume. Set (already eased) by the player rig; read only in-game.</summary>
+        public static float BedRestQuiet { get; set; }
+
+        private const float BedRestVolume = 0.35f;  // the music while lying in bed: quiet, not gone
 
         private const float CrossfadeRate = 0.4f;   // volume units / s → ~2.5 s for a full fade
         private const float RerollLead = 3.0f;       // re-roll this many seconds before a piece ends
@@ -245,7 +252,8 @@ namespace BlocksBeyondTheStars.Client
             // and relaxes instead of stepping.
             float wantDuck = DuckFor(game);
             _duck = Mathf.MoveTowards(_duck, wantDuck, Time.deltaTime * DuckRate);
-            float target = want == Silent || _resting ? 0f : Mathf.Clamp01(settings?.MusicVolume ?? 0.6f) * _duck;
+            float bedRest = game != null ? Mathf.Lerp(1f, BedRestVolume, Mathf.Clamp01(BedRestQuiet)) : 1f; // #2823
+            float target = want == Silent || _resting ? 0f : Mathf.Clamp01(settings?.MusicVolume ?? 0.6f) * _duck * bedRest;
             _active.volume = Mathf.MoveTowards(_active.volume, target, Time.deltaTime * CrossfadeRate);
             _fading.volume = Mathf.MoveTowards(_fading.volume, 0f, Time.deltaTime * CrossfadeRate);
             if (_fading.volume <= 0f && _fading.isPlaying)

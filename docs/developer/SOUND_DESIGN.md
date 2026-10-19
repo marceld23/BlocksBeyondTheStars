@@ -99,6 +99,7 @@ restore → **~7**, procedural cues (alarms/tones).
 | hull ambience hum loop ✓ | aboard | 1 | proc ✓ |
 | door / airlock open-close | enter/exit | 2 | EL |
 | world doors: slide open/close (sci-fi), hinge creak (village) ✓ | `DoorView` open/close | 3 | EL ✓ |
+| hatch pressure hiss ✓ (#2817) — your own ship's hatch closes behind you | `DoorView` close, aboard | 1 | proc ✓ (`station_board`, see §23) |
 | station use: heal-tank, cockpit, workshop, cargo, quarters | `UseStation` | 5 | proc |
 
 ## 7. Ship systems & space — *ElevenLabs + procedural*
@@ -208,10 +209,10 @@ speaker's head. The banks are preloaded when the first NPC with that voice appea
 |---|---|---|---|
 | wind loop (light/strong) | weather state | 2 | EL |
 | rain loop, storm loop | weather | 2 | EL |
-| thunder one-shots | storm | 2–3 | EL |
+| thunder one-shots (muffled under a roof since #2805) | storm | 2–3 | EL |
 | per-biome ambient bed (forest/desert/ice/lava/swamp/cave) | planet/biome | ~6 | EL |
-| lava bubbling loop, water/shore loop | near fluid | 2 | EL |
-| day vs night ambience shift | world clock | 2 | proc/EL |
+| lava bubbling loop, water/shore loop; fire crackle (a spreading fire, a lit campfire — #2806) | near fluid / fire | 2 | EL |
+| night layer ✓ (#2825): crickets, frogs, night wind, hum, chimes — picked from the world's data, see §23 | world clock + world | 5 | EL ✓ |
 | poisoned-world bed `amb_toxic` (Toxica-Maxima + the toxic class, #2068) | planet key | 1 | EL |
 | acid-storm bed `toxic_storm_loop` (the `toxic_storm` event, and a storm whose rain is acid, #2063/#2064) | weather / precipitation | 1 | EL |
 | decontaminator rinse `decontaminate` (#2067) | wash craft cue | 1 | EL |
@@ -290,7 +291,8 @@ cell's world position):
 | dice block | every roll | `dice_roll` | EL |
 | remote control | a flip (to the user only) | `remote_click` | EL |
 
-Campfires and forges switching on and off are silent, like the lamp swap.
+Campfires and forges switching on and off are silent, like the lamp swap (a lit campfire crackles while you are near it —
+§23).
 
 ## 13. Wall climbing (#2193) — *ElevenLabs clips + the step set*
 
@@ -439,6 +441,69 @@ while it is felling, within 16 m, at most one every 0.5 s across all woodcutters
 | bow shot | a hunter shoots (with the arrow `WorldFx`) | `npc_bow_shot` | "a single soft wooden bow shot: one gentle bowstring twang and a quick light arrow whoosh flying away, close and clean, short, no impact, no echo, no voice" (1.0 s, 0.4) |
 | axe chop | a woodcutter's swing while felling | `npc_axe_chop` | "woodcutter chopping a tree: one single axe strike into a tree trunk, a dry wooden thock, close and clear, single hit, no echo, no voice" (0.7 s, 0.5) |
 | tree falls | a felled tree starts to come down | `tree_fall` | "a small tree falling over in a forest: a slow creaking crack of wood, branches and leaves rustling and swishing down, then a soft muffled thump on grass, gentle and not scary, outdoors, no voice" (2.5 s, 0.4) |
+
+## 23. The cozy package (#2802): rain on the hull, the campfire, the night, the hatch
+
+**Through a roof (#2805).** A weather bed (rain, storm, drizzle, wind, gale, blizzard, sand, ash, acid, ion, spores,
+meteors) used to fall silent the moment the sky was covered. Now, under ANY roof on a planet — aboard the ship, in a house,
+in a cave — it keeps playing at about a third of its open-air level (`MuffledBed.RoofLevel` 0.33) with its highs cut (a
+1 kHz low-pass), and bad weather wins over the cave bed. Thunder rolls in through the roof too: muffled (the underwater bake,
+`SampleKit.Muffle`) at half its level. In space, in the flight view, on a spacewalk or a station the weather stays silent as
+before. The biome beds and the cave bed are not muffled.
+
+The bed and the night layer each live on their own child object of `ClientAudio` (`MuffledBed`): a filter on the
+ClientAudio object would muffle every cue on it. **Desktop:** an `AudioLowPassFilter` on that child sweeps from 22 kHz down
+to 1 kHz on a log scale (and to 680 Hz under water, which the bus filter used to do for the bed). **Browser:** Unity Web
+ignores filter components (#878), so a muffled copy of the loop is baked once (`SampleKit.MuffledLoop`: mono, two one-pole
+low-passes, half rate, the filter warmed on the clip's tail so the copy still loops seamlessly) and cross-faded in on a twin
+source. Baking needs readable samples, so the weather beds and the night loops carry a **WebGL importer override to
+Decompress On Load** (their default stays Compressed In Memory, #1524); a clip that still cannot be read plays dry at a lower
+level instead. The copies are owned by the bed (at most eight) and destroyed with `ClientAudio`.
+
+**The campfire (#2806).** The nearby-block scan starts the `fire_crackle` bed for a lit `campfire` too (not `campfire_off`),
+at 0.28 of the SFX level instead of a spreading fire's 0.4. A spreading fire and lava still win; a campfire wins over any
+water in reach (you sit at it).
+
+**The night layer (#2825).** A second quiet loop over the day bed: it fades in from a little before sunset to shortly after
+(`NightAmbience.NightLevel`, the sky's own sun-height curve `sin((t − 0.25)·2π)`, from +0.15 down to −0.15) and out the same
+way at dawn; only while no weather bed plays (rain and storms take over); through a roof like the weather bed; never in
+space, the flight view, on a spacewalk or a station. While it plays, the biome bed eases to 70 %. The worlds are procedural,
+so the loop is picked from what the world and the spot **have**, never from a planet's name (`NightAmbience.Pick`, Client.Core,
+swept over every planet type of the data in `NightAmbienceTests`):
+
+| Pick | When (first rule that matches) |
+|---|---|
+| silence | no air (airless type, space sky, no atmosphere density), a cabin/station deck (`Void`), a gas world |
+| silence | poisoned: contaminated fauna, any chance of corrosive air, acid falling (the toxic-world class) |
+| silence | scorched: ash flora, a lava-rich type (lava abundance ≥ 0.3), lava in reach, ash falling, 45 °C or hotter |
+| `night_chimes` | a living world (`PlanetType.HasLife`) with crystal flora |
+| `night_hum` | a living world with fungal or alien flora |
+| `night_wind` | frozen (below 6 °C at the player), barren (no life) or air no animal of ours breathes |
+| silence | a living, breathable world, but fewer than three plants/leaves/grass cells sampled around the player |
+| `night_frogs` | water in reach, 12 °C or warmer and a humid world (tropical or swamp flora, or the wet season ≥ 0.6) |
+| `night_crickets` | everything else that is green, breathable and mild |
+
+The surroundings come from a sparse scan (every second cell of a 25 × 9 × 25 box around the player, every 2 s and only at
+night). While a loop plays, a different pick must hold for three scans in a row (~6 s) before the layer changes — walking
+along a forest edge does not flip it back and forth; a new world starts afresh. The five loops are ElevenLabs, generated with
+`tools/ai-assets/gen_sound.py --loop` (2026-10-19), imported mono at Vorbis quality 0.5 (quiet beds; it keeps the browser
+download small):
+
+| File | Length | Prompt (`--influence`) |
+|---|---|---|
+| `night_crickets` | 18 s | "seamless loop of a calm peaceful summer night in a grassy meadow: many soft crickets chirping steadily, some near and some far away, gentle and soothing, no birds, no frogs, no wind, no music, no voices" (0.5) |
+| `night_frogs` | 18 s | "seamless loop of frogs at night by a pond: a lively but relaxed chorus of many small frogs croaking and chirping, crickets softly in the background, warm humid summer night, no birds, no rain, no music, no voices" (0.5) |
+| `night_wind` | 12 s | "night wind ambience, a steady breeze blowing across an open empty landscape, whooshing air rising and falling" (0.3) |
+| `night_hum` | 15 s | "eerie but calm alien mushroom forest night ambience, a low warm humming drone with soft gentle bubbling, no music, no voices" (0.3) |
+| `night_chimes` | 15 s | "seamless loop of a glittering crystal field at night: soft scattered glassy chimes and gentle crystal tinkles ringing in a light breeze over a faint low shimmering drone, calm and magical, no melody, no music, no voices" (0.5) |
+
+Generation note: prompts that leaned hard on "soft / gentle / calm" for wind and hum came back nearly silent or as an
+inaudible sub-bass rumble; the plainer prompts above did not. Check a new loop's band levels before bundling it.
+
+**The hatch (#2817).** When a sliding door of the player's **own** parked ship closes while they are aboard, and that door
+leads outside — the hatch, or a side door built into the outer wall (`ShipHatch.OpensToOutside`: a line across the doorway
+leaves the hull on one side) — the synthetic airlock (`station_board`, `ProceduralAudio.Airlock`: a pressure hiss and a clunk)
+plays at the door 0.7 s after the slide. Doors between two rooms, hand doors and a friend's ship stay plain.
 
 ---
 

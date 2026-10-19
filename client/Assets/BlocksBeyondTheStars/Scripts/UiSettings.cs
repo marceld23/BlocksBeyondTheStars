@@ -84,6 +84,15 @@ namespace BlocksBeyondTheStars.Client
                 () => { S.Brightness = Mathf.Clamp(S.Brightness - 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },
                 () => { S.Brightness = Mathf.Clamp(S.Brightness + 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },
                 Mathf.RoundToInt(S.Brightness * 100f) + "%");
+            // Cosiness (#2820): one slider, 0–100 % in steps of 10, applied live like the brightness above.
+            Stepper(ref y, L("ui.settings.cosiness"), S.Cosiness, 0f, 1f,
+                () => { S.Cosiness = Mathf.Clamp01(Mathf.Round((S.Cosiness - 0.1f) * 10f) / 10f); UrpScenePost.Instance?.SetCosiness(S.Cosiness); Rebuild(); },
+                () => { S.Cosiness = Mathf.Clamp01(Mathf.Round((S.Cosiness + 0.1f) * 10f) / 10f); UrpScenePost.Instance?.SetCosiness(S.Cosiness); Rebuild(); },
+                Mathf.RoundToInt(S.Cosiness * 100f) + "%");
+            // Two lines: the hint is longer than the control column in every language (AddText does not wrap by itself).
+            var cosinessHint = UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 40, L("ui.settings.cosiness_hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+            cosinessHint.horizontalOverflow = HorizontalWrapMode.Wrap;
+            y += 44f;
             // Window mode cycles Windowed → Borderless → Exclusive and applies immediately so the player sees
             // the window change without leaving the menu (resolution/mode changes are pushed via Apply()).
             Cycle(ref y, L("ui.settings.window_mode"), L(WindowModeKey(S.Window)),
@@ -676,6 +685,8 @@ namespace BlocksBeyondTheStars.Client
                 post.Preset = S.Preset; // gates lens flare (Medium+) / motion blur (High+)
                 post.LensFlareEnabled = S.LensFlare;
                 post.MotionBlurEnabled = S.MotionBlur;
+                post.ReducedEffects = S.ReducedEffects; // #2811: the pause menu's switch reaches the alarm/damage pulses at once
+                post.SetCosiness(S.Cosiness);
             }
 
             var sky = FindAnyObjectByType<Sky>();
@@ -685,6 +696,7 @@ namespace BlocksBeyondTheStars.Client
                 sky.HeightFogEnabled = S.AtmosphereEffect(S.HeightFog, cheap: true);
                 sky.CloudShadowsEnabled = S.AtmosphereEffect(S.CloudShadows, cheap: false);
                 sky.FlickerScale = !S.ReduceFlashes && S.AtmosphereEffect(S.TorchFlicker, cheap: true) ? 1f : 0f;
+                sky.GlowPulseEnabled = !S.ReduceFlashes; // #2822
                 sky.WindSwayEnabled = S.AtmosphereEffect(S.WindSway, cheap: true);
                 sky.WetSurfacesEnabled = S.AtmosphereEffect(S.WetSurfaces, cheap: true);
                 sky.UnderwaterEnabled = S.AtmosphereEffect(S.Underwater, cheap: true);

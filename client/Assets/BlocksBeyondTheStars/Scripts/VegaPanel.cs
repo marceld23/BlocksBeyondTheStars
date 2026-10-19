@@ -299,8 +299,9 @@ namespace BlocksBeyondTheStars.Client
         /// or course counts the lesson as given — and never for a line muted by the hints switch (#2462, B31: it must still
         /// come once the hints are back on) or dropped unseen: a lesson is bound to its moment, so one still waiting after
         /// <see cref="VegaLineQueue.LessonExpirySeconds"/> goes (the player has walked on) and may come again the next time
-        /// the situation happens. Saying a lesson that already waits keeps its place and starts its wait over.</summary>
-        public bool SayLocal(string lineKey, System.Action onShown = null)
+        /// the situation happens. Saying a lesson that already waits keeps its place and starts its wait over.
+        /// <paramref name="keepInLog"/> false keeps a passing remark out of the tips log (the bed's good night, #2823).</summary>
+        public bool SayLocal(string lineKey, System.Action onShown = null, bool keepInLog = true)
         {
             if (string.IsNullOrEmpty(lineKey))
             {
@@ -343,7 +344,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _queue.Enqueue(new VegaQueuedLine(VegaText.Compose(L(lineKey), null, KeyGlyphFor), false, lineKey), VegaLineClass.Lesson, Now, onShown);
-            if (Game != null && !Game.VegaLogKeys.Contains(lineKey))
+            if (keepInLog && Game != null && !Game.VegaLogKeys.Contains(lineKey))
             {
                 Game.VegaLogKeys.Add(lineKey);
             }

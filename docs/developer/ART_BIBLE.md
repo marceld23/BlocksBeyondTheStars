@@ -90,26 +90,55 @@ From the room-identity pass (`GameServerSpaceStructure.PaintStationAccents` + de
 | Ship console | `lab_panel` | cyan flickering terminal |
 | Cargo | `cargo_floor` (amber/black hazard stripes) | — |
 | Workshop | `engine_panel` (dark + orange corners) | periodic spark bursts |
-| Quarters | `metal_panel` (dark, calm) | — |
+| Quarters | `metal_panel` (dark, calm) | warm-white ceiling lamp |
 | Corridor/walls | `iron_wall` + `strip_light_cyan` rows | emissive cyan strips above the windows |
 | Engines | `engine_nozzle` (glowing throat ring) | idle glow even when landed |
+
+Ceiling lamps (`PlaceInteriorLights`, #776/#2816): the rooms a crew **lives** in — quarters, medbay, workshop,
+cargo — get a `light_white` dyed warm white (`FFD8A8`), the rooms it **works** in — cockpit, console — keep the plain
+cool `light_white`. Warm light belongs to home and rest, cyan to interface and flight. Electric light glows steadily;
+only flame-coloured light (torch, lantern, campfire) breathes.
 
 Ship/tech blocks keep **aligned seams** — they are excluded from the natural-block variant/rotation
 system (`BlockTextureAtlas.VariantKeys` whitelist is natural blocks only).
 
 ## 6. Light & post
 
-- ACES tonemapping, bloom threshold 0.9 / intensity 0.5, vignette 0.18 base (`UrpScenePost`; was 0.26 until #1457).
+- ACES tonemapping (Neutral on an LDR buffer — WebGL Low and Potato), bloom threshold 0.9 / intensity 0.5,
+  vignette 0.18 base (`UrpScenePost`; was 0.26 until #1457). Contrast: the neutral world sits at +3 on top of the
+  biome contrast (#2803 — until then a hidden +6 kept the world at 9–20).
 - Emission is the sci-fi signature: lights, strips, lava veins, glow flora, ores, force fields,
-  console screens — bloom catches them; **every important tech object carries one glowing detail.**
-- Dynamic vignette is reserved for meaning: blue pulse = low oxygen, red kick = damage; chroma/
-  grain bursts only for events (damaged visor, EMP) via `UrpScenePost.Burst`.
-- Night is never pitch black (0.20 brightness floor); interiors get the `_Sc_Indoor` fill.
+  console screens — bloom catches them; **every important tech object carries one glowing detail.** Glowing
+  plants and mushrooms breathe slowly (one breath every ~6 s, #2822); crystals, ores and machines stay steady.
+- Authored light colours are sRGB like every other colour: the block light is converted to linear with its
+  brightness kept (`ChunkMesher.DisplayLight`, #2804), so a torch lights amber and the cyan strip cyan.
+- Dynamic vignette is reserved for meaning: blue pulse = low oxygen, red kick = damage, a soft close-in = resting
+  in bed; chroma/grain bursts only for events (damaged visor, EMP) via `UrpScenePost.Burst`.
+- Night is never pitch black (0.35 brightness floor since PR #65); interiors get the `_Sc_Indoor` fill.
 - Effects never spawn Unity `Light`s (URP additional lights are off): a flash that should light the room goes through
   the shader-global **FX lights** (`FxLights`, max 8, preset-scaled), an existing light through `FxLightBridge`.
-- Effect glow is HDR colour + bloom, but every effect must still read on Low/Potato (LDR, no bloom): a bright core
-  plus a soft additive halo. Large full-screen flashes honour **Reduce flashes**; camera motion honours **Screen
-  shake** + **Camera motion** ([VFX.md](VFX.md)).
+- Effect glow is HDR colour + bloom, but every effect must still read on Low/Potato, where the buffer is LDR: bloom
+  runs on every preset, but on an LDR buffer only near-white pixels cross its threshold — so a bright core plus a soft
+  additive halo, never bloom alone. Large full-screen flashes honour **Reduce flashes**; camera motion honours
+  **Screen shake** + **Camera motion** ([VFX.md](VFX.md)).
+
+## 6a. Cosiness and home (#2802)
+
+Cosy comes from safety and softness, not from painting the world orange:
+
+- **The home stands out.** Aboard your ship — or under a roof inside your own base's air — the grade blends over
+  ~1.5 s into a warm **home grade** (`UrpScenePost`, `Sky` → `SetCozyContext`): the planet's tint, saturation and
+  contrast fade out, the white balance warms, shadows lift a little and lose their cool lean, the biome mood LUT
+  drops to a quarter. The cabin fill (`_Sc_IndoorColor`) is warm white by day and amber in the evening (the
+  planet's local time when landed, the player's real clock in space). The ice world's chill and the lava world's
+  orange come back as the hatch opens.
+- **One slider, scaled by place.** *Cosiness* (0–100 %, default 50 %) softens contrast and lifts shadows first, then
+  warms, then adds a little glow — multiplied by how cosy the place may get: home 1, a lit camp or village 0.8,
+  gentle worlds 0.6, harsh worlds 0.3–0.4, storms half, and nothing while a hostile is close or Valuma watches.
+  Biomes keep their identity because the outdoor share stays small.
+- **Never darker.** The warmer white balance is exposure-compensated; the one deliberate dimming is resting in bed.
+- **Not on the slider:** vignette (reserved for meaning), film grain, chromatic aberration, lens distortion, depth of
+  field while exploring.
 
 ## 7. Feedback ("juice") rules
 

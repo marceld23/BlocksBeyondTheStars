@@ -17,7 +17,9 @@ namespace BlocksBeyondTheStars.Client
     /// (see <see cref="VisorHud"/>), and the only thing that overlays it back onto the frame is the visor
     /// composite pass that runs on the main camera. So we render a throwaway clone of the view camera —
     /// which has neither the composite nor the screen-space HUD canvas — into a render texture, and read
-    /// that back. Pipeline-agnostic (works under Built-in and URP) and never touches the live frame.
+    /// that back. Pipeline-agnostic (works under Built-in and URP) and never touches the live frame. Under URP the
+    /// clone also gets the live camera's URP data (<see cref="UrpCameraClone"/>, #2809), so the photo carries the same
+    /// post stack — bloom, grade, tonemap — as the view.
     /// </summary>
     public sealed class CameraTool : MonoBehaviour
     {
@@ -58,6 +60,9 @@ namespace BlocksBeyondTheStars.Client
             var camGo = new GameObject("PhotoCamera");
             var cam = camGo.AddComponent<Camera>();
             cam.CopyFrom(Source); // FOV, clip planes and the HUD-excluded culling mask
+            // CopyFrom skips the URP camera data: without this the photo rendered without the post stack (bloom, grade,
+            // tonemap) and with no opaque texture for the heat-haze quad (#2809, the clip recorder's #2405).
+            UrpCameraClone.Sync(Source, cam, Game.Settings != null ? Game.Settings.RendererIndex : -1);
             cam.transform.SetPositionAndRotation(Source.transform.position, Source.transform.rotation);
             cam.targetTexture = rt;
             cam.enabled = true;

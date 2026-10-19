@@ -345,6 +345,45 @@ namespace BlocksBeyondTheStars.Client
             return new Plan(new[] { panel }, false, true, (panel.MinX + panel.MaxX + 1) * 0.5f, panel.MinY - 0.5f, zWall);
         }
 
+        /// <summary>
+        /// #2817: whether a doorway of a parked hull leads OUT — the hatch, or a side door the owner built into the outer
+        /// wall — rather than between two of its rooms. A line across the doorway (along Z through a wall that runs along X,
+        /// along X otherwise) at the doorway's height leaves the hull's box on one side without meeting a hull cell. The
+        /// doorway and the hull are in structure cells (x 0…<paramref name="width"/>−1, z 0…<paramref name="length"/>−1);
+        /// a doorway already outside the box counts as leading out. <paramref name="hullAt"/> answers "is this cell part of
+        /// the hull" (anything not air).
+        /// </summary>
+        public static bool OpensToOutside(Func<int, int, int, bool> hullAt, int x, int y, int z, bool wallAlongX, int width, int length)
+        {
+            if (hullAt is null)
+            {
+                throw new ArgumentNullException(nameof(hullAt));
+            }
+
+            int dx = wallAlongX ? 0 : 1, dz = wallAlongX ? 1 : 0;
+            return LeavesHull(hullAt, x, y, z, dx, dz, width, length) || LeavesHull(hullAt, x, y, z, -dx, -dz, width, length);
+        }
+
+        /// <summary>Walks from the doorway in one direction: true once the walk leaves the box, false at the first hull cell.</summary>
+        private static bool LeavesHull(Func<int, int, int, bool> hullAt, int x, int y, int z, int dx, int dz, int width, int length)
+        {
+            for (int step = 0; step <= width + length + 1; step++)
+            {
+                int cx = x + dx * step, cz = z + dz * step;
+                if (cx < 0 || cz < 0 || cx >= width || cz >= length)
+                {
+                    return true;
+                }
+
+                if (step > 0 && hullAt(cx, y, cz))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         private static IEnumerable<(int X, int Y)> Neighbours4((int X, int Y) c)
         {
             yield return (c.X + 1, c.Y);
