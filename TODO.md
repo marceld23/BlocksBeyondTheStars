@@ -110,6 +110,8 @@ let the outside sound like outside. Rules: [docs/developer/ART_BIBLE.md](docs/de
 mote amounts, rest camera height on a bunk, all the audio levels); the WebGL weather-bed override and muffled bake have
 not run in a browser; the old `night_amb.mp3` is bundled but unused (cut it from the browser download?).
 
+**Released** in **v2026.10.22** "the cosy release" (2026-10-19).
+
 ---
 
 ### 📬 Player report 2026-10-19 (Marcel, v2026.10.21) — the hand scanner flickers in the hand — #2798, #2799, #2800, branch fix/held-hand-planes — ✅ done 2026-10-19 (⚠ playtest open)
@@ -132,7 +134,9 @@ position. Check whether other objects do it too."
   when its range is longer than the 6-block `MeleeReach` — used by the server (aim check, the strength factor), the
   effect fallback and the held item; the key matcher is gone. Only the plasma sword changes.
 
-Docs: HELD_ITEMS.md §1/§2, USER_MANUAL (held items). Not released yet.
+Docs: HELD_ITEMS.md §1/§2, USER_MANUAL (held items).
+
+**Released** in **v2026.10.22** "the cosy release" (2026-10-19).
 
 ### 🧹 Code health 2026-10-18, PR 2 of 2 — the cleanup — epic #2793, #2790–#2792, branch chore/code-health-cleanup-2026-10-18 — ✅ done 2026-10-19 (PR #2795, 74f30a5b)
 

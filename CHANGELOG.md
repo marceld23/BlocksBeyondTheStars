@@ -11,6 +11,108 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.22] — 2026-10-19
+
+The cosy release. The game got warmer and calmer: **your ship feels like home** — warm lamps, a warm evening light and
+soft colours as soon as you are aboard or under a roof in your base — **rain drums muffled on the hull**, **a campfire
+crackles and sparks**, **the night sounds like the world you are on**, and **you can lie down in a bed**. A new
+**Cosiness** slider sets how strong it all is. On top: the picture outside is softer, torches finally light in their
+own amber, and the hand scanner no longer flickers in your hand.
+
+ℹ️ **Compatibility:** the **save version stays at 4**, the network protocol stays at **version 11** and the **terrain
+generation stays at 27** — existing worlds keep their landscape. Game and server should both be on 2026.10.22 (the
+server now tells blades from guns by their range, so the plasma sword hits as a blade only on a 2026.10.22 server).
+Existing ships get the warm lamps on their next build; a lamp you changed yourself stays as you left it.
+
+### 🛋️ The ship is home (#2813–#2816, #2818, #2824)
+
+- **A warm home picture (#2813):** aboard your own ship — or under a roof inside your own base — the picture turns warm
+  over a second or two. The planet's colours stay outside, shadows soften, and the harsh contrast of the world drops away.
+- **Cabin light by the time of day (#2814, #2815):** the cabin glows warm white by day and amber in the evening — on a
+  planet by the planet's sun, out in space by your own clock.
+- **Warm lamps in the living rooms (#2816):** quarters, medbay, workshop and cargo bay get warm-white ceiling lamps; the
+  cockpit and the console keep their cool working light.
+- **Small things at home:** tiny warm motes drift near the lamps (#2818), and a vital that runs low beeps once instead
+  of every few seconds — its bar keeps blinking (#2824).
+
+### 🎚️ The Cosiness slider (#2820, #2822)
+
+- **Settings → Graphics → Cosiness** (0–100 %, default 50 %): warmer colours, softer shadows and contrast, and towards
+  100 % a little more glow around lamps. Strongest at home, gentle on calm worlds, weaker on harsh ones and in storms,
+  and switched off when danger is close. It only changes how the game looks, never how it plays, and costs no frame
+  rate — in the browser too. At 0 % you see the plain picture.
+- **Glowing plants breathe (#2822):** glowing mushrooms and plants slowly brighten and dim, so a glowing forest moves
+  like a slow wave at night. **Reduce flashes** holds them steady.
+
+### 🌧️ Sound (#2805, #2806, #2817, #2825)
+
+- **Rain on the hull (#2805):** under any roof — your ship, a house, a cave — you still hear rain, wind and thunder,
+  muffled and quieter.
+- **A campfire crackles (#2806).**
+- **Nights that fit the world (#2825):** after dusk a quiet layer chosen by what the world is like — crickets where it is
+  green and mild, frogs by the water on warm humid nights, a soft wind on cold or barren worlds, a low hum among fungus,
+  soft chimes among crystal. Lava, ash, poisoned and airless worlds stay silent, and rain or storms take over.
+- **Your hatch hisses shut (#2817)** behind you when it leads outside.
+
+### 🛏️ Rest and campfires (#2821, #2823, #2826, #2819)
+
+- **Lie down in a bed (#2823):** **E** on a bed, a crew bunk or at your ship's quarters lays you down — it still sets
+  your home spawn. The view settles onto the pillow, the screen dims to a warm glow, the music turns quiet and VEGA wishes
+  you a good night. Move, jump or press **E** to get up. It is just for the cosy moment: no time skip, no bonus.
+- **Campfire sparks and smoke (#2821):** a lit campfire sends up sparks and a thin column of smoke; a block on top
+  stops it.
+- **Two new swatches (#2826):** the **Dye**/**Glow** palette has an amber and a warm white for cosy room lights (20
+  colours).
+- **A faint draught (#2819):** plants out of the wind — indoors, in caves, under a roof — stir gently instead of standing
+  frozen.
+
+### 🎨 A softer picture and calmer effects (#2803, #2804, #2807–#2811)
+
+- **Softer contrast (#2803):** the softer contrast from an earlier release only ever reached the main menu; in the world
+  it stayed much stronger. Now the world is as soft as intended.
+- **Lamps in their own colour (#2804):** torches, lanterns and campfires light in their real amber instead of a pale
+  yellow, and coloured lamps keep their colour.
+- **Reduce flashes (#2807)** now also softens lightning — the screen and the landscape only brighten softly — and holds
+  flickering lights steady (the emergency lamp of a damaged ship, engine and wormhole light). **Mute alarm sirens**
+  (formerly *Mute crystal alarm sirens*) silences your ship's hull alarm too.
+- **Ambient motes (#2808)** float only in the open air, follow the effects density, and match the world: spores, ash,
+  frost, petals, seeds, sand or salt.
+- **Photos (#2809)** carry the same colours and glow as the game; the **menu blur (#2810)** fades in and out; **Reduced
+  effects (#2811)** applies at once, also from the pause menu.
+
+### ✋ The item in your hand (#2798–#2800)
+
+- **No more flicker (#2798):** the hand scanner's blue flickered into skin colour, depending on the angle — the hand and
+  the scanner shared a surface. The hand now always sits just behind the item; four other items with the same hidden
+  problem are fixed too.
+- **Scanners have a handle (#2799):** the **Hand Scanner** and the **Advanced Scanner** are held by a handle below,
+  like a drill.
+- **The plasma sword is a blade (#2800):** it used to recoil like a gun because of the word "plasma" in its name. Now a
+  weapon counts as a gun only when it reaches farther than a melee strike (6 blocks), so the **Plasma Sword** is swung —
+  and the server treats it as a blade too.
+
+### 🌍 Texts
+
+- The "What's new?" notes of 2026.10.21 are now available in the twelve community languages too (#2797).
+- The new texts (Cosiness, resting in a bed, VEGA's good-night lines) are translated into all 14 languages.
+
+### 🛠️ For tinkerers
+
+- **Cosy look:** `GameBootstrap.AtHome` → `Sky` home blend → `UrpScenePost.SetCozyContext`; `ClientSettings.Cosiness` ×
+  `Sky.CozyPlaceTarget`, baked into URP's LUT (grading only); `_Sc_IndoorColor` cabin fill, `_Sc_CozyLight`;
+  `ChunkMesher.DisplayLight` linearises block-light hues at the per-vertex bake; `UrpCameraClone` for photos and the clip
+  recorder (`-cosiness <0..1>`, `scripts/clip-manifests/cozy-check.json`). Rules: `docs/developer/ART_BIBLE.md` §6a
+  (corrected, #2812).
+- **Client.Core:** `AmbientMotes`, `NightAmbience.Pick` (by world data and a scan around the player, never by name),
+  `ShipHatch.OpensToOutside`; 5 new night loops (`night_{crickets,frogs,wind,hum,chimes}`, SOUND_DESIGN §23, NOTICES).
+  The 10 weather beds have a WebGL-only *Decompress On Load* override for the muffled bake.
+- **Server:** `PlaceInteriorLights` dyes the living rooms' lamp `WarmLampTint` (`FFD8A8`); one rule `MeleeRules.IsRanged`
+  (range > `MeleeReach` 6) for the aim check, the strength factor, the FX fallback and the held item.
+- **Held items:** `HeldHands.ClearOf` pulls hand faces 2 mm behind a same-facing item face; guard `HeldHandsTests` over
+  every data model.
+- **For hosters:** the WorldHost image was rebuilt with this release (Shared changed); the report host and the AI
+  backend are unchanged.
+
 ## [2026.10.21] — 2026-10-19
 
 The in-hand release. Whatever you hold now looks like itself: **a dyed, glowing, shaped or painted block looks exactly
@@ -8614,7 +8716,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.20...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.22...HEAD
+[2026.10.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.21...v2026.10.22
 [2026.10.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.20...v2026.10.21
 [2026.10.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.19...v2026.10.20
 [2026.10.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.18...v2026.10.19
