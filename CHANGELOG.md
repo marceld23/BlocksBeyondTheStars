@@ -30,7 +30,7 @@ Existing ships get the warm lamps on their next build; a lamp you changed yourse
   over a second or two. The planet's colours stay outside, shadows soften, and the harsh contrast of the world drops away.
 - **Cabin light by the time of day (#2814, #2815):** the cabin glows warm white by day and amber in the evening — on a
   planet by the planet's sun, out in space by your own clock.
-- **Warm lamps in the living rooms (#2816):** quarters, medbay, workshop and cargo bay get warm-white ceiling lamps; the
+- **Warm lamps in the living rooms (#2816):** quarters, medbay, workshop and cargo hold get warm-white ceiling lamps; the
   cockpit and the console keep their cool working light.
 - **Small things at home:** tiny warm motes drift near the lamps (#2818), and a vital that runs low beeps once instead
   of every few seconds — its bar keeps blinking (#2824).
