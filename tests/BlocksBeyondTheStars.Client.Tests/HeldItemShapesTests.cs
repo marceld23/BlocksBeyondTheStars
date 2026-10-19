@@ -48,7 +48,7 @@ public sealed class HeldItemShapesTests
         Assert.Equal(Signature("Gun", "unknown_gun"), Signature("Gun", null));
         Assert.Equal(3, HeldItemShapes.Parts("Gun", Tint)!.Count);
         Assert.Equal(2, HeldItemShapes.Parts("Blade", Tint)!.Count);
-        Assert.Equal(3, HeldItemShapes.Parts("Scanner", Tint)!.Count);
+        Assert.Equal(4, HeldItemShapes.Parts("Scanner", Tint)!.Count); // #2799: with its handle
     }
 
     [Theory]

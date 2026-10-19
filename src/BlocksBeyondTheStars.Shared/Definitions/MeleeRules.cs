@@ -37,4 +37,14 @@ public static class MeleeRules
     /// — a drill, a scanner, a gadget. Server and client gate and damage such a hit by the <c>Fist*</c> rules above;
     /// only a <see cref="ToolKind.Weapon"/> brings its own damage, cooldown, reach and energy cost.</summary>
     public static bool IsPunch(ToolProperties? tool) => tool is null || tool.Kind != ToolKind.Weapon;
+
+    /// <summary>The reach in blocks of a hit without a longer weapon — the bare hand, a tool, a melee weapon. A weapon whose
+    /// <see cref="ToolProperties.Range"/> is longer fights at range (<see cref="IsRanged"/>).</summary>
+    public const float MeleeReach = 6f;
+
+    /// <summary>True for a weapon that fights at range (#2800): its range is longer than <see cref="MeleeReach"/> — the
+    /// pistols and blasters, never a blade, a club or a spear. The server aims its hits by it; the client holds such a
+    /// weapon as a gun (the recoil, not the slash) and falls back to a beam effect for it. The client used to guess it from
+    /// the item key, and the plasma sword ("plasma") was held like a gun.</summary>
+    public static bool IsRanged(ToolProperties? tool) => tool is { Kind: ToolKind.Weapon } && tool.Range > MeleeReach;
 }

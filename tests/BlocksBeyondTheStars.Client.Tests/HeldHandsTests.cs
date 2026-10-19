@@ -144,6 +144,125 @@ public sealed class HeldHandsTests
         Assert.Contains(hand, b => b.Piece == HeldHands.Piece.Hand && Near(b.Position, new Vector3(-0.075f, 0.01f, 0.05f)));
     }
 
+    // ---------------- #2798: the hand never shares a plane with what it holds ----------------
+
+    private static readonly HeldItemShapes.Rgb White = new(1f, 1f, 1f);
+
+    [Fact]
+    public void TheHand_NeverSharesAPlaneWithWhatItHolds()
+    {
+        var models = new List<(string Name, List<HeldItemShapes.Part> Parts)>();
+        foreach (var kind in new[] { "Drill", "Gun", "Blade", "Scanner" })
+        {
+            models.Add(($"the {kind} default", HeldItemShapes.Parts(kind, White)!));
+        }
+
+        foreach (var item in Content.Items.Values.Where(i => i.HeldModel != null && !HeldGrips.IsGloves(i)))
+        {
+            models.Add((item.Key, HeldItemShapes.FromModel(item.HeldModel, White)));
+        }
+
+        models.Add(("the plain block cube", new List<HeldItemShapes.Part> { Cube(0f, 0f, 0.16f, 0.22f, 0.22f, 0.22f) }));
+        // A player's own look (#1963) without a grip, its body exactly the fist's height round the origin — the hand
+        // scanner as it was held in 2026.10.21.
+        models.Add(("a grip-less look", new List<HeldItemShapes.Part> { Cube(0f, 0f, 0.06f, 0.16f, 0.12f, 0.18f) }));
+
+        var shared = new List<string>();
+        foreach (var (name, parts) in models)
+        {
+            var min = parts.Aggregate(new Vector3(float.MaxValue), (m, p) => Vector3.Min(m, p.Position - (p.Size * 0.5f)));
+            var max = parts.Aggregate(new Vector3(float.MinValue), (m, p) => Vector3.Max(m, p.Position + (p.Size * 0.5f)));
+            foreach (var grip in new[] { HeldGrips.Fist, HeldGrips.Palm, HeldGrips.Pinch, HeldGrips.Stem })
+            {
+                foreach (var box in HeldHands.For(grip, parts, min, max))
+                {
+                    foreach (var part in parts)
+                    {
+                        if (SharedFace(box.Position, box.Size, part.Position, part.Size) is { } face)
+                        {
+                            shared.Add($"{name} ({grip}): the {box.Piece}'s {face} face");
+                        }
+                    }
+                }
+            }
+        }
+
+        Assert.Empty(shared);
+    }
+
+    [Fact]
+    public void AGriplessBodyAsTallAsTheFist_KeepsItsSurface_AndTheFistEndsUnderIt()
+    {
+        var body = Cube(0f, 0f, 0.06f, 0.16f, 0.12f, 0.18f);
+        var fist = HeldHands.For(HeldGrips.Fist, new[] { body }, Vector3.Zero, Vector3.Zero)
+            .Where(b => b.Piece == HeldHands.Piece.Hand).OrderByDescending(b => b.Size.X).First();
+        Assert.Equal(0.06f - HeldHands.SharedPlaneInset, fist.Position.Y + (fist.Size.Y * 0.5f), 4);
+        Assert.Equal(-0.06f + HeldHands.SharedPlaneInset, fist.Position.Y - (fist.Size.Y * 0.5f), 4);
+        Assert.Equal(0.13f, fist.Size.X, 4); // only the shared faces move
+        Assert.Equal(0.14f, fist.Size.Z, 4);
+    }
+
+    [Fact]
+    public void AFaceThatOnlyTouchesTheItem_StaysWhereItIs()
+    {
+        // The palm's top against the block's bottom faces the other way: one of the two is culled, nothing fights.
+        var min = new Vector3(-0.11f, -0.11f, 0.05f);
+        var max = new Vector3(0.11f, 0.11f, 0.27f);
+        var bare = HeldHands.For(HeldGrips.Palm, null, min, max);
+        var withCube = HeldHands.For(HeldGrips.Palm, new[] { Cube(0f, 0f, 0.16f, 0.22f, 0.22f, 0.22f) }, min, max);
+        Assert.Equal(bare.Select(b => (b.Position, b.Size)), withCube.Select(b => (b.Position, b.Size)));
+    }
+
+    [Theory] // #2799: the fist holds a scanner from below, by a handle, instead of sitting inside its body
+    [InlineData("hand_scanner")]
+    [InlineData("advanced_scanner")]
+    public void BothScanners_AreHeldByTheirHandle_RightUnderTheBody(string item)
+    {
+        var parts = HeldItemShapes.Parts("Scanner", White, Content.GetItem(item)?.HeldModel)!;
+        var body = parts.OrderByDescending(p => p.Size.X * p.Size.Y * p.Size.Z).First();
+        float bodyBottom = body.Position.Y - (body.Size.Y * 0.5f);
+        var point = HeldHands.HandlePoint(parts);
+        Assert.True(point.Y < bodyBottom, $"{item}: the fist sits below the body");
+        Assert.True(point.Y + HeldHands.FistHalfHeight > bodyBottom, $"{item}: and closes right under it");
+    }
+
+    private static HeldItemShapes.Part Cube(float x, float y, float z, float w, float h, float d)
+        => new(new Vector3(x, y, z), new Vector3(w, h, d), White);
+
+    // The face of box a that lies in the plane of the same-facing face of box b and overlaps it ("+y", "-z" …), or null.
+    private static string? SharedFace(Vector3 ca, Vector3 sa, Vector3 cb, Vector3 sb)
+    {
+        float[] a = { ca.X, ca.Y, ca.Z }, asz = { sa.X, sa.Y, sa.Z }, b = { cb.X, cb.Y, cb.Z }, bsz = { sb.X, sb.Y, sb.Z };
+        for (int axis = 0; axis < 3; axis++)
+        {
+            bool overlap = true;
+            for (int other = 0; other < 3; other++)
+            {
+                if (other != axis
+                    && Math.Min(a[other] + (asz[other] * 0.5f), b[other] + (bsz[other] * 0.5f))
+                       - Math.Max(a[other] - (asz[other] * 0.5f), b[other] - (bsz[other] * 0.5f)) <= HeldHands.SharedPlaneTolerance)
+                {
+                    overlap = false;
+                }
+            }
+
+            if (!overlap)
+            {
+                continue;
+            }
+
+            foreach (int side in new[] { -1, 1 })
+            {
+                if (Math.Abs((a[axis] + (side * asz[axis] * 0.5f)) - (b[axis] + (side * bsz[axis] * 0.5f))) <= HeldHands.SharedPlaneTolerance)
+                {
+                    return (side < 0 ? "-" : "+") + "xyz"[axis];
+                }
+            }
+        }
+
+        return null;
+    }
+
     private static bool Near(Vector3 a, Vector3 b) => Vector3.Distance(a, b) < 1e-4f;
 
     private static bool Overlaps(Vector3 ca, Vector3 sa, Vector3 cb, Vector3 sb)

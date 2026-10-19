@@ -289,6 +289,31 @@ public sealed class WeaponTests : IDisposable
         Assert.False(MeleeRules.IsPunch(_content.GetItem("machete")!.Tool));
     }
 
+    [Theory] // #2800: one rule for gun or blade — the plasma sword is a blade although its key says "plasma"
+    [InlineData("scrap_pistol", true)]
+    [InlineData("gauss_pistol", true)]
+    [InlineData("laser_pistol", true)]
+    [InlineData("plasma_blaster", true)]
+    [InlineData("plasma_sword", false)]
+    [InlineData("vibro_knife", false)]
+    [InlineData("machete", false)]
+    [InlineData("wood_club", false)]
+    [InlineData("wood_spear", false)]
+    [InlineData("titanium_drill", false)]
+    [InlineData("hand_scanner", false)]
+    public void IsRanged_GoesByTheWeaponsRange(string item, bool ranged)
+        => Assert.Equal(ranged, MeleeRules.IsRanged(_content.GetItem(item)!.Tool));
+
+    [Fact]
+    public void EveryWeaponInTheData_IsClearlyMeleeOrRanged()
+    {
+        // A weapon right at the melee reach would flip between gun and blade on a rounding — keep the data clear of it.
+        var weapons = _content.Items.Values.Where(i => i.Tool?.Kind == ToolKind.Weapon).ToList();
+        Assert.NotEmpty(weapons);
+        Assert.All(weapons, w => Assert.True(Math.Abs(w.Tool!.Range - MeleeRules.MeleeReach) >= 1f, $"{w.Key}: range {w.Tool!.Range}"));
+        Assert.False(MeleeRules.IsRanged(null));
+    }
+
     // ---------------- #2281: companions and pets cannot be attacked ----------------
 
     [Fact]

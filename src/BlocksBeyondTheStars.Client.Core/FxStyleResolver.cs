@@ -292,7 +292,7 @@ namespace BlocksBeyondTheStars.Client
                 return FxStyles.Laser;
             }
 
-            return tool.Range > 6f ? FxStyles.Laser : FxStyles.Slash;
+            return MeleeRules.IsRanged(tool) ? FxStyles.Laser : FxStyles.Slash;
         }
 
         /// <summary>A module without fx data: the asteroid breaker class (weapon_class 0) drills, the laser cannon is a

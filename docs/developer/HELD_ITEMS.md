@@ -1,8 +1,8 @@
 # Held items — what the hand shows, how it holds it, how it changes
 
-**Status:** current (2026-10-18). Covers #1033, #1427/#2755 (the painted hand), #1931/#1962 (tool models as data), #2278
-(gloves), #2534 (miniatures), #2744 (block faces), and #2776–#2778 (the block's own look, a hand on every item, the
-holster and draw).
+**Status:** current (2026-10-19). Covers #1033, #1427/#2755 (the painted hand), #1931/#1962 (tool models as data), #2278
+(gloves), #2534 (miniatures), #2744 (block faces), #2776–#2778 (the block's own look, a hand on every item, the
+holster and draw) and #2798–#2800 (no shared planes, the scanners' handle, gun or blade by range).
 
 The selected quick-bar item is shown in three places: the first-person view (`Viewmodel`, on the camera), the local
 avatar's hand in third person and every other player's avatar (`PlayerAvatar`). All three build the same model through
@@ -22,6 +22,10 @@ pointing along +Z:
 | `Block` | the block's cube (#2744) — or the world's own mesh of it (#2776, below) | the block atlas |
 | `Vehicle`, `Plant`, `Icon` | miniatures (#2534) | `HeldMiniatures`: the hull, the placed plant, the extruded icon |
 | `Hand` | the bare suit fist (#1033) | an empty slot, or an item without any picture |
+
+A weapon is a `Gun` or a `Blade` by its range, the server's rule (`MeleeRules.IsRanged`: longer than the 6-block
+`MeleeReach`, #2800) — never by its key: the key matcher before it held the plasma sword ("plasma") like a pistol. A
+gadget whose key ends in `_gun` (the energy rope gun) is held as a `Gun` too.
 
 ### The block's own look (#2776)
 
@@ -57,7 +61,7 @@ own `heldGrip` (`HeldGrips.Fist` / `Palm` / `Pinch` / `Stem`) wins, otherwise th
 
 | Grip | Kinds | Where the hand goes |
 |---|---|---|
-| `fist` | tools, weapons, scanner, gadgets | `HeldHands.HandlePoint`: on a pistol grip (a part hanging below the body, taller than long) just under the body, else the model's origin — where every held model already puts the palm |
+| `fist` | tools, weapons, scanner, gadgets | `HeldHands.HandlePoint`: on a pistol grip (a part hanging below the body, taller than long) just under the body, else the model's origin — where every held model already puts the palm. Both scanners have such a handle (#2799); before it the fist sat inside the scanner's body |
 | `palm` | `Block`, `Vehicle` | under the item's bounds, reaching in from its inner (−X) edge, the thumb against that edge |
 | `pinch` | `Icon` | a fist under the card's lower edge (1.5 cm of it in the fist) |
 | `stem` | `Plant` | a fist round the plant's foot |
@@ -74,6 +78,15 @@ Things that look small but matter:
   item's origin: round the origin the forearm's far end swings up into the picture, round the elbow the item falls out
   of it. The jab and the blade's slash pitch a little less for it (34° and 40°). The gun's recoil and the bare fist's
   punch keep their own motion.
+- **The hand never shares a plane with the item** (`HeldHands.ClearOf`, #2798). A hand face within 1 mm of a face of the
+  item's cubes that faces the same way (and overlaps it) is pulled 2 mm back into the hand. Hand and item are both
+  opaque `LitColor` under different transforms, so two faces in one plane z-fight: the hand scanner's 12 cm body round
+  its origin and the 12 cm fist there shared their top and bottom, and the hand flickered through the scanner with every
+  bob of the view. The item stays where it sat; the hand ends a hair under its surface. This covers the data models, the
+  kinds' models, the gadgets' fixed cubes (the hand is measured from every `Part` child) and players' own looks. Faces
+  that only touch the item from outside — the palm under a block, the thumb at its side — face the other way, one of
+  the two is culled, and they stay. `HeldHandsTests` checks every model in the data and a grip-less look in all four
+  grips.
 - **An item in the hand sits 2 cm higher** than the old rest pose (`Viewmodel.GripLift`), so the hand shows.
 - **One shared material per (colour, painting)** for every hand part (`HeldItem.HandMaterial`); the hand is rebuilt on
   every quick-bar switch, and a material per part per rebuild (as the bare hand had before) would pile up.
@@ -106,7 +119,10 @@ settle (0.14 s). `Drop` is one smoothstep curve both ways, so a turn-round never
 
 - `HeldBlockLookTests` — which look a key gets (dye, glow, forms, designs, player forms, props, the cache key).
 - `HeldHandsTests` — grip choice and data values, the fist on every data tool model, the palm/pinch/stem contact, the
-  forearm, the swing pivot, the bare fist of #1033 unchanged.
+  forearm, the swing pivot, the bare fist of #1033 unchanged; no hand face in the plane of an item face (#2798), the
+  scanners held by their handle (#2799).
+- `WeaponTests.IsRanged_GoesByTheWeaponsRange` — gun or blade by range (#2800), and no weapon in the data sits at the
+  melee reach.
 - `HeldSwapTests` — timing, one swap per switch, fast scrolling, turning round, draw-only, cutting it short.
 - `HeldMiniatureTests`, EditMode `HeldItemEditModeTests` and `BlockCubeFacesEditModeTests` — the older halves.
 

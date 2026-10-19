@@ -134,7 +134,9 @@ namespace BlocksBeyondTheStars.Client
             {
                 case ToolKind.Drill: return (Kind.Drill, new Color(0.62f, 0.66f, 0.72f), null);
                 case ToolKind.Scanner: return (Kind.Scanner, new Color(0.45f, 0.85f, 0.95f), null);
-                case ToolKind.Weapon: return IsRanged(itemKey) ? (Kind.Gun, GunTint(itemKey), null) : (Kind.Blade, new Color(0.80f, 0.84f, 0.90f), null);
+                // #2800: a gun or a blade by the weapon's range, the server's rule — the key used to decide, and the plasma
+                // sword ("plasma") was held like a gun.
+                case ToolKind.Weapon: return MeleeRules.IsRanged(tool) ? (Kind.Gun, GunTint(itemKey), null) : (Kind.Blade, new Color(0.80f, 0.84f, 0.90f), null);
                 case ToolKind.Gadget:
                     // #2320: a gadget named a gun (the energy rope gun) is held and drawn like one — its own heldModel parts
                     // and the recoil pose — where every other gadget keeps the compact emitter.
@@ -154,10 +156,6 @@ namespace BlocksBeyondTheStars.Client
             if (key.Contains("blaster")) return new Color(1f, 0.55f, 0.25f);  // orange blast
             return new Color(0.6f, 0.85f, 0.9f);
         }
-
-        private static bool IsRanged(string key)
-            => key.Contains("pistol") || key.Contains("blaster") || key.Contains("gauss")
-               || key.Contains("laser") || key.Contains("plasma") || key.Contains("cannon") || key.Contains("gun");
 
         private static Color GunTint(string key)
         {

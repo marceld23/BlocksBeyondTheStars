@@ -1028,7 +1028,8 @@ players.
   only refusal left is a full inventory.
 - **Every tool looks like itself in your hand:** the titanium and diamond drills, the mining beam, each pistol and
   blaster, the machete, vibro knife and plasma sword, the wooden pickaxe, club and spear and the advanced scanner all
-  have their own model. The shock and energy gloves sit on both hands.
+  have their own model. The shock and energy gloves sit on both hands. Every blade — the plasma sword too — is swung;
+  only the guns kick back when they fire.
 - **Everything else is a little model in your hand, too:** the speeder and the boat show a miniature of the vehicle,
   seeds, saplings, leaves, torches and lanterns show the plant or lamp as it stands in the world, and every other
   item — ores, materials, components, food, bait — is held as its inventory picture made solid, pixel by pixel. Other
@@ -1038,7 +1039,7 @@ players.
   painted block wears its picture. Beds, campfires, rugs, flower pots, ladders, staircases, stretchers and trapdoors are
   held in their placed form too. Turning with **R** still shows only in the placement preview, not in your hand.
 - **Your suit hand holds everything:** in first person the hand and forearm of your suit (with your own arm painting)
-  hold every item — a tool or weapon in the fist round its handle, a block or vehicle on the open hand, a material or
+  hold every item — a tool or weapon in the fist round its handle (both scanners have one), a block or vehicle on the open hand, a material or
   some food at its lower edge, a plant by its stem. In third person your figure carries what it holds in front of it
   instead of letting it dangle; other players see that too.
 - **Switching takes a moment to look at, never to use:** when you pick another quick-bar slot, the old item goes down

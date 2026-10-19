@@ -24,6 +24,28 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player report 2026-10-19 (Marcel, v2026.10.21) — the hand scanner flickers in the hand — #2798, #2799, #2800, branch fix/held-hand-planes — ✅ done 2026-10-19 (⚠ playtest open)
+
+"The hand scanner's texture flickers in the hand — the skin colour replaces the scanner's blue, depending on the
+position. Check whether other objects do it too."
+
+- **The hand never shares a plane with the item (#2798):** z-fighting. The hand scanner (no `heldModel`, the Scanner
+  kind's model) has a 12 cm body round its origin, and since #2777 the 12 cm fist sat right there — top and bottom in the
+  same planes as the body's, both opaque `LitColor`. A probe over all 38 fist-held items found four more (vibro knife
+  underside during the slash, a strip at the mining beam's back, machete and plasma sword faces that hardly show).
+  `HeldHands.ClearOf` now pulls any hand face within 1 mm of a same-facing item face 2 mm back into the hand — data
+  models, kind models, the gadgets' cubes and players' own looks alike; the item stays where it was. Faces that only
+  touch (the palm under a block) face the other way and stay. Guard: `HeldHandsTests` over every data model + a
+  grip-less look in all four grips.
+- **Both scanners have a handle (#2799):** the fist used to sit inside the scanner's body; a dark handle below it
+  (default Scanner model, `advanced_scanner.heldModel`) is where it closes now, like a drill's or a gadget's.
+- **The plasma sword is swung, not fired (#2800):** `HeldItem.For` guessed gun or blade from the key, and "plasma" made
+  the sword a gun (the recoil instead of the slash, since 2026-05-31). One rule in `MeleeRules` now — a weapon is ranged
+  when its range is longer than the 6-block `MeleeReach` — used by the server (aim check, the strength factor), the
+  effect fallback and the held item; the key matcher is gone. Only the plasma sword changes.
+
+Docs: HELD_ITEMS.md §1/§2, USER_MANUAL (held items). Not released yet.
+
 ### 🧹 Code health 2026-10-18, PR 2 of 2 — the cleanup — epic #2793, #2790–#2792, branch chore/code-health-cleanup-2026-10-18 — ✅ done 2026-10-19 (PR #2795, 74f30a5b)
 
 Behaviour-preserving cleanup from the same sweep as PR 1 (the fixes).

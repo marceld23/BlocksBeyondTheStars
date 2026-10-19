@@ -27,7 +27,7 @@ public sealed partial class GameServer
     // actually LEAVING (walking 4-5 b/s) does, so the count-neutral wreck-coupling guarantee stays intact.
     private const float EnemyFarDespawnRange = 150f;
     private const float EnemyProximityRange = 4f;
-    private const float EnemyAttackReach = 6f;
+    private const float EnemyAttackReach = MeleeRules.MeleeReach;
     private const double EnemyMotionSyncInterval = 0.125; // #2670: moving machines/bandits sync every second 15 Hz tick
 
     /// <summary>
@@ -1315,7 +1315,7 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!ValidateAim(session, target, tool, isWeapon, aimDir, aimAt))
+        if (!ValidateAim(session, target, tool, aimDir, aimAt))
         {
             return;
         }
@@ -1339,7 +1339,7 @@ public sealed partial class GameServer
         float damage = isWeapon
             ? (tool.Damage > 0f ? tool.Damage : 20f + tool.Tier * 15f)
             : MeleeRules.FistDamage;
-        if (!isWeapon || tool.Range <= 6f)
+        if (!MeleeRules.IsRanged(tool))
         {
             damage *= Shared.Bio.PlayerEffects.MeleeFactor(p.Effects); // #2202: strength is in the arm, not in a gun
         }
@@ -1449,7 +1449,7 @@ public sealed partial class GameServer
     /// client, or a melee swing) skips the angle checks. With AutoAim ON the target only has to sit
     /// in a wide forward cone; with AutoAim OFF the crosshair ray must actually pass near the target's body.
     /// Every attack, at any range, needs a clear sightline — no hitting through walls.</summary>
-    private bool ValidateAim(PlayerSession session, CombatEntity target, ToolProperties tool, bool isWeapon, Vector3f aimDir,
+    private bool ValidateAim(PlayerSession session, CombatEntity target, ToolProperties tool, Vector3f aimDir,
         Vector3f? aimPoint = null)
     {
         var p = session.State;
@@ -1480,7 +1480,7 @@ public sealed partial class GameServer
             return true; // no aim data (older client) — keep the legacy range-only behaviour for the ANGLE
         }
 
-        bool ranged = isWeapon && tool.Range > EnemyAttackReach;
+        bool ranged = MeleeRules.IsRanged(tool); // #2800: the client holds and draws a weapon by the same rule
 
         const float eye = 1.5f; // matches HasLineOfSight/the client camera height
         var dst = Unwrapped(p.Position, targetPos);

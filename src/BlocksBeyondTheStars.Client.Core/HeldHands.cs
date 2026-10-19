@@ -140,7 +140,7 @@ namespace BlocksBeyondTheStars.Client
         public static List<Box> For(string? grip, IReadOnlyList<HeldItemShapes.Part>? parts, Vector3 min, Vector3 max)
         {
             var bottom = new Vector3((min.X + max.X) * 0.5f, min.Y, (min.Z + max.Z) * 0.5f);
-            return grip switch
+            var hand = grip switch
             {
                 HeldGrips.Fist => Fist(HandlePoint(parts), ItemForearm),
                 HeldGrips.Palm => Palm(bottom, Math.Max(0f, (max.X - min.X) * 0.5f)),
@@ -148,7 +148,104 @@ namespace BlocksBeyondTheStars.Client
                 HeldGrips.Stem => Fist(bottom + new Vector3(0f, StemDepth - FistHalfHeight, 0f), ItemForearm),
                 _ => new List<Box>(),
             };
+            return ClearOf(hand, parts);
         }
+
+        /// <summary>How close a hand face may come to a face of the item that faces the same way before the two count as
+        /// one plane (#2798).</summary>
+        public const float SharedPlaneTolerance = 0.001f;
+
+        /// <summary>How far a hand face in the plane of an item face is pulled back into the hand (#2798).</summary>
+        public const float SharedPlaneInset = 0.002f;
+
+        /// <summary>
+        /// #2798: pulls every face of <paramref name="hand"/> that lies in the plane of a face of one of the item's
+        /// <paramref name="parts"/> facing the same way (closer than <see cref="SharedPlaneTolerance"/>, the two faces
+        /// overlapping) back into the hand by <see cref="SharedPlaneInset"/>. Two opaque faces in one plane z-fight: the hand
+        /// scanner's 12 cm body and the 12 cm fist round its origin shared their top and bottom, and the hand flickered
+        /// through the scanner with every bob of the view. The item stays where it always sat; the hand ends a hair under
+        /// its surface. A face that only touches the item from outside (the palm under a block, the thumb at its side) faces
+        /// the other way and stays — one of the two is culled.
+        /// </summary>
+        public static List<Box> ClearOf(List<Box> hand, IReadOnlyList<HeldItemShapes.Part>? parts)
+        {
+            if (parts == null || parts.Count == 0)
+            {
+                return hand;
+            }
+
+            for (int i = 0; i < hand.Count; i++)
+            {
+                var box = hand[i];
+                var min = box.Position - (box.Size * 0.5f);
+                var max = box.Position + (box.Size * 0.5f);
+                bool moved = false;
+
+                // A face pulled back may land in the plane of another part: look again until nothing moves (a few rounds at most).
+                for (int round = 0; round < 4; round++)
+                {
+                    bool again = false;
+                    foreach (var p in parts)
+                    {
+                        var pMin = p.Position - (p.Size * 0.5f);
+                        var pMax = p.Position + (p.Size * 0.5f);
+                        for (int axis = 0; axis < 3; axis++)
+                        {
+                            if (!FacesOverlap(min, max, pMin, pMax, axis))
+                            {
+                                continue;
+                            }
+
+                            if (Math.Abs(Axis(min, axis) - Axis(pMin, axis)) <= SharedPlaneTolerance)
+                            {
+                                min = WithAxis(min, axis, Axis(pMin, axis) + SharedPlaneInset);
+                                again = true;
+                            }
+
+                            if (Math.Abs(Axis(max, axis) - Axis(pMax, axis)) <= SharedPlaneTolerance)
+                            {
+                                max = WithAxis(max, axis, Axis(pMax, axis) - SharedPlaneInset);
+                                again = true;
+                            }
+                        }
+                    }
+
+                    moved |= again;
+                    if (!again)
+                    {
+                        break;
+                    }
+                }
+
+                if (moved)
+                {
+                    hand[i] = new Box(box.Piece, (min + max) * 0.5f, max - min);
+                }
+            }
+
+            return hand;
+        }
+
+        // True when the faces of the two boxes across <axis> overlap on the other two axes by more than the tolerance — a
+        // shared edge or corner is no shared face.
+        private static bool FacesOverlap(Vector3 aMin, Vector3 aMax, Vector3 bMin, Vector3 bMax, int axis)
+        {
+            for (int other = 0; other < 3; other++)
+            {
+                if (other != axis
+                    && Math.Min(Axis(aMax, other), Axis(bMax, other)) - Math.Max(Axis(aMin, other), Axis(bMin, other)) <= SharedPlaneTolerance)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static float Axis(Vector3 v, int axis) => axis == 0 ? v.X : axis == 1 ? v.Y : v.Z;
+
+        private static Vector3 WithAxis(Vector3 v, int axis, float value)
+            => axis == 0 ? new Vector3(value, v.Y, v.Z) : axis == 1 ? new Vector3(v.X, value, v.Z) : new Vector3(v.X, v.Y, value);
 
         /// <summary>How far behind the hand, along the forearm, the swings of a held item turn: round the hand alone the
         /// forearm's far end would swing up into view (the #1428 problem); round the elbow the item would fall out of view.</summary>
