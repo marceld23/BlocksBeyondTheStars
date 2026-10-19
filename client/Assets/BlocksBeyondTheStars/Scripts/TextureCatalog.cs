@@ -59,6 +59,10 @@ namespace BlocksBeyondTheStars.Client
         /// (<c>face_*</c> keys, named by <c>faces[].tile</c> in data/blocks.json).</summary>
         public const string GroupFaces = "tex_faces";
 
+        /// <summary>The materials of held tools, weapons and gadgets (#2836): <c>held_*</c> keys, one light tile per
+        /// material that the game multiplies over each part's colour (<see cref="HeldTextures"/>).</summary>
+        public const string GroupHeld = "tex_held";
+
         private static readonly string[] CategoryOrder = { "terrain", "ore", "building", "light", "door", "machine", "flora" };
 
         public static List<TextureEntry> Build(GameContent content, Func<string, string> localize)
@@ -92,8 +96,29 @@ namespace BlocksBeyondTheStars.Client
             foreach (var asset in Resources.LoadAll<TextAsset>("textures"))
             {
                 string key = asset.name;
-                if (blockKeys.Contains(key) || key.EndsWith(GameTextures.AnimSuffix, StringComparison.Ordinal))
+                if (blockKeys.Contains(key) || key.EndsWith(GameTextures.AnimSuffix, StringComparison.Ordinal)
+                    || HeldTextures.MaterialOfKey(key) != null) // listed below, with or without a bundled tile
                 {
+                    continue;
+                }
+
+                // #2832: a flora look is another tile of a block — listed beside it, under its name: "Bush (3)".
+                string lookOf = BlocksBeyondTheStars.Shared.World.FloraLooks.BaseKeyOf(key);
+                if (lookOf != key && content?.GetBlock(lookOf) is { } lookBlock)
+                {
+                    string blockName = localize != null ? localize(lookBlock.NameKey) : lookBlock.Key;
+                    if (string.IsNullOrEmpty(blockName) || blockName == lookBlock.NameKey)
+                    {
+                        blockName = lookBlock.Key;
+                    }
+
+                    entries.Add(new TextureEntry
+                    {
+                        Key = key,
+                        Label = $"{blockName} ({key.Substring(lookOf.Length + BlocksBeyondTheStars.Shared.World.FloraLooks.Suffix.Length)})",
+                        Group = string.IsNullOrEmpty(lookBlock.Category) ? "flora" : lookBlock.Category,
+                        Preview = PreviewOf(lookBlock),
+                    });
                     continue;
                 }
 
@@ -120,6 +145,21 @@ namespace BlocksBeyondTheStars.Client
                     Key = part.Key,
                     Label = string.IsNullOrEmpty(label) || label == part.LabelKey ? part.Key.Replace('_', ' ') : label,
                     Group = GroupProps,
+                    Preview = TexturePreviewKind.Cube,
+                });
+            }
+
+            // The materials of held models (#2836): listed whether or not the build ships their tile — without one the
+            // parts keep their flat colours and the editor starts from a light grey (HeldTextures.BaseColor).
+            foreach (string key in HeldTextures.Keys)
+            {
+                string labelKey = "ui.tex.held." + HeldTextures.MaterialOfKey(key);
+                string label = localize != null ? localize(labelKey) : key;
+                entries.Add(new TextureEntry
+                {
+                    Key = key,
+                    Label = string.IsNullOrEmpty(label) || label == labelKey ? key.Replace('_', ' ') : label,
+                    Group = GroupHeld,
                     Preview = TexturePreviewKind.Cube,
                 });
             }

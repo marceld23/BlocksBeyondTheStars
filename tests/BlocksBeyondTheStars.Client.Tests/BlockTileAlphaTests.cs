@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Text.RegularExpressions;
 using BlocksBeyondTheStars.Shared.Textures;
 using Xunit;
 
@@ -154,7 +155,7 @@ public sealed class BlockTileAlphaTests
     public void ObjectOnGroundFloraTiles_KeepTheObject_AndCutTheGround()
     {
         string script = BakeScript();
-        var keyed = PythonSetKeys(script, "DARK_GROUND").Union(PythonSetKeys(script, "GROUND_KEY")).ToList();
+        var keyed = PythonSetKeys(script, "DARK_GROUND").Union(PythonSetKeys(script, "GROUND_KEY")).Union(BillboardLookKeys()).ToList();
         Assert.Contains("flora_dryshrub", keyed);
 
         var offenders = new List<string>();
@@ -203,8 +204,8 @@ public sealed class BlockTileAlphaTests
     public void RootedFloraBillboards_StandOnTheTilesBottomEdge()
     {
         string script = BakeScript();
-        var keyed = PythonSetKeys(script, "DARK_GROUND").Union(PythonSetKeys(script, "GROUND_KEY")).ToHashSet();
-        var rooted = PythonSetKeys(script, "ROOTED");
+        var keyed = PythonSetKeys(script, "DARK_GROUND").Union(PythonSetKeys(script, "GROUND_KEY")).Union(BillboardLookKeys()).ToHashSet();
+        var rooted = PythonSetKeys(script, "ROOTED").Union(BillboardLookKeys()).ToHashSet();
         Assert.NotEmpty(rooted);
 
         var offenders = new List<string>();
@@ -240,6 +241,30 @@ public sealed class BlockTileAlphaTests
 
     private static string BakeScript()
         => File.ReadAllText(Path.Combine(ClientTestPaths.RepoRoot(), "tools", "ai-assets", "bake_leaf_alpha.py"));
+
+    /// <summary>#2832: the look tiles of the billboard archetypes (<c>"looks"</c> in data/blocks.json, every block but the
+    /// tree crowns) — one side-view plant on black each, cut and rooted like the DARK_GROUND + ROOTED tiles.
+    /// bake_leaf_alpha.py derives the same set from the same file, so these guards cover every look it bakes.</summary>
+    private static readonly System.TimeSpan RegexTimeout = System.TimeSpan.FromSeconds(1);
+
+    private static IEnumerable<string> BillboardLookKeys()
+    {
+        var crowns = new HashSet<string> { "tree_leaves", "pine_needles", "palm_frond", "giant_leaves" };
+        foreach (string line in File.ReadLines(Path.Combine(ClientTestPaths.RepoRoot(), "data", "blocks.json")))
+        {
+            var key = Regex.Match(line, @"""key"":\s*""(?<v>[^""]+)""", RegexOptions.ExplicitCapture, RegexTimeout);
+            var looks = Regex.Match(line, @"""looks"":\s*\[(?<v>[^\]]*)\]", RegexOptions.ExplicitCapture, RegexTimeout);
+            if (!key.Success || !looks.Success || crowns.Contains(key.Groups["v"].Value))
+            {
+                continue;
+            }
+
+            foreach (Match look in Regex.Matches(looks.Groups["v"].Value, "\"(?<v>[^\"]+)\"", RegexOptions.ExplicitCapture, RegexTimeout))
+            {
+                yield return look.Groups["v"].Value;
+            }
+        }
+    }
 
     /// <summary>The quoted keys of a top-level Python set or dict literal (<c>NAME = { … }</c>, closed by a
     /// <c>}</c> at the start of a line) in the bake script.</summary>

@@ -206,8 +206,17 @@ public sealed class WorldDescription
     /// almost every system, #2516 generated water sealed against caves and lower ground, #2639 the wilderness folk,
     /// #2694 the hash-variety package: world-seeded body sizes and mixed sky/flora/water colour families, gravity, settlement
     /// trades and quest-giver names, #2738 sea ice counts as wet for structure placement, #2739 world-seeded station
-    /// quartermasters and vendor themes).</summary>
-    public const int CurrentTerrainGeneration = 27;
+    /// quartermasters and vendor themes, #2833 twelve more wild plant species and mixed meadows).</summary>
+    public const int CurrentTerrainGeneration = 28;
+
+    /// <summary>The generation of the mixed meadows (#2833, 2026-10): twelve more wild bushes and plants join the flora
+    /// catalog (<c>FloraCatalog</c> species with <c>MinGeneration</c> 28 — inactive on every older world), and the surface
+    /// flora pick stops being one species per patch. Up to generation 27 a low-frequency patch field picks the species of
+    /// every column, so a whole meadow was one plant; from this generation a share of the columns
+    /// (<c>WorldGenerator.MixedFloraShare</c>) picks from a per-column hash instead, weighted by the same theme weights, so
+    /// different species stand side by side while the patches still read. The hash is stateless (no stream is drawn from),
+    /// so every older generation keeps its chunks bit for bit.</summary>
+    public const int MixedFloraGeneration = 28;
 
     /// <summary>The generation from which sea ice counts as WET for structure placement (#2738, 2026-10). The surface-water
     /// query deliberately reads a thick sheet (or a body frozen through) as land, because a ship may land on a frozen sea —

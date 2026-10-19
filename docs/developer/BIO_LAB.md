@@ -310,7 +310,8 @@ The lab turns a plant sample into a **seedling** (`seedling#x<seed>`), which pla
 **`flora_hybrid`**:
 
 - the voxel's **tint** carries the colour, its **glow channel** carries the packed form (`FloraForm.Pack`, bit 23
-  marks a form) — the client mesher reads both and builds the plant from its parents' shapes; `ClientWorld` treats
+  marks a form; the body and crown catalog indices take seven bits each — bits 0–5 and 6–11, their seventh bits at 18
+  and 19 since the catalog outgrew 64 entries (#2833), so an older form decodes unchanged) — the client mesher reads both and builds the plant from its parents' shapes; `ClientWorld` treats
   the glow channel of this block as a form, not as a light, and adds the plant's own light when it has one;
 - which species stands in a cell is remembered per world (`bio:plants:<locationId>`, keyed by the canonical cell,
   capped at 256 per world), so a harvest yields the right sample and the regrowth (90 s) puts the same plant back;

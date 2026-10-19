@@ -90,7 +90,7 @@ public static class TextureTiles
         }
 
         if (key.StartsWith("flora_", StringComparison.Ordinal)
-            || Definitions.TreeFoliage.IsKey(key)                                       // cutout crowns, the Fifi plant's leaves too (#2085)
+            || Definitions.TreeFoliage.IsKey(World.FloraLooks.BaseKeyOf(key))           // cutout crowns (and their looks, #2832), the Fifi plant's leaves too (#2085)
             || key is "fire"                                                            // the flame silhouette
             || key is "torch" or "lantern")                                             // billboards (#1957)
         {

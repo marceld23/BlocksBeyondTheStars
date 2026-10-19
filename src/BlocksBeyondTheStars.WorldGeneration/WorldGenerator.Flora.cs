@@ -225,11 +225,17 @@ public sealed partial class WorldGenerator
         return _hangingFloraId.IsAir ? null : _content.BlockById(_hangingFloraId)?.Key;
     }
 
+    /// <summary>The share of surface-flora columns that pick their species from a per-column hash instead of the patch
+    /// field (#2833, generation 28 — <see cref="WorldDescription.MixedFloraGeneration"/>): enough that a meadow mixes
+    /// several species, few enough that the patches still read.</summary>
+    internal const double MixedFloraShare = 0.4;
+
     /// <summary>
     /// Picks the flora block for a biome's surface (Air = none). Selection is PATCHY (a low-frequency noise,
     /// not per-cell white noise) so one species dominates a contiguous patch — a fern glade here, a flower
     /// meadow there — instead of a salt-and-pepper mix; and it is THEME-WEIGHTED so the biome's preferred
-    /// climate species fill most of the patches while off-theme ones still turn up for variety.
+    /// climate species fill most of the patches while off-theme ones still turn up for variety. From generation 28
+    /// (#2833) <see cref="MixedFloraShare"/> of the columns pick per column, so the species of a patch mix.
     /// </summary>
     private BlockId FloraForSurface(PlanetType planet, BiomeResolved biome, long seed, int worldX, int worldZ,
         BlockId? surfaceOverride = null)
@@ -258,6 +264,19 @@ public sealed partial class WorldGenerator
         // A low-frequency patch field selects WITHIN the weighted distribution; nearby columns share a value,
         // so the chosen species changes only at patch boundaries (coherent fields, not per-cell noise).
         double t = FbmT(seed + 9101, worldX, worldZ, 18.0, octaves: 2);
+        // #2833 (generation 28): a share of the columns picks from a per-column hash instead, within the same weighted
+        // distribution — so different species stand side by side and a meadow is no longer one plant, while the patch
+        // field still decides most columns. Both values are stateless hashes of the column; an older world never reads them.
+        if (_terrainGeneration >= WorldDescription.MixedFloraGeneration)
+        {
+            long wx = WorldConstants.WrapX(worldX, _circumference);
+            int wz = Wz(worldZ);
+            if (Noise.Value01(seed + 9102, wx, 13, wz) < MixedFloraShare)
+            {
+                t = Noise.Value01(seed + 9103, wx, 13, wz);
+            }
+        }
+
         int target = (int)(t * total);
         if (target >= total)
         {

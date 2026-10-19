@@ -670,4 +670,51 @@ public sealed class BioRulesTests
         Assert.False(FloraForm.Breedable("flora_fruit_round")); // fruit hangs on a tree
         Assert.False(FloraForm.Breedable("flora_sapling"));     // and the sapling becomes one
     }
+
+    [Fact]
+    public void APackedForm_AddressesEveryCatalogEntry_EvenPastSixtyFour()
+    {
+        // #2833: the catalog outgrew 64 entries, so the seventh bit of each index rides in bits 18 (body) and 19 (crown).
+        var all = FloraCatalog.All;
+        Assert.True(all.Count > 64, "the round trip past index 63 needs a catalog of more than 64 entries");
+        Assert.True(all.Count <= FloraForm.MaxIndices);
+        for (int body = 0; body < all.Count; body++)
+        {
+            int crown = all.Count - 1 - body;
+            var genome = new FloraGenome { BodyBlock = all[body].Key, CrownBlock = all[crown].Key, Layout = body % 4, Size = crown % 4, Glow = (body + crown) % 4 };
+            int packed = FloraForm.Pack(genome);
+            Assert.True(FloraForm.IsForm(packed), all[body].Key);
+            Assert.Equal(packed, packed & 0xFFFFFF); // still the 24 bits of a voxel's glow channel
+            Assert.Equal(all[body].Key, FloraForm.BodyBlock(packed));
+            Assert.Equal(all[crown].Key, FloraForm.CrownBlock(packed));
+            Assert.Equal(genome.Layout, FloraForm.Layout(packed));
+            Assert.Equal(genome.Size, FloraForm.Size(packed));
+            Assert.Equal(genome.Glow, FloraForm.Glow(packed));
+        }
+    }
+
+    [Fact]
+    public void AFormPackedBeforeTheWidening_DecodesUnchanged_AndPacksTheSame()
+    {
+        // The 6-bit layout of the bio lab's first release: body in bits 0–5, crown in 6–11, layout, size, glow, marker 23.
+        // Every index below 64 leaves bits 18 and 19 clear, so an old voxel decodes as it did and a re-pack is bit-identical.
+        var keys = FloraCatalog.All.Select(s => s.Key).ToList();
+        int bush = keys.IndexOf("flora_bush"), fern = keys.IndexOf("flora_fern");
+        int legacy = (1 << 23) | bush | (fern << 6) | (2 << 12) | (3 << 14) | (1 << 16);
+
+        Assert.Equal("flora_bush", FloraForm.BodyBlock(legacy));
+        Assert.Equal("flora_fern", FloraForm.CrownBlock(legacy));
+        Assert.Equal(2, FloraForm.Layout(legacy));
+        Assert.Equal(3, FloraForm.Size(legacy));
+        Assert.Equal(1, FloraForm.Glow(legacy));
+        Assert.Equal(legacy, FloraForm.Pack(new FloraGenome { BodyBlock = "flora_bush", CrownBlock = "flora_fern", Layout = 2, Size = 3, Glow = 1 }));
+
+        // No index below 64 ever touches the new bits — the six-bit layout is a subset of the seven-bit one.
+        for (int i = 0; i < 64 && i < keys.Count; i++)
+        {
+            int packed = FloraForm.Pack(new FloraGenome { BodyBlock = keys[i], CrownBlock = keys[i] });
+            Assert.Equal(0, packed & ((1 << 18) | (1 << 19)));
+            Assert.Equal(i | (i << 6), packed & 0xFFF);
+        }
+    }
 }

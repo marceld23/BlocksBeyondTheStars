@@ -2,7 +2,8 @@
 
 **Status:** current (2026-10-19). Covers #1033, #1427/#2755 (the painted hand), #1931/#1962 (tool models as data), #2278
 (gloves), #2534 (miniatures), #2744 (block faces), #2776–#2778 (the block's own look, a hand on every item, the
-holster and draw) and #2798–#2800 (no shared planes, the scanners' handle, gun or blade by range).
+holster and draw), #2798–#2800 (no shared planes, the scanners' handle, gun or blade by range) and #2836–#2838
+(materials on every part, a model for every gadget, ores held as a lump).
 
 The selected quick-bar item is shown in three places: the first-person view (`Viewmodel`, on the camera), the local
 avatar's hand in third person and every other player's avatar (`PlayerAvatar`). All three build the same model through
@@ -16,12 +17,89 @@ pointing along +Z:
 
 | Kind | Look | Where it comes from |
 |---|---|---|
-| `Drill`, `Gun`, `Blade`, `Scanner` | cube parts | `heldModel` in `data/items.json` (#1962) or the kind's model (`HeldItemShapes.Parts`); a player's tool look (#1963) wins |
-| `Gadget`, `Tool` | cube parts | built in `HeldItem.Build` |
+| `Drill`, `Gun`, `Blade`, `Scanner`, `Gadget` | cube parts | `heldModel` in `data/items.json` (#1962; every gadget has one since #2837) or the kind's model (`HeldItemShapes.Parts`; a gadget's is the compact emitter); a player's tool look (#1963) wins |
+| `Tool`, `Hoe`, `Hammer`, `Axe`, `Bow` | cube parts | the NPCs' tools: `HeldItem.Build` and `HeldItemShapes.NpcToolParts` (#1869, #2647) |
 | `Gloves` | one glove per hand | `heldGrip: "gloves"` + `heldModel` (#2278) |
 | `Block` | the block's cube (#2744) — or the world's own mesh of it (#2776, below) | the block atlas |
+| `Lump` | a small irregular lump of the block (#2838, below) | `HeldItemShapes.Lump` + the block's cube faces |
 | `Vehicle`, `Plant`, `Icon` | miniatures (#2534) | `HeldMiniatures`: the hull, the placed plant, the extruded icon |
 | `Hand` | the bare suit fist (#1033) | an empty slot, or an item without any picture |
+
+Every cube part — of a data model, a kind's model, an NPC tool, a glove, the climbing gear or a player's look — is made
+of a **material** with its own surface texture (#2836, below).
+
+### Materials (#2836)
+
+A `heldModel` part may name its material: `"m"` (C# `HeldModelPart.M`), one of the twelve in `HeldMaterials.All` —
+`metal`, `darkmetal`, `wood`, `plastic`, `rubber`, `glass`, `energy`, `crystal`, `leather`, `stone`, `bone`, `carbon`.
+A part without one (or with a name the client does not know — a content pack is not trusted) gets a guess from its
+colour and glow, `HeldMaterialRules.Infer` (Client.Core), so nothing in the data had to be tagged:
+
+1. it glows → `energy`;
+2. a brown (hue 15–50°, saturation ≥ 0.3, value ≤ 0.75): saturation over 0.8 → `metal` (copper), value under 0.32 →
+   `leather`, otherwise `wood`;
+3. very dark (luminance under 0.18) → `rubber`;
+4. a grey (chroma — max − min channel — under 0.25, so the blue-tinted steel greys count): luminance under 0.40 →
+   `darkmetal`, otherwise `metal`;
+5. anything else → `plastic`.
+
+`glass`, `crystal`, `stone`, `bone` and `carbon` are never guessed; the data names them (the diamond drill's bit is
+`crystal`, the wooden tools' heads `stone`, their lashings `leather`, the plasma blades `energy`). `HeldItemShapes.Part`
+always carries a known `Material`; `Mirror` keeps it.
+
+On the client, `HeldTextures` (modelled on `PropTextures`, #1956) gives each material a texture key `held_<material>`
+(`HeldMaterials.TextureKey`), read through `GameTextures` like every tile (64×64 RGBA32, `Resources/textures/held_*.bytes`
+for the build, then the local pack and the world's textures), point-filtered with `wrapMode = Repeat`:
+
+- **The tile is multiplied over the part's colour.** It is meant to be light and mostly grey; `HeldMaterialRules.LiftTile`
+  pulls a darker tile toward white until its mean is 0.88 (v′ = 1 − (1 − v)·d, the pattern only compressed), so a part
+  does not come out much darker than its flat colour did. Without a tile in any layer the part keeps its flat colour.
+- **One shared LitColor material per (colour, glow, material)** — the held models are rebuilt on every quick-bar switch,
+  for every player in sight. A texture change (`GameTextures.Changed`: a pack, a world texture, the texture editor)
+  updates those materials in place. A glowing part keeps `_Floor = 1`.
+- **The tile repeats in metres** (`HeldMaterialRules.TileMetres` = 0.2 m per tile): each part is a unit cube scaled to
+  its size, like the Unity primitive it replaces, but its UVs run as far as the part is long
+  (`HeldMaterialRules.BuildCube`). A 52 cm blade shows 2.6 tiles, not one stretched one. Sizes are bucketed in eighths of
+  a tile (`UvBucket`), so parts of about the same size share one mesh. The part GameObject is still named `Part` with its
+  size as `localScale`, so `HeldBounds` (the hand) and `MuzzleOf` read it as before.
+- The texture editor lists the twelve keys under their own group (`TextureCatalog.GroupHeld`, `ui.cat.tex_held`,
+  labels `ui.tex.held.<material>`), whether the build ships their tiles or not; without one it starts from a light grey
+  (`HeldTextures.BaseColor`).
+
+### A model for every gadget (#2837)
+
+A `Gadget` is a shaped kind (`HeldItemShapes.IsShapedKind`): it draws its `heldModel` like a drill or a gun. Before, all
+21 gadgets were one four-cube emitter in another tint, and the remote control's own model was never drawn. Now each has a
+model of 5–13 parts in `data/items.json`: two rubber tubes for the binoculars (orange glowing lenses and an IR sensor
+on the thermal ones), a camera with lens, flash and a screen toward the eye, a medkit case with a glowing cross, the
+stasis projector's ring, a chunky barrel for the terrain blaster, a pump with tank and hose, a dish on the terrain
+scanner, a handset with screen and antenna for the creature translator, the weather scanner's cup anemometer, a paint
+brush, a caliper for the shaping tool, a stencil frame, a tablet with a rolled plan, a wrench for the rail linker, a
+toy cab or wagon on its rail beam for the monorail items, a syringe for the sampler. The compact emitter stays the
+model of a gadget without one (a content pack's, the NPCs' medkit and camera). Conventions every gadget model keeps:
+
+- **The fist closes round the origin, or round a pistol grip** (a part hanging below −0.06 that is taller than long,
+  `HeldHands.HandlePoint`). A model without a grip is lifted so its screen, lenses or wagon stand above the fist
+  (top at about 0.06) or reach out in front of it — inside the fist they would be hidden.
+- **No two parts share a face plane facing the same way** (they z-fight, visibly so with two materials) —
+  `HeldGadgetModelTests.NoTwoPartsOfAGadget_ShareAFacePlane` checks it; offset a face by a millimetre or two.
+- `"tint"` is kept for the identity glow where `HeldItem.GadgetTint` gives one (medkit green, stasis cyan, blaster
+  orange).
+
+Because a gadget is a shaped kind, the tool-look editor (`ToolLookEditor`, #1963) offers the gadgets too; the server
+already stored a look for any item with a tool.
+
+### The ore lump (#2838)
+
+The 24 mined materials that share their key with the block they come from — the ores, silicate, carbon, the tainted
+ores — have no icon and showed the bare fist, while the quick bar draws them as that block's cube (a block of the item's
+key wins there). `HeldItemShapes.MiniatureFor(item, placed, own)` now returns `Miniature.Lump` for them
+(`IsLumpOf`: a material without tool, vehicle or block to place whose key is a block's), and `HeldItem.For` hands out
+`Kind.Lump` with that block. `HeldItemShapes.Lump(key)` builds the lump: a 10–13 cm core with 2–5 smaller knobs stuck
+into its sides, top and ends (never under it), the shape seeded by an FNV-1a hash of the key — the same piece of iron ore
+for every player, a different one for every ore. `HeldItem.BuildLump` puts the block's own cube mesh and the shared atlas
+material (`TryBlockLook`, shared with the #2744 block cube) on every knob; without the atlas the knobs keep the block's
+map colour. The lump rests on the open hand (`palm` grip).
 
 A weapon is a `Gun` or a `Blade` by its range, the server's rule (`MeleeRules.IsRanged`: longer than the 6-block
 `MeleeReach`, #2800) — never by its key: the key matcher before it held the plasma sword ("plasma") like a pistol. A
@@ -62,7 +140,7 @@ own `heldGrip` (`HeldGrips.Fist` / `Palm` / `Pinch` / `Stem`) wins, otherwise th
 | Grip | Kinds | Where the hand goes |
 |---|---|---|
 | `fist` | tools, weapons, scanner, gadgets | `HeldHands.HandlePoint`: on a pistol grip (a part hanging below the body, taller than long) just under the body, else the model's origin — where every held model already puts the palm. Both scanners have such a handle (#2799); before it the fist sat inside the scanner's body |
-| `palm` | `Block`, `Vehicle` | under the item's bounds, reaching in from its inner (−X) edge, the thumb against that edge |
+| `palm` | `Block`, `Vehicle`, `Lump` | under the item's bounds, reaching in from its inner (−X) edge, the thumb against that edge |
 | `pinch` | `Icon` | a fist under the card's lower edge (1.5 cm of it in the fist) |
 | `stem` | `Plant` | a fist round the plant's foot |
 
@@ -124,6 +202,14 @@ settle (0.14 s). `Drop` is one smoothstep curve both ways, so a turn-round never
 - `WeaponTests.IsRanged_GoesByTheWeaponsRange` — gun or blade by range (#2800), and no weapon in the data sits at the
   melee reach.
 - `HeldSwapTests` — timing, one swap per switch, fast scrolling, turning round, draw-only, cutting it short.
+- `HeldMaterialRulesTests` (#2836) — the colour rule, a named material winning, every part of every model the game draws
+  having a known material (the player palette included), the UV buckets and the outward-wound cube, the tile lift.
+- `HeldGadgetModelTests` (#2837) — the list of gadgets, each drawing its own 4–14 parts with named materials, the remote
+  control's model, the emitter fallback, every gadget different, no shared face planes, nothing hidden in the fist.
+- `HeldLumpTests` (#2838) — the 24 lump items and their blocks, the palm grip, the lump the same per key and different per
+  ore, knobs stuck to the core, no shared planes with each other or the hand.
+- Server suite `HeldModelDataTests` — every gadget has a model, every `"m"` in the data is known and bound from the short
+  key.
 - `HeldMiniatureTests`, EditMode `HeldItemEditModeTests` and `BlockCubeFacesEditModeTests` — the older halves.
 
 The poses were checked by rendering the viewmodel and an avatar from an EditMode batch script (camera at FOV 80,

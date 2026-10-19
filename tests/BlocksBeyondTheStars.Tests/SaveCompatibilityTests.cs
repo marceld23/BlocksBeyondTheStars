@@ -1014,6 +1014,7 @@ public sealed class SaveCompatibilityTests : IDisposable
         [2] = "f7f844cfbd21f315", // the bio lab: bio_lab, flora_hybrid
         [3] = "f616ce9eeb51b88d", // Crystal Net 2 (#2251): moving blocks, new devices, the open / unlit twins
         [4] = "07bf8919f5d6d7f1", // the derelict stations' guardian bay (#2635): guardian_spawner
+        [5] = "4eda69f2b9ee2343", // the mixed meadows (#2833): twelve wild plants, flora_berrybush … flora_lupine
     };
 
     [Fact]

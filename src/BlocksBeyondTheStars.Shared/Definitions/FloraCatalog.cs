@@ -228,6 +228,23 @@ public static class FloraCatalog
         // Appended before the crops like every wave. ---
         new Species(FifiPlant.BerriesKey, new[] { FifiPlant.LeafKey }, Tags: FloraTag.Lush, Hanging: true, MinGeneration: 16, Fruit: true, Authored: true),
 
+        // --- Mixed meadows (#2833, generation 28, 2026-10-19): twelve more wild bushes and plants, so several species stand
+        // side by side on one planet (generation 28 also mixes the per-column pick, WorldGenerator.FloraForSurface). All are
+        // side-view cross billboards (never Solid). Appended before the crops like every wave: every older species keeps its
+        // roster id, and MinGeneration keeps them off every older world. ---
+        new Species("flora_berrybush",   new[] { "grass", "dirt" }, Tags: FloraTag.Lush, MinGeneration: 28),                                           // red berries
+        new Species("flora_blossombush", new[] { "grass", "alien_grass" }, Tags: FloraTag.Lush | FloraTag.Floral, MinGeneration: 28),                 // pink blossoms
+        new Species("flora_featherbush", new[] { "grass", "mud" }, Tags: FloraTag.Lush | FloraTag.Tropical, Height: FloraHeight.Tall, MinGeneration: 28), // feathery plumes
+        new Species("flora_droopbush",   new[] { "mud", "grass" }, Tags: FloraTag.Wetland, Height: FloraHeight.Tall, MinGeneration: 28),             // a weeping shrub
+        new Species("flora_needlebush",  new[] { "sand", "dirt", "salt" }, Tags: FloraTag.Dry, MinGeneration: 28),                                    // a spiky dry-land shrub
+        new Species("flora_frostberry",  new[] { "snow", "ice" }, Tags: FloraTag.Cold, MinGeneration: 28),                                            // pale berries in the frost
+        new Species("flora_clover",      new[] { "grass", "dirt" }, Tags: FloraTag.Lush, MinGeneration: 28),                                          // a low patch with flower heads
+        new Species("flora_daisy",       new[] { "grass" }, Tags: FloraTag.Lush | FloraTag.Floral, MinGeneration: 28),
+        new Species("flora_thistle",     new[] { "grass", "dirt", "sand" }, Tags: FloraTag.Dry | FloraTag.Floral, Height: FloraHeight.Tall, MinGeneration: 28), // purple heads
+        new Species("flora_herb",        new[] { "grass", "dirt", "mud" }, Tags: FloraTag.Lush, MinGeneration: 28),                                   // a bushy, mint-like herb
+        new Species("flora_foxtail",     new[] { "grass", "dirt", "sand" }, Tags: FloraTag.Lush | FloraTag.Dry, Height: FloraHeight.Tall, MinGeneration: 28), // fluffy seed heads
+        new Species("flora_lupine",      new[] { "grass", "dirt" }, Tags: FloraTag.Lush | FloraTag.Floral, Height: FloraHeight.Tall, MinGeneration: 28), // tall flower spikes
+
         // --- Cultivated crops (#627): farmed, not wild. Grown in settlement/station greenhouses and by the
         // player from seeds. Excluded from every world roster (see FloraGenerator), so the berries are edible
         // on every world; the host list is what the greenhouse beds and hydroponic trays are made of.

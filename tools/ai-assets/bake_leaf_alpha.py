@@ -31,6 +31,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import math
 from collections import deque
 from pathlib import Path
@@ -58,6 +59,9 @@ FOLIAGE = [
     "flora_glowmoss", "flora_glowthread",  # generation 11 cave flora (code-painted cutouts until their tiles exist)
     "flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana",  # fruit trees (#2038): a pale fruit on black
     "fifi_leaf", "flora_fifi_berries",  # the Fifi plant (#2085): its yellow crown + its berries (a berry cluster on black)
+    # the mixed meadows (#2833, generation 28): twelve side-view plants on black, rooted on the bottom edge
+    "flora_berrybush", "flora_blossombush", "flora_featherbush", "flora_droopbush", "flora_needlebush", "flora_frostberry",
+    "flora_clover", "flora_daisy", "flora_thistle", "flora_herb", "flora_foxtail", "flora_lupine",
     # flora_sapling (#1774) is NOT here: its tile ships with a chroma-keyed alpha (the plant on a plain tan ground),
     # so the darkness cut would remove the stem, not the background.
 ]
@@ -71,6 +75,9 @@ DARK_GROUND = {
     "flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana", "flora_fifi_berries",
     "flora_coral", "flora_lily", "flora_orchid", "flora_palm", "flora_rockflower", "flora_saltgrass", "flora_seagrass",
     "flora_snowbush",
+    # the mixed meadows (#2833)
+    "flora_berrybush", "flora_blossombush", "flora_featherbush", "flora_droopbush", "flora_needlebush", "flora_frostberry",
+    "flora_clover", "flora_daisy", "flora_thistle", "flora_herb", "flora_foxtail", "flora_lupine",
 }
 DARK_GROUND_CUTOFF = 0.12  # brightness at or below this = the black ground (a dark stem sits well above it)
 
@@ -102,7 +109,31 @@ SPECK_PIXELS = 4
 ROOTED = {
     "flora_bush", "flora_coral", "flora_dryshrub", "flora_lily", "flora_orchid", "flora_palm", "flora_rockflower",
     "flora_saltgrass", "flora_seagrass", "flora_snowbush",
+    # the mixed meadows (#2833)
+    "flora_berrybush", "flora_blossombush", "flora_featherbush", "flora_droopbush", "flora_needlebush", "flora_frostberry",
+    "flora_clover", "flora_daisy", "flora_thistle", "flora_herb", "flora_foxtail", "flora_lupine",
 }
+
+
+def _flora_looks() -> tuple[list[str], list[str]]:
+    """#2832: the look tiles named in data/blocks.json ("looks"), split into crown looks (dense canopies, the darkness
+    cut like their block) and billboard looks (one side-view plant on black: the dark-ground cut, rooted)."""
+
+    # The content loader reads blocks.json with // comment lines allowed; drop them for the plain JSON parser.
+    text = (REPO / "data" / "blocks.json").read_text(encoding="utf-8")
+    plain = "\n".join(line for line in text.split("\n") if not line.lstrip().startswith("//"))
+    crowns, billboards = [], []
+    for block in json.loads(plain):
+        for look in block.get("looks") or []:
+            (crowns if block["key"] in CROWN_KEYS else billboards).append(look)
+    return crowns, billboards
+
+
+CROWN_KEYS = {"tree_leaves", "pine_needles", "palm_frond", "giant_leaves"}
+CROWN_LOOKS, BILLBOARD_LOOKS = _flora_looks()
+FOLIAGE += CROWN_LOOKS + BILLBOARD_LOOKS
+DARK_GROUND |= set(BILLBOARD_LOOKS)
+ROOTED |= set(BILLBOARD_LOOKS)
 
 
 def leafiness(r: int, g: int, b: int) -> float:

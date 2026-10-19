@@ -15,7 +15,7 @@ namespace BlocksBeyondTheStars.Client
     /// <list type="bullet">
     /// <item><b>Fist</b> — closed round the model's handle (<see cref="HandlePoint"/>): a pistol grip hanging below the
     /// body, otherwise the model's origin, which every held model already puts in the palm (the avatar holds it there).</item>
-    /// <item><b>Palm</b> — the item rests on the open hand, the thumb against its inner side.</item>
+    /// <item><b>Palm</b> — the item rests on the open hand, the thumb against its inner side (blocks, vehicles, ore lumps).</item>
     /// <item><b>Pinch</b> — the fist under the item's lower edge (an extruded icon, held like a card).</item>
     /// <item><b>Stem</b> — the fist round the foot of a plant.</item>
     /// </list>
@@ -96,7 +96,7 @@ namespace BlocksBeyondTheStars.Client
 
             return kind switch
             {
-                "Block" or "Vehicle" => HeldGrips.Palm,
+                "Block" or "Vehicle" or HeldItemShapes.LumpKind => HeldGrips.Palm, // #2838: an ore lump rests on the open hand
                 "Plant" => HeldGrips.Stem,
                 "Icon" => HeldGrips.Pinch,
                 _ => HeldGrips.Fist,

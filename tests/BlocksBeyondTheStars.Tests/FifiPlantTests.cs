@@ -90,7 +90,9 @@ public sealed class FifiPlantTests : IDisposable
         // Appended after the fruit trees and before the crops: every older species keeps its roster id.
         var keys = FloraCatalog.All.Select(s => s.Key).ToList();
         Assert.Equal(keys.IndexOf("flora_fruit_banana") + 1, keys.IndexOf(FifiPlant.BerriesKey));
-        Assert.All(FloraCatalog.All.Skip(keys.IndexOf(FifiPlant.BerriesKey) + 1), s => Assert.True(s.Cultivated, s.Key));
+        // After it: the wild species of later waves (#2833, generation 28), then the crops.
+        Assert.All(FloraCatalog.All.Skip(keys.IndexOf(FifiPlant.BerriesKey) + 1),
+            s => Assert.True(s.Cultivated || s.MinGeneration > WorldDescription.FifiPlantGeneration, s.Key));
     }
 
     [Fact]

@@ -43,7 +43,9 @@ public sealed class CaveFloraTests
             keys.Skip(kelp + 5).Take(4));
         // The Fifi plant (#2085, generation 16) appended its authored berries after them, still before the crops.
         Assert.Equal(FifiPlant.BerriesKey, keys[kelp + 9]);
-        Assert.All(FloraCatalog.All.Skip(kelp + 10), sp => Assert.True(sp.Cultivated, $"{sp.Key} sits among the crops"));
+        // Every later entry is a crop or a wild species of a later wave (#2833, generation 28), never an insertion.
+        Assert.All(FloraCatalog.All.Skip(kelp + 10),
+            sp => Assert.True(sp.Cultivated || sp.MinGeneration > WorldDescription.FifiPlantGeneration, $"{sp.Key} sits among the crops"));
         foreach (var key in keys.Skip(kelp + 1).Take(4))
         {
             var sp = FloraCatalog.Find(key)!;

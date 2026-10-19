@@ -138,7 +138,7 @@ public static class FloraTints
     private static int Clamp8b(int v) => v < 0 ? 0 : (v > 255 ? 255 : v);
 
     /// <summary>FNV-1a (stable across platforms/runs — string.GetHashCode is randomized per process).</summary>
-    private static ulong Hash(string s)
+    internal static ulong Hash(string s)
     {
         unchecked
         {

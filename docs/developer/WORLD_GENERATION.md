@@ -284,7 +284,10 @@ worlds of the same planet type grow different species) by
 [`FloraGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/FloraGenerator.cs) and
 [`TreeGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/TreeGenerator.cs):
 
-- **Catalogue:** 33 fixed flora archetypes (`FloraCatalog.All`).
+- **Catalogue:** the fixed flora archetypes (`FloraCatalog.All`, 67 entries since generation 28: the wild species of
+  every wave, the four tree fruit shapes, the Fifi berries and the three crops at the tail). A later wave is appended
+  before the crops with a `MinGeneration`, so every older species keeps its roster id and an older world never gains
+  the newcomers (§45).
 - **World roster:** each archetype is activated with `ActivationChance(preferred, tags)` — **85 %** when
   its climate tags match the world's preferred tags, **40 %** otherwise. Up to generation 3 the preferred
   tags are the planet theme's alone; from **generation 4** (#1715, `BiomeThemeRosterGeneration`) they are
@@ -299,7 +302,8 @@ worlds of the same planet type grow different species) by
   biome's surface block, weighted by theme (preferred species count 4:1). In practice **a handful of
   species per biome** (typically ~3–7 land plants on that biome's ground block) plus aquatic species
   in water. Which species stands where is chosen by a low-frequency patch field (scale 18), so plants
-  cluster in coherent patches rather than per-cell salt.
+  cluster in coherent patches rather than per-cell salt. From **generation 28** (#2833, §45) 40 % of the columns pick
+  per column instead, so several species stand side by side inside a patch.
 - **Density:** `baseDensity × biome.FloraMul × theme.DensityMul × VegetationRichness` (0.45–2.2,
   coupled to the same forest mask the trees use), capped at 0.95 so some bare ground always remains.
 
@@ -2797,3 +2801,39 @@ worlds (coral_sea/1, swamp/67) placing everything but the wreck identically at 2
 (the same station in two worlds practically always has its own quartermaster, extra vendors use every trade evenly) and,
 on a boarded station at 26 and 27, one quartermaster name on the NPC and every board job — and from 27 on the chain
 fallback too.
+
+## 45. Generation 28 — the mixed meadows (#2833, 2026-10-19)
+
+`WorldDescription.CurrentTerrainGeneration` is **28** (`MixedFloraGeneration`). A meadow used to be one plant: the patch
+field of §6 picks ONE species per patch, and the pools held only a handful of species per host. Generation 28 widens the
+pools and mixes the pick; every older generation keeps its chunks and its rosters bit for bit.
+
+- **Twelve more wild species.** `flora_berrybush` (red berries), `flora_blossombush` (pink blossoms), `flora_featherbush`
+  (feathery plumes, tall), `flora_droopbush` (a weeping wetland shrub, tall), `flora_needlebush` (a spiky dry-land shrub),
+  `flora_frostberry` (pale berries on snow and ice), `flora_clover`, `flora_daisy`, `flora_thistle` (tall),
+  `flora_herb` (a mint-like herb), `flora_foxtail` (tall grass with seed heads) and `flora_lupine` (tall flower spikes) —
+  all side-view cross billboards (never `Solid`), hosted on the classic surfaces (grass, dirt, mud, sand, salt, snow, ice,
+  alien grass) and tagged like their climate (Lush, Floral, Tropical, Wetland, Dry, Cold). They are appended to
+  `FloraCatalog.All` after the Fifi berries and before the crops with `MinGeneration` 28: their activation roll is drawn
+  on every world (the per-species stream never moves), but they stay inactive below generation 28, and no new host
+  enters `EnsureCoverage`'s host set, so an older roster is unchanged. The two berry species drop `berries` (swapped for
+  `toxic_berries` on a world whose species rolled toxic, like every wild berry), the rest plant fiber; the flowering and
+  berry species carry `accent` (#2834). The client needs nothing per species: the mesher derives its tall and cube sets
+  from the catalog, the per-world tint covers every `flora_*` key, and `bake_leaf_alpha.py` lists them as rooted plants on
+  black (`FloraVarietyTests` holds its `FOLIAGE` list to the catalog). Adding the blocks raised the save version to 5.
+- **The mixed pick.** `FloraForSurface` keeps the theme-weighted distribution and the patch field (`seed + 9101`,
+  scale 18). From generation 28 a column whose hash `Noise.Value01(seed + 9102, x, 13, z)` falls below
+  `WorldGenerator.MixedFloraShare` (0.4) replaces the patch value with its own uniform hash (`seed + 9103`) — the same
+  weighted distribution, read per column. Both are stateless hashes of the wrapped column, so no random stream shifts;
+  below generation 28 neither is read. The patches still decide 60 % of the columns, so a glade keeps its dominant plant
+  with other species mixed in. On meadowlands seed 7 (32 × 32 columns at (160, 96)) the share of neighbouring plants of
+  different species rises from 14 % (generation 27) to 76 %, and the species in the area from 7 to 16 — about 18 % / 9
+  of that comes from the wider pools alone (`MixedFloraShare` 0), the rest from the per-column pick.
+- **The bio lab's form.** The catalog outgrew the 64 indices `FloraForm` packed into six bits per part. A bred plant's
+  body and crown index now carry a seventh bit at bits 18 and 19 of the glow channel (bits 20–22 stay free, 23 is the
+  marker); an index below 64 leaves both clear, so every form packed before decodes exactly as it did.
+
+**Tests.** `FloraMixedMeadowsTests` (the wave's catalog place and blocks, inactive at 27 and each species active
+somewhere at 28, the roster identity across generations, coverage at 28, and the mix: at least two species in every
+chunk of the sample area), `BioRulesTests` (a form round trip past index 63, a pre-widening form decodes unchanged) and
+the golden `meadowlands-gen28` (equal to `meadowlands-gen24` but for the two planted surface chunks).

@@ -28,6 +28,26 @@ Shader "BlocksBeyondTheStars/ScatterLit"
 
             float4 _Sc_Light;
             float4 _Sc_SunDir;
+            float4 _Sc_GrassTint; // #2835: the world's grass-tuft colour (a > 0.5 = set); GameBootstrap.RebuildFloraTints
+
+            // #2835: a tuft (vertex alpha 1) takes the world's grass colour like the flora shader re-tints a plant —
+            // luminance x tint, 85 % — so the ground tufts match the grass billboards; pebbles (alpha 0) keep theirs.
+            float3 ScatterBase(float4 c)
+            {
+                if (c.a < 0.5 || _Sc_GrassTint.a < 0.5)
+                {
+                    return c.rgb;
+                }
+
+                // Vertex colours are not linearised by Unity; the flora shader takes the luminance of the LINEAR
+                // texel, so square the colour first in a linear project, or the tufts glow 2.5x brighter than the grass.
+#ifdef UNITY_COLORSPACE_GAMMA
+                float lum = dot(c.rgb, float3(0.299, 0.587, 0.114));
+#else
+                float lum = dot(c.rgb * c.rgb, float3(0.299, 0.587, 0.114));
+#endif
+                return lerp(c.rgb, lum * _Sc_GrassTint.rgb * 1.6, 0.85);
+            }
 
             struct Attributes
             {
@@ -64,7 +84,7 @@ Shader "BlocksBeyondTheStars/ScatterLit"
                 float3 light = (_Sc_Light.a < 0.5) ? float3(1, 1, 1) : _Sc_Light.rgb;
                 float3 N = normalize(i.wn);
                 float ndl = saturate(dot(N, normalize(_Sc_SunDir.xyz))) * BbtsCloudShade(i.wp);
-                float3 col = i.color.rgb * light * (0.45 + 0.55 * ndl);
+                float3 col = ScatterBase(i.color) * light * (0.45 + 0.55 * ndl);
                 col = BbtsApplyHaze(col, i.wp, 1.0); // scatter sits on open ground
                 return half4(col, 1);
             }
@@ -90,6 +110,24 @@ Shader "BlocksBeyondTheStars/ScatterLit"
 
             fixed4 _Sc_Light;
             float4 _Sc_SunDir;
+            float4 _Sc_GrassTint; // #2835: see the URP pass
+
+            float3 ScatterBase(float4 c)
+            {
+                if (c.a < 0.5 || _Sc_GrassTint.a < 0.5)
+                {
+                    return c.rgb;
+                }
+
+                // Vertex colours are not linearised by Unity; the flora shader takes the luminance of the LINEAR
+                // texel, so square the colour first in a linear project, or the tufts glow 2.5x brighter than the grass.
+#ifdef UNITY_COLORSPACE_GAMMA
+                float lum = dot(c.rgb, float3(0.299, 0.587, 0.114));
+#else
+                float lum = dot(c.rgb * c.rgb, float3(0.299, 0.587, 0.114));
+#endif
+                return lerp(c.rgb, lum * _Sc_GrassTint.rgb * 1.6, 0.85);
+            }
 
             struct appdata
             {
@@ -123,7 +161,7 @@ Shader "BlocksBeyondTheStars/ScatterLit"
                 fixed3 light = (_Sc_Light.a < 0.5) ? fixed3(1, 1, 1) : _Sc_Light.rgb;
                 float3 N = normalize(i.wn);
                 float ndl = saturate(dot(N, normalize(_Sc_SunDir.xyz)));
-                fixed4 outc = fixed4(i.color.rgb * light * (0.45 + 0.55 * ndl), 1);
+                fixed4 outc = fixed4(ScatterBase(i.color) * light * (0.45 + 0.55 * ndl), 1);
                 UNITY_APPLY_FOG(i.fogCoord, outc);
                 return outc;
             }

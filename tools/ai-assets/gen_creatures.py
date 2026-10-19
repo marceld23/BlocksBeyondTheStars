@@ -54,16 +54,44 @@ TEXTURES = [
     ("veined", "translucent membranous skin with a network of glowing veins"),
     # #2083 — the bipeds' smooth skin (Mini-Michi-Paul, Paul and Ben's school club creature).
     ("skin", "smooth soft bare skin with faint pores and a gentle subtle mottling, no scales, no fur, no hair"),
+    # #2829 — the sky giants' and leviathans' "slick" hide had no tile (the generator rolled it from the start).
+    ("slick", "smooth wet glossy whale-like skin with long soft streaks and a few faint pale scars"),
+    # #2831 (2026-10-19) — twice the hides: 24 more, so a world's fauna spans many more skins.
+    ("finefeathers", "fine short downy feathers in neat tiny overlapping rows"),
+    ("down", "soft fluffy downy plumage, puffy and airy like a chick"),
+    ("wool", "thick curly woolly fleece with tight round curls like a sheep"),
+    ("leather", "smooth supple leather hide with a fine pebbled grain and soft creases"),
+    ("quilted", "quilted armour of rounded padded plates with deep seams between them like an armadillo"),
+    ("fungal", "soft fungal skin with gills, small mushroom caps and spongy pores"),
+    ("barkmoss", "rough tree bark hide with patches of soft moss growing in its cracks"),
+    ("coarsescales", "large coarse overlapping fish scales with dark edges"),
+    ("finescales", "very fine tiny shimmering fish scales in neat diagonal rows"),
+    ("lizard", "lizard skin of small bumpy round beaded scales like a gecko"),
+    ("bristles", "short stiff bristly hair like a wild boar"),
+    ("crystalveins", "smooth stone skin threaded with thin crystal veins and small gem flecks"),
+    ("cracked", "dry cracked hide like sun-baked mud with a network of deep cracks"),
+    ("honeycomb", "armour of small hexagonal honeycomb plates with raised rims"),
+    ("ridged", "hard horn-like skin with parallel raised ridges and grooves"),
+    ("velvet", "short dense velvety fur with a soft sheen like a mole"),
+    ("snake", "snake skin of smooth diamond-shaped overlapping scales"),
+    ("roughbark", "very rough knotty bark-like hide with deep ridges and knots"),
+    ("pebbled", "pebbled skin covered in small round raised bumps of different sizes"),
+    ("knobbly", "knobbly hide with large rounded lumps and wrinkles like a toad"),
+    ("coralskin", "porous coral-like skin full of small round pits and tiny branching ridges"),
+    ("wrinkled", "thick deeply wrinkled grey skin like an elephant with folds and creases"),
+    ("featherscales", "pointed overlapping feather-like scales halfway between plumage and scales"),
+    ("lichen", "pale skin speckled with crusty round lichen spots of different sizes"),
 ]
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Generate creature hide textures (grayscale, tintable).")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--only", help="generate just this one key (the approval test)")
+    ap.add_argument("--only", help="generate just these comma-separated keys (e.g. the approval test)")
     args = ap.parse_args()
 
-    items = [t for t in TEXTURES if args.only is None or t[0] == args.only]
+    wanted = None if args.only is None else {k.strip() for k in args.only.split(",")}
+    items = [t for t in TEXTURES if wanted is None or t[0] in wanted]
     if not items:
         sys.exit(f"--only '{args.only}' is not a known creature texture: {[t[0] for t in TEXTURES]}")
 

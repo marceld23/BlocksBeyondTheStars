@@ -40,6 +40,15 @@ namespace BlocksBeyondTheStars.Client
         private Material _bodyMat;
         private Light _glow;
 
+        /// <summary>#2830/#2831: this build's coat — the material of every body-part role (set first thing on every path).</summary>
+        private CoatKit _coat;
+
+        /// <summary>The box torso parts (centre, size) a placed back pattern lays its overlay slabs on (#2830).</summary>
+        private readonly List<(Vector3 Pos, Vector3 Size)> _torsoBoxes = new List<(Vector3 Pos, Vector3 Size)>();
+
+        /// <summary>While set, the next cube takes the pinned-v mesh (the eye-masked skull box, see <see cref="TiledCube"/>).</summary>
+        private bool _pinV;
+
         /// <summary>#1998: while set, the parts being added keep their box collider (a giant's legs, torso and segments —
         /// the player bumps into them); every other part is render-only.</summary>
         private bool _keepColliders;
@@ -111,35 +120,22 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3f);
-            Color baseColor = Rgb(c.ColorRgb);
             Color bellyColor = Rgb(c.BellyRgb);
 
-            // Per-species proportion jitter (from the id) so two species with the same parts still differ in
-            // build — lanky vs squat, big-headed vs small, slim vs broad.
-            int idh = StableIdHash(c.SpeciesId);
+            // Per-species proportion jitter so two species with the same parts still differ in build — lanky vs squat,
+            // big-headed vs small, slim vs broad. Keyed off the species' world seed (#2829), not the slot id: rolled
+            // species are sp0..sp8 on every planet, so the id gave slot 3 the same build everywhere.
+            int idh = CreatureCoat.ProportionHash(c.SpeciesId, c.VoiceSeed);
             float headScale = 0.75f + ((idh >> 2) & 7) / 7f * 0.65f; // 0.75..1.40
             float bodyWide = 0.85f + ((idh >> 5) & 7) / 7f * 0.55f;  // 0.85..1.40
             float legLong = 0.75f + ((idh >> 8) & 7) / 7f * 0.65f;   // 0.75..1.40
 
-            // Hostiles read a touch more aggressive; sleepers are dimmed.
-            if (c.Hostile)
-            {
-                baseColor = Color.Lerp(baseColor, new Color(0.85f, 0.2f, 0.15f), 0.25f);
-            }
-
-            if (c.Asleep)
-            {
-                baseColor *= 0.85f; // a gentle dim only — the "z z z" already reads sleep; 0.6 crushed the (already tile+floor-dimmed) body to black
-            }
-
-            // Tamed companions read with a gentle friendly green-cyan cast (never the hostile red) so you can
-            // tell your pet apart from wild fauna at a glance (design: docs/developer/CREATURE_TAMING.md).
-            if (!string.IsNullOrEmpty(c.OwnerId))
-            {
-                baseColor = Color.Lerp(baseColor, new Color(0.35f, 0.85f, 0.65f), 0.18f);
-            }
-
-            _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
+            // Hostiles read a touch more aggressive (a red cast), sleepers are dimmed (a gentle 0.85 — the "z z z" already
+            // reads sleep; 0.6 crushed the tile+floor-dimmed body to black), companions get a green-cyan cast.
+            var mood = MoodOf(c, 0.25f, true, true);
+            Color baseColor = mood.Tint(Rgb(c.ColorRgb)) * mood.Dim; // the plain parts below (crest, gas sac) derive from it
+            NewCoat(c, mood, 1.6f, 1.4f);
+            _bodyMat = _coat.Mat(CoatPart.Torso);
 
             // All parts hang off a body rig (a child of the root) so the animator can undulate the whole
             // creature for swimming without disturbing the root's movement-driven facing.
@@ -154,14 +150,17 @@ namespace BlocksBeyondTheStars.Client
             {
                 float z = (i - (segments - 1) * 0.5f) * segLen;
                 float taper = 1f - 0.12f * i; // slimmer toward the tail
-                AddPart(body, "Body" + i, new Vector3(0f, bodyY, z),
-                    new Vector3(unit * 1.1f * taper * bodyWide, unit * 0.95f * taper, segLen), _bodyMat);
+                var segPos = new Vector3(0f, bodyY, z);
+                var segSize = new Vector3(unit * 1.1f * taper * bodyWide, unit * 0.95f * taper, segLen);
+                AddPart(body, "Body" + i, segPos, segSize, _bodyMat);
+                _torsoBoxes.Add((segPos, segSize));
             }
 
             // Two-tone underside: a flatter belly slab in the accent colour, so the body isn't one flat hue.
-            var bellyMat = Lit(c.Glows ? bellyColor * 1.4f : bellyColor, PickHide(c));
+            var bellyMat = _coat.Mat(CoatPart.Belly);
             AddPart(body, "Belly", new Vector3(0f, bodyY - unit * 0.42f, 0f),
                 new Vector3(unit * 1.02f * bodyWide, unit * 0.32f, segments * segLen * 0.9f), bellyMat);
+            AddCoatOverlays(body.transform);
 
             float frontZ = (segments - 1) * 0.5f * segLen + segLen * 0.6f;
             // Head on a neck pivot (behind the head) so it can bob/graze/lunge as an idle gesture, with a
@@ -174,7 +173,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 float hx = heads == 1 ? 0f : Mathf.Lerp(-headW * 0.5f * (heads - 1), headW * 0.5f * (heads - 1), hd / (float)(heads - 1));
                 _headPivot = NewPivot(body.transform, heads == 1 ? "Head" : "Head" + hd, new Vector3(hx, bodyY + unit * 0.2f, frontZ - unit * 0.45f));
-                AddHeadBox(headW, unit * 0.85f * headScale, unit * 0.8f * headScale, unit * 0.45f, _bodyMat);
+                AddHeadBox(headW, unit * 0.85f * headScale, unit * 0.8f * headScale, unit * 0.45f);
 
                 // Eyes: optional (0 = eyeless) and a random count (often two, sometimes three/four/six). Bigger,
                 // with a dark pupil so they clearly read as eyes — spread in a row across the head front.
@@ -219,26 +218,28 @@ namespace BlocksBeyondTheStars.Client
             {
                 float z = rows == 1 ? segLen * 0.15f : Mathf.Lerp(hipSpan, -hipSpan, row / (float)(rows - 1));
                 float hipX = unit * 0.55f * bodyWide * TaperAt(z, segLen, segments) + unit * 0.06f;
-                _legs.Add(AddLeg(body.transform, row, 0, rows, new Vector3(-hipX, legH, z), legH, legThick, _bodyMat));
-                _legs.Add(AddLeg(body.transform, row, 1, rows, new Vector3(hipX, legH, z), legH, legThick, _bodyMat));
+                _legs.Add(AddLeg(body.transform, row, 0, rows, new Vector3(-hipX, legH, z), legH, legThick));
+                _legs.Add(AddLeg(body.transform, row, 1, rows, new Vector3(hipX, legH, z), legH, legThick));
             }
 
             if (c.HasWings)
             {
                 AddWings(body.transform, unit * 0.9f, unit * 1.2f, unit * 0.08f,
-                    new Vector3(unit * 0.45f, bodyY + unit * 0.2f, 0f), _bodyMat,
+                    new Vector3(unit * 0.45f, bodyY + unit * 0.2f, 0f), _coat.Mat(CoatPart.Wing),
                     Mathf.Clamp(c.WingPairs, 1, 3), hipSpan + segLen * 0.1f);
             }
 
             if (c.HasTail)
             {
                 float tailBaseZ = -(segments - 1) * 0.5f * segLen - segLen * 0.2f;
-                AddTail(body.transform, new Vector3(0f, bodyY, tailBaseZ), segLen * 1.1f, unit * 0.35f, 3, _bodyMat);
+                AddTail(body.transform, new Vector3(0f, bodyY, tailBaseZ), segLen * 1.1f, unit * 0.35f, 3, _coat.Mat(CoatPart.Tail));
             }
 
             // Fins: a legless swimmer used to be a weaving box with no limbs at all. Pectorals on the flanks,
             // a vertical tail fin at the back (on the tail's last link when there is one), and a dorsal when
-            // the species is not already wearing a crest there.
+            // the species is not already wearing a crest there. Fins, crest and tentacles are the accents: the belly
+            // colour, or the pattern colour on a crest-banded species (#2830).
+            var accentMat = _coat.Mat(CoatPart.Ornament);
             if (c.HasFins)
             {
                 float finLen = unit * 0.75f;
@@ -257,7 +258,7 @@ namespace BlocksBeyondTheStars.Client
                         var pec = NewPivot(body.transform, (f == 0 ? "FinL" : "FinR") + (row == 0 ? "" : row.ToString()),
                             new Vector3(sx * unit * 0.5f * bodyWide * TaperAt(fz, segLen, segments), bodyY - unit * 0.1f, fz));
                         AddPartTo(pec, "FinBlade", new Vector3(sx * rowLen * 0.5f, 0f, -rowLen * 0.15f),
-                            new Vector3(rowLen, unit * 0.07f, rowLen * 0.8f), bellyMat);
+                            new Vector3(rowLen, unit * 0.07f, rowLen * 0.8f), accentMat);
                         _fins.Add(new FinRig { Pivot = pec, Kind = FinKind.Pectoral, Side = f, Row = row, Rows = finPairs });
                     }
                 }
@@ -269,21 +270,21 @@ namespace BlocksBeyondTheStars.Client
                 var caudal = NewPivot(tailFinParent, "FinTail",
                     new Vector3(0f, _tailChain.Count > 0 ? 0f : bodyY, tailFinZ));
                 AddPartTo(caudal, "FinTailBlade", new Vector3(0f, 0f, -finLen * 0.45f),
-                    new Vector3(unit * 0.07f, finLen * 1.5f, finLen * 0.9f), bellyMat);
+                    new Vector3(unit * 0.07f, finLen * 1.5f, finLen * 0.9f), accentMat);
                 _fins.Add(new FinRig { Pivot = caudal, Kind = FinKind.Caudal });
 
                 if (!c.HasCrest)
                 {
                     var dorsal = NewPivot(body.transform, "FinDorsal", new Vector3(0f, bodyY + unit * 0.45f, 0f));
                     AddPartTo(dorsal, "FinDorsalBlade", new Vector3(0f, finLen * 0.4f, -finLen * 0.1f),
-                        new Vector3(unit * 0.07f, finLen * 0.8f, finLen), bellyMat);
+                        new Vector3(unit * 0.07f, finLen * 0.8f, finLen), accentMat);
                     _fins.Add(new FinRig { Pivot = dorsal, Kind = FinKind.Dorsal });
                     if (finPairs >= 3)
                     {
                         // A three-paired body also carries a second, smaller dorsal toward the tail.
                         var dorsal2 = NewPivot(body.transform, "FinDorsal2", new Vector3(0f, bodyY + unit * 0.4f, finRear - segLen * 0.2f));
                         AddPartTo(dorsal2, "FinDorsalBlade", new Vector3(0f, finLen * 0.28f, -finLen * 0.05f),
-                            new Vector3(unit * 0.07f, finLen * 0.55f, finLen * 0.7f), bellyMat);
+                            new Vector3(unit * 0.07f, finLen * 0.55f, finLen * 0.7f), accentMat);
                         _fins.Add(new FinRig { Pivot = dorsal2, Kind = FinKind.Dorsal });
                     }
                 }
@@ -292,7 +293,9 @@ namespace BlocksBeyondTheStars.Client
             // Dorsal crest: a row of spiny plates along the spine, tallest at the shoulders — silhouette variety.
             if (c.HasCrest)
             {
-                var crestMat = Lit(c.Glows ? baseColor * 1.4f : baseColor * 0.7f, null);
+                var crestMat = _coat.Pattern == CoatPattern.CrestBand
+                    ? accentMat
+                    : Lit(c.Glows ? baseColor * 1.4f : baseColor * 0.7f, null);
                 int fins = Mathf.Max(3, segments * 2);
                 float z0 = -(segments - 1) * 0.5f * segLen - segLen * 0.2f;
                 float z1 = (segments - 1) * 0.5f * segLen + segLen * 0.2f;
@@ -319,7 +322,7 @@ namespace BlocksBeyondTheStars.Client
                     float fz = frontZ - unit * (0.5f + 0.45f * (tn % 2)); // two staggered rows up front
                     _tentacleChains.Add(AddChain(body.transform, $"Tent{tn}_",
                         new Vector3(fx, bodyY - unit * 0.45f, fz), unit * 0.06f,
-                        3, unit * 0.16f, tentLen * 0.4f, 0.25f, bellyMat));
+                        3, unit * 0.16f, tentLen * 0.4f, 0.25f, accentMat));
                 }
             }
 
@@ -371,6 +374,7 @@ namespace BlocksBeyondTheStars.Client
             var eyeMat = EyeMaterial(c);
             var pupilMat = PupilMaterial(c);
             var glintMat = Unlit(Color.white);
+            var skinMat = _coat.Mat(CoatPart.Jaw); // stalks and lids: the head's hide, never the pattern
             float eyeSize = unit * 0.32f * headScale; // bigger (was 0.24)
 
             if (c.EyeStalks)
@@ -385,10 +389,10 @@ namespace BlocksBeyondTheStars.Client
                     float stalkH = unit * headScale * (0.45f + 0.12f * (e % 2));
                     var top = new Vector3(fx, unit * 0.45f * headScale + stalkH, unit * 0.15f * headScale);
                     AddPartTo(_headPivot, "Stalk" + e, new Vector3(fx, unit * 0.45f * headScale + stalkH * 0.5f, unit * 0.15f * headScale),
-                        new Vector3(eyeSize * 0.28f, stalkH, eyeSize * 0.28f), _bodyMat);
+                        new Vector3(eyeSize * 0.28f, stalkH, eyeSize * 0.28f), skinMat);
                     AddPartTo(_headPivot, "Eye" + e, top, Vector3.one * (eyeSize * 0.9f), eyeMat, PrimitiveType.Sphere);
                     AddPartTo(_headPivot, "Pupil" + e, top + new Vector3(0f, 0f, eyeSize * 0.38f), Vector3.one * (eyeSize * 0.5f), pupilMat, PrimitiveType.Sphere);
-                    AddEyelid(top, eyeSize * 0.9f, _bodyMat);
+                    AddEyelid(top, eyeSize * 0.9f, skinMat);
                 }
             }
             else
@@ -401,7 +405,7 @@ namespace BlocksBeyondTheStars.Client
                     AddPartTo(_headPivot, "Eye" + e, pos, Vector3.one * eyeSize, eyeMat, PrimitiveType.Sphere);
                     AddPartTo(_headPivot, "Pupil" + e, pos + new Vector3(0f, 0f, eyeSize * 0.42f), Vector3.one * (eyeSize * 0.55f), pupilMat, PrimitiveType.Sphere);
                     AddPartTo(_headPivot, "Glint" + e, pos + new Vector3(eyeSize * 0.16f, eyeSize * 0.18f, eyeSize * 0.5f), Vector3.one * (eyeSize * 0.16f), glintMat, PrimitiveType.Sphere);
-                    AddEyelid(pos, eyeSize, _bodyMat);
+                    AddEyelid(pos, eyeSize, skinMat);
                 }
             }
         }
@@ -412,20 +416,11 @@ namespace BlocksBeyondTheStars.Client
         private void BuildMedusa(GameObject root, NetCreature c)
         {
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3f);
-            Color baseColor = Rgb(c.ColorRgb);
-            Color bellyColor = Rgb(c.BellyRgb);
-            if (c.Asleep)
-            {
-                baseColor *= 0.85f;
-            }
-
-            if (!string.IsNullOrEmpty(c.OwnerId))
-            {
-                baseColor = Color.Lerp(baseColor, new Color(0.35f, 0.85f, 0.65f), 0.18f);
-            }
-
-            _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
-            var bellyMat = Lit(c.Glows ? bellyColor * 1.4f : bellyColor, PickHide(c));
+            var mood = MoodOf(c, 0f, true, true); // no red cast: a medusa's bell carries no mood
+            Color baseColor = mood.Tint(Rgb(c.ColorRgb)) * mood.Dim;
+            NewCoat(c, mood, 1.6f, 1.4f);
+            _bodyMat = _coat.Mat(CoatPart.Torso);
+            var bellyMat = _coat.Mat(CoatPart.Ornament); // the rim tentacles: the accent colour
 
             var body = new GameObject("BodyRig");
             body.transform.SetParent(root.transform, false);
@@ -495,7 +490,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // No fish-weave and no gait — the bell pulse carries all of this body's motion.
-            var rig = Describe(c, body.transform, unit, unit, StableIdHash(c.SpeciesId));
+            var rig = Describe(c, body.transform, unit, unit, CreatureCoat.ProportionHash(c.SpeciesId, c.VoiceSeed));
             rig.Aquatic = false;
             rig.Bell = bell.transform;
             var anim = root.AddComponent<CreatureAnimator>();
@@ -508,27 +503,11 @@ namespace BlocksBeyondTheStars.Client
         private void BuildTitan(GameObject root, NetCreature c)
         {
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 8f); // past the standard clamp — titans are the point
-            Color baseColor = Rgb(c.ColorRgb);
-            Color bellyColor = Rgb(c.BellyRgb);
-            if (c.Hostile)
-            {
-                baseColor = Color.Lerp(baseColor, new Color(0.85f, 0.2f, 0.15f), 0.25f);
-            }
+            NewCoat(c, MoodOf(c, 0.25f, true, true), 1.6f, 1.4f);
+            _bodyMat = _coat.Mat(CoatPart.Torso);
+            var bellyMat = _coat.Mat(CoatPart.Belly);
 
-            if (c.Asleep)
-            {
-                baseColor *= 0.85f;
-            }
-
-            if (!string.IsNullOrEmpty(c.OwnerId))
-            {
-                baseColor = Color.Lerp(baseColor, new Color(0.35f, 0.85f, 0.65f), 0.18f);
-            }
-
-            _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
-            var bellyMat = Lit(c.Glows ? bellyColor * 1.4f : bellyColor, PickHide(c));
-
-            int idh = StableIdHash(c.SpeciesId);
+            int idh = CreatureCoat.ProportionHash(c.SpeciesId, c.VoiceSeed);
             float headScale = 0.8f + ((idh >> 2) & 7) / 7f * 0.4f; // 0.8..1.2 — giants keep steadier proportions
             float bodyWide = 1.0f + ((idh >> 5) & 7) / 7f * 0.3f;  // 1.0..1.3
 
@@ -544,12 +523,15 @@ namespace BlocksBeyondTheStars.Client
             {
                 float z = (i - (segments - 1) * 0.5f) * segLen;
                 float taper = 1f - 0.08f * i;
-                AddPart(body, "Body" + i, new Vector3(0f, bodyY, z),
-                    new Vector3(unit * 1.25f * taper * bodyWide, unit * 1.05f * taper, segLen), _bodyMat);
+                var segPos = new Vector3(0f, bodyY, z);
+                var segSize = new Vector3(unit * 1.25f * taper * bodyWide, unit * 1.05f * taper, segLen);
+                AddPart(body, "Body" + i, segPos, segSize, _bodyMat);
+                _torsoBoxes.Add((segPos, segSize));
             }
 
             AddPart(body, "Belly", new Vector3(0f, bodyY - unit * 0.5f, 0f),
                 new Vector3(unit * 1.15f * bodyWide, unit * 0.35f, segments * segLen * 0.9f), bellyMat);
+            AddCoatOverlays(body.transform);
 
             // Pillar legs, row 0 at the front (the shared convention). The hips sit at the torso's real
             // half-width so a broad titan carries its pillars under the flanks, not under the belly.
@@ -557,8 +539,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 float z = (row == 0 ? 1f : -1f) * segLen * (segments - 1) * 0.5f;
                 float hipX = unit * 0.62f * bodyWide * TaperAt(z, segLen, segments);
-                _legs.Add(AddLeg(body.transform, row, 0, 2, new Vector3(-hipX, legH, z), legH, unit * 0.34f, _bodyMat));
-                _legs.Add(AddLeg(body.transform, row, 1, 2, new Vector3(hipX, legH, z), legH, unit * 0.34f, _bodyMat));
+                _legs.Add(AddLeg(body.transform, row, 0, 2, new Vector3(-hipX, legH, z), legH, unit * 0.34f));
+                _legs.Add(AddLeg(body.transform, row, 1, 2, new Vector3(hipX, legH, z), legH, unit * 0.34f));
             }
 
             // Neck: stacked shrinking segments rising forward from the torso front; the head pivots at its top,
@@ -590,7 +572,7 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     AddPartTo(seg, "NeckSeg" + nk, new Vector3(0f, unit * 0.34f, unit * 0.09f),
-                        new Vector3(unit * 0.55f * taper, unit * 0.75f, unit * 0.55f * taper), _bodyMat);
+                        new Vector3(unit * 0.55f * taper, unit * 0.75f, unit * 0.55f * taper), _coat.Mat(CoatPart.Neck));
                     _neckChain.Add(seg);
                     neckParent = seg;
                     headY += unit * 0.62f;
@@ -605,7 +587,7 @@ namespace BlocksBeyondTheStars.Client
                     _headPivot.localRotation = Quaternion.Euler(0f, yaw, 0f);
                 }
 
-                AddHeadBox(unit * 0.95f * headScale, unit * 0.85f * headScale, unit * 0.9f * headScale, unit * 0.45f, _bodyMat);
+                AddHeadBox(unit * 0.95f * headScale, unit * 0.85f * headScale, unit * 0.9f * headScale, unit * 0.45f);
 
                 AddEyes(c, unit, headScale);
 
@@ -617,7 +599,7 @@ namespace BlocksBeyondTheStars.Client
                     _ears.Add(AddPivotPart(_headPivot, e == 0 ? "EarL" : "EarR",
                         new Vector3(ex, unit * 0.5f * headScale, unit * 0.2f),
                         new Vector3(0f, -unit * 0.3f * headScale, 0f),
-                        new Vector3(unit * 0.12f, unit * 0.6f * headScale, unit * 0.5f * headScale), _bodyMat));
+                        new Vector3(unit * 0.12f, unit * 0.6f * headScale, unit * 0.5f * headScale), _coat.Mat(CoatPart.Wing)));
                 }
 
                 // Tusks: the species' horns, worn forward from the lower jaw instead of upright on the crown.
@@ -639,14 +621,14 @@ namespace BlocksBeyondTheStars.Client
                     // A chain, so the trunk can curl and sway instead of hanging off the head like a pipe.
                     _trunkChain.AddRange(AddChain(_headPivot, "Trunk",
                         new Vector3(0f, -unit * 0.2f * headScale, unit * 0.5f * headScale), unit * 0.04f,
-                        4, unit * 0.3f, unit * 0.42f, 0.17f, _bodyMat));
+                        4, unit * 0.3f, unit * 0.42f, 0.17f, _coat.Mat(CoatPart.Neck)));
                 }
             }
 
             if (c.HasTail)
             {
                 float tailBaseZ = -(segments - 1) * 0.5f * segLen - segLen * 0.15f;
-                AddTail(body.transform, new Vector3(0f, bodyY + unit * 0.2f, tailBaseZ), segLen * 1.0f, unit * 0.22f, 4, _bodyMat);
+                AddTail(body.transform, new Vector3(0f, bodyY + unit * 0.2f, tailBaseZ), segLen * 1.0f, unit * 0.22f, 4, _coat.Mat(CoatPart.Tail));
             }
 
             if (c.Glows)
@@ -681,27 +663,11 @@ namespace BlocksBeyondTheStars.Client
         private void BuildArachnid(GameObject root, NetCreature c)
         {
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 8f);
-            Color baseColor = Rgb(c.ColorRgb);
-            Color bellyColor = Rgb(c.BellyRgb);
-            if (c.Hostile)
-            {
-                baseColor = Color.Lerp(baseColor, new Color(0.85f, 0.2f, 0.15f), 0.25f);
-            }
+            NewCoat(c, MoodOf(c, 0.25f, true, true), 1.6f, 1.4f);
+            _bodyMat = _coat.Mat(CoatPart.Torso);
+            var bellyMat = _coat.Mat(CoatPart.Belly);
 
-            if (c.Asleep)
-            {
-                baseColor *= 0.85f;
-            }
-
-            if (!string.IsNullOrEmpty(c.OwnerId))
-            {
-                baseColor = Color.Lerp(baseColor, new Color(0.35f, 0.85f, 0.65f), 0.18f);
-            }
-
-            _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
-            var bellyMat = Lit(c.Glows ? bellyColor * 1.4f : bellyColor, PickHide(c));
-
-            int idh = StableIdHash(c.SpeciesId);
+            int idh = CreatureCoat.ProportionHash(c.SpeciesId, c.VoiceSeed);
             float headScale = 0.85f + ((idh >> 2) & 7) / 7f * 0.4f;  // 0.85..1.25
             float bodyWide = 0.9f + ((idh >> 5) & 7) / 7f * 0.35f;   // 0.9..1.25
             float legLong = 0.9f + ((idh >> 8) & 7) / 7f * 0.35f;    // 0.9..1.25
@@ -735,7 +701,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     float z = -(thoraxL * 0.5f + abdomenL * (0.15f + 0.18f * i));
                     AddPart(body, "Crest" + i, new Vector3(0f, bodyY + unit * (0.95f - 0.08f * i), z),
-                        new Vector3(unit * 0.16f, unit * 0.32f, unit * 0.22f), bellyMat);
+                        new Vector3(unit * 0.16f, unit * 0.32f, unit * 0.22f), _coat.Mat(CoatPart.Ornament));
                 }
             }
 
@@ -747,8 +713,8 @@ namespace BlocksBeyondTheStars.Client
             for (int row = 0; row < Rows; row++)
             {
                 float z = Mathf.Lerp(thoraxL * 0.42f, -thoraxL * 0.42f, row / (float)(Rows - 1));
-                _legs.Add(AddLeg(body.transform, row, 0, Rows, new Vector3(-hipX, legH, z), legH, legThick, _bodyMat));
-                _legs.Add(AddLeg(body.transform, row, 1, Rows, new Vector3(hipX, legH, z), legH, legThick, _bodyMat));
+                _legs.Add(AddLeg(body.transform, row, 0, Rows, new Vector3(-hipX, legH, z), legH, legThick));
+                _legs.Add(AddLeg(body.transform, row, 1, Rows, new Vector3(hipX, legH, z), legH, legThick));
             }
 
             // The head on a neck pivot in front of the thorax: the classic box with its hinged jaw, or a pyramid mesh
@@ -762,12 +728,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 headH *= ArachnidRules.HeightScale(shape);
                 AddMeshPart(_headPivot, "HeadPyramid", new Vector3(0f, -headH * 0.5f, headZ),
-                    new Vector3(headW, headH, headD), _bodyMat, ArachnidHeadMesh.For(shape));
+                    new Vector3(headW, headH, headD), _coat.Mat(CoatPart.Jaw), ArachnidHeadMesh.For(shape)); // a mesh without UVs: never patterned
                 _heads.Add(_headPivot);
             }
             else
             {
-                AddHeadBox(headW, headH, headD, headZ, _bodyMat);
+                AddHeadBox(headW, headH, headD, headZ);
             }
 
             _keepColliders = false;
@@ -822,22 +788,13 @@ namespace BlocksBeyondTheStars.Client
             float s = Mathf.Clamp(c.Size, 0.3f, 2.5f);                      // the size IS the standing scale in blocks
             float headRatio = c.HeadRatio > 0f ? c.HeadRatio : 1.6f;
             float unit = 0.5f * s;
-            Color baseColor = Rgb(c.ColorRgb);
-            Color bellyColor = Rgb(c.BellyRgb);
-            if (c.Asleep)
-            {
-                baseColor *= 0.85f;
-            }
+            NewCoat(c, MoodOf(c, 0f, true, true), 1.6f, 1.4f); // small and peaceful: no red cast
+            _bodyMat = _coat.Mat(CoatPart.Torso);
+            var bellyMat = _coat.Mat(CoatPart.Belly);
+            var accentMat = _coat.Mat(CoatPart.Ornament);
+            var limbMat = _coat.Mat(CoatPart.Limb);
 
-            if (!string.IsNullOrEmpty(c.OwnerId))
-            {
-                baseColor = Color.Lerp(baseColor, new Color(0.35f, 0.85f, 0.65f), 0.18f);
-            }
-
-            _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
-            var bellyMat = Lit(c.Glows ? bellyColor * 1.4f : bellyColor, PickHide(c));
-
-            int idh = StableIdHash(c.SpeciesId);
+            int idh = CreatureCoat.ProportionHash(c.SpeciesId, c.VoiceSeed);
             float bodyWide = 0.9f + ((idh >> 5) & 7) / 7f * 0.25f;          // 0.9..1.15 — chubby or slim
 
             var body = new GameObject("BodyRig");
@@ -858,7 +815,7 @@ namespace BlocksBeyondTheStars.Client
             for (int side = 0; side < 2; side++)
             {
                 float x = (side == 0 ? -1f : 1f) * torsoW * 0.26f;
-                var leg = AddLeg(body.transform, 0, side, 1, new Vector3(x, legH, 0f), legH, legThick, _bodyMat);
+                var leg = AddLeg(body.transform, 0, side, 1, new Vector3(x, legH, 0f), legH, legThick);
                 leg.KneeSign = 1;
                 _legs.Add(leg);
             }
@@ -867,15 +824,15 @@ namespace BlocksBeyondTheStars.Client
             float armLen = s * BipedRules.ArmShare;
             float armThick = s * 0.08f;
             float upper = armLen * 0.5f, lower = armLen * 0.5f;
-            var handMat = bellyMat;
+            var handMat = accentMat;
             for (int side = 0; side < 2; side++)
             {
                 float sx = side == 0 ? -1f : 1f;
                 var shoulder = NewPivot(body.transform, side == 0 ? "ArmL" : "ArmR",
                     new Vector3(sx * (torsoW * 0.5f + armThick * 0.55f), legH + torsoH * 0.88f, 0f));
-                AddPartTo(shoulder, "UpperArm", new Vector3(0f, -upper * 0.5f, 0f), new Vector3(armThick, upper, armThick), _bodyMat);
+                AddPartTo(shoulder, "UpperArm", new Vector3(0f, -upper * 0.5f, 0f), new Vector3(armThick, upper, armThick), limbMat);
                 var elbow = NewPivot(shoulder, "Elbow", new Vector3(0f, -upper, 0f));
-                AddPartTo(elbow, "Forearm", new Vector3(0f, -lower * 0.5f, 0f), new Vector3(armThick * 0.9f, lower, armThick * 0.9f), _bodyMat);
+                AddPartTo(elbow, "Forearm", new Vector3(0f, -lower * 0.5f, 0f), new Vector3(armThick * 0.9f, lower, armThick * 0.9f), limbMat);
                 AddPartTo(elbow, "Hand", new Vector3(0f, -lower - armThick * 0.45f, 0f), Vector3.one * (armThick * 1.35f), handMat);
                 shoulder.localRotation = Quaternion.Euler(0f, 0f, -sx * 6f);    // the arms hang a touch away from the body
                 _arms.Add(new ArmRig
@@ -895,7 +852,7 @@ namespace BlocksBeyondTheStars.Client
             float hu = headEdge / 0.9f;                                        // the standard head is 0.9 units wide
             var neck = NewPivot(body.transform, "Head", new Vector3(0f, legH + torsoH, 0f));
             _headPivot = NewPivot(neck, "HeadCentre", new Vector3(0f, headEdge * 0.47f, -hu * 0.45f + torsoD * 0.05f));
-            AddHeadBox(hu * 0.9f, hu * 0.85f, hu * 0.8f, hu * 0.45f, _bodyMat);
+            AddHeadBox(hu * 0.9f, hu * 0.85f, hu * 0.8f, hu * 0.45f);
             _heads[_heads.Count - 1] = neck;                                   // the animator turns the neck, the face comes along
             AddEyes(c, hu, 1f);
 
@@ -906,13 +863,13 @@ namespace BlocksBeyondTheStars.Client
                 float ax = antennae == 1 ? 0f : (a == 0 ? -1f : 1f) * hu * 0.22f;
                 var stalk = NewPivot(_headPivot, "Antenna" + a, new Vector3(ax, hu * 0.36f, hu * 0.40f));
                 stalk.localRotation = Quaternion.Euler(-12f, 0f, antennae == 1 ? 0f : (a == 0 ? 14f : -14f));
-                AddPartTo(stalk, "Stalk", new Vector3(0f, hu * 0.22f, 0f), new Vector3(hu * 0.05f, hu * 0.44f, hu * 0.05f), _bodyMat);
-                AddPartTo(stalk, "Bobble", new Vector3(0f, hu * 0.46f, 0f), Vector3.one * (hu * 0.13f), bellyMat, PrimitiveType.Sphere);
+                AddPartTo(stalk, "Stalk", new Vector3(0f, hu * 0.22f, 0f), new Vector3(hu * 0.05f, hu * 0.44f, hu * 0.05f), _coat.Mat(CoatPart.Jaw));
+                AddPartTo(stalk, "Bobble", new Vector3(0f, hu * 0.46f, 0f), Vector3.one * (hu * 0.13f), accentMat, PrimitiveType.Sphere);
             }
 
             if (c.HasTail)
             {
-                AddTail(body.transform, new Vector3(0f, legH + s * 0.04f, -torsoD * 0.45f), s * 0.22f, s * 0.07f, 2, _bodyMat);
+                AddTail(body.transform, new Vector3(0f, legH + s * 0.04f, -torsoD * 0.45f), s * 0.22f, s * 0.07f, 2, _coat.Mat(CoatPart.Tail));
             }
 
             if (c.Glows)
@@ -944,26 +901,10 @@ namespace BlocksBeyondTheStars.Client
         private void BuildWorm(GameObject root, NetCreature c)
         {
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3f);
-            Color baseColor = Rgb(c.ColorRgb);
-            Color bellyColor = Rgb(c.BellyRgb);
-            if (c.Hostile)
-            {
-                baseColor = Color.Lerp(baseColor, new Color(0.85f, 0.2f, 0.15f), 0.25f);
-            }
-
-            if (c.Asleep)
-            {
-                baseColor *= 0.85f;
-            }
-
-            if (!string.IsNullOrEmpty(c.OwnerId))
-            {
-                baseColor = Color.Lerp(baseColor, new Color(0.35f, 0.85f, 0.65f), 0.18f);
-            }
-
-            _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
-            var bellyMat = Lit(c.Glows ? bellyColor * 1.4f : bellyColor, PickHide(c));
-            int idh = StableIdHash(c.SpeciesId);
+            NewCoat(c, MoodOf(c, 0.25f, true, true), 1.6f, 1.4f);
+            _bodyMat = _coat.Mat(CoatPart.Torso);
+            var bellyMat = _coat.Mat(CoatPart.Belly);
+            int idh = CreatureCoat.ProportionHash(c.SpeciesId, c.VoiceSeed);
             float girth = unit * (0.55f + ((idh >> 5) & 7) / 7f * 0.25f);   // 0.55..0.8 units — slim or plump
             float bodyY = girth * 0.55f;                                      // lies on the ground
 
@@ -974,7 +915,7 @@ namespace BlocksBeyondTheStars.Client
             // code works on it unchanged; the horns are antennae with a bobble, like the biped's.
             float headScale = 0.9f;
             _headPivot = NewPivot(body.transform, "Head", new Vector3(0f, bodyY + unit * 0.05f, girth * 0.7f));
-            AddHeadBox(unit * 0.8f * headScale, unit * 0.7f * headScale, unit * 0.75f * headScale, unit * 0.4f, _bodyMat);
+            AddHeadBox(unit * 0.8f * headScale, unit * 0.7f * headScale, unit * 0.75f * headScale, unit * 0.4f);
             AddEyes(c, unit, headScale);
             int antennae = Mathf.Clamp(c.Horns, 0, 2);
             for (int a = 0; a < antennae; a++)
@@ -982,15 +923,15 @@ namespace BlocksBeyondTheStars.Client
                 float ax = antennae == 1 ? 0f : (a == 0 ? -1f : 1f) * unit * 0.2f;
                 var stalk = NewPivot(_headPivot, "Antenna" + a, new Vector3(ax, unit * 0.3f, unit * 0.35f));
                 stalk.localRotation = Quaternion.Euler(-14f, 0f, antennae == 1 ? 0f : (a == 0 ? 14f : -14f));
-                AddPartTo(stalk, "Stalk", new Vector3(0f, unit * 0.2f, 0f), new Vector3(unit * 0.05f, unit * 0.4f, unit * 0.05f), _bodyMat);
-                AddPartTo(stalk, "Bobble", new Vector3(0f, unit * 0.42f, 0f), Vector3.one * (unit * 0.12f), bellyMat, PrimitiveType.Sphere);
+                AddPartTo(stalk, "Stalk", new Vector3(0f, unit * 0.2f, 0f), new Vector3(unit * 0.05f, unit * 0.4f, unit * 0.05f), _coat.Mat(CoatPart.Jaw));
+                AddPartTo(stalk, "Bobble", new Vector3(0f, unit * 0.42f, 0f), Vector3.one * (unit * 0.12f), _coat.Mat(CoatPart.Ornament), PrimitiveType.Sphere);
             }
 
             // The body: the chain of links, root link right behind the head, tapering to the tail tip. Its total length grows
             // with the link count, so a twelve-link worm is a long one.
             int links = Mathf.Clamp(c.BodySegments, 6, 12);
             float length = unit * 0.3f * links;
-            AddTail(body.transform, new Vector3(0f, bodyY, girth * 0.2f), length, girth, links, _bodyMat);
+            AddTail(body.transform, new Vector3(0f, bodyY, girth * 0.2f), length, girth, links, _coat.Mat(CoatPart.Tail)); // the body IS the tail chain: tail rings band the whole worm
 
             // A paler belly stripe and, on a crested species, a dorsal ridge — both on the first few links so the ridge rides
             // the wave with the body.
@@ -1001,7 +942,7 @@ namespace BlocksBeyondTheStars.Client
                 AddPartTo(_tailChain[i], "Belly" + i, new Vector3(0f, -w * 0.42f, -linkLen * 0.5f), new Vector3(w * 0.8f, w * 0.14f, linkLen * 0.95f), bellyMat);
                 if (c.HasCrest)
                 {
-                    AddPartTo(_tailChain[i], "Ridge" + i, new Vector3(0f, w * 0.52f, -linkLen * 0.5f), new Vector3(w * 0.18f, w * 0.22f, linkLen * 0.7f), bellyMat);
+                    AddPartTo(_tailChain[i], "Ridge" + i, new Vector3(0f, w * 0.52f, -linkLen * 0.5f), new Vector3(w * 0.18f, w * 0.22f, linkLen * 0.7f), _coat.Mat(CoatPart.Ornament));
                 }
             }
 
@@ -1073,7 +1014,7 @@ namespace BlocksBeyondTheStars.Client
                 AddPartTo(_headPivot, "Pupil" + e, pos + normal * (eyeSize * 0.38f), Vector3.one * (eyeSize * 0.55f), pupilMat, PrimitiveType.Sphere);
                 AddPartTo(_headPivot, "Glint" + e, pos + normal * (eyeSize * 0.46f) + new Vector3(eyeSize * 0.14f, eyeSize * 0.16f, 0f),
                     Vector3.one * (eyeSize * 0.16f), glintMat, PrimitiveType.Sphere);
-                AddEyelid(pos, eyeSize, _bodyMat);
+                AddEyelid(pos, eyeSize, _coat.Mat(CoatPart.Jaw));
             }
         }
 
@@ -1134,27 +1075,11 @@ namespace BlocksBeyondTheStars.Client
         private void BuildRay(GameObject root, NetCreature c)
         {
             float unit = 0.5f * Mathf.Clamp(c.Size, 0.4f, 3.5f);
-            Color baseColor = Rgb(c.ColorRgb);
-            Color bellyColor = Rgb(c.BellyRgb);
-            if (c.Hostile)
-            {
-                baseColor = Color.Lerp(baseColor, new Color(0.85f, 0.2f, 0.15f), 0.25f);
-            }
+            NewCoat(c, MoodOf(c, 0.25f, true, true), 1.6f, 1.4f);
+            _bodyMat = _coat.Mat(CoatPart.Torso);
+            var bellyMat = _coat.Mat(CoatPart.Belly);
 
-            if (c.Asleep)
-            {
-                baseColor *= 0.85f;
-            }
-
-            if (!string.IsNullOrEmpty(c.OwnerId))
-            {
-                baseColor = Color.Lerp(baseColor, new Color(0.35f, 0.85f, 0.65f), 0.18f);
-            }
-
-            _bodyMat = Lit(c.Glows ? baseColor * 1.6f : baseColor, PickHide(c));
-            var bellyMat = Lit(c.Glows ? bellyColor * 1.4f : bellyColor, PickHide(c));
-
-            int idh = StableIdHash(c.SpeciesId);
+            int idh = CreatureCoat.ProportionHash(c.SpeciesId, c.VoiceSeed);
             float wide = 0.9f + ((idh >> 5) & 7) / 7f * 0.4f; // 0.9..1.3 — some rays are broader than long
 
             var body = new GameObject("BodyRig");
@@ -1192,7 +1117,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // The whip tail: five thin links off the rear edge.
-            AddTail(body.transform, new Vector3(0f, bodyY, -length * 0.5f), unit * 2.2f, unit * 0.14f, 5, bellyMat);
+            AddTail(body.transform, new Vector3(0f, bodyY, -length * 0.5f), unit * 2.2f, unit * 0.14f, 5, _coat.Mat(CoatPart.Ornament)); // the accent tone, as the fins
 
             // Eyes on the top surface, up front; the pivot lets the head-idle nod and the gaze work on them.
             float headScale = 0.6f;
@@ -1207,7 +1132,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     float sx = l == 0 ? -1f : 1f;
                     AddPart(body, "Lobe" + l, new Vector3(sx * halfW * 0.55f, bodyY, length * 0.5f + unit * 0.2f),
-                        new Vector3(unit * 0.22f, thick * 0.8f, unit * 0.45f), bellyMat);
+                        new Vector3(unit * 0.22f, thick * 0.8f, unit * 0.45f), _coat.Mat(CoatPart.Ornament));
                 }
             }
 
@@ -1285,15 +1210,19 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Splits the head box into a fixed upper skull and a hinged lower jaw, so a vocalising
         /// creature opens its mouth. The two parts together occupy exactly the volume the single head cube
-        /// used to, and the hinge sits at the jaw's REAR so it swings open like a jaw rather than sliding.</summary>
-        private void AddHeadBox(float w, float h, float d, float headZ, Material mat)
+        /// used to, and the hinge sits at the jaw's REAR so it swings open like a jaw rather than sliding. The skull wears the
+        /// head's coat (an eye mask is drawn there, on a pinned mesh so the band sits at eye height); the jaw the head's
+        /// hide without the pattern (#2830).</summary>
+        private void AddHeadBox(float w, float h, float d, float headZ)
         {
             const float JawShare = 0.3f; // the lower 30 % of the head is jaw
+            _pinV = _coat.PinsHead;
             AddPartTo(_headPivot, "HeadUpper", new Vector3(0f, h * JawShare * 0.5f, headZ),
-                new Vector3(w, h * (1f - JawShare), d), mat);
+                new Vector3(w, h * (1f - JawShare), d), _coat.Mat(CoatPart.Head));
+            _pinV = false;
             _jawPivot = AddPivotPart(_headPivot, "Jaw",
                 new Vector3(0f, -h * (0.5f - JawShare * 0.5f), headZ - d * 0.44f),
-                new Vector3(0f, 0f, d * 0.44f), new Vector3(w * 0.92f, h * JawShare, d * 0.88f), mat);
+                new Vector3(0f, 0f, d * 0.44f), new Vector3(w * 0.92f, h * JawShare, d * 0.88f), _coat.Mat(CoatPart.Jaw));
             _heads.Add(_headPivot);
             _jaws.Add(_jawPivot);
         }
@@ -1311,7 +1240,7 @@ namespace BlocksBeyondTheStars.Client
                 petalColor = Color.Lerp(petalColor, new Color(0.86f, 0.12f, 0.12f), 0.6f);
             }
 
-            var petalMat = Lit(petalColor, _petal ?? _hide);
+            var petalMat = Lit(petalColor, HideOr("petal"));
             var discMat = Lit(new Color(0.98f, 0.82f, 0.25f), null);
             AddPartTo(_headPivot, "PetalDisc", new Vector3(0f, h * 0.15f, headZ - d * 0.35f), new Vector3(w * 1.35f, h * 1.35f, d * 0.12f), discMat);
             const int Petals = 8;
@@ -1343,6 +1272,54 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>#2830: the placed back patterns, as thin slabs in the pattern colour over the box torso parts collected in
+        /// <see cref="_torsoBoxes"/> — each slab a little proud of the torso so nothing z-fights: a stripe along the spine
+        /// (dorsal stripe), a blanket over the middle part's top half (saddle), or a cape over every part's top half (two-tone:
+        /// dark above, the body colour and the light belly below). Render-only.</summary>
+        private void AddCoatOverlays(Transform parent)
+        {
+            if (!CreatureCoat.IsOverlay(_coat.Pattern) || _torsoBoxes.Count == 0)
+            {
+                return;
+            }
+
+            var mat = _coat.Mat(CoatPart.Overlay);
+            switch (_coat.Pattern)
+            {
+                case CoatPattern.DorsalStripe:
+                    for (int i = 0; i < _torsoBoxes.Count; i++)
+                    {
+                        var (p, s) = _torsoBoxes[i];
+                        float top = p.y + s.y * 0.5f;
+                        AddPartTo(parent, "CoatStripe" + i, new Vector3(p.x, top + s.y * 0.025f, p.z),
+                            new Vector3(s.x * 0.24f, s.y * 0.07f, s.z), mat);
+                    }
+
+                    break;
+                case CoatPattern.Saddle:
+                    {
+                        var (p, s) = _torsoBoxes[_torsoBoxes.Count / 2];
+                        float top = p.y + s.y * 0.5f;
+                        float h = s.y * 0.5f;
+                        AddPartTo(parent, "CoatSaddle", new Vector3(p.x, top - h * 0.5f + s.y * 0.03f, p.z),
+                            new Vector3(s.x * 1.06f, h, s.z * 0.62f), mat);
+                        break;
+                    }
+
+                case CoatPattern.TwoTone:
+                    for (int i = 0; i < _torsoBoxes.Count; i++)
+                    {
+                        var (p, s) = _torsoBoxes[i];
+                        float top = p.y + s.y * 0.5f;
+                        float h = s.y * 0.48f;
+                        AddPartTo(parent, "CoatCape" + i, new Vector3(p.x, top - h * 0.5f + s.y * 0.025f, p.z),
+                            new Vector3(s.x * 1.05f, h, s.z * 1.005f), mat);
+                    }
+
+                    break;
+            }
+        }
+
         /// <summary>An eyelid: a skin-coloured box over the eye, held at zero height (invisible) and scaled up
         /// to cover it for a blink. Cheap — one cube per eye — and blinking is out of all proportion to its
         /// cost for making a body read as alive rather than as a prop.</summary>
@@ -1366,21 +1343,24 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Builds one jointed leg — hip → thigh → knee → shin → foot — and records the identity the
         /// gait needs (side, row, segment lengths, which way the knee folds). A single rigid stick can only
         /// pendulum; the knee is what lets the leg shorten to clear the ground on the swing and straighten to
-        /// carry weight on the plant, and the foot is what stops the leg ending in a cut-off pole.</summary>
-        private LegRig AddLeg(Transform parent, int row, int side, int rows, Vector3 hipPos, float legLen, float thick, Material mat)
+        /// carry weight on the plant, and the foot is what stops the leg ending in a cut-off pole. The thigh wears the limb
+        /// coat, shin and sole the lower-limb coat (the socks, #2830).</summary>
+        private LegRig AddLeg(Transform parent, int row, int side, int rows, Vector3 hipPos, float legLen, float thick)
         {
             float upper = legLen * UpperLegShare;
             float lower = legLen - upper;
+            var upperMat = _coat.Mat(CoatPart.Limb);
+            var lowerMat = _coat.Mat(CoatPart.LowerLimb);
 
             var hip = NewPivot(parent, (side == 0 ? "LegL" : "LegR") + row, hipPos);
-            AddPartTo(hip, "Thigh", new Vector3(0f, -upper * 0.5f, 0f), new Vector3(thick, upper, thick), mat);
+            AddPartTo(hip, "Thigh", new Vector3(0f, -upper * 0.5f, 0f), new Vector3(thick, upper, thick), upperMat);
 
             var knee = NewPivot(hip, "Knee", new Vector3(0f, -upper, 0f));
-            AddPartTo(knee, "Shin", new Vector3(0f, -lower * 0.5f, 0f), new Vector3(thick * 0.85f, lower, thick * 0.85f), mat);
+            AddPartTo(knee, "Shin", new Vector3(0f, -lower * 0.5f, 0f), new Vector3(thick * 0.85f, lower, thick * 0.85f), lowerMat);
 
             var foot = NewPivot(knee, "Foot", new Vector3(0f, -lower, 0f));
             AddPartTo(foot, "Sole", new Vector3(0f, -thick * 0.26f, thick * 0.3f),
-                new Vector3(thick * 1.4f, thick * 0.52f, thick * 1.8f), mat);
+                new Vector3(thick * 1.4f, thick * 0.52f, thick * 1.8f), lowerMat);
 
             return new LegRig
             {
@@ -1461,6 +1441,7 @@ namespace BlocksBeyondTheStars.Client
             go.transform.SetParent(pivot, false);
             go.transform.localPosition = cubeOffset;
             go.transform.localScale = scale;
+            TileCube(go, PrimitiveType.Cube, scale);
             go.GetComponent<Renderer>().sharedMaterial = mat;
             _renderers.Add(go.GetComponent<Renderer>());
             return pivot;
@@ -1479,16 +1460,10 @@ namespace BlocksBeyondTheStars.Client
         private void BuildColossus(GameObject root, NetCreature c)
         {
             var body = ColossusBody.For(c.GiantHeight, c.LegRatio, c.NeckLength);
-            Color baseColor = Rgb(c.ColorRgb);
-            Color bellyColor = Rgb(c.BellyRgb);
-            if (c.Hostile)
-            {
-                baseColor = Color.Lerp(baseColor, new Color(0.85f, 0.2f, 0.15f), 0.2f);
-            }
-
-            _bodyMat = Lit(c.Glows ? baseColor * 1.4f : baseColor, PickHide(c));
-            var bellyMat = Lit(bellyColor, PickHide(c));
-            int idh = StableIdHash(c.SpeciesId);
+            NewCoat(c, MoodOf(c, 0.2f, false, false), 1.4f, 1f); // a giant: a softer red cast, no sleep dim, an unlit belly
+            _bodyMat = _coat.Mat(CoatPart.Torso);
+            var bellyMat = _coat.Mat(CoatPart.Belly);
+            int idh = CreatureCoat.ProportionHash(c.SpeciesId, c.VoiceSeed);
             _keepColliders = true;
 
             var rig = new GameObject("BodyRig");
@@ -1496,10 +1471,17 @@ namespace BlocksBeyondTheStars.Client
 
             // The torso: a heavy barrel with a raised shoulder hump and a belly slab.
             float tl = body.TorsoLength, tw = body.TorsoWidth, th = body.TorsoHeight;
-            AddPart(rig, "Torso", new Vector3(0f, body.TorsoY, 0f), new Vector3(tw, th, tl), _bodyMat);
-            AddPart(rig, "Hump", new Vector3(0f, body.TorsoY + th * 0.35f, tl * 0.18f), new Vector3(tw * 0.9f, th * 0.55f, tl * 0.45f), _bodyMat);
+            var torsoPos = new Vector3(0f, body.TorsoY, 0f);
+            var torsoSize = new Vector3(tw, th, tl);
+            var humpPos = new Vector3(0f, body.TorsoY + th * 0.35f, tl * 0.18f);
+            var humpSize = new Vector3(tw * 0.9f, th * 0.55f, tl * 0.45f);
+            AddPart(rig, "Torso", torsoPos, torsoSize, _bodyMat);
+            AddPart(rig, "Hump", humpPos, humpSize, _bodyMat);
             _keepColliders = false;
             AddPart(rig, "Belly", new Vector3(0f, body.TorsoY - th * 0.42f, 0f), new Vector3(tw * 0.92f, th * 0.3f, tl * 0.88f), bellyMat);
+            _torsoBoxes.Add((torsoPos, torsoSize));
+            _torsoBoxes.Add((humpPos, humpSize));
+            AddCoatOverlays(rig.transform);
 
             // Jointed legs in the shared order (front-left, front-right, rear-left, rear-right) — ColossusBody.Hip and the
             // server's stomp leg index use the same numbering.
@@ -1507,7 +1489,7 @@ namespace BlocksBeyondTheStars.Client
             for (int leg = 0; leg < 4; leg++)
             {
                 var (hx, hy, hz) = body.Hip(leg);
-                _legs.Add(AddLeg(rig.transform, leg >> 1, leg & 1, 2, new Vector3(hx, hy, hz), body.LegLength, body.LegThickness, _bodyMat));
+                _legs.Add(AddLeg(rig.transform, leg >> 1, leg & 1, 2, new Vector3(hx, hy, hz), body.LegLength, body.LegThickness));
             }
 
             // Necks and heads — a hydra fans its necks out from the shoulders.
@@ -1532,7 +1514,7 @@ namespace BlocksBeyondTheStars.Client
                 _headPivot = NewPivot(parent, heads == 1 ? "Head" : "Head" + hd,
                     body.NeckSegments > 0 ? new Vector3(0f, 0f, body.NeckSegment) : Vector3.zero);
                 _headPivot.localRotation = Quaternion.Euler(ColossusBody.NeckPitchDeg, 0f, 0f); // the face looks ahead again
-                AddHeadBox(headUnit * 0.95f, headUnit * 0.85f, headUnit * 0.9f, headUnit * 0.45f, _bodyMat);
+                AddHeadBox(headUnit * 0.95f, headUnit * 0.85f, headUnit * 0.9f, headUnit * 0.45f);
                 _keepColliders = false;
                 AddEyes(c, headUnit, 1f);
                 int tusks = Mathf.Clamp(c.Horns, 0, 4);
@@ -1553,7 +1535,7 @@ namespace BlocksBeyondTheStars.Client
             _keepColliders = false;
             if (c.HasTail)
             {
-                AddTail(rig.transform, new Vector3(0f, body.TorsoY + th * 0.15f, -tl * 0.5f), body.TailLength, body.LegThickness * 0.6f, 5, _bodyMat);
+                AddTail(rig.transform, new Vector3(0f, body.TorsoY + th * 0.15f, -tl * 0.5f), body.TailLength, body.LegThickness * 0.6f, 5, _coat.Mat(CoatPart.Tail));
             }
 
             AddColossusBack(rig.transform, c, body, idh);
@@ -1591,7 +1573,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 case "plates":
                     {
-                        var mat = Lit(Rgb(c.BellyRgb) * 0.85f, _plated ?? _hide);
+                        var mat = Lit(_coat.Accent(Rgb(c.BellyRgb) * 0.85f), HideOr("plated"));
                         for (int i = 0; i < 7; i++)
                         {
                             float z = Mathf.Lerp(-tl * 0.4f, tl * 0.4f, i / 6f);
@@ -1633,9 +1615,9 @@ namespace BlocksBeyondTheStars.Client
 
                 case "forest":
                     {
-                        var trunk = Lit(new Color(0.36f, 0.25f, 0.16f), _barkskin ?? _hide);
-                        var leaves = Lit(new Color(0.22f, 0.5f, 0.2f), _mossy ?? _hide);
-                        var moss = Lit(new Color(0.28f, 0.45f, 0.22f), _mossy ?? _hide);
+                        var trunk = Lit(new Color(0.36f, 0.25f, 0.16f), HideOr("barkskin"));
+                        var leaves = Lit(new Color(0.22f, 0.5f, 0.2f), HideOr("mossy"));
+                        var moss = Lit(new Color(0.28f, 0.45f, 0.22f), HideOr("mossy"));
                         AddPartTo(rig, "Moss", new Vector3(0f, top + 0.2f, 0f), new Vector3(body.TorsoWidth * 0.9f, 0.5f, tl * 0.8f), moss);
                         for (int i = 0; i < 8; i++)
                         {
@@ -1651,7 +1633,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (c.HasCrest)
             {
-                var mat = Lit(Rgb(c.BellyRgb), _spined ?? _hide);
+                var mat = Lit(_coat.Accent(Rgb(c.BellyRgb)), HideOr("spined"));
                 for (int i = 0; i < 6; i++)
                 {
                     float z = Mathf.Lerp(tl * 0.1f, tl * 0.48f, i / 5f);
@@ -1672,9 +1654,10 @@ namespace BlocksBeyondTheStars.Client
             float segLen = length / segCount;
             Color baseColor = Rgb(c.ColorRgb);
             Color bellyColor = Rgb(c.BellyRgb);
-            _bodyMat = Lit(baseColor, PickHide(c));
-            var plateMat = Lit(Color.Lerp(baseColor, bellyColor, 0.5f) * 0.9f, _plated ?? _hide);
-            var bellyMat = Lit(bellyColor, PickHide(c));
+            NewCoat(c, MoodOf(c, 0f, false, false), 1f, 1f); // the archetype carries no mood tint and no glow factor
+            _bodyMat = _coat.Mat(CoatPart.Torso);
+            var plateMat = Lit(_coat.Accent(Color.Lerp(baseColor, bellyColor, 0.5f) * 0.9f), HideOr("plated"));
+            var bellyMat = _coat.Mat(CoatPart.Belly);
             var spikeMat = Lit(new Color(0.22f, 0.17f, 0.14f), null);
             var glowMat = Unlit(Color.Lerp(bellyColor, new Color(1f, 0.85f, 0.4f), 0.7f));
             int spikeRows = Mathf.Clamp(c.Horns, 0, 3);
@@ -1774,9 +1757,10 @@ namespace BlocksBeyondTheStars.Client
             float segLen = length / segCount;
             Color baseColor = Rgb(c.ColorRgb);
             Color bellyColor = Rgb(c.BellyRgb);
-            _bodyMat = Lit(c.Glows ? baseColor * 1.3f : baseColor, PickHide(c));
-            var bellyMat = Lit(bellyColor, PickHide(c));
-            var finMat = Lit(Color.Lerp(baseColor, bellyColor, 0.35f) * 0.95f, _plated ?? _hide);
+            NewCoat(c, MoodOf(c, 0f, false, false), 1.3f, 1f);
+            _bodyMat = _coat.Mat(CoatPart.Torso);
+            var bellyMat = _coat.Mat(CoatPart.Belly);
+            var finMat = Lit(_coat.Accent(Color.Lerp(baseColor, bellyColor, 0.35f) * 0.95f), HideOr("plated"));
             var spineMat = Lit(baseColor * 0.6f, null);
             var glowMat = Unlit(Color.Lerp(bellyColor, new Color(0.5f, 0.95f, 1f), 0.7f));
             int spineRows = Mathf.Clamp(c.Horns, 0, 2);
@@ -1848,9 +1832,9 @@ namespace BlocksBeyondTheStars.Client
             var head = new GameObject("WormHead").transform;
             head.SetParent(root.transform, false);
             _keepColliders = true;
-            AddPartTo(head, "Skull", new Vector3(0f, 0f, -girth * 0.05f), new Vector3(girth * 1.0f, girth * 0.85f, girth * 0.7f), _bodyMat);
+            AddPartTo(head, "Skull", new Vector3(0f, 0f, -girth * 0.05f), new Vector3(girth * 1.0f, girth * 0.85f, girth * 0.7f), _coat.Mat(CoatPart.Head));
             _keepColliders = false;
-            AddPartTo(head, "Snout", new Vector3(0f, girth * 0.12f, girth * 0.45f), new Vector3(girth * 0.7f, girth * 0.4f, girth * 0.5f), _bodyMat);
+            AddPartTo(head, "Snout", new Vector3(0f, girth * 0.12f, girth * 0.45f), new Vector3(girth * 0.7f, girth * 0.4f, girth * 0.5f), _coat.Mat(CoatPart.Head));
             var eyeMat = Unlit(c.Glows ? new Color(0.6f, 1f, 0.95f) : new Color(0.95f, 0.9f, 0.5f));
             AddPartTo(head, "EyeL", new Vector3(-girth * 0.42f, girth * 0.2f, girth * 0.25f), new Vector3(girth * 0.16f, girth * 0.16f, girth * 0.16f), eyeMat);
             AddPartTo(head, "EyeR", new Vector3(girth * 0.42f, girth * 0.2f, girth * 0.25f), new Vector3(girth * 0.16f, girth * 0.16f, girth * 0.16f), eyeMat);
@@ -1865,7 +1849,7 @@ namespace BlocksBeyondTheStars.Client
                 var rim = new Vector3(0f, Mathf.Sin(a) * girth * 0.24f - girth * 0.1f, girth * 0.3f);
                 var pivot = NewPivot(head, "Jaw" + k, rim);
                 pivot.localRotation = Quaternion.Euler(0f, 0f, a * Mathf.Rad2Deg - 90f);
-                AddPartTo(pivot, "Petal", new Vector3(0f, -girth * 0.12f, girth * 0.4f), new Vector3(girth * 0.7f, girth * 0.12f, girth * 0.85f), _bodyMat);
+                AddPartTo(pivot, "Petal", new Vector3(0f, -girth * 0.12f, girth * 0.4f), new Vector3(girth * 0.7f, girth * 0.12f, girth * 0.85f), _coat.Mat(CoatPart.Jaw));
                 for (int tth = 0; tth < 5; tth++)
                 {
                     float x = Mathf.Lerp(-girth * 0.26f, girth * 0.26f, tth / 4f);
@@ -1893,9 +1877,10 @@ namespace BlocksBeyondTheStars.Client
             float segLen = length / (segCount - 1);
             Color baseColor = Rgb(c.ColorRgb);
             Color bellyColor = Rgb(c.BellyRgb);
-            _bodyMat = Lit(c.Glows ? baseColor * 1.3f : baseColor, PickHide(c));
-            var bellyMat = Lit(bellyColor, PickHide(c));
-            var sailMat = Lit(Color.Lerp(bellyColor, baseColor, 0.3f), _plated ?? _hide);
+            NewCoat(c, MoodOf(c, 0f, false, false), 1.3f, 1f);
+            _bodyMat = _coat.Mat(CoatPart.Torso);
+            var bellyMat = _coat.Mat(CoatPart.Belly);
+            var sailMat = Lit(_coat.Accent(Color.Lerp(bellyColor, baseColor, 0.3f)), HideOr("plated"));
             var glowMat = Unlit(Color.Lerp(bellyColor, new Color(0.7f, 0.95f, 1f), 0.6f));
             int sailPairs = Mathf.Clamp(c.WingPairs, 2, 5);
 
@@ -1957,9 +1942,9 @@ namespace BlocksBeyondTheStars.Client
             var head = new GameObject("SkyHead").transform;
             head.SetParent(root.transform, false);
             _keepColliders = true;
-            AddPartTo(head, "Skull", new Vector3(0f, 0f, 0f), new Vector3(girth * 0.95f, girth * 0.8f, girth * 0.8f), _bodyMat);
+            AddPartTo(head, "Skull", new Vector3(0f, 0f, 0f), new Vector3(girth * 0.95f, girth * 0.8f, girth * 0.8f), _coat.Mat(CoatPart.Head));
             _keepColliders = false;
-            AddPartTo(head, "Snout", new Vector3(0f, -girth * 0.08f, girth * 0.5f), new Vector3(girth * 0.6f, girth * 0.4f, girth * 0.5f), _bodyMat);
+            AddPartTo(head, "Snout", new Vector3(0f, -girth * 0.08f, girth * 0.5f), new Vector3(girth * 0.6f, girth * 0.4f, girth * 0.5f), _coat.Mat(CoatPart.Head));
             var eyeMat = Unlit(c.Glows ? new Color(0.7f, 1f, 0.95f) : new Color(0.95f, 0.85f, 0.45f));
             AddPartTo(head, "EyeL", new Vector3(-girth * 0.4f, girth * 0.18f, girth * 0.3f), new Vector3(girth * 0.15f, girth * 0.15f, girth * 0.15f), eyeMat);
             AddPartTo(head, "EyeR", new Vector3(girth * 0.4f, girth * 0.18f, girth * 0.3f), new Vector3(girth * 0.15f, girth * 0.15f, girth * 0.15f), eyeMat);
@@ -2030,6 +2015,7 @@ namespace BlocksBeyondTheStars.Client
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPos;
             go.transform.localScale = scale;
+            TileCube(go, shape, scale);
             go.GetComponent<Renderer>().sharedMaterial = mat;
             _renderers.Add(go.GetComponent<Renderer>());
         }
@@ -2047,23 +2033,29 @@ namespace BlocksBeyondTheStars.Client
             go.transform.SetParent(root.transform, false);
             go.transform.localPosition = localPos;
             go.transform.localScale = scale;
+            TileCube(go, PrimitiveType.Cube, scale);
             go.GetComponent<Renderer>().sharedMaterial = mat;
             _renderers.Add(go.GetComponent<Renderer>());
         }
 
-        private static Color Rgb(int rgb)
-            => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
-
-        private static int StableIdHash(string s)
+        /// <summary>#2831: swaps a cube primitive's mesh for the tiled cube of its size (same shape and bounds, so its box
+        /// collider is unchanged) — the hide repeats per metre instead of stretching over each face.</summary>
+        private void TileCube(GameObject go, PrimitiveType shape, Vector3 scale)
         {
-            int h = 0;
-            foreach (char ch in s ?? string.Empty)
+            if (shape != PrimitiveType.Cube)
             {
-                h = h * 31 + ch;
+                return;
             }
 
-            return h & 0x7fffffff;
+            var filter = go.GetComponent<MeshFilter>();
+            if (filter != null)
+            {
+                filter.sharedMesh = TiledMesh(scale, _pinV);
+            }
         }
+
+        private static Color Rgb(int rgb)
+            => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
 
         // #1514: creature materials are never mutated after creation, so identical (shader, colour, texture)
         // requests share ONE Material — every build used to create 8–16 fresh Materials (each behind a
@@ -2107,15 +2099,10 @@ namespace BlocksBeyondTheStars.Client
             return m;
         }
 
-        // Shared (loaded once) tintable grayscale hide tiles; the body multiplies them by the species colour.
-        private static Texture2D _scales, _fur, _chitin, _hide, _slime;
-        private static Texture2D _feathers, _spots, _stripes, _warty, _plated;
-        private static Texture2D _finned, _tentacled;
-        // Task 6 — more skin variety.
-        private static Texture2D _mossy, _crystalline, _metallic, _banded, _shaggy;
-        private static Texture2D _spined, _mottled, _iridescent, _barkskin, _veined;
-        private static Texture2D _petal; // #1760: the flowerling's petal ring
-        private static Texture2D _skin;  // #2083: smooth skin (Mini-Michi-Paul's yellow skin, and the bipeds')
+        // Shared (loaded once) tintable grayscale hide tiles by hide name (#2831: one table, CreatureHides.All); the body
+        // multiplies them by the species colour. A tile that did not load is simply absent — the pools skip it.
+        private static readonly Dictionary<string, Texture2D> HideTextures = new Dictionary<string, Texture2D>();
+        private static readonly System.Func<string, bool> HideAvailable = name => name != null && HideTextures.ContainsKey(name);
         private static bool _texLoaded;
 
         private static void EnsureTextures()
@@ -2126,92 +2113,28 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _texLoaded = true;
-            _scales = LoadTex("creature_scales");
-            _fur = LoadTex("creature_fur");
-            _chitin = LoadTex("creature_chitin");
-            _hide = LoadTex("creature_hide");
-            _slime = LoadTex("creature_slime");
-            _feathers = LoadTex("creature_feathers");
-            _spots = LoadTex("creature_spots");
-            _stripes = LoadTex("creature_stripes");
-            _warty = LoadTex("creature_warty");
-            _plated = LoadTex("creature_plated");
-            _finned = LoadTex("creature_finned");
-            _tentacled = LoadTex("creature_tentacled");
-            _mossy = LoadTex("creature_mossy");
-            _crystalline = LoadTex("creature_crystalline");
-            _metallic = LoadTex("creature_metallic");
-            _banded = LoadTex("creature_banded");
-            _shaggy = LoadTex("creature_shaggy");
-            _spined = LoadTex("creature_spined");
-            _mottled = LoadTex("creature_mottled");
-            _iridescent = LoadTex("creature_iridescent");
-            _barkskin = LoadTex("creature_barkskin");
-            _veined = LoadTex("creature_veined");
-            _petal = LoadTex("creature_petal"); // #1760 (a missing tile falls back to the plain hide)
-            _skin = LoadTex("creature_skin");   // #2083 (likewise)
+            foreach (string name in CreatureHides.All)
+            {
+                var tex = LoadTex(CreatureHides.TileKey(name));
+                if (tex != null)
+                {
+                    HideTextures[name] = tex;
+                }
+            }
         }
 
-        /// <summary>#1763: an authored species names its hide tile ("fur", "shaggy", "petal", …); null when the name is
-        /// unknown or the tile did not load, so the caller falls through to the classic hashed pick.</summary>
-        private static Texture2D HideByName(string name) => name switch
-        {
-            "scales" => _scales, "fur" => _fur, "chitin" => _chitin, "hide" => _hide, "slime" => _slime,
-            "feathers" => _feathers, "spots" => _spots, "stripes" => _stripes, "warty" => _warty, "plated" => _plated,
-            "finned" => _finned, "tentacled" => _tentacled, "mossy" => _mossy, "crystalline" => _crystalline,
-            "metallic" => _metallic, "banded" => _banded, "shaggy" => _shaggy, "spined" => _spined, "mottled" => _mottled,
-            "iridescent" => _iridescent, "barkskin" => _barkskin, "veined" => _veined, "petal" => _petal, "skin" => _skin,
-            _ => null,
-        };
+        /// <summary>A hide's shared (lifted) texture by name; null when the name is unknown or its tile did not load.</summary>
+        private static Texture2D HideTex(string name)
+            => name != null && HideTextures.TryGetValue(name, out var tex) ? tex : null;
 
-        /// <summary>Picks a hide tile for the species: glowing → slime, winged → feathers, hostile → chitin/
-        /// plated, otherwise a stable choice from a wide pool keyed off the species id (so each species looks
-        /// consistent but the world's fauna spans many skins).</summary>
-        private static Texture2D PickHide(NetCreature c)
-        {
-            if (!string.IsNullOrEmpty(c.Hide) && HideByName(c.Hide) is { } named)
-            {
-                return named; // #1763: an authored species wears the hide it was designed with
-            }
-
-            int h = StableIdHash(c.SpeciesId);
-            if (c.Glows)
-            {
-                var glow = new[] { _slime, _veined, _crystalline, _iridescent };
-                return glow[h % glow.Length] ?? _slime ?? _hide;
-            }
-
-            if (c.HasWings && _feathers != null)
-            {
-                var winged = new[] { _feathers, _iridescent, _mottled };
-                return winged[h % winged.Length] ?? _feathers;
-            }
-
-            if (c.Habitat == "Water" || c.Habitat == "Amphibian")
-            {
-                var aquatic = new[] { _finned, _tentacled, _slime, _scales, _iridescent, _banded };
-                return aquatic[h % aquatic.Length] ?? _finned ?? _hide;
-            }
-
-            if (c.Hostile)
-            {
-                var hostileOpts = new[] { _chitin, _plated, _scales, _spined, _metallic, _crystalline, _barkskin };
-                return hostileOpts[h % hostileOpts.Length] ?? _chitin ?? _hide;
-            }
-
-            var opts = new[]
-            {
-                _fur, _hide, _scales, _spots, _stripes, _warty, _plated,
-                _mossy, _shaggy, _mottled, _banded, _barkskin, _veined,
-            };
-            return opts[h % opts.Length] ?? _hide;
-        }
+        /// <summary>A named hide, else the plain hide (a fixed accent like the colossus' back plates).</summary>
+        private static Texture2D HideOr(string name) => HideTex(name) ?? HideTex("hide");
 
         private static Texture2D LoadTex(string key)
         {
             // The winning layer of the texture source (#1952): world texture, local pack, or the bundled tile.
             byte[] raw = GameTextures.TileBytes(key);
-            if (raw == null || raw.Length != 64 * 64 * 4)
+            if (raw == null || raw.Length != CoatBake.TileBytes)
             {
                 return null;
             }
@@ -2221,30 +2144,232 @@ namespace BlocksBeyondTheStars.Client
                 wrapMode = TextureWrapMode.Repeat,
                 filterMode = FilterMode.Point,
             };
-            tex.LoadRawTextureData(Brighten(raw));
+            tex.LoadRawTextureData(CoatBake.Lift(raw)); // lifted toward white: the tile modulates as detail (CoatBake)
             tex.Apply();
             return tex;
         }
 
-        // The hide tiles are authored dark (~0.3 mean grey) but the body uses them as a MULTIPLY over the
-        // species colour (colour * tile) — a multiply-tint workflow needs near-white maps, or the tile alone
-        // eats ~70% of the brightness and the body reads black. Lift each tile toward white so it modulates as
-        // gentle DETAIL instead of a darkener: v' = 1 - (1 - v) * TileDetail (white stays white; only the
-        // shadows rise, so the pattern survives). Alpha is left alone (LitColor is opaque).
-        private const float TileDetail = 0.45f; // 0 = flat white, 1 = original (too dark). Tunable.
+        // #2830: the baked coats — hide luminance × (body colour, pattern colour by the mask), 64 × 64, one per (hide,
+        // pattern, mask variant, mask seed, mood-tinted colours). Unpatterned and fully covered parts never bake (they use
+        // the shared hide with a material colour), so a species bakes one or two. Never destroyed: they live as long as the
+        // shared hide tiles. The cap keeps a marathon session bounded (~12 MB); past it new species simply go unpatterned.
+        private const int MaxBakedCoats = 768;
+        private static readonly Dictionary<(string Hide, CoatPattern Pattern, CoatMasks.Variant Variant, uint Seed, int Body, int Mark), Texture2D> BakedCoats
+            = new Dictionary<(string, CoatPattern, CoatMasks.Variant, uint, int, int), Texture2D>();
 
-        private static byte[] Brighten(byte[] raw)
+        private static int Pack(Color c) => CreatureCoat.Pack(c.r, c.g, c.b);
+
+        // #2831: the part cubes, one shared mesh per (repeats x/y/z, pinned) — see TiledCube.
+        private static readonly Dictionary<int, Mesh> TiledMeshes = new Dictionary<int, Mesh>();
+
+        /// <summary>The cube mesh for a part of <paramref name="size"/> (build-space units): the hide repeats once per
+        /// <see cref="TiledCube.TileMetres"/> on every face, so a toe and a colossus show the same texel density.</summary>
+        private static Mesh TiledMesh(Vector3 size, bool pinV)
         {
-            var outp = new byte[raw.Length];
-            for (int p = 0; p < raw.Length; p += 4)
+            int rx = TiledCube.Repeats(Mathf.Abs(size.x));
+            int ry = TiledCube.Repeats(Mathf.Abs(size.y));
+            int rz = TiledCube.Repeats(Mathf.Abs(size.z));
+            int key = TiledCube.Key(rx, ry, rz, pinV);
+            if (TiledMeshes.TryGetValue(key, out var cached) && cached != null)
             {
-                outp[p] = (byte)(255f - (255 - raw[p]) * TileDetail);
-                outp[p + 1] = (byte)(255f - (255 - raw[p + 1]) * TileDetail);
-                outp[p + 2] = (byte)(255f - (255 - raw[p + 2]) * TileDetail);
-                outp[p + 3] = raw[p + 3];
+                return cached;
             }
 
-            return outp;
+            var d = TiledCube.Build(rx, ry, rz, pinV);
+            var verts = new Vector3[24];
+            var normals = new Vector3[24];
+            var uvs = new Vector2[24];
+            for (int i = 0; i < 24; i++)
+            {
+                verts[i] = new Vector3(d.Positions[i * 3], d.Positions[i * 3 + 1], d.Positions[i * 3 + 2]);
+                normals[i] = new Vector3(d.Normals[i * 3], d.Normals[i * 3 + 1], d.Normals[i * 3 + 2]);
+                uvs[i] = new Vector2(d.Uvs[i * 2], d.Uvs[i * 2 + 1]);
+            }
+
+            var mesh = new Mesh { name = "CreatureCube" + key };
+            mesh.vertices = verts;
+            mesh.normals = normals;
+            mesh.uv = uvs;
+            mesh.triangles = d.Triangles;
+            mesh.RecalculateBounds();
+            TiledMeshes[key] = mesh;
+            return mesh;
+        }
+
+        /// <summary>The mood tints of one build — the hostile red and the companion green-cyan are lerps baked into the coat
+        /// colours (they follow the mood, the body is rebuilt when it changes); the sleep dim is a plain multiplier.</summary>
+        private readonly struct Mood
+        {
+            public Mood(float hostileLerp, bool companion, float dim)
+            {
+                HostileLerp = hostileLerp;
+                Companion = companion;
+                Dim = dim;
+            }
+
+            public float HostileLerp { get; }
+
+            public bool Companion { get; }
+
+            public float Dim { get; }
+
+            /// <summary>The colour with the mood lerps applied (hostile first, then the companion cast — the order the
+            /// builds always used; a companion is never asleep, so moving the dim to the end changes nothing).</summary>
+            public Color Tint(Color c)
+            {
+                if (HostileLerp > 0f)
+                {
+                    c = Color.Lerp(c, new Color(0.85f, 0.2f, 0.15f), HostileLerp);
+                }
+
+                if (Companion)
+                {
+                    // Tamed companions read with a gentle friendly green-cyan cast (never the hostile red), so you can
+                    // tell your pet apart from wild fauna at a glance (design: docs/developer/CREATURE_TAMING.md).
+                    c = Color.Lerp(c, new Color(0.35f, 0.85f, 0.65f), 0.18f);
+                }
+
+                return c;
+            }
+        }
+
+        /// <summary>The mood of a creature for a build path: which tints that path applies (the giants keep their own
+        /// smaller set).</summary>
+        private static Mood MoodOf(NetCreature c, float hostileLerp, bool sleepDims, bool companionTint)
+            => new Mood(c.Hostile ? hostileLerp : 0f,
+                companionTint && !string.IsNullOrEmpty(c.OwnerId),
+                sleepDims && c.Asleep ? 0.85f : 1f); // a gentle dim only — the "z z z" already reads sleep
+
+        /// <summary>Sets up the coat of this build (#2829-#2831): the species' per-part hides and pattern, the mood-tinted
+        /// colours, the glow factors (body, belly/accents) and this animal's jitter bucket.</summary>
+        private void NewCoat(NetCreature c, Mood mood, float bodyGlow, float bellyGlow)
+        {
+            uint seed = CreatureCoat.SpeciesSeed(c.SpeciesId, c.VoiceSeed);
+            var pattern = CreatureCoat.PatternFor(c);
+            Color mark = Rgb(CreatureCoat.PatternRgb(seed, c.ColorRgb, pattern));
+            CreatureCoat.JitterRgb(CreatureCoat.JitterBucket(c.Id), out float jr, out float jg, out float jb);
+            _coat = new CoatKit(
+                pattern,
+                CreatureHides.Pick(c, HideAvailable),
+                mood.Tint(Rgb(c.ColorRgb)),
+                mood.Tint(Rgb(c.BellyRgb)),
+                mood.Tint(mark),
+                (c.Glows ? bodyGlow : 1f) * mood.Dim,
+                (c.Glows ? bellyGlow : 1f) * mood.Dim,
+                new Color(jr, jg, jb, 1f),
+                CreatureCoat.MaskSeed(c));
+        }
+
+        /// <summary>
+        /// One build's coat (#2830, #2831): the material of each body-part role. A part the pattern does not reach wears its
+        /// hide in its own colour (the body's, or the belly's for the belly and the accents); a part the pattern covers fully
+        /// wears its hide in the pattern colour; a masked part wears a baked coat with a neutral material colour. The sleep
+        /// dim, the glow factor and the animal's jitter are the material colour's multiplier in every case.
+        /// </summary>
+        private sealed class CoatKit
+        {
+            private readonly CreatureHides.HideSet _hides;
+            private readonly Color _body, _belly, _mark, _jitter;
+            private readonly float _bodyMul, _bellyMul;
+            private readonly uint _maskSeed;
+            private readonly Dictionary<CoatPart, Material> _mats = new Dictionary<CoatPart, Material>();
+            private readonly Dictionary<CoatMasks.Variant, float[]> _masks = new Dictionary<CoatMasks.Variant, float[]>();
+
+            public CoatKit(CoatPattern pattern, CreatureHides.HideSet hides, Color body, Color belly, Color mark,
+                float bodyMul, float bellyMul, Color jitter, uint maskSeed)
+            {
+                Pattern = pattern;
+                _hides = hides;
+                _body = body;
+                _belly = belly;
+                _mark = mark;
+                _bodyMul = bodyMul;
+                _bellyMul = bellyMul;
+                _jitter = jitter;
+                _maskSeed = maskSeed;
+            }
+
+            public CoatPattern Pattern { get; }
+
+            /// <summary>True when the head's skull box takes the pinned mesh (the eye band sits at eye height).</summary>
+            public bool PinsHead => CreatureCoat.PinsV(Pattern, CoatPart.Head);
+
+            /// <summary>The material of a part role (cached per build; the materials themselves are shared, #1514).</summary>
+            public Material Mat(CoatPart part)
+            {
+                if (_mats.TryGetValue(part, out var cached))
+                {
+                    return cached;
+                }
+
+                string hide = _hides.For(part);
+                bool accent = part is CoatPart.Belly or CoatPart.Ornament;
+                Color own = accent ? _belly : _body;
+                float mul = accent ? _bellyMul : _bodyMul;
+                Material m = null;
+                switch (CreatureCoat.Coverage(Pattern, part))
+                {
+                    case CoatCoverage.Full:
+                        m = Lit(Scaled(_mark, mul), HideTex(hide));
+                        break;
+                    case CoatCoverage.Masked:
+                        var baked = Baked(part, hide, own);
+                        if (baked != null)
+                        {
+                            m = Lit(Scaled(Color.white, mul), baked);
+                        }
+
+                        break;
+                }
+
+                if (m == null)
+                {
+                    m = Lit(Scaled(own, mul), HideTex(hide));
+                }
+
+                _mats[part] = m;
+                return m;
+            }
+
+            /// <summary>An accent colour that follows the crest band: the pattern colour on a crest-banded species, else
+            /// <paramref name="normal"/> (the giants' fixed plate, fin and sail tones).</summary>
+            public Color Accent(Color normal) => Pattern == CoatPattern.CrestBand ? _mark * _bodyMul : normal;
+
+            private Color Scaled(Color c, float mul)
+                => new Color(c.r * mul * _jitter.r, c.g * mul * _jitter.g, c.b * mul * _jitter.b, 1f);
+
+            private Texture2D Baked(CoatPart part, string hide, Color own)
+            {
+                var variant = CoatMasks.VariantOf(Pattern, part);
+                var key = (hide ?? string.Empty, Pattern, variant, _maskSeed, Pack(own), Pack(_mark));
+                if (BakedCoats.TryGetValue(key, out var tex) && tex != null)
+                {
+                    return tex;
+                }
+
+                if (BakedCoats.Count >= MaxBakedCoats)
+                {
+                    return null;
+                }
+
+                if (!_masks.TryGetValue(variant, out var mask))
+                {
+                    mask = CoatMasks.Draw(Pattern, part, _maskSeed);
+                    _masks[variant] = mask;
+                }
+
+                byte[] raw = hide != null && HideTex(hide) != null ? GameTextures.TileBytes(CreatureHides.TileKey(hide)) : null;
+                tex = new Texture2D(CoatMasks.Size, CoatMasks.Size, TextureFormat.RGBA32, false)
+                {
+                    name = "CreatureCoat",
+                    wrapMode = TextureWrapMode.Repeat,
+                    filterMode = FilterMode.Point,
+                };
+                tex.LoadRawTextureData(CoatBake.Bake(raw, own.r, own.g, own.b, _mark.r, _mark.g, _mark.b, mask));
+                tex.Apply(false, true); // no CPU copy needed once uploaded
+                BakedCoats[key] = tex;
+                return tex;
+            }
         }
 
         // Ambient floor for creature bodies. Higher than the LitColor default (0.35) because a creature's

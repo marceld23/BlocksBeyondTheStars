@@ -134,6 +134,9 @@ public sealed class WorldGenerationGoldenTests
         new("varied-gen24", 1, "varied", 0, false, null, 24),
         new("meadowlands-gen24", 7, "meadowlands", 0, false, null, 24),
         new("river_lowlands-gen24", 20260903, "river_lowlands", 0, false, null, 24),
+        // Generation 28 (2026-10-19, #2833): the mixed meadows — twelve more wild plants, and a share of the columns picks
+        // its species per column. The meadow of meadowlands-gen24 under the new pick (the terrain is the same).
+        new("meadowlands-gen28", 7, "meadowlands", 0, false, null, 28),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -233,6 +236,9 @@ public sealed class WorldGenerationGoldenTests
             ["varied-gen24"] = 0xd2ba6b884ce1e82fUL,
             ["meadowlands-gen24"] = 0x6fa9ef726c989f21UL,
             ["river_lowlands-gen24"] = 0xe759e341a5c0de94UL,
+            // Pinned 2026-10-19 (the mixed meadows, generation 28, #2833; Windows 11, .NET 10). Equal to meadowlands-gen24 but
+            // for the two planted surface chunks — the pad chunk at the origin grows nothing.
+            ["meadowlands-gen28"] = 0xf8b273af19941b54UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

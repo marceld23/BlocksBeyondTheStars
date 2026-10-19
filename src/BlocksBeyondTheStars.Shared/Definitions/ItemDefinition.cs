@@ -232,6 +232,59 @@ public static class HeldGrips
     public static bool IsKnown(string? grip) => grip is null or Gloves or Fist or Palm or Pinch or Stem;
 }
 
+/// <summary>
+/// The materials a box of a held model can be made of (#2836) — the <c>"m"</c> of a <see cref="HeldModelPart"/>. Each one
+/// is a surface texture the client multiplies over the box's colour (<see cref="TextureKey"/>: <c>held_metal</c> …), so a
+/// light, mostly grey tile per material is enough and the colours stay the model's own. Cosmetic only: the server never
+/// reads them.
+/// </summary>
+public static class HeldMaterials
+{
+    public const string Metal = "metal";
+    public const string DarkMetal = "darkmetal";
+    public const string Wood = "wood";
+    public const string Plastic = "plastic";
+    public const string Rubber = "rubber";
+    public const string Glass = "glass";
+    public const string Energy = "energy";
+    public const string Crystal = "crystal";
+    public const string Leather = "leather";
+    public const string Stone = "stone";
+    public const string Bone = "bone";
+    public const string Carbon = "carbon";
+
+    /// <summary>Prefix of a material's texture key.</summary>
+    public const string TexturePrefix = "held_";
+
+    /// <summary>Every material, in the texture editor's order.</summary>
+    public static readonly IReadOnlyList<string> All = new[]
+    {
+        Metal, DarkMetal, Wood, Plastic, Rubber, Glass, Energy, Crystal, Leather, Stone, Bone, Carbon,
+    };
+
+    /// <summary>True for a material the client has a texture slot for.</summary>
+    public static bool IsKnown(string? material)
+    {
+        if (material is null)
+        {
+            return false;
+        }
+
+        foreach (string m in All)
+        {
+            if (m == material)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The texture key of <paramref name="material"/>: <c>held_&lt;material&gt;</c>.</summary>
+    public static string TextureKey(string material) => TexturePrefix + material;
+}
+
 /// <summary>One box of a held model, in the holder's frame (metres, the tool points along +Z).</summary>
 public sealed class HeldModelPart
 {
@@ -249,6 +302,11 @@ public sealed class HeldModelPart
 
     /// <summary>True when the box glows (an energy coil, a plasma blade).</summary>
     public bool G { get; set; }
+
+    /// <summary>What the box is made of (#2836): one of <see cref="HeldMaterials.All"/> (<c>"wood"</c>, <c>"metal"</c> …) —
+    /// the surface texture the client lays over its colour. Null (or a name the client does not know) = the client
+    /// guesses it from the colour and the glow. Cosmetic only; a part with an unknown material is still drawn.</summary>
+    public string? M { get; set; }
 
     /// <summary>A part the game can draw: three finite numbers each, a sane size, a colour it can read.</summary>
     public bool IsValid()

@@ -53,10 +53,10 @@ public sealed class HeldItemShapesTests
 
     [Theory]
     [InlineData("Block")]
-    [InlineData("Gadget")]
     [InlineData("Hand")]
     [InlineData("Hoe")]
-    public void OtherKinds_AreNotShapedHere(string kind)
+    [InlineData("Lump")] // #2838: built from its own lump parts, never from an item model
+    public void OtherKinds_AreNotShapedHere(string kind) // a gadget is shaped since #2837 (HeldGadgetModelTests)
     {
         Assert.Null(HeldItemShapes.Parts(kind, Tint, Content.GetItem("titanium_drill")!.HeldModel));
     }

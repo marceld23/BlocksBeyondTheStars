@@ -88,6 +88,9 @@ public sealed class FloraGenome
 /// The form of a bred plant as it rides on its voxel: 24 bits in the cell's glow channel, which a flora block has no
 /// other use for (a bred plant's light is one of the fields). Bit 23 is always set, so a form is never 0 = "none".
 /// The catalog indices are stable: wild species are only ever appended to <see cref="FloraCatalog.All"/>.
+/// <para>Layout: bits 0–5 body index, 6–11 crown index, 12–13 layout, 14–15 size, 16–17 glow, 18 bit 6 of the body index,
+/// 19 bit 6 of the crown index (#2833: the catalog outgrew 64 entries), 20–22 free, 23 the marker. An index below 64
+/// leaves bits 18 and 19 clear, so every form packed before the widening decodes exactly as it did.</para>
 /// </summary>
 public static class FloraForm
 {
@@ -101,6 +104,12 @@ public static class FloraForm
 
     private const int Marker = 1 << 23;
 
+    /// <summary>How many catalog indices a form can address (7 bits each for body and crown).</summary>
+    public const int MaxIndices = 128;
+
+    private const int BodyHighBit = 18;
+    private const int CrownHighBit = 19;
+
     /// <summary>Packs a genome into the 24 bits of a voxel's glow channel; 0 when a form block is not in the catalog.</summary>
     public static int Pack(FloraGenome genome)
     {
@@ -111,15 +120,23 @@ public static class FloraForm
             return 0;
         }
 
-        return Marker | body | (crown << 6) | ((genome.Layout & 0x3) << 12) | ((genome.Size & 0x3) << 14) | ((genome.Glow & 0x3) << 16);
+        return Marker | PackIndex(body, 0, BodyHighBit) | PackIndex(crown, 6, CrownHighBit)
+            | ((genome.Layout & 0x3) << 12) | ((genome.Size & 0x3) << 14) | ((genome.Glow & 0x3) << 16);
     }
 
     /// <summary>Whether a glow value is a packed form.</summary>
     public static bool IsForm(int packed) => (packed & Marker) != 0;
 
-    public static string BodyBlock(int packed) => KeyAt(packed & 0x3F);
+    public static string BodyBlock(int packed) => KeyAt(UnpackIndex(packed, 0, BodyHighBit));
 
-    public static string CrownBlock(int packed) => KeyAt((packed >> 6) & 0x3F);
+    public static string CrownBlock(int packed) => KeyAt(UnpackIndex(packed, 6, CrownHighBit));
+
+    // The low six bits of a catalog index sit at `lowShift`, its seventh bit at `highBit`.
+    private static int PackIndex(int index, int lowShift, int highBit)
+        => ((index & 0x3F) << lowShift) | (((index >> 6) & 0x1) << highBit);
+
+    private static int UnpackIndex(int packed, int lowShift, int highBit)
+        => ((packed >> lowShift) & 0x3F) | (((packed >> highBit) & 0x1) << 6);
 
     public static int Layout(int packed) => (packed >> 12) & 0x3;
 
@@ -141,7 +158,7 @@ public static class FloraForm
     private static int IndexOf(string blockKey)
     {
         var all = FloraCatalog.All;
-        for (int i = 0; i < all.Count && i < 64; i++)
+        for (int i = 0; i < all.Count && i < MaxIndices; i++)
         {
             if (all[i].Key == blockKey)
             {

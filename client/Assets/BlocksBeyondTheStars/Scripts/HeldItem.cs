@@ -20,8 +20,9 @@ namespace BlocksBeyondTheStars.Client
         /// avatar draws one on each hand. Every other kind stays one-handed. <see cref="Vehicle"/>, <see cref="Plant"/> and
         /// <see cref="Icon"/> (#2534) are the held miniatures of <see cref="HeldMiniatures"/>: the vehicle's hull, the plant's
         /// in-world look, and the extruded icon of any other item without a model. <see cref="Axe"/> and <see cref="Bow"/>
-        /// (#2647) are the wilderness folk's NPC tools (<see cref="HeldItemShapes.NpcToolParts"/>).</summary>
-        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget, Hand, Hoe, Hammer, Gloves, Vehicle, Plant, Icon, Axe, Bow }
+        /// (#2647) are the wilderness folk's NPC tools (<see cref="HeldItemShapes.NpcToolParts"/>). <see cref="Lump"/> (#2838)
+        /// is a mined ore held as a small lump of its block (<see cref="HeldItemShapes.Lump"/>).</summary>
+        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget, Hand, Hoe, Hammer, Gloves, Vehicle, Plant, Icon, Axe, Bow, Lump }
 
         /// <summary>What a working NPC carries (#1869), from the server's <c>NetNpc.Held</c> hint — not an item:
         /// the gardener's hoe, the craftsman's hammer, the guard's blade.</summary>
@@ -99,12 +100,16 @@ namespace BlocksBeyondTheStars.Client
             // emitter), a seed, sapling or torch as its plant / prop (it used to be an opaque cube printed with the cross
             // tile), and every item without a block, a tool or a vehicle as its extruded icon (it used to be nothing).
             var placed = string.IsNullOrEmpty(def.PlacesBlock) ? null : content.GetBlock(def.PlacesBlock);
-            switch (HeldItemShapes.MiniatureFor(def, placed))
+            var own = placed == null ? content.GetBlock(def.Key) : null; // #2838: the block an ore is named after
+            switch (HeldItemShapes.MiniatureFor(def, placed, own))
             {
                 case HeldItemShapes.Miniature.Vehicle:
                     return (Kind.Vehicle, GadgetTint(itemKey), null); // the tint is the gadget fallback's, without an atlas
                 case HeldItemShapes.Miniature.Plant:
                     return (Kind.Plant, WorldMap.MapColor(def.PlacesBlock), def.PlacesBlock);
+                case HeldItemShapes.Miniature.Lump:
+                    // #2838: an ore used to be the bare fist (it has no icon); now a lump of the block the quick bar shows.
+                    return (Kind.Lump, WorldMap.MapColor(def.Key), def.Key);
                 case HeldItemShapes.Miniature.Icon:
                     // Only an item without any icon is left with the bare hand.
                     return IconResolver.ItemTexture(itemKey) != null
@@ -139,7 +144,8 @@ namespace BlocksBeyondTheStars.Client
                 case ToolKind.Weapon: return MeleeRules.IsRanged(tool) ? (Kind.Gun, GunTint(itemKey), null) : (Kind.Blade, new Color(0.80f, 0.84f, 0.90f), null);
                 case ToolKind.Gadget:
                     // #2320: a gadget named a gun (the energy rope gun) is held and drawn like one — its own heldModel parts
-                    // and the recoil pose — where every other gadget keeps the compact emitter.
+                    // and the recoil pose. Every other gadget draws its own heldModel too (#2837), the compact emitter only
+                    // without one.
                     return itemKey.EndsWith("_gun", System.StringComparison.Ordinal)
                         ? (Kind.Gun, GadgetTint(itemKey), null)
                         : (Kind.Gadget, GadgetTint(itemKey), null);
@@ -216,9 +222,13 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     break;
+                case Kind.Lump:
+                    BuildLump(holder.transform, blockKey, tint);
+                    return holder;
             }
 
-            // #1931: every drill, gun, blade and scanner has its own parts (the base item keeps the model its kind had).
+            // #1931: every drill, gun, blade, scanner and (#2837) gadget has its own parts (the base item keeps the model its
+            // kind had).
             var model = look != null && look.Count > 0 ? look : (itemKey != null ? ModelResolver?.Invoke(BlocksBeyondTheStars.Shared.State.ItemKey.Base(itemKey)) : null);
             if (kind == Kind.Gloves)
             {
@@ -233,15 +243,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var part in shaped)
                 {
-                    Cube(holder.transform, new Vector3(part.Position.X, part.Position.Y, part.Position.Z),
-                        new Vector3(part.Size.X, part.Size.Y, part.Size.Z), new Color(part.Color.R, part.Color.G, part.Color.B), part.Glow);
+                    PartCube(holder.transform, part);
                 }
 
                 return holder;
             }
-
-            var dark = new Color(0.20f, 0.22f, 0.26f);
-            var metal = new Color(0.55f, 0.58f, 0.64f);
 
             switch (kind)
             {
@@ -260,38 +266,47 @@ namespace BlocksBeyondTheStars.Client
 
                     break;
 
-                case Kind.Gadget:
-                    // A compact handheld emitter: a boxy body, a short barrel, and a glowing emitter tip in the
-                    // gadget's tint (green medkit / cyan stasis / orange blaster) — item 36.
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.04f), new Vector3(0.16f, 0.13f, 0.20f), metal);     // body
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.18f), new Vector3(0.08f, 0.08f, 0.12f), dark);     // barrel
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.27f), new Vector3(0.10f, 0.10f, 0.05f), tint);     // emitter glow
-                    Cube(holder.transform, new Vector3(0f, -0.12f, -0.04f), new Vector3(0.07f, 0.16f, 0.09f), dark); // grip
-                    break;
-
                 case Kind.Hand:
                     HandCubes(holder.transform, tint, left);
                     break;
 
                 case Kind.Hoe:
                     // #1869: a long wooden shaft with a flat iron blade bent down at its far end.
-                    var wood = new Color(0.45f, 0.30f, 0.16f);
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.20f), new Vector3(0.045f, 0.045f, 0.70f), wood);   // shaft
-                    Cube(holder.transform, new Vector3(0f, -0.07f, 0.54f), new Vector3(0.16f, 0.14f, 0.03f), tint); // blade
+                    PartCube(holder.transform, new Vector3(0f, 0f, 0.20f), new Vector3(0.045f, 0.045f, 0.70f), new Color(0.45f, 0.30f, 0.16f), HeldMaterials.Wood); // shaft
+                    PartCube(holder.transform, new Vector3(0f, -0.07f, 0.54f), new Vector3(0.16f, 0.14f, 0.03f), tint, HeldMaterials.Metal);                     // blade
                     break;
 
                 case Kind.Hammer:
                     // #1869: a short handle with a heavy head across its end.
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.12f), new Vector3(0.05f, 0.05f, 0.34f), new Color(0.40f, 0.27f, 0.15f)); // handle
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.30f), new Vector3(0.09f, 0.18f, 0.09f), tint);                             // head
+                    PartCube(holder.transform, new Vector3(0f, 0f, 0.12f), new Vector3(0.05f, 0.05f, 0.34f), new Color(0.40f, 0.27f, 0.15f), HeldMaterials.Wood); // handle
+                    PartCube(holder.transform, new Vector3(0f, 0f, 0.30f), new Vector3(0.09f, 0.18f, 0.09f), tint, HeldMaterials.Metal);                         // head
                     break;
 
-                default: // Tool
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.06f), new Vector3(0.12f, 0.12f, 0.26f), tint);
+                default: // Tool: the NPCs' basket, book and leash (re-tinted, #1869) — material by colour
+                    PartCube(holder.transform, new Vector3(0f, 0f, 0.06f), new Vector3(0.12f, 0.12f, 0.26f), tint, null);
                     break;
             }
 
             return holder;
+        }
+
+        /// <summary>
+        /// #2838: a mined ore as a small irregular lump (<see cref="HeldItemShapes.Lump"/>, its shape fixed per key) of its
+        /// block: every cube wears the block's own faces (the #2744 cube mesh, scaled to the knob) in the shared atlas
+        /// material. Without the world's atlas the cubes keep the block's map colour.
+        /// </summary>
+        private static void BuildLump(Transform holder, string blockKey, Color tint)
+        {
+            bool dressed = TryBlockLook(blockKey, out var mesh, out var material);
+            foreach (var part in HeldItemShapes.Lump(blockKey, new HeldItemShapes.Rgb(tint.r, tint.g, tint.b)))
+            {
+                var go = PartCube(holder, part);
+                if (dressed)
+                {
+                    go.GetComponent<MeshFilter>().sharedMesh = mesh;
+                    go.GetComponent<MeshRenderer>().sharedMaterial = material;
+                }
+            }
         }
 
         // #2744: the held block wears the faces the world gives it — its own top, sides, bottom and picture front, the
@@ -310,8 +325,27 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private static bool DressBlock(GameObject blockGo, string blockKey)
         {
+            if (!TryBlockLook(blockKey, out var mesh, out var material))
+            {
+                return false;
+            }
+
+            var renderer = blockGo.GetComponent<Renderer>();
+            BlockCubeFaces.DestroyAsset(renderer.sharedMaterial); // the cube's own tinted material — the shared one replaces it
+            renderer.sharedMaterial = material;
+            blockGo.GetComponent<MeshFilter>().sharedMesh = mesh;
+            return true;
+        }
+
+        /// <summary>The block's own cube mesh (<see cref="BlockCubeFaces"/>, cached per block) and the shared atlas material it
+        /// is drawn with; false without the world's content or atlas. Shared by the held block (#2744) and the ore lump
+        /// (#2838).</summary>
+        private static bool TryBlockLook(string blockKey, out Mesh mesh, out Material material)
+        {
+            mesh = null;
+            material = null;
             var kit = MeshKitResolver?.Invoke();
-            if (kit == null)
+            if (kit == null || string.IsNullOrEmpty(blockKey))
             {
                 return false;
             }
@@ -330,24 +364,20 @@ namespace BlocksBeyondTheStars.Client
             }
 
             ushort id = def.NumericId.Value;
-            if (!BlockMeshes.TryGetValue(id, out var mesh) || mesh == null)
+            if (!BlockMeshes.TryGetValue(id, out mesh) || mesh == null)
             {
                 mesh = BlockCubeFaces.BuildMesh(content, atlas, def.NumericId, BlockCubeFaces.FaceMinusZ, chunkChannels: false);
                 mesh.name = "HeldBlock";
                 BlockMeshes[id] = mesh;
             }
 
-            if (!BlockMaterials.TryGetValue(atlas.Texture, out var material) || material == null)
+            if (!BlockMaterials.TryGetValue(atlas.Texture, out material) || material == null)
             {
                 var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
                 material = new Material(shader) { color = Color.white, mainTexture = atlas.Texture };
                 BlockMaterials[atlas.Texture] = material;
             }
 
-            var renderer = blockGo.GetComponent<Renderer>();
-            BlockCubeFaces.DestroyAsset(renderer.sharedMaterial); // the cube's own tinted material — the shared one replaces it
-            renderer.sharedMaterial = material;
-            blockGo.GetComponent<MeshFilter>().sharedMesh = mesh;
             return true;
         }
 
@@ -550,8 +580,7 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var part in parts)
             {
-                Cube(holder, new Vector3(part.Position.X, part.Position.Y, part.Position.Z),
-                    new Vector3(part.Size.X, part.Size.Y, part.Size.Z), new Color(part.Color.R, part.Color.G, part.Color.B), part.Glow);
+                PartCube(holder, part);
             }
         }
 
@@ -570,8 +599,7 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var part in gear)
             {
-                Cube(holder.transform, new Vector3(part.Position.X, part.Position.Y, part.Position.Z),
-                    new Vector3(part.Size.X, part.Size.Y, part.Size.Z), new Color(part.Color.R, part.Color.G, part.Color.B), part.Glow);
+                PartCube(holder.transform, part);
             }
 
             return holder;
@@ -761,55 +789,22 @@ namespace BlocksBeyondTheStars.Client
         private static Vector3 ToHandFrame(Vector3 v, bool left)
             => left ? new Vector3(v.z, -v.x, -v.y) : new Vector3(-v.z, v.x, -v.y);
 
-        // One material per (colour, glow) for ALL held parts (#1962). A held model is rebuilt whenever the hotbar
-        // slot changes, for every player in sight; a material per part per rebuild was never destroyed with its
-        // cube (sharedMaterial is not owned by the renderer) and piled up over a session.
-        private static readonly System.Collections.Generic.Dictionary<int, Material> PartMaterials = new System.Collections.Generic.Dictionary<int, Material>();
-
-        private static Material PartMaterial(Color color, bool glow)
-        {
-            var c32 = (Color32)color;
-            int key = (c32.r << 16) | (c32.g << 8) | c32.b | (glow ? 1 << 24 : 0);
-            if (PartMaterials.TryGetValue(key, out var cached) && cached != null)
-            {
-                return cached;
-            }
-
-            var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-            var material = new Material(shader) { color = ShaderColor.Srgb(color) };
-            if (glow && material.HasProperty("_Floor"))
-            {
-                material.SetFloat("_Floor", 1f); // fully lit whatever the light: an energy coil glows in a cave
-            }
-
-            PartMaterials[key] = material;
-            return material;
-        }
-
         /// <summary>One glowing cube part under <paramref name="parent"/> in the shared part material (the held speeder's
         /// engine glows, #2534).</summary>
         internal static GameObject GlowPart(Transform parent, Vector3 localPos, Vector3 scale, Color color)
-            => Cube(parent, localPos, scale, color, glow: true);
+            => PartCube(parent, new HeldItemShapes.Part(Num(localPos), Num(scale), ToRgb(color), glow: true));
 
         /// <summary>One plain lit cube part under <paramref name="parent"/> in the shared part material (a hunter's flying
         /// arrow, #2647, is built like a held model).</summary>
         internal static GameObject SolidPart(Transform parent, Vector3 localPos, Vector3 scale, Color color)
-            => Cube(parent, localPos, scale, color, glow: false);
+            => PartCube(parent, new HeldItemShapes.Part(Num(localPos), Num(scale), ToRgb(color)));
 
-        /// <summary>Drops the shared part materials, the held miniatures' meshes and the held blocks' cubes (session
-        /// teardown).</summary>
+        /// <summary>Drops the shared part materials and meshes (#1962, #2836), the held miniatures' meshes and the held blocks'
+        /// cubes (session teardown).</summary>
         public static void ReleasePartMaterials()
         {
             HeldMiniatures.ReleaseAll();
-            foreach (var material in PartMaterials.Values)
-            {
-                if (material != null)
-                {
-                    Object.Destroy(material);
-                }
-            }
-
-            PartMaterials.Clear();
+            HeldTextures.Release();
             ReleaseBlockMeshes();
             foreach (var material in BlockMaterials.Values)
             {
@@ -819,16 +814,34 @@ namespace BlocksBeyondTheStars.Client
             BlockMaterials.Clear();
         }
 
-        private static GameObject Cube(Transform parent, Vector3 localPos, Vector3 scale, Color color, bool glow)
+        /// <summary>
+        /// One cube part of a held model (#1962, #2836): a unit cube scaled to the part — its UVs in metres, so the material's
+        /// tile repeats along a long part instead of stretching (<see cref="HeldTextures.CubeMesh"/>) — in the shared material
+        /// of its colour, glow and material (<see cref="HeldTextures.MaterialFor"/>). One material per (colour, glow, material)
+        /// for ALL held parts: a held model is rebuilt whenever the quick-bar slot changes, for every player in sight, and a
+        /// material per part per rebuild was never destroyed with its cube. Named "Part" with its size as the scale, like the
+        /// primitive it replaces: the hand's measuring (<see cref="HeldBounds"/>) and the muzzle (<see cref="MuzzleOf"/>) read
+        /// both.
+        /// </summary>
+        private static GameObject PartCube(Transform parent, HeldItemShapes.Part part)
         {
-            // The parts of a model never change their material afterwards (unlike the held block, whose cube gets the
-            // atlas tile), so they can share: swap the per-cube material for the cached one.
-            var go = Cube(parent, localPos, scale, color);
-            var renderer = go.GetComponent<Renderer>();
-            Object.Destroy(renderer.sharedMaterial);
-            renderer.sharedMaterial = PartMaterial(color, glow);
+            var go = new GameObject("Part");
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = new Vector3(part.Position.X, part.Position.Y, part.Position.Z);
+            go.transform.localScale = new Vector3(part.Size.X, part.Size.Y, part.Size.Z);
+            go.AddComponent<MeshFilter>().sharedMesh = HeldTextures.CubeMesh(part.Size);
+            go.AddComponent<MeshRenderer>().sharedMaterial =
+                HeldTextures.MaterialFor(new Color(part.Color.R, part.Color.G, part.Color.B), part.Glow, part.Material);
             return go;
         }
+
+        /// <summary>A cube part from Unity values; <paramref name="material"/> null = guessed from the colour.</summary>
+        private static GameObject PartCube(Transform parent, Vector3 localPos, Vector3 scale, Color color, string material)
+            => PartCube(parent, new HeldItemShapes.Part(Num(localPos), Num(scale), ToRgb(color), false, material));
+
+        private static System.Numerics.Vector3 Num(Vector3 v) => new System.Numerics.Vector3(v.x, v.y, v.z);
+
+        private static HeldItemShapes.Rgb ToRgb(Color c) => new HeldItemShapes.Rgb(c.r, c.g, c.b);
 
         private static GameObject Cube(Transform parent, Vector3 localPos, Vector3 scale, Color color)
         {

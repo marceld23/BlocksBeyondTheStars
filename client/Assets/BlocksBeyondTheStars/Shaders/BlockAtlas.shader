@@ -44,6 +44,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "FxCommon.hlsl" // VFX overhaul (#2152): FX lights + scan wave globals
             #include "AtmosphereCommon.hlsl" // atmosphere package (#2408): haze + height fog, cloud shadows, torch flicker
+            #include "FloraAccent.hlsl" // #2834: the flora re-tint with the accent colours of blossoms and berries
 
             TEXTURE2D(_MainTex);   SAMPLER(sampler_MainTex);
             TEXTURE2D(_NormalTex); SAMPLER(sampler_NormalTex);
@@ -178,8 +179,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                     // Per-SPECIES tint from the mesh (TEXCOORD2.yzw) when present; meshes built without a
                     // tint resolver carry black there and keep the planet's uniform global hue.
                     float3 tint = dot(i.leaf.yzw, float3(1, 1, 1)) > 0.01 ? i.leaf.yzw : _Sc_FloraTint.rgb;
-                    float lum = dot(albedo, float3(0.299, 0.587, 0.114));
-                    albedo = lerp(albedo, lum * tint * 1.6, 0.85);
+                    albedo = BbtsFloraTint(albedo, tint, i.leaf.x); // #2834: blossoms and berries in their own colours
                 }
 
                 float3 light = (_Sc_Light.a < 0.5) ? float3(1, 1, 1) : _Sc_Light.rgb;
@@ -506,6 +506,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             #pragma fragment frag
             #pragma multi_compile_fog
             #include "UnityCG.cginc"
+            #include "FloraAccent.hlsl" // #2834: the flora re-tint with the accent colours of blossoms and berries
 
             sampler2D _MainTex;
             sampler2D _NormalTex; // tangent-space normal map (Sobel-derived from the atlas)
@@ -632,8 +633,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 else if (i.skyl.y > 0.5 && _Sc_FloraTint.a > 0.5)
                 {
                     float3 tint = dot(i.leaf.yzw, float3(1, 1, 1)) > 0.01 ? i.leaf.yzw : _Sc_FloraTint.rgb;
-                    float lum = dot(albedo, float3(0.299, 0.587, 0.114));
-                    albedo = lerp(albedo, lum * tint * 1.6, 0.85);
+                    albedo = BbtsFloraTint(albedo, tint, i.leaf.x); // #2834: blossoms and berries in their own colours
                 }
 
                 fixed3 light = (_Sc_Light.a < 0.5) ? fixed3(1, 1, 1) : _Sc_Light.rgb;

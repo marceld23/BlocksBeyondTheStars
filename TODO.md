@@ -24,6 +24,49 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌿 Texture variety — plant looks per planet, new species side by side, colourful blossoms, animal coats, tools with materials and shapes — #2829–#2838, branch feat/texture-variety — ✅ done 2026-10-20 (⚠ playtest open; terrain generation 28, save version 5)
+
+Marcel: "more variety in the textures of plants and animals — today grass, bush, plant and leaves are one texture in
+different colours; and textures for the items in the hand." Decisions: twice the variations first proposed, several
+bush/plant species side by side on one planet, old saves may change their look (plants, animals, items), blossoms and
+berries multi-coloured, tools get shapes AND textures, everything in one PR, the new tiles shown as a gallery first.
+
+**Plants**
+- ✅ #2832 Looks per planet: `blocks.json` `"looks"` (59 new tiles: tree_leaves 12, pine_needles/palm_frond/giant_leaves
+  6, bush/plant/grass tuft/flower 8, fern 6 — counting the block's own tile); `FloraLooks` picks one per (seed, location,
+  block); `BlockTextureAtlas.SetLooks` repaints the block's own slot (no ids, saves, meshes or traffic); a pack or a world
+  texture of the block wins; looks are publishable world textures and listed beside their block in the texture editor.
+- ✅ #2833 Twelve wild species from generation 28 (`MinGeneration: 28`): redberry bush, blossom bush, feather bush,
+  weeping shrub, needle bush, frostberry, clover, daisy, thistle, wild herb, foxtail grass, lupine. From generation 28,
+  40 % of the columns pick their species per column (`MixedFloraShare`), so species stand side by side (neighbours that
+  differ 14 % → 76 % in the sample). `FloraForm` widened to 7-bit catalog indices (bits 18/19, old forms decode
+  unchanged). Block ids shift → save version 5 (fingerprint `4eda69f2b9ee2343`). Older worlds keep their plants.
+- ✅ #2834 Accent colours: `"accent": true` (19 species) — `FloraAccent.hlsl` finds bright, saturated, non-green texels
+  and colours them from the species tint (a species-dependent hue turn); each plant picks one of three accents
+  (`ChunkMesher.AccentCodeAt`, the fraction of the cutout code in TEXCOORD2.x — every check of that channel is a ±0.5
+  window, no new vertex channel).
+- ✅ #2835 The ground-scatter tufts take the world's grass-tuft colour (`_Sc_GrassTint`, `ScatterLit`); pebbles keep theirs.
+
+**Animals**
+- ✅ #2829 Hide and proportions came from the per-slot id `sp0..sp8` (the same on every planet: slot 3 always scales,
+  four hides never chosen) → now from `VoiceSeed`; the hide pool follows the species' temperament, not the provoked /
+  companion flag; the missing `slick` hide exists; a test holds every server hide name to a bundled tile.
+- ✅ #2830 16 coat patterns in a second colour (`Client.Core/Creatures`: masks drawn in code, baked per species).
+- ✅ #2831 24 new hide tiles (48 in all), a hide per body part, one tile per 0.6 m instead of one stretched tile per
+  face, ±5 % per individual.
+
+**Items in the hand**
+- ✅ #2836 Twelve material tiles (`held_*`); a model part names its material (`"m"`) or a colour rule picks it — so every
+  existing model, kind default, NPC tool and player tool look gets materials; UVs in metres.
+- ✅ #2837 All 21 gadgets have their own model (Gadget is a shaped kind; the remote control's model was never drawn).
+- ✅ #2838 Ores and minerals are held as a lump of their block instead of the empty fist.
+
+**Assets:** 108 OpenAI tiles (59 looks, 12 species, 25 hides, 12 materials) via `gen_textures.py` / `gen_creatures.py`,
+shown to Marcel as a gallery before bundling; 37 new locale keys in all 14 languages. Docs: ART_BIBLE §4, CREATURE_RIG,
+HELD_ITEMS, WORLD_GENERATION §45, BIO_LAB, USER_MANUAL.
+
+---
+
 ### 🛋️ Cozy package 2026-10 — softer contrast, warm light islands, the ship as home, rain on the hull, a cosiness slider — epic #2802 (#2803–#2826), branch feat/cozy-look — ✅ done 2026-10-19 (⚠ playtest open)
 
 Marcel: "how could the game feel more cozy?" — analysis of an outside proposal ("Gemütlichkeit 0–100 %"), then his

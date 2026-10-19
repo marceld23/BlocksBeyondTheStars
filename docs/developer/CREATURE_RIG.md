@@ -18,10 +18,21 @@ through it), [CREATURE_TAMING.md](CREATURE_TAMING.md) (companions and their spec
 | `CreatureFeet.cs` | Decides when each foot steps and where it plants |
 | `Shared/Definitions/CreatureGait.cs` | The pure gait mathematics (unit-tested off Unity) |
 | `Shared/Definitions/CreatureIk.cs` | Two-bone leg IK (unit-tested off Unity) |
+| `Client.Core/Creatures/CreatureHides.cs` | The hide name table, the pools and the per-part hide pick (unit-tested off Unity) |
+| `Client.Core/Creatures/CreatureCoat.cs` | Species seed, proportions hash, coat pattern + pattern colour, per-part coverage, jitter |
+| `Client.Core/Creatures/CoatMasks.cs` · `CoatBake.cs` | The pattern masks drawn in code, the texel mix of hide × colours |
+| `Client.Core/Creatures/TiledCube.cs` | The part cube with per-metre tiled UVs |
 
 The same descriptor must always yield the same body: every client draws a species identically, so
-per-individual variation is derived from `StableIdHash(SpeciesId)`, never from `Random` at build
-time. (`Random` inside the animator is fine — that is per-client cosmetic timing, not body shape.)
+per-species variation is derived from the **species seed** (`CreatureCoat.SpeciesSeed`), never from
+`Random` at build time. (`Random` inside the animator is fine — that is per-client cosmetic timing, not
+body shape.) The seed is the species' world-unique `VoiceSeed` (#907) for a rolled species and the id
+hash only for an authored one (`au_…`, whose id is unique and whose designed look must not change per
+world) or a legacy server that sends no seed. It used to be `StableIdHash(SpeciesId)` for everything —
+but rolled species are `sp0`..`sp8` on **every** planet, so slot 3 had the same hide and the same build
+everywhere (#2829). Proportions (head size, girth, leg length) and the animator's gait phase use
+`CreatureCoat.ProportionHash`, which mixes that seed; an authored species keeps the raw id hash, so its
+proportions are exactly what they were. The only per-animal variation is the colour jitter below.
 
 Eleven body plans branch in `Build`: **Standard**, **Titan** (#638), **Medusa** (#637), **Ray** (#1778),
 **Colossus** (#1999), **Sandworm** (#2001), **Arachnid** (#2009), **Biped** (#2081), **Worm** (#2109),
@@ -89,6 +100,77 @@ head comes up and stays up (the grazing dip is scaled out), the body gets a quic
 the gait does, and the long-idle flourishes stop. The real hops are server-side airborne arcs (`Airborne` +
 `VertVel`, integrated like any jump); the bounce is the fidget between them. `CreatureView` also quarters the
 species' call cadence for the three nearest begging animals, so a herd of twelve never floods the mix.
+
+## Hides, coat patterns and texel density (#2829-#2831)
+
+**Hides.** Every hide the client knows is one entry of `CreatureHides.All` (49 names; the tile is
+`creature_<name>`): `EnsureTextures` loads them all once, lifted toward white (`CoatBake.Lift` — the
+tiles are authored dark but used as a multiply over the species colour). A tile that did not load is
+simply absent, and every pick skips it, so a pool never yields a hole while any hide exists (the 24
+hides of #2831 can ship their code before their tiles). The pool follows the species, by precedence:
+glowing → winged → aquatic (Water/Amphibian) → hunting → peaceful. "Hunting" is the species'
+**temperament** (Aggressive or PackHunter, `CreatureHides.SpeciesHostile`) — not the wire's `Hostile`
+flag, which is also true while a passive animal is provoked and false for a tamed hunter; the red tint
+still follows that flag (it is a mood). A hide the server names (`NetCreature.Hide`: an authored record,
+a rolled giant's, arachnid's, biped's or small worm's roll) is the torso's.
+
+**Per part.** About half the rolled species wear one hide everywhere; the rest mix: the head mostly
+follows the torso (65 %), limbs and ornaments roll their own hide from the same pool — a furry torso on
+scaly legs. An authored species wears its designed hide everywhere. The builder asks the build's coat
+(`CoatKit.Mat(CoatPart)`) for a material per **part role**:
+
+| Role | Parts | Hide | Colour |
+| --- | --- | --- | --- |
+| `Torso` | body segments, disc, thorax/abdomen, hips, a giant's core, a colossus neck | torso | body |
+| `Neck` | titan neck and trunk chains (long in Y) | torso | body |
+| `Head` | the skull box, a giant's skull and snout | head | body |
+| `Jaw` | jaw, eyelids, eye and antenna stalks, a pyramid head (a mesh without UVs) | head | body, never patterned |
+| `Limb` / `LowerLimb` | thigh and arms / shin and sole | limbs | body |
+| `Tail` | tail links — the worm's whole body | torso | body |
+| `Belly` | belly slabs | torso | belly |
+| `Wing` | wings, ears | ornament | body |
+| `Ornament` | fins, crests, ridges, lobes, tentacles, hands, bobbles | ornament | belly (accent) |
+| `Overlay` | the slabs of a placed back pattern | torso | pattern |
+
+**Coat patterns.** A rolled species wears one of 16 patterns (about one in six wears none; an authored
+species none), chosen by the species seed from those its body can carry (`CreatureCoat.PatternsFor`):
+
+- *Surface* (tileable masks, every plan but the sandworm): cross stripes, tiger stripes, spots,
+  rosettes, patches, speckles, marbling, scale bands — on torso, neck, head, limbs, tail and wings; the
+  belly keeps its accent colour, jaw and accents stay plain. On parts long in Y (limbs, necks) the
+  stripes are drawn transposed, so they ring the leg.
+- *Placed on a part*: eye mask (a band at eye height on the skull — box heads with eyes), tail rings
+  (bands round the tail links; on a worm the whole body), socks (shin and sole in the pattern colour),
+  crest band (the accents — and a giant's plates, fins and sails — in the pattern colour), belly blaze
+  (a light belly).
+- *Overlays* on a box torso (standard, titan, colossus): dorsal stripe, saddle, two-tone cape — thin
+  slabs in the pattern colour laid on the collected torso boxes, each a little proud so nothing
+  z-fights (`AddCoatOverlays`).
+
+The pattern colour (`CreatureCoat.PatternRgb`) is a darker shade, a pastel lighter one or a gentle hue
+shift (22–43°, never the complementary hue) of the body colour, at most 0.9 saturation, pushed until its
+luma differs from the body by at least 0.14; the cape and the eye mask are darker, the blaze lighter.
+The masks are **drawn in code** at the tiles' own 64² (`CoatMasks`, 0/1 texels, every lattice wrapping
+at 64 so they tile). A part the pattern covers fully just takes the pattern colour on its plain hide;
+only masked parts **bake** a coat texture (`CoatBake.Bake`: `lerp(body, pattern, mask) × lifted hide
+luminance` — only the hide is lifted, the pattern keeps its full strength), cached statically per
+(hide, pattern, mask variant, mask seed, colours) and capped at 768 textures, past which new species
+simply go unpatterned. A species bakes one or two.
+
+**Mood and jitter.** The hostile red and the companion green-cyan are lerps of the colours and so are
+baked into a coat (they follow the mood; the body is rebuilt when it changes); the sleep dim, the glow
+factor and the per-animal **jitter** are the material colour's multiplier. Jitter: five buckets from the
+entity id (plain, ±5 % brightness, a 4 % warm or cool lean), so individuals differ a little while
+materials stay shared (#1514: one material per (colour, texture)).
+
+**Texel density.** Every cube part's mesh is swapped for `TiledCube` (same shape and bounds, so colliders
+are untouched): its UVs repeat the hide once per 0.6 world units on every face, rounded to whole repeats
+clamped 1..8 — one shared mesh per repeat triple. Small creatures look as before (one tile per face);
+a colossus no longer stretches one 64-px tile over 20 blocks. The orientation is fixed: on the four
+faces round a part's Z axis u runs along Z (a band across u rings the part), v runs up on the flanks and
+across on top; the end caps run u along X. The eye-masked skull takes the **pinned** variant: v maps once
+over its height on the sides (the band sits at eye height) and its top and bottom faces keep to the
+tile's top and bottom rows, so the band never crosses the crown.
 
 ## Rig conventions
 
@@ -291,6 +373,13 @@ by the server suite:
   every ray / air fish / count holds its invariants and actually occurs, the motion rules for the new bodies.
 - `CreatureFinsTests` — fins only on water and amphibian bodies (and, since #1779, a legless Air body), never on a medusa, deterministic per
   seed, and every generated species matches the derivation (which is what makes the snapshot lift safe).
+
+The coat lives in Client.Core and is tested by the client suite (`CreatureHidesTests`,
+`CreatureCoatTests`, `CoatMasksTests`, `CoatBakeTests`, `TiledCubeTests`): the pick follows the world
+seed and the temperament, every pool member is reachable, a missing tile is skipped, every pattern shows
+up and fits its body, the pattern colour reads, the masks are deterministic, binary and seamless, the
+cube winds outward the way Unity culls. `CreatureHideTilesTests` (server suite) checks that every hide
+the server can roll has a bundled tile.
 
 Assertions are on **ranges, orderings and invariants**, never trig-derived float goldens: Windows and
 Linux libm disagree in the last bits.

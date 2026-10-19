@@ -821,6 +821,13 @@ namespace BlocksBeyondTheStars.Client
                         Mathf.Clamp01(speciesTint.b * tintJit));
                 }
 
+                // #2834: blossoms and berries in a colour of their own. An accent species' plant picks one of three
+                // accent colours by its column and carries the pick as the fraction of its cutout code (TEXCOORD2.x) —
+                // every shader test of that channel is a ±0.5 window, so the codes keep their meaning. Planet chunks
+                // only (the shader derives the accent from the species tint, which only they carry).
+                float accentCode = floraTinted && !dyed && floraTint != null && (tf & TraitAccentFlora) != 0
+                    ? AccentCodeAt(wx, wz) : 0f;
+
                 // Ground-detail scatter (T0): on planet chunks, strew a sparse deterministic set of tufts/
                 // pebbles on open-topped ground cells. Render-only decoration drawn instanced by GroundScatter
                 // (no collider, no mesh geometry) — a world-cell hash keeps it stable + identical on all clients.
@@ -1079,7 +1086,7 @@ namespace BlocksBeyondTheStars.Client
                     // surrounds (kelp, seagrass, a flooded reed — the same WetProp rule that draws its cell's
                     // water) keeps swaying under cover as if in a current (LeafCodeAquatic).
                     float propMode = dyed ? 3f : emission > 0f ? 7f : 0f;
-                    float plantCode = isTorchProp ? LeafCodeRigid : propWet ? LeafCodeAquatic : LeafCodePlant;
+                    float plantCode = isTorchProp ? LeafCodeRigid : (propWet ? LeafCodeAquatic : LeafCodePlant) + accentCode;
 
                     // #2683: a torch or lantern placed against a WALL hangs on it, and a lantern placed under a ceiling
                     // hangs from it — the mount is stamped in the cell's descriptor (PropShapes.LightMountOf). A standing
@@ -1170,7 +1177,8 @@ namespace BlocksBeyondTheStars.Client
                     float flSizeXZ = Mathf.Clamp(flBase * (1f - flSquash * 0.6f), 0.4f, 1f);
                     AddShapedBlock(verts, tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         traits.SolidFloraShapeOf(id), 0, ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
-                        matR, matG, emission, flTint, flMode, flSky, flBl, flBlDir, flSizeXZ, flSizeY, animCode: animCode);
+                        matR, matG, emission, flTint, flMode, flSky, flBl, flBlDir, flSizeXZ, flSizeY, animCode: animCode,
+                        leafCode: accentCode);
                     continue;
                 }
 
@@ -1762,6 +1770,18 @@ namespace BlocksBeyondTheStars.Client
         /// their sway (it reads as current).</summary>
         public const float LeafCodeAquatic = 4f;
 
+        /// <summary>#2834: the accent pick an accent plant adds to its cutout code — 0.1, 0.2 or 0.3 for the first, second
+        /// or third of the species' accent colours (the block shaders decode <c>round(frac × 10)</c>). Per COLUMN, so the
+        /// two halves of a tall plant agree; a hash of the world column, so every client picks the same.</summary>
+        public static float AccentCodeAt(int wx, int wz)
+        {
+            uint h = unchecked((uint)(wx * 73856093) ^ (uint)(wz * 83492791) ^ 0x2834u);
+            h ^= h >> 13;
+            h = unchecked(h * 0x5bd1e995u);
+            h ^= h >> 15;
+            return 0.1f * (1 + (int)(h % 3u));
+        }
+
         /// <summary>Adds a leafy plant as a THREE-plane rosette of cutout quads through the cell (T3): fuller +
         /// more volumetric than the old flat cross, each plane emitted with BOTH windings (the atlas shaders cull
         /// back faces). <paramref name="lean"/> tilts the top for per-plant variation so a field doesn't look
@@ -1890,7 +1910,8 @@ namespace BlocksBeyondTheStars.Client
             List<Color> colors, List<Vector2> uvs, List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight,
             List<Vector3> blockLightDir, int shapeIndex, int orientation, int upFace, Vector3 cell, Rect uv, float matR, float matG,
             float emission, Color tint, float tintMode, float sky, Vector3 bl, Vector3 blDir, float sizeXZ = 1f, float sizeY = 1f,
-            FaceSlot[] slots = null, BlockTextureAtlas slotAtlas = null, int formCell = 0, float animCode = 0f, Rect ownTile = default)
+            FaceSlot[] slots = null, BlockTextureAtlas slotAtlas = null, int formCell = 0, float animCode = 0f, Rect ownTile = default,
+            float leafCode = 0f)
         {
             var faces = BlockShapeGeometry.Build(shapeIndex, orientation, upFace, formCell);
             if (faces == null)
@@ -1905,7 +1926,8 @@ namespace BlocksBeyondTheStars.Client
                 ? v
                 : new Vector3(0.5f + (v.x - 0.5f) * sizeXZ, v.y * sizeY, 0.5f + (v.z - 0.5f) * sizeXZ);
 
-            var leaf = new Vector4(0f, tint.r, tint.g, tint.b); // not foliage (x=0); yzw = dye tint (mode 3) or black
+            // Not foliage (x = 0, or the #2834 accent fraction 0.1..0.3 of solid flora); yzw = dye tint (mode 3) or black.
+            var leaf = new Vector4(leafCode, tint.r, tint.g, tint.b);
             foreach (var face in faces)
             {
                 Vector3 a = cell + Scaled(face.A), b = cell + Scaled(face.B), c = cell + Scaled(face.C);
@@ -2700,6 +2722,7 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitDenseGas = 1u << 24;          // #2134: the dense gas under the gas sea (also TraitGas) — TEXCOORD2.x = 6
         private const uint TraitBredPlant = 1u << 25;         // #2209: the bred plant — its look rides on the cell's tint + glow channels (FloraForm)
         private const uint TraitThinPlant = 1u << 26;         // #2379: a "flora_" plant drawn as a cross billboard (not solid flora) — it never fills its cell
+        private const uint TraitAccentFlora = 1u << 27;       // #2834: blossoms/berries take an accent colour of their own (BlockDefinition.Accent)
 
         private sealed class BlockTraits
         {
@@ -2760,6 +2783,7 @@ namespace BlocksBeyondTheStars.Client
                     if (key == "iron_wall") f |= TraitIronWall;
                     if (key == "flower_pot") f |= TraitFlowerPot;
                     if (key == FloraForm.BlockKey) f |= TraitBredPlant;
+                    if (content.BlockById(id)?.Accent == true) f |= TraitAccentFlora;
                     if ((f & (TraitTransparent | TraitFlora | TraitFoliage | TraitSlimProp)) != 0) f |= TraitExposesOpaqueFace;
                     // #2379: the cross-billboard plants — the same set the cross path draws (foliage with the flora_ prefix).
                     if ((f & TraitFoliage) != 0 && (f & TraitFloraPrefix) != 0) f |= TraitThinPlant;

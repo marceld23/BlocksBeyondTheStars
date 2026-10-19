@@ -12,7 +12,8 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// "My tools" (#1963): give your drill, your pistol, your blade or your scanner a look of your own. Like the
+    /// "My tools" (#1963): give your drill, your pistol, your blade, your scanner or (#2837) a gadget — the binoculars,
+    /// the camera, the medkit … — a look of your own (every kind <see cref="HeldItemShapes.IsShapedKind"/> lists). Like the
     /// pixel face and the body paint the look belongs to YOU — it is chosen here in the main menu, stored in the
     /// settings, announced when you enter a world and shown to everyone who sees you. It changes nothing about what
     /// the tool does, and it is not handed over with the tool.

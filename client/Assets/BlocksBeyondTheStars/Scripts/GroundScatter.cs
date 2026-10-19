@@ -187,7 +187,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _tuftMesh ??= BuildTuft(new Color(0.28f, 0.52f, 0.22f));
-            _pebbleMesh ??= BuildPebble(new Color(0.42f, 0.42f, 0.45f));
+            _pebbleMesh ??= BuildPebble(new Color(0.42f, 0.42f, 0.45f, 0f)); // alpha 0: a pebble keeps its grey (#2835: tufts, alpha 1, take the grass tint)
         }
 
         /// <summary>Two small crossed vertical quads (grass tuft), base at y=0, lit flat (normals up) so it reads

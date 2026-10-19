@@ -292,6 +292,39 @@ namespace BlocksBeyondTheStars.Client
             _floraTintByBlock = map;
             ChunkMesher.LinearColorSpace = QualitySettings.activeColorSpace == ColorSpace.Linear; // main thread: the mesher may run on a worker
             RebuildPlantLights();
+
+            // #2835: the ground-scatter tufts take the world's grass-tuft colour (ScatterLit), like the grass billboards.
+            var grassTuft = Content.GetBlock("flora_grasstuft");
+            Shader.SetGlobalVector(GrassTintId, grassTuft != null && map.TryGetValue(grassTuft.NumericId.Value, out var grass)
+                ? new Vector4(grass.r, grass.g, grass.b, 1f) : Vector4.zero);
+            ApplyFloraLooks();
+        }
+
+        private static readonly int GrassTintId = Shader.PropertyToID("_Sc_GrassTint");
+
+        /// <summary>#2832: every flora archetype with extra looks wears the one this world picks (seed + location, so every
+        /// client agrees). The atlas repaints the block's own slot, so nothing re-meshes.</summary>
+        private void ApplyFloraLooks()
+        {
+            if (Atlas == null || Content == null)
+            {
+                return;
+            }
+
+            var looks = new System.Collections.Generic.Dictionary<ushort, string>();
+            foreach (var def in Content.Blocks.Values)
+            {
+                if (def.Looks is { Count: > 0 })
+                {
+                    string key = BlocksBeyondTheStars.Shared.World.FloraLooks.TextureKeyFor(_worldSeed, LocationName, def);
+                    if (key != def.Key)
+                    {
+                        looks[def.NumericId.Value] = key;
+                    }
+                }
+            }
+
+            Atlas.SetLooks(looks);
         }
 
         /// <summary>Generation 11: the glowing plants that light their surroundings (<c>FloraCatalog.Species.Light</c>)
@@ -5083,6 +5116,8 @@ namespace BlocksBeyondTheStars.Client
                 Atlas.Changed -= OnAtlasRepainted;
             }
 
+            // #2832: the atlas outlives this world (shared per process) — the menu, intro and editors show every plant's own tile.
+            Atlas?.SetLooks(new System.Collections.Generic.Dictionary<ushort, string>());
             Atlas?.Release(); // shared per process (#1523) — the last owner decides, not this world
             PaintAtlas?.Destroy();
             CustomShapes?.Clear(); // the next world registers its own forms under the same indices (#423)

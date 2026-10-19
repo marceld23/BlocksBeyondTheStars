@@ -182,6 +182,22 @@ public sealed class BlockDefinition
     /// </summary>
     public bool FloraHost { get; set; }
 
+    /// <summary>
+    /// #2832: the extra LOOKS of a flora archetype — texture keys of other tiles for the same block. Every planet picks
+    /// one look per archetype (<see cref="World.FloraLooks"/>, a pure function of seed, location and block key, like its
+    /// colour), so the bush that grows on one planet has another shape on the next. The block's own tile is look 0 and is
+    /// not listed. Null = one look. Purely visual: the client repaints the block's atlas slot, no id or save changes.
+    /// </summary>
+    public List<string>? Looks { get; set; }
+
+    /// <summary>
+    /// #2834: the plant carries blossoms, berries or caps that take a colour of their OWN instead of the species tint.
+    /// The block shader finds the accent texels in the tile (bright, saturated, not green) and colours them with an
+    /// accent colour derived from the species colour; each plant picks one of three related accent colours by its cell,
+    /// so a meadow of one species is mixed. Set in <c>data/blocks.json</c> for wild flora only.
+    /// </summary>
+    public bool Accent { get; set; }
+
     // --- Assigned by the registry, not present in JSON ---
 
     /// <summary>Dense numeric id assigned at load time; what chunks actually store.</summary>

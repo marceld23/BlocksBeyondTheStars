@@ -1058,16 +1058,25 @@ players.
   blaster, the machete, vibro knife and plasma sword, the wooden pickaxe, club and spear and the advanced scanner all
   have their own model. The shock and energy gloves sit on both hands. Every blade — the plasma sword too — is swung;
   only the guns kick back when they fire.
+- **Every gadget looks like itself, too:** the binoculars (the thermal ones with glowing orange lenses), the camera,
+  the field medkit with its glowing cross, the stasis projector with its ring, the terrain blaster, the fluid pump,
+  the terrain and weather scanners, the creature translator, the paint brush, the shaping tool, the form stencil, the
+  blueprint tablet, the rail linker, the sampler, the remote control and a little toy cab or wagon for the monorail
+  items — no more one emitter for all of them.
+- **Tools are made of something:** the handle of a wooden tool shows its grain, metal its brushed surface, rubber
+  grips, glass lenses and glowing energy parts each have their own look. In the texture editor the group *Tools in
+  your hand — materials* holds these twelve surfaces; a texture pack can repaint them.
 - **Everything else is a little model in your hand, too:** the speeder and the boat show a miniature of the vehicle,
-  seeds, saplings, leaves, torches and lanterns show the plant or lamp as it stands in the world, and every other
-  item — ores, materials, components, food, bait — is held as its inventory picture made solid, pixel by pixel. Other
+  seeds, saplings, leaves, torches and lanterns show the plant or lamp as it stands in the world, ores (and silicate
+  and carbon) are a small lump of their rock — each ore always the same lump, resting on your open hand — and every
+  other item — materials, components, food, bait — is held as its inventory picture made solid, pixel by pixel. Other
   players see the same in your hand. Only an item without any picture leaves you with the bare hand.
 - **A block looks in your hand the way it will look once placed:** a dyed block shows its colour, a glowing block its
   light colour, a block with a form (slab, stairs, sphere, your own forms …) shows that form from the side, and a
   painted block wears its picture. Beds, campfires, rugs, flower pots, ladders, staircases, stretchers and trapdoors are
   held in their placed form too. Turning with **R** still shows only in the placement preview, not in your hand.
 - **Your suit hand holds everything:** in first person the hand and forearm of your suit (with your own arm painting)
-  hold every item — a tool or weapon in the fist round its handle (both scanners have one), a block or vehicle on the open hand, a material or
+  hold every item — a tool, gadget or weapon in the fist round its handle (both scanners have one), a block, vehicle or ore on the open hand, a material or
   some food at its lower edge, a plant by its stem. In third person your figure carries what it holds in front of it
   instead of letting it dangle; other players see that too.
 - **Switching takes a moment to look at, never to use:** when you pick another quick-bar slot, the old item goes down
@@ -2930,11 +2939,26 @@ called **stories**:
 - **The prism bloom** glows in every colour — each plant its own. It grows in caves and, rarely, in small
   clusters on the surface: a find worth marking on the map.
 - **Cold worlds have plants too:** frost flowers, snow bushes, ice reeds and lichen grow on snow and ice (on a
-  tundra, an ice world, a snow-capped mountain) where every other plant gives up.
+  tundra, an ice world, a snow-capped mountain) where every other plant gives up — and, on newer worlds, frostberries.
+- **Mixed meadows** (worlds created from 2026-10-19 on, terrain generation 28): twelve more wild plants — the
+  **redberry bush**, **blossom bush**, **feather bush**, **weeping shrub**, **needle bush**, **frostberry**, **clover**,
+  **daisy**, **thistle**, **wild herb**, **foxtail grass** and **lupine** — and a meadow is no longer one kind of plant:
+  several species grow side by side, while a glade still has a plant that dominates it. The two berry plants give
+  berries (toxic on a world whose species is toxic — scan before you eat), the others plant fiber. Older worlds keep
+  the plants they always had.
 - The glowing plants' colour (and every other wild plant's) is this world's own; harvested cave plants regrow on
   their rock like any other flora.
+- **Every planet's plants have their own shape, too:** the leaves of the trees, the conifers' needles, the palm
+  fronds, bushes, plants, tall grass, ferns and flowers each come in several looks (broad or feathery leaves, round or
+  spiky bushes, daisies, tulips or poppies …), and each planet grows one of them. On every world, old saves included.
+- **Blossoms and berries are colourful:** flowers, berry bushes, orchids, lilies, mushrooms and the other flowering
+  plants show their blossoms, berries and caps in a colour of their own, apart from the leaves — and plants of the same
+  kind mix two or three colours across a meadow. The grass tufts on the ground take the planet's grass colour.
 
 ### Creatures
+- **Every planet's animals look like their own species:** their hide, their build, a coat pattern in a second colour
+  (stripes, spots, rosettes, a saddle, an eye mask, tail rings, socks …), sometimes a different hide on the head or the
+  legs, and every animal of a herd a touch lighter or darker than the next. On every world, old saves included.
 - Fauna spawn near players (habitat-gated), with temperaments; hostile creatures show visible attacks.
   Flora regrows when its host block survives. Nothing spawns inside a **sealed room** of a founded base
   (the same airtight rooms the base core supplies with air), no single species fills the whole area, and
@@ -3503,7 +3527,7 @@ outer hull.
   3 × 3 × 3, at most eight); the canvas then shows the whole form from above with neighbouring blocks shaded
   differently, and the budget line counts the most detailed block. It writes the same *My forms* library the
   shaping tool reads, so everything appears in the world as before.
-- **My Tools.** Give your drill, pistol, blade or scanner **a look of your own**: a small coloured voxel model
+- **My Tools.** Give your drill, pistol, blade, scanner or gadget (binoculars, camera, medkit …) **a look of your own**: a small coloured voxel model
   from fifteen colours, each of which can glow. The look belongs to **you**, not to the tool — everyone sees
   it in your hand from the next time you enter a world, it changes nothing about what the tool does, and a
   tool you hand over shows the new owner's look. Up to sixteen tools; *Back to the standard look* undoes it.

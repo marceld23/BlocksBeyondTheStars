@@ -233,6 +233,30 @@ public sealed class WorldTextureTests : IDisposable
         Assert.Equal("@srv.worldtex.bad_animation", inbox.OfType<ActionRejected>().Single().Reason);
     }
 
+    [Fact]
+    public void TheMaterialsOfHeldTools_ArePublishable()
+    {
+        // #2836: the twelve held_* tiles are a family the client loads by key, like the prop tiles.
+        var (server, client, repo, inbox) = Start("wt7b");
+        inbox.Clear();
+        Publish(client, server, "held_wood", 1, 0, Data(Frame(200)));
+        Assert.Empty(inbox.OfType<ActionRejected>());
+        Assert.Equal("held_wood", repo.ListWorldTextures().Single().Key);
+    }
+
+    [Fact]
+    public void AFloraLook_IsPublishable_ButNoLookABlockDoesNotName()
+    {
+        // #2832: a look is another tile of its block — publishable like the block; a made-up look number is not.
+        var (server, client, repo, inbox) = Start("wt7c");
+        inbox.Clear();
+        Publish(client, server, "flora_bush_look3", 1, 0, Data(Frame(200)));
+        Assert.Empty(inbox.OfType<ActionRejected>());
+        Publish(client, server, "flora_bush_look99", 1, 0, Data(Frame(200)));
+        Assert.Single(inbox.OfType<ActionRejected>());
+        Assert.Equal("flora_bush_look3", repo.ListWorldTextures().Single().Key);
+    }
+
     [Theory]
     [InlineData(2, 5)]  // not an offered speed
     [InlineData(9, 8)]  // too many frames

@@ -65,9 +65,9 @@ public sealed partial class GameServer
         => session.State.IsAdmin || session.IsFleetAdmin;
 
     /// <summary>The keys a world may override: every block, and the families of non-block textures the client
-    /// loads by key (creature hides, avatar fabrics, micro fauna, prop and tool tiles, the two loose ones). The
-    /// server cannot list the client's resources, so families are matched by prefix — an unknown key inside a
-    /// family is simply never asked for by any client.</summary>
+    /// loads by key (creature hides, avatar fabrics, micro fauna, prop and tool tiles, the materials of held models —
+    /// #2836, <c>held_*</c> — and the two loose ones). The server cannot list the client's resources, so families are
+    /// matched by prefix — an unknown key inside a family is simply never asked for by any client.</summary>
     private bool IsPublishableTextureKey(string key)
     {
         if (!TextureTiles.IsValidKey(key))
@@ -80,11 +80,18 @@ public sealed partial class GameServer
             return true;
         }
 
+        // #2832: a flora look (another tile of a block, named in its "looks") is published like the block itself.
+        if (_content.GetBlock(BlocksBeyondTheStars.Shared.World.FloraLooks.BaseKeyOf(key)) is { Looks: { } looks } && looks.Contains(key))
+        {
+            return true;
+        }
+
         return key.StartsWith("creature_", System.StringComparison.Ordinal)
             || key.StartsWith("microfauna_", System.StringComparison.Ordinal)
             || key.StartsWith("avatar_", System.StringComparison.Ordinal)
             || key.StartsWith("prop_", System.StringComparison.Ordinal)
             || key.StartsWith("tool_", System.StringComparison.Ordinal)
+            || key.StartsWith(BlocksBeyondTheStars.Shared.Definitions.HeldMaterials.TexturePrefix, System.StringComparison.Ordinal)
             || key is "enemy_robot" or "asteroid_rock";
     }
 

@@ -77,6 +77,23 @@ worlds), the grade comes from `Sky.GradeFor` (tint × saturation × contrast), c
 
 New planet types: add data (`planets.json`) + a `GradeFor` entry; never hardcode looks client-side.
 
+**Flora looks and accents (#2832, #2834, 2026-10-19).** A planet's plants differ in shape too, not only in hue:
+
+- **Looks.** An archetype may list extra tiles of the same plant in `data/blocks.json` (`"looks"`: `<block>_look<n>`).
+  Every planet wears one of them per archetype (`FloraLooks`, from seed + location + block, like the colour). The
+  client repaints the block's own atlas slot on a world change (`BlockTextureAtlas.SetLooks`), so no id, save or mesh
+  changes; a texture pack or a world texture of the block itself wins over the look.
+- **Accents.** The flora shader keeps a tile's luminance and swaps its hue for the species colour, which made every plant
+  one colour. A block with `"accent": true` gives its blossoms, berries and caps a colour of their own:
+  `FloraAccent.hlsl` finds the accent texels in the tile (bright, saturated, not green) and colours them from the
+  species tint turned by a species-dependent hue. Each plant wears one of three related accents
+  (`ChunkMesher.AccentCodeAt`, carried as the fraction of the cutout code in TEXCOORD2.x), so a meadow of one species
+  is mixed.
+- **Art rules for new flora tiles.** Billboards are one side-view plant on pure black (`ON_BLACK` in
+  `gen_textures.py`), cut by the dark-ground bake and rooted on the bottom edge. Crowns are dense canopies edge to edge.
+  Leaves are drawn green (the planet recolours them). Blossoms and berries are bright and saturated, so the accent
+  finds them.
+
 ## 5. Ship rooms (interior palette)
 
 From the room-identity pass (`GameServerSpaceStructure.PaintStationAccents` + decor in

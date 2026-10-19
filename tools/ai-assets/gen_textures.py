@@ -376,6 +376,121 @@ TEXTURES = [
     ("face_alarm_siren_top", "the top of an alarm siren seen from above, a round red glass warning lamp dome with a bright highlight on a dark metal square base plate filling the whole tile edge to edge with corner bolts"),
     ("face_matter_sender_top", "the top of a sci-fi matter sender pedestal seen from above, a solid dark metal square plate that fills the entire image with a round violet crystal emitter ring glowing with small cyan energy motes in the centre"),
     ("face_matter_receiver_top", "the top of a sci-fi matter receiver pedestal seen from above, a round cyan crystal collector ring with small violet energy motes in the centre of a dark metal square plate filling the whole tile edge to edge"),
+    *[(f"{block}_look{n}", desc) for block, looks in (
+        # #2832 (2026-10-19) flora looks: each planet picks ONE of an archetype's looks (FloraLooks), so the same bush,
+        # leaf crown or grass grows in another shape on the next world. The block's own tile is look 1; these are looks
+        # 2..n. The shader keeps a flora tile's luminance and swaps its hue for the world colour, so a look differs by
+        # SHAPE and light/dark pattern — every prompt asks for green, the colour comes from the planet.
+        # Crowns are dense canopies edge to edge (bake_leaf_alpha cuts the darkest gaps between the leaves).
+        ("tree_leaves", [
+            "dense leafy tree foliage canopy of large broad heart-shaped green leaves overlapping, filling the whole image edge to edge with dark shadowed gaps between the leaves, top-down",
+            "dense leafy tree foliage canopy of many small round coin-shaped green leaves like a birch, filling the whole image edge to edge with dark shadowed gaps between the leaves, top-down",
+            "dense leafy tree foliage canopy of feathery pinnate compound green leaves with many small leaflets like an ash tree, filling the whole image edge to edge with dark shadowed gaps, top-down",
+            "dense leafy tree foliage canopy of lobed five-pointed maple-like green leaves overlapping, filling the whole image edge to edge with dark shadowed gaps between the leaves, top-down",
+            "dense leafy tree foliage canopy of long narrow slender willow-like green leaves hanging in strands, filling the whole image edge to edge with dark shadowed gaps, top-down",
+            "dense leafy tree foliage canopy of wavy-edged round-lobed oak-like green leaves overlapping, filling the whole image edge to edge with dark shadowed gaps between the leaves, top-down",
+            "dense leafy tree foliage canopy of big glossy oval jungle leaves with bright highlights, filling the whole image edge to edge with dark shadowed gaps between the leaves, top-down",
+            "dense leafy tree foliage canopy of star-shaped pointed green leaves like a sweetgum tree, filling the whole image edge to edge with dark shadowed gaps between the leaves, top-down",
+            "dense leafy tree foliage canopy of small fan-shaped ginkgo-like green leaves overlapping, filling the whole image edge to edge with dark shadowed gaps between the leaves, top-down",
+            "dense leafy tree foliage canopy of fluffy rounded clusters of tiny scale-like green leaves like a cypress, filling the whole image edge to edge with dark shadowed gaps between the clusters, top-down",
+            "dense leafy tree foliage canopy of crinkled spiky-edged holly-like green leaves overlapping, filling the whole image edge to edge with dark shadowed gaps between the leaves, top-down",
+        ]),
+        ("pine_needles", [
+            "dense conifer foliage of long soft green pine needles in drooping tufts, filling the whole image edge to edge with dark shadowed gaps between the tufts, top-down",
+            "dense conifer foliage of short stiff dark green spruce needles densely set on small twigs, filling the whole image edge to edge with dark shadowed gaps, top-down",
+            "dense conifer foliage of flat sprays of green fir branches with neat rows of short needles, filling the whole image edge to edge with dark shadowed gaps, top-down",
+            "dense conifer foliage of soft green larch needle tufts like little brushes, filling the whole image edge to edge with dark shadowed gaps between the tufts, top-down",
+            "dense conifer foliage of round fluffy green pom-pom clusters of needles, filling the whole image edge to edge with dark shadowed gaps between the clusters, top-down",
+        ]),
+        ("palm_frond", [
+            "dense tropical palm foliage of long feathery pinnate green fronds with many thin leaflets crossing each other, filling the whole image edge to edge with dark shadowed gaps, top-down",
+            "dense tropical palm foliage of round pleated green fan-palm leaves overlapping, filling the whole image edge to edge with dark shadowed gaps between the fans, top-down",
+            "dense tropical foliage of huge broad green banana-plant leaves with torn edges overlapping, filling the whole image edge to edge with dark shadowed gaps, top-down",
+            "dense tropical palm foliage of arching coconut palm fronds with long drooping narrow leaflets, filling the whole image edge to edge with dark shadowed gaps, top-down",
+            "dense foliage of stiff spiky green cycad fronds with sharp narrow leaflets radiating outwards, filling the whole image edge to edge with dark shadowed gaps, top-down",
+        ]),
+        ("giant_leaves", [
+            "dense canopy of huge heart-shaped dark green elephant-ear leaves with pale veins overlapping, filling the whole image edge to edge with dark shadowed gaps, top-down",
+            "dense canopy of giant deeply split dark green monstera-like leaves with holes and pale veins, filling the whole image edge to edge with dark shadowed gaps, top-down",
+            "dense canopy of layered huge round flat dark green leaves like giant lily pads with radiating veins, filling the whole image edge to edge with dark shadowed gaps, top-down",
+            "dense canopy of very long broad strap-shaped dark green leaves with parallel pale veins crossing each other, filling the whole image edge to edge with dark shadowed gaps, top-down",
+            "dense canopy of enormous feathery dark green fern-like fronds of an ancient tree overlapping, filling the whole image edge to edge with dark shadowed gaps, top-down",
+        ]),
+        # The billboards are ONE plant in side view on black (#2773: ON_BLACK, cut by the dark-ground bake, rooted on the
+        # bottom edge). Blossoms and berries are drawn bright and colourful: the accent shader (#2834) gives them a colour
+        # of their own, apart from the leaves.
+        ("flora_bush", [
+            f"side view of one round leafy green bush with many small oval leaves, rooted at the bottom edge of the image, filling its lower two thirds and most of its width, {ON_BLACK}",
+            f"side view of one leafy green bush with large broad rounded leaves, rooted at the bottom edge of the image, filling its lower two thirds and most of its width, {ON_BLACK}",
+            f"side view of one green bush of narrow pointed spiky leaves fanning outwards, rooted at the bottom edge of the image, filling its lower two thirds and most of its width, {ON_BLACK}",
+            f"side view of one dense compact green bush of tiny leaves like a boxwood, rooted at the bottom edge of the image, filling its lower two thirds and most of its width, {ON_BLACK}",
+            f"side view of one airy green shrub of thin branching twigs with small leaf clusters, rooted at the bottom edge of the image, filling its lower two thirds and most of its width, {ON_BLACK}",
+            f"side view of one green bush with long drooping arching leaves, rooted at the bottom edge of the image, filling its lower two thirds and most of its width, {ON_BLACK}",
+            f"side view of one round leafy green bush dotted with many small bright yellow and orange round berries, rooted at the bottom edge of the image, filling its lower two thirds and most of its width, {ON_BLACK}",
+        ]),
+        ("flora_plant", [
+            f"side view of one leafy green herb plant with a few big broad ribbed leaves on short stalks, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of one green plant with tall upright sword-shaped leaves, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of one low rosette of wavy-edged green leaves spreading outwards, rooted at the bottom edge of the image and filling its lower half and most of its width, {ON_BLACK}",
+            f"side view of one green plant with heart-shaped leaves on long thin stalks, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of one green plant with finely divided feathery leaves like carrot tops, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of one green plant with big round flat leaves on thin stems at different heights, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of one green plant whose leaves grow in a spiral up a thick stem, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+        ]),
+        ("flora_grasstuft", [
+            f"side view of one tuft of tall thin straight green grass blades, rooted at the bottom edge of the image and reaching almost to its top, {ON_BLACK}",
+            f"side view of one tuft of curly wavy green grass blades, rooted at the bottom edge of the image and reaching to its middle, {ON_BLACK}",
+            f"side view of one tuft of green grass blades with small seed heads on thin stalks, rooted at the bottom edge of the image and reaching almost to its top, {ON_BLACK}",
+            f"side view of one tuft of broad flat green grass blades, rooted at the bottom edge of the image and reaching almost to its top, {ON_BLACK}",
+            f"side view of one tuft of green grass with soft feathery plumes on top, rooted at the bottom edge of the image and reaching almost to its top, {ON_BLACK}",
+            f"side view of one short dense tuft of green grass, rooted at the bottom edge of the image and filling its lower half, {ON_BLACK}",
+            f"side view of one fountain-shaped tuft of long green grass blades arching outwards and drooping, rooted at the bottom edge of the image, {ON_BLACK}",
+        ]),
+        ("flora_fern", [
+            f"side view of one upright green shuttlecock fern with tall fronds forming a vase shape, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of one green sword fern with long arching fronds, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of one young green fern with curled fiddlehead spirals among unrolled fronds, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of one delicate lacy green maidenhair fern with tiny fan leaflets on thin dark stems, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of one small green tree fern with a short trunk and a crown of fronds, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+        ]),
+        ("flora_flower", [
+            f"side view of one clump of daisy-like flowers with bright pink petals and yellow centres on green stems, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of a few cup-shaped bright red tulip-like flowers on green stems with broad leaves, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of one plant with many small bright violet star-shaped flowers on green stems, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of one plant with drooping bright magenta bell-shaped flowers on arching green stems, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of one plant with flat umbrella clusters of tiny bright yellow flowers on green stems, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of one plant with tall spikes densely packed with small bright blue flowers above green leaves, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+            f"side view of a few big bright orange-red poppy-like flowers with dark centres on thin green stems, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}",
+        ]),
+    ) for n, desc in enumerate(looks, 2)],
+    # #2833 (generation 28) the new wild species that grow side by side with the old ones: one side-view plant on black each,
+    # rooted on the bottom edge; blossoms and berries bright for the accent shader (#2834).
+    ("flora_berrybush", f"side view of one round green bush heavy with clusters of many small shiny bright red round berries among its leaves, rooted at the bottom edge of the image, filling its lower two thirds and most of its width, {ON_BLACK}"),
+    ("flora_blossombush", f"side view of one green bush completely covered in many small bright pink five-petalled blossoms, rooted at the bottom edge of the image, filling its lower two thirds and most of its width, {ON_BLACK}"),
+    ("flora_featherbush", f"side view of one bush of soft feathery green plume-like leaves fanning upwards like ostrich feathers, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
+    ("flora_droopbush", f"side view of one weeping green shrub whose long thin leafy strands hang down like a small willow, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
+    ("flora_needlebush", f"side view of one spiky dry-land shrub of stiff narrow needle-like grey-green leaves radiating outwards, rooted at the bottom edge of the image, filling its lower two thirds, {ON_BLACK}"),
+    ("flora_frostberry", f"side view of one low hardy shrub with small frosted green leaves and clusters of bright pale blue round berries, rooted at the bottom edge of the image, filling its lower half and most of its width, {ON_BLACK}"),
+    ("flora_clover", f"side view of one low patch of green three-lobed clover leaves with a few round bright pink clover flower heads on short stems, rooted at the bottom edge of the image, filling its lower half and most of its width, {ON_BLACK}"),
+    ("flora_daisy", f"side view of one clump of daisies with bright yellow centres and bright orange petals on thin green stems, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
+    ("flora_thistle", f"side view of one thistle plant with spiky jagged green leaves and round bright purple spiky flower heads on top, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
+    ("flora_herb", f"side view of one bushy green kitchen herb like mint with many small oval leaves on several upright stems, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
+    ("flora_foxtail", f"side view of one tuft of tall green grass with fluffy cylindrical bushy seed heads nodding on top, rooted at the bottom edge of the image and reaching almost to its top, {ON_BLACK}"),
+    ("flora_lupine", f"side view of one lupine plant with tall upright spikes densely packed with small bright violet pea-shaped blossoms above palm-shaped green leaves, rooted at the bottom edge of the image and reaching almost to its top, {ON_BLACK}"),
+    # #2836 (2026-10-19) held-tool materials: a part of a held tool, gun or gadget samples one of these, tinted by the part's
+    # colour (the shader multiplies), so each tile is light and mostly grayscale with a clear surface grain.
+    ("held_metal", "brushed light grey steel metal surface with fine parallel brush lines and a few tiny scratches, light and mostly grayscale"),
+    ("held_darkmetal", "light grey gunmetal with a fine knurled diamond grip pattern and small panel seams, light and mostly grayscale"),
+    ("held_wood", "light pale wooden surface with clear long straight wood grain lines and a small knot, light and mostly grayscale"),
+    ("held_plastic", "smooth light grey moulded plastic with a very faint fine speckle and a soft sheen, light and mostly grayscale"),
+    ("held_rubber", "light grey rubber grip with a pattern of small raised ridges for a firm hold, light and mostly grayscale"),
+    ("held_glass", "light pale glass lens surface with a soft round reflection highlight and faint concentric rings, light and mostly grayscale"),
+    ("held_energy", "bright glowing energy surface with soft flowing light bands and small bright sparks, very light and mostly grayscale"),
+    ("held_crystal", "light faceted crystal surface of sharp angular facets with bright edges, light and mostly grayscale"),
+    ("held_leather", "close-up of light grey leather strap wrapped around a handle in overlapping diagonal bands, fine leather grain and a row of small stitches along each band, no bricks, no tiles, light and mostly grayscale"),
+    ("held_stone", "light grey chipped stone surface with flaked knapped facets like a flint tool, light and mostly grayscale"),
+    ("held_bone", "light ivory bone surface with fine cracks and a smooth worn sheen, light and mostly grayscale"),
+    ("held_carbon", "light grey woven carbon fibre twill pattern with a soft sheen, light and mostly grayscale"),
 ]
 
 if TYPE_CHECKING:
