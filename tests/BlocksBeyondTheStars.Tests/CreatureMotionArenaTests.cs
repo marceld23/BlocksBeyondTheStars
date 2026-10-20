@@ -1045,7 +1045,7 @@ public sealed class CreatureMotionArenaTests : IDisposable
         return natural;
     }
 
-    /// <summary>#2846: a player dug a deep moat round her castle, right through the island a herd animal slept on, and found it
+    /// <summary>#2846: a player dug a deep moat round a castle, right through the island a herd animal slept on, and found it
     /// floating where the island had been: when no real ground lay within the creature's 24-cell probe, the probe answered
     /// the generator's noise surface — the height the column had before it was dug — and held the animal there. A loaded,
     /// open drop is a fall now, asleep or awake.</summary>
