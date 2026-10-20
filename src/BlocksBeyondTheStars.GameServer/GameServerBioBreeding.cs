@@ -81,6 +81,12 @@ public sealed partial class GameServer
             sp.BiomeSurfaces = Array.Empty<string>();
             sp.BiomeExclusive = false;
             sp.SocialGroupSize = 1;
+            // #2868: a guest keeps the look of the world it was sampled on; an entry from before the stamp gets its origin's.
+            if (!HasFaunaLook(sp) && FaunaLookOfEntry(entry) is { } look)
+            {
+                WithFaunaLook(sp, look);
+            }
+
             _speciesById[id] = sp;
         }
 
@@ -474,7 +480,8 @@ public sealed partial class GameServer
         if (first.Kind == BioKind.Animal)
         {
             entry.Name = WorldGeneration.NameGenerator.Creature(rng);
-            entry.Creature = CrossCreatures(first.Creature!, second.Creature!, seed, entry.Name);
+            // #2868: each parent with its home world's look, so the child can wear one of them.
+            entry.Creature = CrossCreatures(WithEntryLook(first), WithEntryLook(second), seed, entry.Name);
         }
         else
         {
@@ -528,6 +535,12 @@ public sealed partial class GameServer
         {
             child.Hide = other.Hide;
         }
+
+        // #2868: the look of one parent's world (bit 13, see CrossLookFromFirst) — a cross of two worlds' animals wears
+        // the hides of one home, and the same pair always the same one.
+        var looks = CrossLookFromFirst(seed) ? a : b;
+        child.LookPlanet = looks.LookPlanet;
+        child.LookSeed = looks.LookSeed;
 
         // One pair in eight shows a trait neither parent has.
         if (((bits >> 16) & 7) == 0)

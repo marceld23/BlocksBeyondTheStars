@@ -2419,6 +2419,17 @@ public sealed class NetCreature
     /// (#1763); empty = the classic id-hashed pick. Additive: an older client ignores it.</summary>
     public string Hide { get; set; } = string.Empty;
 
+    /// <summary>The planet type key of the world this creature's look belongs to (#2868) — the client picks the hide
+    /// theme from that type's data. The server fills it for every creature: a companion, a clone or a cross names its
+    /// home world, every other animal the world it is on. Additive: an older client ignores it; an older server sends
+    /// nothing (empty), which the client reads as "no theme" (the plain hide pools).</summary>
+    public string LookPlanet { get; set; } = string.Empty;
+
+    /// <summary>The world look seed of that world (#2868, <c>FaunaLooks.WorldLookSeed</c>) — the client derives the
+    /// world's random hide motif from it. Never 0 from a current server. Additive like <see cref="LookPlanet"/>: an older
+    /// client ignores it, an older server leaves it 0 (no motif sent), so the wire tag is unchanged.</summary>
+    public int LookSeed { get; set; }
+
     /// <summary>Seed for this species' generated voice (#907) — the client derives phrase, cadence and
     /// timbre from it via <c>CreatureVoices.Derive</c>. Additive field: an older client ignores it and
     /// a newer client falls back to hashing the trait tuple when a legacy server sends 0, so the wire

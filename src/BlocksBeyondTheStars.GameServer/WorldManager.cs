@@ -171,6 +171,10 @@ internal sealed class LoadedWorld
     public Dictionary<string, CreatureSpecies> SpeciesById { get; } = new();
     public Dictionary<string, LocomotionProfile> LocoProfiles { get; } = new();
 
+    /// <summary>#2868: the look this world gives its animals — its planet type key and its world look seed. Worked out on
+    /// first need and kept for the residency: the creature list asks for it once per creature on every send.</summary>
+    public (string Planet, int Seed)? FaunaLook { get; set; }
+
     /// <summary>#2226: the plant identities of THIS world, for the same reason — the flora and tree species by block id
     /// (the coined name and the edible/toxic trait a scan, a harvest and a sample read), the fruit kinds its trees bear
     /// in catalog order, the type's guaranteed fruit and the roster seed the fruit shapes and colours are rolled from.

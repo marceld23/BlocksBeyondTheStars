@@ -197,6 +197,12 @@ public sealed class PlanetType
     /// Empty = the temperate default. Biomes may override it per region via <see cref="Biome.FloraTheme"/>.</summary>
     public string FloraTheme { get; set; } = string.Empty;
 
+    /// <summary>Optional override of the creature hide theme (#2868, JSON <c>faunaTheme</c>). The client derives a world's
+    /// fauna theme from <see cref="FloraTheme"/>, <see cref="BaseTemperature"/> and <see cref="WaterAbundance"/>; a type
+    /// that should dress its animals differently names the theme here. Empty = derived. Purely visual: only the client
+    /// reads it.</summary>
+    public string FaunaTheme { get; set; } = string.Empty;
+
     /// <summary>0..1 — how much surface water this world has (raises the sea level so more basins flood); only
     /// worlds with an atmosphere get water. <c>null</c> = auto (atmosphere worlds get a moderate amount).</summary>
     public double? WaterAbundance { get; set; }

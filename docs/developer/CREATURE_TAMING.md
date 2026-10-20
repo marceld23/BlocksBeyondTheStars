@@ -41,6 +41,16 @@ seeded per world) and a species' roster slot (`sp0`) differs per world. So a com
 roster. Stored as `PlayerState.TamedCreatures : List<TamedCreature>` in the player JSON blob (no DB schema
 change — like `LandedBodies`/`KnownSystems`).
 
+**A pet keeps its home look (#2868).** The client dresses an animal by a planet hide theme and a per-world random
+motif, and the server tells it per creature which world that look belongs to (`NetCreature.LookPlanet` = a planet
+type key, `NetCreature.LookSeed` = `FaunaLooks.WorldLookSeed(world seed, "system · body")`). A rolled roster species
+carries neither, so a wild animal wears the world it is on. The companion snapshot (`GameServer.SnapshotSpecies`) copies
+`CreatureSpecies.LookPlanet`/`LookSeed` and stamps the taming world's values when they are empty — and since the
+snapshot is the player JSON blob, the look survives save and load. The bio register stamps a sampled species the same
+way, so a clone keeps the look of the world it was sampled on and a cross wears one parent's (picked by the cross
+seed); a register entry or tamed clone from before the stamp is given its origin body's look when its species is built
+(`GameServerFaunaLooks.cs`).
+
 **Residence & lifecycle.** A companion is **home-planet resident**: present only when the owner is on its home
 body, otherwise stored. On arrival/world-load it re-spawns near the player (`ReconcileCompanions`) with a
 `Follow` behaviour (`CreatureBehaviour.FollowStep` — approach owner if far, idle-wander when close, snap if

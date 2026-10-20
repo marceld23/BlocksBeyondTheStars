@@ -117,7 +117,7 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(child);
             }
 
-            new CreatureBuilder { Ground = ProbeGround }.Build(root, c);
+            new CreatureBuilder { Ground = ProbeGround, Planets = PlanetOf }.Build(root, c);
             var anims = root.GetComponents<CreatureAnimator>();
             entry.Animator = anims.Length > 0 ? anims[anims.Length - 1] : null;
             if (c.GiantHeight > 0f)
@@ -314,7 +314,7 @@ namespace BlocksBeyondTheStars.Client
                     var root = new GameObject("Creature_" + c.SpeciesId);
                     root.transform.SetParent(transform, true); // under the game root → destroyed on teardown (not leaked into menus/editors)
                     root.transform.position = Game.ScenePos(pos.x, pos.y, pos.z); // seam-aware (longitude wraps)
-                    new CreatureBuilder { Ground = ProbeGround }.Build(root, c);
+                    new CreatureBuilder { Ground = ProbeGround, Planets = PlanetOf }.Build(root, c);
                     // The generated voice (#902–#907): call sample, phrase rhythm, pitch contour, calling
                     // rate and timbre op, all derived from the species' world-unique voice seed and the
                     // traits it already has — so the sound reads as coming from THAT body. Deterministic
@@ -972,6 +972,11 @@ namespace BlocksBeyondTheStars.Client
             e.PulsesLeft--;
             e.NextPulseAt = now + voice.PulseGapMs * 0.001f;
         }
+
+        /// <summary>#2868: the planet type a creature's look belongs to (the theme of its home world), from the game's content;
+        /// null when the content is not loaded yet — the builder then picks without a theme.</summary>
+        private BlocksBeyondTheStars.Shared.Definitions.PlanetType PlanetOf(string key)
+            => Game != null && Game.Content != null ? Game.Content.GetPlanet(key) : null;
 
         /// <summary>Finds the ground under a foot target: a short downward scan for the first solid cell, then
         /// the top of it. Called once per new foot target — never per frame — so a walking creature costs a

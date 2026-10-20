@@ -228,6 +228,16 @@ public sealed class CreatureSpecies
     /// <summary>The client's hide tile name ("fur", "shaggy", "petal", …); empty = the classic id-hashed pick.</summary>
     public string Hide { get; set; } = string.Empty;
 
+    /// <summary>The planet type key of the world this species' look belongs to (#2868) — the client picks the hide theme
+    /// from that type. Empty = the world it is shown on. A rolled roster leaves it empty; a companion snapshot, a sampled
+    /// species in the register and a cross carry their home world's, so a pet or a clone keeps its home look anywhere.</summary>
+    public string LookPlanet { get; set; } = string.Empty;
+
+    /// <summary>The world look seed (<see cref="World.FaunaLooks.WorldLookSeed"/>) of that world (#2868) — the client
+    /// derives the world's random hide motif from it. 0 = the world it is shown on; stamped together with
+    /// <see cref="LookPlanet"/>.</summary>
+    public int LookSeed { get; set; }
+
     /// <summary>Turns hostile toward a player it sees breaking a block (the flowerling).</summary>
     public bool AngeredByMining { get; set; }
 

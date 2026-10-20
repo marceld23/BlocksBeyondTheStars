@@ -8,15 +8,17 @@ using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Client.Tests;
 
 /// <summary>
-/// The hide pick (#2829, #2831): keyed off the species' world-unique seed (not the per-slot id <c>sp0..sp8</c>), off the
-/// species' disposition (not the momentary hostile flag), from one name table, per body part, and never a hole while any
-/// tile exists.
+/// The hide pick (#2829, #2831, #2861): keyed off the species' world-unique seed (not the per-slot id <c>sp0..sp8</c>), off
+/// the species' disposition (not the momentary hostile flag), from one name table, per body part, never a hole while any
+/// tile exists — and fair: glow is no pool any more, a server-named hide is a family, no hide dominates the rosters.
 /// </summary>
 public sealed class CreatureHidesTests
 {
@@ -37,33 +39,30 @@ public sealed class CreatureHidesTests
         };
 
     [Fact]
-    public void TheTable_HasNoDuplicates_AndEveryPoolMemberIsInIt()
+    public void TheTable_HasNoDuplicates_AndEveryPoolAndFamilyMemberIsInIt()
     {
         Assert.Equal(CreatureHides.All.Count, CreatureHides.All.Distinct(StringComparer.Ordinal).Count());
-        foreach (var pool in new[]
-                 {
-                     CreatureHides.GlowingPool, CreatureHides.WingedPool, CreatureHides.AquaticPool,
-                     CreatureHides.HostilePool, CreatureHides.PassivePool,
-                 })
+        foreach (var pool in CreatureHides.Pools)
         {
             Assert.All(pool, name => Assert.True(CreatureHides.IsKnown(name), name));
+            Assert.Equal(pool.Count, pool.Distinct(StringComparer.Ordinal).Count());
         }
+
+        foreach (var family in CreatureHides.NamedFamilies)
+        {
+            Assert.Equal(family.Key, family.Value[0]); // the named hide itself leads its family
+            Assert.All(family.Value, name => Assert.True(CreatureHides.IsKnown(name), name));
+        }
+
+        Assert.All(CreatureHides.Coarse, name => Assert.True(CreatureHides.IsKnown(name), name));
     }
 
     [Fact]
-    public void EveryNewHide_AndSlick_IsInTheTable_AndInAPool()
+    public void EveryHide_ButThePetal_IsInAPool()
     {
-        string[] wave =
-        {
-            "finefeathers", "down", "wool", "leather", "quilted", "fungal", "barkmoss", "coarsescales", "finescales",
-            "lizard", "bristles", "crystalveins", "cracked", "honeycomb", "ridged", "velvet", "snake", "roughbark",
-            "pebbled", "knobbly", "coralskin", "wrinkled", "featherscales", "lichen",
-        };
-        var pooled = CreatureHides.GlowingPool.Concat(CreatureHides.WingedPool).Concat(CreatureHides.AquaticPool)
-            .Concat(CreatureHides.HostilePool).Concat(CreatureHides.PassivePool).ToHashSet(StringComparer.Ordinal);
-        Assert.Equal(24, wave.Length);
-        Assert.All(wave, name => Assert.Contains(name, pooled));
-        Assert.True(CreatureHides.IsKnown("slick"));
+        // The petal is the flowerling's designed hide (authored only); every other hide can be rolled.
+        var pooled = CreatureHides.Pools.SelectMany(p => p).ToHashSet(StringComparer.Ordinal);
+        Assert.All(CreatureHides.All.Where(n => n != "petal"), name => Assert.Contains(name, pooled));
         Assert.Equal("creature_slick", CreatureHides.TileKey("slick"));
     }
 
@@ -88,6 +87,10 @@ public sealed class CreatureHidesTests
         }
 
         Assert.All(rolled, name => Assert.True(CreatureHides.IsKnown(name), name + " is rolled but not in CreatureHides.All"));
+
+        // Every hide the generator itself rolls names a family (the authored hides are worn as designed).
+        var generated = arrays.SelectMany(f => (string[])f.GetValue(null)!).Distinct();
+        Assert.All(generated, name => Assert.True(CreatureHides.NamedFamilies.ContainsKey(name), name + " has no family"));
     }
 
     [Fact]
@@ -111,12 +114,30 @@ public sealed class CreatureHidesTests
                      (CreatureHides.HostilePool, s => Rolled(s, temperament: "Aggressive")),
                      (CreatureHides.AquaticPool, s => Rolled(s, habitat: "Water")),
                      (CreatureHides.WingedPool, s => Rolled(s, wings: true)),
-                     (CreatureHides.GlowingPool, s => Rolled(s, glows: true)),
+                     (CreatureHides.CavePool, s => Rolled(s, habitat: "Cave")),
+                     (CreatureHides.LavaPool, s => Rolled(s, habitat: "Lava")),
                  })
         {
             var seen = Enumerable.Range(1, 3000).Select(s => CreatureHides.Pick(make(s), AllAvailable).Torso).ToHashSet();
             Assert.All(pool, name => Assert.Contains(name, seen));
         }
+    }
+
+    [Fact]
+    public void Glow_PlaysNoPartInTheHide_AndWaterComesBeforeWings()
+    {
+        for (int seed = 1; seed < 400; seed++)
+        {
+            foreach (var (habitat, wings) in new[] { ("Land", false), ("Land", true), ("Water", false), ("Cave", false) })
+            {
+                var plain = Rolled(seed, habitat: habitat, wings: wings);
+                var glowing = Rolled(seed, habitat: habitat, wings: wings, glows: true);
+                Assert.Same(CreatureHides.PoolFor(plain), CreatureHides.PoolFor(glowing));
+                Assert.Equal(CreatureHides.Pick(plain, AllAvailable).Torso, CreatureHides.Pick(glowing, AllAvailable).Torso);
+            }
+        }
+
+        Assert.Same(CreatureHides.AquaticPool, CreatureHides.PoolFor(Rolled(1, habitat: "Water", wings: true)));
     }
 
     [Fact]
@@ -136,37 +157,49 @@ public sealed class CreatureHidesTests
     }
 
     [Fact]
-    public void ANamedHide_WinsForTheTorso_AndAnAuthoredSpeciesWearsItEverywhere()
+    public void AnAuthoredSpecies_WearsItsHideEverywhere_ARolledServerHideNamesAFamily()
     {
         var authored = new NetCreature { SpeciesId = "au_leni", Hide = "shaggy", VoiceSeed = 77 };
-        var set = CreatureHides.Pick(authored, AllAvailable);
+        var set = CreatureHides.Pick(authored, AllAvailable, new FaunaThemes.Look("arid", "scales", "spots"));
         Assert.True(set.Uniform);
         Assert.Equal("shaggy", set.Torso);
 
-        var giant = new NetCreature { SpeciesId = "gi_sky_giant", Hide = "slick", VoiceSeed = 99, Habitat = "Air", HasWings = true };
-        Assert.Equal("slick", CreatureHides.Pick(giant, AllAvailable).Torso);
+        var family = CreatureHides.NamedFamily("plated");
+        var worn = new HashSet<string>();
+        for (int s = 1; s < 400; s++)
+        {
+            var colossus = new NetCreature { SpeciesId = "gi_colossus", Hide = "plated", VoiceSeed = s, BodyPlan = "Colossus" };
+            string torso = CreatureHides.Pick(colossus, AllAvailable).Torso!;
+            Assert.Contains(torso, family);
+            worn.Add(torso);
+        }
+
+        Assert.Equal(family.Count, worn.Count); // every family member shows up, the newer hides included
     }
 
     [Fact]
     public void AMissingTile_IsSkipped_AndNoPickIsNullWhileAnyHideExists()
     {
-        // Only the original set is bundled (the 24 new tiles arrive later): no pick may name a missing one.
+        // Only the original set is bundled: no pick may name a missing one.
         var bundled = CreatureHides.All.Take(24).ToHashSet(StringComparer.Ordinal);
         bool Available(string n) => bundled.Contains(n);
+        var look = new FaunaThemes.Look("cold", "warmcoat", "stripes");
         for (int seed = 1; seed < 500; seed++)
         {
-            foreach (var c in new[] { Rolled(seed), Rolled(seed, glows: true), Rolled(seed, habitat: "Water"), Rolled(seed, temperament: "Aggressive") })
+            foreach (var c in new[] { Rolled(seed), Rolled(seed, glows: true), Rolled(seed, habitat: "Water"), Rolled(seed, temperament: "Aggressive"), Rolled(seed, habitat: "Cave") })
             {
-                var set = CreatureHides.Pick(c, Available);
-                foreach (var part in new[] { CoatPart.Torso, CoatPart.Head, CoatPart.Limb, CoatPart.Wing })
+                foreach (var set in new[] { CreatureHides.Pick(c, Available), CreatureHides.Pick(c, Available, look) })
                 {
-                    Assert.NotNull(set.For(part));
-                    Assert.Contains(set.For(part)!, bundled);
+                    foreach (var part in new[] { CoatPart.Torso, CoatPart.Head, CoatPart.Limb, CoatPart.Wing })
+                    {
+                        Assert.NotNull(set.For(part));
+                        Assert.Contains(set.For(part)!, bundled);
+                    }
                 }
             }
         }
 
-        // A named hide whose tile is missing (slick before it is bundled) falls through to the pool.
+        // A named hide whose family has no tile at all falls through to the pool.
         var giant = new NetCreature { SpeciesId = "gi_leviathan", Hide = "slick", VoiceSeed = 5, Habitat = "Water" };
         Assert.NotEqual("slick", CreatureHides.Pick(giant, Available).Torso);
 
@@ -203,5 +236,58 @@ public sealed class CreatureHidesTests
         Assert.False(CreatureHides.SpeciesHostile("Territorial"));
         Assert.False(CreatureHides.SpeciesHostile("Passive"));
         Assert.False(CreatureHides.SpeciesHostile(null));
+    }
+
+    [Fact]
+    public void CoarseHides_RepeatAtTwiceTheSize()
+    {
+        Assert.Equal(CreatureHides.CoarseTileMetres, CreatureHides.TileMetresOf("plated"));
+        Assert.Equal(TiledCube.TileMetres, CreatureHides.TileMetresOf("fur"));
+        Assert.Equal(TiledCube.TileMetres, CreatureHides.TileMetresOf(null));
+    }
+
+    /// <summary>The fairness the old pools lacked (#2861): over real rosters of every planet, themed as the server sends
+    /// them, no hide takes more than 7 % of all torsos and every rollable hide shows up.</summary>
+    [Fact]
+    public void OverRealRosters_NoHideDominates_AndEveryRollableHideShowsUp()
+    {
+        var content = ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
+        var torsos = new Dictionary<string, int>(StringComparer.Ordinal);
+        int species = 0;
+        foreach (var planet in content.Planets.Values.Where(p => !p.IsAirless))
+        {
+            var authored = content.AuthoredCreaturesFor(planet);
+            for (int s = 0; s < 12; s++)
+            {
+                long seed = 7919L * (s + 1) + 3;
+                foreach (var sp in CreatureGenerator.GenerateRoster(planet, seed, WorldDescription.CurrentTerrainGeneration, authored))
+                {
+                    var c = new NetCreature
+                    {
+                        Id = sp.Id,
+                        SpeciesId = sp.Id,
+                        VoiceSeed = sp.VoiceSeed,
+                        Hide = sp.Hide ?? string.Empty,
+                        Glows = sp.Glows,
+                        HasWings = sp.HasWings,
+                        Habitat = sp.Habitat.ToString(),
+                        Temperament = sp.Temperament.ToString(),
+                        BodyPlan = sp.BodyPlan.ToString(),
+                        LookPlanet = planet.Key,
+                        LookSeed = FaunaLooks.WorldLookSeed(seed, planet.Key),
+                    };
+                    var look = FaunaThemes.For(c, key => content.GetPlanet(key));
+                    string torso = CreatureHides.Pick(c, AllAvailable, look).Torso!;
+                    torsos[torso] = torsos.TryGetValue(torso, out int n) ? n + 1 : 1;
+                    species++;
+                }
+            }
+        }
+
+        Assert.True(species > 2000, "the sample is too small: " + species);
+        var top = torsos.OrderByDescending(kv => kv.Value).First();
+        Assert.True(top.Value / (double)species <= 0.07, $"{top.Key} wears {top.Value * 100.0 / species:0.0} % of all torsos");
+        var missing = CreatureHides.All.Where(h => h != "petal" && !torsos.ContainsKey(h)).ToList();
+        Assert.True(missing.Count == 0, "never worn: " + string.Join(", ", missing));
     }
 }

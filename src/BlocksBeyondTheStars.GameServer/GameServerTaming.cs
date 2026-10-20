@@ -267,7 +267,7 @@ public sealed partial class GameServer
             HomeBodyId = body,
             Name = DefaultCompanionName(sp, p),
             SpeciesId = creature.SpeciesId,
-            Species = CloneSpecies(sp),
+            Species = SnapshotSpecies(sp), // #2868: tamed at home, so the pet keeps this world's look (a clone its origin's)
             SizeScale = creature.SizeScale,
             Bond = System.Math.Clamp(40 + attempt.Trust * 8, 0, 100),
             TamedAtUtc = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
@@ -703,7 +703,7 @@ public sealed partial class GameServer
         // Make the species resolvable for movement/rendering even if it isn't in the live roster.
         if (!_speciesById.ContainsKey(tc.SpeciesId))
         {
-            _speciesById[tc.SpeciesId] = tc.Species;
+            _speciesById[tc.SpeciesId] = CompanionSpeciesWithLook(tc.Species); // #2868: a clone tamed before the stamp gets its origin's look
         }
 
         var sp = _speciesById[tc.SpeciesId];
@@ -1032,6 +1032,8 @@ public sealed partial class GameServer
         BiomeSurfaces = (string[])s.BiomeSurfaces.Clone(),
         BiomeExclusive = s.BiomeExclusive,
         Hide = s.Hide,
+        LookPlanet = s.LookPlanet, // #2868: the world the look belongs to (SnapshotSpecies stamps it when empty)
+        LookSeed = s.LookSeed,
         AngeredByMining = s.AngeredByMining,
         GiftsWhenCalm = s.GiftsWhenCalm,
         BegsForFood = s.BegsForFood, // #2018: inert on a companion (it never begs), but the snapshot keeps every trait

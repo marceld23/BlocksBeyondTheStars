@@ -132,8 +132,13 @@ flowerling's `creature_petal`, #1760, the bipeds' smooth `creature_skin`, #2083,
 coarsescales/finescales/lizard/bristles/crystalveins/cracked/honeycomb/ridged/velvet/snake/roughbark/pebbled/knobbly/
 coralskin/wrinkled/featherscales/lichen) are **AI-generated** with OpenAI `gpt-image-1-mini` via
 `tools/ai-assets/gen_creatures.py` (the avatar tiles via `gen_avatar.py`) — grayscale tileable 64px tiles that the
-avatar/creatures tint by colour; same OpenAI usage terms. The creatures' coat patterns (#2830) are not assets: they are
-drawn in code (`src/BlocksBeyondTheStars.Client.Core/Creatures/CoatMasks.cs`).
+avatar/creatures tint by colour; same OpenAI usage terms. 17 of the hide tiles had their wrap-around seams healed by
+`tools/ai-assets/heal_seams.py` (#2860) — still the same AI-generated assets, not new ones. The 16 coat pattern masks
+`creature_pattern_*` (#2863: giraffe/dalmatian/pinto/cheetah/jaguar/tabby/brindle/okapi/ladybird/poisonfrog/
+salamander/eyespots/tortoise/diamondback/chevrons/lengthwise — two-tone generations thresholded into binary masks) and
+the 5 horn tiles `creature_horn_*` (#2867: ridged/grain/spiral/crystal/bark, grayscale) are **AI-generated** the same
+way via `tools/ai-assets/gen_coat_tiles.py`; same OpenAI usage terms. The eight original coat patterns of #2830 are not
+assets: they are drawn in code (`src/BlocksBeyondTheStars.Client.Core/Creatures/CoatMasks.cs`).
 
 **UI font:**
 

@@ -123,11 +123,7 @@ public sealed partial class GameServer
     private long ActiveRosterSeed => WorldGenerator.RosterSeedFor(_meta.Seed, _world.LocationId);
 
     /// <summary>The name the client keys this world's flora colours by: "system · planet", as it composes it on join.</summary>
-    private string ActiveLocationDisplayName()
-    {
-        var (system, planet) = ActiveLocationNames();
-        return string.IsNullOrEmpty(system) ? planet : $"{system} · {planet}";
-    }
+    private string ActiveLocationDisplayName() => LocationDisplayName(_worlds.Active?.LocationId ?? _meta.ActiveLocationId);
 
     /// <summary>The seed of an animal species: a guest or a cross carries it in its id, an authored species has the same
     /// on every world, a rolled one folds it from the voice seed its roster gave it.</summary>
@@ -174,7 +170,7 @@ public sealed partial class GameServer
             OriginBodyId = _world.LocationId,
             OriginBodyName = planetName,
             Context = BioContexts.ForCreature(sp, _world.Planet),
-            Creature = CloneSpecies(sp),
+            Creature = SnapshotSpecies(sp), // #2868: sampled here, so every clone of it keeps this world's look
         };
         return TryRegister(entry) ? entry : null;
     }

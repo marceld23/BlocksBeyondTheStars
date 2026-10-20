@@ -3434,6 +3434,7 @@ public sealed partial class GameServer
         bool perchedFalling = motion == MotionClass.Flier && e.Vert.Flight == FlightPhase.Perched && e.Vert.Airborne;
         var (airborne, perched) = CreatureAirState(e, motion);
         var vel = e.TickVel.Velocity; // #2665: the client's interpolation tangent
+        var look = ActiveFaunaLook(); // #2868: cached per world — a species that carries no home look wears this one
         return new NetCreature
         {
             Motion = CreatureMotion.Key(motion),
@@ -3487,6 +3488,8 @@ public sealed partial class GameServer
             HasFins = CreatureMotion.HasFins(sp),
             BodyPlan = (sp?.BodyPlan ?? CreatureBodyPlan.Standard).ToString(),
             Hide = sp?.Hide ?? string.Empty, // #1763: an authored species' fixed hide tile
+            LookPlanet = sp is { LookPlanet.Length: > 0 } ? sp.LookPlanet : look.Planet, // #2868: a pet's, a clone's home world
+            LookSeed = sp is { LookSeed: not 0 } ? sp.LookSeed : look.Seed,
             NeckLength = sp?.NeckLength ?? 0,
             HasTrunk = sp?.HasTrunk ?? false,
             HeadShape = (sp?.HeadShape ?? CreatureHeadShape.Box).ToString(), // #2009

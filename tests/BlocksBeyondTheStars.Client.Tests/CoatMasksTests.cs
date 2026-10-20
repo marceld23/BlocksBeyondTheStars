@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.IO;
 using System.Linq;
 using Xunit;
 
@@ -116,6 +117,71 @@ public sealed class CoatMasksTests
         Assert.InRange(m.Average(), 0.3, 0.55);
     }
 
+    private static byte[]? BundledTile(string key)
+    {
+        string file = Path.Combine(ClientTestPaths.RepoRoot(), "client", "Assets", "Resources", "textures", key + ".bytes");
+        return File.Exists(file) ? File.ReadAllBytes(file) : null;
+    }
+
+    public static TheoryData<CoatPattern> Tiles()
+    {
+        var data = new TheoryData<CoatPattern>();
+        foreach (var p in CreatureCoat.TilePatterns)
+        {
+            data.Add(p);
+        }
+
+        return data;
+    }
+
+    [Theory]
+    [MemberData(nameof(Tiles))]
+    public void ATilePattern_IsBundled_AndItsMaskIsBinaryCoveredAndSeamless(CoatPattern pattern)
+    {
+        Assert.NotNull(BundledTile(CoatMasks.TileKey(pattern)));
+        foreach (uint seed in new uint[] { 5, 0xABCDEF, 77777 })
+        {
+            var m = CoatMasks.Draw(pattern, CoatPart.Torso, seed, BundledTile);
+            Assert.Equal(m, CoatMasks.Draw(pattern, CoatPart.Torso, seed, BundledTile));
+            Assert.All(m, v => Assert.True(v == 0f || v == 1f));
+            Assert.InRange(m.Average(), 0.08, 0.78);
+            AssertSeamless(m, horizontal: true);
+            AssertSeamless(m, horizontal: false);
+        }
+
+        // Two species shift the tile differently; a limb gets the tile transposed.
+        Assert.NotEqual(CoatMasks.Draw(pattern, CoatPart.Torso, 1, BundledTile), CoatMasks.Draw(pattern, CoatPart.Torso, 0x12345, BundledTile));
+        var torso = CoatMasks.Draw(pattern, CoatPart.Torso, 9, BundledTile);
+        var limb = CoatMasks.Draw(pattern, CoatPart.Limb, 9, BundledTile);
+        for (int y = 0; y < S; y += 7)
+        {
+            for (int x = 0; x < S; x += 5)
+            {
+                Assert.Equal(torso[y * S + x], limb[x * S + y]);
+            }
+        }
+    }
+
+    [Fact]
+    public void AMissingTile_DrawsNoPattern()
+        => Assert.All(CoatMasks.Draw(CoatPattern.Giraffe, CoatPart.Torso, 3, _ => null), v => Assert.Equal(0f, v));
+
+    [Fact]
+    public void TheCountershading_FadesFromTheBackDown_InSteps()
+    {
+        var m = CoatMasks.Draw(CoatPattern.Countershade, CoatPart.Torso, 1);
+        Assert.Equal(0f, m[0]);                       // the lower flank: body colour
+        Assert.Equal(1f, m[(S - 1) * S]);             // the back: the pattern colour
+        var rows = Enumerable.Range(0, S).Select(y => m[y * S]).ToList();
+        for (int y = 1; y < S; y++)
+        {
+            Assert.True(rows[y] >= rows[y - 1], "the shade only deepens toward the back");
+        }
+
+        Assert.InRange(rows.Distinct().Count(), 4, 6); // pixel-art steps, not a smooth ramp
+        Assert.All(CoatMasks.Draw(CoatPattern.Countershade, CoatPart.Limb, 1), v => Assert.Equal(0f, v));
+    }
+
     [Fact]
     public void NoneIsEmpty_AndFullIsFull()
     {
@@ -127,7 +193,7 @@ public sealed class CoatMasksTests
     /// <summary>The number of value changes across the wrap seam (column 63 → 0, or row 63 → 0) must not exceed what the
     /// interior shows across a typical column pair, with a little slack — a non-tiling mask breaks along the whole seam.
     /// </summary>
-    private static void AssertSeamless(float[] m, bool horizontal)
+    internal static void AssertSeamless(float[] m, bool horizontal)
     {
         int Changes(int a, int b)
         {

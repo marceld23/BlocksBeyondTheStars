@@ -15,6 +15,10 @@ namespace BlocksBeyondTheStars.Client
     /// u runs along X and v up. A PINNED mesh maps v once over the part's height on the sides and end caps and keeps the
     /// top and bottom faces to the tile's top and bottom rows, so a band drawn at a height (the eye mask) sits there on
     /// the sides and never crosses the top.</para>
+    /// <para>A coarse hide repeats every <see cref="CreatureHides.CoarseTileMetres"/> instead (#2860), and every animal
+    /// wears one of <see cref="CreatureCoat.PlacementVariants"/> PLACEMENTS (#2865): its UVs shift by a fraction of a tile
+    /// and may mirror in u, so the same coat lands differently on each animal of a herd while the texture and the material
+    /// stay shared. A pinned mesh never shifts in v (the eye band and the countershading stay at their height).</para>
     /// </summary>
     public static class TiledCube
     {
@@ -27,21 +31,36 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The v range of a pinned mesh's top face (its bottom face mirrors it at the tile's bottom).</summary>
         public const float PinnedCapRows = 0.2f;
 
-        /// <summary>Tile repeats along an edge of <paramref name="size"/> world units.</summary>
-        public static int Repeats(float size)
+        /// <summary>Tile repeats along an edge of <paramref name="size"/> world units, one per <paramref name="tileMetres"/>
+        /// (default <see cref="TileMetres"/>).</summary>
+        public static int Repeats(float size, float tileMetres = TileMetres)
         {
-            if (!(size > 0f) || float.IsInfinity(size))
+            if (!(size > 0f) || float.IsInfinity(size) || !(tileMetres > 0f))
             {
                 return 1;
             }
 
-            int r = (int)Math.Round(size / TileMetres, MidpointRounding.AwayFromZero);
+            int r = (int)Math.Round(size / tileMetres, MidpointRounding.AwayFromZero);
             return r < 1 ? 1 : r > MaxRepeats ? MaxRepeats : r;
         }
 
-        /// <summary>A cache key for one mesh variant.</summary>
-        public static int Key(int rx, int ry, int rz, bool pinV)
-            => Clamp(rx) | (Clamp(ry) << 4) | (Clamp(rz) << 8) | (pinV ? 1 << 12 : 0);
+        /// <summary>A cache key for one mesh variant (repeats, pinned, placement).</summary>
+        public static int Key(int rx, int ry, int rz, bool pinV, int placement = 0)
+            => Clamp(rx) | (Clamp(ry) << 4) | (Clamp(rz) << 8) | (pinV ? 1 << 12 : 0)
+               | ((placement & (CreatureCoat.PlacementVariants - 1)) << 13);
+
+        // The u and v shifts of the placements (fractions of a tile; 4 shifts × mirrored or not = 8 placements).
+        private static readonly float[] ShiftU = { 0f, 0.37f, 0.61f, 0.83f };
+        private static readonly float[] ShiftV = { 0f, 0.44f, 0.19f, 0.71f };
+
+        /// <summary>The u and v shift and the u mirror of a placement.</summary>
+        public static void Placement(int placement, out float du, out float dv, out bool mirror)
+        {
+            int p = placement & (CreatureCoat.PlacementVariants - 1);
+            du = ShiftU[p & 3];
+            dv = ShiftV[p & 3];
+            mirror = (p & 4) != 0;
+        }
 
         private static int Clamp(int r) => r < 1 ? 1 : r > MaxRepeats ? MaxRepeats : r;
 
@@ -85,9 +104,15 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Builds the cube with <paramref name="rx"/>/<paramref name="ry"/>/<paramref name="rz"/> tile repeats along
         /// the part's X/Y/Z extent (each clamped 1..<see cref="MaxRepeats"/>); <paramref name="pinV"/> maps v once over the
-        /// part's height instead.</summary>
-        public static Data Build(int rx, int ry, int rz, bool pinV)
+        /// part's height instead; <paramref name="placement"/> shifts (and may mirror) the coat (#2865).</summary>
+        public static Data Build(int rx, int ry, int rz, bool pinV, int placement = 0)
         {
+            Placement(placement, out float du, out float dv, out bool mirror);
+            if (pinV)
+            {
+                dv = 0f;
+            }
+
             int[] rep = { Clamp(rx), Clamp(ry), Clamp(rz) };
             var pos = new float[24 * 3];
             var nrm = new float[24 * 3];
@@ -118,8 +143,8 @@ namespace BlocksBeyondTheStars.Client
                         nrm[vi * 3 + k] = d[k];
                     }
 
-                    uv[vi * 2] = a * ru;
-                    uv[vi * 2 + 1] = v0 + b * (v1 - v0);
+                    uv[vi * 2] = (mirror ? (1 - a) * ru : a * ru) + du;
+                    uv[vi * 2 + 1] = v0 + b * (v1 - v0) + dv;
                 }
 
                 // Wind so (b − a) × (c − a) points along the normal: with u × v = n the order 00-10-11 does it,

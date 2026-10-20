@@ -20,6 +20,10 @@ Shader "BlocksBeyondTheStars/LitColor"
         // existing user unchanged); creatures raise it so the flank facing away from the key no longer stays
         // at the floor and reads dark. Unshadowed, so it only lifts — never darkens.
         _Fill ("Fill light", Range(0, 1)) = 0
+        // #2862: per-material glow. Default 0 = no glow (every existing user unchanged). Creatures with a glow pattern
+        // raise it: the texels of their coat whose ALPHA is 0 add their colour on top of the lighting, so the pattern
+        // shines at night and in caves. The shader stays opaque; only the alpha's meaning is new, and only here.
+        _Glow ("Glow (alpha 0 texels)", Range(0, 4)) = 0
     }
 
     // ---------------- URP ----------------
@@ -58,6 +62,7 @@ Shader "BlocksBeyondTheStars/LitColor"
                 float4 _Color;
                 float _Floor;
                 float _Fill;
+                float _Glow;
             CBUFFER_END
 
             float4 _Sc_LampPos;
@@ -85,7 +90,8 @@ Shader "BlocksBeyondTheStars/LitColor"
                 float ndl = saturate(dot(N, L));
                 float shadow = MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp)) * BbtsCloudShade(i.wp); // #2394
                 float fill = saturate(dot(N, normalize(float3(-0.55, 0.25, 0.5)))) * _Fill; // opposite flank, unshadowed
-                float3 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).rgb;
+                float4 texel = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
+                float3 tex = texel.rgb;
                 float3 col = _Color.rgb * tex * (_Floor + (1.1 - _Floor) * ndl * shadow + fill); // peak stays 1.1 at _Floor==0.35, _Fill==0
 
                 if (_Sc_LampColor.a > 0.5)
@@ -99,6 +105,7 @@ Shader "BlocksBeyondTheStars/LitColor"
                 }
 
                 col += BbtsFxLights(i.wp, N, _Color.rgb * tex);
+                col += _Color.rgb * tex * (_Glow * (1.0 - texel.a)); // #2862: a creature's glow pattern, unlit
                 col = BbtsApplyHaze(col, i.wp, 1.0); // #2393: a far creature or ship sinks into the haze like the rock behind it
                 col += BbtsScanWave(i.wp);
                 col = lerp(col, float3(1.6, 1.6, 1.7), saturate(_HitFlash));
@@ -127,6 +134,7 @@ Shader "BlocksBeyondTheStars/LitColor"
                 float4 _Color;
                 float _Floor;
                 float _Fill;
+                float _Glow;
             CBUFFER_END
 
             float3 _LightDirection; // set by URP while rendering the shadow map (a global, not a material property)
@@ -172,6 +180,7 @@ Shader "BlocksBeyondTheStars/LitColor"
                 float4 _Color;
                 float _Floor;
                 float _Fill;
+                float _Glow;
             CBUFFER_END
 
             struct DAttr { float4 positionOS : POSITION; };
@@ -206,6 +215,7 @@ Shader "BlocksBeyondTheStars/LitColor"
             fixed4 _Color;
             float _Floor;
             float _Fill;
+            float _Glow;
             sampler2D _MainTex;
             float4 _MainTex_ST;
             float4 _Sc_LampPos;   // headlamp: xyz world pos, w range
@@ -244,8 +254,10 @@ Shader "BlocksBeyondTheStars/LitColor"
                 float3 L = normalize(float3(0.4, 0.7, -0.55));
                 float ndl = saturate(dot(N, L));
                 float fill = saturate(dot(N, normalize(float3(-0.55, 0.25, 0.5)))) * _Fill; // opposite flank, unshadowed
-                fixed3 tex = tex2D(_MainTex, i.uv).rgb;
+                fixed4 texel = tex2D(_MainTex, i.uv);
+                fixed3 tex = texel.rgb;
                 fixed3 col = _Color.rgb * tex * (_Floor + (1.1 - _Floor) * ndl + fill); // peak stays 1.1 at _Floor==0.35, _Fill==0
+                col += _Color.rgb * tex * (_Glow * (1.0 - texel.a)); // #2862: a creature's glow pattern, unlit
 
                 // Headlamp / flashlight (shared global with the block shader).
                 if (_Sc_LampColor.a > 0.5)

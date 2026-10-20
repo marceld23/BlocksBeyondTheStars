@@ -13,7 +13,10 @@ namespace BlocksBeyondTheStars.Client
     /// (<see cref="TiledCube"/>), so a band across u is a ring around the part: stripes cross a torso's spine; on a limb or
     /// neck — long in Y — the stripe patterns are drawn transposed, so they ring the leg too. The two placed bands are the
     /// tail rings (tileable) and the eye mask: a band at eye height, tileable along u only — its head mesh maps v once
-    /// over the head's height.</para>
+    /// over the head's height. The countershading (#2863) is a stepped gradient over v on a pinned mesh too: the back's
+    /// colour on top, fading out toward the belly.</para>
+    /// <para>The tile patterns (#2863) read their mask from a bundled 64 × 64 tile (<c>creature_pattern_&lt;name&gt;</c>,
+    /// luma above half = the mark), shifted and mirrored per species so two giraffe-netted species do not match.</para>
     /// </summary>
     public static class CoatMasks
     {
@@ -30,7 +33,35 @@ namespace BlocksBeyondTheStars.Client
             AlongY,
             EyeBand,
             Rings,
+            Gradient,
         }
+
+        /// <summary>The tile name of a tile pattern (<c>creature_pattern_&lt;name&gt;</c>), or null for a code pattern.</summary>
+        public static string? TileName(CoatPattern pattern) => pattern switch
+        {
+            CoatPattern.Giraffe => "giraffe",
+            CoatPattern.Dalmatian => "dalmatian",
+            CoatPattern.Pinto => "pinto",
+            CoatPattern.Cheetah => "cheetah",
+            CoatPattern.Jaguar => "jaguar",
+            CoatPattern.Tabby => "tabby",
+            CoatPattern.Brindle => "brindle",
+            CoatPattern.Okapi => "okapi",
+            CoatPattern.Ladybird => "ladybird",
+            CoatPattern.PoisonFrog => "poisonfrog",
+            CoatPattern.Salamander => "salamander",
+            CoatPattern.EyeSpots => "eyespots",
+            CoatPattern.Tortoise => "tortoise",
+            CoatPattern.Diamondback => "diamondback",
+            CoatPattern.Chevrons => "chevrons",
+            CoatPattern.Lengthwise => "lengthwise",
+            _ => null,
+        };
+
+        /// <summary>The texture key of a tile pattern's mask (<c>creature_pattern_giraffe</c>), or an empty string for a code
+        /// pattern.</summary>
+        public static string TileKey(CoatPattern pattern)
+            => TileName(pattern) is { } name ? CreatureHides.TilePrefix + "pattern_" + name : string.Empty;
 
         /// <summary>The variant <paramref name="pattern"/> draws on <paramref name="part"/>.</summary>
         public static Variant VariantOf(CoatPattern pattern, CoatPart part)
@@ -53,12 +84,18 @@ namespace BlocksBeyondTheStars.Client
                 return Variant.Rings;
             }
 
+            if (pattern == CoatPattern.Countershade)
+            {
+                return Variant.Gradient;
+            }
+
             return part is CoatPart.Neck or CoatPart.Limb or CoatPart.LowerLimb ? Variant.AlongY : Variant.AlongZ;
         }
 
-        /// <summary>Draws the mask of <paramref name="pattern"/> on <paramref name="part"/> (<see cref="Size"/>² values, 0 or 1).
-        /// The same inputs always give the same mask.</summary>
-        public static float[] Draw(CoatPattern pattern, CoatPart part, uint seed)
+        /// <summary>Draws the mask of <paramref name="pattern"/> on <paramref name="part"/> (<see cref="Size"/>² values, 0 or 1;
+        /// the countershading steps between). The same inputs always give the same mask. A tile pattern reads its tile
+        /// through <paramref name="tiles"/> (raw 64 × 64 RGBA32, rows bottom-up) and is empty when that gives none.</summary>
+        public static float[] Draw(CoatPattern pattern, CoatPart part, uint seed, Func<string, byte[]?>? tiles = null)
         {
             var mask = new float[Size * Size];
             var variant = VariantOf(pattern, part);
@@ -77,7 +114,49 @@ namespace BlocksBeyondTheStars.Client
                 return mask;
             }
 
+            if (variant == Variant.Gradient)
+            {
+                for (int y = 0; y < Size; y++)
+                {
+                    float m = Countershade(y);
+                    for (int x = 0; x < Size; x++)
+                    {
+                        mask[y * Size + x] = m;
+                    }
+                }
+
+                return mask;
+            }
+
             bool transpose = variant == Variant.AlongY;
+            if (CreatureCoat.IsTilePattern(pattern))
+            {
+                byte[]? tile = tiles?.Invoke(TileKey(pattern));
+                if (tile == null || tile.Length != Size * Size * 4)
+                {
+                    return mask;
+                }
+
+                // A per-species shift (and mirror) of the tile, so the same tile reads differently on two species.
+                int sx = (int)(seed % Size), sy = (int)((seed >> 8) % Size);
+                bool mirror = ((seed >> 16) & 1u) == 1u;
+                for (int y = 0; y < Size; y++)
+                {
+                    for (int x = 0; x < Size; x++)
+                    {
+                        int u = transpose ? y : x;
+                        int v = transpose ? x : y;
+                        int tu = Wrap((mirror ? Size - 1 - u : u) + sx, Size);
+                        int tv = Wrap(v + sy, Size);
+                        int p = (tv * Size + tu) * 4;
+                        float luma = 0.299f * tile[p] + 0.587f * tile[p + 1] + 0.114f * tile[p + 2];
+                        mask[y * Size + x] = luma > 127.5f ? 1f : 0f;
+                    }
+                }
+
+                return mask;
+            }
+
             for (int y = 0; y < Size; y++)
             {
                 for (int x = 0; x < Size; x++)
@@ -105,6 +184,24 @@ namespace BlocksBeyondTheStars.Client
             CoatPattern.EyeMask => EyeBand(x, y),
             _ => false,
         };
+
+        /// <summary>The countershading at row <paramref name="y"/> of a pinned flank: the body colour below 40 % of the
+        /// height, the back's colour from 85 % up, three pixel-art steps (¼, ½, ¾) between.</summary>
+        public static float Countershade(int y)
+        {
+            float t = (y + 0.5f) / Size;
+            if (t < 0.4f)
+            {
+                return 0f;
+            }
+
+            if (t >= 0.85f)
+            {
+                return 1f;
+            }
+
+            return 0.25f + 0.25f * (float)Math.Floor((t - 0.4f) / 0.45f * 3f);
+        }
 
         /// <summary>The rows (v·64) the eye band covers on a pinned head: centred a little above mid-height, where the eyes
         /// sit on the skull box.</summary>
@@ -232,7 +329,7 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private static (float X, float Y) CellCentre(int gx, int gy, int cells, uint seed)
+        internal static (float X, float Y) CellCentre(int gx, int gy, int cells, uint seed)
         {
             float cell = (float)Size / cells;
             float jx = 0.2f + 0.6f * Hash(gx, gy, seed ^ 0xA1u);
@@ -241,7 +338,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The shortest signed distance on the 64-periodic axis.</summary>
-        private static float WrapDelta(float d)
+        internal static float WrapDelta(float d)
         {
             if (d > Size / 2f)
             {
@@ -251,12 +348,12 @@ namespace BlocksBeyondTheStars.Client
             return d < -Size / 2f ? d + Size : d;
         }
 
-        private static int Wrap(int i, int n) => ((i % n) + n) % n;
+        internal static int Wrap(int i, int n) => ((i % n) + n) % n;
 
-        private static float Frac(float v) => v - (float)Math.Floor(v);
+        internal static float Frac(float v) => v - (float)Math.Floor(v);
 
         /// <summary>A hash of a lattice point to 0..1.</summary>
-        private static float Hash(int x, int y, uint seed)
+        internal static float Hash(int x, int y, uint seed)
         {
             uint h = CoatMix.Mix(unchecked(seed ^ ((uint)x * 0x8DA6B343u) ^ ((uint)y * 0xD8163841u)), 13u);
             return (h >> 8) / 16777216f;
@@ -264,7 +361,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Value noise with <paramref name="cells"/> lattice cells across the tile (cells divides 64), smoothstep
         /// blended and wrapping — tileable.</summary>
-        private static float Noise(int x, int y, int cells, uint seed)
+        internal static float Noise(int x, int y, int cells, uint seed)
         {
             float fx = (x + 0.5f) * cells / Size, fy = (y + 0.5f) * cells / Size;
             int x0 = (int)Math.Floor(fx), y0 = (int)Math.Floor(fy);
@@ -277,7 +374,7 @@ namespace BlocksBeyondTheStars.Client
             return top + (bottom - top) * ty;
         }
 
-        private static float Fbm(int x, int y, uint seed)
+        internal static float Fbm(int x, int y, uint seed)
             => Noise(x, y, 4, seed) * 0.55f + Noise(x, y, 8, seed ^ 0x9Eu) * 0.3f + Noise(x, y, 16, seed ^ 0x3Cu) * 0.15f;
     }
 }

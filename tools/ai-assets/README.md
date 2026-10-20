@@ -144,3 +144,13 @@ track's prompt and its pool).
   black, drops specks and lowers the plant onto the bottom edge; `BlockTileAlphaTests` checks the result. A tile that
   shows one object on a flat *lighter* ground goes into `GROUND_KEY` instead (the darkness cut would invert it). The
   bake's previews land in `out/baked/`, never over the generated images in `out/textures/`.
+- **Creature coat tiles** (#2863/#2867): `gen_coat_tiles.py --set patterns|horns [--only k1,k2] [--dry-run]` generates the
+  coat pattern masks (`pattern_<name>`: two-tone images turned into seamless binary masks, white = mark) and the horn
+  tiles (`horn_<name>`: grey, image y along the horn). The full-size generations stay in `out/creatures/raw/`, so
+  `--process-only` re-runs the post-processing for free; `--reroll --only <k>` sets a rejected image aside (at most three
+  times per key). Bundle with `uv run bundle_textures.py --creatures --only pattern_<name> horn_<name>`;
+  `CreatureCoatTilesTests` checks the result.
+- **Seams** (#2860): every `creature_*` tile repeats on its part, so it must wrap without a visible line. `heal_seams.py
+  --report` prints each tile's seam ratio (the step across the wrap over the ordinary neighbour step; ≤ 1.3 is required);
+  `heal_seams.py --hides` heals the hide tiles above it in place (period alignment for lattices + Moisan's periodic
+  decomposition, originals kept in `out/creatures/pre_heal/`), and `heal_seams.py <file>` heals any `.bytes`/PNG tile.
