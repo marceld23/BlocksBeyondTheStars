@@ -754,6 +754,35 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>The graphics node of a report (<see cref="GraphicsReportInfo"/>). Main thread.</summary>
+        private static GraphicsReportInfo GraphicsInfo(ClientSettings settings)
+        {
+            var info = new GraphicsReportInfo
+            {
+                Api = SystemInfo.graphicsDeviceType.ToString(),
+                UvStartsAtTop = SystemInfo.graphicsUVStartsAtTop,
+                Preset = settings != null ? settings.Preset.ToString() : string.Empty,
+                PresetAuto = settings != null && settings.PresetAuto,
+                VisorEffects = settings == null || settings.VisorEffects,
+                VisorPipeline = UiKit.HudCamera != null,
+                HudOrientation = VisorHud.HudOrientation,
+                ScreenWidth = Screen.width,
+                ScreenHeight = Screen.height,
+                LastCaptureCover = GpuReadback.LastCaptureCover,
+            };
+            if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline
+                is UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset urp)
+            {
+                info.RenderScale = urp.renderScale;
+                info.Msaa = urp.msaaSampleCount;
+                info.Hdr = urp.supportsHDR;
+            }
+
+            var cameraData = ClientSettings.ActiveCameraData;
+            info.Antialiasing = cameraData != null ? cameraData.antialiasing.ToString() : string.Empty;
+            return info;
+        }
+
         private FeedbackReport BuildReport(string title, string desc, string email)
         {
             var reportJson = new Dictionary<string, object>
@@ -788,6 +817,9 @@ namespace BlocksBeyondTheStars.Client
             // Which textures were NOT the game's own (#1964): "the grass looks wrong" means something else when
             // the player — or the world's admin — repainted the grass. Keys only, never pixels.
             GameTextures.ReportInfo.WriteTo(reportJson);
+            // How the frame was drawn (preset, visor HUD pipeline and which way its texture lay, render scale, the size the
+            // screen claimed, #2844): the upside-down browser HUD (#2512) could not be pinned down from a report without it.
+            GraphicsInfo(Settings).WriteTo(reportJson);
 
             var report = new FeedbackReport
             {

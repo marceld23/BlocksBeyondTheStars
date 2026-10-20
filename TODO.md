@@ -24,6 +24,42 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-19/20 (Marcel in the browser, v2026.10.22; Lyxette, v2026.10.23) — the upside-down browser HUD, garbled browser screenshots, an animal floating over a moat — #2843–#2846, branch fix/webgpu-hud-flip-screenshots — ✅ done 2026-10-20 (⚠ playtest open)
+
+"The HUD is upside down and mirrored, I use Chrome" (Marcel, `/play/?singleplayer=1`, WebGPU) — #2512 again, closed on
+2026-10-13 as not reproducible; and Lyxette: "I dug deep for a moat round the castle — that one hasn't noticed there is
+no island any more."
+
+- **The visor composite turns a flipped HUD texture the right way up (#2843):** not a 10.22 regression — the visor files
+  are unchanged since 2026-09-05; the fault exists since the WebGPU switch for Medium+ with "Visor effect" on. The
+  composite samples world and HUD texture with the same UVs, and URP leaves the render-to-texture flip to the native
+  device; in some browser sessions the HUD camera's texture lay the other way up. The release build never showed it in
+  the harness (headless + headed Chromium, WebGPU on the same GPU, the exact deep link, DPR 1 and 1.333), so the fix
+  does not depend on the cause: the HUD camera draws a 4-px magenta marker into its texture's top-left corner, a
+  fragment pass reads both left corners into a 1×1 probe texture, the composite mirrors HUD + glow sampling when the
+  probe says so, both corners are masked; a 5-s async readback of the probe logs and reports it. In the final local
+  WebGPU build the HUD texture DID lie flipped: the diagnostic said `flipped` and the HUD stood upright; dev switch
+  `-hudFlipCheck` / `?bbsHudFlipCheck=1` (marker bottom-left → the decision inverted) showed exactly the reported
+  fault. On the way, four simulations of a flipped HUD texture failed in the browser (projection flip culled the HUD,
+  a flipped render-graph copy came out unflipped, material switches set once never arrived, row readback contradicted
+  itself) — recorded in URP_MIGRATION.md.
+- **Reports say how the frame was drawn (#2844):** `reportJson.graphics` — API, preset (+auto), visor setting and
+  pipeline, HUD orientation, render scale, MSAA, HDR, `Screen` size, and the screenshot's cover when it was cut.
+- **Browser screenshots are pictures again (#2845):** the report's JPEG was three squeezed copies of the frame. WebGPU's
+  async readback returned four bytes per pixel for an RGB24 request; re-reading the bytes as RGBA recovered the frame
+  (world upright, HUD flipped — the proof for #2843). The read is always RGBA32 now and converted on the CPU
+  (`ReadbackPixels`, row length from the data); the capture is cleared to a sentinel and cut to what the frame covered
+  — it filled only 75 % × 75 %, the browser's back buffer was smaller than `Screen` said. First browser report with a
+  screenshot since 2026-10-09, so likely every browser F1/F2/chat screenshot was broken since.
+- **No animal stands on dug-away ground (#2846):** with no real ground within the 24-cell probe (a deeper moat, or
+  water with a deeper bed) the walker probe fell back to the noise surface — the island's old height. A streamed-in,
+  support-free window is an open drop now: the body falls (asleep or awake) and a step towards it is a cliff edge;
+  capped 192 cells under the noise surface. A perched bird whose ground went takes wing. Reproduced first on a real
+  server (40-cell shaft).
+
+Docs: PLAYER_FEEDBACK.md (graphics node, browser screenshots), URP_MIGRATION.md (orientation marker),
+WORLD_GENERATION.md (open drop).
+
 ### 🌿 Texture variety — plant looks per planet, new species side by side, colourful blossoms, animal coats, tools with materials and shapes — #2829–#2838, branch feat/texture-variety — ✅ done 2026-10-20 (⚠ playtest open; terrain generation 28, save version 5)
 
 Marcel: "more variety in the textures of plants and animals — today grass, bush, plant and leaves are one texture in

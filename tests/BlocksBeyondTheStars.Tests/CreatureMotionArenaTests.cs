@@ -1020,4 +1020,116 @@ public sealed class CreatureMotionArenaTests : IDisposable
             Assert.True(steered, "the hunter never had to steer round the wall — the setup did not test anything");
         }
     }
+
+    /// <summary>Digs a square shaft <paramref name="depth"/> cells deep straight down from the column's noise surface
+    /// (the server generator's height — the answer the old fallback gave, so it sits at the shaft's mouth) and lines its
+    /// floor with stone. Returns that surface's top cell Y.</summary>
+    private int DigShaft(SvGameServer server, int cx, int cz, int r, int depth)
+    {
+        int natural = server.SurfaceHeightForTest(cx, cz);
+        var stone = _content.GetBlock("stone")!.NumericId;
+        for (int dx = -r; dx <= r; dx++)
+        {
+            for (int dz = -r; dz <= r; dz++)
+            {
+                // Up through whatever stands on the column (the jungle's crowns reach far above its heightfield).
+                for (int y = Math.Max(natural + 12, SurfaceTopY(server, cx + dx, cz + dz)); y > natural - depth; y--)
+                {
+                    server.World.SetBlock(new Vector3i(cx + dx, y, cz + dz), BlockId.Air);
+                }
+
+                server.World.SetBlock(new Vector3i(cx + dx, natural - depth, cz + dz), stone);
+            }
+        }
+
+        return natural;
+    }
+
+    /// <summary>#2846: a player dug a deep moat round her castle, right through the island a herd animal slept on, and found it
+    /// floating where the island had been: when no real ground lay within the creature's 24-cell probe, the probe answered
+    /// the generator's noise surface — the height the column had before it was dug — and held the animal there. A loaded,
+    /// open drop is a fall now, asleep or awake.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AWalkerOverADeepDugShaft_FallsInsteadOfStandingOnTheVanishedGround(bool asleep)
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Digger");
+            p.State.AboardShip = false;
+            var sp = Force(server, CreatureHabitat.Land, legs: 4, LocomotionStyle.Grazer);
+            if (asleep)
+            {
+                sp.Activity = CreatureActivity.Nocturnal; // asleep at daytime
+            }
+
+            const int cx = 160, cz = -160, depth = 40;
+            int natural = DigShaft(server, cx, cz, 3, depth);
+            p.State.Position = new Vector3f(cx + 30, natural + 1, cz); // far beyond the wake distance
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx + 0.5f, natural + 1, cz + 0.5f));
+            server.PauseCreatureForTest(id, 120f);
+
+            for (int i = 0; i < 80; i++)
+            {
+                server.TickForTest(0.1);
+            }
+
+            var c = server.Creatures.First(x => x.Id == id);
+            Assert.Equal(natural - depth + 1, c.Position.Y, 2); // on the shaft's floor, not at its mouth
+            Assert.False(c.Vert.Airborne);
+        }
+    }
+
+    /// <summary>#2846, the perching half of the moat report: a flier sitting on ground that is then dug away from under it takes
+    /// wing — it neither sits on the vanished ground nor drops forty cells down the shaft first.</summary>
+    [Fact]
+    public void APerchedFlier_TakesWing_WhenItsGroundIsDugAwayDeep()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Birder");
+            p.State.AboardShip = false;
+            Force(server, CreatureHabitat.Air, legs: 2, LocomotionStyle.Glider, CreatureTemperament.Passive, wings: true, hover: 4f);
+
+            const int cx = -160, cz = -160, depth = 40;
+            int natural = DigShaft(server, cx, cz, 4, 0); // a clear 9×9 patch of the natural ground to sit on
+            var stone = _content.GetBlock("stone")!.NumericId;
+            p.State.Position = new Vector3f(cx + 30, natural + 1, cz);
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx + 0.5f, natural + 5, cz + 0.5f));
+            server.TickForTest(0.1);
+            server.PauseCreatureForTest(id, 60f);
+
+            var c = server.Creatures.First(x => x.Id == id);
+            for (int i = 0; i < 60 && c.Vert.Flight != FlightPhase.Perched; i++)
+            {
+                server.TickForTest(0.1);
+                c = server.Creatures.First(x => x.Id == id);
+            }
+
+            Assert.Equal(FlightPhase.Perched, c.Vert.Flight);
+
+            // The ground goes, forty cells deep: the noise surface still answers the mouth of the shaft.
+            for (int dx = -4; dx <= 4; dx++)
+            {
+                for (int dz = -4; dz <= 4; dz++)
+                {
+                    for (int y = natural; y > natural - depth; y--)
+                    {
+                        server.World.SetBlock(new Vector3i(cx + dx, y, cz + dz), BlockId.Air);
+                    }
+
+                    server.World.SetBlock(new Vector3i(cx + dx, natural - depth, cz + dz), stone);
+                }
+            }
+
+            server.TickForTest(0.1);
+            server.TickForTest(0.1);
+            c = server.Creatures.First(x => x.Id == id);
+            Assert.NotEqual(FlightPhase.Perched, c.Vert.Flight);
+            Assert.True(c.Position.Y > natural - 2f, $"it must take wing, not drop down the shaft (Y {c.Position.Y:F2}, ground {natural})");
+        }
+    }
 }

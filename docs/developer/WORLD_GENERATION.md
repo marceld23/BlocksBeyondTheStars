@@ -477,7 +477,12 @@ columns; a cave dweller with no cell near its depth holds that depth), so fauna 
 walls, dug pits and built floors; a creature's OWN column probe is species-aware (#1320): a large land
 body needs its whole collision height of headroom (a two-cell hollow under a floor is not "standable"
 for a titan) and looks ±24 cells for real ground before trusting the noise surface (the ±6 window fell
-back to the pre-excavation height and floated animals over fresh pits). **Sleepers** rest in place but
+back to the pre-excavation height and floated animals over fresh pits). A streamed-in column that holds no
+support anywhere in those 24 cells is an **open drop** (#2846): the probe answers the window's far end, so the body
+falls and probes on next tick, and a step towards it reads as a cliff edge — a pit dug deeper than the window used
+to hand back the noise surface, and a sleeping animal floated where the island it slept on had been (capped 192
+cells under the noise surface; unloaded columns keep the fallback). A perched flier whose ground went that way takes
+wing. **Sleepers** rest in place but
 re-validate their body every tick (#1320 — a wall or floor built through a sleeping herd used to leave
 the bodies embedded until dawn): an embedded sleeper is roused and stepped aside to the nearest clear
 spot within 6 blocks (same level first), or despawns when boxed in on every side. A blocked step first

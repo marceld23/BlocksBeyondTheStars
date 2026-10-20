@@ -166,6 +166,23 @@ looks wrong" is no longer a statement about the game's own grass. Keys only, nev
 `GameTextures.ReportInfo` is an immutable snapshot rebuilt on every layer change — the crash reporter reads it
 on the log callback's thread, where the live layers must not be touched.
 
+## How the frame was drawn (#2844) and browser screenshots (#2845)
+
+**Every F1 report** carries a `reportJson.graphics` node (`GraphicsReportInfo`, filled by `FeedbackUi`):
+`{ api, uvStartsAtTop, preset, presetAuto, visorEffects, visorPipeline, hudOrientation, renderScale, msaa,
+antialiasing, hdr, screen, captureCover? }`. `hudOrientation` is the composite's own verdict on the visor HUD texture
+at the last check (a 1×1 probe the shader writes) — `normal`, `flipped` (the composite turned it the right way up,
+#2843), `nomarker`, `unknown` (no async readback, WebGL 2) or `off` (no visor pipeline). An upside-down HUD in a
+report that says `normal` means the fault sat on the world's side of the composite, not in the HUD texture. `captureCover` appears only when the screenshot had to be cut (below). The upside-down browser HUD
+(#2512) could not be pinned down from a report until these keys existed.
+
+The screenshot goes through `GpuReadback.CaptureScreen`. On WebGPU the read is asynchronous and always RGBA32 —
+WebGPU answered an RGB24 request with four bytes per pixel, which the old code laid out as three, so every browser
+screenshot arrived as three squeezed copies. The capture texture is cleared to a sentinel colour (magenta, alpha 0)
+before the frame is copied in, and the result is cut to the rows and columns the frame actually covered: in the
+browser the copied back buffer can be smaller than `Screen.width × Screen.height`, and the frame then filled only
+part of the texture. The pixel work (`ReadbackPixels`) lives in Client.Core and is tested headless.
+
 **"Submit to the developers"** in the texture editor offers a painted texture for the game itself. It rides
 this channel — same endpoint, spam key, spool, reply thread — but is its own dialog
 (`TextureSubmitDialog`), because it asks for something else: three explicit consents (painted it myself /

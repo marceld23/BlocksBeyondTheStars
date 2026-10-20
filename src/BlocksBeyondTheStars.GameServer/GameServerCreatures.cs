@@ -2335,7 +2335,8 @@ public sealed partial class GameServer
     /// <summary>The feet cell a ground mover of this species stands on in a column, nearest to
     /// <paramref name="refY"/>: real blocks first (#650), then the bed of a fluid body (#1697); a cave dweller
     /// with no standable cell near its depth holds that depth (it never pops up to the noise surface);
-    /// everyone else falls back to the generator surface for unloaded columns.</summary>
+    /// a streamed-in column that is open all the way down the window is a drop to fall through; everyone
+    /// else falls back to the generator surface for unloaded columns.</summary>
     private int GroundFeetFor(CreatureSpecies sp, int x, int z, int refY)
     {
         // Species-aware headroom + the wide real-ground scan (#1320), so a titan never "stands" in a two-cell
@@ -2355,7 +2356,39 @@ public sealed partial class GameServer
             return bed;
         }
 
-        return sp.Habitat == CreatureHabitat.Cave ? refY : _generator.SurfaceHeight(_world.Planet, x, z) + 1;
+        // #2846: a player dug a moat deeper than the wide window right through the island an animal slept on: neither probe
+        // reached the bottom, the noise surface below answered the height the island HAD, and the animal stood on
+        // nothing for the rest of the night — an awake one also read the pit as level ground and walked out over it.
+        // A column that is streamed in and holds no support anywhere in the window is a real drop: answer a cell at its
+        // far end, so the body falls (and probes on from lower down next tick) and a step toward it reads as a cliff edge.
+        int noise = _generator.SurfaceHeight(_world.Planet, x, z) + 1;
+        if (OpenDropBelow(x, z, refY, CreatureWideGroundScan))
+        {
+            // Never deeper than a pit a player could have dug under the noise surface: below that (the void under an
+            // island in a gas sea) the body holds where it is instead of sinking for ever.
+            return System.Math.Max(refY - CreatureWideGroundScan, System.Math.Min(refY, noise - OpenDropMaxDepth));
+        }
+
+        return sp.Habitat == CreatureHabitat.Cave ? refY : noise;
+    }
+
+    /// <summary>How far under a column's noise surface <see cref="GroundFeetFor"/> lets a body fall through an open drop.</summary>
+    private const int OpenDropMaxDepth = 192;
+
+    /// <summary>Whether the <paramref name="maxScan"/> cells under <paramref name="refY"/> are a real, open drop: every one
+    /// streamed in and none of them able to carry feet (air or fluid — no block, no canopy). An unloaded cell reads as air
+    /// under the no-load reads, so it ends the claim: what is not streamed in keeps the noise-surface fallback.</summary>
+    private bool OpenDropBelow(int x, int z, int refY, int maxScan)
+    {
+        for (int y = refY - 1; y >= refY - maxScan; y--)
+        {
+            if (!_world.IsChunkLoaded(WorldConstants.WorldToChunk(new Vector3i(x, y, z))) || IsSupportCell(x, y, z))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private const float CreatureSweepStep = 0.25f; // swept-step sampling distance (same as the NPC path check)
@@ -2952,7 +2985,17 @@ public sealed partial class GameServer
                 // Sitting: plain gravity — if the perch is dug away it falls to the next floor, and once it has
                 // landed there it takes off again (#1332 as decided, #1367): a bird whose branch went does not
                 // simply sit on the ground below; it flushes and looks for a perch afresh.
-                int sitOn = RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y));
+                int feetCell = (int)System.Math.Floor(p.Y);
+                int sitOn = RestSurfaceYAt(x, z, feetCell);
+                if (sitOn >= feetCell && !v.Airborne && !IsSupportCell(x, feetCell - 1, z))
+                {
+                    // #2846: the ground it sat on was dug away and no floor lies within the probe's reach: the answer is the
+                    // noise surface — the height of the vanished ground — and the bird sat on thin air. It takes wing,
+                    // as over a gas sea; a floor within reach is still fallen to (#1332 as decided).
+                    v.Flight = FlightPhase.TakingOff;
+                    goto case FlightPhase.TakingOff;
+                }
+
                 if (LiftOutOfGasSea(x, z, p.Y, sitOn) != sitOn)
                 {
                     // #2583: the perch went and only a gas giant's gas sea lies under it — it takes wing at once

@@ -13,7 +13,8 @@ Shader "BlocksBeyondTheStars/Visor"
     // ---------------- URP (render-graph blit; world = _BlitTexture) ----------------
     // Pass 0: composite (world + HUD + HUD glow). Passes 1-3: the HUD glow chain (VisorUrpCompositor) —
     // threshold + 4-tap downsample to quarter res, then a separable 9-tap gaussian. The old 4-tap glow
-    // could only halo a pixel or two; this reads as light bleeding off the hologram.
+    // could only halo a pixel or two; this reads as light bleeding off the hologram. Pass 4: the one-pixel
+    // HUD orientation probe (#2843).
     SubShader
     {
         Tags { "RenderPipeline" = "UniversalPipeline" }
@@ -26,6 +27,7 @@ Shader "BlocksBeyondTheStars/Visor"
 
         TEXTURE2D(_HudTex); SAMPLER(sampler_HudTex);
         TEXTURE2D(_HudGlowTex); SAMPLER(sampler_HudGlowTex);
+        TEXTURE2D(_HudProbe);   // 1×1, written by pass 4 this frame: r = the HUD texture lies upside down (#2843)
         float _Intensity;      // master strength (0 = plain HUD overlay, no styling)
         float _Curvature;      // barrel warp of the HUD (outward-curved visor)
         float _Chroma;         // chromatic aberration, grows toward the edge
@@ -49,6 +51,37 @@ Shader "BlocksBeyondTheStars/Visor"
             p *= p + 33.33;
             return frac(p * (p + p));
         }
+
+        // HUD orientation marker (#2843, after #2512). In the browser (WebGPU) the HUD camera's texture
+        // sometimes lay the other way up than the camera colour this pass reads, and the whole HUD came out mirrored
+        // vertically. VisorHud therefore draws a small opaque magenta square into the HUD texture's top-left corner
+        // WITH THE HUD CAMERA ITSELF, so it lies however the HUD lies: at uv.y≈1 (the top, Unity's convention) when
+        // the two textures agree, at uv.y≈0 when the HUD came out flipped. Pass 4 reads both left corners into one
+        // pixel (_HudProbe) — a fragment stage reading, which was seen to work in the browser — and the composite turns
+        // the HUD (and its glow, which is built from it) the right way up when that pixel says so. The marker never
+        // shows: both left corners are masked here and in the glow downsample.
+        #define HUD_MARKER_PX 4.0
+        #define HUD_MASK_PX 8.0
+
+        float IsHudMarker(float4 m)
+        {
+            return (m.a > 0.9 && m.r > 0.9 && m.g < 0.1 && m.b > 0.9) ? 1.0 : 0.0;
+        }
+
+        // 0 inside either left corner of the HUD texture (the marker and the bilinear seam around it), else 1.
+        // Unclamped coordinates count too: a curved sample past the corner would clamp onto the marker.
+        float HudCornerMask(float2 texUv, float4 texel, float pad)
+        {
+            float2 px = texUv * texel.zw;
+            bool corner = px.x < HUD_MASK_PX + pad && (px.y < HUD_MASK_PX + pad || px.y > texel.w - HUD_MASK_PX - pad);
+            return corner ? 0.0 : 1.0;
+        }
+
+        // Screen-space HUD coordinates → the HUD texture's own, mirrored when the marker said so.
+        float2 HudTexUv(float2 screenUv, float flip)
+        {
+            return float2(screenUv.x, lerp(screenUv.y, 1.0 - screenUv.y, flip));
+        }
         ENDHLSL
 
         Pass
@@ -61,6 +94,8 @@ Shader "BlocksBeyondTheStars/Visor"
             half4 frag(Varyings input) : SV_Target
             {
                 float2 uv = input.texcoord;
+                // The orientation verdict pass 4 wrote this frame (one point sample of a 1×1 texture).
+                float flip = SAMPLE_TEXTURE2D_LOD(_HudProbe, sampler_PointClamp, float2(0.5, 0.5), 0).r > 0.5 ? 1.0 : 0.0;
                 float3 world = SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, uv).rgb;
 
                 float2 p = uv - 0.5;
@@ -79,17 +114,19 @@ Shader "BlocksBeyondTheStars/Visor"
                     hudUv.x += shift;
                 }
 
-                // Chromatic fringe: split R/B sample positions along the radius (boosted while glitching).
+                // Chromatic fringe: split R/B sample positions along the radius (boosted while glitching). All the
+                // offsets are worked out on screen, then mapped into the HUD texture the way it lies.
                 float2 ca = p * (_Chroma * r2) + float2(0.004 * _Glitch, 0.0);
-                float4 hg = SAMPLE_TEXTURE2D(_HudTex, sampler_HudTex, hudUv);
-                float a = hg.a;
-                float hr = SAMPLE_TEXTURE2D(_HudTex, sampler_HudTex, hudUv + ca).r;
-                float hb = SAMPLE_TEXTURE2D(_HudTex, sampler_HudTex, hudUv - ca).b;
+                float2 texUv = HudTexUv(hudUv, flip);
+                float4 hg = SAMPLE_TEXTURE2D(_HudTex, sampler_HudTex, texUv);
+                float a = hg.a * HudCornerMask(texUv, _HudTexel, 0.0);
+                float hr = SAMPLE_TEXTURE2D(_HudTex, sampler_HudTex, HudTexUv(hudUv + ca, flip)).r;
+                float hb = SAMPLE_TEXTURE2D(_HudTex, sampler_HudTex, HudTexUv(hudUv - ca, flip)).b;
                 // Un-premultiply (the HUD was blended over transparent black) to recover true colour.
-                float3 hud = float3(hr, hg.g, hb) / max(a, 0.0001);
+                float3 hud = float3(hr, hg.g, hb) / max(hg.a, 0.0001);
 
                 // Blurred HUD glow (quarter-res chain, passes 1-3), sampled through the same curvature.
-                float3 glow = SAMPLE_TEXTURE2D(_HudGlowTex, sampler_HudGlowTex, hudUv).rgb;
+                float3 glow = SAMPLE_TEXTURE2D(_HudGlowTex, sampler_HudGlowTex, texUv).rgb;
 
                 // Scanlines + a faint flicker, scaled by the master intensity.
                 float scan = 1.0 - 0.10 * _Intensity * (0.5 + 0.5 * sin((uv.y * _ScanCount + _VisorTime * 2.0) * 6.2831853));
@@ -125,6 +162,13 @@ Shader "BlocksBeyondTheStars/Visor"
             half4 frag(Varyings input) : SV_Target
             {
                 float2 uv = input.texcoord;
+                // The orientation marker sits in one of the HUD texture's left corners: keep it (and a few pixels
+                // round it, the reach of the taps) out of the glow.
+                if (HudCornerMask(uv, _HudTexel, 4.0) < 0.5)
+                {
+                    return half4(0.0, 0.0, 0.0, 1.0);
+                }
+
                 float2 o = _HudTexel.xy;
                 float4 c = SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, uv + float2(-o.x, -o.y))
                          + SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, uv + float2( o.x, -o.y))
@@ -175,6 +219,26 @@ Shader "BlocksBeyondTheStars/Visor"
                 c += (SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, uv + o * 2.0).rgb + SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, uv - o * 2.0).rgb) * 0.070270;
                 c += (SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, uv + o * 3.0).rgb + SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, uv - o * 3.0).rgb) * 0.020;
                 return half4(c, 1.0);
+            }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "HudOrientationProbe"
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment frag
+
+            // The orientation verdict (#2843/#2844), one pixel: r = flip (what the composite does with it), g = marker at
+            // the top, b = marker at the bottom of the HUD texture (_BlitTexture here). The composite samples it, and
+            // VisorHud reads it back for the diagnostics — a single pixel has no row order, so no API can misread it.
+            half4 frag(Varyings input) : SV_Target
+            {
+                float2 c = _HudTexel.xy * (HUD_MARKER_PX * 0.5);
+                float top = IsHudMarker(SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, float2(c.x, 1.0 - c.y), 0));
+                float bottom = IsHudMarker(SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_PointClamp, c, 0));
+                return half4(bottom * (1.0 - top), top, bottom, 1.0);
             }
             ENDHLSL
         }

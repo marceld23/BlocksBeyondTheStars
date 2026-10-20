@@ -3,7 +3,6 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Collections;
-using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -18,7 +17,9 @@ namespace BlocksBeyondTheStars.Client
     /// which the texture editor relies on), an asynchronous readback request on WebGPU, with the callback invoked
     /// a frame or two later. Whole-frame captures use <see cref="ScreenCapture.CaptureScreenshotIntoRenderTexture"/>
     /// (a GPU-side copy that keeps the overlay HUD in the image) and may downscale on the GPU before reading, so a
-    /// report thumbnail costs one small readback instead of a full-frame one plus a CPU resize.
+    /// report thumbnail costs one small readback instead of a full-frame one plus a CPU resize. The asynchronous path
+    /// always reads RGBA32 and converts on the CPU (<see cref="ReadbackPixels"/>: WebGPU ignored an RGB24 request), and
+    /// a whole-frame capture is cut down to the part the frame actually covered.
     /// </summary>
     public static class GpuReadback
     {
@@ -72,7 +73,10 @@ namespace BlocksBeyondTheStars.Client
             }
 
             int w = rt.width, h = rt.height;
-            AsyncGPUReadback.Request(rt, 0, format, request =>
+            // #2845: always RGBA32 from the GPU — WebGPU answered an RGB24 request with four bytes per pixel anyway, and laying
+            // those out as three made every browser screenshot three squeezed copies of the frame. ReadbackPixels takes
+            // the row length from the data and converts to what the caller asked for.
+            AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32, request =>
             {
                 if (request.hasError)
                 {
@@ -84,27 +88,19 @@ namespace BlocksBeyondTheStars.Client
                 Texture2D tex = null;
                 try
                 {
-                    var data = request.GetData<byte>();
-                    tex = new Texture2D(w, h, format, mipChain: false);
-                    if (SystemInfo.graphicsUVStartsAtTop)
+                    // The raw rows come top-down on a top-left-origin API; Texture2D expects bottom-up.
+                    bool rgb = format == TextureFormat.RGB24;
+                    byte[] rows = ReadbackPixels.FromRgba(request.GetData<byte>().ToArray(), w, h, rgb ? 3 : 4,
+                        flipRows: SystemInfo.graphicsUVStartsAtTop);
+                    if (rows == null)
                     {
-                        // The raw rows come top-down on a top-left-origin API; Texture2D expects bottom-up.
-                        int bpp = format == TextureFormat.RGB24 ? 3 : 4;
-                        var flipped = new NativeArray<byte>(data.Length, Allocator.Temp);
-                        int stride = w * bpp;
-                        for (int y = 0; y < h; y++)
-                        {
-                            NativeArray<byte>.Copy(data, (h - 1 - y) * stride, flipped, y * stride, stride);
-                        }
-
-                        tex.LoadRawTextureData(flipped);
-                        flipped.Dispose();
-                    }
-                    else
-                    {
-                        tex.LoadRawTextureData(data);
+                        Debug.LogWarning($"[GpuReadback] async readback returned too little data for {w}x{h}.");
+                        done(null);
+                        return;
                     }
 
+                    tex = new Texture2D(w, h, rgb ? TextureFormat.RGB24 : TextureFormat.RGBA32, mipChain: false);
+                    tex.LoadRawTextureData(rows);
                     tex.Apply(false);
                 }
                 catch (Exception e)
@@ -150,9 +146,20 @@ namespace BlocksBeyondTheStars.Client
             int w = Mathf.Max(2, Screen.width), h = Mathf.Max(2, Screen.height);
             var full = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32);
             RenderTexture small = null;
-            Texture2D result = null;
+            Texture2D rgba = null;
             try
             {
+                // #2845: cleared to the sentinel first — in the browser the copied back buffer can be smaller than Screen says,
+                // and the frame then covered only part of this texture — the rest is cut away below instead of
+                // reaching the report as uninitialised memory.
+                using (var clear = new CommandBuffer { name = "GpuReadback sentinel clear" })
+                {
+                    clear.SetRenderTarget(full);
+                    clear.ClearRenderTarget(false, true, new Color32(ReadbackPixels.SentinelR, ReadbackPixels.SentinelG,
+                        ReadbackPixels.SentinelB, ReadbackPixels.SentinelA));
+                    Graphics.ExecuteCommandBuffer(clear);
+                }
+
                 ScreenCapture.CaptureScreenshotIntoRenderTexture(full);
                 captured?.Invoke();
                 var source = full;
@@ -178,7 +185,7 @@ namespace BlocksBeyondTheStars.Client
                     source = small;
                 }
 
-                yield return ReadInto(source, format, t => result = t);
+                yield return ReadInto(source, TextureFormat.RGBA32, t => rgba = t);
             }
             finally
             {
@@ -189,7 +196,53 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            done?.Invoke(result);
+            done?.Invoke(CropToFrame(rgba, format, w, h));
+        }
+
+        /// <summary>The part of the last screen capture the frame covered (<c>W×H of W×H</c>; empty when it covered all
+        /// of it) — for the report's graphics node.</summary>
+        public static string LastCaptureCover { get; private set; } = string.Empty;
+
+        /// <summary>Cuts a capture down to the part the frame covered (<see cref="ReadbackPixels.TryFindCoveredRect"/>) and
+        /// converts it to <paramref name="format"/> (RGB24 or RGBA32). Consumes <paramref name="rgba"/>.</summary>
+        private static Texture2D CropToFrame(Texture2D rgba, TextureFormat format, int screenW, int screenH)
+        {
+            if (rgba == null)
+            {
+                return null;
+            }
+
+            int tw = rgba.width, th = rgba.height;
+            byte[] px = rgba.GetRawTextureData<byte>().ToArray();
+            UnityEngine.Object.Destroy(rgba);
+            if (ReadbackPixels.TryFindCoveredRect(px, tw, th, out int x0, out int y0, out int cw, out int ch))
+            {
+                string cover = $"{cw}x{ch} of {tw}x{th}";
+                if (cover != LastCaptureCover)
+                {
+                    Debug.LogWarning($"[GpuReadback] the captured frame covered {cover} (Screen {screenW}x{screenH}) — cut to it.");
+                }
+
+                LastCaptureCover = cover;
+                px = ReadbackPixels.Crop(px, tw, 4, x0, y0, cw, ch);
+                tw = cw;
+                th = ch;
+            }
+            else
+            {
+                LastCaptureCover = string.Empty;
+            }
+
+            bool rgb = format == TextureFormat.RGB24;
+            if (rgb)
+            {
+                px = ReadbackPixels.DropAlpha(px, tw * th);
+            }
+
+            var tex = new Texture2D(tw, th, rgb ? TextureFormat.RGB24 : TextureFormat.RGBA32, mipChain: false);
+            tex.LoadRawTextureData(px);
+            tex.Apply(false);
+            return tex;
         }
     }
 }

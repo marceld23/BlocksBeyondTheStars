@@ -1,8 +1,10 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -136,6 +138,7 @@ namespace BlocksBeyondTheStars.Client
                 // URP: composite via a render-graph blit pass after post (OnRenderImage never runs under URP).
                 _urp = new VisorUrpCompositor(MainCamera, _shader);
                 _urp.SetHud(_rtHandle);
+                CreateOrientationMarker();
             }
             else
             {
@@ -178,6 +181,7 @@ namespace BlocksBeyondTheStars.Client
             _urp?.Dispose();
             _urp = null;
             ReleaseRtHandle();
+            DestroyOrientationMarker();
 
             if (_hudCam != null)
             {
@@ -244,6 +248,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 return;
             }
+
+            CheckOrientation();
 
             // Live "visor effect" toggle: read each frame so flipping it in Settings applies at once.
             if (_composite != null && Settings != null)
@@ -382,12 +388,174 @@ namespace BlocksBeyondTheStars.Client
             _urp?.Dispose();
             _urp = null;
             ReleaseRtHandle();
+            DestroyOrientationMarker();
 
             if (_rt != null)
             {
                 _rt.Release();
                 Destroy(_rt);
                 _rt = null;
+            }
+        }
+
+        // --- HUD texture orientation (#2843, after #2512) --------------------------------------------------------
+
+        /// <summary>Side of the orientation marker in HUD texture pixels — must match <c>HUD_MARKER_PX</c> in
+        /// <c>Visor.shader</c>.</summary>
+        private const int MarkerPx = 4;
+
+        /// <summary>How often the diagnostic readback looks at the marker (seconds).</summary>
+        private const float OrientationCheckSeconds = 5f;
+
+        private GameObject _marker;
+        private float _orientationCheckAt;
+        private bool _orientationPending;
+
+        /// <summary>Which way the HUD texture lay at the last check: <c>normal</c>, <c>flipped</c> (the composite turns
+        /// it back), <c>nomarker</c>, <c>unknown</c> (no async readback on this API, e.g. WebGL 2) or <c>off</c> (no visor
+        /// pipeline). Read into the F1 report's graphics node.</summary>
+        public static string HudOrientation { get; private set; } = "off";
+
+        /// <summary>The orientation marker: a <see cref="MarkerPx"/>-pixel opaque magenta square in the HUD texture's
+        /// top-left corner, drawn by the HUD camera like every HUD canvas, so it lies however the HUD lies. In the browser
+        /// (WebGPU) the HUD texture sometimes came out the other way up than the camera colour the composite reads, and
+        /// the whole HUD showed mirrored vertically. Pass 4 of <c>Visor.shader</c> reads both left corners into a one-pixel
+        /// verdict, the composite turns a flipped HUD the right way up by it and masks the marker out. No canvas scaler: one
+        /// canvas unit is one texture pixel.</summary>
+        private void CreateOrientationMarker()
+        {
+            DestroyOrientationMarker();
+            var go = new GameObject("HudOrientationMarker") { layer = _layer };
+            go.transform.SetParent(transform, false);
+            var canvas = go.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = _hudCam;
+            canvas.planeDistance = 1f;
+            canvas.sortingOrder = short.MaxValue; // above every HUD canvas, so nothing covers it
+            canvas.pixelPerfect = true;
+
+            var mark = new GameObject("Mark", typeof(RectTransform)) { layer = _layer };
+            mark.transform.SetParent(go.transform, false);
+            var image = mark.AddComponent<RawImage>();
+            image.texture = Texture2D.whiteTexture;
+            image.color = Color.magenta;
+            image.raycastTarget = false;
+            var rect = (RectTransform)mark.transform;
+            // Top-left, where the composite expects it. The dev check puts it bottom-left instead — exactly what a flipped
+            // HUD texture looks like to the composite, which then has to turn the whole HUD upside down.
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, FlipCheck ? 0f : 1f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(MarkerPx, MarkerPx);
+
+            _marker = go;
+            _orientationCheckAt = Time.unscaledTime + 1f; // give the HUD camera a frame or two first
+            HudOrientation = "unknown";
+        }
+
+        private void DestroyOrientationMarker()
+        {
+            if (_marker != null)
+            {
+                Destroy(_marker);
+                _marker = null;
+            }
+
+            _orientationPending = false;
+            HudOrientation = "off";
+        }
+
+        /// <summary>The diagnostic half: every few seconds the one-pixel verdict the composite turns the HUD by
+        /// (<see cref="VisorUrpCompositor.OrientationProbe"/>: flipped, marker at the top, marker at the bottom) is read
+        /// back asynchronously and recorded, and logged when it changes. The correction itself never waits for this — the
+        /// composite samples that pixel on the GPU every frame. A single pixel has no row order: reading back the HUD
+        /// texture itself was tried first and gave contradicting answers in the browser, because which way a readback's
+        /// rows run is not the same on every API.</summary>
+        private void CheckOrientation()
+        {
+            if (_marker == null || _urp == null || _orientationPending || Time.unscaledTime < _orientationCheckAt)
+            {
+                return;
+            }
+
+            _orientationCheckAt = Time.unscaledTime + OrientationCheckSeconds;
+            var probe = _urp.OrientationProbe;
+            if (!SystemInfo.supportsAsyncGPUReadback || probe == null)
+            {
+                SetOrientation("unknown");
+                return;
+            }
+
+            var urp = _urp;
+            _orientationPending = true;
+            AsyncGPUReadback.Request(probe, 0, TextureFormat.RGBA32, request =>
+            {
+                _orientationPending = false;
+                if (request.hasError || urp != _urp || _marker == null)
+                {
+                    return; // the pipeline went down or was rebuilt meanwhile — the next check runs fresh
+                }
+
+                var d = request.GetData<byte>();
+                if (d.Length < 4)
+                {
+                    return;
+                }
+
+                bool top = d[1] > 127, bottom = d[2] > 127;
+                SetOrientation(top && !bottom ? "normal" : bottom && !top ? "flipped" : "nomarker", d[0]);
+            });
+        }
+
+        private static void SetOrientation(string state, int turned = -1)
+        {
+            if (state == HudOrientation)
+            {
+                return;
+            }
+
+            HudOrientation = state;
+            Debug.Log($"[VisorHud] HUD texture orientation: {state}"
+                      + (turned < 0 ? "." : turned > 127 ? " — the composite turns it the right way up." : " — the composite leaves it as it is."));
+        }
+
+        private static bool? _flipCheck;
+
+        /// <summary>Dev switch <c>-hudFlipCheck</c> (command line) / <c>?bbsHudFlipCheck=1</c> (browser): the orientation
+        /// marker goes into the bottom-left corner instead, so the correction decides the wrong way round — whichever way
+        /// the texture really lies, the HUD must then show upside down. That proves the decision reaches the screen. In
+        /// the browser check of 2026-10-20 the real texture lay flipped (the diagnostic said "flipped", the HUD stood
+        /// upright), and the check showed exactly the reported fault. (Simulations that turned the texture itself did not
+        /// work in the browser: a flipped camera projection culled the HUD, a flipped render-graph copy came out unflipped,
+        /// and material switches set once never reached the shader.)</summary>
+        private static bool FlipCheck
+        {
+            get
+            {
+                if (_flipCheck == null)
+                {
+                    bool on = false;
+                    try
+                    {
+                        foreach (string arg in Environment.GetCommandLineArgs())
+                        {
+                            on |= string.Equals(arg, "-hudFlipCheck", StringComparison.OrdinalIgnoreCase);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // no command line in this host
+                    }
+
+                    string url = Application.absoluteURL ?? string.Empty;
+                    on |= url.IndexOf("bbsHudFlipCheck=1", StringComparison.OrdinalIgnoreCase) >= 0;
+                    _flipCheck = on;
+                    if (on)
+                    {
+                        Debug.Log("[VisorHud] -hudFlipCheck: the orientation marker sits bottom-left — the correction decides the wrong way round, so the HUD must show upside down.");
+                    }
+                }
+
+                return _flipCheck.Value;
             }
         }
     }

@@ -28,11 +28,22 @@ namespace BlocksBeyondTheStars.Client
 
         public Material Material => _mat;
 
+        private readonly RenderTexture _probeRt;
+        private readonly RTHandle _probe;
+
+        /// <summary>One pixel holding the orientation verdict on the HUD texture each frame (pass 4 of the shader:
+        /// r = flipped, g = marker at the top, b = marker at the bottom). The composite samples it to turn the HUD the
+        /// right way up, and <see cref="VisorHud"/> reads it back for the diagnostics (#2843/#2844).</summary>
+        public RenderTexture OrientationProbe => _probeRt;
+
         public VisorUrpCompositor(Camera mainCamera, Shader visorShader)
         {
             _mainCamera = mainCamera;
             _mat = new Material(visorShader) { hideFlags = HideFlags.HideAndDontSave };
-            _pass = new VisorPass(_mat) { renderPassEvent = RenderPassEvent.AfterRenderingPostProcessing };
+            _probeRt = new RenderTexture(1, 1, 0, RenderTextureFormat.ARGB32) { name = "VisorHudOrientationProbe", filterMode = FilterMode.Point };
+            _probeRt.Create();
+            _probe = RTHandles.Alloc(_probeRt);
+            _pass = new VisorPass(_mat) { renderPassEvent = RenderPassEvent.AfterRenderingPostProcessing, Probe = _probe };
             RenderPipelineManager.beginCameraRendering += OnBeginCamera;
         }
 
@@ -72,6 +83,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 Object.Destroy(_mat);
             }
+
+            RTHandles.Release(_probe);
+            if (_probeRt != null)
+            {
+                _probeRt.Release();
+                Object.Destroy(_probeRt);
+            }
         }
 
         /// <summary>The render-graph passes: glow chain on the HUD RT, then blit cameraColor → temp through the
@@ -81,6 +99,7 @@ namespace BlocksBeyondTheStars.Client
         {
             private static readonly int HudTexId = Shader.PropertyToID("_HudTex");
             private static readonly int HudGlowTexId = Shader.PropertyToID("_HudGlowTex");
+            private static readonly int HudProbeId = Shader.PropertyToID("_HudProbe");
 
             private readonly Material _mat;
             public RTHandle Hud;
@@ -118,12 +137,15 @@ namespace BlocksBeyondTheStars.Client
 
             private sealed class PassData
             {
-                public TextureHandle Source, Hud, Glow;
+                public TextureHandle Source, Hud, Glow, Probe;
                 public Material Mat;
-                public bool HasGlow;
+                public bool HasGlow, HasProbe;
             }
 
             public VisorPass(Material mat) => _mat = mat;
+
+            /// <summary>The one-pixel orientation probe (<see cref="OrientationProbe"/>).</summary>
+            public RTHandle Probe;
 
             public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
             {
@@ -139,11 +161,19 @@ namespace BlocksBeyondTheStars.Client
                 desc.clearBuffer = false;
                 var dest = renderGraph.CreateTexture(desc);
 
-                TextureHandle hud = TextureHandle.nullHandle, glow = TextureHandle.nullHandle;
+                TextureHandle hud = TextureHandle.nullHandle, glow = TextureHandle.nullHandle, probe = TextureHandle.nullHandle;
                 bool hasGlow = false;
                 if (Hud != null && Hud.rt != null)
                 {
                     hud = renderGraph.ImportTexture(Hud);
+                    if (Probe != null)
+                    {
+                        // #2843: the orientation verdict first — the composite below reads it.
+                        probe = renderGraph.ImportTexture(Probe);
+                        renderGraph.AddBlitPass(new RenderGraphUtils.BlitMaterialParameters(hud, probe, _mat, 4),
+                            passName: "Visor HUD Orientation Probe");
+                    }
+
                     int gw = Mathf.Max(8, Hud.rt.width / 4), gh = Mathf.Max(8, Hud.rt.height / 4);
                     var gdesc = new TextureDesc(gw, gh)
                     {
@@ -170,11 +200,18 @@ namespace BlocksBeyondTheStars.Client
                     data.Glow = glow;
                     data.Mat = _mat;
                     data.HasGlow = hasGlow;
+                    data.Probe = probe;
+                    data.HasProbe = hasGlow && Probe != null;
                     builder.UseTexture(source);
                     if (hasGlow)
                     {
                         builder.UseTexture(hud);
                         builder.UseTexture(glow);
+                    }
+
+                    if (data.HasProbe)
+                    {
+                        builder.UseTexture(probe);
                     }
 
                     builder.SetRenderAttachment(dest, 0);
@@ -189,6 +226,16 @@ namespace BlocksBeyondTheStars.Client
                         else
                         {
                             d.Mat.SetTexture(HudGlowTexId, Texture2D.blackTexture);
+                        }
+
+                        if (d.HasProbe)
+                        {
+                            RTHandle probeRt = d.Probe;
+                            d.Mat.SetTexture(HudProbeId, probeRt);
+                        }
+                        else
+                        {
+                            d.Mat.SetTexture(HudProbeId, Texture2D.blackTexture); // no verdict: leave the HUD as it lies
                         }
 
                         RTHandle sourceRt = d.Source;

@@ -39,6 +39,22 @@ developer in the editor before continuing.
   shader gained a URP Blit SubShader, and `VisorUrpCompositor.cs` enqueues an `AddBlitPass` per frame
   from `RenderPipelineManager.beginCameraRendering` (code-only, no renderer-asset edits), running after
   post. The dezent/off toggle (`ClientSettings.VisorEffects`) drives its params each frame.
+  The composite samples the world and the HUD texture with the same UVs; in some browser (WebGPU) sessions the HUD
+  camera's texture lay the other way up and the HUD showed mirrored (#2512, #2843). The HUD camera therefore draws a
+  4-px magenta **orientation marker** into the HUD texture's top-left corner (`VisorHud`). Pass 4 reads both left
+  corners into a 1×1 **probe** texture (r = flip, g/b = marker at top/bottom); the composite samples that pixel and
+  mirrors HUD + glow sampling when it says so, and both corners are masked out. `VisorHud` reads the same pixel back
+  every 5 s, logs `[VisorHud] HUD texture orientation: …` on a change, and the F1 report's `graphics` node carries it.
+  `-hudFlipCheck` / `?bbsHudFlipCheck=1` puts the marker bottom-left, so the correction decides the wrong way round:
+  whichever way the texture really lies, the HUD must then show upside down. In the local WebGPU check of 2026-10-20
+  the real HUD texture lay flipped (diagnostic `flipped`, HUD upright — the fix at work) and the check mode showed
+  exactly the reported fault.
+  The verdict lives in a fragment pass on purpose: a fragment read was seen to work in the browser, a vertex-stage
+  read could not be confirmed. Dead ends on WebGPU that must not come back: simulating a flipped HUD texture by a
+  flipped camera projection (culled the HUD), by a render-graph copy blitted with flipped coordinates (came out
+  unflipped — blits there turn their output themselves) or by a material switch set once (float or vector, never
+  reached the shader); and reading the HUD texture's rows back directly (contradicting answers — a single pixel has no
+  row order).
 - **Sun shadows** are turned on (soft) in `Sky.cs` when an SRP is active; the Built-in path stays
   shadowless. Avatars, NPCs, remote players, creatures, held items, doors and station/editor models all
   cast + receive (planet enemies were flipped from `Unlit/Color` to `LitColor`); creature eyes/glints
