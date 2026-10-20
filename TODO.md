@@ -52,6 +52,9 @@ allowed, eyes and horns yes, every animal of a herd its own coat, old worlds may
 made seamless, coverage-checked); eyes and glow patterns are drawn in code. Open: playtest on a few worlds (cold,
 desert, swamp, a cave at night for the glow) and in the browser build.
 
+Found on the way: #2870 `SealedRoomBeyondTheCube_Breathes_AndAHoleKillsIt` failed once on CI (the oxygen still refilled
+4 s after the hole; time-sliced air work on a busy runner, like #2660) — open.
+
 ---
 
 ### 📬 Player reports 2026-10-19/20 (Marcel in the browser, v2026.10.22; Lyxette, v2026.10.23) — the upside-down browser HUD, garbled browser screenshots, an animal floating over a moat — #2843–#2846, branch fix/webgpu-hud-flip-screenshots — ✅ done 2026-10-20 (⚠ playtest open)
