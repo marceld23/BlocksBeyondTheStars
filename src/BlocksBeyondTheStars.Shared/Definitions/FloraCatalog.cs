@@ -135,7 +135,11 @@ public static class FloraCatalog
     };
 
     // The foliage a fruit hangs from (#2038): a leaf crown, a needle cone, a palm's fronds.
-    private static readonly string[] FruitHosts = { "tree_leaves", "pine_needles", "palm_frond" };
+    // #2851 (generation 29): and the two more leaf slots of the tree-variety package.
+    private static readonly string[] FruitHosts = { "tree_leaves", "pine_needles", "palm_frond", "tree_leaves_b", "tree_leaves_c" };
+
+    /// <summary>The lantern tree's glowing fruit (#2853, generation 29).</summary>
+    public const string LanternFruitKey = "flora_lantern_fruit";
 
     /// <summary>All flora species, paired with the surface block keys they may grow on.</summary>
     public static readonly IReadOnlyList<Species> All = new[]
@@ -244,6 +248,12 @@ public static class FloraCatalog
         new Species("flora_herb",        new[] { "grass", "dirt", "mud" }, Tags: FloraTag.Lush, MinGeneration: 28),                                   // a bushy, mint-like herb
         new Species("flora_foxtail",     new[] { "grass", "dirt", "sand" }, Tags: FloraTag.Lush | FloraTag.Dry, Height: FloraHeight.Tall, MinGeneration: 28), // fluffy seed heads
         new Species("flora_lupine",      new[] { "grass", "dirt" }, Tags: FloraTag.Lush | FloraTag.Floral, Height: FloraHeight.Tall, MinGeneration: 28), // tall flower spikes
+
+        // --- The lantern tree (#2853, generation 29): its glowing golden fruit, hanging under the crown of a tree that only
+        // grows on a luminous world (#2857). Authored like the Fifi plant's berries — the same edible fruit in the same colour
+        // on every world, in no roster, never a tree kind's rolled fruit shape (FruitKeys leaves it out). It glows and casts
+        // light from data/blocks.json (emission + lightColor), like the Fifi plant's blossoms. Appended before the crops. ---
+        new Species(LanternFruitKey, FruitHosts, Tags: FloraTag.Lush | FloraTag.Glow, Hanging: true, MinGeneration: 29, Fruit: true, Authored: true),
 
         // --- Cultivated crops (#627): farmed, not wild. Grown in settlement/station greenhouses and by the
         // player from seeds. Excluded from every world roster (see FloraGenerator), so the berries are edible

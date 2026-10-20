@@ -206,8 +206,20 @@ public sealed class WorldDescription
     /// almost every system, #2516 generated water sealed against caves and lower ground, #2639 the wilderness folk,
     /// #2694 the hash-variety package: world-seeded body sizes and mixed sky/flora/water colour families, gravity, settlement
     /// trades and quest-giver names, #2738 sea ice counts as wet for structure placement, #2739 world-seeded station
-    /// quartermasters and vendor themes, #2833 twelve more wild plant species and mixed meadows).</summary>
-    public const int CurrentTerrainGeneration = 28;
+    /// quartermasters and vendor themes, #2833 twelve more wild plant species and mixed meadows, #2848–#2859 the tree
+    /// variety and glow package).</summary>
+    public const int CurrentTerrainGeneration = 29;
+
+    /// <summary>The generation of the tree variety and glow package (#2848–#2859, 2026-10). Woods are drawn from WEIGHTED
+    /// palettes with a fair pick (the classic equal slices of a bell-shaped grove value starved the first and last kinds:
+    /// 0.4 % jungle trees on the jungle planet, 86 % dead snags on deserts), mix a second kind into a third of a grove, grow
+    /// ten new tree shapes, vary each kind's shape per tree and build their crowns from three leaf slots, a blossom crown
+    /// and a pale bark — several tree species with their own looks, colours and names on one planet. Mushroom and crystal
+    /// trees finally root (alien grass, mycelium, crystal), the saguaro is a cactus block. A per-world GLOW LEVEL (40 %
+    /// none, 30 % low, 20 % normal, 10 % luminous) decides how many glowing plants the surface grows and whether the prism
+    /// bloom flowers above ground, and the Fifi plant grows on about every third world. Older generations keep their chunks
+    /// bit for bit (every new rule sits behind this gate).</summary>
+    public const int TreeVarietyGeneration = 29;
 
     /// <summary>The generation of the mixed meadows (#2833, 2026-10): twelve more wild bushes and plants join the flora
     /// catalog (<c>FloraCatalog</c> species with <c>MinGeneration</c> 28 — inactive on every older world), and the surface

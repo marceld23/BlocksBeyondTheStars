@@ -37,6 +37,40 @@ public static class FloraLooks
         return index == 0 ? block.Key : looks![index - 1];
     }
 
+    /// <summary>The textures a group of blocks that share one look pool wear on a world (#2851, the three leaf slots of
+    /// <see cref="BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.LeafSlotKeys"/>): each block picks as
+    /// <see cref="TextureKeyFor"/> does, in the group's order, and a block whose pick an earlier block already wears steps on
+    /// through its own list to the next free texture — so the slots of one world never wear the same look. The first block
+    /// of the group keeps exactly its <see cref="TextureKeyFor"/> pick. Block key → texture key.</summary>
+    public static System.Collections.Generic.Dictionary<string, string> TextureKeysForGroup(long worldSeed, string locationKey,
+        System.Collections.Generic.IReadOnlyList<BlockDefinition> group)
+    {
+        var picks = new System.Collections.Generic.Dictionary<string, string>();
+        var taken = new System.Collections.Generic.HashSet<string>();
+        foreach (var block in group)
+        {
+            var looks = block.Looks;
+            int count = looks?.Count ?? 0;
+            int index = IndexFor(worldSeed, locationKey, block.Key, count);
+            string pick = block.Key;
+            for (int step = 0; step <= count; step++)
+            {
+                int i = (index + step) % (count + 1);
+                string candidate = i == 0 ? block.Key : looks![i - 1];
+                if (!taken.Contains(candidate))
+                {
+                    pick = candidate;
+                    break;
+                }
+            }
+
+            taken.Add(pick);
+            picks[block.Key] = pick;
+        }
+
+        return picks;
+    }
+
     /// <summary>The block a look tile belongs to (<c>tree_leaves_look3</c> → <c>tree_leaves</c>); any other key as it is.
     /// The texture rules (alpha mode, the editor's grouping) treat a look like its block.</summary>
     public static string BaseKeyOf(string key)

@@ -64,6 +64,24 @@ public static class FloraTints
         return HsvToRgb(hue, sat, val);
     }
 
+    /// <summary>The bark colour of one trunk block on a world (#2851): the common trunks (<c>wood_log</c>,
+    /// <c>giant_log</c>) wear <see cref="ForWood(long, string)"/> unchanged; the pale bark slot (<c>wood_log_b</c>) rolls
+    /// its own LIGHT, nearly colourless band (value 0.80..0.98, saturation 0.04..0.20) — white birches, silvery aspens,
+    /// cream paper bark — so it never reads like the dark trunks around it.</summary>
+    public static (float R, float G, float B) ForWood(long worldSeed, string locationKey, string blockKey)
+    {
+        if (blockKey != BlocksBeyondTheStars.Shared.Definitions.TreeWood.PaleLogKey)
+        {
+            return ForWood(worldSeed, locationKey);
+        }
+
+        ulong h = Hash($"{worldSeed}|{locationKey}|wood-tint|{blockKey}");
+        float hue = (h % 3600UL) / 3600f;
+        float sat = 0.04f + ((h >> 12) % 1000UL) / 1000f * 0.16f; // 0.04..0.20 — nearly white
+        float val = 0.80f + ((h >> 24) % 1000UL) / 1000f * 0.18f; // 0.80..0.98 — always light
+        return HsvToRgb(hue, sat, val);
+    }
+
     // The world's base flora hue: green-dominant, with rarer brown / pink / purple / amber exotics.
     private static readonly (int Rgb, int Weight)[] WorldPalette =
     {

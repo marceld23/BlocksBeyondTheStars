@@ -477,6 +477,51 @@ TEXTURES = [
     ("flora_herb", f"side view of one bushy green kitchen herb like mint with many small oval leaves on several upright stems, rooted at the bottom edge of the image and filling most of it, {ON_BLACK}"),
     ("flora_foxtail", f"side view of one tuft of tall green grass with fluffy cylindrical bushy seed heads nodding on top, rooted at the bottom edge of the image and reaching almost to its top, {ON_BLACK}"),
     ("flora_lupine", f"side view of one lupine plant with tall upright spikes densely packed with small bright violet pea-shaped blossoms above palm-shaped green leaves, rooted at the bottom edge of the image and reaching almost to its top, {ON_BLACK}"),
+    # #2851/#2855 (2026-10-20, generation 29) tree variety: two more crown slots (tree_leaves_b / _c) and twelve more crown
+    # looks for the shared leaf pool — every planet gives its three crown slots three different looks from it. Like the
+    # other crowns the colour comes from the planet (the shader keeps the luminance), so they differ by leaf SHAPE.
+    ("tree_leaves_b", "dense leafy tree foliage canopy of tiny fine feathery bipinnate leaflets like an acacia in flat layered sprays, filling the whole image edge to edge with dark shadowed gaps between the leaves, top-down"),
+    ("tree_leaves_c", "dense leafy tree foliage canopy of long narrow sickle-shaped drooping green leaves like a eucalyptus, filling the whole image edge to edge with dark shadowed gaps between the leaves, top-down"),
+    *[(f"tree_leaves_look{n}", f"{desc}, filling the whole image edge to edge with dark shadowed gaps between the leaves, top-down") for n, desc in enumerate([
+        "dense leafy tree foliage canopy of narrow pointed lance-shaped green bamboo leaves in fanned sprays",
+        "dense leafy tree foliage canopy of arching green fern fronds with many small leaflets and curled tips like a tree fern",
+        "dense leafy tree foliage canopy of small triangular diamond-shaped green poplar leaves on thin stalks",
+        "dense leafy tree foliage canopy of tiny dense rounded green leaves clipped into soft round topiary clumps",
+        "dense leafy tree foliage canopy of stiff sword-shaped spiky green leaves in starburst rosettes like a dragon tree",
+        "dense alien tree foliage canopy of curled spiral green leaves rolled up like fiddleheads",
+        "dense alien tree foliage canopy of round smooth bubble-like green leaf pods with soft highlights",
+        "dense leafy tree foliage canopy of small toothed green leaves with hanging slender catkins like a hazel",
+        "dense leafy tree foliage canopy of crinkled frilly curly-edged green leaves like kale",
+        "dense alien tree foliage canopy of long twisting ribbon-like green leaves curling around each other",
+        "dense leafy tree foliage canopy of small slender silvery grey-green olive leaves in sprays",
+        "dense leafy tree foliage canopy of big round deeply lobed green fig leaves with pale veins",
+    ], 13)],
+    # The blossom tree's crown (#2853): blossoms bright and colourful between green leaves, so the accent shader (#2834)
+    # gives the blossoms a colour of their own and the leaves the planet's colour.
+    ("blossom_leaves", "dense tree crown covered in many five-petal bright pink cherry blossoms with a few small green leaves between them, filling the whole image edge to edge with dark shadowed gaps between the blossom clusters, top-down"),
+    *[(f"blossom_leaves_look{n}", desc) for n, desc in enumerate([
+        "dense tree crown covered in clusters of bright white and pink apple blossoms with round pink buds and small green leaves between them, filling the whole image edge to edge with dark shadowed gaps between the clusters, top-down",
+        "dense tree crown covered in large cup-shaped bright pink and purple magnolia blossoms between a few green leaves, filling the whole image edge to edge with dark shadowed gaps between the blossoms, top-down",
+        "dense tree crown covered in clusters of many small bright violet trumpet-shaped blossoms like a jacaranda between fine green leaves, filling the whole image edge to edge with dark shadowed gaps between the clusters, top-down",
+    ], 2)],
+    # Bark looks (#2855): wood_log gets looks for the first time, and the pale bark slot wood_log_b (#2851) its own set. The
+    # bark tint keeps the luminance, so a look differs by its grain.
+    *[(f"wood_log_look{n}", desc) for n, desc in enumerate([
+        "rough deeply furrowed grey-brown oak tree bark with thick vertical ridges filling the whole image edge to edge",
+        "smooth grey beech tree bark with faint horizontal marks and a few small knots filling the whole image edge to edge",
+        "glossy reddish-brown cherry tree bark with horizontal lenticel stripes filling the whole image edge to edge",
+        "shaggy tree bark peeling in long loose vertical strips filling the whole image edge to edge",
+        "scaly pine tree bark of irregular thick flat plates with dark cracks between them filling the whole image edge to edge",
+    ], 2)],
+    ("wood_log_b", "white birch tree bark with short black horizontal dashes and a few dark knots, filling the whole image edge to edge"),
+    *[(f"wood_log_b_look{n}", desc) for n, desc in enumerate([
+        "pale silvery smooth aspen tree bark with dark diamond-shaped eye marks, filling the whole image edge to edge",
+        "pale cream papery tree bark peeling in thin curling layers, filling the whole image edge to edge",
+    ], 2)],
+    # #2850: the saguaro's own block — a ribbed cactus skin (solid, opaque) instead of tree leaves.
+    ("saguaro", "ribbed green saguaro cactus skin with straight vertical ribs and small pale spine clusters along each rib, filling the whole image edge to edge"),
+    # #2853: the lantern tree's glowing fruit, hanging under its crown (a fruit on black, cut like the fruit trees' fruit).
+    ("flora_lantern_fruit", "a single round glowing warm golden-orange lantern-like fruit with soft luminous ribbed skin, hanging from a short dark stem at the top edge of the image, one small dark leaf at the stem, the entire rest of the image solid pitch-black #000000 with no gradient and no vignette, side view"),
     # #2836 (2026-10-19) held-tool materials: a part of a held tool, gun or gadget samples one of these, tinted by the part's
     # colour (the shader multiplies), so each tile is light and mostly grayscale with a clear surface grain.
     ("held_metal", "brushed light grey steel metal surface with fine parallel brush lines and a few tiny scratches, light and mostly grayscale"),
