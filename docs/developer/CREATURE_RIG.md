@@ -20,7 +20,9 @@ through it), [CREATURE_TAMING.md](CREATURE_TAMING.md) (companions and their spec
 | `Shared/Definitions/CreatureIk.cs` | Two-bone leg IK (unit-tested off Unity) |
 | `Client.Core/Creatures/CreatureHides.cs` | The hide name table, the pools and the per-part hide pick (unit-tested off Unity) |
 | `Client.Core/Creatures/CreatureCoat.cs` | Species seed, proportions hash, coat pattern + pattern colour, per-part coverage, jitter |
-| `Client.Core/Creatures/CoatMasks.cs` · `CoatBake.cs` | The pattern masks drawn in code, the texel mix of hide × colours |
+| `Client.Core/Creatures/CoatMasks.cs` · `CoatBake.cs` | The pattern masks (drawn in code or read from a tile), the hide normalisation, the texel mix of hide × colours × glow |
+| `Client.Core/Creatures/FaunaThemes.cs` | Planet themes, world motifs and the hide families they prefer (#2868) |
+| `Client.Core/Creatures/GlowMasks.cs` · `CreatureEyes.cs` · `CreatureHorns.cs` | Glow patterns, eye looks and their textures, horn tiles and colours (#2862, #2866, #2867) |
 | `Client.Core/Creatures/TiledCube.cs` | The part cube with per-metre tiled UVs |
 
 The same descriptor must always yield the same body: every client draws a species identically, so
@@ -101,23 +103,47 @@ the gait does, and the long-idle flourishes stop. The real hops are server-side 
 `VertVel`, integrated like any jump); the bounce is the fidget between them. `CreatureView` also quarters the
 species' call cadence for the three nearest begging animals, so a herd of twelve never floods the mix.
 
-## Hides, coat patterns and texel density (#2829-#2831)
+## Hides, coat patterns, glow, eyes and horns (#2829-#2831, #2860-#2868)
 
 **Hides.** Every hide the client knows is one entry of `CreatureHides.All` (49 names; the tile is
-`creature_<name>`): `EnsureTextures` loads them all once, lifted toward white (`CoatBake.Lift` — the
-tiles are authored dark but used as a multiply over the species colour). A tile that did not load is
-simply absent, and every pick skips it, so a pool never yields a hole while any hide exists (the 24
-hides of #2831 can ship their code before their tiles). The pool follows the species, by precedence:
-glowing → winged → aquatic (Water/Amphibian) → hunting → peaceful. "Hunting" is the species'
-**temperament** (Aggressive or PackHunter, `CreatureHides.SpeciesHostile`) — not the wire's `Hostile`
-flag, which is also true while a passive animal is provoked and false for a tamed hunter; the red tint
-still follows that flag (it is a mood). A hide the server names (`NetCreature.Hide`: an authored record,
-a rolled giant's, arachnid's, biped's or small worm's roll) is the torso's.
+`creature_<name>`): `EnsureTextures` loads them all once and **normalises** each (`CoatBake.Normalize`,
+#2860): the tiles are authored dark but used as a multiply over the species colour, so every tile's luma is
+mapped to one bright mean (0.82) and one spread (0.10 per standard deviation, gain capped at 6, clamped
+0.45..1), a coloured tile keeping its colour as an offset. It used to be one fixed lift toward white
+(`1 − (1 − v)·0.45`), which halved every tile's contrast — 21 of the 49 hides read as a flat colour in the
+game. The normalised bytes are kept for the coat bakes, so a plain part and a baked part of the same hide
+show the same texels. A tile that did not load is simply absent, and every pick skips it, so a pool never
+yields a hole while any hide exists.
+
+**Pools (#2861).** The pool follows the species, by precedence: water/amphibian → winged → lava → cave →
+hunting → peaceful. Glow plays **no part**: the old glow pool (8 hides) came first and took 30 % of all
+species, so those 8 were the 8 most common torsos everywhere; a glowing species now wears the hide of its
+habitat and temper and shines in a glow pattern (below). "Hunting" is the species' **temperament**
+(Aggressive or PackHunter, `CreatureHides.SpeciesHostile`) — not the wire's `Hostile` flag, which is also
+true while a passive animal is provoked and false for a tamed hunter; the red tint still follows that flag
+(it is a mood). A hide the server names (`NetCreature.Hide`) is worn exactly by an **authored** species;
+for a rolled giant, arachnid, biped or worm it names a **family** (`CreatureHides.NamedFamilies`:
+`plated` → plated, ridged, honeycomb, coarsescales, quilted …) the torso picks from by the species seed,
+so those bodies wear the newer hides too. Measured over the rosters of every planet (40 seeds each), no
+hide takes more than ~6 % of the torsos (it was 7.7 %, and four hides sat at 0.2 %).
+
+**Planet themes and world motifs (#2868).** The server puts the species' home world on the wire
+(`NetCreature.LookPlanet` + `LookSeed`, stamped into a companion's or a bio-lab clone's species so it
+keeps its home look on another world). `FaunaThemes.For` turns them into a **theme** — from the planet's
+`faunaTheme` override in `data/planets.json`, else derived from its flora theme, temperature and water
+(cold, arid, savanna, tropical, swamp, fungal, crystal, ashen, alien, floral, ocean, temperate) — and a
+**motif** rolled from the world's look seed: a favourite hide family and a favourite pattern group. A theme
+weights hide families (`FaunaThemes.Families`: warmcoat, softskin, scales, armour, feathers, wet, bark,
+fungal, crystal, dry, marked, reef); about half the rolled species pick from the theme's hides that are in
+their pool, a fifth from the motif family, the rest from the whole pool (`CreatureHides.ThemedSource`; a
+theme that shares nothing with a pool — a lava dweller on a cold world — leaves the pool as it is). A
+third of the patterned species pick a pattern of the motif's group. Without the wire fields (an older
+server) or for an authored species there is no theme.
 
 **Per part.** About half the rolled species wear one hide everywhere; the rest mix: the head mostly
-follows the torso (65 %), limbs and ornaments roll their own hide from the same pool — a furry torso on
-scaly legs. An authored species wears its designed hide everywhere. The builder asks the build's coat
-(`CoatKit.Mat(CoatPart)`) for a material per **part role**:
+follows the torso (65 %), limbs and ornaments roll their own hide from the same (themed) list — a furry
+torso on scaly legs. An authored species wears its designed hide everywhere. The builder asks the build's
+coat (`CoatKit.Mat(CoatPart)`) for a material per **part role**:
 
 | Role | Parts | Hide | Colour |
 | --- | --- | --- | --- |
@@ -132,45 +158,87 @@ scaly legs. An authored species wears its designed hide everywhere. The builder 
 | `Ornament` | fins, crests, ridges, lobes, tentacles, hands, bobbles | ornament | belly (accent) |
 | `Overlay` | the slabs of a placed back pattern | torso | pattern |
 
-**Coat patterns.** A rolled species wears one of 16 patterns (about one in six wears none; an authored
+**Coat patterns.** A rolled species wears one of 33 patterns (about one in six wears none; an authored
 species none), chosen by the species seed from those its body can carry (`CreatureCoat.PatternsFor`):
 
-- *Surface* (tileable masks, every plan but the sandworm): cross stripes, tiger stripes, spots,
-  rosettes, patches, speckles, marbling, scale bands — on torso, neck, head, limbs, tail and wings; the
-  belly keeps its accent colour, jaw and accents stay plain. On parts long in Y (limbs, necks) the
+- *Surface, drawn in code* (tileable masks, every plan but the sandworm): cross stripes, tiger stripes,
+  spots, rosettes, patches, speckles, marbling, scale bands — on torso, neck, head, limbs, tail and wings;
+  the belly keeps its accent colour, jaw and accents stay plain. On parts long in Y (limbs, necks) the
   stripes are drawn transposed, so they ring the leg.
+- *Surface, from tiles* (#2863): giraffe net, dalmatian, pinto, cheetah, jaguar, tabby, brindle, okapi,
+  ladybird, poison frog, fire salamander, eye spots, tortoise, diamondback, chevrons, lengthwise stripes —
+  16 two-tone 64² masks bundled as `creature_pattern_<name>` (luma above half = the mark), shifted and
+  mirrored per species (`CoatMasks.Draw`). One is offered only while its tile loaded.
 - *Placed on a part*: eye mask (a band at eye height on the skull — box heads with eyes), tail rings
   (bands round the tail links; on a worm the whole body), socks (shin and sole in the pattern colour),
   crest band (the accents — and a giant's plates, fins and sails — in the pattern colour), belly blaze
-  (a light belly).
+  (a light belly), **countershading** (#2863: standard and biped bodies up to size 2 — a darker back
+  fading in three pixel-art steps down the flanks of torso and tail, on a pinned mesh; bigger flanks would
+  stretch the hide too far, and a titan's neck is a stack of segments that would band).
 - *Overlays* on a box torso (standard, titan, colossus): dorsal stripe, saddle, two-tone cape — thin
   slabs in the pattern colour laid on the collected torso boxes, each a little proud so nothing
   z-fights (`AddCoatOverlays`).
 
 The pattern colour (`CreatureCoat.PatternRgb`) is a darker shade, a pastel lighter one or a gentle hue
-shift (22–43°, never the complementary hue) of the body colour, at most 0.9 saturation, pushed until its
-luma differs from the body by at least 0.14; the cape and the eye mask are darker, the blaze lighter.
-The masks are **drawn in code** at the tiles' own 64² (`CoatMasks`, 0/1 texels, every lattice wrapping
-at 64 so they tile). A part the pattern covers fully just takes the pattern colour on its plain hide;
-only masked parts **bake** a coat texture (`CoatBake.Bake`: `lerp(body, pattern, mask) × lifted hide
-luminance` — only the hide is lifted, the pattern keeps its full strength), cached statically per
-(hide, pattern, mask variant, mask seed, colours) and capped at 768 textures, past which new species
-simply go unpatterned. A species bakes one or two.
+shift (22–43°) of the body colour, at most 0.9 saturation, pushed until its luma differs from the body by
+at least 0.14; the cape and the eye mask are darker, the blaze lighter. About one patterned species in five
+wears a **bold** colour instead (#2864, `CreatureCoat.BoldRgb`): black marks on a warm vivid body (a
+warning look: wasp, ladybird), white, cream, yellow or red marks on a very dark body, black or white on
+everything else (zebra, panda, magpie) — never against the cape's or the blaze's direction, always the
+luma step. A part the pattern covers fully just takes the pattern colour on its plain hide; masked parts
+**bake** a coat texture (`CoatBake.Bake`: `lerp(body, pattern, mask) × normalised hide`), cached
+statically per (hide, pattern, mask variant, mask seed, colours, glow) and capped at 768 textures (~17 MB
+with the mip chains), past which new species simply go unpatterned and unlit. A species bakes one to a few.
+A tile pattern whose tile did not load is skipped by probing onward, so only the species that picked it
+change.
 
-**Mood and jitter.** The hostile red and the companion green-cyan are lerps of the colours and so are
-baked into a coat (they follow the mood; the body is rebuilt when it changes); the sleep dim, the glow
-factor and the per-animal **jitter** are the material colour's multiplier. Jitter: five buckets from the
-entity id (plain, ±5 % brightness, a 4 % warm or cool lean), so individuals differ a little while
-materials stay shared (#1514: one material per (colour, texture)).
+**Glow patterns (#2862).** A glowing species shines in one of seven patterns (`GlowMasks`): spot rows,
+freckles, veins, rings, lateral lines, blotches, or glowing tips (fins, crests and tentacles fully, a few
+freckles on the body — only on a body that has them). The glow colour is one of a luminous palette or a
+light shade of the body hue. The glow mask is baked into the coat's **alpha** (0 = glowing texel, coloured
+in the glow colour); `LitColor` has a `_Glow` material float (default 0, so every other user is
+unchanged) that adds `colour × texel × _Glow × (1 − alpha)` on top of the lighting, so the pattern shines
+at night and in caves. Every part a glow pattern reaches bakes. The old whole-body brightening (× 1.6 /
+1.4) keeps only a soft rest (× ~1.18 / 1.12); the glow light and a giant's glow spots are unchanged.
+
+**Eyes (#2866).** Ten looks (`CreatureEyes`): round, button, cat slit, goat bar, compound, ringed, double
+pupil, star pupil, tall oval, big gleam — drawn in code as a 32² texture per (look, iris colour, glow), the
+iris in the species' `EyeRgb` or a pick from a natural iris palette. The eye keeps its round shape: an own
+sphere mesh (`CreatureEyes.BuildSphere`, poles on ±Z, the equator ring doubled) projects the texture onto
+the front half (`CreatureEyes.SphereUv`) while every back vertex shows the sclera, so no triangle smears the
+iris round the side; the separate pupil and glint spheres are gone. On a box head the eye sits just behind
+the face (`AddHeadBox` records it), so its front stands out — the classic spot buried the whole eye in a
+small head. Many legs and arachnids lean to compound
+eyes, hunters to slits, grazers to bars and round eyes; an authored species keeps the classic round eye,
+the flowerling a button eye. A glowing species' iris — and a coloured `EyeRgb` iris, the contaminated
+animals' green — shines through the same alpha glow. The eye material is `LitColor` with floor 1 (lit
+flat, like the self-lit eyes it replaces). Eyelids and sleep are unchanged.
+
+**Horns and teeth (#2867).** Five horn tiles (`creature_horn_<name>`: ridged, grain, spiral, crystal,
+bark; their length runs along the tile's v) normalised like the hides, one per species (crystal on about
+half the species of a crystal world), in a horn colour per species (ivory, bone, black, amber, slate, the
+classic dark brown; crystal horns a light tint of the body hue). Arachnid fangs and sandworm spikes take
+a dark tone, tusks an ivory, teeth a white per species, on the grain tile.
+
+**Mood, jitter and placement.** The hostile red and the companion green-cyan are lerps of the colours and
+so are baked into a coat (they follow the mood; the body is rebuilt when it changes); the sleep dim, the
+glow factor and the per-animal **jitter** are the material colour's multiplier. Jitter: five buckets from
+the entity id (plain, ±5 % brightness, a 4 % warm or cool lean), so individuals differ a little while
+materials stay shared (#1514: one material per (colour, texture, glow)). Every animal also wears one of
+eight **placements** (#2865, `CreatureCoat.PlacementVariant`): its part cubes shift their UVs by a fraction
+of a tile and may mirror them, so the same coat lands differently on each animal of a herd — no extra
+textures, a few more cached meshes.
 
 **Texel density.** Every cube part's mesh is swapped for `TiledCube` (same shape and bounds, so colliders
-are untouched): its UVs repeat the hide once per 0.6 world units on every face, rounded to whole repeats
-clamped 1..8 — one shared mesh per repeat triple. Small creatures look as before (one tile per face);
-a colossus no longer stretches one 64-px tile over 20 blocks. The orientation is fixed: on the four
-faces round a part's Z axis u runs along Z (a band across u rings the part), v runs up on the flanks and
-across on top; the end caps run u along X. The eye-masked skull takes the **pinned** variant: v maps once
-over its height on the sides (the band sits at eye height) and its top and bottom faces keep to the
-tile's top and bottom rows, so the band never crosses the crown.
+are untouched): its UVs repeat the hide once per 0.6 world units on every face — 1.2 for the coarse hides
+(`CreatureHides.Coarse`: plates, bands, honeycomb, big scales …, #2860) — rounded to whole repeats clamped
+1..8, one shared mesh per (repeats, pinned, placement). Hide tiles and baked coats are point-filtered
+**with mip-maps** (#2860), so a fine hide calms down at a distance instead of shimmering while the pixel
+look stays up close. The orientation is fixed: on the four faces round a part's Z axis u runs along Z (a
+band across u rings the part), v runs up on the flanks and across on top; the end caps run u along X. The
+eye-masked skull and the countershaded flanks take the **pinned** variant: v maps once over the height on
+the sides (the band sits at eye height, the shade runs from the back down) and the top and bottom faces
+keep to the tile's top and bottom rows; a placement never shifts a pinned mesh in v.
 
 ## Rig conventions
 
@@ -375,11 +443,15 @@ by the server suite:
   seed, and every generated species matches the derivation (which is what makes the snapshot lift safe).
 
 The coat lives in Client.Core and is tested by the client suite (`CreatureHidesTests`,
-`CreatureCoatTests`, `CoatMasksTests`, `CoatBakeTests`, `TiledCubeTests`): the pick follows the world
-seed and the temperament, every pool member is reachable, a missing tile is skipped, every pattern shows
-up and fits its body, the pattern colour reads, the masks are deterministic, binary and seamless, the
-cube winds outward the way Unity culls. `CreatureHideTilesTests` (server suite) checks that every hide
-the server can roll has a bundled tile.
+`CreatureCoatTests`, `CoatMasksTests`, `CoatBakeTests`, `TiledCubeTests`, `FaunaThemesTests`,
+`GlowEyesHornsTests`): the pick follows the world seed and the temperament, every pool member is
+reachable, glow plays no part in the hide, no hide dominates real rosters, a missing tile is skipped, the
+themes lean the right way on real rosters, every pattern shows up and fits its body, the pattern colour
+(bold or derived) reads, every bundled hide normalises into the target band, the masks (code, tile, glow)
+are deterministic, binary and seamless, the eyes and horns are reachable and deterministic, the
+placements shift without moving a pinned v, the cube winds outward the way Unity culls.
+`CreatureHideTilesTests` (server suite) checks that every hide the server can roll has a bundled tile,
+`CreatureCoatTilesTests` the pattern and horn tiles' format, coverage and seams.
 
 Assertions are on **ranges, orderings and invariants**, never trig-derived float goldens: Windows and
 Linux libm disagree in the last bits.

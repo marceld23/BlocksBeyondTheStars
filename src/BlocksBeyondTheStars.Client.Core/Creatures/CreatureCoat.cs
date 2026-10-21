@@ -32,6 +32,25 @@ namespace BlocksBeyondTheStars.Client
         CrestBand,    // crest, fins and other accents in the pattern colour
         BellyBlaze,   // a light blaze on the belly
         Socks,        // lower legs in the pattern colour
+        Countershade, // a dark back fading toward the belly on the flanks of torso, neck and tail (#2863, pinned)
+
+        // Tile patterns (#2863): masks loaded from the bundled tile creature_pattern_<name> (CoatMasks.TileName).
+        Giraffe,      // a net of big patches
+        Dalmatian,    // scattered round spots
+        Pinto,        // a few big patches
+        Cheetah,      // many small solid spots
+        Jaguar,       // rosettes with a dot inside
+        Tabby,        // wavy cat stripes
+        Brindle,      // many thin streaks
+        Okapi,        // bold bars
+        Ladybird,     // a few large dots
+        PoisonFrog,   // rounded blotches
+        Salamander,   // big blotches and dashes
+        EyeSpots,     // rings with a filled centre (moth, peacock)
+        Tortoise,     // hexagonal plates outlined
+        Diamondback,  // a chain of diamonds along the back
+        Chevrons,     // stacked V shapes
+        Lengthwise,   // stripes running along the body
     }
 
     /// <summary>The body part a coat material is for — the builder passes it, the pattern decides whether it shows there.
@@ -75,6 +94,18 @@ namespace BlocksBeyondTheStars.Client
         public const uint SaltPatternColour = 10;
         public const uint SaltMask = 11;
         public const uint SaltJitter = 12;
+        public const uint SaltTheme = 13;
+        public const uint SaltMotif = 14;
+        public const uint SaltPatternMotif = 15;
+        public const uint SaltBold = 16;
+        public const uint SaltGlow = 17;
+        public const uint SaltGlowColour = 18;
+        public const uint SaltPlacement = 19;
+        public const uint SaltEye = 20;
+        public const uint SaltIris = 21;
+        public const uint SaltHorn = 22;
+        public const uint SaltHornColour = 23;
+        public const uint SaltPatternChoice = 24;
 
         /// <summary>The seed mixed with a salt: <c>fmix32(seed ^ salt·φ)</c>.</summary>
         public static uint Mix(uint seed, uint salt)
@@ -103,12 +134,25 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Roughly one species in this many wears no pattern at all.</summary>
         public const int NoneOneIn = 6;
 
-        /// <summary>The surface patterns — tileable masks that fit every body plan.</summary>
+        /// <summary>The surface patterns drawn in code — tileable masks that fit every body plan.</summary>
         public static readonly IReadOnlyList<CoatPattern> SurfacePatterns = new[]
         {
             CoatPattern.CrossStripes, CoatPattern.TigerStripes, CoatPattern.Spots, CoatPattern.Rosettes,
             CoatPattern.Patches, CoatPattern.Speckles, CoatPattern.Marbling, CoatPattern.ScaleBands,
         };
+
+        /// <summary>The surface patterns whose mask is a bundled tile (#2863); one is offered only while its tile loaded.
+        /// </summary>
+        public static readonly IReadOnlyList<CoatPattern> TilePatterns = new[]
+        {
+            CoatPattern.Giraffe, CoatPattern.Dalmatian, CoatPattern.Pinto, CoatPattern.Cheetah, CoatPattern.Jaguar,
+            CoatPattern.Tabby, CoatPattern.Brindle, CoatPattern.Okapi, CoatPattern.Ladybird, CoatPattern.PoisonFrog,
+            CoatPattern.Salamander, CoatPattern.EyeSpots, CoatPattern.Tortoise, CoatPattern.Diamondback,
+            CoatPattern.Chevrons, CoatPattern.Lengthwise,
+        };
+
+        /// <summary>True for a pattern whose mask is a bundled tile.</summary>
+        public static bool IsTilePattern(CoatPattern pattern) => pattern >= CoatPattern.Giraffe;
 
         /// <summary>True for a species from <c>data/creatures.json</c> — its look is designed, not rolled.</summary>
         public static bool IsAuthored(string? speciesId)
@@ -141,11 +185,13 @@ namespace BlocksBeyondTheStars.Client
                 ? StableIdHash(speciesId)
                 : (int)(CoatMix.Mix(unchecked((uint)voiceSeed), CoatMix.SaltBody) & 0x7fffffff);
 
-        /// <summary>The patterns a body can carry: every surface pattern, plus the placed ones whose part it has — the back
-        /// overlays on a box torso, the eye mask on a box head with eyes, rings on a real tail, socks on legs, the crest
-        /// band on a crest or fins, the blaze on a belly slab. The sandworm's armour hides its core, so it only takes the
-        /// plate and belly colours.</summary>
-        public static IReadOnlyList<CoatPattern> PatternsFor(NetCreature c)
+        /// <summary>The patterns a body can carry: every surface pattern (the tile patterns only when
+        /// <paramref name="tileAvailable"/> is given — <see cref="PatternFor"/> probes past one whose tile did not load, so a
+        /// missing tile never reshuffles the other species), plus the placed ones whose part it has — the back
+        /// overlays and the countershading on a box torso, the eye mask on a box head with eyes, rings on a real tail, socks
+        /// on legs, the crest band on a crest or fins, the blaze on a belly slab. The sandworm's armour hides its core, so
+        /// it only takes the plate and belly colours.</summary>
+        public static IReadOnlyList<CoatPattern> PatternsFor(NetCreature c, Func<string, bool>? tileAvailable = null)
         {
             string plan = string.IsNullOrEmpty(c.BodyPlan) ? "Standard" : c.BodyPlan;
             var list = new List<CoatPattern>();
@@ -157,6 +203,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             list.AddRange(SurfacePatterns);
+            if (tileAvailable != null)
+            {
+                list.AddRange(TilePatterns);
+            }
+
             bool boxTorso = plan is "Standard" or "Titan" or "Colossus";
             bool boxHead = plan is "Standard" or "Titan" or "Colossus" or "Biped" or "Worm";
             bool legs = c.Legs > 0 && plan is "Standard" or "Titan" or "Colossus" or "Biped" or "Arachnid";
@@ -167,6 +218,13 @@ namespace BlocksBeyondTheStars.Client
                 list.Add(CoatPattern.DorsalStripe);
                 list.Add(CoatPattern.Saddle);
                 list.Add(CoatPattern.TwoTone);
+            }
+
+            // The countershading maps v once over a flank (a pinned mesh), so the hide stretches by the flank's repeats: kept
+            // to the bodies whose flanks need at most two (a standard or biped body up to size 2).
+            if (plan is "Standard" or "Biped" && c.Size <= 2f)
+            {
+                list.Add(CoatPattern.Countershade);
             }
 
             if (boxHead && c.Eyes > 0)
@@ -198,8 +256,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The species' pattern: none for an authored species (its look is designed) and for about one in
-        /// <see cref="NoneOneIn"/> rolled ones, otherwise one of <see cref="PatternsFor"/> by the species seed.</summary>
-        public static CoatPattern PatternFor(NetCreature c)
+        /// <see cref="NoneOneIn"/> rolled ones, otherwise one of <see cref="PatternsFor"/> by the species seed — for about a
+        /// third of them one of the world motif's favourite group (#2868) when the body can carry one.</summary>
+        public static CoatPattern PatternFor(NetCreature c, FaunaThemes.Look? look = null, Func<string, bool>? tileAvailable = null)
         {
             if (IsAuthored(c.SpeciesId))
             {
@@ -212,8 +271,37 @@ namespace BlocksBeyondTheStars.Client
                 return CoatPattern.None;
             }
 
-            var options = PatternsFor(c);
-            return options[(int)(CoatMix.Mix(seed, CoatMix.SaltPatternKind) % (uint)options.Count)];
+            var options = PatternsFor(c, tileAvailable);
+            if (look != null && CoatMix.Mix(seed, CoatMix.SaltPatternChoice) % 100u < FaunaThemes.PatternMotifPercent)
+            {
+                var favoured = new List<CoatPattern>();
+                foreach (var option in options)
+                {
+                    if (FaunaThemes.InGroup(option, look.PatternGroup))
+                    {
+                        favoured.Add(option);
+                    }
+                }
+
+                if (favoured.Count > 0)
+                {
+                    options = favoured;
+                }
+            }
+
+            // Probe onward past a tile pattern whose tile did not load (a pack that dropped it): only the species that picked
+            // it change, never the others.
+            int start = (int)(CoatMix.Mix(seed, CoatMix.SaltPatternKind) % (uint)options.Count);
+            for (int i = 0; i < options.Count; i++)
+            {
+                var option = options[(start + i) % options.Count];
+                if (!IsTilePattern(option) || tileAvailable == null || tileAvailable(CoatMasks.TileKey(option)))
+                {
+                    return option;
+                }
+            }
+
+            return CoatPattern.None;
         }
 
         /// <summary>The seed a species' masks are drawn with (spot layout, stripe count, …).</summary>
@@ -240,6 +328,9 @@ namespace BlocksBeyondTheStars.Client
                     return part == CoatPart.Belly ? CoatCoverage.Full : CoatCoverage.None;
                 case CoatPattern.Socks:
                     return part == CoatPart.LowerLimb ? CoatCoverage.Full : CoatCoverage.None;
+                case CoatPattern.Countershade:
+                    // Not the neck: a titan's neck and trunk are stacks of segments long in Y, each would band again.
+                    return part is CoatPart.Torso or CoatPart.Tail ? CoatCoverage.Masked : CoatCoverage.None;
                 default:
                     // A surface pattern covers the body, head, neck, limbs, tail and wings; the belly keeps its accent
                     // colour, the jaw and the accents stay plain (a calmer muzzle, clean fins).
@@ -254,10 +345,12 @@ namespace BlocksBeyondTheStars.Client
         public static bool IsOverlay(CoatPattern pattern)
             => pattern is CoatPattern.DorsalStripe or CoatPattern.Saddle or CoatPattern.TwoTone;
 
-        /// <summary>True for a part whose texture should map once over its height (the eye band sits at eye level):
-        /// the builder gives that part a pinned-v mesh (<see cref="TiledCube"/>).</summary>
+        /// <summary>True for a part whose texture should map once over its height (the eye band sits at eye level, the
+        /// countershading runs from the back down the flank): the builder gives that part a pinned-v mesh
+        /// (<see cref="TiledCube"/>).</summary>
         public static bool PinsV(CoatPattern pattern, CoatPart part)
-            => pattern == CoatPattern.EyeMask && part == CoatPart.Head;
+            => (pattern == CoatPattern.EyeMask && part == CoatPart.Head)
+               || (pattern == CoatPattern.Countershade && part is CoatPart.Torso or CoatPart.Tail);
 
         private enum Shade
         {
@@ -276,10 +369,15 @@ namespace BlocksBeyondTheStars.Client
         /// <see cref="MinLumaStep"/> in luma.</summary>
         public static int PatternRgb(uint speciesSeed, int bodyRgb, CoatPattern pattern)
         {
+            if (BoldRgb(speciesSeed, bodyRgb, pattern) is int bold)
+            {
+                return bold;
+            }
+
             uint h = CoatMix.Mix(speciesSeed, CoatMix.SaltPatternColour);
             Shade shade = pattern switch
             {
-                CoatPattern.TwoTone or CoatPattern.EyeMask => Shade.Darker,
+                CoatPattern.TwoTone or CoatPattern.EyeMask or CoatPattern.Countershade => Shade.Darker,
                 CoatPattern.BellyBlaze => Shade.Lighter,
                 _ => (h % 20u) switch
                 {
@@ -345,6 +443,77 @@ namespace BlocksBeyondTheStars.Client
             HsvToRgb(hue, sat, val, out float fr, out float fg, out float fb);
             return Pack(fr, fg, fb);
         }
+
+        /// <summary>Percent of patterned species that wear a bold pattern colour (#2864).</summary>
+        public const int BoldPercent = 20;
+
+        private const int BoldBlack = 0x1E1B1A;
+        private const int BoldCharcoal = 0x34302E;
+        private const int BoldWhite = 0xF2F0E8;
+        private const int BoldCream = 0xE8D9B0;
+        private const int BoldYellow = 0xF2C230;
+        private const int BoldRed = 0xD8342B;
+
+        /// <summary>True when the species wears a bold pattern colour (about <see cref="BoldPercent"/> %).</summary>
+        public static bool IsBold(uint speciesSeed) => CoatMix.Mix(speciesSeed, CoatMix.SaltBold) % 100u < BoldPercent;
+
+        /// <summary>The bold pattern colour of a species (#2864), or null when it wears a derived one: black marks on a warm
+        /// vivid body (a warning look: wasp, ladybird, fire salamander), light or warning marks on a very dark body (white,
+        /// cream, yellow, red), black or white on everything else (zebra, panda, magpie). A pattern that must go darker
+        /// (two-tone cape, eye mask, countershading) or lighter (belly blaze) keeps the derived colour when the bold one goes
+        /// the other way.
+        /// Every bold colour differs from the body by at least <see cref="MinLumaStep"/> in luma.</summary>
+        public static int? BoldRgb(uint speciesSeed, int bodyRgb, CoatPattern pattern)
+        {
+            if (pattern == CoatPattern.None || !IsBold(speciesSeed))
+            {
+                return null;
+            }
+
+            uint h = CoatMix.Mix(speciesSeed, CoatMix.SaltPatternColour) >> 7;
+            Unpack(bodyRgb, out float r, out float g, out float b);
+            RgbToHsv(r, g, b, out float hue, out float sat, out _);
+            float luma = Luma(r, g, b);
+            int mark;
+            if (sat >= 0.45f && luma >= 0.35f && (hue <= 0.17f || hue >= 0.95f))
+            {
+                mark = h % 3u == 0u ? BoldCharcoal : BoldBlack;          // red, orange, yellow body: warning marks
+            }
+            else if (luma < 0.3f)
+            {
+                mark = (h % 4u) switch
+                {
+                    0u => BoldWhite,
+                    1u => BoldCream,
+                    2u => BoldYellow,
+                    _ => luma < 0.16f ? BoldRed : BoldYellow,
+                };
+            }
+            else
+            {
+                mark = luma > 0.6f || h % 2u == 0u ? BoldBlack : BoldWhite;
+            }
+
+            Unpack(mark, out float mr, out float mg, out float mb);
+            float markLuma = Luma(mr, mg, mb);
+            bool darker = markLuma < luma;
+            if ((pattern is CoatPattern.TwoTone or CoatPattern.EyeMask or CoatPattern.Countershade && !darker)
+                || (pattern == CoatPattern.BellyBlaze && darker)
+                || Math.Abs(markLuma - luma) < MinLumaStep)
+            {
+                return null;
+            }
+
+            return mark;
+        }
+
+        /// <summary>The number of coat placements per species (#2865): an animal's part cubes shift and mirror the coat by
+        /// one of these, so a herd's spots do not all sit in the same places.</summary>
+        public const int PlacementVariants = 8;
+
+        /// <summary>The coat placement of one animal, from its entity id (0..<see cref="PlacementVariants"/> − 1).</summary>
+        public static int PlacementVariant(string? entityId)
+            => (int)(CoatMix.Mix((uint)StableIdHash(entityId), CoatMix.SaltPlacement) % (uint)PlacementVariants);
 
         /// <summary>The number of per-animal jitter buckets (#2831).</summary>
         public const int JitterBuckets = 5;

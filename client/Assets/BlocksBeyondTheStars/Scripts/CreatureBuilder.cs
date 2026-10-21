@@ -49,6 +49,20 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>While set, the next cube takes the pinned-v mesh (the eye-masked skull box, see <see cref="TiledCube"/>).</summary>
         private bool _pinV;
 
+        /// <summary>#2868: the planet lookup the fauna theme reads (the view hands in the game's content); null = no theme,
+        /// the hide pools pick freely.</summary>
+        public System.Func<string, BlocksBeyondTheStars.Shared.Definitions.PlanetType> Planets { get; set; }
+
+        /// <summary>#2868: this build's world look (theme + motif), null without one.</summary>
+        private FaunaThemes.Look _look;
+
+        /// <summary>#2865: this animal's coat placement — the part cubes shift and mirror their UVs by it.</summary>
+        private int _placement;
+
+        /// <summary>#2866: the z of the head box's front face (set by <see cref="AddHeadBox"/>, NaN on a body without one):
+        /// the eyes sit just behind it so their front — where the eye texture is — stands out of the face.</summary>
+        private float _faceZ = float.NaN;
+
         /// <summary>#1998: while set, the parts being added keep their box collider (a giant's legs, torso and segments —
         /// the player bumps into them); every other part is render-only.</summary>
         private bool _keepColliders;
@@ -191,7 +205,7 @@ namespace BlocksBeyondTheStars.Client
                 int horns = Mathf.Clamp(c.Horns, 0, 4);
                 if (horns > 0)
                 {
-                    var hornMat = Lit(new Color(0.20f, 0.17f, 0.15f), null);
+                    var hornMat = HornMaterial(c); // #2867: a horn tile and colour per species
                     float hornH = unit * 0.5f * headScale;
                     for (int hn = 0; hn < horns; hn++)
                     {
@@ -293,7 +307,7 @@ namespace BlocksBeyondTheStars.Client
             // Dorsal crest: a row of spiny plates along the spine, tallest at the shoulders — silhouette variety.
             if (c.HasCrest)
             {
-                var crestMat = _coat.Pattern == CoatPattern.CrestBand
+                var crestMat = _coat.Pattern == CoatPattern.CrestBand || _coat.Glow == GlowPattern.Tips
                     ? accentMat
                     : Lit(c.Glows ? baseColor * 1.4f : baseColor * 0.7f, null);
                 int fins = Mathf.Max(3, segments * 2);
@@ -370,10 +384,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Rounded (sphere) eyes — bigger, with a dark pupil + a small white glint so they look glossy (B17).
-            var eyeMat = EyeMaterial(c);
-            var pupilMat = PupilMaterial(c);
-            var glintMat = Unlit(Color.white);
+            // Rounded (sphere) eyes — bigger (B17); since #2866 the sphere's front carries the species' eye look (iris,
+            // pupil and highlight drawn as a texture) instead of a pupil and a glint sphere.
+            var eyeMat = EyeFaceMaterial(c);
             var skinMat = _coat.Mat(CoatPart.Jaw); // stalks and lids: the head's hide, never the pattern
             float eyeSize = unit * 0.32f * headScale; // bigger (was 0.24)
 
@@ -390,8 +403,7 @@ namespace BlocksBeyondTheStars.Client
                     var top = new Vector3(fx, unit * 0.45f * headScale + stalkH, unit * 0.15f * headScale);
                     AddPartTo(_headPivot, "Stalk" + e, new Vector3(fx, unit * 0.45f * headScale + stalkH * 0.5f, unit * 0.15f * headScale),
                         new Vector3(eyeSize * 0.28f, stalkH, eyeSize * 0.28f), skinMat);
-                    AddPartTo(_headPivot, "Eye" + e, top, Vector3.one * (eyeSize * 0.9f), eyeMat, PrimitiveType.Sphere);
-                    AddPartTo(_headPivot, "Pupil" + e, top + new Vector3(0f, 0f, eyeSize * 0.38f), Vector3.one * (eyeSize * 0.5f), pupilMat, PrimitiveType.Sphere);
+                    AddEye(_headPivot, "Eye" + e, top, eyeSize * 0.9f, Vector3.forward, eyeMat);
                     AddEyelid(top, eyeSize * 0.9f, skinMat);
                 }
             }
@@ -401,10 +413,16 @@ namespace BlocksBeyondTheStars.Client
                 for (int e = 0; e < eyes; e++)
                 {
                     float fx = eyes == 1 ? 0f : Mathf.Lerp(-spread, spread, e / (float)(eyes - 1));
-                    var pos = new Vector3(fx, unit * 0.16f * headScale, unit * 0.70f * headScale);
-                    AddPartTo(_headPivot, "Eye" + e, pos, Vector3.one * eyeSize, eyeMat, PrimitiveType.Sphere);
-                    AddPartTo(_headPivot, "Pupil" + e, pos + new Vector3(0f, 0f, eyeSize * 0.42f), Vector3.one * (eyeSize * 0.55f), pupilMat, PrimitiveType.Sphere);
-                    AddPartTo(_headPivot, "Glint" + e, pos + new Vector3(eyeSize * 0.16f, eyeSize * 0.18f, eyeSize * 0.5f), Vector3.one * (eyeSize * 0.16f), glintMat, PrimitiveType.Sphere);
+                    // #2866: in front of the face box, so the eye's front (iris and pupil) shows — the classic spot put the
+                    // whole sphere inside a small head (only the old pupil sphere poked out, and not on every head).
+                    float ez = unit * 0.70f * headScale;
+                    if (!float.IsNaN(_faceZ))
+                    {
+                        ez = Mathf.Max(ez, _faceZ - eyeSize * 0.12f);
+                    }
+
+                    var pos = new Vector3(fx, unit * 0.16f * headScale, ez);
+                    AddEye(_headPivot, "Eye" + e, pos, eyeSize, Vector3.forward, eyeMat);
                     AddEyelid(pos, eyeSize, skinMat);
                 }
             }
@@ -449,16 +467,13 @@ namespace BlocksBeyondTheStars.Client
             int eyes = Mathf.Clamp(c.Eyes, 0, 2);
             if (eyes > 0)
             {
-                var eyeMat = EyeMaterial(c);
-                var pupilMat = PupilMaterial(c);
+                var eyeMat = EyeFaceMaterial(c);
                 float eyeSize = bellR * 0.22f;
                 for (int e = 0; e < eyes; e++)
                 {
                     float fx = eyes == 1 ? 0f : (e == 0 ? -bellR * 0.18f : bellR * 0.18f);
                     var pos = new Vector3(fx, -bellR * 0.15f, bellR * 0.32f);
-                    AddPartTo(bell.transform, "Eye" + e, pos, Vector3.one * eyeSize, eyeMat, PrimitiveType.Sphere);
-                    AddPartTo(bell.transform, "Pupil" + e, pos + new Vector3(0f, 0f, eyeSize * 0.4f),
-                        Vector3.one * (eyeSize * 0.55f), pupilMat, PrimitiveType.Sphere);
+                    AddEye(bell.transform, "Eye" + e, pos, eyeSize, Vector3.forward, eyeMat);
                 }
             }
 
@@ -606,7 +621,7 @@ namespace BlocksBeyondTheStars.Client
                 int tusks = Mathf.Clamp(c.Horns, 0, 4);
                 if (tusks > 0)
                 {
-                    var tuskMat = Lit(new Color(0.92f, 0.88f, 0.78f), null); // ivory
+                    var tuskMat = TuskMaterial(c); // ivory (#2867: a tone per species)
                     for (int tk = 0; tk < tusks; tk++)
                     {
                         float hx = tusks == 1 ? 0f : Mathf.Lerp(-unit * 0.3f * headScale, unit * 0.3f * headScale, tk / (float)(tusks - 1));
@@ -742,7 +757,7 @@ namespace BlocksBeyondTheStars.Client
             // Fangs (the species' horns, worn as chelicerae): two dark spikes hanging from the head's front, angled forward.
             if (c.Horns >= 2)
             {
-                var fangMat = Lit(new Color(0.18f, 0.15f, 0.14f), null);
+                var fangMat = DarkHornMaterial(c);
                 for (int f = 0; f < 2; f++)
                 {
                     float x = (f == 0 ? -1f : 1f) * headW * 0.22f;
@@ -976,9 +991,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var eyeMat = EyeMaterial(c);
-            var pupilMat = PupilMaterial(c);
-            var glintMat = Unlit(Color.white);
+            var eyeMat = EyeFaceMaterial(c);
             float eyeSize = unit * 0.26f * headScale * (eyes > 4 ? 0.8f : 1f);
             int rows = eyes <= 2 ? 1 : 2;
             int topRow = rows == 1 ? eyes : Mathf.CeilToInt(eyes / 2f);
@@ -1010,10 +1023,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 pos += normal * (eyeSize * 0.35f);
-                AddPartTo(_headPivot, "Eye" + e, pos, Vector3.one * eyeSize, eyeMat, PrimitiveType.Sphere);
-                AddPartTo(_headPivot, "Pupil" + e, pos + normal * (eyeSize * 0.38f), Vector3.one * (eyeSize * 0.55f), pupilMat, PrimitiveType.Sphere);
-                AddPartTo(_headPivot, "Glint" + e, pos + normal * (eyeSize * 0.46f) + new Vector3(eyeSize * 0.14f, eyeSize * 0.16f, 0f),
-                    Vector3.one * (eyeSize * 0.16f), glintMat, PrimitiveType.Sphere);
+                AddEye(_headPivot, "Eye" + e, pos, eyeSize, normal, eyeMat);
                 AddEyelid(pos, eyeSize, _coat.Mat(CoatPart.Jaw));
             }
         }
@@ -1216,6 +1226,7 @@ namespace BlocksBeyondTheStars.Client
         private void AddHeadBox(float w, float h, float d, float headZ)
         {
             const float JawShare = 0.3f; // the lower 30 % of the head is jaw
+            _faceZ = headZ + d * 0.5f;
             _pinV = _coat.PinsHead;
             AddPartTo(_headPivot, "HeadUpper", new Vector3(0f, h * JawShare * 0.5f, headZ),
                 new Vector3(w, h * (1f - JawShare), d), _coat.Mat(CoatPart.Head));
@@ -1257,7 +1268,7 @@ namespace BlocksBeyondTheStars.Client
 
             var grinMat = Lit(new Color(0.12f, 0.08f, 0.10f), null);
             var mawMat = Lit(new Color(0.55f, 0.08f, 0.10f), null);
-            var toothMat = Lit(new Color(0.97f, 0.96f, 0.90f), null);
+            var toothMat = ToothMaterial(c);
             int n = 0;
             foreach (var box in FloralFaceLayout.Build(w, h, d, headZ, c.Hostile))
             {
@@ -1441,7 +1452,7 @@ namespace BlocksBeyondTheStars.Client
             go.transform.SetParent(pivot, false);
             go.transform.localPosition = cubeOffset;
             go.transform.localScale = scale;
-            TileCube(go, PrimitiveType.Cube, scale);
+            TileCube(go, PrimitiveType.Cube, scale, mat);
             go.GetComponent<Renderer>().sharedMaterial = mat;
             _renderers.Add(go.GetComponent<Renderer>());
             return pivot;
@@ -1520,7 +1531,7 @@ namespace BlocksBeyondTheStars.Client
                 int tusks = Mathf.Clamp(c.Horns, 0, 4);
                 if (tusks > 0)
                 {
-                    var tuskMat = Lit(new Color(0.92f, 0.88f, 0.78f), null);
+                    var tuskMat = TuskMaterial(c);
                     for (int tk = 0; tk < tusks; tk++)
                     {
                         float tx = tusks == 1 ? 0f : Mathf.Lerp(-headUnit * 0.32f, headUnit * 0.32f, tk / (float)(tusks - 1));
@@ -1658,7 +1669,7 @@ namespace BlocksBeyondTheStars.Client
             _bodyMat = _coat.Mat(CoatPart.Torso);
             var plateMat = Lit(_coat.Accent(Color.Lerp(baseColor, bellyColor, 0.5f) * 0.9f), HideOr("plated"));
             var bellyMat = _coat.Mat(CoatPart.Belly);
-            var spikeMat = Lit(new Color(0.22f, 0.17f, 0.14f), null);
+            var spikeMat = DarkHornMaterial(c);
             var glowMat = Unlit(Color.Lerp(bellyColor, new Color(1f, 0.85f, 0.4f), 0.7f));
             int spikeRows = Mathf.Clamp(c.Horns, 0, 3);
 
@@ -1709,7 +1720,7 @@ namespace BlocksBeyondTheStars.Client
             AddPartTo(head, "Collar", new Vector3(0f, 0f, -girth * 0.1f), new Vector3(girth * 1.12f, girth * 1.12f, girth * 0.55f), _bodyMat);
             _keepColliders = false;
             var mawMat = Lit(new Color(0.42f, 0.06f, 0.08f), null);
-            var toothMat = Lit(new Color(0.95f, 0.93f, 0.85f), null);
+            var toothMat = ToothMaterial(c);
             AddPartTo(head, "Maw", new Vector3(0f, 0f, girth * 0.19f), new Vector3(girth * 0.85f, girth * 0.85f, girth * 0.05f), mawMat);
             for (int ring = 0; ring < 2; ring++)
             {
@@ -1839,7 +1850,7 @@ namespace BlocksBeyondTheStars.Client
             AddPartTo(head, "EyeL", new Vector3(-girth * 0.42f, girth * 0.2f, girth * 0.25f), new Vector3(girth * 0.16f, girth * 0.16f, girth * 0.16f), eyeMat);
             AddPartTo(head, "EyeR", new Vector3(girth * 0.42f, girth * 0.2f, girth * 0.25f), new Vector3(girth * 0.16f, girth * 0.16f, girth * 0.16f), eyeMat);
             var mawMat = Lit(new Color(0.5f, 0.1f, 0.14f), null);
-            var toothMat = Lit(new Color(0.95f, 0.93f, 0.85f), null);
+            var toothMat = ToothMaterial(c);
             AddPartTo(head, "Maw", new Vector3(0f, -girth * 0.1f, girth * 0.3f), new Vector3(girth * 0.66f, girth * 0.3f, girth * 0.05f), mawMat);
 
             var jaws = new Transform[2];
@@ -2002,7 +2013,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Adds a render-only cube parented to an arbitrary transform (e.g. eyes on the head pivot).</summary>
-        private void AddPartTo(Transform parent, string partName, Vector3 localPos, Vector3 scale, Material mat, PrimitiveType shape = PrimitiveType.Cube)
+        private GameObject AddPartTo(Transform parent, string partName, Vector3 localPos, Vector3 scale, Material mat, PrimitiveType shape = PrimitiveType.Cube)
         {
             var go = GameObject.CreatePrimitive(shape);
             go.name = partName;
@@ -2015,9 +2026,27 @@ namespace BlocksBeyondTheStars.Client
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPos;
             go.transform.localScale = scale;
-            TileCube(go, shape, scale);
+            TileCube(go, shape, scale, mat);
             go.GetComponent<Renderer>().sharedMaterial = mat;
             _renderers.Add(go.GetComponent<Renderer>());
+            return go;
+        }
+
+        /// <summary>#2866: one eye — a sphere whose front carries the species' eye look (iris, pupil, highlight), turned to
+        /// face along <paramref name="normal"/> (the head's front unless an arachnid's sloped face says otherwise).</summary>
+        private void AddEye(Transform parent, string partName, Vector3 localPos, float size, Vector3 normal, Material mat)
+        {
+            var go = AddPartTo(parent, partName, localPos, Vector3.one * size, mat, PrimitiveType.Sphere);
+            var filter = go.GetComponent<MeshFilter>();
+            if (filter != null)
+            {
+                filter.sharedMesh = EyeSphereMesh();
+            }
+
+            if (normal != Vector3.forward && normal.sqrMagnitude > 1e-6f)
+            {
+                go.transform.localRotation = Quaternion.LookRotation(normal);
+            }
         }
 
         private void AddPart(GameObject root, string partName, Vector3 localPos, Vector3 scale, Material mat)
@@ -2033,14 +2062,16 @@ namespace BlocksBeyondTheStars.Client
             go.transform.SetParent(root.transform, false);
             go.transform.localPosition = localPos;
             go.transform.localScale = scale;
-            TileCube(go, PrimitiveType.Cube, scale);
+            TileCube(go, PrimitiveType.Cube, scale, mat);
             go.GetComponent<Renderer>().sharedMaterial = mat;
             _renderers.Add(go.GetComponent<Renderer>());
         }
 
         /// <summary>#2831: swaps a cube primitive's mesh for the tiled cube of its size (same shape and bounds, so its box
-        /// collider is unchanged) — the hide repeats per metre instead of stretching over each face.</summary>
-        private void TileCube(GameObject go, PrimitiveType shape, Vector3 scale)
+        /// collider is unchanged) — the hide repeats per metre instead of stretching over each face. #2860: a coarse hide
+        /// repeats at twice the size; #2863: a countershaded flank maps v once; #2865: the animal's placement shifts the
+        /// coat.</summary>
+        private void TileCube(GameObject go, PrimitiveType shape, Vector3 scale, Material mat)
         {
             if (shape != PrimitiveType.Cube)
             {
@@ -2050,7 +2081,9 @@ namespace BlocksBeyondTheStars.Client
             var filter = go.GetComponent<MeshFilter>();
             if (filter != null)
             {
-                filter.sharedMesh = TiledMesh(scale, _pinV);
+                float metres = _coat != null ? _coat.MetresOf(mat) : TiledCube.TileMetres;
+                bool pin = _pinV || (_coat != null && _coat.Pins(mat));
+                filter.sharedMesh = TiledMesh(scale, pin, metres, _placement);
             }
         }
 
@@ -2063,28 +2096,10 @@ namespace BlocksBeyondTheStars.Client
         // spawned and despawned. Shared materials also let the SRP batcher group the parts.
         private static Shader _unlitShader, _litShader;
         private static readonly Dictionary<Color, Material> UnlitCache = new Dictionary<Color, Material>();
-        private static readonly Dictionary<(Color Color, Texture2D Tex), Material> LitCache = new Dictionary<(Color, Texture2D), Material>();
+        private static readonly Dictionary<(Color Color, Texture2D Tex, float Glow), Material> LitCache = new Dictionary<(Color, Texture2D, float), Material>();
 
         /// <summary>#1999: the shared unlit colour material, for the view's own markers (the stomp ring).</summary>
         internal static Material UnlitMaterial(Color color) => Unlit(color);
-
-        /// <summary>The eyeball's material (#2069): a species with an iris colour (<c>EyeRgb</c>, generation 15 — Toxica-Maxima's
-        /// contaminated animals are green-eyed) wears it on the whole eye, self-lit, so the eyes glow in the dark; 0 keeps the
-        /// classic pale eye (a glower's tinted white). Shared by the standard, titan, ray, colossus, medusa and arachnid builds.</summary>
-        private static Material EyeMaterial(NetCreature c)
-        {
-            if (c.EyeRgb != 0)
-            {
-                int rgb = c.EyeRgb;
-                return Unlit(new Color(((rgb >> 16) & 255) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f));
-            }
-
-            return Unlit(c.Glows ? new Color(0.85f, 1f, 0.95f) : new Color(0.97f, 0.97f, 0.88f));
-        }
-
-        /// <summary>The pupil (#2069): a coloured iris gets a near-black pupil so the colour reads as a ring around it.</summary>
-        private static Material PupilMaterial(NetCreature c)
-            => Unlit(c.EyeRgb != 0 ? new Color(0.02f, 0.03f, 0.02f) : new Color(0.04f, 0.04f, 0.06f));
 
         private static Material Unlit(Color color)
         {
@@ -2100,10 +2115,20 @@ namespace BlocksBeyondTheStars.Client
         }
 
         // Shared (loaded once) tintable grayscale hide tiles by hide name (#2831: one table, CreatureHides.All); the body
-        // multiplies them by the species colour. A tile that did not load is simply absent — the pools skip it.
+        // multiplies them by the species colour. A tile that did not load is simply absent — the pools skip it. #2860: each
+        // tile is normalised (CoatBake.Normalize) once; the normalised bytes are kept for the coat bakes.
         private static readonly Dictionary<string, Texture2D> HideTextures = new Dictionary<string, Texture2D>();
+        private static readonly Dictionary<string, byte[]> NormalizedHides = new Dictionary<string, byte[]>();
         private static readonly System.Func<string, bool> HideAvailable = name => name != null && HideTextures.ContainsKey(name);
         private static bool _texLoaded;
+
+        // #2863: the pattern mask tiles (raw bytes, read through the texture source like every tile), loaded on first ask.
+        private static readonly Dictionary<string, byte[]> PatternTiles = new Dictionary<string, byte[]>();
+        private static readonly System.Func<string, bool> PatternTileAvailable = key => PatternTile(key) != null;
+        private static readonly System.Func<string, byte[]> PatternTileBytes = PatternTile;
+
+        // #2867: the horn tiles by name, normalised like the hides.
+        private static readonly Dictionary<string, Texture2D> HornTextures = new Dictionary<string, Texture2D>();
 
         private static void EnsureTextures()
         {
@@ -2115,12 +2140,43 @@ namespace BlocksBeyondTheStars.Client
             _texLoaded = true;
             foreach (string name in CreatureHides.All)
             {
-                var tex = LoadTex(CreatureHides.TileKey(name));
+                var tex = LoadTex(CreatureHides.TileKey(name), out byte[] normalized);
                 if (tex != null)
                 {
                     HideTextures[name] = tex;
+                    NormalizedHides[name] = normalized;
                 }
             }
+
+            foreach (string name in CreatureHorns.Tiles)
+            {
+                var tex = LoadTex(CreatureHorns.TileKey(name), out _);
+                if (tex != null)
+                {
+                    HornTextures[name] = tex;
+                }
+            }
+        }
+
+        private static byte[] PatternTile(string key)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                return null;
+            }
+
+            if (!PatternTiles.TryGetValue(key, out var raw))
+            {
+                raw = GameTextures.TileBytes(key);
+                if (raw != null && raw.Length != CoatBake.TileBytes)
+                {
+                    raw = null;
+                }
+
+                PatternTiles[key] = raw;
+            }
+
+            return raw;
         }
 
         /// <summary>A hide's shared (lifted) texture by name; null when the name is unknown or its tile did not load.</summary>
@@ -2130,32 +2186,150 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A named hide, else the plain hide (a fixed accent like the colossus' back plates).</summary>
         private static Texture2D HideOr(string name) => HideTex(name) ?? HideTex("hide");
 
-        private static Texture2D LoadTex(string key)
+        private static Texture2D LoadTex(string key, out byte[] normalized)
         {
             // The winning layer of the texture source (#1952): world texture, local pack, or the bundled tile.
+            normalized = null;
             byte[] raw = GameTextures.TileBytes(key);
             if (raw == null || raw.Length != CoatBake.TileBytes)
             {
                 return null;
             }
 
-            var tex = new Texture2D(64, 64, TextureFormat.RGBA32, false)
+            normalized = CoatBake.Normalize(raw); // #2860: one bright mean, one contrast for every tile
+            return CoatTexture(normalized, "CreatureHide");
+        }
+
+        /// <summary>A 64² coat texture from RGBA32 bytes: repeating, point-filtered, with mip-maps (#2860) so a fine hide
+        /// calms down at a distance instead of shimmering, the pixel look kept up close.</summary>
+        private static Texture2D CoatTexture(byte[] rgba, string name)
+        {
+            var tex = new Texture2D(CoatMasks.Size, CoatMasks.Size, TextureFormat.RGBA32, true)
             {
+                name = name,
                 wrapMode = TextureWrapMode.Repeat,
                 filterMode = FilterMode.Point,
+                ignoreMipmapLimit = true, // the low presets' global mip limit would halve a 64² coat to 32²
             };
-            tex.LoadRawTextureData(CoatBake.Lift(raw)); // lifted toward white: the tile modulates as detail (CoatBake)
-            tex.Apply();
+            tex.SetPixelData(rgba, 0);
+            tex.Apply(true, true); // build the mip chain; no CPU copy needed once uploaded
             return tex;
         }
 
+        // #2866: the eye textures, one per (look, iris colour, glow).
+        private static readonly Dictionary<(EyeLook Look, int Iris, bool Glows), Texture2D> EyeTextures
+            = new Dictionary<(EyeLook, int, bool), Texture2D>();
+
+        private static readonly Dictionary<Texture2D, Material> EyeMats = new Dictionary<Texture2D, Material>();
+        private static Mesh _eyeSphere;
+
+        /// <summary>The eye material of a species (#2866): its eye look drawn on a small texture, lit flat (floor 1) so the
+        /// eye reads like the self-lit eyes it replaces; a shining iris adds its colour as glow.</summary>
+        private static Material EyeFaceMaterial(NetCreature c)
+        {
+            var look = CreatureEyes.LookFor(c);
+            int iris = CreatureEyes.IrisRgb(c);
+            bool glows = CreatureEyes.IrisGlows(c);
+            var key = (look, iris, glows);
+            if (!EyeTextures.TryGetValue(key, out var tex) || tex == null)
+            {
+                tex = new Texture2D(CreatureEyes.Size, CreatureEyes.Size, TextureFormat.RGBA32, false)
+                {
+                    name = "CreatureEye",
+                    wrapMode = TextureWrapMode.Clamp,
+                    filterMode = FilterMode.Point,
+                };
+                tex.LoadRawTextureData(CreatureEyes.Draw(look, iris, glows));
+                tex.Apply(false, true);
+                EyeTextures[key] = tex;
+            }
+
+            if (EyeMats.TryGetValue(tex, out var cached) && cached != null)
+            {
+                return cached;
+            }
+
+            _litShader ??= Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
+            var m = new Material(_litShader) { color = Color.white, mainTexture = tex };
+            if (m.HasProperty("_Floor"))
+            {
+                m.SetFloat("_Floor", 1f);
+                m.SetFloat("_Fill", 0f);
+            }
+
+            if (m.HasProperty("_Glow"))
+            {
+                m.SetFloat("_Glow", glows ? GlowMasks.Strength : 0f);
+            }
+
+            EyeMats[tex] = m;
+            return m;
+        }
+
+        /// <summary>The eye sphere (#2866, <see cref="CreatureEyes.BuildSphere"/>): diameter 1 like Unity's sphere, but with
+        /// its poles on ±Z, so the texture lies on the front half seen straight on and the back half shows the sclera without
+        /// a triangle smearing the iris round the side.</summary>
+        private static Mesh EyeSphereMesh()
+        {
+            if (_eyeSphere != null)
+            {
+                return _eyeSphere;
+            }
+
+            var d = CreatureEyes.BuildSphere();
+            int n = d.Positions.Length / 3;
+            var verts = new Vector3[n];
+            var normals = new Vector3[n];
+            var uvs = new Vector2[n];
+            for (int i = 0; i < n; i++)
+            {
+                verts[i] = new Vector3(d.Positions[i * 3], d.Positions[i * 3 + 1], d.Positions[i * 3 + 2]);
+                normals[i] = new Vector3(d.Normals[i * 3], d.Normals[i * 3 + 1], d.Normals[i * 3 + 2]);
+                uvs[i] = new Vector2(d.Uvs[i * 2], d.Uvs[i * 2 + 1]);
+            }
+
+            _eyeSphere = new Mesh
+            {
+                name = "CreatureEyeSphere",
+                vertices = verts,
+                normals = normals,
+                uv = uvs,
+                triangles = d.Triangles,
+            };
+            _eyeSphere.RecalculateBounds();
+            return _eyeSphere;
+        }
+
+        /// <summary>#2867: the species' horn material — its horn tile in its horn colour.</summary>
+        private Material HornMaterial(NetCreature c)
+        {
+            string tile = CreatureHorns.TileFor(c, _look);
+            return Lit(Rgb(CreatureHorns.ColourFor(c, tile)), HornTextures.TryGetValue(tile, out var tex) ? tex : null);
+        }
+
+        /// <summary>#2867: a dark horn (an arachnid's fangs, a sandworm's spikes) on the species' horn tile.</summary>
+        private Material DarkHornMaterial(NetCreature c)
+        {
+            string tile = CreatureHorns.TileFor(c, _look);
+            return Lit(Rgb(CreatureHorns.DarkColourFor(c)), HornTextures.TryGetValue(tile, out var tex) ? tex : null);
+        }
+
+        /// <summary>#2867: tusks — an ivory per species on the smooth grain.</summary>
+        private static Material TuskMaterial(NetCreature c)
+            => Lit(Rgb(CreatureHorns.TuskColourFor(c)), HornTextures.TryGetValue("grain", out var tex) ? tex : null);
+
+        /// <summary>#2867: teeth — a white per species on the smooth grain.</summary>
+        private static Material ToothMaterial(NetCreature c)
+            => Lit(Rgb(CreatureHorns.ToothColourFor(c)), HornTextures.TryGetValue("grain", out var tex) ? tex : null);
+
         // #2830: the baked coats — hide luminance × (body colour, pattern colour by the mask), 64 × 64, one per (hide,
         // pattern, mask variant, mask seed, mood-tinted colours). Unpatterned and fully covered parts never bake (they use
-        // the shared hide with a material colour), so a species bakes one or two. Never destroyed: they live as long as the
-        // shared hide tiles. The cap keeps a marathon session bounded (~12 MB); past it new species simply go unpatterned.
+        // the shared hide with a material colour), so a species bakes one to a few (every glowing part bakes, #2862). Never
+        // destroyed: they live as long as the shared hide tiles. The cap keeps a marathon session bounded (~17 MB with the
+        // mip chains); past it new species simply go unpatterned and unlit.
         private const int MaxBakedCoats = 768;
-        private static readonly Dictionary<(string Hide, CoatPattern Pattern, CoatMasks.Variant Variant, uint Seed, int Body, int Mark), Texture2D> BakedCoats
-            = new Dictionary<(string, CoatPattern, CoatMasks.Variant, uint, int, int), Texture2D>();
+        private static readonly Dictionary<(string Hide, CoatPattern Pattern, CoatMasks.Variant Variant, uint Seed, int Body, int Mark, GlowPattern Glow, int GlowRgb, CoatPart GlowPart), Texture2D> BakedCoats
+            = new Dictionary<(string, CoatPattern, CoatMasks.Variant, uint, int, int, GlowPattern, int, CoatPart), Texture2D>();
 
         private static int Pack(Color c) => CreatureCoat.Pack(c.r, c.g, c.b);
 
@@ -2164,18 +2338,18 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The cube mesh for a part of <paramref name="size"/> (build-space units): the hide repeats once per
         /// <see cref="TiledCube.TileMetres"/> on every face, so a toe and a colossus show the same texel density.</summary>
-        private static Mesh TiledMesh(Vector3 size, bool pinV)
+        private static Mesh TiledMesh(Vector3 size, bool pinV, float metres, int placement)
         {
-            int rx = TiledCube.Repeats(Mathf.Abs(size.x));
-            int ry = TiledCube.Repeats(Mathf.Abs(size.y));
-            int rz = TiledCube.Repeats(Mathf.Abs(size.z));
-            int key = TiledCube.Key(rx, ry, rz, pinV);
+            int rx = TiledCube.Repeats(Mathf.Abs(size.x), metres);
+            int ry = TiledCube.Repeats(Mathf.Abs(size.y), metres);
+            int rz = TiledCube.Repeats(Mathf.Abs(size.z), metres);
+            int key = TiledCube.Key(rx, ry, rz, pinV, placement);
             if (TiledMeshes.TryGetValue(key, out var cached) && cached != null)
             {
                 return cached;
             }
 
-            var d = TiledCube.Build(rx, ry, rz, pinV);
+            var d = TiledCube.Build(rx, ry, rz, pinV, placement);
             var verts = new Vector3[24];
             var normals = new Vector3[24];
             var uvs = new Vector2[24];
@@ -2245,38 +2419,51 @@ namespace BlocksBeyondTheStars.Client
         private void NewCoat(NetCreature c, Mood mood, float bodyGlow, float bellyGlow)
         {
             uint seed = CreatureCoat.SpeciesSeed(c.SpeciesId, c.VoiceSeed);
-            var pattern = CreatureCoat.PatternFor(c);
+            _look = FaunaThemes.For(c, Planets);                 // #2868: the home world's theme and motif
+            _placement = CreatureCoat.PlacementVariant(c.Id);    // #2865: this animal's own coat placement
+            var pattern = CreatureCoat.PatternFor(c, _look, PatternTileAvailable);
             Color mark = Rgb(CreatureCoat.PatternRgb(seed, c.ColorRgb, pattern));
             CreatureCoat.JitterRgb(CreatureCoat.JitterBucket(c.Id), out float jr, out float jg, out float jb);
+            var glow = GlowMasks.PatternFor(c);
+            // #2862: a glowing species shines in its glow pattern now; only a soft rest of the old whole-body brightening
+            // stays, so a glower still reads a touch brighter.
+            float bodyMul = c.Glows ? 1f + (bodyGlow - 1f) * 0.3f : 1f;
+            float bellyMul = c.Glows ? 1f + (bellyGlow - 1f) * 0.3f : 1f;
             _coat = new CoatKit(
                 pattern,
-                CreatureHides.Pick(c, HideAvailable),
+                CreatureHides.Pick(c, HideAvailable, _look),
                 mood.Tint(Rgb(c.ColorRgb)),
                 mood.Tint(Rgb(c.BellyRgb)),
                 mood.Tint(mark),
-                (c.Glows ? bodyGlow : 1f) * mood.Dim,
-                (c.Glows ? bellyGlow : 1f) * mood.Dim,
+                bodyMul * mood.Dim,
+                bellyMul * mood.Dim,
                 new Color(jr, jg, jb, 1f),
-                CreatureCoat.MaskSeed(c));
+                CreatureCoat.MaskSeed(c),
+                glow,
+                Rgb(GlowMasks.ColourFor(seed, c.ColorRgb)));
         }
 
         /// <summary>
-        /// One build's coat (#2830, #2831): the material of each body-part role. A part the pattern does not reach wears its
-        /// hide in its own colour (the body's, or the belly's for the belly and the accents); a part the pattern covers fully
-        /// wears its hide in the pattern colour; a masked part wears a baked coat with a neutral material colour. The sleep
-        /// dim, the glow factor and the animal's jitter are the material colour's multiplier in every case.
+        /// One build's coat (#2830, #2831, #2862): the material of each body-part role. A part the pattern does not reach
+        /// wears its hide in its own colour (the body's, or the belly's for the belly and the accents); a part the pattern
+        /// covers fully wears its hide in the pattern colour; a masked part — and every part a glow pattern reaches — wears a
+        /// baked coat with a neutral material colour (the glow sits in the coat's alpha, the material's _Glow lights it).
+        /// The sleep dim, the glow factor and the animal's jitter are the material colour's multiplier in every case. It also
+        /// remembers, per material, the hide's repeat size (#2860) and whether the part maps v once (#2863).
         /// </summary>
         private sealed class CoatKit
         {
             private readonly CreatureHides.HideSet _hides;
-            private readonly Color _body, _belly, _mark, _jitter;
+            private readonly Color _body, _belly, _mark, _jitter, _glowColour;
             private readonly float _bodyMul, _bellyMul;
             private readonly uint _maskSeed;
             private readonly Dictionary<CoatPart, Material> _mats = new Dictionary<CoatPart, Material>();
-            private readonly Dictionary<CoatMasks.Variant, float[]> _masks = new Dictionary<CoatMasks.Variant, float[]>();
+            private readonly Dictionary<(CoatMasks.Variant, CoatPart), float[]> _masks = new Dictionary<(CoatMasks.Variant, CoatPart), float[]>();
+            private readonly Dictionary<Material, float> _metres = new Dictionary<Material, float>();
+            private readonly HashSet<Material> _pinned = new HashSet<Material>();
 
             public CoatKit(CoatPattern pattern, CreatureHides.HideSet hides, Color body, Color belly, Color mark,
-                float bodyMul, float bellyMul, Color jitter, uint maskSeed)
+                float bodyMul, float bellyMul, Color jitter, uint maskSeed, GlowPattern glow, Color glowColour)
             {
                 Pattern = pattern;
                 _hides = hides;
@@ -2287,9 +2474,21 @@ namespace BlocksBeyondTheStars.Client
                 _bellyMul = bellyMul;
                 _jitter = jitter;
                 _maskSeed = maskSeed;
+                Glow = glow;
+                _glowColour = glowColour;
             }
 
             public CoatPattern Pattern { get; }
+
+            /// <summary>#2862: the species' glow pattern (None unless it glows).</summary>
+            public GlowPattern Glow { get; }
+
+            /// <summary>The repeat size of the hide a material of this coat wears (#2860).</summary>
+            public float MetresOf(Material mat)
+                => mat != null && _metres.TryGetValue(mat, out float m) ? m : TiledCube.TileMetres;
+
+            /// <summary>True for a material of this coat whose part maps v once (the countershaded flanks, #2863).</summary>
+            public bool Pins(Material mat) => mat != null && _pinned.Contains(mat);
 
             /// <summary>True when the head's skull box takes the pinned mesh (the eye band sits at eye height).</summary>
             public bool PinsHead => CreatureCoat.PinsV(Pattern, CoatPart.Head);
@@ -2307,24 +2506,49 @@ namespace BlocksBeyondTheStars.Client
                 Color own = accent ? _belly : _body;
                 float mul = accent ? _bellyMul : _bodyMul;
                 Material m = null;
-                switch (CreatureCoat.Coverage(Pattern, part))
+                bool bakedMaterial = false;
+                var coverage = CreatureCoat.Coverage(Pattern, part);
+                if (GlowMasks.Coverage(Glow, part) != CoatCoverage.None)
                 {
-                    case CoatCoverage.Full:
-                        m = Lit(Scaled(_mark, mul), HideTex(hide));
-                        break;
-                    case CoatCoverage.Masked:
-                        var baked = Baked(part, hide, own);
-                        if (baked != null)
-                        {
-                            m = Lit(Scaled(Color.white, mul), baked);
-                        }
+                    // #2862: a glowing part always bakes — the pattern (if any) and the glow mask in one coat.
+                    var baked = Baked(part, hide, own, coverage);
+                    if (baked != null)
+                    {
+                        m = Lit(Scaled(Color.white, mul), baked, GlowMasks.Strength);
+                        bakedMaterial = true;
+                    }
+                }
 
-                        break;
+                if (m == null)
+                {
+                    switch (coverage)
+                    {
+                        case CoatCoverage.Full:
+                            m = Lit(Scaled(_mark, mul), HideTex(hide));
+                            break;
+                        case CoatCoverage.Masked:
+                            var baked = Baked(part, hide, own, coverage);
+                            if (baked != null)
+                            {
+                                m = Lit(Scaled(Color.white, mul), baked);
+                                bakedMaterial = true;
+                            }
+
+                            break;
+                    }
                 }
 
                 if (m == null)
                 {
                     m = Lit(Scaled(own, mul), HideTex(hide));
+                }
+
+                _metres[m] = CreatureHides.TileMetresOf(hide);
+                if (bakedMaterial && CreatureCoat.PinsV(Pattern, part))
+                {
+                    // Only a baked coat is this part's own material; a plain fallback (past the bake cap) is shared with
+                    // limbs, jaw and lids, which must not take a pinned mesh.
+                    _pinned.Add(m);
                 }
 
                 _mats[part] = m;
@@ -2338,10 +2562,14 @@ namespace BlocksBeyondTheStars.Client
             private Color Scaled(Color c, float mul)
                 => new Color(c.r * mul * _jitter.r, c.g * mul * _jitter.g, c.b * mul * _jitter.b, 1f);
 
-            private Texture2D Baked(CoatPart part, string hide, Color own)
+            private Texture2D Baked(CoatPart part, string hide, Color own, CoatCoverage coverage)
             {
                 var variant = CoatMasks.VariantOf(Pattern, part);
-                var key = (hide ?? string.Empty, Pattern, variant, _maskSeed, Pack(own), Pack(_mark));
+                var glowCoverage = GlowMasks.Coverage(Glow, part);
+                // The glow mask depends on the part's orientation and role: key it by the part when the part glows.
+                var glowPart = glowCoverage == CoatCoverage.None ? CoatPart.Torso : part;
+                var glow = glowCoverage == CoatCoverage.None ? GlowPattern.None : Glow;
+                var key = (hide ?? string.Empty, Pattern, variant, _maskSeed, Pack(own), Pack(_mark), glow, Pack(_glowColour), glowPart);
                 if (BakedCoats.TryGetValue(key, out var tex) && tex != null)
                 {
                     return tex;
@@ -2352,21 +2580,26 @@ namespace BlocksBeyondTheStars.Client
                     return null;
                 }
 
-                if (!_masks.TryGetValue(variant, out var mask))
+                float[] mask = null;
+                if (coverage != CoatCoverage.None)
                 {
-                    mask = CoatMasks.Draw(Pattern, part, _maskSeed);
-                    _masks[variant] = mask;
+                    if (!_masks.TryGetValue((variant, CoatPart.Torso), out mask))
+                    {
+                        mask = CoatMasks.Draw(Pattern, part, _maskSeed, PatternTileBytes);
+                        _masks[(variant, CoatPart.Torso)] = mask;
+                    }
                 }
 
-                byte[] raw = hide != null && HideTex(hide) != null ? GameTextures.TileBytes(CreatureHides.TileKey(hide)) : null;
-                tex = new Texture2D(CoatMasks.Size, CoatMasks.Size, TextureFormat.RGBA32, false)
+                float[] glowMask = null;
+                if (glow != GlowPattern.None && !_masks.TryGetValue((CoatMasks.Variant.None, part), out glowMask))
                 {
-                    name = "CreatureCoat",
-                    wrapMode = TextureWrapMode.Repeat,
-                    filterMode = FilterMode.Point,
-                };
-                tex.LoadRawTextureData(CoatBake.Bake(raw, own.r, own.g, own.b, _mark.r, _mark.g, _mark.b, mask));
-                tex.Apply(false, true); // no CPU copy needed once uploaded
+                    glowMask = GlowMasks.Draw(glow, part, _maskSeed);
+                    _masks[(CoatMasks.Variant.None, part)] = glowMask;
+                }
+
+                byte[] hideBytes = hide != null && NormalizedHides.TryGetValue(hide, out var norm) ? norm : null;
+                tex = CoatTexture(CoatBake.Bake(hideBytes, own.r, own.g, own.b, _mark.r, _mark.g, _mark.b, mask,
+                    glowMask, _glowColour.r, _glowColour.g, _glowColour.b), "CreatureCoat");
                 BakedCoats[key] = tex;
                 return tex;
             }
@@ -2383,9 +2616,9 @@ namespace BlocksBeyondTheStars.Client
         // set it — every other LitColor user keeps the 0 default (single key light, unchanged).
         private const float CreatureFill = 0.3f;
 
-        private static Material Lit(Color color, Texture2D tex)
+        private static Material Lit(Color color, Texture2D tex, float glow = 0f)
         {
-            var key = (color, tex);
+            var key = (color, tex, glow);
             if (LitCache.TryGetValue(key, out var cached) && cached != null)
             {
                 return cached;
@@ -2402,6 +2635,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 m.SetFloat("_Floor", CreatureFloor); // no-op on the Unlit/Color fallback
                 m.SetFloat("_Fill", CreatureFill);
+            }
+
+            if (glow > 0f && m.HasProperty("_Glow"))
+            {
+                m.SetFloat("_Glow", glow); // #2862: the coat's alpha-0 texels shine (LitColor)
             }
 
             LitCache[key] = m;

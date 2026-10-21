@@ -55,6 +55,41 @@ and the Fifi plant — a tree with 5–8 glowing blossoms — on every soft-grou
 
 Docs: WORLD_GENERATION.md §46, USER_MANUAL.md (plant life, food), ART_BIBLE.md (tree slots, leaf pool), NOTICES.md.
 
+---
+
+### 🦓 Creature looks — hides that read, fair pools, planet themes, glow patterns, pattern tiles, bold colours, herds, eyes, horns — #2860–#2868, branch feat/creature-looks — ✅ done 2026-10-21 (⚠ playtest open; render-only, no generation or save change)
+
+Marcel: "analyse the creature textures — how can more textures bring more variety?" The analysis found that more hides
+would not help: 21 of the 49 hides read as a flat colour after the fixed lift, the glow pool (8 hides) took 30 % of all
+species, the hide ignored the planet, and eyes and horns had no texture at all. Decisions: contrast by my judgement,
+glow as its own pattern, themes per planet plus a random favourite per world, black-and-white and warning colours
+allowed, eyes and horns yes, every animal of a herd its own coat, old worlds may change, everything in one PR.
+
+- ✅ #2860 Every hide is normalised to one bright mean and one contrast (was a fixed lift that halved it), coarse hides
+  repeat at 1.2 m, point filtering with mip-maps, plain and baked parts use the same texels; the 17 hide tiles whose
+  seam showed since they tile were healed (`tools/ai-assets/heal_seams.py`; every `creature_*` tile ≤ 1.3 seam ratio).
+- ✅ #2861 Fair pools: glow is no pool any more, water before wings, new lava and cave pools, 12 winged hides, armour for
+  grazers too; a server-named hide of a rolled species is a family. Measured over every planet's rosters: no hide above
+  ~6 % (was 7.7 %), none at 0.2 % any more.
+- ✅ #2868 Planet themes (`FaunaThemes`, `faunaTheme` override in `data/planets.json`) and a random motif per world
+  (favourite hide family + pattern group); the server sends `NetCreature.LookPlanet`/`LookSeed` and stamps them into a
+  companion's and a bio-lab clone's species.
+- ✅ #2862 Glowing species shine in one of seven glow patterns (coat alpha + `LitColor._Glow`), a luminous colour each.
+- ✅ #2863 16 new pattern mask tiles (`creature_pattern_*`) and countershading — 33 patterns in all.
+- ✅ #2864 About one patterned species in five wears bold marks: black/white/cream, or warning colours.
+- ✅ #2865 Every animal wears one of eight coat placements (UV shift + mirror), so a herd's spots differ.
+- ✅ #2866 Ten eye looks drawn as textures on the front of the eye sphere (compound, slit, goat bar, button …).
+- ✅ #2867 Five horn tiles, a horn colour per species, tusk/tooth/fang tones per species.
+
+**Assets:** 21 OpenAI tiles (16 pattern masks, 5 horns) via the new `tools/ai-assets/gen_coat_tiles.py` (thresholded,
+made seamless, coverage-checked); eyes and glow patterns are drawn in code. Open: playtest on a few worlds (cold,
+desert, swamp, a cave at night for the glow) and in the browser build.
+
+Found on the way: #2870 `SealedRoomBeyondTheCube_Breathes_AndAHoleKillsIt` failed once on CI (the oxygen still refilled
+4 s after the hole; time-sliced air work on a busy runner, like #2660) — open.
+
+---
+
 ### 📬 Player reports 2026-10-19/20 (Marcel in the browser, v2026.10.22; Lyxette, v2026.10.23) — the upside-down browser HUD, garbled browser screenshots, an animal floating over a moat — #2843–#2846, branch fix/webgpu-hud-flip-screenshots — ✅ done 2026-10-20 (⚠ playtest open)
 
 "The HUD is upside down and mirrored, I use Chrome" (Marcel, `/play/?singleplayer=1`, WebGPU) — #2512 again, closed on

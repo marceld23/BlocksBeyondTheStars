@@ -2981,8 +2981,18 @@ called **stories**:
 
 ### Creatures
 - **Every planet's animals look like their own species:** their hide, their build, a coat pattern in a second colour
-  (stripes, spots, rosettes, a saddle, an eye mask, tail rings, socks …), sometimes a different hide on the head or the
-  legs, and every animal of a herd a touch lighter or darker than the next. On every world, old saves included.
+  (stripes, spots, rosettes, a giraffe's net, a dalmatian's dots, ladybird dots, a saddle, an eye mask, tail rings,
+  socks, a dark back fading toward the belly …), sometimes a different hide on the head or the legs, and every animal of
+  a herd a touch lighter or darker than the next, with its spots in other places. Some wear bold marks: black and white
+  like a zebra, or warning colours like a wasp. On every world, old saves included.
+- **Every planet has its own kind of animals:** on cold worlds most animals wear fur, wool or down, in deserts scales
+  and leather, in swamps slimy and scaly skins, on crystal worlds crystal and armour — and every world also has a
+  favourite of its own, so two desert worlds still look different. A pet or an animal from the bio lab keeps the look of
+  the world it comes from.
+- **Glowing animals shine in a pattern:** rows of light spots, freckles, veins, rings, a line along the flanks, patches,
+  or glowing fins and crests — best seen at night and in caves.
+- **Eyes and horns differ, too:** round eyes, cat slits, goat bars, insect eyes, big cute button eyes and more; horns
+  in ivory, bone, black, amber or slate, ridged, grained, twisted or crystal.
 - Fauna spawn near players (habitat-gated), with temperaments; hostile creatures show visible attacks.
   Flora regrows when its host block survives. Nothing spawns inside a **sealed room** of a founded base
   (the same airtight rooms the base core supplies with air), no single species fills the whole area, and

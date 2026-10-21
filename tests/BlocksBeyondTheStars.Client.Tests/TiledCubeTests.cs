@@ -101,9 +101,38 @@ public sealed class TiledCubeTests
                     from y in Enumerable.Range(1, TiledCube.MaxRepeats)
                     from z in Enumerable.Range(1, TiledCube.MaxRepeats)
                     from p in new[] { false, true }
-                    select TiledCube.Key(x, y, z, p)).ToList();
+                    from v in Enumerable.Range(0, CreatureCoat.PlacementVariants)
+                    select TiledCube.Key(x, y, z, p, v)).ToList();
         Assert.Equal(keys.Count, keys.Distinct().Count());
+        Assert.Equal(TiledCube.Key(2, 3, 4, false), TiledCube.Key(2, 3, 4, false, 0));
     }
+
+    [Fact]
+    public void APlacement_ShiftsTheUvs_AndAPinnedCubeNeverShiftsV()
+    {
+        var plain = TiledCube.Build(2, 2, 3, false);
+        for (int p = 1; p < CreatureCoat.PlacementVariants; p++)
+        {
+            var moved = TiledCube.Build(2, 2, 3, false, p);
+            Assert.NotEqual(plain.Uvs, moved.Uvs);
+            Assert.Equal(plain.Positions, moved.Positions);
+            Assert.Equal(plain.Triangles, moved.Triangles);
+
+            var pinned = TiledCube.Build(2, 2, 3, true, p);
+            var pinnedPlain = TiledCube.Build(2, 2, 3, true);
+            for (int i = 0; i < 24; i++)
+            {
+                Assert.Equal(pinnedPlain.Uvs[i * 2 + 1], pinned.Uvs[i * 2 + 1], 5); // v untouched
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(1.2f, 1.2f, 1)]
+    [InlineData(2.4f, 1.2f, 2)]
+    [InlineData(2.4f, 0.6f, 4)]
+    public void ACoarseHide_RepeatsLessOften(float size, float metres, int expected)
+        => Assert.Equal(expected, TiledCube.Repeats(size, metres));
 
     private static (float X, float Y, float Z) V(float[] a, int i) => (a[i * 3], a[i * 3 + 1], a[i * 3 + 2]);
 

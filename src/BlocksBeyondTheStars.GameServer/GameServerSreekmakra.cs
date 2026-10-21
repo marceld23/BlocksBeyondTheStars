@@ -439,7 +439,7 @@ public sealed partial class GameServer
             HomeBodyId = world,
             Name = DefaultCompanionName(trueForm, p),
             SpeciesId = SreekmakraSpeciesId,
-            Species = CloneSpecies(trueForm),
+            Species = SnapshotSpecies(trueForm), // #2868: keeps its home world's look
             SizeScale = 1f,
             Bond = 60,
             TamedAtUtc = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
