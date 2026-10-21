@@ -23,7 +23,10 @@ public static class FloraGenerator
     /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.TerrainGeneration"/>: from
     /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.BiomeThemeRosterGeneration"/> the biome
     /// themes take part in the activation roll (#1715); older worlds keep the planet-theme-only roll — and
-    /// with it every species they ever grew.</summary>
+    /// with it every species they ever grew. From <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.TreeVarietyGeneration"/>
+    /// the glowing surface species follow the world's <see cref="GlowRules.LevelFor">glow level</see> (#2857).
+    /// <paramref name="worldSeed"/> is the ROSTER seed (<see cref="WorldGenerator.RosterSeedFor"/>) — the one the glow level
+    /// is rolled from as well.</summary>
     public static IReadOnlyList<FloraSpecies> GenerateRoster(PlanetType planet, long worldSeed, int terrainGeneration = 0)
     {
         var list = new List<FloraSpecies>();
@@ -51,22 +54,15 @@ public static class FloraGenerator
         // theme's 40 % — a wetland species that rolled inactive could never grow there, and PickWeight (which
         // does read the biome theme) cannot add back what was never activated. The union of preferred tags is
         // data-only, so the roster stays a pure function of (type, seed, generation).
-        var planetTheme = FloraThemes.Resolve(planet.FloraTheme);
-        FloraTag preferred = planetTheme.Preferred;
-        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.BiomeThemeRosterGeneration)
-        {
-            foreach (var biome in planet.Biomes)
-            {
-                if (!string.IsNullOrWhiteSpace(biome.FloraTheme))
-                {
-                    preferred |= FloraThemes.Resolve(biome.FloraTheme).Preferred;
-                }
-            }
-        }
+        FloraTag preferred = PreferredTags(planet, terrainGeneration);
 
         // #1760 (generation ≥ 5): a strict planet theme (the flower fields) activates only its preferred tags.
         // No theme older than this wave is strict, so the roll below is unchanged for every existing world.
-        bool strict = terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.AuthoredContentGeneration && planetTheme.Strict;
+        bool strict = IsStrict(planet, terrainGeneration);
+
+        // #2857 (generation 29): the world's glow level decides how much of its surface plant life glows. Older generations
+        // never read it (GlowRules answers Normal for them, and every rule below sits behind glowWave).
+        bool glowWave = terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.TreeVarietyGeneration;
 
         int i = 0;
         foreach (var archetype in FloraCatalog.All)
@@ -86,6 +82,12 @@ public static class FloraGenerator
             // A cave-only species (generation 11) rolls without the strict theme: the flower planet's rule is about
             // its fields, and its caves grow like every other world's.
             bool rollStrict = strict && archetype.OnSurface;
+            // #2857 (generation 29): a glowing surface species is no signature plant of its OTHER tags any more (the glow
+            // vine's Lush made it one on every green world) — only a world that prefers glow itself rolls it at 85 %. The
+            // roll is still drawn below, so the stream of every later species stays as it is.
+            double chance = glowWave && IsSurfaceGlower(archetype)
+                ? GlowActivationChance(preferred, rollStrict)
+                : FloraThemes.ActivationChance(preferred, archetype.Tags, rollStrict);
             list.Add(new FloraSpecies
             {
                 Id = "fl" + i,
@@ -95,13 +97,21 @@ public static class FloraGenerator
                 Aquatic = archetype.Aquatic,
                 // A species of a later wave (#1756, MinGeneration) draws its roll like every other — the draw keeps
                 // the rng stream identical — but stays inactive on a world whose generation predates it.
-                Active = rng.NextDouble() < FloraThemes.ActivationChance(preferred, archetype.Tags, rollStrict)
-                    && archetype.MinGeneration <= terrainGeneration,
+                Active = rng.NextDouble() < chance && archetype.MinGeneration <= terrainGeneration,
             });
             i++;
         }
 
-        EnsureCoverage(list, planet, terrainGeneration, strict ? preferred : FloraTag.None);
+        // #2857 (generation 29): the glow level overrides the rolls of the glowing surface species — before the coverage rule,
+        // which on a dark world must then never bring one back.
+        var glow = GlowRules.LevelFor(planet, worldSeed, terrainGeneration);
+        if (glowWave)
+        {
+            ApplyGlowLevel(list, planet, worldSeed, terrainGeneration, glow, strict ? preferred : FloraTag.None);
+        }
+
+        EnsureCoverage(list, planet, terrainGeneration, strict ? preferred : FloraTag.None,
+            shunGlow: glowWave && (glow is GlowLevel.None or GlowLevel.Low));
 
         // #2038: a fruit is toxic exactly when the world's tree species is — a tree and what hangs from it are one
         // identity, so the tree's flag (a scan label until now) finally means something. The fruit species' own roll
@@ -197,6 +207,132 @@ public static class FloraGenerator
         return new System.Random(unchecked((int)(s ^ (s >> 32))));
     }
 
+    /// <summary>The tags a world's roll prefers: its planet theme's, and from
+    /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.BiomeThemeRosterGeneration"/> every biome theme's too (#1715).</summary>
+    private static FloraTag PreferredTags(PlanetType planet, int terrainGeneration)
+    {
+        FloraTag preferred = FloraThemes.Resolve(planet.FloraTheme).Preferred;
+        if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.BiomeThemeRosterGeneration)
+        {
+            foreach (var biome in planet.Biomes)
+            {
+                if (!string.IsNullOrWhiteSpace(biome.FloraTheme))
+                {
+                    preferred |= FloraThemes.Resolve(biome.FloraTheme).Preferred;
+                }
+            }
+        }
+
+        return preferred;
+    }
+
+    /// <summary>Whether the planet theme is strict on this generation (#1760, from
+    /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.AuthoredContentGeneration"/>).</summary>
+    private static bool IsStrict(PlanetType planet, int terrainGeneration)
+        => terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.AuthoredContentGeneration
+           && FloraThemes.Resolve(planet.FloraTheme).Strict;
+
+    // #2857: the salt of a low-glow world's one glowing species — its own stateless roll, no species stream moves.
+    private const long LowGlowPickSalt = 0x2857_1060_0E1A;
+
+    /// <summary>True for a wild species that glows on the SURFACE (#2857) — tagged <see cref="FloraTag.Glow"/> and able to keep
+    /// a surface planted: the glow cap, ember bloom, crystal flower, glow vine, spore pod, bulb, shard bloom and cinder bush.
+    /// These follow the world's <see cref="GlowLevel"/> from generation 29. The cave-only glowers (moss, threads) are the light
+    /// of the caves on every world, and the prism bloom stays active for the caves too — only its surface clusters follow the
+    /// level (<c>WorldGenerator.StampFloraGen11</c>).</summary>
+    public static bool IsSurfaceGlower(FloraCatalog.Species species)
+        => (species.Tags & FloraTag.Glow) != 0 && SurfaceCover(species) && !species.Hanging && !species.Aquatic && !species.Fruit
+           && !species.Cultivated && !species.Authored;
+
+    /// <summary>The generation-29 activation chance of a glowing surface species on a <see cref="GlowLevel.Normal"/> world
+    /// (#2857): 85 % only when the world prefers <see cref="FloraTag.Glow"/> itself, else 40 % — or none under a strict theme
+    /// that does not prefer glow. Its other tags no longer count: the glow vine is no signature plant of a green world.</summary>
+    private static double GlowActivationChance(FloraTag preferred, bool strict)
+        => FloraThemes.ActivationChance(preferred & FloraTag.Glow, FloraTag.Glow, strict);
+
+    /// <summary>The glowing surface species that can grow on this planet's surface (#2857), in catalog order: a host among the
+    /// planet's surface, beach and biome surface blocks, a generation this world has, and — under a strict theme — on-theme.
+    /// A <see cref="GlowLevel.Low"/> world picks its one glowing species among them, a <see cref="GlowLevel.Luminous"/> world
+    /// grows them all.</summary>
+    public static IReadOnlyList<string> GlowCandidatesFor(PlanetType planet, int terrainGeneration)
+        => GlowCandidates(planet, terrainGeneration,
+            IsStrict(planet, terrainGeneration) ? PreferredTags(planet, terrainGeneration) : FloraTag.None);
+
+    private static List<string> GlowCandidates(PlanetType planet, int terrainGeneration, FloraTag strictTags)
+    {
+        var own = new HashSet<string>();
+        AddOwn(planet.SurfaceBlock);
+        AddOwn(planet.BeachBlock);
+        foreach (var biome in planet.Biomes)
+        {
+            AddOwn(biome.SurfaceBlock);
+        }
+
+        var keys = new List<string>();
+        foreach (var sp in FloraCatalog.All)
+        {
+            if (IsSurfaceGlower(sp) && sp.MinGeneration <= terrainGeneration
+                && (strictTags == FloraTag.None || (sp.Tags & strictTags) != 0)
+                && (sp.Hosts.Any(own.Contains) || sp.LateHosts.Any(own.Contains)))
+            {
+                keys.Add(sp.Key);
+            }
+        }
+
+        return keys;
+
+        void AddOwn(string? key)
+        {
+            if (!string.IsNullOrEmpty(key))
+            {
+                own.Add(key!);
+            }
+        }
+    }
+
+    /// <summary>The one glowing species of a <see cref="GlowLevel.Low"/> world (#2857), or null when no glowing species can
+    /// grow on its surface: a stateless pick among <see cref="GlowCandidatesFor"/> from the roster seed and the planet.</summary>
+    private static string? LowGlowPick(PlanetType planet, long rosterSeed, IReadOnlyList<string> candidates)
+    {
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        long s = unchecked(rosterSeed ^ WorldGenerator.StableHash(planet.Key) ^ LowGlowPickSalt);
+        return candidates[new System.Random(unchecked((int)(s ^ (s >> 32)))).Next(candidates.Count)];
+    }
+
+    /// <summary>Generation 29 (#2857): the world's glow level overrides the rolls of the glowing surface species. None: none
+    /// grows. Low: exactly the one <see cref="LowGlowPick"/>. Normal: the rolls stand (<see cref="GlowActivationChance"/>).
+    /// Luminous: every one that can grow on this planet's surface, the others keep their roll. The rolls themselves were
+    /// drawn as always, so no species stream moves.</summary>
+    private static void ApplyGlowLevel(List<FloraSpecies> roster, PlanetType planet, long rosterSeed, int terrainGeneration,
+        GlowLevel level, FloraTag strictTags)
+    {
+        if (level == GlowLevel.Normal)
+        {
+            return;
+        }
+
+        var candidates = GlowCandidates(planet, terrainGeneration, strictTags);
+        string? lowPick = level == GlowLevel.Low ? LowGlowPick(planet, rosterSeed, candidates) : null;
+        foreach (var r in roster)
+        {
+            if (FloraCatalog.Find(r.BlockKey) is not { } sp || !IsSurfaceGlower(sp))
+            {
+                continue;
+            }
+
+            r.Active = level switch
+            {
+                GlowLevel.None => false,
+                GlowLevel.Low => r.BlockKey == lowPick,
+                _ => r.Active || candidates.Contains(r.BlockKey),
+            };
+        }
+    }
+
     /// <summary>Generation 11: a world that grows plants keeps its caves planted — at least one species of the cave
     /// habitat itself (the first eligible one in catalog order when none rolled active) — and the rainbow class grows
     /// on every such world (Marcel: "on every world with plant life").</summary>
@@ -220,18 +356,22 @@ public static class FloraGenerator
     }
 
     /// <summary>Force-activates the minimum flora so no part of the world goes bare: every land host surface
-    /// keeps at least one active land species, and the seas keep at least one active aquatic species.</summary>
-    private static void EnsureCoverage(List<FloraSpecies> roster, PlanetType planet, int terrainGeneration, FloraTag strictTags)
+    /// keeps at least one active land species, and the seas keep at least one active aquatic species.
+    /// <paramref name="shunGlow"/> (#2857, a generation-29 world of glow level None or Low) keeps every glowing surface
+    /// species out of the picks.</summary>
+    private static void EnsureCoverage(List<FloraSpecies> roster, PlanetType planet, int terrainGeneration, FloraTag strictTags,
+        bool shunGlow = false)
     {
         // Every host surface used by a land archetype must have an active species, or that surface grows nothing.
         // A hanging species (#1759) roots in a ceiling, never on a surface, so it neither needs cover nor gives it;
         // a species gated behind a later generation (#1756) must never be the pick that covers an older world; and
         // under a strict theme (#1760, strictTags ≠ None) only an on-theme species may be the pick — a bare patch
-        // beats a bush on the flower planet.
+        // beats a bush on the flower planet. On a dark world (#2857, shunGlow) the same holds for a glowing species: the
+        // first non-glowing one covers the host, and a host only glowing plants could cover stays bare.
         bool strict = strictTags != FloraTag.None;
         bool Eligible(string blockKey)
             => FloraCatalog.All.FirstOrDefault(s => s.Key == blockKey) is { } sp && !sp.Hanging && sp.MinGeneration <= terrainGeneration
-               && SurfaceCover(sp) && (!strict || (sp.Tags & strictTags) != 0);
+               && SurfaceCover(sp) && (!strict || (sp.Tags & strictTags) != 0) && !(shunGlow && IsSurfaceGlower(sp));
 
         var landHosts = new HashSet<string>();
         foreach (var sp in FloraCatalog.All)
@@ -266,9 +406,14 @@ public static class FloraGenerator
             landHosts.IntersectWith(own);
         }
 
+        // #2857 (generation 29): a hanging species gives no cover either — the island-underside kelp lists stone and dirt as
+        // its roots, and on an older world it counted as the plant of a stone biome. The glowers that used to keep such a host
+        // planted as well are gone from a dark world, so from generation 29 only a plant that stands on the host covers it.
+        bool groundCoverOnly = terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.TreeVarietyGeneration;
         foreach (var host in landHosts)
         {
-            bool covered = roster.Any(r => r.Active && !r.Aquatic && SurfaceCover(r.BlockKey) && HostsFor(r.BlockKey).Contains(host));
+            bool covered = roster.Any(r => r.Active && !r.Aquatic && SurfaceCover(r.BlockKey) && HostsFor(r.BlockKey).Contains(host)
+                && !(groundCoverOnly && FloraCatalog.IsHanging(r.BlockKey)));
             if (!covered)
             {
                 var pick = roster.FirstOrDefault(r => !r.Aquatic && Eligible(r.BlockKey) && HostsFor(r.BlockKey).Contains(host));

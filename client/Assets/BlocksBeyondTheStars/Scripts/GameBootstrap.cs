@@ -261,12 +261,15 @@ namespace BlocksBeyondTheStars.Client
             var map = new System.Collections.Generic.Dictionary<ushort, Color>();
             foreach (var def in Content.Blocks.Values)
             {
-                // Leaves (small flora + all three tree-crown blocks) roll a per-species per-world hue; the
-                // trunk (wood_log) rolls its own DARK per-world bark hue (ForWood) so it always reads clearly
-                // darker than the leaves it carries, never the same colour.
+                // Leaves (small flora + the tinted tree crowns) roll a per-species per-world hue; the trunks roll their
+                // own per-world bark hue (ForWood) — DARK for the common trunks, so they always read clearly darker than
+                // the leaves they carry, LIGHT for the pale bark (#2851). #2851: each leaf slot (tree_leaves, _b, _c) is a
+                // block of its own and so rolls its own colour; the blossom crown and the Fifi plant's leaves keep their
+                // painted colours (TreeFoliage.IsTinted leaves them out). The saguaro is a solid plant body that takes
+                // its species colour like the cactus.
                 bool isLeaf = def.Key.StartsWith("flora_", System.StringComparison.Ordinal)
-                    || def.Key == "tree_leaves" || def.Key == "pine_needles" || def.Key == "palm_frond" || def.Key == "giant_leaves";
-                bool isWood = def.Key == "wood_log" || def.Key == "giant_log";
+                    || TreeFoliage.IsTinted(def.Key) || def.Key == ChunkMesher.SaguaroKey;
+                bool isWood = TreeWood.IsKey(def.Key);
                 if (!isLeaf && !isWood)
                 {
                     continue;
@@ -282,7 +285,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var (r, g, b) = isWood
-                    ? BlocksBeyondTheStars.Shared.World.FloraTints.ForWood(_worldSeed, LocationName)
+                    ? BlocksBeyondTheStars.Shared.World.FloraTints.ForWood(_worldSeed, LocationName, def.Key)
                     : BlocksBeyondTheStars.Shared.World.FloraTints.For(_worldSeed, LocationName, def.Key);
                 // The mesher writes these into TEXCOORD2 and the block shader multiplies them raw —
                 // convert the sRGB-authored hue at this boundary (no-op in Gamma space).
@@ -291,6 +294,7 @@ namespace BlocksBeyondTheStars.Client
 
             _floraTintByBlock = map;
             ChunkMesher.LinearColorSpace = QualitySettings.activeColorSpace == ColorSpace.Linear; // main thread: the mesher may run on a worker
+            ChunkMesher.GroveCircumference = Circumference; // #2856: the grove colour drift wraps with this world's seams
             RebuildPlantLights();
 
             // #2835: the ground-scatter tufts take the world's grass-tuft colour (ScatterLit), like the grass billboards.
@@ -303,7 +307,10 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int GrassTintId = Shader.PropertyToID("_Sc_GrassTint");
 
         /// <summary>#2832: every flora archetype with extra looks wears the one this world picks (seed + location, so every
-        /// client agrees). The atlas repaints the block's own slot, so nothing re-meshes.</summary>
+        /// client agrees). The atlas repaints the block's own slot, so nothing re-meshes. #2851: the three leaf slots
+        /// (<see cref="TreeFoliage.LeafSlotKeys"/>) pick from one shared pool as a group, so the tree kinds of one wood never
+        /// wear the same leaves; every other block (the bark of wood_log and wood_log_b included — its end-grain cap is
+        /// re-derived from the repainted slot) picks on its own.</summary>
         private void ApplyFloraLooks()
         {
             if (Atlas == null || Content == null)
@@ -311,16 +318,36 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            var slots = new System.Collections.Generic.List<BlockDefinition>();
+            foreach (string slotKey in TreeFoliage.LeafSlotKeys)
+            {
+                if (Content.GetBlock(slotKey) is { } slot)
+                {
+                    slots.Add(slot);
+                }
+            }
+
+            var slotLooks = FloraLooks.TextureKeysForGroup(_worldSeed, LocationName, slots);
             var looks = new System.Collections.Generic.Dictionary<ushort, string>();
             foreach (var def in Content.Blocks.Values)
             {
-                if (def.Looks is { Count: > 0 })
+                string key;
+                if (slotLooks.TryGetValue(def.Key, out string slotLook))
                 {
-                    string key = BlocksBeyondTheStars.Shared.World.FloraLooks.TextureKeyFor(_worldSeed, LocationName, def);
-                    if (key != def.Key)
-                    {
-                        looks[def.NumericId.Value] = key;
-                    }
+                    key = slotLook;
+                }
+                else if (def.Looks is { Count: > 0 })
+                {
+                    key = FloraLooks.TextureKeyFor(_worldSeed, LocationName, def);
+                }
+                else
+                {
+                    continue;
+                }
+
+                if (key != def.Key)
+                {
+                    looks[def.NumericId.Value] = key;
                 }
             }
 
@@ -329,7 +356,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Generation 11: the glowing plants that light their surroundings (<c>FloraCatalog.Species.Light</c>)
         /// cast a dim version of their own colour — this world's colour of the species, or the plant's own cell colour
-        /// for the rainbow class. Registered with the light-source index before the world's chunks arrive.</summary>
+        /// for the rainbow class. #2858: the classic glowers (a declared <c>lightColor</c>) cast this world's colour of
+        /// their species too, at the brightness and reach they always had (<see cref="PlantGlowLight"/>); authored plants
+        /// keep their own light. Registered with the light-source index before the world's chunks arrive.</summary>
         private void RebuildPlantLights()
         {
             if (World == null || Content == null)
@@ -341,6 +370,12 @@ namespace BlocksBeyondTheStars.Client
             var rainbowStrength = new System.Collections.Generic.Dictionary<ushort, float>();
             foreach (var sp in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.All)
             {
+                if (Content.GetBlock(sp.Key) is { } glower && PlantGlowLight.TakesWorldColour(sp, glower))
+                {
+                    lightById[glower.NumericId.Value] = PlantGlowLight.PackedFor(_worldSeed, LocationName, glower);
+                    continue;
+                }
+
                 if (sp.Light <= 0f || sp.Cultivated || Content.GetBlock(sp.Key) is not { } def)
                 {
                     continue;
@@ -3276,6 +3311,7 @@ namespace BlocksBeyondTheStars.Client
                 _envAge = 0f; // restart the extrapolation window (#900)
                 Circumference = m.Circumference > 0 ? m.Circumference : WorldConstants.Circumference;
                 World?.SetCircumference(Circumference); // chunk/block wrap at this world's size
+                ChunkMesher.GroveCircumference = Circumference; // #2856: so does the grove colour drift
                 if (CaptureEnvActive)
                 {
                     ApplyCaptureEnv(Environment); // keep marketing shots clear-weather daylight across re-broadcasts

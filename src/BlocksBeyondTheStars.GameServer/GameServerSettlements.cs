@@ -2047,7 +2047,13 @@ public sealed partial class GameServer
     /// Small flora is not listed: it is walk-through and already exempt from protection as harvestable.</summary>
     private HashSet<ushort> SettlementVegetationIds
         => _settlementVegetationIds ??= HostIds(System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Concat(
-            new[] { "wood_log", "tree_leaves", "pine_needles", "palm_frond", BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLogKey, BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLeavesKey },
+            new[]
+            {
+                "wood_log", "tree_leaves", "pine_needles", "palm_frond", BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLogKey, BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLeavesKey,
+                // #2850/#2851/#2853 (generation 29): the pale bark, the two more leaf slots, the blossom crown, the saguaro
+                // and the lantern tree's fruit
+                "wood_log_b", "tree_leaves_b", "tree_leaves_c", "blossom_leaves", "saguaro", BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.LanternFruitKey,
+            },
             System.Linq.Enumerable.Concat(
                 BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.FruitKeys(),               // #2038: the fruit under a crown goes with the tree
                 BlocksBeyondTheStars.Shared.Definitions.FifiPlant.PartKeys))));                 // #2085: so does a Fifi plant (generation 16)

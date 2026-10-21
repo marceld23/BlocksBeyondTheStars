@@ -24,6 +24,37 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🌳 Tree variety and the glow level (Marcel 2026-10-20: "more tree species, changing textures — and fewer glowing plants and trees") — #2848–#2859, branch feat/tree-variety-glow, terrain generation 29, save version 6 — ✅ done 2026-10-21 (⚠ playtest open)
+
+An analysis of generation 28 (16 worlds × 40 surface samples per planet type) found 1–4 tree shapes and at most 2–3
+crown textures per world, 0.2–0.4 % jungle trees on the jungle planet, 82–100 % dead snags on deserts, mushroom and
+crystal trees never grown, glowing plants on 94–100 % of the worlds (lava 70 %, deserts 41–48 % of the surface flora),
+and the Fifi plant — a tree with 5–8 glowing blossoms — on every soft-ground world: the "glowing trees".
+
+- **Trees (new worlds):** a fair, weighted grove pick (#2848 — the bell-shaped grove value starved the palette edges),
+  mushroom/crystal trees on alien grass, mycelium and crystal ground + fungal/crystal tree densities (#2849), the saguaro
+  as its own cactus block (#2850), three leaf slots + a blossom crown + a pale bark with their own looks, colours and
+  scanner names — toxicity shared with the common tree, so leaves, trunk and fruit agree (#2851), mixed woods — 30 % of a
+  grove another kind (#2852), ten new shapes: birch, oak, column, umbrella, blossom, tree fern, bottle, spiral, ball,
+  lantern (#2853), and shape variants of the classic kinds (#2854). Every builder keeps its wood face-connected; the NPC
+  woodcutter's work box grew to 9 × 9 for the wider crowns.
+- **Textures:** 28 OpenAI tiles (gallery approved by Marcel 2026-10-20): 14 crown tiles for the shared leaf pool, four
+  blossom crowns, five bark looks for `wood_log`, three pale barks, the saguaro, the lantern fruit (#2855).
+- **Every world (client):** gentle colour drift between groves (#2856), plant glow fades by day and is full at night and
+  in caves, the frost flower no longer glows, glowing plants light their surroundings in their world colour (#2858).
+- **Glow level per world (new worlds, #2857):** 40 % none, 30 % low (one glowing kind), 20 % normal, 10 % luminous (all
+  glowing kinds lead, lantern trees with always-edible glowing fruit); crystal/ashen worlds at least low; caves keep
+  their glow everywhere; prism bloom surface clusters only on normal/luminous worlds. **Fifi plant** on about every third
+  new world (#2859).
+- Six new blocks (`tree_leaves_b`, `tree_leaves_c`, `blossom_leaves`, `wood_log_b`, `saguaro`, `flora_lantern_fruit`) →
+  block ids shift, save version 6; names in all 14 languages. Goldens `meadowlands-gen29`, `jungle-gen29`, `desert-gen29`.
+- Known, deliberate: settlement planters (ember blooms on basalt, crystal flowers in alien villages) glow on every level;
+  the glow cap and spore pod leave a dark world's caves with its surface (one roster flag); Fifi blossoms (a cube) keep
+  their glow by day; saplings still grow the classic broadleaf. `ChunkMesherGoldenEditModeTests` (Unity, stale on
+  main since gen 3) needs a conscious re-pin.
+
+Docs: WORLD_GENERATION.md §46, USER_MANUAL.md (plant life, food), ART_BIBLE.md (tree slots, leaf pool), NOTICES.md.
+
 ### 📬 Player reports 2026-10-19/20 (Marcel in the browser, v2026.10.22; Lyxette, v2026.10.23) — the upside-down browser HUD, garbled browser screenshots, an animal floating over a moat — #2843–#2846, branch fix/webgpu-hud-flip-screenshots — ✅ done 2026-10-20 (⚠ playtest open)
 
 "The HUD is upside down and mirrored, I use Chrome" (Marcel, `/play/?singleplayer=1`, WebGPU) — #2512 again, closed on

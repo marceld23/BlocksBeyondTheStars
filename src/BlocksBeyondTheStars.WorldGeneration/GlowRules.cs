@@ -6,8 +6,9 @@ using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.WorldGeneration;
 
-/// <summary>How much of a world's SURFACE plant life glows (#2857, terrain generation 29). Caves are not part of it: their
-/// glowing moss, threads and prism blooms are the light down there on every world.</summary>
+/// <summary>How much of a world's SURFACE plant life glows (#2857, terrain generation 29). The cave species are not part of
+/// it: glowing moss, threads and prism blooms are the light down there on every world. The glow cap and the spore pod grow on
+/// the surface AND in caves under one roster flag, so a world that switches them off loses them underground too.</summary>
 public enum GlowLevel
 {
     /// <summary>No glowing plant grows on the surface (40 % of the worlds).</summary>

@@ -319,7 +319,9 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 {
                     // #2822: a glowing plant or mushroom (flora tint, or a cross plant) breathes slowly. Crystals, ores,
                     // machines and dyed glow blocks are not flora and stay steady.
-                    lavaGlow = BbtsGlowBreath(i.wp);
+                    // #2858: and it fades to about a quarter in daylight — full at dusk, at night and out of the sky's
+                    // reach (FloraAccent.hlsl). L.y is the sun's height; the haze re-add below reuses lavaGlow, so it fades too.
+                    lavaGlow = BbtsGlowBreath(i.wp) * BbtsPlantGlowDaylight(L.y, sky);
                 }
                 col += albedo * i.mat.a * (3.0 * lavaGlow); // HDR overdrive: push emitters past white so ACES + bloom give a real glow
 
@@ -737,6 +739,12 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                     float slab = sin(lw.x * 0.16 + lt) * sin(lw.y * 0.19 - lt * 0.7);
                     float veins = smoothstep(0.5, 1.0, 0.5 + 0.5 * sin((lw.x + lw.y) * 0.55 + lt * 1.1) + slab * 0.3);
                     lavaGlow = clamp(1.0 + 0.7 * slab + 0.9 * veins, 0.2, 2.2);
+                }
+                else if (i.mat.a > 0.01 && ((i.skyl.y > 0.5 && i.skyl.y < 1.5) || (i.leaf.x > 2.5 && i.leaf.x < 4.5)))
+                {
+                    // #2858 (mirrors the URP pass, without its #2822 breathing): a glowing plant fades to about a quarter
+                    // in daylight — full at dusk, at night and out of the sky's reach. Lamps, lava, ores, crystals stay.
+                    lavaGlow = BbtsPlantGlowDaylight(L.y, sky);
                 }
                 col += albedo * i.mat.a * (3.0 * lavaGlow); // HDR overdrive: push emitters past white so ACES + bloom give a real glow
 

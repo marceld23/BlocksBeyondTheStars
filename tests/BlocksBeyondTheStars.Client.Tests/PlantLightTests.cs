@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
 using Xunit;
@@ -57,6 +58,28 @@ public sealed class PlantLightTests
 
         Assert.True(w.ApplyBlockChange(3, 4, 5, 0, tint: 0, glow: 0, out _)); // harvested
         Assert.Empty(w.LightSourcesNear(new ChunkCoord(0, 0, 0), 4));
+    }
+
+    [Fact]
+    public void ARegisteredClassicGlower_CastsTheResolversColour_NotItsDeclaredOne()
+    {
+        // #2858: a classic glower declares a light colour of its own (its block light), but it is registered so it casts
+        // this world's colour of its species — the resolver asks first. A 0 from the resolver falls back to the block.
+        // Full-reach values, so the player's natural-emitter switch (a static other tests flip) cannot interfere.
+        const ushort Vine = 52;
+        int declared = BlockLight.Pack(0x80FF80, BlockLight.DefaultRadius, surfaceOnly: false);
+        int worldColour = BlockLight.Pack(0x3040FF, BlockLight.DefaultRadius, surfaceOnly: false);
+        var w = new ClientWorld();
+        w.SetCircumference(512);
+        w.SetBlockLightResolver(id => id == Vine || id == Lamp ? declared : 0);
+        w.SetCellLightResolver((id, _) => id == Vine ? worldColour : 0, new[] { Vine, Lamp });
+        w.StoreChunk(new ChunkCoord(0, 0, 0), new ushort[Cs * Cs * Cs]);
+
+        Assert.True(w.ApplyBlockChange(3, 4, 5, Vine, tint: 0, glow: 0, out _));
+        Assert.Equal(worldColour, Assert.Single(w.LightSourcesNear(new ChunkCoord(0, 0, 0), 4)).Rgb);
+
+        Assert.True(w.ApplyBlockChange(3, 4, 5, Lamp, tint: 0, glow: 0, out _)); // registered, but the resolver says 0
+        Assert.Equal(declared, Assert.Single(w.LightSourcesNear(new ChunkCoord(0, 0, 0), 4)).Rgb);
     }
 
     [Fact]

@@ -24,6 +24,16 @@ public sealed class TextureTilesTests
     [InlineData("flora_sapling", TextureAlphaMode.Cutout)]
     [InlineData("tree_leaves", TextureAlphaMode.Cutout)]
     [InlineData("giant_leaves", TextureAlphaMode.Cutout)]
+    [InlineData("tree_leaves_b", TextureAlphaMode.Cutout)]          // #2851: the leaf slots, the blossom crown and their looks
+    [InlineData("tree_leaves_c", TextureAlphaMode.Cutout)]
+    [InlineData("tree_leaves_look24", TextureAlphaMode.Cutout)]
+    [InlineData("blossom_leaves", TextureAlphaMode.Cutout)]
+    [InlineData("blossom_leaves_look3", TextureAlphaMode.Cutout)]
+    [InlineData("flora_lantern_fruit", TextureAlphaMode.Cutout)]    // a hanging fruit billboard like the other fruit
+    [InlineData("wood_log_b", TextureAlphaMode.Opaque)]             // bark is never cut, nor are its looks
+    [InlineData("wood_log_b_look2", TextureAlphaMode.Opaque)]
+    [InlineData("wood_log_look5", TextureAlphaMode.Opaque)]
+    [InlineData("saguaro", TextureAlphaMode.Opaque)]                // the cactus body is a solid cube
     [InlineData("fire", TextureAlphaMode.Cutout)]
     [InlineData("torch", TextureAlphaMode.Cutout)]
     [InlineData("lantern", TextureAlphaMode.Cutout)]

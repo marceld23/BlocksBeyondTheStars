@@ -137,6 +137,11 @@ public sealed class WorldGenerationGoldenTests
         // Generation 28 (2026-10-19, #2833): the mixed meadows — twelve more wild plants, and a share of the columns picks
         // its species per column. The meadow of meadowlands-gen24 under the new pick (the terrain is the same).
         new("meadowlands-gen28", 7, "meadowlands", 0, false, null, 28),
+        // Generation 29 (2026-10-20, #2848–#2859): the tree variety and glow package — weighted fair tree picks, mixed woods,
+        // ten new shapes, leaf slots, the glow level and the Fifi world share. A meadow, a jungle and a desert under it.
+        new("meadowlands-gen29", 7, "meadowlands", 0, false, null, 29),
+        new("jungle-gen29", 20260903, "jungle", 0, false, null, 29),
+        new("desert-gen29", 1, "desert", 0, false, null, 29),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -239,6 +244,10 @@ public sealed class WorldGenerationGoldenTests
             // Pinned 2026-10-19 (the mixed meadows, generation 28, #2833; Windows 11, .NET 10). Equal to meadowlands-gen24 but
             // for the two planted surface chunks — the pad chunk at the origin grows nothing.
             ["meadowlands-gen28"] = 0xf8b273af19941b54UL,
+            // Pinned 2026-10-21 (the tree variety and glow package, generation 29, #2848–#2859; Windows 11, .NET 10).
+            ["meadowlands-gen29"] = 0x960e9223fd48b5feUL,
+            ["jungle-gen29"] = 0xcdecc0e8253d7efcUL,
+            ["desert-gen29"] = 0xeaf24c386be59d88UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

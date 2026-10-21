@@ -44,13 +44,15 @@ namespace BlocksBeyondTheStars.Client
 
         // Generation 11: glowing plants that light their surroundings. Their light colour is the world's colour of the
         // species, or — the rainbow class — the colour of the plant's own cell, so it is asked per position; the id
-        // table keeps that call off the (vast) majority of cells that are no such plant.
+        // table keeps that call off the (vast) majority of cells that are no such plant. #2858: the classic glowers
+        // (a declared lightColor) are registered too, so they cast their world colour instead of the declared one.
         private bool[]? _cellLightIds;
         private System.Func<ushort, Vector3i, int>? _cellLightColor;
 
-        /// <summary>Registers the blocks whose light colour depends on the world or on their cell (generation 11's
-        /// glowing plants) and the resolver asked for them with the cell's canonical position; null clears it. Set it
-        /// before a world's chunks are stored — a chunk already indexed keeps the lights it was indexed with.</summary>
+        /// <summary>Registers the blocks whose light colour depends on the world or on their cell (the glowing plants)
+        /// and the resolver asked for them with the cell's canonical position; null clears it. For a registered block the
+        /// resolver wins over the block's own light colour (0 from it falls back to that). Set it before a world's chunks
+        /// are stored — a chunk already indexed keeps the lights it was indexed with.</summary>
         public void SetCellLightResolver(System.Func<ushort, Vector3i, int>? resolver, IEnumerable<ushort>? ids)
         {
             _cellLightColor = resolver;
@@ -104,17 +106,22 @@ namespace BlocksBeyondTheStars.Client
             return size > 0 ? flags : null;
         }
 
-        /// <summary>The inherent light colour of a block at a canonical cell (0 = no light source): the block's own
-        /// colour, else — for a registered plant — the per-cell resolver's.</summary>
+        /// <summary>The inherent light colour of a block at a canonical cell (0 = no light source): for a registered
+        /// plant the per-cell resolver's, else (or when that says 0) the block's own colour. #2858: the resolver asks
+        /// first, because a classic glower declares a fixed light colour of its own and is registered precisely so it
+        /// casts this world's colour of its species instead.</summary>
         private int InherentLightAt(ushort id, Vector3i pos)
         {
-            int rgb = _blockLightColor != null ? _blockLightColor(id) : 0;
-            if (rgb == 0 && _cellLightIds is { } flags && id < flags.Length && flags[id] && _cellLightColor != null)
+            if (_cellLightIds is { } flags && id < flags.Length && flags[id] && _cellLightColor != null)
             {
-                rgb = _cellLightColor(id, pos);
+                int cell = _cellLightColor(id, pos);
+                if (cell != 0)
+                {
+                    return cell;
+                }
             }
 
-            return rgb;
+            return _blockLightColor != null ? _blockLightColor(id) : 0;
         }
 
         /// <summary>The light a cell casts (0 = none). Colour priority (#1126): an explicit glow always wins; otherwise

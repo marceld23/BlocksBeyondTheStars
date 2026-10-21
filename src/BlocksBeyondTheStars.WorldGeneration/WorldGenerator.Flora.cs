@@ -109,6 +109,12 @@ public sealed partial class WorldGenerator
     private readonly System.Collections.Generic.Dictionary<ushort, BlockId[]> _floraBySurface = new();
     // flora block id -> its climate tags (for theme-weighted, patchy species selection).
     private readonly System.Collections.Generic.Dictionary<ushort, FloraTag> _floraTagByBlock = new();
+    // #2857 (generation 29): the world's glow level, resolved with the roster (Normal below generation 29, where nothing reads it).
+    private GlowLevel _floraGlowLevel = GlowLevel.Normal;
+
+    /// <summary>The pick weight of a glowing surface species on a <see cref="GlowLevel.Luminous"/> world (#2857) — its patches
+    /// lead there; on every other generation-29 world a glowing species weighs 1.</summary>
+    internal const int LuminousGlowPickWeight = 4;
 
     /// <summary>Resolves this world's active flora subset (once): builds the per-surface land-flora pools from
     /// only the archetypes <see cref="FloraGenerator"/> activated for this world, and records whether the two
@@ -126,6 +132,7 @@ public sealed partial class WorldGenerator
         _floraResolvedGeneration = _terrainGeneration;
         _floraBySurface.Clear(); // re-resolving for a different planet/body: drop the previous pools
         _floraTagByBlock.Clear();
+        _floraGlowLevel = GlowRules.LevelFor(planet, RosterSeed, _terrainGeneration); // #2857: the roster's own level
 
         var active = new System.Collections.Generic.HashSet<string>();
         foreach (var fs in FloraGenerator.GenerateRoster(planet, RosterSeed, _terrainGeneration)) // #1715: the generation gates the biome-theme roll
@@ -258,7 +265,7 @@ public sealed partial class WorldGenerator
         for (int i = 0; i < pool.Length; i++)
         {
             total += _floraTagByBlock.TryGetValue(pool[i].Value, out var tag)
-                ? FloraThemes.PickWeight(biome.Theme, tag) : 1;
+                ? SurfacePickWeight(biome.Theme, tag) : 1;
         }
 
         // A low-frequency patch field selects WITHIN the weighted distribution; nearby columns share a value,
@@ -287,7 +294,7 @@ public sealed partial class WorldGenerator
         for (int i = 0; i < pool.Length; i++)
         {
             acc += _floraTagByBlock.TryGetValue(pool[i].Value, out var tag)
-                ? FloraThemes.PickWeight(biome.Theme, tag) : 1;
+                ? SurfacePickWeight(biome.Theme, tag) : 1;
             if (target < acc)
             {
                 return pool[i];
@@ -295,6 +302,36 @@ public sealed partial class WorldGenerator
         }
 
         return pool[pool.Length - 1];
+    }
+
+    /// <summary>A surface species' pick weight in its patch: the theme's (<see cref="FloraThemes.PickWeight"/>) — except, from
+    /// generation 29 (#2857), for a glowing species, which no longer leads the patches of a theme that prefers one of its other
+    /// tags (the glow vine on a green world): weight 1, or <see cref="LuminousGlowPickWeight"/> on a luminous world. Every pool
+    /// species of a generation-29 world that carries the glow tag is a surface glower — the cave-only species, the rainbow
+    /// class and the hanging species never join a surface pool.</summary>
+    private int SurfacePickWeight(FloraThemes.Theme theme, FloraTag tags)
+    {
+        if (_terrainGeneration >= WorldDescription.TreeVarietyGeneration && (tags & FloraTag.Glow) != 0)
+        {
+            return _floraGlowLevel == GlowLevel.Luminous ? LuminousGlowPickWeight : 1;
+        }
+
+        return FloraThemes.PickWeight(theme, tags);
+    }
+
+    /// <summary>Test seam (#2857): the pick weight a surface species with these tags gets in a biome of this theme on this
+    /// world.</summary>
+    internal int SurfacePickWeightForTest(PlanetType planet, string themeName, FloraTag tags)
+    {
+        ResolveFlora(planet);
+        return SurfacePickWeight(FloraThemes.Resolve(themeName), tags);
+    }
+
+    /// <summary>Test seam (#2857): this world's glow level as world generation resolved it.</summary>
+    internal GlowLevel GlowLevelForTest(PlanetType planet)
+    {
+        ResolveFlora(planet);
+        return _floraGlowLevel;
     }
 
     /// <summary>The per-column surface-flora density: the world/biome base scaled by a vegetation-richness

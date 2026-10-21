@@ -232,7 +232,8 @@ public sealed class FloraVarietyTests
         // Two leafy alien species never had a mask baked (their tiles are opaque by design) — the accepted
         // exceptions. Every other leafy species and every tree crown must be listed, and no solid form may be.
         var accepted = new HashSet<string> { "flora_tendril", "flora_alienfern" };
-        var expected = new HashSet<string> { "tree_leaves", "pine_needles", "palm_frond", "giant_leaves", FifiPlant.LeafKey }; // #2085: the Fifi crown
+        // #2085: the Fifi crown; #2851/#2853: the two more leaf slots and the blossom crown.
+        var expected = new HashSet<string>(TreeFoliage.Keys);
         foreach (var sp in FloraCatalog.All)
         {
             if (!sp.Solid && !accepted.Contains(sp.Key))

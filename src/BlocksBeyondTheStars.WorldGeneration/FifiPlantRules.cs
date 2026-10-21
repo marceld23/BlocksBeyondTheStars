@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.WorldGeneration;
@@ -9,7 +10,7 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// <summary>
 /// The Fifi plant's rules (#2085, terrain generation 16) — pure functions shared by world generation
 /// (<c>WorldGenerator.FifiPlantsGen16.cs</c>) and the tests. Sophie's plant grows everywhere there is soft natural ground
-/// and stands in groups: the world is cut into square grove cells, a share of the cells holds one grove, and a grove is
+/// (from generation 29 on about every third world only, <see cref="GrowsOnWorld"/>, #2859) and stands in groups: the world is cut into square grove cells, a share of the cells holds one grove, and a grove is
 /// three to six plants around its centre, their trunks at least <see cref="MinSpacing"/> apart — every member lies inside
 /// its own cell, so whether a column roots a plant is a pure function of that column. Every plant is built from its own
 /// hash: a green trunk, a rounded crown of yellow leaves, pink blossoms on the crown's top and sides, and berries hanging
@@ -62,9 +63,30 @@ public static class FifiPlantRules
     /// <summary>Most pink blossoms on one crown.</summary>
     public const int MaxBlossoms = 8;
 
+    /// <summary>The share of the worlds of generation 29 on which the plant grows at all (#2859): about every third. It
+    /// stood in groves on every green world before — about 10 000 plants, each with its glowing blossoms, the most visible
+    /// "tree" of many a sparse world.</summary>
+    public const double WorldShare = 1.0 / 3.0;
+
     private const long GroveSalt = 0xF1F1D8;
     private const long PlantSalt = 0xF1F1A5;
     private const long SizeSalt = 0xF1F1B6;
+    private const long WorldSalt = 0x2859_F1F1_0001;
+
+    /// <summary>Whether the Fifi plant grows on this world at all (#2859) — a pure function of the planet, the roster seed (the
+    /// world seed salted with the body, <see cref="WorldGenerator.RosterSeedFor"/>) and the generation, so nothing needs
+    /// storing. From <see cref="WorldDescription.TreeVarietyGeneration"/> one world in <see cref="WorldShare"/> rolls it;
+    /// every older world keeps it everywhere. Where it grows, it grows exactly as before (the ground still decides).</summary>
+    public static bool GrowsOnWorld(PlanetType planet, long rosterSeed, int terrainGeneration)
+    {
+        if (terrainGeneration < WorldDescription.TreeVarietyGeneration)
+        {
+            return true;
+        }
+
+        ulong h = Mix(rosterSeed ^ WorldSalt, WorldGenerator.StableHash(planet.Key), 0x2859);
+        return (h >> 11) * (1.0 / (1UL << 53)) < WorldShare;
+    }
 
     /// <summary>The hash every decision of one plant derives from (the root column; X and Z already wrapped).</summary>
     public static ulong PlantHash(long seed, int wrappedX, int wrappedZ) => Mix(seed ^ PlantSalt, wrappedX, wrappedZ);

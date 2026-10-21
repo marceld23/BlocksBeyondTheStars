@@ -284,10 +284,11 @@ worlds of the same planet type grow different species) by
 [`FloraGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/FloraGenerator.cs) and
 [`TreeGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/TreeGenerator.cs):
 
-- **Catalogue:** the fixed flora archetypes (`FloraCatalog.All`, 67 entries since generation 28: the wild species of
-  every wave, the four tree fruit shapes, the Fifi berries and the three crops at the tail). A later wave is appended
-  before the crops with a `MinGeneration`, so every older species keeps its roster id and an older world never gains
-  the newcomers (§45).
+- **Catalogue:** the fixed flora archetypes (`FloraCatalog.All`, 68 entries since generation 29: the wild species of
+  every wave, the four tree fruit shapes, the Fifi berries, the lantern fruit and the three crops at the tail). A later
+  wave is appended before the crops with a `MinGeneration`, so every older species keeps its roster id and an older
+  world never gains the newcomers (§45, §46). From generation 29 the world's glow level decides how many glowing
+  species the surface grows (§46).
 - **World roster:** each archetype is activated with `ActivationChance(preferred, tags)` — **85 %** when
   its climate tags match the world's preferred tags, **40 %** otherwise. Up to generation 3 the preferred
   tags are the planet theme's alone; from **generation 4** (#1715, `BiomeThemeRosterGeneration`) they are
@@ -2842,3 +2843,78 @@ pools and mixes the pick; every older generation keeps its chunks and its roster
 somewhere at 28, the roster identity across generations, coverage at 28, and the mix: at least two species in every
 chunk of the sample area), `BioRulesTests` (a form round trip past index 63, a pre-widening form decodes unchanged) and
 the golden `meadowlands-gen28` (equal to `meadowlands-gen24` but for the two planted surface chunks).
+
+## 46. Generation 29 — tree variety and the glow level (#2848–#2859, 2026-10-20)
+
+`WorldDescription.CurrentTerrainGeneration` is **29** (`TreeVarietyGeneration`, mirrored as
+`FloraThemes.TreeVarietyGeneration`). An analysis of generation 28 (16 worlds × 40 surface samples per planet type)
+found: 1–4 tree shapes and at most 2–3 crown textures per world, jungle trees at 0.2–0.4 % of the jungle planet's trees,
+deserts at 82–100 % dead snags, mushroom and crystal trees never grown, glowing plants on 94–100 % of all worlds (lava
+70 %, deserts 41–48 % of the surface flora) and the Fifi plant on every soft-ground world. Every rule below sits behind
+generation 29; older generations keep their chunks, rosters and random streams bit for bit (`WorldGenerationGoldenTests`).
+
+**Trees** (`WorldGenerator.TreesGen29.cs`, the shared switch in `WorldGenerator.Stamps.cs`, the band tops of §38 too):
+
+- **A fair, weighted pick (#2848).** `PickTreeKind` cut the 2-octave grove value into equal slices, but that value is a
+  bell around 0.5 (≈ Normal(0.5, 0.117): 92 % between 0.3 and 0.7), so the first and last kind of a 3–5-entry palette
+  almost never led a grove. `FlattenGrove` maps the value through a measured CDF table (pure arithmetic, mirrored around
+  0.5) to a uniform share, and the theme's `TreesGen29` palette gives every kind a weight (`Theme.WeightedPaletteFor`).
+- **Mixed woods (#2852).** `MixedWoodsShare` (0.30) of the trees, chosen by a stateless column hash, take a different kind
+  of the same weighted palette by a second hash; the lead kind still rules the grove.
+- **Ten new shapes (#2853)** — Birch, Oak, Column, Umbrella, Blossom, TreeFern, Bottle, Spiral, Ball, Lantern — appended to
+  `TreeKind`, each a small builder inside the stamp margins (|dx|, |dz| ≤ 4, ≤ 18 above ground). The Lantern kind joins
+  a leafy palette (weight `LanternTreeWeight` 2) only on a luminous world and always hangs 3–6 `flora_lantern_fruit`
+  (an authored fruit species like the Fifi berries: same colour and edible drop everywhere, light from `data/blocks.json`).
+- **Shape variety (#2854).** From generation 29 the classic kinds build through variant builders driven by a per-tree
+  hash (`TreeShapeSalt`): broadleaf crowns of several blobs with stubs and a lean, uneven conifer tiers and twin tops,
+  jungle buttress roots and a second canopy, varied willows, baobabs and palms. The classic builders are untouched.
+- **Slots (#2851, #2850).** A kind is built from its slot blocks (`TreeSlotKeysFor`): `tree_leaves` (broadleaf, oak,
+  jungle, ball), `tree_leaves_b` (willow, mangrove, umbrella, birch, bottle), `tree_leaves_c` (baobab, bamboo, column,
+  tree fern, spiral, lantern), `blossom_leaves` (blossom), `wood_log_b` (the pale bark of birch and bottle — both on slot
+  B, so trunk and crown name one species) and `saguaro` (the cactus body — also the giant cactus of the generation-1 giant
+  flora table, from generation 29). `TreeGenerator.GenerateSlot` coins a NAME per slot (ids `tr2`…`tr5`, own salts;
+  `tr0`/`tr1` unchanged) and the server maps `TreeGenerator.SlotBlockKeys(slot)` to it for the slots
+  `TreeGenerator.SlotsGrownOn` says the world can grow (its palettes; the saguaro wherever sand lies). The TOXICITY of
+  every slot is the common tree's (`tr0`): the fruit of every kind follows `tr0` (`FloraGenerator`), and most kinds stand
+  on the common `wood_log`, which keeps `tr0`'s name — leaves, trunk and fruit of one tree never disagree on "edible".
+  New leaves drop the `tree_leaves` item, the pale bark `wood_log`, the saguaro plant fiber. Saplings still grow the
+  classic broadleaf. The woodcutter's work box is 9 × 9 columns now (crowns reach four cells), and every builder keeps
+  its wood face-connected (diagonal steps get their corner cell).
+- **Grounds and densities (#2849).** The classic grounds stay; on top, the alien kinds (spiral, mushroom tree, crystal
+  tree, broadleaf/dead of an alien palette, lantern) root on `alien_grass`, the mushroom tree on `mycelium`, the crystal
+  tree on `crystal`/`stone`. `Theme.TreeMulFor` gives the fungal theme 0.5 and the crystal theme 0.15 (0 before). The
+  crystal tree glows, so it grows only on worlds whose glow level is at least Low (`EffectiveTreePalette`).
+- **Fruit.** `FruitRules.BearsFruit` adds oak, birch, ball, bottle and umbrella; the fruit hangs under the kind's own slot
+  crown (`FloraCatalog`'s fruit hosts list the new leaf slots).
+
+**The glow level (#2857, `GlowRules`).** One roll per world from the roster seed: **40 % None, 30 % Low, 20 % Normal, 10 %
+Luminous**; themes that prefer `FloraTag.Glow` (crystal, ashen) never roll None. It governs the SURFACE only:
+
+- `FloraGenerator.GenerateRoster`: a glowing surface species (`IsSurfaceGlower`) rolls 0.85 only when the preferred tags
+  contain Glow (its other tags — the glow vine's `Lush`, the glow cap's `Fungal` — no longer make it a signature plant),
+  else 0.40; then `ApplyGlowLevel`: None activates none, Low exactly one (a stateless pick among
+  `GlowCandidatesFor(planet)`, the glowers with a host on the planet's surfaces), Luminous all candidates. The roll is
+  still drawn, so no species' stream moves. Coverage on None/Low never forces a glowing species (a host only a glower
+  could cover stays bare) and no longer counts hanging species as cover.
+- `FloraForSurface` weighs a glowing species 1 (Luminous: 4) instead of the theme's signature weight.
+- The prism bloom stays forced-active for the caves; its surface clusters (§26) grow only on Normal and Luminous worlds
+  (Luminous: threshold 0.70 instead of 0.74).
+- Side effect: the glow cap and the spore pod grow on the surface AND in caves under one roster flag, so a None/Low world
+  loses them underground too; glow moss, glow threads, prism blooms and cave caps keep every cave lit.
+- Settlements keep their planters (a basalt village's ember blooms, an alien village's crystal flowers) on every level.
+
+**The Fifi plant (#2859).** `FifiPlantRules.GrowsOnWorld` (roster seed + planet key, `WorldShare` 1/3) decides per world
+whether `FifiGroundFor` grows the plant at all; where it grows, it grows exactly as in §31.
+
+**Client side (every world, old saves included).** Leaf slots get three different looks from one pool
+(`FloraLooks.TextureKeysForGroup`), bark gets looks, the pale bark a light colour band (`FloraTints.ForWood(…, key)`),
+tinted crowns and trunks drift gently per grove (`TreeTintJitter`, ±6° hue, ±10 % value on a ~26-block field), plant
+self-glow fades to a quarter in daylight (`BbtsPlantGlowDaylight`), the frost flower no longer glows, and classic glowing
+plants cast light in their world colour (`PlantGlowLight`). `wood_log_b` has end grain: the derived atlas band starts at
+984 now (`AtlasBands.DerivedStart`).
+
+**Blocks and saves.** Six blocks (`tree_leaves_b`, `tree_leaves_c`, `blossom_leaves`, `wood_log_b`, `saguaro`,
+`flora_lantern_fruit`) shift the block ids → save version 6. **Tests:** `TreeVarietyTests` (fair shares, mixed share,
+margins and determinism of every builder, slot blocks, saguaro by generation, mushroom/crystal trees on corrupted and
+fungal worlds, lantern trees only when luminous, slot species), `GlowLevelTests`, `FifiWorldShareTests`,
+`TreeTintJitterTests`, `PlantGlowLightTintTests`, and the goldens `meadowlands-gen29`, `jungle-gen29`, `desert-gen29`.

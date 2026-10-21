@@ -38,8 +38,8 @@ themselves an X-ray view), plants/leaves/fire/torch are **cutout**, creature/ava
 **free**. Tiles are 64×64 RGBA32, rows bottom-up, up to 8 frames at 2/4/8/12 fps.
 
 **Atlas bands** (`Client.Core/Textures/AtlasBands.cs`): slots 0–399 = blocks by numeric id
-(`GameContent.AtlasTileCapacity`), 400–511 extras, 512–989 a dynamic band handed out in row-contiguous runs
-by `AtlasSlotAllocator`, 990+ derived tiles.
+(`GameContent.AtlasTileCapacity`), 400–511 extras, 512–983 a dynamic band handed out in row-contiguous runs
+by `AtlasSlotAllocator`, 984+ derived tiles (990+ before #2851 added the pale bark's end grain).
 
 ## 2. Texture Editor (#1955, icon mode #1962)
 

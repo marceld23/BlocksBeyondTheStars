@@ -466,10 +466,21 @@ public sealed partial class WorldGenerator
         set(wx, topY + 2, wz, crystalId, false);
     }
 
-    /// <summary>Builds one generation-1 tree kind into a cell list relative to its column (tests): (dx, dy, dz).</summary>
+    /// <summary>Builds one generation-1 tree kind into a cell list relative to its column (tests): (dx, dy, dz). A
+    /// generation-29 kind (#2853, <see cref="TreeKind.Birch"/> and later) is built by its generation-29 builder.</summary>
     internal static List<(int Dx, int Dy, int Dz)> BuildTreeForTest(TreeKind kind, double sizeF, double hJit, double cJit, int shapeHash)
     {
         var cells = new List<(int, int, int)>();
+        if (kind >= TreeKind.Birch)
+        {
+            foreach (var (dx, dy, dz, _) in BuildTreeGen29ForTest(kind, sizeF, hJit, cJit, shapeHash))
+            {
+                cells.Add((dx, dy, dz));
+            }
+
+            return cells;
+        }
+
         var a = new BlockId(1);
         var b = new BlockId(2);
         void Set(int x, int y, int z, BlockId _, bool __) => cells.Add((x, y, z));
@@ -531,7 +542,7 @@ public sealed partial class WorldGenerator
     {
         new("giant-fern", "mud", "wood_log", "tree_leaves", 0x6F3A0, 0.006, 1),
         new("giant-crystal", "crystal", "crystal", "crystal", 0x6C570, 0.004, 1),
-        new("giant-cactus", "sand", "tree_leaves", "tree_leaves", 0x6CAC0, 0.0025, 1),
+        new("giant-cactus", "sand", "tree_leaves", "tree_leaves", 0x6CAC0, 0.0025, 1), // the saguaro body from generation 29 (#2850)
         // School club wave 3 (#1764): Lena's Paul flower — a flower as tall as a tree on grass, rare, generation 5.
         new("giant-paul", "grass", "paul_stem", "paul_petals", 0x9A01F, 0.0008, 5),
     };
@@ -572,8 +583,8 @@ public sealed partial class WorldGenerator
             }
 
             var hostId = _content.GetBlock(row.Host)?.NumericId ?? BlockId.Air;
-            var stemId = _content.GetBlock(row.Stem)?.NumericId ?? BlockId.Air;
-            var capId = _content.GetBlock(row.Cap)?.NumericId ?? BlockId.Air;
+            var stemId = _content.GetBlock(GiantFloraBlockKey(row, row.Stem))?.NumericId ?? BlockId.Air;
+            var capId = _content.GetBlock(GiantFloraBlockKey(row, row.Cap))?.NumericId ?? BlockId.Air;
             if (hostId.IsAir || stemId.IsAir || capId.IsAir || !biomes.Exists(b => b.Surface == hostId))
             {
                 continue; // this world has no such ground
@@ -735,6 +746,14 @@ public sealed partial class WorldGenerator
                 }
         }
     }
+
+    /// <summary>The block a giant-flora row builds from on this world: from generation 29 the giant cactus is made of the
+    /// saguaro body (#2850) instead of the leaf block — when the content has it; every other row and every older world
+    /// keeps the row's own key.</summary>
+    private string GiantFloraBlockKey(in GiantFloraKind row, string key)
+        => row.Name == "giant-cactus" && _terrainGeneration >= WorldDescription.TreeVarietyGeneration && _content.GetBlock(SaguaroKey) != null
+            ? SaguaroKey
+            : key;
 
     /// <summary>The giant-flora rows active on this world (tests).</summary>
     internal string[] GiantFloraForTest(PlanetType planet)

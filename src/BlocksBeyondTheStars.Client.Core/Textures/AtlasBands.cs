@@ -13,9 +13,13 @@ namespace BlocksBeyondTheStars.Client
     /// <item><b>Blocks</b> 1..399 — one slot per block id (content validation caps the ids here).</item>
     /// <item><b>Official extras</b> 400..511 — tiles that are not blocks (door panels, machine parts) and the
     /// animation strips of official textures.</item>
-    /// <item><b>Dynamic</b> 512..989 — animation strips of the local pack and of world textures; cleared and
+    /// <item><b>Dynamic</b> 512..983 — animation strips of the local pack and of world textures; cleared and
     /// re-dealt whenever those layers change.</item>
-    /// <item><b>Derived</b> 990..1023 — the variant and end-grain tiles, dealt from the top slot downward as before.</item>
+    /// <item><b>Derived</b> 984..1023 — the variant and end-grain tiles, dealt from the top slot downward as before.
+    /// #2851 moved its start down from 990: the 34 slots there were exactly full (16 ground + 16 flora variants + 2 log
+    /// caps), and the pale bark (<c>wood_log_b</c>) needs a cap of its own. Slots are dealt from the top, so every tile
+    /// already in the band keeps its slot; the dynamic band (no official texture is animated, and world textures may use
+    /// at most <c>WorldTextureCodec.AnimSlotBudget</c> = 320 strip slots) gives up six of its 478.</item>
     /// </list>
     /// Unity-free, so the headless suite pins it.
     /// </summary>
@@ -31,10 +35,10 @@ namespace BlocksBeyondTheStars.Client
         public const int ExtraEnd = 512;
 
         public const int DynamicStart = 512;
-        public const int DynamicEnd = 990;
+        public const int DynamicEnd = 984;
 
         /// <summary>The derived tiles (variants, log end grain) live from here to the last slot.</summary>
-        public const int DerivedStart = 990;
+        public const int DerivedStart = 984;
     }
 
     /// <summary>

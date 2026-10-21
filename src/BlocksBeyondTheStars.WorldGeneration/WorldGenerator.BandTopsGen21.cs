@@ -60,13 +60,8 @@ public sealed partial class WorldGenerator
         var cacheId = _content.GetBlock("data_cache")?.NumericId ?? BlockId.Air;
         var deepId = ResolveBlock(planet.DeepBlock);
         bool trees = treeDensity > 0.0 && !logId.IsAir && !leafId.IsAir;
-        var blocks = new TreeBlocks(logId, leafId,
-            _content.GetBlock("pine_needles")?.NumericId ?? leafId,
-            _content.GetBlock("palm_frond")?.NumericId ?? leafId,
-            logId,
-            _content.GetBlock("mushroom_stem")?.NumericId ?? logId,
-            _content.GetBlock("mushroom_cap")?.NumericId ?? leafId,
-            _content.GetBlock("crystal")?.NumericId ?? leafId);
+        var blocks = ResolveTreeBlocks(logId, leafId, logId);
+        var variety = TreeVarietyFor(planet, biomes); // generation 29 (#2848–#2853): the same pick and grounds as the ground pass
         bool rareVeins = false;
         foreach (var vein in planet.Ores)
         {
@@ -113,7 +108,8 @@ public sealed partial class WorldGenerator
                     continue; // no deck here, or nothing it could write lands in this chunk
                 }
 
-                var biome = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, wx, wz, biomes.Count, ty)];
+                int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, wx, wz, biomes.Count, ty);
+                var biome = biomes[biomeIndex];
                 int shapeHash = (int)(Noise.Value01(seed + 0xB7EE7, cx, 41, cz) * 997);
 
                 // Props first — rarer, and a boulder or a cache under a tree reads fine; a tree through a cache does not.
@@ -158,7 +154,7 @@ public sealed partial class WorldGenerator
                     continue;
                 }
 
-                if (!trees || roll >= treeDensity * biome.TreeMul * biome.Theme.TreeMul * BandTopTreeFactor)
+                if (!trees || roll >= treeDensity * biome.TreeMul * biome.Theme.TreeMulFor(w.Generation) * BandTopTreeFactor)
                 {
                     continue;
                 }
@@ -169,7 +165,9 @@ public sealed partial class WorldGenerator
                 }
 
                 var surf = biome.Surface;
-                var kind = PickTreeKind(biome.Theme.PaletteFor(w.Generation), seed, wx, wz, planet.TerrainScale);
+                var kind = variety != null
+                    ? PickTreeKindGen29(variety.Palettes[biomeIndex], variety.Totals[biomeIndex], seed, wx, wz, planet.TerrainScale)
+                    : PickTreeKind(biome.Theme.PaletteFor(w.Generation), seed, wx, wz, planet.TerrainScale);
                 if (kind == TreeKind.None || kind == TreeKind.Mangrove)
                 {
                     continue; // no trees in this theme, and mangroves stand beside water
@@ -177,7 +175,7 @@ public sealed partial class WorldGenerator
 
                 bool earthy = surf == grassId || surf == dirtId || surf == mudId;
                 bool sandyOk = surf == sandId && (kind == TreeKind.Palm || kind == TreeKind.Dead || kind == TreeKind.Saguaro);
-                if (!earthy && !sandyOk)
+                if (!earthy && !sandyOk && !(variety != null && variety.ExtraGroundOk(kind, surf, biomeIndex)))
                 {
                     continue;
                 }
@@ -199,7 +197,15 @@ public sealed partial class WorldGenerator
                 double sizeF = SizeFactor(seed + 0xB7EE8, wx, wz, 0.30);
                 double hJit = SizeFactor(seed + 0xB7EE9, wx, wz, 0.12);
                 double cJit = SizeFactor(seed + 0xB7EEA, wx, wz, 0.12);
-                BuildTreeOfKind(kind, wx, ty, wz, sizeF, hJit, cJit, seed, blocks, set);
+
+                // #2853 (generation 29): a lantern tree on a crown hangs its glowing fruit like one on the ground; every
+                // other band-top tree stays fruitless, as it always was.
+                var lanterns = kind == TreeKind.Lantern ? FruitRecorderFor(planet, seed, kind, wx, wz, LeavesFor(kind, blocks), set) : null;
+                BuildTreeOfKind(kind, wx, ty, wz, sizeF, hJit, cJit, seed, blocks, lanterns != null ? lanterns.Set : set);
+                if (lanterns != null)
+                {
+                    HangFruit(lanterns, chunk, origin, seed, wx, wz);
+                }
             }
     }
 }

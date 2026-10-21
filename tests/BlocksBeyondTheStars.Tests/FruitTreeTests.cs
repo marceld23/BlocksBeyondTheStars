@@ -29,7 +29,9 @@ public sealed class FruitTreeTests : IDisposable
 {
     private const int Gen = WorldDescription.FruitTreesGeneration;
     private static readonly string[] FruitKeys = { "flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana" };
-    private static readonly string[] Foliage = { "tree_leaves", "pine_needles", "palm_frond" };
+    // The fruit's hosts: the three classic crowns, and from generation 29 (#2851) the leaf slots B and C as well (they only
+    // grow on a generation-29 world, so the generation-14 scans below never meet them).
+    private static readonly string[] Foliage = { "tree_leaves", "pine_needles", "palm_frond", "tree_leaves_b", "tree_leaves_c" };
 
     private readonly string _root;
     private readonly GameContent _content;

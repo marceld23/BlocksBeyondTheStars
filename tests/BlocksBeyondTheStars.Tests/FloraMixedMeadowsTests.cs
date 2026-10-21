@@ -47,7 +47,9 @@ public sealed class FloraMixedMeadowsTests
         var keys = FloraCatalog.All.Select(s => s.Key).ToList();
         int fifi = keys.IndexOf(FifiPlant.BerriesKey);
         Assert.Equal(Wave, keys.Skip(fifi + 1).Take(Wave.Length));
-        Assert.All(FloraCatalog.All.Skip(fifi + 1 + Wave.Length), sp => Assert.True(sp.Cultivated, $"{sp.Key} sits among the crops"));
+        // A later wave appends after this one (#2853, generation 29: the lantern fruit), before the crops like every wave.
+        Assert.All(FloraCatalog.All.Skip(fifi + 1 + Wave.Length),
+            sp => Assert.True(sp.Cultivated || sp.MinGeneration > Gen, $"{sp.Key} sits among the crops"));
         Assert.True(FloraCatalog.All.Count <= BlocksBeyondTheStars.Shared.Bio.FloraForm.MaxIndices,
             "the bio lab's packed form addresses at most FloraForm.MaxIndices catalog entries");
 

@@ -541,9 +541,6 @@ public sealed partial class WorldGenerator
         var dirtId = _content.GetBlock("dirt")?.NumericId ?? BlockId.Air;
         var mudId = _content.GetBlock("mud")?.NumericId ?? BlockId.Air;
         var sandId = _content.GetBlock("sand")?.NumericId ?? BlockId.Air;
-        // Distinct foliage for needled / fronded crowns; fall back to the generic leaf if not in this content.
-        var pineId = _content.GetBlock("pine_needles")?.NumericId ?? leafId;
-        var palmId = _content.GetBlock("palm_frond")?.NumericId ?? leafId;
 
         void SetCell(int wx, int wy, int wz, BlockId block, bool overwrite)
         {
@@ -566,24 +563,28 @@ public sealed partial class WorldGenerator
         var riverField = RiverFieldFor(planet); // cached — needed for the beach ground check (#679)
         var wonderTrees = WonderFor(planet);    // #1648: the generation decides the theme palette
         int seaLevelTrees = SeaLevel(planet);
-        var stemId = _content.GetBlock("mushroom_stem")?.NumericId ?? logId;
-        var capId = _content.GetBlock("mushroom_cap")?.NumericId ?? leafId;
-        var crystalTreeId = _content.GetBlock("crystal")?.NumericId ?? leafId;
         // Generation 8 (Titas): leafless dead forests — on snow and bare rock, past the tree line, never in a hot zone.
         bool deadForests = planet.DeadForests && _terrainGeneration >= WorldDescription.ExtremePlanetsGeneration;
         // Generation 15 (#2068): a type's dead snags may be another wood (Toxica-Maxima: tainted logs); Titas keeps its logs.
         var deadLogId = deadForests && planet.DeadTreeBlock.Length > 0 && _terrainGeneration >= WorldDescription.ToxicaMaximaGeneration
             ? _content.GetBlock(planet.DeadTreeBlock)?.NumericId ?? logId
             : logId;
+        // Distinct foliage for needled / fronded crowns (falling back to the generic leaf if not in this content), the
+        // mushroom and crystal trees' blocks, and from generation 29 the leaf slots, the blossom crown, the pale bark
+        // and the saguaro body (#2851) — resolved once per chunk.
+        var blocks = ResolveTreeBlocks(logId, leafId, deadLogId);
+        // Generation 29 (#2848–#2853): the weighted, fair pick with mixed woods and the extra grounds; null below it.
+        var variety = TreeVarietyFor(planet, biomes);
 
         // #1527: the density roll is tested against a conservative UPPER BOUND of every biome's multiplier first,
         // so the ~99 % of margin columns the exact test rejects never pay SurfaceHeight / BiomeIndex. The exact
         // test still runs for the survivors: roll >= bound >= localDensity, and the bound carries a 1e-9 slack
-        // so float association can never put it below a biome's own product.
+        // so float association can never put it below a biome's own product. (TreeMulFor is the theme's classic
+        // TreeMul below generation 29 — #2849 lets the fungal and crystal themes grow trees from 29 on.)
         double maxTreeMul = 0.0;
         foreach (var b in biomes)
         {
-            maxTreeMul = System.Math.Max(maxTreeMul, b.TreeMul * b.Theme.TreeMul);
+            maxTreeMul = System.Math.Max(maxTreeMul, b.TreeMul * b.Theme.TreeMulFor(_terrainGeneration));
         }
 
         maxTreeMul *= 1.0 + 1e-9;
@@ -613,8 +614,9 @@ public sealed partial class WorldGenerator
                     continue; // every cell a tree here could write lies outside this chunk — SetCell would clip them all
                 }
 
-                var biome = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, wx, wz, biomes.Count, sy)];
-                double localDensity = density * biome.TreeMul * biome.Theme.TreeMul * forestFactor;
+                int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, wx, wz, biomes.Count, sy);
+                var biome = biomes[biomeIndex];
+                double localDensity = density * biome.TreeMul * biome.Theme.TreeMulFor(_terrainGeneration) * forestFactor;
 
                 // Oasis palm fringe (#1647): the ring around a desert oasis grows dense, and grows palms.
                 bool oasisFringe = OasisPalmFringeAt(planet, wx, wz);
@@ -638,10 +640,12 @@ public sealed partial class WorldGenerator
                     continue; // nothing grows in a hot zone
                 }
 
-                // Pick a grove kind from the biome theme's tree palette (one kind per low-frequency patch).
-                var kind = deadForests
-                    ? TreeKind.Dead
-                    : PickTreeKind(biome.Theme.PaletteFor(wonderTrees.Generation), seed, wx, wz, planet.TerrainScale);
+                // Pick a grove kind from the biome theme's tree palette (one kind per low-frequency patch; from generation
+                // 29 a fair weighted pick with ~30 % mixed in — #2848, #2852).
+                var kind = deadForests ? TreeKind.Dead
+                    : variety != null
+                        ? PickTreeKindGen29(variety.Palettes[biomeIndex], variety.Totals[biomeIndex], seed, wx, wz, planet.TerrainScale)
+                        : PickTreeKind(biome.Theme.PaletteFor(wonderTrees.Generation), seed, wx, wz, planet.TerrainScale);
                 if (kind == TreeKind.None)
                 {
                     continue; // this theme grows no trees here (e.g. fungal → giant mushrooms instead)
@@ -696,9 +700,9 @@ public sealed partial class WorldGenerator
                     var surf = biome.Surface;
                     bool earthy = surf == grassId || surf == dirtId || surf == mudId;
                     bool sandyOk = surf == sandId && (kind == TreeKind.Palm || kind == TreeKind.Dead || kind == TreeKind.Saguaro); // palms/dead snags/saguaros on sand
-                    if (!earthy && !sandyOk)
+                    if (!earthy && !sandyOk && !(variety != null && variety.ExtraGroundOk(kind, surf, biomeIndex)))
                     {
-                        continue;
+                        continue; // #2849 (generation 29): alien grass, mycelium, crystal and more sand trees are the extra grounds
                     }
                 }
 
@@ -710,13 +714,15 @@ public sealed partial class WorldGenerator
 
                 // #2038 (generation 14): a fruit-bearing kind that rolled fruit records the crown it builds, and the fruit is
                 // hung under its lowest leaves once the tree stands (WorldGenerator.FruitTreesGen14.cs). Below generation 14,
-                // and for every tree without fruit, the builders write straight into the chunk exactly as before.
-                var foliage = kind == TreeKind.Conifer ? pineId : kind == TreeKind.Palm ? palmId : leafId;
+                // and for every tree without fruit, the builders write straight into the chunk exactly as before. From
+                // generation 29 the fruit hangs under the kind's own slot crown (#2851), and every lantern tree hangs its
+                // glowing fruit (#2853).
+                var foliage = LeavesFor(kind, blocks);
                 var fruitRecorder = FruitRecorderFor(planet, seed, kind, wx, wz, foliage, SetCell);
                 System.Action<int, int, int, BlockId, bool> set = fruitRecorder != null ? fruitRecorder.Set : SetCell;
 
-                BuildTreeOfKind(kind, wx, sy, wz, sizeF, hJit, cJit, seed,
-                    new TreeBlocks(logId, leafId, pineId, palmId, deadLogId, stemId, capId, crystalTreeId), set);
+                TreeStampedForTest?.Invoke(kind, wx, wz);
+                BuildTreeOfKind(kind, wx, sy, wz, sizeF, hJit, cJit, seed, blocks, set);
 
                 if (fruitRecorder != null)
                 {
@@ -726,22 +732,33 @@ public sealed partial class WorldGenerator
     }
 
     /// <summary>The blocks a tree is built from, bundled so the band-top pass (#2335) builds the same kinds the
-    /// ground pass does.</summary>
+    /// ground pass does. The generation-29 slots (#2851: leaf slots B and C, the blossom crown, the pale bark, the
+    /// saguaro body) are only read by the generation-29 builders (<see cref="ResolveTreeBlocks"/>).</summary>
     private readonly struct TreeBlocks
     {
-        public TreeBlocks(BlockId log, BlockId leaf, BlockId pine, BlockId palm, BlockId deadLog, BlockId stem, BlockId cap, BlockId crystal)
+        public TreeBlocks(BlockId log, BlockId leaf, BlockId pine, BlockId palm, BlockId deadLog, BlockId stem, BlockId cap, BlockId crystal,
+            BlockId leafB, BlockId leafC, BlockId blossom, BlockId paleLog, BlockId saguaro)
         {
             Log = log; Leaf = leaf; Pine = pine; Palm = palm; DeadLog = deadLog; Stem = stem; Cap = cap; Crystal = crystal;
+            LeafB = leafB; LeafC = leafC; Blossom = blossom; PaleLog = paleLog; Saguaro = saguaro;
         }
 
         public readonly BlockId Log, Leaf, Pine, Palm, DeadLog, Stem, Cap, Crystal;
+        public readonly BlockId LeafB, LeafC, Blossom, PaleLog, Saguaro;
     }
 
     /// <summary>Builds one tree of a kind at a column's ground — the switch the ground pass always ran, shared
-    /// with the band-top pass (#2335) so a crown's wood is the biome's wood.</summary>
+    /// with the band-top pass (#2335) so a crown's wood is the biome's wood. A generation-29 world builds from the
+    /// tree-variety builders (#2853, #2854) and the slot blocks (#2851); every older world runs the classic switch.</summary>
     private void BuildTreeOfKind(TreeKind kind, int wx, int sy, int wz, double sizeF, double hJit, double cJit, long seed,
         in TreeBlocks b, System.Action<int, int, int, BlockId, bool> set)
     {
+        if (_terrainGeneration >= WorldDescription.TreeVarietyGeneration)
+        {
+            BuildTreeOfKindGen29(kind, wx, sy, wz, sizeF, hJit, cJit, seed, b, set);
+            return;
+        }
+
         switch (kind)
         {
             case TreeKind.Conifer: BuildConifer(wx, sy, wz, sizeF, hJit, cJit, b.Log, b.Pine, set); break;

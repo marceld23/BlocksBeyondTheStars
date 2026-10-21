@@ -33,8 +33,9 @@ public sealed class AtlasSlotAllocatorTests
     [Fact]
     public void DerivedBand_HoldsTodaysVariantsAndLogCaps()
     {
-        // 8 ground + 8 flora blocks × 2 variants, plus the two log end-grain tiles.
-        Assert.True(AtlasBands.Cols * AtlasBands.Rows - AtlasBands.DerivedStart >= (16 * 2) + 2);
+        // 8 ground + 8 flora blocks × 2 variants, plus the three log end-grain tiles (wood_log, giant_log and the pale
+        // bark wood_log_b of #2851 — BlockTextureAtlas.CapTileKeys).
+        Assert.True(AtlasBands.Cols * AtlasBands.Rows - AtlasBands.DerivedStart >= (16 * 2) + 3);
     }
 
     [Fact]
@@ -91,7 +92,8 @@ public sealed class AtlasSlotAllocatorTests
     [Fact]
     public void TheDynamicBand_FitsTheWorldTextureBudget()
     {
-        // World textures may use up to 478 slots in total (frames count); every strip of eight must find a row.
+        // The band holds 472 slots (#2851 gave six to the derived band); world textures may use up to
+        // WorldTextureCodec.AnimSlotBudget of them (frames count), and every strip of eight must find a row.
         var band = new AtlasSlotAllocator(AtlasBands.DynamicStart, AtlasBands.DynamicEnd);
         int strips = 0;
         while (band.Allocate(8) >= 0)

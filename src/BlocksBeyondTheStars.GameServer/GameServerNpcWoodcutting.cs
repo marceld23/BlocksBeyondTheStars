@@ -49,8 +49,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>Half the width of the work box around the trunk base (7 × 7 columns).</summary>
-    private const int NpcFellHalfWidth = 3;
+    /// <summary>Half the width of the work box around the trunk base (9 × 9 columns — #2853: the generation-29 crowns reach
+    /// four cells from the trunk, the umbrella tree, the oak's branches, a leaning broadleaf).</summary>
+    private const int NpcFellHalfWidth = 4;
 
     /// <summary>Height of the work box from the trunk base up (the base level included).</summary>
     private const int NpcFellHeight = 14;

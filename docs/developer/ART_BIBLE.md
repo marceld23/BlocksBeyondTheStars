@@ -93,6 +93,14 @@ New planet types: add data (`planets.json`) + a `GradeFor` entry; never hardcode
   `gen_textures.py`), cut by the dark-ground bake and rooted on the bottom edge. Crowns are dense canopies edge to edge.
   Leaves are drawn green (the planet recolours them). Blossoms and berries are bright and saturated, so the accent
   finds them.
+- **Tree slots and the leaf pool (#2851, #2855, 2026-10-20).** From generation 29 a planet's tree kinds are built from
+  three leaf slots (`tree_leaves`, `tree_leaves_b`, `tree_leaves_c`) that share ONE pool of crown tiles (24 leaf shapes +
+  the two slot tiles); `FloraLooks.TextureKeysForGroup` gives the three slots three different tiles on every world, and
+  `FloraTints` gives each its own colour. The blossom crown (`blossom_leaves`) keeps its painted colours (the accent
+  shader turned blossoms green on some worlds). Trunks have looks too (`wood_log` five barks, the pale `wood_log_b`
+  three): bark tiles are opaque, drawn in natural browns / whites (the bark tint keeps their luminance), and the bake
+  leaves them alone. The client varies leaf and bark tints gently per grove (a low-frequency field), so one wood is not
+  a set of copies.
 
 ## 5. Ship rooms (interior palette)
 

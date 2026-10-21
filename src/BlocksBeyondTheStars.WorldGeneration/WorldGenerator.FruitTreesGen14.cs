@@ -40,16 +40,23 @@ public sealed partial class WorldGenerator
         /// <summary>The colour (0xRRGGBB) of every fruit on this tree kind of this world.</summary>
         public readonly int Tint;
 
-        /// <summary>The foliage block the fruit hangs from (a leaf, a needle, a frond).</summary>
+        /// <summary>The foliage block the fruit hangs from (a leaf, a needle, a frond — from generation 29 the kind's own
+        /// slot crown, #2851).</summary>
         public readonly BlockId Foliage;
 
-        public FruitRecorder(System.Action<int, int, int, BlockId, bool> inner, BlockId foliage, BlockId fruit, int tint)
+        /// <summary>Fewest and most fruit this tree hangs (the fruit trees' 2–5; a lantern tree hangs 3–6, #2853).</summary>
+        public readonly int MinFruit, MaxFruit;
+
+        public FruitRecorder(System.Action<int, int, int, BlockId, bool> inner, BlockId foliage, BlockId fruit, int tint,
+            int minFruit = FruitRules.MinFruitPerTree, int maxFruit = FruitRules.MaxFruitPerTree)
         {
             _inner = inner;
             _foliage = foliage.Value;
             Foliage = foliage;
             Fruit = fruit;
             Tint = tint;
+            MinFruit = minFruit;
+            MaxFruit = maxFruit;
         }
 
         /// <summary>The builder's <c>set</c>: record, then write as before.</summary>
@@ -71,6 +78,15 @@ public sealed partial class WorldGenerator
     private FruitRecorder? FruitRecorderFor(PlanetType planet, long seed, TreeKind kind, int wx, int wz, BlockId foliage,
         System.Action<int, int, int, BlockId, bool> inner)
     {
+        if (kind == TreeKind.Lantern && _terrainGeneration >= WorldDescription.TreeVarietyGeneration)
+        {
+            // #2853: every lantern tree hangs 3–6 glowing fruit — no share roll, no roster, no tint (the authored fruit keeps
+            // its own colour and its own light).
+            return _content.GetBlock(FloraCatalog.LanternFruitKey) is { } lantern && !lantern.NumericId.IsAir
+                ? new FruitRecorder(inner, foliage, lantern.NumericId, 0, LanternFruitMin, LanternFruitMax)
+                : null;
+        }
+
         if (_terrainGeneration < WorldDescription.FruitTreesGeneration || !FruitRules.BearsFruit(kind))
         {
             return null;
@@ -99,7 +115,7 @@ public sealed partial class WorldGenerator
     {
         ulong h = FruitRules.TreeHash(seed, WorldConstants.WrapX(wx, _circumference), wz);
         int cs = WorldConstants.ChunkSize;
-        foreach (var (x, y, z) in FruitRules.PickFruitCells(rec.Leaves, rec.Cells, h))
+        foreach (var (x, y, z) in FruitRules.PickFruitCells(rec.Leaves, rec.Cells, h, rec.MinFruit, rec.MaxFruit))
         {
             int lx = x - origin.X, ly = y - origin.Y, lz = z - origin.Z;
             if (lx < 0 || lx >= cs || ly < 0 || ly >= cs || lz < 0 || lz >= cs)
@@ -118,7 +134,16 @@ public sealed partial class WorldGenerator
             }
 
             chunk.Set(lx, ly, lz, rec.Fruit);
-            chunk.SetModifier(lx, ly, lz, rec.Tint, 0);
+            if (rec.Tint != 0) // a rolled fruit tint is never 0 (value ≥ 0.85); the lantern fruit carries none
+            {
+                chunk.SetModifier(lx, ly, lz, rec.Tint, 0);
+            }
         }
     }
+
+    /// <summary>Fewest lantern fruit on a lantern tree (#2853).</summary>
+    private const int LanternFruitMin = 3;
+
+    /// <summary>Most lantern fruit on a lantern tree (#2853).</summary>
+    private const int LanternFruitMax = 6;
 }

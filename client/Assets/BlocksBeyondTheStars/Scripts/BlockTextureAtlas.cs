@@ -321,6 +321,9 @@ namespace BlocksBeyondTheStars.Client
                     if (def != null)
                     {
                         any |= RepaintBlock(def);
+                        // #2851: a block's own tile can be another block's look — the leaf slots share one pool, so
+                        // tree_leaves_b may wear the tree_leaves tile on this world.
+                        any |= RepaintLookWearers(key);
                     }
                     else if (_faceTiles.TryGetValue(key, out int faceSlot))
                     {
@@ -703,7 +706,9 @@ namespace BlocksBeyondTheStars.Client
         /// mechanism is what grass-on-top, crate lids and machine fronts will want next.
         /// </para>
         /// </summary>
-        private static readonly string[] CapTileKeys = { "wood_log", "giant_log" };
+        // #2851: the pale bark (TreeWood.PaleLogKey) appended, so the two older caps keep their slots. Every key here must
+        // be a TreeWood trunk; the band has room for it since AtlasBands.DerivedStart moved down.
+        private static readonly string[] CapTileKeys = { TreeWood.LogKey, TreeWood.GiantLogKey, TreeWood.PaleLogKey };
 
         private readonly System.Collections.Generic.Dictionary<ushort, ushort> _capTiles = new();
 
@@ -1816,6 +1821,12 @@ namespace BlocksBeyondTheStars.Client
             "tree_leaves" => new Color(0.22f, 0.50f, 0.20f), // forest-green canopy
             "giant_log" => new Color(0.34f, 0.21f, 0.12f),   // #1783: darker, older bark
             "giant_leaves" => new Color(0.16f, 0.42f, 0.18f), // #1783: a deeper canopy green
+            // #2851: the tree-variety blocks, for a build whose bundled tile is missing (the crowns are re-tinted anyway).
+            "tree_leaves_b" => new Color(0.30f, 0.55f, 0.22f),   // leaf slot B: a lighter canopy green
+            "tree_leaves_c" => new Color(0.18f, 0.45f, 0.26f),   // leaf slot C: a bluish canopy green
+            "blossom_leaves" => new Color(0.88f, 0.62f, 0.74f),  // the blossom crown keeps its painted pink
+            "wood_log_b" => new Color(0.82f, 0.80f, 0.74f),      // pale birch-like bark
+            "saguaro" => new Color(0.30f, 0.52f, 0.30f),         // the cactus body's green (the lantern fruit has a data colour)
             "crystal" => new Color(0.55f, 0.75f, 0.95f),
             "ancient_brick" => new Color(0.60f, 0.56f, 0.47f), // weathered sandy masonry
             "rune_stone" => new Color(0.48f, 0.50f, 0.55f),    // cold grey slate, carved (glyphs in Decorate)

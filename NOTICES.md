@@ -115,7 +115,10 @@ same OpenAI usage terms. Block-backed materials reuse their in-game block atlas 
 `flora_droopbush`, `flora_needlebush`, `flora_frostberry`, `flora_clover`, `flora_daisy`, `flora_thistle`, `flora_herb`,
 `flora_foxtail`, `flora_lupine`) and the twelve held-tool materials of #2836 (`held_metal`, `held_darkmetal`,
 `held_wood`, `held_plastic`, `held_rubber`, `held_glass`, `held_energy`, `held_crystal`, `held_leather`, `held_stone`,
-`held_bone`, `held_carbon`; 2026-10-19)) are
+`held_bone`, `held_carbon`; 2026-10-19) and the 28 tree-variety tiles of #2850/#2851/#2853/#2855 (the leaf slots
+`tree_leaves_b` and `tree_leaves_c`, the leaf pool `tree_leaves_look13`…`_look24`, the blossom crown `blossom_leaves` with
+`blossom_leaves_look2`…`_look4`, the bark looks `wood_log_look2`…`_look6`, the pale bark `wood_log_b` with
+`wood_log_b_look2`…`_look3`, the `saguaro` cactus and the lantern tree's `flora_lantern_fruit`; 2026-10-20)) are
 **AI-generated** with the same **OpenAI** image API (`gpt-image-1-mini`, 64px pixel-art tiles — see
 `tools/ai-assets/gen_textures.py`, bundled as raw bytes by `bundle_textures.py`), loaded into the
 block atlas at runtime via `Texture2D.LoadRawTextureData`; same OpenAI usage terms.

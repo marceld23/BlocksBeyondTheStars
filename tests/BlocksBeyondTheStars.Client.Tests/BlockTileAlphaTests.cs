@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Text.RegularExpressions;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Textures;
 using Xunit;
 
@@ -244,17 +245,20 @@ public sealed class BlockTileAlphaTests
 
     /// <summary>#2832: the look tiles of the billboard archetypes (<c>"looks"</c> in data/blocks.json, every block but the
     /// tree crowns) — one side-view plant on black each, cut and rooted like the DARK_GROUND + ROOTED tiles.
-    /// bake_leaf_alpha.py derives the same set from the same file, so these guards cover every look it bakes.</summary>
+    /// bake_leaf_alpha.py derives the same set from the same file, so these guards cover every look it bakes. #2851: the
+    /// crowns are every <see cref="TreeFoliage.Keys"/> block (the leaf slots and the blossom crown have looks now), and the
+    /// bark looks (wood_log, wood_log_b — opaque tiles, the script's OPAQUE_LOOK_KEYS) are no billboards either.</summary>
     private static readonly System.TimeSpan RegexTimeout = System.TimeSpan.FromSeconds(1);
 
     private static IEnumerable<string> BillboardLookKeys()
     {
-        var crowns = new HashSet<string> { "tree_leaves", "pine_needles", "palm_frond", "giant_leaves" };
+        var crowns = new HashSet<string>(TreeFoliage.Keys);
         foreach (string line in File.ReadLines(Path.Combine(ClientTestPaths.RepoRoot(), "data", "blocks.json")))
         {
             var key = Regex.Match(line, @"""key"":\s*""(?<v>[^""]+)""", RegexOptions.ExplicitCapture, RegexTimeout);
             var looks = Regex.Match(line, @"""looks"":\s*\[(?<v>[^\]]*)\]", RegexOptions.ExplicitCapture, RegexTimeout);
-            if (!key.Success || !looks.Success || crowns.Contains(key.Groups["v"].Value))
+            if (!key.Success || !looks.Success || crowns.Contains(key.Groups["v"].Value)
+                || TextureTiles.AlphaModeOf(key.Groups["v"].Value) == TextureAlphaMode.Opaque)
             {
                 continue;
             }

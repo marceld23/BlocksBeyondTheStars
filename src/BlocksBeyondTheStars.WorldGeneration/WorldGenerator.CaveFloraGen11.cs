@@ -10,7 +10,8 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 
 /// <summary>Terrain generation 11 — the cave flora wave. Caves grow plants: the cave habitat's own species (the dark
 /// cave cap, glow moss on the floor, glow threads hanging from the ceiling), the fungi of the surface, and the rainbow
-/// glow class, whose plants each take their own colour. The rainbow class also grows in rare clusters on the surface.
+/// glow class, whose plants each take their own colour. The rainbow class also grows in rare clusters on the surface (from
+/// generation 29 only on a world of normal or luminous glow, #2857 — its caves keep it on every world).
 /// Cold-adapted species survive the cold. A per-chunk pass after the column loop reads the finished chunk (a floor is
 /// an air cell on cave rock, a ceiling an air cell under it), so the y-loop — one of the largest methods, see the
 /// #1740 JIT cliff — stays untouched. Nothing here runs on a world older than generation 11.</summary>
@@ -40,6 +41,10 @@ public sealed partial class WorldGenerator
     /// columns inside it — rare glowing patches of every colour, a find rather than a carpet.</summary>
     private const double RainbowClusterThreshold = 0.74;
     private const double RainbowClusterFill = 0.35;
+
+    /// <summary>The cluster field's threshold on a luminous world (#2857, generation 29) — lower, so its prism blooms gather a
+    /// little more often than on a world of normal glow.</summary>
+    internal const double LuminousRainbowClusterThreshold = 0.70;
 
     // Cold-adapted flora (Cold tag) keeps full density down to this surface temperature and fades out by the lower one.
     private const double ColdAdaptedFadeHiC = -30.0, ColdAdaptedFadeLoC = -45.0;
@@ -185,11 +190,24 @@ public sealed partial class WorldGenerator
             StampCaveFlora(seed, chunk, origin, groundTops);
         }
 
-        if (surfaceFlora && !_rainbowFloraId.IsAir && !planet.Void)
+        if (surfaceFlora && !_rainbowFloraId.IsAir && !planet.Void && RainbowSurfaceClustersGrow())
         {
-            StampRainbowClusters(seed, chunk, origin, calib, groundTops, waterTops);
+            StampRainbowClusters(seed, chunk, origin, calib, groundTops, waterTops, RainbowSurfaceThreshold());
         }
     }
+
+    /// <summary>Whether the prism blooms gather in clusters on this world's surface (#2857): from generation 29 only on a world
+    /// of <see cref="GlowLevel.Normal"/> or <see cref="GlowLevel.Luminous"/> glow (the bloom itself stays active for the caves
+    /// of every world); always on an older one.</summary>
+    private bool RainbowSurfaceClustersGrow()
+        => _terrainGeneration < WorldDescription.TreeVarietyGeneration || _floraGlowLevel is GlowLevel.Normal or GlowLevel.Luminous;
+
+    /// <summary>The surface cluster threshold of this world: <see cref="LuminousRainbowClusterThreshold"/> on a generation-29
+    /// luminous world (#2857), the classic one everywhere else.</summary>
+    private double RainbowSurfaceThreshold()
+        => _terrainGeneration >= WorldDescription.TreeVarietyGeneration && _floraGlowLevel == GlowLevel.Luminous
+            ? LuminousRainbowClusterThreshold
+            : RainbowClusterThreshold;
 
     private void StampCaveFlora(long seed, ChunkData chunk, Vector3i origin, System.ReadOnlySpan<int> groundTops)
     {
@@ -270,7 +288,7 @@ public sealed partial class WorldGenerator
     }
 
     private void StampRainbowClusters(long seed, ChunkData chunk, Vector3i origin, WorldCalibration calib,
-        System.ReadOnlySpan<int> groundTops, System.ReadOnlySpan<int> waterTops)
+        System.ReadOnlySpan<int> groundTops, System.ReadOnlySpan<int> waterTops, double clusterThreshold)
     {
         const int n = WorldConstants.ChunkSize;
         for (int lx = 0; lx < n; lx++)
@@ -286,7 +304,7 @@ public sealed partial class WorldGenerator
                 int worldX = origin.X + lx, worldZ = origin.Z + lz;
                 if (!chunk.Get(lx, ly, lz).IsAir || !_rainbowSurfaceHosts.Contains(chunk.Get(lx, ly - 1, lz).Value)
                     || ColdFloraFactor(calib, ground) < 0.5
-                    || FbmT(seed + RainbowClusterSalt, worldX, worldZ, 6.0, octaves: 2) <= RainbowClusterThreshold
+                    || FbmT(seed + RainbowClusterSalt, worldX, worldZ, 6.0, octaves: 2) <= clusterThreshold
                     || Noise.Value01(seed + RainbowRollSalt, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) >= RainbowClusterFill)
                 {
                     continue;

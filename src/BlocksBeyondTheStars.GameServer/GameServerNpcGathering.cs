@@ -47,12 +47,15 @@ public sealed partial class GameServer
     private HashSet<ushort>? _npcTreeLogIds;
     private HashSet<ushort>? _npcTreeLeafIds;
 
-    /// <summary>The ordinary trunk of this content's trees (the wood every world's ordinary tree species is made of —
-    /// see <c>InitFlora</c>'s <c>MapTreeBlocks</c>); the giant trees' own wood is not in it.</summary>
-    private HashSet<ushort> NpcTreeLogIds => _npcTreeLogIds ??= HostIds("wood_log");
+    /// <summary>The ordinary trunks of this content's trees (the wood every world's ordinary tree species is made of —
+    /// see <c>InitFlora</c>'s <c>MapTreeBlocks</c>; since #2851 also the pale bark of birches and bottle trees); the giant
+    /// trees' own wood is not in it.</summary>
+    private HashSet<ushort> NpcTreeLogIds => _npcTreeLogIds ??= HostIds("wood_log", "wood_log_b");
 
-    /// <summary>The ordinary crowns: broadleaf leaves, conifer needles, palm fronds (the giant trees' leaves excluded).</summary>
-    private HashSet<ushort> NpcTreeLeafIds => _npcTreeLeafIds ??= HostIds("tree_leaves", "pine_needles", "palm_frond");
+    /// <summary>The ordinary crowns: broadleaf leaves, conifer needles, palm fronds and (#2851) the two more leaf slots and
+    /// the blossom crown (the giant trees' leaves excluded).</summary>
+    private HashSet<ushort> NpcTreeLeafIds => _npcTreeLeafIds ??= HostIds("tree_leaves", "pine_needles", "palm_frond",
+        "tree_leaves_b", "tree_leaves_c", "blossom_leaves");
 
     /// <summary>Harvestable cells around <paramref name="center"/> within <paramref name="radius"/> (at most
     /// <paramref name="max"/>, nearest first): crops and edible wild flora on loaded chunks, never a player-planted plant,

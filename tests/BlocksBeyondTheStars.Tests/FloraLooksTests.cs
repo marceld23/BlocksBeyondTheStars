@@ -100,13 +100,28 @@ public sealed class FloraLooksTests
         var all = new HashSet<string>();
         foreach (var def in _content.Blocks.Values.Where(b => b.Looks != null))
         {
-            Assert.Equal("flora", def.Category);
+            // #2851: the trunks (TreeWood) carry bark looks too — "building" blocks, but grown, wild wood.
+            Assert.True(def.Category == "flora" || TreeWood.IsKey(def.Key), $"{def.Key} ({def.Category}) carries looks");
             Assert.False(FloraCatalog.KeepsOwnColour(def.Key), $"{def.Key} keeps its own colour — a look would be a second fixed look");
+            bool leafSlot = TreeFoliage.LeafSlotKeys.Contains(def.Key);
+            var own = new HashSet<string>();
             foreach (string look in def.Looks!)
             {
+                Assert.True(own.Add(look), $"look '{look}' is listed twice on {def.Key}");
+                Assert.NotEqual(def.Key, look);
+                Assert.Equal(TextureTiles.AlphaModeOf(def.Key), TextureTiles.AlphaModeOf(look));
+                if (leafSlot)
+                {
+                    // #2851: the three leaf slots share ONE pool (FloraLooks.TextureKeysForGroup keeps them apart on a
+                    // world): the looks of tree_leaves and the slots' own tiles.
+                    Assert.True(TreeFoliage.LeafSlotKeys.Contains(look) || FloraLooks.BaseKeyOf(look) == TreeFoliage.LeavesKey,
+                        $"{def.Key} lists '{look}', which is not in the leaf slots' pool");
+                    all.Add(look);
+                    continue;
+                }
+
                 Assert.Equal(def.Key, FloraLooks.BaseKeyOf(look));
                 Assert.True(all.Add(look), $"look '{look}' is listed twice");
-                Assert.Equal(TextureTiles.AlphaModeOf(def.Key), TextureTiles.AlphaModeOf(look));
                 Assert.Null(_content.GetBlock(look)); // a look is a texture, never a block of its own
             }
         }

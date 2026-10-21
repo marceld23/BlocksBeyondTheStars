@@ -622,8 +622,9 @@ costs no frame rate.
   Food sources: hunt creatures (meat), harvest berry flora (replantable via seeds), pick the **fruit** that hangs
   under tree crowns on newer worlds (it grows back; toxic exactly when its tree is — scan first), pick the berries under
   a **Fifi plant** (Sophie's tree-sized plant from the school club: green trunk, yellow leaves, glowing pink blossoms that
-  light up the night; it stands in groups on every green world of the newest generation, and its berries are always
-  edible and grow back after two minutes), raid a settlement's
+  light up the night; it stands in groups on green worlds created from 2026-09-27 on — on worlds created from
+  2026-10-20 on only on about every third planet — and its berries are always edible and grow back after two minutes),
+  pick the glowing golden **lantern fruit** on a luminous world (always edible, grows back), raid a settlement's
   **greenhouse** (see below), craft emergency rations — or build an **algae tank** (workshop, no blueprint)
   at a base: standing next to it grows 2 algae rations from 1 water (melt 2 snow or 2 ice into water by
   hand if there is no lake). **To eat**, select the food in the hotbar and press the place button (right mouse
@@ -2720,7 +2721,10 @@ called **stories**:
   the "new discovery" bonus).
 - **Plants and trees scan as named species.** A scanned plant (flora) or tree reads as this world's coined
   species name with an **edible/toxic** classification, not just a block. A tree's trunk and its leaves are
-  the same species, so scanning either one counts as a single discovery.
+  the same species, so scanning either one counts as a single discovery. On worlds created from 2026-10-20 on, the
+  leaves of a wood's other tree kinds (and the birch's and bottle tree's pale trunks) carry names of their own, while
+  the common brown trunk keeps the common tree's name; edible or toxic is the same for every tree of a world, and so is
+  their fruit.
 - **What it carries.** A scanned plant, tree or creature also gets a line about its **substance**: unknown until
   you have analysed a sample of that species in a **bio lab** (§ The bio lab) — afterwards the scan says so.
 - **Micro-fauna scans too.** Stand near a butterfly, firefly, wisp or any other ambient critter with the
@@ -2954,6 +2958,26 @@ called **stories**:
 - **Blossoms and berries are colourful:** flowers, berry bushes, orchids, lilies, mushrooms and the other flowering
   plants show their blossoms, berries and caps in a colour of their own, apart from the leaves — and plants of the same
   kind mix two or three colours across a meadow. The grass tufts on the ground take the planet's grass colour.
+- **Many more trees** (worlds created from 2026-10-20 on, terrain generation 29): ten new tree shapes — the **birch**
+  with its pale bark, the wide **oak**, the slim **column tree**, the flat **umbrella tree** of the savanna, the
+  **blossom tree** in pink, white, magenta or violet, the **tree fern**, the fat **bottle tree**, the alien **spiral
+  tree**, the round **ball tree** — and the **lantern tree** (see below). A wood is no longer one kind of tree: one kind
+  leads, others grow in between, and even trees of one kind differ (crooked trunks, lumpy crowns, twin tops). On one
+  planet the kinds wear **different leaves in different colours** (up to three leaf kinds plus the blossoms), and the
+  scanner names each leaf kind on its own (edible or toxic is the same for all trees of a world). The
+  jungle planet finally has its tall jungle trees, deserts grow palms, saguaros (now a real cactus) and bottle trees
+  instead of mostly dead snags, fungal worlds grow mushroom trees and crystal worlds the odd crystal tree. Older worlds
+  keep the trees they always had.
+- **Bark and leaves vary on every world** (old saves included): trunks come in several barks (rough, smooth, striped,
+  shaggy, plated), the leaves of a planet's trees are picked from a bigger set of shapes, and neighbouring groves differ
+  gently in colour instead of every tree being the same copy.
+- **Not every planet glows** (terrain generation 29): on about four in ten planets no glowing plant grows on the surface,
+  on three in ten you find one glowing kind, on two in ten a few — and one in ten is a **luminous world** full of glowing
+  plants, where **lantern trees** hang their glowing golden fruit (always edible, it grows back after two minutes).
+  Caves keep their glowing moss and threads on every world. The prism bloom still grows in every cave, but its clusters on
+  the surface only on planets that glow.
+- **Glowing plants glow at night** (every world): by day their glow is faint, at dusk it rises, at night and in caves it
+  is full. Frost flowers no longer glow, and the light a glowing plant throws has the plant's own colour on that planet.
 
 ### Creatures
 - **Every planet's animals look like their own species:** their hide, their build, a coat pattern in a second colour

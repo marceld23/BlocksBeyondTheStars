@@ -185,10 +185,11 @@ public sealed partial class GameServer
                 readout.LegacyThreat = flora.Toxic ? "Toxic" : "Edible";
                 readout.Display = string.IsNullOrEmpty(flora.Name) ? subjectKey : flora.Name;
             }
-            else if (Shared.Definitions.FloraCatalog.IsCultivated(subjectKey))
+            else if (Shared.Definitions.FloraCatalog.IsCultivated(subjectKey) || Shared.Definitions.FloraCatalog.IsAuthored(subjectKey))
             {
                 // A farmed crop (#627/#1204) sits in no world roster — no coined name, never toxic — but it is
                 // still a plant: read it as edible flora under its own block name (the client localizes the key).
+                // So does an authored plant outside the Fifi plant (#2853: the lantern tree's always-edible fruit).
                 readout.Kind = "flora";
                 readout.InfoKey = hasDrops ? string.Empty : "ui.scan.flora_harvest";
                 readout.ThreatKey = "ui.scan.threat.edible";

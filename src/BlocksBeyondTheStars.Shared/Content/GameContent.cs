@@ -1378,7 +1378,7 @@ public sealed class GameContent
     /// The number of block slots in the client's texture atlas — numeric block ids must stay BELOW it. The atlas
     /// has 32×32 = 1024 slots, but only the first band belongs to blocks (#1952): the client's <c>AtlasBands</c>
     /// deals the rest to official extra tiles (400..511), animation strips of the local pack and of world
-    /// textures (512..989) and the derived variant / end-grain tiles (990..1023). Mirrors
+    /// textures (512..983) and the derived variant / end-grain tiles (984..1023, since #2851). Mirrors
     /// <c>AtlasBands.BlockEnd</c>.
     /// </summary>
     public const int AtlasTileCapacity = 400;

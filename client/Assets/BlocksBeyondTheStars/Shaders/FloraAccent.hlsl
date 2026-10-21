@@ -10,6 +10,7 @@
 //     (TEXCOORD2.x: 0.1 / 0.2 / 0.3 on top of 0 solid, 3 plant, 4 aquatic) — every other test of that channel is a ±0.5
 //     window, so the codes keep their meaning. A meadow of one species shows a mix (pink, violet and pale lupines).
 // The analysis runs on gamma-encoded values (sqrt of the linear albedo), so the thresholds read like the tile's art.
+// Also here because both block passes include this file: the daylight fade of the plants' self-glow (#2858, below).
 // Plain float HLSL — included by the URP pass (HLSLPROGRAM) and the Built-in pass (CGPROGRAM) alike.
 #ifndef BBTS_FLORA_ACCENT_INCLUDED
 #define BBTS_FLORA_ACCENT_INCLUDED
@@ -70,6 +71,18 @@ float3 BbtsFloraTint(float3 albedo, float3 tint, float leafCode)
     }
 
     return lerp(albedo, col, 0.85);
+}
+
+// #2858: a glowing plant's self-glow by the time of day — about a quarter in full daylight, full at dusk, at night and
+// wherever the sky does not reach (caves, under a roof), so a glowing wood stands out at night and not at noon. Only the
+// plant branch of the emission calls this (flora tint mode or a cross plant — the condition the #2822 breathing uses);
+// lamps, lava, ores and crystals keep their glow. sunHeight = the y of the direction TO the sun (_Sc_SunDir, which Sky.cs
+// turns with the day: 1 at noon, 0 on the horizon, below 0 at night); skylight = the face's sky exposure (TEXCOORD1.x).
+// The sun counts as "day" from ~3° above the horizon and fully from ~20°, so the whole golden hour still glows.
+float BbtsPlantGlowDaylight(float sunHeight, float skylight)
+{
+    float day = smoothstep(0.05, 0.35, sunHeight) * saturate(skylight);
+    return lerp(1.0, 0.25, day);
 }
 
 #endif

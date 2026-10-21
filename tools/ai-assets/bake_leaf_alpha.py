@@ -50,6 +50,7 @@ OUT = Path("out/baked")
 # flora_* EXCEPT the structural/solid + glowing-cap ones (those read better as solid cubes).
 FOLIAGE = [
     "tree_leaves", "pine_needles", "palm_frond", "giant_leaves",
+    "tree_leaves_b", "tree_leaves_c", "blossom_leaves",  # the tree variety (#2851, #2853): two more leaf slots + the blossom crown
     "flora_ashweed", "flora_bellflower", "flora_bush", "flora_cinderbush", "flora_coral", "flora_cropberry",
     "flora_cropgrain", "flora_dryshrub",
     "flora_fern", "flora_flower", "flora_frostflower", "flora_grasstuft", "flora_icereed", "flora_kelp",
@@ -58,6 +59,7 @@ FOLIAGE = [
     "flora_sunblossom", "flora_tulip", "flora_hangkelp",
     "flora_glowmoss", "flora_glowthread",  # generation 11 cave flora (code-painted cutouts until their tiles exist)
     "flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana",  # fruit trees (#2038): a pale fruit on black
+    "flora_lantern_fruit",  # the lantern tree's glowing fruit (#2853), a fruit on black like the others
     "fifi_leaf", "flora_fifi_berries",  # the Fifi plant (#2085): its yellow crown + its berries (a berry cluster on black)
     # the mixed meadows (#2833, generation 28): twelve side-view plants on black, rooted on the bottom edge
     "flora_berrybush", "flora_blossombush", "flora_featherbush", "flora_droopbush", "flora_needlebush", "flora_frostberry",
@@ -73,6 +75,7 @@ FOLIAGE = [
 # top-down "fields of plants on a ground" are one side-view plant on black now (gen_textures.py ON_BLACK).
 DARK_GROUND = {
     "flora_fruit_round", "flora_fruit_long", "flora_fruit_grape", "flora_fruit_banana", "flora_fifi_berries",
+    "flora_lantern_fruit",
     "flora_coral", "flora_lily", "flora_orchid", "flora_palm", "flora_rockflower", "flora_saltgrass", "flora_seagrass",
     "flora_snowbush",
     # the mixed meadows (#2833)
@@ -124,12 +127,18 @@ def _flora_looks() -> tuple[list[str], list[str]]:
     plain = "\n".join(line for line in text.split("\n") if not line.lstrip().startswith("//"))
     crowns, billboards = [], []
     for block in json.loads(plain):
+        if block["key"] in OPAQUE_LOOK_KEYS:
+            continue  # bark looks (#2855) are opaque block tiles — never cut
         for look in block.get("looks") or []:
-            (crowns if block["key"] in CROWN_KEYS else billboards).append(look)
+            target = crowns if block["key"] in CROWN_KEYS else billboards
+            if look not in target:  # the leaf slots share one pool (#2851): each tile is baked once
+                target.append(look)
     return crowns, billboards
 
 
-CROWN_KEYS = {"tree_leaves", "pine_needles", "palm_frond", "giant_leaves"}
+CROWN_KEYS = {"tree_leaves", "pine_needles", "palm_frond", "giant_leaves", "tree_leaves_b", "tree_leaves_c", "blossom_leaves"}
+# Blocks whose looks are opaque tiles (the bark of #2855): their looks are not foliage at all.
+OPAQUE_LOOK_KEYS = {"wood_log", "wood_log_b"}
 CROWN_LOOKS, BILLBOARD_LOOKS = _flora_looks()
 FOLIAGE += CROWN_LOOKS + BILLBOARD_LOOKS
 DARK_GROUND |= set(BILLBOARD_LOOKS)

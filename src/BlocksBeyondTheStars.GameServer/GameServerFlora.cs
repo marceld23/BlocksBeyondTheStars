@@ -152,6 +152,20 @@ public sealed partial class GameServer
         {
             MapTreeBlocks(giant, BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLogKey, BlocksBeyondTheStars.WorldGeneration.WorldGenerator.GiantLeavesKey);
         }
+
+        // #2851 (generation 29): the tree kinds of one wood stand on their own leaf slots, the blossom crown and the saguaro —
+        // each slot is a species of its own (tr2..tr5), so the scanner names a birch and an oak differently. Only the slots
+        // this world can grow: a lodge's warning list of poisonous plants must never name a tree that is not here.
+        if (planet != null)
+        {
+            foreach (int slot in BlocksBeyondTheStars.WorldGeneration.TreeGenerator.SlotsGrownOn(planet, rosterSeed, _meta.Description.TerrainGeneration))
+            {
+                if (BlocksBeyondTheStars.WorldGeneration.TreeGenerator.GenerateSlot(planet, rosterSeed, slot) is { } species)
+                {
+                    MapTreeBlocks(species, System.Linq.Enumerable.ToArray(BlocksBeyondTheStars.WorldGeneration.TreeGenerator.SlotBlockKeys(slot)));
+                }
+            }
+        }
     }
 
     private void MapTreeBlocks(BlocksBeyondTheStars.Shared.Definitions.TreeSpecies tree, params string[] keys)

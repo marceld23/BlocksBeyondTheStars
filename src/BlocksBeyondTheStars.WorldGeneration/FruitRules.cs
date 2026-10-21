@@ -33,9 +33,13 @@ public static class FruitRules
     private const long TreeSalt = 0x7EE7F0;
 
     /// <summary>True for a tree kind that can bear fruit: the leafy crowns. Dead snags, bamboo, saguaros, mushroom
-    /// and crystal trees bear none.</summary>
+    /// and crystal trees bear none. Of the generation-29 kinds (#2853) the oak, birch, ball, bottle and umbrella trees bear
+    /// fruit; the blossom tree (its crown is the flower), the tree fern, the spiral and the column tree do not, and the
+    /// lantern tree hangs its own glowing fruit instead (<c>WorldGenerator.FruitTreesGen14.cs</c>). The new kinds only grow
+    /// on a generation-29 world, so no older world's fruit moves.</summary>
     public static bool BearsFruit(TreeKind kind) => kind is TreeKind.Broadleaf or TreeKind.Conifer or TreeKind.Palm
-        or TreeKind.Jungle or TreeKind.Baobab or TreeKind.Mangrove or TreeKind.Willow;
+        or TreeKind.Jungle or TreeKind.Baobab or TreeKind.Mangrove or TreeKind.Willow
+        or TreeKind.Oak or TreeKind.Birch or TreeKind.Ball or TreeKind.Bottle or TreeKind.Umbrella;
 
     /// <summary>The fruit block key this tree kind bears on the world of <paramref name="rosterSeed"/>, or null when the
     /// kind bears none or the world activated no fruit species. <paramref name="activeFruitKeys"/> are the world's
@@ -130,6 +134,15 @@ public static class FruitRules
             foreach (var k in theme.PaletteFor(1))
             {
                 kinds.Add(k);
+            }
+
+            // #2848 (generation 29): the woods are drawn from the weighted palettes, which add the new kinds.
+            if (terrainGeneration >= BlocksBeyondTheStars.Shared.World.WorldDescription.TreeVarietyGeneration)
+            {
+                foreach (var k in theme.PaletteFor(terrainGeneration))
+                {
+                    kinds.Add(k);
+                }
             }
         }
 

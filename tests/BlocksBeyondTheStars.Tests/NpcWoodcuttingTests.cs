@@ -180,7 +180,7 @@ public sealed class NpcWoodcuttingTests
         w.FoundBase(); // the core at the pad's centre: its zone is protected
         Tree(w, Cx + 3, Cz + 3);                                                     // in the base
         Tree(w, Cx - 14, Cz, trunk: 15);                                             // taller than the work box
-        Tree(w, Cx - 14, Cz + 12, crownR: 4);                                        // wider than the work box
+        Tree(w, Cx - 14, Cz + 12, crownR: 5);                                        // wider than the work box
         Tree(w, Cx + 14, Cz - 12, log: "giant_log", leaf: "giant_leaves");           // a giant's wood
         var fine = Tree(w, Cx + 14, Cz + 12);
 

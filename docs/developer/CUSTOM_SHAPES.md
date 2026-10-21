@@ -129,7 +129,7 @@ block keeps its picture where it belongs and names tiles for its other faces:
   (Client.Core) deals them one slot each into the atlas's **extras band** (400..511); `BlockTextureAtlas` paints them
   and `ShapeFaceTextures` maps faces onto the same slots, both derived from the content alone. A key the band has no
   room for is logged as an error (and fails `AtlasSlotAllocatorTests`), never silently dropped. The derived band
-  (990..1023, variants + log end grain) is full; it now logs instead of skipping quietly too.
+  (984..1023 since #2851, variants + log end grain) logs when it is full instead of skipping quietly too.
 - Shared casings keep the count low: `face_tech_*` (dark station machines), `face_crystal_*` (Crystal Net devices),
   `face_light_*` (clinic, press desk, bunk), `face_wood_*` (shop, tamer, quarry posts), `face_plastic_*` (gaming gear),
   `face_rust_*` (scrap machines), `face_industrial_*` (detox/decontamination, water spout, thumper), plus bespoke

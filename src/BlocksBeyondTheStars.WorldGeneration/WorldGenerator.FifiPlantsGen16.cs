@@ -11,7 +11,8 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 
 /// <summary>
 /// Terrain generation 16 (#2085) — the Fifi plant, partial of <see cref="WorldGenerator"/>. Sophie's tree-sized plant from
-/// the school club stands in groves on every world with plant life, on any soft natural ground (<see cref="FifiPlantRules"/>):
+/// the school club stands in groves on every world with plant life (from generation 29 on about every third, #2859), on any
+/// soft natural ground (<see cref="FifiPlantRules"/>):
 /// a green trunk, a crown of yellow leaves, glowing pink blossoms and berries hanging under the lowest leaves. A separate pass
 /// like the giant flora (#1648), with its own margin (the widest crown) and rise (inside the stamps' common
 /// <see cref="MaxStampRise"/>), and a first reject on the grove cell's hash before anything costly runs. Deterministic: every
@@ -34,10 +35,12 @@ public sealed partial class WorldGenerator
     }
 
     /// <summary>The generation-16 gate and the world's Fifi ground, or null when this world grows no Fifi plant: an older
-    /// generation, no plant life, a content without the plant's blocks, or no ground of the world that hosts one.</summary>
+    /// generation, no plant life, a generation-29 world whose roll gave it none (#2859, <see cref="FifiPlantRules.GrowsOnWorld"/>,
+    /// about two worlds in three), a content without the plant's blocks, or no ground of the world that hosts one.</summary>
     private FifiGround? FifiGroundFor(PlanetType planet, List<BiomeResolved> biomes, int fluidLevel, bool trees)
     {
-        if (_terrainGeneration < WorldDescription.FifiPlantGeneration || planet.IsAirless || planet.FloraDensity <= 0 || planet.Void)
+        if (_terrainGeneration < WorldDescription.FifiPlantGeneration || planet.IsAirless || planet.FloraDensity <= 0 || planet.Void
+            || !FifiPlantRules.GrowsOnWorld(planet, RosterSeed, _terrainGeneration))
         {
             return null;
         }

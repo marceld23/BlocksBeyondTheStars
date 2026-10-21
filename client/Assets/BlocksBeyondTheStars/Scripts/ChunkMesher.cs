@@ -71,6 +71,8 @@ namespace BlocksBeyondTheStars.Client
         // time, and none of these ever escapes the call), so a Clear() at the point of use is all the isolation
         // needed. On WebGL everything runs on the single main thread — same invariant, one buffer set.
         [System.ThreadStatic] private static Dictionary<(int X, int Y, int Z), WaterSurfaceData> _waterCellsScratch;
+        [System.ThreadStatic] private static bool[] _groveKnownScratch;     // #2856: n²: the column's grove drift is read
+        [System.ThreadStatic] private static Vector2[] _groveDriftScratch;  // #2856: n²: (hue shift, brightness factor)
         // #1528: dense per-build scratch for the world-chunk path — the AO occluder probes, the skylight column
         // tops and the block-light flood all address a bounded window around the chunk, so a flat array indexed by
         // (coordinate - window origin) replaces a tuple-keyed dictionary (order 10^5 hash lookups per chunk).
@@ -715,6 +717,11 @@ namespace BlocksBeyondTheStars.Client
             // cleared at the first one — most chunks hold none).
             Dictionary<int, BredLook> bredLooks = null;
 
+            // #2856: the grove colour drift is read once per column per build (a tree's crown and trunk share their
+            // columns) — taken and cleared at the first tree cell, so a chunk without trees pays nothing.
+            Vector2[] groveDrift = null;
+            bool[] groveKnown = null;
+
             for (int x = 0; x < n; x++)
             for (int y = 0; y < n; y++)
             for (int z = 0; z < n; z++)
@@ -754,7 +761,14 @@ namespace BlocksBeyondTheStars.Client
                 // darker than the leaves. Only on planet chunks (floraTint != null) — ship meshes carry no
                 // resolver, so wood_log stays a normal paintable hull block there.
                 bool isWood = floraTint != null && (tf & TraitWood) != 0;
-                Color speciesTint = (isFlora || isWood) && floraTint != null ? floraTint(id) : Color.black;
+                // #2851: the saguaro is a solid plant body — an opaque, collidable cube that blocks light like a trunk,
+                // but wears its species' flora colour (FloraTints.For) like the cactus. Not TraitFlora: that would let
+                // light and the neighbours' faces through it as if it were a leaf. Drawn in the bark mode (4), which
+                // recolours by luminance just like the flora mode but stands still: a cube face in mode 1 without a
+                // cutout code is what the shader sways as solid flora (BbtsBlockSway), and a swaying cube column would
+                // crack along its edges (its faces carry different skylight). Planet chunks only, like the bark.
+                bool tintedBody = floraTint != null && (tf & TraitTintedBody) != 0;
+                Color speciesTint = (isFlora || isWood || tintedBody) && floraTint != null ? floraTint(id) : Color.black;
                 // Generation 11, the rainbow class: every plant takes its own colour from its cell instead of the one
                 // per-world species hue (planet chunks only, like every flora tint).
                 if (floraTint != null && (tf & TraitRainbowFlora) != 0)
@@ -790,7 +804,7 @@ namespace BlocksBeyondTheStars.Client
                 int surfaceTint = modTint != 0 ? modTint : modGlow;
                 bool dyed = surfaceTint != 0;
                 Color dye = dyed ? RgbToColor(surfaceTint) : Color.black;
-                float floraFlag = dyed ? 3f : isWood ? 4f : floraTinted ? 1f : painted ? 2f : 0f;
+                float floraFlag = dyed ? 3f : (isWood || tintedBody) ? 4f : floraTinted ? 1f : painted ? 2f : 0f;
                 // Foliage flag (TEXCOORD2.x): tree crowns + leafy plants whose tile carries a baked alpha
                 // mask — the shader clips it so the leaves are see-through (holes), not a solid cube.
                 bool foliage = (tf & TraitFoliage) != 0;
@@ -819,6 +833,38 @@ namespace BlocksBeyondTheStars.Client
                         Mathf.Clamp01(speciesTint.r * tintJit),
                         Mathf.Clamp01(speciesTint.g * tintJit),
                         Mathf.Clamp01(speciesTint.b * tintJit));
+                }
+
+                // #2856: the tinted crowns and the trunks drift gently between groves — a few degrees of hue and about
+                // ±10 % brightness from a slow field over the columns (TreeTintJitter), so a wood stops reading as copies
+                // of one tree while one crown (and its trunk, in the same columns) keeps one colour. Planet chunks only.
+                if ((tf & TraitGroveTint) != 0 && floraTint != null && speciesTint != Color.black)
+                {
+                    if (groveKnown == null)
+                    {
+                        if (_groveKnownScratch == null || _groveKnownScratch.Length < n * n)
+                        {
+                            _groveKnownScratch = new bool[n * n];
+                            _groveDriftScratch = new Vector2[n * n];
+                        }
+
+                        groveKnown = _groveKnownScratch;
+                        groveDrift = _groveDriftScratch;
+                        System.Array.Clear(groveKnown, 0, groveKnown.Length);
+                    }
+
+                    int column = (x * n) + z;
+                    if (!groveKnown[column])
+                    {
+                        var (hueShift, value) = TreeTintJitter.At(wx, wz, GroveCircumference);
+                        groveDrift[column] = new Vector2(hueShift, value);
+                        groveKnown[column] = true;
+                    }
+
+                    var drift = groveDrift[column];
+                    var (gr, gg, gb) = TreeTintJitter.Apply((speciesTint.r, speciesTint.g, speciesTint.b), drift.x, drift.y,
+                        LinearColorSpace);
+                    speciesTint = new Color(gr, gg, gb);
                 }
 
                 // #2834: blossoms and berries in a colour of their own. An accent species' plant picks one of three
@@ -2076,18 +2122,22 @@ namespace BlocksBeyondTheStars.Client
         private static bool IsFloraBlockSlow(GameContent content, BlockId id)
         {
             var key = content.BlockById(id)?.Key;
+            // #2851: the crowns that take the world's colour (TreeFoliage.IsTinted) — the three leaf slots, needles, fronds
+            // and the giant crown. The Fifi plant's leaves and the blossom crown keep their painted colours: they are
+            // foliage (cutout, walked through) but no flora, so no tint mode paints them in the planet's hue.
             return key != null
                 && (key.StartsWith("flora_", System.StringComparison.Ordinal)
-                    || key == "tree_leaves" || key == "pine_needles" || key == "palm_frond" || key == "giant_leaves");
+                    || BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.IsTinted(key));
         }
 
-        /// <summary>True for the tree trunk (wood_log): the block shader recolours it with a per-world DARK
-        /// bark hue (tint mode 4) so trunks read clearly darker than the leaves they carry — never the same
-        /// colour. Separate from <see cref="IsFloraBlock"/> because the bark uses its own (darker) tint band.</summary>
+        /// <summary>True for the tree trunks (<c>TreeWood</c>: wood_log, the pale wood_log_b of #2851, giant_log): the block
+        /// shader recolours them with a per-world bark hue (tint mode 4) — DARK for the common trunks, so they read
+        /// clearly darker than the leaves they carry, LIGHT for the pale bark. Separate from <see cref="IsFloraBlock"/>
+        /// because the bark uses its own tint band.</summary>
         private static bool IsWoodBlock(GameContent content, BlockId id) => TraitsFor(content).Has(id, TraitWood);
 
         private static bool IsWoodBlockSlow(GameContent content, BlockId id)
-            => content.BlockById(id)?.Key is "wood_log" or "giant_log";
+            => BlocksBeyondTheStars.Shared.Definitions.TreeWood.IsKey(content.BlockById(id)?.Key);
 
         // Tall cross-billboard flora (an upper vegetation layer above the low ground cover) and the structural /
         // solid / glowing-cap flora that read better as solid cubes (everything else leafy, plus tree crowns,
@@ -2285,7 +2335,8 @@ namespace BlocksBeyondTheStars.Client
                 case "flora_shardbloom": return 0.6f;
                 case "flora_sporepod": return 0.55f;
                 case "crystal": return 0.50f;
-                case "flora_frostflower": return 0.40f;
+                // #2858: no flora_frostflower here any more — the catalog never tagged it as a glowing species, and its
+                // glow lit up every ice world. A frost flower is a flower.
                 case "copper_ore": return 0.28f;
                 case "titanium_ore": return 0.22f;
                 case "iron_ore": return 0.18f;
@@ -2296,6 +2347,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Whether the project renders in Linear space — captured on the main thread (GameBootstrap) because the
         /// mesher may run on a worker, where Unity's QualitySettings must not be touched.</summary>
         internal static volatile bool LinearColorSpace;
+
+        /// <summary>#2856: the current world's circumference, so the grove colour drift (<see cref="TreeTintJitter"/>) wraps
+        /// with the world's seams. Set on the main thread (GameBootstrap) whenever the world's size is known; 0 = the
+        /// classic size.</summary>
+        internal static volatile int GroveCircumference;
+
+        /// <summary>#2851: the saguaro — the giant cactus's body and arms, a solid plant body (see TraitTintedBody).</summary>
+        public const string SaguaroKey = "saguaro";
 
         /// <summary>A rainbow-class plant's own colour (generation 11) as the value the block shader multiplies: the
         /// sRGB hue of <see cref="FloraTints.RainbowAt"/>, converted like <c>ShaderColor.Srgb</c> converts the
@@ -2723,6 +2782,8 @@ namespace BlocksBeyondTheStars.Client
         private const uint TraitBredPlant = 1u << 25;         // #2209: the bred plant — its look rides on the cell's tint + glow channels (FloraForm)
         private const uint TraitThinPlant = 1u << 26;         // #2379: a "flora_" plant drawn as a cross billboard (not solid flora) — it never fills its cell
         private const uint TraitAccentFlora = 1u << 27;       // #2834: blossoms/berries take an accent colour of their own (BlockDefinition.Accent)
+        private const uint TraitTintedBody = 1u << 28;        // #2851: a solid, opaque plant body (the saguaro) in its species' flora colour (bark mode 4, rigid)
+        private const uint TraitGroveTint = 1u << 29;         // #2856: a tinted crown or a trunk — its colour drifts gently between groves
 
         private sealed class BlockTraits
         {
@@ -2784,6 +2845,9 @@ namespace BlocksBeyondTheStars.Client
                     if (key == "flower_pot") f |= TraitFlowerPot;
                     if (key == FloraForm.BlockKey) f |= TraitBredPlant;
                     if (content.BlockById(id)?.Accent == true) f |= TraitAccentFlora;
+                    if (key == SaguaroKey) f |= TraitTintedBody;
+                    if (BlocksBeyondTheStars.Shared.Definitions.TreeFoliage.IsTinted(key)
+                        || BlocksBeyondTheStars.Shared.Definitions.TreeWood.IsKey(key)) f |= TraitGroveTint;
                     if ((f & (TraitTransparent | TraitFlora | TraitFoliage | TraitSlimProp)) != 0) f |= TraitExposesOpaqueFace;
                     // #2379: the cross-billboard plants — the same set the cross path draws (foliage with the flora_ prefix).
                     if ((f & TraitFoliage) != 0 && (f & TraitFloraPrefix) != 0) f |= TraitThinPlant;

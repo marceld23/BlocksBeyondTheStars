@@ -3762,9 +3762,10 @@ namespace BlocksBeyondTheStars.Client
                     {
                         lava++;
                     }
-                    else if (def.Category == "flora" || TreeFoliage.IsKey(def.Key) || def.Key.EndsWith("_log", System.StringComparison.Ordinal))
+                    else if (def.Category == "flora" || TreeFoliage.IsKey(def.Key) || TreeWood.IsKey(def.Key)
+                             || def.Key.EndsWith("_log", System.StringComparison.Ordinal))
                     {
-                        flora++; // a trunk is a tree, not a house (logs carry the "building" category)
+                        flora++; // a trunk is a tree, not a house (logs carry the "building" category; #2851: wood_log_b too)
                     }
                     else if (def.Category is "building" or "machine" or "door" or "light")
                     {
