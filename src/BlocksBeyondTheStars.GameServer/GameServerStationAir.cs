@@ -267,8 +267,9 @@ public sealed partial class GameServer
     internal bool StationAirBrakedForTest(string stationId) => _stationAir.TryGetValue(stationId, out var vol) && vol.BrakeLogged;
 
     /// <summary>The station's air state on the active world: started over when the world or the box changed, a refill of
-    /// the known sealed rooms started when stale and worked on within this tick's air budget (to the end with
-    /// <paramref name="complete"/>, which also skips the minimum interval — the test seams).</summary>
+    /// the known sealed rooms started when stale and worked on within this tick's air budget (at least the per-tick minimum
+    /// by the query that starts it, #2870; to the end with <paramref name="complete"/>, which also skips the minimum
+    /// interval — the test seams).</summary>
     private StationAirVolume StationAirFor(BoardableStation station, bool complete)
     {
         string body = _world.LocationId;
@@ -294,8 +295,10 @@ public sealed partial class GameServer
 
         bool changed = vol.Dirty || vol.DoorsVersion != _baseAirDoorsVersion;
         bool stale = changed || _uptime - vol.StartedAt >= BaseAirBackstopInterval;
+        bool started = false;
         if (vol.Job is null && stale && (complete || _uptime - vol.StartedAt >= StationAirRecomputeInterval))
         {
+            started = true;
             var job = NewStationFill(station, out var jobSpace);
             foreach (var seed in vol.Committed.SealedSpanBottoms())
             {
@@ -312,7 +315,8 @@ public sealed partial class GameServer
 
         if (vol.Job is { } pending)
         {
-            StepAirFill(pending, guaranteeProgress: false, complete);
+            // The query that starts the refill always works a fixed minimum of it (#2870), as on a base.
+            StepAirFill(pending, guaranteeProgress: started, complete);
             if (pending.Done)
             {
                 CommitStationAir(vol);

@@ -24,6 +24,27 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧪 Flaky sealed-room test — the check that starts an air refill works a fixed minimum of it — #2870, branch fix/air-refill-starting-query — ✅ done 2026-10-21
+
+`SealedRoomBeyondTheCube_Breathes_AndAHoleKillsIt` failed once on CI (PR #2869, shard 10): 91.27 oxygen instead of
+less than 80, four seconds after the hole. That is exactly one tick of refill (+12.5 at 25/s) and seven ticks of drain
+(−0.175 each at 0.35/s): the room read as leaking one tick late. A refill starts inside the player's oxygen check
+(`RefreshBaseAir`), which worked on it only within what was left of the tick's 2 ms wall-clock budget; the tick driver
+that guarantees every fill 1 024 spans a tick (#2662) runs after the oxygen check. On a busy runner the budget ran out
+before the small refill finished, so the check answered one more tick from the old, sealed result — and one stale refill
+tick outweighs 35 s of draining.
+
+- **Fix:** the query that starts a refill works at least `AirMinSpansPerTick` of it, like the tick driver; the time budget
+  only adds on top. Bases (`RefreshBaseAir`) and player stations (`StationAirFor`) alike. An ordinary room's refill is now
+  answered in the query that starts it on a fast and on a loaded machine; a huge one still goes on sliced while the old
+  result answers. Cost: one extra chunk of about a millisecond per fill start (at most every 1.5 s per base group).
+- **Tests:** the sealed-room test and its station twin `SealedStation_Breathes_AHoleLeaks_AndAForceFieldPlugsIt` (the
+  same latent flake) also run with a zero air budget (`AirTickBudgetMsForTest = 0`, a starved clock). Before the fix both
+  failed every time with exactly the CI value 91.27; after it both pass. 316 air, oxygen and station tests green.
+- **Docs:** SERVER_TESTING.md — the wall-clock rule names the starved-clock check.
+
+---
+
 ### 🌳 Tree variety and the glow level (Marcel 2026-10-20: "more tree species, changing textures — and fewer glowing plants and trees") — #2848–#2859, branch feat/tree-variety-glow, terrain generation 29, save version 6 — ✅ done 2026-10-21 (⚠ playtest open)
 
 An analysis of generation 28 (16 worlds × 40 surface samples per planet type) found 1–4 tree shapes and at most 2–3
@@ -86,7 +107,7 @@ made seamless, coverage-checked); eyes and glow patterns are drawn in code. Open
 desert, swamp, a cave at night for the glow) and in the browser build.
 
 Found on the way: #2870 `SealedRoomBeyondTheCube_Breathes_AndAHoleKillsIt` failed once on CI (the oxygen still refilled
-4 s after the hole; time-sliced air work on a busy runner, like #2660) — open.
+4 s after the hole; time-sliced air work on a busy runner, like #2660) — ✅ fixed 2026-10-21 (see the #2870 section above).
 
 ---
 

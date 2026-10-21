@@ -23,7 +23,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// anything beyond its build box plus <see cref="StationAirMargin"/> (and an unloaded cell outside the build box).</item>
 /// </list>
 /// Every fill shares one time budget per server tick (<see cref="AirTickBudgetMs"/>): a query may work on a pending fill
-/// only while budget is left; the tick driver (<see cref="TickAirFills"/>) always moves each pending fill a little.
+/// only while budget is left; the query that starts a refill and the tick driver (<see cref="TickAirFills"/>) always move
+/// it a little.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -34,7 +35,9 @@ public sealed partial class GameServer
     /// <summary>Span expansions each pending fill gets per tick from the tick driver even with the budget spent, so a fill
     /// always finishes — and finishes after the same number of ticks on a fast and on a loaded machine for an ordinary
     /// room: the time budget alone made the outcome depend on the clock (a cold JIT or a busy CI runner spent it before the
-    /// first span). About a millisecond of work for ordinary rooms.</summary>
+    /// first span). The query that starts a refill gets them too (#2870): the tick driver runs after the oxygen check, so
+    /// without them a starved clock let the check answer one more tick from the old result. About a millisecond of work
+    /// for ordinary rooms.</summary>
     private const int AirMinSpansPerTick = 1024;
 
     /// <summary>Span expansions a group's FIRST fill always gets at once, whatever the clock says (see
@@ -123,8 +126,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>Works on a fill: to the end with <paramref name="complete"/> (test seams, a never-seen station room),
-    /// else within what is left of this tick's budget — with <paramref name="guaranteeProgress"/> (the tick driver) at
-    /// least <see cref="AirMinSpansPerTick"/> span expansions even when the budget is spent.</summary>
+    /// else within what is left of this tick's budget — with <paramref name="guaranteeProgress"/> (the tick driver, the
+    /// query that starts a refill) at least <see cref="AirMinSpansPerTick"/> span expansions even when the budget is
+    /// spent.</summary>
     private void StepAirFill(AirFill fill, bool guaranteeProgress, bool complete = false)
     {
         if (fill.Done)
