@@ -8,9 +8,11 @@
       "src\\BlocksBeyondTheStars.Launcher.Console\\BlocksBeyondTheStars.Launcher.Console.csproj",
       "src\\BlocksBeyondTheStars.Networking\\BlocksBeyondTheStars.Networking.csproj",
       "src\\BlocksBeyondTheStars.Persistence\\BlocksBeyondTheStars.Persistence.csproj",
+      "src\\BlocksBeyondTheStars.ReportHost\\BlocksBeyondTheStars.ReportHost.csproj",
       "src\\BlocksBeyondTheStars.Shared\\BlocksBeyondTheStars.Shared.csproj",
       "src\\BlocksBeyondTheStars.Tools\\BlocksBeyondTheStars.Tools.csproj",
       "src\\BlocksBeyondTheStars.WorldGeneration\\BlocksBeyondTheStars.WorldGeneration.csproj",
+      "src\\BlocksBeyondTheStars.WorldHost\\BlocksBeyondTheStars.WorldHost.csproj",
       "tests\\BlocksBeyondTheStars.Tests\\BlocksBeyondTheStars.Tests.csproj",
       "tests\\BlocksBeyondTheStars.Client.Tests\\BlocksBeyondTheStars.Client.Tests.csproj"
     ]

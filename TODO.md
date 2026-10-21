@@ -24,6 +24,17 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10 — 🚧 in progress
+
+Behaviour-preserving restructuring in one feature branch, one commit per sub-issue (players notice nothing: same
+gameplay, saves, wire format, texts, world-gen hashes). Stage 1 mechanical server/shared, stage 2 GameServer
+subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last. Out of scope: #2781 and #2782
+(contributor-reserved), the SQLite/PostgreSQL repository base (waits for #2782).
+
+- **Format check covers WorldHost and ReportHost (#2884):** both projects were missing from
+  `BlocksBeyondTheStars.CI.slnf`, so the required `dotnet format --verify-no-changes` gate never looked at them. Added;
+  their code already passes.
+
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
 "The base shape of the spaceport stands: 57 × 57 in the middle, a 5-block sandstone ring, 14 more blocks to the edge —
