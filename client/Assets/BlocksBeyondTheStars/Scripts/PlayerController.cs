@@ -2406,7 +2406,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     if (owned)
                     {
-                        Game.ShowMessage(Game.Localizer?.Get("ui.datacube.already") ?? "Already in your Arcade.");
+                        Game.ShowMessage(Game.Localizer?.Get("ui.datacube.already") ?? "This fragment is already in your collection.");
                     }
                     else if (!string.IsNullOrEmpty(gameKey))
                     {

@@ -24,6 +24,31 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-21 (Lyxette, v2026.10.23) — a brush fire took the giant tree, a recovered data cube still circling — #2872–#2874, branch fix/reports-2026-10-21 — ✅ done 2026-10-21 (⚠ playtest open; no generation or save change)
+
+"I burnt off the bushes so they won't grow back — and the giant tree burned with them. Old wood doesn't go up in a
+little brush fire" and "I recovered a fragment here long ago, but the cube is still circling. Intended — as a marker?"
+
+- **Living trunks don't burn (#2872):** `wood_log`, `wood_log_b` and `giant_log` (`TreeWood.Keys`) lost `flammable`.
+  The automaton never told a bush from a trunk: a bush at a giant's foot lit the trunk and the flame climbed it to the
+  16-hop cap, leaving an ash column under the rest of the tree. Leaves, needles, fronds and plants still burn, so a
+  forest fire strips crowns and leaves trunks standing; a log house is safe too. Toxica-Maxima's dead `tainted_log`
+  still burns (its description says so). Fire tests that used `wood_log` as fuel moved to plants.
+- **Nothing that carries state burns (#2873):** `wood_crate`, `bed` and `stretcher` lost `flammable` (`rug` keeps it).
+  Fire swaps a cell without the mine path's clean-up: a burnt wood crate left its `StoredContainer` on the ash (a
+  later crate on that cell got a second container, `CrateContentsAt` read the old one), a burnt bed head its foot.
+  Guard test: no container block and nothing in the `machine` category is flammable.
+- **A recovered data cube goes quiet (#2874, client):** cubes are never consumed (every player on a server can recover
+  them); a cube whose fragment is already in the player's collection now rests on the ground — no bob, no spin, light
+  off, no hum, dimmed shell — for that player only. "Owned" is per fragment (the seed picks one of 20), so the texts
+  now say so: `ui.datacube.owned` "✓ Fragment already in your collection", `ui.datacube.already` — all 14 languages.
+
+Docs: USER_MANUAL.md §Fire (what burns, clearing ground for a garden: a cut plant regrows once after ~30 s unless its
+cell is taken) and §Arcade (cubes stay and go quiet; the stale "+5/+10/+15 knowledge" line now describes the #1104
+per-star curve).
+
+---
+
 ### 🌳 Tree variety and the glow level (Marcel 2026-10-20: "more tree species, changing textures — and fewer glowing plants and trees") — #2848–#2859, branch feat/tree-variety-glow, terrain generation 29, save version 6 — ✅ done 2026-10-21 (⚠ playtest open)
 
 An analysis of generation 28 (16 worlds × 40 surface samples per planet type) found 1–4 tree shapes and at most 2–3

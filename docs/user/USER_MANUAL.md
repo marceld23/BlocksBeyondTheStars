@@ -557,7 +557,13 @@ costs no frame rate.
 
 ### Arcade (minigames)
 - The **DataQubes Arcade** holds 20 built-in minigames. Locked cabinets unlock through data cubes you find
-  in the world; beating your **best score** on a completed run pays **+5/+10/+15 knowledge** by rating.
+  in the world. Each **star** you earn on a completed run pays **knowledge once**: 5 per star on the first
+  game you play, then 4, 3, 2 and finally 1 per star for every further game — a replay pays only for stars
+  you didn't have yet.
+- **A data cube stays where it is** after you extract it, so other players on a server can extract it too.
+  Once its fragment is in your collection it **goes quiet** for you: it rests on the ground, its light is off,
+  it no longer hums, and its label reads **"✓ Fragment already in your collection"**. A cube you have never
+  visited looks the same when it holds a fragment you already have — there are 20 fragments and many cubes.
 - **Keyboard:** arrows/WASD move, **Enter** confirms, **Space** is the primary action, **Shift** secondary,
   **P** pauses, **R** restarts, **H** opens help — and the mouse plays the pointer games directly. **Esc**
   acts as the in-game *Cancel* in games that use one; otherwise it closes the screen as usual.
@@ -806,9 +812,16 @@ costs no frame rate.
   world made it, and a carved sand form stays a built thing.
 
 ### Fire
-- **What burns:** plants, wood and leaves. Grass and the ground itself never catch, so a fire stays in
+- **What burns:** plants, bushes and leaves. Grass and the ground itself never catch, so a fire stays in
   the vegetation it started in — and aquatic plants (kelp, seagrass, coral, water lilies) don't burn at
-  all. A burnt block leaves **ash** (collect 64 of it to compact into matter dust).
+  all. **Tree trunks don't burn either** — not the ordinary ones, not a giant tree's: a brush or crown
+  fire burns the leaves and plants around them and leaves the trees standing (and a log house stays up).
+  Only the dead, tainted wood of a poisoned world still burns. Furniture with a job — the wood crate, the
+  bed, the stretcher — never catches; a rug does. A burnt block leaves **ash** (collect 64 of it to compact
+  into matter dust).
+- **Clearing ground for a garden:** a plant you cut grows back on its cell after about 30 seconds — unless
+  something stands on that cell at that moment or the ground under it is gone. Cut it and put any block on
+  the spot for half a minute, and it stays away. (Burning it off works too: the ash blocks the cell.)
 - **Starting one:** hit something flammable with a lit **torch**, shoot it with a **laser pistol** or
   **plasma blaster** (kinetic guns like the scrap or gauss pistol won't ignite anything), or let flowing
   **lava** touch it. Standing in fire hurts (−10/s), so light it and step back.

@@ -14,6 +14,12 @@ namespace BlocksBeyondTheStars.Client
     /// Which game a cube holds is resolved from its seed via <see cref="MinigameCatalog"/>, so the floating
     /// label shows the real title and whether it is already in the player's collection. Mirrors
     /// <see cref="DoorView"/> (server-authoritative entities rendered + lightly collided client-side).
+    ///
+    /// <para>The server never consumes a cube (every player on a server can recover it), so a cube whose fragment
+    /// is already in THIS player's collection goes quiet instead (#2874): it rests on the ground without bobbing or
+    /// spinning, its light is off, the hum stays silent and the glow shell is dimmed — a calm marker of where the
+    /// player has been. Other players still see it live. "Owned" is per fragment, not per cube: a cube never
+    /// visited whose seed maps to an owned game goes quiet too, which is why the label speaks of the collection.</para>
     /// </summary>
     public sealed class DataCubeView : MonoBehaviour
     {
@@ -26,6 +32,7 @@ namespace BlocksBeyondTheStars.Client
             public GameObject Go;
             public Transform Spin;     // the rotating/bobbing cube mesh
             public Material GlowMat;    // pulsing emissive material
+            public Light Light;         // the beacon light (off once the fragment is owned)
             public Vector3 World;       // raw world pos (cube centre)
             public long Seed;
             public string GameKey;      // resolved from Seed via the catalogue (may be empty if catalogue empty)
@@ -38,6 +45,7 @@ namespace BlocksBeyondTheStars.Client
 
         private const float Reach = 3.2f;   // matches the server's DataCubeReach
         private const float Size = 0.95f;
+        private const float RestHeight = Size * 0.5f; // an owned cube sits on the ground (#2874)
 
         private void Awake()
         {
@@ -56,16 +64,30 @@ namespace BlocksBeyondTheStars.Client
             float t = Time.time;
             foreach (var c in _cubes.Values)
             {
+                bool owned = Owned(c.GameKey);
                 var basePos = Game != null ? Game.ScenePos(c.World.x, c.World.y, c.World.z) : c.World;
-                c.Go.transform.position = basePos + Vector3.up * (0.4f + Mathf.Sin(t * 1.6f + c.Seed) * 0.12f);
-                c.Spin.localRotation = Quaternion.Euler(18f, t * 40f, 0f);
+                if (owned)
+                {
+                    // #2874: recovered — it rests, turned a little by its seed so a field of them doesn't line up.
+                    c.Go.transform.position = basePos + Vector3.up * RestHeight;
+                    c.Spin.localRotation = Quaternion.Euler(0f, c.Seed % 90, 0f);
+                }
+                else
+                {
+                    c.Go.transform.position = basePos + Vector3.up * (0.4f + Mathf.Sin(t * 1.6f + c.Seed) * 0.12f);
+                    c.Spin.localRotation = Quaternion.Euler(18f, t * 40f, 0f);
+                }
+
+                if (c.Light != null && c.Light.enabled == owned)
+                {
+                    c.Light.enabled = !owned;
+                }
 
                 if (c.GlowMat != null)
                 {
-                    bool owned = Owned(c.GameKey);
-                    var col = owned ? new Color(0.45f, 1f, 0.62f) : new Color(0.30f, 0.80f, 1f);
-                    float pulse = 0.55f + 0.45f * Mathf.Sin(t * 3f + c.Seed);
-                    c.GlowMat.SetColor(ColorId, ShaderColor.Srgb(new Color(col.r, col.g, col.b, 0.35f + 0.25f * pulse)));
+                    // An owned cube keeps a faint, steady green shell; a live one pulses blue.
+                    var col = owned ? new Color(0.45f, 1f, 0.62f, 0.12f) : new Color(0.30f, 0.80f, 1f, 0.35f + 0.25f * (0.55f + 0.45f * Mathf.Sin(t * 3f + c.Seed)));
+                    c.GlowMat.SetColor(ColorId, ShaderColor.Srgb(col));
                 }
             }
         }
@@ -144,6 +166,7 @@ namespace BlocksBeyondTheStars.Client
                 Go = go,
                 Spin = spin,
                 GlowMat = glowMat,
+                Light = light,
                 World = new Vector3(nc.X, nc.Y, nc.Z),
                 Seed = nc.Seed,
                 GameKey = entry != null ? entry.key : string.Empty,
@@ -207,17 +230,21 @@ namespace BlocksBeyondTheStars.Client
             int near = NearestDataCube(Game.PlayerPosition, Reach + 0.6f, out _, out bool owned);
             if (near == 0 || !_cubes.TryGetValue(near, out var c)) { _hummingId = 0; return; }
 
-            // Gentle hum once per approach (when the nearest cube changes).
+            // Gentle hum once per approach (when the nearest cube changes) — a recovered cube stays silent (#2874).
             if (_hummingId != near)
             {
                 _hummingId = near;
-                ClientAudio.Instance?.At("data_cube_hum", c.Go.transform.position, 1f, 0.6f);
+                if (!owned)
+                {
+                    ClientAudio.Instance?.At("data_cube_hum", c.Go.transform.position, 1f, 0.6f);
+                }
             }
 
             // The cube reads as a data fragment to recover — the contents stay a surprise until collected.
             // #2502: "{key:Interact}: Extract fragment" — the use button of the device in hand (FactoryView's pattern).
+            // #2874: "owned" means the fragment is in the collection, which is also true of a cube never visited.
             string label = owned
-                ? (Game.Localizer?.Get("ui.datacube.owned") ?? "✓ Fragment recovered")
+                ? (Game.Localizer?.Get("ui.datacube.owned") ?? "✓ Fragment already in your collection")
                 : HudUi.ExpandKeyTokens(Game.Localizer, Game.Localizer?.Get("ui.datacube.prompt") ?? "{key:Interact}: Extract fragment");
 
             ScreenLabelLayer.Instance.World(cam, c.Go.transform.position + Vector3.up * 1.3f, label,

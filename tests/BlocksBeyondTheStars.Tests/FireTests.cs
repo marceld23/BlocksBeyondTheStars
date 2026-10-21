@@ -6,6 +6,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -161,7 +162,6 @@ public sealed class FireTests : IDisposable
         Assert.True(_content.GetBlock("pine_needles")!.Flammable);
         Assert.True(_content.GetBlock("palm_frond")!.Flammable);
         Assert.True(_content.GetBlock("mushroom_cap")!.Flammable);
-        Assert.True(_content.GetBlock("wood_log")!.Flammable);
         Assert.True(_content.GetBlock("tree_leaves")!.Flammable);
 
         Assert.False(_content.GetBlock("flora_kelp")!.Flammable);
@@ -193,6 +193,87 @@ public sealed class FireTests : IDisposable
 
             Assert.Equal(Id("fire"), server.World.GetBlock(needles).Value);
             Assert.Equal(Id("flora_kelp"), server.World.GetBlock(kelp).Value); // never catches
+        }
+    }
+
+    // ---------------- Trunks and furniture don't burn (#2872, #2873) ----------------
+
+    /// <summary>#2872: a ground fire leaves the trees standing — the living trunks are not flammable, their crowns
+    /// are. Toxica-Maxima's dead wood still burns (its description says so).</summary>
+    [Fact]
+    public void LivingTrunks_DontBurn_TheirCrownsDo()
+    {
+        foreach (var key in TreeWood.Keys)
+        {
+            Assert.False(_content.GetBlock(key)!.Flammable, $"the trunk '{key}' should not burn");
+        }
+
+        Assert.True(_content.GetBlock("tree_leaves")!.Flammable);
+        Assert.True(_content.GetBlock("giant_leaves")!.Flammable);
+        Assert.True(_content.GetBlock("tainted_log")!.Flammable);
+    }
+
+    /// <summary>#2872, the reported case: the bushes at the foot of a giant tree are burnt off, and the trunk they
+    /// touch stays wood instead of turning into an ash column.</summary>
+    [Fact]
+    public void ABrushFire_AtTheFootOfAGiantTree_LeavesTheTrunkStanding()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var trunk = new Vector3i(150, 80, 150);
+            for (int y = 0; y < 4; y++)
+            {
+                server.World.SetBlock(new Vector3i(trunk.X, trunk.Y + y, trunk.Z), _content.GetBlock("giant_log")!.NumericId);
+            }
+
+            var bush = new Vector3i(trunk.X + 1, trunk.Y, trunk.Z);
+            server.World.SetBlock(bush, _content.GetBlock("flora_bush")!.NumericId);
+            server.IgniteForTest(bush.X, bush.Y, bush.Z);
+            Assert.Equal(Id("fire"), server.World.GetBlock(bush).Value);
+
+            Tick(server, 20); // past the bush's burn time
+            Assert.Equal(Id("ash"), server.World.GetBlock(bush).Value);
+            for (int y = 0; y < 4; y++)
+            {
+                Assert.Equal(Id("giant_log"), server.World.GetBlock(new Vector3i(trunk.X, trunk.Y + y, trunk.Z)).Value);
+            }
+
+            Assert.Equal(0, server.BurningCellCount);
+        }
+    }
+
+    /// <summary>#2873: fire swaps a cell without the mine path's clean-up — a burnt crate orphaned its stored stacks,
+    /// a burnt bed head left its foot behind. So nothing that carries server-side state burns: no container and
+    /// nothing in the machine category.</summary>
+    [Fact]
+    public void NothingThatCarriesState_Burns()
+    {
+        var containers = new[] { "crate", "wood_crate", "station_container" };
+        foreach (var def in _content.Blocks.Values)
+        {
+            bool stateful = def.Category == "machine" || containers.Contains(def.Key);
+            Assert.False(def.Flammable && stateful, $"'{def.Key}' carries state and must not burn");
+        }
+
+        Assert.False(_content.GetBlock("wood_crate")!.Flammable);
+        Assert.False(_content.GetBlock("bed")!.Flammable);
+        Assert.False(_content.GetBlock("stretcher")!.Flammable);
+        Assert.True(_content.GetBlock("rug")!.Flammable); // one plain cell with nothing behind it
+    }
+
+    [Fact]
+    public void AWoodenCrate_DoesNotCatchFire()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var crate = new Vector3i(170, 80, 170);
+            server.World.SetBlock(crate, _content.GetBlock("wood_crate")!.NumericId);
+            server.IgniteForTest(crate.X, crate.Y, crate.Z);
+
+            Assert.Equal(Id("wood_crate"), server.World.GetBlock(crate).Value);
+            Assert.Equal(0, server.BurningCellCount);
         }
     }
 
@@ -277,12 +358,12 @@ public sealed class FireTests : IDisposable
             Assert.True(cell.HasValue, "expected this world to generate a settlement");
 
             // Put something thoroughly flammable inside the protected volume — a greenhouse crop bed is
-            // exactly this: wood and plants, standing in a village.
+            // exactly this: plants, standing in a village.
             var pos = cell!.Value;
-            server.World.SetBlock(pos, _content.GetBlock("wood_log")!.NumericId);
+            server.World.SetBlock(pos, _content.GetBlock("flora_cropgrain")!.NumericId);
             server.IgniteForTest(pos.X, pos.Y, pos.Z);
 
-            Assert.Equal(Id("wood_log"), server.World.GetBlock(pos).Value); // untouched
+            Assert.Equal(Id("flora_cropgrain"), server.World.GetBlock(pos).Value); // untouched
             Assert.Equal(0, server.BurningCellCount);
         }
     }
@@ -373,11 +454,11 @@ public sealed class FireTests : IDisposable
             p.State.Inventory.Add("laser_pistol", 1, _content.MaxStackOf("laser_pistol"));
             Hold(p, "laser_pistol");
 
-            var tree = new Vector3i(470, 80, 460); // 10 blocks out — inside the laser's 30-block range
-            server.World.SetBlock(tree, _content.GetBlock("wood_log")!.NumericId);
-            server.ShootBlockForTest("Justus", tree.X, tree.Y, tree.Z);
+            var plant = new Vector3i(470, 80, 460); // 10 blocks out — inside the laser's 30-block range
+            server.World.SetBlock(plant, _content.GetBlock("flora_bush")!.NumericId);
+            server.ShootBlockForTest("Justus", plant.X, plant.Y, plant.Z);
 
-            Assert.Equal(Id("fire"), server.World.GetBlock(tree).Value);
+            Assert.Equal(Id("fire"), server.World.GetBlock(plant).Value);
             Assert.Equal(49f, p.State.SuitEnergy, 3); // one shot's worth of suit energy
         }
     }
@@ -395,10 +476,10 @@ public sealed class FireTests : IDisposable
             Hold(p, "laser_pistol");
 
             var far = new Vector3i(580, 80, 480); // 100 blocks out — far past the laser's reach
-            server.World.SetBlock(far, _content.GetBlock("wood_log")!.NumericId);
+            server.World.SetBlock(far, _content.GetBlock("flora_bush")!.NumericId);
             server.ShootBlockForTest("Justus", far.X, far.Y, far.Z);
 
-            Assert.Equal(Id("wood_log"), server.World.GetBlock(far).Value);
+            Assert.Equal(Id("flora_bush"), server.World.GetBlock(far).Value);
         }
     }
 
@@ -413,11 +494,11 @@ public sealed class FireTests : IDisposable
             p.State.Inventory.Add("gauss_pistol", 1, _content.MaxStackOf("gauss_pistol"));
             Hold(p, "gauss_pistol");
 
-            var tree = new Vector3i(505, 80, 500);
-            server.World.SetBlock(tree, _content.GetBlock("wood_log")!.NumericId);
-            server.ShootBlockForTest("Justus", tree.X, tree.Y, tree.Z);
+            var plant = new Vector3i(505, 80, 500);
+            server.World.SetBlock(plant, _content.GetBlock("flora_bush")!.NumericId);
+            server.ShootBlockForTest("Justus", plant.X, plant.Y, plant.Z);
 
-            Assert.Equal(Id("wood_log"), server.World.GetBlock(tree).Value);
+            Assert.Equal(Id("flora_bush"), server.World.GetBlock(plant).Value);
         }
     }
 

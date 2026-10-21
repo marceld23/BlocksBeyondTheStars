@@ -174,7 +174,7 @@ public sealed class GiantTreeTests
         var leaves = Content.GetBlock(WorldGenerator.GiantLeavesKey);
         Assert.NotNull(log);
         Assert.NotNull(leaves);
-        Assert.True(log!.Flammable);
+        Assert.False(log!.Flammable); // #2872: a ground fire leaves the giant standing
         Assert.True(leaves!.Flammable);
         Assert.Contains(log.Drops, d => d.Item == "wood_log"); // a felled giant is ordinary wood in the hand
         Assert.Empty(leaves.Drops);

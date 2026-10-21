@@ -129,9 +129,12 @@ public sealed class BlockDefinition
     public bool Tintable { get; set; }
 
     /// <summary>
-    /// Whether this block catches fire (#785). Set in <c>data/blocks.json</c> for plants, wood and leaves.
+    /// Whether this block catches fire (#785). Set in <c>data/blocks.json</c> for plants and leaves.
     /// Ground cover (grass, alien grass, mycelium) is deliberately NOT flammable, so a brush fire can't run
     /// away across a whole biome, and neither are aquatic plants (kelp, seagrass, coral, water lilies).
+    /// Nor are the living trunks (<see cref="TreeWood.Keys"/>, #2872) — a ground fire leaves the trees standing —
+    /// or anything that carries server-side state (containers, machines like the bed, #2873): fire swaps a cell
+    /// without the mine path's clean-up.
     /// Replaces the old key-prefix rule, which missed pine needles, palm fronds and mushrooms — a burning
     /// pine kept its canopy — while setting underwater kelp alight.
     /// </summary>
