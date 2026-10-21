@@ -11,6 +11,7 @@ using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Missions;
+using BlocksBeyondTheStars.Shared.Primitives;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -614,6 +615,171 @@ public sealed class SentryTests : IDisposable
             server.TickSentriesForTest();
 
             Assert.True(beast.Hull < full, "a relay-powered sentry must actually shoot");
+        }
+    }
+
+    /// <summary>#2879: the builder who asked for relays came back with a 95×95 spaceport (57 + 2×5 + 2×14) and wanted
+    /// posts all along its outer rim. With the core in the middle the rim is 47 blocks out: a spoke of five relays
+    /// reaches a ring at 40, and the ring itself is ~40 more — 44 in this layout, past the old cap of 32, inside 64.</summary>
+    [Fact]
+    public void ARelayRing_RoundA95By95Spaceport_PowersPostsAtAllFourCorners()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            int baseId = FoundBaseWithSentry(server, owner, out _);
+            var core = server.BaseCellForTest(baseId);
+            var relay = _content.GetBlock("power_relay")!.NumericId;
+
+            void Relay(int dx, int dz) => server.World.SetBlock(new Vector3i(core.X + dx, core.Y, core.Z + dz), relay, 0, 0, 0, owner.State.Name);
+
+            for (int x = 8; x <= 40; x += 8)
+            {
+                Relay(x, 0); // the spoke out to the ring
+            }
+
+            for (int z = 8; z <= 40; z += 8)
+            {
+                Relay(40, z);
+            }
+
+            for (int x = 32; x >= -40; x -= 8)
+            {
+                Relay(x, 40);
+            }
+
+            for (int z = 32; z >= -40; z -= 8)
+            {
+                Relay(-40, z);
+            }
+
+            for (int x = -32; x <= 40; x += 8)
+            {
+                Relay(x, -40);
+            }
+
+            for (int z = -32; z <= -8; z += 8)
+            {
+                Relay(40, z);
+            }
+
+            foreach (var (dx, dz) in new[] { (47, 47), (-47, 47), (-47, -47), (47, -47) })
+            {
+                server.World.SetBlock(new Vector3i(core.X + dx, core.Y, core.Z + dz),
+                    _content.GetBlock("sentry_post")!.NumericId, 0, 0, 0, owner.State.Name);
+            }
+
+            Assert.Equal(5, server.SentryCountForTest(baseId)); // the one beside the core + the four rim corners
+        }
+    }
+
+    /// <summary>#2879: the chain still has a cap — each relay is another 17³ walk on the rescan beat. The core's own
+    /// cube walks x upward, so sixty-four relays on its −x side are all found before the one at +8; that sixty-fifth is
+    /// never followed, and the post only it could reach stays dark. Take one of the sixty-four away and it comes on.</summary>
+    [Fact]
+    public void TheRelayChain_FollowsSixtyFourRelays_AndNotTheSixtyFifth()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            int baseId = FoundBaseWithSentry(server, owner, out _);
+            var core = server.BaseCellForTest(baseId);
+            var relay = _content.GetBlock("power_relay")!.NumericId;
+
+            for (int x = -8; x <= -1; x++)
+            {
+                for (int z = -8; z <= -1; z++)
+                {
+                    server.World.SetBlock(new Vector3i(core.X + x, core.Y, core.Z + z), relay, 0, 0, 0, owner.State.Name);
+                }
+            }
+
+            server.World.SetBlock(new Vector3i(core.X + 8, core.Y, core.Z), relay, 0, 0, 0, owner.State.Name);
+            server.World.SetBlock(new Vector3i(core.X + 16, core.Y, core.Z),
+                _content.GetBlock("sentry_post")!.NumericId, 0, 0, 0, owner.State.Name);
+
+            Assert.Equal(1, server.SentryCountForTest(baseId)); // relay 65 is not followed
+
+            server.World.SetBlock(new Vector3i(core.X - 8, core.Y, core.Z - 8), BlockId.Air);
+
+            Assert.Equal(2, server.SentryCountForTest(baseId)); // now it is the sixty-fourth
+        }
+    }
+
+    /// <summary>#2879: the cached chain is only walked again when one of its posts or relays changes — so taking a relay
+    /// away must silence the post it fed on the very next pass, with no rescan beat to wait for.</summary>
+    [Fact]
+    public void ARelayTakenAway_SilencesThePostItFed_OnTheNextPass()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            int baseId = FoundBaseWithSentry(server, owner, out _);
+            var core = server.BaseCellForTest(baseId);
+
+            var relayCell = new Vector3i(core.X + 8, core.Y, core.Z);
+            var far = new Vector3i(core.X + 14, core.Y, core.Z);
+            server.World.SetBlock(relayCell, _content.GetBlock("power_relay")!.NumericId, 0, 0, 0, owner.State.Name);
+            server.World.SetBlock(far, _content.GetBlock("sentry_post")!.NumericId, 0, 0, 0, owner.State.Name);
+
+            string id = server.SpawnCreatureAtForTest(Near(far, 2f)); // only the far post reaches it
+            var beast = server.Creatures.Single(c => c.Id == id);
+            beast.Hostile = true;
+            beast.HullMax = 100_000f; // it outlives the test: what is measured is the hits it takes
+            beast.Hull = beast.HullMax;
+
+            server.TickSentriesForTest();
+            Assert.True(beast.Hull < beast.HullMax, "the relay-powered post must shoot first");
+
+            server.World.SetBlock(relayCell, BlockId.Air, 0, 0, 0, owner.State.Name);
+            float before = beast.Hull;
+            server.TickSentriesForTest();
+
+            Assert.Equal(before, beast.Hull); // no relay, no power — on the next pass already
+        }
+    }
+
+    /// <summary>#2879: a chain nobody touches is not walked again — not on later passes, and not because something
+    /// else changed nearby (a wall going up, a dug block). Every walk of a long chain is ~18 ms at the relay cap.</summary>
+    [Fact]
+    public void ACachedChain_IsNotWalkedAgain_WhileNothingInItChanges()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            int baseId = FoundBaseWithSentry(server, owner, out var sentry);
+            var core = server.BaseCellForTest(baseId);
+            server.World.SetBlock(new Vector3i(core.X + 8, core.Y, core.Z),
+                _content.GetBlock("power_relay")!.NumericId, 0, 0, 0, owner.State.Name);
+
+            server.TickSentriesForTest();
+            int walked = server.SentryRescansForTest;
+
+            for (int i = 0; i < 60; i++)
+            {
+                server.TickSentriesForTest(); // thirty seconds of 2 Hz passes
+            }
+
+            server.World.SetBlock(new Vector3i(sentry.X, sentry.Y + 2, sentry.Z),
+                _content.GetBlock("stone")!.NumericId, 0, 0, 0, owner.State.Name);
+            server.TickSentriesForTest();
+
+            Assert.Equal(walked, server.SentryRescansForTest);
+
+            server.World.SetBlock(new Vector3i(sentry.X, sentry.Y, sentry.Z + 1),
+                _content.GetBlock("sentry_post")!.NumericId, 0, 0, 0, owner.State.Name);
+            server.TickSentriesForTest();
+
+            Assert.Equal(walked + 1, server.SentryRescansForTest); // a new post: one walk, and it is in
+            Assert.Equal(2, server.SentryCountForTest(baseId));
         }
     }
 }

@@ -767,6 +767,7 @@ public sealed partial class GameServer
         resident.PlayerBlockSet += cell => GrowBaseWallReach(resident, cell); // #1862: what a player builds sizes the base's fill box
         resident.PlayerBlockSet += cell => GrowBaseAirTop(resident, cell); // #2651: ...and lifts its sky line over the tallest build
         resident.BlockSet += cell => MarkBaseIndexDirty(resident, cell); // #1865: a bed, a post or a crop changed near a base
+        resident.BlockSet += cell => OnSentryChainCellSet(resident, cell); // #2879: a sentry post or power relay came or went
         var npcWorld = world;
         resident.BlockSet += cell => MarkNpcPathsDirty(npcWorld, cell); // #1866: a wall built across a walking NPC's route
         resident.BlockSet += cell => OnFurnitureCellSet(npcWorld, cell); // #2655: a bed or seat went (its claim is released) or came

@@ -623,7 +623,11 @@ costs no frame rate.
 - **Oxygen** (max 100 + tank bonuses): refills aboard ship / on breathable worlds; drains outside on
   toxic/airless worlds. An `oxygen_extractor` cuts the drain on extractable atmospheres.
 - **Hunger** (max 100): drains off-ship — at your base too: the base gives you air, not food (a **Heal Tank**
-  feeds you there, and VEGA reminds you once when you get hungry at home); below ~15 the suit auto-eats stored/loose rations. Food that hurts
+  feeds you there, and VEGA reminds you once when you get hungry at home); aboard your ship or in a station it fills
+  back up. It drains at a **steady rate** set by the world's hunger setting: a full bar lasts about **9 minutes on
+  Slow, 5½ on Normal** (the default) **and 3⅓ on Fast** (Off and Sandbox: no hunger). Nothing you do speeds it up —
+  running, jumping, digging, climbing, the cold or a deep cave cost no extra food; only a bio-lab preparation changes
+  the rate (*Satiety* slows it, a *Hungry* catch speeds it up). Below ~15 the suit auto-eats stored/loose rations. Food that hurts
   (contaminated meat, spoiled food, toxic berries) never goes into the suit's ration dispenser — eat it by hand, if at all.
   Food sources: hunt creatures (meat), harvest berry flora (replantable via seeds), pick the **fruit** that hangs
   under tree crowns on newer worlds (it grows back; toxic exactly when its tree is — scan first), pick the berries under
@@ -635,6 +639,10 @@ costs no frame rate.
   at a base: standing next to it grows 2 algae rations from 1 water (melt 2 snow or 2 ice into water by
   hand if there is no lake). **To eat**, select the food in the hotbar and press the place button (right mouse
   button). When you get hungry while carrying something edible, VEGA names it and tells you that key.
+- **When the world waits:** the pause menu (**Esc**), the feedback form (**F1**; **F2** in the browser), reading a
+  reply to your report and story cutscenes **hold the world** — hunger, oxygen, the day and every creature wait, for up
+  to 30 minutes. Inventory, crafting and the map do not: the world runs on behind them. On a shared server the world
+  only waits while **every** player has such a screen open, and for up to 10 minutes.
 - **Suit energy** (max 100, **150 with a worn suit battery**): powers the stealth-suit cloak (**B**), the
   **jetpack** (hold Space in the air to thrust up) — and the suit's **climate control** (below); consumers
   stop when it hits 0. Recharges aboard the ship and refills fully at a heal-tank. The **glider** needs none.
@@ -1750,11 +1758,12 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Sentry post** (workshop, blueprint-gated after the Heal Tank): a small automatic turret you place inside
   your own base zone. It fires at hostile machines, at **hostile animals**, and at robbers who have
   **already started a fight** — never at players, never at tame animals, and never at somebody walking up to
-  talk (you always get to answer a hold-up yourself). It needs neither power nor ammunition, and you can
-  build as many as you like. Three things worth knowing: it has to stand **within 8 blocks of your base
-  core or beside a power relay chained back to it** (each relay reaches 8 blocks and feeds further relays —
-  a base can run a chain of up to **32 relays**; place a post beyond all of that and the game tells you on
-  the spot that it will not fire), it reaches
+  talk (you always get to answer a hold-up yourself). It needs no ammunition, and you can build as many as
+  you like. Three things worth knowing: it runs on your base's power, so it has to stand **within 8 blocks of
+  your base core or within 8 blocks of a power relay chained back to it** — 8 blocks in every direction, up and
+  down included (each relay feeds posts and further relays the same 8 blocks around it; a base can run a chain
+  of up to **64 relays** — enough for a spoke out to the rim of a 95 × 95 spaceport and a ring all round it;
+  place a post beyond all of that and the game tells you on the spot that it will not fire), it reaches
   **14 blocks**, and it only works **while you are home** on that world. Machines appear 35–50 blocks away
   from you — so a sentry is the thing that covers your back while you build, not a fence that clears the
   neighbourhood. It aims from its muzzle, so a roof or block placed **right on top of the post** does not blind

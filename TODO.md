@@ -24,6 +24,39 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
+
+"The base shape of the spaceport stands: 57 × 57 in the middle, a 5-block sandstone ring, 14 more blocks to the edge —
+95 × 95 in all. Please factor that into your energy matrices, so defence turrets at the outer rim can be powered."
+Two more reports (the burnt giant tree, a deep cave under the port) needed no change: the trunk fire was fixed in
+#2872, and the hunger drop one of the snapshots showed (87 → 29 in four minutes) is the normal rate.
+
+- **A base runs 64 power relays (#2879):** `MaxPowerRelaysPerBase` 32 → 64. With the core in the middle the rim of a
+  95 × 95 port is 47 out: a spoke of five relays reaches a ring at 40, and the ring is ~40 more (44 in the test layout)
+  — past 32, the second time this builder outgrew the cap (#1750: 16 → 32 for an 80 × 80 port).
+- **The chain is walked when it changes, not every ten seconds (#2879):** at 64 relays one walk is ~320k block reads
+  (~18 ms measured on the desktop), and every home base was walked every 10 s whether anything had changed — a hitch
+  the browser build, where the server shares the frame, would show. The per-world rescan beat is gone; a base keeps
+  its cached posts until a block set (`ServerWorld.BlockSet`) puts a post or relay up anywhere or changes a cell of its
+  cached chain. The walk compares ids instead of looking up each cell's key (measured: barely faster — the cost is the
+  block reads). Tests: a relay ring round a 95 × 95 port powers posts at all four rim corners; relay 65 is not
+  followed; taking a relay away silences its post on the very next pass; an untouched chain is not walked again.
+- **Torch light no longer tiles block by block (#2881, client):** the photo showed the plaza's torch light as a grid of
+  block-sized squares. Every opaque cube face carried one coloured block-light value for all four corners; #1701 had
+  fixed exactly that for fluid tops only. Opaque faces now average the outward cell with the outward-layer cells
+  `FaceAo` probes at each corner (occluders left out; the diagonal too when both edge cells are occluders, so no light
+  leaks round a wall corner). Skylight, AO and the light direction are unchanged; a chunk with no light nearby skips
+  the work. EditMode test: every shared corner of a torch-lit floor carries one value; mesher golden re-pinned.
+- **Item text** `item.power_relay.desc` quotes 64 in all 14 languages (the number only).
+
+Docs: USER_MANUAL.md §Sentry post (it needs no ammunition but does run on base power — the old text said "neither
+power nor ammunition" and then described the power chain; "beside a relay" is now "within 8 blocks of it, up and down
+included"; 64 relays) and §Survival (#2880: the hunger rate per setting — about 9 / 5½ / 3⅓ minutes for a full bar —
+nothing the player does speeds it up, only bio-lab effects change it; what holds the world: Esc, F1/F2, a report reply
+and cutscenes, up to 30 min alone, only when everyone has one open on a shared server).
+
+---
+
 ### 📬 Player reports 2026-10-21 (Lyxette, v2026.10.23) — a brush fire took the giant tree, a recovered data cube still circling — #2872–#2874, branch fix/reports-2026-10-21 — ✅ done 2026-10-21 (⚠ playtest open; no generation or save change)
 
 "I burnt off the bushes so they won't grow back — and the giant tree burned with them. Old wood doesn't go up in a

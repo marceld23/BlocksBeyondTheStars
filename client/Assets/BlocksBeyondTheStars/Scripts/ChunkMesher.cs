@@ -107,6 +107,17 @@ namespace BlocksBeyondTheStars.Client
                 int i = IndexOf(wx, wy, wz);
                 return i >= 0 ? DisplayLight(Cells[i] * (1f / LightRadius)) : Vector3.zero;
             }
+
+            /// <summary>#2881: the box (world cells, inclusive) holding every lit cell of this build.</summary>
+            public int LitMinX, LitMinY, LitMinZ, LitMaxX, LitMaxY, LitMaxZ;
+
+            /// <summary>#2881: whether a face looking into this cell can see any light at its corners — they sample at
+            /// most one cell off it, so a cell further than that outside the lit box reads dark all round and the face
+            /// keeps the flat value without the per-corner probes (a lamp walled into rock lights a whole chunk's field
+            /// and nothing else).</summary>
+            public bool NearLit(int wx, int wy, int wz)
+                => wx >= LitMinX - 1 && wx <= LitMaxX + 1 && wy >= LitMinY - 1 && wy <= LitMaxY + 1
+                   && wz >= LitMinZ - 1 && wz <= LitMaxZ + 1;
         }
 
         /// <summary>sRGB → linear for the 256 byte levels, so <see cref="DisplayLight"/> costs table reads, not three
@@ -157,6 +168,7 @@ namespace BlocksBeyondTheStars.Client
         // mesher touches these thousands of times per chunk, and a fresh array per face was a real share of
         // the per-build garbage.
         [System.ThreadStatic] private static Vector3[] _faceAoQuadScratch;
+        [System.ThreadStatic] private static Vector3[] _faceLightQuadScratch;
         [System.ThreadStatic] private static Vector3[] _addFaceQuadScratch;
         [System.ThreadStatic] private static Vector3[] _bevelQuadScratch;
         [System.ThreadStatic] private static Vector3[] _waterQuadScratch;
@@ -661,6 +673,53 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 return res;
+            }
+
+            // #2881: per-corner coloured block light for an opaque cube face — the #1701 rule carried from fluid tops to
+            // every opaque face. A face took ONE value (the light of the cell it looks into) for all four vertices, so a
+            // torch-lit plaza or wall read as a grid of block-sized tiles with hard borders (a player photographed exactly
+            // that on a 95 × 95 concrete spaceport). Each corner now averages the outward cell with the outward-layer
+            // cells FaceAo probes at that corner, in FaceQuad vertex order. Occluders are left out — they hold no light,
+            // and counting them would darken every edge a second time on top of AO — and so is the diagonal when both
+            // edge cells are occluders, so no light leaks round a wall corner. Two coplanar faces meeting at an edge
+            // sample the same cells there and agree on its value.
+            void AddFaceCornerBlockLight(List<Vector3> blOut, int bx, int by, int bz, int f, Vector3 faceBl)
+            {
+                var dir = Faces[f];
+                int cx = bx + dir.X, cy = by + dir.Y, cz = bz + dir.Z; // the outward (air) layer
+                int na = dir.X != 0 ? 0 : dir.Y != 0 ? 1 : 2;          // normal axis (contributes no offset)
+                var q = FaceQuad(Vector3.zero, f, ref _faceLightQuadScratch);
+                for (int i = 0; i < 4; i++)
+                {
+                    int e1x = 0, e1y = 0, e1z = 0, e2x = 0, e2y = 0, e2z = 0;
+                    if (na == 0) { e1y = q[i].y > 0.5f ? 1 : -1; e2z = q[i].z > 0.5f ? 1 : -1; }
+                    else if (na == 1) { e1x = q[i].x > 0.5f ? 1 : -1; e2z = q[i].z > 0.5f ? 1 : -1; }
+                    else { e1x = q[i].x > 0.5f ? 1 : -1; e2y = q[i].y > 0.5f ? 1 : -1; }
+
+                    Vector3 sum = faceBl;
+                    int count = 1;
+                    bool s1 = AoOccluder(cx + e1x, cy + e1y, cz + e1z);
+                    bool s2 = AoOccluder(cx + e2x, cy + e2y, cz + e2z);
+                    if (!s1)
+                    {
+                        sum += BlockLightAt(cx + e1x, cy + e1y, cz + e1z);
+                        count++;
+                    }
+
+                    if (!s2)
+                    {
+                        sum += BlockLightAt(cx + e2x, cy + e2y, cz + e2z);
+                        count++;
+                    }
+
+                    if (!(s1 && s2) && !AoOccluder(cx + e1x + e2x, cy + e1y + e2y, cz + e1z + e2z))
+                    {
+                        sum += BlockLightAt(cx + e1x + e2x, cy + e1y + e2y, cz + e1z + e2z);
+                        count++;
+                    }
+
+                    blOut.Add(sum / count);
+                }
             }
 
             // #1902: the water volume of a wet plant/prop cell — the faces a water block in that cell would draw (toward
@@ -1475,7 +1534,8 @@ namespace BlocksBeyondTheStars.Client
                     // glaring on a wide flat water surface, which then read as a grid of block-sized tiles with
                     // hard borders (a player photographed exactly that in a torch-lit moat). Averaging the four
                     // cells that meet at each corner makes neighbouring faces agree along their shared edge, so
-                    // the plane lights as one surface. Fluid tops only — nothing else changes.
+                    // the plane lights as one surface. Fluid tops take skylight per corner too; opaque faces smooth
+                    // their block light per corner since #2881 (AddFaceCornerBlockLight).
                     bool cornerLit = dir.Y == 1 && (isWaterSurface || isLavaSurface);
                     if (cornerLit)
                     {
@@ -1490,8 +1550,16 @@ namespace BlocksBeyondTheStars.Client
                         skyUv.Add(new Vector2(sky, faceMode)); skyUv.Add(new Vector2(sky, faceMode));
                         skyUv.Add(new Vector2(sky, faceMode)); skyUv.Add(new Vector2(sky, faceMode));
                         // Coloured block-light reaching the air cell this face looks into (same cell the skylight
-                        // samples) — placed lights illuminate the wall regardless of sun/skylight.
-                        blockLight.Add(faceBl); blockLight.Add(faceBl); blockLight.Add(faceBl); blockLight.Add(faceBl);
+                        // samples) — placed lights illuminate the wall regardless of sun/skylight. A chunk with no
+                        // light nearby has no field and keeps the flat (all-zero) value without the corner probes.
+                        if (blockLightField != null && !transparent && blockLightField.NearLit(nx, ny, nz))
+                        {
+                            AddFaceCornerBlockLight(blockLight, wx, wy, wz, f, faceBl);
+                        }
+                        else
+                        {
+                            blockLight.Add(faceBl); blockLight.Add(faceBl); blockLight.Add(faceBl); blockLight.Add(faceBl);
+                        }
                     }
 
                     Vector3 faceBlDir = BlockLightDirAt(nx, ny, nz);
@@ -2723,6 +2791,27 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // #2881: the lit box, for NearLit — every non-zero cell (sources included) is on the touched list. Nothing on
+            // it means nothing is lit, which reads exactly like no field at all.
+            if (touched.Count == 0)
+            {
+                return null;
+            }
+
+            int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue;
+            int maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
+            for (int i = 0; i < touched.Count; i++)
+            {
+                int key = touched[i];
+                int tx = key % W, tz = key / W % W, ty = key / WW;
+                minX = System.Math.Min(minX, tx); maxX = System.Math.Max(maxX, tx);
+                minY = System.Math.Min(minY, ty); maxY = System.Math.Max(maxY, ty);
+                minZ = System.Math.Min(minZ, tz); maxZ = System.Math.Max(maxZ, tz);
+            }
+
+            field.LitMinX = field.Ox + minX; field.LitMaxX = field.Ox + maxX;
+            field.LitMinY = field.Oy + minY; field.LitMaxY = field.Oy + maxY;
+            field.LitMinZ = field.Oz + minZ; field.LitMaxZ = field.Oz + maxZ;
             return field; // At() applies the 1/LightRadius normalisation the old copy baked in
         }
 

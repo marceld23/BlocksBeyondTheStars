@@ -6,6 +6,7 @@ using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -16,10 +17,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// at bandits who have already chosen to fight — a small, quiet answer to "my base just stands there".
 ///
 /// <para><b>Deliberately cheap.</b> There is no power system (rejected in #1101), no ammunition and no
-/// per-sentry persisted state. The sentry cells are re-derived from the base-zone scan that
-/// <see cref="CountBaseMachines"/> already walks, cached per base, and only for bases whose owner is
-/// actually joined and standing on that body — enemies spawn 35–50 blocks from a player, so a sentry has
-/// nothing to shoot at while nobody is home anyway. The firing pass runs at 2 Hz, not per tick.</para>
+/// per-sentry persisted state. The sentry cells are derived from the base-zone scan that
+/// <see cref="CountBaseMachines"/> already walks, cached per base until a post or relay of its chain comes or
+/// goes (#2879), and only for bases whose owner is actually joined and standing on that body — enemies spawn
+/// 35–50 blocks from a player, so a sentry has nothing to shoot at while nobody is home anyway. The firing
+/// pass runs at 2 Hz, not per tick.</para>
 ///
 /// <para><b>Deliberately gentle.</b> It never targets players, companions, NPCs or traders, and it holds
 /// fire on a robber who is still walking up or making demands — the talk-first rule of #1043 outranks it,
@@ -40,19 +42,21 @@ public sealed partial class GameServer
     /// <summary>Seconds between firing passes (2 Hz). Well below a fight's timescale, well above per-tick.</summary>
     private const double SentryFireInterval = 0.5;
 
-    /// <summary>Seconds between re-derivations of a base's sentry cells — the block layout changes rarely,
-    /// and the walk is the same O(r³) zone scan the settler stage uses.</summary>
-    private const double SentryRescanInterval = 10.0;
-
-    // #2226: both gates are per world (see LoadedWorld). They were the server's: every occupied world is ticked in the
+    // #2226: the gate is per world (see LoadedWorld). It was the server's: every occupied world is ticked in the
     // same server tick, in which the uptime stands still, so the world that came first took every firing pass — base
     // or no base — and the posts on every other world never fired.
     private double _nextSentryFireAt { get => _worlds.Active.NextSentryFireAt; set => _worlds.Active.NextSentryFireAt = value; }
-    private double _nextSentryRescanAt { get => _worlds.Active.NextSentryRescanAt; set => _worlds.Active.NextSentryRescanAt = value; }
 
-    /// <summary>Cached sentry block cells per base id, refreshed on the rescan beat of the base's own world. One table
-    /// for the server: base ids are unique across bodies.</summary>
+    /// <summary>Cached sentry block cells per base id, walked when the base's own world first needs them and kept until
+    /// a post or relay of that chain comes or goes (<see cref="OnSentryChainCellSet"/>). One table for the server: base
+    /// ids are unique across bodies.</summary>
     private readonly Dictionary<int, List<Vector3i>> _sentryCells = new();
+
+    /// <summary>#2879: per cached base, the canonical cells of every post and relay its last walk found — the cells whose
+    /// change makes the cache stale. Until #2879 every home base was walked again every ten seconds whether anything had
+    /// changed or not, which at the relay cap is ~320k block reads (~18 ms on a desktop) per base per beat — a hitch the
+    /// browser build, where the server shares the frame, would show.</summary>
+    private readonly Dictionary<int, HashSet<Vector3i>> _sentryChainCells = new();
 
     /// <summary>Whether sentries do anything at all on this world — the same gate the machines themselves
     /// use, so a Peaceful or Creative world has no shooting on either side.</summary>
@@ -67,12 +71,6 @@ public sealed partial class GameServer
         }
 
         _nextSentryFireAt = _uptime + SentryFireInterval;
-        bool rescan = _uptime >= _nextSentryRescanAt;
-        if (rescan)
-        {
-            _nextSentryRescanAt = _uptime + SentryRescanInterval;
-        }
-
         bool enemiesChanged = false;
         bool creaturesChanged = false;
         foreach (var b in _bases)
@@ -81,19 +79,21 @@ public sealed partial class GameServer
             {
                 // #2226: another world's base. Its cache is that world's pass to keep or drop — dropping it from here
                 // made two occupied worlds throw each other's cells away twice a second, each then re-walking its
-                // bases (the O(r³) zone scan, relay hops included) on every firing pass instead of every ten seconds.
+                // bases (the O(r³) zone scan, relay hops included) on every firing pass.
                 continue;
             }
 
             if (!OwnerIsHome(b))
             {
-                _sentryCells.Remove(b.Id); // nobody home: drop the cache rather than keep it warm
+                DropSentryCells(b.Id); // nobody home: drop the cache rather than keep it warm
                 continue;
             }
 
-            if (rescan || !_sentryCells.ContainsKey(b.Id))
+            if (!_sentryCells.ContainsKey(b.Id))
             {
-                _sentryCells[b.Id] = FindSentryCells(b);
+                var chain = new HashSet<Vector3i>();
+                _sentryCells[b.Id] = FindSentryCells(b, chain);
+                _sentryChainCells[b.Id] = chain;
                 _sentryRescansForTest++;
             }
 
@@ -133,12 +133,14 @@ public sealed partial class GameServer
     /// </para>
     /// <para>
     /// Widening the zone was the obvious alternative and the wrong one: this walk is O(r³) and runs per base
-    /// on the rescan beat, so a radius that covered her compound would cost ~185× what the current one does.
+    /// whenever its chain changes, so a radius that covered her compound would cost ~185× what the current one does.
     /// A chain keeps every hop the same cheap 17³ walk and grows only as far as the player actually builds —
     /// and it costs them something per hop, which is what makes it a decision rather than a free upgrade.
     /// </para>
+    /// <para><paramref name="chainCells"/>, when given, receives the canonical cell of every post and relay found — what
+    /// <see cref="OnSentryChainCellSet"/> watches (#2879).</para>
     /// </summary>
-    private List<Vector3i> FindSentryCells(ServerBase b)
+    private List<Vector3i> FindSentryCells(ServerBase b, HashSet<Vector3i>? chainCells = null)
     {
         var found = new List<Vector3i>();
         var visitedRelays = new HashSet<Vector3i>();
@@ -151,14 +153,74 @@ public sealed partial class GameServer
             ScanPowerZone(origin, found, visitedRelays, frontier);
         }
 
+        if (chainCells != null)
+        {
+            int circ = _world.Circumference;
+            foreach (var cell in found)
+            {
+                chainCells.Add(WorldConstants.CanonicalBlock(cell, circ));
+            }
+
+            foreach (var cell in visitedRelays)
+            {
+                chainCells.Add(WorldConstants.CanonicalBlock(cell, circ));
+            }
+        }
+
         return found;
+    }
+
+    /// <summary>
+    /// #2879: a block changed on a resident world. A post or relay that went up anywhere, or a cell of a cached chain
+    /// that changed, makes those bases walk again on their next firing pass — the only ways the powered set can change,
+    /// since every block write goes through <see cref="ServerWorld.SetBlock"/>. A new post or relay drops every cache
+    /// (it may join any base's chain, and it is a rare event); every other block change — fluid, fire, digging — costs a
+    /// block read and a set lookup per cached base.
+    /// </summary>
+    private void OnSentryChainCellSet(ServerWorld world, Vector3i cell)
+    {
+        if (_sentryChainCells.Count == 0)
+        {
+            return;
+        }
+
+        var block = world.GetBlock(cell);
+        bool chainBlock = !block.IsAir && (block == _sentryBlockId || block == _powerRelayBlockId);
+        List<int>? stale = null;
+        foreach (var (baseId, cells) in _sentryChainCells)
+        {
+            if (chainBlock || cells.Contains(cell))
+            {
+                (stale ??= new List<int>()).Add(baseId);
+            }
+        }
+
+        if (stale != null)
+        {
+            foreach (int baseId in stale)
+            {
+                DropSentryCells(baseId);
+            }
+        }
+    }
+
+    private void DropSentryCells(int baseId)
+    {
+        _sentryCells.Remove(baseId);
+        _sentryChainCells.Remove(baseId);
     }
 
     /// <summary>One hop of the power chain: walks the cube around <paramref name="origin"/>, collecting sentry
     /// cells and queueing any relay not seen yet. The relay budget caps the whole chain — a player who tiles a
-    /// compound with relays must not turn the rescan beat into a world sweep.</summary>
+    /// compound with relays must not turn a walk into a world sweep.</summary>
     private void ScanPowerZone(Vector3i origin, List<Vector3i> found, HashSet<Vector3i> visitedRelays, Queue<Vector3i> frontier)
     {
+        // #2879: the ids the block-set hook compares against, resolved on the first walk (a cache only exists after
+        // one); the walk compares them too instead of looking up each cell's definition and switching on its key.
+        _sentryBlockId ??= _content.GetBlock(SentryBlockKey)?.NumericId ?? BlockId.Air;
+        _powerRelayBlockId ??= _content.GetBlock(PowerRelayBlockKey)?.NumericId ?? BlockId.Air;
+        var sentryId = _sentryBlockId.Value;
+        var relayId = _powerRelayBlockId.Value;
         int r = BaseProtectionRadius;
         for (int x = -r; x <= r; x++)
             for (int y = -r; y <= r; y++)
@@ -176,25 +238,25 @@ public sealed partial class GameServer
                         continue;
                     }
 
-                    switch (_content.BlockById(block)?.Key)
+                    if (block == sentryId)
                     {
-                        case SentryBlockKey:
-                            if (!found.Contains(pos))
-                            {
-                                found.Add(pos); // zones overlap along a chain — a sentry must not fire twice
-                            }
-
-                            break;
-                        case PowerRelayBlockKey:
-                            if (visitedRelays.Count < MaxPowerRelaysPerBase && visitedRelays.Add(pos))
-                            {
-                                frontier.Enqueue(pos);
-                            }
-
-                            break;
+                        if (!found.Contains(pos))
+                        {
+                            found.Add(pos); // zones overlap along a chain — a sentry must not fire twice
+                        }
+                    }
+                    else if (block == relayId)
+                    {
+                        if (visitedRelays.Count < MaxPowerRelaysPerBase && visitedRelays.Add(pos))
+                        {
+                            frontier.Enqueue(pos);
+                        }
                     }
                 }
     }
+
+    /// <summary>The sentry and relay block ids, resolved on the first walk (#2879; see <see cref="OnSentryChainCellSet"/>).</summary>
+    private BlockId? _sentryBlockId, _powerRelayBlockId;
 
     /// <summary>One sentry's shot. Returns true when a planet enemy's state changed, so the caller can
     /// broadcast once for the whole pass rather than once per shot. <paramref name="home"/> is the base the
@@ -368,12 +430,13 @@ public sealed partial class GameServer
     /// <summary>The block that carries base power one zone further out (#1714).</summary>
     private const string PowerRelayBlockKey = "power_relay";
 
-    /// <summary>Hard cap on the relays one base's chain may follow. Each relay costs another 17³ walk on the
-    /// rescan beat, so this is what keeps a relay-tiled compound from turning that beat into a world sweep.
-    /// Sixteen hops did not cover the 80×80 spaceport that asked for relays in the first place (#1750); thirty-two
-    /// is about 157k block reads per rescan per base, still far below a millisecond budget that matters. The
-    /// relay's item text quotes this number — change both.</summary>
-    private const int MaxPowerRelaysPerBase = 32;
+    /// <summary>Hard cap on the relays one base's chain may follow. Each relay costs another 17³ walk whenever the
+    /// chain is walked, so this is what keeps a relay-tiled compound from turning a walk into a world sweep.
+    /// Sixteen hops did not cover the 80×80 spaceport that asked for relays in the first place (#1750); thirty-two did
+    /// not run a ring round the same builder's 95×95 one (#2879: a spoke of five plus a ring of ~40). Sixty-four is
+    /// ~320k block reads per walk (~18 ms on a desktop) — fine for a walk that only follows a post or relay being built
+    /// or taken away, not for a fixed beat. The relay's item text quotes this number — change both.</summary>
+    private const int MaxPowerRelaysPerBase = 64;
 
     /// <summary>Tells the player straight away when a sentry block was placed where it can never fire (#1699):
     /// outside every base zone they own on this body. Three things can silence a post — no base zone, the owner
@@ -403,18 +466,18 @@ public sealed partial class GameServer
     /// <summary>Test/diagnostic: the base_core cell of a base, so a test can measure from it (#1714).</summary>
     public Vector3i BaseCellForTest(int baseId) => _bases.Single(b => b.Id == baseId).Cell;
 
-    /// <summary>Test hook: run a firing pass right now, ignoring the 2 Hz gate.</summary>
+    /// <summary>Test hook: run a firing pass right now, ignoring the 2 Hz gate. The cached cells stay as they are — a
+    /// block set since the last pass has already dropped them if it touched the chain (#2879).</summary>
     public void TickSentriesForTest()
     {
         _nextSentryFireAt = 0;
-        _nextSentryRescanAt = 0;
         TickSentries();
     }
 
     private int _sentryRescansForTest;
 
     /// <summary>Test-only: how many times the firing pass has re-derived a base's sentry cells since start — once per
-    /// home base per rescan beat, and not on the passes in between (#2226).</summary>
+    /// home base when its chain changed, and not on the passes in between (#2226, #2879).</summary>
     public int SentryRescansForTest => _sentryRescansForTest;
 
     /// <summary>Test/inspection: how many sentry blocks the given base currently has.</summary>

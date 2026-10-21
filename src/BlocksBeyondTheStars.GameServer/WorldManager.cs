@@ -443,7 +443,6 @@ internal sealed class LoadedWorld
     public double LastBurnAt { get; set; }             // …the uptime of this world's last burn pass (the step's real dt)
     public bool BurnPrimed { get; set; }               // …false until this world's first pass, which burns nothing
     public double NextSentryFireAt { get; set; }       // the base sentry posts of this world fire (2 Hz)
-    public double NextSentryRescanAt { get; set; }     // …and re-derive their cells from the blocks (every 10 s)
 
     // #2235: the boarded player station's re-staffing throttle. One field for the server ran at double speed with two
     // occupied stations, and the reset went to whichever world crossed the threshold first.

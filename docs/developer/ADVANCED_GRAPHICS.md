@@ -110,7 +110,10 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
   (e.g. Sobel height→normal) before reaching for AI-gen or hand-authored maps. The voxel world's simple
   silhouettes mean surface-detail fakes (normal/parallax/shells) buy a lot of look for little cost.
 - **No real URP lights for placed lights.** Real lights would leak through walls and cap the count;
-  coloured block light stays a baked voxel flood-fill (TEXCOORD3) with directional shading on top.
+  coloured block light stays a baked voxel flood-fill (TEXCOORD3) with directional shading on top. It is baked
+  **per corner**, not per face: each vertex averages the open cells meeting at that corner (fluid tops since #1701,
+  opaque faces since #2881), so neighbouring faces agree along their shared edge and a lit floor or wall reads as one
+  surface instead of a grid of block-sized tiles.
 
 ## Roadmap (research, not yet implemented)
 

@@ -764,17 +764,17 @@ public sealed class PerWorldSpeciesTests : IDisposable
         // seconds, on the first pass — not again on every pass because the other world had thrown them away.
         Assert.Equal(scans + 1, server.SentryRescansForTest);
 
-        // The rescan beat is the world's own as well. A second post goes up beside the first. The cached cells do
-        // not know it: a base is walked again ten seconds after its last walk, and nothing else adds a cell. With one
-        // rescan gate for the server the home world — ticked first — took that beat exactly as it took the firing
-        // beat, so a post built after the first walk stayed silent until its owner left the body and came back.
+        // A second post goes up beside the first, on the other world. Until #2879 the cached cells only learned of it on
+        // a ten-second rescan beat — and with one beat for the server the home world, ticked first, took it exactly as
+        // it took the firing beat, so the new post stayed silent until its owner left the body and came back. Now the
+        // block set drops that base's cache, so its own world walks it once on its next pass.
         var second = new Vector3i(post.X, post.Y, post.Z + 1);
         server.WorldAt(other)!.SetBlock(second, sentry, 0, 0, 0, visitor.State.Name);
         At(server, other);
         Assert.Equal(2, server.SentryCountForTest(baseId));
         t.Sent.Clear();
 
-        TicksWithTheMachineHeld(110); // eleven seconds: past this world's next rescan beat, well short of the one after
+        TicksWithTheMachineHeld(110); // eleven seconds: one walk right after the build, none on the passes after it
 
         At(server, other);
         Assert.Contains(machine, server.PlanetEnemies);

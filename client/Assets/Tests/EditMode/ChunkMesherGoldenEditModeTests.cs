@@ -41,10 +41,14 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         // Re-pinned 2026-10-16 (#2683): stale since the guardian bay block (#2635, 2026-10-15) shifted the ids again —
         // that is why the deep chunk moved too — and this world stamps random shapes onto torch/lantern cells, which
         // since #2683 cull their neighbours like an unshaped light (a light's descriptor is its mount, not a form).
+        // Re-pinned 2026-10-21 (#2881): opaque faces bake their coloured block light per corner, so the lit surface chunk
+        // moved; the deep chunk was already stale from the ids alone — 18 blocks came with texture and tree variety
+        // (#2840, #2871), and the pre-#2881 mesher gives the same new deep value (its lamp is walled into rock and lights
+        // nothing). The sky chunk is empty and unchanged.
         private static readonly Dictionary<string, ulong> Pinned = new Dictionary<string, ulong>
         {
-            ["deep (5,1,7)"] = 0xd063884f558ab6c1UL,
-            ["surface (5,2,7)"] = 0xa4daa53503f7b541UL,
+            ["deep (5,1,7)"] = 0x0b604195dd33a4edUL,
+            ["surface (5,2,7)"] = 0xcceb2b41df0c4b65UL,
             ["sky (5,3,7)"] = 0xd6a8cf1a27eab505UL,
         };
 
