@@ -149,7 +149,11 @@ first-PR traps:
   got on this runner. On a busy CI runner that was not far enough: the tutorial's sealed-room step failed
   at random (#2769, the same class as #2662). Either drive the real ticks, use a seam that runs the work to
   the end (`BaseAirForTest`), or give the server a budget that never binds (`AirTickBudgetMsForTest`) when
-  the code under test must start the work itself.
+  the code under test must start the work itself. The same holds for the ticks a test *does* run: a result
+  read right after a world change must not hinge on how far the budget got. Since #2870 the query that starts
+  an air refill works a fixed minimum of it (an ordinary room is answered at once on any runner). To check a
+  test against a busy runner, run it once more with a zero budget (`AirTickBudgetMsForTest = 0`) — the
+  deterministic stand-in for a starved clock; that is how #2870's one stale tick was reproduced locally.
 
 ## Joins built by hand need the content fingerprint (#2222)
 

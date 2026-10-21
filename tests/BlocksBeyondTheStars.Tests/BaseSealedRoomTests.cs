@@ -116,12 +116,22 @@ public sealed class BaseSealedRoomTests : IDisposable
         }
     }
 
-    [Fact]
-    public void SealedRoomBeyondTheCube_Breathes_AndAHoleKillsIt()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SealedRoomBeyondTheCube_Breathes_AndAHoleKillsIt(bool starvedClock)
     {
         var server = Start(out var repo, "sealedroom");
         using (repo)
         {
+            // #2870: on a busy runner the tick's air budget can be spent before the oxygen check asks — a zero budget pins
+            // that case. The check that starts the refill still runs a fixed minimum of it, so the hole counts on that very
+            // tick: one stale tick refills 12.5 oxygen, more than the 4 s below drain.
+            if (starvedClock)
+            {
+                server.AirTickBudgetMsForTest = 0;
+            }
+
             var p = BuildRoom(server, "stone", "door_energy");
             Assert.False(server.AtmosphereBreathable, "rocky should be toxic for this test");
 

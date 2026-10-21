@@ -435,13 +435,22 @@ public sealed class PlayerStationReportsTests : IDisposable
 
     // ---------------- #1473: sealed-volume air ----------------
 
-    [Fact]
-    public void SealedStation_Breathes_AHoleLeaks_AndAForceFieldPlugsIt()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SealedStation_Breathes_AHoleLeaks_AndAForceFieldPlugsIt(bool starvedClock)
     {
         var transport = new RecordingTransport();
         var server = NewServer("air", out var repo, transport);
         using (repo)
         {
+            // #2870: the air budget spent before the oxygen check asks (a busy runner) — the check that starts the refill
+            // still runs a fixed minimum of it, so the hole and the plug count on that very tick.
+            if (starvedClock)
+            {
+                server.AirTickBudgetMsForTest = 0;
+            }
+
             var pilot = server.AddLocalPlayer("Owner");
             string id = BuildSealedBox(server, pilot);
             BoardOwnStation(server, "Owner", id);

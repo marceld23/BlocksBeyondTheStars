@@ -32,9 +32,11 @@ namespace BlocksBeyondTheStars.GameServer;
 /// The result is derived state, kept per partner group and per body. A block set inside the group's area, a door change,
 /// a partner's reach or sky line moving, or the <see cref="BaseAirBackstopInterval"/> marks it stale; a new fill then
 /// starts at most every <see cref="SealedRoomRecomputeInterval"/> and runs within the per-tick air budget while the
-/// previous result keeps answering — nobody loses air mid-fill. A fill past the emergency brake keeps the previous result
-/// and logs once. When rooms drop out on a world without breathable air, the players in or at a damaged room are told
-/// where the air gets out, and only when every room is gone does everyone in the base hear <c>@base_air_lost</c>.
+/// previous result keeps answering — nobody loses air mid-fill. The query that starts it always works a fixed minimum of
+/// it (#2870), so an ordinary room's refill is answered at once, whatever the clock. A fill past the emergency brake keeps
+/// the previous result and logs once. When rooms drop out on a world without breathable air, the players in or at a
+/// damaged room are told where the air gets out, and only when every room is gone does everyone in the base hear
+/// <c>@base_air_lost</c>.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -289,10 +291,12 @@ public sealed partial class GameServer
 
         _baseAirOf[b.Id] = group;
         group.LastUsed = _uptime;
+        bool started = false;
         if (group.Job is null && (group.StartedAt == double.NegativeInfinity
             || (NeedsAirRefresh(group) && (complete || _uptime - group.StartedAt >= SealedRoomRecomputeInterval))))
         {
             StartBaseAir(group, partners);
+            started = true;
         }
 
         if (group.Job is { } job)
@@ -309,18 +313,22 @@ public sealed partial class GameServer
             }
             else
             {
-                ContinueBaseAir(group, broadcastOnChange, complete);
+                // The query that starts a refill always works a fixed minimum of it (#2870), like the tick driver: an
+                // ordinary room is answered right here on a fast and on a loaded machine alike — the clock alone let a
+                // busy runner answer one more tick from the old result.
+                ContinueBaseAir(group, broadcastOnChange, complete, guaranteeProgress: started);
             }
         }
 
         return group;
     }
 
-    /// <summary>Works on the group's pending fill within this tick's budget (or to the end) and commits it once done.</summary>
-    private void ContinueBaseAir(BaseAirVolume group, bool broadcastOnChange, bool complete)
+    /// <summary>Works on the group's pending fill within this tick's budget — with <paramref name="guaranteeProgress"/> at
+    /// least the per-tick minimum, with <paramref name="complete"/> to the end — and commits it once done.</summary>
+    private void ContinueBaseAir(BaseAirVolume group, bool broadcastOnChange, bool complete, bool guaranteeProgress = false)
     {
         var job = group.Job!;
-        StepAirFill(job, guaranteeProgress: false, complete);
+        StepAirFill(job, guaranteeProgress, complete);
         if (job.Done)
         {
             CommitBaseAir(group, broadcastOnChange);
