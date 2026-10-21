@@ -47,6 +47,8 @@ Docs: USER_MANUAL.md §Fire (what burns, clearing ground for a garden: a cut pla
 cell is taken) and §Arcade (cubes stay and go quiet; the stale "+5/+10/+15 knowledge" line now describes the #1104
 per-star curve).
 
+**Released** in **v2026.10.24** "the woodland release" (2026-10-21).
+
 ---
 
 ### 🧪 Flaky sealed-room test — the check that starts an air refill works a fixed minimum of it — #2870, branch fix/air-refill-starting-query — ✅ done 2026-10-21
@@ -67,6 +69,8 @@ tick outweighs 35 s of draining.
   same latent flake) also run with a zero air budget (`AirTickBudgetMsForTest = 0`, a starved clock). Before the fix both
   failed every time with exactly the CI value 91.27; after it both pass. 316 air, oxygen and station tests green.
 - **Docs:** SERVER_TESTING.md — the wall-clock rule names the starved-clock check.
+
+**Released** in **v2026.10.24** "the woodland release" (2026-10-21).
 
 ---
 
@@ -101,6 +105,8 @@ and the Fifi plant — a tree with 5–8 glowing blossoms — on every soft-grou
 
 Docs: WORLD_GENERATION.md §46, USER_MANUAL.md (plant life, food), ART_BIBLE.md (tree slots, leaf pool), NOTICES.md.
 
+**Released** in **v2026.10.24** "the woodland release" (2026-10-21).
+
 ---
 
 ### 🦓 Creature looks — hides that read, fair pools, planet themes, glow patterns, pattern tiles, bold colours, herds, eyes, horns — #2860–#2868, branch feat/creature-looks — ✅ done 2026-10-21 (⚠ playtest open; render-only, no generation or save change)
@@ -133,6 +139,8 @@ desert, swamp, a cave at night for the glow) and in the browser build.
 
 Found on the way: #2870 `SealedRoomBeyondTheCube_Breathes_AndAHoleKillsIt` failed once on CI (the oxygen still refilled
 4 s after the hole; time-sliced air work on a busy runner, like #2660) — ✅ fixed 2026-10-21 (see the #2870 section above).
+
+**Released** in **v2026.10.24** "the woodland release" (2026-10-21).
 
 ---
 
@@ -171,6 +179,8 @@ no island any more."
 
 Docs: PLAYER_FEEDBACK.md (graphics node, browser screenshots), URP_MIGRATION.md (orientation marker),
 WORLD_GENERATION.md (open drop).
+
+**Released** in **v2026.10.24** "the woodland release" (2026-10-21).
 
 ### 🌿 Texture variety — plant looks per planet, new species side by side, colourful blossoms, animal coats, tools with materials and shapes — #2829–#2838, branch feat/texture-variety — ✅ done 2026-10-20 (⚠ playtest open; terrain generation 28, save version 5)
 

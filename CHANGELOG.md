@@ -11,6 +11,122 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.24] — 2026-10-21
+
+The woodland release. New worlds grow **real forests**: **ten new tree shapes** from birch and oak to the tree fern
+and the glowing lantern tree, **every kind of tree on a planet actually grows**, woods **mix several kinds**, and
+crowns come in **three looks per world**. **Glowing plants are special again** — most worlds glow a little or not at
+all. The **animals get eyes, horns, glow patterns and 16 new coat patterns**, and every planet dresses its fauna in its
+own theme. Lyxette's reports bring **fire that leaves the tree trunks standing**, crates and beds that don't burn, and
+**data cubes that go quiet** once you have their fragment. In the browser the **HUD stands the right way up** again.
+
+ℹ️ **Compatibility:** the **save version rises to 6** (six new blocks: two more kinds of leaves, blossom leaves, a pale
+wood log, the saguaro and the lantern fruit), the **terrain generation to 29** and the network protocol stays at
+**version 11**. Existing saves are converted when they are first opened and keep their landscape; the new trees, the
+mixed woods, the glow level and the rarer Fifi plant come on worlds created with 2026.10.24. The new crown and bark
+looks, the animal looks, the softer glow by day, the fire rules, the data cubes and the browser fixes come to every
+world, old saves included. Game and server must both be on 2026.10.24 — a server with another block set turns an older
+game away at the door. An older game cannot open a save once 2026.10.24 has opened it.
+
+### 🌳 Real forests on new worlds (#2848–#2856)
+
+- **Ten new tree shapes (#2853):** **birch**, **oak**, **column**, **umbrella**, **blossom tree**, **tree fern**,
+  **bottle tree**, **spiral**, **ball tree** and the **lantern tree** — it grows only on luminous worlds and carries a
+  glowing **Lantern fruit** that is always edible and grows back after two minutes. The classic kinds come in shape
+  variants of their own (#2854).
+- **Every kind of tree really grows (#2848):** the first and last trees of a planet's list almost never grew — jungle
+  trees made up 0.2 % of the jungle planet's trees, and deserts were 82–100 % dead snags. Now a jungle world grows about
+  nine kinds of tree instead of four, and on a desert the dead snags fell from 84 to 16 %.
+- **Mushroom and crystal trees (#2849)** finally grow — on alien grass, mycelium and crystal.
+- **The saguaro (#2850)**, the tall desert cactus, is its own block now.
+- **Mixed woods (#2852):** three in ten trees of a grove are of another kind.
+- **Three crowns per world (#2851):** two more kinds of **Leaves**, **Blossom leaves** and a **Pale wood log**. Each kind
+  has its own look, colour and scanner name — and a tree's fruit, leaves and trunk are always equally toxic (or not).
+- **New textures (#2855):** 28 new ones — 14 leaf crowns, 4 blossom crowns, 5 barks, 3 pale barks, the saguaro and the
+  lantern fruit. The new crowns and barks show up in every world, and the three leaf kinds of a world always look
+  different. Neighbouring groves drift gently in colour (#2856).
+
+### ✨ Glowing plants are special again (#2857–#2859)
+
+- **A glow level per world (#2857):** glowing plants grew on almost every world. Now four in ten worlds have none, three
+  a few, two the usual amount and one in ten is a luminous world. Crystal and ashen worlds always glow at least a little,
+  and caves keep their **Glow Moss**, **Glow Threads** and **Prism Bloom**.
+- **The Fifi plant (#2859)** with its glowing blossoms grows on about every third world instead of nearly all of them.
+- **Softer by day (#2858):** plant glow fades in daylight, the **Frost Flower** no longer glows, and glowing plants cast
+  light in their world's colour.
+
+### 🦓 Animals with eyes, horns and patterns of their own (#2860–#2868)
+
+- **Hides you can see (#2860):** almost half the hides looked like a flat colour in the game. Now every hide shows its
+  pattern, coarse hides are drawn bigger, and fine hides no longer shimmer in the distance.
+- **Fair choice (#2861):** glowing hides went to three in ten of all species. Now no hide is worn by more than about one
+  species in sixteen, and winged animals choose from twelve hides instead of six.
+- **Every planet has its fauna theme (#2868):** desert animals no longer wear coral and lichen. Each planet's theme comes
+  from its plants, temperature and water, and each world has a favourite hide family and pattern group. A pet, a clone
+  or a cross keeps the look of its home world.
+- **Glow patterns (#2862):** glowing species shine in one of seven patterns — spot rows, freckles, veins, rings, side
+  lines, blotches or glowing tips, each in a luminous colour.
+- **16 new coat patterns (#2863):** giraffe, dalmatian, pinto, cheetah, jaguar, tabby, brindle, okapi, ladybird, poison
+  frog, salamander, eye spots, tortoise, diamondback, chevrons and lengthwise stripes — 33 patterns in all. Small
+  animals get a darker back.
+- **Bold colours (#2864):** about one patterned species in five wears black, white or cream marks or warning colours.
+- **Herds (#2865):** in a herd every animal has its spots in a different place.
+- **Eyes (#2866):** ten eye looks — round, button, slit, goat, compound, ringed, double, star, oval and gleaming.
+  Glowing species have a shining iris, and on small square heads the eyes sit in front of the face instead of inside it.
+- **Horns (#2867):** five horn textures and a horn colour per species; fangs, tusks and teeth get a tone of their own.
+
+### 🔥 Fire, crates and data cubes — thanks to Lyxette (#2872–#2874)
+
+- **Trunks survive a brush fire (#2872):** Lyxette burnt off the bushes so they would not grow back — and the giant
+  tree burned with them. Now the **Wood Log**, the **Pale wood log** and the **Giant tree trunk** no longer burn.
+  Leaves, needles, fronds and plants still do, so a forest fire strips the crowns and leaves the trunks standing — a
+  log house is safe too. The **Tainted Log** keeps burning.
+- **Crates and beds don't burn (#2873):** the **Wood Box**, the **Bed** and the **Stretcher** no longer catch fire.
+  A burnt crate left its contents behind under the ash, and a burnt bed left its foot end. The **Rug** still burns.
+- **A recovered data cube goes quiet (#2874):** once its fragment is in your collection, a cube rests on the ground,
+  its light is off, it stops humming and glows a faint steady green. Other players still see it live. It says
+  "✓ Fragment already in your collection" now.
+
+### 🖥️ The browser and the reports (#2843–#2846)
+
+- **The HUD the right way up (#2843):** in the browser on some graphics cards the HUD stood upside down. It now checks
+  which way its picture lies and turns it upright.
+- **Screenshots are pictures again (#2845):** a screenshot from the browser came out as three squeezed copies of the
+  frame. Reports now carry a clean picture.
+- **Reports say how the frame was drawn (#2844):** a report now lists the graphics settings, so a display fault can be
+  traced faster.
+- **No animal over dug-away ground (#2846, Lyxette):** a sleeping animal floated over Lyxette's moat — animals stood at
+  the height the ground had before it was dug away. Now they fall, the edge of the hole is a cliff for them, and a bird
+  whose perch is gone flies off.
+
+### 🫁 Air
+
+- **A holed room notices at once (#2870):** on a busy server a room that had just sprung a leak could refill its air
+  once more before it noticed. The check now finishes an ordinary room's refill in one go.
+
+### 🌍 Texts
+
+- The "What's new?" notes of 2026.10.23 are now available in the twelve community languages too (#2842).
+- The new tree and block names and the data-cube texts are translated into all 14 languages.
+
+### 🛠️ For tinkerers
+
+- **Generation 29:** the grove pick flattens the grove value through a measured CDF table and weighs each palette entry;
+  `GlowLevel` per world (`None`/`Low`/`Normal`/`Luminous`) drives the surface rosters, coverage and pick weights;
+  older generations are bit-for-bit unchanged (`WorldGenerationGoldenTests`). Save version 6.
+- **New blocks:** `tree_leaves_b`, `tree_leaves_c`, `blossom_leaves`, `wood_log_b`, `saguaro`, `flora_lantern_fruit`.
+  Every tree kind is built from its leaf slot; toxicity is shared per tree. `docs/developer/WORLD_GENERATION.md` §46.
+- **Creature looks:** `FaunaThemes` (override with `faunaTheme` in `data/planets.json`); `NetCreature.LookPlanet` and
+  `LookSeed` are additive, name-keyed fields (no protocol bump) stamped into companions, clones and crosses;
+  `LitColor._Glow` (default 0) in every `UnityPerMaterial` cbuffer. New tools `tools/ai-assets/heal_seams.py` and
+  `gen_coat_tiles.py`.
+- **Fire:** `TreeWood.Keys`, `wood_crate`, `bed` and `stretcher` lost `flammable`; the guard test
+  `NothingThatCarriesState_Burns` keeps container and machine blocks out of the fire.
+- **Browser:** `Visor.shader` pass 4 reads a HUD-orientation marker into a 1×1 probe; `reportJson.graphics`;
+  `ReadbackPixels` (Client.Core) always reads RGBA32. The WebGPU dead ends are in `docs/developer/URP_MIGRATION.md`.
+- **For hosters:** the WorldHost image was rebuilt with this release (Shared changed); the report host and the AI
+  backend are unchanged.
+
 ## [2026.10.23] — 2026-10-20
 
 The variety release. Plants and animals no longer look alike from planet to planet: **every planet grows its own
@@ -8797,7 +8913,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.23...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.24...HEAD
+[2026.10.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.23...v2026.10.24
 [2026.10.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.22...v2026.10.23
 [2026.10.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.21...v2026.10.22
 [2026.10.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.20...v2026.10.21
