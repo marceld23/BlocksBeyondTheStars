@@ -48,24 +48,6 @@ public sealed class FleetOperatorAccessTests : IDisposable
         return registry;
     }
 
-    private sealed class FakeLauncher : IInstanceLauncher
-    {
-        private int _startCount;
-        private readonly HashSet<string> _running = new(StringComparer.Ordinal);
-
-        public string Start(WorldRecord world)
-        {
-            string id = "container-" + ++_startCount;
-            _running.Add(id);
-            return id;
-        }
-
-        public void Stop(string containerId) => _running.Remove(containerId);
-        public void Remove(string worldId) { }
-        public bool IsRunning(string containerId) => containerId != null && _running.Contains(containerId);
-        public IReadOnlyList<ContainerStat> ContainerStats() => Array.Empty<ContainerStat>();
-    }
-
     private static WorldOrchestrator NewOrchestrator(HostRegistry registry, WorldHostConfig config)
     {
         var launcher = new FakeLauncher();

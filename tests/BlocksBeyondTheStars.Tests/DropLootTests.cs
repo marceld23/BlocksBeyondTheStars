@@ -4,7 +4,6 @@
 using System;
 using System.Linq;
 using BlocksBeyondTheStars.GameServer;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
@@ -31,36 +30,6 @@ public sealed class DropLootTests : IDisposable
     {
         _root = Path.Combine(Path.GetTempPath(), "bbts_droploot_" + Guid.NewGuid().ToString("N"));
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
-    }
-
-    /// <summary>Records every server send so a test can assert on the loot toast.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<object> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-
-        public IEnumerable<string> LootToasts => Sent.OfType<ServerMessage>()
-            .Select(m => m.Text)
-            .Where(t => t.StartsWith("@srv.space.loot_to_", StringComparison.Ordinal));
     }
 
     private SvGameServer Started(out SqliteWorldRepository repo, string world, string planet = "rocky",
@@ -298,7 +267,7 @@ public sealed class DropLootTests : IDisposable
             server.Ship.Modules.Remove("tractor_beam"); // direct-to-inventory loot
             server.EnterSpace("Pilot");
 
-            for (int i = 0; i < 30 && !transport.LootToasts.Any(); i++)
+            for (int i = 0; i < 30 && !transport.LootToasts().Any(); i++)
             {
                 server.TickForTest(2.0);
                 var a = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.Asteroid);
@@ -308,7 +277,7 @@ public sealed class DropLootTests : IDisposable
                 }
             }
 
-            string toast = Assert.Single(transport.LootToasts.Take(1));
+            string toast = Assert.Single(transport.LootToasts().Take(1));
             Assert.StartsWith("@srv.space.loot_to_backpack:+", toast); // backpack has room → that is where it went
             Assert.DoesNotContain("_ore", toast); // the item is named, not keyed
         }
@@ -340,12 +309,12 @@ public sealed class DropLootTests : IDisposable
             }
 
             Assert.NotNull(drop);
-            Assert.Empty(transport.LootToasts); // floating salvage is not banked yet — nothing to announce
+            Assert.Empty(transport.LootToasts()); // floating salvage is not banked yet — nothing to announce
 
             server.ShipMove("Pilot", drop!.Position.X, drop.Position.Y, drop.Position.Z);
             server.Tick(0.1);
 
-            string toast = Assert.Single(transport.LootToasts);
+            string toast = Assert.Single(transport.LootToasts());
             Assert.StartsWith("@srv.space.loot_to_cargo:+", toast);
         }
     }
@@ -789,4 +758,13 @@ public sealed class DropLootTests : IDisposable
         }
         catch { }
     }
+}
+
+/// <summary>The one-off query of <see cref="DropLootTests"/> on the shared <see cref="RecordingTransport"/>.</summary>
+file static class DropLootTransport
+{
+    /// <summary>The loot toasts told, in order.</summary>
+    public static IEnumerable<string> LootToasts(this RecordingTransport t) => t.Messages().OfType<ServerMessage>()
+        .Select(m => m.Text)
+        .Where(x => x.StartsWith("@srv.space.loot_to_", StringComparison.Ordinal));
 }

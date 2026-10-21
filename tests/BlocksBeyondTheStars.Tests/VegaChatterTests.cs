@@ -10,7 +10,6 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
-using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.Story;
 using Xunit;
 
@@ -213,31 +212,10 @@ public sealed class VegaChatterTests
 
     // ---------------- AI (hosted worlds) ----------------
 
-    private sealed class LinesProvider : IAiMissionProvider
-    {
-        public List<NpcLinesRequest> Requests { get; } = new();
-
-        public MissionPlan? Generate(string context) => null;
-
-        public string? GenerateNpcLine(NpcLineRequest request) => null;
-
-        public MissionTextResult? GenerateMissionText(MissionTextRequest request) => null;
-
-        public string[]? GenerateNpcLines(NpcLinesRequest request)
-        {
-            lock (Requests)
-            {
-                Requests.Add(request);
-            }
-
-            return request.Purpose == NpcLinePurposes.VegaPraise ? new[] { "{0}? Not bad at all, {player}." } : null;
-        }
-    }
-
     [Fact]
     public void WithAi_ThePraiseUsesTheCachedLine_NextTime_NeverLate()
     {
-        var provider = new LinesProvider();
+        var provider = new FakeNpcLines(r => r.Purpose == NpcLinePurposes.VegaPraise ? new[] { "{0}? Not bad at all, {player}." } : null);
         using var w = World("vega_praise_ai", c => c.AiLevel = AiLevel.TextOnly);
         w.Server.SetAiProviderForTest(provider);
         w.Server.RunAiLinesSynchronouslyForTest();

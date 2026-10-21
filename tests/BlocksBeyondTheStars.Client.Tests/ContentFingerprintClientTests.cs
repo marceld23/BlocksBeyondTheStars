@@ -4,7 +4,6 @@
 using BlocksBeyondTheStars.Client;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.World;
 using Xunit;
@@ -20,38 +19,6 @@ namespace BlocksBeyondTheStars.Client.Tests;
 public sealed class ContentFingerprintClientTests
 {
     private static GameContent LoadContent() => ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
-
-    /// <summary>An in-memory client transport that records what the client sends and whether it hung up.</summary>
-    private sealed class RecordingClientTransport : IClientTransport
-    {
-        public event Action? Connected;
-        public event Action? Disconnected;
-        public event Action<byte[]>? PayloadReceived;
-
-        public List<object?> Sent { get; } = new();
-
-        public int Disconnects { get; private set; }
-
-        public void Connect(string host, int port) => Connected?.Invoke();
-
-        public void Send(byte[] payload, DeliveryMode mode) => Sent.Add(NetCodec.Decode(payload));
-
-        public void Poll()
-        {
-        }
-
-        public void Disconnect()
-        {
-            Disconnects++;
-            Disconnected?.Invoke();
-        }
-
-        public void Dispose()
-        {
-        }
-
-        public void Deliver(object message) => PayloadReceived?.Invoke(NetCodec.Encode(message));
-    }
 
     [Fact]
     public void Join_CarriesTheClientsFingerprint()

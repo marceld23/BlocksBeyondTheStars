@@ -34,6 +34,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
 - **Format check covers WorldHost and ReportHost (#2884):** both projects were missing from
   `BlocksBeyondTheStars.CI.slnf`, so the required `dotnet format --verify-no-changes` gate never looked at them. Added;
   their code already passes.
+- **One shared set of test fakes (#2885):** 74 private helper copies nested in test classes (42 `RecordingTransport`,
+  6 `CapturingLogger`, 6 `FakeLauncher`, 8 NPC-line fakes, 3 HTTP stubs, 5 world probes, 4 client transports) → 8
+  shared files under the two test projects' `Helpers/`, query helpers in `RecordingTransportExtensions`;
+  `SharedTestHelperGuardTests` (was `RecordingTransportGuardTests`, no allow-list) fails on any new private copy.
+  ~1,640 lines less. Test-only: nothing under `src/`, `client/` or `data/` changed; all 69 touched classes green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

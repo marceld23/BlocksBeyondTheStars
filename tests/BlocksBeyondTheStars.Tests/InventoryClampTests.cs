@@ -33,14 +33,6 @@ public sealed class InventoryClampTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    private sealed class CapturingLogger : IGameLogger
-    {
-        public List<string> Warnings { get; } = new();
-        public void Info(string message) { }
-        public void Warn(string message) => Warnings.Add(message);
-        public void Error(string message) { }
-    }
-
     private SvGameServer Start(string tag, out SqliteWorldRepository repo, IGameLogger log)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, tag));

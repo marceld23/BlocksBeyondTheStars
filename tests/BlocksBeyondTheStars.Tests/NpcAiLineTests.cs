@@ -13,7 +13,6 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
-using BlocksBeyondTheStars.Shared.Missions;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -232,21 +231,6 @@ public sealed class NpcAiLineTests : IDisposable
 
     // ---------------- Providers ----------------
 
-    private sealed class StubHandler : HttpMessageHandler
-    {
-        private readonly HttpStatusCode _code;
-        private readonly string _body;
-        public string? Url;
-        public string? RequestBody;
-        public StubHandler(HttpStatusCode code, string body) { _code = code; _body = body; }
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            Url = request.RequestUri?.ToString();
-            RequestBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
-            return new HttpResponseMessage(_code) { Content = new StringContent(_body) };
-        }
-    }
-
     private static NpcLinesRequest ChatterRequest() => new()
     {
         Purpose = NpcLinePurposes.Chatter,
@@ -261,7 +245,7 @@ public sealed class NpcAiLineTests : IDisposable
     [Fact]
     public void HttpProvider_PostsToNpcLines_WithPascalCaseJson_AndReadsLines()
     {
-        var handler = new StubHandler(HttpStatusCode.OK, "{\"Lines\":[\"Regen!\",\"Prima, {a}!\"]}");
+        var handler = new StubHttpHandler(HttpStatusCode.OK, "{\"Lines\":[\"Regen!\",\"Prima, {a}!\"]}");
         var provider = new HttpAiMissionProvider("http://test.local/", new HttpClient(handler));
 
         Assert.Equal(new[] { "Regen!", "Prima, {a}!" }, provider.GenerateNpcLines(ChatterRequest()));
@@ -277,7 +261,7 @@ public sealed class NpcAiLineTests : IDisposable
     [InlineData(HttpStatusCode.OK, "not json")]
     [InlineData(HttpStatusCode.InternalServerError, "{\"Lines\":[\"x\"]}")]
     public void HttpProvider_NoUsableAnswer_IsNull(HttpStatusCode code, string body)
-        => Assert.Null(new HttpAiMissionProvider("http://test.local", new HttpClient(new StubHandler(code, body))).GenerateNpcLines(ChatterRequest()));
+        => Assert.Null(new HttpAiMissionProvider("http://test.local", new HttpClient(new StubHttpHandler(code, body))).GenerateNpcLines(ChatterRequest()));
 
     [Fact]
     public void NullProvider_HasNoLines()
@@ -286,44 +270,12 @@ public sealed class NpcAiLineTests : IDisposable
     [Fact]
     public void ScreenedProvider_DropsTheWholeSet_WhenOneLineIsRefused()
     {
-        var inner = new LinesProvider(_ => new[] { "All good.", "bad words" });
+        var inner = new FakeNpcLines(_ => new[] { "All good.", "bad words" });
         Assert.Null(new ScreenedAiTextProvider(inner, t => t == "bad words" ? null : t).GenerateNpcLines(ChatterRequest()));
         Assert.Equal(new[] { "All good.", "bad words" }, new ScreenedAiTextProvider(inner, t => t).GenerateNpcLines(ChatterRequest()));
     }
 
     // ---------------- The server path ----------------
-
-    /// <summary>A scripted /npc-lines backend. With a gate it blocks until the test opens it (to hold requests in flight).</summary>
-    private sealed class LinesProvider : IAiMissionProvider
-    {
-        private readonly Func<NpcLinesRequest, string[]?> _answer;
-        private readonly ManualResetEventSlim? _gate;
-        private int _calls;
-
-        public LinesProvider(Func<NpcLinesRequest, string[]?> answer, ManualResetEventSlim? gate = null)
-        {
-            _answer = answer;
-            _gate = gate;
-        }
-
-        public int Calls => Volatile.Read(ref _calls);
-
-        public NpcLinesRequest? Last { get; private set; }
-
-        public MissionPlan? Generate(string context) => null;
-
-        public string? GenerateNpcLine(NpcLineRequest request) => null;
-
-        public MissionTextResult? GenerateMissionText(MissionTextRequest request) => null;
-
-        public string[]? GenerateNpcLines(NpcLinesRequest request)
-        {
-            Interlocked.Increment(ref _calls);
-            Last = request;
-            _gate?.Wait(TimeSpan.FromSeconds(10));
-            return _answer(request);
-        }
-    }
 
     private SvGameServer NewServer(string name, AiLevel level, IAiMissionProvider? ai, Action<ServerConfig>? configure = null)
     {
@@ -360,7 +312,7 @@ public sealed class NpcAiLineTests : IDisposable
     [Fact]
     public void AiOff_NeverCallsTheBackend()
     {
-        var provider = new LinesProvider(_ => new[] { "Hi, {player}!" });
+        var provider = new FakeNpcLines(_ => new[] { "Hi, {player}!" });
         var server = NewServer("off", AiLevel.Off, provider);
         server.RunAiLinesSynchronouslyForTest();
 
@@ -373,7 +325,7 @@ public sealed class NpcAiLineTests : IDisposable
     [Fact]
     public void AGoodAnswer_IsCached_AndFilledPerReceiver_InTheirOwnLanguage()
     {
-        var provider = new LinesProvider(r => r.Language == "de" ? new[] { "Hallo, {player}!" } : new[] { "Hi there, {player}!" });
+        var provider = new FakeNpcLines(r => r.Language == "de" ? new[] { "Hallo, {player}!" } : new[] { "Hi there, {player}!" });
         var server = NewServer("fill", AiLevel.TextOnly, provider);
         server.RunAiLinesSynchronouslyForTest();
         server.SetAiVariantRollForTest(1.0); // no extra variants here
@@ -408,7 +360,7 @@ public sealed class NpcAiLineTests : IDisposable
             null,                                          // 404 / backend down
             new[] { "h.i.t.l.e.r was right, {player}" },   // refused by the content screen
         });
-        var provider = new LinesProvider(_ => answers.Dequeue());
+        var provider = new FakeNpcLines(_ => answers.Dequeue());
         var server = NewServer("bad", AiLevel.TextOnly, provider, c => c.AiLinesPerMinute = 600);
         server.RunAiLinesSynchronouslyForTest();
 
@@ -426,7 +378,7 @@ public sealed class NpcAiLineTests : IDisposable
     [Fact]
     public void Budget_KeepsReserves_SoChatterNeverStarvesAPlayer()
     {
-        var provider = new LinesProvider(_ => new[] { "Hello, {player}!" });
+        var provider = new FakeNpcLines(_ => new[] { "Hello, {player}!" });
         var server = NewServer("budget", AiLevel.TextOnly, provider);
         server.RunAiLinesSynchronouslyForTest();
         bool Ask(string key, AiLinePriority p) => server.RequestAiLinesForTest(key, OneLine(), p);
@@ -452,7 +404,7 @@ public sealed class NpcAiLineTests : IDisposable
     [Fact]
     public void Budget_RateZero_MakesNoRequests()
     {
-        var provider = new LinesProvider(_ => new[] { "Hello, {player}!" });
+        var provider = new FakeNpcLines(_ => new[] { "Hello, {player}!" });
         var server = NewServer("rate0", AiLevel.TextOnly, provider, c => c.AiLinesPerMinute = 0);
         server.RunAiLinesSynchronouslyForTest();
 
@@ -464,7 +416,7 @@ public sealed class NpcAiLineTests : IDisposable
     public void InFlight_IsCappedAtTwo_AndOneKeyAsksOnlyOnce()
     {
         using var gate = new ManualResetEventSlim(false);
-        var provider = new LinesProvider(_ => new[] { "Hello, {player}!" }, gate);
+        var provider = new FakeNpcLines(_ => new[] { "Hello, {player}!" }, gate);
         var server = NewServer("inflight", AiLevel.TextOnly, provider);
 
         Assert.True(server.RequestAiLinesForTest("k1", OneLine(), AiLinePriority.PlayerInitiated));
@@ -482,7 +434,7 @@ public sealed class NpcAiLineTests : IDisposable
     public void AiLinesFor_MissAsks_HitRotates_UpToThreeVariants()
     {
         int n = 0;
-        var provider = new LinesProvider(_ => new[] { $"Hello {(char)('A' + n++)}, {{player}}!" });
+        var provider = new FakeNpcLines(_ => new[] { $"Hello {(char)('A' + n++)}, {{player}}!" });
         var server = NewServer("variants", AiLevel.TextOnly, provider, c => c.AiLinesPerMinute = 600);
         server.RunAiLinesSynchronouslyForTest();
         const string key = "passing_hello|resident|p3|en|known";

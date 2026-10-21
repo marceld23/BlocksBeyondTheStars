@@ -485,36 +485,6 @@ public sealed class VillageFestivalTests
 
     // ---------------- AI (hosted worlds) ----------------
 
-    /// <summary>A scripted backend: answers per purpose, records every request.</summary>
-    private sealed class FakeLines : IAiMissionProvider
-    {
-        private readonly Func<NpcLinesRequest, string[]?> _answer;
-        private int _calls;
-
-        public FakeLines(Func<NpcLinesRequest, string[]?> answer) => _answer = answer;
-
-        public int Calls => Volatile.Read(ref _calls);
-
-        public List<NpcLinesRequest> Requests { get; } = new();
-
-        public MissionPlan? Generate(string context) => null;
-
-        public string? GenerateNpcLine(NpcLineRequest request) => null;
-
-        public MissionTextResult? GenerateMissionText(MissionTextRequest request) => null;
-
-        public string[]? GenerateNpcLines(NpcLinesRequest request)
-        {
-            Interlocked.Increment(ref _calls);
-            lock (Requests)
-            {
-                Requests.Add(request);
-            }
-
-            return _answer(request);
-        }
-    }
-
     private static string[]? FestivalAnswers(NpcLinesRequest r) => r.Purpose switch
     {
         NpcLinePurposes.Cheer => new[] { "Yay, {player}!", "Go, {player}, go!", "Party time!", "Woohoo!", "Hip hip hooray!", "Dance with us, {player}!" },
@@ -522,7 +492,7 @@ public sealed class VillageFestivalTests
         _ => null,
     };
 
-    private static NpcLifeWorld AiWorld(string name, AiLevel level, FakeLines ai)
+    private static NpcLifeWorld AiWorld(string name, AiLevel level, FakeNpcLines ai)
     {
         var w = World(name, c => c.AiLevel = level);
         w.Server.SetAiProviderForTest(ai);
@@ -534,7 +504,7 @@ public sealed class VillageFestivalTests
     [Fact]
     public void WithAi_PlanningAsksForTheCheersAndTheThanks_InTheHerosLanguage_AndThePartyUsesThem()
     {
-        var ai = new FakeLines(FestivalAnswers);
+        var ai = new FakeNpcLines(FestivalAnswers);
         using var w = AiWorld("fest_ai", AiLevel.TextOnly, ai);
         var (qm, _) = Village5(w);
 
@@ -581,7 +551,7 @@ public sealed class VillageFestivalTests
     [Fact]
     public void WithAiOff_NothingIsAsked_AndTheLinesAreAuthored()
     {
-        var ai = new FakeLines(FestivalAnswers);
+        var ai = new FakeNpcLines(FestivalAnswers);
         using var w = AiWorld("fest_ai_off", AiLevel.Off, ai);
         var (qm, _) = Village5(w);
 

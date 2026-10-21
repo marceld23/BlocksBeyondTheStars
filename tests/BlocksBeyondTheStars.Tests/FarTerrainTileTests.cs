@@ -151,28 +151,6 @@ public sealed class FarTerrainTileTests : IDisposable
         Assert.DoesNotContain(plan, step => step.Contains("BLOOM", StringComparison.OrdinalIgnoreCase));
     }
 
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<FarTerrainTile> Tiles = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is FarTerrainTile t) Tiles.Add(t);
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode) { }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-    }
-
     [Fact]
     public void TileBuilds_ArePacedByThePerTickBudget_AndCachedTilesAnswerAtOnce()
     {
@@ -200,33 +178,33 @@ public sealed class FarTerrainTileTests : IDisposable
         }
 
         server.FarTerrainTileRequestForTest(p, new FarTerrainTileRequest { Tiles = pairs.ToArray() }, queueOnly: true);
-        Assert.Empty(transport.Tiles); // nothing is built in the handler any more
+        Assert.Empty(transport.Tiles()); // nothing is built in the handler any more
         Assert.Equal(24, p.FarTileQueue.Count);
 
         server.TickForTest(0.1);
-        Assert.Single(transport.Tiles); // one build per tick at budget 0
+        Assert.Single(transport.Tiles()); // one build per tick at budget 0
         for (int i = 0; i < 23; i++)
         {
             server.TickForTest(0.1);
         }
 
-        Assert.Equal(24, transport.Tiles.Count);
-        Assert.Equal(24, transport.Tiles.Select(t => (t.TileX, t.TileZ)).Distinct().Count()); // every tile once
+        Assert.Equal(24, transport.Tiles().Count);
+        Assert.Equal(24, transport.Tiles().Select(t => (t.TileX, t.TileZ)).Distinct().Count()); // every tile once
         Assert.Empty(p.FarTileQueue);
 
         // Asking again for tiles the world has cached is answered inside the handler — free, no queue.
         server.FarTerrainTileRequestForTest(p, new FarTerrainTileRequest { Tiles = pairs.Take(8).ToArray() }, queueOnly: true);
-        Assert.Equal(28, transport.Tiles.Count);
+        Assert.Equal(28, transport.Tiles().Count);
         Assert.Empty(p.FarTileQueue);
 
         // A re-ask of a tile that is still queued is a no-op: the queue holds each tile once.
-        transport.Tiles.Clear();
+        transport.Sent.Clear();
         var fresh = new[] { tx0 + 9, tz0, tx0 + 9, tz0, tx0 + 10, tz0 };
         server.FarTerrainTileRequestForTest(p, new FarTerrainTileRequest { Tiles = fresh }, queueOnly: true);
         Assert.Equal(2, p.FarTileQueue.Count);
         server.FarTileBudgetMsForTest = -1; // unlimited: the queue drains in one tick
         server.TickForTest(0.1);
-        Assert.Equal(2, transport.Tiles.Count);
+        Assert.Equal(2, transport.Tiles().Count);
         server.Stop();
     }
 
@@ -244,4 +222,12 @@ public sealed class FarTerrainTileTests : IDisposable
             // lingering SQLite handle on Windows
         }
     }
+}
+
+/// <summary>The one-off query of <see cref="FarTerrainTileTests"/> on the shared <see cref="RecordingTransport"/>.</summary>
+file static class FarTerrainTileTransport
+{
+    /// <summary>The far-terrain tiles sent per connection (a tile is never broadcast), in order.</summary>
+    public static List<FarTerrainTile> Tiles(this RecordingTransport t)
+        => t.Sent.Where(x => x.Conn != int.MinValue).Select(x => x.Msg).OfType<FarTerrainTile>().ToList();
 }

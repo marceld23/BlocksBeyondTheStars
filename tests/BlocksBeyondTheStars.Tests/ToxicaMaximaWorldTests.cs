@@ -7,7 +7,6 @@ using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
-using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -37,41 +36,6 @@ public sealed class ToxicaMaximaWorldTests
         gen.SetLavaCoreVolcanoes(true);
         gen.SetTerrainGeneration(generation);
         return gen;
-    }
-
-    /// <summary>Reads generated blocks by world position, one cached chunk per coordinate.</summary>
-    private sealed class Probe
-    {
-        private readonly WorldGenerator _gen;
-        private readonly PlanetType _planet;
-        private readonly Dictionary<ChunkCoord, ChunkData> _chunks = new();
-
-        public Probe(WorldGenerator gen, PlanetType planet)
-        {
-            _gen = gen;
-            _planet = planet;
-        }
-
-        public BlockId At(int x, int y, int z)
-        {
-            var coord = WorldConstants.WorldToChunk(new Vector3i(x, y, z));
-            if (!_chunks.TryGetValue(coord, out var chunk))
-            {
-                chunk = _gen.Generate(_planet, coord);
-                _chunks[coord] = chunk;
-            }
-
-            var origin = WorldConstants.ChunkOrigin(coord);
-            return chunk.Get(x - origin.X, y - origin.Y, z - origin.Z);
-        }
-
-        /// <summary>The column's ground cell: the generator's own surface height (no chunk scan — the CI runner pays for every
-        /// chunk this probe touches, #2068), or -1 where a cave mouth, hole or lake has taken the ground away.</summary>
-        public int Surface(int x, int z)
-        {
-            int sy = _gen.SurfaceHeight(_planet, x, z);
-            return sy is >= 1 and <= 150 && !At(x, sy, z).IsAir ? sy : -1;
-        }
     }
 
     private static BlockId Block(string key) => Content.GetBlock(key)!.NumericId;
@@ -252,7 +216,7 @@ public sealed class ToxicaMaximaWorldTests
     [Fact]
     public void Toxica_Ground_IsTainted_AndTaintedOreLiesWithinTheTopEightBlocks()
     {
-        var probe = new Probe(Generator(), Toxica);
+        var probe = new WorldProbe(Generator(), Toxica);
         var taintedGround = new HashSet<BlockId> { Block("tainted_soil"), Block("tainted_subsoil"), Block("tainted_stone"), Block("tainted_log") };
         var frozen = new HashSet<BlockId> { Block("ice"), Block("snow") }; // the needles reach the cold: upland ponds freeze
         var taintedOres = new HashSet<BlockId>
@@ -321,7 +285,7 @@ public sealed class ToxicaMaximaWorldTests
     [Fact]
     public void Toxica_DeadSnags_AreTaintedLogs_WithoutLeaves_AndTheCavesAreCarved()
     {
-        var probe = new Probe(Generator(), Toxica);
+        var probe = new WorldProbe(Generator(), Toxica);
         var taintedLog = Block("tainted_log");
         var woodLog = Block("wood_log");
         var leaves = Block("tree_leaves");

@@ -8,7 +8,6 @@ using System.Linq;
 using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
@@ -56,48 +55,6 @@ public sealed class VegaChapterScenesTests : IDisposable
 
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         try { Directory.Delete(_root, recursive: true); } catch { /* best-effort temp cleanup */ }
-    }
-
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((connectionId, m));
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((int.MinValue, m));
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-
-        public List<object> To(PlayerSession who) => Sent.Where(x => x.Conn == who.ConnectionId).Select(x => x.Msg).ToList();
-
-        public List<T> To<T>(PlayerSession who) => To(who).OfType<T>().ToList();
-
-        public List<string> LineKeys(PlayerSession who) => To<ShipAiLine>(who).Where(l => l.LineKey.Length > 0).Select(l => l.LineKey).ToList();
-
-        /// <summary>The VEGA scenes the player was sent, in order.</summary>
-        public List<string> VegaPlays(PlayerSession who) => To<CutscenePlay>(who).Where(c => c.PackId == V).Select(c => c.CutsceneId).ToList();
-
-        /// <summary>Where a scene and a line went out in the player's stream (-1 = never).</summary>
-        public (int Scene, int Line) Order(PlayerSession who, string scene, string lineKey)
-        {
-            var sent = To(who);
-            return (sent.FindIndex(m => m is CutscenePlay c && c.PackId == V && c.CutsceneId == scene),
-                sent.FindIndex(m => m is ShipAiLine l && l.LineKey == lineKey));
-        }
     }
 
     private SqliteWorldRepository Repo(string world)
@@ -431,8 +388,8 @@ public sealed class VegaChapterScenesTests : IDisposable
         server.SkipTutorialForTest(p);
         server.TickCutscenesForTest(p);
 
-        Assert.Equal(new[] { "ch1.open", "b01" }, transport.VegaPlays(p)); // chained: no 90 s gap, no recap in chapter 1
-        var (scene, line) = transport.Order(p, "b01", "story.vega.beat01");
+        Assert.Equal(new[] { "ch1.open", "b01" }, transport.Plays(p, V)); // chained: no 90 s gap, no recap in chapter 1
+        var (scene, line) = transport.Order(p, V, "b01", "story.vega.beat01");
         Assert.True(scene >= 0 && line > scene, $"card at {scene}, line at {line}"); // the client claims the line for its card
         var play = transport.To<CutscenePlay>(p).Single(c => c.CutsceneId == "ch1.open");
         Assert.Equal("1", LineText.SplitArgs(play.Arg)[1]); // "Chapter 1"
@@ -447,13 +404,13 @@ public sealed class VegaChapterScenesTests : IDisposable
 
         server.SkipTutorialForTest(p);
         Drain(server, p);
-        Assert.Equal(new[] { "ch1.open" }, transport.VegaPlays(p));
+        Assert.Equal(new[] { "ch1.open" }, transport.Plays(p, V));
         Assert.DoesNotContain("story.vega.beat01", transport.LineKeys(p));
 
         server.AdminAdvanceStory(ToB1);
         Drain(server, p);
-        Assert.Equal(new[] { "ch1.open", "b01" }, transport.VegaPlays(p)); // the opening once; the beat's card now
-        var (scene, line) = transport.Order(p, "b01", "story.vega.beat01");
+        Assert.Equal(new[] { "ch1.open", "b01" }, transport.Plays(p, V)); // the opening once; the beat's card now
+        var (scene, line) = transport.Order(p, V, "b01", "story.vega.beat01");
         Assert.True(scene >= 0 && line > scene);
     }
 
@@ -468,7 +425,7 @@ public sealed class VegaChapterScenesTests : IDisposable
         server.SkipTutorialForTest(p);
         Drain(server, p);
 
-        Assert.Equal(new[] { StoryCutsceneIds.Recap, "ch3.open" }, transport.VegaPlays(p)); // never ch1/ch2 nor the beat cards
+        Assert.Equal(new[] { StoryCutsceneIds.Recap, "ch3.open" }, transport.Plays(p, V)); // never ch1/ch2 nor the beat cards
         Assert.DoesNotContain(transport.LineKeys(p), k => k.StartsWith("story.vega.beat", StringComparison.Ordinal));
         Assert.All(Enumerable.Range(1, 5), n => Assert.True(Has(p, StoryPackKeys.Beat(V, n)))); // in the Journal
         Assert.False(Has(p, StoryPackKeys.CutsceneSent(V, "ch1.open")));
@@ -486,8 +443,8 @@ public sealed class VegaChapterScenesTests : IDisposable
         server.SkipTutorialForTest(p);
         Drain(server, p);
 
-        Assert.Equal(new[] { StoryCutsceneIds.Recap, "ch7.open" }, transport.VegaPlays(p));
-        var (scene, line) = transport.Order(p, "ch7.open", "story.vega.guardian_revealed");
+        Assert.Equal(new[] { StoryCutsceneIds.Recap, "ch7.open" }, transport.Plays(p, V));
+        var (scene, line) = transport.Order(p, V, "ch7.open", "story.vega.guardian_revealed");
         Assert.True(scene >= 0 && line > scene, $"scene at {scene}, line at {line}"); // still sent: the panel's skip fallback, the log
     }
 
@@ -509,14 +466,14 @@ public sealed class VegaChapterScenesTests : IDisposable
         Drain(server, crew, 6);
         Drain(server, rookie, 6);
 
-        Assert.Equal(new[] { "b01", "ch2.open", "b03" }, transport.VegaPlays(crew)); // one per cooldown, in arc order
+        Assert.Equal(new[] { "b01", "ch2.open", "b03" }, transport.Plays(crew, V)); // one per cooldown, in arc order
         foreach (var (scene, key) in new[] { ("b01", "story.vega.beat01"), ("ch2.open", "story.vega.beat02"), ("b03", "story.vega.beat03") })
         {
-            var (s, l) = transport.Order(crew, scene, key);
+            var (s, l) = transport.Order(crew, V, scene, key);
             Assert.True(s >= 0 && l > s, $"{scene}: scene at {s}, line at {l}");
         }
 
-        Assert.Empty(transport.VegaPlays(rookie));
+        Assert.Empty(transport.Plays(rookie, V));
         Assert.DoesNotContain(transport.LineKeys(rookie), k => k.StartsWith("story.vega.beat", StringComparison.Ordinal));
         Assert.False(Has(rookie, StoryPackKeys.Beat(V, 3)));
     }
@@ -535,10 +492,10 @@ public sealed class VegaChapterScenesTests : IDisposable
         server.AdminRevealFinale(); // B12 and the Guardian system in one call
         Drain(server, p);
 
-        Assert.Equal(new[] { "ch7.open" }, transport.VegaPlays(p));
+        Assert.Equal(new[] { "ch7.open" }, transport.Plays(p, V));
         foreach (string key in new[] { "story.vega.beat12", "story.vega.guardian_revealed" })
         {
-            var (scene, line) = transport.Order(p, "ch7.open", key);
+            var (scene, line) = transport.Order(p, V, "ch7.open", key);
             Assert.True(scene >= 0 && line > scene, $"{key}: scene at {scene}, line at {line}");
         }
     }
@@ -552,13 +509,13 @@ public sealed class VegaChapterScenesTests : IDisposable
 
         server.SkipTutorialForTest(p);
         Drain(server, p);
-        Assert.Empty(transport.VegaPlays(p));
+        Assert.Empty(transport.Plays(p, V));
         Assert.Contains("story.vega.beat05", transport.LineKeys(p)); // the newest beat, as before the chapter scenes
         Assert.True(Has(p, StoryPackKeys.CutsceneSeen(V, "ch3.open")));
 
         server.AdminAdvanceStory(33 - ToB5); // B6 opens chapter 4
         Drain(server, p);
-        Assert.Empty(transport.VegaPlays(p));
+        Assert.Empty(transport.Plays(p, V));
         Assert.Contains("story.vega.beat06", transport.LineKeys(p));
         Assert.True(Has(p, StoryPackKeys.CutsceneSeen(V, "ch4.open")));
     }
@@ -577,7 +534,7 @@ public sealed class VegaChapterScenesTests : IDisposable
 
         var news = Assert.Single(transport.To<ShipAiLine>(p), l => l.LineKey == StoryNarratorLines.JournalNews);
         Assert.Equal("4", news.LineArg);
-        Assert.Equal(new[] { StoryCutsceneIds.Recap, "ch3.open" }, transport.VegaPlays(p)); // the recap leads into the scene at once
+        Assert.Equal(new[] { StoryCutsceneIds.Recap, "ch3.open" }, transport.Plays(p, V)); // the recap leads into the scene at once
         var recap = transport.To<CutscenePlay>(p).Single(c => c.CutsceneId == StoryCutsceneIds.Recap);
         Assert.Equal(new[] { "story.vega.ch.signature", "story.vega.ch.service" }, LineText.SplitArgs(recap.Arg));
         Assert.DoesNotContain(transport.LineKeys(p), k => k.StartsWith("story.vega.beat", StringComparison.Ordinal));
@@ -595,7 +552,7 @@ public sealed class VegaChapterScenesTests : IDisposable
         Drain(server, p);
 
         Assert.Single(transport.To<ShipAiLine>(p), l => l.LineKey == StoryNarratorLines.JournalNews);
-        Assert.Empty(transport.VegaPlays(p)); // no recap within a chapter, the chapter's scene was watched
+        Assert.Empty(transport.Plays(p, V)); // no recap within a chapter, the chapter's scene was watched
         Assert.DoesNotContain(transport.LineKeys(p), k => k.StartsWith("story.vega.beat", StringComparison.Ordinal));
     }
 
@@ -610,8 +567,8 @@ public sealed class VegaChapterScenesTests : IDisposable
         Drain(server, p);
 
         Assert.DoesNotContain(transport.To<ShipAiLine>(p), l => l.LineKey == StoryNarratorLines.JournalNews);
-        Assert.Equal(new[] { "b04" }, transport.VegaPlays(p));
-        var (scene, line) = transport.Order(p, "b04", "story.vega.beat04");
+        Assert.Equal(new[] { "b04" }, transport.Plays(p, V));
+        var (scene, line) = transport.Order(p, V, "b04", "story.vega.beat04");
         Assert.True(scene >= 0 && line > scene, $"card at {scene}, line at {line}");
     }
 
@@ -625,8 +582,8 @@ public sealed class VegaChapterScenesTests : IDisposable
         var p = Join(server, 1, "Away");
         Drain(server, p);
 
-        Assert.Equal(new[] { "ch3.open" }, transport.VegaPlays(p));
-        var (scene, line) = transport.Order(p, "ch3.open", "story.vega.beat05");
+        Assert.Equal(new[] { "ch3.open" }, transport.Plays(p, V));
+        var (scene, line) = transport.Order(p, V, "ch3.open", "story.vega.beat05");
         Assert.True(scene >= 0 && line > scene, $"scene at {scene}, line at {line}");
     }
 }

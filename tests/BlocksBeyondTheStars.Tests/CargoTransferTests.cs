@@ -40,35 +40,9 @@ public sealed class CargoTransferTests : IDisposable
         return server;
     }
 
-    /// <summary>Records every server send so a test can read the feedback line the player got.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<object> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-    }
-
     /// <summary>The cargo feedback tokens the player was sent (rejections and info lines alike).</summary>
     private static List<string> CargoLines(RecordingTransport t)
-        => t.Sent.Select(m => m switch
+        => t.Messages().Select(m => m switch
             {
                 ActionRejected r when r.Action == "cargo" => r.Reason,
                 ServerMessage s when s.Text.StartsWith("@srv.cargo.", StringComparison.Ordinal) => s.Text,

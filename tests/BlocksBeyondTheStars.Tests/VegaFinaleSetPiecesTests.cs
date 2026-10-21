@@ -8,7 +8,6 @@ using System.Linq;
 using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
@@ -55,48 +54,6 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
 
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         try { Directory.Delete(_root, recursive: true); } catch { /* best-effort temp cleanup */ }
-    }
-
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((connectionId, m));
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((int.MinValue, m));
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-
-        public List<object> To(PlayerSession who) => Sent.Where(x => x.Conn == who.ConnectionId).Select(x => x.Msg).ToList();
-
-        public List<T> To<T>(PlayerSession who) => To(who).OfType<T>().ToList();
-
-        public List<string> LineKeys(PlayerSession who) => To<ShipAiLine>(who).Where(l => l.LineKey.Length > 0).Select(l => l.LineKey).ToList();
-
-        /// <summary>The VEGA scenes the player was sent, in order.</summary>
-        public List<string> Plays(PlayerSession who) => To<CutscenePlay>(who).Where(c => c.PackId == V).Select(c => c.CutsceneId).ToList();
-
-        /// <summary>Where a scene and a line went out in the player's stream (-1 = never).</summary>
-        public (int Scene, int Line) Order(PlayerSession who, string scene, string lineKey)
-        {
-            var sent = To(who);
-            return (sent.FindIndex(m => m is CutscenePlay c && c.PackId == V && c.CutsceneId == scene),
-                sent.FindIndex(m => m is ShipAiLine l && l.LineKey == lineKey));
-        }
     }
 
     private SqliteWorldRepository Repo(string world)
@@ -320,14 +277,14 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
         Drain(server, friend);
 
         Assert.True(server.InSpace(pilot.State.PlayerId));
-        Assert.Contains("fin.arrival", transport.Plays(pilot));
+        Assert.Contains("fin.arrival", transport.Plays(pilot, V));
         Assert.True(Has(pilot, StoryPackKeys.CutsceneSent(V, "fin.arrival")));
-        Assert.DoesNotContain("fin.arrival", transport.Plays(friend)); // only whoever is in the Guardian system
+        Assert.DoesNotContain("fin.arrival", transport.Plays(friend, V)); // only whoever is in the Guardian system
 
         transport.Sent.Clear();
         server.JumpIntoGuardianSystemForTest(pilot); // once per player
         Drain(server, pilot);
-        Assert.DoesNotContain("fin.arrival", transport.Plays(pilot));
+        Assert.DoesNotContain("fin.arrival", transport.Plays(pilot, V));
     }
 
     [Fact]
@@ -347,7 +304,7 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
         transport.Sent.Clear();
         server.JumpIntoGuardianSystemForTest(late);
         Drain(server, late);
-        Assert.DoesNotContain("fin.arrival", transport.Plays(late)); // the core is quiet: no "arrival" any more
+        Assert.DoesNotContain("fin.arrival", transport.Plays(late, V)); // the core is quiet: no "arrival" any more
     }
 
     // ---------------- The descent ----------------
@@ -368,7 +325,7 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
         var shaft = server.CoreShaftAnchorForTest!.Value;
         Assert.True(play.HasAnchor);
         Assert.Equal((shaft.X, shaft.Y, shaft.Z), (play.AnchorX, play.AnchorY, play.AnchorZ));
-        var (scene, line) = transport.Order(p, "fin.descent", "vega.hint.guardian_core");
+        var (scene, line) = transport.Order(p, V, "fin.descent", "vega.hint.guardian_core");
         Assert.True(scene >= 0 && line > scene, $"scene at {scene}, line at {line}"); // the client keeps the hint for the scene
 
         // The anchor sits on the shaft the stamp carved: open from the chamber's ceiling up to the surface.
@@ -414,11 +371,11 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
         int scene = coreStream.FindIndex(m => m is CutscenePlay c && c.CutsceneId == "fin.breach");
         int node = coreStream.FindIndex(m => m is CoreDialogueMessage d && !d.Won);
         Assert.True(scene >= 0 && node > scene, $"breach at {scene}, node at {node}");
-        Assert.DoesNotContain("fin.duel", transport.Plays(core));
+        Assert.DoesNotContain("fin.duel", transport.Plays(core, V));
 
         // Elsewhere: the banner, never the breach.
-        Assert.Contains("fin.duel", transport.Plays(away));
-        Assert.DoesNotContain("fin.breach", transport.Plays(away));
+        Assert.Contains("fin.duel", transport.Plays(away, V));
+        Assert.DoesNotContain("fin.breach", transport.Plays(away, V));
 
         // Both hear the node (the dialogue shows only on the core world — the client's rule): the count and the column.
         var first = transport.To<CoreDialogueMessage>(away).Last();
@@ -445,7 +402,7 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
 
         HackTheCore(server, core);
         Drain(server, pilot);
-        Assert.Contains("fin.duel", transport.Plays(pilot)); // the flight is no core world: the banner
+        Assert.Contains("fin.duel", transport.Plays(pilot, V)); // the flight is no core world: the banner
 
         server.CoreDialogueChoiceForTest(pilot.State.PlayerId, 0);
         Assert.Equal(0, server.DuelNodeForTest);
@@ -467,7 +424,7 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
         Drain(server, lander);
         var node = Assert.Single(transport.To<CoreDialogueMessage>(lander));
         Assert.Equal((1, "core.duel.n1.prompt"), (node.Node, node.PromptKey));
-        Assert.DoesNotContain("fin.descent", transport.Plays(lander)); // the duel already runs: straight to the core
+        Assert.DoesNotContain("fin.descent", transport.Plays(lander, V)); // the duel already runs: straight to the core
 
         // A relog in the middle of the duel (it used to show nothing until somebody else answered).
         server.DisconnectLocalPlayerForTest(core.State.PlayerId);
@@ -513,12 +470,12 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
         Drain(server, old);
 
         // The director: the stand-down, then the ending (chained) — each before the line it shows.
-        var plays = transport.Plays(crew);
+        var plays = transport.Plays(crew, V);
         int standdown = plays.IndexOf("fin.standdown");
         Assert.True(standdown >= 0 && plays.IndexOf(StoryCutsceneIds.Resolution) > standdown, string.Join(", ", plays));
-        var (s1, l1) = transport.Order(crew, "fin.standdown", "story.vega.finale_resolved");
+        var (s1, l1) = transport.Order(crew, V, "fin.standdown", "story.vega.finale_resolved");
         Assert.True(s1 >= 0 && l1 > s1, $"stand-down at {s1}, its line at {l1}");
-        var (s2, l2) = transport.Order(crew, StoryCutsceneIds.Resolution, "story.vega.beat13");
+        var (s2, l2) = transport.Order(crew, V, StoryCutsceneIds.Resolution, "story.vega.beat13");
         Assert.True(s2 >= 0 && l2 > s2, $"ending at {s2}, the epilogue at {l2}");
         Assert.Empty(transport.To<StoryResolved>(crew));
         Assert.True(Has(crew, StoryPackKeys.CutsceneSent(V, StoryCutsceneIds.Resolution)));
@@ -570,12 +527,12 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
 
         var p = Join(server, 1, "Away");
         Drain(server, p);
-        var plays = transport.Plays(p);
+        var plays = transport.Plays(p, V);
         Assert.Contains("fin.standdown", plays);
         Assert.Contains(StoryCutsceneIds.Resolution, plays);
         Assert.Empty(transport.To<StoryResolved>(p));
         Assert.True(HasFinaleAchievement(p));
-        var (scene, line) = transport.Order(p, "fin.standdown", "story.vega.finale_resolved");
+        var (scene, line) = transport.Order(p, V, "fin.standdown", "story.vega.finale_resolved");
         Assert.True(scene >= 0 && line > scene, $"stand-down at {scene}, its line at {line}");
 
         // Watched the stand-down, gone before the ending: the next join owes the ending alone — no second line, no StoryResolved.
@@ -584,7 +541,7 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
         transport.Sent.Clear();
         var back = Join(server, 2, "Away");
         Drain(server, back);
-        Assert.Equal(new[] { StoryCutsceneIds.Resolution }, transport.Plays(back).Where(id => id is "fin.standdown" or StoryCutsceneIds.Resolution));
+        Assert.Equal(new[] { StoryCutsceneIds.Resolution }, transport.Plays(back, V).Where(id => id is "fin.standdown" or StoryCutsceneIds.Resolution));
         Assert.DoesNotContain("story.vega.finale_resolved", transport.LineKeys(back));
         Assert.Empty(transport.To<StoryResolved>(back));
 
@@ -594,7 +551,7 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
         transport.Sent.Clear();
         var third = Join(server, 3, "Away");
         Drain(server, third);
-        Assert.DoesNotContain(StoryCutsceneIds.Resolution, transport.Plays(third));
+        Assert.DoesNotContain(StoryCutsceneIds.Resolution, transport.Plays(third, V));
         Assert.Empty(transport.To<StoryResolved>(third));
     }
 
@@ -625,7 +582,7 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
 
         var p = Join(server, 1, "Owed");
         Drain(server, p);
-        var plays = transport.Plays(p);
+        var plays = transport.Plays(p, V);
         Assert.Contains(StoryCutsceneIds.Recap, plays);         // the three chapter scenes became the recap …
         Assert.DoesNotContain("ch5.open", plays);
         Assert.Contains("fin.standdown", plays);                // … the ending stays itself
@@ -655,7 +612,7 @@ public sealed class VegaFinaleSetPiecesTests : IDisposable
         Assert.True(Has(staff, StoryPackKeys.CutsceneSent(V, "fin.standdown")));
         Assert.True(Has(staff, StoryPackKeys.CutsceneSent(V, StoryCutsceneIds.Resolution)));
         Drain(server, staff);
-        Assert.Contains(StoryCutsceneIds.Resolution, transport.Plays(staff));
+        Assert.Contains(StoryCutsceneIds.Resolution, transport.Plays(staff, V));
     }
 
     // ---------------- B51: every world's machines stand down ----------------

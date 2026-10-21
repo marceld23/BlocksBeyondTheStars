@@ -42,17 +42,8 @@ public sealed class NpcGreetingTests : IDisposable
 
     // ---- Provider: HTTP contract parsing -----------------------------------------------------
 
-    private sealed class StubHandler : HttpMessageHandler
-    {
-        private readonly HttpStatusCode _code;
-        private readonly string _body;
-        public StubHandler(HttpStatusCode code, string body) { _code = code; _body = body; }
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
-            => Task.FromResult(new HttpResponseMessage(_code) { Content = new StringContent(_body) });
-    }
-
     private static HttpAiMissionProvider HttpProvider(HttpStatusCode code, string body)
-        => new("http://test.local", new HttpClient(new StubHandler(code, body)));
+        => new("http://test.local", new HttpClient(new StubHttpHandler(code, body)));
 
     [Fact]
     public void HttpProvider_ParsesTextField()

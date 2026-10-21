@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
@@ -21,14 +20,6 @@ public sealed class TickTimingTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "bbts_ticktiming_" + Guid.NewGuid().ToString("N"));
     private readonly GameContent _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
-
-    private sealed class CapturingLogger : IGameLogger
-    {
-        public List<string> Info { get; } = new();
-        void IGameLogger.Info(string message) => Info.Add(message);
-        public void Warn(string message) { }
-        public void Error(string message) { }
-    }
 
     private SvGameServer Start(string tag, double timingSeconds, CapturingLogger log, out SqliteWorldRepository repo)
     {
@@ -60,7 +51,7 @@ public sealed class TickTimingTests : IDisposable
                 server.TickForTest(0.5); // 2.5 s of sim time → windows close at 1.0 s and 2.0 s
             }
 
-            var reports = log.Info.FindAll(m => m.StartsWith("Tick timing", StringComparison.Ordinal));
+            var reports = log.Infos.FindAll(m => m.StartsWith("Tick timing", StringComparison.Ordinal));
             Assert.Equal(2, reports.Count);
             var report = reports[0];
             Assert.Contains("ticks)", report);
@@ -84,7 +75,7 @@ public sealed class TickTimingTests : IDisposable
                 server.TickForTest(0.5); // 20 s of sim time
             }
 
-            Assert.DoesNotContain(log.Info, m => m.StartsWith("Tick timing", StringComparison.Ordinal));
+            Assert.DoesNotContain(log.Infos, m => m.StartsWith("Tick timing", StringComparison.Ordinal));
         }
     }
 

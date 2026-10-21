@@ -9,7 +9,6 @@ using System.Text.Json;
 using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
@@ -56,36 +55,6 @@ public sealed class VegaStoryMissionsTests : IDisposable
 
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         try { Directory.Delete(_root, recursive: true); } catch { /* best-effort temp cleanup */ }
-    }
-
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((connectionId, m));
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((int.MinValue, m));
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-
-        public List<T> To<T>(PlayerSession who) => Sent.Where(x => x.Conn == who.ConnectionId).Select(x => x.Msg).OfType<T>().ToList();
-
-        /// <summary>The line keys VEGA spoke to a player, in order (chip-only updates left out).</summary>
-        public List<string> Lines(PlayerSession who) => To<ShipAiLine>(who).Select(l => l.LineKey).Where(k => !string.IsNullOrEmpty(k)).ToList();
     }
 
     private SqliteWorldRepository Repo(string world)
@@ -262,7 +231,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
 
         Settle(server, p);
         Assert.Equal(new[] { "m_signal" }, server.RunningMissionsForTest(p));
-        Assert.Equal(1, t.Lines(p).Count(k => k == "story.vega.m.signal.1.start"));
+        Assert.Equal(1, t.LineKeys(p).Count(k => k == "story.vega.m.signal.1.start"));
         Assert.Equal("m_signal.1", server.MissionChipStepForTest(p));
 
         // The lead bridge shows the lead's own placed text on the chip (the fragment's map signal comes with it), as VEGA's.
@@ -278,16 +247,16 @@ public sealed class VegaStoryMissionsTests : IDisposable
         // Handed out once: the next passes say nothing new.
         server.TickStoryMissionsForTest(p);
         server.TickStoryMissionsForTest(p);
-        Assert.Equal(1, t.Lines(p).Count(k => k == "story.vega.m.signal.1.start"));
+        Assert.Equal(1, t.LineKeys(p).Count(k => k == "story.vega.m.signal.1.start"));
         Assert.Contains("mission=m_signal/m_signal.1", server.StoryMissionStatusForTest(p), StringComparison.Ordinal);
 
         // The help escalation of the step on the chip: after three minutes of play without progress, VEGA's hint — once.
-        Assert.DoesNotContain("story.vega.m.hint.fragment", t.Lines(p));
+        Assert.DoesNotContain("story.vega.m.hint.fragment", t.LineKeys(p));
         server.TickStoryPacksForTest(p, 181);
         server.TickStoryMissionsForTest(p);
         server.TickStoryMissionsForTest(p);
-        Assert.Equal(1, t.Lines(p).Count(k => k == "story.vega.m.hint.fragment"));
-        Assert.DoesNotContain(StoryPackRuntimeSkipOffer, t.Lines(p)); // a mission step never nags with the skip offer
+        Assert.Equal(1, t.LineKeys(p).Count(k => k == "story.vega.m.hint.fragment"));
+        Assert.DoesNotContain(StoryPackRuntimeSkipOffer, t.LineKeys(p)); // a mission step never nags with the skip offer
     }
 
     private const string StoryPackRuntimeSkipOffer = "vega.step.offer_skip";
@@ -355,14 +324,14 @@ public sealed class VegaStoryMissionsTests : IDisposable
         Assert.True(Has(p, StoryPackKeys.Lead(V, "service", 1)));
         Assert.True(Has(p, StoryPackKeys.StepDone(V, "m_observatory.1")));
         Assert.Equal("m_observatory.2", server.MissionChipStepForTest(p));
-        Assert.Contains("story.vega.m.observatory.2.start", t.Lines(p));
+        Assert.Contains("story.vega.m.observatory.2.start", t.LineKeys(p));
         Assert.Equal("story.vega.m.observatory.2.obj", server.ObjectiveKeyForTest("Pilot"));
         Assert.Equal(milestones + 3, server.StorySnapshot.Milestones);
 
         server.RevealLoreForTest("Pilot", "observatory"); // the reader opens the post's last log: lore:read
         Assert.True(Has(p, "lore:observatory_log"));
         Assert.True(Has(p, Done("m_observatory")));
-        Assert.Contains("story.vega.m.observatory.2.done", t.Lines(p));
+        Assert.Contains("story.vega.m.observatory.2.done", t.LineKeys(p));
         Assert.Equal(milestones + 3, server.StorySnapshot.Milestones); // the lead paid it already
         Assert.Empty(server.RunningMissionsForTest(p)); // the alternative never runs for a mission that was feasible
         Assert.False(Has(p, Skipped("m_archive")) || Has(p, Done("m_archive")));
@@ -388,7 +357,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         server.TickStoryPacksForTest(p, 6); // past markerAfter 5
         server.TickStoryMissionsForTest(p);
         Assert.DoesNotContain(server.VisibleMarkersForTest("Pilot"), m => m.Ping);
-        Assert.DoesNotContain(SvGameServer.StepMarkedLine, t.Lines(p));
+        Assert.DoesNotContain(SvGameServer.StepMarkedLine, t.LineKeys(p));
 
         // On the observatory's world (a new location: probed at once) the marker goes up — for this player only.
         p.Ships[p.ActiveShipId].Modules.Add("jump_generator"); // the site may lie in another system
@@ -398,7 +367,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         server.TickStoryPacksForTest(p);
         server.TickStoryMissionsForTest(p);
         Assert.Contains(server.VisibleMarkersForTest("Pilot"), m => m.Ping && m.OwnerId == "Pilot");
-        Assert.Single(t.Lines(p), k => k == SvGameServer.StepMarkedLine);
+        Assert.Single(t.LineKeys(p), k => k == SvGameServer.StepMarkedLine);
     }
 
     [Fact]
@@ -411,8 +380,8 @@ public sealed class VegaStoryMissionsTests : IDisposable
         Settle(server, p);
         Assert.True(Has(p, Skipped("m_observatory")));
         Assert.Equal(new[] { "m_archive" }, server.RunningMissionsForTest(p));
-        Assert.DoesNotContain("story.vega.m.observatory.1.start", t.Lines(p)); // skipped silently
-        Assert.Contains("story.vega.m.archive.1.start", t.Lines(p));
+        Assert.DoesNotContain("story.vega.m.observatory.1.start", t.LineKeys(p)); // skipped silently
+        Assert.Contains("story.vega.m.archive.1.start", t.LineKeys(p));
 
         int milestones = server.StorySnapshot.Milestones;
         server.RevealLoreForTest("Pilot", "vault");
@@ -437,7 +406,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         server.RecordUniqueSiteSkipForTest(server.UniqueSiteBodyForTest("observatory")!, "observatory");
         Settle(server, p);
         Assert.True(Has(p, Done("m_archive")));
-        Assert.DoesNotContain("story.vega.m.archive.1.start", t.Lines(p));
+        Assert.DoesNotContain("story.vega.m.archive.1.start", t.LineKeys(p));
     }
 
     [Fact]
@@ -459,7 +428,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
 
         server.RaiseGameEventForTest(ann, GameEventKeys.ScanAny, "monument");
         Assert.True(Has(ann, StoryPackKeys.StepDone(V, "m_runes.1")));
-        Assert.Contains("story.vega.m.runes.2.start", t.Lines(ann));
+        Assert.Contains("story.vega.m.runes.2.start", t.LineKeys(ann));
         Assert.Equal("story.vega.obj.settlement_help", server.StoryObjectiveForTest(ann).Key);
 
         server.AddMissionDefForTest(new MissionDefinition { Id = "teach_test_1", ChainId = "teach_test", Step = 1, Surface = "radio", CountsForStory = false });
@@ -468,7 +437,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         Assert.False(Has(ann, Done("m_runes")));
         server.RaiseGameEventForTest(ann, GameEventKeys.MissionTurnedIn, "help_test_1");
         Assert.True(Has(ann, Done("m_runes")));
-        Assert.Contains("story.vega.m.runes.2.done", t.Lines(ann));
+        Assert.Contains("story.vega.m.runes.2.done", t.LineKeys(ann));
     }
 
     [Fact]
@@ -486,7 +455,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         Assert.Equal("story.vega.m.long_quiet.2.obj", server.ObjectiveKeyForTest("Pilot"));
         server.RevealLoreForTest("Pilot", "derelict");
         Assert.True(Has(p, Done("m_long_quiet")));
-        Assert.Contains("story.vega.m.long_quiet.2.done", t.Lines(p));
+        Assert.Contains("story.vega.m.long_quiet.2.done", t.LineKeys(p));
     }
 
     [Fact]
@@ -507,7 +476,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         Assert.False(Has(p, Done("m_wrecks")));
         server.RaiseGameEventForTest(p, GameEventKeys.ScanAny, "wreck");
         Assert.True(Has(p, Done("m_wrecks")));
-        Assert.Contains("story.vega.m.wrecks.1.done", t.Lines(p));
+        Assert.Contains("story.vega.m.wrecks.1.done", t.LineKeys(p));
     }
 
     [Fact]
@@ -526,7 +495,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         Assert.True(Has(p, StoryPackKeys.StepDone(V, "m_radar.1")));
         if (!Has(p, Done("m_radar")))
         {
-            Assert.Contains("story.vega.m.radar.2.start", t.Lines(p));
+            Assert.Contains("story.vega.m.radar.2.start", t.LineKeys(p));
             server.RaiseGameEventForTest(p, GameEventKeys.ModuleBuilt, "radar_array");
         }
 
@@ -542,7 +511,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         Assert.True(Has(p, StoryPackKeys.StepDone(V, "m_jump.1")));
         server.RaiseGameEventForTest(p, GameEventKeys.ModuleBuilt, "jump_generator");
         Assert.True(Has(p, Done("m_jump")));
-        Assert.Contains("story.vega.m.jump.2.done", t.Lines(p));
+        Assert.Contains("story.vega.m.jump.2.done", t.LineKeys(p));
         Assert.Equal(milestones + 3, server.StorySnapshot.Milestones); // once
     }
 
@@ -561,7 +530,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         int milestones = server.StorySnapshot.Milestones;
         server.RaiseGameEventForTest(p, GameEventKeys.MissionTurnedIn, "relay_survey_1"); // the mission bridge
         Assert.True(Has(p, Done("m_survey")));
-        Assert.Contains("story.vega.m.survey.1.done", t.Lines(p));
+        Assert.Contains("story.vega.m.survey.1.done", t.LineKeys(p));
         Assert.Equal(milestones, server.StorySnapshot.Milestones); // after the last beat no bonus is paid
 
         var (dark, dt) = World("m_survey_dark", c => { TutorialOff(c); c.World = new WorldDescription { SpaceStations = Frequency.Off }; });
@@ -573,7 +542,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         Assert.Equal("story.vega.obj.relay", dark.ObjectiveKeyForTest("Pilot"));
         dark.RaiseGameEventForTest(q, GameEventKeys.RelayCommissioned, "relay_1");
         Assert.True(Has(q, Done("m_survey")));
-        Assert.Contains("story.vega.m.survey.1a.done", dt.Lines(q));
+        Assert.Contains("story.vega.m.survey.1a.done", dt.LineKeys(q));
     }
 
     // ---------------- Stand-ins, letting go, beats ----------------
@@ -596,7 +565,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         server.TickStoryMissionsForTest(p);
         Assert.True(Has(p, StoryPackKeys.StepSkipped(V, "m_signal.1")));
         Assert.Equal("m_signal.1a", server.MissionChipStepForTest(p));
-        Assert.Contains("story.vega.m.signal.1a.start", t.Lines(p));
+        Assert.Contains("story.vega.m.signal.1a.start", t.LineKeys(p));
         Assert.Equal("story.vega.obj.settlement_help", server.StoryObjectiveForTest(p).Key);
         var steps = Assert.Single(server.JournalMissionsForTest(p)).Steps;
         Assert.Equal(new[] { "m_signal.1a" }, steps.Select(s => s.Id)); // the skipped step is left out, its stand-in shows
@@ -613,12 +582,12 @@ public sealed class VegaStoryMissionsTests : IDisposable
 
         AdvanceTo(server, 2); // the score reveals the next chapter while the mission is still open — no beat waits
         Assert.Equal("service", server.TrackChapterIdForTest(p));
-        int linesBefore = t.Lines(p).Count;
+        int linesBefore = t.LineKeys(p).Count;
         server.TickStoryMissionsForTest(p);
         Assert.True(Has(p, Skipped("m_signal")));
         Assert.True(Has(p, StoryPackKeys.StepSkipped(V, "m_signal.1")));
         Assert.Empty(server.RunningMissionsForTest(p)); // chapter 2's scene first
-        Assert.DoesNotContain(t.Lines(p).Skip(linesBefore), k => k.StartsWith("story.vega.m.signal", StringComparison.Ordinal));
+        Assert.DoesNotContain(t.LineKeys(p).Skip(linesBefore), k => k.StartsWith("story.vega.m.signal", StringComparison.Ordinal));
 
         Settle(server, p);
         Assert.Equal(new[] { "m_observatory" }, server.RunningMissionsForTest(p));
@@ -684,7 +653,7 @@ public sealed class VegaStoryMissionsTests : IDisposable
         Settle(server, old);
         server.TickStoryMissionsForTest(old);
         Assert.Empty(server.RunningMissionsForTest(old));
-        Assert.DoesNotContain(t.Lines(old), k => k.StartsWith("story.vega.m.", StringComparison.Ordinal));
+        Assert.DoesNotContain(t.LineKeys(old), k => k.StartsWith("story.vega.m.", StringComparison.Ordinal));
         Assert.DoesNotContain(t.To<ShipAiLine>(old), l => !string.IsNullOrEmpty(l.Text) && l.PackId == V);
         Assert.StartsWith("story.obj.", server.ObjectiveKeyForTest("Old"), StringComparison.Ordinal);
         Assert.Empty(server.StoryMissionStatusForTest(old));

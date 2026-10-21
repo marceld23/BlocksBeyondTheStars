@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.GameServer;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
@@ -49,31 +48,6 @@ public sealed class StationDoorTests : IDisposable
         {
             // best-effort temp cleanup
         }
-    }
-
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<object> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
     }
 
     private SvGameServer NewServer(string name, out SqliteWorldRepository repo, IServerTransport? transport = null)
@@ -269,7 +243,7 @@ public sealed class StationDoorTests : IDisposable
             Edit(server, id, Door.X, Door.Y, Door.Z, "iron_wall");
 
             Assert.False(server.StationCellsForTest(id).ContainsKey(Door));
-            Assert.Contains(transport.Sent, m => m is ActionRejected r && r.Reason == "@srv.place.door_here");
+            Assert.Contains(transport.Messages(), m => m is ActionRejected r && r.Reason == "@srv.place.door_here");
         }
     }
 
@@ -283,7 +257,7 @@ public sealed class StationDoorTests : IDisposable
             var pilot = server.AddLocalPlayer("Owner");
             string id = BuildBox(server, pilot, "door_energy");
 
-            var design = transport.Sent.OfType<SpaceShipDesign>().Last(d => d.Id == id);
+            var design = transport.Messages().OfType<SpaceShipDesign>().Last(d => d.Id == id);
             Assert.Equal("station", design.Kind);
             Assert.Equal(new[] { Door.X }, design.DoorX);
             Assert.Equal(new[] { Door.Y }, design.DoorY);
@@ -477,7 +451,7 @@ public sealed class StationDoorTests : IDisposable
             transport.Sent.Clear();
             Edit(server, id, 3, -2, 0, "iron_wall");
             Edit(server, id, 4, -2, 0, "iron_wall");
-            Assert.Contains(transport.Sent, m => m is SpaceShipDesign d && d.Id == id && d.X.Contains(4)); // re-centred
+            Assert.Contains(transport.Messages(), m => m is SpaceShipDesign d && d.Id == id && d.X.Contains(4)); // re-centred
 
             // Box x −2…4 → centre 1.5: the doorway (2, −1, 0) opens at position + (1, 0, 0). The suit floats 5.5 out.
             var contact = server.SpaceEntitiesFor("Owner").First(e => e.Id == id);

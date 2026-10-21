@@ -10,7 +10,6 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
-using BlocksBeyondTheStars.Shared.Missions;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -248,39 +247,15 @@ public sealed class PlanetTraderArrivalTests
         Assert.Contains("trader_near", w.Server.VegaTipCandidatesForTest(me).Candidates);
     }
 
-    /// <summary>A scripted backend: answers the trader's hail, records every request.</summary>
-    private sealed class FakeLines : IAiMissionProvider
-    {
-        private int _calls;
-
-        public int Calls => Volatile.Read(ref _calls);
-
-        public List<NpcLinesRequest> Requests { get; } = new();
-
-        public MissionPlan? Generate(string context) => null;
-
-        public string? GenerateNpcLine(NpcLineRequest request) => null;
-
-        public MissionTextResult? GenerateMissionText(MissionTextRequest request) => null;
-
-        public string[]? GenerateNpcLines(NpcLinesRequest request)
-        {
-            Interlocked.Increment(ref _calls);
-            lock (Requests)
-            {
-                Requests.Add(request);
-            }
-
-            return request.Purpose == NpcLinePurposes.TraderHail
-                ? new[] { "{trader} here, parked right by your base on {place}! Come and trade, {player}!" }
-                : null;
-        }
-    }
+    /// <summary>The scripted backend's answer: the trader's hail, nothing else.</summary>
+    private static readonly Func<NpcLinesRequest, string[]?> TraderHail = r => r.Purpose == NpcLinePurposes.TraderHail
+        ? new[] { "{trader} here, parked right by your base on {place}! Come and trade, {player}!" }
+        : null;
 
     [Fact]
     public void AiOn_TheHailIsAskedAtTheDecision_AndTheRadioCallUsesIt()
     {
-        var ai = new FakeLines();
+        var ai = new FakeNpcLines(TraderHail);
         using var w = World("ptrader_ai", c => c.AiLevel = AiLevel.TextOnly);
         w.Server.SetAiProviderForTest(ai);
         w.Server.RunAiLinesSynchronouslyForTest();
@@ -307,7 +282,7 @@ public sealed class PlanetTraderArrivalTests
     [Fact]
     public void AiOff_AsksNothing_AndTheAuthoredHailRings()
     {
-        var ai = new FakeLines();
+        var ai = new FakeNpcLines(TraderHail);
         using var w = World("ptrader_ai_off");
         w.Server.SetAiProviderForTest(ai);
         TestGear.Wear(w.Player.State, "comm_radio");

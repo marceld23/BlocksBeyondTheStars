@@ -44,28 +44,6 @@ public sealed class BanNoticeTests : IDisposable
         return registry;
     }
 
-    /// <summary>In-memory stand-in for Docker (mirrors WorldHostTests' fake): containers "run" until stopped.</summary>
-    private sealed class FakeLauncher : IInstanceLauncher
-    {
-        private int _started;
-        private readonly HashSet<string> _running = new(StringComparer.Ordinal);
-
-        public string Start(WorldRecord world)
-        {
-            string id = "container-" + ++_started;
-            _running.Add(id);
-            return id;
-        }
-
-        public void Stop(string containerId) => _running.Remove(containerId);
-
-        public void Remove(string worldId) { }
-
-        public bool IsRunning(string containerId) => containerId != null && _running.Contains(containerId);
-
-        public IReadOnlyList<ContainerStat> ContainerStats() => Array.Empty<ContainerStat>();
-    }
-
     private static WorldOrchestrator NewOrchestrator(HostRegistry registry, FakeLauncher launcher, WorldHostConfig config)
         => new(config, registry, launcher, w => Task.FromResult(launcher.IsRunning(w.ContainerId)));
 

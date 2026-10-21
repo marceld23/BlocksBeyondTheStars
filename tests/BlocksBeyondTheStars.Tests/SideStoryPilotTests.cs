@@ -8,7 +8,6 @@ using System.Linq;
 using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
@@ -76,39 +75,6 @@ public sealed class SideStoryPilotTests : IDisposable, IClassFixture<SidePilotDa
 
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         try { Directory.Delete(_root, recursive: true); } catch { /* best-effort temp cleanup */ }
-    }
-
-    /// <summary>Records every server send so a test can assert who was told what.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((connectionId, m));
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((int.MinValue, m));
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-
-        public List<T> To<T>(PlayerSession who) => Sent.Where(x => x.Conn == who.ConnectionId).Select(x => x.Msg).OfType<T>().ToList();
-
-        /// <summary>The lines of one story pack this player was told, in order.</summary>
-        public List<ShipAiLine> Lines(PlayerSession who, string pack) => To<ShipAiLine>(who).Where(l => l.PackId == pack && l.LineKey.Length > 0).ToList();
-
-        public List<string> Plays(PlayerSession who) => To<CutscenePlay>(who).Select(x => x.CutsceneId).ToList();
     }
 
     private SvGameServer Boot(string world, RecordingTransport transport, GameContent content, Action<ServerConfig>? configure = null)
@@ -223,7 +189,7 @@ public sealed class SideStoryPilotTests : IDisposable, IClassFixture<SidePilotDa
 
         // No basic training runs for this player ("not:pack:tutorial:enabled"), so the start rule holds at the join.
         Assert.True(Has(p, StoryPackKeys.Started(P)));
-        var first = Assert.Single(transport.Lines(p, P));
+        var first = Assert.Single(transport.PackLines(p, P));
         Assert.Equal("story.side_pilot.p1.lamp.start", first.LineKey);
         Assert.Equal(Juno, first.Speaker); // the pack's own narrator, no code for it
         Assert.Equal("story.side_pilot.p1.lamp.chip", server.ObjectiveKeyForTest(id));
@@ -245,7 +211,7 @@ public sealed class SideStoryPilotTests : IDisposable, IClassFixture<SidePilotDa
         // p1.1 — the suit lamp, through its real handler.
         Deliver(server, p, new SetLampIntent { On = true });
         Assert.True(Has(p, StoryPackKeys.StepDone(P, "p1.1")));
-        var keys = transport.Lines(p, P).Select(l => l.LineKey).ToList();
+        var keys = transport.PackLines(p, P).Select(l => l.LineKey).ToList();
         Assert.Contains("story.side_pilot.p1.lamp.done", keys);
         Assert.Contains("story.side_pilot.p1.storm.start", keys); // the read step
         Assert.Contains("story.side_pilot.p1.dig.start", keys);
@@ -256,7 +222,7 @@ public sealed class SideStoryPilotTests : IDisposable, IClassFixture<SidePilotDa
         Assert.True(Has(p, StoryPackKeys.StepDone(P, "p1.3")));
         Assert.True(Has(p, StoryPackKeys.StepDone(P, "p1.2")));
         Assert.True(Has(p, StoryPackKeys.ChapterDone(P, "p1")));
-        keys = transport.Lines(p, P).Select(l => l.LineKey).ToList();
+        keys = transport.PackLines(p, P).Select(l => l.LineKey).ToList();
         Assert.Contains("story.side_pilot.p1.dig.done", keys);
         Assert.Contains("story.side_pilot.p2.slot.start", keys);
 
@@ -278,8 +244,8 @@ public sealed class SideStoryPilotTests : IDisposable, IClassFixture<SidePilotDa
         Assert.True(Has(p, StoryPackKeys.Done(P)));
         Assert.True(Has(p, StoryPackKeys.CutsceneSent(P, "pilot.lit")));
         Assert.Equal("pilot.lit", transport.Plays(p).Last()); // a banner never waits for the cooldown
-        Assert.Equal("story.side_pilot.p2.walk.done", transport.Lines(p, P).Last().LineKey);
-        Assert.All(transport.Lines(p, P), l => Assert.Equal(Juno, l.Speaker));
+        Assert.Equal("story.side_pilot.p2.walk.done", transport.PackLines(p, P).Last().LineKey);
+        Assert.All(transport.PackLines(p, P), l => Assert.Equal(Juno, l.Speaker));
         Assert.Equal(string.Empty, server.ObjectiveKeyForTest(id)); // nothing left on the chip
 
         // The Journal: one story (no world story here, no tutorial installed), both parts done, the badge.
@@ -324,7 +290,7 @@ public sealed class SideStoryPilotTests : IDisposable, IClassFixture<SidePilotDa
         // the objective list carries both (VEGA has no row before its track starts).
         Deliver(server, p, new StoryPackIntent { PackId = P, Action = StoryPackActions.StartPack });
         Assert.True(Has(p, StoryPackKeys.Started(P)));
-        var start = Assert.Single(transport.Lines(p, P));
+        var start = Assert.Single(transport.PackLines(p, P));
         Assert.Equal(("story.side_pilot.p1.lamp.start", Juno), (start.LineKey, start.Speaker));
         Assert.Equal(Tutorial, server.ObjectivePackForTest(id));
         Assert.Equal(new[] { Tutorial, P }, server.ObjectiveListForTest(p).Items.Select(i => i.PackId));
@@ -367,8 +333,8 @@ public sealed class SideStoryPilotTests : IDisposable, IClassFixture<SidePilotDa
         Assert.False(states.Packs[0].MandatoryRunning);
         Assert.True(states.Packs[1].Started);
         Assert.True(states.Packs[2].Done && states.Packs[2].Badge);
-        Assert.All(transport.Lines(p, P), l => Assert.Equal(Juno, l.Speaker));
-        Assert.All(transport.Lines(p, Tutorial), l => Assert.Equal(StoryNarrator.DefaultId, l.Speaker));
+        Assert.All(transport.PackLines(p, P), l => Assert.Equal(Juno, l.Speaker));
+        Assert.All(transport.PackLines(p, Tutorial), l => Assert.Equal(StoryNarrator.DefaultId, l.Speaker));
 
         // A second player who never opens the Journal: the side story starts by itself once part 1 of the training is
         // through (skipped counts) — next to the training, which keeps the chip. Progress is per player.

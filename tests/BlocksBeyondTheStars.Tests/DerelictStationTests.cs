@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.GameServer;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
@@ -45,36 +44,6 @@ public sealed class DerelictStationTests : IDisposable
     {
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         try { Directory.Delete(_root, recursive: true); } catch { /* best-effort temp cleanup */ }
-    }
-
-    /// <summary>Records every server send, so a test can see which warning and which VEGA line were told.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<object> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-
-        public List<string> Lines() => Sent.OfType<ServerMessage>().Select(m => m.Text).ToList();
-
-        public List<string> Vega() => Sent.OfType<ShipAiLine>().Select(l => l.LineKey).ToList();
     }
 
     private SvGameServer NewServer(string world, out SqliteWorldRepository repo, long seed = 7, Frequency derelicts = Frequency.Normal,
@@ -511,7 +480,7 @@ public sealed class DerelictStationTests : IDisposable
             Assert.Equal(0, p.State.LifeSupportSource);
 
             // Told once: the warning names the suit tank, and VEGA's first-boarding hint says there is no air aboard.
-            Assert.Single(transport.Lines(), l => l == "@srv.derelict.no_air");
+            Assert.Single(transport.Texts(), l => l == "@srv.derelict.no_air");
             Assert.Contains("vega.hint." + SvGameServer.DerelictNoAirHint, transport.Vega());
             Assert.DoesNotContain("vega.derelict.boarded", transport.Vega()); // the hint stands in for the plain line
             foreach (var code in new[] { "en", "de" })
@@ -531,7 +500,7 @@ public sealed class DerelictStationTests : IDisposable
             }
 
             Assert.True(p.State.Oxygen < o2, $"a breached room holds no air (O2 {o2} → {p.State.Oxygen})");
-            Assert.Single(transport.Lines(), l => l == "@srv.derelict.no_air"); // still told only once
+            Assert.Single(transport.Texts(), l => l == "@srv.derelict.no_air"); // still told only once
 
             // Back to the ship: its life support fills the tank up again.
             server.LeaveStation("Justus");
@@ -550,7 +519,7 @@ public sealed class DerelictStationTests : IDisposable
             server.BoardStation("Justus", id);
             Assert.True(server.InStation("Justus"));
             server.TickForTest(0.5);
-            Assert.Equal(2, transport.Lines().Count(l => l == "@srv.derelict.no_air"));
+            Assert.Equal(2, transport.Texts().Count(l => l == "@srv.derelict.no_air"));
             Assert.Single(transport.Vega(), k => k == "vega.hint." + SvGameServer.DerelictNoAirHint);
             arrival = p.State.Position;
 
@@ -808,4 +777,11 @@ public sealed class DerelictStationTests : IDisposable
 
         throw new InvalidOperationException("the derelict has no breached room");
     }
+}
+
+/// <summary>The one-off query of <see cref="DerelictStationTests"/> on the shared <see cref="RecordingTransport"/>.</summary>
+file static class DerelictStationTransport
+{
+    /// <summary>Every VEGA line key sent, to anyone, in order.</summary>
+    public static List<string> Vega(this RecordingTransport t) => t.Messages().OfType<ShipAiLine>().Select(l => l.LineKey).ToList();
 }

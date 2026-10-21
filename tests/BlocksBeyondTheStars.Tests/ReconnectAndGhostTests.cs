@@ -34,31 +34,6 @@ public sealed class ReconnectAndGhostTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    /// <summary>Records what each connection was sent, and which ones the server hung up on.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-        public readonly List<int> Disconnected = new();
-
-        public void Start(int port) { }
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((connectionId, m));
-        }
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((int.MinValue, m));
-        }
-        public void DisconnectClient(int connectionId) => Disconnected.Add(connectionId);
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-    }
-
     /// <summary>A transport that behaves like the real ones on a hang-up (#2749): a server-initiated
     /// <see cref="DisconnectClient"/> is echoed back as <see cref="ClientDisconnected"/> on the next poll
     /// (LiteNetLib, loopback and WebSocket all do that).</summary>
@@ -97,20 +72,6 @@ public sealed class ReconnectAndGhostTests : IDisposable
 
         public void Stop() { }
         public void Dispose() { }
-    }
-
-    /// <summary>Captures the server log so a test can count lines.</summary>
-    private sealed class CapturingLogger : BlocksBeyondTheStars.GameServer.IGameLogger
-    {
-        public List<string> Lines { get; } = new();
-
-        public void Info(string message) => Lines.Add("INFO " + message);
-
-        public void Warn(string message) => Lines.Add("WARN " + message);
-
-        public void Error(string message) => Lines.Add("ERROR " + message);
-
-        public int Count(string line) => Lines.Count(l => l == line);
     }
 
     private SvGameServer NewServer(string name, RecordingTransport transport) => NewServer(name, (IServerTransport)transport);

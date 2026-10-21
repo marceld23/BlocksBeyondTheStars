@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.GameServer;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
@@ -31,31 +30,6 @@ public sealed class StationBodyIdentityTests : IDisposable
     {
         _root = Path.Combine(Path.GetTempPath(), "bbts_stbody_" + Guid.NewGuid().ToString("N"));
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
-    }
-
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<object> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
     }
 
     /// <summary>A save whose home system carries a real (galaxy) station — the boarding tests' configuration.</summary>
@@ -135,13 +109,13 @@ public sealed class StationBodyIdentityTests : IDisposable
             var station = DockAtGalaxyStation(server, "Pilot");
             var system = server.Galaxy.Systems.Single(s => s.Id == station.SystemId);
 
-            var map = transport.Sent.OfType<StarMapData>().Last();
+            var map = transport.Messages().OfType<StarMapData>().Last();
             Assert.Equal(station.Id, map.ActiveLocationId); // a body id the client can match — "you are here"
             Assert.Contains(station.Id, map.LandedBodyIds);
             Assert.Contains(station.SystemId, map.KnownSystemIds);
             Assert.Equal("Visited", map.Systems.SelectMany(s => s.Bodies).Single(b => b.Id == station.Id).Status);
 
-            var reset = transport.Sent.OfType<WorldReset>().Last();
+            var reset = transport.Messages().OfType<WorldReset>().Last();
             Assert.Equal(system.Name, reset.SystemName); // was string.Empty
             Assert.Equal(station.Name, reset.PlanetName);
         }

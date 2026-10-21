@@ -53,11 +53,29 @@ start there**. These three show the ladder, simplest first:
   (a missing key renders as literal `[some.key]` in game instead of failing loudly).
 - **Temp state**: `Path.Combine(Path.GetTempPath(), "bbts_<topic>_" + Guid.NewGuid().ToString("N"))`
   plus `IDisposable` cleanup — never share paths between tests; the suite runs 4-way parallel.
-- **`RecordingTransport`** ([RecordingTransport.cs](../../tests/BlocksBeyondTheStars.Tests/RecordingTransport.cs))
-  is the server-side transport fake: hand it to a `GameServer` and read `Sent` — every message the server
-  sent, decoded, with its connection (`int.MinValue` for a broadcast). Do not copy it into a test class;
-  if a test needs more, extend the shared one. `RecordingTransportGuardTests` fails on a new private copy
-  (#2792).
+- **The shared fakes below live in [`tests/BlocksBeyondTheStars.Tests/Helpers/`](../../tests/BlocksBeyondTheStars.Tests/Helpers/)** —
+  [`RecordingTransport`](../../tests/BlocksBeyondTheStars.Tests/Helpers/RecordingTransport.cs) (the server-side
+  transport fake: hand it to a `GameServer` and read `Sent` — every message the server sent, decoded, with its
+  connection, `int.MinValue` for a broadcast; `OnSend` hooks a send mid-tick, `Disconnected` lists the connections
+  the server dropped) with its queries in
+  [`RecordingTransportExtensions`](../../tests/BlocksBeyondTheStars.Tests/Helpers/RecordingTransportExtensions.cs)
+  (`To<T>(player)`, `Messages()`, `Texts()`/`TextsTo(player)`, `LineKeys(player)`, `Lines(player[, key])`,
+  `PackLines(player, pack)`, `Plays(player[, pack])`, `PackPlays`, `Play`, `Offers`/`OfferArgs`, `FollowUps`, `Order`);
+  [`CapturingLogger`](../../tests/BlocksBeyondTheStars.Tests/Helpers/CapturingLogger.cs) (`Infos`/`Warnings`/`Errors`,
+  prefixed `Lines`, `Count(line)`); [`FakeLauncher`](../../tests/BlocksBeyondTheStars.Tests/Helpers/FakeLauncher.cs)
+  (the WorldHost's `IInstanceLauncher`: `StartCount`, `Running`, `Removed`, `FailStart`);
+  [`FakeNpcLines`](../../tests/BlocksBeyondTheStars.Tests/Helpers/FakeNpcLines.cs) (an `IAiMissionProvider` that
+  answers `GenerateNpcLines` from a lambda, counts `Calls`, keeps `Requests`, optionally blocks on a gate);
+  [`StubHttpHandler`](../../tests/BlocksBeyondTheStars.Tests/Helpers/StubHttpHandler.cs) (one canned HTTP answer,
+  records `Url` and `RequestBody`); [`WorldProbe`](../../tests/BlocksBeyondTheStars.Tests/Helpers/WorldProbe.cs)
+  (`At(x, y, z)` / `Surface(x, z)` over cached generated chunks). **Rule:** a test class never declares its own
+  `RecordingTransport`, `CapturingLogger`, `FakeLauncher`, `FakeLines`/`LinesProvider`, `StubHandler` or `Probe` —
+  `SharedTestHelperGuardTests` fails on a class of those names in either test project (#2792, #2885). Need more?
+  Add the member to the shared class when a second test could want it; put a one-off query into a
+  `file static class` of extension methods at the bottom of your test file (see `Leaks()` in `BaseAirLeakTests`).
+  `Helpers/` holds fakes only, never a test class (`scripts/partition-tests.py` and `scripts/locale-test-filter.py`
+  discover test classes in the project root only). Fixtures bound to one unit under test (the `Grid` builders of
+  the door, water and climb tests) stay nested — they are not copies.
 - **`SettlementTestWorlds`** ([SettlementTestWorlds.cs](../../tests/BlocksBeyondTheStars.Tests/SettlementTestWorlds.cs))
   boots settlement-only servers: settlements and landing pads exactly as on a full world, without the
   structures stamped after them (rail, ruins, camps, factories …), which only read the settlement list.

@@ -33,33 +33,6 @@ public sealed class WorldPauseTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    /// <summary>Records every server send so a test can assert the tally the pause dialogs are shown.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<object> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void DisconnectClient(int connectionId) { }
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-    }
-
     private SvGameServer Started(out SqliteWorldRepository repo, IServerTransport? transport = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, "pause"));
@@ -238,7 +211,7 @@ public sealed class WorldPauseTests : IDisposable
             transport.Sent.Clear();
             server.TickForTest(0.1);
             Assert.True(server.IsPaused);
-            Assert.DoesNotContain(transport.Sent, m => m is ChunkDataMessage);
+            Assert.DoesNotContain(transport.Messages(), m => m is ChunkDataMessage);
         }
     }
 
@@ -262,7 +235,7 @@ public sealed class WorldPauseTests : IDisposable
             transport.Sent.Clear();
             server.TickForTest(0.1);
             Assert.True(server.IsPaused);
-            Assert.Contains(transport.Sent, m => m is ChunkDataMessage); // streamed to the observer
+            Assert.Contains(transport.Messages(), m => m is ChunkDataMessage); // streamed to the observer
         }
     }
 
@@ -311,8 +284,8 @@ public sealed class WorldPauseTests : IDisposable
             Assert.Equal(face, guest.State.FacePixels);
             Assert.Equal(legs, guest.State.LegPixels);
             // The host is the only other player, so these went to them.
-            Assert.Contains(transport.Sent, m => m is PlayerFace f && f.PlayerId == guest.State.PlayerId && f.Pixels == face);
-            Assert.Contains(transport.Sent, m => m is PlayerBodyPaint b && b.PlayerId == guest.State.PlayerId && b.Pixels == legs);
+            Assert.Contains(transport.Messages(), m => m is PlayerFace f && f.PlayerId == guest.State.PlayerId && f.Pixels == face);
+            Assert.Contains(transport.Messages(), m => m is PlayerBodyPaint b && b.PlayerId == guest.State.PlayerId && b.Pixels == legs);
         }
     }
 
@@ -471,7 +444,7 @@ public sealed class WorldPauseTests : IDisposable
             transport.Sent.Clear();
             server.PauseForTest(a, true);
 
-            var waiting = transport.Sent.OfType<PauseState>().Last();
+            var waiting = transport.Messages().OfType<PauseState>().Last();
             Assert.False(waiting.Paused);
             Assert.Equal(1, waiting.HoldingPlayers);
             Assert.Equal(2, waiting.JoinedPlayers);
@@ -480,7 +453,7 @@ public sealed class WorldPauseTests : IDisposable
             transport.Sent.Clear();
             server.PauseForTest(b, true);
 
-            var held = transport.Sent.OfType<PauseState>().Last();
+            var held = transport.Messages().OfType<PauseState>().Last();
             Assert.True(held.Paused);
             Assert.Equal(2, held.HoldingPlayers);
             Assert.Equal(string.Empty, held.WaitingFor);

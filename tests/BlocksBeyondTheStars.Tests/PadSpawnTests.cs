@@ -3,7 +3,6 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Linq;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
@@ -31,20 +30,6 @@ public sealed class PadSpawnTests : IDisposable
     {
         _root = Path.Combine(Path.GetTempPath(), "bbts_padspawn_" + Guid.NewGuid().ToString("N"));
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
-    }
-
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-        public readonly List<object> Sent = new();
-        public void Start(int port) { }
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode) { if (NetCodec.Decode(payload) is { } m) Sent.Add(m); }
-        public void Broadcast(byte[] payload, DeliveryMode mode) { if (NetCodec.Decode(payload) is { } m) Sent.Add(m); }
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
     }
 
     private SvGameServer Started(out SqliteWorldRepository repo, string world, bool ship, IServerTransport? transport = null)
@@ -143,8 +128,8 @@ public sealed class PadSpawnTests : IDisposable
             server.RunVoidRescueForTest();
 
             Assert.False(Entombed(server, p.State.Position));
-            Assert.Contains(transport.Sent, m => m is RespawnNotice n && n.Reason == "@srv.misc.dug_out");
-            var chat = transport.Sent.OfType<ServerMessage>().Select(m => m.Text).ToList();
+            Assert.Contains(transport.Messages(), m => m is RespawnNotice n && n.Reason == "@srv.misc.dug_out");
+            var chat = transport.Messages().OfType<ServerMessage>().Select(m => m.Text).ToList();
             Assert.Contains("You were stuck in the rock — dug out.", chat); // plain text → chat scrollback, not just the toast
         }
     }
@@ -231,7 +216,7 @@ public sealed class PadSpawnTests : IDisposable
                 server.RunVoidRescueForTest(); // four seconds of rescue ticks
             }
 
-            int Rescues() => transport.Sent.OfType<RespawnNotice>().Count(n => n.Reason == "@srv.misc.dug_out");
+            int Rescues() => transport.Messages().OfType<RespawnNotice>().Count(n => n.Reason == "@srv.misc.dug_out");
             Assert.Equal(1, Rescues()); // one rescue per episode (#1367) — not one per second into the same blocked spot
             Assert.Equal(py + 8 + 2, (int)Math.Floor(p.State.Position.Y)); // the pad fallback, itself inside the tower
             Assert.True(Entombed(server, p.State.Position));

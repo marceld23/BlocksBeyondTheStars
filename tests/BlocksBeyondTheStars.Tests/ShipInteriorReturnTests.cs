@@ -3,9 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Linq;
 using BlocksBeyondTheStars.GameServer;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
@@ -30,31 +28,6 @@ public sealed class ShipInteriorReturnTests : IDisposable
     {
         _root = Path.Combine(Path.GetTempPath(), "bbts_shipintret_" + Guid.NewGuid().ToString("N"));
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
-    }
-
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<object> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) { Sent.Add(m); }
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) { Sent.Add(m); }
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
     }
 
     private SvGameServer NewServer(string name, RecordingTransport transport, out SqliteWorldRepository repo)
@@ -95,7 +68,7 @@ public sealed class ShipInteriorReturnTests : IDisposable
             }
 
             // The body under the flight view is current again — the client is told, like after undocking.
-            var reset = transport.Sent.OfType<WorldReset>().LastOrDefault();
+            var reset = transport.Messages().OfType<WorldReset>().LastOrDefault();
             Assert.NotNull(reset);
             Assert.NotEqual("ship_interior", reset!.PlanetType);
             Assert.Equal(home, pilot.CurrentLocationId);
@@ -115,9 +88,9 @@ public sealed class ShipInteriorReturnTests : IDisposable
             }
 
             Assert.False(server.InSpace("Pilot"));
-            var chunks = transport.Sent.OfType<ChunkDataMessage>().ToList();
+            var chunks = transport.Messages().OfType<ChunkDataMessage>().ToList();
             Assert.NotEmpty(chunks);
-            int announced = transport.Sent.OfType<WorldReset>().LastOrDefault()?.WorldId ?? reset.WorldId;
+            int announced = transport.Messages().OfType<WorldReset>().LastOrDefault()?.WorldId ?? reset.WorldId;
             Assert.All(chunks, c => Assert.Equal(announced, c.WorldId));
         }
     }
@@ -137,7 +110,7 @@ public sealed class ShipInteriorReturnTests : IDisposable
             transport.Sent.Clear();
             server.ExitShipToFlight("Pilot");
 
-            var state = transport.Sent.OfType<SpaceState>().Last();
+            var state = transport.Messages().OfType<SpaceState>().Last();
             Assert.True(state.SkipLaunch);
             Assert.True(state.HasResumePose);
             Assert.Equal(200f, state.ResumeX, 3);
@@ -165,7 +138,7 @@ public sealed class ShipInteriorReturnTests : IDisposable
             transport.Sent.Clear();
             server.ExitShipToFlight("Pilot");
 
-            var state = transport.Sent.OfType<SpaceState>().Last();
+            var state = transport.Messages().OfType<SpaceState>().Last();
             Assert.True(state.HasResumePose);
             Assert.Equal(120f, state.ResumeX, 3);
             Assert.Equal(40f, state.ResumeZ, 3);
@@ -202,7 +175,7 @@ public sealed class ShipInteriorReturnTests : IDisposable
 
             Assert.True(server.InSpace("Pilot"));
             Assert.True(pilot.State.InEva, "back outside on the spacewalk, next to the ship");
-            var state = transport.Sent.OfType<SpaceState>().Last();
+            var state = transport.Messages().OfType<SpaceState>().Last();
             Assert.True(state.SkipLaunch);
             Assert.True(state.HasResumePose);
             Assert.Equal(shipX, state.ResumeX, 3);
@@ -226,7 +199,7 @@ public sealed class ShipInteriorReturnTests : IDisposable
             transport.Sent.Clear();
             server.EnterSpace("Pilot");
 
-            var state = transport.Sent.OfType<SpaceState>().Last();
+            var state = transport.Messages().OfType<SpaceState>().Last();
             Assert.False(state.HasResumePose);
             Assert.False(state.SkipLaunch);
         }

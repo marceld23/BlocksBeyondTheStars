@@ -73,18 +73,6 @@ public sealed class SaveCompatibilityTests : IDisposable
         return config;
     }
 
-    /// <summary>Keeps what the server logs, so a test can read what an operator would.</summary>
-    private sealed class CapturingLogger : BlocksBeyondTheStars.GameServer.IGameLogger
-    {
-        public List<string> Lines { get; } = new();
-
-        public void Info(string message) => Lines.Add("INFO " + message);
-
-        public void Warn(string message) => Lines.Add("WARN " + message);
-
-        public void Error(string message) => Lines.Add("ERROR " + message);
-    }
-
     private readonly CapturingLogger _log = new();
 
     private SvGameServer NewServer(string world, IWorldRepository repo, Action<ServerConfig>? configure = null)

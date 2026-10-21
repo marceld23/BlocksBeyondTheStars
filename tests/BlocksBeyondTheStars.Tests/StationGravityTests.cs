@@ -40,31 +40,6 @@ public sealed class StationGravityTests : IDisposable
         try { Directory.Delete(_root, recursive: true); } catch { /* best effort */ }
     }
 
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<object> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-    }
-
     private SvGameServer NewServer(string name, out SqliteWorldRepository repo, IServerTransport transport)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
@@ -141,7 +116,7 @@ public sealed class StationGravityTests : IDisposable
             }
 
             Assert.Equal(-20.5f, pilot.State.Position.X, 3); // …and the drift rescue never fired
-            Assert.DoesNotContain(transport.Sent, m => m is ServerMessage sm && sm.Text.Contains("drifted_back"));
+            Assert.DoesNotContain(transport.Messages(), m => m is ServerMessage sm && sm.Text.Contains("drifted_back"));
         }
     }
 
@@ -206,13 +181,13 @@ public sealed class StationGravityTests : IDisposable
             var outside = new Vector3f(10.5f + 2 + 12, 65f, 10.5f);
             TickAt(server, pilot, outside);
             Assert.True(server.FloatingOutsideStationForTest("Owner"), "beyond the gravity volume you float");
-            Assert.Single(transport.Sent.Where(m => m is ServerMessage sm && sm.Text == "@srv.station.zero_g"));
+            Assert.Single(transport.Messages().Where(m => m is ServerMessage sm && sm.Text == "@srv.station.zero_g"));
 
             // Back onto the deck: walking again, no second hint.
             TickAt(server, pilot, deck);
             Assert.False(server.FloatingOutsideStationForTest("Owner"));
             TickAt(server, pilot, outside);
-            Assert.Single(transport.Sent.Where(m => m is ServerMessage sm && sm.Text == "@srv.station.zero_g"));
+            Assert.Single(transport.Messages().Where(m => m is ServerMessage sm && sm.Text == "@srv.station.zero_g"));
         }
     }
 
@@ -232,7 +207,7 @@ public sealed class StationGravityTests : IDisposable
 
             Assert.True(pilot.State.Position.Y > 60f, $"expected the pad, got {pilot.State.Position}");
             Assert.False(server.FloatingOutsideStationForTest("Owner"));
-            Assert.Contains(transport.Sent, m => m is RespawnNotice r && r.Reason == "@srv.station.drifted_back");
+            Assert.Contains(transport.Messages(), m => m is RespawnNotice r && r.Reason == "@srv.station.drifted_back");
             Assert.True(server.InStation("Owner"), "the rescue keeps him aboard, it does not undock him");
         }
     }
@@ -255,10 +230,10 @@ public sealed class StationGravityTests : IDisposable
             server.SetStationZeroGForTest("Owner", true);
             Assert.True(server.StationZeroGForTest("Owner"));
             Assert.True(server.FloatingOutsideStationForTest("Owner"), "the float applies at once, right on the pad");
-            Assert.Contains(transport.Sent, m => m is ServerMessage sm && sm.Text == "@srv.station.zero_g_on");
-            Assert.Contains(transport.Sent, m => m is PlayerStateUpdate ps && ps.StationZeroG && ps.AboveAtmosphere);
+            Assert.Contains(transport.Messages(), m => m is ServerMessage sm && sm.Text == "@srv.station.zero_g_on");
+            Assert.Contains(transport.Messages(), m => m is PlayerStateUpdate ps && ps.StationZeroG && ps.AboveAtmosphere);
             // The chosen float is not a drift over the edge: no "you have left the station's gravity" hint.
-            Assert.DoesNotContain(transport.Sent, m => m is ServerMessage sm && sm.Text == "@srv.station.zero_g");
+            Assert.DoesNotContain(transport.Messages(), m => m is ServerMessage sm && sm.Text == "@srv.station.zero_g");
 
             TickAt(server, pilot, deck);
             Assert.True(server.FloatingOutsideStationForTest("Owner"), "the tick keeps the chosen float");
@@ -266,8 +241,8 @@ public sealed class StationGravityTests : IDisposable
             server.SetStationZeroGForTest("Owner", false);
             Assert.False(server.StationZeroGForTest("Owner"));
             Assert.False(server.FloatingOutsideStationForTest("Owner"), "gravity is back the moment the mode goes off");
-            Assert.Contains(transport.Sent, m => m is ServerMessage sm && sm.Text == "@srv.station.zero_g_off");
-            Assert.Contains(transport.Sent, m => m is PlayerStateUpdate ps && !ps.StationZeroG && !ps.AboveAtmosphere);
+            Assert.Contains(transport.Messages(), m => m is ServerMessage sm && sm.Text == "@srv.station.zero_g_off");
+            Assert.Contains(transport.Messages(), m => m is PlayerStateUpdate ps && !ps.StationZeroG && !ps.AboveAtmosphere);
         }
     }
 
@@ -285,7 +260,7 @@ public sealed class StationGravityTests : IDisposable
 
             Assert.False(server.StationZeroGForTest("Walker"), "on a planet the toggle does nothing");
             Assert.False(pilot.State.AboveAtmosphere);
-            Assert.DoesNotContain(transport.Sent, m => m is ServerMessage sm && sm.Text.StartsWith("@srv.station.zero_g_", StringComparison.Ordinal));
+            Assert.DoesNotContain(transport.Messages(), m => m is ServerMessage sm && sm.Text.StartsWith("@srv.station.zero_g_", StringComparison.Ordinal));
         }
     }
 
@@ -324,7 +299,7 @@ public sealed class StationGravityTests : IDisposable
             server.RunVoidRescueForTest();
 
             Assert.True(pilot.State.Position.Y > 60f, $"expected the pad, got {pilot.State.Position}");
-            Assert.Contains(transport.Sent, m => m is RespawnNotice r && r.Reason == "@srv.station.drifted_back");
+            Assert.Contains(transport.Messages(), m => m is RespawnNotice r && r.Reason == "@srv.station.drifted_back");
             Assert.True(server.InStation("Owner"));
             Assert.True(server.StationZeroGForTest("Owner"), "the rescue moves him back, the chosen mode stays on");
         }

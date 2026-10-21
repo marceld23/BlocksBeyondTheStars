@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
-using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -36,40 +35,6 @@ public sealed class ArenaNigraWorldTests
         gen.SetLavaCoreVolcanoes(true);
         gen.SetTerrainGeneration(generation);
         return gen;
-    }
-
-    /// <summary>Reads generated blocks by world position, one cached chunk per coordinate.</summary>
-    private sealed class Probe
-    {
-        private readonly WorldGenerator _gen;
-        private readonly PlanetType _planet;
-        private readonly Dictionary<ChunkCoord, ChunkData> _chunks = new();
-
-        public Probe(WorldGenerator gen, PlanetType planet)
-        {
-            _gen = gen;
-            _planet = planet;
-        }
-
-        public BlockId At(int x, int y, int z)
-        {
-            var coord = WorldConstants.WorldToChunk(new Vector3i(x, y, z));
-            if (!_chunks.TryGetValue(coord, out var chunk))
-            {
-                chunk = _gen.Generate(_planet, coord);
-                _chunks[coord] = chunk;
-            }
-
-            var origin = WorldConstants.ChunkOrigin(coord);
-            return chunk.Get(x - origin.X, y - origin.Y, z - origin.Z);
-        }
-
-        /// <summary>The column's ground cell by the generator's own surface height, or -1 where the ground is gone.</summary>
-        public int Surface(int x, int z)
-        {
-            int sy = _gen.SurfaceHeight(_planet, x, z);
-            return sy is >= 1 and <= 150 && !At(x, sy, z).IsAir ? sy : -1;
-        }
     }
 
     private static BlockId Block(string key) => Content.GetBlock(key)!.NumericId;
@@ -196,7 +161,7 @@ public sealed class ArenaNigraWorldTests
     {
         var gen = Generator();
         var p = Arena;
-        var probe = new Probe(gen, p);
+        var probe = new WorldProbe(gen, p);
         var blackSand = Block("black_sand");
         var lava = Block("lava");
         var basalt = Block("basalt");

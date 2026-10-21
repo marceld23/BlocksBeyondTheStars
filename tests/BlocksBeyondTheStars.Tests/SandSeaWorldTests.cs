@@ -5,8 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
-using BlocksBeyondTheStars.Shared.Geometry;
-using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 using Xunit;
@@ -29,27 +27,6 @@ public sealed class SandSeaWorldTests
         var gen = new WorldGenerator(seed, Content);
         gen.SetTerrainGeneration(generation);
         return gen;
-    }
-
-    private sealed class Probe
-    {
-        private readonly WorldGenerator _gen;
-        private readonly Dictionary<ChunkCoord, ChunkData> _chunks = new();
-
-        public Probe(WorldGenerator gen) => _gen = gen;
-
-        public BlockId At(int x, int y, int z)
-        {
-            var coord = WorldConstants.WorldToChunk(new Vector3i(x, y, z));
-            if (!_chunks.TryGetValue(coord, out var chunk))
-            {
-                chunk = _gen.Generate(SandSea, coord);
-                _chunks[coord] = chunk;
-            }
-
-            var origin = WorldConstants.ChunkOrigin(coord);
-            return chunk.Get(x - origin.X, y - origin.Y, z - origin.Z);
-        }
     }
 
     private static List<(int X, int Z)> SeaColumns(WorldGenerator gen, int want, int step = 37)
@@ -103,7 +80,7 @@ public sealed class SandSeaWorldTests
     public void SeaColumns_AreDeepSand_WithNothingCarvedUnderThem()
     {
         var gen = Generator(2026);
-        var probe = new Probe(gen);
+        var probe = new WorldProbe(gen, SandSea);
         var sand = Content.GetBlock("sand")!.NumericId;
         var cols = SeaColumns(gen, 24);
         Assert.True(cols.Count >= 20, "no sea found");

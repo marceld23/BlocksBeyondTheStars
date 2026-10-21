@@ -7,7 +7,6 @@ using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
-using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -34,30 +33,6 @@ public sealed class TitasWorldTests
         gen.SetLavaCoreVolcanoes(true);
         gen.SetTerrainGeneration(WorldDescription.ExtremePlanetsGeneration);
         return gen;
-    }
-
-    /// <summary>Reads generated blocks by world position, one cached chunk per coordinate.</summary>
-    private sealed class Probe
-    {
-        private readonly WorldGenerator _gen;
-        private readonly Dictionary<ChunkCoord, ChunkData> _chunks = new();
-
-        public Probe(WorldGenerator gen) => _gen = gen;
-
-        public IEnumerable<ChunkData> Chunks => _chunks.Values;
-
-        public BlockId At(int x, int y, int z)
-        {
-            var coord = WorldConstants.WorldToChunk(new Vector3i(x, y, z));
-            if (!_chunks.TryGetValue(coord, out var chunk))
-            {
-                chunk = _gen.Generate(Titas, coord);
-                _chunks[coord] = chunk;
-            }
-
-            var origin = WorldConstants.ChunkOrigin(coord);
-            return chunk.Get(x - origin.X, y - origin.Y, z - origin.Z);
-        }
     }
 
     private static BlockId Block(string key) => Content.GetBlock(key)!.NumericId;
@@ -148,7 +123,7 @@ public sealed class TitasWorldTests
     public void Titas_DryLand_WearsTenBlocksOfSnowOverSulfurStone_AndNoIceGround()
     {
         var gen = Generator();
-        var probe = new Probe(gen);
+        var probe = new WorldProbe(gen, Titas);
         var snow = Block("snow");
         var sulfur = Block("sulfur_stone");
         var ice = Block("ice");
@@ -194,7 +169,7 @@ public sealed class TitasWorldTests
     public void Titas_WaterLiesUnderFiveBlocksOfIce_AndCountsAsLand()
     {
         var gen = Generator();
-        var probe = new Probe(gen);
+        var probe = new WorldProbe(gen, Titas);
         var ice = Block("ice");
         var water = Block("water");
         int sea = gen.SeaLevel(Titas);
@@ -231,7 +206,7 @@ public sealed class TitasWorldTests
     public void Titas_HotZones_CoverAboutFifteenPercent_BareBasalt_AndTheirPondsAreLava()
     {
         var gen = Generator();
-        var probe = new Probe(gen);
+        var probe = new WorldProbe(gen, Titas);
         var snow = Block("snow");
         var lava = Block("lava");
         int sea = gen.SeaLevel(Titas);
@@ -295,7 +270,7 @@ public sealed class TitasWorldTests
     public void Titas_GrowsOnlyLeaflessTrees_AndCapsItsWaterLife()
     {
         var gen = Generator();
-        var probe = new Probe(gen);
+        var probe = new WorldProbe(gen, Titas);
         int sea = gen.SeaLevel(Titas);
         foreach (var (x, z) in Columns(step: 16, span: 480))
         {

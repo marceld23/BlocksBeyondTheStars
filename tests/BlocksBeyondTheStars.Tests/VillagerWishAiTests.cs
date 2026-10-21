@@ -8,7 +8,6 @@ using System.Threading;
 using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
-using BlocksBeyondTheStars.Shared.Missions;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Tests;
@@ -22,36 +21,6 @@ namespace BlocksBeyondTheStars.Tests;
 /// </summary>
 public sealed class VillagerWishAiTests
 {
-    /// <summary>A scripted backend: answers per purpose, records every request.</summary>
-    private sealed class FakeLines : IAiMissionProvider
-    {
-        private readonly Func<NpcLinesRequest, string[]?> _answer;
-        private int _calls;
-
-        public FakeLines(Func<NpcLinesRequest, string[]?> answer) => _answer = answer;
-
-        public int Calls => Volatile.Read(ref _calls);
-
-        public List<NpcLinesRequest> Requests { get; } = new();
-
-        public MissionPlan? Generate(string context) => null;
-
-        public string? GenerateNpcLine(NpcLineRequest request) => null;
-
-        public MissionTextResult? GenerateMissionText(MissionTextRequest request) => null;
-
-        public string[]? GenerateNpcLines(NpcLinesRequest request)
-        {
-            Interlocked.Increment(ref _calls);
-            lock (Requests)
-            {
-                Requests.Add(request);
-            }
-
-            return _answer(request);
-        }
-    }
-
     private static string[]? Voice(NpcLinesRequest r) => r.Purpose switch
     {
         NpcLinePurposes.WishAsk => new[] { "{player}, could you find {count} {item} for me?" },
@@ -59,7 +28,7 @@ public sealed class VillagerWishAiTests
         _ => null,
     };
 
-    private static NpcLifeWorld World(string name, AiLevel level, FakeLines ai)
+    private static NpcLifeWorld World(string name, AiLevel level, FakeNpcLines ai)
     {
         var w = VillagerWishTests.World(name, c => c.AiLevel = level);
         w.Server.SetAiProviderForTest(ai);
@@ -70,7 +39,7 @@ public sealed class VillagerWishAiTests
         return w;
     }
 
-    private static int WishCalls(FakeLines ai, string purpose)
+    private static int WishCalls(FakeNpcLines ai, string purpose)
     {
         lock (ai.Requests)
         {
@@ -81,7 +50,7 @@ public sealed class VillagerWishAiTests
     [Fact]
     public void AiOff_NeverAsks_AndEverythingStaysAuthored()
     {
-        var ai = new FakeLines(Voice);
+        var ai = new FakeNpcLines(Voice);
         using var w = World("wish_ai_off", AiLevel.Off, ai);
         var pid = w.Player.State.PlayerId;
         w.Server.SendNpcStandingsForTest(pid);
@@ -97,7 +66,7 @@ public sealed class VillagerWishAiTests
     [Fact]
     public void AiOn_PrefetchesTheAsk_TheNextTalkSpeaksInTheVillagersVoice_TheFactLineStaysAuthored()
     {
-        var ai = new FakeLines(Voice);
+        var ai = new FakeNpcLines(Voice);
         using var w = World("wish_ai_ask", AiLevel.TextOnly, ai);
         var pid = w.Player.State.PlayerId;
         var offer = VillagerWishTests.Offer(w, w.Player);
@@ -125,7 +94,7 @@ public sealed class VillagerWishAiTests
     [Fact]
     public void AnOpenPanel_IsNeverReworded_TheAnswerOnlyReachesTheNextTalk()
     {
-        var ai = new FakeLines(Voice);
+        var ai = new FakeNpcLines(Voice);
         using var w = World("wish_ai_panel", AiLevel.TextOnly, ai);
         var pid = w.Player.State.PlayerId;
         var offer = VillagerWishTests.Offer(w, w.Player);
@@ -147,7 +116,7 @@ public sealed class VillagerWishAiTests
     [InlineData("old backend")]
     public void AnAnswerWithoutTheFacts_OrNoAnswerAtAll_KeepsTheAuthoredRequest(string backend)
     {
-        var ai = new FakeLines(r => backend == "old backend" ? null : new[] { "Could you help me out a little?" });
+        var ai = new FakeNpcLines(r => backend == "old backend" ? null : new[] { "Could you help me out a little?" });
         using var w = World("wish_ai_bad_" + backend.Replace(' ', '_'), AiLevel.TextOnly, ai);
         var pid = w.Player.State.PlayerId;
         var offer = VillagerWishTests.Offer(w, w.Player);
@@ -164,7 +133,7 @@ public sealed class VillagerWishAiTests
     [Fact]
     public void TheThanks_IsWarmedWhenTheWishTurnsReady_AndSpokenAtTheHandOver()
     {
-        var ai = new FakeLines(Voice);
+        var ai = new FakeNpcLines(Voice);
         using var w = World("wish_ai_thanks", AiLevel.TextOnly, ai);
         var pid = w.Player.State.PlayerId;
         var offer = VillagerWishTests.Accept(w, w.Player);

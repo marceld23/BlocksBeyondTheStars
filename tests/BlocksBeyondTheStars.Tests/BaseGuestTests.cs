@@ -729,36 +729,6 @@ public sealed class BaseGuestTests
         Assert.True(w.Server.NpcVisitingAwayForTest(villager));
     }
 
-    /// <summary>A scripted backend: answers per purpose, records every request.</summary>
-    private sealed class FakeLines : IAiMissionProvider
-    {
-        private readonly Func<NpcLinesRequest, string[]?> _answer;
-        private int _calls;
-
-        public FakeLines(Func<NpcLinesRequest, string[]?> answer) => _answer = answer;
-
-        public int Calls => Volatile.Read(ref _calls);
-
-        public List<NpcLinesRequest> Requests { get; } = new();
-
-        public MissionPlan? Generate(string context) => null;
-
-        public string? GenerateNpcLine(NpcLineRequest request) => null;
-
-        public MissionTextResult? GenerateMissionText(MissionTextRequest request) => null;
-
-        public string[]? GenerateNpcLines(NpcLinesRequest request)
-        {
-            Interlocked.Increment(ref _calls);
-            lock (Requests)
-            {
-                Requests.Add(request);
-            }
-
-            return _answer(request);
-        }
-    }
-
     private static string[]? GuestAnswers(NpcLinesRequest r) => r.Purpose switch
     {
         NpcLinePurposes.GuestGreet => new[] { "Hey {player}, what a nice place!" },
@@ -766,7 +736,7 @@ public sealed class BaseGuestTests
         _ => null,
     };
 
-    private static NpcLifeWorld AiWorld(string name, AiLevel level, FakeLines ai)
+    private static NpcLifeWorld AiWorld(string name, AiLevel level, FakeNpcLines ai)
     {
         var w = World(name, c => c.AiLevel = level);
         w.Server.SetAiProviderForTest(ai);
@@ -778,7 +748,7 @@ public sealed class BaseGuestTests
     [Fact]
     public void AiOn_TheGreetingAndTheOffer_ArePrefetchedAtSpawn_AndTheCachedLinesAreUsed()
     {
-        var ai = new FakeLines(GuestAnswers);
+        var ai = new FakeNpcLines(GuestAnswers);
         using var w = AiWorld("guest_ai", AiLevel.TextOnly, ai);
         int guest = Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "traveler"));
 
@@ -798,7 +768,7 @@ public sealed class BaseGuestTests
     [Fact]
     public void AiOff_AsksNothing_AndTheAuthoredLinesAreUsed()
     {
-        var ai = new FakeLines(GuestAnswers);
+        var ai = new FakeNpcLines(GuestAnswers);
         using var w = AiWorld("guest_ai_off", AiLevel.Off, ai);
         int guest = Assert.IsType<int>(w.Server.SpawnBaseGuestForTest(w.BaseId, "merchant"));
         StandBeside(w, guest);

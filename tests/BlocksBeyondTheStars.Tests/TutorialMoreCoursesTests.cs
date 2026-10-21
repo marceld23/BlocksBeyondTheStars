@@ -9,7 +9,6 @@ using System.Text.RegularExpressions;
 using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
@@ -59,41 +58,6 @@ public sealed class TutorialMoreCoursesTests : IDisposable
 
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         try { Directory.Delete(_root, recursive: true); } catch { /* best-effort temp cleanup */ }
-    }
-
-    /// <summary>Records every server send so a test can assert who was told what, in order.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((connectionId, m));
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((int.MinValue, m));
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-
-        public List<TMsg> To<TMsg>(PlayerSession who) => Sent.Where(x => x.Conn == who.ConnectionId).Select(x => x.Msg).OfType<TMsg>().ToList();
-
-        public List<string> LineKeys(PlayerSession who) => To<ShipAiLine>(who).Where(l => l.LineKey.Length > 0).Select(l => l.LineKey).ToList();
-
-        public List<string> Plays(PlayerSession who) => To<CutscenePlay>(who).Select(c => c.CutsceneId).ToList();
-
-        public List<string> Offers(PlayerSession who)
-            => To<ShipAiLine>(who).Where(l => l.LineKey == SvGameServer.ChapterOfferLine).Select(l => l.LineArg).ToList();
     }
 
     private SqliteWorldRepository Repo(string world)
@@ -372,14 +336,14 @@ public sealed class TutorialMoreCoursesTests : IDisposable
         p.BanditDemandId = 1;
         p.VegaTipLive = new[] { "settlement_near", "tameable_near" };
         server.TickStoryPacksForTest(p, 3);
-        Assert.Empty(transport.Offers(p));
+        Assert.Empty(transport.OfferArgs(p));
 
         // The admin switches robbers on: Defence exists now — offered at the hold-up, started, then the rule goes off again
         // and the running course stays listed.
         config.Rules.Bandits = AlienActivity.Normal;
         Assert.Contains("c12", JournalChapters(server, p));
         server.TickStoryPacksForTest(p);
-        Assert.Equal("Defence", Assert.Single(transport.Offers(p)));
+        Assert.Equal("Defence", Assert.Single(transport.OfferArgs(p)));
         Start(server, p, "c12");
         Assert.True(Has(p, StoryPackKeys.ChapterActive(T, "c12")));
         config.Rules.Bandits = AlienActivity.Off;
@@ -408,38 +372,38 @@ public sealed class TutorialMoreCoursesTests : IDisposable
         rookie.VegaTipLive = new[] { "tameable_near", "settlement_near", "ruin_near" };
         Give(rookie, "sapling", 2);
         server.TickStoryPacksForTest(rookie, 3);
-        Assert.Empty(transport.Offers(rookie));
+        Assert.Empty(transport.OfferArgs(rookie));
 
         PlayerSession Past(string name, int slot) => LocalPastTraining(server, name, 200f * slot);
 
         // C9: VEGA's tameable_near tip (a translator in hand, an animal in reach).
         var tamer = Past("Tamer", 1);
         server.TickStoryPacksForTest(tamer);
-        Assert.Empty(transport.Offers(tamer));
+        Assert.Empty(transport.OfferArgs(tamer));
         tamer.VegaTipLive = new[] { "tameable_near" };
         Assert.True(server.WorldPredicateForTest(tamer, StoryWorldPredicates.TameableNear));
         server.TickStoryPacksForTest(tamer);
-        Assert.Equal("Animal friends", Assert.Single(transport.Offers(tamer)));
+        Assert.Equal("Animal friends", Assert.Single(transport.OfferArgs(tamer)));
         server.TickStoryPacksForTest(tamer, 120);
-        Assert.Single(transport.Offers(tamer)); // once
+        Assert.Single(transport.OfferArgs(tamer)); // once
 
         // C10: a sapling in the backpack — or the bio lab researched.
         var gardener = Past("Gardener", 2);
         Give(gardener, "sapling", 1);
         Assert.True(server.WorldPredicateForTest(gardener, StoryWorldPredicates.SeedCarried));
         server.TickStoryPacksForTest(gardener);
-        Assert.Equal("Gardener and lab", Assert.Single(transport.Offers(gardener)));
+        Assert.Equal("Gardener and lab", Assert.Single(transport.OfferArgs(gardener)));
         var scholar = Past("Scholar", 3);
         Assert.False(server.WorldPredicateForTest(scholar, StoryWorldPredicates.SeedCarried));
         Unlock(scholar, "bio_lab");
         server.TickStoryPacksForTest(scholar);
-        Assert.Equal("Gardener and lab", Assert.Single(transport.Offers(scholar)));
+        Assert.Equal("Gardener and lab", Assert.Single(transport.OfferArgs(scholar)));
 
         // C11: a settlement close by (the tip pass).
         var neighbour = Past("Neighbour", 4);
         neighbour.VegaTipLive = new[] { "settlement_near" };
         server.TickStoryPacksForTest(neighbour);
-        Assert.Equal("Neighbours", Assert.Single(transport.Offers(neighbour)));
+        Assert.Equal("Neighbours", Assert.Single(transport.OfferArgs(neighbour)));
 
         // C13: the first climb after the training (the pose a move report carries).
         var climber = Past("Climber", 5);
@@ -448,19 +412,19 @@ public sealed class TutorialMoreCoursesTests : IDisposable
         Deliver(server, climber, new MoveIntent { X = at.X, Y = at.Y + 0.5f, Z = at.Z, Climbing = true });
         Assert.True(server.WorldPredicateForTest(climber, StoryWorldPredicates.Climbing));
         server.TickStoryPacksForTest(climber);
-        Assert.Equal("On the move", Assert.Single(transport.Offers(climber)));
+        Assert.Equal("On the move", Assert.Single(transport.OfferArgs(climber)));
 
         // C16: the paint tool researched.
         var painter = Past("Painter", 6);
         Unlock(painter, "paint_tool");
         server.TickStoryPacksForTest(painter);
-        Assert.Equal("Creative tools", Assert.Single(transport.Offers(painter)));
+        Assert.Equal("Creative tools", Assert.Single(transport.OfferArgs(painter)));
 
         // C18: VEGA's ruin tip — the treasure and wreck tips are moments too.
         var explorer = Past("Explorer", 7);
         explorer.VegaTipLive = new[] { "ruin_near" };
         server.TickStoryPacksForTest(explorer);
-        Assert.Equal("Explorer", Assert.Single(transport.Offers(explorer)));
+        Assert.Equal("Explorer", Assert.Single(transport.OfferArgs(explorer)));
         explorer.VegaTipLive = new[] { "wreck_signal_manual" };
         Assert.True(server.WorldPredicateForTest(explorer, StoryWorldPredicates.WreckSignal));
         explorer.VegaTipLive = new[] { "treasure_near" };
@@ -473,7 +437,7 @@ public sealed class TutorialMoreCoursesTests : IDisposable
         server.SpawnPlanetEnemyAtForTest(new Vector3f(g.X + 6f, g.Y, g.Z));
         Assert.True(server.WorldPredicateForTest(guard, StoryWorldPredicates.HostileNear));
         server.TickStoryPacksForTest(guard);
-        Assert.Equal("Defence", Assert.Single(transport.Offers(guard)));
+        Assert.Equal("Defence", Assert.Single(transport.OfferArgs(guard)));
     }
 
     // ---------------- C12 Defence ----------------
@@ -502,7 +466,7 @@ public sealed class TutorialMoreCoursesTests : IDisposable
         Assert.NotEqual(0, server.PendingBanditDemandIdForTest("Mark")); // the hold-up
         Assert.True(server.WorldPredicateForTest(p, StoryWorldPredicates.BanditHail));
         server.TickStoryPacksForTest(p);
-        Assert.Equal("Defence", Assert.Single(transport.Offers(p)));
+        Assert.Equal("Defence", Assert.Single(transport.OfferArgs(p)));
 
         Start(server, p, "c12");
         var lines = transport.LineKeys(p);
@@ -846,8 +810,8 @@ public sealed class TutorialMoreCoursesTests : IDisposable
         Assert.True(server.WorldPredicateForTest(alice, StoryWorldPredicates.PlayerNear));
         server.TickStoryPacksForTest(alice);
         server.TickStoryPacksForTest(bob);
-        Assert.Equal("Together", Assert.Single(transport.Offers(alice)));
-        Assert.Equal("Together", Assert.Single(transport.Offers(bob)));
+        Assert.Equal("Together", Assert.Single(transport.OfferArgs(alice)));
+        Assert.Equal("Together", Assert.Single(transport.OfferArgs(bob)));
 
         // An invisible observer beside a lone player is nobody: no moment, no offer (#2460 N2).
         var carol = LocalPastTraining(server, "Carol", 500f);
@@ -856,7 +820,7 @@ public sealed class TutorialMoreCoursesTests : IDisposable
         watcher.Spectating = true;
         Assert.False(server.WorldPredicateForTest(carol, StoryWorldPredicates.PlayerNear));
         server.TickStoryPacksForTest(carol, 3);
-        Assert.Empty(transport.Offers(carol));
+        Assert.Empty(transport.OfferArgs(carol));
 
         // Chat: without a worn radio the line says how to get one.
         Start(server, alice, "c15");

@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
@@ -44,21 +43,6 @@ public sealed class CrystalNetTests : IDisposable
         {
             // best effort
         }
-    }
-
-    /// <summary>Records every server send so a test can assert what reached the world.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-        public readonly List<object> Sent = new();
-        public void Start(int port) { }
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode) { if (NetCodec.Decode(payload) is { } m) Sent.Add(m); }
-        public void Broadcast(byte[] payload, DeliveryMode mode) { if (NetCodec.Decode(payload) is { } m) Sent.Add(m); }
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
     }
 
     private SvGameServer NewServer(out SqliteWorldRepository repo, IServerTransport? transport = null, string world = "crystal")
@@ -346,12 +330,12 @@ public sealed class CrystalNetTests : IDisposable
 
             server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 0);
             Ticks(server, 0.7);
-            var start = transport.Sent.OfType<SoundFx>().Single(s => s.Loop);
+            var start = transport.Messages().OfType<SoundFx>().Single(s => s.Loop);
             Assert.StartsWith("alarm_siren", start.SoundId, StringComparison.Ordinal);
 
             server.SetCrystalDeviceForTest(p, new Vector3i(1, 200, 0), action: 0);
             Ticks(server, 0.7);
-            Assert.Contains(transport.Sent.OfType<SoundFx>(), s => s.Stop && s.SourceId == start.SourceId);
+            Assert.Contains(transport.Messages().OfType<SoundFx>(), s => s.Stop && s.SourceId == start.SourceId);
         }
     }
 
@@ -634,7 +618,7 @@ public sealed class CrystalNetTests : IDisposable
             transport.Sent.Clear();
             Ticks(server, 3.0);
 
-            int rings = transport.Sent.OfType<SoundFx>().Count(f => f.SoundId.StartsWith("chime_", StringComparison.Ordinal));
+            int rings = transport.Messages().OfType<SoundFx>().Count(f => f.SoundId.StartsWith("chime_", StringComparison.Ordinal));
             Assert.InRange(rings, 5, 7); // #2092: every tick of the clock, not every second one
         }
     }

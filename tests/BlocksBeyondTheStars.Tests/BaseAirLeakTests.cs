@@ -5,9 +5,6 @@ using System;
 using System.Linq;
 using System.Text.Json;
 using BlocksBeyondTheStars.GameServer;
-using BlocksBeyondTheStars.Networking;
-using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
@@ -38,37 +35,6 @@ public sealed class BaseAirLeakTests : IDisposable
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "bbts_baseairleak_" + Guid.NewGuid().ToString("N"));
     private readonly GameContent _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
-
-    /// <summary>Records every server send so a test can assert which warning was told.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((connectionId, m));
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((int.MinValue, m));
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-
-        public List<string> Lines() => Sent.Where(x => x.Msg is ServerMessage).Select(x => ((ServerMessage)x.Msg).Text).ToList();
-
-        /// <summary>The walk-in leak warnings told (English).</summary>
-        public List<string> Leaks() => Lines().Where(l => l.Contains("this room leaks", StringComparison.Ordinal)).ToList();
-    }
 
     private SvGameServer Start(string name, RecordingTransport transport, out SqliteWorldRepository repo)
     {
@@ -209,7 +175,7 @@ public sealed class BaseAirLeakTests : IDisposable
             Assert.Equal(3, p.State.LifeSupportSource); // the base
             Assert.Equal(2, server.BaseAirForTest(baseId).Rooms);
             Assert.Empty(t.Leaks());
-            Assert.DoesNotContain(t.Lines(), l => l.StartsWith("@srv.base.air", StringComparison.Ordinal));
+            Assert.DoesNotContain(t.Texts(), l => l.StartsWith("@srv.base.air", StringComparison.Ordinal));
         }
     }
 
@@ -375,4 +341,12 @@ public sealed class BaseAirLeakTests : IDisposable
         }
         catch { }
     }
+}
+
+/// <summary>The one-off query of <see cref="BaseAirLeakTests"/> on the shared <see cref="RecordingTransport"/>.</summary>
+file static class BaseAirLeakTransport
+{
+    /// <summary>The walk-in leak warnings told (English).</summary>
+    public static List<string> Leaks(this RecordingTransport t)
+        => t.Texts().Where(l => l.Contains("this room leaks", StringComparison.Ordinal)).ToList();
 }

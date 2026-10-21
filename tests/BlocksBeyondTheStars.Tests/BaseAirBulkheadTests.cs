@@ -4,9 +4,7 @@
 using System;
 using System.Linq;
 using BlocksBeyondTheStars.GameServer;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
@@ -34,35 +32,6 @@ public sealed class BaseAirBulkheadTests : IDisposable
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "bbts_baseairbulkhead_" + Guid.NewGuid().ToString("N"));
     private readonly GameContent _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
-
-    /// <summary>Records every server send with its connection, so a test can tell who heard what.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((connectionId, m));
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((int.MinValue, m));
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-
-        public List<string> LinesTo(PlayerSession p)
-            => Sent.Where(x => x.Conn == p.ConnectionId && x.Msg is ServerMessage).Select(x => ((ServerMessage)x.Msg).Text).ToList();
-    }
 
     /// <summary>Keeps the server's warnings, so a test can count how often the brake was logged.</summary>
     private sealed class RecordingLog : IGameLogger
@@ -244,17 +213,17 @@ public sealed class BaseAirBulkheadTests : IDisposable
 
             server.World.SetBlock(new Vector3i(20, CoreY + 3, 0), BlockId.Air); // room B leaks
             Tick(8);
-            var toBen = Assert.Single(t.LinesTo(ben), l => l.Contains("this room leaks", StringComparison.Ordinal));
+            var toBen = Assert.Single(t.TextsTo(ben), l => l.Contains("this room leaks", StringComparison.Ordinal));
             Assert.Contains("at 20/123/0, 3 blocks above you", toBen, StringComparison.Ordinal);
-            Assert.DoesNotContain(t.LinesTo(ann), l => l.Contains("leak", StringComparison.Ordinal) || l == "@base_air_lost");
-            Assert.DoesNotContain(t.LinesTo(ben), l => l == "@base_air_lost");
+            Assert.DoesNotContain(t.TextsTo(ann), l => l.Contains("leak", StringComparison.Ordinal) || l == "@base_air_lost");
+            Assert.DoesNotContain(t.TextsTo(ben), l => l == "@base_air_lost");
 
             t.Sent.Clear();
             server.World.SetBlock(new Vector3i(10, CoreY + 3, 0), BlockId.Air); // room A leaks too: no room is left
             Tick(8);
-            Assert.Contains(t.LinesTo(ann), l => l.Contains("this room leaks", StringComparison.Ordinal));
-            Assert.Contains("@base_air_lost", t.LinesTo(ann));
-            Assert.Contains("@base_air_lost", t.LinesTo(ben));
+            Assert.Contains(t.TextsTo(ann), l => l.Contains("this room leaks", StringComparison.Ordinal));
+            Assert.Contains("@base_air_lost", t.TextsTo(ann));
+            Assert.Contains("@base_air_lost", t.TextsTo(ben));
         }
     }
 

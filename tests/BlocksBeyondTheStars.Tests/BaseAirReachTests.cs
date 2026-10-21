@@ -5,8 +5,6 @@ using System;
 using System.Linq;
 using System.Text.Json;
 using BlocksBeyondTheStars.GameServer;
-using BlocksBeyondTheStars.Networking;
-using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
@@ -38,34 +36,6 @@ public sealed class BaseAirReachTests : IDisposable
     {
         _root = Path.Combine(Path.GetTempPath(), "bbts_baseairreach_" + Guid.NewGuid().ToString("N"));
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
-    }
-
-    /// <summary>Records every server send so a test can assert which warning was told.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((connectionId, m));
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((int.MinValue, m));
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-
-        public List<string> Lines() => Sent.Where(x => x.Msg is ServerMessage).Select(x => ((ServerMessage)x.Msg).Text).ToList();
     }
 
     private SvGameServer Start(out SqliteWorldRepository repo, string name, IServerTransport? transport = null)
@@ -209,7 +179,7 @@ public sealed class BaseAirReachTests : IDisposable
             (cells, rooms) = server.BaseAirForTest(baseId);
             Assert.True(cells >= 64945, $"hall and annex breathe as one room (cells {cells})");
             Assert.Equal(1, rooms);
-            Assert.DoesNotContain(transport.Lines(), l => l.StartsWith("@srv.base.air", StringComparison.Ordinal) || l == "@base_air_lost");
+            Assert.DoesNotContain(transport.Texts(), l => l.StartsWith("@srv.base.air", StringComparison.Ordinal) || l == "@base_air_lost");
             Assert.True(BreathesAt(server, p, new Vector3f(20.5f, CoreY, 43.5f)), "the annex breathes now");
         }
     }
@@ -510,7 +480,7 @@ public sealed class BaseAirReachTests : IDisposable
             transport.Sent.Clear();
             var inside = new Vector3f(23.5f, CoreY + 0.5f, 0.5f);
             Assert.False(BreathesAt(server, p, inside));
-            Assert.DoesNotContain(transport.Lines(), l => l.StartsWith("@srv.base.air", StringComparison.Ordinal));
+            Assert.DoesNotContain(transport.Texts(), l => l.StartsWith("@srv.base.air", StringComparison.Ordinal));
             Assert.Equal(SvGameServer.BaseAirStatus.Unknown, server.DiagnoseBaseAirForTest(23, CoreY, 0).Status);
 
             p.State.Position = inside;

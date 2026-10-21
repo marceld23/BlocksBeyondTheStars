@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Client;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Shared.Localization;
 using Xunit;
 
@@ -19,33 +17,6 @@ namespace BlocksBeyondTheStars.Client.Tests;
 [Trait("Suite", "ClientCore")]
 public sealed class StoryPackClientTests
 {
-    private sealed class RecordingClientTransport : IClientTransport
-    {
-        public event Action? Connected;
-        public event Action? Disconnected;
-        public event Action<byte[]>? PayloadReceived;
-
-        public List<object?> Sent { get; } = new();
-
-        public void Connect(string host, int port) => Connected?.Invoke();
-
-        public void Send(byte[] payload, DeliveryMode mode) => Sent.Add(NetCodec.Decode(payload));
-
-        public void Poll()
-        {
-            _ = Disconnected;
-            _ = PayloadReceived;
-        }
-
-        public void Disconnect()
-        {
-        }
-
-        public void Dispose()
-        {
-        }
-    }
-
     [Fact]
     public void TheJoin_AnnouncesPacks1_AndCutscenes1OnlyForAClientThatPlaysThem()
     {

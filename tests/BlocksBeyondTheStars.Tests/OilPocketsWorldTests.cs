@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
-using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -33,33 +32,6 @@ public sealed class OilPocketsWorldTests
     }
 
     private static BlockId Block(string key) => Content.GetBlock(key)!.NumericId;
-
-    /// <summary>Reads generated blocks by world position, one cached chunk per coordinate.</summary>
-    private sealed class Probe
-    {
-        private readonly WorldGenerator _gen;
-        private readonly PlanetType _planet;
-        private readonly Dictionary<ChunkCoord, ChunkData> _chunks = new();
-
-        public Probe(WorldGenerator gen, PlanetType planet)
-        {
-            _gen = gen;
-            _planet = planet;
-        }
-
-        public BlockId At(int x, int y, int z)
-        {
-            var coord = WorldConstants.WorldToChunk(new Vector3i(x, y, z));
-            if (!_chunks.TryGetValue(coord, out var chunk))
-            {
-                chunk = _gen.Generate(_planet, coord);
-                _chunks[coord] = chunk;
-            }
-
-            var origin = WorldConstants.ChunkOrigin(coord);
-            return chunk.Get(x - origin.X, y - origin.Y, z - origin.Z);
-        }
-    }
 
     /// <summary>The first column of a living world that a pocket covers with an inner (oil) span, scanning outward.</summary>
     private static (int X, int Z, int Lo, int Hi, int InLo, int InHi)? FindPocket(WorldGenerator gen, PlanetType planet)
@@ -138,7 +110,7 @@ public sealed class OilPocketsWorldTests
         Assert.True(hi <= gen.SurfaceHeight(planet, px, pz) - 4, "the shell stays under the ground");
         Assert.True(lo < inLo && inHi < hi, "the oil sits inside the shell");
 
-        var probe = new Probe(gen, planet);
+        var probe = new WorldProbe(gen, planet);
         var oil = Block("oil");
         var tar = Block("tar");
         int oilCells = 0, tarCells = 0, sealedOil = 0;
@@ -192,7 +164,7 @@ public sealed class OilPocketsWorldTests
 
         var gen17 = Generator(Gen - 1);
         Assert.False(gen17.TryGetOilPocketSpanForTest(planet, px, pz, out _, out _, out _, out _), "no pocket below generation 18");
-        var probe = new Probe(gen17, planet);
+        var probe = new WorldProbe(gen17, planet);
         var oil = Block("oil");
         for (int x = px - 16; x <= px + 16; x += 2)
             for (int z = pz - 16; z <= pz + 16; z += 2)

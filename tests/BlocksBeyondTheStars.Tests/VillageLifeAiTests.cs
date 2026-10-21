@@ -10,7 +10,6 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
-using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.State;
 using Xunit;
 
@@ -29,37 +28,7 @@ public sealed class VillageLifeAiTests
 
     private const string Village = "Testville";
 
-    /// <summary>A scripted backend: answers per purpose, records every request.</summary>
-    private sealed class FakeLines : IAiMissionProvider
-    {
-        private readonly Func<NpcLinesRequest, string[]?> _answer;
-        private int _calls;
-
-        public FakeLines(Func<NpcLinesRequest, string[]?> answer) => _answer = answer;
-
-        public int Calls => Volatile.Read(ref _calls);
-
-        public List<NpcLinesRequest> Requests { get; } = new();
-
-        public MissionPlan? Generate(string context) => null;
-
-        public string? GenerateNpcLine(NpcLineRequest request) => null;
-
-        public MissionTextResult? GenerateMissionText(MissionTextRequest request) => null;
-
-        public string[]? GenerateNpcLines(NpcLinesRequest request)
-        {
-            Interlocked.Increment(ref _calls);
-            lock (Requests)
-            {
-                Requests.Add(request);
-            }
-
-            return _answer(request);
-        }
-    }
-
-    private static NpcLifeWorld World(string name, AiLevel level, FakeLines ai, Action<ServerConfig>? configure = null)
+    private static NpcLifeWorld World(string name, AiLevel level, FakeNpcLines ai, Action<ServerConfig>? configure = null)
     {
         var w = new NpcLifeWorld(Content.Value, name, configure: c =>
         {
@@ -110,7 +79,7 @@ public sealed class VillageLifeAiTests
     [Fact]
     public void AiOff_NeverAsks_AndKeepsTheAuthoredLines()
     {
-        var ai = new FakeLines(r => Crates(r.Language));
+        var ai = new FakeNpcLines(r => Crates(r.Language));
         using var w = World("ai_chat_off", AiLevel.Off, ai);
         var (a, _) = Pair(w);
 
@@ -124,7 +93,7 @@ public sealed class VillageLifeAiTests
     [Fact]
     public void AiOn_FirstTalkIsAuthored_AndAsksPerLanguage_TheNextUsesTheVariant_WithTheNamesFilledIn()
     {
-        var ai = new FakeLines(r => Crates(r.Language));
+        var ai = new FakeNpcLines(r => Crates(r.Language));
         using var w = World("ai_chat_on", AiLevel.TextOnly, ai);
         var german = w.Server.AddLocalPlayer("Zweite", "de");
         german.State.AboardShip = false;
@@ -168,7 +137,7 @@ public sealed class VillageLifeAiTests
     [InlineData("token")]
     public void AnUnfitAnswer_IsDropped_AndTheAuthoredLinesStay(string fault)
     {
-        var ai = new FakeLines(_ => fault switch
+        var ai = new FakeNpcLines(_ => fault switch
         {
             "count" => new[] { "One.", "Two.", "Three." },
             "digit" => new[] { "I carried 5 crates, {b}!", "Wow, {a}!" },
@@ -187,7 +156,7 @@ public sealed class VillageLifeAiTests
     [Fact]
     public void AnEmptyBudget_AsksNothing()
     {
-        var ai = new FakeLines(r => Crates(r.Language));
+        var ai = new FakeNpcLines(r => Crates(r.Language));
         using var w = World("ai_chat_budget", AiLevel.TextOnly, ai, c => c.AiLinesPerMinute = 0);
         Pair(w);
 
@@ -201,7 +170,7 @@ public sealed class VillageLifeAiTests
     [Fact]
     public void ADeedTalk_KeepsTheHeroAsAToken_FilledWithTheHerosName()
     {
-        var ai = new FakeLines(r => r.Purpose == NpcLinePurposes.Chatter
+        var ai = new FakeNpcLines(r => r.Purpose == NpcLinePurposes.Chatter
             ? new[] { "{player} did it, {b}! The bandits ran!", "Hooray for {player}, {a}!" }
             : null);
         using var w = World("ai_chat_deed", AiLevel.TextOnly, ai);
@@ -224,7 +193,7 @@ public sealed class VillageLifeAiTests
     [Fact]
     public void ANewsHeadline_IsAuthoredFirst_ThenReworded_AroundTheSameFacts()
     {
-        var ai = new FakeLines(r => r.Purpose == NpcLinePurposes.NewsDeed ? new[] { "Big news: {player} freed {place} from the bandits!" } : null);
+        var ai = new FakeNpcLines(r => r.Purpose == NpcLinePurposes.NewsDeed ? new[] { "Big news: {player} freed {place} from the bandits!" } : null);
         using var w = World("ai_news", AiLevel.TextOnly, ai);
         int reporter = w.Server.SpawnVillagerForTest(Village, new Vector3f(NpcLifeWorld.Cx + 2.5f, w.Feet, NpcLifeWorld.Cz + 0.5f), job: "reporter");
         string me = w.Player.State.PlayerId;

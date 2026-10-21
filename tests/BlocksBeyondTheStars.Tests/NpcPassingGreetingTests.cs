@@ -9,7 +9,6 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
-using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.State;
 using Xunit;
 
@@ -391,35 +390,10 @@ public sealed class NpcPassingGreetingTests
 
     // ---------------- AI (hosted worlds) ----------------
 
-    private sealed class LinesProvider : IAiMissionProvider
-    {
-        private readonly Func<NpcLinesRequest, string[]?> _answer;
-
-        public LinesProvider(Func<NpcLinesRequest, string[]?> answer) => _answer = answer;
-
-        public List<NpcLinesRequest> Requests { get; } = new();
-
-        public MissionPlan? Generate(string context) => null;
-
-        public string? GenerateNpcLine(NpcLineRequest request) => null;
-
-        public MissionTextResult? GenerateMissionText(MissionTextRequest request) => null;
-
-        public string[]? GenerateNpcLines(NpcLinesRequest request)
-        {
-            lock (Requests)
-            {
-                Requests.Add(request);
-            }
-
-            return _answer(request);
-        }
-    }
-
     [Fact]
     public void WithAi_AResidentSaysTheCachedLine_NextTime_AndAStrangerNeverAsksTheBackend()
     {
-        var provider = new LinesProvider(r => r.Purpose == NpcLinePurposes.ResidentHello ? new[] { "Home sweet home, {player}!" } : null);
+        var provider = new FakeNpcLines(r => r.Purpose == NpcLinePurposes.ResidentHello ? new[] { "Home sweet home, {player}!" } : null);
         var (w, npcId, spot) = ResidentWorld("pass_ai", c => c.AiLevel = AiLevel.TextOnly);
         using (w)
         {

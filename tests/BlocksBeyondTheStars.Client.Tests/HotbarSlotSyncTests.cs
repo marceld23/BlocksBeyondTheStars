@@ -1,9 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
@@ -26,32 +24,6 @@ public sealed class HotbarSlotSyncTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), "bbts_hotbar_" + Guid.NewGuid().ToString("N"));
 
     private static GameContent LoadContent() => ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
-
-    /// <summary>An in-memory client transport that records what the client sends.</summary>
-    private sealed class RecordingClientTransport : IClientTransport
-    {
-        public event Action? Connected;
-        public event Action? Disconnected;
-        public event Action<byte[]>? PayloadReceived;
-
-        public List<object?> Sent { get; } = new();
-
-        public void Connect(string host, int port) => Connected?.Invoke();
-
-        public void Send(byte[] payload, DeliveryMode mode) => Sent.Add(NetCodec.Decode(payload));
-
-        public void Poll()
-        {
-        }
-
-        public void Disconnect() => Disconnected?.Invoke();
-
-        public void Dispose()
-        {
-        }
-
-        public void Deliver(object message) => PayloadReceived?.Invoke(NetCodec.Encode(message));
-    }
 
     private static SelectHotbarIntent LastSelect(RecordingClientTransport transport)
         => transport.Sent.OfType<SelectHotbarIntent>().Last();

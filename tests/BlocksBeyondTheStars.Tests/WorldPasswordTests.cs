@@ -43,30 +43,6 @@ public sealed class WorldPasswordTests : IDisposable
         return (accountId, registry.ResolveSession(session)!);
     }
 
-    private sealed class FakeLauncher : IInstanceLauncher
-    {
-        public int StartCount;
-        public readonly HashSet<string> Running = new(StringComparer.Ordinal);
-
-        public string Start(WorldRecord world)
-        {
-            StartCount++;
-            string id = "container-" + StartCount;
-            Running.Add(id);
-            return id;
-        }
-
-        public void Stop(string containerId) => Running.Remove(containerId);
-
-        public void Remove(string worldId) => Removed.Add(worldId);
-
-        public readonly List<string> Removed = new();
-
-        public bool IsRunning(string containerId) => containerId != null && Running.Contains(containerId);
-
-        public IReadOnlyList<ContainerStat> ContainerStats() => Array.Empty<ContainerStat>();
-    }
-
     private static WorldOrchestrator NewOrchestrator(
         HostRegistry registry, FakeLauncher launcher, WorldHostConfig config, RateLimiter? passwordAttempts = null)
         => new(config, registry, launcher, w => Task.FromResult(launcher.IsRunning(w.ContainerId)),

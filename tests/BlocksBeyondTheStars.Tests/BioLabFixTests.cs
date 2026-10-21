@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Globalization;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
@@ -60,52 +59,6 @@ public sealed class BioLabFixTests : IDisposable
     }
 
     // ---------------- Harness ----------------
-
-    /// <summary>Records every decoded outbound message, so a test can read what the lab answered and why something was
-    /// refused. Everything passes through the real codec on the way.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public List<(int Conn, object Msg)> Sent { get; } = new();
-
-        public void Start(int port)
-        {
-        }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m)
-            {
-                Sent.Add((connectionId, m));
-            }
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m)
-            {
-                Sent.Add((int.MinValue, m));
-            }
-        }
-
-        public void Poll()
-        {
-            _ = ClientConnected;
-            _ = ClientDisconnected;
-            _ = PayloadReceived;
-        }
-
-        public void Stop()
-        {
-        }
-
-        public void Dispose()
-        {
-        }
-    }
 
     private SvGameServer NewServer(string world, string planet = "jungle", Action<ServerConfig>? tune = null, IServerTransport? transport = null)
     {

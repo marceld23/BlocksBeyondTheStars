@@ -132,22 +132,6 @@ public sealed class ContentFingerprintTests : IDisposable
         return (server, new LoopbackClientTransport(link), repo);
     }
 
-    /// <summary>Keeps what the server logs, so a test can read what an operator would.</summary>
-    private sealed class CapturingLogger : BlocksBeyondTheStars.GameServer.IGameLogger
-    {
-        public List<string> Warnings { get; } = new();
-
-        public void Info(string message)
-        {
-        }
-
-        public void Warn(string message) => Warnings.Add(message);
-
-        public void Error(string message)
-        {
-        }
-    }
-
     private readonly CapturingLogger _log = new();
 
     private static (JoinAccepted? Accepted, JoinRejected? Rejected) Join(SvGameServer server, LoopbackClientTransport client, JoinRequest request)
@@ -267,7 +251,9 @@ public sealed class ContentFingerprintTests : IDisposable
         var missing = new List<string>();
         foreach (string project in new[] { "BlocksBeyondTheStars.Tests", "BlocksBeyondTheStars.Client.Tests" })
         {
-            foreach (string file in Directory.GetFiles(Path.Combine(TestPaths.RepoRoot(), "tests", project), "*.cs"))
+            // The project's test files and its Helpers/ folder of shared fakes.
+            string dir = Path.Combine(TestPaths.RepoRoot(), "tests", project);
+            foreach (string file in Directory.GetFiles(dir, "*.cs").Concat(Directory.GetFiles(Path.Combine(dir, "Helpers"), "*.cs")))
             {
                 if (exempt.Contains(Path.GetFileName(file)))
                 {

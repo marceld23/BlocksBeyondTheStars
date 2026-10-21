@@ -55,6 +55,12 @@ from the captured chunk/block messages.
 
 These are the bulk of the value and run in `dotnet test`. All test classes carry `[Trait("Suite","ClientCore")]`.
 
+Reusable fakes live in `tests/BlocksBeyondTheStars.Client.Tests/Helpers/` — today
+[`RecordingClientTransport`](../../tests/BlocksBeyondTheStars.Client.Tests/Helpers/RecordingClientTransport.cs): a
+client-side `IClientTransport` whose `Sent` holds every decoded message the `NetworkClient` sent, `Deliver(message)`
+feeds it a server message, `Disconnects` counts hang-ups. Do not copy it into a test class — the server suite's
+`SharedTestHelperGuardTests` scans this project too.
+
 ## Tier 1.5 — Unity EditMode (`UnityEdit`)
 
 `client/Assets/Tests/EditMode/`. Headless in-Editor unit tests for **Unity-runtime-safe** logic — `ClientWorld`

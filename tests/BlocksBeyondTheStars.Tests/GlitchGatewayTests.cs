@@ -46,30 +46,6 @@ public sealed class GlitchGatewayTests : IDisposable
         return registry;
     }
 
-    private sealed class FakeLauncher : IInstanceLauncher
-    {
-        public int StartCount;
-        public readonly HashSet<string> Running = new(StringComparer.Ordinal);
-
-        public string Start(WorldRecord world)
-        {
-            StartCount++;
-            string id = "container-" + StartCount;
-            Running.Add(id);
-            return id;
-        }
-
-        public void Stop(string containerId) => Running.Remove(containerId);
-
-        public void Remove(string worldId) => Removed.Add(worldId);
-
-        public readonly List<string> Removed = new();
-
-        public bool IsRunning(string containerId) => containerId != null && Running.Contains(containerId);
-
-        public IReadOnlyList<ContainerStat> ContainerStats() => Array.Empty<ContainerStat>();
-    }
-
     /// <summary>Canned Glitch API: answers /validate per install id (default: valid with a user name),
     /// the cloud-save routes (list/store/resolve) and the install heartbeat; records every request
     /// incl. the Authorization header.</summary>

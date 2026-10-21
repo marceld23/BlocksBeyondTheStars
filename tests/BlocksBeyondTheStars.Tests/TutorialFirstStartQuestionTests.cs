@@ -8,7 +8,6 @@ using System.Linq;
 using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
@@ -57,40 +56,6 @@ public sealed class TutorialFirstStartQuestionTests : IDisposable
 
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         try { Directory.Delete(_root, recursive: true); } catch { /* best-effort temp cleanup */ }
-    }
-
-    /// <summary>Records every server send so a test can assert who was told what, in order.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<(int Conn, object Msg)> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((connectionId, m));
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add((int.MinValue, m));
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
-
-        public List<TMsg> To<TMsg>(PlayerSession who) => Sent.Where(x => x.Conn == who.ConnectionId).Select(x => x.Msg).OfType<TMsg>().ToList();
-
-        public List<string> LineKeys(PlayerSession who) => To<ShipAiLine>(who).Where(l => l.LineKey.Length > 0).Select(l => l.LineKey).ToList();
-
-        public List<ShipAiLine> Lines(PlayerSession who, string key) => To<ShipAiLine>(who).Where(l => l.LineKey == key).ToList();
-
-        public List<(string Pack, string Id)> Plays(PlayerSession who) => To<CutscenePlay>(who).Select(c => (c.PackId, c.CutsceneId)).ToList();
     }
 
     /// <summary>A world with the VEGA story and free flight, on <paramref name="policy"/>. <paramref name="repo"/>: a save
@@ -201,7 +166,7 @@ public sealed class TutorialFirstStartQuestionTests : IDisposable
         var keys = transport.LineKeys(p);
         Assert.True(keys.IndexOf(SvGameServer.AskSkipLine) < keys.IndexOf(FirstLesson), string.Join(", ", keys));
         Settle(server, p);
-        Assert.Contains((T, "tut.welcome"), transport.Plays(p));
+        Assert.Contains((T, "tut.welcome"), transport.PackPlays(p));
 
         // Doing nothing is "Let's go": nothing waits for the answer — the first lesson is on the chip and counts.
         Assert.Equal("b1.1", server.ChipStepForTest(p, T));

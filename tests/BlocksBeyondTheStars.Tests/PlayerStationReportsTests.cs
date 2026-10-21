@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.GameServer;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
@@ -33,31 +32,6 @@ public sealed class PlayerStationReportsTests : IDisposable
     {
         _root = Path.Combine(Path.GetTempPath(), "bbts_pstrep_" + Guid.NewGuid().ToString("N"));
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
-    }
-
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<object> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
     }
 
     private SvGameServer NewServer(string name, out SqliteWorldRepository repo, IServerTransport? transport = null, bool placeStarterShip = false,
@@ -170,7 +144,7 @@ public sealed class PlayerStationReportsTests : IDisposable
         {
             var pilot = server.AddLocalPlayer("Owner");
             string id = BuildLineStation(server, pilot);
-            Assert.Contains(transport.Sent, m => m is SpaceShipDesign d && d.Id == id && d.Kind == "station");
+            Assert.Contains(transport.Messages(), m => m is SpaceShipDesign d && d.Id == id && d.Kind == "station");
 
             // Land (the instance is torn down with its last pilot) and launch again: the station's voxel hull
             // must arrive again, not only its dock contact — before this only asteroids were re-sent.
@@ -179,7 +153,7 @@ public sealed class PlayerStationReportsTests : IDisposable
             server.EnterSpace("Owner");
 
             Assert.Contains(server.SpaceEntitiesFor("Owner"), e => e.Id == id); // the contact is back …
-            Assert.Contains(transport.Sent, m => m is SpaceShipDesign d && d.Id == id && d.Kind == "station"); // … and so is the hull
+            Assert.Contains(transport.Messages(), m => m is SpaceShipDesign d && d.Id == id && d.Kind == "station"); // … and so is the hull
         }
     }
 
@@ -364,7 +338,7 @@ public sealed class PlayerStationReportsTests : IDisposable
             BoardOwnStation(server, "Owner", id);
 
             Assert.Empty(server.NpcSnapshots);
-            Assert.Contains(transport.Sent, m => m is ServerMessage sm && sm.Text == "@srv.station.staff_needs_air");
+            Assert.Contains(transport.Messages(), m => m is ServerMessage sm && sm.Text == "@srv.station.staff_needs_air");
         }
     }
 
@@ -485,7 +459,7 @@ public sealed class PlayerStationReportsTests : IDisposable
 
     /// <summary>The station hull warnings sent: the located leak line (#2654) or the general fallback.</summary>
     private static List<string> HullWarnings(RecordingTransport transport)
-        => transport.Sent.OfType<ServerMessage>().Select(m => m.Text)
+        => transport.Messages().OfType<ServerMessage>().Select(m => m.Text)
             .Where(t => t == "@station_air_lost" || t.Contains("this room leaks", StringComparison.Ordinal)).ToList();
 
     [Fact]
@@ -1290,13 +1264,13 @@ public sealed class PlayerStationReportsTests : IDisposable
             string id = BuildSealedBox(server, pilot);
             int mark = transport.Sent.Count;
             BoardOwnStation(server, "Owner", id);
-            var aboard = transport.Sent.Skip(mark).OfType<ShipStations>().ToList();
+            var aboard = transport.Messages().Skip(mark).OfType<ShipStations>().ToList();
             Assert.NotEmpty(aboard);
             Assert.Empty(aboard[^1].Stations); // no ship in a station world: the decor and its prompts go
 
             mark = transport.Sent.Count;
             server.LeaveStation("Owner");
-            var undocked = transport.Sent.Skip(mark).OfType<ShipStations>().ToList();
+            var undocked = transport.Messages().Skip(mark).OfType<ShipStations>().ToList();
             Assert.NotEmpty(undocked);
             Assert.Contains(undocked[^1].Stations, s => s.Type == "cockpit"); // the parked ship's own list is back
         }
@@ -1316,7 +1290,7 @@ public sealed class PlayerStationReportsTests : IDisposable
             BoardOwnStation(server, "Owner", id);
             int mark = transport.Sent.Count;
             server.LeaveStation("Owner"); // back to a body without a parked ship (this server places none)
-            var sent = transport.Sent.Skip(mark).OfType<ShipStations>().ToList();
+            var sent = transport.Messages().Skip(mark).OfType<ShipStations>().ToList();
             Assert.NotEmpty(sent);
             Assert.All(sent, m => Assert.Empty(m.Stations));
         }

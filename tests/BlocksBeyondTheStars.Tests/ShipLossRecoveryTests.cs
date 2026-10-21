@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Linq;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
@@ -28,31 +26,6 @@ public sealed class ShipLossRecoveryTests : IDisposable
     {
         _root = Path.Combine(Path.GetTempPath(), "bbts_shiploss_" + Guid.NewGuid().ToString("N"));
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
-    }
-
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<object> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) { Sent.Add(m); }
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) { Sent.Add(m); }
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
     }
 
     private SvGameServer NewServer(string name, RecordingTransport transport, out SqliteWorldRepository repo)
@@ -97,8 +70,8 @@ public sealed class ShipLossRecoveryTests : IDisposable
             Assert.False(server.InShipInterior("Pilot"), "the walkabout ends with the ship");
 
             // The client is told about the new world, and where in it the player now is.
-            Assert.Contains(transport.Sent, m => m is WorldReset);
-            var notice = transport.Sent.OfType<RespawnNotice>().LastOrDefault();
+            Assert.Contains(transport.Messages(), m => m is WorldReset);
+            var notice = transport.Messages().OfType<RespawnNotice>().LastOrDefault();
             Assert.NotNull(notice);
             Assert.False(notice!.Died, "the pilot survived — no death flash");
 

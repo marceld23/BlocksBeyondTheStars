@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
@@ -46,31 +45,6 @@ public sealed class ShipHatchCellsTests : IDisposable
         {
             // best-effort temp cleanup
         }
-    }
-
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public readonly List<object> Sent = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m) Sent.Add(m);
-        }
-
-        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
-        public void Stop() { }
-        public void Dispose() { }
     }
 
     /// <summary>A server whose (free) starter ship is built from <paramref name="layoutKey"/> (null = the code box).</summary>
@@ -170,7 +144,7 @@ public sealed class ShipHatchCellsTests : IDisposable
         {
             server.EnterSpace("Host");
 
-            var design = transport.Sent.OfType<SpaceShipDesign>().Last(d => d.Kind == "ship");
+            var design = transport.Messages().OfType<SpaceShipDesign>().Last(d => d.Kind == "ship");
             Assert.True(design.HatchKnown); // an empty list from this server would mean "no hatch", not "guess"
             Assert.Equal(9, design.HatchX.Length);
             Assert.Equal(design.HatchX.Length, design.HatchY.Length);

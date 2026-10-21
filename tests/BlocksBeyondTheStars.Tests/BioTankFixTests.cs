@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.GameServer;
-using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
@@ -59,45 +58,6 @@ public sealed class BioTankFixTests : IDisposable
         {
             // best effort
         }
-    }
-
-    /// <summary>Records every per-connection server send so a test can assert what a player was told.</summary>
-    private sealed class RecordingTransport : IServerTransport
-    {
-        public event Action<int>? ClientConnected;
-        public event Action<int>? ClientDisconnected;
-        public event Action<int, byte[]>? PayloadReceived;
-
-        public List<(int Conn, object Msg)> Sent { get; } = new();
-
-        public void Start(int port) { }
-
-        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m)
-            {
-                Sent.Add((connectionId, m));
-            }
-        }
-
-        public void Broadcast(byte[] payload, DeliveryMode mode)
-        {
-            if (NetCodec.Decode(payload) is { } m)
-            {
-                Sent.Add((int.MinValue, m));
-            }
-        }
-
-        public void Poll()
-        {
-            _ = ClientConnected;
-            _ = ClientDisconnected;
-            _ = PayloadReceived;
-        }
-
-        public void Stop() { }
-
-        public void Dispose() { }
     }
 
     private SvGameServer NewServer(string planet = "jungle", string world = "tank", IServerTransport? transport = null,
