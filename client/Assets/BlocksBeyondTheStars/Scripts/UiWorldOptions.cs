@@ -420,32 +420,9 @@ namespace BlocksBeyondTheStars.Client
         /// page. The caller sizes the content's height from the row count.</summary>
         private static RectTransform BuildAdvancedViewport(Transform parent)
         {
-            var viewGo = new GameObject("PlanetTypeScroll", typeof(RectTransform));
-            viewGo.transform.SetParent(parent, false);
-            UiKit.Place(viewGo, 0f, AdvancedListY, 1580f, AdvancedListH);
-
-            var scroll = viewGo.AddComponent<ScrollRect>();
-            scroll.horizontal = false;
-            scroll.vertical = true;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 28f;
-            viewGo.AddComponent<RectMask2D>();
-
-            // A near-transparent graphic so the wheel/drag has something to hit between the rows.
-            var hit = viewGo.AddComponent<Image>();
-            hit.color = new Color(0f, 0f, 0f, 0.001f);
-
-            var contentGo = new GameObject("Content", typeof(RectTransform));
-            contentGo.transform.SetParent(viewGo.transform, false);
-            var content = contentGo.GetComponent<RectTransform>();
-            content.anchorMin = new Vector2(0f, 1f);
-            content.anchorMax = new Vector2(1f, 1f);
-            content.pivot = new Vector2(0.5f, 1f);
-            content.anchoredPosition = Vector2.zero;
+            // The viewport's near-transparent hit graphic gives the wheel/drag something to hit between the rows.
+            var content = UiKit.AddScrollViewport(parent, "PlanetTypeScroll", 0f, AdvancedListY, 1580f, AdvancedListH, out var scroll);
             content.sizeDelta = Vector2.zero;
-
-            scroll.viewport = viewGo.GetComponent<RectTransform>();
-            scroll.content = content;
 
             // Shows that the list continues below the fold; auto-hides if every type ever fits again.
             UiKit.AddInlineScrollbar(scroll);

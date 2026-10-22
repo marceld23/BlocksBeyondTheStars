@@ -89,13 +89,7 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 112; // above everything incl. the maintenance banner (110)
             UiNav.Enable(_canvas.gameObject);
 
-            _panel = new GameObject("DisconnectPanel", typeof(RectTransform));
-            var prt = _panel.GetComponent<RectTransform>();
-            prt.SetParent(_canvas.transform, false);
-            prt.anchorMin = Vector2.zero;
-            prt.anchorMax = Vector2.one;
-            prt.offsetMin = Vector2.zero;
-            prt.offsetMax = Vector2.zero;
+            _panel = UiKit.AddStretchChild(_canvas.transform, "DisconnectPanel");
 
             UiKit.AddModalDim(_panel.transform, 0.92f);
             _title = UiKit.AddText(_panel.transform, 0, 370, 1920, 120, string.Empty, 58,
@@ -106,24 +100,18 @@ namespace BlocksBeyondTheStars.Client
             _panel.SetActive(false);
         }
 
-        private string Tr(string key)
-        {
-            string s = Game?.Localizer?.Get(key);
-            if (!string.IsNullOrEmpty(s) && s != key)
-            {
-                return s;
-            }
+        private string Tr(string key) => UiKit.Tr(Game?.Localizer, key, Fallback);
 
-            switch (key)
-            {
-                case "ui.disconnect.title": return "Connection lost";
-                case "ui.disconnect.detail": return "The connection to the server was lost.";
-                case "ui.disconnect.maint_title": return "Server restart";
-                case "ui.disconnect.maint_detail": return "The server is restarting for maintenance. Please rejoin in a moment.";
-                case "ui.disconnect.to_menu": return "Back to menu";
-                default: return key;
-            }
-        }
+        /// <summary>English text while the localizer is not ready. A cached delegate, so a lookup allocates nothing.</summary>
+        private static readonly System.Func<string, string> Fallback = key => key switch
+        {
+            "ui.disconnect.title" => "Connection lost",
+            "ui.disconnect.detail" => "The connection to the server was lost.",
+            "ui.disconnect.maint_title" => "Server restart",
+            "ui.disconnect.maint_detail" => "The server is restarting for maintenance. Please rejoin in a moment.",
+            "ui.disconnect.to_menu" => "Back to menu",
+            _ => key,
+        };
 
         private void OnDestroy()
         {

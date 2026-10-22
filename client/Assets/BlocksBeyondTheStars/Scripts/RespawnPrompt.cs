@@ -213,13 +213,7 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 85; // above the HUD (60) and the DeathFx flash (80)
             UiNav.Enable(_canvas.gameObject); // the pad can confirm the respawn (inert on KB/mouse)
 
-            _panel = new GameObject("RespawnPromptPanel", typeof(RectTransform));
-            var prt = _panel.GetComponent<RectTransform>();
-            prt.SetParent(_canvas.transform, false);
-            prt.anchorMin = Vector2.zero;
-            prt.anchorMax = Vector2.one;
-            prt.offsetMin = Vector2.zero;
-            prt.offsetMax = Vector2.zero;
+            _panel = UiKit.AddStretchChild(_canvas.transform, "RespawnPromptPanel");
 
             _backdrop = UiKit.AddImage(_panel.transform, 0, 0, 1920, 1080, UiKit.SolidSprite, new Color(0.02f, 0.02f, 0.04f, 0f));
             _backdrop.raycastTarget = true; // swallow clicks behind the modal so only "Weiter" reacts
@@ -227,45 +221,27 @@ namespace BlocksBeyondTheStars.Client
             _title = UiKit.AddText(_panel.transform, 0, 410, 1920, 140, string.Empty, 66,
                 new Color(0.96f, 0.97f, 1f), TextAnchor.MiddleCenter, FontStyle.Bold);
 
-            _continueRoot = FullStretchChild(_panel.transform, "RespawnContinue");
+            _continueRoot = UiKit.AddStretchChild(_panel.transform, "RespawnContinue");
             UiKit.AddButton(_continueRoot.transform, (1920f - 300f) / 2f, 610, 300, 80, Tr("ui.death.continue"), OnContinue);
-            _choiceRoot = FullStretchChild(_panel.transform, "RespawnChoice");
+            _choiceRoot = UiKit.AddStretchChild(_panel.transform, "RespawnChoice");
 
             _panel.SetActive(false);
         }
 
-        private static GameObject FullStretchChild(Transform parent, string name)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            var rt = go.GetComponent<RectTransform>();
-            rt.SetParent(parent, false);
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-            return go;
-        }
+        private string Tr(string key) => UiKit.Tr(Game?.Localizer, key, Fallback);
 
-        private string Tr(string key)
+        /// <summary>Fallback if the localizer isn't ready (kept English; bilingual values live in data/locales). A
+        /// cached delegate, so a lookup allocates nothing.</summary>
+        private static readonly System.Func<string, string> Fallback = key => key switch
         {
-            string s = Game?.Localizer?.Get(key);
-            if (!string.IsNullOrEmpty(s) && s != key)
-            {
-                return s;
-            }
-
-            // Fallback if the localizer isn't ready (kept English; bilingual values live in data/locales).
-            switch (key)
-            {
-                case "ui.death.title": return "You have died";
-                case "ui.death.ship_title": return "Your ship was destroyed";
-                case "ui.death.continue": return "Continue";
-                case "ui.death.respawn_ship": return "Wake up at your ship";
-                case "ui.death.respawn_home": return "Wake up at {name}";
-                case "ui.spawn.generic": return "your base";
-                default: return key;
-            }
-        }
+            "ui.death.title" => "You have died",
+            "ui.death.ship_title" => "Your ship was destroyed",
+            "ui.death.continue" => "Continue",
+            "ui.death.respawn_ship" => "Wake up at your ship",
+            "ui.death.respawn_home" => "Wake up at {name}",
+            "ui.spawn.generic" => "your base",
+            _ => key,
+        };
 
         private void OnDestroy()
         {

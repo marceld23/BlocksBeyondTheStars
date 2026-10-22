@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -45,28 +44,8 @@ namespace BlocksBeyondTheStars.Client
             const float gutter = 8f;                 // gap between text and scrollbar
             float textW = w - scrollbarW - gutter;
 
-            var viewGo = new GameObject("CreditsScroll", typeof(RectTransform));
-            viewGo.transform.SetParent(root, false);
-            UiKit.Place(viewGo, x, y, w, h);
-
-            var scroll = viewGo.AddComponent<ScrollRect>();
-            scroll.horizontal = false;
-            scroll.vertical = true;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 28f;
-            viewGo.AddComponent<RectMask2D>();
-
-            // Near-transparent graphic so the wheel/drag has something to hit over the text area.
-            var hit = viewGo.AddComponent<Image>();
-            hit.color = new Color(0f, 0f, 0f, 0.001f);
-
-            var contentGo = new GameObject("Content", typeof(RectTransform));
-            contentGo.transform.SetParent(viewGo.transform, false);
-            var content = contentGo.GetComponent<RectTransform>();
-            content.anchorMin = new Vector2(0f, 1f);
-            content.anchorMax = new Vector2(1f, 1f);
-            content.pivot = new Vector2(0.5f, 1f);
-            content.anchoredPosition = Vector2.zero;
+            // The viewport's near-transparent hit graphic gives the wheel/drag something to hit over the text area.
+            var content = UiKit.AddScrollViewport(root, "CreditsScroll", x, y, w, h, out var scroll);
 
             var text = UiKit.AddText(content, 0f, 0f, textW, h, body, 18, UiKit.TextCol, TextAnchor.UpperLeft);
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -80,9 +59,6 @@ namespace BlocksBeyondTheStars.Client
             // RECT (not its overflowing glyphs) leaves the mask, so a viewport-tall rect at the top of a taller
             // content made the entire text vanish once scrolled past the first page (#1384).
             text.rectTransform.sizeDelta = new Vector2(textW, contentH);
-
-            scroll.viewport = viewGo.GetComponent<RectTransform>();
-            scroll.content = content;
 
             UiKit.AddVerticalScrollbar(root, scroll, x + w - scrollbarW, y, scrollbarW, h);
         }

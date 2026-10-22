@@ -339,34 +339,9 @@ namespace BlocksBeyondTheStars.Client
         /// (absolute top-left rows on a content rect whose height <see cref="Populate"/> sets last).</summary>
         private static Transform BuildScrollList(Transform dlg, out ScrollRect scroll)
         {
-            var viewGo = new GameObject("WhatsNewScroll", typeof(RectTransform));
-            viewGo.transform.SetParent(dlg, false);
-            UiKit.Place(viewGo, 40f, 92f, 1320f, 740f);
-
-            scroll = viewGo.AddComponent<ScrollRect>();
-            scroll.horizontal = false;
-            scroll.vertical = true;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 28f;
-            viewGo.AddComponent<RectMask2D>();
-
-            // Near-transparent hit surface so the wheel/drag works over empty areas (same trick as the
-            // settings screen's scroll viewport).
-            var hit = viewGo.AddComponent<Image>();
-            hit.sprite = UiKit.SolidSprite;
-            hit.color = new Color(0f, 0f, 0f, 0.001f);
-
-            var contentGo = new GameObject("Content", typeof(RectTransform));
-            var content = (RectTransform)contentGo.transform;
-            content.SetParent(viewGo.transform, false);
-            content.anchorMin = new Vector2(0f, 1f);
-            content.anchorMax = new Vector2(1f, 1f);
-            content.pivot = new Vector2(0.5f, 1f);
-            content.anchoredPosition = Vector2.zero;
+            // Near-transparent hit surface (on the solid sprite) so the wheel/drag works over empty areas.
+            var content = UiKit.AddScrollViewport(dlg, "WhatsNewScroll", 40f, 92f, 1320f, 740f, out scroll, hitSprite: UiKit.SolidSprite);
             content.sizeDelta = new Vector2(0f, 100f);
-
-            scroll.viewport = (RectTransform)viewGo.transform;
-            scroll.content = content;
             return content;
         }
 
@@ -416,27 +391,8 @@ namespace BlocksBeyondTheStars.Client
             y += h + 8f;
         }
 
-        private static readonly TextGenerator Measurer = new TextGenerator();
-
         private static float MeasureHeight(string text, int size, FontStyle style)
-        {
-            var settings = new TextGenerationSettings
-            {
-                font = UiKit.Font,
-                fontSize = size,
-                fontStyle = style,
-                richText = true,
-                scaleFactor = 1f,
-                lineSpacing = 1f,
-                horizontalOverflow = HorizontalWrapMode.Wrap,
-                verticalOverflow = VerticalWrapMode.Overflow,
-                generationExtents = new Vector2(RowW, 0f),
-                textAnchor = TextAnchor.UpperLeft,
-                pivot = new Vector2(0f, 1f),
-                color = Color.white,
-            };
-            return Measurer.GetPreferredHeight(text, settings);
-        }
+            => UiKit.MeasureHeight(text, RowW, size, style, richText: true);
 
         /// <summary>Devblog markdown → uGUI rich text: bold/italic map to tags, bullets to •, links keep
         /// their text, headings turn bold. Raw angle brackets are neutralized FIRST so post content can

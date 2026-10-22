@@ -400,34 +400,11 @@ namespace BlocksBeyondTheStars.Client
         /// height is set by <see cref="Rebuild"/> once all rows are laid out.</summary>
         private Transform BuildScrollViewport()
         {
-            var viewGo = new GameObject("SettingsScroll", typeof(RectTransform));
-            viewGo.transform.SetParent(_root, false);
-            // Stops above the fixed language/back footer (panel spans 80..1000; footer row sits at 922).
-            UiKit.Place(viewGo, _px, 80, _pw, 830);
-
-            var scroll = viewGo.AddComponent<ScrollRect>();
-            scroll.horizontal = false;
-            scroll.vertical = true;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 28f;
-            viewGo.AddComponent<RectMask2D>();
-
-            // A near-transparent graphic so the wheel/drag has something to hit over empty areas (clicks on the
-            // buttons still work). The visible frame is the AddPanel drawn behind it.
-            var hit = viewGo.AddComponent<Image>();
-            hit.color = new Color(0f, 0f, 0f, 0.001f);
-
-            var contentGo = new GameObject("Content", typeof(RectTransform));
-            contentGo.transform.SetParent(viewGo.transform, false);
-            var content = contentGo.GetComponent<RectTransform>();
-            content.anchorMin = new Vector2(0f, 1f);
-            content.anchorMax = new Vector2(1f, 1f);
-            content.pivot = new Vector2(0.5f, 1f);
-            content.anchoredPosition = Vector2.zero;
+            // Stops above the fixed language/back footer (panel spans 80..1000; footer row sits at 922). The
+            // viewport's near-transparent hit graphic lets the wheel/drag work over empty areas (clicks on the
+            // buttons still work); the visible frame is the AddPanel drawn behind it.
+            var content = UiKit.AddScrollViewport(_root, "SettingsScroll", _px, 80, _pw, 830, out var scroll);
             content.sizeDelta = new Vector2(0f, 920f); // replaced with the real height at the end of Rebuild
-
-            scroll.viewport = viewGo.GetComponent<RectTransform>();
-            scroll.content = content;
 
             // Visible scrollbar along the panel's right edge: shows the position in the long list and
             // lets the player jump anywhere by dragging (the wheel alone gave no overview).

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Localization;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -42,6 +43,15 @@ namespace BlocksBeyondTheStars.Client
         {
             string text = Localize != null ? Localize(key) : null;
             return string.IsNullOrEmpty(text) ? key : text;
+        }
+
+        /// <summary>The in-game prompts' lookup (disconnect, maintenance, respawn, launch, vendor choice): the
+        /// localized text for <paramref name="key"/>, or — while <paramref name="localizer"/> is not ready or has no
+        /// entry (it echoes the key) — <paramref name="fallback"/>'s answer, which is only evaluated then.</summary>
+        public static string Tr(Localizer localizer, string key, System.Func<string, string> fallback)
+        {
+            string s = localizer?.Get(key);
+            return !string.IsNullOrEmpty(s) && s != key ? s : fallback(key);
         }
 
         /// <summary>True while a uGUI text field has keyboard focus — Esc/Tab hotkey handlers must then
@@ -709,6 +719,80 @@ namespace BlocksBeyondTheStars.Client
             return (dim.gameObject, AddDialogPanel(dim.transform, x, y, w, h));
         }
 
+        /// <summary>A themed panel of <paramref name="w"/>×<paramref name="h"/> centred on <paramref name="parent"/>
+        /// and raised by <paramref name="yOffset"/> — anchored and pivoted at the centre, so a caller that later grows
+        /// its <c>sizeDelta</c> (the bandit and NPC dialogue panels reflow to their speech line) grows it evenly up and
+        /// down.</summary>
+        public static GameObject AddCenteredPanel(Transform parent, string name, float w, float h, float yOffset)
+        {
+            var panel = new GameObject(name, typeof(RectTransform));
+            panel.transform.SetParent(parent, false);
+            var rt = panel.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(w, h);
+            rt.anchoredPosition = new Vector2(0f, yOffset);
+            var img = panel.AddComponent<Image>();
+            img.sprite = PanelSprite;
+            img.type = Image.Type.Sliced;
+            img.color = PanelFill;
+            return panel;
+        }
+
+        /// <summary>An empty child that stretches over all of <paramref name="parent"/> (zero offsets) — the root
+        /// of a full-screen layer such as a takeover panel or one of its toggled sub-groups.</summary>
+        public static GameObject AddStretchChild(Transform parent, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            var rt = go.GetComponent<RectTransform>();
+            rt.SetParent(parent, false);
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            return go;
+        }
+
+        /// <summary>A clipped, vertically scrolling viewport at a top-left anchored rect — the pattern every scrolling
+        /// menu page shares: a clamped <see cref="ScrollRect"/> (wheel step 28), a <see cref="RectMask2D"/>, a
+        /// near-transparent hit <see cref="Image"/> so the wheel/drag also works over empty areas (clicks on the rows
+        /// still go through), and a top-anchored "Content" rect the rows are placed on absolutely. Returns that content.
+        /// Its height (<c>sizeDelta</c>) and any scrollbar are the caller's; <paramref name="hitSprite"/> is assigned to
+        /// the hit image only when given.</summary>
+        public static RectTransform AddScrollViewport(Transform parent, string name, float x, float y, float w, float h,
+            out ScrollRect scroll, Sprite hitSprite = null)
+        {
+            var viewGo = new GameObject(name, typeof(RectTransform));
+            viewGo.transform.SetParent(parent, false);
+            Place(viewGo, x, y, w, h);
+
+            scroll = viewGo.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 28f;
+            viewGo.AddComponent<RectMask2D>();
+
+            var hit = viewGo.AddComponent<Image>();
+            if (hitSprite != null)
+            {
+                hit.sprite = hitSprite;
+            }
+
+            hit.color = new Color(0f, 0f, 0f, 0.001f);
+
+            var contentGo = new GameObject("Content", typeof(RectTransform));
+            var content = (RectTransform)contentGo.transform;
+            content.SetParent(viewGo.transform, false);
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.anchoredPosition = Vector2.zero;
+
+            scroll.viewport = (RectTransform)viewGo.transform;
+            scroll.content = content;
+            return content;
+        }
+
         /// <summary>A visible vertical scrollbar for a <see cref="ScrollRect"/> — the wheel already
         /// scrolls, but a draggable handle shows WHERE you are and jumps anywhere in one drag (long
         /// lists like the settings screen). Place it along the viewport's right edge; it is wired as
@@ -918,6 +1002,32 @@ namespace BlocksBeyondTheStars.Client
                 color = Color.white,
             };
             return ChipMeasurer.GetPreferredWidth(text ?? string.Empty, settings);
+        }
+
+        private static readonly TextGenerator HeightMeasurer = new TextGenerator();
+
+        /// <summary>The height of <paramref name="text"/> wrapped to <paramref name="width"/> at <paramref name="size"/>,
+        /// measured with an explicit scaleFactor of 1 so it comes back in the same reference units (the 1920×1080
+        /// canvas) the rows are placed in — independent of canvas scaling. <paramref name="richText"/> says whether the
+        /// label renders tags (then they take no room).</summary>
+        public static float MeasureHeight(string text, float width, int size, FontStyle style, bool richText)
+        {
+            var settings = new TextGenerationSettings
+            {
+                font = Font,
+                fontSize = size,
+                fontStyle = style,
+                richText = richText,
+                scaleFactor = 1f,
+                lineSpacing = 1f,
+                horizontalOverflow = HorizontalWrapMode.Wrap,
+                verticalOverflow = VerticalWrapMode.Overflow,
+                generationExtents = new Vector2(width, 0f),
+                textAnchor = TextAnchor.UpperLeft,
+                pivot = new Vector2(0f, 1f),
+                color = Color.white,
+            };
+            return HeightMeasurer.GetPreferredHeight(text, settings);
         }
 
         /// <summary>

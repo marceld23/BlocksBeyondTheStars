@@ -1815,28 +1815,9 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddButton(oContent, col[4], 54f, colW, 44f, shell.L("ui.portal.account_btn"), () => OpenAccount(), "btn_settings");
 
                 // Both lists live in ONE scrollable area with section headers + a divider — no second window,
-                // and a clear visual split between the player's own worlds and the public ones.
-                var scrollGo = new GameObject("WorldsScroll", typeof(RectTransform));
-                scrollGo.transform.SetParent(oContent, false);
-                UiKit.Place(scrollGo, 0f, 108f, 1076f, 322f);
-                var scroll = scrollGo.AddComponent<ScrollRect>();
-                scroll.horizontal = false;
-                scroll.vertical = true;
-                scroll.movementType = ScrollRect.MovementType.Clamped;
-                scroll.scrollSensitivity = 28f;
-                scrollGo.AddComponent<RectMask2D>();
-                var hit = scrollGo.AddComponent<Image>();
-                hit.color = new Color(0f, 0f, 0f, 0.001f); // catches wheel/drag over empty areas
-
-                var listGo = new GameObject("Content", typeof(RectTransform));
-                listGo.transform.SetParent(scrollGo.transform, false);
-                var list = listGo.GetComponent<RectTransform>();
-                list.anchorMin = new Vector2(0f, 1f);
-                list.anchorMax = new Vector2(1f, 1f);
-                list.pivot = new Vector2(0.5f, 1f);
-                list.anchoredPosition = Vector2.zero;
-                scroll.viewport = (RectTransform)scrollGo.transform;
-                scroll.content = list;
+                // and a clear visual split between the player's own worlds and the public ones. The viewport's
+                // near-transparent hit graphic catches wheel/drag over empty areas.
+                var list = UiKit.AddScrollViewport(oContent, "WorldsScroll", 0f, 108f, 1076f, 322f, out var scroll);
 
                 float ry = 0f;
 

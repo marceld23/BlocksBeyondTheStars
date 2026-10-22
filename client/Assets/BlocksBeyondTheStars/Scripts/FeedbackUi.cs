@@ -1175,33 +1175,9 @@ namespace BlocksBeyondTheStars.Client
         /// on, and a permanent scrollbar along the right edge (#1368).</summary>
         private void BuildReplyBodyScroll(Transform panel, float x, float y, float w, float h)
         {
-            var viewGo = new GameObject("ReplyBodyScroll", typeof(RectTransform));
-            viewGo.transform.SetParent(panel, false);
-            UiKit.Place(viewGo, x, y, w, h);
+            _replyBodyContent = UiKit.AddScrollViewport(panel, "ReplyBodyScroll", x, y, w, h, out _replyBodyScroll, hitSprite: UiKit.SolidSprite);
             _replyBodyW = w;
-
-            _replyBodyScroll = viewGo.AddComponent<ScrollRect>();
-            _replyBodyScroll.horizontal = false;
-            _replyBodyScroll.vertical = true;
-            _replyBodyScroll.movementType = ScrollRect.MovementType.Clamped;
-            _replyBodyScroll.scrollSensitivity = 28f;
-            viewGo.AddComponent<RectMask2D>();
-
-            var hit = viewGo.AddComponent<Image>();
-            hit.sprite = UiKit.SolidSprite;
-            hit.color = new Color(0f, 0f, 0f, 0.001f);
-
-            var contentGo = new GameObject("Content", typeof(RectTransform));
-            _replyBodyContent = (RectTransform)contentGo.transform;
-            _replyBodyContent.SetParent(viewGo.transform, false);
-            _replyBodyContent.anchorMin = new Vector2(0f, 1f);
-            _replyBodyContent.anchorMax = new Vector2(1f, 1f);
-            _replyBodyContent.pivot = new Vector2(0.5f, 1f);
-            _replyBodyContent.anchoredPosition = Vector2.zero;
             _replyBodyContent.sizeDelta = new Vector2(0f, h);
-
-            _replyBodyScroll.viewport = (RectTransform)viewGo.transform;
-            _replyBodyScroll.content = _replyBodyContent;
 
             UiKit.AddVerticalScrollbar(panel, _replyBodyScroll, x + w - ReplyBodyScrollbarW, y, ReplyBodyScrollbarW, h);
         }

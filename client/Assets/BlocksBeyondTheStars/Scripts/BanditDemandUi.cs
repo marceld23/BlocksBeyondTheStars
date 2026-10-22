@@ -163,8 +163,6 @@ namespace BlocksBeyondTheStars.Client
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
 
-        private static readonly TextGenerator Measurer = new TextGenerator();
-
         /// <summary>
         /// Sizes the speech-line row to its wrapped height and shifts every row below it (and the panel
         /// bottom) by the same amount, so long hail lines — the localized ones as much as LLM-authored
@@ -174,22 +172,7 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private void ReflowForLine()
         {
-            var settings = new TextGenerationSettings
-            {
-                font = UiKit.Font,
-                fontSize = 18,
-                fontStyle = FontStyle.Italic,
-                richText = false,
-                scaleFactor = 1f,
-                lineSpacing = 1f,
-                horizontalOverflow = HorizontalWrapMode.Wrap,
-                verticalOverflow = VerticalWrapMode.Overflow,
-                generationExtents = new Vector2(RowW, 0f),
-                textAnchor = TextAnchor.UpperLeft,
-                pivot = new Vector2(0f, 1f),
-                color = Color.white,
-            };
-            float lineH = Mathf.Max(LineBaseH, Measurer.GetPreferredHeight(_line.text, settings) + 4f);
+            float lineH = Mathf.Max(LineBaseH, UiKit.MeasureHeight(_line.text, RowW, 18, FontStyle.Italic, richText: false) + 4f);
             float delta = lineH - LineBaseH;
 
             _line.rectTransform.sizeDelta = new Vector2(RowW, lineH);
@@ -214,16 +197,7 @@ namespace BlocksBeyondTheStars.Client
             UiNav.Enable(_canvas.gameObject); // pad: stick walks Comply / Refuse, A picks (#1043) — 1/2 keys stay
             var root = _canvas.transform;
 
-            _panel = new GameObject("BanditPanel", typeof(RectTransform)).gameObject;
-            _panel.transform.SetParent(root, false);
-            var rt = _panel.GetComponent<RectTransform>();
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(PanelW, PanelBaseH);
-            rt.anchoredPosition = new Vector2(0f, 60f);
-            var img = _panel.AddComponent<Image>();
-            img.sprite = UiKit.PanelSprite;
-            img.type = Image.Type.Sliced;
-            img.color = UiKit.PanelFill;
+            _panel = UiKit.AddCenteredPanel(root, "BanditPanel", PanelW, PanelBaseH, 60f);
 
             var t = _panel.transform;
             _title = UiKit.AddText(t, 20f, 12f, RowW, 26f, string.Empty, 22, new Color(1f, 0.55f, 0.3f), TextAnchor.MiddleLeft, FontStyle.Bold);

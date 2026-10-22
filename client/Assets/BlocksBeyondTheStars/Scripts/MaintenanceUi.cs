@@ -208,13 +208,7 @@ namespace BlocksBeyondTheStars.Client
             UiNav.Enable(_canvas.gameObject);
 
             // Top banner: full reference width, no dismiss controls by design.
-            _banner = new GameObject("MaintenanceBanner", typeof(RectTransform));
-            var brt = _banner.GetComponent<RectTransform>();
-            brt.SetParent(_canvas.transform, false);
-            brt.anchorMin = Vector2.zero;
-            brt.anchorMax = Vector2.one;
-            brt.offsetMin = Vector2.zero;
-            brt.offsetMax = Vector2.zero;
+            _banner = UiKit.AddStretchChild(_canvas.transform, "MaintenanceBanner");
             _bannerBg = UiKit.AddImage(_banner.transform, 0, 0, 1920, 64, UiKit.SolidSprite, BannerCalmBg);
             _bannerBg.raycastTarget = false; // the banner informs; it must not eat gameplay clicks
             _bannerText = UiKit.AddText(_banner.transform, 0, 0, 1920, 64, string.Empty, 30,
@@ -223,13 +217,7 @@ namespace BlocksBeyondTheStars.Client
             _banner.SetActive(false);
 
             // Info modal: RespawnPrompt pattern — opaque dim swallowing clicks, one delayed-unlock button.
-            _modal = new GameObject("MaintenanceModal", typeof(RectTransform));
-            var mrt = _modal.GetComponent<RectTransform>();
-            mrt.SetParent(_canvas.transform, false);
-            mrt.anchorMin = Vector2.zero;
-            mrt.anchorMax = Vector2.one;
-            mrt.offsetMin = Vector2.zero;
-            mrt.offsetMax = Vector2.zero;
+            _modal = UiKit.AddStretchChild(_canvas.transform, "MaintenanceModal");
             UiKit.AddModalDim(_modal.transform, 0.85f);
             UiKit.AddText(_modal.transform, 0, 330, 1920, 90, Tr("ui.maint.info_title"), 52,
                 new Color(1f, 0.82f, 0.3f), TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -239,25 +227,19 @@ namespace BlocksBeyondTheStars.Client
             _modal.SetActive(false);
         }
 
-        private string Tr(string key)
-        {
-            string s = Game?.Localizer?.Get(key);
-            if (!string.IsNullOrEmpty(s) && s != key)
-            {
-                return s;
-            }
+        private string Tr(string key) => UiKit.Tr(Game?.Localizer, key, Fallback);
 
-            // Fallback if the localizer isn't ready (bilingual values live in data/locales).
-            switch (key)
-            {
-                case "ui.maint.restart_in": return "Server restart in {0}";
-                case "ui.maint.restarting_now": return "The server is restarting now…";
-                case "ui.maint.cancelled": return "The scheduled server restart was cancelled.";
-                case "ui.maint.info_title": return "Server announcement";
-                case "ui.maint.ok": return "Got it";
-                default: return key;
-            }
-        }
+        /// <summary>Fallback if the localizer isn't ready (bilingual values live in data/locales). A cached delegate,
+        /// so the per-frame countdown lookup allocates nothing.</summary>
+        private static readonly System.Func<string, string> Fallback = key => key switch
+        {
+            "ui.maint.restart_in" => "Server restart in {0}",
+            "ui.maint.restarting_now" => "The server is restarting now…",
+            "ui.maint.cancelled" => "The scheduled server restart was cancelled.",
+            "ui.maint.info_title" => "Server announcement",
+            "ui.maint.ok" => "Got it",
+            _ => key,
+        };
 
         private void OnDestroy()
         {

@@ -121,21 +121,15 @@ namespace BlocksBeyondTheStars.Client
             _overlay.SetActive(false);
         }
 
-        private string Tr(string key)
-        {
-            string s = Game?.Localizer?.Get(key);
-            if (!string.IsNullOrEmpty(s) && s != key)
-            {
-                return s;
-            }
+        private string Tr(string key) => UiKit.Tr(Game?.Localizer, key, Fallback);
 
-            return key switch
-            {
-                "ui.launch.title" => "Launch into space?",
-                "ui.launch.yes" => "Launch ({key:Interact})",
-                "ui.launch.no" => "Not yet — map",
-                _ => key,
-            };
-        }
+        /// <summary>English text while the localizer is not ready. A cached delegate, so a lookup allocates nothing.</summary>
+        private static readonly System.Func<string, string> Fallback = key => key switch
+        {
+            "ui.launch.title" => "Launch into space?",
+            "ui.launch.yes" => "Launch ({key:Interact})",
+            "ui.launch.no" => "Not yet — map",
+            _ => key,
+        };
     }
 }
