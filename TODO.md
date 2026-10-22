@@ -165,6 +165,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   members); `ServerSpeeder` is top-level there now, the reconcile scratch lists came along, 1 widening
   (`ShipStationReach`). Reject/`@srv` keys, ids, send order and the stow-before-reach quirk unchanged; 113
   speeder/boat/recovery/neighbour tests green.
+- **TutorialSystem (#2901):** the teaching verbs, UI teaching flags and world predicates left the partial
+  `GameServerTutorial.cs` (784 → 502 lines, now 13 one-line facades, the hint hold, the pack migration and the seams)
+  for the new sealed `TutorialSystem.cs` (411), moved verbatim behind `ITutorialHost : IServerHost` (8 own members);
+  the lazy plant/tree caches came along, 1 widening (`AnchorOf`). Event keys, the `WorldPredicates` names, callers
+  and `*ForTest` seams unchanged; 425 tutorial/story/VEGA/ship-AI/hint tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

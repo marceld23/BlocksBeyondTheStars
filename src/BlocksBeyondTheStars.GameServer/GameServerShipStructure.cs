@@ -531,7 +531,7 @@ public sealed partial class GameServer
     /// their own ship at their own landing pad.</summary>
     public Vector3i ShipAnchorOf(string playerId) => AnchorOf(_worlds.Active.LandedFor(playerId));
 
-    private static Vector3i AnchorOf(LandedShip rec) => rec.Placed
+    internal static Vector3i AnchorOf(LandedShip rec) => rec.Placed
         ? new Vector3i(rec.Origin.X + rec.Structure.Width / 2, rec.Origin.Y - 1, rec.Origin.Z + rec.Structure.Length / 2)
         : default;
 

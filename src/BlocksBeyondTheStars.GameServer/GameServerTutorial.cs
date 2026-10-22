@@ -7,7 +7,6 @@ using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
-using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.Story;
 using BlocksBeyondTheStars.Shared.World;
@@ -16,57 +15,21 @@ namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
 /// The basic training's server side (#2469, synthesis §3.3) next to the generic player-pack runtime
-/// (<c>GameServerStoryPacks.cs</c>): the teaching verbs the gameplay handlers raise only while a step waits for them
-/// (walk, jump, fly, walked back to the ship, a data fragment carried), the client's UI teaching flags
-/// (<see cref="UiTutorialEvent"/>, tag 298), the tutorial's world predicates (plants and trees in reach, a shaped block
-/// carried, knowledge for a blueprint, every blueprint handed out, an unvisited world in the system), the
-/// <c>nearest_food_plant</c> marker probe, the "one teaching voice" hold over VEGA's hints and tips (a step's
-/// <c>hintRefs</c>, G12), the pack's hold list for hints about later topics (<c>gates.holdHints</c>, #2549) and the
-/// one-time migration of the old onboarding chain into the official tutorial pack.
+/// (<c>GameServerStoryPacks.cs</c>): the facade of <see cref="TutorialSystem"/> (ADR 0019), which owns the teaching verbs
+/// the gameplay handlers raise only while a step waits for them (walk, jump, fly, walked back to the ship, a data fragment
+/// carried), the client's UI teaching flags (<see cref="UiTutorialEvent"/>, tag 298), the tutorial's world predicates
+/// (plants and trees in reach, a shaped block carried, knowledge for a blueprint, an unvisited world in the system) and the
+/// <c>nearest_food_plant</c> marker probe — same names, same signatures, each one line delegating, for the move and flight
+/// handlers, the 1 Hz VEGA pass, the story packs, the story conditions and the dispatch table. This partial itself keeps
+/// the story-pack runtime: the "one teaching voice" hold over VEGA's hints and tips (a step's <c>hintRefs</c>, G12), the
+/// pack's hold list for hints about later topics (<c>gates.holdHints</c>, #2549) and the one-time migration of the old
+/// onboarding chain into the official tutorial pack; plus the test seams and the explicit <see cref="ITutorialHost"/>
+/// implementation.
 /// </summary>
-public sealed partial class GameServer
+public sealed partial class GameServer : ITutorialHost
 {
     /// <summary>The official tutorial pack — the one the legacy onboarding state migrates into.</summary>
     internal const string OfficialTutorialPackId = "tutorial";
-
-    /// <summary>A move report further than this (blocks) from the last one is a teleport, a respawn or a streamed pose —
-    /// never walking.</summary>
-    private const double TutorialWalkMaxStep = 4.0;
-
-    /// <summary>A ship pose further than this (flight units) from the last one is a jump, a warp or a fresh entry.</summary>
-    private const double TutorialFlightMaxStep = 60.0;
-
-    /// <summary>Upward speed (blocks/s) that reads as a jump.</summary>
-    private const float TutorialJumpSpeed = 2.5f;
-
-    /// <summary>The "walked back to the ship" check, in the metres the compass shows as "Ship N m" (#2550): far means the
-    /// compass reads at least this …</summary>
-    private const double TutorialShipFarDistance = 40.0;
-
-    /// <summary>… and back means aboard or the compass reads at most this again.</summary>
-    private const double TutorialShipNearDistance = 10.0;
-
-    /// <summary>#2550: the compass rounds its distance with Unity's <c>Mathf.RoundToInt</c> — to the nearest whole metre, an
-    /// exact .5 to the even one (39.5 reads 40, 10.5 reads 10). The server compares the exact flat distance with these edges,
-    /// so the moment the compass reads "Ship 40 m" counts as far and "Ship 10 m" as back — never "the compass says 40 but
-    /// the step disagrees" (both readings are even, so the .5 edge itself reads as the reading).</summary>
-    private const double TutorialShipFarEdge = TutorialShipFarDistance - 0.5;
-
-    /// <inheritdoc cref="TutorialShipFarEdge"/>
-    private const double TutorialShipNearEdge = TutorialShipNearDistance + 0.5;
-
-    /// <summary>Half-size (blocks, horizontal) of the probe behind <c>food_plants_near</c>, <c>trees_near</c> and the
-    /// <c>nearest_food_plant</c> marker.</summary>
-    private const int TutorialFloraProbeRadius = 20;
-
-    /// <summary>Half-height (blocks) of that probe.</summary>
-    private const int TutorialFloraProbeHeight = 10;
-
-    /// <summary>Shortest gap between two accepted UI teaching flags of the same id from one player (server uptime).</summary>
-    private const double UiTutorialEventGapSeconds = 0.25;
-
-    /// <summary>The item a data fragment is.</summary>
-    private const string DataFragmentItem = "data_fragment";
 
     /// <summary>The verbs whose counters show a player really played (the E30 "thin evidence" check).</summary>
     private static readonly string[] BasicVerbCounters =
@@ -79,316 +42,53 @@ public sealed partial class GameServer
     internal const string TutorialRefresherLine = "story.tutorial.refresher";
 
     // ---------------------------------------------------------------------------------------------
-    // Teaching verbs raised only while a step waits (synthesis G13: no tick scans otherwise).
+    // Teaching verbs, UI teaching flags and world predicates: facades of TutorialSystem (ADR 0019).
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>From <c>HandleMove</c>: walked metres (<c>move:walked</c>), a jump or the start of a crouch
     /// (<c>move:jump</c>). Measures nothing unless a step listens.</summary>
     private void TutorialMovementEvents(PlayerSession session, Vector3f before, Vector3f now, bool onSurface, bool crouching)
-    {
-        bool wasCrouching = session.Tutorial.TutorialWasCrouching;
-        session.Tutorial.TutorialWasCrouching = crouching;
-        if (!onSurface || session.State.InSpeeder.Length > 0 || session.State.InTrain.Length > 0)
-        {
-            return;
-        }
-
-        // #2482: metres climbed up a wall in the climbing pose (the "On the move" course) — the server sees the pose, the
-        // client owns the motion; a report over 4 blocks from the last one never counts.
-        double rise = now.Y - before.Y;
-        if (session.State.Climbing && rise > 0 && rise <= TutorialWalkMaxStep && HasGameEventListener(GameEventKeys.MoveClimbed))
-        {
-            session.Tutorial.TutorialClimbAccum += rise;
-            int metres = (int)session.Tutorial.TutorialClimbAccum;
-            if (metres >= 1)
-            {
-                session.Tutorial.TutorialClimbAccum -= metres;
-                RaiseGameEvent(session, GameEventKeys.MoveClimbed, string.Empty, metres);
-            }
-        }
-
-        if (HasGameEventListener(GameEventKeys.MoveWalked))
-        {
-            double dx = now.X - before.X;
-            double dz = now.Z - before.Z;
-            int circ = _world.Circumference;
-            if (circ > 0)
-            {
-                dx -= Math.Round(dx / circ) * circ; // across the seam of a round world
-            }
-
-            double step = Math.Sqrt((dx * dx) + (dz * dz));
-            if (step > 0 && step <= TutorialWalkMaxStep)
-            {
-                session.Tutorial.TutorialWalkAccum += step;
-                int whole = (int)session.Tutorial.TutorialWalkAccum;
-                if (whole >= 1)
-                {
-                    session.Tutorial.TutorialWalkAccum -= whole;
-                    RaiseGameEvent(session, GameEventKeys.MoveWalked, string.Empty, whole);
-                }
-            }
-        }
-
-        if (HasGameEventListener(GameEventKeys.MoveJump) && _uptime - session.Tutorial.TutorialJumpAt >= 1.0)
-        {
-            bool jumped = session.VerticalSpeed > TutorialJumpSpeed && !session.State.Climbing;
-            bool crouched = crouching && !wasCrouching;
-            if (jumped || crouched)
-            {
-                session.Tutorial.TutorialJumpAt = _uptime;
-                RaiseGameEvent(session, GameEventKeys.MoveJump, jumped ? GameEventKeys.MoveJumpArg : GameEventKeys.MoveCrouchArg);
-            }
-        }
-    }
+        => _tutorialSystem.TutorialMovementEvents(session, before, now, onSurface, crouching);
 
     /// <summary>From <c>ShipMove</c>: flight units flown (<c>flight:flown</c>). Measures nothing unless a step listens.</summary>
-    private void TutorialFlightEvents(PlayerSession pilot, Vector3f pos)
-    {
-        var last = pilot.Tutorial.TutorialFlightLast;
-        pilot.Tutorial.TutorialFlightLast = pos;
-        if (last is not { } from || !HasGameEventListener(GameEventKeys.FlightFlown))
-        {
-            return;
-        }
+    private void TutorialFlightEvents(PlayerSession pilot, Vector3f pos) => _tutorialSystem.TutorialFlightEvents(pilot, pos);
 
-        double dx = pos.X - from.X, dy = pos.Y - from.Y, dz = pos.Z - from.Z;
-        double step = Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
-        if (step <= 0 || step > TutorialFlightMaxStep)
-        {
-            return;
-        }
+    /// <summary>1 Hz from <c>TickShipAi</c>: walked back to the landed ship, a data fragment carried, a base's sealed room
+    /// or wall ring — each check only while one of this player's steps waits for it.</summary>
+    private void TutorialStateEvents(PlayerSession session) => _tutorialSystem.TutorialStateEvents(session);
 
-        pilot.Tutorial.TutorialFlightAccum += step;
-        int whole = (int)pilot.Tutorial.TutorialFlightAccum;
-        if (whole >= 1)
-        {
-            pilot.Tutorial.TutorialFlightAccum -= whole;
-            RaiseGameEvent(pilot, GameEventKeys.FlightFlown, string.Empty, whole);
-        }
-    }
+    /// <summary>#2550: a step that waits for <c>ship:returned</c> activates (also in a replay): the walk starts afresh.</summary>
+    private static void ResetTutorialWalk(PlayerSession s, CompiledStep step) => TutorialSystem.ResetTutorialWalk(s, step);
 
-    /// <summary>1 Hz from <c>TickShipAi</c> (the player's world is the active cursor there): walked back to the landed
-    /// ship after having been far from it (<c>ship:returned</c> <c>walk</c>), a data fragment carried (<c>data:found</c>
-    /// <c>fragment</c>), and since #2480 a base's sealed room or wall ring (<c>base:sealed</c>, <c>base:walled</c>). Each
-    /// check only while a step waits for it — the walk back only while one of THIS player's steps waits for it (#2550:
-    /// the event bus is shared, so another player's open step must not let this one's walk count early).</summary>
-    private void TutorialStateEvents(PlayerSession session)
-    {
-        var p = session.State;
-        if (HasGameEventListener(GameEventKeys.ShipReturned))
-        {
-            var landed = _worlds.Active.LandedFor(p.PlayerId);
-            if (!StepWaitsFor(session, GameEventKeys.ShipReturned))
-            {
-                session.Tutorial.TutorialFarFromShip = false; // #2550: a walk only counts while the player's own step waits for it
-            }
-            else if (landed.Placed && !InSpace(p.PlayerId) && !InStation(p.PlayerId))
-            {
-                // #2550: what the compass shows ("Ship N m", rounded — see TutorialShipFarEdge), not the heal tank in 3-D.
-                double d2 = ShipCompassDistSq(p.Position, landed);
-                bool onFoot = !p.AboardShip && !p.InEva && !ShipInteriorContains(p.Position);
-                if (onFoot && d2 >= TutorialShipFarEdge * TutorialShipFarEdge)
-                {
-                    if (!session.Tutorial.TutorialFarFromShip)
-                    {
-                        session.Tutorial.TutorialFarFromShip = true;
-                        SpeakStepMidLines(session, GameEventKeys.ShipReturned); // #2550: "far enough — now find your way back"
-                    }
-                }
-                else if (session.Tutorial.TutorialFarFromShip && (p.AboardShip || d2 <= TutorialShipNearEdge * TutorialShipNearEdge))
-                {
-                    session.Tutorial.TutorialFarFromShip = false;
-                    RaiseGameEvent(session, GameEventKeys.ShipReturned, "walk");
-                }
-            }
-        }
-
-        if (HasGameEventListener(GameEventKeys.DataFound)
-            && (p.Inventory.Has(DataFragmentItem, 1)
-                || (session.Ships.TryGetValue(session.ActiveShipId, out var ship) && ship.Cargo.Has(DataFragmentItem, 1))))
-        {
-            RaiseGameEvent(session, GameEventKeys.DataFound, "fragment");
-        }
-
-        TutorialBaseStateEvents(session); // #2480: a sealed room, a closed wall ring — only while this player's step waits
-    }
-
-    /// <summary>#2550: the squared distance the compass shows as "Ship N m" — flat (height does not count) and the short way
-    /// round the world's seams, from <paramref name="pos"/> to the landed ship's anchor (the floor centre, at the block's
-    /// middle — exactly the point <see cref="SendShipPlacement"/> gives the client's compass). The walk-back step measures
-    /// with it, so the player can read their progress off the compass.</summary>
-    private double ShipCompassDistSq(Vector3f pos, LandedShip landed)
-    {
-        var anchor = AnchorOf(landed);
-        return WorldConstants.WrapDistanceSquared(
-            new Vector3f(pos.X, 0f, pos.Z), new Vector3f(anchor.X + 0.5f, 0f, anchor.Z + 0.5f), _world.Circumference);
-    }
-
-    /// <summary>#2550: a step that waits for <c>ship:returned</c> activates (also in a replay): the walk starts afresh, so a
-    /// "far" noted before — under another step, or before a skip — never completes it at the ship without a walk.</summary>
-    private static void ResetTutorialWalk(PlayerSession s, CompiledStep step)
-    {
-        if (step.Event.Length > 0 && GameEventKeys.Matches(step.Event, GameEventKeys.ShipReturned))
-        {
-            s.Tutorial.TutorialFarFromShip = false;
-        }
-    }
-
-    /// <summary>Test seam: <see cref="ShipCompassDistSq"/> for a player's own landed ship (as a distance), or null without one.</summary>
+    /// <summary>Test seam: <see cref="TutorialSystem.ShipCompassDistSq"/> for a player's own landed ship (as a distance), or
+    /// null without one.</summary>
     internal double? ShipCompassDistanceForTest(PlayerSession s)
     {
         var landed = _worlds.Active.LandedFor(s.State.PlayerId);
-        return landed.Placed ? Math.Sqrt(ShipCompassDistSq(s.State.Position, landed)) : null;
+        return landed.Placed ? Math.Sqrt(_tutorialSystem.ShipCompassDistSq(s.State.Position, landed)) : null;
     }
-
-    // ---------------------------------------------------------------------------------------------
-    // UI teaching flags (tag 298).
-    // ---------------------------------------------------------------------------------------------
 
     /// <summary>A UI moment the client reports (<see cref="UiTutorialEvent"/>): a known id becomes <c>ui:&lt;id&gt;</c> on the
-    /// event bus, where only a step waiting for exactly that flag listens. Teaching only — it ticks the sender's own lesson
-    /// off and nothing else (never pays, unlocks or counts for the story); an unknown id is ignored, the same id at most
-    /// every <see cref="UiTutorialEventGapSeconds"/>.</summary>
-    private void HandleUiTutorialEvent(PlayerSession session, UiTutorialEvent message)
-    {
-        string id = message.Id ?? string.Empty;
-        if (!GameEventKeys.IsKnownUiEventId(id))
-        {
-            return;
-        }
-
-        if (session.Tutorial.UiTutorialEventAt.TryGetValue(id, out double at) && _uptime - at < UiTutorialEventGapSeconds && _uptime >= at)
-        {
-            return;
-        }
-
-        session.Tutorial.UiTutorialEventAt[id] = _uptime;
-        RaiseGameEvent(session, GameEventKeys.UiPrefix + id);
-    }
-
-    // ---------------------------------------------------------------------------------------------
-    // World predicates of the tutorial (registered in GameServerStoryConditions).
-    // ---------------------------------------------------------------------------------------------
-
-    private HashSet<ushort>? _foodPlantBlocks;
-    private HashSet<ushort>? _treeBlocks;
+    /// event bus — teaching only.</summary>
+    private void HandleUiTutorialEvent(PlayerSession session, UiTutorialEvent message) => _tutorialSystem.HandleUiTutorialEvent(session, message);
 
     /// <summary>Flora whose harvest is food (a drop with hunger value) — berries and the like.</summary>
-    private HashSet<ushort> FoodPlantBlocks => _foodPlantBlocks ??= BlocksDropping(item => _content.GetItem(item)?.ConsumeHunger > 0f, floraOnly: true);
+    private HashSet<ushort> FoodPlantBlocks => _tutorialSystem.FoodPlantBlocks;
 
     /// <summary>Blocks that drop wood (tree trunks).</summary>
-    private HashSet<ushort> TreeBlocks => _treeBlocks ??= BlocksDropping(item => item == "wood_log", floraOnly: false);
+    private HashSet<ushort> TreeBlocks => _tutorialSystem.TreeBlocks;
 
-    private HashSet<ushort> BlocksDropping(Func<string, bool> drop, bool floraOnly)
-    {
-        var set = new HashSet<ushort>();
-        foreach (var block in _content.Blocks.Values)
-        {
-            if ((!floraOnly || string.Equals(block.Category, "flora", StringComparison.OrdinalIgnoreCase))
-                && block.Drops.Any(d => drop(d.Item)))
-            {
-                set.Add(block.NumericId.Value);
-            }
-        }
+    /// <summary>The nearest block of <paramref name="blocks"/> around <paramref name="who"/> on their own body, or null.</summary>
+    private Vector3i? NearestBlockOf(PlayerSession who, HashSet<ushort> blocks) => _tutorialSystem.NearestBlockOf(who, blocks);
 
-        return set;
-    }
+    /// <summary><c>world:shape_block_carried</c>.</summary>
+    private bool ShapeBlockCarried(PlayerSession who) => _tutorialSystem.ShapeBlockCarried(who);
 
-    /// <summary>The nearest block of <paramref name="blocks"/> around <paramref name="who"/> on their own body (a bounded probe
-    /// of the loaded blocks), or null — also when the player is in space or their world is not loaded.</summary>
-    private Vector3i? NearestBlockOf(PlayerSession who, HashSet<ushort> blocks)
-    {
-        if (blocks.Count == 0 || InSpace(who.State.PlayerId) || _worlds.Find(who.CurrentLocationId)?.World is not { } world)
-        {
-            return null;
-        }
+    /// <summary><c>world:research_ready</c>.</summary>
+    private bool ResearchReady(PlayerSession who) => _tutorialSystem.ResearchReady(who);
 
-        var pos = who.State.Position;
-        var origin = WorldConstants.CanonicalBlock(pos.ToBlock(), world.Circumference);
-        int r = TutorialFloraProbeRadius;
-        int h = TutorialFloraProbeHeight;
-        int bestDist = int.MaxValue;
-        Vector3i? found = null;
-        for (int dx = -r; dx <= r; dx++)
-        {
-            for (int dz = -r; dz <= r; dz++)
-            {
-                for (int dy = -h; dy <= h; dy++)
-                {
-                    int d = (dx * dx) + (dy * dy) + (dz * dz);
-                    if (d >= bestDist)
-                    {
-                        continue;
-                    }
-
-                    var cell = WorldConstants.CanonicalBlock(new Vector3i(origin.X + dx, origin.Y + dy, origin.Z + dz), world.Circumference);
-                    if (blocks.Contains(world.GetBlockIfLoaded(cell).Value))
-                    {
-                        bestDist = d;
-                        found = cell;
-                    }
-                }
-            }
-        }
-
-        return found;
-    }
-
-    /// <summary><c>world:shape_block_carried</c>: a shaped building material (a form from the shape tool) or a prop block
-    /// (a crafted staircase, furniture) the rotate key turns.</summary>
-    private bool ShapeBlockCarried(PlayerSession who)
-    {
-        foreach (var stack in who.State.Inventory.Slots)
-        {
-            if (stack is not { IsEmpty: false })
-            {
-                continue;
-            }
-
-            string block = _content.GetItem(ItemKey.Base(stack.Item))?.PlacesBlock ?? string.Empty;
-            if (block.Length == 0)
-            {
-                continue;
-            }
-
-            if ((ItemKey.Shape(stack.Item) != 0 && _content.GetBlock(block)?.Shapeable == true) || PropShapes.DefaultPlaceShape(block) != 0)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary><c>world:research_ready</c>: the player's knowledge covers a blueprint they could research now —
-    /// prerequisites unlocked, not owned, no data fragment in its cost.</summary>
-    private bool ResearchReady(PlayerSession who)
-    {
-        var p = who.State;
-        foreach (var bp in _content.Blueprints.Values)
-        {
-            if (!p.UnlockedBlueprints.Contains(bp.Key)
-                && bp.KnowledgeCost <= p.KnowledgePoints
-                && bp.Prerequisites.All(pr => p.UnlockedBlueprints.Contains(pr))
-                && bp.UnlockCost.All(c => c.Item != DataFragmentItem))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary><c>world:new_world_in_system</c>: a planet, moon or asteroid in the player's system they never landed on.</summary>
-    private bool NewWorldInSystem(PlayerSession who)
-    {
-        string systemId = _galaxy?.FindBody(who.CurrentLocationId)?.SystemId ?? string.Empty;
-        var system = systemId.Length > 0 ? _galaxy!.Systems.FirstOrDefault(sys => sys.Id == systemId) : null;
-        return system is not null
-               && system.Bodies.Any(b => (b.Kind is CelestialKind.Planet or CelestialKind.Moon or CelestialKind.AsteroidField)
-                                         && !who.State.LandedBodies.Contains(b.Id));
-    }
+    /// <summary><c>world:new_world_in_system</c>.</summary>
+    private bool NewWorldInSystem(PlayerSession who) => _tutorialSystem.NewWorldInSystem(who);
 
     // ---------------------------------------------------------------------------------------------
     // One teaching voice (G12): a step's hintRefs hold VEGA's matching hints and tips.
@@ -781,4 +481,22 @@ public sealed partial class GameServer
     /// <summary>Test seam: "I know the game" for a player — the tutorial packs' mandatory chapters skipped, as the Settings
     /// button does (for tests that need a player past the basic training).</summary>
     public void SkipTutorialForTest(PlayerSession s) => SkipOrRestartTutorialPacks(s, restart: false);
+
+    // ITutorialHost: each member delegates to the server's own member of the same name (never to the interface member,
+    // which would recurse).
+    Galaxy ITutorialHost.Galaxy => _galaxy;
+
+    bool ITutorialHost.HasGameEventListener(string key) => HasGameEventListener(key);
+
+    bool ITutorialHost.StepWaitsFor(PlayerSession s, string key) => StepWaitsFor(s, key);
+
+    void ITutorialHost.SpeakStepMidLines(PlayerSession s, string eventKey) => SpeakStepMidLines(s, eventKey);
+
+    void ITutorialHost.TutorialBaseStateEvents(PlayerSession session) => TutorialBaseStateEvents(session);
+
+    bool ITutorialHost.InSpace(string playerId) => InSpace(playerId);
+
+    bool ITutorialHost.InStation(string playerId) => InStation(playerId);
+
+    bool ITutorialHost.ShipInteriorContains(Vector3f p) => ShipInteriorContains(p);
 }
