@@ -8,19 +8,19 @@ using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
-/// Fleet-admin observer mode (issue #487) and the admin inspection commands (issue #488).
-///
-/// <para>Invisibility here is a <b>server-side mode</b>, not the cosmetic <c>Stealthed</c> flag. Stealth only
-/// asks the client not to draw an avatar — an old or modified client can simply ignore it, and it does nothing
-/// about the footprint a joining player leaves in a world: a parked ship object, a claimed landing pad, a
-/// broadcast descent animation, spawned fauna, a consumed player slot. An observer must leave none of that, so
-/// the suppression happens where the data is produced.</para>
+/// Fleet-admin observer mode (issue #487) and the admin inspection commands (issue #488) on the server: the facade of
+/// <see cref="ObserverSystem"/> (ADR 0019), which owns entering and leaving observer mode and <c>/players</c>,
+/// <c>/where</c>, <c>/builds</c> and <c>/goto</c>. This partial keeps the player count, the fleet-admin check and the
+/// observer intent filter the join path and the dispatch read, the members the admin command table and sibling partials
+/// call — same names, same signatures, each one line delegating — the test seams, and the explicit
+/// <see cref="IObserverHost"/> implementation.
 /// </summary>
-public sealed partial class GameServer
+public sealed partial class GameServer : IObserverHost
 {
     /// <summary>Players that count against <see cref="Shared.Configuration.ServerConfig.MaxPlayers"/> and that
     /// the control plane reports as "online". Observers are excluded: they are staff, not players, and a full
@@ -75,401 +75,58 @@ public sealed partial class GameServer
     /// <summary>Persists everything now (tests that assert on offline players need the save written).</summary>
     public void SaveAllForTest() => SaveAll();
 
-    // ---------------- Entering / leaving observer mode ----------------
+    // ---------------- Observer mode and inspection commands (ObserverSystem) ----------------
 
-    /// <summary>Turns observer mode on: the world forgets the admin is there. Order matters — the ship object
-    /// and the presence handshake must go out while the session is still "visible", otherwise the removal
-    /// messages are themselves suppressed and every client keeps a frozen avatar and a ghost ship.</summary>
-    private void EnterSpectate(PlayerSession session)
-    {
-        var p = session.State;
+    private void HandleSpectateCommand(PlayerSession session, string? arg) => _observerSystem.HandleSpectateCommand(session, arg);
 
-        // Give up the world footprint FIRST, while broadcasts still reach the world.
-        if (SetActiveWorld(session.CurrentLocationId))
-        {
-            SetCurrent(session);
-            RemoveLandedShip(session);        // the parked ship object leaves with its (now invisible) owner
-        }
+    private void AdminListPlayers(PlayerSession session) => _observerSystem.AdminListPlayers(session);
 
-        session.AssignedPadIndex = -1;        // release the landing pad: pads are communal and finite
-        BroadcastToWorld(new PlayerLeft { PlayerId = p.PlayerId }); // clients drop the avatar they can see
-        BroadcastLandingPads(); // the released pad is free again — everyone's map must show it (#1020)
-        // Pets and deployed speeders despawn on the next reconcile tick — ReconcileCompanions/ReconcileSpeeders
-        // stop counting a spectating session as present.
+    private void AdminWhere(PlayerSession session, string? name) => _observerSystem.AdminWhere(session, name);
 
-        session.Spectating = true;
-        p.GodMode = true;                     // no damage, no drains, and creature targeting already skips this
-        p.Stealthed = true;                   // belt and braces: enemy aggro checks honour it too
-        p.Fly = true;
-        p.AboardShip = false;                 // no ship to be aboard: cargo crafting/life support don't apply
-        p.InSpeeder = string.Empty;
+    private List<ObserverSystem.BuildEntry> AllBuilds() => _observerSystem.AllBuilds();
 
-        SendPlayerState(session);
-        Send(session, new ServerMessage { Text = "@srv.obs.on" });
-        CheatLog(p, "entered observer mode");
-    }
+    private void AdminListBuilds(PlayerSession session, string? ownerFilter) => _observerSystem.AdminListBuilds(session, ownerFilter);
 
-    /// <summary>Turns observer mode off and hands the admin back to the world as a normal player: the ship is
-    /// parked again and everyone is told about the avatar that just appeared.</summary>
-    private void ExitSpectate(PlayerSession session)
-    {
-        var p = session.State;
-        session.Spectating = false;
-        p.GodMode = false;
-        p.Stealthed = false;
-        p.Fly = false;
+    private void AdminGoto(PlayerSession session, string? argument) => _observerSystem.AdminGoto(session, argument);
 
-        if (SetActiveWorld(session.CurrentLocationId))
-        {
-            SetCurrent(session);
-            if (_config.PlaceStarterShip)
-            {
-                ClaimPadOrReject(session, session.CurrentLocationId, -1); // take a pad again (any free one)
-                PlaceLandedShip();
-            }
+    // IObserverHost: each member delegates to the server's own member of the same name (never to the interface member,
+    // which would recurse).
+    bool IObserverHost.SetActiveWorld(string locationId) => SetActiveWorld(locationId);
 
-            BroadcastLandingPads(session); // the re-claimed pad is taken again — everyone's map must show it (#1020)
-        }
+    void IObserverHost.SetCurrent(PlayerSession session) => SetCurrent(session);
 
-        // Re-announce: presence resumes on the next tick by itself, but the face is out-of-band and would
-        // otherwise stay missing until the admin edits it.
-        BroadcastFace(session);
-        SendPlayerState(session);
-        Send(session, new ServerMessage { Text = "@srv.obs.off" });
-        // #2478 (E23): whoever had heard the arc out (B12) before the win counts as being there for it — read before the
-        // catch-up below hears any missed beat. An observer is not aboard at the win, so the ending (and its achievement)
-        // reaches them when observing ends.
-        bool heardFinal = FinalBeatKey is { } finalBeat && p.Milestones.Contains(finalBeat);
-        CatchUpStoryLines(session); // the beats the story held back while observing (#2460, N1)
-        if (StoryTrackStarted(session))
-        {
-            DeliverResolution(session, achievement: heardFinal);
-        }
+    void IObserverHost.RemoveLandedShip(PlayerSession session) => RemoveLandedShip(session);
 
-        TryStartStoryTrack(session); // #2470: the start rule may hold now (observers never start a track)
-        CheatLog(p, "left observer mode");
-    }
+    bool IObserverHost.ClaimPadOrReject(PlayerSession session, string bodyId, int padIndex) => ClaimPadOrReject(session, bodyId, padIndex);
 
-    /// <summary><c>/spectate [on|off]</c> — fleet admins only.</summary>
-    private void HandleSpectateCommand(PlayerSession session, string? arg)
-    {
-        bool on = string.IsNullOrWhiteSpace(arg)
-            ? !session.Spectating
-            : arg.Trim().ToLowerInvariant() is "on" or "an" or "1" or "true";
+    void IObserverHost.PlaceLandedShip() => PlaceLandedShip();
 
-        if (on == session.Spectating)
-        {
-            Send(session, new ServerMessage { Text = on ? "@srv.obs.already_on" : "@srv.obs.already_off" });
-            return;
-        }
+    void IObserverHost.BroadcastToWorld(object message) => BroadcastToWorld(message);
 
-        if (on)
-        {
-            EnterSpectate(session);
-        }
-        else
-        {
-            ExitSpectate(session);
-        }
-    }
+    void IObserverHost.BroadcastLandingPads(PlayerSession? always) => BroadcastLandingPads(always);
 
-    // ---------------- Inspection commands (issue #488) ----------------
+    void IObserverHost.BroadcastFace(PlayerSession subject) => BroadcastFace(subject);
 
-    /// <summary>Every player this world knows: the live sessions plus every persisted record. Returns the live
-    /// session where there is one, so coordinates are current rather than "as of the last save".</summary>
-    private List<(PlayerState State, bool Online, bool Observing)> AllKnownPlayers()
-    {
-        var byId = new Dictionary<string, (PlayerState, bool, bool)>(StringComparer.OrdinalIgnoreCase);
+    string IObserverHost.Localize(string localeCode, string key) => Localize(localeCode, key);
 
-        foreach (var id in _repo.ListPlayerIds())
-        {
-            if (_repo.LoadPlayer(id) is { } stored)
-            {
-                byId[id] = (stored, false, false);
-            }
-        }
+    void IObserverHost.CheatLog(PlayerState admin, string message) => CheatLog(admin, message);
 
-        foreach (var s in _sessions.Values)
-        {
-            if (s.Joined)
-            {
-                byId[s.State.PlayerId] = (s.State, true, s.Spectating);
-            }
-        }
+    string? IObserverHost.FinalBeatKey => FinalBeatKey;
 
-        return byId.Values
-            .OrderByDescending(e => e.Item2)
-            .ThenBy(e => e.Item1.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
+    void IObserverHost.CatchUpStoryLines(PlayerSession session) => CatchUpStoryLines(session);
 
-    /// <summary>Human-readable body label ("Kepler-2 (sys0-p1)"), falling back to the raw id.</summary>
-    private string BodyLabel(string bodyId)
-    {
-        if (string.IsNullOrEmpty(bodyId))
-        {
-            return "-";
-        }
+    bool IObserverHost.StoryTrackStarted(PlayerSession s) => StoryTrackStarted(s);
 
-        var body = _galaxy?.FindBody(bodyId);
-        return body is null ? bodyId : $"{body.Name} ({bodyId})";
-    }
+    void IObserverHost.DeliverResolution(PlayerSession session, bool achievement, bool live) => DeliverResolution(session, achievement, live);
 
-    private static string Coords(Vector3f p)
-        => string.Format(CultureInfo.InvariantCulture, "{0:0}/{1:0}/{2:0}", p.X, p.Y, p.Z);
+    bool IObserverHost.TryStartStoryTrack(PlayerSession s) => TryStartStoryTrack(s);
 
-    private static string Coords(Vector3i p)
-        => string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", p.X, p.Y, p.Z);
+    void IObserverHost.HandleTravel(PlayerSession session, TravelIntent intent, bool quickTravel, bool adminBypass, bool allowCurrentBody,
+        bool adminTeleport) => HandleTravel(session, intent, quickTravel, adminBypass, allowCurrentBody, adminTeleport);
 
-    /// <summary>Trims an ISO timestamp to "2026-07-26 14:03" for the console; "-" when never recorded.</summary>
-    private static string ShortTime(string iso)
-        => DateTime.TryParse(iso, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var t)
-            ? t.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
-            : "-";
+    void IObserverHost.SnapPlayerTo(PlayerSession session, Vector3f target, string reason) => SnapPlayerTo(session, target, reason);
 
-    /// <summary><c>/players</c> — who is on this world, and where everyone was last seen.</summary>
-    private void AdminListPlayers(PlayerSession session)
-    {
-        var all = AllKnownPlayers();
-        if (all.Count == 0)
-        {
-            Send(session, new ServerMessage { Text = "@srv.obs.no_players" });
-            return;
-        }
+    IReadOnlyDictionary<int, PlayerSession> IObserverHost.Sessions => _sessions;
 
-        Send(session, new ServerMessage
-        {
-            Text = Localize(session.Locale, "srv.obs.players_header").Replace("{count}", all.Count.ToString()),
-        });
-
-        foreach (var (state, online, observing) in all)
-        {
-            string status = observing
-                ? Localize(session.Locale, "srv.obs.observing")
-                : online ? "online" : ShortTime(state.LastSeenUtc); // "online" reads the same in both languages
-
-            Send(session, new ServerMessage
-            {
-                Text = $"{state.Name} [{state.Role}]"
-                       // A per-player mode override (#1121) is worth a glance in the roster; the silent
-                       // default (playing the world's mode) stays silent.
-                       + (state.ModeOverride == Shared.Configuration.PlayerModeOverride.None
-                           ? string.Empty : $" [{state.ModeOverride}]")
-                       + $" · {BodyLabel(state.CurrentLocationId)} · "
-                       + $"{Coords(state.Position)} · {status}",
-            });
-        }
-    }
-
-    /// <summary><c>/where &lt;name&gt;</c> — one player's body, position and last-seen time. Works for offline
-    /// players: the position is persisted per player, so the save already knows where they stopped.</summary>
-    private void AdminWhere(PlayerSession session, string? name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            Reject(session, "admin", "@srv.obs.usage_where");
-            return;
-        }
-
-        var match = AllKnownPlayers()
-            .FirstOrDefault(e => string.Equals(e.State.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
-        if (match.State is null)
-        {
-            Reject(session, "admin", "@srv.obs.unknown_player");
-            return;
-        }
-
-        var s = match.State;
-        Send(session, new ServerMessage
-        {
-            Text = $"{s.Name}: {BodyLabel(s.CurrentLocationId)} · {Coords(s.Position)} · "
-                   + (match.Online
-                       ? "online"
-                       : Localize(session.Locale, "srv.obs.last_seen").Replace("{time}", ShortTime(s.LastSeenUtc))),
-        });
-        Send(session, new ServerMessage { Text = $"/goto {s.CurrentLocationId} {Coords(s.Position).Replace('/', ' ')}" });
-    }
-
-    /// <summary>One listed structure: what it is, who owns it, where, and the command to jump there.</summary>
-    private readonly record struct BuildEntry(string Kind, string Name, string Owner, string Body, Vector3i Cell);
-
-    /// <summary>Every player-made structure the save knows about, across all bodies. Read from the repository
-    /// rather than the in-memory world state: bases/beacons/beams are per-world and only the resident world's
-    /// are loaded, but an admin asking "what has been built" means everywhere, not just here.</summary>
-    private List<BuildEntry> AllBuilds()
-    {
-        var list = new List<BuildEntry>();
-
-        foreach (var b in _repo.ListAllBases())
-        {
-            list.Add(new BuildEntry("base", b.Name, b.OwnerId, b.Planet, new Vector3i(b.X, b.Y, b.Z)));
-        }
-
-        foreach (var b in _repo.ListAllBeacons())
-        {
-            list.Add(new BuildEntry("beacon", b.Label, b.OwnerId, b.Planet, new Vector3i(b.X, b.Y, b.Z)));
-        }
-
-        foreach (var b in _repo.ListAllBeams())
-        {
-            list.Add(new BuildEntry("beam", b.Name, b.OwnerId, b.Planet, new Vector3i(b.X, b.Y, b.Z)));
-        }
-
-        foreach (var st in _repo.ListSpaceStructures())
-        {
-            if (IsDerelictId(st.Id))
-            {
-                continue; // #2634: a derelict's stored edits are nobody's build
-            }
-
-            list.Add(new BuildEntry("station", st.Name, st.OwnerId, st.Location,
-                new Vector3i((int)st.PosX, (int)st.PosY, (int)st.PosZ)));
-        }
-
-        return list.OrderBy(e => e.Owner, StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Kind).ToList();
-    }
-
-    /// <summary><c>/builds [name]</c> — named structures with owner + coordinates, optionally for one player.
-    /// Unnamed building activity (a house with no base core) has no registry row and is found through the
-    /// block-edit hotspots on the fleet admin panel instead (issue #489).</summary>
-    private void AdminListBuilds(PlayerSession session, string? ownerFilter)
-    {
-        var builds = AllBuilds();
-        if (!string.IsNullOrWhiteSpace(ownerFilter))
-        {
-            string who = ownerFilter.Trim();
-            builds = builds.Where(b => string.Equals(b.Owner, who, StringComparison.OrdinalIgnoreCase)).ToList();
-        }
-
-        if (builds.Count == 0)
-        {
-            Send(session, new ServerMessage { Text = "@srv.obs.no_builds" });
-            return;
-        }
-
-        Send(session, new ServerMessage
-        {
-            Text = Localize(session.Locale, "srv.obs.builds_header").Replace("{count}", builds.Count.ToString()),
-        });
-
-        // The console is a chat log, so cap the burst: a world with hundreds of beacons would otherwise
-        // scroll the admin's own screen into uselessness (and trip nothing, since this is server→client).
-        const int maxLines = 40;
-        foreach (var b in builds.Take(maxLines))
-        {
-            string label = string.IsNullOrWhiteSpace(b.Name) ? Localize(session.Locale, "srv.obs.unnamed") : b.Name;
-            Send(session, new ServerMessage
-            {
-                Text = $"{b.Kind}: {label} · {b.Owner} · {BodyLabel(b.Body)} · /goto {b.Body} {b.Cell.X} {b.Cell.Y} {b.Cell.Z}",
-            });
-        }
-
-        if (builds.Count > maxLines)
-        {
-            Send(session, new ServerMessage
-            {
-                Text = Localize(session.Locale, "srv.obs.builds_more")
-                    .Replace("{count}", (builds.Count - maxLines).ToString()),
-            });
-        }
-    }
-
-    // ---------------- Jumping (issue #488) ----------------
-
-    /// <summary><c>/goto</c> — the cross-body teleport the old <c>/tp</c> could never be: it moves the admin to
-    /// another celestial body first and only then sets the position. Forms:
-    /// <c>/goto &lt;player&gt;</c>, <c>/goto base|beacon|beam|station &lt;name&gt;</c>,
-    /// <c>/goto &lt;bodyId&gt; &lt;x&gt; &lt;y&gt; &lt;z&gt;</c>.</summary>
-    private void AdminGoto(PlayerSession session, string? argument)
-    {
-        // No StringSplitOptions.TrimEntries here: this assembly also targets netstandard2.1 for the in-browser
-        // singleplayer server, where that overload does not exist.
-        var parts = (argument ?? string.Empty)
-            .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(s => s.Trim())
-            .Where(s => s.Length > 0)
-            .ToArray();
-        if (parts.Length == 0)
-        {
-            Reject(session, "admin", "@srv.obs.usage_goto");
-            return;
-        }
-
-        // /goto <bodyId> <x> <y> <z>
-        if (parts.Length == 4
-            && float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float gx)
-            && float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float gy)
-            && float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float gz))
-        {
-            GotoPosition(session, parts[0], new Vector3f(gx, gy, gz), parts[0]);
-            return;
-        }
-
-        // /goto <kind> <name…>
-        string kind = parts[0].ToLowerInvariant();
-        if (parts.Length >= 2 && kind is "base" or "beacon" or "beam" or "station")
-        {
-            string wanted = string.Join(' ', parts.Skip(1)).Trim('"');
-            var hit = AllBuilds().FirstOrDefault(b =>
-                b.Kind == kind && string.Equals(b.Name, wanted, StringComparison.OrdinalIgnoreCase));
-            if (string.IsNullOrEmpty(hit.Body))
-            {
-                Reject(session, "admin", Localize(session.Locale, "srv.obs.no_build_named")
-                    .Replace("{kind}", kind)
-                    .Replace("{name}", wanted));
-                return;
-            }
-
-            // Stand next to the marker block, not inside it — a spectator noclips, but on exit that would
-            // leave the admin embedded in a wall.
-            GotoPosition(session, hit.Body,
-                new Vector3f(hit.Cell.X + 0.5f, hit.Cell.Y + 2f, hit.Cell.Z + 0.5f), $"{kind} '{hit.Name}'");
-            return;
-        }
-
-        // /goto <player>
-        string playerName = string.Join(' ', parts).Trim('"');
-        var match = AllKnownPlayers()
-            .FirstOrDefault(e => string.Equals(e.State.Name, playerName, StringComparison.OrdinalIgnoreCase));
-        if (match.State is null)
-        {
-            Reject(session, "admin", "@srv.obs.unknown_player");
-            return;
-        }
-
-        GotoPosition(session, match.State.CurrentLocationId, match.State.Position, match.State.Name);
-    }
-
-    /// <summary>Moves the admin to <paramref name="bodyId"/> (if that is not where they already are) and snaps
-    /// them to <paramref name="target"/>.</summary>
-    private void GotoPosition(PlayerSession session, string bodyId, Vector3f target, string what)
-    {
-        if (string.IsNullOrEmpty(bodyId))
-        {
-            Reject(session, "admin", "@srv.obs.unknown_destination");
-            return;
-        }
-
-        if (bodyId != session.CurrentLocationId)
-        {
-            if (_galaxy?.FindBody(bodyId) is null)
-            {
-                Reject(session, "admin", "@srv.obs.unknown_body");
-                return;
-            }
-
-            // adminBypass skips the jump-generator requirement; the Instant Travel rule does not apply
-            // because this is not the quick-travel screen.
-            HandleTravel(session, new TravelIntent { DestinationBodyId = bodyId }, quickTravel: false, adminBypass: true, adminTeleport: true); // #2493: booked silently
-            if (session.CurrentLocationId != bodyId)
-            {
-                return; // travel refused (and already told the admin why)
-            }
-        }
-
-        // The snap has to ride the RespawnNotice channel or the client discards it (#414 M7) — shared with
-        // the named teleport in GameServerAdminTeleport.
-        SnapPlayerTo(session, target, "@srv.obs.jumped:" + what);
-        CheatLog(session.State, $"jumped to {what} on {bodyId}");
-    }
+    Galaxy IObserverHost.Galaxy => _galaxy;
 }

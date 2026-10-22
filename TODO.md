@@ -119,6 +119,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   `AiLineText.cs` (394), `AiLineBudget.cs` (103) and `AiVariantCache.cs` (143). Budget, cache, in-flight dedupe and
   both RNGs (same seeds 0x7A11/0x41A1) moved with it; the provider is still read at use time, the 4 raw budget releases
   call `ReleaseAiBudget()`; 143 NPC-line/greeting/village/VEGA/guest tests green.
+- **ObserverSystem (#2898):** fleet-admin observer mode and `/players`, `/where`, `/builds`, `/goto` left the partial
+  `GameServerObserver.cs` (475 → 132 lines, now one-line facades, the kept `SpectatorMayHandle`/`JoinedPlayerCount`
+  helpers and the 3 `*ForTest` seams) for the new sealed `ObserverSystem.cs` (493), moved verbatim behind the wide
+  `IObserverHost : IServerHost` (3 shared + 19 own members). Sessions and galaxy are read at use time; reject/`@srv`
+  keys, CheatLog texts and statement order unchanged; 173 observer/admin/hosted/story tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

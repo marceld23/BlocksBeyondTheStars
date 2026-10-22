@@ -22,7 +22,7 @@ public sealed partial class GameServer : IServerHost
     // slot: Journal
     // slot: Marker
     // slot: NpcWork
-    // slot: Observer
+    private ObserverSystem _observerSystem = null!;
     // slot: ShipExtension
     // slot: Temperature
     // slot: Tutorial
@@ -43,7 +43,7 @@ public sealed partial class GameServer : IServerHost
         // slot: Journal
         // slot: Marker
         // slot: NpcWork
-        // slot: Observer
+        _observerSystem = new ObserverSystem(this, _repo, _config);
         // slot: ShipExtension
         // slot: Temperature
         // slot: Tutorial
