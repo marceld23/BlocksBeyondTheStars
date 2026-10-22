@@ -119,6 +119,10 @@ These are the same two suites `run-tests.ps1` / `run-tests.sh` run by default. T
   ([Directory.Build.props](../../Directory.Build.props)) for a friction-free dev loop. The tree currently
   builds clean (0 warnings), so this only guards against regressions. The `.trx` results are uploaded as a
   run artifact for inspection.
+- **Methods and files may not grow.** `CodeHealthRatchetTests` (in the server suite, so it also runs for
+  client-only changes) fails when a file under `src/` or `client/Assets/BlocksBeyondTheStars/Scripts/` gains a
+  method over 60 lines or newly crosses 1000 lines beyond its committed baseline — split instead of growing; the
+  rebase command and the rules are in [SERVER_TESTING.md](SERVER_TESTING.md) § "CI rules that will bite you".
 - **Docs-only changes skip the build — without blocking the PR.** A small `changes` job lists the PR's
   changed files (via the GitHub API) and sets `nondocs=true` if any file is not documentation (Markdown,
   `docs/**`, licences, issue/PR templates). If it is docs-only, the heavy `build-test` and `format` jobs are

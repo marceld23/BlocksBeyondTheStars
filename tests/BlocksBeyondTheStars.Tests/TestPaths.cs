@@ -30,4 +30,15 @@ public static class TestPaths
     /// <summary>The client's runtime icon directory (generated content icons live here).</summary>
     public static string ClientIconsDir()
         => Path.Combine(RepoRoot(), "client", "Assets", "Resources", "icons");
+
+    /// <summary>Every <c>*.cs</c> file under <paramref name="relativeDir"/> (relative to the repository root), build output skipped.</summary>
+    public static IEnumerable<string> SourceFiles(string relativeDir)
+    {
+        string root = Path.Combine(RepoRoot(), relativeDir);
+        char sep = Path.DirectorySeparatorChar;
+        return Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{sep}bin{sep}", StringComparison.Ordinal)
+                        && !f.Contains($"{sep}obj{sep}", StringComparison.Ordinal)
+                        && !f.Contains($"{sep}artifacts{sep}", StringComparison.Ordinal));
+    }
 }

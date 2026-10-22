@@ -152,7 +152,12 @@ After finishing a set of local changes — before reporting done and before comm
 problems are caught locally instead of at release time:
 
 1. **Tests** — `dotnet test` for the affected suite(s) (`BlocksBeyondTheStars.Tests` for server/shared,
-   `BlocksBeyondTheStars.Client.Tests` for client-core). They must be green.
+   `BlocksBeyondTheStars.Client.Tests` for client-core). They must be green. A red `CodeHealthRatchetTests` means a
+   method grew past 60 lines or a file past 1000: split it; only a reviewed exception rebases the baseline (command in
+   the failure message). A change that shrank the counts rebases too — the passing test prints the command. It
+   lives in `BlocksBeyondTheStars.Tests` but also measures `client/Assets/BlocksBeyondTheStars/Scripts`, so a
+   client-only change runs `dotnet test tests/BlocksBeyondTheStars.Tests --filter FullyQualifiedName~CodeHealthRatchetTests`
+   too.
 2. **Warning check** — a clean rebuild (`dotnet build --no-incremental`) and confirm **0 warnings / 0 errors**.
    The Roslyn analyzers are on and CI builds with `-warnaserror`, so a warning fails CI. Don't rely on the
    `dotnet test -v minimal` output — it hides warnings.

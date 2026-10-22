@@ -172,6 +172,29 @@ first-PR traps:
   an air refill works a fixed minimum of it (an ordinary room is answered at once on any runner). To check a
   test against a busy runner, run it once more with a zero budget (`AirTickBudgetMsForTest = 0`) — the
   deterministic stand-in for a starved clock; that is how #2870's one stale tick was reproduced locally.
+- **Methods and files may not grow past the code-health baseline (#2896).**
+  [`CodeHealthRatchetTests`](../../tests/BlocksBeyondTheStars.Tests/CodeHealthRatchetTests.cs) parses every `*.cs`
+  under `src/` and `client/Assets/BlocksBeyondTheStars/Scripts/` with Roslyn (syntax only, a second or two) and
+  counts per file the methods, constructors and operators longer than **60 lines** and whether the file is longer
+  than **1000 lines**. The committed baseline
+  [`Fixtures/code_health_baseline.json`](../../tests/BlocksBeyondTheStars.Tests/Fixtures/code_health_baseline.json)
+  holds those counts, one line per file. The gate fails when a file's long-method count *grows* or a file newly
+  crosses 1000 lines — split the method or the file instead of growing it. A file that is already over 1000 lines
+  may keep growing (its `lines` value is informational). When counts *shrink*, the gate passes and prints the
+  rebase command, so the PR that split a method records it. Rebase (a shrink, or a reviewed exception such as a
+  refactor that moves a long method into a new file) with
+  `BBS_CODE_HEALTH_REBASE=1 dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --filter FullyQualifiedName~CodeHealthRatchetTests.SourceTree_DoesNotGrowPastTheBaseline`
+  (PowerShell: `$env:BBS_CODE_HEALTH_REBASE=1; dotnet test …same arguments…; Remove-Item Env:BBS_CODE_HEALTH_REBASE`);
+  the run rewrites the file and fails once on purpose, the next run passes. Rebase from a clean tree (no untracked
+  `.cs` files under the scan roots — they would be baked in), never hand-edit the baseline, and resolve a merge
+  conflict in it by taking either side and rerunning the rebase. Blind spots: client scripts are parsed with the
+  desktop player's symbols (`UNITY_STANDALONE`, `UNITY_STANDALONE_WIN`, `UNITY_64`, `UNITY_2020_2_OR_NEWER`,
+  `BBS_VOICE`), so code behind `#if UNITY_EDITOR` or `#if UNITY_WEBGL && !UNITY_EDITOR` is not measured; `src/` is
+  parsed with no symbols (the `#if NET…` sites measure their netstandard branch); local functions, lambdas and
+  accessors count toward their method or not at all, so a top-level-statement `Program.cs` shows no long methods;
+  `client/Assets/BlocksBeyondTheStars/Editor`, `client/Assets/Tests` and the git-ignored `*.Generated.cs` files are
+  not scanned. A parse error fails the gate too: if the compiler accepts newer C# than the parser knows, raise
+  `Microsoft.CodeAnalysis.CSharp` in the test project to the SDK's Roslyn version.
 
 ## Joins built by hand need the content fingerprint (#2222)
 

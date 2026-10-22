@@ -29,7 +29,7 @@ public sealed class SqlitePoolingGuardTests
     {
         var pooled = new List<string>();
         int seen = 0;
-        foreach (string file in SourceFiles("src").Concat(SourceFiles(Path.Combine("tests", "BlocksBeyondTheStars.Tests"))))
+        foreach (string file in TestPaths.SourceFiles("src").Concat(TestPaths.SourceFiles(Path.Combine("tests", "BlocksBeyondTheStars.Tests"))))
         {
             if (Path.GetFileName(file) == nameof(SqlitePoolingGuardTests) + ".cs")
             {
@@ -63,7 +63,7 @@ public sealed class SqlitePoolingGuardTests
     [Fact]
     public void ProductionCode_NeverClearsEveryConnectionPool()
     {
-        var offenders = SourceFiles("src")
+        var offenders = TestPaths.SourceFiles("src")
             .Where(file => ClearAll.IsMatch(File.ReadAllText(file)))
             .Select(file => Path.GetRelativePath(TestPaths.RepoRoot(), file))
             .ToList();
@@ -71,15 +71,5 @@ public sealed class SqlitePoolingGuardTests
         Assert.True(offenders.Count == 0,
             "ClearAllPools() is process-wide (SQLite #2768, PostgreSQL #2786) — it reaches every other repository's " +
             "connections; dispose your own connection instead:\n" + string.Join('\n', offenders));
-    }
-
-    private static IEnumerable<string> SourceFiles(string relativeDir)
-    {
-        string root = Path.Combine(TestPaths.RepoRoot(), relativeDir);
-        char sep = Path.DirectorySeparatorChar;
-        return Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
-            .Where(f => !f.Contains($"{sep}bin{sep}", StringComparison.Ordinal)
-                        && !f.Contains($"{sep}obj{sep}", StringComparison.Ordinal)
-                        && !f.Contains($"{sep}artifacts{sep}", StringComparison.Ordinal));
     }
 }

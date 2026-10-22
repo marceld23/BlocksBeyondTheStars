@@ -43,7 +43,7 @@ dotnet_diagnostic.MA0074.severity = none   # Avoid implicit culture-sensitive me
 dotnet_diagnostic.MA0004.severity = none   # Use ConfigureAwait (server has no SynchronizationContext)
 dotnet_diagnostic.MA0016.severity = none   # Prefer returning a collection abstraction
 dotnet_diagnostic.MA0046.severity = none   # Use EventHandler<T> to declare events
-dotnet_diagnostic.MA0051.severity = none   # Method is too long
+dotnet_diagnostic.MA0051.severity = none   # Method is too long — ratcheted by CodeHealthRatchetTests (60 lines) instead of failing the build
 dotnet_diagnostic.MA0099.severity = none   # Use explicit enum value
 dotnet_diagnostic.MA0008.severity = none   # Add StructLayoutAttribute
 

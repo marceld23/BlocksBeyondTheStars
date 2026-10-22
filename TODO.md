@@ -92,6 +92,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   `Sync`; files `PlayerSession<Group>.cs`), declarations verbatim: defaults, sentinels, field/property kinds unchanged.
   The three PlayerState mirrors stay in core; 937 compiler-guided `.<Group>` insertions (no regex, DTO names untouched),
   nothing persisted or on the wire changed; 1,040 server + 34 client session tests green.
+- **Code-health ratchet against growing methods and files (#2896):** the new `CodeHealthRatchetTests` parses every
+  `*.cs` under `src/` and the client `Scripts/` with Roslyn 5.9 (syntax only, 1,103 files) and compares, per file, the
+  methods over 60 lines and a new crossing of 1,000 lines with `Fixtures/code_health_baseline.json` (434 files, 82 over
+  1,000 lines, 868 long methods). Growth fails and prints the rebase command (`BBS_CODE_HEALTH_REBASE=1`); shrinking
+  passes. Test-only: nothing under `src/`, `client/` or `data/` changed (`SourceFiles` moved to `TestPaths`); 22 green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
