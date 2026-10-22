@@ -144,6 +144,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   `{Portal,Glitch,Account,Moderation,AdminUi,World}Endpoints` (11/6/10/7/13/15), 18 local functions to `WorldHostApi`,
   limiters and stats cache to `WorldHostServices`. Paths, gates, status codes and bodies unchanged (task handlers typed
   `Task<IResult>`, never `RequestDelegate`); `WorldHostHttpTests` (73, green on the old code first); 401 tests green.
+- **HostRegistry split into per-area stores (#2902):** `HostRegistry.cs` (1,807 → 350 lines) is a facade keeping all
+  59 public members (signatures, docs, `CountForMetrics`) over sealed `AccountStore` (515), `NoticeStore` (91),
+  `WorldStore` (467), `WorldModerationStore` (179), `PlayerReportStore` (100) and `GlitchStore` (123); records, name
+  rules and the one unpooled connection, schema/ALTER migration and shared `Lock` went to `HostRegistryRecords`,
+  `RegistryNameRules`, `RegistryDb`. Bodies and SQL moved verbatim, ctor order kept; tests untouched, 393 green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

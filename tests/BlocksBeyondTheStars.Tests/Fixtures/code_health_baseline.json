@@ -431,14 +431,16 @@
     "src/BlocksBeyondTheStars.WorldGeneration/WorldGenerator.WaterSealGen24.cs": { "lines": 208, "longMethods": 1 },
     "src/BlocksBeyondTheStars.WorldGeneration/WorldGenerator.cs": { "lines": 1331, "longMethods": 3 },
     "src/BlocksBeyondTheStars.WorldGeneration/WreckGenerator.cs": { "lines": 187, "longMethods": 1 },
+    "src/BlocksBeyondTheStars.WorldHost/AccountStore.cs": { "lines": 515, "longMethods": 2 },
     "src/BlocksBeyondTheStars.WorldHost/GlitchGateway.cs": { "lines": 870, "longMethods": 1 },
-    "src/BlocksBeyondTheStars.WorldHost/HostRegistry.cs": { "lines": 1807, "longMethods": 4 },
     "src/BlocksBeyondTheStars.WorldHost/InstanceLauncher.cs": { "lines": 344, "longMethods": 1 },
+    "src/BlocksBeyondTheStars.WorldHost/RegistryDb.cs": { "lines": 185, "longMethods": 1 },
     "src/BlocksBeyondTheStars.WorldHost/SavePaths.cs": { "lines": 175, "longMethods": 1 },
     "src/BlocksBeyondTheStars.WorldHost/WorldEndpoints.cs": { "lines": 566, "longMethods": 1 },
     "src/BlocksBeyondTheStars.WorldHost/WorldHostAdminPages.cs": { "lines": 548, "longMethods": 2 },
     "src/BlocksBeyondTheStars.WorldHost/WorldHostConfig.cs": { "lines": 520, "longMethods": 1 },
     "src/BlocksBeyondTheStars.WorldHost/WorldHostPortalPages.cs": { "lines": 1088, "longMethods": 4 },
-    "src/BlocksBeyondTheStars.WorldHost/WorldOrchestrator.cs": { "lines": 643, "longMethods": 2 }
+    "src/BlocksBeyondTheStars.WorldHost/WorldOrchestrator.cs": { "lines": 643, "longMethods": 2 },
+    "src/BlocksBeyondTheStars.WorldHost/WorldStore.cs": { "lines": 467, "longMethods": 1 }
   }
 }
