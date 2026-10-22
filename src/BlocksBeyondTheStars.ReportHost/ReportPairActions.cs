@@ -17,6 +17,11 @@ public static class ReportPairActions
     public static List<BugReportRecord> PairOf(ReportStore store, BugReportRecord r)
         => ReportHostPages.PairOf(r, store.Around(r.CreatedUnix, ReportHostPages.DuplicateWindowSeconds));
 
+    /// <summary>The half of a report pair that owns the conversation (#1378) — <see cref="ReportHostPages.ThreadOwner"/>
+    /// over the rows around <paramref name="r"/>.</summary>
+    public static BugReportRecord ThreadOwnerOf(ReportStore store, BugReportRecord r)
+        => ReportHostPages.ThreadOwner(r, store.Around(r.CreatedUnix, ReportHostPages.DuplicateWindowSeconds));
+
     /// <summary>Sets <paramref name="status"/> on the report <paramref name="id"/> and its paired half. Returns
     /// the ids changed (the addressed one first), or null when <paramref name="id"/> is unknown or the status
     /// invalid.</summary>

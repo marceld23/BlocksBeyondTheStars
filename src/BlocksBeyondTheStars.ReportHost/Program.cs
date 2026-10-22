@@ -7,8 +7,9 @@ using BlocksBeyondTheStars.ReportHost;
 // reports on the SAME wire contract as the original Wix/Velo endpoint, stores them in SQLite +
 // screenshot files, and serves them back through a keyed read API (pull scripts / CI) and a
 // Basic-Auth admin UI. Independent of the game/WorldHost deployment — one small container, one
-// volume. See docs/developer/REPORT_HOST.md. The routes live in ReportHostApp so the test suite can
-// start the same app in-process (#1352); this file only reads the environment and runs it.
+// volume. See docs/developer/REPORT_HOST.md. The routes live in ReportHostApp.Create and the
+// ReportHost*Endpoints route groups so the test suite can start the same app in-process (#1352); this
+// file only reads the environment and runs it.
 
 var config = ReportHostConfig.FromEnvironment();
 using var store = new ReportStore(config);

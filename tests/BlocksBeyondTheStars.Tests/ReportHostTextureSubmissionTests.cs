@@ -274,7 +274,7 @@ public sealed class ReportHostTextureSubmissionHttpTests : IClassFixture<ReportH
         Assert.Equal(HttpStatusCode.NotFound, notAPicture.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, stranger.StatusCode);
-        Assert.NotEqual(HttpStatusCode.OK, noReadKey.StatusCode); // the read API is off without a read key
+        Assert.NotEqual(HttpStatusCode.OK, noReadKey.StatusCode); // no x-report-read-key header → refused
         Assert.Contains("Submitted texture", await page.Content.ReadAsStringAsync());
     }
 }

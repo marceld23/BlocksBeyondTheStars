@@ -129,14 +129,16 @@ internal static class ReportHostTestPayloads
 }
 
 /// <summary>
-/// A second in-process host with the admin UI switched ON (the shared fixture leaves it off) for the
-/// CSRF guard of #1369. Redirects are not followed so a form POST's own status is observable.
+/// A second in-process host with the admin UI and the read API switched ON (the shared fixture leaves both
+/// off) for the CSRF guard of #1369 and the read-API characterization of #2903. Redirects are not followed
+/// so a form POST's own status is observable.
 /// </summary>
 public sealed class ReportHostAdminHttpFixture : IAsyncLifetime
 {
     public const string WriteKey = "write-key-for-admin-tests";
     public const string AdminUser = "admin";
     public const string AdminPassword = "pw-123";
+    public const string ReadKey = "read-key-for-admin-tests";
 
     private readonly string _root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "bbts_rha_" + Guid.NewGuid().ToString("N"));
     private WebApplication _app = null!;
@@ -155,6 +157,7 @@ public sealed class ReportHostAdminHttpFixture : IAsyncLifetime
             WriteKey = WriteKey,
             AdminUser = AdminUser,
             AdminPassword = AdminPassword,
+            ReadKey = ReadKey,
             TrustProxy = true,
         };
         Store = new ReportStore(config, System.IO.Path.Combine(_root, "reports.db"));
