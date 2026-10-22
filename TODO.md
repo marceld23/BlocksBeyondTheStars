@@ -54,6 +54,12 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   The `IsAuthorized`/`TokenEquals` bodies are byte-identical (still `CryptographicOperations.FixedTimeEquals`, which
   netstandard2.1 has); the 31 call sites are unchanged, four files gained one `using`. The stale "no FixedTimeEquals on
   netstandard2.1/Unity" comments in `SecretCompare`/`HostedJoinToken` are corrected; 100 host/hardening tests green.
+- **ServerConfig options as one table (#2889):** the command-line `switch` and the `ApplyEnvironment` `if` chain left
+  `ServerConfig.cs` (1,036 → 572 lines) for the new `ServerConfigOptions.cs`: one table of 105 rows (52 environment
+  variables in the old override order, then 53 CLI-only switches; 95 accepted spellings incl. 13 aliases, 4 env
+  fallbacks) plus two generic appliers behind the unchanged `ApplyCommandLine`/`ApplyEnvironment` facades. Every switch,
+  variable, parse rule, clamp, reported name and warning order is kept, quirks included; `ServerConfigOptionsTests`
+  (19 tests) pins them, ~400 config/admin/caller tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

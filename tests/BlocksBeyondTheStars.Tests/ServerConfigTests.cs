@@ -9,6 +9,7 @@ using Xunit;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>Command-line overrides used to embed/launch the server (e.g. local singleplayer host).</summary>
+[Collection("ServerConfigEnvironment")]
 public sealed class ServerConfigTests
 {
     [Fact]
@@ -493,7 +494,7 @@ public sealed class ServerConfigTests
     }
 
     /// <summary>Sets the given environment variables for the duration of <paramref name="body"/>, then restores them.</summary>
-    private static void WithEnvironment(Dictionary<string, string?> vars, Action body)
+    internal static void WithEnvironment(Dictionary<string, string?> vars, Action body)
     {
         var previous = new Dictionary<string, string?>();
         foreach (var (key, value) in vars)
