@@ -99,6 +99,38 @@ namespace BlocksBeyondTheStars.Client
             return shell?.Localizer != null && shell.Localizer.Has(key) ? shell.L(key) : group;
         }
 
+        /// <summary>Finds the palette entry for a loaded cell — by id AND kind first (a block and a marker may
+        /// share an id), then by id alone; <c>Id == null</c> when the palette has no such entry.</summary>
+        internal static Entry Find(Entry[] palette, string id, string kind)
+        {
+            int i = Array.FindIndex(palette, p => p.Id == id && p.Kind == kind);
+            if (i < 0)
+            {
+                i = Array.FindIndex(palette, p => p.Id == id);
+            }
+
+            return i < 0 ? default : palette[i];
+        }
+
+        /// <summary>The left-hand palette panel of a build editor: <paramref name="title"/>, the search field (hint
+        /// <paramref name="searchHint"/>, text <paramref name="search"/>) and the scrolling row list over
+        /// <paramref name="palette"/> with <paramref name="selected"/> preselected. <paramref name="onSearchChanged"/>
+        /// is the search field's callback, run on every keystroke — the editor stores the text and re-filters its
+        /// list there; <paramref name="onSelected"/> is wired before the list's first fill (filtered by
+        /// <paramref name="search"/>).</summary>
+        internal static (RectTransform ListParent, PaletteListUi List) AddPalettePanel(AppShell shell, Transform root, float panelH,
+            string title, string searchHint, Entry[] palette, int selected, string search, Action<string> onSearchChanged, Action<int> onSelected)
+        {
+            var pal = UiKit.AddPanel(root, 16f, 16f, 300f, panelH, UiKit.PanelFill);
+            UiKit.AddText(pal.transform, 16f, 12f, 268f, 26f, title, 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddInput(pal.transform, 12f, 42f, 276f, 28f, search, onSearchChanged, searchHint);
+            var listParent = UiKit.ScrollList(pal.transform, 10f, 78f, 280f, panelH - 90f);
+            var list = new PaletteListUi(shell, listParent, palette, selected);
+            list.OnSelected = onSelected;
+            list.Rebuild(search);
+            return (listParent, list);
+        }
+
         /// <summary>The palette icon of a block to build with: its drawn cube when its faces differ (a machine's front
         /// and casing, #2744 — <see cref="BlockCubeIcon"/>), else its tile; null without an atlas.</summary>
         internal static Sprite BlockSprite(BlockTextureAtlas atlas, ushort id)

@@ -3,7 +3,9 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -11,7 +13,10 @@ namespace BlocksBeyondTheStars.Client
     /// The shared 3D scene pieces of the standalone build editors (<see cref="ShipEditor"/>,
     /// <see cref="StructureEditor"/>): the build floor with its grid, the fill light, the mouse-wheel
     /// dolly + "frame the build" camera helpers. Keeping them here means both editors look and steer
-    /// the same, and a grid/camera tweak lands in both at once (#1390 #1391).
+    /// the same, and a grid/camera tweak lands in both at once (#1390 #1391). It also holds the small
+    /// helpers both editors used to carry as identical copies: the editor camera, the cell picking
+    /// rays, the room bounds test, the form-icon brush tile, the right-hand panel and bottom hint line,
+    /// and the hex-colour / key-slug text helpers.
     /// </summary>
     internal static class EditorSceneKit
     {
@@ -150,6 +155,151 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return b;
+        }
+
+        /// <summary>The editor's own camera under <paramref name="parent"/>: solid deep-space backdrop, the given
+        /// far clip, and the scene's audio listener.</summary>
+        public static Camera CreateEditorCamera(Transform parent, float farClip)
+        {
+            var camGo = new GameObject("EditorCamera");
+            camGo.transform.SetParent(parent, false);
+            var cam = camGo.AddComponent<Camera>();
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.02f, 0.03f, 0.06f);
+            cam.farClipPlane = farClip;
+            camGo.AddComponent<AudioListener>();
+            return cam;
+        }
+
+        /// <summary>Resolves the cell a placement would land in: the floor column, or the empty cell just
+        /// outside the hit face (the chunk mesh is authored in world coords, so the hit point + normal locate
+        /// the cell directly — no per-cell GameObject to read a transform from). <paramref name="hitFace"/> is
+        /// the face of the target cell the click came through (the hit normal; -1 for none): what a ladder
+        /// hugs (#1975).</summary>
+        public static bool PickTargetCell(Camera cam, Vector3 screenPoint, float dist, GameObject floor, out Vector3i cell, out int hitFace)
+        {
+            cell = default;
+            hitFace = -1;
+            var ray = cam.ScreenPointToRay(screenPoint);
+            if (!Physics.Raycast(ray, out var hit, dist))
+            {
+                return false;
+            }
+
+            if (hit.collider.gameObject == floor)
+            {
+                cell = new Vector3i(Mathf.FloorToInt(hit.point.x), 0, Mathf.FloorToInt(hit.point.z));
+            }
+            else
+            {
+                Vector3 outside = hit.point + hit.normal * 0.5f; // step out of the hit cell into its empty neighbour
+                cell = new Vector3i(Mathf.FloorToInt(outside.x), Mathf.FloorToInt(outside.y), Mathf.FloorToInt(outside.z));
+            }
+
+            hitFace = ShapeCode.FaceFromDirection(Mathf.RoundToInt(hit.normal.x), Mathf.RoundToInt(hit.normal.y), Mathf.RoundToInt(hit.normal.z));
+            return true;
+        }
+
+        /// <summary>Resolves the actual occupied cell under <paramref name="screenPoint"/> (for removal); false if
+        /// the ray misses every block or hits only the floor.</summary>
+        public static bool PickHitCell(Camera cam, Vector3 screenPoint, float dist, GameObject floor, out Vector3i cell)
+        {
+            cell = default;
+            var ray = cam.ScreenPointToRay(screenPoint);
+            if (!Physics.Raycast(ray, out var hit, dist) || hit.collider.gameObject == floor)
+            {
+                return false;
+            }
+
+            Vector3 inside = hit.point - hit.normal * 0.5f; // step into the hit cell
+            cell = new Vector3i(Mathf.FloorToInt(inside.x), Mathf.FloorToInt(inside.y), Mathf.FloorToInt(inside.z));
+            return true;
+        }
+
+        /// <summary>True when <paramref name="c"/> lies inside the editor room of the given size.</summary>
+        public static bool InRoom(Vector3i c, int maxW, int maxH, int maxL)
+            => c.X >= 0 && c.X < maxW && c.Y >= 0 && c.Y < maxH && c.Z >= 0 && c.Z < maxL;
+
+        /// <summary>The tile the form icons are drawn on: the block of <paramref name="pal"/>, else stone.</summary>
+        public static ushort BrushTile(AppShell shell, EditorPaletteKit.Entry pal)
+        {
+            var def = pal.Kind == "block" && shell?.Content != null ? shell.Content.GetBlock(pal.Id) : null;
+            def ??= shell?.Content?.GetBlock("stone");
+            return def?.NumericId.Value ?? (ushort)0;
+        }
+
+        /// <summary>A panel anchored to the top-right corner of <paramref name="root"/> (16 px inset), so it hugs
+        /// the screen edge at any resolution.</summary>
+        public static RectTransform RightPanel(Transform root, float w, float h)
+        {
+            var go = new GameObject("Panel", typeof(RectTransform));
+            go.transform.SetParent(root, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 1f);
+            rt.sizeDelta = new Vector2(w, h);
+            rt.anchoredPosition = new Vector2(-16f, -16f);
+            var img = go.AddComponent<Image>();
+            img.sprite = UiKit.PanelSprite;
+            img.type = Image.Type.Sliced;
+            img.color = UiKit.PanelFill;
+            return rt;
+        }
+
+        /// <summary>The bottom-centre controls hint line: a <paramref name="width"/>-wide, non-raycast label 14 px
+        /// above the bottom edge of <paramref name="root"/>, showing <paramref name="text"/>.</summary>
+        public static Text AddBottomHint(Transform root, float width, string text)
+        {
+            var hintGo = new GameObject("Hint", typeof(RectTransform));
+            hintGo.transform.SetParent(root, false);
+            var hrt = hintGo.GetComponent<RectTransform>();
+            hrt.anchorMin = hrt.anchorMax = new Vector2(0.5f, 0f);
+            hrt.pivot = new Vector2(0.5f, 0f);
+            hrt.sizeDelta = new Vector2(width, 24f);
+            hrt.anchoredPosition = new Vector2(0f, 14f);
+            var hint = hintGo.AddComponent<Text>();
+            hint.font = UiKit.Font;
+            hint.fontSize = 16;
+            hint.color = UiKit.TextCol;
+            hint.alignment = TextAnchor.MiddleCenter;
+            hint.horizontalOverflow = HorizontalWrapMode.Overflow;
+            hint.raycastTarget = false;
+            hint.text = text;
+            return hint;
+        }
+
+        /// <summary>Parses a 6-hex-digit colour string to 0xRRGGBB (0 = empty/invalid = "none").</summary>
+        public static int ParseHex(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s))
+            {
+                return 0;
+            }
+
+            s = s.Trim().TrimStart('#');
+            return int.TryParse(s, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var v)
+                ? (v & 0xFFFFFF) : 0;
+        }
+
+        /// <summary>The 6-hex-digit form of 0xRRGGBB for an input field; empty for 0 ("none").</summary>
+        public static string HexOf(int rgb) => rgb == 0 ? string.Empty : rgb.ToString("x6");
+
+        /// <summary>A file/key slug: lower-case letters and digits, with spaces, dashes and underscores turned
+        /// into underscores and everything else dropped; empty for a blank input.</summary>
+        public static string Slug(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s))
+            {
+                return string.Empty;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in s.Trim().ToLowerInvariant())
+            {
+                if (char.IsLetterOrDigit(c)) sb.Append(c);
+                else if (c == ' ' || c == '-' || c == '_') sb.Append('_');
+            }
+
+            return sb.ToString();
         }
     }
 

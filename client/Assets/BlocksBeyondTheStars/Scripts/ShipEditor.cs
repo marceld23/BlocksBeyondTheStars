@@ -117,13 +117,7 @@ namespace BlocksBeyondTheStars.Client
             _atlas = Shell != null && Shell.Content != null ? BlockTextureAtlas.Acquire(Shell.Content) : null; // shared per process (#1523)
             _palette = BuildPalette();
 
-            var camGo = new GameObject("EditorCamera");
-            camGo.transform.SetParent(transform, false);
-            _cam = camGo.AddComponent<Camera>();
-            _cam.clearFlags = CameraClearFlags.SolidColor;
-            _cam.backgroundColor = new Color(0.02f, 0.03f, 0.06f);
-            _cam.farClipPlane = 800f;
-            camGo.AddComponent<AudioListener>();
+            _cam = EditorSceneKit.CreateEditorCamera(transform, 800f);
             _yaw = 0f;
 
             _view = new EditorVoxelChunkView(transform);
@@ -392,46 +386,14 @@ namespace BlocksBeyondTheStars.Client
         private bool TryGetTargetCell(out Vector3i cell) => TryGetTargetCell(out cell, out _);
 
         /// <summary>… and the face of the target cell the click came through (the hit normal; -1 for none): what a
-        /// ladder hugs (#1975).</summary>
+        /// ladder hugs (#1975). Picks through the pad reticle or the mouse (<see cref="PickPoint"/>).</summary>
         private bool TryGetTargetCell(out Vector3i cell, out int hitFace)
-        {
-            cell = default;
-            hitFace = -1;
-            var ray = _cam.ScreenPointToRay(PickPoint());
-            if (!Physics.Raycast(ray, out var hit, RaycastDist))
-            {
-                return false;
-            }
-
-            if (hit.collider.gameObject == _floor)
-            {
-                cell = new Vector3i(Mathf.FloorToInt(hit.point.x), 0, Mathf.FloorToInt(hit.point.z));
-            }
-            else
-            {
-                Vector3 outside = hit.point + hit.normal * 0.5f; // step out of the hit cell into its empty neighbour
-                cell = new Vector3i(Mathf.FloorToInt(outside.x), Mathf.FloorToInt(outside.y), Mathf.FloorToInt(outside.z));
-            }
-
-            hitFace = ShapeCode.FaceFromDirection(Mathf.RoundToInt(hit.normal.x), Mathf.RoundToInt(hit.normal.y), Mathf.RoundToInt(hit.normal.z));
-            return true;
-        }
+            => EditorSceneKit.PickTargetCell(_cam, PickPoint(), RaycastDist, _floor, out cell, out hitFace);
 
         /// <summary>Resolves the actual occupied cell under the cursor (for removal); false if the ray misses
         /// every block or hits only the floor.</summary>
         private bool TryGetHitCell(out Vector3i cell)
-        {
-            cell = default;
-            var ray = _cam.ScreenPointToRay(PickPoint());
-            if (!Physics.Raycast(ray, out var hit, RaycastDist) || hit.collider.gameObject == _floor)
-            {
-                return false;
-            }
-
-            Vector3 inside = hit.point - hit.normal * 0.5f; // step into the hit cell
-            cell = new Vector3i(Mathf.FloorToInt(inside.x), Mathf.FloorToInt(inside.y), Mathf.FloorToInt(inside.z));
-            return true;
-        }
+            => EditorSceneKit.PickHitCell(_cam, PickPoint(), RaycastDist, _floor, out cell);
 
         private EditorPlacementGhost _ghost;
         private EditorPropOverlay _overlay;
@@ -611,7 +573,7 @@ namespace BlocksBeyondTheStars.Client
             _overlay?.OnDesignChanged(cell, IsSolidCell); // a block beside a door re-fits that door
         }
 
-        private bool InBounds(Vector3i c) => c.X >= 0 && c.X < MaxW && c.Y >= 0 && c.Y < MaxH && c.Z >= 0 && c.Z < MaxL;
+        private bool InBounds(Vector3i c) => EditorSceneKit.InRoom(c, MaxW, MaxH, MaxL);
 
         private bool InBounds(int x, int y, int z) => InBounds(new Vector3i(x, y, z));
 
@@ -666,12 +628,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The tile the form icons are drawn on: the selected block's, else stone.</summary>
         private ushort BrushTile()
-        {
-            var pal = _palette != null && _selected >= 0 && _selected < _palette.Length ? _palette[_selected] : default;
-            var def = pal.Kind == "block" && Shell?.Content != null ? Shell.Content.GetBlock(pal.Id) : null;
-            def ??= Shell?.Content?.GetBlock("stone");
-            return def?.NumericId.Value ?? (ushort)0;
-        }
+            => EditorSceneKit.BrushTile(Shell, _palette != null && _selected >= 0 && _selected < _palette.Length ? _palette[_selected] : default);
 
         /// <summary>The brush's form row: icon + name + "Change…", which opens the in-game form grid (#1975).</summary>
         private void FormRow()
@@ -767,13 +724,8 @@ namespace BlocksBeyondTheStars.Client
 
             // Left: block/part palette (elements + stations + every placeable block), grouped by
             // category, with a search filter.
-            var pal = UiKit.AddPanel(root, 16f, 16f, 300f, PanelH, UiKit.PanelFill);
-            UiKit.AddText(pal.transform, 16f, 12f, 268f, 26f, L("ui.ship.palette"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddInput(pal.transform, 12f, 42f, 276f, 28f, _search, v => { _search = v ?? string.Empty; _palList.Rebuild(_search); }, L("ui.pal.search"));
-            _palListParent = UiKit.ScrollList(pal.transform, 10f, 78f, 280f, PanelH - 90f);
-            _palList = new PaletteListUi(Shell, _palListParent, _palette, _selected);
-            _palList.OnSelected = i => _selected = i;
-            _palList.Rebuild(_search);
+            (_palListParent, _palList) = EditorPaletteKit.AddPalettePanel(Shell, root, PanelH, L("ui.ship.palette"), L("ui.pal.search"),
+                _palette, _selected, _search, v => { _search = v ?? string.Empty; _palList.Rebuild(_search); }, i => _selected = i);
 
             // Right: ship metadata + stats + cost (anchored to the top-right so it hugs the edge).
             var meta = RightPanel(root, 380f, PanelH);
@@ -792,22 +744,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(meta, 196f, PanelH - 62f, 172f, 38f, L("ui.menu.back"), () => Shell?.CloseShipEditor());
 
             // Bottom-centre controls hint.
-            var hintGo = new GameObject("Hint", typeof(RectTransform));
-            hintGo.transform.SetParent(root, false);
-            var hrt = hintGo.GetComponent<RectTransform>();
-            hrt.anchorMin = hrt.anchorMax = new Vector2(0.5f, 0f);
-            hrt.pivot = new Vector2(0.5f, 0f);
-            hrt.sizeDelta = new Vector2(1100f, 24f);
-            hrt.anchoredPosition = new Vector2(0f, 14f);
-            var hint = hintGo.AddComponent<Text>();
-            hint.font = UiKit.Font;
-            hint.fontSize = 16;
-            hint.color = UiKit.TextCol;
-            hint.alignment = TextAnchor.MiddleCenter;
-            hint.horizontalOverflow = HorizontalWrapMode.Overflow;
-            hint.raycastTarget = false;
-            hint.text = L("ui.struct.hint");
-            _hintLabel = hint; // RefreshPadChrome swaps this for the pad wording
+            _hintLabel = EditorSceneKit.AddBottomHint(root, 1100f, L("ui.struct.hint")); // RefreshPadChrome swaps this for the pad wording
 
             BuildReticle(root);
         }
@@ -895,19 +832,9 @@ namespace BlocksBeyondTheStars.Client
             RefreshCostRows();
         }
 
-        private static int ParseHex(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s))
-            {
-                return 0;
-            }
+        private static int ParseHex(string s) => EditorSceneKit.ParseHex(s);
 
-            s = s.Trim().TrimStart('#');
-            return int.TryParse(s, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var v)
-                ? (v & 0xFFFFFF) : 0;
-        }
-
-        private static string HexOf(int rgb) => rgb == 0 ? string.Empty : rgb.ToString("x6");
+        private static string HexOf(int rgb) => EditorSceneKit.HexOf(rgb);
 
         private void RefreshCostRows()
         {
@@ -992,20 +919,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(row, 272f, 1f, 28f, 28f, "+", () => { set(Mathf.Clamp(get() + step, min, max)); valTxt.text = Show(); });
         }
 
-        private static RectTransform RightPanel(Transform root, float w, float h)
-        {
-            var go = new GameObject("Panel", typeof(RectTransform));
-            go.transform.SetParent(root, false);
-            var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 1f);
-            rt.sizeDelta = new Vector2(w, h);
-            rt.anchoredPosition = new Vector2(-16f, -16f);
-            var img = go.AddComponent<Image>();
-            img.sprite = UiKit.PanelSprite;
-            img.type = Image.Type.Sliced;
-            img.color = UiKit.PanelFill;
-            return rt;
-        }
+        private static RectTransform RightPanel(Transform root, float w, float h) => EditorSceneKit.RightPanel(root, w, h);
 
         // ----------------------------- export -----------------------------
 
@@ -1134,16 +1048,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Finds the palette entry for a loaded cell — by id AND kind first (a block and a marker may
         /// share an id), then by id alone; <c>Id == null</c> when the palette has no such entry.</summary>
-        private EditorPaletteKit.Entry FindPalette(string id, string kind)
-        {
-            int i = System.Array.FindIndex(_palette, p => p.Id == id && p.Kind == kind);
-            if (i < 0)
-            {
-                i = System.Array.FindIndex(_palette, p => p.Id == id);
-            }
-
-            return i < 0 ? default : _palette[i];
-        }
+        private EditorPaletteKit.Entry FindPalette(string id, string kind) => EditorPaletteKit.Find(_palette, id, kind);
 
         /// <summary>Replaces the build with <paramref name="cells"/> (layout coordinates; the room origin is
         /// added). Cells whose id the palette lacks, or that fall outside the room, are counted and named
@@ -1315,21 +1220,6 @@ namespace BlocksBeyondTheStars.Client
             if (_statusLabel != null) _statusLabel.text = _status;
         }
 
-        private static string Slug(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s))
-            {
-                return string.Empty;
-            }
-
-            var sb = new System.Text.StringBuilder();
-            foreach (char c in s.Trim().ToLowerInvariant())
-            {
-                if (char.IsLetterOrDigit(c)) sb.Append(c);
-                else if (c == ' ' || c == '-' || c == '_') sb.Append('_');
-            }
-
-            return sb.ToString();
-        }
+        private static string Slug(string s) => EditorSceneKit.Slug(s);
     }
 }

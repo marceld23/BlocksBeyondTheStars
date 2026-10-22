@@ -189,6 +189,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   `UiKit.AddScrollViewport`; `MeasureHeight`, `AddCenteredPanel`, `AddStretchChild` and `Tr` replace the bandit/NPC
   dialogue and five prompt copies (15 files, +190/−378 lines; `UiKit.cs` 1,513 → 1,623). Wheel step, hit image, measure
   settings, fallback literals and keys unchanged; Unity + WebGL builds, 264 EditMode + 2,317 client tests green.
+- **Editor scene helpers shared by the ship and structure editors (#2906):** camera setup, cell picking, room bounds,
+  brush tile, right panel, bottom hint, hex/slug and palette panel, held as copies by `ShipEditor` and `StructureEditor`,
+  moved once into `EditorSceneKit` (369 → 519 lines, 10 helpers) and `EditorPaletteKit` (293 → 325); the editors keep
+  one-line wrappers under the old names (1,335 → 1,225 and 1,898 → 1,789). Pick ranges, room sizes, locale keys and the
+  per-keystroke search rebuild are passed in unchanged; Unity build, 264 EditMode + 2,317 client tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
