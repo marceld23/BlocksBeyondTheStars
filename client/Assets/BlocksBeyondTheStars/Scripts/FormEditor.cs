@@ -21,12 +21,12 @@ namespace BlocksBeyondTheStars.Client
     /// blocks long. The footprint steppers grow the canvas; the layer canvas then shows the whole form from above
     /// with the block borders drawn in, and the budget line counts per block — exactly the rule the server checks.
     ///
-    /// The model (<see cref="FormCanvasModel"/>) is Unity-free and unit-tested; this class is its screen.
+    /// The model (<see cref="FormCanvasModel"/>) is Unity-free and unit-tested; this class is its screen. The frame
+    /// loop, keys, undo/redo, preview stage and screen shell it shares with "My tools" live in
+    /// <see cref="LayerCanvasEditor"/>.
     /// </summary>
-    public sealed class FormEditor : MonoBehaviour
+    public sealed class FormEditor : LayerCanvasEditor
     {
-        public AppShell Shell;
-
         private const float CanvasPx = 640f;
 
         private readonly FormCanvasModel _model = new FormCanvasModel();
@@ -34,25 +34,17 @@ namespace BlocksBeyondTheStars.Client
         private string _name = string.Empty;
         private string _loadedName = string.Empty;   // the library entry on the canvas ("" = a new form)
 
-        private Canvas _ui;
-        private Texture2D _tex;
-        private RectTransform _canvasRt;
         private RawImage _canvasImg;
-        private PadCanvasFocus _pad;
         private InputField _nameInput;
-        private Text _layerLabel, _budgetLabel, _problemLabel, _footprintLabel, _status, _hint, _materialLabel;
+        private Text _layerLabel, _budgetLabel, _problemLabel, _footprintLabel, _materialLabel;
         private RectTransform _libraryContent;
         private Button _gridButton;
-        private bool _stroking;
 
         // 3-D preview.
-        private GameObject _stage;
-        private Transform _spin;
         private MeshFilter _previewFilter;
         private Material _previewMaterial;
         private Texture2D _previewTile;
         private Mesh _previewMesh;
-        private Camera _previewCamera;
         private readonly List<BlockDefinition> _materials = new List<BlockDefinition>();
         private int _materialIndex;
         private int _dyeIndex; // 0 = undyed
@@ -63,7 +55,6 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<EditorPaletteKit.Entry> _materialRows = new List<EditorPaletteKit.Entry>();
         private PaletteListUi _materialList;
         private string _materialAtOpen = string.Empty;
-        private bool _previewDirty = true;
 
         private static readonly Color[] Dyes =
         {
@@ -71,7 +62,28 @@ namespace BlocksBeyondTheStars.Client
             new Color(0.35f, 0.72f, 0.32f), new Color(0.25f, 0.55f, 0.90f), new Color(0.58f, 0.36f, 0.80f), new Color(0.20f, 0.20f, 0.24f),
         };
 
-        private static string L(string key) => UiKit.L(key);
+        protected override ILayerCanvas Layers => _model;
+
+        protected override int CellsX => _model.SizeX;
+
+        protected override int CellsZ => _model.SizeZ;
+
+        protected override float SpinDegreesPerSecond => 22f;
+
+        protected override string HintKeyMouse => "ui.form.hint";
+
+        protected override string HintKeyPadCanvas => "ui.form.hint_pad";
+
+        protected override string HintKeyPadPanel => "ui.form.hint_pad_panel";
+
+        /// <summary>Left button / A adds, right button / X removes (both at once remove).</summary>
+        protected override bool PaintCell(int x, int z, bool primary, bool secondary) => _model.Paint(x, z, primary && !secondary);
+
+        /// <summary>The budget and problem lines follow every painted cell.</summary>
+        protected override void OnCellPainted() => RefreshLabels();
+
+        /// <summary>An undo, a redo or a helper may have changed the canvas size (footprint, grid).</summary>
+        protected override void AfterCanvasEdit() => AfterStructuralChange();
 
         // ---------------------------------------------------------------- life cycle
 
@@ -115,25 +127,9 @@ namespace BlocksBeyondTheStars.Client
             RefreshAll();
         }
 
-        private void OnDestroy()
+        protected override void OnDestroy()
         {
-            _pad?.Release();
-            if (_ui != null)
-            {
-                Destroy(_ui.gameObject);
-            }
-
-            if (_stage != null)
-            {
-                Destroy(_stage);
-            }
-
-            if (_previewCamera != null && _previewCamera.targetTexture != null)
-            {
-                _previewCamera.targetTexture.Release();
-            }
-
-            Destroy(_tex);
+            base.OnDestroy();
             Destroy(_previewTile);
             Destroy(_previewMesh);
             Destroy(_previewMaterial);
@@ -153,160 +149,7 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        // ---------------------------------------------------------------- per frame
-
-        private void Update()
-        {
-            if (_canvasRt == null)
-            {
-                return;
-            }
-
-            bool pad = InputMap.ActiveDevice == InputDeviceKind.Gamepad;
-            _spin?.Rotate(0f, (pad ? InputMap.PadLookX() * 90f : 22f) * Time.unscaledDeltaTime, 0f, Space.Self);
-
-            HandleKeys();
-            _pad.SetCells(_model.SizeX, _model.SizeZ);
-            bool padCanvas = _pad.Tick(pad);
-            SetHint(!pad ? "ui.form.hint" : padCanvas ? "ui.form.hint_pad" : "ui.form.hint_pad_panel");
-
-            bool add, remove;
-            int x, z;
-            if (padCanvas)
-            {
-                if (_pad.LayerStep != 0)
-                {
-                    StepLayer(_pad.LayerStep);
-                }
-
-                if (InputMap.PadDown(PadButton.Rb))
-                {
-                    DoUndo();
-                }
-
-                add = InputMap.PadHeld(PadButton.A);
-                remove = InputMap.PadHeld(PadButton.X);
-                x = _pad.CellX;
-                z = _model.SizeZ - 1 - _pad.CellY; // the canvas looks from above: its top row is the far edge (+Z)
-            }
-            else
-            {
-                add = Input.GetMouseButton(0);
-                remove = Input.GetMouseButton(1);
-                if (!TryCanvasCell(out x, out z))
-                {
-                    add = remove = false;
-                }
-            }
-
-            if (add || remove)
-            {
-                if (!_stroking)
-                {
-                    _stroking = true;
-                    _model.BeginStroke();
-                }
-
-                if (_model.Paint(x, z, add && !remove))
-                {
-                    RenderLayer();
-                    _previewDirty = true;
-                    RefreshLabels();
-                }
-            }
-            else if (_stroking)
-            {
-                _stroking = false;
-                _model.EndStroke();
-            }
-
-            if (_previewDirty && !_stroking)
-            {
-                RebuildPreview(); // once per stroke, not once per cell — merging eight blocks is not free
-            }
-        }
-
-        private void HandleKeys()
-        {
-            if (UiKit.TextFieldFocused())
-            {
-                return;
-            }
-
-            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-            if (ctrl && Input.GetKeyDown(KeyCode.Z))
-            {
-                if (shift)
-                {
-                    DoRedo();
-                }
-                else
-                {
-                    DoUndo();
-                }
-            }
-            else if (ctrl && Input.GetKeyDown(KeyCode.Y))
-            {
-                DoRedo();
-            }
-            else if (Input.GetKeyDown(KeyCode.PageUp) || Input.GetKeyDown(KeyCode.W))
-            {
-                StepLayer(1);
-            }
-            else if (Input.GetKeyDown(KeyCode.PageDown) || Input.GetKeyDown(KeyCode.S))
-            {
-                StepLayer(-1);
-            }
-        }
-
-        private bool TryCanvasCell(out int x, out int z)
-        {
-            x = z = 0;
-            if (!RectTransformUtility.RectangleContainsScreenPoint(_canvasRt, Input.mousePosition, null)
-                || !RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRt, Input.mousePosition, null, out var lp))
-            {
-                return false;
-            }
-
-            // Place() anchors top-left with pivot (0,1): local x ∈ [0,w], y ∈ [-h,0].
-            float w = _canvasRt.rect.width, h = _canvasRt.rect.height;
-            x = Mathf.Clamp(Mathf.FloorToInt(Mathf.Clamp01(lp.x / w) * _model.SizeX), 0, _model.SizeX - 1);
-            int fromTop = Mathf.Clamp(Mathf.FloorToInt(Mathf.Clamp01(-lp.y / h) * _model.SizeZ), 0, _model.SizeZ - 1);
-            z = _model.SizeZ - 1 - fromTop;
-            return true;
-        }
-
         // ---------------------------------------------------------------- commands
-
-        private void StepLayer(int delta)
-        {
-            _model.SetLayer(_model.Layer + delta);
-            RenderLayer();
-            RefreshLabels();
-        }
-
-        private void DoUndo()
-        {
-            if (_model.Undo())
-            {
-                AfterStructuralChange();
-            }
-        }
-
-        private void DoRedo()
-        {
-            if (_model.Redo())
-            {
-                AfterStructuralChange();
-            }
-        }
-
-        private void Do(Action change)
-        {
-            change();
-            AfterStructuralChange();
-        }
 
         /// <summary>After anything that may have changed the canvas SIZE (footprint, grid, undo across them).</summary>
         private void AfterStructuralChange()
@@ -492,37 +335,37 @@ namespace BlocksBeyondTheStars.Client
 
         private void RebuildCanvasTexture()
         {
-            if (_tex != null)
+            if (Tex != null)
             {
-                Destroy(_tex);
+                Destroy(Tex);
             }
 
-            _tex = new Texture2D(_model.SizeX, _model.SizeZ, TextureFormat.RGBA32, false)
+            Tex = new Texture2D(_model.SizeX, _model.SizeZ, TextureFormat.RGBA32, false)
             {
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Point,
             };
             if (_canvasImg != null)
             {
-                _canvasImg.texture = _tex;
+                _canvasImg.texture = Tex;
             }
 
             // The canvas keeps the footprint's proportions inside its square frame.
-            if (_canvasRt != null)
+            if (CanvasRt != null)
             {
                 float longest = Mathf.Max(_model.SizeX, _model.SizeZ);
                 float w = CanvasPx * _model.SizeX / longest, h = CanvasPx * _model.SizeZ / longest;
-                _canvasRt.sizeDelta = new Vector2(w, h);
-                _canvasRt.anchoredPosition = new Vector2((CanvasPx - w) * 0.5f, -(CanvasPx - h) * 0.5f);
-                _pad?.Rebind(_canvasRt);
+                CanvasRt.sizeDelta = new Vector2(w, h);
+                CanvasRt.anchoredPosition = new Vector2((CanvasPx - w) * 0.5f, -(CanvasPx - h) * 0.5f);
+                Pad?.Rebind(CanvasRt);
             }
         }
 
         /// <summary>The current layer from above, the layer below shining through dimly, and the block borders of
         /// a form over several blocks as a lighter grid — so it is always clear which block a cell belongs to.</summary>
-        private void RenderLayer()
+        protected override void RenderLayer()
         {
-            if (_tex == null)
+            if (Tex == null)
             {
                 return;
             }
@@ -550,25 +393,21 @@ namespace BlocksBeyondTheStars.Client
                         c = odd ? other : background;
                     }
 
-                    _tex.SetPixel(x, z, c); // texture row 0 is the bottom = the near edge (z 0)
+                    Tex.SetPixel(x, z, c); // texture row 0 is the bottom = the near edge (z 0)
                 }
             }
 
-            _tex.Apply();
+            Tex.Apply();
         }
 
         // ---------------------------------------------------------------- preview
 
         private void BuildStage()
         {
-            var target = new RenderTexture(512, 512, 16) { name = "FormPreviewRT" };
-            _stage = new GameObject("FormEditorStage");
-            _stage.transform.position = new Vector3(0f, -7000f, 0f); // parked far from the menu backdrop
-            _spin = new GameObject("Spin").transform;
-            _spin.SetParent(_stage.transform, false);
+            var target = BeginPreviewStage("FormPreviewRT", "FormEditorStage", -7000f);
 
             var model = new GameObject("Form", typeof(MeshFilter), typeof(MeshRenderer));
-            model.transform.SetParent(_spin, false);
+            model.transform.SetParent(Spin, false);
             _previewFilter = model.GetComponent<MeshFilter>();
             var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Texture");
             _previewMaterial = new Material(shader) { color = Color.white };
@@ -579,24 +418,9 @@ namespace BlocksBeyondTheStars.Client
 
             model.GetComponent<MeshRenderer>().sharedMaterial = _previewMaterial;
 
-            var camGo = new GameObject("FormEditorCam", typeof(Camera));
-            camGo.transform.SetParent(_stage.transform, false);
-            _previewCamera = camGo.GetComponent<Camera>();
-            _previewCamera.orthographic = true;
-            _previewCamera.clearFlags = CameraClearFlags.SolidColor;
-            _previewCamera.backgroundColor = new Color(0.03f, 0.07f, 0.14f, 1f);
-            _previewCamera.targetTexture = target;
-            _previewCamera.nearClipPlane = 0.05f;
-            _previewCamera.farClipPlane = 40f;
-            if (_previewView != null)
-            {
-                _previewView.texture = target;
-            }
-
+            AddPreviewCamera(target, "FormEditorCam", 40f);
             ApplyMaterial();
         }
-
-        private RawImage _previewView;
 
         private void ApplyMaterial()
         {
@@ -625,9 +449,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Rebuilds the preview from the SAME merged boxes the world mesher draws — also for a form that
         /// is not valid yet, because a half-drawn form must still show.</summary>
-        private void RebuildPreview()
+        protected override void RebuildPreview()
         {
-            _previewDirty = false;
+            PreviewDirty = false;
             if (_previewFilter == null)
             {
                 return;
@@ -661,9 +485,9 @@ namespace BlocksBeyondTheStars.Client
             var size = new Vector3(_model.Width, _model.Height, _model.Length);
             _previewFilter.transform.localPosition = -size * 0.5f;
             float reach = size.magnitude * 0.62f + 0.35f;
-            _previewCamera.orthographicSize = reach;
-            _previewCamera.transform.localPosition = new Vector3(1f, 0.8f, -1f).normalized * (reach * 3f + 2f);
-            _previewCamera.transform.LookAt(_stage.transform.position);
+            PreviewCamera.orthographicSize = reach;
+            PreviewCamera.transform.localPosition = new Vector3(1f, 0.8f, -1f).normalized * (reach * 3f + 2f);
+            PreviewCamera.transform.LookAt(Stage.transform.position);
         }
 
         /// <summary>Six outward quads with planar texture coordinates in BLOCK units — the tile repeats once per
@@ -693,14 +517,7 @@ namespace BlocksBeyondTheStars.Client
 
         // ---------------------------------------------------------------- labels
 
-        private void RefreshAll()
-        {
-            RenderLayer();
-            _previewDirty = true;
-            RefreshLabels();
-        }
-
-        private void RefreshLabels()
+        protected override void RefreshLabels()
         {
             if (_layerLabel != null)
             {
@@ -730,44 +547,20 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private void SetStatus(string text, Color color)
-        {
-            if (_status != null)
-            {
-                _status.text = text;
-                _status.color = color;
-            }
-        }
-
-        private void SetHint(string key)
-        {
-            if (_hint != null)
-            {
-                _hint.text = L(key);
-            }
-        }
-
         // ---------------------------------------------------------------- UI
 
         private void BuildUi()
         {
-            _ui = UiKit.CreateCanvas("Form Editor UI");
-            _ui.sortingOrder = 5;
-            var root = _ui.transform;
-            UiKit.AddText(root, 16f, 2f, 1400f, 26f, L("ui.form.title"), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-
+            var root = BeginShell("Form Editor UI", "ui.form.title");
             BuildLibraryPanel(root);
             BuildCanvasPanel(root);
             BuildRightPanel(root);
-
-            _hint = UiKit.AddText(root, 16f, 1080f - 30f, 1880f, 24f, L("ui.form.hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            UiNav.Enable(_ui.gameObject, padHints: false); // this editor draws its own hint line
-            _pad = new PadCanvasFocus(_ui.gameObject, _canvasRt);
+            EndShell(root, "ui.form.hint");
         }
 
         private void BuildLibraryPanel(Transform root)
         {
-            var panel = UiKit.AddPanel(root, 16f, 32f, 360f, 1010f, UiKit.PanelFill).transform;
+            var panel = AddColumn(root, 16f, 360f);
             UiKit.AddText(panel, 14f, 10f, 330f, 24f, L("ui.shape.custom.library"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddButton(panel, 14f, 42f, 162f, 40f, L("ui.form.new"), NewForm);
             UiKit.AddButton(panel, 184f, 42f, 162f, 40f, L("ui.form.duplicate"), Duplicate);
@@ -796,22 +589,19 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var entry in CustomShapeLibrary.List())
             {
-                var row = new GameObject("Row", typeof(RectTransform));
-                row.transform.SetParent(_libraryContent, false);
-                row.GetComponent<RectTransform>().sizeDelta = new Vector2(316f, 44f);
-                row.AddComponent<LayoutElement>().preferredHeight = 44f;
+                var row = AddListRow(_libraryContent);
 
                 string name = entry.Name, voxels = entry.Voxels;
                 int cells = CustomShape.CellCount(voxels);
                 string label = cells > 1 ? name + "  · " + string.Format(L("ui.form.blocks"), cells) : name;
-                UiKit.AddButton(row.transform, 0f, 0f, 262f, 42f, label, () => LoadEntry(name, voxels));
-                UiKit.AddButton(row.transform, 268f, 0f, 46f, 42f, "✕", () => DeleteEntry(name));
+                UiKit.AddButton(row, 0f, 0f, 262f, 42f, label, () => LoadEntry(name, voxels));
+                UiKit.AddButton(row, 268f, 0f, 46f, 42f, "✕", () => DeleteEntry(name));
             }
         }
 
         private void BuildCanvasPanel(Transform root)
         {
-            var panel = UiKit.AddPanel(root, 392f, 32f, 700f, 1010f, UiKit.PanelFill).transform;
+            var panel = AddColumn(root, 392f, 700f);
             _layerLabel = UiKit.AddText(panel, 30f, 12f, 320f, 30f, string.Empty, 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddButton(panel, 400f, 8f, 80f, 38f, "▲", () => StepLayer(1));
             UiKit.AddButton(panel, 488f, 8f, 80f, 38f, "▼", () => StepLayer(-1));
@@ -823,7 +613,7 @@ namespace BlocksBeyondTheStars.Client
 
             var canvasGo = new GameObject("LayerCanvas", typeof(RectTransform));
             canvasGo.transform.SetParent(frame.transform, false);
-            _canvasRt = UiKit.Place(canvasGo, 0f, 0f, CanvasPx, CanvasPx);
+            CanvasRt = UiKit.Place(canvasGo, 0f, 0f, CanvasPx, CanvasPx);
             _canvasImg = canvasGo.AddComponent<RawImage>();
 
             float y = 56f + CanvasPx + 14f;
@@ -854,13 +644,13 @@ namespace BlocksBeyondTheStars.Client
 
         private void BuildRightPanel(Transform root)
         {
-            var panel = UiKit.AddPanel(root, 1108f, 32f, 796f, 1010f, UiKit.PanelFill).transform;
+            var panel = AddColumn(root, 1108f, 796f);
             UiKit.AddText(panel, 16f, 10f, 400f, 24f, L("ui.shape.custom.preview"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
             var view = new GameObject("FormPreviewView", typeof(RectTransform));
             view.transform.SetParent(panel, false);
             UiKit.Place(view, 16f, 40f, 460f, 460f);
-            _previewView = view.AddComponent<RawImage>();
+            PreviewView = view.AddComponent<RawImage>();
 
             // Material + dye: what the form will look like — it takes the material it is made of in the world.
             // The material is picked in the list on the left (#1969); here stands only its name, which stays
@@ -905,8 +695,8 @@ namespace BlocksBeyondTheStars.Client
             _nameInput = UiKit.AddInput(panel, 16f, y, 470f, 44f, _name, v => _name = v, L("ui.shape.custom.name_hint"), 24);
             UiKit.AddButton(panel, 494f, y, 286f, 44f, L("ui.form.save"), Save, "btn_singleplayer");
             y += 54f;
-            _status = UiKit.AddText(panel, 16f, y, 600f, 48f, string.Empty, 14, UiKit.Ok, TextAnchor.UpperLeft);
-            _status.horizontalOverflow = HorizontalWrapMode.Wrap;
+            StatusLabel = UiKit.AddText(panel, 16f, y, 600f, 48f, string.Empty, 14, UiKit.Ok, TextAnchor.UpperLeft);
+            StatusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
             UiKit.AddButton(panel, 620f, 1010f - 52f, 160f, 40f, L("ui.menu.back"), Close);
         }
 

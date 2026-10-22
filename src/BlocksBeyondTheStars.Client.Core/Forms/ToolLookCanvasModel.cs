@@ -12,7 +12,7 @@ namespace BlocksBeyondTheStars.Client
     /// one horizontal layer at a time like a form — but with a colour per voxel and a glow switch per colour.
     /// Unity-free and unit-tested: what it encodes is exactly what the server accepts.
     /// </summary>
-    public sealed class ToolLookCanvasModel
+    public sealed class ToolLookCanvasModel : ILayerCanvas
     {
         public const int MaxUndo = 48;
 

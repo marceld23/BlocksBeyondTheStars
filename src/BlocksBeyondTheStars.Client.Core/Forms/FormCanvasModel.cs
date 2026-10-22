@@ -35,7 +35,7 @@ namespace BlocksBeyondTheStars.Client
     /// A one-block form may use the coarse 4³ grid or the fine 8³ one; a form over several blocks is always 8³
     /// per block (the multi-cell payload has no coarse variant).
     /// </summary>
-    public sealed class FormCanvasModel
+    public sealed class FormCanvasModel : ILayerCanvas
     {
         /// <summary>Undo steps kept. A step is one stroke or one helper action.</summary>
         public const int MaxUndo = 48;

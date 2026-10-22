@@ -22,12 +22,12 @@ namespace BlocksBeyondTheStars.Client
     /// working) from a fixed palette of fifteen colours, each of which can glow. The canvas looks down on the tool:
     /// the bottom edge is at the hand, the tool points up the canvas.
     ///
-    /// The model (<see cref="ToolLookCanvasModel"/>) is Unity-free and unit-tested; this class is its screen.
+    /// The model (<see cref="ToolLookCanvasModel"/>) is Unity-free and unit-tested; this class is its screen. The frame
+    /// loop, keys, undo/redo, preview stage and screen shell it shares with the form editor live in
+    /// <see cref="LayerCanvasEditor"/>.
     /// </summary>
-    public sealed class ToolLookEditor : MonoBehaviour
+    public sealed class ToolLookEditor : LayerCanvasEditor
     {
-        public AppShell Shell;
-
         private const float CellPx = 40f;
 
         private readonly ToolLookCanvasModel _model = new ToolLookCanvasModel();
@@ -36,21 +36,46 @@ namespace BlocksBeyondTheStars.Client
         private ItemDefinition _tool;
         private int _color = 3;
 
-        private Canvas _ui;
-        private Texture2D _tex;
-        private RectTransform _canvasRt, _toolList;
-        private PadCanvasFocus _pad;
-        private Text _title, _layerLabel, _budgetLabel, _status, _hint, _glowLabel;
+        private RectTransform _toolList;
+        private Text _title, _layerLabel, _budgetLabel, _glowLabel;
         private readonly List<Image> _swatchFrames = new List<Image>();
-        private bool _stroking;
 
-        private GameObject _stage, _previewModel;
-        private Transform _spin;
-        private Camera _previewCamera;
-        private RawImage _previewView;
-        private bool _previewDirty = true;
+        private GameObject _previewModel;
 
-        private static string L(string key) => UiKit.L(key);
+        protected override ILayerCanvas Layers => _model;
+
+        protected override int CellsX => ToolLook.SizeX;
+
+        protected override int CellsZ => ToolLook.SizeZ;
+
+        protected override float SpinDegreesPerSecond => 26f;
+
+        protected override string HintKeyMouse => "ui.toollook.hint";
+
+        protected override string HintKeyPadCanvas => "ui.toollook.hint_pad";
+
+        protected override string HintKeyPadPanel => "ui.form.hint_pad_panel";
+
+        /// <summary>Left button / A paints the chosen colour, right button / X alone erases.</summary>
+        protected override bool PaintCell(int x, int z, bool primary, bool secondary) => _model.Paint(x, z, secondary && !primary ? 0 : _color);
+
+        /// <summary>Y on the canvas picks the colour under the cursor.</summary>
+        protected override void OnPadCanvasFrame()
+        {
+            if (InputMap.PadDown(PadButton.Y))
+            {
+                int picked = _model.Get(Pad.CellX, _model.Layer, ToolLook.SizeZ - 1 - Pad.CellY);
+                if (picked != 0)
+                {
+                    SetColor(picked);
+                }
+            }
+        }
+
+        /// <summary>The labels follow once a stroke ends, not per painted cell.</summary>
+        protected override void OnStrokeEnded() => RefreshLabels();
+
+        protected override void AfterCanvasEdit() => RefreshAll();
 
         // ---------------------------------------------------------------- life cycle
 
@@ -70,7 +95,7 @@ namespace BlocksBeyondTheStars.Client
                 _tools.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
             }
 
-            _tex = new Texture2D(ToolLook.SizeX, ToolLook.SizeZ, TextureFormat.RGBA32, false)
+            Tex = new Texture2D(ToolLook.SizeX, ToolLook.SizeZ, TextureFormat.RGBA32, false)
             {
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Point,
@@ -80,25 +105,23 @@ namespace BlocksBeyondTheStars.Client
             Open(_tools.Count > 0 ? _tools[0] : null);
         }
 
-        private void OnDestroy()
+        /// <summary>The base teardown in this editor's own order: the preview target is released before the stage
+        /// goes.</summary>
+        protected override void OnDestroy()
         {
-            _pad?.Release();
-            if (_ui != null)
+            Pad?.Release();
+            if (Ui != null)
             {
-                Destroy(_ui.gameObject);
+                Destroy(Ui.gameObject);
             }
 
-            if (_previewCamera != null && _previewCamera.targetTexture != null)
+            ReleasePreviewTarget();
+            if (Stage != null)
             {
-                _previewCamera.targetTexture.Release();
+                Destroy(Stage);
             }
 
-            if (_stage != null)
-            {
-                Destroy(_stage);
-            }
-
-            Destroy(_tex);
+            Destroy(Tex);
         }
 
         private void Open(ItemDefinition tool)
@@ -110,174 +133,13 @@ namespace BlocksBeyondTheStars.Client
                 _model.Load(Shell.Settings.GetToolLook(tool.Key)); // nothing stored → an empty canvas
             }
 
-            _stroking = false;
+            Stroking = false;
             RefreshAll();
             RebuildToolList();
             SetStatus(string.Empty, UiKit.Ok);
         }
 
-        // ---------------------------------------------------------------- per frame
-
-        private void Update()
-        {
-            if (_canvasRt == null)
-            {
-                return;
-            }
-
-            bool pad = InputMap.ActiveDevice == InputDeviceKind.Gamepad;
-            _spin?.Rotate(0f, (pad ? InputMap.PadLookX() * 90f : 26f) * Time.unscaledDeltaTime, 0f, Space.Self);
-            HandleKeys();
-
-            _pad.SetCells(ToolLook.SizeX, ToolLook.SizeZ);
-            bool padCanvas = _pad.Tick(pad);
-            SetHint(!pad ? "ui.toollook.hint" : padCanvas ? "ui.toollook.hint_pad" : "ui.form.hint_pad_panel");
-
-            bool paint, erase;
-            int x, z;
-            if (padCanvas)
-            {
-                if (_pad.LayerStep != 0)
-                {
-                    StepLayer(_pad.LayerStep);
-                }
-
-                if (InputMap.PadDown(PadButton.Rb))
-                {
-                    DoUndo();
-                }
-
-                if (InputMap.PadDown(PadButton.Y))
-                {
-                    int picked = _model.Get(_pad.CellX, _model.Layer, ToolLook.SizeZ - 1 - _pad.CellY);
-                    if (picked != 0)
-                    {
-                        SetColor(picked);
-                    }
-                }
-
-                paint = InputMap.PadHeld(PadButton.A);
-                erase = InputMap.PadHeld(PadButton.X);
-                x = _pad.CellX;
-                z = ToolLook.SizeZ - 1 - _pad.CellY; // the tool points UP the canvas
-            }
-            else
-            {
-                paint = Input.GetMouseButton(0);
-                erase = Input.GetMouseButton(1);
-                if (!TryCanvasCell(out x, out z))
-                {
-                    paint = erase = false;
-                }
-            }
-
-            if (paint || erase)
-            {
-                if (!_stroking)
-                {
-                    _stroking = true;
-                    _model.BeginStroke();
-                }
-
-                if (_model.Paint(x, z, erase && !paint ? 0 : _color))
-                {
-                    RenderLayer();
-                    _previewDirty = true;
-                }
-            }
-            else if (_stroking)
-            {
-                _stroking = false;
-                _model.EndStroke();
-                RefreshLabels();
-            }
-
-            if (_previewDirty && !_stroking)
-            {
-                RebuildPreview();
-            }
-        }
-
-        private void HandleKeys()
-        {
-            if (UiKit.TextFieldFocused())
-            {
-                return;
-            }
-
-            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-            if (ctrl && Input.GetKeyDown(KeyCode.Z))
-            {
-                if (shift)
-                {
-                    DoRedo();
-                }
-                else
-                {
-                    DoUndo();
-                }
-            }
-            else if (ctrl && Input.GetKeyDown(KeyCode.Y))
-            {
-                DoRedo();
-            }
-            else if (Input.GetKeyDown(KeyCode.PageUp) || Input.GetKeyDown(KeyCode.W))
-            {
-                StepLayer(1);
-            }
-            else if (Input.GetKeyDown(KeyCode.PageDown) || Input.GetKeyDown(KeyCode.S))
-            {
-                StepLayer(-1);
-            }
-        }
-
-        private bool TryCanvasCell(out int x, out int z)
-        {
-            x = z = 0;
-            if (!RectTransformUtility.RectangleContainsScreenPoint(_canvasRt, Input.mousePosition, null)
-                || !RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRt, Input.mousePosition, null, out var lp))
-            {
-                return false;
-            }
-
-            float w = _canvasRt.rect.width, h = _canvasRt.rect.height;
-            x = Mathf.Clamp(Mathf.FloorToInt(Mathf.Clamp01(lp.x / w) * ToolLook.SizeX), 0, ToolLook.SizeX - 1);
-            int fromTop = Mathf.Clamp(Mathf.FloorToInt(Mathf.Clamp01(-lp.y / h) * ToolLook.SizeZ), 0, ToolLook.SizeZ - 1);
-            z = ToolLook.SizeZ - 1 - fromTop;
-            return true;
-        }
-
         // ---------------------------------------------------------------- commands
-
-        private void StepLayer(int delta)
-        {
-            _model.SetLayer(_model.Layer + delta);
-            RenderLayer();
-            RefreshLabels();
-        }
-
-        private void DoUndo()
-        {
-            if (_model.Undo())
-            {
-                RefreshAll();
-            }
-        }
-
-        private void DoRedo()
-        {
-            if (_model.Redo())
-            {
-                RefreshAll();
-            }
-        }
-
-        private void Do(System.Action change)
-        {
-            change();
-            RefreshAll();
-        }
 
         private void SetColor(int color)
         {
@@ -365,7 +227,7 @@ namespace BlocksBeyondTheStars.Client
         private static Color PaletteColor(int index)
             => HeldModelPart.TryParseColor(ToolLook.Palette[index], out float r, out float g, out float b) ? new Color(r, g, b, 1f) : Color.magenta;
 
-        private void RenderLayer()
+        protected override void RenderLayer()
         {
             var background = FacePalette.EditorBackground;
             for (int z = 0; z < ToolLook.SizeZ; z++)
@@ -384,46 +246,29 @@ namespace BlocksBeyondTheStars.Client
                         c = below != 0 ? Color.Lerp(background, PaletteColor(below), 0.28f) : background;
                     }
 
-                    _tex.SetPixel(x, z, c); // texture row 0 = the hand end, drawn at the bottom
+                    Tex.SetPixel(x, z, c); // texture row 0 = the hand end, drawn at the bottom
                 }
             }
 
-            _tex.Apply();
+            Tex.Apply();
         }
 
         private void BuildStage()
         {
-            var target = new RenderTexture(512, 512, 16) { name = "ToolLookPreviewRT" };
-            _stage = new GameObject("ToolLookStage");
-            _stage.transform.position = new Vector3(0f, -8000f, 0f);
-            _spin = new GameObject("Spin").transform;
-            _spin.SetParent(_stage.transform, false);
-
-            var camGo = new GameObject("ToolLookCam", typeof(Camera));
-            camGo.transform.SetParent(_stage.transform, false);
-            _previewCamera = camGo.GetComponent<Camera>();
-            _previewCamera.orthographic = true;
-            _previewCamera.orthographicSize = 0.42f;
-            _previewCamera.clearFlags = CameraClearFlags.SolidColor;
-            _previewCamera.backgroundColor = new Color(0.03f, 0.07f, 0.14f, 1f);
-            _previewCamera.targetTexture = target;
-            _previewCamera.nearClipPlane = 0.05f;
-            _previewCamera.farClipPlane = 12f;
-            camGo.transform.localPosition = new Vector3(1.6f, 1.1f, -1.6f);
-            camGo.transform.LookAt(_stage.transform.position);
-            if (_previewView != null)
-            {
-                _previewView.texture = target;
-            }
+            var target = BeginPreviewStage("ToolLookPreviewRT", "ToolLookStage", -8000f);
+            AddPreviewCamera(target, "ToolLookCam", 12f);
+            PreviewCamera.orthographicSize = 0.42f;
+            PreviewCamera.transform.localPosition = new Vector3(1.6f, 1.1f, -1.6f);
+            PreviewCamera.transform.LookAt(Stage.transform.position);
         }
 
         /// <summary>The preview is built by the SAME code that puts the tool into a hand in the world
         /// (<see cref="HeldItem.Build"/>), so what turns here is what the others will see. While the canvas is empty
         /// it shows the standard model — the thing the look would replace.</summary>
-        private void RebuildPreview()
+        protected override void RebuildPreview()
         {
-            _previewDirty = false;
-            if (_spin == null)
+            PreviewDirty = false;
+            if (Spin == null)
             {
                 return;
             }
@@ -454,7 +299,7 @@ namespace BlocksBeyondTheStars.Client
 
             var (kind, tint, _) = HeldItem.For(_content, _tool.Key);
             var model = parts.Count > 0 ? parts : (IReadOnlyList<HeldModelPart>)_tool.HeldModel; // empty canvas → the standard look
-            _previewModel = HeldItem.Build(_spin, kind, tint, null, _tool.Key, model);
+            _previewModel = HeldItem.Build(Spin, kind, tint, null, _tool.Key, model);
             if (_previewModel != null)
             {
                 _previewModel.transform.localPosition = new Vector3(0f, 0.04f, -0.2f); // centre the length of the tool on the turntable
@@ -463,14 +308,7 @@ namespace BlocksBeyondTheStars.Client
 
         // ---------------------------------------------------------------- labels
 
-        private void RefreshAll()
-        {
-            RenderLayer();
-            _previewDirty = true;
-            RefreshLabels();
-        }
-
-        private void RefreshLabels()
+        protected override void RefreshLabels()
         {
             if (_title != null)
             {
@@ -507,41 +345,21 @@ namespace BlocksBeyondTheStars.Client
             return string.IsNullOrEmpty(name) || name == tool.NameKey ? tool.Key : name;
         }
 
-        private void SetStatus(string text, Color color)
-        {
-            if (_status != null)
-            {
-                _status.text = text;
-                _status.color = color;
-            }
-        }
-
-        private void SetHint(string key)
-        {
-            if (_hint != null)
-            {
-                _hint.text = L(key);
-            }
-        }
-
         // ---------------------------------------------------------------- UI
 
         private void BuildUi()
         {
-            _ui = UiKit.CreateCanvas("Tool Look Editor UI");
-            _ui.sortingOrder = 5;
-            var root = _ui.transform;
-            UiKit.AddText(root, 16f, 2f, 1400f, 26f, L("ui.toollook.title"), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            var root = BeginShell("Tool Look Editor UI", "ui.toollook.title");
 
             // Tools.
-            var left = UiKit.AddPanel(root, 16f, 32f, 360f, 1010f, UiKit.PanelFill).transform;
+            var left = AddColumn(root, 16f, 360f);
             UiKit.AddText(left, 14f, 10f, 330f, 24f, L("ui.toollook.my_tools"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             var note = UiKit.AddText(left, 14f, 38f, 332f, 62f, L("ui.toollook.note"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
             note.horizontalOverflow = HorizontalWrapMode.Wrap;
             _toolList = UiKit.ScrollList(left, 14f, 106f, 332f, 890f, 4f);
 
             // Canvas.
-            var mid = UiKit.AddPanel(root, 392f, 32f, 700f, 1010f, UiKit.PanelFill).transform;
+            var mid = AddColumn(root, 392f, 700f);
             _title = UiKit.AddText(mid, 30f, 10f, 640f, 28f, string.Empty, 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             _layerLabel = UiKit.AddText(mid, 30f, 44f, 300f, 28f, string.Empty, 16, UiKit.TextCol, TextAnchor.MiddleLeft);
             UiKit.AddButton(mid, 360f, 40f, 70f, 36f, "▲", () => StepLayer(1));
@@ -549,8 +367,8 @@ namespace BlocksBeyondTheStars.Client
 
             var canvasGo = new GameObject("LookCanvas", typeof(RectTransform));
             canvasGo.transform.SetParent(mid, false);
-            _canvasRt = UiKit.Place(canvasGo, 30f, 86f, ToolLook.SizeX * CellPx, ToolLook.SizeZ * CellPx);
-            canvasGo.AddComponent<RawImage>().texture = _tex;
+            CanvasRt = UiKit.Place(canvasGo, 30f, 86f, ToolLook.SizeX * CellPx, ToolLook.SizeZ * CellPx);
+            canvasGo.AddComponent<RawImage>().texture = Tex;
             UiKit.AddText(mid, 30f, 86f + (ToolLook.SizeZ * CellPx) + 4f, 320f, 20f, L("ui.toollook.hand_here"), 13, UiKit.CyanDim, TextAnchor.MiddleCenter);
 
             // Palette: fifteen colours, each can glow.
@@ -588,12 +406,12 @@ namespace BlocksBeyondTheStars.Client
             _budgetLabel = UiKit.AddText(mid, px, py, 290f, 24f, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
             // Preview + save.
-            var right = UiKit.AddPanel(root, 1108f, 32f, 796f, 1010f, UiKit.PanelFill).transform;
+            var right = AddColumn(root, 1108f, 796f);
             UiKit.AddText(right, 16f, 10f, 400f, 24f, L("ui.shape.custom.preview"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             var view = new GameObject("ToolLookPreviewView", typeof(RectTransform));
             view.transform.SetParent(right, false);
             UiKit.Place(view, 16f, 40f, 600f, 600f);
-            _previewView = view.AddComponent<RawImage>();
+            PreviewView = view.AddComponent<RawImage>();
 
             float by = 660f;
             UiKit.AddButton(right, 16f, by, 380f, 52f, L("ui.toollook.save"), Save, "btn_singleplayer");
@@ -602,15 +420,13 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(right, 16f, by, 186f, 40f, L("ui.tex.copy_code"), CopyCode);
             UiKit.AddButton(right, 210f, by, 186f, 40f, L("ui.tex.paste_code"), PasteCode);
             by += 50f;
-            _status = UiKit.AddText(right, 16f, by, 764f, 60f, string.Empty, 14, UiKit.Ok, TextAnchor.UpperLeft);
-            _status.horizontalOverflow = HorizontalWrapMode.Wrap;
+            StatusLabel = UiKit.AddText(right, 16f, by, 764f, 60f, string.Empty, 14, UiKit.Ok, TextAnchor.UpperLeft);
+            StatusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
             var rules = UiKit.AddText(right, 16f, by + 70f, 764f, 80f, L("ui.toollook.rules"), 13, UiKit.CyanDim, TextAnchor.UpperLeft);
             rules.horizontalOverflow = HorizontalWrapMode.Wrap;
             UiKit.AddButton(right, 620f, 1010f - 52f, 160f, 40f, L("ui.menu.back"), Close);
 
-            _hint = UiKit.AddText(root, 16f, 1080f - 30f, 1880f, 24f, L("ui.toollook.hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            UiNav.Enable(_ui.gameObject, padHints: false);
-            _pad = new PadCanvasFocus(_ui.gameObject, _canvasRt);
+            EndShell(root, "ui.toollook.hint");
         }
 
         private void RebuildToolList()
@@ -627,15 +443,12 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var tool in _tools)
             {
-                var row = new GameObject("Row", typeof(RectTransform));
-                row.transform.SetParent(_toolList, false);
-                row.GetComponent<RectTransform>().sizeDelta = new Vector2(316f, 44f);
-                row.AddComponent<LayoutElement>().preferredHeight = 44f;
+                var row = AddListRow(_toolList);
 
                 var item = tool;
                 bool own = Shell?.Settings != null && Shell.Settings.GetToolLook(tool.Key).Length > 0;
                 string label = (own ? "★ " : string.Empty) + ToolName(tool);
-                var button = UiKit.AddButton(row.transform, 0f, 0f, 314f, 42f, label, () => Open(item), "item_" + tool.Key);
+                var button = UiKit.AddButton(row, 0f, 0f, 314f, 42f, label, () => Open(item), "item_" + tool.Key);
                 if (tool == _tool)
                 {
                     UiKit.AddOutline(button.targetGraphic);
