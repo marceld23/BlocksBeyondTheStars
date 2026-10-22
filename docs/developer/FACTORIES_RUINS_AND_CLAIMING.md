@@ -220,10 +220,10 @@ claiming are the natural follow-ups.
 | Monuments | `WorldGeneration/MonumentGenerator.cs`, `GameServer/GameServerMonuments.cs`, `GameServer/GameServerScanning.cs` (rune scan) |
 | Stampers | `GameServer/GameServerFactories.cs`, `GameServerRuins.cs`, `GameServerChests.cs` |
 | Tracking | `GameServer/WorldManager.cs` (`FactoryInstance`, `RuinsStamped`, `MonumentInstance`) |
-| Crafting/protection | `GameServer/GameServer.cs` (`HandleCraft` roster gate, mine/place `IsFactoryProtected`, `Disassemble` exclusion, `StationAvailable`) |
+| Crafting/protection | `GameServer/GameServer.cs` (`HandleCraft` roster gate, mine `IsFactoryProtected`, `Disassemble` exclusion, `StationAvailable`), `GameServer/GameServerPlacement.cs` (the `factory` placement rule) |
 | Claiming | `GameServer/GameServerFactories.cs` (`ClaimFactory`), `Shared/State/WorldMetadata.cs` (`StructureClaim`) |
 | NPC hints | `GameServer/GameServerNpcHints.cs` (`TryEmitHint`), `GameServerSettlements.cs` (`BuildPlanetPois`), `Shared/State/WorldMetadata.cs` (`RevealedPois`), `client/.../WorldMap.cs` (`PoiLook` `treasure`) |
 | Networking | `Networking/Messages/FactoryMessages.cs`, `Networking/NetCodec.cs` (tags 172/173) |
-| Client | `client/.../FactoryView.cs`, `WorldRig.cs`, `PlayerController.cs` (E-claim), `CraftingTechShipUI.cs` (factory station), `GameBootstrap.cs`, `NetworkClient.cs` |
+| Client | `client/.../FactoryView.cs`, `WorldRig.cs`, `PlayerController.cs` (E-claim), `CraftingTechShipUI.Recipes.cs` (factory station gate, `IsFactoryRecipeAway`), `CraftingTechShipUI.Stations.cs` (`factory_terminal` for the locator), `GameBootstrap.cs`, `NetworkClient.cs` |
 | Data | `data/blocks.json` (`factory_terminal`, `machine_block`, `factory_pipe`), `data/items.json` (`access_code`), `data/recipes.json` (factory recipes + `market_buy_access_code`), `data/locales/{en,de}.json` |
 | Tests | `tests/.../FactoryStructureTests.cs`, `FactoryClaimTests.cs`, `FactoryCraftingTests.cs`, `RuinsAndChestsTests.cs`, `MonumentTests.cs`, `NpcHintTests.cs` |

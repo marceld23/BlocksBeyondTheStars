@@ -148,9 +148,10 @@ Hits:
   scan drone's 2 HP/s aura held the screen red and stacked the shake to its maximum.
 - #2564: a red marker on a ring around the crosshair (96×12 px, 2.2 s, fading over the last 0.8 s) points at the
   attacker. Every blow a creature, machine, bandit or giant lands records the attacker on the server's `PlayerSession`
-  (`NoteHitFrom`, `GameServerHitSource.cs`): entity id, the spot the blow came from (a giant's stomp or strike spot) and
-  a sequence number that moves on with every blow. The hit already marks the state dirty, so the `PlayerStateUpdate`
-  at the end of the same tick carries `LastHitFromX/Y/Z`, `LastHitEntityId` and `LastHitSeq`. On the client,
+  (its `Sync` component; `NoteHitFrom`, `GameServerHitSource.cs`): entity id, the spot the blow came from (a giant's
+  stomp or strike spot) and a sequence number that moves on with every blow. The hit already marks the state dirty,
+  so the `PlayerStateUpdate` at the end of the same tick carries `LastHitFromX/Y/Z`, `LastHitEntityId` and
+  `LastHitSeq`. On the client,
   `HitSourceTracker` (Client.Core, `GameBootstrap.LastHit`) treats a changed, non-zero sequence as a fresh blow. When a
   damage pulse fires with a blow less than 1 s old, the marker takes the attacker's live position while its entity is
   in view (else the reported spot; giants always use the reported spot) and follows it while it moves. Without one

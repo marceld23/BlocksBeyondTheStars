@@ -50,7 +50,7 @@ Ratios are intentionally steep starting values; tune in `data/recipes.json` afte
 | Locales | `data/locales/{en,de}.json` | block/item/module/blueprint strings + `ui.craft.station_transmuter` |
 | Enum | `src/…/Shared/Definitions/Enums.cs` | `CraftingStation.Transmuter` |
 | Server gate | `src/…/GameServer/GameServer.cs` | `StationAvailable` → block `matter_forge` / module `transmuter` |
-| Client tile | `client/…/BlockTextureAtlas.cs` | `matter_forge` base colour (violet) |
+| Client tile | `client/…/BlockTextureAtlas.CodeTiles.cs` | `matter_forge` base colour (violet, `BaseColor`) |
 | Client audio | `client/…/CraftingTechShipUI.cs` | `matter_synth` cue on a transmuter craft |
 | Assets | `client/Assets/Resources/icons/item_{matter_dust,transmuter}.png` | OpenAI icons |
 | Assets | `client/Assets/Resources/audio/matter_synth.mp3` | ElevenLabs SFX |

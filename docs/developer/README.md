@@ -14,7 +14,8 @@ refreshed 2026-08-08.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — the system overview: client (presentation) vs server (truth), the
   solution & project graph, runtime, networking, persistence, and a where-to-find-what map. **Read this first.**
 - [DEVELOPER.md](DEVELOPER.md) — build, test and build-verification guide (the `build-client.ps1`/`build-client.sh`
-  pipeline, freshness checks, "works in the Editor, broken in the build" pitfalls).
+  pipeline, freshness checks, "works in the Editor, broken in the build" pitfalls), plus the recipes for adding a
+  block, adding a server option and extracting a GameServer subsystem.
 - [LINUX_PORT.md](LINUX_PORT.md) — how the Linux port works: cross-platform changes, the console launcher,
   bash build scripts, CI/CD and known limitations.
 - [MACOS_BUILD.md](MACOS_BUILD.md) — the experimental macOS build: `StandaloneOSX` cross-built on Linux (Mono),
@@ -22,8 +23,9 @@ refreshed 2026-08-08.
 - [CLIENT_TESTING.md](CLIENT_TESTING.md) — how the Unity client is tested against the **real** game server
   (the `Client.Core` split, the three test tiers, the selectable `run-tests.ps1` runner).
 - [SERVER_TESTING.md](SERVER_TESTING.md) — **writing tests** for the server/shared .NET suite: exemplar
-  tests to copy from, the content/locale fixtures, what "meaningful" assertions look like, and the CI
-  analyzer traps. Start here for a first test contribution (open tasks carry the `good first issue` label).
+  tests to copy from, the content/locale fixtures and shared test fakes, what "meaningful" assertions look like,
+  and the CI traps (analyzers, the code-health ratchet). Start here for a first test contribution (open tasks
+  carry the `good first issue` label).
 - [SELF_HOSTING.md](SELF_HOSTING.md) — run and host a dedicated server, config keys, the web portal & updates.
 - [HOSTED_WORLDS.md](HOSTED_WORLDS.md) — the hosted-worlds ("Official Worlds") service: control plane
   (WorldHost), one container per world, routing, portal and operations.
@@ -183,3 +185,4 @@ ones are marked, not deleted.
 - [0016 — Lava, crystals and the glowing flora light their surroundings (quietly)](adr/0016-natural-emitters-light-their-surroundings.md)
 - [0017 — Endless water by class, finite still water, and falls that keep their level](adr/0017-water-classes-finite-still-water-and-bounded-falls.md)
 - [0018 — Every closed room breathes: one air engine for bases and stations, doors are bulkheads](adr/0018-every-closed-room-breathes-one-air-engine.md)
+- [0019 — GameServer subsystems: top-level classes behind compiler-derived host interfaces](adr/0019-gameserver-subsystems.md)

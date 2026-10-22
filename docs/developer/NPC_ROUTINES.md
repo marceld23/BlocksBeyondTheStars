@@ -347,9 +347,9 @@ the furnished room (`RoomFurnisher.RoomRole` name).
 - **Dialogues.** `DialogDefinition.Job`: a job dialogue matches only that job; a profession NPC never takes a plain role
   dialogue. Consequences `photo` (the streamer poses — `npc.activity.posing` — and `NpcDialogState.Action = "photo"` makes
   the client take a HUD-free photo), `photo_never` (milestone `streamer:never`), `interview` (`Action = "interview"`, the
-  client's `InterviewUi`; `session.PendingInterviewNpcId`), `news` (the closing line lists the place's latest articles),
-  `treat` (#2628, the doctor's "Can you treat me?": full health, free, once per in-game day and player — milestone
-  `doctor:treated:<day>`, only the latest kept, so it survives a reconnect; a second ask that day hears
+  client's `InterviewUi`; `session.Npc.PendingInterviewNpcId`), `news` (the closing line lists the place's latest
+  articles), `treat` (#2628, the doctor's "Can you treat me?": full health, free, once per in-game day and player —
+  milestone `doctor:treated:<day>`, only the latest kept, so it survives a reconnect; a second ask that day hears
   `dlg.doctor.r_treat_again`, a healthy patient `dlg.doctor.r_treat_healthy` and keeps the visit; `Action = "heal"` plays
   the heal sound).
 - **Interviews.** `InterviewAnswerIntent` (tag 243) is accepted once, right after that reporter asked; free text ≤ 300,
@@ -397,10 +397,10 @@ the furnished room (`RoomFurnisher.RoomRole` name).
 - **VEGA** (`GameServerVegaChatter.cs`, `TickVegaChatterFor` from `TickShipAi`'s 1 Hz pass): seeded on the session's first
   pass. *Welcome aboard* — the aboard flag going false → true after ≥ 600 s outside, at most every 1800 s, never after a
   respawn (`ResetVegaAboardWelcome` in `CompleteRespawn`/`RecoverToShip`): `vega.welcome.aboard.1-4`, kind 5. *Login* —
-  `PlayerSession.PreviousSeenUtc` ≥ 18 h old → `vega.welcome.login.1-3` 15 s after the join, kind 1, once. *Praise* —
-  `TryAward(…, praise: true)` from `Advance` queues the key (`SettleAchievements` passes false: retro-awards stay silent;
-  the `story` category and the join placement are skipped); the first unlock opens a 2 s window, several keys → one
-  `vega.praise.many` ({0} = count), one → `vega.praise.<category>` or `vega.praise.any.1-2` ({0} = the achievement's
+  `PlayerSession.Vega.PreviousSeenUtc` ≥ 18 h old → `vega.welcome.login.1-3` 15 s after the join, kind 1, once. *Praise*
+  — `TryAward(…, praise: true)` from `Advance` queues the key (`SettleAchievements` passes false: retro-awards stay
+  silent; the `story` category and the join placement are skipped); the first unlock opens a 2 s window, several keys →
+  one `vega.praise.many` ({0} = count), one → `vega.praise.<category>` or `vega.praise.any.1-2` ({0} = the achievement's
   name); kind 5, ≥ 90 s between praise lines. All of them only while the tutorial pack's `banter` gate is not false,
   and held back (no cooldown spent) on a channel the player muted. Each pushes the next context tip back by 30 s. AI:
   `vega_welcome` (subject `aboard.day|night` / `login.<away bucket>`) and `vega_praise` (subject = category) — a cached
@@ -408,11 +408,11 @@ the furnished room (`RoomFurnisher.RoomRole` name).
 - **Base news via VEGA** (`RelayBaseNewsViaVega` in `GameServerNpcRadio.cs` — the helper other systems call): when the
   radio call does not go out (no worn radio in reach, its cadence) the owner hears the news from VEGA instead. Gates:
   joined, not observing, "NPC calls" All (an `urgent` warning: anything but Off), a kind-1/5 line is held back while the
-  hints are muted, and a per-key cooldown shared with the radio's `NpcCallCooldownUntil`. *Settler moved in* — only for a
-  NEW resident (no memory entry yet; residents respawn on every world load and the call used to ring again): radio, else
-  `vega.news.settler` ({0} name, {1} base, kind 3). *Trader landed* — radio, else for an owner in the same star system
-  `vega.news.trader` ({0} body, kind 1). *Guard* — see §7 (`vega.news.guard`, kind 3, urgent). AI: `vega_news`, the
-  authored line's `{0}`/`{1}` are required tokens.
+  hints are muted, and a per-key cooldown shared with the radio's `session.Npc.NpcCallCooldownUntil`. *Settler moved in*
+  — only for a NEW resident (no memory entry yet; residents respawn on every world load and the call used to ring
+  again): radio, else `vega.news.settler` ({0} name, {1} base, kind 3). *Trader landed* — radio, else for an owner in
+  the same star system `vega.news.trader` ({0} body, kind 1). *Guard* — see §7 (`vega.news.guard`, kind 3, urgent). AI:
+  `vega_news`, the authored line's `{0}`/`{1}` are required tokens.
 
 ## 13. Villagers talk to each other (`GameServerVillageLife.cs`, #2600)
 
@@ -532,8 +532,8 @@ the furnished room (`RoomFurnisher.RoomRole` name).
 
 ## 16. Talking with a player — the conversation's life (`GameServerNpcDialogs.cs`, #2616)
 
-- **Where it lives.** `PlayerSession.Conversation` (`NpcConversation`: the NPC **object**, the world's location id, the
-  dialogue, the node, start and last-active time). It exists only while the client shows reply choices:
+- **Where it lives.** `PlayerSession.Npc.Conversation` (`NpcConversation`: the NPC **object**, the world's location id,
+  the dialogue, the node, start and last-active time). It exists only while the client shows reply choices:
   `HandleTalkToNpc` and the wish offer open it (`StartNpcConversation`) for a step with choices; an end node, a node without
   choices, the client's leave, a new E-talk (which closes the old panel), walking away, a world change, the NPC leaving the
   world and a disconnect end it (`EndNpcConversation`). NPC ids restart at 1 on every world and every respawn — holding
@@ -574,7 +574,7 @@ the furnished room (`RoomFurnisher.RoomRole` name).
 People who live outside the settlements have their own page: [WILDERNESS_FOLK.md](WILDERNESS_FOLK.md). In terms of this
 page: a **lodge resident** is a profession NPC (Role `vendor`, `Job` gatherer / miner / woodcutter / hunter, its own `Theme`)
 with `RoutineEnabled` — day at the yard, evening on the bench by the campfire, night in its bed — whose job runs in
-`TickNpcJob` through the generic work cycle `TickNpcWork` (`GameServerNpcWork.cs`; `ServerNpc.LodgeKey`, `WorkState`);
+`TickNpcJob` through the generic work cycle `TickNpcWork` (`NpcWorkSystem.cs`; `ServerNpc.LodgeKey`, `WorkState`);
 its `NewsPlaceKey` is `l:<lodge>`, its dialogues have home `lodge`, its person key `lodge:<world>:<x>:<z>#<slot>` follows the
 villager standing rules. A **wanderer** runs the same work cycle without a routine and leaves like a base guest.
 

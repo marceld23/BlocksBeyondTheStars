@@ -117,9 +117,11 @@ them**; between systems you hyperjump. This combines two originally separate ide
   — the resident-worlds dictionary + `Active` cursor (`GetOrCreate` / `SetActive` / `Unload`) and the
   per-player `LandedShips` map.
 - `GameServer.cs` — per-session `CurrentLocationId`, `SwitchActiveWorld` (startup default), `LoadWorld`,
-  `SetActiveWorld`, `OccupiedLocations`, and the per-occupied-world `Tick` loop.
-- The per-world subsystems: `GameServerCreatures / Enemies / Flora / Fluids / Containers /
-  Settlements / Weather / Wrecks / ShipStructure` — each reads `_worlds.Active.*`.
+  `SetActiveWorld`, `OccupiedLocations`, and the per-occupied-world `Tick` loop; the systems it runs per world,
+  in order, are the `PerWorld` phase of the tick schedule (`GameServerTickSchedule.cs`).
+- The per-world subsystems: `GameServerCreatures / Enemies / Flora / Fluids / Settlements / Weather /
+  Wrecks / ShipStructure` and `ContainerSystem` — each reads the active world (`_worlds.Active.*`; a
+  `*System` class through its host's `World`).
 - `GameServerSpaceCombat` / `SpaceView` (client) — the per-launch-body flight space.
 - `GameServerShipInterior` (walking inside the floating ship, `shipint:<id>`) and `GameServerShipVisits` (the docking
   visit, #2723) with `GameServerDocking` (`CanDockTogether`).

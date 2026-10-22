@@ -332,8 +332,8 @@ before VEGA's line was read and never back; the private-ping path is removed.
 **Resolution** (`LeadsFor(s)`): only for a player whose story track started; the current chapter's effective leads
 (`StoryLeads.EffectiveLeads`: the chapter's own list, then the stand-ins `fragment`, `settlement_help` it does not list —
 numbered on, so `story:<id>:lead:<chapter>:<n>` stays stable) are resolved per player and cached in
-`PlayerSession.StoryLeads`. The cache is rebuilt only when `StoryLeadSignature` changed — the chapter, the location, in
-space or not, the fragments on the player's world, the save's found fragments, the machine rule, the finale flags, the
+`PlayerSession.Story.StoryLeads`. The cache is rebuilt only when `StoryLeadSignature` changed — the chapter, the location,
+in space or not, the fragments on the player's world, the save's found fragments, the machine rule, the finale flags, the
 player's landed bodies / blueprints / scan ledger counts, the ship, the locale, instant travel, and an epoch bumped by
 `module:built`, `ship:commissioned` and every followed lead. No per-tick galaxy scans: the 1 Hz path compares the
 signature (O(1)); the unique sites' bodies are cached per galaxy. The **current** lead = the first open, feasible one; none
@@ -559,9 +559,9 @@ drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_
 | Key | Argument (amount) | Raised at | File |
 |---|---|---|---|
 | `mine:any` | block key | a block mined by hand, next to `OnBlockMined` | `GameServer.cs` (`BreakBlockCore`) |
-| `build:any` | block key | a block placed, next to `OnAchievementBuild` | `GameServer.cs` (`HandlePlace`) |
+| `build:any` | block key | a block placed, next to `OnAchievementBuild` | `GameServerPlacement.cs` (`FinishPlacement`) |
 | `build:any` | `blueprint_paste` (placed count) | a blueprint paste | `GameServerBlueprints.cs` |
-| `build:rotated` | block key | a form/prop block placed with an explicit rotate-key turn (`Yaw` 0–3 or an up-face) | `GameServer.cs` (`HandlePlace`) |
+| `build:rotated` | block key | a form/prop block placed with an explicit rotate-key turn (`Yaw` 0–3 or an up-face) | `GameServerPlacement.cs` (`FinishPlacement`) |
 | `craft:any` | recipe key (batch count) | a recipe crafted — also a free Creative craft, where the VEGA/achievement hooks do not run | `GameServer.cs` (`HandleCraft`) |
 | `craft:tint` / `craft:shape` / `craft:paint` | base item key (count) | dye/glow, a form craft (built-in or player-designed), a paint design — every success path incl. Creative; never `craft:any` | `GameServer.cs` (`HandleTintCraft`, `ApplyShapeExchange`, `ApplyMultiCellExchange`), `GameServerPaint.cs` |
 | `eat:any` | item key | real food eaten (hunger value > 0) | `GameServerCreatures.cs` (`ConsumeItem`) |
@@ -583,7 +583,7 @@ drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_
 | `station:commissioned` | station id | a player station commissioned — raised for its **owner** (online), like the achievement; an offline owner gets the message and the achievement at the next join (`station:told:<id>`, #2492), not this event | `GameServerPlayerStations.cs` |
 | `base:founded` | body id | a base core placed | `GameServerBases.cs` (`PlaceBase`) |
 | `tame:any` | species id (`au_sreekmakra`) | a creature tamed; the shapeshifter following a tame raises its own | `GameServerTaming.cs`, `GameServerSreekmakra.cs` (`BondSreekmakra`) |
-| `loot:any` | container kind | a world container looted empty (never a player crate) | `GameServerContainers.cs` |
+| `loot:any` | container kind | a world container looted empty (never a player crate) | `ContainerSystem.cs` (`LootContainer`) |
 | `defeat:any` | `creature` \| `giant` \| `machine` \| `bandit` (planet), `space_machine` \| `raider` (space) | a hostile defeated by the player | `GameServerEnemies.cs`, `GameServerSpaceCombat.cs` |
 | `wormhole:any` | destination system id | a flight through a wormhole | `GameServerWormholes.cs` |
 | `relay:commissioned` | station id | an SPS relay completed by the player's delivery | `GameServerRelays.cs` |
@@ -594,22 +594,22 @@ drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_
 | `insight:shape_noncube` | base item key | a non-cube form crafted | `GameServer.cs` (`RaiseShapeCrafted`) |
 | `lore:read` | site kind (`monument`, `vault`, `observatory`, `derelict`, `data_terminal` …) | #2476: a lore text new to the player opened in the reader (a rune inscription, a vault plaque, the observatory's last log, a wreck's manifest) | `GameServerLore.cs` (`TryRevealLoreText`) |
 | **#2469 — the basic training's verbs** | | | |
-| `move:walked` | — (whole metres) | walking on a surface (no speeder, no train; a report over 4 blocks from the last one never counts) — measured only while a step listens | `GameServer.cs` (`HandleMove`) → `GameServerTutorial.cs` (`TutorialMovementEvents`) |
+| `move:walked` | — (whole metres) | walking on a surface (no speeder, no train; a report over 4 blocks from the last one never counts) — measured only while a step listens | `GameServer.cs` (`HandleMove`) → `TutorialSystem.cs` (`TutorialMovementEvents`) |
 | `move:jump` | `jump` \| `crouch` | a jump (upward speed > 2.5 blocks/s, not climbing) or the start of a crouch, at most once a second — only while a step listens | same |
-| `hotbar:select` | slot number (1-based) | another quick-bar slot picked (no event when the slot does not change, nor for the client's `Resync` of its slot after a join or world change, #2525) | `GameServer.cs` (`Dispatch`, `SelectHotbarIntent`) |
+| `hotbar:select` | slot number (1-based) | another quick-bar slot picked (no event when the slot does not change, nor for the client's `Resync` of its slot after a join or world change, #2525) | `GameServerDispatch.cs` (`HandleSelectHotbar`) |
 | `item:gained` | base item key (count) | a mined or harvested block's drops reach the player | `GameServer.cs` (`BreakBlockCore`) |
 | `item:moved` | — | an item moved between two backpack/quick-bar slots | `GameServer.cs` (`HandleMoveItem`) |
-| `gear:equipped` | base item key | a piece of gear put on | `GameServerEquipment.cs` (`HandleEquipItem`) |
+| `gear:equipped` | base item key | a piece of gear put on | `EquipmentSystem.cs` (`HandleEquipItem`) |
 | `cargo:stowed` | item key, or `all` | items stowed into the ship's hold (one item or "stow all") | `GameServerCargo.cs` (`MoveCargo`) |
 | `inventory:full` | — | the backpack has no free slot (the 1 Hz advisor check, raised right before the `invfull` hint) | `GameServerShipAi.cs` (`TickShipAi`) |
-| `ship:returned` | `menu` \| `teleport` \| `walk` | "Back to my ship", the suit teleporter, or walking back aboard / within 10 blocks of the landed ship after having been 40+ blocks away (the walk check runs at 1 Hz only while a step listens) | `GameServerReturnToShip.cs`, `GameServerTeleport.cs`, `GameServerTutorial.cs` (`TutorialStateEvents`) |
+| `ship:returned` | `menu` \| `teleport` \| `walk` | "Back to my ship", the suit teleporter, or walking back aboard / within 10 blocks of the landed ship after having been 40+ blocks away (the walk check runs at 1 Hz only while a step listens) | `GameServerReturnToShip.cs`, `GameServerTeleport.cs`, `TutorialSystem.cs` (`TutorialStateEvents`) |
 | `lamp:toggled` | `on` \| `off` | the suit lamp switched | `GameServerShipAiContext.cs` (`HandleSetLamp`) |
 | `suit:auto_feed` | item key | the suit fed a stored ration to a starving player | `GameServer.cs` (`TryAutoEatRation`) |
-| `suit:climate` | `cold` \| `heat` | the suit's climate control started fighting the weather | `GameServerTemperature.cs` (`TickTemperature`) |
+| `suit:climate` | `cold` \| `heat` | the suit's climate control started fighting the weather | `TemperatureSystem.cs` (`TickTemperature`) |
 | `player:respawned` | — | any respawn (the relocation half of a death) | `GameServer.cs` (`CompleteRespawn`) |
 | `mine:refused` | block key | a swing refused by the tool tier while a better tool exists (where the `tier_gate` tip is armed) | `GameServerShipAiContext.cs` (`NoteTierGate`) |
-| `data:found` | `cache` \| `fragment` | a data cache in the advisor probe's reach, or a data fragment in the backpack or the own ship's hold (1 Hz, only while a step listens) | `GameServerShipAiContext.cs` (`TickVegaContextTips`), `GameServerTutorial.cs` |
-| `flight:flown` | — (whole flight units) | the own ship flying (a pose jump over 60 units — a hyperjump, a warp, a fresh entry — never counts) — measured only while a step listens | `GameServerSpaceCombat.cs` (`ShipMove`) → `TutorialFlightEvents` |
+| `data:found` | `cache` \| `fragment` | a data cache in the advisor probe's reach, or a data fragment in the backpack or the own ship's hold (1 Hz, only while a step listens) | `GameServerShipAiContext.cs` (`TickVegaContextTips`), `TutorialSystem.cs` (`TutorialStateEvents`) |
+| `flight:flown` | — (whole flight units) | the own ship flying (a pose jump over 60 units — a hyperjump, a warp, a fresh entry — never counts) — measured only while a step listens | `GameServerSpaceCombat.cs` (`ShipMove`) → `TutorialSystem.cs` (`TutorialFlightEvents`) |
 | `mission:board_accepted` | mission id | a job the player picked: a board's, a mission chain's or a stand-alone board job taken at a board (`MissionAcceptCountsAsTrade`, B58; #2491: `supply_cables` — never a story character's errand) | `GameServerMissions.cs`, `GameServerMissionChains.cs` |
 | `visit:world` | body id | the first arrival on a planet, moon or asteroid (`visit:body` counts stations too) | `GameServer.cs` (`MarkArrivedOnBody`) |
 | **#2479 — the deep dives "Research" and "Flying"** | | | |
@@ -621,14 +621,14 @@ drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_
 | `eva:started` | `hatch` \| `flight` | a spacewalk began: out through the hatch of the floating ship, or from the flight view | `GameServerShipInterior.cs` (`ReturnToFlight`), `GameServerSpaceCombat.cs` (`HandleSetEva`) |
 | `player:zero_g` | — | floated up above a planet's atmosphere line on foot (raised right before the `zero_g` hint it absorbs) | `GameServer.cs` (`UpdateAboveAtmosphere`) |
 | `station:left` | station id | undocked from a boarded station | `GameServerSpaceStations.cs` (`LeaveStation`) |
-| `marker:set` | `marker` \| `ping` | a planet-map marker set (or moved), or a spot pinged | `GameServerMarkers.cs` (`SetMarker`, `RaisePing`) |
+| `marker:set` | `marker` \| `ping` | a planet-map marker set (or moved), or a spot pinged | `MarkerSystem.cs` (`SetMarker`, `RaisePing`) |
 | `salvage:found` | `wreck` \| `debris` \| `capsule` | a derelict or debris field reached for the first time, or a salvage capsule emptied into the hold | `GameServerSpaceWrecks.cs` (`MarkSpaceWreckVisited`), `GameServerSpaceCombat.cs` (`StowDrop`) |
 | **#2480 — the deep dives "Ship building" and "Base building"** | | | |
 | `ship:repaired` | `all` \| `cell` | the own ship repaired: the console's "repair everything affordable" (something was repaired), or one hole refilled | `GameServerShipRepair.cs` (`RepairShipAll`, `RepairShipCell`) |
 | `ship:edited` | block key | a block built onto or into the parked ship on foot (authored or commissioned self-built; a door too) | `GameServerSpaceStructure.cs` (`HandleLandedShipEdit`) |
 | `ship:keel_placed` | fleet id | a ship keel laid (a self-built ship's construction site founded) | `GameServerCustomShips.cs` (`HandleShipCorePlace`) |
 | `ship:switched` | ship id | the active ship switched in the fleet (a refused switch raises nothing) | `GameServerShips.cs` (`HandleSwitchShip`) |
-| `base:built` | block key | a block placed in the build zone of a base the player owns or shares with an ally or a crewmate (the core itself not) — tested only while someone listens | `GameServer.cs` (`HandlePlace`) |
+| `base:built` | block key | a block placed in the build zone of a base the player owns or shares with an ally or a crewmate (the core itself not) — tested only while someone listens | `GameServerPlacement.cs` (`FinishPlacement`) |
 | `base:sealed` | body id | a base the player owns or shares holds air in a supplied sealed room on their world — the 1 Hz check, only while one of the player's own steps waits | `GameServerTutorialBuilding.cs` (`TutorialBaseStateEvents`, from `TutorialStateEvents`) |
 | `base:walled` | body id | the player's feet stand in a fenced-in part of such a base (the wall fill) — same | same |
 | `door:opened` | door kind (`wood`, `hinge`) | a hand-operated door opened by the player (closing raises nothing) | `GameServerDoors.cs` (`HandleDoorInteract`) |
@@ -641,17 +641,17 @@ drifts from the code), and the authors' path is [STORY_PACK_AUTHORING.md](STORY_
 | **#2482 — the deep dives "More to discover"** | | | |
 | `creature:fed` | the food's item key | the Feed action threw a piece to a begging animal (a refused throw raises nothing) | `GameServerFoodBegging.cs` (`HandleThrowFood`) |
 | `companion:cared` | `named` \| `fed` | a companion named, or fed (a refused feed raises nothing) | `GameServerTaming.cs` (`HandleSetCompanionName`), `GameServerCompanionBond.cs` (`HandleFeedCompanion`) |
-| `plant:any` | block key | a flora block placed — a sapling, a seed, a bred seedling (next to `build:any`) | `GameServer.cs` (`HandlePlace`) |
+| `plant:any` | block key | a flora block placed — a sapling, a seed, a bred seedling (next to `build:any`) | `GameServerPlacement.cs` (`ApplyFloraPlacementEffects`) |
 | `sample:taken` | `plant` \| `animal` \| `mineral` | a sample went into the sample case (a harvest, the sampler, a defeat, a companion's gift), raised right before the `first_sample` hint | `GameServerBio.cs` (`GiveSample`) |
-| `biolab:used` | `analyse` \| `mix` \| `change` \| `wash` \| `seedling` | a bio-lab action worked (the single result exit, success only) | `GameServerBioLab.cs` (`LabResult`) |
+| `biolab:used` | `analyse` \| `mix` \| `change` \| `wash` \| `seedling` | a bio-lab action worked (the single result exit, success only) | `BioLabSystem.cs` (`LabResult`) |
 | `npc:talked` | the NPC's role | the player talked to someone — a greeting or a conversation (not to a sleeper) | `GameServerNpcDialogs.cs` (`HandleTalkToNpc`) |
 | `npc:answered` | the NPC's role | an answer picked in a conversation | `GameServerNpcDialogs.cs` (`HandleNpcDialogChoice`) |
 | `npc:people` | — | the "People you know" list requested (the client asks while it shows the list) | `GameServerNpcSocial.cs` (`HandleRequestKnownNpcs`) |
-| `move:climbed` | — (whole metres) | rising on a wall in the climbing pose (a report over 4 blocks from the last one never counts) — measured only while a step listens | `GameServer.cs` (`HandleMove`) → `GameServerTutorial.cs` (`TutorialMovementEvents`) |
-| `move:airborne` | `jetpack` \| `glider` | the worn jetpack fired, or the worn glider's wing opened | `GameServerEquipment.cs` (`HandleSetJetpack`, `HandleSetGliding`) |
-| `vehicle:boarded` | `speeder` \| `boat` \| `train` | the player boarded their speeder or boat, or a train | `GameServerSpeeders.cs` (`HandleEnterSpeeder`), `GameServerRails.cs` (`HandleEnterTrain`) |
+| `move:climbed` | — (whole metres) | rising on a wall in the climbing pose (a report over 4 blocks from the last one never counts) — measured only while a step listens | `GameServer.cs` (`HandleMove`) → `TutorialSystem.cs` (`TutorialMovementEvents`) |
+| `move:airborne` | `jetpack` \| `glider` | the worn jetpack fired, or the worn glider's wing opened | `EquipmentSystem.cs` (`HandleSetJetpack`, `HandleSetGliding`) |
+| `vehicle:boarded` | `speeder` \| `boat` \| `train` | the player boarded their speeder or boat, or a train | `VehicleSystem.cs` (`HandleEnterSpeeder`), `GameServerRails.cs` (`HandleEnterTrain`) |
 | `chat:sent` | — | a chat line went out on the radio (never a slash command, a refused or a filtered-out line) | `GameServer.cs` (`HandleChat`) |
-| `ally:joined` | `alliance` \| `crew` | an alliance formed (both partners) or a crew joined (the newcomer and the founder) | `GameServerAlliances.cs` (`EstablishAlliance`), `GameServerCrews.cs` (`RespondCrewInvite`) |
+| `ally:joined` | `alliance` \| `crew` | an alliance formed (both partners) or a crew joined (the newcomer and the founder) | `GameServerAlliances.cs` (`EstablishAlliance`), `CrewSystem.cs` (`RespondCrewInvite`) |
 | `paint:block` | block key | the paint tool painted (or wiped) a design on a placed block | `GameServerPaint.cs` (`HandlePaintBlock`) |
 | `poi:reached` | — | within 48 blocks of a buried vault's entrance or a crashed wreck (the 1 Hz advisor check, raised right before the `poi` hint) | `GameServerShipAi.cs` (`TickShipAi`, `NearVegaPoi`) |
 
@@ -696,15 +696,15 @@ player pack not opted out — since #2466 a tutorial also by the world's tutoria
 override), `creative_flight`, `instant_travel`, `return_to_ship`, `starter_teleporter`, `base_visitors`,
 `space_stations`, `story_active`; since #2469 the tutorial's feasibility checks `food_plants_near`, `trees_near` (bounded
 probes of the loaded blocks around the player, run when a step activates), `shape_block_carried`, `research_ready`,
-`all_blueprints`, `new_world_in_system` (`GameServerTutorial.cs`); since #2476 the story missions' feasibility checks
+`all_blueprints`, `new_world_in_system` (`TutorialSystem.cs`); since #2476 the story missions' feasibility checks
 `fragments_left` (the world story still has an unfound fragment), `observatory_reachable` / `derelict_reachable` (the
 unique site exists in this save and the player can reach it — the lead's rule), `settlements`, `vaults`, `space_wrecks`
 (the world options are not off); since #2479 the tutorial's deep dives: `data_cache_near` / `scanner_unknown` (the moment
-VEGA's 1 Hz tip pass found that situation for the player — `PlayerSession.VegaTipLive`, the candidate ids of the last pass,
-kept whatever the hints switch, the gates or the cooldowns say; no probe of its own), `jump_ready`, `arcade_ready`,
+VEGA's 1 Hz tip pass found that situation for the player — `PlayerSession.Vega.VegaTipLive`, the candidate ids of the last
+pass, kept whatever the hints switch, the gates or the cooldowns say; no probe of its own), `jump_ready`, `arcade_ready`,
 `monument_unread`, `asteroid_mining`, `docked`, `job_active`, `forge_ready`, `wormhole_known`, `debris_fields`; since #2480
 the building courses' `tier_gate` (a swing the tool TIER refused within the last minute — the right kind of tool, too
-weak; a wrong kind or an empty hand does not count, #2525 — `PlayerSession.TierGateRefusedAt`),
+weak; a wrong kind or an empty hand does not count, #2525 — `PlayerSession.Tutorial.TierGateRefusedAt`),
 `module_affordable`, `hull_damaged`, `keel_laid`, `ship_built`, `base_here` (an own, allied or crew base on the player's body,
 E32), `base_core_ready`, `night_outside` (the player's own world's clock), `station_core_ready`, `station_owned`
 (`GameServerTutorialBuilding.cs`); since #2481 the crystal-net courses' `factory_near` (the tip pass's moment, like
@@ -713,12 +713,13 @@ metadata), `machine_circuit` (the `crystal:machine_job` achievement counter), `m
 rule is not 0); since #2482 the "More to discover" courses' `creatures` (the Creature abundance rule is not Off),
 `tameable_near`, `settlement_near`, `ruin_near`, `treasure_near`, `wreck_signal` (the tip pass's moments, like
 `data_cache_near`; `wreck_signal` also takes the manual-steering variant), `herd_begging` (an animal came to beg within the
-last minute — `PlayerSession.HerdBeggedAt`, stamped where VEGA's `feed_herd` hint fires), `companion_owned`, `seed_carried`
-(an item whose block is a plant), `hostile_near` (a machine, a hostile animal or a hostile robber within 40 blocks on the
-player's own world), `bandit_hail` (a robber's demand is pending), `climbing` (the pose), `train_here` (a train the player may
-board on their world), `multiplayer` (the server hosts more than one player — a singleplayer host passes `--max-players 1`),
-`radio_worn`, `planet_wrecks` (`GameServerTutorialMore.cs`). A predicate reads the player's own body/system, never the active world cursor. A new predicate is a name in `StoryWorldPredicates` plus
-one line in `GameServer.WorldPredicates`.
+last minute — `PlayerSession.Tutorial.HerdBeggedAt`, stamped where VEGA's `feed_herd` hint fires), `companion_owned`,
+`seed_carried` (an item whose block is a plant), `hostile_near` (a machine, a hostile animal or a hostile robber within 40
+blocks on the player's own world), `bandit_hail` (a robber's demand is pending), `climbing` (the pose), `train_here` (a
+train the player may board on their world), `multiplayer` (the server hosts more than one player — a singleplayer host
+passes `--max-players 1`), `radio_worn`, `planet_wrecks` (`GameServerTutorialMore.cs`). A predicate reads the player's
+own body/system, never the active world cursor. A new predicate is a name in `StoryWorldPredicates` plus one line in
+`GameServer.WorldPredicates`.
 
 **The world-story guard (N11).** A pack carries `kind` (`story` default, `tutorial`, `side`) and `scope` (`world` |
 `player`; unset = `world` exactly when it has beats; a tutorial is always `player` — `StoryRegistry.EffectiveScope`).
@@ -741,13 +742,13 @@ measured against the pack's own `en.json`; `StoryPackGuardTests` also checks eac
 The engine the tutorial pack and future side stories run on — per player, server-authoritative, data-only (synthesis §5,
 option C). The manifest fields, the step reference and the shipped tutorial's content are in
 [TUTORIAL_PACK.md](TUTORIAL_PACK.md); this section is how the server runs them (`GameServerStoryPacks.cs`, the tutorial's
-extras in `GameServerTutorial.cs`). **Since #2469 the official tutorial pack (`data/stories/tutorial/`) is the basic
-training** — the hard-coded nine-stage onboarding chain (`VegaStages`, `VegaIsVeteran`, `ShipAiComplete`, the
-`ShipAiOn<Stage>` hooks, `VegaMineCount`) and the client's copy of the stage list are gone. `ShipAiOnJoin` only plays the
-prologue for a newcomer (once, keyed `story:<story>:cut:prologue` — the cutscene ledger's seen form, so step 11's prologue
-cutscene treats a player who heard the pages as one who saw it) and sends the chip. The test packs live under
-`tests/BlocksBeyondTheStars.Tests/Fixtures/story_packs/` (never `data/stories/`); `StoryPackFixtures.ContentWith` drops the
-shipped player packs so a fixture runs alone.
+extras in `GameServerTutorial.cs` and `TutorialSystem.cs`). **Since #2469 the official tutorial pack
+(`data/stories/tutorial/`) is the basic training** — the hard-coded nine-stage onboarding chain (`VegaStages`,
+`VegaIsVeteran`, `ShipAiComplete`, the `ShipAiOn<Stage>` hooks, `VegaMineCount`) and the client's copy of the stage list
+are gone. `ShipAiOnJoin` only plays the prologue for a newcomer (once, keyed `story:<story>:cut:prologue` — the cutscene
+ledger's seen form, so step 11's prologue cutscene treats a player who heard the pages as one who saw it) and sends the
+chip. The test packs live under `tests/BlocksBeyondTheStars.Tests/Fixtures/story_packs/` (never `data/stories/`);
+`StoryPackFixtures.ContentWith` drops the shipped player packs so a fixture runs alone.
 
 **Which packs run.** Every installed pack whose effective scope is `player` and that has chapters is compiled once
 (`PlayerPacks`, highest `priority` first): conditions are parsed against the server's `world:` predicates, chapters and
@@ -802,9 +803,9 @@ compare. `OnStepGameEvent` matches the actor's active steps by key (exact or `pr
 alternatives, or any), adds the amount, completes and advances; a counter tick re-sends the chip. Counters persist with
 the normal player save (no write per event); transitions write the player at once.
 
-**Help escalation** (§3.1), on active play time only (`PlayerSession.StoryPackPlaySeconds`, ticked by the 1 Hz story pass —
-[below](#the-1-hz-story-pass-2477) — which does not run while the world is held), per session, each stage once, progress
-restarts the clock:
+**Help escalation** (§3.1), on active play time only (`PlayerSession.Story.StoryPackPlaySeconds`, ticked by the 1 Hz story
+pass — [below](#the-1-hz-story-pass-2477) — which does not run while the world is held), per session, each stage once,
+progress restarts the clock:
 `hintAfter` (default 180 s) → the step's `hintKey` line; `markerAfter` (360 s) on a "where" step (one with
 `onStart.reveal`) → a **story help marker** at the provider's target (`nearest_ore:<block>`: the nearest such block in a 33³
 probe; `nearest_settlement`, `nearest_food_plant`, `unique_site:*`) that only this session sees — RAM, never persisted,
@@ -1001,10 +1002,11 @@ Rules on top of the wire:
 ### The Journal and the objective tracker (#2471)
 
 The Story tab grew into the **Journal** (player-facing word: *stories*, never "pack"). Server side:
-`GameServerJournal.cs`; client rules: `src/BlocksBeyondTheStars.Client.Core/Journal/JournalView.cs`
-(`JournalCategories`, `JournalPackPage`, `ObjectiveTracker`, `TutorialSwitch` — Unity-free and unit-tested in
-`Client.Tests/JournalViewTests`); Unity: `CraftingTechShipUI` (Story mode = the Journal), `VegaPanel` (chip label + "Show
-all objectives"), `GameBootstrap` (`StoryPackStates`, `Objectives`, `JournalVersion`), `ChatUi` (`/tutorial`, `/story`).
+`JournalSystem.cs` (facade `GameServerJournal.cs`); client rules:
+`src/BlocksBeyondTheStars.Client.Core/Journal/JournalView.cs` (`JournalCategories`, `JournalPackPage`, `ObjectiveTracker`,
+`TutorialSwitch` — Unity-free and unit-tested in `Client.Tests/JournalViewTests`); Unity: `CraftingTechShipUI` (Story
+mode = the Journal), `VegaPanel` (chip label + "Show all objectives"), `GameBootstrap` (`StoryPackStates`, `Objectives`,
+`JournalVersion`), `ChatUi` (`/tutorial`, `/story`).
 
 - **`StoryPackStates` (tag 300)** per receiver: the tutorial packs, then the world story (a short entry — names, the
   player's track as `Started`/`Startable`, the finale won as `Done`/`Badge`, the pin; no chapters: the arc stays on tag
@@ -1023,9 +1025,10 @@ all objectives"), `GameBootstrap` (`StoryPackStates`, `Objectives`, `JournalVers
   `StoryPackIntent{requestStates}` (the Journal tab opened); after every other `StoryPackIntent` at once (only what
   changed); otherwise coalesced — `MarkJournalDirty(s)` from `SendVegaWithObjective` (every VEGA line and chip update)
   and the runtime's state changes (step start/complete/skip, chapter complete, pack start/done, graduation, offers,
-  replays), flushed by `TickJournal` (`GameServer.Tick`, every joined player, in space too) at most once per
-  `JournalPushGapSeconds` = 1 s, and only the message whose bytes differ from the last send. The states are compared with
-  every step counter zeroed, so a progress tick never re-sends them — the objective list carries live progress.
+  replays), flushed by `TickJournal` (a post-world step of the tick schedule, every joined player, in space too) at
+  most once per `JournalPushGapSeconds` = 1 s, and only the message whose bytes differ from the last send. The states are
+  compared with every step counter zeroed, so a progress tick never re-sends them — the objective list carries live
+  progress.
 - **Actions** (`StoryPackActions`, all validated, all pause-whitelisted): `track`, `untrack`, `optOut`, `optIn` (starts a
   pack that would not start by itself — an opt-in world's tutorial: the Character tab's "Tutorial: on"), `startPack`,
   `skipPack`, `restartPack` (`RestartPack`, refused while the world's tutorial is off), `startChapter`, `declineChapter`
@@ -1099,15 +1102,20 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   `StoryState`, `StoryEngine`, `StoryRegistry`, `CoreArgument`/`CoreArgumentChoice`; story packs (#2465):
   `StoryCondition`/`StoryConditionParser`/`StoryWorldPredicates`, `GameEventKeys`, `StoryPackKeys`; the pack manifest
   (#2466): `StoryPackManifest.cs` (`StoryChapter`, `StoryStep`, `StoryNarrator`, `StoryEscalation`, `StoryLegacy` …),
-  `StoryPackValidator`; `Shared/Localization/LineText.cs` (line composition, shared with the client). Server:
+  `StoryPackValidator` (`StoryPackValidator.cs`: `Validate`, the budgets, the shared helpers; one partial per section —
+  `.Run` (the per-pack run state and its condition/key/voice checks), `.Pack` (identity, beats, pacing, start and gates,
+  graduation, rewards), `.Texts`, `.Chapters` (chapters, leads, missions), `.Steps`, `.Cutscenes`);
+  `Shared/Localization/LineText.cs` (line composition, shared with the client). Server:
   `GameServerGameEvents.cs` (event bus), `GameServerStoryConditions.cs` (condition context + world predicates),
-  `GameServerStoryPacks.cs` (the player-pack runtime, chip helpers, `/tutorial`), `GameServerTutorial.cs` (#2469: the
-  teaching verbs, `UiTutorialEvent`, the tutorial's predicates, the hint hold, the migration of the old onboarding),
+  `GameServerStoryPacks.cs` (the player-pack runtime, chip helpers, `/tutorial`), `TutorialSystem.cs` (#2469: the
+  teaching verbs, `UiTutorialEvent`, the probes behind the tutorial's predicates) behind its facade
+  `GameServerTutorial.cs` (which keeps the hint hold and the migration of the old onboarding),
   `GameServerTutorialBuilding.cs` (#2480: the ship and base building courses' predicates, the own-or-allied base tests,
   the 1 Hz sealed-room and wall-ring checks), `GameServerStoryTrack.cs` (#2470: the world story's per-player track — prologue, start rule, track start, migration);
   `Shared/Story/StoryChapters.cs` (#2470: world-pack chapters, `StoryChapterEvents`); Client.Core `StoryChapterList.cs`
-  (#2470: the Story tab's chapter rows); `GameServerJournal.cs` (#2471: `StoryPackStates`, `ObjectiveList`, the coalesced
-  pushes, the world story's notes) and Client.Core `Journal/JournalView.cs` (#2471: the Journal's and the tracker's rules).
+  (#2470: the Story tab's chapter rows); `JournalSystem.cs` behind its facade `GameServerJournal.cs` (#2471:
+  `StoryPackStates`, `ObjectiveList`, the coalesced pushes, the world story's notes) and Client.Core
+  `Journal/JournalView.cs` (#2471: the Journal's and the tracker's rules).
 - Data: `data/stories/tutorial/` (#2469) — the basic training (`story.json`, `locales/en.json` + `de.json`); content table
   in [TUTORIAL_PACK.md](TUTORIAL_PACK.md#the-tutorial-pack-datastoriestutorial-2469).
 - Server: `GameServerStory.cs` (state load, Record fragment/kill/milestone, beat reveal, admin selection,

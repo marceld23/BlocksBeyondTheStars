@@ -57,7 +57,7 @@ protection comes from what survives beside a lava lake.
 | `Shared/Bio/BioSpecies.cs` | the register entry, `FloraGenome`, `FloraForm` (the packed look of a bred plant) |
 | `Shared/Bio/BioItems.cs`, `BioNames.cs` | item keys, blueprints, key helpers; coined substance and compound names |
 | `GameServer/GameServerBio.cs` | register, research books, the book sent to clients, samples, the sampler |
-| `GameServer/GameServerBioLab.cs` | the lab's five actions, preparations, the effect tick, the shield |
+| `GameServer/BioLabSystem.cs` | the lab's five actions, preparations, the effect tick, the shield (the `GameServer` facades in `GameServerBioLab.cs`) |
 | `GameServer/GameServerBioBreeding.cs` | clone tank on samples, guest species, crosses, bred plants |
 | `Networking/Messages/BioMessages.cs` | `BioBook`, `BioLabIntent`, `BioLabResult`, `DiscardSampleIntent`, `NetEffect`, `NetBioSpecies` |
 | `Client.Core/BioClientState.cs` | the client's mirror: sample case, effects, book; derives profiles locally |
@@ -230,7 +230,7 @@ not take preparations at all.
 - Taking a preparation (`ConsumeItem` → `TryTakePreparation`): at most **three** effects; the same effect again
   refreshes it when the new one is at least as strong, a weaker one is refused and not used up.
 - **Where an effect acts** — always inside the formula the gear already uses, under that formula's cap:
-  armour, thermal insulation, corrosion resistance, fall protection and oxygen in `GameServerEquipment.cs`; mining
+  armour, thermal insulation, corrosion resistance, fall protection and oxygen in `EquipmentSystem.cs`; mining
   power in `BreakBlockCore`; melee damage and cooldown in `GameServerEnemies.cs`; oxygen drain, hunger drain and
   natural healing in the survival tick; regeneration and suit energy in `TickBioEffects`.
 - The **shield** is a cushion of up to 30 points that takes damage before health does (`AbsorbWithShield` in
@@ -238,7 +238,7 @@ not take preparations at all.
 - **Stealth** makes hostiles ignore the player (`PlayerState.IgnoredByHostiles`) and is the one effect capped at a
   quarter of the duration, 60 s at most.
 - A heat-sensitive effect runs out twice as fast above 40 °C, a cold-sensitive one below −5 °C (`PlayerEffects.Tick`).
-  The temperature is the one the player is really in (`GameServer.AmbientTemperature`): the cabin (22 °C,
+  The temperature is the one the player is really in (`TemperatureSystem.AmbientTemperature`): the cabin (22 °C,
   `CabinComfortC`) aboard the ship, inside a landed ship's hull and on a station — not on a spacewalk — and the
   outside reading everywhere else, whatever the hazard settings, god mode or the game mode are. The hazard scan
   writes it where it runs; elsewhere the effects renew it after 1.5 s, and only for a player with a heat- or

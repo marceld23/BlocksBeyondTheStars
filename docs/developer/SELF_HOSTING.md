@@ -132,6 +132,11 @@ command line**, so env vars override the file but the in-game host's CLI flags s
 | `BBS_CHUNK_GEN_WORKERS` | `chunkGenWorkers` (default 2, 0 = generate inline on the tick) | `BBS_TICK_TIMING_LOG_SECONDS` | `tickTimingLogSeconds` |
 | `BBS_BACKUP_INTERVAL_MINUTES` | `backupIntervalMinutes` | `BBS_BACKUP_KEEP` | `backupKeepCount` |
 
+The table lists the common ones. The complete list — every `BBS_*` variable and `--switch` with its aliases, fallback
+variables and a one-line description — is the option table `ServerConfigOptions.All` in
+[`ServerConfigOptions.cs`](../../src/BlocksBeyondTheStars.Shared/Configuration/ServerConfigOptions.cs); the server logs
+the variables it applied at start-up.
+
 **Chunk generation workers** (`chunkGenWorkers`, CLI `--chunk-gen-workers`): first-visit chunks are generated on this
 many background threads, each with its own world generator (up to ~18 MB of terrain memos per thread at view distance
 8). A streaming pass still sends exactly the chunks it always sent; it just stops waiting on one core. On a small

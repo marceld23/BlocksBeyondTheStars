@@ -82,7 +82,10 @@ expandable interiors pending); hyperspace system-to-system travel (planned).
 ## Key files
 
 - `client/Assets/BlocksBeyondTheStars/Scripts/WorldRig.cs` — builds the in-game rig in code.
-- `client/Assets/BlocksBeyondTheStars/Scripts/SpaceView.cs` — space scene, flight, launch/landing.
+- `client/Assets/BlocksBeyondTheStars/Scripts/SpaceView.cs` — space scene, flight, launch/landing: the shell
+  (enter/exit, the frame loop) plus one `SpaceView.<Concern>.cs` partial per concern (`Flight` with launch and
+  landing, `Scene`, `Models`, `Structures`, `Entities`, `Combat`, `Targeting`, `Scanner`, `Eva`, `Docking`,
+  `Encounters`, `Debris`, `ShipFx`, `Hud`, `LandMap`, `Capture`).
 - `client/Assets/BlocksBeyondTheStars/Scripts/ClientSettings.cs` — settings + per-preset graphics.
 - `client/Assets/BlocksBeyondTheStars/Editor/BuildScript.cs` — `BuildWindows` player build + always-included shaders.
 - `scripts/build-client.ps1` — one-command build (sync libs + publish server + headless Unity batch build).

@@ -418,8 +418,9 @@ file — and it matches the repo's SQLite-first philosophy. Note the distinction
 already live in PostgreSQL today (`BBS_DATABASE_PROVIDER=postgresql`, one schema per world — the
 game supports it since PR #116); that is orthogonal to the registry. Move the REGISTRY to Postgres
 when one of these becomes true: a second control-plane node (HA), multi-host placement (Phase 3),
-or the wish to join registry + world data in one operational database. `HostRegistry` is a single
-class behind plain methods, so swapping the backend later is contained.
+or the wish to join registry + world data in one operational database. `HostRegistry` is a thin
+facade with plain methods over per-aggregate stores that share one `RegistryDb` (the connection, the
+schema and the one lock — see "Code map" below), so swapping the backend later is contained.
 
 ## Phase 3 hardening (implemented)
 
@@ -557,6 +558,30 @@ message). Save-schema changes must remain load-compatible with saves one release
 validated but never migrated silently); document per release in the changelog. A save from a NEWER
 build than the pinned image is refused at upload (`save_too_new`) or at the wake (exit code 3 →
 `world_needs_newer_server`, no restart loop) — see "A save the server image cannot open" above.
+
+## Code map
+
+All under `src/BlocksBeyondTheStars.WorldHost/` unless noted.
+
+| Concern | File |
+|---|---|
+| Entry point (env → collaborators → background work → run) | `Program.cs` |
+| Shared collaborators, abuse limiters, cached stats snapshot | `WorldHostServices.cs` |
+| Wiring (builder, trusted-proxy headers, then the six route groups; the tests start the same app in-process) | `WorldHostApp.cs` (`Create(services, args)`) |
+| Gates and helpers the route groups share (bearer caller, error shape, admin token, admin-UI Basic Auth, portal language) | `WorldHostApi.cs` |
+| Root routes: health, metrics, public stats, portal pages, `/play`, the Caddy TLS ask | `PortalEndpoints.cs` |
+| Account routes: rules, signup/login, notices, password, rescue codes, self-deletion | `AccountEndpoints.cs` |
+| World routes under `/api/worlds`: lists, create, join grant, owner settings and moderation, save upload/export | `WorldEndpoints.cs` |
+| Player reports + the operator's `/api/admin` routes (X-Admin-Token) | `ModerationEndpoints.cs` |
+| Operator browser UI under `/admin` (Basic Auth) | `AdminUiEndpoints.cs` (pages: `WorldHostAdminPages.cs`) |
+| glitch.fun routes (`/api/glitch/*`) | `GlitchEndpoints.cs` (grant logic: `GlitchGateway.cs`) |
+| Registry facade (public surface, every signature) | `HostRegistry.cs` (records in `HostRegistryRecords.cs`) |
+| Registry storage core: connection, schema upgrades, the one lock | `RegistryDb.cs` |
+| Per-aggregate stores | `AccountStore.cs` (accounts, sessions, rescue codes) · `NoticeStore.cs` · `WorldStore.cs` · `WorldModerationStore.cs` (world bans, visitors) · `PlayerReportStore.cs` · `GlitchStore.cs` (guests, install bans) |
+| Name rules (reserved names, word screen) | `RegistryNameRules.cs` |
+| Allocation: route-or-wake, join grants, reaper | `WorldOrchestrator.cs` (containers: `InstanceLauncher.cs`) |
+| Operator config (`BBS_WH_*`) | `WorldHostConfig.cs` |
+| Tests | `tests/BlocksBeyondTheStars.Tests/WorldHostHttpTests.cs` (the real app over HTTP on a loopback port: the pinned route table, every route's gate, the owner's world routes) · `WorldHostTests.cs` and the other `WorldHost*Tests.cs` |
 
 ## Open (tracked in the plan)
 

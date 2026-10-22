@@ -65,19 +65,47 @@ netstandard-clean is mandatory (records/`init` work there via the `IsExternalIni
 
 ## Server runtime
 
-`GameServer` is a single, large `sealed partial class` split across ~70 `GameServer*.cs`
-feature files. It is **single-threaded and tick-driven** by design (`GameServer.Run` /
-`GameServer.Tick`).
+`GameServer` is one `sealed partial class`: the core in `GameServer.cs` plus more than 200
+`GameServer*.cs` feature partials. A feature slice with state of its own lives in a top-level
+**subsystem class** instead (`CrewSystem`, `BioLabSystem`, `EquipmentSystem`, `MarkerSystem`,
+`JournalSystem`, `TemperatureSystem`, `TutorialSystem`, `VehicleSystem`, `NpcWorkSystem`, … — the
+`*System.cs` files of the project): it reaches the server only through its own host interface on
+top of the shared `IServerHost`, its old `GameServerX.cs` file shrank to a facade that keeps every
+name the other partials, the dispatch table, the tick schedule and the tests call (including the
+`*ForTest` seams), and `GameServer.Systems.cs` holds them and builds them near the end of the
+constructor (`ConstructSystems`, right before the tick schedules). The shape and the recipe are in
+[ADR 0019](adr/0019-gameserver-subsystems.md) and
+[DEVELOPER.md § Extracting a GameServer subsystem](DEVELOPER.md#extracting-a-gameserver-subsystem).
+It is **single-threaded and tick-driven** by design (`GameServer.Run` / `GameServer.Tick`).
 
-- **Host** — `GameServer/Program.cs` loads `config/server.json` (with CLI overrides such as
-  the client's `--port/--saves/--data/--usercontent`), loads data-driven content, opens the
-  configured repository, builds the transport, then `Start()` + `Run()`. `Ctrl-C` only *requests*
-  a stop; the run loop drains and saves on the tick thread so a save never races a live tick.
+- **Host** — `GameServer/Program.cs` loads `config/server.json` (with `BBS_*` environment and CLI
+  overrides such as the client's `--port/--saves/--data/--usercontent`; every option is one row of
+  `ServerConfigOptions.All`), loads data-driven content, opens the configured repository, builds
+  the transport, then `Start()` + `Run()`. `Ctrl-C` only *requests* a stop; the run loop drains and
+  saves on the tick thread so a save never races a live tick.
 - **Tick loop** — `Run()` sleeps to a configured `TickRate`. Each `Tick(dt)` polls the
   transport, ticks each *occupied* world with an "active world cursor" set (environment, fauna,
   enemies, presence, fluids, fire, …), and periodically autosaves. A "ship cursor" + "world
   cursor" select the player currently being served, so per-player ship/world state resolves
-  through forwarding properties.
+  through forwarding properties. **The order of the guarded tick systems is one table**,
+  `GameServerTickSchedule.cs`, in four phases: `Held` (a paused world — only moderation,
+  maintenance, the hosted lifecycle and spectator streaming run), `PreWorld`, `PerWorld` (once per
+  occupied world, with the cursor set) and `PostWorld`, each an ordered list of named steps. The
+  step names are the tick-timing and tick-fault bucket names, so they stay stable; a new system is
+  one entry at the position it should run (`TickScheduleTests` pins the anchors, not the full order).
+- **Sessions** — `PlayerSession` holds a connection's player and its core flags; the RAM-only
+  bookkeeping of the subsystems is grouped into components (`session.Story`, `session.Npc`,
+  `session.Streaming`, `session.Hazards`, … — one `PlayerSession<Group>.cs` each), never persisted.
+- **Admin commands** — `GameServerAdminCommands.cs`: one table of verbs (`AdminCommandTable`), each
+  behind one of three gates checked in order: the role (world admin, fleet admin, or a base owner
+  asking `/basewalls`), then the fleet admin for `/spectate` and `/goto`, then the world's cheat
+  rule for the cheat commands. A new command is one table line (plus a method when its body is more
+  than one call) and its verb and gate in `AdminCommandGateTests`, which pins every verb's gate.
+- **Block placement** — `GameServerPlacement.cs`: `HandlePlace` resolves the intent, then walks the
+  ordered, named `PlacementRules`; the first rule that refuses wins and sends the one
+  `ActionRejected` "place", so a refused placement costs nothing. Only then is the item paid for and
+  the effect steps (cell writes, flora, block-kind hooks, Crystal Net and rail graph, broadcast,
+  devices) run in a fixed order. `PlacementRuleOrderTests` pins the rule order.
 - **Networking** — `Networking/Transport/` defines `IServerTransport`/`IClientTransport`
   carrying raw `NetCodec`-encoded payloads; events fire during `Poll()` so the server stays
   single-threaded. Concrete transports: `LiteNetLibTransport` (UDP, native clients),
@@ -97,7 +125,8 @@ feature files. It is **single-threaded and tick-driven** by design (`GameServer.
   backups via `CreateBackup`. See [SELF_HOSTING.md](SELF_HOSTING.md).
 - **WorldGen** — `WorldGeneration/WorldGenerator.cs` (+ its `WorldGenerator.*.cs` partials, one per
   seam: relief, landmarks, overhangs, underground, craters, calibration, fluids, columns, stamps, biomes,
-  flora — #1644; regimes + the generation-1 relief rolls — #1645) is **seed-deterministic**: given a seed,
+  flora — #1644; regimes + the generation-1 relief rolls — #1645; the chunk fill stages that
+  `Generate` calls, in `WorldGenerator.ChunkFill.cs` — #2892) is **seed-deterministic**: given a seed,
   `PlanetType` and `ChunkCoord` it always yields the same blocks, so the procedural baseline is
   never stored. `UniverseGenerator` builds the galaxy of systems/bodies from the seed; flora,
   settlements, stations, creatures, wrecks and landing-pad flattening are all deterministic
@@ -124,14 +153,25 @@ The Unity client lives in `client/Assets/BlocksBeyondTheStars/`. Key wiring (all
 - **Voxels** — `ChunkMesher.cs` builds per-chunk meshes with face culling, opaque/transparent
   submeshes, per-voxel tint/glow flood-fill (TEXCOORD3) and non-cube block shapes, plus a
   separate collision mesh; `BlockTextureAtlas.cs` paints a 16×16-tile atlas (+ derived normal
-  map) entirely in code; `ClientWorld.cs` caches received chunks read-only.
+  map) entirely in code (the per-block looks are the `CodeTiles` table in
+  `BlockTextureAtlas.CodeTiles.cs`); `ClientWorld.cs` caches received chunks read-only.
 - **UI** — **uGUI / Canvas-based** (a procedural sci-fi toolkit in `UiKit.cs`, not raw IMGUI):
   `HudUi`, `UiMainMenu`, `UiSettings`, `UiSaveSelect`, `UiLoading`, the in-game editors,
-  `CraftingTechShipUI`, `ChatUi`, `ScreenLabelLayer` (nameplates). See
-  [UI_AND_RENDER_CONCEPT.md](UI_AND_RENDER_CONCEPT.md).
+  `CraftingTechShipUI`, `ChatUi`, `ScreenLabelLayer` (nameplates). The big screens are partial
+  classes split by concern: `HudUi.cs` composes the HUD and each widget is a `HudUi.<Widget>.cs`
+  file (hotbar, vitals, compass, toasts, scan panel, …; the toast timing rules are the pure
+  `HudToastPolicy.cs`); `CraftingTechShipUI.cs` is the screen's shell with one
+  `CraftingTechShipUI.<Part>.cs` file per tab or page plus the shared `.Recipes`, `.Stations` and
+  `.Scaffolding` parts. New screens use the shared builders instead of copying them: `UiKit`
+  (`AddScrollViewport`, `MeasureHeight`, `AddCenteredPanel`, `AddStretchChild`, `Tr`), and for the
+  free-fly editor scenes the static `EditorSceneKit` / `EditorPaletteKit` (camera, floor, cell picking,
+  right panel, palette panel, `Slug`, …); the form and tool-look editors share the `LayerCanvasEditor`
+  base. See [UI_AND_RENDER_CONCEPT.md](UI_AND_RENDER_CONCEPT.md).
 - **`SpaceView.cs`** — the free-flight space scene and the **"ship as a place" model**: the own
   ship is a client-side voxel grid you can pilot, EVA, walk and rebuild; parked ships render via
-  `LandedShipView` (not part of the world block grid). See
+  `LandedShipView` (not part of the world block grid). `SpaceView.cs` keeps the enter/exit and
+  per-frame shell; the rest is split into `SpaceView.<Concern>.cs` partials (`Flight`, `Docking`,
+  `Combat`, `Targeting`, `Eva`, `Scene`, `Hud`, `LandMap`, `Models`, …). See
   [STATION_AS_LOCATION.md](STATION_AS_LOCATION.md).
 - **Presence & A/V** — `RemotePlayers.cs` interpolates other players (`RemoteEntityInterpolator`);
   `CreatureView.cs`, `NpcView.cs` and `WorldEntities.cs` draw animals, NPCs, machines and bandits from buffered
@@ -154,7 +194,11 @@ For the client packaging/shell + asset pipeline see
 Content is **data-driven** (rule 3 in AGENTS.md): blocks, items, recipes, blueprints, ships,
 ship modules, planets, missions and station/settlement templates live in `data/*.json`, not in
 logic. `Shared/Content/ContentLoader.cs` loads + validates them into `GameContent`; adding
-content should not require touching game logic. User-authored structure templates dropped under
+content should not require touching game logic. `GameContent.cs` holds the registry (block ids,
+lookups, the locale tables and the setters the loader fills); the cross-reference checks are in
+`GameContent.Validation.cs`, the station/settlement template pools, kits and weighted picks in
+`StructureCatalog.cs` and the craft-depth graph behind the craft-list order in `CraftingGraph.cs`
+(`GameContent` keeps forwarding members for both). User-authored structure templates dropped under
 a `usercontent/` dir by the in-game editors are merged into the pools automatically.
 
 In-game text is **never hardcoded**: it uses localization keys resolved against
@@ -177,7 +221,13 @@ message class that isn't `Register()`'d silently fails to send.
 
 `GameServer.OnPayload` decodes, rejects gameplay intents before join, sets the world+ship
 cursor to the sender, and dispatches inside a try/catch so one bad handler can't take down the
-single-threaded tick. **World = seed + parameters + deltas**: clients receive generated chunks
+single-threaded tick. `Dispatch` runs the observer, pause and guest gates, then looks the intent's
+exact type up in one registry — `GameServerDispatch.cs`, one `On<T>` line per handled intent; the
+client mirrors it in `Client.Core/NetworkClientDispatch.cs` (server message → typed event). A new
+message is one `On<T>` line there; `IntentDispatchRegistryTests` / `ClientDispatchRegistryTests` pin
+the number of handled types, check that each is a `NetCodec`-registered, sealed message, and that
+every registered message is handled by exactly one side (apart from voice and two named gaps).
+**World = seed + parameters + deltas**: clients receive generated chunks
 plus persisted edits, never the full natural world.
 
 ## Multi-world & instancing
@@ -232,11 +282,11 @@ by the server. See [AI_MISSION_BACKEND.md](AI_MISSION_BACKEND.md) and
 | `src/BlocksBeyondTheStars.WorldGeneration/` | Deterministic world/galaxy/flora/settlement/creature gen |
 | `src/BlocksBeyondTheStars.Networking/` | Transports, `Messages*`, `NetCodec` |
 | `src/BlocksBeyondTheStars.Persistence/` | `IWorldRepository`, SQLite repo, save paths |
-| `src/BlocksBeyondTheStars.GameServer/` | `GameServer*` partials, tick loop, host (`Program.cs`) |
+| `src/BlocksBeyondTheStars.GameServer/` | `GameServer*` partials (core + facades), `*System` subsystem classes (`GameServer.Systems.cs`, `IServerHost.cs`), `PlayerSession*` components, tick schedule, host (`Program.cs`) |
 | `src/BlocksBeyondTheStars.Api/` | Admin UI, portal, download/update feed |
 | `src/BlocksBeyondTheStars.Tools/` | Backup/export/debug CLI |
 | `src/BlocksBeyondTheStars.Launcher/` | Instant-splash Velopack launcher |
-| `client/Assets/BlocksBeyondTheStars/Scripts/` | Unity client (`AppShell`, `WorldRig`, `GameBootstrap`, `ChunkMesher`, `HudUi`, `SpaceView`, `NetworkClient`, `LocalServerLauncher`, …) |
+| `client/Assets/BlocksBeyondTheStars/Scripts/` | Unity client (`AppShell`, `WorldRig`, `GameBootstrap`, `ChunkMesher`, `HudUi`, `SpaceView`, `NetworkClient`, `LocalServerLauncher`, …); a large class is split into `Class.Part.cs` partial files |
 | `client/Assets/BlocksBeyondTheStars/Shaders/` | URP custom shaders |
 | `data/` + `data/locales/` | Data-driven content + localization |
 | `ai-backend/` | Optional Python LLM service |

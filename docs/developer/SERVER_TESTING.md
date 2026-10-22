@@ -35,6 +35,13 @@ start there**. These three show the ladder, simplest first:
    Constructs a real `GameServer` with a loopback transport and a SQLite repo. Only needed
    when the behaviour under test *is* the server loop (ticks, intents, persistence).
 
+The two web services have their own top rung — **the real app over HTTP**:
+[`WorldHostHttpTests.cs`](../../tests/BlocksBeyondTheStars.Tests/WorldHostHttpTests.cs) and
+[`ReportHostHttpTests.cs`](../../tests/BlocksBeyondTheStars.Tests/ReportHostHttpTests.cs) start the app the container
+runs (`WorldHostApp.Create` / `ReportHostApp.Create`) in-process on a loopback port, once per class through an
+`IClassFixture`, and sit in `RealTimeSensitiveCollection` (see "CI rules" below). Both route tables are pinned
+(`WorldHostHttpTests`; `ReportHostRouteTableTests` for the ReportHost), so a new route also adds its line there.
+
 ## Fixtures & helpers you would otherwise not find
 
 - **`TestPaths.DataDir()`** ([TestPaths.cs](../../tests/BlocksBeyondTheStars.Tests/TestPaths.cs))
@@ -81,6 +88,15 @@ start there**. These three show the ladder, simplest first:
   structures stamped after them (rail, ruins, camps, factories …), which only read the settlement list.
   Use it for sweeps over many seeds (#2456); a sweep of independent boots can also split its seeds over
   `Parallel.Invoke` workers, each with its own `GameContent` (see `SettlementRuinSkewTests`).
+- **`*ForTest` seams.** Tests reach server internals through members named `…ForTest` on `GameServer`
+  (`AdvanceUptimeForTest`, `BaseAirForTest`, …); the test project also sees `internal` members
+  (`InternalsVisibleTo`), so a seam may be `internal`. A feature that moved into a subsystem class
+  ([ADR 0019](adr/0019-gameserver-subsystems.md)) keeps its seams on `GameServer` as one-line facades that delegate
+  to the system — call `server.XForTest(…)` as before; there is no system instance to reach for. The table-driven parts
+  of the server have read-only seams their pinning tests use: `HandledIntentTypesForTest`
+  (`IntentDispatchRegistryTests`), `TickScheduleNamesForTest` (`TickScheduleTests`), `PlacementRuleNamesForTest`
+  (`PlacementRuleOrderTests`) and `AdminCommandTableForTest` (`AdminCommandGateTests`). Adding an intent, a placement
+  rule or an admin verb therefore also updates what that test pins (the intent count, the rule order, the verb's gate).
 
 ## What "meaningful" means here (the tautology trap)
 

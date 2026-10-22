@@ -106,7 +106,10 @@ textures, 260–261 tool looks.
 `FormEditor` over `FormCanvasModel` (Client.Core, tested): the form as one voxel volume, layers, strokes as
 single undo steps, mirror / copy below / fill / shift, footprint steppers, coarse/fine grid for one-block
 forms, and `Problem()` — the same rules the server applies. It writes `CustomShapeLibrary`
-(`AppPaths.Root/custom_shapes/`), the library the shaping tool reads.
+(`AppPaths.Root/custom_shapes/`), the library the shaping tool reads. `FormEditor` and the tool-look editor
+(§6) derive from one abstract `LayerCanvasEditor`, which owns the frame loop, the keys, layer stepping,
+undo/redo, the status and hint lines and the preview stage; both canvas models implement `ILayerCanvas`
+(Client.Core), so an editor keeps only its model, its paint rule and a few hooks.
 
 **Multi-cell format** (`Shared/World/CustomShape.cs`): `"m1:WHL:"` + one 8³ bitmap per cell, footprint ≤ 3×3×3,
 ≤ 8 cells, every cell non-empty, box budget (48) **per cell**. It rides the existing `Voxels` string — no new
@@ -157,7 +160,7 @@ colours, face and every painted part in one frame (`GameBootstrap`), so the burs
 2 s window let only the face through and the other players never saw the body paint (#2425). The long-run rate is
 still one saved-and-relayed change per 2 s. `SetAppearanceIntent`/`SetFaceIntent`/`SetBodyPaintIntent`/
 `SetToolLookIntent` are on the paused allow-list (`PausedMayHandle`): a player joining while the host alone holds
-the world sends them in the join's poll, before the next tick lifts the hold. Client: `ToolLookEditor` over `ToolLookCanvasModel` (tested); looks ride `GameMenu`'s paced appearance
+the world sends them in the join's poll, before the next tick lifts the hold. Client: `ToolLookEditor` (a `LayerCanvasEditor`, §5) over `ToolLookCanvasModel` (tested); looks ride `GameMenu`'s paced appearance
 queue after the join; `RemotePlayers` validates arriving looks again.
 
 ## 7. Reports and submissions (#1964–#1966)
@@ -182,6 +185,7 @@ cell cursor with repeat, A/X/Y act, the d-pad's up/down is a gated layer/frame s
 ## 9. Testing
 
 Unity-free models carry the rules: `PixelCanvasModelTests`, `FormCanvasModelTests`, `ToolLookCanvasModelTests`,
+`LayerCanvasModelsTests` (both models behind the `ILayerCanvas` surface the editor base drives),
 `WorldTextureInboxTests`, `TextureSubmissionTests`, `PadCanvasLogicTests`, `AtlasSlotAllocatorTests`,
 `HeldItemShapesTests` (Client.Tests); `TextureTilesTests`, `WorldTextureTests`, `MultiCellFormTests`,
 `ToolLookTests`, `ReportHostTextureSubmissionTests`, `NetCodecTests` (Tests). PR CI never compiles

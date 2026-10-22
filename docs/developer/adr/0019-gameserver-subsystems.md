@@ -61,16 +61,20 @@ needs from the rest of the server range from 3 (hull repair) to 31 (speeders); a
    The worlds, the active world, the world metadata, the galaxy and the ship cursor are not there yet when the
    constructor runs, or change per call, so a system reads them through its host at use time and never caches them.
 5. **`GameServer.Systems.cs` is the holder:** one field (`= null!`, not `readonly`, because it is assigned in a method) and
-   one construction line per system, in pre-seeded alphabetical slots, built by `ConstructSystems()`, which is the
-   constructor's last statement — the only constructor edit of the whole pass. A system that is used once and needs no
-   state may be constructed at its use site instead.
+   one construction line per system, in pre-seeded alphabetical slots, built by `ConstructSystems()`, which the
+   constructor calls at its end — the only constructor edit of the extractions. (Since the tick schedule, #2904, the
+   constructor builds the four schedule tables right after `ConstructSystems()`; those stay its last statements, because a
+   schedule entry may capture a system field.) A system that is used once and needs no state may be constructed at its
+   use site instead (`HullRepairSystem`, built where `Start` runs the repair), and a slice that is pure computation
+   without state may become a static class (`ShipExtensionGeometry`, whose server-side glue stays in the facade
+   partial); neither has a field.
 6. **The old file name becomes the facade.** `GameServerX.cs` shrinks to `public sealed partial class GameServer : IXHost`
    with a one-line facade (same name, signature and visibility) for every member that sibling partials, the dispatch
    table (`GameServerDispatch.cs`), the tick schedule or the tests call; every `*ForTest` seam unchanged, delegating; and
    the explicit `IXHost` implementations. No caller file is rewritten. An explicit implementation calls the server's own
    member by its simple name — never `((IXHost)this).X`, which would recurse.
 7. **Pure moves.** Statement order, conditions, reject and log strings, defaults, RNG seeds and tick `Guard` names stay
-   identical. A field initializer that moves into a system now runs when `ConstructSystems` builds it, at the end of the
+   identical. A field initializer that moves into a system now runs when `ConstructSystems` builds it, near the end of the
    constructor, instead of before the constructor body — same values; an RNG keeps its seed, and the change says so.
    Test files are not edited.
 
@@ -78,10 +82,13 @@ needs from the rest of the server range from 3 (hull repair) to 31 (speeders); a
 
 - Each subsystem's coupling to the server is a countable list the compiler checks. Narrow hosts (ten members or fewer)
   can later be faked the way `IAirSpace` is and tested without booting a server.
-- **Wide hosts, shrink later.** Some systems need 20 to 30 host members (bio lab, observer, journal, temperature, NPC
-  work, speeders, tutorial), because they reach into the core orchestration or into other partials' state. They are
-  extracted anyway: the wide interface documents the coupling, shrinking it (moving state, splitting the system) is
-  follow-up work, and there is no promise of isolated unit tests for them until then.
+- **Wide hosts, shrink later.** Some systems need about 15 to 25 host members of their own on top of `IServerHost` (as
+  extracted: journal 24, NPC work 21, bio lab 20, observer 19, vehicles 19, temperature 16), because they reach into
+  the core orchestration or into other partials' state. They are extracted anyway: the wide interface documents the
+  coupling, shrinking it (moving state, splitting the system) is follow-up work, and there is no promise of isolated
+  unit tests for them until then. A narrow host does not always mean a small coupling: the tutorial's host has 8
+  members only because its extraction is partial — the hint hold and the onboarding migration it works with stay in
+  `GameServerTutorial.cs`.
 - Extraction makes the dependency cycles visible, not gone: crews → markers → alliances → crews, bio lab ↔ equipment,
   temperature ↔ equipment all still run through the host.
 - Each host member costs one interface line and one explicit implementation; the shared `IServerHost` removes the most
@@ -95,3 +102,15 @@ needs from the rest of the server range from 3 (hull repair) to 31 (speeders); a
 - The first extraction is `CrewSystem` (#2897): `ICrewHost` adds four members to `IServerHost` (`ScreenPlayerName`,
   `NameOf`, `RefreshAllianceRoster`, `RefreshMarkersFor`), and `GameServerCrews.cs` is a 45-line facade. The recipe for
   the next one is in [DEVELOPER.md § Extracting a GameServer subsystem](../DEVELOPER.md#extracting-a-gameserver-subsystem).
+- The 2026-10 pass then extracted, each behind its old file as the facade: `BioLabSystem` and `EquipmentSystem`
+  ([#2897](https://github.com/marceld23/BlocksBeyondTheStars/issues/2897)); `AiLinesSystem` (its pure helpers split
+  into `AiLineText.cs`, `AiLineBudget.cs` and `AiVariantCache.cs`), `ObserverSystem` and `NpcWorkSystem`
+  ([#2898](https://github.com/marceld23/BlocksBeyondTheStars/issues/2898)); `HullRepairSystem`, `FarTerrainSystem` and
+  the static `ShipExtensionGeometry` ([#2899](https://github.com/marceld23/BlocksBeyondTheStars/issues/2899));
+  `MarkerSystem`, `JournalSystem` and `TemperatureSystem`
+  ([#2900](https://github.com/marceld23/BlocksBeyondTheStars/issues/2900)); `ContainerSystem`, `VehicleSystem` (from
+  `GameServerSpeeders.cs` and `GameServerBoats.cs`, both now facades) and `TutorialSystem`
+  ([#2901](https://github.com/marceld23/BlocksBeyondTheStars/issues/2901)).
+- `IServerHost` kept its nine members through the pass. By the three-systems rule of point 3, `Sessions`, `Rules`,
+  `InSpace`, `BroadcastToWorld`, `WrapDistSq` and `ShipInteriorContains` now qualify — each is declared by three or
+  four host interfaces; promoting them is follow-up work.

@@ -119,8 +119,10 @@ banter tick.
 
 Every new NPC/VEGA line of the village-life package (passing hellos, welcome-backs, villager chatter, friend
 gifts, wishes, guests, traders, festival cheers, deed news, VEGA welcome/news/praise) uses ONE endpoint and ONE
-server helper, `GameServerAiLines.cs`. The rule never changes: **the authored, localized line is always there and
-shown at once; AI only re-words it, and only when the re-worded line is already cached.**
+server helper, `AiLinesSystem.cs` (the `GameServer` facades in `GameServerAiLines.cs`; the pure text rules in
+`AiLineText.cs`, the budget in `AiLineBudget.cs`, the variant cache in `AiVariantCache.cs`). The rule never
+changes: **the authored, localized line is always there and shown at once; AI only re-words it, and only when the
+re-worded line is already cached.**
 
 **Contract.** `POST /npc-lines` with `NpcLinesRequest { Purpose, Language, Place, Theme, Stage, AwayDays,
 Situation, Speakers[{Token, Role, Job, Persona, IsRobot}], TopicHint, Facts[], Tokens[], Authored[], LineCount,

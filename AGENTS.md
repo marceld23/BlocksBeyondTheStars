@@ -44,7 +44,8 @@ src/BlocksBeyondTheStars.Shared/          data models, data-driven definitions, 
 src/BlocksBeyondTheStars.WorldGeneration/ seed-based deterministic chunk generation
 src/BlocksBeyondTheStars.Persistence/     SQLite repository, savegame layout, autosave
 src/BlocksBeyondTheStars.Networking/      transport abstraction (LiteNetLib + loopback), messages
-src/BlocksBeyondTheStars.GameServer/      authoritative tick loop + console host
+src/BlocksBeyondTheStars.GameServer/      authoritative tick loop + console host: one GameServer core (GameServer*.cs partials)
+                                          + *System subsystem classes behind facade partials (ADR 0019)
 src/BlocksBeyondTheStars.Api/             admin web UI + API
 src/BlocksBeyondTheStars.Tools/           backup/export/debug CLI
 src/BlocksBeyondTheStars.Client.Core/     Unity-free client logic (NetworkClient, ClientWorld), netstandard2.1
@@ -52,7 +53,8 @@ src/BlocksBeyondTheStars.Launcher/        Windows-only WinForms loading-splash l
 src/BlocksBeyondTheStars.Launcher.Console/Cross-platform console launcher for Linux (net10.0, SkiaSharp splash)
 tests/BlocksBeyondTheStars.Tests/         xUnit tests (server/shared)
 tests/BlocksBeyondTheStars.Client.Tests/  headless client<->server integration (real NetworkClient vs real GameServer)
-client/                         Unity project (incl. Assets/Tests EditMode/PlayMode suites)
+client/                         Unity project (incl. Assets/Tests EditMode/PlayMode suites); large classes are split
+                                into Class.Part.cs partial files (HudUi.Toasts.cs, SpaceView.Flight.cs, …)
 client/Music/                   background-music MP3s (outside Assets/ on purpose; synced to StreamingAssets/music and streamed on demand — #1167)
 ai-backend/                     optional Python LLM service (missions, NPC/ship-AI text); offline-safe
 tools/                          editor-export merge tools + AI asset generation (tools/ai-assets)

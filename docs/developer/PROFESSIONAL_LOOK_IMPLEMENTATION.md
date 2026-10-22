@@ -72,7 +72,8 @@ in GraphicsSettings Always-Included; every new block was added to the atlas and 
 - `client/Assets/BlocksBeyondTheStars/Scripts/UiKit.cs` — bundled font, transitions, reduced-motion.
 - `client/Assets/BlocksBeyondTheStars/Scripts/StationDecorView.cs` — cockpit + station idle decor.
 - `client/Assets/BlocksBeyondTheStars/Scripts/ShipBuildFx.cs` — restamp materialize sweep.
-- `client/Assets/BlocksBeyondTheStars/Scripts/BlockTextureAtlas.cs` — variant tiles + new room blocks.
+- `client/Assets/BlocksBeyondTheStars/Scripts/BlockTextureAtlas.cs` — variant tiles; the new room blocks'
+  painters are in the `CodeTiles` look table of `BlockTextureAtlas.CodeTiles.cs`.
 - `src/BlocksBeyondTheStars.GameServer/GameServerShipStructure.cs` — `PaintStationAccents`, room stamping.
 - `docs/ART_BIBLE.md` — the normative style + palette + quality checklist this run produced (WP-16).
 

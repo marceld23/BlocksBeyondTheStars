@@ -58,14 +58,25 @@ These are the bulk of the value and run in `dotnet test`. All test classes carry
 Reusable fakes live in `tests/BlocksBeyondTheStars.Client.Tests/Helpers/` — today
 [`RecordingClientTransport`](../../tests/BlocksBeyondTheStars.Client.Tests/Helpers/RecordingClientTransport.cs): a
 client-side `IClientTransport` whose `Sent` holds every decoded message the `NetworkClient` sent, `Deliver(message)`
-feeds it a server message, `Disconnects` counts hang-ups. Do not copy it into a test class — the server suite's
+feeds it a server message, `DeliverRaw(bytes)` hands it raw wire bytes no message encodes to (an unknown tag, an empty
+packet), `Disconnects` counts hang-ups. Do not copy it into a test class — the server suite's
 `SharedTestHelperGuardTests` scans this project too.
+
+Some tests here are **source guards**: the Unity scripts cannot be compiled into this suite (they need `UnityEngine`),
+so a guard reads a script's text and asserts that a wiring is there. A large client class is split into partial files
+(`HudUi.cs` + `HudUi.<Widget>.cs`, `CraftingTechShipUI.cs` + `CraftingTechShipUI.<Part>.cs`, `SpaceView.cs` +
+`SpaceView.<Concern>.cs`), so a guard over such a class reads all of its files, not one by name:
+`ClientTestPaths.ScriptParts("HudUi")` returns `HudUi.cs` and every `HudUi.*.cs` part in a stable order, and
+`ScriptPartsText("HudUi")` joins them into one text — the guard then keeps finding a member whichever part it moves to
+(`SeamWiringTests`, `RumbleMixerTests`; `CraftDetailLayoutTests` reads every `CraftingTechShipUI*.cs`).
 
 ## Tier 1.5 — Unity EditMode (`UnityEdit`)
 
 `client/Assets/Tests/EditMode/`. Headless in-Editor unit tests for **Unity-runtime-safe** logic — `ClientWorld`
 round-trips run inside the Editor/Mono. (Code that calls `Object.Destroy` cannot run here — `Destroy` is illegal
-in edit mode — so the atlas test lives in PlayMode below.)
+in edit mode — so the full atlas build test lives in PlayMode below. `BlockAtlasLooksGoldenEditModeTests` builds the
+atlas in EditMode anyway, with the per-tile `Destroy` errors ignored, to pin the code-painted block tiles by checksum,
+#2906 — see [DEVELOPER.md § Adding or removing a block](DEVELOPER.md#adding-or-removing-a-block).)
 
 This tier is also where **asset-level** rules are checked, because they need the `AssetDatabase`:
 `ShaderSrpBatcherEditModeTests` asserts that the project's shaders compile and that every per-material property

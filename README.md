@@ -399,7 +399,8 @@ src/BlocksBeyondTheStars.Shared/          data models, data-driven definitions, 
 src/BlocksBeyondTheStars.WorldGeneration/ seed-based deterministic chunk generation
 src/BlocksBeyondTheStars.Persistence/     SQLite/PostgreSQL repositories, savegame layout, autosave, backups
 src/BlocksBeyondTheStars.Networking/      transport abstraction (LiteNetLib + WebSocket + loopback), messages, codec
-src/BlocksBeyondTheStars.GameServer/      authoritative tick loop + console host
+src/BlocksBeyondTheStars.GameServer/      authoritative tick loop + console host: one GameServer core (GameServer*.cs partials)
+                                          + *System subsystem classes behind facade partials (ADR 0019)
 src/BlocksBeyondTheStars.Api/             admin web UI + API
 src/BlocksBeyondTheStars.Tools/           validate/info/backup CLI
 src/BlocksBeyondTheStars.Client.Core/     Unity-free client logic (NetworkClient, ClientWorld), netstandard2.1
@@ -407,7 +408,8 @@ src/BlocksBeyondTheStars.Launcher/        Windows-only WinForms loading-splash l
 src/BlocksBeyondTheStars.Launcher.Console/Cross-platform console launcher for Linux (net10.0, SkiaSharp splash)
 tests/BlocksBeyondTheStars.Tests/         xUnit tests (server/shared)
 tests/BlocksBeyondTheStars.Client.Tests/  headless client<->server integration tests
-client/                         Unity project (scripts + scaffold + Assets/Tests; open in the Unity Editor)
+client/                         Unity project (scripts + scaffold + Assets/Tests; open in the Unity Editor);
+                                large classes are split into Class.Part.cs partial files (HudUi.Toasts.cs, …)
 ai-backend/                     optional Python LLM service (mission/NPC/ship-AI text) — game runs without it
 tools/                          editor-export merge tools (Python) + AI asset generation (tools/ai-assets)
 data/                           data-driven content (blocks, items, recipes, blueprints, modules, planets)

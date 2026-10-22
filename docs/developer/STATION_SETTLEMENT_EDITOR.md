@@ -37,7 +37,9 @@ What shipped differs from the design below in two notable ways:
   `client/.../StructureEditor.cs` (`Mode.Station` / `Mode.Settlement`); the menu exposes both entries
   (`AppShell.OpenStationEditor` / `OpenSettlementEditor` → one `StructureEditor`). The `StationEditor` /
   `SettlementEditor` class names and the `StructureEditorCore` extraction in §2.2/§4 were **not** built as
-  named here.
+  named here. What the ship and structure editors share — camera, floor and sun, cell picking, room bounds,
+  brush tile, right panel, bottom hint, hex/slug helpers and the palette panel — lives in the static helpers
+  `EditorSceneKit` / `EditorPaletteKit` (#2906), which both editors call; there is no common base class.
 - **`StructureTemplate`, not `StationLayout`/`SettlementLayout`.** The shared model that shipped is a single
   `StructureTemplate` (`Key, Name, Tier, Kind, W/H/L, Cells[{X,Y,Z,Kind,Id,Tint,Glow,Shape}]`) with `Pack`
   + `Weight`, loaded by `ContentLoader` from `data/station_templates.json` / `data/settlement_templates.json`

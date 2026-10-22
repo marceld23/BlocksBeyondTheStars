@@ -55,7 +55,7 @@ records a skip (the unique-site rule), never a late stamp next to a player's bui
 - **Map** — POI type `lodge`, named `poi.lodge` ("{0}'s hut"), revealed (`RevealPoi`, key `<loc>|lodge:<key>`) in
   `TickLodges` when a player on foot comes within 40 m, or by a villager (§4).
 
-## 3. Residents and the job state machine (`GameServerLodgeResidents.cs`, `GameServerNpcWork.cs`)
+## 3. Residents and the job state machine (`GameServerLodgeResidents.cs`, `NpcWorkSystem.cs`)
 
 - **Residents** — one per bed (1–2), spawned on every load after the settlement NPCs. Role `vendor` with the profession as
   `Job` and its `Theme` (the profession pattern, so the trade-or-talk prompt and `VendorThemeAt` work unchanged); the second

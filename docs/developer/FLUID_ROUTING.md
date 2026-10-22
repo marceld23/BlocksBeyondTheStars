@@ -78,7 +78,7 @@ worldgen has water above and air on ≥2 sides, which is exactly what `Waterfall
 (geometric) keys on. So a static column lights up automatically as:
 
 - the cascade shader streak (`BlockAtlasTransparent.shader` fall mode), and
-- **mist** at the impact — `WaterfallMistView.cs` (mirrors `GeyserView`, wired in `WorldRig`)
+- **mist** at the impact — `WaterfallMistView.cs` (on the `FallImpactFx` base, wired in `WorldRig`)
   bursts pale spray where the drop exceeds 3 blocks, capped/gravity-arced/shrink-fade.
 
 **"Air" must mean air, not "not streamed yet" (#987).** The block lookup the client hands these rules
@@ -129,7 +129,7 @@ query.
 ### Lavafalls + embers + heat-haze + sound
 Where a lava channel drops over a step (or a player mines under lava), the falling flanks render
 mode 6 and:
-- `LavaFallView.cs` (mirrors `WaterfallMistView`, wired in `WorldRig`) emits **rising embers** —
+- `LavaFallView.cs` (the same `FallImpactFx` base, wired in `WorldRig`) emits **rising embers** —
   bright orange cinders cooling to dark on a gravity arc — the case the white water mist deliberately
   skips. Distinct colour ramp + motion so they don't read as fire.
 - **Heat-haze:** `HeatShimmer.AddProximityHeat` OR-s a localized boil into the existing full-screen
@@ -188,11 +188,13 @@ client/server agree on river/lava placement.
   sources, flow accumulation, waterfall flag).
 - `src/BlocksBeyondTheStars.WorldGeneration/RiverField.cs` — block-resolution rasterizer; carries
   `FillFluid`.
-- `src/BlocksBeyondTheStars.WorldGeneration/WorldGenerator.cs` — `RiverFieldFor` / `BuildRiverField`
-  (water vs lava selection), `Generate` fill, `SurfaceRiverDepth` and the water/landing/flora queries.
+- `src/BlocksBeyondTheStars.WorldGeneration/WorldGenerator.cs` and its partials — `RiverFieldFor` /
+  `BuildRiverField` (water vs lava selection) and `SurfaceRiverDepth` in `WorldGenerator.Fluids.cs`, the
+  chunk fill of `Generate` in `WorldGenerator.ChunkFill.cs`, and the water/landing/flora queries.
 - Client shader: `client/Assets/BlocksBeyondTheStars/Shaders/BlockAtlas.shader` (lava modes 5/6) +
   `BlockAtlasTransparent.shader` (water cascade).
 - Client scripts: `ChunkMesher.cs` (surface/falling tags), `WaterfallDetect.cs` (fluid-agnostic),
-  `WaterfallMistView.cs`, `LavaFallView.cs`, `HeatShimmer.cs`, `ClientAudio.cs`, `WorldRig.cs`.
+  `FallImpactFx.cs` (the shared fall scan, impact emitters and particle pool), `WaterfallMistView.cs`,
+  `LavaFallView.cs`, `HeatShimmer.cs`, `ClientAudio.cs`, `WorldRig.cs`.
 - Assets: `client/Assets/Resources/audio/water_fall.mp3`, `lava_fall.mp3`.
 - Tests: `RiverFieldTests`, `WorldGenerationTests` (lava), `FluidTests`.

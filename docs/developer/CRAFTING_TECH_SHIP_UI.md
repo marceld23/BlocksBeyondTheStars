@@ -74,9 +74,13 @@ components, a category sidebar and blueprint state.
 
 ## Key files & classes
 
-- `client/Assets/BlocksBeyondTheStars/Scripts/CraftingTechShipUI.cs` — the whole screen: header/tabs,
-  card/detail components, crafting/tech/ship views, the embedded inventory/map/missions/character/
-  alliances tabs, world-rules toggle row, ship preview rig.
+- `client/Assets/BlocksBeyondTheStars/Scripts/CraftingTechShipUI.cs` — the screen's shell: header/tabs, the
+  category sidebar, the list/detail dispatch and the craft-result feedback. `CraftingTechShipUI` is a sealed
+  partial class; each tab or page lives in its own `CraftingTechShipUI.<Part>.cs` (Inventory, Samples, Suit,
+  Crafting, Tech, Ship — with the ship preview rig —, Map, Missions, Character — with the world-rules rows —,
+  Alliances, Companions, Photos, Notes, Achievements, Journal), and three partials hold what the tabs share:
+  `.Recipes` (crafting rules, costs, the catalog gate), `.Stations` (station gates and the "Where?" locator) and
+  `.Scaffolding` (uGUI cards, scroll views, search boxes and the text helpers).
 - Data sources (no new data needed): `ItemDefinition` (category/tool/effects), `RecipeDefinition`
   (station/blueprint/inputs/outputs), `BlueprintDefinition` (category/prerequisites/costs),
   `ShipModuleDefinition` / `ShipDefinition` (stats/cost/blueprint), `Game.OwnedShips`.
@@ -91,7 +95,7 @@ components, a category sidebar and blueprint state.
   `GameServerStationAffordances.cs` (`StationsInReach`, `LocateStationIntent`/`StationLocation`); the ship
   structure emits station markers (`medbay / cockpit / workshop / cargo / quarters / console` — see
   `GameServerSpaceStructure.cs`; the phantom `lab` marker was retired in #1074, research lives at the
-  cockpit). Client mapping station → block: `StationBlockKey` in `CraftingTechShipUI.cs`; station → module:
+  cockpit). Client mapping station → block: `StationBlockKey` in `CraftingTechShipUI.Stations.cs`; station → module:
   `CraftStationText.ModuleKey` (Client.Core, mirrors the server's `StationModuleFor`); the world-side look-at prompt
   is `Game.AimedStationBlock` (#1073).
 

@@ -30,7 +30,7 @@ path and is cleanly isolated from any planet.
   range/validation checks → leave the space instance → remember the return location →
   `LoadWorld("orbital_station", "station:"+id)` → stamp the station onto a clean origin with a solid
   hangar floor + spawn the station NPCs (scoped to this world) → set `CurrentLocationId`, position and
-  `AboardShip=false` → `SentChunks.Clear()` → send `WorldReset` + player state + inventory + NPCs +
+  `AboardShip=false` → `Streaming.SentChunks.Clear()` → send `WorldReset` + player state + inventory + NPCs +
   environment. The client's `OnWorldReset` clears chunks, nulls the spawn and re-snaps once chunks
   stream — the robust reposition.
 - **Leaving = travel back.** `LeaveStation` loads the return planet world, restores the ship and

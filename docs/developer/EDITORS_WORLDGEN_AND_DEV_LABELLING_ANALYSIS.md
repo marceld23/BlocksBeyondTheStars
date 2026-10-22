@@ -72,6 +72,7 @@ The editor → export → merge → stamp pipeline the earlier plans describe is
   exposes frequency sliders incl. **Settlements** and **Stations** (+ Wrecks, Vaults, Flora, Ore,
   Exotic, universe size, survival rules, story). `ToArgs()` emits only non-defaults as `--…` overrides.
 - Flows: UI → CLI args → [ServerConfig.ApplyCommandLine](../../src/BlocksBeyondTheStars.Shared/Configuration/ServerConfig.cs)
+  (one row per switch in [`ServerConfigOptions.All`](../../src/BlocksBeyondTheStars.Shared/Configuration/ServerConfigOptions.cs))
   → `WorldDescription` (frequencies) + `GameRules` → baked into `WorldMetadata` (`RulesOverride`,
   `Description`) and persisted; on reload the world keeps its own rules.
 
@@ -243,7 +244,8 @@ tests per phase.
 ### P1 — Tier-aware, weighted, pack-filtered template selection (server-only, no UI)
 - **`src/.../Shared/Definitions/StructureTemplate.cs`** — add `string Pack = "default"` and `int Weight =
   1`. (`Tier`, `Kind`, `Cells` stay.)
-- **`src/.../Shared/Content/GameContent.cs`** — in `SetStructureTemplates`, also build
+- **`src/.../Shared/Content/GameContent.cs`** (since the 2026-10 split the bodies live in `StructureCatalog.cs`;
+  `GameContent` forwards) — in `SetStructureTemplates`, also build
   `StationTemplatesByTier` / `SettlementTemplatesByTier` (`Dictionary<string,List<StructureTemplate>>`)
   and expose `StructurePacks` (distinct pack names). Add weighted selectors
   `PickStationTemplate(string tier, IReadOnlySet<string>? packs, Random rng)` and the settlement twin —
@@ -283,7 +285,8 @@ tests per phase.
 - **`client/.../WorldCreationOptions.cs`** — add `int StationTemplates`, `int SettlementTemplates`
   (Freq indices, default = Rare) + `HashSet<string> DisabledPacks` (or enabled set); `ToArgs()` emits
   `--station-templates`, `--settlement-templates`, `--structure-packs "a,b"` when non-default.
-- **`src/.../Shared/Configuration/ServerConfig.cs`** (`ApplyCommandLine`) — parse the three args into
+- **`src/.../Shared/Configuration/ServerConfig.cs`** (`ApplyCommandLine`; today one row per switch in
+  `ServerConfigOptions.All`, `ServerConfigOptions.cs`) — parse the three args into
   `World.StationTemplateUse` / `.SettlementTemplateUse` / `.EnabledStructurePacks`.
 - **`client/.../UiWorldOptions.cs`** — add two slider rows (Structures column) + a **pack picker**
   (checkbox list) on the Advanced page. Pack names: client gathers distinct packs from

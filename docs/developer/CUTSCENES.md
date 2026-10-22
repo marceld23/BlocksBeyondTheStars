@@ -318,7 +318,7 @@ The finale's set pieces (synthesis §6.5), bound in `story.json`'s `finale.cutsc
 |---|---|
 | pack `introCutscene` | a **player** pack starts for the player — not on "I know the game" (`skipPack`), and not when the pack would complete silently for this player (every mandatory chapter through, by `autoCompleteIf` or by every step done / `alreadyDoneIf` — a veteran). The **world story's** intro (#2470) plays for a player who arrives with no key of the story (VEGA's prologue, above) |
 | chapter `openCutscene` | a player pack: the chapter's first step is **presented** (activates with its line) — not during a replay, not for a chapter that completes silently. The world story (#2470): at the beat that starts the chapter (before its line), and once for the current chapter at the player's story-track start (never the intro) |
-| chapter `closeCutscene` | a chapter the player **was shown** this session is done (`PlayerSession.PresentedPackChapters`) — not when skipped, replayed or completed silently by evidence |
+| chapter `closeCutscene` | a chapter the player **was shown** this session is done (`PlayerSession.Story.PresentedPackChapters`) — not when skipped, replayed or completed silently by evidence |
 | step `onStart.cutscene` | the step activates with its line (before the line; not in a replay) |
 | step `onComplete.cutscene` | the step completes **non-silently** (it was the chip step, or a react step) — before the done line; not in a replay |
 | beat `cutscene` | the beat reaches a player whose story track has started (#2470: `RevealBeatTo`, after the chapter opening, before the line) |
@@ -429,7 +429,7 @@ template. Rules:
 
 ### Pacing (per player, RAM)
 
-`PlayerSession.CutsceneQueue` holds committed scenes not sent yet; `TickCutscenes` (every server tick, outside the
+`PlayerSession.Story.CutsceneQueue` holds committed scenes not sent yet; `TickCutscenes` (every server tick, outside the
 per-world loop, for every joined non-observing player — a pilot on a body whose world is not loaded, e.g. after an
 in-flight hyperjump, included; #2468 moved it out of `TickShipAi`, which only reaches loaded worlds) and every new commit
 flush it:

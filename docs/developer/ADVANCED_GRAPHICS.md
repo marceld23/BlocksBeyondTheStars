@@ -150,7 +150,8 @@ Ordered by impact ÷ effort. These are the next polish milestones; each is prese
 - `client/Assets/BlocksBeyondTheStars/Scripts/UrpScenePost.cs` — bloom / tonemap / vignette / grade /
   lens-flare / SMH / motion blur.
 - `client/Assets/BlocksBeyondTheStars/Scripts/Sky.cs` — sun, sky colour, per-system grade.
-- `client/Assets/BlocksBeyondTheStars/Scripts/BlockTextureAtlas.cs` — procedural colour + normal atlas.
+- `client/Assets/BlocksBeyondTheStars/Scripts/BlockTextureAtlas.cs` — procedural colour + normal atlas (the
+  code-painted tiles' base colours and per-block looks in `BlockTextureAtlas.CodeTiles.cs`).
 - `client/Assets/BlocksBeyondTheStars/Scripts/ClientSettings.cs` — preset gating of every effect.
 
 ## Open questions

@@ -221,6 +221,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   Official-worlds overlay moved verbatim (renames only) to the native-only partial `UiOfficialWorlds` (4 files, 47
   methods, largest 685 lines). The new `MainMenuHierarchyEditModeTests` golden, baked from the old code, is byte-identical;
   keys and `Add*` calls unchanged; Unity + WebGL builds, 274 EditMode + 2,319 client tests green.
+- **Docs follow the new structure, part 1 (#2905):** README.md, AGENTS.md, ADR 0019 and 34 developer docs updated for
+  the packages landed so far: ARCHITECTURE.md's server runtime (core + `*System` classes behind facades, tick schedule,
+  sessions, admin command and placement tables, dispatch registry), DEVELOPER.md (server options, subsystem recipe),
+  SERVER/CLIENT_TESTING.md, the host code maps, and every concept-doc pointer to a split or moved file. The rest
+  (main menu, PlayerController, GameBootstrap, panels, singletons, messages) follows once those packages land.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
@@ -587,7 +592,8 @@ Behaviour-preserving cleanup from the same sweep as PR 1 (the fixes).
 - **One shared `RecordingTransport` (#2792):** the server tests' transport fake lives in
   `tests/BlocksBeyondTheStars.Tests/RecordingTransport.cs`; `NpcLifeWorld`'s public copy and 36 identical private copies
   are gone (~800 lines). `RecordingTransportGuardTests` is a ratchet: a new private copy fails, the 42 drifted copies
-  are listed and the list may only shrink. SERVER_TESTING.md names the helper.
+  are listed and the list may only shrink. SERVER_TESTING.md names the helper. (Superseded by #2885: the fake moved to
+  `Helpers/RecordingTransport.cs`, the ratchet is `SharedTestHelperGuardTests`.)
 
 **Released** in **v2026.10.21** "the in-hand release" (2026-10-19).
 

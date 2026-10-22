@@ -288,7 +288,10 @@ worlds of the same planet type grow different species) by
   every wave, the four tree fruit shapes, the Fifi berries, the lantern fruit and the three crops at the tail). A later
   wave is appended before the crops with a `MinGeneration`, so every older species keeps its roster id and an older
   world never gains the newcomers (§45, §46). From generation 29 the world's glow level decides how many glowing
-  species the surface grows (§46).
+  species the surface grows (§46). The order is persisted identity — a species' index is its roster id (`"fl" + i`),
+  the index of its RNG stream and the form bits a bred plant stores in a save — so `FloraCatalogOrderTests` pins it
+  exactly: a new wave adds its keys to `ExpectedOrder` (before the three crops) in the same change. Lookups by key
+  (`FloraCatalog.Find` and the `Is…` helpers) read one index built once from the table (#2893).
 - **World roster:** each archetype is activated with `ActivationChance(preferred, tags)` — **85 %** when
   its climate tags match the world's preferred tags, **40 %** otherwise. Up to generation 3 the preferred
   tags are the planet theme's alone; from **generation 4** (#1715, `BiomeThemeRosterGeneration`) they are
@@ -688,6 +691,11 @@ When a chunk is generated (`WorldGenerator.Generate(planet, coord)`):
 Every step is a pure function of `(seed, planetKey, coordinates)` — no persistent world storage, so
 server and clients build the same chunk independently.
 
+In code (#2892) `Generate` (`WorldGenerator.Columns.cs`) is a short sequence of named stages, all but the
+column profile in `WorldGenerator.ChunkFill.cs`: `ResolveFillContext` (steps 2–3, the per-chunk `FillContext`)
+→ `BuildColumnContext` → per column `ColumnProfileFor` (the cached `ComputeColumn`), `CollectSealSpans`,
+`FillColumnCells` (the y-loop of step 4) and `PlantColumnFlora` → `StampChunkPasses` (steps 5–6).
+
 ## 11. Terrain wonders (#698–#709, 2026-08-03)
 
 Three stacked waves on top of §4's mechanisms — same determinism rules (pure functions of the seed,
@@ -714,9 +722,9 @@ client preview bakes via `JoinAccepted.TerrainContinents`.
 
 **Wave 2 — overhangs (#705–#707).** `GetExtraBands` generalises the floating-island band: up to 6
 extra bands per column (island tiers/ponds/waterfalls, arch bars, sea-stack + hoodoo caps, cenote
-lips), filled by `Generate`'s band switch. Multi-tier skylands (1–3 layers + stalactites, endless
-rim waterfalls), cenotes (sheer shafts; caves open into the walls for free), underground
-mega-caverns (`TryGetCavernSpan`, water/lava lakes, crystal-studded floors).
+lips), filled by the y-loop's band switch (`FillColumnCells`). Multi-tier skylands (1–3 layers +
+stalactites, endless rim waterfalls), cenotes (sheer shafts; caves open into the walls for free),
+underground mega-caverns (`TryGetCavernSpan`, water/lava lakes, crystal-studded floors).
 
 **Wave 3 — the tunnel carver (#708/#709).** `TunnelSpans` rebuilds a seeded worm polyline per
 hotspot cell (xorshift, capsule y-spans per column) — noodle tunnels, wider lava tubes on volcano
@@ -768,9 +776,10 @@ one shape method.
 
 **The file layout.** `WorldGenerator.cs` is split into partials by seam — `.Relief` (archetypes, styles,
 drama, grain, continents, the regional blend), `.Landmarks`, `.Overhangs`, `.Underground`, `.Craters`,
-`.Calibration`, `.Fluids`, `.Columns` (Generate + the per-column profile), `.Stamps`, `.Biomes`,
-`.Flora`. Pure moves; the core file keeps the constructor, the mode setters, the per-world profile and
-`SurfaceHeight`.
+`.Calibration`, `.Fluids`, `.Columns` (Generate + the per-column profile), `.ChunkFill` (the fill stages
+Generate calls — the per-chunk context, the y-loop `FillColumnCells`, the column flora, the chunk passes; #2892),
+`.Stamps`, `.Biomes`, `.Flora`. Pure moves; the core file keeps the constructor, the mode setters, the per-world
+profile and `SurfaceHeight`.
 
 ### 12.1 Part 2 — relief variety (#1645, generation ≥ 1)
 
@@ -1492,9 +1501,9 @@ the hips, shrinking toward the rear, sculling with a 0.8 rad lag per row; a thre
 smaller dorsal toward the tail.
 
 **Giant trees (#1783).** `WorldGenerator.GiantTrees.cs`, a pass of its own called after the giant flora in
-`Generate` on a generation-6 world with trees. NOT a `TreeKind`: `StampTrees` is bounded by its 4-cell margin
-and the 18-cell `MaxStampRise` every stacked chunk relies on for its skip test; the giant pass has its own
-`GiantTreeMargin = 16` and `GiantTreeRise = 64`. Per column: a `Noise.Value01` roll against
+`Generate`'s chunk passes (`StampChunkPasses`) on a generation-6 world with trees. NOT a `TreeKind`: `StampTrees`
+is bounded by its 4-cell margin and the 18-cell `MaxStampRise` every stacked chunk relies on for its skip test; the
+giant pass has its own `GiantTreeMargin = 16` and `GiantTreeRise = 64`. Per column: a `Noise.Value01` roll against
 `GiantTreeDensity = 0.0007` rejects 99.93 % of the margin columns before anything else runs (the #1527
 first-reject), then the forest mask must exceed 0.62 (landmarks of the deep woods only — about one tree per
 38×38 inside a wood), the biome must grow trees, the theme's palette decides the shape (`GiantShapeFor`:
@@ -1549,7 +1558,7 @@ one settlement, centred on landing pad 0, `GroundY` = the pad's ground, seat `sh
 with template `city:gds`; `CommitSettlements` (phases B–D, shared with the roll) does the rest. The footprint
 is kept on `LoadedWorld.CityFootprint`.
 
-**Cool rooms** (`GameServerTemperature.InCityShelter`). Inside the footprint AND `RoofedAt` → the effective
+**Cool rooms** (`TemperatureSystem.InCityShelter`). Inside the footprint AND `RoofedAt` → the effective
 temperature is `CityComfortC` = 22 °C. Streets, gardens and the plaza stay desert-hot. No climate physics.
 
 **Lit rooms** (#1808). `StampBuilding` takes an optional `ceilingLight`: a light block set INTO the deck above
@@ -1597,7 +1606,7 @@ plots and districts (settlements, cities); the contract, the composer and the pi
   and no composition freezes its current picks on the first load after #1872 — with the historical module roll its
   blocks were stamped with (`legacyModuleRoll`, #2690), while a fresh composition records the mixed roll.
 - **Far tiles (#1871).** `LoadEditColumnTops` pins the SQLite join order (`CROSS JOIN`) and tile builds are paced by
-  `ServeFarTiles` (4 ms per tick) — a built-up world no longer stalls the tick after a join.
+  `FarTerrainSystem.ServeFarTiles` (4 ms per tick) — a built-up world no longer stalls the tick after a join.
 
 ### 18.1 Settlements and cities from modules (#1884–#1891, 2026-09-14)
 
@@ -1883,7 +1892,8 @@ own seed and then carries a cave-only roster from the same per-species streams. 
 class never count as (or become) the species that keeps a SURFACE host planted (`SurfaceCover`).
 
 **The cave pass** (`WorldGenerator.CaveFloraGen11.cs`) runs per chunk after the column loop, reading the finished
-chunk — the y-loop (one of the largest methods, #1740) is untouched:
+chunk — the y-loop (`FillColumnCells` in `WorldGenerator.ChunkFill.cs`, one of the largest methods, #1740) is
+untouched:
 
 - a **floor** is an air cell whose cell below is a cave host, at least `CaveFloraMinDepth` (6) under the column's
   ground top; a **ceiling** is an air cell whose cell above is a cave host with open air below (hanging species);
@@ -2239,11 +2249,12 @@ worlds no). `HasOilPockets` additionally excludes cratered bodies.
 zeroed, so their pockets never exceed ry 3.99 (at most four cells of oil); generation 22 fixes it (§39) — centre
 **40–120 below `BaseHeight`**, a **1.6-thick shell of `tar`** around **`oil`**
 cells. It is claimed in the column's y-loop **right after the geode branch and before the tunnels and blob caves**
-(`Columns.cs`), so the carvers never open it; a column that only grazes the ellipsoid is all shell (the geode's trick,
-#1646). The shell is clamped to `seabedY − 4` and the oil to two cells below that, so a valley never opens the top. The
-mega-cavern and the sub-surface river spans run earlier and win where they overlap — that exposes still oil in a cavern
-wall (a find, not a flood). `ColumnProfile.OilHere/OilLo/OilHi/OilInLo/OilInHi` carry the spans; `ColumnContext.OilWorld`
-+ the two block ids are resolved once per chunk. Tests scan for a pocket through `TryGetOilPocketSpanForTest`.
+(`FillColumnCells`, `ChunkFill.cs`), so the carvers never open it; a column that only grazes the ellipsoid is all
+shell (the geode's trick, #1646). The shell is clamped to `seabedY − 4` and the oil to two cells below that, so a
+valley never opens the top. The mega-cavern and the sub-surface river spans run earlier and win where they overlap —
+that exposes still oil in a cavern wall (a find, not a flood). `ColumnProfile.OilHere/OilLo/OilHi/OilInLo/OilInHi` carry
+the spans; `ColumnContext.OilWorld` + the two block ids are resolved once per chunk. Tests scan for a pocket through
+`TryGetOilPocketSpanForTest`.
 
 **The pump (`fluid_pump`, gadget, `GameServerGadgets.UseFluidPump`).** Right-click a liquid cell: oil (the cell stays
 air), or water / lava (the automaton refills them, exactly as when a tier-3 drill mines them). The pull goes through
@@ -2305,7 +2316,7 @@ about three in five; the sky giant is passive — a spectacle. The class is one 
   gas → `DenseGasContactDps` (45), death line `srv.death.gas`; an animal that falls in burns the same way (`BurnDpsFor`);
   a giant never does.
 - **The dense gas (#2134).** Under the gas there used to be the type's ordinary stone heightfield (with ores and data
-  caches), and a player sinking into the see-through gas looked straight onto its rock faces. Now `WorldGenerator.Generate`
+  caches), and a player sinking into the see-through gas looked straight onto its rock faces. Now `FillColumnCells`
   decides a gas world's whole column below the sea surface in one place, before the bands and the sea fill: light `gas`
   down to `DenseGasTop` = `SeaLevel − GasSeaDepth` (8), a flat line; under it the **`gas_dense`** block (a still liquid like
   the gas, no drops) all the way to the bedrock floor, which stays where it was (`FloorDepth` under the old heightfield —

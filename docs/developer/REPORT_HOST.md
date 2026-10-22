@@ -273,14 +273,18 @@ names.
 | Concern | File |
 |---|---|
 | Entry point (env → store → run) | `src/BlocksBeyondTheStars.ReportHost/Program.cs` |
-| Wiring / endpoints | `src/BlocksBeyondTheStars.ReportHost/ReportHostApp.cs` (`Create(config, store, notifier, args)` — the tests start the same app in-process) |
+| Wiring | `src/BlocksBeyondTheStars.ReportHost/ReportHostApp.cs` (`Create(config, store, notifier, args)` — limiters, CSRF token, start-up store maintenance, the player-route CORS, `/healthz` and `/`, then the three route groups below; the tests start the same app in-process) |
+| Shared per-process state + gates of the routes | `src/BlocksBeyondTheStars.ReportHost/ReportHostRuntime.cs` |
+| Player routes (report submission, reply threads) | `src/BlocksBeyondTheStars.ReportHost/ReportHostPlayerEndpoints.cs` |
+| Operator API (`/api/reports*`: keyed read API, scriptable admin mutations) | `src/BlocksBeyondTheStars.ReportHost/ReportHostApiEndpoints.cs` (JSON shapes in `ReportApiJson.cs`) |
+| Admin UI routes (Basic Auth, CSRF forms, file views) | `src/BlocksBeyondTheStars.ReportHost/ReportHostAdminEndpoints.cs` |
 | Config (env) | `src/BlocksBeyondTheStars.ReportHost/ReportHostConfig.cs` |
 | Payload parsing/validation | `src/BlocksBeyondTheStars.ReportHost/ReportIngest.cs` |
 | SQLite + screenshot store | `src/BlocksBeyondTheStars.ReportHost/ReportStore.cs` |
 | Admin pages (server-rendered) | `src/BlocksBeyondTheStars.ReportHost/ReportHostPages.cs` |
 | Rate limiter / Basic Auth / admin CSRF token | `IngestRateLimiter.cs` / `src/BlocksBeyondTheStars.Shared/Security/BasicAuth.cs` (one implementation shared with the WorldHost admin UI) / `AdminCsrf.cs` |
 | Texture submissions: pull + adopt | `tools/pull_texture_submissions.py` → `tools/merge_texture.py` |
-| Tests | `tests/BlocksBeyondTheStars.Tests/ReportHostTests.cs` (store, parsing, pages) · `ReportHostTextureSubmissionTests.cs` (category, attachments, retention, download routes) · `ReportHostHttpTests.cs` (the real app over HTTP on a loopback port: reply routes, limiter split) · `ReportHostReplyLifecycleTests.cs` (`gone` marker; admin CSRF + JSON gate on a second host with the admin UI on) |
+| Tests | `tests/BlocksBeyondTheStars.Tests/ReportHostTests.cs` (store, parsing, pages) · `ReportHostTextureSubmissionTests.cs` (category, attachments, retention, download routes) · `ReportHostHttpTests.cs` (the real app over HTTP on a loopback port: reply routes, limiter split) · `ReportHostReplyLifecycleTests.cs` (`gone` marker; admin CSRF + JSON gate on a second host with the admin UI on) · `ReportHostRouteTableTests.cs` (the complete route table, pinned) · `ReportHostReadApiHttpTests.cs` (read API, `/healthz`, `/`, admin list, export, screenshots, operator reply and DELETE over HTTP: status codes, headers and JSON shapes) |
 | Image / compose | `Dockerfile.reports` / `docker-compose.reports.yml` |
 
 The admin pages HTML-encode every stored string — report content is hostile input rendered in the

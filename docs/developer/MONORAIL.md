@@ -35,11 +35,12 @@ TrainLocalX/Y/Z` (never a persisted bond: a join clears it).
 ## Server (`GameServerRails.cs`)
 
 - **Graph.** `RailWorldState` on `LoadedWorld`: nodes keyed by the pylon's top cell (stacking re-keys the node upward,
-  mining the top drops it down), links as data. `OnRailBlockPlaced` (after the Crystal Net hook in `HandlePlaceBlock`)
-  auto-links to the builder's previous pylon (`LastPylon`) when `LinkRefusal` is null: range, the bend rule against the
-  previous link's direction, the two-link cap, the 64-pylon cap, and the **clearance check** `LinkClear` — the wagon
-  box (three columns across, four cells up from the hover height) swept one block at a time along the straight run
-  between the two tops; any solid, non-liquid, non-flora block that is not a pylon or a stop refuses ("Obstacle").
+  mining the top drops it down), links as data. `OnRailBlockPlaced` (after the Crystal Net hook in `HandlePlace`'s
+  `JoinPlacedBlockToNets`, `GameServerPlacement.cs`) auto-links to the builder's previous pylon (`LastPylon`) when
+  `LinkRefusal` is null: range, the bend rule against the previous link's direction, the two-link cap, the 64-pylon
+  cap, and the **clearance check** `LinkClear` — the wagon box (three columns across, four cells up from the hover
+  height) swept one block at a time along the straight run between the two tops; any solid, non-liquid, non-flora
+  block that is not a pylon or a stop refuses ("Obstacle").
   `UseRailLinker` (the `rail_linker` gadget: first use picks A, second couples A–B or uncouples them). `RebuildRailLines`
   walks every component from an end (a loop from its first pylon), keeps a line's id while its first pylon stands,
   builds the spline, and lands every `rail_stop` device within `StopReach` of a line on it. The graph and the trains
