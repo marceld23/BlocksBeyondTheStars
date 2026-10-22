@@ -2,65 +2,27 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Shared.Definitions;
-using BlocksBeyondTheStars.Shared.Geometry;
-using BlocksBeyondTheStars.Shared.State;
-using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// The screenshot / clip tooling's hooks (<see cref="ScreenshotDirector"/>, <see cref="ClipDirector"/>) — tooling,
-    /// not gameplay: the capture pose and the scripted walk input (<see cref="SetCapturePose"/>,
-    /// <see cref="SetWalkInput"/>), and the pose search that finds a standing spot, a view direction or a vista for a
-    /// shot (<see cref="PlaceForCapturePose"/>, <see cref="PlaceForCaptureNear"/>).
+    /// The screenshot / clip tooling's pose search (<see cref="ScreenshotDirector"/>, <see cref="ClipDirector"/>) — tooling,
+    /// not gameplay: it finds a standing spot, a view direction or a vista for a shot (<see cref="PlaceForCapturePose"/>,
+    /// <see cref="PlaceForCaptureNear"/>) and answers the voxel sight questions of the subject camera
+    /// (<see cref="IsCaptureCellOpen"/>, <see cref="CaptureSightDistance"/>). Created on first use by
+    /// <see cref="PlayerController.Capture"/> on the player's GameObject, so normal play never adds it; it moves the body
+    /// only through the controller's capture hooks (<see cref="PlayerController.SetCapturePose"/>,
+    /// <see cref="PlayerController.SetLookAngles"/>).
     /// </summary>
-    public sealed partial class PlayerController
+    public sealed class PlayerCapture : MonoBehaviour
     {
-        /// <summary>Automation/capture hook (<see cref="ScreenshotDirector"/>): pose the on-foot player at a world
-        /// position + facing so an outdoor planet shot can step out of the landed ship onto open terrain. SnapTo
-        /// bypasses collision for the move; with no mouse input during a capture run the look sticks, and gravity
-        /// then settles the player onto the ground.</summary>
-        public void SetCapturePose(Vector3 pos, float yaw, float pitch)
-        {
-            SnapTo(pos);
-            transform.eulerAngles = new Vector3(0f, yaw, 0f);
-            _pitch = Mathf.Clamp(pitch, -89f, 89f);
-            if (Camera != null)
-            {
-                Camera.transform.localEulerAngles = new Vector3(_pitch, 0f, 0f);
-            }
-        }
-
-        /// <summary>Cinematic-capture hooks (<see cref="ClipDirector"/>): drive the on-foot player's walk + look
-        /// without keyboard input so a recorded clip shows the character actually moving. <see cref="_captureWalk"/>
-        /// gates this — when false the normal <c>InputMap.MoveX/MoveY</c> path is untouched in regular play.</summary>
-        private bool _captureWalk;
-        private float _captureH, _captureV;
-        public void SetWalkInput(float horizontal, float vertical)
-        {
-            _captureH = horizontal;
-            _captureV = vertical;
-            _captureWalk = true;
-        }
-
-        public void ClearWalkInput() => _captureWalk = false;
-
-        /// <summary>Set the body yaw + look pitch directly (same as the rotation half of <see cref="SetCapturePose"/>),
-        /// for a cinematic look-around while walking.</summary>
-        public void SetLookAngles(float yaw, float pitch)
-        {
-            transform.eulerAngles = new Vector3(0f, yaw, 0f);
-            _pitch = Mathf.Clamp(pitch, -89f, 89f);
-            if (Camera != null)
-            {
-                Camera.transform.localEulerAngles = new Vector3(_pitch, 0f, 0f);
-            }
-        }
+        /// <summary>The player this search poses (set by <see cref="PlayerController.Capture"/>).</summary>
+        public PlayerController Player;
 
         /// <summary>Capture hook (<see cref="ScreenshotDirector"/>): place the on-foot player on REAL terrain near
         /// an anchor (the landed ship) and face back toward it, for a per-planet surface shot. Unlike the blind
-        /// <see cref="SetCapturePose"/>, this is terrain-aware. It probes a ring of spots around the ship (radii
+        /// <see cref="PlayerController.SetCapturePose"/>, this is terrain-aware. It probes a ring of spots around the ship (radii
         /// chosen to clear the ship's footprint — the hull is stamped into the world voxels, so it can't be told
         /// apart from terrain by collider) and for each:
         /// <list type="bullet">
@@ -74,12 +36,12 @@ namespace BlocksBeyondTheStars.Client
         /// the caller can skip the shot instead of writing a broken frame.</summary>
         public bool PlaceForCaptureNear(Vector3 anchor, float pitch)
         {
-            if (_controller == null)
+            if (Player.Body == null)
             {
                 return false;
             }
 
-            float half = _controller.height * 0.5f + _controller.skinWidth;
+            float half = Player.Body.height * 0.5f + Player.Body.skinWidth;
             // Stand a good way BACK from the ship on OPEN terrain, then face AWAY from the hull so the shot shows the
             // planet's landscape (the world-variety point) instead of the ship's wall/door filling the frame. The
             // spawn sits the player INSIDE the ship interior, whose glass skylight leaves "open sky" overhead — so the
@@ -98,22 +60,22 @@ namespace BlocksBeyondTheStars.Client
 
                     // Surface under this spot? Start the ray well above any local terrain so a hill doesn't make us
                     // start inside a collider.
-                    if (!Physics.Raycast(new Vector3(x, anchor.y + 60f, z), Vector3.down, out var hit, 120f, WorldRayMask, QueryTriggerInteraction.Ignore)
-                        || hit.collider == _controller)
+                    if (!Physics.Raycast(new Vector3(x, anchor.y + 60f, z), Vector3.down, out var hit, 120f, PlayerController.WorldRayMask, QueryTriggerInteraction.Ignore)
+                        || hit.collider == Player.Body)
                     {
                         continue;
                     }
 
                     var stand = new Vector3(x, hit.point.y + half + 0.05f, z);
-                    if (BlockKeyAt(stand + Vector3.up * 1.1f) == "water")
+                    if (Player.BlockKeyAt(stand + Vector3.up * 1.1f) == "water")
                     {
                         continue; // solid floor but chest-deep underwater — not a usable surface shot
                     }
 
                     // Lava has no collider either, so the down-ray hits the rock UNDER a lava lake and the spot
                     // would leave the player standing in lava — burning, with the damage flash in the frame.
-                    string feet = BlockKeyAt(stand + Vector3.up * 0.3f);
-                    if (feet == "lava" || BlockKeyAt(stand + Vector3.up * 1.1f) == "lava")
+                    string feet = Player.BlockKeyAt(stand + Vector3.up * 0.3f);
+                    if (feet == "lava" || Player.BlockKeyAt(stand + Vector3.up * 1.1f) == "lava")
                     {
                         continue;
                     }
@@ -121,8 +83,8 @@ namespace BlocksBeyondTheStars.Client
                     // Open sky overhead? A hit means a solid ceiling above us (cave / overhang / hull under a solid
                     // roof) → indoors. (The ship's glass skylight has no collider, so this passes for an interior spot
                     // under it — the enclosure check below is what catches those.)
-                    if (Physics.Raycast(stand + Vector3.up * 0.3f, Vector3.up, out var up, 5f, WorldRayMask, QueryTriggerInteraction.Ignore)
-                        && up.collider != _controller)
+                    if (Physics.Raycast(stand + Vector3.up * 0.3f, Vector3.up, out var up, 5f, PlayerController.WorldRayMask, QueryTriggerInteraction.Ignore)
+                        && up.collider != Player.Body)
                     {
                         continue;
                     }
@@ -136,7 +98,7 @@ namespace BlocksBeyondTheStars.Client
                     Vector3[] sides = { Vector3.forward, Vector3.back, Vector3.left, Vector3.right };
                     foreach (var s in sides)
                     {
-                        if (Physics.Raycast(eye, s, out var w, 5f, WorldRayMask, QueryTriggerInteraction.Ignore) && w.collider != _controller)
+                        if (Physics.Raycast(eye, s, out var w, 5f, PlayerController.WorldRayMask, QueryTriggerInteraction.Ignore) && w.collider != Player.Body)
                         {
                             walls++;
                         }
@@ -146,19 +108,14 @@ namespace BlocksBeyondTheStars.Client
                         continue; // enclosed on three+ sides → inside the hull, not out on the surface
                     }
 
-                    SnapTo(stand);
+                    Player.SnapTo(stand);
                     // Face AWAY from the ship (from hull → player), so the camera looks out over the terrain and the
                     // ship falls behind the player, out of frame.
                     Vector3 d = transform.position - anchor;
                     float yaw = (Mathf.Abs(d.x) + Mathf.Abs(d.z) > 0.01f)
                         ? Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg
                         : transform.eulerAngles.y;
-                    transform.eulerAngles = new Vector3(0f, yaw, 0f);
-                    _pitch = Mathf.Clamp(pitch, -89f, 89f);
-                    if (Camera != null)
-                    {
-                        Camera.transform.localEulerAngles = new Vector3(_pitch, 0f, 0f);
-                    }
+                    Player.SetLookAngles(yaw, pitch);
 
                     Debug.Log($"[Capture] PlaceForCaptureNear: placed at dist={dists[di]} ang={a * 45}° walls={walls} y={stand.y:F1}");
                     return true;
@@ -174,7 +131,7 @@ namespace BlocksBeyondTheStars.Client
         /// on dry ground beside water ("shore") or on the highest open spot around ("ridge"). "spawn" (and any unknown
         /// kind) is the plain outdoor placement of <see cref="PlaceForCaptureNear"/>. The search walks the streamed
         /// client chunks rather than the physics scene so it can look underground and into water; the caller keeps
-        /// polling <see cref="IsCaptureGrounded"/> / <see cref="IsHeadUnderwater"/> (and calls this again) until the
+        /// polling <see cref="PlayerController.IsCaptureGrounded"/> / <see cref="PlayerController.IsHeadUnderwater"/> (and calls this again) until the
         /// chunk collider under the spot has been cooked, because a snap onto a not-yet-cooked chunk drops the player
         /// through it. Returns false when no spot of that kind is loaded near the anchor, so the caller can fall back.</summary>
         public bool PlaceForCapturePose(string pose, Vector3 anchor, float pitch)
@@ -185,7 +142,7 @@ namespace BlocksBeyondTheStars.Client
                 return PlaceForCaptureNear(anchor, pitch);
             }
 
-            if (_controller == null || Game?.World == null || Game.Content == null)
+            if (Player.Body == null || Player.Game?.World == null || Player.Game.Content == null)
             {
                 return false;
             }
@@ -200,7 +157,7 @@ namespace BlocksBeyondTheStars.Client
                 return PlaceForCaptureHere(anchor, pitch);
             }
 
-            RefreshLiquidKeys();
+            Player.RefreshLiquidKeys();
             const int Radius = 60;
             int ax = Mathf.FloorToInt(anchor.x), ay = Mathf.FloorToInt(anchor.y), az = Mathf.FloorToInt(anchor.z);
             int yLo = kind is "cave" or "lava" ? ay - 70 : ay - 32;
@@ -223,7 +180,7 @@ namespace BlocksBeyondTheStars.Client
                     int x = ax + dx, z = az + dz;
                     for (int y = yLo; y <= yHi; y++)
                     {
-                        if (!Game.World.TryGetBlock(x, y, z, out _))
+                        if (!Player.Game.World.TryGetBlock(x, y, z, out _))
                         {
                             continue;
                         }
@@ -254,9 +211,9 @@ namespace BlocksBeyondTheStars.Client
 
             Debug.Log($"[Capture] PlaceForCapturePose: '{kind}' candidates={candidates} of {loaded} loaded cells.");
 
-            float half = _controller.height * 0.5f + _controller.skinWidth;
+            float half = Player.Body.height * 0.5f + Player.Body.skinWidth;
             var stand = new Vector3(best.x + 0.5f, best.y + half + (kind == "underwater" ? 0.1f : 0.05f), best.z + 0.5f);
-            SetCapturePose(stand, bestYaw, pitch);
+            Player.SetCapturePose(stand, bestYaw, pitch);
             Debug.Log($"[Capture] PlaceForCapturePose: '{kind}' at ({best.x},{best.y},{best.z}) score={bestScore:F1} yaw={bestYaw:F0}°");
             return true;
         }
@@ -292,7 +249,7 @@ namespace BlocksBeyondTheStars.Client
                 return depth * 2f - kelp * 0.4f - horiz * 0.08f;
             }
 
-            if (!IsCollidingKey(floor) || !CaptureFree(feet) || !CaptureFree(head))
+            if (!PlayerController.IsCollidingKey(floor) || !CaptureFree(feet) || !CaptureFree(head))
             {
                 return float.NaN;
             }
@@ -372,19 +329,19 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The block key at a cell of the streamed client world; false when its chunk is not loaded.</summary>
         private bool CaptureKeyAt(int x, int y, int z, out string key)
         {
-            if (!Game.World.TryGetBlock(x, y, z, out var id))
+            if (!Player.Game.World.TryGetBlock(x, y, z, out var id))
             {
                 key = null;
                 return false;
             }
 
-            key = id.IsAir ? "air" : (Game.Content.BlockById(id)?.Key ?? "air");
+            key = id.IsAir ? "air" : (Player.Game.Content.BlockById(id)?.Key ?? "air");
             return true;
         }
 
         /// <summary>A cell the capsule can occupy: air, or a prop it walks through — never a liquid.</summary>
         private static bool CaptureFree(string key)
-            => key == "air" || (!IsCollidingKey(key) && key != "water" && key != "lava" && !LiquidKeys.Contains(key));
+            => key == "air" || (!PlayerController.IsCollidingKey(key) && key != "water" && key != "lava" && !PlayerController.LiquidKeys.Contains(key));
 
         /// <summary>How many colliding blocks sit in the column from <paramref name="y"/> up to <paramref name="maxUp"/>
         /// cells higher (unloaded cells count as open).</summary>
@@ -393,7 +350,7 @@ namespace BlocksBeyondTheStars.Client
             int solid = 0;
             for (int i = 0; i < maxUp; i++)
             {
-                if (CaptureKeyAt(x, y + i, z, out string k) && IsCollidingKey(k))
+                if (CaptureKeyAt(x, y + i, z, out string k) && PlayerController.IsCollidingKey(k))
                 {
                     solid++;
                 }
@@ -405,7 +362,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>No colliding block in the 40 cells above and no parked ship over the spot (foliage is walk-through,
         /// so a tree crown still counts as open sky — that is what "forest" wants).</summary>
         private bool CaptureOpenSky(int x, int y, int z)
-            => CaptureSolidAbove(x, y, z, 40) == 0 && !Game.LandedShipCovers(x, y, z);
+            => CaptureSolidAbove(x, y, z, 40) == 0 && !Player.Game.LandedShipCovers(x, y, z);
 
         /// <summary>Free cells in the 5×3×5 box around the feet cell — a room reads as ≥ 22 of 75.</summary>
         private int CaptureFreeCount(int x, int y, int z)
@@ -439,12 +396,12 @@ namespace BlocksBeyondTheStars.Client
                 {
                     for (int dy = -1; dy <= 9; dy++)
                     {
-                        if (!Game.World.TryGetBlock(x + dx, y + dy, z + dz, out var id) || id.IsAir)
+                        if (!Player.Game.World.TryGetBlock(x + dx, y + dy, z + dz, out var id) || id.IsAir)
                         {
                             continue;
                         }
 
-                        var def = Game.Content.BlockById(id);
+                        var def = Player.Game.Content.BlockById(id);
                         if (def != null && (def.Category == "flora" || TreeFoliage.IsKey(def.Key)))
                         {
                             count++;
@@ -537,18 +494,18 @@ namespace BlocksBeyondTheStars.Client
         /// or back to first person, exactly as the view key switches it.</summary>
         public void SetCaptureThirdPerson(bool on)
         {
-            if (ThirdPerson == on)
+            if (Player.ThirdPerson == on)
             {
                 return;
             }
 
-            ThirdPerson = on;
-            ApplyCameraMode();
+            Player.ThirdPerson = on;
+            Player.ApplyCameraMode();
         }
 
         /// <summary>Capture hook (#2765): the first-person eye in world space, whichever camera mode is on — a still's
         /// recording camera is placed relative to it.</summary>
-        public Vector3 CaptureEyePosition => transform.TransformPoint(FirstPersonEye);
+        public Vector3 CaptureEyePosition => transform.TransformPoint(PlayerController.FirstPersonEye);
 
         /// <summary>Capture hook (#2765): the direction toward the sun that the "vista" pose keeps beside or behind the camera
         /// (null = no preference). The capture director sets it once the time of day is pinned.</summary>
@@ -570,11 +527,11 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_vistaCached && (anchor - _vistaAnchor).sqrMagnitude < 1f)
             {
-                SetCapturePose(_vistaStand, _vistaYaw, pitch);
+                Player.SetCapturePose(_vistaStand, _vistaYaw, pitch);
                 return true;
             }
 
-            RefreshLiquidKeys();
+            Player.RefreshLiquidKeys();
             const int Radius = 56;
             int ax = Mathf.FloorToInt(anchor.x), ay = Mathf.FloorToInt(anchor.y), az = Mathf.FloorToInt(anchor.z);
             var heights = new System.Collections.Generic.Dictionary<long, int>();
@@ -598,7 +555,7 @@ namespace BlocksBeyondTheStars.Client
 
                     heights[CaptureColumnKey(x, z)] = top;
                     // Clear of the ship's footprint (its hull is stamped into the voxels) and out under the sky.
-                    if (dry && horiz >= 9f && !Game.LandedShipCovers(x, top, z) && CaptureOpenSky(x, top + 2, z))
+                    if (dry && horiz >= 9f && !Player.Game.LandedShipCovers(x, top, z) && CaptureOpenSky(x, top + 2, z))
                     {
                         tops.Add(new Vector3Int(x, top, z));
                     }
@@ -633,7 +590,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             ranked.Sort((a, b) => b.Rank.CompareTo(a.Rank));
-            float half = _controller.height * 0.5f + _controller.skinWidth;
+            float half = Player.Body.height * 0.5f + Player.Body.skinWidth;
             float bestScore = float.NegativeInfinity, bestYaw = 0f;
             Vector3Int best = default;
             int evaluated = Mathf.Min(24, ranked.Count);
@@ -659,7 +616,7 @@ namespace BlocksBeyondTheStars.Client
             _vistaYaw = bestYaw;
             _vistaAnchor = anchor;
             _vistaCached = true;
-            SetCapturePose(_vistaStand, _vistaYaw, pitch);
+            Player.SetCapturePose(_vistaStand, _vistaYaw, pitch);
             Debug.Log($"[Capture] PlaceForCaptureVista: ({best.x},{best.y},{best.z}) yaw={bestYaw:F0}° score={bestScore:F1} "
                       + $"of {evaluated} tops ({tops.Count} open, {heights.Count} columns)");
             return true;
@@ -671,7 +628,7 @@ namespace BlocksBeyondTheStars.Client
         /// over the site.</summary>
         private bool PlaceForCaptureHere(Vector3 anchor, float pitch)
         {
-            RefreshLiquidKeys();
+            Player.RefreshLiquidKeys();
             var eye = new Vector3(anchor.x, anchor.y + 1.6f + 8f, anchor.z);
             float bestScore = float.NegativeInfinity, bestYaw = 0f;
             for (int a = 0; a < 16; a++)
@@ -684,7 +641,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            SetLookAngles(bestYaw, pitch);
+            Player.SetLookAngles(bestYaw, pitch);
             Debug.Log($"[Capture] PlaceForCaptureHere: ({anchor.x:F0},{anchor.y:F0},{anchor.z:F0}) yaw={bestYaw:F0}° score={bestScore:F1}");
             return true;
         }
@@ -714,12 +671,12 @@ namespace BlocksBeyondTheStars.Client
 
                 // A sea, a lava lake or a tree crown: a height for the relief, not a place to stand (leaves are walked
                 // through, so the scan would otherwise land on the trunk inside the crown).
-                if (k == "water" || k == "lava" || LiquidKeys.Contains(k) || TreeFoliage.IsKey(k))
+                if (k == "water" || k == "lava" || PlayerController.LiquidKeys.Contains(k) || TreeFoliage.IsKey(k))
                 {
                     return y + 1;
                 }
 
-                if (IsCollidingKey(k))
+                if (PlayerController.IsCollidingKey(k))
                 {
                     dry = CaptureKeyAt(x, y + 1, z, out string feet) && CaptureFree(feet)
                           && CaptureKeyAt(x, y + 2, z, out string head) && CaptureFree(head);
@@ -822,7 +779,7 @@ namespace BlocksBeyondTheStars.Client
 
             // The landed ship anywhere in the frame (a still is about ±50° wide) and near enough to read: the few rays that
             // hit it are not penalty enough, it would still become the subject of the picture.
-            if (Game.LandedShipInView(eye, yaw, 50f, 90f))
+            if (Player.Game.LandedShipInView(eye, yaw, 50f, 90f))
             {
                 score -= 60f;
             }
@@ -855,14 +812,14 @@ namespace BlocksBeyondTheStars.Client
             {
                 var p = from + dir * d;
                 int x = Mathf.FloorToInt(p.x), y = Mathf.FloorToInt(p.y), z = Mathf.FloorToInt(p.z);
-                if (Game.LandedShipBodyAt(x, y, z))
+                if (Player.Game.LandedShipBodyAt(x, y, z))
                 {
                     ship = true; // a parked ship is its own model, not voxels — it hides what lies behind it all the same
                     cell = new Vector3Int(x, y, z);
                     return d;
                 }
 
-                if (!Game.World.TryGetBlock(x, y, z, out var id))
+                if (!Player.Game.World.TryGetBlock(x, y, z, out var id))
                 {
                     if (d > 24f)
                     {
@@ -877,13 +834,13 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
-                var def = Game.Content.BlockById(id);
+                var def = Player.Game.Content.BlockById(id);
                 if (def == null || (throughWater && def.Key == "water"))
                 {
                     continue;
                 }
 
-                if (def.Liquid || def.Key == "water" || def.Key == "lava" || TreeFoliage.IsKey(def.Key) || IsCollidingKey(def.Key))
+                if (def.Liquid || def.Key == "water" || def.Key == "lava" || TreeFoliage.IsKey(def.Key) || PlayerController.IsCollidingKey(def.Key))
                 {
                     hit = def;
                     cell = new Vector3Int(x, y, z);
@@ -898,26 +855,23 @@ namespace BlocksBeyondTheStars.Client
         /// walk-through prop, no liquid, no solid block and no tree crown. <paramref name="inWater"/>: water counts as open (a
         /// camera under the sea).</summary>
         public bool IsCaptureCellOpen(Vector3 p, bool inWater = false)
-            => Game?.World != null && Game.Content != null
+            => Player.Game?.World != null && Player.Game.Content != null
                && CaptureKeyAt(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z), out string k)
                && ((inWater && k == "water") || (CaptureFree(k) && !TreeFoliage.IsKey(k)))
-               && !Game.LandedShipBodyAt(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z));
+               && !Player.Game.LandedShipBodyAt(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z));
 
         /// <summary>Capture hook (#2765): metres from <paramref name="from"/> along <paramref name="dir"/> to the first block
         /// that hides the view (solid, liquid or a tree crown), up to <paramref name="max"/> — also returned when the ray gets
         /// through or leaves the streamed world. <paramref name="throughWater"/>: water does not block (under the sea).</summary>
         public float CaptureSightDistance(Vector3 from, Vector3 dir, float max, bool throughWater = false)
         {
-            if (Game?.World == null || Game.Content == null || dir.sqrMagnitude < 1e-6f)
+            if (Player.Game?.World == null || Player.Game.Content == null || dir.sqrMagnitude < 1e-6f)
             {
                 return max;
             }
 
-            RefreshLiquidKeys();
+            Player.RefreshLiquidKeys();
             return CaptureMarch(from, dir.normalized, max, out _, out _, out _, throughWater);
         }
-
-        /// <summary>Capture hook: the on-foot player is standing on solid ground this frame.</summary>
-        public bool IsCaptureGrounded => _controller != null && _controller.enabled && _controller.isGrounded;
     }
 }

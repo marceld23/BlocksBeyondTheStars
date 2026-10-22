@@ -13,7 +13,8 @@ namespace BlocksBeyondTheStars.Client
     /// The body's motion: per-world gravity (<see cref="RecomputeGravity"/>), the walking / swimming / ladder / jetpack
     /// frame (<see cref="Move"/>) with its water and ledge probes, gravity-only frames, the re-entry brake below a
     /// planet's line, the hover that waits for the floor after a spawn (<see cref="UpdateFloorWait"/>), creative flight,
-    /// crouch, and the observer's collision-free flight (<see cref="SpectatorMove"/>).
+    /// crouch, the observer's collision-free flight (<see cref="SpectatorMove"/>), and the capture tooling's body hooks
+    /// (<see cref="SetCapturePose"/>, <see cref="SetWalkInput"/>, <see cref="SetLookAngles"/>).
     /// </summary>
     public sealed partial class PlayerController
     {
@@ -695,6 +696,47 @@ namespace BlocksBeyondTheStars.Client
             {
                 _controller.height = targetH;
                 _controller.center = new Vector3(0f, targetH * 0.5f, 0f);
+            }
+        }
+
+        /// <summary>Automation/capture hook (<see cref="ScreenshotDirector"/>): pose the on-foot player at a world
+        /// position + facing so an outdoor planet shot can step out of the landed ship onto open terrain. SnapTo
+        /// bypasses collision for the move; with no mouse input during a capture run the look sticks, and gravity
+        /// then settles the player onto the ground.</summary>
+        public void SetCapturePose(Vector3 pos, float yaw, float pitch)
+        {
+            SnapTo(pos);
+            transform.eulerAngles = new Vector3(0f, yaw, 0f);
+            _pitch = Mathf.Clamp(pitch, -89f, 89f);
+            if (Camera != null)
+            {
+                Camera.transform.localEulerAngles = new Vector3(_pitch, 0f, 0f);
+            }
+        }
+
+        /// <summary>Cinematic-capture hooks (<see cref="ClipDirector"/>): drive the on-foot player's walk + look
+        /// without keyboard input so a recorded clip shows the character actually moving. <see cref="_captureWalk"/>
+        /// gates this — when false the normal <c>InputMap.MoveX/MoveY</c> path is untouched in regular play.</summary>
+        private bool _captureWalk;
+        private float _captureH, _captureV;
+        public void SetWalkInput(float horizontal, float vertical)
+        {
+            _captureH = horizontal;
+            _captureV = vertical;
+            _captureWalk = true;
+        }
+
+        public void ClearWalkInput() => _captureWalk = false;
+
+        /// <summary>Set the body yaw + look pitch directly (same as the rotation half of <see cref="SetCapturePose"/>),
+        /// for a cinematic look-around while walking.</summary>
+        public void SetLookAngles(float yaw, float pitch)
+        {
+            transform.eulerAngles = new Vector3(0f, yaw, 0f);
+            _pitch = Mathf.Clamp(pitch, -89f, 89f);
+            if (Camera != null)
+            {
+                Camera.transform.localEulerAngles = new Vector3(_pitch, 0f, 0f);
             }
         }
     }

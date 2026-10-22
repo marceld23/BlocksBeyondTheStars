@@ -277,7 +277,7 @@ namespace BlocksBeyondTheStars.Client
             var pc = FindAnyObjectByType<PlayerController>();
             if (pc != null)
             {
-                pc.CaptureSunDirection = ClipDirector.SunDirection();
+                pc.Capture.CaptureSunDirection = ClipDirector.SunDirection();
                 var p = boot.PlayerPosition;
                 var anchor = new Vector3(p.x, p.y, p.z);
                 bool placed = false;
@@ -289,7 +289,7 @@ namespace BlocksBeyondTheStars.Client
                     if (!placed || (sincePlace > 0.75f && !pc.IsCaptureGrounded))
                     {
                         // The best view around (#2765), else the first open spot of the ring.
-                        placed = pc.PlaceForCapturePose("vista", anchor, pitch: 7f) || pc.PlaceForCaptureNear(anchor, pitch: 4f);
+                        placed = pc.Capture.PlaceForCapturePose("vista", anchor, pitch: 7f) || pc.Capture.PlaceForCaptureNear(anchor, pitch: 4f);
                         sincePlace = 0f;
                     }
 
@@ -403,7 +403,7 @@ namespace BlocksBeyondTheStars.Client
                 // the player so gravity can settle it and isGrounded can latch.
                 if (!placed)
                 {
-                    placed = pc.PlaceForCaptureNear(anchor, pitch: 4f);
+                    placed = pc.Capture.PlaceForCaptureNear(anchor, pitch: 4f);
                 }
 
                 bool alive = !boot.AwaitingRespawnConfirm && boot.Health > 0f;

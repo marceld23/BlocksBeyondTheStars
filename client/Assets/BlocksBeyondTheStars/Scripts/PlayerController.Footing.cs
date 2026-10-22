@@ -36,7 +36,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Teleports the player (CharacterController toggled so the move isn't blocked) and zeroes fall speed.</summary>
-        private void SnapTo(Vector3 pos)
+        internal void SnapTo(Vector3 pos)
         {
             EndClimb(); // #2188: a teleport, respawn or rescue never leaves us hanging on a wall that is no longer there
             UpdateGlide(false); // #2296: nor gliding on
@@ -278,7 +278,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The content key of the block at a world position (null if the world/content isn't ready).</summary>
-        private string BlockKeyAt(Vector3 world)
+        internal string BlockKeyAt(Vector3 world)
         {
             if (Game?.World == null || Game.Content == null)
             {
@@ -292,10 +292,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The keys of the still liquids by block data (#2106: oil) — filled from the content once it is known
         /// (<see cref="RefreshLiquidKeys"/>), so the static footing checks can treat them like water without a key list.</summary>
-        private static readonly System.Collections.Generic.HashSet<string> LiquidKeys = new System.Collections.Generic.HashSet<string>();
+        internal static readonly System.Collections.Generic.HashSet<string> LiquidKeys = new System.Collections.Generic.HashSet<string>();
         private static BlocksBeyondTheStars.Shared.Content.GameContent _liquidKeysFor;
 
-        private void RefreshLiquidKeys()
+        internal void RefreshLiquidKeys()
         {
             var content = Game?.Content;
             if (content == null || ReferenceEquals(content, _liquidKeysFor))

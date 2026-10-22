@@ -42,7 +42,7 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private void ApplyCameraMode()
+        internal void ApplyCameraMode()
         {
             if (ThirdPerson)
             {

@@ -341,7 +341,7 @@ namespace BlocksBeyondTheStars.Client
 
                     if (clip.astronaut)
                     {
-                        FindAnyObjectByType<PlayerController>()?.SetCaptureThirdPerson(true); // the avatar in the frame, for scale
+                        FindAnyObjectByType<PlayerController>()?.Capture.SetCaptureThirdPerson(true); // the avatar in the frame, for scale
                     }
 
                     break;
@@ -474,7 +474,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (!placed || sincePlace > 0.75f)
                 {
-                    placed = pc.PlaceForCapturePose(pose, anchor, pitch: underwater ? 0f : 4f);
+                    placed = pc.Capture.PlaceForCapturePose(pose, anchor, pitch: underwater ? 0f : 4f);
                     sincePlace = 0f;
                     Debug.Log($"[Clip] pose '{pose}' placed={placed}: {pc.CaptureDebugState()}");
                     if (!placed && pose.Length > 0 && pose != "spawn")
@@ -826,7 +826,7 @@ namespace BlocksBeyondTheStars.Client
                     Debug.Log($"[Clip] {clip.name}: /tp {clip.poi} → ({boot.PlayerPosition.x:F0}, {boot.PlayerPosition.y:F0}, {boot.PlayerPosition.z:F0})");
                     if (pc != null)
                     {
-                        pc.CaptureVistaFavorsBuilt = true;
+                        pc.Capture.CaptureVistaFavorsBuilt = true;
                     }
                 }
                 else
@@ -859,7 +859,7 @@ namespace BlocksBeyondTheStars.Client
             _sunDir = SunDirection();
             if (pc != null)
             {
-                pc.CaptureSunDirection = _sunDir;
+                pc.Capture.CaptureSunDirection = _sunDir;
             }
         }
 
@@ -916,12 +916,12 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            Vector3 eye = _pc.CaptureEyePosition;
+            Vector3 eye = _pc.Capture.CaptureEyePosition;
             float yaw = _pc.transform.eulerAngles.y;
             var heading = Quaternion.Euler(0f, yaw, 0f);
             Vector3 target = eye + Vector3.up * clip.camHeight - heading * Vector3.forward * clip.camBack + heading * Vector3.right * clip.camSide;
             pos = target;
-            for (float t = 1f; t > 0f && !_pc.IsCaptureCellOpen(pos); t -= 0.1f)
+            for (float t = 1f; t > 0f && !_pc.Capture.IsCaptureCellOpen(pos); t -= 0.1f)
             {
                 pos = Vector3.Lerp(eye, target, t - 0.1f);
             }
@@ -964,7 +964,7 @@ namespace BlocksBeyondTheStars.Client
 
             bool wantGiant = string.Equals(clip.subject, "giant", StringComparison.OrdinalIgnoreCase);
             bool underwater = _pc.IsHeadUnderwater();
-            Vector3 eye = _pc.CaptureEyePosition;
+            Vector3 eye = _pc.Capture.CaptureEyePosition;
             int total = 0, asleep = 0, owned = 0, kind = 0, habitat = 0, undrawn = 0, far = 0, near = 0;
             foreach (var c in _boot.Creatures)
             {
@@ -1027,7 +1027,7 @@ namespace BlocksBeyondTheStars.Client
             float vFov = clip.fov > 0f ? clip.fov : (_pc.Camera != null ? _pc.Camera.fieldOfView : 70f);
             float tanHalf = Mathf.Tan(vFov * 0.5f * Mathf.Deg2Rad);
             float thirdYaw = Mathf.Atan(tanHalf * ((float)ClipWidth / ClipHeight) / 3f) * Mathf.Rad2Deg;
-            Vector3 eye = _pc.CaptureEyePosition;
+            Vector3 eye = _pc.Capture.CaptureEyePosition;
             bool underwater = _pc.IsHeadUnderwater();
             float bestScore = float.NegativeInfinity;
             string bestId = null;
@@ -1082,7 +1082,7 @@ namespace BlocksBeyondTheStars.Client
                             cam = b.center + new Vector3(Mathf.Sin(ang), 0f, Mathf.Cos(ang)) * dist + Vector3.up * (h * 0.05f + 0.15f);
                         }
 
-                        if (!_pc.IsCaptureCellOpen(cam, underwater))
+                        if (!_pc.Capture.IsCaptureCellOpen(cam, underwater))
                         {
                             continue;
                         }
@@ -1091,7 +1091,7 @@ namespace BlocksBeyondTheStars.Client
                         float len = to.magnitude;
                         Vector3 look = to / len;
                         // The body is no voxel, so a clear view stops just short of it.
-                        if (_pc.CaptureSightDistance(cam, look, len, underwater) < len - (w * 0.5f + 0.2f))
+                        if (_pc.Capture.CaptureSightDistance(cam, look, len, underwater) < len - (w * 0.5f + 0.2f))
                         {
                             continue;
                         }
@@ -1101,7 +1101,7 @@ namespace BlocksBeyondTheStars.Client
                         foreach (var (ey, ep) in LensEdges)
                         {
                             var edge = Quaternion.AngleAxis(ey, Vector3.up) * Quaternion.AngleAxis(ep, Vector3.Cross(Vector3.up, look)) * look;
-                            if (_pc.CaptureSightDistance(cam, edge, 4f, underwater) < 3.5f)
+                            if (_pc.Capture.CaptureSightDistance(cam, edge, 4f, underwater) < 3.5f)
                             {
                                 blockedEdges++;
                             }
@@ -1113,8 +1113,8 @@ namespace BlocksBeyondTheStars.Client
                         }
 
                         var flat = new Vector3(look.x, 0f, look.z).normalized;
-                        float behind = _pc.CaptureSightDistance(b.center + look * (w * 0.6f + 0.3f), look, 80f, underwater);
-                        float ground = _pc.CaptureSightDistance(cam, Vector3.down, 12f, underwater);
+                        float behind = _pc.Capture.CaptureSightDistance(b.center + look * (w * 0.6f + 0.3f), look, 80f, underwater);
+                        float ground = _pc.Capture.CaptureSightDistance(cam, Vector3.down, 12f, underwater);
                         float score = Mathf.Log(1f + behind) * 3f + Mathf.Min(extent, 6f) * 1.5f - Mathf.Abs(fromPlayer - 18f) * 0.03f
                                       - (ground >= 12f && !underwater ? 6f : 0f) - blockedEdges * 4f;
                         if (faces)

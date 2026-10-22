@@ -81,7 +81,7 @@ namespace BlocksBeyondTheStars.Client
 
         private const int HotbarSlots = 9;
 
-        private static readonly Vector3 FirstPersonEye = new Vector3(0f, 1.6f, 0f);
+        internal static readonly Vector3 FirstPersonEye = new Vector3(0f, 1.6f, 0f);
         private static readonly Vector3 ThirdPersonEye = new Vector3(0f, 1.9f, -3.5f);
 
         // Crouch / sneak (hold Ctrl or C on the ground): shrink the capsule so you fit tight spaces, walk slower,
@@ -112,6 +112,27 @@ namespace BlocksBeyondTheStars.Client
         public RemotePlayers Remotes;
 
         private CharacterController _controller;
+
+        /// <summary>The body's capsule, for the capture pose search (<see cref="PlayerCapture"/>).</summary>
+        internal CharacterController Body => _controller;
+
+        private PlayerCapture _capture;
+
+        /// <summary>The screenshot/clip pose search (tooling) — created on first use.</summary>
+        public PlayerCapture Capture
+        {
+            get
+            {
+                if (_capture == null)
+                {
+                    _capture = gameObject.AddComponent<PlayerCapture>();
+                    _capture.Player = this;
+                }
+
+                return _capture;
+            }
+        }
+
         private float _pitch;
 
         private float _verticalVelocity;
@@ -176,7 +197,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#1998: every environment raycast of the player (ground snap, spawn search, headroom, camera boom)
         /// ignores the giants' colliders — they block the capsule, but nobody should "stand" on a foot or snap onto a leg.</summary>
-        private static int WorldRayMask => ~(1 << CreatureView.GiantLayer);
+        internal static int WorldRayMask => ~(1 << CreatureView.GiantLayer);
 
         /// <summary>#1998: shakes the camera (0..1), e.g. a giant's footfall or a sandworm breaching nearby. Since #2152 it
         /// adds trauma to <see cref="FxCamera"/> (trauma² rotational shake); the Camera-motion comfort setting and the
@@ -694,6 +715,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Capture hook: the player's head is under water (so the shot would be a submerged murk).</summary>
         public bool IsHeadUnderwater() => IsSubmerged();
+
+        /// <summary>Capture hook: the on-foot player is standing on solid ground this frame.</summary>
+        public bool IsCaptureGrounded => _controller != null && _controller.enabled && _controller.isGrounded;
 
         private void LateUpdate()
         {
