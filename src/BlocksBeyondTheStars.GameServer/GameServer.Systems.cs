@@ -13,7 +13,7 @@ public sealed partial class GameServer : IServerHost
     // One field per extracted subsystem (alphabetical slots; a package replaces its own slot line only). Not readonly:
     // they are assigned in ConstructSystems, not in the constructor body.
     // slot: AiLines
-    // slot: BioLab
+    private BioLabSystem _bioLabSystem = null!;
     // slot: Container
     private CrewSystem _crewSystem = null!;
     // slot: Equipment
@@ -34,7 +34,7 @@ public sealed partial class GameServer : IServerHost
     private void ConstructSystems()
     {
         // slot: AiLines
-        // slot: BioLab
+        _bioLabSystem = new BioLabSystem(this, _content);
         // slot: Container
         _crewSystem = new CrewSystem(this, _repo, _log);
         // slot: Equipment

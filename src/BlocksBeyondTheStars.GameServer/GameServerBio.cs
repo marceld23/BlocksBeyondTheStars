@@ -48,7 +48,7 @@ public sealed partial class GameServer
     private readonly Dictionary<string, double> _bioSampledAt = new(StringComparer.Ordinal); // entity id → uptime it may be sampled again
 
     /// <summary>What one player has found out in the lab. Persisted per player in a named blob.</summary>
-    private sealed class BioResearch
+    internal sealed class BioResearch
     {
         public HashSet<uint> Analysed { get; set; } = new();
         public HashSet<string> Reactions { get; set; } = new(StringComparer.Ordinal);
@@ -437,7 +437,7 @@ public sealed partial class GameServer
     private static string SampleKey(BioSpeciesEntry entry)
         => ItemKey.WithSeed(entry.Kind == BioKind.Mineral ? BioItems.MineralSample : BioItems.Sample, entry.Seed);
 
-    private static int SampleCount(PlayerState p, BioSpeciesEntry entry) => p.SampleCase.CountOf(SampleKey(entry));
+    internal static int SampleCount(PlayerState p, BioSpeciesEntry entry) => p.SampleCase.CountOf(SampleKey(entry));
 
     /// <summary>Puts one sample of a species into the player's sample case. A case that is full (or already holds a full
     /// stack of this species) takes nothing — the harvest itself is never held up by it.</summary>
@@ -470,7 +470,7 @@ public sealed partial class GameServer
         return true;
     }
 
-    private static bool TakeSample(PlayerState p, BioSpeciesEntry entry, int count = 1) => p.SampleCase.Remove(SampleKey(entry), count);
+    internal static bool TakeSample(PlayerState p, BioSpeciesEntry entry, int count = 1) => p.SampleCase.Remove(SampleKey(entry), count);
 
     /// <summary>
     /// #2301: throws a sample kind out of the case — every sample of it, wherever the player stands (the case is part of

@@ -102,6 +102,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   `ICrewHost : IServerHost` (9 shared + 4 crew members). The new `GameServer.Systems.cs` holds the 15 subsystem slots
   and `ConstructSystems()` (the only `GameServer.cs` edit, 7,575 → 7,576); ADR 0019 records the shape. Facade names,
   signatures, callers, reject strings and the 765 `*ForTest` seams are unchanged; 108 crew/alliance/marker tests green.
+- **BioLabSystem (#2897):** the bio lab left the partial `GameServerBioLab.cs` (687 → 92 lines, now one-line facades,
+  `WornKeys` and the 3 `*ForTest` seams) for the new sealed `BioLabSystem.cs` (738), moved verbatim behind
+  `IBioLabHost : IServerHost` (6 shared + 20 lab members, explicit one-liners); five one-word `private` → `internal`
+  widenings (`BioResearch`, `SampleCount`, `TakeSample`, `CabinComfortC`, `BioLabActionArg`). No state, RNG or cache;
+  reject strings, result keys, sounds, hints and tick/dispatch callers unchanged; 308 bio-lab/neighbour tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

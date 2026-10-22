@@ -74,7 +74,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>The <c>biolab:used</c> argument of a bio-lab action.</summary>
-    private static string BioLabActionArg(int action) => action switch
+    internal static string BioLabActionArg(int action) => action switch
     {
         BlocksBeyondTheStars.Networking.Messages.BioLabIntent.Analyse => "analyse",
         BlocksBeyondTheStars.Networking.Messages.BioLabIntent.Mix => "mix",

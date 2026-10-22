@@ -189,7 +189,7 @@ public sealed partial class GameServer
 
     /// <summary>The air of a cabin: aboard the ship, inside its hull, on a station — the same reading a void world (a ship
     /// interior, a station deck) gives.</summary>
-    private const float CabinComfortC = 22f;
+    internal const float CabinComfortC = 22f;
 
     /// <summary>How old the effects' temperature reading may get before they take their own. Longer than
     /// <see cref="TemperatureScanInterval"/> on purpose: where the hazard scan runs it renews the reading every second
