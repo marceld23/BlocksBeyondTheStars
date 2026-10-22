@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.Story;
 using Xunit;
@@ -474,5 +475,145 @@ public sealed class StoryPackValidationTests
         Assert.Equal(5, StoryPackValidator.ShownLength("Hello"));
         Assert.Equal("Press ".Length + 3, StoryPackValidator.ShownLength("Press {key:Interact}"));
         Assert.Equal(10 + " lies here".Length, StoryPackValidator.ShownLength("{0} lies here"));
+    }
+
+    // ---------------- The issue order is stable (B8 refactor guard) ----------------
+    //
+    // The validator is one orchestrator calling one section method per rule group; these three broken packs touch every
+    // section, so they pin which issues come out and in which order (the "missing in English/German" and budget errors are
+    // collected along the way and only reported at the end). The expected lines embed a little live content on purpose:
+    // the legacy stage list, the finale stages, the marker providers, the gate parser's message and the shown length of
+    // "The VEGA Protocol" — a change there updates these lines in its own commit, never together with validator code.
+
+    private static string[] Report(StoryDefinition def, string? raw = null)
+        => StoryPackValidator.Validate(def, Context(), raw).Select(i => i.ToString()).ToArray();
+
+    [Fact]
+    public void ABrokenPlayerPack_ReportsItsIssuesInDocumentOrder()
+    {
+        var def = Side(d =>
+        {
+            d.Beats.Add(new StoryBeat { Index = 1, TextKey = string.Empty });
+            d.LeadBonusMilestones = 40;
+            d.Gates[StoryGateNames.Banter] = "ui:menu_open";
+            d.Gates.HoldHints["look around"] = "step:probe:c1.1";
+            d.Speakers.Add(new StoryNarrator { Id = "core", NameKey = "ui.finale.duel_title", Color = "red" });
+            d.ShortNameKey = "story.vega_protocol.name";
+            d.IntroCutscene = "welcome";
+            d.Chapters[0].OpenCutscene = "open";
+            d.Chapters[0].VisibleIf.Add("world:creatures");
+            d.Chapters[0].Leads.Add(new StoryLead { Type = "research:no_such_blueprint" });
+            Step(d).Requires.Add("blueprint:no_such_blueprint");
+            Step(d).LegacyKey = "vega:stage:mine";
+            Step(d).Alternative = "c9.9";
+            Step(d).OnStart.Reveal = "nearest_whatever";
+            Step(d).HintRefs.Add(" ");
+            Step(d).Explain.StartKey = "story.probe.nowhere";
+            d.Graduation = new StoryGraduation { Counter = "graduated", Suggest = { "c1" } };
+            d.Cutscenes.Add(new CutsceneDefinition { Id = "welcome", Tier = 9 });
+        });
+        string[] expected =
+        {
+            "Error: beats: a player pack carries no beats — it can never be the world story",
+            "Error: beats[0]: index 1 is out of order (expected 0)",
+            "Error: beats[0]: the beat has no textKey",
+            "Error: leadBonusMilestones: 40 is out of range (0–10 milestones per chapter)",
+            "Warning: leadBonusMilestones: leadBonusMilestones, normaliseUnavailableDrivers and memoryTriggers are read for world packs only",
+            "Error: gates.banter: Story condition \"ui:menu_open\": 'ui:' events are client claims and never a condition (at position 0).",
+            "Warning: gates.banter: only a tutorial pack's gates are read",
+            "Error: gates.holdHints.look around: a hint id (the <id> of vega:hint:<id>) without spaces",
+            "Warning: gates.holdHints.look around: only a tutorial pack holds hints back",
+            "Error: speakers[0].color: 'red' is not a #RRGGBB colour",
+            "Error: chapters[0].visibleIf: only an optional chapter can be left out (#2482) — a mandatory one would block the pack",
+            "Error: chapters[0].openCutscene: cutscene 'open' is not defined in the pack's cutscenes.json",
+            "Warning: chapters[0].leads[0]: leads are read for world packs only",
+            "Error: chapters[0].leads[0].type: blueprint 'no_such_blueprint' does not exist",
+            "Error: chapters[0].steps[0].legacyKey: only a tutorial pack may name legacy keys",
+            "Error: chapters[0].steps[0].requires[0]: blueprint 'no_such_blueprint' does not exist",
+            "Error: chapters[0].steps[0].alternative: 'c9.9' is not another step of chapter 'c1'",
+            "Error: chapters[0].steps[0].onStart.reveal: unknown marker provider 'nearest_whatever' (nearest_ore:<block>, nearest_settlement, nearest_food_plant, nearest_station, unique_site:<site>)",
+            "Error: chapters[0].steps[0].hintRefs[0]: an empty hint id",
+            "Error: graduation.counter: 'graduated' is not an achievement counter ('<verb>:<thing>')",
+            "Error: graduation.suggest[0]: 'c1' is not an optional chapter of this pack",
+            "Error: cutscenes[0].tier: unknown tier 9 (1 banner, 2 card, 3 scene, 4 set piece)",
+            "Error: cutscenes[0].shots: a cutscene needs at least one shot",
+            "Error: shortNameKey: 'story.vega_protocol.name' is 17 characters in English (budget 10)",
+            "Error: shortNameKey: 'story.vega_protocol.name' is 18 characters in German (budget 10)",
+            "Error: chapters[0].steps[0].explain.startKey: key 'story.probe.nowhere' is missing in English",
+            "Error: chapters[0].steps[0].explain.startKey: key 'story.probe.nowhere' is missing in German",
+        };
+        Assert.Equal(expected, Report(def));
+    }
+
+    [Fact]
+    public void ABrokenWorldPack_ReportsItsIssuesInDocumentOrder()
+    {
+        var def = Side(d =>
+        {
+            d.Kind = StoryRegistry.KindStory;
+            d.Scope = StoryRegistry.ScopeWorld;
+            d.Beats.Add(new StoryBeat { Index = 0, TextKey = "story.vega.beat00" });
+            d.LeadBonusMilestones = 40;
+            d.Chapters[0].FromBeat = 5;
+            d.Chapters[0].Leads.Add(null!);
+            d.Chapters[0].Missions.Add(new StoryMission { Id = "c1", TitleKey = string.Empty });
+            Step(d).Objective.Event = "ui:menu_open";
+            d.Finale.Cutscenes["epilogue"] = "scene";
+            d.Graduation = new StoryGraduation { Counter = "probe:graduated" };
+        });
+        string[] expected =
+        {
+            "Error: leadBonusMilestones: 40 is out of range (0–10 milestones per chapter)",
+            "Error: finale.cutscenes.epilogue: unknown finale stage 'epilogue' (arrival, descent, breach, duel, standdown, resolution)",
+            "Error: finale.cutscenes.epilogue: cutscene 'scene' is not defined in the pack's cutscenes.json",
+            "Error: chapters[0].fromBeat: beat 5 does not exist (0–0, or -1 for none)",
+            "Error: chapters[0].leads[0]: an empty lead",
+            "Error: chapters[0].steps[0].objective.event: 'ui:' teaching flags exist only in a player pack's step objectives",
+            "Error: chapters[0].missions[0]: mission id 'c1' is empty, not key-safe, used twice or a chapter's id",
+            "Error: chapters[0].missions[0]: the mission has no titleKey",
+            "Error: chapters[0].missions[0].steps: a mission needs at least one step",
+            "Warning: graduation: only a player pack graduates anybody",
+        };
+        Assert.Equal(expected, Report(def));
+    }
+
+    [Fact]
+    public void ABrokenTutorial_ReportsItsIssuesInDocumentOrder()
+    {
+        var def = Side(d =>
+        {
+            d.Kind = StoryRegistry.KindTutorial;
+            d.Beats.Add(new StoryBeat { Index = 0, TextKey = "story.vega.beat00", KnowledgeReward = 5 });
+            d.Gates[StoryGateNames.Banter] = "ui:menu_open";
+            d.Dialogs.Add(new DialogDefinition
+            {
+                Nodes =
+                {
+                    new DialogNode
+                    {
+                        PromptKey = "vega.obj.mine",
+                        Choices = { new DialogChoice { TextKey = "vega.obj.mine", ResponseKey = "vega.obj.mine", Consequence = "gift:iron_plate" } },
+                    },
+                },
+            });
+            Step(d).LegacyKey = "vega:stage:swim";
+            Step(d).Explain.StartKey = "story.probe.nowhere";
+        });
+        string raw = "{\"id\":\"probe\",\"kind\":\"tutorial\",\"chapters\":[{\"id\":\"c1\",\"steps\":[{\"id\":\"c1.1\",\"rewards\":[{\"item\":\"iron_plate\",\"count\":5}]}]}],"
+            + "\"dialogs\":[{\"nodes\":[{\"choices\":[{\"consequence\":\"gift:iron_plate\"}]}]}]}";
+        string[] expected =
+        {
+            "Error: beats: a player pack carries no beats — it can never be the world story",
+            "Error: beats[0]: a tutorial pays no rewards (knowledgeReward)",
+            "Error: gates.banter: Story condition \"ui:menu_open\": 'ui:' events are client claims and never a condition (at position 0).",
+            "Warning: shortNameKey: a player pack without a short name shows \"Objective:\" on the chip",
+            "Error: dialogs[0].nodes[0].choices[0]: a tutorial pays no rewards (gift consequence)",
+            "Error: chapters[0].steps[0].legacyKey: 'vega:stage:swim' is not one of the legacy stages (vega:stage:mine|craft|eat|scan|unlock|launch|dock|trade|land)",
+            "Error: chapters[0].steps[0].explain.startKey: key 'story.probe.nowhere' is missing in English",
+            "Error: chapters[0].steps[0].explain.startKey: key 'story.probe.nowhere' is missing in German",
+            "Error: $.chapters[0].steps[0].rewards: a tutorial pays no rewards",
+            "Error: $.dialogs[0].nodes[0].choices[0].consequence: a tutorial pays no rewards (gift consequence)",
+        };
+        Assert.Equal(expected, Report(def, raw));
     }
 }

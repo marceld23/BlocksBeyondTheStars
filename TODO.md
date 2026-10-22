@@ -65,6 +65,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   `GameContent.Validation.cs` (784), the template pools, kits and picks to the new `StructureCatalog` (352), the craft
   depth to the new `CraftingGraph` (101). 16 structure and 2 craft-depth members pass through with unchanged signatures;
   depths are still computed in the constructor over the same `_recipes.Values`; 531 content/worldgen-golden tests green.
+- **StoryPackValidator split into section validators (#2891):** `StoryPackValidator.cs` (1,429 → 270 lines) keeps
+  the public constants and helpers; `Validate()` (850 → 36 lines) now calls one section method per old `// ----`
+  header in order. Closure state and helpers moved to a private `Run` class, the sections to six partials (`.Run`,
+  `.Pack`, `.Texts`, `.Chapters`, `.Steps`, `.Cutscenes`). Public surface, messages, paths and issue order unchanged:
+  three `*InDocumentOrder` goldens (green on the old code first) pin them; 408 story/cutscene/tutorial tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
