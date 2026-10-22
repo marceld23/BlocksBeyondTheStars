@@ -60,6 +60,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   fallbacks) plus two generic appliers behind the unchanged `ApplyCommandLine`/`ApplyEnvironment` facades. Every switch,
   variable, parse rule, clamp, reported name and warning order is kept, quirks included; `ServerConfigOptionsTests`
   (19 tests) pins them, ~400 config/admin/caller tests green.
+- **GameContent split three ways (#2890):** `GameContent.cs` (1,990 → 861 lines) keeps the registry, block ids,
+  locales and pack setters; `Validate()` with `ValidateLodges`/`ValidateWishes` moved byte-identical to the partial
+  `GameContent.Validation.cs` (784), the template pools, kits and picks to the new `StructureCatalog` (352), the craft
+  depth to the new `CraftingGraph` (101). 16 structure and 2 craft-depth members pass through with unchanged signatures;
+  depths are still computed in the constructor over the same `_recipes.Values`; 531 content/worldgen-golden tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
