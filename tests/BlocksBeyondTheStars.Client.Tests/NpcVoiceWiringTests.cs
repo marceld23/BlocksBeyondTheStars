@@ -79,7 +79,7 @@ public sealed class NpcVoiceWiringTests
     [Fact]
     public void TheHud_CelebratesAchievements_AfterResearch_NotInACutscene()
     {
-        string hud = Script("HudUi.cs");
+        string hud = ClientTestPaths.ScriptPartsText("HudUi"); // HudUi.cs + its widget parts (#2909)
         Assert.Contains("Game.AchievementsUnlocked.Dequeue()", hud);
         Assert.Contains("\"ui.achv.banner\"", hud);
         Assert.Contains("Cue(\"ui_success\"", hud);

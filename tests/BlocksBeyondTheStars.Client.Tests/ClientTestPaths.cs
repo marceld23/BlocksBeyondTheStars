@@ -11,6 +11,31 @@ public static class ClientTestPaths
     /// e.g. the Unity UI layout guards.</summary>
     public static string RepoRoot() => Directory.GetParent(DataDir())!.FullName;
 
+    /// <summary>The text of every file of a client class split into partial files — <c>Scripts/&lt;type&gt;.cs</c> and its
+    /// <c>&lt;type&gt;.*.cs</c> parts (e.g. <c>HudUi.cs</c> + <c>HudUi.Toasts.cs</c>, #2909) — in a stable order, so a source
+    /// guard keeps finding a member whichever part it lives in.</summary>
+    public static IReadOnlyList<string> ScriptParts(string type)
+    {
+        string dir = Path.Combine(RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts");
+        if (!File.Exists(Path.Combine(dir, type + ".cs")))
+        {
+            throw new FileNotFoundException($"{type}.cs not found in {dir} — did the client scripts move?");
+        }
+
+        return Directory.GetFiles(dir, type + "*.cs")
+            .Where(f =>
+            {
+                string name = Path.GetFileName(f);
+                return name == type + ".cs" || (name.StartsWith(type + ".", StringComparison.Ordinal) && name.EndsWith(".cs", StringComparison.Ordinal));
+            })
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .Select(File.ReadAllText)
+            .ToList();
+    }
+
+    /// <summary><see cref="ScriptParts"/> as one text, the parts separated by a line break.</summary>
+    public static string ScriptPartsText(string type) => string.Join("\n", ScriptParts(type));
+
     public static string DataDir()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

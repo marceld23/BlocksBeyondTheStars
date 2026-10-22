@@ -211,6 +211,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   `Combat`, `Eva`, `Structures`, `Docking`, `Scene`, `Entities`, `Hud`, `Models`, `Capture`; largest 930 lines). Pure
   move: the hub diff is deletions only, public surface and member fingerprint identical; Unity build, 264 EditMode +
   6 PlayMode + 2,319 client tests green.
+- **HudUi split into a composer and widget files (#2909):** `HudUi.cs` (4,232 → 698 lines, long methods 12 → 3)
+  keeps the state, `LateUpdate`, `EnsureBuilt`, `Refresh` and the prompt helpers; the widgets moved verbatim to 14
+  partials `HudUi.<Widget>.cs` (`Vitals`, `Hotbar`, `Compass`, `Scan`, `Toasts` …; largest 588 lines), `HudToastPolicy`
+  to its own file. `EnsureBuilt` calls 13 `Build*` steps in the old statement order (same uGUI sibling order), `Refresh`
+  the carved `RefreshVitals` in place; guards read every part; Unity build, 264 EditMode + 2,319 client tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

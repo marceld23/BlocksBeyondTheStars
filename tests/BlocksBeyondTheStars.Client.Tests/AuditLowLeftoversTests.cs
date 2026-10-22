@@ -69,7 +69,7 @@ public sealed class AuditLowLeftoversTests
         Assert.DoesNotContain("Shorten(sb.ToString()", feedback); // the old 1400-character cut is gone
         Assert.Contains("UiTextChunks.Split(", feedback); // unbounded thread text goes through the splitter
 
-        string hud = File.ReadAllText(Scripts("HudUi.cs"));
+        string hud = ClientTestPaths.ScriptPartsText("HudUi"); // HudUi.cs + its widget parts (#2909)
         Assert.Contains("_toast.richText = false", hud); // TMP label since the HUD look pass (#1623): richText is the supportRichText twin
     }
 

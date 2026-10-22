@@ -151,7 +151,7 @@ public sealed class RumbleMixerTests
         Assert.Contains("PadRumble.Trauma(amount)", fx);
         Assert.Contains("PadRumble.WeaponKick(degrees)", fx);
         Assert.Contains("PadRumble.StopAll()", fx);
-        Assert.Contains("PadRumble.Damage(pulse.Trauma)", Script("HudUi.cs"));
+        Assert.Contains("PadRumble.Damage(pulse.Trauma)", ClientTestPaths.ScriptPartsText("HudUi"));
         Assert.Contains("PadRumble.BlockBroken()", Script("MiningFx.cs"));
         Assert.Contains("PadRumble.Landing(", Script("PlayerController.cs"));
         Assert.Contains("rumble: false", Script("PlayerController.cs")); // a jump's landing does not buzz
