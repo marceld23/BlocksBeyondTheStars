@@ -22,7 +22,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const float ShipStationReach = 3f;
+    internal const float ShipStationReach = 3f;
     private const int PadGroundProtectDepth = 9; // pad ground under a parked ship is not mineable
 
     /// <summary>The landed-ship record of the player currently being served (the ship cursor). Each player

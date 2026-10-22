@@ -159,6 +159,12 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   `ContainerSystem.cs` (643): 26 members incl. the three intent adapters, moved verbatim behind `IContainerHost :
   IServerHost` (11 own members; the active store as `ContainerStore`); 0 `private` → `internal` widenings. Reject
   strings, dispatch entries, callers and the cross-world `RefreshOpenCrates` quirk unchanged; 169 crate/loot tests green.
+- **VehicleSystem (#2901):** speeders and boats left the partials `GameServerSpeeders.cs` (1,112 → 266 lines, now
+  the `_speeders` accessor, 2 const + 16 one-line facades and the 14 `*ForTest` seams) and `GameServerBoats.cs` (203 →
+  39) for the new sealed `VehicleSystem.cs` (1,223), moved verbatim behind `IVehicleHost : IServerHost` (19 own
+  members); `ServerSpeeder` is top-level there now, the reconcile scratch lists came along, 1 widening
+  (`ShipStationReach`). Reject/`@srv` keys, ids, send order and the stow-before-reach quirk unchanged; 113
+  speeder/boat/recovery/neighbour tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

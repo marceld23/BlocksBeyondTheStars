@@ -26,7 +26,7 @@ public sealed partial class GameServer : IServerHost
     // ShipExtension: ShipExtensionGeometry is a static class (the glue stays in GameServerShipExtension.cs) — no field.
     private TemperatureSystem _temperatureSystem = null!;
     // slot: Tutorial
-    // slot: Vehicle
+    private VehicleSystem _vehicleSystem = null!;
 
     /// <summary>Builds every extracted subsystem; called once, as the last statement of the constructor. A subsystem's
     /// constructor only stores references — <c>_worlds</c>, <c>_meta</c>, the world and the galaxy are null or change
@@ -47,7 +47,7 @@ public sealed partial class GameServer : IServerHost
         // ShipExtension: ShipExtensionGeometry is static — nothing to build.
         _temperatureSystem = new TemperatureSystem(this, _content);
         // slot: Tutorial
-        // slot: Vehicle
+        _vehicleSystem = new VehicleSystem(this, _content, _repo);
     }
 
     // IServerHost: each member delegates to the server's own member of the same name (never to the interface member,
