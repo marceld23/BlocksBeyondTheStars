@@ -11,6 +11,7 @@
   
   <ItemGroup>
     <InternalsVisibleTo Include="BlocksBeyondTheStars.Tests" />
+    <InternalsVisibleTo Include="BlocksBeyondTheStars.Client.Tests" />
   </ItemGroup>
 
   <PropertyGroup>

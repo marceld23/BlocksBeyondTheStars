@@ -81,6 +81,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   key still yields null/false, so every answer is unchanged; the 68-entry table is untouched. The new
   `FloraCatalogOrderTests` pins the catalog order (persisted identity), host arrays and lookups; 321 flora/golden
   tests green.
+- **Message dispatch through registries (#2894):** the 155-arm `switch` in `GameServer.Dispatch` (`GameServer.cs`
+  7,738 → 7,575 lines) and the 136-arm one in `NetworkClient` (1,481 → 1,328) became exact-type lookups in static
+  `On<T>` tables (new partials `GameServerDispatch.cs`, `NetworkClientDispatch.cs`). Gates, handlers and wire format
+  are untouched; every message is sealed, so the lookup equals the old switch. `IntentDispatchRegistryTests` and
+  `ClientDispatchRegistryTests` pin 155/136 (WeatherForecastRequest stays unhandled); 506 server + 2,317 client green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

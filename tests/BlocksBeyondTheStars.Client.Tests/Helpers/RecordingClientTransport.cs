@@ -42,4 +42,8 @@ public sealed class RecordingClientTransport : IClientTransport
     }
 
     public void Deliver(object message) => PayloadReceived?.Invoke(NetCodec.Encode(message));
+
+    /// <summary>Hands the client raw bytes as they came off the wire — for payloads no message encodes to (an unknown
+    /// tag, an empty packet).</summary>
+    public void DeliverRaw(byte[] payload) => PayloadReceived?.Invoke(payload);
 }

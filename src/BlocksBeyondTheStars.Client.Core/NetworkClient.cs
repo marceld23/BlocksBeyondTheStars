@@ -20,7 +20,7 @@ namespace BlocksBeyondTheStars.Client
     /// Shared's <see cref="Vector3f"/>; the Unity layer adds <c>UnityEngine.Vector3</c> overloads via
     /// <c>NetworkClientUnityExtensions</c> so call-sites stay unchanged.
     /// </summary>
-    public sealed class NetworkClient : IDisposable
+    public sealed partial class NetworkClient : IDisposable
     {
         private readonly IClientTransport _transport;
 
@@ -1311,165 +1311,12 @@ namespace BlocksBeyondTheStars.Client
 
         private void Dispatch(object? message)
         {
-            switch (message)
+            if (message is null || !MessageHandlers.TryGetValue(message.GetType(), out var handler))
             {
-                case JoinAccepted m:
-                    string ours = EffectiveContentFingerprint;
-                    if (ours.Length == 0 || !string.Equals(m.ContentFingerprint, ours, StringComparison.Ordinal))
-                    {
-                        RefuseMismatchedServer(); // #2222: missing or different — never draw a world with the wrong palette
-                        break;
-                    }
-
-                    _joined = true;
-                    AdoptWorld(m.WorldId);
-                    ResyncHotbarSlot(); // #2525: the server restored the slot saved at the quit; the hand on screen wins
-                    JoinAccepted?.Invoke(m);
-                    ReplayHeldBeforeJoin();
-                    break;
-                case JoinRejected m: JoinRejected?.Invoke(m); break;
-                case ChunkDataMessage m: if (AcceptWorldStream(m.WorldId, m)) { ChunkReceived?.Invoke(m); } break;
-                case BlockChanged m: if (AcceptWorldStream(m.WorldId, m)) { BlockChanged?.Invoke(m); } break;
-                case FarTerrainWorldInfo m: FarTerrainWorldInfoReceived?.Invoke(m); break; // #1820
-                case FarTerrainTile m: // #1821: another world's tile is simply dropped — the far view re-asks per world
-                    if (m.WorldId == 0 || m.WorldId == CurrentWorldId) { FarTerrainTileReceived?.Invoke(m); }
-                    break;
-                case InventoryUpdate m: InventoryUpdated?.Invoke(m); break;
-                case PlayerStateUpdate m: PlayerStateUpdated?.Invoke(m); break;
-                case CraftResult m: CraftCompleted?.Invoke(m); break;
-                case ActionRejected m: ActionRejected?.Invoke(m); break;
-                case ServerMessage m: ServerMessageReceived?.Invoke(m); break;
-                case MaintenanceNotice m: MaintenanceNoticeReceived?.Invoke(m); break;
-                case DockRequestNotice m: DockRequested?.Invoke(m); break;
-                case TradeRequestNotice m: TradeRequested?.Invoke(m); break;
-                case DockStatus m: DockStatusChanged?.Invoke(m); break;
-                case ShipCombatStatus m: ShipCombatStatusChanged?.Invoke(m); break;
-                case SpaceState m: SpaceStateReceived?.Invoke(m); break;
-                case SpaceShipDesign m: SpaceShipDesignReceived?.Invoke(m); break;
-                case StructureBlockChanged m: StructureBlockChangedReceived?.Invoke(m); break;
-                case StructureMiningProgress m: StructureMiningProgressReceived?.Invoke(m); break;
-                case LandedShipState m: LandedShipReceived?.Invoke(m); break;
-                case SpaceEntityDestroyed m: SpaceEntityDestroyed?.Invoke(m); break;
-                case SpaceClosed m: SpaceClosed?.Invoke(m); break;
-                case SpaceWarpFx m: SpaceWarpReceived?.Invoke(m); break;
-                case StationBoarded m: StationBoardedReceived?.Invoke(m); break;
-                case PlanetEnemyList m: PlanetEnemiesReceived?.Invoke(m); break;
-                case PlanetEnemyDefeated m: PlanetEnemyDefeated?.Invoke(m); break;
-                case SentryShot m: SentryShotReceived?.Invoke(m); break;
-                case CreatureList m: CreaturesReceived?.Invoke(m); break;
-                case CreatureMotionFrame m: CreatureMotionReceived?.Invoke(m); break;
-                case WorldFx m: WorldFxReceived?.Invoke(m); break;
-                case ActionFx m: ActionFxReceived?.Invoke(m); break;                     // #2158
-                case CreatureDefeated m: CreatureDefeatedReceived?.Invoke(m); break;     // #2154
-                case ContainerList m: ContainersReceived?.Invoke(m); break;
-                case ContainerContents m: ContainerContentsReceived?.Invoke(m); break; // #2436
-                case DropPacketList m: DropPacketsReceived?.Invoke(m); break;
-                case ShipPlacement m: ShipPlacementReceived?.Invoke(m); break;
-                case ShipStations m: ShipStationsReceived?.Invoke(m); break;
-                case StationsInReach m: StationsInReachReceived?.Invoke(m); break;
-                case StationLocation m: StationLocationReceived?.Invoke(m); break;
-                case PlanetPoiList m: PlanetPoisReceived?.Invoke(m); break;
-                case BeaconList m: BeaconsReceived?.Invoke(m); break;
-                case BeamList m: BeamsReceived?.Invoke(m); break;
-                case CrystalNetList m: CrystalNetsReceived?.Invoke(m); break;
-                case CrystalDeviceList m: CrystalDevicesReceived?.Invoke(m); break;
-                case CrystalDeviceDelta m: CrystalDeviceDeltaReceived?.Invoke(m); break;
-                case LiftList m: LiftsReceived?.Invoke(m); break;
-                case SoundFx m: SoundFxReceived?.Invoke(m); break;
-                case BioBook m: BioBookReceived?.Invoke(m); break;
-                case BioLabResult m: BioLabResultReceived?.Invoke(m); break;
-                case BeamTeleported m: BeamTeleportedReceived?.Invoke(m); break;
-                case BeamFx m: BeamFxReceived?.Invoke(m); break;
-                case BaseList m: BasesReceived?.Invoke(m); break;
-                case LandingPadList m: LandingPadsReceived?.Invoke(m); break;
-                case SystemWeather m: SystemWeatherReceived?.Invoke(m); break;
-                case ShipTransitFx m: ShipTransitReceived?.Invoke(m); break;
-                case ChatMessage m: ChatReceived?.Invoke(m); break;
-                case VoiceFrame m: VoiceReceived?.Invoke(m); break;
-                case StarMapData m: StarMapReceived?.Invoke(m); break;
-                case MissionList m: MissionsReceived?.Invoke(m); break;
-                case MissionResult m: MissionResultReceived?.Invoke(m); break;
-                case RespawnNotice m: RespawnNoticeReceived?.Invoke(m); break;
-                case RespawnOptions m: RespawnOptionsReceived?.Invoke(m); break;
-                case PauseState m: PauseStateReceived?.Invoke(m); break;
-                case ServerRules m: ServerRulesReceived?.Invoke(m); break;
-                case PlayerPresence m: PlayerPresenceReceived?.Invoke(m); break;
-                case PlayerLeft m: PlayerLeftReceived?.Invoke(m); break;
-                case PlayerFace m: PlayerFaceReceived?.Invoke(m); break;
-                case PlayerBodyPaint m: PlayerBodyPaintReceived?.Invoke(m); break;
-                case PlayerToolLook m: PlayerToolLookReceived?.Invoke(m); break;
-                case PaintDesignData m: PaintDesignReceived?.Invoke(m); break;
-                case PaintDesignList m: PaintDesignListReceived?.Invoke(m); break;
-                case CustomShapeData m: CustomShapeReceived?.Invoke(m); break;
-                case CustomShapeList m: CustomShapeListReceived?.Invoke(m); break;
-                case WorldTextureData m: WorldTextureReceived?.Invoke(m); break;
-                case WorldTextureList m: WorldTextureListReceived?.Invoke(m); break;
-                case OwnedShips m: OwnedShipsReceived?.Invoke(m); break;
-                case WorldEnvironment m: WorldEnvironmentReceived?.Invoke(m); break;
-                case WorldReset m:
-                    AdoptWorld(m.WorldId);
-                    ResyncHotbarSlot(); // #2525: a world change may load another saved slot — keep the one on screen
-                    WorldResetReceived?.Invoke(m);
-                    ReplayFutureWorld();
-                    break;
-                case NpcList m: NpcsReceived?.Invoke(m); break;
-                case DoorList m: DoorsReceived?.Invoke(m); break;
-                case DataCubeList m: DataCubesReceived?.Invoke(m); break;
-                case FactoryList m: FactoriesReceived?.Invoke(m); break;
-                case GameUnlocks m: GameUnlocksReceived?.Invoke(m); break;
-                case MiningProgress m: MiningProgressReceived?.Invoke(m); break;
-                case FloraRegrowStarted m: FloraRegrowStartedReceived?.Invoke(m); break;
-                case ScanResult m: ScanResultReceived?.Invoke(m); break;
-                case WreckRepairStatus m: WreckRepairStatusChanged?.Invoke(m); break;
-                case ShipRepairStatus m: ShipRepairStatusChanged?.Invoke(m); break;
-                case TradeUpdate m: TradeUpdated?.Invoke(m); break;
-                case TradeClosed m: TradeClosedReceived?.Invoke(m); break;
-                case NpcGreeting m: NpcGreetingReceived?.Invoke(m); break;
-                case ShipAiLine m: ShipAiLineReceived?.Invoke(m); break;
-                case VegaJournal m: VegaJournalReceived?.Invoke(m); break;
-                case OreScanResult m: OreScanReceived?.Invoke(m); break;
-                case PlanetScanResult m: PlanetScanReceived?.Invoke(m); break;
-                case WeatherForecast m: WeatherForecastReceived?.Invoke(m); break;
-                case DiscoveryLog m: DiscoveryLogReceived?.Invoke(m); break;
-                case AchievementList m: AchievementsReceived?.Invoke(m); break;
-                case AchievementUnlocked m: AchievementUnlockedReceived?.Invoke(m); break;
-                case AchievementRewardDeferred m: AchievementRewardDeferredReceived?.Invoke(m); break;
-                case AllianceList m: AllianceListReceived?.Invoke(m); break;
-                case AllianceRequestNotice m: AllianceRequestReceived?.Invoke(m); break;
-                case TameProgress m: TameProgressReceived?.Invoke(m); break;
-                case TameResult m: TameResultReceived?.Invoke(m); break;
-                case CompanionList m: CompanionsReceived?.Invoke(m); break;
-                case SpeederList m: SpeedersReceived?.Invoke(m); break;
-                case SpeederFx m: SpeederFxReceived?.Invoke(m); break;
-                case RailList m: RailsReceived?.Invoke(m); break;   // #2113
-                case TrainList m: TrainsReceived?.Invoke(m); break; // #2113
-                case CrewList m: CrewListReceived?.Invoke(m); break;
-                case CrewInviteNotice m: CrewInviteReceived?.Invoke(m); break;
-                case MarkerList m: MarkerListReceived?.Invoke(m); break;
-                case NoteList m: NoteListReceived?.Invoke(m); break;
-                case StoryStateMessage m: StoryStateReceived?.Invoke(m); break;
-                case NetFragmentList m: NetFragmentsReceived?.Invoke(m); break;
-                case NetFragmentRevealed m: NetFragmentRevealedReceived?.Invoke(m); break;
-                case PlayerMemoryRevealed m: PlayerMemoryReceived?.Invoke(m); break;
-                case LoreTextRevealed m: LoreTextRevealedReceived?.Invoke(m); break;
-                case ExploredMapData m: ExploredMapReceived?.Invoke(m); break;
-                case BuildCodeResult m: BuildCodeReceived?.Invoke(m); break;
-                case BuildPasteResult m: BuildPasteResultReceived?.Invoke(m); break;
-                case NpcStandingList m: NpcStandingsReceived?.Invoke(m); break;
-                case KnownNpcList m: KnownNpcsReceived?.Invoke(m); break;
-                case BaseResidentList m: BaseResidentsReceived?.Invoke(m); break;
-                case GuardianSystemRevealed m: GuardianSystemRevealedReceived?.Invoke(m); break;
-                case CoreHackProgress m: CoreHackProgressReceived?.Invoke(m); break;
-                case CoreDialogueMessage m: CoreDialogueReceived?.Invoke(m); break;
-                case StoryResolved m: StoryResolvedReceived?.Invoke(m); break;
-                case CutscenePlay m: CutscenePlayReceived?.Invoke(m); break;
-                case ObjectiveList m: ObjectiveListReceived?.Invoke(m); break;
-                case StoryPackStates m: StoryPackStatesReceived?.Invoke(m); break;
-                case RelayNetworkState m: RelayNetworkReceived?.Invoke(m); break;
-                case NpcDialogState m: NpcDialogReceived?.Invoke(m); break;
-                case BanditDemand m: BanditDemandReceived?.Invoke(m); break;
-                case BanditEncounterResult m: BanditResultReceived?.Invoke(m); break;
+                return; // an unknown tag decodes to null and a type without an entry is ignored — as the switch did
             }
+
+            handler(this, message);
         }
 
         public void Dispose()
