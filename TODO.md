@@ -216,6 +216,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   partials `HudUi.<Widget>.cs` (`Vitals`, `Hotbar`, `Compass`, `Scan`, `Toasts` …; largest 588 lines), `HudToastPolicy`
   to its own file. `EnsureBuilt` calls 13 `Build*` steps in the old statement order (same uGUI sibling order), `Refresh`
   the carved `RefreshVitals` in place; guards read every part; Unity build, 264 EditMode + 2,319 client tests green.
+- **Main menu built by one method per screen (#2910):** `UiMainMenu.Build` (1,926 → 24 lines; file 1,957 → 566, long
+  methods 1 → 0) runs a private `Builder` whose 12 `Build*` methods keep the old draw order; the 1,430-line
+  Official-worlds overlay moved verbatim (renames only) to the native-only partial `UiOfficialWorlds` (4 files, 47
+  methods, largest 685 lines). The new `MainMenuHierarchyEditModeTests` golden, baked from the old code, is byte-identical;
+  keys and `Add*` calls unchanged; Unity + WebGL builds, 274 EditMode + 2,319 client tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

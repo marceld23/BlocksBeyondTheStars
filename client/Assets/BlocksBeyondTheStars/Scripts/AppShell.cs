@@ -32,6 +32,10 @@ namespace BlocksBeyondTheStars.Client
 
         public ShellPhase Phase { get; private set; } = ShellPhase.Studio; // studio splash → title splash → menu
         public ClientSettings Settings { get; private set; }
+
+        /// <summary>EditMode-test seam: an AppShell that never ran Awake has no settings; the menu builders read them. Never called by game code.</summary>
+        public void SetSettingsForTest(ClientSettings settings) => Settings = settings;
+
         public GameContent Content { get; private set; }
 
         /// <summary>The data directory <see cref="Content"/> was parsed from — GameBootstrap reuses the

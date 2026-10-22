@@ -1,0 +1,128 @@
+MainMenuUI active=True comps=RectTransform,Canvas,CanvasScaler,GraphicRaycaster,UiNavFocus
+  HoloPanel active=True comps=RectTransform,CanvasRenderer,Image,Shape pos=(40.00, -40.00) size=(280.00, 220.00) color=0D1F3DFF
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(60.00, -54.00) size=(250.00, 22.00) color=66D1FFFF font=16 text="ui.menu.system_check"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(72.00, -92.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.engines"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(250.00, -92.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(72.00, -122.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.shields"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(250.00, -122.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(72.00, -152.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.life_support"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(250.00, -152.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(72.00, -182.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.comms"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(250.00, -182.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(72.00, -212.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.navigation"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(250.00, -212.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(356.00, -70.00) size=(1200.00, 96.00) color=4CBFFF59 font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(364.00, -70.00) size=(1200.00, 96.00) color=4CBFFF59 font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(367.00, -77.00) size=(1200.00, 96.00) color=0F0F14FF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(366.00, -76.00) size=(1200.00, 96.00) color=0F151FFF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(365.00, -75.00) size=(1200.00, 96.00) color=0F1B2AFF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(364.00, -74.00) size=(1200.00, 96.00) color=0F2135FF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(363.00, -73.00) size=(1200.00, 96.00) color=0F2740FF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(362.00, -72.00) size=(1200.00, 96.00) color=0F2C4BFF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(361.00, -71.00) size=(1200.00, 96.00) color=0F3256FF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(360.00, -70.00) size=(1200.00, 96.00) color=EDF7FFFF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(1700.00, -44.00) size=(180.00, 24.00) color=4C8CB8FF font=16 text="VER. <ver>"
+  HoloPanel active=True comps=RectTransform,CanvasRenderer,Image,Shape pos=(90.00, -312.00) size=(440.00, 100.00) color=1F739EFF
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(106.00, -322.00) size=(408.00, 24.00) color=66D1FFFF font=17 text="ui.menu.connect_name"
+  Input active=True comps=RectTransform,CanvasRenderer,Image,InputField,PadTextEntryBridge,InputFocusGuard pos=(106.00, -352.00) size=(408.00, 46.00) color=0B1A33F2 limit=24 content=Standard
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(388.00, 46.00) color=DBEDFFFF font=18 text=""
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(388.00, 46.00) color=8C9EB8FF font=18 text=""
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(90.00, -402.00) size=(440.00, 22.00) color=FF8C66FF font=14 text=""
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(90.00, -434.00) size=(440.00, 54.00) color=FFFFFFFF
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(412.00, 54.00) color=DBEDFFFF font=22 text="ui.menu.singleplayer"
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(90.00, -496.00) size=(440.00, 54.00) color=FFFFFFFF
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(412.00, 54.00) color=DBEDFFFF font=22 text="ui.menu.host"
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(90.00, -558.00) size=(440.00, 54.00) color=FFFFFFFF
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(412.00, 54.00) color=DBEDFFFF font=22 text="ui.menu.join"
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(90.00, -620.00) size=(440.00, 54.00) color=FFFFFFFF
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(412.00, 54.00) color=DBEDFFFF font=22 text="ui.menu.official"
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(90.00, -682.00) size=(440.00, 54.00) color=FFFFFFFF
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(412.00, 54.00) color=DBEDFFFF font=22 text="ui.menu.editors"
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(90.00, -744.00) size=(440.00, 54.00) color=FFFFFFFF
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(412.00, 54.00) color=DBEDFFFF font=22 text="ui.menu.settings"
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(90.00, -806.00) size=(440.00, 54.00) color=FFFFFFFF
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(412.00, 54.00) color=DBEDFFFF font=22 text="ui.menu.credits"
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(90.00, -868.00) size=(440.00, 54.00) color=FFFFFFFF
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(412.00, 54.00) color=DBEDFFFF font=22 text="ui.menu.quit"
+  HoloPanel active=True comps=RectTransform,CanvasRenderer,Image,Shape pos=(1290.00, -672.00) size=(590.00, 250.00) color=0D1F3DFF
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(1314.00, -688.00) size=(540.00, 24.00) color=66D1FFFF font=16 text="ui.menu.world_info"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(1356.00, -728.00) size=(500.00, 22.00) color=DBEDFFFF font=17 text="ui.info.mode_title"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(1356.00, -752.00) size=(500.00, 22.00) color=4C8CB8FF font=14 text="ui.info.mode_desc"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(1356.00, -792.00) size=(500.00, 22.00) color=DBEDFFFF font=17 text="ui.info.mp_title"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(1356.00, -816.00) size=(500.00, 22.00) color=4C8CB8FF font=14 text="ui.info.mp_desc"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(1356.00, -856.00) size=(500.00, 22.00) color=DBEDFFFF font=17 text="ui.info.proc_title"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(1356.00, -880.00) size=(500.00, 22.00) color=4C8CB8FF font=14 text="ui.info.proc_desc"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(90.00, -1030.00) size=(500.00, 26.00) color=4C8CB8FF font=16 text="ui.menu.community"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(660.00, -1030.00) size=(600.00, 26.00) color=66D1FFFF font=18 text="ui.splash.tagline"
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(1290.00, -1018.00) size=(285.00, 48.00) color=FFFFFFFF
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(257.00, 48.00) color=DBEDFFFF font=22 text="ui.menu.whatsnew"
+  Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(1595.00, -1018.00) size=(285.00, 48.00) color=FFFFFFFF
+    Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(257.00, 48.00) color=DBEDFFFF font=22 text="ui.menu.contribute"
+  Image active=False comps=RectTransform,CanvasRenderer,Image pos=(0.00, 0.00) size=(1920.00, 1080.00) color=000000C7
+    DialogPanel active=True comps=RectTransform,CanvasRenderer,Image pos=(660.00, -280.00) size=(600.00, 520.00) color=FFFFFFFF
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -24.00) size=(540.00, 30.00) color=66D1FFFF font=22 text="ui.menu.connect_title"
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -80.00) size=(540.00, 22.00) color=DBEDFFFF font=15 text="ui.menu.connect_name"
+      Input active=True comps=RectTransform,CanvasRenderer,Image,InputField,PadTextEntryBridge,InputFocusGuard pos=(30.00, -106.00) size=(540.00, 38.00) color=0B1A33F2 limit=24 content=Standard
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(520.00, 38.00) color=DBEDFFFF font=18 text=""
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(520.00, 38.00) color=8C9EB8FF font=18 text=""
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -160.00) size=(540.00, 22.00) color=DBEDFFFF font=15 text="ui.menu.connect_host"
+      Input active=True comps=RectTransform,CanvasRenderer,Image,InputField,PadTextEntryBridge,InputFocusGuard pos=(30.00, -186.00) size=(540.00, 38.00) color=0B1A33F2 limit=0 content=Standard
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(520.00, 38.00) color=DBEDFFFF font=18 text="127.0.0.1"
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(520.00, 38.00) color=8C9EB8FF font=18 text=""
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -240.00) size=(540.00, 22.00) color=DBEDFFFF font=15 text="ui.menu.connect_port"
+      Input active=True comps=RectTransform,CanvasRenderer,Image,InputField,PadTextEntryBridge,InputFocusGuard pos=(30.00, -266.00) size=(260.00, 38.00) color=0B1A33F2 limit=0 content=Standard
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(240.00, 38.00) color=DBEDFFFF font=18 text="31550"
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(240.00, 38.00) color=8C9EB8FF font=18 text=""
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(306.00, -258.00) size=(264.00, 54.00) color=4C8CB8FF font=13 text="ui.menu.connect_port_hint"
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -320.00) size=(540.00, 22.00) color=DBEDFFFF font=15 text="ui.menu.connect_password"
+      Input active=True comps=RectTransform,CanvasRenderer,Image,InputField,PadTextEntryBridge,InputFocusGuard pos=(30.00, -346.00) size=(540.00, 38.00) color=0B1A33F2 limit=0 content=Password
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(520.00, 38.00) color=DBEDFFFF font=18 text=""
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(520.00, 38.00) color=8C9EB8FF font=18 text=""
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -396.00) size=(540.00, 22.00) color=FF8C66FF font=14 text=""
+      Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(30.00, -432.00) size=(270.00, 54.00) color=FFFFFFFF
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(242.00, 54.00) color=DBEDFFFF font=22 text="ui.menu.connect"
+      Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(310.00, -432.00) size=(260.00, 54.00) color=FFFFFFFF
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(232.00, 54.00) color=DBEDFFFF font=22 text="ui.menu.back"
+  Image active=False comps=RectTransform,CanvasRenderer,Image pos=(0.00, 0.00) size=(1920.00, 1080.00) color=000000C7
+    DialogPanel active=True comps=RectTransform,CanvasRenderer,Image pos=(410.00, -180.00) size=(1100.00, 720.00) color=FFFFFFFF
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -24.00) size=(1040.00, 30.00) color=66D1FFFF font=22 text="ui.portal.title"
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -58.00) size=(1040.00, 40.00) color=FFB859FF font=13 text="ui.portal.beta"
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -100.00) size=(820.00, 44.00) color=4C8CB8FF font=13 text="ui.portal.rules_line"
+      Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(874.00, -98.00) size=(195.00, 44.00) color=FFFFFFFF
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(167.00, 44.00) color=DBEDFFFF font=22 text="ui.portal.view_rules"
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(66.00, -592.00) size=(1004.00, 48.00) color=FF8C66FF font=14 text=""
+      Spinner active=True comps=RectTransform,CanvasRenderer,Image,SpinnerRotate pos=(45.00, -603.00) size=(26.00, 26.00) color=FFFFFFFF
+      Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(415.00, -648.00) size=(270.00, 54.00) color=FFFFFFFF
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(242.00, 54.00) color=DBEDFFFF font=22 text="ui.menu.back"
+      Panel active=True comps=RectTransform,CanvasRenderer,Image pos=(0.00, -150.00) size=(1100.00, 440.00) color=00000000
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -18.00) size=(1040.00, 48.00) color=66D1FFFF font=14 text="ui.portal.intro"
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -76.00) size=(1040.00, 22.00) color=DBEDFFFF font=15 text="ui.portal.login_name"
+        Input active=True comps=RectTransform,CanvasRenderer,Image,InputField,PadTextEntryBridge,InputFocusGuard pos=(30.00, -102.00) size=(1040.00, 38.00) color=0B1A33F2 limit=0 content=Standard
+          Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(1020.00, 38.00) color=DBEDFFFF font=18 text=""
+          Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(1020.00, 38.00) color=8C9EB8FF font=18 text=""
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -156.00) size=(1040.00, 22.00) color=DBEDFFFF font=15 text="ui.portal.login_password"
+        Input active=True comps=RectTransform,CanvasRenderer,Image,InputField,PadTextEntryBridge,InputFocusGuard pos=(30.00, -182.00) size=(1040.00, 38.00) color=0B1A33F2 limit=0 content=Password
+          Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(1020.00, 38.00) color=DBEDFFFF font=18 text=""
+          Text active=True comps=RectTransform,CanvasRenderer,Text pos=(10.00, 0.00) size=(1020.00, 38.00) color=8C9EB8FF font=18 text=""
+        Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(30.00, -240.00) size=(320.00, 54.00) color=FFFFFFFF
+          Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(292.00, 54.00) color=DBEDFFFF font=22 text="ui.portal.login"
+        Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(370.00, -240.00) size=(320.00, 54.00) color=FFFFFFFF
+          Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(292.00, 54.00) color=DBEDFFFF font=22 text="ui.portal.signup"
+        Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(710.00, -240.00) size=(320.00, 54.00) color=FFFFFFFF
+          Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(292.00, 54.00) color=DBEDFFFF font=22 text="ui.portal.forgot"
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -316.00) size=(1040.00, 44.00) color=4C8CB8FF font=14 text="ui.portal.signup_here"
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(30.00, -366.00) size=(1040.00, 24.00) color=66D1FFFF font=15 text="https://play.blocksbeyondthestars.de"
+  Image active=False comps=RectTransform,CanvasRenderer,Image pos=(0.00, 0.00) size=(1920.00, 1080.00) color=000000C7
+    DialogPanel active=True comps=RectTransform,CanvasRenderer,Image pos=(560.00, -250.00) size=(800.00, 580.00) color=FFFFFFFF
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(40.00, -26.00) size=(720.00, 36.00) color=66D1FFFF font=26 text="ui.contribute.title"
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(40.00, -82.00) size=(720.00, 44.00) color=DBEDFFFF font=18 text="ui.contribute.intro"
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(40.00, -138.00) size=(720.00, 70.00) color=59F28CFF font=17 text="1.  ui.contribute.feedback"
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(40.00, -212.00) size=(720.00, 50.00) color=DBEDFFFF font=17 text="2.  ui.contribute.play"
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(40.00, -266.00) size=(720.00, 70.00) color=DBEDFFFF font=17 text="3.  ui.contribute.bugs"
+      Text active=True comps=RectTransform,CanvasRenderer,Text pos=(40.00, -340.00) size=(720.00, 50.00) color=DBEDFFFF font=17 text="4.  ui.contribute.dev"
+      Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(60.00, -414.00) size=(380.00, 46.00) color=FFFFFFFF
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(352.00, 46.00) color=DBEDFFFF font=22 text="ui.contribute.github"
+      Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(460.00, -414.00) size=(280.00, 46.00) color=FFFFFFFF
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(252.00, 46.00) color=DBEDFFFF font=22 text="ui.contribute.website"
+      Button active=True comps=RectTransform,CanvasRenderer,Image,Button,UiHover pos=(270.00, -500.00) size=(260.00, 52.00) color=FFFFFFFF
+        Text active=True comps=RectTransform,CanvasRenderer,Text pos=(18.00, 0.00) size=(232.00, 52.00) color=DBEDFFFF font=22 text="ui.menu.back"

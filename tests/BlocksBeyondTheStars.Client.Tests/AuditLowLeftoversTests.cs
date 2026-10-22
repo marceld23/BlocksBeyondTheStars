@@ -48,9 +48,11 @@ public sealed class AuditLowLeftoversTests
         // edits the player's name must cap at the same, or the stored PlayerName differs from the real id.
         Assert.Equal(24, Protocol.MaxPlayerNameLength);
 
-        string src = File.ReadAllText(Scripts("UiMainMenu.cs"));
-        var nameFields = Regex.Matches(src, @"AddInput\([^;]*?\b(?:webName|natName|name|nm)\[0\] = v", RegexOptions.ExplicitCapture, System.TimeSpan.FromSeconds(5));
-        Assert.True(nameFields.Count >= 5, $"expected the name fields (menu, prompt, connect dialog, reserved-name prompt), found {nameFields.Count}");
+        // The menu and its Official-worlds overlay (#2910): UiMainMenu.cs + UiOfficialWorlds.cs and their parts. The menu
+        // names are string fields there (_webName/_natName), the dialog names one-element boxes (name[0], nm[0]).
+        string src = ClientTestPaths.ScriptPartsText("UiMainMenu") + "\n" + ClientTestPaths.ScriptPartsText("UiOfficialWorlds");
+        var nameFields = Regex.Matches(src, @"AddInput\([^;]*?\b_?(?:webName|natName|name|nm)(?:\[0\])? = v", RegexOptions.ExplicitCapture, System.TimeSpan.FromSeconds(5));
+        Assert.True(nameFields.Count >= 5, $"expected the name fields (menu, prompt, connect dialog, reserved-name prompt) in UiMainMenu*.cs + UiOfficialWorlds*.cs, found {nameFields.Count}");
         foreach (Match m in nameFields)
         {
             // The cap must sit in the same AddInput call — i.e. before the next UiKit builder call.
