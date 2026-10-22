@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Text.Json;
 using BlocksBeyondTheStars.Shared.Notifications;
+using BlocksBeyondTheStars.Shared.Security;
 
 namespace BlocksBeyondTheStars.ReportHost;
 

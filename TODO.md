@@ -49,6 +49,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   first refusal sends the one `ActionRejected` "place", then the flora VEGA hint), payment, then eight effect steps in
   the old order. Rule order, all 24 reject strings, message and side-effect order are unchanged; the five shape/bed/
   ladder helpers moved byte-identical. `PlacementRuleOrderTests` pins the order; ~1,060 placement tests green.
+- **One BasicAuth for both hosts (#2888):** WorldHost and ReportHost each had an identical 65-line `BasicAuth.cs`;
+  now one class in `Shared/Security/BasicAuth.cs` (ReportHost copy moved with history, WorldHost copy deleted; 2 → 1).
+  The `IsAuthorized`/`TokenEquals` bodies are byte-identical (still `CryptographicOperations.FixedTimeEquals`, which
+  netstandard2.1 has); the 31 call sites are unchanged, four files gained one `using`. The stale "no FixedTimeEquals on
+  netstandard2.1/Unity" comments in `SecretCompare`/`HostedJoinToken` are corrected; 100 host/hardening tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

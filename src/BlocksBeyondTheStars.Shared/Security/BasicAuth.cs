@@ -4,13 +4,15 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace BlocksBeyondTheStars.ReportHost;
+namespace BlocksBeyondTheStars.Shared.Security;
 
 /// <summary>
-/// Checks an HTTP <c>Authorization: Basic …</c> header against the configured admin credentials. App-level
-/// (rather than delegated to a reverse proxy) so the admin UI is protected even when someone runs the
-/// container bare on a LAN. Comparison is fixed-time, and empty configured credentials never match — the
-/// admin surface is OFF until the operator sets both user and password.
+/// Checks an HTTP <c>Authorization: Basic …</c> header against configured admin credentials — the app-level
+/// admin gate shared by the WorldHost fleet admin UI and the ReportHost inbox admin UI (browsers can't send
+/// the <c>X-Admin-Token</c> / key headers the script APIs use). App-level rather than delegated to a reverse
+/// proxy, so the admin surface stays protected even when a container runs bare on a LAN. Comparison is
+/// fixed-time, and empty configured credentials never match — the admin surface is OFF until the operator
+/// sets both user and password.
 /// </summary>
 public static class BasicAuth
 {
@@ -18,7 +20,7 @@ public static class BasicAuth
     {
         if (string.IsNullOrEmpty(user) || string.IsNullOrEmpty(password))
         {
-            return false; // admin disabled by config
+            return false; // admin surface disabled by config
         }
 
         const string prefix = "Basic ";

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using BlocksBeyondTheStars.ReportHost;
+using BlocksBeyondTheStars.Shared.Security;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Tests;

@@ -117,7 +117,8 @@ public static class HostedJoinToken
     }
 
     /// <summary>Length-then-XOR-accumulate comparison so signature checks don't leak a match prefix through
-    /// timing. netstandard2.1 (Unity profile) has no CryptographicOperations.FixedTimeEquals.</summary>
+    /// timing (same loop as <see cref="SecretCompare"/>; <c>CryptographicOperations.FixedTimeEquals</c> is available on
+    /// netstandard2.1 — see <see cref="BasicAuth"/> — folding the copies together is a separate cleanup).</summary>
     private static bool FixedTimeEquals(string a, string b)
     {
         if (a.Length != b.Length)

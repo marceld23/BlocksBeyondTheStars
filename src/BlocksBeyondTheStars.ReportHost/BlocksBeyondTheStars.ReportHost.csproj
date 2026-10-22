@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
-    <!-- Only for the shared AdminNotifier (#938); the inbox stays deployable on its own. -->
+    <!-- Only for the shared AdminNotifier (#938) and the shared BasicAuth admin gate; the inbox stays deployable on its own. -->
     <ProjectReference Include="..\BlocksBeyondTheStars.Shared\BlocksBeyondTheStars.Shared.csproj" />
   </ItemGroup>
 

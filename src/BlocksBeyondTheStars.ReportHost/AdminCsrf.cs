@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Security.Cryptography;
+using BlocksBeyondTheStars.Shared.Security;
 
 namespace BlocksBeyondTheStars.ReportHost;
 

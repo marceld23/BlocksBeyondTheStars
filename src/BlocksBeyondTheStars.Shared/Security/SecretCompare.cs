@@ -5,8 +5,9 @@ namespace BlocksBeyondTheStars.Shared.Security;
 
 /// <summary>
 /// Fixed-time secret comparison for protocol-level checks (#424 S14). Length-then-XOR-accumulate like
-/// <see cref="HostedJoinToken"/>'s signature check — netstandard2.1 (Unity profile) has no
-/// <c>CryptographicOperations.FixedTimeEquals</c>, so this hand-rolled variant is shared instead.
+/// <see cref="HostedJoinToken"/>'s signature check. (Written when the Unity profile was believed to lack
+/// <c>CryptographicOperations.FixedTimeEquals</c>; netstandard2.1 and Unity 6000.6 do ship it — <see cref="BasicAuth"/>
+/// uses it — the hand-rolled loop is kept unchanged here; folding the copies together is a separate cleanup.)
 /// A length mismatch still returns early: secret length is far less sensitive than a byte-by-byte
 /// match prefix, and padding to a fixed width would change no caller's behavior.
 /// </summary>

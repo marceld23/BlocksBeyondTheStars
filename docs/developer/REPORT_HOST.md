@@ -278,7 +278,7 @@ names.
 | Payload parsing/validation | `src/BlocksBeyondTheStars.ReportHost/ReportIngest.cs` |
 | SQLite + screenshot store | `src/BlocksBeyondTheStars.ReportHost/ReportStore.cs` |
 | Admin pages (server-rendered) | `src/BlocksBeyondTheStars.ReportHost/ReportHostPages.cs` |
-| Rate limiter / Basic Auth / admin CSRF token | `IngestRateLimiter.cs` / `BasicAuth.cs` / `AdminCsrf.cs` |
+| Rate limiter / Basic Auth / admin CSRF token | `IngestRateLimiter.cs` / `src/BlocksBeyondTheStars.Shared/Security/BasicAuth.cs` (one implementation shared with the WorldHost admin UI) / `AdminCsrf.cs` |
 | Texture submissions: pull + adopt | `tools/pull_texture_submissions.py` → `tools/merge_texture.py` |
 | Tests | `tests/BlocksBeyondTheStars.Tests/ReportHostTests.cs` (store, parsing, pages) · `ReportHostTextureSubmissionTests.cs` (category, attachments, retention, download routes) · `ReportHostHttpTests.cs` (the real app over HTTP on a loopback port: reply routes, limiter split) · `ReportHostReplyLifecycleTests.cs` (`gone` marker; admin CSRF + JSON gate on a second host with the admin UI on) |
 | Image / compose | `Dockerfile.reports` / `docker-compose.reports.yml` |
