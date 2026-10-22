@@ -28,7 +28,7 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     /// <summary>Default refill delay of a mined cell (about ten minutes of play).</summary>
-    private const double NpcMineRefillSeconds = 600.0;
+    internal const double NpcMineRefillSeconds = 600.0;
 
     /// <summary>A due cell fills up only while no player stands within this many blocks — nobody sees stone appear.</summary>
     private const float NpcRefillPlayerClearance = 12f;

@@ -21,7 +21,7 @@ public sealed partial class GameServer : IServerHost
     // slot: HullRepair
     // slot: Journal
     // slot: Marker
-    // slot: NpcWork
+    private NpcWorkSystem _npcWorkSystem = null!;
     private ObserverSystem _observerSystem = null!;
     // slot: ShipExtension
     // slot: Temperature
@@ -42,7 +42,7 @@ public sealed partial class GameServer : IServerHost
         // slot: HullRepair
         // slot: Journal
         // slot: Marker
-        // slot: NpcWork
+        _npcWorkSystem = new NpcWorkSystem(this);
         _observerSystem = new ObserverSystem(this, _repo, _config);
         // slot: ShipExtension
         // slot: Temperature
