@@ -44,6 +44,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   role, 2 fleet-admin, 18 cheats), a ~40-line dispatcher and 19 `AdminCommand*` methods. Gate order and every reply
   string are unchanged (`not_admin`, then `observer_reserved` before any cheat check, then `cheats_disabled`; unknown
   verbs as before); `AdminCommandGateTests` (12 tests, green against the old switch first) pins them.
+- **Block placement as an ordered rule table (#2887):** `HandlePlace` left `GameServer.cs` (8,330 → 7,738 lines) for the
+  new partial `GameServerPlacement.cs`: a resolve step, a table of 18 named rules (`height_limit` … `form_room`; the
+  first refusal sends the one `ActionRejected` "place", then the flora VEGA hint), payment, then eight effect steps in
+  the old order. Rule order, all 24 reject strings, message and side-effect order are unchanged; the five shape/bed/
+  ladder helpers moved byte-identical. `PlacementRuleOrderTests` pins the order; ~1,060 placement tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
