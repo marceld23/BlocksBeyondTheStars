@@ -139,6 +139,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   `ReportHost{Player,Api,Admin}Endpoints` (4/7/9), its 13 local functions to `ReportHostRuntime` (state, `Guard*`
   gates), `ReportApiJson` and `ReportPairActions`. Routes, guard order, status codes and JSON key order unchanged:
   `ReportHostRouteTableTests` (22 routes) and `ReportHostReadApiHttpTests` (green on the old code first); 61 tests green.
+- **WorldHost endpoint groups (#2902):** `Program.cs` (1,849 → 129 lines) keeps the wiring, keep-awake and reaper;
+  `WorldHostApp.Create` builds the host and maps the 62 routes, moved verbatim to six groups
+  `{Portal,Glitch,Account,Moderation,AdminUi,World}Endpoints` (11/6/10/7/13/15), 18 local functions to `WorldHostApi`,
+  limiters and stats cache to `WorldHostServices`. Paths, gates, status codes and bodies unchanged (task handlers typed
+  `Task<IResult>`, never `RequestDelegate`); `WorldHostHttpTests` (73, green on the old code first); 401 tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

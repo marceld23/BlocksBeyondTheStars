@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 namespace BlocksBeyondTheStars.WorldHost;
 
 /// <summary>Outcome of a glitch.fun session grant: either the join material for one arcade world or a
-/// player-safe error (mapped to a machine code + HTTP status in Program.cs).</summary>
+/// player-safe error (mapped to a machine code + HTTP status in GlitchEndpoints).</summary>
 public sealed record GlitchSessionResult(
     bool Ok,
     string Error,
