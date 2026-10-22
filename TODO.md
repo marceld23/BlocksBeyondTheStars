@@ -170,6 +170,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   for the new sealed `TutorialSystem.cs` (411), moved verbatim behind `ITutorialHost : IServerHost` (8 own members);
   the lazy plant/tree caches came along, 1 widening (`AnchorOf`). Event keys, the `WorldPredicates` names, callers
   and `*ForTest` seams unchanged; 425 tutorial/story/VEGA/ship-AI/hint tests green.
+- **The tick order as a schedule table (#2904):** the 75 inline `Guard("…", …)` calls in `Tick` (`GameServer.cs` 7,576
+  → 7,501 lines) became entries of the new partial `GameServerTickSchedule.cs` (234): four arrays built once after
+  `ConstructSystems()` — `Held` 4, `PreWorld` 2, `PerWorld` 49 (one sweep-, one far-tile-gated), `PostWorld` 20 — walked
+  by `RunTickSteps` through the two existing `Guard` overloads, so walking them allocates no delegates. Control flow,
+  order and bucket names unchanged (Autosave/Backups stay literal); `TickScheduleTests` pins them; 83 tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

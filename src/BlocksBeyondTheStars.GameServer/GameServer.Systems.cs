@@ -28,9 +28,10 @@ public sealed partial class GameServer : IServerHost
     private TutorialSystem _tutorialSystem = null!;
     private VehicleSystem _vehicleSystem = null!;
 
-    /// <summary>Builds every extracted subsystem; called once, as the last statement of the constructor. A subsystem's
-    /// constructor only stores references — <c>_worlds</c>, <c>_meta</c>, the world and the galaxy are null or change
-    /// until <see cref="Start"/>, so a subsystem reads them through its host at use time.</summary>
+    /// <summary>Builds every extracted subsystem; called once from the constructor, just before the tick schedules
+    /// (GameServerTickSchedule.cs) are built. A subsystem's constructor only stores references — <c>_worlds</c>,
+    /// <c>_meta</c>, the world and the galaxy are null or change until <see cref="Start"/>, so a subsystem reads them
+    /// through its host at use time.</summary>
     private void ConstructSystems()
     {
         _aiLinesSystem = new AiLinesSystem(this, _config);

@@ -42,9 +42,11 @@ public sealed partial class GameServer
     }
 
     /// <summary>Runs one no-argument tick subsystem and contains any exception it throws. Returns true when
-    /// the body completed without throwing. Pass a method group (e.g. <c>Guard("StreamChunks", StreamChunks)</c>)
-    /// so the delegate is cached and the guard allocates nothing on the hot path. With tick timing enabled
-    /// (#1504) the wall-clock time of the body is accumulated per system name.</summary>
+    /// the body completed without throwing. The tick calls this through the schedule in GameServerTickSchedule.cs,
+    /// whose delegates are built once in the constructor, so walking the schedule allocates no delegates; the few
+    /// direct calls with an instance method group (Backups on every tick, Autosave when one is due, SaveNow) still
+    /// allocate one delegate per call. With tick timing enabled (#1504) the wall-clock time of the body is
+    /// accumulated per system name.</summary>
     private bool Guard(string system, Action body)
     {
         bool timed = TickTimingEnabled;
@@ -69,9 +71,11 @@ public sealed partial class GameServer
     }
 
     /// <summary>Runs one delta-time tick subsystem and contains any exception it throws. Returns true when the
-    /// body completed without throwing. Pass a method group (e.g. <c>Guard("TickFluids", dt, TickFluids)</c>):
-    /// the method-group conversion to <see cref="Action{Double}"/> is cached by the compiler, so no delegate
-    /// is allocated per tick. With tick timing enabled (#1504) the body's wall-clock time is accumulated.</summary>
+    /// body completed without throwing. The tick calls this through the schedule in GameServerTickSchedule.cs,
+    /// whose delegates are built once in the constructor, so walking the schedule allocates no delegates; the few
+    /// direct calls outside it (Backups on every tick, Autosave when one is due, SaveNow) use the no-argument overload
+    /// and still allocate one delegate per call. With tick timing enabled (#1504) the wall-clock time of the body is
+    /// accumulated per system name.</summary>
     private bool Guard(string system, double dt, Action<double> body)
     {
         bool timed = TickTimingEnabled;
@@ -97,10 +101,10 @@ public sealed partial class GameServer
 
     // ---------------- Tick timing (#1504) ----------------
     // Opt-in "where does the tick go" instrumentation: every Guard-wrapped system accumulates its wall-clock
-    // time per name (the string keys are the literal system names passed to Guard, so the dictionary never
-    // allocates on the tick path); the whole tick is sampled too. Every ServerConfig.TickTimingLogSeconds of
-    // sim time one summary line is logged and the window resets. Off by default: TickTimingEnabled is a
-    // single property read per Guard call and nothing else runs.
+    // time per name (the string keys are the literal system names of the schedule entries (GameServerTickSchedule.cs)
+    // and of the few direct Guard calls, so the dictionary never allocates on the tick path); the whole tick is sampled
+    // too. Every ServerConfig.TickTimingLogSeconds of sim time one summary line is logged and the window resets. Off by
+    // default: TickTimingEnabled is a single property read per Guard call and nothing else runs.
 
     private bool TickTimingEnabled => _config.TickTimingLogSeconds > 0;
 

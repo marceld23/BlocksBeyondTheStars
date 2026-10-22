@@ -239,6 +239,14 @@ public sealed partial class GameServer
                 ServerVersionString),
             LazyThreadSafetyMode.ExecutionAndPublication);
         ConstructSystems();
+
+        // The tick order, built once — see GameServerTickSchedule.cs. These four lines must stay the LAST statements of
+        // the constructor: a schedule entry may capture a subsystem field (e.g. after a subsystem extraction), which must
+        // already be assigned by then.
+        _heldSchedule = BuildHeldSchedule();
+        _preWorldSchedule = BuildPreWorldSchedule();
+        _perWorldSchedule = BuildPerWorldSchedule();
+        _postWorldSchedule = BuildPostWorldSchedule();
     }
 
     private GameRules Rules => _config.Rules;
@@ -1867,25 +1875,14 @@ public sealed partial class GameServer
         {
             // #2558: the one clock that does run — "Back to my ship"'s fight grace and fall reading age behind the menu.
             _heldSeconds += deltaSeconds;
-            Guard("Moderation", deltaSeconds, TickModeration);
-            Guard("Maintenance", deltaSeconds, TickMaintenance);
-
-            // The control plane must keep seeing a held world (#973): the /status snapshot is what the hosted
-            // fleet polls, and freezing it would report a stale player count for as long as the pause lasts.
-            // Safe to run here — with players joined it only republishes; the idle timer stays at zero.
-            Guard("HostedLifecycle", deltaSeconds, TickHostedLifecycle);
-
-            // #996: an observer neither holds nor counts toward the pause (#973) and keeps flying — without
-            // streaming they run off the already-sent chunks into void until somebody resumes the world.
-            Guard("SpectatorChunks", StreamChunksToSpectators);
+            RunTickSteps(_heldSchedule, deltaSeconds); // the control plane + spectator streaming (GameServerTickSchedule.cs)
             EndTickTiming(deltaSeconds);
             return;
         }
         // The shared orbital clock advances once per server tick — not once per occupied world, which ran it twice
         // as fast with two worlds loaded (#2173: the biome weather offsets the maps mirror rotate on it).
         _systemTimeDays += deltaSeconds / SystemDaySeconds;
-        Guard("TickSpace", deltaSeconds, TickSpace); // space instances are keyed by location and handle their own players
-        Guard("Transits", deltaSeconds, TickTransits); // #1614: per player, wherever they fly
+        RunTickSteps(_preWorldSchedule, deltaSeconds); // space instances + transits (GameServerTickSchedule.cs)
 
         // Tick each occupied world with the Active cursor set to it, so its environment/fauna/fluids/
         // weather/presence/chunk-streaming only touch that world's players. With a single occupied world
@@ -1925,90 +1922,22 @@ public sealed partial class GameServer
                 continue;
             }
 
-            // Each simulation system is contained on its own (see GameServerResilience.Guard): a system
-            // that throws on edge-case data is logged + skipped for this tick, while every OTHER system in
-            // this world — and every other occupied world — keeps simulating. A throw here can never reach
-            // Run() and crash the process.
-            Guard("TickEnvironment", deltaSeconds, TickEnvironment);
-            Guard("TickEnemies", deltaSeconds, TickEnemies);
-            Guard("TickBandits", deltaSeconds, TickBandits);
-            Guard("TickPresence", deltaSeconds, TickPresence);
-            Guard("TickMarkerPings", deltaSeconds, TickMarkerPings); // expire "look here" pings (#1217)
-            Guard("TickFluids", deltaSeconds, TickFluids);
-            Guard("TickGranular", deltaSeconds, TickGranular); // #1319: woken sand/ash/snow settles, sinks through fluid
-            Guard("TickFire", deltaSeconds, TickFire);
-            Guard("TickWeather", deltaSeconds, TickWeather);
-            Guard("TickFlora", deltaSeconds, TickFlora);
-            Guard("TickNpcFelling", deltaSeconds, TickNpcFelling); // #2644: a woodcutter's tree comes down from the top, a few cells a tick
-            Guard("TickNpcRestores", deltaSeconds, TickNpcRestores); // #2643: mined quarry cells fill up again (1 Hz)
-            Guard("TickCreatures", deltaSeconds, TickCreatures);
-            Guard("TickSreekmakra", deltaSeconds, TickSreekmakra); // 2026-09: Valuma's shapeshifter and mood (1 Hz)
-            Guard("TickGiants", deltaSeconds, TickGiants); // #1998: the colossus, the sandworms and the thumpers
-            Guard("TickTrains", deltaSeconds, TickTrains); // #2113: the monorail trains and their riders
-            Guard("TickBaseGuests", deltaSeconds, TickBaseGuests); // #2602: friendly visitors walk up to a base whose owner is home (1 Hz)
-            Guard("TickBaseLife", TickBaseLife); // #1120/#2718: settlers move in — per world, one base per 10 s, one scan per tick at most
-            Guard("TickLodges", deltaSeconds, TickLodges); // #2640/#2641: lodges found by passing players, the store crates (1 Hz)
-            Guard("TickWanderers", deltaSeconds, TickWanderers); // #2646: named travellers met in the open land (1 Hz)
-            Guard("TickNpcRoutine", deltaSeconds, TickNpcRoutine); // #1867/#1868: work by day, sit in the evening, sleep at night; jobs
-            Guard("TickNpcPaths", deltaSeconds, TickNpcPaths); // #1866: at most one NPC path search per tick
-            Guard("TickNpcs", deltaSeconds, TickNpcs);
-            Guard("TickNpcConversations", deltaSeconds, TickNpcConversations); // #2616: end dead talks, hold the talking NPC (1 Hz)
-            Guard("TickPassingGreetings", deltaSeconds, TickPassingGreetings); // #2593: NPCs greet and wave as you walk by (1 Hz)
-            Guard("TickProfessions", deltaSeconds, TickProfessions); // the streamer asks for photos, the tamer's pet follows (2026-09)
-            Guard("TickVillageLife", deltaSeconds, TickVillageLife); // #2600: villagers talk to each other (1 Hz, scan every 3 s)
-            Guard("TickVillageFestivals", deltaSeconds, TickVillageFestivals); // #2604: the village festival (1 Hz + the tune's notes)
-            Guard("TickAirFills", deltaSeconds, TickAirFills); // #2650: time-sliced base/station air fills move on
-            Guard("TickStationStaffing", deltaSeconds, TickStationStaffing); // #1487: crew only staffs posts in sealed rooms
-            Guard("TickPlanetTraders", deltaSeconds, TickPlanetTraders); // #2603: traders land on occupied bodies even when nobody flies (5 s)
-            Guard("TickLandedTraders", deltaSeconds, TickLandedTraders); // P3: materialize/lift-off a peaceful trader parked on this surface
-            Guard("TickDoors", deltaSeconds, TickDoors);
-            Guard("TickCrystalNet", deltaSeconds, TickCrystalNet); // #2046: the Crystal Net's logic + sensor beats
-            Guard("TickDropPackets", deltaSeconds, TickDropPackets); // #853: ground packets flow back into whoever walks over them
-            Guard("TickCompanionPayoff", TickCompanionPayoff); // #1210: companions growl at hostiles, stall robbers, drop produce (1 Hz)
-            Guard("TickCompanionScouting", TickCompanionScouting); // #1225: a deeply bonded companion shares a landmark now and then
-            Guard("TickSentries", TickSentries); // #1214: base sentry posts fire at hostiles near a home base (2 Hz)
-            Guard("TickBurning", TickBurning); // #1700: lava and fire hurt animals, robbers and machines too (2 Hz)
-            Guard("TickHealTanks", deltaSeconds, TickHealTanks); // base/station regen field: heal + feed + suit recharge
-            Guard("TickStationsInReach", deltaSeconds, TickStationsInReach); // #1070: Tab-menu station gates follow the player
-            Guard("TickVoidRescue", deltaSeconds, TickVoidRescue);
-            Guard("TickShipAi", deltaSeconds, TickShipAi); // VEGA advisor hints + memory-fragment redemption
-            Guard("StreamChunks", StreamChunks);
-            Guard("StreamWorldTextures", StreamWorldTextures); // #1958: one page of the texture list per client per tick
-            Guard("ServeFarTiles", ServeFarTiles); // #1871: far-terrain tile builds under a per-tick budget
-            Guard("FlushEntityLists", FlushEntityLists); // #1530: one list per type + one player state per session per tick
-            if (sweepDue)
-            {
-                Guard("SweepFarChunks", SweepFarChunks);
-            }
-
-            if (farTilesDue)
-            {
-                Guard("RefreshFarTiles", RefreshFarTiles);
-            }
+            // Every simulation system of this world, each contained on its own (GameServerTickSchedule.cs).
+            RunTickSteps(_perWorldSchedule, deltaSeconds, sweepDue, farTilesDue);
         }
 
-        Guard("DerelictSpacewalks", TickDerelictSpacewalks); // #2636: boarders the void check found outside a derelict's hull step out (a world change, so after the loop)
-        Guard("ShipVisits", deltaSeconds, TickShipVisits); // #2723: guests who walked out go home; the 1 Hz check of every docking visit
-        Guard("TickStoryOutsideWorlds", deltaSeconds, TickStoryOutsideWorlds); // #2477: the 1 Hz story pass for players no loaded world reaches
-        Guard("TickCutscenes", TickCutscenes); // #2468: queued cutscenes for every joined player, wherever they are (space too)
-        Guard("TickJournal", TickJournal); // #2471: the Journal's coalesced pushes (only players whose stories changed)
-        Guard("TickAmbientWeather", deltaSeconds, TickAmbientWeather); // #2173: the weather of every body in an occupied system
-        Guard("SampleHistories", deltaSeconds, SampleHistories); // also advances _uptime
-        Guard("SilentSessions", SweepSilentSessions); // release names/slots held by dead clients (#964)
-        Guard("SweepExpiredLandedTraders", SweepExpiredLandedTraders); // P3: free pads of traders whose dwell ended on bodies nobody is on
-        Guard("TickGreetings", TickGreetings); // push any LLM NPC greetings finished off-thread (item 15)
-        Guard("TickDialogRadio", TickDialogRadio); // due "they said they'd call" dialogue consequences (#1127)
-        Guard("TickNpcRadio", TickNpcRadio);   // NPC radio calls (#1119): per-player 30 s trigger scans
-        Guard("TickMissionTexts", TickMissionTexts); // push mission-list refreshes when L3 board texts arrive
-        Guard("TickAiMissions", TickAiMissions); // publish /ai_mission generations finished off-thread
-        Guard("TickVegaBanter", TickVegaBanter); // push VEGA's LLM banter lines finished off-thread
+        // The systems that run once per tick after the worlds (GameServerTickSchedule.cs), then autosave and backups.
+        RunTickSteps(_postWorldSchedule, deltaSeconds);
+        TickAutosave(deltaSeconds);
+        Guard("Backups", TickBackups); // #2223: rotating backups, written off the tick thread
 
-        Guard("AccumulatePlaytime", deltaSeconds, AccumulatePlaytime);
-        Guard("HostedLifecycle", deltaSeconds, TickHostedLifecycle); // idle shutdown + /status snapshot (hosted worlds)
-        Guard("Maintenance", deltaSeconds, TickMaintenance); // announcement intake + restart countdown broadcasts
-        Guard("Moderation", deltaSeconds, TickModeration); // kick intake + the delayed close behind it
-        Guard("CrashReportFlush", deltaSeconds, MaybeFlushCrashReports); // best-effort background upload of queued reports
+        EndTickTiming(deltaSeconds);
+    }
 
+    /// <summary>The autosave cadence. Called UNGUARDED from <see cref="Tick"/>: it guards <see cref="SaveAll"/> itself
+    /// under the name "Autosave", so wrapping it in a second guard would double-count that tick-timing bucket.</summary>
+    private void TickAutosave(double deltaSeconds)
+    {
         _sinceAutoSave += deltaSeconds;
         if (_sinceAutoSave >= _config.AutoSaveIntervalMinutes * 60.0)
         {
@@ -2018,10 +1947,6 @@ public sealed partial class GameServer
                 _log.Info("Autosave complete.");
             }
         }
-
-        Guard("Backups", TickBackups); // #2223: rotating backups, written off the tick thread
-
-        EndTickTiming(deltaSeconds);
     }
 
     /// <summary>Advances the world's cumulative playtime — but only while at least one player is joined, so an
