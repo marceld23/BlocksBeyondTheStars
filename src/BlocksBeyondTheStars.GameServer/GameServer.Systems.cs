@@ -16,7 +16,7 @@ public sealed partial class GameServer : IServerHost
     private BioLabSystem _bioLabSystem = null!;
     // slot: Container
     private CrewSystem _crewSystem = null!;
-    // slot: Equipment
+    private EquipmentSystem _equipmentSystem = null!;
     // slot: FarTerrain
     // slot: HullRepair
     // slot: Journal
@@ -37,7 +37,7 @@ public sealed partial class GameServer : IServerHost
         _bioLabSystem = new BioLabSystem(this, _content);
         // slot: Container
         _crewSystem = new CrewSystem(this, _repo, _log);
-        // slot: Equipment
+        _equipmentSystem = new EquipmentSystem(this, _content, _log);
         // slot: FarTerrain
         // slot: HullRepair
         // slot: Journal

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
-using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Bio;
 using BlocksBeyondTheStars.Shared.Configuration;
@@ -31,9 +30,6 @@ public sealed partial class GameServer : IBioLabHost
     private static float AbsorbWithShield(PlayerState p, float damage) => BioLabSystem.AbsorbWithShield(p, damage);
 
     private static NetEffect[] DumpEffects(PlayerState p) => BioLabSystem.DumpEffects(p);
-
-    /// <summary>The keys of the gear a player wears — what <see cref="GearMods"/> reads its changes from.</summary>
-    private static IEnumerable<string?> WornKeys(PlayerState p) => p.Equipment.Slots.Select(s => s?.Item);
 
     // ---------------- Test seams ----------------
 

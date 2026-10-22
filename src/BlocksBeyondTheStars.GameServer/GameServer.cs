@@ -31,7 +31,7 @@ public sealed partial class GameServer
 {
     private const string ShipId = "default";
     private const float MaxReach = 8f;
-    private const int HotbarSlots = 9;
+    internal const int HotbarSlots = 9;
     private const int MaxPlayerNameLength = Protocol.MaxPlayerNameLength; // client-supplied names are capped to this on join (the client fields cap at the same, #1368)
 
     // Vertical build band: client-driven block edits and chunk streaming are clamped to this Y range so a
