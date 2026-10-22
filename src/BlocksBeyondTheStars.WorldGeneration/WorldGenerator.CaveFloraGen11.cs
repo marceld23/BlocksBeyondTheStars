@@ -13,8 +13,8 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// glow class, whose plants each take their own colour. The rainbow class also grows in rare clusters on the surface (from
 /// generation 29 only on a world of normal or luminous glow, #2857 — its caves keep it on every world).
 /// Cold-adapted species survive the cold. A per-chunk pass after the column loop reads the finished chunk (a floor is
-/// an air cell on cave rock, a ceiling an air cell under it), so the y-loop — one of the largest methods, see the
-/// #1740 JIT cliff — stays untouched. Nothing here runs on a world older than generation 11.</summary>
+/// an air cell on cave rock, a ceiling an air cell under it), so the y-loop (FillColumnCells, still a large method — see
+/// the #1740 JIT cliff) stays untouched. Nothing here runs on a world older than generation 11.</summary>
 public sealed partial class WorldGenerator
 {
     private const long CaveFloorSalt = 0xCA7E01;

@@ -70,6 +70,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   header in order. Closure state and helpers moved to a private `Run` class, the sections to six partials (`.Run`,
   `.Pack`, `.Texts`, `.Chapters`, `.Steps`, `.Cutscenes`). Public surface, messages, paths and issue order unchanged:
   three `*InDocumentOrder` goldens (green on the old code first) pin them; 408 story/cutscene/tutorial tests green.
+- **Chunk Generate as named stage methods (#2892):** `WorldGenerator.Generate` (864 → 49 lines) is now a stage
+  orchestrator; its stages left `WorldGenerator.Columns.cs` (1,574 → 760 lines) verbatim, only re-indented, for the
+  new partial `WorldGenerator.ChunkFill.cs` (1,084): `FillContext`, `ResolveFillContext`, `BuildColumnContext`,
+  `CollectSealSpans`, `FillColumnCells` (the y-loop), `PlantColumnFlora`, `StampChunkPasses`, in the old order. 64
+  golden groups + 598 worldgen tests green, chunk hashes byte-identical, perf neutral; per-cell helpers skipped (slower).
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
