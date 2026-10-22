@@ -97,6 +97,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   methods over 60 lines and a new crossing of 1,000 lines with `Fixtures/code_health_baseline.json` (434 files, 82 over
   1,000 lines, 868 long methods). Growth fails and prints the rebase command (`BBS_CODE_HEALTH_REBASE=1`); shrinking
   passes. Test-only: nothing under `src/`, `client/` or `data/` changed (`SourceFiles` moved to `TestPaths`); 22 green.
+- **Subsystem template, IServerHost and CrewSystem (#2897):** the crew code left the partial `GameServerCrews.cs`
+  (517 → 45 lines, now one-line facades) for the new sealed `CrewSystem.cs` (545), moved verbatim behind
+  `ICrewHost : IServerHost` (9 shared + 4 crew members). The new `GameServer.Systems.cs` holds the 15 subsystem slots
+  and `ConstructSystems()` (the only `GameServer.cs` edit, 7,575 → 7,576); ADR 0019 records the shape. Facade names,
+  signatures, callers, reject strings and the 765 `*ForTest` seams are unchanged; 108 crew/alliance/marker tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

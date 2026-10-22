@@ -674,3 +674,46 @@ mechanisms keep that safe; a change to the block set has to feed them:
 
 Do not open a save a development build touched with an older released build, and do not join release-hosted worlds
 with a development build that has another block set: released builds before v9 of the protocol have neither check.
+
+## Extracting a GameServer subsystem
+
+`GameServer` is one partial class over `GameServer.cs` and more than 200 `GameServer*.cs` feature files. Since the
+2026-10 code-health pass a feature slice with state of its own moves out into a top-level subsystem class; the shape and
+the reasons are in [ADR 0019](adr/0019-gameserver-subsystems.md), and `CrewSystem.cs` / `GameServerCrews.cs` are the
+worked example. The steps for a partial `GameServerX.cs`:
+
+1. **Create `src/BlocksBeyondTheStars.GameServer/XSystem.cs` from `GameServerX.cs`:** same licence header and `using`s,
+   and `internal sealed class XSystem` instead of `public sealed partial class GameServer`. Keep the member order and
+   the 4-space member indentation, so `git blame -C` follows the lines. The system owns the partial's constants,
+   fields, nested types and method bodies, verbatim.
+2. **Let the compiler list the host.** Build. For every CS0103/CS0120 on a `GameServer` member, write the use as
+   `_host.X` and add one line to `internal interface IXHost : IServerHost` at the top of `XSystem.cs`, plus one explicit
+   one-line implementation on `GameServer` (`string IXHost.NameOf(string playerId) => NameOf(playerId);`). Members
+   `IServerHost` already has (`Send`, `Reject`, `RaiseGameEvent`, `FindSessionByPlayerId`, `World`, `Uptime`, `Worlds`,
+   `SendPlayerState`, `SendInventory`) need no line. Fields become host properties (`_world` → `_host.World`). A static
+   method that now calls `_host` loses `static`; a private static `GameServer` helper becomes `internal static` and is
+   called as `GameServer.X`; a private nested type or constant becomes `internal` and is written `GameServer.X`. An
+   optional parameter the system never passes is left out of the host line; the implementation forwards to the server
+   member, which supplies its own default.
+3. **Constructor:** `(IXHost host[, GameContent content][, IWorldRepository repo][, IGameLogger log][, ServerConfig
+   config])`, storing references only. Never call the host from the constructor and never cache what it returns — the
+   worlds, the active world and the ship cursor do not exist yet when it runs, or change per call.
+4. **Rewrite `GameServerX.cs` as the facade:** `public sealed partial class GameServer : IXHost` with a one-line facade
+   (same name, signature and visibility) for every member that sibling partials, `GameServerDispatch.cs`, the tick
+   schedule or the tests call, every `*ForTest` seam unchanged and delegating, and the explicit `IXHost`
+   implementations. A seam whose body reads the system's private state moves into the system as an `internal` method
+   and the public seam delegates to it. Inside an explicit implementation, call the server's member by its simple name;
+   `((IXHost)this).X` would recurse.
+5. **Fill your slot in `GameServer.Systems.cs`:** replace your `// slot: X` line in the field block with
+   `private XSystem _xSystem = null!;` and the one in `ConstructSystems()` with `_xSystem = new XSystem(this, …);`.
+   Touch no other line there, and do not edit the `GameServer` constructor — it already ends with `ConstructSystems();`.
+6. **Check it is a pure move:** reject and log strings, tick `Guard` names, defaults and RNG seeds are unchanged; a field
+   initializer that moved into the system now runs at the end of the constructor (name it in the change if it seeds an
+   RNG or a cache); no test file changed, and the public `*ForTest` count is the same. Then run the feature's test
+   classes, `dotnet build BlocksBeyondTheStars.sln --no-incremental -warnaserror` (0 warnings),
+   `dotnet format BlocksBeyondTheStars.CI.slnf --verify-no-changes` and the code-health ratchet
+   (`--filter FullyQualifiedName~CodeHealthRatchetTests`). A long method that moved into `XSystem.cs` is reported as
+   growth there; when it is only the move, refresh the baseline with the rebase command the test prints.
+
+A host with more than 20 members is allowed ("wide, shrink later" in ADR 0019) — list it in the change, and do not widen
+`IServerHost` for one system: a member joins it only when at least three systems need it.

@@ -1,0 +1,72 @@
+// Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+namespace BlocksBeyondTheStars.GameServer;
+
+/// <summary>
+/// The extracted subsystems (ADR 0019): one field and one construction line each, in alphabetical slots, plus the one
+/// shared <see cref="IServerHost"/> implementation. Every subsystem extraction fills its own pre-seeded slot line in
+/// both blocks below and touches nothing else here, so parallel extractions meet in this one predictable file.
+/// </summary>
+public sealed partial class GameServer : IServerHost
+{
+    // One field per extracted subsystem (alphabetical slots; a package replaces its own slot line only). Not readonly:
+    // they are assigned in ConstructSystems, not in the constructor body.
+    // slot: AiLines
+    // slot: BioLab
+    // slot: Container
+    private CrewSystem _crewSystem = null!;
+    // slot: Equipment
+    // slot: FarTerrain
+    // slot: HullRepair
+    // slot: Journal
+    // slot: Marker
+    // slot: NpcWork
+    // slot: Observer
+    // slot: ShipExtension
+    // slot: Temperature
+    // slot: Tutorial
+    // slot: Vehicle
+
+    /// <summary>Builds every extracted subsystem; called once, as the last statement of the constructor. A subsystem's
+    /// constructor only stores references — <c>_worlds</c>, <c>_meta</c>, the world and the galaxy are null or change
+    /// until <see cref="Start"/>, so a subsystem reads them through its host at use time.</summary>
+    private void ConstructSystems()
+    {
+        // slot: AiLines
+        // slot: BioLab
+        // slot: Container
+        _crewSystem = new CrewSystem(this, _repo, _log);
+        // slot: Equipment
+        // slot: FarTerrain
+        // slot: HullRepair
+        // slot: Journal
+        // slot: Marker
+        // slot: NpcWork
+        // slot: Observer
+        // slot: ShipExtension
+        // slot: Temperature
+        // slot: Tutorial
+        // slot: Vehicle
+    }
+
+    // IServerHost: each member delegates to the server's own member of the same name (never to the interface member,
+    // which would recurse).
+    void IServerHost.Send(PlayerSession session, object message) => Send(session, message);
+
+    void IServerHost.Reject(PlayerSession session, string action, string reason) => Reject(session, action, reason);
+
+    void IServerHost.RaiseGameEvent(PlayerSession? actor, string key, string arg, int amount) => RaiseGameEvent(actor, key, arg, amount);
+
+    PlayerSession? IServerHost.FindSessionByPlayerId(string playerId) => FindSessionByPlayerId(playerId);
+
+    ServerWorld IServerHost.World => _world;
+
+    double IServerHost.Uptime => _uptime;
+
+    WorldManager IServerHost.Worlds => _worlds;
+
+    void IServerHost.SendPlayerState(PlayerSession session) => SendPlayerState(session);
+
+    void IServerHost.SendInventory(PlayerSession session) => SendInventory(session);
+}

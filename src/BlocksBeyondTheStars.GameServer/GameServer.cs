@@ -238,6 +238,7 @@ public sealed partial class GameServer
                 _config.WorldName,
                 ServerVersionString),
             LazyThreadSafetyMode.ExecutionAndPublication);
+        ConstructSystems();
     }
 
     private GameRules Rules => _config.Rules;
