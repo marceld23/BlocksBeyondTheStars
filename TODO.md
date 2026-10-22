@@ -154,6 +154,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   new sealed `TemperatureSystem.cs` (501), `MarkerSystem.cs` (513) and `JournalSystem.cs` (544) behind
   `ITemperatureHost`/`IMarkerHost`/the wide `IJournalHost` (21/13/26 members); 16 `private` → `internal` widenings.
   Guard keys, the 45 callers, run-once latches and seams unchanged; 604 temperature/marker/journal/story tests green.
+- **ContainerSystem (#2901):** the crate/loot/drop-packet code left the partial `GameServerContainers.cs` (600 → 113
+  lines, now the `_containers` accessor, 17 one-line facades and the 2 `*ForTest` seams) for the new sealed
+  `ContainerSystem.cs` (643): 26 members incl. the three intent adapters, moved verbatim behind `IContainerHost :
+  IServerHost` (11 own members; the active store as `ContainerStore`); 0 `private` → `internal` widenings. Reject
+  strings, dispatch entries, callers and the cross-world `RefreshOpenCrates` quirk unchanged; 169 crate/loot tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

@@ -1,0 +1,643 @@
+// Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Collections.Generic;
+using System.Linq;
+using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Persistence;
+using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.Story;
+
+namespace BlocksBeyondTheStars.GameServer;
+
+/// <summary>
+/// What <see cref="ContainerSystem"/> asks of the server beyond <see cref="IServerHost"/> (ADR 0019): the active world's
+/// container store and the live sessions, the wrapped-world distance and the world broadcast, the owned stores of lodge
+/// residents and villages (#2640, #2726), what looting a find feeds — the achievement, the Discoveries ledger (#2633),
+/// environmental lore (#1111) and the story milestones — and the ground drop packets that travel with the container list
+/// (#853). Implemented explicitly by <c>GameServer</c> in <c>GameServerContainers.cs</c>, each member delegating to the
+/// server's own member of the same name.
+/// </summary>
+internal interface IContainerHost : IServerHost
+{
+    /// <summary>The active world's container store — crates, capsules AND ground drop packets (the server's
+    /// <c>_containers</c>). Follows the world cursor, so read it at use time.</summary>
+    List<StoredContainer> ContainerStore { get; }
+
+    /// <summary>The live sessions of EVERY world, not only the active one (the server's <c>_sessions</c>).</summary>
+    IReadOnlyDictionary<int, PlayerSession> Sessions { get; }
+
+    double WrapDistSq(Vector3f a, Vector3f b);
+
+    void BroadcastToWorld(object message);
+
+    // The owned stores of lodge residents and villages (GameServerStructureLoot.cs)
+    SettlementInstance? VillageOwningCache(StoredContainer container);
+
+    string OwnedContainerRefusal(StoredContainer container);
+
+    // What a looted find feeds (GameServerAchievements.cs, GameServerDerelictCrates.cs, GameServerLore.cs, GameServerStory.cs)
+    void OnAchievementLoot(PlayerSession session);
+
+    void RecordFoundDerelictLogs(PlayerSession session, List<string> taken);
+
+    void TryRevealLoreText(PlayerSession session, string site);
+
+    void RecordStoryMilestone(string onceKey);
+
+    // The ground drop packets travel with the container list (GameServerDropPackets.cs)
+    void SendDropPackets(PlayerSession session);
+}
+
+/// <summary>
+/// Lootable world containers — salvage capsules dropped on death and (later) defeated-player
+/// corpses or ship-salvage drops. The death path drops a capsule with the victim's carried items
+/// (see <c>RespawnPlayer</c>); this lets anyone standing next to it <b>loot</b> the contents into
+/// their inventory. The capsule persists until emptied, then despawns (combat-loot, §2–3).
+/// Server-authoritative: it validates proximity and the item transfer.
+/// </summary>
+internal sealed class ContainerSystem
+{
+    private const float LootReach = 6f;
+
+    /// <summary>Distinct item stacks a hand-tier wood box holds (#808). The workshop crate stays
+    /// unbounded — capacity is the wood box's price for being craftable from nothing but logs.</summary>
+    internal const int WoodCrateStackSlots = 8;
+
+    /// <summary>Upper bound on a crate's filter list (#1032) — enough for any real sorting scheme, small
+    /// enough that a hostile client can't inflate the container broadcast every player receives.</summary>
+    private const int MaxFilterEntries = 32;
+
+    private readonly IContainerHost _host;
+    private readonly GameContent _content;
+    private readonly IWorldRepository _repo;
+
+    /// <summary>Stores the references only; built once in <c>GameServer.ConstructSystems</c> (ADR 0019).</summary>
+    internal ContainerSystem(IContainerHost host, GameContent content, IWorldRepository repo)
+    {
+        _host = host;
+        _content = content;
+        _repo = repo;
+    }
+
+    /// <summary>Blocks that become a storage container when placed (share the "crate" container kind,
+    /// so loot/stash/HUD treat them identically — the block key only decides capacity). The station
+    /// container joined the list with #1562: placed from inside a player station it used to be a dead
+    /// block until a server restart re-derived it from the cell grid, and the derived one vanished again
+    /// with the void world on the first leave. Now it is placed, persisted and mined like a crate.</summary>
+    internal static bool IsContainerBlock(string key) => key is "crate" or "wood_crate" or "station_container";
+
+    /// <summary>Lootable containers on the current planet (salvage capsules / corpses / crates). Ground drop
+    /// packets share the same store but are not containers to the player — see <see cref="GameServer.DropPackets"/>.</summary>
+    internal IReadOnlyList<StoredContainer> Containers
+        => _host.ContainerStore.Where(c => c.Kind != GameServer.DropPacketKind).ToList();
+
+    internal void LoadContainers()
+    {
+        _host.ContainerStore.Clear();
+        _host.ContainerStore.AddRange(_repo.ListContainers(_host.World.LocationId));
+    }
+
+    /// <summary>Registers a new world container (capsule / corpse): persists it, tracks it, broadcasts.</summary>
+    internal void AddContainer(StoredContainer container)
+    {
+        _repo.SaveContainer(container);
+        _host.ContainerStore.Add(container);
+        BroadcastContainers();
+    }
+
+    /// <summary>Player loots a nearby container; items transfer into the inventory, then it despawns if empty.</summary>
+    internal void LootContainer(string playerId, string containerId)
+    {
+        var session = _host.FindSessionByPlayerId(playerId);
+        if (session is null)
+        {
+            return;
+        }
+
+        var container = _host.ContainerStore.FirstOrDefault(c => c.Id == containerId);
+        if (container is null)
+        {
+            _host.Reject(session, "loot", "@srv.loot.no_container");
+            return;
+        }
+
+        if (_host.OwnedContainerRefusal(container) is { Length: > 0 } notYours)
+        {
+            _host.Reject(session, "loot", notYours); // #2640: a lodge resident's store — look, don't take (#2726: nor a village's cache)
+            return;
+        }
+
+        var center = new Vector3f(container.Position.X + 0.5f, container.Position.Y + 0.5f, container.Position.Z + 0.5f);
+        if (_host.WrapDistSq(session.State.Position, center) > LootReach * LootReach)
+        {
+            _host.Reject(session, "loot", "@out_of_reach"); // localized client-side (#751)
+            return;
+        }
+
+        // #2621: G on an empty storage crate said nothing at all, so a child could not tell "empty" from "broken" (Lyxette:
+        // "neither E nor G or H does anything"). Answered like the other loot refusals; nothing changes, nothing is saved.
+        // (A world container looted empty is removed below — an empty one never stands around to be asked.)
+        if (container.Kind == "crate" && container.Items.All(s => s.IsEmpty))
+        {
+            _host.Reject(session, "loot", "@srv.loot.crate_empty");
+            return;
+        }
+
+        var inv = session.State.Inventory;
+        var leftover = new List<ItemStack>();
+        var takenLogs = new List<string>(); // #2633: old derelict logs land in the Discoveries ledger
+        bool took = false;
+        foreach (var stack in container.Items)
+        {
+            if (stack.IsEmpty)
+            {
+                continue;
+            }
+
+            int max = _content.GetItem(stack.Item)?.MaxStack ?? ItemDefinition.DefaultMaxStack;
+            int notPlaced = inv.Add(stack.Item, stack.Count, max); // Add returns the leftover it couldn't fit
+            if (notPlaced < stack.Count)
+            {
+                took = true;
+                if (WorldGeneration.DerelictLogs.IsLogItem(stack.Item))
+                {
+                    takenLogs.Add(stack.Item);
+                }
+            }
+
+            if (notPlaced > 0)
+            {
+                leftover.Add(new ItemStack(stack.Item, notPlaced)); // inventory full → leave the rest
+            }
+        }
+
+        // A full backpack used to no-op silently (#751): nothing moved, nothing was sent, and the
+        // prompt kept showing the same count — indistinguishable from a dead key. Tell the player.
+        if (!took && leftover.Count > 0)
+        {
+            _host.Reject(session, "loot", "@inventory_full");
+            return;
+        }
+
+        container.Items = leftover;
+        if (container.Items.Count == 0 && container.Kind != "crate")
+        {
+            _host.ContainerStore.Remove(container);
+            _repo.DeleteContainer(container.Id);
+            _host.OnAchievementLoot(session); // "Treasure Hunter": a WORLD find looted empty (#1102)
+            _host.RaiseGameEvent(session, GameEventKeys.LootAny, container.Kind); // #2465
+        }
+        else
+        {
+            // Player storage crates are not treasure: emptying one neither counts as a find nor deletes
+            // its row — the crate block still stands and must stay stashable (#1153).
+            _repo.SaveContainer(container);
+        }
+
+        if (took)
+        {
+            _host.SendInventory(session);
+            _host.RecordFoundDerelictLogs(session, takenLogs);
+
+            // Environmental lore (#1111): scavenging a lore-bearing site (wreck log, ruin note, vault plaque,
+            // terminal record) may surface a readable text — once per player per text, knowledge-gated.
+            var site = GameServer.LoreSiteOfContainer(container.Id);
+            if (site.Length > 0)
+            {
+                _host.TryRevealLoreText(session, site);
+            }
+
+            if (site == "vault")
+            {
+                _host.RecordStoryMilestone("vault:first"); // the save's first opened vault advances the arc (#1155)
+            }
+        }
+
+        BroadcastContainers();
+    }
+
+    internal void HandleLootContainer(PlayerSession session, LootContainerIntent intent)
+        => LootContainer(session.State.PlayerId, intent.ContainerId);
+
+    /// <summary>What the BULK stash (H) sweeps into a storage crate: materials, components and placeable blocks — the
+    /// stuff you haul and build with. Blocks were refused until #1264 ("I can only put items in, not resources"): a Luanti
+    /// player's stone, wood, sand and glass are all <c>block</c> items here. Tools, weapons, consumables and suit gear
+    /// stay with the player on the sweep — put them in by hand on the crate screen (<see cref="Storable"/>, #2436).</summary>
+    private static bool Stashable(Shared.Definitions.ItemDefinition? item)
+        => item?.Category is Shared.Definitions.ItemCategory.Material
+            or Shared.Definitions.ItemCategory.Component
+            or Shared.Definitions.ItemCategory.Block;
+
+    /// <summary>#2436: what a crate may HOLD — every known item. Justus: "you can only put blocks into the crate, no
+    /// items!" — food, medpacks, tools and weapons go in by hand on the crate screen and may be named in a crate's filter;
+    /// only the one-key bulk sweep keeps to <see cref="Stashable"/>, so H never packs away the drill in your hand.</summary>
+    private static bool Storable(Shared.Definitions.ItemDefinition? item) => item is not null;
+
+    /// <summary>Stashes a player's loose raw/refined materials and blocks into a nearby storage crate (Task 5
+    /// Stage 3b): every Material/Component/Block stack moves in (tools/weapons/equipment stay with the
+    /// player). Persisted.</summary>
+    internal void DepositToContainer(string playerId, string containerId)
+    {
+        var session = _host.FindSessionByPlayerId(playerId);
+        if (session is null)
+        {
+            return;
+        }
+
+        var container = _host.ContainerStore.FirstOrDefault(c => c.Id == containerId && c.Kind == "crate");
+        if (container is null)
+        {
+            _host.Reject(session, "stash", "@srv.loot.no_crate");
+            return;
+        }
+
+        if (_host.OwnedContainerRefusal(container) is { Length: > 0 } notYours)
+        {
+            _host.Reject(session, "stash", notYours); // #2640: nothing goes into a lodge resident's store but their own work
+            return;
+        }
+
+        var center = new Vector3f(container.Position.X + 0.5f, container.Position.Y + 0.5f, container.Position.Z + 0.5f);
+        if (_host.WrapDistSq(session.State.Position, center) > LootReach * LootReach)
+        {
+            _host.Reject(session, "stash", "@out_of_reach");
+            return;
+        }
+
+        var inv = session.State.Inventory;
+        var toStash = new Dictionary<string, int>();
+        for (int i = 0; i < inv.SlotCount; i++)
+        {
+            if (inv.Slots[i] is { IsEmpty: false } s
+                && Stashable(_content.GetItem(s.Item)))
+            {
+                toStash[s.Item] = (toStash.TryGetValue(s.Item, out var have) ? have : 0) + s.Count;
+            }
+        }
+
+        if (toStash.Count == 0)
+        {
+            _host.Reject(session, "stash", "@srv.loot.nothing_to_stash");
+            return;
+        }
+
+        // A wood box (#808) holds only a few distinct stacks; the workshop crate is unbounded. Existing
+        // stacks always merge (no per-stack count cap) — only NEW item types are refused once full.
+        bool woodBox = _host.World.GetBlock(container.Position).Value == (_content.GetBlock("wood_crate")?.NumericId.Value ?? 0);
+
+        var merged = container.Items.Where(s => !s.IsEmpty).ToDictionary(s => s.Item, s => s.Count);
+        bool stashed = false;
+        bool boxFull = false;
+        foreach (var (item, count) in toStash)
+        {
+            // Dedicated crates (#1032): only whitelisted items go in. Matched on the base key so a
+            // dyed/shaped variant of an allowed material still fits.
+            if (container.Filter.Count > 0 && !container.Filter.Contains(ItemKey.Base(item)))
+            {
+                continue; // not what this crate is for — this stack stays with the player
+            }
+
+            if (woodBox && !merged.ContainsKey(item) && merged.Count >= WoodCrateStackSlots)
+            {
+                boxFull = true;
+                continue; // box full for new item types — this stack stays with the player
+            }
+
+            inv.Remove(item, count);
+            merged[item] = (merged.TryGetValue(item, out var have) ? have : 0) + count;
+            stashed = true;
+        }
+
+        if (!stashed)
+        {
+            // "Box full" only when capacity actually refused something; otherwise the filter did, and
+            // saying "full" at an empty-but-dedicated crate would send the player hunting phantom space.
+            _host.Reject(session, "stash", boxFull ? "@srv.loot.wood_box_full" : "@srv.loot.filter_blocked");
+            return;
+        }
+
+        container.Items = merged.Select(kv => new ItemStack(kv.Key, kv.Value)).ToList();
+        _repo.SaveContainer(container);
+        _host.SendInventory(session);
+        BroadcastContainers();
+    }
+
+    internal void HandleDepositContainer(PlayerSession session, DepositContainerIntent intent)
+        => DepositToContainer(session.State.PlayerId, intent.ContainerId);
+
+    /// <summary>The player dedicates a crate to specific items (#1032): press E at a crate, pick what belongs
+    /// in it. Server-authoritative — unknown keys and non-stashable categories are dropped here, so the client
+    /// UI is a convenience, not the rule. An empty list clears the filter.</summary>
+    internal void HandleSetContainerFilter(PlayerSession session, SetContainerFilterIntent intent)
+    {
+        var container = _host.ContainerStore.FirstOrDefault(c => c.Id == intent.ContainerId && c.Kind == "crate");
+        if (container is null)
+        {
+            _host.Reject(session, "stash", "@srv.loot.no_crate");
+            return;
+        }
+
+        if (_host.OwnedContainerRefusal(container) is { Length: > 0 } notYours)
+        {
+            _host.Reject(session, "stash", notYours); // #2640: a lodge resident's store is sorted by its owner
+            return;
+        }
+
+        var center = new Vector3f(container.Position.X + 0.5f, container.Position.Y + 0.5f, container.Position.Z + 0.5f);
+        if (_host.WrapDistSq(session.State.Position, center) > LootReach * LootReach)
+        {
+            _host.Reject(session, "stash", "@out_of_reach");
+            return;
+        }
+
+        container.Filter = (intent.Items ?? Array.Empty<string>())
+            .Select(ItemKey.Base)
+            .Where(key => Storable(_content.GetItem(key))) // #2436: a food crate or a tool crate is a valid wish now
+            .Distinct()
+            .Take(MaxFilterEntries)
+            .ToList();
+
+        // Station-derived crates are runtime-only (rebuilt on every board, never saved) — persisting one
+        // here would leave a phantom row behind. Only crates that exist as placed blocks are written back.
+        if (IsContainerBlock(_content.BlockById(_host.World.GetBlock(container.Position))?.Key ?? string.Empty))
+        {
+            _repo.SaveContainer(container);
+        }
+
+        BroadcastContainers();
+    }
+
+    /// <summary>Places a storage crate the player just built into the world as an (empty) lootable container.</summary>
+    internal void PlaceCrate(Vector3i pos)
+        => AddContainer(new StoredContainer
+        {
+            Id = "crate_" + System.Guid.NewGuid().ToString("N"),
+            Planet = _host.World.LocationId,
+            Kind = "crate",
+            Position = pos,
+            Items = new List<ItemStack>(),
+        });
+
+    /// <summary>The stacks a crate at <paramref name="pos"/> would hand back if it were mined. Used to check
+    /// there is room for them BEFORE the crate is broken — mining a full crate into a full inventory used to
+    /// destroy its contents.</summary>
+    internal IEnumerable<ItemAmount> CrateContentsAt(Vector3i pos)
+    {
+        if (_host.ContainerStore.FirstOrDefault(c => c.Kind == "crate" && c.Position.Equals(pos)) is not { } container)
+        {
+            return Array.Empty<ItemAmount>();
+        }
+
+        return container.Items.Where(s => !s.IsEmpty).Select(s => new ItemAmount(s.Item, s.Count)).ToList();
+    }
+
+    /// <summary>Mining a storage crate returns its stored contents to the miner and removes the container.</summary>
+    internal void RemoveCrateContainer(Vector3i pos, MaterialPool pool)
+    {
+        if (_host.ContainerStore.FirstOrDefault(c => c.Kind == "crate" && c.Position.Equals(pos)) is not { } container)
+        {
+            return;
+        }
+
+        foreach (var s in container.Items.Where(s => !s.IsEmpty))
+        {
+            pool.Add(s.Item, s.Count);
+        }
+
+        _host.ContainerStore.Remove(container);
+        _repo.DeleteContainer(container.Id);
+        BroadcastContainers();
+    }
+
+    private NetContainer ToNetContainer(StoredContainer c) => new()
+    {
+        Id = c.Id,
+        Kind = c.Kind,
+        X = c.Position.X,
+        Y = c.Position.Y,
+        Z = c.Position.Z,
+        ItemCount = c.Items.Count,
+        Filter = c.Filter.ToArray(),
+        OwnedBy = _host.VillageOwningCache(c)?.Name ?? string.Empty, // #2726: the HUD names the village instead of offering G
+    };
+
+    /// <summary>The containers a client renders + loots. Ground drop packets share this store (and its free
+    /// persistence) but are NOT containers to the player: they collect themselves and would otherwise steal
+    /// the crate/capsule loot prompt, so they are filtered out here and travel on their own list (#853).</summary>
+    private ContainerList ContainerMessage() => new()
+    {
+        Containers = _host.ContainerStore.Where(c => c.Kind != GameServer.DropPacketKind).Select(ToNetContainer).ToArray(),
+    };
+
+    internal void BroadcastContainers()
+    {
+        _host.BroadcastToWorld(ContainerMessage());
+        RefreshOpenCrates(); // #2436: whoever has a crate screen open sees the change at once
+    }
+
+    // ---------------- The crate screen (#2436) ----------------
+
+    /// <summary>Opens or closes the crate screen for a crate: on open the contents go out at once and keep being re-sent
+    /// after every change (<see cref="RefreshOpenCrates"/>) for as long as the screen is open. Validates reach.</summary>
+    internal void HandleOpenContainer(PlayerSession session, OpenContainerIntent intent)
+    {
+        if (!intent.Open)
+        {
+            session.OpenContainerId = null;
+            return;
+        }
+
+        var container = _host.ContainerStore.FirstOrDefault(c => c.Id == intent.ContainerId && c.Kind == "crate");
+        if (container is null)
+        {
+            _host.Reject(session, "stash", "@srv.loot.no_crate");
+            return;
+        }
+
+        if (!WithinLootReach(session, container))
+        {
+            _host.Reject(session, "stash", "@out_of_reach");
+            return;
+        }
+
+        session.OpenContainerId = container.Id;
+        SendContainerContents(session, container);
+    }
+
+    internal void HandleMoveContainerItem(PlayerSession session, MoveContainerItemIntent intent)
+        => MoveContainerItem(session.State.PlayerId, intent.ContainerId, intent.Item, intent.ToContainer, intent.All, intent.FromSlot);
+
+    /// <summary>Moves one kind of item between the player's backpack and a crate (#2436) — a click on the crate screen.
+    /// Into the crate: one stack (or every stack with <paramref name="all"/>) of <paramref name="item"/>, any category,
+    /// subject to the crate's filter and a wood box's capacity — #2729: the stack in <paramref name="fromSlot"/>, the one
+    /// the player clicked, else the first one. Out of the crate: up to one full stack (or everything of that item with
+    /// <paramref name="all"/>), as far as the backpack has room. Persisted; the contents go out to every open crate screen
+    /// and the count to the world. Returns true if anything moved.</summary>
+    internal bool MoveContainerItem(string playerId, string containerId, string item, bool toContainer, bool all, int fromSlot = -1)
+    {
+        var session = _host.FindSessionByPlayerId(playerId);
+        if (session is null || string.IsNullOrEmpty(item))
+        {
+            return false;
+        }
+
+        var container = _host.ContainerStore.FirstOrDefault(c => c.Id == containerId && c.Kind == "crate");
+        if (container is null)
+        {
+            _host.Reject(session, "stash", "@srv.loot.no_crate");
+            return false;
+        }
+
+        if (_host.OwnedContainerRefusal(container) is { Length: > 0 } notYours)
+        {
+            _host.Reject(session, toContainer ? "stash" : "loot", notYours); // #2640: look, don't take (or put)
+            return false;
+        }
+
+        if (!WithinLootReach(session, container))
+        {
+            _host.Reject(session, "stash", "@out_of_reach");
+            return false;
+        }
+
+        var inv = session.State.Inventory;
+        var merged = container.Items.Where(s => !s.IsEmpty).ToDictionary(s => s.Item, s => s.Count);
+        if (toContainer)
+        {
+            if (!Storable(_content.GetItem(item)))
+            {
+                return false; // an item this server does not know
+            }
+
+            if (container.Filter.Count > 0 && !container.Filter.Contains(ItemKey.Base(item)))
+            {
+                _host.Reject(session, "stash", "@srv.loot.filter_blocked");
+                return false;
+            }
+
+            bool woodBox = _host.World.GetBlock(container.Position).Value == (_content.GetBlock("wood_crate")?.NumericId.Value ?? 0);
+            if (woodBox && !merged.ContainsKey(item) && merged.Count >= WoodCrateStackSlots)
+            {
+                _host.Reject(session, "stash", "@srv.loot.wood_box_full");
+                return false;
+            }
+
+            int count = 0;
+            if (!all && fromSlot >= 0 && fromSlot < inv.SlotCount && inv.Slots[fromSlot] is { IsEmpty: false } clicked && clicked.Item == item)
+            {
+                // #2729: exactly the stack that was clicked — Remove() below would take from the first stacks instead.
+                count = clicked.Count;
+                inv.SetSlot(fromSlot, null);
+            }
+            else
+            {
+                for (int i = 0; i < inv.SlotCount; i++)
+                {
+                    if (inv.Slots[i] is { IsEmpty: false } s && s.Item == item)
+                    {
+                        count += s.Count;
+                        if (!all)
+                        {
+                            break; // one stack: the first one found (an older client, or the clicked slot changed meanwhile)
+                        }
+                    }
+                }
+
+                if (count == 0)
+                {
+                    return false;
+                }
+
+                inv.Remove(item, count);
+            }
+
+            merged[item] = (merged.TryGetValue(item, out var have) ? have : 0) + count;
+        }
+        else
+        {
+            if (!merged.TryGetValue(item, out int inCrate) || inCrate <= 0)
+            {
+                return false;
+            }
+
+            int max = _content.GetItem(item)?.MaxStack ?? Shared.Definitions.ItemDefinition.DefaultMaxStack;
+            int want = all ? inCrate : System.Math.Min(inCrate, max);
+            int notPlaced = inv.Add(item, want, max);
+            int taken = want - notPlaced;
+            if (taken <= 0)
+            {
+                _host.Reject(session, "loot", "@inventory_full");
+                return false;
+            }
+
+            if (inCrate - taken > 0)
+            {
+                merged[item] = inCrate - taken;
+            }
+            else
+            {
+                merged.Remove(item);
+            }
+        }
+
+        container.Items = merged.Select(kv => new ItemStack(kv.Key, kv.Value)).ToList();
+        _repo.SaveContainer(container);
+        _host.SendInventory(session);
+        BroadcastContainers(); // count to the world + contents to every open crate screen
+        return true;
+    }
+
+    private bool WithinLootReach(PlayerSession session, StoredContainer container)
+    {
+        var center = new Vector3f(container.Position.X + 0.5f, container.Position.Y + 0.5f, container.Position.Z + 0.5f);
+        return _host.WrapDistSq(session.State.Position, center) <= LootReach * LootReach;
+    }
+
+    private void SendContainerContents(PlayerSession session, StoredContainer container)
+    {
+        bool woodBox = _host.World.GetBlock(container.Position).Value == (_content.GetBlock("wood_crate")?.NumericId.Value ?? 0);
+        int slot = 0;
+        _host.Send(session, new ContainerContents
+        {
+            ContainerId = container.Id,
+            Items = container.Items.Where(s => !s.IsEmpty).Select(s => new NetItemStack { Slot = slot++, Item = s.Item, Count = s.Count }).ToArray(),
+            StackLimit = woodBox ? WoodCrateStackSlots : 0,
+            Filter = container.Filter.ToArray(),
+        });
+    }
+
+    /// <summary>Re-sends the contents of every crate someone has open (#2436) — after any stash, loot, move or filter
+    /// change. A crate that is gone (mined) sends an empty list, which closes the screen.</summary>
+    private void RefreshOpenCrates()
+    {
+        foreach (var s in _host.Sessions.Values)
+        {
+            if (!s.Joined || string.IsNullOrEmpty(s.OpenContainerId))
+            {
+                continue;
+            }
+
+            var container = _host.ContainerStore.FirstOrDefault(c => c.Id == s.OpenContainerId && c.Kind == "crate");
+            if (container is null)
+            {
+                _host.Send(s, new ContainerContents { ContainerId = s.OpenContainerId });
+                s.OpenContainerId = null;
+                continue;
+            }
+
+            SendContainerContents(s, container);
+        }
+    }
+
+    /// <summary>Sends this world's containers AND its ground drop packets — the two lists always travel
+    /// together, so every join/respawn/travel path stays in sync with one call.</summary>
+    internal void SendContainers(PlayerSession session)
+    {
+        _host.Send(session, ContainerMessage());
+        _host.SendDropPackets(session);
+    }
+}

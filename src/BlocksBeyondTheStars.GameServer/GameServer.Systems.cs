@@ -14,7 +14,7 @@ public sealed partial class GameServer : IServerHost
     // they are assigned in ConstructSystems, not in the constructor body.
     private AiLinesSystem _aiLinesSystem = null!;
     private BioLabSystem _bioLabSystem = null!;
-    // slot: Container
+    private ContainerSystem _containerSystem = null!;
     private CrewSystem _crewSystem = null!;
     private EquipmentSystem _equipmentSystem = null!;
     private FarTerrainSystem _farTerrainSystem = null!;
@@ -35,7 +35,7 @@ public sealed partial class GameServer : IServerHost
     {
         _aiLinesSystem = new AiLinesSystem(this, _config);
         _bioLabSystem = new BioLabSystem(this, _content);
-        // slot: Container
+        _containerSystem = new ContainerSystem(this, _content, _repo);
         _crewSystem = new CrewSystem(this, _repo, _log);
         _equipmentSystem = new EquipmentSystem(this, _content, _log);
         _farTerrainSystem = new FarTerrainSystem(this, _repo);
