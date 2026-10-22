@@ -17,13 +17,13 @@ public sealed partial class GameServer : IServerHost
     // slot: Container
     private CrewSystem _crewSystem = null!;
     private EquipmentSystem _equipmentSystem = null!;
-    // slot: FarTerrain
-    // slot: HullRepair
+    private FarTerrainSystem _farTerrainSystem = null!;
+    // HullRepair: a one-shot pass, built where Start runs it (GameServerHullRepair.cs) — no field.
     // slot: Journal
     // slot: Marker
     private NpcWorkSystem _npcWorkSystem = null!;
     private ObserverSystem _observerSystem = null!;
-    // slot: ShipExtension
+    // ShipExtension: ShipExtensionGeometry is a static class (the glue stays in GameServerShipExtension.cs) — no field.
     // slot: Temperature
     // slot: Tutorial
     // slot: Vehicle
@@ -38,13 +38,13 @@ public sealed partial class GameServer : IServerHost
         // slot: Container
         _crewSystem = new CrewSystem(this, _repo, _log);
         _equipmentSystem = new EquipmentSystem(this, _content, _log);
-        // slot: FarTerrain
-        // slot: HullRepair
+        _farTerrainSystem = new FarTerrainSystem(this, _repo);
+        // HullRepair: a one-shot pass, built where Start runs it (GameServerHullRepair.cs).
         // slot: Journal
         // slot: Marker
         _npcWorkSystem = new NpcWorkSystem(this);
         _observerSystem = new ObserverSystem(this, _repo, _config);
-        // slot: ShipExtension
+        // ShipExtension: ShipExtensionGeometry is static — nothing to build.
         // slot: Temperature
         // slot: Tutorial
         // slot: Vehicle

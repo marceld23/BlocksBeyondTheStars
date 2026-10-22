@@ -129,6 +129,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   new sealed `NpcWorkSystem.cs` (682): 18 cadence constants, the work RNG (same seed 0x2641) and 21 methods moved
   verbatim behind the wide `INpcWorkHost : IServerHost` (2 shared + 21 own members); `NpcMineRefillSeconds` `private` →
   `internal`. World, uptime and creatures are read at use time; 93 NPC-work/lodge/pioneer/wanderer/guest tests green.
+- **HullRepair, FarTerrain and ShipExtension (#2899):** `GameServerHullRepair.cs` (417 → 38 lines) → sealed
+  `HullRepairSystem.cs` (449, one-shot pass built where `Start` runs it, `IHullRepairHost`: 2 members),
+  `GameServerFarTerrain.cs` (401 → 64) → sealed `FarTerrainSystem.cs` (432, `IFarTerrainHost`: 4 own members), the
+  door/air geometry of `GameServerShipExtension.cs` (462 → 199, glue kept) → static `ShipExtensionGeometry.cs` (322).
+  Moved verbatim behind one-line facades; budgets, constants, seams and callers unchanged; 231 ship/terrain tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

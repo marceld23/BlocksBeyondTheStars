@@ -11,114 +11,32 @@ using BlocksBeyondTheStars.Shared.World;
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
-/// Growing an authored ship (#2119 – #2121, a player report: "I extended my ship at the back, but as soon as I go
-/// through the door my area doesn't count as ship"). An owner may build onto the ship — on a spacewalk and on foot —
-/// up to the Ship Keel's 15 × 15 × 15; the ship then is its real cells, not its design box:
-/// <list type="bullet">
-/// <item><b>Doors</b> built into it become real doors (a doorway cell + its kind and axis), drawn in flight too.</item>
-/// <item>Walking out of the ship in space starts a spacewalk only outside its real extents.</item>
-/// <item>An extension has ship air only when it is <b>sealed</b>: airtight full cubes and door openings close it,
-/// exactly like the Ship Keel's airtightness check and a player station; the design box always has air, so every
-/// existing cabin keeps working.</item>
-/// <item>Cells the owner took out on purpose are the new design — the repair never walls them up again.</item>
-/// </list>
+/// Growing an authored ship (#2119 – #2121): the geometry over a <see cref="SpaceStructure"/> — placed doors, extents,
+/// the 15 × 15 × 15 fit, the sealed-air flood fill, door openings, hatch cells, door axis — is the static
+/// <see cref="ShipExtensionGeometry"/>. This partial keeps the names the sibling partials call (constants and one-line
+/// forwards to the geometry), the server-side glue (parked-ship edits, inventory, reach, door registration) and the
+/// test seams.
 /// </summary>
 public sealed partial class GameServer
 {
-    /// <summary>The biggest a ship may grow on each axis — the Ship Keel's limit (a design already larger keeps its size).</summary>
-    private const int ShipExtensionMaxSize = 15;
-
     /// <summary>The axis of an owner-built door, stored in the shape field of its structure edit.</summary>
-    private const int PlacedDoorAxisX = 1;
-    private const int PlacedDoorAxisZ = 2;
+    private const int PlacedDoorAxisX = ShipExtensionGeometry.PlacedDoorAxisX;
+    private const int PlacedDoorAxisZ = ShipExtensionGeometry.PlacedDoorAxisZ;
 
     /// <summary>The shape field of an air edit the owner made on purpose (#2121) — a hit never writes it.</summary>
-    private const int OwnerRemovedMark = -1;
-
-    private static readonly Vector3i[] AirSteps =
-    {
-        new(1, 0, 0), new(-1, 0, 0), new(0, 1, 0), new(0, -1, 0), new(0, 0, 1), new(0, 0, -1),
-    };
+    private const int OwnerRemovedMark = ShipExtensionGeometry.OwnerRemovedMark;
 
     private static void AddPlacedShipDoor(SpaceStructure s, Vector3i cell, string kind, bool axisX)
-    {
-        if (!s.DoorCells.Contains(cell))
-        {
-            s.DoorCells.Add(cell);
-        }
+        => ShipExtensionGeometry.AddPlacedShipDoor(s, cell, kind, axisX);
 
-        s.DoorKinds[cell] = kind;
-        s.PlacedDoorAxes[cell] = axisX;
-        s.Revision++;
-    }
-
-    private static bool RemovePlacedShipDoor(SpaceStructure s, Vector3i cell)
-    {
-        if (!s.PlacedDoorAxes.Remove(cell))
-        {
-            return false;
-        }
-
-        s.DoorCells.Remove(cell);
-        s.DoorKinds.Remove(cell);
-        s.Revision++;
-        return true;
-    }
+    private static bool RemovePlacedShipDoor(SpaceStructure s, Vector3i cell) => ShipExtensionGeometry.RemovePlacedShipDoor(s, cell);
 
     /// <summary>The owner-built door whose three-tall opening holds this cell, if any.</summary>
-    private static Vector3i? PlacedDoorCovering(SpaceStructure s, Vector3i cell)
-    {
-        for (int dy = 0; dy <= 2; dy++)
-        {
-            var c = new Vector3i(cell.X, cell.Y - dy, cell.Z);
-            if (s.PlacedDoorAxes.ContainsKey(c))
-            {
-                return c;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>The design's own extents — the baseline cells, or the design box when it has none.</summary>
-    private static (Vector3i Min, Vector3i Max) DesignExtents(SpaceStructure s)
-    {
-        var min = new Vector3i(0, 0, 0);
-        var max = new Vector3i(System.Math.Max(0, s.Width - 1), System.Math.Max(0, s.Height), System.Math.Max(0, s.Length - 1));
-        foreach (var c in s.Baseline)
-        {
-            min = new Vector3i(System.Math.Min(min.X, c.X), System.Math.Min(min.Y, c.Y), System.Math.Min(min.Z, c.Z));
-            max = new Vector3i(System.Math.Max(max.X, c.X), System.Math.Max(max.Y, c.Y), System.Math.Max(max.Z, c.Z));
-        }
-
-        return (min, max);
-    }
-
-    /// <summary>Everything the ship is now: its cells, its doorways and the design box.</summary>
-    private static (Vector3i Min, Vector3i Max) CellExtents(SpaceStructure s)
-    {
-        var (min, max) = DesignExtents(s);
-        foreach (var c in s.Cells.Keys.Concat(s.DoorCells))
-        {
-            min = new Vector3i(System.Math.Min(min.X, c.X), System.Math.Min(min.Y, c.Y), System.Math.Min(min.Z, c.Z));
-            max = new Vector3i(System.Math.Max(max.X, c.X), System.Math.Max(max.Y, c.Y), System.Math.Max(max.Z, c.Z));
-        }
-
-        return (min, max);
-    }
+    private static Vector3i? PlacedDoorCovering(SpaceStructure s, Vector3i cell) => ShipExtensionGeometry.PlacedDoorCovering(s, cell);
 
     /// <summary>#2120: whether a new cell keeps the ship within 15 × 15 × 15 (per axis; a design already larger on an
     /// axis may not grow further on it).</summary>
-    private static bool ShipExtensionFits(SpaceStructure s, Vector3i cell)
-    {
-        var (dMin, dMax) = DesignExtents(s);
-        var (min, max) = CellExtents(s);
-        min = new Vector3i(System.Math.Min(min.X, cell.X), System.Math.Min(min.Y, cell.Y), System.Math.Min(min.Z, cell.Z));
-        max = new Vector3i(System.Math.Max(max.X, cell.X), System.Math.Max(max.Y, cell.Y), System.Math.Max(max.Z, cell.Z));
-        return max.X - min.X + 1 <= System.Math.Max(ShipExtensionMaxSize, dMax.X - dMin.X + 1)
-            && max.Y - min.Y + 1 <= System.Math.Max(ShipExtensionMaxSize, dMax.Y - dMin.Y + 1)
-            && max.Z - min.Z + 1 <= System.Math.Max(ShipExtensionMaxSize, dMax.Z - dMin.Z + 1);
-    }
+    private static bool ShipExtensionFits(SpaceStructure s, Vector3i cell) => ShipExtensionGeometry.ShipExtensionFits(s, cell);
 
     /// <summary>#2120: whether an owner may build into this cell of their parked ship on foot: inside the design box
     /// always; outside it only an authored ship (a self-built one keeps its construction rules), only within
@@ -141,197 +59,16 @@ public sealed partial class GameServer
         return _world.GetBlock(world).IsAir;
     }
 
-    /// <summary>#2120: the ship's sealed air, cached per structure revision. A flood from the outside of the extents
-    /// (+1) through everything that does not seal; the air cells it never reaches are sealed. Airtight full cubes seal
-    /// (a shaped cell leaks — the base and station rule), and so does every door opening, whole: its gap width and three
-    /// cells high, like the Ship Keel's check (a door panel fills its opening).</summary>
-    private void EnsureShipAir(SpaceStructure s)
-    {
-        if (s.SealedAir is not null && s.AirRevision == s.Revision)
-        {
-            return;
-        }
+    /// <summary>#2120: the ship's sealed air, cached per structure revision (the flood fill is
+    /// <see cref="ShipExtensionGeometry.EnsureShipAir"/>, with this server's content deciding what is airtight).</summary>
+    private void EnsureShipAir(SpaceStructure s) => ShipExtensionGeometry.EnsureShipAir(s, _content);
 
-        var (min, max) = CellExtents(s);
-        var doorOpenings = DoorOpeningCells(s);
+    /// <summary>The air cells every door of the ship fills: its gap along the wall, three cells high.</summary>
+    private static HashSet<Vector3i> DoorOpeningCells(SpaceStructure s) => ShipExtensionGeometry.DoorOpeningCells(s);
 
-        bool Seals(Vector3i c)
-        {
-            if (doorOpenings.Contains(c))
-            {
-                return true;
-            }
-
-            var b = s.Get(c);
-            if (b.IsAir || _content.BlockById(b) is not { Airtight: true })
-            {
-                return false;
-            }
-
-            return !s.Shapes.TryGetValue(c, out int shape) || ShapeCode.IsCube(shape);
-        }
-
-        var lo = new Vector3i(min.X - 1, min.Y - 1, min.Z - 1);
-        var hi = new Vector3i(max.X + 1, max.Y + 1, max.Z + 1);
-        bool InBox(Vector3i c) => c.X >= lo.X && c.X <= hi.X && c.Y >= lo.Y && c.Y <= hi.Y && c.Z >= lo.Z && c.Z <= hi.Z;
-
-        var outside = new HashSet<Vector3i>();
-        var frontier = new Queue<Vector3i>();
-        for (int x = lo.X; x <= hi.X; x++)
-            for (int y = lo.Y; y <= hi.Y; y++)
-                for (int z = lo.Z; z <= hi.Z; z++)
-                {
-                    if (x != lo.X && x != hi.X && y != lo.Y && y != hi.Y && z != lo.Z && z != hi.Z)
-                    {
-                        continue;
-                    }
-
-                    var c = new Vector3i(x, y, z);
-                    if (!Seals(c) && outside.Add(c))
-                    {
-                        frontier.Enqueue(c);
-                    }
-                }
-
-        while (frontier.Count > 0)
-        {
-            var c = frontier.Dequeue();
-            foreach (var d in AirSteps)
-            {
-                var n = new Vector3i(c.X + d.X, c.Y + d.Y, c.Z + d.Z);
-                if (InBox(n) && !Seals(n) && outside.Add(n))
-                {
-                    frontier.Enqueue(n);
-                }
-            }
-        }
-
-        var sealedAir = new HashSet<Vector3i>();
-        for (int x = min.X; x <= max.X; x++)
-            for (int y = min.Y; y <= max.Y; y++)
-                for (int z = min.Z; z <= max.Z; z++)
-                {
-                    var c = new Vector3i(x, y, z);
-                    if (s.Get(c).IsAir && !outside.Contains(c))
-                    {
-                        sealedAir.Add(c); // incl. the door openings themselves — standing in a doorway is inside
-                    }
-                }
-
-        s.SealedAir = sealedAir;
-        s.ExtentMin = min;
-        s.ExtentMax = max;
-        s.AirRevision = s.Revision;
-    }
-
-    /// <summary>The air cells every door of the ship fills: its gap along the wall, three cells high. An owner-built door
-    /// is one cell wide on its recorded axis; a design door is measured like its registration measures it.</summary>
-    private static HashSet<Vector3i> DoorOpeningCells(SpaceStructure s)
-    {
-        var cells = new HashSet<Vector3i>();
-        foreach (var d in s.DoorCells)
-        {
-            AddDoorOpening(s, d, cells, out _);
-        }
-
-        return cells;
-    }
-
-    /// <summary>Adds the air cells one door of the ship fills (see <see cref="DoorOpeningCells"/>) and names the wall
-    /// axis it hangs along.</summary>
-    private static void AddDoorOpening(SpaceStructure s, Vector3i d, ICollection<Vector3i> into, out bool axisX)
-    {
-        bool Solid(int x, int y, int z) => !s.Get(new Vector3i(x, y, z)).IsAir;
-        int lo, hi;
-        if (s.PlacedDoorAxes.TryGetValue(d, out bool placedAxis))
-        {
-            axisX = placedAxis;
-            lo = hi = 0;
-        }
-        else
-        {
-            var fit = DoorProbe.Measure(Solid, d.X, d.Y, d.Z, d.Z == 0 ? true : null);
-            axisX = fit.AxisX;
-            lo = fit.Lo;
-            hi = fit.Hi;
-        }
-
-        for (int w = lo; w <= hi; w++)
-        {
-            for (int dy = 0; dy <= 2; dy++)
-            {
-                var c = axisX ? new Vector3i(d.X + w, d.Y + dy, d.Z) : new Vector3i(d.X, d.Y + dy, d.Z + w);
-                if (!Solid(c.X, c.Y, c.Z) && !into.Contains(c))
-                {
-                    into.Add(c);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// #2587: the doorways of the design's OWN doors that open to space — an authored ship's rear hatch (a self-built
-    /// ship's outer doors alike) — sent with the design so the flight view caps exactly these with the hatch's energy
-    /// panel. It used to guess the opening from the stern's cells, and a few leaves beside the stern grew the panel past
-    /// the hull. A doorway opens to space when a straight line across its wall, from any of its cells, leaves the ship's
-    /// extents without meeting a block or another doorway: the hatch looks out of the stern, a door between two cabins
-    /// looks at walls both ways (the Courier's inner door stands in line with the hatch — that doorway's door closes the
-    /// view), and a room the owner built behind the stern (#2120) closes the hatch in. Line of sight rather than the
-    /// sealed air: a hull with a hole leaks everywhere, and every inner door would get a panel. The owner's own doors
-    /// (#2119) are not design doors; they travel in <c>DoorX</c> and show their own field (#2607).
-    /// </summary>
-    private static List<Vector3i> ShipHatchCells(SpaceStructure s)
-    {
-        var hatch = new List<Vector3i>();
-        if (s.Kind != "ship" || s.DoorCells.Count == s.PlacedDoorAxes.Count)
-        {
-            return hatch;
-        }
-
-        var (min, max) = CellExtents(s);
-        var doorways = DoorOpeningCells(s);
-        bool ClearToSpace(Vector3i from, int dx, int dz)
-        {
-            for (var c = new Vector3i(from.X + dx, from.Y, from.Z + dz);
-                 c.X >= min.X && c.X <= max.X && c.Z >= min.Z && c.Z <= max.Z;
-                 c = new Vector3i(c.X + dx, c.Y, c.Z + dz))
-            {
-                if (!s.Get(c).IsAir || doorways.Contains(c))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        var opening = new List<Vector3i>();
-        foreach (var d in s.DoorCells)
-        {
-            if (s.PlacedDoorAxes.ContainsKey(d))
-            {
-                continue;
-            }
-
-            opening.Clear();
-            AddDoorOpening(s, d, opening, out bool axisX);
-            int dx = axisX ? 0 : 1, dz = axisX ? 1 : 0; // across the wall
-            if (!opening.Exists(c => ClearToSpace(c, dx, dz) || ClearToSpace(c, -dx, -dz)))
-            {
-                continue;
-            }
-
-            foreach (var c in opening)
-            {
-                if (!hatch.Contains(c))
-                {
-                    hatch.Add(c);
-                }
-            }
-        }
-
-        return hatch;
-    }
+    /// <summary>#2587: the doorways of the design's own doors that open to space (see
+    /// <see cref="ShipExtensionGeometry.ShipHatchCells"/>).</summary>
+    private static List<Vector3i> ShipHatchCells(SpaceStructure s) => ShipExtensionGeometry.ShipHatchCells(s);
 
     /// <summary>#2120: true when the position stands in a sealed pocket of the parked ship (feet or head cell).</summary>
     private bool InSealedShipAir(LandedShip rec, Vector3f p)
@@ -360,7 +97,7 @@ public sealed partial class GameServer
     /// faces the builder (the shared placed-door rule, #1975). <paramref name="yawInShip"/> is the builder's heading in
     /// the ship's own frame.</summary>
     private static bool ShipDoorAxis(SpaceStructure s, Vector3i cell, double yawInShip)
-        => DoorProbe.AxisForPlacedDoor((x, y, z) => !s.Get(new Vector3i(x, y, z)).IsAir, cell.X, cell.Y, cell.Z, yawInShip);
+        => ShipExtensionGeometry.ShipDoorAxis(s, cell, yawInShip);
 
     /// <summary>#2119: builds a door into a ship's cell — the cell stays a doorway (air), the door is registered as
     /// the ship's, and the edit is persisted as the door block with its axis.</summary>

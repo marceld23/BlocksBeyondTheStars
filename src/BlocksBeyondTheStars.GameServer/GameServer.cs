@@ -1336,11 +1336,11 @@ public sealed partial class GameServer
     /// <summary>Persistence key for a player's ACTIVE ship. Kept as the legacy single-ship key (#848): every
     /// save still mirrors the active ship here, so a save written by this build stays loadable by an older one
     /// and the pre-fleet write sites need no change. The other ships use <see cref="FleetShipSaveKey"/>.</summary>
-    private static string ShipSaveKey(string playerId) => "ship_" + playerId;
+    internal static string ShipSaveKey(string playerId) => "ship_" + playerId;
 
     /// <summary>Persistence key for one ship of a player's fleet (#848). The `ship` table is a generic
     /// key→JSON store, so per-ship rows need no schema change; <c>PlayerState.FleetShipIds</c> is the index.</summary>
-    private static string FleetShipSaveKey(string playerId, string shipId) => "ship_" + playerId + "#" + shipId;
+    internal static string FleetShipSaveKey(string playerId, string shipId) => "ship_" + playerId + "#" + shipId;
 
     /// <summary>Per player: fleet ids whose ship row failed to load this session (#1275) — kept in the saved index.</summary>
     private readonly Dictionary<string, List<string>> _unloadableFleetIds = new();

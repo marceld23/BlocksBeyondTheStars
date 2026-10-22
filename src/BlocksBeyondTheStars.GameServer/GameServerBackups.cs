@@ -42,7 +42,7 @@ public sealed partial class GameServer
 
     /// <summary>A browser save keeps this many copies from before a remap or a save-version stamp (per kind): they
     /// live in the browser's storage quota, next to the save itself.</summary>
-    private const int UpdateCopiesWithoutRotation = 1;
+    internal const int UpdateCopiesWithoutRotation = 1;
 
     private readonly Stopwatch _backupClock = Stopwatch.StartNew();
     private double _backupClockOffset; // test seam: seconds added on top of the real clock

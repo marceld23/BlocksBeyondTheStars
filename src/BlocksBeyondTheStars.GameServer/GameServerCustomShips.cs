@@ -28,9 +28,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const string ShipCoreBlock = "ship_core";
-    private const string ShipHelmBlock = "ship_helm";
-    private const string ShipEngineBlock = "ship_engine";
+    internal const string ShipCoreBlock = "ship_core";
+    internal const string ShipHelmBlock = "ship_helm";
+    internal const string ShipEngineBlock = "ship_engine";
 
     /// <summary>Hard size cap of a self-built hull (issue #950): 15×15 footprint, 15 high — it also keeps
     /// every buildable ship inside the landing-pad clearance (pad radius 8 → 17 blocks across).</summary>
@@ -72,7 +72,7 @@ public sealed partial class GameServer
 
     /// <summary>Parses a <see cref="ShipState.BuiltCells"/> blob into a mutable cell map (same
     /// "x:y:z:blockId;…" format the player stations persist).</summary>
-    private static Dictionary<Vector3i, BlockId> ParseCustomCells(string blob)
+    internal static Dictionary<Vector3i, BlockId> ParseCustomCells(string blob)
     {
         var cells = new Dictionary<Vector3i, BlockId>();
         if (string.IsNullOrEmpty(blob))
