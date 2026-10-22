@@ -266,20 +266,13 @@ public static class FloraCatalog
         new Species("flora_cropshroom",  new[] { "dirt", "mud", "mycelium", "hydro_tray" }, Tags: FloraTag.Fungal, Cultivated: true, Solid: true),
     };
 
+    // Every lookup by block key (Find and the IsX accessors built on it) reads this index, built once from All. It must
+    // stay declared AFTER All: static field initializers run in textual order.
+    private static readonly Dictionary<string, Species> ByKey = IndexByKey();
+
     /// <summary>True for a farmed crop rather than wild flora — world generation skips these entirely
     /// (see <c>FloraGenerator.GenerateRoster</c>), so they never take on a world's plant identity.</summary>
-    public static bool IsCultivated(string key)
-    {
-        foreach (var sp in All)
-        {
-            if (sp.Key == key)
-            {
-                return sp.Cultivated;
-            }
-        }
-
-        return false;
-    }
+    public static bool IsCultivated(string key) => Find(key)?.Cultivated == true;
 
     /// <summary>The farmed crops in catalog order — what a settlement or station greenhouse may grow
     /// (<c>SettlementGenerator</c>/<c>StationGenerator</c> pick per bed from this set, deterministically).</summary>
@@ -299,45 +292,25 @@ public static class FloraCatalog
 
     /// <summary>The set of species block keys that render as a TALL cross-billboard (an upper vegetation
     /// layer). The client mesher reads the same catalog for the actual geometry (#1721).</summary>
-    public static bool IsTall(string key)
-    {
-        foreach (var sp in All)
-        {
-            if (sp.Key == key)
-            {
-                return sp.Height == FloraHeight.Tall;
-            }
-        }
-
-        return false;
-    }
+    public static bool IsTall(string key) => Find(key)?.Height == FloraHeight.Tall;
 
     /// <summary>True for a species that hangs from the block above it (see <see cref="Species.Hanging"/>, #1759).</summary>
-    public static bool IsHanging(string key)
-    {
-        foreach (var sp in All)
-        {
-            if (sp.Key == key)
-            {
-                return sp.Hanging;
-            }
-        }
-
-        return false;
-    }
+    public static bool IsHanging(string key) => Find(key)?.Hanging == true;
 
     /// <summary>The catalog entry of a species block key, or null for a key that is no species.</summary>
-    public static Species? Find(string key)
+    public static Species? Find(string key) => key is not null && ByKey.TryGetValue(key, out var sp) ? sp : null;
+
+    // The key → species index behind Find. Keys compare ordinally (as string == does) and the FIRST entry of a key wins,
+    // so a lookup answers exactly what a top-down scan of All would; a null key is no species (it never matched a key).
+    private static Dictionary<string, Species> IndexByKey()
     {
+        var byKey = new Dictionary<string, Species>(All.Count, StringComparer.Ordinal);
         foreach (var sp in All)
         {
-            if (sp.Key == key)
-            {
-                return sp;
-            }
+            byKey.TryAdd(sp.Key, sp);
         }
 
-        return null;
+        return byKey;
     }
 
     /// <summary>True for a species whose every plant takes its own colour from its cell (generation 11).</summary>
@@ -374,18 +347,7 @@ public static class FloraCatalog
     public static float LightOf(string key) => Find(key)?.Light ?? 0f;
 
     /// <summary>True for a species that renders as a solid cube (see <see cref="Species.Solid"/>).</summary>
-    public static bool IsSolid(string key)
-    {
-        foreach (var sp in All)
-        {
-            if (sp.Key == key)
-            {
-                return sp.Solid;
-            }
-        }
-
-        return false;
-    }
+    public static bool IsSolid(string key) => Find(key)?.Solid == true;
 
     /// <summary>The block keys of every species that renders tall AND leafy — the client's upper vegetation
     /// layer (a solid form ignores its height, so it is absent even when marked tall).</summary>

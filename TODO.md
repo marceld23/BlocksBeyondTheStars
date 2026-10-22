@@ -75,6 +75,12 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   new partial `WorldGenerator.ChunkFill.cs` (1,084): `FillContext`, `ResolveFillContext`, `BuildColumnContext`,
   `CollectSealSpans`, `FillColumnCells` (the y-loop), `PlantColumnFlora`, `StampChunkPasses`, in the old order. 64
   golden groups + 598 worldgen tests green, chunk hashes byte-identical, perf neutral; per-cell helpers skipped (slower).
+- **FloraCatalog lookups from one index (#2893):** `IsCultivated`, `IsTall`, `IsHanging` and `IsSolid` lost their
+  hand-written scans of `All` and delegate to `Find`, which now reads a `ByKey` dictionary built once from the same
+  table (`FloraCatalog.cs` 421 → 383 lines, 9 → 5 `foreach` over `All`). Ordinal keys, first entry wins and a null
+  key still yields null/false, so every answer is unchanged; the 68-entry table is untouched. The new
+  `FloraCatalogOrderTests` pins the catalog order (persisted identity), host arrays and lookups; 321 flora/golden
+  tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
