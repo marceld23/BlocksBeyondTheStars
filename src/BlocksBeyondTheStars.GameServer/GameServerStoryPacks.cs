@@ -485,13 +485,13 @@ public sealed partial class GameServer
     // Per-player state readers.
     // ---------------------------------------------------------------------------------------------
 
-    private static HashSet<string> MilestonesOf(PlayerSession s) => s.State.Milestones;
+    internal static HashSet<string> MilestonesOf(PlayerSession s) => s.State.Milestones;
 
-    private static bool PackStarted(PlayerSession s, CompiledPack pack) => MilestonesOf(s).Contains(StoryPackKeys.Started(pack.Id));
+    internal static bool PackStarted(PlayerSession s, CompiledPack pack) => MilestonesOf(s).Contains(StoryPackKeys.Started(pack.Id));
 
-    private static bool PackOptedOut(PlayerSession s, CompiledPack pack) => MilestonesOf(s).Contains(StoryPackKeys.OptOut(pack.Id));
+    internal static bool PackOptedOut(PlayerSession s, CompiledPack pack) => MilestonesOf(s).Contains(StoryPackKeys.OptOut(pack.Id));
 
-    private static bool PackDone(PlayerSession s, CompiledPack pack) => MilestonesOf(s).Contains(StoryPackKeys.Done(pack.Id));
+    internal static bool PackDone(PlayerSession s, CompiledPack pack) => MilestonesOf(s).Contains(StoryPackKeys.Done(pack.Id));
 
     /// <summary>The pack runs for this player right now: enabled (policy, opt-out), started.</summary>
     private bool PackRunsFor(PlayerSession s, CompiledPack pack)
@@ -505,34 +505,34 @@ public sealed partial class GameServer
         => MilestonesOf(s).Contains(StoryPackKeys.StepDone(step.Pack.Id, step.Id))
            || MilestonesOf(s).Contains(StoryPackKeys.StepSkipped(step.Pack.Id, step.Id));
 
-    private static bool ChapterReplaying(PlayerSession s, CompiledChapter ch)
+    internal static bool ChapterReplaying(PlayerSession s, CompiledChapter ch)
         => MilestonesOf(s).Contains(StoryPackKeys.ChapterReplay(ch.Pack.Id, ch.Id));
 
-    private static bool ChapterDoneOrSkipped(PlayerSession s, CompiledChapter ch)
+    internal static bool ChapterDoneOrSkipped(PlayerSession s, CompiledChapter ch)
         => MilestonesOf(s).Contains(StoryPackKeys.ChapterDone(ch.Pack.Id, ch.Id))
            || MilestonesOf(s).Contains(StoryPackKeys.ChapterSkipped(ch.Pack.Id, ch.Id));
 
     /// <summary>Whether a step is through for the chapter's sequence: done or skipped — during a replay, completed again in
     /// this replay (the done keys stay so conditions keep holding, but the replay walks every step anew).</summary>
-    private static bool StepComplete(PlayerSession s, CompiledStep step)
+    internal static bool StepComplete(PlayerSession s, CompiledStep step)
         => ChapterReplaying(s, step.Chapter)
             ? MilestonesOf(s).Contains(StoryPackKeys.StepReplay(step.Pack.Id, step.Id))
             : StepDoneOrSkipped(s, step);
 
     /// <summary>A chapter is through for the chapter order: done or skipped and not being replayed.</summary>
-    private static bool ChapterFinished(PlayerSession s, CompiledChapter ch)
+    internal static bool ChapterFinished(PlayerSession s, CompiledChapter ch)
         => ChapterDoneOrSkipped(s, ch) && !ChapterReplaying(s, ch);
 
-    private static bool StepActive(PlayerSession s, CompiledStep step) => s.State.StepProgress.ContainsKey(step.ProgressKey);
+    internal static bool StepActive(PlayerSession s, CompiledStep step) => s.State.StepProgress.ContainsKey(step.ProgressKey);
 
     /// <summary>A client without <c>packs1</c> follows only a tutorial's steps with a legacy stage (synthesis §5.7) — and no
     /// story mission (#2476: it has neither the Journal nor the chip text for one; it keeps the story chip it knows).</summary>
-    private static bool StepRunsForClient(PlayerSession s, CompiledStep step)
+    internal static bool StepRunsForClient(PlayerSession s, CompiledStep step)
         => s.SupportsPacks || (!step.Pack.IsTutorial && !step.Pack.IsStoryMissions) || step.LegacyStageId is not null;
 
     /// <summary>Whether a do step holds up its chapter: every do step of an optional chapter; in a non-optional chapter a
     /// MUST step, and a CORE step until its hint time has passed (then it is an open extra).</summary>
-    private static bool StepBlocks(PlayerSession s, CompiledStep step)
+    internal static bool StepBlocks(PlayerSession s, CompiledStep step)
     {
         if (!step.IsDo)
         {

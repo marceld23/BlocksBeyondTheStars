@@ -149,6 +149,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   `WorldStore` (467), `WorldModerationStore` (179), `PlayerReportStore` (100) and `GlitchStore` (123); records, name
   rules and the one unpooled connection, schema/ALTER migration and shared `Lock` went to `HostRegistryRecords`,
   `RegistryNameRules`, `RegistryDb`. Bodies and SQL moved verbatim, ctor order kept; tests untouched, 393 green.
+- **Markers, Journal and Temperature (#2900):** `GameServerTemperature.cs` (440 → 91 lines), `GameServerMarkers.cs`
+  (516 → 109) and `GameServerJournal.cs` (475 → 105) keep one-line facades and seams; the code moved verbatim to the
+  new sealed `TemperatureSystem.cs` (501), `MarkerSystem.cs` (513) and `JournalSystem.cs` (544) behind
+  `ITemperatureHost`/`IMarkerHost`/the wide `IJournalHost` (21/13/26 members); 16 `private` → `internal` widenings.
+  Guard keys, the 45 callers, run-once latches and seams unchanged; 604 temperature/marker/journal/story tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

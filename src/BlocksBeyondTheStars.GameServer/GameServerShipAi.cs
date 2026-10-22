@@ -64,7 +64,7 @@ public sealed partial class GameServer
 
     /// <summary>The objective chip's fields as one comparable value (#2462; the pack of a pack objective since #2466; the
     /// world story's id on its own chip and the step behind a pack objective since #2471).</summary>
-    private readonly record struct VegaChip(string Key, string Arg, int Progress, int Target, string Source, bool TutorialActive, string PackId = "", string StepId = "");
+    internal readonly record struct VegaChip(string Key, string Arg, int Progress, int Target, string Source, bool TutorialActive, string PackId = "", string StepId = "");
 
     private void SendVegaLine(PlayerSession session, string lineKey, byte kind, string arg = "")
     {

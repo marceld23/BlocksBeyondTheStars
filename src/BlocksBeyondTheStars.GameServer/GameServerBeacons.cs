@@ -170,7 +170,7 @@ public sealed partial class GameServer
     };
 
     /// <summary>Trims a player-typed label to a single short line (drops newlines, clamps length).</summary>
-    private static string SanitizeBeaconLabel(string raw)
+    internal static string SanitizeBeaconLabel(string raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
         {

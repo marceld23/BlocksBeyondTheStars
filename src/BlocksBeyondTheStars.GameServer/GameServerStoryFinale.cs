@@ -89,10 +89,10 @@ public sealed partial class GameServer
     private string GuardianRevealHeardKey => $"story:{_story?.Id ?? "none"}:finale:revealed";
 
     /// <summary>The Guardian-system reveal line (also a Journal note, #2471).</summary>
-    private const string GuardianRevealedLine = "story.vega.guardian_revealed";
+    internal const string GuardianRevealedLine = "story.vega.guardian_revealed";
 
     /// <summary>The line that the finale was won (also a Journal note, #2471).</summary>
-    private const string FinaleResolvedLine = "story.vega.finale_resolved";
+    internal const string FinaleResolvedLine = "story.vega.finale_resolved";
 
     /// <summary>Speaks the Guardian-system reveal to one player, once (tracked by <see cref="GuardianRevealHeardKey"/>). Held
     /// until the player's story track starts (#2470): the key is not written, and the track start speaks it (the finale is

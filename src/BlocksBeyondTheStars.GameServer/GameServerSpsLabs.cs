@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     /// <summary>The temperature inside a roofed lab module.</summary>
-    private const float SpsLabInsideC = -90f;
+    internal const float SpsLabInsideC = -90f;
 
     /// <summary>A planet machine spawning for a player this close to a lab appears at the lab instead.</summary>
     private const float SpsLabGuardRange = 96f;
