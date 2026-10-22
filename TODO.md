@@ -199,6 +199,12 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   once into the new abstract `LayerCanvasEditor` (380 lines); both models implement the new Client.Core `ILayerCanvas`.
   `FormEditor.cs` 964 → 754 lines (long methods 1 → 0), `ToolLookEditor.cs` 646 → 459 (2 → 1). Paint rules, per-cell vs
   per-stroke label refresh, frame and teardown order are kept via hooks; Unity build, 264 EditMode + 2,319 client green.
+- **CraftingTechShipUI split into a shell and per-tab files (#2907):** `CraftingTechShipUI.cs` (8,192 → 1,171 lines,
+  long methods 28 → 5) keeps the state, public control, `Update`, craft result, header/tabs, sidebar, list and detail
+  dispatch; 216 of its 233 methods moved verbatim (comments and order kept) to 18 partials `CraftingTechShipUI.<Part>.cs`
+  — the 12 tabs and their areas (Suit, Samples, Notes, Journal …) plus `Recipes`, `Stations` and `Scaffolding`, the
+  largest 751 lines. Only `partial` was added: no logic, keys or visibility changed; `CraftDetailLayoutTests` reads
+  every part; Unity build, 264 EditMode + 2,319 client tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
