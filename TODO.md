@@ -205,6 +205,12 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   — the 12 tabs and their areas (Suit, Samples, Notes, Journal …) plus `Recipes`, `Stations` and `Scaffolding`, the
   largest 751 lines. Only `partial` was added: no logic, keys or visibility changed; `CraftDetailLayoutTests` reads
   every part; Unity build, 264 EditMode + 2,319 client tests green.
+- **SpaceView split into concern files (#2908, C5a):** `SpaceView.cs` (7,546 → 903 lines, long methods 24 → 3) keeps
+  the `MonoBehaviour` hub — state, ship systems, `Update`/`Enter`/`Exit`, hyperjump and the navigation hub; the rest
+  moved verbatim, comments and order kept, to 12 partials `SpaceView.<Concern>.cs` (`Flight`, `LandMap`, `ShipFx`,
+  `Combat`, `Eva`, `Structures`, `Docking`, `Scene`, `Entities`, `Hud`, `Models`, `Capture`; largest 930 lines). Pure
+  move: the hub diff is deletions only, public surface and member fingerprint identical; Unity build, 264 EditMode +
+  6 PlayMode + 2,319 client tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
