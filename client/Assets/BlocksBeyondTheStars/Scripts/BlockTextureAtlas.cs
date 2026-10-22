@@ -19,7 +19,7 @@ namespace BlocksBeyondTheStars.Client
     /// the owners to re-bind it. Slots and UVs stay, so no chunk mesh has to be rebuilt for an override.
     /// </para>
     /// </summary>
-    public sealed class BlockTextureAtlas
+    public sealed partial class BlockTextureAtlas
     {
         public const int Tile = 64;
         // 16x16 = 256 tile slots (1024x1024 atlas). data/blocks.json already has 80 blocks; the old 8x8 = 64
@@ -482,7 +482,27 @@ namespace BlocksBeyondTheStars.Client
             return ReadSlot(0, 0);
         }
 
+        /// <summary>Test seam (#2906): the tile the CODE paints for a block — base colour, grain, tiled edge and the
+        /// per-block look — even when a bundled tile, a pack or a world texture would win (every asset lookup, the world
+        /// look included, is skipped). Drawn into slot 0 (air, never rendered) and read back like
+        /// <see cref="OfficialTile"/>, so the live slots and the GPU copy stay untouched. Raw RGBA32, rows bottom-up.</summary>
+        public byte[] ProceduralTileForTest(BlockDefinition def)
+        {
+            _proceduralOnly = true;
+            try
+            {
+                PaintTile(0, def);
+            }
+            finally
+            {
+                _proceduralOnly = false;
+            }
+
+            return ReadSlot(0, 0);
+        }
+
         private bool _officialOnly;
+        private bool _proceduralOnly;
 
         private byte[] ReadSlot(int ox, int oy)
         {
@@ -1060,7 +1080,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                Decorate(id, key, ox, oy, rng);
+                Decorate(key, ox, oy, rng);
             }
 
             // Water is semi-transparent (alpha < 1) so you can see down into a sea while swimming; the
@@ -1113,6 +1133,11 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private bool TryPaintFromAsset(string key, int ox, int oy)
         {
+            if (_proceduralOnly)
+            {
+                return false;
+            }
+
             byte[] raw = _officialOnly ? GameTextures.Official(key)?.Frames[0] : GameTextures.TileBytes(key);
             if (raw == null || raw.Length != Tile * Tile * 4)
             {
@@ -1135,630 +1160,13 @@ namespace BlocksBeyondTheStars.Client
             Texture.SetPixels32(ox, oy, Tile, Tile, px);
         }
 
-        private void Decorate(int id, string key, int ox, int oy, System.Random rng)
+        /// <summary>Paints the block's own look over its code-painted base, from the <see cref="CodeTiles"/> table
+        /// (BlockTextureAtlas.CodeTiles.cs); a key without an entry keeps the plain tile.</summary>
+        private void Decorate(string key, int ox, int oy, System.Random rng)
         {
-            switch (key)
+            if (CodeTiles.TryGetValue(key, out var paint))
             {
-                case "obsidian":
-                {
-                    // Sparse violet glints — the glassy sheen that tells obsidian apart from plain basalt.
-                    for (int i = 0; i < 5; i++)
-                    {
-                        int gx = ox + 2 + rng.Next(Tile - 4);
-                        int gy = oy + 2 + rng.Next(Tile - 4);
-                        Texture.SetPixel(gx, gy, new Color(0.45f, 0.30f, 0.65f));
-                        Texture.SetPixel(gx + 1, gy, new Color(0.28f, 0.18f, 0.42f));
-                    }
-
-                    break;
-                }
-
-                case "ancient_brick":
-                {
-                    // Coursed masonry: mortar lines every quarter tile, joints offset row to row.
-                    var mortar = new Color(0.44f, 0.41f, 0.34f);
-                    int course = Tile / 4;
-                    for (int row = 0; row * course < Tile; row++)
-                    {
-                        int y = row * course;
-                        for (int x = 0; x < Tile; x++)
-                        {
-                            Texture.SetPixel(ox + x, oy + y, mortar);
-                        }
-
-                        int joint = (row % 2 == 0 ? Tile / 4 : 3 * Tile / 4);
-                        for (int y2 = y + 1; y2 < y + course && y2 < Tile; y2++)
-                        {
-                            Texture.SetPixel(ox + joint, oy + y2, mortar);
-                        }
-                    }
-
-                    break;
-                }
-
-                case "rune_stone":
-                {
-                    // A carved glyph: strokes cut into the slate, with a lighter chisel edge beside them so
-                    // the sign reads at block scale (the emissive glow is a per-voxel modifier, not the tile).
-                    var cut = new Color(0.26f, 0.28f, 0.33f);
-                    var edge = new Color(0.66f, 0.69f, 0.74f);
-                    void Stroke(int x0, int y0, int x1, int y1)
-                    {
-                        int steps = Mathf.Max(Mathf.Abs(x1 - x0), Mathf.Abs(y1 - y0));
-                        for (int s = 0; s <= steps; s++)
-                        {
-                            int x = Mathf.RoundToInt(Mathf.Lerp(x0, x1, steps == 0 ? 0f : s / (float)steps));
-                            int y = Mathf.RoundToInt(Mathf.Lerp(y0, y1, steps == 0 ? 0f : s / (float)steps));
-                            Texture.SetPixel(ox + Mathf.Clamp(x, 0, Tile - 1), oy + Mathf.Clamp(y, 0, Tile - 1), cut);
-                            Texture.SetPixel(ox + Mathf.Clamp(x + 1, 0, Tile - 1), oy + Mathf.Clamp(y, 0, Tile - 1), edge);
-                        }
-                    }
-
-                    int m = Tile / 8;
-                    Stroke(Tile / 2, m, Tile / 2, Tile - m);           // the stem
-                    Stroke(Tile / 2, Tile - m * 2, Tile - m * 2, Tile - m); // upper arm
-                    Stroke(Tile / 2, Tile / 2, m * 2, Tile / 2 + m);        // lower arm
-                    Stroke(m * 2, m * 2, Tile - m * 2, m * 2);              // base bar
-                    break;
-                }
-
-                case "iron_wall":
-                    // Panel rivets near the corners + a central seam.
-                    PutDot(ox + 4, oy + 4, new Color(0.30f, 0.31f, 0.34f));
-                    PutDot(ox + Tile - 5, oy + 4, new Color(0.30f, 0.31f, 0.34f));
-                    PutDot(ox + 4, oy + Tile - 5, new Color(0.30f, 0.31f, 0.34f));
-                    PutDot(ox + Tile - 5, oy + Tile - 5, new Color(0.30f, 0.31f, 0.34f));
-                    for (int x = 2; x < Tile - 2; x++) Texture.SetPixel(ox + x, oy + Tile / 2, new Color(0.42f, 0.44f, 0.49f));
-                    break;
-
-                case "strip_light_cyan":
-                case "strip_light_warm":
-                {
-                    // A bright horizontal light band through the dark housing — the emission term makes
-                    // the band glow in its colour while the housing stays a dark trim.
-                    Color band = key == "strip_light_cyan" ? new Color(0.62f, 0.95f, 1f) : new Color(1f, 0.85f, 0.55f);
-                    for (int x = 2; x < Tile - 2; x++)
-                    {
-                        for (int yb = Tile / 2 - 5; yb <= Tile / 2 + 5; yb++)
-                        {
-                            float core = 1f - Mathf.Abs(yb - Tile / 2) / 6f; // brightest at the centre line
-                            var c = Color.Lerp(band * 0.45f, band, core);
-                            Texture.SetPixel(ox + x, oy + yb, new Color(c.r, c.g, c.b, 1f));
-                        }
-                    }
-
-                    break;
-                }
-
-                case "medbay_panel":
-                    // Clean panel: thin seam border + a small medical cross at the centre.
-                    for (int i = 1; i < Tile - 1; i++)
-                    {
-                        Texture.SetPixel(ox + i, oy + 1, new Color(0.70f, 0.80f, 0.86f));
-                        Texture.SetPixel(ox + i, oy + Tile - 2, new Color(0.70f, 0.80f, 0.86f));
-                        Texture.SetPixel(ox + 1, oy + i, new Color(0.70f, 0.80f, 0.86f));
-                        Texture.SetPixel(ox + Tile - 2, oy + i, new Color(0.70f, 0.80f, 0.86f));
-                    }
-
-                    for (int i = -7; i <= 7; i++)
-                    {
-                        for (int w = -2; w <= 2; w++)
-                        {
-                            Texture.SetPixel(ox + Tile / 2 + i, oy + Tile / 2 + w, new Color(0.25f, 0.65f, 0.85f));
-                            Texture.SetPixel(ox + Tile / 2 + w, oy + Tile / 2 + i, new Color(0.25f, 0.65f, 0.85f));
-                        }
-                    }
-
-                    break;
-
-                case "lab_panel":
-                    // Cool tech panel: a faint seam grid (reads as console housing).
-                    for (int i = 8; i < Tile; i += 16)
-                    {
-                        for (int j = 2; j < Tile - 2; j++)
-                        {
-                            Texture.SetPixel(ox + i, oy + j, new Color(0.55f, 0.70f, 0.80f));
-                            Texture.SetPixel(ox + j, oy + i, new Color(0.55f, 0.70f, 0.80f));
-                        }
-                    }
-
-                    break;
-
-                case "cargo_floor":
-                    // Black diagonal hazard stripes over the amber base.
-                    for (int x = 0; x < Tile; x++)
-                    {
-                        for (int yb = 0; yb < Tile; yb++)
-                        {
-                            if (((x + yb) / 8) % 2 == 0)
-                            {
-                                Texture.SetPixel(ox + x, oy + yb, new Color(0.13f, 0.13f, 0.14f));
-                            }
-                        }
-                    }
-
-                    break;
-
-                case "engine_nozzle":
-                {
-                    // A glowing nozzle-throat ring — with the block's emission this is the faint idle
-                    // glow that keeps a landed ship's engines from looking dead.
-                    float c2 = (Tile - 1) * 0.5f;
-                    for (int x = 0; x < Tile; x++)
-                    {
-                        for (int yb = 0; yb < Tile; yb++)
-                        {
-                            float d = Mathf.Sqrt((x - c2) * (x - c2) + (yb - c2) * (yb - c2));
-                            if (d >= 18f && d <= 24f)
-                            {
-                                float k = 1f - Mathf.Abs(d - 21f) / 3f;
-                                Texture.SetPixel(ox + x, oy + yb, Color.Lerp(new Color(0.25f, 0.16f, 0.10f), new Color(1f, 0.55f, 0.20f), k));
-                            }
-                        }
-                    }
-
-                    break;
-                }
-
-                case "engine_panel":
-                    // Dark industrial panel with orange warning corners + a centre seam.
-                    for (int i = 0; i < 10; i++)
-                    {
-                        for (int j = 0; j < 10 - i; j++)
-                        {
-                            Texture.SetPixel(ox + 2 + j, oy + 2 + i, new Color(0.95f, 0.55f, 0.12f));
-                            Texture.SetPixel(ox + Tile - 3 - j, oy + Tile - 3 - i, new Color(0.95f, 0.55f, 0.12f));
-                        }
-                    }
-
-                    for (int x = 2; x < Tile - 2; x++)
-                    {
-                        Texture.SetPixel(ox + x, oy + Tile / 2, new Color(0.34f, 0.35f, 0.38f));
-                    }
-
-                    break;
-
-                case "iron_ore":
-                    Speckle(ox, oy, rng, new Color(0.75f, 0.55f, 0.40f), 26);
-                    break;
-                case "copper_ore":
-                    Speckle(ox, oy, rng, new Color(0.85f, 0.50f, 0.30f), 26);
-                    break;
-                case "titanium_ore":
-                    Speckle(ox, oy, rng, new Color(0.80f, 0.82f, 0.88f), 26);
-                    break;
-                case "silicate":
-                    Speckle(ox, oy, rng, new Color(0.95f, 0.92f, 0.75f), 18);
-                    break;
-
-                case "data_cache":
-                    // Faint circuit grid.
-                    for (int i = 4; i < Tile; i += 6)
-                    {
-                        for (int j = 2; j < Tile - 2; j++)
-                        {
-                            Texture.SetPixel(ox + i, oy + j, new Color(0.45f, 0.95f, 1f));
-                            Texture.SetPixel(ox + j, oy + i, new Color(0.30f, 0.80f, 0.95f));
-                        }
-                    }
-                    break;
-
-                case "ice":
-                case "glass":
-                    // Diagonal sheen streak.
-                    for (int d = 0; d < Tile; d++)
-                    {
-                        int x = d, y = (d + 6) % Tile;
-                        Texture.SetPixel(ox + x, oy + y, new Color(0.95f, 0.98f, 1f));
-                    }
-                    break;
-
-                case "force_field":
-                    // Energy curtain: bright horizontal scan-bands + a few drifting sparks over the cyan base.
-                    for (int yy = 0; yy < Tile; yy++)
-                    {
-                        if (yy % 3 != 0) continue;
-                        for (int xx = 0; xx < Tile; xx++)
-                        {
-                            Texture.SetPixel(ox + xx, oy + yy, new Color(0.65f, 0.96f, 1f));
-                        }
-                    }
-
-                    Speckle(ox, oy, rng, new Color(0.85f, 1f, 1f), 8);
-                    break;
-
-                case "water":
-                    // Horizontal wave crests (a few lighter bands that ripple along x).
-                    {
-                        var crest = new Color(0.50f, 0.72f, 1f);
-                        var deep = new Color(0.12f, 0.30f, 0.66f);
-                        for (int py = 0; py < Tile; py++)
-                        {
-                            int shift = (int)System.Math.Round(1.6 * System.Math.Sin(py * 0.7));
-                            for (int px = 0; px < Tile; px++)
-                            {
-                                int band = (px + shift) % 8;
-                                if (band == 0) Texture.SetPixel(ox + px, oy + py, crest);
-                                else if (band == 4) Texture.SetPixel(ox + px, oy + py, deep);
-                            }
-                        }
-                    }
-                    break;
-
-                case "lava":
-                    // Dark cooled crust with glowing cracks/veins winding through it + hot flecks.
-                    {
-                        var crust = new Color(0.30f, 0.10f, 0.06f);
-                        var glow = new Color(1f, 0.78f, 0.28f);
-                        var hot = new Color(1f, 0.45f, 0.12f);
-                        Speckle(ox, oy, rng, crust, 44); // cooled patches
-                        for (int v = 0; v < 3; v++)
-                        {
-                            int x = 4 + rng.Next(Tile - 8);
-                            for (int y = 2; y < Tile - 2; y++)
-                            {
-                                Texture.SetPixel(ox + x, oy + y, glow);
-                                if (x + 1 < Tile - 1) Texture.SetPixel(ox + x + 1, oy + y, hot);
-                                x += rng.Next(3) - 1; // random-walk crack
-                                if (x < 1) x = 1; else if (x > Tile - 2) x = Tile - 2;
-                            }
-                        }
-
-                        Speckle(ox, oy, rng, glow, 12); // bright embers
-                    }
-                    break;
-
-                case "grass":
-                    // A few short blades poking up from the soil edge → grassy top read.
-                    PaintBlades(ox, oy, rng, 9, Tile / 3,
-                        new Color(0.20f, 0.50f, 0.18f), new Color(0.48f, 0.82f, 0.40f));
-                    break;
-
-                case "flora_plant":
-                    // Leafy blades rising from the base + lighter leaf tips + scattered highlights.
-                    PaintBlades(ox, oy, rng, 8, Tile - 4,
-                        new Color(0.16f, 0.52f, 0.20f), new Color(0.50f, 0.88f, 0.42f));
-                    Speckle(ox, oy, rng, new Color(0.50f, 0.88f, 0.42f), 10);
-                    break;
-
-                case "flora_crystal":
-                    // Faceted shards: a bright spine with a shaded side + a tip glint, then sparkle.
-                    PaintCrystals(ox, oy, rng, new Color(0.88f, 0.96f, 1f), new Color(0.30f, 0.45f, 0.72f));
-                    Speckle(ox, oy, rng, new Color(0.88f, 0.96f, 1f), 14);
-                    break;
-
-                case "flora_fern":
-                    // Many fine fronds, deeper green than a plain plant.
-                    PaintBlades(ox, oy, rng, 12, Tile - 6,
-                        new Color(0.12f, 0.42f, 0.16f), new Color(0.38f, 0.72f, 0.34f));
-                    break;
-
-                case "flora_flower":
-                    // Slim stems with bright blossoms speckled across the top.
-                    PaintBlades(ox, oy, rng, 6, Tile - 8,
-                        new Color(0.18f, 0.50f, 0.22f), new Color(0.40f, 0.78f, 0.38f));
-                    Speckle(ox, oy + Tile / 2, rng, new Color(0.96f, 0.62f, 0.78f), 9);
-                    Speckle(ox, oy + Tile / 2, rng, new Color(0.98f, 0.86f, 0.36f), 6);
-                    break;
-
-                case "flora_bush":
-                    // Dense low foliage with red berries.
-                    PaintBlades(ox, oy, rng, 14, Tile / 2 + 6,
-                        new Color(0.14f, 0.40f, 0.16f), new Color(0.34f, 0.66f, 0.30f));
-                    Speckle(ox, oy, rng, new Color(0.82f, 0.18f, 0.20f), 10);
-                    break;
-
-                case "flora_vine":
-                    // Tall full-height strands.
-                    PaintBlades(ox, oy, rng, 7, Tile - 2,
-                        new Color(0.13f, 0.38f, 0.18f), new Color(0.30f, 0.60f, 0.30f));
-                    break;
-
-                case "flora_mushroom":
-                    // Capped mushrooms, warm brown stems + red caps.
-                    PaintMushrooms(ox, oy, rng, new Color(0.86f, 0.84f, 0.74f),
-                        new Color(0.74f, 0.22f, 0.18f), 4);
-                    break;
-
-                case "flora_cactus":
-                    // Thick upright columns, desert green.
-                    PaintColumns(ox, oy, rng, new Color(0.20f, 0.46f, 0.24f), new Color(0.34f, 0.62f, 0.34f), 3);
-                    Speckle(ox, oy, rng, new Color(0.92f, 0.94f, 0.70f), 6); // spines
-                    break;
-
-                case "flora_dryshrub":
-                    // Sparse brittle olive/tan twigs.
-                    PaintBlades(ox, oy, rng, 7, Tile / 2 + 4,
-                        new Color(0.42f, 0.36f, 0.18f), new Color(0.62f, 0.54f, 0.30f));
-                    break;
-
-                case "flora_reed":
-                    // Tall thin blue-green reeds.
-                    PaintBlades(ox, oy, rng, 8, Tile - 2,
-                        new Color(0.16f, 0.44f, 0.34f), new Color(0.40f, 0.74f, 0.58f));
-                    break;
-
-                case "flora_glowcap":
-                    // Bioluminescent mushrooms with cyan caps + glow specks.
-                    PaintMushrooms(ox, oy, rng, new Color(0.70f, 0.78f, 0.82f),
-                        new Color(0.30f, 0.86f, 0.92f), 4);
-                    Speckle(ox, oy, rng, new Color(0.55f, 0.95f, 1f), 12);
-                    break;
-
-                // Generation 11, cave flora — code-painted fallbacks behind the bundled AI tiles (used when a texture pack or
-                // the official-only mode leaves a key without one). Every wild plant
-                // is re-coloured by the world's (or, for the prism bloom, the plant's own) hue in the shader, so these
-                // tiles only carry the light/dark pattern: the dome of a cap, a moss carpet, hanging threads, petals.
-                case "flora_cavecap":
-                    // The dark cave mushroom: a mottled cap surface (the dome form wears it) with pale gill spots.
-                    FillTile(ox, oy, rng, new Color(0.30f, 0.26f, 0.28f));
-                    Speckle(ox, oy, rng, new Color(0.52f, 0.46f, 0.48f), 26);
-                    Speckle(ox, oy, rng, new Color(0.74f, 0.70f, 0.66f), 8);
-                    break;
-
-                case "flora_glowmoss":
-                    // A low glowing carpet (cutout billboard): short pale tufts with bright tips.
-                    ClearTile(ox, oy);
-                    PaintBlades(ox, oy, rng, 18, Tile / 3 + 4, new Color(0.62f, 0.78f, 0.66f), new Color(0.95f, 1f, 0.95f));
-                    break;
-
-                case "flora_glowthread":
-                    // Threads hanging from a cave ceiling (cutout billboard, drawn root-at-top like the hanging kelp):
-                    // thin strands of varied length, each ending in a bright bead.
-                    ClearTile(ox, oy);
-                    PaintHangingThreads(ox, oy, rng, 9, new Color(0.70f, 0.80f, 0.84f), new Color(1f, 1f, 1f));
-                    break;
-
-                case "flora_prismbloom":
-                    // The rainbow class: near-white petals around a bright core (the sphere form wears it), so the
-                    // plant's own colour comes through at full strength.
-                    FillTile(ox, oy, rng, new Color(0.86f, 0.86f, 0.88f));
-                    PaintPetalRays(ox, oy, new Color(0.98f, 0.98f, 1f), new Color(0.66f, 0.66f, 0.70f));
-                    break;
-
-                case "flora_frostflower":
-                    // Pale icy crystal bloom.
-                    PaintCrystals(ox, oy, rng, new Color(0.82f, 0.94f, 1f), new Color(0.46f, 0.62f, 0.82f));
-                    Speckle(ox, oy, rng, new Color(0.92f, 0.98f, 1f), 12);
-                    break;
-
-                case "flora_emberbloom":
-                    // Charred stems with glowing ember blossoms.
-                    PaintBlades(ox, oy, rng, 6, Tile / 2 + 6,
-                        new Color(0.18f, 0.12f, 0.10f), new Color(0.40f, 0.22f, 0.16f));
-                    Speckle(ox, oy + Tile / 3, rng, new Color(0.98f, 0.52f, 0.18f), 10);
-                    Speckle(ox, oy + Tile / 3, rng, new Color(1f, 0.82f, 0.34f), 6);
-                    break;
-
-                case "flora_cropberry":
-                    // A farmed berry bush (#627): fuller foliage than the wild bush, and the fruit is deliberately
-                    // dense + ripe-red — this tile has to read as FOOD across a greenhouse aisle. Unlike wild flora
-                    // it never takes the world hue (see GameBootstrap.RebuildFloraTints), so what is painted here
-                    // is what the player sees on every world.
-                    PaintBlades(ox, oy, rng, 16, Tile / 2 + 10,
-                        new Color(0.13f, 0.42f, 0.17f), new Color(0.36f, 0.70f, 0.32f));
-                    Speckle(ox, oy, rng, new Color(0.86f, 0.14f, 0.18f), 16);
-                    Speckle(ox, oy, rng, new Color(0.98f, 0.44f, 0.42f), 6); // highlight on the ripe side of a berry
-                    break;
-
-                case "flora_cropgrain":
-                    // Farmed cereal (#1204): tall stalks under a band of golden ears. The other un-tinted crop, so
-                    // it has to read as grain rather than one more green bush from across the aisle.
-                    PaintBlades(ox, oy, rng, 14, Tile - 4,
-                        new Color(0.30f, 0.46f, 0.16f), new Color(0.62f, 0.66f, 0.28f));
-                    Speckle(ox, oy + Tile / 2, rng, new Color(0.86f, 0.70f, 0.24f), 18);
-                    Speckle(ox, oy + Tile / 2, rng, new Color(0.98f, 0.88f, 0.46f), 8);
-                    break;
-
-                case "flora_cropshroom":
-                    // Farmed mushrooms (#1204): plump tan caps on pale stems, no glow — the edible kind.
-                    PaintMushrooms(ox, oy, rng, new Color(0.88f, 0.84f, 0.74f),
-                        new Color(0.66f, 0.50f, 0.32f), 5);
-                    break;
-
-                case "hydro_tray":
-                {
-                    // A shallow nutrient tray: a metal rim around a pool of faintly glowing growth gel.
-                    var rim = new Color(0.34f, 0.38f, 0.42f);
-                    var gel = new Color(0.24f, 0.62f, 0.48f);
-                    for (int y = 0; y < Tile; y++)
-                    {
-                        for (int x = 0; x < Tile; x++)
-                        {
-                            bool border = x < 4 || y < 4 || x >= Tile - 4 || y >= Tile - 4;
-                            Texture.SetPixel(ox + x, oy + y, border ? rim : gel * (0.88f + 0.24f * (float)rng.NextDouble()));
-                        }
-                    }
-
-                    Speckle(ox, oy, rng, new Color(0.52f, 0.88f, 0.72f), 10); // nutrient bubbles catching the light
-                    break;
-                }
-
-                case "light_white": LightLens(ox, oy, new Color(0.95f, 0.97f, 1f)); break;
-                case "light_red": LightLens(ox, oy, new Color(1f, 0.22f, 0.22f)); break;
-                case "light_green": LightLens(ox, oy, new Color(0.24f, 1f, 0.36f)); break;
-            }
-        }
-
-        /// <summary>A glowing lamp lens: a coloured tile with a dark rim and a bright hot centre.</summary>
-        private void LightLens(int ox, int oy, Color color)
-        {
-            Color rim = color * 0.45f;
-            float c = (Tile - 1) * 0.5f;
-            for (int y = 0; y < Tile; y++)
-            {
-                for (int x = 0; x < Tile; x++)
-                {
-                    float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c;
-                    Color px = d > 0.9f ? rim : Color.Lerp(Color.Lerp(Color.white, color, 0.5f), color, Mathf.Clamp01(d * 1.4f));
-                    Texture.SetPixel(ox + x, oy + y, px);
-                }
-            }
-        }
-
-        /// <summary>Makes a whole tile transparent — the cutout background a code-painted leafy plant is drawn onto.</summary>
-        private void ClearTile(int ox, int oy)
-        {
-            var clear = new Color(0f, 0f, 0f, 0f);
-            for (int x = 0; x < Tile; x++)
-            {
-                for (int y = 0; y < Tile; y++)
-                {
-                    Texture.SetPixel(ox + x, oy + y, clear);
-                }
-            }
-        }
-
-        /// <summary>Fills a tile with a colour and a light per-pixel grain (no tiled edge — for plant surfaces).</summary>
-        private void FillTile(int ox, int oy, System.Random rng, Color color)
-        {
-            for (int x = 0; x < Tile; x++)
-            {
-                for (int y = 0; y < Tile; y++)
-                {
-                    float n = 0.88f + 0.24f * (float)rng.NextDouble();
-                    Texture.SetPixel(ox + x, oy + y, new Color(color.r * n, color.g * n, color.b * n, 1f));
-                }
-            }
-        }
-
-        /// <summary>Strands hanging down from the tile's top row, each of its own length, ending in a bright bead.</summary>
-        private void PaintHangingThreads(int ox, int oy, System.Random rng, int count, Color strand, Color bead)
-        {
-            for (int s = 0; s < count; s++)
-            {
-                int tx = 2 + rng.Next(Tile - 4);
-                int end = Tile / 5 + rng.Next(Tile / 2);
-                for (int y = Tile - 1; y > end; y--)
-                {
-                    Texture.SetPixel(ox + tx, oy + y, strand);
-                }
-
-                PutDot(ox + System.Math.Min(tx, Tile - 2), oy + end, bead);
-            }
-        }
-
-        /// <summary>Radial petal rays around a bright centre, darker gaps between them.</summary>
-        private void PaintPetalRays(int ox, int oy, Color petal, Color gap)
-        {
-            float c = (Tile - 1) * 0.5f;
-            for (int x = 0; x < Tile; x++)
-            {
-                for (int y = 0; y < Tile; y++)
-                {
-                    float dx = x - c, dy = y - c;
-                    float d = Mathf.Sqrt(dx * dx + dy * dy) / c;
-                    float ray = Mathf.Abs(Mathf.Sin(Mathf.Atan2(dy, dx) * 4f)); // eight petals
-                    Color px = d < 0.22f ? petal : Color.Lerp(gap, petal, Mathf.Clamp01(ray * 1.3f - d * 0.35f));
-                    Texture.SetPixel(ox + x, oy + y, px);
-                }
-            }
-        }
-
-        private void Speckle(int ox, int oy, System.Random rng, Color color, int count)
-        {
-            for (int i = 0; i < count; i++)
-            {
-                int x = 2 + rng.Next(Tile - 4);
-                int y = 2 + rng.Next(Tile - 4);
-                Texture.SetPixel(ox + x, oy + y, color);
-            }
-        }
-
-        private void PutDot(int x, int y, Color color)
-        {
-            Texture.SetPixel(x, y, color);
-            Texture.SetPixel(x + 1, y, color);
-            Texture.SetPixel(x, y + 1, color);
-            Texture.SetPixel(x + 1, y + 1, color);
-        }
-
-        /// <summary>Vertical blades from the base up to a random height, with a lighter tip.</summary>
-        private void PaintBlades(int ox, int oy, System.Random rng, int count, int maxTop, Color blade, Color tip)
-        {
-            for (int s = 0; s < count; s++)
-            {
-                int bx = 3 + rng.Next(Tile - 6);
-                int top = Tile / 3 + rng.Next(System.Math.Max(2, maxTop - Tile / 3));
-                for (int y = 2; y < top; y++)
-                {
-                    Texture.SetPixel(ox + bx, oy + y, blade);
-                }
-
-                Texture.SetPixel(ox + bx, oy + top, tip);
-                if (bx + 1 < Tile)
-                {
-                    Texture.SetPixel(ox + bx + 1, oy + System.Math.Max(2, top - 1), tip);
-                }
-            }
-        }
-
-        /// <summary>A few upright crystal shards: a bright spine, a shaded left side and a tip glint.</summary>
-        private void PaintCrystals(int ox, int oy, System.Random rng, Color facet, Color shade)
-        {
-            for (int s = 0; s < 4; s++)
-            {
-                int cx = 6 + rng.Next(Tile - 12);
-                int top = Tile - 4 - rng.Next(6);
-                for (int y = 3; y < top; y++)
-                {
-                    Texture.SetPixel(ox + cx, oy + y, facet);
-                    if (cx - 1 >= 0)
-                    {
-                        Texture.SetPixel(ox + cx - 1, oy + y, shade);
-                    }
-                }
-
-                PutDot(ox + cx, oy + System.Math.Min(Tile - 2, top), facet);
-            }
-        }
-
-        /// <summary>A few capped mushrooms: a short pale stem with a domed cap on top.</summary>
-        private void PaintMushrooms(int ox, int oy, System.Random rng, Color stem, Color cap, int count)
-        {
-            for (int s = 0; s < count; s++)
-            {
-                int mx = 6 + rng.Next(Tile - 12);
-                int stemTop = Tile / 3 + rng.Next(Tile / 4);
-                for (int y = 3; y < stemTop; y++)
-                {
-                    Texture.SetPixel(ox + mx, oy + y, stem);
-                    Texture.SetPixel(ox + mx + 1, oy + y, stem);
-                }
-
-                int r = 3 + rng.Next(2);
-                for (int dx = -r; dx <= r + 1; dx++)
-                {
-                    for (int dy = 0; dy <= r; dy++)
-                    {
-                        if (dx * dx + dy * dy <= (r + 1) * (r + 1))
-                        {
-                            int px = mx + dx, py = stemTop + dy;
-                            if (px >= 0 && px < Tile && py >= 0 && py < Tile)
-                            {
-                                Texture.SetPixel(ox + px, oy + py, cap);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>A few thick upright columns (e.g. cactus): a lit face and a shaded side.</summary>
-        private void PaintColumns(int ox, int oy, System.Random rng, Color shade, Color lit, int count)
-        {
-            for (int s = 0; s < count; s++)
-            {
-                int cx = 8 + rng.Next(Tile - 16);
-                int top = Tile - 4 - rng.Next(8);
-                int w = 3 + rng.Next(2);
-                for (int y = 2; y < top; y++)
-                {
-                    for (int dx = 0; dx < w; dx++)
-                    {
-                        Texture.SetPixel(ox + cx + dx, oy + y, dx == 0 ? shade : lit);
-                    }
-                }
+                paint(this, ox, oy, rng);
             }
         }
 
@@ -1768,9 +1176,6 @@ namespace BlocksBeyondTheStars.Client
             foreach (char c in key) h = h * 31 + c;
             return h;
         }
-
-        /// <summary>Fallback tint for a block that has neither a bundled tile, a palette entry nor an authored colour.</summary>
-        private static readonly Color DefaultTint = new Color(0.6f, 0.6f, 0.62f);
 
         /// <summary>The 0xRRGGBB <c>color</c> authored in blocks.json, if any.</summary>
         private static Color? DataColor(BlockDefinition def)
@@ -1782,63 +1187,5 @@ namespace BlocksBeyondTheStars.Client
 
             return new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
         }
-
-        /// <summary>Curated procedural tint per key; null when the key has no palette entry (the caller
-        /// then falls back to the authored blocks.json colour, then <see cref="DefaultTint"/>).</summary>
-        private static Color? BaseColor(string key) => key switch
-        {
-            "stone" => new Color(0.55f, 0.55f, 0.57f),
-            "dirt" => new Color(0.45f, 0.32f, 0.20f),
-            "basalt" => new Color(0.24f, 0.24f, 0.27f),
-            "obsidian" => new Color(0.10f, 0.07f, 0.14f), // glassy black with a violet cast (#477)
-            "ice" => new Color(0.70f, 0.85f, 0.95f),
-            "iron_ore" => new Color(0.58f, 0.50f, 0.46f),
-            "copper_ore" => new Color(0.60f, 0.46f, 0.38f),
-            "silicate" => new Color(0.80f, 0.78f, 0.60f),
-            "carbon" => new Color(0.16f, 0.16f, 0.18f),
-            "titanium_ore" => new Color(0.58f, 0.60f, 0.66f),
-            "data_cache" => new Color(0.18f, 0.40f, 0.55f),
-            "glass" => new Color(0.82f, 0.91f, 0.95f), // milky/frosted, not clear (you can tell it's glass)
-            "glass_clear" => new Color(0.90f, 0.96f, 0.99f), // the clear exception (#1274) — near-white; the shader drops its alpha
-            "force_field" => new Color(0.35f, 0.80f, 1f),
-            "iron_wall" => new Color(0.55f, 0.57f, 0.62f),
-            "strip_light_cyan" => new Color(0.22f, 0.26f, 0.30f), // dark housing; the bright band is painted in Decorate
-            "strip_light_warm" => new Color(0.28f, 0.24f, 0.20f),
-            "medbay_panel" => new Color(0.91f, 0.95f, 0.97f),     // clean white-blue (medbay)
-            "lab_panel" => new Color(0.75f, 0.85f, 0.91f),        // cool tech blue (lab/cockpit/console)
-            "cargo_floor" => new Color(0.85f, 0.63f, 0.10f),      // hazard amber (cargo)
-            "engine_panel" => new Color(0.23f, 0.23f, 0.25f),     // dark industrial (workshop/engine)
-            "matter_forge" => new Color(0.42f, 0.30f, 0.55f),     // violet sci-fi housing (transmuter; the core glows via emission)
-            "engine_nozzle" => new Color(0.17f, 0.17f, 0.20f),    // dark housing; the throat ring glows (Decorate)
-            "water" => new Color(0.20f, 0.42f, 0.85f),
-            "lava" => new Color(0.90f, 0.35f, 0.10f),
-            "fire" => new Color(1.00f, 0.45f, 0.12f),  // bright flame (glows via emission, alpha-blended)
-            "ash" => new Color(0.17f, 0.16f, 0.16f),   // charred remains
-            "sand" => new Color(0.85f, 0.78f, 0.52f),
-            "mud" => new Color(0.36f, 0.28f, 0.18f),
-            "grass" => new Color(0.32f, 0.62f, 0.28f),
-            "wood_log" => new Color(0.42f, 0.29f, 0.16f),   // brown bark
-            "tree_leaves" => new Color(0.22f, 0.50f, 0.20f), // forest-green canopy
-            "giant_log" => new Color(0.34f, 0.21f, 0.12f),   // #1783: darker, older bark
-            "giant_leaves" => new Color(0.16f, 0.42f, 0.18f), // #1783: a deeper canopy green
-            // #2851: the tree-variety blocks, for a build whose bundled tile is missing (the crowns are re-tinted anyway).
-            "tree_leaves_b" => new Color(0.30f, 0.55f, 0.22f),   // leaf slot B: a lighter canopy green
-            "tree_leaves_c" => new Color(0.18f, 0.45f, 0.26f),   // leaf slot C: a bluish canopy green
-            "blossom_leaves" => new Color(0.88f, 0.62f, 0.74f),  // the blossom crown keeps its painted pink
-            "wood_log_b" => new Color(0.82f, 0.80f, 0.74f),      // pale birch-like bark
-            "saguaro" => new Color(0.30f, 0.52f, 0.30f),         // the cactus body's green (the lantern fruit has a data colour)
-            "crystal" => new Color(0.55f, 0.75f, 0.95f),
-            "ancient_brick" => new Color(0.60f, 0.56f, 0.47f), // weathered sandy masonry
-            "rune_stone" => new Color(0.48f, 0.50f, 0.55f),    // cold grey slate, carved (glyphs in Decorate)
-            "flora_plant" => new Color(0.25f, 0.70f, 0.30f),
-            "flora_crystal" => new Color(0.60f, 0.85f, 1f),
-            "flora_kelp" => new Color(0.15f, 0.45f, 0.32f),  // deep sea-green stalk
-            "flora_lily" => new Color(0.30f, 0.62f, 0.34f),  // lily-pad green
-            "flora_cropberry" => new Color(0.22f, 0.58f, 0.24f), // farmed bush (#627): leafy green, berries in Decorate
-            "flora_cropgrain" => new Color(0.72f, 0.60f, 0.24f), // farmed cereal (#1204): golden ears
-            "flora_cropshroom" => new Color(0.70f, 0.58f, 0.42f), // farmed mushroom bed (#1204): tan caps
-            "hydro_tray" => new Color(0.28f, 0.34f, 0.38f),      // dark tray housing; the nutrient gel glows in Decorate
-            _ => null,
-        };
     }
 }
