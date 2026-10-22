@@ -116,7 +116,7 @@ public sealed class FootstepSurfaceTests
     [Fact]
     public void ThePlayerController_ReadsTheShipFirst_ForStepsTheEdgeStopAndLadders()
     {
-        string player = File.ReadAllText(Path.Combine(ClientTestPaths.RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts", "PlayerController.cs"));
+        string player = ClientTestPaths.PlayerControllerSources();
         string steps = Body(player, "private string SurfaceStep()");
         Assert.Contains("ShipOrWorldKeyAt(", steps);
         Assert.Contains("FootstepSurface.MetalCue", steps);

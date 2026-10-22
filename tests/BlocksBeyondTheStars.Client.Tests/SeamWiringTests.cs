@@ -36,7 +36,7 @@ public sealed class SeamWiringTests
         string boot = Script("GameBootstrap.cs");
         Assert.Contains("InteractReach.NearestTalkableNpc(Npcs, PlayerPosition.x, PlayerPosition.y, PlayerPosition.z, Circumference)", boot);
 
-        string player = Script("PlayerController.cs");
+        string player = ClientTestPaths.PlayerControllerSources();
         string hud = Hud();
         Assert.Contains("Game.NearestTalkableNpc()", player);
         Assert.Contains("Game.NearestTalkableNpc()", HudBody("private string NearestTalkableNpc()"));
@@ -49,7 +49,7 @@ public sealed class SeamWiringTests
     [Fact]
     public void TheCrate_BaseCore_AndBeacon_InTheCrosshair_MatchAcrossTheSeam()
     {
-        string player = Script("PlayerController.cs");
+        string player = ClientTestPaths.PlayerControllerSources();
         Assert.Contains("InteractReach.CrateAtCell(Game.Containers, crateHit.x, crateHit.y, crateHit.z, Game.Circumference)", player);
         Assert.DoesNotContain("(int)c.X == crateHit.x", player);
 
@@ -62,7 +62,7 @@ public sealed class SeamWiringTests
     public void TheCrateLine_AndTheLootKeys_AskTheSamePicker()
     {
         Assert.Contains("InteractReach.NearestContainer(", HudBody("private string LootText("));
-        Assert.Contains("InteractReach.NearestContainer(", Body(Script("PlayerController.cs"), "private string NearestContainerId("));
+        Assert.Contains("InteractReach.NearestContainer(", Body(ClientTestPaths.PlayerControllerSources(), "private string NearestContainerId("));
     }
 
     [Fact]

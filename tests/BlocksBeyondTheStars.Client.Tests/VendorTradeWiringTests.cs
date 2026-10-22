@@ -33,14 +33,14 @@ public sealed class VendorTradeWiringTests
         Assert.Contains("NearestTradingVendor()?.Theme", Body(boot, "public string NearestVendorTheme"));
         Assert.Contains("MarketStock.Offers(", Body(boot, "public bool MarketOfferedBy("));
 
-        string player = Script("PlayerController.cs");
+        string player = ClientTestPaths.PlayerControllerSources();
         string offer = Body(player, "private bool OfferVendorChoice()");
         Assert.Contains("Game.NearestTradingVendor()", offer);
         Assert.Contains("Menu?.OpenMarket(id);", offer); // "Trade" binds the screen to THIS vendor
 
-        foreach (string file in new[] { "GameBootstrap.cs", "PlayerController.cs", "VendorTradeUI.cs" })
+        foreach (string src in new[] { Script("GameBootstrap.cs"), ClientTestPaths.PlayerControllerSources(), Script("VendorTradeUI.cs") })
         {
-            Assert.DoesNotContain("3.6f", Script(file)); // the old private vendor reach
+            Assert.DoesNotContain("3.6f", src); // the old private vendor reach
         }
     }
 

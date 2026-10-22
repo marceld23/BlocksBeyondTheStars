@@ -346,7 +346,7 @@ public sealed class LineOfSightTests : IDisposable
     [Fact]
     public void The_client_collision_and_weapon_trace_use_the_shared_list()
     {
-        string src = File.ReadAllText(Path.Combine(TestPaths.RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts", "PlayerController.cs"));
+        string src = TestPaths.PlayerControllerSources();
         int at = src.IndexOf("internal static bool IsCollidingKey(string key)", StringComparison.Ordinal);
         Assert.True(at >= 0, "PlayerController.IsCollidingKey not found");
         int end = src.IndexOf(';', at);

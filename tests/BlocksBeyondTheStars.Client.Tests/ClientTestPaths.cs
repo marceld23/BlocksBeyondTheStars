@@ -36,6 +36,11 @@ public static class ClientTestPaths
     /// <summary><see cref="ScriptParts"/> as one text, the parts separated by a line break.</summary>
     public static string ScriptPartsText(string type) => string.Join("\n", ScriptParts(type));
 
+    /// <summary>The text of the client's <c>PlayerController</c> — <c>PlayerController.cs</c> and its
+    /// <c>PlayerController.*.cs</c> concern parts (#2911) — so a source guard keeps finding a member whichever part it
+    /// lives in.</summary>
+    public static string PlayerControllerSources() => ScriptPartsText("PlayerController");
+
     public static string DataDir()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

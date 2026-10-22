@@ -153,8 +153,8 @@ public sealed class RumbleMixerTests
         Assert.Contains("PadRumble.StopAll()", fx);
         Assert.Contains("PadRumble.Damage(pulse.Trauma)", ClientTestPaths.ScriptPartsText("HudUi"));
         Assert.Contains("PadRumble.BlockBroken()", Script("MiningFx.cs"));
-        Assert.Contains("PadRumble.Landing(", Script("PlayerController.cs"));
-        Assert.Contains("rumble: false", Script("PlayerController.cs")); // a jump's landing does not buzz
+        Assert.Contains("PadRumble.Landing(", ClientTestPaths.PlayerControllerSources());
+        Assert.Contains("rumble: false", ClientTestPaths.PlayerControllerSources()); // a jump's landing does not buzz
         Assert.Contains("AddComponent<PadRumble>()", Script("WorldRig.cs"));
         Assert.Contains("PadRumble.Supported ? \"ui.settings.pad_vibration_hint\" : \"ui.settings.pad_vibration_unsupported\"", Script("UiSettings.cs"));
 
