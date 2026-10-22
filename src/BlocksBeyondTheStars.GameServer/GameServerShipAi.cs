@@ -940,7 +940,7 @@ public sealed partial class GameServer
             finally
             {
                 _vegaBanterInFlight.TryRemove(cacheKey, out _);
-                _aiLineBudget.Release();
+                ReleaseAiBudget();
             }
         });
     }
@@ -1047,7 +1047,7 @@ public sealed partial class GameServer
         }
         finally
         {
-            _aiLineBudget.Release();
+            ReleaseAiBudget();
         }
 
         return null;

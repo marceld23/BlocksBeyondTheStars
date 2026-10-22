@@ -392,7 +392,7 @@ public sealed partial class GameServer
             finally
             {
                 _greetingInFlight.TryRemove(cacheKey, out _);
-                _aiLineBudget.Release();
+                ReleaseAiBudget();
             }
         });
     }
@@ -576,7 +576,7 @@ public sealed partial class GameServer
         }
         finally
         {
-            _aiLineBudget.Release();
+            ReleaseAiBudget();
         }
 
         return string.Empty;
