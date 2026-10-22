@@ -137,8 +137,8 @@ public sealed class ToolTierGateTests : IDisposable
             Assert.Equal("Titanium Drill", reason!.Substring("@srv.mine.wrong_tool_named:".Length));
 
             // A real tier gate arms VEGA's tip and the tutorial's tier-gate moment (#2525 keeps exactly this case).
-            Assert.Equal("Titanium Drill", p.VegaTierGateTool);
-            Assert.False(double.IsNegativeInfinity(p.TierGateRefusedAt), "A real tier gate must arm world:tier_gate.");
+            Assert.Equal("Titanium Drill", p.Vega.VegaTierGateTool);
+            Assert.False(double.IsNegativeInfinity(p.Tutorial.TierGateRefusedAt), "A real tier gate must arm world:tier_gate.");
         }
     }
 
@@ -178,9 +178,9 @@ public sealed class ToolTierGateTests : IDisposable
         }, out var player);
 
         Assert.Equal("@srv.mine.need_tool_in_hand_quickbar:Basic Drill", reason);
-        Assert.Equal(string.Empty, player.VegaTierGateBlock);
-        Assert.Equal(string.Empty, player.VegaTierGateTool);
-        Assert.True(double.IsNegativeInfinity(player.TierGateRefusedAt), "A kind mismatch must not arm world:tier_gate.");
+        Assert.Equal(string.Empty, player.Vega.VegaTierGateBlock);
+        Assert.Equal(string.Empty, player.Vega.VegaTierGateTool);
+        Assert.True(double.IsNegativeInfinity(player.Tutorial.TierGateRefusedAt), "A kind mismatch must not arm world:tier_gate.");
     }
 
     [Fact]
@@ -193,7 +193,7 @@ public sealed class ToolTierGateTests : IDisposable
         }, out var player);
 
         Assert.Equal("@srv.mine.need_tool_in_hand_backpack:Basic Drill", reason);
-        Assert.True(double.IsNegativeInfinity(player.TierGateRefusedAt));
+        Assert.True(double.IsNegativeInfinity(player.Tutorial.TierGateRefusedAt));
     }
 
     [Fact]
@@ -210,7 +210,7 @@ public sealed class ToolTierGateTests : IDisposable
         // #2536: the cheapest tool for stone is the wooden pickaxe now — and it is the one the player can make by hand,
         // anywhere (the basic drill has no recipe).
         Assert.Equal("@srv.mine.need_tool_in_hand:Wooden Pickaxe", reason);
-        Assert.True(double.IsNegativeInfinity(player.TierGateRefusedAt));
+        Assert.True(double.IsNegativeInfinity(player.Tutorial.TierGateRefusedAt));
     }
 
     [Fact]

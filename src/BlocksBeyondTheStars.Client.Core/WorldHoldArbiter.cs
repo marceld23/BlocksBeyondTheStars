@@ -9,7 +9,7 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// Combines every reason this client has to hold the world into the ONE pause intent the server knows (#2461).
     /// <para>
-    /// The server keeps a single pause flag per session (<c>PlayerSession.WantsPause</c>), and each panel used to drive
+    /// The server keeps a single pause flag per session (<c>PlayerSession.Liveness.WantsPause</c>), and each panel used to drive
     /// it through its own <see cref="WorldHoldIntent"/>: the Esc menu, the F1/F2 feedback dialog and the feedback reply
     /// all sent "hold" on open and "release" on close. Two of them open at once overwrote each other — closing the report
     /// dialog over the pause menu released the menu's hold, and the world ran on behind a pause menu. A later cutscene

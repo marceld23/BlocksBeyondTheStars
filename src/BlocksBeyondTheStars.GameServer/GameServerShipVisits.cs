@@ -223,7 +223,7 @@ public sealed partial class GameServer
         guest.State.InEva = false;     // coming over from a spacewalk ends it
         guest.AwaitingSpawnAdopt = true; // the client may still report a step from where it was — keep the arrival spot
         guest.ShipInteriorSettleUntil = _uptime + ShipInteriorSettleSeconds; // …even one from the own interior, at the same coordinates
-        guest.SentChunks.Clear();
+        guest.Streaming.SentChunks.Clear();
 
         Send(guest, new WorldReset { PlanetType = ShipInteriorType, PlanetName = string.Empty, SystemName = string.Empty, Hyperjump = false, ShipOwnerId = hostId });
         SendLandedShips(guest); // the host's hull — the world is void apart from it — BEFORE the position (#1450)

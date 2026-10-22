@@ -482,7 +482,7 @@ public sealed class VillagePersonMemoryTests : IDisposable
             var t0 = new DateTime(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc);
             server.SetWallClockForTest(t0);
             var first = server.AddLocalPlayer("Wanderer");
-            Assert.Equal(string.Empty, first.PreviousSeenUtc); // a brand-new player was never online before
+            Assert.Equal(string.Empty, first.Vega.PreviousSeenUtc); // a brand-new player was never online before
             Assert.Equal(Iso(t0), first.State.LastSeenUtc);
 
             server.SetWallClockForTest(t0.AddMinutes(30));
@@ -494,7 +494,7 @@ public sealed class VillagePersonMemoryTests : IDisposable
 
             server.SetWallClockForTest(t0.AddDays(2));
             var back = server.AddLocalPlayer("Wanderer");
-            Assert.Equal(Iso(t0.AddHours(1)), back.PreviousSeenUtc); // read BEFORE the join overwrote it
+            Assert.Equal(Iso(t0.AddHours(1)), back.Vega.PreviousSeenUtc); // read BEFORE the join overwrote it
             Assert.Equal(Iso(t0.AddDays(2)), back.State.LastSeenUtc);
             server.Stop();
         }

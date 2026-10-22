@@ -48,7 +48,7 @@ public sealed partial class GameServer
     private readonly Dictionary<string, double> _conversationTickAt = new(StringComparer.Ordinal);
 
     /// <summary>
-    /// #2616: one player's conversation with an NPC, kept on <see cref="PlayerSession.Conversation"/>. It exists only while
+    /// #2616: one player's conversation with an NPC, kept on <see cref="PlayerSessionNpc.Conversation"/>. It exists only while
     /// the client shows reply choices: a leave, an end node, a new talk, walking away, a world change, the NPC leaving the
     /// world or a disconnect end it. The NPC is held by REFERENCE — NPC ids restart at 1 on every world (and on every
     /// respawn), so an id alone could name a different person after travel or a reload. Runtime-only; the once-flag is
@@ -306,7 +306,7 @@ public sealed partial class GameServer
 
     /// <summary>#2616: the player is in a live conversation (an open panel with replies, the NPC still in reach).</summary>
     private bool InLiveConversation(PlayerSession session)
-        => session.Conversation is { } c && NpcConversationValid(session, c);
+        => session.Npc.Conversation is { } c && NpcConversationValid(session, c);
 
     /// <summary>#2616: opens a conversation (only for a step that offers replies) — a running one ends first — and holds
     /// the NPC still, facing the player.</summary>
@@ -314,7 +314,7 @@ public sealed partial class GameServer
     {
         EndNpcConversation(session, tellClient: false);
         var c = new NpcConversation(npc, _world.LocationId, dialog, _uptime);
-        session.Conversation = c;
+        session.Npc.Conversation = c;
         HoldNpcForTalk(session, c);
     }
 
@@ -336,17 +336,17 @@ public sealed partial class GameServer
     /// as before); false when the client closed it itself (the leave) or the step being sent closes it anyway.</summary>
     private void EndNpcConversation(PlayerSession session, bool tellClient)
     {
-        if (session.Conversation is not { } c)
+        if (session.Npc.Conversation is not { } c)
         {
             return;
         }
 
-        session.Conversation = null;
+        session.Npc.Conversation = null;
         var npc = c.Npc;
         bool stillTalking = false;
         foreach (var other in _sessions.Values)
         {
-            if (other.Conversation is { } oc && ReferenceEquals(oc.Npc, npc))
+            if (other.Npc.Conversation is { } oc && ReferenceEquals(oc.Npc, npc))
             {
                 stillTalking = true;
                 break;
@@ -399,7 +399,7 @@ public sealed partial class GameServer
         List<PlayerSession>? dead = null;
         foreach (var s in _sessions.Values)
         {
-            if (s.Conversation is not { } c)
+            if (s.Npc.Conversation is not { } c)
             {
                 continue;
             }
@@ -513,7 +513,7 @@ public sealed partial class GameServer
     /// conversation ends and the client's panel closes.</para></summary>
     private void HandleNpcDialogChoice(PlayerSession session, NpcDialogChoiceIntent intent)
     {
-        if (session.Conversation is not { } active || (intent.NpcId != 0 && intent.NpcId != active.Npc.Id))
+        if (session.Npc.Conversation is not { } active || (intent.NpcId != 0 && intent.NpcId != active.Npc.Id))
         {
             return;
         }
@@ -565,7 +565,7 @@ public sealed partial class GameServer
         if (end && DialogOfferedMissions(active.Dialog).Any()
             && !choice.Consequence.StartsWith(MissionChains.DialogConsequence + ":", StringComparison.Ordinal))
         {
-            session.DeclinedMissionDialogs.Add(active.Dialog.Key);
+            session.Npc.DeclinedMissionDialogs.Add(active.Dialog.Key);
         }
 
         _repo.SavePlayer(p);
@@ -613,14 +613,14 @@ public sealed partial class GameServer
     private bool DialogRewardOffCooldown(PlayerSession session, string dialogKey, string npcKey)
     {
         string key = dialogKey + "|" + npcKey;
-        if (session.DialogRewardCooldownUntil.TryGetValue(key, out double until) && _uptime < until)
+        if (session.Npc.DialogRewardCooldownUntil.TryGetValue(key, out double until) && _uptime < until)
         {
             return false;
         }
 
         // #2598: talking to a PERSON pays every 10 minutes (a child gets to "known" in one session); the shared role
         // keys of the stall and the board keep their hour.
-        session.DialogRewardCooldownUntil[key] = _uptime
+        session.Npc.DialogRewardCooldownUntil[key] = _uptime
             + (IsPersonKey(npcKey) || IsWildernessPersonKey(npcKey) ? PersonDialogRewardCooldownSeconds : DialogRewardCooldownSeconds);
         return true;
     }
@@ -697,7 +697,7 @@ public sealed partial class GameServer
                 break;
 
             case "interview":
-                session.PendingInterviewNpcId = npc.Id;
+                session.Npc.PendingInterviewNpcId = npc.Id;
                 _dialogAction = "interview";
                 break;
 
@@ -863,11 +863,11 @@ public sealed partial class GameServer
 
     /// <summary>Test/inspection: the key + node of the player's active dialogue, or null.</summary>
     public (string Key, int Node)? ActiveDialogForTest(string playerId)
-        => FindSessionByPlayerId(playerId)?.Conversation is { } c ? (c.Dialog.Key, c.Node) : null;
+        => FindSessionByPlayerId(playerId)?.Npc.Conversation is { } c ? (c.Dialog.Key, c.Node) : null;
 
     /// <summary>Test/inspection (#2616): the NPC id the player is talking with, or null.</summary>
     public int? ConversationNpcForTest(string playerId)
-        => FindSessionByPlayerId(playerId)?.Conversation?.Npc.Id;
+        => FindSessionByPlayerId(playerId)?.Npc.Conversation?.Npc.Id;
 
     /// <summary>Test seam (#2616): runs the active world's conversation sweep now (skips the 1 Hz throttle).</summary>
     public void SweepNpcConversationsForTest() => SweepNpcConversations();
@@ -896,7 +896,7 @@ public sealed partial class GameServer
     {
         if (FindSessionByPlayerId(playerId) is { } session)
         {
-            session.DialogRewardCooldownUntil.Clear();
+            session.Npc.DialogRewardCooldownUntil.Clear();
         }
     }
 

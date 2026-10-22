@@ -104,7 +104,7 @@ public sealed partial class GameServer
     /// mute (#2462, B31) that rides on the same intent.</summary>
     private void HandleSetNpcCalls(PlayerSession session, SetNpcCallsIntent intent)
     {
-        session.VegaHintsMuted = intent.VegaHintsMuted;
+        session.Vega.VegaHintsMuted = intent.VegaHintsMuted;
         session.State.NpcCallsMode = System.Enum.IsDefined(typeof(NpcCallsMode), intent.Mode)
             ? (NpcCallsMode)intent.Mode
             : NpcCallsMode.All;

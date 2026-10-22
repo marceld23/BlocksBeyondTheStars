@@ -114,7 +114,7 @@ public sealed class ChunkGenerationPoolTests : IDisposable
         {
             server.TickForTest(0.1);
             // SentChunks is a set; rebuild the arrival order by diffing after each pass.
-            foreach (var c in p.SentChunks.OrderBy(c => c.X).ThenBy(c => c.Y).ThenBy(c => c.Z))
+            foreach (var c in p.Streaming.SentChunks.OrderBy(c => c.X).ThenBy(c => c.Y).ThenBy(c => c.Z))
             {
                 if (seen.Add(c))
                 {

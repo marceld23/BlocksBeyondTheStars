@@ -103,13 +103,13 @@ public sealed class VegaStoryMissionsTests : IDisposable
     /// <summary>Every queued story scene went out (a chapter's opening and its beat cards), then the 1 Hz mission pass ran.</summary>
     private static void Settle(SvGameServer server, PlayerSession p)
     {
-        for (int i = 0; i < 40 && (i < 4 || p.CutsceneQueue.Count > 0); i++)
+        for (int i = 0; i < 40 && (i < 4 || p.Story.CutsceneQueue.Count > 0); i++)
         {
             server.AdvanceUptimeForTest(SvGameServer.CutsceneCooldownSeconds);
             server.TickCutscenesForTest(p);
         }
 
-        Assert.Empty(p.CutsceneQueue);
+        Assert.Empty(p.Story.CutsceneQueue);
         server.TickStoryMissionsForTest(p);
     }
 

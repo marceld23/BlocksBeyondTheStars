@@ -640,7 +640,7 @@ public sealed class StoryPackRuntimeTests : IDisposable
         var p = server.AddLocalPlayer("Solo");
         FinishLegacyChain(p);
         server.TickStoryPacksForTest(p, 1);
-        double before = p.StoryPackPlaySeconds;
+        double before = p.Story.StoryPackPlaySeconds;
 
         server.PauseForTest(p, true);
         for (int i = 0; i < 20; i++)
@@ -648,7 +648,7 @@ public sealed class StoryPackRuntimeTests : IDisposable
             server.Tick(1.0);
         }
 
-        Assert.Equal(before, p.StoryPackPlaySeconds);
+        Assert.Equal(before, p.Story.StoryPackPlaySeconds);
         Assert.DoesNotContain("story.runtime_test.a1.hint", transport.LineKeys(p));
     }
 

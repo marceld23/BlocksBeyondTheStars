@@ -96,7 +96,7 @@ public sealed partial class GameServer
             return "@srv.return_ship.aboard";
         }
 
-        if (session.RespawnChoiceDeadline > 0 || session.Spectating || InSpace(p.PlayerId) || p.InEva
+        if (session.Respawn.RespawnChoiceDeadline > 0 || session.Spectating || InSpace(p.PlayerId) || p.InEva
             || p.InSpeeder.Length > 0 || p.InTrain.Length > 0)
         {
             return "@srv.return_ship.on_foot_only";
@@ -115,7 +115,7 @@ public sealed partial class GameServer
             // #2559: a blow's grace names its seconds in the token's argument (a client reads them from the "_left" key; the
             // plain key has no slot, so an older client reads its sentence unchanged). A waiting robber has no clock to
             // name — the hold-up ends with the player's answer — so that refusal is the bare token.
-            return session.BanditDemandId != 0
+            return session.Bandit.BanditDemandId != 0
                 ? ReturnToShipRules.InCombatToken
                 : ReturnToShipRules.InCombatToken + ":" + ReturnToShipRules.FormatFightSeconds(ReturnToShipFightLeft(session));
         }
@@ -136,7 +136,7 @@ public sealed partial class GameServer
     /// <summary>The player was part of a blow less than the grace ago, or a robber is still waiting for their answer.
     /// The grace runs on <see cref="GateClock"/>, so it also runs out behind the pause menu (#2558).</summary>
     private bool InCombat(PlayerSession session)
-        => GateClock - session.LastCombatAt < ReturnToShipRules.CombatGraceSeconds || session.BanditDemandId != 0;
+        => GateClock - session.LastCombatAt < ReturnToShipRules.CombatGraceSeconds || session.Bandit.BanditDemandId != 0;
 
     /// <summary>Seconds the fight still blocks "Back to my ship" (#2559), 0 when it does not: what is left of the grace
     /// after the last blow. While a robber waits for an answer it is <see cref="ReturnToShipRules.RobberWaitingFightSeconds"/>
@@ -145,7 +145,7 @@ public sealed partial class GameServer
     /// pause-menu row counts it down, and for the refusal's text.</summary>
     private double ReturnToShipFightLeft(PlayerSession session)
     {
-        if (session.BanditDemandId != 0)
+        if (session.Bandit.BanditDemandId != 0)
         {
             return ReturnToShipRules.RobberWaitingFightSeconds;
         }

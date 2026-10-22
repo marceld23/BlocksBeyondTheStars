@@ -161,9 +161,9 @@ public sealed partial class GameServer
                 NoteChatFilterHit(session); // #1208: keep doing this and the channel goes quiet for a while
                 return null;
             case ChatVerdict.Mask:
-                if (!session.ChatMaskNoticeSent)
+                if (!session.Chat.ChatMaskNoticeSent)
                 {
-                    session.ChatMaskNoticeSent = true;
+                    session.Chat.ChatMaskNoticeSent = true;
                     Send(session, new ServerMessage { Text = "@srv.chat.masked" });
                 }
 
@@ -356,7 +356,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (!session.ChatMuteNoticeSent)
+        if (!session.Chat.ChatMuteNoticeSent)
         {
             SendMuteNotice(session);
         }
@@ -368,7 +368,7 @@ public sealed partial class GameServer
     /// as a broken game — especially to a child — so a mute is never applied quietly.</summary>
     private void SendMuteNotice(PlayerSession session)
     {
-        session.ChatMuteNoticeSent = true;
+        session.Chat.ChatMuteNoticeSent = true;
         int minutes = System.Math.Max(1, (int)System.Math.Ceiling((ChatMutedUntil(session) - _uptime) / 60.0));
         Send(session, new ServerMessage { Text = "@srv.chat.muted_until:" + minutes });
     }
@@ -377,9 +377,9 @@ public sealed partial class GameServer
     /// true when the line must be dropped — the line that trips the limit is itself part of the flood.</summary>
     private bool NoteChatLine(PlayerSession session)
     {
-        TrimWindow(session.RecentChatAt, SpamBurstWindowSeconds);
-        session.RecentChatAt.Add(_uptime);
-        if (session.RecentChatAt.Count <= SpamBurstLines)
+        TrimWindow(session.Chat.RecentChatAt, SpamBurstWindowSeconds);
+        session.Chat.RecentChatAt.Add(_uptime);
+        if (session.Chat.RecentChatAt.Count <= SpamBurstLines)
         {
             return false;
         }
@@ -393,9 +393,9 @@ public sealed partial class GameServer
     /// on — not a watch-list term, which is relayed untouched and only pings the operator.</summary>
     private void NoteChatFilterHit(PlayerSession session)
     {
-        TrimWindow(session.RecentFilterHitsAt, FilterHitWindowSeconds);
-        session.RecentFilterHitsAt.Add(_uptime);
-        if (session.RecentFilterHitsAt.Count > SpamFilterHits)
+        TrimWindow(session.Chat.RecentFilterHitsAt, FilterHitWindowSeconds);
+        session.Chat.RecentFilterHitsAt.Add(_uptime);
+        if (session.Chat.RecentFilterHitsAt.Count > SpamFilterHits)
         {
             AutoMuteChat(session, "repeatedly tripping the chat filter");
         }
@@ -405,8 +405,8 @@ public sealed partial class GameServer
     private void AutoMuteChat(PlayerSession session, string why)
     {
         SetChatMute(session, _uptime + ChatAutoMuteSeconds);
-        session.RecentChatAt.Clear();
-        session.RecentFilterHitsAt.Clear();
+        session.Chat.RecentChatAt.Clear();
+        session.Chat.RecentFilterHitsAt.Clear();
         SendMuteNotice(session); // straight away — the line that vanished is the one they want explained
 
         string who = session.State.Name ?? "?";
@@ -485,9 +485,9 @@ public sealed partial class GameServer
         if (lift)
         {
             ClearChatMute(target.State.PlayerId);
-            target.ChatMuteNoticeSent = false;
-            target.RecentChatAt.Clear();
-            target.RecentFilterHitsAt.Clear();
+            target.Chat.ChatMuteNoticeSent = false;
+            target.Chat.RecentChatAt.Clear();
+            target.Chat.RecentFilterHitsAt.Clear();
             Send(target, new ServerMessage { Text = "@srv.chat.unmuted" });
             _log.Info($"Chat un-silenced: '{who}' by '{admin.State.Name}'.");
             return "@srv.admin.unsilenced:" + who;
@@ -495,7 +495,7 @@ public sealed partial class GameServer
 
         int span = System.Math.Clamp(minutes <= 0 ? DefaultSilenceMinutes : minutes, 1, MaxSilenceMinutes);
         SetChatMute(target, _uptime + (span * 60.0));
-        target.ChatMuteNoticeSent = false;
+        target.Chat.ChatMuteNoticeSent = false;
         SendMuteNotice(target); // the same "chat is paused for you for N minutes" the auto-mute sends
         _log.Info($"Chat silenced: '{who}' for {span} min by '{admin.State.Name}'.");
         NotifyOperator($"chat silenced [{_meta.WorldName}]",

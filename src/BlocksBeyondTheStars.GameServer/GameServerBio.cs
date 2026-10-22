@@ -384,7 +384,7 @@ public sealed partial class GameServer
     private void SendBioBook(PlayerSession session)
     {
         var research = ResearchOf(session.State.PlayerId);
-        session.BioBookSeeds.Clear();
+        session.Sync.BioBookSeeds.Clear();
         var species = new List<NetBioSpecies>();
         foreach (uint seed in HeldSeeds(session.State).Concat(research.Analysed).ToList())
         {
@@ -406,7 +406,7 @@ public sealed partial class GameServer
         var research = ResearchOf(session.State.PlayerId);
         if (resend)
         {
-            session.BioBookSeeds.Remove(seed);
+            session.Sync.BioBookSeeds.Remove(seed);
         }
 
         var species = new List<NetBioSpecies>();
@@ -419,7 +419,7 @@ public sealed partial class GameServer
 
     private void AddWithParents(PlayerSession session, BioResearch research, uint seed, List<NetBioSpecies> into, int depth = 0)
     {
-        if (BioEntry(seed) is not { } entry || depth > BioRules.MaxCrossGeneration || !session.BioBookSeeds.Add(seed))
+        if (BioEntry(seed) is not { } entry || depth > BioRules.MaxCrossGeneration || !session.Sync.BioBookSeeds.Add(seed))
         {
             return;
         }

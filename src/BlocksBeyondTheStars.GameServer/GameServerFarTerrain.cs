@@ -78,17 +78,17 @@ public sealed partial class GameServer
             return;
         }
 
-        if (session.FarTilesWorldId != worldId)
+        if (session.Streaming.FarTilesWorldId != worldId)
         {
-            session.FarTilesSent.Clear();
-            session.FarTileQueue.Clear();
-            session.FarTileQueued.Clear();
-            session.FarTilesWorldId = worldId;
+            session.Streaming.FarTilesSent.Clear();
+            session.Streaming.FarTileQueue.Clear();
+            session.Streaming.FarTileQueued.Clear();
+            session.Streaming.FarTilesWorldId = worldId;
         }
 
-        session.FarTileTokens = Math.Min(FarTileTokenBurst,
-            session.FarTileTokens + Math.Max(0, _uptime - session.FarTileTokensAt) * FarTileTokensPerSecond);
-        session.FarTileTokensAt = _uptime;
+        session.Streaming.FarTileTokens = Math.Min(FarTileTokenBurst,
+            session.Streaming.FarTileTokens + Math.Max(0, _uptime - session.Streaming.FarTileTokensAt) * FarTileTokensPerSecond);
+        session.Streaming.FarTileTokensAt = _uptime;
 
         var tiles = request.Tiles ?? Array.Empty<int>();
         int pairs = Math.Min(tiles.Length / 2, FarTerrainTile.MaxTilesPerRequest);
@@ -97,7 +97,7 @@ public sealed partial class GameServer
         var pos = session.State.Position;
         for (int i = 0; i < pairs; i++)
         {
-            if (session.FarTileTokens < 1)
+            if (session.Streaming.FarTileTokens < 1)
             {
                 break; // flood gate — the client re-asks for what it still lacks
             }
@@ -113,7 +113,7 @@ public sealed partial class GameServer
                 continue; // out of any far view: refuse rather than scan the save for someone else's base
             }
 
-            session.FarTileTokens -= 1;
+            session.Streaming.FarTileTokens -= 1;
             var key = (tx, tz);
             if (world.FarTiles.TryGetValue(key, out var cached) && !cached.Dirty && cached.Message is not null)
             {
@@ -122,15 +122,15 @@ public sealed partial class GameServer
             }
 
             // #1871: a build costs a repository query — queued for ServeFarTiles, never done in the handler.
-            if (session.FarTileQueued.Add(key))
+            if (session.Streaming.FarTileQueued.Add(key))
             {
-                if (session.FarTileQueue.Count >= FarTileQueueCap)
+                if (session.Streaming.FarTileQueue.Count >= FarTileQueueCap)
                 {
-                    session.FarTileQueued.Remove(key);
+                    session.Streaming.FarTileQueued.Remove(key);
                     break; // the client re-asks what it still lacks
                 }
 
-                session.FarTileQueue.Enqueue(key);
+                session.Streaming.FarTileQueue.Enqueue(key);
             }
         }
     }
@@ -139,12 +139,12 @@ public sealed partial class GameServer
     private void SendFarTile(PlayerSession session, LoadedWorld world, int tx, int tz, int worldId)
     {
         var message = FarTileMessage(world, tx, tz, worldId);
-        if (session.FarTilesSent.Count >= FarTilesSentCap)
+        if (session.Streaming.FarTilesSent.Count >= FarTilesSentCap)
         {
-            session.FarTilesSent.Clear();
+            session.Streaming.FarTilesSent.Clear();
         }
 
-        session.FarTilesSent[(tx, tz)] = message.Version;
+        session.Streaming.FarTilesSent[(tx, tz)] = message.Version;
         Send(session, message);
     }
 
@@ -171,15 +171,15 @@ public sealed partial class GameServer
             any = false;
             foreach (var session in JoinedInActiveWorld())
             {
-                if (session.FarTileQueue.Count == 0 || session.FarTilesWorldId != worldId)
+                if (session.Streaming.FarTileQueue.Count == 0 || session.Streaming.FarTilesWorldId != worldId)
                 {
-                    session.FarTileQueue.Clear(); // a stale queue from a world the player left
-                    session.FarTileQueued.Clear();
+                    session.Streaming.FarTileQueue.Clear(); // a stale queue from a world the player left
+                    session.Streaming.FarTileQueued.Clear();
                     continue;
                 }
 
-                var (tx, tz) = session.FarTileQueue.Dequeue();
-                session.FarTileQueued.Remove((tx, tz));
+                var (tx, tz) = session.Streaming.FarTileQueue.Dequeue();
+                session.Streaming.FarTileQueued.Remove((tx, tz));
                 SendFarTile(session, world, tx, tz, worldId);
                 built++;
                 any = true;
@@ -371,13 +371,13 @@ public sealed partial class GameServer
         int worldId = WorldIdOf(world.LocationId);
         foreach (var session in JoinedInActiveWorld())
         {
-            if (session.FarTilesWorldId != worldId || session.FarTilesSent.Count == 0)
+            if (session.Streaming.FarTilesWorldId != worldId || session.Streaming.FarTilesSent.Count == 0)
             {
                 continue;
             }
 
             List<(int, int)>? resend = null;
-            foreach (var kv in session.FarTilesSent)
+            foreach (var kv in session.Streaming.FarTilesSent)
             {
                 if (world.FarTiles.TryGetValue(kv.Key, out var state) && (state.Dirty || state.Version != kv.Value))
                 {
@@ -393,7 +393,7 @@ public sealed partial class GameServer
             foreach (var (tx, tz) in resend)
             {
                 var message = FarTileMessage(world, tx, tz, worldId);
-                session.FarTilesSent[(tx, tz)] = message.Version;
+                session.Streaming.FarTilesSent[(tx, tz)] = message.Version;
                 Send(session, message);
             }
         }

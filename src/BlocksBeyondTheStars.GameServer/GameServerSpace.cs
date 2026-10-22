@@ -1156,7 +1156,7 @@ public sealed partial class GameServer
         // broadcast to the players present on it — their client's chunk view is stale now (the #957
         // "ghost blocks" / invisible-ship desync). Re-stream everything: chunk delivery is idempotent
         // client-side, so this self-heals whatever drifted, exactly like the cross-body travel path.
-        session.SentChunks.Clear();
+        session.Streaming.SentChunks.Clear();
 
         // The touchdown must ride the RespawnNotice snap channel (Died=false → no death feedback): the
         // client DISCARDS a position that arrives on PlayerStateUpdate (same rule as the suit teleporter,

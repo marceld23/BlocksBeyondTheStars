@@ -21,8 +21,8 @@ public sealed partial class GameServer
     /// player, the blow coming from <paramref name="from"/> (the attacker's position, or a giant's stomp/strike spot).</summary>
     private static void NoteHitFrom(PlayerSession session, CombatEntity attacker, Vector3f from)
     {
-        session.LastHitEntityId = attacker.Id;
-        session.LastHitFrom = from;
-        session.LastHitSeq = session.LastHitSeq == int.MaxValue ? 1 : session.LastHitSeq + 1; // never back to 0 ("none")
+        session.Sync.LastHitEntityId = attacker.Id;
+        session.Sync.LastHitFrom = from;
+        session.Sync.LastHitSeq = session.Sync.LastHitSeq == int.MaxValue ? 1 : session.Sync.LastHitSeq + 1; // never back to 0 ("none")
     }
 }

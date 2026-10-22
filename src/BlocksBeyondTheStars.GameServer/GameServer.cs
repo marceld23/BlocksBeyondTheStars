@@ -1099,7 +1099,7 @@ public sealed partial class GameServer
         var spawn = _shipPlaced ? _healTank : new Vector3f(pad.CenterX + 0.5f, surfaceY + 2f, pad.CenterZ + 0.5f);
         session.State.Position = spawn;
         session.AwaitingSpawnAdopt = true; // #865: the client still streams its pre-landing pose for a beat
-        session.SentChunks.Clear();
+        session.Streaming.SentChunks.Clear();
         if (!session.Spectating)
         {
             session.State.RespawnPoint = _shipPlaced ? _healTank : spawn;
@@ -1193,7 +1193,7 @@ public sealed partial class GameServer
             }
 
             BeginTransit(session, body.Id, crossSystem ? body.SystemId : null, intent.PadIndex);
-            if (!session.AutomaticTransit)
+            if (!session.Transit.AutomaticTransit)
             {
                 session.AssignedPadIndex = heldPad; // the take-off was refused — the ship still stands on its old pad
             }
@@ -1214,11 +1214,11 @@ public sealed partial class GameServer
     /// — or free flight in the new system when there is no destination ("Hyperjump to this system").</summary>
     private void BeginTransit(PlayerSession session, string? destinationBodyId, string? systemId, int padIndex)
     {
-        session.PendingTransitBodyId = destinationBodyId;
-        session.PendingTransitSystemId = systemId;
-        session.PendingTransitPadIndex = padIndex;
-        session.AutomaticTransit = true;
-        session.TransitLaunchTimer = 0;
+        session.Transit.PendingTransitBodyId = destinationBodyId;
+        session.Transit.PendingTransitSystemId = systemId;
+        session.Transit.PendingTransitPadIndex = padIndex;
+        session.Transit.AutomaticTransit = true;
+        session.Transit.TransitLaunchTimer = 0;
 
         // No warp flag here: the warp belongs between the take-off and the arrival, not over the take-off.
         EnterSpace(session.State.PlayerId, skipLaunch: false);
@@ -1231,16 +1231,16 @@ public sealed partial class GameServer
     /// <summary>#1614: forgets any pending automatic transit of this player.</summary>
     private static void ClearTransit(PlayerSession session)
     {
-        session.PendingTransitBodyId = null;
-        session.PendingTransitSystemId = null;
-        session.PendingTransitPadIndex = -1;
-        session.AutomaticTransit = false;
-        session.TransitLaunchTimer = 0;
+        session.Transit.PendingTransitBodyId = null;
+        session.Transit.PendingTransitSystemId = null;
+        session.Transit.PendingTransitPadIndex = -1;
+        session.Transit.AutomaticTransit = false;
+        session.Transit.TransitLaunchTimer = 0;
     }
 
     private void HandleTransitLaunchDone(PlayerSession session, TransitLaunchDoneIntent intent)
     {
-        if (session.AutomaticTransit)
+        if (session.Transit.AutomaticTransit)
         {
             AdvanceTransit(session);
         }
@@ -1254,10 +1254,10 @@ public sealed partial class GameServer
     private void AdvanceTransit(PlayerSession session)
     {
         string playerId = session.State.PlayerId;
-        string? destinationBodyId = session.PendingTransitBodyId;
-        string? systemId = session.PendingTransitSystemId;
-        int padIndex = session.PendingTransitPadIndex;
-        session.TransitLaunchTimer = 0;
+        string? destinationBodyId = session.Transit.PendingTransitBodyId;
+        string? systemId = session.Transit.PendingTransitSystemId;
+        int padIndex = session.Transit.PendingTransitPadIndex;
+        session.Transit.TransitLaunchTimer = 0;
 
         if (!InSpace(playerId))
         {
@@ -1276,7 +1276,7 @@ public sealed partial class GameServer
             }
 
             // The warp is the next stage; with no destination the trip ends with it, in free flight.
-            session.PendingTransitSystemId = null;
+            session.Transit.PendingTransitSystemId = null;
             if (string.IsNullOrEmpty(destinationBodyId))
             {
                 ClearTransit(session);
@@ -1286,7 +1286,7 @@ public sealed partial class GameServer
                 ?? system.Bodies.FirstOrDefault(b => !string.IsNullOrEmpty(b.PlanetType))
                 ?? system.Bodies[0];
             JumpFlightToSystem(session, system, anchor);
-            if (!session.AutomaticTransit)
+            if (!session.Transit.AutomaticTransit)
             {
                 TellArrivedInFlight(session, system, anchor); // the trip ends here, in flight — the landing never says it
             }
@@ -1322,10 +1322,10 @@ public sealed partial class GameServer
     /// is not loaded, which the per-world tick never visits.</summary>
     private void TickTransits(double dt)
     {
-        foreach (var session in _sessions.Values.Where(s => s.Joined && s.AutomaticTransit).ToList())
+        foreach (var session in _sessions.Values.Where(s => s.Joined && s.Transit.AutomaticTransit).ToList())
         {
-            session.TransitLaunchTimer += dt;
-            if (session.TransitLaunchTimer >= _config.TransitLaunchTimeoutSeconds)
+            session.Transit.TransitLaunchTimer += dt;
+            if (session.Transit.TransitLaunchTimer >= _config.TransitLaunchTimeoutSeconds)
             {
                 AdvanceTransit(session);
             }
@@ -1692,7 +1692,7 @@ public sealed partial class GameServer
     /// does — this stands in for a real payload, and a test client must not look silent for sending one.</summary>
     public void PauseForTest(PlayerSession session, bool paused)
     {
-        session.LastPayloadAt = _uptime;
+        session.Liveness.LastPayloadAt = _uptime;
         HandlePause(session, new PauseIntent { Paused = paused });
     }
 
@@ -1703,23 +1703,23 @@ public sealed partial class GameServer
     /// </summary>
     private void HandlePause(PlayerSession session, PauseIntent intent)
     {
-        session.PausedSilentSeconds = 0; // hearing from this client at all is what the keep-alive is for
+        session.Liveness.PausedSilentSeconds = 0; // hearing from this client at all is what the keep-alive is for
 
         if (!intent.Paused)
         {
-            session.PauseHoldExpired = false; // closing the menu ends the hold — and any lockout on it
+            session.Liveness.PauseHoldExpired = false; // closing the menu ends the hold — and any lockout on it
         }
         else
         {
             // A repeat while this session already wants the hold is the client's keep-alive: behind an open
             // menu it is the only payload it sends, and the only proof that it is still alive (see
             // SweepSilentPausedSessions). Seeing one also tells us this client is new enough to send them.
-            if (session.WantsPause)
+            if (session.Liveness.WantsPause)
             {
-                session.SendsPauseKeepAlive = true;
+                session.Liveness.SendsPauseKeepAlive = true;
             }
 
-            if (session.PauseHoldExpired)
+            if (session.Liveness.PauseHoldExpired)
             {
                 // The hold already ran out under this open menu. The keep-alives still prove the client is
                 // alive (stamped above), but they must not put the world straight back to sleep — that would
@@ -1728,7 +1728,7 @@ public sealed partial class GameServer
             }
         }
 
-        session.WantsPause = intent.Paused;
+        session.Liveness.WantsPause = intent.Paused;
         RecomputePause();
     }
 
@@ -1754,7 +1754,7 @@ public sealed partial class GameServer
             }
 
             joined++;
-            if (s.WantsPause)
+            if (s.Liveness.WantsPause)
             {
                 holding++;
             }
@@ -1767,7 +1767,7 @@ public sealed partial class GameServer
         {
             foreach (var s in _sessions.Values)
             {
-                if (s.Joined && !s.Spectating && !s.WantsPause)
+                if (s.Joined && !s.Spectating && !s.Liveness.WantsPause)
                 {
                     (waitingFor ??= new List<string>()).Add(s.State.Name);
                 }
@@ -1788,7 +1788,7 @@ public sealed partial class GameServer
             _pausedFor = 0;
             foreach (var s in _sessions.Values)
             {
-                s.PausedSilentSeconds = 0; // the paused-silence clock only runs while the world stands still
+                s.Liveness.PausedSilentSeconds = 0; // the paused-silence clock only runs while the world stands still
             }
 
             _log.Info(hold
@@ -1816,14 +1816,14 @@ public sealed partial class GameServer
     }
 
     /// <summary>Clears every player's pause intent when the hold expires on its own, and latches the menus
-    /// that were holding it (see <see cref="PlayerSession.PauseHoldExpired"/>) — otherwise the world would
+    /// that were holding it (see <see cref="PlayerSessionLiveness.PauseHoldExpired"/>) — otherwise the world would
     /// re-enter the hold on the very next recompute, with everybody still sitting in their menus.</summary>
     private void ClearPauseIntents()
     {
         foreach (var s in _sessions.Values)
         {
-            s.PauseHoldExpired |= s.WantsPause;
-            s.WantsPause = false;
+            s.Liveness.PauseHoldExpired |= s.Liveness.WantsPause;
+            s.Liveness.WantsPause = false;
         }
     }
 
@@ -2127,13 +2127,13 @@ public sealed partial class GameServer
             TickJetpack(session, dt);
             // A deferred respawn choice is pending (issue #462): the player lies at the death spot at 0 HP.
             // No drains, no regen, no re-death — just enforce the timeout fallback to the ship.
-            if (session.RespawnChoiceDeadline > 0)
+            if (session.Respawn.RespawnChoiceDeadline > 0)
             {
-                if (_uptime >= session.RespawnChoiceDeadline)
+                if (_uptime >= session.Respawn.RespawnChoiceDeadline)
                 {
-                    session.RespawnChoiceDeadline = 0;
-                    CompleteRespawn(session, session.PendingRespawnReason, session.PendingRespawnSalvaged,
-                        session.PendingRespawnSameWorld, useCustomSpawn: false);
+                    session.Respawn.RespawnChoiceDeadline = 0;
+                    CompleteRespawn(session, session.Respawn.PendingRespawnReason, session.Respawn.PendingRespawnSalvaged,
+                        session.Respawn.PendingRespawnSameWorld, useCustomSpawn: false);
                 }
 
                 continue;
@@ -2217,7 +2217,7 @@ public sealed partial class GameServer
                 // Health regen never revives a dead player (0 HP) — that would outrun the death check
                 // below and quietly skip the respawn on breathable worlds.
                 p.Oxygen = System.Math.Min(maxOxygen, p.Oxygen + (float)(dt * 25));
-                if (p.Health > 0f && session.ToxicWaterSeconds <= ToxicWaterGraceSeconds && p.Exposure < 1f) // 2026-09: toxic water and a full exposure meter stop the regen
+                if (p.Health > 0f && session.Hazards.ToxicWaterSeconds <= ToxicWaterGraceSeconds && p.Exposure < 1f) // 2026-09: toxic water and a full exposure meter stop the regen
                 {
                     // #2202: a "tired" side effect takes natural healing away for as long as it lasts.
                     p.Health = System.Math.Min(100f, p.Health + (float)(dt * 2) * Shared.Bio.PlayerEffects.NaturalHealingFactor(p.Effects));
@@ -2248,7 +2248,7 @@ public sealed partial class GameServer
                 }
             }
 
-            session.HazardDeathReason = null; // set below by a hazard with its own death line (2026-09)
+            session.Hazards.HazardDeathReason = null; // set below by a hazard with its own death line (2026-09)
 
             // Lava burns (reduced by armor). Every hit below goes through DamagePlayer — nothing hurts in Sandbox (#2712).
             if (InLava(p.Position))
@@ -2262,7 +2262,7 @@ public sealed partial class GameServer
             if (gasDps > 0f)
             {
                 DamagePlayer(p, (float)(dt * gasDps));
-                session.HazardDeathReason = "@srv.death.gas";
+                session.Hazards.HazardDeathReason = "@srv.death.gas";
             }
 
             // Standing in fire burns too (item 30) — a little less than lava.
@@ -2304,29 +2304,29 @@ public sealed partial class GameServer
 
             if (p.Health <= 0f)
             {
-                RespawnPlayer(session, session.HazardDeathReason ?? "@srv.death.critical");
+                RespawnPlayer(session, session.Hazards.HazardDeathReason ?? "@srv.death.critical");
                 continue;
             }
 
             // Periodic vitals sync: oxygen/hunger/energy/health drain + regen every tick SERVER-side, but
             // PlayerStateUpdate used to go out only on discrete events — the HUD bars froze in between.
             // Push the state twice a second whenever a vital has visibly moved since the last send.
-            session.VitalsSyncTimer += dt;
-            if (session.VitalsSyncTimer >= 0.5)
+            session.Sync.VitalsSyncTimer += dt;
+            if (session.Sync.VitalsSyncTimer >= 0.5)
             {
-                session.VitalsSyncTimer = 0;
-                bool changed = System.Math.Abs(p.Health - session.LastSentHealth) > 0.4f
-                    || System.Math.Abs(p.Oxygen - session.LastSentOxygen) > 0.4f
-                    || System.Math.Abs(p.SuitEnergy - session.LastSentEnergy) > 0.4f
-                    || System.Math.Abs(p.Hunger - session.LastSentHunger) > 0.4f
-                    || System.Math.Abs(p.Exposure - session.LastSentExposure) > 0.004f;
+                session.Sync.VitalsSyncTimer = 0;
+                bool changed = System.Math.Abs(p.Health - session.Sync.LastSentHealth) > 0.4f
+                    || System.Math.Abs(p.Oxygen - session.Sync.LastSentOxygen) > 0.4f
+                    || System.Math.Abs(p.SuitEnergy - session.Sync.LastSentEnergy) > 0.4f
+                    || System.Math.Abs(p.Hunger - session.Sync.LastSentHunger) > 0.4f
+                    || System.Math.Abs(p.Exposure - session.Hazards.LastSentExposure) > 0.004f;
                 if (changed)
                 {
-                    session.LastSentExposure = p.Exposure;
-                    session.LastSentHealth = p.Health;
-                    session.LastSentOxygen = p.Oxygen;
-                    session.LastSentEnergy = p.SuitEnergy;
-                    session.LastSentHunger = p.Hunger;
+                    session.Hazards.LastSentExposure = p.Exposure;
+                    session.Sync.LastSentHealth = p.Health;
+                    session.Sync.LastSentOxygen = p.Oxygen;
+                    session.Sync.LastSentEnergy = p.SuitEnergy;
+                    session.Sync.LastSentHunger = p.Hunger;
                     SendPlayerState(session);
                 }
             }
@@ -2484,16 +2484,16 @@ public sealed partial class GameServer
             && (FeetInWater(p) || HeadUnderwater(p));
         if (!wet)
         {
-            session.ToxicWaterSeconds = 0;
+            session.Hazards.ToxicWaterSeconds = 0;
             return;
         }
 
-        session.ToxicWaterSeconds += dt;
+        session.Hazards.ToxicWaterSeconds += dt;
         ShipAiHintOnce(session, "toxic_water");
-        if (session.ToxicWaterSeconds > ToxicWaterGraceSeconds)
+        if (session.Hazards.ToxicWaterSeconds > ToxicWaterGraceSeconds)
         {
             DamagePlayer(p, (float)(dt * dps));
-            session.HazardDeathReason = "@srv.death.toxic_water";
+            session.Hazards.HazardDeathReason = "@srv.death.toxic_water";
         }
     }
 
@@ -2507,7 +2507,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>Test seam (2026-09): the toxic-water clock.</summary>
-    public double ToxicWaterSecondsForTest(string playerId) => FindSessionByPlayerId(playerId)?.ToxicWaterSeconds ?? 0;
+    public double ToxicWaterSecondsForTest(string playerId) => FindSessionByPlayerId(playerId)?.Hazards.ToxicWaterSeconds ?? 0;
 
     /// <summary>Hunger level at or below which the suit auto-consumes a stored emergency ration.</summary>
     private const float EmergencyRationThreshold = 15f;
@@ -2675,10 +2675,10 @@ public sealed partial class GameServer
         if (!string.IsNullOrEmpty(p.CustomSpawnBodyId))
         {
             p.Health = 0f;
-            session.RespawnChoiceDeadline = _uptime + RespawnChoiceTimeout;
-            session.PendingRespawnSalvaged = salvaged;
-            session.PendingRespawnSameWorld = sameWorld;
-            session.PendingRespawnReason = reason;
+            session.Respawn.RespawnChoiceDeadline = _uptime + RespawnChoiceTimeout;
+            session.Respawn.PendingRespawnSalvaged = salvaged;
+            session.Respawn.PendingRespawnSameWorld = sameWorld;
+            session.Respawn.PendingRespawnReason = reason;
             Send(session, new RespawnOptions
             {
                 Reason = reason,
@@ -2773,14 +2773,14 @@ public sealed partial class GameServer
     /// or late packet can't double-respawn).</summary>
     private void HandleRespawnChoice(PlayerSession session, RespawnChoiceIntent choice)
     {
-        if (session.RespawnChoiceDeadline <= 0)
+        if (session.Respawn.RespawnChoiceDeadline <= 0)
         {
             return;
         }
 
-        session.RespawnChoiceDeadline = 0;
-        CompleteRespawn(session, session.PendingRespawnReason, session.PendingRespawnSalvaged,
-            session.PendingRespawnSameWorld, choice.UseCustomSpawn);
+        session.Respawn.RespawnChoiceDeadline = 0;
+        CompleteRespawn(session, session.Respawn.PendingRespawnReason, session.Respawn.PendingRespawnSalvaged,
+            session.Respawn.PendingRespawnSameWorld, choice.UseCustomSpawn);
     }
 
     /// <summary>Recovery with a world transition: lands the player at their ship's heal-tank on the ship's
@@ -2829,7 +2829,7 @@ public sealed partial class GameServer
         session.AwaitingSpawnAdopt = true; // #865: ignore death-spot reports until the client snaps
         p.AboardShip = true;
         ResetVegaAboardWelcome(session); // #2595: put back aboard (a death, a lost ship) — no "welcome back aboard"
-        session.SentChunks.Clear();
+        session.Streaming.SentChunks.Clear();
 
         var (systemName, planetName) = ActiveLocationNames();
         Send(session, new WorldReset { PlanetType = homeType, PlanetName = planetName, SystemName = systemName, Hyperjump = false });
@@ -2982,14 +2982,14 @@ public sealed partial class GameServer
     private void SampleStreamVelocity(PlayerSession session)
     {
         var pos = session.State.Position;
-        double since = _uptime - session.StreamSampleAt;
-        if (session.StreamSampleAt < 0 || since > 2.0 || since < 0)
+        double since = _uptime - session.Streaming.StreamSampleAt;
+        if (session.Streaming.StreamSampleAt < 0 || since > 2.0 || since < 0)
         {
-            session.StreamSampleX = pos.X;
-            session.StreamSampleZ = pos.Z;
-            session.StreamSampleAt = _uptime;
-            session.StreamVelX = 0f;
-            session.StreamVelZ = 0f;
+            session.Streaming.StreamSampleX = pos.X;
+            session.Streaming.StreamSampleZ = pos.Z;
+            session.Streaming.StreamSampleAt = _uptime;
+            session.Streaming.StreamVelX = 0f;
+            session.Streaming.StreamVelZ = 0f;
             return;
         }
 
@@ -2999,8 +2999,8 @@ public sealed partial class GameServer
         }
 
         int circumference = _world.Circumference;
-        float ddx = WrapDelta(pos.X - session.StreamSampleX, circumference);
-        float ddz = WrapDelta(pos.Z - session.StreamSampleZ, WorldConstants.LatitudePeriodFor(circumference));
+        float ddx = WrapDelta(pos.X - session.Streaming.StreamSampleX, circumference);
+        float ddz = WrapDelta(pos.Z - session.Streaming.StreamSampleZ, WorldConstants.LatitudePeriodFor(circumference));
         float vx = 0f, vz = 0f;
         if (ddx * ddx + ddz * ddz <= 96f * 96f)
         {
@@ -3015,11 +3015,11 @@ public sealed partial class GameServer
             }
         }
 
-        session.StreamVelX = 0.5f * (session.StreamVelX + vx);
-        session.StreamVelZ = 0.5f * (session.StreamVelZ + vz);
-        session.StreamSampleX = pos.X;
-        session.StreamSampleZ = pos.Z;
-        session.StreamSampleAt = _uptime;
+        session.Streaming.StreamVelX = 0.5f * (session.Streaming.StreamVelX + vx);
+        session.Streaming.StreamVelZ = 0.5f * (session.Streaming.StreamVelZ + vz);
+        session.Streaming.StreamSampleX = pos.X;
+        session.Streaming.StreamSampleZ = pos.Z;
+        session.Streaming.StreamSampleAt = _uptime;
 
         static float WrapDelta(float d, int period)
         {
@@ -3142,9 +3142,9 @@ public sealed partial class GameServer
             }
 
             SampleStreamVelocity(session); // #1818: every pass, so the look-ahead is current when the view unsettles
-            if (session.FarInfoDue)
+            if (session.Streaming.FarInfoDue)
             {
-                session.FarInfoDue = false;
+                session.Streaming.FarInfoDue = false;
                 SendFarTerrainWorldInfo(session); // #1820: after the JoinAccepted / WorldReset that introduced the world
             }
 
@@ -3158,17 +3158,17 @@ public sealed partial class GameServer
             // footing all add or remove entries) — or the periodic re-check comes due. The enumeration below is
             // up to ~1200 coords + one terrain lookup per far column, per player, per tick; standing still it
             // produced an empty list every time.
-            int sentCount = session.SentChunks.Count;
-            if (session.StreamSettled
-                && session.StreamSettledCenter == center
-                && session.StreamSettledRadius == streamRadius
-                && session.StreamSettledSentCount == sentCount
-                && ++session.StreamSettledTicks < StreamSettledRecheckTicks)
+            int sentCount = session.Streaming.SentChunks.Count;
+            if (session.Streaming.StreamSettled
+                && session.Streaming.StreamSettledCenter == center
+                && session.Streaming.StreamSettledRadius == streamRadius
+                && session.Streaming.StreamSettledSentCount == sentCount
+                && ++session.Streaming.StreamSettledTicks < StreamSettledRecheckTicks)
             {
                 continue;
             }
 
-            session.StreamSettled = false;
+            session.Streaming.StreamSettled = false;
             StreamEnumerationsForTest++;
             anyEnumerated = true;
 
@@ -3177,8 +3177,8 @@ public sealed partial class GameServer
             float forwardX = (float)System.Math.Sin(yawRad);
             float forwardZ = (float)System.Math.Cos(yawRad);
             float aheadMax = streamRadius * 0.5f;
-            float aheadDx = System.Math.Clamp(session.StreamVelX * StreamLookAheadSeconds / WorldConstants.ChunkSize, -aheadMax, aheadMax);
-            float aheadDz = System.Math.Clamp(session.StreamVelZ * StreamLookAheadSeconds / WorldConstants.ChunkSize, -aheadMax, aheadMax);
+            float aheadDx = System.Math.Clamp(session.Streaming.StreamVelX * StreamLookAheadSeconds / WorldConstants.ChunkSize, -aheadMax, aheadMax);
+            float aheadDz = System.Math.Clamp(session.Streaming.StreamVelZ * StreamLookAheadSeconds / WorldConstants.ChunkSize, -aheadMax, aheadMax);
 
             // Collect the not-yet-sent chunks in the view column and stream them NEAREST-FIRST. The player's
             // own chunk (its floor) then loads before everything else, so a freshly spawned/teleported player
@@ -3253,7 +3253,7 @@ public sealed partial class GameServer
                         // Canonicalize longitude so chunks just west of the seam (center.X+dx < 0) stream as the
                         // wrapped chunk from the far side — the player can see across X = 0 ≡ X = Circumference.
                         var coord = WorldConstants.CanonicalChunk(new ChunkCoord(center.X + dx, cy, center.Z + dz), _world.Circumference);
-                        if (session.SentChunks.Contains(coord))
+                        if (session.Streaming.SentChunks.Contains(coord))
                         {
                             continue;
                         }
@@ -3265,11 +3265,11 @@ public sealed partial class GameServer
             if (pending.Count == 0)
             {
                 // Nothing to send for this view: remember it, so the next ticks skip the enumeration (#1507).
-                session.StreamSettled = true;
-                session.StreamSettledCenter = center;
-                session.StreamSettledRadius = streamRadius;
-                session.StreamSettledSentCount = sentCount;
-                session.StreamSettledTicks = 0;
+                session.Streaming.StreamSettled = true;
+                session.Streaming.StreamSettledCenter = center;
+                session.Streaming.StreamSettledRadius = streamRadius;
+                session.Streaming.StreamSettledSentCount = sentCount;
+                session.Streaming.StreamSettledTicks = 0;
                 continue;
             }
 
@@ -3294,7 +3294,7 @@ public sealed partial class GameServer
                 while (idx < pending.Count && batch.Count < batchSize && sent + batch.Count < perTickBudget)
                 {
                     var candidate = pending[idx++].Coord;
-                    if (session.SentChunks.Contains(candidate) || batch.Contains(candidate))
+                    if (session.Streaming.SentChunks.Contains(candidate) || batch.Contains(candidate))
                     {
                         continue; // two view offsets can map to the same wrapped chunk — send it once
                     }
@@ -3321,7 +3321,7 @@ public sealed partial class GameServer
                 for (int i = idx; i < pending.Count && _streamSpeculate.Count < pool.Workers * 6; i++)
                 {
                     var next = pending[i].Coord;
-                    if (!session.SentChunks.Contains(next) && !_world.IsChunkLoaded(next))
+                    if (!session.Streaming.SentChunks.Contains(next) && !_world.IsChunkLoaded(next))
                     {
                         _streamSpeculate.Add(next);
                     }
@@ -3350,7 +3350,7 @@ public sealed partial class GameServer
         {
             SendEncoded(session.ConnectionId, ChunkPayloadFor(chunk, coord), DeliveryMode.ReliableOrderedBulk); // #1534: the world-stream channel
         }
-        session.SentChunks.Add(coord);
+        session.Streaming.SentChunks.Add(coord);
         MarkExploredCell(session, coord); // #1113: the planet map remembers this across sessions
     }
 
@@ -3449,7 +3449,7 @@ public sealed partial class GameServer
         foreach (var cell in new[] { feetCell, below })
         {
             var coord = WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(cell), _world.Circumference);
-            if (coord.Y < minChunkY || coord.Y > maxChunkY || session.SentChunks.Contains(coord))
+            if (coord.Y < minChunkY || coord.Y > maxChunkY || session.Streaming.SentChunks.Contains(coord))
             {
                 continue;
             }
@@ -3502,7 +3502,7 @@ public sealed partial class GameServer
             {
                 foreach (var coord in removed)
                 {
-                    session.SentChunks.Remove(coord);
+                    session.Streaming.SentChunks.Remove(coord);
                 }
             }
         }
@@ -3525,7 +3525,7 @@ public sealed partial class GameServer
             int pruneRadius = System.Math.Min(EffectiveViewRadius(session) + 4, 20);
             int pruneSq = pruneRadius * pruneRadius;
             int circumference = _world.Circumference;
-            session.SentChunks.RemoveWhere(c => WorldConstants.WrappedChunkDistanceSquared(c, anchor, circumference) > pruneSq);
+            session.Streaming.SentChunks.RemoveWhere(c => WorldConstants.WrappedChunkDistanceSquared(c, anchor, circumference) > pruneSq);
         }
     }
 
@@ -3590,13 +3590,13 @@ public sealed partial class GameServer
         Send(session, new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = _world.GetBlock(pos).Value, Tint = rsTint, Glow = rsGlow, Shape = _world.GetShape(pos) });
 
         var coord = WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(pos), _world.Circumference);
-        if (session.GhostChunkSeen.TryGetValue(coord, out double lastAt) && _uptime - lastAt < GhostRestreamCooldown)
+        if (session.Streaming.GhostChunkSeen.TryGetValue(coord, out double lastAt) && _uptime - lastAt < GhostRestreamCooldown)
         {
             return false; // already re-streamed this chunk moments ago — the BlockChanged above is enough
         }
 
-        session.GhostChunkSeen[coord] = _uptime;
-        session.SentChunks.Remove(coord); // not-sent again → StreamChunks re-streams it on the next tick
+        session.Streaming.GhostChunkSeen[coord] = _uptime;
+        session.Streaming.SentChunks.Remove(coord); // not-sent again → StreamChunks re-streams it on the next tick
         return true;
     }
 
@@ -3645,7 +3645,7 @@ public sealed partial class GameServer
         List<int>? dead = null;
         foreach (var (connectionId, session) in _sessions)
         {
-            if (session.Joined && session.HeartbeatTracked && _uptime - session.LastPayloadAt > SessionHeartbeatTimeout)
+            if (session.Joined && session.Liveness.HeartbeatTracked && _uptime - session.Liveness.LastPayloadAt > SessionHeartbeatTimeout)
             {
                 (dead ??= new List<int>()).Add(connectionId);
             }
@@ -3675,13 +3675,13 @@ public sealed partial class GameServer
         List<int>? dead = null;
         foreach (var (connectionId, session) in _sessions)
         {
-            if (!session.Joined || !session.HeartbeatTracked || !session.SendsPauseKeepAlive)
+            if (!session.Joined || !session.Liveness.HeartbeatTracked || !session.Liveness.SendsPauseKeepAlive)
             {
                 continue;
             }
 
-            session.PausedSilentSeconds += deltaSeconds;
-            if (session.PausedSilentSeconds > SessionHeartbeatTimeout)
+            session.Liveness.PausedSilentSeconds += deltaSeconds;
+            if (session.Liveness.PausedSilentSeconds > SessionHeartbeatTimeout)
             {
                 (dead ??= new List<int>()).Add(connectionId);
             }
@@ -3841,8 +3841,8 @@ public sealed partial class GameServer
             return; // ignore gameplay intents before joining
         }
 
-        session.LastPayloadAt = _uptime; // app-level heartbeat (#964) — see SweepSilentSessions
-        session.PausedSilentSeconds = 0; // the same signal on a clock that runs while the world is held (#973)
+        session.Liveness.LastPayloadAt = _uptime; // app-level heartbeat (#964) — see SweepSilentSessions
+        session.Liveness.PausedSilentSeconds = 0; // the same signal on a clock that runs while the world is held (#973)
 
         // Per-connection flood gate: a token bucket refilled at MsgRatePerSecond, capped at MsgBurst.
         // Every joined intent costs one token; when the bucket is empty the packet is dropped. This bounds
@@ -3922,20 +3922,20 @@ public sealed partial class GameServer
     private static bool AllowMessage(PlayerSession session)
     {
         int now = Environment.TickCount;
-        int elapsedMs = unchecked(now - session.LastMsgRefillTick);
+        int elapsedMs = unchecked(now - session.Throttles.LastMsgRefillTick);
         if (elapsedMs is < 0 or > 60_000)
         {
             elapsedMs = 0; // clock wrap or a long gap — just don't over-refill
         }
 
-        session.LastMsgRefillTick = now;
-        session.MsgBudget = System.Math.Min(MsgBurst, session.MsgBudget + (elapsedMs / 1000.0 * MsgRatePerSecond));
-        if (session.MsgBudget < 1.0)
+        session.Throttles.LastMsgRefillTick = now;
+        session.Throttles.MsgBudget = System.Math.Min(MsgBurst, session.Throttles.MsgBudget + (elapsedMs / 1000.0 * MsgRatePerSecond));
+        if (session.Throttles.MsgBudget < 1.0)
         {
             return false;
         }
 
-        session.MsgBudget -= 1.0;
+        session.Throttles.MsgBudget -= 1.0;
         return true;
     }
 
@@ -4250,12 +4250,12 @@ public sealed partial class GameServer
             ViewDistance = join.ViewDistanceChunks,
             InstallId = StripControlChars(join.InstallId).Trim(), // #1222: arcade guest identity, empty otherwise
             IsFleetAdmin = fleetAdmin,
-            HeartbeatTracked = true, // joined over the wire → silence is meaningful (#964)
+            Liveness = { HeartbeatTracked = true }, // joined over the wire → silence is meaningful (#964)
             InJoinPlacement = true, // #2465: the join's own placement raises no game events (cleared at the end)
-            CutsceneJoinAt = _uptime, // #2467: cutscenes wait until the client is in the world
+            Story = { CutsceneJoinAt = _uptime }, // #2467: cutscenes wait until the client is in the world
         };
-        session.LastPayloadAt = _uptime; // start the heartbeat clock now (#964) — a client that freezes
-                                         // right after joining must age out like any other silent session
+        session.Liveness.LastPayloadAt = _uptime; // start the heartbeat clock now (#964) — a client that freezes
+                                                  // right after joining must age out like any other silent session
         foreach (string feature in join.Features ?? System.Array.Empty<string>())
         {
             if (!string.IsNullOrEmpty(feature) && feature.Length <= 32 && session.ClientFeatures.Count < 16)
@@ -4268,7 +4268,7 @@ public sealed partial class GameServer
         // blueprints into the state (the spawn-system mapping, the Creative grants, the story beat catch-up).
         session.Join = TakeJoinSnapshot(state);
         _sessions[connectionId] = session;
-        session.PreviousSeenUtc = state.LastSeenUtc ?? string.Empty; // #2595: when they were last online, before the overwrite
+        session.Vega.PreviousSeenUtc = state.LastSeenUtc ?? string.Empty; // #2595: when they were last online, before the overwrite
         state.LastSeenUtc = WallUtcNowIso(); // "last seen" for the admin player list (issue #488)
         MigrateSettlementMemory(session); // #2598: the join world's old shared villager entries become people (once)
         SetupPlayerShip(session); // give the player their own ship, stamped into their world
@@ -4673,7 +4673,7 @@ public sealed partial class GameServer
         session.Join = TakeJoinSnapshot(state); // #2460: the arrival state, like the network join path
         _sessions[connectionId] = session;
         session.AnnouncedWorldId = WorldIdOf(joinBody); // #2117: joined on this body, like a JoinAccepted would say
-        session.PreviousSeenUtc = state.LastSeenUtc ?? string.Empty; // #2595: like the network join, before the overwrite
+        session.Vega.PreviousSeenUtc = state.LastSeenUtc ?? string.Empty; // #2595: like the network join, before the overwrite
         state.LastSeenUtc = WallUtcNowIso();
         MigrateSettlementMemory(session); // #2598: like the network join
         SetupPlayerShip(session); // local/test players get their own ship too
@@ -4697,7 +4697,7 @@ public sealed partial class GameServer
 
     /// <summary>Test hook: how many chunks this session has had fully re-streamed by the ghost heal (#965).</summary>
     public int GhostReStreamsForTest(string playerId)
-        => FindSessionByPlayerId(playerId)?.GhostChunkSeen.Count ?? 0;
+        => FindSessionByPlayerId(playerId)?.Streaming.GhostChunkSeen.Count ?? 0;
 
     /// <summary>Test hook: an air cell just above the player, for driving the ghost-block path.</summary>
     public Vector3i? FindAirCellForTest(string playerId)
@@ -4859,7 +4859,7 @@ public sealed partial class GameServer
 
     private void HandleMove(PlayerSession session, MoveIntent move)
     {
-        if (session.RespawnChoiceDeadline > 0)
+        if (session.Respawn.RespawnChoiceDeadline > 0)
         {
             return; // lying dead awaiting the respawn choice — the corpse doesn't walk
         }
@@ -6485,12 +6485,12 @@ public sealed partial class GameServer
         if (text.StartsWith("/bump", System.StringComparison.OrdinalIgnoreCase))
         {
             int bumpNow = System.Environment.TickCount;
-            if (bumpNow - session.LastChatTick < 700)
+            if (bumpNow - session.Chat.LastChatTick < 700)
             {
                 return; // rate limit
             }
 
-            session.LastChatTick = bumpNow;
+            session.Chat.LastChatTick = bumpNow;
             HandleBump(session, text.Length > 5 ? text.Substring(5).Trim() : string.Empty);
             return;
         }
@@ -6501,12 +6501,12 @@ public sealed partial class GameServer
         if (text.Equals("/reportpaint", System.StringComparison.OrdinalIgnoreCase))
         {
             int reportNow = System.Environment.TickCount;
-            if (reportNow - session.LastChatTick < 700)
+            if (reportNow - session.Chat.LastChatTick < 700)
             {
                 return; // rate limit
             }
 
-            session.LastChatTick = reportNow;
+            session.Chat.LastChatTick = reportNow;
             HandlePaintReport(session);
             return;
         }
@@ -6516,12 +6516,12 @@ public sealed partial class GameServer
             && (text.Length == 14 || text[14] == ' '))
         {
             int reportNow = System.Environment.TickCount;
-            if (reportNow - session.LastChatTick < 700)
+            if (reportNow - session.Chat.LastChatTick < 700)
             {
                 return; // rate limit
             }
 
-            session.LastChatTick = reportNow;
+            session.Chat.LastChatTick = reportNow;
             HandleWorldTextureReport(session, text.Length > 14 ? text.Substring(15) : string.Empty);
             return;
         }
@@ -6530,12 +6530,12 @@ public sealed partial class GameServer
         if (text.Equals("/reportshape", System.StringComparison.OrdinalIgnoreCase))
         {
             int reportNow = System.Environment.TickCount;
-            if (reportNow - session.LastChatTick < 700)
+            if (reportNow - session.Chat.LastChatTick < 700)
             {
                 return; // rate limit
             }
 
-            session.LastChatTick = reportNow;
+            session.Chat.LastChatTick = reportNow;
             HandleCustomShapeReport(session);
             return;
         }
@@ -6549,12 +6549,12 @@ public sealed partial class GameServer
             || text.StartsWith("/report ", System.StringComparison.OrdinalIgnoreCase))
         {
             int reportNow = System.Environment.TickCount;
-            if (reportNow - session.LastChatTick < 700)
+            if (reportNow - session.Chat.LastChatTick < 700)
             {
                 return; // rate limit
             }
 
-            session.LastChatTick = reportNow;
+            session.Chat.LastChatTick = reportNow;
             HandlePlayerReport(session, text.Substring("/report".Length).Trim());
             return;
         }
@@ -6608,12 +6608,12 @@ public sealed partial class GameServer
         }
 
         int now = System.Environment.TickCount;
-        if (now - session.LastChatTick < 700)
+        if (now - session.Chat.LastChatTick < 700)
         {
             return; // rate limit
         }
 
-        session.LastChatTick = now;
+        session.Chat.LastChatTick = now;
 
         // Anti-spam (#1208). The 700 ms limit above stops a held key; these two sliding windows stop a
         // burst of distinct lines and someone who keeps tripping the content filter. An auto-muted
@@ -6668,12 +6668,12 @@ public sealed partial class GameServer
         // Per-speaker frame-rate cap before the 1→N audience fan-out. Real voice is ~50 frames/s (20 ms
         // each); 60/s is generous. Without it a client could flood frames as fast as the socket allows,
         // each amplified to the whole radio audience (audit 2026-07-05).
-        if (_uptime < session.NextVoiceFrameAt)
+        if (_uptime < session.Throttles.NextVoiceFrameAt)
         {
             return;
         }
 
-        session.NextVoiceFrameAt = _uptime + (1.0 / 60.0);
+        session.Throttles.NextVoiceFrameAt = _uptime + (1.0 / 60.0);
         frame.FromPlayerId = session.State.PlayerId; // authoritative sender id (don't trust the client's field)
         SendToRadioAudienceExcept(session, frame, DeliveryMode.Unreliable);
     }
@@ -6693,12 +6693,12 @@ public sealed partial class GameServer
     /// </summary>
     private void WarnIfPoolOverflowed(PlayerSession session, MaterialPool pool)
     {
-        if (pool.Overflow <= 0 || _uptime < session.NextInventoryFullHintAt)
+        if (pool.Overflow <= 0 || _uptime < session.Throttles.NextInventoryFullHintAt)
         {
             return;
         }
 
-        session.NextInventoryFullHintAt = _uptime + InventoryFullHintCooldown;
+        session.Throttles.NextInventoryFullHintAt = _uptime + InventoryFullHintCooldown;
         Send(session, new ServerMessage { Text = "@inventory_full" });
     }
 
@@ -6725,9 +6725,9 @@ public sealed partial class GameServer
             AboveAtmosphere = p.AboveAtmosphere,
             SuitClimateActive = p.SuitClimateActive,
             Exposure = p.Exposure,
-            ExposureActive = session.ExposureActive,
-            ExposureHot = session.ExposureHot,
-            Uneasy = session.MoodUneasy,
+            ExposureActive = session.Hazards.ExposureActive,
+            ExposureHot = session.Hazards.ExposureHot,
+            Uneasy = session.Hazards.MoodUneasy,
             LifeSupportSource = p.LifeSupportSource,
             StationName = CurrentStationName(p.PlayerId),
             AiCoreTier = VegaCoreTier(session),
@@ -6744,11 +6744,11 @@ public sealed partial class GameServer
             Stealthed = p.Stealthed, // #2291: the own cloak (others see it through the presence)
             ReturnToShipCooldownSeconds = ReturnToShipCooldownLeft(session), // #2286: the pause menu greys its button
             ReturnToShipFightSeconds = (float)ReturnToShipFightLeft(session), // #2559: … and counts a fight down on it
-            LastHitFromX = session.LastHitFrom.X, // #2564: who hurt the player last — the HUD marker points at them
-            LastHitFromY = session.LastHitFrom.Y,
-            LastHitFromZ = session.LastHitFrom.Z,
-            LastHitEntityId = session.LastHitEntityId,
-            LastHitSeq = session.LastHitSeq,
+            LastHitFromX = session.Sync.LastHitFrom.X, // #2564: who hurt the player last — the HUD marker points at them
+            LastHitFromY = session.Sync.LastHitFrom.Y,
+            LastHitFromZ = session.Sync.LastHitFrom.Z,
+            LastHitEntityId = session.Sync.LastHitEntityId,
+            LastHitSeq = session.Sync.LastHitSeq,
         });
     }
 
@@ -7239,9 +7239,9 @@ public sealed partial class GameServer
             signature = unchecked(signature * 31 + StringComparer.Ordinal.GetHashCode(key));
         }
 
-        bool unchanged = session.SentBlueprintsOnce && session.SentBlueprintsSignature == signature;
-        session.SentBlueprintsOnce = true;
-        session.SentBlueprintsSignature = signature;
+        bool unchanged = session.Sync.SentBlueprintsOnce && session.Sync.SentBlueprintsSignature == signature;
+        session.Sync.SentBlueprintsOnce = true;
+        session.Sync.SentBlueprintsSignature = signature;
 
         // #2201: the sample case rides the same way — only when it changed since this session's last update.
         long sampleSignature = 17;
@@ -7251,9 +7251,9 @@ public sealed partial class GameServer
                 + (stack is { IsEmpty: false } ? StringComparer.Ordinal.GetHashCode(stack.Item) * 397 + stack.Count : 0));
         }
 
-        bool samplesUnchanged = session.SentSamplesOnce && session.SentSamplesSignature == sampleSignature;
-        session.SentSamplesOnce = true;
-        session.SentSamplesSignature = sampleSignature;
+        bool samplesUnchanged = session.Sync.SentSamplesOnce && session.Sync.SentSamplesSignature == sampleSignature;
+        session.Sync.SentSamplesOnce = true;
+        session.Sync.SentSamplesSignature = sampleSignature;
         Send(session, new InventoryUpdate
         {
             Samples = samplesUnchanged ? Array.Empty<NetItemStack>() : DumpInventory(session.State.SampleCase),
@@ -7317,7 +7317,7 @@ public sealed partial class GameServer
             case WorldReset reset:
                 reset.WorldId = WorldIdOf(session.CurrentLocationId); // the stream that follows is this world's
                 session.AnnouncedWorldId = reset.WorldId; // #2117: the world the client now accepts chunks for
-                session.FarInfoDue = true; // #1820: the far view needs the new world's generator settings
+                session.Streaming.FarInfoDue = true; // #1820: the far view needs the new world's generator settings
                 break;
             case BlockChanged change:
                 change.WorldId = WorldIdOf(session.CurrentLocationId);

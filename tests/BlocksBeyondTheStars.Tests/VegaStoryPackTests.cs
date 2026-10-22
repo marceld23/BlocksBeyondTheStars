@@ -588,7 +588,7 @@ public sealed class VegaStoryPackTests : IDisposable
         server.SkipTutorialForTest(p);
 
         Assert.Equal("resolution", server.TrackChapterIdForTest(p));
-        Assert.Contains(p.CutsceneQueue, q => q.Id == StoryCutsceneIds.Recap
+        Assert.Contains(p.Story.CutsceneQueue, q => q.Id == StoryCutsceneIds.Recap
                                               && LineText.SplitArgs(q.Arg).Contains("story.vega.ch.core"));
 
         // #2478: the recap, then the stand-down and the ending on the director (chained, no 90 s gaps) — no StoryResolved.
@@ -630,7 +630,7 @@ public sealed class VegaStoryPackTests : IDisposable
         Assert.True(Has(p, Started));
         Assert.Equal("service", server.TrackChapterIdForTest(p));
         Assert.DoesNotContain(StoryCutsceneIds.Recap, transport.Plays(p)); // they lived through it
-        Assert.DoesNotContain(p.CutsceneQueue, q => q.Id == StoryCutsceneIds.Recap);
+        Assert.DoesNotContain(p.Story.CutsceneQueue, q => q.Id == StoryCutsceneIds.Recap);
     }
 
     [Fact]

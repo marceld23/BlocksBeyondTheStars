@@ -26,7 +26,7 @@ public sealed partial class GameServer
     private const double HostileNearRange = 40.0;
 
     /// <summary><c>world:herd_begging</c>: an animal came to beg this player within the last minute.</summary>
-    private bool HerdBegging(PlayerSession who) => _uptime - who.HerdBeggedAt <= HerdBeggingOfferWindowSeconds;
+    private bool HerdBegging(PlayerSession who) => _uptime - who.Tutorial.HerdBeggedAt <= HerdBeggingOfferWindowSeconds;
 
     /// <summary><c>world:seed_carried</c>: the player carries something that plants — a sapling, a seed, a bred seedling (an
     /// item whose block is a plant).</summary>

@@ -485,7 +485,7 @@ public sealed class MissionChainTests : IDisposable
                 server.ChooseDialogForTest("Regular", 0);
 
                 // A new session (cleared decline) → asked again; saying yes puts the job in the log.
-                p.DeclinedMissionDialogs.Clear();
+                p.Npc.DeclinedMissionDialogs.Clear();
                 server.TalkToNpcForTest("Regular", vendor.Id);
                 Assert.Equal(("vendor_favour_1", 0), server.ActiveDialogForTest("Regular"));
                 server.ChooseDialogForTest("Regular", 0);

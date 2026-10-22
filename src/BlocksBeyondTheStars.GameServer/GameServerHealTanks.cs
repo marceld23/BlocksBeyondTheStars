@@ -80,12 +80,12 @@ public sealed partial class GameServer
                 continue; // piloting in space, not on foot
             }
 
-            session.HealTankScanIn -= dt;
-            if (session.HealTankScanIn <= 0)
+            session.Hazards.HealTankScanIn -= dt;
+            if (session.Hazards.HealTankScanIn <= 0)
             {
-                session.HealTankScanIn = HealTankScanInterval;
-                session.NearHealTank = NearHealTankBlock(p);
-                session.NearBed = !session.NearHealTank && (_bedBlockId != 0 || _crewBunkBlockId != 0)
+                session.Hazards.HealTankScanIn = HealTankScanInterval;
+                session.Hazards.NearHealTank = NearHealTankBlock(p);
+                session.Hazards.NearBed = !session.Hazards.NearHealTank && (_bedBlockId != 0 || _crewBunkBlockId != 0)
                     && AnchorNear(p.Position, loadedOnly: true, _bedBlockId, _crewBunkBlockId);
             }
 
@@ -96,7 +96,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (session.NearHealTank)
+            if (session.Hazards.NearHealTank)
             {
                 p.Health = System.Math.Min(100f, p.Health + (float)(dt * HealTankHealPerSecond));
                 p.Hunger = System.Math.Min(100f, p.Hunger + (float)(dt * HealTankFeedPerSecond));
@@ -107,7 +107,7 @@ public sealed partial class GameServer
                     p.SuitEnergy = System.Math.Min(MaxSuitEnergy(p), p.SuitEnergy + (float)(dt * HealTankEnergyPerSecond)); // #2297
                 }
             }
-            else if (session.NearBed)
+            else if (session.Hazards.NearBed)
             {
                 // The bed (#804): a slow heal and nothing else — no feeding, no suit energy. Resting at
                 // a lived-in camp mends wounds; the machines still do everything beyond that.
@@ -286,7 +286,7 @@ public sealed partial class GameServer
         p.RespawnPoint = _shipPlaced ? _healTank : p.RespawnPoint;
         session.AwaitingSpawnAdopt = true; // #865: ignore death-spot reports until the client snaps
         p.AboardShip = false;
-        session.SentChunks.Clear();
+        session.Streaming.SentChunks.Clear();
 
         var (systemName, planetName) = ActiveLocationNames();
         Send(session, new WorldReset { PlanetType = body.PlanetType, PlanetName = planetName, SystemName = systemName, Hyperjump = false });

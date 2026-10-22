@@ -153,7 +153,7 @@ public sealed class LanPlaytestRegressionTests : IDisposable
         var server = NewServer("land_resync", transport);
         var pilot = server.AddLocalPlayer("Pilot");
         server.EnterSpace("Pilot");
-        pilot.SentChunks.Add(new BlocksBeyondTheStars.Shared.World.ChunkCoord(0, 4, 0)); // simulate a streamed chunk
+        pilot.Streaming.SentChunks.Add(new BlocksBeyondTheStars.Shared.World.ChunkCoord(0, 4, 0)); // simulate a streamed chunk
 
         transport.Sent.Clear();
         server.LandOnCurrentBodyForTest(pilot);
@@ -166,7 +166,7 @@ public sealed class LanPlaytestRegressionTests : IDisposable
         // re-sent in the same breath, so whatever SentChunks holds now must be exactly what this landing sent.
         var resent = toPilot.OfType<ChunkDataMessage>().Select(c => new ChunkCoord(c.Cx, c.Cy, c.Cz)).ToHashSet();
         Assert.NotEmpty(resent);
-        Assert.All(pilot.SentChunks, c => Assert.Contains(c, resent));
+        Assert.All(pilot.Streaming.SentChunks, c => Assert.Contains(c, resent));
     }
 
     // ---------------- #971: the same-body landing must also MOVE the player ----------------

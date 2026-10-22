@@ -43,7 +43,7 @@ public sealed partial class GameServer
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>Something the Journal shows changed for this player; the next <see cref="TickJournal"/> sends it.</summary>
-    private static void MarkJournalDirty(PlayerSession s) => s.JournalDirty = true;
+    private static void MarkJournalDirty(PlayerSession s) => s.Story.JournalDirty = true;
 
     /// <summary>Per server tick (wherever the players are — in space too): pushes the Journal of every dirty session whose
     /// last push is at least <see cref="JournalPushGapSeconds"/> old. Cheap while nothing changed (one flag per session).</summary>
@@ -51,7 +51,7 @@ public sealed partial class GameServer
     {
         foreach (var s in _sessions.Values)
         {
-            if (s.JournalDirty && _uptime - s.JournalPushedAt >= JournalPushGapSeconds)
+            if (s.Story.JournalDirty && _uptime - s.Story.JournalPushedAt >= JournalPushGapSeconds)
             {
                 PushJournal(s, force: false);
             }
@@ -62,26 +62,26 @@ public sealed partial class GameServer
     /// <paramref name="force"/> sends both (the join, a request). Observers and older clients get nothing.</summary>
     private void PushJournal(PlayerSession s, bool force)
     {
-        s.JournalDirty = false;
+        s.Story.JournalDirty = false;
         if (!s.Joined || s.Spectating || !s.SupportsPacks)
         {
             return;
         }
 
-        s.JournalPushedAt = _uptime;
+        s.Story.JournalPushedAt = _uptime;
         var states = BuildStoryPackStates(s);
         byte[] statesKey = StatesComparisonBytes(states);
-        if (force || s.JournalStatesSent is null || !statesKey.AsSpan().SequenceEqual(s.JournalStatesSent))
+        if (force || s.Story.JournalStatesSent is null || !statesKey.AsSpan().SequenceEqual(s.Story.JournalStatesSent))
         {
-            s.JournalStatesSent = statesKey;
+            s.Story.JournalStatesSent = statesKey;
             Send(s, states);
         }
 
         var objectives = BuildObjectiveList(s);
         byte[] objectivesKey = NetCodec.Encode(objectives);
-        if (force || s.JournalObjectivesSent is null || !objectivesKey.AsSpan().SequenceEqual(s.JournalObjectivesSent))
+        if (force || s.Story.JournalObjectivesSent is null || !objectivesKey.AsSpan().SequenceEqual(s.Story.JournalObjectivesSent))
         {
-            s.JournalObjectivesSent = objectivesKey;
+            s.Story.JournalObjectivesSent = objectivesKey;
             Send(s, objectives);
         }
     }
@@ -471,5 +471,5 @@ public sealed partial class GameServer
     internal void TickJournalForTest() => TickJournal();
 
     /// <summary>Test seam: whether the player's Journal waits for a push.</summary>
-    internal bool JournalDirtyForTest(PlayerSession s) => s.JournalDirty;
+    internal bool JournalDirtyForTest(PlayerSession s) => s.Story.JournalDirty;
 }

@@ -91,9 +91,9 @@ public sealed partial class GameServer
         // Deadline enforcement (respawn-choice pattern): an unanswered ground demand counts as a refusal.
         foreach (var s in targets)
         {
-            if (s.BanditDemandId != 0 && !s.BanditDemandFromShip && _uptime > s.BanditDemandDeadline)
+            if (s.Bandit.BanditDemandId != 0 && !s.Bandit.BanditDemandFromShip && _uptime > s.Bandit.BanditDemandDeadline)
             {
-                var robber = _bandits.FirstOrDefault(b => b.Id == s.BanditDemandBanditId);
+                var robber = _bandits.FirstOrDefault(b => b.Id == s.Bandit.BanditDemandBanditId);
                 if (robber is not null)
                 {
                     ResolveBanditDemand(s, robber, comply: false, outcome: "expired");
@@ -210,19 +210,19 @@ public sealed partial class GameServer
         foreach (var session in targets)
         {
             var p = session.State;
-            if (session.NextBanditAmbushAt <= 0.0)
+            if (session.Bandit.NextBanditAmbushAt <= 0.0)
             {
                 // Fresh session: arm the first window instead of ambushing a player who just logged in.
-                session.NextBanditAmbushAt = _uptime + cooldown * (0.5 + _banditRng.NextDouble() * 0.5);
+                session.Bandit.NextBanditAmbushAt = _uptime + cooldown * (0.5 + _banditRng.NextDouble() * 0.5);
                 continue;
             }
 
-            if (_uptime < session.NextBanditAmbushAt || HostilesIgnore(p) || BanditWardedByCompanion(p))
+            if (_uptime < session.Bandit.NextBanditAmbushAt || HostilesIgnore(p) || BanditWardedByCompanion(p))
             {
                 continue; // #1210: a bonded companion within ward range keeps robbers from picking this mark
             }
 
-            session.NextBanditAmbushAt = _uptime + cooldown * (0.8 + _banditRng.NextDouble() * 0.4);
+            session.Bandit.NextBanditAmbushAt = _uptime + cooldown * (0.8 + _banditRng.NextDouble() * 0.4);
             if (_banditRng.NextDouble() > 0.6)
             {
                 continue; // this window stays quiet — not every roll produces a robber
@@ -421,7 +421,7 @@ public sealed partial class GameServer
                         if (!MarkStillRobbable(mark))
                         {
                             // The mark vanished mid-hold-up (left the world / boarded the ship): call it off.
-                            if (mark is not null && mark.BanditDemandBanditId == bandit.Id)
+                            if (mark is not null && mark.Bandit.BanditDemandBanditId == bandit.Id)
                             {
                                 SendBanditResult(mark, "fled");
                                 ClearBanditDemand(mark);
@@ -799,7 +799,7 @@ public sealed partial class GameServer
 
     private void BeginBanditDemand(PlayerSession mark, CombatEntity bandit)
     {
-        if (mark.BanditDemandId != 0)
+        if (mark.Bandit.BanditDemandId != 0)
         {
             return; // some other hold-up is already on this player's screen — hold position and retry next tick
         }
@@ -822,16 +822,16 @@ public sealed partial class GameServer
     private void StartBanditDemand(PlayerSession mark, string banditId, List<ItemAmount> demand, bool fromShip,
         string banditName, string lineKey)
     {
-        mark.BanditDemandId = _nextBanditDemandId++;
-        mark.BanditDemandBanditId = banditId;
-        mark.BanditDemandDeadline = _uptime + BanditDemandTimeout;
-        mark.BanditDemandFromShip = fromShip;
-        mark.BanditDemandItems.Clear();
-        mark.BanditDemandItems.AddRange(demand);
+        mark.Bandit.BanditDemandId = _nextBanditDemandId++;
+        mark.Bandit.BanditDemandBanditId = banditId;
+        mark.Bandit.BanditDemandDeadline = _uptime + BanditDemandTimeout;
+        mark.Bandit.BanditDemandFromShip = fromShip;
+        mark.Bandit.BanditDemandItems.Clear();
+        mark.Bandit.BanditDemandItems.AddRange(demand);
 
         Send(mark, new BanditDemand
         {
-            DemandId = mark.BanditDemandId,
+            DemandId = mark.Bandit.BanditDemandId,
             BanditId = banditId,
             Source = fromShip ? "ship" : "foot",
             BanditName = banditName,
@@ -843,18 +843,18 @@ public sealed partial class GameServer
 
     private void HandleBanditResponse(PlayerSession session, BanditResponseIntent intent)
     {
-        if (session.BanditDemandId == 0 || intent.DemandId != session.BanditDemandId)
+        if (session.Bandit.BanditDemandId == 0 || intent.DemandId != session.Bandit.BanditDemandId)
         {
             return; // stale or spoofed — the pending hold-up (if any) is untouched
         }
 
-        if (session.BanditDemandFromShip)
+        if (session.Bandit.BanditDemandFromShip)
         {
             ResolveBanditShipDemand(session, intent.Comply);
             return;
         }
 
-        var bandit = _bandits.FirstOrDefault(b => b.Id == session.BanditDemandBanditId);
+        var bandit = _bandits.FirstOrDefault(b => b.Id == session.Bandit.BanditDemandBanditId);
         if (bandit is null)
         {
             ClearBanditDemand(session);
@@ -870,7 +870,7 @@ public sealed partial class GameServer
         {
             TakeBanditPayment(session, bandit, includeCargo: false);
             BeginBanditLeave(bandit);
-            session.NextBanditAmbushAt = _uptime + 1200.0; // paying buys a long quiet spell
+            session.Bandit.NextBanditAmbushAt = _uptime + 1200.0; // paying buys a long quiet spell
         }
         else
         {
@@ -887,7 +887,7 @@ public sealed partial class GameServer
     private void TakeBanditPayment(PlayerSession session, CombatEntity bandit, bool includeCargo)
     {
         var pool = new MaterialPool(_content, session.State, _ship);
-        foreach (var want in session.BanditDemandItems)
+        foreach (var want in session.Bandit.BanditDemandItems)
         {
             int take = System.Math.Min(want.Count, pool.Count(want.Item));
             if (take > 0)
@@ -909,15 +909,15 @@ public sealed partial class GameServer
     }
 
     private void SendBanditResult(PlayerSession session, string outcome)
-        => Send(session, new BanditEncounterResult { DemandId = session.BanditDemandId, Outcome = outcome });
+        => Send(session, new BanditEncounterResult { DemandId = session.Bandit.BanditDemandId, Outcome = outcome });
 
     private void ClearBanditDemand(PlayerSession session)
     {
-        session.BanditDemandId = 0;
-        session.BanditDemandBanditId = string.Empty;
-        session.BanditDemandDeadline = 0;
-        session.BanditDemandFromShip = false;
-        session.BanditDemandItems.Clear();
+        session.Bandit.BanditDemandId = 0;
+        session.Bandit.BanditDemandBanditId = string.Empty;
+        session.Bandit.BanditDemandDeadline = 0;
+        session.Bandit.BanditDemandFromShip = false;
+        session.Bandit.BanditDemandItems.Clear();
     }
 
     // ---------------- Combat hooks (called from AttackCombatEntity) ----------------
@@ -932,7 +932,7 @@ public sealed partial class GameServer
         }
 
         var mark = bandit.BanditTargetId.Length > 0 ? FindSessionByPlayerId(bandit.BanditTargetId) : null;
-        if (mark is not null && mark.BanditDemandId != 0 && mark.BanditDemandBanditId == bandit.Id)
+        if (mark is not null && mark.Bandit.BanditDemandId != 0 && mark.Bandit.BanditDemandBanditId == bandit.Id)
         {
             SendBanditResult(mark, "refused");
             ClearBanditDemand(mark);
@@ -948,7 +948,7 @@ public sealed partial class GameServer
     private void OnBanditKilled(CombatEntity bandit, PlayerSession? killer)
     {
         var mark = bandit.BanditTargetId.Length > 0 ? FindSessionByPlayerId(bandit.BanditTargetId) : null;
-        if (mark is not null && mark.BanditDemandId != 0 && mark.BanditDemandBanditId == bandit.Id)
+        if (mark is not null && mark.Bandit.BanditDemandId != 0 && mark.Bandit.BanditDemandBanditId == bandit.Id)
         {
             SendBanditResult(mark, "fled");
             ClearBanditDemand(mark);
@@ -1025,19 +1025,19 @@ public sealed partial class GameServer
 
     /// <summary>Test/util: the pending demand id for a player (0 = none).</summary>
     public int PendingBanditDemandIdForTest(string playerId)
-        => FindSessionByPlayerId(playerId)?.BanditDemandId ?? 0;
+        => FindSessionByPlayerId(playerId)?.Bandit.BanditDemandId ?? 0;
 
     /// <summary>Test/util: the demanded items of the player's pending hold-up.</summary>
     public IReadOnlyList<ItemAmount> PendingBanditDemandItemsForTest(string playerId)
-        => FindSessionByPlayerId(playerId)?.BanditDemandItems ?? (IReadOnlyList<ItemAmount>)System.Array.Empty<ItemAmount>();
+        => FindSessionByPlayerId(playerId)?.Bandit.BanditDemandItems ?? (IReadOnlyList<ItemAmount>)System.Array.Empty<ItemAmount>();
 
     /// <summary>Test/util: answers the pending hold-up as the player would via the UI.</summary>
     public void RespondBanditDemandForTest(string playerId, bool comply)
     {
         var session = FindSessionByPlayerId(playerId);
-        if (session is not null && session.BanditDemandId != 0)
+        if (session is not null && session.Bandit.BanditDemandId != 0)
         {
-            HandleBanditResponse(session, new BanditResponseIntent { DemandId = session.BanditDemandId, Comply = comply });
+            HandleBanditResponse(session, new BanditResponseIntent { DemandId = session.Bandit.BanditDemandId, Comply = comply });
         }
     }
 }

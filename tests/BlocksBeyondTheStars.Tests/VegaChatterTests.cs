@@ -113,7 +113,7 @@ public sealed class VegaChatterTests
         }
 
         using var muted = World("vega_praise_muted");
-        muted.Player.VegaHintsMuted = true;
+        muted.Player.Vega.VegaHintsMuted = true;
         muted.Server.AdvanceAchievementForTest(muted.Player, AchievementCounters.BuildAny);
         Settle(muted);
         Assert.Empty(Lines(muted, "vega.praise."));
@@ -181,7 +181,7 @@ public sealed class VegaChatterTests
     public void LoggingInAfterTwoDays_VegaWelcomesBack_Once()
     {
         using var w = World("vega_login");
-        w.Player.PreviousSeenUtc = T0.AddDays(-2).ToString("o", CultureInfo.InvariantCulture);
+        w.Player.Vega.PreviousSeenUtc = T0.AddDays(-2).ToString("o", CultureInfo.InvariantCulture);
         Settle(w, 0); // the join's first pass arms it
         Settle(w, 5);
         Assert.Empty(Lines(w, "vega.welcome.login.")); // a moment after the join, not on top of it
@@ -199,7 +199,7 @@ public sealed class VegaChatterTests
     public void LoggingInAfterAnHour_OrForTheFirstTime_IsNoWelcome()
     {
         using var w = World("vega_login_short");
-        w.Player.PreviousSeenUtc = T0.AddHours(-1).ToString("o", CultureInfo.InvariantCulture);
+        w.Player.Vega.PreviousSeenUtc = T0.AddHours(-1).ToString("o", CultureInfo.InvariantCulture);
         Settle(w, 0);
         Settle(w, 30);
         Assert.Empty(Lines(w, "vega.welcome.login."));

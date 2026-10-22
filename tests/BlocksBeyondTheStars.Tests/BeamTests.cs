@@ -186,7 +186,7 @@ public sealed class BeamTests : IDisposable
             server.PlaceBlock("Builder", 5, 200, 0, "beam_block", "Dest");
             server.PlaceBlock("Builder", 5, 202, 0, "stone"); // a ceiling one block over the destination pad
             var snaps = server.BeamSnapshots.OrderBy(b => b.Cell.X).ToList();
-            p.SentChunks.Clear(); // the destination is "far": nothing streamed yet
+            p.Streaming.SentChunks.Clear(); // the destination is "far": nothing streamed yet
             transport.Sent.Clear();
 
             server.BeamTeleportForTest(p, snaps[0].Id, snaps[1].Id);

@@ -617,7 +617,7 @@ public sealed partial class GameServer
 
             LabSound(session, "bio_effect_end");
             SendPlayerState(session);
-            session.EffectSyncIn = EffectSyncSeconds;
+            session.Hazards.EffectSyncIn = EffectSyncSeconds;
         }
         else if (stressed)
         {
@@ -625,10 +625,10 @@ public sealed partial class GameServer
             // weather drifts on its HUD — and where no vital moves (Sandbox, god mode, hazards off) no update would
             // ever correct it, so the effect would vanish with half its time still showing. Tell the client the true
             // time now and then while that lasts (#2218); nobody else gets an extra message.
-            session.EffectSyncIn -= dt;
-            if (session.EffectSyncIn <= 0)
+            session.Hazards.EffectSyncIn -= dt;
+            if (session.Hazards.EffectSyncIn <= 0)
             {
-                session.EffectSyncIn = EffectSyncSeconds;
+                session.Hazards.EffectSyncIn = EffectSyncSeconds;
                 SendPlayerState(session);
             }
         }

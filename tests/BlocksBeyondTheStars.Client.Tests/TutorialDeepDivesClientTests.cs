@@ -50,10 +50,10 @@ public sealed class TutorialDeepDivesClientTests
         // A data cache in reach (VEGA's tip pass sees it): the research course is offered, once, in VEGA's words — a while
         // after the skip (its silent suggestions count as an offer, the next one waits the gap).
         var session = h.Server.Sessions.Values.Single();
-        session.StoryPackPlaySeconds += 90;
+        session.Story.StoryPackPlaySeconds += 90;
         for (int i = 0; i < 5 && !lines.Any(l => l.LineKey == "vega.chapter.offer"); i++)
         {
-            session.VegaTipLive = new[] { "data_cache_near" };
+            session.Vega.VegaTipLive = new[] { "data_cache_near" };
             h.Tick(1.0); // one pass of the 1 Hz story tick
             h.PumpUntil(() => false, maxTicks: 2);
         }

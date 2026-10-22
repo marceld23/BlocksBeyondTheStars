@@ -92,7 +92,7 @@ public sealed partial class GameServer
 
         // Same anti-spam as painting: registering is rare, and each new form means a disk write plus a
         // world-wide broadcast.
-        if (_uptime < session.NextCustomShapeAt)
+        if (_uptime < session.Throttles.NextCustomShapeAt)
         {
             return;
         }
@@ -103,7 +103,7 @@ public sealed partial class GameServer
             return;
         }
 
-        session.NextCustomShapeAt = _uptime + 2.0;
+        session.Throttles.NextCustomShapeAt = _uptime + 2.0;
         ApplyShapeExchange(session, intent.SourceItemKey, intent.Count, shapeIndex, "shape", intent.Slot);
     }
 

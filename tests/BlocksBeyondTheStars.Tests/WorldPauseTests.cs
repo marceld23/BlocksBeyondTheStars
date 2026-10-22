@@ -426,8 +426,8 @@ public sealed class WorldPauseTests : IDisposable
     {
         foreach (var s in sessions)
         {
-            s.HeartbeatTracked = true;
-            s.SendsPauseKeepAlive = true;
+            s.Liveness.HeartbeatTracked = true;
+            s.Liveness.SendsPauseKeepAlive = true;
         }
     }
 

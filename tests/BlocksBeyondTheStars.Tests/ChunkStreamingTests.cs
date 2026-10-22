@@ -51,9 +51,9 @@ public sealed class ChunkStreamingTests : IDisposable
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         var streamer = server.AddLocalPlayer("Streamer");
-        int before = streamer.SentChunks.Count;
+        int before = streamer.Streaming.SentChunks.Count;
         server.TickForTest(0.1); // exactly one streaming pass
-        int delta = streamer.SentChunks.Count - before;
+        int delta = streamer.Streaming.SentChunks.Count - before;
         repo.Dispose();
         return delta;
     }
@@ -121,7 +121,7 @@ public sealed class ChunkStreamingTests : IDisposable
         var farChunk = WorldConstants.CanonicalChunk(
             new ChunkCoord(nearChunk.X, nearChunk.Y, nearChunk.Z + 40), server.World.Circumference);
         server.World.GetOrLoadChunk(farChunk);
-        p.SentChunks.Add(farChunk); // pretend it was streamed to the player, so we can assert it gets forgotten
+        p.Streaming.SentChunks.Add(farChunk); // pretend it was streamed to the player, so we can assert it gets forgotten
         Assert.True(server.World.IsChunkLoaded(farChunk), "the far chunk should be cached right after loading it");
 
         // Tick past the sweep interval (player stays put, so the near region is the anchor).
@@ -131,7 +131,7 @@ public sealed class ChunkStreamingTests : IDisposable
         }
 
         Assert.False(server.World.IsChunkLoaded(farChunk), "the far chunk should have been swept out of the cache");
-        Assert.DoesNotContain(farChunk, p.SentChunks); // forgotten too → it re-streams fresh if the player returns
+        Assert.DoesNotContain(farChunk, p.Streaming.SentChunks); // forgotten too → it re-streams fresh if the player returns
         Assert.True(server.World.IsChunkLoaded(nearChunk), "the player's own region must stay resident through the sweep");
     }
 
@@ -175,7 +175,7 @@ public sealed class ChunkStreamingTests : IDisposable
             server.TickForTest(0.1);
         }
 
-        var streamed = new System.Collections.Generic.List<ChunkCoord>(p.SentChunks);
+        var streamed = new System.Collections.Generic.List<ChunkCoord>(p.Streaming.SentChunks);
         Assert.True(streamed.Count > 200, $"precondition: the view should have streamed (got {streamed.Count} chunks)");
         int acrossSeam = 0;
         foreach (var c in streamed)
@@ -194,7 +194,7 @@ public sealed class ChunkStreamingTests : IDisposable
         foreach (var c in streamed)
         {
             Assert.True(server.World.IsChunkLoaded(c), $"streamed chunk {c} was evicted by the sweep although the player never moved");
-            Assert.Contains(c, p.SentChunks);
+            Assert.Contains(c, p.Streaming.SentChunks);
         }
     }
 
@@ -231,7 +231,7 @@ public sealed class ChunkStreamingTests : IDisposable
             server.TickForTest(0.1); // stream the shared home region to BOTH sessions
         }
 
-        Assert.Contains(home, traveler.SentChunks); // sanity: the home chunk reached the traveler
+        Assert.Contains(home, traveler.Streaming.SentChunks); // sanity: the home chunk reached the traveler
 
         // The traveler leaves — far past the streaming radius AND the client's ~24-chunk unload distance,
         // placed high above the terrain so neither the entombed- nor the void-rescue relocates the anchor.
@@ -246,8 +246,8 @@ public sealed class ChunkStreamingTests : IDisposable
         // The camper keeps the region alive, so the cache must keep it — which is exactly why the old
         // "forget only what was evicted" bookkeeping never forgot it for the traveler.
         Assert.True(server.World.IsChunkLoaded(home), "the camper's region must stay cached through the sweep");
-        Assert.Contains(home, camper.SentChunks); // the camper still sees it — no over-pruning
-        Assert.DoesNotContain(home, traveler.SentChunks); // the traveler's client unloaded it — forget it here too
+        Assert.Contains(home, camper.Streaming.SentChunks); // the camper still sees it — no over-pruning
+        Assert.DoesNotContain(home, traveler.Streaming.SentChunks); // the traveler's client unloaded it — forget it here too
 
         // And the return trip re-streams it through the normal path (the visible half of the bug).
         traveler.State.Position = homePos;
@@ -256,7 +256,7 @@ public sealed class ChunkStreamingTests : IDisposable
             server.TickForTest(0.1);
         }
 
-        Assert.Contains(home, traveler.SentChunks);
+        Assert.Contains(home, traveler.Streaming.SentChunks);
     }
 
     [Fact]
@@ -366,15 +366,15 @@ public sealed class ChunkStreamingTests : IDisposable
         for (int i = 0; i < 400 && stable < 3; i++)
         {
             server.TickForTest(0.01);
-            stable = p.SentChunks.Count == last ? stable + 1 : 0;
-            last = p.SentChunks.Count;
+            stable = p.Streaming.SentChunks.Count == last ? stable + 1 : 0;
+            last = p.Streaming.SentChunks.Count;
         }
 
         bool StreamedColumn(int dx, int dz)
         {
             for (int cy = center.Y - 8; cy <= center.Y + 8; cy++)
             {
-                if (p.SentChunks.Contains(WorldConstants.CanonicalChunk(new ChunkCoord(center.X + dx, cy, center.Z + dz), circumference)))
+                if (p.Streaming.SentChunks.Contains(WorldConstants.CanonicalChunk(new ChunkCoord(center.X + dx, cy, center.Z + dz), circumference)))
                 {
                     return true;
                 }
@@ -388,7 +388,7 @@ public sealed class ChunkStreamingTests : IDisposable
         Assert.False(StreamedColumn(18, 0), "a request above 16 must be clamped — nothing past 16 + 1 may stream");
         Assert.False(StreamedColumn(17, 17), "the square's corner past the round fog edge must not stream");
 
-        var streamed = new System.Collections.Generic.List<ChunkCoord>(p.SentChunks);
+        var streamed = new System.Collections.Generic.List<ChunkCoord>(p.Streaming.SentChunks);
         for (int i = 0; i < 15; i++)
         {
             server.TickForTest(1.0); // run past the sweep interval, standing still
@@ -397,7 +397,7 @@ public sealed class ChunkStreamingTests : IDisposable
         int dropped = 0;
         foreach (var c in streamed)
         {
-            if (!p.SentChunks.Contains(c)) dropped++;
+            if (!p.Streaming.SentChunks.Contains(c)) dropped++;
         }
 
         Assert.True(dropped == 0, $"the sweep forgot {dropped} of {streamed.Count} streamed chunks although the player never moved (would re-stream every 10 s)");

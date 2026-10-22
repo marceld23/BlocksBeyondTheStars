@@ -231,7 +231,7 @@ public sealed class VillageBelongingsTests
         void PaintAccepted(Vector3i cell, Vector3f stand)
         {
             w.Player.State.Position = stand;
-            w.Player.NextPaintAt = 0; // the brush's two-second spam guard is not what this test is about
+            w.Player.Throttles.NextPaintAt = 0; // the brush's two-second spam guard is not what this test is about
             int before = Rejections();
             w.Server.PaintBlockForTest(w.Player, Paint(cell));
             Assert.Equal(before, Rejections());

@@ -172,9 +172,9 @@ public sealed partial class GameServer
             }
         }
 
-        if (masked && !session.ChatMaskNoticeSent)
+        if (masked && !session.Chat.ChatMaskNoticeSent)
         {
-            session.ChatMaskNoticeSent = true;
+            session.Chat.ChatMaskNoticeSent = true;
             Send(session, new ServerMessage { Text = "@srv.chat.masked" });
         }
 

@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <c>/reportpaint</c>, before the radio gate, because reporting must never depend on owning equipment.
 ///
 /// The report carries its own evidence: the reported player's own recent chat lines, kept in RAM per
-/// session (<see cref="PlayerSession.RecentChatLines"/>) and copied out only into a report a human actually
+/// session (<see cref="PlayerSessionChat.RecentChatLines"/>) and copied out only into a report a human actually
 /// filed. Nothing about it is broadcast — the reported player is never told, and no other player sees it.
 /// </summary>
 public sealed partial class GameServer
@@ -50,10 +50,10 @@ public sealed partial class GameServer
     /// an automatic mute that does ping the operator (#1208).</summary>
     private static void NoteChatLineForEvidence(PlayerSession session, string text)
     {
-        session.RecentChatLines.Add(text);
-        if (session.RecentChatLines.Count > PlayerSession.MaxRecentChatLines)
+        session.Chat.RecentChatLines.Add(text);
+        if (session.Chat.RecentChatLines.Count > PlayerSessionChat.MaxRecentChatLines)
         {
-            session.RecentChatLines.RemoveAt(0);
+            session.Chat.RecentChatLines.RemoveAt(0);
         }
     }
 
@@ -81,14 +81,14 @@ public sealed partial class GameServer
             return;
         }
 
-        TrimWindow(session.RecentReportsAt, ReportWindowSeconds);
-        if (session.RecentReportsAt.Count >= MaxReportsPerWindow)
+        TrimWindow(session.Chat.RecentReportsAt, ReportWindowSeconds);
+        if (session.Chat.RecentReportsAt.Count >= MaxReportsPerWindow)
         {
             Send(session, new ServerMessage { Text = "@srv.report.too_many" });
             return;
         }
 
-        session.RecentReportsAt.Add(_uptime);
+        session.Chat.RecentReportsAt.Add(_uptime);
         ForwardPlayerReport(session, target, note);
         Send(session, new ServerMessage { Text = "@srv.report.sent:" + (target.State.Name ?? "?") });
     }
@@ -183,7 +183,7 @@ public sealed partial class GameServer
 
     private static List<string> RecentLines(PlayerSession target)
     {
-        var all = target.RecentChatLines;
+        var all = target.Chat.RecentChatLines;
         int from = Math.Max(0, all.Count - ReportQuotedLines);
         var kept = new List<string>(all.Count - from);
         for (int i = from; i < all.Count; i++)

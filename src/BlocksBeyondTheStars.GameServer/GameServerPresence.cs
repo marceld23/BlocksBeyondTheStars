@@ -40,19 +40,19 @@ public sealed partial class GameServer
     /// </summary>
     private bool TakeAppearanceToken(PlayerSession session)
     {
-        double elapsed = _uptime - session.AppearanceRefilledAt;
-        session.AppearanceRefilledAt = _uptime;
+        double elapsed = _uptime - session.Throttles.AppearanceRefilledAt;
+        session.Throttles.AppearanceRefilledAt = _uptime;
         if (elapsed > 0)
         {
-            session.AppearanceBudget = System.Math.Min(AppearanceBurst, session.AppearanceBudget + (elapsed / AppearanceRefillSeconds));
+            session.Throttles.AppearanceBudget = System.Math.Min(AppearanceBurst, session.Throttles.AppearanceBudget + (elapsed / AppearanceRefillSeconds));
         }
 
-        if (session.AppearanceBudget < 1.0)
+        if (session.Throttles.AppearanceBudget < 1.0)
         {
             return false;
         }
 
-        session.AppearanceBudget -= 1.0;
+        session.Throttles.AppearanceBudget -= 1.0;
         return true;
     }
 
@@ -535,7 +535,7 @@ public sealed partial class GameServer
             world.PresenceViewerSignature = signature;
             foreach (var s in joined)
             {
-                s.PresenceSentTo.Clear();
+                s.Sync.PresenceSentTo.Clear();
             }
         }
 
@@ -549,7 +549,7 @@ public sealed partial class GameServer
             // #1530: send on change + keep-alive. The presence is hashed per beat; a viewer who already holds
             // this exact presence and received it fewer than PresenceKeepAliveBeats ago gets nothing. Encoded
             // lazily and once per subject (the old per-viewer Send re-serialized it, O(players²) encodes).
-            int beat = ++subject.PresenceBeat;
+            int beat = ++subject.Sync.PresenceBeat;
             var presence = PresenceOf(subject);
             ulong hash = PresenceHash(presence);
             byte[]? payload = null;
@@ -566,7 +566,7 @@ public sealed partial class GameServer
                     continue; // out of this viewer's area of interest
                 }
 
-                if (subject.PresenceSentTo.TryGetValue(viewer.ConnectionId, out var last)
+                if (subject.Sync.PresenceSentTo.TryGetValue(viewer.ConnectionId, out var last)
                     && last.Hash == hash && beat - last.Beat < PresenceKeepAliveBeats)
                 {
                     continue; // unchanged and recent — the client keeps rendering the pose it has
@@ -582,12 +582,12 @@ public sealed partial class GameServer
                     SendEncoded(viewer.ConnectionId, payload, DeliveryMode.Sequenced); // #1534: never behind a chunk resend
                 }
 
-                subject.PresenceSentTo[viewer.ConnectionId] = (hash, beat);
+                subject.Sync.PresenceSentTo[viewer.ConnectionId] = (hash, beat);
             }
 
-            if (subject.PresenceSentTo.Count > 64)
+            if (subject.Sync.PresenceSentTo.Count > 64)
             {
-                subject.PresenceSentTo.Clear(); // viewers that left accumulate here — a cheap reset now and then
+                subject.Sync.PresenceSentTo.Clear(); // viewers that left accumulate here — a cheap reset now and then
             }
         }
     }

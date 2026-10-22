@@ -294,18 +294,18 @@ public sealed class SreekmakraTests : IDisposable
         server.TickSreekmakraForTest(); // the clock starts on this world
         server.SetValumaMoodSecondsForTest(session.State.PlayerId, 20 * 60 - 1);
         server.TickSreekmakraForTest();
-        Assert.True(session.MoodWatchedTold);
-        Assert.False(session.MoodUneasy);
+        Assert.True(session.Hazards.MoodWatchedTold);
+        Assert.False(session.Hazards.MoodUneasy);
 
         server.SetValumaMoodSecondsForTest(session.State.PlayerId, 35 * 60 - 1);
         server.TickSreekmakraForTest();
-        Assert.True(session.MoodUneasy);
+        Assert.True(session.Hazards.MoodUneasy);
 
-        session.MoodLocationId = "somewhere-else"; // as after a flight to another body
+        session.Hazards.MoodLocationId = "somewhere-else"; // as after a flight to another body
         server.TickSreekmakraForTest();
-        Assert.False(session.MoodUneasy);
-        Assert.False(session.MoodWatchedTold);
-        Assert.True(session.MoodSeconds <= 1.0);
+        Assert.False(session.Hazards.MoodUneasy);
+        Assert.False(session.Hazards.MoodWatchedTold);
+        Assert.True(session.Hazards.MoodSeconds <= 1.0);
     }
 
     public void Dispose()

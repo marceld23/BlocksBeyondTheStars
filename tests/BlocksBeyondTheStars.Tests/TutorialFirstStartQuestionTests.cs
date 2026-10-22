@@ -325,7 +325,7 @@ public sealed class TutorialFirstStartQuestionTests : IDisposable
         var plain = Join(server, 2, "Plain", choices: false);
         foreach (var who in new[] { p, plain })
         {
-            who.VegaTipLive = new[] { "data_cache_near" }; // a data cache in reach: the research course's moment
+            who.Vega.VegaTipLive = new[] { "data_cache_near" }; // a data cache in reach: the research course's moment
             for (int i = 0; i < 200 && !Has(who, StoryPackKeys.ChapterOffered(T, "c2")); i++)
             {
                 server.TickStoryPacksForTest(who);

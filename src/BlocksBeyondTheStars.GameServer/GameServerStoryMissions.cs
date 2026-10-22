@@ -255,7 +255,7 @@ public sealed partial class GameServer
     /// <summary>Whether VEGA may hand a mission out now: no basic training runs for the player (no story task during the
     /// lessons) and no story card or scene waits in their cutscene queue (the chapter's scene comes first, then the briefing).</summary>
     private bool MissionStartAllowed(PlayerSession s)
-        => !TutorialPackRunning(s) && !s.CutsceneQueue.Any(q => q.Tier >= CutsceneTiers.Card);
+        => !TutorialPackRunning(s) && !s.Story.CutsceneQueue.Any(q => q.Tier >= CutsceneTiers.Card);
 
     /// <summary>Starts a mission for a player: it runs from now on (its first step activates in the same walk and speaks the
     /// briefing).</summary>
@@ -359,7 +359,7 @@ public sealed partial class GameServer
             return null;
         }
 
-        var cache = s.StoryLeads;
+        var cache = s.Story.StoryLeads;
         var signature = LeadSignatureOf(s, cache.Epoch);
         if (cache.MissionLead is null || cache.MissionLeadStep != step.ProgressKey || cache.MissionSignature != signature)
         {
@@ -457,7 +457,7 @@ public sealed partial class GameServer
 
         if (PlayerPacks.Count == 0)
         {
-            s.StoryPackPlaySeconds += 1.0; // the escalation clock (TickStoryPacksFor runs it while player packs exist)
+            s.Story.StoryPackPlaySeconds += 1.0; // the escalation clock (TickStoryPacksFor runs it while player packs exist)
         }
 
         AdvanceStoryMissions(s);

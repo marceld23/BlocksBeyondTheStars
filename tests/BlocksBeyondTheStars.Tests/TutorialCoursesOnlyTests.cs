@@ -214,20 +214,20 @@ public sealed class TutorialCoursesOnlyTests : IDisposable
     {
         var (server, transport) = World("moment");
         var p = Join(server, 1, "Rookie");
-        double suggestedAt = p.LastChapterOfferAt;
+        double suggestedAt = p.Story.LastChapterOfferAt;
         Assert.False(double.IsNegativeInfinity(suggestedAt)); // the suggestions are this moment's offer
 
-        p.VegaTipLive = new[] { "data_cache_near" }; // a data cache in reach: the research course's moment
+        p.Vega.VegaTipLive = new[] { "data_cache_near" }; // a data cache in reach: the research course's moment
         server.TickStoryPacksForTest(p);
         Assert.Empty(transport.Offers(p));
-        while (transport.Offers(p).Count == 0 && p.StoryPackPlaySeconds < suggestedAt + 200)
+        while (transport.Offers(p).Count == 0 && p.Story.StoryPackPlaySeconds < suggestedAt + 200)
         {
             server.TickStoryPacksForTest(p);
         }
 
         var research = Assert.Single(transport.Offers(p));
         Assert.Equal("Knowledge and research", research.LineArg);
-        Assert.True(p.LastChapterOfferAt - suggestedAt >= 90, $"offered {p.LastChapterOfferAt - suggestedAt} s after the suggestions");
+        Assert.True(p.Story.LastChapterOfferAt - suggestedAt >= 90, $"offered {p.Story.LastChapterOfferAt - suggestedAt} s after the suggestions");
         Assert.True(Has(p, StoryPackKeys.ChapterOffered(T, "c2")));
     }
 

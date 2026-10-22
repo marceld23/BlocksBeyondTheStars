@@ -86,8 +86,8 @@ public sealed partial class GameServer
     /// (<c>move:jump</c>). Measures nothing unless a step listens.</summary>
     private void TutorialMovementEvents(PlayerSession session, Vector3f before, Vector3f now, bool onSurface, bool crouching)
     {
-        bool wasCrouching = session.TutorialWasCrouching;
-        session.TutorialWasCrouching = crouching;
+        bool wasCrouching = session.Tutorial.TutorialWasCrouching;
+        session.Tutorial.TutorialWasCrouching = crouching;
         if (!onSurface || session.State.InSpeeder.Length > 0 || session.State.InTrain.Length > 0)
         {
             return;
@@ -98,11 +98,11 @@ public sealed partial class GameServer
         double rise = now.Y - before.Y;
         if (session.State.Climbing && rise > 0 && rise <= TutorialWalkMaxStep && HasGameEventListener(GameEventKeys.MoveClimbed))
         {
-            session.TutorialClimbAccum += rise;
-            int metres = (int)session.TutorialClimbAccum;
+            session.Tutorial.TutorialClimbAccum += rise;
+            int metres = (int)session.Tutorial.TutorialClimbAccum;
             if (metres >= 1)
             {
-                session.TutorialClimbAccum -= metres;
+                session.Tutorial.TutorialClimbAccum -= metres;
                 RaiseGameEvent(session, GameEventKeys.MoveClimbed, string.Empty, metres);
             }
         }
@@ -120,23 +120,23 @@ public sealed partial class GameServer
             double step = Math.Sqrt((dx * dx) + (dz * dz));
             if (step > 0 && step <= TutorialWalkMaxStep)
             {
-                session.TutorialWalkAccum += step;
-                int whole = (int)session.TutorialWalkAccum;
+                session.Tutorial.TutorialWalkAccum += step;
+                int whole = (int)session.Tutorial.TutorialWalkAccum;
                 if (whole >= 1)
                 {
-                    session.TutorialWalkAccum -= whole;
+                    session.Tutorial.TutorialWalkAccum -= whole;
                     RaiseGameEvent(session, GameEventKeys.MoveWalked, string.Empty, whole);
                 }
             }
         }
 
-        if (HasGameEventListener(GameEventKeys.MoveJump) && _uptime - session.TutorialJumpAt >= 1.0)
+        if (HasGameEventListener(GameEventKeys.MoveJump) && _uptime - session.Tutorial.TutorialJumpAt >= 1.0)
         {
             bool jumped = session.VerticalSpeed > TutorialJumpSpeed && !session.State.Climbing;
             bool crouched = crouching && !wasCrouching;
             if (jumped || crouched)
             {
-                session.TutorialJumpAt = _uptime;
+                session.Tutorial.TutorialJumpAt = _uptime;
                 RaiseGameEvent(session, GameEventKeys.MoveJump, jumped ? GameEventKeys.MoveJumpArg : GameEventKeys.MoveCrouchArg);
             }
         }
@@ -145,8 +145,8 @@ public sealed partial class GameServer
     /// <summary>From <c>ShipMove</c>: flight units flown (<c>flight:flown</c>). Measures nothing unless a step listens.</summary>
     private void TutorialFlightEvents(PlayerSession pilot, Vector3f pos)
     {
-        var last = pilot.TutorialFlightLast;
-        pilot.TutorialFlightLast = pos;
+        var last = pilot.Tutorial.TutorialFlightLast;
+        pilot.Tutorial.TutorialFlightLast = pos;
         if (last is not { } from || !HasGameEventListener(GameEventKeys.FlightFlown))
         {
             return;
@@ -159,11 +159,11 @@ public sealed partial class GameServer
             return;
         }
 
-        pilot.TutorialFlightAccum += step;
-        int whole = (int)pilot.TutorialFlightAccum;
+        pilot.Tutorial.TutorialFlightAccum += step;
+        int whole = (int)pilot.Tutorial.TutorialFlightAccum;
         if (whole >= 1)
         {
-            pilot.TutorialFlightAccum -= whole;
+            pilot.Tutorial.TutorialFlightAccum -= whole;
             RaiseGameEvent(pilot, GameEventKeys.FlightFlown, string.Empty, whole);
         }
     }
@@ -181,7 +181,7 @@ public sealed partial class GameServer
             var landed = _worlds.Active.LandedFor(p.PlayerId);
             if (!StepWaitsFor(session, GameEventKeys.ShipReturned))
             {
-                session.TutorialFarFromShip = false; // #2550: a walk only counts while the player's own step waits for it
+                session.Tutorial.TutorialFarFromShip = false; // #2550: a walk only counts while the player's own step waits for it
             }
             else if (landed.Placed && !InSpace(p.PlayerId) && !InStation(p.PlayerId))
             {
@@ -190,15 +190,15 @@ public sealed partial class GameServer
                 bool onFoot = !p.AboardShip && !p.InEva && !ShipInteriorContains(p.Position);
                 if (onFoot && d2 >= TutorialShipFarEdge * TutorialShipFarEdge)
                 {
-                    if (!session.TutorialFarFromShip)
+                    if (!session.Tutorial.TutorialFarFromShip)
                     {
-                        session.TutorialFarFromShip = true;
+                        session.Tutorial.TutorialFarFromShip = true;
                         SpeakStepMidLines(session, GameEventKeys.ShipReturned); // #2550: "far enough — now find your way back"
                     }
                 }
-                else if (session.TutorialFarFromShip && (p.AboardShip || d2 <= TutorialShipNearEdge * TutorialShipNearEdge))
+                else if (session.Tutorial.TutorialFarFromShip && (p.AboardShip || d2 <= TutorialShipNearEdge * TutorialShipNearEdge))
                 {
-                    session.TutorialFarFromShip = false;
+                    session.Tutorial.TutorialFarFromShip = false;
                     RaiseGameEvent(session, GameEventKeys.ShipReturned, "walk");
                 }
             }
@@ -231,7 +231,7 @@ public sealed partial class GameServer
     {
         if (step.Event.Length > 0 && GameEventKeys.Matches(step.Event, GameEventKeys.ShipReturned))
         {
-            s.TutorialFarFromShip = false;
+            s.Tutorial.TutorialFarFromShip = false;
         }
     }
 
@@ -258,12 +258,12 @@ public sealed partial class GameServer
             return;
         }
 
-        if (session.UiTutorialEventAt.TryGetValue(id, out double at) && _uptime - at < UiTutorialEventGapSeconds && _uptime >= at)
+        if (session.Tutorial.UiTutorialEventAt.TryGetValue(id, out double at) && _uptime - at < UiTutorialEventGapSeconds && _uptime >= at)
         {
             return;
         }
 
-        session.UiTutorialEventAt[id] = _uptime;
+        session.Tutorial.UiTutorialEventAt[id] = _uptime;
         RaiseGameEvent(session, GameEventKeys.UiPrefix + id);
     }
 
@@ -450,7 +450,7 @@ public sealed partial class GameServer
             }
 
             bool active = StepActive(s, step);
-            if (active && s.StepEscalation.TryGetValue(step.ProgressKey, out var esc) && esc.Deferred)
+            if (active && s.Story.StepEscalation.TryGetValue(step.ProgressKey, out var esc) && esc.Deferred)
             {
                 continue; // an open extra: VEGA may remind about it the usual way
             }
@@ -540,12 +540,12 @@ public sealed partial class GameServer
                 p.Milestones.Add("vega:hint:" + hint);
             }
 
-            s.VegaTipCooldownUntil[hint] = _uptime + spec.Cooldown;
-            s.VegaTipSince.Remove(hint);
+            s.Vega.VegaTipCooldownUntil[hint] = _uptime + spec.Cooldown;
+            s.Vega.VegaTipSince.Remove(hint);
             if (hint == "tier_gate")
             {
-                s.VegaTierGateBlock = string.Empty;
-                s.VegaTierGateTool = string.Empty;
+                s.Vega.VegaTierGateBlock = string.Empty;
+                s.Vega.VegaTierGateTool = string.Empty;
             }
         }
         else
@@ -575,7 +575,7 @@ public sealed partial class GameServer
     /// right after it).</summary>
     private bool RecentOfferTeaches(PlayerSession s, string hintId)
     {
-        if (s.RecentChapterOfferKey.Length == 0 || s.StoryPackPlaySeconds - s.RecentChapterOfferAt > OfferTipWindowSeconds
+        if (s.Story.RecentChapterOfferKey.Length == 0 || s.Story.StoryPackPlaySeconds - s.Story.RecentChapterOfferAt > OfferTipWindowSeconds
             || PlayerPacks.Count == 0 || !StepsByHint.ContainsKey(hintId))
         {
             return false;
@@ -585,7 +585,7 @@ public sealed partial class GameServer
         {
             foreach (var ch in pack.Chapters)
             {
-                if (PresentedChapterKey(ch) == s.RecentChapterOfferKey)
+                if (PresentedChapterKey(ch) == s.Story.RecentChapterOfferKey)
                 {
                     return ChapterTeachesHint(ch, hintId);
                 }
@@ -622,14 +622,14 @@ public sealed partial class GameServer
     /// follows the offer line a few seconds later. A safety tip (the hull, the air …) is never folded into an offer.</summary>
     private void MarkTipsToldByOffer(PlayerSession s, CompiledChapter ch)
     {
-        s.RecentChapterOfferKey = PresentedChapterKey(ch);
-        s.RecentChapterOfferAt = s.StoryPackPlaySeconds;
+        s.Story.RecentChapterOfferKey = PresentedChapterKey(ch);
+        s.Story.RecentChapterOfferAt = s.Story.StoryPackPlaySeconds;
         bool booked = false;
         foreach (var step in ch.Steps)
         {
             foreach (string hint in step.Def.HintRefs ?? new List<string>())
             {
-                if (VegaTips.TryGetValue(hint, out var spec) && spec.Priority != VegaTipPriority.Safety && s.VegaTipLive.Contains(hint))
+                if (VegaTips.TryGetValue(hint, out var spec) && spec.Priority != VegaTipPriority.Safety && s.Vega.VegaTipLive.Contains(hint))
                 {
                     BookHintAsTold(s, hint);
                     booked = true;
@@ -639,7 +639,7 @@ public sealed partial class GameServer
 
         if (booked)
         {
-            s.VegaTipReadyAt = Math.Max(s.VegaTipReadyAt, _uptime + VegaTipGap);
+            s.Vega.VegaTipReadyAt = Math.Max(s.Vega.VegaTipReadyAt, _uptime + VegaTipGap);
         }
     }
 

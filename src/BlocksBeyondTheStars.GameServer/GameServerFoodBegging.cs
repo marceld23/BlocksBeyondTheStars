@@ -141,7 +141,7 @@ public sealed partial class GameServer
                     c.BegPhase = BegPhase.Beg;
                     c.BegUntil = _uptime + HerdRules.InterestSeconds;
                     c.NextBegHopAt = _uptime + BegHash(c) % 50 / 100.0; // the herd does not hop in lockstep
-                    lure.HerdBeggedAt = _uptime; // #2482: the animal friends course's moment (world:herd_begging)
+                    lure.Tutorial.HerdBeggedAt = _uptime; // #2482: the animal friends course's moment (world:herd_begging)
                     ShipAiHintOnce(lure, "feed_herd"); // VEGA explains the Feed action once per player
                     return BegOrbit(c, sp, lure.State.Position, ref intent, ref target);
                 }

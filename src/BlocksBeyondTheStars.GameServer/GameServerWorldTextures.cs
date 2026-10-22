@@ -126,7 +126,7 @@ public sealed partial class GameServer
             return;
         }
 
-        if (_uptime < session.NextWorldTextureAt)
+        if (_uptime < session.Throttles.NextWorldTextureAt)
         {
             Reject(session, "worldtexture", "@srv.worldtex.too_fast");
             return;
@@ -168,7 +168,7 @@ public sealed partial class GameServer
             return;
         }
 
-        session.NextWorldTextureAt = _uptime + 2.0; // a disk write + a broadcast to everyone, like a paint
+        session.Throttles.NextWorldTextureAt = _uptime + 2.0; // a disk write + a broadcast to everyone, like a paint
         var stored = new StoredWorldTexture
         {
             Key = key,
@@ -238,14 +238,14 @@ public sealed partial class GameServer
     /// one empty final page, so the client knows the list is complete and clears what it had.</summary>
     private void QueueWorldTextures(PlayerSession session)
     {
-        session.WorldTexturePages.Clear();
+        session.Throttles.WorldTexturePages.Clear();
         var pages = BuildWorldTexturePages(
             WorldTexturesEnabled
                 ? _worldTextures.Values.OrderBy(t => t.Key, System.StringComparer.Ordinal).Select(ToNet).ToList()
                 : new List<NetWorldTexture>());
         foreach (var page in pages)
         {
-            session.WorldTexturePages.Enqueue(page);
+            session.Throttles.WorldTexturePages.Enqueue(page);
         }
     }
 
@@ -282,9 +282,9 @@ public sealed partial class GameServer
     {
         foreach (var session in _sessions.Values)
         {
-            if (session.Joined && session.WorldTexturePages.Count > 0)
+            if (session.Joined && session.Throttles.WorldTexturePages.Count > 0)
             {
-                Send(session, session.WorldTexturePages.Dequeue());
+                Send(session, session.Throttles.WorldTexturePages.Dequeue());
             }
         }
     }

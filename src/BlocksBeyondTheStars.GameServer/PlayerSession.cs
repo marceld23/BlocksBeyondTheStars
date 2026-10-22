@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
-using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.State;
-using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -83,174 +81,26 @@ public sealed class PlayerSession
     /// is the safe default. Only ever set for <see cref="IsFleetAdmin"/> sessions.</summary>
     public bool Spectating { get; set; }
 
-    /// <summary>Environment.TickCount of the last accepted chat line (rate limiting).</summary>
-    public int LastChatTick { get; set; }
-
-    /// <summary>Whether this session was already told once that a chat line of theirs was masked (#1207) —
-    /// the notice is sent on the first masked line only, not on every one.</summary>
-    public bool ChatMaskNoticeSent { get; set; }
-
-    // ---- Anti-spam (#1208). All of this lives in RAM only and is never persisted: a temporary auto-mute is a
-    // cool-down, not a mark on the record. The sliding windows are per session (a reconnect starts them fresh);
-    // the mute deadline itself is NOT on the session — it is keyed by player id on the server (#1294), so a
-    // muted player who leaves and rejoins is still muted. Both lists are trimmed to their window on every line,
-    // so they hold a handful of entries at most.
-
-    /// <summary>Server uptime (seconds) of the recently accepted chat lines — the burst window.</summary>
-    public List<double> RecentChatAt { get; } = new();
-
-    /// <summary>Server uptime (seconds) of the recent content-filter hits (a blocked or masked line).</summary>
-    public List<double> RecentFilterHitsAt { get; } = new();
-
-    /// <summary>Whether the sender was already told about the mute currently in force — one notice per mute,
-    /// not one per line they keep trying to send. Per session on purpose: a player who rejoins while still
-    /// muted is told again on their first blocked line, because the earlier notice is gone with the old client.</summary>
-    public bool ChatMuteNoticeSent { get; set; }
-
-    // ---- Report evidence (#1222) ----
-    // An arcade guest has no portal account, so their report cannot carry a link to a chat log the operator
-    // can open — it has to bring the evidence with it. These lines are RAM only and die with the session;
-    // the only copy that ever leaves the process is the excerpt inside a report a human actually filed.
-
-    /// <summary>The most recent chat lines this session sent, oldest first, capped at
-    /// <see cref="MaxRecentChatLines"/>. Screened text, i.e. exactly what the other players saw.</summary>
-    public List<string> RecentChatLines { get; } = new();
-
-    /// <summary>How many of a player's lines are kept as report evidence.</summary>
-    public const int MaxRecentChatLines = 20;
-
-    /// <summary>Server uptime (seconds) of this session's recent player reports — the abuse window for
-    /// reporting itself.</summary>
-    public List<double> RecentReportsAt { get; } = new();
+    /// <summary>Chat rate limit, anti-spam windows and report evidence of this connection (#1208, #1222).</summary>
+    public PlayerSessionChat Chat { get; } = new();
 
     /// <summary>The arcade install id this client joined with (glitch.fun guests), or empty. It is the only
     /// identity such a guest has, so a report is worth nothing to an operator without it.</summary>
     public string InstallId { get; set; } = string.Empty;
 
-    /// <summary>#2672: token bucket shared by every appearance edit that is saved and relayed (the face, each body-paint
-    /// part, a tool look), refilled on the server's uptime clock — starts full, so the join burst (face + four parts)
-    /// passes; <see cref="AppearanceRefilledAt"/> is the uptime of the last refill.</summary>
-    public double AppearanceBudget { get; set; } = GameServer.AppearanceBurst;
-    public double AppearanceRefilledAt { get; set; }
-
-    /// <summary>Server uptime (seconds) before which the next voice frame is throttled.</summary>
-    public double NextVoiceFrameAt { get; set; }
-
-    /// <summary>#2158: token bucket for relayed cosmetic action effects (<c>FxIntent</c>), refilled on the server's
-    /// uptime clock — starts full; <see cref="FxRefilledAt"/> is the uptime of the last refill.</summary>
-    public double FxBudget { get; set; } = GameServer.FxRelayBurst;
-    public double FxRefilledAt { get; set; }
-
-    /// <summary>Server uptime (seconds) before which the next accepted block paint is throttled (#817) —
-    /// same 2 s pacing as the face: each accepted paint can mean a disk save + world-wide rebroadcast.</summary>
-    public double NextPaintAt { get; set; }
-    public double NextCustomShapeAt { get; set; }
-
-    /// <summary>Earliest uptime the next world texture is accepted (#1958) — the same 2 s pacing: a disk write
-    /// and a broadcast to every client.</summary>
-    public double NextWorldTextureAt { get; set; }
-
-    /// <summary>The pages of the world texture list still to send to this client (#1958) — one per tick.</summary>
-    public System.Collections.Generic.Queue<BlocksBeyondTheStars.Networking.Messages.WorldTextureList> WorldTexturePages { get; } = new();
-
-    /// <summary>Earliest uptime the next blueprint paste is accepted (#1117) — a paste is up to 4096
-    /// placements in one intent, so it gets a real cooldown.</summary>
-    public double NextBlueprintPasteAt { get; set; }
-
-    /// <summary>Server uptime (seconds) before which the "backpack full" toast is suppressed (#600). Area
-    /// mining can overflow on every block of a burst; one warning per few seconds says it just as well.</summary>
-    public double NextInventoryFullHintAt { get; set; }
+    /// <summary>Rate limits and token buckets (appearance, effects, voice, paint, pastes, toasts, message flood).</summary>
+    public PlayerSessionThrottles Throttles { get; } = new();
 
     /// <summary>Where the entombment rescue last moved this player during the CURRENT episode of being sealed
     /// in (#1367), or null when they are out in the open. A rescue whose destination is the same blocked spot
     /// as last time is skipped instead of re-teleporting and re-announcing every second.</summary>
     public Shared.Geometry.Vector3f? EntombedRescueSpot { get; set; }
 
-    /// <summary>Loot banked from asteroids / salvage drops that has not been announced yet (#1317): item key +
-    /// how much went to the backpack and to the cargo hold. Flushed as ONE "+n … → hold" toast per cooldown.</summary>
-    public List<(string Item, int ToBackpack, int ToCargo)> PendingLootToast { get; } = new();
+    /// <summary>What was streamed to this client: chunks, the settled view, the look-ahead, far-terrain tiles.</summary>
+    public PlayerSessionStreaming Streaming { get; } = new();
 
-    /// <summary>Server uptime (seconds) before which the next loot toast is held back (#1317).</summary>
-    public double NextLootToastAt { get; set; }
-
-    /// <summary>Token bucket for the per-connection message-rate gate (anti-flood). Refilled by wall clock.</summary>
-    public double MsgBudget { get; set; } = 60.0;
-    public int LastMsgRefillTick { get; set; }
-
-    /// <summary>Chunks already streamed to this client, to avoid resending.</summary>
-    public HashSet<ChunkCoord> SentChunks { get; } = new();
-
-    /// <summary>#1507: the streaming pass found nothing left to send for this view — recorded with the centre
-    /// chunk, the stream radius and the sent-set size it was true for, so the next ticks can skip the whole
-    /// (2R+3)² column enumeration (up to ~1200 coords + hundreds of terrain lookups per player per tick) until
-    /// the player moves, the view changes, the sent-set changes, or the periodic re-check comes due.</summary>
-    public bool StreamSettled { get; set; }
-    public ChunkCoord StreamSettledCenter { get; set; }
-    public int StreamSettledRadius { get; set; }
-    public int StreamSettledSentCount { get; set; }
-    public int StreamSettledTicks { get; set; }
-
-    /// <summary>#1818: the player's horizontal velocity (blocks/s) as the streamer sees it — sampled from successive
-    /// positions, smoothed, zeroed on a teleport-sized jump. Drives the streaming look-ahead.</summary>
-    public float StreamVelX { get; set; }
-    public float StreamVelZ { get; set; }
-    public float StreamSampleX { get; set; }
-    public float StreamSampleZ { get; set; }
-    public double StreamSampleAt { get; set; } = -1;
-
-    /// <summary>#1821: far-terrain tiles this client asked for on its current world, with the version it has.</summary>
-    public Dictionary<(int Tx, int Tz), int> FarTilesSent { get; } = new();
-    public int FarTilesWorldId { get; set; }
-    public double FarTileTokens { get; set; } = 64;
-    public double FarTileTokensAt { get; set; }
-
-    /// <summary>#1871: accepted tile requests still waiting for their build. Tiles are built under a per-tick budget
-    /// (<c>ServeFarTiles</c>), never in the request handler — a burst of requests on a built-up world used to stall
-    /// the tick for a minute. <see cref="FarTileQueued"/> mirrors the queue so a re-ask of a queued tile is a no-op.</summary>
-    public Queue<(int Tx, int Tz)> FarTileQueue { get; } = new();
-    public HashSet<(int Tx, int Tz)> FarTileQueued { get; } = new();
-
-    /// <summary>#1820: the next streaming pass sends this session its world's FarTerrainWorldInfo (set on join and
-    /// whenever a WorldReset goes out).</summary>
-    public bool FarInfoDue { get; set; } = true;
-
-    /// <summary>Uptime at which each chunk last triggered a full ghost re-stream for this session (#965), so a
-    /// burst of ghosts in one chunk costs one re-stream (and one log line), not one per cell.</summary>
-    public Dictionary<ChunkCoord, double> GhostChunkSeen { get; } = new();
-
-    /// <summary>Uptime of the last payload received from this client — the app-level heartbeat (#964). A client
-    /// whose process is frozen or dead keeps its transport peer alive (LiteNetLib pings from its own thread), so
-    /// the transport timeout alone can leave a ghost session holding the player's name for many minutes.</summary>
-    public double LastPayloadAt { get; set; }
-
-    /// <summary>Whether this session is subject to the heartbeat sweep — true only for sessions that joined
-    /// over the wire. A locally-added player (tests, in-process hosts) drives the server through direct calls
-    /// and legitimately never sends a payload, so silence says nothing about it being alive.</summary>
-    public bool HeartbeatTracked { get; set; }
-
-    // --- The pause menu (#973) ------------------------------------------------------------------------
-    // The world holds once EVERY joined player wants it held, so the intent lives on the session rather
-    // than on the server: a single global "paused" bool had no owner and could only ever serve one player.
-
-    /// <summary>True while this player sits in their pause menu asking for the world to be held. The world
-    /// itself only stops when every joined non-spectator agrees (see <c>GameServer.RecomputePause</c>).</summary>
-    public bool WantsPause { get; set; }
-
-    /// <summary>Seconds this session has been silent while the WORLD stood still. A held world does not
-    /// advance <see cref="LastPayloadAt"/>'s clock, so the normal heartbeat sweep is blind during a pause —
-    /// this is the same liveness signal on a clock that keeps running (see
-    /// <c>GameServer.SweepSilentPausedSessions</c>).</summary>
-    public double PausedSilentSeconds { get; set; }
-
-    /// <summary>True once this client has re-sent its pause intent while already holding — the keep-alive
-    /// that proves it is still alive behind an open menu. It doubles as a capability probe: a client from
-    /// before #973 sends nothing at all while paused, and must never be dropped for that.</summary>
-    public bool SendsPauseKeepAlive { get; set; }
-
-    /// <summary>True while a hold that ran out its ceiling must not be re-entered from this still-open menu.
-    /// Without it the auto-resume would be pointless: the client keeps sending its keep-alive, and the very
-    /// next one would put the world straight back to sleep. Cleared when the player closes the menu.</summary>
-    public bool PauseHoldExpired { get; set; }
+    /// <summary>The app-level heartbeat and this player's pause-menu hold (#964, #973).</summary>
+    public PlayerSessionLiveness Liveness { get; } = new();
 
     /// <summary>The client's requested render distance in chunks (from its JoinRequest), or 0 if it didn't say.
     /// When set, it drives this player's streaming radius (clamped server-side) instead of the host's config —
@@ -311,44 +161,8 @@ public sealed class PlayerSession
     /// (old keys, server-composed text, no pack chips).</summary>
     public bool SupportsPacks => ClientFeatures.Contains(Networking.Messages.ClientFeatures.Packs1);
 
-    /// <summary>#2466: the help-escalation clock of each active story-pack step (<c>&lt;pack&gt;:&lt;step&gt;</c> → state).
-    /// RAM only and per session ("one session"): a rejoin starts the clocks again.</summary>
-    public Dictionary<string, StepEscalationState> StepEscalation { get; } = new(System.StringComparer.Ordinal);
-
-    /// <summary>#2466: active play seconds counted by the story-pack tick (the escalation clocks read it).</summary>
-    public double StoryPackPlaySeconds { get; set; }
-
-    /// <summary>#2466: <see cref="StoryPackPlaySeconds"/> of the last chapter offer — offers are spaced out.</summary>
-    public double LastChapterOfferAt { get; set; } = double.NegativeInfinity;
-
-    /// <summary>#2459: the chapter VEGA offered last at its moment (<c>&lt;pack&gt;:&lt;chapter&gt;</c>, empty = none) and the
-    /// <see cref="StoryPackPlaySeconds"/> of that offer — a tip the course teaches that comes up right after is told by the
-    /// offer ("the tip becomes the offer"). The graduation's suggestions are no such offer.</summary>
-    public string RecentChapterOfferKey { get; set; } = string.Empty;
-
-    public double RecentChapterOfferAt { get; set; } = double.NegativeInfinity;
-
-    /// <summary>#2466: the join hook of the story packs ran for this session (re-speaks the active step once).</summary>
-    public bool StoryPacksJoined { get; set; }
-
-    /// <summary>#2471: something the Journal shows changed (a step, a chapter, an offer, the chip) since its last push —
-    /// <c>GameServer.TickJournal</c> sends the Journal messages that differ, at most once per
-    /// <c>GameServer.JournalPushGapSeconds</c>. RAM only.</summary>
-    public bool JournalDirty { get; set; }
-
-    /// <summary>#2475: this player's resolved leads of their current world-story chapter (re-resolved only when what they
-    /// depend on changed), and the lead the last marker went up for. RAM only.</summary>
-    internal StoryLeadCache StoryLeads { get; } = new();
-
-    /// <summary>#2471: server uptime of the last Journal push (the coalescing clock).</summary>
-    public double JournalPushedAt { get; set; } = double.NegativeInfinity;
-
-    /// <summary>#2471: the encoded <c>StoryPackStates</c> last sent (progress counters zeroed — a progress tick alone never
-    /// re-sends it), to send only a change. RAM only.</summary>
-    public byte[]? JournalStatesSent { get; set; }
-
-    /// <summary>#2471: the encoded <c>ObjectiveList</c> last sent. RAM only.</summary>
-    public byte[]? JournalObjectivesSent { get; set; }
+    /// <summary>Story-pack, Journal and cutscene pacing (#2466, #2467, #2471, #2475, #2499).</summary>
+    public PlayerSessionStory Story { get; } = new();
 
     /// <summary>#2467: the client plays data-driven cutscenes (<c>cutscenes1</c>); without it a scene counts as seen at
     /// once and the narrator line alone carries it.</summary>
@@ -362,86 +176,15 @@ public sealed class PlayerSession
     /// without it no close is sent (an older panel would pop open again to show it).</summary>
     public bool SupportsDialogClose => ClientFeatures.Contains(Networking.Messages.ClientFeatures.DialogClose1);
 
-    /// <summary>#2499: the tutorial pack just started by itself for a newcomer whose client draws buttons — the walk that
-    /// follows asks "Want me to show you the basics?" before the first step's line (the pack id; empty = nothing to ask).
-    /// Set and cleared inside one <c>AdvancePack</c>. RAM only.</summary>
-    public string AskSkipDuePack { get; set; } = string.Empty;
+    /// <summary>Tutorial step counters and the moments its courses are offered at (#2469, #2480, #2482).</summary>
+    public PlayerSessionTutorial Tutorial { get; } = new();
 
-    /// <summary>#2499: the pack whose first-start question went out this session and has not been answered with a skip yet
-    /// (empty = none) — a skip of that pack then gets VEGA's "the training waits in your Journal". "Let's go" is never
-    /// sent (doing nothing is the same answer), so it stays set. RAM only.</summary>
-    public string AskSkipOpenPack { get; set; } = string.Empty;
-
-    /// <summary>#2467: server uptime of the network join — no cutscene goes out until the client is in the world (its first
-    /// position report, or <c>GameServer.CutsceneJoinSettleSeconds</c> later). Negative infinity = not a network join.</summary>
-    public double CutsceneJoinAt { get; set; } = double.NegativeInfinity;
-
-    /// <summary>#2467: cutscenes committed to this player but not sent yet (waiting for the client to be in the world or for
-    /// the 90 s cooldown). RAM only — the <c>:sent</c> ledger key re-offers them at the next join.</summary>
-    public List<PendingCutscene> CutsceneQueue { get; } = new();
-
-    /// <summary>#2467: server uptime of the last unrequested T2+ cutscene sent (the cooldown clock).</summary>
-    public double CutsceneLastSentAt { get; set; } = double.NegativeInfinity;
-
-    /// <summary>#2467: the scenes (<c>&lt;pack&gt;/&lt;id&gt;</c>) that may follow the last sent one at once — its
-    /// <c>chainNext</c>.</summary>
-    public HashSet<string> CutsceneChain { get; } = new(System.StringComparer.Ordinal);
-
-    /// <summary>#2467: the pack chapters (<c>&lt;pack&gt;:&lt;chapter&gt;</c>) this session presented — a step of them
-    /// activated with its line, or one was running at the join. A chapter's close cutscene plays only for these, so a
-    /// chapter completed silently by evidence (a veteran) gets none. RAM only.</summary>
-    public HashSet<string> PresentedPackChapters { get; } = new(System.StringComparer.Ordinal);
-
-    /// <summary>#2469: metres walked on foot not yet reported as <c>move:walked</c> (only counted while a step listens). RAM only.</summary>
-    public double TutorialWalkAccum { get; set; }
-
-    /// <summary>#2469: flight units flown not yet reported as <c>flight:flown</c> (only counted while a step listens). RAM only.</summary>
-    public double TutorialFlightAccum { get; set; }
-
-    /// <summary>#2469: the last ship position the flight counter measured from; null after a jump or a fresh entry. RAM only.</summary>
-    public BlocksBeyondTheStars.Shared.Geometry.Vector3f? TutorialFlightLast { get; set; }
-
-    /// <summary>#2469: server uptime of the last <c>move:jump</c> (one a second at most). RAM only.</summary>
-    public double TutorialJumpAt { get; set; } = double.NegativeInfinity;
-
-    /// <summary>#2469: whether the last move report was crouched (a crouch is reported on the change). RAM only.</summary>
-    public bool TutorialWasCrouching { get; set; }
-
-    /// <summary>#2469: the player has been far from the landed ship (the "walk back" check of <c>ship:returned</c>). RAM only.</summary>
-    public bool TutorialFarFromShip { get; set; }
-
-    /// <summary>#2469: per teaching-flag id, the server uptime of the last <c>UiTutorialEvent</c> accepted (rate limit). RAM only.</summary>
-    public Dictionary<string, double> UiTutorialEventAt { get; } = new(System.StringComparer.Ordinal);
-
-    /// <summary>#2462 (B31): the client has VEGA's hints switched off (<c>SetNpcCallsIntent.VegaHintsMuted</c>, sent at
-    /// every join and from the settings). The advisor hints and context tips are then held back instead of being sent
-    /// to a muted panel — sending burned their once-flags, so they never came back. Session-scoped, starts "on".</summary>
-    public bool VegaHintsMuted { get; set; }
-
-    /// <summary>Accumulator for the 1 Hz advisor poll.</summary>
-    public double VegaAdvisorAccum { get; set; }
-
-    /// <summary>Uptime gates pacing memory-fragment redemption and the space callouts.</summary>
-    public double VegaMemoryReadyAt { get; set; }
-
-    /// <summary>Set once VEGA has said "no room for the Mk3 parts" this session, so the final memory fragment
-    /// waits quietly instead of nagging every tick (#1104).</summary>
-    public bool VegaMemoryHoldFullWarned { get; set; }
-
-    /// <summary>#2009: VEGA has pointed out an arachnid to this player (once per session — a sighting, not a nag).</summary>
-    public bool ArachnidSighted { get; set; }
+    /// <summary>VEGA's pacing: advisor, context tips, chatter, welcome back and praise.</summary>
+    public PlayerSessionVega Vega { get; } = new();
 
     /// <summary>#2082: favourite meals this player has thrown toward the next feed-tame, per herd ("location:species"). Transient,
     /// like the wild animals it counts for.</summary>
     public Dictionary<string, int> FavouriteMeals { get; } = new();
-    public double VegaThreatReadyAt { get; set; }
-    public double VegaEvadeReadyAt { get; set; }
-
-    /// <summary>Uptime of the next LLM banter check (0 = not armed yet; armed on the first poll).</summary>
-    public double VegaBanterNextAt { get; set; }
-
-    // --- Context tips (#1077): throttled, repeatable advisor lines. Persisted counters live in
-    // State.Milestones ("vega:hint:<id>", "#2", "#done"); everything here is per-connection pacing state. ---
 
     /// <summary>The suit lamp is switched on (client-reported via <c>SetLampIntent</c>; the server only sees
     /// whether the lamp is CARRIED otherwise). Session-scoped — a rejoin starts with the lamp off, like the client.</summary>
@@ -458,218 +201,23 @@ public sealed class PlayerSession
     /// in zero-g when the gravity came back, and the drop to the deck is the mode's doing, not theirs.</summary>
     public double StationZeroGOffAt { get; set; } = double.NegativeInfinity;
 
-    /// <summary>Uptime before which VEGA says no further context tip (global cadence, shared with banter).</summary>
-    public double VegaTipReadyAt { get; set; }
-
-    /// <summary>Per tip id: uptime the condition first became true in the current run (dwell / hysteresis).</summary>
-    public Dictionary<string, double> VegaTipSince { get; } = new();
-
-    /// <summary>#2479: the tip ids whose situation held in the last 1 Hz tip pass (before the hints switch, the gates, the
-    /// dwell and the cooldowns) — the "moment of need" a tutorial deep dive is offered at (<c>world:data_cache_near</c> …).</summary>
-    public IReadOnlyCollection<string> VegaTipLive { get; set; } = System.Array.Empty<string>();
-
-    /// <summary>Per tip id: uptime before which the same tip does not repeat.</summary>
-    public Dictionary<string, double> VegaTipCooldownUntil { get; } = new();
-
-    /// <summary>The last context tip fired + when — the "learned" window (a reaction shortly after
-    /// the tip retires it for good).</summary>
-    public string VegaTipLastId { get; set; } = string.Empty;
-    public double VegaTipLastAt { get; set; }
-
-    /// <summary>Things already mentioned this session (settlement names, ore keys, recipe keys, player
-    /// names …) so a tip that repeats never names the same thing twice in one sitting.</summary>
-    public HashSet<string> VegaTipMentioned { get; } = new();
-
-    /// <summary>Uptime before which no NPC radio call is made to this player (#1119; global ≤1/10 min
-    /// cadence, armed with a quiet period on join so a rejoin never opens with a ringing radio).</summary>
-    public double NpcCallReadyAt { get; set; }
-
-    /// <summary>Per call key (e.g. "camp:12:(«campKey»)"): uptime before which the same call never repeats.</summary>
-    public Dictionary<string, double> NpcCallCooldownUntil { get; } = new();
-
-    /// <summary>Uptime of the next NPC radio-call trigger scan for this player (#1119).</summary>
-    public double NpcCallScanAt { get; set; }
-
-    /// <summary>Camps this player was CALLED about (camp key → the caller), so clearing one pays the
-    /// promised friendship bonus (#1158). Session-scoped — the courtesy fades with a rejoin.</summary>
-    public Dictionary<string, (string NpcKey, string Name, string Place)> CalledCamps { get; } = new();
-
-    /// <summary>Per "«dialogKey»|«npcKey»": uptime before which a repeatable dialogue pays no relationship
-    /// reward again (#1162 — spam-talking must not farm standing).</summary>
-    public Dictionary<string, double> DialogRewardCooldownUntil { get; } = new();
-
-    /// <summary>Dialogue keys the player declined this session whose choices hand out a mission (#1212) — the
-    /// favour is not asked again until the next visit, so "not today" lets the ordinary smalltalk through.</summary>
-    public HashSet<string> DeclinedMissionDialogs { get; } = new(StringComparer.Ordinal);
-
-    /// <summary>Villager person keys whose passing hello already paid its +1 standing this session (#2598).</summary>
-    public HashSet<string> HelloStandingPaid { get; } = new(StringComparer.Ordinal);
-
-    /// <summary>#2616: the NPC conversation this player is in — it exists only while the client shows reply choices, and
-    /// ends on a leave, an end node, a new talk, walking away, a world change, the NPC leaving the world or a disconnect
-    /// (the session goes with it). RAM only; see <c>GameServer.NpcConversationValid</c> for the one validity rule.</summary>
-    internal GameServer.NpcConversation? Conversation { get; set; }
-
-    // --- #2601: personal wishes. RAM only. ---
-
-    /// <summary>Villagers (person keys) whose wish the player answered "maybe later" this session — the ordinary chat
-    /// until the next visit; the "!" stays.</summary>
-    public HashSet<string> DeclinedWishGivers { get; } = new(StringComparer.Ordinal);
-
-    /// <summary>Held wish id → the progress the villager last reminded the player of ("3 of 5 — no hurry!"); the same
-    /// progress again means an ordinary chat.</summary>
-    public Dictionary<string, int> WishReminded { get; } = new(StringComparer.Ordinal);
-
-    /// <summary>The held wishes that were ready to hand over at the last 1 Hz check (the "?" markers).</summary>
-    public HashSet<string> WishReady { get; set; } = new(StringComparer.Ordinal);
-
-    /// <summary>The settlement (location key) the player stood in at the last wish check — entering another refreshes
-    /// the markers and warms the offers' AI wording ("" = none).</summary>
-    public string WishPlaceKey { get; set; } = string.Empty;
-
-    /// <summary>Whether a festival was running in the settlement the player stood in at the last wish check — its start
-    /// and end re-send the markers (no new "!" while everybody celebrates).</summary>
-    public bool WishFestivalHere { get; set; }
-
-    /// <summary>The player's <c>PlayerState.LastSeenUtc</c> as it was BEFORE this join overwrote it (#2595): when they
-    /// were last online — what VEGA's "welcome back after a long time" reads. "" for a first join or an old save.</summary>
-    public string PreviousSeenUtc { get; set; } = string.Empty;
-
-    // --- #2593/#2595/#2597: the world greets back (passing hellos, VEGA's welcome and praise). RAM only. ---
-
-    /// <summary>#2593: uptime before which no NPC greets this player in passing again (4 s, 8 s in a crowd).</summary>
-    public double PassingGreetReadyAt { get; set; }
-
-    /// <summary>#2595: VEGA's chatter state was seeded on the first 1 Hz pass after the join (aboard flag, login welcome).</summary>
-    public bool VegaChatterSeeded { get; set; }
-
-    /// <summary>#2595: whether the player was aboard the ship on the last 1 Hz pass — boarding is the edge false → true.</summary>
-    public bool VegaWasAboard { get; set; }
-
-    /// <summary>#2595: uptime the player last stepped off the ship (NaN = not outside since the join or the last respawn).</summary>
-    public double VegaLeftShipAt { get; set; } = double.NaN;
-
-    /// <summary>#2595: uptime before which VEGA does not say "welcome back aboard" again (30 min).</summary>
-    public double VegaWelcomeAboardReadyAt { get; set; }
-
-    /// <summary>#2595: uptime VEGA's "welcome back after a long time" is due (0 = none pending).</summary>
-    public double VegaWelcomeLoginDueAt { get; set; }
-
-    /// <summary>#2597: achievements unlocked within the coalescing window, waiting for VEGA's praise (keys).</summary>
-    public List<string> PraisePending { get; } = new();
-
-    /// <summary>#2597: uptime the pending praise is spoken (the first unlock + 2 s).</summary>
-    public double PraiseDueAt { get; set; }
-
-    /// <summary>#2597: uptime before which VEGA praises nothing again (90 s between praise lines).</summary>
-    public double VegaPraiseReadyAt { get; set; }
-
-    /// <summary>The reporter who just asked this player for an interview (2026-09), 0 = none — an answer is accepted only
-    /// for them, once.</summary>
-    public int PendingInterviewNpcId { get; set; }
-
-    /// <summary>The in-game days on which a streamer already asked this player for a photo, per streamer place (2026-09).</summary>
-    public HashSet<string> StreamerAskedToday { get; } = new(StringComparer.Ordinal);
+    /// <summary>NPC radio calls, dialogue rewards, the open conversation, wishes and passing greetings.</summary>
+    public PlayerSessionNpc Npc { get; } = new();
 
     /// <summary>Uptime before which the player's companions do not growl at them again (#1210).</summary>
     public double NextCompanionAlertAt { get; set; }
 
-    /// <summary>Uptime of the next (heavier) block-probe around the player; results cached in <see cref="VegaProbe"/>.</summary>
-    public double VegaTipProbeAt { get; set; }
-    public VegaTipProbe VegaProbe { get; } = new();
+    /// <summary>The pending deferred death-respawn choice (#462).</summary>
+    public PlayerSessionRespawn Respawn { get; } = new();
 
-    /// <summary>Uptime the terrain scanner was last used (0 = never this session).</summary>
-    public double VegaScannerUsedAt { get; set; }
+    /// <summary>The pending automatic landed-ship transit (#1614).</summary>
+    public PlayerSessionTransit Transit { get; } = new();
 
-    /// <summary>Blocks broken while holding no drill although one is carried (resets when a drill is held).</summary>
-    public int VegaHandMineStreak { get; set; }
+    /// <summary>The pending bandit hold-up and the ambush and briefing pacing.</summary>
+    public PlayerSessionBandit Bandit { get; } = new();
 
-    /// <summary>Decaying "is digging right now" score: +1 per broken block, ×0.9 per second.</summary>
-    public double VegaMineRecent { get; set; }
-
-    /// <summary>Localized name of the block whose tool-tier gate just turned a swing away (#1686), and the
-    /// tool that would break it. Empty until the player runs into a gate; consumed by the <c>tier_gate</c>
-    /// context tip on the next cadence slot and cleared once it has been spoken.</summary>
-    public string VegaTierGateBlock { get; set; } = string.Empty;
-
-    public string VegaTierGateTool { get; set; } = string.Empty;
-
-    /// <summary>#2480: server uptime of the last swing a tool-tier gate turned away (a better tool exists) — the moment the
-    /// tutorial's "Workshop and titanium" course is offered at (<c>world:tier_gate</c>), independent of the tip's pacing and
-    /// the hints switch. Session-only; the default lies far in the past.</summary>
-    public double TierGateRefusedAt { get; set; } = double.NegativeInfinity;
-
-    /// <summary>#2482: server uptime when an animal of a begging herd last came to beg this player — the moment the tutorial's
-    /// "Animal friends" course is offered at (<c>world:herd_begging</c>), whatever VEGA's once-hint about it says.
-    /// Session-only; the default lies far in the past.</summary>
-    public double HerdBeggedAt { get; set; } = double.NegativeInfinity;
-
-    /// <summary>#2482: metres climbed on a wall not yet reported as <c>move:climbed</c> (only counted while a step listens).
-    /// RAM only.</summary>
-    public double TutorialClimbAccum { get; set; }
-
-    // --- Deferred death respawn (choice between ship and home spawn, issue #462) ---
-
-    /// <summary>Server uptime deadline for a pending respawn choice; 0 = no choice pending. While pending the
-    /// player lies at the death spot at 0 HP: the environment tick skips them (no drains, no re-death) and
-    /// move intents are ignored. On timeout the ship respawn runs as the safe default.</summary>
-    public double RespawnChoiceDeadline { get; set; }
-
-    /// <summary>Death context captured when the choice was offered (consumed on resolution).</summary>
-    public bool PendingRespawnSalvaged { get; set; }
-    public bool PendingRespawnSameWorld { get; set; }
-    public string PendingRespawnReason { get; set; } = string.Empty;
-
-    /// <summary>#1614: the body an automatic landed-ship transit lands on at its end, or null when no transit is
-    /// pending or the transit ends in free flight ("Hyperjump to this system" from a parked ship).</summary>
-    public string? PendingTransitBodyId { get; set; }
-
-    /// <summary>#1614: the star system the transit still has to warp into before it lands (or, without a
-    /// <see cref="PendingTransitBodyId"/>, before it hands over the controls), or null once the warp is done or
-    /// the destination lies in the system the ship took off in.</summary>
-    public string? PendingTransitSystemId { get; set; }
-
-    /// <summary>#1614: the pilot is in an automatic transit — the client plays the take-off, the warp and the
-    /// landing on its own and reports each stage with <c>TransitLaunchDoneIntent</c>.</summary>
-    public bool AutomaticTransit { get; set; }
-
-    /// <summary>Pad index reserved for an automatic landed-ship transit, or -1 when none is pending.</summary>
-    public int PendingTransitPadIndex { get; set; } = -1;
-
-    // --- Bandit hold-up (a robber demands part of the inventory; comply or fight) ---
-
-    /// <summary>Id of the pending bandit demand (0 = none). The client's answer must echo it, so a stale
-    /// or spoofed response can never resolve a different hold-up.</summary>
-    public int BanditDemandId { get; set; }
-
-    /// <summary>Combat-entity id of the demanding bandit (ground) or bandit ship (space).</summary>
-    public string BanditDemandBanditId { get; set; } = string.Empty;
-
-    /// <summary>Server uptime deadline; silence past it counts as a refusal (respawn-choice pattern).</summary>
-    public double BanditDemandDeadline { get; set; }
-
-    /// <summary>The demanded items, captured when the demand was made (validated again on comply).</summary>
-    public List<ItemAmount> BanditDemandItems { get; } = new();
-
-    /// <summary>True when the pending demand came from a bandit ship in space (routes the response).</summary>
-    public bool BanditDemandFromShip { get; set; }
-
-    /// <summary>Uptime before which no lone bandit stalks this player again (long per-player cooldown, so
-    /// hold-ups stay rare events rather than a farm).</summary>
-    public double NextBanditAmbushAt { get; set; }
-
-    /// <summary>Worlds VEGA already flagged as bandit country to this player this session (the pre-briefing
-    /// fires once per world, BEFORE any bandit walks up).</summary>
-    public HashSet<string> BanditBriefedWorlds { get; } = new();
-
-    /// <summary>Whether VEGA already explained base scouts (#1224) to this player this session — the toast
-    /// repeats per visit, the explanation does not.</summary>
-    public bool ScoutsVegaSaid { get; set; }
-
-    // --- Heal-tank regen field (base/station life support, issue #460) ---
-
-    /// <summary>Countdown to the next heal-tank proximity rescan (the regen itself applies every tick).</summary>
-    public double HealTankScanIn { get; set; }
+    /// <summary>Hazard scans: heal tank and bed nearby, temperature, exposure, toxic water, Valuma's mood.</summary>
+    public PlayerSessionHazards Hazards { get; } = new();
 
     /// <summary>#2264: server uptime until which a fall does not hurt — a phase block, a trapdoor or a bridge deck opened
     /// under this player (kid rule: a moving block never hurts).</summary>
@@ -700,19 +248,10 @@ public sealed class PlayerSession
     /// positions). Reset when the player is set down somewhere by the server.</summary>
     public float VerticalSpeed { get; set; }
 
-    /// <summary>Cached result of the last heal-tank proximity scan.</summary>
-    public bool NearHealTank { get; set; }
-
-    /// <summary>Cached result of the last bed proximity scan (#804) — same cadence as the tank scan.</summary>
-    public bool NearBed { get; set; }
-
     // --- Station affordances (#1070/#1072) ---
 
-    /// <summary>Countdown to the next station-set re-evaluation (StationsInReach publish-on-change).</summary>
-    public double StationScanIn { get; set; }
-
-    /// <summary>Compact key of the last StationsInReach sent, so the tick only pushes real changes.</summary>
-    public string? LastStationsInReach { get; set; }
+    /// <summary>What this client was last told: stations in reach, vitals, last blow, presence, blueprints, samples.</summary>
+    public PlayerSessionSync Sync { get; } = new();
 
     /// <summary>Server uptime of the last answered LocateStationIntent (rate limit).</summary>
     public double LastStationLocateAt { get; set; } = -1;
@@ -721,105 +260,6 @@ public sealed class PlayerSession
     /// of a lava body (#1727). A flood over a trench crusts hundreds of cells in a few ticks — one sentence
     /// per episode, not one per block.</summary>
     public double LastFlowQuenchTold { get; set; } = double.NegativeInfinity;
-
-    // --- Temperature hazard (#666): the effective-temperature scan is ~1 Hz, the drain applies every tick ---
-
-    /// <summary>Countdown to the next effective-temperature rescan (block probe + shelter check are the
-    /// expensive part; the cached severity is applied every tick in between).</summary>
-    public double TemperatureScanIn { get; set; }
-
-    /// <summary>Cached severity (°C beyond the comfort band, shelter applied) from the last scan.</summary>
-    public float TemperatureSeverity { get; set; }
-
-    /// <summary>Cached effective temperature (°C) from the last scan — tells VEGA (and the freeze-vs-
-    /// overheat hint pick) WHICH extreme is stressing the suit.</summary>
-    public float EffectiveTemperatureC { get; set; } = 15f;
-
-    /// <summary>The temperature (°C) the player's status effects feel (#2218): the cabin's comfort aboard a ship or on a
-    /// station, the real temperature outside everywhere else — also where the hazard scan above never runs (hazards
-    /// off, god mode, the Creative game mode). Read through <c>GameServer.AmbientTemperature</c>, which renews it.</summary>
-    public float AmbientTemperatureC { get; set; } = 15f;
-
-    /// <summary>Server uptime of that reading — by the hazard scan or by the effects' own look. Never read yet = −∞.</summary>
-    public double AmbientTemperatureReadAt { get; set; } = double.NegativeInfinity;
-
-    /// <summary>Countdown to the next correction of the client's effect countdown while an effect runs out faster in the
-    /// heat or the cold (#2218) — the client counts at plain speed between two updates.</summary>
-    public double EffectSyncIn { get; set; }
-
-    // --- Exposure meter (2026-09, Titas): scanned at ~1 Hz with the temperature, applied every tick ---
-
-    /// <summary>True while the meter runs (on foot outside on a timed-exposure type) — sent to the HUD.</summary>
-    public bool ExposureActive { get; set; }
-
-    /// <summary>The last scan found the player in a hot zone (the heat timer applies).</summary>
-    public bool ExposureHot { get; set; }
-
-    /// <summary>The last scan found a roof overhead (the meter fills at half speed).</summary>
-    public bool ExposureRoofed { get; set; }
-
-    /// <summary>The last scan found warmth: base air, a campfire, the ground far below the surface.</summary>
-    public bool ExposureSheltered { get; set; }
-
-    /// <summary>Highest VEGA warning already given this episode (0 none, 1 = 50 %, 2 = 75 %, 3 = 90 %).</summary>
-    public int ExposureWarned { get; set; }
-
-    /// <summary>Seconds the meter has stood at full — the damage rises with it.</summary>
-    public double ExposureFullSeconds { get; set; }
-
-    /// <summary>Seconds in a toxic type's water (the damage starts after a grace).</summary>
-    public double ToxicWaterSeconds { get; set; }
-
-    /// <summary>The death line of the environment hazard that hurt the player this tick (null = the generic one).</summary>
-    public string? HazardDeathReason { get; set; }
-
-    public float LastSentExposure;
-
-    // --- Valuma's mood (2026-09): time on the world, the watched line, the fog ---
-    public string MoodLocationId { get; set; } = string.Empty;
-    public double MoodSeconds { get; set; }
-    public bool MoodWatchedTold { get; set; }
-    public bool MoodUneasy { get; set; }
-
-    // --- Periodic vitals sync (HUD bars froze between event-driven sends before) ---
-    public double VitalsSyncTimer { get; set; }
-    // Automatic landed-ship transit (#1614): seconds since the current stage began — the server moves on by
-    // itself after ServerConfig.TransitLaunchTimeoutSeconds if the client never reports the stage as played.
-    public double TransitLaunchTimer { get; set; }
-    public float LastSentHealth = 100f;
-    public float LastSentOxygen = 100f;
-    public float LastSentEnergy = 100f;
-    public float LastSentHunger = 100f;
-
-    /// <summary>#1530: a combat/vitals path changed the player's state this tick — GameServer.FlushEntityLists
-    /// sends ONE PlayerStateUpdate at the end of the world tick (each biting attacker used to send its own).</summary>
-    public bool PlayerStateDirty { get; set; }
-
-    // --- The last blow on this player (#2564) — sent with every PlayerStateUpdate (LastHit*) ---
-
-    /// <summary>Entity id of the creature, machine, bandit or giant that last hurt this player (empty = none yet).</summary>
-    public string LastHitEntityId { get; set; } = string.Empty;
-
-    /// <summary>Where that blow came from: the attacker's position, or a giant's stomp/strike spot.</summary>
-    public BlocksBeyondTheStars.Shared.Geometry.Vector3f LastHitFrom { get; set; }
-
-    /// <summary>Counts the blows (0 = none yet this session) — the client treats every change as a fresh hit.</summary>
-    public int LastHitSeq { get; set; }
-
-    // #1530: presence on change + keep-alive. Per viewer: the hash of the presence they last received and the
-    // beat it was sent on; a subject is (re)sent to a viewer when the hash changed, the viewer never had it,
-    // or PresenceKeepAliveBeats elapsed — so a stationary player costs one message per keep-alive, not ten a second.
-    public Dictionary<int, (ulong Hash, int Beat)> PresenceSentTo { get; } = new();
-    public int PresenceBeat { get; set; }
-
-    // #1535: signature of the unlocked-blueprint set as last sent — SendInventory omits the list while it holds.
-    public long SentBlueprintsSignature { get; set; }
-    public bool SentBlueprintsOnce { get; set; }
-
-    // #2201: the same for the sample case, and the species this client already has in its research book.
-    public long SentSamplesSignature { get; set; }
-    public bool SentSamplesOnce { get; set; }
-    public HashSet<uint> BioBookSeeds { get; } = new();
 
     public PlayerSession(int connectionId, PlayerState state)
     {

@@ -901,7 +901,7 @@ public sealed class BioLabFixTests : IDisposable
         var p = Player(server, "Pilot", Outside);
         server.StartEffectForTest(p, BioEffect.Speed, 5, 300, thermal: BioThermal.ColdSensitive);
         Ticks(server, 30); // three seconds in the cold: the hazard scan holds its reading
-        Assert.True(p.EffectiveTemperatureC < BioRules.ColdBelow);
+        Assert.True(p.Hazards.EffectiveTemperatureC < BioRules.ColdBelow);
         Assert.True(Left(p, BioEffect.Speed) < 295f, "outside, the cold eats the effect at double speed");
 
         // Into the ship. The hazard scan stops there and keeps its last, cold value — the effects must not read that.
@@ -912,7 +912,7 @@ public sealed class BioLabFixTests : IDisposable
 
         Assert.InRange(before - Left(p, BioEffect.Speed), 9.5f, 10.5f); // plain speed: the cabin is comfortable
         Assert.Equal(22f, server.AmbientTemperatureForTest(p));
-        Assert.True(p.EffectiveTemperatureC < BioRules.ColdBelow, "the hazard's own cache is untouched — and stale, which is why the effects no longer read it");
+        Assert.True(p.Hazards.EffectiveTemperatureC < BioRules.ColdBelow, "the hazard's own cache is untouched — and stale, which is why the effects no longer read it");
 
         // And out again: the cold is back.
         p.State.AboardShip = false;
@@ -1094,19 +1094,19 @@ public sealed class BioLabFixTests : IDisposable
         var server = NewServer("nocost", "ice", c => c.Rules.GameMode = GameMode.Creative);
         var p = Player(server, "Walker", Outside);
         Ticks(server, 30);
-        Assert.Equal(double.NegativeInfinity, p.AmbientTemperatureReadAt); // no effect at all
+        Assert.Equal(double.NegativeInfinity, p.Hazards.AmbientTemperatureReadAt); // no effect at all
 
         server.StartEffectForTest(p, BioEffect.Speed, 5, 600);    // an effect that does not mind the weather
         server.StartEffectForTest(p, BioEffect.ColdWard, 5, 600); // a ward, but no hazard asks for insulation here
         Ticks(server, 30);
-        Assert.Equal(double.NegativeInfinity, p.AmbientTemperatureReadAt);
+        Assert.Equal(double.NegativeInfinity, p.Hazards.AmbientTemperatureReadAt);
 
         server.StartEffectForTest(p, BioEffect.Jump, 5, 600, thermal: BioThermal.ColdSensitive);
         var readings = new HashSet<double>();
         for (int i = 0; i < 60; i++) // six seconds
         {
             server.TickForTest(0.1);
-            readings.Add(p.AmbientTemperatureReadAt);
+            readings.Add(p.Hazards.AmbientTemperatureReadAt);
         }
 
         Assert.DoesNotContain(double.NegativeInfinity, readings);

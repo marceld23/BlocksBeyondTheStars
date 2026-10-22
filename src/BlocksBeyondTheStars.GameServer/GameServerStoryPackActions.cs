@@ -432,7 +432,7 @@ public sealed partial class GameServer
         {
             m.Remove(StoryPackKeys.StepReplay(ch.Pack.Id, step.Id));
             s.State.StepProgress.Remove(step.ProgressKey);
-            s.StepEscalation.Remove(step.ProgressKey);
+            s.Story.StepEscalation.Remove(step.ProgressKey);
         }
 
         _stepListenersDirty = true;
@@ -465,7 +465,7 @@ public sealed partial class GameServer
                         s.State.StepProgress[step.ProgressKey] = 0; // a running chapter starts its counters over
                     }
 
-                    s.StepEscalation.Remove(step.ProgressKey);
+                    s.Story.StepEscalation.Remove(step.ProgressKey);
                 }
             }
         }

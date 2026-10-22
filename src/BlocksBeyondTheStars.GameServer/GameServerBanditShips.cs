@@ -172,14 +172,14 @@ public sealed partial class GameServer
 
             case BanditPhase.Demanding:
                 {
-                    if (mark is null || mark.BanditDemandId == 0 || !mark.BanditDemandFromShip)
+                    if (mark is null || mark.Bandit.BanditDemandId == 0 || !mark.Bandit.BanditDemandFromShip)
                     {
                         // The pilot vanished (landed/disconnected) mid-hail — call it off.
                         BeginBanditShipLeave(instance, raider);
                         break;
                     }
 
-                    if (_uptime > mark.BanditDemandDeadline)
+                    if (_uptime > mark.Bandit.BanditDemandDeadline)
                     {
                         ResolveBanditShipDemand(mark, comply: false, outcome: "expired");
                     }
@@ -305,7 +305,7 @@ public sealed partial class GameServer
 
     private void BeginBanditShipDemand(SpaceInstance instance, CombatEntity raider, PlayerSession mark)
     {
-        if (mark.BanditDemandId != 0)
+        if (mark.Bandit.BanditDemandId != 0)
         {
             return; // some other hold-up is already on this player's screen — wait a tick
         }
@@ -336,7 +336,7 @@ public sealed partial class GameServer
             return;
         }
 
-        var raider = instance.Entities.FirstOrDefault(e => e.Id == session.BanditDemandBanditId);
+        var raider = instance.Entities.FirstOrDefault(e => e.Id == session.Bandit.BanditDemandBanditId);
         if (raider is null)
         {
             ClearBanditDemand(session);
@@ -371,7 +371,7 @@ public sealed partial class GameServer
     private void OnBanditShipAttacked(SpaceInstance instance, CombatEntity raider)
     {
         var mark = raider.BanditTargetId.Length > 0 ? FindSessionByPlayerId(raider.BanditTargetId) : FirstPilotIn(instance);
-        if (mark is not null && mark.BanditDemandId != 0 && mark.BanditDemandBanditId == raider.Id)
+        if (mark is not null && mark.Bandit.BanditDemandId != 0 && mark.Bandit.BanditDemandBanditId == raider.Id)
         {
             SendBanditResult(mark, "refused");
             ClearBanditDemand(mark);
@@ -386,7 +386,7 @@ public sealed partial class GameServer
     private void OnBanditShipKilled(SpaceInstance instance, CombatEntity raider)
     {
         var mark = raider.BanditTargetId.Length > 0 ? FindSessionByPlayerId(raider.BanditTargetId) : FirstPilotIn(instance);
-        if (mark is not null && mark.BanditDemandId != 0 && mark.BanditDemandBanditId == raider.Id)
+        if (mark is not null && mark.Bandit.BanditDemandId != 0 && mark.Bandit.BanditDemandBanditId == raider.Id)
         {
             SendBanditResult(mark, "destroyed");
             ClearBanditDemand(mark);
@@ -528,7 +528,7 @@ public sealed partial class GameServer
     /// first-ever warning uses the full briefing so the child knows the rules of a hold-up in advance.</summary>
     private void ShipAiBanditGroundWarning(PlayerSession session, bool hasCamps)
     {
-        if (!session.BanditBriefedWorlds.Add(_world.LocationId))
+        if (!session.Bandit.BanditBriefedWorlds.Add(_world.LocationId))
         {
             return; // this world was already announced this session
         }

@@ -16,7 +16,7 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <summary>The help-escalation clock of one active story-pack step for one session (#2466). RAM only.</summary>
 public sealed class StepEscalationState
 {
-    /// <summary><see cref="PlayerSession.StoryPackPlaySeconds"/> when the step activated or last made progress.</summary>
+    /// <summary><see cref="PlayerSessionStory.StoryPackPlaySeconds"/> when the step activated or last made progress.</summary>
     public double Since { get; set; }
 
     /// <summary>The hint line went out.</summary>
@@ -36,7 +36,7 @@ public sealed class StepEscalationState
     /// the first miss. A new location retries at once.</summary>
     public string? MarkerMissAt { get; set; }
 
-    /// <summary>#2490: <see cref="PlayerSession.StoryPackPlaySeconds"/> of the last miss — on the same spot the probe retries
+    /// <summary>#2490: <see cref="PlayerSessionStory.StoryPackPlaySeconds"/> of the last miss — on the same spot the probe retries
     /// after <c>MarkerRetrySeconds</c>.</summary>
     public double MarkerMissTime { get; set; }
 
@@ -547,7 +547,7 @@ public sealed partial class GameServer
         return step.Tier switch
         {
             StoryStepTiers.Must => true,
-            StoryStepTiers.Core => !(s.StepEscalation.TryGetValue(step.ProgressKey, out var esc) && esc.Deferred),
+            StoryStepTiers.Core => !(s.Story.StepEscalation.TryGetValue(step.ProgressKey, out var esc) && esc.Deferred),
             _ => false,
         };
     }
@@ -679,12 +679,12 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (!s.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
+            if (!s.Story.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
             {
-                s.StepEscalation[step.ProgressKey] = esc = new StepEscalationState { Since = s.StoryPackPlaySeconds };
+                s.Story.StepEscalation[step.ProgressKey] = esc = new StepEscalationState { Since = s.Story.StoryPackPlaySeconds };
             }
 
-            esc.Since = s.StoryPackPlaySeconds; // progress resets the help clock
+            esc.Since = s.Story.StoryPackPlaySeconds; // progress resets the help clock
             if (!esc.MidSent)
             {
                 esc.MidSent = true;
@@ -825,7 +825,7 @@ public sealed partial class GameServer
             {
                 // #2499: a newcomer whose client draws buttons is asked once whether they want the training — the walk below
                 // asks it right before the first lesson's line (after part 1's welcome card), AskSkipBeforeFirstStep.
-                s.AskSkipDuePack = AsksBeforeTraining(s, pack) ? pack.Id : string.Empty;
+                s.Story.AskSkipDuePack = AsksBeforeTraining(s, pack) ? pack.Id : string.Empty;
                 StartPack(s, pack);
             }
         }
@@ -848,7 +848,7 @@ public sealed partial class GameServer
             }
         }
 
-        s.AskSkipDuePack = string.Empty; // #2499: asked with the first lesson, or there was none to ask before
+        s.Story.AskSkipDuePack = string.Empty; // #2499: asked with the first lesson, or there was none to ask before
     }
 
     /// <summary>Starts a pack for a player: the started key, and for a tutorial the legacy intro key (older builds read it
@@ -892,7 +892,7 @@ public sealed partial class GameServer
                || c.Steps.Where(st => !st.IsReact && !st.IsAlternative).All(st =>
                    StepComplete(s, st) || (st.AlreadyDoneIf is not null && EvaluateStoryCondition(st.AlreadyDoneIf, s))));
 
-    /// <summary>The key of a chapter in <see cref="PlayerSession.PresentedPackChapters"/>.</summary>
+    /// <summary>The key of a chapter in <see cref="PlayerSessionStory.PresentedPackChapters"/>.</summary>
     private static string PresentedChapterKey(CompiledChapter ch) => ch.Pack.Id + ":" + ch.Id;
 
     /// <summary>One pass over a running chapter's steps in order. Returns true when something completed (the caller walks
@@ -1098,7 +1098,7 @@ public sealed partial class GameServer
             s.State.StepProgress[step.ProgressKey] = 0;
         }
 
-        s.StepEscalation[step.ProgressKey] = new StepEscalationState { Since = s.StoryPackPlaySeconds };
+        s.Story.StepEscalation[step.ProgressKey] = new StepEscalationState { Since = s.Story.StoryPackPlaySeconds };
         ResetTutorialWalk(s, step); // #2550: a walk back to the ship counts from this activation on, never from before it
         _stepListenersDirty = true;
         MarkJournalDirty(s); // #2471: a new task in the Journal
@@ -1112,7 +1112,7 @@ public sealed partial class GameServer
         // before the start line, so a client that plays them knows which lines they show. #2471: a step the player meets for
         // the first time inside a replay (a running chapter restarted from the Journal) still gets its own scene.
         bool replay = ChapterReplaying(s, step.Chapter);
-        if (s.PresentedPackChapters.Add(PresentedChapterKey(step.Chapter)) && !replay)
+        if (s.Story.PresentedPackChapters.Add(PresentedChapterKey(step.Chapter)) && !replay)
         {
             PlayBoundCutscene(s, step.Pack.Def, step.Chapter.Def.OpenCutscene, step.Chapter.Id);
         }
@@ -1161,7 +1161,7 @@ public sealed partial class GameServer
         }
 
         s.State.StepProgress.Remove(step.ProgressKey);
-        s.StepEscalation.Remove(step.ProgressKey);
+        s.Story.StepEscalation.Remove(step.ProgressKey);
         _stepListenersDirty = true;
         MarkJournalDirty(s);
 
@@ -1175,7 +1175,7 @@ public sealed partial class GameServer
 
         if (!silent)
         {
-            s.PresentedPackChapters.Add(PresentedChapterKey(step.Chapter)); // the player did it: the chapter was shown
+            s.Story.PresentedPackChapters.Add(PresentedChapterKey(step.Chapter)); // the player did it: the chapter was shown
             if (!replay || first)
             {
                 PlayBoundCutscene(s, step.Pack.Def, step.Def.OnComplete?.Cutscene, step.Id); // #2467: before the lines
@@ -1215,7 +1215,7 @@ public sealed partial class GameServer
             _stepListenersDirty = true;
         }
 
-        s.StepEscalation.Remove(step.ProgressKey);
+        s.Story.StepEscalation.Remove(step.ProgressKey);
         MarkJournalDirty(s);
         _repo.SavePlayer(s.State);
     }
@@ -1264,7 +1264,7 @@ public sealed partial class GameServer
             else if (step.IsAlternative && StepActive(s, step))
             {
                 s.State.StepProgress.Remove(step.ProgressKey); // a stand-in has no business once the chapter is through
-                s.StepEscalation.Remove(step.ProgressKey);
+                s.Story.StepEscalation.Remove(step.ProgressKey);
             }
         }
 
@@ -1272,7 +1272,7 @@ public sealed partial class GameServer
         _repo.SavePlayer(s.State);
 
         // #2467: the closer only for a chapter the player was shown — not when skipped, replayed or completed silently.
-        if (!skipped && (!replay || first) && s.PresentedPackChapters.Contains(PresentedChapterKey(ch)))
+        if (!skipped && (!replay || first) && s.Story.PresentedPackChapters.Contains(PresentedChapterKey(ch)))
         {
             PlayBoundCutscene(s, ch.Pack.Def, ch.Def.CloseCutscene, ch.Id);
         }
@@ -1341,7 +1341,7 @@ public sealed partial class GameServer
             {
                 // #2479: the suggestions are this moment's offer — the next deep dive VEGA offers by itself (a data cache in
                 // reach …) waits the usual gap, so the graduation's cards and lines are not followed by an offer line at once.
-                s.LastChapterOfferAt = s.StoryPackPlaySeconds;
+                s.Story.LastChapterOfferAt = s.Story.StoryPackPlaySeconds;
                 marked = true;
             }
         }
@@ -1533,9 +1533,9 @@ public sealed partial class GameServer
             else
             {
                 progress[step.ProgressKey] = count;
-                if (actor.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
+                if (actor.Story.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
                 {
-                    esc.Since = actor.StoryPackPlaySeconds; // progress resets the help clock
+                    esc.Since = actor.Story.StoryPackPlaySeconds; // progress resets the help clock
                 }
 
                 chipMoved = true;
@@ -1691,7 +1691,7 @@ public sealed partial class GameServer
             return;
         }
 
-        s.StoryPackPlaySeconds += 1.0;
+        s.Story.StoryPackPlaySeconds += 1.0;
         AdvancePlayer(s, offers: true);
         foreach (var pack in PlayerPacks)
         {
@@ -1720,7 +1720,7 @@ public sealed partial class GameServer
         }
 
         MilestonesOf(s).Add(StoryPackKeys.ChapterOffered(pack.Id, ch.Id));
-        s.LastChapterOfferAt = s.StoryPackPlaySeconds;
+        s.Story.LastChapterOfferAt = s.Story.StoryPackPlaySeconds;
         MarkJournalDirty(s); // #2471: Start / Later in the Journal
         MarkTipsToldByOffer(s, ch); // #2459: the tip of this moment is the offer — it does not follow it
         string title = string.IsNullOrEmpty(ch.Def.TitleKey) ? ch.Id : LocalizerFor(s.Locale).Get(ch.Def.TitleKey);
@@ -1743,7 +1743,7 @@ public sealed partial class GameServer
     private CompiledChapter? DueOffer(PlayerSession s, CompiledPack pack)
     {
         if (!PackRunsFor(s, pack) || (pack.IsTutorial && !s.SupportsPacks)
-            || s.StoryPackPlaySeconds - s.LastChapterOfferAt < ChapterOfferGapSeconds
+            || s.Story.StoryPackPlaySeconds - s.Story.LastChapterOfferAt < ChapterOfferGapSeconds
             || !pack.Chapters.Where(c => !c.Optional).All(c => ChapterFinished(s, c)))
         {
             return null;
@@ -1784,12 +1784,12 @@ public sealed partial class GameServer
     /// on the objective chip gets a marker (#2570, <see cref="MarkerFitsTheChip"/>).</summary>
     private void EscalateStep(PlayerSession s, CompiledStep step)
     {
-        if (!s.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
+        if (!s.Story.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
         {
-            s.StepEscalation[step.ProgressKey] = esc = new StepEscalationState { Since = s.StoryPackPlaySeconds };
+            s.Story.StepEscalation[step.ProgressKey] = esc = new StepEscalationState { Since = s.Story.StoryPackPlaySeconds };
         }
 
-        double open = s.StoryPackPlaySeconds - esc.Since;
+        double open = s.Story.StoryPackPlaySeconds - esc.Since;
         var pack = step.Pack.Def.Escalate ?? new StoryEscalation();
         int hintAfter = step.Def.Escalate?.HintAfter ?? pack.HintAfter ?? StoryEscalation.DefaultHintAfter;
         int markerAfter = step.Def.Escalate?.MarkerAfter ?? pack.MarkerAfter ?? StoryEscalation.DefaultMarkerAfter;
@@ -1817,7 +1817,7 @@ public sealed partial class GameServer
             else
             {
                 esc.MarkerMissAt = MarkerLocationKey(s); // #2490: not spent — retried elsewhere or a little later
-                esc.MarkerMissTime = s.StoryPackPlaySeconds;
+                esc.MarkerMissTime = s.Story.StoryPackPlaySeconds;
             }
         }
 
@@ -1834,7 +1834,7 @@ public sealed partial class GameServer
     private bool MarkerProbeDue(PlayerSession s, StepEscalationState esc)
         => esc.MarkerMissAt is null
            || !string.Equals(esc.MarkerMissAt, MarkerLocationKey(s), StringComparison.Ordinal)
-           || s.StoryPackPlaySeconds - esc.MarkerMissTime >= MarkerRetrySeconds;
+           || s.Story.StoryPackPlaySeconds - esc.MarkerMissTime >= MarkerRetrySeconds;
 
     /// <summary>#2490: where the player is for the marker retry — the body, and whether they are in flight above it or on a
     /// station (a launch or a landing on the same body is a new place for the providers).</summary>
@@ -2024,7 +2024,7 @@ public sealed partial class GameServer
         {
             if (_stepByProgressKey.TryGetValue(key, out var running))
             {
-                s.PresentedPackChapters.Add(PresentedChapterKey(running.Chapter)); // #2467: a chapter under way was shown
+                s.Story.PresentedPackChapters.Add(PresentedChapterKey(running.Chapter)); // #2467: a chapter under way was shown
             }
         }
 
@@ -2038,6 +2038,6 @@ public sealed partial class GameServer
             }
         }
 
-        s.StoryPacksJoined = true;
+        s.Story.StoryPacksJoined = true;
     }
 }

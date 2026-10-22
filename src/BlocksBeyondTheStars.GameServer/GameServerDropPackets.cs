@@ -168,12 +168,12 @@ public sealed partial class GameServer
     /// old "backpack full" hint it replaces (#600), because one drill swing can overflow on a dozen blocks.</summary>
     private void NotifyDropped(PlayerSession session)
     {
-        if (_uptime < session.NextInventoryFullHintAt)
+        if (_uptime < session.Throttles.NextInventoryFullHintAt)
         {
             return;
         }
 
-        session.NextInventoryFullHintAt = _uptime + InventoryFullHintCooldown;
+        session.Throttles.NextInventoryFullHintAt = _uptime + InventoryFullHintCooldown;
         Send(session, new ServerMessage { Text = "@dropped_on_ground" });
     }
 

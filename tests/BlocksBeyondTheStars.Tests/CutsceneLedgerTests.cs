@@ -234,12 +234,12 @@ public sealed class CutsceneLedgerTests : IDisposable
             "line:story.cutscene_test.two1.start", // big_moment (onStart, T3) waits for the cooldown
         }, order);
         Assert.Equal(ChapterArg("one"), transport.To<CutscenePlay>(p).Single(x => x.CutsceneId == "done@one").Arg);
-        Assert.Equal("big_moment", Assert.Single(p.CutsceneQueue).Id);
+        Assert.Equal("big_moment", Assert.Single(p.Story.CutsceneQueue).Id);
         Assert.True(Has(p, Sent("big_moment")));
 
         Wait(server, p, SvGameServer.CutsceneCooldownSeconds);
         Assert.Equal("big_moment", transport.Plays(p).Last());
-        Assert.Empty(p.CutsceneQueue);
+        Assert.Empty(p.Story.CutsceneQueue);
     }
 
     [Fact]
@@ -252,7 +252,7 @@ public sealed class CutsceneLedgerTests : IDisposable
 
         server.RaiseGameEventForTest(p, GameEventKeys.MineAny, "stone");
         Assert.Equal(new[] { "done@one" }, transport.Plays(p)); // the banner at once, the cards wait
-        Assert.Equal(new[] { "first_mine", "strip@two", "big_moment" }, p.CutsceneQueue.Select(q => q.Id));
+        Assert.Equal(new[] { "first_mine", "strip@two", "big_moment" }, p.Story.CutsceneQueue.Select(q => q.Id));
 
         Assert.True(server.PlayCutsceneForTest(p, C, "now"));
         Assert.Equal("now", transport.Plays(p).Last()); // "now or never" — and it restarts the cooldown
@@ -330,12 +330,12 @@ public sealed class CutsceneLedgerTests : IDisposable
         p.State.Milestones.Add(StoryPackKeys.OptOut(C));
 
         server.CutscenesOnJoinForTest(p);
-        Assert.Empty(p.CutsceneQueue);
+        Assert.Empty(p.Story.CutsceneQueue);
         Assert.False(Has(p, Seen("welcome"))); // still owed
 
         p.State.Milestones.Remove(StoryPackKeys.OptOut(C));
         server.CutscenesOnJoinForTest(p);
-        Assert.Equal(new[] { "welcome", "strip@one" }, p.CutsceneQueue.Select(q => q.Id));
+        Assert.Equal(new[] { "welcome", "strip@one" }, p.Story.CutsceneQueue.Select(q => q.Id));
     }
 
     [Fact]

@@ -168,9 +168,9 @@ public sealed partial class GameServer
                 SendStoryResolvedOnJoinIfMissed(s);
             }
 
-            foreach (var esc in s.StepEscalation.Where(e => e.Key.StartsWith(stepPrefix, StringComparison.Ordinal)))
+            foreach (var esc in s.Story.StepEscalation.Where(e => e.Key.StartsWith(stepPrefix, StringComparison.Ordinal)))
             {
-                esc.Value.Since = s.StoryPackPlaySeconds;
+                esc.Value.Since = s.Story.StoryPackPlaySeconds;
             }
 
             SendStoryState(s);

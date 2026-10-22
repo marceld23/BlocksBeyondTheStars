@@ -224,7 +224,7 @@ public sealed class PlanetScannerTests : IDisposable
         {
             var p = server.AddLocalPlayer("Digger");
             p.State.AboardShip = false;
-            p.VegaMineRecent = 6.0; // has been digging a lot
+            p.Vega.VegaMineRecent = 6.0; // has been digging a lot
 
             Assert.Contains("scanner_unknown", server.VegaTipCandidatesForTest("Digger").Candidates);
 

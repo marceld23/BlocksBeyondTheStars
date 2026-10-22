@@ -85,12 +85,12 @@ public sealed partial class GameServer
         if (!p.InEva && (p.AboardShip || insideShip || InStation(p.PlayerId)))
         {
             p.SuitClimateActive = false;
-            session.TemperatureSeverity = 0f;
-            session.TemperatureScanIn = 0; // rescan immediately after stepping back out
+            session.Hazards.TemperatureSeverity = 0f;
+            session.Hazards.TemperatureScanIn = 0; // rescan immediately after stepping back out
             p.Exposure = 0f; // 2026-09: the ship and the station reset the exposure meter
-            session.ExposureActive = false;
-            session.ExposureFullSeconds = 0;
-            session.ExposureWarned = 0;
+            session.Hazards.ExposureActive = false;
+            session.Hazards.ExposureFullSeconds = 0;
+            session.Hazards.ExposureWarned = 0;
             return;
         }
 
@@ -100,16 +100,16 @@ public sealed partial class GameServer
             return;
         }
 
-        session.ExposureActive = false;
+        session.Hazards.ExposureActive = false;
 
-        session.TemperatureScanIn -= dt;
-        if (session.TemperatureScanIn <= 0)
+        session.Hazards.TemperatureScanIn -= dt;
+        if (session.Hazards.TemperatureScanIn <= 0)
         {
-            session.TemperatureScanIn = TemperatureScanInterval;
-            session.TemperatureSeverity = ComputeTemperatureSeverity(session);
+            session.Hazards.TemperatureScanIn = TemperatureScanInterval;
+            session.Hazards.TemperatureSeverity = ComputeTemperatureSeverity(session);
         }
 
-        float severity = session.TemperatureSeverity;
+        float severity = session.Hazards.TemperatureSeverity;
         if (severity <= 0f)
         {
             p.SuitClimateActive = false;
@@ -119,7 +119,7 @@ public sealed partial class GameServer
         if (!p.SuitClimateActive)
         {
             // #2469: the suit just started fighting the climate — the tutorial's "a roof helps" reaction.
-            RaiseGameEvent(session, Shared.Story.GameEventKeys.SuitClimate, session.EffectiveTemperatureC < ComfortLowC ? "cold" : "heat");
+            RaiseGameEvent(session, Shared.Story.GameEventKeys.SuitClimate, session.Hazards.EffectiveTemperatureC < ComfortLowC ? "cold" : "heat");
         }
 
         p.SuitClimateActive = true;
@@ -141,7 +141,7 @@ public sealed partial class GameServer
     {
         var p = session.State;
         float t = OutsideTemperature(p, out bool vacuum);
-        session.EffectiveTemperatureC = t;
+        session.Hazards.EffectiveTemperatureC = t;
         NoteAmbientTemperature(session, t); // #2218: the status effects feel the same air — one reading serves both
 
         // Vacuum has no roof (an EVA position is space-instance coordinates).
@@ -206,20 +206,20 @@ public sealed partial class GameServer
     /// </summary>
     private float AmbientTemperature(PlayerSession session)
     {
-        if (_uptime - session.AmbientTemperatureReadAt >= AmbientTemperatureMaxAge)
+        if (_uptime - session.Hazards.AmbientTemperatureReadAt >= AmbientTemperatureMaxAge)
         {
             var p = session.State;
             bool cabin = !p.InEva && (p.AboardShip || ShipInteriorContains(p.Position) || InStation(p.PlayerId));
             NoteAmbientTemperature(session, cabin ? CabinComfortC : OutsideTemperature(p, out _));
         }
 
-        return session.AmbientTemperatureC;
+        return session.Hazards.AmbientTemperatureC;
     }
 
     private void NoteAmbientTemperature(PlayerSession session, float temperatureC)
     {
-        session.AmbientTemperatureC = temperatureC;
-        session.AmbientTemperatureReadAt = _uptime;
+        session.Hazards.AmbientTemperatureC = temperatureC;
+        session.Hazards.AmbientTemperatureReadAt = _uptime;
     }
 
     /// <summary>Test seam (#2218): the temperature a player's status effects feel right now.</summary>
@@ -282,55 +282,55 @@ public sealed partial class GameServer
     {
         var p = session.State;
         p.SuitClimateActive = false; // the suit battery is not the buffer here — the meter is
-        session.ExposureActive = true;
-        session.TemperatureScanIn -= dt;
-        if (session.TemperatureScanIn <= 0)
+        session.Hazards.ExposureActive = true;
+        session.Hazards.TemperatureScanIn -= dt;
+        if (session.Hazards.TemperatureScanIn <= 0)
         {
-            session.TemperatureScanIn = TemperatureScanInterval;
-            session.TemperatureSeverity = ComputeTemperatureSeverity(session); // keeps the HUD/VEGA reading current
+            session.Hazards.TemperatureScanIn = TemperatureScanInterval;
+            session.Hazards.TemperatureSeverity = ComputeTemperatureSeverity(session); // keeps the HUD/VEGA reading current
             var cell = p.Position.ToBlock();
-            session.ExposureHot = _generator.IsHotZoneAt(planet, cell.X, cell.Z) && session.EffectiveTemperatureC > ComfortHighC;
-            session.ExposureRoofed = RoofedAt(p.Position);
-            session.ExposureSheltered = InAnyBaseZone(cell) || InSealedBaseRoom(cell) || session.TemperatureSeverity <= 0f;
+            session.Hazards.ExposureHot = _generator.IsHotZoneAt(planet, cell.X, cell.Z) && session.Hazards.EffectiveTemperatureC > ComfortHighC;
+            session.Hazards.ExposureRoofed = RoofedAt(p.Position);
+            session.Hazards.ExposureSheltered = InAnyBaseZone(cell) || InSealedBaseRoom(cell) || session.Hazards.TemperatureSeverity <= 0f;
             if (InSpsLab(p.Position))
             {
                 ShipAiHintOnce(session, "sps_lab"); // the first step into an old SPS module
             }
         }
 
-        if (session.ExposureSheltered)
+        if (session.Hazards.ExposureSheltered)
         {
             p.Exposure = System.Math.Max(0f, p.Exposure - (float)(dt / ExposureRecoverSeconds));
         }
         else
         {
-            double seconds = System.Math.Max(1.0, ExposureSeconds(p, planet, session.ExposureHot));
-            double rate = (session.ExposureRoofed ? 0.5 : 1.0) / seconds;
+            double seconds = System.Math.Max(1.0, ExposureSeconds(p, planet, session.Hazards.ExposureHot));
+            double rate = (session.Hazards.ExposureRoofed ? 0.5 : 1.0) / seconds;
             p.Exposure = System.Math.Min(1f, p.Exposure + (float)(dt * rate));
         }
 
         if (p.Exposure >= 1f)
         {
-            session.ExposureFullSeconds += dt;
-            float dps = System.Math.Min(MaxTemperatureDamagePerSecond, ExposureDamageStart + ExposureDamageRise * (float)session.ExposureFullSeconds);
+            session.Hazards.ExposureFullSeconds += dt;
+            float dps = System.Math.Min(MaxTemperatureDamagePerSecond, ExposureDamageStart + ExposureDamageRise * (float)session.Hazards.ExposureFullSeconds);
             DamagePlayer(p, (float)(dt * dps));
-            session.HazardDeathReason = session.ExposureHot ? "@srv.death.burned" : "@srv.death.froze";
+            session.Hazards.HazardDeathReason = session.Hazards.ExposureHot ? "@srv.death.burned" : "@srv.death.froze";
         }
         else
         {
-            session.ExposureFullSeconds = 0;
+            session.Hazards.ExposureFullSeconds = 0;
         }
 
         int level = p.Exposure >= 0.9f ? 3 : p.Exposure >= 0.75f ? 2 : p.Exposure >= 0.5f ? 1 : 0;
-        if (level > session.ExposureWarned)
+        if (level > session.Hazards.ExposureWarned)
         {
-            session.ExposureWarned = level;
-            string kind = session.ExposureHot ? "hot" : "cold";
+            session.Hazards.ExposureWarned = level;
+            string kind = session.Hazards.ExposureHot ? "hot" : "cold";
             SendVegaLine(session, $"vega.sys.exposure_{kind}_{(level == 1 ? 50 : level == 2 ? 75 : 90)}", 3);
         }
         else if (p.Exposure < 0.4f)
         {
-            session.ExposureWarned = 0;
+            session.Hazards.ExposureWarned = 0;
         }
     }
 

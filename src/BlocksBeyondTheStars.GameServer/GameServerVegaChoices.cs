@@ -64,13 +64,13 @@ public sealed partial class GameServer
     /// went out (or was queued), so the panel shows it once the card is gone. Once per start: the flag is spent here.</summary>
     private void AskSkipBeforeFirstStep(PlayerSession s, CompiledStep step)
     {
-        if (s.AskSkipDuePack.Length == 0 || !string.Equals(s.AskSkipDuePack, step.Pack.Id, StringComparison.Ordinal))
+        if (s.Story.AskSkipDuePack.Length == 0 || !string.Equals(s.Story.AskSkipDuePack, step.Pack.Id, StringComparison.Ordinal))
         {
             return;
         }
 
-        s.AskSkipDuePack = string.Empty;
-        s.AskSkipOpenPack = step.Pack.Id;
+        s.Story.AskSkipDuePack = string.Empty;
+        s.Story.AskSkipOpenPack = step.Pack.Id;
         SendPackLine(s, step.Pack, AskSkipLine, choices: new[]
         {
             ShipAiChoices.Encode(ChoiceLetsGo, ShipAiChoices.Continue, step.Pack.Id),
@@ -83,12 +83,12 @@ public sealed partial class GameServer
     /// question either way.</summary>
     private bool AnswersAskSkip(PlayerSession s, CompiledPack pack)
     {
-        if (!string.Equals(s.AskSkipOpenPack, pack.Id, StringComparison.Ordinal))
+        if (!string.Equals(s.Story.AskSkipOpenPack, pack.Id, StringComparison.Ordinal))
         {
             return false;
         }
 
-        s.AskSkipOpenPack = string.Empty;
+        s.Story.AskSkipOpenPack = string.Empty;
         return PackStarted(s, pack) && !MandatoryChaptersThrough(s, pack);
     }
 

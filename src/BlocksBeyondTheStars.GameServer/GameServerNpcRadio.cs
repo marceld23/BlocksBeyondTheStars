@@ -44,8 +44,8 @@ public sealed partial class GameServer
     /// <summary>Arms the join quiet period (called from the join flow).</summary>
     private void ArmNpcRadioOnJoin(PlayerSession session)
     {
-        session.NpcCallReadyAt = System.Math.Max(session.NpcCallReadyAt, _uptime + NpcCallJoinQuiet);
-        session.NpcCallScanAt = _uptime + NpcCallJoinQuiet;
+        session.Npc.NpcCallReadyAt = System.Math.Max(session.Npc.NpcCallReadyAt, _uptime + NpcCallJoinQuiet);
+        session.Npc.NpcCallScanAt = _uptime + NpcCallJoinQuiet;
     }
 
     /// <summary>Whether the player's radio tier reaches a location: galaxy = anywhere, system = the same
@@ -94,8 +94,8 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (_uptime < session.NpcCallReadyAt
-            || (session.NpcCallCooldownUntil.TryGetValue(cooldownKey, out double until) && _uptime < until)
+        if (_uptime < session.Npc.NpcCallReadyAt
+            || (session.Npc.NpcCallCooldownUntil.TryGetValue(cooldownKey, out double until) && _uptime < until)
             || !NpcRadioReaches(session, bodyId))
         {
             return false;
@@ -108,8 +108,8 @@ public sealed partial class GameServer
         }
 
         Send(session, new ChatMessage { Sender = $"☎ {npcName} ({place})", Text = text, IsNpcCall = true });
-        session.NpcCallReadyAt = _uptime + NpcCallGap;
-        session.NpcCallCooldownUntil[cooldownKey] = _uptime + NpcCallRepeatCooldown;
+        session.Npc.NpcCallReadyAt = _uptime + NpcCallGap;
+        session.Npc.NpcCallCooldownUntil[cooldownKey] = _uptime + NpcCallRepeatCooldown;
         return true;
     }
 
@@ -124,7 +124,7 @@ public sealed partial class GameServer
     /// for ordinary news, anything but Off for an <paramref name="urgent"/> warning (the guard's scouts, like the ☎ it
     /// replaces); a line on the advisor/tip channel (<paramref name="kind"/> 1 or 5) is held back while the player muted
     /// VEGA's hints (nothing is spent); and the per-key cooldown <paramref name="cooldownKey"/> — SHARED with the radio's
-    /// (<see cref="PlayerSession.NpcCallCooldownUntil"/>), so one piece of news is told once by whichever channel got
+    /// (<see cref="PlayerSessionNpc.NpcCallCooldownUntil"/>), so one piece of news is told once by whichever channel got
     /// there first. <paramref name="kind"/>: 3 (system, never muted — the default) or 1 (an advisor line the hints
     /// switch mutes). With AI personalisation on, a cached <c>vega_news</c> re-wording that keeps every
     /// <c>{0}</c>/<c>{1}</c> of the authored line is used.</para>
@@ -137,12 +137,12 @@ public sealed partial class GameServer
         if (!owner.Joined || owner.Spectating
             || p.NpcCallsMode == NpcCallsMode.Off || (!urgent && p.NpcCallsMode != NpcCallsMode.All)
             || HintMutedFor(owner, kind)
-            || (owner.NpcCallCooldownUntil.TryGetValue(cooldownKey, out double until) && _uptime < until))
+            || (owner.Npc.NpcCallCooldownUntil.TryGetValue(cooldownKey, out double until) && _uptime < until))
         {
             return false;
         }
 
-        owner.NpcCallCooldownUntil[cooldownKey] = _uptime + cooldownSeconds;
+        owner.Npc.NpcCallCooldownUntil[cooldownKey] = _uptime + cooldownSeconds;
         var anchors = new List<string> { Localize(owner.Locale, lineKey) };
         var values = new Dictionary<string, string>(System.StringComparer.Ordinal);
         for (int i = 0; i < args.Length; i++)
@@ -162,12 +162,12 @@ public sealed partial class GameServer
     {
         foreach (var session in _sessions.Values)
         {
-            if (!session.Joined || _uptime < session.NpcCallScanAt)
+            if (!session.Joined || _uptime < session.Npc.NpcCallScanAt)
             {
                 continue;
             }
 
-            session.NpcCallScanAt = _uptime + NpcCallScanInterval;
+            session.Npc.NpcCallScanAt = _uptime + NpcCallScanInterval;
 
             // Each scan may place at most one call; a placed call arms the global cadence, which silences
             // the remaining scans of this pass automatically.
@@ -211,7 +211,7 @@ public sealed partial class GameServer
                         $"camp:{SettlementLocationKey(s.Name)}:{camp.Key}", "npc.call.camp", string.Empty, isMission: true)) // #2693: per body (a runtime cooldown)
                 {
                     // Remember who called: clearing the camp now pays a friendship bonus (#1158).
-                    session.CalledCamps[camp.Key] = (npcKey, SettlementGiverName(s), s.Name);
+                    session.Npc.CalledCamps[camp.Key] = (npcKey, SettlementGiverName(s), s.Name);
                     return;
                 }
             }
@@ -224,7 +224,7 @@ public sealed partial class GameServer
     {
         foreach (var session in _sessions.Values)
         {
-            if (!session.Joined || !session.CalledCamps.Remove(camp.Key, out var call))
+            if (!session.Joined || !session.Npc.CalledCamps.Remove(camp.Key, out var call))
             {
                 continue;
             }
@@ -432,8 +432,8 @@ public sealed partial class GameServer
     {
         if (FindSessionByPlayerId(playerId) is { } session)
         {
-            session.NpcCallReadyAt = 0;
-            session.NpcCallScanAt = 0;
+            session.Npc.NpcCallReadyAt = 0;
+            session.Npc.NpcCallScanAt = 0;
         }
     }
 }

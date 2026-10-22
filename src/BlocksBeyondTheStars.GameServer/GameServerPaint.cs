@@ -90,7 +90,7 @@ public sealed partial class GameServer
 
         // Same anti-spam as the pixel face: repainting is rare, and each accepted paint can mean a disk
         // save + a world-wide rebroadcast.
-        if (_uptime < session.NextPaintAt)
+        if (_uptime < session.Throttles.NextPaintAt)
         {
             return;
         }
@@ -141,7 +141,7 @@ public sealed partial class GameServer
             return; // unchanged (same design, or clearing an unpainted block) — no save, no broadcast
         }
 
-        session.NextPaintAt = _uptime + 2.0;
+        session.Throttles.NextPaintAt = _uptime + 2.0;
         var (tint, glow) = _world.GetModifier(pos);
 
         // #2727: a stroke on a settlement's own block (a village's, a lodge's, the intercity line's) is written without the
@@ -200,7 +200,7 @@ public sealed partial class GameServer
             // The block-paint anti-spam only bites when this bitmap would actually REGISTER (disk write +
             // world-wide broadcast); re-applying a known design is as cheap as any craft.
             bool isNew = !_paintDesignIdByPixels.ContainsKey(pixels);
-            if (isNew && _uptime < session.NextPaintAt)
+            if (isNew && _uptime < session.Throttles.NextPaintAt)
             {
                 return;
             }
@@ -213,7 +213,7 @@ public sealed partial class GameServer
 
             if (isNew)
             {
-                session.NextPaintAt = _uptime + 2.0;
+                session.Throttles.NextPaintAt = _uptime + 2.0;
             }
         }
 

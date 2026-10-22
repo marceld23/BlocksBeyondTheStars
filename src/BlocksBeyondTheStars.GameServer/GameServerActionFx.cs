@@ -65,7 +65,7 @@ public sealed partial class GameServer
             return;
         }
 
-        if (session.RespawnChoiceDeadline > 0 || session.State.Health <= 0f)
+        if (session.Respawn.RespawnChoiceDeadline > 0 || session.State.Health <= 0f)
         {
             return; // lying dead awaiting the respawn choice — the corpse does not shoot
         }
@@ -123,19 +123,19 @@ public sealed partial class GameServer
     /// voice gates use): refilled at <see cref="FxRelayRatePerSecond"/>, capped at <see cref="FxRelayBurst"/>.</summary>
     private bool TakeFxToken(PlayerSession session)
     {
-        double elapsed = _uptime - session.FxRefilledAt;
-        session.FxRefilledAt = _uptime;
+        double elapsed = _uptime - session.Throttles.FxRefilledAt;
+        session.Throttles.FxRefilledAt = _uptime;
         if (elapsed > 0)
         {
-            session.FxBudget = System.Math.Min(FxRelayBurst, session.FxBudget + (elapsed * FxRelayRatePerSecond));
+            session.Throttles.FxBudget = System.Math.Min(FxRelayBurst, session.Throttles.FxBudget + (elapsed * FxRelayRatePerSecond));
         }
 
-        if (session.FxBudget < 1.0)
+        if (session.Throttles.FxBudget < 1.0)
         {
             return false;
         }
 
-        session.FxBudget -= 1.0;
+        session.Throttles.FxBudget -= 1.0;
         return true;
     }
 

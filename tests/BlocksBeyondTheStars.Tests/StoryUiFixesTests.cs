@@ -352,7 +352,7 @@ public sealed class StoryUiFixesTests : IDisposable
         float line = (float)server.AtmosphereHeight;
 
         Deliver(server, p, new SetNpcCallsIntent { Mode = 0, VegaHintsMuted = true });
-        Assert.True(p.VegaHintsMuted);
+        Assert.True(p.Vega.VegaHintsMuted);
 
         int Hints() => transport.To<ShipAiLine>(p).Count(l => l.LineKey == "vega.hint.zero_g");
         void Float(float y)
@@ -442,7 +442,7 @@ public sealed class StoryUiFixesTests : IDisposable
         var (server, _, p) = HeldWorld("held_prefs");
         Deliver(server, p, new SetNpcCallsIntent { Mode = (int)NpcCallsMode.Off, VegaHintsMuted = true });
         Assert.Equal(NpcCallsMode.Off, p.State.NpcCallsMode);
-        Assert.True(p.VegaHintsMuted);
+        Assert.True(p.Vega.VegaHintsMuted);
         Assert.True(server.IsPaused);
     }
 

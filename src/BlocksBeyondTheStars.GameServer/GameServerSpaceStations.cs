@@ -605,7 +605,7 @@ public sealed partial class GameServer
         session.State.Position = at ?? station.Spawn;
         session.State.AboardShip = false;
         session.State.InEva = false; // docking ends any spacewalk — the station has life support
-        session.SentChunks.Clear();
+        session.Streaming.SentChunks.Clear();
         session.AwaitingSpawnAdopt = true; // #1833: like every other server teleport — the client's stale stream must not drag them back (#865)
         MarkArrivedOnBody(session, station.Id); // boarding marks the station visited → a travel-screen target
         MarkBodyVisited(station.Id); // #1856: …and charted for everyone — the galaxy status, not just this player's list
@@ -830,7 +830,7 @@ public sealed partial class GameServer
         MarkArrivedOnBody(session, returnLoc); // back on this body → a quick-travel target
         session.State.Position = _shipPlaced ? _healTank : session.State.RespawnPoint;
         session.State.AboardShip = true;
-        session.SentChunks.Clear();
+        session.Streaming.SentChunks.Clear();
 
         SendReturnWorldSnapshot(session, returnType);
 

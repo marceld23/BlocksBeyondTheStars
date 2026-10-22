@@ -637,7 +637,7 @@ public sealed partial class GameServer
             env.Temperature = VacuumTemperature(_dayFraction);
             env.Precipitation = "none";
         }
-        else if (session.MoodUneasy && session.MoodLocationId == _world.LocationId)
+        else if (session.Hazards.MoodUneasy && session.Hazards.MoodLocationId == _world.LocationId)
         {
             // 2026-09 (Valuma): after a long stay the fog closes in around this player, whatever the sky does.
             env.Weather = "fog";

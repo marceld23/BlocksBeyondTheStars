@@ -63,7 +63,7 @@ public sealed class AppearanceAfterTripsTests : IDisposable
     /// unchanged pose is only re-sent every few beats), and answers a pending death-screen choice first.</summary>
     private static void Move(SvGameServer server, PlayerSession s, float yaw)
     {
-        if (s.RespawnChoiceDeadline > 0)
+        if (s.Respawn.RespawnChoiceDeadline > 0)
         {
             server.HandlePayloadForTest(s.ConnectionId, NetCodec.Encode(new RespawnChoiceIntent { UseCustomSpawn = false }));
         }

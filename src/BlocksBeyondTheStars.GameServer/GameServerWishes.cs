@@ -537,12 +537,12 @@ public sealed partial class GameServer
             }
 
             int have = WishHave(session, plan.Def, plan.Held, pool);
-            if (session.WishReminded.TryGetValue(plan.MissionId, out int said) && said == have)
+            if (session.Npc.WishReminded.TryGetValue(plan.MissionId, out int said) && said == have)
             {
                 return false; // nothing new since the last reminder — an ordinary chat this time
             }
 
-            session.WishReminded[plan.MissionId] = have;
+            session.Npc.WishReminded[plan.MissionId] = have;
             if (welcomeBack)
             {
                 SendPassingGreeting(session, npc, npcKey, welcomeBack: true);
@@ -560,7 +560,7 @@ public sealed partial class GameServer
             return true;
         }
 
-        if (plan.Held is not null || session.DeclinedWishGivers.Contains(npc.PersonKey) || WishOfferPaused(npc))
+        if (plan.Held is not null || session.Npc.DeclinedWishGivers.Contains(npc.PersonKey) || WishOfferPaused(npc))
         {
             return false; // "maybe later" — the ordinary chat until the next visit (the "!" stays); a festival goes first
         }
@@ -625,7 +625,7 @@ public sealed partial class GameServer
     {
         if (what == "later")
         {
-            session.DeclinedWishGivers.Add(npc.PersonKey);
+            session.Npc.DeclinedWishGivers.Add(npc.PersonKey);
             return;
         }
 
@@ -676,7 +676,7 @@ public sealed partial class GameServer
         // markers the dialogue sends), so the 1 Hz check's toast stays quiet right after the yes.
         if (answerWhenReady && WishReady(session, def, progress))
         {
-            session.WishReady.Add(def.Id);
+            session.Npc.WishReady.Add(def.Id);
             _dialogResponseOverride = Localize(session.Locale, "dlg.wish.r_yes_ready");
         }
 
@@ -734,8 +734,8 @@ public sealed partial class GameServer
 
         _missionDefs.Remove(def.Id);
         _repo.DeleteMission(def.Id);
-        session.WishReady.Remove(def.Id);
-        session.WishReminded.Remove(def.Id);
+        session.Npc.WishReady.Remove(def.Id);
+        session.Npc.WishReminded.Remove(def.Id);
         SendNpcStandings(session);
         SendMarkers(session); // #2714: the village marker is gone (another wish from there keeps it)
     }
@@ -847,18 +847,18 @@ public sealed partial class GameServer
         }
 
         string here = hereSettlement is null ? string.Empty : SettlementLocationKey(hereSettlement.Name);
-        if (AiLinesEnabled && here != session.WishPlaceKey)
+        if (AiLinesEnabled && here != session.Npc.WishPlaceKey)
         {
-            session.WishPlaceKey = here;
+            session.Npc.WishPlaceKey = here;
             refresh = here.Length > 0;
         }
 
         // A festival starting or ending in the village the player stands in pauses / brings back the "!" (#2604).
         bool celebrating = hereSettlement is not null
             && _npcs.Any(n => n.Phase == NpcPhase.Festival && n.Settlement == hereSettlement.Name);
-        if (celebrating != session.WishFestivalHere)
+        if (celebrating != session.Npc.WishFestivalHere)
         {
-            session.WishFestivalHere = celebrating;
+            session.Npc.WishFestivalHere = celebrating;
             refresh = true;
         }
 
@@ -878,16 +878,16 @@ public sealed partial class GameServer
             }
 
             readyNow.Add(pr.MissionId);
-            if (!session.WishReady.Contains(pr.MissionId))
+            if (!session.Npc.WishReady.Contains(pr.MissionId))
             {
                 Send(session, new ServerMessage { Text = WishReadyText(session, def) });
                 WarmWishThanks(session, def);
             }
         }
 
-        if (!readyNow.SetEquals(session.WishReady))
+        if (!readyNow.SetEquals(session.Npc.WishReady))
         {
-            session.WishReady = readyNow;
+            session.Npc.WishReady = readyNow;
             refresh = true;
         }
 

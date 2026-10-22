@@ -203,8 +203,8 @@ public sealed partial class GameServer
     private void SendStationsInReach(PlayerSession session)
     {
         var msg = BuildStationsInReach(session);
-        session.LastStationsInReach = StationsKey(msg);
-        session.StationScanIn = StationScanInterval;
+        session.Sync.LastStationsInReach = StationsKey(msg);
+        session.Sync.StationScanIn = StationScanInterval;
         Send(session, msg);
     }
 
@@ -217,21 +217,21 @@ public sealed partial class GameServer
     {
         foreach (var session in JoinedInActiveWorld())
         {
-            session.StationScanIn -= dt;
-            if (session.StationScanIn > 0)
+            session.Sync.StationScanIn -= dt;
+            if (session.Sync.StationScanIn > 0)
             {
                 continue;
             }
 
-            session.StationScanIn = StationScanInterval;
+            session.Sync.StationScanIn = StationScanInterval;
             var msg = BuildStationsInReach(session);
             string key = StationsKey(msg);
-            if (key == session.LastStationsInReach)
+            if (key == session.Sync.LastStationsInReach)
             {
                 continue;
             }
 
-            session.LastStationsInReach = key;
+            session.Sync.LastStationsInReach = key;
             Send(session, msg);
         }
     }

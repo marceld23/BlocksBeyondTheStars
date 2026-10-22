@@ -73,8 +73,8 @@ public sealed partial class GameServer
 
         // #2479: the tutorial's deep dives (C2–C5) — their offers at the moment of need (VEGA's own tip pass, no extra
         // probe) and the feasibility of their steps.
-        [StoryWorldPredicates.DataCacheNear] = s => s.VegaTipLive.Contains("data_cache_near"),
-        [StoryWorldPredicates.ScannerUnknown] = s => s.VegaTipLive.Contains("scanner_unknown"),
+        [StoryWorldPredicates.DataCacheNear] = s => s.Vega.VegaTipLive.Contains("data_cache_near"),
+        [StoryWorldPredicates.ScannerUnknown] = s => s.Vega.VegaTipLive.Contains("scanner_unknown"),
         [StoryWorldPredicates.JumpReady] = s => s.Ships.TryGetValue(s.ActiveShipId, out var ship) && ship.HasModule("jump_generator"),
         [StoryWorldPredicates.ArcadeReady] = s => s.State.UnlockedGames.Count > 0 || _worlds.Find(s.CurrentLocationId)?.DataCubes.Count > 0,
         [StoryWorldPredicates.MonumentUnread] = s => _worlds.Find(s.CurrentLocationId) is { } world && UnreadMonument(s, world) is not null,
@@ -89,7 +89,7 @@ public sealed partial class GameServer
 
         // #2480: the deep dives "Ship building" and "Base building" (C1, C6, C7, C17) — their offers and their evidence
         // (GameServerTutorialBuilding.cs).
-        [StoryWorldPredicates.TierGate] = s => _uptime - s.TierGateRefusedAt <= TierGateOfferWindowSeconds,
+        [StoryWorldPredicates.TierGate] = s => _uptime - s.Tutorial.TierGateRefusedAt <= TierGateOfferWindowSeconds,
         [StoryWorldPredicates.ModuleAffordable] = ModuleAffordable,
         [StoryWorldPredicates.HullDamaged] = HullDamaged,
         [StoryWorldPredicates.KeelLaid] = s => s.Ships.Values.Any(ship => ship.IsCustom),
@@ -102,7 +102,7 @@ public sealed partial class GameServer
 
         // #2481: the deep dives "Crystal net" (C8, C14) — the factory course's offer (VEGA's own tip pass), what a world has
         // for it, and the automation lesson's evidence.
-        [StoryWorldPredicates.FactoryNear] = s => s.VegaTipLive.Contains("factory_near"),
+        [StoryWorldPredicates.FactoryNear] = s => s.Vega.VegaTipLive.Contains("factory_near"),
         [StoryWorldPredicates.FactoryHere] = s => _worlds.Find(s.CurrentLocationId)?.Factories.Count > 0,
         [StoryWorldPredicates.AccessCode] = s => s.State.Inventory.CountOf("access_code") > 0,
         [StoryWorldPredicates.FactoryOwned] = s => _meta.Claims.Any(c => c.OwnerId == s.State.PlayerId),
@@ -113,20 +113,20 @@ public sealed partial class GameServer
         // pass, a session stamp, the pose), what the world rules leave of them, and their steps' feasibility
         // (GameServerTutorialMore.cs).
         [StoryWorldPredicates.Creatures] = _ => Rules.CreatureAbundance != AlienActivity.Off,
-        [StoryWorldPredicates.TameableNear] = s => s.VegaTipLive.Contains("tameable_near"),
+        [StoryWorldPredicates.TameableNear] = s => s.Vega.VegaTipLive.Contains("tameable_near"),
         [StoryWorldPredicates.HerdBegging] = HerdBegging,
         [StoryWorldPredicates.CompanionOwned] = s => s.State.TamedCreatures.Count > 0,
         [StoryWorldPredicates.SeedCarried] = SeedCarried,
-        [StoryWorldPredicates.SettlementNear] = s => s.VegaTipLive.Contains("settlement_near"),
+        [StoryWorldPredicates.SettlementNear] = s => s.Vega.VegaTipLive.Contains("settlement_near"),
         [StoryWorldPredicates.HostileNear] = HostileNear,
-        [StoryWorldPredicates.BanditHail] = s => s.BanditDemandId != 0,
+        [StoryWorldPredicates.BanditHail] = s => s.Bandit.BanditDemandId != 0,
         [StoryWorldPredicates.Climbing] = s => s.State.Climbing && !InSpace(s.State.PlayerId),
         [StoryWorldPredicates.TrainHere] = TrainHere,
         [StoryWorldPredicates.Multiplayer] = _ => _config.MaxPlayers > 1,
         [StoryWorldPredicates.RadioWorn] = HasAnyRadio,
-        [StoryWorldPredicates.RuinNear] = s => s.VegaTipLive.Contains("ruin_near"),
-        [StoryWorldPredicates.TreasureNear] = s => s.VegaTipLive.Contains("treasure_near"),
-        [StoryWorldPredicates.WreckSignal] = s => s.VegaTipLive.Contains("wreck_signal") || s.VegaTipLive.Contains("wreck_signal_manual"),
+        [StoryWorldPredicates.RuinNear] = s => s.Vega.VegaTipLive.Contains("ruin_near"),
+        [StoryWorldPredicates.TreasureNear] = s => s.Vega.VegaTipLive.Contains("treasure_near"),
+        [StoryWorldPredicates.WreckSignal] = s => s.Vega.VegaTipLive.Contains("wreck_signal") || s.Vega.VegaTipLive.Contains("wreck_signal_manual"),
         [StoryWorldPredicates.PlanetWrecks] = _ => _meta.Description.PlanetWrecks != Frequency.Off,
     };
 

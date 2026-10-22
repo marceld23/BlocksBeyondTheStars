@@ -94,12 +94,12 @@ public sealed partial class GameServer
     {
         // Rate-limit like chat so a snapshot (and its screenshot) can't be spammed per packet.
         int now = Environment.TickCount;
-        if (now - session.LastChatTick < 700)
+        if (now - session.Chat.LastChatTick < 700)
         {
             return;
         }
 
-        session.LastChatTick = now;
+        session.Chat.LastChatTick = now;
 
         const int MaxImageBytes = 2 * 1024 * 1024; // 2 MB cap
         var image = report.Image;

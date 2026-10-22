@@ -247,7 +247,7 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (!s.StreamerAskedToday.Add(day + "|" + NewsKey(npc))) // #2693: a namesake on another body asks again
+                if (!s.Npc.StreamerAskedToday.Add(day + "|" + NewsKey(npc))) // #2693: a namesake on another body asks again
                 {
                     continue;
                 }
@@ -335,12 +335,12 @@ public sealed partial class GameServer
     /// news (the latest <see cref="NewsArticle.MaxPerPlace"/>).</summary>
     private void HandleInterviewAnswer(PlayerSession session, InterviewAnswerIntent intent)
     {
-        if (session.PendingInterviewNpcId == 0 || session.PendingInterviewNpcId != intent.NpcId)
+        if (session.Npc.PendingInterviewNpcId == 0 || session.Npc.PendingInterviewNpcId != intent.NpcId)
         {
             return;
         }
 
-        session.PendingInterviewNpcId = 0;
+        session.Npc.PendingInterviewNpcId = 0;
         var npc = _npcs.FirstOrDefault(n => n.Id == intent.NpcId && n.Job == "reporter");
         if (npc is null || WrapDistSq(npc.Pos, session.State.Position) > NpcTalkRange * NpcTalkRange * 4)
         {

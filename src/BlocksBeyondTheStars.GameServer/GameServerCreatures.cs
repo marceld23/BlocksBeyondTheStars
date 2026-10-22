@@ -3189,9 +3189,9 @@ public sealed partial class GameServer
         float rangeSq = ArachnidRules.SightingRange * ArachnidRules.SightingRange;
         foreach (var s in targets)
         {
-            if (!s.ArachnidSighted && WrapDistSq(creature.Position, s.State.Position) <= rangeSq)
+            if (!s.Vega.ArachnidSighted && WrapDistSq(creature.Position, s.State.Position) <= rangeSq)
             {
-                s.ArachnidSighted = true;
+                s.Vega.ArachnidSighted = true;
                 SendVegaLine(s, "vega.sys.arachnid_sighted", 3);
             }
         }

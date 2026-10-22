@@ -75,9 +75,9 @@ public sealed class FarTerrainTileTests : IDisposable
         server.FarTerrainTileRequestForTest(p, new FarTerrainTileRequest { Tiles = new[] { tx, tz, farTx, tz } });
 
         // In range: answered; ~1.8 km away (beyond every far view): refused, nothing scanned or sent.
-        Assert.True(p.FarTilesSent.ContainsKey((tx, tz)), "the in-range tile should have been answered");
-        Assert.False(p.FarTilesSent.ContainsKey((farTx, tz)), "a tile beyond every far view must be refused");
-        int firstVersion = p.FarTilesSent[(tx, tz)];
+        Assert.True(p.Streaming.FarTilesSent.ContainsKey((tx, tz)), "the in-range tile should have been answered");
+        Assert.False(p.Streaming.FarTilesSent.ContainsKey((farTx, tz)), "a tile beyond every far view must be refused");
+        int firstVersion = p.Streaming.FarTilesSent[(tx, tz)];
 
         // Raising the tower dirties the tile; the refresh re-sends a newer version.
         server.World.SetBlock(new Vector3i(bx, 201, bz), stone);
@@ -86,7 +86,7 @@ public sealed class FarTerrainTileTests : IDisposable
             server.TickForTest(0.1);
         }
 
-        Assert.True(p.FarTilesSent[(tx, tz)] > firstVersion, "an edit inside a held tile must re-send it");
+        Assert.True(p.Streaming.FarTilesSent[(tx, tz)] > firstVersion, "an edit inside a held tile must re-send it");
         server.Stop();
     }
 
@@ -98,9 +98,9 @@ public sealed class FarTerrainTileTests : IDisposable
         var server = new SvGameServer(config, Content, new LoopbackServerTransport(new LoopbackLink()), repo);
         server.Start();
         var p = server.AddLocalPlayer("Surveyor");
-        Assert.True(p.FarInfoDue);
+        Assert.True(p.Streaming.FarInfoDue);
         server.TickForTest(0.1);
-        Assert.False(p.FarInfoDue, "the first streaming pass sends the world info");
+        Assert.False(p.Streaming.FarInfoDue, "the first streaming pass sends the world info");
 
         var info = server.BuildFarTerrainWorldInfo();
         Assert.Equal(server.World.Circumference, info.Circumference);
@@ -179,7 +179,7 @@ public sealed class FarTerrainTileTests : IDisposable
 
         server.FarTerrainTileRequestForTest(p, new FarTerrainTileRequest { Tiles = pairs.ToArray() }, queueOnly: true);
         Assert.Empty(transport.Tiles()); // nothing is built in the handler any more
-        Assert.Equal(24, p.FarTileQueue.Count);
+        Assert.Equal(24, p.Streaming.FarTileQueue.Count);
 
         server.TickForTest(0.1);
         Assert.Single(transport.Tiles()); // one build per tick at budget 0
@@ -190,18 +190,18 @@ public sealed class FarTerrainTileTests : IDisposable
 
         Assert.Equal(24, transport.Tiles().Count);
         Assert.Equal(24, transport.Tiles().Select(t => (t.TileX, t.TileZ)).Distinct().Count()); // every tile once
-        Assert.Empty(p.FarTileQueue);
+        Assert.Empty(p.Streaming.FarTileQueue);
 
         // Asking again for tiles the world has cached is answered inside the handler — free, no queue.
         server.FarTerrainTileRequestForTest(p, new FarTerrainTileRequest { Tiles = pairs.Take(8).ToArray() }, queueOnly: true);
         Assert.Equal(28, transport.Tiles().Count);
-        Assert.Empty(p.FarTileQueue);
+        Assert.Empty(p.Streaming.FarTileQueue);
 
         // A re-ask of a tile that is still queued is a no-op: the queue holds each tile once.
         transport.Sent.Clear();
         var fresh = new[] { tx0 + 9, tz0, tx0 + 9, tz0, tx0 + 10, tz0 };
         server.FarTerrainTileRequestForTest(p, new FarTerrainTileRequest { Tiles = fresh }, queueOnly: true);
-        Assert.Equal(2, p.FarTileQueue.Count);
+        Assert.Equal(2, p.Streaming.FarTileQueue.Count);
         server.FarTileBudgetMsForTest = -1; // unlimited: the queue drains in one tick
         server.TickForTest(0.1);
         Assert.Equal(2, transport.Tiles().Count);

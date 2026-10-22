@@ -90,7 +90,7 @@ public sealed partial class GameServer
         {
             var p = session.State;
             if (session.Spectating || (_shipPlaced && p.AboardShip) || InSpace(p.PlayerId)
-                || _uptime < session.PassingGreetReadyAt || InConversationNearby(session))
+                || _uptime < session.Npc.PassingGreetReadyAt || InConversationNearby(session))
             {
                 continue; // aboard / in flight / in a conversation already — nobody calls out across it
             }
@@ -153,7 +153,7 @@ public sealed partial class GameServer
 
                 npc.AttendUntil = _uptime + PassingAttendSeconds;
                 npc.AttendPos = p.Position;
-                session.PassingGreetReadyAt = _uptime
+                session.Npc.PassingGreetReadyAt = _uptime
                     + (crowd > PassingCrowdThreshold ? PassingGreetCrowdGap : PassingGreetPlayerGap);
                 break;
             }

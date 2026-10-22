@@ -193,18 +193,18 @@ public sealed class ReturnToShipTests : IDisposable
         var transport = new RecordingTransport();
         var server = Started("rts_holdup", transport);
         var p = OnFoot(server, "Lost");
-        p.BanditDemandId = 7; // a robber is waiting for the answer
+        p.Bandit.BanditDemandId = 7; // a robber is waiting for the answer
         string? refusal = server.ReturnToShipRefusalForTest("Lost");
         Assert.Equal(ReturnToShipRules.InCombatToken, refusal);
         Assert.Equal(0.0, ReturnToShipRules.FightSecondsOf(refusal));
 
         transport.Sent.Clear();
-        p.PlayerStateDirty = true;
+        p.Sync.PlayerStateDirty = true;
         server.TickForTest(0.1);
         Assert.Contains(transport.Sent, x => x.Msg is PlayerStateUpdate u && u.PlayerId == "Lost"
             && u.ReturnToShipFightSeconds == ReturnToShipRules.RobberWaitingFightSeconds);
 
-        p.BanditDemandId = 0;
+        p.Bandit.BanditDemandId = 0;
         Assert.Null(server.ReturnToShipRefusalForTest("Lost"));
     }
 

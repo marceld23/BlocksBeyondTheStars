@@ -62,7 +62,7 @@ public sealed partial class GameServer
     private bool RaiseStoryMarker(PlayerSession s, CompiledStep step, Vector3f at)
     {
         string loc = s.CurrentLocationId;
-        if (string.IsNullOrEmpty(loc) || !s.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
+        if (string.IsNullOrEmpty(loc) || !s.Story.StepEscalation.TryGetValue(step.ProgressKey, out var esc))
         {
             return false;
         }
@@ -93,7 +93,7 @@ public sealed partial class GameServer
     /// ping.</summary>
     private void AddStoryMarkers(PlayerSession viewer, string loc, List<NetMarker> into)
     {
-        foreach (var kv in viewer.StepEscalation)
+        foreach (var kv in viewer.Story.StepEscalation)
         {
             if (!string.Equals(kv.Value.MarkerLocationId, loc, StringComparison.Ordinal)
                 || LiveStoryMarkerStep(viewer, kv.Key, kv.Value) is not { } step)
@@ -118,7 +118,7 @@ public sealed partial class GameServer
 
         if (LiveLeadMarker(viewer, loc))
         {
-            var lead = viewer.StoryLeads;
+            var lead = viewer.Story.StoryLeads;
             into.Add(new NetMarker
             {
                 Id = StoryLeadMarkerIdPrefix + lead.MarkerFor,
@@ -143,11 +143,11 @@ public sealed partial class GameServer
     /// player. Followed or replaced, the marker was cleared already (<see cref="MarkCurrentLead"/>, <see cref="CompleteLead"/>).</summary>
     private bool LiveLeadMarker(PlayerSession s, string loc)
     {
-        var lead = s.StoryLeads;
+        var lead = s.Story.StoryLeads;
         return lead.MarkerLocationId.Length > 0
                && string.Equals(lead.MarkerLocationId, loc, StringComparison.Ordinal)
                && string.Equals(lead.MarkerFor, lead.MarkedFor, StringComparison.Ordinal)
-               && !s.VegaHintsMuted && LeadsActive && StoryTrackStarted(s);
+               && !s.Vega.VegaHintsMuted && LeadsActive && StoryTrackStarted(s);
     }
 
     /// <summary>#2570: the story markers the player sees now as one comparable string (their progress keys, #2742: and their
@@ -161,13 +161,13 @@ public sealed partial class GameServer
         }
 
         bool lead = LiveLeadMarker(s, loc);
-        if (s.StepEscalation.Count == 0)
+        if (s.Story.StepEscalation.Count == 0)
         {
-            return lead ? StoryLeadMarkerIdPrefix + s.StoryLeads.MarkerFor : string.Empty;
+            return lead ? StoryLeadMarkerIdPrefix + s.Story.StoryLeads.MarkerFor : string.Empty;
         }
 
         StringBuilder? sb = null;
-        foreach (var kv in s.StepEscalation)
+        foreach (var kv in s.Story.StepEscalation)
         {
             if (string.Equals(kv.Value.MarkerLocationId, loc, StringComparison.Ordinal) && LiveStoryMarkerStep(s, kv.Key, kv.Value) is not null)
             {
@@ -177,7 +177,7 @@ public sealed partial class GameServer
 
         if (lead)
         {
-            (sb ??= new StringBuilder()).Append(StoryLeadMarkerIdPrefix).Append(s.StoryLeads.MarkerFor);
+            (sb ??= new StringBuilder()).Append(StoryLeadMarkerIdPrefix).Append(s.Story.StoryLeads.MarkerFor);
         }
 
         return sb?.ToString() ?? string.Empty;

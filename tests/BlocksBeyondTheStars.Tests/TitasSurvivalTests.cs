@@ -70,9 +70,9 @@ public sealed class TitasSurvivalTests : IDisposable
         var spawn = p.Position;
         StepOutside(p);
         TickSeconds(server, 60);
-        Assert.True(session.ExposureActive);
+        Assert.True(session.Hazards.ExposureActive);
         Assert.Equal(100f, p.SuitEnergy); // the suit battery is not what the cold eats here
-        double expected = 60.0 / (session.ExposureHot ? 30 * 60.0 : 40 * 60.0);
+        double expected = 60.0 / (session.Hazards.ExposureHot ? 30 * 60.0 : 40 * 60.0);
         Assert.InRange(p.Exposure, expected * 0.9, expected * 1.1);
         Assert.Equal(100f, p.Health);
 
@@ -80,7 +80,7 @@ public sealed class TitasSurvivalTests : IDisposable
         p.Position = spawn;
         p.AboardShip = true;
         TickSeconds(server, 1);
-        Assert.False(session.ExposureActive);
+        Assert.False(session.Hazards.ExposureActive);
         Assert.Equal(0f, p.Exposure);
     }
 
@@ -113,7 +113,7 @@ public sealed class TitasSurvivalTests : IDisposable
         TickSeconds(server, 2);
         float firstLoss = 100f - p.Health;
         Assert.True(firstLoss > 0.5f, $"a full meter must hurt (lost {firstLoss})");
-        Assert.Equal(session.ExposureHot ? "@srv.death.burned" : "@srv.death.froze", session.HazardDeathReason);
+        Assert.Equal(session.Hazards.ExposureHot ? "@srv.death.burned" : "@srv.death.froze", session.Hazards.HazardDeathReason);
         float before = p.Health;
         TickSeconds(server, 2);
         Assert.True(before - p.Health > firstLoss, "the damage rises the longer the meter stays full");
@@ -145,7 +145,7 @@ public sealed class TitasSurvivalTests : IDisposable
         float afterGrace = p.Health;
         TickSeconds(server, 4);
         Assert.True(p.Health < afterGrace - 3f, $"two HP a second after the grace (health {p.Health}, was {afterGrace})");
-        Assert.Equal("@srv.death.toxic_water", session.HazardDeathReason);
+        Assert.Equal("@srv.death.toxic_water", session.Hazards.HazardDeathReason);
     }
 
     [Fact]
@@ -175,8 +175,8 @@ public sealed class TitasSurvivalTests : IDisposable
         p.AboardShip = false;
         TickSeconds(server, 3);
         Assert.True(p.Oxygen < 100f, "a lab module holds no air");
-        Assert.Equal(-90f, session.EffectiveTemperatureC);
-        Assert.True(session.ExposureRoofed);
+        Assert.Equal(-90f, session.Hazards.EffectiveTemperatureC);
+        Assert.True(session.Hazards.ExposureRoofed);
 
         // "Very many guardians": the machine cap ×2.5 (Normal = 2 per player).
         Assert.Equal(5, server.PlanetEnemyCapForTest(1));

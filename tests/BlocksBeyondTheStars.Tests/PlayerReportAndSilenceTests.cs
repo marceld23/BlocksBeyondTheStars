@@ -68,7 +68,7 @@ public sealed class PlayerReportAndSilenceTests : IDisposable
 
     private static void Say(SvGameServer server, PlayerSession who, string text)
     {
-        who.LastChatTick = Environment.TickCount - 10_000; // the 700 ms slot is TickCount-based
+        who.Chat.LastChatTick = Environment.TickCount - 10_000; // the 700 ms slot is TickCount-based
         server.Chat(who.State.Name, text);
     }
 
@@ -211,9 +211,9 @@ public sealed class PlayerReportAndSilenceTests : IDisposable
             Say(server, bob, "line " + i);
         }
 
-        Assert.Equal(PlayerSession.MaxRecentChatLines, bob.RecentChatLines.Count);
-        Assert.Equal("line 5", bob.RecentChatLines[0]);   // the first five aged out
-        Assert.Equal("line 24", bob.RecentChatLines[^1]);
+        Assert.Equal(PlayerSessionChat.MaxRecentChatLines, bob.Chat.RecentChatLines.Count);
+        Assert.Equal("line 5", bob.Chat.RecentChatLines[0]);   // the first five aged out
+        Assert.Equal("line 24", bob.Chat.RecentChatLines[^1]);
     }
 
     [Fact]

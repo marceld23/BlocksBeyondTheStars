@@ -583,11 +583,11 @@ public sealed class VegaChapterLeadsTests : IDisposable
         server.SyncStoryMarkersForTest(a);
         Assert.Equal(marker.Id, Assert.Single(server.StoryMarkersForTest("Ann")).Id);
 
-        a.VegaHintsMuted = true; // the hints off: the marker hides with the chip …
+        a.Vega.VegaHintsMuted = true; // the hints off: the marker hides with the chip …
         server.SyncStoryMarkersForTest(a);
         Assert.Empty(server.StoryMarkersForTest("Ann"));
         Assert.DoesNotContain(transport.To<MarkerList>(a).Last().Markers, m => m.Story);
-        a.VegaHintsMuted = false; // … and comes back with it
+        a.Vega.VegaHintsMuted = false; // … and comes back with it
         server.SyncStoryMarkersForTest(a);
         Assert.Contains(transport.To<MarkerList>(a).Last().Markers, m => m.Id == marker.Id);
 
@@ -844,7 +844,7 @@ public sealed class VegaChapterLeadsTests : IDisposable
 
         pilot.CurrentLocationId = "planet_never_loaded";
         pilot.State.UnlockedBlueprints.Add("radar_array"); // researched: the evidence books it at the next pass
-        double pilotSeconds = pilot.StoryPackPlaySeconds, walkerSeconds = walker.StoryPackPlaySeconds;
+        double pilotSeconds = pilot.Story.StoryPackPlaySeconds, walkerSeconds = walker.Story.StoryPackPlaySeconds;
         for (int i = 0; i < 6; i++)
         {
             server.Tick(0.5);
@@ -854,8 +854,8 @@ public sealed class VegaChapterLeadsTests : IDisposable
         Assert.False(Has(walker, LeadKey("what_you_are", 1))); // per player
 
         // Once a second for both — the walker by the world's own pass, the pilot by the new one; nobody twice.
-        Assert.Equal(3.0, pilot.StoryPackPlaySeconds - pilotSeconds);
-        Assert.Equal(3.0, walker.StoryPackPlaySeconds - walkerSeconds);
+        Assert.Equal(3.0, pilot.Story.StoryPackPlaySeconds - pilotSeconds);
+        Assert.Equal(3.0, walker.Story.StoryPackPlaySeconds - walkerSeconds);
     }
 
     // ---------------- Cost ----------------

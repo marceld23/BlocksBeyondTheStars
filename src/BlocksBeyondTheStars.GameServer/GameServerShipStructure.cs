@@ -302,7 +302,7 @@ public sealed partial class GameServer
         {
             foreach (var coord in seen)
             {
-                session.SentChunks.Remove(coord);
+                session.Streaming.SentChunks.Remove(coord);
             }
         }
     }

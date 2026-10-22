@@ -336,7 +336,7 @@ public sealed partial class GameServer
     /// never comes here, so it never replays the prologue (E17).</summary>
     private void ShipAiOnJoin(PlayerSession session)
     {
-        session.VegaTipReadyAt = _uptime + VegaTipJoinQuiet; // context tips (#1077) stay quiet right after a join
+        session.Vega.VegaTipReadyAt = _uptime + VegaTipJoinQuiet; // context tips (#1077) stay quiet right after a join
         SendVegaObjective(session); // the chip survives a rejoin (#1110)
     }
 
@@ -416,7 +416,7 @@ public sealed partial class GameServer
     /// <summary>Whether a line of this kind would only reach a muted panel (#2462, B31): the advisor hints (1) and the
     /// repeated context tips (5) follow the client's VEGA hints switch; every other kind always shows.</summary>
     private static bool HintMutedFor(PlayerSession session, byte kind)
-        => session.VegaHintsMuted && (kind is 1 or VegaTipRepeatKind);
+        => session.Vega.VegaHintsMuted && (kind is 1 or VegaTipRepeatKind);
 
     /// <summary>Per-world-type flavour hints share one line per TYPE but a once-flag per type key; a toxic world's scan
     /// (#2032) shares one line per hazard combination but a once-flag per WORLD ("toxic:&lt;location&gt;:&lt;scan&gt;").</summary>
@@ -496,13 +496,13 @@ public sealed partial class GameServer
                 continue; // an invisible observer is staff, not a pilot: no hints, tips, banter or redemptions (#2460, N1)
             }
 
-            session.VegaAdvisorAccum += dt;
-            if (session.VegaAdvisorAccum < 1.0)
+            session.Vega.VegaAdvisorAccum += dt;
+            if (session.Vega.VegaAdvisorAccum < 1.0)
             {
                 continue;
             }
 
-            session.VegaAdvisorAccum = 0.0;
+            session.Vega.VegaAdvisorAccum = 0.0;
             var p = session.State;
 
             TickStoryPass(session); // #2477: the same pass reaches the players outside a loaded world (TickStoryOutsideWorlds)
@@ -529,7 +529,7 @@ public sealed partial class GameServer
             // #2658: at a base the life support gives air but no food — a player who expected it to feed them like the
             // ship or a station learns that the heal tank does. Once, while breathing base air, hungry and not at a tank.
             if (p.LifeSupportSource == 3 && !p.AboardShip && !InStation(p.PlayerId) && p.Hunger < 50f
-                && !session.NearHealTank && Rules.HungerEnabledFor(p.ModeOverride))
+                && !session.Hazards.NearHealTank && Rules.HungerEnabledFor(p.ModeOverride))
             {
                 ShipAiHintOnce(session, "base_hunger");
             }
@@ -603,13 +603,13 @@ public sealed partial class GameServer
                 continue;
             }
 
-            session.VegaAdvisorAccum += dt;
-            if (session.VegaAdvisorAccum < 1.0)
+            session.Vega.VegaAdvisorAccum += dt;
+            if (session.Vega.VegaAdvisorAccum < 1.0)
             {
                 continue;
             }
 
-            session.VegaAdvisorAccum = 0.0;
+            session.Vega.VegaAdvisorAccum = 0.0;
             TickStoryPass(session);
         }
     }
@@ -663,7 +663,7 @@ public sealed partial class GameServer
     private void TickVegaMemory(PlayerSession session)
     {
         var p = session.State;
-        if (!p.AboardShip || _uptime < session.VegaMemoryReadyAt || !p.Inventory.Has(VegaMemoryItem, 1))
+        if (!p.AboardShip || _uptime < session.Vega.VegaMemoryReadyAt || !p.Inventory.Has(VegaMemoryItem, 1))
         {
             return;
         }
@@ -681,12 +681,12 @@ public sealed partial class GameServer
             pool = new MaterialPool(_content, p, ownShip ?? _ship);
             if (!pool.CanFit(mk3Cost))
             {
-                if (session.VegaMemoryHoldFullWarned)
+                if (session.Vega.VegaMemoryHoldFullWarned)
                 {
                     return;
                 }
 
-                session.VegaMemoryHoldFullWarned = true;
+                session.Vega.VegaMemoryHoldFullWarned = true;
                 SendVegaLine(session, "vega.sys.mk3parts_full", 3);
                 return;
             }
@@ -695,7 +695,7 @@ public sealed partial class GameServer
         p.Inventory.Remove(VegaMemoryItem, 1);
         p.Milestones.Add("vega:mem:" + beat);
         p.KnowledgePoints += VegaMemoryKnowledge;
-        session.VegaMemoryReadyAt = _uptime + 6.0; // space multiple fragments out so the lines can be read
+        session.Vega.VegaMemoryReadyAt = _uptime + 6.0; // space multiple fragments out so the lines can be read
 
         SendVegaLine(session, VegaMemoryLine(beat), 2);
         if (mk3Cost is { Count: > 0 } && pool is not null && p.Milestones.Add("vega:mem:mk3parts"))
@@ -767,12 +767,12 @@ public sealed partial class GameServer
     /// <summary>Mk2+: hostile contact callout in space, rate-limited per player.</summary>
     private void ShipAiThreatCallout(PlayerSession session)
     {
-        if (VegaCoreTier(session) < 2 || _uptime < session.VegaThreatReadyAt)
+        if (VegaCoreTier(session) < 2 || _uptime < session.Vega.VegaThreatReadyAt)
         {
             return;
         }
 
-        session.VegaThreatReadyAt = _uptime + VegaThreatCooldown;
+        session.Vega.VegaThreatReadyAt = _uptime + VegaThreatCooldown;
         SendVegaLine(session, "vega.sys.threat", 3);
     }
 
@@ -783,12 +783,12 @@ public sealed partial class GameServer
     /// <summary>Callout after a successful Mk3 evade (rate-limited so a busy fight doesn't spam).</summary>
     private void ShipAiEvadeCallout(PlayerSession session)
     {
-        if (_uptime < session.VegaEvadeReadyAt)
+        if (_uptime < session.Vega.VegaEvadeReadyAt)
         {
             return;
         }
 
-        session.VegaEvadeReadyAt = _uptime + VegaEvadeCooldown;
+        session.Vega.VegaEvadeReadyAt = _uptime + VegaEvadeCooldown;
         SendVegaLine(session, "vega.sys.evade", 3);
     }
 
@@ -842,7 +842,7 @@ public sealed partial class GameServer
 
         // Temperature awareness (#671): only mentioned while the suit is actually fighting the climate,
         // so VEGA's banter can react to a freezing night march or a scorching noon without noise otherwise.
-        string climate = !p.SuitClimateActive ? "mild" : session.EffectiveTemperatureC < ComfortLowC ? "cold" : "heat";
+        string climate = !p.SuitClimateActive ? "mild" : session.Hazards.EffectiveTemperatureC < ComfortLowC ? "cold" : "heat";
         string climateText = climate switch
         {
             "cold" => ", the suit's heater is fighting dangerous cold",
@@ -873,21 +873,21 @@ public sealed partial class GameServer
             return;
         }
 
-        if (session.VegaBanterNextAt <= 0.0)
+        if (session.Vega.VegaBanterNextAt <= 0.0)
         {
             // First arm after join: don't banter into the first minutes of a session.
-            session.VegaBanterNextAt = _uptime + VegaBanterMinDelay * 0.75;
+            session.Vega.VegaBanterNextAt = _uptime + VegaBanterMinDelay * 0.75;
             return;
         }
 
-        if (_uptime < session.VegaBanterNextAt || _uptime < session.VegaTipReadyAt)
+        if (_uptime < session.Vega.VegaBanterNextAt || _uptime < session.Vega.VegaTipReadyAt)
         {
             return; // not due — or a context tip just went out (banter shares the tip cadence, #1077)
         }
 
-        session.VegaBanterNextAt = _uptime + VegaBanterMinDelay
+        session.Vega.VegaBanterNextAt = _uptime + VegaBanterMinDelay
             + _vegaRng.NextDouble() * (VegaBanterMaxDelay - VegaBanterMinDelay);
-        session.VegaTipReadyAt = _uptime + VegaTipGap;
+        session.Vega.VegaTipReadyAt = _uptime + VegaTipGap;
         StartVegaBanter(session);
     }
 

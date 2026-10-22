@@ -321,7 +321,7 @@ public sealed partial class GameServer
         }
 
         int value = RelationshipValue(session.State, personKey);
-        if (value <= 0 || value >= LegacyStandingFloorCap || !session.HelloStandingPaid.Add(personKey))
+        if (value <= 0 || value >= LegacyStandingFloorCap || !session.Npc.HelloStandingPaid.Add(personKey))
         {
             return false;
         }

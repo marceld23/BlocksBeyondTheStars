@@ -213,9 +213,9 @@ public sealed class TravelTests : IDisposable
 
             // The take-off: in flight over the origin, the client told where the landing descent heads.
             Assert.True(server.InSpace("Pilot"));
-            Assert.Equal(destination.Id, pilot.PendingTransitBodyId);
-            Assert.Null(pilot.PendingTransitSystemId);
-            Assert.True(pilot.AutomaticTransit);
+            Assert.Equal(destination.Id, pilot.Transit.PendingTransitBodyId);
+            Assert.Null(pilot.Transit.PendingTransitSystemId);
+            Assert.True(pilot.Transit.AutomaticTransit);
             Assert.Equal(origin.Id, pilot.CurrentLocationId);
             var launch = Assert.Single(received.OfType<SpaceState>());
             Assert.True(launch.AutomaticTransit);
@@ -228,8 +228,8 @@ public sealed class TravelTests : IDisposable
             // The landing: exactly like a manual one, no warp.
             Assert.False(server.InSpace("Pilot"));
             Assert.Equal(destination.Id, pilot.CurrentLocationId);
-            Assert.Null(pilot.PendingTransitBodyId);
-            Assert.False(pilot.AutomaticTransit);
+            Assert.Null(pilot.Transit.PendingTransitBodyId);
+            Assert.False(pilot.Transit.AutomaticTransit);
             Assert.False(Assert.Single(received.OfType<WorldReset>()).Hyperjump);
         }
     }
@@ -251,7 +251,7 @@ public sealed class TravelTests : IDisposable
             // Stage 1, the take-off: still over the ORIGIN, and no warp yet — it would play over the take-off.
             Assert.True(server.InSpace("Pilot"));
             Assert.Equal(origin.Id, pilot.CurrentLocationId);
-            Assert.Equal(destination.SystemId, pilot.PendingTransitSystemId);
+            Assert.Equal(destination.SystemId, pilot.Transit.PendingTransitSystemId);
             var launch = Assert.Single(received.OfType<SpaceState>());
             Assert.False(launch.SkipLaunch);
             Assert.False(launch.Hyperjump);
@@ -262,9 +262,9 @@ public sealed class TravelTests : IDisposable
             // Stage 2, the warp: in flight in the destination's system, anchored on the destination itself.
             Assert.True(server.InSpace("Pilot"));
             Assert.Equal(destination.Id, pilot.CurrentLocationId);
-            Assert.True(pilot.AutomaticTransit);
-            Assert.Null(pilot.PendingTransitSystemId);
-            Assert.Equal(destination.Id, pilot.PendingTransitBodyId);
+            Assert.True(pilot.Transit.AutomaticTransit);
+            Assert.Null(pilot.Transit.PendingTransitSystemId);
+            Assert.Equal(destination.Id, pilot.Transit.PendingTransitBodyId);
             var warp = Assert.Single(received.OfType<SpaceState>());
             Assert.True(warp.Hyperjump);
             Assert.True(warp.SkipLaunch);
@@ -276,8 +276,8 @@ public sealed class TravelTests : IDisposable
             // Stage 3, the landing: a plain landing in the system the warp already reached.
             Assert.False(server.InSpace("Pilot"));
             Assert.Equal(destination.Id, pilot.CurrentLocationId);
-            Assert.Null(pilot.PendingTransitBodyId);
-            Assert.False(pilot.AutomaticTransit);
+            Assert.Null(pilot.Transit.PendingTransitBodyId);
+            Assert.False(pilot.Transit.AutomaticTransit);
             Assert.False(Assert.Single(received.OfType<WorldReset>()).Hyperjump);
         }
     }
@@ -298,9 +298,9 @@ public sealed class TravelTests : IDisposable
             // The take-off plays in the system the ship leaves.
             Assert.True(server.InSpace("Pilot"));
             Assert.Equal(origin.Id, pilot.CurrentLocationId);
-            Assert.True(pilot.AutomaticTransit);
-            Assert.Null(pilot.PendingTransitBodyId);
-            Assert.Equal(target.Id, pilot.PendingTransitSystemId);
+            Assert.True(pilot.Transit.AutomaticTransit);
+            Assert.Null(pilot.Transit.PendingTransitBodyId);
+            Assert.Equal(target.Id, pilot.Transit.PendingTransitSystemId);
             var launch = Assert.Single(received.OfType<SpaceState>());
             Assert.False(launch.SkipLaunch);
             Assert.False(launch.Hyperjump);
@@ -312,8 +312,8 @@ public sealed class TravelTests : IDisposable
             // Then the warp, and the pilot is handed the controls in the new system.
             Assert.True(server.InSpace("Pilot"));
             Assert.Equal(target.Id, server.Galaxy.FindBody(pilot.CurrentLocationId)!.SystemId);
-            Assert.False(pilot.AutomaticTransit);
-            Assert.Null(pilot.PendingTransitSystemId);
+            Assert.False(pilot.Transit.AutomaticTransit);
+            Assert.Null(pilot.Transit.PendingTransitSystemId);
             var warp = Assert.Single(received.OfType<SpaceState>());
             Assert.True(warp.Hyperjump);
             Assert.True(warp.SkipLaunch);
@@ -341,14 +341,14 @@ public sealed class TravelTests : IDisposable
             server.Tick(6.0);
             Assert.True(server.InSpace("Pilot"));
             Assert.Equal(destination.Id, pilot.CurrentLocationId);
-            Assert.True(pilot.AutomaticTransit);
+            Assert.True(pilot.Transit.AutomaticTransit);
 
             // … and lands after the next — the warped pilot flies over a world that is not loaded, so this timer
             // must not live in the per-world tick.
             server.Tick(6.0);
             Assert.False(server.InSpace("Pilot"));
             Assert.Equal(destination.Id, pilot.CurrentLocationId);
-            Assert.False(pilot.AutomaticTransit);
+            Assert.False(pilot.Transit.AutomaticTransit);
         }
     }
 
@@ -366,7 +366,7 @@ public sealed class TravelTests : IDisposable
 
             Assert.False(server.InSpace("Pilot"));
             Assert.Equal(home, pilot.CurrentLocationId);
-            Assert.False(pilot.AutomaticTransit);
+            Assert.False(pilot.Transit.AutomaticTransit);
         }
     }
 
@@ -388,8 +388,8 @@ public sealed class TravelTests : IDisposable
 
             Assert.False(server.InSpace("Pilot"));
             Assert.Equal(origin.Id, pilot.CurrentLocationId);
-            Assert.False(pilot.AutomaticTransit);
-            Assert.Null(pilot.PendingTransitBodyId);
+            Assert.False(pilot.Transit.AutomaticTransit);
+            Assert.Null(pilot.Transit.PendingTransitBodyId);
             Assert.Equal(heldPad, server.AssignedPadForTest("Pilot"));
 
             // Nothing is left for the timeout to land later.
@@ -426,8 +426,8 @@ public sealed class TravelTests : IDisposable
             server.Tick(0.1);
 
             Assert.False(server.InSpace("Pilot"));
-            Assert.Null(pilot.PendingTransitBodyId);
-            Assert.False(pilot.AutomaticTransit);
+            Assert.Null(pilot.Transit.PendingTransitBodyId);
+            Assert.False(pilot.Transit.AutomaticTransit);
             Assert.Equal(origin.Id, pilot.CurrentLocationId);
             Assert.Equal(-1, server.AssignedPadForTest("Pilot"));
         }
@@ -445,8 +445,8 @@ public sealed class TravelTests : IDisposable
             server.EnterSpace("Pilot", skipLaunch: true, hyperjump: false);
 
             Assert.True(server.InSpace("Pilot"));
-            Assert.False(pilot.AutomaticTransit);
-            Assert.Null(pilot.PendingTransitBodyId);
+            Assert.False(pilot.Transit.AutomaticTransit);
+            Assert.Null(pilot.Transit.PendingTransitBodyId);
 
             var target = server.Galaxy.Systems.First(s =>
                 s.Id != origin.SystemId
@@ -458,8 +458,8 @@ public sealed class TravelTests : IDisposable
             server.HyperjumpToSystem("Pilot", target.Id);
 
             Assert.True(server.InSpace("Pilot"));
-            Assert.False(pilot.AutomaticTransit);
-            Assert.Null(pilot.PendingTransitBodyId);
+            Assert.False(pilot.Transit.AutomaticTransit);
+            Assert.Null(pilot.Transit.PendingTransitBodyId);
 
             var anchor = server.Galaxy.FindBody(pilot.CurrentLocationId)!;
             Assert.Equal(target.Id, anchor.SystemId);
@@ -493,16 +493,16 @@ public sealed class TravelTests : IDisposable
             server.Tick(0.1);
 
             Assert.True(server.InSpace("Pilot"));
-            Assert.Equal(destination.Id, pilot.PendingTransitBodyId);
-            Assert.True(pilot.AutomaticTransit);
+            Assert.Equal(destination.Id, pilot.Transit.PendingTransitBodyId);
+            Assert.True(pilot.Transit.AutomaticTransit);
 
             // Do not send TransitLaunchDoneIntent.
             server.Tick(6.0);
 
             Assert.False(server.InSpace("Pilot"));
             Assert.Equal(destination.Id, pilot.CurrentLocationId);
-            Assert.Null(pilot.PendingTransitBodyId);
-            Assert.False(pilot.AutomaticTransit);
+            Assert.Null(pilot.Transit.PendingTransitBodyId);
+            Assert.False(pilot.Transit.AutomaticTransit);
         }
     }
 

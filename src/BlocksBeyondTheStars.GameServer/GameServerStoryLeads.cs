@@ -254,7 +254,7 @@ public sealed partial class GameServer
             {
                 foreach (var s in _sessions.Values)
                 {
-                    s.StoryLeads.Valid = false;
+                    s.Story.StoryLeads.Valid = false;
                 }
             }
 
@@ -281,7 +281,7 @@ public sealed partial class GameServer
 
         foreach (var s in _sessions.Values)
         {
-            s.StoryLeads.Valid = false;
+            s.Story.StoryLeads.Valid = false;
         }
     }
 
@@ -298,7 +298,7 @@ public sealed partial class GameServer
         var cache = LeadsFor(actor);
         if (key is GameEventKeys.ModuleBuilt or GameEventKeys.ShipCommissioned)
         {
-            actor.StoryLeads.Epoch++; // a jump generator changes what is reachable and the finale's text; a new ship too
+            actor.Story.StoryLeads.Epoch++; // a jump generator changes what is reachable and the finale's text; a new ship too
         }
 
         bool booked = CompleteFirstOpen(actor, cache, l => LeadFulfilledBy(l.Kind, l.Arg, l.TargetBodyId, key, arg));
@@ -360,8 +360,8 @@ public sealed partial class GameServer
         }
 
         lead.Done = true;
-        s.StoryLeads.Epoch++; // the chip moves on to the next lead
-        if (s.StoryLeads.MarkerFor == lead.Identity && s.StoryLeads.ClearMarker())
+        s.Story.StoryLeads.Epoch++; // the chip moves on to the next lead
+        if (s.Story.StoryLeads.MarkerFor == lead.Identity && s.Story.StoryLeads.ClearMarker())
         {
             SendMarkers(s); // #2742: the followed lead's marker goes at once (the next 1 Hz pass marks the next lead)
         }
@@ -424,7 +424,7 @@ public sealed partial class GameServer
     /// Empty before the track starts and without leads.</summary>
     private StoryLeadCache LeadsFor(PlayerSession s)
     {
-        var cache = s.StoryLeads;
+        var cache = s.Story.StoryLeads;
         if (!LeadsActive || _story is null || !StoryTrackStarted(s))
         {
             if (cache.Valid || cache.Leads.Count > 0)
@@ -840,7 +840,7 @@ public sealed partial class GameServer
                     return;
                 }
             }
-            else if (lead.WaypointId.Length > 0 && !s.VegaHintsMuted)
+            else if (lead.WaypointId.Length > 0 && !s.Vega.VegaHintsMuted)
             {
                 SendVegaWithObjective(s, new ShipAiLine { Kind = 0, SpaceWaypointId = lead.WaypointId }); // a chip update with the target
             }
@@ -994,7 +994,7 @@ public sealed partial class GameServer
         });
         foreach (var s in _sessions.Values)
         {
-            s.StoryLeads.Valid = false;
+            s.Story.StoryLeads.Valid = false;
         }
     }
 }

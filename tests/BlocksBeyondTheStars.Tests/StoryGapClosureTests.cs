@@ -116,7 +116,7 @@ public sealed class StoryGapClosureTests : IDisposable
         server.TickStoryPacksForTest(p);
         server.SkipTutorialForTest(p);
         Assert.Contains(StoryPackKeys.Done(T), p.State.Milestones);
-        p.StoryPackPlaySeconds += 90; // #2498: the skip suggests the flight courses silently — an offer; the next waits the gap
+        p.Story.StoryPackPlaySeconds += 90; // #2498: the skip suggests the flight courses silently — an offer; the next waits the gap
         p.State.Milestones.Add(StoryPackKeys.ChapterOffered(T, "c15"));
         return p;
     }
@@ -208,7 +208,7 @@ public sealed class StoryGapClosureTests : IDisposable
         server.DisconnectLocalPlayerForTest("Pilot");
         transport.Sent.Clear();
         var back = Join(server, 2, "Pilot");
-        Assert.Equal(spot, back.CutsceneQueue.Single(q => q.Id == "anchored").Anchor);
+        Assert.Equal(spot, back.Story.CutsceneQueue.Single(q => q.Id == "anchored").Anchor);
         server.AdvanceUptimeForTest(SvGameServer.CutsceneJoinSettleSeconds);
         for (int i = 0; i < 6 && !transport.Plays(back).Contains("anchored"); i++)
         {
@@ -222,10 +222,10 @@ public sealed class StoryGapClosureTests : IDisposable
 
         // Elsewhere the place means nothing — the scene comes without it (the client frames the player).
         string home = back.CurrentLocationId;
-        back.CutsceneQueue.Clear();
+        back.Story.CutsceneQueue.Clear();
         back.CurrentLocationId = "elsewhere";
         server.CutscenesOnJoinForTest(back);
-        Assert.Null(back.CutsceneQueue.Single(q => q.Id == "anchored").Anchor);
+        Assert.Null(back.Story.CutsceneQueue.Single(q => q.Id == "anchored").Anchor);
         back.CurrentLocationId = home;
 
         // The receipt forgets it.
@@ -264,11 +264,11 @@ public sealed class StoryGapClosureTests : IDisposable
         var rest = p.State.Milestones.Where(m => !m.Contains(":cut:", StringComparison.Ordinal)).ToList();
         p.State.Milestones = new HashSet<string>(
             new[] { StoryPackKeys.CutsceneSent(T, "tut.welcome"), StoryPackKeys.CutsceneSent(V, StoryCutsceneIds.Prologue) }.Concat(rest));
-        p.CutsceneQueue.Clear();
+        p.Story.CutsceneQueue.Clear();
 
         server.CutscenesOnJoinForTest(p);
-        Assert.Equal(new[] { StoryCutsceneIds.Prologue, "tut.welcome" }, p.CutsceneQueue.Select(q => q.Id));
-        Assert.Equal(new[] { V, T }, p.CutsceneQueue.Select(q => q.PackId));
+        Assert.Equal(new[] { StoryCutsceneIds.Prologue, "tut.welcome" }, p.Story.CutsceneQueue.Select(q => q.Id));
+        Assert.Equal(new[] { V, T }, p.Story.CutsceneQueue.Select(q => q.PackId));
     }
 
     // ---------------- Events from their real handlers ----------------
@@ -499,7 +499,7 @@ public sealed class StoryGapClosureTests : IDisposable
         var p = LocalPastTraining(server, "Scout");
         Assert.False(server.OfferAbsorbsHintForTest(p, "data_cache_near")); // no moment, no offer due
 
-        p.VegaTipLive = new[] { "data_cache_near" }; // the research course's moment
+        p.Vega.VegaTipLive = new[] { "data_cache_near" }; // the research course's moment
         Assert.True(server.OfferAbsorbsHintForTest(p, "data_cache_near"));
         Assert.True(server.OfferAbsorbsHintForTest(p, "blueprint_affordable")); // the course teaches it too (c2.3)
         Assert.False(server.OfferAbsorbsHintForTest(p, "settlement_near"));     // another course's tip

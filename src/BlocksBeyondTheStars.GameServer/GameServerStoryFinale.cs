@@ -436,7 +436,7 @@ public sealed partial class GameServer
             var c = aw.CoreChamberCenter;
             session.State.Position = new Vector3f(c.X + 2.5f, c.Y + 0.5f, c.Z + 2.5f);
             session.State.RespawnPoint = session.State.Position;
-            session.SentChunks.Clear();
+            session.Streaming.SentChunks.Clear();
             SendPlayerState(session);
         }
     }

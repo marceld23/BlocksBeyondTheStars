@@ -347,7 +347,7 @@ public sealed class SandboxDamageFreeTests : IDisposable
         {
             Assert.False(chased, "nothing hunts a Sandbox player");
             Assert.Equal(100f, p.Health);
-            Assert.Equal(0, session.LastHitSeq); // no hit marker
+            Assert.Equal(0, session.Sync.LastHitSeq); // no hit marker
             Assert.True(double.IsNegativeInfinity(session.LastCombatAt), "no combat grace");
             Assert.DoesNotContain("in_combat", server.ReturnToShipRefusalForTest("Walker") ?? string.Empty);
         }

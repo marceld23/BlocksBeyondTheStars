@@ -107,7 +107,7 @@ public sealed partial class GameServer
 
     private void HandlePasteBuild(PlayerSession session, PasteBuildIntent intent)
     {
-        if (_uptime < session.NextBlueprintPasteAt)
+        if (_uptime < session.Throttles.NextBlueprintPasteAt)
         {
             Send(session, new BuildPasteResult { Success = false, Reason = "@srv.blueprint.cooldown" });
             return;
@@ -126,7 +126,7 @@ public sealed partial class GameServer
             return;
         }
 
-        session.NextBlueprintPasteAt = _uptime + BlueprintPasteCooldown;
+        session.Throttles.NextBlueprintPasteAt = _uptime + BlueprintPasteCooldown;
         bool free = !Rules.CraftingCostsMaterialsFor(session.State.ModeOverride) || session.State.InstantBuild;
         var pool = new MaterialPool(_content, session.State, _ship);
         int placed = 0, skippedMaterials = 0, skippedProtected = 0, skippedSpecial = 0;

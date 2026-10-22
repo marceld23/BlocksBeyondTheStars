@@ -82,14 +82,14 @@ public sealed partial class GameServer
     /// first pass, then the aboard welcome, the login welcome and the praise flush.</summary>
     private void TickVegaChatterFor(PlayerSession session)
     {
-        if (!session.VegaChatterSeeded)
+        if (!session.Vega.VegaChatterSeeded)
         {
-            session.VegaChatterSeeded = true;
-            session.VegaWasAboard = session.State.AboardShip;
-            session.VegaLeftShipAt = double.NaN;
-            if (DaysSince(session.PreviousSeenUtc) is { } days && days * 24.0 >= NpcWelcomeBackHours)
+            session.Vega.VegaChatterSeeded = true;
+            session.Vega.VegaWasAboard = session.State.AboardShip;
+            session.Vega.VegaLeftShipAt = double.NaN;
+            if (DaysSince(session.Vega.PreviousSeenUtc) is { } days && days * 24.0 >= NpcWelcomeBackHours)
             {
-                session.VegaWelcomeLoginDueAt = _uptime + VegaWelcomeLoginDelay;
+                session.Vega.VegaWelcomeLoginDueAt = _uptime + VegaWelcomeLoginDelay;
             }
         }
 
@@ -102,8 +102,8 @@ public sealed partial class GameServer
     /// ship lost under them): that is no homecoming — the outside clock starts over.</summary>
     private void ResetVegaAboardWelcome(PlayerSession session)
     {
-        session.VegaWasAboard = true;
-        session.VegaLeftShipAt = double.NaN;
+        session.Vega.VegaWasAboard = true;
+        session.Vega.VegaLeftShipAt = double.NaN;
     }
 
     /// <summary>Whether VEGA may chat with this player on a channel of <paramref name="kind"/>: not during the basic
@@ -115,32 +115,32 @@ public sealed partial class GameServer
     private void TickVegaAboardWelcome(PlayerSession session)
     {
         bool aboard = session.State.AboardShip;
-        bool was = session.VegaWasAboard;
-        session.VegaWasAboard = aboard;
+        bool was = session.Vega.VegaWasAboard;
+        session.Vega.VegaWasAboard = aboard;
         if (!aboard)
         {
-            if (was || double.IsNaN(session.VegaLeftShipAt))
+            if (was || double.IsNaN(session.Vega.VegaLeftShipAt))
             {
-                session.VegaLeftShipAt = _uptime; // stepped off (or outside since the join/respawn): the clock starts
+                session.Vega.VegaLeftShipAt = _uptime; // stepped off (or outside since the join/respawn): the clock starts
             }
 
             return;
         }
 
-        if (was || double.IsNaN(session.VegaLeftShipAt))
+        if (was || double.IsNaN(session.Vega.VegaLeftShipAt))
         {
             return; // no boarding edge
         }
 
-        double outside = _uptime - session.VegaLeftShipAt;
-        session.VegaLeftShipAt = double.NaN;
-        if (outside < VegaWelcomeAboardMinOutside || _uptime < session.VegaWelcomeAboardReadyAt
+        double outside = _uptime - session.Vega.VegaLeftShipAt;
+        session.Vega.VegaLeftShipAt = double.NaN;
+        if (outside < VegaWelcomeAboardMinOutside || _uptime < session.Vega.VegaWelcomeAboardReadyAt
             || !VegaChatterOpen(session, VegaTipRepeatKind))
         {
             return;
         }
 
-        session.VegaWelcomeAboardReadyAt = _uptime + VegaWelcomeAboardCooldown;
+        session.Vega.VegaWelcomeAboardReadyAt = _uptime + VegaWelcomeAboardCooldown;
         var anchorKeys = KeyPool("vega.welcome.aboard.", 4);
         string lineKey = anchorKeys[_vegaChatterRng.Next(anchorKeys.Count)];
         string name = session.State.Name ?? string.Empty;
@@ -157,18 +157,18 @@ public sealed partial class GameServer
     /// <summary>The login welcome, once, a moment after a join that followed a long absence.</summary>
     private void TickVegaLoginWelcome(PlayerSession session)
     {
-        if (session.VegaWelcomeLoginDueAt <= 0 || _uptime < session.VegaWelcomeLoginDueAt)
+        if (session.Vega.VegaWelcomeLoginDueAt <= 0 || _uptime < session.Vega.VegaWelcomeLoginDueAt)
         {
             return;
         }
 
-        session.VegaWelcomeLoginDueAt = 0; // once — a closed gate (training, muted) drops it rather than saving it for later
+        session.Vega.VegaWelcomeLoginDueAt = 0; // once — a closed gate (training, muted) drops it rather than saving it for later
         if (!VegaChatterOpen(session, 1))
         {
             return;
         }
 
-        int days = (int)Math.Floor(DaysSince(session.PreviousSeenUtc) ?? 0);
+        int days = (int)Math.Floor(DaysSince(session.Vega.PreviousSeenUtc) ?? 0);
         var anchorKeys = KeyPool("vega.welcome.login.", 3);
         string lineKey = anchorKeys[_vegaChatterRng.Next(anchorKeys.Count)];
         var anchors = VegaAnchors(session, anchorKeys, playerArg: true);
@@ -195,31 +195,31 @@ public sealed partial class GameServer
             return;
         }
 
-        if (session.PraisePending.Count == 0)
+        if (session.Vega.PraisePending.Count == 0)
         {
-            session.PraiseDueAt = _uptime + VegaPraiseCoalesceSeconds;
+            session.Vega.PraiseDueAt = _uptime + VegaPraiseCoalesceSeconds;
         }
 
-        session.PraisePending.Add(def.Key);
+        session.Vega.PraisePending.Add(def.Key);
     }
 
     /// <summary>Speaks the queued praise once its window closed — or drops it when VEGA may not chat right now (the
     /// training, a muted panel) or praised less than <see cref="VegaPraiseGap"/> ago. The banner shows every unlock anyway.</summary>
     private void FlushVegaPraise(PlayerSession session)
     {
-        if (session.PraisePending.Count == 0 || _uptime < session.PraiseDueAt)
+        if (session.Vega.PraisePending.Count == 0 || _uptime < session.Vega.PraiseDueAt)
         {
             return;
         }
 
-        var keys = session.PraisePending.ToList();
-        session.PraisePending.Clear();
-        if (_uptime < session.VegaPraiseReadyAt || !VegaChatterOpen(session, VegaTipRepeatKind))
+        var keys = session.Vega.PraisePending.ToList();
+        session.Vega.PraisePending.Clear();
+        if (_uptime < session.Vega.VegaPraiseReadyAt || !VegaChatterOpen(session, VegaTipRepeatKind))
         {
             return;
         }
 
-        session.VegaPraiseReadyAt = _uptime + VegaPraiseGap;
+        session.Vega.VegaPraiseReadyAt = _uptime + VegaPraiseGap;
         if (keys.Count > 1)
         {
             // Several at once: one authored line with the count (numbers are facts — no AI wording here).
@@ -291,7 +291,7 @@ public sealed partial class GameServer
             SendVegaLine(session, lineKey, kind, string.Join("\u001f", args));
         }
 
-        session.VegaTipReadyAt = Math.Max(session.VegaTipReadyAt, _uptime + VegaChatterTipPause);
+        session.Vega.VegaTipReadyAt = Math.Max(session.Vega.VegaTipReadyAt, _uptime + VegaChatterTipPause);
     }
 
     /// <summary>The authored lines of <paramref name="keys"/> in the player's language as AI anchors: with

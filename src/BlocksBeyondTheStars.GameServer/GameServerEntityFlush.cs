@@ -47,9 +47,9 @@ public sealed partial class GameServer
 
         foreach (var session in JoinedInActiveWorld())
         {
-            if (session.PlayerStateDirty)
+            if (session.Sync.PlayerStateDirty)
             {
-                session.PlayerStateDirty = false;
+                session.Sync.PlayerStateDirty = false;
                 SendPlayerState(session);
             }
         }
@@ -61,17 +61,17 @@ public sealed partial class GameServer
     private void MarkPlayerStateDirty(PlayerSession session)
     {
         var p = session.State;
-        session.LastSentHealth = p.Health;
-        session.LastSentOxygen = p.Oxygen;
-        session.LastSentEnergy = p.SuitEnergy;
-        session.LastSentHunger = p.Hunger;
+        session.Sync.LastSentHealth = p.Health;
+        session.Sync.LastSentOxygen = p.Oxygen;
+        session.Sync.LastSentEnergy = p.SuitEnergy;
+        session.Sync.LastSentHunger = p.Hunger;
         if (p.Health <= 0f)
         {
-            session.PlayerStateDirty = false;
+            session.Sync.PlayerStateDirty = false;
             SendPlayerState(session);
             return;
         }
 
-        session.PlayerStateDirty = true;
+        session.Sync.PlayerStateDirty = true;
     }
 }

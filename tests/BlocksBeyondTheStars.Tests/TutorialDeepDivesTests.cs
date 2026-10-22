@@ -283,7 +283,7 @@ public sealed class TutorialDeepDivesTests : IDisposable
         // A data cache in reach during the training: VEGA's tip pass sees it, but no course is offered yet.
         Walk(server, p, id => !id.StartsWith("b6.", StringComparison.Ordinal)); // through part 5
         Assert.True(Has(p, StoryPackKeys.ChapterDone(T, "b5")));
-        p.VegaTipLive = new[] { "data_cache_near" };
+        p.Vega.VegaTipLive = new[] { "data_cache_near" };
         server.TickStoryPacksForTest(p, 120);
         Assert.Empty(transport.Offers(p));
         Assert.Equal(StoryChapterStates.Available, ChapterState(server, p, "c2").State); // startable from the Journal already
@@ -303,32 +303,32 @@ public sealed class TutorialDeepDivesTests : IDisposable
 
         // The data cache is still in reach: its course is offered — but not right on top of the graduation (its suggestions
         // count as this moment's offer).
-        double graduatedAt = p.LastChapterOfferAt;
+        double graduatedAt = p.Story.LastChapterOfferAt;
         Assert.True(graduatedAt > 0, "the graduation's suggestions start the offer gap");
         server.TickStoryPacksForTest(p);
         Assert.Empty(transport.Offers(p));
-        while (transport.Offers(p).Count == 0 && p.StoryPackPlaySeconds < graduatedAt + 200)
+        while (transport.Offers(p).Count == 0 && p.Story.StoryPackPlaySeconds < graduatedAt + 200)
         {
             server.TickStoryPacksForTest(p);
         }
 
         var research = Assert.Single(transport.Offers(p));
         Assert.Equal("Knowledge and research", research.LineArg);
-        double researchAt = p.LastChapterOfferAt;
+        double researchAt = p.Story.LastChapterOfferAt;
         Assert.True(researchAt - graduatedAt >= 90, $"offered {researchAt - graduatedAt} s after the graduation");
 
         // The pilot course done: the navigator is offered next — again only after the gap.
         Start(server, p, "c3");
         Walk(server, p);
         Assert.True(Has(p, StoryPackKeys.ChapterDone(T, "c3")));
-        while (transport.Offers(p).Count < 2 && p.StoryPackPlaySeconds < researchAt + 200)
+        while (transport.Offers(p).Count < 2 && p.Story.StoryPackPlaySeconds < researchAt + 200)
         {
             server.TickStoryPacksForTest(p);
         }
 
         Assert.Equal(2, transport.Offers(p).Count);
         Assert.Equal("Navigator", transport.Offers(p)[1].LineArg);
-        Assert.True(p.LastChapterOfferAt - researchAt >= 90, "two offers are at least 90 s apart");
+        Assert.True(p.Story.LastChapterOfferAt - researchAt >= 90, "two offers are at least 90 s apart");
 
         server.TickStoryPacksForTest(p, 300);
         Assert.Equal(2, transport.Offers(p).Count); // each course once

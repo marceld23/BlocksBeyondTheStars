@@ -107,7 +107,7 @@ public sealed class ToxicWorldServerTests : IDisposable
         // 0.2 HP a second at Normal: slow — about eight minutes from full.
         float bare = HealthLostOutside(server, 10);
         Assert.InRange(bare, 1.6f, 2.4f);
-        Assert.Equal("@srv.death.corrosive_air", session.HazardDeathReason);
+        Assert.Equal("@srv.death.corrosive_air", session.Hazards.HazardDeathReason);
 
         // Aboard the ship the air stays out.
         p.Position = spawn;
@@ -163,7 +163,7 @@ public sealed class ToxicWorldServerTests : IDisposable
         var server = NewServer("water");
         Assert.True(server.ActiveTraitsForTest.ToxicWater);
         Assert.True(HealthLostInWater(server, 6) > 3f, "two HP a second after the grace");
-        Assert.Equal("@srv.death.toxic_water", server.Sessions[1].HazardDeathReason);
+        Assert.Equal("@srv.death.toxic_water", server.Sessions[1].Hazards.HazardDeathReason);
         server.ShipAiToxicScanForTest(server.Sessions[1].State.PlayerId);
         Assert.Contains($"vega:hint:toxic:{server.ActiveLocationId}:water", server.MilestonesForTest(server.Sessions[1].State.PlayerId));
     }

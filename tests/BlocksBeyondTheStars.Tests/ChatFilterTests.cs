@@ -65,7 +65,7 @@ public sealed class ChatFilterTests : IDisposable
 
     private static void Say(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession who, string text)
     {
-        who.LastChatTick = Environment.TickCount - 10_000;
+        who.Chat.LastChatTick = Environment.TickCount - 10_000;
         server.Chat(who.State.Name, text);
     }
 

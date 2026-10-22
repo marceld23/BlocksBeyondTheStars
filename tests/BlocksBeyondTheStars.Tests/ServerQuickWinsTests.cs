@@ -119,9 +119,9 @@ public sealed class ServerQuickWinsTests : IDisposable
             var p = server.AddLocalPlayer("Camper");
             // Stream the (small) view until nothing arrives for a while.
             int lastSent = -1;
-            for (int i = 0; i < 60 && p.SentChunks.Count != lastSent; i++)
+            for (int i = 0; i < 60 && p.Streaming.SentChunks.Count != lastSent; i++)
             {
-                lastSent = p.SentChunks.Count;
+                lastSent = p.Streaming.SentChunks.Count;
                 server.TickForTest(0.1);
             }
 
@@ -141,7 +141,7 @@ public sealed class ServerQuickWinsTests : IDisposable
             int beforeMove = server.StreamEnumerationsForTest;
             server.TickForTest(0.1);
             Assert.True(server.StreamEnumerationsForTest > beforeMove, "a moved player re-enumerates on the next pass");
-            Assert.True(p.SentChunks.Count > lastSent, "and the new column streams");
+            Assert.True(p.Streaming.SentChunks.Count > lastSent, "and the new column streams");
         }
     }
 

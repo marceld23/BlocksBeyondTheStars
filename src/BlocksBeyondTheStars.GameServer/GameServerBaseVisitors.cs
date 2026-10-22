@@ -206,9 +206,9 @@ public sealed partial class GameServer
             // #2602: a guard on duty reports these scouts itself (radio, or VEGA passing it on) — VEGA's own explanation
             // would be the second message about the same two figures. It stays unsaid for a guardless visit later.
         }
-        else if (!owner.ScoutsVegaSaid)
+        else if (!owner.Vega.ScoutsVegaSaid)
         {
-            owner.ScoutsVegaSaid = true; // VEGA explains it once per session; the toast repeats per visit
+            owner.Vega.ScoutsVegaSaid = true; // VEGA explains it once per session; the toast repeats per visit
             SendVegaLine(owner, "vega.sys.base_scouts", 1);
             _scoutVisitToldByVega.Add(b.Id); // a guard waking up during this visit then reports by radio only
         }

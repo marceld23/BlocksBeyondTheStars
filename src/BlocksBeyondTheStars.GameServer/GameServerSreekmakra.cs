@@ -503,27 +503,27 @@ public sealed partial class GameServer
             && _generator.TerrainGeneration >= WorldDescription.ExtremePlanetsGeneration;
         foreach (var session in JoinedInActiveWorld())
         {
-            if (session.MoodLocationId != _world.LocationId || InSpace(session.State.PlayerId))
+            if (session.Hazards.MoodLocationId != _world.LocationId || InSpace(session.State.PlayerId))
             {
                 ResetValumaMood(session);
-                session.MoodLocationId = InSpace(session.State.PlayerId) ? string.Empty : _world.LocationId;
+                session.Hazards.MoodLocationId = InSpace(session.State.PlayerId) ? string.Empty : _world.LocationId;
             }
 
-            if (!valuma || session.MoodLocationId.Length == 0)
+            if (!valuma || session.Hazards.MoodLocationId.Length == 0)
             {
                 continue;
             }
 
-            session.MoodSeconds += 1.0;
-            if (!session.MoodWatchedTold && session.MoodSeconds >= ValumaWatchedSeconds)
+            session.Hazards.MoodSeconds += 1.0;
+            if (!session.Hazards.MoodWatchedTold && session.Hazards.MoodSeconds >= ValumaWatchedSeconds)
             {
-                session.MoodWatchedTold = true;
+                session.Hazards.MoodWatchedTold = true;
                 SendVegaLine(session, "vega.sys.valuma_watching", 3);
             }
 
-            if (!session.MoodUneasy && session.MoodSeconds >= ValumaFogSeconds)
+            if (!session.Hazards.MoodUneasy && session.Hazards.MoodSeconds >= ValumaFogSeconds)
             {
-                session.MoodUneasy = true;
+                session.Hazards.MoodUneasy = true;
                 SendEnvironment(session);
                 SendPlayerState(session);
             }
@@ -532,10 +532,10 @@ public sealed partial class GameServer
 
     private void ResetValumaMood(PlayerSession session)
     {
-        bool wasUneasy = session.MoodUneasy;
-        session.MoodSeconds = 0;
-        session.MoodWatchedTold = false;
-        session.MoodUneasy = false;
+        bool wasUneasy = session.Hazards.MoodUneasy;
+        session.Hazards.MoodSeconds = 0;
+        session.Hazards.MoodWatchedTold = false;
+        session.Hazards.MoodUneasy = false;
         if (wasUneasy)
         {
             SendEnvironment(session);
@@ -582,8 +582,8 @@ public sealed partial class GameServer
     {
         if (FindSessionByPlayerId(playerId) is { } s)
         {
-            s.MoodLocationId = _world.LocationId;
-            s.MoodSeconds = seconds;
+            s.Hazards.MoodLocationId = _world.LocationId;
+            s.Hazards.MoodSeconds = seconds;
         }
     }
 }

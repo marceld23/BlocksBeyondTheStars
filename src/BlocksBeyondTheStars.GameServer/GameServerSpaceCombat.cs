@@ -1790,7 +1790,7 @@ public sealed partial class GameServer
             return; // nothing banked (full hold): the existing "full" warning speaks, no misleading "+n"
         }
 
-        var pending = session.PendingLootToast;
+        var pending = session.Throttles.PendingLootToast;
         int at = pending.FindIndex(p => p.Item == item);
         if (at >= 0)
         {
@@ -1809,20 +1809,20 @@ public sealed partial class GameServer
     /// <c>{name}</c> argument is the summed "+12 Iron ore, +3 Copper ore" list, localized server-side.</summary>
     private void FlushLootToast(PlayerSession session)
     {
-        if (session.PendingLootToast.Count == 0 || _uptime < session.NextLootToastAt)
+        if (session.Throttles.PendingLootToast.Count == 0 || _uptime < session.Throttles.NextLootToastAt)
         {
             return;
         }
 
-        bool anyBackpack = session.PendingLootToast.Any(p => p.ToBackpack > 0);
-        bool anyCargo = session.PendingLootToast.Any(p => p.ToCargo > 0);
+        bool anyBackpack = session.Throttles.PendingLootToast.Any(p => p.ToBackpack > 0);
+        bool anyCargo = session.Throttles.PendingLootToast.Any(p => p.ToCargo > 0);
         string key = anyBackpack && anyCargo ? "srv.space.loot_to_both"
             : anyCargo ? "srv.space.loot_to_cargo"
             : "srv.space.loot_to_backpack";
-        string list = string.Join(", ", session.PendingLootToast
+        string list = string.Join(", ", session.Throttles.PendingLootToast
             .Select(p => $"+{p.ToBackpack + p.ToCargo} {ItemDisplayName(session, p.Item)}"));
-        session.PendingLootToast.Clear();
-        session.NextLootToastAt = _uptime + LootToastCooldown;
+        session.Throttles.PendingLootToast.Clear();
+        session.Throttles.NextLootToastAt = _uptime + LootToastCooldown;
         Send(session, new ServerMessage { Text = "@" + key + ":" + list });
     }
 
@@ -2653,8 +2653,8 @@ public sealed partial class GameServer
             ResumeYaw = resume?.Yaw ?? 0f,
             // Automatic landed-ship transit (#1614): the client plays each stage hands-off and reports it, and the
             // landing descent heads for the destination instead of whatever lies ahead of the nose.
-            AutomaticTransit = session.AutomaticTransit,
-            TransitDestinationBodyId = session.AutomaticTransit ? session.PendingTransitBodyId ?? string.Empty : string.Empty,
+            AutomaticTransit = session.Transit.AutomaticTransit,
+            TransitDestinationBodyId = session.Transit.AutomaticTransit ? session.Transit.PendingTransitBodyId ?? string.Empty : string.Empty,
             SystemName = systemName,
             BodyName = bodyName,
             // Other real pilots PLUS the peaceful NPC traders out here — both ride the flight view's

@@ -174,7 +174,7 @@ public sealed class ArachnidServerTests : IDisposable
             Assert.True(server.ProvokeTimerForTest(id) > 0, "inside the lurk range it is provoked");
             Assert.True(Dist(rushing.Position, p.State.Position) < Dist(start, p.State.Position) - 0.5f,
                 $"it rushes the player: {Dist(start, p.State.Position):0.0} → {Dist(rushing.Position, p.State.Position):0.0}");
-            Assert.True(p.ArachnidSighted, "VEGA pointed the arachnid out to the player who came near it");
+            Assert.True(p.Vega.ArachnidSighted, "VEGA pointed the arachnid out to the player who came near it");
         }
     }
 

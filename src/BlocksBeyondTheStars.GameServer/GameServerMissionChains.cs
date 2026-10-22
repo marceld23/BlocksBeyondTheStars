@@ -667,7 +667,7 @@ public sealed partial class GameServer
             any |= DialogMissionGrantable(session.State, npcKey, id);
         }
 
-        return any && !session.DeclinedMissionDialogs.Contains(dialog.Key);
+        return any && !session.Npc.DeclinedMissionDialogs.Contains(dialog.Key);
     }
 
     /// <summary>The <c>mission:&lt;id&gt;</c> consequence: puts the step straight into the player's log as if

@@ -150,7 +150,7 @@ public sealed class AttackerDirectionTests : IDisposable
         var transport = new RecordingTransport();
         var server = Started(transport);
         var (p, feet) = Pad(server);
-        Assert.Equal(0, p.LastHitSeq); // nothing has hit this player yet
+        Assert.Equal(0, p.Sync.LastHitSeq); // nothing has hit this player yet
         var c = AngryAnimal(server, feet, 2.5f, out _);
 
         float before = p.State.Health;
@@ -158,17 +158,17 @@ public sealed class AttackerDirectionTests : IDisposable
         server.Tick(0.1);
 
         Assert.True(p.State.Health < before, "the angry animal in reach did not bite");
-        Assert.Equal(c.Id, p.LastHitEntityId);
-        Assert.True(p.LastHitSeq > 0);
-        Assert.True(Distance(p.LastHitFrom, c.Position) < 1f, "the recorded spot is not where the animal bit from");
+        Assert.Equal(c.Id, p.Sync.LastHitEntityId);
+        Assert.True(p.Sync.LastHitSeq > 0);
+        Assert.True(Distance(p.Sync.LastHitFrom, c.Position) < 1f, "the recorded spot is not where the animal bit from");
 
         // The hit marks the state dirty: the update goes out at the end of the same tick, attacker and all.
         var u = LastStateOf(transport, p);
         Assert.Equal(c.Id, u.LastHitEntityId);
-        Assert.Equal(p.LastHitSeq, u.LastHitSeq);
-        Assert.Equal(p.LastHitFrom.X, u.LastHitFromX, 3);
-        Assert.Equal(p.LastHitFrom.Y, u.LastHitFromY, 3);
-        Assert.Equal(p.LastHitFrom.Z, u.LastHitFromZ, 3);
+        Assert.Equal(p.Sync.LastHitSeq, u.LastHitSeq);
+        Assert.Equal(p.Sync.LastHitFrom.X, u.LastHitFromX, 3);
+        Assert.Equal(p.Sync.LastHitFrom.Y, u.LastHitFromY, 3);
+        Assert.Equal(p.Sync.LastHitFrom.Z, u.LastHitFromZ, 3);
     }
 
     [Fact]
@@ -180,10 +180,10 @@ public sealed class AttackerDirectionTests : IDisposable
         AngryAnimal(server, feet, 2.5f, out _);
 
         server.Tick(0.1);
-        int first = p.LastHitSeq;
+        int first = p.Sync.LastHitSeq;
         server.Tick(0.1);
-        Assert.True(p.LastHitSeq > first, "a second bite did not move the sequence on");
-        Assert.Equal(p.LastHitSeq, LastStateOf(transport, p).LastHitSeq);
+        Assert.True(p.Sync.LastHitSeq > first, "a second bite did not move the sequence on");
+        Assert.Equal(p.Sync.LastHitSeq, LastStateOf(transport, p).LastHitSeq);
     }
 
     [Fact]
@@ -200,15 +200,15 @@ public sealed class AttackerDirectionTests : IDisposable
         server.Tick(0.1);
 
         Assert.True(p.State.Health < before, "the scan drone in range did not hurt the player");
-        Assert.Equal(drone.Id, p.LastHitEntityId);
-        Assert.True(p.LastHitFrom.Y > feet + 1f, "the drone hovers above — the recorded spot must say so");
-        Assert.True(Distance(p.LastHitFrom, drone.Position) < 1f, "the recorded spot is not where the drone fired from");
+        Assert.Equal(drone.Id, p.Sync.LastHitEntityId);
+        Assert.True(p.Sync.LastHitFrom.Y > feet + 1f, "the drone hovers above — the recorded spot must say so");
+        Assert.True(Distance(p.Sync.LastHitFrom, drone.Position) < 1f, "the recorded spot is not where the drone fired from");
 
         var u = LastStateOf(transport, p);
         Assert.Equal(drone.Id, u.LastHitEntityId);
-        Assert.Equal(p.LastHitSeq, u.LastHitSeq);
+        Assert.Equal(p.Sync.LastHitSeq, u.LastHitSeq);
         Assert.True(u.LastHitSeq > 0);
-        Assert.Equal(p.LastHitFrom.Y, u.LastHitFromY, 3);
+        Assert.Equal(p.Sync.LastHitFrom.Y, u.LastHitFromY, 3);
     }
 
     // ---------------- #2565: one bite reach for server and client ----------------
@@ -238,7 +238,7 @@ public sealed class AttackerDirectionTests : IDisposable
         float before = p.State.Health;
         server.Tick(0.02);
         Assert.True(p.State.Health < before, $"a size-{size} animal {reach - 0.25f:0.00} blocks away did not bite");
-        Assert.Equal(c.Id, p.LastHitEntityId);
+        Assert.Equal(c.Id, p.Sync.LastHitEntityId);
 
         // Just outside: no bite.
         var far = Started(new RecordingTransport());
@@ -248,7 +248,7 @@ public sealed class AttackerDirectionTests : IDisposable
         before = q.State.Health;
         far.Tick(0.02);
         Assert.Equal(before, q.State.Health);
-        Assert.NotEqual(d.Id, q.LastHitEntityId);
+        Assert.NotEqual(d.Id, q.Sync.LastHitEntityId);
     }
 
     [Fact]

@@ -1097,12 +1097,12 @@ public sealed class TutorialPackTests : IDisposable
         kid.State.AboardShip = false;
         kid.State.Position = new Vector3f(ax + 60f, anchor.Y, az);
         server.TutorialStateEventsForTest(kid);
-        Assert.False(kid.TutorialFarFromShip);
+        Assert.False(kid.Tutorial.TutorialFarFromShip);
 
         // A flag left over from before (another step, a skip) is reset when the step activates.
-        kid.TutorialFarFromShip = true;
+        kid.Tutorial.TutorialFarFromShip = true;
         PlayUntil(server, kid, "b2.5");
-        Assert.False(kid.TutorialFarFromShip);
+        Assert.False(kid.Tutorial.TutorialFarFromShip);
         kid.State.AboardShip = false;
         kid.State.Position = new Vector3f(ax + 5f, anchor.Y, az);
         server.TutorialStateEventsForTest(kid);

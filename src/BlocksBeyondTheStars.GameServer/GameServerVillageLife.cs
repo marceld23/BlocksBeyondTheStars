@@ -264,7 +264,7 @@ public sealed partial class GameServer
     {
         foreach (var s in JoinedInActiveWorld())
         {
-            if (s.Conversation is { } c && ReferenceEquals(c.Npc, npc) && NpcConversationValid(s, c))
+            if (s.Npc.Conversation is { } c && ReferenceEquals(c.Npc, npc) && NpcConversationValid(s, c))
             {
                 return true;
             }

@@ -37,7 +37,7 @@ public sealed partial class GameServer
 
         float loss = (float)(dt * dps) * Rules.HazardSeverityFactor * (1f - CorrosionResistance(p));
         DamagePlayer(p, loss);
-        session.HazardDeathReason = "@srv.death.corrosive_air";
+        session.Hazards.HazardDeathReason = "@srv.death.corrosive_air";
     }
 
     /// <summary>#2032: a toxic world's hazards are rolled per WORLD, so VEGA reports this world's scan once per world

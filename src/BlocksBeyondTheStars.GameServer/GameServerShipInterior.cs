@@ -150,7 +150,7 @@ public sealed partial class GameServer
         // and (both interiors share their coordinates) reports from outside the hull for a moment (StaleShipInteriorPose).
         session.AwaitingSpawnAdopt = true;
         session.ShipInteriorSettleUntil = _uptime + ShipInteriorSettleSeconds;
-        session.SentChunks.Clear();
+        session.Streaming.SentChunks.Clear();
 
         Send(session, new WorldReset { PlanetType = ShipInteriorType, PlanetName = string.Empty, SystemName = string.Empty, Hyperjump = false });
         SendLandedShips(session); // the ship object itself — the world is void apart from it — BEFORE the position (#1450)
@@ -267,7 +267,7 @@ public sealed partial class GameServer
 
         session.State.AboardShip = true;
         session.State.InEva = false;
-        session.SentChunks.Clear();
+        session.Streaming.SentChunks.Clear();
         SendReturnWorldSnapshot(session, ret.ReturnType);
 
         // Back into the flight view, the ship exactly where it was parked and heading where it pointed (#2118) —

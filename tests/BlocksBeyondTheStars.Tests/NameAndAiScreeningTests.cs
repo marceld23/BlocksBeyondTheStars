@@ -179,7 +179,7 @@ public sealed class NameAndAiScreeningTests : IDisposable
         Assert.Equal(1, NoticesTo(transport, owner, "@srv.name.blocked"));
 
         // …while the very same word in chat is relayed with asterisks, as it always was.
-        owner.LastChatTick = Environment.TickCount - 10_000;
+        owner.Chat.LastChatTick = Environment.TickCount - 10_000;
         server.Chat("Builder", "you are an asshole");
         var heard = transport.Sent.Where(s => s.Conn == reader.ConnectionId)
             .Select(s => s.Msg).OfType<ChatMessage>().Select(c => c.Text).ToList();

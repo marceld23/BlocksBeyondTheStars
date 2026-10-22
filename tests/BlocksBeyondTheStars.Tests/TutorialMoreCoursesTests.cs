@@ -118,7 +118,7 @@ public sealed class TutorialMoreCoursesTests : IDisposable
         server.TickStoryPacksForTest(p);
         server.SkipTutorialForTest(p);
         Assert.Contains(StoryPackKeys.Done(T), p.State.Milestones);
-        p.StoryPackPlaySeconds += 90; // #2498: the skip suggests the flight courses silently — an offer; the next waits the gap
+        p.Story.StoryPackPlaySeconds += 90; // #2498: the skip suggests the flight courses silently — an offer; the next waits the gap
         return p;
     }
 
@@ -333,8 +333,8 @@ public sealed class TutorialMoreCoursesTests : IDisposable
         // Never started, never offered — even at their "moments".
         Start(server, p, "c12");
         Assert.False(Has(p, StoryPackKeys.ChapterActive(T, "c12")));
-        p.BanditDemandId = 1;
-        p.VegaTipLive = new[] { "settlement_near", "tameable_near" };
+        p.Bandit.BanditDemandId = 1;
+        p.Vega.VegaTipLive = new[] { "settlement_near", "tameable_near" };
         server.TickStoryPacksForTest(p, 3);
         Assert.Empty(transport.OfferArgs(p));
 
@@ -369,7 +369,7 @@ public sealed class TutorialMoreCoursesTests : IDisposable
 
         // During the training no moment counts.
         var rookie = Join(server, 1, "Rookie");
-        rookie.VegaTipLive = new[] { "tameable_near", "settlement_near", "ruin_near" };
+        rookie.Vega.VegaTipLive = new[] { "tameable_near", "settlement_near", "ruin_near" };
         Give(rookie, "sapling", 2);
         server.TickStoryPacksForTest(rookie, 3);
         Assert.Empty(transport.OfferArgs(rookie));
@@ -380,7 +380,7 @@ public sealed class TutorialMoreCoursesTests : IDisposable
         var tamer = Past("Tamer", 1);
         server.TickStoryPacksForTest(tamer);
         Assert.Empty(transport.OfferArgs(tamer));
-        tamer.VegaTipLive = new[] { "tameable_near" };
+        tamer.Vega.VegaTipLive = new[] { "tameable_near" };
         Assert.True(server.WorldPredicateForTest(tamer, StoryWorldPredicates.TameableNear));
         server.TickStoryPacksForTest(tamer);
         Assert.Equal("Animal friends", Assert.Single(transport.OfferArgs(tamer)));
@@ -401,7 +401,7 @@ public sealed class TutorialMoreCoursesTests : IDisposable
 
         // C11: a settlement close by (the tip pass).
         var neighbour = Past("Neighbour", 4);
-        neighbour.VegaTipLive = new[] { "settlement_near" };
+        neighbour.Vega.VegaTipLive = new[] { "settlement_near" };
         server.TickStoryPacksForTest(neighbour);
         Assert.Equal("Neighbours", Assert.Single(transport.OfferArgs(neighbour)));
 
@@ -422,12 +422,12 @@ public sealed class TutorialMoreCoursesTests : IDisposable
 
         // C18: VEGA's ruin tip — the treasure and wreck tips are moments too.
         var explorer = Past("Explorer", 7);
-        explorer.VegaTipLive = new[] { "ruin_near" };
+        explorer.Vega.VegaTipLive = new[] { "ruin_near" };
         server.TickStoryPacksForTest(explorer);
         Assert.Equal("Explorer", Assert.Single(transport.OfferArgs(explorer)));
-        explorer.VegaTipLive = new[] { "wreck_signal_manual" };
+        explorer.Vega.VegaTipLive = new[] { "wreck_signal_manual" };
         Assert.True(server.WorldPredicateForTest(explorer, StoryWorldPredicates.WreckSignal));
-        explorer.VegaTipLive = new[] { "treasure_near" };
+        explorer.Vega.VegaTipLive = new[] { "treasure_near" };
         Assert.True(server.WorldPredicateForTest(explorer, StoryWorldPredicates.TreasureNear));
 
         // C12: something hostile close by on a world with machines (the hold-up is the other moment, below).
@@ -829,7 +829,7 @@ public sealed class TutorialMoreCoursesTests : IDisposable
         server.Chat("Alice", "hello");
         Assert.False(Done(alice, "c15.1")); // refused: no radio
         TestGear.Wear(alice.State, "comm_radio");
-        alice.LastChatTick = Environment.TickCount - 10_000;
+        alice.Chat.LastChatTick = Environment.TickCount - 10_000;
         server.Chat("Alice", "hello Bob");
         Assert.True(Done(alice, "c15.1"));
 
@@ -986,7 +986,7 @@ public sealed class TutorialMoreCoursesTests : IDisposable
         Assert.Equal(1, events.Of(GameEventKeys.MoveClimbed).Sum(e => e.Amount));
 
         // A chat line out on the radio — not a refused one, not a command.
-        b.LastChatTick = Environment.TickCount - 10_000;
+        b.Chat.LastChatTick = Environment.TickCount - 10_000;
         server.Chat("Ben", "hi");
         Assert.Empty(events.Of(GameEventKeys.ChatSent));
         TestGear.Wear(b.State, "comm_radio");

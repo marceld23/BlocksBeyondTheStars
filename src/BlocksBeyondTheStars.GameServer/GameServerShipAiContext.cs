@@ -181,7 +181,7 @@ public sealed partial class GameServer
     /// <summary>The player did the thing a recent tip suggested — retire that tip for this save.</summary>
     private void ShipAiTipLearned(PlayerSession session, string id)
     {
-        if (session.VegaTipLastId != id || _uptime - session.VegaTipLastAt > VegaTipLearnWindow)
+        if (session.Vega.VegaTipLastId != id || _uptime - session.Vega.VegaTipLastAt > VegaTipLearnWindow)
         {
             return;
         }
@@ -207,8 +207,8 @@ public sealed partial class GameServer
     {
         if (FindSessionByPlayerId(playerId) is { } s)
         {
-            s.VegaTipLastId = tipId;
-            s.VegaTipLastAt = _uptime;
+            s.Vega.VegaTipLastId = tipId;
+            s.Vega.VegaTipLastAt = _uptime;
             ShipAiTipLearned(s, tipId);
         }
     }
@@ -219,8 +219,8 @@ public sealed partial class GameServer
     {
         if (FindSessionByPlayerId(playerId) is { } s)
         {
-            s.VegaTipCooldownUntil.Clear();
-            s.VegaTipReadyAt = 0.0;
+            s.Vega.VegaTipCooldownUntil.Clear();
+            s.Vega.VegaTipReadyAt = 0.0;
         }
     }
 
@@ -235,7 +235,7 @@ public sealed partial class GameServer
 
         var list = new List<(VegaTipSpec Spec, string Arg, string Mention)>();
         CollectVegaTipCandidates(s, list);
-        return (list.Select(c => c.Spec.Id).ToList(), s.VegaProbe.SolidAbove, s.VegaProbe.LightNear, s.State.AboardShip);
+        return (list.Select(c => c.Spec.Id).ToList(), s.Vega.VegaProbe.SolidAbove, s.Vega.VegaProbe.LightNear, s.State.AboardShip);
     }
 
     /// <summary>Test seam: pacing state of one tip for a player (fired count, cooldown end, cadence end,
@@ -248,9 +248,9 @@ public sealed partial class GameServer
         }
 
         return (VegaTipCount(s.State, tipId),
-            s.VegaTipCooldownUntil.TryGetValue(tipId, out var cd) ? cd : 0,
-            s.VegaTipReadyAt,
-            s.VegaTipSince.TryGetValue(tipId, out var since) ? since : -1,
+            s.Vega.VegaTipCooldownUntil.TryGetValue(tipId, out var cd) ? cd : 0,
+            s.Vega.VegaTipReadyAt,
+            s.Vega.VegaTipSince.TryGetValue(tipId, out var since) ? since : -1,
             _uptime);
     }
 
@@ -281,10 +281,10 @@ public sealed partial class GameServer
     private void ShipAiOnBlockBroken(PlayerSession session, string blockKey)
     {
         var p = session.State;
-        session.VegaMineRecent += 1.0;
+        session.Vega.VegaMineRecent += 1.0;
 
         bool holdsDrill = _content.GetItem(HeldItemKey(p))?.Tool?.Kind == ToolKind.Drill;
-        session.VegaHandMineStreak = holdsDrill ? 0 : session.VegaHandMineStreak + 1;
+        session.Vega.VegaHandMineStreak = holdsDrill ? 0 : session.Vega.VegaHandMineStreak + 1;
 
         if (blockKey.EndsWith("_ore", System.StringComparison.Ordinal))
         {
@@ -294,7 +294,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>The terrain scanner was used — the "you carry a scanner" nudge stays quiet for a while.</summary>
-    private void ShipAiOnScannerUsed(PlayerSession session) => session.VegaScannerUsedAt = _uptime;
+    private void ShipAiOnScannerUsed(PlayerSession session) => session.Vega.VegaScannerUsedAt = _uptime;
 
     // ---------------------------------------------------------------------------------------------
     // The 1 Hz evaluation (called from TickShipAi per session).
@@ -303,7 +303,7 @@ public sealed partial class GameServer
     private void TickVegaContextTips(PlayerSession session)
     {
         var p = session.State;
-        session.VegaMineRecent *= 0.9;
+        session.Vega.VegaMineRecent *= 0.9;
 
         var candidates = new List<(VegaTipSpec Spec, string Arg, string Mention)>();
         CollectVegaTipCandidates(session, candidates);
@@ -320,34 +320,34 @@ public sealed partial class GameServer
         foreach (var c in candidates)
         {
             seen.Add(c.Spec.Id);
-            if (!session.VegaTipSince.ContainsKey(c.Spec.Id))
+            if (!session.Vega.VegaTipSince.ContainsKey(c.Spec.Id))
             {
-                session.VegaTipSince[c.Spec.Id] = _uptime;
+                session.Vega.VegaTipSince[c.Spec.Id] = _uptime;
             }
         }
 
-        foreach (var id in session.VegaTipSince.Keys.ToList())
+        foreach (var id in session.Vega.VegaTipSince.Keys.ToList())
         {
             if (!seen.Contains(id))
             {
-                session.VegaTipSince.Remove(id);
+                session.Vega.VegaTipSince.Remove(id);
             }
         }
 
-        session.VegaTipLive = seen; // #2479: the moment a deep dive is offered at (world:data_cache_near …), whatever the hints say
+        session.Vega.VegaTipLive = seen; // #2479: the moment a deep dive is offered at (world:data_cache_near …), whatever the hints say
 
         // #2462 (B31): with the hints muted no tip goes out — each one counts its tellings in the save, so a tip sent to
         // a muted panel was spent unseen. The dwell bookkeeping above keeps running, so a tip whose situation still
         // holds speaks up once the hints are on again. A refused swing's tier-gate arming is dropped rather than kept
         // for later: that tip is only worth hearing at the wall.
-        if (session.VegaHintsMuted)
+        if (session.Vega.VegaHintsMuted)
         {
-            session.VegaTierGateBlock = string.Empty;
-            session.VegaTierGateTool = string.Empty;
+            session.Vega.VegaTierGateBlock = string.Empty;
+            session.Vega.VegaTierGateTool = string.Empty;
             return;
         }
 
-        bool gapOpen = _uptime >= session.VegaTipReadyAt; // cadence: has VEGA been quiet long enough?
+        bool gapOpen = _uptime >= session.Vega.VegaTipReadyAt; // cadence: has VEGA been quiet long enough?
         bool opportunityOpen = OpportunityTipsOpen(session);
         (VegaTipSpec Spec, string Arg, string Mention)? best = null;
         foreach (var c in candidates)
@@ -370,19 +370,19 @@ public sealed partial class GameServer
                 // swing after the release arms it again.
                 if (s.Id == "tier_gate")
                 {
-                    session.VegaTierGateBlock = string.Empty;
-                    session.VegaTierGateTool = string.Empty;
+                    session.Vega.VegaTierGateBlock = string.Empty;
+                    session.Vega.VegaTierGateTool = string.Empty;
                 }
 
                 continue;
             }
 
-            if (_uptime - session.VegaTipSince[s.Id] < s.Dwell)
+            if (_uptime - session.Vega.VegaTipSince[s.Id] < s.Dwell)
             {
                 continue;
             }
 
-            if (session.VegaTipCooldownUntil.TryGetValue(s.Id, out var until) && _uptime < until)
+            if (session.Vega.VegaTipCooldownUntil.TryGetValue(s.Id, out var until) && _uptime < until)
             {
                 continue;
             }
@@ -398,7 +398,7 @@ public sealed partial class GameServer
                 // #2459: the course VEGA offered a moment ago teaches this — the offer was its telling (the tool-tier tip is
                 // armed by the very swing that made the workshop course due, and the offer pass runs before this one).
                 BookHintAsTold(session, s.Id);
-                session.VegaTipReadyAt = System.Math.Max(session.VegaTipReadyAt, _uptime + VegaTipGap);
+                session.Vega.VegaTipReadyAt = System.Math.Max(session.Vega.VegaTipReadyAt, _uptime + VegaTipGap);
                 continue;
             }
 
@@ -433,14 +433,14 @@ public sealed partial class GameServer
         p.Milestones.Add(count == 0 ? "vega:hint:" + spec.Id : "vega:hint:" + spec.Id + "#" + (count + 1));
         _repo.SavePlayer(p);
 
-        session.VegaTipReadyAt = _uptime + VegaTipGap;
-        session.VegaTipCooldownUntil[spec.Id] = _uptime + spec.Cooldown;
-        session.VegaTipSince.Remove(spec.Id);
-        session.VegaTipLastId = spec.Id;
-        session.VegaTipLastAt = _uptime;
+        session.Vega.VegaTipReadyAt = _uptime + VegaTipGap;
+        session.Vega.VegaTipCooldownUntil[spec.Id] = _uptime + spec.Cooldown;
+        session.Vega.VegaTipSince.Remove(spec.Id);
+        session.Vega.VegaTipLastId = spec.Id;
+        session.Vega.VegaTipLastAt = _uptime;
         if (mention.Length > 0)
         {
-            session.VegaTipMentioned.Add(mention);
+            session.Vega.VegaTipMentioned.Add(mention);
         }
 
         // #2560: the hunger tip with something edible in the pocket names it (its argument) and the key that eats it — the
@@ -449,15 +449,15 @@ public sealed partial class GameServer
         SendVegaLine(session, lineKey, count == 0 ? (byte)1 : VegaTipRepeatKind, arg);
         if (lineKey == "vega.hint.hunger_food")
         {
-            session.VegaTipCooldownUntil["eat_now"] = _uptime + VegaTips["eat_now"].Cooldown; // it just said the same
+            session.Vega.VegaTipCooldownUntil["eat_now"] = _uptime + VegaTips["eat_now"].Cooldown; // it just said the same
         }
 
         // The tool-tier gate (#1686) is armed by a refused swing and disarmed once it has been explained —
         // the collector deliberately leaves it standing so a losing cadence slot does not swallow the tip.
         if (spec.Id == "tier_gate")
         {
-            session.VegaTierGateBlock = string.Empty;
-            session.VegaTierGateTool = string.Empty;
+            session.Vega.VegaTierGateBlock = string.Empty;
+            session.Vega.VegaTierGateTool = string.Empty;
         }
 
         // The fragment signal (#1109) also marks the spoken-of fragment on everyone's map — the mention
@@ -477,7 +477,7 @@ public sealed partial class GameServer
         var p = session.State;
         void Add(string id, string arg = "", string mention = "")
         {
-            if (mention.Length > 0 && session.VegaTipMentioned.Contains(mention))
+            if (mention.Length > 0 && session.Vega.VegaTipMentioned.Contains(mention))
             {
                 return;
             }
@@ -496,10 +496,10 @@ public sealed partial class GameServer
         // cadence slot, so clearing here would drop the tip whenever a safety hint outranked it. FireVegaTip
         // clears it once the line actually goes out; the mention key keeps a player hammering the same wall
         // to one telling rather than one per swing.
-        if (session.VegaTierGateBlock.Length > 0)
+        if (session.Vega.VegaTierGateBlock.Length > 0)
         {
-            Add("tier_gate", session.VegaTierGateBlock + VegaArgSeparator + session.VegaTierGateTool,
-                "tier:" + session.VegaTierGateBlock);
+            Add("tier_gate", session.Vega.VegaTierGateBlock + VegaArgSeparator + session.Vega.VegaTierGateTool,
+                "tier:" + session.Vega.VegaTierGateBlock);
         }
 
         // --- Vitals (#1082) ---
@@ -520,7 +520,7 @@ public sealed partial class GameServer
 
         if (p.SuitClimateActive)
         {
-            Add(session.EffectiveTemperatureC < ComfortLowC ? "cold" : "heat");
+            Add(session.Hazards.EffectiveTemperatureC < ComfortLowC ? "cold" : "heat");
         }
 
         if (p.Health < 40f && p.Health > 0f && HasHealingItem(p))
@@ -537,7 +537,7 @@ public sealed partial class GameServer
         if (onFoot)
         {
             RefreshVegaProbe(session);
-            var probe = session.VegaProbe;
+            var probe = session.Vega.VegaProbe;
             bool night = LocalDayFraction(session.State.Position) is < 0.15 or > 0.85; // #1865: the local sun
             bool underground = probe.SolidAbove >= VegaTipUndergroundSolid;
             bool dark = (night || underground) && !probe.LightNear;
@@ -562,18 +562,18 @@ public sealed partial class GameServer
                 Add("crystal_night_light"); // #2257: "how about a night light for your base?" — gone once anything of the net stands
             }
 
-            if (session.VegaHandMineStreak >= 8 && CarriesTool(p, ToolKind.Drill))
+            if (session.Vega.VegaHandMineStreak >= 8 && CarriesTool(p, ToolKind.Drill))
             {
                 Add("wrong_tool");
             }
 
-            if (session.VegaMineRecent > 4.0 && p.Inventory.Has("terrain_scanner", 1)
-                && (session.VegaScannerUsedAt <= 0.0 || _uptime - session.VegaScannerUsedAt > 300.0))
+            if (session.Vega.VegaMineRecent > 4.0 && p.Inventory.Has("terrain_scanner", 1)
+                && (session.Vega.VegaScannerUsedAt <= 0.0 || _uptime - session.Vega.VegaScannerUsedAt > 300.0))
             {
                 Add("scanner_idle");
             }
 
-            if (session.VegaMineRecent > 4.0 && !p.Inventory.Has("terrain_scanner", 1)
+            if (session.Vega.VegaMineRecent > 4.0 && !p.Inventory.Has("terrain_scanner", 1)
                 && !p.UnlockedBlueprints.Contains("terrain_scanner"))
             {
                 Add("scanner_unknown");
@@ -586,7 +586,7 @@ public sealed partial class GameServer
                 foreach (var (key, _) in probe.ExposedOres)
                 {
                     var vein = ores?.FirstOrDefault(o => o.Block == key);
-                    if (vein is not null && vein.Rarity <= VegaTipRareOreRarity && !session.VegaTipMentioned.Contains("ore:" + key))
+                    if (vein is not null && vein.Rarity <= VegaTipRareOreRarity && !session.Vega.VegaTipMentioned.Contains("ore:" + key))
                     {
                         Add("rare_ore_near", ItemDisplayName(session, key), "ore:" + key);
                         break;
@@ -595,7 +595,7 @@ public sealed partial class GameServer
 
                 foreach (var (key, _) in probe.ExposedOres)
                 {
-                    if (session.VegaTipMentioned.Contains("need:" + key))
+                    if (session.Vega.VegaTipMentioned.Contains("need:" + key))
                     {
                         continue;
                     }
@@ -646,7 +646,7 @@ public sealed partial class GameServer
         }
 
         // --- Progression (#1079) — a recipe/blueprint sweep, so only when a tip could actually go out ---
-        if (_uptime >= session.VegaTipReadyAt && OpportunityTipsOpen(session))
+        if (_uptime >= session.Vega.VegaTipReadyAt && OpportunityTipsOpen(session))
         {
             if (CraftableNow(session) is { } recipe)
             {
@@ -1025,9 +1025,9 @@ public sealed partial class GameServer
             return;
         }
 
-        session.VegaTierGateBlock = LocalizedName(session.Locale, block.NameKey, block.Key);
-        session.VegaTierGateTool = LocalizedName(session.Locale, wanted.NameKey, wanted.Key);
-        session.TierGateRefusedAt = _uptime; // #2480: the "Workshop and titanium" course's moment (world:tier_gate)
+        session.Vega.VegaTierGateBlock = LocalizedName(session.Locale, block.NameKey, block.Key);
+        session.Vega.VegaTierGateTool = LocalizedName(session.Locale, wanted.NameKey, wanted.Key);
+        session.Tutorial.TierGateRefusedAt = _uptime; // #2480: the "Workshop and titanium" course's moment (world:tier_gate)
         RaiseGameEvent(session, GameEventKeys.MineRefused, block.Key); // #2469: the tutorial's tool-tier reaction (it absorbs the tip's first telling)
     }
 
@@ -1089,7 +1089,7 @@ public sealed partial class GameServer
         var p = session.State;
         foreach (var r in _content.Recipes.Values)
         {
-            if (r.Inputs.Count == 0 || r.Outputs.Count == 0 || session.VegaTipMentioned.Contains("craft:" + r.Key))
+            if (r.Inputs.Count == 0 || r.Outputs.Count == 0 || session.Vega.VegaTipMentioned.Contains("craft:" + r.Key))
             {
                 continue;
             }
@@ -1130,7 +1130,7 @@ public sealed partial class GameServer
         var p = session.State;
         foreach (var bp in _content.Blueprints.Values)
         {
-            if (p.UnlockedBlueprints.Contains(bp.Key) || session.VegaTipMentioned.Contains("bp:" + bp.Key)
+            if (p.UnlockedBlueprints.Contains(bp.Key) || session.Vega.VegaTipMentioned.Contains("bp:" + bp.Key)
                 || bp.KnowledgeCost > p.KnowledgePoints
                 || bp.Prerequisites.Any(pr => !p.UnlockedBlueprints.Contains(pr)))
             {
@@ -1162,13 +1162,13 @@ public sealed partial class GameServer
 
     private void RefreshVegaProbe(PlayerSession session)
     {
-        if (_uptime < session.VegaTipProbeAt)
+        if (_uptime < session.Vega.VegaTipProbeAt)
         {
             return;
         }
 
-        session.VegaTipProbeAt = _uptime + VegaTipProbeInterval;
-        var probe = session.VegaProbe;
+        session.Vega.VegaTipProbeAt = _uptime + VegaTipProbeInterval;
+        var probe = session.Vega.VegaProbe;
         probe.ExposedOres.Clear();
         probe.DataCache = null;
         probe.LightNear = false;
@@ -1257,7 +1257,7 @@ public sealed partial class GameServer
     {
         if (FindSessionByPlayerId(playerId) is { } s)
         {
-            s.VegaTipProbeAt = 0.0;
+            s.Vega.VegaTipProbeAt = 0.0;
         }
     }
 }

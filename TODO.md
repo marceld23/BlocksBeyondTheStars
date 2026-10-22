@@ -86,6 +86,12 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   `On<T>` tables (new partials `GameServerDispatch.cs`, `NetworkClientDispatch.cs`). Gates, handlers and wire format
   are untouched; every message is sealed, so the lookup equals the old switch. `IntentDispatchRegistryTests` and
   `ClientDispatchRegistryTests` pin 155/136 (WeatherForecastRequest stays unhandled); 506 server + 2,317 client green.
+- **PlayerSession state in per-subsystem components (#2895):** 180 RAM-only members left `PlayerSession.cs` (829 →
+  269 lines, 228 → 61 public/internal members) for 13 sealed components reached as `session.<Group>` (`Throttles`,
+  `Chat`, `Liveness`, `Streaming`, `Hazards`, `Vega`, `Tutorial`, `Story`, `Npc`, `Bandit`, `Respawn`, `Transit`,
+  `Sync`; files `PlayerSession<Group>.cs`), declarations verbatim: defaults, sentinels, field/property kinds unchanged.
+  The three PlayerState mirrors stay in core; 937 compiler-guided `.<Group>` insertions (no regex, DTO names untouched),
+  nothing persisted or on the wire changed; 1,040 server + 34 client session tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
