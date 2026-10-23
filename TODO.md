@@ -24,6 +24,10 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🔧 Refactoring follow-ups 2026-10 — the bugs and cleanups the code-health refactoring found — #2919–#2928, branch fix/refactoring-follow-ups-2026-10 — 🚧 in progress
+
+The deferred class extractions are #2929 (not part of this branch).
+
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 
 Behaviour-preserving restructuring in one feature branch, one commit per sub-issue (players notice nothing: same
@@ -298,7 +302,8 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   - #2925 InterviewUi's canvas survives the rig teardown (one leaked canvas per world join, #2303 class).
   - #2926 Client quirks: board-reach hint hard-codes 3.2, ping ray uses mask `~0`, three main-menu modal quirks.
   - #2927 Server quirks: multi-cell partner-cell checks, `above_head` across the seam, story-validator quirks.
-  - #2928 Code-health follow-ups: small cleanups and the deferred class extractions.
+  - #2928 Code-health cleanups (dead code, stale crefs and docs, copied helpers, a missing gate test).
+  - #2929 The class extractions deferred from this refactoring (a stage of its own, each needs a design decision).
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
