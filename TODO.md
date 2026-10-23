@@ -242,6 +242,12 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   statement order; they read `Player.Game`, `Camera` and `Avatar` at use time and cache nothing. 9 `private` → `internal`;
   the framed `SendMovement` block became `TrySendFramedMove` (`PlayerController.cs` 789 → 784 lines). Client source guards
   read both; Unity build, 273 EditMode + 2,319 client tests green (speeder/boat/train: maintainer playtest only).
+- **GameBootstrap split into concern files (#2912, C4a):** `GameBootstrap.cs` (5,162 → 1,666 lines, long methods
+  7 → 3) keeps the fields it shares, `Start` with all 101 subscriptions, `Update`, `OnWorldReset` and `OnDestroy`; the
+  rest of its class body moved verbatim, comments and order kept, to 11 partials `GameBootstrap.<Concern>.cs` beside
+  `.ChunkPipeline` (`ChunkStreaming`, `Environment`, `PlayerState`, `Messages` … `Stations`; largest 1,192 lines). An
+  order-preserving proof maps all 5,136 body lines to exactly one file; the guards read the exact 13-file set; Unity +
+  WebGL builds, 273 EditMode + 6 PlayMode + 2,319 client tests green, PerfProbe before/after alike.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

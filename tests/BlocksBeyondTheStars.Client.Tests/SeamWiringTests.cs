@@ -33,7 +33,7 @@ public sealed class SeamWiringTests
     [Fact]
     public void TheEKey_AndTheTalkPrompt_AskTheSamePicker()
     {
-        string boot = Script("GameBootstrap.cs");
+        string boot = Script("GameBootstrap.Entities.cs"); // the NPC pickers' GameBootstrap part (#2912)
         Assert.Contains("InteractReach.NearestTalkableNpc(Npcs, PlayerPosition.x, PlayerPosition.y, PlayerPosition.z, Circumference)", boot);
 
         string player = ClientTestPaths.PlayerControllerSources();
@@ -94,7 +94,7 @@ public sealed class SeamWiringTests
         Assert.Contains("private void LateUpdate()", hud);
         Assert.Contains("bool show = !Game.ScreenMenuOpen", hud);
 
-        string boot = Script("GameBootstrap.cs");
+        string boot = Script("GameBootstrap.Menus.cs"); // the menu owners' GameBootstrap part (#2912)
         Assert.Contains("if (!_hudMenuOwners.Contains(owner))", Body(boot, "public bool ScreenMenuOpen"));
 
         string feedback = Script("FeedbackUi.cs");

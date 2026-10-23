@@ -15,6 +15,23 @@ public sealed class VendorTradeWiringTests
     private static string Script(string file)
         => File.ReadAllText(Path.Combine(ClientTestPaths.RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts", file));
 
+    /// <summary>Every <c>GameBootstrap*.cs</c> part (#2912), by file name — checked against the exact expected set below,
+    /// so a renamed or added part cannot slip past the "no private vendor reach" scan unnoticed.</summary>
+    private static readonly string[] GameBootstrapParts =
+    {
+        "GameBootstrap.ChunkPipeline.cs", "GameBootstrap.ChunkStreaming.cs", "GameBootstrap.cs", "GameBootstrap.Entities.cs",
+        "GameBootstrap.Environment.cs", "GameBootstrap.Knowledge.cs", "GameBootstrap.Menus.cs", "GameBootstrap.Messages.cs",
+        "GameBootstrap.PlayerState.cs", "GameBootstrap.Space.cs", "GameBootstrap.Stations.cs", "GameBootstrap.Story.cs",
+        "GameBootstrap.Structures.cs",
+    };
+
+    /// <summary>The <c>GameBootstrap*.cs</c> file names actually present in the client's Scripts folder, sorted.</summary>
+    private static string[] GameBootstrapPartsOnDisk()
+        => Directory.EnumerateFiles(Path.Combine(ClientTestPaths.RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts"), "GameBootstrap*.cs")
+            .Select(f => Path.GetFileName(f))
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToArray();
+
     /// <summary>The body of the member that starts at <paramref name="signature"/> (up to the next doc comment).</summary>
     private static string Body(string src, string signature)
     {
@@ -27,7 +44,7 @@ public sealed class VendorTradeWiringTests
     [Fact]
     public void ThePrompt_E_AndTheMarketPage_AskTheOneVendorPicker()
     {
-        string boot = Script("GameBootstrap.cs");
+        string boot = Script("GameBootstrap.Entities.cs"); // the vendor pickers' GameBootstrap part (#2912)
         Assert.Contains("VendorReach.NearestVendor(Npcs, PlayerPosition.x, PlayerPosition.y, PlayerPosition.z, Circumference)", boot);
         Assert.Contains("public bool NearVendor => NearestTradingVendor() != null;", boot);
         Assert.Contains("NearestTradingVendor()?.Theme", Body(boot, "public string NearestVendorTheme"));
@@ -38,7 +55,8 @@ public sealed class VendorTradeWiringTests
         Assert.Contains("Game.NearestTradingVendor()", offer);
         Assert.Contains("Menu?.OpenMarket(id);", offer); // "Trade" binds the screen to THIS vendor
 
-        foreach (string src in new[] { Script("GameBootstrap.cs"), ClientTestPaths.PlayerControllerSources(), Script("VendorTradeUI.cs") })
+        Assert.Equal(GameBootstrapParts.OrderBy(f => f, StringComparer.Ordinal), GameBootstrapPartsOnDisk());
+        foreach (string src in GameBootstrapParts.Select(Script).Concat(new[] { ClientTestPaths.PlayerControllerSources(), Script("VendorTradeUI.cs") }))
         {
             Assert.DoesNotContain("3.6f", src); // the old private vendor reach
         }
