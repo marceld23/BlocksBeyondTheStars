@@ -15,7 +15,7 @@ The note geometry below is his: every head, stem, flag and beam sits where he dr
 and even strokes. The stone frame and background are his tile's (our old frame), with his note pixels filled from the
 surrounding stone. Deterministic: no model, no randomness.
 
-    uv run --no-project --with pillow python tools/ai-assets/refine_rune_stone.py <submission>/texture.bytes \
+    uv run --no-project --with "pillow>=13" python tools/ai-assets/refine_rune_stone.py <submission>/texture.bytes \
         [--out client/Assets/Resources/textures/rune_stone.bytes] [--preview preview.png]
 
 The output is the game's raw tile format: 64x64 RGBA32, rows bottom-up.

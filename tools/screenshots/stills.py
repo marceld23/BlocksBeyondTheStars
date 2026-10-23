@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["pillow>=10"]
+# dependencies = ["pillow>=13"]
 # ///
 """Contact sheets and publishing for the HUD-free world stills (scripts/capture-stills.ps1, #2765).
 

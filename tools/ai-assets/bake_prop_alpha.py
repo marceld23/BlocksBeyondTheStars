@@ -22,8 +22,8 @@ rewritten in place, and the mask depends on RGB only, so a second run changes no
 tile of their own: the atlas paints them from the lit tile, darkened with the alpha kept (BlockTextureAtlas.DarkenTile).
 
 Usage:
-    uv run --no-project --with pillow python tools/ai-assets/bake_prop_alpha.py                 # bake both
-    uv run --no-project --with pillow python tools/ai-assets/bake_prop_alpha.py --dry-run --preview out/preview
+    uv run --no-project --with "pillow>=13" python tools/ai-assets/bake_prop_alpha.py                 # bake both
+    uv run --no-project --with "pillow>=13" python tools/ai-assets/bake_prop_alpha.py --dry-run --preview out/preview
 """
 
 from __future__ import annotations

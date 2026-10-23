@@ -140,7 +140,7 @@ track's prompt and its pool).
   at the tile's bottom row, so a new plant tile is **one plant in side view on pure black** (`ON_BLACK` in
   `gen_textures.py`), not a top-down field of plants on a ground. Pipeline: `uv run gen_textures.py --only <key>` →
   `uv run bundle_textures.py --from-out --only <key>` → add the key to `DARK_GROUND` and `ROOTED` in
-  `bake_leaf_alpha.py` → `uv run --no-project --with pillow python bake_leaf_alpha.py --key <key>`. The bake cuts the
+  `bake_leaf_alpha.py` → `uv run --no-project --with "pillow>=13" python bake_leaf_alpha.py --key <key>`. The bake cuts the
   black, drops specks and lowers the plant onto the bottom edge; `BlockTileAlphaTests` checks the result. A tile that
   shows one object on a flat *lighter* ground goes into `GROUND_KEY` instead (the darkness cut would invert it). The
   bake's previews land in `out/baked/`, never over the generated images in `out/textures/`.

@@ -24,6 +24,20 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🔒 Pillow 13 for the asset tools — Dependabot alerts #15–#23 — branch fix/ai-assets-pillow-13 — ✅ done 2026-10-23
+
+- **What:** nine Dependabot alerts (1 critical, 6 high, 2 medium) on `pillow 12.3.0` in `tools/ai-assets/uv.lock` — a
+  JPEG decoder heap overflow, TIFF decoder/encoder out-of-bounds reads, PDF/GIF/EPS resource exhaustion, `ImageMorph` on
+  zero-width images. Pillow 13.0.0 fixes all of them, and the release's other advisories that may still arrive as alerts.
+- **Why Dependabot opened no PR:** Pillow 13 dropped Python 3.10 (end-of-life October 2026), and the tool still declared
+  `requires-python = ">=3.10"`, so a lock-only bump forks the resolution and keeps 12.3.0 for 3.10.
+- **Fix:** `tools/ai-assets` now requires Python ≥ 3.11 (like `ai-backend`) and `pillow>=13.0.0`; the lock drops 12.3.0
+  and the 3.10-only `exceptiongroup` backport. The one-off `uv run --with pillow` recipes in the README and script
+  docstrings, and `tools/screenshots/stills.py`'s inline metadata, ask for `pillow>=13` — Dependabot does not see them.
+- **Exposure was low:** a local, maintainer-run tool (not in CI, the client, the server images or `ai-backend`); it
+  decodes only OpenAI PNG responses and our own files, community texture submissions go through `Image.frombytes` (no
+  decoder). None of Pillow 13's removed APIs is used; `bake_prop_alpha.py --dry-run --preview` runs unchanged.
+
 ### 🔧 Refactoring follow-ups 2026-10 — the bugs and cleanups the code-health refactoring found — #2919–#2928, branch fix/refactoring-follow-ups-2026-10, PR #2930 — ✅ done 2026-10-23 (⚠ playtest open)
 
 The deferred class extractions are #2929 (not part of this branch).

@@ -4,7 +4,7 @@ few HUD glyphs — drawn with Pillow at 4x and downsampled, so no paid asset gen
 Output: client/Assets/Resources/icons/vital_<key>.png (+ a Unity .meta cloned from map_waypoint.png.meta
 with a fresh GUID). White ink on transparent, 64x64, single stroke weight — tinted by the UI at runtime.
 
-Run:  uv run --with pillow tools/ai-assets/gen_hud_icons.py
+Run:  uv run --with "pillow>=13" tools/ai-assets/gen_hud_icons.py
 """
 from __future__ import annotations
 
