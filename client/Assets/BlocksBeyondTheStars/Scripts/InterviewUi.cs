@@ -27,9 +27,6 @@ namespace BlocksBeyondTheStars.Client
 
         protected override int CanvasSortingOrder => 62; // above the HUD and the dialogue panel
 
-        // Its OnDestroy never destroyed the canvas, so it outlives the rig — kept as it was (a pure refactor).
-        protected override bool KeepCanvasOnDestroy => true;
-
         /// <summary>Opens the interview for the reporter NPC that just asked.</summary>
         public void Open(int npcId)
         {

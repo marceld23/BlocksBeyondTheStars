@@ -79,9 +79,6 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The canvas's sorting order (the HUD/chat sit below, the world map at 60).</summary>
         protected abstract int CanvasSortingOrder { get; }
 
-        /// <summary>True to leave the canvas standing when the panel is destroyed (InterviewUi's historic behaviour).</summary>
-        protected virtual bool KeepCanvasOnDestroy => false;
-
         /// <summary>Shape B: builds the static chrome under the fresh canvas, once (before it is hidden).</summary>
         protected virtual void BuildChrome(Transform root)
         {
@@ -185,12 +182,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The localized text for <paramref name="key"/>, or the key itself without a localizer.</summary>
         protected string L(string key) => Game?.Localizer?.Get(key) ?? key;
 
-        /// <summary>Unregisters the panel and, unless <see cref="KeepCanvasOnDestroy"/>, destroys its canvas — a canvas is
-        /// a top-level object of its own and would otherwise outlive the rig (#2303). Overrides call this last.</summary>
+        /// <summary>Unregisters the panel and destroys its canvas — a canvas is a top-level object of its own and would
+        /// otherwise outlive the rig, one more hidden canvas per world join (#2303, #2925). Overrides call this last.</summary>
         protected virtual void OnDestroy()
         {
             _game?.Context.Unregister(this);
-            if (!KeepCanvasOnDestroy && _canvas != null)
+            if (_canvas != null)
             {
                 Destroy(_canvas.gameObject);
             }

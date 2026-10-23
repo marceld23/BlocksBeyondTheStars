@@ -109,7 +109,7 @@ and is the one that holds in CI. Run the suite from the Editor's Test Runner win
 
 ## Tier 2 — Unity PlayMode (`UnityPlay`)
 
-`client/Assets/Tests/PlayMode/`. Three test classes:
+`client/Assets/Tests/PlayMode/`. Four test classes:
 - **The shipping path** — a `[UnityTest]` coroutine launches the **published** dedicated server
   (`LocalServerLauncher`, the same code Singleplayer uses) as a child process on loopback UDP, waits for the
   server's own ready line (`LocalServerLauncher.Ready`, up to 60 s — never a fixed sleep, a fresh world takes ~8 s
@@ -120,6 +120,8 @@ and is the one that holds in CI. Run the suite from the Editor's Test Runner win
   calls `Object.Destroy`). Skipped if `StreamingAssets/data` is missing.
 - **`InputFocusGuardPlayModeTests`** — a focused input field whose canvas is switched off must be released without
   the uGUI caret exception (it needs real frames and caret blinks).
+- **`UiPanelPlayModeTests`** — destroying a `UiPanel` takes its scene-root canvas along (the rig-teardown leak,
+  #2303/#2925); PlayMode because `OnDestroy` does not run in edit mode. See [UI_PANELS.md](UI_PANELS.md#tests).
 
 The PlayMode assembly must NOT be Editor-only (`includePlatforms: []`), otherwise Unity classifies it as an
 EditMode assembly and the tests run in the wrong mode (and `UnityPlay` finds nothing).

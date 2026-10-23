@@ -79,6 +79,11 @@ The deferred class extractions are #2929 (not part of this branch).
   body now lists them in the short card, as a section-2 bullet (what, why, how long) and in the section-5 deletion
   list; `privacy.summary.text` says the same in all 14 languages; HOSTED_WORLDS.md too.
   `WorldHostHttpTests.Privacy_NamesTheRescueCodes_AndThatDeletingTheAccountErasesThemAsync` pins all four spots.
+- **The interview panel's canvas goes with the rig (#2925):** `InterviewUi` overrode `KeepCanvasOnDestroy => true`,
+  so its scene-root canvas outlived every rig teardown — one more hidden canvas per world join, plus a still-open
+  overlay (the #2303 leak class). The override and the now-unused `UiPanel.KeepCanvasOnDestroy` hook are gone, so
+  `UiPanel.OnDestroy` destroys every panel's canvas; nothing reads the interview canvas once the rig is torn down.
+  `UiPanelPlayModeTests.InterviewUi_DestroyedPanel_TakesItsCanvasAlong` pins it (PlayMode: edit mode skips OnDestroy).
 
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 

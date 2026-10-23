@@ -11,8 +11,8 @@ singletons are replaced by a per-rig registry, `ClientContext` (`ClientContext.c
   instead of `BeamPadUi.Instance?.Open(…)` and get the panel of *their* rig, or null.
 - **The canvas** — `CanvasName` + `CanvasSortingOrder` (abstract), created by `EnsureCanvas()` (once) or
   `CreateCanvasNow()` (per open) — both call `UiKit.CreateCanvas`, set the sort order and `UiNav.Enable` right away,
-  so every panel is pad-navigable (#1198). `OnDestroy` destroys the canvas (a top-level object that would otherwise
-  outlive the rig, #2303) unless `KeepCanvasOnDestroy` says otherwise.
+  so every panel is pad-navigable (#1198). `OnDestroy` destroys the canvas of every panel (a top-level object that
+  would otherwise outlive the rig, one more hidden canvas per world join — #2303, #2925).
 - **State** — `Shown`, `OpenFrame`, `IsOpen` (virtual; `Shown` by default), `IsBuilt` (the canvas exists).
 - **The modal** — `AddModal(x, y, w, h)` (the standard `UiKit.AddModalOverlay`, remembered as `Overlay`),
   `DestroyOverlay()`, `PlayOpenEffect()` (`UiKit.OpenModal` on the overlay).
@@ -78,14 +78,15 @@ once in `BuildChrome` (`AddModal`, then `Overlay.SetActive(false)`); Open/Close 
 `UiPanel.CanvasForTest` (read-only) is the seam for EditMode tests: `client/Assets/Tests/EditMode/UiPanelEditModeTests.cs`
 opens the three pilots without a `Game`, checks sort order, pad focus and overlay count, pins `ClientContext`'s
 register/unregister rules, and removes the canvases with `DestroyImmediate` (Awake/OnDestroy do not run in edit mode).
+The canvas cleanup on destroy is therefore pinned in PlayMode: `client/Assets/Tests/PlayMode/UiPanelPlayModeTests.cs`
+builds the interview's canvas, destroys the panel and checks that the canvas is gone a frame later (#2925).
 `client/Assets/Tests/EditMode/RigViewsEditModeTests.cs` pins `RigViews`: null while unset, the registered view, and a
 true null once that view is destroyed.
 
 ## Inventory and follow-up queue
 
 **Migrated (all 13):** shape B — `BeamPadUi`, `BeaconLabelUi`, `BlueprintToolUi`, `StoryReaderUi`, `TeleporterUi`;
-shape B2 — `TrainCabUi`, `BioLabUi`, `CrystalDeviceUi`, `InterviewUi` (keeps its canvas on destroy:
-`KeepCanvasOnDestroy => true`); shape A — `ContainerFilterUi`, `CrateUi` (`Close(bool notifyServer)`), `HotbarActionUi`
+shape B2 — `TrainCabUi`, `BioLabUi`, `CrystalDeviceUi`, `InterviewUi`; shape A — `ContainerFilterUi`, `CrateUi` (`Close(bool notifyServer)`), `HotbarActionUi`
 and `ContextActionsUi` (their first level is a `UiKit.AddModalDim` ring/list, not an `AddModal` dialog;
 `ContextActionsUi` keeps its toggle key out of the opening frame with `Time.frameCount != OpenFrame`). No panel of the
 13 has a `static Instance` any more.
