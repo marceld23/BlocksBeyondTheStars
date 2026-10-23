@@ -825,8 +825,8 @@ loadNotices();
 <div class='card'>
  <h2>Kurz und ehrlich (für Kinder erklärt)</h2>
  <p>Wir wollen so wenig wie möglich über dich wissen: <b>keine E-Mail, kein echter Name, keine Werbung,
- kein Tracking.</b> Wir speichern nur deinen erfundenen Spielernamen, dein Passwort (verschlüsselt als
- Hash), deine Welten und deine Meldungen. Wenn du dein Konto löschst, ist alles davon weg.</p>
+ kein Tracking.</b> Wir speichern nur deinen erfundenen Spielernamen, dein Passwort und deine Rettungscodes
+ (verschlüsselt als Hash), deine Welten und deine Meldungen. Wenn du dein Konto löschst, ist alles davon weg.</p>
 </div>
 <div class='card'>
  <h2>1. Verantwortlicher</h2>
@@ -837,6 +837,12 @@ loadNotices();
  <ul>
   <li><b>Konto:</b> selbst gewählter Kontoname, Passwort-Hash (PBKDF2 — das Passwort selbst wird nie
    gespeichert), Zeitpunkt der Regel-Zustimmung. Keine E-Mail-Adresse, kein Klarname.</li>
+  <li><b>Rettungscodes:</b> Damit du ein vergessenes Passwort auch ohne E-Mail-Adresse zurücksetzen kannst,
+   erhältst du Rettungscodes. Gespeichert wird von jedem Code nur ein Hash (PBKDF2 — der Code selbst wird nie
+   gespeichert), zusammen mit dem Zeitpunkt seiner Erstellung und, sobald er eingelöst wurde, dem Zeitpunkt
+   der Einlösung. Die Codes bleiben gespeichert, bis du neue Rettungscodes erzeugst (sie ersetzen dann die
+   alten) oder dein Konto löschst; ein eingelöster Code bleibt bis dahin als verbraucht vermerkt und
+   funktioniert nicht noch einmal.</li>
   <li><b>Welten &amp; Spielstände:</b> die von dir erstellten oder hochgeladenen Welten (Spieldaten).</li>
   <li><b>Meldungen &amp; Feedback:</b> von dir abgesendete „Spieler melden“-Einträge (gemeldeter Name,
    Kategorie, Text) sowie dein Spiel-Feedback („Feedback &amp; Ideen“, nur der Text).</li>
@@ -887,8 +893,8 @@ loadNotices();
  <h2>5. Speicherdauer und Löschung</h2>
  <ul>
   <li>Konto, Welten und Meldungen bleiben gespeichert, bis du dein Konto löschst — dafür gibt es den
-   Button <b>„Konto löschen“</b> auf der Welten-Seite; damit werden Konto, Sitzungen, deine Meldungen und
-   alle deine Welten samt Spielständen endgültig entfernt.</li>
+   Button <b>„Konto löschen“</b> auf der Welten-Seite; damit werden Konto, Sitzungen, Rettungscodes, deine
+   Meldungen und alle deine Welten samt Spielständen endgültig entfernt.</li>
   <li>Lange inaktive Welten werden nach etwa {config.ArchiveAfterMonths} Monaten archiviert (nicht gelöscht).</li>
   <li><b>Textur-Einreichungen</b>, die wir nicht ins Spiel übernehmen, löschen wir spätestens nach 12 Monaten
    automatisch (samt Bild und Gesprächsverlauf). Übernommene Texturen sind Teil des Spiels; auf Wunsch

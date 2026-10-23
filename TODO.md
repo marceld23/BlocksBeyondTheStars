@@ -74,6 +74,11 @@ The deferred class extractions are #2929 (not part of this branch).
   "never exposed" comment. `Item` now parses `WithoutReplyKey(r.ReportJson)` like the export (the database keeps the
   key, every other field stays); REPORT_HOST.md says so. `ReportHostReadApiHttpTests`
   (`AssertReadApiHidesReplyKeysAsync`) reads the list and the single report and finds no reply key in either.
+- **The privacy page names the recovery codes (#2920):** `/datenschutz` never mentioned the `recovery_code` rows (PBKDF2
+  hash, creation time, time of use) the registry keeps per account, nor that account deletion erases them. The German
+  body now lists them in the short card, as a section-2 bullet (what, why, how long) and in the section-5 deletion
+  list; `privacy.summary.text` says the same in all 14 languages; HOSTED_WORLDS.md too.
+  `WorldHostHttpTests.Privacy_NamesTheRescueCodes_AndThatDeletingTheAccountErasesThemAsync` pins all four spots.
 
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 

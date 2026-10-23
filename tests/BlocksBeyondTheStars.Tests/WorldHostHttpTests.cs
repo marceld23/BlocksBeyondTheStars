@@ -229,6 +229,22 @@ public sealed class WorldHostHttpTests : IClassFixture<WorldHostHttpFixture>
         Assert.Equal("de", json.RootElement.GetProperty("lang").GetString());
     }
 
+    /// <summary>The served privacy page names the rescue codes the registry keeps per account (#2920): the short card,
+    /// the data list and the deletion statement of the authoritative German body, and the English summary the German
+    /// page appends — so the stored codes cannot drop out of the privacy policy again.</summary>
+    [Fact]
+    public async Task Privacy_NamesTheRescueCodes_AndThatDeletingTheAccountErasesThemAsync()
+    {
+        using var response = await _host.Client.GetAsync("/datenschutz?lang=de");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        string html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Rettungscodes", Section(html, "Kurz und ehrlich", "1. Verantwortlicher"), StringComparison.Ordinal);
+        Assert.Contains("<b>Rettungscodes:</b>", Section(html, "2. Welche Daten", "3. Zwecke"), StringComparison.Ordinal);
+        Assert.Contains("Sitzungen, Rettungscodes", Section(html, "5. Speicherdauer", "6. Deine Rechte"), StringComparison.Ordinal);
+        Assert.Contains("sessions, rescue codes", Section(html, "class='card' lang='en'", "</div>"), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task Signup_ThenTheOwnWorldList_IsEmpty_AndNeedsTheBearerAsync()
     {
@@ -520,6 +536,17 @@ public sealed class WorldHostHttpTests : IClassFixture<WorldHostHttpFixture>
     private static string Normalize(string? raw) => "/" + (raw ?? string.Empty).Trim('/');
 
     private static StringContent Json(string body) => new(body, Encoding.UTF8, "application/json");
+
+    /// <summary>The part of <paramref name="html"/> from the first <paramref name="from"/> up to the next
+    /// <paramref name="to"/> after it; fails the test when either marker is missing.</summary>
+    private static string Section(string html, string from, string to)
+    {
+        int start = html.IndexOf(from, StringComparison.Ordinal);
+        Assert.True(start >= 0, $"'{from}' is missing from the page");
+        int end = html.IndexOf(to, start + from.Length, StringComparison.Ordinal);
+        Assert.True(end >= 0, $"'{to}' is missing after '{from}'");
+        return html[start..end];
+    }
 
     private async Task<string> SignUpAsync(string name)
     {

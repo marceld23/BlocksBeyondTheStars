@@ -482,8 +482,11 @@ schema and the one lock — see "Code map" below), so swapping the backend later
 - **`/impressum` (§5 DDG) + `/datenschutz` (DSGVO)**, footer-linked from every portal page. Operator
   data is config-driven (`BBS_WH_LEGAL_NAME` / `_ADDRESS` / `_EMAIL`) so a SELF-HOSTED WorldHost
   serves ITS operator's details, never the project authors'; unset → an explicit "not configured"
-  notice, never wrong data. The privacy page states the data-minimal reality (name + PBKDF2 hash, no
-  email, no tracking, no third-party embeds/fonts; transient IPs for rate limits/logs only).
+  notice, never wrong data. The privacy page states the data-minimal reality (name + PBKDF2 hash; the
+  rescue codes as PBKDF2 hashes with their creation and use times, kept until re-issued or the account is
+  deleted; no email, no tracking, no third-party embeds/fonts; transient IPs for rate limits/logs only).
+  Whatever the registry starts keeping per account belongs on that page, in its German body and in the
+  `privacy.summary.text` portal key of all 14 languages.
 - **Account self-deletion (DSGVO Art. 17).** `DELETE /api/account` + a double-confirm portal button:
   stops + deletes all the account's worlds (registry rows + live and archived saves on disk), deletes
   every registry row keyed by the account — its sessions, rescue codes, the reports it filed, its notices,
