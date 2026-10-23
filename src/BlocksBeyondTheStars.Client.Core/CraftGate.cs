@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Bio;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 
@@ -47,7 +48,7 @@ namespace BlocksBeyondTheStars.Client
     public readonly struct CraftGateInput
     {
         public CraftGateInput(GameContent content, bool creative, ICollection<string> unlockedBlueprints,
-            NetItemStack[]? personal, NetItemStack[]? cargo, bool aboard, int personalSlots, int cargoSlots,
+            NetItemStack[]? personal, NetItemStack[]? cargo, NetItemStack[]? equipment, bool aboard, int personalSlots, int cargoSlots,
             Func<bool> marketAvailable, Func<RecipeDefinition, bool> marketOfferedHere,
             Func<RecipeDefinition, bool> factoryAway, Func<CraftingStation, bool> stationAvailable)
         {
@@ -56,6 +57,7 @@ namespace BlocksBeyondTheStars.Client
             UnlockedBlueprints = unlockedBlueprints;
             Personal = personal;
             Cargo = cargo;
+            Equipment = equipment;
             Aboard = aboard;
             PersonalSlots = personalSlots;
             CargoSlots = cargoSlots;
@@ -79,6 +81,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The cargo hold's occupied slots (empty while not aboard — the server sends none then).</summary>
         public NetItemStack[]? Cargo { get; }
+
+        /// <summary>The worn suit gear (#2110): an upgrade recipe may consume the piece being worn (tank II from a worn
+        /// tank I), so it counts toward the inputs — never toward the room for the result.</summary>
+        public NetItemStack[]? Equipment { get; }
 
         /// <summary>True while the player is aboard their ship: only then do crafted items spill into the cargo hold.</summary>
         public bool Aboard { get; }
@@ -111,16 +117,19 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class CraftGate
     {
-        /// <summary>The first gate that blocks <paramref name="r"/>, in the order the reason line names them: in Creative
-        /// only the room for the result; otherwise blueprint, materials, then the market (vendor, then today's offer), the
-        /// factory terminal or the recipe's station, and last the room for the result.</summary>
-        public static CraftBlock Check(RecipeDefinition r, in CraftGateInput input)
+        /// <summary>The first gate that blocks an order of <paramref name="count"/> × <paramref name="r"/>, in the order the
+        /// reason line names them: in Creative only the room for the result; otherwise blueprint, materials, then the market
+        /// (vendor, then today's offer), the factory terminal or the recipe's station, and last the room for the result.
+        /// Materials and room are checked for the whole order, as the server does (#2937): a batch that only partly fits is
+        /// refused as a whole.</summary>
+        public static CraftBlock Check(RecipeDefinition r, in CraftGateInput input, int count = 1)
         {
+            count = BatchOf(count);
             if (input.Creative)
             {
                 // Everything the server skips in this mode is skipped here too — only the room for the result is
                 // real (the server refuses a craft that does not fit, so the button would lie).
-                return ResultFits(r, input) ? CraftBlock.None : CraftBlock.InventoryFull;
+                return ResultFits(r, input, count) ? CraftBlock.None : CraftBlock.InventoryFull;
             }
 
             if (!BlueprintOk(r.RequiredBlueprint, input))
@@ -128,7 +137,7 @@ namespace BlocksBeyondTheStars.Client
                 return CraftBlock.NeedBlueprint;
             }
 
-            if (!HasAll(r.Inputs, input))
+            if (!HasAll(r.Inputs, input, count))
             {
                 return CraftBlock.NeedMaterials;
             }
@@ -166,16 +175,18 @@ namespace BlocksBeyondTheStars.Client
             // reads "craftable" and the button is live, but the server refuses with @inventory_full and the
             // only feedback is an easy-to-miss toast (LAN playtest: full 24-slot backpack, the inputs only
             // shrink stacks without freeing a slot, and the new tool needs a fresh one).
-            return ResultFits(r, input) ? CraftBlock.None : CraftBlock.InventoryFull;
+            return ResultFits(r, input, count) ? CraftBlock.None : CraftBlock.InventoryFull;
         }
 
-        /// <summary>Client-side dry-run of the server's <c>MaterialPool.CanFit</c> for a single craft:
+        /// <summary>Client-side dry-run of the server's <c>MaterialPool.CanFit</c> for an order of
+        /// <paramref name="count"/> crafts (the outputs scaled ×N, as the server scales them, #2937):
         /// every output must fit on top of what is held right now — stack top-up first, then free slots,
         /// spilling into the ship's cargo hold only while aboard (the exact pool the server hands the
         /// crafted items to). Deliberately as pessimistic as the server: inputs are NOT removed first, so
         /// a craft whose inputs would free a slot still reads as blocked — the server refuses it too.</summary>
-        public static bool ResultFits(RecipeDefinition r, in CraftGateInput input)
+        public static bool ResultFits(RecipeDefinition r, in CraftGateInput input, int count = 1)
         {
+            count = BatchOf(count);
             var personal = SimStacks(input.Personal);
             var cargo = input.Aboard ? SimStacks(input.Cargo) : null;
             int freePersonal = Math.Max(0, input.PersonalSlots - personal.Count);
@@ -189,7 +200,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 int maxStack = input.Content.MaxStackOf(output.Item);
-                int remaining = SimAdd(personal, ref freePersonal, output.Item, output.Count, maxStack);
+                int remaining = SimAdd(personal, ref freePersonal, output.Item, output.Count * count, maxStack);
                 if (remaining > 0 && cargo != null)
                 {
                     remaining = SimAdd(cargo, ref freeCargo, output.Item, remaining, maxStack);
@@ -259,12 +270,13 @@ namespace BlocksBeyondTheStars.Client
         public static bool BlueprintOk(string? bp, in CraftGateInput input)
             => string.IsNullOrEmpty(bp) || input.UnlockedBlueprints.Contains(bp);
 
-        /// <summary>True when the player owns every listed amount (<see cref="Owned"/>).</summary>
-        public static bool HasAll(IEnumerable<ItemAmount> cost, in CraftGateInput input)
+        /// <summary>True when the player owns every listed amount <paramref name="count"/> times over (<see cref="Owned"/>) —
+        /// the server's <c>MaterialPool.Has</c> over the scaled inputs.</summary>
+        public static bool HasAll(IEnumerable<ItemAmount> cost, in CraftGateInput input, int count = 1)
         {
             foreach (var c in cost)
             {
-                if (Owned(c.Item, input) < c.Count)
+                if (Owned(c.Item, input) < c.Count * count)
                 {
                     return false;
                 }
@@ -273,27 +285,21 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
-        /// <summary>How many of <paramref name="item"/> the player holds: backpack plus cargo hold (the hold the server
-        /// sends only while aboard). Worn gear and lab-changed variants are not counted (#2937).</summary>
+        /// <summary>How many of <paramref name="item"/> the player may craft with — what the server's
+        /// <c>MaterialPool.Count</c> counts (#2937): the backpack, the cargo hold (the hold the server sends only while
+        /// aboard) and the worn gear (#2110: tank II takes the worn tank I), each with the pieces the bio lab changed
+        /// (#2206, <see cref="ItemMods.IsChangedVariant"/>).</summary>
         public static int Owned(string item, in CraftGateInput input)
+            => CountIn(input.Personal, item) + CountIn(input.Cargo, item) + CountIn(input.Equipment, item);
+
+        private static int CountIn(NetItemStack[]? stacks, string item)
         {
             int n = 0;
-            if (input.Personal != null)
+            if (stacks != null)
             {
-                foreach (var s in input.Personal)
+                foreach (var s in stacks)
                 {
-                    if (s.Item == item)
-                    {
-                        n += s.Count;
-                    }
-                }
-            }
-
-            if (input.Cargo != null)
-            {
-                foreach (var s in input.Cargo)
-                {
-                    if (s.Item == item)
+                    if (s.Item == item || ItemMods.IsChangedVariant(s.Item, item))
                     {
                         n += s.Count;
                     }
@@ -302,6 +308,9 @@ namespace BlocksBeyondTheStars.Client
 
             return n;
         }
+
+        /// <summary>The server's bound on one craft order (<c>HandleCraft</c>): at least one, at most a full stack.</summary>
+        private static int BatchOf(int count) => Math.Clamp(count, 1, ItemDefinition.DefaultMaxStack);
 
         /// <summary>The non-market crafting recipe among <paramref name="recipes"/> that produces <paramref name="item"/> (so
         /// it can be disassembled), plus its per-craft output count; (null, 1) when the item isn't craftable.</summary>

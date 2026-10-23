@@ -114,18 +114,18 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>What <see cref="CraftGate"/> reads about the player right now (a struct — no allocation).</summary>
         private CraftGateInput Gate => new CraftGateInput(Game.Content, FreeCrafting(), Game.UnlockedBlueprints,
-            Game.Personal, Game.Cargo, Game.Aboard, PersonalSlotTotal, Game.CargoSlots,
+            Game.Personal, Game.Cargo, Game.Equipment, Game.Aboard, PersonalSlotTotal, Game.CargoSlots,
             _gateMarketAvailable ??= MarketAvailableNow, _gateMarketOfferedHere ??= MarketOfferedHereNow,
             _gateFactoryAway ??= IsFactoryRecipeAway, _gateStationAvailable ??= StationAvailable);
 
         private bool MarketAvailableNow() => Game.MarketAvailable;
         private bool MarketOfferedHereNow(RecipeDefinition r) => Game.MarketOfferedHere(r);
 
-        /// <summary>Whether <paramref name="r"/> can be crafted right now, and if not the reason line for the first gate
-        /// that blocks it (<see cref="CraftGate.Check"/> keeps the order).</summary>
-        private bool CanCraft(RecipeDefinition r, out string reason)
+        /// <summary>Whether an order of <paramref name="count"/> × <paramref name="r"/> can be crafted right now, and if not
+        /// the reason line for the first gate that blocks it (<see cref="CraftGate.Check"/> keeps the order).</summary>
+        private bool CanCraft(RecipeDefinition r, int count, out string reason)
         {
-            var block = CraftGate.Check(r, Gate);
+            var block = CraftGate.Check(r, Gate, count);
             reason = block switch
             {
                 CraftBlock.InventoryFull => L("ui.craft.inventory_full"),

@@ -32,14 +32,8 @@ public sealed class MaterialPool
         + CountChanged(_personal, item) + CountChanged(_cargo, item) + CountChanged(_equipment, item);
 
     // #2206: a tool or a piece of gear the bio lab changed carries the change in its key and is still that tool — an
-    // upgrade recipe (tank II from tank I) takes it like a plain one. Only the lab's change tag is "soft" like this: a
-    // dyed, shaped or painted block stays its own item, or a recipe would eat the painted wall.
-
-    /// <summary>True when a stack is <paramref name="item"/> with nothing but a lab change on it.</summary>
-    private static bool IsChangedVariant(string stackItem, string item)
-        => stackItem.Length > item.Length + 1 && stackItem[item.Length] == ItemKey.Separator
-           && stackItem.StartsWith(item, System.StringComparison.Ordinal)
-           && ItemKey.SetTag(stackItem, Shared.Bio.ItemMods.Tag, string.Empty) == item;
+    // upgrade recipe (tank II from tank I) takes it like a plain one. The rule (ItemMods.IsChangedVariant) is shared with
+    // the client's craft gate, so the craft button answers what this pool answers (#2937).
 
     private static int CountChanged(Inventory? inventory, string item)
     {
@@ -51,7 +45,7 @@ public sealed class MaterialPool
         int total = 0;
         foreach (var stack in inventory.Slots)
         {
-            if (stack is { IsEmpty: false } && IsChangedVariant(stack.Item, item))
+            if (stack is { IsEmpty: false } && Shared.Bio.ItemMods.IsChangedVariant(stack.Item, item))
             {
                 total += stack.Count;
             }
@@ -65,7 +59,7 @@ public sealed class MaterialPool
     {
         for (int i = 0; inventory is not null && i < inventory.SlotCount && count > 0; i++)
         {
-            if (inventory.Slots[i] is { IsEmpty: false } stack && IsChangedVariant(stack.Item, item))
+            if (inventory.Slots[i] is { IsEmpty: false } stack && Shared.Bio.ItemMods.IsChangedVariant(stack.Item, item))
             {
                 int taken = System.Math.Min(stack.Count, count);
                 inventory.Remove(stack.Item, taken);

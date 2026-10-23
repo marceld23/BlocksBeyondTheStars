@@ -89,6 +89,18 @@ public readonly struct ItemMods : IEquatable<ItemMods>
         return ItemKey.SetTag(itemKey, Tag, v.ToString("x6", CultureInfo.InvariantCulture));
     }
 
+    /// <summary>
+    /// True when a stack's key is <paramref name="item"/> with nothing but a lab change on it (#2206). A tool or a piece of
+    /// gear the bio lab changed carries the change in its key and is still that tool — an upgrade recipe (tank II from
+    /// tank I) takes it like a plain one. Only the lab's change tag is "soft" like this: a dyed, shaped or painted block
+    /// stays its own item, or a recipe would eat the painted wall. The server's crafting pool (<c>MaterialPool</c>) and the
+    /// client's craft gate both count by this one rule (#2937).
+    /// </summary>
+    public static bool IsChangedVariant(string stackItem, string item)
+        => stackItem.Length > item.Length + 1 && stackItem[item.Length] == ItemKey.Separator
+           && stackItem.StartsWith(item, StringComparison.Ordinal)
+           && ItemKey.SetTag(stackItem, Tag, string.Empty) == item;
+
     public bool Equals(ItemMods other)
         => First == other.First && FirstLevel == other.FirstLevel && Second == other.Second && SecondLevel == other.SecondLevel
            && Drawback == other.Drawback && DrawbackLevel == other.DrawbackLevel;

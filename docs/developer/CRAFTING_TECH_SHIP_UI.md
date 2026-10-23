@@ -82,13 +82,17 @@ components, a category sidebar and blueprint state.
   `.Recipes` (ingredient rows, costs, the catalog gate and the wrappers over `CraftGate`), `.Stations` (station gates
   and the "Where?" locator) and `.Scaffolding` (uGUI cards, scroll views, search boxes and the text helpers).
 - `src/BlocksBeyondTheStars.Client.Core/CraftGate.cs` — the crafting rules, engine-free (#2932). `Check` names the
-  first gate that blocks a recipe as a `CraftBlock`, in the order of the reason line: in Creative only the room for
-  the result; otherwise blueprint, materials, then the market (vendor, then today's offer), the factory terminal or the
-  recipe's station, and last the room for the result. The menu maps each value to its `ui.craft.*` line. Beside it:
-  `ResultFits` (the client's dry-run of the server's `MaterialPool.CanFit`), `Owned` / `HasAll` (backpack + hold;
-  worn gear and lab-changed tools are not counted yet, #2937), `MaxCraftable`, `ReachTier` and `DisassembleRecipe`.
-  The menu hands it a `CraftGateInput` (plain values plus four answers only Unity can give, as delegates bound once).
-  `CraftGateTests` (Client.Tests) pins the order and checks `ResultFits` against the server's `MaterialPool`.
+  first gate that blocks an order of N crafts as a `CraftBlock`, in the order of the reason line: in Creative only the
+  room for the result; otherwise blueprint, materials, then the market (vendor, then today's offer), the factory
+  terminal or the recipe's station, and last the room for the result. Materials and room are checked for the whole
+  ×N order, as the server's `HandleCraft` does (#2937): the detail page asks for the stepper's count, the list cards
+  for one craft. The menu maps each value to its `ui.craft.*` line. Beside it: `ResultFits` (the client's dry-run of
+  the server's `MaterialPool.CanFit` over the scaled outputs), `Owned` / `HasAll` (what `MaterialPool.Count` / `Has`
+  count: backpack, hold while aboard and the worn gear, each with the pieces the bio lab changed — the variant rule is
+  the shared `ItemMods.IsChangedVariant`, #2937), `MaxCraftable`, `ReachTier` and `DisassembleRecipe`. The menu hands
+  it a `CraftGateInput` (plain values plus four answers only Unity can give, as delegates bound once).
+  `CraftGateTests` (Client.Tests) pins the order and checks `ResultFits`, `Owned` and `HasAll` against the server's
+  `MaterialPool`.
 - Data sources (no new data needed): `ItemDefinition` (category/tool/effects), `RecipeDefinition`
   (station/blueprint/inputs/outputs), `BlueprintDefinition` (category/prerequisites/costs),
   `ShipModuleDefinition` / `ShipDefinition` (stats/cost/blueprint), `Game.OwnedShips`.

@@ -1216,6 +1216,8 @@ players.
 - **Tiered upgrades consume their predecessor:** where an item is a straight upgrade of another —
   oxygen tanks II/III, the advanced scanner (it takes your hand scanner), weapon upgrade chains, the AI cores — the recipe **requires
   and consumes the previous tier**, so you never end up carrying a redundant Mk1 after building the Mk2.
+  The piece you are **wearing** counts too (tank II can take the worn tank I), and so does one the bio lab changed —
+  the recipe card reads craftable then.
   Fitting the `ai_core_mk3` module **replaces** the fitted Mk2 and returns half its materials as salvage.
   (Your starter gear — basic drill, scrap pistol — is deliberately chain-free.)
 - **Disassemble** (at a workshop): break a crafted item back into ~50 % of its recipe inputs. In the

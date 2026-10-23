@@ -35,7 +35,7 @@ public sealed class CraftGateTests
     private static CraftGateInput Input(NetItemStack[]? personal = null, bool creative = false, string[]? unlocked = null,
         bool marketAvailable = true, bool offeredHere = true, bool factoryAway = false, bool stationAvailable = true)
         => new(Content, creative, new HashSet<string>(unlocked ?? Array.Empty<string>()), personal ?? Array.Empty<NetItemStack>(),
-            Array.Empty<NetItemStack>(), aboard: false, PlayerState.PersonalSlots, cargoSlots: 0,
+            Array.Empty<NetItemStack>(), Array.Empty<NetItemStack>(), aboard: false, PlayerState.PersonalSlots, cargoSlots: 0,
             () => marketAvailable, _ => offeredHere, _ => factoryAway, _ => stationAvailable);
 
     private static RecipeDefinition Recipe(CraftingStation station = CraftingStation.Workshop, string? blueprint = "test_bp")
@@ -93,7 +93,7 @@ public sealed class CraftGateTests
     {
         var asked = new List<CraftingStation>();
         var input = new CraftGateInput(Content, false, new HashSet<string>(Unlocked), Holding((Ore, 2)), Array.Empty<NetItemStack>(),
-            false, PlayerState.PersonalSlots, 0, () => true, _ => true, _ => false,
+            Array.Empty<NetItemStack>(), false, PlayerState.PersonalSlots, 0, () => true, _ => true, _ => false,
             s =>
             {
                 asked.Add(s);
@@ -134,10 +134,11 @@ public sealed class CraftGateTests
     // --- the fit dry-run against the server's MaterialPool ---
 
     /// <summary>The inventory update the server sends (<c>GameServer.SendInventory</c>): the occupied slots of the
-    /// backpack, and the hold's occupied slots and size only while aboard.</summary>
-    private static CraftGateInput FromServer(PlayerState player, ShipState ship)
-        => new(Content, false, new HashSet<string>(), Dump(player.Inventory),
-            player.AboardShip ? Dump(ship.Cargo) : Array.Empty<NetItemStack>(), player.AboardShip,
+    /// backpack and of the worn gear, and the hold's occupied slots and size only while aboard. At the bench: every
+    /// station in reach and the given blueprints researched.</summary>
+    private static CraftGateInput FromServer(PlayerState player, ShipState ship, params string[] unlocked)
+        => new(Content, false, new HashSet<string>(unlocked), Dump(player.Inventory),
+            player.AboardShip ? Dump(ship.Cargo) : Array.Empty<NetItemStack>(), Dump(player.Equipment), player.AboardShip,
             player.Inventory.SlotCount, player.AboardShip ? ship.Cargo.SlotCount : 0,
             () => true, _ => true, _ => false, _ => true);
 
@@ -276,33 +277,159 @@ public sealed class CraftGateTests
     }
 
     [Fact]
-    public void Owned_KnownDrift_WornGearAndLabChangedVariantsAreNotCounted()
+    public void Owned_CountsTheWornPieceAndLabChangedOnes_LikeThePool()
     {
-        // KNOWN DRIFT, pinned as it is today — #2937 flips it: the server's pool also counts the worn piece (#2110) and a
-        // piece the bio lab changed (#2206), so with tank I worn the oxygen_tank_2 card reads "materials missing"
-        // although the server would craft it.
+        // #2937 (the drift CG-1 pinned): the server's pool also counts the worn piece (#2110) and a piece the bio lab
+        // changed (#2206), so the card must too — with tank I worn the oxygen_tank_2 card read "materials missing"
+        // although the server crafts it.
         var player = new PlayerState { PlayerId = "p1", Name = "Crafter", AboardShip = false };
         var ship = new ShipState();
-        player.Equipment.SetSlot(0, new ItemStack(TankI, 1));
+        player.Equipment.SetSlot((int)EquipSlot.Tank, new ItemStack(TankI, 1));
         string changedTank = ItemKey.SetTag(TankI, ItemMods.Tag, "120000");
         player.Inventory.SetSlot(0, new ItemStack(changedTank, 1));
+        string changedGloves = new ItemMods(ModStat.Grip, 2, ModStat.None, 0, ModStat.None, 0).ApplyTo("climbing_gloves");
+        player.Equipment.SetSlot((int)EquipSlot.Module1, new ItemStack(changedGloves, 1));
         var pool = new MaterialPool(Content, player, ship);
         var input = FromServer(player, ship);
 
         Assert.Equal(2, pool.Count(TankI));
-        Assert.Equal(0, CraftGate.Owned(TankI, input));
+        Assert.Equal(pool.Count(TankI), CraftGate.Owned(TankI, input));
+        Assert.Equal(1, pool.Count("climbing_gloves"));
+        Assert.Equal(pool.Count("climbing_gloves"), CraftGate.Owned("climbing_gloves", input));
+        foreach (int need in new[] { 1, 2, 3 })
+        {
+            var cost = new[] { new ItemAmount(TankI, need), new ItemAmount("climbing_gloves", 1) };
+            Assert.Equal(pool.Has(cost), CraftGate.HasAll(cost, input));
+        }
 
+        // Only the lab's change is soft: a dyed plate stays its own item on both sides, or a recipe would eat the
+        // painted wall.
+        player.Inventory.SetSlot(1, new ItemStack(ItemKey.Compose(Plate, 0x112233, 0), 4));
+        Assert.Equal(0, new MaterialPool(Content, player, ship).Count(Plate));
+        Assert.Equal(0, CraftGate.Owned(Plate, FromServer(player, ship)));
+    }
+
+    [Fact]
+    public void AWornTankI_MakesTheTankIICardCraftable_LikeTheServer()
+    {
+        var player = new PlayerState { PlayerId = "p1", Name = "Crafter", AboardShip = false };
+        var ship = new ShipState();
+        player.Equipment.SetSlot((int)EquipSlot.Tank, new ItemStack(TankI, 1));
         var tank2 = Content.Recipes["oxygen_tank_2"];
+        Assert.Contains(tank2.Inputs, i => i.Item == TankI); // the upgrade takes tank I (data/recipes.json)
         foreach (var inp in tank2.Inputs.Where(i => i.Item != TankI))
         {
             player.Inventory.Add(inp.Item, inp.Count, Content.MaxStackOf(inp.Item));
         }
 
-        var stocked = FromServer(player, ship);
-        var atTheBench = new CraftGateInput(Content, false, new HashSet<string> { "oxygen_tank_2" }, stocked.Personal, stocked.Cargo,
-            false, stocked.PersonalSlots, 0, () => true, _ => true, _ => false, _ => true);
-        Assert.True(new MaterialPool(Content, player, ship).Has(tank2.Inputs));
-        Assert.Equal(CraftBlock.NeedMaterials, CraftGate.Check(tank2, atTheBench));
+        var pool = new MaterialPool(Content, player, ship);
+        var atTheBench = FromServer(player, ship, "oxygen_tank_2");
+
+        Assert.True(pool.Has(tank2.Inputs));
+        Assert.Equal(pool.Has(tank2.Inputs), CraftGate.HasAll(tank2.Inputs, atTheBench));
+        Assert.Equal(CraftBlock.None, CraftGate.Check(tank2, atTheBench));
+        Assert.Equal(0, CraftGate.ReachTier(tank2.RequiredBlueprint, tank2.Inputs, stationInReach: true, atTheBench));
+
+        // One tank to upgrade: an order of two is short of it, on both sides.
+        Assert.Equal(1, CraftGate.MaxCraftable(tank2, atTheBench));
+        Assert.False(pool.Has(Scaled(tank2.Inputs, 2)));
+        Assert.Equal(CraftBlock.NeedMaterials, CraftGate.Check(tank2, atTheBench, count: 2));
+    }
+
+    [Fact]
+    public void ALabChangedTool_CountsAsTheTool_LikeThePool()
+    {
+        // drill_laser takes a mining_beam (a tool); one the bio lab tuned is still a mining beam to the server's pool.
+        var player = new PlayerState { PlayerId = "p1", Name = "Crafter", AboardShip = false };
+        var ship = new ShipState();
+        string tunedBeam = new ItemMods(ModStat.Power, 2, ModStat.None, 0, ModStat.None, 0).ApplyTo("mining_beam");
+        Assert.NotEqual("mining_beam", tunedBeam);
+        Assert.Equal(0, player.Inventory.Add(tunedBeam, 1, 1));
+        var laser = Content.Recipes["drill_laser"];
+        Assert.Contains(laser.Inputs, i => i.Item == "mining_beam");
+        foreach (var inp in laser.Inputs.Where(i => i.Item != "mining_beam"))
+        {
+            player.Inventory.Add(inp.Item, inp.Count, Content.MaxStackOf(inp.Item));
+        }
+
+        var pool = new MaterialPool(Content, player, ship);
+        var atTheBench = FromServer(player, ship, "drill_laser");
+
+        Assert.Equal(1, pool.Count("mining_beam"));
+        Assert.Equal(pool.Count("mining_beam"), CraftGate.Owned("mining_beam", atTheBench));
+        Assert.True(pool.Has(laser.Inputs));
+        Assert.Equal(pool.Has(laser.Inputs), CraftGate.HasAll(laser.Inputs, atTheBench));
+        Assert.Equal(CraftBlock.None, CraftGate.Check(laser, atTheBench));
+    }
+
+    // --- an order of N, as the server scales it (HandleCraft) ---
+
+    private static List<ItemAmount> Scaled(IEnumerable<ItemAmount> amounts, int count)
+        => amounts.Select(a => new ItemAmount(a.Item, a.Count * count)).ToList();
+
+    [Theory]
+    [InlineData("empty_backpack", 17, true)]
+    [InlineData("empty_backpack", 18, false)]
+    [InlineData("stack_top_up_fits", 1, true)]
+    [InlineData("stack_top_up_fits", 2, false)]
+    [InlineData("top_up_then_spill_aboard", 3, true)]
+    [InlineData("max_stack_one_takes_a_slot_each_fits", 2, false)]
+    [InlineData("max_stack_one_takes_a_slot_each_fits", 0, true)]
+    [InlineData("one_output_for_the_last_slot", 1024, true)]
+    [InlineData("one_output_for_the_last_slot", 1025, true)]
+    [InlineData("zero_count_outputs_fit_a_full_backpack", 5, true)]
+    public void ResultFits_ForAnOrderOfN_AnswersWhatTheServersScaledCanFitAnswers(string scenario, int count, bool fits)
+    {
+        var (player, ship, outputs) = Scenario(scenario);
+        var recipe = new RecipeDefinition { Key = "test_recipe", Outputs = outputs.ToList() };
+
+        // HandleCraft bounds the order (1 … a full stack) and checks the scaled outputs as a whole.
+        int batch = Math.Clamp(count, 1, ItemDefinition.DefaultMaxStack);
+        bool server = new MaterialPool(Content, player, ship).CanFit(Scaled(outputs, batch));
+        Assert.Equal(fits, server);
+        Assert.Equal(server, CraftGate.ResultFits(recipe, FromServer(player, ship), count));
+    }
+
+    [Fact]
+    public void Check_RefusesAnOrderOfN_ThatOnlyPartlyFitsOrIsShortOfInputs()
+    {
+        // 34 single tanks, 100 ore and a plate stack of 1000: one craft (2 ore → 24 plates) tops the stack up to 1024;
+        // two need a fresh slot there is none of, and the server refuses that order with @inventory_full — the card used
+        // to check a single craft and keep the ×2 button live.
+        var player = new PlayerState { PlayerId = "p1", Name = "Crafter", AboardShip = false };
+        var ship = new ShipState();
+        Fill(player.Inventory, 34);
+        player.Inventory.SetSlot(34, new ItemStack(Ore, 100));
+        player.Inventory.SetSlot(35, new ItemStack(Plate, 1000));
+        var r = new RecipeDefinition
+        {
+            Key = "test_recipe",
+            RequiredBlueprint = "test_bp",
+            Inputs = { new ItemAmount(Ore, 2) },
+            Outputs = { new ItemAmount(Plate, 24) },
+        };
+        var pool = new MaterialPool(Content, player, ship);
+        var input = FromServer(player, ship, "test_bp");
+
+        Assert.True(pool.CanFit(Scaled(r.Outputs, 1)));
+        Assert.Equal(CraftBlock.None, CraftGate.Check(r, input, 1));
+        Assert.False(pool.CanFit(Scaled(r.Outputs, 2)));
+        Assert.Equal(CraftBlock.InventoryFull, CraftGate.Check(r, input, 2));
+
+        // The inputs are checked for the whole order too: 100 ore pay for 50 crafts, not 51.
+        Assert.Equal(50, CraftGate.MaxCraftable(r, input));
+        foreach (int n in new[] { 50, 51 })
+        {
+            Assert.Equal(pool.Has(Scaled(r.Inputs, n)), CraftGate.HasAll(r.Inputs, input, n));
+        }
+
+        Assert.False(pool.Has(Scaled(r.Inputs, 51)));
+        Assert.Equal(CraftBlock.NeedMaterials, CraftGate.Check(r, input, 51));
+
+        // Creative crafts for free but still needs the room for the whole order, like the server's free path (#1937).
+        var tank = new RecipeDefinition { Key = "test_tank", Outputs = { new ItemAmount(TankI, 1) } };
+        Assert.Equal(CraftBlock.None, CraftGate.Check(tank, Input(Backpack(35), creative: true), 1));
+        Assert.Equal(CraftBlock.InventoryFull, CraftGate.Check(tank, Input(Backpack(35), creative: true), 2));
     }
 
     [Fact]
