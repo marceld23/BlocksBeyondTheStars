@@ -210,9 +210,10 @@ public sealed class HostRegistry : IDisposable
     public (bool Ok, string Error) CreateReport(string reporterAccountId, string worldId, string reportedName, string category, string message)
         => _reports.CreateReport(reporterAccountId, worldId, reportedName, category, message);
 
-    /// <summary>Account self-deletion (DSGVO Art. 17): removes the account row, its sessions and the
-    /// reports it filed. The caller deletes the account's WORLDS (registry rows + on-disk saves) first —
-    /// they need the orchestrator to stop live instances.</summary>
+    /// <summary>Account self-deletion (DSGVO Art. 17): removes the account row and every registry row keyed by
+    /// it — its sessions, rescue codes, the reports it filed, its notices, and its visits to and bans on other
+    /// worlds. The caller deletes the account's WORLDS (registry rows + on-disk saves) first — they need the
+    /// orchestrator to stop live instances.</summary>
     public void DeleteAccount(string accountId) => _accounts.DeleteAccount(accountId);
 
     public IReadOnlyList<ReportRecord> ListOpenReports() => _reports.ListOpenReports();

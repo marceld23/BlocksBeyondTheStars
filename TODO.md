@@ -33,6 +33,11 @@ The deferred class extractions are #2929 (not part of this branch).
   which needs an auth scheme the WorldHost never registers, so the request ended as a 500. Now they answer 403 with the
   usual `{error, code}` body (`WorldHostApi.NotWorldOwner()`, code `not_world_owner`, English text like
   `operator_protected`); `WorldHostHttpTests.OwnerRoutes_RefuseAStranger_With403AndTheJsonErrorAsync` pins all ten.
+- **Account deletion erases the recovery codes (#2920):** `AccountStore.DeleteAccount` removed sessions, reports,
+  notices, visits and bans but left the account's `recovery_code` rows (hash + creation time) behind — personal data
+  that outlived the GDPR erasure. It now deletes them in the same locked sequence, before the account row; no other
+  registry table kept the account id. `WorldHostLegalTests.DeleteAccount_LeavesNoRowWithTheAccountId_InAnyTable`
+  scans every table from `sqlite_master` for the deleted id (empty, commented allow-list); HOSTED_WORLDS.md lists it.
 
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 

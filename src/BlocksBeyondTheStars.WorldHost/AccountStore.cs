@@ -492,6 +492,7 @@ internal sealed class AccountStore
                 "DELETE FROM account_notice WHERE account_id = $i",
                 "DELETE FROM world_visitor WHERE account_id = $i",
                 "DELETE FROM world_ban WHERE account_id = $i",
+                "DELETE FROM recovery_code WHERE account_id = $i",
                 "DELETE FROM account WHERE id = $i",
             })
             {

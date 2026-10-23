@@ -273,8 +273,9 @@ internal static class AccountEndpoints
         return Results.Json(new { recoveryCodes = s.Registry.CreateRecoveryCodes(account.Id) });
     }
 
-    // Account self-deletion (DSGVO Art. 17): erases the account, its sessions, its reports AND all of its
-    // worlds including their saves on disk (live + archive). Deliberately available to banned accounts too.
+    // Account self-deletion (DSGVO Art. 17): erases the account and every registry row keyed by it (sessions, rescue
+    // codes, reports, notices, ...) AND all of its worlds including their saves on disk (live + archive).
+    // Deliberately available to banned accounts too.
     internal static IResult DeleteAccount(WorldHostServices s, ILogger log, HttpContext ctx)
     {
         if (WorldHostApi.Caller(s.Registry, ctx) is not { } account)

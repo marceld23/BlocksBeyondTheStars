@@ -480,7 +480,10 @@ schema and the one lock — see "Code map" below), so swapping the backend later
   email, no tracking, no third-party embeds/fonts; transient IPs for rate limits/logs only).
 - **Account self-deletion (DSGVO Art. 17).** `DELETE /api/account` + a double-confirm portal button:
   stops + deletes all the account's worlds (registry rows + live and archived saves on disk), deletes
-  the reports it filed and its sessions, then the account. Available to banned accounts too.
+  every registry row keyed by the account — its sessions, rescue codes, the reports it filed, its notices,
+  and its visits to and bans on other worlds — then the account. What other players recorded about the
+  player (their reports, a world owner's ban by name) stays: it carries the in-game name, not the account
+  id, and is that other account's data. Available to banned accounts too.
 
 ## glitch.fun arcade channel (implemented; ships with v0.7.8)
 
