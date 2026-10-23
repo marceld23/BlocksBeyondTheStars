@@ -199,7 +199,7 @@ namespace BlocksBeyondTheStars.Client
             int beam = BeamView.Instance != null ? BeamView.Instance.NearestUsableBeam(transform.position, 2.2f) : 0;
             if (beam != 0)
             {
-                BeamPadUi.Instance?.Open(beam);
+                Game?.Context.Panel<BeamPadUi>()?.Open(beam);
                 return;
             }
 

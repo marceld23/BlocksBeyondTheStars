@@ -10,64 +10,55 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>The cab's panel (#2113): the speed setting, halt / go, the autopilot switch, packing the train up and leaving
     /// it. Opened with the interact key inside the cab; every button sends one intent and the panel re-reads the train
     /// from the server's list, so what it shows is always the server's state.</summary>
-    public sealed class TrainCabUi : MonoBehaviour
+    public sealed class TrainCabUi : UiPanel
     {
-        public static TrainCabUi Instance { get; private set; }
-        public GameBootstrap Game;
-
         private const float W = 640f, H = 420f;
 
-        private Canvas _canvas;
-        private GameObject _overlay;
         private string _trainId = string.Empty;
-        private bool _open;
-        private int _openFrame;
         private float _nextRefresh;
 
-        private void Awake() => Instance = this;
+        protected override string CanvasName => "TrainCabUI";
+
+        protected override int CanvasSortingOrder => 59;
 
         /// <summary>
         /// #2303: the cab panel's canvas is a top-level object of its own, so it outlived the world rig and every world
-        /// join left one more hidden canvas behind — and <see cref="Instance"/> pointed at a destroyed panel. The same
-        /// treatment as <c>FeedbackUi</c> (#1789): give back the menu if it was open, drop the instance and the canvas.
+        /// join left one more hidden canvas behind — and the old static instance pointed at a destroyed panel. The same
+        /// treatment as <c>FeedbackUi</c> (#1789): give back the menu if it was open; the base drops the registration and
+        /// the canvas.
         /// </summary>
-        private void OnDestroy()
+        protected override void OnDestroy()
         {
-            if (_open)
+            if (Shown)
             {
-                _open = false;
-                Game?.SetMenuOwner(this, false);
+                Shown = false;
+                SetMenuOwned(false);
             }
 
-            if (Instance == this) Instance = null;
-            if (_canvas != null) Destroy(_canvas.gameObject);
+            base.OnDestroy();
         }
-
-        public bool IsOpen => _open;
 
         public void Open(string trainId)
         {
             if (string.IsNullOrEmpty(trainId)) return;
-            if (_open) Close(); // #2303: a second Open replaces the panel instead of stacking another overlay over it
+            if (Shown) Close(); // #2303: a second Open replaces the panel instead of stacking another overlay over it
             EnsureCanvas();
             _trainId = trainId;
-            _open = true;
-            _openFrame = Time.frameCount;
-            _canvas.gameObject.SetActive(true);
+            ShowCanvas();
             Build();
             // #2302: the open effect — only here, never in the half-second Rebuild(); that refresh waits its half second
             // first, so it cannot swap the fading overlay for a new one on the next frame (the panel was just built).
-            UiKit.OpenModal(_overlay);
+            PlayOpenEffect();
             _nextRefresh = Time.time + 0.5f;
-            Game?.SetMenuOwner(this, true);
+            SetMenuOwned(true);
         }
 
         private void Update()
         {
-            if (!_open) return;
-            if (Time.frameCount != _openFrame && InputMap.Down(InputAction.UiCancel))
+            if (!Shown) return;
+            if (CancelPressed())
             {
-                Game?.MarkMenuInputHandled();
+                ConsumeMenuInput();
                 Close();
                 return;
             }
@@ -87,20 +78,9 @@ namespace BlocksBeyondTheStars.Client
 
         private void Close()
         {
-            _open = false;
-            if (_overlay != null) Destroy(_overlay);
-            _overlay = null;
-            if (_canvas != null) _canvas.gameObject.SetActive(false);
-            Game?.SetMenuOwner(this, false);
-        }
-
-        private void EnsureCanvas()
-        {
-            if (_canvas != null) return;
-            _canvas = UiKit.CreateCanvas("TrainCabUI");
-            _canvas.sortingOrder = 59;
-            UiNav.Enable(_canvas.gameObject);
-            _canvas.gameObject.SetActive(false);
+            DestroyOverlay();
+            HideCanvas();
+            SetMenuOwned(false);
         }
 
         private NetTrain Find()
@@ -114,19 +94,16 @@ namespace BlocksBeyondTheStars.Client
             return null;
         }
 
-        private string L(string key) => Game?.Localizer?.Get(key) ?? key;
-
         private void Rebuild()
         {
-            if (_overlay != null) Destroy(_overlay);
+            DestroyOverlay();
             Build();
         }
 
         private void Build()
         {
             var t = Find();
-            var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, (1920f - W) * 0.5f, (1080f - H) * 0.5f, W, H);
-            _overlay = overlay;
+            var panel = AddModal((1920f - W) * 0.5f, (1080f - H) * 0.5f, W, H);
             var head = UiKit.AddText(panel, 32f, 24f, W - 64f, 40f, L("ui.train.title"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddOutline(head);
             if (t == null)

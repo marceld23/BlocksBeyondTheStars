@@ -58,6 +58,9 @@ namespace BlocksBeyondTheStars.Client
         /// <see cref="float.MaxValue"/> when none is near / the player is aboard. Written by <see cref="WorldEntities"/>.</summary>
         public float NearestHostileSqr { get; set; } = float.MaxValue;
 
+        /// <summary>The in-world panels of this rig by type (replaces their static Instance singletons) — see <see cref="UiPanel"/>.</summary>
+        public ClientContext Context { get; } = new ClientContext();
+
         // The cursor/menu arbiter (#413): every open panel registers itself as an owner, and the cursor
         // lock state is recomputed each frame in LateUpdate from ALL owners — no panel writes
         // Cursor.lockState directly anymore, so "last close wins" can't strand a locked cursor under a

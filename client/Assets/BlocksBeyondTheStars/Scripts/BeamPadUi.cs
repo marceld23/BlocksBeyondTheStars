@@ -14,58 +14,44 @@ namespace BlocksBeyondTheStars.Client
     /// a Beam button that asks the server to teleport. The owner also gets a Rename button (which reuses the beacon
     /// label overlay). Modal like <see cref="BeaconLabelUi"/> — frees the cursor and pauses on-foot control.
     /// </summary>
-    public sealed class BeamPadUi : MonoBehaviour
+    public sealed class BeamPadUi : UiPanel
     {
-        public static BeamPadUi Instance { get; private set; }
-        public GameBootstrap Game;
-
-        private Canvas _canvas;
         private Text _title;
         private RectTransform _list;
         private int _sourceId;
-        private bool _open, _built;
-        private int _openFrame = -1;
         private readonly List<GameObject> _rows = new List<GameObject>();
 
-        private void Awake() => Instance = this;
+        protected override string CanvasName => "BeamPadUI";
 
-        private void OnDestroy()
-        {
-            if (Instance == this) Instance = null;
-            if (_canvas != null) Destroy(_canvas.gameObject);
-        }
-
-        public bool IsOpen => _open;
+        // pad: stick walks the destinations, A beams, B closes (#1198)
+        protected override int CanvasSortingOrder => 59; // above the HUD/chat + beacon overlay, below the world map (60)
 
         /// <summary>Opens the transporter for the pad with id <paramref name="sourceId"/> (the one the player is at).</summary>
         public void Open(int sourceId)
         {
-            EnsureBuilt();
+            EnsureCanvas();
             _sourceId = sourceId;
-            _open = true;
-            _openFrame = Time.frameCount;
-            _canvas.gameObject.SetActive(true);
+            ShowCanvas();
             RebuildList();
 
-            Game?.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
+            SetMenuOwned(true); // freezes player control + frees the cursor via the arbiter (#413)
         }
 
         private void Update()
         {
-            if (!_open) return;
+            if (!Shown) return;
 
-            if (Time.frameCount != _openFrame && InputMap.Down(InputAction.UiCancel))
+            if (CancelPressed())
             {
-                Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
+                ConsumeMenuInput(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close();
             }
         }
 
         private void Close()
         {
-            _open = false;
-            if (_canvas != null) _canvas.gameObject.SetActive(false);
-            Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other panel is open (#413)
+            HideCanvas();
+            SetMenuOwned(false); // arbiter re-locks only once NO other panel is open (#413)
         }
 
         private NetBeam Find(int id)
@@ -147,15 +133,8 @@ namespace BlocksBeyondTheStars.Client
             => (float)InteractReach.SeamDistanceSquared(me.x, me.y, me.z, b.X, b.Y, b.Z,
                 Game != null ? Game.Circumference : BlocksBeyondTheStars.Shared.World.WorldConstants.Circumference);
 
-        private void EnsureBuilt()
+        protected override void BuildChrome(Transform root)
         {
-            if (_built) return;
-
-            _canvas = UiKit.CreateCanvas("BeamPadUI");
-            _canvas.sortingOrder = 59; // above the HUD/chat + beacon overlay, below the world map (60)
-            UiNav.Enable(_canvas.gameObject); // pad: stick walks the destinations, A beams, B closes (#1198)
-            var root = _canvas.transform;
-
             UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.45f));
 
             const float w = 620f, h = 560f;
@@ -182,11 +161,6 @@ namespace BlocksBeyondTheStars.Client
             });
 
             UiKit.AddButton(root, x + w - 24 - 220, y + h - 60, 220, 44, L("ui.beam.close"), Close);
-
-            _canvas.gameObject.SetActive(false);
-            _built = true;
         }
-
-        private string L(string k) => Game?.Localizer?.Get(k) ?? k;
     }
 }

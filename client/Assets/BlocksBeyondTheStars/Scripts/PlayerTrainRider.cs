@@ -167,7 +167,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (wagonIndex == 0)
             {
-                TrainCabUi.Instance?.Open(trainId);
+                Player.Game?.Context.Panel<TrainCabUi>()?.Open(trainId);
                 return true;
             }
 

@@ -166,7 +166,9 @@ The Unity client lives in `client/Assets/BlocksBeyondTheStars/`. Key wiring (all
   (`AddScrollViewport`, `MeasureHeight`, `AddCenteredPanel`, `AddStretchChild`, `Tr`), and for the
   free-fly editor scenes the static `EditorSceneKit` / `EditorPaletteKit` (camera, floor, cell picking,
   right panel, palette panel, `Slug`, …); the form and tool-look editors share the `LayerCanvasEditor`
-  base. See [UI_AND_RENDER_CONCEPT.md](UI_AND_RENDER_CONCEPT.md).
+  base; modal in-world panels derive from `UiPanel` and are looked up through `GameBootstrap.Context`
+  (see [UI_PANELS.md](UI_PANELS.md), which also lists the panels still to migrate). See
+  [UI_AND_RENDER_CONCEPT.md](UI_AND_RENDER_CONCEPT.md).
 - **`SpaceView.cs`** — the free-flight space scene and the **"ship as a place" model**: the own
   ship is a client-side voxel grid you can pilot, EVA, walk and rebuild; parked ships render via
   `LandedShipView` (not part of the world block grid). `SpaceView.cs` keeps the enter/exit and

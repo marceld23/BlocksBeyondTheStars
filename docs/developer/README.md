@@ -54,6 +54,7 @@ refreshed 2026-08-08.
 - [URP_MIGRATION.md](URP_MIGRATION.md) — the URP rendering setup (custom unlit voxel shaders, post, shadows).
 - [ADVANCED_GRAPHICS.md](ADVANCED_GRAPHICS.md) — graphics: what shipped + the remaining roadmap.
 - [UI_AND_RENDER_CONCEPT.md](UI_AND_RENDER_CONCEPT.md) — UI + render concept, done vs. open.
+- [UI_PANELS.md](UI_PANELS.md) — the UiPanel base for modal in-world panels + the ClientContext panel registry.
 - [PROFESSIONAL_LOOK_IMPLEMENTATION.md](PROFESSIONAL_LOOK_IMPLEMENTATION.md) — the professional-look pass (WP-1…16).
 - [PROFESSIONAL_LOOK_GAP_ANALYSIS.md](PROFESSIONAL_LOOK_GAP_ANALYSIS.md) — gap analysis (closed vs. still open).
 - [ART_BIBLE.md](ART_BIBLE.md) — **normative** visual style reference (palette, materials, room identity).

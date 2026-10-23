@@ -253,6 +253,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   at the old spot before `Network.Connect`; `Update`'s blocks became `TickSkyScan`/`TickConnect`/`TickChunkStreaming` in
   the old per-frame order. `GameBootstrap.cs` 1,666 → 934 lines, `Start` 921 → 154, `Update` 195 → 16; a slice-map
   proof shows every body byte-identical. Unity + WebGL builds, 273 EditMode + 6 PlayMode + 2,319 client + PerfProbe green.
+- **UiPanel base and ClientContext with three pilot panels (#2913, C1a):** the new abstract `UiPanel` (199 lines)
+  owns canvas, overlay, menu ownership, Esc guard and `L`; the `ClientContext` registry (41) on `GameBootstrap.Context`
+  replaces the static `Instance` (filled by the `Game` setter, emptied in `OnDestroy`). `BeamPadUi` 192 → 166,
+  `TrainCabUi` 175 → 152, `ContainerFilterUi` 231 → 219 lines; 3 readers use `Context.Panel<T>()` (holders 37 → 34).
+  Open/close/Esc order kept; Unity build, 278 EditMode (5 new `UiPanelEditModeTests`) + 6 PlayMode + 2,319 client green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

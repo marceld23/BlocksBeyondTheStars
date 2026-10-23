@@ -17,36 +17,30 @@ namespace BlocksBeyondTheStars.Client
     /// filter (today's behaviour). The server re-validates every key — this panel is a convenience, not the
     /// rule. Modal like <see cref="BeaconLabelUi"/>: control freeze + cursor release via the arbiter (#413).
     /// </summary>
-    public sealed class ContainerFilterUi : MonoBehaviour
+    public sealed class ContainerFilterUi : UiPanel
     {
-        public static ContainerFilterUi Instance { get; private set; }
-        public GameBootstrap Game;
-
         // The 6×4 grid shows at most 24 entries (server cap is 32): current whitelist first, then the
         // player's carried stashables — with a full backpack of distinct materials the tail may not fit,
         // which is acceptable for a sorting UI (walk over with the items you want to dedicate the crate to).
         private const int Cols = 6;
         private const int MaxShown = 24;
 
-        private Canvas _canvas;
         private string _containerId = string.Empty;
         private readonly List<string> _candidates = new List<string>();
         private readonly HashSet<string> _selected = new HashSet<string>();
 
-        private void Awake() => Instance = this;
+        protected override string CanvasName => "ContainerFilterUi";
 
-        private void OnDestroy()
+        protected override int CanvasSortingOrder => 58; // above the HUD/chat, below the world map (60) — same shelf as BeaconLabelUi
+
+        protected override void OnDestroy()
         {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-
             Close();
+            base.OnDestroy();
         }
 
         /// <summary>True while the panel is open (gameplay hotkeys stand down).</summary>
-        public bool IsOpen => _canvas != null;
+        public override bool IsOpen => IsBuilt;
 
         /// <summary>Opens the filter panel for a crate: its current whitelist pre-selected, the player's
         /// stashable items offered on top.</summary>
@@ -84,31 +78,29 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            _canvas = UiKit.CreateCanvas("ContainerFilterUi");
-            _canvas.sortingOrder = 58; // above the HUD/chat, below the world map (60) — same shelf as BeaconLabelUi
-            UiNav.Enable(_canvas.gameObject); // pad: stick walks the grid, A toggles (#940)
-            Game.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
-            UiKit.OpenModal(Build()); // #2302: the open effect — only here; a toggle's Rebuild() comes back without it
+            CreateCanvasNow(); // pad: stick walks the grid, A toggles (#940)
+            SetMenuOwned(true); // freezes player control + frees the cursor via the arbiter (#413)
+            Build();
+            PlayOpenEffect(); // #2302: the open effect — only here; a toggle's Rebuild() comes back without it
         }
 
         private void Update()
         {
             // #2303: the menu verb — Escape or pad B, like the bio lab and the crystal device panel (a pad had only the
             // Close button).
-            if (IsOpen && InputMap.Down(InputAction.UiCancel))
+            if (IsOpen && CancelPressed(skipOpenFrame: false))
             {
-                Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
+                ConsumeMenuInput(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close();
             }
         }
 
         private void Close()
         {
-            if (_canvas != null)
+            if (IsBuilt)
             {
-                Destroy(_canvas.gameObject);
-                _canvas = null;
-                Game?.SetMenuOwner(this, false);
+                DestroyCanvas();
+                SetMenuOwned(false);
             }
 
             _containerId = string.Empty;
@@ -116,10 +108,9 @@ namespace BlocksBeyondTheStars.Client
             _selected.Clear();
         }
 
-        /// <returns>The overlay, for the open effect.</returns>
-        private GameObject Build()
+        private void Build()
         {
-            var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, 460f, 100f, 1000f, 880f);
+            var panel = AddModal(460f, 100f, 1000f, 880f);
 
             var head = UiKit.AddText(panel, 32f, 28f, 900f, 40f, L("ui.container_filter.title"), 26, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddOutline(head);
@@ -177,12 +168,11 @@ namespace BlocksBeyondTheStars.Client
                 Game?.MarkMenuInputHandled();
                 Close();
             });
-            return overlay;
         }
 
         private void Rebuild()
         {
-            foreach (Transform child in _canvas.transform)
+            foreach (Transform child in Canvas.transform)
             {
                 Destroy(child.gameObject);
             }
@@ -225,7 +215,5 @@ namespace BlocksBeyondTheStars.Client
             string name = BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(Game.Localizer, item, null, seed => Game.Bio.SpeciesName(seed));
             return name.Length > 12 ? name.Substring(0, 11) + "…" : name;
         }
-
-        private string L(string key) => Game.Localizer?.Get(key) ?? key;
     }
 }

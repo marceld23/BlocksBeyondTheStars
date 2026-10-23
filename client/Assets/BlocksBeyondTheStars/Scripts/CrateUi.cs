@@ -252,7 +252,7 @@ namespace BlocksBeyondTheStars.Client
                 string id = _containerId;
                 string[] filter = _filter;
                 Close();
-                ContainerFilterUi.Instance?.Open(id, filter);
+                Game?.Context.Panel<ContainerFilterUi>()?.Open(id, filter);
             });
             y += 56f;
 

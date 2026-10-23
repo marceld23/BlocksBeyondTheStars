@@ -301,7 +301,8 @@ vendor trade, the Codex (Wiki), the Arcade, credits, the feedback dialog, the re
 pie, the context-actions list, the landing-pad chooser (land map), the trade / dock prompts + trade panel, the
 bandit demand, the planet map, the flight system chart (#1043), the blueprint tool, the beacon-label and
 beam-pad modals, and the ship / face editors (#1198). Add the same one-liner after `UiKit.CreateCanvas` for any
-new interactive screen, and let **B** close it (see `WorldMap.Update` for the pattern). Still pointer-only: the
+new interactive screen (a `UiPanel` gets it from `EnsureCanvas` / `CreateCanvasNow` — see
+[UI_PANELS.md](UI_PANELS.md)), and let **B** close it (see `WorldMap.Update` for the pattern). Still pointer-only: the
 map *markers* (waypoint by click) and the finale duel's IMGUI choices.
 
 ### Menu verbs: `UiCancel` / `UiMenu`
