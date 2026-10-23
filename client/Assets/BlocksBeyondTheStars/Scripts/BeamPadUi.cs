@@ -157,7 +157,7 @@ namespace BlocksBeyondTheStars.Client
                 int id = _sourceId;
                 string current = source.Name ?? string.Empty;
                 Close();
-                BeaconLabelUi.Instance?.Open(L("ui.beam.rename_prompt"), current, name => Game.Network?.SendSetBeamName(id, name));
+                Game?.Context.Panel<BeaconLabelUi>()?.Open(L("ui.beam.rename_prompt"), current, name => Game.Network?.SendSetBeamName(id, name));
             });
 
             UiKit.AddButton(root, x + w - 24 - 220, y + h - 60, 220, 44, L("ui.beam.close"), Close);

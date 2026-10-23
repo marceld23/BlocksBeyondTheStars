@@ -16,63 +16,48 @@ namespace BlocksBeyondTheStars.Client
     /// than one uGUI mesh are chunked (<see cref="UiTextChunks"/>, #1097). When another menu is open the
     /// reader queues and opens once the screen is free — a pickup during trading never eats the text.
     /// </summary>
-    public sealed class StoryReaderUi : MonoBehaviour
+    public sealed class StoryReaderUi : UiPanel
     {
-        public static StoryReaderUi Instance { get; private set; }
-        public GameBootstrap Game;
-
-        private Canvas _canvas;
         private RectTransform _list;
         private Text _title;
         private Text _label;
-        private bool _open, _built;
-        private int _openFrame = -1;
         private readonly List<GameObject> _rows = new List<GameObject>();
         private readonly Queue<(string Title, string Label, string Body)> _pending = new();
 
-        private void Awake() => Instance = this;
+        protected override string CanvasName => "StoryReaderUI";
 
-        private void OnDestroy()
-        {
-            if (Instance == this) Instance = null;
-            if (_canvas != null) Destroy(_canvas.gameObject);
-        }
-
-        public bool IsOpen => _open;
+        // pad: A/B close, stick scrolls
+        protected override int CanvasSortingOrder => 60; // just above the teleporter/beam layer — a find outranks pickers
 
         /// <summary>Shows a text in the reader. <paramref name="body"/> is the LOCALIZED text (the caller
         /// resolves keys); <paramref name="label"/> is an optional category line under the title. Queues when
         /// another menu owns the screen.</summary>
         public void Open(string title, string label, string body)
         {
-            if (_open || (Game != null && Game.MenuOpen))
+            if (Shown || (Game != null && Game.MenuOpen))
             {
                 _pending.Enqueue((title, label, body)); // never overwrite an unread text / fight another menu
                 return;
             }
 
-            EnsureBuilt();
-            _open = true;
-            _openFrame = Time.frameCount;
-            _canvas.gameObject.SetActive(true);
+            EnsureCanvas();
+            ShowCanvas();
             Fill(title, label, body);
-            Game?.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
+            SetMenuOwned(true); // freezes player control + frees the cursor via the arbiter (#413)
         }
 
         /// <summary>Opens straight from an already-open menu (the Story tab's Read buttons) — no queueing.</summary>
         public void OpenOverMenu(string title, string label, string body)
         {
-            EnsureBuilt();
-            _open = true;
-            _openFrame = Time.frameCount;
-            _canvas.gameObject.SetActive(true);
+            EnsureCanvas();
+            ShowCanvas();
             Fill(title, label, body);
-            Game?.SetMenuOwner(this, true);
+            SetMenuOwned(true);
         }
 
         private void Update()
         {
-            if (!_open)
+            if (!Shown)
             {
                 // A queued text opens once the screen is free again (e.g. the trade window just closed).
                 if (_pending.Count > 0 && Game != null && !Game.MenuOpen)
@@ -84,18 +69,17 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (Time.frameCount != _openFrame && InputMap.Down(InputAction.UiCancel))
+            if (CancelPressed())
             {
-                Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
+                ConsumeMenuInput(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close();
             }
         }
 
         private void Close()
         {
-            _open = false;
-            if (_canvas != null) _canvas.gameObject.SetActive(false);
-            Game?.SetMenuOwner(this, false);
+            HideCanvas();
+            SetMenuOwned(false);
 
             if (_pending.Count > 0)
             {
@@ -128,14 +112,8 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private void EnsureBuilt()
+        protected override void BuildChrome(Transform root)
         {
-            if (_built) return;
-
-            _canvas = UiKit.CreateCanvas("StoryReaderUI");
-            _canvas.sortingOrder = 60; // just above the teleporter/beam layer — a find outranks pickers
-            var root = _canvas.transform;
-
             UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.45f));
 
             const float w = 700f, h = 560f;
@@ -149,12 +127,6 @@ namespace BlocksBeyondTheStars.Client
             _list = UiKit.ScrollList(root, x + 16, y + 88, w - 32, h - 166, 6f);
 
             UiKit.AddButton(root, x + w - 24 - 220, y + h - 60, 220, 44, L("ui.reader.close"), Close);
-
-            UiNav.Enable(_canvas.gameObject); // pad: A/B close, stick scrolls
-            _canvas.gameObject.SetActive(false);
-            _built = true;
         }
-
-        private string L(string k) => Game?.Localizer?.Get(k) ?? k;
     }
 }

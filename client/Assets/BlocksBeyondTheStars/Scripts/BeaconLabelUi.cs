@@ -15,17 +15,11 @@ namespace BlocksBeyondTheStars.Client
     /// <para>#2717: at your own base core (<see cref="OpenBase"/>) a panel under the card lists who lives at the base —
     /// asked from the server when the screen opens and filled in when the answer arrives (<see cref="BaseResidentText"/>).</para>
     /// </summary>
-    public sealed class BeaconLabelUi : MonoBehaviour
+    public sealed class BeaconLabelUi : UiPanel
     {
-        public static BeaconLabelUi Instance { get; private set; }
-        public GameBootstrap Game;
-
-        private Canvas _canvas;
         private Text _title;
         private InputField _input;
         private System.Action<string> _onConfirm;
-        private bool _open, _built;
-        private int _openFrame = -1;
 
         // #2717: the resident list under the card (base core only). #2775: it scrolls — a base holds up to 32 people.
         private const float InfoTextW = 708f; // the scroll list's row width (736 viewport − 16 padding) minus the text's margins
@@ -36,45 +30,35 @@ namespace BlocksBeyondTheStars.Client
         private NetworkClient _residentsSource; // the client whose BaseResidentsReceived this listens to
         private string _residentsBody = string.Empty;
 
-        private void Awake() => Instance = this;
+        protected override string CanvasName => "BeaconLabelUI";
 
-        private void OnDestroy()
+        // pad: reach OK / Cancel; the name field needs #1211 to type
+        protected override int CanvasSortingOrder => 58; // above the HUD/chat, below the world map (60)
+
+        protected override void OnDestroy()
         {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-
             if (_residentsSource != null)
             {
                 _residentsSource.BaseResidentsReceived -= OnBaseResidents;
                 _residentsSource = null;
             }
 
-            if (_canvas != null)
-            {
-                Destroy(_canvas.gameObject);
-            }
+            base.OnDestroy();
         }
-
-        /// <summary>True while the overlay is capturing text (so other systems can ignore gameplay hotkeys).</summary>
-        public bool IsOpen => _open;
 
         /// <summary>Opens the overlay with a title + a starting value; <paramref name="onConfirm"/> gets the typed
         /// label when the player confirms with Enter (never called on cancel).</summary>
         public void Open(string title, string current, System.Action<string> onConfirm)
         {
-            EnsureBuilt();
+            EnsureCanvas();
             _residentsBody = string.Empty; // a beacon or a station has no resident list
             SetInfo(null);
             _onConfirm = onConfirm;
             _title.text = title;
             _input.text = current ?? string.Empty;
-            _open = true;
-            _openFrame = Time.frameCount;
-            _canvas.gameObject.SetActive(true);
+            ShowCanvas();
 
-            Game?.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
+            SetMenuOwned(true); // freezes player control + frees the cursor via the arbiter (#413)
             if (InputMap.ActiveDevice != InputDeviceKind.Gamepad)
             {
                 // A focused InputField swallows the navigation axes, so auto-activating it would strand a
@@ -114,7 +98,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnBaseResidents(BaseResidentList list)
         {
-            if (!_open || list == null || _residentsBody.Length == 0 || list.BodyId != _residentsBody)
+            if (!Shown || list == null || _residentsBody.Length == 0 || list.BodyId != _residentsBody)
             {
                 return; // closed, or the answer for another screen
             }
@@ -125,7 +109,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Shows <paramref name="text"/> in the panel under the card; null or empty hides the panel.</summary>
         private void SetInfo(string text)
         {
-            if (!_built)
+            if (!IsBuilt)
             {
                 return;
             }
@@ -148,28 +132,28 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
-            if (!_open)
+            if (!Shown)
             {
                 return;
             }
 
-            if (Time.frameCount != _openFrame &&
+            if (Time.frameCount != OpenFrame &&
                 (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             {
                 Confirm();
                 return;
             }
 
-            if (InputMap.Down(InputAction.UiCancel))
+            if (CancelPressed(skipOpenFrame: false))
             {
-                Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
+                ConsumeMenuInput(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close(); // cancel — no callback, nothing placed/renamed
             }
         }
 
         private void Confirm()
         {
-            if (!_open)
+            if (!Shown)
             {
                 return; // Enter + onEndEdit can both fire for the same submit — first one wins
             }
@@ -182,29 +166,15 @@ namespace BlocksBeyondTheStars.Client
 
         private void Close()
         {
-            _open = false;
             _onConfirm = null;
             _residentsBody = string.Empty;
-            if (_canvas != null)
-            {
-                _canvas.gameObject.SetActive(false);
-            }
+            HideCanvas();
 
-            Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other panel is open (#413)
+            SetMenuOwned(false); // arbiter re-locks only once NO other panel is open (#413)
         }
 
-        private void EnsureBuilt()
+        protected override void BuildChrome(Transform root)
         {
-            if (_built)
-            {
-                return;
-            }
-
-            _canvas = UiKit.CreateCanvas("BeaconLabelUI");
-            _canvas.sortingOrder = 58; // above the HUD/chat, below the world map (60)
-            UiNav.Enable(_canvas.gameObject); // pad: reach OK / Cancel; the name field needs #1211 to type
-            var root = _canvas.transform;
-
             // Dim the screen behind the modal so it reads as the focus (Place anchors top-left, 1920x1080 ref).
             UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.45f));
 
@@ -231,7 +201,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(root, x + 24, y + 158, (w - 60f) * 0.5f, 52, L("ui.beacon.confirm"), Confirm);
             UiKit.AddButton(root, x + 36 + (w - 60f) * 0.5f, y + 158, (w - 60f) * 0.5f, 52, L("ui.beacon.cancel"), () =>
             {
-                Game?.MarkMenuInputHandled();
+                ConsumeMenuInput();
                 Close();
             });
 
@@ -250,11 +220,6 @@ namespace BlocksBeyondTheStars.Client
             _info.horizontalOverflow = HorizontalWrapMode.Wrap;
             _info.verticalOverflow = VerticalWrapMode.Overflow;
             _infoPanel.SetActive(false);
-
-            _canvas.gameObject.SetActive(false);
-            _built = true;
         }
-
-        private string L(string k) => Game?.Localizer?.Get(k) ?? k;
     }
 }

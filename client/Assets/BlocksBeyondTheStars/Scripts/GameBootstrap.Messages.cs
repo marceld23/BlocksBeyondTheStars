@@ -85,9 +85,10 @@ namespace BlocksBeyondTheStars.Client
         /// back to the message toast when no reader exists (headless/degraded rigs stay functional).</summary>
         private void OpenReader(string title, string label, string textKey)
         {
-            if (StoryReaderUi.Instance != null)
+            var reader = Context.Panel<StoryReaderUi>();
+            if (reader != null)
             {
-                StoryReaderUi.Instance.Open(title, label, Localizer?.Get(textKey) ?? textKey);
+                reader.Open(title, label, Localizer?.Get(textKey) ?? textKey);
             }
             else
             {

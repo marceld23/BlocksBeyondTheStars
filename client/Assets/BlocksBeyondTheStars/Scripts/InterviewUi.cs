@@ -11,34 +11,24 @@ namespace BlocksBeyondTheStars.Client
     /// to — at most 300 characters, screened by the server like a chat line and kept as the place's local news. In Safe chat
     /// mode there is no free text: the player picks one of four ready answers instead. Esc or "Not now" walks away.
     /// </summary>
-    public sealed class InterviewUi : MonoBehaviour
+    public sealed class InterviewUi : UiPanel
     {
-        public GameBootstrap Game;
-
-        public static InterviewUi Instance { get; private set; }
-
         /// <summary>The server-side cap (<c>NewsArticle.MaxTextLength</c>).</summary>
         private const int MaxLength = 300;
 
         private static readonly string[] Presets = { "news.preset.explored", "news.preset.built", "news.preset.guardians", "news.preset.tamed" };
 
-        private Canvas _canvas;
-        private GameObject _overlay;
         private InputField _input;
         private GameObject _freeText;
         private GameObject _presetRow;
         private int _npcId;
-        private bool _open;
 
-        private void Awake() => Instance = this;
+        protected override string CanvasName => "InterviewUi";
 
-        private void OnDestroy()
-        {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-        }
+        protected override int CanvasSortingOrder => 62; // above the HUD and the dialogue panel
+
+        // Its OnDestroy never destroyed the canvas, so it outlives the rig — kept as it was (a pure refactor).
+        protected override bool KeepCanvasOnDestroy => true;
 
         /// <summary>Opens the interview for the reporter NPC that just asked.</summary>
         public void Open(int npcId)
@@ -48,20 +38,20 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            EnsureUi();
+            EnsureCanvas(hidden: false);
             _npcId = npcId;
             bool safe = string.Equals(Game.Rules?.ChatMode, "Safe", System.StringComparison.OrdinalIgnoreCase);
             _freeText.SetActive(!safe);
             _presetRow.SetActive(safe);
             _input.text = string.Empty;
-            _overlay.SetActive(true);
-            if (!_open)
+            Overlay.SetActive(true);
+            if (!Shown)
             {
-                UiKit.OpenModal(_overlay); // #2302: the open effect — not again when a second ask re-fills an open interview
+                PlayOpenEffect(); // #2302: the open effect — not again when a second ask re-fills an open interview
             }
 
-            _open = true;
-            Game.SetMenuOwner(this, true);
+            Shown = true;
+            SetMenuOwned(true);
             if (!safe)
             {
                 _input.ActivateInputField();
@@ -73,9 +63,9 @@ namespace BlocksBeyondTheStars.Client
             // #2303: the menu verb (Escape or pad B), and the press is consumed — closing here hands the menu back in
             // the same frame, and without the mark the same Escape would also open the pause/quit prompt (#413).
             // While the on-screen keyboard is up it captures B itself (InputMap.ModalCapture).
-            if (_open && InputMap.Down(InputAction.UiCancel))
+            if (Shown && CancelPressed(skipOpenFrame: false))
             {
-                Game?.MarkMenuInputHandled();
+                ConsumeMenuInput();
                 Close();
             }
         }
@@ -93,26 +83,16 @@ namespace BlocksBeyondTheStars.Client
 
         private void Close()
         {
-            UiKit.ReleaseTextFieldFocus(_overlay != null ? _overlay.transform : null);
-            _overlay?.SetActive(false);
-            _open = false;
-            Game?.SetMenuOwner(this, false);
+            UiKit.ReleaseTextFieldFocus(Overlay != null ? Overlay.transform : null);
+            Overlay?.SetActive(false);
+            Shown = false;
+            SetMenuOwned(false);
         }
 
-        private void EnsureUi()
+        protected override void BuildChrome(Transform root)
         {
-            if (_canvas != null)
-            {
-                return;
-            }
-
-            _canvas = UiKit.CreateCanvas("InterviewUi");
-            _canvas.sortingOrder = 62; // above the HUD and the dialogue panel
-            UiNav.Enable(_canvas.gameObject);
-
             const float w = 760f, h = 470f, m = 36f, innerW = w - 2f * m;
-            var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, (1920f - w) / 2f, (1080f - h) / 2f, w, h);
-            _overlay = overlay;
+            var panel = AddModal((1920f - w) / 2f, (1080f - h) / 2f, w, h);
 
             UiKit.AddText(panel, m, 22, innerW, 34, L("ui.interview.title"), 26, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             var prompt = UiKit.AddText(panel, m, 66, innerW, 56, L("ui.interview.prompt"), 16, UiKit.TextCol, TextAnchor.UpperLeft);
@@ -138,9 +118,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UiKit.AddButton(_presetRow.transform, m, 380, 330, 56, L("ui.interview.cancel"), Close, "btn_exit");
-            _overlay.SetActive(false);
+            Overlay.SetActive(false);
         }
-
-        private string L(string key) => Game?.Localizer?.Get(key) ?? key;
     }
 }

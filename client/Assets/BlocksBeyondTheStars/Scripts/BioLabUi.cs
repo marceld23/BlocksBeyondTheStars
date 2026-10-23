@@ -26,11 +26,8 @@ namespace BlocksBeyondTheStars.Client
     /// The static helpers name and describe samples, preparations and changed items for the other screens
     /// (inventory, Codex, HUD), so all of them read alike.
     /// </summary>
-    public sealed class BioLabUi : MonoBehaviour
+    public sealed class BioLabUi : UiPanel
     {
-        public static BioLabUi Instance { get; private set; }
-        public GameBootstrap Game;
-
         /// <summary>The slot whose options the right pane lists instead of the tab (None = the tab itself).</summary>
         private enum Pick { None, Active, Carrier, Stabiliser, Modifier, Target, Material, Coating }
 
@@ -49,9 +46,6 @@ namespace BlocksBeyondTheStars.Client
             public string Text { get; }
         }
 
-        private Canvas _canvas;
-        private GameObject _overlay;
-
         // #2302: the two holo frames (the case, the tab's pane) and the layers their contents hang on, so the open
         // effect can wipe a frame on and fade its contents up behind it. Rebuilt with the overlay on every Build.
         private UiHolo.Shape _caseFrame, _paneFrame;
@@ -62,8 +56,6 @@ namespace BlocksBeyondTheStars.Client
         private string _discardArmed = string.Empty, _discardSent = string.Empty;
         private RectTransform _caseContent;
         private float _caseScroll;
-        private bool _open;
-        private int _openFrame = -1;
         private int _tab; // 0 analyse, 1 mix, 2 change
         private Pick _pick;
         private int _resultSeen;
@@ -97,15 +89,10 @@ namespace BlocksBeyondTheStars.Client
 
         private const string DimHex = "#9fb4c8"; // the Codex's dim text colour
 
-        private void Awake() => Instance = this;
+        protected override string CanvasName => "BioLabUI";
 
-        private void OnDestroy()
-        {
-            if (Instance == this) Instance = null;
-            if (_canvas != null) Destroy(_canvas.gameObject);
-        }
-
-        public bool IsOpen => _open;
+        // pad: the stick walks the lists and slots, A picks, B backs out
+        protected override int CanvasSortingOrder => 59;
 
         /// <summary>
         /// #2216: the lab is not used from inside a ship. The server refuses every lab intent while the player is
@@ -182,10 +169,8 @@ namespace BlocksBeyondTheStars.Client
 
         public void Open()
         {
-            if (Game == null || _open || RefusedAboard(Game)) return;
+            if (Game == null || Shown || RefusedAboard(Game)) return;
             EnsureCanvas();
-            _open = true;
-            _openFrame = Time.frameCount;
             _pick = Pick.None;
             _status = string.Empty;
             _resultSeen = Game.BioLabResultCount; // an answer from before this visit is not shown again
@@ -195,10 +180,10 @@ namespace BlocksBeyondTheStars.Client
             _caseScroll = 0f;
             _discardArmed = string.Empty;
             _discardSent = string.Empty;
-            _canvas.gameObject.SetActive(true);
+            ShowCanvas();
             Build();
             PlayOpenFx(true);
-            Game.SetMenuOwner(this, true);
+            SetMenuOwned(true);
 
             // #2249: the first visit names the three tabs once — "Change" (improving a tool or gear) used to go unfound.
             // The flag is spent only when the line really comes up (#2462, B31; #2551) — muted, or dropped unseen after waiting
@@ -216,10 +201,10 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
-            if (!_open) return;
-            if (Time.frameCount != _openFrame && InputMap.Down(InputAction.UiCancel))
+            if (!Shown) return;
+            if (CancelPressed())
             {
-                Game?.MarkMenuInputHandled();
+                ConsumeMenuInput();
                 if (_pick != Pick.None)
                 {
                     _pick = Pick.None; // back out of the option list first
@@ -269,27 +254,16 @@ namespace BlocksBeyondTheStars.Client
 
         private void Close()
         {
-            _open = false;
-            if (_overlay != null) Destroy(_overlay);
-            _overlay = null;
+            DestroyOverlay();
             _caseContent = null;
-            if (_canvas != null) _canvas.gameObject.SetActive(false);
-            Game?.SetMenuOwner(this, false);
-        }
-
-        private void EnsureCanvas()
-        {
-            if (_canvas != null) return;
-            _canvas = UiKit.CreateCanvas("BioLabUI");
-            _canvas.sortingOrder = 59;
-            UiNav.Enable(_canvas.gameObject); // pad: the stick walks the lists and slots, A picks, B backs out
-            _canvas.gameObject.SetActive(false);
+            HideCanvas();
+            SetMenuOwned(false);
         }
 
         private void Rebuild()
         {
             if (_caseContent != null) _caseScroll = _caseContent.anchoredPosition.y; // keep the case where it was scrolled to
-            if (_overlay != null) Destroy(_overlay);
+            DestroyOverlay();
             Build();
         }
 
@@ -302,11 +276,11 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private void PlayOpenFx(bool whole)
         {
-            if (_overlay == null) return;
+            if (Overlay == null) return;
             const float lead = 0.04f, stagger = 0.07f;
             if (whole)
             {
-                UiKit.OpenModal(_overlay);
+                PlayOpenEffect();
                 RevealSide(_caseFrame, _caseLayer, lead);
             }
 
@@ -411,8 +385,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Build()
         {
-            var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, (1920f - W) * 0.5f, (1080f - H) * 0.5f, W, H);
-            _overlay = overlay;
+            var panel = AddModal((1920f - W) * 0.5f, (1080f - H) * 0.5f, W, H);
             Prune();
 
             // #2302: the frames first (they draw behind), then one layer per side for the contents.
@@ -472,7 +445,7 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddButton(panel, W - 32f - 220f, H - 72f, 220f, 48f, L("ui.action.close"), () =>
             {
-                Game?.MarkMenuInputHandled();
+                ConsumeMenuInput();
                 Close();
             });
         }
@@ -1382,8 +1355,6 @@ namespace BlocksBeyondTheStars.Client
         private static bool IsMineral(string key) => ItemKey.Base(key) == BioItems.MineralSample;
 
         private string ItemName(string item) => ItemNames.Display(Game.Localizer, item, null, seed => Game.Bio.SpeciesName(seed));
-
-        private string L(string k) => Game?.Localizer?.Get(k) ?? k;
 
         // ---------------- shared with the inventory, the Codex and the HUD ----------------
 

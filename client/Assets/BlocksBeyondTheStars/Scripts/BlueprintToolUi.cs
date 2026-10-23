@@ -14,12 +14,8 @@ namespace BlocksBeyondTheStars.Client
     /// instead (the server re-validates every cell and pays blocks from the inventory). Modeled on
     /// <see cref="BeaconLabelUi"/>: modal card, Enter/Esc + on-screen buttons, menu-owner arbiter.
     /// </summary>
-    public sealed class BlueprintToolUi : MonoBehaviour
+    public sealed class BlueprintToolUi : UiPanel
     {
-        public static BlueprintToolUi Instance { get; private set; }
-        public GameBootstrap Game;
-
-        private Canvas _canvas;
         private Text _title;
         private Text _info;
         private InputField _input;
@@ -28,35 +24,21 @@ namespace BlocksBeyondTheStars.Client
         private Text _altLabel;
         private System.Action _onConfirm;
         private System.Action _onAlt;
-        private bool _open, _built, _wired;
-        private int _openFrame = -1;
+        private bool _wired;
 
         private Vector3Int? _cornerA, _cornerB;
         private string _cornerWorld = string.Empty;
 
-        private void Awake() => Instance = this;
+        protected override string CanvasName => "BlueprintToolUI";
 
-        private void OnDestroy()
-        {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-
-            if (_canvas != null)
-            {
-                Destroy(_canvas.gameObject);
-            }
-        }
-
-        /// <summary>True while the overlay is capturing input.</summary>
-        public bool IsOpen => _open;
+        // pad: reach the actions; the name field needs #1211 to type
+        protected override int CanvasSortingOrder => 58; // above the HUD/chat, below the world map (60)
 
         /// <summary>Tool use on an aimed block: paste offer (clipboard holds a build code), else corner A,
         /// else corner B + export dialog. Corners are per world — a world change resets them.</summary>
         public void UseAt(Vector3Int cell)
         {
-            if (Game == null || _open)
+            if (Game == null || Shown)
             {
                 return;
             }
@@ -173,7 +155,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Open(string title, string info, bool input, string confirmLabel, System.Action onConfirm, string altLabel, System.Action onAlt)
         {
-            EnsureBuilt();
+            EnsureCanvas();
             _title.text = title;
             _info.text = info;
             _inputGo.SetActive(input);
@@ -182,11 +164,9 @@ namespace BlocksBeyondTheStars.Client
             _altLabel.text = altLabel;
             _onConfirm = onConfirm;
             _onAlt = onAlt;
-            _open = true;
-            _openFrame = Time.frameCount;
-            _canvas.gameObject.SetActive(true);
+            ShowCanvas();
 
-            Game?.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
+            SetMenuOwned(true); // freezes player control + frees the cursor via the arbiter (#413)
             // A focused InputField swallows the navigation axes — see BeaconLabelUi. On a pad UiNav
             // focuses the buttons instead, so the tool stays operable without an on-screen keyboard (#1198).
             if (input && InputMap.ActiveDevice != InputDeviceKind.Gamepad)
@@ -198,28 +178,28 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
-            if (!_open)
+            if (!Shown)
             {
                 return;
             }
 
-            if (Time.frameCount != _openFrame
+            if (Time.frameCount != OpenFrame
                 && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             {
                 Confirm();
                 return;
             }
 
-            if (InputMap.Down(InputAction.UiCancel))
+            if (CancelPressed(skipOpenFrame: false))
             {
-                Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
+                ConsumeMenuInput(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close();
             }
         }
 
         private void Confirm()
         {
-            if (!_open)
+            if (!Shown)
             {
                 return;
             }
@@ -231,29 +211,15 @@ namespace BlocksBeyondTheStars.Client
 
         private void Close()
         {
-            _open = false;
             _onConfirm = null;
             _onAlt = null;
-            if (_canvas != null)
-            {
-                _canvas.gameObject.SetActive(false);
-            }
+            HideCanvas();
 
-            Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other panel is open (#413)
+            SetMenuOwned(false); // arbiter re-locks only once NO other panel is open (#413)
         }
 
-        private void EnsureBuilt()
+        protected override void BuildChrome(Transform root)
         {
-            if (_built)
-            {
-                return;
-            }
-
-            _canvas = UiKit.CreateCanvas("BlueprintToolUI");
-            _canvas.sortingOrder = 58; // above the HUD/chat, below the world map (60)
-            UiNav.Enable(_canvas.gameObject); // pad: reach the actions; the name field needs #1211 to type
-            var root = _canvas.transform;
-
             UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.45f));
 
             const float w = 560f, h = 320f;
@@ -287,14 +253,9 @@ namespace BlocksBeyondTheStars.Client
             _altLabel = alt.GetComponentInChildren<Text>();
             UiKit.AddButton(root, x + 48 + bw * 2f, y + 232, bw, 52, L("ui.beacon.cancel"), () =>
             {
-                Game?.MarkMenuInputHandled();
+                ConsumeMenuInput();
                 Close();
             });
-
-            _canvas.gameObject.SetActive(false);
-            _built = true;
         }
-
-        private string L(string k) => Game?.Localizer?.Get(k) ?? k;
     }
 }

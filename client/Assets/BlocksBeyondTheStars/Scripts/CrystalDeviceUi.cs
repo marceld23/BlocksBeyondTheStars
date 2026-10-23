@@ -21,16 +21,9 @@ namespace BlocksBeyondTheStars.Client
     /// Modal like <see cref="BeamPadUi"/>: pad-navigable, closes on Esc / pad B / the Close button, touch taps
     /// the buttons directly.
     /// </summary>
-    public sealed class CrystalDeviceUi : MonoBehaviour
+    public sealed class CrystalDeviceUi : UiPanel
     {
-        public static CrystalDeviceUi Instance { get; private set; }
-        public GameBootstrap Game;
-
-        private Canvas _canvas;
         private Transform _panel;
-        private GameObject _overlay;
-        private bool _open;
-        private int _openFrame = -1;
         private NetCrystalDevice _dev;
         private int _mode;
         private string _config = string.Empty;
@@ -49,15 +42,10 @@ namespace BlocksBeyondTheStars.Client
 
         private float PanelH => KindOf(_dev) == CrystalDeviceKind.CloneTank ? TankH : H;
 
-        private void Awake() => Instance = this;
+        protected override string CanvasName => "CrystalDeviceUI";
 
-        private void OnDestroy()
-        {
-            if (Instance == this) Instance = null;
-            if (_canvas != null) Destroy(_canvas.gameObject);
-        }
-
-        public bool IsOpen => _open;
+        // pad: the stick walks the grid, A picks, B closes (#1198)
+        protected override int CanvasSortingOrder => 59;
 
         /// <summary>The device kind behind a wire record (its <c>Kind</c> is the enum name).</summary>
         public static CrystalDeviceKind KindOf(NetCrystalDevice dev)
@@ -66,7 +54,7 @@ namespace BlocksBeyondTheStars.Client
         public void Open(NetCrystalDevice dev)
         {
             if (dev == null) return;
-            if (_open) Close(); // #2303: a second Open (another device) replaces the panel instead of stacking another overlay
+            if (Shown) Close(); // #2303: a second Open (another device) replaces the panel instead of stacking another overlay
             EnsureCanvas();
             _dev = dev;
             _mode = dev.Mode;
@@ -75,20 +63,18 @@ namespace BlocksBeyondTheStars.Client
             _edits.Clear();
             _lists.Clear();
             _scroll.Clear(); // another visit starts at the top of every list
-            _open = true;
-            _openFrame = Time.frameCount;
-            _canvas.gameObject.SetActive(true);
+            ShowCanvas();
             Build();
-            UiKit.OpenModal(_overlay); // #2302: the open effect — here, not in Build(), which every click and echo re-runs
-            Game?.SetMenuOwner(this, true);
+            PlayOpenEffect(); // #2302: the open effect — here, not in Build(), which every click and echo re-runs
+            SetMenuOwned(true);
         }
 
         private void Update()
         {
-            if (!_open) return;
-            if (Time.frameCount != _openFrame && InputMap.Down(InputAction.UiCancel))
+            if (!Shown) return;
+            if (CancelPressed())
             {
-                Game?.MarkMenuInputHandled();
+                ConsumeMenuInput();
                 Close();
                 return;
             }
@@ -180,23 +166,12 @@ namespace BlocksBeyondTheStars.Client
 
         private void Close()
         {
-            _open = false;
-            if (_overlay != null) Destroy(_overlay);
-            _overlay = null;
+            DestroyOverlay();
             _stateText = null;
             _edits.Clear();
             _lists.Clear();
-            if (_canvas != null) _canvas.gameObject.SetActive(false);
-            Game?.SetMenuOwner(this, false);
-        }
-
-        private void EnsureCanvas()
-        {
-            if (_canvas != null) return;
-            _canvas = UiKit.CreateCanvas("CrystalDeviceUI");
-            _canvas.sortingOrder = 59;
-            UiNav.Enable(_canvas.gameObject); // pad: the stick walks the grid, A picks, B closes (#1198)
-            _canvas.gameObject.SetActive(false);
+            HideCanvas();
+            SetMenuOwned(false);
         }
 
         private void Rebuild()
@@ -208,7 +183,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _lists.Clear();
-            if (_overlay != null) Destroy(_overlay);
+            DestroyOverlay();
             Build();
         }
 
@@ -235,8 +210,7 @@ namespace BlocksBeyondTheStars.Client
         private void Build()
         {
             float h = PanelH;
-            var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, (1920f - W) * 0.5f, (1080f - h) * 0.5f, W, h);
-            _overlay = overlay;
+            var panel = AddModal((1920f - W) * 0.5f, (1080f - h) * 0.5f, W, h);
             _panel = panel;
             _modeShown = _labelShown = false;
             _shown.Clear(); // the grid and the rows below say what this menu shows
@@ -369,7 +343,7 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddButton(panel, W - 32f - 220f, h - 72f, 220f, 48f, L("ui.crystal.close"), () =>
             {
-                Game?.MarkMenuInputHandled();
+                ConsumeMenuInput();
                 Close();
             });
         }
@@ -611,8 +585,6 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private string ConfigValue(string key) => CrystalMenuEdits.ValueOf(_config, key);
-
-        private string L(string k) => Game?.Localizer?.Get(k) ?? k;
     }
 
     /// <summary>

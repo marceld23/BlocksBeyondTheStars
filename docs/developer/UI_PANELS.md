@@ -67,7 +67,11 @@ protected override void OnDestroy() { Close(); base.OnDestroy(); }
 ```
 
 `CancelPressed()` keeps each panel's old Esc rule: panels that ignored Esc in their opening frame use the default,
-the others pass `skipOpenFrame: false`.
+the others pass `skipOpenFrame: false` (`BeaconLabelUi` and `BlueprintToolUi` take Esc at once but still keep Enter out
+of the opening frame with `Time.frameCount != OpenFrame`).
+
+**B2 variant** (`InterviewUi`): `EnsureCanvas(hidden: false)` — the canvas stays active and its single overlay is built
+once in `BuildChrome` (`AddModal`, then `Overlay.SetActive(false)`); Open/Close only toggle the overlay.
 
 ## Tests
 
@@ -77,11 +81,12 @@ register/unregister rules, and removes the canvases with `DestroyImmediate` (Awa
 
 ## Inventory and follow-up queue
 
-**Migrated:** `BeamPadUi` (B), `TrainCabUi` (B2), `ContainerFilterUi` (A).
+**Migrated:** shape B — `BeamPadUi`, `BeaconLabelUi`, `BlueprintToolUi`, `StoryReaderUi`, `TeleporterUi`; shape B2 —
+`TrainCabUi`, `BioLabUi`, `CrystalDeviceUi`, `InterviewUi` (keeps its canvas on destroy: `KeepCanvasOnDestroy => true`);
+shape A — `ContainerFilterUi`.
 
-**Queued panels** (static `Instance` reads outside the file): shape B — `BeaconLabelUi` 8, `StoryReaderUi` 4,
-`TeleporterUi` 2, `BlueprintToolUi` 1; shape B2 — `BioLabUi` 2, `CrystalDeviceUi` 1, `InterviewUi` 1 (keeps its canvas
-on destroy: `KeepCanvasOnDestroy => true`); shape A — `CrateUi` 1, `HotbarActionUi` 1, `ContextActionsUi` 1.
+**Queued panels** (static `Instance` reads outside the file): shape A — `CrateUi` 1, `HotbarActionUi` 1,
+`ContextActionsUi` 1.
 
 **Not panels of this kind** (stay as they are for now):
 

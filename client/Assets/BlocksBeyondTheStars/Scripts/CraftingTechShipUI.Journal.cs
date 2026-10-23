@@ -609,7 +609,7 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddButton(_listContent, 688, rowTop, 92, 30, L("ui.story.read"), () =>
             {
-                StoryReaderUi.Instance?.OpenOverMenu(title, label, body);
+                Game?.Context.Panel<StoryReaderUi>()?.OpenOverMenu(title, label, body);
             });
             return y;
         }

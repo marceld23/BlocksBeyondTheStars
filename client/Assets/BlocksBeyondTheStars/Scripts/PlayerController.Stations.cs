@@ -84,7 +84,7 @@ namespace BlocksBeyondTheStars.Client
             // A radio beacon you own that you're aiming at → rename it (item 37).
             if (TryAimOwnedBeacon(out int beaconId, out string current))
             {
-                BeaconLabelUi.Instance?.Open(
+                Game?.Context.Panel<BeaconLabelUi>()?.Open(
                     Game.Localizer?.Get("ui.beacon.rename_prompt") ?? "Rename beacon",
                     current,
                     label => Game.Network?.SendSetBeaconLabel(beaconId, label));
@@ -94,7 +94,7 @@ namespace BlocksBeyondTheStars.Client
             // A planet base you own (Grundstein) that you're aiming at → rename it, and see who lives there (#2717).
             if (TryAimOwnedBase(out string baseBodyId, out string baseName))
             {
-                BeaconLabelUi.Instance?.OpenBase(
+                Game?.Context.Panel<BeaconLabelUi>()?.OpenBase(
                     Game.Localizer?.Get("ui.base.rename_prompt") ?? "Rename base",
                     baseName,
                     baseBodyId,
@@ -108,7 +108,7 @@ namespace BlocksBeyondTheStars.Client
                 && Game.Content?.BlockById(Game.World.GetBlock(coreHit.x, coreHit.y, coreHit.z))?.Key == "station_core")
             {
                 string stationId = Game.CurrentStationId;
-                BeaconLabelUi.Instance?.Open(
+                Game?.Context.Panel<BeaconLabelUi>()?.Open(
                     Game.Localizer?.Get("ui.map.rename") ?? "Rename",
                     Game.StationName,
                     name => Game.Network?.SendSetStationName(stationId, name));
@@ -148,7 +148,7 @@ namespace BlocksBeyondTheStars.Client
 
                 if (BlocksBeyondTheStars.Shared.Definitions.CrystalNetRules.IsConfigurable(crystalKind))
                 {
-                    CrystalDeviceUi.Instance?.Open(crystalDev);
+                    Game?.Context.Panel<CrystalDeviceUi>()?.Open(crystalDev);
                     return;
                 }
             }
@@ -158,7 +158,7 @@ namespace BlocksBeyondTheStars.Client
                 && Game.Content?.BlockById(Game.World.GetBlock(labHit.x, labHit.y, labHit.z))?.Key == BlocksBeyondTheStars.Shared.Bio.BioItems.Lab
                 && BioLabInReach(labHit))
             {
-                BioLabUi.Instance?.Open();
+                Game?.Context.Panel<BioLabUi>()?.Open();
                 return;
             }
 
@@ -315,7 +315,7 @@ namespace BlocksBeyondTheStars.Client
                         || !VendorChoicePrompt.Instance.TryOfferPair(
                             Game.Localizer?.Get("ui.station.workshop") ?? "Workshop",
                             Game.Localizer?.Get("ui.bio.workshop_choice_craft") ?? "Workshop ({key:Interact})", () => Menu?.OpenCrafting(),
-                            Game.Localizer?.Get("ui.bio.workshop_choice_lab") ?? "Bio lab", () => BioLabUi.Instance?.Open()))
+                            Game.Localizer?.Get("ui.bio.workshop_choice_lab") ?? "Bio lab", () => Game?.Context.Panel<BioLabUi>()?.Open()))
                     {
                         Menu?.OpenCrafting();
                     }

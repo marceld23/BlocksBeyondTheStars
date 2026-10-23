@@ -248,7 +248,7 @@ namespace BlocksBeyondTheStars.Client
             y = AddDetailPara(y, text, UiKit.TextCol);
             string title = ItemName(item);
             // From the open menu, like the Story tab's Read buttons (Open would queue behind this very menu).
-            UiKit.AddButton(_detail, 8, y, 320, 46, L("ui.story.read"), () => StoryReaderUi.Instance?.OpenOverMenu(title, log.Writer, text));
+            UiKit.AddButton(_detail, 8, y, 320, 46, L("ui.story.read"), () => Game?.Context.Panel<StoryReaderUi>()?.OpenOverMenu(title, log.Writer, text));
             return y + 54f;
         }
     }

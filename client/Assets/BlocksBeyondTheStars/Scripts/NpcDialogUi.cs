@@ -129,7 +129,7 @@ namespace BlocksBeyondTheStars.Client
         {
             yield return new WaitForSecondsRealtime(0.8f);
             Close();
-            InterviewUi.Instance?.Open(npcId);
+            Game?.Context.Panel<InterviewUi>()?.Open(npcId);
         }
 
         private void Choose(int index)

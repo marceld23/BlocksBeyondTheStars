@@ -258,6 +258,12 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   replaces the static `Instance` (filled by the `Game` setter, emptied in `OnDestroy`). `BeamPadUi` 192 → 166,
   `TrainCabUi` 175 → 152, `ContainerFilterUi` 231 → 219 lines; 3 readers use `Context.Panel<T>()` (holders 37 → 34).
   Open/close/Esc order kept; Unity build, 278 EditMode (5 new `UiPanelEditModeTests`) + 6 PlayMode + 2,319 client green.
+- **Seven more in-world panels on the UiPanel base (#2913, C1b):** `TeleporterUi`, `StoryReaderUi`, `BeaconLabelUi`,
+  `BlueprintToolUi`, `CrystalDeviceUi`, `BioLabUi` and `InterviewUi` derive from `UiPanel` (each 22–39 lines shorter,
+  e.g. `BioLabUi` 1,760 → 1,731) and lost their static `Instance`; 17 readers use `Game?.Context.Panel<T>()` (UiPanel
+  subclasses 3 → 10, holders 34 → 27, outside `.Instance` reads 20 → 3). Open/Update/Close order, every Esc/Enter guard
+  and the teleporter's ship-teleport fallback are kept, `InterviewUi` keeps its canvas; Unity build, 278 EditMode + 6
+  PlayMode + 2,319 client tests green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

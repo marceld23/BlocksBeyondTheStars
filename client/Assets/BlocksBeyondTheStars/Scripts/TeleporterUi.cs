@@ -17,68 +17,56 @@ namespace BlocksBeyondTheStars.Client
     /// (<see cref="UiNav"/>), Esc / pad B closes. The server re-validates every choice: device, energy,
     /// cooldown, the alliance, same body, target not aboard their ship.
     /// </summary>
-    public sealed class TeleporterUi : MonoBehaviour
+    public sealed class TeleporterUi : UiPanel
     {
-        public static TeleporterUi Instance { get; private set; }
-        public GameBootstrap Game;
         /// <summary>Remote avatars, for the distance line (set by WorldRig; null-safe).</summary>
         public RemotePlayers Remotes;
 
-        private Canvas _canvas;
         private RectTransform _list;
-        private bool _open, _built, _subscribed;
-        private int _openFrame = -1;
+        private bool _subscribed;
         private readonly List<GameObject> _rows = new List<GameObject>();
 
-        private void Awake() => Instance = this;
+        protected override string CanvasName => "TeleporterUI";
 
-        private void OnDestroy()
-        {
-            if (Instance == this) Instance = null;
-            if (_canvas != null) Destroy(_canvas.gameObject);
-        }
-
-        public bool IsOpen => _open;
+        // pad: stick walks the rows, A beams, B closes
+        protected override int CanvasSortingOrder => 59; // same layer as the beam-pad transporter: above HUD/chat, below the world map
 
         /// <summary>Opens the picker. Asks the server for a fresh roster + star map so the ally list is current
         /// (both replies rebuild the rows while the panel is open).</summary>
         public void Open()
         {
-            EnsureBuilt();
-            _open = true;
-            _openFrame = Time.frameCount;
-            _canvas.gameObject.SetActive(true);
+            EnsureCanvas();
+            ShowCanvas();
             RebuildList();
 
             Game?.Network?.SendRequestAllianceList();
             Game?.Network?.SendRequestStarMap();
-            Game?.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
+            SetMenuOwned(true); // freezes player control + frees the cursor via the arbiter (#413)
         }
 
         private void Update()
         {
             if (!_subscribed && Game?.Network != null)
             {
-                Game.Network.AllianceListReceived += _ => { if (_open) RebuildList(); };
-                Game.Network.StarMapReceived += _ => { if (_open) RebuildList(); };
+                Game.Network.AllianceListReceived += _ => { if (Shown) RebuildList(); };
+                Game.Network.StarMapReceived += _ => { if (Shown) RebuildList(); };
                 _subscribed = true;
             }
 
-            if (!_open) return;
+            if (!Shown) return;
 
             // Esc always closes; pad B backs out (the list is stick-navigable, so the pad needs an exit).
-            if (Time.frameCount != _openFrame && InputMap.Down(InputAction.UiCancel))
+            if (CancelPressed())
             {
-                Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
+                ConsumeMenuInput(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close();
             }
         }
 
         private void Close()
         {
-            _open = false;
-            if (_canvas != null) _canvas.gameObject.SetActive(false);
-            Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other panel is open (#413)
+            HideCanvas();
+            SetMenuOwned(false); // arbiter re-locks only once NO other panel is open (#413)
         }
 
         /// <summary>Allied players currently on the same body as the local player, by name (== player id).</summary>
@@ -179,14 +167,8 @@ namespace BlocksBeyondTheStars.Client
             _rows.Add(go);
         }
 
-        private void EnsureBuilt()
+        protected override void BuildChrome(Transform root)
         {
-            if (_built) return;
-
-            _canvas = UiKit.CreateCanvas("TeleporterUI");
-            _canvas.sortingOrder = 59; // same layer as the beam-pad transporter: above HUD/chat, below the world map
-            var root = _canvas.transform;
-
             UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.45f));
 
             const float w = 620f, h = 560f;
@@ -203,12 +185,6 @@ namespace BlocksBeyondTheStars.Client
             _list = UiKit.ScrollList(root, x + 16, y + 90, w - 32, h - 168, 6f);
 
             UiKit.AddButton(root, x + w - 24 - 220, y + h - 60, 220, 44, L("ui.beam.close"), Close);
-
-            UiNav.Enable(_canvas.gameObject); // pad: stick walks the rows, A beams, B closes
-            _canvas.gameObject.SetActive(false);
-            _built = true;
         }
-
-        private string L(string k) => Game?.Localizer?.Get(k) ?? k;
     }
 }

@@ -293,7 +293,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (aimed)
                 {
-                    BlueprintToolUi.Instance?.UseAt(cell);
+                    Game?.Context.Panel<BlueprintToolUi>()?.UseAt(cell);
                 }
 
                 return;
@@ -485,7 +485,8 @@ namespace BlocksBeyondTheStars.Client
                 // the cooldown and the alliance, and answers with a RespawnNotice snap (or a reject toast).
                 if (held == "suit_teleporter")
                 {
-                    if (TeleporterUi.Instance != null) TeleporterUi.Instance.Open();
+                    var teleporter = Game?.Context.Panel<TeleporterUi>();
+                    if (teleporter != null) teleporter.Open();
                     else Game.Network?.SendTeleportToShip();
                     return;
                 }
@@ -665,20 +666,21 @@ namespace BlocksBeyondTheStars.Client
                         return;
                     }
 
-                    if (def.PlacesBlock == "radio_beacon" && BeaconLabelUi.Instance != null)
+                    var beaconLabel = Game?.Context.Panel<BeaconLabelUi>();
+                    if (def.PlacesBlock == "radio_beacon" && beaconLabel != null)
                     {
                         // Name the beacon before placing it — the typed label travels with the place (item 37).
                         var cell = placeCell;
-                        BeaconLabelUi.Instance.Open(
+                        beaconLabel.Open(
                             Game.Localizer?.Get("ui.beacon.name_prompt") ?? "Name this beacon",
                             string.Empty,
                             label => Game.Network.SendPlace(cell.x, cell.y, cell.z, item, label));
                     }
-                    else if (def.PlacesBlock == "beam_block" && BeaconLabelUi.Instance != null)
+                    else if (def.PlacesBlock == "beam_block" && beaconLabel != null)
                     {
                         // Name the beam block before placing it — the typed name travels with the place (teleporter pad).
                         var cell = placeCell;
-                        BeaconLabelUi.Instance.Open(
+                        beaconLabel.Open(
                             Game.Localizer?.Get("ui.beam.name_prompt") ?? "Name this beam block",
                             string.Empty,
                             label => Game.Network.SendPlace(cell.x, cell.y, cell.z, item, label));
