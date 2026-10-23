@@ -149,6 +149,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>How many of our own vehicles stand parked (not driven) on this world.</summary>
         public int OwnParkedVehicleCount => _vehicles.OwnParkedVehicleCount;
 
+        /// <summary>The on-foot board reach E boards an own parked vehicle within — the HUD's "Board (E)" prompt reads it (#2926).</summary>
+        public float SpeederBoardRange => _vehicles.SpeederBoardRange;
+
         private float _pitch;
 
         private float _verticalVelocity;

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using BlocksBeyondTheStars.Client;
 using NUnit.Framework;
@@ -179,6 +180,33 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Click(ButtonIn(official.transform, "ui.menu.back"));
 
             Assert.IsFalse(official.activeSelf);
+        }
+
+        [Test]
+        public void NameReservedRetry_ShowsTheReplacementNameInTheMenuField()
+        {
+            // The Official-worlds join retry after "name reserved/blocked" hands its new name to the menu's write-back,
+            // which must update the visible field too, not only the value CommitName reads (#2926). The retry itself
+            // needs a portal answer, so this drives the write-back the overlay is given — on a Builder of its own,
+            // reached by reflection (both are private to UiMainMenu).
+            var shell = Track(new GameObject("ShellUnderTest").AddComponent<AppShell>());
+            shell.SetSettingsForTest(new ClientSettings());
+            shell.PlayerName = "Refused";
+            var canvas = Track(UiKit.CreateCanvas("BuilderUnderTest"));
+            var builderType = typeof(UiMainMenu).GetNestedType("Builder", BindingFlags.NonPublic);
+            Assert.IsNotNull(builderType, "UiMainMenu.Builder");
+            object builder = System.Activator.CreateInstance(builderType, shell, canvas.transform);
+            builderType.GetMethod("BuildNativeMenu").Invoke(builder, null);
+            var nameField = canvas.GetComponentsInChildren<InputField>(true).Single();
+            Assert.AreEqual("Refused", nameField.text, "the menu field starts with the shell's name");
+
+            var writeBack = builderType.GetMethod("SetMenuName", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(writeBack, "the menu's name write-back the Official-worlds overlay is given");
+            writeBack.Invoke(builder, new object[] { "Nova" });
+
+            Assert.AreEqual("Nova", nameField.text, "the visible name field shows the replacement name");
+            Assert.AreEqual("Nova", builderType.GetField("_natName", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(builder),
+                "the value CommitName reads is the replacement name");
         }
 
         private static GameObject Overlay(Transform root, int fromEnd) => root.GetChild(root.childCount - fromEnd).gameObject;

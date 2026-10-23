@@ -384,7 +384,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Sends a "look here" ping (#1217) at whatever the crosshair rests on: the aimed voxel when one
         /// is in reach, else a physics hit up to 60 m out, else a spot a dozen metres ahead — so pointing at a
-        /// mountainside across the valley works, and pointing at the sky still pings something sensible.</summary>
+        /// mountainside across the valley works, and pointing at the sky still pings something sensible. The physics ray is a
+        /// world ray (<see cref="WorldRayMask"/>, #2926): it passes a giant's colliders like every other world ray, so a giant
+        /// is no more a ping target than any other creature (none of them is) — a ping on its flank would hang in mid-air
+        /// once it walked on.</summary>
         private void PingAtCrosshair()
         {
             if (Game?.Network == null)
@@ -398,7 +401,7 @@ namespace BlocksBeyondTheStars.Client
                 at = new Vector3(cell.x + 0.5f, cell.y + 0.5f, cell.z + 0.5f);
             }
             else if (Camera != null
-                     && Physics.Raycast(Camera.transform.position, Camera.transform.forward, out var hit, 60f, ~0, QueryTriggerInteraction.Ignore)
+                     && Physics.Raycast(Camera.transform.position, Camera.transform.forward, out var hit, 60f, WorldRayMask, QueryTriggerInteraction.Ignore)
                      && hit.collider != _controller)
             {
                 at = hit.point;

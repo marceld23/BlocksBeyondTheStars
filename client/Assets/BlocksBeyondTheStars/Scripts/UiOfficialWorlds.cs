@@ -33,7 +33,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly AppShell _shell;
 
         // The menu's name gate (true when a player name is set; commits it to the shell and the settings) and the
-        // write-back of a replacement name into the menu's name value — the join retry after "name reserved".
+        // write-back of a replacement name into the menu's name value and field — the join retry after "name reserved".
         private readonly System.Func<bool> _commitName;
         private readonly System.Action<string> _setMenuName;
 
@@ -65,7 +65,7 @@ namespace BlocksBeyondTheStars.Client
         public GameObject Overlay => _overlay;
 
         /// <param name="commitName">The menu's name gate (<c>CommitName</c>): true when a name is set, warns otherwise.</param>
-        /// <param name="setMenuName">Writes a replacement player name back into the menu's name value.</param>
+        /// <param name="setMenuName">Writes a replacement player name back into the menu's name value and its visible field.</param>
         public UiOfficialWorlds(AppShell shell, Transform root, System.Func<bool> commitName, System.Action<string> setMenuName)
         {
             _shell = shell;
@@ -173,7 +173,7 @@ namespace BlocksBeyondTheStars.Client
             // looking at their worlds anyway; a failure is silent, the world list matters more (#496).
             var state = await Task.Run(() => portal.GetNotices(session));
             if (_overlay == null) { return; }
-            if (state.Ok && _portalModal == null)
+            if (state.Ok && NoPortalDialogOpen())
             {
                 // Only when nothing else is open: the login path already showed these, and stealing a
                 // dialog the player is filling in would be worse than telling them a refresh later.
@@ -395,6 +395,10 @@ namespace BlocksBeyondTheStars.Client
                 _rulesModal = null;
             }
         }
+
+        // No dialog of any of the three slots is open — the gate for the notices a refresh polls: they open in the form
+        // slot, on top of whatever is up, so the rules screen and the password/name prompt hold them off too (#2926).
+        private bool NoPortalDialogOpen() => _portalModal == null && _rulesModal == null && _passwordPrompt == null;
 
         private void CloseAllPortalModals()
         {

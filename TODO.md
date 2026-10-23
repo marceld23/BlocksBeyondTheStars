@@ -84,6 +84,12 @@ The deferred class extractions are #2929 (not part of this branch).
   overlay (the #2303 leak class). The override and the now-unused `UiPanel.KeepCanvasOnDestroy` hook are gone, so
   `UiPanel.OnDestroy` destroys every panel's canvas; nothing reads the interview canvas once the rig is torn down.
   `UiPanelPlayModeTests.InterviewUi_DestroyedPanel_TakesItsCanvasAlong` pins it (PlayMode: edit mode skips OnDestroy).
+- **Board-reach hint, ping ray mask, three main-menu modal quirks (#2926):** the HUD's "Board (E)" hint hard-coded
+  3.2 m and now reads `PlayerController.SpeederBoardRange`; the ping cast `~0` and now uses `WorldRayMask` (a pin no
+  longer sticks to a giant). A "name reserved" retry now also updates the visible name field (`SetMenuName`); the
+  browser menu builds the "New world?" and name dialogs last so they draw on top (desktop golden unchanged); refresh
+  notices wait while the rules or password prompt is open. `ClientQuirksWiringTests` and
+  `MainMenuHierarchyEditModeTests.NameReservedRetry_ShowsTheReplacementNameInTheMenuField` pin it.
 
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 

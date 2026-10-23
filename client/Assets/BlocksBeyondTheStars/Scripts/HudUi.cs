@@ -520,15 +520,26 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>An own parked (not driven) vehicle within the on-foot board reach — the "Board (E)" prompt's
-        /// gate (#1670). The reach mirrors <c>PlayerVehicleDrive.SpeederBoardRange</c>.</summary>
+        /// gate (#1670). The reach is the rig's own <see cref="PlayerController.SpeederBoardRange"/>, the value its E boards
+        /// with — a copied 3.2 here could drift from it (#2926). No rig (the menu) means nothing on foot to board.</summary>
         private bool OwnParkedVehicleInBoardReach()
         {
-            const float boardReach = 3.2f;
             if (Game?.Speeders == null)
             {
                 return false;
             }
 
+            if (_playerRig == null)
+            {
+                _playerRig = FindAnyObjectByType<PlayerController>(); // the rig WorldRig creates; null in the menu
+            }
+
+            if (_playerRig == null)
+            {
+                return false;
+            }
+
+            float boardReach = _playerRig.SpeederBoardRange;
             foreach (var s in Game.Speeders)
             {
                 if (s != null && s.OwnerId == Game.LocalPlayerId && string.IsNullOrEmpty(s.DriverId)

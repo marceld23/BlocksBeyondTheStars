@@ -34,11 +34,7 @@ namespace BlocksBeyondTheStars.Client
             b.BuildTitle();
             b.BuildNotice();
 #if UNITY_WEBGL && !UNITY_EDITOR
-            // The browser's two dialogs follow its menu directly — before the world-info panel, as they always
-            // have, although their comments say "built last" (#1181, #1322). Keep this order: it is the stacking.
             b.BuildBrowserMenu();
-            b.BuildBrowserNewWorldDialog();
-            b.BuildBrowserNamePrompt();
 #else
             b.BuildNativeMenu();
 #endif
@@ -49,6 +45,12 @@ namespace BlocksBeyondTheStars.Client
             b.BuildOfficialWorlds();
 #endif
             b.BuildParticipateOverlay();
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // The browser's two dialogs come last, after every other panel and overlay, so they draw on top (#1181,
+            // #1322). They used to follow the browser menu directly and sat under the later overlays (#2926).
+            b.BuildBrowserNewWorldDialog();
+            b.BuildBrowserNamePrompt();
+#endif
             return canvas.gameObject;
         }
 
@@ -480,9 +482,11 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 #else
-            // The menu's pilot name (#221) and the warning line under it — both read by CommitName.
+            // The menu's pilot name (#221) and the warning line under it — both read by CommitName — and the name's
+            // input field, which SetMenuName keeps showing the value.
             private string _natName;
             private Text _natWarn;
+            private InputField _natNameInput;
 
             // Official-worlds overlay (native only; built by BuildOfficialWorlds). Read by its menu button.
             private GameObject _official;
@@ -498,7 +502,7 @@ namespace BlocksBeyondTheStars.Client
                 // The panel's outer edges sit exactly on the button column (bx..bx+bw); content insets instead.
                 UiHolo.AddPanel(_root, bx, by - 10f, bw, 100f, new Color(0.12f, 0.45f, 0.62f, 0.22f), 14f, 1.2f, 0.8f);
                 UiKit.AddText(_root, bx + 16f, by, bw - 32f, 24f, _shell.L("ui.menu.connect_name"), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-                UiKit.AddInput(_root, bx + 16f, by + 30f, bw - 32f, 46f, _natName, v => _natName = v, maxLength: Protocol.MaxPlayerNameLength); // the server's join cap (#1368)
+                _natNameInput = UiKit.AddInput(_root, bx + 16f, by + 30f, bw - 32f, 46f, _natName, v => _natName = v, maxLength: Protocol.MaxPlayerNameLength); // the server's join cap (#1368)
                 _natWarn = UiKit.AddText(_root, bx, by + 80f, bw, 22f, "", 14,
                     new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
                 float nby = by + 112f;
@@ -547,11 +551,19 @@ namespace BlocksBeyondTheStars.Client
                 return true;
             }
 
+            // Writes a replacement name into the menu: the value CommitName reads AND the field that shows it — the
+            // field used to keep showing the refused name (#2926). Without notify: the value is set right here.
+            private void SetMenuName(string name)
+            {
+                _natName = name;
+                _natNameInput.SetTextWithoutNotify(name);
+            }
+
             // --- Official-worlds overlay (native only; HOSTED_WORLDS.md: the browser NEVER picks servers) ---
-            // Its name gate is CommitName, and a replacement name from its "name reserved" retry lands in _natName.
+            // Its name gate is CommitName, and a replacement name from its "name reserved" retry goes through SetMenuName.
             public void BuildOfficialWorlds()
             {
-                _official = new UiOfficialWorlds(_shell, _root, CommitName, v => _natName = v).Overlay;
+                _official = new UiOfficialWorlds(_shell, _root, CommitName, SetMenuName).Overlay;
             }
 #endif
         }
