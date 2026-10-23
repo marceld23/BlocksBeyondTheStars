@@ -52,10 +52,12 @@ needs from the rest of the server range from 3 (hull repair) to 31 (speeders); a
    `_uptime` → `_host.Uptime`). A static method that now needs `_host` loses `static`; a private static helper of
    `GameServer` becomes `internal static` and is called as `GameServer.X`; a private nested type or constant becomes
    `internal` and is written `GameServer.X`. The host is never listed by hand.
-3. **`IServerHost`** (`IServerHost.cs`) holds the members most systems need — `Send`, `Reject`, `RaiseGameEvent`,
-   `FindSessionByPlayerId`, `World`, `Uptime`, `Worlds`, `SendPlayerState`, `SendInventory` — and `GameServer` implements
-   it once, explicitly, in `GameServer.Systems.cs`. A member joins it only when at least three systems need it;
-   otherwise it belongs to the system's own host interface.
+3. **`IServerHost`** (`IServerHost.cs`) holds the members several systems need — `Send`, `Reject`, `RaiseGameEvent`,
+   `FindSessionByPlayerId`, `World`, `Uptime`, `Worlds`, `SendPlayerState`, `SendInventory`, and since
+   [#2931](https://github.com/marceld23/BlocksBeyondTheStars/issues/2931) `Sessions`, `Rules`, `InSpace`,
+   `BroadcastToWorld`, `WrapDistSq`, `ShipInteriorContains` — and `GameServer` implements it once, explicitly, in
+   `GameServer.Systems.cs`. A member joins it only when at least three systems need it; otherwise it belongs to the
+   system's own host interface.
 4. **The constructor stores references only:** `(IXHost host[, GameContent content][, IWorldRepository repo][,
    IGameLogger log][, ServerConfig config])` — the host plus objects `GameServer` already holds in its own constructor.
    The worlds, the active world, the world metadata, the galaxy and the ship cursor are not there yet when the
@@ -86,9 +88,9 @@ needs from the rest of the server range from 3 (hull repair) to 31 (speeders); a
   extracted: journal 24, NPC work 21, bio lab 20, observer 19, vehicles 19, temperature 16), because they reach into
   the core orchestration or into other partials' state. They are extracted anyway: the wide interface documents the
   coupling, shrinking it (moving state, splitting the system) is follow-up work, and there is no promise of isolated
-  unit tests for them until then. A narrow host does not always mean a small coupling: the tutorial's host has 8
-  members only because its extraction is partial — the hint hold and the onboarding migration it works with stay in
-  `GameServerTutorial.cs`.
+  unit tests for them until then. A narrow host does not always mean a small coupling: the tutorial's host had 8
+  members as extracted only because its extraction is partial — the hint hold and the onboarding migration it works
+  with stay in `GameServerTutorial.cs`.
 - Extraction makes the dependency cycles visible, not gone: crews → markers → alliances → crews, bio lab ↔ equipment,
   temperature ↔ equipment all still run through the host.
 - Each host member costs one interface line and one explicit implementation; the shared `IServerHost` removes the most
@@ -112,5 +114,7 @@ needs from the rest of the server range from 3 (hull repair) to 31 (speeders); a
   `GameServerSpeeders.cs` and `GameServerBoats.cs`, both now facades) and `TutorialSystem`
   ([#2901](https://github.com/marceld23/BlocksBeyondTheStars/issues/2901)).
 - `IServerHost` kept its nine members through the pass. By the three-systems rule of point 3, `Sessions`, `Rules`,
-  `InSpace`, `BroadcastToWorld`, `WrapDistSq` and `ShipInteriorContains` now qualify — each is declared by three or
-  four host interfaces; promoting them is follow-up work.
+  `InSpace`, `BroadcastToWorld`, `WrapDistSq` and `ShipInteriorContains` then qualified — each was declared by three or
+  four host interfaces — and were promoted to `IServerHost`
+  ([#2931](https://github.com/marceld23/BlocksBeyondTheStars/issues/2931)): fifteen members, and the 22 duplicate
+  declarations and their one-line implementations are gone.

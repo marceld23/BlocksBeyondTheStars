@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Persistence;
-using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
@@ -16,11 +15,11 @@ namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
 /// What <see cref="VehicleSystem"/> asks of the server beyond <see cref="IServerHost"/> (ADR 0019): the active world's
-/// live vehicles, the water block and the rules, the world broadcast and the wrapped-world distance, who is present, the
-/// driver's damage and respawn, the ground and pad probes a deploy, dismount or recall reads, the ship's helm stations,
-/// the recall's "look here" ping and the crash vibration the giants hear. Implemented explicitly by <c>GameServer</c> in
-/// <c>GameServerSpeeders.cs</c>, each member delegating to the server's own member of the same name. A wide host — a
-/// vehicle touches the ground, the ship, the player and the fauna (ADR 0019, "wide hosts, shrink later").
+/// live vehicles and the water block, who is present, the driver's damage and respawn, the ground and pad probes a
+/// deploy, dismount or recall reads, the ship's helm stations, the recall's "look here" ping and the crash vibration the
+/// giants hear. Implemented explicitly by <c>GameServer</c> in <c>GameServerSpeeders.cs</c>, each member delegating to
+/// the server's own member of the same name. A wide host — a vehicle touches the ground, the ship, the player and the
+/// fauna (ADR 0019, "wide hosts, shrink later").
 /// </summary>
 internal interface IVehicleHost : IServerHost
 {
@@ -31,16 +30,8 @@ internal interface IVehicleHost : IServerHost
     /// <summary>The numeric id of the water block, 0 when the content has none (the server's <c>_waterId</c>).</summary>
     ushort WaterId { get; }
 
-    GameRules Rules { get; }
-
-    // Messaging and presence
-    void BroadcastToWorld(object message);
-
-    double WrapDistSq(Vector3f a, Vector3f b);
-
+    // Presence
     IEnumerable<PlayerSession> JoinedInActiveWorld();
-
-    bool InSpace(string playerId);
 
     // The driver's damage (GameServerPlayerDamage.cs) and death
     bool PlayerTakesDamage(PlayerState p);

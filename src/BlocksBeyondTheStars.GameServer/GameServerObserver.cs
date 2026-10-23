@@ -101,8 +101,6 @@ public sealed partial class GameServer : IObserverHost
 
     void IObserverHost.PlaceLandedShip() => PlaceLandedShip();
 
-    void IObserverHost.BroadcastToWorld(object message) => BroadcastToWorld(message);
-
     void IObserverHost.BroadcastLandingPads(PlayerSession? always) => BroadcastLandingPads(always);
 
     void IObserverHost.BroadcastFace(PlayerSession subject) => BroadcastFace(subject);
@@ -125,8 +123,6 @@ public sealed partial class GameServer : IObserverHost
         bool adminTeleport) => HandleTravel(session, intent, quickTravel, adminBypass, allowCurrentBody, adminTeleport);
 
     void IObserverHost.SnapPlayerTo(PlayerSession session, Vector3f target, string reason) => SnapPlayerTo(session, target, reason);
-
-    IReadOnlyDictionary<int, PlayerSession> IObserverHost.Sessions => _sessions;
 
     Galaxy IObserverHost.Galaxy => _galaxy;
 }

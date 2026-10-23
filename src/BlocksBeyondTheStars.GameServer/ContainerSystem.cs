@@ -15,24 +15,16 @@ namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
 /// What <see cref="ContainerSystem"/> asks of the server beyond <see cref="IServerHost"/> (ADR 0019): the active world's
-/// container store and the live sessions, the wrapped-world distance and the world broadcast, the owned stores of lodge
-/// residents and villages (#2640, #2726), what looting a find feeds — the achievement, the Discoveries ledger (#2633),
-/// environmental lore (#1111) and the story milestones — and the ground drop packets that travel with the container list
-/// (#853). Implemented explicitly by <c>GameServer</c> in <c>GameServerContainers.cs</c>, each member delegating to the
-/// server's own member of the same name.
+/// container store, the owned stores of lodge residents and villages (#2640, #2726), what looting a find feeds — the
+/// achievement, the Discoveries ledger (#2633), environmental lore (#1111) and the story milestones — and the ground drop
+/// packets that travel with the container list (#853). Implemented explicitly by <c>GameServer</c> in
+/// <c>GameServerContainers.cs</c>, each member delegating to the server's own member of the same name.
 /// </summary>
 internal interface IContainerHost : IServerHost
 {
     /// <summary>The active world's container store — crates, capsules AND ground drop packets (the server's
     /// <c>_containers</c>). Follows the world cursor, so read it at use time.</summary>
     List<StoredContainer> ContainerStore { get; }
-
-    /// <summary>The live sessions of EVERY world, not only the active one (the server's <c>_sessions</c>).</summary>
-    IReadOnlyDictionary<int, PlayerSession> Sessions { get; }
-
-    double WrapDistSq(Vector3f a, Vector3f b);
-
-    void BroadcastToWorld(object message);
 
     // The owned stores of lodge residents and villages (GameServerStructureLoot.cs)
     SettlementInstance? VillageOwningCache(StoredContainer container);

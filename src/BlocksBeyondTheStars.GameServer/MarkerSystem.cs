@@ -13,18 +13,13 @@ using BlocksBeyondTheStars.Shared.State;
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
-/// What <see cref="MarkerSystem"/> asks of the server beyond <see cref="IServerHost"/> (ADR 0019): the live sessions,
-/// whether a player is in space, the content screen for marker labels, the alliance-or-crew audience, and the story and
-/// wish markers a player's view carries (#2570, #2714) with the story markers' send record. Implemented explicitly by
-/// <c>GameServer</c> in <c>GameServerMarkers.cs</c>, each member delegating to the server's own member of the same name.
+/// What <see cref="MarkerSystem"/> asks of the server beyond <see cref="IServerHost"/> (ADR 0019): the content screen for
+/// marker labels, the alliance-or-crew audience, and the story and wish markers a player's view carries (#2570, #2714)
+/// with the story markers' send record. Implemented explicitly by <c>GameServer</c> in <c>GameServerMarkers.cs</c>, each
+/// member delegating to the server's own member of the same name.
 /// </summary>
 internal interface IMarkerHost : IServerHost
 {
-    /// <summary>The live sessions (the server's <c>_sessions</c>).</summary>
-    IReadOnlyDictionary<int, PlayerSession> Sessions { get; }
-
-    bool InSpace(string playerId);
-
     string? ScreenPlayerName(PlayerSession session, string clean, string surface);
 
     bool AreAllied(string a, string b);

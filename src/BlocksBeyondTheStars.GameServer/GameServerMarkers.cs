@@ -91,10 +91,6 @@ public sealed partial class GameServer : IMarkerHost
 
     // IMarkerHost: each member delegates to the server's own member of the same name (never to the interface member,
     // which would recurse).
-    IReadOnlyDictionary<int, PlayerSession> IMarkerHost.Sessions => _sessions;
-
-    bool IMarkerHost.InSpace(string playerId) => InSpace(playerId);
-
     string? IMarkerHost.ScreenPlayerName(PlayerSession session, string clean, string surface) => ScreenPlayerName(session, clean, surface);
 
     bool IMarkerHost.AreAllied(string a, string b) => AreAllied(a, b);

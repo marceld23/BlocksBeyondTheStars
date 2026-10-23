@@ -17,10 +17,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <summary>
 /// What <see cref="ObserverSystem"/> asks of the server beyond <see cref="IServerHost"/> (ADR 0019): the world cursor
 /// and the world footprint a joining player leaves (ship, landing pad), the broadcasts that announce or hide an avatar,
-/// the story catch-up when observing ends, the cross-body travel and snap of <c>/goto</c>, and the sessions and galaxy
-/// the inspection commands read. Implemented explicitly by <c>GameServer</c> in <c>GameServerObserver.cs</c>, each
-/// member delegating to the server's own member of the same name. A wide host — observer mode touches every place a
-/// player's presence is produced (ADR 0019, "wide hosts, shrink later").
+/// the story catch-up when observing ends, the cross-body travel and snap of <c>/goto</c>, and the galaxy the inspection
+/// commands read. Implemented explicitly by <c>GameServer</c> in <c>GameServerObserver.cs</c>, each member delegating to
+/// the server's own member of the same name. A wide host — observer mode touches every place a player's presence is
+/// produced (ADR 0019, "wide hosts, shrink later").
 /// </summary>
 internal interface IObserverHost : IServerHost
 {
@@ -36,8 +36,6 @@ internal interface IObserverHost : IServerHost
     void PlaceLandedShip();
 
     // Messaging
-    void BroadcastToWorld(object message);
-
     void BroadcastLandingPads(PlayerSession? always = null);
 
     void BroadcastFace(PlayerSession subject);
@@ -62,9 +60,6 @@ internal interface IObserverHost : IServerHost
         bool adminTeleport = false);
 
     void SnapPlayerTo(PlayerSession session, Vector3f target, string reason);
-
-    /// <summary>The live sessions (the server's <c>_sessions</c>).</summary>
-    IReadOnlyDictionary<int, PlayerSession> Sessions { get; }
 
     /// <summary>The galaxy (the server's <c>_galaxy</c>) — replaced when the server starts, so read it at use time.</summary>
     Galaxy Galaxy { get; }

@@ -31,6 +31,13 @@ state → Client.Core, one cruise interact rule, a shared ModelKit; prompts stay
 (PlayerController movement components, HudUi widget classes, the FillColumnCells split) — reasons and reopen
 triggers on #2929. Fixes found on the way: #2936, #2937, #2938.
 
+- **The six shared host members join IServerHost (#2931):** `Sessions`, `Rules`, `InSpace`, `BroadcastToWorld`,
+  `WrapDistSq` and `ShipInteriorContains` were declared again in up to four per-system host interfaces (22 copies, each
+  with its own one-line explicit implementation in a facade partial). They now live once in `IServerHost` (9 → 15
+  members) with one implementation each in `GameServer.Systems.cs`; ADR 0019 and DEVELOPER.md say so, behaviour is
+  unchanged. Pinned by the existing system test classes (Container, Vehicle, BioLab, Temperature, Marker, Tutorial,
+  Journal, NpcWork, Observer, …) and `CodeHealthRatchetTests`.
+
 ### 🔧 Refactoring follow-ups 2026-10 — the bugs and cleanups the code-health refactoring found — #2919–#2928, branch fix/refactoring-follow-ups-2026-10, PR #2930 — ✅ done 2026-10-23 (⚠ playtest open)
 
 The deferred class extractions are #2929 (not part of this branch).

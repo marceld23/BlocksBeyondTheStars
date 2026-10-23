@@ -1,6 +1,10 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Configuration;
+using BlocksBeyondTheStars.Shared.Geometry;
+
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
@@ -70,4 +74,16 @@ public sealed partial class GameServer : IServerHost
     void IServerHost.SendPlayerState(PlayerSession session) => SendPlayerState(session);
 
     void IServerHost.SendInventory(PlayerSession session) => SendInventory(session);
+
+    IReadOnlyDictionary<int, PlayerSession> IServerHost.Sessions => _sessions;
+
+    GameRules IServerHost.Rules => Rules;
+
+    bool IServerHost.InSpace(string playerId) => InSpace(playerId);
+
+    void IServerHost.BroadcastToWorld(object message) => BroadcastToWorld(message);
+
+    double IServerHost.WrapDistSq(Vector3f a, Vector3f b) => WrapDistSq(a, b);
+
+    bool IServerHost.ShipInteriorContains(Vector3f p) => ShipInteriorContains(p);
 }

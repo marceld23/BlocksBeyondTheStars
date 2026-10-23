@@ -494,9 +494,5 @@ public sealed partial class GameServer : ITutorialHost
 
     void ITutorialHost.TutorialBaseStateEvents(PlayerSession session) => TutorialBaseStateEvents(session);
 
-    bool ITutorialHost.InSpace(string playerId) => InSpace(playerId);
-
     bool ITutorialHost.InStation(string playerId) => InStation(playerId);
-
-    bool ITutorialHost.ShipInteriorContains(Vector3f p) => ShipInteriorContains(p);
 }

@@ -135,8 +135,6 @@ public sealed partial class GameServer : INpcWorkHost
 
     Vector3f? INpcWorkHost.KeeperCustomer(ServerNpc npc, List<PlayerSession> targets) => KeeperCustomer(npc, targets);
 
-    double INpcWorkHost.WrapDistSq(Vector3f a, Vector3f b) => WrapDistSq(a, b);
-
     Vector3f INpcWorkHost.Unwrapped(Vector3f from, Vector3f to) => Unwrapped(from, to);
 
     bool INpcWorkHost.TryNpcGroundFeetYAt(int x, int z, int refY, out int feetY) => TryNpcGroundFeetYAt(x, z, refY, out feetY);

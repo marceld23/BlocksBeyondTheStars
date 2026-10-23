@@ -4,7 +4,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 
@@ -228,15 +227,7 @@ public sealed partial class GameServer : IVehicleHost
 
     ushort IVehicleHost.WaterId => _waterId;
 
-    GameRules IVehicleHost.Rules => Rules;
-
-    void IVehicleHost.BroadcastToWorld(object message) => BroadcastToWorld(message);
-
-    double IVehicleHost.WrapDistSq(Vector3f a, Vector3f b) => WrapDistSq(a, b);
-
     IEnumerable<PlayerSession> IVehicleHost.JoinedInActiveWorld() => JoinedInActiveWorld();
-
-    bool IVehicleHost.InSpace(string playerId) => InSpace(playerId);
 
     bool IVehicleHost.PlayerTakesDamage(PlayerState p) => PlayerTakesDamage(p);
 

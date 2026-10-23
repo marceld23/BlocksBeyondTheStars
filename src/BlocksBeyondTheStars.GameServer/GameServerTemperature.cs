@@ -1,7 +1,6 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
-using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.WorldGeneration;
@@ -57,10 +56,6 @@ public sealed partial class GameServer : ITemperatureHost
 
     // ITemperatureHost: each member delegates to the server's own member of the same name (never to the interface member,
     // which would recurse).
-    GameRules ITemperatureHost.Rules => Rules;
-
-    bool ITemperatureHost.ShipInteriorContains(Vector3f p) => ShipInteriorContains(p);
-
     bool ITemperatureHost.InStation(string playerId) => InStation(playerId);
 
     bool ITemperatureHost.InSpsLab(Vector3f pos) => InSpsLab(pos);

@@ -13,19 +13,14 @@ using BlocksBeyondTheStars.Shared.Story;
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
-/// What <see cref="JournalSystem"/> asks of the server beyond <see cref="IServerHost"/> (ADR 0019): the live sessions and
-/// the rules, the world story (its pack, state, track, leads, missions and finale keys), the player packs with the
-/// chapter and step readers of the story-pack engine, and the objective chip's candidates. Implemented explicitly by
-/// <c>GameServer</c> in <c>GameServerJournal.cs</c>, each member delegating to the server's own member of the same name.
-/// A wide host — the Journal shows every story, so it reads every story engine (ADR 0019, "wide hosts, shrink later").
+/// What <see cref="JournalSystem"/> asks of the server beyond <see cref="IServerHost"/> (ADR 0019): the world story (its
+/// pack, state, track, leads, missions and finale keys), the player packs with the chapter and step readers of the
+/// story-pack engine, and the objective chip's candidates. Implemented explicitly by <c>GameServer</c> in
+/// <c>GameServerJournal.cs</c>, each member delegating to the server's own member of the same name. A wide host — the
+/// Journal shows every story, so it reads every story engine (ADR 0019, "wide hosts, shrink later").
 /// </summary>
 internal interface IJournalHost : IServerHost
 {
-    /// <summary>The live sessions (the server's <c>_sessions</c>).</summary>
-    IReadOnlyDictionary<int, PlayerSession> Sessions { get; }
-
-    GameRules Rules { get; }
-
     // The world story (GameServerStory*.cs)
     /// <summary>The world story pack (the server's <c>_story</c>), or null while the world runs none.</summary>
     StoryDefinition? Story { get; }

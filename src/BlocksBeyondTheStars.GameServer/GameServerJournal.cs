@@ -3,7 +3,6 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
-using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Story;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -55,10 +54,6 @@ public sealed partial class GameServer : IJournalHost
 
     // IJournalHost: each member delegates to the server's own member of the same name (never to the interface member,
     // which would recurse).
-    IReadOnlyDictionary<int, PlayerSession> IJournalHost.Sessions => _sessions;
-
-    GameRules IJournalHost.Rules => Rules;
-
     StoryDefinition? IJournalHost.Story => _story;
 
     StoryState IJournalHost.StoryState => _storyState;

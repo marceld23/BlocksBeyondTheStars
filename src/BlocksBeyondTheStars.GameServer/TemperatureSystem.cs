@@ -10,20 +10,15 @@ using BlocksBeyondTheStars.WorldGeneration;
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
-/// What <see cref="TemperatureSystem"/> asks of the server beyond <see cref="IServerHost"/> (ADR 0019): the rules, where
-/// the player stands (ship cabin, station, SPS lab, base zone, sealed base room), the active world's weather, day and
-/// generator, the lava and fire block ids, the worn thermal insulation, the damage path and VEGA's hints and lines.
-/// Implemented explicitly by <c>GameServer</c> in <c>GameServerTemperature.cs</c>, each member delegating to the server's
-/// own member of the same name. A wide host — the hazard reads the whole environment around the player (ADR 0019, "wide
-/// hosts, shrink later").
+/// What <see cref="TemperatureSystem"/> asks of the server beyond <see cref="IServerHost"/> (ADR 0019): where the player
+/// stands (station, SPS lab, base zone, sealed base room), the active world's weather, day and generator, the lava and
+/// fire block ids, the worn thermal insulation, the damage path and VEGA's hints and lines. Implemented explicitly by
+/// <c>GameServer</c> in <c>GameServerTemperature.cs</c>, each member delegating to the server's own member of the same
+/// name. A wide host — the hazard reads the whole environment around the player (ADR 0019, "wide hosts, shrink later").
 /// </summary>
 internal interface ITemperatureHost : IServerHost
 {
-    GameRules Rules { get; }
-
     // Where the player stands
-    bool ShipInteriorContains(Vector3f p);
-
     bool InStation(string playerId);
 
     bool InSpsLab(Vector3f pos);

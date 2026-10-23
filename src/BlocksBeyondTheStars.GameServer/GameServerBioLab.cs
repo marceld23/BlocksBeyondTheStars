@@ -4,9 +4,7 @@
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Bio;
-using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Definitions;
-using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -46,19 +44,13 @@ public sealed partial class GameServer : IBioLabHost
 
     // IBioLabHost: each member delegates to the server's own member of the same name (never to the interface member,
     // which would recurse).
-    void IBioLabHost.BroadcastToWorld(object message) => BroadcastToWorld(message);
-
     void IBioLabHost.ShipAiHintOnce(PlayerSession session, string hintId) => ShipAiHintOnce(session, hintId);
-
-    bool IBioLabHost.InSpace(string playerId) => InSpace(playerId);
 
     bool IBioLabHost.IsVisitingShip(string playerId) => IsVisitingShip(playerId);
 
     bool IBioLabHost.InShipInterior(string playerId) => InShipInterior(playerId);
 
     ShipState IBioLabHost.ShipOf(PlayerSession session) => ShipOf(session);
-
-    bool IBioLabHost.ShipInteriorContains(Vector3f p) => ShipInteriorContains(p);
 
     bool IBioLabHost.NearStationBlock(PlayerState player, string blockKey) => NearStationBlock(player, blockKey);
 
@@ -67,8 +59,6 @@ public sealed partial class GameServer : IBioLabHost
     float IBioLabHost.AmbientTemperature(PlayerSession session) => AmbientTemperature(session);
 
     ShipState IBioLabHost.Ship => _ship;
-
-    GameRules IBioLabHost.Rules => Rules;
 
     BioSpeciesEntry? IBioLabHost.BioEntry(uint seed) => BioEntry(seed);
 

@@ -16,9 +16,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <summary>
 /// What <see cref="TutorialSystem"/> asks of the server beyond <see cref="IServerHost"/> (ADR 0019): the galaxy, the event
 /// bus and the player's waiting steps (whether anyone listens, whether one of this player's steps waits, the step's
-/// half-way line, the base checks of the building course) and where the player stands (space, a station, a ship
-/// interior). Implemented explicitly by <c>GameServer</c> in <c>GameServerTutorial.cs</c>, each member delegating to the
-/// server's own member of the same name.
+/// half-way line, the base checks of the building course) and whether the player stands in a station. Implemented
+/// explicitly by <c>GameServer</c> in <c>GameServerTutorial.cs</c>, each member delegating to the server's own member of
+/// the same name.
 /// </summary>
 internal interface ITutorialHost : IServerHost
 {
@@ -34,12 +34,8 @@ internal interface ITutorialHost : IServerHost
 
     void TutorialBaseStateEvents(PlayerSession session);
 
-    // Where the player stands (GameServerSpaceCombat.cs, GameServerSpaceStations.cs, GameServerShipStructure.cs)
-    bool InSpace(string playerId);
-
+    // Where the player stands (GameServerSpaceStations.cs)
     bool InStation(string playerId);
-
-    bool ShipInteriorContains(Vector3f p);
 }
 
 /// <summary>

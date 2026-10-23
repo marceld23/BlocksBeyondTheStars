@@ -715,7 +715,8 @@ worked example (a narrow host); `BioLabSystem.cs` and `ObserverSystem.cs` show w
    `_host.X` and add one line to `internal interface IXHost : IServerHost` at the top of `XSystem.cs`, plus one explicit
    one-line implementation on `GameServer` (`string IXHost.NameOf(string playerId) => NameOf(playerId);`). Members
    `IServerHost` already has (`Send`, `Reject`, `RaiseGameEvent`, `FindSessionByPlayerId`, `World`, `Uptime`, `Worlds`,
-   `SendPlayerState`, `SendInventory`) need no line. Fields become host properties (`_world` → `_host.World`). A static
+   `SendPlayerState`, `SendInventory`, `Sessions`, `Rules`, `InSpace`, `BroadcastToWorld`, `WrapDistSq`,
+   `ShipInteriorContains`) need no line. Fields become host properties (`_world` → `_host.World`). A static
    method that now calls `_host` loses `static`; a private static `GameServer` helper becomes `internal static` and is
    called as `GameServer.X`; a private nested type or constant becomes `internal` and is written `GameServer.X` (e.g.
    `EquipmentSystem` reads `GameServer.HotbarSlots`, `NpcWorkSystem` the nested `GameServer.ServerNpc`). An

@@ -6,38 +6,30 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Bio;
-using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
-using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 
 namespace BlocksBeyondTheStars.GameServer;
 
 /// <summary>
 /// What <see cref="BioLabSystem"/> asks of the server beyond <see cref="IServerHost"/> (ADR 0019): where the player
-/// stands (space, ship, cabin, stations), the ship cursor and the rules, the bio register and research book of
-/// <c>GameServerBio.cs</c>, and the worn gear's scan and battery values. Implemented explicitly by <c>GameServer</c> in
-/// <c>GameServerBioLab.cs</c>, each member delegating to the server's own member of the same name. A wide host — it
-/// documents how far the lab reaches into the rest of the server (ADR 0019, "wide hosts, shrink later").
+/// stands (ship, cabin, stations), the ship cursor, the bio register and research book of <c>GameServerBio.cs</c>, and
+/// the worn gear's scan and battery values. Implemented explicitly by <c>GameServer</c> in <c>GameServerBioLab.cs</c>,
+/// each member delegating to the server's own member of the same name. A wide host — it documents how far the lab
+/// reaches into the rest of the server (ADR 0019, "wide hosts, shrink later").
 /// </summary>
 internal interface IBioLabHost : IServerHost
 {
-    // Messaging
-    void BroadcastToWorld(object message);
-
+    // VEGA
     void ShipAiHintOnce(PlayerSession session, string hintId);
 
     // Where the player stands
-    bool InSpace(string playerId);
-
     bool IsVisitingShip(string playerId);
 
     bool InShipInterior(string playerId);
 
     ShipState ShipOf(PlayerSession session);
-
-    bool ShipInteriorContains(Vector3f p);
 
     bool NearStationBlock(PlayerState player, string blockKey);
 
@@ -47,8 +39,6 @@ internal interface IBioLabHost : IServerHost
 
     /// <summary>The ship cursor (the server's <c>_ship</c>) — it changes per call, so read it at use time.</summary>
     ShipState Ship { get; }
-
-    GameRules Rules { get; }
 
     // The bio register and the research book (GameServerBio.cs)
     BioSpeciesEntry? BioEntry(uint seed);

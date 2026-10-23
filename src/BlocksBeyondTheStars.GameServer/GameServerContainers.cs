@@ -91,12 +91,6 @@ public sealed partial class GameServer : IContainerHost
     // which would recurse).
     List<StoredContainer> IContainerHost.ContainerStore => _containers;
 
-    IReadOnlyDictionary<int, PlayerSession> IContainerHost.Sessions => _sessions;
-
-    double IContainerHost.WrapDistSq(Vector3f a, Vector3f b) => WrapDistSq(a, b);
-
-    void IContainerHost.BroadcastToWorld(object message) => BroadcastToWorld(message);
-
     SettlementInstance? IContainerHost.VillageOwningCache(StoredContainer container) => VillageOwningCache(container);
 
     string IContainerHost.OwnedContainerRefusal(StoredContainer container) => OwnedContainerRefusal(container);

@@ -39,8 +39,6 @@ internal interface INpcWorkHost : IServerHost
     Vector3f? KeeperCustomer(GameServer.ServerNpc npc, List<PlayerSession> targets);
 
     // Ground and distance on the wrapped world
-    double WrapDistSq(Vector3f a, Vector3f b);
-
     Vector3f Unwrapped(Vector3f from, Vector3f to);
 
     bool TryNpcGroundFeetYAt(int x, int z, int refY, out int feetY);
