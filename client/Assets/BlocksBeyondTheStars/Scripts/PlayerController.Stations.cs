@@ -123,7 +123,7 @@ namespace BlocksBeyondTheStars.Client
                 && Game.Content?.BlockById(Game.World.GetBlock(crateHit.x, crateHit.y, crateHit.z))?.Key is "crate" or "wood_crate"
                 && InteractReach.CrateAtCell(Game.Containers, crateHit.x, crateHit.y, crateHit.z, Game.Circumference) is { } aimedCrate)
             {
-                CrateUi.Instance?.Open(aimedCrate.Id, aimedCrate.Filter);
+                Game?.Context.Panel<CrateUi>()?.Open(aimedCrate.Id, aimedCrate.Filter);
                 return;
             }
 

@@ -81,12 +81,12 @@ register/unregister rules, and removes the canvases with `DestroyImmediate` (Awa
 
 ## Inventory and follow-up queue
 
-**Migrated:** shape B — `BeamPadUi`, `BeaconLabelUi`, `BlueprintToolUi`, `StoryReaderUi`, `TeleporterUi`; shape B2 —
-`TrainCabUi`, `BioLabUi`, `CrystalDeviceUi`, `InterviewUi` (keeps its canvas on destroy: `KeepCanvasOnDestroy => true`);
-shape A — `ContainerFilterUi`.
-
-**Queued panels** (static `Instance` reads outside the file): shape A — `CrateUi` 1, `HotbarActionUi` 1,
-`ContextActionsUi` 1.
+**Migrated (all 13):** shape B — `BeamPadUi`, `BeaconLabelUi`, `BlueprintToolUi`, `StoryReaderUi`, `TeleporterUi`;
+shape B2 — `TrainCabUi`, `BioLabUi`, `CrystalDeviceUi`, `InterviewUi` (keeps its canvas on destroy:
+`KeepCanvasOnDestroy => true`); shape A — `ContainerFilterUi`, `CrateUi` (`Close(bool notifyServer)`), `HotbarActionUi`
+and `ContextActionsUi` (their first level is a `UiKit.AddModalDim` ring/list, not an `AddModal` dialog;
+`ContextActionsUi` keeps its toggle key out of the opening frame with `Time.frameCount != OpenFrame`). No panel of the
+13 has a `static Instance` any more.
 
 **Not panels of this kind** (stay as they are for now):
 

@@ -26,17 +26,12 @@ namespace BlocksBeyondTheStars.Client
     /// HUD canvas, whose RT hit-testing lands wrong), <see cref="UiNav"/> for stick navigation, and menu
     /// ownership through the cursor arbiter (#413) so on-foot / flight control freezes while it is up.
     /// </summary>
-    public sealed class ContextActionsUi : MonoBehaviour
+    public sealed class ContextActionsUi : UiPanel
     {
-        public static ContextActionsUi Instance { get; private set; }
-
-        public GameBootstrap Game;
         public PlayerController Player;
         public PlayerInteractions Interactions;
         public VegaPanel Vega;
 
-        private Canvas _canvas;
-        private int _openedFrame = -1;
         private readonly List<int> _scratch = new List<int>(16); // indices into Table, one per action
 
         /// <summary>One candidate verb: the action, whether it applies in the current situation, and the label when the
@@ -114,20 +109,18 @@ namespace BlocksBeyondTheStars.Client
         private bool Eva => Game != null && Game.SpaceViewActive && Game.InEva;
         private bool Driving => Game != null && !Game.SpaceViewActive && Game.DrivenSpeeder != null;
 
-        private void Awake() => Instance = this;
+        protected override string CanvasName => "ContextActionsUi";
 
-        private void OnDestroy()
+        protected override int CanvasSortingOrder => 40; // above the HUD (10) and the flight overlay (12), like the slot-action pie
+
+        protected override void OnDestroy()
         {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-
             Close();
+            base.OnDestroy();
         }
 
         /// <summary>True while the list is open (gameplay hotkeys stand down through the menu-owner arbiter).</summary>
-        public bool IsOpen => _canvas != null;
+        public override bool IsOpen => IsBuilt;
 
         /// <summary>True while the list could open right now: no other panel owns the input, no text entry, and
         /// at least one verb applies. Also gates the touch ACT button's visibility.</summary>
@@ -178,10 +171,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 // The opening control toggles (not on the very frame that opened it), Esc always closes, and
                 // pad B backs out — the list is stick-navigable, so the pad needs an exit besides re-clicking LS.
-                bool toggle = Time.frameCount != _openedFrame && InputMap.Down(InputAction.ContextActions);
-                if (toggle || InputMap.Down(InputAction.UiCancel))
+                bool toggle = Time.frameCount != OpenFrame && InputMap.Down(InputAction.ContextActions);
+                if (toggle || CancelPressed(skipOpenFrame: false))
                 {
-                    Game.MarkMenuInputHandled(); // spent here — the app shell / pause menu must not also act on it (#413)
+                    ConsumeMenuInput(); // spent here — the app shell / pause menu must not also act on it (#413)
                     Close();
                 }
 
@@ -196,21 +189,17 @@ namespace BlocksBeyondTheStars.Client
 
         private void Open()
         {
-            _openedFrame = Time.frameCount;
-            _canvas = UiKit.CreateCanvas("ContextActionsUi");
-            _canvas.sortingOrder = 40; // above the HUD (10) and the flight overlay (12), like the slot-action pie
-            UiNav.Enable(_canvas.gameObject); // pad: auto-focus so the stick walks the entries, A picks
-            Game.SetMenuOwner(this, true);    // freezes player control + frees the cursor via the arbiter (#413)
+            CreateCanvasNow();  // pad: auto-focus so the stick walks the entries, A picks
+            SetMenuOwned(true); // freezes player control + frees the cursor via the arbiter (#413)
             Build();
         }
 
         private void Close()
         {
-            if (_canvas != null)
+            if (IsBuilt)
             {
-                Destroy(_canvas.gameObject);
-                _canvas = null;
-                Game?.SetMenuOwner(this, false);
+                DestroyCanvas();
+                SetMenuOwned(false);
             }
         }
 
@@ -231,7 +220,7 @@ namespace BlocksBeyondTheStars.Client
                 ? L("ui.voice.hint").Replace("{key}", voice.KeyLabel())
                 : null;
 
-            var root = _canvas.transform;
+            var root = Canvas.transform;
             var dim = UiKit.AddModalDim(root, 0.55f); // lighter than a dialog — the world stays readable behind the list
             var t = dim.transform;
 
@@ -282,12 +271,6 @@ namespace BlocksBeyondTheStars.Client
         {
             InputMap.InjectNextFrame(action);
             Close();
-        }
-
-        private string L(string key)
-        {
-            var loc = Game != null ? Game.Localizer : null;
-            return loc != null ? loc.Get(key) : key;
         }
     }
 }

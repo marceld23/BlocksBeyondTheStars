@@ -264,6 +264,12 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   subclasses 3 → 10, holders 34 → 27, outside `.Instance` reads 20 → 3). Open/Update/Close order, every Esc/Enter guard
   and the teleporter's ship-teleport fallback are kept, `InterviewUi` keeps its canvas; Unity build, 278 EditMode + 6
   PlayMode + 2,319 client tests green.
+- **Last three in-world panels on the UiPanel base (#2913, C1c):** `CrateUi` (408 → 393 lines), `HotbarActionUi`
+  (795 → 784) and `ContextActionsUi` (293 → 276) derive from `UiPanel` and lost their static `Instance`, canvas fields
+  and private `L`; 3 readers (`PlayerController.Stations`, `TouchControlsUi`) use `Game?.Context.Panel<T>()`. All 13
+  panels are now on the base (holders 27 → 24, outside `.Instance` reads 3 → 0). Open/close/Esc order, the `Game` guards
+  in `Update`, the ring/list dimmers and the toggle-key open-frame guard are kept; Unity build, 278 EditMode, 6 PlayMode,
+  2,319 client tests and PerfProbe green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

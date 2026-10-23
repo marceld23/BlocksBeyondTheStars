@@ -26,11 +26,8 @@ namespace BlocksBeyondTheStars.Client
     /// <c>ShapeCraftIntent</c>, <c>CustomShapeCraftIntent</c>, <c>MoveItemIntent</c>) plus the item-paint
     /// sibling <c>PaintCraftIntent</c> — this class is a second front-end, not a second rule set.
     /// </summary>
-    public sealed class HotbarActionUi : MonoBehaviour
+    public sealed class HotbarActionUi : UiPanel
     {
-        public static HotbarActionUi Instance { get; private set; }
-        public GameBootstrap Game;
-
         // The crafting menu's Dye/Glow swatch palette, so both surfaces offer the same colours (#2826: one list instead of
         // two copies that could drift apart).
         private static int[] ColorPalette => CraftingTechShipUI.ColorPalette;
@@ -38,26 +35,23 @@ namespace BlocksBeyondTheStars.Client
         // The pickable forms are the shared BuiltInForms.Options (#1975) — the same list the crafting menu and
         // the build editors offer; index 0 = back to a plain cube.
 
-        private Canvas _canvas;
         private int _slot = -1;        // the hotbar slot the ring was opened on
         private string _item = string.Empty; // its item key at open time
         private bool _glowMode;        // colour panel: false = dye (free), true = glow (costs a crystal/unit)
         private readonly List<Texture2D> _previews = new List<Texture2D>(); // design thumbnails, destroyed on close
 
-        private void Awake() => Instance = this;
+        protected override string CanvasName => "HotbarActionUi";
 
-        private void OnDestroy()
+        protected override int CanvasSortingOrder => 40; // above the HUD (10) and the flight overlay (12), below nothing that matters
+
+        protected override void OnDestroy()
         {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-
             Close();
+            base.OnDestroy();
         }
 
         /// <summary>True while the action ring / a detail panel is open (gameplay hotkeys stand down).</summary>
-        public bool IsOpen => _canvas != null;
+        public override bool IsOpen => IsBuilt;
 
         /// <summary>True while the pie could open right now: no other menu owns the input, and a slot is
         /// actually on screen. Exactly the states in which the HUD hides the hotbar (piloting/driving/
@@ -105,9 +99,9 @@ namespace BlocksBeyondTheStars.Client
                 // The opening key toggles, Esc always closes, and pad B backs out (#940) — the pie is
                 // stick-navigable, so the pad needs an exit besides re-clicking R3. Marking the frame keeps
                 // the app shell / pause menu from ALSO acting on the same press (#413).
-                if (InputMap.Down(InputAction.HotbarAction) || InputMap.Down(InputAction.UiCancel))
+                if (InputMap.Down(InputAction.HotbarAction) || CancelPressed(skipOpenFrame: false))
                 {
-                    Game.MarkMenuInputHandled();
+                    ConsumeMenuInput();
                     Close();
                 }
 
@@ -127,29 +121,26 @@ namespace BlocksBeyondTheStars.Client
             _slot = slot;
             _item = Game.ItemInSlot(slot);
             _glowMode = false;
-            _canvas = UiKit.CreateCanvas("HotbarActionUi");
-            _canvas.sortingOrder = 40; // above the HUD (10) and the flight overlay (12), below nothing that matters
-            UiNav.Enable(_canvas.gameObject); // pad: auto-focus so the stick walks wedges/buttons, A clicks (#940)
-            Game.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
+            CreateCanvasNow(); // pad: auto-focus so the stick walks wedges/buttons, A clicks (#940)
+            SetMenuOwned(true); // freezes player control + frees the cursor via the arbiter (#413)
             // Drop whatever the mouse left selected on the HUD, so the pie's UiNavFocus claims the first
             // wedge on its first frame instead of deferring to a control nobody can see (#1405).
             UnityEngine.EventSystems.EventSystem.current?.SetSelectedGameObject(null);
             BuildRing();
             // #2302: the pie fades in where it is — only on open (a Back from a detail panel rebuilds the ring without
             // it). The ring has no dialog panel to rise: its dim, the fresh canvas' only child, carries all of it.
-            if (_canvas.transform.childCount > 0)
+            if (Canvas.transform.childCount > 0)
             {
-                UiKit.TransitionIn(_canvas.transform.GetChild(0).gameObject, 0f);
+                UiKit.TransitionIn(Canvas.transform.GetChild(0).gameObject, 0f);
             }
         }
 
         private void Close()
         {
-            if (_canvas != null)
+            if (IsBuilt)
             {
-                Destroy(_canvas.gameObject);
-                _canvas = null;
-                Game?.SetMenuOwner(this, false);
+                DestroyCanvas();
+                SetMenuOwned(false);
             }
 
             foreach (var tex in _previews)
@@ -167,7 +158,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Rebuild(System.Action build)
         {
-            foreach (Transform child in _canvas.transform)
+            foreach (Transform child in Canvas.transform)
             {
                 Destroy(child.gameObject);
             }
@@ -184,7 +175,7 @@ namespace BlocksBeyondTheStars.Client
         /// Tintable/Shapeable gates, so the menu never offers a refused action.</summary>
         private void BuildRing()
         {
-            var root = _canvas.transform;
+            var root = Canvas.transform;
             var dim = UiKit.AddModalDim(root, 0.55f); // lighter than a dialog — the world stays readable behind the ring
             var t = dim.transform;
 
@@ -353,7 +344,7 @@ namespace BlocksBeyondTheStars.Client
         {
             // 880 tall: the 6×4 slot grid ends at y 696 and the stow button at 774 — a shorter panel put
             // the Back/Close row ON the last slot row (#953).
-            var (_, panel) = UiKit.AddModalOverlay(_canvas.transform, 460f, 100f, 1000f, 880f);
+            var panel = AddModal(460f, 100f, 1000f, 880f);
             Header(panel, L("ui.hotbar_action.swap_title"));
 
             // #2110: nine wide like the inventory grid (quick-bar 0..8 + the backpack rows), the size from the server.
@@ -426,7 +417,7 @@ namespace BlocksBeyondTheStars.Client
         {
             // 780 tall: the design tiles end at y 630 and the remove-design button at 688 — a shorter
             // panel put the Back/Close row on top of both (#953).
-            var (_, panel) = UiKit.AddModalOverlay(_canvas.transform, 510f, 150f, 900f, 780f);
+            var panel = AddModal(510f, 150f, 900f, 780f);
             Header(panel, string.Format(L("ui.hotbar_action.colour_title"), ItemName(_item), Game.CountInSlot(_slot)));
 
             // Dye/Glow mode toggle. Glow shows what it costs so the wheel never books crystals silently.
@@ -518,7 +509,7 @@ namespace BlocksBeyondTheStars.Client
         /// enforces, so the panel never offers a form the craft would refuse.</summary>
         private void BuildForm()
         {
-            var (_, panel) = UiKit.AddModalOverlay(_canvas.transform, 460f, 170f, 1000f, 740f);
+            var panel = AddModal(460f, 170f, 1000f, 740f);
             Header(panel, string.Format(L("ui.hotbar_action.form_title"), ItemName(_item), Game.CountInSlot(_slot)));
 
             int stack = Game.CountInSlot(_slot);
@@ -773,8 +764,6 @@ namespace BlocksBeyondTheStars.Client
             _previews.Add(tex);
             return tex;
         }
-
-        private string L(string key) => Game.Localizer?.Get(key) ?? key;
 
         // Shared helper (#927): the slot's item key carries dyed/glow/shape/paint modifiers, so a raw
         // item.{key}.name lookup would render the bracketed key — the bug this panel shipped with.

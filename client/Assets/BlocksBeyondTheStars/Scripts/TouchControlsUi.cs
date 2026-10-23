@@ -283,7 +283,7 @@ namespace BlocksBeyondTheStars.Client
 
             // ACT opens the context-actions list (#1042) — every verb that applies right now, one tap away.
             // Like the slot pie, opening registers a menu owner (hides this layer); closing brings it back.
-            var ctx = ContextActionsUi.Instance;
+            var ctx = Game?.Context.Panel<ContextActionsUi>();
             if (_contextActions != null)
             {
                 bool canCtx = ctx != null && ctx.CanOpen;
@@ -309,7 +309,7 @@ namespace BlocksBeyondTheStars.Client
             // The "…" button opens the slot-action pie on the selected hotbar slot (#940). Shown only while
             // the pie could actually open (same hidden-hotbar gates; EVA allowed). Opening registers a menu
             // owner, which hides this whole layer — so taps reach the pie, and closing it brings us back.
-            var pie = HotbarActionUi.Instance;
+            var pie = Game?.Context.Panel<HotbarActionUi>();
             if (_slotActions != null)
             {
                 bool canAct = pie != null && pie.CanOpen;

@@ -23,17 +23,13 @@ namespace BlocksBeyondTheStars.Client
     /// grids, A moves, B closes.
     /// </para>
     /// </summary>
-    public sealed class CrateUi : MonoBehaviour
+    public sealed class CrateUi : UiPanel
     {
-        public static CrateUi Instance { get; private set; }
-        public GameBootstrap Game;
-
         private const int CrateCols = 9;
         private const int MaxCrateRows = 4;           // 36 kinds shown — a wood box holds 8, a workshop crate rarely more
         private const float Cell = 76f, Pitch = 84f;  // the inventory grid's cell + pitch (#2110), so both halves read alike
         private const float PanelW = 1000f, PanelH = 920f, X0 = 32f;
 
-        private Canvas _canvas;
         private string _containerId = string.Empty;
         private string[] _filter = System.Array.Empty<string>();
         private readonly List<NetItemStack> _contents = new List<NetItemStack>();
@@ -41,23 +37,18 @@ namespace BlocksBeyondTheStars.Client
         private bool _contentsKnown;
         private bool _subscribed;
 
-        private void Awake()
-        {
-            Instance = this;
-        }
+        protected override string CanvasName => "CrateUi";
 
-        private void OnDestroy()
-        {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
+        protected override int CanvasSortingOrder => 58; // above the HUD/chat, below the world map (60) — the filter panel's shelf
 
+        protected override void OnDestroy()
+        {
             Close(notifyServer: false);
+            base.OnDestroy();
         }
 
         /// <summary>True while the screen is open (gameplay hotkeys stand down).</summary>
-        public bool IsOpen => _canvas != null;
+        public override bool IsOpen => IsBuilt;
 
         /// <summary>Opens the screen for a crate: asks the server for its contents and shows the backpack at once.</summary>
         public void Open(string containerId, string[] currentFilter)
@@ -76,19 +67,18 @@ namespace BlocksBeyondTheStars.Client
             Subscribe();
             Game.Network?.SendOpenContainer(containerId, open: true);
 
-            _canvas = UiKit.CreateCanvas("CrateUi");
-            _canvas.sortingOrder = 58; // above the HUD/chat, below the world map (60) — the filter panel's shelf
-            UiNav.Enable(_canvas.gameObject); // pad: stick walks the grids, A picks (#940)
-            Game.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
-            UiKit.OpenModal(Build()); // #2302: the open effect — only here; a refresh comes back without it
+            CreateCanvasNow(); // pad: stick walks the grids, A picks (#940)
+            SetMenuOwned(true); // freezes player control + frees the cursor via the arbiter (#413)
+            Build();
+            PlayOpenEffect(); // #2302: the open effect — only here; a refresh comes back without it
         }
 
         private void Update()
         {
             // #2303: the menu verb — Escape or pad B, like the filter panel and the bio lab.
-            if (IsOpen && InputMap.Down(InputAction.UiCancel))
+            if (IsOpen && CancelPressed(skipOpenFrame: false))
             {
-                Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
+                ConsumeMenuInput(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close();
             }
         }
@@ -183,11 +173,10 @@ namespace BlocksBeyondTheStars.Client
 
         private void Close(bool notifyServer = true)
         {
-            if (_canvas != null)
+            if (IsBuilt)
             {
-                Destroy(_canvas.gameObject);
-                _canvas = null;
-                Game?.SetMenuOwner(this, false);
+                DestroyCanvas();
+                SetMenuOwned(false);
             }
 
             if (notifyServer && _containerId.Length > 0)
@@ -201,10 +190,9 @@ namespace BlocksBeyondTheStars.Client
             _contentsKnown = false;
         }
 
-        /// <returns>The overlay, for the open effect.</returns>
-        private GameObject Build()
+        private void Build()
         {
-            var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, (1920f - PanelW) / 2f, 80f, PanelW, PanelH);
+            var panel = AddModal((1920f - PanelW) / 2f, 80f, PanelW, PanelH);
             float y = 28f;
 
             string title = CrateTitle();
@@ -295,7 +283,6 @@ namespace BlocksBeyondTheStars.Client
                 Game?.MarkMenuInputHandled();
                 Close();
             });
-            return overlay;
         }
 
         /// <param name="fromSlot">#2729: the backpack slot that was clicked — exactly that stack goes in, not the first one of
@@ -314,12 +301,12 @@ namespace BlocksBeyondTheStars.Client
 
         private void Rebuild()
         {
-            if (_canvas == null)
+            if (!IsBuilt)
             {
                 return;
             }
 
-            foreach (Transform child in _canvas.transform)
+            foreach (Transform child in Canvas.transform)
             {
                 Destroy(child.gameObject);
             }
@@ -402,7 +389,5 @@ namespace BlocksBeyondTheStars.Client
 
             return b;
         }
-
-        private string L(string key) => Game?.Localizer?.Get(key) ?? key;
     }
 }
