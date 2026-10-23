@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Content;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
+using static BlocksBeyondTheStars.Client.ModelKit;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -629,97 +630,6 @@ namespace BlocksBeyondTheStars.Client
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;
             return quad.transform;
-        }
-
-        private static GameObject Cube(string name, Transform parent, Vector3 localPos, Vector3 scale, Material mat)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = name;
-            StripCollider(go);
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPos;
-            go.transform.localScale = scale;
-            go.GetComponent<Renderer>().sharedMaterial = mat;
-            return go;
-        }
-
-        private static void StripCollider(GameObject go)
-        {
-            var col = go.GetComponent<Collider>();
-            if (col != null)
-            {
-                Destroy(col);
-            }
-        }
-
-        private static Material Unlit(Color c)
-        {
-            var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
-            return new Material(shader) { color = ShaderColor.Srgb(c) };
-        }
-
-        /// <summary>Lit material (fixed key light) with an optional tiled block texture.</summary>
-        private static Material Lit(Color c, Texture2D tex = null, Vector2 tiling = default)
-        {
-            var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-            var m = new Material(shader) { color = ShaderColor.Srgb(c) };
-            if (tex != null)
-            {
-                m.mainTexture = tex;
-                if (tiling != default)
-                {
-                    m.mainTextureScale = tiling;
-                }
-            }
-
-            return m;
-        }
-
-        /// <summary>Sun-lit-phase material for a celestial body (the same <c>SkyBodyPhase</c> shader the in-game orbit
-        /// view uses), lit from the world direction <paramref name="sunDir"/> so a day/night terminator emerges
-        /// instead of flat key light. Falls back to <see cref="Lit"/> when the phase shader isn't available. Internal: the
-        /// cutscene director's space vista (#2477) lights its planet with it (a new material — the caller owns it).</summary>
-        internal static Material LitPhase(Color c, Vector3 sunDir, Texture2D tex = null, Vector2 tiling = default)
-        {
-            var shader = Shader.Find("BlocksBeyondTheStars/SkyBodyPhase");
-            if (shader == null)
-            {
-                return Lit(c, tex, tiling);
-            }
-
-            var m = new Material(shader) { color = ShaderColor.Srgb(c) };
-            m.SetVector("_PhaseSunDir", sunDir.sqrMagnitude > 1e-6f ? (Vector4)sunDir.normalized : new Vector4(0f, 0f, 1f, 0f));
-            if (tex != null)
-            {
-                m.mainTexture = tex;
-                if (tiling != default)
-                {
-                    m.mainTextureScale = tiling;
-                }
-            }
-
-            return m;
-        }
-
-        /// <summary>Loads a bundled block texture (Resources/textures/&lt;key&gt;.bytes raw 64x64 RGBA32,
-        /// via LoadRawTextureData from the core module — no ImageConversion dependency).</summary>
-        private static Texture2D LoadTex(string key)
-        {
-            // The winning layer of the texture source (#1952): world texture, local pack, or the bundled tile.
-            byte[] raw = GameTextures.TileBytes(key);
-            if (raw == null || raw.Length != 64 * 64 * 4)
-            {
-                return null;
-            }
-
-            var tex = new Texture2D(64, 64, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Repeat,
-                filterMode = FilterMode.Point,
-            };
-            tex.LoadRawTextureData(raw);
-            tex.Apply();
-            return tex;
         }
     }
 }

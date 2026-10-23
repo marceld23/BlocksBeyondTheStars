@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using UnityEngine;
+using static BlocksBeyondTheStars.Client.ModelKit;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -147,57 +148,6 @@ namespace BlocksBeyondTheStars.Client
                 Texture.Release();
                 Destroy(Texture);
             }
-        }
-
-        // --- Local copies of the flight-view material/cube helpers (kept self-contained like AvatarPreviewRig) ---
-
-        private static Material LitTex(string texKey, Color tint)
-        {
-            var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-            var m = new Material(shader) { color = ShaderColor.Srgb(tint) };
-            var tex = LoadTex(texKey);
-            if (tex != null)
-            {
-                m.mainTexture = tex;
-                m.mainTextureScale = new Vector2(2f, 2f);
-            }
-
-            return m;
-        }
-
-        private static Texture2D LoadTex(string key)
-        {
-            // The winning layer of the texture source (#1952): world texture, local pack, or the bundled tile.
-            byte[] raw = GameTextures.TileBytes(key);
-            if (raw == null || raw.Length != 64 * 64 * 4)
-            {
-                return null;
-            }
-
-            var tex = new Texture2D(64, 64, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Repeat,
-                filterMode = FilterMode.Point,
-            };
-            tex.LoadRawTextureData(raw);
-            tex.Apply();
-            return tex;
-        }
-
-        private static void Cube(string name, Transform parent, Vector3 localPos, Vector3 scale, Material mat)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = name;
-            var col = go.GetComponent<Collider>();
-            if (col != null)
-            {
-                Destroy(col);
-            }
-
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPos;
-            go.transform.localScale = scale;
-            go.GetComponent<Renderer>().sharedMaterial = mat;
         }
     }
 }

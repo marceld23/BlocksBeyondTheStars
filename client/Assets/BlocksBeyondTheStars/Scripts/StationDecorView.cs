@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
 using UnityEngine;
+using static BlocksBeyondTheStars.Client.ModelKit;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -145,7 +146,7 @@ namespace BlocksBeyondTheStars.Client
             return root;
         }
 
-        // --- shared helpers -------------------------------------------------------------------
+        // --- shared helpers (Unlit and StripCollider come from ModelKit) ----------------------
 
         private static GameObject Cube(Transform parent, Vector3 pos, Vector3 scale, Material mat)
         {
@@ -158,12 +159,6 @@ namespace BlocksBeyondTheStars.Client
             return go;
         }
 
-        private static Material Unlit(Color c)
-        {
-            var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
-            return new Material(shader) { color = ShaderColor.Srgb(c) };
-        }
-
         private static Material Translucent(Color c)
         {
             var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
@@ -171,15 +166,6 @@ namespace BlocksBeyondTheStars.Client
             mat.SetColor("_Color", ShaderColor.Srgb(c));
             mat.renderQueue = 3000;
             return mat;
-        }
-
-        private static void StripCollider(GameObject go)
-        {
-            var col = go.GetComponent<Collider>();
-            if (col != null)
-            {
-                Destroy(col);
-            }
         }
 
         private static bool CameraNear(Transform t, float dist)

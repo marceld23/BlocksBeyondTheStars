@@ -4,6 +4,7 @@
 using BlocksBeyondTheStars.Client.Core;
 using BlocksBeyondTheStars.Networking.Messages;
 using UnityEngine;
+using static BlocksBeyondTheStars.Client.ModelKit;
 
 namespace BlocksBeyondTheStars.Client
 {

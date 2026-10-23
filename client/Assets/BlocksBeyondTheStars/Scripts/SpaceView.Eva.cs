@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 using UnityEngine.UI;
+using static BlocksBeyondTheStars.Client.ModelKit;
 
 namespace BlocksBeyondTheStars.Client
 {

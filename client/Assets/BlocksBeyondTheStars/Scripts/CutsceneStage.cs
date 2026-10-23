@@ -331,7 +331,7 @@ namespace BlocksBeyondTheStars.Client
         {
             SyntheticStages.VistaPlanet(set, out float px, out float py, out float pz, out float size);
             var pos = new Vector3(px, py, pz);
-            var mat = MenuBackground.LitPhase(PlanetColor, _sunDir * SyntheticStages.SunDistance - pos);
+            var mat = ModelKit.LitPhase(PlanetColor, _sunDir * SyntheticStages.SunDistance - pos);
             _setOwned.Add(mat);
             var planet = Primitive(PrimitiveType.Sphere, "Planet", _set.transform, mat);
             planet.transform.localPosition = pos;

@@ -801,7 +801,7 @@ namespace BlocksBeyondTheStars.Client
 
             var lit = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
             var unlit = Shader.Find("Unlit/Color") ?? lit;
-            var plateTex = LoadTex("enemy_robot"); // circuit-plating tile (flat dark grey if absent)
+            var plateTex = ModelKit.LoadTex("enemy_robot"); // circuit-plating tile (flat dark grey if absent)
             bool tiled = plateTex != null;
             var plating = tiled ? new Color(0.95f, 0.95f, 0.97f) : new Color(0.40f, 0.41f, 0.44f); // dark-grey plates (tile shows through)
             var joints = tiled ? new Color(0.55f, 0.55f, 0.58f) : new Color(0.22f, 0.22f, 0.25f);  // near-black joints keep the two-tone
@@ -815,25 +815,6 @@ namespace BlocksBeyondTheStars.Client
 
             _clawMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(new Color(0.52f, 0.54f, 0.58f)) }); // plain metal trim / antennae / feet
             _eyeMat = new Material(unlit) { color = ShaderColor.Srgb(new Color(1f, 0.18f, 0.14f)) };             // glowing red sensors (bloom picks it up)
-        }
-
-        private static Texture2D LoadTex(string key)
-        {
-            // The winning layer of the texture source (#1952): world texture, local pack, or the bundled tile.
-            byte[] raw = GameTextures.TileBytes(key);
-            if (raw == null || raw.Length != 64 * 64 * 4)
-            {
-                return null;
-            }
-
-            var tex = new Texture2D(64, 64, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Repeat,
-                filterMode = FilterMode.Point,
-            };
-            tex.LoadRawTextureData(raw);
-            tex.Apply();
-            return tex;
         }
 
         private static int Hash(string id)

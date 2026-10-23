@@ -335,7 +335,6 @@ namespace BlocksBeyondTheStars.Client
         // sun billboard at the true star. Falls back to the fixed SunDir when there's no star map.
         private Vector3 _starLocal;
         private bool _hasStar;
-        private static readonly int PhaseSunDirId = Shader.PropertyToID("_PhaseSunDir");
 
         private sealed class TractorBeam { public GameObject Go; public float Life; public float Max; }
 

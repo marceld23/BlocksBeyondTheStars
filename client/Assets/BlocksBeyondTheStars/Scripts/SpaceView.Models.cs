@@ -7,21 +7,20 @@ using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 using UnityEngine.UI;
+using static BlocksBeyondTheStars.Client.ModelKit;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Material and model helpers of the flight scene: lit, unlit and textured materials, cubes, the planet look table,
-    /// and the station, drone, UFO, raider and cruiser models.
+    /// Model helpers of the flight scene: the Guardian plating, the energy-field and glow materials, the planet look
+    /// table, and the station, drone, UFO, raider and cruiser models. The generic cube and material helpers (lit,
+    /// unlit, textured, sun-lit phase, block tiles) live in <see cref="ModelKit"/>, imported with <c>using static</c>.
     /// </summary>
     public sealed partial class SpaceView
     {
-        /// <summary>Lit material textured with a bundled block texture (white-ish tint so the texture reads).</summary>
-        private static Material LitTex(string texKey, Color tint, float tile = 2f) => Lit(tint, LoadTex(texKey), new Vector2(tile, tile));
-
         /// <summary>Hull material of the Guardian machines (drone, UFO, cruiser dark blocks): the grey
         /// circuit-plating tile the planet robots wear (#1337/#1338) — tinted near 1 because the tile is authored
-        /// at its final greys and <see cref="LoadTex"/> does not brighten — with the same ambient floor/fill the
+        /// at its final greys and <see cref="ModelKit.LoadTex"/> does not brighten — with the same ambient floor/fill the
         /// planet entities got in #711. Before, these hulls used the black <c>carbon</c> coal tile at a dark tint
         /// and LitColor's default 0.35 floor, so the shadow side sank to a black silhouette. Falls back to the
         /// plain <c>iron_wall</c> hull plate at a darker tint if the tile is missing (stripped build).</summary>
@@ -246,35 +245,6 @@ namespace BlocksBeyondTheStars.Client
             _ => new Color(0.85f, 0.2f, 0.2f),
         };
 
-        private static GameObject Cube(string name, Transform parent, Vector3 localPos, Vector3 scale, Material mat)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = name;
-            StripCollider(go);
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPos;
-            go.transform.localScale = scale;
-            go.GetComponent<Renderer>().sharedMaterial = mat;
-            return go;
-        }
-
-        private static void StripCollider(GameObject go)
-        {
-            var col = go.GetComponent<Collider>();
-            if (col != null)
-            {
-                Destroy(col);
-            }
-        }
-
-        private static Shader _unlitShader;
-
-        private static Material Unlit(Color c)
-        {
-            _unlitShader ??= Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque"); // #1514: no string lookup per part
-            return new Material(_unlitShader) { color = ShaderColor.Srgb(c) };
-        }
-
         /// <summary>A translucent tinted "energy field" quad material — the same alpha-blend Cloud shader the
         /// on-foot energy doors + the atmosphere halo use, so the ship's rear hatch reads as a powered energy
         /// door (the colour's alpha sets how solid the field looks). Falls back to Unlit/Transparent.</summary>
@@ -313,69 +283,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             private void Update() => transform.Rotate(_axis, _speed * Time.deltaTime, Space.Self);
-        }
-
-        /// <summary>Lit material (fixed key light) with an optional tiled block texture.</summary>
-        private static Material Lit(Color c, Texture2D tex = null, Vector2 tiling = default)
-        {
-            var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-            var m = new Material(shader) { color = ShaderColor.Srgb(c) };
-            if (tex != null)
-            {
-                m.mainTexture = tex;
-                if (tiling != default)
-                {
-                    m.mainTextureScale = tiling;
-                }
-            }
-
-            return m;
-        }
-
-        /// <summary>Sun-lit-phase material for a celestial body, lit from the world-space direction to the star
-        /// <paramref name="sunDir"/> so a terminator / crescent emerges. Falls back to the fixed-light Lit shader
-        /// when the phase shader is unavailable. Same colour/texture/tiling handling as <see cref="Lit"/>.</summary>
-        private static Material LitPhase(Color c, Vector3 sunDir, Texture2D tex = null, Vector2 tiling = default)
-        {
-            var shader = Shader.Find("BlocksBeyondTheStars/SkyBodyPhase");
-            if (shader == null)
-            {
-                return Lit(c, tex, tiling);
-            }
-
-            var m = new Material(shader) { color = ShaderColor.Srgb(c) };
-            m.SetVector(PhaseSunDirId, sunDir.sqrMagnitude > 1e-6f ? (Vector4)sunDir.normalized : new Vector4(0f, 0f, 1f, 0f));
-            if (tex != null)
-            {
-                m.mainTexture = tex;
-                if (tiling != default)
-                {
-                    m.mainTextureScale = tiling;
-                }
-            }
-
-            return m;
-        }
-
-        /// <summary>Loads a bundled block texture (Resources/textures/&lt;key&gt;.bytes raw 64x64 RGBA32,
-        /// via LoadRawTextureData from the core module — no ImageConversion dependency).</summary>
-        private static Texture2D LoadTex(string key)
-        {
-            // The winning layer of the texture source (#1952): world texture, local pack, or the bundled tile.
-            byte[] raw = GameTextures.TileBytes(key);
-            if (raw == null || raw.Length != 64 * 64 * 4)
-            {
-                return null;
-            }
-
-            var tex = new Texture2D(64, 64, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Repeat,
-                filterMode = FilterMode.Point,
-            };
-            tex.LoadRawTextureData(raw);
-            tex.Apply();
-            return tex;
         }
 
         /// <summary>Maps a biome / planet-type key to a planet tint + a fitting block texture. Unknown
