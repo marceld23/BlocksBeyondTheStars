@@ -248,6 +248,12 @@ The SP↔hosted round-trip. Instances bind-mount `<BBS_WH_WORLDS_DIR>/<worldId>/
   the control plane is built from `main`, so it is normally at least as new as the pinned server
   image; a save that the WorldHost knows but the lagging server image does not is caught at the wake
   (next section).
+  The cap is the only body limit on this route (#2922): the route sets Kestrel's request-body limit to
+  `BBS_WH_UPLOAD_MAX_BYTES` (Kestrel's own default, 30,000,000 bytes, used to cut every save between
+  the two with a bare 413), and a body over the cap — declared or streamed — gets the portal's JSON
+  error `upload_too_large`. A reverse proxy in front of the WorldHost must allow request bodies at
+  least that large: Caddy sets no limit unless `request_body { max_size }` is configured; nginx
+  refuses anything over 1 MB until `client_max_body_size` is raised.
 - `GET /api/worlds/{id}/save` (owner, world stopped): downloads the current `world.db` — the
   backup path the beta notice points players to, and the way back into singleplayer.
 

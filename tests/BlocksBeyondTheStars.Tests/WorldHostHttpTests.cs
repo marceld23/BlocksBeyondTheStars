@@ -472,6 +472,49 @@ public sealed class WorldHostHttpTests : IClassFixture<WorldHostHttpFixture>
         Assert.False(mine.GetProperty("isPublic").GetBoolean());
     }
 
+    /// <summary>The save upload follows the portal's own cap (<see cref="WorldHostConfig.UploadMaxBytes"/>, 50 MB by
+    /// default), not Kestrel's default request-body limit of 30,000,000 bytes, which cut every save between the two
+    /// with a bare 413 before the portal ever looked at it (#2922): a body over Kestrel's default but under the cap is
+    /// read and reaches the portal's save check, and a body over the cap gets the portal's JSON error. The bodies are
+    /// generated while they are sent, so the test never holds them in memory.</summary>
+    [Fact]
+    public async Task SaveUpload_FollowsTheUploadCap_NotKestrelsDefaultBodyLimitAsync()
+    {
+        const long kestrelDefaultLimit = 30_000_000;
+        Assert.True(_host.Config.UploadMaxBytes > kestrelDefaultLimit + 1_000_000, "the fixture keeps the 50 MB default cap");
+        string token = await SignUpAsync("HttpUploader");
+        using var created = await SendAsync(HttpMethod.Post, "/api/worlds", token, """{"name":"Big Save"}""");
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        using var world = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        string path = $"/api/worlds/{world.RootElement.GetProperty("id").GetString()}/save";
+
+        // Over Kestrel's default, under the cap: read to the end, then refused by the save check (zeros are no SQLite file).
+        using (var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = new GeneratedBodyContent(kestrelDefaultLimit + 1_000_000) })
+        {
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            using var response = await _host.Client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Contains("\"code\":\"save_invalid\"", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        }
+
+        // Over the cap: refused on its declared length with the portal's JSON error. "Expect: 100-continue" holds the
+        // body back until the server asks for it, which it never does here — so no 50 MB are sent.
+        using var client = new HttpClient(new SocketsHttpHandler { Expect100ContinueTimeout = TimeSpan.FromSeconds(30) })
+        {
+            BaseAddress = _host.Client.BaseAddress,
+        };
+        var oversized = new GeneratedBodyContent(_host.Config.UploadMaxBytes + 1);
+        using (var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = oversized })
+        {
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            request.Headers.ExpectContinue = true;
+            using var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Contains("\"code\":\"upload_too_large\"", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+            Assert.Equal(0, oversized.Sent);
+        }
+    }
+
     /// <summary>MapGroup joins patterns textually, so a group's "" route reads "/admin/" — the pin compares paths
     /// without their outer slashes.</summary>
     private static string Normalize(string? raw) => "/" + (raw ?? string.Empty).Trim('/');
@@ -500,5 +543,34 @@ public sealed class WorldHostHttpTests : IClassFixture<WorldHostHttpFixture>
         }
 
         return await _host.Client.SendAsync(request);
+    }
+}
+
+/// <summary>A request body of a fixed number of zero bytes with its Content-Length declared, generated in 64 KB chunks
+/// while it is sent — lets the upload tests send tens of megabytes without holding them in memory (#2922).</summary>
+internal sealed class GeneratedBodyContent : HttpContent
+{
+    private readonly long _length;
+
+    public GeneratedBodyContent(long length) => _length = length;
+
+    /// <summary>The bytes handed to the connection so far.</summary>
+    public long Sent { get; private set; }
+
+    protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+    {
+        var chunk = new byte[64 * 1024];
+        for (long left = _length; left > 0; left -= chunk.Length)
+        {
+            int count = (int)Math.Min(chunk.Length, left);
+            await stream.WriteAsync(chunk.AsMemory(0, count));
+            Sent += count;
+        }
+    }
+
+    protected override bool TryComputeLength(out long length)
+    {
+        length = _length;
+        return true;
     }
 }

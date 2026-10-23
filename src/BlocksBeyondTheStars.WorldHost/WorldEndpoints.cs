@@ -1,6 +1,8 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using Microsoft.AspNetCore.Http.Features;
+
 namespace BlocksBeyondTheStars.WorldHost;
 
 /// <summary>
@@ -482,7 +484,15 @@ internal static class WorldEndpoints
             return WorldHostApi.ApiError("Stop the world before uploading a save.");
         }
 
-        // Stream to a temp file with a hard size cap, then validate BEFORE it replaces anything.
+        // Stream to a temp file with a hard size cap, then validate BEFORE it replaces anything. The cap is the portal's
+        // own (UploadMaxBytes): Kestrel's default request-body limit of 30,000,000 bytes sits below the 50 MB default and
+        // cut every save between the two with a bare 413 before this code saw it (#2922), so this route sets Kestrel's
+        // limit to the cap. A body Kestrel still refuses — declared or streamed past the cap — gets the portal's answer.
+        if (ctx.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } bodyLimit)
+        {
+            bodyLimit.MaxRequestBodySize = s.Config.UploadMaxBytes;
+        }
+
         string tmp = Path.Combine(Path.GetTempPath(), $"bbs-upload-{world.Id}-{Guid.NewGuid():N}.db");
         try
         {
@@ -491,15 +501,22 @@ internal static class WorldEndpoints
                 var buffer = new byte[81920];
                 long total = 0;
                 int read;
-                while ((read = await ctx.Request.Body.ReadAsync(buffer)) > 0)
+                try
                 {
-                    total += read;
-                    if (total > s.Config.UploadMaxBytes)
+                    while ((read = await ctx.Request.Body.ReadAsync(buffer)) > 0)
                     {
-                        return WorldHostApi.ApiError($"Save exceeds the {s.Config.UploadMaxBytes / (1024 * 1024)} MB upload limit.");
-                    }
+                        total += read;
+                        if (total > s.Config.UploadMaxBytes)
+                        {
+                            return UploadTooLarge(s);
+                        }
 
-                    await file.WriteAsync(buffer.AsMemory(0, read));
+                        await file.WriteAsync(buffer.AsMemory(0, read));
+                    }
+                }
+                catch (BadHttpRequestException ex) when (ex.StatusCode == StatusCodes.Status413PayloadTooLarge)
+                {
+                    return UploadTooLarge(s);
                 }
 
                 if (total == 0)
@@ -532,6 +549,10 @@ internal static class WorldEndpoints
             try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* best effort */ }
         }
     }
+
+    // The answer to a save over UploadMaxBytes, whichever noticed first: Kestrel's body limit or the counted copy.
+    private static IResult UploadTooLarge(WorldHostServices s)
+        => WorldHostApi.ApiError($"Save exceeds the {s.Config.UploadMaxBytes / (1024 * 1024)} MB upload limit.");
 
     internal static IResult DownloadSave(WorldHostServices s, HttpContext ctx, string id)
     {

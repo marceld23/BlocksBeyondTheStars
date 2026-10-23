@@ -43,6 +43,11 @@ The deferred class extractions are #2929 (not part of this branch).
   "Download JSON" file handed out every reporter's reply-thread credential. Rows now go through
   `ReportApiJson.ExportItem` (the other 19 columns, same names and order) and `WithoutReplyKey` strips the key from the
   exported payload copy (the database keeps it); `ReportHostReadApiHttpTests` (`AssertExportAsync`) pins it.
+- **Save uploads follow the upload cap, not Kestrel's body limit (#2922):** Kestrel's default request-body limit of
+  30,000,000 bytes sat below `UploadMaxBytes` (`BBS_WH_UPLOAD_MAX_BYTES`, 50 MB), so saves between the two got a
+  bare 413. `POST /api/worlds/{id}/save` now raises the per-request limit (`IHttpMaxRequestBodySizeFeature`) to the cap
+  once its guards pass and answers a refused body with JSON `upload_too_large`; HOSTED_WORLDS.md adds the proxy note.
+  `WorldHostHttpTests.SaveUpload_FollowsTheUploadCap_NotKestrelsDefaultBodyLimitAsync` pins both sides on Kestrel.
 
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 
