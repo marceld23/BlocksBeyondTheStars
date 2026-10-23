@@ -149,5 +149,14 @@ namespace BlocksBeyondTheStars.Client
             "ui.vendor.talk" => "Talk",
             _ => key,
         };
+
+        /// <summary>The canvas is a scene root of its own, so the rig teardown alone would leave it behind (#2936).</summary>
+        private void OnDestroy()
+        {
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
+        }
     }
 }

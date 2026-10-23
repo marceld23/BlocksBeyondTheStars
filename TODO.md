@@ -63,6 +63,11 @@ triggers on #2929. Fixes found on the way: #2936, #2937, #2938.
   ShipPreviewRig, StationDecorView and WorldEntities (~180 lines). They now live once in the client `ModelKit` (next
   to UiKit/FxKit, with the #1514 cached Unlit shader); the hosts import it via `using static`, the near-clones stay.
   Behaviour is unchanged. Pinned by `RuntimeShaderInclusionTests` (scans ModelKit.cs) and `CodeHealthRatchetTests`.
+- **Rig prompt canvases go with the rig (#2936):** `UiKit.CreateCanvas` makes a scene-root canvas, so leaving a world
+  left 14 canvases from 12 rig scripts behind (launch/vendor/respawn prompts, NPC dialog, bandit demand, disconnect
+  screen, maintenance banner, trade screen, open star chart, Tab-menu dialogs, touch controls, DeathFx flash), some
+  over the main menu with buttons into a destroyed GameBootstrap. Each OnDestroy now destroys its canvas after the
+  existing unsubscribes. Pinned by `RigCanvasCleanupPlayModeTests` (12 cases) and the PR-CI `RigCanvasCleanupGuardTests`.
 
 ### 🔧 Refactoring follow-ups 2026-10 — the bugs and cleanups the code-health refactoring found — #2919–#2928, branch fix/refactoring-follow-ups-2026-10, PR #2930 — ✅ done 2026-10-23 (⚠ playtest open)
 

@@ -119,6 +119,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.Disconnected -= OnDisconnected;
             }
+
+            // A scene-root canvas — it goes with the rig (#2936). Back to menu hides the panel before it leaves, and every
+            // bounce the shell makes on its own brings its notice along (AppShell.MenuNotice).
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
         }
     }
 }

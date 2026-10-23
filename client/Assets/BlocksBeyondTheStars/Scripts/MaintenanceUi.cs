@@ -247,6 +247,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.MaintenanceNoticeReceived -= OnNotice;
             }
+
+            // A scene-root canvas — it goes with the rig (#2936). Its notices are about the server just left: the menu
+            // shows its own (AppShell.MenuNotice), and a banner left behind would freeze its countdown over the menu.
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
         }
     }
 }

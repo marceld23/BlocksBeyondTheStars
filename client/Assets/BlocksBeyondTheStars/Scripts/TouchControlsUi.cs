@@ -202,6 +202,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 Active = null;
             }
+
+            // The root panel IS the controls' canvas, a scene root — it goes with the rig, or the sticks and buttons of a
+            // left world stay on a tablet's screen (#2936).
+            if (_rootPanel != null)
+            {
+                Destroy(_rootPanel);
+            }
         }
 
         private void Update()

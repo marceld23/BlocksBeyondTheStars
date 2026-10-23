@@ -17,6 +17,7 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
+        private Canvas _canvas; // a scene root — kept so OnDestroy can take it along (#2936)
         private Image _flash;
         private Color _from;
         private float _t;
@@ -50,9 +51,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var canvas = UiKit.CreateCanvas("DeathFx");
-            canvas.sortingOrder = 80; // over the HUD
-            _flash = UiKit.AddImage(canvas.transform, 0, 0, 1920, 1080, UiKit.SolidSprite, new Color(0f, 0f, 0f, 0f));
+            _canvas = UiKit.CreateCanvas("DeathFx");
+            _canvas.sortingOrder = 80; // over the HUD
+            _flash = UiKit.AddImage(_canvas.transform, 0, 0, 1920, 1080, UiKit.SolidSprite, new Color(0f, 0f, 0f, 0f));
             _flash.raycastTarget = false; // never swallow input — it's a brief overlay
         }
 
@@ -116,6 +117,12 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.RespawnNoticeReceived -= OnRespawn;
                 Game.Network.RespawnOptionsReceived -= OnRespawnOptions;
                 Game.Network.SpaceClosed -= OnSpaceClosed;
+            }
+
+            // A scene-root canvas — it goes with the rig, or every world join leaves one more behind (#2936).
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
             }
         }
     }

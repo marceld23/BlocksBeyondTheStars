@@ -570,6 +570,15 @@ namespace BlocksBeyondTheStars.Client
             {
                 Destroy(_canvas.gameObject);
             }
+
+            // The confirms and the suit-slot picker are top-level canvases too. Closing the menu drops them, but the rig
+            // teardown does not close the menu (#2936).
+            CloseStorySwitchDialog();
+            CloseDiscardGearDialog();
+            if (_pickerCanvas != null)
+            {
+                Destroy(_pickerCanvas);
+            }
         }
 
         private void EnsureBuilt()

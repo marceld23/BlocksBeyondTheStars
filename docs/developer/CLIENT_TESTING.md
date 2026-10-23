@@ -109,7 +109,7 @@ and is the one that holds in CI. Run the suite from the Editor's Test Runner win
 
 ## Tier 2 — Unity PlayMode (`UnityPlay`)
 
-`client/Assets/Tests/PlayMode/`. Four test classes:
+`client/Assets/Tests/PlayMode/`. Five test classes:
 - **The shipping path** — a `[UnityTest]` coroutine launches the **published** dedicated server
   (`LocalServerLauncher`, the same code Singleplayer uses) as a child process on loopback UDP, waits for the
   server's own ready line (`LocalServerLauncher.Ready`, up to 60 s — never a fixed sleep, a fresh world takes ~8 s
@@ -122,6 +122,12 @@ and is the one that holds in CI. Run the suite from the Editor's Test Runner win
   the uGUI caret exception (it needs real frames and caret blinks).
 - **`UiPanelPlayModeTests`** — destroying a `UiPanel` takes its scene-root canvas along (the rig-teardown leak,
   #2303/#2925); PlayMode because `OnDestroy` does not run in edit mode. See [UI_PANELS.md](UI_PANELS.md#tests).
+- **`RigCanvasCleanupPlayModeTests`** — the same for the rig's prompts and screens that are not `UiPanel`s
+  (`LaunchPrompt`, `VendorChoicePrompt`, `RespawnPrompt`, `DeathFx`, `TouchControlsUi`, `VendorTradeUI`, the star chart,
+  the Tab menu's dialogs, …, #2936). Its PR-CI twin is the Client.Tests source guard `RigCanvasCleanupGuardTests`:
+  every canvas a component of the rig (`WorldRig.Build` and what it adds) assigns from `UiKit.Create…Canvas` must be
+  kept in a field and destroyed in that component's teardown (`OnDestroy`, or an `OnDisable` that closes it — the
+  surface map's way).
 
 The PlayMode assembly must NOT be Editor-only (`includePlatforms: []`), otherwise Unity classifies it as an
 EditMode assembly and the tests run in the wrong mode (and `UnityPlay` finds nothing).

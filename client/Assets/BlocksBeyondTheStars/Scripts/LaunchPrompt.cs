@@ -119,5 +119,15 @@ namespace BlocksBeyondTheStars.Client
             "ui.launch.no" => "Not yet — map",
             _ => key,
         };
+
+        /// <summary>The canvas is a scene root of its own, so the rig teardown alone would leave it behind — an open
+        /// question stayed over the main menu, its buttons calling into a destroyed GameBootstrap (#2936).</summary>
+        private void OnDestroy()
+        {
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
+        }
     }
 }

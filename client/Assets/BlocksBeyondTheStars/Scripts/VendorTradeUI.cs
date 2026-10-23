@@ -353,6 +353,12 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.InventoryUpdated -= OnInventory;
                 Game.Network.WorldResetReceived -= OnWorldReset;
             }
+
+            // A scene-root canvas, kept (disabled) once built — it goes with the rig (#2936).
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
         }
     }
 }

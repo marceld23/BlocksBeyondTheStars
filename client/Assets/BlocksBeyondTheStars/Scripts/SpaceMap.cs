@@ -264,6 +264,12 @@ namespace BlocksBeyondTheStars.Client
                 Game.HyperjumpStarted -= OnHyperjump;
                 _hyperjumpSubscribed = false;
             }
+
+            // An open chart's scene-root canvas — it goes with the rig, not over the main menu (#2936).
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
         }
 
         private void OnHyperjump() => Close();

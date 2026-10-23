@@ -251,6 +251,12 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.RespawnOptionsReceived -= OnRespawnOptions;
                 Game.Network.SpaceClosed -= OnSpaceClosed;
             }
+
+            // A scene-root canvas — it goes with the rig, or an open prompt stays over the main menu (#2936).
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
         }
     }
 }

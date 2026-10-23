@@ -223,6 +223,12 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.BanditDemandReceived -= OnDemand;
                 Game.Network.BanditResultReceived -= OnResult;
             }
+
+            // A scene-root canvas — it goes with the rig (#2936).
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
         }
     }
 }

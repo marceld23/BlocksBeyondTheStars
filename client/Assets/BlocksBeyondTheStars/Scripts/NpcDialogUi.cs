@@ -249,6 +249,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.NpcDialogReceived -= OnDialog;
             }
+
+            // A scene-root canvas — it goes with the rig, or an open conversation stays over the main menu (#2936).
+            if (_canvas != null)
+            {
+                Destroy(_canvas.gameObject);
+            }
         }
     }
 }
