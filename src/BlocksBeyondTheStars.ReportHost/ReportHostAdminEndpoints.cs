@@ -30,7 +30,8 @@ public static class ReportHostAdminEndpoints
         });
 
         // One-click bulk export of everything matching the current filters, as a JSON file download — the
-        // browser-friendly sibling of the keyed read API (GET /api/reports) that pull scripts use.
+        // browser-friendly sibling of the keyed read API (GET /api/reports) that pull scripts use. The file carries
+        // no reporter's reply key (#2921, see ReportApiJson.ExportItem).
         app.MapGet("/admin/export", (HttpContext ctx) =>
         {
             if (runtime.GuardAdmin(ctx) is { } denied)
@@ -43,7 +44,7 @@ public static class ReportHostAdminEndpoints
             string? category = Opt(ctx.Request.Query["category"].ToString());
             var items = runtime.Store.Latest(status, category, 100_000);
             byte[] json = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
-                new { exportedUtc = DateTimeOffset.UtcNow, status, category, count = items.Count, reports = items },
+                new { exportedUtc = DateTimeOffset.UtcNow, status, category, count = items.Count, reports = items.Select(ReportApiJson.ExportItem).ToArray() },
                 new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             string stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmm");
             return Results.File(json, "application/json", $"bbs-reports-{stamp}.json");

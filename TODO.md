@@ -38,6 +38,11 @@ The deferred class extractions are #2929 (not part of this branch).
   that outlived the GDPR erasure. It now deletes them in the same locked sequence, before the account row; no other
   registry table kept the account id. `WorldHostLegalTests.DeleteAccount_LeavesNoRowWithTheAccountId_InAnyTable`
   scans every table from `sqlite_master` for the deleted id (empty, commented allow-list); HOSTED_WORLDS.md lists it.
+- **The admin export leaves out reply keys (#2921):** `GET /admin/export` serialised the raw `BugReportRecord` rows,
+  `ReplyKey` column included, and the stored `ReportJson` payload still held the client's top-level `replyKey`, so the
+  "Download JSON" file handed out every reporter's reply-thread credential. Rows now go through
+  `ReportApiJson.ExportItem` (the other 19 columns, same names and order) and `WithoutReplyKey` strips the key from the
+  exported payload copy (the database keeps it); `ReportHostReadApiHttpTests` (`AssertExportAsync`) pins it.
 
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 

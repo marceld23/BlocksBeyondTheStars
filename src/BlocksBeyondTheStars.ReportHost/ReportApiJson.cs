@@ -6,8 +6,8 @@ using System.Text.Json;
 namespace BlocksBeyondTheStars.ReportHost;
 
 /// <summary>
-/// The JSON shapes the read API and the client's poll return — property order is the wire order, do not reorder.
-/// (Not to be confused with <see cref="BugReportRecord.ReportJson"/>, the stored raw payload that
+/// The JSON shapes the read API, the client's poll and the admin export return — property order is the wire order,
+/// do not reorder. (Not to be confused with <see cref="BugReportRecord.ReportJson"/>, the stored raw payload that
 /// <see cref="Item"/> embeds.)
 /// </summary>
 public static class ReportApiJson
@@ -71,6 +71,73 @@ public static class ReportApiJson
             fixedInVersion = r.FixedInVersion,
             replies = replies?.Select(x => Reply(x)).ToArray(),
         };
+    }
+
+    // One row of the admin export's "Download JSON" file (#2921): every stored column under its record name, in the
+    // record's order, EXCEPT the reply key — the reporter's credential for the reply thread, a column the read API
+    // leaves out too. The copy of the key a client sends inside its payload goes as well, so the file holds none.
+    public static object ExportItem(BugReportRecord r) => new
+    {
+        r.Id,
+        r.Title,
+        r.Description,
+        r.Email,
+        r.GameVersion,
+        r.BuildNumber,
+        r.PlayerId,
+        r.PlayerName,
+        r.SessionId,
+        r.Platform,
+        r.ClientTimestamp,
+        r.Category,
+        r.Source,
+        r.Kind,
+        r.Status,
+        r.ScreenshotFile,
+        ReportJson = WithoutReplyKey(r.ReportJson),
+        r.CreatedUnix,
+        r.FixedInVersion,
+    };
+
+    // The stored payload (BugReportRecord.ReportJson) minus its top-level "replyKey" node — where ingest reads the
+    // client's key from (ReportIngest.Parse). Anything else, an unreadable payload included, passes through as is.
+    public static string WithoutReplyKey(string reportJson)
+    {
+        JsonDocument doc;
+        try
+        {
+            doc = JsonDocument.Parse(reportJson);
+        }
+        catch (JsonException)
+        {
+            return reportJson;
+        }
+
+        using (doc)
+        {
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("replyKey", out _))
+            {
+                return reportJson;
+            }
+
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartObject();
+                foreach (var property in root.EnumerateObject())
+                {
+                    if (!property.NameEquals("replyKey"))
+                    {
+                        property.WriteTo(writer);
+                    }
+                }
+
+                writer.WriteEndObject();
+            }
+
+            return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+        }
     }
 
     // One thread as the client's poll returns it: the report's title/status/fixed-in line, the whole

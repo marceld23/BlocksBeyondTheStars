@@ -34,7 +34,7 @@ game server (crash flush) ──┘    (x-bugreport-key)    + files    └──
 | `GET /admin`, `/admin/report/{id}` | admin Basic Auth | Server-rendered admin UI: list, filters, detail, screenshot, status buttons, reply thread + form, delete |
 | `POST /admin/report/{id}/reply`, `/status`, `/delete` | admin Basic Auth + `csrf` form field | The detail page's forms (see *Admin CSRF guard* below) |
 | `GET /admin/report/{id}/attachment/{index}`, `…/{index}/view` | admin Basic Auth | The same file for the operator; `/view` serves a PNG inline for the detail page's preview |
-| `GET /admin/export?status=&category=` | admin Basic Auth | One-click JSON file download of everything matching the filters (the UI's "Download JSON" button) |
+| `GET /admin/export?status=&category=` | admin Basic Auth | One-click JSON file download of everything matching the filters (the UI's "Download JSON" button): every stored column except the reporter's reply key, which is also stripped from the exported copy of the payload (`ReportJson`; the database keeps it), so the file carries no reply key (#2921). Caveat: `PlayerId` is still exported, and for client-direct reports (desktop, play.\*) that is the install's player token, from which the reply key can be re-derived (`FeedbackReplyKey.Derive`) |
 | `GET /healthz` | none | Liveness |
 
 List items are camelCase (`id`, `title`, `description`, `email`, `gameVersion`, …, `status`,

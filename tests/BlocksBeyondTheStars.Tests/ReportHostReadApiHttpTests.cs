@@ -40,6 +40,11 @@ public sealed class ReportHostReadApiHttpTests : IClassFixture<ReportHostAdminHt
     private static readonly string[] ThreadKeys = { "reportId", "title", "status", "fixedInVersion", "createdUnix", "replies", "unseenIds" };
     private static readonly string[] ExportKeys = { "exportedUtc", "status", "category", "count", "reports" };
 
+    // One row of the export (#2921): every BugReportRecord column under its own name, in the record's order — except
+    // the reporter's reply key. Read off the record, so a column added later must reach the export too.
+    private static readonly string[] ExportReportKeys = typeof(BugReportRecord).GetConstructors().Single().GetParameters()
+        .Select(p => p.Name!).Where(name => name != nameof(BugReportRecord.ReplyKey)).ToArray();
+
     private static readonly byte[] Shot = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 9, 8, 7 };
 
     private static readonly string PollKey = FeedbackReplyKey.Derive("read-api-install");
@@ -229,17 +234,7 @@ public sealed class ReportHostReadApiHttpTests : IClassFixture<ReportHostAdminHt
             Assert.Equal("text/html", list.Content.Headers.ContentType?.MediaType);
         }
 
-        using (var export = await AdminAsync(HttpMethod.Get, "/admin/export"))
-        {
-            Assert.Equal(HttpStatusCode.OK, export.StatusCode);
-            Assert.Equal("application/json", export.Content.Headers.ContentType?.MediaType);
-            var disposition = export.Content.Headers.ContentDisposition;
-            Assert.StartsWith("bbs-reports-", (disposition?.FileNameStar ?? disposition?.FileName)?.Trim('"'), StringComparison.Ordinal);
-            using var doc = await JsonOfAsync(export);
-            Assert.Equal(ExportKeys, Names(doc.RootElement));
-            Assert.Equal(3, doc.RootElement.GetProperty("count").GetInt32());
-            Assert.Equal(3, doc.RootElement.GetProperty("reports").GetArrayLength());
-        }
+        await AssertExportAsync(id);
 
         using (var noShot = await AdminAsync(HttpMethod.Get, $"/admin/report/{id}/screenshot"))
         {
@@ -252,6 +247,38 @@ public sealed class ReportHostReadApiHttpTests : IClassFixture<ReportHostAdminHt
             Assert.Equal("image/png", shot.Content.Headers.ContentType?.MediaType);
             Assert.Equal(Shot, await shot.Content.ReadAsByteArrayAsync());
         }
+    }
+
+    private async Task AssertExportAsync(string id)
+    {
+        using var export = await AdminAsync(HttpMethod.Get, "/admin/export");
+        Assert.Equal(HttpStatusCode.OK, export.StatusCode);
+        Assert.Equal("application/json", export.Content.Headers.ContentType?.MediaType);
+        var disposition = export.Content.Headers.ContentDisposition;
+        Assert.StartsWith("bbs-reports-", (disposition?.FileNameStar ?? disposition?.FileName)?.Trim('"'), StringComparison.Ordinal);
+        string body = await export.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(body);
+        Assert.Equal(ExportKeys, Names(doc.RootElement));
+        Assert.Equal(3, doc.RootElement.GetProperty("count").GetInt32());
+        var reports = doc.RootElement.GetProperty("reports");
+        Assert.Equal(3, reports.GetArrayLength());
+
+        // No reply key anywhere in the file (#2921) — neither the column nor the copy the client sent inside its
+        // payload, which the store keeps verbatim. Every other column stays.
+        Assert.Contains(PollKey, _host.Store.Get(id)!.ReportJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(PollKey, body, StringComparison.Ordinal);
+        foreach (var report in reports.EnumerateArray())
+        {
+            Assert.Equal(ExportReportKeys, Names(report));
+            string key = _host.Store.Get(report.GetProperty("Id").GetString()!)!.ReplyKey;
+            Assert.Equal(FeedbackReplyKey.Length, key.Length);
+            Assert.DoesNotContain(key, body, StringComparison.Ordinal);
+        }
+
+        var seeded = Assert.Single(reports.EnumerateArray(), r => r.GetProperty("Id").GetString() == id);
+        using var payload = JsonDocument.Parse(seeded.GetProperty("ReportJson").GetString()!);
+        Assert.Equal("Hat eaten by door", payload.RootElement.GetProperty("title").GetString());
+        Assert.False(payload.RootElement.TryGetProperty("replyKey", out _));
     }
 
     private async Task AssertOperatorReplyAndPollAsync(string id)
