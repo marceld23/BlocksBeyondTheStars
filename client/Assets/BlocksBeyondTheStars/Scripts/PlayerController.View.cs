@@ -24,6 +24,10 @@ namespace BlocksBeyondTheStars.Client
         private float _baseFov = 60f;
 
         private Viewmodel _viewmodel;
+
+        /// <summary>The first-person viewmodel (null until <c>Start</c>), for <see cref="PlayerVehicleDrive"/>.</summary>
+        internal Viewmodel View => _viewmodel;
+
         private string _heldKey = "\0"; // forces the first refresh
         private bool _heldGloves, _heldShockGloves; // #2278: what TriggerSwing plays — read once per hotbar change, not per swing
 
@@ -152,7 +156,7 @@ namespace BlocksBeyondTheStars.Client
         /// the pivot and it, in which case the camera is pulled in front of that geometry. Pull-in is instant
         /// (a wall must never be seen from inside), the return eases out. The player's own capsule overlaps the
         /// cast's start and is therefore ignored by Unity; creature meshes carry no colliders by design.</summary>
-        private Vector3 ResolveCameraBoom(Vector3 pivot, Vector3 desired, float dt)
+        internal Vector3 ResolveCameraBoom(Vector3 pivot, Vector3 desired, float dt)
         {
             Vector3 to = desired - pivot;
             float full = to.magnitude;

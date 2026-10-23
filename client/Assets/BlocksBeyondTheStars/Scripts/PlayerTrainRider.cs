@@ -3,8 +3,6 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
-using BlocksBeyondTheStars.Shared.State;
-using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -12,10 +10,16 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The moving frame of a monorail train (#2113): parenting the body to the wagon (<see cref="UpdateTrainFrame"/>), the
     /// seat (<see cref="HoldTrainSeat"/>), boarding with E (<see cref="TrainInteract"/>), walk-on boarding
-    /// (<see cref="StepAboardTrain"/>) and crossing to the neighbouring wagon.
+    /// (<see cref="StepAboardTrain"/>), crossing to the neighbouring wagon and the framed move report
+    /// (<see cref="TrySendFramedMove"/>). A sibling component of <see cref="PlayerController"/>, added in its <c>Awake</c>
+    /// on the player's GameObject; it reads the controller's wiring (<c>Player.Game</c>, <c>Player.Avatar</c>) on every
+    /// use, because <see cref="WorldRig"/> assigns those only after the component exists.
     /// </summary>
-    public sealed partial class PlayerController
+    public sealed class PlayerTrainRider : MonoBehaviour
     {
+        /// <summary>The player this component carries (set by <see cref="PlayerController"/> in its <c>Awake</c>).</summary>
+        public PlayerController Player;
+
         // ---------------------------------------------------------------------------------------------------------
         // #2113: the moving frame — riding a monorail train
         // ---------------------------------------------------------------------------------------------------------
@@ -25,12 +29,18 @@ namespace BlocksBeyondTheStars.Client
         private TrainView _trainView;
         private const float TrainBoardReach = 2.6f;
 
+        /// <summary>The wagon the body is parented to while aboard, null on foot.</summary>
+        internal Transform Frame => _trainFrame;
+
+        /// <summary>The scene's train view, once a train lookup has found it (null before).</summary>
+        internal TrainView View => _trainView;
+
         /// <summary>Keeps the body parented to the wagon named by the server (<see cref="GameBootstrap.InTrain"/>): the first
         /// time a frame appears the body is brought into the wagon's box and parented to it; when the server takes the
         /// frame away the body is released. Returns true while aboard.</summary>
-        private bool UpdateTrainFrame()
+        internal bool UpdateTrainFrame()
         {
-            string frame = Game != null ? Game.InTrain : string.Empty;
+            string frame = Player.Game != null ? Player.Game.InTrain : string.Empty;
             if (_leavingFrame.Length > 0)
             {
                 if (frame == _leavingFrame)
@@ -72,21 +82,21 @@ namespace BlocksBeyondTheStars.Client
             {
                 _trainFrame = wagon;
                 _trainFrameId = frame;
-                _seatCell = null;
+                Player.ForgetSeat();
                 transform.SetParent(wagon, true);
                 var local = wagon.InverseTransformPoint(transform.position);
                 var clamped = RailRules.ClampLocal(new Vector3f(local.x, local.y, local.z));
-                bool wasEnabled = _controller.enabled;
-                _controller.enabled = false;
+                bool wasEnabled = Player.Body.enabled;
+                Player.Body.enabled = false;
                 transform.position = wagon.TransformPoint(new Vector3(clamped.X, clamped.Y + 0.05f, clamped.Z));
-                _controller.enabled = wasEnabled;
-                _verticalVelocity = 0f;
+                Player.Body.enabled = wasEnabled;
+                Player.VerticalVelocity = 0f;
             }
 
-            if (Game.TrainSeat < 0 && !_controller.enabled)
+            if (Player.Game.TrainSeat < 0 && !Player.Body.enabled)
             {
-                _controller.enabled = true; // stood up from a seat
-                Avatar?.SetSeated(false);
+                Player.Body.enabled = true; // stood up from a seat
+                Player.Avatar?.SetSeated(false);
             }
 
             return true;
@@ -97,43 +107,43 @@ namespace BlocksBeyondTheStars.Client
             transform.SetParent(null, true);
             _trainFrame = null;
             _trainFrameId = string.Empty;
-            _controller.enabled = true;
-            Avatar?.SetSeated(false);
-            ApplyCameraMode();
+            Player.Body.enabled = true;
+            Player.Avatar?.SetSeated(false);
+            Player.ApplyCameraMode();
         }
 
         /// <summary>A seated rider is parked on the seat of the wagon, controller off (the seat is the frame's fixed point).</summary>
-        private void HoldTrainSeat()
+        internal void HoldTrainSeat()
         {
-            if (_trainFrame == null || !RailRules.TryParseFrame(Game.InTrain, out _, out int wagonIndex))
+            if (_trainFrame == null || !RailRules.TryParseFrame(Player.Game.InTrain, out _, out int wagonIndex))
             {
                 return;
             }
 
-            var train = Game.RiddenTrain;
+            var train = Player.Game.RiddenTrain;
             string item = train != null && train.Wagons != null && wagonIndex < train.Wagons.Length ? train.Wagons[wagonIndex] : string.Empty;
             var seats = RailRules.SeatOffsets(item);
-            if (Game.TrainSeat >= seats.Count)
+            if (Player.Game.TrainSeat >= seats.Count)
             {
                 return;
             }
 
-            var seat = seats[Game.TrainSeat];
-            _controller.enabled = false;
-            _verticalVelocity = 0f;
+            var seat = seats[Player.Game.TrainSeat];
+            Player.Body.enabled = false;
+            Player.VerticalVelocity = 0f;
             transform.position = _trainFrame.TransformPoint(new Vector3(seat.X, seat.Y, seat.Z));
-            Avatar?.SetSeated(true);
+            Player.Avatar?.SetSeated(true);
         }
 
         /// <summary>E aboard: in the cab the panel opens; beside a seat you sit down. Returns true when it did something.</summary>
-        private bool TrainInteract()
+        internal bool TrainInteract()
         {
-            if (_trainFrame == null || !RailRules.TryParseFrame(Game.InTrain, out string trainId, out int wagonIndex))
+            if (_trainFrame == null || !RailRules.TryParseFrame(Player.Game.InTrain, out string trainId, out int wagonIndex))
             {
                 return false;
             }
 
-            var train = Game.RiddenTrain;
+            var train = Player.Game.RiddenTrain;
             string item = train != null && train.Wagons != null && wagonIndex < train.Wagons.Length ? train.Wagons[wagonIndex] : string.Empty;
             var seats = RailRules.SeatOffsets(item);
             var local = _trainFrame.InverseTransformPoint(transform.position);
@@ -151,7 +161,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (best >= 0 && item != RailRules.CabItemKey)
             {
-                Game.Network?.SendEnterTrain(trainId, wagonIndex, best);
+                Player.Game.Network?.SendEnterTrain(trainId, wagonIndex, best);
                 return true;
             }
 
@@ -165,9 +175,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>On foot: E beside a wagon boards it (your own train or an ally's — the server decides).</summary>
-        private bool TryBoardNearbyTrain()
+        internal bool TryBoardNearbyTrain()
         {
-            if (Game?.Network == null || Game.Trains == null || Game.Trains.Length == 0)
+            if (Player.Game?.Network == null || Player.Game.Trains == null || Player.Game.Trains.Length == 0)
             {
                 return false;
             }
@@ -188,7 +198,7 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            Game.Network.SendEnterTrain(t.Id, wagon, -1);
+            Player.Game.Network.SendEnterTrain(t.Id, wagon, -1);
             return true;
         }
 
@@ -207,15 +217,15 @@ namespace BlocksBeyondTheStars.Client
         /// no E needed; before, the floor simply slid away under a player who was never a rider. Edge-triggered per wagon:
         /// one request per entry into a wagon's box, so a refused one (someone else's train) is not repeated every frame,
         /// and a rider set down beside the train or walking out at a stop has left the box before the next entry counts.</summary>
-        private void StepAboardTrain()
+        internal void StepAboardTrain()
         {
-            if (_trainFrame != null || !string.IsNullOrEmpty(Game?.InTrain))
+            if (_trainFrame != null || !string.IsNullOrEmpty(Player.Game?.InTrain))
             {
-                _wagonBox = Game?.InTrain ?? string.Empty; // aboard: leaving this wagon's box re-arms the trigger
+                _wagonBox = Player.Game?.InTrain ?? string.Empty; // aboard: leaving this wagon's box re-arms the trigger
                 return;
             }
 
-            if (Game?.Network == null || Game.Trains == null || Game.Trains.Length == 0)
+            if (Player.Game?.Network == null || Player.Game.Trains == null || Player.Game.Trains.Length == 0)
             {
                 _wagonBox = string.Empty;
                 return;
@@ -231,7 +241,7 @@ namespace BlocksBeyondTheStars.Client
             string box = t == null ? string.Empty : RailRules.FrameId(t.Id, wagon);
             if (box.Length > 0 && box != _wagonBox)
             {
-                Game.Network.SendEnterTrain(t.Id, wagon, -1);
+                Player.Game.Network.SendEnterTrain(t.Id, wagon, -1);
             }
 
             _wagonBox = box;
@@ -243,7 +253,7 @@ namespace BlocksBeyondTheStars.Client
         /// train: false.</summary>
         private bool CrossToNeighbourWagon()
         {
-            if (_trainView == null || !RailRules.TryParseFrame(Game.InTrain, out string trainId, out int current))
+            if (_trainView == null || !RailRules.TryParseFrame(Player.Game.InTrain, out string trainId, out int current))
             {
                 return false;
             }
@@ -261,10 +271,46 @@ namespace BlocksBeyondTheStars.Client
             {
                 _crossingTo = frame;
                 _crossingSentAt = Time.time;
-                Game.Network.SendEnterTrain(trainId, wagon, -1);
+                Player.Game.Network.SendEnterTrain(trainId, wagon, -1);
             }
 
             return true;
+        }
+
+        /// <summary>#2113: the position report while aboard — the wagon-local pose in the train's frame, the crossing into
+        /// the neighbouring wagon (#2129) and the walk-off. Returns true when it sent the report (the caller sends nothing
+        /// else this time), false when the body is not riding a wagon the server names.</summary>
+        internal bool TrySendFramedMove(float yaw, float pitch)
+        {
+            if (_trainFrame != null && !string.IsNullOrEmpty(Player.Game.InTrain))
+            {
+                // #2113: aboard — the pose is the wagon-local offset in the train's frame. Out of the box = we walked off.
+                var local = _trainFrame.InverseTransformPoint(transform.position);
+                var l = new Vector3f(local.x, local.y, local.z);
+                if (RailRules.OutsideWagon(l))
+                {
+                    // #2129: through the open end into the next wagon of the same train is not leaving — the frame moves
+                    // there. Meanwhile the report stays inside the old wagon's box (the raw spot out here would read as
+                    // walking off), and keeps flowing: the server drops a client silent for 90 s (#964).
+                    if (CrossToNeighbourWagon())
+                    {
+                        Player.Game.Network.SendFramedMove(Player.Game.InTrain, RailRules.ClampLocal(l), yaw, pitch);
+                        return true;
+                    }
+
+                    // Walked off: report the spot in the frame, so the server sets us down where we stepped off (an
+                    // ExitTrain would put us beside the wagon instead), and stop riding on our side at once.
+                    Player.Game.Network.SendFramedMove(Player.Game.InTrain, l, yaw, pitch);
+                    _leavingFrame = Player.Game.InTrain;
+                    LeaveTrainFrame();
+                    return true;
+                }
+
+                Player.Game.Network.SendFramedMove(Player.Game.InTrain, l, yaw, pitch);
+                return true;
+            }
+
+            return false;
         }
     }
 }

@@ -548,7 +548,7 @@ namespace BlocksBeyondTheStars.Client
                 Weapons?.Dust(transform.position);
                 // Impact kick. #2746: the pad does not buzz on every jump's landing — only a hard one rumbles (below).
                 FxCamera.AddTrauma(Mathf.Clamp01(-prevVy / 12f) * 0.55f, rumble: false);
-                bool realFall = !FeetInWater() && !_flying && _trainFrame == null;
+                bool realFall = !FeetInWater() && !_flying && _train.Frame == null;
                 if (realFall && -prevVy > _effSafeFallSpeed * 0.6f)
                 {
                     PadRumble.Landing(hard: -prevVy > _effSafeFallSpeed);

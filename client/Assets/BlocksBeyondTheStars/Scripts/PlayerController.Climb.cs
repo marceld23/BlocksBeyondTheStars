@@ -124,7 +124,7 @@ namespace BlocksBeyondTheStars.Client
         private bool ClimbAllowedHere(bool inWater, bool onLadder)
             => Game != null && !inWater && !onLadder && !_flying && !_crouched
                && !Game.OnFootInSpace && !Game.StationZeroG && !Game.InEva && !Game.Aboard
-               && string.IsNullOrEmpty(Game.CurrentStationId) && _trainFrame == null && _seatCell is null;
+               && string.IsNullOrEmpty(Game.CurrentStationId) && _train.Frame == null && _seatCell is null;
 
         /// <summary>
         /// The wall-climbing step (#2188–#2190, #2384–#2386): grabs a wall, climbs it, slides down it, lets go, or starts a

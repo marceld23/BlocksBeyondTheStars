@@ -1,10 +1,6 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
-using BlocksBeyondTheStars.Shared.Definitions;
-using BlocksBeyondTheStars.Shared.Geometry;
-using BlocksBeyondTheStars.Shared.State;
-using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -13,10 +9,15 @@ namespace BlocksBeyondTheStars.Client
     /// Vehicles: the arcade hover speeder and the boat (#1215) — driving (<see cref="DriveSpeeder"/>), the fluid probes
     /// under and ahead of the hull, boarding, stowing and recalling (<see cref="TryBoardNearbySpeeder"/>,
     /// <see cref="TryStowNearbySpeeder"/>, <see cref="TryRecallVehiclesAtConsole"/>) and the parked-vehicle probes the
-    /// HUD and the Actions list read.
+    /// HUD and the Actions list read (through the controller). A sibling component of <see cref="PlayerController"/>,
+    /// added in its <c>Awake</c> on the player's GameObject; it reads the controller's wiring (<c>Player.Game</c> and
+    /// friends) on every use, because <see cref="WorldRig"/> assigns those only after the component exists.
     /// </summary>
-    public sealed partial class PlayerController
+    public sealed class PlayerVehicleDrive : MonoBehaviour
     {
+        /// <summary>The player this component drives (set by <see cref="PlayerController"/> in its <c>Awake</c>).</summary>
+        public PlayerController Player;
+
         // Hover speeder (arcade, car-style): W gas / S brake-reverse / A,D steer / Space hop / Shift boost.
         public float SpeederMaxSpeed = 13f;
         public float SpeederBoostSpeed = 20f;
@@ -44,16 +45,16 @@ namespace BlocksBeyondTheStars.Client
         {
             get
             {
-                if (Game?.Speeders == null)
+                if (Player.Game?.Speeders == null)
                 {
                     return false;
                 }
 
                 float rangeSq = SpeederStowRange * SpeederStowRange;
-                foreach (var s in Game.Speeders)
+                foreach (var s in Player.Game.Speeders)
                 {
-                    if (s != null && s.OwnerId == Game.LocalPlayerId && string.IsNullOrEmpty(s.DriverId)
-                        && (Game.ScenePos(s.X, s.Y, s.Z) - transform.position).sqrMagnitude < rangeSq)
+                    if (s != null && s.OwnerId == Player.Game.LocalPlayerId && string.IsNullOrEmpty(s.DriverId)
+                        && (Player.Game.ScenePos(s.X, s.Y, s.Z) - transform.position).sqrMagnitude < rangeSq)
                     {
                         return true;
                     }
@@ -66,23 +67,23 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Standing at the own landed ship's cockpit or console with a deployed vehicle out on this world
         /// (RecallVehicle applies, #1661). Never aboard the floating interior — the ship is not landed there.</summary>
         public bool CanRecallVehicle
-            => Game != null && (Game.NearbyStation == "cockpit" || Game.NearbyStation == "console")
-               && Game.LoadingPlanetType != "ship_interior" && OwnParkedVehicleCount > 0;
+            => Player.Game != null && (Player.Game.NearbyStation == "cockpit" || Player.Game.NearbyStation == "console")
+               && Player.Game.LoadingPlanetType != "ship_interior" && OwnParkedVehicleCount > 0;
 
         /// <summary>How many of our own vehicles stand parked (not driven) on this world.</summary>
         public int OwnParkedVehicleCount
         {
             get
             {
-                if (Game?.Speeders == null)
+                if (Player.Game?.Speeders == null)
                 {
                     return 0;
                 }
 
                 int n = 0;
-                foreach (var s in Game.Speeders)
+                foreach (var s in Player.Game.Speeders)
                 {
-                    if (s != null && s.OwnerId == Game.LocalPlayerId && string.IsNullOrEmpty(s.DriverId))
+                    if (s != null && s.OwnerId == Player.Game.LocalPlayerId && string.IsNullOrEmpty(s.DriverId))
                     {
                         n++;
                     }
@@ -115,9 +116,9 @@ namespace BlocksBeyondTheStars.Client
         /// A <b>boat</b> (#1215) is the same loop with a different vertical model and lazier handling: it floats
         /// on the water column (<see cref="DriveBoatVertical"/>), drifts through turns, has no hop and no fuel,
         /// and runs aground instead of crashing when it leaves the water.</summary>
-        private void DriveSpeeder()
+        internal void DriveSpeeder()
         {
-            var driven = Game.DrivenSpeeder;
+            var driven = Player.Game.DrivenSpeeder;
             bool boat = driven != null && driven.Kind == "boat";
             if (!_wasDriving)
             {
@@ -130,26 +131,26 @@ namespace BlocksBeyondTheStars.Client
                 _speederBlockedSeconds = 0f;
                 _speederAutoHop = false;
                 _speederHasDryPos = false;
-                Avatar?.SetVisible(true);   // sit visibly in the vehicle
-                _viewmodel?.SetVisible(false);
+                Player.Avatar?.SetVisible(true);   // sit visibly in the vehicle
+                Player.View?.SetVisible(false);
                 ClientAudio.Instance?.SpeederStart(boat);
             }
 
             // Chase camera behind + above the vehicle; mouse Y tilts it.
-            float my = InputMap.LookY() * MouseSensitivity * (InvertY ? -1f : 1f);
+            float my = InputMap.LookY() * Player.MouseSensitivity * (Player.InvertY ? -1f : 1f);
             _speederCamPitch = Mathf.Clamp(_speederCamPitch - my, -8f, 35f);
-            if (Camera != null)
+            if (Player.Camera != null)
             {
                 // Same spring arm as the third-person view (#1460) — the chase boom clipped into cliffs and walls.
-                Camera.transform.position = ResolveCameraBoom(
+                Player.Camera.transform.position = Player.ResolveCameraBoom(
                     transform.TransformPoint(new Vector3(0f, 1.2f, 0f)), transform.TransformPoint(new Vector3(0f, 2.4f, -5.5f)),
                     Time.deltaTime);
-                Camera.transform.localEulerAngles = new Vector3(_speederCamPitch, 0f, 0f);
+                Player.Camera.transform.localEulerAngles = new Vector3(_speederCamPitch, 0f, 0f);
             }
 
             // Speeds: the item's "vehicle" block (items.json) is the source of truth when present, the fields
             // above are the fallback. Accel/turn stay client tuning.
-            var profile = Game.Content?.GetItem(boat ? "boat" : "speeder")?.Vehicle;
+            var profile = Player.Game.Content?.GetItem(boat ? "boat" : "speeder")?.Vehicle;
             float cruise = profile?.MaxSpeed ?? (boat ? BoatMaxSpeed : SpeederMaxSpeed);
             float boost = profile?.BoostSpeed ?? (boat ? BoatBoostSpeed : SpeederBoostSpeed);
             float accel = boat ? BoatAccel : SpeederAccel;
@@ -200,7 +201,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                Game.VehicleAground = aground;
+                Player.Game.VehicleAground = aground;
             }
             else
             {
@@ -242,8 +243,8 @@ namespace BlocksBeyondTheStars.Client
                 // The block column backs the physics ray up: it knows a chunk whose collider is still baking,
                 // and it is what lifts a hull that got wedged into a block back out.
                 float groundY = float.NaN;
-                if (Physics.Raycast(transform.position + Vector3.up * 1.0f, Vector3.down, out var hit, 12f, WorldRayMask, QueryTriggerInteraction.Ignore)
-                    && hit.collider != _controller)
+                if (Physics.Raycast(transform.position + Vector3.up * 1.0f, Vector3.down, out var hit, 12f, PlayerController.WorldRayMask, QueryTriggerInteraction.Ignore)
+                    && hit.collider != Player.Body)
                 {
                     groundY = hit.point.y;
                 }
@@ -270,7 +271,7 @@ namespace BlocksBeyondTheStars.Client
                 }
                 else
                 {
-                    vSpeed = -Gravity * 0.2f;
+                    vSpeed = -Player.Gravity * 0.2f;
                 }
 
                 if ((InputMap.JumpDown() || _speederAutoHop) && !outOfFuel)
@@ -290,11 +291,11 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                Game.VehicleAground = stranded;
+                Player.Game.VehicleAground = stranded;
             }
 
             Vector3 before = transform.position;
-            _controller.Move((planar + Vector3.up * vSpeed) * Time.deltaTime);
+            Player.Body.Move((planar + Vector3.up * vSpeed) * Time.deltaTime);
 
             if (!boat)
             {
@@ -311,8 +312,8 @@ namespace BlocksBeyondTheStars.Client
                     _speederAutoHop = true;
                 }
 
-                _verticalVelocity = 0f;
-                GuardAgainstFallingOut(grounded: Mathf.Abs(vSpeed) < 2f, inWater: false, onLadder: false);
+                Player.VerticalVelocity = 0f;
+                Player.GuardAgainstFallingOut(grounded: Mathf.Abs(vSpeed) < 2f, inWater: false, onLadder: false);
             }
 
             // A hard horizontal stop at speed = ran into a wall/cliff → report the impact (server scales the hull
@@ -324,22 +325,22 @@ namespace BlocksBeyondTheStars.Client
             float actual = moved.magnitude / Mathf.Max(1e-4f, Time.deltaTime);
             if (wanted > SpeederImpactThreshold && actual < wanted * 0.45f)
             {
-                Game.Network?.SendSpeederImpact(Game.InSpeeder, wanted);
+                Player.Game.Network?.SendSpeederImpact(Player.Game.InSpeeder, wanted);
                 _speederSpeed *= 0.15f;
                 _boatVel *= 0.15f;
                 ClientAudio.Instance?.Cue("vehicle_impact", 0.85f);
             }
 
             ClientAudio.Instance?.SpeederTick(speedFrac, boosting, boat);
-            Game.SpeederSpeed = boat ? planar.magnitude * Mathf.Sign(_speederSpeed) : _speederSpeed; // vehicle HUD readout
+            Player.Game.SpeederSpeed = boat ? planar.magnitude * Mathf.Sign(_speederSpeed) : _speederSpeed; // vehicle HUD readout
 
             if (InputMap.Down(InputAction.SpeederExit))
             {
-                Game.Network?.SendExitSpeeder();
+                Player.Game.Network?.SendExitSpeeder();
             }
             else if (InputMap.Down(InputAction.SpeederRefuel) && !boat)
             {
-                Game.Network?.SendRefuelSpeeder(Game.InSpeeder);
+                Player.Game.Network?.SendRefuelSpeeder(Player.Game.InSpeeder);
             }
         }
 
@@ -356,7 +357,7 @@ namespace BlocksBeyondTheStars.Client
             int fx = Mathf.FloorToInt(pos.x), fz = Mathf.FloorToInt(pos.z);
             int feet = Mathf.FloorToInt(pos.y);
             float surface = float.NaN;
-            if (Game?.World == null || !Game.World.TryGetBlock(fx, feet, fz, out _))
+            if (Player.Game?.World == null || !Player.Game.World.TryGetBlock(fx, feet, fz, out _))
             {
                 surface = pos.y - BoatFloatHeight; // unknown terrain: hold height, don't judge
             }
@@ -364,7 +365,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 for (int y = feet + 2; y >= feet - 1; y--)
                 {
-                    if (BlockKeyAt(new Vector3(pos.x, y + 0.5f, pos.z)) == "water")
+                    if (Player.BlockKeyAt(new Vector3(pos.x, y + 0.5f, pos.z)) == "water")
                     {
                         surface = y + 1f;
                         break;
@@ -375,14 +376,14 @@ namespace BlocksBeyondTheStars.Client
             if (float.IsNaN(surface))
             {
                 _boatDrySeconds += Time.deltaTime;
-                if (Physics.Raycast(pos + Vector3.up * 1.5f, Vector3.down, out var hit, 6f, WorldRayMask, QueryTriggerInteraction.Ignore)
-                    && hit.collider != _controller)
+                if (Physics.Raycast(pos + Vector3.up * 1.5f, Vector3.down, out var hit, 6f, PlayerController.WorldRayMask, QueryTriggerInteraction.Ignore)
+                    && hit.collider != Player.Body)
                 {
                     vSpeed = Mathf.Clamp((hit.point.y + 0.4f - pos.y) * 6f, -6f, 4f);
                 }
                 else
                 {
-                    vSpeed = -Gravity * 0.2f;
+                    vSpeed = -Player.Gravity * 0.2f;
                 }
 
                 return false;
@@ -414,7 +415,7 @@ namespace BlocksBeyondTheStars.Client
         {
             surface = float.NaN;
             int fx = Mathf.FloorToInt(pos.x), fz = Mathf.FloorToInt(pos.z), feet = Mathf.FloorToInt(pos.y);
-            if (Game?.World == null || !Game.World.TryGetBlock(fx, feet, fz, out _))
+            if (Player.Game?.World == null || !Player.Game.World.TryGetBlock(fx, feet, fz, out _))
             {
                 return SpeederFluid.None;
             }
@@ -442,12 +443,12 @@ namespace BlocksBeyondTheStars.Client
         private SpeederFluid FluidKindAt(Vector3 at, out bool ground)
         {
             ground = false;
-            if (Game?.World == null || Game.Content == null)
+            if (Player.Game?.World == null || Player.Game.Content == null)
             {
                 return SpeederFluid.None;
             }
 
-            var id = Game.World.GetBlock(Mathf.FloorToInt(at.x), Mathf.FloorToInt(at.y), Mathf.FloorToInt(at.z));
+            var id = Player.Game.World.GetBlock(Mathf.FloorToInt(at.x), Mathf.FloorToInt(at.y), Mathf.FloorToInt(at.z));
             if (id.IsAir)
             {
                 return SpeederFluid.None;
@@ -455,7 +456,7 @@ namespace BlocksBeyondTheStars.Client
 
             // The same classification as the server's FluidUnderHull: water is the one fluid a flagged speeder crosses,
             // VehicleProperties.IsHoverHazard (lava, oil, a gas giant's gas sea) is a stop for every speeder.
-            var def = Game.Content.BlockById(id);
+            var def = Player.Game.Content.BlockById(id);
             if (def?.Key == BlocksBeyondTheStars.Shared.Definitions.VehicleProperties.HoverWaterKey)
             {
                 return SpeederFluid.Water;
@@ -515,7 +516,7 @@ namespace BlocksBeyondTheStars.Client
         private bool BlockColumnGround(Vector3 pos, out float surfaceY)
         {
             surfaceY = float.NaN;
-            if (Game?.World == null)
+            if (Player.Game?.World == null)
             {
                 return false;
             }
@@ -523,7 +524,7 @@ namespace BlocksBeyondTheStars.Client
             int feet = Mathf.FloorToInt(pos.y);
             for (int y = feet; y >= feet - 8; y--)
             {
-                if (IsCollidingKey(BlockKeyAt(new Vector3(pos.x, y + 0.5f, pos.z))))
+                if (PlayerController.IsCollidingKey(Player.BlockKeyAt(new Vector3(pos.x, y + 0.5f, pos.z))))
                 {
                     surfaceY = y + 1f;
                     return true;
@@ -535,19 +536,19 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>X at the own cockpit/console: asks the ship to bring every vehicle we left out on this world
         /// back beside it (#1661). Returns true if at least one request went out.</summary>
-        private bool TryRecallVehiclesAtConsole()
+        internal bool TryRecallVehiclesAtConsole()
         {
-            if (Game?.Network == null || Game.Speeders == null || !CanRecallVehicle)
+            if (Player.Game?.Network == null || Player.Game.Speeders == null || !CanRecallVehicle)
             {
                 return false;
             }
 
             bool any = false;
-            foreach (var s in Game.Speeders)
+            foreach (var s in Player.Game.Speeders)
             {
-                if (s != null && s.OwnerId == Game.LocalPlayerId && string.IsNullOrEmpty(s.DriverId))
+                if (s != null && s.OwnerId == Player.Game.LocalPlayerId && string.IsNullOrEmpty(s.DriverId))
                 {
-                    Game.Network.SendRecallVehicle(s.Id);
+                    Player.Game.Network.SendRecallVehicle(s.Id);
                     any = true;
                 }
             }
@@ -557,23 +558,23 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Boards the nearest parked speeder the player owns within reach (on-foot E). Returns true if one
         /// was found and a board intent sent.</summary>
-        private bool TryBoardNearbySpeeder()
+        internal bool TryBoardNearbySpeeder()
         {
-            if (Game?.Network == null || Game.Speeders == null)
+            if (Player.Game?.Network == null || Player.Game.Speeders == null)
             {
                 return false;
             }
 
             string best = null;
             float bestSq = SpeederBoardRange * SpeederBoardRange;
-            foreach (var s in Game.Speeders)
+            foreach (var s in Player.Game.Speeders)
             {
-                if (s == null || s.OwnerId != Game.LocalPlayerId || !string.IsNullOrEmpty(s.DriverId))
+                if (s == null || s.OwnerId != Player.Game.LocalPlayerId || !string.IsNullOrEmpty(s.DriverId))
                 {
                     continue;
                 }
 
-                float d = (Game.ScenePos(s.X, s.Y, s.Z) - transform.position).sqrMagnitude;
+                float d = (Player.Game.ScenePos(s.X, s.Y, s.Z) - transform.position).sqrMagnitude;
                 if (d < bestSq)
                 {
                     bestSq = d;
@@ -586,28 +587,28 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            Game.Network.SendEnterSpeeder(best);
+            Player.Game.Network.SendEnterSpeeder(best);
             return true;
         }
 
         /// <summary>Packs the nearest parked speeder the player owns back into the item (on-foot X).</summary>
-        private bool TryStowNearbySpeeder()
+        internal bool TryStowNearbySpeeder()
         {
-            if (Game?.Network == null || Game.Speeders == null)
+            if (Player.Game?.Network == null || Player.Game.Speeders == null)
             {
                 return false;
             }
 
             string best = null;
             float bestSq = SpeederStowRange * SpeederStowRange;
-            foreach (var s in Game.Speeders)
+            foreach (var s in Player.Game.Speeders)
             {
-                if (s == null || s.OwnerId != Game.LocalPlayerId || !string.IsNullOrEmpty(s.DriverId))
+                if (s == null || s.OwnerId != Player.Game.LocalPlayerId || !string.IsNullOrEmpty(s.DriverId))
                 {
                     continue;
                 }
 
-                float d = (Game.ScenePos(s.X, s.Y, s.Z) - transform.position).sqrMagnitude;
+                float d = (Player.Game.ScenePos(s.X, s.Y, s.Z) - transform.position).sqrMagnitude;
                 if (d < bestSq)
                 {
                     bestSq = d;
@@ -620,8 +621,25 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            Game.Network.SendStowSpeeder(best);
+            Player.Game.Network.SendStowSpeeder(best);
             return true;
+        }
+
+        /// <summary>Just stepped out of a speeder or a boat → restores the on-foot camera + viewmodel, stops the engine
+        /// sound and clears the aground flag. Called from the controller's on-foot update; a no-op unless the frames before
+        /// were spent driving.</summary>
+        internal void FinishDismount()
+        {
+            if (_wasDriving)
+            {
+                _wasDriving = false;
+                Player.ApplyCameraMode();
+                ClientAudio.Instance?.SpeederStop(_drivingBoat);
+                if (Player.Game != null)
+                {
+                    Player.Game.VehicleAground = false;
+                }
+            }
         }
     }
 }

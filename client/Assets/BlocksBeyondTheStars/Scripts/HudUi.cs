@@ -530,7 +530,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>An own parked (not driven) vehicle within the on-foot board reach — the "Board (E)" prompt's
-        /// gate (#1670). The reach mirrors <c>PlayerController.SpeederBoardRange</c>.</summary>
+        /// gate (#1670). The reach mirrors <c>PlayerVehicleDrive.SpeederBoardRange</c>.</summary>
         private bool OwnParkedVehicleInBoardReach()
         {
             const float boardReach = 3.2f;

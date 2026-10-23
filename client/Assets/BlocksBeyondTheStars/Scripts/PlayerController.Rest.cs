@@ -22,6 +22,10 @@ namespace BlocksBeyondTheStars.Client
         // INSIDE the chair cell and must not fight the seat's own collider boxes.
         private static readonly Vector3 SeatedEye = new Vector3(0f, 1.05f, 0f);
         private Vector3Int? _seatCell;
+
+        /// <summary>Forgets the chair seat (<see cref="PlayerTrainRider"/>: boarding a wagon frame leaves any seat behind).</summary>
+        internal void ForgetSeat() => _seatCell = null;
+
         private int _satFrame; // debounce: the E that sat us down must not also stand us up
 
         // One seat, one sitter (#2122): the server refuses a seat somebody already sits on; every refusal bumps
@@ -118,7 +122,7 @@ namespace BlocksBeyondTheStars.Client
         /// asked for the home spawn; a refusal there (someone else's bed, a derelict) still lets you rest.</summary>
         private void TryLieDown(Vector3Int cell, bool onShip)
         {
-            if (Game == null || Camera == null || _restCell.HasValue || _seatCell.HasValue || _trainFrame != null
+            if (Game == null || Camera == null || _restCell.HasValue || _seatCell.HasValue || _train.Frame != null
                 || _flying || _climbing || _pullingUp || !_controller.enabled || !_controller.isGrounded
                 || !RestPose(cell, onShip, out _, out _))
             {

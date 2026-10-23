@@ -133,9 +133,29 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Speeder and boat driving (#1215) — a sibling component created in <see cref="Awake"/>.</summary>
+        private PlayerVehicleDrive _vehicles;
+
+        /// <summary>The monorail moving frame (#2113) — a sibling component created in <see cref="Awake"/>.</summary>
+        private PlayerTrainRider _train;
+
+        /// <summary>A parked speeder of ours is within stow range (StowVehicle applies).</summary>
+        public bool NearOwnParkedSpeeder => _vehicles.NearOwnParkedSpeeder;
+
+        /// <summary>Standing at the own landed ship's cockpit or console with a deployed vehicle out on this world
+        /// (RecallVehicle applies, #1661). Never aboard the floating interior — the ship is not landed there.</summary>
+        public bool CanRecallVehicle => _vehicles.CanRecallVehicle;
+
+        /// <summary>How many of our own vehicles stand parked (not driven) on this world.</summary>
+        public int OwnParkedVehicleCount => _vehicles.OwnParkedVehicleCount;
+
         private float _pitch;
 
         private float _verticalVelocity;
+
+        /// <summary>The body's vertical speed, for the vehicle and train components (they zero it when they take the body).</summary>
+        internal float VerticalVelocity { get => _verticalVelocity; set => _verticalVelocity = value; }
+
         private float _moveSendTimer;
         private bool _spawned;
         private Vector3 _spawnPos;
@@ -216,7 +236,14 @@ namespace BlocksBeyondTheStars.Client
 
         private bool _moving;
 
-        private void Awake() => _controller = GetComponent<CharacterController>();
+        private void Awake()
+        {
+            _controller = GetComponent<CharacterController>();
+            _vehicles = gameObject.AddComponent<PlayerVehicleDrive>();
+            _vehicles.Player = this;
+            _train = gameObject.AddComponent<PlayerTrainRider>();
+            _train.Player = this;
+        }
 
         private void Start()
         {
@@ -397,7 +424,7 @@ namespace BlocksBeyondTheStars.Client
             // wagon's motion since the last physics step — the rider drifted to the rear and fell out. Sync the moved
             // wagon (its floor collider and our body) into physics before anything below moves us, the menu branch
             // (the cab panel) included. TrainView runs earlier in the frame, so the wagons are already posed.
-            if (_trainFrame != null)
+            if (_train.Frame != null)
             {
                 Physics.SyncTransforms();
             }
@@ -439,7 +466,7 @@ namespace BlocksBeyondTheStars.Client
                 UpdateJetpack(false);
                 UpdateGlide(false);
                 EndClimb();
-                DriveSpeeder();
+                _vehicles.DriveSpeeder();
                 SendMovement();
                 Game.PlayerPosition = transform.position;
                 Game.PlayerYaw = transform.eulerAngles.y;
@@ -449,14 +476,14 @@ namespace BlocksBeyondTheStars.Client
 
             // #2113: aboard a train the wagon is the reference frame — the body is parented to it, so its motion carries
             // us; a seated rider is parked on the seat, a standing one walks on with the ordinary on-foot code below.
-            if (UpdateTrainFrame())
+            if (_train.UpdateTrainFrame())
             {
                 UpdateJetpack(false);
                 UpdateGlide(false);
                 EndClimb(); // no wall climbing aboard a moving wagon
                 if (Game.TrainSeat >= 0)
                 {
-                    HoldTrainSeat();
+                    _train.HoldTrainSeat();
                     LookAround();
                     if (Camera != null && !ThirdPerson)
                     {
@@ -484,7 +511,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Game.Network?.SendExitTrain();
                 }
-                else if (InputMap.Down(InputAction.Interact) && TrainInteract())
+                else if (InputMap.Down(InputAction.Interact) && _train.TrainInteract())
                 {
                     return;
                 }
@@ -544,38 +571,29 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Just stepped out of a speeder → restore the on-foot camera + viewmodel.
-            if (_wasDriving)
-            {
-                _wasDriving = false;
-                ApplyCameraMode();
-                ClientAudio.Instance?.SpeederStop(_drivingBoat);
-                if (Game != null)
-                {
-                    Game.VehicleAground = false;
-                }
-            }
+            _vehicles.FinishDismount();
 
             // On foot: board a speeder you own that you're standing next to (E), or pack one up (X). Checked
             // before the generic E interact so boarding the speeder beside you wins.
-            if (InputMap.Down(InputAction.Interact) && TryBoardNearbySpeeder())
+            if (InputMap.Down(InputAction.Interact) && _vehicles.TryBoardNearbySpeeder())
             {
                 return;
             }
 
-            if (InputMap.Down(InputAction.Interact) && TryBoardNearbyTrain()) // #2113
+            if (InputMap.Down(InputAction.Interact) && _train.TryBoardNearbyTrain()) // #2113
             {
                 return;
             }
 
-            StepAboardTrain(); // #2129: walking or jumping into a wagon boards it too
+            _train.StepAboardTrain(); // #2129: walking or jumping into a wagon boards it too
 
-            if (InputMap.Down(InputAction.StowVehicle) && TryStowNearbySpeeder())
+            if (InputMap.Down(InputAction.StowVehicle) && _vehicles.TryStowNearbySpeeder())
             {
                 return;
             }
 
             // Same key at the own cockpit/console: ask the ship for a vehicle left out on this world (#1661).
-            if (InputMap.Down(InputAction.RecallVehicle) && TryRecallVehiclesAtConsole())
+            if (InputMap.Down(InputAction.RecallVehicle) && _vehicles.TryRecallVehiclesAtConsole())
             {
                 return;
             }
@@ -752,32 +770,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _moveSendTimer = 0f;
-            if (_trainFrame != null && !string.IsNullOrEmpty(Game.InTrain))
+            if (_train.TrySendFramedMove(transform.eulerAngles.y, _pitch))
             {
-                // #2113: aboard — the pose is the wagon-local offset in the train's frame. Out of the box = we walked off.
-                var local = _trainFrame.InverseTransformPoint(transform.position);
-                var l = new Vector3f(local.x, local.y, local.z);
-                if (RailRules.OutsideWagon(l))
-                {
-                    // #2129: through the open end into the next wagon of the same train is not leaving — the frame moves
-                    // there. Meanwhile the report stays inside the old wagon's box (the raw spot out here would read as
-                    // walking off), and keeps flowing: the server drops a client silent for 90 s (#964).
-                    if (CrossToNeighbourWagon())
-                    {
-                        Game.Network.SendFramedMove(Game.InTrain, RailRules.ClampLocal(l), transform.eulerAngles.y, _pitch);
-                        return;
-                    }
-
-                    // Walked off: report the spot in the frame, so the server sets us down where we stepped off (an
-                    // ExitTrain would put us beside the wagon instead), and stop riding on our side at once.
-                    Game.Network.SendFramedMove(Game.InTrain, l, transform.eulerAngles.y, _pitch);
-                    _leavingFrame = Game.InTrain;
-                    LeaveTrainFrame();
-                    return;
-                }
-
-                Game.Network.SendFramedMove(Game.InTrain, l, transform.eulerAngles.y, _pitch);
-                return;
+                return; // #2113: aboard — the train rider reported the pose in the wagon's frame
             }
 
             Game.Network.SendMove(transform.position, transform.eulerAngles.y, _pitch, _climbPose, _crouched); // #2193: others see us climb; #2435: and crouch

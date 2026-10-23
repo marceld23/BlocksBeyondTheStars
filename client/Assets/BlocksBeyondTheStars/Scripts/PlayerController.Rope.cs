@@ -310,7 +310,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            bool cannotHold = Game.SpaceViewActive || !string.IsNullOrEmpty(Game.InSpeeder) || _trainFrame != null
+            bool cannotHold = Game.SpaceViewActive || !string.IsNullOrEmpty(Game.InSpeeder) || _train.Frame != null
                               || _seatCell != null || !_spawned || _settling;
             if ((_rope.Attached || _ropePendingAnchor != null) && cannotHold)
             {

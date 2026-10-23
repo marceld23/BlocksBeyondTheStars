@@ -236,6 +236,12 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   members, names unchanged); the controller's `Capture` accessor adds it on first use like the optic/camera tools, so
   normal play never does. Walk/look hooks went to `.Movement`, `IsCaptureGrounded` stays; 7 members `private` →
   `internal`. Same poses and log text; client source guards read it; Unity build, 273 EditMode + 2,319 client tests green.
+- **Vehicle and train riding as PlayerController components (#2911, C3c):** the partials `PlayerController.Vehicles.cs`
+  (627 lines) and `.Train.cs` (270; both deleted) moved to the new sibling `MonoBehaviour`s `PlayerVehicleDrive.cs` (645)
+  and `PlayerTrainRider.cs` (316), added in `Awake` and called through `_vehicles`/`_train` at the old spots in the old
+  statement order; they read `Player.Game`, `Camera` and `Avatar` at use time and cache nothing. 9 `private` → `internal`;
+  the framed `SendMovement` block became `TrySendFramedMove` (`PlayerController.cs` 789 → 784 lines). Client source guards
+  read both; Unity build, 273 EditMode + 2,319 client tests green (speeder/boat/train: maintainer playtest only).
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

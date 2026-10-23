@@ -132,7 +132,7 @@ namespace BlocksBeyondTheStars.Client
         /// floor. Independent of any particular cause — whatever desync puts the player inside a block, this
         /// gets them out instead of letting them fall forever.
         /// </summary>
-        private void GuardAgainstFallingOut(bool grounded, bool inWater, bool onLadder)
+        internal void GuardAgainstFallingOut(bool grounded, bool inWater, bool onLadder)
         {
             // A climbing player legitimately stands INSIDE the ladder cell, and a swimmer inside water — neither
             // is "stuck in geometry". Observers pass through everything by design.
@@ -361,7 +361,7 @@ namespace BlocksBeyondTheStars.Client
 
             // #2743: a monorail wagon's floor holds wherever its box is (wagon to wagon across the gap); its door openings
             // and the train's open ends fall through to the probe below, which finds air there.
-            if (_trainFrame != null && _trainView != null && _trainView.WagonAt(ahead, out _, RailRules.WagonGap) != null)
+            if (_train.Frame != null && _train.View != null && _train.View.WagonAt(ahead, out _, RailRules.WagonGap) != null)
             {
                 return true;
             }
@@ -376,7 +376,7 @@ namespace BlocksBeyondTheStars.Client
         /// ship sounded like rock). A monorail wagon's floor is steel.</summary>
         private string SurfaceStep()
         {
-            if (_trainFrame != null)
+            if (_train.Frame != null)
             {
                 return FootstepSurface.MetalCue;
             }

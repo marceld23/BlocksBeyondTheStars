@@ -37,12 +37,16 @@ public static class ClientTestPaths
     public static string ScriptPartsText(string type) => string.Join("\n", ScriptParts(type));
 
     /// <summary>The text of the client's <c>PlayerController</c> — <c>PlayerController.cs</c> and its
-    /// <c>PlayerController.*.cs</c> concern parts (#2911), followed by its capture component <c>PlayerCapture.cs</c> — so a
-    /// source guard keeps finding a member whichever part it lives in, and a DoesNotContain guard keeps covering the code
-    /// that moved into the component.</summary>
+    /// <c>PlayerController.*.cs</c> concern parts (#2911), followed by its sibling components <c>PlayerCapture.cs</c>,
+    /// <c>PlayerVehicleDrive.cs</c> and <c>PlayerTrainRider.cs</c> — so a source guard keeps finding a member whichever
+    /// part it lives in, and a DoesNotContain guard keeps covering the code that moved into the components.</summary>
     public static string PlayerControllerSources()
-        => ScriptPartsText("PlayerController") + "\n"
-           + File.ReadAllText(Path.Combine(RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts", "PlayerCapture.cs"));
+    {
+        string dir = Path.Combine(RepoRoot(), "client", "Assets", "BlocksBeyondTheStars", "Scripts");
+        return ScriptPartsText("PlayerController") + "\n"
+               + string.Join("\n", new[] { "PlayerCapture.cs", "PlayerVehicleDrive.cs", "PlayerTrainRider.cs" }
+                   .Select(name => File.ReadAllText(Path.Combine(dir, name))));
+    }
 
     public static string DataDir()
     {
