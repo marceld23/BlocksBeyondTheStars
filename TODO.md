@@ -24,6 +24,13 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🧩 Issue #2929 — the useful class extractions, three bugs they found — #2929, #2931–#2938, branch refactor/class-extractions-2929 — 🚧 in progress
+
+Decided 2026-10-23: one "do" (IServerHost promotion), four "change" (crafting rules → Client.Core CraftGate, story
+state → Client.Core, one cruise interact rule, a shared ModelKit; prompts stay off UiPanel), three "drop"
+(PlayerController movement components, HudUi widget classes, the FillColumnCells split) — reasons and reopen
+triggers on #2929. Fixes found on the way: #2936, #2937, #2938.
+
 ### 🔧 Refactoring follow-ups 2026-10 — the bugs and cleanups the code-health refactoring found — #2919–#2928, branch fix/refactoring-follow-ups-2026-10, PR #2930 — ✅ done 2026-10-23 (⚠ playtest open)
 
 The deferred class extractions are #2929 (not part of this branch).
