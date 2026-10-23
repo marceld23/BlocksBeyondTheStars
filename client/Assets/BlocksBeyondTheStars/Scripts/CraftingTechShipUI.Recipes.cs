@@ -36,24 +36,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The non-market crafting recipe that produces <paramref name="item"/> (so it can be
         /// disassembled), plus its per-craft output count; (null, 1) when the item isn't craftable.</summary>
-        private (RecipeDefinition, int) DisassembleRecipe(string item)
-        {
-            foreach (var r in Game.Content.Recipes.Values)
-            {
-                if (r.Station == CraftingStation.Market || r.Inputs.Count == 0)
-                {
-                    continue;
-                }
-
-                var output = r.Outputs.FirstOrDefault(o => o.Item == item);
-                if (output != null)
-                {
-                    return (r, Mathf.Max(1, output.Count));
-                }
-            }
-
-            return (null, 1);
-        }
+        private (RecipeDefinition, int) DisassembleRecipe(string item) => CraftGate.DisassembleRecipe(item, Game.Content.Recipes.Values);
 
         /// <summary>One ✓/✗ have/need ingredient row plus a source tag (#1016): tells the player whether the
         /// material is itself craftable or a raw resource to find in the world. A craftable ingredient the
@@ -120,197 +103,47 @@ namespace BlocksBeyondTheStars.Client
         }
 
         // --- logic helpers ---
+        // The rules live in Client.Core's CraftGate (#2932), tested headless against the server's MaterialPool; these
+        // wrappers hand it what the menu knows about the player right now and keep every call site as it was.
 
+        // The gate's four Unity-side answers, bound once from method groups so building a Gate costs no allocation.
+        private System.Func<bool> _gateMarketAvailable;
+        private System.Func<RecipeDefinition, bool> _gateMarketOfferedHere;
+        private System.Func<RecipeDefinition, bool> _gateFactoryAway;
+        private System.Func<CraftingStation, bool> _gateStationAvailable;
+
+        /// <summary>What <see cref="CraftGate"/> reads about the player right now (a struct — no allocation).</summary>
+        private CraftGateInput Gate => new CraftGateInput(Game.Content, FreeCrafting(), Game.UnlockedBlueprints,
+            Game.Personal, Game.Cargo, Game.Aboard, PersonalSlotTotal, Game.CargoSlots,
+            _gateMarketAvailable ??= MarketAvailableNow, _gateMarketOfferedHere ??= MarketOfferedHereNow,
+            _gateFactoryAway ??= IsFactoryRecipeAway, _gateStationAvailable ??= StationAvailable);
+
+        private bool MarketAvailableNow() => Game.MarketAvailable;
+        private bool MarketOfferedHereNow(RecipeDefinition r) => Game.MarketOfferedHere(r);
+
+        /// <summary>Whether <paramref name="r"/> can be crafted right now, and if not the reason line for the first gate
+        /// that blocks it (<see cref="CraftGate.Check"/> keeps the order).</summary>
         private bool CanCraft(RecipeDefinition r, out string reason)
         {
-            if (FreeCrafting())
+            var block = CraftGate.Check(r, Gate);
+            reason = block switch
             {
-                // Everything the server skips in this mode is skipped here too — only the room for the result is
-                // real (the server refuses a craft that does not fit, so the button would lie).
-                if (!ResultFits(r))
-                {
-                    reason = L("ui.craft.inventory_full");
-                    return false;
-                }
-
-                reason = string.Empty;
-                return true;
-            }
-
-            if (!BlueprintOk(r.RequiredBlueprint))
-            {
-                reason = L("ui.craft.need_blueprint");
-                return false;
-            }
-
-            if (!HasAll(r.Inputs))
-            {
-                reason = L("ui.craft.need_materials");
-                return false;
-            }
-
-            // Market (barter) trades need a vendor (or your ship's trade console); everything else needs
-            // the mode's crafting station.
-            if (r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Market)
-            {
-                if (!Game.MarketAvailable)
-                {
-                    reason = L("ui.craft.need_market");
-                    return false;
-                }
-
-                if (!Game.MarketOfferedHere(r))
-                {
-                    reason = L("ui.craft.market_elsewhere");
-                    return false;
-                }
-            }
-            else if (r.Station == BlocksBeyondTheStars.Shared.Definitions.CraftingStation.Factory)
-            {
-                // A factory recipe is craftable only while standing at a factory terminal that offers it on
-                // its roster (the server enforces the same). Factory terminals only exist in spawned factories.
-                if (IsFactoryRecipeAway(r))
-                {
-                    reason = L("ui.craft.go_to_factory");
-                    return false;
-                }
-            }
-            else if (!StationAvailable(r.Station))
-            {
+                CraftBlock.InventoryFull => L("ui.craft.inventory_full"),
+                CraftBlock.NeedBlueprint => L("ui.craft.need_blueprint"),
+                CraftBlock.NeedMaterials => L("ui.craft.need_materials"),
+                CraftBlock.NeedMarket => L("ui.craft.need_market"),
+                CraftBlock.MarketElsewhere => L("ui.craft.market_elsewhere"),
+                CraftBlock.GoToFactory => L("ui.craft.go_to_factory"),
                 // Per RECIPE, from the server's station set (#1070) — a forge recipe says "forge", not "workshop".
-                reason = NeedStationText(StationKeyOf(r.Station));
-                return false;
-            }
-
-            // The result must also FIT somewhere (server: MaterialPool.CanFit, #600) — otherwise the card
-            // reads "craftable" and the button is live, but the server refuses with @inventory_full and the
-            // only feedback is an easy-to-miss toast (LAN playtest: full 24-slot backpack, the inputs only
-            // shrink stacks without freeing a slot, and the new tool needs a fresh one).
-            if (!ResultFits(r))
-            {
-                reason = L("ui.craft.inventory_full");
-                return false;
-            }
-
-            reason = string.Empty;
-            return true;
+                CraftBlock.NeedStation => NeedStationText(StationKeyOf(r.Station)),
+                _ => string.Empty,
+            };
+            return block == CraftBlock.None;
         }
 
-        /// <summary>Client-side dry-run of the server's <c>MaterialPool.CanFit</c> for a single craft:
-        /// every output must fit on top of what is held right now — stack top-up first, then free slots,
-        /// spilling into the ship's cargo hold only while aboard (the exact pool the server hands the
-        /// crafted items to). Deliberately as pessimistic as the server: inputs are NOT removed first, so
-        /// a craft whose inputs would free a slot still reads as blocked — the server refuses it too.</summary>
-        private bool ResultFits(RecipeDefinition r)
-        {
-            var personal = SimStacks(Game.Personal);
-            var cargo = Game.Aboard ? SimStacks(Game.Cargo) : null;
-            int freePersonal = Mathf.Max(0, PersonalSlotTotal - personal.Count);
-            int freeCargo = cargo != null ? Mathf.Max(0, Game.CargoSlots - cargo.Count) : 0;
-
-            foreach (var output in r.Outputs)
-            {
-                if (output.Count <= 0)
-                {
-                    continue;
-                }
-
-                int maxStack = Game.Content.MaxStackOf(output.Item);
-                int remaining = SimAdd(personal, ref freePersonal, output.Item, output.Count, maxStack);
-                if (remaining > 0 && cargo != null)
-                {
-                    remaining = SimAdd(cargo, ref freeCargo, output.Item, remaining, maxStack);
-                }
-
-                if (remaining > 0)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        /// <summary>Mutable copy of an inventory snapshot for the fit dry-run (occupied slots only).</summary>
-        private sealed class SimStack
-        {
-            public string Item = string.Empty;
-            public int Count;
-        }
-
-        private static List<SimStack> SimStacks(BlocksBeyondTheStars.Networking.Messages.NetItemStack[] slots)
-        {
-            var list = new List<SimStack>();
-            if (slots != null)
-            {
-                foreach (var s in slots)
-                {
-                    list.Add(new SimStack { Item = s.Item, Count = s.Count });
-                }
-            }
-
-            return list;
-        }
-
-        /// <summary>Adds <paramref name="count"/> of an item to the simulated stacks the way the server's
-        /// <c>Inventory.Add</c> does (top up same-item stacks, then open new stacks in free slots) and
-        /// returns what found no room. Outputs of one recipe compete for the same free slots.</summary>
-        private static int SimAdd(List<SimStack> stacks, ref int freeSlots, string item, int count, int maxStack)
-        {
-            foreach (var s in stacks)
-            {
-                if (count <= 0)
-                {
-                    break;
-                }
-
-                if (s.Item != item || s.Count >= maxStack)
-                {
-                    continue;
-                }
-
-                int put = System.Math.Min(maxStack - s.Count, count);
-                s.Count += put;
-                count -= put;
-            }
-
-            while (count > 0 && freeSlots > 0)
-            {
-                int put = System.Math.Min(maxStack, count);
-                stacks.Add(new SimStack { Item = item, Count = put });
-                freeSlots--;
-                count -= put;
-            }
-
-            return count;
-        }
-
-        /// <summary>Reachability tier for the list ordering (#826): 0 = craftable now (blueprint unlocked +
-        /// materials owned), 1 = blueprint unlocked but materials missing, 2 = a factory recipe with no terminal
-        /// offering it in reach (<paramref name="stationInReach"/> false), 3 = blueprint locked. Bench proximity is
-        /// deliberately NOT part of the tier — the order must not reshuffle while walking around; the bench only
-        /// keeps gating the status colour and the craft button. The factory terminal is the one exception: a factory
-        /// recipe is the bulk twin of a bench recipe with the same output name, a terminal is a rare find rather than
-        /// a bench you walk past, and sorted above its twin the factory card read as "this needs a factory".</summary>
+        /// <summary>Reachability tier for the list ordering (#826) — see <see cref="CraftGate.ReachTier"/>.</summary>
         private int ReachTier(string requiredBlueprint, List<BlocksBeyondTheStars.Shared.Definitions.ItemAmount> cost, bool stationInReach = true)
-        {
-            if (FreeCrafting())
-            {
-                return 0; // everything is craftable now
-            }
-
-            if (!BlueprintOk(requiredBlueprint))
-            {
-                return 3;
-            }
-
-            if (!stationInReach)
-            {
-                return 2;
-            }
-
-            return HasAll(cost) ? 0 : 1;
-        }
+            => CraftGate.ReachTier(requiredBlueprint, cost, stationInReach, Gate);
 
         /// <summary>True for a factory recipe while no spawned factory terminal in reach has it on its roster — the
         /// server's gate for factory crafts (<c>HandleCraft</c>). Shared by <see cref="CanCraft"/> and the list order,
@@ -327,24 +160,9 @@ namespace BlocksBeyondTheStars.Client
             return !atFactory || System.Array.IndexOf(roster, r.Key) < 0;
         }
 
-        private bool BlueprintOk(string bp) => string.IsNullOrEmpty(bp) || Game.UnlockedBlueprints.Contains(bp);
-        private bool HasAll(IEnumerable<ItemAmount> cost) => cost.All(c => Owned(c.Item) >= c.Count);
-
-        private int Owned(string item)
-        {
-            int n = 0;
-            if (Game.Personal != null)
-            {
-                foreach (var s in Game.Personal) if (s.Item == item) n += s.Count;
-            }
-
-            if (Game.Cargo != null)
-            {
-                foreach (var s in Game.Cargo) if (s.Item == item) n += s.Count;
-            }
-
-            return n;
-        }
+        private bool BlueprintOk(string bp) => CraftGate.BlueprintOk(bp, Gate);
+        private bool HasAll(IEnumerable<ItemAmount> cost) => CraftGate.HasAll(cost, Gate);
+        private int Owned(string item) => CraftGate.Owned(item, Gate);
 
         private bool MatchesCategory(string item)
         {

@@ -544,26 +544,6 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>How many of a recipe the player can currently afford, from their owned inputs. Capped at a
         /// full stack — that is also what the server accepts in one craft order.</summary>
-        private int MaxCraftable(RecipeDefinition r)
-        {
-            int cap = BlocksBeyondTheStars.Shared.Definitions.ItemDefinition.DefaultMaxStack;
-            if (FreeCrafting())
-            {
-                return cap; // nothing is consumed — a full stack per order, the same ceiling the server clamps to
-            }
-
-            int m = cap;
-            foreach (var inp in r.Inputs)
-            {
-                if (inp.Count <= 0)
-                {
-                    continue;
-                }
-
-                m = Mathf.Min(m, Owned(inp.Item) / inp.Count);
-            }
-
-            return Mathf.Clamp(m, 0, cap);
-        }
+        private int MaxCraftable(RecipeDefinition r) => CraftGate.MaxCraftable(r, Gate);
     }
 }

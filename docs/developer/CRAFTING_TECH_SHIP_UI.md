@@ -79,8 +79,16 @@ components, a category sidebar and blueprint state.
   partial class; each tab or page lives in its own `CraftingTechShipUI.<Part>.cs` (Inventory, Samples, Suit,
   Crafting, Tech, Ship — with the ship preview rig —, Map, Missions, Character — with the world-rules rows —,
   Alliances, Companions, Photos, Notes, Achievements, Journal), and three partials hold what the tabs share:
-  `.Recipes` (crafting rules, costs, the catalog gate), `.Stations` (station gates and the "Where?" locator) and
-  `.Scaffolding` (uGUI cards, scroll views, search boxes and the text helpers).
+  `.Recipes` (ingredient rows, costs, the catalog gate and the wrappers over `CraftGate`), `.Stations` (station gates
+  and the "Where?" locator) and `.Scaffolding` (uGUI cards, scroll views, search boxes and the text helpers).
+- `src/BlocksBeyondTheStars.Client.Core/CraftGate.cs` — the crafting rules, engine-free (#2932). `Check` names the
+  first gate that blocks a recipe as a `CraftBlock`, in the order of the reason line: in Creative only the room for
+  the result; otherwise blueprint, materials, then the market (vendor, then today's offer), the factory terminal or the
+  recipe's station, and last the room for the result. The menu maps each value to its `ui.craft.*` line. Beside it:
+  `ResultFits` (the client's dry-run of the server's `MaterialPool.CanFit`), `Owned` / `HasAll` (backpack + hold;
+  worn gear and lab-changed tools are not counted yet, #2937), `MaxCraftable`, `ReachTier` and `DisassembleRecipe`.
+  The menu hands it a `CraftGateInput` (plain values plus four answers only Unity can give, as delegates bound once).
+  `CraftGateTests` (Client.Tests) pins the order and checks `ResultFits` against the server's `MaterialPool`.
 - Data sources (no new data needed): `ItemDefinition` (category/tool/effects), `RecipeDefinition`
   (station/blueprint/inputs/outputs), `BlueprintDefinition` (category/prerequisites/costs),
   `ShipModuleDefinition` / `ShipDefinition` (stats/cost/blueprint), `Game.OwnedShips`.
