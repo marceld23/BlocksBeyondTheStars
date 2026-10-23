@@ -92,5 +92,29 @@ namespace BlocksBeyondTheStars.Client
 
             return best;
         }
+
+        /// <summary>Start's subscriptions for the station affordances: the stations in reach and a located station.
+        /// Called once from <see cref="Start"/>, before the transport connects.</summary>
+        private void WireStations()
+        {
+            Network.StationsInReachReceived += m =>
+            {
+                StationsAvailable.Clear();
+                foreach (var s in m.Available ?? System.Array.Empty<string>())
+                {
+                    StationsAvailable.Add(s);
+                }
+
+                ResearchOk = m.ResearchOk;
+                ShipBuildOk = m.ShipBuildOk;
+                StationsKnown = true;
+                StationsInReachChanged?.Invoke();
+            };
+            Network.StationLocationReceived += m =>
+            {
+                LastStationLocation = m;
+                StationLocated?.Invoke(m);
+            };
+        }
     }
 }

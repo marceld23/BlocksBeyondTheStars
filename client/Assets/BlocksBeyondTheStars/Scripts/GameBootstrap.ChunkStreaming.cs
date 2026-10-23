@@ -1188,5 +1188,106 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
         }
+
+        /// <summary>Start's subscriptions for the chunk stream: chunk payloads and single block changes. Called once
+        /// from <see cref="Start"/>, before the transport connects.</summary>
+        private void WireChunkStreaming()
+        {
+            Network.ChunkReceived += OnChunk;
+
+            Network.BlockChanged += OnBlockChanged;
+        }
+
+        /// <summary>Update's chunk work: drain finished mesh and collider builds, dispatch the nearest dirty
+        /// chunks within the frame budget, keep chunks positioned around the player and update visibility.</summary>
+        private void TickChunkStreaming()
+        {
+            // Upload + assign chunk geometry whose async build finished (A2), then assign collision meshes whose
+            // async bake finished (both cheap on the main thread — the heavy work ran on worker threads).
+            ReturnRetiredChunkArrays(); // #1555
+            DrainBuiltChunks();
+            DrainBakedColliders();
+            DrainSyncCooks(); // #1819: browser collider cooks within their own frame budget
+            SampleMotion();   // #1818: the build order looks ahead along the player's velocity
+
+            // Kick off off-thread (re)builds for chunks that changed, but cap how many we DISPATCH per frame (P1)
+            // so a burst of chunks arriving while moving fast spreads over several frames instead of stalling one.
+            // Nearest chunks build first; chunks past the budget stay queued for the next frames.
+            PromoteDeferredDirty(); // #1529
+            PromoteWaterReachDirty(); // #1903
+            if (_dirty.Count > 0)
+            {
+                _dirtyScratch.Clear();
+                _dirtyScratch.AddRange(_dirty);
+                var pp = PlayerPosition;
+
+                // #1515: nearest-first WITHOUT sorting the whole set — the distances are computed once and the
+                // `budget` nearest entries are picked by partial selection (O(n·k), k ≤ MeshChunksPerFrame),
+                // instead of an O(n log n) sort with a closure and two seam-aware distances per comparison to
+                // take four. Same order as the sort produced.
+                _dirtyDistScratch.Clear();
+                for (int i = 0; i < _dirtyScratch.Count; i++)
+                {
+                    _dirtyDistScratch.Add(BuildOrderKey(_dirtyScratch[i], pp)); // #1818: nearest first, then ahead
+                }
+
+                int budget = Mathf.Max(1, MeshChunksPerFrame);
+                int built = 0;
+                _frameWork.Restart(); // #1819: the browser builds inline — a time budget, not a count, decides
+                while (BuildBudgetLeft(built, budget) && _dirtyScratch.Count > 0)
+                {
+                    int best = 0;
+                    float bestDist = _dirtyDistScratch[0];
+                    for (int i = 1; i < _dirtyScratch.Count; i++)
+                    {
+                        if (_dirtyDistScratch[i] < bestDist)
+                        {
+                            bestDist = _dirtyDistScratch[i];
+                            best = i;
+                        }
+                    }
+
+                    var coord = _dirtyScratch[best];
+                    int last = _dirtyScratch.Count - 1;
+                    _dirtyScratch[best] = _dirtyScratch[last];
+                    _dirtyDistScratch[best] = _dirtyDistScratch[last];
+                    _dirtyScratch.RemoveAt(last);
+                    _dirtyDistScratch.RemoveAt(last);
+
+                    // Neighbours not yet streamed are no-ops — flush them without spending budget; they
+                    // re-mark themselves dirty once their own data arrives.
+                    _dirty.Remove(coord);
+                    if (DispatchChunkBuild(coord))
+                    {
+                        built++;
+                    }
+                }
+            }
+
+            // Round worlds: keep every loaded chunk drawn at the copy nearest the player as it laps the world
+            // in EITHER direction. Near chunks resolve to their canonical position (a no-op write); only
+            // chunks across a seam shift by ±Circumference (X) / ±LatitudePeriod (Z). Throttled to once per
+            // block of movement on any axis. Y is included because the renderer-cull and near-only-collider
+            // toggling in RepositionChunks are 3D distance-based: a straight-down jetpack descent must re-enable
+            // the ground colliders below before the player reaches them, or they'd fall through.
+            int chunkAnchorX = Mathf.FloorToInt(PlayerPosition.x);
+            int chunkAnchorY = Mathf.FloorToInt(PlayerPosition.y);
+            int chunkAnchorZ = Mathf.FloorToInt(PlayerPosition.z);
+            // …plus a slow heartbeat, because this pass is also the ONLY thing that unloads far chunks
+            // (#966): a player who stands still — parked at a station, stuck, AFK — never released a single
+            // chunk, however much the world streamed to them while they stood there.
+            _sinceReposTick += Time.deltaTime;
+            bool moved = chunkAnchorX != _lastReposX || chunkAnchorY != _lastReposY || chunkAnchorZ != _lastReposZ;
+            if (moved || _sinceReposTick >= ReposIdleInterval)
+            {
+                _lastReposX = chunkAnchorX;
+                _lastReposY = chunkAnchorY;
+                _lastReposZ = chunkAnchorZ;
+                _sinceReposTick = 0f;
+                RepositionChunks();
+            }
+
+            UpdateVisibility(); // #1823: re-walks when the camera changes chunk or chunk connectivity changed
+        }
     }
 }

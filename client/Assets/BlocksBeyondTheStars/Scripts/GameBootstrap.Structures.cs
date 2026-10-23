@@ -248,5 +248,58 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Factories on the current world (synced from the server) — rendered by <c>FactoryView</c>
         /// (animated machines) and used for the roster-filtered production terminal.</summary>
         public NetFactory[] Factories { get; private set; } = System.Array.Empty<NetFactory>();
+
+        /// <summary>Start's subscriptions for the world's structures: ship stations, POIs, beacons, beams, the crystal
+        /// net, lifts, bases, factories, landing pads, data cubes, speeders and trains. Called once from
+        /// <see cref="Start"/>, before the transport connects.</summary>
+        private void WireStructures()
+        {
+            Network.ShipStationsReceived += m => Stations = m.Stations;
+            Network.PlanetPoisReceived += m => PlanetPois = m.Pois;
+            Network.BeaconsReceived += m => Beacons = m.Beacons ?? System.Array.Empty<NetBeacon>();
+            Network.BeamsReceived += m => Beams = m.Beams ?? System.Array.Empty<NetBeam>();
+            Crystal.FrameOrigin = frame => LandedShips.TryGetValue(frame, out var parked) ? parked.Origin : (Vector3i?)null;
+            Crystal.Circumference = () => Circumference;
+            Network.CrystalNetsReceived += Crystal.OnNets;
+            Network.CrystalDevicesReceived += Crystal.OnDevices;
+            Network.CrystalDeviceDeltaReceived += Crystal.OnDelta; // #2267
+            Network.LiftsReceived += m =>
+            {
+                Lifts = m.Lifts ?? System.Array.Empty<NetLift>();
+                LiftsReceivedAt = Time.unscaledTime;
+            };
+            LandedShipsChanged += () =>
+            {
+                if (Crystal.HasFrames)
+                {
+                    Crystal.Recompose(); // #2268: a ship arrived, moved or left — its net follows it
+                }
+            };
+            Network.BasesReceived += m => Bases = m.Bases ?? System.Array.Empty<NetBase>();
+            Network.FactoriesReceived += m => Factories = m.Factories ?? System.Array.Empty<NetFactory>();
+            Network.LandingPadsReceived += m =>
+            {
+                LandingPads = m.Pads ?? System.Array.Empty<NetLandingPad>();
+                LandingPadsBody = m.BodyId ?? string.Empty;
+                LandingPadsTimeOfDay = m.TimeOfDay;
+                LandingPadBook.Apply(m); // #2740: per body — the world map reads the active body's list from here
+            };
+            Network.DataCubesReceived += m => DataCubes = m.Cubes ?? System.Array.Empty<NetDataCube>();
+            Network.SpeedersReceived += m => Speeders = m.Speeders ?? System.Array.Empty<NetSpeeder>();
+            Network.RailsReceived += m => Rails = m.Lines ?? System.Array.Empty<NetRailLine>(); // #2113
+            Network.TrainsReceived += m =>
+            {
+                Trains = m.Trains ?? System.Array.Empty<NetTrain>();
+                TrainsReceivedAt = Time.timeAsDouble;
+            };
+            Network.SpeederFxReceived += m =>
+            {
+                PendingSpeederFx.Add(m);
+                if (PendingSpeederFx.Count > 24)
+                {
+                    PendingSpeederFx.RemoveAt(0); // safety cap — never let a backlog grow
+                }
+            };
+        }
     }
 }

@@ -487,5 +487,47 @@ namespace BlocksBeyondTheStars.Client
             // Parked ship OBJECTS are not in the world grid — standing under a wing/hull still counts as covered.
             return !LandedShipCovers(px, py + 2, pz);
         }
+
+        /// <summary>Start's subscriptions for the environment: the world pause, system weather, the world environment
+        /// and the weather forecast. Called once from <see cref="Start"/>, before the transport connects.</summary>
+        private void WireEnvironment()
+        {
+            // The server's answer to our pause intent (#908). Honours Allowed implicitly: a declined hold comes
+            // back with Paused = false, so the client keeps simulating exactly as it did before.
+            Network.PauseStateReceived += m =>
+            {
+                _worldClock.SetPaused(m.Paused);
+                PauseHoldingPlayers = m.HoldingPlayers;
+                PauseJoinedPlayers = m.JoinedPlayers;
+                PauseWaitingFor = m.WaitingFor ?? string.Empty;
+            };
+            Network.SystemWeatherReceived += m => SystemWeather.Apply(m, Time.realtimeSinceStartupAsDouble); // #2173
+            Network.WorldEnvironmentReceived += m =>
+            {
+                Environment = m;
+                _envAge = 0f; // restart the extrapolation window (#900)
+                Circumference = m.Circumference > 0 ? m.Circumference : WorldConstants.Circumference;
+                World?.SetCircumference(Circumference); // chunk/block wrap at this world's size
+                ChunkMesher.GroveCircumference = Circumference; // #2856: so does the grove colour drift
+                if (CaptureEnvActive)
+                {
+                    ApplyCaptureEnv(Environment); // keep marketing shots clear-weather daylight across re-broadcasts
+                }
+            };
+            Network.WeatherForecastReceived += OnWeatherForecast;
+        }
+
+        /// <summary>Update's sky scan: five times a second, whether the player stands under open sky and whether
+        /// they are at home.</summary>
+        private void TickSkyScan()
+        {
+            _skyScanTimer -= Time.deltaTime;
+            if (_skyScanTimer <= 0f)
+            {
+                _skyScanTimer = 0.2f;
+                ExposedToSky = ComputeExposedToSky();
+                AtHome = ComputeAtHome();
+            }
+        }
     }
 }

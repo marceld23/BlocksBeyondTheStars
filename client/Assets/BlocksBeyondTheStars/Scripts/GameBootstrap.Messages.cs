@@ -337,5 +337,76 @@ namespace BlocksBeyondTheStars.Client
             string template = Localizer?.Get("ui.craft.crafted") ?? "Crafted {item}";
             return template.Replace("{item}", itemName);
         }
+
+        /// <summary>Start's subscriptions for the message feed: chat, containers, craft results, rejections and server
+        /// messages. Called once from <see cref="Start"/>, before the transport connects.</summary>
+        private void WireMessages()
+        {
+            Network.ChatReceived += m =>
+            {
+                // A muted sender is dropped from the Funk mirror too (#1209) — hiding a line in the chat
+                // overlay but leaving it in the Alliances tab would only move the problem one tab across.
+                if (!m.IsNpcCall && Settings != null && Settings.IsMuted(m.SenderId, m.Sender))
+                {
+                    return;
+                }
+
+                _recentChat.Add(m);
+                if (_recentChat.Count > RecentChatMax) _recentChat.RemoveAt(0);
+                if (m.IsNpcCall)
+                {
+                    _recentNpcCalls.Add(m); // mirrored into the Missions tab's ☎ block (#1158)
+                    if (_recentNpcCalls.Count > RecentNpcCallsMax) _recentNpcCalls.RemoveAt(0);
+                }
+            };
+            Network.ContainersReceived += m => OnContainers(m);
+            Network.CraftCompleted += m => LastMessage = m.Success ? CraftedMessage(m.RecipeKey) : CraftFailMessage(m.Reason);
+            Network.ActionRejected += m =>
+            {
+                Debug.Log($"Action '{m.Action}' rejected: {m.Reason}");
+                LastMessage = RejectionMessage(m.Action, m.Reason);
+                if (m.Action == "seat")
+                {
+                    SeatRejections++; // #2122: somebody sits there — PlayerController stands us back up
+                }
+                else if (m.Action == "glider")
+                {
+                    GliderRejections++; // #2296: no glider worn as the server sees it — PlayerController folds the wing
+                }
+                else if (m.Action == "visit")
+                {
+                    VisitRefusals++; // #2724: the flight view drops the veil it raised for the visit
+                }
+                else if (m.Action == "return_ship")
+                {
+                    // #2559: the open pause menu shows why instead of closing — and a fight refusal carries the seconds
+                    // left, so the row greys out at once even if no state update said so yet.
+                    ReturnToShipRefusalText = LastMessage;
+                    ReturnToShipRefusals++;
+                    float fight = (float)BlocksBeyondTheStars.Shared.Definitions.ReturnToShipRules.FightSecondsOf(m.Reason);
+                    if (fight > 0f)
+                    {
+                        _returnToShipFightUntil = Mathf.Max(_returnToShipFightUntil, Time.realtimeSinceStartup + fight);
+                    }
+                }
+
+                // The server is authoritative: if a dig is rejected because the cell is "already empty", the
+                // client's view of it is stale — a ghost block (a cell some server path cleared to air without a
+                // broadcast the client applied). Clear it directly so the phantom vanishes at once and the next
+                // dig hits whatever is actually behind it, instead of "mining" a block that isn't there (B32).
+                if (m.Action == "mine" && !string.IsNullOrEmpty(m.Reason) && m.Reason.Contains("empty")
+                    && World != null)
+                {
+                    var c = LastMineCell;
+                    if (World.ApplyBlockChange(c.x, c.y, c.z, 0, out var ghostCoord))
+                    {
+                        // Neighbours too: a ghost on a chunk border leaves the adjacent chunk's
+                        // now-exposed wall faces missing otherwise (see-through hole when mining fast).
+                        MarkChunkAndNeighborsDirty(ghostCoord);
+                    }
+                }
+            };
+            Network.ServerMessageReceived += m => { Debug.Log(m.Text); LastMessage = ServerMessageText(m.Text); };
+        }
     }
 }

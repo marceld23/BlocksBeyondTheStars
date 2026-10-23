@@ -88,7 +88,7 @@ public sealed class NpcVoiceWiringTests
         Assert.True(research > 0 && achievement > research, "research drains first");
 
         // The unlock handler only queues — no status line, no sound at the unlock any more.
-        string boot = Script("GameBootstrap.cs");
+        string boot = Script("GameBootstrap.PlayerState.cs"); // the achievement handlers' GameBootstrap part (#2912)
         int handler = boot.IndexOf("AchievementUnlockedReceived += m =>", StringComparison.Ordinal);
         Assert.True(handler > 0);
         string body = boot.Substring(handler, boot.IndexOf("};", handler, StringComparison.Ordinal) - handler);

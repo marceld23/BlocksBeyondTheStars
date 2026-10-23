@@ -248,6 +248,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   `.ChunkPipeline` (`ChunkStreaming`, `Environment`, `PlayerState`, `Messages` … `Stations`; largest 1,192 lines). An
   order-preserving proof maps all 5,136 body lines to exactly one file; the guards read the exact 13-file set; Unity +
   WebGL builds, 273 EditMode + 6 PlayMode + 2,319 client tests green, PerfProbe before/after alike.
+- **GameBootstrap.Start wires each concern in its own method (#2912, C4b):** `Start`'s 101 subscriptions moved
+  verbatim, order kept, into 12 `Wire<Concern>()` methods (`WireSession`/`WireContent` in core, one per partial) called
+  at the old spot before `Network.Connect`; `Update`'s blocks became `TickSkyScan`/`TickConnect`/`TickChunkStreaming` in
+  the old per-frame order. `GameBootstrap.cs` 1,666 → 934 lines, `Start` 921 → 154, `Update` 195 → 16; a slice-map
+  proof shows every body byte-identical. Unity + WebGL builds, 273 EditMode + 6 PlayMode + 2,319 client + PerfProbe green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

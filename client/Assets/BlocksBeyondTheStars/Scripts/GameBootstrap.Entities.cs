@@ -142,5 +142,61 @@ namespace BlocksBeyondTheStars.Client
                 ? Content.Recipes.Values
                 : (System.Collections.Generic.IEnumerable<BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition>)
                     System.Array.Empty<BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition>();
+
+        /// <summary>Start's subscriptions for the world's entities: companions and taming, enemies, creatures, world
+        /// effects and NPCs. Called once from <see cref="Start"/>, before the transport connects.</summary>
+        private void WireEntities()
+        {
+            Network.CompanionsReceived += m => Companions = m ?? new CompanionList();
+            Network.TameProgressReceived += m => TameState = (m != null && m.Active) ? m : null;
+            Network.TameResultReceived += m =>
+            {
+                TameState = null; // the ritual ended — close the HUD prompt
+                if (m == null) return;
+                if (m.Success) NewCompanionUnseen = true; // badge the Companions tab
+                if (!string.IsNullOrEmpty(m.MessageKey)) ShowMessage(Localizer?.Get(m.MessageKey) ?? m.MessageKey);
+            };
+            Network.PlanetEnemiesReceived += m =>
+            {
+                PlanetEnemies = m.Enemies;
+                PlanetEnemiesServerTime = m.ServerTime;
+                PlanetEnemiesLocalTime = EntityClock.ToLocal(m.ServerTime, WorldTime); // #2670: one stamp per list
+            };
+            Network.CreaturesReceived += m =>
+            {
+                Creatures = m.Creatures;
+                CreaturesServerTime = m.ServerTime;
+                CreaturesLocalTime = EntityClock.ToLocal(m.ServerTime, WorldTime); // #2665: one stamp per list
+            };
+            Network.WorldFxReceived += m =>
+            {
+                if (PendingWorldFx.Count < 64)
+                {
+                    PendingWorldFx.Add(m);
+                }
+            };
+            Network.NpcsReceived += m => Npcs = m.Npcs;
+            Network.NpcStandingsReceived += m =>
+            {
+                NpcStandings.Clear();
+                for (int i = 0; i < m.NpcIds.Length && i < m.StageKeys.Length; i++)
+                {
+                    NpcStandings[m.NpcIds[i]] = m.StageKeys[i];
+                }
+
+                // #2601: the wish markers ride on the same per-player message (null from an older server's payload).
+                NpcWishMarks.Clear();
+                foreach (int id in m.WishNpcIds ?? System.Array.Empty<int>())
+                {
+                    NpcWishMarks[id] = 1;
+                }
+
+                foreach (int id in m.WishReadyNpcIds ?? System.Array.Empty<int>())
+                {
+                    NpcWishMarks[id] = 2;
+                }
+            };
+            Network.KnownNpcsReceived += m => KnownNpcs = m.People ?? System.Array.Empty<NetKnownNpc>();
+        }
     }
 }

@@ -224,5 +224,150 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2724: bumped on every refused ship visit (<c>ActionRejected</c> with action "visit"), so the flight view
         /// lifts the veil it raised for the visit at once.</summary>
         public int VisitRefusals { get; private set; }
+
+        /// <summary>Start's subscriptions for space flight, landed ships, repairs, trade and docking. Called once from
+        /// <see cref="Start"/>, before the transport connects.</summary>
+        private void WireSpace()
+        {
+            Network.ShipCombatStatusChanged += m => ShipCombat = m;
+            Network.SpaceStateReceived += m =>
+            {
+                if (!InSpace)
+                {
+                    SpaceSkipLaunch = m.SkipLaunch; // latched on entry only (later updates don't re-trigger Enter)
+                    SpaceHasResume = m.HasResumePose; // #2118: latched with it — the flight view places the ship there on Enter
+                    SpaceResumePos = new Vector3(m.ResumeX, m.ResumeY, m.ResumeZ);
+                    SpaceResumeYaw = m.ResumeYaw;
+                    _spaceHasEvaStart = m.HasEvaStart; // #2636: …and the suit's own spot, when it fell out of a derelict
+                    _spaceEvaStartPos = new Vector3(m.EvaStartX, m.EvaStartY, m.EvaStartZ);
+                    _spaceEvaStartYaw = m.EvaStartYaw;
+                    if (m.Hyperjump)
+                    {
+                        HyperjumpStarted?.Invoke(); // warp VFX as we arrive in flight in a new system
+                    }
+                    else if (m.Wormhole)
+                    {
+                        WormholeArrived?.Invoke(); // #2242: through a rift — the rift transit instead of the warp
+                    }
+                }
+
+                // #1614: not latched — the server re-sends the state with the transit off when it ends in flight (a
+                // refused landing), and the flight view hands the controls back the moment it reads that.
+                SpaceAutomaticTransit = m.AutomaticTransit;
+                SpaceTransitDestination = m.TransitDestinationBodyId ?? string.Empty;
+
+                // #1565: an in-flight hyperjump lands nowhere, so no WorldReset renames the HUD — the flight
+                // state names its system + anchor body itself. Same composition as OnWorldReset.
+                if (!string.IsNullOrEmpty(m.BodyName))
+                {
+                    LocationName = string.IsNullOrEmpty(m.SystemName) ? m.BodyName : $"{m.SystemName} · {m.BodyName}";
+                }
+
+                Space = m;
+                InSpace = true;
+            };
+            // item 20 S1/S3: voxel structures for the flight view. Only the player's OWN ship drives the _ship
+            // mesh (Game.ShipDesign); asteroid bodies (Kind != "ship") are handled directly by SpaceView.
+            Network.SpaceShipDesignReceived += m =>
+            {
+                if (m.Kind == "ship" || string.IsNullOrEmpty(m.Kind))
+                {
+                    ShipDesign = m;
+                }
+                else if (m.Kind == "ship_remote" && m.Id.StartsWith("ship:", System.StringComparison.Ordinal))
+                {
+                    _remoteShipDesigns[m.Id.Substring(5)] = m; // keyed by the owning player's id (incl. "npc:<id>" traders)
+                }
+            };
+            // Peaceful NPC traders warping in/out — queue the flash for the flight view to play.
+            Network.SpaceWarpReceived += m =>
+            {
+                if (!InSpace)
+                {
+                    return;
+                }
+
+                PendingWarpFx.Add(m);
+                if (PendingWarpFx.Count > 24)
+                {
+                    PendingWarpFx.RemoveAt(0); // safety cap — never let a backlog grow
+                }
+            };
+            // Ship-as-object: ships parked on this world arrive/leave as placed structure objects.
+            Network.LandedShipReceived += m =>
+            {
+                if (m.Removed)
+                {
+                    LandedShips.Remove(m.StructureId);
+                }
+                else
+                {
+                    var ship = new LandedShipModel
+                    {
+                        StructureId = m.StructureId,
+                        OwnerId = m.PlayerId,
+                        Origin = new Vector3i(m.OriginX, m.OriginY, m.OriginZ),
+                        Hull = m.Hull,
+                        Width = m.Width, Height = m.Height, Length = m.Length,
+                    };
+                    bool hasTint = m.Tint != null && m.Tint.Length == m.Block.Length;
+                    bool hasGlow = m.Glow != null && m.Glow.Length == m.Block.Length;
+                    bool hasShape = m.Shape != null && m.Shape.Length == m.Block.Length;
+                    for (int i = 0; i < m.Block.Length; i++)
+                    {
+                        var cell = new Vector3i(m.X[i], m.Y[i], m.Z[i]);
+                        ship.Cells[cell] = new BlockId(m.Block[i]);
+                        int tint = hasTint ? m.Tint[i] : 0, glow = hasGlow ? m.Glow[i] : 0;
+                        if (tint != 0 || glow != 0) ship.Mods[cell] = (tint, glow);
+                        if (hasShape && m.Shape[i] != 0) ship.Shapes[cell] = m.Shape[i];
+                    }
+
+                    LandedShips[m.StructureId] = ship;
+                }
+
+                LandedShipsChanged?.Invoke();
+            };
+            // A parked ship's cell changed (on-foot furnishing / repairs) — update the model + re-mesh.
+            Network.StructureBlockChangedReceived += m =>
+            {
+                if (LandedShips.TryGetValue(m.StructureId, out var ship))
+                {
+                    var cell = new Vector3i(m.X, m.Y, m.Z);
+                    ship.Set(cell, new BlockId(m.Block));
+                    if (m.Block != 0)
+                    {
+                        if (m.Tint != 0 || m.Glow != 0) ship.Mods[cell] = (m.Tint, m.Glow); else ship.Mods.Remove(cell);
+                        if (m.Shape != 0) ship.Shapes[cell] = m.Shape; else ship.Shapes.Remove(cell);
+                    }
+
+                    ship.DirtyCells.Add(cell); // #2255: the view re-meshes only the chunks this cell reaches
+                    LandedShipsChanged?.Invoke();
+                }
+            };
+            Network.SpaceClosed += m => { InSpace = false; Space = null; LastMessage = ServerMessageText(m.Reason); };
+            Network.StationBoardedReceived += m => { LastMessage = $"Boarded {m.Name}."; CurrentStationId = m.StationId ?? string.Empty; };
+            Network.OwnedShipsReceived += m => OwnedShips = m.Ships;
+            Network.WreckRepairStatusChanged += m => Wreck = m.Claimed ? null : m;
+            Network.ShipRepairStatusChanged += m => ShipRepair = m.NeedsRepair ? m : null;
+            // An incoming trade invitation (#981) needs an answer, so it is held as state — a toast alone
+            // could not be acted on. It clears the moment the trade opens or the invitation is answered.
+            // The toast comes with the ServerMessage the server sends alongside it.
+            Network.TradeRequested += m => PendingTradeFrom = m.Requester;
+            Network.TradeUpdated += m => { Trade = m; TradeActive = true; PendingTradeFrom = string.Empty; };
+            Network.TradeClosedReceived += m =>
+            {
+                TradeActive = false;
+                Trade = null;
+                PendingTradeFrom = string.Empty;
+                LastMessage = m.Completed ? (Localizer?.Get("ui.trade.complete") ?? "Trade complete.") : ServerMessageText(m.Reason);
+            };
+            Network.DockRequested += m => { PendingDockFrom = m.Requester; LastMessage = (Localizer?.Get("ui.dock.requests_toast") ?? "{0} requests docking.").Replace("{0}", m.Requester); };
+            Network.DockStatusChanged += m =>
+            {
+                Dock = m;
+                // #2720: the same "Docked with" prefix the docked hint uses (PlayerInteractions), localized — it was English.
+                LastMessage = m.Docked ? $"{Localizer?.Get("ui.dock.docked") ?? "Docked with"} {m.Partner}" : ServerMessageText(m.Reason);
+            };
+        }
     }
 }

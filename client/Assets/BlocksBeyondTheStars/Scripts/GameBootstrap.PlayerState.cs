@@ -458,5 +458,131 @@ namespace BlocksBeyondTheStars.Client
                     return Localizer?.Get(jump ? "ui.key.jump_keys" : "ui.key.crouch_keys") ?? (jump ? "Space" : "Ctrl/C");
             }
         }
+
+        /// <summary>Start's subscriptions for the player's own state: vitals, inventory, ship placement, the bio lab,
+        /// unlocks, achievements and respawn. Called once from <see cref="Start"/>, before the transport connects.</summary>
+        private void WirePlayerState()
+        {
+            Network.PlayerStateUpdated += OnPlayerState;
+            Network.InventoryUpdated += Bio.OnInventory; // #2201: the sample case rides the inventory update
+            Network.InventoryUpdated += m =>
+            {
+                // Pickup feed (#745): surface what this update ADDED. The first update after a join is
+                // the baseline (the whole inventory is "new" then, not a pickup), and gains while a
+                // menu is open are dropped on purpose — craft/trade results have their own in-menu
+                // feedback, and re-announcing them after the menu closes would double up.
+                bool baseline = !_inventoryBaselined;
+                if (baseline)
+                {
+                    _inventoryBaselined = true;
+                }
+                else if (!MenuOpen)
+                {
+                    foreach (var (item, gained) in InventoryDiff.Gains(Personal, m.Personal))
+                    {
+                        PickupGains.Enqueue((item, gained));
+                    }
+                }
+
+                Personal = m.Personal;
+                Equipment = m.Equipment ?? System.Array.Empty<NetItemStack>(); // #2110
+                if (m.PersonalSlotCount > 0)
+                {
+                    PersonalSlots = m.PersonalSlotCount;
+                }
+
+                RefreshSuitStats();
+                Cargo = m.Cargo;
+                CargoSlots = m.CargoSlotCount;
+                if (!m.BlueprintsUnchanged) // #1535: an omitted list means "same as before", not "none"
+                {
+                    UnlockedBlueprints = new System.Collections.Generic.HashSet<string>(m.UnlockedBlueprints ?? System.Array.Empty<string>());
+                }
+
+                // Research toast (#763): a knowledge gain that crosses a still-locked blueprint's
+                // threshold makes it newly researchable — queue it for the HUD. Threshold-only on
+                // purpose (prerequisites may still be missing): "you now know enough for X" is true
+                // either way, and advertising deeper tree nodes is the point. The join snapshot
+                // baselines silently, and a huge jump (admin grant) is capped so the HUD doesn't
+                // announce toasts for minutes.
+                if (!baseline && m.KnowledgePoints > Knowledge && Content != null)
+                {
+                    var crossed = new List<Shared.Definitions.BlueprintDefinition>();
+                    foreach (var bp in Content.Blueprints.Values)
+                    {
+                        if (bp.KnowledgeCost > Knowledge && bp.KnowledgeCost <= m.KnowledgePoints
+                            && !UnlockedBlueprints.Contains(bp.Key))
+                        {
+                            crossed.Add(bp);
+                        }
+                    }
+
+                    crossed.Sort((a, b) => a.KnowledgeCost.CompareTo(b.KnowledgeCost));
+                    for (int i = 0; i < crossed.Count && ResearchAvailable.Count < 6; i++)
+                    {
+                        ResearchAvailable.Enqueue(crossed[i].Key);
+                    }
+                }
+
+                Knowledge = m.KnowledgePoints;
+            };
+            Network.ShipPlacementReceived += m => ShipPosition = new Vector3(m.X, m.Y, m.Z);
+            Network.BioBookReceived += Bio.OnBook; // #2203: the research book
+            Network.BioLabResultReceived += m => { LastBioLabResult = m; BioLabResultCount++; };
+            Network.BeamTeleportedReceived += m => RespawnTarget = new Vector3(m.X, m.Y, m.Z); // snap the body onto the destination pad
+            Network.GameUnlocksReceived += m =>
+            {
+                var incoming = new System.Collections.Generic.HashSet<string>(m.Unlocked ?? System.Array.Empty<string>());
+                // Only a list that grows AFTER the join seed is a real pickup worth the badge + toast (#1069) —
+                // otherwise every join with any unlocked game flashed "Data fragment recovered!" and re-badged the
+                // Arcade entry.
+                bool grew = _unlocksSeeded && incoming.Count > UnlockedGames.Count;
+                _unlocksSeeded = true;
+                UnlockedGames = incoming;
+                RebuildWikiState();
+                if (grew)
+                {
+                    NewArcadeUnseen = true; // badge the Arcade menu entry until the player opens it
+                    LastMessage = Localizer?.Get("ui.arcade.downloaded") ?? "Game downloaded to your Arcade.";
+                }
+            };
+            // Achievements: the server owns the counters and the payouts; the client just renders them.
+            Network.AchievementsReceived += m =>
+            {
+                Achievements = m?.Items?.ToArray() ?? System.Array.Empty<NetAchievement>();
+                AchievementCounters = m?.Counters ?? new System.Collections.Generic.Dictionary<string, int>();
+            };
+            Network.AchievementUnlockedReceived += m =>
+            {
+                if (m == null || string.IsNullOrEmpty(m.Key))
+                {
+                    return;
+                }
+
+                // #2597: a celebration banner (HudUi, the research toast's slot) replaces the status line; the success
+                // sound plays when the banner appears, not here.
+                if (AchievementsUnlocked.Count < AchievementBannerQueueCap)
+                {
+                    AchievementsUnlocked.Enqueue(m.Key);
+                }
+            };
+            Network.AchievementRewardDeferredReceived += m =>
+            {
+                // Earned but unpaid — say so, because the reward is the point of the achievement.
+                LastMessage = Localizer?.Get("ui.achv.reward_full")
+                    ?? "Achievement earned — but no room for the reward! Make space in your inventory.";
+            };
+
+            Network.RespawnNoticeReceived += m =>
+            {
+                LastMessage = ServerMessageText(m.Reason);
+                RespawnTarget = new Vector3(m.X, m.Y, m.Z); // teleport the body to the heal-tank on respawn
+                if (m.Reason == BlocksBeyondTheStars.Shared.Definitions.ReturnToShipRules.DoneToken)
+                {
+                    ReturnToShipArrivals++; // #2559: the pause menu that asked closes now
+                }
+            };
+            Network.RespawnOptionsReceived += m => LastMessage = ServerMessageText(m.Reason); // deferred death: reason shows under the choice modal
+        }
     }
 }

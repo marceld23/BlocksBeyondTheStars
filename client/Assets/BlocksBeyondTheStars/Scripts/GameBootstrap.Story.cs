@@ -180,5 +180,117 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A fresh process (or an Editor play session without a domain reload) starts with no cutscene.</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetCutscenesOnLoad() => Cutscenes.Clear();
+
+        /// <summary>Start's subscriptions for the story: VEGA's lines, story packs, objectives, the VEGA journal, the
+        /// relay network, the story state and its fragments. Called once from <see cref="Start"/>, before the
+        /// transport connects.</summary>
+        private void WireStory()
+        {
+            Network.ShipAiLineReceived += m =>
+            {
+                // The settings button offers "skip" while the tutorial runs and "restart" after it (#2462, B03): the server
+                // says so outright, whatever the chip shows — the finale may sit on it in the Guardian system while the
+                // lessons are unfinished. An older server is read from the chip's key prefix as before.
+                OnboardingActive = ObjectiveSourceRules.TutorialRunning(m.ObjectiveSource, m.ObjectiveKey, m.TutorialActive);
+                bool storyLine = m.Kind == 2 && !string.IsNullOrEmpty(m.LineKey);
+                if (storyLine)
+                {
+                    NewStoryUnseen = true;
+                    // Only the pack's beats go to the beat list (#2462, B08); the other narrator lines (insights, the
+                    // Guardian reveal, relay lines, old memories) stay re-readable in the VEGA log below.
+                    storyLine = _storyBeats.OnStoryLine(ActiveStoryPack(), m.LineKey);
+                }
+
+                // Tips log (#737): onboarding (0), advisor (1) and system (3) lines become re-readable the
+                // moment they arrive, and so do the narrator lines that are not beats. Kind 4 (prologue) is
+                // intro-only by design. #2471: a line that only points at the Journal (or sets a flight target) is not kept.
+                bool logged = (m.Kind is 0 or 1 or 3 or 5 || (m.Kind == 2 && !storyLine)) && !VegaText.IsTransientLine(m.LineKey);
+                if (logged && !string.IsNullOrEmpty(m.LineKey) && !VegaLogKeys.Contains(m.LineKey))
+                {
+                    VegaLogKeys.Add(m.LineKey);
+                }
+
+                // #2471 (B09): "N new entries in your Journal" — the beats went to the Journal silently; badge its tab.
+                if (m.LineKey == BlocksBeyondTheStars.Shared.Story.StoryNarratorLines.JournalNews)
+                {
+                    NewStoryUnseen = true;
+                }
+
+                // #2471 (B6.4): the dock lesson's help sets the station as the flight target — unless the player set one.
+                if (ObjectiveTracker.WaypointToAdopt(SpaceWaypointId, SpaceWaypointPos.HasValue, m.SpaceWaypointId) is { } waypoint)
+                {
+                    SpaceWaypointId = waypoint;
+                }
+            };
+            Network.StoryPackStatesReceived += OnStoryPackStates; // #2471: the Journal's stories
+            Network.ObjectiveListReceived += m =>
+            {
+                Objectives = m; // #2471: the objectives in the chip order (live progress, "show all objectives")
+                JournalVersion++;
+            };
+            Network.VegaJournalReceived += m =>
+            {
+                // The persisted snapshot replaces any live-collected keys — it is the authoritative set. The basic training's
+                // lessons come from the tutorial pack's own steps (#2469; the client's copy of the old stage list is gone).
+                VegaLogKeys.Clear();
+                VegaLogKeys.AddRange(VegaText.JournalKeys(m.Milestones, Content?.Stories.Values));
+                MergeRelayInsightsIntoLog(); // #2470: the snapshot does not carry the save's relay insights
+            };
+            Network.RelayNetworkReceived += m => RelayNetwork = m; // #1125: server-authoritative, render-only
+            Network.StoryStateReceived += m =>
+            {
+                Story = m;
+                UnknownStories.Observe(UnknownStoryPacks.PackIdsOf(m), HasStoryPack); // #2500: a world story this client lacks
+                // Rejoin-proof logs (#1110/#1111): the snapshot carries the found KEYS; texts resolve from
+                // the pack. Replaces the live-collected lists — the server is authoritative.
+                var pack = ActiveStoryPack();
+                if (pack != null)
+                {
+                    StoryLogFragments.Clear();
+                    StoryLogFragments.AddRange(BlocksBeyondTheStars.Client.Core.StoryLog.Fragments(pack, m.FoundFragmentKeys));
+                    StoryLogMemories.Clear();
+                    StoryLogMemories.AddRange(BlocksBeyondTheStars.Client.Core.StoryLog.Memories(pack, m.PlayerMemoryKeys));
+                    StoryLogLore.Clear();
+                    StoryLogLore.AddRange(BlocksBeyondTheStars.Client.Core.StoryLog.Lore(pack, m.FoundLoreKeys));
+                }
+
+                // The beats this player heard (#2462, B08) — the beat list survives a rejoin now.
+                _storyBeats.OnStoryState(pack, m.StoryId, m.HeardBeats);
+                MergeRelayInsightsIntoLog(); // #2470: relay insights spoken before this player's story track started
+            };
+            Network.NetFragmentsReceived += m => NetFragments = m.Fragments;
+            Network.NetFragmentRevealedReceived += m =>
+            {
+                if (!StoryLogFragments.Contains((m.Category, m.TextKey)))
+                {
+                    StoryLogFragments.Add((m.Category, m.TextKey));
+                }
+
+                NewStoryUnseen = true; // badge the Story menu entry until the player reads it
+                // The reader panel (#1110) replaces the old toast; the Story Log keeps the text to re-read.
+                OpenReader(Localizer?.Get("ui.reader.fragment") ?? "Net fragment",
+                    Localizer?.Get("lore.cat." + m.Category) ?? m.Category, m.TextKey);
+            };
+            Network.PlayerMemoryReceived += m =>
+            {
+                if (!StoryLogMemories.Contains(m.TextKey))
+                {
+                    StoryLogMemories.Add(m.TextKey);
+                }
+
+                NewStoryUnseen = true;
+                OpenReader(Localizer?.Get("ui.reader.memory") ?? "Memory", string.Empty, m.TextKey);
+            };
+            Network.LoreTextRevealedReceived += m =>
+            {
+                if (!StoryLogLore.Contains((m.Site, m.TextKey)))
+                {
+                    StoryLogLore.Add((m.Site, m.TextKey));
+                }
+
+                NewStoryUnseen = true;
+                OpenReader(Localizer?.Get("ui.lore.site." + m.Site) ?? m.Site, string.Empty, m.TextKey);
+            };
+        }
     }
 }

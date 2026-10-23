@@ -204,5 +204,115 @@ namespace BlocksBeyondTheStars.Client
 
             return sb.ToString();
         }
+
+        /// <summary>Start's subscriptions for what the player knows: star map, explored maps, missions, alliances,
+        /// crew, markers, notes, scans, discoveries and the server rules. Called once from <see cref="Start"/>,
+        /// before the transport connects.</summary>
+        private void WireKnowledge()
+        {
+            Network.StarMapReceived += m => { StarMap = m; RebuildWikiState(); };
+            Network.ExploredMapReceived += m => { if (!string.IsNullOrEmpty(m.BodyId)) ExploredMaps[m.BodyId] = m; };
+            Network.MissionsReceived += m => Missions = m;
+            Network.AllianceListReceived += m => Alliances = m ?? new AllianceList();
+            Network.CrewListReceived += m => Crew = m ?? new CrewList();
+            Network.CrewInviteReceived += m =>
+            {
+                string t = Localizer?.Get("ui.crew.invite_from") ?? "{name} invites you to “{crew}”";
+                ShowMessage(t.Replace("{name}", m.FromName).Replace("{crew}", m.CrewName));
+            };
+            Network.MarkerListReceived += m => Markers = m?.Markers ?? System.Array.Empty<NetMarker>();
+            Network.NoteListReceived += m =>
+            {
+                Notes = m?.Notes ?? System.Array.Empty<NetNote>();
+                NotesVersion++;
+            };
+            Network.AllianceRequestReceived += m =>
+            {
+                string who = string.IsNullOrEmpty(m.RequesterName) ? m.RequesterId : m.RequesterName;
+                ShowMessage((Localizer?.Get("ui.alliance.request_from") ?? "Alliance request from {name}").Replace("{name}", who));
+            };
+            Network.PlanetScanReceived += m =>
+            {
+                LastPlanetScan = m;
+                PlanetScanVersion++;
+                if (!string.IsNullOrEmpty(m.BodyId))
+                {
+                    PlanetOverviews[m.BodyId] = m; // #2239: kept for the Map tab
+                }
+
+                if (m.KnowledgeGained > 0)
+                {
+                    LastMessage = string.Format(Localizer?.Get("ui.overview.knowledge_gain") ?? "+{0} knowledge", m.KnowledgeGained);
+                }
+
+                if (OpenOverviewOnNextPlanetScan)
+                {
+                    OpenOverviewOnNextPlanetScan = false;
+                    PlanetOverviewCard.Show(this, m); // #2239: the flight scanner read a planet — what awaits there
+                    // #2247: the first card says once what the colours mean and where the report lives on — "once"
+                    // counting only a line that came up (#2462, B31: muted, it waits for a later card; #2551: dropped
+                    // unseen after waiting behind other lines, too).
+                    if (Settings != null && !Settings.PlanetCardHintShown && m.Rows != null && m.Rows.Length > 0)
+                    {
+                        var settings = Settings;
+                        VegaPanel.Instance?.SayLocal("vega.hint.planet_card", () =>
+                        {
+                            settings.PlanetCardHintShown = true;
+                            settings.Save();
+                        });
+                    }
+                }
+            };
+            Network.ScanResultReceived += m =>
+            {
+                LastScan = m;
+                LastScanAt = Time.time;
+                LastScanFromShip = SpaceViewActive && !InEva;
+                if (LastScanFromShip)
+                {
+                    PlanetOverviewCard.ShowReadout(this, m); // #2247: the ship scanner's readouts open on the right
+                }
+
+                if (m.FirstTime && m.KnowledgeGained > 0)
+                {
+                    // Localized (#484) — this toast used to be an English literal in the German build too.
+                    LastMessage = string.Format(
+                        Localizer?.Get("ui.scan.knowledge_gain") ?? "+{0} knowledge ({1})",
+                        m.KnowledgeGained,
+                        m.KnowledgeTotal);
+                }
+            };
+            Network.DiscoveryLogReceived += m =>
+            {
+                if (m.Full)
+                {
+                    Discoveries.Clear(); // the join snapshot replaces whatever a previous session left
+                    DiscoveryWhere.Clear();
+                }
+
+                var entries = m.Entries ?? System.Array.Empty<string>();
+                var names = m.Names ?? System.Array.Empty<string>();
+                // Where each was found (#1843) — parallel arrays an older server leaves empty, so index-guard.
+                var bodyNames = m.BodyNames ?? System.Array.Empty<string>();
+                var systemNames = m.SystemNames ?? System.Array.Empty<string>();
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    Discoveries[entries[i]] = i < names.Length ? names[i] ?? string.Empty : string.Empty;
+
+                    string bodyName = i < bodyNames.Length ? bodyNames[i] ?? string.Empty : string.Empty;
+                    string systemName = i < systemNames.Length ? systemNames[i] ?? string.Empty : string.Empty;
+                    if (bodyName.Length > 0 || systemName.Length > 0)
+                    {
+                        DiscoveryWhere[entries[i]] = (bodyName, systemName);
+                    }
+                }
+            };
+            // #1071: rejections arrive as @srv.mission.* tokens — localize them instead of pushing the raw token at the player.
+            // #2462 (B24): localized, named after the mission, and "complete" only on a real turn-in.
+            Network.MissionResultReceived += m => LastMessage = m.Success
+                ? MissionToast.Text(m, FindMission(m.MissionId), key => Localizer?.Get(key) ?? key, key => Localizer?.Has(key) ?? false)
+                : ServerMessageText(m.Reason);
+            Network.ServerRulesReceived += m => { Rules = m; LastMessage = $"Mode: {m.GameMode} · PvP: {m.Pvp}"; };
+        }
     }
 }
