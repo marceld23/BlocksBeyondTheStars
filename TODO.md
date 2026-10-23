@@ -24,6 +24,16 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 🔒 certifi without the compromised emSign roots — Dependabot alerts #24/#25 (critical) — branch fix/certifi-emsign — ✅ done 2026-10-23 (⚠ VPS roll of the AI image open)
+
+- **What:** GHSA-6q48-6c7w-9gw2 — certifi before 2026.10.19 ships the emSign root CAs whose intermediate CA keys were
+  compromised, so a certificate minted with those keys passes TLS verification. Both `ai-backend/uv.lock` and
+  `tools/ai-assets/uv.lock` pinned certifi 2026.5.20; both now lock 2026.10.23 (lock-only change, nothing else moves).
+- **Exposure:** real for `ai-backend` — `Dockerfile.ai` installs the lock (`uv sync --frozen`), so the deployed service
+  verified its outbound HTTPS (langchain-openai → httpx → certifi) to the LLM provider against the bad bundle; an
+  attacker would still need a network position on that path. `tools/ai-assets` is a local tool (OpenAI/ElevenLabs).
+- ⚠ Open: the push to `main` rebuilds the AI image (`ai-image.yml`); rolling it onto the VPS is a separate, approved step.
+
 ### 🔒 Pillow 13 for the asset tools — Dependabot alerts #15–#23 — branch fix/ai-assets-pillow-13 — ✅ done 2026-10-23
 
 - **What:** nine Dependabot alerts (1 critical, 6 high, 2 medium) on `pillow 12.3.0` in `tools/ai-assets/uv.lock` — a
