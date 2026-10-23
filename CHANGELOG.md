@@ -3538,7 +3538,7 @@ first time. Residents, daily routines and jobs work in the worlds you already ha
 
 ### 🏡 Your base comes alive (#1851 #1865 #1866 #1867 #1868 #1869 #1895)
 
-Lyxette asked where her settler should walk, whether a bigger base would draw more people, and what settlers
+Lyxette asked where his settler should walk, whether a bigger base would draw more people, and what settlers
 should actually *do*. This is the answer.
 
 - **Every bed brings a resident.** Once your base has earned its first settler (three machines, as before), each
@@ -3615,7 +3615,7 @@ After Marcel's playtest the stations were simply too small, unfurnished and with
 
 ### 🐛 From Lyxette's reports (#1852 #1853 #1854 #1855 #1856 #1857 #1858 #1859 #1860 #1862 #1880 #1881 #1882)
 
-Thirteen reports in one morning, then her fortress and her wreck — thank you, Lyxette 🙏
+Thirteen reports in one morning, then his fortress and his wreck — thank you, Lyxette 🙏
 
 - **A large walled base is fenced in again.** Beyond a wall ring of about a hundred blocks animals spawned inside
   once more, and the green elephants were back. The fenced area now grows with what you build, a moat at least two

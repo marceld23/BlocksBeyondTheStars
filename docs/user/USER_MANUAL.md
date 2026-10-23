@@ -3035,6 +3035,10 @@ called **stories**:
   step but never jump; fliers land to rest and to sleep and take off again when disturbed — a skittish bird
   flushes when you get close; gas sacs and medusae just hover. Everything on the ground falls if you dig
   its floor away. The scan readout names the type ("Walks and jumps", "Crawls", "Flies, perches to rest"…).
+  Big animals keep their **whole body** out of walls: a big walker stops with its head in front of a wall (hills and
+  stairs are fine), and a sky ray glides up over a roof next to it — or turns away from a high wall — instead of
+  pushing its wings in. **Only animals that fly sit on tree crowns**; a land animal never climbs into one, and one
+  that got up there drops back to the ground.
 - **Animals and water.** Land animals wade through water **one block** deep; deeper water is a wall to them —
   and the kelp, seagrass and coral on a pond's floor count as the pond, so a land animal never walks along a lake
   bed between the plants, and none ever appears on one. Flying animals keep their height above a pond's
