@@ -80,6 +80,8 @@ triggers on #2929. Fixes found on the way: #2936, #2937, #2938.
   the last renderer that wore them (flung explosion parts keep their look). Nothing is shared, so the look is unchanged.
   Pinned by `SpaceEntityAssetsPlayModeTests` and the PR-CI `SpaceEntityAssetGuardTests`.
 
+**Released** in **v2026.10.25** "the housekeeping release" (2026-10-24).
+
 ### 📬 Player reports 2026-10-21/23 (Lyxette, v2026.10.24) — a sky ray's wings in the roof, land animals on a giant crown — #2943–#2945, branch fix/player-reports-2026-10-23 — ✅ done 2026-10-23 (⚠ playtest open; no generation, save or protocol change)
 
 Ten reports: answers to our questions (the base core stands in the middle, so the 64 relays of #2879 cover the ring),
@@ -108,6 +110,8 @@ from the seed): the animal in the wall was a sky ray, the ones in the tree two w
 Tests: `CreatureBodyBlockTests` (8, each bug test red without its fix). Docs: ENTITY_MOTION.md (the rules, tests, knobs),
 USER_MANUAL.md §Animals.
 
+**Released** in **v2026.10.25** "the housekeeping release" (2026-10-24).
+
 ---
 
 ### 🔒 certifi without the compromised emSign roots — Dependabot alerts #24/#25 (critical) — branch fix/certifi-emsign, PR #2940 (19e63780) — ✅ done 2026-10-23, AI image rolled onto the VPS
@@ -120,6 +124,8 @@ USER_MANUAL.md §Animals.
   attacker would still need a network position on that path. `tools/ai-assets` is a local tool (OpenAI/ElevenLabs).
 - **Rolled:** `ai-image.yml` built `sha-19e6378` from the merge; `deploy.yml` (service `ai`) pinned it on the VPS
   on 2026-10-23 and `bbs-ai` came back healthy (previous pin `sha-bf28903`).
+
+**Released** in **v2026.10.25** "the housekeeping release" (2026-10-24).
 
 ### 🔒 Pillow 13 for the asset tools — Dependabot alerts #15–#23 (and the release's later alerts, 40 in all) — branch fix/ai-assets-pillow-13, PR #2939 (b9e9f985) — ✅ done 2026-10-23
 
@@ -134,6 +140,8 @@ USER_MANUAL.md §Animals.
 - **Exposure was low:** a local, maintainer-run tool (not in CI, the client, the server images or `ai-backend`); it
   decodes only OpenAI PNG responses and our own files, community texture submissions go through `Image.frombytes` (no
   decoder). None of Pillow 13's removed APIs is used; `bake_prop_alpha.py --dry-run --preview` runs unchanged.
+
+**Released** in **v2026.10.25** "the housekeeping release" (2026-10-24).
 
 ### 🔧 Refactoring follow-ups 2026-10 — the bugs and cleanups the code-health refactoring found — #2919–#2928, branch fix/refactoring-follow-ups-2026-10, PR #2930 — ✅ done 2026-10-23 (⚠ playtest open)
 
@@ -201,6 +209,8 @@ The deferred class extractions are #2929 (not part of this branch).
   browser menu builds the "New world?" and name dialogs last so they draw on top (desktop golden unchanged); refresh
   notices wait while the rules or password prompt is open. `ClientQuirksWiringTests` and
   `MainMenuHierarchyEditModeTests.NameReservedRetry_ShowsTheReplacementNameInTheMenuField` pin it.
+
+**Released** in **v2026.10.25** "the housekeeping release" (2026-10-24).
 
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 
@@ -484,6 +494,8 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   built once by `BlockPaletteMigration.BuildBlockColumnRemapSql` for SQLite and PostgreSQL, keys sorted, with its own
   tests (PR #2918).
 
+**Released** in **v2026.10.25** "the housekeeping release" (2026-10-24).
+
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 
 "The base shape of the spaceport stands: 57 × 57 in the middle, a 5-block sandstone ring, 14 more blocks to the edge —
@@ -514,6 +526,8 @@ power nor ammunition" and then described the power chain; "beside a relay" is no
 included"; 64 relays) and §Survival (#2880: the hunger rate per setting — about 9 / 5½ / 3⅓ minutes for a full bar —
 nothing the player does speeds it up, only bio-lab effects change it; what holds the world: Esc, F1/F2, a report reply
 and cutscenes, up to 30 min alone, only when everyone has one open on a shared server).
+
+**Released** in **v2026.10.25** "the housekeeping release" (2026-10-24).
 
 ---
 

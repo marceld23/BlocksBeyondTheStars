@@ -11,6 +11,103 @@ Versions are date-based (CalVer) `YYYY.MM.N` — year, month, release counter wi
 Each release below mirrors its [GitHub release notes](https://github.com/marceld23/BlocksBeyondTheStars/releases);
 the richer, screenshot-laden versions live there. `(#123)` references the pull request or issue.
 
+## [2026.10.25] — 2026-10-24
+
+The housekeeping release. Lyxette's reports bring **64 Power Relays** for the rim of a big spaceport, **torch light that
+no longer shows up as tiles**, a **sky ray that keeps its wings out of the walls**, big animals that stop with their
+**head outside a wall**, and crawlers that no longer climb **tree crowns**. The crafting card now **counts the gear you
+wear**, prompts **no longer stay over the main menu** after you leave a world, the main-menu buttons show their
+**icons** again, and **long space flights no longer pile up memory**. The portal handles account deletion, privacy and
+large save uploads properly. Under the hood the whole game was tidied up — without changing how it plays.
+
+ℹ️ **Compatibility:** nothing changes for saves. The **save version stays 6**, the **terrain generation stays 29**, the
+network protocol stays at **version 11**, and there are no new blocks. As always, keep game and server on the same
+version: the desktop game updates itself at start, and the browser is always current.
+
+### ⚡ Power, light and animals — thanks to Lyxette (#2879–#2881, #2943–#2945)
+
+- **64 Power Relays per base (#2879):** Lyxette finished a 95 × 95 spaceport and wanted **Sentry Posts** on its rim,
+  but 32 relays did not reach that far. A base now carries **64 relays**. The chain is also only walked again when it
+  changes, instead of every ten seconds — a big chain no longer costs a hitch, which mattered most in the browser.
+- **Torch light without tiles (#2881):** a torch-lit floor looked like a grid of block-sized tiles, because each face
+  had one light value for all four corners. Every corner now gets its own value, so the light falls off smoothly
+  across the floor. Chunk building did not get slower.
+- **A sky ray's wings respect blocks (#2943):** a sky ray slept next to a roof with its wings four blocks deep in the
+  concrete. Its whole wing disc now counts: it rises over a roof beside it, turns at a wall, and never spawns with its
+  wings in a wall.
+- **Big animals stop with their head outside a wall (#2944):** a big land animal used to stop with its head inside a
+  wall. It now checks the way to its head. Hills, stairs and walking along a wall still work.
+- **Tree crowns carry fliers only (#2945):** a crawler could climb up a tree crown that reached the ground, and a
+  land animal could be lifted onto a crown. Now only animals that fly use leaves as ground. Birds still perch in the
+  crowns, and an animal already on a crown climbs down.
+- **The manual answers more (#2880):** how fast hunger drops on each setting (a full bar lasts about 9 / 5½ / 3⅓
+  minutes on Slow / Normal / Fast), what pauses the world (Esc, F1/F2, a report reply, cutscenes), and that a **Sentry
+  Post** runs on base power.
+
+### 🎒 Crafting, menus and building
+
+- **Worn gear counts for crafting (#2937):** wearing oxygen tank I left the **Oxygen Tank II** card grey, although
+  the server would have accepted the craft. The card now counts the gear you wear and tools changed in the bio lab,
+  just like the server, and it checks the room for a ×N order the way the server does.
+- **Prompts go with the world (#2936, #2925):** when you left a world, up to 14 screens stayed behind invisibly —
+  launch and vendor prompts, the respawn prompt, an NPC dialog, the trade screen, an open star chart and others. An
+  open launch prompt could even stay over the main menu. They are now cleared with the world.
+- **Main-menu icons are back (#2924):** fifteen menu and system-check icons were imported in the wrong shape, so the
+  buttons showed no icon. They show their icons again.
+- **Smaller menu fixes (#2926):** after a "name taken" retry the name field shows the new name; in the browser the
+  "New world?" question and the name prompt open on top of the other panels; the fleet notices wait while the world
+  rules or a password prompt are open.
+- **Board hint and ping (#2926):** the hint to board your parked vehicle now uses the real boarding reach, and the
+  crosshair ping only hits what the other world rays hit.
+- **Building at the edges (#2927):** the second half of a bed and the extra cells of a multi-cell form now refuse a
+  doorway and water just like the first cell, and the "don't wall yourself in" check also works west of the world
+  seam.
+
+### 🚀 Space
+
+- **Long flights stay light (#2938):** every drone, UFO, raider, pod or drop in space got its own materials and
+  textures, and despawning freed neither until you returned to the menu. They are now freed with the object, so a
+  long flight no longer grows memory. Everything looks the same.
+
+### 🌐 Portal and reports (hosted worlds)
+
+- **"Not your world" instead of a server error (#2919):** a signed-in player who is not a world's owner got a server
+  error on the owner-only actions. They now get a clear refusal.
+- **Deleting your account deletes everything (#2920):** your rescue codes are now erased with your account, and the
+  privacy page lists them among the data we keep.
+- **Reply keys stay in the inbox (#2921):** the report inbox's admin export and read API no longer carry the key that
+  lets a reporter read their replies.
+- **Save uploads up to the full limit (#2922):** a save upload between 30 and 50 MB was cut off before the portal
+  could check it. Uploads up to the portal's limit go through now.
+
+### 🔒 Security
+
+- **certifi 2026.10.23** for the AI backend drops the compromised emSign root certificates (#2940), and the asset
+  tools use **Pillow 13** (#2939).
+
+### 🛠️ For tinkerers
+
+- **Code-health refactoring (#2883, #2884–#2915):** `GameServer` is one core plus 14 `*System` subsystem classes
+  behind facade partials (ADR 0019); admin commands, block placement, intent dispatch and the tick order are tables;
+  `PlayerSession` bookkeeping is grouped into components; the big client classes (`PlayerController`, `GameBootstrap`,
+  `CraftingTechShipUI`, `SpaceView`, `HudUi`, `UiMainMenu`) are partial files by concern; 13 in-world panels share the
+  `UiPanel` base (`Game.Context`), 19 rig views live in `RigViews` (`Game.Views`); `Messages.cs` is 26 domain files; a
+  code-health ratchet keeps long methods and files from growing.
+- **#2929 follow-ups:** `IServerHost` has 15 members (#2931); the crafting rules (`CraftGate`, #2932), the story client
+  state (`StoryClientState`, #2933) and the cruise E-key rule (`CruiseInteractRules`, #2934) are tested Client.Core
+  classes; one `ModelKit` replaces the copied model helpers (#2935). The extractions that would not pay off are
+  recorded with their reopen triggers on #2929.
+- **Contributions by ahmdkaml:** one shared `DrivenTransport` for the protocol and hardening suites (#2781, #2917) and
+  one builder for the palette-remap SQL of SQLite and PostgreSQL (#2782, #2918). Thank you!
+- **Story packs (#2927):** the validator prints cutscene numbers culture-invariant, still warns about leads on a
+  player pack with a bad lead type, and treats a numeric tutorial reward of 0 as set (C# and
+  `tools/validate_story_pack.py`).
+- **Tests (#2923):** the PlayMode join test waits for the server's ready line; tests that set `BBS_*` variables share
+  one collection.
+- **Protocol:** the unused `WeatherForecastRequest` is retired; its tag 200 stays reserved, no protocol bump (#2928).
+- **For hosters:** the WorldHost and report host images were rebuilt with this release; the AI backend image was
+  already rolled with the certifi update.
+
 ## [2026.10.24] — 2026-10-21
 
 The woodland release. New worlds grow **real forests**: **ten new tree shapes** from birch and oak to the tree fern
@@ -8913,7 +9010,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.24...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.25...HEAD
+[2026.10.25]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.24...v2026.10.25
 [2026.10.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.23...v2026.10.24
 [2026.10.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.22...v2026.10.23
 [2026.10.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.10.21...v2026.10.22
