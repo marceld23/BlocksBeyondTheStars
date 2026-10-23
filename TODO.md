@@ -270,6 +270,12 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   panels are now on the base (holders 27 → 24, outside `.Instance` reads 3 → 0). Open/close/Esc order, the `Game` guards
   in `Update`, the ring/list dimmers and the toggle-key open-frame guard are kept; Unity build, 278 EditMode, 6 PlayMode,
   2,319 client tests and PerfProbe green.
+- **Rig views registered in RigViews instead of a static Instance (#2914, C9):** the 19 rig views C1 did not migrate
+  (`HudUi`, `NpcView`, `DoorView`, `CutsceneDirector`, `LaunchPrompt` … `VegaPanel`) lost their static `Instance`; the
+  new plain-C# `RigViews` (99 lines, 19 `Live<T>` getters) on `GameBootstrap.Views` is filled by `WorldRig` right after
+  each `AddComponent` (18; `VegaPanel` in `Start`), and 101 readers use `Game.Views.X`. `public static … Instance`
+  25 → 4 (ClientAudio, FxKit, ScreenLabelLayer, UrpScenePost kept by design). Registration moment and guards kept;
+  Unity + WebGL builds, 281 EditMode (3 new `RigViewsEditModeTests`) + 6 PlayMode + 2,319 client tests, PerfProbe green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

@@ -25,8 +25,6 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
-        public static DataCubeView Instance { get; private set; }
-
         private sealed class Cube
         {
             public GameObject Go;
@@ -49,7 +47,6 @@ namespace BlocksBeyondTheStars.Client
 
         private void Awake()
         {
-            Instance = this;
             _catalog = MinigameCatalog.Load();
         }
 
@@ -254,7 +251,6 @@ namespace BlocksBeyondTheStars.Client
         private void OnDestroy()
         {
             if (_subscribed && Game?.Network != null) Game.Network.DataCubesReceived -= OnCubes;
-            if (Instance == this) Instance = null;
         }
     }
 }

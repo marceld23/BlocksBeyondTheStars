@@ -78,6 +78,8 @@ once in `BuildChrome` (`AddModal`, then `Overlay.SetActive(false)`); Open/Close 
 `UiPanel.CanvasForTest` (read-only) is the seam for EditMode tests: `client/Assets/Tests/EditMode/UiPanelEditModeTests.cs`
 opens the three pilots without a `Game`, checks sort order, pad focus and overlay count, pins `ClientContext`'s
 register/unregister rules, and removes the canvases with `DestroyImmediate` (Awake/OnDestroy do not run in edit mode).
+`client/Assets/Tests/EditMode/RigViewsEditModeTests.cs` pins `RigViews`: null while unset, the registered view, and a
+true null once that view is destroyed.
 
 ## Inventory and follow-up queue
 
@@ -88,15 +90,19 @@ and `ContextActionsUi` (their first level is a `UiKit.AddModalDim` ring/list, no
 `ContextActionsUi` keeps its toggle key out of the opening frame with `Time.frameCount != OpenFrame`). No panel of the
 13 has a `static Instance` any more.
 
-**Not panels of this kind** (stay as they are for now):
+**Not panels of this kind** — the rig's other views no longer have a `static Instance` either (#2914): they sit in
+`GameBootstrap.Views` (`RigViews.cs`), a plain-C# registry with one typed property per view. `WorldRig.Build` registers
+each right after its `AddComponent` (the moment its old `Instance = this` ran in Awake); `VegaPanel` registers itself
+in its `Start`, as before. A getter hands back null until the view exists and again once it is destroyed (UnityEngine's
+overloaded `!=`), so `Game.Views.Doors?.SetInteractTarget(…)` behaves like the old `DoorView.Instance?.SetInteractTarget(…)`.
 
-| Group | Types (static `Instance` reads) |
+| Group | Types (`Game.Views.<entry>`) |
 |---|---|
-| Prompts / tool hosts | `VendorChoicePrompt` 3, `LaunchPrompt` 2 (static `IsOpen`, `SetCursorOwner`), `ShapeToolUi` 3, `PaintToolUi` 1 (no canvas; host an editor) |
-| Update-driven HUD-tier panels | `BanditDemandUi`, `NpcDialogUi` (order 24), `MaintenanceUi` (110), `DisconnectScreen` (112) — no `Instance`, owner toggled from server state |
-| HUD singletons | `VegaPanel` 21, `HudUi` 2, `VisorHud` 0 |
-| Views / FX / audio | `ClientAudio` 161, `UrpScenePost` 33, `CutsceneDirector` 18, `DoorView` 10, `ResolutionCinematic` 8, `MiningFx` 6, `BeamView` 4, `FactoryView` 4, `MicroFaunaView` 4, `NpcView` 4, `ThermalVision` 4, `DataCubeView` 2, `FinaleView` 2, `NetFragmentView` 2, `FxKit` 1, `OreScanView` 1, `MinigameCatalog` 0 |
-| Other static access | `ScreenLabelLayer.Instance` (lazy getter, 15 reads), `OnScreenKeyboardUi` (private `_instance`) |
+| Prompts / tool hosts | `VendorChoicePrompt` (`VendorChoice`), `LaunchPrompt` (`LaunchPrompt`; both free the cursor through `SetCursorOwner` and have an instance `IsOpen`), `ShapeToolUi` (`ShapeTool`), `PaintToolUi` (`PaintTool`) (no canvas; host an editor) |
+| Update-driven HUD-tier panels | `BanditDemandUi`, `NpcDialogUi` (order 24), `MaintenanceUi` (110), `DisconnectScreen` (112) — no registry entry, owner toggled from server state |
+| HUD | `VegaPanel` (`Vega`), `HudUi` (`Hud`) |
+| Views / FX | `CutsceneDirector` (`Director`; `HoldsScreen` / `ShowsCard` are instance properties), `DoorView` (`Doors`), `ResolutionCinematic` (`Resolution`), `MiningFx` (`Mining`), `BeamView` (`Beams`), `FactoryView` (`Factories`), `MicroFaunaView` (`MicroFauna`), `NpcView` (`Npcs`), `ThermalVision` (`Thermal`), `DataCubeView` (`DataCubes`), `FinaleView` (`Finale`), `NetFragmentView` (`NetFragments`), `OreScanView` (`OreScan`) |
+| Static services (stay static by design) | `ClientAudio.Instance` (161 reads — the shell-level music, the settings screen and the static FX helpers have no `Game`), `UrpScenePost.Instance` (33 — the menu shell creates one too), `ScreenLabelLayer.Instance` (lazy getter, 15 reads — its canvas is not parented under the rig), `FxKit.Instance` (the static FX helpers' lazy `Ensure()`); private statics with no outside reader: `VisorHud` (only its own `Kick`), `MinigameCatalog` (the `Load()` cache), `OnScreenKeyboardUi` (`_instance`) |
 
 **Scene searches:** 68 `FindAnyObjectByType` / `FindObjectsByType` calls in `Scripts/`, by target: `PlayerController`
 16, `AppShell` 12, `WorldLoadingOverlay` 6, `WeaponFx` 4, `AudioListener` 5 (3 `FindObjectsByType`), `VegaPanel` 3,

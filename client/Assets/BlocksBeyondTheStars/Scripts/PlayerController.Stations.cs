@@ -71,12 +71,12 @@ namespace BlocksBeyondTheStars.Client
 
             // #2147: the hand door E works — the one under the crosshair, else the nearest; its label follows suit.
             int handDoor = TargetHandDoor();
-            if (DoorView.Instance != null)
+            if (Game.Views.Doors != null)
             {
-                DoorView.Instance.SetInteractTarget(handDoor);
+                Game.Views.Doors.SetInteractTarget(handDoor);
             }
 
-            if (!InputMap.Down(InputAction.Interact) || LaunchPrompt.IsOpen || VendorChoicePrompt.IsOpen)
+            if (!InputMap.Down(InputAction.Interact) || (Game.Views.LaunchPrompt?.IsOpen ?? false) || (Game.Views.VendorChoice?.IsOpen ?? false))
             {
                 return; // the launch / trade-or-talk question owns E while it is up (#1455)
             }
@@ -196,7 +196,7 @@ namespace BlocksBeyondTheStars.Client
 
             // A beam block (teleporter pad) you're standing on / next to opens the transporter — pick a destination
             // among your own + allied pads on this world, then beam to it.
-            int beam = BeamView.Instance != null ? BeamView.Instance.NearestUsableBeam(transform.position, 2.2f) : 0;
+            int beam = Game.Views.Beams != null ? Game.Views.Beams.NearestUsableBeam(transform.position, 2.2f) : 0;
             if (beam != 0)
             {
                 Game?.Context.Panel<BeamPadUi>()?.Open(beam);
@@ -213,9 +213,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // A data cube within reach downloads its minigame into the Arcade collection (item: arcade).
-            if (DataCubeView.Instance != null)
+            if (Game.Views.DataCubes != null)
             {
-                int cube = DataCubeView.Instance.NearestDataCube(transform.position, 3.2f, out string gameKey, out bool owned);
+                int cube = Game.Views.DataCubes.NearestDataCube(transform.position, 3.2f, out string gameKey, out bool owned);
                 if (cube != 0)
                 {
                     if (owned)
@@ -233,9 +233,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // A claimable factory terminal within reach → claim it with an access code (it becomes your base).
-            if (FactoryView.Instance != null)
+            if (Game.Views.Factories != null)
             {
-                int factory = FactoryView.Instance.NearestClaimable(transform.position, 4f);
+                int factory = Game.Views.Factories.NearestClaimable(transform.position, 4f);
                 if (factory != 0)
                 {
                     bool hasCode = false;
@@ -261,9 +261,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // A net fragment within reach → recover it (text-only story find; reveals its archive + advances the story).
-            if (NetFragmentView.Instance != null)
+            if (Game.Views.NetFragments != null)
             {
-                int frag = NetFragmentView.Instance.NearestNetFragment(transform.position, 3.2f, out _);
+                int frag = Game.Views.NetFragments.NearestNetFragment(transform.position, 3.2f, out _);
                 if (frag != 0)
                 {
                     Game.Network?.SendNetFragmentFound(frag);
@@ -302,7 +302,7 @@ namespace BlocksBeyondTheStars.Client
                     // On a landed ship E asks "launch into space?" first (#1455): the launch button lived only
                     // at the top of the Map tab, and a first-time player at the cockpit never found it. Declining
                     // opens the map as before.
-                    if (LaunchPrompt.Instance == null || !LaunchPrompt.Instance.TryOffer(() => Menu?.OpenMap()))
+                    if (Game.Views.LaunchPrompt == null || !Game.Views.LaunchPrompt.TryOffer(() => Menu?.OpenMap()))
                     {
                         Menu?.OpenMap();
                     }
@@ -311,8 +311,8 @@ namespace BlocksBeyondTheStars.Client
                 case "workshop":
                     // #2248: with the bio lab module fitted, the lab lives in the workshop room — E asks which one.
                     // "Workshop (E)" keeps crafting one key press away ({key:Interact}, expanded by the prompt — #2502).
-                    if (!BioLabUi.ShipLabAboard(Game) || VendorChoicePrompt.Instance == null
-                        || !VendorChoicePrompt.Instance.TryOfferPair(
+                    if (!BioLabUi.ShipLabAboard(Game) || Game.Views.VendorChoice == null
+                        || !Game.Views.VendorChoice.TryOfferPair(
                             Game.Localizer?.Get("ui.station.workshop") ?? "Workshop",
                             Game.Localizer?.Get("ui.bio.workshop_choice_craft") ?? "Workshop ({key:Interact})", () => Menu?.OpenCrafting(),
                             Game.Localizer?.Get("ui.bio.workshop_choice_lab") ?? "Bio lab", () => Game?.Context.Panel<BioLabUi>()?.Open()))
@@ -373,7 +373,7 @@ namespace BlocksBeyondTheStars.Client
         /// market as before).</summary>
         private bool OfferVendorChoice()
         {
-            var prompt = VendorChoicePrompt.Instance;
+            var prompt = Game?.Views.VendorChoice;
             if (prompt == null)
             {
                 return false;

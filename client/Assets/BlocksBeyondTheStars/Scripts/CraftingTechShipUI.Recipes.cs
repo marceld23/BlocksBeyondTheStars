@@ -315,7 +315,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True for a factory recipe while no spawned factory terminal in reach has it on its roster — the
         /// server's gate for factory crafts (<c>HandleCraft</c>). Shared by <see cref="CanCraft"/> and the list order,
         /// so the craft button and the card position never disagree. False for every other station.</summary>
-        private static bool IsFactoryRecipeAway(RecipeDefinition r)
+        private bool IsFactoryRecipeAway(RecipeDefinition r)
         {
             if (r.Station != CraftingStation.Factory)
             {
@@ -323,7 +323,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             string[] roster = System.Array.Empty<string>();
-            bool atFactory = FactoryView.Instance != null && FactoryView.Instance.PlayerAtTerminal(out roster);
+            bool atFactory = Game?.Views.Factories != null && Game.Views.Factories.PlayerAtTerminal(out roster);
             return !atFactory || System.Array.IndexOf(roster, r.Key) < 0;
         }
 

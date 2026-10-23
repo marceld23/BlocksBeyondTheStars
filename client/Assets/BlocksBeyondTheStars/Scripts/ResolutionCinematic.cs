@@ -32,9 +32,6 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
-        /// <summary>Singleton so the finale banner (IMGUI draws above every canvas) can yield to us.</summary>
-        public static ResolutionCinematic Instance { get; private set; }
-
         /// <summary>True while the cinematic is on screen.</summary>
         public bool Playing => _playing;
 
@@ -67,7 +64,6 @@ namespace BlocksBeyondTheStars.Client
 
         private void Awake()
         {
-            Instance = this;
             _timeline = new CinematicTimeline(LegDurations);
             _localize = L;
         }
@@ -123,7 +119,7 @@ namespace BlocksBeyondTheStars.Client
             // time (#2461, B16) — the log keeps it either way (GameBootstrap records kind-2 lines on arrival).
             if (!string.IsNullOrEmpty(m.EpilogueTextKey))
             {
-                VegaPanel.Instance?.WithdrawLine(m.EpilogueTextKey);
+                Game?.Views.Vega?.WithdrawLine(m.EpilogueTextKey);
             }
         }
 
@@ -132,7 +128,7 @@ namespace BlocksBeyondTheStars.Client
         private bool CanStart()
         {
             // A director card (#2468) keeps the shared state closed (its input stays free) but owns the frame — wait for it too.
-            if (Game == null || Game.MenuOpen || GameBootstrap.CutsceneActive || CutsceneDirector.HoldsScreen)
+            if (Game == null || Game.MenuOpen || GameBootstrap.CutsceneActive || (Game.Views.Director?.HoldsScreen ?? false))
             {
                 return false;
             }
@@ -259,11 +255,6 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-
             if (_subscribed && Game?.Network != null)
             {
                 Game.Network.StoryResolvedReceived -= OnResolved;

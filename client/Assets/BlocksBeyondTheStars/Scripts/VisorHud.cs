@@ -36,15 +36,15 @@ namespace BlocksBeyondTheStars.Client
         private float _glitch;      // damage glitch envelope, 0..1, decays every frame
 
         /// <summary>The live visor (null while no world is up) — for <see cref="Kick"/>.</summary>
-        public static VisorHud Instance { get; private set; }
+        private static VisorHud _live;
 
         /// <summary>Damage feedback: the HUD hologram glitches for a moment (row jitter + chroma burst),
         /// strength 0..1. No-op on the flat path / reduced effects.</summary>
         public static void Kick(float amount)
         {
-            if (Instance != null && !UiKit.ReducedMotion)
+            if (_live != null && !UiKit.ReducedMotion)
             {
-                Instance._glitch = Mathf.Max(Instance._glitch, Mathf.Clamp01(amount));
+                _live._glitch = Mathf.Max(_live._glitch, Mathf.Clamp01(amount));
             }
         }
         private VisorComposite _composite;     // Built-in RP path (OnRenderImage)
@@ -101,7 +101,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Instance = this;
+            _live = this;
 
             if (PipelineWanted())
             {
@@ -369,9 +369,9 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
-            if (Instance == this)
+            if (_live == this)
             {
-                Instance = null;
+                _live = null;
             }
 
             if (UiKit.HudCamera == _hudCam)

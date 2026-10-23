@@ -109,14 +109,14 @@ namespace BlocksBeyondTheStars.Client
         {
             doorId = 0;
             cell = default;
-            if (DoorView.Instance == null || Camera == null || Game?.World == null)
+            if (Game?.Views.Doors == null || Camera == null || Game?.World == null)
             {
                 return false;
             }
 
             Vector3 o = Camera.transform.position;
             Vector3 dir = Camera.transform.forward;
-            if (!DoorView.Instance.AimDoor(o, dir, Reach, out doorId, out cell, out float doorDist))
+            if (!Game.Views.Doors.AimDoor(o, dir, Reach, out doorId, out cell, out float doorDist))
             {
                 return false;
             }
@@ -141,7 +141,7 @@ namespace BlocksBeyondTheStars.Client
         /// beside the one you were looking at.</summary>
         private int TargetHandDoor()
         {
-            var view = DoorView.Instance;
+            var view = Game?.Views.Doors;
             if (view == null)
             {
                 return 0;
@@ -164,7 +164,7 @@ namespace BlocksBeyondTheStars.Client
         /// into the doorway behind it.</summary>
         private void ShowDoorHowTo(int doorId)
         {
-            var view = DoorView.Instance;
+            var view = Game.Views.Doors;
             var loc = Game.Localizer;
             string text = view != null && view.IsHandDoor(doorId)
                 ? (loc?.Get("ui.door.use_key") ?? "Open doors with {key}.").Replace("{key}", view.InteractKeyName())

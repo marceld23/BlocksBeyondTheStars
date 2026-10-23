@@ -34,9 +34,6 @@ namespace BlocksBeyondTheStars.Client
         /// (voxel, parked-ship cell or, with the right tool/item held, a water/lava cell) (#1353).</summary>
         public PlayerController Player;
 
-        /// <summary>The world's mining effects (one per world rig).</summary>
-        public static MiningFx Instance { get; private set; }
-
         /// <summary>The selection frame at rest (#2556): the HUD's hologram blue instead of the old near-black, which
         /// vanished at night, in caves and against dark foliage.</summary>
         private static Color OutlineIdle => UiKit.Cyan;
@@ -60,8 +57,6 @@ namespace BlocksBeyondTheStars.Client
         private float _heat;         // 0..1 mining-beam heat on the cracked block
         private float _heatUntil;
         private float _wobble;       // a little kick on every hit
-
-        private void Awake() => Instance = this;
 
         private void Start()
         {
@@ -120,11 +115,6 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-
             if (_outlineMat != null)
             {
                 Destroy(_outlineMat);
@@ -479,7 +469,7 @@ namespace BlocksBeyondTheStars.Client
                 var at = player != null ? player.position + Vector3.up * 1.1f : up;
                 FxKit.Burst(FxKit.Kind.Motes, at, 6, Vector3.up, 90f, 0.6f, 1.4f, 0.03f, 0.05f, 0.25f, 0.45f, color, Color.white);
                 ClientAudio.Instance?.At("chime_2", at, 1.15f + Random.value * 0.15f, 0.35f);
-                HudUi.Instance?.FlyPickup(at, block);
+                Game?.Views.Hud?.FlyPickup(at, block);
             }, this);
         }
 

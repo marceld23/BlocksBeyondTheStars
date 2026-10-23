@@ -347,7 +347,7 @@ namespace BlocksBeyondTheStars.Client
                 return; // too far to be worth a marker (and out of the locate radius anyway)
             }
 
-            OreScanView.Instance?.ShowStationMarker(loc.X, loc.Y, loc.Z, 8f);
+            Game?.Views.OreScan?.ShowStationMarker(loc.X, loc.Y, loc.Z, 8f);
             _locateStation = null; // one marker per hint, not on every close
         }
 

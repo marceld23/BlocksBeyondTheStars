@@ -225,6 +225,10 @@ namespace BlocksBeyondTheStars.Client
         /// option. Never authoritative; the server decides what actually moves.</summary>
         public ClientSettings Settings;
 
+        /// <summary>The rig's views and panels (filled by <see cref="WorldRig.Build"/>); a getter is null until that view exists
+        /// and again once it is destroyed (#2914).</summary>
+        public RigViews Views { get; } = new RigViews();
+
         /// <summary>True while the chat input is focused; the player controller pauses look/move.</summary>
         public bool ChatTyping;
 
@@ -561,7 +565,7 @@ namespace BlocksBeyondTheStars.Client
                         string installId = GlitchIntegration.ArcadeInstallId;
                         // #2468: this client plays story-pack cutscenes when its world rig has the director — the server then
                         // sends CutscenePlay (tag 295) instead of stamping every scene seen at once.
-                        Network.PlaysCutscenes = CutsceneDirector.Instance != null;
+                        Network.PlaysCutscenes = Views.Director != null;
                         // #2499: VEGA's panel draws a line's buttons (the first-start question, Start now / Later on a course
                         // offer) — every world rig has the panel, so this client always announces choices1.
                         Network.ShowsChoices = true;

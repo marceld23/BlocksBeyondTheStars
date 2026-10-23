@@ -561,7 +561,7 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
 - **Tiers on screen** (one `CinematicFrame` per scene at sorting order 67 — above the prologue 65 and intro 66, below the
   ending 68, the warp 70 and the veil 75): T1 a top banner with the narrator's icon, no letterbox, no input; T2 a thin
   letterbox (45 %), a light dim, the captions, **free input** (the HUD stays; VEGA's panel, the memory flashback and the
-  ending wait while it shows — `CutsceneDirector.HoldsScreen`); while the Tab menu is open over a card the card pauses
+  ending wait while it shows — `Game.Views.Director?.HoldsScreen`); while the Tab menu is open over a card the card pauses
   hidden. T3/T4: full letterbox, a fade out of black, the camera staged per shot.
 - **Dims** (#2497, `CutsceneRules.Dims`): a card or an overlay dims **only the world** — 0.18 on the screen's own tiny
   world-dim canvas at sorting order **9** (`CutsceneScreen.WorldDimSortingOrder`: above the name tags 8, below the HUD 10,
@@ -570,7 +570,7 @@ skips a card is marked handled before the pause menu sees it), with `CutsceneScr
   with the screen and eased out with it. HUD, crosshair and VEGA's
   objective chip stay bright — the player keeps playing under a card. The frame's own cover (order 67, over everything)
   stays for the black-outs of staged scenes, the 0.55 behind a reading frame and the credits' 0.85. Under a T2 card VEGA's
-  panel hides only her speech panel, its folded tab and the prologue dim (`CutsceneDirector.ShowsCard`, a `CanvasGroup`), and
+  panel hides only her speech panel, its folded tab and the prologue dim (`Game.Views.Director?.ShowsCard`, a `CanvasGroup`), and
   keeps the objective chip; every other scene still takes the whole panel away.
 - **Caption styles** (`CutsceneScreen`): `subtitle` (the frame's lower-third caption), `title_card` (kicker + big title,
   centred), `speaker` (box above the lower bar with the narrator's icon, name and colour from the pack's `narrator` — VEGA's

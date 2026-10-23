@@ -45,16 +45,11 @@ namespace BlocksBeyondTheStars.Client
         private const float RefreshInterval = 0.1f;
         private float _refreshTimer;
 
-        /// <summary>Set while a HUD exists so world-side FX (MiningFx) can hand off pickup fly-ins.</summary>
-        public static HudUi Instance { get; private set; }
-
         // Motion layer state.
         private CanvasGroup _rootGroup;   // whole-HUD fade for the boot-up
         private bool _bootPending = true; // play the boot reveal on the first visible frame (and after a respawn)
         private bool _wasDead;
         private WorldLoadingOverlay _veil;
-
-        private void Awake() => Instance = this;
 
         private void LateUpdate()
         {
@@ -169,11 +164,6 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null)
             {
                 Game.SetHudMenuOwner(_tameMenuOwner, false); // #2530: a torn-down HUD never strands a free cursor
-            }
-
-            if (Instance == this)
-            {
-                Instance = null;
             }
 
             UiTween.Kill(_rootGroup);
@@ -429,7 +419,7 @@ namespace BlocksBeyondTheStars.Client
                     // #2256: someone else's device says who may use it instead of offering a key that would be refused.
                     prompt = string.Format(loc.Get(Game.CanOperateCrystal(crystalDev) ? CrystalPromptKey(crystalDev) : "ui.crystal.prompt.locked"), InteractGlyph(loc));
                 }
-                else if (BeamView.Instance != null && BeamView.Instance.NearestUsableBeam(Game.PlayerPosition, BeamUseRange) != 0)
+                else if (Game.Views.Beams != null && Game.Views.Beams.NearestUsableBeam(Game.PlayerPosition, BeamUseRange) != 0)
                 {
                     // Standing on / beside an own or allied teleporter pad: the same reach PlayerController
                     // uses for the E press. The pad never announced itself before (#1560).

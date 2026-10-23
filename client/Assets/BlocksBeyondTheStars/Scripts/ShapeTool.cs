@@ -17,20 +17,12 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed class ShapeToolUi : MonoBehaviour
     {
-        public static ShapeToolUi Instance { get; private set; }
         public GameBootstrap Game;
 
         private ShapeEditor _editor;
 
-        private void Awake() => Instance = this;
-
         private void OnDestroy()
         {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-
             if (_editor != null)
             {
                 Destroy(_editor.gameObject);

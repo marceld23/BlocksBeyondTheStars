@@ -263,7 +263,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Lane arbitration (see ResolveLane): whenever VEGA's speech panel or objective chip appears or
             // goes, the scrollback re-lays out around it. Two bool reads per frame — no allocation.
-            var vega = VegaPanel.Instance;
+            var vega = Game.Views.Vega;
             bool speechUp = vega != null && vega.SpeechVisible;
             bool chipUp = vega != null && vega.ChipVisible;
             if (speechUp != _vegaSpeechSeen || chipUp != _vegaChipSeen)
@@ -1061,7 +1061,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var vega = VegaPanel.Instance;
+            var vega = Game?.Views.Vega;
             _vegaSpeechSeen = vega != null && vega.SpeechVisible;
             _vegaChipSeen = vega != null && vega.ChipVisible;
 

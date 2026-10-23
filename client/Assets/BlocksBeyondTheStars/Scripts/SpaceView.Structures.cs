@@ -102,7 +102,7 @@ namespace BlocksBeyondTheStars.Client
             // #2155: chips fly off the struck block on an EVA too (planet mining had them, space had nothing).
             if (_active && StructCellWorld(m.StructureId, new Vector3i(m.X, m.Y, m.Z), out var at, out var block))
             {
-                var colors = MiningFx.Instance != null ? MiningFx.Instance.BlockColors(block) : new[] { new Color(0.5f, 0.45f, 0.4f) };
+                var colors = Game?.Views.Mining != null ? Game.Views.Mining.BlockColors(block) : new[] { new Color(0.5f, 0.45f, 0.4f) };
                 var toEye = _root != null ? (_root.transform.TransformPoint(_evaPos) - at).normalized : Vector3.up;
                 FxKit.Burst(FxKit.Kind.DebrisFloat, at + toEye * 0.5f, 3, toEye, 70f, 1f, 3f, 0.05f, 0.1f, 0.8f, 1.3f, colors[0], colors[colors.Length - 1]);
                 FxKit.Burst(FxKit.Kind.Motes, at + toEye * 0.5f, 3, toEye, 60f, 1.5f, 4f, 0.04f, 0.07f, 0.2f, 0.4f, new Color(1f, 0.8f, 0.5f));
@@ -140,7 +140,7 @@ namespace BlocksBeyondTheStars.Client
             // #2155: a mined-out cell breaks into weightless chunks in its colours (before the grid forgets it).
             if (m.Block == 0 && _active && StructCellWorld(m.StructureId, key, out var at, out var old) && old.Value != 0)
             {
-                var colors = MiningFx.Instance != null ? MiningFx.Instance.BlockColors(old) : new[] { new Color(0.5f, 0.45f, 0.4f) };
+                var colors = Game?.Views.Mining != null ? Game.Views.Mining.BlockColors(old) : new[] { new Color(0.5f, 0.45f, 0.4f) };
                 float s = m.StructureId == _shipStructureId ? FlightShipScale : 1f;
                 FxKit.Burst(FxKit.Kind.DebrisFloat, at, 6, Vector3.zero, 0f, 0.8f, 2.6f, 0.2f * s, 0.34f * s, 1f, 1.6f, colors[0], colors[colors.Length - 1]);
                 FxKit.Burst(FxKit.Kind.Smoke, at, 2, Vector3.zero, 0f, 0.2f, 0.8f, 0.4f * s, 0.7f * s, 0.8f, 1.2f, Color.Lerp(colors[0], Color.white, 0.3f));

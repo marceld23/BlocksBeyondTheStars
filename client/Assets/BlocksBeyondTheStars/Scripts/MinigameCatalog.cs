@@ -38,14 +38,14 @@ namespace BlocksBeyondTheStars.Client
         /// so a player who actually owns cubes would otherwise see a misleading "nothing unlocked" screen.</summary>
         public bool Broken { get; private set; }
 
-        public static MinigameCatalog Instance { get; private set; }
+        private static MinigameCatalog _loaded;
 
         /// <summary>Loads (once) the catalogue from bundled content. Returns the cached instance on repeat calls.</summary>
         public static MinigameCatalog Load()
         {
-            if (Instance != null)
+            if (_loaded != null)
             {
-                return Instance;
+                return _loaded;
             }
 
             var cat = new MinigameCatalog();
@@ -77,7 +77,7 @@ namespace BlocksBeyondTheStars.Client
             // (missing file, parse error, or an empty array) — flag it so the Arcade can say so plainly.
             cat.Broken = cat.Games.Count == 0;
 
-            Instance = cat;
+            _loaded = cat;
             return cat;
         }
 

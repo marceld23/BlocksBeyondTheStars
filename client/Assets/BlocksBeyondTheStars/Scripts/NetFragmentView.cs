@@ -18,8 +18,6 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
-        public static NetFragmentView Instance { get; private set; }
-
         private sealed class Frag
         {
             public GameObject Go;
@@ -34,8 +32,6 @@ namespace BlocksBeyondTheStars.Client
 
         private const float Reach = 3.2f; // matches the server's NetFragmentReach
         private const float Size = 0.8f;
-
-        private void Awake() => Instance = this;
 
         private void Update()
         {
@@ -207,7 +203,6 @@ namespace BlocksBeyondTheStars.Client
         private void OnDestroy()
         {
             if (_subscribed && Game?.Network != null) Game.Network.NetFragmentsReceived -= OnFragments;
-            if (Instance == this) Instance = null;
         }
     }
 }

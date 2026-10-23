@@ -155,7 +155,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Start()
         {
-            Instance = this;
+            Game.Views.Vega = this;
             _localize = L;
 
             // The HUD reference (1536×864), NOT the 1920×1080 default — VEGA was missed by the 2026-06-07
@@ -276,9 +276,6 @@ namespace BlocksBeyondTheStars.Client
         /// list or this client's copy of the story, else the generic "Objective".</summary>
         private string ObjectivePrefix(string packId)
             => ObjectiveTracker.Prefix(ObjectiveTracker.ShortNameKey(packId, Game?.StoryPackStates, Game?.Content?.Stories.Values), L, HasKey);
-
-        /// <summary>The live panel (one per rig), for client-side one-shot hints (<see cref="SayLocal"/>).</summary>
-        public static VegaPanel Instance { get; private set; }
 
         /// <summary>Whether the speech panel (y <see cref="SpeechY"/>…) is currently drawn. The chat overlay
         /// polls this to keep its scrollback out of the same left-column band.</summary>
@@ -457,7 +454,7 @@ namespace BlocksBeyondTheStars.Client
             // A story-pack cutscene that shows this very line itself (its replaceLineKeys, #2468) keeps it out of the
             // panel — the scene arrived just before its line. The director gives it back (Requeue) if the scene is
             // interrupted or given up, so the text is never lost; the story log recorded it on arrival either way.
-            if (CutsceneDirector.Instance != null && CutsceneDirector.Instance.TryClaimLine(m))
+            if (Game?.Views.Director != null && Game.Views.Director.TryClaimLine(m))
             {
                 Refresh();
                 return;
@@ -733,11 +730,11 @@ namespace BlocksBeyondTheStars.Client
             // too (#2468), so the two never talk at once and the continue key reaches only the card.
             // #2497: under a card (T2, free input) she only falls silent — her speech panel hides, the objective chip stays, as the
             // HUD does under a card; every other scene takes the whole panel away.
-            var ending = ResolutionCinematic.Instance;
+            var ending = Game.Views.Resolution;
             bool hideAll = GameBootstrap.Cutscenes.ActiveOtherThan(CutsceneGate.Prologue)
                            || (ending != null && ending.Pending && !_prologueStarted)
-                           || (CutsceneDirector.HoldsScreen && !CutsceneDirector.ShowsCard);
-            bool yieldToScene = hideAll || CutsceneDirector.HoldsScreen;
+                           || ((Game.Views.Director?.HoldsScreen ?? false) && !(Game.Views.Director?.ShowsCard ?? false));
+            bool yieldToScene = hideAll || (Game.Views.Director?.HoldsScreen ?? false);
             if (_canvas.enabled == hideAll)
             {
                 _canvas.enabled = !hideAll;
@@ -1434,11 +1431,6 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-
             if (Game?.Network != null)
             {
                 Game.Network.ShipAiLineReceived -= OnLine;

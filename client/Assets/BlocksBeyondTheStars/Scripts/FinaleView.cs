@@ -26,9 +26,6 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
-        /// <summary>Singleton so the music director can read the current finale phase.</summary>
-        public static FinaleView Instance { get; private set; }
-
         /// <summary>The argument duel is open (drives the dialogue boss track).</summary>
         public bool DuelActive => _duelActive;
 
@@ -73,7 +70,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>#2478: the player stepped back from the duel dialogue and may face the core again here.</summary>
         private bool DuelResumeHint
-            => _duelActive && FinaleActive && CutsceneDirector.Instance != null && CutsceneDirector.Instance.DuelResumable;
+            => _duelActive && FinaleActive && Game?.Views.Director != null && Game.Views.Director.DuelResumable;
 
         private bool FinaleActive => Game?.Story != null && Game.Story.GuardianSystemRevealed && !Game.Story.GuardianDefeated;
 
@@ -85,7 +82,6 @@ namespace BlocksBeyondTheStars.Client
 
         private void Awake()
         {
-            Instance = this;
             _overlay = ImguiOverlay.Attach(gameObject, DrawOverlay, repaintOnly: true); // labels only — the duel's buttons are the director's (#2478)
         }
 
@@ -100,7 +96,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Whether anything of the overlay has something to show: the won banner, the hack bar, the resume hint, the
         /// breach hint on the core world, the gauntlet banner in the finale's flight.</summary>
         private bool WantsOverlay()
-            => (_won && Time.time < _resolveVisibleUntil && !CutsceneDirector.HoldsScreen)
+            => (_won && Time.time < _resolveVisibleUntil && !(Game?.Views.Director?.HoldsScreen ?? false))
                || Time.time < _hackBarVisibleUntil
                || DuelResumeHint
                || (FinaleActive && OnGuardianWorld && !_hacked)
@@ -139,7 +135,7 @@ namespace BlocksBeyondTheStars.Client
             // back faces the core again with the use control near it.
             if (DuelResumeHint && !GameBootstrap.CutsceneActive && !Game.MenuOpen && InputMap.Down(InputAction.Interact))
             {
-                CutsceneDirector.Instance.ResumeDuel();
+                Game.Views.Director.ResumeDuel();
             }
         }
 
@@ -192,7 +188,7 @@ namespace BlocksBeyondTheStars.Client
         {
             EnsureStyles();
 
-            if (_won && Time.time < _resolveVisibleUntil && !(ResolutionCinematic.Instance?.Playing ?? false) && !CutsceneDirector.HoldsScreen)
+            if (_won && Time.time < _resolveVisibleUntil && !(Game?.Views.Resolution?.Playing ?? false) && !(Game?.Views.Director?.HoldsScreen ?? false))
             {
                 // IMGUI draws above every canvas, so the banner must yield while the resolution
                 // cinematic (#1124) or the director's stand-down card (#2478) is on screen — it says the same thing, bigger.
@@ -343,11 +339,6 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.CoreDialogueReceived -= OnDialogue;
                 Game.Network.GuardianSystemRevealedReceived -= OnSystemRevealed;
                 Game.Network.WorldResetReceived -= OnWorldReset;
-            }
-
-            if (Instance == this)
-            {
-                Instance = null;
             }
         }
     }

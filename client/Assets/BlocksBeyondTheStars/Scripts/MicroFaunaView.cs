@@ -63,10 +63,6 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<int, Vector3> _groupCentroid = new();
         private readonly List<Critter> _despawn = new();
 
-        /// <summary>Set while a view exists so the handheld scanner and thermal vision (#757) can query the
-        /// live critters — they are client-local, so no other system knows they exist.</summary>
-        public static MicroFaunaView Instance { get; private set; }
-
         /// <summary>Nearest live critter within <paramref name="reach"/> of a WORLD position (#757), for the
         /// handheld scanner. Critter positions are canonical world coordinates (same frame as
         /// <see cref="GameBootstrap.PlayerPosition"/>). The optional <paramref name="filter"/> (world position →
@@ -101,18 +97,8 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private void OnDestroy()
-        {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-        }
-
         private void Awake()
         {
-            Instance = this; // even when the shaders are stripped: an empty view just reports no critters
-
             // The kind keys must match the shared catalogue the server validates scan intents against
             // (#757) — a drifted key would render fine but be rejected by every scan, silently.
             foreach (var k in MicroFauna.Kinds)

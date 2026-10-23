@@ -53,8 +53,8 @@ namespace BlocksBeyondTheStars.Client
         private bool Suppressed()
             => Game.MenuOpen || Game.SpaceViewActive || Game.VegaPrologueActive || Game.CinematicCameraActive
                || GameBootstrap.CutsceneActive
-               || CutsceneDirector.HoldsScreen // a director card drives the grade itself (#2468)
-               || (ResolutionCinematic.Instance != null && ResolutionCinematic.Instance.Pending);
+               || (Game.Views.Director?.HoldsScreen ?? false) // a director card drives the grade itself (#2468)
+               || (Game.Views.Resolution != null && Game.Views.Resolution.Pending);
 
         private void Update()
         {

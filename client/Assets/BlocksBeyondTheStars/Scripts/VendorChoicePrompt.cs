@@ -19,10 +19,8 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
-        public static VendorChoicePrompt Instance { get; private set; }
-
         /// <summary>True while the question is on screen — PlayerController leaves E to it then.</summary>
-        public static bool IsOpen => Instance != null && Instance._shown;
+        public bool IsOpen => _shown;
 
         /// <summary>The E press that opened the prompt must not also answer it.</summary>
         private const float KeyGraceSeconds = 0.25f;
@@ -36,16 +34,6 @@ namespace BlocksBeyondTheStars.Client
         private float _openedAt;
         private Action _onFirst;
         private Action _onSecond;
-
-        private void Awake() => Instance = this;
-
-        private void OnDestroy()
-        {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-        }
 
         /// <summary>Shows the question for one vendor. Returns false (and shows nothing) when it cannot, so the caller
         /// falls back to opening the market directly.</summary>

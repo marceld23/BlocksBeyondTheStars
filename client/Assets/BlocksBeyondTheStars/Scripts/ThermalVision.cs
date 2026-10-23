@@ -32,9 +32,6 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed class ThermalVision : MonoBehaviour
     {
-        /// <summary>The overlay of the running world rig (null outside a world).</summary>
-        public static ThermalVision Instance { get; private set; }
-
         public GameBootstrap Game;
         public Camera Camera;
 
@@ -116,18 +113,9 @@ namespace BlocksBeyondTheStars.Client
 
         private bool _opaqueHeld;
 
-        private void Awake()
-        {
-            Instance = this;
-        }
-
         private void OnDestroy()
         {
             ClientSettings.RequestOpaqueTexture(false, ref _opaqueHeld);
-            if (Instance == this)
-            {
-                Instance = null;
-            }
         }
 
         private void Update()
@@ -256,10 +244,10 @@ namespace BlocksBeyondTheStars.Client
             // enter the contact pass straight from the live view. Tiny marks in their own tints — visible
             // and identified by name, but never competing with real fauna silhouettes. They cull at 32
             // blocks, so the count stays small.
-            if (MicroFaunaView.Instance != null)
+            if (Game.Views.MicroFauna != null)
             {
                 _critterScratch.Clear();
-                MicroFaunaView.Instance.CollectCritters(_critterScratch);
+                Game.Views.MicroFauna.CollectCritters(_critterScratch);
                 foreach (var (world, key, glow) in _critterScratch)
                 {
                     var tint = glow ? new Color(0.55f, 1f, 0.75f) : new Color(0.85f, 0.75f, 0.35f);

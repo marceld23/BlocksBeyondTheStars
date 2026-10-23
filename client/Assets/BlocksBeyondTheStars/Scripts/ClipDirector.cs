@@ -395,7 +395,7 @@ namespace BlocksBeyondTheStars.Client
             if (!string.IsNullOrEmpty(clip.cutscene))
             {
                 int slash = clip.cutscene.IndexOf('/');
-                var director = CutsceneDirector.Instance;
+                var director = _boot != null ? _boot.Views.Director : null;
                 if (slash > 0 && director != null
                     && director.PlayLocal(clip.cutscene.Substring(0, slash), clip.cutscene.Substring(slash + 1)))
                 {

@@ -255,7 +255,7 @@ namespace BlocksBeyondTheStars.Client
                     if (Settings != null && !Settings.PlanetCardHintShown && m.Rows != null && m.Rows.Length > 0)
                     {
                         var settings = Settings;
-                        VegaPanel.Instance?.SayLocal("vega.hint.planet_card", () =>
+                        Views.Vega?.SayLocal("vega.hint.planet_card", () =>
                         {
                             settings.PlanetCardHintShown = true;
                             settings.Save();

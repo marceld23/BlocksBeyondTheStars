@@ -1960,7 +1960,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else if (boot != null && (boot.MenuOpen || boot.MenuInputHandledThisFrame || boot.AwaitingRespawnConfirm || boot.VegaPrologueActive
                         || GameBootstrap.CutsceneActive
-                        || (ResolutionCinematic.Instance != null && ResolutionCinematic.Instance.Playing)))
+                        || (boot.Views.Resolution != null && boot.Views.Resolution.Playing)))
                     {
                         // The in-game menu / a modal owns this Esc press — or the death prompt is up
                         // (#413: the quit dialog would open invisibly BEHIND its backdrop, sortingOrder

@@ -22,10 +22,6 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
-        /// <summary>#2592: the live view (one per game root) — the dialog panel and other client code reach the NPCs' voices
-        /// and gestures through it.</summary>
-        public static NpcView Instance { get; private set; }
-
         private sealed class Npc
         {
             public GameObject Go;
@@ -171,8 +167,6 @@ namespace BlocksBeyondTheStars.Client
 
         private void Awake()
         {
-            Instance = this;
-
             // #2592: the NPC voice channels — two babble sources (a cut one fades while the next starts) and one for reactions.
             for (int i = 0; i < _babbleChannels.Length; i++)
             {
@@ -580,9 +574,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>True while VEGA's voice or a cutscene speaks — the NPCs hold back (<see cref="NpcVoiceGate"/>).</summary>
-        private static bool NarratorBusy
+        private bool NarratorBusy
             => NarratorVoice.AnySpeaking || GameBootstrap.CutsceneActive
-               || (CutsceneDirector.Instance != null && CutsceneDirector.Instance.Playing);
+               || (Game?.Views.Director != null && Game.Views.Director.Playing);
 
         /// <summary>The NPC's distance from the audio listener (the camera; the player's position before it exists).</summary>
         private float ListenerDistance(Npc n)
@@ -1193,11 +1187,6 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.WorldResetReceived -= OnWorldReset;
                 Game.Network.NpcGreetingReceived -= OnGreeting;
                 Game.Network.CraftCompleted -= OnCraftCompleted;
-            }
-
-            if (Instance == this)
-            {
-                Instance = null;
             }
         }
 

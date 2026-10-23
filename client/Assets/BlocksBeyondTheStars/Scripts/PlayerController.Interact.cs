@@ -209,7 +209,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _nextDrillSpark = Time.time + (drill ? 0.07f : 0.09f);
                 var look = drill ? FxLook.ForItem(Game.Content, heldKey) : new FxLook("hand", new Color(0.62f, 0.57f, 0.47f), Color.white, 0f, 1f, 0f);
-                MiningFx.Instance?.DrillTick(look, hitCell, face, Muzzle(Camera.transform), drill);
+                Game.Views.Mining?.DrillTick(look, hitCell, face, Muzzle(Camera.transform), drill);
             }
 
             // Hard blocks need several hits — keep sending mine attempts while held (the server accumulates
@@ -516,7 +516,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     if (AimTarget(out var paintCell, out _, out var paintShip) && paintShip == null)
                     {
-                        PaintToolUi.Instance?.OpenFor(paintCell);
+                        Game.Views.PaintTool?.OpenFor(paintCell);
                     }
 
                     return;
@@ -528,7 +528,7 @@ namespace BlocksBeyondTheStars.Client
                 // A stencil hands a form to whoever holds it: right-click puts it in their own library (#846).
                 if (BlocksBeyondTheStars.Shared.State.ItemKey.Base(held) == "shape_stencil")
                 {
-                    ShapeToolUi.Instance?.UseStencil(held);
+                    Game.Views.ShapeTool?.UseStencil(held);
                     return;
                 }
 
@@ -536,10 +536,10 @@ namespace BlocksBeyondTheStars.Client
                 {
                     bool copied = AimTarget(out var formCell, out _, out var formShip)
                         && formShip == null
-                        && (ShapeToolUi.Instance?.OpenForCell(formCell) ?? false);
+                        && (Game.Views.ShapeTool?.OpenForCell(formCell) ?? false);
                     if (!copied)
                     {
-                        ShapeToolUi.Instance?.OpenNew();
+                        Game.Views.ShapeTool?.OpenNew();
                     }
 
                     return;
@@ -582,7 +582,7 @@ namespace BlocksBeyondTheStars.Client
             // behind it and says how this door opens instead. An open doorway stays free to build past (the door's
             // own cells are refused by the server either way, #2145).
             if (place && TryAimDoor(out int clickedDoor, out _)
-                && DoorView.Instance != null && !DoorView.Instance.IsDoorOpen(clickedDoor))
+                && Game.Views.Doors != null && !Game.Views.Doors.IsDoorOpen(clickedDoor))
             {
                 ShowDoorHowTo(clickedDoor);
                 return;

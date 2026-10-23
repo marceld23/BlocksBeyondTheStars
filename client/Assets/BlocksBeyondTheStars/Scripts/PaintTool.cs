@@ -18,20 +18,12 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed class PaintToolUi : MonoBehaviour
     {
-        public static PaintToolUi Instance { get; private set; }
         public GameBootstrap Game;
 
         private FaceEditor _editor;
 
-        private void Awake() => Instance = this;
-
         private void OnDestroy()
         {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-
             if (_editor != null)
             {
                 Destroy(_editor.gameObject);

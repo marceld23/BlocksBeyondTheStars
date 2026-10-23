@@ -65,9 +65,9 @@ namespace BlocksBeyondTheStars.Client
         private void LateUpdate()
         {
             bool onFoot = Game != null && !Game.SpaceViewActive; // the flight view lights itself and has no terrain
-            if (ThermalVision.Instance != null)
+            if (Game?.Views.Thermal != null)
             {
-                ThermalVision.Instance.SenseRange = onFoot ? Game.Bio.PerceptionRange : 0f;
+                Game.Views.Thermal.SenseRange = onFoot ? Game.Bio.PerceptionRange : 0f;
             }
 
             _sight = Mathf.MoveTowards(_sight, onFoot ? Mathf.Clamp01(Game.Bio.NightSight) : 0f, Time.deltaTime * 4f);
@@ -140,9 +140,9 @@ namespace BlocksBeyondTheStars.Client
         {
             _sight = 0f;
             Release();
-            if (ThermalVision.Instance != null)
+            if (Game?.Views.Thermal != null)
             {
-                ThermalVision.Instance.SenseRange = 0f;
+                Game.Views.Thermal.SenseRange = 0f;
             }
         }
 

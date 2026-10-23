@@ -434,9 +434,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The resolution track while the ending scene plays and for <see cref="ResolutionSeconds"/> from each of
         /// its starts (#2461, B17), else null. Counted per world: a new world's cinematic starts the count afresh.</summary>
-        private string ResolutionContext()
+        private string ResolutionContext(GameBootstrap game)
         {
-            var ending = ResolutionCinematic.Instance;
+            var ending = game?.Views.Resolution;
             if (!ReferenceEquals(ending, _resolutionSeenOn))
             {
                 _resolutionSeenOn = ending;
@@ -468,7 +468,7 @@ namespace BlocksBeyondTheStars.Client
         private string FinaleContext(GameBootstrap game, bool inSpace)
         {
             // The resolution track belongs to the ending scene, whenever it plays (#2461, B17).
-            string resolution = ResolutionContext();
+            string resolution = ResolutionContext(game);
             if (resolution != null)
             {
                 return resolution;
@@ -491,7 +491,7 @@ namespace BlocksBeyondTheStars.Client
                 return null;
             }
 
-            var fv = FinaleView.Instance;
+            var fv = game?.Views.Finale;
             if (fv != null && fv.DuelActive && fv.OnCoreWorld)
             {
                 return FinaleDialogue; // #2478: the duel's track plays where its dialogue does — on the core world

@@ -19,9 +19,6 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
-        /// <summary>Set so the player controller can find the hinge door it should toggle on E.</summary>
-        public static DoorView Instance { get; private set; }
-
         private const float Height = DoorGeometry.Height;       // the shared door geometry (#1975): 2.8, covers the 3-tall doorway
         private const float Thickness = DoorGeometry.Thickness;
         private const float AnimSpeed = 6f;     // how fast a door visually slides/swings toward its state
@@ -57,8 +54,6 @@ namespace BlocksBeyondTheStars.Client
         private const float HatchHissVolume = 0.7f;
         private float _hatchHissAt = -1f;
         private Vector3 _hatchHissPos;
-
-        private void Awake() => Instance = this;
 
         private void Update()
         {
@@ -711,11 +706,6 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.DoorsReceived -= OnDoors;
                 Game.Network.WorldResetReceived -= OnWorldReset;
-            }
-
-            if (Instance == this)
-            {
-                Instance = null;
             }
         }
     }

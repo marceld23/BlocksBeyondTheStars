@@ -191,7 +191,7 @@ namespace BlocksBeyondTheStars.Client
             var settings = Game.Settings;
             if (settings != null && !settings.BioLabTabsHintShown)
             {
-                VegaPanel.Instance?.SayLocal("vega.hint.bio_lab_tabs", () =>
+                Game.Views.Vega?.SayLocal("vega.hint.bio_lab_tabs", () =>
                 {
                     settings.BioLabTabsHintShown = true;
                     settings.Save();

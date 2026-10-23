@@ -1363,7 +1363,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var to = Game.ScenePos(fx.ToX, fx.ToY, fx.ToZ);
             float delay = 0f;
-            if (NpcView.Instance != null && NpcView.Instance.BowShot(fx.SourceId, to, out var nock))
+            if (Game.Views.Npcs != null && Game.Views.Npcs.BowShot(fx.SourceId, to, out var nock))
             {
                 from = nock;
                 delay = AvatarGestures.BowReleaseSeconds;

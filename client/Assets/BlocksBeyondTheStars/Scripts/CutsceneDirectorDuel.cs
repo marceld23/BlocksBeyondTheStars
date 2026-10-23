@@ -57,7 +57,7 @@ namespace BlocksBeyondTheStars.Client
         private float _duelLetterbox;
 
         /// <summary>True while the duel dialogue is on screen.</summary>
-        public static bool DuelShown => Instance != null && Instance._duelScreen != null;
+        public bool DuelShown => _duelScreen != null;
 
         /// <summary>Whether a player who stepped back from the duel may face the core again now (near the core, on its world,
         /// nothing else on screen) — <see cref="FinaleView"/> shows the hint and calls <see cref="ResumeDuel"/>.</summary>

@@ -50,11 +50,6 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>#2372: the oil marker is bigger than an ore cube — it may stand hundreds of blocks away.</summary>
         private const float OilMarkerScale = 1.6f;
 
-        /// <summary>The scene's overlay (one per world rig) — lets the Tab menu drop a station marker (#1072).</summary>
-        public static OreScanView Instance { get; private set; }
-
-        private void Awake() => Instance = this;
-
         /// <summary>#1072: a single through-wall marker on a station block the menu just pointed at (the
         /// "go there" hint made visible in the world once the menu closes). Same ghost cube as an ore hit,
         /// cyan so it reads as "station", auto-clears after <paramref name="seconds"/>.</summary>

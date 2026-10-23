@@ -21,8 +21,6 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
-        public static FactoryView Instance { get; private set; }
-
         private sealed class Machine
         {
             public string Archetype;
@@ -56,8 +54,6 @@ namespace BlocksBeyondTheStars.Client
 
         private static readonly int ColorId = Shader.PropertyToID("_Color");
         private static Shader _litShader;
-
-        private void Awake() => Instance = this;
 
         private void Update()
         {
@@ -431,7 +427,6 @@ namespace BlocksBeyondTheStars.Client
         private void OnDestroy()
         {
             if (_subscribed && Game?.Network != null) Game.Network.FactoriesReceived -= OnFactories;
-            if (Instance == this) Instance = null;
         }
     }
 }

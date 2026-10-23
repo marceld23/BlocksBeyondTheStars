@@ -58,7 +58,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A Journal text resolves its <c>{key:…}</c> tokens through the one resolver the VEGA panel uses.</summary>
         private string ComposeJournalText(string text)
-            => VegaPanel.Instance != null ? VegaPanel.Instance.ComposeLine(text, null) : VegaText.Compose(text, null, a => a);
+            => Game?.Views.Vega != null ? Game.Views.Vega.ComposeLine(text, null) : VegaText.Compose(text, null, a => a);
 
         /// <summary>A player story's page (#2471, synthesis §5.8): name, description, status and the story's switches (Track,
         /// Start, Skip all, Restart from the beginning, Switch off / on); "What to do now" — the running parts' tasks ("Step 4 of
@@ -239,7 +239,7 @@ namespace BlocksBeyondTheStars.Client
         /// wait for the player to land says so in a short banner.</summary>
         private float JournalReplaySection(float y, string packId, bool withoutEnding = false)
         {
-            var director = CutsceneDirector.Instance;
+            var director = Game?.Views.Director;
             var replays = director != null ? director.ReplayEntries(withoutEnding) : null;
             var mine = replays?.Where(e => string.Equals(e.Pack.Id, packId, System.StringComparison.OrdinalIgnoreCase)).ToList();
             if (mine == null || mine.Count == 0)
@@ -257,7 +257,7 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddButton(_listContent, 688, rowTop, 92, 30, L("ui.story.replay_button"), () =>
                 {
                     Game?.Network?.SendReplayCutscene(chosen.Pack.Id, chosen.CutsceneId);
-                    CutsceneDirector.Instance?.NoteReplayWaits(chosen.Pack.Id, new[] { chosen.CutsceneId }); // #2497: in flight
+                    Game?.Views.Director?.NoteReplayWaits(chosen.Pack.Id, new[] { chosen.CutsceneId }); // #2497: in flight
                     Hide();
                 });
             }
@@ -286,7 +286,7 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     // Composed like the speech panel (#2364): key glyphs resolved, a lost {0} reads as "…".
-                    string line = VegaPanel.Instance != null ? VegaPanel.Instance.ComposeLine(L(key), null) : VegaText.Compose(L(key), null, a => a);
+                    string line = Game.Views.Vega != null ? Game.Views.Vega.ComposeLine(L(key), null) : VegaText.Compose(L(key), null, a => a);
                     y = StoryEntry(y, line);
                     anyTip = true;
                 }
@@ -363,7 +363,7 @@ namespace BlocksBeyondTheStars.Client
                     UiKit.AddButton(_listContent, 0, y, 780, 56, L("ui.story.view_ending"), () =>
                     {
                         Game?.Network?.SendRequestStoryResolution();
-                        CutsceneDirector.Instance?.NoteReplayWaits(storyId, endingIds); // #2497: "Plays when you land" in flight
+                        Game?.Views.Director?.NoteReplayWaits(storyId, endingIds); // #2497: "Plays when you land" in flight
                         Hide();
                     });
                     y += 66f;
@@ -535,12 +535,12 @@ namespace BlocksBeyondTheStars.Client
             }
 
             string recap = started ? BlocksBeyondTheStars.Client.Core.StoryChapterList.RecapArg(pack, s.Chapter) : string.Empty;
-            if (recap.Length > 0 && CutsceneDirector.Instance != null)
+            if (recap.Length > 0 && Game?.Views.Director != null)
             {
                 string recapId = pack.Id;
                 UiKit.AddButton(_listContent, 0, y, 780, 48, L("ui.story.so_far"), () =>
                 {
-                    CutsceneDirector.Instance?.PlayLocal(recapId, BlocksBeyondTheStars.Shared.Story.StoryCutsceneIds.Recap, recap);
+                    Game?.Views.Director?.PlayLocal(recapId, BlocksBeyondTheStars.Shared.Story.StoryCutsceneIds.Recap, recap);
                     Hide();
                 });
                 y += 58f;

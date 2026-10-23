@@ -55,7 +55,7 @@ public sealed class NpcVoiceWiringTests
 
     [Fact]
     public void TheDialogPanel_LetsTheNpcSpeakEachLine()
-        => Assert.Contains("NpcView.Instance.DialogLine(m.NpcId, m.Text, opening)", Script("NpcDialogUi.cs"));
+        => Assert.Contains("Game.Views.Npcs.DialogLine(m.NpcId, m.Text, opening)", Script("NpcDialogUi.cs"));
 
     [Fact]
     public void VegasVoice_TellsTheNpcsToHush()

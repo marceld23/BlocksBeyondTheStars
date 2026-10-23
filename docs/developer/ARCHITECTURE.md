@@ -147,6 +147,11 @@ The Unity client lives in `client/Assets/BlocksBeyondTheStars/`. Key wiring (all
   loading → in-game); owns `ClientSettings` + `Localizer` and the `LocalServerLauncher`.
 - **`WorldRig.cs`** — code-only scene builder that constructs the in-game rig: server link +
   `GameBootstrap`, first-person player, HUD, post FX, views; tears down on return to menu.
+  The views other components look up (HUD, VEGA's panel, cutscene director, doors, …) are registered
+  in `GameBootstrap.Views` (`RigViews`, one entry per view, null until the view exists and again once
+  it is destroyed); components reach them through `Game.Views.X`, not static singletons. The only
+  `Instance` singletons left are the services `ClientAudio`, `FxKit`, `ScreenLabelLayer` and
+  `UrpScenePost` (the latter also lives in the menu shell).
 - **`GameBootstrap.cs`** — creates the `NetworkClient`, loads `GameContent` from
   StreamingAssets, builds the procedural `BlockTextureAtlas`, and subscribes to all server
   events.
@@ -167,7 +172,7 @@ The Unity client lives in `client/Assets/BlocksBeyondTheStars/`. Key wiring (all
   free-fly editor scenes the static `EditorSceneKit` / `EditorPaletteKit` (camera, floor, cell picking,
   right panel, palette panel, `Slug`, …); the form and tool-look editors share the `LayerCanvasEditor`
   base; modal in-world panels derive from `UiPanel` and are looked up through `GameBootstrap.Context`
-  (see [UI_PANELS.md](UI_PANELS.md), which also lists the panels still to migrate). See
+  (see [UI_PANELS.md](UI_PANELS.md)), the rig's other views through `GameBootstrap.Views`. See
   [UI_AND_RENDER_CONCEPT.md](UI_AND_RENDER_CONCEPT.md).
 - **`SpaceView.cs`** — the free-flight space scene and the **"ship as a place" model**: the own
   ship is a client-side voxel grid you can pilot, EVA, walk and rebuild; parked ships render via

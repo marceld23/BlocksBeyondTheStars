@@ -221,7 +221,7 @@ namespace BlocksBeyondTheStars.Client
             var settings = Game.Settings;
             if (settings != null && !settings.ChartWaypointHintShown)
             {
-                VegaPanel.Instance?.SayLocal("vega.hint.chart_waypoint", () =>
+                Game.Views.Vega?.SayLocal("vega.hint.chart_waypoint", () =>
                 {
                     settings.ChartWaypointHintShown = true;
                     settings.Save();

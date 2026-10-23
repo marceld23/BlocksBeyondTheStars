@@ -147,7 +147,7 @@ namespace BlocksBeyondTheStars.Client
             // it waits for the next early let-go.
             if (settings != null && !settings.ShipScanHoldHintShown)
             {
-                VegaPanel.Instance?.SayLocal("vega.hint.ship_scan_hold", () =>
+                Game.Views.Vega?.SayLocal("vega.hint.ship_scan_hold", () =>
                 {
                     settings.ShipScanHoldHintShown = true;
                     settings.Save();
@@ -665,7 +665,7 @@ namespace BlocksBeyondTheStars.Client
                 _scannerHintTimer -= dt;
                 if (_scannerHintTimer <= 0f)
                 {
-                    VegaPanel.Instance?.SayLocal("vega.hint.ship_scanner", _scannerHintShown ??= MarkScannerHintShown);
+                    Game.Views.Vega?.SayLocal("vega.hint.ship_scanner", _scannerHintShown ??= MarkScannerHintShown);
                 }
             }
         }
@@ -715,7 +715,7 @@ namespace BlocksBeyondTheStars.Client
                 if ((new Vector3(e.X, e.Y, e.Z) - shipPos).sqrMagnitude <= 80f * 80f)
                 {
                     _anomalyHinted.Add(e.Id);
-                    VegaPanel.Instance?.SayLocal("vega.hint.anomaly_scan");
+                    Game.Views.Vega?.SayLocal("vega.hint.anomaly_scan");
                 }
             }
 
@@ -728,7 +728,7 @@ namespace BlocksBeyondTheStars.Client
                     if (e.Kind == "Wormhole" && (new Vector3(e.X, e.Y, e.Z) - shipPos).sqrMagnitude <= 500f * 500f)
                     {
                         // Spent when the line comes up (#2551) — muted (#2462, B31) or dropped unseen, it waits.
-                        VegaPanel.Instance?.SayLocal("vega.hint.wormhole", _wormholeHintShown ??= MarkWormholeHintShown);
+                        Game.Views.Vega?.SayLocal("vega.hint.wormhole", _wormholeHintShown ??= MarkWormholeHintShown);
                         break;
                     }
                 }

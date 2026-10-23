@@ -97,9 +97,9 @@ namespace BlocksBeyondTheStars.Client
             bool opening = _state is null || _state.NpcId != m.NpcId;
             _state = m;
             ClientAudio.Instance?.Cue("ui_open", 0.6f);
-            if (!string.IsNullOrEmpty(m.Text) && NpcView.Instance != null)
+            if (!string.IsNullOrEmpty(m.Text) && Game?.Views.Npcs != null)
             {
-                NpcView.Instance.DialogLine(m.NpcId, m.Text, opening);
+                Game.Views.Npcs.DialogLine(m.NpcId, m.Text, opening);
             }
 
             // 2026-09 professions: the streamer's photo and the reporter's interview follow the closing line.

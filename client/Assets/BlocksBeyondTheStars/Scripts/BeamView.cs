@@ -18,8 +18,6 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
-        public static BeamView Instance { get; private set; }
-
         private sealed class Pad
         {
             public GameObject Go;
@@ -37,8 +35,6 @@ namespace BlocksBeyondTheStars.Client
         private static bool _idleTried;
 
         private static readonly Color Cyan = new Color(0.28f, 0.85f, 1f);
-
-        private void Awake() => Instance = this;
 
         private void Update()
         {
@@ -281,8 +277,6 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.BeamFxReceived -= OnBeamFx;
                 Game.Network.WorldResetReceived -= OnWorldReset;
             }
-
-            if (Instance == this) Instance = null;
         }
     }
 

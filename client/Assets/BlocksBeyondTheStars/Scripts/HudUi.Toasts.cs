@@ -113,7 +113,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_researchAge < 0f)
             {
-                bool cutscene = GameBootstrap.CutsceneActive || (CutsceneDirector.Instance != null && CutsceneDirector.Instance.Playing);
+                bool cutscene = GameBootstrap.CutsceneActive || (Game.Views.Director != null && Game.Views.Director.Playing);
                 if ((Game.ResearchAvailable.Count == 0 && Game.AchievementsUnlocked.Count == 0)
                     || _canvas == null || !_canvas.enabled || cutscene)
                 {

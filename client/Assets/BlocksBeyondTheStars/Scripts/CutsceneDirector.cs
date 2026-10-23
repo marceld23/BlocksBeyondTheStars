@@ -56,15 +56,12 @@ namespace BlocksBeyondTheStars.Client
         private const float AtHomeShipRadius = 24f;
         private const float FallingSpeed = -6f;
 
-        /// <summary>The live director (one per world rig), or null.</summary>
-        public static CutsceneDirector Instance { get; private set; }
-
         /// <summary>True while the director shows a card or a scene (T2+): VEGA's panel and the ending wait for it.</summary>
-        public static bool HoldsScreen => Instance != null && Instance._play != null && Instance._play.Plan.Tier >= CutsceneTiers.Card;
+        public bool HoldsScreen => _play != null && _play.Plan.Tier >= CutsceneTiers.Card;
 
         /// <summary>#2497: true while the screen holds a card (T2, a scene played as one included) — the player keeps playing
         /// under it, so VEGA's panel hides only her speech and keeps the objective chip.</summary>
-        public static bool ShowsCard => Instance != null && Instance._play != null && Instance._play.Plan.Tier == CutsceneTiers.Card;
+        public bool ShowsCard => _play != null && _play.Plan.Tier == CutsceneTiers.Card;
 
         /// <summary>True while any scene (a banner included) plays.</summary>
         public bool Playing => _play != null;
@@ -131,7 +128,6 @@ namespace BlocksBeyondTheStars.Client
 
         private void Awake()
         {
-            Instance = this;
             _localize = L;
             _rig = gameObject.AddComponent<CutsceneCameraRig>();
             _voice = new NarratorVoice(gameObject, () => Settings);
@@ -1070,9 +1066,9 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private static void GiveLinesBack(Owed owed)
+        private void GiveLinesBack(Owed owed)
         {
-            var panel = VegaPanel.Instance;
+            var panel = Game?.Views.Vega;
             foreach (var line in owed.Lines)
             {
                 panel?.Requeue(line);
@@ -1082,9 +1078,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>#2474: gives back only the claimed lines with one of <paramref name="keys"/>.</summary>
-        private static void GiveLinesBack(Owed owed, IReadOnlyList<string> keys)
+        private void GiveLinesBack(Owed owed, IReadOnlyList<string> keys)
         {
-            var panel = VegaPanel.Instance;
+            var panel = Game?.Views.Vega;
             foreach (var line in owed.Lines.Where(l => keys.Contains(l.LineKey)).ToList())
             {
                 panel?.Requeue(line);
@@ -1215,7 +1211,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var s = _inputs;
             float now = Time.time;
-            var ending = ResolutionCinematic.Instance;
+            var ending = Game.Views.Resolution;
             s.Multiplayer = Game.PauseJoinedPlayers > 1;
             s.MenuOpen = Game.MenuOpen;
             s.ChatTyping = Game.ChatTyping;
@@ -1318,11 +1314,6 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
-
             if (_subscribed && Game?.Network != null)
             {
                 Game.Network.CutscenePlayReceived -= OnCutscenePlay;

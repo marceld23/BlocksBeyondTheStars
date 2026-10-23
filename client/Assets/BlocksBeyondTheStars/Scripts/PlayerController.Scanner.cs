@@ -113,8 +113,8 @@ namespace BlocksBeyondTheStars.Client
             // Micro-fauna (#757): when no real creature is in view, the nearest aimed-at critter answers.
             // Critters are client-local, so the kind is resolved here and the server only validates that it
             // exists (same trust level as the creature scan above). Shorter reach — they're tiny.
-            if (MicroFaunaView.Instance != null
-                && MicroFaunaView.Instance.NearestCritter(Game.PlayerPosition, 5f, out string critterKey, out var critterAt,
+            if (Game.Views.MicroFauna != null
+                && Game.Views.MicroFauna.NearestCritter(Game.PlayerPosition, 5f, out string critterKey, out var critterAt,
                     world => InScanCone(eye, fwd, Game.ScenePos(world.x, world.y, world.z))))
             {
                 kind = "microfauna";

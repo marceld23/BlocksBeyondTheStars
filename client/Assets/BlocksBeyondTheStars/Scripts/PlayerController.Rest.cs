@@ -208,7 +208,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_restLineKey.Length > 0)
             {
-                VegaPanel.Instance?.WithdrawLine(_restLineKey); // a good night still on screen after getting up reads stale
+                Game?.Views.Vega?.WithdrawLine(_restLineKey); // a good night still on screen after getting up reads stale
                 _restLineKey = string.Empty;
             }
         }
@@ -410,7 +410,7 @@ namespace BlocksBeyondTheStars.Client
         /// dropped once the moment has passed) but kept out of the tips log: it is a remark, not a tip.</summary>
         private void SayGoodNight()
         {
-            var vega = VegaPanel.Instance;
+            var vega = Game?.Views.Vega;
             if (vega == null || Time.time - _lastRestLineAt < RestLineCooldown)
             {
                 return;

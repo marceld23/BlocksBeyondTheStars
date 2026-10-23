@@ -532,7 +532,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 // #2551: the flag is spent when the line comes up on screen. A lesson that waited unseen in VEGA's queue
                 // (the player walked on — aboard, it read as nonsense) is dropped after 30 s and may come at the next wall.
-                VegaPanel.Instance?.SayLocal("vega.hint.climb", _climbHintShown ??= MarkClimbHintShown);
+                Game.Views.Vega?.SayLocal("vega.hint.climb", _climbHintShown ??= MarkClimbHintShown);
             }
         }
 

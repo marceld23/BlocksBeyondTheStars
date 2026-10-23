@@ -163,6 +163,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Localized vitals HUD + hotbar.
             var hud = root.AddComponent<HudUi>(); // modern uGUI HUD
+            boot.Views.Hud = hud;
             hud.Game = boot;
             hud.Settings = shell.Settings; // live read for the optional playtime readout
 
@@ -205,11 +206,13 @@ namespace BlocksBeyondTheStars.Client
 
             // Block-paint editor host (#818): opens when using the paint tool on a placed block.
             var paintTool = root.AddComponent<PaintToolUi>();
+            boot.Views.PaintTool = paintTool;
             paintTool.Game = boot;
 
             // Form editor host (#845): opens when using the shaping tool — on a block to copy its form,
             // anywhere else to design a new one.
             var shapeTool = root.AddComponent<ShapeToolUi>();
+            boot.Views.ShapeTool = shapeTool;
             shapeTool.Game = boot;
 
             // Hotbar slot actions: swap/colour/form on the selected slot, straight from the HUD.
@@ -222,6 +225,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Beam blocks (teleporter pads): glow column + idle hum + floating names + jump VFX.
             var beamView = root.AddComponent<BeamView>();
+            boot.Views.Beams = beamView;
             beamView.Game = boot;
 
             // #2049: the Crystal Net's glow over ON conduits + the device menu (mode grid / pairing list).
@@ -330,10 +334,12 @@ namespace BlocksBeyondTheStars.Client
 
             // Render settlement + space-station NPCs.
             var npcs = root.AddComponent<NpcView>();
+            boot.Views.Npcs = npcs;
             npcs.Game = boot;
 
             // Render + collide doors (sci-fi sliders auto-open; village hinge doors toggle on E).
             var doors = root.AddComponent<DoorView>();
+            boot.Views.Doors = doors;
             doors.Game = boot;
 
             // Base life-support shield domes (#795): a soft bubble over every founded base's core on
@@ -343,10 +349,12 @@ namespace BlocksBeyondTheStars.Client
 
             // Render glowing minigame "data cubes" scattered on the surface; press E to download (item: arcade).
             var dataCubes = root.AddComponent<DataCubeView>();
+            boot.Views.DataCubes = dataCubes;
             dataCubes.Game = boot;
 
             // Render factories' animated machines (pistons/rotors/conveyors) + the production-terminal prompt.
             var factories = root.AddComponent<FactoryView>();
+            boot.Views.Factories = factories;
             factories.Game = boot;
 
             // Render ground drop packets (#853): what a full backpack left lying around while mining.
@@ -356,21 +364,25 @@ namespace BlocksBeyondTheStars.Client
 
             // Render story "net fragments" scattered on the surface; press E to recover (text-only story finds).
             var netFragments = root.AddComponent<NetFragmentView>();
+            boot.Views.NetFragments = netFragments;
             netFragments.Game = boot;
 
             // Finale (P6): the core-hack channel bar + the argument-duel panel at the Guardian core.
             var finale = root.AddComponent<FinaleView>();
+            boot.Views.Finale = finale;
             finale.Game = boot;
 
             // The ending (#1124): resolution card + credits roll + epilogue, played when the server says
             // the story is resolved (win, join catch-up, or the Story tab's replay button).
             var resolution = root.AddComponent<ResolutionCinematic>();
+            boot.Views.Resolution = resolution;
             resolution.Game = boot;
 
             // Story-pack cutscenes (#2468): banners, cards and staged scenes the server sends by id (CutscenePlay). Its
             // existence makes the join announce "cutscenes1"; it brings its own camera rig (execution order 211). The dev
             // palette (-devSeq or a development build, F9) plays any loaded scene locally.
             var director = root.AddComponent<CutsceneDirector>();
+            boot.Views.Director = director;
             director.Game = boot;
             director.Camera = cam;
             director.Settings = shell.Settings;
@@ -390,10 +402,12 @@ namespace BlocksBeyondTheStars.Client
 
             // "Launch into space?" — E at the cockpit of a landed ship asks instead of only opening the map (#1455).
             var launchPrompt = root.AddComponent<LaunchPrompt>();
+            boot.Views.LaunchPrompt = launchPrompt;
             launchPrompt.Game = boot;
 
             // "Trade or talk?" — E at a vendor NPC offers both instead of always opening the market.
             var vendorChoice = root.AddComponent<VendorChoicePrompt>();
+            boot.Views.VendorChoice = vendorChoice;
             vendorChoice.Game = boot;
 
             // The reporter's interview box (2026-09 NPC professions).
@@ -519,6 +533,7 @@ namespace BlocksBeyondTheStars.Client
             // Tiny cosmetic micro-fauna ("Kleinstlebewesen") — fluttering / crawling / swimming critters + cave
             // glow-worms that make planets feel alive. Client-only, biome + day/night gated, never attack.
             var microFauna = root.AddComponent<MicroFaunaView>();
+            boot.Views.MicroFauna = microFauna; // even when the shaders are stripped: an empty view just reports no critters
             microFauna.Game = boot;
             microFauna.Camera = cam;
             microFauna.ReducedEffects = shell.Settings.ReducedEffects;
@@ -606,12 +621,14 @@ namespace BlocksBeyondTheStars.Client
 
             // Terrain-scanner overlay (Feature 40): through-wall ore glow markers after a scan pulse.
             var oreScan = root.AddComponent<OreScanView>();
+            boot.Views.OreScan = oreScan;
             oreScan.Game = boot;
             oreScan.Player = pc; // the scan wave starts at the player (#2153)
 
             // Infrared overlay for the upgraded binoculars: cold-graded frame + through-terrain contact blobs.
             // Idle (and free) until BinocularOptic switches it on.
             var thermal = root.AddComponent<ThermalVision>();
+            boot.Views.Thermal = thermal;
             thermal.Game = boot;
             thermal.Camera = cam;
             thermal.Remotes = remotes;
@@ -634,6 +651,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Block selection outline + mining/placing particle feedback (M27 polish).
             var miningFx = root.AddComponent<MiningFx>();
+            boot.Views.Mining = miningFx;
             miningFx.Game = boot;
             miningFx.Camera = cam;
             miningFx.Player = pc; // the outline asks the player rig for the very cell a click would take (#1353)

@@ -312,7 +312,7 @@ namespace BlocksBeyondTheStars.Client
 
             // #2147: a closed door under the crosshair takes the right-click (a how-to hint), so nothing hovers behind it.
             if ((rotatable || HeldDoorKind(held) != null || HeldLightBlock(held) != null) && TryAimDoor(out int aimedDoor, out _)
-                && DoorView.Instance != null && !DoorView.Instance.IsDoorOpen(aimedDoor))
+                && Game?.Views.Doors != null && !Game.Views.Doors.IsDoorOpen(aimedDoor))
             {
                 _placementGhost?.Hide();
                 return;

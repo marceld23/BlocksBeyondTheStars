@@ -131,7 +131,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 case FxActionKinds.Mine:
-                    MiningFx.Instance?.RemoteDrill(look, from, to);
+                    Game.Views.Mining?.RemoteDrill(look, from, to);
                     break;
                 case FxActionKinds.Scan:
                     FxGadgets.HandScan(look, from, new Bounds(to, Vector3.one * 1.2f), look.Is("scan_pro"));
