@@ -58,7 +58,7 @@ public sealed class MultiCellFormTests : IDisposable
     }
 
     /// <summary>A form W×H×L of slab cells.</summary>
-    private static string Form(int w, int h, int l, int extra = 0)
+    internal static string Form(int w, int h, int l, int extra = 0)
         => CustomShape.ComposeMulti(w, h, l, Enumerable.Range(0, w * h * l).Select(_ => SlabCell(extra)).ToList());
 
     private SvGameServer Started(out SqliteWorldRepository repo, string world = "multiform")

@@ -365,6 +365,28 @@ public sealed class StoryPackValidationTests
     }
 
     [Fact]
+    public void ATutorialsRewardField_HoldingZero_IsStillARewardField()
+    {
+        // #2927: a number is never an empty value — only null, false, "", [] and {} are.
+        var def = Side(d => d.Kind = StoryRegistry.KindTutorial);
+        string raw = "{\"id\":\"probe\",\"kind\":\"tutorial\",\"chapters\":[{\"id\":\"c1\",\"steps\":[{\"id\":\"c1.1\",\"knowledgeReward\":0}]}]}";
+        var errors = Errors(StoryPackValidator.Validate(def, Context(), raw));
+        Assert.Contains(errors, e => e.Path == "$.chapters[0].steps[0].knowledgeReward" && e.Message == "a tutorial pays no rewards");
+    }
+
+    [Fact]
+    public void APlayerPacksLead_WithABadType_IsStillToldLeadsAreForWorldPacksOnly()
+    {
+        // #2927: the type check came first and skipped the warning — a player pack ignores its leads whatever their type.
+        string[] lead = Report(Side(d => d.Chapters[0].Leads.Add(new StoryLead { Type = "teleport" })))
+            .Where(line => line.Contains(": chapters[0].leads[0]", StringComparison.Ordinal))
+            .ToArray();
+        Assert.Equal(2, lead.Length);
+        Assert.Equal("Warning: chapters[0].leads[0]: leads are read for world packs only", lead[0]);
+        Assert.StartsWith("Error: chapters[0].leads[0].type: unknown lead type 'teleport'", lead[1], StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ATutorialMissionBridge_LeavesTheBridgedMissionItsRewards()
     {
         // #2481: the rule covers the pack's own document. The Crystal workshop course (C8) bridges onto VEGA's radio jobs, which

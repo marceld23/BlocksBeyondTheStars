@@ -235,10 +235,11 @@ public static partial class StoryPackValidator
         }
     }
 
+    /// <summary>Whether a reward-named field holds nothing at all: null, false, "", [] or {}. A number is never empty —
+    /// <c>"knowledgeReward": 0</c> is still a reward field in a tutorial (#2927).</summary>
     private static bool IsEmptyValue(JsonElement value) => value.ValueKind switch
     {
         JsonValueKind.Null or JsonValueKind.False or JsonValueKind.Undefined => true,
-        JsonValueKind.Number => value.TryGetDouble(out double d) && d == 0,
         JsonValueKind.String => string.IsNullOrEmpty(value.GetString()),
         JsonValueKind.Array => value.GetArrayLength() == 0,
         JsonValueKind.Object => !value.EnumerateObject().Any(),

@@ -893,12 +893,14 @@ class Validator:
                 self.unknown_fields(pid, lp, lead, "lead")
                 if not isinstance(lead, dict):
                     continue
+                # Before the type check (#2927): a player pack ignores its leads whatever their type, so a broken one
+                # must not hide that warning.
+                if player_pack:
+                    r.warn(pid, lp, "leads are read for world packs only")
                 problem = lead_problem(lead.get("type"))
                 if problem:
                     r.error(pid, f"{lp}.type", problem)
                     continue
-                if player_pack:
-                    r.warn(pid, lp, "leads are read for world packs only")
                 lead_kind, _, lead_arg = str(lead.get("type")).partition(":")
                 if lead_kind == "research" and self.blueprints and lead_arg not in self.blueprints:
                     r.error(pid, f"{lp}.type", f"blueprint '{lead_arg}' does not exist")
@@ -987,7 +989,10 @@ class Validator:
         if isinstance(value, dict):
             for k, v in value.items():
                 child = f"{path}.{k}"
-                if "reward" in k.lower() and v not in (None, False, 0, "", [], {}):
+                # Only null, false, "", [] and {} hold nothing; a number is never empty - "knowledgeReward": 0 is
+                # still a reward field (#2927). Tested by identity and type, since 0 == False in Python.
+                empty = v is None or v is False or (isinstance(v, (str, list, dict)) and len(v) == 0)
+                if "reward" in k.lower() and not empty:
                     self.report.error(pid, child, "a tutorial pays no rewards")
                 self.find_rewards(pid, v, child)
         elif isinstance(value, list):

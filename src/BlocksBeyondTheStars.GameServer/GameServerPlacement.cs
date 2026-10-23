@@ -228,40 +228,57 @@ public sealed partial class GameServer
     /// <summary>Rule "fluid_cell": the two placeables that can't take a fluid cell (a door, a torch in water).</summary>
     private PlacementVerdict FluidCellRule(PlacementRequest r)
     {
-        if (r.IntoFluid)
+        if (r.IntoFluid && FluidCellRefusal(r.BlockDef, r.Existing) is { } refusal)
         {
-            // Two placeables genuinely can't take a fluid cell, and both are refused before anything is
-            // consumed: a door is an ENTITY living in an air cell (the fluid would just flow back around it,
-            // leaving a door that holds nothing back), and a torch is an open flame — a submerged one would be
-            // the same mysterious dud the airless-body check above exists to prevent.
-            if (DoorBlocks.IsDoorBlock(r.BlockDef.Key))
-            {
-                return PlacementVerdict.Refuse("@srv.place.not_empty");
-            }
-
-            if (r.BlockDef.Key == "torch" && r.Existing.Value == _waterId)
-            {
-                return PlacementVerdict.Refuse("@no_air");
-            }
+            return PlacementVerdict.Refuse(refusal);
         }
 
         return PlacementVerdict.Continue;
     }
 
+    /// <summary>The reason a fluid cell refuses <paramref name="blockDef"/>, or null when the block displaces the fluid
+    /// <paramref name="fluid"/> like any other. The fluid_cell rule asks it for the target cell, and
+    /// <see cref="IsFreePartnerCell"/> for every further cell of a bed or a multi-cell form (#2927).</summary>
+    private string? FluidCellRefusal(BlockDefinition blockDef, BlockId fluid)
+    {
+        // Two placeables genuinely can't take a fluid cell, and both are refused before anything is
+        // consumed: a door is an ENTITY living in an air cell (the fluid would just flow back around it,
+        // leaving a door that holds nothing back), and a torch is an open flame — a submerged one would be
+        // the same mysterious dud the airless-body check above exists to prevent.
+        if (DoorBlocks.IsDoorBlock(blockDef.Key))
+        {
+            return "@srv.place.not_empty";
+        }
+
+        if (blockDef.Key == "torch" && fluid.Value == _waterId)
+        {
+            return "@no_air";
+        }
+
+        return null;
+    }
+
     /// <summary>Rule "above_head": no block in the player's own head cell.</summary>
-    private static PlacementVerdict NotAboveOwnHeadRule(PlayerSession session, PlacementRequest r)
+    private PlacementVerdict NotAboveOwnHeadRule(PlayerSession session, PlacementRequest r)
     {
         // Don't let the player wall themselves in: refuse a block at HEAD height in their own column. The FEET
         // cell is allowed so you can pillar-jump (place under yourself while jumping) — the client collider just
         // lifts you onto the new block (B3); only the head cell would trap you.
-        var feet = session.State.Position;
-        int fx = (int)System.Math.Floor(feet.X), fy = (int)System.Math.Floor(feet.Y), fz = (int)System.Math.Floor(feet.Z);
-        if (r.Pos.X == fx && r.Pos.Z == fz && r.Pos.Y == fy + 1)
+        if (r.Pos == OwnHeadCell(session))
         {
             return PlacementVerdict.Refuse("@srv.place.above_head");
         }
 
         return PlacementVerdict.Continue;
+    }
+
+    /// <summary>The player's own head cell, canonical like every placement target: the raw position may lie on the
+    /// far side of the world seam (a station keeps its X unwrapped), and a plain floor of it never equalled the
+    /// wrapped target there (#2927). Shared by the above_head rule and <see cref="IsFreePartnerCell"/>.</summary>
+    private Vector3i OwnHeadCell(PlayerSession session)
+    {
+        var feet = session.State.Position.ToBlock();
+        return WorldConstants.CanonicalBlock(new Vector3i(feet.X, feet.Y + 1, feet.Z), _world.Circumference);
     }
 
     /// <summary>Rule "reach": the target cell is within the player's reach.</summary>
@@ -432,7 +449,7 @@ public sealed partial class GameServer
         // with a reason instead of leaving a lone head half (or writing into someone else's base).
         if (r.BlockDef.Key == BedBlock)
         {
-            if (!TryBedFootCell(session, r.Pos, StampPropShape(session, r.Intent, r.BlockDef.Key, r.Pos), out var foot))
+            if (!TryBedFootCell(session, r.BlockDef, r.Pos, StampPropShape(session, r.Intent, r.BlockDef.Key, r.Pos), out var foot))
             {
                 return PlacementVerdict.Refuse("@srv.place.bed_room");
             }
@@ -458,7 +475,7 @@ public sealed partial class GameServer
                 ? r.Intent.Yaw
                 : ((int)System.MathF.Round(session.State.Yaw / 90f)) & 3;
             r.MultiCellDescriptor = ShapeCode.Pack(ItemKey.Shape(r.Intent.ItemKey), formYaw, ShapeCode.UpPlusY);
-            if (!TryMultiCellSiblings(session, r.Pos, r.MultiCellDescriptor, out var siblings))
+            if (!TryMultiCellSiblings(session, r.BlockDef, r.Pos, r.MultiCellDescriptor, out var siblings))
             {
                 return PlacementVerdict.Refuse("@srv.place.form_room");
             }
@@ -478,7 +495,7 @@ public sealed partial class GameServer
         new("cell_free", static (g, _, r) => g.CellFreeRule(r)),
         new("door_here", static (g, _, r) => g.NoDoorInCellRule(r)),
         new("fluid_cell", static (g, _, r) => g.FluidCellRule(r)),
-        new("above_head", static (_, s, r) => NotAboveOwnHeadRule(s, r)),
+        new("above_head", static (g, s, r) => g.NotAboveOwnHeadRule(s, r)),
         new("reach", static (g, s, r) => g.WithinReachRule(s, r)),
         new("landing_pad", static (g, s, r) => g.LandingPadRule(s, r)),
         new("station", static (g, _, r) => g.StationProtectionRule(r)),
@@ -834,11 +851,11 @@ public sealed partial class GameServer
     /// <summary>
     /// The cell a bed's foot half takes for a head placed at <paramref name="head"/> with the stamped
     /// <paramref name="headDescriptor"/> (#1846), when it can take it: free (air, or a fluid the bed displaces
-    /// like the head does), inside reach, not the player's own head cell, and on none of the protected ground
-    /// the head itself is refused on. Same Y as the head, so the build band needs no second look. The seam
+    /// like the head does), no doorway, inside reach, not the player's own head cell, and on none of the protected
+    /// ground the head itself is refused on. Same Y as the head, so the build band needs no second look. The seam
     /// wrap is applied, so a bed across the world seam works like any other two-cell edit.
     /// </summary>
-    private bool TryBedFootCell(PlayerSession session, Vector3i head, int headDescriptor, out Vector3i foot)
+    private bool TryBedFootCell(PlayerSession session, BlockDefinition bed, Vector3i head, int headDescriptor, out Vector3i foot)
     {
         foot = head;
         if (!FurnitureShapes.TryBedPartnerOffset(headDescriptor, out int dx, out int dz))
@@ -847,7 +864,7 @@ public sealed partial class GameServer
         }
 
         foot = WorldConstants.CanonicalBlock(new Vector3i(head.X + dx, head.Y, head.Z + dz), _world.Circumference);
-        return IsFreePartnerCell(session, foot); // the same checks a multi-cell form's sibling cells get (#1961)
+        return IsFreePartnerCell(session, bed, foot); // the same checks a multi-cell form's sibling cells get (#1961)
     }
 
     /// <summary>Which wall a ladder hugs when the client sent no choice — an old client, a test, or one of the

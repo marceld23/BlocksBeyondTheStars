@@ -48,6 +48,11 @@ The deferred class extractions are #2929 (not part of this branch).
   bare 413. `POST /api/worlds/{id}/save` now raises the per-request limit (`IHttpMaxRequestBodySizeFeature`) to the cap
   once its guards pass and answers a refused body with JSON `upload_too_large`; HOSTED_WORLDS.md adds the proxy note.
   `WorldHostHttpTests.SaveUpload_FollowsTheUploadCap_NotKestrelsDefaultBodyLimitAsync` pins both sides on Kestrel.
+- **Partner-cell + head-cell checks, validator quirks (#2927):** a multi-cell block's further cells skipped the anchor's
+  `door_here`/`fluid_cell` refusals and `above_head` used the unwrapped `Position.X` (west of the seam a player could wall
+  in their head); `IsFreePartnerCell` reuses `DoorFillsCell` + `FluidCellRefusal`, both use the wrapped `OwnHeadCell`.
+  Validator: invariant cutscene floats; a bad player lead type still gets the lead warning, a tutorial reward 0 errors
+  (C# + Python). Pinned by `PlacementPartnerCellTests`, `StoryPackValidationTests`, `CutsceneContentTests` (de-DE).
 
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 

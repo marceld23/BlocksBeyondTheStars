@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -17,8 +18,8 @@ namespace BlocksBeyondTheStars.GameServer;
 ///
 /// The rules mirror the two-cell bed (#1846), generalised:
 /// <list type="bullet">
-/// <item>every footprint cell is put through the checks the anchor passed — free, in reach, not the player's
-/// own head, no protected ground, inside the build band — BEFORE the item is consumed;</item>
+/// <item>every footprint cell is put through the checks the anchor passed — free, no doorway, in reach, not the
+/// player's own head, no protected ground, inside the build band — BEFORE the item is consumed;</item>
 /// <item>the form turns (yaw) but never tips, so its footprint is always upright;</item>
 /// <item>taking ANY cell away takes the whole form away. That is hooked at <c>ServerWorld.SetBlock</c>, the one
 /// place every write goes through — so it holds for the mining beam and equally for fire, fluids, falling
@@ -51,7 +52,8 @@ public sealed partial class GameServer
     /// <paramref name="descriptor"/> would take — or false when one of them cannot be taken. An ordinary
     /// one-block form succeeds with an empty list.
     /// </summary>
-    private bool TryMultiCellSiblings(PlayerSession session, Vector3i anchor, int descriptor, out List<(Vector3i Pos, int Cell)> siblings)
+    private bool TryMultiCellSiblings(PlayerSession session, BlockDefinition block, Vector3i anchor, int descriptor,
+        out List<(Vector3i Pos, int Cell)> siblings)
     {
         siblings = new List<(Vector3i, int)>();
         string? voxels = MultiCellVoxelsOf(descriptor);
@@ -66,7 +68,7 @@ public sealed partial class GameServer
         {
             var (dx, dy, dz) = CustomShape.CellOffset(voxels, cell, yaw);
             var pos = WorldConstants.CanonicalBlock(new Vector3i(anchor.X + dx, anchor.Y + dy, anchor.Z + dz), _world.Circumference);
-            if (!IsFreePartnerCell(session, pos))
+            if (!IsFreePartnerCell(session, block, pos))
             {
                 return false;
             }
@@ -78,12 +80,13 @@ public sealed partial class GameServer
     }
 
     /// <summary>
-    /// The checks a SECOND cell of a placement must pass — the ones the first cell went through in
-    /// <c>HandlePlace</c>: free (air, or a fluid the block displaces), inside the build band and reach, not the
+    /// The checks a SECOND cell of a placement of <paramref name="block"/> must pass — the ones the first cell went
+    /// through in <c>HandlePlace</c>: free (air, or a fluid the block displaces), inside the build band, no doorway
+    /// and no fluid the block cannot take (the door_here and fluid_cell rules, #2927), inside reach, not the
     /// player's own head cell, and on none of the protected ground. Shared by the bed's foot half and the
     /// sibling cells of a multi-cell form.
     /// </summary>
-    private bool IsFreePartnerCell(PlayerSession session, Vector3i cell)
+    private bool IsFreePartnerCell(PlayerSession session, BlockDefinition block, Vector3i cell)
     {
         if (!WithinBuildHeight(cell.Y))
         {
@@ -91,14 +94,18 @@ public sealed partial class GameServer
         }
 
         var existing = _world.GetBlock(cell);
-        if (!existing.IsAir && !IsFluid(existing.Value))
+        bool fluid = IsFluid(existing.Value);
+        if (!existing.IsAir && !fluid)
         {
             return false;
         }
 
-        var feet = session.State.Position;
-        int fx = (int)System.Math.Floor(feet.X), fy = (int)System.Math.Floor(feet.Y), fz = (int)System.Math.Floor(feet.Z);
-        if (cell.X == fx && cell.Z == fz && cell.Y == fy + 1)
+        if (DoorFillsCell(cell) || (fluid && FluidCellRefusal(block, existing) is not null))
+        {
+            return false;
+        }
+
+        if (cell == OwnHeadCell(session))
         {
             return false;
         }

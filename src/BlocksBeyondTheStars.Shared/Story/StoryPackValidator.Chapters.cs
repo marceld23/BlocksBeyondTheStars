@@ -105,15 +105,17 @@ public static partial class StoryPackValidator
                 continue;
             }
 
+            // Before the type check (#2927): a player pack ignores its leads whatever their type, so a broken one must not
+            // hide that warning.
+            if (run.PlayerPack)
+            {
+                run.Warn(lp, "leads are read for world packs only");
+            }
+
             if (StoryLeadTypes.Problem(lead.Type) is { } leadProblem)
             {
                 run.Error($"{lp}.type", leadProblem);
                 continue;
-            }
-
-            if (run.PlayerPack)
-            {
-                run.Warn(lp, "leads are read for world packs only");
             }
 
             string leadKind = StoryLeadTypes.KindOf(lead.Type);

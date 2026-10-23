@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using BlocksBeyondTheStars.Networking;
 using BlocksBeyondTheStars.Networking.Messages;
@@ -330,6 +331,28 @@ public sealed class CutsceneContentTests
         AssertError(Probe(c => c.Shots[0].Captions[0].At = 8f), "lies outside");
         AssertError(Probe(c => c.Shots[0].Captions[0].Hold = -1f), "must not be negative");
         AssertError(Probe(c => c.Shots[0].Sfx[0].At = 9f), "lies outside");
+    }
+
+    [Fact]
+    public void TheSecondsInAMessage_ReadTheSameOnAGermanMachine()
+    {
+        // #2927: the shot-length and timing messages wrote "120,5" on a de-DE server.
+        var before = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("de-DE");
+            AssertError(Probe(c => c.Shots[0].Duration = 120.5f), "at most 120 seconds (found 120.5)");
+            AssertError(Probe(c => c.Shots[0].Sfx[0].At = 8.5f), "the cue at 8.5 s lies outside the 8 s shot");
+            AssertError(Probe(c =>
+            {
+                c.Shots[0].Duration = 7.5f;
+                c.Shots[0].Captions[0].At = 7.5f;
+            }), "the caption at 7.5 s lies outside the 7.5 s shot");
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = before;
+        }
     }
 
     [Fact]

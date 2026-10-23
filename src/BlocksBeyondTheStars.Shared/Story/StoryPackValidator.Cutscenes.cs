@@ -124,7 +124,7 @@ public static partial class StoryPackValidator
 
         if (!(shot.Duration > 0f) || shot.Duration > ShotMaxSeconds)
         {
-            run.Error($"{sp}.duration", $"a shot lasts more than 0 and at most {ShotMaxSeconds:0} seconds (found {shot.Duration})");
+            run.Error($"{sp}.duration", FormattableString.Invariant($"a shot lasts more than 0 and at most {ShotMaxSeconds:0} seconds (found {shot.Duration})"));
         }
 
         if (!CutsceneGrades.All.Contains(shot.Grade ?? string.Empty))
@@ -146,7 +146,7 @@ public static partial class StoryPackValidator
 
             if (sfx.At < 0f || (shot.Duration > 0f && sfx.At >= shot.Duration))
             {
-                run.Error($"{xp}.at", $"the cue at {sfx.At} s lies outside the {shot.Duration} s shot");
+                run.Error($"{xp}.at", FormattableString.Invariant($"the cue at {sfx.At} s lies outside the {shot.Duration} s shot"));
             }
         }
 
@@ -201,7 +201,7 @@ public static partial class StoryPackValidator
 
         if (caption.At < 0f || (shot.Duration > 0f && caption.At >= shot.Duration))
         {
-            run.Error($"{kp}.at", $"the caption at {caption.At} s lies outside the {shot.Duration} s shot");
+            run.Error($"{kp}.at", FormattableString.Invariant($"the caption at {caption.At} s lies outside the {shot.Duration} s shot"));
         }
 
         if (caption.Hold < 0f)
