@@ -53,6 +53,12 @@ The deferred class extractions are #2929 (not part of this branch).
   in their head); `IsFreePartnerCell` reuses `DoorFillsCell` + `FluidCellRefusal`, both use the wrapped `OwnHeadCell`.
   Validator: invariant cutscene floats; a bad player lead type still gets the lead warning, a tutorial reward 0 errors
   (C# + Python). Pinned by `PlacementPartnerCellTests`, `StoryPackValidationTests`, `CutsceneContentTests` (de-DE).
+- **PlayMode join waits for the server; env-var tests share one collection (#2923):** the PlayMode test
+  `Join_AgainstRealServer_AcceptsAndStreamsChunks` dialled after a fixed 2 s + 5 s, but a fresh world plus NetCodec
+  warm-up takes ~7–8 s, so it failed under load. It now waits for `LocalServerLauncher.Ready` (the bound-port line, up
+  to 60 s, ends early if the process exits), then re-dials once a second for 10 s; UnityPlay ran 6/6 three times.
+  `AdminServiceTests` + `AdminContentTests` read `BBS_*` beside the config tests; they now join the explicit
+  `ServerConfigEnvironmentCollection`, and its guard `ServerConfigEnvironmentCollectionTests` scans the test sources.
 
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 

@@ -11,10 +11,11 @@ namespace BlocksBeyondTheStars.Tests;
 /// <summary>
 /// Pins every accepted <c>--switch</c> and <c>BBS_*</c> variable of <see cref="ServerConfig"/>: the canonical name each one
 /// reports, the parse rules, range checks, clamps and companion setters, and the order <see cref="ServerConfig.ApplyEnvironment"/>
-/// applies and reports variables in (Program.cs logs that list). Shares the <c>ServerConfigEnvironment</c> collection with
-/// <see cref="ServerConfigTests"/> so their process-global environment-variable edits never interleave.
+/// applies and reports variables in (Program.cs logs that list). Shares the <see cref="ServerConfigEnvironmentCollection"/>
+/// with <see cref="ServerConfigTests"/> and the admin tests so their process-global environment-variable edits and reads
+/// never interleave.
 /// </summary>
-[Collection("ServerConfigEnvironment")]
+[Collection(ServerConfigEnvironmentCollection.Name)]
 public sealed class ServerConfigOptionsTests
 {
     /// <summary>The 52 environment variables <see cref="ServerConfig.ApplyEnvironment"/> reads, in the order it applies and
@@ -425,11 +426,10 @@ public sealed class ServerConfigOptionsTests
         Assert.Equal(52, HistoricalEnvironmentOrder.Length);
         Assert.Equal(52, HistoricalEnvironmentOrder.Distinct(StringComparer.Ordinal).Count());
 
-        // Sample values: valid for each parser. The window in which they are set process-wide overlaps the parallel
-        // test classes that reload the config through AdminService.LoadConfig (AdminServiceTests, AdminContentTests),
-        // so every variable those tests read back carries a value they expect: BBS_SERVER_NAME / BBS_MAX_PLAYERS match
-        // what AdminServiceTests.Config_RoundTripsThroughService saves, BBS_WORLD / BBS_SAVES / BBS_DATABASE_PROVIDER
-        // match the defaults. Any non-empty value counts as applied, so the order assertion is unaffected.
+        // Sample values: valid for each parser. Any non-empty value counts as applied, so the order assertion is
+        // unaffected. The classes that reload the config through AdminService.LoadConfig (AdminServiceTests,
+        // AdminContentTests) share this class's collection since #2923, so they never run inside the window in which
+        // these are set process-wide.
         var samples = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["BBS_SERVER_NAME"] = "My Server",

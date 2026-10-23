@@ -7,6 +7,7 @@ using Xunit;
 
 namespace BlocksBeyondTheStars.Tests;
 
+[Collection(ServerConfigEnvironmentCollection.Name)] // every LoadConfig applies the BBS_* variables ServerConfigTests sets (#2923)
 public sealed class AdminContentTests : IDisposable
 {
     private readonly string _install;

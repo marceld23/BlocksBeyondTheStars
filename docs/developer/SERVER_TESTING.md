@@ -156,6 +156,13 @@ first-PR traps:
   `DisableParallelization`, so its classes run in the runner's sequential phase where the queue is
   empty; it costs a few seconds of serial window. Marking such a test `Slow` instead would hide
   the symptom and drop the coverage from every PR.
+- **A test that sets or reads the `BBS_*` server variables belongs in
+  `[Collection(ServerConfigEnvironmentCollection.Name)]`.** Environment variables are process-wide: the config tests
+  set them for a moment, and anything that loads `ServerConfig` from the environment — `ApplyEnvironment`, every
+  `AdminService.LoadConfig` — reads them, so a reader in another collection picked up a value now and then (#2923).
+  The collection orders its members one after another; a guard test
+  ([ServerConfigEnvironmentCollection.cs](../../tests/BlocksBeyondTheStars.Tests/ServerConfigEnvironmentCollection.cs))
+  fails for a class that touches them from outside it.
 - **A test that is slow only next to other tests may be starving on a shared world-gen cache.**
   `WorldGenerator` keeps its per-world derived data (calibration, river field …) in process-wide
   caches. When such a cache builds — or merely looks up — under one static lock, a test that creates

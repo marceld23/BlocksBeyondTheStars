@@ -9,7 +9,7 @@ using Xunit;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>Command-line overrides used to embed/launch the server (e.g. local singleplayer host).</summary>
-[Collection("ServerConfigEnvironment")]
+[Collection(ServerConfigEnvironmentCollection.Name)]
 public sealed class ServerConfigTests
 {
     [Fact]

@@ -111,9 +111,11 @@ and is the one that holds in CI. Run the suite from the Editor's Test Runner win
 
 `client/Assets/Tests/PlayMode/`. Three test classes:
 - **The shipping path** — a `[UnityTest]` coroutine launches the **published** dedicated server
-  (`LocalServerLauncher`, the same code Singleplayer uses) as a child process on loopback UDP, then drives a
-  real `NetworkClient` through connect → join → first chunks. Skipped if the server has not been published into
-  `StreamingAssets/server/`. Deliberately smoke-level (slow; needs the Editor + the exe).
+  (`LocalServerLauncher`, the same code Singleplayer uses) as a child process on loopback UDP, waits for the
+  server's own ready line (`LocalServerLauncher.Ready`, up to 60 s — never a fixed sleep, a fresh world takes ~8 s
+  to boot, #2923), then drives a real `NetworkClient` through connect → join → first chunks. Skipped if the
+  server has not been published into `StreamingAssets/server/`. Deliberately smoke-level (slow; needs the
+  Editor + the exe).
 - **The real `BlockTextureAtlas` build** from the synced content (runs in PlayMode because the atlas builder
   calls `Object.Destroy`). Skipped if `StreamingAssets/data` is missing.
 - **`InputFocusGuardPlayModeTests`** — a focused input field whose canvas is switched off must be released without

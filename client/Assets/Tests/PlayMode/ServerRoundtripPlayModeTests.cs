@@ -23,6 +23,13 @@ namespace BlocksBeyondTheStars.Client.Tests.PlayMode
     {
         private const int TestPort = 31599;
 
+        /// <summary>The ceiling on the server's boot: a fresh world took 16 s on a fast machine (see
+        /// <see cref="ConnectRetryPolicy"/>); the measured ~8 s of this small test world leave ample headroom.</summary>
+        private const float ServerBootBudgetSeconds = 60f;
+
+        /// <summary>The ceiling on the handshake once the server reports ready.</summary>
+        private const float ConnectBudgetSeconds = 10f;
+
         [UnityTest]
         public IEnumerator Join_AgainstRealServer_AcceptsAndStreamsChunks()
         {
@@ -54,8 +61,10 @@ namespace BlocksBeyondTheStars.Client.Tests.PlayMode
             {
                 Assert.IsTrue(launcher.Start(TestPort, 1, "playmode_test", 4242), "Server process should start.");
 
-                // Give the server a moment to bind its UDP socket.
-                yield return new WaitForSeconds(2f);
+                // #2923: the server's own ready line, not a guessed pause, decides when to dial.
+                yield return WaitForServerReady(launcher);
+                Assert.IsTrue(launcher.Ready,
+                    $"Server should report ready within {ServerBootBudgetSeconds:0} s (process running: {launcher.IsRunning}).");
 
                 JoinAccepted accepted = null;
                 int chunks = 0;
@@ -64,21 +73,13 @@ namespace BlocksBeyondTheStars.Client.Tests.PlayMode
                 client.JoinAccepted += m => accepted = m;
                 client.ChunkReceived += _ => chunks++;
 
-                client.Connect("127.0.0.1", TestPort);
-
-                float t = 0f;
-                while (!client.Connected && t < 5f)
-                {
-                    client.Poll();
-                    t += Time.unscaledDeltaTime;
-                    yield return null;
-                }
+                yield return ConnectWithRedial(client);
 
                 Assert.IsTrue(client.Connected, "Client should connect to the real server.");
 
                 client.Join("PlayModeTester");
 
-                t = 0f;
+                float t = 0f;
                 while (accepted == null && t < 10f)
                 {
                     client.Poll();
@@ -102,6 +103,48 @@ namespace BlocksBeyondTheStars.Client.Tests.PlayMode
             {
                 client?.Dispose();
                 launcher.Stop();
+            }
+        }
+
+        /// <summary>
+        /// #2923: waits for the server's ready line ("started on port", relayed as <see cref="LocalServerLauncher.Ready"/>;
+        /// the server prints it once its UDP socket is bound). A fresh world plus the process start takes ~8 s on a busy
+        /// machine — the NetCodec formatter warm-up alone ~5.5 s — and the old fixed 2 s pause plus a 5 s connect budget
+        /// lost that race now and then. Bounded, and a server process that exits ends the wait at once, so a wedged or
+        /// crashed server still fails the test.
+        /// </summary>
+        private static IEnumerator WaitForServerReady(LocalServerLauncher launcher)
+        {
+            float started = Time.realtimeSinceStartup;
+            while (!launcher.Ready && launcher.IsRunning && Time.realtimeSinceStartup - started < ServerBootBudgetSeconds)
+            {
+                yield return null;
+            }
+
+            Debug.Log($"[PlayMode] Waited {Time.realtimeSinceStartup - started:0.0} s for the real server (ready: {launcher.Ready}).");
+        }
+
+        /// <summary>Dials the ready server, re-dialling once a second as the game does for its bundled server
+        /// (<see cref="ConnectRetryPolicy.LocalIntervalSeconds"/>), so a handshake lost while the fresh server settles costs
+        /// one interval instead of the test.</summary>
+        private static IEnumerator ConnectWithRedial(NetworkClient client)
+        {
+            client.Connect("127.0.0.1", TestPort);
+
+            float t = 0f;
+            float sinceDial = 0f;
+            while (!client.Connected && t < ConnectBudgetSeconds)
+            {
+                client.Poll();
+                t += Time.unscaledDeltaTime;
+                sinceDial += Time.unscaledDeltaTime;
+                if (!client.Connected && sinceDial >= ConnectRetryPolicy.LocalIntervalSeconds)
+                {
+                    client.Connect("127.0.0.1", TestPort);
+                    sinceDial = 0f;
+                }
+
+                yield return null;
             }
         }
     }
