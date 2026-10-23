@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧩 Issue #2929 — the useful class extractions, three bugs they found — #2929, #2931–#2938, branch refactor/class-extractions-2929 — 🚧 in progress
+### 🧩 Issue #2929 — the useful class extractions, three bugs they found — #2929, #2931–#2938, branch refactor/class-extractions-2929 — ✅ done 2026-10-24 (⚠ playtest open)
 
 Decided 2026-10-23: one "do" (IServerHost promotion), four "change" (crafting rules → Client.Core CraftGate, story
 state → Client.Core, one cruise interact rule, a shared ModelKit; prompts stay off UiPanel), three "drop"
