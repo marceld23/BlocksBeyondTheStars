@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Client.Core;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -627,47 +628,43 @@ namespace BlocksBeyondTheStars.Client
                     && _nearStationId == null && _landTargetId == null;
             }
 
-            if (_nearWormholeId != null && InputMap.Down(InputAction.Interact))
-            {
-                BeginWormholeTransit();
-            }
-
-            // E is the context action while flying: dock with a station you're next to, or — like docking —
-            // land on a planet/moon you've flown up close to (the server flies the descent). L stays as the
+            // E is the context action while flying: fly through a wormhole, go over to the docked friend's ship, dock with a
+            // station you're next to, or — like docking — land on a planet/moon you've flown up close to (the server flies
+            // the descent). CruiseInteractChoice is the one rule; the board prompt asks it too (#2934). L stays as the
             // "return to the body you launched from" shortcut.
-            else if (InputMap.Down(InputAction.Interact))
+            if (InputMap.Down(InputAction.Interact))
             {
-                // Whichever you're closest to wins: dock the station or land on the body.
-                bool stationCloser = _nearStationId != null && (_landTargetId == null || _nearStationSq <= _landTargetSq);
-                if (_interactGoesOver)
+                switch (CruiseInteractChoice())
                 {
-                    BeginVisit(); // #2724: over to the docked friend's ship
-                }
-                else if (_interactAsksPartner)
-                {
-                    // #2724: the friend is flying — ask anyway; the server says "step inside your ship" to them and why to us.
-                    // Behind the veil like any visit: if they stepped inside since the last flight snapshot the server takes
-                    // us over at once (no landing descent); its "is flying" refusal lifts the veil again straight away.
-                    BeginVisit();
-                }
-                else if (stationCloser)
-                {
-                    _phase = Phase.Boarding; // dock-approach animation (into the hangar, #1917); board intent sent on completion
-                    _seq = 0f;
-                    _boardSent = false;
-                    _boardWait = 0f;
-                    _boardTargetId = _nearStationId;
-                    _boardStartPos = _ship.transform.localPosition;
-                    PlanDockApproach();
-                }
-                else if (_landTargetId != null)
-                {
-                    // One press opens the planet map; you pick the pad to land on there (item 38 / B?).
-                    OpenPadChooser(_landTargetId);
-                }
-                else
-                {
-                    SayAnomalyHintOnInteract(); // #2588: E at an anomaly said nothing — now it says how to read it
+                    case CruiseInteractTarget.Wormhole:
+                        BeginWormholeTransit();
+                        break;
+                    case CruiseInteractTarget.GoOver:
+                        BeginVisit(); // #2724: over to the docked friend's ship
+                        break;
+                    case CruiseInteractTarget.AskPartner:
+                        // #2724: the friend is flying — ask anyway; the server says "step inside your ship" to them and why to us.
+                        // Behind the veil like any visit: if they stepped inside since the last flight snapshot the server takes
+                        // us over at once (no landing descent); its "is flying" refusal lifts the veil again straight away.
+                        BeginVisit();
+                        break;
+                    case CruiseInteractTarget.Station:
+                        // Whichever you're closest to wins: dock the station or land on the body.
+                        _phase = Phase.Boarding; // dock-approach animation (into the hangar, #1917); board intent sent on completion
+                        _seq = 0f;
+                        _boardSent = false;
+                        _boardWait = 0f;
+                        _boardTargetId = _nearStationId;
+                        _boardStartPos = _ship.transform.localPosition;
+                        PlanDockApproach();
+                        break;
+                    case CruiseInteractTarget.Body:
+                        // One press opens the planet map; you pick the pad to land on there (item 38 / B?).
+                        OpenPadChooser(_landTargetId);
+                        break;
+                    default: // nothing in reach, or the friend is flying out of reach (the prompt only says so)
+                        SayAnomalyHintOnInteract(); // #2588: E at an anomaly said nothing — now it says how to read it
+                        break;
                 }
             }
 

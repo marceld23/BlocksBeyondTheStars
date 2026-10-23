@@ -234,6 +234,17 @@ namespace BlocksBeyondTheStars.Client
             return _nearStationId != null ? EvaBoardTarget.Station : EvaBoardTarget.None;
         }
 
+        /// <summary>
+        /// What E does at the helm — the cruise twin of <see cref="EvaBoardChoice"/> (#2934). The key (UpdateCruise, right
+        /// after it sets the visit flags) and the board prompt (LateUpdate) both ask here, each from the fields as they stand
+        /// at that moment, so the prompt never offers what the key would not do. The rule is
+        /// <see cref="BlocksBeyondTheStars.Client.Core.CruiseInteractRules.Choose"/>.
+        /// </summary>
+        private BlocksBeyondTheStars.Client.Core.CruiseInteractTarget CruiseInteractChoice()
+            => BlocksBeyondTheStars.Client.Core.CruiseInteractRules.Choose(_nearWormholeId != null, _interactGoesOver,
+                _interactAsksPartner, _nearStationId != null, _nearStationSq, _landTargetId != null, _landTargetSq,
+                _visit.Prompt == BlocksBeyondTheStars.Client.Core.ShipVisitPrompt.PartnerFlying);
+
         /// <summary>#2703: the suit's distance to the own ship's hull — to its voxel box in the ship's design frame (so the
         /// ship's heading counts), the way a station is measured to its box (#1917). The cube fallback ship has no cells: it
         /// is measured to its keep-out shell.</summary>

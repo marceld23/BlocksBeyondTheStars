@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Client.Core;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
@@ -463,46 +464,37 @@ namespace BlocksBeyondTheStars.Client
                 _hint.text = _flightHint;
                 _hint.gameObject.SetActive(true);
 
-                // Prompt whichever you're closest to: dock a station or land on a body you've flown up to —
-                // labelled with the live Interact binding (keyboard key or pad glyph; a tablet's USE button, #2502).
+                // Prompt what E does (CruiseInteractChoice — the same pick the key makes, #2934): fly through the wormhole
+                // (#2242: the rift wins), go over to the docked friend's ship or ask the friend at the helm (#2724), dock the
+                // station or land on the body you've flown up to — whichever you're closest to — or just say that the friend
+                // is flying. Labelled with the live Interact binding (keyboard key or pad glyph; a tablet's USE button, #2502).
                 string useGlyph = HudUi.KeyTokenGlyph(loc, nameof(InputAction.Interact), prompt: true);
-                bool haveStation = _nearStationId != null;
-                bool haveBody = _landTargetId != null;
-                bool stationCloser = haveStation && (!haveBody || _nearStationSq <= _landTargetSq);
-                bool showStation = haveStation && stationCloser;
-                bool showBody = haveBody && !stationCloser;
-                if (showStation)
+                var interact = CruiseInteractChoice();
+                switch (interact)
                 {
-                    string board = loc != null ? string.Format(loc.Get("ui.space.board_fmt"), useGlyph) : $"Press {useGlyph} to board";
-                    _board.text = $"{board} {_nearStationName}";
-                }
-                else if (showBody)
-                {
-                    string land = loc != null ? string.Format(loc.Get("ui.space.land_prompt_fmt"), useGlyph) : $"Press {useGlyph} to land on";
-                    _board.text = $"{land} {_landTargetName}";
-                }
-
-                // #2724: the docked friend's ship — "go over" when it is the nearest target (UpdateCruise's pick, the same one E
-                // makes), else that the friend is flying (and, within reach, that E asks them to let us over).
-                bool flying = _visit.Prompt == BlocksBeyondTheStars.Client.Core.ShipVisitPrompt.PartnerFlying && !showStation && !showBody;
-                bool showVisit = _interactGoesOver || flying;
-                if (showVisit)
-                {
-                    _board.text = _interactGoesOver
-                        ? VisitPromptText(loc, "ui.visit.go_over_fmt", "Press {key} to go over to {name}'s ship", useGlyph)
-                        : _interactAsksPartner
-                            ? VisitPromptText(loc, "ui.visit.flying_ask", "{name} is flying · {key}: ask to come over", useGlyph)
-                            : VisitPromptText(loc, "ui.visit.flying", "{name} is flying", useGlyph);
+                    case CruiseInteractTarget.Wormhole:
+                        _board.text = loc != null ? string.Format(loc.Get("ui.space.wormhole_prompt_fmt"), useGlyph) : $"Press {useGlyph} to fly through the wormhole";
+                        break;
+                    case CruiseInteractTarget.GoOver:
+                        _board.text = VisitPromptText(loc, "ui.visit.go_over_fmt", "Press {key} to go over to {name}'s ship", useGlyph);
+                        break;
+                    case CruiseInteractTarget.AskPartner:
+                        _board.text = VisitPromptText(loc, "ui.visit.flying_ask", "{name} is flying · {key}: ask to come over", useGlyph);
+                        break;
+                    case CruiseInteractTarget.Station:
+                        string board = loc != null ? string.Format(loc.Get("ui.space.board_fmt"), useGlyph) : $"Press {useGlyph} to board";
+                        _board.text = $"{board} {_nearStationName}";
+                        break;
+                    case CruiseInteractTarget.Body:
+                        string land = loc != null ? string.Format(loc.Get("ui.space.land_prompt_fmt"), useGlyph) : $"Press {useGlyph} to land on";
+                        _board.text = $"{land} {_landTargetName}";
+                        break;
+                    case CruiseInteractTarget.PartnerFlying:
+                        _board.text = VisitPromptText(loc, "ui.visit.flying", "{name} is flying", useGlyph);
+                        break;
                 }
 
-                bool showWormhole = _nearWormholeId != null; // #2242: the rift wins — the same E flies through it
-                if (showWormhole)
-                {
-                    string through = loc != null ? string.Format(loc.Get("ui.space.wormhole_prompt_fmt"), useGlyph) : $"Press {useGlyph} to fly through the wormhole";
-                    _board.text = through;
-                }
-
-                _board.gameObject.SetActive(showStation || showBody || showWormhole || showVisit);
+                _board.gameObject.SetActive(interact != CruiseInteractTarget.None);
 
                 string cargoLabel = loc != null ? loc.Get("ui.space.cargo") : "Cargo";
                 int cargoCount = Game.Cargo.Length;
