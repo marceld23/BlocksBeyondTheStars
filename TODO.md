@@ -73,6 +73,12 @@ triggers on #2929. Fixes found on the way: #2936, #2937, #2938.
   grey and a ×N order the server refused looked live. The variant rule now lives once in the Shared
   `ItemMods.IsChangedVariant` (MaterialPool calls it, server unchanged); `CraftGate` counts backpack + hold + worn
   gear with it and checks the scaled ×N inputs and outputs. Pinned by `CraftGateTests` (parity with `MaterialPool`).
+- **Space entities free their materials and tiles (#2938):** every drone, UFO, raider, pod, drop or placeholder hull
+  built through ModelKit got its own Materials and 64×64 tiles, and despawning only destroyed the GameObject, so they
+  piled up until the menu sweep (one round of all kinds left 39 Materials). Entity models and a remote pilot's
+  placeholder hull now build in a `ModelKit.BeginOwned/EndOwned` scope; a refcounted `ModelAssetLease` frees them with
+  the last renderer that wore them (flung explosion parts keep their look). Nothing is shared, so the look is unchanged.
+  Pinned by `SpaceEntityAssetsPlayModeTests` and the PR-CI `SpaceEntityAssetGuardTests`.
 
 ### 🔧 Refactoring follow-ups 2026-10 — the bugs and cleanups the code-health refactoring found — #2919–#2928, branch fix/refactoring-follow-ups-2026-10, PR #2930 — ✅ done 2026-10-23 (⚠ playtest open)
 

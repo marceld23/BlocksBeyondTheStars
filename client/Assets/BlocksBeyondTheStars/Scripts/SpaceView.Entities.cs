@@ -264,9 +264,20 @@ namespace BlocksBeyondTheStars.Client
             // players read as real ships out here rather than flat cubes.
             var ship = new GameObject("Ship");
             ship.transform.SetParent(root.transform, false);
-            var hullMat = LitTex("iron_wall", new Color(0.82f, 0.84f, 0.88f)); // re-tinted per-player in SyncRemotePlayers (item 32)
-            Cube("Body", ship.transform, Vector3.zero, new Vector3(1.6f, 0.9f, 3.4f), hullMat);
-            Cube("Cockpit", ship.transform, new Vector3(0f, 0.45f, 1.1f), new Vector3(0.85f, 0.55f, 0.95f), LitTex("glass", new Color(0.7f, 0.9f, 1f)));
+            // #2938: the placeholder hull owns its materials and tiles — they go when the real voxel hull replaces it or
+            // the pilot leaves.
+            var owned = BeginOwned();
+            Material hullMat;
+            try
+            {
+                hullMat = LitTex("iron_wall", new Color(0.82f, 0.84f, 0.88f)); // re-tinted per-player in SyncRemotePlayers (item 32)
+                Cube("Body", ship.transform, Vector3.zero, new Vector3(1.6f, 0.9f, 3.4f), hullMat);
+                Cube("Cockpit", ship.transform, new Vector3(0f, 0.45f, 1.1f), new Vector3(0.85f, 0.55f, 0.95f), LitTex("glass", new Color(0.7f, 0.9f, 1f)));
+            }
+            finally
+            {
+                EndOwned(owned, ship);
+            }
 
             // #2157: other ships have engines too (they used to glide without any exhaust). The spacewalk figure is built on
             // the first spacewalk (SyncRemoteSuit, #2709).
@@ -332,21 +343,7 @@ namespace BlocksBeyondTheStars.Client
 
                     if (!_entities.TryGetValue(e.Id, out var go))
                     {
-                        // Real textured multi-cube models (mirrors the ship) instead of a flat colour cube.
-                        go = e.Kind switch
-                        {
-                            "SpaceStation" => BuildStationModel(_root.transform),
-                            "Drone" => BuildDroneModel(_root.transform),
-                            "Ufo" => BuildUfoModel(_root.transform),
-                            "Cruiser" => BuildCruiserModel(_root.transform),
-                            "BanditShip" => BuildBanditShipModel(_root.transform, e), // #2357: its real voxel hull once the design is here
-                            "EscapePod" => BuildEscapePodModel(_root.transform, e),   // #2241: a little lifeboat, not a red cube
-                            "Anomaly" => BuildAnomalyModel(_root.transform, e),       // #2241: the shimmering soap bubble
-                            "Wormhole" => BuildWormholeModel(_root.transform, e),     // #2242: the tear in space-time
-                            "DebrisField" => BuildDebrisFieldMarkerModel(_root.transform, e), // #2353: the flight recorder's beacon
-                            "SalvageCapsule" => BuildSalvageCapsuleModel(_root.transform, e), // #2353: a sealed canister
-                            _ => Cube("Entity", _root.transform, Vector3.zero, EntityScale(e.Kind), Unlit(EntityColor(e.Kind))), // ResourceDrop etc.
-                        };
+                        go = BuildEntityModel(e);
 
                         // Stations scale by size tier (server-sent) — a colossal hull dwarfs a small one.
                         if (e.Kind == "SpaceStation" && e.Scale > 0.01f)
@@ -447,6 +444,38 @@ namespace BlocksBeyondTheStars.Client
                     EnemyHealthBars.Forget(id);
                 }
             }
+        }
+
+        /// <summary>The model of a space entity seen for the first time: real textured multi-cube models (mirrors the
+        /// ship) instead of a flat colour cube. #2938: the model owns the materials and block tiles ModelKit made for it,
+        /// so they go with its last part when the entity despawns (they used to pile up until the return to the menu).</summary>
+        private GameObject BuildEntityModel(BlocksBeyondTheStars.Networking.Messages.NetCombatEntity e)
+        {
+            var owned = BeginOwned();
+            GameObject go = null;
+            try
+            {
+                go = e.Kind switch
+                {
+                    "SpaceStation" => BuildStationModel(_root.transform),
+                    "Drone" => BuildDroneModel(_root.transform),
+                    "Ufo" => BuildUfoModel(_root.transform),
+                    "Cruiser" => BuildCruiserModel(_root.transform),
+                    "BanditShip" => BuildBanditShipModel(_root.transform, e), // #2357: its real voxel hull once the design is here
+                    "EscapePod" => BuildEscapePodModel(_root.transform, e),   // #2241: a little lifeboat, not a red cube
+                    "Anomaly" => BuildAnomalyModel(_root.transform, e),       // #2241: the shimmering soap bubble
+                    "Wormhole" => BuildWormholeModel(_root.transform, e),     // #2242: the tear in space-time
+                    "DebrisField" => BuildDebrisFieldMarkerModel(_root.transform, e), // #2353: the flight recorder's beacon
+                    "SalvageCapsule" => BuildSalvageCapsuleModel(_root.transform, e), // #2353: a sealed canister
+                    _ => Cube("Entity", _root.transform, Vector3.zero, EntityScale(e.Kind), Unlit(EntityColor(e.Kind))), // ResourceDrop etc.
+                };
+            }
+            finally
+            {
+                EndOwned(owned, go);
+            }
+
+            return go;
         }
     }
 }

@@ -109,7 +109,7 @@ and is the one that holds in CI. Run the suite from the Editor's Test Runner win
 
 ## Tier 2 — Unity PlayMode (`UnityPlay`)
 
-`client/Assets/Tests/PlayMode/`. Five test classes:
+`client/Assets/Tests/PlayMode/`. Six test classes:
 - **The shipping path** — a `[UnityTest]` coroutine launches the **published** dedicated server
   (`LocalServerLauncher`, the same code Singleplayer uses) as a child process on loopback UDP, waits for the
   server's own ready line (`LocalServerLauncher.Ready`, up to 60 s — never a fixed sleep, a fresh world takes ~8 s
@@ -128,6 +128,13 @@ and is the one that holds in CI. Run the suite from the Editor's Test Runner win
   every canvas a component of the rig (`WorldRig.Build` and what it adds) assigns from `UiKit.Create…Canvas` must be
   kept in a field and destroyed in that component's teardown (`OnDestroy`, or an `OnDisable` that closes it — the
   surface map's way).
+- **`SpaceEntityAssetsPlayModeTests`** — a space entity's model (and another pilot's placeholder hull) takes the
+  Materials and 64×64 block tiles `ModelKit` made for it along when it despawns, counted with
+  `Resources.FindObjectsOfTypeAll`; a part flung off an exploding hostile keeps its look until it is gone too (#2938).
+  The models are built between `ModelKit.BeginOwned`/`EndOwned`, which hands every part that wears them a
+  `ModelAssetLease`; the last lease to go destroys them. Its PR-CI twin is the Client.Tests source guard
+  `SpaceEntityAssetGuardTests` (every kit asset is recorded, both spawn builders run in an owned scope, no entity
+  builder caches a kit material in a field).
 
 The PlayMode assembly must NOT be Editor-only (`includePlatforms: []`), otherwise Unity classifies it as an
 EditMode assembly and the tests run in the wrong mode (and `UnityPlay` finds nothing).
