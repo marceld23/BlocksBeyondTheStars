@@ -674,7 +674,7 @@ namespace BlocksBeyondTheStars.Client
             Bases = System.Array.Empty<NetBase>();
             Factories = System.Array.Empty<NetFactory>();
             DataCubes = System.Array.Empty<NetDataCube>();
-            NetFragments = System.Array.Empty<NetStoryFragment>();
+            _story.ResetWorld(); // the net fragments; the story's logs and the Journal stay (#2933)
             Speeders = System.Array.Empty<NetSpeeder>();
             Rails = System.Array.Empty<NetRailLine>(); // #2113: per-world — the new world re-sends its lines and trains
             Trains = System.Array.Empty<NetTrain>();

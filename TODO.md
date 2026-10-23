@@ -53,6 +53,11 @@ triggers on #2929. Fixes found on the way: #2936, #2937, #2938.
   `ResultFits`, `Owned`, `HasAll`, `MaxCraftable`, `ReachTier`, `DisassembleRecipe`); the menu keeps one-line wrappers
   and the same `ui.craft.*` keys, behaviour is unchanged. Pinned by `CraftGateTests` (reason order, `ResultFits` parity
   with `MaterialPool.CanFit`, the worn-gear/lab-variant drift that #2937 fixes).
+- **The story client state as a tested Client.Core class (#2933):** the VEGA story, journal badge, Story Log and VEGA
+  log state and their handlers (pack states, objectives, journal, relay, story snapshot, fragments, ship-AI lines,
+  reveals) lived in `GameBootstrap.Story.cs`, out of reach of the headless tests. They now live in the Client.Core
+  `StoryClientState`; GameBootstrap forwards its 17 public names to it and `WireStory` keeps its order, behaviour is
+  unchanged. Pinned by `StoryClientStateTests` (badge seeding, ShipAiLine kinds, journal merge, reveals, world reset).
 
 ### 🔧 Refactoring follow-ups 2026-10 — the bugs and cleanups the code-health refactoring found — #2919–#2928, branch fix/refactoring-follow-ups-2026-10, PR #2930 — ✅ done 2026-10-23 (⚠ playtest open)
 

@@ -1007,7 +1007,7 @@ The Story tab grew into the **Journal** (player-facing word: *stories*, never "p
 `src/BlocksBeyondTheStars.Client.Core/Journal/JournalView.cs` (`JournalCategories`, `JournalPackPage`, `ObjectiveTracker`,
 `TutorialSwitch` — Unity-free and unit-tested in `Client.Tests/JournalViewTests`); Unity: `CraftingTechShipUI` (Story
 mode = the Journal), `VegaPanel` (chip label + "Show all objectives"), `GameBootstrap` (`StoryPackStates`, `Objectives`,
-`JournalVersion`), `ChatUi` (`/tutorial`, `/story`).
+`JournalVersion`, forwarded from Client.Core `StoryClientState`, #2933), `ChatUi` (`/tutorial`, `/story`).
 
 - **`StoryPackStates` (tag 300)** per receiver: the tutorial packs, then the world story (a short entry — names, the
   player's track as `Started`/`Startable`, the finale won as `Done`/`Badge`, the pin; no chapters: the arc stays on tag
@@ -1130,7 +1130,11 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   catalogue — the authoring schema in LORE_STRUCTURE §E maps onto `story.json`. Validator:
   `tools/validate_story_pack.py` (#2466, replaces `merge_story.py`).
 - Client: `Mode.Story`/`Tab.Story` — the Journal since #2471 (one page per story, VEGA's notes, the player's notes; the
-  VEGA page = the old Story Log: meter + re-readable beats/fragments/memories);
+  VEGA page = the old Story Log: meter + re-readable beats/fragments/memories); the client's story state is
+  Client.Core `StoryClientState.cs` (#2933: the story state, relay network and net fragments, the Story Log lists and
+  beat list, the Journal's stories/objectives/version and its new-offer badge, the unknown stories, the VEGA log; unit-tested
+  in `Client.Tests/StoryClientStateTests`), held by `GameBootstrap.Story.cs`, which forwards its members under the old
+  names (`GameBootstrap.VegaLogKeys`, `StoryLogFragments`, `NewStoryUnseen`, …) and keeps the reader panel and the waypoint;
   `WorldEntities.cs` three-eyed-robot retheme + `BuildDrone` scan-drone; `FinaleView` (hack bar, gauntlet banner, breach and resume hints — #2478: the duel itself is
   `CutsceneDirectorDuel.cs` + `DuelDialogueScreen.cs`, rules in Client.Core `Cutscenes/CoreDuel.cs`);
   `ClientMusic` finale contexts → `music_boss_*` tracks.

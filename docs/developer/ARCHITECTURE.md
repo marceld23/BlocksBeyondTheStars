@@ -176,7 +176,11 @@ the `Client.Core` assembly, see [CLIENT_TESTING.md](CLIENT_TESTING.md)):
   the concern files) in a fixed order before it connects; `Update` polls the network, advances the
   clocks and ends with `TickSkyScan`, `TickConnect` and `TickChunkStreaming`, in that order. It also
   holds the rig's two registries, `Context` (`ClientContext`, the modal panels) and `Views`
-  (`RigViews`, the other views). Two extractions were dropped by decision (#2929): the station
+  (`RigViews`, the other views). The story state is the Unity-free `StoryClientState` in Client.Core
+  (#2933: the story progress, the Story Log, the Journal's stories, objectives and badge, the VEGA
+  log; tested in `Client.Tests/StoryClientStateTests`), like `BioClientState` for the bio lab:
+  `GameBootstrap.Story.cs` holds one as a field initializer, forwards its members under their old
+  names and passes the content to each handler. Two extractions were dropped by decision (#2929): the station
   affordances stay a partial (two short handlers whose events have no subscriber), and so does the
   chunk pipeline (Unity-bound, reads host state throughout, WorldRig sets its `FarView` before
   `Start`, and the player and the far terrain query it from their own updates).

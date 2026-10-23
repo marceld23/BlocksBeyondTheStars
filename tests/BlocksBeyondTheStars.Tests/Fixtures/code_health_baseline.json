@@ -70,7 +70,6 @@
     "client/Assets/BlocksBeyondTheStars/Scripts/GameBootstrap.Messages.cs": { "lines": 413, "longMethods": 1 },
     "client/Assets/BlocksBeyondTheStars/Scripts/GameBootstrap.PlayerState.cs": { "lines": 588, "longMethods": 2 },
     "client/Assets/BlocksBeyondTheStars/Scripts/GameBootstrap.Space.cs": { "lines": 373, "longMethods": 1 },
-    "client/Assets/BlocksBeyondTheStars/Scripts/GameBootstrap.Story.cs": { "lines": 296, "longMethods": 1 },
     "client/Assets/BlocksBeyondTheStars/Scripts/GameBootstrap.cs": { "lines": 934, "longMethods": 4 },
     "client/Assets/BlocksBeyondTheStars/Scripts/GameMenu.cs": { "lines": 782, "longMethods": 1 },
     "client/Assets/BlocksBeyondTheStars/Scripts/GlitchCloudSaves.cs": { "lines": 351, "longMethods": 1 },
