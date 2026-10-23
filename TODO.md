@@ -69,6 +69,11 @@ The deferred class extractions are #2929 (not part of this branch).
   `AddButton`/`AddIcon` drew no icon (Editor and player). Each `.meta` now carries the `cat_*.png` TextureImporter
   settings, written by Unity with the guids unchanged. `UiIconImportEditModeTests` (every `Resources/icons` PNG) and
   `IconCoverageTests.EveryIcon_MetaImportsItAsA2DTexture` (CI) pin it; `MainMenuHierarchy.golden.txt` is re-baked.
+- **The read API leaves out reply keys too (#2921):** `GET /api/reports` and `GET /api/reports/{id}` embedded the
+  stored payload as parsed `reportJson`, client's top-level `replyKey` included — against `ReportApiJson.Item`'s own
+  "never exposed" comment. `Item` now parses `WithoutReplyKey(r.ReportJson)` like the export (the database keeps the
+  key, every other field stays); REPORT_HOST.md says so. `ReportHostReadApiHttpTests`
+  (`AssertReadApiHidesReplyKeysAsync`) reads the list and the single report and finds no reply key in either.
 
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 

@@ -118,6 +118,7 @@ public sealed class ReportHostReadApiHttpTests : IClassFixture<ReportHostAdminHt
 
         await AssertGatesAndRedirectsAsync();
         await AssertReadApiAsync(id, shotId, textureId);
+        await AssertReadApiHidesReplyKeysAsync(id);
         await AssertAdminPagesAsync(id, shotId);
         await AssertOperatorReplyAndPollAsync(id);
         await AssertDeleteAsync(id);
@@ -223,6 +224,43 @@ public sealed class ReportHostReadApiHttpTests : IClassFixture<ReportHostAdminHt
             var disposition = file.Content.Headers.ContentDisposition;
             Assert.Equal("texture1.bytes", disposition?.FileNameStar ?? disposition?.FileName);
             Assert.Equal(ReportHostTextureSubmissionTests.Raw, await file.Content.ReadAsByteArrayAsync());
+        }
+    }
+
+    // The read API never hands out a reply key (#2921): not the column, and not the copy the client sent inside its
+    // payload, which the store keeps verbatim and reportJson embeds — every other payload field stays.
+    private async Task AssertReadApiHidesReplyKeysAsync(string id)
+    {
+        Assert.Contains(PollKey, _host.Store.Get(id)!.ReportJson, StringComparison.Ordinal);
+
+        using (var list = await ReadAsync("/api/reports?limit=200"))
+        {
+            Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+            string body = await list.Content.ReadAsStringAsync();
+            Assert.DoesNotContain(PollKey, body, StringComparison.Ordinal);
+            using var doc = JsonDocument.Parse(body);
+            var items = doc.RootElement.GetProperty("items");
+            Assert.Equal(3, items.GetArrayLength());
+            foreach (var item in items.EnumerateArray())
+            {
+                string key = _host.Store.Get(item.GetProperty("id").GetString()!)!.ReplyKey;
+                Assert.Equal(FeedbackReplyKey.Length, key.Length);
+                Assert.DoesNotContain(key, body, StringComparison.Ordinal);
+                Assert.False(item.GetProperty("reportJson").TryGetProperty("replyKey", out _));
+            }
+        }
+
+        using (var single = await ReadAsync("/api/reports/" + id))
+        {
+            Assert.Equal(HttpStatusCode.OK, single.StatusCode);
+            string body = await single.Content.ReadAsStringAsync();
+            Assert.DoesNotContain(PollKey, body, StringComparison.Ordinal);
+            using var doc = JsonDocument.Parse(body);
+            var stored = doc.RootElement.GetProperty("reportJson");
+            Assert.False(stored.TryGetProperty("replyKey", out _));
+            Assert.Equal("Hat eaten by door", stored.GetProperty("title").GetString());
+            Assert.Equal("read-api-player", stored.GetProperty("playerId").GetString());
+            Assert.Equal("planet", stored.GetProperty("reportJson").GetProperty("scene").GetString());
         }
     }
 

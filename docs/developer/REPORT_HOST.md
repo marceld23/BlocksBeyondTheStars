@@ -22,7 +22,7 @@ game server (crash flush) ──┘    (x-bugreport-key)    + files    └──
 |---|---|---|
 | `POST /api/bugreport` | header `x-bugreport-key` | Ingest — same JSON body the game sends to Wix; responds `{ ok, bugReportId }` |
 | `GET /api/reports?since=&status=&category=&source=&limit=&cursor=` | header `x-report-read-key` | Delta-sync list: `{ items, nextCursor, hasMore }`, ascending `createdAt` |
-| `GET /api/reports/{id}` | read key | One report (full, incl. parsed `reportJson`) |
+| `GET /api/reports/{id}` | read key | One report (full, incl. parsed `reportJson` without the reply key) |
 | `GET /api/reports/{id}/screenshot` | read key | The screenshot image |
 | `GET /api/reports/{id}/attachment/{index}` | read key | One file of a texture submission, as a named download (see *Texture submissions*) |
 | `PATCH /api/reports/{id}` `{"status":"new\|triaged\|waiting_for_player\|player_replied\|done"}` | admin Basic Auth, JSON content type | Triage from scripts/CI — covers the whole report pair (#1380); the answer lists the rows changed as `reportIds` |
@@ -39,7 +39,8 @@ game server (crash flush) ──┘    (x-bugreport-key)    + files    └──
 
 List items are camelCase (`id`, `title`, `description`, `email`, `gameVersion`, …, `status`,
 `createdAt` ISO-8601 UTC, `screenshotUrl` or null, `attachments` — `[{ index, fileName, mimeType, bytes, url }]`,
-empty for everything but a texture submission —, `reportJson` as a parsed object). `since` and the
+empty for everything but a texture submission —, `reportJson` as a parsed object: the stored payload minus the
+client's top-level `replyKey`, so neither the list nor the single report ever carries a reply key, #2921). `since` and the
 keyset `cursor` (`<createdUnix>:<id>`, returned as `nextCursor`) are both exclusive, so a puller that
 stores the last `createdAt`/cursor never re-fetches or skips rows.
 

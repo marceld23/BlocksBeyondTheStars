@@ -25,13 +25,14 @@ public static class ReportApiJson
 
     // The read API's item shape — matches the planned puller contract (camelCase, ISO createdAt, parsed
     // reportJson, relative screenshotUrl or null). The single-report endpoint adds the reply thread;
-    // the reply key itself is never exposed (it is the player's credential).
+    // the reply key itself is never exposed (it is the player's credential) — neither the column nor the copy the
+    // client sent inside its payload, which reportJson would otherwise carry verbatim (#2921).
     public static object Item(ReportStore store, BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null)
     {
         JsonElement reportJson;
         try
         {
-            using var doc = JsonDocument.Parse(r.ReportJson);
+            using var doc = JsonDocument.Parse(WithoutReplyKey(r.ReportJson));
             reportJson = doc.RootElement.Clone();
         }
         catch (JsonException)
