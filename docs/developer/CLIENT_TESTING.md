@@ -14,7 +14,7 @@ not a mock — at three tiers, fastest first.
 | Tier | Suite | What runs | Needs Unity? | Needs server exe? |
 |---|---|---|---|---|
 | 1 | `ClientCore` | Real `NetworkClient` ↔ real in-process `GameServer` over a `LoopbackLink` | no | no |
-| 1.5 | `UnityEdit` | Unity EditMode unit tests (ClientWorld, mesh packing, shader/asset rules) | yes (Editor) | no |
+| 1.5 | `UnityEdit` | Unity EditMode unit tests (ClientWorld, mesh packing, shader/asset rules, the main-menu golden, the panel and view registries) | yes (Editor) | no |
 | 2 | `UnityPlay` | Real `NetworkClient` ↔ the **published** server exe over loopback UDP | yes (Editor) | yes |
 | — | `Dotnet` | The existing .NET server/shared xUnit suite | no | no |
 
@@ -65,10 +65,16 @@ packet), `Disconnects` counts hang-ups. Do not copy it into a test class — the
 Some tests here are **source guards**: the Unity scripts cannot be compiled into this suite (they need `UnityEngine`),
 so a guard reads a script's text and asserts that a wiring is there. A large client class is split into partial files
 (`HudUi.cs` + `HudUi.<Widget>.cs`, `CraftingTechShipUI.cs` + `CraftingTechShipUI.<Part>.cs`, `SpaceView.cs` +
-`SpaceView.<Concern>.cs`), so a guard over such a class reads all of its files, not one by name:
-`ClientTestPaths.ScriptParts("HudUi")` returns `HudUi.cs` and every `HudUi.*.cs` part in a stable order, and
-`ScriptPartsText("HudUi")` joins them into one text — the guard then keeps finding a member whichever part it moves to
-(`SeamWiringTests`, `RumbleMixerTests`; `CraftDetailLayoutTests` reads every `CraftingTechShipUI*.cs`).
+`SpaceView.<Concern>.cs`, `PlayerController.cs` + `PlayerController.<Concern>.cs`, `GameBootstrap.cs` +
+`GameBootstrap.<Concern>.cs`, `UiMainMenu.cs` + the `UiOfficialWorlds*.cs` overlay), so a guard over such a class reads
+all of its files, not one by name: `ClientTestPaths.ScriptParts("HudUi")` returns `HudUi.cs` and every `HudUi.*.cs`
+part in a stable order, and `ScriptPartsText("HudUi")` joins them into one text — the guard then keeps finding a member
+whichever part it moves to (`SeamWiringTests`, `RumbleMixerTests`; `CraftDetailLayoutTests` reads every
+`CraftingTechShipUI*.cs`, `AuditLowLeftoversTests` the menu and its overlay). `ClientTestPaths.PlayerControllerSources()`
+also appends the controller's sibling components `PlayerCapture.cs`, `PlayerVehicleDrive.cs` and `PlayerTrainRider.cs`,
+so a `DoesNotContain` guard still covers the code that moved into them. A guard on one `GameBootstrap` concern reads
+that concern's file by name (`GameBootstrap.Entities.cs`, `GameBootstrap.Menus.cs`, …), and `VendorTradeWiringTests`
+pins the exact set of `GameBootstrap*.cs` files, so a renamed or added part cannot slip past its scan.
 
 ## Tier 1.5 — Unity EditMode (`UnityEdit`)
 
@@ -77,6 +83,20 @@ round-trips run inside the Editor/Mono. (Code that calls `Object.Destroy` cannot
 in edit mode — so the full atlas build test lives in PlayMode below. `BlockAtlasLooksGoldenEditModeTests` builds the
 atlas in EditMode anyway, with the per-tile `Destroy` errors ignored, to pin the code-painted block tiles by checksum,
 #2906 — see [DEVELOPER.md § Adding or removing a block](DEVELOPER.md#adding-or-removing-a-block).)
+
+Three EditMode suites pin the client's code-built structure (#2910, #2913, #2914):
+
+- **`MainMenuHierarchyEditModeTests`** builds the main menu (`UiMainMenu.Build`) and compares a dump of the whole canvas
+  hierarchy — every GameObject in sibling order with its components, rect, texts and colours — with
+  `client/Assets/Tests/EditMode/MainMenuHierarchy.golden.txt`; its wiring tests click the real buttons. A deliberate
+  menu change fails it: re-bake by copying the `MainMenuHierarchy.actual.txt` the failing test writes (its path is in
+  the failure message) over the golden. The dump covers the native branch only, shows locale keys instead of texts and
+  masks the version. The golden was captured **without the menu-button and system-check icons** (their textures did
+  not load in the Editor, so `UiKit.AddIcon` added nothing): once they load, re-bake it deliberately and check that the
+  diff is only the new icon images.
+- **`UiPanelEditModeTests`** opens the `UiPanel` pilots without a `Game` (sort order, pad focus, overlay count) and pins
+  `ClientContext`'s register/unregister rules; **`RigViewsEditModeTests`** pins `RigViews` (null while unset, the
+  registered view, null again once that view is destroyed). See [UI_PANELS.md](UI_PANELS.md#tests).
 
 This tier is also where **asset-level** rules are checked, because they need the `AssetDatabase`:
 `ShaderSrpBatcherEditModeTests` asserts that the project's shaders compile and that every per-material property
@@ -89,16 +109,26 @@ and is the one that holds in CI. Run the suite from the Editor's Test Runner win
 
 ## Tier 2 — Unity PlayMode (`UnityPlay`)
 
-`client/Assets/Tests/PlayMode/`. Two tests:
+`client/Assets/Tests/PlayMode/`. Three test classes:
 - **The shipping path** — a `[UnityTest]` coroutine launches the **published** dedicated server
   (`LocalServerLauncher`, the same code Singleplayer uses) as a child process on loopback UDP, then drives a
   real `NetworkClient` through connect → join → first chunks. Skipped if the server has not been published into
   `StreamingAssets/server/`. Deliberately smoke-level (slow; needs the Editor + the exe).
 - **The real `BlockTextureAtlas` build** from the synced content (runs in PlayMode because the atlas builder
   calls `Object.Destroy`). Skipped if `StreamingAssets/data` is missing.
+- **`InputFocusGuardPlayModeTests`** — a focused input field whose canvas is switched off must be released without
+  the uGUI caret exception (it needs real frames and caret blinks).
 
 The PlayMode assembly must NOT be Editor-only (`includePlatforms: []`), otherwise Unity classifies it as an
 EditMode assembly and the tests run in the wrong mode (and `UnityPlay` finds nothing).
+
+## Booting the whole rig: `-perfProbe`
+
+No tier boots the whole in-game rig (`WorldRig` + `GameBootstrap` + `PlayerController` against a running server, frame
+after frame). The built player's **`-perfProbe`** mode (`PerfProbe.cs`) does: it starts a fixed-seed singleplayer
+world, idles, walks a scripted path, writes frame-time/GC numbers (`perf_baseline_*.json` + `.txt`) and quits with exit
+code 0 — 1 when the world does not start. A change to the rig wiring is checked with a PerfProbe run before and after:
+both exit 0, `Player.log` shows no exception, and the numbers stay comparable.
 
 ## Running the tests
 

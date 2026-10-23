@@ -97,7 +97,7 @@ UWP/Xbox-store warnings do not apply.
 | Localization | Full DE+EN with central Localizer and DE-length-aware text sizing | `src/.../Localization/`, `StreamingAssets/data/locales/` |
 | Doors (§12 partial) | Animated hinge/slide doors with trim glow, passable energy-field door, open/close SFX | `DoorView.cs` |
 | Mining feedback (§12.2, most) | Wireframe outline, crack-progress tint, debris burst, drill sparks, 4 per-material mining sounds | `MiningFx.cs`, `ClientAudio.cs` |
-| Camera feel (§11.1, most) | Head bob, +4° FOV kick while moving, landing shake scaled by impact, zero-g inertia | `PlayerController.cs` |
+| Camera feel (§11.1, most) | Head bob, +4° FOV kick while moving, landing shake scaled by impact, zero-g inertia | `PlayerController*.cs` (`.View`, `.Movement`) |
 | Audio (§12) | 142 bundled ElevenLabs SFX + ~30 procedural fallbacks, audio manager with buses, 3D spatialization, underwater low-pass, cave reverb | `ClientAudio.cs`, `Resources/audio/` |
 
 Intentionally **not applicable** (no action needed): baked GI/lightmapping and Light Probes (the

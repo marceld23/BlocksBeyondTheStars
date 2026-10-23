@@ -182,7 +182,10 @@ LayoutMarker { int X,Y,Z; string Type; }    // vendor / mission_board / medbay /
 - A `LayoutCell.Id` is a **block key**; settlements may use the sentinel `"surface"`/`"wall"` so a village
   re-tints to the host biome's material at stamp time (keeps the "village in the biome's material" look).
 - Loaded by `ContentLoader` from `data/station_layouts/*.json` + `data/settlement_layouts/*.json`;
-  exposed via `GameContent.GetStationLayout(key)` / `GetSettlementLayout(key)` (+ pools by tier, §2.3).
+  exposed via `GameContent.GetStationLayout(key)` / `GetSettlementLayout(key)` (+ pools by tier, §2.3). *(Not built
+  this way — see the note at the top: the shipped files are `data/station_templates.json` /
+  `data/settlement_templates.json`, the lookups `GameContent.StationTemplateByKey` / `SettlementTemplateByKey` and the
+  tier pools `PickStationTemplate` / `PickSettlementTemplate`, all forwarding to `StructureCatalog`.)*
 
 ### 2.2 The editors (one reusable core)
 The ship editor is ~one self-contained `MonoBehaviour`. Extract its reusable bones into a shared

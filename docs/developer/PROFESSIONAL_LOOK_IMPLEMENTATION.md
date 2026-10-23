@@ -5,7 +5,7 @@ Status: implemented (see TODO.md for live Done/Open status). Date: 2026-06-19.
 The "professional look" pass (work packages WP-1…WP-16, derived from the G1–G32 gap analysis) shipped
 in one continuous run. It is a mix of a rendering-foundation change (linear colour), client-only
 gameplay juice, and a ship-presentation pass. This doc records the final shape of each piece and where
-it lives; the normative style rules it produced now live in `docs/ART_BIBLE.md`.
+it lives; the normative style rules it produced now live in [ART_BIBLE.md](ART_BIBLE.md).
 
 ## Overview
 
@@ -74,8 +74,10 @@ in GraphicsSettings Always-Included; every new block was added to the atlas and 
 - `client/Assets/BlocksBeyondTheStars/Scripts/ShipBuildFx.cs` — restamp materialize sweep.
 - `client/Assets/BlocksBeyondTheStars/Scripts/BlockTextureAtlas.cs` — variant tiles; the new room blocks'
   painters are in the `CodeTiles` look table of `BlockTextureAtlas.CodeTiles.cs`.
-- `src/BlocksBeyondTheStars.GameServer/GameServerShipStructure.cs` — `PaintStationAccents`, room stamping.
-- `docs/ART_BIBLE.md` — the normative style + palette + quality checklist this run produced (WP-16).
+- `src/BlocksBeyondTheStars.GameServer/GameServerSpaceStructure.cs` — `PaintStructureAccents`, the room-identity
+  accent pads under the station markers (it replaced the stamped `PaintStationAccents` when the landed ship became
+  a placed object instead of a world stamp).
+- `docs/developer/ART_BIBLE.md` — the normative style + palette + quality checklist this run produced (WP-16).
 
 ## Known gaps / deferred
 

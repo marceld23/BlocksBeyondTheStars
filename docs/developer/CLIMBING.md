@@ -14,7 +14,7 @@ in and go straight up.
 | Surfaces | `Shared/Definitions/ClimbSurface.cs` | `ClimbSurfaces.Of(block)`: how a block holds a climber, from block data |
 | Probe | `Client.Core/ClimbProbe.cs` | Pure cell reads: grab a wall, wall/ledge/lost ahead, side edge, overhang, pull-up target |
 | Grip | `Client.Core/ClimbGrip.cs` | The hidden 0..1 grip, drain and refill, speeds and the slide |
-| Movement | `client/.../PlayerController.cs` (region "wall climbing") | The state machine inside `Move()`, the pull-up, sounds, the hint |
+| Movement | `client/.../PlayerController.Climb.cs` | The state machine (`UpdateWallClimb`, called inside `Move()` in `PlayerController.Movement.cs`), the pull-up, sounds, the hint |
 | Pose | `client/.../PlayerAvatar.cs` `SetClimbing` / `PoseClimb` | Climb, hang, strain, slide and pull-up poses |
 | First person | `client/.../Viewmodel.cs` `SetClimbing` / `PoseClimbHand` (#2287) | The held item sinks away and both suit hands climb on the same signals and rhythm as `PoseClimb` (the mirrored left holder of the #2278 gloves); the climbing gear's pads from `HeldItemShapes.ClimbGear` |
 | Others | `client/.../RemotePlayers.cs` | Climb pose plus facing the wall for remote players |

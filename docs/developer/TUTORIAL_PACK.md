@@ -164,9 +164,9 @@ self-built ship is commissioned), `base_here` (a base on the player's body that 
 owns** — E32), `base_core_ready` (a base core carried or crafted before), `night_outside` (on foot on a world while the
 local sun is down there), `station_core_ready` (a station core carried, or its materials), `station_owned` (a commissioned
 station of the player's). Since #2481 (the crystal net): `factory_near` (VEGA's tip pass found a factory terminal close to
-the player — `VegaTipLive`, like `data_cache_near`), `factory_here` (a spawned factory stands on the player's world),
-`access_code` (an SPS code in the backpack), `factory_owned` (the player has claimed a factory, anywhere in the save),
-`machine_circuit` (a machine of the player's finished a job a signal started — the achievement counter
+the player — `PlayerSession.Vega.VegaTipLive`, like `data_cache_near`), `factory_here` (a spawned factory stands on
+the player's world), `access_code` (an SPS code in the backpack), `factory_owned` (the player has claimed a factory,
+anywhere in the save), `machine_circuit` (a machine of the player's finished a job a signal started — the achievement counter
 `crystal:machine_job`), `machine_catchup` (the world rule *Machines catch up* is not 0). Since #2482 (More to discover):
 `creatures` (the Creature abundance rule is not Off), `tameable_near`, `settlement_near`, `ruin_near`, `treasure_near`,
 `wreck_signal` (VEGA's tip pass found that situation — `VegaTipLive`, like `data_cache_near`; `wreck_signal` takes the

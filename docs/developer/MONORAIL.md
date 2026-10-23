@@ -95,10 +95,12 @@ TrainLocalX/Y/Z` (never a persisted bond: a join clears it).
   frame**: local X/Y/Z are exactly the rules' local offsets (`Quaternion.LookRotation((cos, 0, sin))` puts local +Z on
   the heading and local +X on its right). `TrainView` runs early in the frame (`DefaultExecutionOrder(-40)`), so the
   wagons are posed before the player controller moves a rider; `WagonAt` answers which wagon's box holds a point.
-- `PlayerController` — while `Game.InTrain` names a frame the controller parents itself to that wagon transform
-  (`UpdateTrainFrame`): the platform's motion and yaw carry the body and the camera, the normal on-foot movement runs
-  on top (walking, jumping, gravity onto the wagon's floor collider), `SendMovement` reports the **wagon-local** offset
-  with the frame id at 10 Hz (`SendFramedMove`) and treats an offset outside the box as leaving; a seated rider is
+- `PlayerController` and its `PlayerTrainRider` component (`PlayerTrainRider.cs`, which the controller adds in `Awake`
+  and calls where the riding code used to sit) — while `Game.InTrain` names a frame the controller is parented to that
+  wagon transform (`UpdateTrainFrame`): the platform's motion and yaw carry the body and the camera, the normal on-foot
+  movement runs on top (walking, jumping, gravity onto the wagon's floor collider), `SendMovement` reports the
+  **wagon-local** offset with the frame id at 10 Hz (`TrySendFramedMove` → `SendFramedMove`) and treats an offset
+  outside the box as leaving; a seated rider is
   parked on the seat with the controller off; E in the cab opens `TrainCabUi`, E beside a seat sits, F leaves; a fall
   is never reported aboard. On foot, E near a wagon boards it (`TryBoardNearbyTrain`), and so does stepping into a
   wagon's box (`StepAboardTrain`, #2129 — edge-triggered, one `EnterTrain` per entry). Walking through an open end

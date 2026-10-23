@@ -4025,6 +4025,9 @@ intercepts if the screenshot fails). Non-admins typing a command just get a reje
 
 ## 8. For maintainers
 When you change a keybind, add a feature, or add a command/cheat, update the matching section above in the
-same commit. Keep the tables accurate against the code (controls live in `PlayerController.cs`,
-`PlayerInteractions.cs`, `SpaceView.cs`, `GameMenu.cs`, `WorldMap.cs`, `ChatUi.cs`; commands in
-`GameServer.HandleChat` / `HandleAdminCommand`).
+same commit. Keep the tables accurate against the code (controls live in `PlayerController*.cs` — the on-foot
+key polls in `PlayerController.cs`'s `Update`, the actions in its `PlayerController.<Concern>.cs` files — and
+`PlayerVehicleDrive.cs` (speeder), `PlayerInteractions.cs`, `SpaceView*.cs` (flight in `SpaceView.Flight.cs` and
+`SpaceView.Targeting.cs`, EVA in `SpaceView.Eva.cs`), `GameMenu.cs`, `WorldMap.cs`, `ChatUi.cs`; commands in
+`GameServer.HandleChat` / `HandleAdminCommand`, the admin verbs in the `AdminCommandTable` of
+`GameServerAdminCommands.cs`).

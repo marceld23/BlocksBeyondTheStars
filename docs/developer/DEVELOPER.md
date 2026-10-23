@@ -538,13 +538,16 @@ silently misbehaves*. Check them in this order:
    build** for freshly added layers even though `TagManager.asset` has the name. Use the
    fixed layer **index** (`gameObject.layer = idx`, cull mask `1 << idx`), optionally trying
    the name first and falling back to the index.
-5. **Block id beyond the texture atlas.** `BlockTextureAtlas` (client) has `Cols × Rows`
-   tile slots (currently 16×16 = 256). A block id beyond that renders as an untextured grey
-   tile with no error. When adding many blocks, raise `Cols`/`Rows`. The slots above the real
-   block ids are handed out **downward** — first the ground/flora variants (`BuildVariants`),
-   then the per-face cap tiles (`BuildCapTiles`, e.g. the log's end grain). Each of those
-   passes stops rather than overwriting a real id, so a full atlas degrades to "no variants /
-   one tile on all faces", never to a corrupted block.
+5. **Block id beyond the atlas's block band.** `BlockTextureAtlas` (client) has `Cols × Rows`
+   tile slots (32×32 = 1024, from `AtlasBands` in `Client.Core`), shared out in bands (#1952):
+   one slot per block id below `AtlasBands.BlockEnd` (400), then the official extra tiles, the
+   animation strips and the derived tiles. A block id at or above `GameContent.AtlasTileCapacity`
+   (= `BlockEnd`, held equal by `AtlasSlotAllocatorTests`) fails content validation, so the content
+   is refused instead of drawing a grey tile; when adding many blocks, move the band boundaries. The
+   derived tiles are handed out **downward** from the top slot — first the ground/flora variants
+   (`BuildVariants`), then the per-face cap tiles (`BuildCapTiles`, e.g. the log's end grain). Each
+   of those passes stops at the band's start rather than overwriting a slot below it, so a full
+   band degrades to "no variants / one tile on all faces", never to a corrupted block.
 6. **Duplicate `System.*` assemblies.** If Unity complains about a duplicate assembly after
    a lib sync, delete that DLL from `client/Assets/Plugins/` — Unity already ships its own
    copy.
@@ -747,3 +750,17 @@ worked example (a narrow host); `BioLabSystem.cs` and `ObserverSystem.cs` show w
 
 A host with more than 20 members is allowed ("wide, shrink later" in ADR 0019) — list it in the change, and do not widen
 `IServerHost` for one system: a member joins it only when at least three systems need it.
+
+## Adding an in-world panel
+
+A modal panel that opens next to the player in a world (a device's dialog, a picker, a list) derives from `UiPanel`
+([`UiPanel.cs`](../../client/Assets/BlocksBeyondTheStars/Scripts/UiPanel.cs), #2913) instead of hand-rolling the canvas,
+the modal overlay, the menu-owner arbiter, the Esc guard and `L(key)`: give it a `CanvasName` and a
+`CanvasSortingOrder`, pick one of the three shapes in [UI_PANELS.md](UI_PANELS.md) (build once and toggle; canvas once
+with an overlay per open; build on open and destroy on close), and add it in `WorldRig.Build` with `x.Game = boot;`
+right after its `AddComponent` — setting `Game` registers it in `GameBootstrap.Context`. Callers reach it as
+`Game?.Context.Panel<XxxUi>()`; do not add a `static Instance`. A view of the rig that is not such a panel (an FX or
+world-object view, a prompt) gets a typed entry in `RigViews.cs` instead, set in `WorldRig.Build` right after its
+`AddComponent` (`boot.Views.X = x;`) and read as `Game.Views.X` (#2914). `UiPanelEditModeTests` and
+`RigViewsEditModeTests` (suite `UnityEdit`) pin the base and both registries; as for every `client/Assets` change, build
+the client locally, because PR CI never compiles it.

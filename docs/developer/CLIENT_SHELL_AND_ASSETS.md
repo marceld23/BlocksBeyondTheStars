@@ -91,7 +91,7 @@ First-version settings (a deliberately small subset of §6.2):
 | Question | Decision |
 |---|---|
 | Style | **Blocky voxel, clean & friendly** — Minecraft-adjacent but its own palette; not photoreal. |
-| Resolution | M20 target was **32×32**. **Superseded:** the live atlas tile is **64×64** (`BlockTextureAtlas.Tile = 64`, 16×16 = 256 tiles), runtime-generated and point-filtered. |
+| Resolution | M20 target was **32×32**. **Superseded:** the live atlas tile is **64×64** (`BlockTextureAtlas.Tile = 64`, 32×32 = 1024 slots shared out by `AtlasBands`, #1952), runtime-generated and point-filtered. |
 | Material groups | Natural blocks, ores, metals, ship walls/floors, cockpit, medbay/heal-tank, workshop, cargo, glass, doors/airlocks/docking, planet surfaces, asteroids, enemies, NPC ships, tools/weapons, UI icons (per spec list). |
 | Module colour codes | Medbay blue/green, cockpit blue/orange, workshop yellow/grey, cargo industrial grey. Server-side recolouring deferred. |
 

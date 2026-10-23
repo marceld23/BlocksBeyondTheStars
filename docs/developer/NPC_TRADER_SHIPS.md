@@ -123,8 +123,9 @@ flight view so other players **see** arrivals and departures.
 - Networking: `SpaceWarpFx` (tag 150), registered in `NetCodec`; traders otherwise reuse `SpaceShipDesign`
   (`Kind="ship_remote"`), `NetSpacePlayer` (carrying the pilot's name, so flight-view nameplates label traders),
   `LandedShipState`, `ShipTransitFx`, `NpcList`, `LandingPadList` and `PlanetPoiList` (`trader_ship` POI).
-- Client: `SpaceView.SpawnWarpFlash` (warp flash); landing/launch reuses `ShipTransitView`; the map marker is
-  `WorldMap.PoiLook("trader_ship")` and the compass blip `HudUi.TryGetLandedTrader`.
+- Client: `SpaceView.DrainWarpFx` (`SpaceView.Combat.cs`, plays the warp flashes `GameBootstrap.PendingWarpFx` queues);
+  landing/launch reuses `ShipTransitView`; the map marker is `WorldMap.PoiLook("trader_ship")` and the compass blip
+  `HudUi.TryGetLandedTrader`.
 - Tests: `SpaceTraderTests`, `LandedTraderStayTests` (stay ranges, hold + grace, map marker + re-broadcast),
   `PlanetTraderArrivalTests` (#2603: gaps per traffic, the nearest free dry pad, the reserved approach, touchdown FX +
   toast + hail, one per body, no players / rule off, the flight scene still lands at once — on the pad nearest the base,

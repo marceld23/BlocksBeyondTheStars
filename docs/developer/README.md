@@ -7,7 +7,7 @@ the hard contributor rules are in [../../AGENTS.md](../../AGENTS.md); the projec
 
 These are *how it works* / *why it is built this way* references — not pre-implementation checklists (status
 belongs in TODO.md). Each doc states its own status near the top. Last reorganised 2026-06-19; index
-refreshed 2026-08-08.
+refreshed 2026-10-23.
 
 ## Start here
 
@@ -15,7 +15,7 @@ refreshed 2026-08-08.
   solution & project graph, runtime, networking, persistence, and a where-to-find-what map. **Read this first.**
 - [DEVELOPER.md](DEVELOPER.md) — build, test and build-verification guide (the `build-client.ps1`/`build-client.sh`
   pipeline, freshness checks, "works in the Editor, broken in the build" pitfalls), plus the recipes for adding a
-  block, adding a server option and extracting a GameServer subsystem.
+  block, adding a server option, extracting a GameServer subsystem and adding an in-world panel.
 - [LINUX_PORT.md](LINUX_PORT.md) — how the Linux port works: cross-platform changes, the console launcher,
   bash build scripts, CI/CD and known limitations.
 - [MACOS_BUILD.md](MACOS_BUILD.md) — the experimental macOS build: `StandaloneOSX` cross-built on Linux (Mono),
@@ -54,7 +54,8 @@ refreshed 2026-08-08.
 - [URP_MIGRATION.md](URP_MIGRATION.md) — the URP rendering setup (custom unlit voxel shaders, post, shadows).
 - [ADVANCED_GRAPHICS.md](ADVANCED_GRAPHICS.md) — graphics: what shipped + the remaining roadmap.
 - [UI_AND_RENDER_CONCEPT.md](UI_AND_RENDER_CONCEPT.md) — UI + render concept, done vs. open.
-- [UI_PANELS.md](UI_PANELS.md) — the UiPanel base for modal in-world panels + the ClientContext panel registry.
+- [UI_PANELS.md](UI_PANELS.md) — the UiPanel base for modal in-world panels + the ClientContext panel registry, and
+  the RigViews registry for the rig's other views.
 - [PROFESSIONAL_LOOK_IMPLEMENTATION.md](PROFESSIONAL_LOOK_IMPLEMENTATION.md) — the professional-look pass (WP-1…16).
 - [PROFESSIONAL_LOOK_GAP_ANALYSIS.md](PROFESSIONAL_LOOK_GAP_ANALYSIS.md) — gap analysis (closed vs. still open).
 - [ART_BIBLE.md](ART_BIBLE.md) — **normative** visual style reference (palette, materials, room identity).
@@ -121,6 +122,8 @@ refreshed 2026-08-08.
   aboard the own ship, catch-up on return, hints, missions and achievements.
 - [MOVING_BLOCKS.md](MOVING_BLOCKS.md) — phase blocks, trapdoors, bridge motors, pistons and lifts (#2264–#2266):
   twin swaps, step-wise block moves, the server-owned lift platform the client draws and rides, the kid rules.
+- [MONORAIL.md](MONORAIL.md) — the monorail hover train (#2113): pylons and energy lines, authored wagons on the
+  spline, riders walking inside the moving frame, the intercity line and the abandoned stations.
 - [FACTORIES_RUINS_AND_CLAIMING.md](FACTORIES_RUINS_AND_CLAIMING.md) — factories with roster-limited
   production terminals, ruins/treasure chests, and access-code claiming.
 - [VOICE_CHAT.md](VOICE_CHAT.md) — push-to-talk voice chat + the tiered radio reach (planet/system/galaxy).
@@ -162,6 +165,8 @@ refreshed 2026-08-08.
 - [AI_MISSION_BACKEND.md](AI_MISSION_BACKEND.md) — the optional, offline-safe LLM service (design + contract).
 - [WEBCLIENT_FEASIBILITY.md](WEBCLIENT_FEASIBILITY.md) — browser/WebGL client feasibility and the hosted
   Lite lane (local WebSocket/PostgreSQL play works; production hardening/deployment remains).
+- [AGE_RATING_CHECKLIST.md](AGE_RATING_CHECKLIST.md) — age-rating readiness (IARC / PEGI / USK / ESRB): the
+  groundwork for the first storefront questionnaire (#1226).
 
 ## Architecture Decision Records
 

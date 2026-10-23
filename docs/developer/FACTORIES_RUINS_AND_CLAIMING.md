@@ -224,6 +224,6 @@ claiming are the natural follow-ups.
 | Claiming | `GameServer/GameServerFactories.cs` (`ClaimFactory`), `Shared/State/WorldMetadata.cs` (`StructureClaim`) |
 | NPC hints | `GameServer/GameServerNpcHints.cs` (`TryEmitHint`), `GameServerSettlements.cs` (`BuildPlanetPois`), `Shared/State/WorldMetadata.cs` (`RevealedPois`), `client/.../WorldMap.cs` (`PoiLook` `treasure`) |
 | Networking | `Networking/Messages/FactoryMessages.cs`, `Networking/NetCodec.cs` (tags 172/173) |
-| Client | `client/.../FactoryView.cs`, `WorldRig.cs`, `PlayerController.cs` (E-claim), `CraftingTechShipUI.Recipes.cs` (factory station gate, `IsFactoryRecipeAway`), `CraftingTechShipUI.Stations.cs` (`factory_terminal` for the locator), `GameBootstrap.cs`, `NetworkClient.cs` |
+| Client | `client/.../FactoryView.cs`, `WorldRig.cs`, `PlayerController.Stations.cs` (E-claim), `CraftingTechShipUI.Recipes.cs` (factory station gate, `IsFactoryRecipeAway`), `CraftingTechShipUI.Stations.cs` (`factory_terminal` for the locator), `GameBootstrap.Structures.cs` (the `Factories` list), `Client.Core/NetworkClient.cs` |
 | Data | `data/blocks.json` (`factory_terminal`, `machine_block`, `factory_pipe`), `data/items.json` (`access_code`), `data/recipes.json` (factory recipes + `market_buy_access_code`), `data/locales/{en,de}.json` |
 | Tests | `tests/.../FactoryStructureTests.cs`, `FactoryClaimTests.cs`, `FactoryCraftingTests.cs`, `RuinsAndChestsTests.cs`, `MonumentTests.cs`, `NpcHintTests.cs` |

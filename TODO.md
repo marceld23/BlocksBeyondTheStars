@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10 — 🚧 in progress
+### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 
 Behaviour-preserving restructuring in one feature branch, one commit per sub-issue (players notice nothing: same
 gameplay, saves, wire format, texts, world-gen hashes). Stage 1 mechanical server/shared, stage 2 GameServer
@@ -281,6 +281,24 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   `WorldRules` 2; largest 306 lines); `Messages/` now holds 58 files and 360 types. Only the 9 banner comments went and
   one stray summary moved to `ChatMessage`; names, namespace and members are byte-identical (198/198), so MessagePack,
   JSON and NetCodec tags are unchanged; Unity + WebGL builds, 92 codec + 2,319 client, 281 EditMode + 6 PlayMode green.
+- **Docs follow the new structure, part 2 (#2905):** 24 docs for the packages since part 1 — ARCHITECTURE.md's client
+  runtime (GameBootstrap partials, `Wire*()` and the tick order, `Context` + `Views`, PlayerController partials and
+  components, the main-menu Builder), CLIENT_TESTING.md (split-file guards, the menu golden, `-perfProbe` as the
+  rig-boot check), DEVELOPER.md (adding an in-world panel), the screenshots README and the developer pointers in the
+  user manual §8. Drift that predated the branch fixed on the way: the project table and dependency graph, README/AGENTS
+  layout (WorldHost, ReportHost), the 32×32 atlas with `AtlasBands` and the 400-tile capacity, 14 languages, and member
+  names that no longer existed (`PaintStationAccents`, `PlanetCloudLook`, `SpawnWarpFlash`, `GetStationLayout`).
+- **Open follow-ups (found during the refactoring, deliberately not changed on this branch):**
+  - #2919 WorldHost owner-only routes answer non-owners with 500 instead of 403 (`Results.Forbid()` without an auth scheme).
+  - #2920 WorldHost account self-deletion leaves the `recovery_code` rows behind (GDPR).
+  - #2921 ReportHost `/admin/export` includes each reporter's `ReplyKey`.
+  - #2922 WorldHost: Kestrel's ~28.6 MB body limit may cut save uploads below the 50 MB `UploadMaxBytes` (to verify).
+  - #2923 Test flakes: the PlayMode join test races the server boot; config env tests race the admin tests.
+  - #2924 Main-menu button icons may not load (icon `.meta` files without importer settings) — check the built game.
+  - #2925 InterviewUi's canvas survives the rig teardown (one leaked canvas per world join, #2303 class).
+  - #2926 Client quirks: board-reach hint hard-codes 3.2, ping ray uses mask `~0`, three main-menu modal quirks.
+  - #2927 Server quirks: multi-cell partner-cell checks, `above_head` across the seam, story-validator quirks.
+  - #2928 Code-health follow-ups: small cleanups and the deferred class extractions.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

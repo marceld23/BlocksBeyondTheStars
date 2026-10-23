@@ -23,22 +23,29 @@ construction.
 
 ## Solution & projects
 
-The .NET solution `BlocksBeyondTheStars.sln` holds eight projects under `src/` plus the
-xUnit test project. Two projects target **`netstandard2.1`** so the *same compiled code* runs
-both inside Unity and on the server; everything else targets **`net10.0`** (the Launcher
-`net10.0-windows`).
+The .NET solution `BlocksBeyondTheStars.sln` holds twelve projects under `src/` plus two
+xUnit test projects. `Shared`, `WorldGeneration` and `Networking` target **`netstandard2.1`** so
+the *same compiled code* runs both inside Unity and on the server, and so does the Unity-free
+client logic in `Client.Core`; `GameServer` and `Persistence` build a second `netstandard2.1`
+flavour that the browser (WebGL) client runs as its in-process singleplayer server. Everything
+else targets **`net10.0`** (the Windows launcher `net10.0-windows`).
 
 | Project | Target | Role |
 |---|---|---|
 | `BlocksBeyondTheStars.Shared` | `netstandard2.1` | Data models, data-driven definitions, geometry, localization, protocol DTOs, game rules, story engine. Depends on nothing in the solution. |
 | `BlocksBeyondTheStars.WorldGeneration` | `netstandard2.1` | Seed-deterministic chunk/galaxy/flora/settlement/creature generation. |
 | `BlocksBeyondTheStars.Networking` | `netstandard2.1` | Transport abstraction + concrete transports, message classes, `NetCodec` registry. Refs LiteNetLib + MessagePack; WebGL uses a JSON envelope at the WebSocket edge. |
-| `BlocksBeyondTheStars.Persistence` | `net10.0` | `IWorldRepository` + SQLite/PostgreSQL implementations, savegame paths/snapshots. Refs Microsoft.Data.Sqlite + Npgsql. |
-| `BlocksBeyondTheStars.GameServer` | `net10.0` (Exe) | Authoritative tick loop + console host. |
+| `BlocksBeyondTheStars.Persistence` | `net10.0` + `netstandard2.1` | `IWorldRepository` + SQLite/PostgreSQL implementations, savegame paths/snapshots. Refs Microsoft.Data.Sqlite + Npgsql (`net10.0` only; the `netstandard2.1` flavour keeps the abstraction, the snapshots and the managed `MemoryWorldRepository`). |
+| `BlocksBeyondTheStars.GameServer` | `net10.0` (Exe) + `netstandard2.1` | Authoritative tick loop + console host; the `netstandard2.1` library (without `Program.cs`) is the browser build's in-process server. |
+| `BlocksBeyondTheStars.Client.Core` | `netstandard2.1` | Unity-free client logic (`NetworkClient` + its dispatch table, `ClientWorld`, interpolators, …), shared by the Unity player and the headless client tests. See [CLIENT_TESTING.md](CLIENT_TESTING.md). |
 | `BlocksBeyondTheStars.Api` | `net10.0` (Web) | ASP.NET Core minimal-API admin/portal/distribution. |
+| `BlocksBeyondTheStars.WorldHost` | `net10.0` (Web) | Hosted-worlds control plane: accounts, world registry, wake-on-demand and join tokens for one container per world, the public portal. See [HOSTED_WORLDS.md](HOSTED_WORLDS.md). |
+| `BlocksBeyondTheStars.ReportHost` | `net10.0` (Web) | The bug-report inbox for F1 feedback and crash reports. See [REPORT_HOST.md](REPORT_HOST.md). |
 | `BlocksBeyondTheStars.Tools` | `net10.0` (Exe) | Backup/export/debug CLI. |
 | `BlocksBeyondTheStars.Launcher` | `net10.0-windows` | WinForms + Velopack instant-splash launcher that starts the Unity exe. |
+| `BlocksBeyondTheStars.Launcher.Console` | `net10.0` (Exe) | Cross-platform console launcher for Linux (SkiaSharp splash, Velopack). See [LINUX_PORT.md](LINUX_PORT.md). |
 | `tests/BlocksBeyondTheStars.Tests` | `net10.0` | xUnit tests across all server-side projects. |
+| `tests/BlocksBeyondTheStars.Client.Tests` | `net10.0` | Headless client ↔ server tests: the real `NetworkClient` against the real in-process `GameServer`. |
 
 **Dependency direction (no cycles)** — verified from the `.csproj` `ProjectReference`s:
 
@@ -54,14 +61,18 @@ both inside Unity and on the server; everything else targets **`net10.0`** (the 
                                   │ (tests only)                          │
             Api ──► Shared, Persistence                                    │
             Tools ──► Shared, Persistence, WorldGeneration ───────────────┘
+            Client.Core ──► Shared, Networking, WorldGeneration
+            WorldHost, ReportHost ──► Shared
             Launcher ──► (no solution refs; Velopack only)
+            Launcher.Console ──► (no solution refs; Velopack + SkiaSharp)
 ```
 
 `Shared` is the universal leaf. `WorldGeneration`, `Persistence` and `Networking` each depend
 only on `Shared`. `GameServer` composes all four. The Unity client consumes the
-`netstandard2.1` DLLs (`Shared`, `WorldGeneration`, `Networking`) — keeping those projects
-netstandard-clean is mandatory (records/`init` work there via the `IsExternalInit` polyfill in
-`Shared/Compatibility`).
+`netstandard2.1` DLLs (`Shared`, `WorldGeneration`, `Networking`, `Client.Core`, and the
+library flavours of `Persistence` + `GameServer`, which `scripts/sync-client-libs.ps1` copies into
+`Plugins/`) — keeping those projects netstandard-clean is mandatory (records/`init` work there via
+the `IsExternalInit` polyfill in `Shared/Compatibility`).
 
 ## Server runtime
 
@@ -141,7 +152,8 @@ It is **single-threaded and tick-driven** by design (`GameServer.Run` / `GameSer
 ## Client runtime
 
 The Unity client lives in `client/Assets/BlocksBeyondTheStars/`. Key wiring (all under
-`Scripts/`):
+`Scripts/`; the Unity-free logic underneath — `NetworkClient`, `ClientWorld`, the interpolators — is
+the `Client.Core` assembly, see [CLIENT_TESTING.md](CLIENT_TESTING.md)):
 
 - **`AppShell.cs`** — front-end state machine (splash → menu → settings → save-select →
   loading → in-game); owns `ClientSettings` + `Localizer` and the `LocalServerLauncher`.
@@ -149,17 +161,37 @@ The Unity client lives in `client/Assets/BlocksBeyondTheStars/`. Key wiring (all
   `GameBootstrap`, first-person player, HUD, post FX, views; tears down on return to menu.
   The views other components look up (HUD, VEGA's panel, cutscene director, doors, …) are registered
   in `GameBootstrap.Views` (`RigViews`, one entry per view, null until the view exists and again once
-  it is destroyed); components reach them through `Game.Views.X`, not static singletons. The only
-  `Instance` singletons left are the services `ClientAudio`, `FxKit`, `ScreenLabelLayer` and
-  `UrpScenePost` (the latter also lives in the menu shell).
+  it is destroyed); components reach them through `Game.Views.X`, not static singletons. The modal
+  in-world panels register themselves in `GameBootstrap.Context` when WorldRig sets their `Game`
+  (see [UI_PANELS.md](UI_PANELS.md)). The only `Instance` singletons left are the services
+  `ClientAudio`, `FxKit`, `ScreenLabelLayer` and `UrpScenePost` (the latter also lives in the menu
+  shell).
 - **`GameBootstrap.cs`** — creates the `NetworkClient`, loads `GameContent` from
   StreamingAssets, builds the procedural `BlockTextureAtlas`, and subscribes to all server
-  events.
+  events. It is a partial class: `GameBootstrap.cs` keeps the shared fields, `Start`, `Update`,
+  `OnWorldReset` and `OnDestroy`, and each concern is a `GameBootstrap.<Concern>.cs` file (chunk
+  streaming, player state, environment, stations, structures, entities, space, knowledge, story,
+  messages, menus, plus the chunk pipeline). `Start` subscribes through the `Wire*()` methods
+  (`WireSession` and `WireContent` in the core file, `WireChunkStreaming`, `WirePlayerState`, … in
+  the concern files) in a fixed order before it connects; `Update` polls the network, advances the
+  clocks and ends with `TickSkyScan`, `TickConnect` and `TickChunkStreaming`, in that order. It also
+  holds the rig's two registries, `Context` (`ClientContext`, the modal panels) and `Views`
+  (`RigViews`, the other views).
+- **`PlayerController.cs`** — the first-person controller (walk, look, mine and place as intents).
+  `PlayerController.cs` keeps the wiring, the shared body state, `Update` (the on-foot key polls) and
+  the spawn gate; each concern (movement, footing, climbing, rope, glider, aim, placement, interaction,
+  stations, combat, gear, scanner, rest, view) is a `PlayerController.<Concern>.cs` partial. Driving a
+  speeder or boat (`PlayerVehicleDrive`) and riding the monorail (`PlayerTrainRider`) are sibling
+  components the controller adds in `Awake` and calls at the old call sites; the screenshot/clip pose
+  search (`PlayerCapture`) is added on first use through `PlayerController.Capture`, so normal play
+  never creates it.
 - **Voxels** — `ChunkMesher.cs` builds per-chunk meshes with face culling, opaque/transparent
   submeshes, per-voxel tint/glow flood-fill (TEXCOORD3) and non-cube block shapes, plus a
-  separate collision mesh; `BlockTextureAtlas.cs` paints a 16×16-tile atlas (+ derived normal
+  separate collision mesh; `BlockTextureAtlas.cs` paints a 32×32-tile atlas (+ derived normal
   map) entirely in code (the per-block looks are the `CodeTiles` table in
-  `BlockTextureAtlas.CodeTiles.cs`); `ClientWorld.cs` caches received chunks read-only.
+  `BlockTextureAtlas.CodeTiles.cs`; how the slots are shared out between block ids, extra tiles,
+  animation strips and derived tiles is `AtlasBands` in `Client.Core`); `ClientWorld` (`Client.Core`)
+  caches received chunks read-only.
 - **UI** — **uGUI / Canvas-based** (a procedural sci-fi toolkit in `UiKit.cs`, not raw IMGUI):
   `HudUi`, `UiMainMenu`, `UiSettings`, `UiSaveSelect`, `UiLoading`, the in-game editors,
   `CraftingTechShipUI`, `ChatUi`, `ScreenLabelLayer` (nameplates). The big screens are partial
@@ -167,7 +199,12 @@ The Unity client lives in `client/Assets/BlocksBeyondTheStars/`. Key wiring (all
   file (hotbar, vitals, compass, toasts, scan panel, …; the toast timing rules are the pure
   `HudToastPolicy.cs`); `CraftingTechShipUI.cs` is the screen's shell with one
   `CraftingTechShipUI.<Part>.cs` file per tab or page plus the shared `.Recipes`, `.Stations` and
-  `.Scaffolding` parts. New screens use the shared builders instead of copying them: `UiKit`
+  `.Scaffolding` parts. `UiMainMenu.Build` is a short orchestrator over a private `Builder` with one
+  `Build*` method per block of the menu, called in draw order — the order is behaviour (the boot
+  stagger, raycasts and gamepad focus follow the hierarchy), pinned by
+  `MainMenuHierarchyEditModeTests`; the menu's native-only Official-worlds overlay is the partial
+  class `UiOfficialWorlds` (`UiOfficialWorlds.cs` + `.Rules`, `.Account`, `.Worlds`). New screens
+  use the shared builders instead of copying them: `UiKit`
   (`AddScrollViewport`, `MeasureHeight`, `AddCenteredPanel`, `AddStretchChild`, `Tr`), and for the
   free-fly editor scenes the static `EditorSceneKit` / `EditorPaletteKit` (camera, floor, cell picking,
   right panel, palette panel, `Slug`, …); the form and tool-look editors share the `LayerCanvasEditor`
@@ -210,8 +247,10 @@ a `usercontent/` dir by the in-game editors are merged into the pools automatica
 
 In-game text is **never hardcoded**: it uses localization keys resolved against
 `data/locales/*.json` (`Shared/Localization`, English fallback per missing key). `en.json` +
-`de.json` are the mandatory pair every new key must land in; `fr`/`es` are complete on top of
-them and `it` is in progress. All docs/code comments are English.
+`de.json` are the mandatory pair every new key must land in; the twelve community languages (`fr`,
+`es`, `it`, `pt`, `pl`, `tr`, `nl`, `ru`, `uk`, `ja`, `ko`, `zh`) are translated incrementally and may
+trail the pair by the newest keys, which read in English until they are translated (see
+[TRANSLATION_GUIDE.md](TRANSLATION_GUIDE.md)). All docs/code comments are English.
 
 ## Networking protocol (intents → state)
 
@@ -291,13 +330,18 @@ by the server. See [AI_MISSION_BACKEND.md](AI_MISSION_BACKEND.md) and
 | `src/BlocksBeyondTheStars.Persistence/` | `IWorldRepository`, SQLite repo, save paths |
 | `src/BlocksBeyondTheStars.GameServer/` | `GameServer*` partials (core + facades), `*System` subsystem classes (`GameServer.Systems.cs`, `IServerHost.cs`), `PlayerSession*` components, tick schedule, host (`Program.cs`) |
 | `src/BlocksBeyondTheStars.Api/` | Admin UI, portal, download/update feed |
+| `src/BlocksBeyondTheStars.WorldHost/` | Hosted-worlds control plane (accounts, world registry, portal) |
+| `src/BlocksBeyondTheStars.ReportHost/` | Bug-report inbox (F1 feedback, crash reports) |
 | `src/BlocksBeyondTheStars.Tools/` | Backup/export/debug CLI |
-| `src/BlocksBeyondTheStars.Launcher/` | Instant-splash Velopack launcher |
-| `client/Assets/BlocksBeyondTheStars/Scripts/` | Unity client (`AppShell`, `WorldRig`, `GameBootstrap`, `ChunkMesher`, `HudUi`, `SpaceView`, `NetworkClient`, `LocalServerLauncher`, …); a large class is split into `Class.Part.cs` partial files |
+| `src/BlocksBeyondTheStars.Launcher/` | Instant-splash Velopack launcher (Windows) |
+| `src/BlocksBeyondTheStars.Launcher.Console/` | Console launcher (Linux) |
+| `src/BlocksBeyondTheStars.Client.Core/` | Unity-free client logic (`NetworkClient` + `NetworkClientDispatch`, `ClientWorld`, interpolators, …) |
+| `client/Assets/BlocksBeyondTheStars/Scripts/` | Unity client (`AppShell`, `WorldRig`, `GameBootstrap`, `PlayerController`, `ChunkMesher`, `HudUi`, `SpaceView`, `UiPanel`, `LocalServerLauncher`, …); a large class is split into `Class.Part.cs` partial files |
 | `client/Assets/BlocksBeyondTheStars/Shaders/` | URP custom shaders |
 | `data/` + `data/locales/` | Data-driven content + localization |
 | `ai-backend/` | Optional Python LLM service |
 | `tests/BlocksBeyondTheStars.Tests/` | xUnit tests |
+| `tests/BlocksBeyondTheStars.Client.Tests/` | Headless client ↔ server tests |
 | `docs/` | This file + the detail docs linked above |
 | `scripts/` | `build-client.ps1` + publish scripts |
 | `../TODO.md` · `../AGENTS.md` | Status (single source of truth) · contributor rules |

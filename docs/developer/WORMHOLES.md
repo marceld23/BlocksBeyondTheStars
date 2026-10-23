@@ -67,7 +67,7 @@ All numbers live in `data/wormholes.json` (`WormholeDefinition`):
 | `WormholeView.cs` + `Shaders/Wormhole.shader` | the rift: a generated jagged tear mesh, a billboarded halo, crackling arcs, motes, an FX light and the `wormhole_hum` loop. On URP with the opaque texture (Medium+ quality, `_Sc_ScreenFx`) the shader bends the scene behind it (`SampleSceneColor`); otherwise an emissive fallback. `WormholeVisuals.FlashAt` is the burst other players see. |
 | `WormholeTransitFx.cs` | the full-screen transit: a crack texture spreading over an overlay canvas (sort order 72), the rush, then the arrival flash; a timeout clears it if the arrival never comes |
 | `SpaceView.Encounters.cs` | `BuildWormholeModel`, `UpdateNearWormhole` (the [E] prompt `ui.space.wormhole_prompt_fmt`, which takes priority over station boarding), `BeginWormholeTransit` (sends the intent, 2 s client cooldown), `OnWormholeArrived` |
-| `GameBootstrap.cs` | `WormholeArrived` fires when a `SpaceState` with `Wormhole = true` arrives |
+| `GameBootstrap.Space.cs` | `WormholeArrived` (declared in `GameBootstrap.cs`) fires when a `SpaceState` with `Wormhole = true` arrives |
 | `SpaceRadar.cs`, `SpaceMap.cs`, `GalaxyChartWidget.cs` | violet zigzag marker on the radar (pinned at the rim), a chart marker + waypoint target, and known pairs as violet zigzag lines on the galaxy chart |
 
 The custom shader is registered in all three places custom shaders need (GraphicsSettings *Always Included*,

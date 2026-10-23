@@ -64,7 +64,7 @@ only wrecks/anomalies were scannable and are completable again. `relay_survey_1`
 | `ScanReadoutText.cs` | the readout's words (title + description from the structured payload) — shared by the card and the hand scanner's HUD panel |
 | `HudUi.Scan.cs` | the hand scanner's panel (bottom left) — hidden in the space view and never fed a ship readout (`Game.LastScanFromShip`) |
 | `CraftingTechShipUI.Map.cs` | the planet-scan button for every ship (`AddPlanetScanSection`, also in the Ship tab); the report (`AddPlanetScanReport`) reads from `Game.PlanetOverviews` |
-| `GameBootstrap.cs` | `PlanetOverviews` cache, `OpenOverviewOnNextPlanetScan`, routing a piloting `ScanResult` to the card, `SpaceSystemPingUntil`, the knowledge toast, the first-card VEGA line |
+| `GameBootstrap.cs`, `GameBootstrap.Knowledge.cs` | `PlanetOverviews` cache, `OpenOverviewOnNextPlanetScan`, `SpaceSystemPingUntil` (declared in the core file); routing a piloting `ScanResult` to the card, the knowledge toast and the first-card VEGA line (the scan handlers in `.Knowledge`) |
 
 **Making the hold discoverable (#2247).** The first playtest scanned and "saw no result": the trigger was tapped, not
 held, so nothing reached the server — and the bottom-left HUD panel kept showing the last *surface* scan (its

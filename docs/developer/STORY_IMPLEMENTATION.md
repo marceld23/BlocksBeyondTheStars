@@ -696,7 +696,8 @@ player pack not opted out — since #2466 a tutorial also by the world's tutoria
 override), `creative_flight`, `instant_travel`, `return_to_ship`, `starter_teleporter`, `base_visitors`,
 `space_stations`, `story_active`; since #2469 the tutorial's feasibility checks `food_plants_near`, `trees_near` (bounded
 probes of the loaded blocks around the player, run when a step activates), `shape_block_carried`, `research_ready`,
-`all_blueprints`, `new_world_in_system` (`TutorialSystem.cs`); since #2476 the story missions' feasibility checks
+`new_world_in_system` (`TutorialSystem.cs`) and `all_blueprints` (`CreativeGrantsActive`, `GameServerShipAi.cs`);
+since #2476 the story missions' feasibility checks
 `fragments_left` (the world story still has an unfound fragment), `observatory_reachable` / `derelict_reachable` (the
 unique site exists in this save and the player can reach it — the lead's rule), `settlements`, `vaults`, `space_wrecks`
 (the world options are not off); since #2479 the tutorial's deep dives: `data_cache_near` / `scanner_unknown` (the moment
@@ -1107,7 +1108,8 @@ its whole shot scales with the player's ship (`PrologueOrbit.Scale`), and the ca
   graduation, rewards), `.Texts`, `.Chapters` (chapters, leads, missions), `.Steps`, `.Cutscenes`);
   `Shared/Localization/LineText.cs` (line composition, shared with the client). Server:
   `GameServerGameEvents.cs` (event bus), `GameServerStoryConditions.cs` (condition context + world predicates),
-  `GameServerStoryPacks.cs` (the player-pack runtime, chip helpers, `/tutorial`), `TutorialSystem.cs` (#2469: the
+  `GameServerStoryPacks.cs` (the player-pack runtime, chip helpers), `GameServerStoryPackActions.cs` (the player's
+  own story controls, the tutorial button and the `/tutorial` / `/story` admin cases), `TutorialSystem.cs` (#2469: the
   teaching verbs, `UiTutorialEvent`, the probes behind the tutorial's predicates) behind its facade
   `GameServerTutorial.cs` (which keeps the hint hold and the migration of the old onboarding),
   `GameServerTutorialBuilding.cs` (#2480: the ship and base building courses' predicates, the own-or-allied base tests,

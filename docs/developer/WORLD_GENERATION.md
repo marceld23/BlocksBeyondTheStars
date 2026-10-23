@@ -1421,8 +1421,9 @@ ridge, `giant-pc` box 20–26 × 14–18 × 44–59 with a glass side panel and 
 gaming blocks down to the ground. Marcel's playtest (2026-09-11, "zu viel Natur … Gaming-PCs, und das oft")
 moved the hotspot cells from 2 400 blocks at 60 % to **720 blocks at 90 %** — several of each family per
 world — added the tower row and the house-sized `pc-tower` prop, and cut the type's flora to 0.03 / trees
-to 0.0015. The atlas is **32 × 32** tiles
-(`BlockTextureAtlas.Cols/Rows`, `GameContent.AtlasTileCapacity = 1024`).
+to 0.0015. The atlas is **32 × 32** tiles (`AtlasBands.Cols/Rows` in `Client.Core`, mirrored by
+`BlockTextureAtlas.Cols/Rows`); since #1952 only the first band belongs to blocks — block ids stay below
+`GameContent.AtlasTileCapacity = 400` (= `AtlasBands.BlockEnd`), the rest holds extra, animation and derived tiles.
 
 
 ## 16. Generation 6 — the new kinds wave (#1778–#1783, 2026-09-11)
@@ -2186,7 +2187,8 @@ lifts every sea column above it, exactly as it does above water); no flora, `cre
 few ruins and factories; seven rare veins (obsidian as a vein block like crystal, iron, copper, sulfur, carbon, nickel,
 tungsten deep). `sandwormCount 3` (below), `authoredCreatures: ["ignivermis"]` (below). Glue: `planet.arena_nigra.*`,
 `vega.hint.world.arena_nigra`, the lava pool in `MusicLibrary`, `amb_black_dunes` in `ClientAudio.BiomeBed`, the volcanic
-grade in `Sky.GradeFor` / `UrpScenePost`, a black cloud shell in `SpaceView.PlanetCloudLook`.
+grade in `Sky.GradeFor` / `UrpScenePost`, a black cloud shell from the type's near-black `cloudColor` (the orbit view
+reads it through `OrbitLook`, `Client.Core`, since #2170).
 
 **Black sand and the sea's own sand (#2074).** `black_sand` is a granular terrain block like `sand` (no tool, drops
 itself, the tile is its icon). The sand sea never cared which block its biome named — but the worm's hearing did:

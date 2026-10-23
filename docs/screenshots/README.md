@@ -121,7 +121,7 @@ What makes a still (fields of the clip spec, `ClipManifest.cs`):
 | Field | Meaning |
 |-------|---------|
 | `hud: false` | The HUD-free clone camera. Since #2765 it also hides the first-person hand and the block selection frame (`GameBootstrap.CaptureCleanView`) |
-| `pose: "vista"` / `"here"` | `here` stays where a `poi` jump put the player (the middle of the site) and only turns to the best view. `vista`: a raised, open, dry spot near the spawn with the best view. Every streamed column gives its standable top; the highest and most prominent tops are kept, and for each sixteen view directions are scored by marching rays through the voxels — depth, relief, variety (water, lava, flora, different ground; built blocks after a `poi` jump), minus a wall or tree crown in the first metres, the landed ship in view, or looking into the sun (`PlayerController.PlaceForCaptureVista`) |
+| `pose: "vista"` / `"here"` | `here` stays where a `poi` jump put the player (the middle of the site) and only turns to the best view. `vista`: a raised, open, dry spot near the spawn with the best view. Every streamed column gives its standable top; the highest and most prominent tops are kept, and for each sixteen view directions are scored by marching rays through the voxels — depth, relief, variety (water, lava, flora, different ground; built blocks after a `poi` jump), minus a wall or tree crown in the first metres, the landed ship in view, or looking into the sun (`PlayerCapture.PlaceForCaptureVista`) |
 | `camera: "rig"` + `camHeight` / `camBack` / `camSide` / `camPitch` | The recording camera sits above, behind and beside the player's eye and looks along the player's heading, `camPitch` degrees down — an elevated view without flight or noclip (the player stays on the ground, only the recording camera moves) |
 | `camera: "subject"` + `subject` (`creature` / `giant`) + `subjectFill` | Frames an awake, wild creature near the player: the camera stands where the creature fills `subjectFill` of the frame height, sees it, and has open land behind it; it faces the camera if it can, and sits on a third line looking into the frame (`ClipDirector.TryFrameSubject`) |
 | `fov` | The recording camera's vertical field of view (0 = the player's setting) |
@@ -182,9 +182,11 @@ because some state can't be reached without input during an unattended run:
 The stills (#2765) add a few more, all inert in normal play:
 
 - `GameBootstrap.CaptureCleanView` — hides the first-person hand (`Viewmodel`) and the block selection frame (`MiningFx`).
-- `PlayerController.PlaceForCapturePose("vista", …)` with `CaptureSunDirection` / `CaptureVistaFavorsBuilt`, and the
-  voxel sight helpers `IsCaptureCellOpen` / `CaptureSightDistance` the subject camera uses.
-- `PlayerController.SetCaptureThirdPerson(bool)` and `CaptureEyePosition` — the astronaut in frame, the rig camera's origin.
+- `PlayerCapture.PlaceForCapturePose("vista", …)` with `CaptureSunDirection` / `CaptureVistaFavorsBuilt`, and the
+  voxel sight helpers `IsCaptureCellOpen` / `CaptureSightDistance` the subject camera uses. `PlayerCapture` (#2911) is
+  the player's capture component: the controller adds it on first use of `PlayerController.Capture`, so normal play
+  never creates it, and it moves the body only through the controller's hooks (`SetCapturePose`, `SetLookAngles`).
+- `PlayerCapture.SetCaptureThirdPerson(bool)` and `CaptureEyePosition` — the astronaut in frame, the rig camera's origin.
 - `CreatureView.TryBounds` / `TryFacing` — where a creature is drawn and which way it faces.
 - `ClipFrameWriter.FieldOfView` — the still's own lens.
 
@@ -236,7 +238,7 @@ change is verified without playing — same seed before and after, Low and High:
 |-------|--------|---------|
 | `timeOfDay` | `0..1` (`0` midnight, `0.27` dawn, `0.5` noon, `0.75` dusk); negative = off | Local time of day pinned for the clip (longitude-compensated, like the screenshot pin) |
 | `weather` | a state (`clear`, `clouds`, `rain`, `storm`, `fog`, `ground_fog`, `blizzard`, `gale`, …) or a precipitation form (`snow`, `sleet`, `hail`, `sandstorm`, `dust`, `ash`, …); `""` = off | Weather pinned for the clip; the wire fields (state, family, precipitation, intensity, wind) are filled as the server would |
-| `pose` | `spawn` (default), `cave`, `underwater`, `forest`, `shore`, `ridge`, `lava` (dry footing a few blocks from lava, facing it), `vista` (the best view around, #2765 — see [World stills](#world-stills--capture-stillsps1)) | Where the on-foot player stands (surface scenes). Found by scanning the streamed chunks near the spawn (`PlayerController.PlaceForCapturePose`); when no such spot is loaded the clip logs it and uses the spawn pose |
+| `pose` | `spawn` (default), `cave`, `underwater`, `forest`, `shore`, `ridge`, `lava` (dry footing a few blocks from lava, facing it), `vista` (the best view around, #2765 — see [World stills](#world-stills--capture-stillsps1)) | Where the on-foot player stands (surface scenes). Found by scanning the streamed chunks near the spawn (`PlayerCapture.PlaceForCapturePose`); when no such spot is loaded the clip logs it and uses the spawn pose |
 
 Every time-smoothed look (weather easing, eye adaptation, wet/snowy ground, …) is snapped to its target
 right before the first frame (`GameBootstrap.RequestCaptureSnap`), so two captures of one seed are

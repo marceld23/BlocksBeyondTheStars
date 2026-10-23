@@ -101,8 +101,9 @@ through Caddy.
 ## Client integration (implemented for the native client)
 
 - **Native client (desktop):** the main menu offers BOTH worlds — self-hosting exactly as today
-  (Singleplayer / Host (LAN) / Join-by-address) AND **"Official Worlds"** (`UiMainMenu`, native-only
-  `#if` branch): sign in with the portal account (session stored in `ClientSettings.PortalSessionToken`,
+  (Singleplayer / Host (LAN) / Join-by-address) AND **"Official Worlds"** (the overlay class
+  `UiOfficialWorlds` that `UiMainMenu` builds, native-only `#if` branch): sign in with the portal account
+  (session stored in `ClientSettings.PortalSessionToken`,
   never the password; `PortalUrl` empty = the official portal, settable for self-hosted WorldHosts),
   list your worlds, one click joins — the join grant's `nativeHost:nativePort` + `joinToken` feed the
   existing connect path (`AppShell.HostedToken` → `GameBootstrap` → `JoinRequest.HostedToken`). The

@@ -48,6 +48,8 @@ src/BlocksBeyondTheStars.GameServer/      authoritative tick loop + console host
                                           + *System subsystem classes behind facade partials (ADR 0019)
 src/BlocksBeyondTheStars.Api/             admin web UI + API
 src/BlocksBeyondTheStars.Tools/           backup/export/debug CLI
+src/BlocksBeyondTheStars.WorldHost/       hosted-worlds control plane: accounts, world registry, portal — see docs/developer/HOSTED_WORLDS.md
+src/BlocksBeyondTheStars.ReportHost/      bug-report inbox for F1 feedback + crash reports — see docs/developer/REPORT_HOST.md
 src/BlocksBeyondTheStars.Client.Core/     Unity-free client logic (NetworkClient, ClientWorld), netstandard2.1
 src/BlocksBeyondTheStars.Launcher/        Windows-only WinForms loading-splash launcher (net10.0-windows)
 src/BlocksBeyondTheStars.Launcher.Console/Cross-platform console launcher for Linux (net10.0, SkiaSharp splash)
@@ -59,7 +61,7 @@ client/Music/                   background-music MP3s (outside Assets/ on purpos
 ai-backend/                     optional Python LLM service (missions, NPC/ship-AI text); offline-safe
 tools/                          editor-export merge tools + AI asset generation (tools/ai-assets)
 data/                           data-driven JSON definitions (blocks, items, recipes, ...)
-data/locales/                   localization resource files (mandatory en.json + de.json, community locales fr/es/it)
+data/locales/                   localization resource files (mandatory en.json + de.json, twelve community locales)
 data-online/                    tracked content the client fetches on demand from the repository — never bundled
                                 (the "What's new?" release notes in the twelve community languages, #2227)
 docs/user/                      player-facing manual (USER_MANUAL.md)
