@@ -80,6 +80,61 @@ triggers on #2929. Fixes found on the way: #2936, #2937, #2938.
   the last renderer that wore them (flung explosion parts keep their look). Nothing is shared, so the look is unchanged.
   Pinned by `SpaceEntityAssetsPlayModeTests` and the PR-CI `SpaceEntityAssetGuardTests`.
 
+### 📬 Player reports 2026-10-21/23 (Lyxette, v2026.10.24) — a sky ray's wings in the roof, land animals on a giant crown — #2943–#2945, branch fix/player-reports-2026-10-23 — ✅ done 2026-10-23 (⚠ playtest open; no generation, save or protocol change)
+
+Ten reports: answers to our questions (the base core stands in the middle, so the 64 relays of #2879 cover the ring),
+a picture series of his deep cave with the question whether there is crude oil down there (yes — pockets 40–120 deep,
+the terrain scanner's oil echo finds them within 800 m, the fluid pump gets them out), and two bugs: "Tier in der Wand"
+and "Was machen die großen Viecher auf dem Baum?". Both snapshots were read against the planet's real roster (rebuilt
+from the seed): the animal in the wall was a sky ray, the ones in the tree two worms and a six-legged crawler.
+
+- **A sky ray's wings respect blocks (#2943):** it slept 0.56 blocks from a roof edge with its centre in free air and its
+  ten-block wing disc four blocks into the concrete — every block check read the centre column only, and the footprint
+  (#2753) only ever kept animals apart. The disc is sampled in the plane the client draws the wings in
+  (`CreatureFootprint.RayWingPlane`): the hover band rises until it is clear (≤ 12 blocks — over a roof beside it, a
+  low wall under it) and a step that would need more than 1.5 blocks of rise for the wings is refused, so the ray turns
+  at a wall; spawns never put the wings into a wall. New partial `GameServerCreatureBodies.cs`.
+- **A big land animal stops with its head outside a wall (#2944, found with #2943):** the centre stopped a quarter
+  block short of a wall with the head up to the footprint radius inside it. Each step now follows the line to the head
+  (`CreatureFootprint.HeadReach` — the radius for standard/titan bodies, 1.8u for an arachnid, 1.2u for a worm, none for
+  an upright biped): a rise past the step-up limit anywhere on it stops the step. Hills and stairs stay open; walking
+  along a wall stays open (the head points along it).
+- **Crowns carry fliers only (#2945):** leaves counted as ground for every animal, so a crawler hauled up a crown that
+  reached the ground, or a land animal was lifted onto one when its cell filled. Every ground probe of a non-air animal
+  (`GroundFeetFor`, the land spawn and herd placement, the floating grazer's band, the relocation of an embedded body)
+  reads leaves as no floor — they still block its body — and one already on a crown drops to the ground. Birds still
+  perch on crowns; NPCs and bandits are unchanged.
+
+Tests: `CreatureBodyBlockTests` (8, each bug test red without its fix). Docs: ENTITY_MOTION.md (the rules, tests, knobs),
+USER_MANUAL.md §Animals.
+
+---
+
+### 🔒 certifi without the compromised emSign roots — Dependabot alerts #24/#25 (critical) — branch fix/certifi-emsign, PR #2940 (19e63780) — ✅ done 2026-10-23, AI image rolled onto the VPS
+
+- **What:** GHSA-6q48-6c7w-9gw2 — certifi before 2026.10.19 ships the emSign root CAs whose intermediate CA keys were
+  compromised, so a certificate minted with those keys passes TLS verification. Both `ai-backend/uv.lock` and
+  `tools/ai-assets/uv.lock` pinned certifi 2026.5.20; both now lock 2026.10.23 (lock-only change, nothing else moves).
+- **Exposure:** real for `ai-backend` — `Dockerfile.ai` installs the lock (`uv sync --frozen`), so the deployed service
+  verified its outbound HTTPS (langchain-openai → httpx → certifi) to the LLM provider against the bad bundle; an
+  attacker would still need a network position on that path. `tools/ai-assets` is a local tool (OpenAI/ElevenLabs).
+- **Rolled:** `ai-image.yml` built `sha-19e6378` from the merge; `deploy.yml` (service `ai`) pinned it on the VPS
+  on 2026-10-23 and `bbs-ai` came back healthy (previous pin `sha-bf28903`).
+
+### 🔒 Pillow 13 for the asset tools — Dependabot alerts #15–#23 (and the release's later alerts, 40 in all) — branch fix/ai-assets-pillow-13, PR #2939 (b9e9f985) — ✅ done 2026-10-23
+
+- **What:** nine Dependabot alerts (1 critical, 6 high, 2 medium) on `pillow 12.3.0` in `tools/ai-assets/uv.lock` — a
+  JPEG decoder heap overflow, TIFF decoder/encoder out-of-bounds reads, PDF/GIF/EPS resource exhaustion, `ImageMorph` on
+  zero-width images. Pillow 13.0.0 fixes all of them, and the release's other advisories that may still arrive as alerts.
+- **Why Dependabot opened no PR:** Pillow 13 dropped Python 3.10 (end-of-life October 2026), and the tool still declared
+  `requires-python = ">=3.10"`, so a lock-only bump forks the resolution and keeps 12.3.0 for 3.10.
+- **Fix:** `tools/ai-assets` now requires Python ≥ 3.11 (like `ai-backend`) and `pillow>=13.0.0`; the lock drops 12.3.0
+  and the 3.10-only `exceptiongroup` backport. The one-off `uv run --with pillow` recipes in the README and script
+  docstrings, and `tools/screenshots/stills.py`'s inline metadata, ask for `pillow>=13` — Dependabot does not see them.
+- **Exposure was low:** a local, maintainer-run tool (not in CI, the client, the server images or `ai-backend`); it
+  decodes only OpenAI PNG responses and our own files, community texture submissions go through `Image.frombytes` (no
+  decoder). None of Pillow 13's removed APIs is used; `bake_prop_alpha.py --dry-run --preview` runs unchanged.
+
 ### 🔧 Refactoring follow-ups 2026-10 — the bugs and cleanups the code-health refactoring found — #2919–#2928, branch fix/refactoring-follow-ups-2026-10, PR #2930 — ✅ done 2026-10-23 (⚠ playtest open)
 
 The deferred class extractions are #2929 (not part of this branch).
@@ -1143,7 +1198,7 @@ recommendation"). Package label `package: lyxette reports 2026-10-17`.
 
 Three kids reported from a LAN world (v2026.10.18): they couldn't see each other in space, not even next to the same
 anomaly or on a spacewalk; a collected drop stayed floating; and in Sandbox you could still suffocate and get hurt.
-Lyxette couldn't find her settlers after accepting "small tasks" from them. All decisions by Marcel (everything in one
+Lyxette couldn't find his settlers after accepting "small tasks" from them. All decisions by Marcel (everything in one
 PR; radar, bump pilots and the visible floating ship included; visitors walk off instead of vanishing; the wish village
 marker and the resident list now; the docking fix too). Package label `package: reports 2026-10-17`.
 
@@ -1817,7 +1872,7 @@ Seven F1 reports (all with their `/bump` twin) plus one side finding — one PR:
 - Docs: USER_MANUAL (taming, labels, plants and lamps, foliage, held items, speeder + recipe fix, hand crafting, leads),
   CREATURE_TAMING, CREATOR_SUITE, STORY_IMPLEMENTATION. 8 new + 5 changed keys in all 14 languages; independent review before the first push (6 findings, all fixed).
 
-### 📬 Player reports 2026-10-13 (Lyxette, a fresh world + her old one on v2026.10.12) + a new water model — epic #2524, branch fix/player-reports-1013 — ✅ done (released in v2026.10.14; terrain generation 24; ⚠ playtest open)
+### 📬 Player reports 2026-10-13 (Lyxette, a fresh world + his old one on v2026.10.12) + a new water model — epic #2524, branch fix/player-reports-1013 — ✅ done (released in v2026.10.14; terrain generation 24; ⚠ playtest open)
 
 Eight F1 reports from one day plus Marcel's call for "endless waterfalls AND flowing water that never floods" — one PR:
 
@@ -5607,7 +5662,7 @@ shapes their grid. Every composition is **pinned**, so nothing looks different a
 
 ### 🏡 Living NPCs — beds bring residents, posts at home, a daily routine with routes and doors, jobs with yield, the station night (#1851: #1865 #1866 #1867 #1868 #1869, 2026-09-13, branch feat/living-npcs-1851)
 
-Lyxette asked where her settler should walk, whether a big base attracts more people and what they do all day. Every
+Lyxette asked where his settler should walk, whether a big base attracts more people and what they do all day. Every
 design choice was Marcel's (beds as homes, 1 + beds up to 5, barter at home, work/sit/sleep, pathfinding with a teleport
 only as the emergency exit, NPCs open doors, stations and villages too with a dimmed station night, jobs visible and
 with yield, the guard on the night shift). Developer map: [docs/developer/NPC_ROUTINES.md](docs/developer/NPC_ROUTINES.md).
@@ -5705,7 +5760,7 @@ Locales EN+DE: `ui.shape.bench/bedhead/bedfoot`, `srv.place.bed_room`, zero-g ke
 
 ### 🛰️ Player reports 2026-09-13, morning — double doors, the diagonal waterfall glare, sinking gas-sac animals, scouts in the fortress, the station's borrowed sky, trees invisible from space, hotkeys typed into F1, the nameless net-fragment objective (#1852–#1860 + #1840 #1845 #1847, 2026-09-13, branch reports-0913)
 
-Lyxette, thirteen F1 reports from one morning on v2026.9.8 (her planet base on Seana and her station). Every report was read
+Lyxette, thirteen F1 reports from one morning on v2026.9.8 (his planet base on Seana and his station). Every report was read
 against the server snapshot, the screenshot and the code; her settler question is filed as design issue #1851 (parked). Three
 of the ideas from the evening before rode along because they were small.
 
@@ -5790,7 +5845,7 @@ USER_MANUAL §6, `docs/developer/STATION_SETTLEMENT_EDITOR.md` §3b.
 
 ### 🛰️ Player reports 2026-09-12, evening — the glow past the seam, the diggable Guardian core, the roof spawn, ruin pillars, station saplings, the doorway "leak", 2-block gaps again (#1829–#1839, 2026-09-13, branch fix/player-reports-2026-09-12-night)
 
-Justus (eight F1 reports, v2026.9.7 — asteroid world + the Guardian core) and Lyxette (four, her station). Every report was
+Justus (eight F1 reports, v2026.9.7 — asteroid world + the Guardian core) and Lyxette (four, his station). Every report was
 read against the server snapshot and the code first; the ideas from the same evening are filed as #1840–#1847 (drones on
 asteroids, sinking into lava, zero-g construction, codex find location, notes tab, chat banner, furniture, a grass block).
 
@@ -6093,7 +6148,7 @@ and every trait is authorable in `data/creatures.json` too. Design record: docs/
   `FloraVarietyTests` holds `giant_leaves` in the leaf-alpha list. Locale keys in all 14 locales.
 ### 🌳 Air west of the origin, crew that stays aboard, saplings, and a helmet frame you can paint (#1773–#1777, 2026-09-11, branch fix/reports-0911b)
 
-The evening's three F1 reports on 2026.9.5 — two from Lyxette on her station, one from Justus about his avatar.
+The evening's three F1 reports on 2026.9.5 — two from Lyxette on his station, one from Justus about his avatar.
 
 - **#1773 the station's air ends at x = 0.** "Immer noch angeblich undichte Räume": her oxygen was full at x 2.75
   and drained at x −0.8 inside one closed iron/glass room with energy doors. Since #1558 a boarder's position is
@@ -6253,7 +6308,7 @@ was a stranded **mining-overflow** bundle — immortal by design (#1312), but it
 
 ### 🌊 Water that blends instead of switching (#1749, 2026-09-11, branch fix/water-mode-1749)
 
-The mosaic Lyxette photographed on her moat and Marcel on a swamp lake was not the bed and not the screen-space
+The mosaic Lyxette photographed on his moat and Marcel on a swamp lake was not the bed and not the screen-space
 path (it showed on the Low preset, at noon): it was the water MODE. The surface classified river / open / calm per
 cell from shore runs, every reed or pillar in the water ended a run, and the transparent shader branched on the
 verdict, so neighbouring cells drew different ripple directions and brightness. `WaterSurface` (now Client.Core,

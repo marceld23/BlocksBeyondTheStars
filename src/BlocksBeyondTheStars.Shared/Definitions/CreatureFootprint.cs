@@ -101,6 +101,47 @@ public static class CreatureFootprint
     /// <summary>How far apart two animals of radii <paramref name="radiusA"/> and <paramref name="radiusB"/> keep.</summary>
     public static float SeparationDistance(float radiusA, float radiusB) => SeparationFactor * (radiusA + radiusB);
 
+    /// <summary>#2943: how high above its position a ray carries its wing disc — the builder puts the flat body and the
+    /// three wing panels a side at <c>0.7u</c> (u = ½·clamp(S, 0.4, 3.5)). The server checks the disc against blocks at
+    /// this height, so it follows the drawing exactly as <see cref="Radius"/> does.</summary>
+    public static float RayWingPlane(CreatureSpecies sp, float sizeScale) => 0.7f * Unit(ScaledSize(sp, sizeScale), 3.5f);
+
+    /// <summary>#2943: half the height band the wing disc sweeps round <see cref="RayWingPlane"/> — the disc's own
+    /// thickness plus most of the travelling wave the animator runs along each wing edge.</summary>
+    public static float RayWingHalfBand(CreatureSpecies sp, float sizeScale) => 0.5f * Unit(ScaledSize(sp, sizeScale), 3.5f);
+
+    /// <summary>#2944: how far ahead of its position an animal's head reaches along its heading — the front the body
+    /// pushes into a wall first. For the standard, floral and titan plans that is the radius itself (the radius IS the
+    /// head's front); an arachnid's head ends 1.8u ahead (its abdomen reaches further behind), a worm's 1.2u (its chain
+    /// trails). An upright biped carries its head over its feet, and the swimming, floating and giant plans are never
+    /// walked into a wall this way — 0 for them.</summary>
+    public static float HeadReach(CreatureSpecies sp, float sizeScale)
+    {
+        float size = ScaledSize(sp, sizeScale);
+        switch (sp.BodyPlan)
+        {
+            case CreatureBodyPlan.Arachnid:
+                return 1.8f * Unit(size, 8f);
+
+            case CreatureBodyPlan.Worm:
+                return 1.2f * Unit(size, 3f);
+
+            case CreatureBodyPlan.Biped:
+            case CreatureBodyPlan.Ray:
+            case CreatureBodyPlan.Medusa:
+            case CreatureBodyPlan.Colossus:
+            case CreatureBodyPlan.Sandworm:
+            case CreatureBodyPlan.Leviathan:
+            case CreatureBodyPlan.SkyGiant:
+                return 0f;
+
+            default: // Standard, Floral, Titan
+                return Radius(sp, sizeScale);
+        }
+    }
+
+    private static float ScaledSize(CreatureSpecies sp, float sizeScale) => sp.Size * (sizeScale > 0f ? sizeScale : 1f);
+
     /// <summary>The builders' "unit": half the drawn size, clamped to the plan's size band.</summary>
     private static float Unit(float size, float maxSize) => 0.5f * Math.Clamp(size, 0.4f, maxSize);
 }

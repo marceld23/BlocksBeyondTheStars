@@ -63,6 +63,14 @@ Interpolation can only draw what the server simulates. These rules removed kinks
   like any step. The nudge may undo the whole step plus a cruise step outward, so a sprinting animal cannot push
   through another body; a roamer whose step it cancels re-rolls its heading instead of pressing on. Sleepers do not
   push awake animals; overlapping sleepers shuffle apart slowly (`SleeperShuffleSpeed`), only the later one moving.
+- **The drawn body against the blocks** (#2943–#2945, `GameServerCreatureBodies`): the block checks used to read the
+  centre column only. A **sky ray's wing disc** (`CreatureFootprint.RayWingPlane`, the plane the builder draws the wings
+  in) is sampled on eight bearings: the hover band rises until the disc is clear (`WingLiftCells`), and a step that would
+  need more than `WingStepLift` of rise for the wings is refused, so the ray turns at a wall. A **big land animal's head**
+  (`CreatureFootprint.HeadReach`) is followed along each step: a rise past the step-up limit anywhere on that line stops
+  the step, so the animal halts with its head outside a wall while hills and stairs stay open. **Crowns carry fliers
+  only** (`CanopyCarries`): every ground probe of a non-air animal reads leaves as no floor — it neither climbs a crown
+  that reaches the ground nor is lifted onto one, and one already up there drops; birds still perch on crowns.
 - **Running jump**: a walker that will reach a jumpable one-block rise within `RunningJumpLeadSeconds` takes off
   early (under the same checks as a jump at the lip) and keeps moving forward **inside its own column** while its
   feet come up; it crosses into the ledge column only once the feet are above the lip, so the body never clips the
@@ -147,6 +155,9 @@ that pose, and clears the pilot's interpolation buffer when the pose switches be
   yields to a sleeper and overlapping sleepers come apart with only the later one moving; a spawn spot inside a big
   animal is refused; a big herd spawns with room between every pair, and titan herds of 3–4 (and a big grazer herd)
   spawn whole on flat ground; the footprint grows with size and segments.
+- `CreatureBodyBlockTests`: a sky ray beside a roof rides over it and a hunting ray never puts its wings into a wall; a
+  big walker stops with its head outside a wall and still climbs a stair; a crawler never climbs a stair of leaves, a
+  land animal on a crown comes down, the ground probe reads a crown as floor for fliers only, a bird still perches on one.
 - `NpcGridPathTests`: string-pulling (open square, walls, corners, doorways, steps).
 - `RemoteEntityInterpolatorTests`, `SpaceEntitySyncTests` (Client.Tests): the no-wrap lerp at negative X and across 0,
   the stale-view scan with view-less rocks around. `SpaceFlightClientTests` (Client.Tests, real client and server): a
@@ -166,4 +177,6 @@ that pose, and clears the pilot's interpolation buffer when the pose switches be
 | Detour hold | `GameServer.CreatureDetourHoldSeconds` | 0.5 s |
 | Animal personal space | `CreatureFootprint.SeparationFactor` × (rA + rB) | 0.8 |
 | Sleeper shuffle | `GameServer.SleeperShuffleSpeed` | 0.4 blocks/s |
+| Ray wing lift / per step | `GameServer.WingLiftCells` / `WingStepLift` | 12 / 1.5 blocks |
+| Head line (share of the reach) | `GameServer.HeadReachShare` | 0.9 |
 | Animator speed low-pass | `SpeedSmoothTau` (CreatureAnimator, PlayerAvatar) | 0.08 s |

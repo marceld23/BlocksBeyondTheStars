@@ -2,11 +2,11 @@
 name = "blocks-beyond-the-stars-ai-assets"
 version = "0.1.0"
 description = "AI asset generators for BlocksBeyondTheStars: text -> sound effect (ElevenLabs) and text -> image/texture (OpenAI). One file per run, cost-gated."
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "openai>=1.40",
     "elevenlabs>=1.50",
-    "pillow>=12.3.0",
+    "pillow>=13.0.0",
     "python-dotenv>=1.0",
 ]
 

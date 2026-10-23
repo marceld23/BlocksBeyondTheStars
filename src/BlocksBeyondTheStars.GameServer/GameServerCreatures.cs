@@ -591,7 +591,7 @@ public sealed partial class GameServer
                     // Land spawns stand on the REAL ground (#650) — a dug pit's floor or a built platform,
                     // not the generator's original surface (which would float them over player terraforming).
                     // Air spawns start at their own band over it (#2552) — over a pond, over the water.
-                    y = sp.Habitat == CreatureHabitat.Air ? AirSpawnY(sp, x, z, surface) : GroundFeetYAt(x, z, surface + 1);
+                    y = sp.Habitat == CreatureHabitat.Air ? AirSpawnY(sp, x, z, surface) : GroundFeetYAt(x, z, surface + 1, canopyCarries: false);
                 }
 
                 var pos = new Vector3f(px + 0.5f, y, pz + 0.5f);
@@ -641,9 +641,9 @@ public sealed partial class GameServer
             return false;
         }
 
-        if (CreatureBodyBlocked(sp, pos))
+        if (CreatureBodyBlocked(sp, pos) || BodySpawnBlocked(sp, pos))
         {
-            return false; // its body would materialise inside a wall / ruin masonry (#855)
+            return false; // its body would materialise inside a wall / ruin masonry (#855), its wings in one (#2943), on a crown (#2945)
         }
 
         // #1763: an exclusive species (Leni: snow and ice) stands only on its own ground — the real block under
@@ -868,7 +868,7 @@ public sealed partial class GameServer
         }
         else
         {
-            y = sp.Habitat == CreatureHabitat.Air ? AirSpawnY(sp, mx, mz, surface) : GroundFeetYAt(mx, mz, surface + 1); // real ground (#650), the band (#2552)
+            y = sp.Habitat == CreatureHabitat.Air ? AirSpawnY(sp, mx, mz, surface) : GroundFeetYAt(mx, mz, surface + 1, canopyCarries: false); // real ground (#650), the band (#2552), never a crown (#2945)
         }
 
         // Herd members run the leader's full reject list (#638/#750/#855/#1314): the herd stays smaller
@@ -1447,7 +1447,7 @@ public sealed partial class GameServer
 
         int x = (int)System.Math.Floor(c.Position.X), z = (int)System.Math.Floor(c.Position.Z);
         int y = (int)System.Math.Floor(c.Position.Y);
-        if (TryNearestStandableThroughRock(x, z, y, CreatureHeadroom(sp), CreatureWideGroundScan, out int feet)
+        if (TryNearestStandableThroughRock(x, z, y, CreatureHeadroom(sp), CreatureWideGroundScan, out int feet, canopyCarries: false) // #2945
             && !CreatureBodyBlocked(sp, new Vector3f(c.Position.X, feet, c.Position.Z), foliagePasses: false))
         {
             c.Position = new Vector3f(c.Position.X, feet, c.Position.Z);
@@ -1494,6 +1494,12 @@ public sealed partial class GameServer
         // fauna is stopped by every shut door; a companion only by a hand-operated one, since a proximity door
         // opens for its owner and never for the pet, and an owner who shut the gate behind them can open it.
         if (_doors.Count > 0 && ClosedDoorOnPath(cur, cand, handOperatedOnly: c.IsCompanion))
+        {
+            return true;
+        }
+
+        // #2943 / #2944: the drawn body past the centre column — a ray's wing disc, a big land animal's head.
+        if (WingStepBlocked(c, sp, cur, cand) || HeadStepBlocked(c, sp, motion, cur, cand))
         {
             return true;
         }
@@ -1683,7 +1689,7 @@ public sealed partial class GameServer
                 foreach (var (dx, dz) in RelocateDirs)
                 {
                     int x = ox + dx * r, z = oz + dz * r;
-                    if (!TryGroundFeetYAt(x, z, refY, headroom, vertical, out int feet))
+                    if (!TryGroundFeetYAt(x, z, refY, headroom, vertical, out int feet, CanopyCarries(sp)))
                     {
                         continue;
                     }
@@ -2141,10 +2147,11 @@ public sealed partial class GameServer
     /// filling the column when there is one, otherwise the ground feet cell. "The ground" under a pond is its
     /// bed, and an animal that measures its band from the bed floats INSIDE the water — a player found one of
     /// her flying creatures asleep below the surface of her moat. What a flier would come down onto is the
-    /// water, so that is what the band is measured from.</summary>
-    private int RestSurfaceYAt(int x, int z, int refY)
+    /// water, so that is what the band is measured from. #2945: a floating LAND grazer passes
+    /// <paramref name="canopyCarries"/> false — it rides over the ground, never over a crown.</summary>
+    private int RestSurfaceYAt(int x, int z, int refY, bool canopyCarries = true)
     {
-        if (TryGroundFeetYAt(x, z, refY, out int feet))
+        if (TryGroundFeetYAt(x, z, refY, CreatureBodyMinHeight, CreatureGroundScan, out int feet, canopyCarries))
         {
             // Dry standable ground — a probe hit never lands inside a fluid. But a pond floor planted with kelp or
             // seagrass passes the probe (plants are walk-through), and that "ground" is under the water (#2552):
@@ -2179,7 +2186,7 @@ public sealed partial class GameServer
         // THROUGH the rock for the nearest real floor in either direction, within the wide window a ground
         // mover's own probe uses (#1320), so the animal comes back onto its floor or down into its cave.
         if (IsSupportCell(x, refY, z)
-            && TryNearestStandableThroughRock(x, z, refY, CreatureBodyMinHeight, CreatureWideGroundScan, out int through))
+            && TryNearestStandableThroughRock(x, z, refY, CreatureBodyMinHeight, CreatureWideGroundScan, out int through, canopyCarries))
         {
             return through;
         }
@@ -2196,22 +2203,24 @@ public sealed partial class GameServer
     }
 
     /// <summary>The nearest standable feet cell to <paramref name="refY"/> in either direction, looking THROUGH
-    /// solid cells (#1854) — for a body that is already embedded, where <see cref="TryGroundFeetYAt(int, int, int, int, int, out int)"/>
+    /// solid cells (#1854) — for a body that is already embedded, where <see cref="TryGroundFeetYAt(int, int, int, int, int, out int, bool)"/>
     /// stops at the first block under it. Distance decides, and at equal distance up wins (a creature 0.2 below
     /// a floor belongs on that floor, not in the cellar under it). Both directions reach <paramref name="maxScan"/>
-    /// cells; a feet cell needs <paramref name="headroom"/> air cells. No-load reads: an unloaded column has no
-    /// support anywhere and answers false, so the caller keeps its noise-surface fallback for those.</summary>
-    private bool TryNearestStandableThroughRock(int x, int z, int refY, int headroom, int maxScan, out int feetY)
+    /// cells; a feet cell needs <paramref name="headroom"/> air cells, and a crown carries it only when
+    /// <paramref name="canopyCarries"/> (#2945). No-load reads: an unloaded column has no support anywhere and answers
+    /// false, so the caller keeps its noise-surface fallback for those.</summary>
+    private bool TryNearestStandableThroughRock(int x, int z, int refY, int headroom, int maxScan, out int feetY,
+        bool canopyCarries = true)
     {
         for (int r = 1; r <= maxScan; r++)
         {
-            if (StandableAt(x, refY + r, z, headroom))
+            if (StandableAt(x, refY + r, z, headroom, canopyCarries))
             {
                 feetY = refY + r;
                 return true;
             }
 
-            if (StandableAt(x, refY - r, z, headroom))
+            if (StandableAt(x, refY - r, z, headroom, canopyCarries))
             {
                 feetY = refY - r;
                 return true;
@@ -2340,8 +2349,9 @@ public sealed partial class GameServer
     private int GroundFeetFor(CreatureSpecies sp, int x, int z, int refY)
     {
         // Species-aware headroom + the wide real-ground scan (#1320), so a titan never "stands" in a two-cell
-        // hollow and a fresh pit is found before the noise surface is trusted.
-        if (TryGroundFeetYAt(x, z, refY, CreatureHeadroom(sp), CreatureWideGroundScan, out int feet))
+        // hollow and a fresh pit is found before the noise surface is trusted. #2945: a crown carries fliers only.
+        bool canopy = CanopyCarries(sp);
+        if (TryGroundFeetYAt(x, z, refY, CreatureHeadroom(sp), CreatureWideGroundScan, out int feet, canopy))
         {
             return feet;
         }
@@ -2362,7 +2372,7 @@ public sealed partial class GameServer
         // A column that is streamed in and holds no support anywhere in the window is a real drop: answer a cell at its
         // far end, so the body falls (and probes on from lower down next tick) and a step toward it reads as a cliff edge.
         int noise = _generator.SurfaceHeight(_world.Planet, x, z) + 1;
-        if (OpenDropBelow(x, z, refY, CreatureWideGroundScan))
+        if (OpenDropBelow(x, z, refY, CreatureWideGroundScan, canopy))
         {
             // Never deeper than a pit a player could have dug under the noise surface: below that (the void under an
             // island in a gas sea) the body holds where it is instead of sinking for ever.
@@ -2377,12 +2387,13 @@ public sealed partial class GameServer
 
     /// <summary>Whether the <paramref name="maxScan"/> cells under <paramref name="refY"/> are a real, open drop: every one
     /// streamed in and none of them able to carry feet (air or fluid — no block, no canopy). An unloaded cell reads as air
-    /// under the no-load reads, so it ends the claim: what is not streamed in keeps the noise-surface fallback.</summary>
-    private bool OpenDropBelow(int x, int z, int refY, int maxScan)
+    /// under the no-load reads, so it ends the claim: what is not streamed in keeps the noise-surface fallback. #2945: for a
+    /// body a crown does not carry (<paramref name="canopyCarries"/> false) the leaves are part of the drop.</summary>
+    private bool OpenDropBelow(int x, int z, int refY, int maxScan, bool canopyCarries = true)
     {
         for (int y = refY - 1; y >= refY - maxScan; y--)
         {
-            if (!_world.IsChunkLoaded(WorldConstants.WorldToChunk(new Vector3i(x, y, z))) || IsSupportCell(x, y, z))
+            if (!_world.IsChunkLoaded(WorldConstants.WorldToChunk(new Vector3i(x, y, z))) || IsSupportCell(x, y, z, canopyCarries))
             {
                 return false;
             }
@@ -2499,9 +2510,12 @@ public sealed partial class GameServer
     /// REAL blocks via <see cref="ServerWorld.GetBlockIfLoaded"/> (unloaded chunks read as air and fall
     /// through to the generator surface — today's behaviour). Scanned outward from the reference, downward
     /// first at equal distance, so a creature under a player bridge keeps the ground instead of snapping
-    /// onto the deck. This is what makes fauna honour player builds: dug pits, ramps, walls, floors.</summary>
-    private int GroundFeetYAt(int x, int z, int refY)
-        => TryGroundFeetYAt(x, z, refY, out int feet) ? feet : _generator.SurfaceHeight(_world.Planet, x, z) + 1;
+    /// onto the deck. This is what makes fauna honour player builds: dug pits, ramps, walls, floors. A crown carries
+    /// the feet only when <paramref name="canopyCarries"/> (#2945).</summary>
+    private int GroundFeetYAt(int x, int z, int refY, bool canopyCarries = true)
+        => TryGroundFeetYAt(x, z, refY, CreatureBodyMinHeight, CreatureGroundScan, out int feet, canopyCarries)
+            ? feet
+            : _generator.SurfaceHeight(_world.Planet, x, z) + 1;
 
     /// <summary>The species-aware feet snap for a creature's own column (#1320): a large body needs its
     /// whole height of headroom, not the two cells a mouse gets — the plain probe read a two-cell hollow
@@ -2509,7 +2523,7 @@ public sealed partial class GameServer
     /// looks further for REAL ground before trusting the noise surface: the ±6 window fell back to the
     /// generator's pre-excavation height, which floated a creature over a freshly dug pit.</summary>
     private int GroundFeetYAt(CreatureSpecies sp, int x, int z, int refY)
-        => TryGroundFeetYAt(x, z, refY, CreatureHeadroom(sp), maxScan: CreatureWideGroundScan, out int feet)
+        => TryGroundFeetYAt(x, z, refY, CreatureHeadroom(sp), maxScan: CreatureWideGroundScan, out int feet, CanopyCarries(sp))
             ? feet
             : _generator.SurfaceHeight(_world.Planet, x, z) + 1;
 
@@ -2521,7 +2535,7 @@ public sealed partial class GameServer
     private static int CreatureHeadroom(CreatureSpecies sp)
         => sp.Size >= LargeBodySize && sp.Habitat == CreatureHabitat.Land ? CreatureBodyHeight(sp) : CreatureBodyMinHeight;
 
-    /// <summary>Like <see cref="GroundFeetYAt(int, int, int)"/> but reports whether a REAL standable cell was
+    /// <summary>Like <see cref="GroundFeetYAt(int, int, int, bool)"/> but reports whether a REAL standable cell was
     /// found, so callers that must never snap to the noise surface (settlement NPCs standing on stamped floors
     /// that the generator knows nothing about) can keep their current Y when the column is unloaded/blocked.</summary>
     private bool TryGroundFeetYAt(int x, int z, int refY, out int feetY)
@@ -2534,19 +2548,21 @@ public sealed partial class GameServer
     /// ceiling when a deep pit opened under it). Only when nothing below is standable (entombed, the floor
     /// removed under a low ceiling) does it look UPWARD for the nearest standable cell — the one recovery a
     /// creature makes by being lifted. Both directions reach <paramref name="maxScan"/> cells; a feet cell
-    /// needs <paramref name="headroom"/> air cells.</summary>
-    private bool TryGroundFeetYAt(int x, int z, int refY, int headroom, int maxScan, out int feetY)
+    /// needs <paramref name="headroom"/> air cells. #2945: with <paramref name="canopyCarries"/> false a crown is
+    /// no floor — the downward scan falls through the leaves to the ground under them, and the lift never ends on
+    /// a crown's top (a land animal climbed giant crowns that reached the ground, or was lifted onto one).</summary>
+    private bool TryGroundFeetYAt(int x, int z, int refY, int headroom, int maxScan, out int feetY, bool canopyCarries = true)
     {
         for (int r = 0; r <= maxScan; r++)
         {
             int y = refY - r;
-            if (StandableAt(x, y, z, headroom))
+            if (StandableAt(x, y, z, headroom, canopyCarries))
             {
                 feetY = y;
                 return true;
             }
 
-            if (IsSupportCell(x, y, z))
+            if (IsSupportCell(x, y, z, canopyCarries))
             {
                 break; // a supporting block — nothing deeper can be reached by falling
             }
@@ -2554,7 +2570,7 @@ public sealed partial class GameServer
 
         for (int r = 1; r <= maxScan; r++)
         {
-            if (StandableAt(x, refY + r, z, headroom))
+            if (StandableAt(x, refY + r, z, headroom, canopyCarries))
             {
                 feetY = refY + r;
                 return true;
@@ -2567,22 +2583,24 @@ public sealed partial class GameServer
 
     /// <summary>Whether a cell carries feet: a colliding block or lava (a lava dweller's column is handled
     /// before the probe) — not air, not water, and since #1367 not a walk-through prop either (a tuft of grass
-    /// carries nobody; the same rule <see cref="CreatureBodyBlocked"/> and the wall fill read). Canopy counts:
-    /// a bird sits on a crown. No-load read.</summary>
-    private bool IsSupportCell(int x, int y, int z)
+    /// carries nobody; the same rule <see cref="CreatureBodyBlocked"/> and the wall fill read). Canopy counts
+    /// when <paramref name="canopyCarries"/> — a bird sits on a crown; #2945: a land animal's probes pass false
+    /// (<see cref="CanopyCarries"/>). No-load read.</summary>
+    private bool IsSupportCell(int x, int y, int z, bool canopyCarries = true)
     {
         var id = _world.GetBlockIfLoaded(new Vector3i(x, y, z));
-        return id.Value != _creatureWaterId && IsCollidingBlock(id, fluidsPass: false, foliagePasses: false);
+        return id.Value != _creatureWaterId && IsCollidingBlock(id, fluidsPass: false, foliagePasses: !canopyCarries);
     }
 
     /// <summary>Whether feet placed at <paramref name="y"/> stand on something real: solid (non-water)
     /// support below, and nothing a body collides with from the feet up through <paramref name="headroom"/>
     /// cells (#1367: small flora, a torch or a ladder in the column passes — a titan's eight-cell headroom
     /// used to fail on one tuft of grass, and the wide scan then hauled it onto the nearest tree crown; a
-    /// canopy or a fluid still blocks). Uses the no-load block read.</summary>
-    private bool StandableAt(int x, int y, int z, int headroom = CreatureBodyMinHeight)
+    /// canopy or a fluid still blocks). A crown under the feet carries them only when <paramref name="canopyCarries"/>
+    /// (#2945). Uses the no-load block read.</summary>
+    private bool StandableAt(int x, int y, int z, int headroom = CreatureBodyMinHeight, bool canopyCarries = true)
     {
-        if (!IsSupportCell(x, y - 1, z))
+        if (!IsSupportCell(x, y - 1, z, canopyCarries))
         {
             return false;
         }
@@ -2834,11 +2852,11 @@ public sealed partial class GameServer
             case CreatureHabitat.Lava:
                 return _generator.TryGetLavaSurface(_world.Planet, x, z, out int lavaTop, out _)
                     ? new Vector3f(p.X, lavaTop, p.Z)
-                    : new Vector3f(p.X, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y)), p.Z);
+                    : new Vector3f(p.X, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y), canopyCarries: false), p.Z);
             case CreatureHabitat.Amphibian:
                 return _generator.TryGetWaterSurface(_world.Planet, x, z, out int ampTop, out _)
                     ? new Vector3f(p.X, ampTop, p.Z)
-                    : new Vector3f(p.X, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y)), p.Z);
+                    : new Vector3f(p.X, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y), canopyCarries: false), p.Z);
             default:
                 return new Vector3f(p.X, GroundFeetFor(sp, x, z, (int)System.Math.Floor(p.Y)), p.Z);
         }
@@ -2877,10 +2895,15 @@ public sealed partial class GameServer
                     bool airborne = sp.Habitat == CreatureHabitat.Air;
                     int rest = airborne
                         ? AirRestSurfaceYAt(x, z, p.Y, HoverOf(sp))
-                        : RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y));
+                        : RestSurfaceYAt(x, z, (int)System.Math.Floor(p.Y), canopyCarries: false); // #2945
                     float baseY = rest + (airborne ? HoverOf(sp) : LandHovererHeight);
                     float target = baseY + prof.VertAmp * vertWave;
-                    if (!airborne)
+                    if (airborne)
+                    {
+                        // #2943: a ray's wings ride over whatever lies under them — a roof beside it, a low wall.
+                        target = WingClearY(sp, c.SizeScale, p.X, p.Z, target);
+                    }
+                    else
                     {
                         // #1854: a floating land grazer rides 0.8 above its feet cell, but its vertical-life
                         // wave can be a full block (the glider cadence) — at the trough the target sat 0.2
