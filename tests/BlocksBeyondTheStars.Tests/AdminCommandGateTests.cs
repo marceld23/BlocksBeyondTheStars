@@ -248,6 +248,32 @@ public sealed class AdminCommandGateTests : IDisposable
         }
     }
 
+    /// <summary>#1728: the role gate's one exemption — a plain player who owns a base on this body may ask
+    /// <c>/basewalls</c> (a read-only report about their own walls), also on a world without cheats. The same player is
+    /// refused before founding the base and for every other verb, and a plain player who owns no base here stays refused.</summary>
+    [Fact]
+    public void BaseOwner_WithPlayerRole_PassesRoleGate_ForBaseWallsOnly()
+    {
+        var t = new RecordingTransport();
+        var server = NewServer("gate_basewalls_owner", t, out var repo, cheats: false);
+        using (repo)
+        {
+            var owner = OnFoot(server, "Builder", admin: false);
+            var stranger = OnFoot(server, "Stranger", admin: false);
+            Assert.Equal("@srv.admin.not_admin", Assert.Single(Refusals(Run(server, t, owner, "basewalls"), owner)));
+
+            server.PlaceBaseForTest(owner, new Vector3i(300, 118, 0));
+
+            var sent = Run(server, t, owner, "basewalls");
+            Assert.Empty(Refusals(sent, owner));
+            Assert.Contains(Lines(sent, owner), l => l.Contains("Builder's Base", StringComparison.Ordinal));
+
+            Assert.Empty(Refusals(Run(server, t, owner, "BaseWalls"), owner)); // verbs match in any letter case
+            Assert.Equal("@srv.admin.not_admin", Assert.Single(Refusals(Run(server, t, owner, "players"), owner)));
+            Assert.Equal("@srv.admin.not_admin", Assert.Single(Refusals(Run(server, t, stranger, "basewalls"), stranger)));
+        }
+    }
+
     [Fact]
     public void VerbsAreCaseInsensitive()
     {

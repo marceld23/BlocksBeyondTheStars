@@ -59,6 +59,11 @@ The deferred class extractions are #2929 (not part of this branch).
   to 60 s, ends early if the process exits), then re-dials once a second for 10 s; UnityPlay ran 6/6 three times.
   `AdminServiceTests` + `AdminContentTests` read `BBS_*` beside the config tests; they now join the explicit
   `ServerConfigEnvironmentCollection`, and its guard `ServerConfigEnvironmentCollectionTests` scans the test sources.
+- **Code-health cleanups found by the refactoring (#2928):** an unused `Weather` using, stale `Stashable` crefs, a
+  wrong `WebSocketServerTransport.FixedTimeEquals` comment, GameBootstrap doc comments above the wrong members and
+  private `Slug`/`RightPanel` copies in `AvatarEditor`/`KitEditorPanel` (now `EditorSceneKit`) are fixed. The dead
+  `WeatherForecastRequest` (nothing sent or handled it) is removed and tag 200 stays retired (`NetCodecTests`,
+  `ClientDispatchRegistryTests`); a new `AdminCommandGateTests` fact pins the `/basewalls` base-owner exemption.
 
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 

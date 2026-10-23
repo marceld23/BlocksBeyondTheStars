@@ -254,7 +254,7 @@ public sealed class NetCodecTests
         [197] = typeof(DropPacketList),
         [198] = typeof(SetBodyPaintIntent),
         [199] = typeof(PlayerBodyPaint),
-        [200] = typeof(WeatherForecastRequest),
+        // 200 is retired (#2928, the never-used WeatherForecastRequest) — never reuse it.
         [201] = typeof(WeatherForecast),
         [202] = typeof(PaintCraftIntent),
         [203] = typeof(TradeRequestNotice),
@@ -493,6 +493,12 @@ public sealed class NetCodecTests
     [InlineData(65536, false)]
     public void OnlyRealIdsAreRegistrable(int id, bool expected)
         => Assert.Equal(expected, NetCodec.IsRegistrableTag(id));
+
+    /// <summary>#2928: tag 200 (the never-sent, never-handled WeatherForecastRequest) is retired, not free — an older
+    /// peer still decodes 200 as that request, so a new message reusing the tag would silently arrive as it there.</summary>
+    [Fact]
+    public void RetiredTag200_StaysUnregistered()
+        => Assert.False(NetCodec.RegisteredMessages.ContainsKey(200));
 
     private static byte[] JsonFrame(string json)
     {

@@ -49,7 +49,7 @@ public sealed class ClientDispatchRegistryTests
     }
 
     [Fact]
-    public void EveryRegisteredMessage_IsHandledByExactlyOneSide_ExceptVoiceAndTheTwoKnownGaps()
+    public void EveryRegisteredMessage_IsHandledByExactlyOneSide_ExceptVoiceAndTheJoinRequest()
     {
         var server = SvGameServer.HandledIntentTypesForTest.ToHashSet();
         var client = NetworkClient.HandledMessageTypesForTest.ToHashSet();
@@ -58,11 +58,10 @@ public sealed class ClientDispatchRegistryTests
         // Voice is relayed: the server forwards a speaker's frame and every listener's client plays it.
         Assert.Equal(new[] { typeof(VoiceFrame) }, server.Intersect(client));
 
-        // JoinRequest is answered in OnPayload before Dispatch. WeatherForecastRequest (tag 200) has had no handler on
-        // either side and no sender since it was registered — pre-existing, pinned here so that a future handler (or a
-        // decision to retire it) updates this list on purpose.
+        // JoinRequest is answered in OnPayload before Dispatch. It is the only gap since the never-sent, never-handled
+        // WeatherForecastRequest (tag 200) was retired (#2928): a registered message neither side handles is dead wire.
         var unhandled = registered.Except(server).Except(client).Select(t => t.Name).OrderBy(n => n, StringComparer.Ordinal);
-        Assert.Equal(new[] { "JoinRequest", "WeatherForecastRequest" }, unhandled);
+        Assert.Equal(new[] { "JoinRequest" }, unhandled);
     }
 
     [Fact]

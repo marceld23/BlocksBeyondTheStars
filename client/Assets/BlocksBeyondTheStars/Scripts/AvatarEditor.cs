@@ -124,7 +124,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Right-hand control panel (anchored to the top-right).
             const float w = 420f, h = 920f;
-            var panel = RightPanel(root, w, h);
+            var panel = EditorSceneKit.RightPanel(root, w, h);
             UiKit.AddText(panel, 20f, 14f, w - 40f, 28f, L("ui.avatar.title"), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             BuildOutfitPanel(root, w); // saved looks, left of the control panel (#1047)
 
@@ -594,7 +594,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Export()
         {
-            string key = Slug(_name);
+            string key = EditorSceneKit.Slug(_name);
             if (string.IsNullOrEmpty(key))
             {
                 SetStatus(L("ui.avatar.need_name"));
@@ -645,38 +645,6 @@ namespace BlocksBeyondTheStars.Client
         private static string Hex(Color c)
             => $"#{Mathf.RoundToInt(c.r * 255f):X2}{Mathf.RoundToInt(c.g * 255f):X2}{Mathf.RoundToInt(c.b * 255f):X2}";
 
-        private static string Slug(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s))
-            {
-                return string.Empty;
-            }
-
-            var sb = new System.Text.StringBuilder();
-            foreach (char c in s.Trim().ToLowerInvariant())
-            {
-                if (char.IsLetterOrDigit(c)) sb.Append(c);
-                else if (c == ' ' || c == '-' || c == '_') sb.Append('_');
-            }
-
-            return sb.ToString();
-        }
-
         private string L(string key) => Shell?.L(key) ?? key;
-
-        private static RectTransform RightPanel(Transform root, float w, float h)
-        {
-            var go = new GameObject("Panel", typeof(RectTransform));
-            go.transform.SetParent(root, false);
-            var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 1f);
-            rt.sizeDelta = new Vector2(w, h);
-            rt.anchoredPosition = new Vector2(-16f, -16f);
-            var img = go.AddComponent<Image>();
-            img.sprite = UiKit.PanelSprite;
-            img.type = Image.Type.Sliced;
-            img.color = UiKit.PanelFill;
-            return rt;
-        }
     }
 }

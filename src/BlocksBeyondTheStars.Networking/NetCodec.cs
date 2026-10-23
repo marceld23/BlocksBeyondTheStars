@@ -448,7 +448,8 @@ public static class NetCodec
         Register(199, typeof(PlayerBodyPaint));          // Server -> Client (another player's painting)
 
         // Weather forecast gadget (#900): the sky's coming episodes, so weather can be planned around.
-        Register(200, typeof(WeatherForecastRequest));   // Client -> Server
+        // 200 is retired (#2928): WeatherForecastRequest was never sent or handled — the scanner's UseGadgetIntent gets
+        // the forecast. Never reuse the tag.
         Register(201, typeof(WeatherForecast));          // Server -> Client
 
         // Hotbar slot actions

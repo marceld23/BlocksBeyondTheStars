@@ -1163,10 +1163,13 @@ namespace BlocksBeyondTheStars.Client
             float dz = SceneZ(o.Z) + half - player.z;
             return dx * dx + dy * dy + dz * dz;
         }
-        /// <summary>The block atlas repainted tiles in place (a texture layer changed, #1952). Chunk meshes keep
-        /// their UVs, so they stay; everything that BAKED a tile's colour or pixels has to go.</summary>
+
+        /// <summary>The atlas <c>AnimationVersion</c> the loaded chunks were meshed with (#1957) — a change re-meshes
+        /// them in <see cref="OnAtlasRepainted"/>.</summary>
         private int _animationVersionSeen;
 
+        /// <summary>The block atlas repainted tiles in place (a texture layer changed, #1952). Chunk meshes keep
+        /// their UVs, so they stay; everything that BAKED a tile's colour or pixels has to go.</summary>
         private void OnAtlasRepainted()
         {
             IconResolver.ClearCache();

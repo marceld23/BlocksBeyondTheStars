@@ -108,12 +108,6 @@ public sealed class WorldEnvironment
     public float GravityFactor { get; set; } = 1.0f;
 }
 
-/// <summary>Client → server: read the sky (#900). Sent by the weather scanner gadget; the server answers
-/// with a <see cref="WeatherForecast"/> for the world the player is standing on.</summary>
-public sealed class WeatherForecastRequest
-{
-}
-
 /// <summary>One predicted weather episode: what is coming, when it starts and how long it holds.</summary>
 public sealed class WeatherForecastEntry
 {

@@ -272,7 +272,8 @@ exact type up in one registry — `GameServerDispatch.cs`, one `On<T>` line per 
 client mirrors it in `Client.Core/NetworkClientDispatch.cs` (server message → typed event). A new
 message is one `On<T>` line there; `IntentDispatchRegistryTests` / `ClientDispatchRegistryTests` pin
 the number of handled types, check that each is a `NetCodec`-registered, sealed message, and that
-every registered message is handled by exactly one side (apart from voice and two named gaps).
+every registered message is handled by exactly one side (apart from voice and `JoinRequest`, which
+`OnPayload` answers before dispatch).
 **World = seed + parameters + deltas**: clients receive generated chunks
 plus persisted edits, never the full natural world.
 

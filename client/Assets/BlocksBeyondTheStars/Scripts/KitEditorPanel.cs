@@ -304,7 +304,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float x0 = 300f, y = 50f;
-            Field(panel, x0, y, L("ui.kit.key"), k2.key, v => k2.key = Slug(v));
+            Field(panel, x0, y, L("ui.kit.key"), k2.key, v => k2.key = EditorSceneKit.Slug(v));
             Field(panel, x0 + 380f, y, L("ui.kit.name"), k2.name, v => k2.name = v);
             y += 40f;
             var kinds = _editorKind == StructureKit.KindStation ? new[] { StructureKit.KindStation } : new[] { StructureKit.KindSettlement, StructureKit.KindCity };
@@ -314,7 +314,7 @@ namespace BlocksBeyondTheStars.Client
                 : new[] { "hamlet", "village", "town", "city" };
             Stepper(panel, x0 + 380f, y, L("ui.kit.tier"), k2.tier, tiers, v => k2.tier = v);
             y += 40f;
-            Field(panel, x0, y, L("ui.struct.pack"), k2.pack, v => k2.pack = Slug(v));
+            Field(panel, x0, y, L("ui.struct.pack"), k2.pack, v => k2.pack = EditorSceneKit.Slug(v));
             IntField(panel, x0 + 380f, y, L("ui.kit.weight"), k2.weight, v => k2.weight = Mathf.Max(1, v));
             y += 40f;
             if (k2.kind != StructureKit.KindStation)
@@ -328,7 +328,7 @@ namespace BlocksBeyondTheStars.Client
             y += 40f;
             if (k2.kind == StructureKit.KindStation)
             {
-                Field(panel, x0, y, L("ui.kit.start"), k2.start, v => k2.start = Slug(v));
+                Field(panel, x0, y, L("ui.kit.start"), k2.start, v => k2.start = EditorSceneKit.Slug(v));
                 IntField(panel, x0 + 380f, y, L("ui.kit.max_extent"), k2.maxExtent, v => k2.maxExtent = Mathf.Max(0, v));
                 y += 40f;
                 // #1920: the station's exterior detail — how many the composer mounts (0 = none); the test assembly shows it.
@@ -381,7 +381,7 @@ namespace BlocksBeyondTheStars.Client
                 le.preferredHeight = 34f;
                 le.minHeight = 34f;
                 // #1890: the module is picked from the pool (the key stays typeable for a module that is not saved yet).
-                UiKit.AddInput(row, 0f, 2f, 180f, 30f, e.module, v => e.module = Slug(v), string.Empty, 0, 14);
+                UiKit.AddInput(row, 0f, 2f, 180f, 30f, e.module, v => e.module = EditorSceneKit.Slug(v), string.Empty, 0, 14);
                 UiKit.AddButton(row, 184f, 2f, 36f, 30f, "…", () => OpenPicker(k2.kind, key => { e.module = key; Rebuild(); }));
                 UiKit.AddInput(row, 230f, 2f, 50f, 30f, e.min.ToString(), v => { if (int.TryParse(v, out var n)) e.min = Mathf.Max(0, n); }, string.Empty, 0, 14);
                 UiKit.AddInput(row, 290f, 2f, 50f, 30f, e.max.ToString(), v => { if (int.TryParse(v, out var n)) e.max = Mathf.Max(0, n); }, string.Empty, 0, 14);
@@ -504,23 +504,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return list;
-        }
-
-        private static string Slug(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s))
-            {
-                return string.Empty;
-            }
-
-            var sb = new System.Text.StringBuilder();
-            foreach (char c in s.Trim().ToLowerInvariant())
-            {
-                if (char.IsLetterOrDigit(c)) sb.Append(c);
-                else if (c == ' ' || c == '-' || c == '_') sb.Append('_');
-            }
-
-            return sb.ToString();
         }
     }
 }

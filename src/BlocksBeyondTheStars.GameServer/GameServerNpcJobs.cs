@@ -540,9 +540,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>
-    /// An NPC puts items into a crate (#1868). Unlike the player's stash (<see cref="Stashable"/>) consumables may go
-    /// in — the gardener's berries belong in the pantry — but the crate's filter and a wood box's slot limit are
-    /// respected. All or nothing: false (and nothing stored) when anything does not fit.
+    /// An NPC puts items into a crate (#1868). Unlike the player's stash (<see cref="ContainerSystem.Stashable"/>)
+    /// consumables may go in — the gardener's berries belong in the pantry — but the crate's filter and a wood box's
+    /// slot limit are respected. All or nothing: false (and nothing stored) when anything does not fit.
     /// </summary>
     private bool NpcDepositToContainer(StoredContainer container, IEnumerable<ItemAmount> items)
     {

@@ -304,8 +304,9 @@ public sealed class WebSocketServerTransport : IServerTransport
         }
     }
 
-    /// <summary>Constant-time string compare (hand-rolled like HostedJoinToken's — netstandard2.1/Unity
-    /// compatibility rules out CryptographicOperations here).</summary>
+    /// <summary>Constant-time string compare, hand-rolled like HostedJoinToken's (length-then-XOR-accumulate).
+    /// <c>CryptographicOperations.FixedTimeEquals</c> is available on netstandard2.1 and in Unity — see
+    /// <see cref="Shared.Security.BasicAuth"/> — folding the copies together is a separate cleanup.</summary>
     private static bool FixedTimeEquals(string? candidate, string expected)
     {
         if (candidate is null || candidate.Length != expected.Length)

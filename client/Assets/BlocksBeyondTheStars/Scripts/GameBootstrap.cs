@@ -136,8 +136,6 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>This save's player-designed forms (#844) — the geometry counterpart of the paint atlas.</summary>
         public CustomShapeRegistry CustomShapes { get; } = new CustomShapeRegistry();
 
-        // Per-species flora tints for the current world (seed + location → one colour per flora block),
-        // resolved by the chunk mesher into TEXCOORD2.yzw. Rebuilt on join and on every world change.
         private long _worldSeed;
 
         /// <summary>The world seed (from JoinAccepted) — drives the per-world flora colours, also for
@@ -185,12 +183,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>An optional world-map waypoint (XZ); the HUD compass points to it when set.</summary>
         public Vector3? Waypoint;
 
-        /// <summary>World-X span over which the local time-of-day shifts a full cycle. This is the world
-        /// circumference (X is a wrapping longitude), so one walk around the world is exactly one day and
-        /// the planet has a real day/night terminator: a player far east can be in daylight while one far
-        /// west is in night, on the same world.</summary>
         /// <summary>This world's walkable circumference (longitude wrap + day span). Sized per body (asteroids
-        /// small, planets large) — sent by the server in <see cref="WorldEnvironment"/>; used for every X wrap.</summary>
+        /// small, planets large) — sent by the server in <see cref="WorldEnvironment"/>; used for every X wrap.
+        /// It is also the world-X span over which the local time-of-day shifts a full cycle (X is a wrapping
+        /// longitude), so one walk around the world is exactly one day and the planet has a real day/night
+        /// terminator: a player far east can be in daylight while one far west is in night, on the same
+        /// world.</summary>
         public int Circumference { get; private set; } = WorldConstants.Circumference;
 
         /// <summary>Time-of-day at the player's position — the server's global day fraction shifted by the
@@ -644,7 +642,6 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The active world changed (travel): drop all chunks/meshes so the new planet streams in.</summary>
-
         private void OnWorldReset(BlocksBeyondTheStars.Networking.Messages.WorldReset m)
         {
             LocationName = string.IsNullOrEmpty(m.SystemName) ? m.PlanetName : $"{m.SystemName} · {m.PlanetName}";
@@ -817,15 +814,6 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Frees the session's procedural assets alongside the network. Unity never garbage-collects
-        /// assets created via <c>new</c> (Texture2D/Material/Mesh), so without this every menu↔world cycle
-        /// leaks both atlas textures + the chunk materials (#423). The static icon caches and the
-        /// <see cref="HeldItem.BlockTileResolver"/> delegate MUST be cleared first — they wrap/pin this
-        /// session's atlas (and the whole GameBootstrap object graph) across sessions. Everything else the
-        /// world created (sky/starfield meshes+materials, chunk render meshes, icon sprites) becomes
-        /// unreferenced with the world root and is swept by AppShell.ReturnToMenu's
-        /// <c>Resources.UnloadUnusedAssets</c> pass.</summary>
-
         private readonly WorldTextureInbox _worldTextureInbox = new WorldTextureInbox();
 
         private readonly Dictionary<string, List<BlocksBeyondTheStars.Shared.Definitions.HeldModelPart>> _localToolLooks
@@ -876,6 +864,14 @@ namespace BlocksBeyondTheStars.Client
             => Rules != null && string.Equals(Rules.WorldTextures, "Admins", System.StringComparison.Ordinal)
                && Rules.PlayerModeNames != null && Rules.PlayerModeNames.Length > 0;
 
+        /// <summary>Frees the session's procedural assets alongside the network. Unity never garbage-collects
+        /// assets created via <c>new</c> (Texture2D/Material/Mesh), so without this every menu↔world cycle
+        /// leaks both atlas textures + the chunk materials (#423). The static icon caches and the
+        /// <see cref="HeldItem.BlockTileResolver"/> delegate MUST be cleared first — they wrap/pin this
+        /// session's atlas (and the whole GameBootstrap object graph) across sessions. Everything else the
+        /// world created (sky/starfield meshes+materials, chunk render meshes, icon sprites) becomes
+        /// unreferenced with the world root and is swept by AppShell.ReturnToMenu's
+        /// <c>Resources.UnloadUnusedAssets</c> pass.</summary>
         private void OnDestroy()
         {
             Network?.Dispose();

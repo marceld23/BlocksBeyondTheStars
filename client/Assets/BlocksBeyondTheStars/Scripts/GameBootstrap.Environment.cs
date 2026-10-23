@@ -24,6 +24,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The live weather of every body in the current star system (#2173) — what the orbit cloud shells,
         /// the landing-pad map and the other maps project onto their planets.</summary>
         public SystemWeatherState SystemWeather { get; } = new SystemWeatherState();
+
+        // Per-species flora tints for the current world (seed + location → one colour per flora block),
+        // resolved by the chunk mesher into TEXCOORD2.yzw. Rebuilt on join and on every world change.
         private System.Collections.Generic.Dictionary<ushort, Color> _floraTintByBlock;
 
         // --- The held world (#908) -----------------------------------------------------------------------

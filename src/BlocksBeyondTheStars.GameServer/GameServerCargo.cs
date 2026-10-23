@@ -207,10 +207,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>Loose materials, components and building blocks stow into cargo; tools, weapons and suit gear stay on
-    /// the player. The same category rule a storage crate stashes by (<c>Stashable</c>) — blocks were missing here
-    /// since #1264 added them there, so "stow all" left every stack of stone, glass and wall panels in the pack while
-    /// it happily stowed a helmet (#1562). Suit gear is category Component too (a spare helmet, an oxygen tank) —
-    /// equipment, not cargo, so it stays with the player (#2138).</summary>
+    /// the player. The same category rule a storage crate stashes by (<see cref="ContainerSystem.Stashable"/>) — blocks
+    /// were missing here since #1264 added them there, so "stow all" left every stack of stone, glass and wall panels in
+    /// the pack while it happily stowed a helmet (#1562). Suit gear is category Component too (a spare helmet, an
+    /// oxygen tank) — equipment, not cargo, so it stays with the player (#2138).</summary>
     private bool IsStowable(string item)
         => _content.GetItem(item) is { } def
            && def.Category is ItemCategory.Material or ItemCategory.Component or ItemCategory.Block
