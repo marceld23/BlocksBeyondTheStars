@@ -695,6 +695,9 @@ In code (#2892) `Generate` (`WorldGenerator.Columns.cs`) is a short sequence of 
 column profile in `WorldGenerator.ChunkFill.cs`: `ResolveFillContext` (steps 2–3, the per-chunk `FillContext`)
 → `BuildColumnContext` → per column `ColumnProfileFor` (the cached `ComputeColumn`), `CollectSealSpans`,
 `FillColumnCells` (the y-loop of step 4) and `PlantColumnFlora` → `StampChunkPasses` (steps 5–6).
+`FillColumnCells` stays one method by decision (#2929): its body runs for every cell, and per-cell helpers measured
+5–7 % slower generation. Reopen the split only for a new claim that must go inside the y-loop, or a JIT measurement of
+the method near the #1740 cliff.
 
 ## 11. Terrain wonders (#698–#709, 2026-08-03)
 

@@ -37,6 +37,11 @@ triggers on #2929. Fixes found on the way: #2936, #2937, #2938.
   members) with one implementation each in `GameServer.Systems.cs`; ADR 0019 and DEVELOPER.md say so, behaviour is
   unchanged. Pinned by the existing system test classes (Container, Vehicle, BioLab, Temperature, Marker, Tutorial,
   Journal, NpcWork, Observer, …) and `CodeHealthRatchetTests`.
+- **The #2929 decisions are in the docs (#2929):** the drops and the "prompts stay off UiPanel" call lived only on
+  the issue, so the next scout would measure them again. UI_PANELS.md now says why prompts/tool hosts stay off UiPanel
+  and why the 69 scene searches stay; ARCHITECTURE.md notes GameBootstrap, PlayerController movement and HudUi widgets
+  staying partials; WORLD_GENERATION.md keeps FillColumnCells one method (5-7 % cost), each with its reopen trigger.
+  Docs only, no code or test changed.
 
 ### 🔧 Refactoring follow-ups 2026-10 — the bugs and cleanups the code-health refactoring found — #2919–#2928, branch fix/refactoring-follow-ups-2026-10, PR #2930 — ✅ done 2026-10-23 (⚠ playtest open)
 

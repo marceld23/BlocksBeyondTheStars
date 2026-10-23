@@ -176,7 +176,10 @@ the `Client.Core` assembly, see [CLIENT_TESTING.md](CLIENT_TESTING.md)):
   the concern files) in a fixed order before it connects; `Update` polls the network, advances the
   clocks and ends with `TickSkyScan`, `TickConnect` and `TickChunkStreaming`, in that order. It also
   holds the rig's two registries, `Context` (`ClientContext`, the modal panels) and `Views`
-  (`RigViews`, the other views).
+  (`RigViews`, the other views). Two extractions were dropped by decision (#2929): the station
+  affordances stay a partial (two short handlers whose events have no subscriber), and so does the
+  chunk pipeline (Unity-bound, reads host state throughout, WorldRig sets its `FarView` before
+  `Start`, and the player and the far terrain query it from their own updates).
 - **`PlayerController.cs`** — the first-person controller (walk, look, mine and place as intents).
   `PlayerController.cs` keeps the wiring, the shared body state, `Update` (the on-foot key polls) and
   the spawn gate; each concern (movement, footing, climbing, rope, glider, aim, placement, interaction,
@@ -184,7 +187,10 @@ the `Client.Core` assembly, see [CLIENT_TESTING.md](CLIENT_TESTING.md)):
   speeder or boat (`PlayerVehicleDrive`) and riding the monorail (`PlayerTrainRider`) are sibling
   components the controller adds in `Awake` and calls at the old call sites; the screenshot/clip pose
   search (`PlayerCapture`) is added on first use through `PlayerController.Capture`, so normal play
-  never creates it.
+  never creates it. The movement gear stays in partials, not components, by decision (#2929): its
+  testable rules already live in Client.Core (`RopeRig`, `ClimbGrip`, `ClimbProbe`) and Shared
+  (`SuitEquipment`) with tests, and the step order inside `Move()` (pull-up, rope before wall climb,
+  the glide-refusal latch, the fall-start reset, then jetpack and glider) is behaviour.
 - **Voxels** — `ChunkMesher.cs` builds per-chunk meshes with face culling, opaque/transparent
   submeshes, per-voxel tint/glow flood-fill (TEXCOORD3) and non-cube block shapes, plus a
   separate collision mesh; `BlockTextureAtlas.cs` paints a 32×32-tile atlas (+ derived normal
@@ -197,7 +203,10 @@ the `Client.Core` assembly, see [CLIENT_TESTING.md](CLIENT_TESTING.md)):
   `CraftingTechShipUI`, `ChatUi`, `ScreenLabelLayer` (nameplates). The big screens are partial
   classes split by concern: `HudUi.cs` composes the HUD and each widget is a `HudUi.<Widget>.cs`
   file (hotbar, vitals, compass, toasts, scan panel, …; the toast timing rules are the pure
-  `HudToastPolicy.cs`); `CraftingTechShipUI.cs` is the screen's shell with one
+  `HudToastPolicy.cs`). The widgets stay partials by decision (#2929): when a HUD rule needs a test,
+  extract the *rule* into a pure class (like `HudToastPolicy`, or `DamageFeedback` and `HitDirection`
+  in Client.Core); widget classes are reopened only when a second consumer needs a widget as an
+  object. `CraftingTechShipUI.cs` is the screen's shell with one
   `CraftingTechShipUI.<Part>.cs` file per tab or page plus the shared `.Recipes`, `.Stations` and
   `.Scaffolding` parts. `UiMainMenu.Build` is a short orchestrator over a private `Builder` with one
   `Build*` method per block of the menu, called in draw order — the order is behaviour (the boot
