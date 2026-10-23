@@ -287,7 +287,7 @@ by the server. See [AI_MISSION_BACKEND.md](AI_MISSION_BACKEND.md) and
 |---|---|
 | `src/BlocksBeyondTheStars.Shared/` | Models, definitions, geometry, localization, story engine, game rules |
 | `src/BlocksBeyondTheStars.WorldGeneration/` | Deterministic world/galaxy/flora/settlement/creature gen |
-| `src/BlocksBeyondTheStars.Networking/` | Transports, `Messages*`, `NetCodec` |
+| `src/BlocksBeyondTheStars.Networking/` | Transports, `Messages/<Domain>Messages.cs`, `NetCodec` |
 | `src/BlocksBeyondTheStars.Persistence/` | `IWorldRepository`, SQLite repo, save paths |
 | `src/BlocksBeyondTheStars.GameServer/` | `GameServer*` partials (core + facades), `*System` subsystem classes (`GameServer.Systems.cs`, `IServerHost.cs`), `PlayerSession*` components, tick schedule, host (`Program.cs`) |
 | `src/BlocksBeyondTheStars.Api/` | Admin UI, portal, download/update feed |

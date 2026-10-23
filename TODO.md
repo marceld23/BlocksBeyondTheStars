@@ -276,6 +276,11 @@ subsystems + WorldHost/ReportHost, stage 3 Unity client splits, Messages.cs last
   each `AddComponent` (18; `VegaPanel` in `Start`), and 101 readers use `Game.Views.X`. `public static … Instance`
   25 → 4 (ClientAudio, FxKit, ScreenLabelLayer, UrpScenePost kept by design). Registration moment and guards kept;
   Unity + WebGL builds, 281 EditMode (3 new `RigViewsEditModeTests`) + 6 PlayMode + 2,319 client tests, PerfProbe green.
+- **Messages.cs split into one file per domain (#2915):** `Messages.cs` (3,569 lines, 198 types; deleted) moved
+  verbatim, source order kept, into 26 new files `Messages/<Domain>Messages.cs` (`Session` 11, `Player` 14 …
+  `WorldRules` 2; largest 306 lines); `Messages/` now holds 58 files and 360 types. Only the 9 banner comments went and
+  one stray summary moved to `ChatMessage`; names, namespace and members are byte-identical (198/198), so MessagePack,
+  JSON and NetCodec tags are unchanged; Unity + WebGL builds, 92 codec + 2,319 client, 281 EditMode + 6 PlayMode green.
 
 ### 📬 Player reports 2026-10-21, second batch (Lyxette, v2026.10.23) — power to the rim of a 95 × 95 spaceport, torch light in tiles — #2879–#2881, branch fix/relay-cap-light-tiles — ✅ done 2026-10-21 (⚠ playtest open; no generation, save or protocol change)
 

@@ -48,7 +48,7 @@ server: HandleVoice → gate (voice enabled + radio) → stamp FromPlayerId → 
 client: VoiceReceived → per-speaker jitter buffer → Opus decode → streaming AudioSource (flat 2D)
 ```
 
-- **Message:** `VoiceFrame` (`Messages.cs`), NetCodec tag **169**, used both directions. Sent
+- **Message:** `VoiceFrame` (`Messages/ChatMessages.cs`), NetCodec tag **169**, used both directions. Sent
   `DeliveryMode.Unreliable` — a dropped 20 ms frame is inaudible and beats waiting for a resend.
 - **Server:** `GameServer.HandleVoice` — drops the frame unless `ServerConfig.VoiceChatEnabled`, the player
   wears a radio, and the payload is ≤ 4 KB; stamps the authoritative sender id; relays via the tiered

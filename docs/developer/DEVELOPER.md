@@ -531,7 +531,9 @@ silently misbehaves*. Check them in this order:
    via `Register(<next free id>, typeof(NewMessage))` — ids are append-only, never reuse one.
    Forgetting this makes `NetCodec.Encode` throw at send time: the action simply "does
    nothing" in-game while unit tests (which call methods directly) still pass. New *fields*
-   on registered classes and nested types need no registration.
+   on registered classes and nested types need no registration. The message class itself lives
+   in `src/BlocksBeyondTheStars.Networking/Messages/<Domain>Messages.cs` — one file per feature;
+   there is no root `Messages.cs` any more.
 4. **Unity layer used by name.** `LayerMask.NameToLayer("X")` returns **-1 in the batch
    build** for freshly added layers even though `TagManager.asset` has the name. Use the
    fixed layer **index** (`gameObject.layer = idx`, cull mask `1 << idx`), optionally trying
