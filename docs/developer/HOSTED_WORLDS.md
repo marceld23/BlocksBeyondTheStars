@@ -295,7 +295,9 @@ code. WorldHost treats it as its own state instead of a wake timeout:
   value** via `ProcessStartInfo.ArgumentList` (argv-level, no shell) — display names never become
   arguments. Keep it that way.
 - Sessions are stored hashed (SHA-256); passwords PBKDF2-SHA256/210k. Login failures are uniform
-  (no name-exists oracle). Lost password = lost account for now — recovery UX is a Phase-2 concern.
+  (no name-exists oracle). A forgotten password is recovered with one of the account's rescue codes
+  (`POST /api/recover`; issued at signup, re-issued via `POST /api/account/recovery-codes`, stored as PBKDF2
+  hashes, erased with the account — #559, #2920); there is no e-mail channel.
 - Join tokens live 120 s and name one world + one player; the per-world secret never leaves the
   host (it is injected into the instance's env).
 - Deleting a world stops the container, removes its container object and drops the registry row but
