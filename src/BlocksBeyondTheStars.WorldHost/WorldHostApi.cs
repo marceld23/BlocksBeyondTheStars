@@ -38,6 +38,7 @@ internal static class WorldHostApi
         "The community rules have changed — please accept them on the portal first."
             or "The community rules have changed — please accept them first." => "terms_outdated",
         "World not found." => "world_not_found",
+        NotWorldOwnerError => "not_world_owner",
         "The world could not be started — please try again in a moment." => "world_start_failed",
         "The world did not come up in time — please try again." => "world_wake_failed",
         WorldOrchestrator.SaveTooNewError => "world_needs_newer_server", // #2464: the server image refused the save (exit 3)
@@ -64,6 +65,16 @@ internal static class WorldHostApi
 
     internal static IResult ApiError(string error, int status = StatusCodes.Status400BadRequest)
         => Results.Json(new { error, code = CodeFor(error) }, statusCode: status);
+
+    // Refusal text of the owner-only world routes for a signed-in caller who does not own the world (#2919).
+    internal const string NotWorldOwnerError = "Only the world's owner can do this.";
+
+    // The owner-only world routes' answer to a signed-in non-owner: 403 with the usual JSON error body (#2919).
+    // Not Results.Forbid(): that hands the refusal to an authentication scheme, and the WorldHost registers
+    // none (sessions are its own bearer tokens), so Forbid threw and the request ended as a 500. Neither the
+    // portal nor the game client offers owner controls on a foreign world, so the code has no translation of
+    // its own and both fall back to the English text (as operator_protected does).
+    internal static IResult NotWorldOwner() => ApiError(NotWorldOwnerError, StatusCodes.Status403Forbidden);
 
     internal static IResult RateLimited(WorldHostMetrics metrics)
     {

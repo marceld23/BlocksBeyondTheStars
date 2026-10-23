@@ -215,7 +215,7 @@ internal static class WorldEndpoints
 
         if (world.OwnerAccountId != account.Id)
         {
-            return Results.Forbid();
+            return WorldHostApi.NotWorldOwner();
         }
 
         var (ok, error) = s.Registry.SetWorldPassword(world.Id, req.Password);
@@ -247,7 +247,7 @@ internal static class WorldEndpoints
 
         if (world.OwnerAccountId != account.Id)
         {
-            return Results.Forbid();
+            return WorldHostApi.NotWorldOwner();
         }
 
         var (ok, error) = s.Registry.SetWorldVisibility(world.Id, req.Public);
@@ -275,7 +275,7 @@ internal static class WorldEndpoints
 
         if (world.OwnerAccountId != account.Id)
         {
-            return Results.Forbid();
+            return WorldHostApi.NotWorldOwner();
         }
 
         return Results.Json(new
@@ -305,7 +305,7 @@ internal static class WorldEndpoints
 
         if (world.OwnerAccountId != account.Id)
         {
-            return Results.Forbid();
+            return WorldHostApi.NotWorldOwner();
         }
 
         string playerName = (req.PlayerName ?? string.Empty).Trim();
@@ -360,7 +360,7 @@ internal static class WorldEndpoints
 
         if (world.OwnerAccountId != account.Id)
         {
-            return Results.Forbid();
+            return WorldHostApi.NotWorldOwner();
         }
 
         s.Registry.RemoveWorldBan(world.Id, banId);
@@ -382,7 +382,7 @@ internal static class WorldEndpoints
 
         if (world.OwnerAccountId != account.Id)
         {
-            return Results.Forbid();
+            return WorldHostApi.NotWorldOwner();
         }
 
         string playerName = (req.PlayerName ?? string.Empty).Trim();
@@ -416,7 +416,7 @@ internal static class WorldEndpoints
 
         if (world.OwnerAccountId != account.Id)
         {
-            return Results.Forbid();
+            return WorldHostApi.NotWorldOwner();
         }
 
         // Off the request path for the same reason as the admin button (issue #519): the owner's portal call
@@ -439,7 +439,7 @@ internal static class WorldEndpoints
 
         if (world.OwnerAccountId != account.Id)
         {
-            return Results.Forbid();
+            return WorldHostApi.NotWorldOwner();
         }
 
         // The saves directory is intentionally NOT removed — an operator can still recover/export it (and
@@ -468,7 +468,7 @@ internal static class WorldEndpoints
 
         if (world.OwnerAccountId != account.Id)
         {
-            return Results.Forbid();
+            return WorldHostApi.NotWorldOwner();
         }
 
         if (!s.UploadLimit.TryPass(account.Id))
@@ -547,7 +547,7 @@ internal static class WorldEndpoints
 
         if (world.OwnerAccountId != account.Id)
         {
-            return Results.Forbid();
+            return WorldHostApi.NotWorldOwner();
         }
 
         if (s.Registry.GetWorld(id)!.Status != WorldStatus.Stopped || s.Launcher.IsRunning(world.ContainerId))

@@ -28,6 +28,12 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 The deferred class extractions are #2929 (not part of this branch).
 
+- **Owner-only world routes answer 403, not 500 (#2919):** the ten owner-only WorldHost world routes (password,
+  visibility, bans, kick, stop, delete, save upload/download) refused a signed-in non-owner with `Results.Forbid()`,
+  which needs an auth scheme the WorldHost never registers, so the request ended as a 500. Now they answer 403 with the
+  usual `{error, code}` body (`WorldHostApi.NotWorldOwner()`, code `not_world_owner`, English text like
+  `operator_protected`); `WorldHostHttpTests.OwnerRoutes_RefuseAStranger_With403AndTheJsonErrorAsync` pins all ten.
+
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 
 Behaviour-preserving restructuring in one feature branch, one commit per sub-issue (players notice nothing: same

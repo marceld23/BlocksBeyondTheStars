@@ -88,12 +88,8 @@ public sealed class WorldHostHttpFixture : IAsyncLifetime
 /// The WorldHost over real HTTP (#2902): the same app the container runs, started in-process on a loopback port. Pins
 /// the route table (exactly the 62 routes the portal, the game client, the glitch.fun build and the operator scripts
 /// call), checks that every handler's result reaches the response, sends every route one request without credentials
-/// to see its gate answer, and walks the owner's side of the world routes — so a refactor of the route wiring cannot
-/// silently drop, rename or un-guard a route.
-///
-/// <para>Owner-only world routes are deliberately NOT asserted for a foreign caller: they answer with
-/// <c>Results.Forbid()</c>, which needs an authentication service the WorldHost never registers, so a non-owner
-/// currently gets a 500 rather than a 403 (a pre-existing defect, not pinned here).</para>
+/// to see its gate answer, and walks the owner's side of the world routes and a stranger's refusal on them — so a
+/// refactor of the route wiring cannot silently drop, rename or un-guard a route.
 ///
 /// <para>The class belongs in <see cref="RealTimeSensitiveCollection"/> (the #1362 rule): its loopback round trips
 /// are a millisecond of work whose continuation, in the parallel suite, waits behind every collection that has not
@@ -430,6 +426,50 @@ public sealed class WorldHostHttpTests : IClassFixture<WorldHostHttpFixture>
 
         using var unknown = await SendAsync(HttpMethod.Post, "/api/worlds/000000000000/join", token, """{"playerName":"Owner"}""");
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+    }
+
+    /// <summary>A signed-in account that does not own the world gets 403 with the usual JSON error body on every
+    /// owner-only route, and the world stays as it was (#2919). These used to answer <c>Results.Forbid()</c>, which
+    /// needs an authentication scheme the WorldHost never registers — the request ended as a 500.</summary>
+    [Fact]
+    public async Task OwnerRoutes_RefuseAStranger_With403AndTheJsonErrorAsync()
+    {
+        string owner = await SignUpAsync("HttpWorldOwner");
+        string stranger = await SignUpAsync("HttpStranger");
+        using var created = await SendAsync(HttpMethod.Post, "/api/worlds", owner, """{"name":"Not Yours"}""");
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        using var world = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        string id = world.RootElement.GetProperty("id").GetString()!;
+
+        var ownerOnly = new (HttpMethod Method, string Path, string? Body)[]
+        {
+            (HttpMethod.Post, $"/api/worlds/{id}/password", """{"password":"secret1"}"""),
+            (HttpMethod.Post, $"/api/worlds/{id}/visibility", """{"public":true}"""),
+            (HttpMethod.Get, $"/api/worlds/{id}/bans", null),
+            (HttpMethod.Post, $"/api/worlds/{id}/bans", """{"playerName":"HttpWorldOwner"}"""),
+            (HttpMethod.Delete, $"/api/worlds/{id}/bans/1", null),
+            (HttpMethod.Post, $"/api/worlds/{id}/kick", """{"playerName":"HttpWorldOwner"}"""),
+            (HttpMethod.Post, $"/api/worlds/{id}/stop", null),
+            (HttpMethod.Delete, $"/api/worlds/{id}", null),
+            (HttpMethod.Post, $"/api/worlds/{id}/save", null),
+            (HttpMethod.Get, $"/api/worlds/{id}/save", null),
+        };
+        foreach (var (method, path, body) in ownerOnly)
+        {
+            using var response = await SendAsync(method, path, stranger, body);
+            string route = $"{method} {path}";
+            Assert.True(response.StatusCode == HttpStatusCode.Forbidden, $"{route} answered {(int)response.StatusCode}");
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal("Only the world's owner can do this.", json.RootElement.GetProperty("error").GetString());
+            Assert.Equal("not_world_owner", json.RootElement.GetProperty("code").GetString());
+        }
+
+        using var list = await SendAsync(HttpMethod.Get, "/api/worlds", owner);
+        using var listed = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
+        var mine = listed.RootElement.GetProperty("worlds")[0];
+        Assert.Equal(id, mine.GetProperty("id").GetString());
+        Assert.False(mine.GetProperty("hasPassword").GetBoolean());
+        Assert.False(mine.GetProperty("isPublic").GetBoolean());
     }
 
     /// <summary>MapGroup joins patterns textually, so a group's "" route reads "/admin/" — the pin compares paths
