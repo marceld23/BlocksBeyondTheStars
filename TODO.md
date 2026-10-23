@@ -64,6 +64,11 @@ The deferred class extractions are #2929 (not part of this branch).
   private `Slug`/`RightPanel` copies in `AvatarEditor`/`KitEditorPanel` (now `EditorSceneKit`) are fixed. The dead
   `WeatherForecastRequest` (nothing sent or handled it) is removed and tag 200 stays retired (`NetCodecTests`,
   `ClientDispatchRegistryTests`); a new `AdminCommandGateTests` fact pins the `/basewalls` base-owner exemption.
+- **Main-menu icons load as 2D textures again (#2924):** fifteen shell icons (`btn_*`, `sys_*`, `info_*`) had a
+  guid-only `.meta`, so Unity imported them as Cubemaps, `Resources.Load<Texture2D>` returned null and
+  `AddButton`/`AddIcon` drew no icon (Editor and player). Each `.meta` now carries the `cat_*.png` TextureImporter
+  settings, written by Unity with the guids unchanged. `UiIconImportEditModeTests` (every `Resources/icons` PNG) and
+  `IconCoverageTests.EveryIcon_MetaImportsItAsA2DTexture` (CI) pin it; `MainMenuHierarchy.golden.txt` is re-baked.
 
 ### 🧹 Code-health refactoring 2026-10 — subsystem classes, dispatch tables, no clones, split giant files — epic #2883, #2884–#2915, branch refactor/code-health-2026-10, draft PR #2916 — ✅ done on the branch 2026-10-23 (⚠ maintainer playtest + merge open)
 

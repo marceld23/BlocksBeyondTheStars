@@ -60,6 +60,26 @@ public sealed class IconCoverageTests
         Assert.True(missing.Count == 0, "Ship modules without an icon (need item_<key>.png): " + string.Join(", ", missing));
     }
 
+    /// <summary>
+    /// Every UI icon's <c>.meta</c> imports it as a 2D texture (#2924). A hand-written <c>.meta</c> holding only a guid
+    /// makes Unity import the PNG as a Cubemap: <c>Resources.Load&lt;Texture2D&gt;</c> then returns null and the icon
+    /// silently vanishes from the menu. PR CI never runs Unity, so the importer setting is checked in the text here.
+    /// </summary>
+    [Fact]
+    public void EveryIcon_MetaImportsItAsA2DTexture()
+    {
+        var broken = Directory.GetFiles(TestPaths.ClientIconsDir(), "*.png")
+            .Where(png => !File.Exists(png + ".meta")
+                          || !File.ReadAllLines(png + ".meta").Any(line => line.Trim() == "textureShape: 1"))
+            .Select(Path.GetFileName)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(broken.Count == 0,
+            "Icons whose .meta lacks the 2D TextureImporter settings (textureShape: 1; copy a cat_*.png.meta and keep the icon's own guid): "
+            + string.Join(", ", broken));
+    }
+
     [Fact]
     public void ToxicConsumables_AreFlaggedForTheGreenTint()
     {
