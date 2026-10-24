@@ -108,6 +108,60 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True if THIS player has founded a base on the given body.</summary>
         public bool HasMyBase(string bodyId) => MyBaseName(bodyId) != null;
 
+        private StarMapData _shownLocMap;
+        private string _shownLocFor, _shownLoc, _shownLocOriginal = string.Empty;
+
+        /// <summary>#2952: <see cref="LocationName"/> as the player reads it — their own names for the body they are on
+        /// and its system where they gave one (<see cref="PlaceNameDisplay.ShownLocation"/>). LocationName itself stays
+        /// the generated line: it keys the world's flora colours and looks.</summary>
+        public string ShownLocationName
+        {
+            get
+            {
+                if (!ReferenceEquals(_shownLocMap, StarMap) || _shownLocFor != LocationName)
+                {
+                    _shownLocMap = StarMap;
+                    _shownLocFor = LocationName;
+                    _shownLoc = PlaceNameDisplay.ShownLocation(StarMap, LocationName, out _shownLocOriginal);
+                }
+
+                return _shownLoc ?? string.Empty;
+            }
+        }
+
+        /// <summary>#2952: the generated location line when <see cref="ShownLocationName"/> differs from it, else empty —
+        /// shown small next to the player's own name, so friends still meet up on the place's real name.</summary>
+        public string ShownLocationOriginal
+        {
+            get
+            {
+                _ = ShownLocationName;
+                return _shownLocOriginal ?? string.Empty;
+            }
+        }
+
+        /// <summary>#2952: the body with this id on the last star map, or null.</summary>
+        public NetBody FindMapBody(string bodyId)
+        {
+            if (StarMap?.Systems == null || string.IsNullOrEmpty(bodyId))
+            {
+                return null;
+            }
+
+            foreach (var system in StarMap.Systems)
+            {
+                foreach (var body in system.Bodies ?? System.Array.Empty<NetBody>())
+                {
+                    if (body.Id == bodyId)
+                    {
+                        return body;
+                    }
+                }
+            }
+
+            return null;
+        }
+
         /// <summary>#2140: the last planet-scanner report (any body) and a counter that moves with every report, so the
         /// open star map / Ship tab rebuilds the moment it arrives.</summary>
         public PlanetScanResult LastPlanetScan { get; private set; }

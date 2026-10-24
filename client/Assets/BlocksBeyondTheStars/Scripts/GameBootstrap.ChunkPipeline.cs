@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -354,6 +355,84 @@ namespace BlocksBeyondTheStars.Client
 
                 var o = WorldConstants.ChunkOrigin(kv.Key);
                 visit(SceneX(o.X), SceneZ(o.Z), o.Y);
+            }
+        }
+
+        // ---------------------------------------------------------------- edit neighbours + #2951 light reach
+
+        private readonly HashSet<ChunkCoord> _lightReachScratch = new HashSet<ChunkCoord>();
+
+        /// <summary>The chunks besides the edited one that a block change re-meshes: the face neighbour across a chunk
+        /// edge, the water-surface reach (#1903) and the light reach (#2951). <paramref name="oldLight"/> and
+        /// <paramref name="reachBefore"/> are the cell's light source and <see cref="ClientWorld.LightReachThrough"/>
+        /// read before the change was applied.</summary>
+        private void MarkEditNeighboursDirty(BlocksBeyondTheStars.Networking.Messages.BlockChanged m, ChunkCoord coord,
+            BlockId oldId, int oldLight, int reachBefore)
+        {
+            // A block on a chunk edge also changes the NEIGHBOUR chunk's face toward it. Re-mesh that
+            // neighbour too — otherwise mining a boundary block leaves the adjacent chunk's now-exposed
+            // face missing (a hole you can see through), and placing leaves a stale hidden face.
+            foreach (var d in _faceDirs)
+            {
+                var nc = new ChunkCoord(
+                    WorldConstants.CanonicalChunkX(WorldConstants.WorldToChunk(m.X + d.X), Circumference),
+                    WorldConstants.WorldToChunk(m.Y + d.Y),
+                    WorldConstants.CanonicalChunkZ(WorldConstants.WorldToChunk(m.Z + d.Z), Circumference));
+                if (!nc.Equals(coord))
+                {
+                    _dirty.Add(nc);
+                }
+            }
+
+            // #1903: a water surface reads its shore up to WaterSurface.MeshReach blocks away, so a flood spreading
+            // inland also changes the foam of water in chunks that are not face neighbours of the edited cell.
+            ushort water = Content?.GetBlock("water")?.NumericId.Value ?? 0;
+            if (water != 0 && (oldId.Value == water || m.Block == water))
+            {
+                MarkWaterReachDirty(m.X, m.Y, m.Z);
+            }
+
+            // #2951: a lamp placed, mined or recoloured, or a cell turned from light-stopping to open (or back) inside a
+            // lamp's reach, changes the light that far — also in chunks that are not face neighbours. Water spreading
+            // or a plain plant growing changes nothing the flood sees, so it costs no extra builds.
+            if (Content != null && (oldLight != World.LightSourceAt(m.X, m.Y, m.Z)
+                || ChunkMesher.StopsBlockLight(Content, oldId) != ChunkMesher.StopsBlockLight(Content, new BlockId(m.Block))))
+            {
+                MarkLightReachDirty(m.X, m.Y, m.Z, System.Math.Max(reachBefore, World.LightReachThrough(m.X, m.Y, m.Z)));
+            }
+        }
+
+        /// <summary>#2951: re-meshes at once every already-meshed chunk whose baked light a change of the cell can alter —
+        /// <paramref name="stepsLeft"/> (<see cref="ClientWorld.LightReachThrough"/>) steps around it plus the mesher's
+        /// sampling margin. A placed lamp lights the chunk next door right away instead of stopping at the border.</summary>
+        private void MarkLightReachDirty(int wx, int wy, int wz, int stepsLeft)
+        {
+            _lightReachScratch.Clear();
+            LightReach.ChunksTouched(wx, wy, wz, stepsLeft, Circumference, _lightReachScratch);
+            foreach (var c in _lightReachScratch)
+            {
+                if (_meshGen.ContainsKey(c))
+                {
+                    _dirty.Add(c);
+                    _deferredDirty.Remove(c);
+                }
+            }
+        }
+
+        /// <summary>#2951: a freshly stored chunk's lamps reach its edge and corner neighbours too, not only the six face
+        /// neighbours <see cref="MarkChunkAndNeighborsDirty"/> refreshes — already-meshed ones are parked the same way.</summary>
+        private void DeferLitNeighbours(ChunkCoord coord)
+        {
+            _lightReachScratch.Clear();
+            World.ChunksLitFrom(coord, _lightReachScratch);
+            var self = WorldConstants.CanonicalChunk(coord, Circumference);
+            float now = Time.time;
+            foreach (var n in _lightReachScratch)
+            {
+                if (!n.Equals(self) && !_dirty.Contains(n) && _meshGen.ContainsKey(n) && !_deferredDirty.ContainsKey(n))
+                {
+                    _deferredDirty[n] = now;
+                }
             }
         }
 

@@ -276,7 +276,12 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                place = string.IsNullOrEmpty(Game.LocationName) ? "—" : Game.LocationName;
+                place = string.IsNullOrEmpty(Game.LocationName) ? "—" : Game.ShownLocationName;
+                if (Game.ShownLocationOriginal.Length > 0)
+                {
+                    place += $" <size=80%><alpha=#99>({Game.ShownLocationOriginal})</alpha></size>"; // #2952: the real name, small
+                }
+
                 if (Game.Aboard) place += $"  ({loc.Get("ui.hud.aboard")})";
                 else if (Game.OnFootAbovePlanet) place += $"  ·  {loc.Get("ui.hud.station_zero_g")}"; // #2276: floating above the planet's air
             }

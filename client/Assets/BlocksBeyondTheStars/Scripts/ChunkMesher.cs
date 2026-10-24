@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.Client
     /// is emitted only when the neighbouring block is air. Good enough for the blocky look;
     /// greedy meshing can replace this later for fewer triangles.
     /// </summary>
-    public static class ChunkMesher
+    public static partial class ChunkMesher
     {
         private static readonly Vector3i[] Faces =
         {
@@ -2686,9 +2686,7 @@ namespace BlocksBeyondTheStars.Client
                     return state == 2;
                 }
 
-                var b = worldBlock(wx, wy, wz);
-                bool res = !b.IsAir && !IsTransparent(content, b) && !IsFloraBlock(content, b) && !IsFoliageBlock(content, b)
-                    && !IsSlimPropBlock(content, b);
+                bool res = StopsBlockLight(content, worldBlock(wx, wy, wz));
                 opaqueCache[key] = res ? (byte)2 : (byte)1;
                 return res;
             }

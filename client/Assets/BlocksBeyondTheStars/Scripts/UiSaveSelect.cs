@@ -143,8 +143,8 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            UiKit.AddLogo(root, 360f, 70f, 900f, 96f, shell.L(host ? "ui.host.title" : "ui.save.title"), 56);
-            UiKit.AddText(root, 364f, 180f, 1000f, 26f, shell.L(host ? "ui.host.subtitle" : "ui.save.subtitle"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.AddLogo(root, UiKit.ShellTitleX, 70f, 900f, 96f, shell.L(host ? "ui.host.title" : "ui.save.title"), 56);
+            UiKit.AddText(root, UiKit.ShellTitleX + 4f, 180f, 1000f, 26f, shell.L(host ? "ui.host.subtitle" : "ui.save.subtitle"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
             // ── Existing worlds (left) ────────────────────────────────────────────────────────
             var left = UiHolo.AddPanel(root, 90f, 250f, 720f, 640f, UiKit.Panel, 18f, 1.5f, 1f).transform; // holo frames — wipe on with the screen boot (#1796)

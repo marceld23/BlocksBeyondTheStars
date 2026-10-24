@@ -731,7 +731,8 @@ namespace BlocksBeyondTheStars.Client
 
             ServerSpawn = null; // re-snap at the new spawn once the next PlayerState arrives
             WorldEpoch++;
-            LastMessage = m.Hyperjump ? $"Hyperjump → {m.PlanetName}…" : $"Arriving at {m.PlanetName}…";
+            string arriving = PlaceNameDisplay.ShownBodyName(StarMap, m.SystemName, m.PlanetName); // #2952: the player's own name
+            LastMessage = m.Hyperjump ? $"Hyperjump → {arriving}…" : $"Arriving at {arriving}…";
 
             LoadingPlanetType = m.PlanetType;
             WorldReady = false; // hold the loading overlay until the player settles onto the new world

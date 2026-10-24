@@ -20,24 +20,25 @@ namespace BlocksBeyondTheStars.Client
             var canvas = UiKit.CreateCanvas("LoadingUI");
             var root = canvas.transform;
 
-            // Chrome echoing the menu: system check + title + version.
-            UiKit.AddPanel(root, 40f, 40f, 280f, 200f, UiKit.PanelFill);
-            UiKit.AddText(root, 60f, 54f, 250f, 22f, shell.L("ui.menu.system_check"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            // Chrome echoing the menu: system check + title + version, on the menu's left line (#2953).
+            const float sx = UiKit.ShellColumnX;
+            UiKit.AddPanel(root, sx, 40f, UiKit.SystemCheckWidth, 200f, UiKit.PanelFill);
+            UiKit.AddText(root, sx + 20f, 54f, 250f, 22f, shell.L("ui.menu.system_check"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             string[] sysKeys = { "ui.sys.engines", "ui.sys.shields", "ui.sys.life_support", "ui.sys.comms", "ui.sys.navigation" };
             string[] sysIcons = { "sys_engines", "sys_shields", "sys_life", "sys_comms", "sys_nav" };
             for (int i = 0; i < sysKeys.Length; i++)
             {
                 float yy = 92f + i * 28f;
-                UiKit.AddIcon(root, 46f, yy, 18f, sysIcons[i]);
-                UiKit.AddText(root, 72f, yy, 178f, 22f, shell.L(sysKeys[i]), 15, UiKit.TextCol);
-                UiKit.AddText(root, 250f, yy, 50f, 22f, shell.L("ui.sys.ok"), 15, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddIcon(root, sx + 6f, yy, 18f, sysIcons[i]);
+                UiKit.AddText(root, sx + 32f, yy, 178f, 22f, shell.L(sysKeys[i]), 15, UiKit.TextCol);
+                UiKit.AddText(root, sx + 210f, yy, 50f, 22f, shell.L("ui.sys.ok"), 15, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
             }
 
-            UiKit.AddLogo(root, 360f, 70f, 1200f, 96f, "BLOCKS BEYOND THE STARS", 56);
+            UiKit.AddLogo(root, UiKit.ShellTitleX, 70f, 1200f, 96f, "BLOCKS BEYOND THE STARS", 56);
             UiKit.AddText(root, 1700f, 44f, 180f, 24f, "VER. " + AppShell.Version, 16, UiKit.CyanDim, TextAnchor.MiddleRight);
 
-            // Progress bar.
-            UiKit.AddPanel(root, 80f, 760f, 1100f, 120f, UiKit.PanelFill);
+            // Progress bar — on the same left line; its right edge stays at 1180, clear of the TIP panel.
+            UiKit.AddPanel(root, sx, 760f, 1180f - sx, 120f, UiKit.PanelFill);
             var title = UiKit.AddText(root, 110f, 776f, 760f, 32f, shell.L("ui.loading.title"), 26, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddImage(root, 110f, 824f, 880f, 30f, UiKit.SolidSprite, new Color(0.04f, 0.10f, 0.18f, 0.9f));
             var fill = UiKit.AddImage(root, 110f, 824f, 880f, 30f, UiKit.SolidSprite, UiKit.Cyan);

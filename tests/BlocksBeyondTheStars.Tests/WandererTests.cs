@@ -56,7 +56,13 @@ public sealed class WandererTests : IDisposable
 
     private static NpcLifeWorld Arena(string name, int pad = Pad, Action<ServerConfig>? configure = null)
     {
-        var w = new NpcLifeWorld(Content, name, padHalf: pad, configure: configure);
+        // No scan-drones: since #2950 a drone spawns over the live top of its column — on this floating pad when its
+        // spawn spot lies under it — and a hostile near the player is a refusal ("hostile") these tests do not ask about.
+        var w = new NpcLifeWorld(Content, name, padHalf: pad, configure: c =>
+        {
+            c.Rules.PlanetDrones = false;
+            configure?.Invoke(c);
+        });
         w.TickAt(0.45, 0.5); // the first sight arms the newcomer's quiet spell …
         w.Server.SetWandererCooldownForTest(Pid(w), 0); // … which the tests skip
         return w;

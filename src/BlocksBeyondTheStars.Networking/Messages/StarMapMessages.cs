@@ -8,6 +8,15 @@ public sealed class RequestStarMap
 {
 }
 
+/// <summary>#2952: the player names a star system, planet or moon for themselves — the map detail's "Your name" field
+/// (client → server). <see cref="PlaceId"/> is a system or body id the player has visited; an empty <see cref="Name"/>
+/// gives the place its generated name back. Only this player ever sees the name.</summary>
+public sealed class SetPlaceNameIntent
+{
+    public string PlaceId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+}
+
 /// <summary>Client asks to travel to (and land on) another celestial body, picked from the star map.</summary>
 public sealed class TravelIntent
 {
@@ -34,6 +43,10 @@ public sealed class NetBody
 {
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>#2952: the receiving player's own name for this body (empty = none) — private, sent to that player only.
+    /// A display name: <see cref="Name"/> stays the generated name every key and seed is derived from.</summary>
+    public string CustomName { get; set; } = string.Empty;
     public string Kind { get; set; } = string.Empty;
     public string? PlanetType { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -88,6 +101,9 @@ public sealed class NetStarSystem
 {
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>#2952: the receiving player's own name for this system (empty = none), like <see cref="NetBody.CustomName"/>.</summary>
+    public string CustomName { get; set; } = string.Empty;
     public float MapX { get; set; }
     public float MapY { get; set; }
     public NetBody[] Bodies { get; set; } = System.Array.Empty<NetBody>();

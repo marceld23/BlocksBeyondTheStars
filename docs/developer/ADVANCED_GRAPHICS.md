@@ -114,6 +114,11 @@ renders in **linear colour space**, and the hand-written shaders are all dual-pi
   **per corner**, not per face: each vertex averages the open cells meeting at that corner (fluid tops since #1701,
   opaque faces since #2881), so neighbouring faces agree along their shared edge and a lit floor or wall reads as one
   surface instead of a grid of block-sized tiles.
+  Because a lamp lights up to eight cells into the neighbouring chunks, a block edit re-meshes every chunk its light can
+  reach (#2951): a lamp placed, mined or recoloured, or a cell turned from light-stopping to open (or back) inside a
+  lamp's reach, dirties the chunks around it by `ClientWorld.LightReachThrough` (the steps the light can still travel
+  from that cell) via `LightReach.ChunksTouched`; a stored chunk with lamps also refreshes its edge and corner
+  neighbours. Before, only the edited chunk rebuilt and a pool of light stopped dead at the next chunk border.
 
 ## Roadmap (research, not yet implemented)
 

@@ -1,31 +1,31 @@
 MainMenuUI active=True comps=RectTransform,Canvas,CanvasScaler,GraphicRaycaster,UiNavFocus
-  HoloPanel active=True comps=RectTransform,CanvasRenderer,Image,Shape pos=(40.00, -40.00) size=(280.00, 220.00) color=0D1F3DFF
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(60.00, -54.00) size=(250.00, 22.00) color=66D1FFFF font=16 text="ui.menu.system_check"
-  Image active=True comps=RectTransform,CanvasRenderer,Image pos=(46.00, -92.00) size=(18.00, 18.00) color=FFFFFFFF
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(72.00, -92.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.engines"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(250.00, -92.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
-  Image active=True comps=RectTransform,CanvasRenderer,Image pos=(46.00, -122.00) size=(18.00, 18.00) color=FFFFFFFF
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(72.00, -122.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.shields"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(250.00, -122.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
-  Image active=True comps=RectTransform,CanvasRenderer,Image pos=(46.00, -152.00) size=(18.00, 18.00) color=FFFFFFFF
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(72.00, -152.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.life_support"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(250.00, -152.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
-  Image active=True comps=RectTransform,CanvasRenderer,Image pos=(46.00, -182.00) size=(18.00, 18.00) color=FFFFFFFF
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(72.00, -182.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.comms"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(250.00, -182.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
-  Image active=True comps=RectTransform,CanvasRenderer,Image pos=(46.00, -212.00) size=(18.00, 18.00) color=FFFFFFFF
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(72.00, -212.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.navigation"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(250.00, -212.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(356.00, -70.00) size=(1200.00, 96.00) color=4CBFFF59 font=64 text="BLOCKS BEYOND THE STARS"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(364.00, -70.00) size=(1200.00, 96.00) color=4CBFFF59 font=64 text="BLOCKS BEYOND THE STARS"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(367.00, -77.00) size=(1200.00, 96.00) color=0F0F14FF font=64 text="BLOCKS BEYOND THE STARS"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(366.00, -76.00) size=(1200.00, 96.00) color=0F151FFF font=64 text="BLOCKS BEYOND THE STARS"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(365.00, -75.00) size=(1200.00, 96.00) color=0F1B2AFF font=64 text="BLOCKS BEYOND THE STARS"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(364.00, -74.00) size=(1200.00, 96.00) color=0F2135FF font=64 text="BLOCKS BEYOND THE STARS"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(363.00, -73.00) size=(1200.00, 96.00) color=0F2740FF font=64 text="BLOCKS BEYOND THE STARS"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(362.00, -72.00) size=(1200.00, 96.00) color=0F2C4BFF font=64 text="BLOCKS BEYOND THE STARS"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(361.00, -71.00) size=(1200.00, 96.00) color=0F3256FF font=64 text="BLOCKS BEYOND THE STARS"
-  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(360.00, -70.00) size=(1200.00, 96.00) color=EDF7FFFF font=64 text="BLOCKS BEYOND THE STARS"
+  HoloPanel active=True comps=RectTransform,CanvasRenderer,Image,Shape pos=(90.00, -40.00) size=(280.00, 220.00) color=0D1F3DFF
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(110.00, -54.00) size=(250.00, 22.00) color=66D1FFFF font=16 text="ui.menu.system_check"
+  Image active=True comps=RectTransform,CanvasRenderer,Image pos=(96.00, -92.00) size=(18.00, 18.00) color=FFFFFFFF
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(122.00, -92.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.engines"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(300.00, -92.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
+  Image active=True comps=RectTransform,CanvasRenderer,Image pos=(96.00, -122.00) size=(18.00, 18.00) color=FFFFFFFF
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(122.00, -122.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.shields"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(300.00, -122.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
+  Image active=True comps=RectTransform,CanvasRenderer,Image pos=(96.00, -152.00) size=(18.00, 18.00) color=FFFFFFFF
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(122.00, -152.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.life_support"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(300.00, -152.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
+  Image active=True comps=RectTransform,CanvasRenderer,Image pos=(96.00, -182.00) size=(18.00, 18.00) color=FFFFFFFF
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(122.00, -182.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.comms"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(300.00, -182.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
+  Image active=True comps=RectTransform,CanvasRenderer,Image pos=(96.00, -212.00) size=(18.00, 18.00) color=FFFFFFFF
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(122.00, -212.00) size=(178.00, 22.00) color=DBEDFFFF font=16 text="ui.sys.navigation"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(300.00, -212.00) size=(50.00, 22.00) color=59F28CFF font=16 text="ui.sys.ok"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(406.00, -70.00) size=(1200.00, 96.00) color=4CBFFF59 font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(414.00, -70.00) size=(1200.00, 96.00) color=4CBFFF59 font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(417.00, -77.00) size=(1200.00, 96.00) color=0F0F14FF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(416.00, -76.00) size=(1200.00, 96.00) color=0F151FFF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(415.00, -75.00) size=(1200.00, 96.00) color=0F1B2AFF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(414.00, -74.00) size=(1200.00, 96.00) color=0F2135FF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(413.00, -73.00) size=(1200.00, 96.00) color=0F2740FF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(412.00, -72.00) size=(1200.00, 96.00) color=0F2C4BFF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(411.00, -71.00) size=(1200.00, 96.00) color=0F3256FF font=64 text="BLOCKS BEYOND THE STARS"
+  Text active=True comps=RectTransform,CanvasRenderer,Text pos=(410.00, -70.00) size=(1200.00, 96.00) color=EDF7FFFF font=64 text="BLOCKS BEYOND THE STARS"
   Text active=True comps=RectTransform,CanvasRenderer,Text pos=(1700.00, -44.00) size=(180.00, 24.00) color=4C8CB8FF font=16 text="VER. <ver>"
   HoloPanel active=True comps=RectTransform,CanvasRenderer,Image,Shape pos=(90.00, -312.00) size=(440.00, 100.00) color=1F739EFF
   Text active=True comps=RectTransform,CanvasRenderer,Text pos=(106.00, -322.00) size=(408.00, 24.00) color=66D1FFFF font=17 text="ui.menu.connect_name"

@@ -63,7 +63,7 @@ namespace BlocksBeyondTheStars.Client
         private sealed class Builder
         {
             // --- Menu buttons --- the column's x, width, button height and row pitch, and the name panel's top.
-            private const float bx = 90f, bw = 440f, bh = 54f, gap = 62f;
+            private const float bx = UiKit.ShellColumnX, bw = 440f, bh = 54f, gap = 62f;
             private const float by = 322f;
 
             private readonly AppShell _shell;
@@ -83,26 +83,27 @@ namespace BlocksBeyondTheStars.Client
                 _root = root;
             }
 
-            // --- SYSTEM CHECK panel (decorative flavour) ---
+            // --- SYSTEM CHECK panel (decorative flavour) --- its left edge on the menu column's line (#2953).
             public void BuildSystemCheck()
             {
-                UiHolo.AddPanel(_root, 40f, 40f, 280f, 220f, UiKit.Panel, 18f, 1.5f, 1f); // holo frame — wipes on with the screen boot (#1796)
-                UiKit.AddText(_root, 60f, 54f, 250f, 22f, _shell.L("ui.menu.system_check"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                const float sx = bx;
+                UiHolo.AddPanel(_root, sx, 40f, UiKit.SystemCheckWidth, 220f, UiKit.Panel, 18f, 1.5f, 1f); // holo frame — wipes on with the screen boot (#1796)
+                UiKit.AddText(_root, sx + 20f, 54f, 250f, 22f, _shell.L("ui.menu.system_check"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
                 string[] sysKeys = { "ui.sys.engines", "ui.sys.shields", "ui.sys.life_support", "ui.sys.comms", "ui.sys.navigation" };
                 string[] sysIcons = { "sys_engines", "sys_shields", "sys_life", "sys_comms", "sys_nav" };
                 for (int i = 0; i < sysKeys.Length; i++)
                 {
                     float yy = 92f + i * 30f;
-                    UiKit.AddIcon(_root, 46f, yy, 18f, sysIcons[i]);
-                    UiKit.AddText(_root, 72f, yy, 178f, 22f, _shell.L(sysKeys[i]), 16, UiKit.TextCol);
-                    UiKit.AddText(_root, 250f, yy, 50f, 22f, _shell.L("ui.sys.ok"), 16, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    UiKit.AddIcon(_root, sx + 6f, yy, 18f, sysIcons[i]);
+                    UiKit.AddText(_root, sx + 32f, yy, 178f, 22f, _shell.L(sysKeys[i]), 16, UiKit.TextCol);
+                    UiKit.AddText(_root, sx + 210f, yy, 50f, 22f, _shell.L("ui.sys.ok"), 16, UiKit.Ok, TextAnchor.MiddleLeft, FontStyle.Bold);
                 }
             }
 
             // --- Title ---
             public void BuildTitle()
             {
-                UiKit.AddLogo(_root, 360f, 70f, 1200f, 96f, "BLOCKS BEYOND THE STARS", 64);
+                UiKit.AddLogo(_root, UiKit.ShellTitleX, 70f, 1200f, 96f, "BLOCKS BEYOND THE STARS", 64);
                 UiKit.AddText(_root, 1700f, 44f, 180f, 24f, "VER. " + AppShell.Version, 16, UiKit.CyanDim, TextAnchor.MiddleRight);
             }
 

@@ -121,6 +121,7 @@ public sealed partial class GameServer
         On<SetCrystalDeviceIntent>(map, (gs, s, m) => gs.HandleSetCrystalDevice(s, m)); // #2046: toggle / press / configure a device
         On<SetBaseNameIntent>(map, (gs, s, m) => gs.HandleSetBaseName(s, m));
         On<SetStationNameIntent>(map, (gs, s, m) => gs.HandleSetStationName(s, m));
+        On<SetPlaceNameIntent>(map, (gs, s, m) => gs.HandleSetPlaceName(s, m)); // #2952
         On<RequestLandingPadsIntent>(map, (gs, s, m) => gs.HandleRequestLandingPads(s, m));
         On<LootContainerIntent>(map, (gs, s, m) => gs.HandleLootContainer(s, m));
         On<DepositContainerIntent>(map, (gs, s, m) => gs.HandleDepositContainer(s, m));

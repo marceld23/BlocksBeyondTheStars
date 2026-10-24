@@ -3887,7 +3887,8 @@ public sealed partial class GameServer
         // the Tab menu's Story tab and admin tools. None moves the frozen world: they change this player's own
         // ledger or re-send state. SetNpcCallsIntent used to be dropped here, so a call preference changed from the
         // pause menu only took effect at the next join.
-        SetNpcCallsIntent or SkipOnboardingIntent or RequestStoryResolutionIntent or StorySelectIntent => true,
+        SetNpcCallsIntent or SkipOnboardingIntent or RequestStoryResolutionIntent or StorySelectIntent
+            or SetPlaceNameIntent => true, // #2952: a private place name only changes the player's own ledger
         // #2466 (synthesis §5.7): the pack controls change only the player's own ledger — "skipPack" is the first tutorial
         // card's "I know the game", shown during a singleplayer hold; #2467 watching a scene again changes nothing; #2470
         // "Start the story now" starts the player's own story track. #2471 (issue: "every action is pause-whitelisted"): the
@@ -6711,7 +6712,7 @@ public sealed partial class GameServer
             Bodies = sys.Bodies.Select(b => ToNetBody(b, session)).ToArray(),
             Tier = FrontierTierOf(sys.Id), // #1122: the star map tags frontier systems
             StarColor = StarColor(sys.Name), // #1604: the sky keys the sun colour by system NAME — same key here
-        }).ToArray();
+        }).Select(sys => WithPlaceNames(sys, session.State)).ToArray(); // #2952: this player's own names, theirs alone
 
         var players = _sessions.Values
             .Where(s => s.Joined)

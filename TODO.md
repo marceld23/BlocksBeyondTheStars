@@ -24,6 +24,46 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-24 (Lyxette + Justus as Screelit, v2026.10.25) + main-menu alignment — a drone in the tunnels, light cut at a chunk border, private place names, System Check in line — #2950–#2953, branch fix/reports-2026-10-24 — ✅ done 2026-10-24 (⚠ playtest open; no generation or save-version change, no protocol bump)
+
+Three reports and one request from Marcel: Lyxette found a combat drone patrolling inside his tunnels under the
+spaceport he had raised five or six blocks; Justus (as Screelit) saw a lamp's light stop dead at one place, and wished
+for planet names of his own ("man ist ja der Entdecker!"); Marcel wanted the main menu's System Check box and title on
+the menu column's left line, on the loading screen too.
+
+- **Scan-drones stay over the real ground (#2950):** the spawn probe started at the generator's surface — inside his
+  fill — and took the tunnel for the ground (the drone sat at tunnel floor + hover − bob, its body in the roof, blind);
+  in flight no cell between ground and body was tested, and nothing lifted a buried drone out. Now a drone's probe starts
+  at the live column top (`DroneSpawnRefY`), a spawn, a step and a knockback need the cells up to its body clear
+  (`DroneBodyClear`; water and tree crowns pass), and a buried drone is lifted over the column top or dropped
+  (`TryLiftEmbeddedDrone`). `KnockMachine` uses `DroneHoverHere`. New partial `GameServerDroneClearance.cs`. Walking
+  robots are unchanged (they stand in a tunnel, not in its roof). Side effect: a drone whose spawn spot lies under a
+  roof or a floating platform now appears on top of it (`WandererTests` runs its floating arena without drones).
+- **Lamp light crosses chunk borders after an edit (#2951):** a fresh chunk build already pulled in the neighbours' lamps,
+  but a block change re-meshed only its own chunk (plus a face neighbour on the edge), so a lamp six cells before a border
+  left the next chunk dark. A lamp placed, mined or recoloured, or a cell turned light-stopping ↔ open inside a lamp's
+  reach, now re-meshes every chunk the light can reach (`ClientWorld.LightReachThrough` + `LightReach.ChunksTouched`,
+  Client.Core); water spreading or a plain plant growing costs nothing extra. A stored chunk with lamps refreshes its
+  edge and corner neighbours too. `ChunkMesher.StopsBlockLight` is the flood's own opacity test.
+- **Private names for systems, planets and moons (#2952):** a place the player has visited (a planet or moon landed on, a
+  system entered) can get a name of their own in Tab → Map ("Your own name — only you see it"; empty = the real name).
+  `PlayerState.PlaceNames` (persisted), `SetPlaceNameIntent` (NetCodec 305, pause-whitelisted), and per receiver
+  `NetBody.CustomName` / `NetStarSystem.CustomName` on the star map. The generated `Name` stays every key (sun colour,
+  flora, orbit looks, trades). Shown on the map list and detail (the real name small underneath), the flight chart, the
+  radar, the scanner, the target lock, the HUD location (real name small beside it), the loading veil, the planet map and
+  the arrival toast (`PlaceNameDisplay`, `GameBootstrap.ShownLocationName`). Private, so no content screen — 24 chars,
+  control characters stripped, at most 512 per player. Texts in all 14 languages.
+- **System Check box and title in line (#2953):** `UiKit.ShellColumnX` (90) and `ShellTitleX` (410) are shared by the main
+  menu, the loading screen (its progress panel too) and the save/host screen's title; `MainMenuHierarchy.golden.txt`
+  re-baked on purpose.
+
+Tests: `DroneClearanceTests` (4; the spawn, roof-push and buried cases red without the fix), `LightReachTests` (9,
+Client.Tests), `PlaceNamesTests` (5) + `PlaceNamesClientTests` (5, real wire, both codecs), NetCodec golden list,
+`IntentDispatchRegistryTests` 155 → 156.
+Docs: USER_MANUAL.md (scan-drones, your own names), ENTITY_MOTION.md, ADVANCED_GRAPHICS.md.
+
+---
+
 ### 🧩 Issue #2929 — the useful class extractions, three bugs they found — #2929, #2931–#2938, branch refactor/class-extractions-2929 — ✅ done 2026-10-24 (⚠ playtest open)
 
 Decided 2026-10-23: one "do" (IServerHost promotion), four "change" (crafting rules → Client.Core CraftGate, story

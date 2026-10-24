@@ -350,6 +350,7 @@ public sealed class NetCodecTests
         [302] = typeof(RequestBaseResidentsIntent), // #2717
         [303] = typeof(BaseResidentList),        // #2717
         [304] = typeof(VisitShipIntent),         // #2723
+        [305] = typeof(SetPlaceNameIntent),      // #2952
 
     };
 

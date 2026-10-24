@@ -280,6 +280,13 @@ public sealed class PlayerState
     /// "jump here" entry until visited. Server-authoritative, persisted. The current system always counts.</summary>
     public HashSet<string> KnownSystems { get; set; } = new();
 
+    /// <summary>#2952: this player's own names for star systems, planets and moons — place id (a system or body id) →
+    /// name. Private: only this player is ever sent them (the star map's <c>CustomName</c>), so nobody else can read
+    /// them. A place can be named once it was visited (<see cref="LandedBodies"/>, <see cref="KnownSystems"/>); no
+    /// entry = the generated name. The generated name stays the key everywhere (sun colour, flora, trades).
+    /// Server-authoritative, persisted.</summary>
+    public Dictionary<string, string> PlaceNames { get; set; } = new(StringComparer.Ordinal);
+
     /// <summary>Coarse explored-map cells per celestial body (#1113): body id → bitmap, one bit per
     /// <see cref="BlocksBeyondTheStars.Shared.World.ExploredMap.CellChunks"/>²-chunk cell (dimensions derive
     /// from the body's circumference — see <c>ExploredMap.GridFor</c>). A cell is set when its terrain was

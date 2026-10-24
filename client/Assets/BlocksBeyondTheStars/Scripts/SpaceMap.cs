@@ -874,7 +874,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 bool current = sys.Id == _systemId;
                 bool known = Game.KnowsSystem(sys.Id);
-                string label = GalaxyChartLayout.DisplayName(sys.Name, known, current, radar, "?");
+                string label = GalaxyChartLayout.DisplayName(sys.Shown(), known, current, radar, "?"); // #2952: own name
                 if (sys.Tier >= 2 && label != "?")
                 {
                     label = $"{label} · {frontier}";
@@ -942,7 +942,7 @@ namespace BlocksBeyondTheStars.Client
 
             bool current = sys.Id == _systemId;
             bool known = Game.KnowsSystem(sys.Id);
-            string title = GalaxyChartLayout.DisplayName(sys.Name, known, current, HasModule("radar_array"), L("ui.map.system_unknown"));
+            string title = GalaxyChartLayout.DisplayName(sys.Shown(), known, current, HasModule("radar_array"), L("ui.map.system_unknown"));
             if (sys.Tier >= 2)
             {
                 title = $"{title} · {L("ui.map.frontier")}";

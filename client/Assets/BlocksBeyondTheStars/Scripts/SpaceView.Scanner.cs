@@ -424,7 +424,7 @@ namespace BlocksBeyondTheStars.Client
                         {
                             if (s.Id == w.LinkedSystemId)
                             {
-                                dest = s.Name;
+                                dest = s.Shown(); // #2952: the player's own name for the system
                                 break;
                             }
                         }

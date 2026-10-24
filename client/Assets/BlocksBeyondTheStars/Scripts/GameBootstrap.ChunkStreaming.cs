@@ -519,6 +519,7 @@ namespace BlocksBeyondTheStars.Client
             RetireChunkArray(canonical); // a re-sent chunk replaces its array; the old one goes back after the grace period
             _chunkArrays[canonical] = blocks;
             MarkChunkAndNeighborsDirty(coord);
+            DeferLitNeighbours(coord); // #2951: its lamps reach the edge and corner neighbours too
             _lastChunkArrivalTime = Time.time; // feed the view-settle gate (#390)
 
             // #1113: remember this chunk's map cell for the session — the chunk itself may unload again
@@ -701,6 +702,7 @@ namespace BlocksBeyondTheStars.Client
         private void OnBlockChanged(BlocksBeyondTheStars.Networking.Messages.BlockChanged m)
         {
             var oldId = World.GetBlock(m.X, m.Y, m.Z);
+            int oldLight = World.LightSourceAt(m.X, m.Y, m.Z), reachBefore = World.LightReachThrough(m.X, m.Y, m.Z); // #2951
             if (!World.ApplyBlockChange(m.X, m.Y, m.Z, m.Block, m.Tint, m.Glow, m.Shape, out var coord))
             {
                 return;
@@ -721,29 +723,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _dirty.Add(coord);
-
-            // A block on a chunk edge also changes the NEIGHBOUR chunk's face toward it. Re-mesh that
-            // neighbour too — otherwise mining a boundary block leaves the adjacent chunk's now-exposed
-            // face missing (a hole you can see through), and placing leaves a stale hidden face.
-            foreach (var d in _faceDirs)
-            {
-                var nc = new ChunkCoord(
-                    WorldConstants.CanonicalChunkX(WorldConstants.WorldToChunk(m.X + d.X), Circumference),
-                    WorldConstants.WorldToChunk(m.Y + d.Y),
-                    WorldConstants.CanonicalChunkZ(WorldConstants.WorldToChunk(m.Z + d.Z), Circumference));
-                if (!nc.Equals(coord))
-                {
-                    _dirty.Add(nc);
-                }
-            }
-
-            // #1903: a water surface reads its shore up to WaterSurface.MeshReach blocks away, so a flood spreading
-            // inland also changes the foam of water in chunks that are not face neighbours of the edited cell.
-            ushort water = Content?.GetBlock("water")?.NumericId.Value ?? 0;
-            if (water != 0 && (oldId.Value == water || m.Block == water))
-            {
-                MarkWaterReachDirty(m.X, m.Y, m.Z);
-            }
+            MarkEditNeighboursDirty(m, coord, oldId, oldLight, reachBefore);
         }
 
         /// <summary>(A2) Kicks off an OFF-THREAD geometry build for one chunk; returns false (no work, no budget

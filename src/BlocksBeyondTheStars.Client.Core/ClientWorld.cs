@@ -439,6 +439,73 @@ namespace BlocksBeyondTheStars.Client
 
         }
 
+        /// <summary>#2951: the indexed light source at a cell — its packed value (colour + reach), 0 when the cell casts
+        /// none. Read before and after an edit to tell a lamp placed, mined or recoloured from any other change.</summary>
+        public int LightSourceAt(int wx, int wy, int wz)
+        {
+            var pos = WorldConstants.CanonicalBlock(new Vector3i(wx, wy, wz), _circumference);
+            return _lightSources.TryGetValue(WorldConstants.WorldToChunk(pos), out var bucket) && bucket.TryGetValue(pos, out int rgb)
+                ? rgb
+                : 0;
+        }
+
+        /// <summary>
+        /// #2951: how many more face steps light can travel on from the cell (wx, wy, wz): for each indexed source its
+        /// reach − 1 (the mesher's flood loses one level per step and is dark after that) minus its Manhattan steps to the
+        /// cell, the largest of them; −1 when no light gets there. A change of that cell — a lamp placed or mined on it, a
+        /// wall set into the light, a block mined out of its way — can only alter the light of cells that many steps
+        /// around it (<see cref="LightReach.ChunksTouched"/>). Measured the short way round both wrap seams.
+        /// </summary>
+        public int LightReachThrough(int wx, int wy, int wz)
+        {
+            if (_lightSources.Count == 0)
+            {
+                return -1;
+            }
+
+            var pos = WorldConstants.CanonicalBlock(new Vector3i(wx, wy, wz), _circumference);
+            var coord = WorldConstants.WorldToChunk(pos);
+            int best = -1;
+
+            // A reach is at most BlockLight.DefaultRadius (9) < ChunkSize, so the 3×3×3 chunks around hold every
+            // source whose light can get here (a tiny world may visit one chunk twice — harmless for a maximum).
+            for (int cx = -1; cx <= 1; cx++)
+                for (int cy = -1; cy <= 1; cy++)
+                    for (int cz = -1; cz <= 1; cz++)
+                    {
+                        var neighbour = WorldConstants.CanonicalChunk(new ChunkCoord(coord.X + cx, coord.Y + cy, coord.Z + cz), _circumference);
+                        if (!_lightSources.TryGetValue(neighbour, out var bucket))
+                        {
+                            continue;
+                        }
+
+                        foreach (var kv in bucket)
+                        {
+                            int steps = System.Math.Abs(WorldConstants.WrapDeltaX(kv.Key.X - pos.X, _circumference))
+                                + System.Math.Abs(kv.Key.Y - pos.Y)
+                                + System.Math.Abs(WorldConstants.WrapDeltaZ(kv.Key.Z - pos.Z, _circumference));
+                            best = System.Math.Max(best, BlockLight.RadiusFrom(kv.Value) - 1 - steps);
+                        }
+                    }
+
+            return best;
+        }
+
+        /// <summary>#2951: every chunk the light sources stored in <paramref name="coord"/> can reach — a freshly stored
+        /// chunk's lamps relight its edge and corner neighbours too, not only the six it shares a face with.</summary>
+        public void ChunksLitFrom(ChunkCoord coord, ICollection<ChunkCoord> into)
+        {
+            if (!_lightSources.TryGetValue(WorldConstants.CanonicalChunk(coord, _circumference), out var bucket))
+            {
+                return;
+            }
+
+            foreach (var kv in bucket)
+            {
+                LightReach.ChunksTouched(kv.Key.X, kv.Key.Y, kv.Key.Z, BlockLight.RadiusFrom(kv.Value) - 1, _circumference, into);
+            }
+        }
+
         /// <summary>Re-indexes a chunk's light sources (placed glow blocks + dedicated light blocks) into the
         /// chunk's own bucket — built fresh per store, so no per-cell removes for the (usual) all-dark chunk.</summary>
         private void ScanChunkLightSources(ChunkCoord coord, ChunkData chunk)

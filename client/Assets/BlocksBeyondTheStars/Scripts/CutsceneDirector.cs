@@ -768,7 +768,7 @@ namespace BlocksBeyondTheStars.Client
                     Id = sys.Id,
                     MapX = sys.MapX,
                     MapY = sys.MapY,
-                    Label = known || isFinale ? sys.Name : "?", // the revealed Guardian system is on everyone's map by name
+                    Label = known || isFinale ? sys.Shown() : "?", // the revealed Guardian system is on everyone's map by name
                     Color = sys.StarColor != 0 ? Rgb(sys.StarColor) : new Color(1f, 0.86f, 0.55f),
                     Current = current,
                     Known = known || isFinale,

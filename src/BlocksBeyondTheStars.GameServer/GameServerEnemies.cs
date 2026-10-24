@@ -438,9 +438,9 @@ public sealed partial class GameServer
     /// enemy actually moved.</summary>
     private bool MovePlanetEnemy(CombatEntity enemy, List<PlayerSession> targets, HashSet<string> warded, double dt)
     {
-        // Safety net: a machine that ended up inside a parked ship (ship placed/grown over it) is pushed back
-        // out of the hull rather than left stalking from inside the cabin.
-        if (TryPushOutsideShip(enemy.Position, out var ejected))
+        // Safety net: a machine that ended up inside a parked ship (ship placed/grown over it) is pushed back out of the
+        // hull rather than left stalking from inside the cabin; #2950: a drone buried in a block is lifted out of it.
+        if (TryPushOutsideShip(enemy.Position, out var ejected) || TryLiftEmbeddedDrone(enemy, out ejected))
         {
             enemy.Position = ejected;
             return false;
@@ -557,11 +557,11 @@ public sealed partial class GameServer
         // tick. Now: no standable cell in a loaded column = a wall; a walker steps up two blocks at most (a
         // long-legged hunter clears a natural ledge, a three-block protective wall holds it) and a drone's
         // hover clears three; anything higher is an obstacle. (The standable probe already demands two free
-        // cells above the feet, so a walker's body never lands inside a wall; a drone keeps weaving through
-        // tree crowns and trunks at hover height as it always has.)
+        // cells above the feet, so a walker's body never lands inside a wall; #2950: a drone needs every cell up to
+        // its hovering body clear — tree crowns and water still pass, a roof or a low tunnel is a wall.)
         if (!MachineGroundAt(nextX, nextZ, refY, realWaterBed: !drone, out int groundY, overGas: drone)
             || groundY - prevGround > (drone ? hover - 1 : MachineStepUp)
-            || prevGround - groundY > MachineStepDown)
+            || prevGround - groundY > MachineStepDown || (drone && !DroneBodyClear(nextX, nextZ, groundY, hover)))
         {
             enemy.Loco.ModeTimer = 0f; // wall/cliff/spike in the way — pick a new direction next tick
             return false;
@@ -1146,14 +1146,14 @@ public sealed partial class GameServer
             }
 
             // Stand on the ground, not in it — real blocks when the column is loaded, noise surface otherwise. #2586: on a gas
-            // giant that surface lies under the gas sea — the probe starts from the real top of the column above the gas, a
-            // drone hovers over the gas where nothing stands, and a walking robot with no island or deck under it is not
-            // placed: every machine used to appear in the gas and burn, one after another on the same spot.
-            int refY = GroundProbeRefY(ex, ez);
+            // giant the probe starts from the real top of the column above the gas, a drone hovers over the gas where nothing
+            // stands, and a walking robot with no island or deck under it is not placed. #2950: a drone's probe starts at the
+            // live top of the column (a raised base, not the tunnel under it) and its hover must be clear.
+            int refY = asDrone ? DroneSpawnRefY(ex, ez) : GroundProbeRefY(ex, ez);
             if (asDrone)
             {
                 ey = DroneGroundAt(ex, ez, refY) + ScanDroneHover; // the flying scan-drone hovers above the surface
-                placed = !FeetInGasSeaAt(ex, ey, ez);
+                placed = !FeetInGasSeaAt(ex, ey, ez) && DroneBodyClear(ex, ez, ey - ScanDroneHover, ScanDroneHover);
             }
             else
             {

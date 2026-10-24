@@ -184,13 +184,13 @@ public sealed partial class GameServer
 
     /// <summary>Pushes a planet machine by the rules of its own walk (<see cref="MovePlanetEnemy"/>): the real ground of
     /// the next column, a step up of two blocks at most (a drone's hover clears three), a drop of three at most, no ship
-    /// hull and no energy fence. A drone keeps its hover height; machines cross water on the noise surface as always. Like
-    /// its walk it never steps into a player's body (#749): the sweep stops before a step that would bring it within
+    /// hull and no energy fence. A drone keeps its hover height and needs the cells up to its body clear (#2950); machines
+    /// cross water on the noise surface as always. Like its walk it never steps into a player's body (#749): the sweep stops before a step that would bring it within
     /// <see cref="EnemyStopRange"/> of a player — the attacker's friend standing behind it, say.</summary>
     private bool KnockMachine(CombatEntity enemy, float dirX, float dirZ, float distance)
     {
         bool drone = enemy.Kind == CombatEntityKind.ScanDrone;
-        int hover = drone ? ScanDroneHover : 0;
+        int hover = drone ? DroneHoverHere : 0; // a derelict's guardian hovers low under the station's ceiling (#2635)
         var cur = enemy.Position;
         bool moved = false;
         int steps = KnockbackRules.Steps(distance);
@@ -205,8 +205,9 @@ public sealed partial class GameServer
             // #2586: a drone over a gas giant's open gas rides its surface; a walking robot is never pushed into the gas.
             int prevGround = drone ? DroneGroundAt(ownX, ownZ, refY) : GroundFeetYAt(ownX, ownZ, refY);
             if (!MachineGroundAt(nextX, nextZ, refY, realWaterBed: false, out int groundY, overGas: drone)
-                || groundY - prevGround > (drone ? ScanDroneHover - 1 : MachineStepUp)
+                || groundY - prevGround > (drone ? hover - 1 : MachineStepUp)
                 || prevGround - groundY > 3
+                || (drone && !DroneBodyClear(nextX, nextZ, groundY, hover)) // #2950: never pushed into a roof or a tunnel
                 || (!drone && WalkerStepsIntoGasSea(ownX, ownZ, prevGround, nextX, nextZ, groundY)))
             {
                 break;

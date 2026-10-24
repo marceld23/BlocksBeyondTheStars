@@ -484,6 +484,14 @@ namespace BlocksBeyondTheStars.Client
         // same layout ~1.25× bigger (more readable on high-res monitors) while Expand keeps it fitting any aspect.
         public const float HudRefW = 1536f, HudRefH = 864f;
 
+        /// <summary>#2953: the shell screens' left line (1920×1080 reference units) — the main menu's column, the System
+        /// Check box above it and the loading screen's panels all start here, so they read as one edge.</summary>
+        public const float ShellColumnX = 90f;
+
+        /// <summary>#2953: the System Check box's width, and where the shell title starts: right of that box with a
+        /// 40-unit gap. The main menu, the loading screen and the save/host screen share it, so the title never jumps.</summary>
+        public const float SystemCheckWidth = 280f, ShellTitleX = ShellColumnX + SystemCheckWidth + 40f;
+
         /// <summary>Bounds of the player's UI-scale setting (#483).</summary>
         public const float UserScaleMin = 0.8f, UserScaleMax = 1.6f;
 

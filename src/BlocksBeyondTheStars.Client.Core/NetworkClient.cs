@@ -702,6 +702,11 @@ namespace BlocksBeyondTheStars.Client
         public void SendSetStationName(string stationId, string name)
             => Send(new SetStationNameIntent { StationId = stationId ?? string.Empty, Name = name ?? string.Empty });
 
+        /// <summary>#2952: give a visited star system, planet or moon my own name (empty = its generated name again). Only
+        /// I see it — the server lays it over my star map as <see cref="NetBody.CustomName"/>.</summary>
+        public void SendSetPlaceName(string placeId, string name)
+            => Send(new SetPlaceNameIntent { PlaceId = placeId ?? string.Empty, Name = name ?? string.Empty });
+
         public void SendCraft(string recipeKey, int count = 1)
             => Send(new CraftIntent { RecipeKey = recipeKey, Count = count });
 

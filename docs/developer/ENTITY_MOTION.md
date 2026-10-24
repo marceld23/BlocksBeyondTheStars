@@ -71,6 +71,13 @@ Interpolation can only draw what the server simulates. These rules removed kinks
   the step, so the animal halts with its head outside a wall while hills and stairs stay open. **Crowns carry fliers
   only** (`CanopyCarries`): every ground probe of a non-air animal reads leaves as no floor — it neither climbs a crown
   that reaches the ground nor is lifted onto one, and one already up there drops; birds still perch on crowns.
+- **A scan-drone's hovering body against the blocks** (#2950, `GameServerDroneClearance`): its ground probe used to start
+  at the generator's surface and take the nearest standable cavity, so under a raised base a drone spawned and patrolled
+  in a tunnel with its body in the roof. The spawn probe now starts at the live column top (`DroneSpawnRefY`: scan down
+  from `DroneSkyScan` over the surface to the first block with open air over it; gas giants keep their own probe), a
+  spawn, a step and a knockback need every cell from the new ground up to the body clear (`DroneBodyClear`, water and
+  foliage pass), and a drone found inside a block is lifted to its hover over the column top or, with no room there,
+  dropped after the pass (`TryLiftEmbeddedDrone`; a derelict's guardians are left alone).
 - **Running jump**: a walker that will reach a jumpable one-block rise within `RunningJumpLeadSeconds` takes off
   early (under the same checks as a jump at the lip) and keeps moving forward **inside its own column** while its
   feet come up; it crosses into the ledge column only once the feet are above the lip, so the body never clips the
@@ -158,6 +165,8 @@ that pose, and clears the pilot's interpolation buffer when the pose switches be
 - `CreatureBodyBlockTests`: a sky ray beside a roof rides over it and a hunting ray never puts its wings into a wall; a
   big walker stops with its head outside a wall and still climbs a stair; a crawler never climbs a stair of leaves, a
   land animal on a crown comes down, the ground probe reads a crown as floor for fliers only, a bird still perches on one.
+- `DroneClearanceTests`: a drone spawned next to a raised base with a tunnel inside appears over the base, a pushed
+  drone stops at a low roof but passes a tree crown, a drone buried in a roof is lifted over the raised ground.
 - `NpcGridPathTests`: string-pulling (open square, walls, corners, doorways, steps).
 - `RemoteEntityInterpolatorTests`, `SpaceEntitySyncTests` (Client.Tests): the no-wrap lerp at negative X and across 0,
   the stale-view scan with view-less rocks around. `SpaceFlightClientTests` (Client.Tests, real client and server): a

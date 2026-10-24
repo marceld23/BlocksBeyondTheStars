@@ -96,7 +96,8 @@ namespace BlocksBeyondTheStars.Client
             // vegetation hue than the plants on the ground you just left.
             string homeFloraKey = current != null ? PlanetOrbitLook.LocationKeyFor(system?.Name, homeName) : homeName;
             SpawnBody("HomePlanet", current?.Id, current?.Kind, homeFloraKey, homePos, homeDiameter, homeType, homeCirc, current?.RingSeed ?? 0);
-            _landables.Add((string.Empty, homeName, homePos, homeDiameter * 0.5f));
+            // #2952: the label is the player's own name for the body; homeName above stays the flora key's name.
+            _landables.Add((string.Empty, current.IsRenamed() ? current.Shown() : homeName, homePos, homeDiameter * 0.5f));
             _keepOut.Add((homePos, homeDiameter * 0.5f + KeepOutMargin));
             float maxDist = homePos.magnitude;
 
@@ -258,7 +259,8 @@ namespace BlocksBeyondTheStars.Client
                         _asteroidBodies.Add((bodyGo.transform, radii[k] * 2f)); // #1663: held findable from afar
                     }
 
-                    _landables.Add((ids[k], names[k], positions[k], radii[k]));
+                    var shown = Game?.FindMapBody(ids[k]); // #2952: label with the player's own name; locKeys keep the generated one
+                    _landables.Add((ids[k], shown.IsRenamed() ? shown.Shown() : names[k], positions[k], radii[k]));
                     _keepOut.Add((positions[k], radii[k] + KeepOutMargin)); // can't fly into it — slide + press E to land
                     maxDist = Mathf.Max(maxDist, positions[k].magnitude);
                 }

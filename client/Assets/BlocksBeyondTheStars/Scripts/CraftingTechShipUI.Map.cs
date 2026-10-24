@@ -73,7 +73,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             string name = Game.KnowsSystem(sys.Id) || sys.Id == CurrentSystemId() || HasRadarArray()
-                ? sys.Name
+                ? sys.Shown() // #2952: the player's own name for it
                 : L("ui.map.system_unknown");
             if (sys.Tier >= 2)
             {
@@ -352,7 +352,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                AddCard(y, b.Name, "cat_planet", status, here ? UiKit.Cyan : UiKit.CyanDim,
+                AddCard(y, b.Shown(), "cat_planet", status, here ? UiKit.Cyan : UiKit.CyanDim,
                     "body:" + b.Id, () => { _selected = "body:" + b.Id; RebuildDetail(); });
                 y += 88f;
             }
@@ -433,8 +433,8 @@ namespace BlocksBeyondTheStars.Client
             bool known = sys != null && (sys.Id == CurrentSystemId() || Game.KnowsSystem(sys.Id));
             if (known)
             {
-                UiKit.AddText(_detail, 8, y, 600, 30, "★ " + sys.Name, 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
-                y += 36f;
+                UiKit.AddText(_detail, 8, y, 600, 30, "★ " + sys.Shown(), 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+                y = AddOriginalNameLine(y + 30f, sys.IsRenamed() ? sys.Name : null) + 6f;
                 _systemMap = SystemMapWidget.Create(_detail, 100, y, 380, 380); // round chart, centred where the old one was
                 string sel = !string.IsNullOrEmpty(_selected) && _selected.StartsWith("body:", System.StringComparison.Ordinal)
                     ? _selected.Substring(5) : string.Empty;
@@ -449,7 +449,7 @@ namespace BlocksBeyondTheStars.Client
             if (string.IsNullOrEmpty(_selected) || !_selected.StartsWith("body:", System.StringComparison.Ordinal))
             {
                 UiKit.AddText(_detail, 8, y, 600, 30, L("ui.map.pick_destination"), 19, UiKit.CyanDim, TextAnchor.UpperLeft);
-                return y + 40f;
+                return known ? AddPlaceNameRow(y + 40f, sys.Id, sys.CustomName) : y + 40f; // #2952: name the system you know
             }
 
             string id = _selected.Substring(5);
@@ -460,8 +460,8 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool isStation = body.Kind == "SpaceStation";
-            UiKit.AddText(_detail, 8, y, 620, 40, body.Name, 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
-            y += 48f;
+            UiKit.AddText(_detail, 8, y, 620, 40, body.Shown(), 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
+            y = AddOriginalNameLine(y + 40f, body.IsRenamed() ? body.Name : null) + 8f; // #2952: the real name, small
             UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.map.kind")}: {(isStation ? StationKindLabel(body.Id) : IdLabel("ui.map.kind_", body.Kind))}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
             y += 32f;
             if (!string.IsNullOrEmpty(body.PlanetType))
@@ -473,6 +473,10 @@ namespace BlocksBeyondTheStars.Client
             bool here = body.Id == map.ActiveLocationId;
             UiKit.AddText(_detail, 8, y, 620, 28, here ? L("ui.map.here") : IdLabel("ui.map.status_", body.Status), 20, here ? UiKit.Cyan : UiKit.CyanDim, TextAnchor.UpperLeft);
             y += 40f;
+            if (body.Kind is "Planet" or "Moon" && (here || Game.HasLandedOn(body.Id)))
+            {
+                y = AddPlaceNameRow(y, body.Id, body.CustomName); // #2952: a world you have been to can carry your own name
+            }
 
             // Colour-mark this body. Asked for by a player who wanted to mark planets in space in different
             // colours: unlike the single surface waypoint, any number of bodies can carry a mark at once, and the
@@ -647,13 +651,35 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>An inline name field + confirm button for renaming an owned station or base from the Map detail
         /// pane (no modal, so it never desyncs the menu's own open/cursor state). Sends the typed name on click.</summary>
-        private float AddRenameRow(float y, string current, string buttonLabel, System.Action<string> onConfirm)
+        private float AddRenameRow(float y, string current, string buttonLabel, System.Action<string> onConfirm, string placeholder = null)
         {
-            var field = UiKit.AddInput(_detail, 8, y, 400, 48, current ?? string.Empty, null, L("ui.base.placeholder"));
+            var field = UiKit.AddInput(_detail, 8, y, 400, 48, current ?? string.Empty, null, placeholder ?? L("ui.base.placeholder"));
             field.characterLimit = 24;
             field.lineType = InputField.LineType.SingleLine;
             UiKit.AddButton(_detail, 416, y, 180, 48, buttonLabel, () => onConfirm?.Invoke(field.text ?? string.Empty));
             return y + 56f;
+        }
+
+        /// <summary>#2952: under a place the player named for themselves, its generated name in small type — friends still
+        /// meet up on the real name. Nothing when <paramref name="original"/> is null.</summary>
+        private float AddOriginalNameLine(float y, string original)
+        {
+            if (string.IsNullOrEmpty(original))
+            {
+                return y;
+            }
+
+            UiKit.AddText(_detail, 8, y, 620, 24, string.Format(L("ui.map.original_name"), original), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+            return y + 24f;
+        }
+
+        /// <summary>#2952: "Your own name" for a visited system, planet or moon — private, only this player sees it; an
+        /// empty field gives the place its generated name back. The server checks the visit again.</summary>
+        private float AddPlaceNameRow(float y, string placeId, string current)
+        {
+            UiKit.AddText(_detail, 8, y, 620, 26, L("ui.map.own_name"), 18, UiKit.Cyan, TextAnchor.UpperLeft);
+            return AddRenameRow(y + 28f, current, L("ui.map.name_place"), name => Game.Network?.SendSetPlaceName(placeId, name),
+                L("ui.map.own_name_placeholder"));
         }
 
         /// <summary>The SPS relay meter for a commissioned player station in the Map detail pane (#1125):

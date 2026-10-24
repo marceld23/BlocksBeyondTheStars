@@ -810,6 +810,10 @@ costs no frame rate.
   scan-drones fly over it). A robot that ends up in deep water anyway — you dug or flooded a pond around it, or
   pushed it in — walks out to the nearest dry ground; one stuck in a flooded pit with no way out shuts down and
   is gone. Robots never appear standing in water.
+- **Scan-drones stay over the real ground** (#2950): a drone appears over the **top** of the ground as it is now —
+  over a base you raised, never in a tunnel under it — and it needs room for its whole body: a **roof** or a **low
+  tunnel** is a wall to it (it still weaves through tree crowns and crosses water). A drone that ends up inside a block
+  (you built a roof over it) is lifted back over the ground.
 - **Aim at water and lava**: holding a block, the crosshair stops at a fluid's surface and the block goes
   *into* that cell (the fluid makes way) — so you can bridge a lake or a lava field from its edge. Holding
   a tier-3 drill (mining beam, diamond drill) the surface is mineable too. While you are swimming the aim
@@ -2881,6 +2885,12 @@ called **stories**:
   system has one (§ Mysteries).
 - A star system you have **never entered** shows as **"Unknown system"** — its name is part of what you
   discover. A fitted **`radar_array`** module decodes the beacon signals and reveals all system names.
+- **Your own names** (#2952): you are the explorer, so a **planet or moon you have landed on** and a **star system
+  you have been to** can get a name of your own. On **Tab → Map**, select it and type into **"Your own name — only you
+  see it"**, then **Name it**; an empty field gives it its real name back. Only **you** see the name — on the map, the
+  flight chart, the radar, the scanner, the HUD's location line and the loading screen — and the **real name** stays
+  in small type beside or under it, so you can still tell a friend where to meet. Your friends keep the real name and
+  can give the place a name of their own. Stations keep the name their owner gives them for everyone.
 - Your **first landing on a world** records it in the Codex under **Discoveries → Places** and pays
   **+5 knowledge** — exploring the galaxy is itself a way to learn. (Your starting world gets its Places
   entry too, but pays nothing — home isn't a discovery.)

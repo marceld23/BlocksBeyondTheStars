@@ -146,7 +146,7 @@ namespace BlocksBeyondTheStars.Client
             var root = _canvas.transform;
 
             UiKit.AddImage(root, 0, 0, 1920, 1080, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.92f));
-            UiKit.AddLogo(root, 40, 24, 700, 40, L("ui.map.planet").ToUpperInvariant() + "  —  " + (string.IsNullOrEmpty(Game.LocationName) ? "?" : Game.LocationName), 26);
+            UiKit.AddLogo(root, 40, 24, 700, 40, L("ui.map.planet").ToUpperInvariant() + "  —  " + (string.IsNullOrEmpty(Game.LocationName) ? "?" : Game.ShownLocationName), 26);
 
             // Square map area on the left.
             const float A = 900f, ax = 40f, ay = 100f;

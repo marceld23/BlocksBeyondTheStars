@@ -260,7 +260,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _title.text = string.IsNullOrEmpty(Game.LocationName) ? string.Empty : Game.LocationName;
+            _title.text = string.IsNullOrEmpty(Game.LocationName) ? string.Empty : Game.ShownLocationName; // #2952: the player's own names
 
             var loc = Game.Localizer;
             string type = Game.LoadingPlanetType ?? string.Empty;
