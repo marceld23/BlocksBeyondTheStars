@@ -85,6 +85,15 @@ public sealed partial class GameServer
             return; // still cooling down (the client also rate-limits) — ignore quietly
         }
 
+        if (intent.GadgetKey == "field_medkit" && !MedkitWouldHeal(session))
+        {
+            // #2957: everyone the pulse reaches is already healthy. A use that heals nobody cost energy and a cooldown
+            // with nothing but a green ring to show for it, so a child at full health read the medkit as broken —
+            // refuse it with a word instead, and charge nothing.
+            Reject(session, "gadget", "@srv.gadget.medkit_all_healthy");
+            return;
+        }
+
         if (p.SuitEnergy < item.Tool.EnergyPerUse)
         {
             Reject(session, "gadget", "@no_energy");
@@ -222,9 +231,9 @@ public sealed partial class GameServer
         _ => false,
     };
 
-    /// <summary>Heals the user and every other on-foot player within <see cref="MedkitRadius"/> in the same
-    /// world (a shared first-aid pulse) — item 36.</summary>
-    private void UseFieldMedkit(PlayerSession user)
+    /// <summary>The players a medkit pulse from <paramref name="user"/> reaches: the user and every other on-foot player
+    /// within <see cref="MedkitRadius"/> in the same world who is not down (a medkit can't revive) — item 36.</summary>
+    private IEnumerable<PlayerSession> MedkitReach(PlayerSession user)
     {
         var origin = user.State.Position;
         foreach (var s in JoinedInActiveWorld())
@@ -234,17 +243,25 @@ public sealed partial class GameServer
                 continue; // piloting in space, not on foot
             }
 
-            if (WrapDistSq(origin, s.State.Position) > MedkitRadius * MedkitRadius)
+            if (WrapDistSq(origin, s.State.Position) > MedkitRadius * MedkitRadius || s.State.Health <= 0f)
             {
                 continue;
             }
 
-            var t = s.State;
-            if (t.Health <= 0f)
-            {
-                continue; // already down — a medkit can't revive
-            }
+            yield return s;
+        }
+    }
 
+    /// <summary>#2957: true when the pulse would heal anyone — someone it reaches is hurt.</summary>
+    private bool MedkitWouldHeal(PlayerSession user) => MedkitReach(user).Any(s => s.State.Health < 100f);
+
+    /// <summary>Heals the user and every other on-foot player within <see cref="MedkitRadius"/> in the same
+    /// world (a shared first-aid pulse) — item 36.</summary>
+    private void UseFieldMedkit(PlayerSession user)
+    {
+        foreach (var s in MedkitReach(user))
+        {
+            var t = s.State;
             float before = t.Health;
             t.Health = System.Math.Min(100f, t.Health + MedkitHealAmount);
             if (t.Health != before)

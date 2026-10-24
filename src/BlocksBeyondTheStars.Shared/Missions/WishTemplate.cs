@@ -59,6 +59,10 @@ public sealed class WishTemplate
     /// <summary>The item key (deliver / show) or the scan target expression (scan, e.g. <c>creature:any</c>).</summary>
     public string Item { get; set; } = string.Empty;
 
+    /// <summary>#2958: a deliver / show wish that takes any member of this item group (<c>logs</c>: firewood of any tree),
+    /// <see cref="Item"/> being its representative. Empty for exactly <see cref="Item"/>.</summary>
+    public string Group { get; set; } = string.Empty;
+
     /// <summary>How many — the coined wish varies it by up to ±<see cref="Jitter"/> (never below 1).</summary>
     public int Count { get; set; } = 1;
 

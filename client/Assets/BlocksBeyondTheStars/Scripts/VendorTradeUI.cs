@@ -296,12 +296,12 @@ namespace BlocksBeyondTheStars.Client
         private void AddRow(int index, BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition r)
         {
             float y = index * RowH;
-            bool afford = r.Inputs.All(inp => Pooled(inp.Item) >= inp.Count);
+            bool afford = r.Inputs.All(inp => Pooled(inp) >= inp.Count);
 
             UiKit.AddPanel(_rows, 20, y, PanelW - 40, RowH - 12, new Color(0.06f, 0.14f, 0.26f, 0.85f));
 
-            string give = string.Join("   ", r.Inputs.Select(a => $"{a.Count}× {ItemName(a.Item)}"
-                + (Pooled(a.Item) < a.Count ? $"  ({Pooled(a.Item)})" : string.Empty)));
+            string give = string.Join("   ", r.Inputs.Select(a => $"{a.Count}× {IngredientName(a)}"
+                + (Pooled(a) < a.Count ? $"  ({Pooled(a)})" : string.Empty)));
             string get = string.Join("   ", r.Outputs.Select(a => $"{a.Count}× {ItemName(a.Item)}"));
 
             var giveCol = afford ? UiKit.TextCol : new Color(1f, 0.55f, 0.55f);
@@ -323,6 +323,21 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
         }
+
+        /// <summary>#2958: an ingredient in the backpack and hold — a group ingredient (any log) counts every member.</summary>
+        private int Pooled(BlocksBeyondTheStars.Shared.Definitions.ItemAmount need)
+        {
+            int n = Pooled(need.Item);
+            foreach (var member in Game.Content.GroupMembersOf(need))
+            {
+                n += member == need.Item ? 0 : Pooled(member);
+            }
+
+            return n;
+        }
+
+        private string IngredientName(BlocksBeyondTheStars.Shared.Definitions.ItemAmount need)
+            => string.IsNullOrEmpty(need.Group) ? ItemName(need.Item) : L(BlocksBeyondTheStars.Shared.Content.GameContent.ItemGroupNameKey(need.Group));
 
         private int Pooled(string item)
         {

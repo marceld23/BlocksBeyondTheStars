@@ -74,4 +74,17 @@ public sealed class BlueprintResearchTests
             BlueprintResearch.StateOf(bp, new HashSet<string> { "test_bp" }, 100, Owning()));
         Assert.False(BlueprintResearch.IsResearchableNow(bp, new HashSet<string> { "test_bp" }, 100, Owning()));
     }
+
+    /// <summary>#2958: a research cost that takes any log (the field kitchen) is paid with pale logs once the content is
+    /// passed — the groups live there, as on the server.</summary>
+    [Fact]
+    public void AGroupCost_CountsEveryMemberOfItsGroup()
+    {
+        var content = BlocksBeyondTheStars.Shared.Content.ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
+        var kitchen = content.Blueprints["field_kitchen"];
+        var owned = Owning(("plant_fiber", 4), ("berries", 2), ("wood_log_b", 2));
+
+        Assert.Equal(BlueprintResearchState.MaterialsMissing, BlueprintResearch.StateOf(kitchen, new HashSet<string>(), 100, owned));
+        Assert.Equal(BlueprintResearchState.Researchable, BlueprintResearch.StateOf(kitchen, new HashSet<string>(), 100, owned, content));
+    }
 }

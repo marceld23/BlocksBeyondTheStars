@@ -282,6 +282,39 @@ public sealed class ActionFxTests : IDisposable
         Assert.Empty(FxTo(t, bob));
     }
 
+    /// <summary>#2957: a medkit used while everyone it reaches is healthy is refused with a word — no energy, no
+    /// cooldown, no ring (a child at full health read the silent, energy-eating pulse as a broken medkit). One hurt
+    /// player in reach is enough for the pulse to go out.</summary>
+    [Fact]
+    public void Medkit_WhenEveryoneNearIsHealthy_IsRefusedWithAWord_AndCostsNothing()
+    {
+        var t = new RecordingTransport();
+        var server = NewServer("fx_medkit_healthy", t);
+        var alice = OnFoot(server, "Alice", 100.5f, 100.5f);
+        var bob = OnFoot(server, "Bob", 104f, 100f);
+        alice.State.Inventory.Add("field_medkit", 1, 1);
+        float energy = alice.State.SuitEnergy;
+        var use = NetCodec.Encode(new UseGadgetIntent { GadgetKey = "field_medkit", X = 100.5f, Y = Sky, Z = 100.5f });
+
+        t.Sent.Clear();
+        server.HandlePayloadForTest(alice.ConnectionId, use);
+
+        Assert.Contains(t.Sent, x => x.Conn == alice.ConnectionId && x.Msg is ActionRejected r && r.Reason == "@srv.gadget.medkit_all_healthy");
+        Assert.Equal(energy, alice.State.SuitEnergy);
+        Assert.Equal(0, server.GadgetCooldownForTest("Alice", "field_medkit"));
+        Assert.Empty(FxTo(t, alice));
+        Assert.Empty(FxTo(t, bob));
+
+        bob.State.Health = 30f;
+        t.Sent.Clear();
+        server.HandlePayloadForTest(alice.ConnectionId, use);
+
+        Assert.True(bob.State.Health > 30f, "the hurt player in reach is healed");
+        Assert.True(alice.State.SuitEnergy < energy, "a use that heals costs energy");
+        Assert.DoesNotContain(t.Sent, x => x.Msg is ActionRejected);
+        Assert.Single(FxTo(t, alice));
+    }
+
     // ---------------- Creature defeat (#2154) ----------------
 
     [Fact]

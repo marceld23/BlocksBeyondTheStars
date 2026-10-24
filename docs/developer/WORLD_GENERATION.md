@@ -2893,7 +2893,9 @@ generation 29; older generations keep their chunks, rosters and random streams b
   `TreeGenerator.SlotsGrownOn` says the world can grow (its palettes; the saguaro wherever sand lies). The TOXICITY of
   every slot is the common tree's (`tr0`): the fruit of every kind follows `tr0` (`FloraGenerator`), and most kinds stand
   on the common `wood_log`, which keeps `tr0`'s name — leaves, trunk and fruit of one tree never disagree on "edible".
-  New leaves drop the `tree_leaves` item, the pale bark `wood_log`, the saguaro plant fiber. Saplings still grow the
+  The saguaro drops plant fiber. Since #2958 the pale bark and the leaf slots drop items of their own (`wood_log_b`,
+  `tree_leaves_b`, `tree_leaves_c`, `blossom_leaves`) in the item groups `logs` / `leaves` — a recipe ingredient that
+  names a group takes any member (`GameContent.ItemGroups`); the giant trunk still drops `wood_log`. Saplings still grow the
   classic broadleaf. The woodcutter's work box is 9 × 9 columns now (crowns reach four cells), and every builder keeps
   its wood face-connected (diagonal steps get their corner cell).
 - **Grounds and densities (#2849).** The classic grounds stay; on top, the alien kinds (spiral, mushroom tree, crystal

@@ -109,7 +109,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Where <paramref name="bp"/> stands for this player (<see cref="BlueprintResearch.StateOf"/>), from the
         /// researched set, the knowledge balance and what inventory + cargo hold.</summary>
         private BlueprintResearchState ResearchState(BlueprintDefinition bp)
-            => BlueprintResearch.StateOf(bp, Game.UnlockedBlueprints, Game.Knowledge, Owned);
+            => BlueprintResearch.StateOf(bp, Game.UnlockedBlueprints, Game.Knowledge, Owned, Game.Content); // #2958: groups
 
         private readonly Dictionary<string, int> _tierCache = new();
 

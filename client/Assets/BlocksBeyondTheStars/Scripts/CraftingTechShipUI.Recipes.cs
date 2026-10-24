@@ -44,10 +44,10 @@ namespace BlocksBeyondTheStars.Client
         /// one recipe level deep, enough to see what to actually gather without rendering a whole tree.</summary>
         private float IngredientRow(ItemAmount inp, float y, int size)
         {
-            int have = Owned(inp.Item);
+            int have = OwnedOf(inp);
             bool ok = have >= inp.Count;
             bool craftable = Game.Content.CraftDepth(inp.Item) > 0;
-            UiKit.AddText(_detail, 20, y, 620, size + 8, $"{(ok ? "✓" : "✗")} {ItemName(inp.Item)}  {have}/{inp.Count}", size,
+            UiKit.AddText(_detail, 20, y, 620, size + 8, $"{(ok ? "✓" : "✗")} {IngredientName(inp)}  {have}/{inp.Count}", size,
                 ok ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), TextAnchor.UpperLeft);
             // Right-anchored, so its right edge must clear the detail viewport (636 wide, RectMask2D) AND the
             // 8-px inline scrollbar that overlays the viewport's right edge — x = 20 + 620 = 640 lost the last
@@ -70,11 +70,11 @@ namespace BlocksBeyondTheStars.Client
             foreach (var si in sub.Inputs)
             {
                 int need = si.Count * crafts;
-                int subHave = Owned(si.Item);
+                int subHave = OwnedOf(si);
                 bool subOk = subHave >= need;
                 bool subCraftable = Game.Content.CraftDepth(si.Item) > 0;
                 UiKit.AddText(_detail, 44, y, 596, size + 4,
-                    $"{(subOk ? "✓" : "✗")} {ItemName(si.Item)}  {subHave}/{need} · {L(subCraftable ? "ui.craft.src_craftable" : "ui.craft.src_raw")}",
+                    $"{(subOk ? "✓" : "✗")} {IngredientName(si)}  {subHave}/{need} · {L(subCraftable ? "ui.craft.src_craftable" : "ui.craft.src_raw")}",
                     size - 4, UiKit.CyanDim, TextAnchor.UpperLeft);
                 y += size + 6f;
             }
@@ -163,6 +163,13 @@ namespace BlocksBeyondTheStars.Client
         private bool BlueprintOk(string bp) => CraftGate.BlueprintOk(bp, Gate);
         private bool HasAll(IEnumerable<ItemAmount> cost) => CraftGate.HasAll(cost, Gate);
         private int Owned(string item) => CraftGate.Owned(item, Gate);
+
+        /// <summary>#2958: an ingredient's count — a group ingredient (any log) counts every member of its group.</summary>
+        private int OwnedOf(ItemAmount need) => CraftGate.Owned(need, Gate);
+
+        /// <summary>#2958: an ingredient's name — a group ingredient reads as its group ("Logs (any kind)").</summary>
+        private string IngredientName(ItemAmount need)
+            => string.IsNullOrEmpty(need.Group) ? ItemName(need.Item) : L(BlocksBeyondTheStars.Shared.Content.GameContent.ItemGroupNameKey(need.Group));
 
         private bool MatchesCategory(string item)
         {

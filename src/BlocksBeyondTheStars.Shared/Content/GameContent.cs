@@ -432,6 +432,7 @@ public sealed partial class GameContent
         _authoredCreatures = (authoredCreatures ?? Enumerable.Empty<AuthoredCreature>()).ToDictionary(a => a.Key, StringComparer.OrdinalIgnoreCase);
         _blocks = blocks.ToDictionary(b => b.Key);
         _items = items.ToDictionary(i => i.Key);
+        IndexItemGroups(items); // #2958
         _recipes = recipes.ToDictionary(r => r.Key);
         _blueprints = blueprints.ToDictionary(b => b.Key);
         _shipModules = shipModules.ToDictionary(m => m.Key);
@@ -574,7 +575,7 @@ public sealed partial class GameContent
     private static readonly HashSet<string> TintableDefaults = new(StringComparer.Ordinal)
     {
         "stone", "dirt", "basalt", "sand", "mud", "grass", "snow", "salt", "mycelium", "alien_grass",
-        "deepslate", "granite", "ash", "wood_log",
+        "deepslate", "granite", "ash", "wood_log", "wood_log_b", // #2958: the pale log is a building log too
         "moss_stone", "sandstone", "scree", "bone", // #1647 landscape-variety terrain set (tar keeps its fluid look)
         "iron_wall", "steel_wall", "bronze_block", "brass_block", "steel_floor", "metal_panel", "concrete",
         "cargo_floor", "medbay_panel", "lab_panel", "engine_panel",

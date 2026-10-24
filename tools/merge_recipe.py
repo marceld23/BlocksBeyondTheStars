@@ -26,6 +26,29 @@ REPO = Path(__file__).resolve().parents[1]
 DATA = REPO / "data"
 
 
+def item_groups() -> dict:
+    """#2958: item key -> its item group (data/items.json "group"), so an editor recipe that takes a log takes any log."""
+    groups = {}
+    for line in (DATA / "items.json").read_text(encoding="utf-8").splitlines():
+        line = line.strip().rstrip(",")
+        if line.startswith("{") and '"group"' in line:
+            entry = json.loads(line)
+            groups[entry["key"]] = entry["group"]
+    return groups
+
+
+def amounts(rows: list) -> list:
+    """Recipe inputs / research costs as data rows, naming the item's group where it has one (#2958)."""
+    groups = item_groups()
+    out = []
+    for a in rows:
+        row = {"item": a["item"], "count": a["count"]}
+        if a["item"] in groups:
+            row = {"item": a["item"], "group": groups[a["item"]], "count": a["count"]}
+        out.append(row)
+    return out
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit("usage: python tools/merge_recipe.py <export-bundle-dir>")
@@ -70,7 +93,7 @@ def main():
     recipe = {
         "key": f"{key}_recipe",
         "station": b.get("station", "workshop"),
-        "inputs": [{"item": a["item"], "count": a["count"]} for a in b.get("inputs", [])],
+        "inputs": amounts(b.get("inputs", [])),
         "outputs": [{"item": key, "count": b.get("outputCount", 1)}],
     }
     # Market barters are posted per vendor theme; empty means every vendor offers it.
@@ -88,7 +111,7 @@ def main():
             "descriptionKey": f"blueprint.{key}_bp.desc",
             "category": "Custom",
             "prerequisites": [],
-            "unlockCost": [{"item": a["item"], "count": a["count"]} for a in b.get("unlockCost", [])],
+            "unlockCost": amounts(b.get("unlockCost", [])),
             "knowledgeCost": b.get("knowledgeCost", 0),
         }
         upsert_entry(DATA / "blueprints.json", f"{key}_bp", bp)

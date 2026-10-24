@@ -70,11 +70,27 @@ public sealed class MaterialPool
         return count;
     }
 
+    /// <summary>How many of an ingredient the pool holds (#2958): the item itself and, for a group ingredient (any log),
+    /// every other member of its group (<see cref="GameContent.GroupMembersOf"/>).</summary>
+    public int Count(ItemAmount need)
+    {
+        int total = Count(need.Item);
+        foreach (var member in _content.GroupMembersOf(need))
+        {
+            if (member != need.Item)
+            {
+                total += Count(member);
+            }
+        }
+
+        return total;
+    }
+
     public bool Has(IEnumerable<ItemAmount> items)
     {
         foreach (var need in items)
         {
-            if (Count(need.Item) < need.Count)
+            if (Count(need) < need.Count)
             {
                 return false;
             }
@@ -83,41 +99,55 @@ public sealed class MaterialPool
         return true;
     }
 
-    /// <summary>Removes the listed amounts (personal first, then cargo). Caller must check <see cref="Has"/> first.</summary>
+    /// <summary>Removes the listed amounts (personal first, then cargo). Caller must check <see cref="Has"/> first. A group
+    /// ingredient (#2958) takes its representative first, then the other members in item order.</summary>
     public void Remove(IEnumerable<ItemAmount> items)
     {
         foreach (var need in items)
         {
-            int remaining = need.Count;
-            int fromPersonal = System.Math.Min(remaining, _personal.CountOf(need.Item));
-            if (fromPersonal > 0)
+            int remaining = RemoveItem(need.Item, need.Count);
+            foreach (var member in _content.GroupMembersOf(need))
             {
-                _personal.Remove(need.Item, fromPersonal);
-                remaining -= fromPersonal;
-            }
-
-            if (remaining > 0)
-            {
-                int fromCargo = System.Math.Min(remaining, _cargo?.CountOf(need.Item) ?? 0);
-                if (fromCargo > 0)
+                if (remaining > 0 && member != need.Item)
                 {
-                    _cargo!.Remove(need.Item, fromCargo);
-                    remaining -= fromCargo;
+                    remaining = RemoveItem(member, remaining);
                 }
             }
-
-            if (remaining > 0)
-            {
-                int fromWorn = System.Math.Min(remaining, _equipment.CountOf(need.Item));
-                _equipment.Remove(need.Item, fromWorn); // #2110: the worn piece goes last
-                remaining -= fromWorn;
-            }
-
-            // #2206: plain pieces first, then one the lab changed — backpack, hold, worn.
-            remaining = RemoveChanged(_personal, need.Item, remaining);
-            remaining = RemoveChanged(_cargo, need.Item, remaining);
-            RemoveChanged(_equipment, need.Item, remaining);
         }
+    }
+
+    /// <summary>Takes up to <paramref name="count"/> of one item out of the pool; returns what is still missing.</summary>
+    private int RemoveItem(string item, int count)
+    {
+        int remaining = count;
+        int fromPersonal = System.Math.Min(remaining, _personal.CountOf(item));
+        if (fromPersonal > 0)
+        {
+            _personal.Remove(item, fromPersonal);
+            remaining -= fromPersonal;
+        }
+
+        if (remaining > 0)
+        {
+            int fromCargo = System.Math.Min(remaining, _cargo?.CountOf(item) ?? 0);
+            if (fromCargo > 0)
+            {
+                _cargo!.Remove(item, fromCargo);
+                remaining -= fromCargo;
+            }
+        }
+
+        if (remaining > 0)
+        {
+            int fromWorn = System.Math.Min(remaining, _equipment.CountOf(item));
+            _equipment.Remove(item, fromWorn); // #2110: the worn piece goes last
+            remaining -= fromWorn;
+        }
+
+        // #2206: plain pieces first, then one the lab changed — backpack, hold, worn.
+        remaining = RemoveChanged(_personal, item, remaining);
+        remaining = RemoveChanged(_cargo, item, remaining);
+        return RemoveChanged(_equipment, item, remaining);
     }
 
     /// <summary>
@@ -198,17 +228,13 @@ public sealed class MaterialPool
 
         foreach (var need in inputs)
         {
-            int remaining = need.Count;
-            int fromPersonal = System.Math.Min(remaining, personal.CountOf(need.Item));
-            if (fromPersonal > 0)
+            int remaining = DryRemove(personal, cargo, need.Item, need.Count);
+            foreach (var member in _content.GroupMembersOf(need)) // #2958: a group ingredient's other members
             {
-                personal.Remove(need.Item, fromPersonal);
-                remaining -= fromPersonal;
-            }
-
-            if (remaining > 0)
-            {
-                cargo?.Remove(need.Item, remaining);
+                if (remaining > 0 && member != need.Item)
+                {
+                    remaining = DryRemove(personal, cargo, member, remaining);
+                }
             }
         }
 
@@ -233,6 +259,27 @@ public sealed class MaterialPool
         }
 
         return true;
+    }
+
+    /// <summary>The dry-run half of <see cref="RemoveItem"/> on cloned inventories: the backpack first, then the hold;
+    /// returns what is still missing.</summary>
+    private static int DryRemove(Inventory personal, Inventory? cargo, string item, int count)
+    {
+        int fromPersonal = System.Math.Min(count, personal.CountOf(item));
+        if (fromPersonal > 0)
+        {
+            personal.Remove(item, fromPersonal);
+            count -= fromPersonal;
+        }
+
+        int fromCargo = System.Math.Min(count, cargo?.CountOf(item) ?? 0);
+        if (fromCargo > 0)
+        {
+            cargo!.Remove(item, fromCargo);
+            count -= fromCargo;
+        }
+
+        return count;
     }
 
     /// <summary>

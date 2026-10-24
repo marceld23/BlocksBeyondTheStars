@@ -219,6 +219,104 @@ public sealed class FarTerrainTests
         Assert.True(checkedColumns > 0, "a sky world should have island columns in the scanned area");
     }
 
+    /// <summary>#2956: the reported tundra world — a sea frozen under a sheet of ice read as open water from afar (the
+    /// shader tinted it violet), and the land as bare dirt and stone where the chunks wear snow and ice. Now a frozen sea
+    /// column is ice at the ice's top on both levels, and the far land matches the streamed chunks' top block.</summary>
+    [Fact]
+    public void TheFarTerrainSource_SeesAFrozenSeaAsIce_AndColdLandAsTheChunksCoverIt()
+    {
+        const long seed = 580745895170260519;
+        var content = LoadContent();
+        var info = new FarTerrainWorldInfo
+        {
+            WorldId = 1,
+            LocationId = "sys0-p1",
+            PlanetType = "tundra",
+            Circumference = 9712,
+            ContinentsEnabled = true,
+            TerrainGeneration = WorldDescription.CurrentTerrainGeneration,
+        };
+        var source = FarTerrainSource.Create(content, seed, info)!;
+        Assert.False(source.SeaLevel == int.MinValue, "the tundra world has a sea");
+        var planet = content.GetPlanet("tundra")!;
+        var generator = new BlocksBeyondTheStars.WorldGeneration.WorldGenerator(seed, content);
+        generator.SetContinentsEnabled(true);
+        generator.SetTerrainGeneration(WorldDescription.CurrentTerrainGeneration);
+        generator.SetWorldMode(9712, false, new List<BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten>(), "sys0-p1");
+        ushort ice = content.GetBlock("ice")!.NumericId.Value;
+
+        // The reported sea (around 3170, 1015).
+        int frozen = 0;
+        for (int x = 2800; x < 3600 && frozen < 20; x += 37)
+            for (int z = 700; z < 1300 && frozen < 20; z += 41)
+            {
+                if (generator.SurfaceHeight(planet, x, z) <= source.SeaLevel && generator.TryGetIceSurface(planet, x, z, out int iceTop))
+                {
+                    foreach (bool detail in new[] { true, false })
+                    {
+                        var sample = source.Sample(x, z, detail);
+                        Assert.Equal(FarSurface.Ground, sample.Surface);
+                        Assert.Equal(ice, sample.Block);
+                        Assert.Equal(iceTop + 1, sample.Top);
+                    }
+
+                    frozen++;
+                }
+            }
+
+        // The land, wherever the continents rise on the world.
+        int land = 0, landMatching = 0;
+        for (int x = 0; x < 9712 && land < 30; x += 97)
+            for (int z = -2000; z < 2000 && land < 30; z += 89)
+            {
+                int ground = generator.SurfaceHeight(planet, x, z);
+                if (ground <= source.SeaLevel || generator.SurfacePondDepth(planet, x, z) > 0 || generator.SurfaceRiverDepth(planet, x, z) > 0
+                    || generator.TryGetHighestBand(planet, x, z, out _))
+                {
+                    continue;
+                }
+
+                var chunk = generator.Generate(planet, new ChunkCoord(x >> 4, ground >> 4, z >> 4));
+                var top = chunk.Get(x & 15, ground & 15, z & 15);
+                if (top.IsAir)
+                {
+                    continue; // a plant or a structure's gap on the column — not the ground this test compares
+                }
+
+                land++;
+                if (source.Sample(x, z, detail: true).Block == top.Value)
+                {
+                    landMatching++;
+                }
+            }
+
+        Assert.True(frozen >= 10, $"the tundra sea should be frozen in the scanned area ({frozen} columns)");
+        Assert.True(land >= 10, $"too few land columns sampled ({land})");
+        Assert.True(landMatching >= land * 0.8, $"the far land disagrees with the chunks' cover: {landMatching}/{land}");
+
+        // A warm world's sea stays water.
+        var warmInfo = new FarTerrainWorldInfo
+        {
+            WorldId = 2,
+            LocationId = "sys0-p0",
+            PlanetType = "ocean",
+            Circumference = 6000,
+            TerrainGeneration = WorldDescription.CurrentTerrainGeneration,
+        };
+        var warm = FarTerrainSource.Create(content, 424242, warmInfo)!;
+        int water = 0;
+        for (int x = 0; x < 3000 && water < 5; x += 53)
+        {
+            if (warm.GroundHeight(x, 0) <= warm.SeaLevel)
+            {
+                Assert.Equal(FarSurface.Water, warm.Sample(x, 0, detail: true).Surface);
+                water++;
+            }
+        }
+
+        Assert.True(water > 0, "the ocean world should have sea columns on the scanned line");
+    }
+
     [Fact]
     public void Connectivity_OpenSolidAndATunnel()
     {

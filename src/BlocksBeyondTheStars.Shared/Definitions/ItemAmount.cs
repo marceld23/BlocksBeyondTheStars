@@ -12,6 +12,11 @@ public sealed class ItemAmount
     public string Item { get; set; } = string.Empty;
     public int Count { get; set; } = 1;
 
+    /// <summary>#2958: an ingredient or a cost that takes any member of this item group (<c>logs</c>, <c>leaves</c>) —
+    /// <see cref="Item"/> is then its representative (shown in lists, given back by a disassembly, used up first).
+    /// Empty for a plain amount of exactly <see cref="Item"/>.</summary>
+    public string Group { get; set; } = string.Empty;
+
     public ItemAmount() { }
 
     public ItemAmount(string item, int count)

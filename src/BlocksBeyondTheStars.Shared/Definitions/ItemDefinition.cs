@@ -125,6 +125,10 @@ public sealed class ItemDefinition
     /// <summary>If this item places a block, the block key it places (else null/empty).</summary>
     public string? PlacesBlock { get; set; }
 
+    /// <summary>#2958: the item group this item belongs to (<c>logs</c>: every wood log, <c>leaves</c>: every leaf kind),
+    /// or empty. A recipe ingredient that names the group (<see cref="ItemAmount.Group"/>) takes any member.</summary>
+    public string Group { get; set; } = string.Empty;
+
     /// <summary>Tool properties when <see cref="Category"/> is <see cref="ItemCategory.Tool"/>.</summary>
     public ToolProperties? Tool { get; set; }
 

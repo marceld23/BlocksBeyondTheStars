@@ -95,7 +95,14 @@ public sealed class MissionObjective
     /// <see cref="MissionObjectiveType.Scan"/> a <see cref="ScanTargets"/> expression.</summary>
     public string Target { get; set; } = string.Empty;
 
+    /// <summary>#2958: a Collect / Deliver objective that takes any member of this item group, <see cref="Target"/>
+    /// being its representative (a villager's firewood wish: logs of any tree). Empty for exactly the target.</summary>
+    public string TargetGroup { get; set; } = string.Empty;
+
     public int Required { get; set; } = 1;
+
+    /// <summary>#2958: a Collect / Deliver objective as the amount it counts and takes — the target, its group included.</summary>
+    public BlocksBeyondTheStars.Shared.Definitions.ItemAmount AsItemAmount() => new(Target, Required) { Group = TargetGroup };
 
     /// <summary>Scan objectives (#1205): when true only FIRST-TIME scans (a new Codex discovery) advance the
     /// count — "discover two plant species"; when false (the default) every matching scan counts, so a kid can

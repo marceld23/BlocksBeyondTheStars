@@ -130,6 +130,7 @@ public sealed partial class GameContent
                 }
 
                 requireItem(ctx, w.Item);
+                ValidateItemGroup(problems, ctx, new ItemAmount(w.Item, w.Count) { Group = w.Group }); // #2958
             }
             else
             {
@@ -284,6 +285,7 @@ public sealed partial class GameContent
             foreach (var input in recipe.Inputs)
             {
                 RequireItem($"Recipe '{recipe.Key}' input", input.Item);
+                ValidateItemGroup(problems, $"Recipe '{recipe.Key}' input", input);
                 if (input.Count < 1)
                 {
                     problems.Add($"Recipe '{recipe.Key}' input '{input.Item}' has invalid amount {input.Count}; must be >= 1.");
@@ -304,8 +306,22 @@ public sealed partial class GameContent
                 problems.Add($"Recipe '{recipe.Key}' has no outputs.");
             }
 
+            // #2958: two ingredients drawing on the same item (a log and "any log") would both count the same stack.
+            var drawn = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var input in recipe.Inputs)
+            {
+                foreach (var key in new[] { input.Item }.Concat(GroupMembersOf(input)).Distinct(StringComparer.Ordinal))
+                {
+                    if (!drawn.Add(key))
+                    {
+                        problems.Add($"Recipe '{recipe.Key}' draws on '{key}' in two ingredients.");
+                    }
+                }
+            }
+
             // A recipe that consumes what it produces is a data error (a free loop or a no-op), not a catalyst (#1048).
-            var inputKeys = new HashSet<string>(recipe.Inputs.Select(i => i.Item), StringComparer.Ordinal);
+            var inputKeys = new HashSet<string>(recipe.Inputs.Select(i => i.Item)
+                .Concat(recipe.Inputs.SelectMany(i => GroupMembersOf(i))), StringComparer.Ordinal); // #2958: any member
             foreach (var output in recipe.Outputs)
             {
                 if (inputKeys.Contains(output.Item))
@@ -330,6 +346,7 @@ public sealed partial class GameContent
             foreach (var cost in bp.UnlockCost)
             {
                 RequireItem($"Blueprint '{bp.Key}' unlock cost", cost.Item);
+                ValidateItemGroup(problems, $"Blueprint '{bp.Key}' unlock cost", cost);
             }
         }
 

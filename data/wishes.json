@@ -10,7 +10,7 @@
   { "key": "fibre_basket", "kind": "deliver", "item": "plant_fiber",  "count": 8,  "jitter": 2, "requires": "flora_drop", "tier": 1,
     "jobs": [ "", "gardener", "craftsman" ],
     "gift": [ { "item": "torch", "count": 4 } ], "reason": "wants to weave a basket" },
-  { "key": "firewood",     "kind": "deliver", "item": "wood_log",     "count": 6,  "jitter": 1, "requires": "trees", "tier": 1,
+  { "key": "firewood",     "kind": "deliver", "item": "wood_log", "group": "logs", "count": 6,  "jitter": 1, "requires": "trees", "tier": 1,
     "gift": [ { "item": "cooked_meat", "count": 1 } ], "reason": "the stove is cold and they need firewood" },
   { "key": "garden_wall",  "kind": "deliver", "item": "stone",        "count": 10, "jitter": 2, "requires": "", "tier": 1,
     "jobs": [ "", "gardener", "craftsman" ],

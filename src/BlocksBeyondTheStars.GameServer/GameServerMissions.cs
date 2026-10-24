@@ -340,7 +340,7 @@ public sealed partial class GameServer
             var obj = def.Objectives[i];
             int have = obj.Type switch
             {
-                MissionObjectiveType.Collect or MissionObjectiveType.Deliver => pool.Count(obj.Target),
+                MissionObjectiveType.Collect or MissionObjectiveType.Deliver => pool.Count(ObjectiveAmount(def, obj)), // #2958: its group
                 _ => i < pr.ObjectiveProgress.Count ? pr.ObjectiveProgress[i] : 0,
             };
 
@@ -364,7 +364,7 @@ public sealed partial class GameServer
         // Consume Deliver items.
         foreach (var obj in def.Objectives.Where(o => o.Type == MissionObjectiveType.Deliver))
         {
-            pool.Remove(new[] { new ItemAmount(obj.Target, obj.Required) });
+            pool.Remove(new[] { ObjectiveAmount(def, obj) });
         }
 
         // Pay the reward.
@@ -1088,7 +1088,7 @@ public sealed partial class GameServer
             var obj = def.Objectives[i];
             int progress = obj.Type switch
             {
-                MissionObjectiveType.Collect or MissionObjectiveType.Deliver => System.Math.Min(obj.Required, pool.Count(obj.Target)),
+                MissionObjectiveType.Collect or MissionObjectiveType.Deliver => System.Math.Min(obj.Required, pool.Count(ObjectiveAmount(def, obj))),
                 _ => pr is not null && i < pr.ObjectiveProgress.Count ? pr.ObjectiveProgress[i] : 0,
             };
 

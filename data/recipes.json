@@ -20,10 +20,10 @@
   { "key": "speeder",          "station": "workshop", "requiredBlueprint": "speeder", "inputs": [ { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 10 }, { "item": "energy_cell_1", "count": 4 }, { "item": "circuit_board", "count": 2 }, { "item": "crystal", "count": 2 }, { "item": "light_alloy", "count": 2 }, { "item": "lubricant", "count": 2 } ], "outputs": [ { "item": "speeder", "count": 1 } ] },
   // The boat (#1215) is the early-game water vehicle: no blueprint, wood + a little iron — a river or a shore
   // should not wait for the speeder tech.
-  { "key": "boat",             "station": "workshop", "inputs": [ { "item": "wood_log", "count": 8 }, { "item": "iron_plate", "count": 2 }, { "item": "cable", "count": 1 } ], "outputs": [ { "item": "boat", "count": 1 } ] },
+  { "key": "boat",             "station": "workshop", "inputs": [ { "item": "wood_log", "group": "logs", "count": 8 }, { "item": "iron_plate", "count": 2 }, { "item": "cable", "count": 1 } ], "outputs": [ { "item": "boat", "count": 1 } ] },
   // #2536: the same boat by hand, anywhere — all wood, lashed together with plant fibre (a little more of both).
   // #2544: its own card title + text, so the list shows "Wooden boat" next to the workshop's "Boat" (same item).
-  { "key": "boat_wood",        "station": "hand",     "nameKey": "recipe.boat_wood.name", "descriptionKey": "recipe.boat_wood.desc", "inputs": [ { "item": "wood_log", "count": 10 }, { "item": "plant_fiber", "count": 6 } ], "outputs": [ { "item": "boat", "count": 1 } ] },
+  { "key": "boat_wood",        "station": "hand",     "nameKey": "recipe.boat_wood.name", "descriptionKey": "recipe.boat_wood.desc", "inputs": [ { "item": "wood_log", "group": "logs", "count": 10 }, { "item": "plant_fiber", "count": 6 } ], "outputs": [ { "item": "boat", "count": 1 } ] },
   { "key": "camera",           "station": "workshop", "requiredBlueprint": "camera",  "inputs": [ { "item": "iron_plate", "count": 2 }, { "item": "glass", "count": 1 }, { "item": "cable", "count": 2 }, { "item": "circuit_board", "count": 1 } ], "outputs": [ { "item": "camera", "count": 1 } ] },
   { "key": "paint_tool",       "station": "workshop", "requiredBlueprint": "paint_tool", "inputs": [ { "item": "iron_plate", "count": 1 }, { "item": "berries", "count": 4 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "paint_tool", "count": 1 } ] },
   // The shaping tool is the paint tool's twin: it opens the form editor and copies a form off a placed block.
@@ -203,7 +203,7 @@
   { "key": "market_doctor_medpack", "station": "market", "marketTheme": "medics", "inputs": [ { "item": "iron_ore", "count": 3 } ], "outputs": [ { "item": "medpack", "count": 2 } ] },
   { "key": "market_doctor_field_medkit", "station": "market", "marketTheme": "medics", "inputs": [ { "item": "gold_ingot", "count": 1 }, { "item": "crystal", "count": 2 } ], "outputs": [ { "item": "field_medkit", "count": 1 } ] },
   { "key": "market_doctor_detoxifier", "station": "market", "marketTheme": "medics", "inputs": [ { "item": "diamond", "count": 1 }, { "item": "gold_ingot", "count": 2 } ], "outputs": [ { "item": "detoxifier", "count": 1 } ] },
-  { "key": "market_doctor_bed", "station": "market", "marketTheme": "medics", "marketRotation": 2, "inputs": [ { "item": "wood_log", "count": 4 }, { "item": "iron_ore", "count": 2 } ], "outputs": [ { "item": "bed", "count": 1 } ] },
+  { "key": "market_doctor_bed", "station": "market", "marketTheme": "medics", "marketRotation": 2, "inputs": [ { "item": "wood_log", "group": "logs", "count": 4 }, { "item": "iron_ore", "count": 2 } ], "outputs": [ { "item": "bed", "count": 1 } ] },
   { "key": "market_doctor_stretcher", "station": "market", "marketTheme": "medics", "marketRotation": 2, "inputs": [ { "item": "iron_plate", "count": 2 }, { "item": "plant_fiber", "count": 4 } ], "outputs": [ { "item": "stretcher", "count": 1 } ] },
   { "key": "market_grocer_berries", "station": "market", "marketTheme": "grocer", "inputs": [ { "item": "iron_ore", "count": 2 } ], "outputs": [ { "item": "berries", "count": 6 } ] },
   { "key": "market_grocer_stew", "station": "market", "marketTheme": "grocer", "inputs": [ { "item": "copper_ore", "count": 3 } ], "outputs": [ { "item": "hearty_stew", "count": 2 } ] },
@@ -244,7 +244,7 @@
 
   { "key": "ladder", "station": "hand", "inputs": [ { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "ladder", "count": 3 } ] },
   // #2536: a wooden ladder by hand, for the player who has wood but no carbon yet.
-  { "key": "ladder_wood", "station": "hand", "inputs": [ { "item": "wood_log", "count": 2 } ], "outputs": [ { "item": "ladder", "count": 3 } ] },
+  { "key": "ladder_wood", "station": "hand", "inputs": [ { "item": "wood_log", "group": "logs", "count": 2 } ], "outputs": [ { "item": "ladder", "count": 3 } ] },
   { "key": "stairs", "station": "hand", "inputs": [ { "item": "stone", "count": 2 } ], "outputs": [ { "item": "stairs", "count": 4 } ] },
 
   { "key": "gold_ingot",     "station": "workshop", "inputs": [ { "item": "gold_ore", "count": 2 } ],      "outputs": [ { "item": "gold_ingot", "count": 1 } ] },
@@ -299,13 +299,13 @@
   { "key": "fiber_alien_grass",  "station": "hand",     "inputs": [ { "item": "alien_grass", "count": 1 } ],                              "outputs": [ { "item": "plant_fiber", "count": 2 } ] },
   // #1847: turf you can carry — mined grass now drops itself, and a spade of dirt plus a handful of fibre grows a fresh block.
   { "key": "grass",              "station": "hand",     "inputs": [ { "item": "dirt", "count": 1 }, { "item": "plant_fiber", "count": 1 } ], "outputs": [ { "item": "grass", "count": 1 } ] },
-  { "key": "crate",       "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 3 }, { "item": "wood_log", "count": 2 } ], "outputs": [ { "item": "crate", "count": 1 } ] },
-  { "key": "door_wood",   "station": "hand",     "inputs": [ { "item": "wood_log", "count": 4 } ],                                          "outputs": [ { "item": "door_wood", "count": 1 } ] },
-  { "key": "torch",       "station": "hand",     "inputs": [ { "item": "wood_log", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "torch", "count": 4 } ] },
+  { "key": "crate",       "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 3 }, { "item": "wood_log", "group": "logs", "count": 2 } ], "outputs": [ { "item": "crate", "count": 1 } ] },
+  { "key": "door_wood",   "station": "hand",     "inputs": [ { "item": "wood_log", "group": "logs", "count": 4 } ],                                          "outputs": [ { "item": "door_wood", "count": 1 } ] },
+  { "key": "torch",       "station": "hand",     "inputs": [ { "item": "wood_log", "group": "logs", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "torch", "count": 4 } ] },
   // #2536: the wooden tools — made by hand from wood, plant fibre and stone, a little weaker than the ship's own.
-  { "key": "wood_pickaxe", "station": "hand",    "inputs": [ { "item": "wood_log", "count": 3 }, { "item": "plant_fiber", "count": 2 }, { "item": "stone", "count": 1 } ], "outputs": [ { "item": "wood_pickaxe", "count": 1 } ] },
-  { "key": "wood_club",    "station": "hand",    "inputs": [ { "item": "wood_log", "count": 2 }, { "item": "plant_fiber", "count": 1 } ],                                     "outputs": [ { "item": "wood_club", "count": 1 } ] },
-  { "key": "wood_spear",   "station": "hand",    "inputs": [ { "item": "wood_log", "count": 2 }, { "item": "plant_fiber", "count": 2 }, { "item": "stone", "count": 1 } ], "outputs": [ { "item": "wood_spear", "count": 1 } ] },
+  { "key": "wood_pickaxe", "station": "hand",    "inputs": [ { "item": "wood_log", "group": "logs", "count": 3 }, { "item": "plant_fiber", "count": 2 }, { "item": "stone", "count": 1 } ], "outputs": [ { "item": "wood_pickaxe", "count": 1 } ] },
+  { "key": "wood_club",    "station": "hand",    "inputs": [ { "item": "wood_log", "group": "logs", "count": 2 }, { "item": "plant_fiber", "count": 1 } ],                                     "outputs": [ { "item": "wood_club", "count": 1 } ] },
+  { "key": "wood_spear",   "station": "hand",    "inputs": [ { "item": "wood_log", "group": "logs", "count": 2 }, { "item": "plant_fiber", "count": 2 }, { "item": "stone", "count": 1 } ], "outputs": [ { "item": "wood_spear", "count": 1 } ] },
   { "key": "door_hinge",  "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "bronze_gear", "count": 1 } ], "outputs": [ { "item": "door_hinge", "count": 1 } ] },
   { "key": "door_slide",  "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "circuit_board", "count": 1 }, { "item": "bronze_gear", "count": 1 } ], "outputs": [ { "item": "door_slide", "count": 1 } ] },
   { "key": "door_energy", "station": "workshop", "requiredBlueprint": "door_energy", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "circuit_board", "count": 1 }, { "item": "crystal", "count": 1 } ], "outputs": [ { "item": "door_energy", "count": 1 } ] },
@@ -335,7 +335,7 @@
   { "key": "seed_grain",   "station": "hand", "inputs": [ { "item": "grain", "count": 3 } ],       "outputs": [ { "item": "grain_seed", "count": 2 } ] },
   { "key": "seed_shroom",  "station": "hand", "inputs": [ { "item": "mushroom_cap", "count": 2 } ], "outputs": [ { "item": "shroom_seed", "count": 2 } ] },
   // Saplings (#1774): a log and some fibre make two young trees by hand — leaves drop one now and then as well.
-  { "key": "sapling",      "station": "hand", "inputs": [ { "item": "wood_log", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "sapling", "count": 2 } ] },
+  { "key": "sapling",      "station": "hand", "inputs": [ { "item": "wood_log", "group": "logs", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "sapling", "count": 2 } ] },
   // The hydroponic tray the high-tech greenhouses grow crops in — the one host block that is not soil.
   { "key": "hydro_tray",   "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "plant_fiber", "count": 2 }, { "item": "brass_fitting", "count": 1 } ], "outputs": [ { "item": "hydro_tray", "count": 2 } ] },
 
@@ -409,21 +409,21 @@
   { "key": "tungsten_block_unpack",  "station": "workshop", "inputs": [ { "item": "tungsten_block", "count": 1 } ],  "outputs": [ { "item": "tungsten_ingot", "count": 9 } ] },
   { "key": "titanium_block_unpack",  "station": "workshop", "inputs": [ { "item": "titanium_block", "count": 1 } ],  "outputs": [ { "item": "titanium_plate", "count": 9 } ] },
 
-  { "key": "bed",         "station": "hand",     "inputs": [ { "item": "wood_log", "count": 6 }, { "item": "plant_fiber", "count": 8 } ], "outputs": [ { "item": "bed", "count": 1 } ] },
+  { "key": "bed",         "station": "hand",     "inputs": [ { "item": "wood_log", "group": "logs", "count": 6 }, { "item": "plant_fiber", "count": 8 } ], "outputs": [ { "item": "bed", "count": 1 } ] },
   { "key": "crew_bunk",   "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "plant_fiber", "count": 6 } ], "outputs": [ { "item": "crew_bunk", "count": 1 } ] },
-  { "key": "campfire",    "station": "hand",     "inputs": [ { "item": "wood_log", "count": 4 }, { "item": "stone", "count": 2 } ],       "outputs": [ { "item": "campfire", "count": 1 } ] },
-  { "key": "wood_crate",  "station": "hand",     "inputs": [ { "item": "wood_log", "count": 6 } ],                                          "outputs": [ { "item": "wood_crate", "count": 1 } ] },
-  { "key": "lantern",     "station": "hand",     "inputs": [ { "item": "wood_log", "count": 2 }, { "item": "glass", "count": 1 } ],       "outputs": [ { "item": "lantern", "count": 2 } ] },
+  { "key": "campfire",    "station": "hand",     "inputs": [ { "item": "wood_log", "group": "logs", "count": 4 }, { "item": "stone", "count": 2 } ],       "outputs": [ { "item": "campfire", "count": 1 } ] },
+  { "key": "wood_crate",  "station": "hand",     "inputs": [ { "item": "wood_log", "group": "logs", "count": 6 } ],                                          "outputs": [ { "item": "wood_crate", "count": 1 } ] },
+  { "key": "lantern",     "station": "hand",     "inputs": [ { "item": "wood_log", "group": "logs", "count": 2 }, { "item": "glass", "count": 1 } ],       "outputs": [ { "item": "lantern", "count": 2 } ] },
   { "key": "stretcher",   "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 2 }, { "item": "plant_fiber", "count": 4 } ], "outputs": [ { "item": "stretcher", "count": 1 } ] },
   { "key": "rug",         "station": "hand",     "inputs": [ { "item": "plant_fiber", "count": 6 } ],                                       "outputs": [ { "item": "rug", "count": 2 } ] },
   { "key": "flower_pot",  "station": "hand",     "inputs": [ { "item": "mud", "count": 2 }, { "item": "plant_fiber", "count": 1 } ],      "outputs": [ { "item": "flower_pot", "count": 1 } ] },
   { "key": "cooked_meat", "station": "campfire", "inputs": [ { "item": "creature_meat", "count": 1 } ],                                     "outputs": [ { "item": "cooked_meat", "count": 1 } ] },
   // #1203 campfire kiln: the flame does the slow jobs — char, melt, boil — better than by hand (ice 1 → water,
   // one log → 6 torches), and with the field-kitchen blueprint it cooks the three meals.
-  { "key": "char_wood", "station": "campfire", "inputs": [ { "item": "wood_log", "count": 2 } ], "outputs": [ { "item": "carbon", "count": 1 } ] },
+  { "key": "char_wood", "station": "campfire", "inputs": [ { "item": "wood_log", "group": "logs", "count": 2 } ], "outputs": [ { "item": "carbon", "count": 1 } ] },
   { "key": "melt_ice", "station": "campfire", "inputs": [ { "item": "ice", "count": 1 } ], "outputs": [ { "item": "water", "count": 1 } ] },
   { "key": "boil_salt", "station": "campfire", "inputs": [ { "item": "water", "count": 2 } ], "outputs": [ { "item": "salt", "count": 1 } ] },
-  { "key": "torch_campfire", "station": "campfire", "inputs": [ { "item": "wood_log", "count": 1 } ], "outputs": [ { "item": "torch", "count": 6 } ] },
+  { "key": "torch_campfire", "station": "campfire", "inputs": [ { "item": "wood_log", "group": "logs", "count": 1 } ], "outputs": [ { "item": "torch", "count": 6 } ] },
   { "key": "hearty_stew", "station": "campfire", "requiredBlueprint": "field_kitchen", "inputs": [ { "item": "cooked_meat", "count": 1 }, { "item": "grain", "count": 2 }, { "item": "berries", "count": 1 }, { "item": "water", "count": 1 } ], "outputs": [ { "item": "hearty_stew", "count": 1 } ] },
   { "key": "algae_soup", "station": "campfire", "requiredBlueprint": "field_kitchen", "inputs": [ { "item": "algae_ration", "count": 2 }, { "item": "water", "count": 1 }, { "item": "salt", "count": 1 } ], "outputs": [ { "item": "algae_soup", "count": 2 } ] },
   { "key": "mushroom_skewer", "station": "campfire", "requiredBlueprint": "field_kitchen", "inputs": [ { "item": "mushroom_cap", "count": 2 }, { "item": "mushroom_stem", "count": 1 } ], "outputs": [ { "item": "mushroom_skewer", "count": 2 } ] },
@@ -514,7 +514,7 @@
   { "key": "sensor_lens", "station": "workshop", "requiredBlueprint": "planet_scanner", "inputs": [ { "item": "crystal", "count": 2 }, { "item": "glass", "count": 2 }, { "item": "circuit_board", "count": 1 } ], "outputs": [ { "item": "sensor_lens", "count": 1 } ] },
   { "key": "quantum_sensor", "station": "workshop", "requiredBlueprint": "quantum_scanner", "inputs": [ { "item": "data_fragment", "count": 2 }, { "item": "neodymium", "count": 2 }, { "item": "crystal", "count": 4 }, { "item": "energy_cell_1", "count": 2 } ], "outputs": [ { "item": "quantum_sensor", "count": 1 } ] },
   { "key": "phase_block", "station": "workshop", "requiredBlueprint": "crystal_mechanics", "inputs": [ { "item": "crystal", "count": 1 }, { "item": "stone", "count": 2 } ], "outputs": [ { "item": "phase_block", "count": 2 } ] },
-  { "key": "trapdoor", "station": "workshop", "requiredBlueprint": "crystal_mechanics", "inputs": [ { "item": "crystal", "count": 1 }, { "item": "iron_plate", "count": 1 }, { "item": "wood_log", "count": 1 } ], "outputs": [ { "item": "trapdoor", "count": 1 } ] },
+  { "key": "trapdoor", "station": "workshop", "requiredBlueprint": "crystal_mechanics", "inputs": [ { "item": "crystal", "count": 1 }, { "item": "iron_plate", "count": 1 }, { "item": "wood_log", "group": "logs", "count": 1 } ], "outputs": [ { "item": "trapdoor", "count": 1 } ] },
   { "key": "bridge_motor", "station": "workshop", "requiredBlueprint": "crystal_mechanics", "inputs": [ { "item": "crystal", "count": 2 }, { "item": "iron_plate", "count": 3 }, { "item": "circuit_board", "count": 1 } ], "outputs": [ { "item": "bridge_motor", "count": 1 } ] },
   { "key": "piston", "station": "workshop", "requiredBlueprint": "crystal_piston", "inputs": [ { "item": "crystal", "count": 2 }, { "item": "iron_plate", "count": 3 }, { "item": "magnet", "count": 1 } ], "outputs": [ { "item": "piston", "count": 1 } ] },
   { "key": "lift_motor", "station": "workshop", "requiredBlueprint": "crystal_lift", "inputs": [ { "item": "crystal", "count": 4 }, { "item": "titanium_plate", "count": 4 }, { "item": "circuit_board", "count": 2 }, { "item": "magnet", "count": 2 } ], "outputs": [ { "item": "lift_motor", "count": 1 } ] },

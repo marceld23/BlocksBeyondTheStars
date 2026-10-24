@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 
 namespace BlocksBeyondTheStars.Client
@@ -36,9 +37,10 @@ namespace BlocksBeyondTheStars.Client
     public static class BlueprintResearch
     {
         /// <summary>The state of <paramref name="bp"/>. Knowledge is named before materials: it is the slower faucet,
-        /// so it is the one worth naming when both are short (#1191).</summary>
+        /// so it is the one worth naming when both are short (#1191). With <paramref name="content"/> a cost that names an
+        /// item group (#2958: any log) counts every member of it, as the server does.</summary>
         public static BlueprintResearchState StateOf(BlueprintDefinition bp, ICollection<string> researched, int knowledge,
-            Func<string, int> owned)
+            Func<string, int> owned, GameContent? content = null)
         {
             if (researched.Contains(bp.Key))
             {
@@ -60,7 +62,16 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var cost in bp.UnlockCost)
             {
-                if (owned(cost.Item) < cost.Count)
+                int have = owned(cost.Item);
+                if (content != null)
+                {
+                    foreach (var member in content.GroupMembersOf(cost))
+                    {
+                        have += member == cost.Item ? 0 : owned(member);
+                    }
+                }
+
+                if (have < cost.Count)
                 {
                     return BlueprintResearchState.MaterialsMissing;
                 }
@@ -72,7 +83,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True when <paramref name="bp"/> can be researched right now: not yet researched, every prerequisite
         /// done, the knowledge balance covers the cost and every research material is owned.</summary>
         public static bool IsResearchableNow(BlueprintDefinition bp, ICollection<string> researched, int knowledge,
-            Func<string, int> owned)
-            => StateOf(bp, researched, knowledge, owned) == BlueprintResearchState.Researchable;
+            Func<string, int> owned, GameContent? content = null)
+            => StateOf(bp, researched, knowledge, owned, content) == BlueprintResearchState.Researchable;
     }
 }

@@ -239,7 +239,7 @@ public sealed partial class GameServer
         // Inputs: every crate beside the fabricator counts; all or nothing.
         foreach (var need in recipe.Inputs)
         {
-            int have = crates.Sum(c => c.Items.Where(s => s.Item == need.Item).Sum(s => s.Count));
+            int have = crates.Sum(c => c.Items.Where(s => _content.Accepts(need, s.Item)).Sum(s => s.Count)); // #2958: any log
             if (have < need.Count)
             {
                 SetCrystalBlocked(fab, true);
@@ -257,31 +257,15 @@ public sealed partial class GameServer
 
         foreach (var need in recipe.Inputs)
         {
-            int left = need.Count;
-            foreach (var crate in crates)
+            // #2958: a group ingredient takes its representative first, then the other members in item order — the
+            // material pool's order, so the common logs burn before the pale ones.
+            int left = TakeFromCrates(crates, need.Item, need.Count);
+            foreach (var member in _content.GroupMembersOf(need))
             {
-                if (left <= 0)
+                if (left > 0 && member != need.Item)
                 {
-                    break;
+                    left = TakeFromCrates(crates, member, left);
                 }
-
-                foreach (var s in crate.Items)
-                {
-                    if (left <= 0)
-                    {
-                        break;
-                    }
-
-                    if (s.Item == need.Item)
-                    {
-                        int take = Math.Min(left, s.Count);
-                        s.Count -= take;
-                        left -= take;
-                    }
-                }
-
-                crate.Items.RemoveAll(s => s.Count <= 0);
-                _repo.SaveContainer(crate);
             }
         }
 
@@ -291,6 +275,39 @@ public sealed partial class GameServer
         BroadcastToWorld(new SoundFx { SoundId = "fabricator_craft", X = fab.Cell.X + 0.5f, Y = fab.Cell.Y + 0.5f, Z = fab.Cell.Z + 0.5f, SourceId = fab.Id });
 
         return true;
+    }
+
+    /// <summary>Takes up to <paramref name="count"/> of one item out of the fabricator's crates, crate by crate, and saves
+    /// each crate it touched; returns what is still missing.</summary>
+    private int TakeFromCrates(List<StoredContainer> crates, string item, int count)
+    {
+        foreach (var crate in crates)
+        {
+            if (count <= 0)
+            {
+                break;
+            }
+
+            bool took = false;
+            foreach (var s in crate.Items)
+            {
+                if (count > 0 && s.Item == item)
+                {
+                    int take = Math.Min(count, s.Count);
+                    s.Count -= take;
+                    count -= take;
+                    took = true;
+                }
+            }
+
+            if (took)
+            {
+                crate.Items.RemoveAll(s => s.Count <= 0);
+                _repo.SaveContainer(crate);
+            }
+        }
+
+        return count;
     }
 
     // ------------------------------------------------------------------------------------------------------

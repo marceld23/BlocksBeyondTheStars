@@ -115,7 +115,8 @@ settlement boxes.
   (air, tree cells, flora, fluids, loose snow or sand, terrain without an edit row) — a hut of logs and leaves or a ruin's
   frame is no tree; never in a settlement box, ruins included. `NpcFellTree` takes the tree down from the top over a few
   ticks (`TickNpcFelling`: fruit first, then outer before inner, leaves before wood; ≥ 24 cells/s, ≤ 12 a tick, about 2.5 s),
-  one `BlockChanged` per cell, a `tree_fall` `SoundFx` to players within 48 m at the start, logs banked as they fall (≤ 8);
+  one `BlockChanged` per cell, a `tree_fall` `SoundFx` to players within 48 m at the start, logs banked as they fall (≤ 8;
+  each as its trunk drops it — a birch's pale bark as `wood_log_b` since #2958);
   from the point where fewer than 4 leaves or 2 trunk logs would remain (`CollapseAt`) the rest comes down in one tick and a
   sapling is planted on the base cell (owner "", the normal 150 s sapling clock, persisted by the flora queue) — a crash
   leaves a tree or a sapling, never a stump. Fellings are RAM-only and dropped when their world unloads.

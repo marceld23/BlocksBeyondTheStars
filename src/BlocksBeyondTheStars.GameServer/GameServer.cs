@@ -5554,7 +5554,7 @@ public sealed partial class GameServer
         }
 
         var pool = new MaterialPool(_content, session.State, _ship);
-        var scaledInputs = recipe.Inputs.Select(i => new ItemAmount(i.Item, i.Count * count)).ToList();
+        var scaledInputs = recipe.Inputs.Select(i => new ItemAmount(i.Item, i.Count * count) { Group = i.Group }).ToList(); // #2958: keep the group
         if (!pool.Has(scaledInputs))
         {
             // #2585: name what is missing ("Titanium Ore (0/2)") — "Missing materials." left the player guessing.

@@ -93,6 +93,14 @@ components, a category sidebar and blueprint state.
   it a `CraftGateInput` (plain values plus four answers only Unity can give, as delegates bound once).
   `CraftGateTests` (Client.Tests) pins the order and checks `ResultFits`, `Owned` and `HasAll` against the server's
   `MaterialPool`.
+- **Item groups (#2958).** An ingredient or a research cost may name an item group —
+  `{ "item": "wood_log", "group": "logs", "count": 2 }` takes any log (`wood_log`, the pale `wood_log_b`). Members carry
+  `"group"` in `data/items.json`; `GameContent.GroupMembersOf` lists them in item order. `item` stays the representative:
+  the name a row falls back to, the crafting depth, what a disassembly gives back — and it is used up first, the other
+  members after it. `MaterialPool.Count/Has/Remove/CanFitAfterRemoving(ItemAmount)` and `CraftGate.Owned(ItemAmount)` read
+  the group the same way (`CraftGateTests` pins the parity); the ingredient rows name it as the group
+  (`itemgroup.<group>.name`, "Logs (any kind)"). Wish templates carry `group` too, and the coined objective keeps it
+  (`MissionObjective.TargetGroup`). The validator rejects an unknown group and a representative outside its group.
 - Data sources (no new data needed): `ItemDefinition` (category/tool/effects), `RecipeDefinition`
   (station/blueprint/inputs/outputs), `BlueprintDefinition` (category/prerequisites/costs),
   `ShipModuleDefinition` / `ShipDefinition` (stats/cost/blueprint), `Game.OwnedShips`.

@@ -59,28 +59,34 @@ public sealed partial class WorldGenerator
         var calib = CalibFor(planet);
         int idx = biomes.Count <= 1 ? 0 : BiomeIndex(calib, PlanetSeed(planet), worldX, worldZ, biomes.Count, h);
         var b = biomes[idx];
-        BlockId surface = b.Surface;
-
-        // Altitude climate (#476): above the snow line snow, further up solid ice — the column pass's rule without
-        // its ±1.5 °C dither (a map pixel spans dozens of blocks).
-        if (SnowClimate(planet, calib))
-        {
-            double t = TempAt(calib, h);
-            var ice = _content.GetBlock("ice")?.NumericId ?? BlockId.Air;
-            var snow = _content.GetBlock("snow")?.NumericId ?? BlockId.Air;
-            if (t < IceLineC && !ice.IsAir)
-            {
-                surface = ice;
-            }
-            else if (t < SnowLineC && !snow.IsAir)
-            {
-                surface = snow;
-            }
-        }
+        BlockId surface = AltitudeClimateSurface(planet, b.Surface, h);
 
         double vegetation = planet.FloraDensity * b.FloraMul * 0.9 + (planet.TreeDensity ?? 0.0) * b.TreeMul * 6.0;
         vegetation = System.Math.Clamp(vegetation, 0.0, 0.6) * ColdFloraFactor(calib, h);
         return new SurfaceSummary(h, idx, surface, vegetation, b.Hot, b.SandSea, MapPondAt(planet, worldX, worldZ, h));
+    }
+
+    /// <summary>The block a distant viewer sees on a dry column <paramref name="height"/> high whose bare surface is
+    /// <paramref name="surface"/>: the altitude climate (#476) — above the snow line snow, further up solid ice — the
+    /// column pass's rule without its ±1.5 °C dither (a map pixel, a far-terrain vertex spans dozens of blocks). The
+    /// surface unchanged on a world that never gets that cold.</summary>
+    public BlockId AltitudeClimateSurface(PlanetType planet, BlockId surface, int height)
+    {
+        var calib = CalibFor(planet);
+        if (!SnowClimate(planet, calib))
+        {
+            return surface;
+        }
+
+        double t = TempAt(calib, height);
+        var ice = _content.GetBlock("ice")?.NumericId ?? BlockId.Air;
+        var snow = _content.GetBlock("snow")?.NumericId ?? BlockId.Air;
+        if (t < IceLineC && !ice.IsAir)
+        {
+            return ice;
+        }
+
+        return t < SnowLineC && !snow.IsAir ? snow : surface;
     }
 
     /// <summary>True when this world's sea carries ice at its surface (#494): a cold enough waterline, or a type's

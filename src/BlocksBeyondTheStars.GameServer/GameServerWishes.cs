@@ -402,7 +402,7 @@ public sealed partial class GameServer
             NameKey = "wish.title",
             DescriptionKey = tpl.AskKey,
             GiverName = plan.Giver?.Name ?? string.Empty,
-            Objectives = { new MissionObjective { Type = tpl.ObjectiveType, Target = tpl.Item, Required = plan.Count } },
+            Objectives = { new MissionObjective { Type = tpl.ObjectiveType, Target = tpl.Item, TargetGroup = tpl.Group, Required = plan.Count } },
             KnowledgeReward = tpl.Knowledge,
             Repeatable = false,
             Active = true,
@@ -414,6 +414,20 @@ public sealed partial class GameServer
         }
 
         return def;
+    }
+
+    /// <summary>#2958: what a Collect / Deliver objective counts and takes — its target, its group included. A wish coined
+    /// before the groups existed (saved without <see cref="MissionObjective.TargetGroup"/>) takes the group of the template
+    /// it came from, so an old firewood wish takes pale logs too.</summary>
+    private ItemAmount ObjectiveAmount(MissionDefinition def, MissionObjective obj)
+    {
+        var need = obj.AsItemAmount();
+        if (need.Group.Length == 0 && def.NameKey == "wish.title" && WishTemplateOf(def) is { } tpl && tpl.Item == obj.Target)
+        {
+            need.Group = tpl.Group;
+        }
+
+        return need;
     }
 
     /// <summary>The template a wish definition was coined from (its description key), or null when it left the data.</summary>
@@ -454,7 +468,7 @@ public sealed partial class GameServer
         }
 
         return obj.Type is MissionObjectiveType.Collect or MissionObjectiveType.Deliver
-            ? (pool ?? new MaterialPool(_content, session.State, ShipOf(session))).Count(obj.Target)
+            ? (pool ?? new MaterialPool(_content, session.State, ShipOf(session))).Count(ObjectiveAmount(def, obj)) // #2958: its group
             : pr.ObjectiveProgress.Count > 0 ? pr.ObjectiveProgress[0] : 0;
     }
 

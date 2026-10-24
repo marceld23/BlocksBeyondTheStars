@@ -1107,7 +1107,7 @@ public sealed partial class GameServer
             bool all = true;
             foreach (var input in r.Inputs)
             {
-                if (p.Inventory.CountOf(input.Item) < input.Count)
+                if (BackpackCountOf(p, input) < input.Count)
                 {
                     all = false;
                     break;
@@ -1121,6 +1121,21 @@ public sealed partial class GameServer
         }
 
         return null;
+    }
+
+    /// <summary>An ingredient in the backpack, a group ingredient's other members included (#2958: pale logs are wood).</summary>
+    private int BackpackCountOf(PlayerState p, ItemAmount need)
+    {
+        int n = p.Inventory.CountOf(need.Item);
+        foreach (var member in _content.GroupMembersOf(need))
+        {
+            if (member != need.Item)
+            {
+                n += p.Inventory.CountOf(member);
+            }
+        }
+
+        return n;
     }
 
     /// <summary>A locked blueprint whose prerequisites are met and whose knowledge + item cost the player
@@ -1140,7 +1155,7 @@ public sealed partial class GameServer
             bool all = true;
             foreach (var cost in bp.UnlockCost)
             {
-                if (p.Inventory.CountOf(cost.Item) < cost.Count)
+                if (BackpackCountOf(p, cost) < cost.Count)
                 {
                     all = false;
                     break;

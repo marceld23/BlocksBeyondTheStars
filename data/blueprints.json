@@ -469,7 +469,7 @@
   {
     "key": "field_kitchen", "nameKey": "blueprint.field_kitchen.name", "descriptionKey": "blueprint.field_kitchen.desc",
     "category": "Production", "prerequisites": [], "knowledgeCost": 10,
-    "unlockCost": [ { "item": "plant_fiber", "count": 4 }, { "item": "berries", "count": 2 }, { "item": "wood_log", "count": 2 } ]
+    "unlockCost": [ { "item": "plant_fiber", "count": 4 }, { "item": "berries", "count": 2 }, { "item": "wood_log", "group": "logs", "count": 2 } ]
   },
   {
     "key": "bio_refining", "nameKey": "blueprint.bio_refining.name", "descriptionKey": "blueprint.bio_refining.desc",

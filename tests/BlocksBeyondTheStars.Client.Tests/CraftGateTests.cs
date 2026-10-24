@@ -362,10 +362,35 @@ public sealed class CraftGateTests
         Assert.Equal(CraftBlock.None, CraftGate.Check(laser, atTheBench));
     }
 
+    /// <summary>#2958: a recipe that takes any log is craftable from pale logs, alone or mixed with common ones — the gate
+    /// counts the group exactly like the server's pool, and an order of two is short of it on both sides.</summary>
+    [Fact]
+    public void PaleLogs_MakeAWoodRecipeCraftable_LikeThePool()
+    {
+        var player = new PlayerState { PlayerId = "p1", Name = "Crafter", AboardShip = false };
+        var ship = new ShipState();
+        player.Inventory.Add("wood_log_b", 3, 1024);
+        player.Inventory.Add("wood_log", 1, 1024);
+        var door = Content.Recipes["door_wood"];
+        var logs = door.Inputs.Single();
+        Assert.Equal("logs", logs.Group);
+        var pool = new MaterialPool(Content, player, ship);
+        var here = FromServer(player, ship, "door_wood");
+
+        Assert.Equal(4, pool.Count(logs));
+        Assert.Equal(pool.Count(logs), CraftGate.Owned(logs, here));
+        Assert.True(pool.Has(door.Inputs));
+        Assert.Equal(pool.Has(door.Inputs), CraftGate.HasAll(door.Inputs, here));
+        Assert.Equal(CraftBlock.None, CraftGate.Check(door, here));
+        Assert.Equal(1, CraftGate.MaxCraftable(door, here));
+        Assert.False(pool.Has(Scaled(door.Inputs, 2)));
+        Assert.Equal(CraftBlock.NeedMaterials, CraftGate.Check(door, here, count: 2));
+    }
+
     // --- an order of N, as the server scales it (HandleCraft) ---
 
     private static List<ItemAmount> Scaled(IEnumerable<ItemAmount> amounts, int count)
-        => amounts.Select(a => new ItemAmount(a.Item, a.Count * count)).ToList();
+        => amounts.Select(a => new ItemAmount(a.Item, a.Count * count) { Group = a.Group }).ToList(); // #2958: as HandleCraft scales
 
     [Theory]
     [InlineData("empty_backpack", 17, true)]

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -137,17 +138,29 @@ namespace BlocksBeyondTheStars.Client.FarTerrain
 
             if (SeaLevel != int.MinValue && ground <= SeaLevel) // the generator's own sea-column test
             {
+                // #2956: a frozen sea is ice from afar, as it is in the chunks — every column asks the chunks' own freeze
+                // rule (the ragged freeze edge, a hot zone's open water), on both levels, so they agree at their seam; a
+                // world that never freezes answers at the first check.
+                if (_seaIsWater && _generator.TryGetIceSurface(Planet, worldX, worldZ, out _))
+                {
+                    return new FarSample(SeaLevel + 1, FarSurface.Ground, BlockIdOf("ice"));
+                }
+
                 return new FarSample(SeaLevel + 1, _seaIsWater ? FarSurface.Water : _seaIsGas ? FarSurface.Gas : FarSurface.Lava, 0);
             }
 
             if (detail && _pondsAndRivers
                 && (_generator.SurfacePondDepth(Planet, worldX, worldZ) > 0 || _generator.SurfaceRiverDepth(Planet, worldX, worldZ) > 0))
             {
-                return new FarSample(ground + 1, FarSurface.Water, 0);
+                return _generator.TryGetIceSurface(Planet, worldX, worldZ, out _) // #2956: a frozen pond or river
+                    ? new FarSample(ground + 1, FarSurface.Ground, BlockIdOf("ice"))
+                    : new FarSample(ground + 1, FarSurface.Water, 0);
             }
 
+            // #2956: the land wears the column pass's altitude snow and ice, not the bare biome surface.
             string? key = detail ? _generator.BiomeSurfaceKeyAt(Planet, worldX, worldZ) : null;
-            return new FarSample(ground + 1, FarSurface.Ground, BlockIdOf(key ?? Planet.SurfaceBlock));
+            var bare = new BlockId(BlockIdOf(key ?? Planet.SurfaceBlock));
+            return new FarSample(ground + 1, FarSurface.Ground, _generator.AltitudeClimateSurface(Planet, bare, ground).Value);
         }
 
         /// <summary>What a band's top reads as from afar (#2333): a pond or a fluid band is the sea's fluid, an ice

@@ -24,6 +24,41 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player reports 2026-10-24, afternoon (Justus as Layex + Jonah as Screelit, LAN world "J&J", v2026.10.25) — jellyfish blinking over a frozen sea, ice gone from the far view, a medkit that "does nothing", every tree the standard kind — #2955–#2958, branch fix/reports-2026-10-24b — ✅ done 2026-10-24 (⚠ playtest open; no generation or save-version change, no protocol bump)
+
+Four reports from a LAN afternoon: two jellyfish over the frozen tundra sea "blink all the time" (the kids: they jump
+back and forth); ice is not shown in the far view; the field medkit works neither on the other player nor on yourself;
+and cutting a tree always gives the one standard log and leaves.
+
+- **Air jellyfish over a deep frozen sea (#2955):** reproduced headless with the real server — the band probes followed a
+  water body only 32 cells up (`FluidColumnScan`) and never looked through an ice sheet, so under the sheet the middle of
+  the ocean read as its surface and above it the seabed did; both answers were > 24 apart, the hover ease snaps, and the
+  animal teleported between them every tick (reported Y 65.32 = the upper state). The spawn measured from the seabed too.
+  New partial `GameServerCreatureIceLid.cs`: `FluidRestY` follows the water to its real top and rests on an ice lid
+  (≤ 16 cells of ice and snow); `RestSurfaceYAt`, `TryOpenWaterTopAbove` (now returns the rest cell) and
+  `AirSpawnReferenceY` (over a natural sea its water or ice, not the seabed) use it. An open deep sea gets the same fix.
+- **Frozen seas in the far view (#2956):** `FarTerrainSource` drew every sea, pond and river column as water; a frozen one is
+  `Ground` + `ice` now (coarse level: `SeaSurfaceFrozen`, near level per column `TryGetIceSurface`), and far land wears the
+  altitude snow and ice (`WorldGenerator.AltitudeClimateSurface`, shared with `SummarizeSurface`). Client.Core only.
+- **Field medkit refuses when nobody is hurt (#2957):** a use with everyone in reach at full health cost 18 energy and a
+  cooldown with a silent green ring; now it is refused with "Everyone near you is already healthy"
+  (`srv.gadget.medkit_all_healthy`), no energy, no cooldown (`MedkitReach`, `MedkitWouldHeal`). Manual: a medkit paragraph.
+- **Tree variants drop their own items + recipe groups (#2958):** `wood_log_b`, `tree_leaves_b`, `tree_leaves_c`,
+  `blossom_leaves` are items placing their own block (groups `logs` / `leaves`; leaf blocks B/C renamed "Leaves (kind
+  2/3)"); an ingredient may name a group (`ItemAmount.Group`) — all 18 wood recipes, the field kitchen's research and the
+  firewood wish (`WishTemplate.Group` → `MissionObjective.TargetGroup`) take any log, the representative first.
+  Group-aware: `MaterialPool`, `CraftGate`, `BlueprintResearch`, crafting/research/vendor rows ("Logs (any kind)"), VEGA's
+  craft/research tips, the missing-materials line, the fabricator's crates, the tutorial's `trees_near`; `wood_log_b`
+  joins the dye/shape defaults; a firewood wish saved before the change takes its template's group; the validator rejects
+  an unknown group, a representative outside its group and two ingredients drawing on one item; `tools/merge_recipe.py`
+  writes the group of an editor recipe's log. Items are stored by key — no save-version change.
+
+Tests: `CreatureFrozenSeaTests` (4), `FarTerrainTests` (frozen sea + cold land vs. chunks), `ActionFxTests` (medkit
+refusal), `TreeVariantItemTests` (7), `CraftGateTests` + `BlueprintResearchTests` (group parity). Texts in all 14 languages.
+Docs: USER_MANUAL.md (medkit, far view, tree wood, boat), WORLD_GENERATION.md, WILDERNESS_FOLK.md, CRAFTING_TECH_SHIP_UI.md.
+
+---
+
 ### 📬 Player reports 2026-10-24 (Lyxette + Justus as Screelit, v2026.10.25) + main-menu alignment — a drone in the tunnels, light cut at a chunk border, private place names, System Check in line — #2950–#2953, branch fix/reports-2026-10-24 — ✅ done 2026-10-24 (⚠ playtest open; no generation or save-version change, no protocol bump)
 
 Three reports and one request from Marcel: Lyxette found a combat drone patrolling inside his tunnels under the

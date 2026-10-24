@@ -123,10 +123,11 @@ public sealed partial class GameServer
         var missing = new List<string>();
         foreach (var need in inputs)
         {
-            int have = pool.Count(need.Item);
+            int have = pool.Count(need); // #2958: a group ingredient counts every member and is named as the group
             if (have < need.Count)
             {
-                missing.Add(LocalizedName(session.Locale, _content.GetItem(need.Item)?.NameKey, need.Item)
+                string? nameKey = string.IsNullOrEmpty(need.Group) ? _content.GetItem(need.Item)?.NameKey : Shared.Content.GameContent.ItemGroupNameKey(need.Group);
+                missing.Add(LocalizedName(session.Locale, nameKey, need.Item)
                     + " (" + have.ToString(CultureInfo.InvariantCulture) + "/" + need.Count.ToString(CultureInfo.InvariantCulture) + ")");
             }
         }

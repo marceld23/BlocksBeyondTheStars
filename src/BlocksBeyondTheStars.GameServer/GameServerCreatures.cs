@@ -168,6 +168,8 @@ public sealed partial class GameServer
         _creatureSpawnRotor = 0;
         _creatureWaterId = _content.GetBlock("water")?.NumericId.Value ?? 0;
         _creatureLavaId = _content.GetBlock("lava")?.NumericId.Value ?? 0;
+        _creatureIceId = _content.GetBlock("ice")?.NumericId.Value ?? 0; // #2955: the lid of a frozen sea …
+        _creatureSnowId = _content.GetBlock("snow")?.NumericId.Value ?? 0; // … and the snow drifted onto it
         InitFences();
         InitHealTanks();
         InitGiants(); // #1998: the colossus / the sandworms of this world, outside the roster
@@ -2156,15 +2158,20 @@ public sealed partial class GameServer
             // Dry standable ground — a probe hit never lands inside a fluid. But a pond floor planted with kelp or
             // seagrass passes the probe (plants are walk-through), and that "ground" is under the water (#2552):
             // the band rides on the water's surface there too, not three cells down on the sand.
-            int planted = FluidTopAt(x, z, feet);
-            return planted != int.MinValue ? planted + 1 : feet;
+            int planted = FluidRestY(x, z, feet, openOnly: false);
+            return planted != int.MinValue ? planted : feet;
         }
 
+        // #2955: the water's REAL surface, or the ice frozen onto it. A sea deeper than the wide scan has no bed in
+        // reach — its water (the reference's own cell, or the first one under it) is followed up all the same; the
+        // noise surface below answered the seabed, and over a frozen ocean that flung a jellyfish under the ice.
         int bed = SubmergedFeetYAt(x, z, refY, CreatureWideGroundScan);
-        int top = bed != int.MinValue ? FluidTopAt(x, z, bed) : int.MinValue;
-        if (top != int.MinValue)
+        int rest = bed != int.MinValue
+            ? FluidRestY(x, z, bed, openOnly: false)
+            : FluidRestY(x, z, FluidCellAtOrBelow(x, z, refY, CreatureWideGroundScan), openOnly: true);
+        if (rest != int.MinValue)
         {
-            return top + 1;
+            return rest;
         }
 
         // #2552: the reference cell is IN THE FLOOR of a pond — the sand under the water, the rock under that. Water
@@ -2173,9 +2180,9 @@ public sealed partial class GameServer
         // guard held it at its depth. The pond is what the animal would come down onto: when the column above the
         // reference rises through solid ground into water that is open to the sky, the band rides on its surface.
         // A cave, an air pocket or a sealed flooded cavern above the reference leaves the rules below in charge.
-        if (IsSupportCell(x, refY, z) && TryOpenWaterTopAbove(x, z, refY, out int pondTop, out _))
+        if (IsSupportCell(x, refY, z) && TryOpenWaterTopAbove(x, z, refY, out int pondRest, out _))
         {
-            return pondTop + 1;
+            return pondRest;
         }
 
         // #1854: the reference cell is INSIDE a block — a gas-sac grazer that bobbed into a player's concrete
@@ -2261,11 +2268,12 @@ public sealed partial class GameServer
     /// Open to the sky means nothing a body collides with sits right on the top (a lily pad, a reed or a crown does
     /// not count) and no solid ground lies between it and the column's natural surface (<see cref="RoofBetween"/>,
     /// the #1711 guard) — so a flooded cave, a water pocket in the rock or a covered cistern never pulls a creature up
-    /// through its ceiling. False when the first open cell above is not water (a cave, the open air). Real blocks,
-    /// no-load reads.</summary>
-    private bool TryOpenWaterTopAbove(int x, int z, int fromY, out int waterTop, out int groundAbove)
+    /// through its ceiling. False when the first open cell above is not water (a cave, the open air). #2955:
+    /// <paramref name="restY"/> is the cell a body rests on there — the one above the water's real top, or above the
+    /// sheet of ice frozen onto it (<see cref="FluidRestY"/>). Real blocks, no-load reads.</summary>
+    private bool TryOpenWaterTopAbove(int x, int z, int fromY, out int restY, out int groundAbove)
     {
-        waterTop = int.MinValue;
+        restY = int.MinValue;
         groundAbove = 0;
         while (groundAbove <= CreatureWideGroundScan && IsSupportCell(x, fromY + groundAbove, z))
         {
@@ -2278,15 +2286,16 @@ public sealed partial class GameServer
             return false;
         }
 
-        int top = FluidTopAt(x, z, y);
-        if (top == int.MinValue
-            || IsCollidingCellIfLoaded(x, top + 1, z, foliagePasses: true)
-            || RoofBetween(x, z, top + 1, _generator.SurfaceHeight(_world.Planet, x, z) + 1))
+        // #2955: the water's real top — a deep sea is deeper than the motion scan, which stopped mid-water and called
+        // that the surface — and a sheet of ice frozen onto it is what the animal comes down onto.
+        int rest = FluidRestY(x, z, y, openOnly: true);
+        if (rest == int.MinValue
+            || RoofBetween(x, z, rest, _generator.SurfaceHeight(_world.Planet, x, z) + 1))
         {
             return false;
         }
 
-        waterTop = top;
+        restY = rest;
         return true;
     }
 
@@ -2304,10 +2313,10 @@ public sealed partial class GameServer
     private int AirRestSurfaceYAt(int x, int z, float bodyY, float hover)
     {
         int body = (int)System.Math.Floor(bodyY);
-        if (TryOpenWaterTopAbove(x, z, body, out int waterTop, out int groundAbove)
+        if (TryOpenWaterTopAbove(x, z, body, out int waterRest, out int groundAbove)
             && (groundAbove == 0 || SolidForCellsBelow(x, z, body, groundAbove)))
         {
-            return LiftOutOfGasSea(x, z, bodyY, waterTop + 1);
+            return LiftOutOfGasSea(x, z, bodyY, waterRest);
         }
 
         return LiftOutOfGasSea(x, z, bodyY, RestSurfaceYAt(x, z, (int)System.Math.Floor(bodyY - hover)));
@@ -2337,7 +2346,9 @@ public sealed partial class GameServer
     private float AirSpawnY(CreatureSpecies sp, int x, int z, int surface)
     {
         int gasTop = GasSeaTopY();
-        int rest = gasTop != int.MinValue ? GasColumnAirRestY(x, z, gasTop) : RestSurfaceYAt(x, z, surface + 1);
+        int rest = gasTop != int.MinValue
+            ? GasColumnAirRestY(x, z, gasTop)
+            : RestSurfaceYAt(x, z, AirSpawnReferenceY(x, z, surface)); // #2955: over a sea, its water or ice
         return rest + HoverOf(sp);
     }
 

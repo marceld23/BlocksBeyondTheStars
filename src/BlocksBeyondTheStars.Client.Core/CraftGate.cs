@@ -233,7 +233,7 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
-                m = Math.Min(m, Owned(inp.Item, input) / inp.Count);
+                m = Math.Min(m, Owned(inp, input) / inp.Count);
             }
 
             return Math.Clamp(m, 0, cap);
@@ -276,7 +276,7 @@ namespace BlocksBeyondTheStars.Client
         {
             foreach (var c in cost)
             {
-                if (Owned(c.Item, input) < c.Count * count)
+                if (Owned(c, input) < c.Count * count)
                 {
                     return false;
                 }
@@ -291,6 +291,23 @@ namespace BlocksBeyondTheStars.Client
         /// (#2206, <see cref="ItemMods.IsChangedVariant"/>).</summary>
         public static int Owned(string item, in CraftGateInput input)
             => CountIn(input.Personal, item) + CountIn(input.Cargo, item) + CountIn(input.Equipment, item);
+
+        /// <summary>How many of an ingredient the player may craft with: <see cref="Owned(string, in CraftGateInput)"/> of
+        /// the item and, for a group ingredient (#2958: any log), of every other member of its group — the server's
+        /// <c>MaterialPool.Count(ItemAmount)</c>.</summary>
+        public static int Owned(ItemAmount need, in CraftGateInput input)
+        {
+            int n = Owned(need.Item, input);
+            foreach (var member in input.Content.GroupMembersOf(need))
+            {
+                if (member != need.Item)
+                {
+                    n += Owned(member, input);
+                }
+            }
+
+            return n;
+        }
 
         private static int CountIn(NetItemStack[]? stacks, string item)
         {

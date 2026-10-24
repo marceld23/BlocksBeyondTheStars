@@ -440,7 +440,8 @@ separate unlock; admins can still disable it through server world rules.
 - **View distance (chunks, 1–16)** — how far the real, walkable world streams around you. It costs the most:
   every step up loads many more chunks. It takes effect the next time a world starts.
 - **Far view (Off · 512 · 1024 blocks)** — a lightweight low-detail horizon *beyond* the streamed chunks: mountains,
-  valleys, seas and lava seas out to the chosen distance, plus cities, settlements, ruins and player builds as they
+  valleys, seas and lava seas out to the chosen distance (a frozen sea, pond or river as ice, and cold land under its
+  snow and ice, as the chunks show it), plus cities, settlements, ruins and player builds as they
   stand. You cannot walk or mine it; as you get closer, the real chunks replace it. It applies at once, even from the
   pause menu. Defaults: **1024** on the desktop client, **512** in the browser and on tablets.
 - With the far view on, the haze reaches farther: worlds with thin air show a long, clear horizon, airless moons are
@@ -726,6 +727,11 @@ costs no frame rate.
   dunes shakes the sand like you do, the worm comes, and whatever stands where it strikes is swallowed — a piece or two of
   **meat** stays on the sand (pets and companions are never eaten). Ores are rare: obsidian veins, iron, copper, sulfur,
   carbon under the rock. VEGA warns you on landing; a few ruins stand on the rock, no settlements.
+- **Field medkit** (workshop, blueprint-gated; the doctor sells it, derelict crates sometimes hold one): a reusable
+  first-aid pulse. Select it and press **right-click** (pad: **LB**) — you don't aim it at anyone: it heals **you and
+  every player on foot within 6 blocks** by 45 health, costs 18 suit energy and is ready again after 4 seconds. When
+  everyone in reach is already healthy it is not used and tells you so ("Everyone near you is already healthy") — no
+  energy spent. It can't help a player who is down, and it gives you no air.
 - **Heal tank** (workshop, blueprint-gated): the life-support unit for your own base or station. Everyone
   within a few blocks of a placed tank is slowly healed and fed and the suit recharges — the only off-ship
   suit recharge. Press **E** on the tank to make it your **home spawn**: on death you then choose between
@@ -2094,7 +2100,8 @@ gloves' blueprint first, but crafting them does **not** use up your shock gloves
 - **Trees grow from saplings.** Craft a **sapling** by hand (1 log + 2 plant fibre → 2 saplings) or pick one up
   now and then when you clear leaves. Plant it on soil, grass or mud with **four free blocks above it**; after a
   couple of minutes it becomes a tree with a log trunk and a leafy crown. Under a low ceiling it simply waits.
-  Leaves, needles and fronds drop as blocks now, so you can build and shape a canopy by hand — and a sapling
+  Leaves, needles and fronds drop as blocks now — every leaf kind as its own block (#2958) — so you can build and
+  shape a canopy by hand — and a sapling
   planted on the dirt floor of a sealed station hall grows just like one on a planet, so an arboretum in orbit
   is a matter of dirt, saplings and headroom. A sapling you pick up stays a sapling.
 - **Plants and lamps need something to stand on.** Dig away the block under a plant, a sapling, a torch or a
@@ -3005,6 +3012,13 @@ called **stories**:
 - **Bark and leaves vary on every world** (old saves included): trunks come in several barks (rough, smooth, striped,
   shaggy, plated), the leaves of a planet's trees are picked from a bigger set of shapes, and neighbouring groves differ
   gently in colour instead of every tree being the same copy.
+- **Every tree gives you its own wood and leaves** (#2958): the pale trunk of a birch or bottle tree drops a **pale wood
+  log**, the second and third leaf kind of a planet drop **leaves (kind 2)** and **leaves (kind 3)**, a blossom tree
+  **blossom leaves** — placed again, they look like the tree you cut (a leaf kind takes the look of that kind on the
+  planet you place it on). Every recipe that asks for wood takes **any log**: the crafting card lists it as **Logs (any
+  kind)** and counts all of them, and your common logs are used up first, so the pale ones you cut to build with stay.
+  The same goes for a blueprint's research cost and for a villager who wants firewood. The giant tree's trunk still
+  gives two common logs.
 - **Not every planet glows** (terrain generation 29): on about four in ten planets no glowing plant grows on the surface,
   on three in ten you find one glowing kind, on two in ten a few — and one in ten is a **luminous world** full of glowing
   plants, where **lantern trees** hang their glowing golden fruit (always edible, it grows back after two minutes).
@@ -3360,8 +3374,8 @@ look up: what a mix does follows from what goes in, and the same things always g
 
 #### Boat (water vehicle)
 - The **boat** (`boat`) is the water kind of the same system — an early-game craft with **no
-  blueprint**: **by hand, anywhere**, from wood_log ×10 + plant_fiber ×6 (#2536 — listed as **Wooden boat**,
-  #2544), or at the workshop from wood_log ×8, iron_plate ×2, cable ×1 (listed as **Boat**). Both make the same
+  blueprint**: **by hand, anywhere**, from logs ×10 (any kind) + plant_fiber ×6 (#2536 — listed as **Wooden boat**,
+  #2544), or at the workshop from logs ×8, iron_plate ×2, cable ×1 (listed as **Boat**). Both make the same
   boat. On an **ocean** world you start with one.
 - Stand at the shore (or swim) and **use** it from the hotbar: it needs **open water in front of you** (2–5
   blocks ahead, a little to either side) and is set onto the **waterline**; on dry land you get "you need open

@@ -292,8 +292,12 @@ internal sealed class TutorialSystem
     /// <summary>Flora whose harvest is food (a drop with hunger value) — berries and the like.</summary>
     internal HashSet<ushort> FoodPlantBlocks => _foodPlantBlocks ??= BlocksDropping(item => _content.GetItem(item)?.ConsumeHunger > 0f, floraOnly: true);
 
-    /// <summary>Blocks that drop wood (tree trunks).</summary>
-    internal HashSet<ushort> TreeBlocks => _treeBlocks ??= BlocksDropping(item => item == "wood_log", floraOnly: false);
+    /// <summary>Blocks that drop wood (tree trunks) — the log and every item grouped with it (#2958: a birch drops its
+    /// own pale log and is a tree all the same).</summary>
+    internal HashSet<ushort> TreeBlocks => _treeBlocks ??= BlocksDropping(IsWood, floraOnly: false);
+
+    private bool IsWood(string item)
+        => item == "wood_log" || (_content.ItemGroupOf(item) is { Length: > 0 } group && group == _content.ItemGroupOf("wood_log"));
 
     private HashSet<ushort> BlocksDropping(Func<string, bool> drop, bool floraOnly)
     {
