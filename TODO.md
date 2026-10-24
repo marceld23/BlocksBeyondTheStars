@@ -26,8 +26,8 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ### 📬 Player report 2026-10-24, evening (Lyxette, v2026.10.25) — land animals on the spaceport, but only right after loading — #2960, branch fix/fauna-seed-streamed-ground — ✅ done 2026-10-24 (⚠ playtest open; server-only, no generation, save or protocol change)
 
-The report: land animals still stand on the floor of her walled spaceport, but only when the world has just loaded and
-she first steps out of the ship. Once she has hunted them, none come back during play. This is a follow-up to #2521.
+The report: land animals still stand on the floor of his walled spaceport, but only when the world has just loaded and
+he first steps out of the ship. Once he has hunted them, none come back during play. This is a follow-up to #2521.
 
 - **Cause, reproduced headless with a real network rejoin:** the first batch of animals (`PopulateCreaturesNear`) ran
   inline in the join and landing handlers, before the first streaming pass. Every rule of `SpawnSpotClear` reads real
