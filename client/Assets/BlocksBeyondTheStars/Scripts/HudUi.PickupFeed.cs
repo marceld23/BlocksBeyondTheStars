@@ -31,7 +31,7 @@ namespace BlocksBeyondTheStars.Client
 
         private readonly System.Collections.Generic.List<PickupRow> _pickupRows = new System.Collections.Generic.List<PickupRow>();
         private const int PickupMaxRows = 4;
-        private const float PickupRowH = 26f, PickupRowW = 300f, PickupLife = 2.5f, PickupFadeTime = 0.5f;
+        private const float PickupRowH = 26f, PickupRowW = 380f, PickupLife = 2.5f, PickupFadeTime = 0.5f;
         private float _pickupRightX, _pickupAnchorY; // right edge + top of the hotbar backplate
 
         private Canvas _flyCanvas; // own overlay canvas so the visor distortion can't bend the fly-ins
@@ -147,6 +147,12 @@ namespace BlocksBeyondTheStars.Client
                 row.Label.text = $"+{row.Count} " + BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(
                     Game.Localizer, item, _customFormName ??= idx => Game.CustomShapes?.NameOf(idx),
                     _speciesName ??= seed => Game.Bio.SpeciesName(seed));
+                // #2964: a pickup that only topped up a backpack stack leaves the hotbar unchanged — say where it went.
+                if (InventoryDiff.OnlyInBackpack(Game.Personal, item, Slots) && Game.Localizer != null)
+                {
+                    row.Label.text += "  ·  " + Game.Localizer.Get("hud.pickup.backpack");
+                }
+
                 changed = true;
             }
 

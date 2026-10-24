@@ -24,6 +24,27 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### 📬 Player report 2026-10-24, night (Marcel, v2026.10.26) — mined wood "does not arrive in the inventory" — #2964, branch fix/reports-2026-10-24d — ✅ done 2026-10-24 (⚠ playtest open; no generation, save or protocol change)
+
+The report: cutting a birch, the pale logs never showed up in the inventory, even with room for them.
+
+- **Cause:** nothing was lost. A headless replay of the reported save (the same three pale-log cells) gave +1 `wood_log_b`
+  each time, and the save's counters agree (`mine:wood_log_b` 11). `Inventory.Add` tops up an existing stack before it
+  fills a free slot, so the logs went onto the pale-log stack in backpack slot 13. Quick-bar slot 9 stayed empty, the
+  pickup icon flew into the hotbar, and the "+1 Pale wood log" row read like a hotbar pickup. From the player's side, the
+  wood had vanished.
+- **Fix:**
+  - The pickup feed row adds "· in your backpack" (`hud.pickup.backpack`) when the item has no stack on the quick-bar
+    (`InventoryDiff.OnlyInBackpack`, Client.Core). The row is now 380 px wide.
+  - The first mined find that lands only in the backpack makes VEGA say where it went, once (`vega.hint.backpack_pickup`,
+    an advisor hint, `GameServerBackpackHint.cs`).
+  - Texts in all 14 languages.
+
+Tests: `BackpackPickupHintTests` (a top-up of a backpack stack hints once and never again, a quick-bar find says nothing,
+variants count), `InventoryDiffTests.OnlyInBackpack_IsTrueWithoutAQuickBarStack`. Docs: USER_MANUAL.md (where a find goes).
+
+---
+
 ### 📬 Player report 2026-10-24, evening (Lyxette, v2026.10.25) — land animals on the spaceport, but only right after loading — #2960, branch fix/fauna-seed-streamed-ground — ✅ done 2026-10-24 (⚠ playtest open; server-only, no generation, save or protocol change)
 
 The report: land animals still stand on the floor of his walled spaceport, but only when the world has just loaded and

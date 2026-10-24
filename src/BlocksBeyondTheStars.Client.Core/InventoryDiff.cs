@@ -43,6 +43,37 @@ namespace BlocksBeyondTheStars.Client
             return gains;
         }
 
+        /// <summary>
+        /// #2964: whether <paramref name="item"/> (a base key; dyed or shaped variants count) sits in the backpack and on
+        /// none of the first <paramref name="quickSlots"/> slots, the quick-bar. A pickup of it tops up a backpack stack
+        /// the hotbar cannot show, so the feed row says where it went — a child cut a birch and reported the logs lost.
+        /// </summary>
+        public static bool OnlyInBackpack(IReadOnlyList<NetItemStack?>? stacks, string item, int quickSlots)
+        {
+            if (stacks == null)
+            {
+                return false;
+            }
+
+            bool inBackpack = false;
+            foreach (var s in stacks)
+            {
+                if (s == null || s.Count <= 0 || ItemKey.Base(s.Item) != item)
+                {
+                    continue;
+                }
+
+                if (s.Slot < quickSlots)
+                {
+                    return false;
+                }
+
+                inBackpack = true;
+            }
+
+            return inBackpack;
+        }
+
         /// <summary>Per-base-item totals of one snapshot; records first-seen key order when asked.</summary>
         private static Dictionary<string, int> Totals(IReadOnlyList<NetItemStack?>? stacks, List<string>? order)
         {

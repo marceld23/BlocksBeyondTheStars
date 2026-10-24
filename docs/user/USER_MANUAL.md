@@ -1016,6 +1016,11 @@ players.
   (20 before 2026-10 — an old stack of 20 fills up as you pick more up); medpacks 20; VEGA's memory fragments and
   SPS access codes 10 (they are meant to be rare); tools, weapons and suit gear one each. Machines, energy cells and a
   few other parts have smaller stacks of their own.
+- **Where a find goes:** whatever you mine or pick up first tops up a stack of the same thing you already carry, and
+  only then fills the first free slot. So if a stack of it is already in the backpack, the find goes there and the
+  hotbar does not change, even with a free quick-bar slot. The pickup row above the hotbar then reads
+  **"+1 Pale wood log · in your backpack"**, and the first time it happens VEGA tells you once where your find went
+  (2026-10). Put a backpack item on the quick-bar by clicking it and then a quick-bar slot.
 - **Suit gear works only while you WEAR it** (2026-09; before, a piece worked anywhere in the pack). The
   Inventory's **Suit** tab shows the worn slots as a **figure** (2026-10): **head** (helmet or titanium helmet),
   **chest** (chest armour, titanium chest plate *or* the stealth suit), **legs**, **feet** (boots or **spring

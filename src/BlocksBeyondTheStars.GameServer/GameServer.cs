@@ -5322,7 +5322,7 @@ public sealed partial class GameServer
         }
 
         OnBlockMined(session, def.Key);
-        OnCrystalBlockMinedHint(session, def.Key); // #2257: the first crystal tells what crystal can do
+        OnBlockMinedHints(session, def); // #2257: the first crystal tells what crystal can do; #2964: the first find in the backpack
         RaiseGameEvent(session, GameEventKeys.MineAny, def.Key); // #2465: the story-pack steps
         ShipAiOnBlockBroken(session, def.Key); // VEGA context tips (#1077): digging score, by-hand streak, rare-ore learned
         CreaturesOnBlockBroken(session, pos); // #1760: a flowerling that SEES this turns on the miner

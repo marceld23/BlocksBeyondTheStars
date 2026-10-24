@@ -103,4 +103,19 @@ public sealed class InventoryDiffTests
         var after = new NetItemStack?[] { S(0, string.Empty, 9), S(1, "mud", 0), null };
         Assert.Empty(InventoryDiff.Gains(before, after));
     }
+
+    /// <summary>#2964: the feed row says "in your backpack" when the picked-up item has no stack on the quick-bar — the
+    /// reported pale logs topped up a backpack stack with a quick-bar slot free.</summary>
+    [Fact]
+    public void OnlyInBackpack_IsTrueWithoutAQuickBarStack()
+    {
+        var reported = new[] { S(0, "basic_drill", 1), S(7, "plant_fiber", 18), S(12, "wood_log_b", 11) };
+        Assert.True(InventoryDiff.OnlyInBackpack(reported, "wood_log_b", 9));
+        Assert.False(InventoryDiff.OnlyInBackpack(reported, "plant_fiber", 9));
+        Assert.False(InventoryDiff.OnlyInBackpack(reported, "stone", 9)); // not carried at all
+        Assert.False(InventoryDiff.OnlyInBackpack(null, "stone", 9));
+
+        var both = new NetItemStack?[] { null, S(12, "wood_log_b", 11), S(4, "wood_log_b#t3", 2) }; // a dyed one on the bar
+        Assert.False(InventoryDiff.OnlyInBackpack(both, "wood_log_b", 9));
+    }
 }
